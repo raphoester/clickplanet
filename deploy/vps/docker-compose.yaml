@@ -1,4 +1,4 @@
-# Production stack for a single small VPS (Hetzner CX22 or equivalent).
+# Production stack for a single small VPS (DigitalOcean $6 droplet or equivalent).
 #
 #   docker compose --env-file .env up -d
 #
