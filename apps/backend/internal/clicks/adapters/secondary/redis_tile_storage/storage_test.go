@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/secondary/redis_tile_storage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/xenvs"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/suite"
@@ -29,7 +30,11 @@ func (s *testSuite) SetupSuite() {
 	s.Require().NoError(err)
 
 	setAndPublishOnStreamSha1 := s.redis.ScriptsMap["setAndPublishOnStream"]
-	s.storage = redis_tile_storage.New(s.redis.Client, redis_tile_storage.Config{SetAndPublishOnStreamSha1: setAndPublishOnStreamSha1})
+	s.storage = redis_tile_storage.New(
+		s.redis.Client,
+		redis_tile_storage.Config{SetAndPublishOnStreamSha1: setAndPublishOnStreamSha1},
+		logging.NewSLogger(),
+	)
 }
 
 func (s *testSuite) TearDownSuite() {
@@ -131,53 +136,94 @@ func (s *testSuite) TestSetAndPublishWithOverrideAndNoChange() {
 }
 
 func (s *testSuite) TestSetAndPublishWithALotOfConcurrentMessages() {
+	const (
+		messages  = 100_000
+		senders   = 32
+		receivers = 16
+	)
+
 	constantValue := "fr"
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
 	listener, err := s.storage.Subscribe(ctx)
 	s.Require().NoError(err)
 
-	rcvMap := make(map[uint32]struct{})
-	rcvMapMu := sync.RWMutex{}
+	rcvMap := make(map[uint32]struct{}, messages)
+	rcvMapMu := sync.Mutex{}
+
+	// closed as soon as every expected tile has been seen, so the receivers stop
+	// waiting on a listener that has nothing left to deliver.
+	allReceived := make(chan struct{})
+	allReceivedOnce := sync.Once{}
 
 	wgRcv := sync.WaitGroup{}
-	for i := 1; i <= 100_000; i++ {
+	for i := 0; i < receivers; i++ {
 		wgRcv.Add(1)
 		go func() {
 			defer wgRcv.Done()
-			select {
-			case <-ctx.Done():
-				s.T().Errorf("timeout")
-			case value := <-listener:
-				rcvMapMu.RLock()
-				s.Assert().Equal(constantValue, value.Value)
-				_, ok := rcvMap[value.Tile]
-				rcvMapMu.RUnlock()
+			for {
+				select {
+				case <-allReceived:
+					return
+				case <-ctx.Done():
+					return
+				case value, ok := <-listener:
+					if !ok {
+						return
+					}
 
-				s.Assert().False(ok)
+					s.Assert().Equal(constantValue, value.Value)
 
-				rcvMapMu.Lock()
-				rcvMap[value.Tile] = struct{}{}
-				rcvMapMu.Unlock()
+					rcvMapMu.Lock()
+					_, duplicate := rcvMap[value.Tile]
+					rcvMap[value.Tile] = struct{}{}
+					complete := len(rcvMap) == messages
+					rcvMapMu.Unlock()
+
+					s.Assert().False(duplicate, "tile %d was received twice", value.Tile)
+
+					if complete {
+						allReceivedOnce.Do(func() { close(allReceived) })
+					}
+				}
 			}
 		}()
 	}
 
+	// Bounded sender pool: one goroutine per tile makes the test hostage to the
+	// scheduler under -race without exercising anything the pool doesn't.
+	tiles := make(chan uint32)
 	wgSend := sync.WaitGroup{}
-	for i := uint32(1); i <= 100_000; i++ {
+	for i := 0; i < senders; i++ {
 		wgSend.Add(1)
 		go func() {
 			defer wgSend.Done()
-			err := s.storage.Set(context.Background(), i, constantValue)
-			s.Require().NoError(err)
+			for tile := range tiles {
+				if err := s.storage.Set(ctx, tile, constantValue); err != nil {
+					s.T().Errorf("failed to set tile %d: %v", tile, err)
+					return
+				}
+			}
 		}()
 	}
 
+sending:
+	for i := uint32(1); i <= messages; i++ {
+		select {
+		case tiles <- i:
+		case <-ctx.Done(): // every sender gave up; don't block the test forever
+			break sending
+		}
+	}
+	close(tiles)
+
 	wgSend.Wait()
 	wgRcv.Wait()
-	s.Assert().Equal(100_000, len(rcvMap))
+
+	s.Require().NoError(ctx.Err(), "timed out before receiving every update")
+	s.Assert().Equal(messages, len(rcvMap))
 }
 
 func (s *testSuite) TestGetStateByBatch() {

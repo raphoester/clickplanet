@@ -49,7 +49,7 @@ func (a *App) Configure(ctx context.Context) error {
 		return fmt.Errorf("failed to create redis client: %w", err)
 	}
 
-	retriever := redis_tile_storage.New(redisClient, a.config.TileStorage)
+	retriever := redis_tile_storage.New(redisClient, a.config.TileStorage, a.logger)
 
 	a.runner = runner.New(
 		a.config.Runner,

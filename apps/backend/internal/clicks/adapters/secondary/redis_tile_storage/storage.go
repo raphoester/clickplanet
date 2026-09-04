@@ -5,10 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/domain"
+	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging"
+	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging/lf"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -19,10 +20,12 @@ type Config struct {
 func New(
 	redis *redis.Client,
 	config Config,
+	logger logging.Logger,
 ) *Storage {
 	return &Storage{
 		redis:                     redis,
 		setAndPublishOnStreamSha1: config.SetAndPublishOnStreamSha1,
+		logger:                    logger,
 	}
 }
 
@@ -31,6 +34,7 @@ const streamLabel = "tileUpdates"
 type Storage struct {
 	redis                     *redis.Client
 	setAndPublishOnStreamSha1 string
+	logger                    logging.Logger
 }
 
 func (s *Storage) Set(ctx context.Context, tile uint32, value string) error {
@@ -76,81 +80,91 @@ func (s *Storage) GetStateBatch(ctx context.Context, start uint32, end uint32) (
 	return retMap, nil
 }
 
+// Subscribe streams every tile update published after the call returns.
+//
+// The read position is resolved to a concrete stream ID *before* returning, so
+// callers can rely on "Subscribe returned" meaning "nothing published from now
+// on will be missed". Reading with "$" instead would re-resolve the tail on
+// every XREAD, silently dropping everything appended between two reads.
 func (s *Storage) Subscribe(ctx context.Context) (<-chan domain.TileUpdate, error) {
-	startID := "$"
+	lastID, err := s.streamTailID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to pin stream position: %w", err)
+	}
+
 	ch := make(chan domain.TileUpdate)
-	errsCh := make(chan error) // TODO: do something with the errsCh
-	ready := make(chan struct{})
 
 	go func() {
-		wg := sync.WaitGroup{}
+		defer close(ch)
 
 		for {
-			select {
-			case <-ctx.Done():
-				wg.Wait()
-				close(ch)
+			if ctx.Err() != nil {
 				return
-			default:
-				xReadRes := s.redis.XRead(ctx, &redis.XReadArgs{
-					Streams: []string{streamLabel, startID},
-					Count:   100,
-					Block:   1 * time.Second, // DO NOT SET AT 0 OTHERWISE IT WILL BLOCK FOREVER
-				})
+			}
 
-				// signal that the subscription is ready, in a select otherwise it will block the goroutine
+			streams, err := s.redis.XRead(ctx, &redis.XReadArgs{
+				Streams: []string{streamLabel, lastID},
+				Count:   100,
+				Block:   1 * time.Second, // DO NOT SET AT 0 OTHERWISE IT WILL BLOCK FOREVER
+			}).Result()
+
+			if err != nil {
+				if errors.Is(err, redis.Nil) { // wtf redis lib: no message before the block deadline
+					continue
+				}
+
+				if ctx.Err() != nil {
+					return
+				}
+
+				s.logger.Error("failed to read tile updates stream", lf.Err(err))
+				continue
+			}
+
+			if len(streams) == 0 || len(streams[0].Messages) == 0 {
+				continue
+			}
+
+			// Advance only once the whole batch has been handed to the consumer:
+			// the next XREAD acts as the acknowledgement of the previous one.
+			for _, message := range streams[0].Messages {
+				tileUpdate, err := xMessageToTileUpdate(message)
+				if err != nil {
+					s.logger.Error("failed to parse message to tile update",
+						lf.String("message_id", message.ID), lf.Err(err))
+					lastID = message.ID
+					continue
+				}
+
 				select {
-				case ready <- struct{}{}:
-				default:
+				case ch <- *tileUpdate:
+					lastID = message.ID
+				case <-ctx.Done():
+					return
 				}
-
-				streams, err := xReadRes.Result()
-				if err != nil && !errors.Is(err, redis.Nil) { // wtf redis lib
-					errsCh <- fmt.Errorf("failed to read stream: %w", err)
-					continue
-				}
-
-				if len(streams) == 0 {
-					continue
-				}
-
-				if len(streams[0].Messages) == 0 {
-					continue
-				}
-
-				startID = streams[0].Messages[len(streams[0].Messages)-1].ID
-
-				wg.Add(1)
-				// handle slow consumers in a separate goroutine
-				// the waitGroup will be done when the slow consumer is done, making sure the goroutine is not closed
-				// because of the context finishing before the slow consumer is done
-				go func() {
-					defer wg.Done()
-					for _, message := range streams[0].Messages {
-
-						tileUpdate, err := xMessageToTileUpdate(message)
-						if err != nil {
-							errsCh <- fmt.Errorf("failed to parse message to tile update: %w", err)
-							continue
-						}
-
-						select {
-						case ch <- *tileUpdate:
-						case <-ctx.Done():
-							return
-						}
-					}
-				}()
 			}
 		}
 	}()
 
-	<-ready
-
 	return ch, nil
 }
 
-// PastUpdates returns all updates that happened between now and duration ago
+// streamTailID returns the ID of the last entry currently in the stream, or
+// "0-0" when the stream does not exist yet. Both are safe starting points for
+// an XREAD that must only yield entries appended from now on.
+func (s *Storage) streamTailID(ctx context.Context) (string, error) {
+	messages, err := s.redis.XRevRangeN(ctx, streamLabel, "+", "-", 1).Result()
+	if err != nil && !errors.Is(err, redis.Nil) {
+		return "", fmt.Errorf("failed to read stream tail: %w", err)
+	}
+
+	if len(messages) == 0 {
+		return "0-0", nil
+	}
+
+	return messages[0].ID, nil
+}
+
 func (s *Storage) PastUpdates(
 	ctx context.Context,
 	duration time.Duration,
