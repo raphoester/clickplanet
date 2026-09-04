@@ -42,6 +42,16 @@ func (s *Storage) Run(ctx context.Context) {
 		return
 	}
 
+	// Surface an unwritable destination at startup rather than one interval
+	// later: a snapshot path the process cannot write means no durability at
+	// all, which is otherwise easy to miss in the logs.
+	if err := checkWritable(s.config.SnapshotPath); err != nil {
+		s.logger.Error("snapshot path is not writable, tile state will not survive a restart",
+			lf.String("path", s.config.SnapshotPath),
+			lf.Err(err),
+		)
+	}
+
 	s.logger.Info("snapshotting tile state",
 		lf.String("path", s.config.SnapshotPath),
 		lf.Any("interval", s.config.SnapshotInterval),
@@ -330,6 +340,30 @@ func syncDir(dir string) error {
 
 	if err := d.Sync(); err != nil {
 		return fmt.Errorf("failed to sync snapshot directory: %w", err)
+	}
+
+	return nil
+}
+
+// checkWritable reports whether a snapshot could be written to path, without
+// disturbing an existing snapshot.
+func checkWritable(path string) error {
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("failed to create snapshot directory: %w", err)
+	}
+
+	probe, err := os.CreateTemp(dir, filepath.Base(path)+".probe-*")
+	if err != nil {
+		return fmt.Errorf("failed to create a file in the snapshot directory: %w", err)
+	}
+
+	if err := probe.Close(); err != nil {
+		return fmt.Errorf("failed to close the probe file: %w", err)
+	}
+
+	if err := os.Remove(probe.Name()); err != nil {
+		return fmt.Errorf("failed to remove the probe file: %w", err)
 	}
 
 	return nil

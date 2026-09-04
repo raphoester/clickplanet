@@ -16,7 +16,9 @@ import (
 
 // shutdownTimeout bounds how long in-flight HTTP requests get to finish before
 // the background runners — and with them the final tile snapshot — are stopped.
-const shutdownTimeout = 10 * time.Second
+// Kept well under Docker's default 10s stop timeout so that the snapshot still
+// gets written even if a request refuses to drain.
+const shutdownTimeout = 5 * time.Second
 
 func (a *App) Run() error {
 	a.logger.Info("Listening",

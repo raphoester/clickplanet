@@ -31,6 +31,9 @@ services:
         source: ./backend.yaml
         target: /home/app/config/config.yaml
       # Snapshot file lives here, so tile state survives a container restart.
+      # The image creates /home/app/state owned by the app user, which is what
+      # makes a fresh named volume writable — a bind mount from the host needs
+      # to be chowned to uid 1000 instead.
       - tile_state:/home/app/state
     command: [ "./api", "-config", "/home/app/config/config.yaml" ]
 
