@@ -5,9 +5,8 @@
 # Caddy terminates TLS (automatic Let's Encrypt certs) and reverse-proxies to
 # the Go API. The frontend is NOT served here — it lives on Cloudflare Pages.
 #
-# Rollback to Redis-backed storage (see the `redis` profile below):
-#   docker compose --profile redis up -d
-# with TILES_STORAGE_DRIVER=redis in .env.
+# There is no database. The API keeps the tile map in process and snapshots it
+# to the tile_state volume.
 
 services:
   caddy:
@@ -32,32 +31,15 @@ services:
     restart: unless-stopped
     expose:
       - "8080"
-    environment:
-      # cfgutil loads env vars with "." as the nesting delimiter, so these
-      # override the matching keys in backend.yaml without baking secrets
-      # into a file that lives in git.
-      redis.password: ${REDIS_PASSWORD:-secret}
+    # cfgutil loads env vars with "." as the nesting delimiter, so a key like
+    # `tilesStorage.snapshotInterval` can be overridden here without editing
+    # backend.yaml. Nothing secret is needed by this stack.
     volumes:
       - ./backend.yaml:/home/app/config/config.yaml:ro
       - tile_state:/home/app/state   # snapshot file lives here — back this up
     command: [ "./api", "-config", "/home/app/config/config.yaml" ]
 
-  # Only started with `--profile redis`. Kept so switching the storage driver
-  # back is a config change, not a redeploy of a different stack.
-  redis:
-    profiles: [ redis ]
-    image: redis:7.4.1-alpine3.20
-    container_name: cp-redis
-    restart: unless-stopped
-    command: [ "redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:-secret}" ]
-    expose:
-      - "6379"
-    volumes:
-      - redis_data:/data
-      - ../../apps/backend/static:/static:ro
-
 volumes:
   caddy_data:
   caddy_config:
   tile_state:
-  redis_data:

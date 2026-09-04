@@ -7,9 +7,9 @@ Monorepo for [clickplanet.lol](https://clickplanet.lol), a real-time multiplayer
 ```
 apps/
 ├── frontend/   # React + Three.js client — see apps/frontend/README.md
-└── backend/    # Go API + bookkeeper — see apps/backend/README.md
+└── backend/    # Go API — see apps/backend/README.md
 proto/          # Shared protobuf contract (single source of truth for both apps)
-deploy/         # Local full-stack docker-compose (frontend + backend + redis)
+deploy/         # Local full-stack docker-compose (frontend + backend)
 ```
 
 Previously three separate repos (`clickplanet.lol-frontend`, `clickplanet.lol-backend`, `clickplanet.lol-proxy`); merged here to stop hand-syncing the protobuf contract between frontend and backend, which had drifted apart before. Full history of both apps is preserved under `apps/`.
@@ -32,8 +32,10 @@ cd apps/frontend && npm run proto
 
 ### Full local stack
 
-`deploy/docker-compose.yaml` runs frontend + backend + redis together using locally built Docker images (`clickplanet-back:local`, `registry.digitalocean.com/clickplanet-frontend/frontend:latest` — build them first via each app's `dBuild` script/target):
+`deploy/docker-compose.yaml` runs frontend + backend together using locally built Docker images (`clickplanet-back:local`, `registry.digitalocean.com/clickplanet-frontend/frontend:latest` — build them first via each app's `dBuild` script/target):
 
 ```bash
-cd deploy && docker-compose up
+cd deploy && docker compose up
 ```
+
+There is no database: the backend holds the tile map in process and snapshots it to the `tile_state` volume.

@@ -1,3 +1,11 @@
+# Local full stack: frontend + backend. That is the whole stack — there is no
+# database. The backend keeps the tile map in process and snapshots it to the
+# tile_state volume.
+#
+#   cd apps/frontend && npm run dBuild
+#   cd apps/backend  && make dBuild
+#   cd deploy        && docker compose up
+
 services:
   frontend:
     container_name: cp-frontend
@@ -16,14 +24,12 @@ services:
       - type: bind
         source: ./backend.yaml
         target: /home/app/config/config.yaml
+      # Snapshot file lives here, so tile state survives a container restart.
+      # The image creates /home/app/state owned by the app user, which is what
+      # makes a fresh named volume writable — a bind mount from the host needs
+      # to be chowned to uid 1000 instead.
+      - tile_state:/home/app/state
     command: [ "./api", "-config", "/home/app/config/config.yaml" ]
-    depends_on:
-      - redis
 
-  # for the backend to work, need to load the lua script located in the backend repo:
-  # docker exec -i cp-redis /bin/sh -c "(redis-cli -x script load < /static/setAndPublish.lua) > /static/setAndPublish.sha1"
-  redis:
-    container_name: cp-redis
-    image: redis:7.4.1-alpine3.20
-    volumes:
-      - ../apps/backend/static:/static
+volumes:
+  tile_state:

@@ -1,17 +1,8 @@
-.PHONY: proto dbUp dbDown
+.PHONY: proto test
 
 proto:
 	@cd ../../proto && buf lint
 	@cd proto && buf generate
-
-dbUp:
-	@cd ./tools/devdb && \
-		docker-compose up -d --wait
-		docker exec -i clickPlanet-redis /bin/sh -c "(redis-cli -x script load < /static/setAndPublishOnStream.lua) > /static/setAndPublishOnStream.sha1"
-
-dbDown:
-	@cd ./tools/devdb && \
-		docker-compose down
 
 dBuild:
 	@docker build -t clickplanet-back:local .

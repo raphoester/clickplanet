@@ -19,6 +19,7 @@ Prices are from late 2025 — check before you commit.
 Hetzner is roughly 4x the resources for 60% of the price, and its API is good.
 But it has no managed Postgres, Redis, Kubernetes or registry: the moment
 another project needs a managed data service, that's a new vendor to stack on.
+(This app needs none of them — but the next one might.)
 DigitalOcean sits at the deliberate middle — enough managed services to grow
 into, few enough to stay legible, an API and console that are already familiar.
 The delta is about $3/month, which is noise next to the ~$44/month saved by
@@ -29,7 +30,7 @@ Caddyfile; it moves to any provider that rents a Linux box.
 
 ## Layout
 
-- `docker-compose.yaml` — Caddy + backend (+ `redis` profile for rollback)
+- `docker-compose.yaml` — Caddy + backend. That is the whole stack; there is no database.
 - `Caddyfile` — TLS, reverse proxy, CORS, WebSocket passthrough
 - `backend.yaml` — API config; secrets come from env, not this file
 - `.env.example` — copy to `.env` on the box
@@ -53,9 +54,9 @@ in front of the API too; WebSockets work on the free plan.
 ## 2. The droplet
 
 A **Basic / Regular $6 droplet** (1 vCPU, 1 GB RAM, 25 GB SSD, 1 TB transfer) is
-enough: the Go API holds the whole tile grid in a few MB, and Redis disappears
-once the in-process storage lands. Images are built in CI and only pulled here,
-so the box never needs build headroom. Pick the Ubuntu LTS image and a region
+enough: the Go API holds the whole tile grid in a few MB and there is no
+database to run beside it. Images are built in CI and only pulled here, so the
+box never needs build headroom. Pick the Ubuntu LTS image and a region
 near your players.
 
 `apps/backend/Dockerfile` pins `GOARCH=amd64`, so stay on a regular Intel/AMD
@@ -74,20 +75,13 @@ Then as `deploy`:
 
 ```bash
 cd /opt/clickplanet/deploy/vps
-cp .env.example .env && $EDITOR .env   # set API_DOMAIN, FRONTEND_ORIGIN, REDIS_PASSWORD
-docker compose --profile redis up -d
+cp .env.example .env && $EDITOR .env   # set API_DOMAIN, FRONTEND_ORIGIN
+docker compose up -d
 ```
 
-The `redis` profile is needed **until the in-process storage PR lands**. After
-that: switch `backend.yaml` to the memory driver, then `docker compose up -d`
-without the profile and `docker rm -f cp-redis`.
-
-One-time Lua script load (Redis path only), then paste the sha1 into
-`backend.yaml` and restart the backend:
-
-```bash
-docker exec -i cp-redis sh -c 'redis-cli -a "$REDIS_PASSWORD" -x script load < /static/setAndPublishOnStream.lua'
-```
+Nothing else to provision: no database to start, no script to load, no secret
+to set. On first boot the API finds no snapshot and starts from an empty map,
+logging `no tile snapshot found`.
 
 Check it:
 
@@ -144,8 +138,8 @@ Pages deploys itself on push; no workflow needed.
 
 ## 5. Backups
 
-The whole game state is one snapshot file in the `tile_state` volume (or
-`redis_data` on the Redis path). A nightly cron on the box is enough:
+The whole game state is one snapshot file in the `tile_state` volume, written
+every 30s and on every clean shutdown. A nightly cron on the box is enough:
 
 ```bash
 0 4 * * * docker run --rm -v vps_tile_state:/state -v /home/deploy/backups:/out alpine \
@@ -158,5 +152,6 @@ the whole disk if you would rather not think about it.
 ## Rollback
 
 - **Bad backend build:** `BACKEND_IMAGE=ghcr.io/raphoester/clickplanet-backend:<sha>` in `.env`, then `docker compose up -d backend`.
-- **In-process storage misbehaving:** restore the `redis:` block in `backend.yaml` and `docker compose --profile redis up -d`.
+- **Lost or corrupt tile state:** stop the backend, drop the newest backup's `tiles.snapshot` into the `tile_state` volume, start it again. A snapshot the API cannot parse is not fatal — it logs and starts from an empty map, so a bad file degrades to a reset rather than a crash loop.
+- **In-process storage misbehaving:** there is no config switch back to Redis — that code is gone. Roll the backend image back to a pre-migration `<sha>` and restore the matching Redis stack from git history.
 - **Frontend:** roll back the deployment in the Pages dashboard.
