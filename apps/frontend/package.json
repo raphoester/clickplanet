@@ -7,10 +7,11 @@
     "dBuild": "docker build -t registry.digitalocean.com/clickplanet-frontend/frontend:latest .",
     "dPush": "docker push registry.digitalocean.com/clickplanet-frontend/frontend:latest",
     "dev": "vite --host 0.0.0.0",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && npm run copy:static",
     "lint": "eslint .",
     "preview": "vite preview",
-    "proto": "npx buf generate"
+    "proto": "npx buf generate",
+    "copy:static": "rm -rf dist/static && mkdir -p dist/static && cp -R static/. dist/static/ && rm -f dist/static/coordinates.json"
   },
   "dependencies": {
     "@bufbuild/protobuf": "^1.10.0",

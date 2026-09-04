@@ -1,0 +1,56 @@
+# Automatic HTTPS via Let's Encrypt. Caddy needs ports 80 and 443 reachable
+# from the internet and API_DOMAIN's A record pointing at this box.
+
+{$API_DOMAIN} {
+	encode zstd gzip
+
+	# CORS: the frontend is served from a different origin (Cloudflare Pages),
+	# so both preflight and actual requests need these.
+	header {
+		Access-Control-Allow-Origin "{$FRONTEND_ORIGIN}"
+		Access-Control-Allow-Methods "GET, POST, OPTIONS"
+		Access-Control-Allow-Headers "Content-Type"
+		Vary "Origin"
+		-Server
+	}
+
+	# Answer preflight here — the Go API does not handle OPTIONS.
+	# handle blocks are mutually exclusive and evaluated in order, so this
+	# must come before the /v2/rpc/* block below.
+	@options method OPTIONS
+	handle @options {
+		respond 204
+	}
+
+	# Protobuf/JSON RPC endpoints
+	handle /v2/rpc/* {
+		reverse_proxy backend:8080
+	}
+
+	# WebSocket stream of tile updates. Caddy upgrades automatically; the
+	# disabled timeouts keep idle spectators connected.
+	handle /v2/ws/* {
+		reverse_proxy backend:8080 {
+			transport http {
+				read_timeout 0
+				write_timeout 0
+			}
+		}
+	}
+
+	# Prometheus metrics — closed by default. Uncomment and restrict by source
+	# IP if you attach a scraper.
+	# handle /metrics {
+	#     @internal remote_ip 10.0.0.0/8
+	#     reverse_proxy @internal backend:8080
+	# }
+
+	handle {
+		respond "not found" 404
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}
