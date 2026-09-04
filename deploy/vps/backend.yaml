@@ -1,28 +1,18 @@
 # Production backend config for the VPS stack.
 #
-# NOTE: this matches the CURRENT (Redis-backed) config schema, so the stack
-# runs today. Once the in-process tile storage PR lands, switch to the
-# commented block at the bottom and stop the redis service.
+# There is no database: the API holds the whole tile map in process and
+# snapshots it to /home/app/state, which is the tile_state volume in
+# docker-compose.yaml. That file is the only thing worth backing up.
 
 httpServer:
   bindAddress: 0.0.0.0:8080
   format: binary # the frontend talks protobuf in production
 gameMap:
   maxIndex: 257946 # must match the tile count baked into the frontend coordinates
-redis:
-  address: cp-redis:6379
-  username: default
-  password: overridden-by-env # see `redis.password` in docker-compose.yaml
-  db: 0
-  tls: false
-tilesStorage:
-  # Load the Lua script once after first boot, then paste the sha1 here:
-  #   docker exec -i cp-redis sh -c "redis-cli -a $REDIS_PASSWORD -x script load < /static/setAndPublishOnStream.lua"
-  setAndPublishOnStreamSha1: "5c24cb40524c6de242838e109f998b147397ea54"
 
-# --- After the in-process storage PR: drop `redis:` above and use ---
-# tilesStorage:
-#   driver: memory
-#   snapshotPath: /home/app/state/tiles.snapshot
-#   snapshotInterval: 30s
-# (Exact key names come from that PR — check its updated cmd/api/example.yaml.)
+tilesStorage:
+  snapshotPath: /home/app/state/tiles.snapshot
+  # Upper bound on what a hard kill (OOM, power loss) can lose. A clean
+  # `docker compose down` or a rolling redeploy loses nothing: the API writes a
+  # final snapshot on SIGTERM.
+  snapshotInterval: 30s
