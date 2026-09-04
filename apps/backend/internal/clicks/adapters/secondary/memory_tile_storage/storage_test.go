@@ -177,16 +177,22 @@ func (s *testSuite) TestSlowSubscriberIsDroppedNotBlocking() {
 
 	// The subscriber never reads: everything past its one-slot buffer is
 	// dropped, and Set keeps returning promptly.
-	done := make(chan struct{})
+	// testify's Require calls FailNow, which is only safe on the test
+	// goroutine — hand errors back instead.
+	errs := make(chan error, 1)
 	go func() {
-		defer close(done)
+		defer close(errs)
 		for i := uint32(1); i <= 1000; i++ {
-			s.Require().NoError(storage.Set(context.Background(), i, "fr"))
+			if err := storage.Set(context.Background(), i, "fr"); err != nil {
+				errs <- err
+				return
+			}
 		}
 	}()
 
 	select {
-	case <-done:
+	case err := <-errs:
+		s.Require().NoError(err)
 	case <-time.After(5 * time.Second):
 		s.T().Fatal("a slow subscriber blocked the writers")
 	}
@@ -514,6 +520,10 @@ func (s *testSuite) TestConcurrentSetsAndReads() {
 
 	countries := []string{"fr", "us", "de", "es"}
 
+	// Errors are collected and asserted on the test goroutine: testify's
+	// Require calls FailNow, which must not run off it.
+	errs := make(chan error, 2*writers)
+
 	wg := sync.WaitGroup{}
 	for w := range writers {
 		wg.Add(1)
@@ -521,7 +531,10 @@ func (s *testSuite) TestConcurrentSetsAndReads() {
 			defer wg.Done()
 			for i := range tilesPerWriter {
 				tile := uint32(w*tilesPerWriter + i + 1)
-				s.Require().NoError(storage.Set(context.Background(), tile, countries[i%len(countries)]))
+				if err := storage.Set(context.Background(), tile, countries[i%len(countries)]); err != nil {
+					errs <- err
+					return
+				}
 			}
 		}()
 
@@ -529,15 +542,23 @@ func (s *testSuite) TestConcurrentSetsAndReads() {
 		go func() {
 			defer wg.Done()
 			for range 100 {
-				_, err := storage.GetStateBatch(context.Background(), 1, writers*tilesPerWriter)
-				s.Require().NoError(err)
-				_, err = storage.PastUpdates(context.Background(), time.Hour, s.clock.Now())
-				s.Require().NoError(err)
+				if _, err := storage.GetStateBatch(context.Background(), 1, writers*tilesPerWriter); err != nil {
+					errs <- err
+					return
+				}
+				if _, err := storage.PastUpdates(context.Background(), time.Hour, s.clock.Now()); err != nil {
+					errs <- err
+					return
+				}
 			}
 		}()
 	}
 
 	wg.Wait()
+	close(errs)
+	for err := range errs {
+		s.Require().NoError(err)
+	}
 
 	state, err := storage.GetStateBatch(context.Background(), 1, writers*tilesPerWriter)
 	s.Require().NoError(err)
