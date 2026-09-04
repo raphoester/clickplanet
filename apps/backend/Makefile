@@ -1,9 +1,11 @@
-.PHONY: proto dbUp dbDown
+.PHONY: proto dbUp dbDown test migrateFromRedis
 
 proto:
 	@cd ../../proto && buf lint
 	@cd proto && buf generate
 
+# Redis is only needed for the tilesStorage.driver: redis path. The default
+# memory driver needs nothing, and the integration tests use dockertest.
 dbUp:
 	@cd ./tools/devdb && \
 		docker-compose up -d --wait
@@ -30,3 +32,7 @@ dRm:
 
 test:
 	@go test -v ./... | grep -v 'no test files'
+
+# One-off: copy tile state out of a running Redis into a snapshot file.
+migrateFromRedis:
+	@go run ./cmd/redis-to-snapshot -config cmd/api/example.yaml

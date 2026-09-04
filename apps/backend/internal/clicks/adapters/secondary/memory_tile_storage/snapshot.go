@@ -291,6 +291,13 @@ func writeFileAtomic(path string, data []byte) error {
 		_ = os.Remove(tmpName)
 	}()
 
+	// CreateTemp makes the file 0600; snapshots are not secret and backup jobs
+	// may well run as another user.
+	if err := tmp.Chmod(0o644); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("failed to chmod temp file: %w", err)
+	}
+
 	if _, err := tmp.Write(data); err != nil {
 		_ = tmp.Close()
 		return fmt.Errorf("failed to write temp file: %w", err)

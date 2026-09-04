@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 This is a monorepo with two independent apps, each with its own `CLAUDE.md` for app-specific commands and architecture:
 
 - [`apps/frontend/CLAUDE.md`](apps/frontend/CLAUDE.md) — React/Three.js client (npm)
-- [`apps/backend/CLAUDE.md`](apps/backend/CLAUDE.md) — Go API + bookkeeper (Go modules)
+- [`apps/backend/CLAUDE.md`](apps/backend/CLAUDE.md) — Go API (Go modules)
 
 Read the relevant app's `CLAUDE.md` before working inside `apps/frontend/` or `apps/backend/` — this file only covers what's shared across both.
 
@@ -24,7 +24,9 @@ Both apps' `buf.gen.yaml` reference `../../proto` (or `../../../proto` for the b
 
 ## Local full stack
 
-`deploy/docker-compose.yaml` runs redis + backend + frontend together using locally built Docker images. Build each app's image first (`apps/frontend`'s `npm run dBuild`, `apps/backend`'s `make dBuild`), then `cd deploy && docker-compose up`.
+`deploy/docker-compose.yaml` runs backend + frontend together using locally built Docker images. Build each app's image first (`apps/frontend`'s `npm run dBuild`, `apps/backend`'s `make dBuild`), then `cd deploy && docker compose up`.
+
+There is **no database in the default stack**: the backend keeps the whole tile map in process and snapshots it to the `tile_state` volume. Redis sits behind `--profile redis` for the rollback path (`tilesStorage.driver: redis` in `deploy/backend.yaml`) — see [`apps/backend/CLAUDE.md`](apps/backend/CLAUDE.md) for the durability tradeoff and the full config schema.
 
 ## Independence of the two apps
 

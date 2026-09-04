@@ -3,12 +3,27 @@ httpServer:
   format: binary
 gameMap:
   maxIndex: 1004892
+
 tilesStorage:
-  # docker exec -i clickPlanet-redis /bin/sh -c "(redis-cli -x script load < /static/setAndPublish.lua) > /static/setAndPublish.sha1"
-  setAndPublishSha1: "1bb67149ba7631bb4ac8719b8356a1c072a45d4f"
-  redis:
-    address: cp-redis:6379
-    username: default
-    password: secret
-    db: 0
-    tls: false
+  driver: memory
+  memory:
+    # Backed by the tile_state volume in docker-compose.yaml.
+    snapshotPath: /home/app/state/tiles.snapshot
+    snapshotInterval: 30s
+
+# --- Rollback to Redis ---------------------------------------------------
+# Set driver: redis above, start the redis profile, load the Lua script once
+#   docker exec -i cp-redis sh -c "redis-cli -x script load < /static/setAndPublishOnStream.lua"
+# and paste the sha1 it prints here:
+#
+#   tilesStorage:
+#     driver: redis
+#     redis:
+#       setAndPublishOnStreamSha1: "5c24cb40524c6de242838e109f998b147397ea54"
+#
+#   redis:
+#     address: cp-redis:6379
+#     username: default
+#     password: secret
+#     db: 0
+#     tls: false
