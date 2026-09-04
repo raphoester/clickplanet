@@ -56,7 +56,7 @@ Types are defined in the monorepo-shared [`/proto/clicks/v1/clicks.proto`](../..
 
 ### Static assets
 
-`/static/coordinates.json` — tile coordinate data loaded at runtime.
+`/static/coordinates.json` — tile coordinate data, **imported at build time** by `points.ts` and bundled into the JS chunk (not fetched at runtime, and excluded from the deployed `dist/static/`).
 `/static/countries/` — country flags and a sprite atlas used for tile rendering.
 
 ### Styling

@@ -1,0 +1,10 @@
+# Content-hashed bundles never change under the same name.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Textures, flags and the sprite atlas change only when regenerated.
+/static/*
+  Cache-Control: public, max-age=604800
+
+/index.html
+  Cache-Control: public, max-age=0, must-revalidate

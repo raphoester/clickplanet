@@ -11,7 +11,7 @@ import {ClickServiceClient, HTTPBackend} from "./backends/httpBackend.ts";
 import App from "./app/App.tsx";
 
 const clickServiceClient = new ClickServiceClient({
-    baseUrl: "https://clickplanet.lol",
+    baseUrl: import.meta.env.VITE_API_BASE_URL ?? "https://api.clickplanet.lol",
     timeoutMs: 2000
 })
 
