@@ -1,0 +1,7 @@
+.idea
+.DS_Store
+.env
+
+cmd/api/config.yaml
+
+tools/monitoring/prometheus.yaml
