@@ -56,7 +56,9 @@ Types are defined in the monorepo-shared [`/proto/clicks/v1/clicks.proto`](../..
 
 ### Static assets
 
-`/static/coordinates.json` — tile coordinate data, **imported at build time** by `points.ts` and bundled into the JS chunk (not fetched at runtime, and excluded from the deployed `dist/static/`).
+`/static/coordinates-<hash>.bin` — tile coordinate data, **fetched at runtime** by `points.ts` and decoded into `Float32Array` views. The format lives in `src/app/viewer/coordinatesBinary.ts` (magic + version + tile count header, then little-endian float32 positions and uvs); the file name carries a content hash so a regenerated map is never served from the week-long `/static/*` cache in `public/_headers`, and `src/app/viewer/coordinatesAsset.ts` is generated alongside it to hold the current URL.
+
+`/static/coordinates.json` — the human-readable generator output, kept in the repo but **not deployed** (`copy:static` deletes it from `dist/static/`). Regenerate both files with `npm run coordinates <detail> <mapFilePath> [threshold]`, or rebuild just the binary from the existing JSON with `npm run coordinates:convert`.
 `/static/countries/` — country flags and a sprite atlas used for tile rendering.
 
 ### Styling

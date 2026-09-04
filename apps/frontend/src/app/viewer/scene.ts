@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import {innerSphere} from "./sphere.ts";
 
 
-export function setupScene() {
+export function setupScene(container: HTMLElement) {
     const scene = new THREE.Scene();
     const cameraSize = 1;
     const aspect = window.innerWidth / window.innerHeight;
@@ -16,19 +16,48 @@ export function setupScene() {
     const renderer = new THREE.WebGLRenderer({});
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setClearColor(0x000000);
-    document.getElementById('three-container')!.appendChild(renderer.domElement);
+    container.appendChild(renderer.domElement);
 
     scene.add(new THREE.AmbientLight(0xffffff, 2));
 
+    /**
+     * Removes only this run's canvas, not everything in the container: under
+     * <StrictMode> a discarded run and the surviving one share the container,
+     * and each renderer owns a WebGL context that has to be released explicitly
+     * or the browser drops the oldest context once the limit is reached.
+     */
     const cleanup = () => {
+        renderer.setAnimationLoop(null);
+        disposeScene(scene);
+        renderer.domElement.remove();
         renderer.dispose();
-        const container = document.getElementById('three-container')
-        if (container) {
-            container.innerHTML = "";
-        }
+        renderer.forceContextLoss();
     }
 
     return {scene, camera, cameraSize, renderer, cleanup};
+}
+
+export function disposeScene(scene: THREE.Scene) {
+    scene.traverse((object) => {
+        const {geometry, material} = object as Partial<THREE.Mesh>;
+        geometry?.dispose();
+        for (const single of Array.isArray(material) ? material : material ? [material] : []) {
+            disposeMaterial(single);
+        }
+    });
+    scene.clear();
+}
+
+export function disposeMaterial(material: THREE.Material) {
+    for (const value of Object.values(material)) {
+        if (value instanceof THREE.Texture) value.dispose();
+    }
+    if (material instanceof THREE.ShaderMaterial) {
+        for (const uniform of Object.values(material.uniforms)) {
+            if (uniform.value instanceof THREE.Texture) uniform.value.dispose();
+        }
+    }
+    material.dispose();
 }
 
 const textureLoader = new THREE.TextureLoader();

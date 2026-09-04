@@ -1,5 +1,9 @@
+import {writeFileSync} from "node:fs";
+
 import sharp from "sharp";
 import * as THREE from "three";
+
+import {jsonPath, writeCoordinatesBinary} from "./writeCoordinates.ts";
 
 const args = process.argv.slice(2);
 if (args.length < 2) {
@@ -14,7 +18,15 @@ const threshold = args[2] ? parseInt(args[2]) : 128;
 loadMap().then(({pixels, width, height}) => {
     const baseCoordinates = generateBaseCoordinates(detail);
     const landCoordinates = filterOutCoordinatesNotOnLand(baseCoordinates, pixels, width, height);
-    console.log(JSON.stringify(landCoordinates));
+
+    // The JSON stays the human-readable generator output kept in the repo; only
+    // the binary is shipped, so both are written from the same run to keep them
+    // describing the same map.
+    writeFileSync(jsonPath, JSON.stringify(landCoordinates));
+    console.log(`wrote static/coordinates.json: ${landCoordinates.length} tiles`);
+
+    const {fileName, byteLength, tiles} = writeCoordinatesBinary(landCoordinates);
+    console.log(`wrote static/${fileName}: ${tiles} tiles, ${byteLength} bytes`);
 })
 
 type Coordinates = {

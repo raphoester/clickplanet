@@ -12,24 +12,27 @@ import pickerVertex from "./shaders/picker/vertex.glsl"
 // @ts-expect-error typescript does not know about vite-plugin-glsl
 import pickerFragment from "./shaders/picker/fragment.glsl"
 
-import coordinatesDataSet from "../../../static/coordinates.json"
+import {COORDINATES_URL} from "./coordinatesAsset.ts"
+import {decodeCoordinates, type PointGeometryData} from "./coordinatesBinary.ts"
 
-const pointGeometryData = function () {
-    const tmpCoordinates = coordinatesDataSet as {
-        positions: number[];
-        uvs: number[];
-        length: number;
+export type {PointGeometryData}
+
+/**
+ * Fetches the tile coordinates blob and views it as the typed arrays the
+ * geometry needs. The data used to be a build-time JSON import, which put 25 MB
+ * into the main chunk; fetching the binary keeps the chunk small and skips both
+ * the JSON parse and the element-by-element copy into Float32Array.
+ */
+export async function loadPointGeometryData(signal?: AbortSignal): Promise<PointGeometryData> {
+    const response = await fetch(COORDINATES_URL, {signal})
+    if (!response.ok) {
+        throw new Error(`Failed to fetch ${COORDINATES_URL}: ${response.status} ${response.statusText}`)
     }
+    return decodeCoordinates(await response.arrayBuffer())
+}
 
-    return {
-        positions: new Float32Array(tmpCoordinates.positions),
-        uvs: new Float32Array(tmpCoordinates.uvs),
-        size: tmpCoordinates.length
-    }
-}();
-
-export function createPoints(uniforms: { [uniform: string]: IUniform; }) {
-    const {positions, uvs, size} = pointGeometryData;
+export function createPoints(uniforms: { [uniform: string]: IUniform; }, data: PointGeometryData) {
+    const {positions, uvs, size} = data;
 
     const colors = generatePickingColors(size);
     const pickerGeometry = new THREE.BufferGeometry();
