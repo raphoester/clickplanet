@@ -23,9 +23,6 @@ go run ./cmd/api -config cmd/api/example.yaml
 make dbUp
 make dbDown
 
-# Copy tile state out of a running Redis into a snapshot file (one-off migration)
-go run ./cmd/redis-to-snapshot -config cmd/api/example.yaml
-
 # Generate protobuf code (requires buf CLI)
 make proto
 
@@ -40,7 +37,6 @@ This is a Go backend for a collaborative map-clicking game. It follows **hexagon
 ### One application
 
 - **`cmd/api`** — HTTP/WebSocket server handling clicks, tile ownership queries, and real-time updates. Follows `New()` → `Configure()` → `Run()`.
-- **`cmd/redis-to-snapshot`** — one-off migration aid, not part of the running system.
 
 `cmd/api` runs as a **single self-contained container** by default: the tile map lives in process and is persisted to a local snapshot file. There is no second service to run.
 

@@ -1,4 +1,4 @@
-.PHONY: proto dbUp dbDown test migrateFromRedis
+.PHONY: proto dbUp dbDown test
 
 proto:
 	@cd ../../proto && buf lint
@@ -32,7 +32,3 @@ dRm:
 
 test:
 	@go test -v ./... | grep -v 'no test files'
-
-# One-off: copy tile state out of a running Redis into a snapshot file.
-migrateFromRedis:
-	@go run ./cmd/redis-to-snapshot -config cmd/api/example.yaml
