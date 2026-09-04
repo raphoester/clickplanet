@@ -6,5 +6,10 @@
 /static/*
   Cache-Control: public, max-age=604800
 
+# The tile coordinates blob is content-addressed: regenerating the map ships it
+# under a new file name, so this can outlive the /static/* week above.
+/static/coordinates-*.bin
+  Cache-Control: public, max-age=31536000, immutable
+
 /index.html
   Cache-Control: public, max-age=0, must-revalidate

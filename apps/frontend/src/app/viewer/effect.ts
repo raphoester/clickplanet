@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import {OrbitControls} from "three/addons/controls/OrbitControls.js";
-import {addDisplayObjects, setupScene} from "./scene.ts";
-import {createPoints} from "./points.ts";
+import {addDisplayObjects, disposeMaterial, setupScene} from "./scene.ts";
+import {createPoints, loadPointGeometryData} from "./points.ts";
 import {actOnPick} from "./gpuPicking.ts";
 import {regions} from "./atlas.ts";
 import {Countries, Country} from "../countries.ts";
@@ -17,15 +17,28 @@ type Uniforms = {
 
 const textureLoader = new THREE.TextureLoader();
 
-export function effect(
+export type EffectHandle = Awaited<ReturnType<typeof effect>>
+
+export async function effect(
     tileClicker: TileClicker,
     ownershipsGetter: OwnershipsGetter,
     updatesListener: UpdatesListener,
     updateLeaderboard: (data: { country: Country, tiles: number }[]) => void,
     eventTarget: HTMLElement,
-    countryState: Country
+    countryState: Country,
+    signal: AbortSignal,
 ) {
-    const {scene, camera, cameraSize, renderer, cleanup} = setupScene();
+    // Fetched before anything is allocated, so a run abandoned during the
+    // download (StrictMode's throwaway first mount, or an unmount) never opens a
+    // WebGL context in the first place.
+    const geometryData = await loadPointGeometryData(signal);
+    if (signal.aborted) throw new DOMException("effect aborted", "AbortError");
+
+    /** Aborted by cleanup(); detaches every listener this run registered. */
+    const lifetime = new AbortController();
+    const listenerOptions = {signal: lifetime.signal};
+
+    const {scene, camera, cameraSize, renderer, cleanup} = setupScene(eventTarget);
     const uniforms: Uniforms = {
         zoom: {value: 1.0},
         resolution: {value: new THREE.Vector2(window.innerWidth, window.innerHeight)},
@@ -33,7 +46,7 @@ export function effect(
         atlasTextureSize: {value: new THREE.Vector2(1300, 1232)}, // TODO: retrieve the size from the texture itself
     };
 
-    const {pickingPoints, displayPoints, size} = createPoints(uniforms);
+    const {pickingPoints, displayPoints, size} = createPoints(uniforms, geometryData);
     console.log("running with", size, "points");
 
     let country: Country = countryState;
@@ -51,7 +64,7 @@ export function effect(
             id => updateHoverEffect(displayPoints.geometry, id),
             () => updateHoverEffect(displayPoints.geometry)
         )
-    });
+    }, listenerOptions);
 
     const leaderboard = new Leaderboard(updateLeaderboard)
 
@@ -76,7 +89,7 @@ export function effect(
             displayPoints.geometry.getAttribute('regionVector').needsUpdate = true
             // don't register click here or duplicate will be counted from the webhook updates
         });
-    });
+    }, listenerOptions);
 
     const resizeListener = () => {
         const width = window.innerWidth;
@@ -96,7 +109,7 @@ export function effect(
         uniforms.resolution.value.set(width, height);
     };
     // resize is a window event and cannot be captured by the eventTarget
-    window.addEventListener('resize', resizeListener);
+    window.addEventListener('resize', resizeListener, listenerOptions);
 
     // 0 means no region is selected, by default it's like that for the whole map
     const generateDefaultRegionVector = (size: number) => {
@@ -158,7 +171,7 @@ export function effect(
 
 
     addDisplayObjects(scene, displayPoints)
-    startAnimation(renderer, scene, camera, uniforms);
+    const stopAnimation = startAnimation(renderer, scene, camera, uniforms);
 
     return {
         updateCountry: (newCountry: Country) => {
@@ -166,14 +179,21 @@ export function effect(
         },
         country: country,
         tilesCount: size,
+        /** Safe to call at any point after effect() resolves, and only once. */
         cleanup: () => {
-            window.removeEventListener('resize', resizeListener);
+            // Detaches every listener this run registered. Replaces the old
+            // clone-and-swap trick, which also destroyed the canvas a concurrent
+            // StrictMode run had appended to the same container.
+            lifetime.abort()
 
-            // Cleaning up event listeners by replacing the eventTarget with a clone of itself
-            // Cannot use removeEventListener because the refs are not fixed (callbacks are created in the effect)
-            const newNode = eventTarget.cloneNode(true)
-            eventTarget.parentNode?.replaceChild(newNode, eventTarget)
+            stopAnimation()
             cleanUpdatesListener()
+
+            // pickingPoints only ever lives in the throwaway scene gpuPicking
+            // builds per event, so setupScene's cleanup never sees it.
+            pickingPoints.geometry.dispose()
+            disposeMaterial(pickingPoints.material as THREE.Material)
+
             cleanup()
         }
     }
@@ -184,7 +204,7 @@ function startAnimation(
     scene: THREE.Scene,
     camera: THREE.OrthographicCamera,
     uniforms: Uniforms,
-) {
+): () => void {
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.minZoom = 1;
     controls.maxZoom = 50;
@@ -199,14 +219,19 @@ function startAnimation(
         controls.rotateSpeed = (1 / camera.zoom) / 1.5;
     });
 
-    const animate = () => {
-        requestAnimationFrame(animate);
+    // setAnimationLoop rather than a self-scheduling requestAnimationFrame: the
+    // latter cannot be stopped, so every remount left another loop rendering
+    // through a disposed renderer.
+    renderer.setAnimationLoop(() => {
         controls.update();
         renderer.render(scene, camera);
         updateUniforms(camera, uniforms);
-    };
+    });
 
-    animate();
+    return () => {
+        renderer.setAnimationLoop(null);
+        controls.dispose();
+    };
 }
 
 function updateUniforms(camera: THREE.OrthographicCamera, uniforms: Uniforms) {

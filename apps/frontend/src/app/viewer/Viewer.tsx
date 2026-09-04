@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { effect } from "./effect.ts";
+import { effect, EffectHandle } from "./effect.ts";
 import { OwnershipsGetter, TileClicker, UpdatesListener } from "../../backends/backend.ts";
 import Settings from "../Settings.tsx";
 import { Country } from "../countries.ts";
@@ -24,32 +24,57 @@ export default function Viewer(props: ViewerProps) {
 
     const [leaderboardData, setLeaderboardData] = useState<{ country: Country, tiles: number }[]>([])
     const [isReady, setIsReady] = useState(false);
+    const [loadError, setLoadError] = useState<string | null>(null);
 
     useEffect(() => {
         const eventTarget = document.getElementById("three-container")!
-        const {
-            updateCountry,
-            country,
-            tilesCount,
-            cleanup,
-        } = effect(
+
+        // The globe now waits on a ~5 MB coordinates download, so init is async
+        // while cleanup stays synchronous. Under <StrictMode> React tears the
+        // first run down before it resolves, hence the cancelled flag: it aborts
+        // the fetch and, if the run had already resolved, disposes it so the
+        // discarded mount leaves no WebGL context behind.
+        const abortController = new AbortController()
+        let cancelled = false
+        let handle: EffectHandle | null = null
+
+        setIsReady(false)
+        setLoadError(null)
+
+        effect(
             props.tileClicker,
             props.ownershipsGetter,
             props.updatesListener,
             (data) => setLeaderboardData(data),
             eventTarget,
-            countryState
-        )
+            countryState,
+            abortController.signal,
+        ).then((result) => {
+            if (cancelled) {
+                result.cleanup()
+                return
+            }
 
-        tilesCountRef.current = tilesCount
-        handleSetCountry(country)
-        setCountryRef.current = (country: Country) => {
-            handleSetCountry(country)
-            updateCountry(country)
+            handle = result
+            tilesCountRef.current = result.tilesCount
+            handleSetCountry(result.country)
+            setCountryRef.current = (country: Country) => {
+                handleSetCountry(country)
+                result.updateCountry(country)
+            }
+            setIsReady(true)
+        }).catch((error) => {
+            if (cancelled) return
+            console.error("Failed to initialize the globe", error)
+            setLoadError(error instanceof Error ? error.message : String(error))
+        })
+
+        return () => {
+            cancelled = true
+            abortController.abort()
+            handle?.cleanup()
+            handle = null
         }
-        setIsReady(true)
-
-        return cleanup
     }, [props]);
 
     const setCountry = (country: Country) => {
@@ -58,10 +83,22 @@ export default function Viewer(props: ViewerProps) {
     }
 
     return <>
-        {/*nested container to not blow up when force-deleting events from parent in cleanup*/}
         <div>
             <div id="three-container" style={{ width: '100vw', height: '100vh' }} />
         </div>
+        {!isReady && <div className="viewer-status">
+            <div className="viewer-status-card">
+                {loadError
+                    ? <>
+                        <h3>The globe could not be loaded</h3>
+                        <p>{loadError}</p>
+                    </>
+                    : <>
+                        <div className="viewer-status-spinner"/>
+                        <h3>Loading the planet…</h3>
+                    </>}
+            </div>
+        </div>}
         <div className="menu">
             {isReady && <>
                 <Leaderboard

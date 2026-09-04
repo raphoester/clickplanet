@@ -38,6 +38,9 @@ export function actOnPick(
         1, 1, pixelBuffer
     )
 
+    // Allocated per event, so it has to be released per event as well.
+    renderTarget.dispose();
+
     const originalId = colorToInteger([pixelBuffer[0], pixelBuffer[1], pixelBuffer[2]]);
     if (shouldSkipID(originalId)) {
         nullIdCallback?.()
