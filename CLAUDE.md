@@ -26,7 +26,7 @@ Both apps' `buf.gen.yaml` reference `../../proto` (or `../../../proto` for the b
 
 `deploy/docker-compose.yaml` runs backend + frontend together using locally built Docker images. Build each app's image first (`apps/frontend`'s `npm run dBuild`, `apps/backend`'s `make dBuild`), then `cd deploy && docker compose up`.
 
-There is **no database in the default stack**: the backend keeps the whole tile map in process and snapshots it to the `tile_state` volume. Redis sits behind `--profile redis` for the rollback path (`tilesStorage.driver: redis` in `deploy/backend.yaml`) — see [`apps/backend/CLAUDE.md`](apps/backend/CLAUDE.md) for the durability tradeoff and the full config schema.
+There is **no database**: the backend keeps the whole tile map in process and snapshots it to the `tile_state` volume, which is the only thing worth backing up. See [`apps/backend/CLAUDE.md`](apps/backend/CLAUDE.md) for the durability tradeoff and the full config schema.
 
 ## Independence of the two apps
 

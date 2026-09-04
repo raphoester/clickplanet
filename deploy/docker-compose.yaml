@@ -1,16 +1,10 @@
-# Local full stack: frontend + backend, no database.
-#
-# The backend defaults to the in-process tile storage, so this is the whole
-# stack — the tile state lives in the container and is snapshotted to the
+# Local full stack: frontend + backend. That is the whole stack — there is no
+# database. The backend keeps the tile map in process and snapshots it to the
 # tile_state volume.
 #
 #   cd apps/frontend && npm run dBuild
 #   cd apps/backend  && make dBuild
 #   cd deploy        && docker compose up
-#
-# To run against Redis instead (the rollback path), start the redis profile and
-# switch the driver in backend.yaml:
-#   docker compose --profile redis up
 
 services:
   frontend:
@@ -36,17 +30,6 @@ services:
       # to be chowned to uid 1000 instead.
       - tile_state:/home/app/state
     command: [ "./api", "-config", "/home/app/config/config.yaml" ]
-
-  # Only started with `--profile redis`, for the tilesStorage.driver: redis
-  # rollback path. The Lua script has to be loaded once before the backend can
-  # write anything:
-  #   docker exec -i cp-redis sh -c "redis-cli -x script load < /static/setAndPublishOnStream.lua"
-  redis:
-    profiles: [ redis ]
-    container_name: cp-redis
-    image: redis:7.4.1-alpine3.20
-    volumes:
-      - ../apps/backend/static:/static
 
 volumes:
   tile_state:

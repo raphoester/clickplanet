@@ -12,7 +12,7 @@ type timedUpdate struct {
 }
 
 // ring is a fixed-capacity FIFO of recent updates. Once full, pushing
-// overwrites the oldest entry — the equivalent of a capped Redis stream.
+// overwrites the oldest entry.
 type ring struct {
 	buf   []timedUpdate
 	start int
@@ -50,7 +50,7 @@ func (r *ring) evictBefore(cutoff time.Time) {
 }
 
 // since returns, in chronological order, the updates recorded at or after the
-// given instant. The bound is inclusive, matching Redis' XRANGE.
+// given instant. The bound is inclusive.
 func (r *ring) since(start time.Time) []domain.TileUpdate {
 	updates := make([]domain.TileUpdate, 0, r.size)
 	for i := 0; i < r.size; i++ {

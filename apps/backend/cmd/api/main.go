@@ -9,9 +9,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/app"
 )
 
-// startupTimeout bounds the wiring phase (config, and dialling Redis when the
-// redis driver is selected). Run() is not bound by it: it serves until a
-// SIGINT/SIGTERM arrives.
+// startupTimeout bounds the wiring phase: reading the config and restoring the
+// tile snapshot. Run() is not bound by it — it serves until a SIGINT/SIGTERM
+// arrives.
 const startupTimeout = 5 * time.Second
 
 func main() {

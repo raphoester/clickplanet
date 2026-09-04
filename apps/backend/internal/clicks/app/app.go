@@ -8,7 +8,6 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/prom"
-	"github.com/redis/go-redis/v9"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/cfgutil"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/httpserver"
@@ -32,7 +31,6 @@ type App struct {
 	answerer *httpserver.Answerer
 	reader   httpserver.Reader
 
-	redisClient  *redis.Client
 	promRegistry *prometheus.Registry
 }
 

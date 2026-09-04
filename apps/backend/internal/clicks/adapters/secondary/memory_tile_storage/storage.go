@@ -94,8 +94,8 @@ func (s *Storage) Set(_ context.Context, tile uint32, value string) error {
 		return err
 	}
 
-	// Mirrors static/setAndPublishOnStream.lua: setting a tile to the value it
-	// already holds writes nothing and publishes nothing.
+	// Setting a tile to the value it already holds writes nothing and
+	// publishes nothing, so no redundant fan-out reaches the clients.
 	if !changed {
 		return nil
 	}
@@ -146,7 +146,7 @@ func (s *Storage) internLocked(value string) (uint16, error) {
 }
 
 // GetStateBatch returns the owned tiles in [start, end] — bounds inclusive,
-// unowned tiles omitted, same as the Redis adapter.
+// unowned tiles omitted.
 func (s *Storage) GetStateBatch(_ context.Context, start uint32, end uint32) (map[uint32]string, error) {
 	if start > end {
 		return map[uint32]string{}, nil

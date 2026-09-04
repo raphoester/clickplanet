@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-# Run all tests
+# Run all tests — no Docker, no database, nothing to start first
 make test
 # or: go test ./... | grep -v 'no test files'
 
@@ -15,13 +15,8 @@ go test ./internal/clicks/domain/click_handler_service/... -run TestName
 # Run the concurrency-sensitive tests under the race detector
 go test ./... -race
 
-# Run API server locally (no external services needed)
+# Run API server locally
 go run ./cmd/api -config cmd/api/example.yaml
-
-# Start Redis dev environment — ONLY needed for the redis driver.
-# The dockertest integration tests spin up their own container.
-make dbUp
-make dbDown
 
 # Generate protobuf code (requires buf CLI)
 make proto
@@ -36,11 +31,11 @@ This is a Go backend for a collaborative map-clicking game. It follows **hexagon
 
 ### One application
 
-- **`cmd/api`** — HTTP/WebSocket server handling clicks, tile ownership queries, and real-time updates. Follows `New()` → `Configure()` → `Run()`.
+**`cmd/api`** — HTTP/WebSocket server handling clicks, tile ownership queries, and real-time updates. Follows `New()` → `Configure()` → `Run()`.
 
-`cmd/api` runs as a **single self-contained container** by default: the tile map lives in process and is persisted to a local snapshot file. There is no second service to run.
+It runs as a **single self-contained container with no dependencies**: the tile map lives in process and is persisted to a local snapshot file. There is no database, no cache, and no second process.
 
-The X/Twitter reporting job used to be a separate `cmd/bookkeeper` process. It now runs inside `cmd/api` as an optional goroutine behind `bookkeeper.enabled` (default off) — with the memory driver the recent-updates window only exists inside the API process, so a separate process would have nothing to read.
+The X/Twitter reporting job used to be a separate `cmd/bookkeeper` process. It now runs inside `cmd/api` as an optional goroutine behind `bookkeeper.enabled` (default off) — the recent-updates window only exists inside the API process, so a separate process would have nothing to read.
 
 ### Domain Layer (`internal/clicks/domain/`)
 
@@ -61,13 +56,12 @@ Core interfaces (ports) defined in `gateways.go`:
 - `adapters/primary/http/websocket_publisher/` — subscribes to the tile update stream, broadcasts to WebSocket clients
 
 **Secondary (output):**
-- `adapters/secondary/memory_tile_storage/` — **the default.** Holds the map in a preallocated `[]uint16` indexed by tile id, with country codes interned into a side table (2 bytes per tile — ~2 MB for a 1M-tile map). Fans updates out in process, serves `PastUpdates` from a bounded ring buffer, and persists to a local snapshot file.
-- `adapters/secondary/redis_tile_storage/` — the original Redis-backed storage, kept so rollback is a config change. Persists tile ownership in Redis using a Lua script (`static/setAndPublishOnStream.lua`) for atomic SET + XADD to the `tileUpdates` stream.
+- `adapters/secondary/memory_tile_storage/` — the tile map. A preallocated `[]uint16` indexed by tile id, with country codes interned into a side table (2 bytes per tile — ~2 MB for a 1M-tile map). Fans updates out in process, serves `PastUpdates` from a bounded ring buffer, and persists to a local snapshot file.
 - `adapters/secondary/in_memory_tile_checker/` — validates tile IDs
 - `adapters/secondary/in_memory_country_checker/` — validates country codes (hardcoded)
 - `adapters/secondary/x_publisher/` — posts to X/Twitter
 
-Both storage adapters expose the same three things — the `domain.TileStorage` port, `Subscribe(ctx) (<-chan domain.TileUpdate, error)` and `PastUpdates(ctx, duration, now)` — so they are interchangeable. That contract is the unexported `tilesStorage` interface in `internal/clicks/app/v2.go`; keep them in step when changing either.
+Beyond the `domain.TileStorage` port, `memory_tile_storage` also exposes `Subscribe(ctx) (<-chan domain.TileUpdate, error)` for the websocket publisher and `PastUpdates(ctx, duration, now)` for the bookkeeper.
 
 ### Key Flow
 
@@ -79,33 +73,35 @@ POST /v2/rpc/click
   → WebsocketPublisher (fans out to WS clients)
 ```
 
-`Set` is a no-op when the tile already holds that value — no write, no update published. `memory_tile_storage` mirrors that behaviour from `static/setAndPublishOnStream.lua`; keep the two in step.
+`Set` is a no-op when the tile already holds that value — no write, no update published.
 
-### Durability (memory driver)
+### Durability
 
-The whole map is snapshotted to `tilesStorage.memory.snapshotPath`:
+The whole map is snapshotted to `tilesStorage.snapshotPath`:
 - a compact binary encoding, not JSON: magic + version + CRC32, then the interned country code table, then two bytes per tile
 - written atomically — temp file, fsync, `os.Rename`, fsync of the directory — so a crash mid-write leaves the previous snapshot intact
 - flushed every `snapshotInterval` when the state changed, and once more on graceful shutdown (`cmd/api` handles SIGINT/SIGTERM for exactly this)
 - restored at boot; a missing, truncated, or corrupt snapshot logs and starts from an empty map, it never prevents a start
 - a snapshot taken at a different `gameMap.maxIndex` restores the overlap
 
-**What this trades away:** anything written since the last snapshot is lost on a hard kill (`SIGKILL`, OOM, power loss), bounded by `snapshotInterval`. And because the state is per-process, running more than one API instance would give each its own divergent map — the memory driver is single-instance only.
+**What this costs:** anything written since the last snapshot is lost on a hard kill (`SIGKILL`, OOM, power loss), bounded by `snapshotInterval`. And because the state is per-process, **this is single-instance only** — two API replicas would each hold their own divergent map. Both are deliberate: the game state is a few MB and the WebSocket fanout was already per-instance, so a database was buying durability alone.
+
+The snapshot file is the only thing worth backing up.
 
 ### Kernel (`internal/kernel/`)
 
-Shared infrastructure: `cfgutil` (YAML + env config via koanf), `httpserver` (middleware, formats), `logging`, `prom` (Prometheus), `xredis`, `xtime`, `ctxutil`, `xenvs`.
+Shared infrastructure: `cfgutil` (YAML + env config via koanf), `httpserver` (middleware, formats), `logging`, `prom` (Prometheus), `xtime`, `ctxutil`, `basicutil`.
 
 ### Configuration
 
-Config is loaded from a YAML file (`-config` flag), with environment variables overriding it — `cfgutil` uses `.` as the nesting delimiter, so `tilesStorage.driver=redis` in the environment overrides the file. See `cmd/api/example.yaml` for the full schema.
+Config is loaded from a YAML file (`-config` flag), with environment variables overriding it — `cfgutil` uses `.` as the nesting delimiter, so `tilesStorage.snapshotPath=/data/tiles` in the environment overrides the file. See `cmd/api/example.yaml` for the full schema.
 
 - `httpServer.bindAddress`, `httpServer.format` (`json` or `binary` for protobuf)
 - `gameMap.maxIndex` — total number of tiles
-- `tilesStorage.driver` — `memory` (default) or `redis`
-- `tilesStorage.memory.*` — `snapshotPath` (empty disables durability), `snapshotInterval`, `subscriberBuffer`, `pastUpdatesBuffer`, `pastUpdatesRetention`
-- `tilesStorage.redis.setAndPublishOnStreamSha1` — SHA1 of the Lua script (must match `static/setAndPublishOnStream.sha1`). **Only read by the redis driver** — the default path needs no Lua script and no sha1 to keep in sync.
-- `redis.*` — connection settings. **Only dialled when `driver: redis`.**
+- `tilesStorage.snapshotPath` — where the state is persisted; **empty disables durability**
+- `tilesStorage.snapshotInterval` — how often a changed state is flushed
+- `tilesStorage.subscriberBuffer` — per-WebSocket-subscriber channel capacity; updates for a subscriber that cannot keep up are dropped, not blocked on
+- `tilesStorage.pastUpdatesBuffer`, `tilesStorage.pastUpdatesRetention` — size and age bounds on the recent-updates ring buffer the bookkeeper reads
 - `bookkeeper.enabled`, `bookkeeper.runner.interval`
 
 ### Protobuf
@@ -114,7 +110,4 @@ API contracts live in the monorepo-shared [`/proto/clicks/v1/clicks.proto`](../.
 
 ### Testing
 
-- Unit tests use `testify`
-- `memory_tile_storage` is covered by unit tests only — no Docker required
-- The `redis_tile_storage` integration tests use `dockertest` to spin up real Redis containers
-- `make dbUp` loads the Lua script into the dev Redis instance; integration tests handle their own Redis via dockertest
+Unit tests only, using `testify`. There are no integration tests and no Docker dependency — `go test ./...` runs everything from a clean checkout.
