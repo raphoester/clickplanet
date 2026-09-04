@@ -2,7 +2,7 @@ import {Ownerships, OwnershipsGetter, TileClicker, Update, UpdatesListener} from
 import {
     ClickRequest, OwnershipBatchRequest,
     Ownerships as OwnershipsProto, TileUpdate,
-} from "../gen/grpc/clicks_pb.ts";
+} from "../gen/grpc/clicks/v1/clicks_pb.ts";
 import {Message} from "@bufbuild/protobuf";
 import {v4 as generateUUID} from 'uuid';
 

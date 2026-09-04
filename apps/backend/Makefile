@@ -1,9 +1,8 @@
 .PHONY: proto dbUp dbDown
 
 proto:
-	@cd api/proto && \
-		buf lint && \
-		buf generate
+	@cd ../../proto && buf lint
+	@cd proto && buf generate
 
 dbUp:
 	@cd ./tools/devdb && \

@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 npm run dev      # Start Vite dev server (binds to 0.0.0.0:5173)
 npm run build    # TypeScript check + Vite bundle → /dist
 npm run lint     # ESLint check
-npm run proto    # Regenerate protobuf types from proto/ using buf CLI
+npm run proto    # Regenerate protobuf types from the shared ../../proto/ using buf CLI
 ```
 
 Docker deployment:
@@ -52,7 +52,7 @@ npm run dPush    # Push to DigitalOcean registry
 
 ### Protocol Buffers
 
-Types are defined in `proto/clicks.proto` and generated to `src/gen/grpc/clicks_pb.ts`. Run `npm run proto` after changing `.proto` files. Key messages: `ClickRequest`, `Ownerships`, `TileUpdate`, `OwnershipBatchRequest`.
+Types are defined in the monorepo-shared [`/proto/clicks/v1/clicks.proto`](../../proto/clicks/v1/clicks.proto) and generated to `src/gen/grpc/clicks/v1/clicks_pb.ts`. Run `npm run proto` after changing `.proto` files. Key messages: `ClickRequest`, `Ownerships`, `TileUpdate`, `OwnershipBatchRequest`.
 
 ### Static assets
 

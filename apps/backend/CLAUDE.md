@@ -88,7 +88,7 @@ Config is loaded from a YAML file (`-config` flag) with environment variable ove
 
 ### Protobuf
 
-API contracts live in `api/proto/clicks/v1/clicks.proto`. Generated code goes to `generated/proto/`. Use `make proto` to regenerate after editing `.proto` files (requires `buf` CLI).
+API contracts live in the monorepo-shared [`/proto/clicks/v1/clicks.proto`](../../proto/clicks/v1/clicks.proto) (also used by the frontend). Generated code goes to `generated/proto/`. Use `make proto` to regenerate after editing `.proto` files (requires `buf` CLI).
 
 ### Testing
 
