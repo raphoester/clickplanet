@@ -3,38 +3,47 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/app"
 )
 
+// startupTimeout bounds the wiring phase (config, and dialling Redis when the
+// redis driver is selected). Run() is not bound by it: it serves until a
+// SIGINT/SIGTERM arrives.
+const startupTimeout = 5 * time.Second
+
 func main() {
 	if err := run(); err != nil {
-		panic(err)
+		fmt.Fprintf(os.Stderr, "%s\n", err)
+		os.Exit(1)
 	}
 }
 
 func run() error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer func() {
-		cancel()
-		if err := ctx.Err(); err == nil {
-			return
-		}
-		fmt.Printf("failed to run app: %s\n", ctx.Err())
-	}()
-
 	a, err := app.New()
 	if err != nil {
 		return fmt.Errorf("failed to create app: %w", err)
 	}
 
-	if err := a.Configure(ctx); err != nil {
-		return fmt.Errorf("failed to configure app: %w", err)
+	if err := configure(a); err != nil {
+		return err
 	}
 
 	if err := a.Run(); err != nil {
 		return fmt.Errorf("failed to run app: %w", err)
+	}
+
+	return nil
+}
+
+func configure(a *app.App) error {
+	ctx, cancel := context.WithTimeout(context.Background(), startupTimeout)
+	defer cancel()
+
+	if err := a.Configure(ctx); err != nil {
+		return fmt.Errorf("failed to configure app: %w", err)
 	}
 
 	return nil

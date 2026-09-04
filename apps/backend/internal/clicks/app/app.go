@@ -21,7 +21,13 @@ type App struct {
 	logger logging.Logger
 	server *http.Server
 
-	runners []func()
+	// ctx spans the app's lifetime: cancelling it stops the background
+	// runners, which is what triggers the final tile snapshot.
+	ctx    context.Context
+	cancel context.CancelFunc
+
+	runners       []func()
+	shutdownFuncs []func()
 
 	answerer *httpserver.Answerer
 	reader   httpserver.Reader
@@ -39,9 +45,13 @@ func New() (*App, error) {
 		return nil, fmt.Errorf("failed reading config: %w", err)
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+
 	app := &App{
 		config: cfg,
 		logger: logging.NewSLogger(), // todo: inject config
+		ctx:    ctx,
+		cancel: cancel,
 	}
 
 	app.logger.Debug("config", lf.Any("config", cfg))

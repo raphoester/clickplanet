@@ -3,12 +3,45 @@ httpServer:
   format: json # binary, json
 gameMap:
   maxIndex: 257946
+
+tilesStorage:
+  # memory (default): the whole map lives in this process and is snapshotted to
+  # a local file. No second service to run.
+  # redis: the original Redis-backed storage, kept for rollback. See below.
+  driver: memory
+
+  memory:
+    # Where the tile state is persisted. Leave empty to disable durability
+    # entirely (state is then lost on restart).
+    snapshotPath: ./data/tiles.snapshot
+    # How often a modified state is flushed to disk.
+    snapshotInterval: 30s
+    # Per-websocket-subscriber channel capacity. Updates for a subscriber that
+    # cannot keep up are dropped rather than blocking clicks.
+    subscriberBuffer: 1024
+    # How many recent updates are kept around for the bookkeeper to read, and
+    # for how long. Both bounds should sit comfortably above bookkeeper.runner.interval.
+    pastUpdatesBuffer: 65536
+    pastUpdatesRetention: 24h
+
+  # Only read when driver is "redis".
+  redis:
+    # SHA1 of static/setAndPublishOnStream.lua, written to
+    # static/setAndPublishOnStream.sha1 by `make dbUp`.
+    setAndPublishOnStreamSha1: "5c24cb40524c6de242838e109f998b147397ea54"
+
+# Only dialled when tilesStorage.driver is "redis".
 redis:
   address: localhost:6379
   username: default
   password: secret
   db: 0
   tls: false
-tilesStorage:
-  # should be written in /static/setAndPublish.sha1 after devDb is run
-  setAndPublishOnStreamSha1: "5c24cb40524c6de242838e109f998b147397ea54"
+
+# Reports recent activity to X. Used to be the separate cmd/bookkeeper process;
+# with the memory driver the recent updates only exist inside this process, so
+# it runs here instead. Off by default.
+bookkeeper:
+  enabled: false
+  runner:
+    interval: 1h

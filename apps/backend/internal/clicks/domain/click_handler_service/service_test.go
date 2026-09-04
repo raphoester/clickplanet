@@ -6,8 +6,10 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/secondary/in_memory_country_checker"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/secondary/in_memory_tile_checker"
-	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/secondary/in_memory_tile_storage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/secondary/memory_tile_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/domain/click_handler_service"
+	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging"
+	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/xtime"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -18,13 +20,19 @@ func TestRunSuite(t *testing.T) {
 type testSuite struct {
 	suite.Suite
 
-	storage *in_memory_tile_storage.Storage
+	storage *memory_tile_storage.Storage
 	service *click_handler_service.Service
 }
 
 func (s *testSuite) SetupSuite() {
-	s.storage = in_memory_tile_storage.New()
-	tileChecker := in_memory_tile_checker.New(250_000)
+	const maxIndex = 250_000
+	s.storage = memory_tile_storage.New(
+		maxIndex,
+		memory_tile_storage.Config{},
+		xtime.ActualProvider{},
+		logging.NewNopLogger(),
+	)
+	tileChecker := in_memory_tile_checker.New(maxIndex)
 	countryChecker := in_memory_country_checker.New()
 	s.service = click_handler_service.New(tileChecker, s.storage, countryChecker)
 }
