@@ -15,9 +15,9 @@ const detail = parseInt(args[0]);
 const mapFilePath = args[1];
 const threshold = args[2] ? parseInt(args[2]) : 128;
 
-loadMap().then(({pixels, width, height}) => {
+loadMap().then(({pixels, width, height, channels}) => {
     const baseCoordinates = generateBaseCoordinates(detail);
-    const landCoordinates = filterOutCoordinatesNotOnLand(baseCoordinates, pixels, width, height);
+    const landCoordinates = filterOutCoordinatesNotOnLand(baseCoordinates, pixels, width, height, channels);
 
     // The JSON stays the human-readable generator output kept in the repo; only
     // the binary is shipped, so both are written from the same run to keep them
@@ -35,9 +35,9 @@ type Coordinates = {
     length: number;
 }
 
-async function loadMap(): Promise<{ pixels: Uint8Array; width: number; height: number }> {
+async function loadMap(): Promise<{ pixels: Uint8Array; width: number; height: number; channels: number }> {
     const {data, info} = await sharp(mapFilePath).raw().toBuffer({resolveWithObject: true});
-    return {pixels: data.reverse(), width: info.width, height: info.height};
+    return {pixels: data, width: info.width, height: info.height, channels: info.channels};
 }
 
 function generateBaseCoordinates(detail: number): Coordinates {
@@ -71,12 +71,12 @@ function generateBaseCoordinates(detail: number): Coordinates {
     };
 }
 
-function filterOutCoordinatesNotOnLand(coordinates: Coordinates, pixels: Uint8Array, width: number, height: number): Coordinates {
+function filterOutCoordinatesNotOnLand(coordinates: Coordinates, pixels: Uint8Array, width: number, height: number, channels: number): Coordinates {
     const newPositions = [];
     const newUVs = [];
 
     for (let i = 0; i < coordinates.positions.length / 3; i++) {
-        if (isLand(coordinates.uvs[i * 2], coordinates.uvs[i * 2 + 1], pixels, width, height)) {
+        if (isLand(coordinates.uvs[i * 2], coordinates.uvs[i * 2 + 1], pixels, width, height, channels)) {
             newPositions.push(
                 coordinates.positions[i * 3],
                 coordinates.positions[i * 3 + 1],
@@ -100,9 +100,27 @@ function filterOutCoordinatesNotOnLand(coordinates: Coordinates, pixels: Uint8Ar
     }
 }
 
-function isLand(u: number, v: number, pixels: Uint8Array, width: number, height: number): boolean {
-    const x = Math.floor(u * width);
-    const y = Math.floor(v * height);
-    const index = (y * width + x) * 3;
+// Samples the map the same way the GPU samples the earth texture, so the dots
+// land where the visible continents are.
+//
+// The globe and the dots are both IcosahedronGeometry, so they share UVs, and
+// v = 1 is the north pole. Three.js loads textures with flipY = true, so v = 1
+// reads the TOP row of the image — hence height - 1 - (v * height), not
+// v * height.
+//
+// Both coordinates are clamped. u reaches exactly 1.0 on the seam vertices,
+// and floor(1.0 * width) is one past the last column: unclamped it silently
+// wraps into the first column of the next row and misclassifies those tiles.
+function isLand(
+    u: number,
+    v: number,
+    pixels: Uint8Array,
+    width: number,
+    height: number,
+    channels: number,
+): boolean {
+    const x = Math.min(Math.floor(u * width), width - 1);
+    const y = Math.min(Math.max(height - 1 - Math.floor(v * height), 0), height - 1);
+    const index = (y * width + x) * channels;
     return pixels[index] < threshold
 }
