@@ -17,6 +17,14 @@ type Uniforms = {
 
 const textureLoader = new THREE.TextureLoader();
 
+const warnedAbout = new Set<string>()
+
+function warnOnce(message: string) {
+    if (warnedAbout.has(message)) return
+    warnedAbout.add(message)
+    console.warn(message)
+}
+
 export type EffectHandle = Awaited<ReturnType<typeof effect>>
 
 export async function effect(
@@ -75,7 +83,10 @@ export async function effect(
         if (!event.isTrusted) return;
         actOnPick_(event, id => {
             const region = regions.get(country.code)
-            if (!region) throw new Error(`Region not found for country ${country.code}`)
+            if (!region) {
+                warnOnce(`No sprite region for country "${country.code}", ignoring the click`)
+                return
+            }
 
             tileClicker.clickTile(id, country.code).catch(console.error)
 
@@ -144,7 +155,9 @@ export async function effect(
             leaderboard.commitUpdate() // recompute the leaderboard after each batch
             updateTilesAccordingToNewBindings(ownerships.bindings)
         },
+        lifetime.signal,
     ).catch((e) => {
+        if (lifetime.signal.aborted) return
         console.error("Failed to fetch initial ownerships", e)
     })
 
@@ -153,14 +166,18 @@ export async function effect(
         (updates: Update[]) => {
             const bindings = new Map<number, string>()
             updates.forEach(u => {
+                /**
+                 * A code the server knows and we do not is skipped, not thrown
+                 * on: throwing here used to drop the whole batch, and with it
+                 * every other tile in the same frame.
+                 */
                 const country = Countries.get(u.newCountry)
-                if (!country) throw new Error(`Country not found for code ${u.newCountry}`)
-
-                let oldCountry: Country | undefined = undefined
-                if (u.previousCountry) {
-                    oldCountry = Countries.get(u.previousCountry)
-                    if (!oldCountry) throw new Error(`Country not found for code ${u.previousCountry}`)
+                if (!country) {
+                    warnOnce(`Ignoring an update for unknown country "${u.newCountry}"`)
+                    return
                 }
+
+                const oldCountry = u.previousCountry ? Countries.get(u.previousCountry) : undefined
 
                 leaderboard.registerClick(oldCountry, country)
                 bindings.set(u.tile, u.newCountry)

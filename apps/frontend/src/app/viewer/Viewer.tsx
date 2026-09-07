@@ -57,11 +57,7 @@ export default function Viewer(props: ViewerProps) {
 
             handle = result
             tilesCountRef.current = result.tilesCount
-            handleSetCountry(result.country)
-            setCountryRef.current = (country: Country) => {
-                handleSetCountry(country)
-                result.updateCountry(country)
-            }
+            setCountryRef.current = result.updateCountry
             setIsReady(true)
         }).catch((error) => {
             if (cancelled) return
@@ -78,8 +74,8 @@ export default function Viewer(props: ViewerProps) {
     }, [props]);
 
     const setCountry = (country: Country) => {
-        setCountryRef.current!(country)
         handleSetCountry(country)
+        setCountryRef.current?.(country)
     }
 
     return <>

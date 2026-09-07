@@ -11,6 +11,8 @@ type Config = {
     timeoutMs?: number
 }
 
+const FETCH_ATTEMPTS = 5
+
 export class ClickServiceClient {
     constructor(public config: Config) {
     }
@@ -18,139 +20,105 @@ export class ClickServiceClient {
     public async fetch(
         verb: string,
         path: string,
-        body?: Message
+        body?: Message,
+        signal?: AbortSignal,
     ): Promise<Uint8Array | undefined> {
         const url = this.config.baseUrl + path
+        const payload = body ? JSON.stringify({data: Array.from(body.toBinary())}) : null
 
-        let res: Response | undefined
+        let lastError: unknown
+        for (let attempt = 0; attempt < FETCH_ATTEMPTS; attempt++) {
+            signal?.throwIfAborted()
 
-        for (let i = 0; i < 5; i++) {
+            let res: Response
             try {
                 res = await fetch(url, {
                     method: verb,
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: body ? JSON.stringify({
-                        data: Array.from(body?.toBinary())
-                    }) : null,
-                    signal: AbortSignal.timeout(this.config.timeoutMs || 5000)
+                    headers: {'Content-Type': 'application/json'},
+                    body: payload,
+                    signal: timeoutSignal(this.config.timeoutMs ?? 5000, signal),
                 })
             } catch (e) {
-                console.error(i, "Failed to fetch", e)
+                signal?.throwIfAborted()
+                lastError = e
+                console.error(`${verb} ${path} failed (attempt ${attempt + 1}/${FETCH_ATTEMPTS})`, e)
+                continue
             }
-            if (res) {
-                break
+
+            if (!res.ok) {
+                throw new Error(`Failed to fetch ${verb} ${path}: ${res.status} ${res.statusText} ${await res.text()}`)
             }
+
+            const {data} = await res.json()
+            return data ? decodeBase64(data) : undefined
         }
 
-        if (!res) {
-            throw new Error(`Failed to fetch ${verb} ${path}`)
-        }
-
-        if (!res.ok) {
-            throw new Error(`Failed to fetch ${verb} ${path}: ${res.statusText} ${await res.text()}`)
-        }
-
-        const json = await res!.json()
-        const base64String = json.data
-        if (!base64String) {
-            return undefined
-        }
-        const binaryString = atob(base64String);
-
-        const uint8Array = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-            uint8Array[i] = binaryString.charCodeAt(i);
-        }
-
-        return uint8Array
+        throw new Error(`Failed to fetch ${verb} ${path} after ${FETCH_ATTEMPTS} attempts`, {cause: lastError})
     }
 }
 
 export class HTTPBackend implements TileClicker, OwnershipsGetter, UpdatesListener {
     private pendingUpdates: Update[] = []
-    private updateBatchCallbacks: Map<string, ((update: Update[]) => void)> = new Map()
+    private readonly updateBatchCallbacks = new Map<string, (updates: Update[]) => void>()
+    private readonly flushTimer: ReturnType<typeof setInterval>
+    private readonly stopListening: () => void
 
     constructor(
         private client: ClickServiceClient,
         batchUpdateDurationMs: number,
     ) {
-        this.listenForUpdates((update) => {
+        this.stopListening = this.listenForUpdates((update) => {
             this.pendingUpdates.push(update)
         })
 
-        setInterval(() => {
-            if (this.pendingUpdates.length > 0) {
-                const updates = this.pendingUpdates
-                this.pendingUpdates = []
-                this.updateBatchCallbacks.forEach(callback => callback(updates))
-            }
+        this.flushTimer = setInterval(() => {
+            if (this.pendingUpdates.length === 0) return
+            const updates = this.pendingUpdates
+            this.pendingUpdates = []
+            this.updateBatchCallbacks.forEach(callback => callback(updates))
         }, batchUpdateDurationMs)
     }
 
+    /** Releases the socket and the flush timer. Safe to call more than once. */
+    public close() {
+        clearInterval(this.flushTimer)
+        this.stopListening()
+        this.updateBatchCallbacks.clear()
+        this.pendingUpdates = []
+    }
+
     public async clickTile(tileId: number, countryId: string) {
-        const payload = new ClickRequest({
+        await this.client.fetch("POST", "/v2/rpc/click", new ClickRequest({
             tileId: tileId,
             countryId: countryId,
-        })
-
-        await this.client.fetch("POST", "/v2/rpc/click", payload)
+        }))
     }
 
     public async getCurrentOwnershipsByBatch(
         batchSize: number,
         maxIndex: number,
         callback: (ownerships: Ownerships) => void,
+        signal?: AbortSignal,
     ) {
-        for (let i = 1; i < maxIndex; i += batchSize) {
+        for (let start = 1; start <= maxIndex; start += batchSize) {
             const payload = new OwnershipBatchRequest({
-                endTileId: i + batchSize,
-                startTileId: i,
+                startTileId: start,
+                endTileId: Math.min(start + batchSize, maxIndex + 1),
             })
 
-            const binary = await this.client.fetch("POST", "/v2/rpc/ownerships-by-batch", payload)
-
-            // An empty body means no tile in this range is owned. The server
-            // sends {"data":""} for it, which fetch() turns into undefined.
-            // Every batch looks like this on a fresh map, so skipping is the
-            // normal path, not an error.
-            if (!binary) {
-                continue
-            }
+            const binary = await this.client.fetch("POST", "/v2/rpc/ownerships-by-batch", payload, signal)
+            if (!binary) continue
 
             const message = OwnershipsProto.fromBinary(binary)
-
             callback({
                 bindings: new Map<number, string>(
-                    Object.entries(message.bindings).map(([k, v]) => [parseInt(k), v]))
+                    Object.entries(message.bindings).map(([k, v]) => [parseInt(k), v])),
             })
         }
     }
 
-    public async listenForUpdates(callback: (update: Update) => void): Promise<() => void> {
-        const protocol = this.client.config.baseUrl.startsWith("https") ? "wss" : "ws"
-        const host = this.client.config.baseUrl.replace("https://", "").replace("http://", "")
-
-        const websocket = await initWebsocket({
-            url: `${protocol}://${host}/v2/ws/listen`,
-            existingWebsocket: undefined,
-            timeoutMs: this.client.config.timeoutMs,
-            numberOfRetries: 0,
-        });
-
-        websocket.binaryType = "arraybuffer";
-        websocket.onmessage = (event) => {
-            const binary = new Uint8Array(event.data)
-            const message = TileUpdate.fromBinary(binary)
-            callback({
-                tile: message.tileId,
-                previousCountry: message.previousCountryId === "" ? undefined : message.previousCountryId,
-                newCountry: message.countryId,
-            })
-        }
-
-        return () => websocket.close
+    public listenForUpdates(callback: (update: Update) => void): () => void {
+        return openUpdatesSocket(websocketUrl(this.client.config.baseUrl), callback)
     }
 
     public listenForUpdatesBatch(
@@ -162,41 +130,115 @@ export class HTTPBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     }
 }
 
-function initWebsocket(
-    {
-        url,
-        existingWebsocket,
-        timeoutMs,
-        numberOfRetries
-    }: {
-        url: string,
-        existingWebsocket: WebSocket | undefined,
-        timeoutMs: number | undefined,
-        numberOfRetries: number,
+export function websocketUrl(baseUrl: string): string {
+    return baseUrl.replace(/^http/, "ws") + "/v2/ws/listen"
+}
+
+/**
+ * Aborts on whichever comes first: the caller giving up, or the per-request
+ * timeout. `AbortSignal.timeout` alone would ignore the caller's signal, which
+ * is how a teardown used to leave the remaining ownership batches in flight.
+ */
+function timeoutSignal(timeoutMs: number, signal?: AbortSignal): AbortSignal {
+    const timeout = AbortSignal.timeout(timeoutMs)
+    return signal ? AbortSignal.any([signal, timeout]) : timeout
+}
+
+function decodeBase64(base64String: string): Uint8Array {
+    const binaryString = atob(base64String)
+    const bytes = new Uint8Array(binaryString.length)
+    for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i)
     }
-): Promise<WebSocket> {
-    return new Promise((resolve, reject) => {
-        const websocket = existingWebsocket || new WebSocket(url);
+    return bytes
+}
 
-        websocket.onopen = () => {
-            console.log("Websocket connected");
-            resolve(websocket);
-        };
+const INITIAL_RECONNECT_DELAY_MS = 500
+const MAX_RECONNECT_DELAY_MS = 30_000
 
-        websocket.onerror = (event) => {
-            console.error("Websocket error, retrying", event);
-            if (numberOfRetries > 0) {
-                setTimeout(() => {
-                    initWebsocket({
-                        url,
-                        existingWebsocket: websocket,
-                        timeoutMs,
-                        numberOfRetries: numberOfRetries - 1
-                    }).then(resolve, reject);
-                }, timeoutMs || 1000);
-            } else {
-                reject(event);
-            }
-        };
-    });
+/**
+ * Holds a websocket to the updates endpoint open for as long as the caller
+ * wants it, reconnecting with a capped exponential backoff.
+ *
+ * The socket is the only source of live tile changes, so a drop that is never
+ * retried leaves the globe frozen until the user reloads. The previous version
+ * connected once, rejected on the first error with nobody awaiting the promise,
+ * and returned a "close" function that referenced `websocket.close` without
+ * calling it — so the socket was neither retried nor released.
+ *
+ * Returns a function that closes the socket and cancels any pending retry.
+ */
+export function openUpdatesSocket(
+    url: string,
+    onUpdate: (update: Update) => void,
+): () => void {
+    let socket: WebSocket | undefined
+    let retryTimer: ReturnType<typeof setTimeout> | undefined
+    let retryDelayMs = INITIAL_RECONNECT_DELAY_MS
+    let stopped = false
+
+    const scheduleReconnect = () => {
+        if (stopped || retryTimer !== undefined) return
+        retryTimer = setTimeout(() => {
+            retryTimer = undefined
+            connect()
+        }, retryDelayMs)
+        retryDelayMs = Math.min(retryDelayMs * 2, MAX_RECONNECT_DELAY_MS)
+    }
+
+    const connect = () => {
+        if (stopped) return
+
+        const ws = new WebSocket(url)
+        socket = ws
+        ws.binaryType = "arraybuffer"
+
+        ws.onopen = () => {
+            retryDelayMs = INITIAL_RECONNECT_DELAY_MS
+        }
+
+        ws.onmessage = (event) => {
+            const update = decodeTileUpdate(event.data)
+            if (update) onUpdate(update)
+        }
+
+        /** `onerror` is always followed by `onclose`, so only one of them retries. */
+        ws.onclose = () => {
+            if (socket === ws) socket = undefined
+            scheduleReconnect()
+        }
+    }
+
+    connect()
+
+    return () => {
+        stopped = true
+        if (retryTimer !== undefined) clearTimeout(retryTimer)
+        const ws = socket
+        socket = undefined
+        if (ws) {
+            ws.onclose = null
+            ws.close()
+        }
+    }
+}
+
+/** A frame we cannot parse is dropped: it must not take the socket down with it. */
+export function decodeTileUpdate(data: unknown): Update | undefined {
+    if (!(data instanceof ArrayBuffer)) {
+        console.error("Ignoring a non-binary websocket frame", data)
+        return undefined
+    }
+
+    try {
+        const message = TileUpdate.fromBinary(new Uint8Array(data))
+        return {
+            tile: message.tileId,
+            previousCountry: message.previousCountryId === "" ? undefined : message.previousCountryId,
+            newCountry: message.countryId,
+        }
+    } catch (e) {
+        console.error("Ignoring a malformed tile update frame", e)
+        return undefined
+    }
 }

@@ -10,7 +10,8 @@ export interface OwnershipsGetter {
     getCurrentOwnershipsByBatch(
         batchSize: number,
         maxIndex: number,
-        callback: (ownerships: Ownerships) => void
+        callback: (ownerships: Ownerships) => void,
+        signal?: AbortSignal,
     ): Promise<void>
 }
 
@@ -21,7 +22,12 @@ export type Update = {
 }
 
 export interface UpdatesListener {
-    listenForUpdates(callback: (update: Update) => void): Promise<() => void>
+    /**
+     * Subscribes to individual updates. Returns the unsubscribe function
+     * directly: there is nothing meaningful to await, because a transport that
+     * reconnects has no single moment of "connected" to resolve on.
+     */
+    listenForUpdates(callback: (update: Update) => void): () => void
 
     listenForUpdatesBatch(
         callback: (updates: Update[]) => void,
