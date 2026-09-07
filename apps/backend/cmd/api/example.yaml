@@ -2,7 +2,7 @@ httpServer:
   bindAddress: 0.0.0.0:8080
   format: json # binary, json
 gameMap:
-  maxIndex: 257946
+  maxIndex: 257948
 
 # The whole tile map lives in this process and is snapshotted to a local file.
 # There is no database and no second service to run.

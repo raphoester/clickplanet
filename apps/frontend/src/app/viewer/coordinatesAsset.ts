@@ -2,4 +2,4 @@
 // Regenerate with `npm run coordinates` or `npm run coordinates:convert`.
 
 /** Content-addressed URL of the tile coordinates blob, fetched by points.ts. */
-export const COORDINATES_URL = "/static/coordinates-2797b106.bin"
+export const COORDINATES_URL = "/static/coordinates-26a9aeab.bin"
