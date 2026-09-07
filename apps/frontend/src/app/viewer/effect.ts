@@ -1,8 +1,10 @@
 import * as THREE from "three";
 import {OrbitControls} from "three/addons/controls/OrbitControls.js";
-import {addDisplayObjects, disposeMaterial, setupScene} from "./scene.ts";
-import {createPoints, loadPointGeometryData} from "./points.ts";
-import {actOnPick} from "./gpuPicking.ts";
+import {addDisplayObjects, setupScene} from "./scene.ts";
+import {loadPointGeometryData} from "./points.ts";
+import {GpuPicker} from "./gpuPicking.ts";
+import {TileField} from "./tileField.ts";
+import {ATLAS_SIZE, ATLAS_URL} from "./atlasAsset.ts";
 import {regions} from "./atlas.ts";
 import {Country} from "../../domain/countries.ts";
 import {OwnershipsGetter, TileClicker, Update, UpdatesListener} from "../../backends/backend.ts";
@@ -16,6 +18,8 @@ type Uniforms = {
     atlasTexture: THREE.IUniform
     atlasTextureSize: THREE.IUniform
 }
+
+const TILES_PER_BATCH = 10_000
 
 const textureLoader = new THREE.TextureLoader();
 
@@ -44,110 +48,89 @@ export async function effect(
     const uniforms: Uniforms = {
         zoom: {value: 1.0},
         resolution: {value: new THREE.Vector2(window.innerWidth, window.innerHeight)},
-        atlasTexture: {value: textureLoader.load(`/static/countries/atlas.png?ts=${Date.now()}`)},
-        atlasTextureSize: {value: new THREE.Vector2(1300, 1232)}, // TODO: retrieve the size from the texture itself
+        atlasTexture: {value: textureLoader.load(ATLAS_URL)},
+        atlasTextureSize: {value: new THREE.Vector2(ATLAS_SIZE.width, ATLAS_SIZE.height)},
     };
 
-    const {pickingPoints, displayPoints, size} = createPoints(uniforms, geometryData);
-    console.log("running with", size, "points");
-
-    // 0 means no region is selected, by default it's like that for the whole map
-    const generateDefaultRegionVector = (size: number) => {
-        return new Float32Array(size * 4).fill(0);
-    }
-
-    displayPoints.geometry.setAttribute('regionVector', new THREE.BufferAttribute(generateDefaultRegionVector(size), 4));
-
-    const ownership = new TileOwnership(size)
-
-    /** Paints the changed tiles and re-ranks the leaderboard from the store. */
-    const applyChanges = (changes: OwnerChange[]) => {
-        if (changes.length === 0) return
-
-        const attribute = displayPoints.geometry.getAttribute('regionVector')
-        const regionVectors = attribute.array as Float32Array
-        for (const {tile, country} of changes) {
-            const region = regions.get(country)
-            if (!region) {
-                warnOnce(`No sprite region for country "${country}", leaving its tiles blank`)
-                continue
-            }
-
-            const offset = (tile - 1) * 4
-            regionVectors[offset] = region.x
-            regionVectors[offset + 1] = region.y
-            regionVectors[offset + 2] = region.width
-            regionVectors[offset + 3] = region.height
-        }
-        attribute.needsUpdate = true
-
-        updateLeaderboard(rankCountries(ownership.counts()))
-    }
+    const field = new TileField(uniforms, geometryData);
+    const picker = new GpuPicker(renderer, field.pickingPoints);
+    const ownership = new TileOwnership(field.size);
+    console.log("running with", field.size, "points");
 
     let country: Country = countryState;
 
-    function actOnPick_(
-        event: MouseEvent,
-        callback: (id: number) => void,
-        nullCallback?: () => void, // if no point is selected
-    ) {
-        return actOnPick(renderer, camera, event, pickingPoints, callback, nullCallback);
+    const applyChanges = (changes: OwnerChange[]) => {
+        if (changes.length === 0) return
+        field.setOwners(changes)
+        updateLeaderboard(rankCountries(ownership.counts()))
     }
 
+    /** Event coordinates in the canvas's own pixels, whatever the pixel ratio. */
+    const canvasPosition = (event: MouseEvent) => {
+        const canvas = renderer.domElement
+        const rect = canvas.getBoundingClientRect()
+        return {
+            x: (event.clientX - rect.left) * (canvas.width / rect.width),
+            y: (event.clientY - rect.top) * (canvas.height / rect.height),
+        }
+    }
+
+    /**
+     * Where the cursor was last seen, resolved to a tile once per frame rather
+     * than once per event. A pick costs a render and a synchronous GPU read, and
+     * mousemove fires far more often than the screen refreshes.
+     */
+    let pendingPointer: {x: number, y: number} | undefined
+
     eventTarget.addEventListener('mousemove', (event: MouseEvent) => {
-        actOnPick_(event,
-            id => updateHoverEffect(displayPoints.geometry, id),
-            () => updateHoverEffect(displayPoints.geometry)
-        )
+        pendingPointer = canvasPosition(event)
+    }, listenerOptions);
+
+    eventTarget.addEventListener('mouseleave', () => {
+        pendingPointer = undefined
+        field.setHover(undefined)
     }, listenerOptions);
 
     eventTarget.addEventListener('click', (event: MouseEvent) => {
-        /**
-         * protection from element.dispatchEvent(e)
-         */
+        /** protection from element.dispatchEvent(e) */
         if (!event.isTrusted) return;
-        actOnPick_(event, id => {
-            const region = regions.get(country.code)
-            if (!region) {
-                warnOnce(`No sprite region for country "${country.code}", ignoring the click`)
-                return
-            }
 
-            tileClicker.clickTile(id, country.code).catch(console.error)
+        const {x, y} = canvasPosition(event)
+        const tile = picker.pick(camera, x, y)
+        if (tile === undefined) return
 
-            /** Painted straight away; the server's echo confirms it later. */
-            applyChanges(ownership.applyUpdates([{
-                tile: id,
-                previousCountry: ownership.ownerOf(id),
-                newCountry: country.code,
-            }]))
-        });
+        if (!regions.get(country.code)) {
+            warnOnce(`No sprite region for country "${country.code}", ignoring the click`)
+            return
+        }
+
+        tileClicker.clickTile(tile, country.code).catch(console.error)
+
+        /** Painted straight away; the server's echo confirms it later. */
+        applyChanges(ownership.applyUpdates([{
+            tile,
+            previousCountry: ownership.ownerOf(tile),
+            newCountry: country.code,
+        }]))
     }, listenerOptions);
 
     const resizeListener = () => {
         const width = window.innerWidth;
         const height = window.innerHeight;
 
-        const aspect = width / height;
-
-        camera.left = -cameraSize * aspect;
-        camera.right = cameraSize * aspect;
-        // not needed but kept in mind in case the camera is resized
-        // camera.top = cameraSize;
-        // camera.bottom = -cameraSize;
+        camera.left = -cameraSize * (width / height);
+        camera.right = cameraSize * (width / height);
         camera.updateProjectionMatrix();
 
         renderer.setSize(width, height);
-
         uniforms.resolution.value.set(width, height);
     };
     // resize is a window event and cannot be captured by the eventTarget
     window.addEventListener('resize', resizeListener, listenerOptions);
 
-    const tilesPerBatch = 10_000
     ownershipsGetter.getCurrentOwnershipsByBatch(
-        tilesPerBatch,
-        size,
+        TILES_PER_BATCH,
+        field.size,
         (ownerships) => applyChanges(ownership.applyBatch(ownerships)),
         lifetime.signal,
     ).catch((e) => {
@@ -158,15 +141,20 @@ export async function effect(
     const cleanUpdatesListener = updatesListener.listenForUpdatesBatch(
         (updates: Update[]) => applyChanges(ownership.applyUpdates(updates)))
 
-    addDisplayObjects(scene, displayPoints)
-    const stopAnimation = startAnimation(renderer, scene, camera, uniforms);
+    addDisplayObjects(scene, field.displayPoints)
+
+    const stopAnimation = startAnimation(renderer, scene, camera, uniforms, () => {
+        if (pendingPointer === undefined) return
+        const {x, y} = pendingPointer
+        pendingPointer = undefined
+        field.setHover(picker.pick(camera, x, y))
+    });
 
     return {
         updateCountry: (newCountry: Country) => {
             country = newCountry
         },
-        country: country,
-        tilesCount: size,
+        tilesCount: field.size,
         /** Safe to call at any point after effect() resolves, and only once. */
         cleanup: () => {
             // Detaches every listener this run registered. Replaces the old
@@ -177,10 +165,10 @@ export async function effect(
             stopAnimation()
             cleanUpdatesListener()
 
-            // pickingPoints only ever lives in the throwaway scene gpuPicking
-            // builds per event, so setupScene's cleanup never sees it.
-            pickingPoints.geometry.dispose()
-            disposeMaterial(pickingPoints.material as THREE.Material)
+            // The picking points live only in the picker's own scene, so
+            // setupScene's cleanup never sees them.
+            picker.dispose()
+            field.dispose()
 
             cleanup()
         }
@@ -192,6 +180,7 @@ function startAnimation(
     scene: THREE.Scene,
     camera: THREE.OrthographicCamera,
     uniforms: Uniforms,
+    beforeRender: () => void,
 ): () => void {
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.minZoom = 1;
@@ -212,28 +201,13 @@ function startAnimation(
     // through a disposed renderer.
     renderer.setAnimationLoop(() => {
         controls.update();
+        beforeRender();
         renderer.render(scene, camera);
-        updateUniforms(camera, uniforms);
+        uniforms.zoom.value = camera.zoom;
     });
 
     return () => {
         renderer.setAnimationLoop(null);
         controls.dispose();
     };
-}
-
-function updateUniforms(camera: THREE.OrthographicCamera, uniforms: Uniforms) {
-    uniforms.zoom.value = camera.zoom;
-}
-
-export function updateHoverEffect(geometry: THREE.BufferGeometry, hoveredId?: number) {
-    const size = geometry.attributes.hover.array.length;
-    const newHovered = new Float32Array(size).fill(0);
-    if (hoveredId) {
-        const arrayIdIndexedOnZero = hoveredId - 1
-        newHovered[arrayIdIndexedOnZero] = 1;
-    }
-
-    geometry.setAttribute('hover', new THREE.BufferAttribute(newHovered, 1));
-    geometry.attributes.hover.needsUpdate = true;
 }
