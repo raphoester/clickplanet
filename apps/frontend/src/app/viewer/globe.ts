@@ -5,6 +5,7 @@ import {loadPointGeometryData} from "./points.ts";
 import {GpuPicker} from "./gpuPicking.ts";
 import {TileField} from "./tileField.ts";
 import {ATLAS_SIZE, ATLAS_URL} from "./atlasAsset.ts";
+import {tilePointSize} from "./pointSize.ts";
 import {regions} from "./atlas.ts";
 import {Country} from "../../domain/countries.ts";
 import {OwnershipsGetter, TileClicker, Update, UpdatesListener} from "../../backends/backend.ts";
@@ -13,8 +14,8 @@ import {OwnerChange, TileOwnership} from "../../domain/tileOwnership.ts";
 import {warnOnce} from "../../domain/warnOnce.ts";
 
 type Uniforms = {
-    zoom: THREE.IUniform,
-    resolution: THREE.IUniform
+    /** Sprite diameter in pixels; GpuPicker sizes its window from the same value. */
+    pointSize: THREE.IUniform
     atlasTexture: THREE.IUniform
     atlasTextureSize: THREE.IUniform
 }
@@ -75,8 +76,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     const {scene, camera, cameraSize, renderer, cleanup} = setupScene(eventTarget);
     const uniforms: Uniforms = {
-        zoom: {value: 1.0},
-        resolution: {value: new THREE.Vector2(window.innerWidth, window.innerHeight)},
+        pointSize: {value: tilePointSize(camera.zoom, window.innerHeight)},
         atlasTexture: {value: textureLoader.load(ATLAS_URL)},
         atlasTextureSize: {value: new THREE.Vector2(ATLAS_SIZE.width, ATLAS_SIZE.height)},
     };
@@ -151,7 +151,6 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         camera.updateProjectionMatrix();
 
         renderer.setSize(width, height);
-        uniforms.resolution.value.set(width, height);
     };
     // resize is a window event and cannot be captured by the eventTarget
     window.addEventListener('resize', resizeListener, listenerOptions);
@@ -230,7 +229,7 @@ function startAnimation(
         controls.update();
         beforeRender();
         renderer.render(scene, camera);
-        uniforms.zoom.value = camera.zoom;
+        uniforms.pointSize.value = tilePointSize(camera.zoom, renderer.domElement.height);
     });
 
     return () => {
