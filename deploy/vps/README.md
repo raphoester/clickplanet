@@ -78,8 +78,14 @@ the account, and this token lives in a file on a $6 box.
 
 ### The rest
 
-- **Client IP filtering** — optional. You can pin it to the droplet's IP, but
-  remember to update it if you ever rebuild the box on a new address.
+- **Client IP filtering** — optional, and if you use it the allowed address is
+  the **droplet's**, not your laptop's. Caddy is the only thing that ever uses
+  this token and it runs on the box, so a filter set from the machine where you
+  created the token fails with `[9109] Cannot use the access token from
+  location: <droplet ip>` and nothing else. Pinning it to the droplet is good
+  hardening — a leaked token is then useless anywhere else — but remember to
+  update it if you rebuild the box on a new address, and note that you will no
+  longer be able to test the token from your laptop.
 - **TTL / expiry** — leave it unset, or set a calendar reminder. Certificates
   renew roughly every 60 days with no human involved; an expired token turns
   that into a silent failure that surfaces as an outage two months later.
