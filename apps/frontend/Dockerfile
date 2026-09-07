@@ -13,7 +13,11 @@ COPY --from=build /usr/src/app/static /usr/share/nginx/html/static
 
 COPY --from=build /usr/src/app/dist /usr/share/nginx/html
 
+# The stock default.conf serves nginx's welcome page from the wrong root and
+# has no SPA fallback; replace it rather than leaving the image with no server
+# block, which is what made this image unusable without an external mount.
 RUN rm /etc/nginx/conf.d/default.conf
+COPY --from=build /usr/src/app/nginx.conf /etc/nginx/conf.d/nginx.conf
 
 EXPOSE 80
 

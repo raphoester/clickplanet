@@ -11,11 +11,14 @@ npm run lint     # ESLint check
 npm run proto    # Regenerate protobuf types from the shared ../../proto/ using buf CLI
 ```
 
-Docker deployment:
+Docker (only for the local full stack in `deploy/`; production is Cloudflare Pages):
 ```bash
-npm run dBuild   # Build Docker image
-npm run dPush    # Push to DigitalOcean registry
+npm run dBuild   # Build the image as clickplanet-front:local
 ```
+
+The image is self-contained — `nginx.conf` is baked in and mirrors the caching
+and SPA-fallback rules that `public/_headers` and `public/_redirects` give you
+on Pages, so the local stack behaves like the deployed site.
 
 ## Architecture
 

@@ -9,13 +9,9 @@
 services:
   frontend:
     container_name: cp-frontend
-    image: registry.digitalocean.com/clickplanet-frontend/frontend:latest
+    image: clickplanet-front:local
     ports:
       - "80:80"
-    volumes:
-      - type: bind
-        source: ./local.conf
-        target: /etc/nginx/conf.d/nginx.conf
 
   backend:
     image: clickplanet-back:local
