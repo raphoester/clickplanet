@@ -42,6 +42,7 @@ SKIP_DNS_CHECK=0
 FORCE_ENV=0
 CF_TOKEN=""
 OPEN_ORIGIN=0
+SWAP_SIZE="2G"
 SSH_HOST=""
 SSH_USER="root"
 CI_KEY_PATH="${HOME}/.ssh/clickplanet_ci"
@@ -77,6 +78,8 @@ Options:
   --open-origin              Allow 80/443 from anywhere instead of only
                              Cloudflare's ranges. Exposes the origin directly;
                              use only to debug past the proxy.
+  --swap SIZE                Swap file to create if the box has none
+                             (default 2G; "none" to skip).
   --backend-image REF        Pin a specific image instead of :latest.
   --skip-start               Provision only; do not bring the stack up.
   --skip-dns-check           Bypass the check that the record is proxied.
@@ -95,6 +98,7 @@ while [[ $# -gt 0 ]]; do
 		--no-ci-key)       CI_KEY="none"; shift ;;
 		--cf-token)        CF_TOKEN="${2:-}"; FORWARD+=(--cf-token "${2:-}"); shift 2 ;;
 		--open-origin)     OPEN_ORIGIN=1; FORWARD+=(--open-origin); shift ;;
+		--swap)            SWAP_SIZE="${2:-}"; FORWARD+=(--swap "${2:-}"); shift 2 ;;
 		--backend-image)   BACKEND_IMAGE="${2:-}"; FORWARD+=(--backend-image "${2:-}"); shift 2 ;;
 		--skip-start)      SKIP_START=1; FORWARD+=(--skip-start); shift ;;
 		--skip-dns-check)  SKIP_DNS_CHECK=1; FORWARD+=(--skip-dns-check); shift ;;
@@ -224,6 +228,33 @@ cd /
 # ------------------------------------------------------------------ packages
 
 export DEBIAN_FRONTEND=noninteractive
+
+# ------------------------------------------------------------------- swap
+
+# A $6 droplet ships with 1 GB of RAM and no swap at all, so a transient spike
+# is an OOM kill rather than a slow moment. Nothing in this stack needs much
+# memory at rest — the tile map is a few MB — but apt upgrades and docker
+# unpacking layers both spike, and the OOM killer picks the biggest process,
+# which is the API holding the game state.
+if [[ "$SWAP_SIZE" == "none" ]]; then
+	log "skipping swap (--swap none)"
+elif [[ -n "$(swapon --show --noheadings 2>/dev/null)" ]]; then
+	log "swap already active ($(free -h | awk '/Swap:/{print $2}'))"
+else
+	log "creating ${SWAP_SIZE} swap file"
+	# fallocate is instant on ext4; dd is the portable fallback for filesystems
+	# where a fallocated file cannot be used as swap.
+	fallocate -l "$SWAP_SIZE" /swapfile 2>/dev/null \
+		|| dd if=/dev/zero of=/swapfile bs=1M count="$(numfmt --from=iec "$SWAP_SIZE" | awk '{print int($1/1048576)}')" status=none
+	chmod 600 /swapfile
+	mkswap /swapfile >/dev/null
+	swapon /swapfile
+	grep -q '^/swapfile ' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
+	# Swap here is an emergency buffer, not a place to page the working set to:
+	# keep the kernel preferring RAM until it genuinely runs short.
+	echo 'vm.swappiness=10' > /etc/sysctl.d/99-clickplanet-swap.conf
+	sysctl -q -w vm.swappiness=10
+fi
 
 if ! command -v docker >/dev/null 2>&1; then
 	log "installing docker"

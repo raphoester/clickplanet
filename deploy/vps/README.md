@@ -126,6 +126,13 @@ enough: the Go API holds the whole tile grid in a few MB and there is no
 database beside it. Pick the Ubuntu LTS image and a region near your players,
 and attach your SSH key at creation.
 
+That 1 GB is enough at rest but has no swap by default, so a transient spike —
+an apt upgrade, docker unpacking layers — is an OOM kill rather than a slow
+moment, and the killer picks the biggest process, which is the API holding the
+game state. `bootstrap.sh` adds a 2 GB swap file with `vm.swappiness=10` (an
+emergency buffer, not somewhere to page the working set); `--swap none` skips
+it.
+
 `apps/backend/Dockerfile` pins `GOARCH=amd64`, so stay on a **regular Intel/AMD**
 droplet — the backend image will not run on an ARM one, and `bootstrap.sh`
 refuses to continue if it finds itself on `aarch64`.
