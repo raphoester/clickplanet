@@ -110,7 +110,16 @@ export class HTTPBackend implements TileClicker, OwnershipsGetter, UpdatesListen
             })
 
             const binary = await this.client.fetch("POST", "/v2/rpc/ownerships-by-batch", payload)
-            const message = OwnershipsProto.fromBinary(binary!)
+
+            // An empty body means no tile in this range is owned. The server
+            // sends {"data":""} for it, which fetch() turns into undefined.
+            // Every batch looks like this on a fresh map, so skipping is the
+            // normal path, not an error.
+            if (!binary) {
+                continue
+            }
+
+            const message = OwnershipsProto.fromBinary(binary)
 
             callback({
                 bindings: new Map<number, string>(
