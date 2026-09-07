@@ -22,7 +22,9 @@ describe("SelectWithSearch", () => {
 
     it("filters the list as you type, case-insensitively", async () => {
         const user = userEvent.setup()
-        render(<SelectWithSearch values={VALUES} selected={VALUES[0]} onChange={vi.fn()}/>)
+        // Selecting Japan keeps the assertion about filtering alone; the
+        // selection is kept in the list regardless, which its own tests cover.
+        render(<SelectWithSearch values={VALUES} selected={VALUES[1]} onChange={vi.fn()}/>)
 
         await user.type(screen.getByPlaceholderText("🔍 Search..."), "jAp")
         expect(optionNames()).toEqual(["Japan"])
@@ -49,6 +51,47 @@ describe("SelectWithSearch", () => {
 
         rerender(<SelectWithSearch values={VALUES} selected={VALUES[1]} onChange={vi.fn()}/>)
         expect(screen.getByRole("listbox")).toHaveProperty("value", "jp")
+    })
+
+    /**
+     * A `<select>` whose value matches none of its options has the browser pick
+     * the first one instead. That both desyncs it from React and makes clicking
+     * that first option a no-op, because it is already selected and so fires no
+     * change event — which is exactly how the top result of a search, and the
+     * only result of a narrow one, became unpickable.
+     */
+    it("keeps its value among its options while the search filters", async () => {
+        const user = userEvent.setup()
+        render(<SelectWithSearch values={VALUES} selected={VALUES[0]} onChange={vi.fn()}/>)
+        const select = screen.getByRole("listbox") as HTMLSelectElement
+
+        await user.type(screen.getByPlaceholderText("🔍 Search..."), "jap")
+
+        expect(select.value).toBe("fr")
+        expect(optionNames()).toContain("France")
+    })
+
+    it("reports the only match of a search, which is otherwise the first option", async () => {
+        const user = userEvent.setup()
+        const onChange = vi.fn()
+        render(<SelectWithSearch values={VALUES} selected={VALUES[0]} onChange={onChange}/>)
+
+        await user.type(screen.getByPlaceholderText("🔍 Search..."), "jap")
+        await user.selectOptions(screen.getByRole("listbox"), "jp")
+
+        expect(onChange).toHaveBeenCalledWith(VALUES[1])
+    })
+
+    it("reports the first search result when several match", async () => {
+        const user = userEvent.setup()
+        const onChange = vi.fn()
+        render(<SelectWithSearch values={VALUES} selected={VALUES[0]} onChange={onChange}/>)
+
+        await user.type(screen.getByPlaceholderText("🔍 Search..."), "an")
+        expect(optionNames()).toEqual(["France", "Japan", "Germany"])
+
+        await user.selectOptions(screen.getByRole("listbox"), "jp")
+        expect(onChange).toHaveBeenCalledWith(VALUES[1])
     })
 
     it("clears the search once something is chosen", async () => {

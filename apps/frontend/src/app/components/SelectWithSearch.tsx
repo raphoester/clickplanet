@@ -1,10 +1,6 @@
 import {ChangeEvent, useState} from "react";
+import {type Value, visibleOptions} from "./visibleOptions.ts";
 import "./SelectWithSearch.css"
-
-type Value = {
-    code: string,
-    name: string
-}
 
 type SelectWithSearchProps = {
     selected: Value,
@@ -20,10 +16,6 @@ type SelectWithSearchProps = {
  */
 export default function SelectWithSearch(props: SelectWithSearchProps) {
     const [search, setSearch] = useState("")
-
-    const filteredOptions = props.values.filter(
-        (v) => v.name.toLowerCase().includes(search.toLowerCase())
-    )
 
     const handleSelectChange = (event: ChangeEvent<HTMLSelectElement>) => {
         const value = props.values.find((v) => v.code === event.target.value)
@@ -42,7 +34,7 @@ export default function SelectWithSearch(props: SelectWithSearchProps) {
             onChange={handleSelectChange}
             size={5}
             className="input-select">
-            {filteredOptions.map((v) => (
+            {visibleOptions(props.values, props.selected, search).map((v) => (
                 <option className="input-select-option" key={v.code} value={v.code}>
                     {v.name}
                 </option>
