@@ -1,0 +1,21 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+
+  // Deployed as a Worker with static assets rather than a Pages project.
+  // The name must match the Worker the build is wired to, or `wrangler deploy`
+  // creates a second one instead of updating this.
+  "name": "clickplanet",
+  "compatibility_date": "2026-09-07",
+
+  "assets": {
+    "directory": "./dist",
+
+    // Pages guessed SPA behaviour from the presence of index.html; Workers
+    // makes it explicit. Without this, any client-side route (anything
+    // react-router owns) 404s on a hard refresh instead of loading the app.
+    //
+    // public/_headers and public/_redirects are still honoured — Workers
+    // supports both natively — so the caching rules continue to apply.
+    "not_found_handling": "single-page-application"
+  }
+}
