@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { effect, EffectHandle } from "./effect.ts";
 import { OwnershipsGetter, TileClicker, UpdatesListener } from "../../backends/backend.ts";
 import Settings from "../Settings.tsx";
-import { Country } from "../countries.ts";
+import { Country } from "../../domain/countries.ts";
+import { LeaderboardEntry } from "../../domain/leaderboard.ts";
 import Leaderboard from "../Leaderboard.tsx";
 import About from "../About.tsx";
 import "./Viewer.css"
@@ -22,7 +23,7 @@ export default function Viewer(props: ViewerProps) {
     const setCountryRef = useRef<(country: Country) => void>();
     const tilesCountRef = useRef(0)
 
-    const [leaderboardData, setLeaderboardData] = useState<{ country: Country, tiles: number }[]>([])
+    const [leaderboardData, setLeaderboardData] = useState<LeaderboardEntry[]>([])
     const [isReady, setIsReady] = useState(false);
     const [loadError, setLoadError] = useState<string | null>(null);
 

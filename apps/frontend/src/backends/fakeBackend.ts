@@ -1,6 +1,6 @@
 import {Ownerships, OwnershipsGetter, TileClicker, Update, UpdatesListener} from "./backend.ts";
 import {v4 as UUIDv4} from 'uuid';
-import {Countries} from "../app/countries.ts";
+import {Countries} from "../domain/countries.ts";
 
 const TILE_COUNT = 257_000
 

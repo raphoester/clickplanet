@@ -1,6 +1,6 @@
 import {describe, expect, it} from "vitest"
 import {FALLBACK_COUNTRY, parseStoredCountry, resolveCountry} from "./countryPreference.ts"
-import {Countries} from "./countries.ts"
+import {Countries} from "../domain/countries.ts"
 import {regions} from "./viewer/atlas.ts"
 
 const FRANCE = Countries.get("fr")!

@@ -1,14 +1,11 @@
 import "./Leaderboard.css"
-import {Country} from "./countries.ts";
+import {LeaderboardEntry} from "../domain/leaderboard.ts";
 import {useState} from "react";
 
 
 type LeaderboardProps = {
     tilesCount: number,
-    data: {
-        country: Country,
-        tiles: number
-    }[]
+    data: LeaderboardEntry[]
 }
 
 export default function Leaderboard(props: LeaderboardProps) {
