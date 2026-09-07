@@ -1,4 +1,4 @@
-.PHONY: proto test dBuild dRun dRm dPush dLogin
+.PHONY: proto test dBuild dRun dRm
 
 proto:
 	@cd ../../proto && buf lint
@@ -21,10 +21,3 @@ dRm:
 
 test:
 	@go test -v ./... | grep -v 'no test files'
-
-dPush: dBuild 
-	@docker tag clickplanet-back:local registry.digitalocean.com/clickplanet/backend:latest
-	@docker push registry.digitalocean.com/clickplanet/backend:latest 
-
-dLogin: 
-	@doctl registry login

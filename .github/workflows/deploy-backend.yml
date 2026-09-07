@@ -71,6 +71,26 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+  # Every push to main publishes a new :<sha> tag for both images, so versions
+  # accumulate without bound. Storage is free for public packages, but the
+  # package page becomes unusable after a few hundred. Keeps the newest 20 of
+  # each — :latest always points at the newest, so it is never a candidate.
+  prune:
+    needs: [ build, caddy ]
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    strategy:
+      matrix:
+        package: [ clickplanet-backend, clickplanet-caddy ]
+    steps:
+      - uses: actions/delete-package-versions@v5
+        continue-on-error: true   # retention must never fail a deploy
+        with:
+          package-name: ${{ matrix.package }}
+          package-type: container
+          min-versions-to-keep: 20
+
   deploy:
     needs: [ build, caddy ]
     runs-on: ubuntu-latest
