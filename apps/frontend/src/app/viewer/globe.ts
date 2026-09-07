@@ -23,24 +23,53 @@ const TILES_PER_BATCH = 10_000
 
 const textureLoader = new THREE.TextureLoader();
 
-export type EffectHandle = Awaited<ReturnType<typeof effect>>
+export type GlobeOptions = {
+    tileClicker: TileClicker
+    ownershipsGetter: OwnershipsGetter
+    updatesListener: UpdatesListener
+    /** The element the canvas is appended to, and that input is read from. */
+    container: HTMLElement
+    /** The country tiles are claimed for, until `setCountry` says otherwise. */
+    country: Country
+    onLeaderboardChange: (entries: LeaderboardEntry[]) => void
+    /** Abandons the load; the returned globe is never handed back. */
+    signal: AbortSignal
+}
 
-export async function effect(
-    tileClicker: TileClicker,
-    ownershipsGetter: OwnershipsGetter,
-    updatesListener: UpdatesListener,
-    updateLeaderboard: (data: LeaderboardEntry[]) => void,
-    eventTarget: HTMLElement,
-    countryState: Country,
-    signal: AbortSignal,
-) {
+/** A running globe. Everything it owns is released by `dispose`. */
+export type Globe = {
+    readonly tilesCount: number
+    setCountry(country: Country): void
+    /** Safe to call at any point after `createGlobe` resolves, and only once. */
+    dispose(): void
+}
+
+/**
+ * Builds the scene, wires input and the backends to it, and starts rendering.
+ *
+ * This is the one place that is unavoidably procedural: WebGL setup is a state
+ * machine with an order to it, and the resources it allocates have to be
+ * released by hand. Everything that does *not* need a GPU lives in `domain/`
+ * behind plain function calls, so what is left here is only the wiring.
+ */
+export async function createGlobe(options: GlobeOptions): Promise<Globe> {
+    const {
+        tileClicker,
+        ownershipsGetter,
+        updatesListener,
+        container: eventTarget,
+        country: initialCountry,
+        onLeaderboardChange: updateLeaderboard,
+        signal,
+    } = options
+
     // Fetched before anything is allocated, so a run abandoned during the
     // download (StrictMode's throwaway first mount, or an unmount) never opens a
     // WebGL context in the first place.
     const geometryData = await loadPointGeometryData(signal);
-    if (signal.aborted) throw new DOMException("effect aborted", "AbortError");
+    if (signal.aborted) throw new DOMException("globe load aborted", "AbortError");
 
-    /** Aborted by cleanup(); detaches every listener this run registered. */
+    /** Aborted by dispose(); detaches every listener this run registered. */
     const lifetime = new AbortController();
     const listenerOptions = {signal: lifetime.signal};
 
@@ -55,9 +84,8 @@ export async function effect(
     const field = new TileField(uniforms, geometryData);
     const picker = new GpuPicker(renderer, field.pickingPoints);
     const ownership = new TileOwnership(field.size);
-    console.log("running with", field.size, "points");
 
-    let country: Country = countryState;
+    let country: Country = initialCountry;
 
     const applyChanges = (changes: OwnerChange[]) => {
         if (changes.length === 0) return
@@ -151,12 +179,11 @@ export async function effect(
     });
 
     return {
-        updateCountry: (newCountry: Country) => {
+        tilesCount: field.size,
+        setCountry: (newCountry: Country) => {
             country = newCountry
         },
-        tilesCount: field.size,
-        /** Safe to call at any point after effect() resolves, and only once. */
-        cleanup: () => {
+        dispose: () => {
             // Detaches every listener this run registered. Replaces the old
             // clone-and-swap trick, which also destroyed the canvas a concurrent
             // StrictMode run had appended to the same container.

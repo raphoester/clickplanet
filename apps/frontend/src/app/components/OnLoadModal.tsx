@@ -8,15 +8,11 @@ export type OnLoadModalProps = {
 
 export default function OnLoadModal(props: OnLoadModalProps) {
     const [isOpen, setIsOpen] = useState(true)
+    if (!isOpen) return null
 
-    return <>{
-        isOpen && 
-        <div className="modal-onload">
-            <Modal
-            onClose={() => setIsOpen(false)}
-            title={props.title}
-            children={props.children}
-            />
-        </div>
-    }</>
+    return <div className="modal-onload">
+        <Modal onClose={() => setIsOpen(false)} title={props.title}>
+            {props.children}
+        </Modal>
+    </div>
 }
