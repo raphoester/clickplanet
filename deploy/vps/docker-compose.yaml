@@ -2,15 +2,21 @@
 #
 #   docker compose --env-file .env up -d
 #
-# Caddy terminates TLS (automatic Let's Encrypt certs) and reverse-proxies to
-# the Go API. The frontend is NOT served here — it lives on Cloudflare Pages.
+# Caddy terminates TLS (automatic Let's Encrypt certs, issued over DNS-01) and
+# reverse-proxies to the Go API. The frontend is NOT served here — it lives on
+# Cloudflare Pages. The origin IP stays private: the A record is proxied and
+# ufw admits only Cloudflare's ranges on 80/443.
 #
 # There is no database. The API keeps the tile map in process and snapshots it
 # to the tile_state volume.
 
 services:
   caddy:
-    image: caddy:2.8-alpine
+    # Built here rather than pulled: the stock image has no DNS provider module
+    # and so cannot solve the DNS-01 challenge. See caddy/Dockerfile.
+    build:
+      context: ./caddy
+    image: clickplanet-caddy:2.10-cloudflare
     container_name: cp-caddy
     restart: unless-stopped
     ports:
@@ -21,6 +27,9 @@ services:
       # The Caddyfile reads this for Access-Control-Allow-Origin. Unset, Caddy
       # substitutes an empty string and every browser call from Pages fails CORS.
       FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:?set FRONTEND_ORIGIN in .env}
+      # Scoped Cloudflare token (Zone:DNS:Edit + Zone:Zone:Read) Caddy uses to
+      # write the ACME TXT record. This is the one real secret on the box.
+      CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:?set CLOUDFLARE_API_TOKEN in .env}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data      # certificates — losing this means re-issuing certs

@@ -1,7 +1,21 @@
-# Automatic HTTPS via Let's Encrypt. Caddy needs ports 80 and 443 reachable
-# from the internet and API_DOMAIN's A record pointing at this box.
+# Automatic HTTPS via Let's Encrypt, using the ACME DNS-01 challenge.
+#
+# Unlike the default HTTP-01 flow, nothing here needs port 80 reachable from
+# the public internet: the origin sits behind Cloudflare's proxy, and ufw only
+# admits Cloudflare's ranges on 80/443. Requires the caddy-dns/cloudflare
+# plugin, which is why caddy/Dockerfile builds a custom image.
 
 {$API_DOMAIN} {
+	# ACME DNS-01 instead of the default HTTP-01. Caddy proves control of the
+	# domain by writing a TXT record through the Cloudflare API, so it never
+	# needs an inbound connection on :80. That is what allows the A record to
+	# stay proxied (orange cloud) and the origin IP to stay private — including
+	# at every renewal, not just first issuance.
+	tls {
+		dns cloudflare {env.CLOUDFLARE_API_TOKEN}
+		resolvers 1.1.1.1 1.0.0.1
+	}
+
 	encode zstd gzip
 
 	# CORS: the frontend is served from a different origin (Cloudflare Pages),
