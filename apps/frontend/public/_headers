@@ -17,5 +17,11 @@
   ! Cache-Control
   Cache-Control: public, max-age=31536000, immutable
 
+# The sprite atlas is content-addressed the same way, for the same reason: it
+# used to defeat the cache entirely with a `?ts=` query string on every load.
+/static/countries/atlas-*.png
+  ! Cache-Control
+  Cache-Control: public, max-age=31536000, immutable
+
 /index.html
   Cache-Control: public, max-age=0, must-revalidate
