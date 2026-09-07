@@ -70,7 +70,12 @@ export function addDisplayObjects(
     scene.add(new THREE.Mesh(
         innerSphere(),
         new THREE.MeshStandardMaterial({
-            map: textureLoader.load('/static/earth/3_no_ice_clouds_16k.jpg'),
+            // 4096x2048, not the 16200x8100 original. The GPU stores textures
+            // uncompressed, so that one cost 501 MB of video memory (667 MB
+            // with mipmaps) regardless of being 4.5 MB on disk. iOS Safari
+            // kills a tab well below that, which showed up as the page
+            // reloading in a loop on iPhone. This is 43 MB.
+            map: textureLoader.load('/static/earth/earth-4k.jpg'),
         })
     ))
 }
