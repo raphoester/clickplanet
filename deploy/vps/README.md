@@ -102,16 +102,18 @@ Create a Pages project from the GitHub repo:
 
 Generated protobuf code is committed, so the build needs no `buf`.
 
-`npm run build` now also copies `static/` into `dist/static/`, skipping the
-24 MB `coordinates.json` — that file is bundled into the JS at build time and
-never fetched at runtime, so uploading it would waste a quarter of the deploy.
+`npm run build` also copies `static/` into `dist/static/` and deletes the 24 MB
+`coordinates.json` from it — that file is the human-readable generator output,
+kept in the repo but never served. The viewer fetches
+`static/coordinates-<hash>.bin` at runtime instead (~5 MB, no JSON parse), so
+the coordinates are no longer in the JS bundle and Cloudflare's 25 MiB
+per-file limit is no longer close. `copy:static` fails the build if that
+`.bin` is missing — run `npm run coordinates:convert` if you hit that.
 
-**Watch the bundle size.** `coordinates.json` is imported into the main chunk,
-which currently builds to **23.5 MiB against Cloudflare's 25 MiB per-file
-limit**. There is ~1.5 MiB of headroom. If a dependency or a denser tile map
-pushes it over, Pages will reject the upload — the fix is to load the
-coordinates as a binary `Float32Array` fetched at runtime (~5 MB instead of
-25 MB, and no JSON parse), which means making the viewer's point setup async.
+The `.bin` name carries a content hash, and `public/_headers` caches it
+`immutable` for a year: regenerating the tile map ships a new file name, so a
+stale blob can never be served. If you regenerate it, `gameMap.maxIndex` in
+`backend.yaml` must be updated to match the new tile count.
 
 ## 4. CI and the image registry
 

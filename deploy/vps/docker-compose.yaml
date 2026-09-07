@@ -18,6 +18,9 @@ services:
       - "443:443"
     environment:
       API_DOMAIN: ${API_DOMAIN:?set API_DOMAIN in .env}
+      # The Caddyfile reads this for Access-Control-Allow-Origin. Unset, Caddy
+      # substitutes an empty string and every browser call from Pages fails CORS.
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:?set FRONTEND_ORIGIN in .env}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data      # certificates — losing this means re-issuing certs
