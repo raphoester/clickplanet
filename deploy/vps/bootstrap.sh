@@ -403,11 +403,16 @@ fi
 
 # ------------------------------------------------------------------- image
 
-image="${BACKEND_IMAGE:-ghcr.io/raphoester/clickplanet-backend:latest}"
-log "checking ${image} is pullable"
-if ! docker pull -q "$image" >/dev/null 2>&1; then
-	die "$(printf 'cannot pull %s.\n       Run the "deploy backend" workflow once, then make the GHCR package\n       public — GHCR creates packages private even for public repos.' "$image")"
-fi
+# Both images are built in CI; nothing is compiled on this box.
+for image in "${BACKEND_IMAGE:-ghcr.io/raphoester/clickplanet-backend:latest}" \
+             "${CADDY_IMAGE:-ghcr.io/raphoester/clickplanet-caddy:latest}"; do
+	log "checking ${image} is pullable"
+	if ! docker pull -q "$image" >/dev/null 2>&1; then
+		die "cannot pull ${image}.
+       Run the \"deploy backend\" workflow once, then set that package to
+       Public — GHCR creates packages private even for public repos."
+	fi
+done
 
 # -------------------------------------------------------------------- start
 
@@ -423,10 +428,8 @@ fi
 # project name ("vps") and therefore the same volume names.
 cd "$STACK_DIR"
 
-# --build because the caddy image is compiled here from caddy/Dockerfile; only
-# the backend comes from a registry.
-log "building caddy and starting the stack (first build takes a minute)"
-runuser -u "$DEPLOY_USER" -- docker compose up -d --build
+log "starting the stack"
+runuser -u "$DEPLOY_USER" -- docker compose up -d
 
 # ------------------------------------------------------------------- verify
 

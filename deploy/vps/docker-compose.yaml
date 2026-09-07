@@ -12,11 +12,11 @@
 
 services:
   caddy:
-    # Built here rather than pulled: the stock image has no DNS provider module
-    # and so cannot solve the DNS-01 challenge. See caddy/Dockerfile.
-    build:
-      context: ./caddy
-    image: clickplanet-caddy:2.10-cloudflare
+    # Caddy with the caddy-dns/cloudflare plugin — the stock image has no DNS
+    # provider module and cannot solve the DNS-01 challenge. Built in CI from
+    # caddy/Dockerfile and only pulled here: linking it needs more CPU and RAM
+    # than a $6 droplet has, and would OOM mid-deploy.
+    image: ${CADDY_IMAGE:-ghcr.io/raphoester/clickplanet-caddy:latest}
     container_name: cp-caddy
     restart: unless-stopped
     ports:

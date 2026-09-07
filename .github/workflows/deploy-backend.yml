@@ -12,6 +12,7 @@ on:
 
 env:
   IMAGE: ghcr.io/${{ github.repository_owner }}/clickplanet-backend
+  CADDY_IMAGE: ghcr.io/${{ github.repository_owner }}/clickplanet-caddy
 
 jobs:
   build:
@@ -40,8 +41,38 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+  # Caddy is built here, not on the droplet. Linking Caddy with the Cloudflare
+  # DNS plugin pulls in certmagic, quic-go, smallstep, otel and the AWS SDK —
+  # minutes of CPU and enough memory to OOM a 1 GB box. Same rule as the
+  # backend: CI builds, the box only pulls.
+  caddy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: deploy/vps/caddy
+          push: true
+          tags: |
+            ${{ env.CADDY_IMAGE }}:latest
+            ${{ env.CADDY_IMAGE }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
   deploy:
-    needs: build
+    needs: [ build, caddy ]
     runs-on: ubuntu-latest
     steps:
       - name: ssh to the VPS and roll the container
@@ -54,6 +85,6 @@ jobs:
             set -euo pipefail
             cd /opt/clickplanet/deploy/vps
             git -C /opt/clickplanet pull --ff-only
-            docker compose pull backend
-            docker compose up -d backend
+            docker compose pull
+            docker compose up -d
             docker image prune -f
