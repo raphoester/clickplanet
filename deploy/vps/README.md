@@ -218,9 +218,18 @@ gh secret set VPS_USER    --body 'deploy'
 gh secret set VPS_SSH_KEY < ~/.ssh/clickplanet_ci
 ```
 
-The deploy job only rolls the **backend** container. Changes to the `Caddyfile`
-or `caddy/Dockerfile` need `docker compose up -d --build caddy` on the box, or
-another `bootstrap.sh` run.
+The workflow builds **two** images: the backend, and Caddy with the
+`caddy-dns/cloudflare` plugin from `caddy/Dockerfile`. Both go to GHCR and the
+droplet only ever pulls — linking Caddy with that plugin pulls in certmagic,
+quic-go, smallstep, otel and the AWS SDK, which is minutes of CPU and enough
+memory to OOM a 1 GB box mid-deploy.
+
+Both GHCR packages must be set to **Public** after their first build, not just
+the backend one.
+
+The `Caddyfile` is read from the checkout at container start, so editing it
+needs only `docker compose up -d caddy` (or a `bootstrap.sh` run), no rebuild.
+Changing `caddy/Dockerfile` means waiting for CI to publish a new image.
 
 **One-time after the first successful build:** a new GHCR package is created
 private even when the repo is public. Open
