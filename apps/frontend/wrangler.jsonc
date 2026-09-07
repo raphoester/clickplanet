@@ -14,8 +14,13 @@
     // makes it explicit. Without this, any client-side route (anything
     // react-router owns) 404s on a hard refresh instead of loading the app.
     //
-    // public/_headers and public/_redirects are still honoured — Workers
-    // supports both natively — so the caching rules continue to apply.
+    // This replaces the `/* /index.html 200` rule that used to live in
+    // public/_redirects. Do not put that rule back: Workers validates
+    // _redirects and rejects it, because /index.html itself matches /* and
+    // rewrites to itself — "Infinite loop detected in this rule".
+    //
+    // public/_headers is still honoured; Workers supports it natively, so the
+    // caching rules continue to apply.
     "not_found_handling": "single-page-application"
   }
 }
