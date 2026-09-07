@@ -2,15 +2,17 @@ import {Ownerships, OwnershipsGetter, TileClicker, Update, UpdatesListener} from
 import {v4 as UUIDv4} from 'uuid';
 import {Countries} from "../app/countries.ts";
 
+const TILE_COUNT = 257_000
+
 export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListener {
     private tileBindings: Map<number, string> = new Map()
     private updateListeners: Map<string, (update: Update) => void> = new Map()
     private pendingUpdates: Update[] = []
     private updateBatchCallbacks: Map<string, (update: Update[]) => void> = new Map()
-
+    private readonly timers: ReturnType<typeof setInterval>[] = []
 
     constructor(batchUpdateDurationMs: number) {
-        for (let i = 1; i < 257000; i++) {
+        for (let i = 1; i <= TILE_COUNT; i++) {
             this.tileBindings.set(i, "fr")
         }
 
@@ -18,23 +20,29 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
             this.pendingUpdates.push(update)
         })
 
-        setInterval(() => {
-            if (this.pendingUpdates.length > 0) {
-                const updates = this.pendingUpdates
-                this.pendingUpdates = []
-                this.updateBatchCallbacks.forEach(callback => callback(updates))
-            }
-        }, batchUpdateDurationMs)
+        this.timers.push(setInterval(() => {
+            if (this.pendingUpdates.length === 0) return
+            const updates = this.pendingUpdates
+            this.pendingUpdates = []
+            this.updateBatchCallbacks.forEach(callback => callback(updates))
+        }, batchUpdateDurationMs))
 
         Countries.forEach((country) => {
-            let tileId = Math.floor(Math.random() * 100_00)
+            let tileId = Math.floor(Math.random() * 10_000)
             const gap = Math.floor(Math.random() * 100)
 
-            setInterval(() => { // simulate updates
-                tileId = (tileId + gap) % 257_000
+            this.timers.push(setInterval(() => { // simulate updates
+                tileId = (tileId + gap) % TILE_COUNT + 1
                 this.clickTile(tileId, country.code).catch(e => console.error("failed to click", e))
-            }, Math.random() * 1000)
+            }, Math.random() * 1000))
         })
+    }
+
+    public close() {
+        this.timers.forEach(clearInterval)
+        this.timers.length = 0
+        this.updateListeners.clear()
+        this.updateBatchCallbacks.clear()
     }
 
     public async clickTile(tileId: number, countryId: string) {
@@ -47,9 +55,9 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         }))
     }
 
-    public async listenForUpdates(
+    public listenForUpdates(
         callback: (update: Update) => void
-    ): Promise<() => void> {
+    ): () => void {
         const identifier = UUIDv4()
         this.updateListeners.set(identifier, callback)
         return () => {
@@ -70,14 +78,19 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     public async getCurrentOwnershipsByBatch(
         batchSize: number,
         maxIndex: number,
-        callback: (ownerships: Ownerships) => void) {
+        callback: (ownerships: Ownerships) => void,
+        signal?: AbortSignal,
+    ) {
+        for (let start = 1; start <= maxIndex; start += batchSize) {
+            signal?.throwIfAborted()
 
-        let index = 1
-        while (index < maxIndex) {
-            const end = Math.min(index + batchSize, maxIndex)
-            const slice = new Map(Array.from(this.tileBindings.entries()).slice(index, end))
-            callback({bindings: slice})
-            index = end
+            const bindings = new Map<number, string>()
+            const end = Math.min(start + batchSize, maxIndex + 1)
+            for (let tile = start; tile < end; tile++) {
+                const owner = this.tileBindings.get(tile)
+                if (owner) bindings.set(tile, owner)
+            }
+            callback({bindings})
         }
     }
 }
