@@ -3,22 +3,35 @@
 <head>
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <meta property="og:title" content="ClickPlanet"/>
-    <meta property="og:description"
-          content="Conquer the world with your flag, one click at a time"/>
+    <meta name="description" content="Conquer the world with your flag, one click at a time"/>
+    <meta name="author" content="Raphaël Oester"/>
     <meta name="keywords" content="clickplanet, click, planet, multiplayer, online, game, conquer, world, map"/>
+    <link rel="canonical" href="https://clickplanet.lol/"/>
+
+    <meta property="og:title" content="ClickPlanet"/>
+    <meta property="og:description" content="Conquer the world with your flag, one click at a time"/>
     <meta property="og:type" content="website"/>
-    <meta property="og:image" content="https://clickplanet.lol/static/og-image.png"/>
-    <meta property="og:image:alt" content="Screenshot of ClickPlanet game"/>
-    <meta property="og:url" content="https://clickplanet.lol"/>
+    <meta property="og:url" content="https://clickplanet.lol/"/>
     <meta property="og:site_name" content="ClickPlanet"/>
     <meta property="og:locale" content="en_US"/>
 
+    <!--
+      Scrapers lay the card out before the image finishes downloading, and some
+      of them fall back to a small text-only card without the dimensions. The
+      size here must match what `npm run og-image` produces.
+    -->
+    <meta property="og:image" content="https://clickplanet.lol/static/og-image.jpg"/>
+    <meta property="og:image:secure_url" content="https://clickplanet.lol/static/og-image.jpg"/>
+    <meta property="og:image:type" content="image/jpeg"/>
+    <meta property="og:image:width" content="1200"/>
+    <meta property="og:image:height" content="627"/>
+    <meta property="og:image:alt" content="The ClickPlanet globe, covered in tiles claimed by players, beside the country leaderboard"/>
+
     <meta name="twitter:card" content="summary_large_image"/>
     <meta name="twitter:title" content="ClickPlanet"/>
-    <meta name="twitter:description"
-          content="Conquer the world with your flag, one click at a time"/>
-    <meta name="twitter:image" content="https://clickplanet.lol/static/og-image.png"/>
+    <meta name="twitter:description" content="Conquer the world with your flag, one click at a time"/>
+    <meta name="twitter:image" content="https://clickplanet.lol/static/og-image.jpg"/>
+    <meta name="twitter:image:alt" content="The ClickPlanet globe, covered in tiles claimed by players, beside the country leaderboard"/>
     <meta name="twitter:site" content="@raphael_oester"/>
 
     <meta name="google-adsense-account" content="ca-pub-3182218128474835">
