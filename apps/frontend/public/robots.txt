@@ -1,0 +1,7 @@
+# Everything here is public, including the assets crawlers need to build a
+# link preview: /static/og-image.jpg is fetched by LinkedIn, Slack, Discord and
+# friends, so nothing under /static/ may be disallowed.
+User-agent: *
+Allow: /
+
+Sitemap: https://clickplanet.lol/sitemap.xml

@@ -23,5 +23,14 @@
   ! Cache-Control
   Cache-Control: public, max-age=31536000, immutable
 
+# Crawler files: short cache so a change is picked up without a week's delay.
+/robots.txt
+  ! Cache-Control
+  Cache-Control: public, max-age=3600
+
+/sitemap.xml
+  ! Cache-Control
+  Cache-Control: public, max-age=3600
+
 /index.html
   Cache-Control: public, max-age=0, must-revalidate

@@ -13,9 +13,10 @@
     "preview": "vite preview",
     "proto": "npx buf generate",
     "atlas": "vite-node scripts/generateAtlas.ts --",
+    "og-image": "vite-node scripts/generateOgImage.ts",
     "coordinates": "vite-node scripts/computeCoordinates.ts --",
     "coordinates:convert": "vite-node scripts/convertCoordinates.ts",
-    "copy:static": "rm -rf dist/static && mkdir -p dist/static && cp -R static/. dist/static/ && rm -f dist/static/coordinates.json && { ls dist/static/coordinates-*.bin >/dev/null 2>&1 || { echo \"copy:static: static/coordinates-<hash>.bin is missing - run 'npm run coordinates:convert'\" >&2; exit 1; }; }"
+    "copy:static": "rm -rf dist/static && mkdir -p dist/static && cp -R static/. dist/static/ && rm -f dist/static/coordinates.json dist/static/og-source.png && { ls dist/static/coordinates-*.bin >/dev/null 2>&1 || { echo \"copy:static: static/coordinates-<hash>.bin is missing - run 'npm run coordinates:convert'\" >&2; exit 1; }; }"
   },
   "dependencies": {
     "@bufbuild/protobuf": "^1.10.0",
