@@ -1,5 +1,4 @@
-uniform float zoom;
-uniform vec2 resolution;
+uniform float pointSize;
 
 attribute float hover;
 attribute vec4 regionVector;
@@ -11,7 +10,6 @@ void main() {
     vHover = hover;
     vRegionVector = regionVector;
 
-    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-    gl_PointSize = (zoom * 1.5) * (resolution.y / 1000.0);
-    gl_Position = projectionMatrix * mvPosition;
+    gl_PointSize = pointSize;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
 }
