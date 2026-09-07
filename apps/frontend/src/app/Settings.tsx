@@ -8,26 +8,18 @@ type SettingsProps = {
 }
 
 export default function Settings(props: SettingsProps) {
-    return (
-        <ModalManager
-            openByDefault={false}
-            modalChildren={<div className="">
-                <SelectWithSearch
-                    onChange={(country) => {
-                        props.setCountry(country)
-                    }}
-                    selected={props.country}
-                    values={Array.from(Countries.values())}
-                />
-            </div>}
-            modalTitle={"Country"}
-            buttonProps={{
-                className: "button button-settings",
-                onClick: () => {
-                },
-                text: props.country.name,
-                imageUrl: `/static/countries/svg/${props.country.code}.svg`,
-            }}
+    return <ModalManager
+        modalTitle="Country"
+        buttonProps={{
+            className: "button-settings",
+            text: props.country.name,
+            imageUrl: `/static/countries/svg/${props.country.code}.svg`,
+        }}
+    >
+        <SelectWithSearch
+            onChange={props.setCountry}
+            selected={props.country}
+            values={Array.from(Countries.values())}
         />
-    )
+    </ModalManager>
 }

@@ -3,40 +3,26 @@ import Modal from "./Modal.tsx";
 import BlockButton, {BlockButtonProps} from "./BlockButton.tsx";
 
 type ModalManagerProps = {
-    openByDefault: boolean;
+    openByDefault?: boolean;
     modalTitle: string;
-    modalChildren: ReactNode;
+    children: ReactNode;
     buttonProps: BlockButtonProps;
     closeButtonText?: string;
 }
 
+/** A button that opens a modal, and the modal it opens. */
 export default function ModalManager(props: ModalManagerProps) {
-    const [isOpen, setIsOpen] = useState(props.openByDefault)
+    const [isOpen, setIsOpen] = useState(props.openByDefault ?? false)
 
-    const togglePopup = (val: boolean) => {
-        return () => {
-            setIsOpen(val)
-        }
-    }
+    return <>
+        <BlockButton {...props.buttonProps} onClick={() => setIsOpen(true)}/>
 
-    return (
-        <>
-            <BlockButton
-                onClick={() => {
-                    props.buttonProps.onClick()
-                    togglePopup(true)()
-                }}
-                text={props.buttonProps.text}
-                imageUrl={props.buttonProps.imageUrl}
-                className={props.buttonProps.className}
-            />
-
-            {isOpen && <Modal
-                title={props.modalTitle}
-                children={props.modalChildren}
-                onClose={togglePopup(false)}
-                closeButtonText={props.closeButtonText}
-            />}
-        </>
-    )
+        {isOpen && <Modal
+            title={props.modalTitle}
+            onClose={() => setIsOpen(false)}
+            closeButtonText={props.closeButtonText}
+        >
+            {props.children}
+        </Modal>}
+    </>
 }
