@@ -358,10 +358,17 @@ chown -R "$DEPLOY_USER:$DEPLOY_USER" "$CHECKOUT"
 env_file="${STACK_DIR}/.env"
 if [[ -f "$env_file" && $FORCE_ENV -eq 0 ]]; then
 	log ".env already exists, leaving it alone (--force-env to overwrite)"
-	# A .env written before the DNS-01 switch has no token, and compose refuses
-	# to start without it. Top it up rather than making the user hunt for this.
-	if ! grep -q '^CLOUDFLARE_API_TOKEN=.' "$env_file"; then
-		log "adding CLOUDFLARE_API_TOKEN to the existing .env"
+	# The token passed on the command line is authoritative. Leaving a stale one
+	# in .env is the worst case available: the check below passes (it uses the
+	# new token) while Caddy keeps the old one and fails at renewal, months
+	# later, with nobody watching.
+	current_token="$(sed -n 's/^CLOUDFLARE_API_TOKEN=//p' "$env_file" | head -1)"
+	if [[ "$current_token" != "$CF_TOKEN" ]]; then
+		if [[ -n "$current_token" ]]; then
+			log "replacing the CLOUDFLARE_API_TOKEN in .env with the one passed in"
+		else
+			log "adding CLOUDFLARE_API_TOKEN to the existing .env"
+		fi
 		sed -i '/^CLOUDFLARE_API_TOKEN=/d' "$env_file"
 		printf 'CLOUDFLARE_API_TOKEN=%s\n' "$CF_TOKEN" >> "$env_file"
 	fi
