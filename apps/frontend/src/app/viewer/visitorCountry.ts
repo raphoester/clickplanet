@@ -1,4 +1,4 @@
-import {Countries, Country} from "../countries.ts";
+import {Countries, Country} from "../../domain/countries.ts";
 import timezonesData from "moment-timezone/data/meta/latest.json"
 
 const timezones = timezonesData as {

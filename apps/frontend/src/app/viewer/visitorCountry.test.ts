@@ -1,6 +1,6 @@
 import {describe, expect, it} from "vitest"
 import {countryFromTimeZone} from "./visitorCountry.ts"
-import {Countries} from "../countries.ts"
+import {Countries} from "../../domain/countries.ts"
 
 describe("countryFromTimeZone", () => {
     it("maps a well-known zone to its country", () => {

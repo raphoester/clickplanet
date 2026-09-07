@@ -1,4 +1,4 @@
-import {Countries, Country} from "./countries.ts";
+import {Countries, Country} from "../domain/countries.ts";
 import {countryFromTimeZone} from "./viewer/visitorCountry.ts";
 
 export const COUNTRY_STORAGE_KEY = 'clickplanet-country'

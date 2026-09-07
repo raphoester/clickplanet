@@ -4,9 +4,11 @@ import {addDisplayObjects, disposeMaterial, setupScene} from "./scene.ts";
 import {createPoints, loadPointGeometryData} from "./points.ts";
 import {actOnPick} from "./gpuPicking.ts";
 import {regions} from "./atlas.ts";
-import {Countries, Country} from "../countries.ts";
+import {Country} from "../../domain/countries.ts";
 import {OwnershipsGetter, TileClicker, Update, UpdatesListener} from "../../backends/backend.ts";
-import {Leaderboard} from "./leaderboard.ts";
+import {LeaderboardEntry, rankCountries} from "../../domain/leaderboard.ts";
+import {OwnerChange, TileOwnership} from "../../domain/tileOwnership.ts";
+import {warnOnce} from "../../domain/warnOnce.ts";
 
 type Uniforms = {
     zoom: THREE.IUniform,
@@ -17,21 +19,13 @@ type Uniforms = {
 
 const textureLoader = new THREE.TextureLoader();
 
-const warnedAbout = new Set<string>()
-
-function warnOnce(message: string) {
-    if (warnedAbout.has(message)) return
-    warnedAbout.add(message)
-    console.warn(message)
-}
-
 export type EffectHandle = Awaited<ReturnType<typeof effect>>
 
 export async function effect(
     tileClicker: TileClicker,
     ownershipsGetter: OwnershipsGetter,
     updatesListener: UpdatesListener,
-    updateLeaderboard: (data: { country: Country, tiles: number }[]) => void,
+    updateLeaderboard: (data: LeaderboardEntry[]) => void,
     eventTarget: HTMLElement,
     countryState: Country,
     signal: AbortSignal,
@@ -57,6 +51,39 @@ export async function effect(
     const {pickingPoints, displayPoints, size} = createPoints(uniforms, geometryData);
     console.log("running with", size, "points");
 
+    // 0 means no region is selected, by default it's like that for the whole map
+    const generateDefaultRegionVector = (size: number) => {
+        return new Float32Array(size * 4).fill(0);
+    }
+
+    displayPoints.geometry.setAttribute('regionVector', new THREE.BufferAttribute(generateDefaultRegionVector(size), 4));
+
+    const ownership = new TileOwnership(size)
+
+    /** Paints the changed tiles and re-ranks the leaderboard from the store. */
+    const applyChanges = (changes: OwnerChange[]) => {
+        if (changes.length === 0) return
+
+        const attribute = displayPoints.geometry.getAttribute('regionVector')
+        const regionVectors = attribute.array as Float32Array
+        for (const {tile, country} of changes) {
+            const region = regions.get(country)
+            if (!region) {
+                warnOnce(`No sprite region for country "${country}", leaving its tiles blank`)
+                continue
+            }
+
+            const offset = (tile - 1) * 4
+            regionVectors[offset] = region.x
+            regionVectors[offset + 1] = region.y
+            regionVectors[offset + 2] = region.width
+            regionVectors[offset + 3] = region.height
+        }
+        attribute.needsUpdate = true
+
+        updateLeaderboard(rankCountries(ownership.counts()))
+    }
+
     let country: Country = countryState;
 
     function actOnPick_(
@@ -74,8 +101,6 @@ export async function effect(
         )
     }, listenerOptions);
 
-    const leaderboard = new Leaderboard(updateLeaderboard)
-
     eventTarget.addEventListener('click', (event: MouseEvent) => {
         /**
          * protection from element.dispatchEvent(e)
@@ -90,15 +115,12 @@ export async function effect(
 
             tileClicker.clickTile(id, country.code).catch(console.error)
 
-            const arrayIdIndexedOnZero = id - 1
-            const arr = displayPoints.geometry.getAttribute('regionVector').array as Float32Array
-            arr[arrayIdIndexedOnZero * 4] = region.x
-            arr[arrayIdIndexedOnZero * 4 + 1] = region.y
-            arr[arrayIdIndexedOnZero * 4 + 2] = region.width
-            arr[arrayIdIndexedOnZero * 4 + 3] = region.height
-
-            displayPoints.geometry.getAttribute('regionVector').needsUpdate = true
-            // don't register click here or duplicate will be counted from the webhook updates
+            /** Painted straight away; the server's echo confirms it later. */
+            applyChanges(ownership.applyUpdates([{
+                tile: id,
+                previousCountry: ownership.ownerOf(id),
+                newCountry: country.code,
+            }]))
         });
     }, listenerOptions);
 
@@ -122,70 +144,19 @@ export async function effect(
     // resize is a window event and cannot be captured by the eventTarget
     window.addEventListener('resize', resizeListener, listenerOptions);
 
-    // 0 means no region is selected, by default it's like that for the whole map
-    const generateDefaultRegionVector = (size: number) => {
-        return new Float32Array(size * 4).fill(0);
-    }
-
-    displayPoints.geometry.setAttribute('regionVector', new THREE.BufferAttribute(generateDefaultRegionVector(size), 4));
-
-    const updateTilesAccordingToNewBindings = (bindings: Map<number, string>) => {
-        if (bindings.size == 0) return
-        const regionVectors = displayPoints.geometry.getAttribute('regionVector').array as Float32Array;
-        bindings.forEach((countryCode, index) => {
-            const arrayIdIndexedOnZero = index - 1
-            const region = regions.get(countryCode);
-            if (!region) return
-
-            regionVectors[arrayIdIndexedOnZero * 4] = region.x;
-            regionVectors[arrayIdIndexedOnZero * 4 + 1] = region.y;
-            regionVectors[arrayIdIndexedOnZero * 4 + 2] = region.width;
-            regionVectors[arrayIdIndexedOnZero * 4 + 3] = region.height;
-        });
-        displayPoints.geometry.getAttribute('regionVector').needsUpdate = true;
-    }
-
-
     const tilesPerBatch = 10_000
     ownershipsGetter.getCurrentOwnershipsByBatch(
         tilesPerBatch,
         size,
-        (ownerships) => {
-            leaderboard.registerOwnerships(ownerships)
-            leaderboard.commitUpdate() // recompute the leaderboard after each batch
-            updateTilesAccordingToNewBindings(ownerships.bindings)
-        },
+        (ownerships) => applyChanges(ownership.applyBatch(ownerships)),
         lifetime.signal,
     ).catch((e) => {
         if (lifetime.signal.aborted) return
         console.error("Failed to fetch initial ownerships", e)
     })
 
-
     const cleanUpdatesListener = updatesListener.listenForUpdatesBatch(
-        (updates: Update[]) => {
-            const bindings = new Map<number, string>()
-            updates.forEach(u => {
-                /**
-                 * A code the server knows and we do not is skipped, not thrown
-                 * on: throwing here used to drop the whole batch, and with it
-                 * every other tile in the same frame.
-                 */
-                const country = Countries.get(u.newCountry)
-                if (!country) {
-                    warnOnce(`Ignoring an update for unknown country "${u.newCountry}"`)
-                    return
-                }
-
-                const oldCountry = u.previousCountry ? Countries.get(u.previousCountry) : undefined
-
-                leaderboard.registerClick(oldCountry, country)
-                bindings.set(u.tile, u.newCountry)
-            })
-            updateTilesAccordingToNewBindings(bindings)
-            leaderboard.commitUpdate() // commit after each batch
-        })
-
+        (updates: Update[]) => applyChanges(ownership.applyUpdates(updates)))
 
     addDisplayObjects(scene, displayPoints)
     const stopAnimation = startAnimation(renderer, scene, camera, uniforms);

@@ -1,5 +1,5 @@
 import {useCallback, useEffect, useState} from 'react';
-import {Country} from '../countries';
+import {Country} from '../../domain/countries';
 import {COUNTRY_STORAGE_KEY, resolveCountry} from '../countryPreference';
 import {currentTimeZone} from './visitorCountry';
 

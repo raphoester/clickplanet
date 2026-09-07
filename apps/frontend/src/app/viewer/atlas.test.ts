@@ -1,6 +1,6 @@
 import {describe, expect, it} from "vitest"
 import {regions} from "./atlas.ts"
-import {Countries} from "../countries.ts"
+import {Countries} from "../../domain/countries.ts"
 
 describe("flag atlas", () => {
     it("exposes a region per entry in the atlas manifest", () => {
