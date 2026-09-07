@@ -8,7 +8,7 @@ managed add-ons were, and none of them are needed. Target cost is **~$6/month**.
 |---|---|---|
 | Frontend (static bundle + textures) | Cloudflare Pages | free |
 | API + WebSocket (`cmd/api`) | DigitalOcean droplet, Docker Compose | ~$6/mo |
-| TLS | Caddy, automatic Let's Encrypt | free |
+| TLS | Caddy, automatic Let's Encrypt over DNS-01 | free |
 | Images | GitHub Container Registry | free |
 | DNS | Cloudflare | free |
 
@@ -30,66 +30,147 @@ Caddyfile; it moves to any provider that rents a Linux box.
 
 ## Layout
 
+- `bootstrap.sh` — provisions a fresh droplet end to end. Run it from your
+  laptop with `--host`; it copies itself over and re-runs there as root.
 - `docker-compose.yaml` — Caddy + backend. That is the whole stack; there is no database.
-- `Caddyfile` — TLS, reverse proxy, CORS, WebSocket passthrough
+- `Caddyfile` — TLS via DNS-01, reverse proxy, CORS, WebSocket passthrough
+- `caddy/Dockerfile` — Caddy built with `caddy-dns/cloudflare`. The stock image
+  has no DNS provider module and cannot solve the DNS-01 challenge.
 - `backend.yaml` — API config; secrets come from env, not this file
-- `.env.example` — copy to `.env` on the box
+- `.env.example` — copy to `.env` on the box (`bootstrap.sh` writes it for you)
 
 `deploy/docker-compose.yaml` (one level up) stays as the *local* full-stack
 compose. This directory is only for the production box.
 
-## 1. DNS
+## 1. The Cloudflare API token
 
-Two records on `clickplanet.lol`:
+Caddy issues its TLS certificate with the ACME **DNS-01** challenge: it proves
+control of the domain by writing a `_acme-challenge` TXT record through the
+Cloudflare API, rather than by answering an inbound request on port 80. That is
+what lets the origin stay hidden — the A record can be proxied and port 80 never
+has to be reachable from the public internet, at renewal as well as at first
+issuance.
+
+Create the token at **dash.cloudflare.com → My Profile → API Tokens → Create
+Token → Create Custom Token**.
+
+### Permissions
+
+Exactly two, both required:
+
+| Type | Resource | Level | Why |
+|---|---|---|---|
+| Zone | **DNS** | **Edit** | Create and delete the `_acme-challenge` TXT record |
+| Zone | **Zone** | **Read** | Look up the zone ID that owns the domain |
+
+`Zone / Zone / Read` is easy to miss and the failure is opaque — without it the
+plugin cannot resolve which zone `api.clickplanet.lol` belongs to, and issuance
+fails before any TXT record is attempted.
+
+### Zone resources
+
+| Field | Value |
+|---|---|
+| Include | **Specific zone** → `clickplanet.lol` |
+
+Scope it to the single zone. "All zones" grants DNS edit over every domain on
+the account, and this token lives in a file on a $6 box.
+
+### The rest
+
+- **Client IP filtering** — optional. You can pin it to the droplet's IP, but
+  remember to update it if you ever rebuild the box on a new address.
+- **TTL / expiry** — leave it unset, or set a calendar reminder. Certificates
+  renew roughly every 60 days with no human involved; an expired token turns
+  that into a silent failure that surfaces as an outage two months later.
+
+Copy the token when it is shown — Cloudflare will not display it again. It goes
+to `bootstrap.sh --cf-token`, which writes it to `.env` (mode 600) on the box as
+`CLOUDFLARE_API_TOKEN`. It is the only secret in this stack.
+
+To check it works before deploying:
+
+```bash
+curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+  https://api.cloudflare.com/client/v4/user/tokens/verify
+```
+
+`"status": "active"` means the token is valid — though that endpoint does not
+confirm the two permissions above, only that the token exists.
+
+## 2. DNS
+
+Both records on `clickplanet.lol` are **proxied**:
 
 | Name | Type | Value | Proxy |
 |---|---|---|---|
-| `api` | A | Droplet IPv4 | **DNS only (grey cloud)** |
+| `api` | A | Droplet IPv4 | **Proxied (orange cloud)** |
 | `@` / `www` | CNAME | Pages target | Proxied (orange) |
 
-Keep `api` unproxied at first — Caddy needs a direct connection on :80 to issue
-its certificate. You can switch it to proxied afterwards if you want Cloudflare
-in front of the API too; WebSockets work on the free plan.
+The orange cloud on `api` is load-bearing here, not cosmetic. `bootstrap.sh`
+restricts ports 80 and 443 to Cloudflare's published IP ranges, so a grey-clouded
+record means visitors reach the box directly and get refused by ufw — and it
+publishes the origin IP into DNS, which is the thing this setup avoids.
 
-## 2. The droplet
+Set the zone's SSL/TLS mode to **Full (strict)**. Caddy presents a real
+Let's Encrypt certificate, so strict verification passes; the Flexible mode
+talks plain HTTP to the origin, which Caddy redirects to HTTPS, giving a
+redirect loop.
+
+WebSockets work through the proxy on the free plan.
+
+## 3. The droplet
 
 A **Basic / Regular $6 droplet** (1 vCPU, 1 GB RAM, 25 GB SSD, 1 TB transfer) is
 enough: the Go API holds the whole tile grid in a few MB and there is no
-database to run beside it. Images are built in CI and only pulled here, so the
-box never needs build headroom. Pick the Ubuntu LTS image and a region
-near your players.
+database beside it. Pick the Ubuntu LTS image and a region near your players,
+and attach your SSH key at creation.
 
-`apps/backend/Dockerfile` pins `GOARCH=amd64`, so stay on a regular Intel/AMD
-droplet.
+`apps/backend/Dockerfile` pins `GOARCH=amd64`, so stay on a **regular Intel/AMD**
+droplet — the backend image will not run on an ARM one, and `bootstrap.sh`
+refuses to continue if it finds itself on `aarch64`.
 
-```bash
-ssh root@YOUR_IP
-curl -fsSL https://get.docker.com | sh
-adduser --disabled-password --gecos "" deploy && usermod -aG docker deploy
-ufw allow OpenSSH && ufw allow 80 && ufw allow 443 && ufw enable
-git clone https://github.com/raphoester/clickplanet.git /opt/clickplanet
-chown -R deploy:deploy /opt/clickplanet
-```
-
-Then as `deploy`:
+Everything else is one command from your laptop:
 
 ```bash
-cd /opt/clickplanet/deploy/vps
-cp .env.example .env && $EDITOR .env   # set API_DOMAIN, FRONTEND_ORIGIN
-docker compose up -d
+./deploy/vps/bootstrap.sh \
+  --host YOUR_DROPLET_IP \
+  --api-domain api.clickplanet.lol \
+  --frontend-origin https://clickplanet.lol \
+  --cf-token 'YOUR_CLOUDFLARE_TOKEN'
 ```
 
-Nothing else to provision: no database to start, no script to load, no secret
-to set. On first boot the API finds no snapshot and starts from an empty map,
-logging `no tile snapshot found`.
+It copies itself to the box over SSH and re-runs there as root, then: installs
+Docker, creates the `deploy` user, generates and installs a CI keypair
+(`~/.ssh/clickplanet_ci`, private half never leaves your laptop), restricts ufw
+to SSH plus Cloudflare's ranges on 80/443, clones the repo to
+`/opt/clickplanet`, writes `.env`, installs the nightly backup cron, builds
+Caddy with the Cloudflare DNS plugin, and starts the stack. It finishes by
+printing the `gh secret set` commands for step 5.
 
-Check it:
+It is idempotent — re-running after a failure skips whatever is already done —
+and it stops with a specific message rather than a confusing one when something
+is not ready: the wrong CPU architecture, a token you did not pass, a
+grey-clouded DNS record, or a backend image that is not pullable yet.
+
+On first boot the API finds no snapshot and starts from an empty map, logging
+`no tile snapshot found`. Check it:
 
 ```bash
 curl -sS https://api.clickplanet.lol/v2/rpc/map-density | head -c 200
 ```
 
-## 3. Frontend on Cloudflare Pages
+If the certificate does not appear within a few minutes, the DNS-01 challenge is
+where to look:
+
+```bash
+ssh deploy@YOUR_IP 'cd /opt/clickplanet/deploy/vps && docker compose logs caddy | grep -i -e acme -e cloudflare -e certificate'
+```
+
+An `unauthorized` or zone-lookup error there almost always means the token is
+missing one of the two permissions in step 1.
+
+## 4. Frontend on Cloudflare Pages
 
 Create a Pages project from the GitHub repo:
 
@@ -115,7 +196,7 @@ The `.bin` name carries a content hash, and `public/_headers` caches it
 stale blob can never be served. If you regenerate it, `gameMap.maxIndex` in
 `backend.yaml` must be updated to match the new tile count.
 
-## 4. CI and the image registry
+## 5. CI and the image registry
 
 `.github/workflows/deploy-backend.yml` builds the image to GHCR and rolls the
 container over SSH. GHCR rather than a dedicated registry because it adds no
@@ -128,6 +209,19 @@ Repository secrets required:
 - `VPS_USER` — `deploy`
 - `VPS_SSH_KEY` — private key whose public half is in `deploy`'s `authorized_keys`
 
+`bootstrap.sh` generates that keypair at `~/.ssh/clickplanet_ci`, installs the
+public half on the box, and prints the exact commands to set all three:
+
+```bash
+gh secret set VPS_HOST    --body 'YOUR_DROPLET_IP'
+gh secret set VPS_USER    --body 'deploy'
+gh secret set VPS_SSH_KEY < ~/.ssh/clickplanet_ci
+```
+
+The deploy job only rolls the **backend** container. Changes to the `Caddyfile`
+or `caddy/Dockerfile` need `docker compose up -d --build caddy` on the box, or
+another `bootstrap.sh` run.
+
 **One-time after the first successful build:** a new GHCR package is created
 private even when the repo is public. Open
 `https://github.com/users/raphoester/packages/container/clickplanet-backend/settings`,
@@ -138,7 +232,7 @@ and run `docker login ghcr.io` once as `deploy`.
 
 Pages deploys itself on push; no workflow needed.
 
-## 5. Backups
+## 6. Backups
 
 The whole game state is one snapshot file in the `tile_state` volume, written
 every 30s and on every clean shutdown. A nightly cron on the box is enough:
