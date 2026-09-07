@@ -432,6 +432,63 @@ if [[ $SKIP_DNS_CHECK -eq 0 ]]; then
 	fi
 fi
 
+# --------------------------------------------------- cloudflare token check
+
+# Caddy only touches ACME when it has no usable certificate, so a broken token
+# is invisible until the unattended renewal ~60 days out — the exact silent
+# failure DNS-01 was chosen to avoid. Prove the token can do both halves of the
+# challenge now: find the zone (Zone:Zone:Read) and write a record in it
+# (Zone:DNS:Edit).
+log "verifying the Cloudflare token can solve DNS-01"
+cf_api() { curl -sS -H "Authorization: Bearer ${CF_TOKEN}" -H "Content-Type: application/json" "$@"; }
+
+zone_id="$(cf_api "https://api.cloudflare.com/client/v4/zones?per_page=50" | python3 -c '
+import json, sys
+try:
+    d = json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
+if not d.get("success"):
+    sys.exit(0)
+host = sys.argv[1]
+best, zid = "", ""
+for z in d.get("result", []):
+    n = z.get("name", "")
+    # the zone is the longest suffix of the hostname we have access to
+    if (host == n or host.endswith("." + n)) and len(n) > len(best):
+        best, zid = n, z.get("id", "")
+print(zid)
+' "$API_DOMAIN" 2>/dev/null || true)"
+
+[[ -n "$zone_id" ]] || die "the Cloudflare token cannot see a zone covering ${API_DOMAIN}.
+       It needs the Zone / Zone / Read permission, and its Zone Resources must
+       include that zone. Without it Caddy cannot find where to write the
+       _acme-challenge record, and issuance fails before it starts."
+
+probe="_acme-challenge-bootstrap-check.${API_DOMAIN}"
+record_id="$(cf_api -X POST "https://api.cloudflare.com/client/v4/zones/${zone_id}/dns_records" \
+	--data "{\"type\":\"TXT\",\"name\":\"${probe}\",\"content\":\"clickplanet bootstrap check\",\"ttl\":60}" \
+	| python3 -c '
+import json, sys
+try:
+    d = json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
+print(d.get("result", {}).get("id", "") if d.get("success") else "")
+' 2>/dev/null || true)"
+
+[[ -n "$record_id" ]] || die "the Cloudflare token can read the zone but cannot create a DNS record.
+       Add the Zone / DNS / Edit permission. Caddy needs it to write the
+       _acme-challenge TXT record every time the certificate renews."
+
+# Clean up the probe. Left behind it is harmless, but a stray TXT record under
+# a name that looks like an ACME challenge is exactly the kind of thing that
+# confuses the next person debugging issuance.
+cf_api -X DELETE "https://api.cloudflare.com/client/v4/zones/${zone_id}/dns_records/${record_id}" >/dev/null 2>&1 || \
+	warn "could not delete the probe record ${probe}; remove it by hand"
+
+log "Cloudflare token ok (zone found, TXT write succeeded)"
+
 # ------------------------------------------------------------------- image
 
 # Both images are built in CI; nothing is compiled on this box.
