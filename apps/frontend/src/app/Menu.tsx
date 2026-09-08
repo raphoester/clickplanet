@@ -1,4 +1,4 @@
-import {useState} from "react";
+import {useEffect, useRef, useState} from "react";
 import {Country} from "../domain/countries.ts";
 import {LeaderboardEntry} from "../domain/leaderboard.ts";
 import Leaderboard from "./Leaderboard.tsx";
@@ -30,6 +30,29 @@ export default function Menu(props: MenuProps) {
     const [openPanel, setOpenPanel] = useState<PanelId | null>(null)
     const close = () => setOpenPanel(null)
 
+    /**
+     * Drilling in unmounts the button that was clicked, so there is no element
+     * left to hand focus back to when the panel closes. Remember which button
+     * it was and focus it once the actions are on screen again, otherwise a
+     * keyboard user is returned to the top of the document.
+     */
+    const cameFrom = useRef<PanelId | null>(null)
+    const countryButton = useRef<HTMLButtonElement>(null)
+    const aboutButton = useRef<HTMLButtonElement>(null)
+
+    const open = (panel: PanelId) => {
+        cameFrom.current = panel
+        setOpenPanel(panel)
+    }
+
+    useEffect(() => {
+        if (openPanel !== null || cameFrom.current === null) return
+        const returningTo = cameFrom.current
+        cameFrom.current = null
+        const button = returningTo === "country" ? countryButton : aboutButton
+        button.current?.focus()
+    }, [openPanel])
+
     return <div className="menu">
         <div className="menu-header">
             <img alt="ClickPlanet logo"
@@ -43,10 +66,10 @@ export default function Menu(props: MenuProps) {
             <Leaderboard data={props.leaderboard} tilesCount={props.tilesCount}/>
 
             <div className="menu-actions">
-                <button className="button" onClick={() => setOpenPanel("country")}>
+                <button ref={countryButton} className="button" onClick={() => open("country")}>
                     {props.country.name}
                 </button>
-                <button className="button" onClick={() => setOpenPanel("about")}>
+                <button ref={aboutButton} className="button" onClick={() => open("about")}>
                     About
                 </button>
                 <DiscordButton/>

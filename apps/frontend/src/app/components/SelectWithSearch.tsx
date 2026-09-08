@@ -109,6 +109,13 @@ export default function SelectWithSearch(props: SelectWithSearchProps) {
             onKeyDown={handleListKeyDown}
             className="input-select">
             {options.map((v) => (
+                /*
+                 * The options are deliberately not focusable and carry no key
+                 * handler of their own: the listbox holds the focus and moves a
+                 * cursor with aria-activedescendant, which is what the arrow,
+                 * Home, End, Enter and Space handling above operates on.
+                 */
+                // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/interactive-supports-focus
                 <div
                     id={`country-option-${v.code}`}
                     className="input-select-option"

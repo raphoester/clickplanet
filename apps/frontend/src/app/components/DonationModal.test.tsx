@@ -45,6 +45,62 @@ describe("DonationModal", () => {
         expect(shown()).toBeNull()
     })
 
+    it("announces itself as a modal dialog, labelled by its title", () => {
+        vi.spyOn(Math, "random").mockReturnValue(0.9)
+        render(<DonationModal/>)
+
+        const dialog = screen.getByRole("dialog", {name: "Dear earthlings"})
+        expect(dialog.getAttribute("aria-modal")).toBe("true")
+    })
+
+    it("closes on Escape", async () => {
+        vi.spyOn(Math, "random").mockReturnValue(0.9)
+        const user = userEvent.setup()
+        render(<DonationModal/>)
+
+        await user.keyboard("{Escape}")
+        expect(shown()).toBeNull()
+    })
+
+    it("moves focus into the dialog when it opens", () => {
+        vi.spyOn(Math, "random").mockReturnValue(0.9)
+        const {container} = render(<DonationModal/>)
+
+        expect(container.querySelector(".modal-content")!.contains(document.activeElement)).toBe(true)
+    })
+
+    /** The globe and the menu are still in the tab order behind the backdrop. */
+    it("keeps Tab inside the dialog", async () => {
+        vi.spyOn(Math, "random").mockReturnValue(0.9)
+        const user = userEvent.setup()
+        const {container} = render(<DonationModal/>)
+
+        const panel = container.querySelector(".modal-content")!
+        for (let i = 0; i < 6; i++) {
+            await user.tab()
+            expect(panel.contains(document.activeElement)).toBe(true)
+        }
+
+        await user.tab({shift: true})
+        expect(panel.contains(document.activeElement)).toBe(true)
+    })
+
+    it("hands focus back to whatever had it when the dialog closes", async () => {
+        vi.spyOn(Math, "random").mockReturnValue(0.9)
+        const user = userEvent.setup()
+
+        const opener = document.createElement("button")
+        opener.textContent = "opener"
+        document.body.appendChild(opener)
+        opener.focus()
+
+        render(<DonationModal/>)
+        await user.click(screen.getByRole("button", {name: "Close"}))
+
+        expect(document.activeElement).toBe(opener)
+        opener.remove()
+    })
+
     /**
      * The roll used to be a bare `Math.random()` in App's JSX. React may render
      * a component more than once for one commit, so it could flip on re-render.
