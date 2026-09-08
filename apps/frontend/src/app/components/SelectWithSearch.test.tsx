@@ -11,6 +11,8 @@ const VALUES = [
 ]
 
 const optionNames = () => screen.queryAllByRole("option").map(o => o.textContent?.trim())
+const selectedName = () =>
+    screen.queryAllByRole("option", {selected: true}).map(o => o.textContent?.trim())
 
 afterEach(cleanup)
 
@@ -35,8 +37,41 @@ describe("SelectWithSearch", () => {
         const onChange = vi.fn()
         render(<SelectWithSearch values={VALUES} selected={VALUES[0]} onChange={onChange}/>)
 
-        await user.selectOptions(screen.getByRole("listbox"), "jp")
+        await user.click(screen.getByRole("option", {name: "Japan"}))
         expect(onChange).toHaveBeenCalledWith(VALUES[1])
+    })
+
+    /**
+     * Every option is visible at once, tapped directly: mobile WebKit collapses
+     * a `<select size={n}>` into a native picker showing one row, which is why
+     * this list is our own markup.
+     */
+    it("shows the whole list rather than a native select", () => {
+        render(<SelectWithSearch values={VALUES} selected={VALUES[0]} onChange={vi.fn()}/>)
+
+        expect(screen.queryByRole("combobox")).toBeNull()
+        expect(screen.getAllByRole("option")).toHaveLength(VALUES.length)
+    })
+
+    it("moves through the list with the arrow keys and commits on Enter", async () => {
+        const user = userEvent.setup()
+        const onChange = vi.fn()
+        render(<SelectWithSearch values={VALUES} selected={VALUES[0]} onChange={onChange}/>)
+
+        const list = screen.getByRole("listbox")
+        list.focus()
+        await user.keyboard("{ArrowDown}{ArrowDown}{Enter}")
+
+        expect(onChange).toHaveBeenCalledWith(VALUES[2])
+    })
+
+    it("picks the top match when Enter is pressed in the search field", async () => {
+        const user = userEvent.setup()
+        const onChange = vi.fn()
+        render(<SelectWithSearch values={VALUES} selected={VALUES[0]} onChange={onChange}/>)
+
+        await user.type(screen.getByPlaceholderText("🔍 Search..."), "germ{Enter}")
+        expect(onChange).toHaveBeenCalledWith(VALUES[2])
     })
 
     /**
@@ -47,28 +82,28 @@ describe("SelectWithSearch", () => {
     it("follows the selection it is given", () => {
         const {rerender} = render(
             <SelectWithSearch values={VALUES} selected={VALUES[0]} onChange={vi.fn()}/>)
-        expect(screen.getByRole("listbox")).toHaveProperty("value", "fr")
+        expect(selectedName()).toEqual(["France"])
 
         rerender(<SelectWithSearch values={VALUES} selected={VALUES[1]} onChange={vi.fn()}/>)
-        expect(screen.getByRole("listbox")).toHaveProperty("value", "jp")
+        expect(selectedName()).toEqual(["Japan"])
     })
 
     /**
-     * A `<select>` whose value matches none of its options has the browser pick
-     * the first one instead. That both desyncs it from React and makes clicking
-     * that first option a no-op, because it is already selected and so fires no
-     * change event — which is exactly how the top result of a search, and the
-     * only result of a narrow one, became unpickable.
+     * Kept from #14, which fixed this for the `<select>` this list used to be: a
+     * select whose value matched none of its options had the browser pick the
+     * first one instead, so clicking the top result of a search fired no change
+     * event and picked nothing. The markup that caused it is gone; the guarantee
+     * it forced — the selection stays in the list, and every result is pickable
+     * — is the behaviour worth keeping.
      */
-    it("keeps its value among its options while the search filters", async () => {
+    it("keeps the selection in the list while the search filters it out", async () => {
         const user = userEvent.setup()
         render(<SelectWithSearch values={VALUES} selected={VALUES[0]} onChange={vi.fn()}/>)
-        const select = screen.getByRole("listbox") as HTMLSelectElement
 
         await user.type(screen.getByPlaceholderText("🔍 Search..."), "jap")
 
-        expect(select.value).toBe("fr")
-        expect(optionNames()).toContain("France")
+        expect(selectedName()).toEqual(["France"])
+        expect(optionNames()).toEqual(["France", "Japan"])
     })
 
     it("reports the only match of a search, which is otherwise the first option", async () => {
@@ -77,7 +112,7 @@ describe("SelectWithSearch", () => {
         render(<SelectWithSearch values={VALUES} selected={VALUES[0]} onChange={onChange}/>)
 
         await user.type(screen.getByPlaceholderText("🔍 Search..."), "jap")
-        await user.selectOptions(screen.getByRole("listbox"), "jp")
+        await user.click(screen.getByRole("option", {name: "Japan"}))
 
         expect(onChange).toHaveBeenCalledWith(VALUES[1])
     })
@@ -90,7 +125,18 @@ describe("SelectWithSearch", () => {
         await user.type(screen.getByPlaceholderText("🔍 Search..."), "an")
         expect(optionNames()).toEqual(["France", "Japan", "Germany"])
 
-        await user.selectOptions(screen.getByRole("listbox"), "jp")
+        await user.click(screen.getByRole("option", {name: "Japan"}))
+        expect(onChange).toHaveBeenCalledWith(VALUES[1])
+    })
+
+    /** The keyboard form of the same bug: Enter must not re-pick the pinned row. */
+    it("puts the keyboard cursor on the first match, not on the pinned selection", async () => {
+        const user = userEvent.setup()
+        const onChange = vi.fn()
+        render(<SelectWithSearch values={VALUES} selected={VALUES[0]} onChange={onChange}/>)
+
+        await user.type(screen.getByPlaceholderText("🔍 Search..."), "jap{Enter}")
+
         expect(onChange).toHaveBeenCalledWith(VALUES[1])
     })
 
@@ -100,7 +146,7 @@ describe("SelectWithSearch", () => {
 
         const search = screen.getByPlaceholderText("🔍 Search...")
         await user.type(search, "jap")
-        await user.selectOptions(screen.getByRole("listbox"), "jp")
+        await user.click(screen.getByRole("option", {name: "Japan"}))
 
         expect(search).toHaveProperty("value", "")
         expect(optionNames()).toEqual(["France", "Japan", "Germany"])
