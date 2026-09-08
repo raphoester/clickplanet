@@ -100,6 +100,79 @@ table {
     border: 1px solid white;
 }
 
+/*
+ * The small caps used for every label in the menu — "You're playing for",
+ * "Rank", the leaderboard's column heads. Oswald is already loaded for the
+ * numbers, and a label has to read as a label rather than as another button.
+ */
+.menu-label {
+    font-family: Oswald, sans-serif;
+    font-weight: 500;
+    font-size: 10px;
+    letter-spacing: 1.6px;
+    text-transform: uppercase;
+    color: #FFFFFF80;
+    text-shadow: none;
+}
+
+/* A section heading with a rule running off to the right of it. */
+.menu-section-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+    height: 30px;
+    margin: 14px 0 0 0;
+    padding: 0 4px;
+    font-family: Oswald, sans-serif;
+    font-weight: 500;
+    font-size: 11px;
+    letter-spacing: 1.6px;
+    text-transform: uppercase;
+    color: #FFFFFFB3;
+    text-shadow: none;
+}
+
+.menu-section-title::after {
+    content: "";
+    flex-grow: 1;
+    height: 1px;
+    background: #FFFFFF1F;
+}
+
+/*
+ * The chrome shared by the three navigation gestures — collapse, back, close.
+ * They look alike on purpose: each is the single way out of exactly one thing,
+ * so nothing is left for the reader to tell apart.
+ */
+.icon-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border-radius: 12px;
+    border: 1px solid #FFFFFF26;
+    background: #FFFFFF14;
+    color: white;
+    cursor: pointer;
+}
+
+.icon-button:hover {
+    background: #FFFFFF25;
+    transition: 0.125s ease;
+}
+
+.button-ghost {
+    border: 1px solid #FFFFFF4D;
+}
+
+.button-ghost:hover {
+    border-color: transparent;
+}
+
 .center-align {
     text-align: center;
 }
@@ -146,6 +219,16 @@ table {
 }
 
 @media only screen and (max-width: 768px) {
+    .icon-button {
+        width: 36px;
+        height: 36px;
+    }
+
+    .menu-section-title {
+        height: 26px;
+        margin-top: 8px;
+    }
+
     .button {
         width: fit-content;
         font-size: 14px;

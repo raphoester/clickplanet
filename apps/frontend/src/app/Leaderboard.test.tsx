@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import {afterEach, describe, expect, it} from "vitest"
 import {cleanup, render, screen, within} from "@testing-library/react"
-import userEvent from "@testing-library/user-event"
 import Leaderboard from "./Leaderboard.tsx"
 import {Countries} from "../domain/countries.ts"
 
@@ -17,8 +16,8 @@ describe("Leaderboard", () => {
         render(<Leaderboard tilesCount={1000} data={[entry("fr", 500), entry("jp", 250)]}/>)
 
         expect(cells()).toEqual([
-            ["1.", "🇫🇷 France", "500", "50.00"],
-            ["2.", "🇯🇵 Japan", "250", "25.00"],
+            ["1", "🇫🇷 France", "500", "50.00"],
+            ["2", "🇯🇵 Japan", "250", "25.00"],
         ])
     })
 
@@ -38,16 +37,40 @@ describe("Leaderboard", () => {
         expect(screen.getByText("🏴󠁧󠁢󠁥󠁮󠁧󠁿 England")).toBeDefined()
     })
 
-    it("collapses and expands the table", async () => {
-        const user = userEvent.setup()
+    /**
+     * The table used to sit under a "Hide" button and nothing else, so the only
+     * thing naming what would disappear was the button that hid it.
+     */
+    it("names itself, and labels its columns in words", () => {
         render(<Leaderboard tilesCount={1000} data={[entry("fr", 500)]}/>)
 
-        expect(rows()).toHaveLength(1)
+        expect(screen.getByRole("region", {name: "Leaderboard"})).toBeDefined()
+        expect(screen.getAllByRole("columnheader").map(h => h.textContent))
+            .toEqual(["#", "Country", "Tiles", "Share"])
+    })
 
-        await user.click(screen.getByRole("button", {name: "Hide"}))
-        expect(screen.queryAllByRole("row")).toEqual([])
+    /** So a player can find themselves without counting down the table. */
+    it("marks the player's own row", () => {
+        render(<Leaderboard tilesCount={1000}
+                            data={[entry("fr", 500), entry("jp", 250)]}
+                            highlight={Countries.get("jp")!}/>)
 
-        await user.click(screen.getByRole("button", {name: "Leaderboard"}))
-        expect(rows()).toHaveLength(1)
+        const marked = rows().filter(r => r.getAttribute("aria-current") === "true")
+        expect(marked).toHaveLength(1)
+        expect(within(marked[0]).getByText("🇯🇵 Japan")).toBeDefined()
+    })
+
+    it("marks nothing when the player's country holds no tile", () => {
+        render(<Leaderboard tilesCount={1000}
+                            data={[entry("fr", 500)]}
+                            highlight={Countries.get("jp")!}/>)
+
+        expect(rows().filter(r => r.getAttribute("aria-current") === "true")).toEqual([])
+    })
+
+    /** Collapsing is the card's job now; this component has no control of its own. */
+    it("owns no toggle of its own", () => {
+        render(<Leaderboard tilesCount={1000} data={[entry("fr", 500)]}/>)
+        expect(screen.queryAllByRole("button")).toEqual([])
     })
 })

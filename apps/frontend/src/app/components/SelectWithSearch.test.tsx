@@ -28,7 +28,7 @@ describe("SelectWithSearch", () => {
         // selection is kept in the list regardless, which its own tests cover.
         render(<SelectWithSearch values={VALUES} selected={VALUES[1]} onChange={vi.fn()}/>)
 
-        await user.type(screen.getByPlaceholderText("🔍 Search..."), "jAp")
+        await user.type(screen.getByPlaceholderText("Search a country"), "jAp")
         expect(optionNames()).toEqual(["Japan"])
     })
 
@@ -70,7 +70,7 @@ describe("SelectWithSearch", () => {
         const onChange = vi.fn()
         render(<SelectWithSearch values={VALUES} selected={VALUES[0]} onChange={onChange}/>)
 
-        await user.type(screen.getByPlaceholderText("🔍 Search..."), "germ{Enter}")
+        await user.type(screen.getByPlaceholderText("Search a country"), "germ{Enter}")
         expect(onChange).toHaveBeenCalledWith(VALUES[2])
     })
 
@@ -100,7 +100,7 @@ describe("SelectWithSearch", () => {
         const user = userEvent.setup()
         render(<SelectWithSearch values={VALUES} selected={VALUES[0]} onChange={vi.fn()}/>)
 
-        await user.type(screen.getByPlaceholderText("🔍 Search..."), "jap")
+        await user.type(screen.getByPlaceholderText("Search a country"), "jap")
 
         expect(selectedName()).toEqual(["France"])
         expect(optionNames()).toEqual(["France", "Japan"])
@@ -111,7 +111,7 @@ describe("SelectWithSearch", () => {
         const onChange = vi.fn()
         render(<SelectWithSearch values={VALUES} selected={VALUES[0]} onChange={onChange}/>)
 
-        await user.type(screen.getByPlaceholderText("🔍 Search..."), "jap")
+        await user.type(screen.getByPlaceholderText("Search a country"), "jap")
         await user.click(screen.getByRole("option", {name: "Japan"}))
 
         expect(onChange).toHaveBeenCalledWith(VALUES[1])
@@ -122,7 +122,7 @@ describe("SelectWithSearch", () => {
         const onChange = vi.fn()
         render(<SelectWithSearch values={VALUES} selected={VALUES[0]} onChange={onChange}/>)
 
-        await user.type(screen.getByPlaceholderText("🔍 Search..."), "an")
+        await user.type(screen.getByPlaceholderText("Search a country"), "an")
         expect(optionNames()).toEqual(["France", "Japan", "Germany"])
 
         await user.click(screen.getByRole("option", {name: "Japan"}))
@@ -135,7 +135,7 @@ describe("SelectWithSearch", () => {
         const onChange = vi.fn()
         render(<SelectWithSearch values={VALUES} selected={VALUES[0]} onChange={onChange}/>)
 
-        await user.type(screen.getByPlaceholderText("🔍 Search..."), "jap{Enter}")
+        await user.type(screen.getByPlaceholderText("Search a country"), "jap{Enter}")
 
         expect(onChange).toHaveBeenCalledWith(VALUES[1])
     })
@@ -144,7 +144,7 @@ describe("SelectWithSearch", () => {
         const user = userEvent.setup()
         render(<SelectWithSearch values={VALUES} selected={VALUES[0]} onChange={vi.fn()}/>)
 
-        const search = screen.getByPlaceholderText("🔍 Search...")
+        const search = screen.getByPlaceholderText("Search a country")
         await user.type(search, "jap")
         await user.click(screen.getByRole("option", {name: "Japan"}))
 
