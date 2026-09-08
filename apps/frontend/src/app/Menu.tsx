@@ -4,7 +4,6 @@ import {LeaderboardEntry} from "../domain/leaderboard.ts";
 import Leaderboard from "./Leaderboard.tsx";
 import About from "./About.tsx";
 import CountryPicker from "./CountryPicker.tsx";
-import MenuButton from "./components/MenuButton.tsx";
 import MenuPanel from "./components/MenuPanel.tsx";
 import DiscordButton from "./components/DiscordButton.tsx";
 import "./Menu.css"
@@ -19,31 +18,40 @@ export type MenuProps = {
 }
 
 /**
- * The sticky card. Which panel is open lives here rather than in each button,
- * because the panels expand inside the card: two open at once would push it
- * past the viewport, so opening one closes the other.
+ * The sticky card, which drills down rather than growing. A panel takes the
+ * place of both the leaderboard and the buttons that opened it, and its own
+ * close button walks back up; stacking them instead ran the card down the whole
+ * page and left five buttons piled at the bottom.
+ *
+ * That is also why the open panel lives here rather than in each button: there
+ * is one content slot, so at most one panel can be in it.
  */
 export default function Menu(props: MenuProps) {
     const [openPanel, setOpenPanel] = useState<PanelId | null>(null)
-    const toggle = (panel: PanelId) => setOpenPanel((open) => open === panel ? null : panel)
     const close = () => setOpenPanel(null)
 
     return <div className="menu">
-        <Leaderboard data={props.leaderboard} tilesCount={props.tilesCount}/>
-
-        <div className="menu-actions">
-            <MenuButton
-                text={props.country.name}
-                expanded={openPanel === "country"}
-                onClick={() => toggle("country")}
-            />
-            <MenuButton
-                text="About"
-                expanded={openPanel === "about"}
-                onClick={() => toggle("about")}
-            />
-            <DiscordButton/>
+        <div className="menu-header">
+            <img alt="ClickPlanet logo"
+                 src="/static/logo.svg"
+                 width="56px"
+                 height="56px"/>
+            <h1>ClickPlanet</h1>
         </div>
+
+        {openPanel === null && <>
+            <Leaderboard data={props.leaderboard} tilesCount={props.tilesCount}/>
+
+            <div className="menu-actions">
+                <button className="button" onClick={() => setOpenPanel("country")}>
+                    {props.country.name}
+                </button>
+                <button className="button" onClick={() => setOpenPanel("about")}>
+                    About
+                </button>
+                <DiscordButton/>
+            </div>
+        </>}
 
         {openPanel === "country" && <MenuPanel title="Country" onClose={close}>
             <CountryPicker country={props.country} setCountry={props.setCountry}/>

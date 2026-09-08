@@ -4,9 +4,6 @@
     /* Lets the panel shrink inside the card instead of overflowing it. */
     min-height: 0;
     flex: 1 1 auto;
-    margin-top: 12px;
-    padding-top: 4px;
-    border-top: 1px solid #FFFFFF33;
     text-align: center;
 }
 
@@ -25,10 +22,6 @@
 }
 
 @media only screen and (max-width: 768px) {
-    .menu-panel {
-        margin-top: 8px;
-    }
-
     .menu-panel-title {
         font-size: 22px;
     }
