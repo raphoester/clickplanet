@@ -52,11 +52,19 @@ Core interfaces (ports) defined in `gateways.go`:
 ### Adapters
 
 **Primary (input):**
-- `adapters/primary/http/clicks_v3_controller/` — the v3 API. Connect RPCs (`Click`, `MapDensity`) under `POST /v3/planet.v1.ClickService/<Method>`, plus `GET /v3/map`, which returns the dense tile encoding described below.
+- `adapters/primary/http/clicks_v3_controller/` — the v3 API, as two separate types:
+  - `ClickService` implements the generated `planetv1connect.ClickServiceHandler` and nothing else. It never sees an `http.ResponseWriter` — that is the point of serving the contract with Connect rather than by hand. Served at `POST /v3/planet.v1.ClickService/<Method>`.
+  - `MapHandler` is a plain `http.Handler` for `GET /v3/map`, which is deliberately not an RPC (see below).
+
+  Neither declares its own routes: `app/wiring.go` mounts them, the way connect-go's own getting-started does.
 - `adapters/primary/http/clicks_controller/` — **deprecated** v2 endpoints (`POST /v2/rpc/click`, `GET /v2/rpc/map-density`, `POST /v2/rpc/ownerships-by-batch`). They wrap binary protobuf in a base64 JSON envelope and pick that encoding from `httpServer.format` rather than from the request. Frozen; mounted until the deployed frontends move.
 - `adapters/primary/http/websocket_publisher/` — subscribes to the tile update stream, broadcasts to WebSocket clients
 
 Both versions are wired to the same domain instances in `app/wiring.go`, and both serve the same websocket (`/v2/ws/listen` and `/v3/ws/listen`) — the tile map lives in this process, so two sets of adapters over two storages would be two different games.
+
+**There is one server and one mux.** Connect handlers are ordinary `http.Handler`s, so the v3 RPCs, the v2 REST endpoints, the map GET, the websocket upgrade and `/metrics` all mount on the same `http.ServeMux` on one port. Nothing here needs a connection-level demultiplexer such as `cmux`; that is for running a real gRPC server, which owns its own HTTP/2 handler, beside a REST one.
+
+`Configure` sets `http.Protocols` with both HTTP/1.1 and unencrypted HTTP/2, because the generated handler also speaks gRPC and gRPC-Web and those need HTTP/2. Browsers reach the same routes over HTTP/1.1. Verified: HTTP/1.1 and h2c both answer on the same port.
 
 ### The v3 map encoding
 

@@ -95,9 +95,18 @@ func (a *App) Configure(ctx context.Context) error {
 
 	a.declarePrometheusRoutes(router)
 
+	// Connect handlers are plain http.Handlers, so everything shares one mux
+	// and one server. Unencrypted HTTP/2 is enabled because the generated
+	// handler also speaks gRPC and gRPC-Web, and those need it; browsers reach
+	// the same routes over HTTP/1.1.
+	protocols := new(http.Protocols)
+	protocols.SetHTTP1(true)
+	protocols.SetUnencryptedHTTP2(true)
+
 	a.server = &http.Server{
-		Addr:    a.config.HTTPServer.BindAddress,
-		Handler: router,
+		Addr:      a.config.HTTPServer.BindAddress,
+		Handler:   router,
+		Protocols: protocols,
 	}
 
 	return nil
