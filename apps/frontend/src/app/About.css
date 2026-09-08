@@ -1,15 +1,15 @@
-.modal-about-author {
+.about-author {
     padding: 18px 0px 18px 0px;
 }
 
-.modal-about-photo {
+.about-photo {
     width: 96px;
     height: 96px;
     border-radius: 64px;
     border: 4px solid white;
 }
 
-.modal-about-social {
+.about-social {
     display: flex;
     justify-content: center;
     padding: 8px 0 32px 0;
@@ -17,10 +17,10 @@
 }
 
 @media only screen and (max-width: 768px) {
-    .modal-about-author {
+    .about-author {
         padding: 0px 0px 8px 0px;
     }
-    .modal-about-social {
+    .about-social {
         padding: 0px 0 16px 0;
     }
 }

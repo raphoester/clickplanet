@@ -1,0 +1,35 @@
+.menu-panel {
+    display: flex;
+    flex-direction: column;
+    /* Lets the panel shrink inside the card instead of overflowing it. */
+    min-height: 0;
+    flex: 1 1 auto;
+    margin-top: 12px;
+    padding-top: 4px;
+    border-top: 1px solid #FFFFFF33;
+    text-align: center;
+}
+
+.menu-panel-title {
+    margin: 0 0 8px 0;
+    font-size: 28px;
+}
+
+.menu-panel-body {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow-y: auto;
+    margin-bottom: 12px;
+}
+
+@media only screen and (max-width: 768px) {
+    .menu-panel {
+        margin-top: 8px;
+    }
+
+    .menu-panel-title {
+        font-size: 22px;
+    }
+}
