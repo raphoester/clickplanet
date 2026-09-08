@@ -18,30 +18,56 @@
 .input-select {
     width: 100%;
     height: 458px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
     font-size: 24px;
     margin-bottom: 16px;
     border: none;
     border-radius: 16px;
     background-color: transparent;
     font-family: "Luckiest Guy", sans-serif;
+    color: white;
+    text-align: left;
+}
+
+.input-select:focus-visible {
+    outline: 2px solid #FFFFFF40;
+    outline-offset: -2px;
 }
 
 .input-select-option {
     width: 100%;
     height: 56px;
     padding: 14px 0 0 16px;
+    box-sizing: border-box;
     background-color: transparent;
     color: white;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    cursor: pointer;
 }
 
-.input-select-option:checked {
-    background-color: #FFFFFF25;
+/*
+ * Two different things, and they must not look alike: the selection is the
+ * country in force, while the cursor is what Enter would pick. A search keeps
+ * the selection in the list, so both are on screen at once.
+ */
+.input-select-option[aria-selected="true"] {
+    background-color: #FFFFFF18;
+}
+
+.input-select-option[data-active="true"] {
+    background-color: #FFFFFF30;
+    box-shadow: inset 3px 0 0 #FFFFFF80;
 }
 
 .input-select-option:hover {
-    background-color: #FFFFFF25;
+    background-color: #FFFFFF30;
     transition: 0.125s ease;
-    cursor: pointer;
 }
 
 @media only screen and (max-width: 768px) {
