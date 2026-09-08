@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/primary/http/clicks_controller"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/primary/http/clicks_v3_controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/primary/http/websocket_publisher"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/secondary/in_memory_country_checker"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/secondary/in_memory_tile_checker"
@@ -17,7 +18,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/xtime"
 )
 
-func (a *App) configureAppV2(_ context.Context) (*ConfigureAppResponse, error) {
+func (a *App) configureApp(_ context.Context) (*ConfigureAppResponse, error) {
 	a.configurePromRegistryIfNeeded()
 	a.configureHTTPFormatsIfNeeded()
 
@@ -58,7 +59,7 @@ func (a *App) configureAppV2(_ context.Context) (*ConfigureAppResponse, error) {
 
 	a.configureBookkeeperIfEnabled(tilesStorage)
 
-	controller := clicks_controller.New(
+	v2Controller := clicks_controller.New(
 		clickHandlerService,
 		tilesChecker,
 		tilesStorage,
@@ -66,9 +67,19 @@ func (a *App) configureAppV2(_ context.Context) (*ConfigureAppResponse, error) {
 		a.reader,
 	)
 
+	// v2 and v3 share these instances: the tile map lives in this process, so
+	// two sets of adapters over two storages would be two different games.
+	v3Controller := clicks_v3_controller.New(
+		clickHandlerService,
+		tilesChecker,
+		tilesStorage,
+		a.logger,
+	)
+
 	return &ConfigureAppResponse{
-		declareWSRoutes:  publisher.DeclareRoutes,
-		declareRPCRoutes: controller.DeclareRoutes,
+		declareWSRoutes:    publisher.DeclareRoutes,
+		declareV2RPCRoutes: v2Controller.DeclareRoutes,
+		declareV3Routes:    v3Controller.DeclareRoutes,
 	}, nil
 }
 

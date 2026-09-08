@@ -52,8 +52,17 @@ Core interfaces (ports) defined in `gateways.go`:
 ### Adapters
 
 **Primary (input):**
-- `adapters/primary/http/clicks_controller/` — REST endpoints (`POST /v2/rpc/click`, `GET /v2/rpc/map-density`, `POST /v2/rpc/ownerships-by-batch`)
+- `adapters/primary/http/clicks_v3_controller/` — the v3 API. Connect RPCs (`Click`, `MapDensity`) under `POST /v3/clicks.v1.ClickService/<Method>`, plus `GET /v3/map`, which returns the dense tile encoding described below.
+- `adapters/primary/http/clicks_controller/` — **deprecated** v2 endpoints (`POST /v2/rpc/click`, `GET /v2/rpc/map-density`, `POST /v2/rpc/ownerships-by-batch`). They wrap binary protobuf in a base64 JSON envelope and pick that encoding from `httpServer.format` rather than from the request. Frozen; mounted until the deployed frontends move.
 - `adapters/primary/http/websocket_publisher/` — subscribes to the tile update stream, broadcasts to WebSocket clients
+
+Both versions are wired to the same domain instances in `app/wiring.go`, and both serve the same websocket (`/v2/ws/listen` and `/v3/ws/listen`) — the tile map lives in this process, so two sets of adapters over two storages would be two different games.
+
+### The v3 map encoding
+
+`GET /v3/map?start=&end=` (both optional, defaulting to the whole map) answers `application/octet-stream` in the layout documented in `memory_tile_storage/wire.go`: a magic, the interned country code table, then two bytes per tile. Tile ids are implicit in the position, which is what makes it about seven times smaller than the v2 `map<uint32, string>` — 516 KB against 3.6 MB for a full 257,948-tile map. The interned ids are written as stored and the table travels with them, so nothing translates on the way out and the client needs no shared country list.
+
+It is a GET and says `Cache-Control: public, max-age=5`, so a burst of visitors can share one origin response. The websocket carries everything that happens after a chunk was built, so a client starting from a slightly old map converges anyway.
 
 **Secondary (output):**
 - `adapters/secondary/memory_tile_storage/` — the tile map. A preallocated `[]uint16` indexed by tile id, with country codes interned into a side table (2 bytes per tile — ~2 MB for a 1M-tile map). Fans updates out in process, serves `PastUpdates` from a bounded ring buffer, and persists to a local snapshot file.
@@ -96,7 +105,7 @@ Shared infrastructure: `cfgutil` (YAML + env config via koanf), `httpserver` (mi
 
 Config is loaded from a YAML file (`-config` flag), with environment variables overriding it — `cfgutil` uses `.` as the nesting delimiter, so `tilesStorage.snapshotPath=/data/tiles` in the environment overrides the file. See `cmd/api/example.yaml` for the full schema.
 
-- `httpServer.bindAddress`, `httpServer.format` (`json` or `binary` for protobuf)
+- `httpServer.bindAddress`, `httpServer.format` (`json` or `binary` for protobuf) — v2 only. v3 negotiates the encoding per request.
 - `gameMap.maxIndex` — total number of tiles
 - `tilesStorage.snapshotPath` — where the state is persisted; **empty disables durability**
 - `tilesStorage.snapshotInterval` — how often a changed state is flushed
@@ -106,7 +115,9 @@ Config is loaded from a YAML file (`-config` flag), with environment variables o
 
 ### Protobuf
 
-API contracts live in the monorepo-shared [`/proto/clicks/v1/clicks.proto`](../../proto/clicks/v1/clicks.proto) (also used by the frontend). Generated code goes to `generated/proto/`. Use `make proto` to regenerate after editing `.proto` files (requires `buf` CLI).
+API contracts live in the monorepo-shared [`/proto/clicks/v1/clicks.proto`](../../proto/clicks/v1/clicks.proto) (also used by the frontend). Generated code goes to `generated/proto/`. Use `make proto` to regenerate after editing `.proto` files (requires the `buf` CLI, plus `protoc-gen-go` and `protoc-gen-connect-go` on `PATH`).
+
+The proto package stays at `clicks.v1`: "v3" is the HTTP API version and lives in the URL prefix, not in the package name. There is no gRPC here — Connect serves the same service definition over ordinary HTTP/1.1 POSTs.
 
 ### Testing
 

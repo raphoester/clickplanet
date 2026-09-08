@@ -13,6 +13,7 @@ type Config = {
 
 const FETCH_ATTEMPTS = 5
 
+/** Deprecated: v2 client. v3 is the generated Connect client. */
 export class ClickServiceClient {
     constructor(public config: Config) {
     }
@@ -57,6 +58,7 @@ export class ClickServiceClient {
     }
 }
 
+/** Deprecated: v2 backend. The websocket part carries over to v3 unchanged. */
 export class HTTPBackend implements TileClicker, OwnershipsGetter, UpdatesListener {
     private pendingUpdates: Update[] = []
     private readonly updateBatchCallbacks = new Map<string, (updates: Update[]) => void>()

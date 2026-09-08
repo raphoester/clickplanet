@@ -2,8 +2,11 @@ syntax = "proto3";
 
 package clicks.v1;
 
-message MapDensityResponse {
-  uint32 density = 1;
+// v3 API. Connect, served under /v3. The map load is GET /v3/map (two bytes
+// per tile) and the update stream stays the websocket at /v3/ws/listen.
+service ClickService {
+  rpc Click(ClickRequest) returns (ClickResponse);
+  rpc MapDensity(MapDensityRequest) returns (MapDensityResponse);
 }
 
 message ClickRequest {
@@ -11,8 +14,12 @@ message ClickRequest {
   string country_id = 2;
 }
 
-message Ownerships {
-  map<uint32, string> bindings = 1;
+message ClickResponse {}
+
+message MapDensityRequest {}
+
+message MapDensityResponse {
+  uint32 density = 1;
 }
 
 message TileUpdate {
@@ -21,7 +28,17 @@ message TileUpdate {
   string previous_country_id = 3;
 }
 
+// Deprecated: v2 only. v3 uses GET /v3/map.
+message Ownerships {
+  option deprecated = true;
+
+  map<uint32, string> bindings = 1;
+}
+
+// Deprecated: v2 only. v3 uses GET /v3/map.
 message OwnershipBatchRequest {
+  option deprecated = true;
+
   uint32 start_tile_id = 1;
   uint32 end_tile_id = 2;
 }

@@ -33,6 +33,7 @@ type Controller struct {
 	tilesStorage        domain.TileStorage
 }
 
+// Deprecated: v2 is frozen. New work goes to the v3 Connect service.
 func (c *Controller) DeclareRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /click", c.HandleClick)
 	mux.HandleFunc("GET /map-density", c.GetMapDensity)

@@ -57,9 +57,9 @@ func New() (*App, error) {
 }
 
 func (a *App) Configure(ctx context.Context) error {
-	appV2, err := a.configureAppV2(ctx)
+	app, err := a.configureApp(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to configure app v2: %w", err)
+		return fmt.Errorf("failed to configure app: %w", err)
 	}
 
 	rpcMiddlewares := httpserver.MiddlewareStack(
@@ -75,13 +75,23 @@ func (a *App) Configure(ctx context.Context) error {
 
 	router := http.NewServeMux()
 
-	appV2RPCRouter := http.NewServeMux()
-	appV2.declareRPCRoutes(appV2RPCRouter)
-	router.Handle("/v2/rpc/", http.StripPrefix("/v2/rpc", rpcMiddlewares(appV2RPCRouter)))
+	// Deprecated: mounted only until the deployed frontends move to /v3.
+	v2RPCRouter := http.NewServeMux()
+	app.declareV2RPCRoutes(v2RPCRouter)
+	router.Handle("/v2/rpc/", http.StripPrefix("/v2/rpc", rpcMiddlewares(v2RPCRouter)))
 
-	appV2WSRouter := http.NewServeMux()
-	appV2.declareWSRoutes(appV2WSRouter)
-	router.Handle("/v2/ws/", http.StripPrefix("/v2/ws", wsMiddlewares(appV2WSRouter)))
+	v2WSRouter := http.NewServeMux()
+	app.declareWSRoutes(v2WSRouter)
+	router.Handle("/v2/ws/", http.StripPrefix("/v2/ws", wsMiddlewares(v2WSRouter)))
+
+	// /v3/ws/ is more specific than /v3/, so it wins the match.
+	v3WSRouter := http.NewServeMux()
+	app.declareWSRoutes(v3WSRouter)
+	router.Handle("/v3/ws/", http.StripPrefix("/v3/ws", wsMiddlewares(v3WSRouter)))
+
+	v3Router := http.NewServeMux()
+	app.declareV3Routes(v3Router)
+	router.Handle("/v3/", http.StripPrefix("/v3", rpcMiddlewares(v3Router)))
 
 	a.declarePrometheusRoutes(router)
 
@@ -108,6 +118,7 @@ func (a *App) declarePrometheusRoutes(router *http.ServeMux) {
 }
 
 type ConfigureAppResponse struct {
-	declareWSRoutes  func(mux *http.ServeMux)
-	declareRPCRoutes func(mux *http.ServeMux)
+	declareWSRoutes    func(mux *http.ServeMux)
+	declareV2RPCRoutes func(mux *http.ServeMux)
+	declareV3Routes    func(mux *http.ServeMux)
 }

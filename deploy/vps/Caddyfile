@@ -44,7 +44,7 @@
 	header {
 		Access-Control-Allow-Origin "{$FRONTEND_ORIGIN}"
 		Access-Control-Allow-Methods "GET, POST, OPTIONS"
-		Access-Control-Allow-Headers "Content-Type"
+		Access-Control-Allow-Headers "Content-Type, Connect-Protocol-Version, Connect-Timeout-Ms"
 		Vary "Origin"
 		-Server
 	}
@@ -64,13 +64,19 @@
 
 	# WebSocket stream of tile updates. Caddy upgrades automatically; the
 	# disabled timeouts keep idle spectators connected.
-	handle /v2/ws/* {
+	handle /v2/ws/* /v3/ws/* {
 		reverse_proxy backend:8080 {
 			transport http {
 				read_timeout 0
 				write_timeout 0
 			}
 		}
+	}
+
+	# v3: Connect RPCs, plus GET /v3/map. The map body is the one response
+	# worth caching, and it says so itself.
+	handle /v3/* {
+		reverse_proxy backend:8080
 	}
 
 	# Prometheus metrics — closed by default. Uncomment and restrict by source
