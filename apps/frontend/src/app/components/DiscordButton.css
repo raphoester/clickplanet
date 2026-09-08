@@ -1,20 +1,19 @@
+/*
+ * The box — height, padding, radius, font — belongs to `.button`, mobile size
+ * included. Redefining it here is what made this button a slab twice the height
+ * of the About button next to it. All that is Discord's is the blurple, plus
+ * the couple of rules an <a> needs to sit in a button's box like a <button>.
+ */
 .button-discord {
-    padding: 18px;
     display: flex;
+    align-items: center;
     justify-content: center;
     text-decoration: none;
     background-color: #5865f2;
-    height: 56px;
+    transition: background-color 0.125s ease;
 }
 
 .button-discord:hover {
     text-decoration: none;
-    transition: 0.125s ease;
     background-color: #7289da;
-}
-
-@media only screen and (max-width: 768px) {
-    .button-discord {
-        padding: 16px 8px 0px 8px;
-    }
 }
