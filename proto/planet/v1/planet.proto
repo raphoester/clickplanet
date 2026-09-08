@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package clicks.v1;
+package planet.v1;
 
 // v3 API. Connect, served under /v3. The map load is GET /v3/map (two bytes
 // per tile) and the update stream stays the websocket at /v3/ws/listen.

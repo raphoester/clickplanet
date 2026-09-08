@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
-	clicksv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/clicks/v1"
+	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/domain"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/httpserver"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging"
@@ -33,7 +33,7 @@ func TestPublisherServesConnectedClients(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, websocket.MessageBinary, typ)
 
-	var update clicksv1.TileUpdate
+	var update planetv1.TileUpdate
 	require.NoError(t, proto.Unmarshal(bin, &update))
 	assert.Equal(t, uint32(42), update.TileId)
 	assert.Equal(t, "fr", update.CountryId)

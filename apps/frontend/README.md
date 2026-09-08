@@ -75,5 +75,5 @@ geometry, avoiding per-message re-renders under high traffic.
 npm install
 npm run dev       # dev server at http://localhost:5173
 npm run build     # production build
-npm run proto     # regenerate types from proto/clicks.proto
+npm run proto     # regenerate types from proto/planet/v1/planet.proto
 ```

@@ -2,9 +2,9 @@
 // versions:
 // 	protoc-gen-go v1.36.6
 // 	protoc        (unknown)
-// source: clicks/v1/clicks.proto
+// source: planet/v1/planet.proto
 
-package clicksv1
+package planetv1
 
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -31,7 +31,7 @@ type ClickRequest struct {
 
 func (x *ClickRequest) Reset() {
 	*x = ClickRequest{}
-	mi := &file_clicks_v1_clicks_proto_msgTypes[0]
+	mi := &file_planet_v1_planet_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -43,7 +43,7 @@ func (x *ClickRequest) String() string {
 func (*ClickRequest) ProtoMessage() {}
 
 func (x *ClickRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_clicks_v1_clicks_proto_msgTypes[0]
+	mi := &file_planet_v1_planet_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -56,7 +56,7 @@ func (x *ClickRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClickRequest.ProtoReflect.Descriptor instead.
 func (*ClickRequest) Descriptor() ([]byte, []int) {
-	return file_clicks_v1_clicks_proto_rawDescGZIP(), []int{0}
+	return file_planet_v1_planet_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *ClickRequest) GetTileId() uint32 {
@@ -81,7 +81,7 @@ type ClickResponse struct {
 
 func (x *ClickResponse) Reset() {
 	*x = ClickResponse{}
-	mi := &file_clicks_v1_clicks_proto_msgTypes[1]
+	mi := &file_planet_v1_planet_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -93,7 +93,7 @@ func (x *ClickResponse) String() string {
 func (*ClickResponse) ProtoMessage() {}
 
 func (x *ClickResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_clicks_v1_clicks_proto_msgTypes[1]
+	mi := &file_planet_v1_planet_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -106,7 +106,7 @@ func (x *ClickResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClickResponse.ProtoReflect.Descriptor instead.
 func (*ClickResponse) Descriptor() ([]byte, []int) {
-	return file_clicks_v1_clicks_proto_rawDescGZIP(), []int{1}
+	return file_planet_v1_planet_proto_rawDescGZIP(), []int{1}
 }
 
 type MapDensityRequest struct {
@@ -117,7 +117,7 @@ type MapDensityRequest struct {
 
 func (x *MapDensityRequest) Reset() {
 	*x = MapDensityRequest{}
-	mi := &file_clicks_v1_clicks_proto_msgTypes[2]
+	mi := &file_planet_v1_planet_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -129,7 +129,7 @@ func (x *MapDensityRequest) String() string {
 func (*MapDensityRequest) ProtoMessage() {}
 
 func (x *MapDensityRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_clicks_v1_clicks_proto_msgTypes[2]
+	mi := &file_planet_v1_planet_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -142,7 +142,7 @@ func (x *MapDensityRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MapDensityRequest.ProtoReflect.Descriptor instead.
 func (*MapDensityRequest) Descriptor() ([]byte, []int) {
-	return file_clicks_v1_clicks_proto_rawDescGZIP(), []int{2}
+	return file_planet_v1_planet_proto_rawDescGZIP(), []int{2}
 }
 
 type MapDensityResponse struct {
@@ -154,7 +154,7 @@ type MapDensityResponse struct {
 
 func (x *MapDensityResponse) Reset() {
 	*x = MapDensityResponse{}
-	mi := &file_clicks_v1_clicks_proto_msgTypes[3]
+	mi := &file_planet_v1_planet_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -166,7 +166,7 @@ func (x *MapDensityResponse) String() string {
 func (*MapDensityResponse) ProtoMessage() {}
 
 func (x *MapDensityResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_clicks_v1_clicks_proto_msgTypes[3]
+	mi := &file_planet_v1_planet_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -179,7 +179,7 @@ func (x *MapDensityResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MapDensityResponse.ProtoReflect.Descriptor instead.
 func (*MapDensityResponse) Descriptor() ([]byte, []int) {
-	return file_clicks_v1_clicks_proto_rawDescGZIP(), []int{3}
+	return file_planet_v1_planet_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *MapDensityResponse) GetDensity() uint32 {
@@ -200,7 +200,7 @@ type TileUpdate struct {
 
 func (x *TileUpdate) Reset() {
 	*x = TileUpdate{}
-	mi := &file_clicks_v1_clicks_proto_msgTypes[4]
+	mi := &file_planet_v1_planet_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -212,7 +212,7 @@ func (x *TileUpdate) String() string {
 func (*TileUpdate) ProtoMessage() {}
 
 func (x *TileUpdate) ProtoReflect() protoreflect.Message {
-	mi := &file_clicks_v1_clicks_proto_msgTypes[4]
+	mi := &file_planet_v1_planet_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -225,7 +225,7 @@ func (x *TileUpdate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TileUpdate.ProtoReflect.Descriptor instead.
 func (*TileUpdate) Descriptor() ([]byte, []int) {
-	return file_clicks_v1_clicks_proto_rawDescGZIP(), []int{4}
+	return file_planet_v1_planet_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *TileUpdate) GetTileId() uint32 {
@@ -251,7 +251,7 @@ func (x *TileUpdate) GetPreviousCountryId() string {
 
 // Deprecated: v2 only. v3 uses GET /v3/map.
 //
-// Deprecated: Marked as deprecated in clicks/v1/clicks.proto.
+// Deprecated: Marked as deprecated in planet/v1/planet.proto.
 type Ownerships struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Bindings      map[uint32]string      `protobuf:"bytes,1,rep,name=bindings,proto3" json:"bindings,omitempty" protobuf_key:"varint,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
@@ -261,7 +261,7 @@ type Ownerships struct {
 
 func (x *Ownerships) Reset() {
 	*x = Ownerships{}
-	mi := &file_clicks_v1_clicks_proto_msgTypes[5]
+	mi := &file_planet_v1_planet_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -273,7 +273,7 @@ func (x *Ownerships) String() string {
 func (*Ownerships) ProtoMessage() {}
 
 func (x *Ownerships) ProtoReflect() protoreflect.Message {
-	mi := &file_clicks_v1_clicks_proto_msgTypes[5]
+	mi := &file_planet_v1_planet_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -286,7 +286,7 @@ func (x *Ownerships) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Ownerships.ProtoReflect.Descriptor instead.
 func (*Ownerships) Descriptor() ([]byte, []int) {
-	return file_clicks_v1_clicks_proto_rawDescGZIP(), []int{5}
+	return file_planet_v1_planet_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *Ownerships) GetBindings() map[uint32]string {
@@ -298,7 +298,7 @@ func (x *Ownerships) GetBindings() map[uint32]string {
 
 // Deprecated: v2 only. v3 uses GET /v3/map.
 //
-// Deprecated: Marked as deprecated in clicks/v1/clicks.proto.
+// Deprecated: Marked as deprecated in planet/v1/planet.proto.
 type OwnershipBatchRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	StartTileId   uint32                 `protobuf:"varint,1,opt,name=start_tile_id,json=startTileId,proto3" json:"start_tile_id,omitempty"`
@@ -309,7 +309,7 @@ type OwnershipBatchRequest struct {
 
 func (x *OwnershipBatchRequest) Reset() {
 	*x = OwnershipBatchRequest{}
-	mi := &file_clicks_v1_clicks_proto_msgTypes[6]
+	mi := &file_planet_v1_planet_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -321,7 +321,7 @@ func (x *OwnershipBatchRequest) String() string {
 func (*OwnershipBatchRequest) ProtoMessage() {}
 
 func (x *OwnershipBatchRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_clicks_v1_clicks_proto_msgTypes[6]
+	mi := &file_planet_v1_planet_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -334,7 +334,7 @@ func (x *OwnershipBatchRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OwnershipBatchRequest.ProtoReflect.Descriptor instead.
 func (*OwnershipBatchRequest) Descriptor() ([]byte, []int) {
-	return file_clicks_v1_clicks_proto_rawDescGZIP(), []int{6}
+	return file_planet_v1_planet_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *OwnershipBatchRequest) GetStartTileId() uint32 {
@@ -351,11 +351,11 @@ func (x *OwnershipBatchRequest) GetEndTileId() uint32 {
 	return 0
 }
 
-var File_clicks_v1_clicks_proto protoreflect.FileDescriptor
+var File_planet_v1_planet_proto protoreflect.FileDescriptor
 
-const file_clicks_v1_clicks_proto_rawDesc = "" +
+const file_planet_v1_planet_proto_rawDesc = "" +
 	"\n" +
-	"\x16clicks/v1/clicks.proto\x12\tclicks.v1\"F\n" +
+	"\x16planet/v1/planet.proto\x12\tplanet.v1\"F\n" +
 	"\fClickRequest\x12\x17\n" +
 	"\atile_id\x18\x01 \x01(\rR\x06tileId\x12\x1d\n" +
 	"\n" +
@@ -372,7 +372,7 @@ const file_clicks_v1_clicks_proto_rawDesc = "" +
 	"\x13previous_country_id\x18\x03 \x01(\tR\x11previousCountryId\"\x8e\x01\n" +
 	"\n" +
 	"Ownerships\x12?\n" +
-	"\bbindings\x18\x01 \x03(\v2#.clicks.v1.Ownerships.BindingsEntryR\bbindings\x1a;\n" +
+	"\bbindings\x18\x01 \x03(\v2#.planet.v1.Ownerships.BindingsEntryR\bbindings\x1a;\n" +
 	"\rBindingsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\rR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01:\x02\x18\x01\"_\n" +
@@ -380,41 +380,41 @@ const file_clicks_v1_clicks_proto_rawDesc = "" +
 	"\rstart_tile_id\x18\x01 \x01(\rR\vstartTileId\x12\x1e\n" +
 	"\vend_tile_id\x18\x02 \x01(\rR\tendTileId:\x02\x18\x012\x95\x01\n" +
 	"\fClickService\x12:\n" +
-	"\x05Click\x12\x17.clicks.v1.ClickRequest\x1a\x18.clicks.v1.ClickResponse\x12I\n" +
+	"\x05Click\x12\x17.planet.v1.ClickRequest\x1a\x18.planet.v1.ClickResponse\x12I\n" +
 	"\n" +
-	"MapDensity\x12\x1c.clicks.v1.MapDensityRequest\x1a\x1d.clicks.v1.MapDensityResponseB\xb3\x01\n" +
-	"\rcom.clicks.v1B\vClicksProtoP\x01ZPgithub.com/raphoester/clickplanet.lol-backend/generated/proto/clicks/v1;clicksv1\xa2\x02\x03CXX\xaa\x02\tClicks.V1\xca\x02\tClicks\\V1\xe2\x02\x15Clicks\\V1\\GPBMetadata\xea\x02\n" +
-	"Clicks::V1b\x06proto3"
+	"MapDensity\x12\x1c.planet.v1.MapDensityRequest\x1a\x1d.planet.v1.MapDensityResponseB\xb3\x01\n" +
+	"\rcom.planet.v1B\vPlanetProtoP\x01ZPgithub.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1;planetv1\xa2\x02\x03PXX\xaa\x02\tPlanet.V1\xca\x02\tPlanet\\V1\xe2\x02\x15Planet\\V1\\GPBMetadata\xea\x02\n" +
+	"Planet::V1b\x06proto3"
 
 var (
-	file_clicks_v1_clicks_proto_rawDescOnce sync.Once
-	file_clicks_v1_clicks_proto_rawDescData []byte
+	file_planet_v1_planet_proto_rawDescOnce sync.Once
+	file_planet_v1_planet_proto_rawDescData []byte
 )
 
-func file_clicks_v1_clicks_proto_rawDescGZIP() []byte {
-	file_clicks_v1_clicks_proto_rawDescOnce.Do(func() {
-		file_clicks_v1_clicks_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_clicks_v1_clicks_proto_rawDesc), len(file_clicks_v1_clicks_proto_rawDesc)))
+func file_planet_v1_planet_proto_rawDescGZIP() []byte {
+	file_planet_v1_planet_proto_rawDescOnce.Do(func() {
+		file_planet_v1_planet_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_planet_v1_planet_proto_rawDesc), len(file_planet_v1_planet_proto_rawDesc)))
 	})
-	return file_clicks_v1_clicks_proto_rawDescData
+	return file_planet_v1_planet_proto_rawDescData
 }
 
-var file_clicks_v1_clicks_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
-var file_clicks_v1_clicks_proto_goTypes = []any{
-	(*ClickRequest)(nil),          // 0: clicks.v1.ClickRequest
-	(*ClickResponse)(nil),         // 1: clicks.v1.ClickResponse
-	(*MapDensityRequest)(nil),     // 2: clicks.v1.MapDensityRequest
-	(*MapDensityResponse)(nil),    // 3: clicks.v1.MapDensityResponse
-	(*TileUpdate)(nil),            // 4: clicks.v1.TileUpdate
-	(*Ownerships)(nil),            // 5: clicks.v1.Ownerships
-	(*OwnershipBatchRequest)(nil), // 6: clicks.v1.OwnershipBatchRequest
-	nil,                           // 7: clicks.v1.Ownerships.BindingsEntry
+var file_planet_v1_planet_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_planet_v1_planet_proto_goTypes = []any{
+	(*ClickRequest)(nil),          // 0: planet.v1.ClickRequest
+	(*ClickResponse)(nil),         // 1: planet.v1.ClickResponse
+	(*MapDensityRequest)(nil),     // 2: planet.v1.MapDensityRequest
+	(*MapDensityResponse)(nil),    // 3: planet.v1.MapDensityResponse
+	(*TileUpdate)(nil),            // 4: planet.v1.TileUpdate
+	(*Ownerships)(nil),            // 5: planet.v1.Ownerships
+	(*OwnershipBatchRequest)(nil), // 6: planet.v1.OwnershipBatchRequest
+	nil,                           // 7: planet.v1.Ownerships.BindingsEntry
 }
-var file_clicks_v1_clicks_proto_depIdxs = []int32{
-	7, // 0: clicks.v1.Ownerships.bindings:type_name -> clicks.v1.Ownerships.BindingsEntry
-	0, // 1: clicks.v1.ClickService.Click:input_type -> clicks.v1.ClickRequest
-	2, // 2: clicks.v1.ClickService.MapDensity:input_type -> clicks.v1.MapDensityRequest
-	1, // 3: clicks.v1.ClickService.Click:output_type -> clicks.v1.ClickResponse
-	3, // 4: clicks.v1.ClickService.MapDensity:output_type -> clicks.v1.MapDensityResponse
+var file_planet_v1_planet_proto_depIdxs = []int32{
+	7, // 0: planet.v1.Ownerships.bindings:type_name -> planet.v1.Ownerships.BindingsEntry
+	0, // 1: planet.v1.ClickService.Click:input_type -> planet.v1.ClickRequest
+	2, // 2: planet.v1.ClickService.MapDensity:input_type -> planet.v1.MapDensityRequest
+	1, // 3: planet.v1.ClickService.Click:output_type -> planet.v1.ClickResponse
+	3, // 4: planet.v1.ClickService.MapDensity:output_type -> planet.v1.MapDensityResponse
 	3, // [3:5] is the sub-list for method output_type
 	1, // [1:3] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
@@ -422,26 +422,26 @@ var file_clicks_v1_clicks_proto_depIdxs = []int32{
 	0, // [0:1] is the sub-list for field type_name
 }
 
-func init() { file_clicks_v1_clicks_proto_init() }
-func file_clicks_v1_clicks_proto_init() {
-	if File_clicks_v1_clicks_proto != nil {
+func init() { file_planet_v1_planet_proto_init() }
+func file_planet_v1_planet_proto_init() {
+	if File_planet_v1_planet_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_clicks_v1_clicks_proto_rawDesc), len(file_clicks_v1_clicks_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_planet_v1_planet_proto_rawDesc), len(file_planet_v1_planet_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_clicks_v1_clicks_proto_goTypes,
-		DependencyIndexes: file_clicks_v1_clicks_proto_depIdxs,
-		MessageInfos:      file_clicks_v1_clicks_proto_msgTypes,
+		GoTypes:           file_planet_v1_planet_proto_goTypes,
+		DependencyIndexes: file_planet_v1_planet_proto_depIdxs,
+		MessageInfos:      file_planet_v1_planet_proto_msgTypes,
 	}.Build()
-	File_clicks_v1_clicks_proto = out.File
-	file_clicks_v1_clicks_proto_goTypes = nil
-	file_clicks_v1_clicks_proto_depIdxs = nil
+	File_planet_v1_planet_proto = out.File
+	file_planet_v1_planet_proto_goTypes = nil
+	file_planet_v1_planet_proto_depIdxs = nil
 }

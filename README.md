@@ -23,7 +23,7 @@ Each app is self-contained and built independently — see its own README for da
 
 ### Shared protobuf contract
 
-`proto/clicks/v1/clicks.proto` is the single source of truth for the API contract. After editing it, regenerate both sides:
+`proto/planet/v1/planet.proto` is the single source of truth for the API contract. After editing it, regenerate both sides:
 
 ```bash
 cd apps/backend && make proto

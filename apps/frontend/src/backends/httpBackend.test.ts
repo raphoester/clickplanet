@@ -1,6 +1,6 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {ClickServiceClient, decodeTileUpdate, openUpdatesSocket, websocketUrl} from "./httpBackend.ts"
-import {TileUpdate} from "../gen/grpc/clicks/v1/clicks_pb.ts"
+import {TileUpdate} from "../gen/grpc/planet/v1/planet_pb.ts"
 import type {Update} from "./backend.ts"
 
 function frame(update: Partial<{tileId: number, countryId: string, previousCountryId: string}>): ArrayBuffer {

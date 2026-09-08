@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"connectrpc.com/connect"
-	clicksv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/clicks/v1"
-	"github.com/raphoester/clickplanet.lol-backend/generated/proto/clicks/v1/clicksv1connect"
+	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
+	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/domain"
 	"github.com/stretchr/testify/require"
 )
@@ -32,7 +32,7 @@ func (s stubEncoder) EncodeStateBatch(start uint32, end uint32) ([]byte, error) 
 	return s.body, nil
 }
 
-func newTestServer(t *testing.T, svc stubService) (*httptest.Server, clicksv1connect.ClickServiceClient) {
+func newTestServer(t *testing.T, svc stubService) (*httptest.Server, planetv1connect.ClickServiceClient) {
 	t.Helper()
 
 	mux := http.NewServeMux()
@@ -41,28 +41,28 @@ func newTestServer(t *testing.T, svc stubService) (*httptest.Server, clicksv1con
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
 
-	return server, clicksv1connect.NewClickServiceClient(server.Client(), server.URL)
+	return server, planetv1connect.NewClickServiceClient(server.Client(), server.URL)
 }
 
 func TestClick(t *testing.T) {
 	t.Run("a valid click answers empty", func(t *testing.T) {
 		_, client := newTestServer(t, stubService{})
 		_, err := client.Click(context.Background(),
-			connect.NewRequest(&clicksv1.ClickRequest{TileId: 1, CountryId: "fr"}))
+			connect.NewRequest(&planetv1.ClickRequest{TileId: 1, CountryId: "fr"}))
 		require.NoError(t, err)
 	})
 
 	t.Run("a caller error becomes invalid_argument", func(t *testing.T) {
 		_, client := newTestServer(t, stubService{err: fmt.Errorf("%w: nope", domain.ErrInvalidArgument)})
 		_, err := client.Click(context.Background(),
-			connect.NewRequest(&clicksv1.ClickRequest{TileId: 1, CountryId: "zz"}))
+			connect.NewRequest(&planetv1.ClickRequest{TileId: 1, CountryId: "zz"}))
 		require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 	})
 
 	t.Run("any other failure stays internal and does not leak the cause", func(t *testing.T) {
 		_, client := newTestServer(t, stubService{err: fmt.Errorf("disk on fire")})
 		_, err := client.Click(context.Background(),
-			connect.NewRequest(&clicksv1.ClickRequest{TileId: 1, CountryId: "fr"}))
+			connect.NewRequest(&planetv1.ClickRequest{TileId: 1, CountryId: "fr"}))
 		require.Equal(t, connect.CodeInternal, connect.CodeOf(err))
 		require.NotContains(t, err.Error(), "disk on fire")
 	})
@@ -70,7 +70,7 @@ func TestClick(t *testing.T) {
 
 func TestMapDensity(t *testing.T) {
 	_, client := newTestServer(t, stubService{})
-	res, err := client.MapDensity(context.Background(), connect.NewRequest(&clicksv1.MapDensityRequest{}))
+	res, err := client.MapDensity(context.Background(), connect.NewRequest(&planetv1.MapDensityRequest{}))
 	require.NoError(t, err)
 	require.Equal(t, uint32(100), res.Msg.GetDensity())
 }

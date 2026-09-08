@@ -8,8 +8,8 @@ import (
 	"strconv"
 
 	"connectrpc.com/connect"
-	clicksv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/clicks/v1"
-	"github.com/raphoester/clickplanet.lol-backend/generated/proto/clicks/v1/clicksv1connect"
+	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
+	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/domain"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/domain/click_handler_service"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging"
@@ -51,18 +51,18 @@ type Controller struct {
 	logger              logging.Logger
 }
 
-var _ clicksv1connect.ClickServiceHandler = (*Controller)(nil)
+var _ planetv1connect.ClickServiceHandler = (*Controller)(nil)
 
 func (c *Controller) DeclareRoutes(mux *http.ServeMux) {
-	path, handler := clicksv1connect.NewClickServiceHandler(c)
+	path, handler := planetv1connect.NewClickServiceHandler(c)
 	mux.Handle(path, handler)
 	mux.HandleFunc("GET /map", c.GetMap)
 }
 
 func (c *Controller) Click(
 	ctx context.Context,
-	req *connect.Request[clicksv1.ClickRequest],
-) (*connect.Response[clicksv1.ClickResponse], error) {
+	req *connect.Request[planetv1.ClickRequest],
+) (*connect.Response[planetv1.ClickResponse], error) {
 	err := c.clickHandlerService.HandleClick(ctx, req.Msg.GetTileId(), req.Msg.GetCountryId())
 	if errors.Is(err, domain.ErrInvalidArgument) {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
@@ -72,14 +72,14 @@ func (c *Controller) Click(
 		return nil, connect.NewError(connect.CodeInternal, errors.New("internal error"))
 	}
 
-	return connect.NewResponse(&clicksv1.ClickResponse{}), nil
+	return connect.NewResponse(&planetv1.ClickResponse{}), nil
 }
 
 func (c *Controller) MapDensity(
 	_ context.Context,
-	_ *connect.Request[clicksv1.MapDensityRequest],
-) (*connect.Response[clicksv1.MapDensityResponse], error) {
-	return connect.NewResponse(&clicksv1.MapDensityResponse{
+	_ *connect.Request[planetv1.MapDensityRequest],
+) (*connect.Response[planetv1.MapDensityResponse], error) {
+	return connect.NewResponse(&planetv1.MapDensityResponse{
 		Density: c.tilesChecker.MaxIndex(),
 	}), nil
 }

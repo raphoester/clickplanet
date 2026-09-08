@@ -13,7 +13,7 @@ Read the relevant app's `CLAUDE.md` before working inside `apps/frontend/` or `a
 
 ## Shared protobuf contract
 
-`proto/clicks/v1/clicks.proto` is the **single source of truth** for the API contract — both apps generate their own bindings from it (nothing here is hand-copied between apps). After editing it:
+`proto/planet/v1/planet.proto` is the **single source of truth** for the API contract — both apps generate their own bindings from it (nothing here is hand-copied between apps). After editing it:
 
 ```bash
 cd apps/backend && make proto   # regenerates apps/backend/generated/proto

@@ -52,7 +52,7 @@ Core interfaces (ports) defined in `gateways.go`:
 ### Adapters
 
 **Primary (input):**
-- `adapters/primary/http/clicks_v3_controller/` — the v3 API. Connect RPCs (`Click`, `MapDensity`) under `POST /v3/clicks.v1.ClickService/<Method>`, plus `GET /v3/map`, which returns the dense tile encoding described below.
+- `adapters/primary/http/clicks_v3_controller/` — the v3 API. Connect RPCs (`Click`, `MapDensity`) under `POST /v3/planet.v1.ClickService/<Method>`, plus `GET /v3/map`, which returns the dense tile encoding described below.
 - `adapters/primary/http/clicks_controller/` — **deprecated** v2 endpoints (`POST /v2/rpc/click`, `GET /v2/rpc/map-density`, `POST /v2/rpc/ownerships-by-batch`). They wrap binary protobuf in a base64 JSON envelope and pick that encoding from `httpServer.format` rather than from the request. Frozen; mounted until the deployed frontends move.
 - `adapters/primary/http/websocket_publisher/` — subscribes to the tile update stream, broadcasts to WebSocket clients
 
@@ -115,9 +115,9 @@ Config is loaded from a YAML file (`-config` flag), with environment variables o
 
 ### Protobuf
 
-API contracts live in the monorepo-shared [`/proto/clicks/v1/clicks.proto`](../../proto/clicks/v1/clicks.proto) (also used by the frontend). Generated code goes to `generated/proto/`. Use `make proto` to regenerate after editing `.proto` files (requires the `buf` CLI, plus `protoc-gen-go` and `protoc-gen-connect-go` on `PATH`).
+API contracts live in the monorepo-shared [`/proto/planet/v1/planet.proto`](../../proto/planet/v1/planet.proto) (also used by the frontend). Generated code goes to `generated/proto/`. Use `make proto` to regenerate after editing `.proto` files (requires the `buf` CLI, plus `protoc-gen-go` and `protoc-gen-connect-go` on `PATH`).
 
-The proto package stays at `clicks.v1`: "v3" is the HTTP API version and lives in the URL prefix, not in the package name. There is no gRPC here — Connect serves the same service definition over ordinary HTTP/1.1 POSTs.
+The proto package is `planet.v1`, and stays at `v1`: "v3" is the HTTP API version and lives in the URL prefix, not in the package name. There is no gRPC here — Connect serves the same service definition over ordinary HTTP/1.1 POSTs.
 
 ### Testing
 
