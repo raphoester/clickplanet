@@ -12,6 +12,7 @@ npm run test:watch # Re-run affected tests on change
 npm run lint       # ESLint check
 npm run proto      # Regenerate protobuf types from the shared ../../proto/ using buf CLI
 npm run atlas      # Repack the flag sprite atlas from static/countries/png100px
+npm run mobile     # Screenshot/inspect a URL as a phone (see "Debugging mobile layout")
 ```
 
 `.github/workflows/check-frontend.yml` runs lint, build and tests on every PR
@@ -174,3 +175,43 @@ thin as it is.
 ## Styling
 
 Plain CSS files co-located with components. No CSS preprocessor or CSS-in-JS.
+
+`index.css` owns the shared boxes — `.button`, `.button-mini`, `.icon-button`,
+`.menu-label` — **including their `max-width: 768px` sizes**. A component's own
+CSS file says what makes that component itself (its colour, its icon spacing),
+and must not restate height, padding, radius or font-size. Restating them is how
+the Discord button ended up a 56px slab next to a 40px About button on mobile:
+`DiscordButton.css` set its own `height`, and the mobile rule it also carried
+overrode the shared mobile size. Anchors styled as buttons (`BuyMeACoffee`,
+`DiscordButton`) legitimately need `display: flex` with both axes centred and
+`text-decoration: none` — a `<button>` gets those for free — and nothing more.
+
+### Debugging mobile layout
+
+**Do not check mobile by resizing the browser window.** macOS enforces a minimum
+window width well above the 768px breakpoint, so the window stays wide (`window
+.innerWidth` around 1900 on this machine), the mobile branch never engages, and
+you end up inspecting a narrow desktop. Editing the media conditions in the
+CSSOM to force the branch tests the rules but not the device: pointer, hover and
+DPR all still say desktop.
+
+Use `npm run mobile`, which drives Chrome's real device emulation over the
+DevTools Protocol — the same `Emulation.*` calls the inspector's device toolbar
+makes, so viewport, DPR, touch and the iOS user agent all resolve like a phone:
+
+```bash
+npm run dev
+npm run mobile -- http://localhost:5173/ --open-menu --out /tmp/shot.png \
+  --eval 'JSON.stringify(getComputedStyle(document.querySelector(".button-discord")).height)'
+```
+
+It runs headless Chrome under a throwaway profile, so it never disturbs the
+browser you have open. `--eval` evaluates in the page (top-level `await` works)
+and prints the result — measuring boxes with `getBoundingClientRect()` beats
+eyeballing a screenshot. `--headed`, `--w/--h/--dpr`, `--full` and `--settle`
+cover the rest; the header comment in `scripts/mobile.mjs` lists them.
+
+`--open-menu` exists because two things sit between a fresh load and the menu:
+`DonationModal` rolls a coin on **every** load (`SHOW_PROBABILITY`), and the
+menu starts folded on mobile. Without it you will screenshot the donation modal
+half the time and the folded header the other half.

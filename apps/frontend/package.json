@@ -10,6 +10,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint .",
+    "mobile": "node scripts/mobile.mjs",
     "preview": "vite preview",
     "proto": "npx buf generate",
     "atlas": "vite-node scripts/generateAtlas.ts --",
