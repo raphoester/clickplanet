@@ -95,6 +95,56 @@ describe("Menu", () => {
         expect(screen.getAllByRole("heading", {name: "ClickPlanet"})).toHaveLength(1)
     })
 
+    /**
+     * Drilling in unmounts the button that was clicked, so focus lands on the
+     * body unless something moves it.
+     */
+    it("moves focus into the panel when it opens", async () => {
+        const {user} = setup()
+
+        await user.click(button("About"))
+
+        expect(document.activeElement).toBe(screen.getByRole("heading", {name: "About", level: 2}))
+    })
+
+    it("hands focus back to the button that opened the panel", async () => {
+        const {user} = setup()
+
+        await user.click(button("About"))
+        await user.click(button("Back"))
+
+        expect(document.activeElement).toBe(button("About"))
+    })
+
+    it("hands focus back to the country button, not the about one", async () => {
+        const {user} = setup()
+
+        await user.click(button(france.name))
+        await user.click(button("Close"))
+
+        expect(document.activeElement).toBe(button(france.name))
+    })
+
+    it("closes the panel on Escape", async () => {
+        const {user} = setup([entry("fr", 500)])
+
+        await user.click(button("About"))
+        await user.keyboard("{Escape}")
+
+        expect(aboutPanel()).toBeNull()
+        expect(leaderboardRows()).toHaveLength(1)
+    })
+
+    /** It blocks nothing, so it must not claim to be a dialog. */
+    it("exposes the panel as a labelled region, not a dialog", async () => {
+        const {user, container} = setup()
+
+        await user.click(button("About"))
+
+        expect(screen.getByRole("region", {name: "About"})).toBeDefined()
+        expect(container.querySelector("[aria-modal]")).toBeNull()
+    })
+
     it("picks a country through the panel", async () => {
         const {user, setCountry} = setup()
 

@@ -12,6 +12,11 @@
     font-size: 28px;
 }
 
+/* Focused only from script, to announce the panel: no ring for a mouse user. */
+.menu-panel-title:focus {
+    outline: none;
+}
+
 .menu-panel-body {
     display: flex;
     flex-direction: column;
