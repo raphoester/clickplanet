@@ -19,13 +19,6 @@ export default function Leaderboard(props: LeaderboardProps) {
     }
 
     return <div className="leaderboard">
-        <div className="leaderboard-header">
-            <img alt="ClickPlanet logo"
-                 src="/static/logo.svg"
-                 width="56px"
-                 height="56px"/>
-            <h1>ClickPlanet</h1>
-        </div>
         <div className="leaderboard-expand">
             <button className="button button-leaderboard"
                     onClick={toggleLeaderboard}>{isOpen ? "Hide" : "Leaderboard"}</button>
