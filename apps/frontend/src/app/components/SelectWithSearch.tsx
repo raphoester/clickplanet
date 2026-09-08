@@ -99,7 +99,7 @@ export default function SelectWithSearch(props: SelectWithSearchProps) {
         if (handleNavigationKey(event)) event.preventDefault()
     }
 
-    return <div>
+    return <div className="select-with-search">
         <div
             ref={listRef}
             role="listbox"

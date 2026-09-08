@@ -1,9 +1,6 @@
 import {useRef} from 'react';
 import {OwnershipsGetter, TileClicker, UpdatesListener} from "../../backends/backend.ts";
-import Settings from "../Settings.tsx";
-import Leaderboard from "../Leaderboard.tsx";
-import About from "../About.tsx";
-import DiscordButton from '../components/DiscordButton.tsx';
+import Menu from "../Menu.tsx";
 import {useCountryStorage} from './useCountryStorage.ts';
 import {GlobeStatus, useGlobe} from './useGlobe.ts';
 import "./Viewer.css"
@@ -31,14 +28,12 @@ export default function Viewer(props: ViewerProps) {
 
         {status.state !== 'ready' && <StatusCard status={status}/>}
 
-        {status.state === 'ready' && <div className="menu">
-            <Leaderboard data={leaderboard} tilesCount={tilesCount}/>
-            <div className="menu-actions">
-                <Settings setCountry={handleSetCountry} country={countryState}/>
-                <About/>
-                <DiscordButton/>
-            </div>
-        </div>}
+        {status.state === 'ready' && <Menu
+            country={countryState}
+            setCountry={handleSetCountry}
+            leaderboard={leaderboard}
+            tilesCount={tilesCount}
+        />}
     </>
 }
 

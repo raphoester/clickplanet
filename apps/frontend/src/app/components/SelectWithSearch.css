@@ -1,6 +1,7 @@
 .input-search {
     width: 100%;
     height: 56px;
+    flex-shrink: 0;
     font-size: 24px;
     border-radius: 16px;
     padding: 10px 0 0 16px;
@@ -15,9 +16,19 @@
     background-color: #303030;
 }
 
+.select-with-search {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    flex: 1 1 auto;
+}
+
 .input-select {
     width: 100%;
-    height: 458px;
+    /* Fills whatever height the panel has, rather than a fixed one: the card
+       is bounded by the viewport, so a fixed height overflowed short screens. */
+    flex: 1 1 auto;
+    min-height: 120px;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     font-size: 24px;
@@ -70,8 +81,3 @@
     transition: 0.125s ease;
 }
 
-@media only screen and (max-width: 768px) {
-    .input-select {
-        height: calc(100vh - 216px)    
-    }
-}
