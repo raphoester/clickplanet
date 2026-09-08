@@ -1,5 +1,6 @@
 import {KeyboardEvent, useEffect, useRef, useState} from "react";
 import {matchesSearch, type Value, visibleOptions} from "./visibleOptions.ts";
+import {SearchIcon} from "./icons.tsx";
 import "./SelectWithSearch.css"
 
 type SelectWithSearchProps = {
@@ -100,6 +101,18 @@ export default function SelectWithSearch(props: SelectWithSearchProps) {
     }
 
     return <div className="select-with-search">
+        <div className="input-search-field">
+            <SearchIcon/>
+            <input
+                type="text"
+                placeholder="Search a country"
+                value={search}
+                onChange={(event) => handleSearchChange(event.target.value)}
+                onKeyDown={handleSearchKeyDown}
+                className="input-search"
+                autoComplete="off"
+            />
+        </div>
         <div
             ref={listRef}
             role="listbox"
@@ -128,14 +141,5 @@ export default function SelectWithSearch(props: SelectWithSearchProps) {
                 </div>
             ))}
         </div>
-        <input
-            type="text"
-            placeholder={"🔍 Search..."}
-            value={search}
-            onChange={(event) => handleSearchChange(event.target.value)}
-            onKeyDown={handleSearchKeyDown}
-            className="input-search"
-            autoComplete="off"
-        />
     </div>
 }

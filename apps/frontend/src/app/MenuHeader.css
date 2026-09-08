@@ -1,0 +1,78 @@
+.menu-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
+.menu-header-logo {
+    flex-shrink: 0;
+}
+
+/* Down from 42px: the labelled rank chip has to fit on the same row. */
+.menu-header h1 {
+    font-size: 30px;
+    margin: 8px 0 0 0;
+    white-space: nowrap;
+}
+
+.menu-header-country {
+    min-width: 0;
+    padding-top: 6px;
+    font-size: 24px;
+    color: white;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-shadow: -1px 1px 0 #000000;
+}
+
+.menu-header-spacer {
+    flex-grow: 1;
+}
+
+.menu-header-rank {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 1px;
+    flex-shrink: 0;
+    margin: 0;
+}
+
+.menu-rank-value {
+    font-family: Oswald, sans-serif;
+    font-weight: 500;
+    font-size: 17px;
+    color: #FF813F;
+    text-shadow: -1px 1px 0 #000000;
+}
+
+.menu-collapse svg {
+    transition: transform 0.18s ease;
+}
+
+.menu-collapse[aria-expanded="true"] svg {
+    transform: rotate(180deg);
+}
+
+@media only screen and (max-width: 768px) {
+    .menu-header-logo {
+        width: 34px;
+        height: 34px;
+    }
+
+    .menu-header h1 {
+        font-size: 24px;
+        margin: 6px 0 0 0;
+    }
+
+    .menu-header-country {
+        font-size: 20px;
+        padding-top: 4px;
+    }
+
+    .menu-rank-value {
+        font-size: 15px;
+    }
+}

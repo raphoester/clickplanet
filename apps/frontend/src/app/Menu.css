@@ -3,9 +3,8 @@
     left: 16px;
     width: 360px;
     /* A panel's content is bounded by the card, not the other way round: left to
-       the viewport alone the About panel grew to 80% of a tall screen. The cap
-       is roughly the height of the closed card, so opening one barely moves it. */
-    max-height: min(calc(100vh - 32px), 680px);
+       the viewport alone the About panel grew to 80% of a tall screen. */
+    max-height: min(calc(100vh - 32px), 640px);
     z-index: 128;
     padding: 16px;
     border: 1px solid #FFFFFF33;
@@ -18,45 +17,98 @@
     min-height: 0;
 }
 
-.menu-header {
+.menu-body {
     display: flex;
-    text-align: center;
-    justify-content: center;
-    gap: 16px;
+    flex-direction: column;
+    min-height: 0;
+    flex: 1 1 auto;
+}
+
+.menu-playing {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-top: 14px;
+    padding: 8px 8px 8px 12px;
+    border-radius: 16px;
+    background: #FFFFFF0F;
+    border: 1px solid #FFFFFF26;
     flex-shrink: 0;
 }
 
-.menu-actions {
-    margin-top: 8px;
+.menu-playing-row {
     display: flex;
-    flex-direction: column;
-    gap: 8px;
+    align-items: center;
+    gap: 10px;
+}
+
+.menu-playing-name {
+    flex-grow: 1;
+    min-width: 0;
+    font-size: 22px;
+    color: white;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-shadow: -1px 1px 0 #000000;
+}
+
+/* The affordance the bare country name never had: a control that says what it does. */
+.menu-change {
+    display: flex;
+    align-items: center;
+    gap: 6px;
     flex-shrink: 0;
+    margin-top: 0;
+    padding: 4px 12px 0 10px;
+    border-radius: 10px;
+    border-color: #FFFFFFAA;
+    font-size: 16px;
+}
+
+.menu-change svg {
+    margin-top: -3px;
+}
+
+.menu-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 14px;
+    flex-shrink: 0;
+}
+
+.menu-actions > * {
+    flex: 1 1 0;
 }
 
 @media only screen and (max-width: 768px) {
     .menu {
-        top: 0px;
-        left: 0px;
+        top: 0;
+        left: 0;
         width: 100%;
-        max-height: min(100vh, 680px);
+        /* Folded or not, a strip of globe stays visible underneath: the card is
+           a panel over the game, never a page that replaced it. */
+        max-height: min(72vh, 600px);
         padding: 8px;
         border: none;
-        border-radius: 0px 0 24px 24px;
+        border-radius: 0 0 24px 24px;
     }
 
-    .menu-header {
-    display: flex;
-    text-align: center;
-    justify-content: center;
-    gap: 16px;
-    flex-shrink: 0;
-}
+    .menu-playing {
+        margin-top: 8px;
+    }
 
-.menu-actions {
-        margin-top: 0px;
-        flex-direction: row;
-        justify-content: space-between;
-        padding-top: 8px;
+    .menu-playing-name {
+        font-size: 18px;
+    }
+
+    .menu-change {
+        font-size: 13px;
+        padding: 2px 10px 0 8px;
+        height: 32px;
+    }
+
+    .menu-actions {
+        margin-top: 8px;
     }
 }

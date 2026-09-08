@@ -1,15 +1,39 @@
 .menu-panel {
+    /* Anchors the fade at the foot of the scrolling list. */
+    position: relative;
     display: flex;
     flex-direction: column;
     /* Lets the panel shrink inside the card instead of overflowing it. */
     min-height: 0;
     flex: 1 1 auto;
-    text-align: center;
+}
+
+.menu-panel::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 36px;
+    pointer-events: none;
+    background: linear-gradient(180deg, rgba(4, 9, 15, 0), rgba(4, 9, 15, 0.85));
+}
+
+.menu-panel-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 14px;
+    flex-shrink: 0;
 }
 
 .menu-panel-title {
-    margin: 0 0 8px 0;
-    font-size: 28px;
+    margin: 0;
+    min-width: 0;
+    font-size: 24px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 /* Focused only from script, to announce the panel: no ring for a mouse user. */
@@ -23,11 +47,15 @@
     min-height: 0;
     flex: 1 1 auto;
     overflow-y: auto;
-    margin-bottom: 12px;
+    margin-top: 12px;
 }
 
 @media only screen and (max-width: 768px) {
+    .menu-panel-header {
+        margin-top: 8px;
+    }
+
     .menu-panel-title {
-        font-size: 22px;
+        font-size: 20px;
     }
 }

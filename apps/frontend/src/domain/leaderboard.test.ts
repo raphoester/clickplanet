@@ -1,5 +1,5 @@
 import {beforeEach, describe, expect, it, vi} from "vitest"
-import {rankCountries} from "./leaderboard.ts"
+import {rankCountries, rankOf} from "./leaderboard.ts"
 import {resetWarnOnce} from "./warnOnce.ts"
 import {Countries} from "./countries.ts"
 
@@ -44,5 +44,24 @@ describe("rankCountries", () => {
         const source = counts({fr: 1, jp: 2})
         rankCountries(source)
         expect(Object.fromEntries(source)).toEqual({fr: 1, jp: 2})
+    })
+})
+
+describe("rankOf", () => {
+    const entry = (code: string, tiles: number) => ({country: Countries.get(code)!, tiles})
+
+    it("gives a country's 1-based place in the ranking", () => {
+        const ranked = [entry("fr", 500), entry("jp", 250), entry("de", 100)]
+
+        expect(rankOf(ranked, Countries.get("fr")!)).toBe(1)
+        expect(rankOf(ranked, Countries.get("de")!)).toBe(3)
+    })
+
+    it("gives null for a country that holds no tile", () => {
+        expect(rankOf([entry("fr", 500)], Countries.get("jp")!)).toBeNull()
+    })
+
+    it("gives null on an empty leaderboard", () => {
+        expect(rankOf([], Countries.get("fr")!)).toBeNull()
     })
 })

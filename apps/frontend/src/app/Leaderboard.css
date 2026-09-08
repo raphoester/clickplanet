@@ -1,20 +1,68 @@
-.button-leaderboard {
-    width: 100%;    
+.leaderboard {
+    /* Anchors the fade that tells you the table has more rows below. */
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    flex: 1 1 auto;
 }
 
-.leaderboard-expand {
-    display: flex;
-    justify-content: center;
-    
+.leaderboard::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 36px;
+    pointer-events: none;
+    background: linear-gradient(180deg, rgba(4, 9, 15, 0), rgba(4, 9, 15, 0.85));
 }
 
 .leaderboard-table-container {
-    max-height: 352px;
-    overflow: auto;
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow-y: auto;
+}
+
+.leaderboard-table-head {
+    font-family: Oswald, sans-serif;
+    font-weight: 500;
+    font-size: 11px;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    color: #FFFFFF80;
+    text-shadow: none;
+    padding: 0 0 6px 0;
+    border-bottom: 1px solid #FFFFFF1F;
+}
+
+.leaderboard-table {
+    width: 100%;
+    table-layout: fixed;
+}
+
+/* A narrow column used to break the flag onto its own line above the name. */
+.leaderboard-entry td {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .leaderboard-table-number {
+    width: 66px;
     text-align: right;
+    /* Six-digit tile counts ran straight into the share beside them. */
+    padding-left: 12px;
+}
+
+/*
+ * Figures in Oswald rather than the display face: six-digit tile counts are
+ * common and Luckiest Guy is wide enough that they no longer fit the column.
+ */
+.leaderboard-entry .leaderboard-table-number {
+    font-family: Oswald, sans-serif;
+    font-weight: 500;
+    font-size: 16px;
 }
 
 .leaderboard-table-tiles {
@@ -22,7 +70,43 @@
     text-shadow: -1px 1px 0px #404040;
 }
 
-.leaderboard-entry-index {
-    text-align: right;
+/*
+ * `table-layout: fixed` sizes every column off the header row, so the widths
+ * live on the `th`s: on the cells they were ignored, and the country column
+ * ended up narrow enough to break the flag onto its own line above the name.
+ */
+.leaderboard-table-rank {
+    width: 26px;
 }
 
+.leaderboard-entry-index {
+    text-align: right;
+    padding-right: 8px;
+    font-family: Oswald, sans-serif;
+    font-weight: 500;
+    font-size: 15px;
+    color: #FFFFFF80;
+}
+
+/* Your own row, so you can find yourself without counting down the table. */
+.leaderboard-entry-player td {
+    background: #FF813F1F;
+}
+
+.leaderboard-entry-player td:first-child {
+    box-shadow: inset 3px 0 0 #FF813F;
+}
+
+@media only screen and (max-width: 768px) {
+    .leaderboard-entry td {
+        font-size: 17px;
+    }
+
+    .leaderboard-entry .leaderboard-table-number {
+        font-size: 14px;
+    }
+
+    .leaderboard-entry-index {
+        font-size: 13px;
+    }
+}

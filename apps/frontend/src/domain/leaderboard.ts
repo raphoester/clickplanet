@@ -33,3 +33,15 @@ export function rankCountries(counts: ReadonlyMap<string, number>): LeaderboardE
     return ranked.sort((a, b) =>
         b.tiles - a.tiles || a.country.code.localeCompare(b.country.code))
 }
+
+/**
+ * Where a country sits in the ranking, 1-based, or null when it holds no tile.
+ *
+ * The menu keeps this on screen even when the card is folded away, so it reads
+ * the rank off the same ordered list the table renders rather than deriving its
+ * own — two answers that disagreed would be worse than none.
+ */
+export function rankOf(leaderboard: readonly LeaderboardEntry[], country: Country): number | null {
+    const index = leaderboard.findIndex((entry) => entry.country.code === country.code)
+    return index === -1 ? null : index + 1
+}

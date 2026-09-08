@@ -1,11 +1,17 @@
 import {ReactNode, useId, useRef} from "react";
-import CloseButton from "./CloseButton.tsx";
+import {CloseIcon} from "./icons.tsx";
 import {useModalDialog} from "./useDialog.ts";
 import "./Modal.css"
 
 export type ModalProps = {
     title: string;
     children: ReactNode;
+    /**
+     * Pinned below the scrolling body. A dialog's primary action does not
+     * belong in the scroll: "Buy me a coffee" used to sit at the foot of the
+     * About copy, where a short screen showed nothing of it but an orange line.
+     */
+    footer?: ReactNode;
     onClose: () => void;
 }
 
@@ -15,9 +21,14 @@ export type ModalProps = {
  * while it is open — Escape closes, and Tab cannot wander onto the globe or the
  * menu still sitting behind the backdrop.
  *
- * The menu's panels deliberately do not use this. They sit inside the menu card
- * and block nothing, which is what makes them a menu rather than a dialog — see
- * MenuPanel.
+ * It closes on the × beside its title. That is the whole reason a dialog is the
+ * right shell for something like About: it opened over everything, so an × says
+ * exactly what will happen, where a "Back" or a "Close" at the bottom of a
+ * panel had to compete with whatever the card's own controls meant.
+ *
+ * The menu's country picker deliberately does not use this. It sits inside the
+ * menu card and blocks nothing, which is what makes it a menu rather than a
+ * dialog — see MenuPanel.
  */
 export default function Modal(props: ModalProps) {
     const panel = useRef<HTMLDivElement>(null)
@@ -47,9 +58,19 @@ export default function Modal(props: ModalProps) {
                 tabIndex={-1}>
                 <div className="modal-header">
                     <h2 id={titleId}>{props.title}</h2>
+                    <button type="button"
+                            className="icon-button"
+                            aria-label="Close"
+                            onClick={props.onClose}>
+                        <CloseIcon/>
+                    </button>
                 </div>
-                {props.children}
-                <CloseButton onClick={props.onClose}/>
+                <div className="modal-scroll">
+                    <div className="modal-body">
+                        {props.children}
+                    </div>
+                </div>
+                {props.footer && <div className="modal-footer">{props.footer}</div>}
             </div>
         </div>
     )
