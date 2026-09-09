@@ -27,7 +27,10 @@ func newTestClient(t *testing.T, svc stubService) planetv1connect.ClickServiceCl
 	t.Helper()
 
 	mux := http.NewServeMux()
-	mux.Handle(planetv1connect.NewClickServiceHandler(NewClickService(svc, stubChecker{}, nil)))
+	mux.Handle(planetv1connect.NewClickServiceHandler(
+		NewClickService(svc, stubChecker{}),
+		connect.WithInterceptors(NewErrorInterceptor(nil)),
+	))
 
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)

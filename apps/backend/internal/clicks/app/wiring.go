@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 
+	"connectrpc.com/connect"
+
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/primary/http/clicks_controller"
@@ -72,14 +74,15 @@ func (a *App) configureApp(_ context.Context) (*ConfigureAppResponse, error) {
 
 	// v2 and v3 share these instances: the tile map lives in this process, so
 	// two sets of adapters over two storages would be two different games.
-	clickService := clicks_v3_controller.NewClickService(clickHandlerService, tilesChecker, a.logger)
+	clickService := clicks_v3_controller.NewClickService(clickHandlerService, tilesChecker)
 	mapHandler := clicks_v3_controller.NewMapHandler(tilesStorage, tilesChecker, a.logger)
+	errorInterceptor := clicks_v3_controller.NewErrorInterceptor(a.logger)
 
 	return &ConfigureAppResponse{
 		declareWSRoutes:    publisher.DeclareRoutes,
 		declareV2RPCRoutes: v2Controller.DeclareRoutes,
 		declareV3Routes: func(mux *http.ServeMux) {
-			mux.Handle(planetv1connect.NewClickServiceHandler(clickService))
+			mux.Handle(planetv1connect.NewClickServiceHandler(clickService, connect.WithInterceptors(errorInterceptor)))
 			mux.Handle("GET /map", mapHandler)
 		},
 	}, nil
