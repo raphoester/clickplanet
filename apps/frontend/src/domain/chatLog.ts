@@ -27,6 +27,14 @@ export function unreadSince(log: readonly ChatMessage[], lastSeenId: string | un
     return index === -1 ? log.length : log.length - 1 - index
 }
 
+/**
+ * The ids `unreadSince` counted, for highlighting them once they are on screen.
+ */
+export function idsSince(log: readonly ChatMessage[], lastSeenId: string | undefined): string[] {
+    const count = unreadSince(log, lastSeenId)
+    return count === 0 ? [] : log.slice(log.length - count).map(message => message.id)
+}
+
 function byArrival(a: ChatMessage, b: ChatMessage): number {
     if (a.sentAt !== b.sentAt) return a.sentAt - b.sentAt
     return a.id < b.id ? -1 : a.id > b.id ? 1 : 0
