@@ -1,6 +1,6 @@
 module github.com/raphoester/clickplanet.lol-backend
 
-go 1.25.0
+go 1.27.0
 
 require (
 	connectrpc.com/connect v1.21.0
