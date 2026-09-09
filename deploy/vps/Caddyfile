@@ -64,7 +64,12 @@
 
 	# WebSocket stream of tile updates. Caddy upgrades automatically; the
 	# disabled timeouts keep idle spectators connected.
-	handle /ws/* /v2/ws/* {
+	#
+	# `handle` takes at most one matcher token, so the two prefixes have to be
+	# a named matcher rather than two arguments — the latter is a parse error
+	# and Caddy refuses to start at all.
+	@ws path /ws/* /v2/ws/*
+	handle @ws {
 		reverse_proxy backend:8080 {
 			transport http {
 				read_timeout 0
