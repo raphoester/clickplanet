@@ -37,12 +37,17 @@ const (
 	ClickServiceClickProcedure = "/planet.v1.ClickService/Click"
 	// ClickServiceMapDensityProcedure is the fully-qualified name of the ClickService's MapDensity RPC.
 	ClickServiceMapDensityProcedure = "/planet.v1.ClickService/MapDensity"
+	// ClickServiceGetMapProcedure is the fully-qualified name of the ClickService's GetMap RPC.
+	ClickServiceGetMapProcedure = "/planet.v1.ClickService/GetMap"
 )
 
 // ClickServiceClient is a client for the planet.v1.ClickService service.
 type ClickServiceClient interface {
 	Click(context.Context, *connect.Request[v1.ClickRequest]) (*connect.Response[v1.ClickResponse], error)
+	// Reads are marked side-effect free so Connect sends them as GET and a
+	// cache can serve them.
 	MapDensity(context.Context, *connect.Request[v1.MapDensityRequest]) (*connect.Response[v1.MapDensityResponse], error)
+	GetMap(context.Context, *connect.Request[v1.GetMapRequest]) (*connect.Response[v1.GetMapResponse], error)
 }
 
 // NewClickServiceClient constructs a client for the planet.v1.ClickService service. By default, it
@@ -66,6 +71,14 @@ func NewClickServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			httpClient,
 			baseURL+ClickServiceMapDensityProcedure,
 			connect.WithSchema(clickServiceMethods.ByName("MapDensity")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
+		getMap: connect.NewClient[v1.GetMapRequest, v1.GetMapResponse](
+			httpClient,
+			baseURL+ClickServiceGetMapProcedure,
+			connect.WithSchema(clickServiceMethods.ByName("GetMap")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
 	}
@@ -75,6 +88,7 @@ func NewClickServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 type clickServiceClient struct {
 	click      *connect.Client[v1.ClickRequest, v1.ClickResponse]
 	mapDensity *connect.Client[v1.MapDensityRequest, v1.MapDensityResponse]
+	getMap     *connect.Client[v1.GetMapRequest, v1.GetMapResponse]
 }
 
 // Click calls planet.v1.ClickService.Click.
@@ -87,10 +101,18 @@ func (c *clickServiceClient) MapDensity(ctx context.Context, req *connect.Reques
 	return c.mapDensity.CallUnary(ctx, req)
 }
 
+// GetMap calls planet.v1.ClickService.GetMap.
+func (c *clickServiceClient) GetMap(ctx context.Context, req *connect.Request[v1.GetMapRequest]) (*connect.Response[v1.GetMapResponse], error) {
+	return c.getMap.CallUnary(ctx, req)
+}
+
 // ClickServiceHandler is an implementation of the planet.v1.ClickService service.
 type ClickServiceHandler interface {
 	Click(context.Context, *connect.Request[v1.ClickRequest]) (*connect.Response[v1.ClickResponse], error)
+	// Reads are marked side-effect free so Connect sends them as GET and a
+	// cache can serve them.
 	MapDensity(context.Context, *connect.Request[v1.MapDensityRequest]) (*connect.Response[v1.MapDensityResponse], error)
+	GetMap(context.Context, *connect.Request[v1.GetMapRequest]) (*connect.Response[v1.GetMapResponse], error)
 }
 
 // NewClickServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -110,6 +132,14 @@ func NewClickServiceHandler(svc ClickServiceHandler, opts ...connect.HandlerOpti
 		ClickServiceMapDensityProcedure,
 		svc.MapDensity,
 		connect.WithSchema(clickServiceMethods.ByName("MapDensity")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
+	clickServiceGetMapHandler := connect.NewUnaryHandler(
+		ClickServiceGetMapProcedure,
+		svc.GetMap,
+		connect.WithSchema(clickServiceMethods.ByName("GetMap")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
 	return "/planet.v1.ClickService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -118,6 +148,8 @@ func NewClickServiceHandler(svc ClickServiceHandler, opts ...connect.HandlerOpti
 			clickServiceClickHandler.ServeHTTP(w, r)
 		case ClickServiceMapDensityProcedure:
 			clickServiceMapDensityHandler.ServeHTTP(w, r)
+		case ClickServiceGetMapProcedure:
+			clickServiceGetMapHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -133,4 +165,8 @@ func (UnimplementedClickServiceHandler) Click(context.Context, *connect.Request[
 
 func (UnimplementedClickServiceHandler) MapDensity(context.Context, *connect.Request[v1.MapDensityRequest]) (*connect.Response[v1.MapDensityResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.ClickService.MapDensity is not implemented"))
+}
+
+func (UnimplementedClickServiceHandler) GetMap(context.Context, *connect.Request[v1.GetMapRequest]) (*connect.Response[v1.GetMapResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.ClickService.GetMap is not implemented"))
 }

@@ -149,6 +149,107 @@ export class MapDensityResponse extends Message<MapDensityResponse> {
 }
 
 /**
+ * @generated from message planet.v1.GetMapRequest
+ */
+export class GetMapRequest extends Message<GetMapRequest> {
+  /**
+   * @generated from field: uint32 start_tile_id = 1;
+   */
+  startTileId = 0;
+
+  /**
+   * @generated from field: uint32 end_tile_id = 2;
+   */
+  endTileId = 0;
+
+  constructor(data?: PartialMessage<GetMapRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GetMapRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "start_tile_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 2, name: "end_tile_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetMapRequest {
+    return new GetMapRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetMapRequest {
+    return new GetMapRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetMapRequest {
+    return new GetMapRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetMapRequest | PlainMessage<GetMapRequest> | undefined, b: GetMapRequest | PlainMessage<GetMapRequest> | undefined): boolean {
+    return proto3.util.equals(GetMapRequest, a, b);
+  }
+}
+
+/**
+ * Tile ids are implicit: the nth tile of `tiles` is start_tile_id + n. That is
+ * what makes this far smaller than a keyed map, which repeats an id the
+ * position already carries.
+ *
+ * @generated from message planet.v1.GetMapResponse
+ */
+export class GetMapResponse extends Message<GetMapResponse> {
+  /**
+   * @generated from field: uint32 start_tile_id = 1;
+   */
+  startTileId = 0;
+
+  /**
+   * Country codes, indexed by the values in `tiles`. Index 0 is the unowned
+   * code and is always empty.
+   *
+   * @generated from field: repeated string codes = 2;
+   */
+  codes: string[] = [];
+
+  /**
+   * Two bytes per tile, little endian, an index into `codes`.
+   *
+   * @generated from field: bytes tiles = 3;
+   */
+  tiles = new Uint8Array(0);
+
+  constructor(data?: PartialMessage<GetMapResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GetMapResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "start_tile_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 2, name: "codes", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 3, name: "tiles", kind: "scalar", T: 12 /* ScalarType.BYTES */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetMapResponse {
+    return new GetMapResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetMapResponse {
+    return new GetMapResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetMapResponse {
+    return new GetMapResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetMapResponse | PlainMessage<GetMapResponse> | undefined, b: GetMapResponse | PlainMessage<GetMapResponse> | undefined): boolean {
+    return proto3.util.equals(GetMapResponse, a, b);
+  }
+}
+
+/**
  * @generated from message planet.v1.TileUpdate
  */
 export class TileUpdate extends Message<TileUpdate> {
@@ -198,7 +299,7 @@ export class TileUpdate extends Message<TileUpdate> {
 }
 
 /**
- * Deprecated: v2 only. v3 uses GET /v3/map.
+ * Deprecated: the v2 REST endpoints only. GetMap replaces this.
  *
  * @generated from message planet.v1.Ownerships
  * @deprecated
@@ -238,7 +339,7 @@ export class Ownerships extends Message<Ownerships> {
 }
 
 /**
- * Deprecated: v2 only. v3 uses GET /v3/map.
+ * Deprecated: the v2 REST endpoints only. GetMap replaces this.
  *
  * @generated from message planet.v1.OwnershipBatchRequest
  * @deprecated

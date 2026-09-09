@@ -64,7 +64,7 @@
 
 	# WebSocket stream of tile updates. Caddy upgrades automatically; the
 	# disabled timeouts keep idle spectators connected.
-	handle /v2/ws/* /v3/ws/* {
+	handle /ws/* /v2/ws/* {
 		reverse_proxy backend:8080 {
 			transport http {
 				read_timeout 0
@@ -73,9 +73,9 @@
 		}
 	}
 
-	# v3: Connect RPCs, plus GET /v3/map. The map body is the one response
-	# worth caching, and it says so itself.
-	handle /v3/* {
+	# Connect names its own path. GetMap and MapDensity arrive as GETs and
+	# carry their own Cache-Control, so a cache in front can serve them.
+	handle /planet.v1.ClickService/* {
 		reverse_proxy backend:8080
 	}
 

@@ -75,23 +75,22 @@ func (a *App) Configure(ctx context.Context) error {
 
 	router := http.NewServeMux()
 
-	// Deprecated: mounted only until the deployed frontends move to /v3.
-	v2RPCRouter := http.NewServeMux()
-	app.declareV2RPCRoutes(v2RPCRouter)
-	router.Handle("/v2/rpc/", http.StripPrefix("/v2/rpc", rpcMiddlewares(v2RPCRouter)))
+	// Connect names its own path, so it needs no prefix of ours and cannot
+	// collide with the deprecated tree below.
+	router.Handle(app.connectPath, rpcMiddlewares(app.connectHandler))
 
-	v2WSRouter := http.NewServeMux()
-	app.declareWSRoutes(v2WSRouter)
-	router.Handle("/v2/ws/", http.StripPrefix("/v2/ws", wsMiddlewares(v2WSRouter)))
+	wsRouter := http.NewServeMux()
+	app.declareWSRoutes(wsRouter)
+	router.Handle("/ws/", http.StripPrefix("/ws", wsMiddlewares(wsRouter)))
 
-	// /v3/ws/ is more specific than /v3/, so it wins the match.
-	v3WSRouter := http.NewServeMux()
-	app.declareWSRoutes(v3WSRouter)
-	router.Handle("/v3/ws/", http.StripPrefix("/v3/ws", wsMiddlewares(v3WSRouter)))
+	// Deprecated: mounted only until the deployed frontends move over.
+	legacyRPCRouter := http.NewServeMux()
+	app.declareLegacyRoutes(legacyRPCRouter)
+	router.Handle("/v2/rpc/", http.StripPrefix("/v2/rpc", rpcMiddlewares(legacyRPCRouter)))
 
-	v3Router := http.NewServeMux()
-	app.declareV3Routes(v3Router)
-	router.Handle("/v3/", http.StripPrefix("/v3", rpcMiddlewares(v3Router)))
+	legacyWSRouter := http.NewServeMux()
+	app.declareWSRoutes(legacyWSRouter)
+	router.Handle("/v2/ws/", http.StripPrefix("/v2/ws", wsMiddlewares(legacyWSRouter)))
 
 	a.declarePrometheusRoutes(router)
 
@@ -127,7 +126,8 @@ func (a *App) declarePrometheusRoutes(router *http.ServeMux) {
 }
 
 type ConfigureAppResponse struct {
-	declareWSRoutes    func(mux *http.ServeMux)
-	declareV2RPCRoutes func(mux *http.ServeMux)
-	declareV3Routes    func(mux *http.ServeMux)
+	declareWSRoutes     func(mux *http.ServeMux)
+	declareLegacyRoutes func(mux *http.ServeMux)
+	connectPath         string
+	connectHandler      http.Handler
 }

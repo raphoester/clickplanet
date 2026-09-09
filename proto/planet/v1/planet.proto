@@ -2,11 +2,21 @@ syntax = "proto3";
 
 package planet.v1;
 
-// v3 API. Connect, served under /v3. The map load is GET /v3/map (two bytes
-// per tile) and the update stream stays the websocket at /v3/ws/listen.
+// The API. Connect mounts it at /planet.v1.ClickService/, which is namespace
+// enough — the deprecated REST endpoints under /v2/rpc cannot collide with it.
+// The live update stream stays a websocket at /ws/listen.
 service ClickService {
   rpc Click(ClickRequest) returns (ClickResponse);
-  rpc MapDensity(MapDensityRequest) returns (MapDensityResponse);
+
+  // Reads are marked side-effect free so Connect sends them as GET and a
+  // cache can serve them.
+  rpc MapDensity(MapDensityRequest) returns (MapDensityResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  rpc GetMap(GetMapRequest) returns (GetMapResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 }
 
 message ClickRequest {
@@ -22,20 +32,39 @@ message MapDensityResponse {
   uint32 density = 1;
 }
 
+message GetMapRequest {
+  uint32 start_tile_id = 1;
+  uint32 end_tile_id = 2;
+}
+
+// Tile ids are implicit: the nth tile of `tiles` is start_tile_id + n. That is
+// what makes this far smaller than a keyed map, which repeats an id the
+// position already carries.
+message GetMapResponse {
+  uint32 start_tile_id = 1;
+
+  // Country codes, indexed by the values in `tiles`. Index 0 is the unowned
+  // code and is always empty.
+  repeated string codes = 2;
+
+  // Two bytes per tile, little endian, an index into `codes`.
+  bytes tiles = 3;
+}
+
 message TileUpdate {
   uint32 tile_id = 1;
   string country_id = 2;
   string previous_country_id = 3;
 }
 
-// Deprecated: v2 only. v3 uses GET /v3/map.
+// Deprecated: the v2 REST endpoints only. GetMap replaces this.
 message Ownerships {
   option deprecated = true;
 
   map<uint32, string> bindings = 1;
 }
 
-// Deprecated: v2 only. v3 uses GET /v3/map.
+// Deprecated: the v2 REST endpoints only. GetMap replaces this.
 message OwnershipBatchRequest {
   option deprecated = true;
 

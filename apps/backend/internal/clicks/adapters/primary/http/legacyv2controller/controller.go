@@ -1,4 +1,4 @@
-package planetv2controller
+package legacyv2controller
 
 import (
 	"net/http"

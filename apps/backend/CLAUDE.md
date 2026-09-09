@@ -52,26 +52,23 @@ Core interfaces (ports) defined in `gateways.go`:
 ### Adapters
 
 **Primary (input):**
-- `adapters/primary/http/planetv3controller/` — the v3 API, as two separate types:
-  - `ClickService` implements the generated `planetv1connect.ClickServiceHandler` and nothing else. It never sees an `http.ResponseWriter` — that is the point of serving the contract with Connect rather than by hand. Served at `POST /v3/planet.v1.ClickService/<Method>`.
-  - `MapHandler` is a plain `http.Handler` for `GET /v3/map`, which is deliberately not an RPC (see below).
-  - `NewErrorInterceptor` maps domain errors onto Connect codes, logs the unexpected ones and keeps their cause off the wire. **Handlers return their errors bare** — `domain.ErrInvalidArgument` becomes `CodeInvalidArgument`, a code a handler picked itself is left alone, and anything else is logged once and answered as `internal error`. No handler carries a logger or repeats that block.
-
-  Neither declares its own routes: `app/wiring.go` mounts them, the way connect-go's own getting-started does.
-- `adapters/primary/http/planetv2controller/` — **deprecated** v2 endpoints (`POST /v2/rpc/click`, `GET /v2/rpc/map-density`, `POST /v2/rpc/ownerships-by-batch`). They wrap binary protobuf in a base64 JSON envelope and pick that encoding from `httpServer.format` rather than from the request. Frozen; mounted until the deployed frontends move.
+- `adapters/primary/http/planetv1controller/` — the API. `ClickService` implements the generated `planetv1connect.ClickServiceHandler` and nothing else; it never sees an `http.ResponseWriter`, which is the point of serving the contract with Connect rather than by hand. `NewErrorInterceptor` maps domain errors onto Connect codes, logs the unexpected ones and keeps their cause off the wire, so **handlers return their errors bare** — `domain.ErrInvalidArgument` becomes `CodeInvalidArgument`, a code a handler picked itself is left alone, and anything else is logged once and answered as `internal error`.
+- `adapters/primary/http/legacyv2controller/` — **deprecated** REST endpoints (`POST /v2/rpc/click`, `GET /v2/rpc/map-density`, `POST /v2/rpc/ownerships-by-batch`). They wrap binary protobuf in a base64 JSON envelope and pick that encoding from `httpServer.format` rather than from the request. Frozen; deleted once the deployed frontends have moved.
 - `adapters/primary/http/websocket_publisher/` — subscribes to the tile update stream, broadcasts to WebSocket clients
 
-Both versions are wired to the same domain instances in `app/wiring.go`, and both serve the same websocket (`/v2/ws/listen` and `/v3/ws/listen`) — the tile map lives in this process, so two sets of adapters over two storages would be two different games.
+Both are wired to the same domain instances in `app/wiring.go`, and both serve the same websocket (`/ws/listen` and the deprecated `/v2/ws/listen`) — the tile map lives in this process, so two sets of adapters over two storages would be two different games.
 
-**There is one server and one mux.** Connect handlers are ordinary `http.Handler`s, so the v3 RPCs, the v2 REST endpoints, the map GET, the websocket upgrade and `/metrics` all mount on the same `http.ServeMux` on one port. Nothing here needs a connection-level demultiplexer such as `cmux`; that is for running a real gRPC server, which owns its own HTTP/2 handler, beside a REST one.
+**There is one server and one mux, and no version prefix of our own.** Connect names its own path, `/planet.v1.ClickService/`, which cannot collide with the deprecated `/v2/rpc/` tree. So the RPCs, the legacy endpoints, the websocket upgrade and `/metrics` all mount on the same `http.ServeMux` on one port. Nothing here needs a connection-level demultiplexer such as `cmux`; that is for running a real gRPC server, which owns its own HTTP/2 handler, beside a REST one.
 
 `Configure` sets `http.Protocols` with both HTTP/1.1 and unencrypted HTTP/2, because the generated handler also speaks gRPC and gRPC-Web and those need HTTP/2. Browsers reach the same routes over HTTP/1.1. Verified: HTTP/1.1 and h2c both answer on the same port.
 
-### The v3 map encoding
+### The map load
 
-`GET /v3/map?start=&end=` (both optional, defaulting to the whole map) answers `application/octet-stream` in the layout documented in `memory_tile_storage/wire.go`: a magic, the interned country code table, then two bytes per tile. Tile ids are implicit in the position, which is what makes it about seven times smaller than the v2 `map<uint32, string>` — 516 KB against 3.6 MB for a full 257,948-tile map. The interned ids are written as stored and the table travels with them, so nothing translates on the way out and the client needs no shared country list.
+`GetMap` is an ordinary RPC, but marked `idempotency_level = NO_SIDE_EFFECTS` in the proto, so Connect sends it as an **HTTP GET** and the handler sets `Cache-Control: public, max-age=5` on the response. A burst of visitors can therefore share one origin response; the websocket carries everything that happens after a chunk was built, so a client starting from a slightly old map converges anyway. `MapDensity` is marked the same way.
 
-It is a GET and says `Cache-Control: public, max-age=5`, so a burst of visitors can share one origin response. The websocket carries everything that happens after a chunk was built, so a client starting from a slightly old map converges anyway.
+The response never repeats a tile id. `GetMapResponse` carries `start_tile_id`, the interned `codes` table, and `tiles` — a `bytes` field holding two bytes per tile, little endian, indexing into `codes`. Tile ids are implicit in the position, which is what makes it far smaller than the deprecated `map<uint32, string>`: **516 KB against 3.6 MB** for a full 257,948-tile map.
+
+`memory_tile_storage.StateBatchDense` builds it. The interned ids are copied out exactly as stored and the table travels with them, so nothing is translated on the way out and the client needs no shared country list. Protobuf does all the framing — there is no hand-rolled magic or length-prefixing on either side, and therefore no encoder and decoder that have to be edited together.
 
 **Secondary (output):**
 - `adapters/secondary/memory_tile_storage/` — the tile map. A preallocated `[]uint16` indexed by tile id, with country codes interned into a side table (2 bytes per tile — ~2 MB for a 1M-tile map). Fans updates out in process, serves `PastUpdates` from a bounded ring buffer, and persists to a local snapshot file.
@@ -84,8 +81,8 @@ Beyond the `domain.TileStorage` port, `memory_tile_storage` also exposes `Subscr
 ### Key Flow
 
 ```
-POST /v2/rpc/click
-  → ClicksController
+POST /planet.v1.ClickService/Click
+  → ClickService
   → ClickHandlerService (validates tile ID + country)
   → MemoryTileStorage.Set() [writes the tile, fans the update out in process]
   → WebsocketPublisher (fans out to WS clients)
@@ -126,7 +123,7 @@ Config is loaded from a YAML file (`-config` flag), with environment variables o
 
 API contracts live in the monorepo-shared [`/proto/planet/v1/planet.proto`](../../proto/planet/v1/planet.proto) (also used by the frontend). Generated code goes to `generated/proto/`. Use `make proto` to regenerate after editing `.proto` files (requires the `buf` CLI, plus `protoc-gen-go` and `protoc-gen-connect-go` on `PATH`).
 
-The proto package is `planet.v1`, and stays at `v1`: it tracks the schema, which never broke. The HTTP API version is a different number, living in the URL prefix — which is why the adapter packages are named after the routes they serve (`planetv2controller` → `/v2/rpc/*`, `planetv3controller` → `/v3/*`) while the generated code stays `planetv1`. There is no gRPC here — Connect serves the same service definition over ordinary HTTP/1.1 POSTs.
+The proto package is `planet.v1`, and it is the **only** version number in the new API: Connect derives its route from it, and `planetv1controller` and `planetv1connect` follow. The `v2` in `legacyv2controller` names the deprecated `/v2/rpc` routes, which predate the contract and disappear with them. There is no gRPC here — Connect serves the service definition over ordinary HTTP/1.1 POSTs (and h2c, for clients that want it).
 
 ### Testing
 

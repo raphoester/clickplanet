@@ -189,6 +189,124 @@ func (x *MapDensityResponse) GetDensity() uint32 {
 	return 0
 }
 
+type GetMapRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	StartTileId   uint32                 `protobuf:"varint,1,opt,name=start_tile_id,json=startTileId,proto3" json:"start_tile_id,omitempty"`
+	EndTileId     uint32                 `protobuf:"varint,2,opt,name=end_tile_id,json=endTileId,proto3" json:"end_tile_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetMapRequest) Reset() {
+	*x = GetMapRequest{}
+	mi := &file_planet_v1_planet_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetMapRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetMapRequest) ProtoMessage() {}
+
+func (x *GetMapRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_planet_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetMapRequest.ProtoReflect.Descriptor instead.
+func (*GetMapRequest) Descriptor() ([]byte, []int) {
+	return file_planet_v1_planet_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *GetMapRequest) GetStartTileId() uint32 {
+	if x != nil {
+		return x.StartTileId
+	}
+	return 0
+}
+
+func (x *GetMapRequest) GetEndTileId() uint32 {
+	if x != nil {
+		return x.EndTileId
+	}
+	return 0
+}
+
+// Tile ids are implicit: the nth tile of `tiles` is start_tile_id + n. That is
+// what makes this far smaller than a keyed map, which repeats an id the
+// position already carries.
+type GetMapResponse struct {
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	StartTileId uint32                 `protobuf:"varint,1,opt,name=start_tile_id,json=startTileId,proto3" json:"start_tile_id,omitempty"`
+	// Country codes, indexed by the values in `tiles`. Index 0 is the unowned
+	// code and is always empty.
+	Codes []string `protobuf:"bytes,2,rep,name=codes,proto3" json:"codes,omitempty"`
+	// Two bytes per tile, little endian, an index into `codes`.
+	Tiles         []byte `protobuf:"bytes,3,opt,name=tiles,proto3" json:"tiles,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetMapResponse) Reset() {
+	*x = GetMapResponse{}
+	mi := &file_planet_v1_planet_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetMapResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetMapResponse) ProtoMessage() {}
+
+func (x *GetMapResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_planet_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetMapResponse.ProtoReflect.Descriptor instead.
+func (*GetMapResponse) Descriptor() ([]byte, []int) {
+	return file_planet_v1_planet_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *GetMapResponse) GetStartTileId() uint32 {
+	if x != nil {
+		return x.StartTileId
+	}
+	return 0
+}
+
+func (x *GetMapResponse) GetCodes() []string {
+	if x != nil {
+		return x.Codes
+	}
+	return nil
+}
+
+func (x *GetMapResponse) GetTiles() []byte {
+	if x != nil {
+		return x.Tiles
+	}
+	return nil
+}
+
 type TileUpdate struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
 	TileId            uint32                 `protobuf:"varint,1,opt,name=tile_id,json=tileId,proto3" json:"tile_id,omitempty"`
@@ -200,7 +318,7 @@ type TileUpdate struct {
 
 func (x *TileUpdate) Reset() {
 	*x = TileUpdate{}
-	mi := &file_planet_v1_planet_proto_msgTypes[4]
+	mi := &file_planet_v1_planet_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -212,7 +330,7 @@ func (x *TileUpdate) String() string {
 func (*TileUpdate) ProtoMessage() {}
 
 func (x *TileUpdate) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_planet_proto_msgTypes[4]
+	mi := &file_planet_v1_planet_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -225,7 +343,7 @@ func (x *TileUpdate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TileUpdate.ProtoReflect.Descriptor instead.
 func (*TileUpdate) Descriptor() ([]byte, []int) {
-	return file_planet_v1_planet_proto_rawDescGZIP(), []int{4}
+	return file_planet_v1_planet_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *TileUpdate) GetTileId() uint32 {
@@ -249,7 +367,7 @@ func (x *TileUpdate) GetPreviousCountryId() string {
 	return ""
 }
 
-// Deprecated: v2 only. v3 uses GET /v3/map.
+// Deprecated: the v2 REST endpoints only. GetMap replaces this.
 //
 // Deprecated: Marked as deprecated in planet/v1/planet.proto.
 type Ownerships struct {
@@ -261,7 +379,7 @@ type Ownerships struct {
 
 func (x *Ownerships) Reset() {
 	*x = Ownerships{}
-	mi := &file_planet_v1_planet_proto_msgTypes[5]
+	mi := &file_planet_v1_planet_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -273,7 +391,7 @@ func (x *Ownerships) String() string {
 func (*Ownerships) ProtoMessage() {}
 
 func (x *Ownerships) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_planet_proto_msgTypes[5]
+	mi := &file_planet_v1_planet_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -286,7 +404,7 @@ func (x *Ownerships) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Ownerships.ProtoReflect.Descriptor instead.
 func (*Ownerships) Descriptor() ([]byte, []int) {
-	return file_planet_v1_planet_proto_rawDescGZIP(), []int{5}
+	return file_planet_v1_planet_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *Ownerships) GetBindings() map[uint32]string {
@@ -296,7 +414,7 @@ func (x *Ownerships) GetBindings() map[uint32]string {
 	return nil
 }
 
-// Deprecated: v2 only. v3 uses GET /v3/map.
+// Deprecated: the v2 REST endpoints only. GetMap replaces this.
 //
 // Deprecated: Marked as deprecated in planet/v1/planet.proto.
 type OwnershipBatchRequest struct {
@@ -309,7 +427,7 @@ type OwnershipBatchRequest struct {
 
 func (x *OwnershipBatchRequest) Reset() {
 	*x = OwnershipBatchRequest{}
-	mi := &file_planet_v1_planet_proto_msgTypes[6]
+	mi := &file_planet_v1_planet_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -321,7 +439,7 @@ func (x *OwnershipBatchRequest) String() string {
 func (*OwnershipBatchRequest) ProtoMessage() {}
 
 func (x *OwnershipBatchRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_planet_proto_msgTypes[6]
+	mi := &file_planet_v1_planet_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -334,7 +452,7 @@ func (x *OwnershipBatchRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OwnershipBatchRequest.ProtoReflect.Descriptor instead.
 func (*OwnershipBatchRequest) Descriptor() ([]byte, []int) {
-	return file_planet_v1_planet_proto_rawDescGZIP(), []int{6}
+	return file_planet_v1_planet_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *OwnershipBatchRequest) GetStartTileId() uint32 {
@@ -363,7 +481,14 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"\rClickResponse\"\x13\n" +
 	"\x11MapDensityRequest\".\n" +
 	"\x12MapDensityResponse\x12\x18\n" +
-	"\adensity\x18\x01 \x01(\rR\adensity\"t\n" +
+	"\adensity\x18\x01 \x01(\rR\adensity\"S\n" +
+	"\rGetMapRequest\x12\"\n" +
+	"\rstart_tile_id\x18\x01 \x01(\rR\vstartTileId\x12\x1e\n" +
+	"\vend_tile_id\x18\x02 \x01(\rR\tendTileId\"`\n" +
+	"\x0eGetMapResponse\x12\"\n" +
+	"\rstart_tile_id\x18\x01 \x01(\rR\vstartTileId\x12\x14\n" +
+	"\x05codes\x18\x02 \x03(\tR\x05codes\x12\x14\n" +
+	"\x05tiles\x18\x03 \x01(\fR\x05tiles\"t\n" +
 	"\n" +
 	"TileUpdate\x12\x17\n" +
 	"\atile_id\x18\x01 \x01(\rR\x06tileId\x12\x1d\n" +
@@ -378,11 +503,12 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01:\x02\x18\x01\"_\n" +
 	"\x15OwnershipBatchRequest\x12\"\n" +
 	"\rstart_tile_id\x18\x01 \x01(\rR\vstartTileId\x12\x1e\n" +
-	"\vend_tile_id\x18\x02 \x01(\rR\tendTileId:\x02\x18\x012\x95\x01\n" +
+	"\vend_tile_id\x18\x02 \x01(\rR\tendTileId:\x02\x18\x012\xde\x01\n" +
 	"\fClickService\x12:\n" +
-	"\x05Click\x12\x17.planet.v1.ClickRequest\x1a\x18.planet.v1.ClickResponse\x12I\n" +
+	"\x05Click\x12\x17.planet.v1.ClickRequest\x1a\x18.planet.v1.ClickResponse\x12N\n" +
 	"\n" +
-	"MapDensity\x12\x1c.planet.v1.MapDensityRequest\x1a\x1d.planet.v1.MapDensityResponseB\xb3\x01\n" +
+	"MapDensity\x12\x1c.planet.v1.MapDensityRequest\x1a\x1d.planet.v1.MapDensityResponse\"\x03\x90\x02\x01\x12B\n" +
+	"\x06GetMap\x12\x18.planet.v1.GetMapRequest\x1a\x19.planet.v1.GetMapResponse\"\x03\x90\x02\x01B\xb3\x01\n" +
 	"\rcom.planet.v1B\vPlanetProtoP\x01ZPgithub.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1;planetv1\xa2\x02\x03PXX\xaa\x02\tPlanet.V1\xca\x02\tPlanet\\V1\xe2\x02\x15Planet\\V1\\GPBMetadata\xea\x02\n" +
 	"Planet::V1b\x06proto3"
 
@@ -398,25 +524,29 @@ func file_planet_v1_planet_proto_rawDescGZIP() []byte {
 	return file_planet_v1_planet_proto_rawDescData
 }
 
-var file_planet_v1_planet_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_planet_v1_planet_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_planet_v1_planet_proto_goTypes = []any{
 	(*ClickRequest)(nil),          // 0: planet.v1.ClickRequest
 	(*ClickResponse)(nil),         // 1: planet.v1.ClickResponse
 	(*MapDensityRequest)(nil),     // 2: planet.v1.MapDensityRequest
 	(*MapDensityResponse)(nil),    // 3: planet.v1.MapDensityResponse
-	(*TileUpdate)(nil),            // 4: planet.v1.TileUpdate
-	(*Ownerships)(nil),            // 5: planet.v1.Ownerships
-	(*OwnershipBatchRequest)(nil), // 6: planet.v1.OwnershipBatchRequest
-	nil,                           // 7: planet.v1.Ownerships.BindingsEntry
+	(*GetMapRequest)(nil),         // 4: planet.v1.GetMapRequest
+	(*GetMapResponse)(nil),        // 5: planet.v1.GetMapResponse
+	(*TileUpdate)(nil),            // 6: planet.v1.TileUpdate
+	(*Ownerships)(nil),            // 7: planet.v1.Ownerships
+	(*OwnershipBatchRequest)(nil), // 8: planet.v1.OwnershipBatchRequest
+	nil,                           // 9: planet.v1.Ownerships.BindingsEntry
 }
 var file_planet_v1_planet_proto_depIdxs = []int32{
-	7, // 0: planet.v1.Ownerships.bindings:type_name -> planet.v1.Ownerships.BindingsEntry
+	9, // 0: planet.v1.Ownerships.bindings:type_name -> planet.v1.Ownerships.BindingsEntry
 	0, // 1: planet.v1.ClickService.Click:input_type -> planet.v1.ClickRequest
 	2, // 2: planet.v1.ClickService.MapDensity:input_type -> planet.v1.MapDensityRequest
-	1, // 3: planet.v1.ClickService.Click:output_type -> planet.v1.ClickResponse
-	3, // 4: planet.v1.ClickService.MapDensity:output_type -> planet.v1.MapDensityResponse
-	3, // [3:5] is the sub-list for method output_type
-	1, // [1:3] is the sub-list for method input_type
+	4, // 3: planet.v1.ClickService.GetMap:input_type -> planet.v1.GetMapRequest
+	1, // 4: planet.v1.ClickService.Click:output_type -> planet.v1.ClickResponse
+	3, // 5: planet.v1.ClickService.MapDensity:output_type -> planet.v1.MapDensityResponse
+	5, // 6: planet.v1.ClickService.GetMap:output_type -> planet.v1.GetMapResponse
+	4, // [4:7] is the sub-list for method output_type
+	1, // [1:4] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
 	1, // [1:1] is the sub-list for extension extendee
 	0, // [0:1] is the sub-list for field type_name
@@ -433,7 +563,7 @@ func file_planet_v1_planet_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_planet_v1_planet_proto_rawDesc), len(file_planet_v1_planet_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   8,
+			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

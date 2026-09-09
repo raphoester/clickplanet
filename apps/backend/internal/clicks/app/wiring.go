@@ -3,14 +3,13 @@ package app
 import (
 	"context"
 	"fmt"
-	"net/http"
 
 	"connectrpc.com/connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/primary/http/planetv2controller"
-	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/primary/http/planetv3controller"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/primary/http/legacyv2controller"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/primary/http/planetv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/primary/http/websocket_publisher"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/secondary/in_memory_country_checker"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/secondary/in_memory_tile_checker"
@@ -64,7 +63,7 @@ func (a *App) configureApp(_ context.Context) (*ConfigureAppResponse, error) {
 
 	a.configureBookkeeperIfEnabled(tilesStorage)
 
-	v2Controller := planetv2controller.New(
+	v2Controller := legacyv2controller.New(
 		clickHandlerService,
 		tilesChecker,
 		tilesStorage,
@@ -72,19 +71,21 @@ func (a *App) configureApp(_ context.Context) (*ConfigureAppResponse, error) {
 		a.reader,
 	)
 
-	// v2 and v3 share these instances: the tile map lives in this process, so
+	// Both APIs share these instances: the tile map lives in this process, so
 	// two sets of adapters over two storages would be two different games.
-	clickService := planetv3controller.NewClickService(clickHandlerService, tilesChecker)
-	mapHandler := planetv3controller.NewMapHandler(tilesStorage, tilesChecker, a.logger)
-	errorInterceptor := planetv3controller.NewErrorInterceptor(a.logger)
+	clickService := planetv1controller.NewClickService(clickHandlerService, tilesChecker, tilesStorage)
+	errorInterceptor := planetv1controller.NewErrorInterceptor(a.logger)
+
+	connectPath, connectHandler := planetv1connect.NewClickServiceHandler(
+		clickService,
+		connect.WithInterceptors(errorInterceptor),
+	)
 
 	return &ConfigureAppResponse{
-		declareWSRoutes:    publisher.DeclareRoutes,
-		declareV2RPCRoutes: v2Controller.DeclareRoutes,
-		declareV3Routes: func(mux *http.ServeMux) {
-			mux.Handle(planetv1connect.NewClickServiceHandler(clickService, connect.WithInterceptors(errorInterceptor)))
-			mux.Handle("GET /map", mapHandler)
-		},
+		declareWSRoutes:     publisher.DeclareRoutes,
+		declareLegacyRoutes: v2Controller.DeclareRoutes,
+		connectPath:         connectPath,
+		connectHandler:      connectHandler,
 	}, nil
 }
 

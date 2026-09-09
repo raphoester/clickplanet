@@ -1,4 +1,4 @@
-package planetv3controller
+package planetv1controller
 
 import (
 	"context"
@@ -28,7 +28,7 @@ func newTestClient(t *testing.T, svc stubService) planetv1connect.ClickServiceCl
 
 	mux := http.NewServeMux()
 	mux.Handle(planetv1connect.NewClickServiceHandler(
-		NewClickService(svc, stubChecker{}),
+		NewClickService(svc, stubChecker{}, stubMapReader{}),
 		connect.WithInterceptors(NewErrorInterceptor(nil)),
 	))
 
@@ -67,4 +67,44 @@ func TestMapDensity(t *testing.T) {
 		context.Background(), connect.NewRequest(&planetv1.MapDensityRequest{}))
 	require.NoError(t, err)
 	require.Equal(t, uint32(100), res.Msg.GetDensity())
+}
+
+type stubMapReader struct{}
+
+func (stubMapReader) StateBatchDense(start uint32, end uint32) (domain.DenseBatch, error) {
+	if start > end {
+		return domain.DenseBatch{}, fmt.Errorf("invalid tile range")
+	}
+
+	return domain.DenseBatch{
+		Start: start,
+		Codes: []string{"", "fr"},
+		Tiles: []byte{0x01, 0x00, 0x00, 0x00},
+	}, nil
+}
+
+func TestGetMap(t *testing.T) {
+	getMap := func(t *testing.T, req *planetv1.GetMapRequest) (*connect.Response[planetv1.GetMapResponse], error) {
+		t.Helper()
+		return newTestClient(t, stubService{}).GetMap(context.Background(), connect.NewRequest(req))
+	}
+
+	t.Run("answers the dense batch with its code table", func(t *testing.T) {
+		res, err := getMap(t, &planetv1.GetMapRequest{StartTileId: 7, EndTileId: 8})
+		require.NoError(t, err)
+		require.Equal(t, uint32(7), res.Msg.GetStartTileId())
+		require.Equal(t, []string{"", "fr"}, res.Msg.GetCodes())
+		require.Equal(t, []byte{0x01, 0x00, 0x00, 0x00}, res.Msg.GetTiles())
+	})
+
+	t.Run("is cacheable", func(t *testing.T) {
+		res, err := getMap(t, &planetv1.GetMapRequest{})
+		require.NoError(t, err)
+		require.Equal(t, "public, max-age=5", res.Header().Get("Cache-Control"))
+	})
+
+	t.Run("an inverted range is a caller error", func(t *testing.T) {
+		_, err := getMap(t, &planetv1.GetMapRequest{StartTileId: 9, EndTileId: 2})
+		require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+	})
 }

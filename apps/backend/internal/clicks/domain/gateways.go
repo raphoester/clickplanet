@@ -12,6 +12,14 @@ type TileStorage interface {
 	GetStateBatch(ctx context.Context, start uint32, end uint32) (map[uint32]string, error)
 }
 
+// DenseBatch is a tile range with the code table needed to read it: Tiles
+// holds two bytes per tile, little endian, an index into Codes.
+type DenseBatch struct {
+	Start uint32
+	Codes []string
+	Tiles []byte
+}
+
 type TileReporter interface {
 	Subscribe(ctx context.Context) <-chan TileUpdate
 }

@@ -1,4 +1,4 @@
-package planetv3controller
+package planetv1controller
 
 import (
 	"context"
