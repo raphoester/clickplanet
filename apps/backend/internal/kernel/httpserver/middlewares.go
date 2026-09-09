@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"net"
 	"net/http"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ctxutil"
@@ -32,16 +33,37 @@ func CorsMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+// IPReaderMiddleware puts the caller's address on the context, where the
+// rate limiter and the click metrics read it from.
+//
+// X-Real-IP comes first because in production the only address the socket
+// knows is Cloudflare's or Caddy's; the reverse proxy is expected to set that
+// header from the real client and to overwrite whatever the client sent, since
+// nothing here can tell a forged one from a genuine one. Without a proxy — a
+// local run, a direct container — the socket is the truth and there is no
+// header, which is why the fallback is the peer address rather than a shared
+// "unknown": one bucket for every anonymous caller would rate limit the whole
+// game as if it were a single player.
 func IPReaderMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ip := r.Header.Get("X-Real-IP")
 		if ip == "" {
-			ip = "unknown"
+			ip = remoteIP(r)
 		}
 
 		ctx := ctxutil.AddIPToContext(r.Context(), ip)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+// remoteIP is the peer address with its port stripped, so that two
+// connections from the same machine land in the same bucket.
+func remoteIP(r *http.Request) string {
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return r.RemoteAddr
+	}
+	return host
 }
 
 func NewLoggingMiddleware(logger logging.Logger) func(http.Handler) http.Handler {

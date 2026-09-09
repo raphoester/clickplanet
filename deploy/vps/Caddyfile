@@ -57,10 +57,19 @@
 		respond 204
 	}
 
+	# X-Real-IP is what the API keys its per-IP rate limiting and its click
+	# metrics on. Setting it here (rather than only forwarding it) matters
+	# twice over: the socket the backend sees is Caddy's, and a client is free
+	# to send an X-Real-IP of its own — header_up without a `+` replaces the
+	# incoming value, so a forged one cannot buy a fresh bucket. {client_ip} is
+	# the address resolved through client_ip_headers/trusted_proxies above,
+	# i.e. Cf-Connecting-Ip, the real visitor.
+
 	# WebSocket stream of tile updates. Caddy upgrades automatically; the
 	# disabled timeouts keep idle spectators connected.
 	handle /ws/* {
 		reverse_proxy backend:8080 {
+			header_up X-Real-IP {client_ip}
 			transport http {
 				read_timeout 0
 				write_timeout 0
@@ -71,7 +80,9 @@
 	# Connect names its own path. GetMap and MapDensity arrive as GETs and
 	# carry their own Cache-Control, so a cache in front can serve them.
 	handle /planet.v1.ClickService/* {
-		reverse_proxy backend:8080
+		reverse_proxy backend:8080 {
+			header_up X-Real-IP {client_ip}
+		}
 	}
 
 	# Prometheus metrics — closed by default. Uncomment and restrict by source

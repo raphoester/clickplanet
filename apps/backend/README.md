@@ -64,6 +64,8 @@ The tradeoffs are deliberate: writes since the last snapshot are lost on a hard 
 
 The RPCs are served with [Connect](https://connectrpc.com), which is plain HTTP — no gRPC. The encoding is negotiated per request (`application/proto` or `application/json`), and the two reads are marked side-effect free, so they arrive as cacheable GETs. The websocket carries raw binary `TileUpdate` frames.
 
+`Click` is rate limited per source IP — 1 click/s with a burst of 10 by default, configurable under `rateLimiter`. Over that, it answers `429`. The reads and the websocket are not limited.
+
 ## Running locally
 
 ```bash
