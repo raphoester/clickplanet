@@ -59,3 +59,43 @@ vpnBlocklist:
   # Never refused, whatever the lists say. Prefixes, so /32 for a single
   # address. Put your own address here.
   allow: []
+
+# Live chat. Its own bounded context and its own Connect service, sharing this
+# process and the transport with the tile game and nothing else. Off by
+# default: when disabled nothing is registered, so /chat.v1.ChatService/ and
+# /ws/chat both 404 rather than erroring.
+chat:
+  enabled: true
+  storage:
+    # Append-only JSONL log of every message, sender IP included. Leave empty
+    # to keep chat entirely in memory.
+    logPath: ./data/chat.log
+    # How many recent messages a joining client is served by GetHistory.
+    historySize: 200
+    # Messages older than this are dropped on the next prune. This is personal
+    # data (IP + text), so the window is a retention policy, not a cache size.
+    retention: 720h # 30 days
+    # Upper bound on what a hard kill can lose, as with the tile snapshot.
+    flushInterval: 5s
+    pruneInterval: 1h
+    # Per-websocket-subscriber channel capacity. Messages for a subscriber that
+    # cannot keep up are dropped rather than blocking senders.
+    subscriberBuffer: 256
+  service:
+    maxTextLength: 280
+    maxNameLength: 24
+    # Salts the per-sender tag so it cannot be reversed into an IP. Generated
+    # randomly at boot when empty, which makes tags change on every restart.
+    tagSalt: ""
+  # Per-IP throttle on SendMessage. Separate from the click limiter above: a
+  # message fans out to every client and lands in a log, so it costs far more
+  # than a click. One message every three seconds, five in hand.
+  rateLimiter:
+    perSecond: 0.33
+    burst: 5
+    sweepInterval: 1m
+  # Refused every chat RPC outright. The way to cut off an abusive sender
+  # without a rebuild. Same prefix set as vpnBlocklist above, so these are
+  # CIDRs — a single address needs /32, and a whole range is one line. A
+  # malformed entry fails the start rather than silently refusing nobody.
+  blockedIPs: []

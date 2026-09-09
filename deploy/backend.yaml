@@ -12,3 +12,16 @@ tilesStorage:
 # so every click would key on the compose network's gateway address.
 vpnBlocklist:
   enabled: false
+
+# Live chat, on for the local stack: this file is the one you run against when
+# developing the chat UI. Production ships with it off — see deploy/vps.
+chat:
+  enabled: true
+  storage:
+    # Same tile_state volume as the snapshot.
+    logPath: /home/app/state/chat.log
+  service:
+    tagSalt: "local-development-salt"
+  rateLimiter:
+    perSecond: 0.33
+    burst: 5

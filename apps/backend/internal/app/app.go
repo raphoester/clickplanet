@@ -15,20 +15,31 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging/lf"
 )
 
+// App is the composition root. It is the only place that knows about more than
+// one bounded context: clicks and chat are wired side by side here and share
+// nothing but this file's imports, the process, and the transport.
 type App struct {
 	config Config
 	logger logging.Logger
 	server *http.Server
 
-	// ctx spans the app's lifetime: cancelling it stops the background
-	// runners, which is what triggers the final tile snapshot.
 	ctx    context.Context
 	cancel context.CancelFunc
 
 	runners       []func()
 	shutdownFuncs []func()
 
+	rpcServices []rpcService
+	wsRoutes    []func(*http.ServeMux)
+
 	promRegistry *prometheus.Registry
+}
+
+// rpcService is a Connect handler and the path Connect derived for it from its
+// proto package. Each bounded context contributes its own.
+type rpcService struct {
+	path    string
+	handler http.Handler
 }
 
 func New() (*App, error) {
@@ -54,9 +65,12 @@ func New() (*App, error) {
 }
 
 func (a *App) Configure(ctx context.Context) error {
-	app, err := a.configureApp(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to configure app: %w", err)
+	if err := a.configureClicks(ctx); err != nil {
+		return fmt.Errorf("failed to configure the clicks context: %w", err)
+	}
+
+	if err := a.configureChatIfEnabled(ctx); err != nil {
+		return fmt.Errorf("failed to configure the chat context: %w", err)
 	}
 
 	rpcMiddlewares := httpserver.MiddlewareStack(
@@ -66,26 +80,26 @@ func (a *App) Configure(ctx context.Context) error {
 	)
 
 	wsMiddlewares := httpserver.MiddlewareStack(
-		//httpserver.NewLoggingMiddleware(a.logger), // TODO: fix hijacker problem
 		httpserver.IPReaderMiddleware,
 	)
 
 	router := http.NewServeMux()
 
-	// Connect names its own path, so it needs no prefix of ours and cannot
-	// collide with the deprecated tree below.
-	router.Handle(app.connectPath, rpcMiddlewares(app.connectHandler))
+	// Connect names its own path from the proto package, so the two services
+	// land on /planet.v1.ClickService/ and /chat.v1.ChatService/ with no
+	// prefix of ours in front of either.
+	for _, service := range a.rpcServices {
+		router.Handle(service.path, rpcMiddlewares(service.handler))
+	}
 
 	wsRouter := http.NewServeMux()
-	app.declareWSRoutes(wsRouter)
+	for _, declare := range a.wsRoutes {
+		declare(wsRouter)
+	}
 	router.Handle("/ws/", http.StripPrefix("/ws", wsMiddlewares(wsRouter)))
 
 	a.declarePrometheusRoutes(router)
 
-	// Connect handlers are plain http.Handlers, so everything shares one mux
-	// and one server. Unencrypted HTTP/2 is enabled because the generated
-	// handler also speaks gRPC and gRPC-Web, and those need it; browsers reach
-	// the same routes over HTTP/1.1.
 	protocols := new(http.Protocols)
 	protocols.SetHTTP1(true)
 	protocols.SetUnencryptedHTTP2(true)
@@ -97,6 +111,18 @@ func (a *App) Configure(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// mountRPC registers a bounded context's Connect handler. Called from wiring,
+// not from a context: nothing under internal/clicks or internal/chat knows a
+// router exists.
+func (a *App) mountRPC(path string, handler http.Handler) {
+	a.rpcServices = append(a.rpcServices, rpcService{path: path, handler: handler})
+}
+
+// mountWS registers a websocket route under the /ws prefix.
+func (a *App) mountWS(declare func(*http.ServeMux)) {
+	a.wsRoutes = append(a.wsRoutes, declare)
 }
 
 func (a *App) declarePrometheusRoutes(router *http.ServeMux) {
@@ -111,10 +137,4 @@ func (a *App) declarePrometheusRoutes(router *http.ServeMux) {
 	promRouter.HandleFunc("GET /", promHandler.ServeHTTP)
 
 	router.Handle("/metrics", middlewareStack(promRouter))
-}
-
-type ConfigureAppResponse struct {
-	declareWSRoutes func(mux *http.ServeMux)
-	connectPath     string
-	connectHandler  http.Handler
 }

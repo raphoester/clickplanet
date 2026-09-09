@@ -6,7 +6,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/app"
+	"github.com/raphoester/clickplanet.lol-backend/internal/app"
 )
 
 // startupTimeout bounds the wiring phase: reading the config and restoring the

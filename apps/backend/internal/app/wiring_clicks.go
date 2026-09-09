@@ -9,25 +9,32 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/primary/http/planetv1controller"
-	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/primary/http/websocket_publisher"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/secondary/in_memory_country_checker"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/secondary/in_memory_tile_checker"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/secondary/memory_tile_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/secondary/x_publisher"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/domain"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/domain/click_handler_service"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/domain/click_handler_service/prom_click_handler_service"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/domain/runner"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ipblock"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging/lf"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ratelimit"
+	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/wspublisher"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/xtime"
 )
 
-func (a *App) configureApp(_ context.Context) (*ConfigureAppResponse, error) {
+// countryChecker is the shared country list. Both contexts declare a port of
+// this shape and neither owns the other's: the composition root hands the one
+// implementation to both.
+func (a *App) countryChecker() domain.CountryChecker {
+	return in_memory_country_checker.New()
+}
+
+func (a *App) configureClicks(_ context.Context) error {
 	a.configurePromRegistryIfNeeded()
 
 	tilesChecker := in_memory_tile_checker.New(a.config.GameMap.MaxIndex)
-	countryChecker := in_memory_country_checker.New()
 
 	tilesStorage := memory_tile_storage.New(
 		a.config.GameMap.MaxIndex,
@@ -43,23 +50,29 @@ func (a *App) configureApp(_ context.Context) (*ConfigureAppResponse, error) {
 	var clickHandlerService click_handler_service.IService = click_handler_service.New(
 		tilesChecker,
 		tilesStorage,
-		countryChecker,
+		a.countryChecker(),
 	)
 
 	clickHandlerService, err := prom_click_handler_service.New(clickHandlerService, a.promRegistry)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create prometheus click handler service: %w", err)
+		return fmt.Errorf("failed to create prometheus click handler service: %w", err)
 	}
 
 	// Bound to the app's lifetime, not to the startup context: cancelling it
 	// closes the channel and stops the publisher during shutdown.
 	updatesCh, err := tilesStorage.Subscribe(a.ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to subscribe to tile updates: %w", err)
+		return fmt.Errorf("failed to subscribe to tile updates: %w", err)
 	}
 
-	publisher := websocket_publisher.New(updatesCh, a.logger)
+	publisher := wspublisher.New(
+		updatesCh,
+		planetv1controller.TileUpdateRoute,
+		planetv1controller.EncodeTileUpdate,
+		a.logger,
+	)
 	a.runners = append(a.runners, publisher.Run)
+	a.mountWS(publisher.DeclareRoutes)
 
 	a.configureBookkeeperIfEnabled(tilesStorage)
 
@@ -71,7 +84,7 @@ func (a *App) configureApp(_ context.Context) (*ConfigureAppResponse, error) {
 
 	vpnBlockInterceptor, err := a.configureVPNBlocklist()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	// The error interceptor sits outside the other two so that everything the
@@ -81,20 +94,16 @@ func (a *App) configureApp(_ context.Context) (*ConfigureAppResponse, error) {
 	// The blocklist sits outside the limiter: a refused address must not also
 	// spend a token, or its next click would come back 429 and the web app
 	// would show the throttle dialog rather than the VPN one.
-	connectPath, connectHandler := planetv1connect.NewClickServiceHandler(
+	a.mountRPC(planetv1connect.NewClickServiceHandler(
 		clickService,
 		connect.WithInterceptors(
 			errorInterceptor,
 			vpnBlockInterceptor,
 			planetv1controller.NewRateLimitInterceptor(clickLimiter),
 		),
-	)
+	))
 
-	return &ConfigureAppResponse{
-		declareWSRoutes: publisher.DeclareRoutes,
-		connectPath:     connectPath,
-		connectHandler:  connectHandler,
-	}, nil
+	return nil
 }
 
 // configureVPNBlocklist parses the vendored VPN ranges and returns the

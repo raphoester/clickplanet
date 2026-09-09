@@ -32,3 +32,34 @@ vpnBlocklist:
   # before deciding this is worth it.
   includeDatacenters: false
   allow: []
+
+# Live chat. Every message is appended to a JSONL log on the same tile_state
+# volume as the snapshot, so the droplet's weekly disk backup covers it — with
+# a recovery point up to a week old.
+#
+# The log holds sender IPs alongside message text. Retention is therefore a
+# policy, not a cache size: 30 days, applied by an hourly prune.
+#
+# Off until the frontend that talks to it ships: SendMessage is an
+# unauthenticated public write endpoint that fans out to every connected
+# client, and there is no reason to expose one nothing is using yet. Flip this
+# to true with the frontend release.
+chat:
+  enabled: false
+  storage:
+    logPath: /home/app/state/chat.log
+    historySize: 200
+    retention: 720h
+  service:
+    # Salts the per-sender tag. Set it to any fixed random string: leaving it
+    # empty regenerates one at boot, which changes everyone's tag on restart.
+    tagSalt: ""
+  # One message every three seconds, five in hand. Keyed on the address Caddy
+  # puts in X-Real-IP, as the click limiter is.
+  rateLimiter:
+    perSecond: 0.33
+    burst: 5
+  # Cut off an abusive sender here, then `docker compose restart backend`.
+  # CIDRs, as in vpnBlocklist.allow above: 203.0.113.7/32 for one address,
+  # 203.0.113.0/24 for the range someone is cycling through.
+  blockedIPs: []

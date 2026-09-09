@@ -65,8 +65,10 @@
 	# the address resolved through client_ip_headers/trusted_proxies above,
 	# i.e. Cf-Connecting-Ip, the real visitor.
 
-	# WebSocket stream of tile updates. Caddy upgrades automatically; the
-	# disabled timeouts keep idle spectators connected.
+	# WebSocket streams — /ws/listen for tile updates, /ws/chat for messages.
+	# Each stream has its own route because frames carry a bare protobuf
+	# message with no type tag. Caddy upgrades automatically; the disabled
+	# timeouts keep idle spectators connected.
 	handle /ws/* {
 		reverse_proxy backend:8080 {
 			header_up X-Real-IP {client_ip}
@@ -80,6 +82,17 @@
 	# Connect names its own path. GetMap and MapDensity arrive as GETs and
 	# carry their own Cache-Control, so a cache in front can serve them.
 	handle /planet.v1.ClickService/* {
+		reverse_proxy backend:8080 {
+			header_up X-Real-IP {client_ip}
+		}
+	}
+
+	# Chat is its own proto package, so Connect gives it a path of its own.
+	# Both of its RPCs key on X-Real-IP: SendMessage is throttled and block
+	# listed per address, and the sender's tag is derived from it.
+	# GetHistory arrives as a GET but answers no-store, so nothing in front
+	# holds onto it.
+	handle /chat.v1.ChatService/* {
 		reverse_proxy backend:8080 {
 			header_up X-Real-IP {client_ip}
 		}

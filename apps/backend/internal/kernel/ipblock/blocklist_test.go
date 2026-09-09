@@ -84,3 +84,37 @@ func TestDisabledBlocklistBlocksNothing(t *testing.T) {
 	assert.Empty(t, list)
 	assert.Nil(t, blocklist.Sizes())
 }
+
+// NewDenyList is the operator-maintained half: no vendored lists behind it,
+// prefixes straight from config.
+func TestNewDenyList(t *testing.T) {
+	t.Run("refuses the listed prefixes and nothing else", func(t *testing.T) {
+		blocklist, err := ipblock.NewDenyList([]string{"9.9.9.9/32", "203.0.113.0/24"})
+		require.NoError(t, err)
+
+		for _, ip := range []string{"9.9.9.9", "203.0.113.1", "203.0.113.255"} {
+			list, blocked := blocklist.Blocked(ip)
+			require.Truef(t, blocked, "%s should be refused", ip)
+			require.Equal(t, ipblock.ListDeny, list)
+		}
+
+		_, blocked := blocklist.Blocked("8.8.8.8")
+		require.False(t, blocked)
+	})
+
+	t.Run("an empty list is a nil blocklist that refuses nothing", func(t *testing.T) {
+		blocklist, err := ipblock.NewDenyList(nil)
+		require.NoError(t, err)
+		require.Nil(t, blocklist)
+
+		_, blocked := blocklist.Blocked("9.9.9.9")
+		require.False(t, blocked)
+	})
+
+	// Same bargain the vendored lists make: a malformed entry means the config
+	// is wrong, and failing at startup beats silently refusing nobody.
+	t.Run("a malformed entry is an error", func(t *testing.T) {
+		_, err := ipblock.NewDenyList([]string{"9.9.9.9"}) // needs /32
+		require.Error(t, err)
+	})
+}

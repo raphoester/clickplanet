@@ -1,7 +1,8 @@
-package websocket_publisher
+package wspublisher
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -9,13 +10,24 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
-	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/domain"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/proto"
 )
+
+// payload stands in for whatever a bounded context broadcasts: the publisher
+// only ever sees the bytes the encoder returns.
+type payload struct {
+	body string
+	fail bool
+}
+
+func encodePayload(p payload) ([]byte, error) {
+	if p.fail {
+		return nil, errors.New("cannot encode")
+	}
+	return []byte(p.body), nil
+}
 
 func TestPublisherServesConnectedClients(t *testing.T) {
 	updates, publisher, url := startPublisher(t)
@@ -26,17 +38,31 @@ func TestPublisherServesConnectedClients(t *testing.T) {
 	conn := dialClient(t, ctx, publisher, url)
 	defer func() { _ = conn.CloseNow() }()
 
-	updates <- domain.TileUpdate{Tile: 42, Value: "fr", Previous: "de"}
+	updates <- payload{body: "hello"}
 
 	typ, bin, err := conn.Read(ctx)
 	require.NoError(t, err)
 	require.Equal(t, websocket.MessageBinary, typ)
+	assert.Equal(t, "hello", string(bin))
+}
 
-	var update planetv1.TileUpdate
-	require.NoError(t, proto.Unmarshal(bin, &update))
-	assert.Equal(t, uint32(42), update.TileId)
-	assert.Equal(t, "fr", update.CountryId)
-	assert.Equal(t, "de", update.PreviousCountryId)
+// A payload the encoder refuses must not take the fanout down with it: the
+// stream skips it and keeps serving whatever comes next.
+func TestPublisherSkipsPayloadsItCannotEncode(t *testing.T) {
+	updates, publisher, url := startPublisher(t)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	conn := dialClient(t, ctx, publisher, url)
+	defer func() { _ = conn.CloseNow() }()
+
+	updates <- payload{fail: true}
+	updates <- payload{body: "next"}
+
+	_, bin, err := conn.Read(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, "next", string(bin))
 }
 
 func TestPublisherForgetsAbruptlyDisconnectedClients(t *testing.T) {
@@ -51,8 +77,7 @@ func TestPublisherForgetsAbruptlyDisconnectedClients(t *testing.T) {
 
 	requireEventualClientCount(t, publisher, 0)
 
-	// the fanout still works once the dead client is gone
-	updates <- domain.TileUpdate{Tile: 1, Value: "fr"}
+	updates <- payload{body: "nobody is listening"}
 	requireClientCount(t, publisher, 0)
 }
 
@@ -69,11 +94,11 @@ func TestPublisherForgetsClientsThatCloseCleanly(t *testing.T) {
 	requireEventualClientCount(t, publisher, 0)
 }
 
-func startPublisher(t *testing.T) (chan<- domain.TileUpdate, *Publisher, string) {
+func startPublisher(t *testing.T) (chan<- payload, *Publisher[payload], string) {
 	t.Helper()
 
-	updates := make(chan domain.TileUpdate)
-	publisher := New(updates, logging.NewSLogger())
+	updates := make(chan payload)
+	publisher := New(updates, "/listen", encodePayload, logging.NewNopLogger())
 	go publisher.Run()
 
 	router := http.NewServeMux()
@@ -87,28 +112,25 @@ func startPublisher(t *testing.T) (chan<- domain.TileUpdate, *Publisher, string)
 	return updates, publisher, "ws" + strings.TrimPrefix(server.URL, "http") + "/listen"
 }
 
-func clientCount(p *Publisher) int {
+func clientCount[T any](p *Publisher[T]) int {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	return len(p.clients)
 }
 
-func requireClientCount(t *testing.T, p *Publisher, expected int) {
+func requireClientCount[T any](t *testing.T, p *Publisher[T], expected int) {
 	t.Helper()
 	require.Equal(t, expected, clientCount(p))
 }
 
-func requireEventualClientCount(t *testing.T, p *Publisher, expected int) {
+func requireEventualClientCount[T any](t *testing.T, p *Publisher[T], expected int) {
 	t.Helper()
 	require.Eventually(t, func() bool {
 		return clientCount(p) == expected
 	}, 5*time.Second, 10*time.Millisecond)
 }
 
-// dialClient connects to the publisher and waits for the connection to be
-// registered: websocket.Accept writes the 101 response before Subscribe adds
-// the client, so the dial returning does not mean the client is known yet.
-func dialClient(t *testing.T, ctx context.Context, p *Publisher, url string) *websocket.Conn {
+func dialClient[T any](t *testing.T, ctx context.Context, p *Publisher[T], url string) *websocket.Conn {
 	t.Helper()
 
 	conn, _, err := websocket.Dial(ctx, url, nil)
