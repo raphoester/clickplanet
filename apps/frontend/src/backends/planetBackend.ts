@@ -1,72 +1,42 @@
 import {Ownerships, OwnershipsGetter, TileClicker, Update, UpdatesListener} from "./backend.ts";
-import {
-    ClickRequest, OwnershipBatchRequest,
-    Ownerships as OwnershipsProto, TileUpdate,
-} from "../gen/grpc/planet/v1/planet_pb.ts";
-import {Message} from "@bufbuild/protobuf";
+import {GetMapResponse, TileUpdate} from "../gen/grpc/planet/v1/planet_pb.ts";
+import {ClickService} from "../gen/grpc/planet/v1/planet_connect.ts";
+import {Code, ConnectError, createPromiseClient, PromiseClient} from "@connectrpc/connect";
+import {createConnectTransport} from "@connectrpc/connect-web";
 import {v4 as generateUUID} from 'uuid';
 
-type Config = {
+export type Config = {
     baseUrl: string
     timeoutMs?: number
 }
 
-const FETCH_ATTEMPTS = 5
+const ATTEMPTS = 5
 
-/** Deprecated: v2 client. v3 is the generated Connect client. */
-export class ClickServiceClient {
-    constructor(public config: Config) {
-    }
-
-    public async fetch(
-        verb: string,
-        path: string,
-        body?: Message,
-        signal?: AbortSignal,
-    ): Promise<Uint8Array | undefined> {
-        const url = this.config.baseUrl + path
-        const payload = body ? JSON.stringify({data: Array.from(body.toBinary())}) : null
-
-        let lastError: unknown
-        for (let attempt = 0; attempt < FETCH_ATTEMPTS; attempt++) {
-            signal?.throwIfAborted()
-
-            let res: Response
-            try {
-                res = await fetch(url, {
-                    method: verb,
-                    headers: {'Content-Type': 'application/json'},
-                    body: payload,
-                    signal: timeoutSignal(this.config.timeoutMs ?? 5000, signal),
-                })
-            } catch (e) {
-                signal?.throwIfAborted()
-                lastError = e
-                console.error(`${verb} ${path} failed (attempt ${attempt + 1}/${FETCH_ATTEMPTS})`, e)
-                continue
-            }
-
-            if (!res.ok) {
-                throw new Error(`Failed to fetch ${verb} ${path}: ${res.status} ${res.statusText} ${await res.text()}`)
-            }
-
-            const {data} = await res.json()
-            return data ? decodeBase64(data) : undefined
-        }
-
-        throw new Error(`Failed to fetch ${verb} ${path} after ${FETCH_ATTEMPTS} attempts`, {cause: lastError})
-    }
+export function websocketUrl(baseUrl: string): string {
+    return baseUrl.replace(/^http/, "ws") + "/ws/listen"
 }
 
-/** Deprecated: v2 backend. The websocket part carries over to v3 unchanged. */
-export class HTTPBackend implements TileClicker, OwnershipsGetter, UpdatesListener {
+export function newClickServiceClient(config: Config): PromiseClient<typeof ClickService> {
+    return createPromiseClient(ClickService, createConnectTransport({
+        baseUrl: config.baseUrl,
+        // Both default to false. Without the binary format `tiles` travels as
+        // base64, a third bigger; without GET, the side-effect-free reads go
+        // out as POSTs that no cache will serve.
+        useBinaryFormat: true,
+        useHttpGet: true,
+        defaultTimeoutMs: config.timeoutMs ?? 5000,
+    }))
+}
+
+export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesListener {
     private pendingUpdates: Update[] = []
     private readonly updateBatchCallbacks = new Map<string, (updates: Update[]) => void>()
     private readonly flushTimer: ReturnType<typeof setInterval>
     private readonly stopListening: () => void
 
     constructor(
-        private client: ClickServiceClient,
+        private config: Config,
+        private client: PromiseClient<typeof ClickService>,
         batchUpdateDurationMs: number,
     ) {
         this.stopListening = this.listenForUpdates((update) => {
@@ -90,10 +60,7 @@ export class HTTPBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     }
 
     public async clickTile(tileId: number, countryId: string) {
-        await this.client.fetch("POST", "/v2/rpc/click", new ClickRequest({
-            tileId: tileId,
-            countryId: countryId,
-        }))
+        await retrying(() => this.client.click({tileId, countryId}), `click ${tileId}`)
     }
 
     public async getCurrentOwnershipsByBatch(
@@ -103,24 +70,20 @@ export class HTTPBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         signal?: AbortSignal,
     ) {
         for (let start = 1; start <= maxIndex; start += batchSize) {
-            const payload = new OwnershipBatchRequest({
-                startTileId: start,
-                endTileId: Math.min(start + batchSize, maxIndex + 1),
-            })
+            const endTileId = Math.min(start + batchSize, maxIndex)
 
-            const binary = await this.client.fetch("POST", "/v2/rpc/ownerships-by-batch", payload, signal)
-            if (!binary) continue
+            const res = await retrying(
+                () => this.client.getMap({startTileId: start, endTileId}, {signal}),
+                `getMap ${start}..${endTileId}`,
+                signal,
+            )
 
-            const message = OwnershipsProto.fromBinary(binary)
-            callback({
-                bindings: new Map<number, string>(
-                    Object.entries(message.bindings).map(([k, v]) => [parseInt(k), v])),
-            })
+            callback({bindings: bindingsOf(res)})
         }
     }
 
     public listenForUpdates(callback: (update: Update) => void): () => void {
-        return openUpdatesSocket(websocketUrl(this.client.config.baseUrl), callback)
+        return openUpdatesSocket(websocketUrl(this.config.baseUrl), callback)
     }
 
     public listenForUpdatesBatch(
@@ -132,27 +95,57 @@ export class HTTPBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     }
 }
 
-export function websocketUrl(baseUrl: string): string {
-    return baseUrl.replace(/^http/, "ws") + "/v2/ws/listen"
+/**
+ * Reads a map chunk. Tile ids are implicit in the position, and `codes` came
+ * with the body, so no country list is shared between the two apps.
+ */
+export function bindingsOf(res: GetMapResponse): Map<number, string> {
+    const tiles = new DataView(res.tiles.buffer, res.tiles.byteOffset, res.tiles.byteLength)
+
+    const bindings = new Map<number, string>()
+    for (let offset = 0; offset + 1 < res.tiles.byteLength; offset += 2) {
+        const code = tiles.getUint16(offset, true)
+        // Zero is the unowned code. Leaving those out keeps the map the shape
+        // the globe already applies.
+        if (code === 0) continue
+        bindings.set(res.startTileId + offset / 2, res.codes[code])
+    }
+
+    return bindings
 }
 
 /**
- * Aborts on whichever comes first: the caller giving up, or the per-request
- * timeout. `AbortSignal.timeout` alone would ignore the caller's signal, which
- * is how a teardown used to leave the remaining ownership batches in flight.
+ * Retries while the server cannot be reached, which is what the old client did
+ * for every call. Connect does not retry on its own, and an answer it did send
+ * — including an error — is never retried, since that only multiplies load.
  */
-function timeoutSignal(timeoutMs: number, signal?: AbortSignal): AbortSignal {
-    const timeout = AbortSignal.timeout(timeoutMs)
-    return signal ? AbortSignal.any([signal, timeout]) : timeout
+async function retrying<T>(
+    attempt: () => Promise<T>,
+    what: string,
+    signal?: AbortSignal,
+): Promise<T> {
+    let lastError: unknown
+
+    for (let i = 0; i < ATTEMPTS; i++) {
+        signal?.throwIfAborted()
+
+        try {
+            return await attempt()
+        } catch (e) {
+            signal?.throwIfAborted()
+            if (!unreachable(e)) throw e
+
+            lastError = e
+            console.error(`${what} failed (attempt ${i + 1}/${ATTEMPTS})`, e)
+        }
+    }
+
+    throw new Error(`${what} failed after ${ATTEMPTS} attempts`, {cause: lastError})
 }
 
-function decodeBase64(base64String: string): Uint8Array {
-    const binaryString = atob(base64String)
-    const bytes = new Uint8Array(binaryString.length)
-    for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i)
-    }
-    return bytes
+/** Connect reports a connection that never landed as `unavailable`. */
+function unreachable(e: unknown): boolean {
+    return !(e instanceof ConnectError) || e.code === Code.Unavailable
 }
 
 const INITIAL_RECONNECT_DELAY_MS = 500

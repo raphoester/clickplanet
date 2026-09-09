@@ -9,3 +9,8 @@ plugins:
     strategy: all
     opt:
       - target=ts
+  - local: protoc-gen-connect-es
+    out: src/gen/grpc
+    strategy: all
+    opt:
+      - target=ts

@@ -21,7 +21,7 @@ touching this app.
 **`npm run dev` cannot reach the production API.** `api.clickplanet.lol` sends
 `access-control-allow-origin: https://clickplanet.lol` and nothing else, so the
 browser blocks every request from `localhost`. Point `VITE_API_BASE_URL` at a
-local backend, or swap `HTTPBackend` for `FakeBackend` in `src/main.tsx` — the
+local backend, or swap `PlanetBackend` for `FakeBackend` in `src/main.tsx` — the
 fake serves a full map and simulates live updates.
 
 Docker (only for the local full stack in `deploy/`; production is Cloudflare Pages):
@@ -67,13 +67,34 @@ app/       components
 
 ### `src/backends/` — three interfaces in `backend.ts`
 
-- `TileClicker` — HTTP POST to claim a tile
-- `OwnershipsGetter` — batched HTTP fetch of tile → country_code, takes an
+- `TileClicker` — claims a tile
+- `OwnershipsGetter` — batched fetch of tile → country_code, takes an
   `AbortSignal`
 - `UpdatesListener` — live tile changes
 
-`httpBackend.ts` is production, `fakeBackend.ts` is for development, and the
+`planetBackend.ts` is production, `fakeBackend.ts` is for development, and the
 active one is wired in `main.tsx`. Both expose `close()`.
+
+`planetBackend.ts` talks to the API through the generated Connect client
+(`src/gen/grpc/planet/v1/planet_connect.ts`). No gRPC is involved — Connect is
+an ordinary HTTP POST, or a GET for reads.
+
+**Two transport options are load-bearing and both default to `false`:**
+
+- `useBinaryFormat: true` — without it `GetMapResponse.tiles` travels as base64
+  inside JSON, a third bigger.
+- `useHttpGet: true` — without it the side-effect-free reads go out as POSTs,
+  which no cache will serve.
+
+The map arrives as `GetMapResponse`: `start_tile_id`, a `codes` table, and
+`tiles`, two bytes per tile indexing into it. `bindingsOf` reads it. Tile ids
+are implicit in the position, so it is far smaller than a keyed map — 516 KB
+against 3.6 MB for a full map — and protobuf does all the framing, so there is
+no hand-rolled encoding to keep in step with the backend.
+
+Connect does not retry, so `retrying` wraps every call: five attempts while the
+server cannot be reached, and never a retry of an answer the server chose to
+send.
 
 `openUpdatesSocket` reconnects with a capped exponential backoff. It is the only
 source of live changes, so a drop that is not retried freezes the globe until a
@@ -115,9 +136,9 @@ reload.
 ## Protocol Buffers
 
 Types are defined in the monorepo-shared [`/proto/planet/v1/planet.proto`](../../proto/planet/v1/planet.proto)
-and generated to `src/gen/grpc/planet/v1/planet_pb.ts`. Run `npm run proto`
-after changing `.proto` files. Key messages: `ClickRequest`, `Ownerships`,
-`TileUpdate`, `OwnershipBatchRequest`.
+and generated to `src/gen/grpc/planet/v1/` — `planet_pb.ts` for the messages and
+`planet_connect.ts` for the service client. Run `npm run proto` after changing
+`.proto` files. Key messages: `ClickRequest`, `GetMapResponse`, `TileUpdate`.
 
 ## Static assets
 
