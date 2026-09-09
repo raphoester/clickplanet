@@ -42,9 +42,6 @@ const (
 // ChatServiceClient is a client for the chat.v1.ChatService service.
 type ChatServiceClient interface {
 	SendMessage(context.Context, *connect.Request[v1.SendMessageRequest]) (*connect.Response[v1.SendMessageResponse], error)
-	// Served as a GET, but deliberately not cacheable: the answer changes with
-	// every message, so the handler sets no-store. See GetMap for the opposite
-	// tradeoff.
 	GetHistory(context.Context, *connect.Request[v1.GetHistoryRequest]) (*connect.Response[v1.GetHistoryResponse], error)
 }
 
@@ -94,9 +91,6 @@ func (c *chatServiceClient) GetHistory(ctx context.Context, req *connect.Request
 // ChatServiceHandler is an implementation of the chat.v1.ChatService service.
 type ChatServiceHandler interface {
 	SendMessage(context.Context, *connect.Request[v1.SendMessageRequest]) (*connect.Response[v1.SendMessageResponse], error)
-	// Served as a GET, but deliberately not cacheable: the answer changes with
-	// every message, so the handler sets no-store. See GetMap for the opposite
-	// tradeoff.
 	GetHistory(context.Context, *connect.Request[v1.GetHistoryRequest]) (*connect.Response[v1.GetHistoryResponse], error)
 }
 

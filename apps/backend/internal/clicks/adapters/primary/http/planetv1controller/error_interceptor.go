@@ -10,8 +10,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging/lf"
 )
 
-// NewErrorInterceptor maps domain errors onto Connect codes, logs the ones
-// nobody expected, and keeps their cause off the wire.
 func NewErrorInterceptor(logger logging.Logger) connect.Interceptor {
 	if logger == nil {
 		logger = logging.NewNopLogger()
@@ -24,7 +22,6 @@ func NewErrorInterceptor(logger logging.Logger) connect.Interceptor {
 			case err == nil:
 				return res, nil
 
-			// A handler that picked a code meant it.
 			case errors.As(err, new(*connect.Error)):
 				return nil, err
 

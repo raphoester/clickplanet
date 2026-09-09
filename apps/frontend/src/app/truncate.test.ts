@@ -19,11 +19,6 @@ describe("truncate", () => {
         expect(truncate("ab cdef", 3)).toBe("ab…")
     })
 
-    /**
-     * Every country name is prefixed with a flag. Counting UTF-16 units made
-     * the emoji itself eat most of the budget: the UK nations' flags are tag
-     * sequences fourteen units long, so England used to render as "Eng".
-     */
     it("counts a flag emoji as one character", () => {
         expect(truncate("🏴󠁧󠁢󠁥󠁮󠁧󠁿 England", 18)).toBe("🏴󠁧󠁢󠁥󠁮󠁧󠁿 England")
         expect(truncate("🇬🇼 Guinea-Bissau", 18)).toBe("🇬🇼 Guinea-Bissau")

@@ -108,8 +108,6 @@ func TestSendMessageReturnsTheStoredMessage(t *testing.T) {
 	require.Equal(t, int64(1704067200000), message.GetSentAtUnixMs())
 }
 
-// The whole chain has to agree on where the sender's address comes from: the
-// domain stamps its tag from the context, which only the middleware fills in.
 func TestSendMessagePassesTheUserAgentThrough(t *testing.T) {
 	service := &stubService{}
 	server, _ := startChatServer(t, service, nil)
@@ -121,8 +119,6 @@ func TestSendMessagePassesTheUserAgentThrough(t *testing.T) {
 	require.NotEmpty(t, service.posted[0].UserAgent, "the handler reads it off the request header")
 }
 
-// A refused message must say that it was refused and nothing else: the wrapped
-// reason names the check that tripped, which is a hint worth withholding.
 func TestARefusedMessageDoesNotLeakWhyItWasRefused(t *testing.T) {
 	service := &stubService{
 		err: fmt.Errorf("%w: text: longer than 280 characters", domain.ErrInvalidMessage),
@@ -187,8 +183,6 @@ func TestGetHistoryIsNeverCached(t *testing.T) {
 	require.Equal(t, "no-store", res.Header().Get("Cache-Control"))
 }
 
-// The websocket carries the same message type the history RPC returns, so a
-// client decodes one shape either way and deduplicates the overlap on id.
 func TestEncodeMessageProducesABareChatMessage(t *testing.T) {
 	bin, err := EncodeMessage(domain.ChatMessage{
 		ID:         "message-1",

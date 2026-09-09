@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 import {innerSphere} from "./sphere.ts";
 
-
 export function setupScene(container: HTMLElement) {
     const scene = new THREE.Scene();
     const cameraSize = 1;
@@ -20,12 +19,6 @@ export function setupScene(container: HTMLElement) {
 
     scene.add(new THREE.AmbientLight(0xffffff, 2));
 
-    /**
-     * Removes only this run's canvas, not everything in the container: under
-     * <StrictMode> a discarded run and the surviving one share the container,
-     * and each renderer owns a WebGL context that has to be released explicitly
-     * or the browser drops the oldest context once the limit is reached.
-     */
     const cleanup = () => {
         renderer.setAnimationLoop(null);
         disposeScene(scene);
@@ -70,11 +63,6 @@ export function addDisplayObjects(
     scene.add(new THREE.Mesh(
         innerSphere(),
         new THREE.MeshStandardMaterial({
-            // 4096x2048, not the 16200x8100 original. The GPU stores textures
-            // uncompressed, so that one cost 501 MB of video memory (667 MB
-            // with mipmaps) regardless of being 4.5 MB on disk. iOS Safari
-            // kills a tab well below that, which showed up as the page
-            // reloading in a loop on iPhone. This is 43 MB.
             map: textureLoader.load('/static/earth/earth-4k.jpg'),
         })
     ))

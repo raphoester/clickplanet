@@ -11,8 +11,6 @@ type TileStorage interface {
 	Set(ctx context.Context, tile uint32, value string) error
 }
 
-// DenseBatch is a tile range with the code table needed to read it: Tiles
-// holds two bytes per tile, little endian, an index into Codes.
 type DenseBatch struct {
 	Start uint32
 	Codes []string

@@ -16,12 +16,6 @@ var ErrVPNBlocked = errors.New("clicks from VPN and proxy addresses are refused;
 
 type ClickBlocklist = connectutil.Blocklist
 
-// NewVPNBlockInterceptor refuses Click only, when the source address falls in a
-// vendored VPN range. Reads and the websocket are untouched, so a VPN user
-// still loads the planet and follows it live.
-//
-// It counts refusals per list, which is how the cost of turning
-// vpnBlocklist.includeDatacenters on becomes visible before anyone turns it on.
 func NewVPNBlockInterceptor(blocklist ClickBlocklist, registerer prometheus.Registerer) (connect.Interceptor, error) {
 	blocked := prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "blocked_clicks",

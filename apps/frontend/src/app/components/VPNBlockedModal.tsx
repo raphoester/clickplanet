@@ -5,20 +5,6 @@ export type VPNBlockedModalProps = {
     onClose: () => void
 }
 
-/**
- * Shown when the server refuses a click because it came from a VPN or proxy.
- * A modal for the same reason as RateLimitModal: its backdrop covers the globe,
- * so the clicking stops while it is up.
- *
- * The copy is an instruction rather than "wait a moment", which is the one real
- * difference from the throttle: a spent bucket refills in a second, but this
- * refusal stands until the player changes network. Dismissing it therefore only
- * closes the dialog — the next click raises it again, which is correct.
- *
- * It does not say which list matched or how the address was judged. That is the
- * backend's business, it is tunable there, and the player can act on exactly one
- * thing.
- */
 export default function VPNBlockedModal(props: VPNBlockedModalProps) {
     return <Modal
         title="VPN detected"

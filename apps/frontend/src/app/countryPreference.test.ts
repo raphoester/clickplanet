@@ -32,11 +32,6 @@ describe("parseStoredCountry", () => {
         }
     })
 
-    /**
-     * The crash this guards: a stored code with no sprite region made every
-     * click throw, and the bad value was written straight back on each render,
-     * so the app stayed broken across reloads until storage was cleared by hand.
-     */
     it("rejects a country code we cannot render", () => {
         expect(parseStoredCountry(JSON.stringify({code: "zz", name: "Atlantis"}))).toBeUndefined()
     })
@@ -60,10 +55,6 @@ describe("resolveCountry", () => {
         expect(resolveCountry(null, undefined)).toEqual(FALLBACK_COUNTRY)
     })
 
-    /**
-     * Everything downstream assumes the selected country can be drawn, so the
-     * whole point of this function is that no input escapes without one.
-     */
     it("always resolves to a country the renderer can draw", () => {
         const inputs = [null, undefined, "", "{}", "garbage", '{"code":"zz"}', JSON.stringify(JAPAN)]
         const zones = [undefined, "Mars/Olympus_Mons", "Asia/Tokyo", "Europe/Paris"]

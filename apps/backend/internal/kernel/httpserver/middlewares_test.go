@@ -37,7 +37,7 @@ func TestIPReaderMiddleware(t *testing.T) {
 
 	t.Run("keeps a peer address that carries no port", func(t *testing.T) {
 		r := httptest.NewRequest(http.MethodPost, "/planet.v1.ClickService/Click", nil)
-		r.RemoteAddr = "@" // a unix socket peer, as net/http reports it
+		r.RemoteAddr = "@"
 
 		require.Equal(t, "@", readIP(r))
 	})

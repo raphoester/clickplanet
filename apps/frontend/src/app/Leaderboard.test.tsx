@@ -6,7 +6,7 @@ import {Countries} from "../domain/countries.ts"
 
 const entry = (code: string, tiles: number) => ({country: Countries.get(code)!, tiles})
 
-const rows = () => screen.queryAllByRole("row").slice(1) // drop the header row
+const rows = () => screen.queryAllByRole("row").slice(1)
 const cells = () => rows().map(r => within(r).getAllByRole("cell").map(c => c.textContent))
 
 afterEach(cleanup)
@@ -31,16 +31,11 @@ describe("Leaderboard", () => {
         expect(rows()).toEqual([])
     })
 
-    /** The UK nations' flags are long enough to have eaten the whole budget. */
     it("does not chop a country name to fit its flag", () => {
         render(<Leaderboard tilesCount={100} data={[entry("gb-eng", 5)]}/>)
         expect(screen.getByText("🏴󠁧󠁢󠁥󠁮󠁧󠁿 England")).toBeDefined()
     })
 
-    /**
-     * The table used to sit under a "Hide" button and nothing else, so the only
-     * thing naming what would disappear was the button that hid it.
-     */
     it("names itself, and labels its columns in words", () => {
         render(<Leaderboard tilesCount={1000} data={[entry("fr", 500)]}/>)
 
@@ -49,7 +44,6 @@ describe("Leaderboard", () => {
             .toEqual(["#", "Country", "Tiles", "Share"])
     })
 
-    /** So a player can find themselves without counting down the table. */
     it("marks the player's own row", () => {
         render(<Leaderboard tilesCount={1000}
                             data={[entry("fr", 500), entry("jp", 250)]}
@@ -68,7 +62,6 @@ describe("Leaderboard", () => {
         expect(rows().filter(r => r.getAttribute("aria-current") === "true")).toEqual([])
     })
 
-    /** Collapsing is the card's job now; this component has no control of its own. */
     it("owns no toggle of its own", () => {
         render(<Leaderboard tilesCount={1000} data={[entry("fr", 500)]}/>)
         expect(screen.queryAllByRole("button")).toEqual([])

@@ -86,11 +86,6 @@ describe("decodeCoordinates", () => {
         expect(() => decodeCoordinates(buffer)).toThrow(/zero tiles/)
     })
 
-    /**
-     * A truncated download is the realistic failure here: the header still
-     * parses, so without the length check the geometry would silently come out
-     * short rather than the fetch reporting a problem.
-     */
     it("rejects a file whose length disagrees with its tile count", () => {
         const buffer = encodeCoordinates(sample(2))
         new DataView(buffer).setUint32(8, 3, true)

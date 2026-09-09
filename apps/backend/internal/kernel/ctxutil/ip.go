@@ -4,7 +4,6 @@ import "context"
 
 type ipKey struct{}
 
-// GetSourceIP returns the source IP address from the context.
 func GetSourceIP(ctx context.Context) string {
 	ip, _ := ctx.Value(ipKey{}).(string)
 	return ip

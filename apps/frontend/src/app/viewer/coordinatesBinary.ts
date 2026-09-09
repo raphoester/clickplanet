@@ -1,28 +1,10 @@
-/**
- * Binary container for the tile coordinates.
- *
- * The map is ~258k tiles, which is ~25 MB as JSON but only ~5 MB as float32.
- * Shipping it as a binary blob fetched at runtime keeps it out of the JS chunk
- * (Cloudflare Pages rejects any single file above 25 MiB) and lets the decoder
- * hand the bytes straight to Three.js instead of re-copying a parsed array.
- *
- * Layout, all little-endian:
- *
- *   offset  0   4 bytes    magic "CPCO"
- *   offset  4   uint32     format version
- *   offset  8   uint32     tile count N
- *   offset 12   N*3 f32    positions (x, y, z per tile)
- *   offset 12+N*12  N*2 f32 uvs (u, v per tile)
- *
- * The 12-byte header keeps the float sections 4-byte aligned, so the decoder can
- * take zero-copy Float32Array views over the fetched ArrayBuffer.
- */
-
+// Layout, little-endian: "CPCO" | uint32 version | uint32 tile count N |
+// N*3 f32 positions | N*2 f32 uvs. The 12-byte header keeps the float
+// sections 4-byte aligned so the decoder can take zero-copy views.
 export const COORDINATES_MAGIC = "CPCO"
 export const COORDINATES_FORMAT_VERSION = 1
 export const COORDINATES_HEADER_BYTES = 12
 
-/** Floats per tile: 3 for the position, 2 for the uv. */
 const FLOATS_PER_TILE = 5
 
 export type Coordinates = {
@@ -112,9 +94,6 @@ export function decodeCoordinates(buffer: ArrayBuffer): PointGeometryData {
 }
 
 function readFloats(buffer: ArrayBuffer, byteOffset: number, count: number): Float32Array {
-    // Typed-array views inherit the platform's byte order, so they are only a
-    // valid read of a little-endian file on a little-endian host. Every browser
-    // target is little-endian; the DataView path is the correctness fallback.
     if (littleEndian) return new Float32Array(buffer, byteOffset, count)
 
     const view = new DataView(buffer)

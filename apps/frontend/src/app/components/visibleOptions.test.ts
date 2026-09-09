@@ -24,7 +24,6 @@ describe("visibleOptions", () => {
         expect(visibleOptions(VALUES, JAPAN, "jap")).toEqual([JAPAN])
     })
 
-    /** Without this the browser reassigns the selection to the first result. */
     it("keeps a filtered-out selection in the list, ahead of the results", () => {
         expect(visibleOptions(VALUES, FRANCE, "jap")).toEqual([FRANCE, JAPAN])
     })
@@ -33,10 +32,6 @@ describe("visibleOptions", () => {
         expect(visibleOptions(VALUES, FRANCE, "zzzz")).toEqual([FRANCE])
     })
 
-    /**
-     * The invariant the whole component depends on: the controlled value is
-     * always one of the options rendered for it.
-     */
     it("always contains the selection, for any search over any country", () => {
         for (const selected of VALUES) {
             for (const search of ["", " ", "a", "an", "jap", "france", "zzzz", "GERMANY", "é"]) {

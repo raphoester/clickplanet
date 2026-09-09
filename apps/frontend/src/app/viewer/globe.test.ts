@@ -25,10 +25,6 @@ describe("reportClickFailure", () => {
         expect(h.onRateLimited).not.toHaveBeenCalled()
     })
 
-    /**
-     * A real fault still belongs in the console. Showing the player a dialog
-     * for it would be worse than saying nothing: they cannot act on it.
-     */
     it("logs anything else and raises no dialog", () => {
         const h = handlers()
         const logged = vi.spyOn(console, "error").mockImplementation(() => {})

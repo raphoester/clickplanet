@@ -14,10 +14,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging/lf"
 )
 
-// shutdownTimeout bounds how long in-flight HTTP requests get to finish before
-// the background runners — and with them the final tile snapshot — are stopped.
-// Kept well under Docker's default 10s stop timeout so that the snapshot still
-// gets written even if a request refuses to drain.
 const shutdownTimeout = 5 * time.Second
 
 func (a *App) Run() error {
@@ -72,9 +68,6 @@ func (a *App) Run() error {
 	return nil
 }
 
-// stopRunners unwinds the background goroutines and waits for them, so that
-// whatever they owe on the way out — the memory driver's final snapshot above
-// all — actually completes before the process exits.
 func (a *App) stopRunners(runners *sync.WaitGroup) {
 	for _, shutdown := range a.shutdownFuncs {
 		shutdown()

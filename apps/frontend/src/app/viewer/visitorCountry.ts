@@ -14,14 +14,6 @@ const timezones = timezonesData as {
     }
 }
 
-/**
- * Best guess at the visitor's country from their IANA time zone.
- *
- * Returns undefined rather than a made-up country when the zone is unknown or
- * maps to a code we have no flag for: every caller has to end up with a country
- * the atlas can actually render, and inventing one here only moves the failure
- * to the click handler.
- */
 export function countryFromTimeZone(timeZone: string | undefined): Country | undefined {
     if (!timeZone) return undefined
 

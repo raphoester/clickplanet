@@ -10,10 +10,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging/lf"
 )
 
-// NewErrorInterceptor maps chat domain errors onto Connect codes so handlers
-// return their errors bare. A refused message answers with the sentinel alone:
-// the wrapped reason is logged, never returned, so a sender learns that they
-// were refused rather than which check tripped and on what.
 func NewErrorInterceptor(logger logging.Logger) connect.Interceptor {
 	if logger == nil {
 		logger = logging.NewNopLogger()

@@ -100,11 +100,6 @@ table {
     border: 1px solid white;
 }
 
-/*
- * The small caps used for every label in the menu — "You're playing for",
- * "Rank", the leaderboard's column heads. Oswald is already loaded for the
- * numbers, and a label has to read as a label rather than as another button.
- */
 .menu-label {
     font-family: Oswald, sans-serif;
     font-weight: 500;
@@ -115,7 +110,6 @@ table {
     text-shadow: none;
 }
 
-/* A section heading with a rule running off to the right of it. */
 .menu-section-title {
     display: flex;
     align-items: center;
@@ -140,11 +134,6 @@ table {
     background: #FFFFFF1F;
 }
 
-/*
- * The chrome shared by the three navigation gestures — collapse, back, close.
- * They look alike on purpose: each is the single way out of exactly one thing,
- * so nothing is left for the reader to tell apart.
- */
 .icon-button {
     display: flex;
     align-items: center;

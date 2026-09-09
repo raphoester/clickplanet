@@ -1,9 +1,7 @@
 .menu-panel {
-    /* Anchors the fade at the foot of the scrolling list. */
     position: relative;
     display: flex;
     flex-direction: column;
-    /* Lets the panel shrink inside the card instead of overflowing it. */
     min-height: 0;
     flex: 1 1 auto;
 }
@@ -36,7 +34,6 @@
     white-space: nowrap;
 }
 
-/* Focused only from script, to announce the panel: no ring for a mouse user. */
 .menu-panel-title:focus {
     outline: none;
 }

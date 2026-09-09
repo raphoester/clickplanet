@@ -7,12 +7,6 @@ describe("flag atlas", () => {
         expect(regions.size).toBeGreaterThan(0)
     })
 
-    /**
-     * The click handler looks a region up by country code and cannot render a
-     * tile without one, so a country the atlas is missing is a crash waiting on
-     * whoever picks it. Regenerating the atlas without regenerating
-     * countries.json (or the reverse) is what would break this.
-     */
     it("covers every country the picker can select", () => {
         const missing = Array.from(Countries.keys()).filter(code => !regions.has(code))
         expect(missing).toEqual([])

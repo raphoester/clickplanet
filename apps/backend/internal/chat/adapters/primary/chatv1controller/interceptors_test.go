@@ -22,9 +22,6 @@ func (l *fakeLimiter) Allow(key string) bool {
 	return l.allow
 }
 
-// fakeRequest names a procedure, which is all the interceptors read. The server
-// fills the spec in for real; connect.NewRequest builds a client-side request
-// whose spec is empty and read-only.
 type fakeRequest struct {
 	connect.AnyRequest
 	spec connect.Spec
@@ -90,7 +87,7 @@ func TestRateLimitInterceptor(t *testing.T) {
 }
 
 func TestBlocklistInterceptor(t *testing.T) {
-	blocklistOf(t, nil) // sanity: an empty list builds
+	blocklistOf(t, nil)
 
 	t.Run("cuts a blocked sender off from every procedure", func(t *testing.T) {
 		blocklist := blocklistOf(t, []string{"9.9.9.9/32"})
@@ -107,9 +104,6 @@ func TestBlocklistInterceptor(t *testing.T) {
 		}
 	})
 
-	// The point of building on ipblock rather than matching strings: one line
-	// covers a range, so a spammer cycling addresses inside a /24 goes in one
-	// entry instead of 256.
 	t.Run("blocks a whole prefix", func(t *testing.T) {
 		blocklist := blocklistOf(t, []string{"203.0.113.0/24"})
 
@@ -139,8 +133,6 @@ func TestBlocklistInterceptor(t *testing.T) {
 		require.True(t, ran)
 	})
 
-	// A caller whose address the middleware could not resolve carries "". The
-	// list exists to refuse the known-bad, not everything it cannot read.
 	t.Run("an unresolved address is passed through", func(t *testing.T) {
 		ran, err := run(context.Background(), NewBlocklistInterceptor(blocklistOf(t, []string{"9.9.9.9/32"})),
 			chatv1connect.ChatServiceSendMessageProcedure)
@@ -150,8 +142,6 @@ func TestBlocklistInterceptor(t *testing.T) {
 	})
 }
 
-// A malformed entry fails at startup rather than silently blocking nobody,
-// which is the same bargain the vendored lists make.
 func TestABareAddressIsRejectedAtStartup(t *testing.T) {
 	_, err := ipblock.NewDenyList([]string{"9.9.9.9"})
 	require.Error(t, err, "entries are prefixes; a single address needs /32")

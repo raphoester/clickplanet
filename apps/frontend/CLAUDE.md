@@ -266,7 +266,7 @@ It runs headless Chrome under a throwaway profile, so it never disturbs the
 browser you have open. `--eval` evaluates in the page (top-level `await` works)
 and prints the result — measuring boxes with `getBoundingClientRect()` beats
 eyeballing a screenshot. `--headed`, `--w/--h/--dpr`, `--full` and `--settle`
-cover the rest; the header comment in `scripts/mobile.mjs` lists them.
+cover the rest; `npm run mobile -- --help` lists them.
 
 `--open-menu` exists because two things sit between a fresh load and the menu:
 `DonationModal` rolls a coin on **every** load (`SHOW_PROBABILITY`), and the

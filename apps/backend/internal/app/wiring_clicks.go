@@ -24,9 +24,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/xtime"
 )
 
-// countryChecker is the shared country list. Both contexts declare a port of
-// this shape and neither owns the other's: the composition root hands the one
-// implementation to both.
 func (a *App) countryChecker() domain.CountryChecker {
 	return in_memory_country_checker.New()
 }
@@ -43,8 +40,6 @@ func (a *App) configureClicks(_ context.Context) error {
 		a.logger,
 	)
 
-	// Owns the snapshot loop: periodic flushes plus a final one when the app
-	// context is cancelled.
 	a.runners = append(a.runners, func() { tilesStorage.Run(a.ctx) })
 
 	var clickHandlerService click_handler_service.IService = click_handler_service.New(
@@ -58,8 +53,6 @@ func (a *App) configureClicks(_ context.Context) error {
 		return fmt.Errorf("failed to create prometheus click handler service: %w", err)
 	}
 
-	// Bound to the app's lifetime, not to the startup context: cancelling it
-	// closes the channel and stops the publisher during shutdown.
 	updatesCh, err := tilesStorage.Subscribe(a.ctx)
 	if err != nil {
 		return fmt.Errorf("failed to subscribe to tile updates: %w", err)
@@ -87,13 +80,6 @@ func (a *App) configureClicks(_ context.Context) error {
 		return err
 	}
 
-	// The error interceptor sits outside the other two so that everything the
-	// handler chain answers goes through the same error mapping; both refusals
-	// already carry their own code, which that mapping leaves alone.
-	//
-	// The blocklist sits outside the limiter: a refused address must not also
-	// spend a token, or its next click would come back 429 and the web app
-	// would show the throttle dialog rather than the VPN one.
 	a.mountRPC(planetv1connect.NewClickServiceHandler(
 		clickService,
 		connect.WithInterceptors(
@@ -106,10 +92,6 @@ func (a *App) configureClicks(_ context.Context) error {
 	return nil
 }
 
-// configureVPNBlocklist parses the vendored VPN ranges and returns the
-// interceptor that refuses clicks from them. A disabled config yields a nil
-// *ipblock.Blocklist, which blocks nothing, so the interceptor stays in the
-// chain either way and there is no second wiring path to keep in step.
 func (a *App) configureVPNBlocklist() (connect.Interceptor, error) {
 	blocklist, err := ipblock.New(a.config.VPNBlocklist)
 	if err != nil {
@@ -128,9 +110,6 @@ func (a *App) configureVPNBlocklist() (connect.Interceptor, error) {
 	return interceptor, nil
 }
 
-// configureBookkeeperIfEnabled runs the X reporting job in-process. It used to
-// be cmd/bookkeeper, but the tile storage's recent updates only exist inside
-// this process, so a separate process has nothing to read.
 func (a *App) configureBookkeeperIfEnabled(tilesStorage *memory_tile_storage.Storage) {
 	if !a.config.Bookkeeper.Enabled {
 		return

@@ -24,8 +24,6 @@ describe("SelectWithSearch", () => {
 
     it("filters the list as you type, case-insensitively", async () => {
         const user = userEvent.setup()
-        // Selecting Japan keeps the assertion about filtering alone; the
-        // selection is kept in the list regardless, which its own tests cover.
         render(<SelectWithSearch values={VALUES} selected={VALUES[1]} onChange={vi.fn()}/>)
 
         await user.type(screen.getByPlaceholderText("Search a country"), "jAp")
@@ -41,11 +39,6 @@ describe("SelectWithSearch", () => {
         expect(onChange).toHaveBeenCalledWith(VALUES[1])
     })
 
-    /**
-     * Every option is visible at once, tapped directly: mobile WebKit collapses
-     * a `<select size={n}>` into a native picker showing one row, which is why
-     * this list is our own markup.
-     */
     it("shows the whole list rather than a native select", () => {
         render(<SelectWithSearch values={VALUES} selected={VALUES[0]} onChange={vi.fn()}/>)
 
@@ -74,11 +67,6 @@ describe("SelectWithSearch", () => {
         expect(onChange).toHaveBeenCalledWith(VALUES[2])
     })
 
-    /**
-     * The selection is the caller's state. This component used to copy it into
-     * its own on mount and never resync, so it showed a stale country whenever
-     * the selection changed from anywhere else.
-     */
     it("follows the selection it is given", () => {
         const {rerender} = render(
             <SelectWithSearch values={VALUES} selected={VALUES[0]} onChange={vi.fn()}/>)
@@ -88,14 +76,6 @@ describe("SelectWithSearch", () => {
         expect(selectedName()).toEqual(["Japan"])
     })
 
-    /**
-     * Kept from #14, which fixed this for the `<select>` this list used to be: a
-     * select whose value matched none of its options had the browser pick the
-     * first one instead, so clicking the top result of a search fired no change
-     * event and picked nothing. The markup that caused it is gone; the guarantee
-     * it forced — the selection stays in the list, and every result is pickable
-     * — is the behaviour worth keeping.
-     */
     it("keeps the selection in the list while the search filters it out", async () => {
         const user = userEvent.setup()
         render(<SelectWithSearch values={VALUES} selected={VALUES[0]} onChange={vi.fn()}/>)
@@ -129,7 +109,6 @@ describe("SelectWithSearch", () => {
         expect(onChange).toHaveBeenCalledWith(VALUES[1])
     })
 
-    /** The keyboard form of the same bug: Enter must not re-pick the pinned row. */
     it("puts the keyboard cursor on the first match, not on the pinned selection", async () => {
         const user = userEvent.setup()
         const onChange = vi.fn()

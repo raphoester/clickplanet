@@ -11,8 +11,6 @@ type timedUpdate struct {
 	update domain.TileUpdate
 }
 
-// ring is a fixed-capacity FIFO of recent updates. Once full, pushing
-// overwrites the oldest entry.
 type ring struct {
 	buf   []timedUpdate
 	start int
@@ -38,9 +36,6 @@ func (r *ring) push(entry timedUpdate) {
 	r.size++
 }
 
-// evictBefore drops the leading entries older than the given instant. Entries
-// are pushed in chronological order, so stopping at the first recent one is
-// enough.
 func (r *ring) evictBefore(cutoff time.Time) {
 	for r.size > 0 && r.buf[r.start].at.Before(cutoff) {
 		r.buf[r.start] = timedUpdate{}
@@ -49,8 +44,6 @@ func (r *ring) evictBefore(cutoff time.Time) {
 	}
 }
 
-// since returns, in chronological order, the updates recorded at or after the
-// given instant. The bound is inclusive.
 func (r *ring) since(start time.Time) []domain.TileUpdate {
 	updates := make([]domain.TileUpdate, 0, r.size)
 	for i := 0; i < r.size; i++ {

@@ -21,23 +21,14 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// ChatMessage is one message as broadcast on the websocket and returned by the
-// history RPC. Nothing identifying beyond the display name and the
-// server-derived tag leaves the server: the sender's IP only ever reaches the
-// on-disk log.
 type ChatMessage struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Server-assigned, unique, and stable across the websocket broadcast and the
-	// history RPC, so a client can deduplicate the two.
-	Id           string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	SentAtUnixMs int64  `protobuf:"varint,2,opt,name=sent_at_unix_ms,json=sentAtUnixMs,proto3" json:"sent_at_unix_ms,omitempty"`
-	AuthorName   string `protobuf:"bytes,3,opt,name=author_name,json=authorName,proto3" json:"author_name,omitempty"`
-	// Short hash the server derives from the sender's IP. Clients pick their own
-	// name, so this is the only part of an identity they cannot forge — two
-	// people using the same name still carry different tags.
-	AuthorTag     string `protobuf:"bytes,4,opt,name=author_tag,json=authorTag,proto3" json:"author_tag,omitempty"`
-	CountryId     string `protobuf:"bytes,5,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
-	Text          string `protobuf:"bytes,6,opt,name=text,proto3" json:"text,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	SentAtUnixMs  int64                  `protobuf:"varint,2,opt,name=sent_at_unix_ms,json=sentAtUnixMs,proto3" json:"sent_at_unix_ms,omitempty"`
+	AuthorName    string                 `protobuf:"bytes,3,opt,name=author_name,json=authorName,proto3" json:"author_name,omitempty"`
+	AuthorTag     string                 `protobuf:"bytes,4,opt,name=author_tag,json=authorTag,proto3" json:"author_tag,omitempty"`
+	CountryId     string                 `protobuf:"bytes,5,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
+	Text          string                 `protobuf:"bytes,6,opt,name=text,proto3" json:"text,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -115,13 +106,11 @@ func (x *ChatMessage) GetText() string {
 }
 
 type SendMessageRequest struct {
-	state      protoimpl.MessageState `protogen:"open.v1"`
-	AuthorName string                 `protobuf:"bytes,1,opt,name=author_name,json=authorName,proto3" json:"author_name,omitempty"`
-	// Client-generated, persisted in the browser. Display and diagnostics only —
-	// the server never grants anything on the strength of it.
-	AuthorId      string `protobuf:"bytes,2,opt,name=author_id,json=authorId,proto3" json:"author_id,omitempty"`
-	CountryId     string `protobuf:"bytes,3,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
-	Text          string `protobuf:"bytes,4,opt,name=text,proto3" json:"text,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AuthorName    string                 `protobuf:"bytes,1,opt,name=author_name,json=authorName,proto3" json:"author_name,omitempty"`
+	AuthorId      string                 `protobuf:"bytes,2,opt,name=author_id,json=authorId,proto3" json:"author_id,omitempty"`
+	CountryId     string                 `protobuf:"bytes,3,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
+	Text          string                 `protobuf:"bytes,4,opt,name=text,proto3" json:"text,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -185,10 +174,8 @@ func (x *SendMessageRequest) GetText() string {
 }
 
 type SendMessageResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// The message as it was stored and broadcast: sanitized text, server id,
-	// server timestamp and the tag the sender cannot choose.
-	Message       *ChatMessage `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Message       *ChatMessage           `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -267,9 +254,8 @@ func (*GetHistoryRequest) Descriptor() ([]byte, []int) {
 }
 
 type GetHistoryResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Oldest first.
-	Messages      []*ChatMessage `protobuf:"bytes,1,rep,name=messages,proto3" json:"messages,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Messages      []*ChatMessage         `protobuf:"bytes,1,rep,name=messages,proto3" json:"messages,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }

@@ -57,7 +57,7 @@ func (s *testSuite) TestInvalidTile() {
 	s.Assert().Error(err)
 }
 
-func (s *testSuite) TestTileOnLimit() { // tiles are 1 indexed from the frontend perspective
+func (s *testSuite) TestTileOnLimit() {
 	err := s.service.HandleClick(context.Background(), 250_000, "fr")
 	s.Assert().NoError(err)
 }

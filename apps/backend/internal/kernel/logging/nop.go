@@ -2,8 +2,6 @@ package logging
 
 import "github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging/lf"
 
-// NewNopLogger returns a Logger that discards everything. Useful in tests and
-// as a fallback when no logger was injected.
 func NewNopLogger() *NopLogger {
 	return &NopLogger{}
 }

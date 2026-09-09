@@ -14,10 +14,6 @@ describe("VPNBlockedModal", () => {
         expect(container.querySelector(".modal")).not.toBeNull()
     })
 
-    /**
-     * The one thing the player can act on. A spent bucket refills on its own,
-     * this refusal does not, so the copy has to be an instruction.
-     */
     it("tells the player to turn the VPN off", () => {
         render(<VPNBlockedModal onClose={vi.fn()}/>)
 

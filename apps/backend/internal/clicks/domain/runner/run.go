@@ -25,6 +25,5 @@ func (r *Runner) runOnce(ctx context.Context) error {
 }
 
 func computeUpdate(tileUpdates []domain.TileUpdate) *Update {
-	// do something with tileUpdates
 	return &Update{}
 }

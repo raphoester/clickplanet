@@ -44,8 +44,6 @@ const (
 // ClickServiceClient is a client for the planet.v1.ClickService service.
 type ClickServiceClient interface {
 	Click(context.Context, *connect.Request[v1.ClickRequest]) (*connect.Response[v1.ClickResponse], error)
-	// Reads are marked side-effect free so Connect sends them as GET and a
-	// cache can serve them.
 	MapDensity(context.Context, *connect.Request[v1.MapDensityRequest]) (*connect.Response[v1.MapDensityResponse], error)
 	GetMap(context.Context, *connect.Request[v1.GetMapRequest]) (*connect.Response[v1.GetMapResponse], error)
 }
@@ -109,8 +107,6 @@ func (c *clickServiceClient) GetMap(ctx context.Context, req *connect.Request[v1
 // ClickServiceHandler is an implementation of the planet.v1.ClickService service.
 type ClickServiceHandler interface {
 	Click(context.Context, *connect.Request[v1.ClickRequest]) (*connect.Response[v1.ClickResponse], error)
-	// Reads are marked side-effect free so Connect sends them as GET and a
-	// cache can serve them.
 	MapDensity(context.Context, *connect.Request[v1.MapDensityRequest]) (*connect.Response[v1.MapDensityResponse], error)
 	GetMap(context.Context, *connect.Request[v1.GetMapRequest]) (*connect.Response[v1.GetMapResponse], error)
 }

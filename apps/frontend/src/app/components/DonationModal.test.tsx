@@ -69,7 +69,6 @@ describe("DonationModal", () => {
         expect(container.querySelector(".modal-content")!.contains(document.activeElement)).toBe(true)
     })
 
-    /** The globe and the menu are still in the tab order behind the backdrop. */
     it("keeps Tab inside the dialog", async () => {
         vi.spyOn(Math, "random").mockReturnValue(0.9)
         const user = userEvent.setup()
@@ -101,10 +100,6 @@ describe("DonationModal", () => {
         opener.remove()
     })
 
-    /**
-     * The roll used to be a bare `Math.random()` in App's JSX. React may render
-     * a component more than once for one commit, so it could flip on re-render.
-     */
     it("rolls once, and does not re-roll on re-render", () => {
         const random = vi.spyOn(Math, "random").mockReturnValue(0.9)
         const {rerender} = render(<DonationModal/>)

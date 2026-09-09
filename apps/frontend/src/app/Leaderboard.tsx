@@ -7,19 +7,11 @@ import {truncate} from "./truncate.ts";
 type LeaderboardProps = {
     tilesCount: number,
     data: LeaderboardEntry[],
-    /** The country the player holds, marked in the table so they can find themselves. */
     highlight?: Country,
 }
 
-/** Names wider than this overflow the panel on a phone. */
 const NAME_MAX_LENGTH = 18
 
-/**
- * The table, and nothing else: collapsing is the card's job now, not this
- * component's. It used to own a "Hide" button that sat above an unlabelled
- * table, so the only thing on screen naming what would be hidden was the button
- * that hid it.
- */
 export default function Leaderboard(props: LeaderboardProps) {
     const titleId = useId()
 

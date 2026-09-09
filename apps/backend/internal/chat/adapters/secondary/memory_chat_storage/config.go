@@ -2,31 +2,17 @@ package memory_chat_storage
 
 import "time"
 
-// Config tunes the chat storage. Every field has a usable default, and an empty
-// LogPath yields a working but non-durable storage.
 type Config struct {
-	// LogPath is the append-only JSONL file every message is written to, sender
-	// IP included. Empty keeps chat entirely in memory.
 	LogPath string
 
-	// HistorySize is how many recent messages a joining client is served.
-	// Defaults to 200.
 	HistorySize int
 
-	// Retention is how long a message stays in the log. Older lines are dropped
-	// on the next prune. Defaults to 30 days.
 	Retention time.Duration
 
-	// FlushInterval bounds what a hard kill can lose, the same way the tile
-	// snapshot interval does. Defaults to 5s.
 	FlushInterval time.Duration
 
-	// PruneInterval is how often the log is rewritten to apply Retention.
-	// Defaults to 1h.
 	PruneInterval time.Duration
 
-	// SubscriberBuffer is the capacity of each websocket subscriber's channel.
-	// Defaults to 256.
 	SubscriberBuffer int
 }
 

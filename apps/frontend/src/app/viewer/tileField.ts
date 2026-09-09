@@ -11,28 +11,10 @@ import displayFragment from "./shaders/display/fragment.glsl"
 import pickerVertex from "./shaders/picker/vertex.glsl"
 import pickerFragment from "./shaders/picker/fragment.glsl"
 
-/** Values per tile in the regionVector attribute: x, y, width, height. */
 const REGION_STRIDE = 4
 
-/**
- * Above this many changed tiles, one range covering the whole span beats
- * handing the renderer a range per tile for it to sort and merge. Ownership
- * batches are contiguous runs of tile ids, so their span is the batch itself;
- * live updates are a handful of scattered tiles, well under the threshold.
- */
 const MAX_INDIVIDUAL_RANGES = 64
 
-/**
- * The points that make up the globe, and the two attributes that change while
- * it is running: which country owns each tile, and which tile is hovered.
- *
- * Both attributes used to be rewritten wholesale on every change. Hovering
- * allocated a fresh 258k-element Float32Array, filled it with zeros, set one
- * element, and installed it as a *new* BufferAttribute — so moving the mouse
- * rebuilt and re-uploaded a megabyte per event, at whatever rate the mouse
- * reports. Ownership re-uploaded its 4 MB buffer on every 100 ms batch. Both
- * now mutate in place and tell the renderer only the ranges that moved.
- */
 export class TileField {
     readonly displayPoints: THREE.Points
     readonly pickingPoints: THREE.Points
@@ -48,7 +30,6 @@ export class TileField {
 
         const position = new THREE.BufferAttribute(positions, 3)
 
-        /** Zero width/height means "unowned", which the fragment shader draws blank. */
         this.regionVector = new THREE.BufferAttribute(new Float32Array(size * REGION_STRIDE), REGION_STRIDE)
         this.hover = new THREE.BufferAttribute(new Float32Array(size), 1)
 
@@ -75,7 +56,6 @@ export class TileField {
         }))
     }
 
-    /** Paints the tiles whose owner changed. */
     setOwners(changes: OwnerChange[]) {
         if (changes.length === 0) return
 
@@ -111,7 +91,6 @@ export class TileField {
         this.regionVector.needsUpdate = true
     }
 
-    /** Highlights one tile, or none. Repeating the current tile costs nothing. */
     setHover(tile: number | undefined) {
         if (tile === this.hovered) return
 
@@ -134,10 +113,6 @@ export class TileField {
     }
 }
 
-/**
- * One colour per tile, so a picking render can be read back as a tile id.
- * Ids start at 1: black is the background and the inner sphere.
- */
 function pickingColors(size: number): Float32Array {
     const colors = new Float32Array(size * 3)
     for (let i = 0; i < size; i++) {

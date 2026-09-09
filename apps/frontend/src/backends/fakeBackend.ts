@@ -12,22 +12,10 @@ import {Countries} from "../domain/countries.ts";
 
 const TILE_COUNT = 257_000
 
-/**
- * The throttle the real backend puts on the Click RPC, in the shape a token
- * bucket takes there: a sustained rate, and what a caller arriving after a
- * quiet spell may spend at once. These mirror the backend's defaults so that a
- * dev pointed at the fake meets the same refusal a player would.
- */
 const CLICKS_PER_SECOND = 1
 const CLICK_BURST = 10
 
 export type FakeBackendOptions = {
-    /**
-     * Refuse every click as coming from a VPN, the way the backend does for an
-     * address in its blocklist. There is no address here to judge, so it is a
-     * switch: it exists because the dialog is otherwise unreachable without an
-     * actual VPN, and `npm run dev` cannot reach the real API at all.
-     */
     vpnBlocked?: boolean
 }
 
@@ -63,12 +51,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
             let tileId = Math.floor(Math.random() * 10_000)
             const gap = Math.floor(Math.random() * 100)
 
-            /**
-             * Simulated traffic bypasses the throttle: it stands in for every
-             * other player, not for this one, and a shared bucket would freeze
-             * the whole globe the moment the dev clicked too fast.
-             */
-            this.timers.push(setInterval(() => { // simulate updates
+            this.timers.push(setInterval(() => {
                 tileId = (tileId + gap) % TILE_COUNT + 1
                 this.applyClick(tileId, country.code)
             }, Math.random() * 1000))
@@ -83,9 +66,6 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     }
 
     public async clickTile(tileId: number, countryId: string) {
-        // Checked first, like the backend's interceptor chain: a refused address
-        // never reaches the bucket, so its next click cannot come back as a
-        // throttle and raise the wrong dialog.
         if (this.vpnBlocked) throw new VPNBlockedError()
         if (!this.allow()) throw new RateLimitedError()
         this.applyClick(tileId, countryId)
@@ -101,7 +81,6 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         }))
     }
 
-    /** The same token bucket the backend keys on a source IP, for one player. */
     private allow(): boolean {
         const now = Date.now()
         this.tokens = Math.min(

@@ -22,11 +22,6 @@ export type Update = {
 }
 
 export interface UpdatesListener {
-    /**
-     * Subscribes to individual updates. Returns the unsubscribe function
-     * directly: there is nothing meaningful to await, because a transport that
-     * reconnects has no single moment of "connected" to resolve on.
-     */
     listenForUpdates(callback: (update: Update) => void): () => void
 
     listenForUpdatesBatch(
@@ -34,16 +29,6 @@ export interface UpdatesListener {
     ): () => void
 }
 
-/**
- * The server refused a click because too many arrived from this address — the
- * backend keeps a token bucket per IP on the Click RPC, and answers a spent
- * bucket with `resource_exhausted`.
- *
- * It is named here, beside the interface it comes out of, because it is the one
- * click failure the player is meant to see rather than a transport fault: the
- * app layer shows a dialog for it, and must not have to know what a Connect
- * code is to recognise it.
- */
 export class RateLimitedError extends Error {
     constructor(options?: {cause?: unknown}) {
         super("too many clicks", options)
@@ -51,17 +36,6 @@ export class RateLimitedError extends Error {
     }
 }
 
-/**
- * The server refused a click because it came from a VPN or proxy address — the
- * backend keeps a list of known egress ranges and answers one with
- * `permission_denied`.
- *
- * Sibling of {@link RateLimitedError}, and for the same reason: it is a refusal
- * the player is meant to see, not a transport fault. It is a separate class
- * rather than a field on that one because the two need opposite advice —
- * the throttle clears itself in a second, this one does not clear until the
- * player changes network.
- */
 export class VPNBlockedError extends Error {
     constructor(options?: {cause?: unknown}) {
         super("clicks from VPN addresses are refused", options)

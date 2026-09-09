@@ -13,7 +13,6 @@ vi.mock("./globe.ts", () => ({createGlobe}))
 const FRANCE = Countries.get("fr")!
 const JAPAN = Countries.get("jp")!
 
-/** The three backends are separate objects in production; identity matters here. */
 const backends = () => ({
     tileClicker: {} as TileClicker,
     ownershipsGetter: {} as OwnershipsGetter,
@@ -24,7 +23,6 @@ function fakeGlobe(): Globe & {setCountry: ReturnType<typeof vi.fn>, dispose: Re
     return {tilesCount: 257_948, setCountry: vi.fn(), dispose: vi.fn()}
 }
 
-/** Renders the hook inside a real component so refs behave as they do in the app. */
 function Harness(props: {country: typeof FRANCE, backends: ReturnType<typeof backends>, onResult: (r: unknown) => void}) {
     const container = useRef<HTMLDivElement>(null)
     props.onResult(useGlobe({container, ...props.backends, country: props.country}))
@@ -81,11 +79,6 @@ describe("useGlobe", () => {
         expect(createGlobe.mock.calls[0][0]).toMatchObject({country: JAPAN})
     })
 
-    /**
-     * The bug this hook exists to prevent: the effect used to depend on the
-     * whole props object, a fresh reference every render, so any re-render of a
-     * parent tore down the WebGL context and rebuilt the entire scene.
-     */
     it("does not rebuild the globe when the component re-renders", async () => {
         const globe = fakeGlobe()
         createGlobe.mockResolvedValue(globe)
@@ -138,7 +131,6 @@ describe("useGlobe", () => {
         expect(globe.dispose).toHaveBeenCalledTimes(1)
     })
 
-    /** StrictMode's throwaway mount, and any unmount mid-load. */
     it("disposes a globe that resolves after the component is gone", async () => {
         const globe = fakeGlobe()
         let resolve: (globe: Globe) => void = () => {}
@@ -208,7 +200,6 @@ describe("useGlobe rate limiting", () => {
         expect(latest.rateLimited).toBe(true)
     })
 
-    /** A spammer's burst is one thing to say, once, not one dialog per click. */
     it("stays raised across a burst of refusals", async () => {
         renderHook()
         await waitFor(() => expect(latest.status.state).toBe('ready'))
@@ -253,10 +244,6 @@ describe("useGlobe VPN blocking", () => {
         expect(latest.vpnBlocked).toBe(true)
     })
 
-    /**
-     * Dismissing only closes the dialog: the refusal stands until the player
-     * changes network, so the next click has to bring it back.
-     */
     it("lowers the flag when the player dismisses it, and raises it again after", async () => {
         renderHook()
         await waitFor(() => expect(latest.status.state).toBe('ready'))
@@ -269,7 +256,6 @@ describe("useGlobe VPN blocking", () => {
         expect(latest.vpnBlocked).toBe(true)
     })
 
-    /** The two refusals are separate: one must never raise the other's dialog. */
     it("does not touch the throttle's flag, and is not touched by it", async () => {
         renderHook()
         await waitFor(() => expect(latest.status.state).toBe('ready'))

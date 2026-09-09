@@ -19,46 +19,16 @@ export type MenuProps = {
     tilesCount: number,
 }
 
-/** Where the stylesheets switch the card from a floating panel to a full-width sheet. */
 const COMPACT = "(max-width: 768px)"
 
-/**
- * Whether the card should open folded. Read once, as a starting position rather
- * than a binding: a player who opens the card should not have it shut again
- * because they rotated the phone.
- *
- * jsdom has no matchMedia, and neither do the tests that render this.
- */
 const opensFolded = () => window.matchMedia?.(COMPACT).matches ?? false
 
-/**
- * The card over the globe: who you play for, how everyone is doing, and the way
- * to change either.
- *
- * Three navigation gestures, each used for exactly one thing, which is the only
- * reason they cannot be confused for one another:
- *
- *  - the chevron in the header folds the whole card, and nothing else collapses;
- *  - the back arrow exists only inside the country picker, the one place you can
- *    drill into;
- *  - the × belongs to About, which opens over everything instead of taking the
- *    card's content slot.
- *
- * That last one is why About is a Modal and not a MenuPanel. It is a detour
- * rather than a step, and giving it the card's slot meant a "Back" button that
- * contradicted the "Close" button one level up.
- */
 export default function Menu(props: MenuProps) {
     const [isOpen, setIsOpen] = useState(() => !opensFolded())
     const [pickingCountry, setPickingCountry] = useState(false)
     const [aboutOpen, setAboutOpen] = useState(false)
     const bodyId = useId()
 
-    /**
-     * Drilling in unmounts the button that was clicked, so there is no element
-     * left to hand focus back to when the panel closes. Modal restores its own
-     * opener; only the panel needs this.
-     */
     const cameFromChange = useRef(false)
     const changeButton = useRef<HTMLButtonElement>(null)
 

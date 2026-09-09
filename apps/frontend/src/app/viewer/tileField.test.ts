@@ -69,11 +69,6 @@ describe("setOwners", () => {
         expect(region.updateRanges).toEqual([])
     })
 
-    /**
-     * The whole point of the rewrite: the attribute and its backing array are
-     * allocated once. They used to be replaced on every change, which forced
-     * the renderer to rebuild the GPU buffer instead of patching it.
-     */
     it("keeps the same attribute and backing array across changes", () => {
         const f = field()
         const region = attr(f, "regionVector")
@@ -95,15 +90,9 @@ describe("setOwners", () => {
         f.setOwners([{tile: 2, country: "fr"}])
 
         expect(region.updateRanges).toEqual([{start: 4, count: 4}])
-        // `needsUpdate` is write-only; setting it bumps `version`.
         expect(region.version).toBe(version + 1)
     })
 
-    /**
-     * Ownership batches are contiguous runs of ~10k tiles. Handing the renderer
-     * a range each, for it to sort and merge, costs more than one range across
-     * the whole run.
-     */
     it("collapses a large batch into a single spanning range", () => {
         const f = field(1000)
         const region = attr(f, "regionVector")
@@ -155,12 +144,6 @@ describe("setHover", () => {
         expect(hover.updateRanges).toEqual([])
     })
 
-    /**
-     * This is the bug this class exists to fix. Every mouse move used to
-     * allocate a fresh 258k-element Float32Array, zero it, set one element, and
-     * install it as a new BufferAttribute — about a megabyte rebuilt and
-     * re-uploaded per event, at whatever rate the mouse reports.
-     */
     it("keeps the same attribute and backing array across moves", () => {
         const f = field()
         const hover = attr(f, "hover")
@@ -191,7 +174,7 @@ describe("geometry", () => {
 
         expect(colors[0]).toBe(0)
         expect(colors[1]).toBe(0)
-        expect(colors[2]).toBeCloseTo(1 / 255, 6) // the array is float32
+        expect(colors[2]).toBeCloseTo(1 / 255, 6)
         expect(colors.length).toBe(SIZE * 3)
     })
 
@@ -201,7 +184,6 @@ describe("geometry", () => {
             .toBe(f.displayPoints.geometry.getAttribute("position"))
     })
 
-    /** Neither shader reads uv any more, so it is not uploaded. */
     it("does not upload a uv attribute", () => {
         const f = field()
         expect(f.displayPoints.geometry.getAttribute("uv")).toBeUndefined()

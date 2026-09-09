@@ -16,8 +16,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging/lf"
 )
 
-// logRecord is one line of the log: the broadcast message plus what never
-// leaves the server. Field names are short because they repeat on every line.
 type logRecord struct {
 	At        time.Time `json:"at"`
 	ID        string    `json:"id"`
@@ -60,8 +58,6 @@ type appendLog struct {
 	dirty bool
 }
 
-// Run flushes and prunes the log until ctx is cancelled, then flushes once more
-// and closes the file. With no log path configured it just waits for ctx.
 func (s *Storage) Run(ctx context.Context) {
 	if s.config.LogPath == "" {
 		s.logger.Warning("no chat log path configured, messages will not survive a restart")
@@ -94,9 +90,6 @@ func (s *Storage) Run(ctx context.Context) {
 	}
 }
 
-// restore reloads the recent history from the log and opens it for appending.
-// Anything unreadable is reported and skipped: a damaged log costs history, it
-// never costs a start.
 func (s *Storage) restore() {
 	if s.config.LogPath == "" {
 		return
@@ -167,8 +160,6 @@ func (s *Storage) appendToLog(record domain.ChatRecord) error {
 	return nil
 }
 
-// flush fsyncs what has been appended since the last one. A hard kill loses at
-// most one FlushInterval of messages, the same bargain the tile snapshot makes.
 func (s *Storage) flush() {
 	s.logMu.Lock()
 	defer s.logMu.Unlock()
@@ -203,9 +194,6 @@ func (s *Storage) closeLog() {
 	s.log = nil
 }
 
-// prune rewrites the log without the records that outlived the retention
-// window. The rewrite is atomic, so an interrupted prune leaves the previous
-// log intact rather than a half-written one.
 func (s *Storage) prune() {
 	s.logMu.Lock()
 	defer s.logMu.Unlock()
@@ -242,9 +230,6 @@ func (s *Storage) prune() {
 		payload.WriteByte('\n')
 	}
 
-	// The handle points at the old inode, so it has to be swapped for one on
-	// the file the rename put in place — otherwise later appends would land in
-	// a file nothing can see.
 	if err := s.log.file.Close(); err != nil {
 		s.logger.Error("failed to close the chat log before pruning", lf.Err(err))
 	}
@@ -275,8 +260,6 @@ func openForAppend(path string) (*os.File, error) {
 	return file, nil
 }
 
-// readRecords parses the log, reporting how many lines it had to skip. A
-// missing file is not an error: it is what a first run looks like.
 func readRecords(path string) ([]logRecord, int, error) {
 	file, err := os.Open(path)
 	if err != nil {
@@ -315,9 +298,6 @@ func readRecords(path string) ([]logRecord, int, error) {
 	return records, skipped, nil
 }
 
-// withinRetention drops the records older than cutoff. Lines are appended in
-// chronological order, but a clock that went backwards would break a
-// binary search, so this filters rather than seeks.
 func withinRetention(records []logRecord, cutoff time.Time) []logRecord {
 	kept := make([]logRecord, 0, len(records))
 	for _, record := range records {

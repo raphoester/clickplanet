@@ -7,9 +7,6 @@ import { ClickRequest, ClickResponse, GetMapRequest, GetMapResponse, MapDensityR
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
- * The API. Connect mounts it at /planet.v1.ClickService/. The live update
- * stream stays a websocket at /ws/listen.
- *
  * @generated from service planet.v1.ClickService
  */
 export const ClickService = {
@@ -25,9 +22,6 @@ export const ClickService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Reads are marked side-effect free so Connect sends them as GET and a
-     * cache can serve them.
-     *
      * @generated from rpc planet.v1.ClickService.MapDensity
      */
     mapDensity: {
