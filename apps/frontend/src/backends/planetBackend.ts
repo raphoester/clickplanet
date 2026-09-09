@@ -12,16 +12,14 @@ import {ClickService} from "../gen/grpc/planet/v1/planet_connect.ts";
 import {Code, ConnectError, createPromiseClient, PromiseClient} from "@connectrpc/connect";
 import {createConnectTransport} from "@connectrpc/connect-web";
 import {v4 as generateUUID} from 'uuid';
+import {Config, openSocket, retrying, websocketUrl as socketUrl} from "./transport.ts";
 
-export type Config = {
-    baseUrl: string
-    timeoutMs?: number
-}
+export type {Config}
 
-const ATTEMPTS = 5
+const TILE_UPDATE_ROUTE = "/ws/listen"
 
 export function websocketUrl(baseUrl: string): string {
-    return baseUrl.replace(/^http/, "ws") + "/ws/listen"
+    return socketUrl(baseUrl, TILE_UPDATE_ROUTE)
 }
 
 export function newClickServiceClient(config: Config): PromiseClient<typeof ClickService> {
@@ -122,89 +120,14 @@ export function bindingsOf(res: GetMapResponse): Map<number, string> {
     return bindings
 }
 
-async function retrying<T>(
-    attempt: () => Promise<T>,
-    what: string,
-    signal?: AbortSignal,
-): Promise<T> {
-    let lastError: unknown
-
-    for (let i = 0; i < ATTEMPTS; i++) {
-        signal?.throwIfAborted()
-
-        try {
-            return await attempt()
-        } catch (e) {
-            signal?.throwIfAborted()
-            if (!unreachable(e)) throw e
-
-            lastError = e
-            console.error(`${what} failed (attempt ${i + 1}/${ATTEMPTS})`, e)
-        }
-    }
-
-    throw new Error(`${what} failed after ${ATTEMPTS} attempts`, {cause: lastError})
-}
-
-function unreachable(e: unknown): boolean {
-    return !(e instanceof ConnectError) || e.code === Code.Unavailable
-}
-
-const INITIAL_RECONNECT_DELAY_MS = 500
-const MAX_RECONNECT_DELAY_MS = 30_000
-
 export function openUpdatesSocket(
     url: string,
     onUpdate: (update: Update) => void,
 ): () => void {
-    let socket: WebSocket | undefined
-    let retryTimer: ReturnType<typeof setTimeout> | undefined
-    let retryDelayMs = INITIAL_RECONNECT_DELAY_MS
-    let stopped = false
-
-    const scheduleReconnect = () => {
-        if (stopped || retryTimer !== undefined) return
-        retryTimer = setTimeout(() => {
-            retryTimer = undefined
-            connect()
-        }, retryDelayMs)
-        retryDelayMs = Math.min(retryDelayMs * 2, MAX_RECONNECT_DELAY_MS)
-    }
-
-    const connect = () => {
-        if (stopped) return
-
-        const ws = new WebSocket(url)
-        socket = ws
-        ws.binaryType = "arraybuffer"
-
-        ws.onopen = () => {
-            retryDelayMs = INITIAL_RECONNECT_DELAY_MS
-        }
-
-        ws.onmessage = (event) => {
-            const update = decodeTileUpdate(event.data)
-            if (update) onUpdate(update)
-        }
-
-        ws.onclose = () => {
-            if (socket === ws) socket = undefined
-            scheduleReconnect()
-        }
-    }
-
-    connect()
-
-    return () => {
-        stopped = true
-        if (retryTimer !== undefined) clearTimeout(retryTimer)
-        const ws = socket
-        socket = undefined
-        if (ws) {
-            ws.onclose = null
-            ws.close()
-        }
-    }
+    return openSocket(url, (data) => {
+        const update = decodeTileUpdate(data)
+        if (update) onUpdate(update)
+    })
 }
 
 export function decodeTileUpdate(data: unknown): Update | undefined {

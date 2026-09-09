@@ -40,19 +40,19 @@ vpnBlocklist:
 # The log holds sender IPs alongside message text. Retention is therefore a
 # policy, not a cache size: 30 days, applied by an hourly prune.
 #
-# Off until the frontend that talks to it ships: SendMessage is an
-# unauthenticated public write endpoint that fans out to every connected
-# client, and there is no reason to expose one nothing is using yet. Flip this
-# to true with the frontend release.
 chat:
-  enabled: false
+  enabled: true
   storage:
     logPath: /home/app/state/chat.log
     historySize: 200
     retention: 720h
   service:
-    # Salts the per-sender tag. Set it to any fixed random string: leaving it
-    # empty regenerates one at boot, which changes everyone's tag on restart.
+    # Salts the per-sender tag. Deliberately empty here: this file is in git, and
+    # the salt is what stops a reader of it from recomputing a sender's tag from
+    # a guessed address. docker-compose.yaml passes the real one in from
+    # CHAT_TAG_SALT in .env, which overrides this. Left empty on both sides the
+    # API generates one at boot and warns — every sender's tag then changes on
+    # each restart.
     tagSalt: ""
   # One message every three seconds, five in hand. Keyed on the address Caddy
   # puts in X-Real-IP, as the click limiter is.

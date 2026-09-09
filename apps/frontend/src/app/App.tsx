@@ -11,6 +11,7 @@ export default function App(props: AppProps) {
             tileClicker={props.tileClicker}
             ownershipsGetter={props.ownershipsGetter}
             updatesListener={props.updatesListener}
+            chatBackend={props.chatBackend}
         />
     </>
 }

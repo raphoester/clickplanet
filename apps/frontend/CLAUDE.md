@@ -22,7 +22,13 @@ touching this app.
 `access-control-allow-origin: https://clickplanet.lol` and nothing else, so the
 browser blocks every request from `localhost`. Point `VITE_API_BASE_URL` at a
 local backend, or swap `PlanetBackend` for `FakeBackend` in `src/main.tsx` — the
-fake serves a full map and simulates live updates.
+fake serves a full map and simulates live updates. `FakeChatBackend` is the same
+swap for `ChatServiceBackend`, and reproduces every refusal the chat can show.
+
+A local backend is the quickest way to exercise the real chat: `cmd/api`'s
+`example.yaml` has `chat.enabled: true`, and the Go server answers
+`Access-Control-Allow-Origin: *` itself, so `VITE_API_BASE_URL=http://localhost:8080
+npm run dev` works with no proxy in between.
 
 Docker (only for the local full stack in `deploy/`; production is Cloudflare Pages):
 ```bash
@@ -63,14 +69,35 @@ app/       components
 - `leaderboard.ts` — `rankCountries`, a pure sort over those counts. Ties break
   on country code so equally-placed rows stop swapping.
 - `countries.ts` — the country list, keyed by code.
+- `chatLog.ts` — `addMessages`, the merge of the history fetch and the live
+  socket into one bounded list. **The two sources overlap**: your own message
+  arrives twice (the `SendMessage` response and the broadcast that follows), and
+  history is fetched after the socket is already open, so it is deduplicated on
+  message id, ordered on the time the server stamped, and capped at 200. It
+  returns the array it was given when nothing was added, so an echo of something
+  already shown costs no render. `unreadSince` counts what arrived after a given
+  id, for the badge on the folded panel.
 - `warnOnce.ts` — for things that would otherwise warn on every frame.
 
-### `src/backends/` — three interfaces in `backend.ts`
+### `src/backends/` — two contracts, one transport
+
+The tile game's three interfaces are in `backend.ts`:
 
 - `TileClicker` — claims a tile
 - `OwnershipsGetter` — batched fetch of tile → country_code, takes an
   `AbortSignal`
 - `UpdatesListener` — live tile changes
+
+The chat's three are in `chat.ts` — see [Live chat](#live-chat). The two files
+share no types: they are separate bounded contexts on the backend and the split
+is worth keeping on this side too.
+
+`transport.ts` holds what both wire protocols need and neither owns:
+`websocketUrl(baseUrl, route)`, `retrying`, and `openSocket`, the reconnecting
+websocket with the capped exponential backoff. `openSocket` takes raw frames and
+knows nothing about what they carry, so each context keeps its own decoder —
+`openUpdatesSocket` and `ChatServiceBackend.listenForMessages` are both three
+lines over it.
 
 `planetBackend.ts` is production, `fakeBackend.ts` is for development, and the
 active one is wired in `main.tsx`. Both expose `close()`.
@@ -116,6 +143,56 @@ traffic bypasses both, standing in for other players rather than for this one.
 `openUpdatesSocket` reconnects with a capped exponential backoff. It is the only
 source of live changes, so a drop that is not retried freezes the globe until a
 reload.
+
+### Live chat
+
+The client for the backend's second bounded context: `chat.ts` declares
+`ChatSender`, `ChatHistoryGetter` and `ChatListener` (plus `ChatBackend`, the
+three together), `chatBackend.ts` implements them against `/chat.v1.ChatService/`
+and `/ws/chat`, and `fakeChatBackend.ts` is the dev stand-in. `ChatPanel` docks
+bottom-right, opposite the menu, and starts folded under 768px.
+
+**`MAX_TEXT_LENGTH` and `MAX_NAME_LENGTH` in `chat.ts` mirror
+`chat.service.max*Length` on the backend**, counted in code points as the server
+counts runes. They are the composer's bounds, not a defence — the server
+sanitizes and rejects on its own.
+
+**Message text is rendered as text, never as HTML.** The backend stores it raw
+and says so; React escaping is what makes that safe, so never reach for
+`dangerouslySetInnerHTML` here.
+
+**Identity is a name and a UUID the client keeps** in `clickplanet-chat-identity`
+(`chatIdentity.ts`, `useChatIdentity.ts`). The server trusts neither: what
+distinguishes two senders with one name is `author_tag`, the salted hash of their
+address that it stamps itself. The composer asks for a name before the first
+message rather than at page load — nothing else on the page requires one.
+
+**`sendMessage` is the one call that is not wrapped in `retrying`.** A retry
+after a connection dropped mid-request would post the message twice, visibly, to
+everyone; a message the player can retype is the cheaper failure. `getHistory`
+is retried like every other read.
+
+The four refusals map to their own error classes and are reported **inline in the
+composer, not as a modal** — unlike a refused click, the text is still in the box
+and the advice is one line:
+
+- `resource_exhausted` → `ChatRateLimitedError`, chat's own bucket (one message
+  every 3s), unrelated to the click bucket
+- `permission_denied` → `ChatBlockedError`, the address is in `chat.blockedIPs`
+- `invalid_argument` → `ChatRejectedError`, the server refused the content
+- `unimplemented` → `ChatUnavailableError`, i.e. `chat.enabled` is false and the
+  route 404s
+
+**`ChatUnavailableError` hides the panel entirely** rather than showing a broken
+box: `useChat` goes to `unavailable` and `ChatPanel` renders nothing. That is
+what lets this ship against a server with chat switched off, and it is also why
+the composer keeps its text when a send fails — the panel may be gone next
+frame.
+
+The composer **clears the box when the send starts, not when it lands**, and puts
+the text back only if the box is still empty when a refusal comes in. Clearing on
+success instead wipes whatever was typed while the message was in flight, which
+is exactly what a fast typer does.
 
 ### `src/app/viewer/` — the GPU layer
 
@@ -171,10 +248,20 @@ makes it permanent for whoever it refuses.
 
 ## Protocol Buffers
 
-Types are defined in the monorepo-shared [`/proto/planet/v1/planet.proto`](../../proto/planet/v1/planet.proto)
-and generated to `src/gen/grpc/planet/v1/` — `planet_pb.ts` for the messages and
-`planet_connect.ts` for the service client. Run `npm run proto` after changing
-`.proto` files. Key messages: `ClickRequest`, `GetMapResponse`, `TileUpdate`.
+Types are defined in the monorepo-shared [`/proto`](../../proto), one package per
+bounded context, and generated to `src/gen/grpc/<package>/v1/` — `*_pb.ts` for
+the messages and `*_connect.ts` for the service client. `buf.gen.yaml` points at
+the whole `proto` directory, so a new package needs no config change; run
+`npm run proto` after changing a `.proto`.
+
+- [`planet/v1/planet.proto`](../../proto/planet/v1/planet.proto) — `ClickRequest`,
+  `GetMapResponse`, `TileUpdate`
+- [`chat/v1/chat.proto`](../../proto/chat/v1/chat.proto) — `ChatMessage`,
+  `SendMessageRequest`, `GetHistoryResponse`
+
+`ChatMessage.sentAtUnixMs` is an `int64`, which `protoc-gen-es` gives you as a
+`bigint` — `chatBackend.ts` converts it at the edge so nothing above it deals in
+two number types.
 
 ## Static assets
 

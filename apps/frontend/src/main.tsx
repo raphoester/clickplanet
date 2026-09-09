@@ -3,6 +3,7 @@ import {StrictMode} from "react"
 import './index.css'
 
 import {newClickServiceClient, PlanetBackend} from "./backends/planetBackend.ts"
+import {ChatServiceBackend, newChatServiceClient} from "./backends/chatBackend.ts"
 import App from "./app/App.tsx"
 
 const config = {
@@ -11,6 +12,7 @@ const config = {
 }
 
 const backend = new PlanetBackend(config, newClickServiceClient(config), 100)
+const chatBackend = new ChatServiceBackend(config, newChatServiceClient(config))
 
 createRoot(document.getElementById('root')!).render(
     <StrictMode>
@@ -18,6 +20,7 @@ createRoot(document.getElementById('root')!).render(
             ownershipsGetter={backend}
             tileClicker={backend}
             updatesListener={backend}
+            chatBackend={chatBackend}
         />
     </StrictMode>,
 )

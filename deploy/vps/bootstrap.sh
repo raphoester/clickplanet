@@ -56,6 +56,13 @@ log()  { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m warn\033[0m %s\n' "$*" >&2; }
 die()  { printf '\033[1;31m fail\033[0m %s\n' "$*" >&2; exit 1; }
 
+# 16 bytes of hex for the chat tag salt. openssl is on the Ubuntu image, but the
+# fallback keeps this from being the one thing that fails a bootstrap.
+random_salt() {
+	openssl rand -hex 16 2>/dev/null \
+		|| od -An -tx1 -N16 /dev/urandom | tr -d ' \n'
+}
+
 usage() {
 	sed -n '3,20p' "$0" | sed 's/^# \{0,1\}//'
 	cat <<'USAGE'
@@ -372,6 +379,14 @@ if [[ -f "$env_file" && $FORCE_ENV -eq 0 ]]; then
 		sed -i '/^CLOUDFLARE_API_TOKEN=/d' "$env_file"
 		printf 'CLOUDFLARE_API_TOKEN=%s\n' "$CF_TOKEN" >> "$env_file"
 	fi
+	# Unlike the token, the salt is generated rather than passed in, and an
+	# existing one is never touched: rotating it renames every chat sender at
+	# once, which is not something a redeploy should do quietly.
+	if ! grep -q '^CHAT_TAG_SALT=.' "$env_file"; then
+		log "adding a generated CHAT_TAG_SALT to the existing .env"
+		sed -i '/^CHAT_TAG_SALT=/d' "$env_file"
+		printf 'CHAT_TAG_SALT=%s\n' "$(random_salt)" >> "$env_file"
+	fi
 else
 	log "writing .env"
 	cat > "$env_file" <<ENV
@@ -379,6 +394,7 @@ else
 API_DOMAIN=${API_DOMAIN}
 FRONTEND_ORIGIN=${FRONTEND_ORIGIN}
 CLOUDFLARE_API_TOKEN=${CF_TOKEN}
+CHAT_TAG_SALT=$(random_salt)
 BACKEND_IMAGE=${BACKEND_IMAGE:-ghcr.io/raphoester/clickplanet-backend:latest}
 ENV
 	chown "$DEPLOY_USER:$DEPLOY_USER" "$env_file"

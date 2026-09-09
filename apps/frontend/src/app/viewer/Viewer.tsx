@@ -1,5 +1,7 @@
 import {useRef} from 'react';
 import {OwnershipsGetter, TileClicker, UpdatesListener} from "../../backends/backend.ts";
+import {ChatBackend} from "../../backends/chat.ts";
+import ChatPanel from "../chat/ChatPanel.tsx";
 import Menu from "../Menu.tsx";
 import RateLimitModal from "../components/RateLimitModal.tsx";
 import VPNBlockedModal from "../components/VPNBlockedModal.tsx";
@@ -11,6 +13,7 @@ export type ViewerProps = {
     tileClicker: TileClicker
     ownershipsGetter: OwnershipsGetter
     updatesListener: UpdatesListener
+    chatBackend?: ChatBackend
 }
 
 export default function Viewer(props: ViewerProps) {
@@ -43,6 +46,11 @@ export default function Viewer(props: ViewerProps) {
             setCountry={handleSetCountry}
             leaderboard={leaderboard}
             tilesCount={tilesCount}
+        />}
+
+        {status.state === 'ready' && <ChatPanel
+            backend={props.chatBackend}
+            country={countryState}
         />}
 
         {rateLimited && <RateLimitModal onClose={dismissRateLimited}/>}

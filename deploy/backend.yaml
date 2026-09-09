@@ -13,8 +13,9 @@ tilesStorage:
 vpnBlocklist:
   enabled: false
 
-# Live chat, on for the local stack: this file is the one you run against when
-# developing the chat UI. Production ships with it off — see deploy/vps.
+# Live chat. This file is the one you run against when developing the chat UI;
+# deploy/vps has the production settings, including the retention window and a
+# real tag salt.
 chat:
   enabled: true
   storage:
