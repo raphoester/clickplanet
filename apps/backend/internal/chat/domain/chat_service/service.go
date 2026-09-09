@@ -20,8 +20,6 @@ type IService interface {
 	History(ctx context.Context) []domain.ChatMessage
 }
 
-// PostRequest is what a sender supplies. None of it is trusted: the name and
-// the id are theirs to pick, and the text is sanitized before it is stored.
 type PostRequest struct {
 	AuthorName string
 	AuthorID   string
@@ -99,8 +97,6 @@ func (s *Service) History(ctx context.Context) []domain.ChatMessage {
 	return s.storage.History(ctx)
 }
 
-// tag derives the short, unforgeable half of a sender's identity. The salt
-// keeps it from being a lookup table over the IPv4 space.
 func (s *Service) tag(ip string) string {
 	sum := sha256.Sum256([]byte(s.config.TagSalt + "\x00" + ip))
 	return hex.EncodeToString(sum[:])[:tagLength]
@@ -112,9 +108,6 @@ const (
 	maxUserAgentLength = 256
 )
 
-// sanitize trims a client-supplied string, drops the control characters that
-// would let a sender break the log format or the layout, and bounds its length
-// in runes rather than bytes.
 func sanitize(value string, maxLength int) (string, error) {
 	if !utf8.ValidString(value) {
 		return "", fmt.Errorf("not valid UTF-8")

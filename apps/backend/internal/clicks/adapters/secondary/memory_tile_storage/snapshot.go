@@ -14,16 +14,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging/lf"
 )
 
-// Snapshot file layout — a compact binary encoding, roughly 2 bytes per tile:
-//
-//	magic     8 bytes  "CPTILES\n"
-//	version   1 byte
-//	checksum  4 bytes  CRC32 (IEEE) of everything below
-//	--- payload ---
-//	maxIndex  4 bytes  uint32, little endian
-//	codeCount 2 bytes  uint16, number of interned country codes
-//	codes     codeCount x (1 byte length + that many bytes), index 0 is ""
-//	tiles     (maxIndex+1) x 2 bytes, little endian interned code id
 const (
 	snapshotMagic   = "CPTILES\n"
 	snapshotVersion = uint8(1)
@@ -32,9 +22,6 @@ const (
 
 var errCorruptSnapshot = errors.New("corrupt snapshot")
 
-// Run keeps the snapshot file up to date until ctx is cancelled, then writes a
-// final snapshot. It is the durability loop for the memory driver; with no
-// snapshot path configured it just waits for ctx and returns.
 func (s *Storage) Run(ctx context.Context) {
 	if s.config.SnapshotPath == "" {
 		s.logger.Warning("no snapshot path configured, tile state will not survive a restart")
@@ -42,9 +29,6 @@ func (s *Storage) Run(ctx context.Context) {
 		return
 	}
 
-	// Surface an unwritable destination at startup rather than one interval
-	// later: a snapshot path the process cannot write means no durability at
-	// all, which is otherwise easy to miss in the logs.
 	if err := atomicfile.CheckWritable(s.config.SnapshotPath); err != nil {
 		s.logger.Error("snapshot path is not writable, tile state will not survive a restart",
 			lf.String("path", s.config.SnapshotPath),
@@ -80,9 +64,6 @@ func (s *Storage) snapshotIfDirty() {
 	}
 }
 
-// Snapshot writes the current state to the configured snapshot file, atomically
-// via a temp file and a rename. It is a no-op when nothing changed since the
-// last write, or when no path is configured.
 func (s *Storage) Snapshot() error {
 	if s.config.SnapshotPath == "" {
 		return nil
@@ -94,8 +75,6 @@ func (s *Storage) Snapshot() error {
 	}
 
 	if err := atomicfile.Write(s.config.SnapshotPath, payload); err != nil {
-		// Put the dirty flag back so the next tick retries instead of
-		// silently leaving the state unsaved.
 		s.tilesMu.Lock()
 		s.dirty = true
 		s.tilesMu.Unlock()
@@ -106,8 +85,6 @@ func (s *Storage) Snapshot() error {
 	return nil
 }
 
-// encode serializes the state and clears the dirty flag. It reports false when
-// there was nothing new to write.
 func (s *Storage) encode() ([]byte, bool) {
 	s.tilesMu.Lock()
 	if !s.dirty {
@@ -116,8 +93,6 @@ func (s *Storage) encode() ([]byte, bool) {
 	}
 	s.dirty = false
 
-	// Copy under the lock, encode outside of it: writers are only held up for
-	// the duration of a couple of memory copies.
 	codes := make([]string, len(s.codes))
 	copy(codes, s.codes)
 	tiles := make([]uint16, len(s.tiles))
@@ -149,9 +124,6 @@ func (s *Storage) encode() ([]byte, bool) {
 	return buf, true
 }
 
-// restore loads the snapshot file into the storage. Every failure mode —
-// absent, truncated, checksum mismatch, unknown version — logs and leaves the
-// storage empty rather than preventing a start.
 func (s *Storage) restore() {
 	if s.config.SnapshotPath == "" {
 		return
@@ -182,8 +154,6 @@ func (s *Storage) restore() {
 		return
 	}
 
-	// A snapshot taken with a different gameMap.maxIndex still restores what
-	// overlaps, so growing or shrinking the map does not throw the state away.
 	if len(tiles) != len(s.tiles) {
 		s.logger.Warning("tile snapshot was taken with a different map size, restoring the overlap",
 			lf.Int("snapshotTiles", len(tiles)),
@@ -208,8 +178,6 @@ func (s *Storage) restore() {
 		owned++
 	}
 
-	// Only mutate the storage once the whole snapshot has been validated, so a
-	// bad file can never leave a half-restored map behind.
 	copy(s.tiles, tiles)
 	s.codes = codes
 	s.codeIDs = make(map[string]uint16, len(codes))

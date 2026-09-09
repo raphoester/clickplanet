@@ -1,6 +1,3 @@
-// Package chatv1controller is the chat context's edge. ChatService implements
-// the generated handler and nothing else: it never sees an http.ResponseWriter,
-// and the two interceptors around it own everything a caller is refused for.
 package chatv1controller
 
 import (
@@ -58,10 +55,6 @@ func (s *ChatService) GetHistory(
 	}
 
 	res := connect.NewResponse(response)
-	// NO_SIDE_EFFECTS makes this a GET, which a cache would happily hold onto.
-	// The history changes with every message and a client fetches it once, on
-	// join, to seed what the websocket then keeps up to date — a stale answer
-	// would show a joiner a chat that is missing the last few minutes.
 	res.Header().Set("Cache-Control", "no-store")
 
 	return res, nil

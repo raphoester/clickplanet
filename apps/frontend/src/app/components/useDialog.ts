@@ -6,18 +6,12 @@ const focusableIn = (container: HTMLElement | null): HTMLElement[] =>
     Array.from(container?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? [])
         .filter((el) => !el.hasAttribute("disabled"))
 
-/**
- * Keeps the latest callback without making it an effect dependency: callers
- * pass an inline arrow, so depending on it would tear the listener down and
- * re-run the focus move on every render.
- */
 function useLatest<T>(value: T) {
     const ref = useRef(value)
     ref.current = value
     return ref
 }
 
-/** Escape closes. Shared by both shells; only the modal traps anything. */
 export function useEscape(onClose: () => void) {
     const latest = useLatest(onClose)
 
@@ -32,12 +26,6 @@ export function useEscape(onClose: () => void) {
     }, [latest])
 }
 
-/**
- * What a real modal owes the keyboard, and what a MenuPanel deliberately does
- * not: the globe and the menu are still in the tab order behind the backdrop,
- * so Tab has to be wrapped by hand, and focus has to be handed back to whatever
- * had it when the dialog opened.
- */
 export function useModalDialog(panel: RefObject<HTMLElement>, onClose: () => void) {
     const latest = useLatest(onClose)
 

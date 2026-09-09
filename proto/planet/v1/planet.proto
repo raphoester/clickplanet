@@ -2,13 +2,9 @@ syntax = "proto3";
 
 package planet.v1;
 
-// The API. Connect mounts it at /planet.v1.ClickService/. The live update
-// stream stays a websocket at /ws/listen.
 service ClickService {
   rpc Click(ClickRequest) returns (ClickResponse);
 
-  // Reads are marked side-effect free so Connect sends them as GET and a
-  // cache can serve them.
   rpc MapDensity(MapDensityRequest) returns (MapDensityResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
@@ -36,17 +32,11 @@ message GetMapRequest {
   uint32 end_tile_id = 2;
 }
 
-// Tile ids are implicit: the nth tile of `tiles` is start_tile_id + n. That is
-// what makes this far smaller than a keyed map, which repeats an id the
-// position already carries.
 message GetMapResponse {
   uint32 start_tile_id = 1;
 
-  // Country codes, indexed by the values in `tiles`. Index 0 is the unowned
-  // code and is always empty.
   repeated string codes = 2;
 
-  // Two bytes per tile, little endian, an index into `codes`.
   bytes tiles = 3;
 }
 

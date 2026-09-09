@@ -36,18 +36,13 @@ describe("App", () => {
         expect(modalShown()).toBe(false)
     })
 
-    /**
-     * The roll used to be a bare `Math.random()` in the returned JSX. React may
-     * render a component more than once for one commit, so the modal could
-     * appear or vanish on any re-render.
-     */
     it("decides once, and does not re-roll on re-render", () => {
         const random = vi.spyOn(Math, "random").mockReturnValue(0.9)
 
         const {rerender} = render(<App {...backends}/>)
         expect(modalShown()).toBe(true)
 
-        random.mockReturnValue(0.1) // a roll that would have hidden it
+        random.mockReturnValue(0.1)
         rerender(<App {...backends}/>)
         rerender(<App {...backends}/>)
 

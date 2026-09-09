@@ -105,17 +105,12 @@ func TestSweepForgetsOnlyTheRefilledBuckets(t *testing.T) {
 	limiter.sweep()
 	require.Len(t, limiter.buckets, 2, "neither bucket has refilled yet")
 
-	// One second refills the single token "idle" spent, but leaves "busy" nine
-	// short of its capacity.
 	clock.advance(time.Second)
 	limiter.sweep()
 
 	require.NotContains(t, limiter.buckets, "idle")
 	require.Contains(t, limiter.buckets, "busy")
 
-	// Forgetting a bucket must not hand its owner anything a kept one would
-	// not have had: "idle" is back to a full burst either way, and "busy" only
-	// has the one token the elapsed second refilled.
 	for i := 0; i < 10; i++ {
 		require.Truef(t, limiter.Allow("idle"), "click %d should be allowed", i)
 	}

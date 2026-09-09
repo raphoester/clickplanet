@@ -27,9 +27,6 @@ export function websocketUrl(baseUrl: string): string {
 export function newClickServiceClient(config: Config): PromiseClient<typeof ClickService> {
     return createPromiseClient(ClickService, createConnectTransport({
         baseUrl: config.baseUrl,
-        // Both default to false. Without the binary format `tiles` travels as
-        // base64, a third bigger; without GET, the side-effect-free reads go
-        // out as POSTs that no cache will serve.
         useBinaryFormat: true,
         useHttpGet: true,
         defaultTimeoutMs: config.timeoutMs ?? 5000,
@@ -59,7 +56,6 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         }, batchUpdateDurationMs)
     }
 
-    /** Releases the socket and the flush timer. Safe to call more than once. */
     public close() {
         clearInterval(this.flushTimer)
         this.stopListening()
@@ -67,11 +63,6 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         this.pendingUpdates = []
     }
 
-    /**
-     * A refused click is not retried — `retrying` only retries a server it
-     * could not reach — so the throttle's answer arrives here on the first
-     * attempt and is translated out of Connect's vocabulary for the app layer.
-     */
     public async clickTile(tileId: number, countryId: string) {
         try {
             await retrying(() => this.client.click({tileId, countryId}), `click ${tileId}`)
@@ -118,18 +109,12 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
     }
 }
 
-/**
- * Reads a map chunk. Tile ids are implicit in the position, and `codes` came
- * with the body, so no country list is shared between the two apps.
- */
 export function bindingsOf(res: GetMapResponse): Map<number, string> {
     const tiles = new DataView(res.tiles.buffer, res.tiles.byteOffset, res.tiles.byteLength)
 
     const bindings = new Map<number, string>()
     for (let offset = 0; offset + 1 < res.tiles.byteLength; offset += 2) {
         const code = tiles.getUint16(offset, true)
-        // Zero is the unowned code. Leaving those out keeps the map the shape
-        // the globe already applies.
         if (code === 0) continue
         bindings.set(res.startTileId + offset / 2, res.codes[code])
     }
@@ -137,11 +122,6 @@ export function bindingsOf(res: GetMapResponse): Map<number, string> {
     return bindings
 }
 
-/**
- * Retries while the server cannot be reached, which is what the old client did
- * for every call. Connect does not retry on its own, and an answer it did send
- * — including an error — is never retried, since that only multiplies load.
- */
 async function retrying<T>(
     attempt: () => Promise<T>,
     what: string,
@@ -166,7 +146,6 @@ async function retrying<T>(
     throw new Error(`${what} failed after ${ATTEMPTS} attempts`, {cause: lastError})
 }
 
-/** Connect reports a connection that never landed as `unavailable`. */
 function unreachable(e: unknown): boolean {
     return !(e instanceof ConnectError) || e.code === Code.Unavailable
 }
@@ -174,18 +153,6 @@ function unreachable(e: unknown): boolean {
 const INITIAL_RECONNECT_DELAY_MS = 500
 const MAX_RECONNECT_DELAY_MS = 30_000
 
-/**
- * Holds a websocket to the updates endpoint open for as long as the caller
- * wants it, reconnecting with a capped exponential backoff.
- *
- * The socket is the only source of live tile changes, so a drop that is never
- * retried leaves the globe frozen until the user reloads. The previous version
- * connected once, rejected on the first error with nobody awaiting the promise,
- * and returned a "close" function that referenced `websocket.close` without
- * calling it — so the socket was neither retried nor released.
- *
- * Returns a function that closes the socket and cancels any pending retry.
- */
 export function openUpdatesSocket(
     url: string,
     onUpdate: (update: Update) => void,
@@ -220,7 +187,6 @@ export function openUpdatesSocket(
             if (update) onUpdate(update)
         }
 
-        /** `onerror` is always followed by `onclose`, so only one of them retries. */
         ws.onclose = () => {
             if (socket === ws) socket = undefined
             scheduleReconnect()
@@ -241,7 +207,6 @@ export function openUpdatesSocket(
     }
 }
 
-/** A frame we cannot parse is dropped: it must not take the socket down with it. */
 export function decodeTileUpdate(data: unknown): Update | undefined {
     if (!(data instanceof ArrayBuffer)) {
         console.error("Ignoring a non-binary websocket frame", data)

@@ -2,8 +2,6 @@
     top: 16px;
     left: 16px;
     width: 360px;
-    /* A panel's content is bounded by the card, not the other way round: left to
-       the viewport alone the About panel grew to 80% of a tall screen. */
     max-height: min(calc(100vh - 32px), 640px);
     z-index: 128;
     padding: 16px;
@@ -53,7 +51,6 @@
     text-shadow: -1px 1px 0 #000000;
 }
 
-/* The affordance the bare country name never had: a control that says what it does. */
 .menu-change {
     display: flex;
     align-items: center;
@@ -86,8 +83,6 @@
         top: 0;
         left: 0;
         width: 100%;
-        /* Folded or not, a strip of globe stays visible underneath: the card is
-           a panel over the game, never a page that replaced it. */
         max-height: min(72vh, 600px);
         padding: 8px;
         border: none;

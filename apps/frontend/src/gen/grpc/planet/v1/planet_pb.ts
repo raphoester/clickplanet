@@ -192,10 +192,6 @@ export class GetMapRequest extends Message<GetMapRequest> {
 }
 
 /**
- * Tile ids are implicit: the nth tile of `tiles` is start_tile_id + n. That is
- * what makes this far smaller than a keyed map, which repeats an id the
- * position already carries.
- *
  * @generated from message planet.v1.GetMapResponse
  */
 export class GetMapResponse extends Message<GetMapResponse> {
@@ -205,16 +201,11 @@ export class GetMapResponse extends Message<GetMapResponse> {
   startTileId = 0;
 
   /**
-   * Country codes, indexed by the values in `tiles`. Index 0 is the unowned
-   * code and is always empty.
-   *
    * @generated from field: repeated string codes = 2;
    */
   codes: string[] = [];
 
   /**
-   * Two bytes per tile, little endian, an index into `codes`.
-   *
    * @generated from field: bytes tiles = 3;
    */
   tiles = new Uint8Array(0);

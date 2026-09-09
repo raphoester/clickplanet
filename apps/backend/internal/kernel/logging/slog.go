@@ -8,7 +8,6 @@ import (
 )
 
 // TODO: inject config
-
 func NewSLogger() *SLogger {
 	return &SLogger{
 		logger: slog.New(

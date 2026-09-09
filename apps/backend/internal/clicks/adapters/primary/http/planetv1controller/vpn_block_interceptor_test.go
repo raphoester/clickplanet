@@ -102,8 +102,6 @@ func TestVPNBlockInterceptor(t *testing.T) {
 	t.Run("lets a request with no source IP through", func(t *testing.T) {
 		blocklist := &fakeBlocklist{blocked: map[string]ipblock.List{"": ipblock.ListVPN}}
 
-		// The empty key is deliberately in the map: an address the middleware
-		// could not read must not be refused by accident, whatever a list says.
 		ran, _, err := vpnBlock(t, context.Background(), blocklist, planetv1connect.ClickServiceClickProcedure)
 
 		require.NoError(t, err)
@@ -111,8 +109,6 @@ func TestVPNBlockInterceptor(t *testing.T) {
 	})
 }
 
-// The real Blocklist behind a real registry, over HTTP, to prove the 403 and
-// the ordering against the throttle rather than just the interceptor in isolation.
 func TestVPNBlockOverHTTP(t *testing.T) {
 	blocklist, err := ipblock.New(ipblock.Config{Enabled: true})
 	require.NoError(t, err)
@@ -126,13 +122,10 @@ func TestVPNBlockOverHTTP(t *testing.T) {
 		NewRateLimitInterceptor(allowAll{}),
 	))
 
-	// 2.26.157.0/24 is the first line of the vendored VPN list.
 	require.Equal(t, http.StatusForbidden, clickStatus(t, server, "2.26.157.1"))
 	require.Equal(t, http.StatusOK, clickStatus(t, server, "8.8.8.8"))
 }
 
-// A blocked address must not also spend a token, or its next click would come
-// back 429 and the web app would show the throttle dialog instead of this one.
 func TestVPNBlockRunsBeforeTheThrottle(t *testing.T) {
 	blocklist := &fakeBlocklist{blocked: map[string]ipblock.List{"1.2.3.4": ipblock.ListVPN}}
 
@@ -150,8 +143,6 @@ func TestVPNBlockRunsBeforeTheThrottle(t *testing.T) {
 	require.Empty(t, limiter.keys, "the refused address never reached the bucket")
 }
 
-// clickServer stands up the real handler chain behind IPReaderMiddleware, which
-// is what puts the address the interceptors key on into the context.
 func clickServer(t *testing.T, options ...connect.HandlerOption) *httptest.Server {
 	t.Helper()
 

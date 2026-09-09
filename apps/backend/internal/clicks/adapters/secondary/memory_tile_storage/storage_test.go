@@ -163,7 +163,6 @@ func (s *testSuite) TestSubscribeClosesChannelOnContextCancel() {
 		s.T().Fatal("channel was not closed after the context was cancelled")
 	}
 
-	// A publish after the subscriber is gone must not panic or block.
 	s.Assert().NoError(s.storage.Set(context.Background(), 1, "fr"))
 }
 
@@ -176,10 +175,6 @@ func (s *testSuite) TestSlowSubscriberIsDroppedNotBlocking() {
 	listener, err := storage.Subscribe(ctx)
 	s.Require().NoError(err)
 
-	// The subscriber never reads: everything past its one-slot buffer is
-	// dropped, and Set keeps returning promptly.
-	// testify's Require calls FailNow, which is only safe on the test
-	// goroutine — hand errors back instead.
 	errs := make(chan error, 1)
 	go func() {
 		defer close(errs)
@@ -201,7 +196,6 @@ func (s *testSuite) TestSlowSubscriberIsDroppedNotBlocking() {
 	s.Assert().Equal(uint64(999), storage.DroppedUpdates())
 	s.Assert().Len(listener, 1)
 
-	// Everything still landed in the storage itself.
 	state, err := stateBatch(storage, 1, 1000)
 	s.Require().NoError(err)
 	s.Assert().Len(state, 1000)
@@ -214,7 +208,7 @@ func (s *testSuite) TestGetStateByBatch() {
 		s.Require().NoError(s.storage.Set(context.Background(), tile, constantValue))
 	}
 
-	state, err := stateBatch(s.storage, 10, 30) // bounds are inclusive
+	state, err := stateBatch(s.storage, 10, 30)
 	s.Require().NoError(err)
 
 	s.Assert().Equal(3, len(state))
@@ -229,7 +223,6 @@ func (s *testSuite) TestGetStateByBatchIgnoresUnsetAndOutOfRangeTiles() {
 	state, err := stateBatch(s.storage, 5, maxIndex+1_000)
 	s.Require().NoError(err)
 	s.Assert().Equal(map[uint32]string{10: "fr"}, state)
-
 }
 
 func (s *testSuite) TestPastUpdates() {
@@ -238,16 +231,16 @@ func (s *testSuite) TestPastUpdates() {
 		s.Require().NoError(s.storage.Set(context.Background(), tile, value))
 	}
 
-	set1Time := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC) // 00:00:00
+	set1Time := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 	at(set1Time, 10, "fr")
 
-	set2Time := set1Time.Add(45 * time.Minute) // 00:45:00
+	set2Time := set1Time.Add(45 * time.Minute)
 	at(set2Time, 11, "fr")
 
-	set3Time := set2Time.Add(10 * time.Minute) // 00:55:00
+	set3Time := set2Time.Add(10 * time.Minute)
 	at(set3Time, 12, "fr")
 
-	queryTime := set3Time.Add(30 * time.Minute) // 01:25:00
+	queryTime := set3Time.Add(30 * time.Minute)
 
 	pastUpdates, err := s.storage.PastUpdates(context.Background(), 1*time.Hour, queryTime)
 	s.Require().NoError(err)
@@ -314,8 +307,6 @@ func (s *testSuite) TestSnapshotRoundTrip() {
 
 	s.Assert().Equal(map[uint32]string{1: "fr", 2: "us", maxIndex: "de"}, state)
 
-	// The interning table survived, so overwriting a restored tile still
-	// reports the right previous owner.
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
@@ -373,7 +364,6 @@ func (s *testSuite) TestMissingSnapshotStartsEmpty() {
 	s.Require().NoError(err)
 	s.Assert().Empty(state)
 
-	// The storage is still fully usable.
 	s.Require().NoError(storage.Set(context.Background(), 1, "fr"))
 }
 
@@ -416,7 +406,6 @@ func (s *testSuite) TestCorruptSnapshotStartsEmpty() {
 			s.Require().NoError(err)
 			s.Assert().Empty(state)
 
-			// Still writable afterwards: a corrupt file is overwritten, not fatal.
 			s.Require().NoError(storage.Set(context.Background(), 1, "fr"))
 			s.Require().NoError(storage.Snapshot())
 		})
@@ -453,7 +442,6 @@ func (s *testSuite) TestRunSnapshotsPeriodicallyAndOnShutdown() {
 
 	s.Require().NoError(storage.Set(context.Background(), 7, "fr"))
 
-	// The interval is far away: only the shutdown snapshot can produce a file.
 	cancel()
 
 	select {
@@ -486,7 +474,6 @@ func (s *testSuite) TestRunWithoutSnapshotPathReturnsOnCancel() {
 	}
 }
 
-// TestConcurrentSetsAndReads is meant to be run under -race.
 func (s *testSuite) TestConcurrentSetsAndReads() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -508,18 +495,15 @@ func (s *testSuite) TestConcurrentSetsAndReads() {
 	s.Require().NoError(err)
 	go func() {
 		defer close(received)
-		for range listener { // drains until the storage closes the channel
+		for range listener {
 		}
 	}()
 
-	// A second subscriber that never reads, exercising the drop path.
 	_, err = storage.Subscribe(ctx)
 	s.Require().NoError(err)
 
 	countries := []string{"fr", "us", "de", "es"}
 
-	// Errors are collected and asserted on the test goroutine: testify's
-	// Require calls FailNow, which must not run off it.
 	errs := make(chan error, 2*writers)
 
 	wg := sync.WaitGroup{}
@@ -574,8 +558,6 @@ var _ domain.TileStorage = (*memory_tile_storage.Storage)(nil)
 
 var _ xtime.Provider = (*fakeClock)(nil)
 
-// stateBatch is the map the tests assert against, read back through the dense
-// encoding the API serves. An inverted range is covered in dense_test.go.
 func stateBatch(s *memory_tile_storage.Storage, start uint32, end uint32) (map[uint32]string, error) {
 	batch, err := s.StateBatchDense(start, end)
 	if err != nil {
@@ -585,7 +567,7 @@ func stateBatch(s *memory_tile_storage.Storage, start uint32, end uint32) (map[u
 	state := make(map[uint32]string)
 	for i := 0; i+1 < len(batch.Tiles); i += 2 {
 		code := binary.LittleEndian.Uint16(batch.Tiles[i : i+2])
-		if code == 0 { // the unowned code
+		if code == 0 {
 			continue
 		}
 		state[batch.Start+uint32(i/2)] = batch.Codes[code]

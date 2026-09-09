@@ -19,7 +19,6 @@ function setup(leaderboard: LeaderboardEntry[] = [], country = france) {
     return {...view, setCountry, user: userEvent.setup()}
 }
 
-/** Minus the table's own header row. */
 const leaderboardRows = () => screen.queryAllByRole("row").slice(1)
 const countryPanel = () => screen.queryByRole("listbox", {name: "Country"})
 const aboutDialog = () => screen.queryByRole("dialog", {name: "About ClickPlanet"})
@@ -36,10 +35,6 @@ describe("Menu", () => {
     })
 
     describe("the collapse", () => {
-        /**
-         * The card covers a phone screen, and the globe is the game. Folding it
-         * must leave something worth the strip it keeps.
-         */
         it("folds the card away, keeping the country and its rank on screen", async () => {
             const {user} = setup([entry("jp", 500), entry("fr", 250)])
 
@@ -69,7 +64,6 @@ describe("Menu", () => {
 
             await user.click(collapse())
             expect(collapse().getAttribute("aria-expanded")).toBe("false")
-            // Nothing to point at once the body is unmounted.
             expect(collapse().getAttribute("aria-controls")).toBeNull()
         })
 
@@ -78,7 +72,6 @@ describe("Menu", () => {
             expect(screen.getByText("—")).toBeDefined()
         })
 
-        /** Opening folded is a phone default; jsdom reports no media at all. */
         it("opens unfolded when nothing says the viewport is compact", () => {
             setup([entry("fr", 500)])
             expect(leaderboardRows()).toHaveLength(1)
@@ -94,10 +87,6 @@ describe("Menu", () => {
             expect(countryPanel()).not.toBeNull()
         })
 
-        /**
-         * Stacked instead, the card ran down the whole page and piled five
-         * buttons at its bottom. A panel takes the place of what opened it.
-         */
         it("replaces the leaderboard and the buttons", async () => {
             const {user} = setup([entry("fr", 500)])
 
@@ -107,7 +96,6 @@ describe("Menu", () => {
             expect(screen.queryByRole("button", {name: "About"})).toBeNull()
         })
 
-        /** One way out, at the top. Nothing at the foot of the panel. */
         it("walks back up on the back arrow, and offers no other way out", async () => {
             const {user} = setup([entry("fr", 500)])
 
@@ -139,7 +127,6 @@ describe("Menu", () => {
             expect(screen.getByRole("heading", {name: "Change country", level: 2})).toBeDefined()
         })
 
-        /** It blocks nothing, so it must not claim to be a dialog. */
         it("exposes the panel as a labelled region, not a dialog", async () => {
             const {user, container} = setup()
 
@@ -149,7 +136,6 @@ describe("Menu", () => {
             expect(container.querySelector("[aria-modal]")).toBeNull()
         })
 
-        /** Drilling in unmounts the button that was clicked. */
         it("moves focus into the panel, and hands it back to Change", async () => {
             const {user} = setup()
 
@@ -174,11 +160,6 @@ describe("Menu", () => {
     })
 
     describe("About", () => {
-        /**
-         * A detour rather than a step in the card's flow. As a panel it had a
-         * "Back" button contradicting the "Close" one level up; over the whole
-         * page, an × says exactly what will happen.
-         */
         it("opens as a modal dialog over the page, not inside the card", async () => {
             const {user, container} = setup()
 
@@ -199,7 +180,6 @@ describe("Menu", () => {
             expect(within(table).getByText("🇫🇷 France")).toBeDefined()
         })
 
-        /** A short screen used to show nothing of it but an orange line. */
         it("pins the coffee button outside the scrolling copy", async () => {
             const {user, container} = setup()
 

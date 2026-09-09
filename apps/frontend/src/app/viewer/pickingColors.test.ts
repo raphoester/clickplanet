@@ -15,10 +15,6 @@ describe("picking colors", () => {
         expect(colorToInteger([1, 0, 0])).toBe(65_536)
     })
 
-    /**
-     * The globe is ~257k tiles, so every id the renderer can assign has to
-     * survive the round trip through the picking buffer unchanged.
-     */
     it("round-trips every id in the range the tile map uses", () => {
         const broken: number[] = []
         for (let id = 1; id <= 300_000; id++) {
@@ -33,10 +29,6 @@ describe("picking colors", () => {
         }
     })
 
-    /**
-     * gpuPicking treats both of these as "nothing was picked": black is the
-     * background and the inner sphere, white is what an empty buffer reads as.
-     */
     it("reserves the two sentinel colours outside the usable id range", () => {
         expect(colorToInteger([0, 0, 0])).toBe(0)
         expect(colorToInteger([255, 255, 255])).toBe(0xffffff)

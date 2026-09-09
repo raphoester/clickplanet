@@ -49,7 +49,6 @@
     flex: 1 1 auto;
 }
 
-/* Says there is more below, which a hard cut at the panel's edge did not. */
 .modal-scroll::after {
     content: "";
     position: absolute;

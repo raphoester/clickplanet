@@ -7,9 +7,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/domain"
 )
 
-// StateBatchDense returns tiles [start, end] without repeating a tile id per
-// entry. The interned ids are copied out as stored and the table travels with
-// them, so nothing is translated here and the reader needs no country list.
 func (s *Storage) StateBatchDense(start uint32, end uint32) (domain.DenseBatch, error) {
 	s.tilesMu.RLock()
 	defer s.tilesMu.RUnlock()

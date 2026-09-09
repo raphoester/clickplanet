@@ -24,7 +24,6 @@ describe("rankCountries", () => {
         expect(rankCountries(counts({}))).toEqual([])
     })
 
-    /** Otherwise tied countries swap rows on every batch and the table flickers. */
     it("breaks ties on country code so the order is stable", () => {
         expect(codes({jp: 5, fr: 5, de: 5})).toEqual(["de", "fr", "jp"])
         expect(codes({de: 5, jp: 5, fr: 5})).toEqual(["de", "fr", "jp"])

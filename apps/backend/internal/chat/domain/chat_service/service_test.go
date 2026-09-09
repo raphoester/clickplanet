@@ -93,8 +93,6 @@ func (s *testSuite) TestTheSameSenderAlwaysGetsTheSameTag() {
 	s.Assert().Equal(first.AuthorTag, second.AuthorTag)
 }
 
-// The name is whatever the sender typed, so the tag is the only part of an
-// identity they cannot forge: two senders must never share one.
 func (s *testSuite) TestDifferentSendersGetDifferentTags() {
 	mine, err := s.service.Post(s.ctxFromIP("1.2.3.4"), validRequest())
 	s.Require().NoError(err)
@@ -133,7 +131,6 @@ func (s *testSuite) TestOverlongTextIsRefused() {
 	s.Assert().True(errors.Is(err, domain.ErrInvalidMessage))
 }
 
-// The bound is in runes: an emoji costs four bytes and must still count as one.
 func (s *testSuite) TestLengthIsCountedInRunesNotBytes() {
 	req := validRequest()
 	req.Text = strings.Repeat("🌍", 280)
@@ -150,8 +147,6 @@ func (s *testSuite) TestInvalidUTF8IsRefused() {
 	s.Assert().True(errors.Is(err, domain.ErrInvalidMessage))
 }
 
-// Newlines would let a sender forge extra lines in the JSONL log, and control
-// characters can wreck a terminal reading it.
 func (s *testSuite) TestControlCharactersAreStripped() {
 	req := validRequest()
 	req.Text = "hello\n{\"ip\":\"forged\"}\r\x00 planet"

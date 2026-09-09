@@ -19,9 +19,6 @@ loadMap().then(({pixels, width, height, channels}) => {
     const baseCoordinates = generateBaseCoordinates(detail);
     const landCoordinates = filterOutCoordinatesNotOnLand(baseCoordinates, pixels, width, height, channels);
 
-    // The JSON stays the human-readable generator output kept in the repo; only
-    // the binary is shipped, so both are written from the same run to keep them
-    // describing the same map.
     writeFileSync(jsonPath, JSON.stringify(landCoordinates));
     console.log(`wrote static/coordinates.json: ${landCoordinates.length} tiles`);
 
@@ -91,7 +88,7 @@ function filterOutCoordinatesNotOnLand(coordinates: Coordinates, pixels: Uint8Ar
 
     coordinates.positions = newPositions;
     coordinates.uvs = newUVs;
-    coordinates.length = newPositions.length / 3; // Mettre à jour la longueur
+    coordinates.length = newPositions.length / 3;
 
     return {
         positions: Array.from(coordinates.positions),
@@ -100,17 +97,6 @@ function filterOutCoordinatesNotOnLand(coordinates: Coordinates, pixels: Uint8Ar
     }
 }
 
-// Samples the map the same way the GPU samples the earth texture, so the dots
-// land where the visible continents are.
-//
-// The globe and the dots are both IcosahedronGeometry, so they share UVs, and
-// v = 1 is the north pole. Three.js loads textures with flipY = true, so v = 1
-// reads the TOP row of the image — hence height - 1 - (v * height), not
-// v * height.
-//
-// Both coordinates are clamped. u reaches exactly 1.0 on the seam vertices,
-// and floor(1.0 * width) is one past the last column: unclamped it silently
-// wraps into the first column of the next row and misclassifies those tiles.
 function isLand(
     u: number,
     v: number,

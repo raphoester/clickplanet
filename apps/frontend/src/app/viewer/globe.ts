@@ -21,7 +21,6 @@ import {OwnerChange, TileOwnership} from "../../domain/tileOwnership.ts";
 import {warnOnce} from "../../domain/warnOnce.ts";
 
 type Uniforms = {
-    /** Sprite diameter in pixels; GpuPicker sizes its window from the same value. */
     pointSize: THREE.IUniform
     atlasTexture: THREE.IUniform
     atlasTextureSize: THREE.IUniform
@@ -35,42 +34,20 @@ export type GlobeOptions = {
     tileClicker: TileClicker
     ownershipsGetter: OwnershipsGetter
     updatesListener: UpdatesListener
-    /** The element the canvas is appended to, and that input is read from. */
     container: HTMLElement
-    /** The country tiles are claimed for, until `setCountry` says otherwise. */
     country: Country
     onLeaderboardChange: (entries: LeaderboardEntry[]) => void
-    /**
-     * The server refused a click as too fast. Fires once per refused click, so
-     * a burst of them calls this many times over: whatever renders it has to be
-     * idempotent, not a queue.
-     */
     onRateLimited: () => void
-    /**
-     * The server refused a click because it came from a VPN or proxy address.
-     * Same contract as {@link onRateLimited}: once per refused click.
-     */
     onVPNBlocked: () => void
-    /** Abandons the load; the returned globe is never handed back. */
     signal: AbortSignal
 }
 
-/** A running globe. Everything it owns is released by `dispose`. */
 export type Globe = {
     readonly tilesCount: number
     setCountry(country: Country): void
-    /** Safe to call at any point after `createGlobe` resolves, and only once. */
     dispose(): void
 }
 
-/**
- * Builds the scene, wires input and the backends to it, and starts rendering.
- *
- * This is the one place that is unavoidably procedural: WebGL setup is a state
- * machine with an order to it, and the resources it allocates have to be
- * released by hand. Everything that does *not* need a GPU lives in `domain/`
- * behind plain function calls, so what is left here is only the wiring.
- */
 export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const {
         tileClicker,
@@ -84,13 +61,9 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         signal,
     } = options
 
-    // Fetched before anything is allocated, so a run abandoned during the
-    // download (StrictMode's throwaway first mount, or an unmount) never opens a
-    // WebGL context in the first place.
     const geometryData = await loadPointGeometryData(signal);
     if (signal.aborted) throw new DOMException("globe load aborted", "AbortError");
 
-    /** Aborted by dispose(); detaches every listener this run registered. */
     const lifetime = new AbortController();
     const listenerOptions = {signal: lifetime.signal};
 
@@ -113,7 +86,6 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         updateLeaderboard(rankCountries(ownership.counts()))
     }
 
-    /** Event coordinates in the canvas's own pixels, whatever the pixel ratio. */
     const canvasPosition = (event: MouseEvent) => {
         const canvas = renderer.domElement
         const rect = canvas.getBoundingClientRect()
@@ -123,11 +95,6 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         }
     }
 
-    /**
-     * Where the cursor was last seen, resolved to a tile once per frame rather
-     * than once per event. A pick costs a render and a synchronous GPU read, and
-     * mousemove fires far more often than the screen refreshes.
-     */
     let pendingPointer: {x: number, y: number} | undefined
 
     eventTarget.addEventListener('mousemove', (event: MouseEvent) => {
@@ -140,7 +107,6 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     }, listenerOptions);
 
     eventTarget.addEventListener('click', (event: MouseEvent) => {
-        /** protection from element.dispatchEvent(e) */
         if (!event.isTrusted) return;
 
         const {x, y} = canvasPosition(event)
@@ -157,7 +123,6 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             reportClickFailure(e, {onRateLimited, onVPNBlocked})
         })
 
-        /** Painted straight away; the server's echo confirms it later. */
         applyChanges(ownership.applyUpdates([{
             tile,
             previousCountry: ownership.ownerOf(tile),
@@ -175,7 +140,6 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
         renderer.setSize(width, height);
     };
-    // resize is a window event and cannot be captured by the eventTarget
     window.addEventListener('resize', resizeListener, listenerOptions);
 
     ownershipsGetter.getCurrentOwnershipsByBatch(
@@ -206,16 +170,11 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             country = newCountry
         },
         dispose: () => {
-            // Detaches every listener this run registered. Replaces the old
-            // clone-and-swap trick, which also destroyed the canvas a concurrent
-            // StrictMode run had appended to the same container.
             lifetime.abort()
 
             stopAnimation()
             cleanUpdatesListener()
 
-            // The picking points live only in the picker's own scene, so
-            // setupScene's cleanup never sees them.
             picker.dispose()
             field.dispose()
 
@@ -235,19 +194,14 @@ function startAnimation(
     controls.minZoom = 1;
     controls.maxZoom = 50;
     controls.panSpeed = 0.1;
-    // Gives a smooth effect to the action of rotating the sphere with the mouse
     controls.enableDamping = true;
 
     controls.addEventListener('change', () => {
         controls.autoRotate = camera.zoom === 1;
 
-        // Decreases the speed at which the user can rotate the sphere with the mouse the more he zooms in
         controls.rotateSpeed = (1 / camera.zoom) / 1.5;
     });
 
-    // setAnimationLoop rather than a self-scheduling requestAnimationFrame: the
-    // latter cannot be stopped, so every remount left another loop rendering
-    // through a disposed renderer.
     renderer.setAnimationLoop(() => {
         controls.update();
         beforeRender();
@@ -261,17 +215,6 @@ function startAnimation(
     };
 }
 
-/**
- * Routes a failed click to the player or to the console.
- *
- * The two refusals are ordinary outcomes, not faults: they are shown to the
- * player rather than logged, or a spammer would fill the console with a line
- * per click. Everything else is a real fault and still goes to the console.
- *
- * Split out of the click handler so it can be tested. Sending one refusal to
- * the other's dialog is the easiest mistake to make here and the hardest to
- * spot — the page still works, it just gives the wrong advice.
- */
 export function reportClickFailure(
     error: unknown,
     handlers: {onRateLimited: () => void, onVPNBlocked: () => void},

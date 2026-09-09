@@ -26,9 +26,6 @@ func (l *fakeLimiter) Allow(key string) bool {
 	return l.allow
 }
 
-// fakeRequest names a procedure, which is all the interceptor reads. The
-// server fills the spec in for real; connect.NewRequest builds a client-side
-// request whose spec is empty and read-only.
 type fakeRequest struct {
 	connect.AnyRequest
 	spec connect.Spec
@@ -98,11 +95,6 @@ func TestRateLimitInterceptor(t *testing.T) {
 	})
 }
 
-// TestRateLimitOverHTTP walks the whole chain a real click goes through — the
-// IP middleware, both interceptors and the generated handler — because that is
-// where the parts can disagree: an interceptor order that lets the error
-// mapping rewrite the refusal, or a limiter keyed on an IP the middleware
-// never put on the context.
 func TestRateLimitOverHTTP(t *testing.T) {
 	clock := &fakeClock{now: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)}
 	limiter := ratelimit.New(ratelimit.Config{PerSecond: 1, Burst: 10}, clock)
@@ -127,8 +119,6 @@ func TestRateLimitOverHTTP(t *testing.T) {
 	err := click("1.2.3.4")
 	require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(err))
 
-	// The same refusal seen the way a browser sees it, since the status is
-	// what a proxy or a client-side backoff keys on.
 	require.Equal(t, http.StatusTooManyRequests, clickStatus(t, server, "1.2.3.4"))
 
 	require.NoError(t, click("5.6.7.8"), "another address has its own allowance")
@@ -137,8 +127,6 @@ func TestRateLimitOverHTTP(t *testing.T) {
 	require.NoError(t, click("1.2.3.4"), "a second later the bucket has a token again")
 }
 
-// clickStatus posts a Connect unary request by hand and reports the HTTP
-// status, which the generated client hides behind a code.
 func clickStatus(t *testing.T, server *httptest.Server, ip string) int {
 	t.Helper()
 

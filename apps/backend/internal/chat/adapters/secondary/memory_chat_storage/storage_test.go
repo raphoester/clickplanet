@@ -132,7 +132,6 @@ func (s *testSuite) TestSubscriberChannelClosesWithItsContext() {
 	}
 }
 
-// A client that stops reading must not be able to stall every sender.
 func (s *testSuite) TestSlowSubscribersHaveMessagesDropped() {
 	storage := s.newStorage(memory_chat_storage.Config{SubscriberBuffer: 1})
 
@@ -258,8 +257,6 @@ func (s *testSuite) TestPruningDropsExpiredRecords() {
 	s.Assert().Contains(log, "recent")
 }
 
-// A prune replaces the file, so the append handle has to follow it to the new
-// inode — otherwise later messages land in a file nothing can read.
 func (s *testSuite) TestAppendingStillWorksAfterAPrune() {
 	storage := s.newStorage(memory_chat_storage.Config{
 		Retention:     24 * time.Hour,
@@ -273,7 +270,6 @@ func (s *testSuite) TestAppendingStillWorksAfterAPrune() {
 	stop := s.startRunning(storage)
 	s.waitUntilGone("ancient")
 
-	// Still running: the append has to land in the file the prune put in place.
 	s.Require().NoError(storage.Append(context.Background(), s.record("after-prune")))
 	stop()
 

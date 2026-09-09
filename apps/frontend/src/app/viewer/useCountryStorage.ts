@@ -7,7 +7,7 @@ function readStoredCountry(): string | null {
     try {
         return window.localStorage.getItem(COUNTRY_STORAGE_KEY)
     } catch {
-        return null // private mode, or storage disabled entirely
+        return null
     }
 }
 

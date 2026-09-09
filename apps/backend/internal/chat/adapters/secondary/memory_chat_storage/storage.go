@@ -12,9 +12,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/xtime"
 )
 
-// New builds a chat storage holding the last HistorySize messages in memory and
-// appending every one to the configured log file. An unreadable log only logs,
-// it never prevents a start.
 func New(
 	config Config,
 	timeProvider xtime.Provider,
@@ -63,8 +60,6 @@ type subscriber struct {
 }
 
 func (s *Storage) Append(_ context.Context, record domain.ChatRecord) error {
-	// The log is the audit trail, so a message nobody can account for later is
-	// not one we broadcast: a failed write fails the whole post.
 	if err := s.appendToLog(record); err != nil {
 		return fmt.Errorf("failed to write to the chat log: %w", err)
 	}
@@ -93,10 +88,6 @@ func (s *Storage) remember(message domain.ChatMessage) {
 	s.history = append(s.history, message)
 }
 
-// Subscribe returns a channel fed with every message, for as long as ctx lives.
-// It mirrors the tile storage's fanout: one buffered channel per subscriber,
-// and a subscriber that cannot keep up has messages dropped rather than
-// stalling every sender.
 func (s *Storage) Subscribe(ctx context.Context) (<-chan domain.ChatMessage, error) {
 	sub := &subscriber{ch: make(chan domain.ChatMessage, s.config.SubscriberBuffer)}
 
@@ -138,8 +129,6 @@ func (s *Storage) publish(message domain.ChatMessage) {
 	}
 }
 
-// DroppedMessages reports how many messages were dropped across all current
-// subscribers, for tests and diagnostics.
 func (s *Storage) DroppedMessages() uint64 {
 	s.subscribersMu.Lock()
 	defer s.subscribersMu.Unlock()

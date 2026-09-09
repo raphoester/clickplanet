@@ -33,8 +33,6 @@ func TestSetContainsIPv6(t *testing.T) {
 	assert.False(t, set.Contains("2001:db7:ffff:ffff:ffff:ffff:ffff:ffff"))
 }
 
-// The two families share one 16-byte ordering, so a v4 address must not be able
-// to land inside a v6 range that happens to share its bytes, or vice versa.
 func TestSetKeepsTheFamiliesApart(t *testing.T) {
 	v4Only := parse(t, "10.0.0.0/8\n")
 	assert.False(t, v4Only.Contains("a00::1"))
@@ -43,16 +41,12 @@ func TestSetKeepsTheFamiliesApart(t *testing.T) {
 	assert.False(t, v6Only.Contains("10.0.0.1"))
 }
 
-// An IPv4 address written in its v4-mapped form is the same address, so it has
-// to look up the same place.
 func TestSetContainsV4MappedForm(t *testing.T) {
 	set := parse(t, "10.0.0.0/24\n")
 
 	assert.True(t, set.Contains("::ffff:10.0.0.1"))
 }
 
-// A list is free to write a prefix with its host bits set. It names the same
-// network either way.
 func TestSetMasksHostBits(t *testing.T) {
 	set := parse(t, "10.0.0.7/24\n")
 
@@ -62,7 +56,6 @@ func TestSetMasksHostBits(t *testing.T) {
 }
 
 func TestSetMergesOverlappingAndAdjacentRanges(t *testing.T) {
-	// A nested prefix, an overlapping one, and a neighbour that merely touches.
 	set := parse(t, "10.0.0.0/24\n10.0.0.128/25\n10.0.1.0/24\n")
 
 	assert.Equal(t, 1, set.Len(), "the three fold into one range")
@@ -71,8 +64,6 @@ func TestSetMergesOverlappingAndAdjacentRanges(t *testing.T) {
 	assert.False(t, set.Contains("10.0.2.0"))
 }
 
-// Merging must not fold ranges that only look adjacent. A gap of one address is
-// still a gap.
 func TestSetKeepsRangesWithAGapApart(t *testing.T) {
 	set := parse(t, "10.0.0.0/24\n10.0.2.0/24\n")
 
@@ -80,8 +71,6 @@ func TestSetKeepsRangesWithAGapApart(t *testing.T) {
 	assert.False(t, set.Contains("10.0.1.0"))
 }
 
-// A range sitting at the very top of its family is ordinary, and merging must
-// not run off the end of the address space while folding it.
 func TestSetHandlesTheTopOfEachFamily(t *testing.T) {
 	set := parse(t, "255.255.255.254/31\nffff:ffff:ffff:ffff:ffff:ffff:ffff:fffe/127\n")
 
@@ -91,8 +80,6 @@ func TestSetHandlesTheTopOfEachFamily(t *testing.T) {
 	assert.False(t, set.Contains("255.255.255.253"))
 }
 
-// The two families live in separate slices, so nothing in one can merge with
-// anything in the other however their bytes happen to sort.
 func TestSetNeverMergesAcrossFamilies(t *testing.T) {
 	set := parse(t, "0.0.0.0/0\n::/0\n")
 
@@ -108,8 +95,6 @@ func TestSetSkipsBlankAndCommentLines(t *testing.T) {
 	assert.True(t, set.Contains("10.0.0.1"))
 }
 
-// These lists are vendored, so a line that is not a prefix means the vendoring
-// went wrong — better to fail loudly than to silently enforce a shorter list.
 func TestParseRejectsAMalformedLine(t *testing.T) {
 	_, err := ipblock.Parse(strings.NewReader("10.0.0.0/24\nnot-a-prefix\n"))
 

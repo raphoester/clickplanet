@@ -241,17 +241,11 @@ func (x *GetMapRequest) GetEndTileId() uint32 {
 	return 0
 }
 
-// Tile ids are implicit: the nth tile of `tiles` is start_tile_id + n. That is
-// what makes this far smaller than a keyed map, which repeats an id the
-// position already carries.
 type GetMapResponse struct {
-	state       protoimpl.MessageState `protogen:"open.v1"`
-	StartTileId uint32                 `protobuf:"varint,1,opt,name=start_tile_id,json=startTileId,proto3" json:"start_tile_id,omitempty"`
-	// Country codes, indexed by the values in `tiles`. Index 0 is the unowned
-	// code and is always empty.
-	Codes []string `protobuf:"bytes,2,rep,name=codes,proto3" json:"codes,omitempty"`
-	// Two bytes per tile, little endian, an index into `codes`.
-	Tiles         []byte `protobuf:"bytes,3,opt,name=tiles,proto3" json:"tiles,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	StartTileId   uint32                 `protobuf:"varint,1,opt,name=start_tile_id,json=startTileId,proto3" json:"start_tile_id,omitempty"`
+	Codes         []string               `protobuf:"bytes,2,rep,name=codes,proto3" json:"codes,omitempty"`
+	Tiles         []byte                 `protobuf:"bytes,3,opt,name=tiles,proto3" json:"tiles,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }

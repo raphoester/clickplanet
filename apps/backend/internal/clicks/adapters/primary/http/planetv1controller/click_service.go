@@ -11,15 +11,12 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/domain/click_handler_service"
 )
 
-// mapMaxAge is short because the websocket carries everything newer.
 const mapMaxAge = 5
 
-// DenseMapReader reads a tile range without repeating an id per tile.
 type DenseMapReader interface {
 	StateBatchDense(start uint32, end uint32) (domain.DenseBatch, error)
 }
 
-// ClickService implements the generated service interface and nothing else.
 type ClickService struct {
 	clickHandlerService click_handler_service.IService
 	tilesChecker        domain.TilesChecker

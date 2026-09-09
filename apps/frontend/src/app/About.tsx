@@ -1,6 +1,5 @@
 import "./About.css"
 
-/** The contents of the About dialog; the chrome, and the coffee, are Modal's. */
 export default function About() {
     return <>
         <h3>The ultimate world war</h3>

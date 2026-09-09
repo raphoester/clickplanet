@@ -20,9 +20,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/xtime"
 )
 
-// configureChatIfEnabled wires the live chat. Nothing is registered when it is
-// off, so a disabled chat answers 404 rather than an error — and the public,
-// unauthenticated write endpoint does not exist at all.
 func (a *App) configureChatIfEnabled(_ context.Context) error {
 	if !a.config.Chat.Enabled {
 		return nil
@@ -62,22 +59,14 @@ func (a *App) configureChatIfEnabled(_ context.Context) error {
 	a.runners = append(a.runners, publisher.Run)
 	a.mountWS(publisher.DeclareRoutes)
 
-	// Its own limiter, not the one the Click RPC uses: a message costs far more
-	// than a click — it fans out to every client and lands in a log everyone
-	// will read — so the two budgets have nothing to do with each other.
 	messageLimiter := ratelimit.New(a.config.Chat.RateLimiter, xtime.ActualProvider{})
 	a.runners = append(a.runners, func() { messageLimiter.Run(a.ctx) })
 
-	// The same prefix set the click blocklist is built on, so an entry covers a
-	// range and a /24 is one line rather than 256.
 	blocklist, err := ipblock.NewDenyList(a.config.Chat.BlockedIPs)
 	if err != nil {
 		return fmt.Errorf("failed to build the chat blocklist: %w", err)
 	}
 
-	// Same order as the click chain: the error mapping outside everything, and
-	// the blocklist outside the limiter so a refused sender does not also spend
-	// a token.
 	a.mountRPC(chatv1connect.NewChatServiceHandler(
 		chatv1controller.NewChatService(service),
 		connect.WithInterceptors(

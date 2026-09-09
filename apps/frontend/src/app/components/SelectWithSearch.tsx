@@ -9,33 +9,18 @@ type SelectWithSearchProps = {
     onChange: (value: Value) => void
 }
 
-/**
- * The selection itself is the caller's state, not ours: it is persisted and
- * pushed to the renderer. Mirroring it locally, as this used to, meant the
- * dropdown kept showing its own stale copy whenever the country changed from
- * anywhere else.
- *
- * The list is our own markup rather than a `<select size={5}>`, because mobile
- * WebKit ignores `size` entirely: every `<select>` collapses to a one-line
- * control that opens the native picker, so the search field ended up filtering
- * a list the user could not see, and the collapsed row rendered in the UA's
- * default black on our near-black modal.
- */
 export default function SelectWithSearch(props: SelectWithSearchProps) {
     const [search, setSearch] = useState("")
     const listRef = useRef<HTMLDivElement>(null)
 
     const options = visibleOptions(props.values, props.selected, search)
 
-    // The keyboard cursor, held by code rather than by index so that filtering
-    // cannot silently move it onto another country.
     const [activeCode, setActiveCode] = useState(props.selected.code)
     const activeIndex = Math.max(options.findIndex((v) => v.code === activeCode), 0)
     const activeOption: Value | undefined = options[activeIndex]
 
     useEffect(() => {
         const active = listRef.current?.querySelector("[data-active=true]")
-        // jsdom has no scrollIntoView, and neither does an empty result set.
         active?.scrollIntoView?.({block: "nearest"})
     }, [activeCode, options.length])
 
@@ -45,12 +30,6 @@ export default function SelectWithSearch(props: SelectWithSearchProps) {
         props.onChange(value)
     }
 
-    /**
-     * Typing puts the cursor on the first actual match, not merely on the first
-     * row: `visibleOptions` keeps the selected country in the list even when the
-     * search excludes it, and landing on that would make Enter re-pick what is
-     * already selected — the keyboard form of the bug #14 fixed for clicks.
-     */
     const handleSearchChange = (next: string) => {
         setSearch(next)
         const nextOptions = visibleOptions(props.values, props.selected, next)
@@ -60,7 +39,6 @@ export default function SelectWithSearch(props: SelectWithSearchProps) {
         setActiveCode(cursor.code)
     }
 
-    /** The keys a `<select size={n}>` used to handle for us. */
     const handleNavigationKey = (event: KeyboardEvent<HTMLElement>): boolean => {
         if (options.length === 0) return false
 
@@ -87,7 +65,6 @@ export default function SelectWithSearch(props: SelectWithSearchProps) {
     }
 
     const handleListKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-        // Space only picks inside the list; in the search field it is a space.
         if (event.key === " " && activeOption) {
             event.preventDefault()
             choose(activeOption)
@@ -122,12 +99,6 @@ export default function SelectWithSearch(props: SelectWithSearchProps) {
             onKeyDown={handleListKeyDown}
             className="input-select">
             {options.map((v) => (
-                /*
-                 * The options are deliberately not focusable and carry no key
-                 * handler of their own: the listbox holds the focus and moves a
-                 * cursor with aria-activedescendant, which is what the arrow,
-                 * Home, End, Enter and Space handling above operates on.
-                 */
                 // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/interactive-supports-focus
                 <div
                     id={`country-option-${v.code}`}

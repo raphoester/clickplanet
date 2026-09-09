@@ -15,8 +15,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// payload stands in for whatever a bounded context broadcasts: the publisher
-// only ever sees the bytes the encoder returns.
 type payload struct {
 	body string
 	fail bool
@@ -46,8 +44,6 @@ func TestPublisherServesConnectedClients(t *testing.T) {
 	assert.Equal(t, "hello", string(bin))
 }
 
-// A payload the encoder refuses must not take the fanout down with it: the
-// stream skips it and keeps serving whatever comes next.
 func TestPublisherSkipsPayloadsItCannotEncode(t *testing.T) {
 	updates, publisher, url := startPublisher(t)
 
@@ -73,7 +69,7 @@ func TestPublisherForgetsAbruptlyDisconnectedClients(t *testing.T) {
 
 	conn := dialClient(t, ctx, publisher, url)
 
-	require.NoError(t, conn.CloseNow()) // killed without a close handshake
+	require.NoError(t, conn.CloseNow())
 
 	requireEventualClientCount(t, publisher, 0)
 

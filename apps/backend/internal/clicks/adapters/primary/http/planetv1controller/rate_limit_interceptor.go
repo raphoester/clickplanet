@@ -10,9 +10,6 @@ import (
 
 type ClickLimiter = connectutil.Limiter
 
-// NewRateLimitInterceptor throttles Click only. MapDensity and GetMap are
-// cacheable reads a proxy in front absorbs; limiting them would punish a page
-// load rather than a bot.
 func NewRateLimitInterceptor(limiter ClickLimiter) connect.Interceptor {
 	return connectutil.NewRateLimitInterceptor(
 		limiter,

@@ -17,11 +17,6 @@ describe("countryFromTimeZone", () => {
         expect(countryFromTimeZone("")).toBeUndefined()
     })
 
-    /**
-     * The time zone table is not the same data set as our country list, so a
-     * zone can legitimately resolve to a code we have no flag for. Those have
-     * to come back undefined rather than as an unrenderable country.
-     */
     it("never returns a country the renderer cannot draw", () => {
         const zones = ["Europe/Paris", "Asia/Tokyo", "America/New_York", "Africa/Cairo",
             "Australia/Sydney", "Antarctica/McMurdo", "Pacific/Chatham", "Europe/Vatican"]

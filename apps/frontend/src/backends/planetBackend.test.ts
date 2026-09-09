@@ -15,7 +15,6 @@ describe("websocketUrl", () => {
         expect(websocketUrl("http://localhost:8080")).toBe("ws://localhost:8080/ws/listen")
     })
 
-    /** The old version string-replaced "https://" away, so a host containing it broke. */
     it("only rewrites the leading scheme", () => {
         expect(websocketUrl("https://api.http://x.dev")).toBe("wss://api.http://x.dev/ws/listen")
     })
@@ -32,7 +31,6 @@ describe("decodeTileUpdate", () => {
             .toEqual({tile: 1, previousCountry: undefined, newCountry: "fr"})
     })
 
-    /** A bad frame must be dropped: it used to throw out of the socket's onmessage. */
     it("drops a frame it cannot parse", () => {
         vi.spyOn(console, "error").mockImplementation(() => {})
         expect(decodeTileUpdate(new Uint8Array([0xff, 0xff, 0xff, 0xff]).buffer)).toBeUndefined()
@@ -58,7 +56,6 @@ class FakeWebSocket {
         this.onclose?.()
     }
 
-    /** Simulates the server or network dropping the connection. */
     drop() {
         this.onclose?.()
     }
@@ -99,10 +96,6 @@ describe("openUpdatesSocket", () => {
         expect(received).toEqual([])
     })
 
-    /**
-     * The socket is the only source of live tile changes. Before this, a drop
-     * was never retried and the globe silently froze until a reload.
-     */
     it("reconnects after the connection drops", () => {
         openUpdatesSocket("wss://example.test/ws", () => {})
         expect(FakeWebSocket.instances).toHaveLength(1)
@@ -145,7 +138,7 @@ describe("openUpdatesSocket", () => {
         latest().drop()
         vi.advanceTimersByTime(1000)
 
-        latest().onopen!() // reconnected
+        latest().onopen!()
 
         const before = FakeWebSocket.instances.length
         latest().drop()
@@ -153,7 +146,6 @@ describe("openUpdatesSocket", () => {
         expect(FakeWebSocket.instances).toHaveLength(before + 1)
     })
 
-    /** The returned closer used to reference `websocket.close` without calling it. */
     it("closes the socket when the caller stops listening", () => {
         const close = openUpdatesSocket("wss://example.test/ws", () => {})
         const socket = latest()
@@ -197,7 +189,6 @@ describe("bindingsOf", () => {
             .toEqual(new Map([[10, "fr"], [11, "de"], [12, "fr"]]))
     })
 
-    /** Unowned tiles are left out, which is the shape the globe already applies. */
     it("skips unowned tiles rather than binding them to an empty code", () => {
         expect(bindingsOf(mapResponse(0, ["", "fr"], [0, 1, 0]))).toEqual(new Map([[1, "fr"]]))
     })
@@ -210,7 +201,6 @@ describe("bindingsOf", () => {
         expect(bindingsOf(mapResponse(0, [""], []))).toEqual(new Map())
     })
 
-    /** A view onto a larger buffer must not read its neighbours. */
     it("survives tiles that do not start at offset zero", () => {
         const padded = new Uint8Array([0xff, 0xff, ...tileBytes([1])])
         const res = new GetMapResponse({startTileId: 4, codes: ["", "jp"], tiles: padded.subarray(2)})
@@ -221,7 +211,6 @@ describe("bindingsOf", () => {
 type GetMapRequestFields = {startTileId: number, endTileId: number}
 type GetMapMock = ReturnType<typeof getMapMock>
 
-/** Typed so `mock.calls` keeps its argument, which `vi.fn()` alone loses. */
 function getMapMock(impl?: (req: GetMapRequestFields) => Promise<GetMapResponse>) {
     return vi.fn<(req: GetMapRequestFields) => Promise<GetMapResponse>>(impl)
 }
@@ -262,7 +251,6 @@ describe("PlanetBackend.getCurrentOwnershipsByBatch", () => {
         backend.close()
     })
 
-    /** An answer the server chose to send is never retried: that only adds load. */
     it("does not retry an error the server answered with", async () => {
         const getMap = getMapMock().mockRejectedValue(new ConnectError("nope", Code.InvalidArgument))
         const backend = backendWith(getMap)
@@ -302,11 +290,6 @@ describe("PlanetBackend.clickTile", () => {
         backend.close()
     })
 
-    /**
-     * The throttle's answer is the one click failure the app shows the player,
-     * so it must not reach them as a Connect code — nor be retried, which would
-     * be the app hammering a server that just asked it to stop.
-     */
     it("reports the per-IP throttle as a RateLimitedError, without retrying", async () => {
         const refused = new ConnectError("too many clicks", Code.ResourceExhausted)
         const click = vi.fn().mockRejectedValue(refused)
@@ -325,11 +308,6 @@ describe("PlanetBackend.clickTile", () => {
         backend.close()
     })
 
-    /**
-     * Same treatment as the throttle, and for the same reason — but a distinct
-     * class, because the two dialogs give opposite advice: ease off versus turn
-     * the VPN off.
-     */
     it("reports the VPN refusal as a VPNBlockedError, without retrying", async () => {
         const refused = new ConnectError("clicks from VPN addresses are refused", Code.PermissionDenied)
         const click = vi.fn().mockRejectedValue(refused)
@@ -357,7 +335,6 @@ describe("PlanetBackend.clickTile", () => {
         backend.close()
     })
 
-    /** Unreachable is still retried, and is not a throttle. */
     it("retries a server it could not reach", async () => {
         vi.spyOn(console, "error").mockImplementation(() => {})
         const click = vi.fn()

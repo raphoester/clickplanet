@@ -17,17 +17,6 @@ export type UseGlobeOptions = {
     country: Country
 }
 
-/**
- * Owns one running globe for as long as the component is mounted, and exposes
- * what React needs to render around it.
- *
- * The effect deliberately depends on the three backends and nothing else. It
- * used to depend on the whole props object, which is a fresh reference on every
- * render, so any re-render of a parent would have torn down the WebGL context
- * and rebuilt the entire scene. The selected country is pushed in through a
- * separate effect for the same reason: it changes often, and rebuilding the
- * globe for it would be absurd.
- */
 export function useGlobe(options: UseGlobeOptions) {
     const {container, tileClicker, ownershipsGetter, updatesListener, country} = options
 
@@ -35,22 +24,12 @@ export function useGlobe(options: UseGlobeOptions) {
     const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
     const [tilesCount, setTilesCount] = useState(0)
 
-    /**
-     * A flag rather than a count: the globe reports every refused click, and a
-     * burst of them is one thing to tell the player, once.
-     */
     const [rateLimited, setRateLimited] = useState(false)
 
-    /**
-     * Same flag-not-a-count reasoning. Unlike the throttle this one does not
-     * clear on its own — the player has to change network — so dismissing it
-     * only closes the dialog, and the next refused click raises it again.
-     */
     const [vpnBlocked, setVPNBlocked] = useState(false)
 
     const globeRef = useRef<Globe | null>(null)
 
-    /** Read once, when the globe is built; later changes go through setCountry. */
     const initialCountry = useRef(country)
 
     useEffect(() => {

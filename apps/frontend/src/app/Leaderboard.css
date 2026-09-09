@@ -1,5 +1,4 @@
 .leaderboard {
-    /* Anchors the fade that tells you the table has more rows below. */
     position: relative;
     display: flex;
     flex-direction: column;
@@ -41,7 +40,6 @@
     table-layout: fixed;
 }
 
-/* A narrow column used to break the flag onto its own line above the name. */
 .leaderboard-entry td {
     overflow: hidden;
     text-overflow: ellipsis;
@@ -51,14 +49,9 @@
 .leaderboard-table-number {
     width: 66px;
     text-align: right;
-    /* Six-digit tile counts ran straight into the share beside them. */
     padding-left: 12px;
 }
 
-/*
- * Figures in Oswald rather than the display face: six-digit tile counts are
- * common and Luckiest Guy is wide enough that they no longer fit the column.
- */
 .leaderboard-entry .leaderboard-table-number {
     font-family: Oswald, sans-serif;
     font-weight: 500;
@@ -70,16 +63,6 @@
     text-shadow: -1px 1px 0px #404040;
 }
 
-/*
- * `table-layout: fixed` sizes every column off the header row, so the widths
- * live on the `th`s: on the cells they were ignored, and the country column
- * ended up narrow enough to break the flag onto its own line above the name.
- *
- * Wide enough for the last rank in the table — 255 countries, and "200" is the
- * widest of them in Oswald at 24px — plus the cell's own padding. At 26px it
- * fit two digits and only sometimes: Oswald's figures are not tabular, so "27"
- * squeezed in where "26" did not, and the column ellipsised the difference.
- */
 .leaderboard-table-rank {
     width: 34px;
 }
@@ -91,15 +74,9 @@
     font-weight: 500;
     font-size: 15px;
     color: #FFFFFF80;
-    /*
-     * Never ellipsise a rank. A clipped name is still the country you know,
-     * but "2…" is not a number — it was rank 26, 28, 29 or 30 and the row no
-     * longer says which. The name is the cell with slack to give.
-     */
     text-overflow: clip;
 }
 
-/* Your own row, so you can find yourself without counting down the table. */
 .leaderboard-entry-player td {
     background: #FF813F1F;
 }
@@ -117,11 +94,6 @@
         font-size: 14px;
     }
 
-    /*
-     * Specific enough to beat `.leaderboard-entry td` above, which set 17px on
-     * every cell in the row and left this rule dead: ranks rendered at the
-     * name's size, which is what overran the column in the first place.
-     */
     .leaderboard-entry .leaderboard-entry-index {
         font-size: 13px;
     }

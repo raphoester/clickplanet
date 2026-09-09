@@ -2,33 +2,18 @@ syntax = "proto3";
 
 package chat.v1;
 
-// Chat is its own bounded context: it shares the transport and the process with
-// the tile game, and nothing else. Its contract therefore lives in its own
-// package, and Connect derives its own route — /chat.v1.ChatService/ — from it.
 service ChatService {
   rpc SendMessage(SendMessageRequest) returns (SendMessageResponse);
 
-  // Served as a GET, but deliberately not cacheable: the answer changes with
-  // every message, so the handler sets no-store. See GetMap for the opposite
-  // tradeoff.
   rpc GetHistory(GetHistoryRequest) returns (GetHistoryResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
 }
 
-// ChatMessage is one message as broadcast on the websocket and returned by the
-// history RPC. Nothing identifying beyond the display name and the
-// server-derived tag leaves the server: the sender's IP only ever reaches the
-// on-disk log.
 message ChatMessage {
-  // Server-assigned, unique, and stable across the websocket broadcast and the
-  // history RPC, so a client can deduplicate the two.
   string id = 1;
   int64 sent_at_unix_ms = 2;
   string author_name = 3;
-  // Short hash the server derives from the sender's IP. Clients pick their own
-  // name, so this is the only part of an identity they cannot forge — two
-  // people using the same name still carry different tags.
   string author_tag = 4;
   string country_id = 5;
   string text = 6;
@@ -36,22 +21,17 @@ message ChatMessage {
 
 message SendMessageRequest {
   string author_name = 1;
-  // Client-generated, persisted in the browser. Display and diagnostics only —
-  // the server never grants anything on the strength of it.
   string author_id = 2;
   string country_id = 3;
   string text = 4;
 }
 
 message SendMessageResponse {
-  // The message as it was stored and broadcast: sanitized text, server id,
-  // server timestamp and the tag the sender cannot choose.
   ChatMessage message = 1;
 }
 
 message GetHistoryRequest {}
 
 message GetHistoryResponse {
-  // Oldest first.
   repeated ChatMessage messages = 1;
 }

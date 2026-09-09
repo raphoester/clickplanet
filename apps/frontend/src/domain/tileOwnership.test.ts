@@ -51,21 +51,16 @@ describe("applyUpdates", () => {
         expect(counts(store)).toEqual({jp: 1})
     })
 
-    /**
-     * The previous owner reported by the server is not trusted: counts come
-     * from the map we hold. Trusting the event is what let a count drift, and
-     * eventually go negative, whenever the two disagreed.
-     */
     it("ignores a previous owner that disagrees with what it holds", () => {
         const store = new TileOwnership(10)
         store.applyUpdates([update(1, "fr")])
-        store.applyUpdates([update(1, "jp", "de")]) // server thinks it was German
+        store.applyUpdates([update(1, "jp", "de")])
         expect(counts(store)).toEqual({jp: 1})
     })
 
     it("never lets a count go negative", () => {
         const store = new TileOwnership(10)
-        store.applyUpdates([update(1, "jp", "fr")]) // France never owned anything
+        store.applyUpdates([update(1, "jp", "fr")])
         expect(counts(store)).toEqual({jp: 1})
         expect(store.counts().has("fr")).toBe(false)
     })
@@ -85,17 +80,12 @@ describe("applyUpdates", () => {
     })
 })
 
-/**
- * The initial load takes ~26 sequential requests over several seconds, and
- * live updates stream in throughout. These are the cases that were wrong
- * before the store existed.
- */
 describe("the initial load racing live updates", () => {
     it("does not let a stale batch take a tile back from a live update", () => {
         const store = new TileOwnership(10)
 
-        store.applyUpdates([update(5, "jp")])              // someone claims tile 5
-        const changes = store.applyBatch(batch({5: "fr"})) // the batch was already in flight
+        store.applyUpdates([update(5, "jp")])
+        const changes = store.applyBatch(batch({5: "fr"}))
 
         expect(changes).toEqual([])
         expect(store.ownerOf(5)).toBe("jp")
