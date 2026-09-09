@@ -4,7 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/primary/http/clicks_controller"
+	"connectrpc.com/connect"
+
+	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
+
+	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/primary/http/legacyv2controller"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/primary/http/planetv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/primary/http/websocket_publisher"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/secondary/in_memory_country_checker"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/secondary/in_memory_tile_checker"
@@ -17,7 +22,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/xtime"
 )
 
-func (a *App) configureAppV2(_ context.Context) (*ConfigureAppResponse, error) {
+func (a *App) configureApp(_ context.Context) (*ConfigureAppResponse, error) {
 	a.configurePromRegistryIfNeeded()
 	a.configureHTTPFormatsIfNeeded()
 
@@ -58,7 +63,7 @@ func (a *App) configureAppV2(_ context.Context) (*ConfigureAppResponse, error) {
 
 	a.configureBookkeeperIfEnabled(tilesStorage)
 
-	controller := clicks_controller.New(
+	v2Controller := legacyv2controller.New(
 		clickHandlerService,
 		tilesChecker,
 		tilesStorage,
@@ -66,9 +71,21 @@ func (a *App) configureAppV2(_ context.Context) (*ConfigureAppResponse, error) {
 		a.reader,
 	)
 
+	// Both APIs share these instances: the tile map lives in this process, so
+	// two sets of adapters over two storages would be two different games.
+	clickService := planetv1controller.NewClickService(clickHandlerService, tilesChecker, tilesStorage)
+	errorInterceptor := planetv1controller.NewErrorInterceptor(a.logger)
+
+	connectPath, connectHandler := planetv1connect.NewClickServiceHandler(
+		clickService,
+		connect.WithInterceptors(errorInterceptor),
+	)
+
 	return &ConfigureAppResponse{
-		declareWSRoutes:  publisher.DeclareRoutes,
-		declareRPCRoutes: controller.DeclareRoutes,
+		declareWSRoutes:     publisher.DeclareRoutes,
+		declareLegacyRoutes: v2Controller.DeclareRoutes,
+		connectPath:         connectPath,
+		connectHandler:      connectHandler,
 	}, nil
 }
 

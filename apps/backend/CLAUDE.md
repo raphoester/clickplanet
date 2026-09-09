@@ -52,8 +52,23 @@ Core interfaces (ports) defined in `gateways.go`:
 ### Adapters
 
 **Primary (input):**
-- `adapters/primary/http/clicks_controller/` — REST endpoints (`POST /v2/rpc/click`, `GET /v2/rpc/map-density`, `POST /v2/rpc/ownerships-by-batch`)
+- `adapters/primary/http/planetv1controller/` — the API. `ClickService` implements the generated `planetv1connect.ClickServiceHandler` and nothing else; it never sees an `http.ResponseWriter`, which is the point of serving the contract with Connect rather than by hand. `NewErrorInterceptor` maps domain errors onto Connect codes, logs the unexpected ones and keeps their cause off the wire, so **handlers return their errors bare** — `domain.ErrInvalidArgument` becomes `CodeInvalidArgument`, a code a handler picked itself is left alone, and anything else is logged once and answered as `internal error`.
+- `adapters/primary/http/legacyv2controller/` — **deprecated** REST endpoints (`POST /v2/rpc/click`, `GET /v2/rpc/map-density`, `POST /v2/rpc/ownerships-by-batch`). They wrap binary protobuf in a base64 JSON envelope and pick that encoding from `httpServer.format` rather than from the request. Frozen; deleted once the deployed frontends have moved.
 - `adapters/primary/http/websocket_publisher/` — subscribes to the tile update stream, broadcasts to WebSocket clients
+
+Both are wired to the same domain instances in `app/wiring.go`, and both serve the same websocket (`/ws/listen` and the deprecated `/v2/ws/listen`) — the tile map lives in this process, so two sets of adapters over two storages would be two different games.
+
+**There is one server and one mux, and no version prefix of our own.** Connect names its own path, `/planet.v1.ClickService/`, which cannot collide with the deprecated `/v2/rpc/` tree. So the RPCs, the legacy endpoints, the websocket upgrade and `/metrics` all mount on the same `http.ServeMux` on one port. Nothing here needs a connection-level demultiplexer such as `cmux`; that is for running a real gRPC server, which owns its own HTTP/2 handler, beside a REST one.
+
+`Configure` sets `http.Protocols` with both HTTP/1.1 and unencrypted HTTP/2, because the generated handler also speaks gRPC and gRPC-Web and those need HTTP/2. Browsers reach the same routes over HTTP/1.1. Verified: HTTP/1.1 and h2c both answer on the same port.
+
+### The map load
+
+`GetMap` is an ordinary RPC, but marked `idempotency_level = NO_SIDE_EFFECTS` in the proto, so Connect sends it as an **HTTP GET** and the handler sets `Cache-Control: public, max-age=5` on the response. A burst of visitors can therefore share one origin response; the websocket carries everything that happens after a chunk was built, so a client starting from a slightly old map converges anyway. `MapDensity` is marked the same way.
+
+The response never repeats a tile id. `GetMapResponse` carries `start_tile_id`, the interned `codes` table, and `tiles` — a `bytes` field holding two bytes per tile, little endian, indexing into `codes`. Tile ids are implicit in the position, which is what makes it far smaller than the deprecated `map<uint32, string>`: **516 KB against 3.6 MB** for a full 257,948-tile map.
+
+`memory_tile_storage.StateBatchDense` builds it. The interned ids are copied out exactly as stored and the table travels with them, so nothing is translated on the way out and the client needs no shared country list. Protobuf does all the framing — there is no hand-rolled magic or length-prefixing on either side, and therefore no encoder and decoder that have to be edited together.
 
 **Secondary (output):**
 - `adapters/secondary/memory_tile_storage/` — the tile map. A preallocated `[]uint16` indexed by tile id, with country codes interned into a side table (2 bytes per tile — ~2 MB for a 1M-tile map). Fans updates out in process, serves `PastUpdates` from a bounded ring buffer, and persists to a local snapshot file.
@@ -66,8 +81,8 @@ Beyond the `domain.TileStorage` port, `memory_tile_storage` also exposes `Subscr
 ### Key Flow
 
 ```
-POST /v2/rpc/click
-  → ClicksController
+POST /planet.v1.ClickService/Click
+  → ClickService
   → ClickHandlerService (validates tile ID + country)
   → MemoryTileStorage.Set() [writes the tile, fans the update out in process]
   → WebsocketPublisher (fans out to WS clients)
@@ -96,7 +111,7 @@ Shared infrastructure: `cfgutil` (YAML + env config via koanf), `httpserver` (mi
 
 Config is loaded from a YAML file (`-config` flag), with environment variables overriding it — `cfgutil` uses `.` as the nesting delimiter, so `tilesStorage.snapshotPath=/data/tiles` in the environment overrides the file. See `cmd/api/example.yaml` for the full schema.
 
-- `httpServer.bindAddress`, `httpServer.format` (`json` or `binary` for protobuf)
+- `httpServer.bindAddress`, `httpServer.format` (`json` or `binary` for protobuf) — v2 only. v3 negotiates the encoding per request.
 - `gameMap.maxIndex` — total number of tiles
 - `tilesStorage.snapshotPath` — where the state is persisted; **empty disables durability**
 - `tilesStorage.snapshotInterval` — how often a changed state is flushed
@@ -106,7 +121,9 @@ Config is loaded from a YAML file (`-config` flag), with environment variables o
 
 ### Protobuf
 
-API contracts live in the monorepo-shared [`/proto/clicks/v1/clicks.proto`](../../proto/clicks/v1/clicks.proto) (also used by the frontend). Generated code goes to `generated/proto/`. Use `make proto` to regenerate after editing `.proto` files (requires `buf` CLI).
+API contracts live in the monorepo-shared [`/proto/planet/v1/planet.proto`](../../proto/planet/v1/planet.proto) (also used by the frontend). Generated code goes to `generated/proto/`. Use `make proto` to regenerate after editing `.proto` files (requires the `buf` CLI, plus `protoc-gen-go` and `protoc-gen-connect-go` on `PATH`).
+
+The proto package is `planet.v1`, and it is the **only** version number in the new API: Connect derives its route from it, and `planetv1controller` and `planetv1connect` follow. The `v2` in `legacyv2controller` names the deprecated `/v2/rpc` routes, which predate the contract and disappear with them. There is no gRPC here — Connect serves the service definition over ordinary HTTP/1.1 POSTs (and h2c, for clients that want it).
 
 ### Testing
 

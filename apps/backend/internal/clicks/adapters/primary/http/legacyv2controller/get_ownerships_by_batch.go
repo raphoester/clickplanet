@@ -1,14 +1,14 @@
-package clicks_controller
+package legacyv2controller
 
 import (
 	"fmt"
 	"net/http"
 
-	clicksv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/clicks/v1"
+	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 )
 
 func (c *Controller) GetOwnershipsByBatch(w http.ResponseWriter, r *http.Request) {
-	req := &clicksv1.OwnershipBatchRequest{}
+	req := &planetv1.OwnershipBatchRequest{}
 	if err := c.reader.Read(r, req); err != nil {
 		c.answerer.Err(w,
 			fmt.Errorf("failed reading req: %w", err),
@@ -40,7 +40,7 @@ func (c *Controller) GetOwnershipsByBatch(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	response := &clicksv1.Ownerships{
+	response := &planetv1.Ownerships{
 		Bindings: tiles,
 	}
 

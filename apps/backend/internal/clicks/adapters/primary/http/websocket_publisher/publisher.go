@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
-	clicksv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/clicks/v1"
+	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/domain"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/httpserver"
 	"google.golang.org/protobuf/proto"
@@ -42,7 +42,7 @@ type clientMD struct {
 
 func (p *Publisher) Run() {
 	for update := range p.updates {
-		bin, err := proto.Marshal(&clicksv1.TileUpdate{
+		bin, err := proto.Marshal(&planetv1.TileUpdate{
 			TileId:            update.Tile,
 			CountryId:         update.Value,
 			PreviousCountryId: update.Previous,

@@ -44,7 +44,7 @@
 	header {
 		Access-Control-Allow-Origin "{$FRONTEND_ORIGIN}"
 		Access-Control-Allow-Methods "GET, POST, OPTIONS"
-		Access-Control-Allow-Headers "Content-Type"
+		Access-Control-Allow-Headers "Content-Type, Connect-Protocol-Version, Connect-Timeout-Ms"
 		Vary "Origin"
 		-Server
 	}
@@ -64,13 +64,19 @@
 
 	# WebSocket stream of tile updates. Caddy upgrades automatically; the
 	# disabled timeouts keep idle spectators connected.
-	handle /v2/ws/* {
+	handle /ws/* /v2/ws/* {
 		reverse_proxy backend:8080 {
 			transport http {
 				read_timeout 0
 				write_timeout 0
 			}
 		}
+	}
+
+	# Connect names its own path. GetMap and MapDensity arrive as GETs and
+	# carry their own Cache-Control, so a cache in front can serve them.
+	handle /planet.v1.ClickService/* {
+		reverse_proxy backend:8080
 	}
 
 	# Prometheus metrics — closed by default. Uncomment and restrict by source

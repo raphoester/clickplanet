@@ -1,8 +1,9 @@
 module github.com/raphoester/clickplanet.lol-backend
 
-go 1.23.0
+go 1.25.0
 
 require (
+	connectrpc.com/connect v1.21.0
 	github.com/coder/websocket v1.8.12
 	github.com/go-co-op/gocron v1.37.0
 	github.com/knadh/koanf/parsers/yaml v0.1.0
@@ -11,7 +12,7 @@ require (
 	github.com/knadh/koanf/v2 v2.1.2
 	github.com/prometheus/client_golang v1.20.5
 	github.com/stretchr/testify v1.9.0
-	google.golang.org/protobuf v1.35.2
+	google.golang.org/protobuf v1.36.11
 )
 
 require (

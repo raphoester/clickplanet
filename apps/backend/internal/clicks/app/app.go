@@ -57,9 +57,9 @@ func New() (*App, error) {
 }
 
 func (a *App) Configure(ctx context.Context) error {
-	appV2, err := a.configureAppV2(ctx)
+	app, err := a.configureApp(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to configure app v2: %w", err)
+		return fmt.Errorf("failed to configure app: %w", err)
 	}
 
 	rpcMiddlewares := httpserver.MiddlewareStack(
@@ -75,19 +75,37 @@ func (a *App) Configure(ctx context.Context) error {
 
 	router := http.NewServeMux()
 
-	appV2RPCRouter := http.NewServeMux()
-	appV2.declareRPCRoutes(appV2RPCRouter)
-	router.Handle("/v2/rpc/", http.StripPrefix("/v2/rpc", rpcMiddlewares(appV2RPCRouter)))
+	// Connect names its own path, so it needs no prefix of ours and cannot
+	// collide with the deprecated tree below.
+	router.Handle(app.connectPath, rpcMiddlewares(app.connectHandler))
 
-	appV2WSRouter := http.NewServeMux()
-	appV2.declareWSRoutes(appV2WSRouter)
-	router.Handle("/v2/ws/", http.StripPrefix("/v2/ws", wsMiddlewares(appV2WSRouter)))
+	wsRouter := http.NewServeMux()
+	app.declareWSRoutes(wsRouter)
+	router.Handle("/ws/", http.StripPrefix("/ws", wsMiddlewares(wsRouter)))
+
+	// Deprecated: mounted only until the deployed frontends move over.
+	legacyRPCRouter := http.NewServeMux()
+	app.declareLegacyRoutes(legacyRPCRouter)
+	router.Handle("/v2/rpc/", http.StripPrefix("/v2/rpc", rpcMiddlewares(legacyRPCRouter)))
+
+	legacyWSRouter := http.NewServeMux()
+	app.declareWSRoutes(legacyWSRouter)
+	router.Handle("/v2/ws/", http.StripPrefix("/v2/ws", wsMiddlewares(legacyWSRouter)))
 
 	a.declarePrometheusRoutes(router)
 
+	// Connect handlers are plain http.Handlers, so everything shares one mux
+	// and one server. Unencrypted HTTP/2 is enabled because the generated
+	// handler also speaks gRPC and gRPC-Web, and those need it; browsers reach
+	// the same routes over HTTP/1.1.
+	protocols := new(http.Protocols)
+	protocols.SetHTTP1(true)
+	protocols.SetUnencryptedHTTP2(true)
+
 	a.server = &http.Server{
-		Addr:    a.config.HTTPServer.BindAddress,
-		Handler: router,
+		Addr:      a.config.HTTPServer.BindAddress,
+		Handler:   router,
+		Protocols: protocols,
 	}
 
 	return nil
@@ -108,6 +126,8 @@ func (a *App) declarePrometheusRoutes(router *http.ServeMux) {
 }
 
 type ConfigureAppResponse struct {
-	declareWSRoutes  func(mux *http.ServeMux)
-	declareRPCRoutes func(mux *http.ServeMux)
+	declareWSRoutes     func(mux *http.ServeMux)
+	declareLegacyRoutes func(mux *http.ServeMux)
+	connectPath         string
+	connectHandler      http.Handler
 }

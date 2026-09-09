@@ -114,8 +114,8 @@ reload.
 
 ## Protocol Buffers
 
-Types are defined in the monorepo-shared [`/proto/clicks/v1/clicks.proto`](../../proto/clicks/v1/clicks.proto)
-and generated to `src/gen/grpc/clicks/v1/clicks_pb.ts`. Run `npm run proto`
+Types are defined in the monorepo-shared [`/proto/planet/v1/planet.proto`](../../proto/planet/v1/planet.proto)
+and generated to `src/gen/grpc/planet/v1/planet_pb.ts`. Run `npm run proto`
 after changing `.proto` files. Key messages: `ClickRequest`, `Ownerships`,
 `TileUpdate`, `OwnershipBatchRequest`.
 

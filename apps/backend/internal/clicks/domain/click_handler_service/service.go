@@ -31,11 +31,11 @@ type Service struct {
 
 func (s *Service) HandleClick(ctx context.Context, tileId uint32, countryID string) error {
 	if !s.countryChecker.CheckCountry(countryID) {
-		return fmt.Errorf("invalid country code %q", countryID)
+		return fmt.Errorf("%w: country code %q", domain.ErrInvalidArgument, countryID)
 	}
 
 	if !s.tilesChecker.CheckTile(tileId) {
-		return fmt.Errorf("invalid tile id %q", tileId)
+		return fmt.Errorf("%w: tile id %d", domain.ErrInvalidArgument, tileId)
 	}
 
 	if err := s.tileStorage.Set(ctx, tileId, countryID); err != nil {
