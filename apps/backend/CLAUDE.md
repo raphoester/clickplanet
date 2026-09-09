@@ -32,15 +32,22 @@ make dBuild
 
 This is a Go backend for a collaborative map-clicking game. It follows **hexagonal architecture (ports & adapters)**.
 
-### One application
+### Two bounded contexts, one process
 
-**`cmd/api`** — HTTP/WebSocket server handling clicks, tile ownership queries, and real-time updates. Follows `New()` → `Configure()` → `Run()`.
+- **`internal/clicks/`** — the tile game: clicks, ownership, the map, the update stream.
+- **`internal/chat/`** — the live chat: messages, identity, retention.
+
+They share the process, the transport and the country list, and **nothing else**. Neither imports the other; each owns its own domain types, its own proto package, its own storage adapter and its own edge. The one place that knows about both is **`internal/app/`**, the composition root — which is why it sits beside them rather than inside either.
+
+Adding a third context means a `proto/<name>/v1`, an `internal/<name>/`, and one `configure<Name>` in `internal/app`. Connect derives the route from the proto package, so there is no prefix to allocate and no router to edit.
+
+**`cmd/api`** is the only binary: an HTTP/WebSocket server serving both contexts. Follows `New()` → `Configure()` → `Run()`.
 
 It runs as a **single self-contained container with no dependencies**: the tile map lives in process and is persisted to a local snapshot file. There is no database, no cache, and no second process.
 
 The X/Twitter reporting job used to be a separate `cmd/bookkeeper` process. It now runs inside `cmd/api` as an optional goroutine behind `bookkeeper.enabled` (default off) — the recent-updates window only exists inside the API process, so a separate process would have nothing to read.
 
-### Domain Layer (`internal/clicks/domain/`)
+### Clicks domain (`internal/clicks/domain/`)
 
 Core interfaces (ports) defined in `gateways.go`:
 - `TilesChecker` — validates tile IDs (0..maxIndex)
@@ -56,9 +63,9 @@ Core interfaces (ports) defined in `gateways.go`:
 
 **Primary (input):**
 - `adapters/primary/http/planetv1controller/` — the API. `ClickService` implements the generated `planetv1connect.ClickServiceHandler` and nothing else; it never sees an `http.ResponseWriter`, which is the point of serving the contract with Connect rather than by hand. Two interceptors wrap it: `NewRateLimitInterceptor` (see [Rate limiting](#rate-limiting)) and `NewErrorInterceptor`, which maps domain errors onto Connect codes, logs the unexpected ones and keeps their cause off the wire, so **handlers return their errors bare** — `domain.ErrInvalidArgument` becomes `CodeInvalidArgument`, a code a handler picked itself is left alone, and anything else is logged once and answered as `internal error`.
-- `adapters/primary/http/websocket_publisher/` — subscribes to the tile update stream, broadcasts to WebSocket clients
+- the tile stream, broadcast by a `kernel/wspublisher` instance the composition root builds from `planetv1controller.TileUpdateRoute` and `EncodeTileUpdate`.
 
-**There is one server, one mux, and no version prefix.** Connect names its own path, `/planet.v1.ClickService/`, so nothing is mounted under a prefix of ours. The RPCs, the websocket upgrade and `/metrics` are the only three things on the router. Nothing here needs a connection-level demultiplexer such as `cmux`; that is for running a real gRPC server, which owns its own HTTP/2 handler, beside a REST one.
+**There is one server, one mux, and no version prefix.** Connect names each service's path from its proto package — `/planet.v1.ClickService/` and `/chat.v1.ChatService/` — so nothing is mounted under a prefix of ours. The two services, the websocket upgrade and `/metrics` are the only things on the router. Nothing here needs a connection-level demultiplexer such as `cmux`; that is for running a real gRPC server, which owns its own HTTP/2 handler, beside a REST one.
 
 `Configure` sets `http.Protocols` with both HTTP/1.1 and unencrypted HTTP/2, because the generated handler also speaks gRPC and gRPC-Web and those need HTTP/2. Browsers reach the same routes over HTTP/1.1. Verified: HTTP/1.1 and h2c both answer on the same port.
 
@@ -85,16 +92,53 @@ POST /planet.v1.ClickService/Click
   → ClickService
   → ClickHandlerService (validates tile ID + country)
   → MemoryTileStorage.Set() [writes the tile, fans the update out in process]
-  → WebsocketPublisher (fans out to WS clients)
+  → wspublisher (fans out to /ws/listen clients)
 ```
 
 `Set` is a no-op when the tile already holds that value — no write, no update published.
+
+```
+POST /chat.v1.ChatService/SendMessage
+  → GuardInterceptor (block list, then the per-IP throttle)
+  → ChatService
+  → chat_service (sanitizes, stamps id/time/tag)
+  → MemoryChatStorage.Append() [appends to the JSONL log, then fans out]
+  → wspublisher (fans out to /ws/chat clients)
+```
+
+A failed log write fails the whole post: the log is the audit trail, so a message nobody can account for later is not one that gets broadcast.
+
+### Chat (`internal/chat/`)
+
+Chat is a separate bounded context, not a feature of the tile game: it shares the process, the transport and the country list, and has its own proto package, domain, storage and edge. Nothing under `internal/chat/` imports `internal/clicks/`, and the reverse holds too.
+
+**Off by default.** With `chat.enabled` false nothing is registered, so `/chat.v1.ChatService/` and `/ws/chat` both answer 404 — the unauthenticated public write endpoint does not exist at all rather than existing and erroring.
+
+**Identity without accounts.** A client picks its own display name and sends a UUID it persists locally. **Neither is trusted for anything** — anyone can post with any name. What a sender cannot forge is `author_tag`: a salted hash of their IP, 6 hex characters, so two people using the same name still look different and a mute has a key that means something. The salt is `chat.service.tagSalt`; left empty it is regenerated at boot, which changes everyone's tag on restart, and the server warns about it.
+
+**Abuse controls live at the edge**, in `NewGuardInterceptor` — ahead of decoding the message and well ahead of validating it, so a flood of malformed messages costs a sender exactly what a flood of well-formed ones does. `chat.blockedIPs` cuts an address off from every chat RPC; `chat.rateLimiter` throttles `SendMessage` alone (`GetHistory` is one read on join, and limiting it would punish a page load). The domain then bounds the message in **runes** (280) and the name (24), validates UTF-8, and **strips control characters** — a newline would otherwise let a sender forge a line in the JSONL log.
+
+Refusal reasons are logged, never returned: a sender learns *that* they were refused, not which check tripped. **The stored text is raw — the frontend must escape it.**
+
+The [VPN blocklist](#vpn-blocklist) does **not** cover chat: it wraps `Click` alone. If chat turns out to need it, it is the same `ipblock.Blocklist` and a second interceptor, not a second list.
+
+**The log is an append-only JSONL file**, not the tile snapshot's whole-state codec: different shape, different write pattern. One line per message with `at`, `id`, `name`, `tag`, `authorId`, `country`, `ip`, `userAgent`, `text`. It is fsynced every `flushInterval` rather than per message (a hard kill loses at most that window — the same bargain the snapshot makes), pruned hourly past `retention`, and its tail repopulates the in-memory history at boot so a restart does not blank the chat. Corrupt lines are skipped and reported, never fatal.
+
+That log holds **personal data** — IPs next to user-authored text — so the retention window is a policy decision rather than a cache size. It lives on the `tile_state` volume, which the droplet's weekly disk backup already covers.
+
+**Two streams, two routes.** Chat broadcasts on `/ws/chat`, not on `/ws/listen`. Frames carry a bare protobuf message with no type tag, so a second payload on the tile stream would be indistinguishable from a `TileUpdate` to every already-deployed client. `kernel/wspublisher` is generic over its payload and takes a route, instantiated once per stream.
+
+**Sending is an RPC, not a read on the socket**: both publishers lean on `CloseRead` for instant disconnect detection, and the RPC path already has the middleware stack and the interceptors.
+
+`GetHistory` is marked `NO_SIDE_EFFECTS`, so Connect sends it as a GET — but it answers `Cache-Control: no-store`, the opposite of `GetMap`. A client fetches it once on join to seed what the websocket then keeps up to date, so a cached answer would show a joiner a chat missing the last few minutes.
 
 ### Rate limiting
 
 `NewRateLimitInterceptor` throttles **`Click` only**, per source IP, from a `kernel/ratelimit` token bucket — 1 click/s with a burst of 10 by default (`rateLimiter.*`). `MapDensity` and `GetMap` are cacheable reads a proxy in front absorbs; limiting them would punish a page load rather than a bot. A refused click answers `CodeResourceExhausted`, i.e. HTTP 429, and never reaches the domain.
 
 The bucket key is whatever `IPReaderMiddleware` put on the context: `X-Real-IP` if present, otherwise the peer address. **The reverse proxy must set that header itself** — `deploy/vps/Caddyfile` does, with `header_up X-Real-IP {client_ip}` on every backend route. Merely forwarding it would let a client send its own and buy a fresh bucket per request. The fallback is the peer address rather than a constant precisely so a missing header degrades to per-connection buckets instead of rate limiting the whole game as one player.
+
+Chat has **its own limiter instance** with its own budget (`chat.rateLimiter`, one message every 3s with 5 in hand by default). A message fans out to every connected client and lands in a log everyone will read, so it costs far more than a click and the two budgets have nothing to do with each other.
 
 ### VPN blocklist
 
@@ -127,7 +171,12 @@ The snapshot file is the only thing worth backing up.
 
 ### Kernel (`internal/kernel/`)
 
-Shared infrastructure: `cfgutil` (YAML + env config via koanf), `httpserver` (middleware, formats), `logging`, `prom` (Prometheus), `xtime`, `ctxutil`, `basicutil`, `ratelimit`, `ipblock`.
+Shared infrastructure: `cfgutil` (YAML + env config via koanf), `httpserver` (middleware, formats), `logging`, `prom` (Prometheus), `xtime`, `ctxutil`, `basicutil`, `ratelimit`, `ipblock`, `atomicfile`, `wspublisher`.
+
+Two of these are here because both bounded contexts need them and neither should depend on the other:
+
+- `wspublisher` — the WebSocket fanout, generic over its payload and its encoder. It knows nothing about what it carries, so the payload type and the wire encoding stay with the context that owns them.
+- `atomicfile` — temp file, fsync, rename, fsync of the directory. Written for the tile snapshot; the chat log's retention rewrites need the same guarantee, and duplicating 80 lines of carefully-written fsync/rename code is how the two drift apart. Covered by the existing snapshot tests.
 
 `ipblock` is the VPN prefix set — see [VPN blocklist](#vpn-blocklist). `ratelimit` is a keyed token bucket held in this process, like the tile map it protects — with one API instance, a shared counter would buy nothing. Its `Run` loop periodically forgets the buckets that have refilled to capacity, which is free: such a bucket holds exactly what a freshly created one would, and without it the map would keep an entry per address that ever clicked.
 
@@ -144,12 +193,19 @@ Config is loaded from a YAML file (`-config` flag), with environment variables o
 - `bookkeeper.enabled`, `bookkeeper.runner.interval`
 - `rateLimiter.perSecond`, `rateLimiter.burst`, `rateLimiter.sweepInterval` — the per-IP click throttle (defaults 1/s, burst 10, swept every minute)
 - `vpnBlocklist.enabled`, `vpnBlocklist.includeDatacenters`, `vpnBlocklist.allow` — the VPN refusal (see [VPN blocklist](#vpn-blocklist)); disabled parses nothing and allocates nothing
+- `chat.enabled` — the kill switch; off means the routes are never registered
+- `chat.storage.logPath` — the JSONL message log; **empty keeps chat entirely in memory**
+- `chat.storage.historySize`, `chat.storage.retention`, `chat.storage.flushInterval`, `chat.storage.pruneInterval`, `chat.storage.subscriberBuffer`
+- `chat.service.tagSalt` — salts the per-sender tag; **empty regenerates one at boot**, changing every tag on restart
+- `chat.service.maxTextLength`, `chat.service.maxNameLength` — bounds in runes (280, 24)
+- `chat.rateLimiter.*` — the per-IP `SendMessage` throttle, same shape as `rateLimiter`
+- `chat.blockedIPs` — addresses refused every chat RPC
 
 ### Protobuf
 
-API contracts live in the monorepo-shared [`/proto/planet/v1/planet.proto`](../../proto/planet/v1/planet.proto) (also used by the frontend). Generated code goes to `generated/proto/`. Use `make proto` to regenerate after editing `.proto` files (requires the `buf` CLI, plus `protoc-gen-go` and `protoc-gen-connect-go` on `PATH`).
+API contracts live in the monorepo-shared [`/proto`](../../proto) (also used by the frontend), one package per bounded context: [`planet/v1/planet.proto`](../../proto/planet/v1/planet.proto) and [`chat/v1/chat.proto`](../../proto/chat/v1/chat.proto). Generated code goes to `generated/proto/`. Use `make proto` to regenerate after editing `.proto` files (requires the `buf` CLI, plus `protoc-gen-go` and `protoc-gen-connect-go` on `PATH`).
 
-The proto package is `planet.v1`, and it is the **only** version number: Connect derives its route from it, and `planetv1controller` and `planetv1connect` follow. There is no gRPC here — Connect serves the service definition over ordinary HTTP/1.1 POSTs (and h2c, for clients that want it).
+The proto package is the **only** version number: Connect derives each route from it, and the controller and connect package names follow — `planet.v1` gives `planetv1controller` and `planetv1connect`, `chat.v1` gives `chatv1controller` and `chatv1connect`. There is no gRPC here — Connect serves the service definitions over ordinary HTTP/1.1 POSTs (and h2c, for clients that want it).
 
 ### Testing
 

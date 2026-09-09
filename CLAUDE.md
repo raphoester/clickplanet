@@ -13,14 +13,21 @@ Read the relevant app's `CLAUDE.md` before working inside `apps/frontend/` or `a
 
 ## Shared protobuf contract
 
-`proto/planet/v1/planet.proto` is the **single source of truth** for the API contract — both apps generate their own bindings from it (nothing here is hand-copied between apps). After editing it:
+`proto/` is the **single source of truth** for the API contract — both apps generate their own bindings from it (nothing here is hand-copied between apps). One package per bounded context:
+
+- `proto/planet/v1/planet.proto` — the tile game (`ClickService`)
+- `proto/chat/v1/chat.proto` — the live chat (`ChatService`)
+
+Connect derives each service's route from its proto package, so a new context gets its own path with no prefix to allocate. Both `buf.gen.yaml` inputs point at the whole `proto` directory, so a new package is picked up by either generator with no config change.
+
+After editing a `.proto`:
 
 ```bash
 cd apps/backend && make proto   # regenerates apps/backend/generated/proto
 cd apps/frontend && npm run proto   # regenerates apps/frontend/src/gen/grpc
 ```
 
-Both apps' `buf.gen.yaml` reference `../../proto` (or `../../../proto` for the backend, whose config lives one level deeper at `apps/backend/proto/`) — do not create per-app copies of the `.proto` file again.
+Both apps' `buf.gen.yaml` reference `../../proto` (or `../../../proto` for the backend, whose config lives one level deeper at `apps/backend/proto/`) — do not create per-app copies of the `.proto` files again.
 
 ## Local full stack
 

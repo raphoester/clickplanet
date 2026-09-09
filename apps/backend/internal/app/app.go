@@ -69,6 +69,10 @@ func (a *App) Configure(ctx context.Context) error {
 		return fmt.Errorf("failed to configure the clicks context: %w", err)
 	}
 
+	if err := a.configureChatIfEnabled(ctx); err != nil {
+		return fmt.Errorf("failed to configure the chat context: %w", err)
+	}
+
 	rpcMiddlewares := httpserver.MiddlewareStack(
 		httpserver.NewLoggingMiddleware(a.logger),
 		httpserver.IPReaderMiddleware,

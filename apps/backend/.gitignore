@@ -5,3 +5,5 @@
 cmd/api/config.yaml
 
 tools/monitoring/prometheus.yaml
+# Written by cmd/api/example.yaml — the tile snapshot and the chat log.
+data/
