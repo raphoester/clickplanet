@@ -42,11 +42,10 @@ session:
   # On. The widget exists and .env holds SESSION_SECRET and TURNSTILE_SECRET;
   # without that last one the API does not start at all, it does not degrade.
   enabled: true
-  # Then, separately: false counts what enforcing would refuse and refuses
-  # nothing, so every client already out there keeps working. Watch
-  # click_session_checks{verdict="valid"} climb as the new frontend rolls out,
-  # and only then flip this to true.
-  enforce: false
+  # On: a click without a session this server minted is answered 401 and never
+  # reaches the map. click_session_checks{verdict="valid"} carried the traffic
+  # before this was flipped; "missing" is now a refusal rather than a count.
+  enforce: true
   # session.secret and session.turnstile.secret come from the environment —
   # docker-compose.yaml passes them in from .env. Deliberately absent here:
   # this file is in git.
