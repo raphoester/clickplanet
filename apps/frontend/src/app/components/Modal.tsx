@@ -12,6 +12,12 @@ export type ModalProps = {
      * About copy, where a short screen showed nothing of it but an orange line.
      */
     footer?: ReactNode;
+    /**
+     * Set when a stray click must not dismiss the dialog. The rate limit
+     * warning does: it arrives mid-spam, so the very clicks it is complaining
+     * about would land on the backdrop and close it before it was read.
+     */
+    stayOnBackdropClick?: boolean;
     onClose: () => void;
 }
 
@@ -21,10 +27,11 @@ export type ModalProps = {
  * while it is open — Escape closes, and Tab cannot wander onto the globe or the
  * menu still sitting behind the backdrop.
  *
- * It closes on the × beside its title. That is the whole reason a dialog is the
- * right shell for something like About: it opened over everything, so an × says
- * exactly what will happen, where a "Back" or a "Close" at the bottom of a
- * panel had to compete with whatever the card's own controls meant.
+ * It closes on the × beside its title — and, unless the caller opts out with
+ * stayOnBackdropClick, on the backdrop too. The × is the whole reason a dialog
+ * is the right shell for something like About: it opened over everything, so an
+ * × says exactly what will happen, where a "Back" or a "Close" at the bottom of
+ * a panel had to compete with whatever the card's own controls meant.
  *
  * The menu's country picker deliberately does not use this. It sits inside the
  * menu card and blocks nothing, which is what makes it a menu rather than a
@@ -47,6 +54,7 @@ export default function Modal(props: ModalProps) {
         <div
             className="modal"
             onClick={(e) => {
+                if (props.stayOnBackdropClick) return
                 if (e.target === e.currentTarget) props.onClose()
             }}>
             <div

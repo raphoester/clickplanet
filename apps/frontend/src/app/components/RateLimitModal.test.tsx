@@ -23,6 +23,15 @@ describe("RateLimitModal", () => {
         expect(onClose).toHaveBeenCalledTimes(1)
     })
 
+    it("stays put when the backdrop is clicked, unlike every other dialog", async () => {
+        const onClose = vi.fn()
+        const user = userEvent.setup()
+        const {container} = render(<RateLimitModal onClose={onClose}/>)
+
+        await user.click(container.querySelector(".modal")!)
+        expect(onClose).not.toHaveBeenCalled()
+    })
+
     it("closes on the × and on Escape, like every other dialog", async () => {
         const onClose = vi.fn()
         const user = userEvent.setup()
