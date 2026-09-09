@@ -1,6 +1,7 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
-import {ClickServiceClient, decodeTileUpdate, openUpdatesSocket, websocketUrl} from "./httpBackend.ts"
-import {TileUpdate} from "../gen/grpc/planet/v1/planet_pb.ts"
+import {bindingsOf, decodeTileUpdate, openUpdatesSocket, PlanetBackend, websocketUrl} from "./planetBackend.ts"
+import {Code, ConnectError} from "@connectrpc/connect"
+import {GetMapResponse, TileUpdate} from "../gen/grpc/planet/v1/planet_pb.ts"
 import type {Update} from "./backend.ts"
 
 function frame(update: Partial<{tileId: number, countryId: string, previousCountryId: string}>): ArrayBuffer {
@@ -10,13 +11,13 @@ function frame(update: Partial<{tileId: number, countryId: string, previousCount
 
 describe("websocketUrl", () => {
     it("swaps the scheme and keeps the host", () => {
-        expect(websocketUrl("https://api.clickplanet.lol")).toBe("wss://api.clickplanet.lol/v2/ws/listen")
-        expect(websocketUrl("http://localhost:8080")).toBe("ws://localhost:8080/v2/ws/listen")
+        expect(websocketUrl("https://api.clickplanet.lol")).toBe("wss://api.clickplanet.lol/ws/listen")
+        expect(websocketUrl("http://localhost:8080")).toBe("ws://localhost:8080/ws/listen")
     })
 
     /** The old version string-replaced "https://" away, so a host containing it broke. */
     it("only rewrites the leading scheme", () => {
-        expect(websocketUrl("https://api.http://x.dev")).toBe("wss://api.http://x.dev/v2/ws/listen")
+        expect(websocketUrl("https://api.http://x.dev")).toBe("wss://api.http://x.dev/ws/listen")
     })
 })
 
@@ -179,60 +180,101 @@ describe("openUpdatesSocket", () => {
     })
 })
 
-describe("ClickServiceClient.fetch", () => {
-    afterEach(() => vi.unstubAllGlobals())
+function tileBytes(codes: number[]): Uint8Array {
+    const bytes = new Uint8Array(codes.length * 2)
+    const view = new DataView(bytes.buffer)
+    codes.forEach((code, i) => view.setUint16(i * 2, code, true))
+    return bytes
+}
 
-    const client = () => new ClickServiceClient({baseUrl: "https://api.test", timeoutMs: 50})
+function mapResponse(startTileId: number, codes: string[], tiles: number[]): GetMapResponse {
+    return new GetMapResponse({startTileId, codes, tiles: tileBytes(tiles)})
+}
 
-    it("returns undefined when the response carries no payload", async () => {
-        vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({}))))
-        await expect(client().fetch("POST", "/x")).resolves.toBeUndefined()
+describe("bindingsOf", () => {
+    it("resolves tiles against the table that came with them", () => {
+        expect(bindingsOf(mapResponse(10, ["", "fr", "de"], [1, 2, 1])))
+            .toEqual(new Map([[10, "fr"], [11, "de"], [12, "fr"]]))
     })
 
-    it("decodes the base64 payload", async () => {
-        vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({data: btoa("hi")}))))
-        await expect(client().fetch("POST", "/x")).resolves.toEqual(new Uint8Array([104, 105]))
+    /** Unowned tiles are left out, which is the shape the globe already applies. */
+    it("skips unowned tiles rather than binding them to an empty code", () => {
+        expect(bindingsOf(mapResponse(0, ["", "fr"], [0, 1, 0]))).toEqual(new Map([[1, "fr"]]))
     })
 
-    it("retries a network failure and succeeds", async () => {
+    it("reads codes longer than two characters", () => {
+        expect(bindingsOf(mapResponse(0, ["", "gb-eng"], [1]))).toEqual(new Map([[0, "gb-eng"]]))
+    })
+
+    it("handles an empty range", () => {
+        expect(bindingsOf(mapResponse(0, [""], []))).toEqual(new Map())
+    })
+
+    /** A view onto a larger buffer must not read its neighbours. */
+    it("survives tiles that do not start at offset zero", () => {
+        const padded = new Uint8Array([0xff, 0xff, ...tileBytes([1])])
+        const res = new GetMapResponse({startTileId: 4, codes: ["", "jp"], tiles: padded.subarray(2)})
+        expect(bindingsOf(res)).toEqual(new Map([[4, "jp"]]))
+    })
+})
+
+describe("PlanetBackend.getCurrentOwnershipsByBatch", () => {
+    const backendWith = (getMap: ReturnType<typeof vi.fn>) => {
+        const client = {click: vi.fn(), getMap, mapDensity: vi.fn()} as never
+        return new PlanetBackend({baseUrl: "https://api.test"}, client, 1_000)
+    }
+
+    const collect = async (backend: PlanetBackend, signal?: AbortSignal) => {
+        const seen: Map<number, string>[] = []
+        await backend.getCurrentOwnershipsByBatch(2, 4, o => seen.push(o.bindings), signal)
+        return seen
+    }
+
+    it("walks the range one chunk at a time", async () => {
+        const getMap = vi.fn(async () => mapResponse(1, ["", "fr"], [1, 0]))
+        const backend = backendWith(getMap)
+
+        expect(await collect(backend)).toEqual([new Map([[1, "fr"]]), new Map([[1, "fr"]])])
+        expect(getMap.mock.calls.map(c => c[0])).toEqual([
+            {startTileId: 1, endTileId: 3},
+            {startTileId: 3, endTileId: 4},
+        ])
+        backend.close()
+    })
+
+    it("retries a server it could not reach", async () => {
         vi.spyOn(console, "error").mockImplementation(() => {})
-        const stub = vi.fn()
-            .mockRejectedValueOnce(new Error("offline"))
-            .mockResolvedValueOnce(new Response(JSON.stringify({data: btoa("ok")})))
-        vi.stubGlobal("fetch", stub)
+        const getMap = vi.fn()
+            .mockRejectedValueOnce(new ConnectError("offline", Code.Unavailable))
+            .mockImplementation(async () => mapResponse(1, [""], [0, 0]))
+        const backend = backendWith(getMap)
 
-        await expect(client().fetch("POST", "/x")).resolves.toEqual(new Uint8Array([111, 107]))
-        expect(stub).toHaveBeenCalledTimes(2)
+        await collect(backend)
+        expect(getMap).toHaveBeenCalledTimes(3)
+        backend.close()
     })
 
-    it("gives up after five attempts", async () => {
-        vi.spyOn(console, "error").mockImplementation(() => {})
-        const stub = vi.fn().mockRejectedValue(new Error("offline"))
-        vi.stubGlobal("fetch", stub)
+    /** An answer the server chose to send is never retried: that only adds load. */
+    it("does not retry an error the server answered with", async () => {
+        const getMap = vi.fn().mockRejectedValue(new ConnectError("nope", Code.InvalidArgument))
+        const backend = backendWith(getMap)
 
-        await expect(client().fetch("POST", "/x")).rejects.toThrow(/after 5 attempts/)
-        expect(stub).toHaveBeenCalledTimes(5)
+        await expect(collect(backend)).rejects.toThrow(/nope/)
+        expect(getMap).toHaveBeenCalledTimes(1)
+        backend.close()
     })
 
-    /** A 4xx/5xx is the server answering, so retrying it just multiplies the load. */
-    it("does not retry a rejected request", async () => {
-        const stub = vi.fn(async () => new Response("nope", {status: 500, statusText: "Server Error"}))
-        vi.stubGlobal("fetch", stub)
-
-        await expect(client().fetch("POST", "/x")).rejects.toThrow(/500/)
-        expect(stub).toHaveBeenCalledTimes(1)
-    })
-
-    it("stops retrying once the caller aborts", async () => {
+    it("stops once the caller aborts", async () => {
         vi.spyOn(console, "error").mockImplementation(() => {})
         const controller = new AbortController()
-        const stub = vi.fn(async () => {
+        const getMap = vi.fn(async () => {
             controller.abort()
-            throw new Error("offline")
+            throw new ConnectError("offline", Code.Unavailable)
         })
-        vi.stubGlobal("fetch", stub)
+        const backend = backendWith(getMap)
 
-        await expect(client().fetch("POST", "/x", undefined, controller.signal)).rejects.toThrow()
-        expect(stub).toHaveBeenCalledTimes(1)
+        await expect(collect(backend, controller.signal)).rejects.toThrow()
+        expect(getMap).toHaveBeenCalledTimes(1)
+        backend.close()
     })
 })
