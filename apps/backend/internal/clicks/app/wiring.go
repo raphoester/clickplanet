@@ -8,7 +8,6 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/primary/http/legacyv2controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/primary/http/planetv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/primary/http/websocket_publisher"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/secondary/in_memory_country_checker"
@@ -24,7 +23,6 @@ import (
 
 func (a *App) configureApp(_ context.Context) (*ConfigureAppResponse, error) {
 	a.configurePromRegistryIfNeeded()
-	a.configureHTTPFormatsIfNeeded()
 
 	tilesChecker := in_memory_tile_checker.New(a.config.GameMap.MaxIndex)
 	countryChecker := in_memory_country_checker.New()
@@ -58,21 +56,11 @@ func (a *App) configureApp(_ context.Context) (*ConfigureAppResponse, error) {
 		return nil, fmt.Errorf("failed to subscribe to tile updates: %w", err)
 	}
 
-	publisher := websocket_publisher.New(updatesCh, a.answerer)
+	publisher := websocket_publisher.New(updatesCh, a.logger)
 	a.runners = append(a.runners, publisher.Run)
 
 	a.configureBookkeeperIfEnabled(tilesStorage)
 
-	v2Controller := legacyv2controller.New(
-		clickHandlerService,
-		tilesChecker,
-		tilesStorage,
-		a.answerer,
-		a.reader,
-	)
-
-	// Both APIs share these instances: the tile map lives in this process, so
-	// two sets of adapters over two storages would be two different games.
 	clickService := planetv1controller.NewClickService(clickHandlerService, tilesChecker, tilesStorage)
 	errorInterceptor := planetv1controller.NewErrorInterceptor(a.logger)
 
@@ -82,10 +70,9 @@ func (a *App) configureApp(_ context.Context) (*ConfigureAppResponse, error) {
 	)
 
 	return &ConfigureAppResponse{
-		declareWSRoutes:     publisher.DeclareRoutes,
-		declareLegacyRoutes: v2Controller.DeclareRoutes,
-		connectPath:         connectPath,
-		connectHandler:      connectHandler,
+		declareWSRoutes: publisher.DeclareRoutes,
+		connectPath:     connectPath,
+		connectHandler:  connectHandler,
 	}, nil
 }
 

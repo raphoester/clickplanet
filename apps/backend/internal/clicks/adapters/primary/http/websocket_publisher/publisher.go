@@ -2,7 +2,6 @@ package websocket_publisher
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"sync"
 	"time"
@@ -10,7 +9,8 @@ import (
 	"github.com/coder/websocket"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/domain"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/httpserver"
+	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging"
+	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging/lf"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -21,20 +21,24 @@ const writeTimeout = 2 * time.Second
 
 func New(
 	updates <-chan domain.TileUpdate,
-	answerer *httpserver.Answerer,
+	logger logging.Logger,
 ) *Publisher {
+	if logger == nil {
+		logger = logging.NewNopLogger()
+	}
+
 	return &Publisher{
-		clients:  make(map[*websocket.Conn]*clientMD),
-		updates:  updates,
-		answerer: answerer,
+		clients: make(map[*websocket.Conn]*clientMD),
+		updates: updates,
+		logger:  logger,
 	}
 }
 
 type Publisher struct {
-	mu       sync.RWMutex
-	clients  map[*websocket.Conn]*clientMD
-	updates  <-chan domain.TileUpdate
-	answerer *httpserver.Answerer
+	mu      sync.RWMutex
+	clients map[*websocket.Conn]*clientMD
+	updates <-chan domain.TileUpdate
+	logger  logging.Logger
 }
 
 type clientMD struct {
@@ -80,11 +84,8 @@ func (p *Publisher) Subscribe(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err != nil {
-		p.answerer.Err(w,
-			fmt.Errorf("failed to accept websocket connection: %w", err),
-			"cannot accept websocket connection",
-			http.StatusInternalServerError,
-		)
+		p.logger.Error("failed to accept websocket connection", lf.Err(err))
+		http.Error(w, "cannot accept websocket connection", http.StatusInternalServerError)
 		return
 	}
 

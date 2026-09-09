@@ -28,9 +28,6 @@ type App struct {
 	runners       []func()
 	shutdownFuncs []func()
 
-	answerer *httpserver.Answerer
-	reader   httpserver.Reader
-
 	promRegistry *prometheus.Registry
 }
 
@@ -83,15 +80,6 @@ func (a *App) Configure(ctx context.Context) error {
 	app.declareWSRoutes(wsRouter)
 	router.Handle("/ws/", http.StripPrefix("/ws", wsMiddlewares(wsRouter)))
 
-	// Deprecated: mounted only until the deployed frontends move over.
-	legacyRPCRouter := http.NewServeMux()
-	app.declareLegacyRoutes(legacyRPCRouter)
-	router.Handle("/v2/rpc/", http.StripPrefix("/v2/rpc", rpcMiddlewares(legacyRPCRouter)))
-
-	legacyWSRouter := http.NewServeMux()
-	app.declareWSRoutes(legacyWSRouter)
-	router.Handle("/v2/ws/", http.StripPrefix("/v2/ws", wsMiddlewares(legacyWSRouter)))
-
 	a.declarePrometheusRoutes(router)
 
 	// Connect handlers are plain http.Handlers, so everything shares one mux
@@ -126,8 +114,7 @@ func (a *App) declarePrometheusRoutes(router *http.ServeMux) {
 }
 
 type ConfigureAppResponse struct {
-	declareWSRoutes     func(mux *http.ServeMux)
-	declareLegacyRoutes func(mux *http.ServeMux)
-	connectPath         string
-	connectHandler      http.Handler
+	declareWSRoutes func(mux *http.ServeMux)
+	connectPath     string
+	connectHandler  http.Handler
 }

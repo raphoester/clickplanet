@@ -6,7 +6,6 @@
 
 httpServer:
   bindAddress: 0.0.0.0:8080
-  format: binary # the frontend talks protobuf in production
 gameMap:
   maxIndex: 257948 # must match the tile count baked into the frontend coordinates
 

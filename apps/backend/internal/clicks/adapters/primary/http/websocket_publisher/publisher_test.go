@@ -11,7 +11,6 @@ import (
 	"github.com/coder/websocket"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/domain"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/httpserver"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -74,7 +73,7 @@ func startPublisher(t *testing.T) (chan<- domain.TileUpdate, *Publisher, string)
 	t.Helper()
 
 	updates := make(chan domain.TileUpdate)
-	publisher := New(updates, httpserver.NewAnswerer(logging.NewSLogger(), httpserver.FormatBinary))
+	publisher := New(updates, logging.NewSLogger())
 	go publisher.Run()
 
 	router := http.NewServeMux()

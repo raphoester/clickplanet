@@ -53,12 +53,9 @@ Core interfaces (ports) defined in `gateways.go`:
 
 **Primary (input):**
 - `adapters/primary/http/planetv1controller/` — the API. `ClickService` implements the generated `planetv1connect.ClickServiceHandler` and nothing else; it never sees an `http.ResponseWriter`, which is the point of serving the contract with Connect rather than by hand. `NewErrorInterceptor` maps domain errors onto Connect codes, logs the unexpected ones and keeps their cause off the wire, so **handlers return their errors bare** — `domain.ErrInvalidArgument` becomes `CodeInvalidArgument`, a code a handler picked itself is left alone, and anything else is logged once and answered as `internal error`.
-- `adapters/primary/http/legacyv2controller/` — **deprecated** REST endpoints (`POST /v2/rpc/click`, `GET /v2/rpc/map-density`, `POST /v2/rpc/ownerships-by-batch`). They wrap binary protobuf in a base64 JSON envelope and pick that encoding from `httpServer.format` rather than from the request. Frozen; deleted once the deployed frontends have moved.
 - `adapters/primary/http/websocket_publisher/` — subscribes to the tile update stream, broadcasts to WebSocket clients
 
-Both are wired to the same domain instances in `app/wiring.go`, and both serve the same websocket (`/ws/listen` and the deprecated `/v2/ws/listen`) — the tile map lives in this process, so two sets of adapters over two storages would be two different games.
-
-**There is one server and one mux, and no version prefix of our own.** Connect names its own path, `/planet.v1.ClickService/`, which cannot collide with the deprecated `/v2/rpc/` tree. So the RPCs, the legacy endpoints, the websocket upgrade and `/metrics` all mount on the same `http.ServeMux` on one port. Nothing here needs a connection-level demultiplexer such as `cmux`; that is for running a real gRPC server, which owns its own HTTP/2 handler, beside a REST one.
+**There is one server, one mux, and no version prefix.** Connect names its own path, `/planet.v1.ClickService/`, so nothing is mounted under a prefix of ours. The RPCs, the websocket upgrade and `/metrics` are the only three things on the router. Nothing here needs a connection-level demultiplexer such as `cmux`; that is for running a real gRPC server, which owns its own HTTP/2 handler, beside a REST one.
 
 `Configure` sets `http.Protocols` with both HTTP/1.1 and unencrypted HTTP/2, because the generated handler also speaks gRPC and gRPC-Web and those need HTTP/2. Browsers reach the same routes over HTTP/1.1. Verified: HTTP/1.1 and h2c both answer on the same port.
 
@@ -111,7 +108,7 @@ Shared infrastructure: `cfgutil` (YAML + env config via koanf), `httpserver` (mi
 
 Config is loaded from a YAML file (`-config` flag), with environment variables overriding it — `cfgutil` uses `.` as the nesting delimiter, so `tilesStorage.snapshotPath=/data/tiles` in the environment overrides the file. See `cmd/api/example.yaml` for the full schema.
 
-- `httpServer.bindAddress`, `httpServer.format` (`json` or `binary` for protobuf) — v2 only. v3 negotiates the encoding per request.
+- `httpServer.bindAddress` — the encoding is negotiated per request, so there is no format setting.
 - `gameMap.maxIndex` — total number of tiles
 - `tilesStorage.snapshotPath` — where the state is persisted; **empty disables durability**
 - `tilesStorage.snapshotInterval` — how often a changed state is flushed
@@ -123,7 +120,7 @@ Config is loaded from a YAML file (`-config` flag), with environment variables o
 
 API contracts live in the monorepo-shared [`/proto/planet/v1/planet.proto`](../../proto/planet/v1/planet.proto) (also used by the frontend). Generated code goes to `generated/proto/`. Use `make proto` to regenerate after editing `.proto` files (requires the `buf` CLI, plus `protoc-gen-go` and `protoc-gen-connect-go` on `PATH`).
 
-The proto package is `planet.v1`, and it is the **only** version number in the new API: Connect derives its route from it, and `planetv1controller` and `planetv1connect` follow. The `v2` in `legacyv2controller` names the deprecated `/v2/rpc` routes, which predate the contract and disappear with them. There is no gRPC here — Connect serves the service definition over ordinary HTTP/1.1 POSTs (and h2c, for clients that want it).
+The proto package is `planet.v1`, and it is the **only** version number: Connect derives its route from it, and `planetv1controller` and `planetv1connect` follow. There is no gRPC here — Connect serves the service definition over ordinary HTTP/1.1 POSTs (and h2c, for clients that want it).
 
 ### Testing
 

@@ -51,25 +51,15 @@
 
 	# Answer preflight here — the Go API does not handle OPTIONS.
 	# handle blocks are mutually exclusive and evaluated in order, so this
-	# must come before the /v2/rpc/* block below.
+	# must come before the proxy blocks below.
 	@options method OPTIONS
 	handle @options {
 		respond 204
 	}
 
-	# Protobuf/JSON RPC endpoints
-	handle /v2/rpc/* {
-		reverse_proxy backend:8080
-	}
-
 	# WebSocket stream of tile updates. Caddy upgrades automatically; the
 	# disabled timeouts keep idle spectators connected.
-	#
-	# `handle` takes at most one matcher token, so the two prefixes have to be
-	# a named matcher rather than two arguments — the latter is a parse error
-	# and Caddy refuses to start at all.
-	@ws path /ws/* /v2/ws/*
-	handle @ws {
+	handle /ws/* {
 		reverse_proxy backend:8080 {
 			transport http {
 				read_timeout 0

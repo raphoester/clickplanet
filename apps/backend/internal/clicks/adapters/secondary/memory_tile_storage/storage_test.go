@@ -2,6 +2,7 @@ package memory_tile_storage_test
 
 import (
 	"context"
+	"encoding/binary"
 	"os"
 	"path/filepath"
 	"sync"
@@ -201,7 +202,7 @@ func (s *testSuite) TestSlowSubscriberIsDroppedNotBlocking() {
 	s.Assert().Len(listener, 1)
 
 	// Everything still landed in the storage itself.
-	state, err := storage.GetStateBatch(context.Background(), 1, 1000)
+	state, err := stateBatch(storage, 1, 1000)
 	s.Require().NoError(err)
 	s.Assert().Len(state, 1000)
 }
@@ -213,7 +214,7 @@ func (s *testSuite) TestGetStateByBatch() {
 		s.Require().NoError(s.storage.Set(context.Background(), tile, constantValue))
 	}
 
-	state, err := s.storage.GetStateBatch(context.Background(), 10, 30) // bounds are inclusive
+	state, err := stateBatch(s.storage, 10, 30) // bounds are inclusive
 	s.Require().NoError(err)
 
 	s.Assert().Equal(3, len(state))
@@ -225,13 +226,10 @@ func (s *testSuite) TestGetStateByBatch() {
 func (s *testSuite) TestGetStateByBatchIgnoresUnsetAndOutOfRangeTiles() {
 	s.Require().NoError(s.storage.Set(context.Background(), 10, "fr"))
 
-	state, err := s.storage.GetStateBatch(context.Background(), 5, maxIndex+1_000)
+	state, err := stateBatch(s.storage, 5, maxIndex+1_000)
 	s.Require().NoError(err)
 	s.Assert().Equal(map[uint32]string{10: "fr"}, state)
 
-	state, err = s.storage.GetStateBatch(context.Background(), 30, 10)
-	s.Require().NoError(err)
-	s.Assert().Empty(state)
 }
 
 func (s *testSuite) TestPastUpdates() {
@@ -311,7 +309,7 @@ func (s *testSuite) TestSnapshotRoundTrip() {
 	s.Require().NoError(storage.Snapshot())
 
 	restored := s.newStorage(cfg)
-	state, err := restored.GetStateBatch(context.Background(), 0, maxIndex)
+	state, err := stateBatch(restored, 0, maxIndex)
 	s.Require().NoError(err)
 
 	s.Assert().Equal(map[uint32]string{1: "fr", 2: "us", maxIndex: "de"}, state)
@@ -371,7 +369,7 @@ func (s *testSuite) TestMissingSnapshotStartsEmpty() {
 
 	storage := s.newStorage(memory_tile_storage.Config{SnapshotPath: path})
 
-	state, err := storage.GetStateBatch(context.Background(), 0, maxIndex)
+	state, err := stateBatch(storage, 0, maxIndex)
 	s.Require().NoError(err)
 	s.Assert().Empty(state)
 
@@ -414,7 +412,7 @@ func (s *testSuite) TestCorruptSnapshotStartsEmpty() {
 
 			storage := s.newStorage(memory_tile_storage.Config{SnapshotPath: path})
 
-			state, err := storage.GetStateBatch(context.Background(), 0, maxIndex)
+			state, err := stateBatch(storage, 0, maxIndex)
 			s.Require().NoError(err)
 			s.Assert().Empty(state)
 
@@ -435,7 +433,7 @@ func (s *testSuite) TestSnapshotSurvivesADifferentMapSize() {
 	s.Require().NoError(big.Snapshot())
 
 	small := memory_tile_storage.New(100, cfg, s.clock, logging.NewNopLogger())
-	state, err := small.GetStateBatch(context.Background(), 0, 100)
+	state, err := stateBatch(small, 0, 100)
 	s.Require().NoError(err)
 	s.Assert().Equal(map[uint32]string{10: "fr"}, state)
 }
@@ -465,7 +463,7 @@ func (s *testSuite) TestRunSnapshotsPeriodicallyAndOnShutdown() {
 	}
 
 	restored := s.newStorage(cfg)
-	state, err := restored.GetStateBatch(context.Background(), 0, maxIndex)
+	state, err := stateBatch(restored, 0, maxIndex)
 	s.Require().NoError(err)
 	s.Assert().Equal(map[uint32]string{7: "fr"}, state)
 }
@@ -542,7 +540,7 @@ func (s *testSuite) TestConcurrentSetsAndReads() {
 		go func() {
 			defer wg.Done()
 			for range 100 {
-				if _, err := storage.GetStateBatch(context.Background(), 1, writers*tilesPerWriter); err != nil {
+				if _, err := stateBatch(storage, 1, writers*tilesPerWriter); err != nil {
 					errs <- err
 					return
 				}
@@ -560,7 +558,7 @@ func (s *testSuite) TestConcurrentSetsAndReads() {
 		s.Require().NoError(err)
 	}
 
-	state, err := storage.GetStateBatch(context.Background(), 1, writers*tilesPerWriter)
+	state, err := stateBatch(storage, 1, writers*tilesPerWriter)
 	s.Require().NoError(err)
 	s.Assert().Len(state, writers*tilesPerWriter)
 
@@ -575,3 +573,23 @@ func (s *testSuite) TestConcurrentSetsAndReads() {
 var _ domain.TileStorage = (*memory_tile_storage.Storage)(nil)
 
 var _ xtime.Provider = (*fakeClock)(nil)
+
+// stateBatch is the map the tests assert against, read back through the dense
+// encoding the API serves. An inverted range is covered in dense_test.go.
+func stateBatch(s *memory_tile_storage.Storage, start uint32, end uint32) (map[uint32]string, error) {
+	batch, err := s.StateBatchDense(start, end)
+	if err != nil {
+		return nil, err
+	}
+
+	state := make(map[uint32]string)
+	for i := 0; i+1 < len(batch.Tiles); i += 2 {
+		code := binary.LittleEndian.Uint16(batch.Tiles[i : i+2])
+		if code == 0 { // the unowned code
+			continue
+		}
+		state[batch.Start+uint32(i/2)] = batch.Codes[code]
+	}
+
+	return state, nil
+}

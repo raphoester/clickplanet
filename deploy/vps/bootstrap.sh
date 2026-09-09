@@ -556,7 +556,7 @@ runuser -u "$DEPLOY_USER" -- docker compose up -d
 
 log "waiting for the certificate (up to 3 min; DNS-01 waits on TXT propagation)"
 for i in $(seq 1 60); do
-	if curl -fsS --max-time 5 "https://${API_DOMAIN}/v2/rpc/map-density" >/dev/null 2>&1; then
+	if curl -fsS --max-time 5 "https://${API_DOMAIN}/planet.v1.ClickService/MapDensity?connect=v1&encoding=json&message=%7B%7D" >/dev/null 2>&1; then
 		log "API is answering over HTTPS"
 		break
 	fi
@@ -566,8 +566,11 @@ done
 
 # The header this checks is the one failure that only ever shows up in a
 # browser: curl without an Origin header passes happily either way.
-cors="$(curl -fsSI --max-time 5 -H "Origin: ${FRONTEND_ORIGIN}" \
-	"https://${API_DOMAIN}/v2/rpc/map-density" 2>/dev/null \
+#
+# A GET, not a HEAD: connect-go answers HEAD with 405, which -f turns into a
+# silent empty result rather than the check this is meant to be.
+cors="$(curl -fsS -o /dev/null -D- --max-time 5 -H "Origin: ${FRONTEND_ORIGIN}" \
+	"https://${API_DOMAIN}/planet.v1.ClickService/MapDensity?connect=v1&encoding=json&message=%7B%7D" 2>/dev/null \
 	| tr -d '\r' | awk -F': ' 'tolower($1)=="access-control-allow-origin"{print $2}')"
 if [[ "$cors" == "$FRONTEND_ORIGIN" ]]; then
 	log "CORS ok (Access-Control-Allow-Origin: ${cors})"
