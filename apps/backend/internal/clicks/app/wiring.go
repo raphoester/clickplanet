@@ -18,6 +18,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/domain/click_handler_service/prom_click_handler_service"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/domain/runner"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging/lf"
+	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ratelimit"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/xtime"
 )
 
@@ -64,9 +65,18 @@ func (a *App) configureApp(_ context.Context) (*ConfigureAppResponse, error) {
 	clickService := planetv1controller.NewClickService(clickHandlerService, tilesChecker, tilesStorage)
 	errorInterceptor := planetv1controller.NewErrorInterceptor(a.logger)
 
+	clickLimiter := ratelimit.New(a.config.RateLimiter, xtime.ActualProvider{})
+	a.runners = append(a.runners, func() { clickLimiter.Run(a.ctx) })
+
+	// The error interceptor sits outside the limiter so that everything the
+	// handler chain answers goes through the same error mapping; the refusal
+	// already carries its own code, which that mapping leaves alone.
 	connectPath, connectHandler := planetv1connect.NewClickServiceHandler(
 		clickService,
-		connect.WithInterceptors(errorInterceptor),
+		connect.WithInterceptors(
+			errorInterceptor,
+			planetv1controller.NewRateLimitInterceptor(clickLimiter),
+		),
 	)
 
 	return &ConfigureAppResponse{

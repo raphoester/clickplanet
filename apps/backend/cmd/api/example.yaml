@@ -26,3 +26,15 @@ bookkeeper:
   enabled: false
   runner:
     interval: 1h
+
+# Per-IP throttle on the Click RPC. Reads and the websocket are untouched.
+# The defaults below are also what applies when this block is absent.
+rateLimiter:
+  # Sustained clicks per second allowed from one address.
+  perSecond: 1
+  # Clicks a caller arriving after a quiet spell may spend at once, so that a
+  # normal flurry is not refused.
+  burst: 10
+  # How often the buckets that have refilled completely are forgotten. Only
+  # affects memory, never what a caller is allowed.
+  sweepInterval: 1m
