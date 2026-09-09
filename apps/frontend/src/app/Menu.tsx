@@ -10,6 +10,7 @@ import Modal from "./components/Modal.tsx";
 import DiscordButton from "./components/DiscordButton.tsx";
 import BuyMeACoffee from "./components/BuyMeACoffee.tsx";
 import {SwapIcon} from "./components/icons.tsx";
+import {opensFolded} from "./compact.ts";
 import "./Menu.css"
 
 export type MenuProps = {
@@ -18,10 +19,6 @@ export type MenuProps = {
     leaderboard: LeaderboardEntry[],
     tilesCount: number,
 }
-
-const COMPACT = "(max-width: 768px)"
-
-const opensFolded = () => window.matchMedia?.(COMPACT).matches ?? false
 
 export default function Menu(props: MenuProps) {
     const [isOpen, setIsOpen] = useState(() => !opensFolded())

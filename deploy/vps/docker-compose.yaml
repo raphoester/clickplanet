@@ -45,7 +45,14 @@ services:
       - "8080"
     # cfgutil loads env vars with "." as the nesting delimiter, so a key like
     # `tilesStorage.snapshotInterval` can be overridden here without editing
-    # backend.yaml. Nothing secret is needed by this stack.
+    # backend.yaml.
+    environment:
+      # Salts the per-sender chat tag. It lives here rather than in backend.yaml
+      # because that file is in git: anyone holding the salt can recompute a
+      # sender's tag from a guessed address, which is the one thing the tag is
+      # supposed to prevent. Changing it renames every sender, so treat it as
+      # permanent — bootstrap.sh generates one and never overwrites it.
+      chat.service.tagSalt: ${CHAT_TAG_SALT:?set CHAT_TAG_SALT in .env (openssl rand -hex 16)}
     volumes:
       - ./backend.yaml:/home/app/config/config.yaml:ro
       - tile_state:/home/app/state   # snapshot file lives here — back this up
