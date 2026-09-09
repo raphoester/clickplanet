@@ -1,0 +1,120 @@
+// Package session mints and verifies the opaque token a caller has to hold to
+// click. It is deliberately stateless: the token carries its own expiry and a
+// MAC over it, so nothing has to be stored, swept, or replicated, and a restart
+// does not log every player out.
+package session
+
+import (
+	"crypto/hmac"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/binary"
+	"encoding/hex"
+	"errors"
+	"fmt"
+	"time"
+)
+
+var (
+	ErrMalformed    = errors.New("malformed session token")
+	ErrBadSignature = errors.New("session token signature does not match")
+	ErrExpired      = errors.New("session token has expired")
+)
+
+const (
+	expiryLen = 8
+	idLen     = 8
+	macLen    = sha256.Size
+
+	tokenLen = expiryLen + idLen + macLen
+)
+
+// ID identifies one minted session. It is not a secret and not an identity —
+// it exists so a refusal can be correlated in the logs with the mint that
+// preceded it.
+type ID string
+
+type Token struct {
+	Value     string
+	ID        ID
+	ExpiresAt time.Time
+}
+
+type Signer struct {
+	key []byte
+	ttl time.Duration
+}
+
+func NewSigner(secret string, ttl time.Duration) (*Signer, error) {
+	if secret == "" {
+		return nil, errors.New("session secret is empty")
+	}
+	if ttl <= 0 {
+		return nil, fmt.Errorf("session ttl must be positive, got %s", ttl)
+	}
+
+	return &Signer{key: []byte(secret), ttl: ttl}, nil
+}
+
+func (s *Signer) TTL() time.Duration {
+	return s.ttl
+}
+
+// Mint binds the token to ip. A caller whose address changes mid-session — a
+// phone moving from wifi to cellular — fails verification and mints again,
+// which is the intended behaviour: the point of the binding is that a token
+// lifted off the wire is worth nothing anywhere else.
+func (s *Signer) Mint(ip string, now time.Time) (Token, error) {
+	id := make([]byte, idLen)
+	if _, err := rand.Read(id); err != nil {
+		return Token{}, fmt.Errorf("failed to read random bytes: %w", err)
+	}
+
+	expiresAt := now.Add(s.ttl)
+
+	payload := make([]byte, expiryLen+idLen)
+	binary.BigEndian.PutUint64(payload[:expiryLen], uint64(expiresAt.UnixMilli()))
+	copy(payload[expiryLen:], id)
+
+	token := append(payload, s.mac(payload, ip)...)
+
+	return Token{
+		Value:     base64.RawURLEncoding.EncodeToString(token),
+		ID:        ID(hex.EncodeToString(id)),
+		ExpiresAt: expiresAt,
+	}, nil
+}
+
+func (s *Signer) Verify(value string, ip string, now time.Time) (ID, error) {
+	raw, err := base64.RawURLEncoding.DecodeString(value)
+	if err != nil {
+		return "", fmt.Errorf("%w: %s", ErrMalformed, err)
+	}
+
+	if len(raw) != tokenLen {
+		return "", fmt.Errorf("%w: got %d bytes, want %d", ErrMalformed, len(raw), tokenLen)
+	}
+
+	payload, mac := raw[:expiryLen+idLen], raw[expiryLen+idLen:]
+
+	// Constant time, and before the expiry check: an attacker must not learn
+	// whether a forged token would have been in date.
+	if !hmac.Equal(mac, s.mac(payload, ip)) {
+		return "", ErrBadSignature
+	}
+
+	expiresAt := time.UnixMilli(int64(binary.BigEndian.Uint64(payload[:expiryLen])))
+	if !now.Before(expiresAt) {
+		return "", fmt.Errorf("%w at %s", ErrExpired, expiresAt.UTC().Format(time.RFC3339))
+	}
+
+	return ID(hex.EncodeToString(payload[expiryLen:])), nil
+}
+
+func (s *Signer) mac(payload []byte, ip string) []byte {
+	h := hmac.New(sha256.New, s.key)
+	h.Write(payload)
+	h.Write([]byte(ip))
+	return h.Sum(nil)
+}

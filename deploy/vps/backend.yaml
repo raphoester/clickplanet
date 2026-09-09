@@ -34,6 +34,42 @@ vpnBlocklist:
   includeDatacenters: true
   allow: []
 
+# Gates the Click RPC on a token this server minted, which is the one thing an
+# address-based defence cannot do: refuse a caller that never proved anything,
+# however many addresses it can reach the game from. The blocklist above raises
+# the floor; this is what makes clicking cost something to start.
+session:
+  # Ships off, because a widget has to exist before this can work: turn it on in
+  # step 3 of deploy/vps/README.md §5, once .env holds SESSION_SECRET and
+  # TURNSTILE_SECRET. Off, session.v1.SessionService/ 404s and clicks are judged
+  # on address alone, exactly as before this existed.
+  enabled: false
+  # Then, separately: false counts what enforcing would refuse and refuses
+  # nothing, so every client already out there keeps working. Watch
+  # click_session_checks{verdict="valid"} climb as the new frontend rolls out,
+  # and only then flip this to true.
+  enforce: false
+  # session.secret and session.turnstile.secret come from the environment —
+  # docker-compose.yaml passes them in from .env. Deliberately absent here:
+  # this file is in git.
+  ttl: 1h
+  # Minting costs a siteverify round trip, so it gets its own budget rather than
+  # sharing the click one. Ten in hand covers a reload loop; one every thirty
+  # seconds is far more than a player needs.
+  rateLimiter:
+    perSecond: 0.033
+    burst: 10
+  turnstile:
+    enabled: true
+    # Must match the frontend origin the widget is embedded on, and must not
+    # include localhost: a production allowlist is not a development one.
+    hostnames:
+      - clickplanet.lol
+      - www.clickplanet.lol
+    # Must match the data-action the widget is rendered with, so a token minted
+    # for another surface on the same sitekey is not accepted here.
+    action: session
+
 # Live chat. Every message is appended to a JSONL log on the same tile_state
 # volume as the snapshot, so the droplet's weekly disk backup covers it — with
 # a recovery point up to a week old.

@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package session.v1;
+
+// A session is what turns "anyone who can shape a request" into "a caller that
+// proved something once". CreateSession is the only way to get one, and the
+// Click RPC will not accept a caller without it.
+service SessionService {
+  rpc CreateSession(CreateSessionRequest) returns (CreateSessionResponse);
+}
+
+message CreateSessionRequest {
+  // The Turnstile widget's cf-turnstile-response. Verified server side against
+  // Cloudflare's siteverify. Ignored when the server runs with attestation
+  // disabled, which is how a local backend works without a widget.
+  string attestation_token = 1;
+}
+
+message CreateSessionResponse {
+  // Opaque. Sent back on every Click in the X-Session-Token header.
+  string token = 1;
+
+  // When the token stops being accepted. The client mints a new one before
+  // this, rather than waiting for the first refusal.
+  int64 expires_at_unix_ms = 2;
+}

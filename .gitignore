@@ -1,2 +1,9 @@
 .idea/
 .DS_Store
+
+# Secrets. deploy/vps/.env holds the Cloudflare API token, the chat tag salt,
+# the session secret and the Turnstile secret; the .env.example beside it is the
+# template and is meant to be committed.
+.env
+.env.*
+!.env.example

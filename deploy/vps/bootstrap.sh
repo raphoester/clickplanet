@@ -63,6 +63,13 @@ random_salt() {
 		|| od -An -tx1 -N16 /dev/urandom | tr -d ' \n'
 }
 
+# Signs the session tokens gating the Click RPC. Longer than the chat salt
+# because it is an HMAC key rather than a hash salt.
+random_secret() {
+	openssl rand -hex 32 2>/dev/null \
+		|| od -An -tx1 -N32 /dev/urandom | tr -d ' \n'
+}
+
 usage() {
 	sed -n '3,20p' "$0" | sed 's/^# \{0,1\}//'
 	cat <<'USAGE'
@@ -387,6 +394,21 @@ if [[ -f "$env_file" && $FORCE_ENV -eq 0 ]]; then
 		sed -i '/^CHAT_TAG_SALT=/d' "$env_file"
 		printf 'CHAT_TAG_SALT=%s\n' "$(random_salt)" >> "$env_file"
 	fi
+	# Same reasoning as the salt, milder consequence: rotating this only costs
+	# every player one extra round trip on their next click. Still not something
+	# a redeploy should do without being asked.
+	if ! grep -q '^SESSION_SECRET=.' "$env_file"; then
+		log "adding a generated SESSION_SECRET to the existing .env"
+		sed -i '/^SESSION_SECRET=/d' "$env_file"
+		printf 'SESSION_SECRET=%s\n' "$(random_secret)" >> "$env_file"
+	fi
+	# Unlike the two above this cannot be generated: it is half of a keypair
+	# Cloudflare issues. Left empty, docker compose refuses to start the stack
+	# and says so, which beats booting with attestation quietly doing nothing.
+	if ! grep -q '^TURNSTILE_SECRET=' "$env_file"; then
+		log "adding an empty TURNSTILE_SECRET to .env — set it from dash.cloudflare.com > Turnstile"
+		printf 'TURNSTILE_SECRET=\n' >> "$env_file"
+	fi
 else
 	log "writing .env"
 	cat > "$env_file" <<ENV
@@ -395,6 +417,10 @@ API_DOMAIN=${API_DOMAIN}
 FRONTEND_ORIGIN=${FRONTEND_ORIGIN}
 CLOUDFLARE_API_TOKEN=${CF_TOKEN}
 CHAT_TAG_SALT=$(random_salt)
+SESSION_SECRET=$(random_secret)
+# Secret half of the Turnstile widget, from dash.cloudflare.com > Turnstile.
+# Cannot be generated here. The stack will not start until it is set.
+TURNSTILE_SECRET=
 BACKEND_IMAGE=${BACKEND_IMAGE:-ghcr.io/raphoester/clickplanet-backend:latest}
 ENV
 	chown "$DEPLOY_USER:$DEPLOY_USER" "$env_file"

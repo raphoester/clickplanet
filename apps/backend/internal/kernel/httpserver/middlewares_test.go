@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/connectutil"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ctxutil"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/httpserver"
 	"github.com/stretchr/testify/require"
@@ -41,4 +42,19 @@ func TestIPReaderMiddleware(t *testing.T) {
 
 		require.Equal(t, "@", readIP(r))
 	})
+}
+
+// A custom header makes a cross-origin POST preflighted, and a preflight that
+// does not list it fails the request before the handler ever sees it — so
+// omitting this would refuse every click from the deployed frontend.
+func TestCorsMiddlewareAllowsTheSessionHeader(t *testing.T) {
+	handler := httpserver.CorsMiddleware(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodOptions, "/planet.v1.ClickService/Click", nil))
+
+	allowed := recorder.Header().Get("Access-Control-Allow-Headers")
+	require.Contains(t, allowed, connectutil.SessionHeader)
+	require.Contains(t, allowed, "Content-Type")
+	require.Contains(t, allowed, "Connect-Protocol-Version")
 }

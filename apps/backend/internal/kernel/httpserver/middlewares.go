@@ -3,7 +3,9 @@ package httpserver
 import (
 	"net"
 	"net/http"
+	"strings"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/connectutil"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ctxutil"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging/lf"
@@ -18,10 +20,21 @@ func MiddlewareStack(middlewares ...func(http.Handler) http.Handler) func(http.H
 	}
 }
 
+// The session header has to be named here or the browser never sends it: a
+// custom header makes a cross-origin POST preflighted, and a preflight that
+// does not list it fails the actual request. deploy/vps/Caddyfile answers
+// OPTIONS itself in production and carries the same list.
+var allowedHeaders = strings.Join([]string{
+	"Content-Type",
+	"Connect-Protocol-Version",
+	"Connect-Timeout-Ms",
+	connectutil.SessionHeader,
+}, ", ")
+
 func CorsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Connect-Protocol-Version, Connect-Timeout-Ms")
+		w.Header().Set("Access-Control-Allow-Headers", allowedHeaders)
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 
 		if r.Method == http.MethodOptions {

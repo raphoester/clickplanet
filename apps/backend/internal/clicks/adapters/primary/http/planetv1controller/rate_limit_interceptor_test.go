@@ -28,11 +28,19 @@ func (l *fakeLimiter) Allow(key string) bool {
 
 type fakeRequest struct {
 	connect.AnyRequest
-	spec connect.Spec
+	spec   connect.Spec
+	header http.Header
 }
 
 func (r fakeRequest) Spec() connect.Spec {
 	return r.spec
+}
+
+func (r fakeRequest) Header() http.Header {
+	if r.header == nil {
+		return http.Header{}
+	}
+	return r.header
 }
 
 func rateLimit(ctx context.Context, limiter ClickLimiter, procedure string) (bool, error) {
