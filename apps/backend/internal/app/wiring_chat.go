@@ -13,6 +13,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/adapters/primary/chatv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/adapters/secondary/memory_chat_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/domain/chat_service"
+	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ipblock"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging/lf"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ratelimit"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/wspublisher"
@@ -67,11 +68,22 @@ func (a *App) configureChatIfEnabled(_ context.Context) error {
 	messageLimiter := ratelimit.New(a.config.Chat.RateLimiter, xtime.ActualProvider{})
 	a.runners = append(a.runners, func() { messageLimiter.Run(a.ctx) })
 
+	// The same prefix set the click blocklist is built on, so an entry covers a
+	// range and a /24 is one line rather than 256.
+	blocklist, err := ipblock.NewDenyList(a.config.Chat.BlockedIPs)
+	if err != nil {
+		return fmt.Errorf("failed to build the chat blocklist: %w", err)
+	}
+
+	// Same order as the click chain: the error mapping outside everything, and
+	// the blocklist outside the limiter so a refused sender does not also spend
+	// a token.
 	a.mountRPC(chatv1connect.NewChatServiceHandler(
 		chatv1controller.NewChatService(service),
 		connect.WithInterceptors(
 			chatv1controller.NewErrorInterceptor(a.logger),
-			chatv1controller.NewGuardInterceptor(messageLimiter, a.config.Chat.BlockedIPs),
+			chatv1controller.NewBlocklistInterceptor(blocklist),
+			chatv1controller.NewRateLimitInterceptor(messageLimiter),
 		),
 	))
 

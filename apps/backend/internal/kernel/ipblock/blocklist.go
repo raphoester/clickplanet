@@ -30,6 +30,7 @@ type List string
 const (
 	ListVPN        List = "vpn"
 	ListDatacenter List = "datacenter"
+	ListDeny       List = "deny"
 )
 
 // Blocklist is the allowlist and the vendored lists together. Immutable once
@@ -108,6 +109,30 @@ func (b *Blocklist) Sizes() map[List]int {
 		sizes[s.name] = s.set.Len()
 	}
 	return sizes
+}
+
+// NewDenyList builds a blocklist from operator-supplied prefixes alone, with no
+// vendored lists behind it — for a list that is maintained by hand in config
+// rather than refreshed from upstream.
+//
+// It is the same Set underneath as the vendored lists, so an entry is a prefix
+// and covers a range: blocking a /24 is one line rather than 256. An empty list
+// returns a nil *Blocklist, which refuses nothing.
+func NewDenyList(prefixes []string) (*Blocklist, error) {
+	if len(prefixes) == 0 {
+		return nil, nil
+	}
+
+	deny, err := Parse(readerOf(prefixes))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse deny list: %w", err)
+	}
+
+	if deny.Len() == 0 {
+		return nil, nil
+	}
+
+	return &Blocklist{sets: []namedSet{{name: ListDeny, set: deny}}}, nil
 }
 
 func readerOf(prefixes []string) io.Reader {

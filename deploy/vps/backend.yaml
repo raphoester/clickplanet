@@ -60,4 +60,6 @@ chat:
     perSecond: 0.33
     burst: 5
   # Cut off an abusive sender here, then `docker compose restart backend`.
+  # CIDRs, as in vpnBlocklist.allow above: 203.0.113.7/32 for one address,
+  # 203.0.113.0/24 for the range someone is cycling through.
   blockedIPs: []

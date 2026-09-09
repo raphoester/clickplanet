@@ -95,5 +95,7 @@ chat:
     burst: 5
     sweepInterval: 1m
   # Refused every chat RPC outright. The way to cut off an abusive sender
-  # without a rebuild.
+  # without a rebuild. Same prefix set as vpnBlocklist above, so these are
+  # CIDRs — a single address needs /32, and a whole range is one line. A
+  # malformed entry fails the start rather than silently refusing nobody.
   blockedIPs: []

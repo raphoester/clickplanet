@@ -15,6 +15,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/domain"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/domain/chat_service"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/httpserver"
+	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ipblock"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ratelimit"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
@@ -60,12 +61,16 @@ func startChatServer(t *testing.T, service chat_service.IService, blockedIPs []s
 	clock := &fakeClock{now: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)}
 	limiter := ratelimit.New(ratelimit.Config{PerSecond: 1, Burst: 3}, clock)
 
+	blocklist, err := ipblock.NewDenyList(blockedIPs)
+	require.NoError(t, err)
+
 	mux := http.NewServeMux()
 	mux.Handle(chatv1connect.NewChatServiceHandler(
 		NewChatService(service),
 		connect.WithInterceptors(
 			NewErrorInterceptor(nil),
-			NewGuardInterceptor(limiter, blockedIPs),
+			NewBlocklistInterceptor(blocklist),
+			NewRateLimitInterceptor(limiter),
 		),
 	))
 
@@ -161,7 +166,7 @@ func TestThrottleRefusesAFloodPerIP(t *testing.T) {
 
 func TestABlockedSenderIsRefused(t *testing.T) {
 	service := &stubService{}
-	server, _ := startChatServer(t, service, []string{"9.9.9.9"})
+	server, _ := startChatServer(t, service, []string{"9.9.9.9/32"})
 
 	err := sendOnce(server, "9.9.9.9")
 	require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
