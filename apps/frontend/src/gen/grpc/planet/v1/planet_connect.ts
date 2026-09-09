@@ -7,9 +7,8 @@ import { ClickRequest, ClickResponse, GetMapRequest, GetMapResponse, MapDensityR
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
- * The API. Connect mounts it at /planet.v1.ClickService/, which is namespace
- * enough — the deprecated REST endpoints under /v2/rpc cannot collide with it.
- * The live update stream stays a websocket at /ws/listen.
+ * The API. Connect mounts it at /planet.v1.ClickService/. The live update
+ * stream stays a websocket at /ws/listen.
  *
  * @generated from service planet.v1.ClickService
  */

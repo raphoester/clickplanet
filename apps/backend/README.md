@@ -26,7 +26,7 @@ internal/clicks/
 **Click flow:**
 
 ```
-POST /v2/rpc/click
+POST /planet.v1.ClickService/Click
   → validate country + tile ID
   → write the tile in memory, fan the update out in process
   → WebSocket publisher fans updates out to all connected clients
@@ -42,10 +42,10 @@ The tradeoffs are deliberate: writes since the last snapshot are lost on a hard 
 
 | Concern          | Technology                                               |
 |------------------|----------------------------------------------------------|
-| Language         | Go 1.23                                                  |
+| Language         | Go 1.27                                                  |
 | Real-time        | WebSockets (`coder/websocket`), in-process fan-out       |
 | Storage          | In-memory, with binary snapshots to a local file         |
-| API contracts    | Protocol Buffers (supports JSON and binary wire formats) |
+| API contracts    | Protocol Buffers over Connect (no gRPC)                  |
 | Metrics          | Prometheus (decorator pattern over the core service)     |
 | Config           | YAML + environment variable overrides (`koanf`)          |
 | Scheduling       | `gocron` (bookkeeper interval jobs)                      |
@@ -54,15 +54,15 @@ The tradeoffs are deliberate: writes since the last snapshot are lost on a hard 
 
 ## API
 
-| Method | Path                          | Description                                |
-|--------|-------------------------------|--------------------------------------------|
-| `POST` | `/v2/rpc/click`               | Claim a tile for a country                 |
-| `GET`  | `/v2/rpc/map-density`         | Total number of clicks across the map      |
-| `POST` | `/v2/rpc/ownerships-by-batch` | Bulk fetch tile ownership for a tile range |
-| `GET`  | `/v2/ws/listen`               | WebSocket stream of real-time tile updates |
-| `GET`  | `/metrics`                    | Prometheus metrics                         |
+| Method | Path                                     | Description                                |
+|--------|------------------------------------------|--------------------------------------------|
+| `POST` | `/planet.v1.ClickService/Click`          | Claim a tile for a country                 |
+| `GET`  | `/planet.v1.ClickService/MapDensity`     | Total number of tiles on the map           |
+| `GET`  | `/planet.v1.ClickService/GetMap`         | Bulk fetch tile ownership for a tile range |
+| `GET`  | `/ws/listen`                             | WebSocket stream of real-time tile updates |
+| `GET`  | `/metrics`                               | Prometheus metrics                         |
 
-Request/response bodies use Protocol Buffers. The server supports both binary and JSON wire formats, configured via `httpServer.format`.
+The RPCs are served with [Connect](https://connectrpc.com), which is plain HTTP — no gRPC. The encoding is negotiated per request (`application/proto` or `application/json`), and the two reads are marked side-effect free, so they arrive as cacheable GETs. The websocket carries raw binary `TileUpdate` frames.
 
 ## Running locally
 

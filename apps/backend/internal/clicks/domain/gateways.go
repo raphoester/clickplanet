@@ -9,7 +9,6 @@ type TilesChecker interface {
 
 type TileStorage interface {
 	Set(ctx context.Context, tile uint32, value string) error
-	GetStateBatch(ctx context.Context, start uint32, end uint32) (map[uint32]string, error)
 }
 
 // DenseBatch is a tile range with the code table needed to read it: Tiles

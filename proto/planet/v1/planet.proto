@@ -2,9 +2,8 @@ syntax = "proto3";
 
 package planet.v1;
 
-// The API. Connect mounts it at /planet.v1.ClickService/, which is namespace
-// enough — the deprecated REST endpoints under /v2/rpc cannot collide with it.
-// The live update stream stays a websocket at /ws/listen.
+// The API. Connect mounts it at /planet.v1.ClickService/. The live update
+// stream stays a websocket at /ws/listen.
 service ClickService {
   rpc Click(ClickRequest) returns (ClickResponse);
 
@@ -55,19 +54,4 @@ message TileUpdate {
   uint32 tile_id = 1;
   string country_id = 2;
   string previous_country_id = 3;
-}
-
-// Deprecated: the v2 REST endpoints only. GetMap replaces this.
-message Ownerships {
-  option deprecated = true;
-
-  map<uint32, string> bindings = 1;
-}
-
-// Deprecated: the v2 REST endpoints only. GetMap replaces this.
-message OwnershipBatchRequest {
-  option deprecated = true;
-
-  uint32 start_tile_id = 1;
-  uint32 end_tile_id = 2;
 }

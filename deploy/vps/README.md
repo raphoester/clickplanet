@@ -170,7 +170,7 @@ On first boot the API finds no snapshot and starts from an empty map, logging
 `no tile snapshot found`. Check it:
 
 ```bash
-curl -sS https://api.clickplanet.lol/v2/rpc/map-density | head -c 200
+curl -sS 'https://api.clickplanet.lol/planet.v1.ClickService/MapDensity?connect=v1&encoding=json&message=%7B%7D'
 ```
 
 If the certificate does not appear within a few minutes, the DNS-01 challenge is

@@ -145,33 +145,6 @@ func (s *Storage) internLocked(value string) (uint16, error) {
 	return id, nil
 }
 
-// GetStateBatch returns the owned tiles in [start, end] — bounds inclusive,
-// unowned tiles omitted.
-func (s *Storage) GetStateBatch(_ context.Context, start uint32, end uint32) (map[uint32]string, error) {
-	if start > end {
-		return map[uint32]string{}, nil
-	}
-
-	if end > s.maxIndex {
-		end = s.maxIndex
-	}
-
-	s.tilesMu.RLock()
-	defer s.tilesMu.RUnlock()
-
-	state := make(map[uint32]string)
-	// Counted in uint64 so that an end of math.MaxUint32 cannot wrap around.
-	for i := uint64(start); i <= uint64(end); i++ {
-		code := s.tiles[i]
-		if code == unownedCode {
-			continue
-		}
-		state[uint32(i)] = s.codes[code]
-	}
-
-	return state, nil
-}
-
 // Subscribe returns a channel fed with every tile update, for as long as ctx
 // lives. The channel is closed once ctx is cancelled. Several subscribers can
 // coexist: each gets its own buffered channel, and a subscriber that cannot
