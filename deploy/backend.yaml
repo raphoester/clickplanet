@@ -7,3 +7,8 @@ tilesStorage:
   # Backed by the tile_state volume in docker-compose.yaml.
   snapshotPath: /home/app/state/tiles.snapshot
   snapshotInterval: 30s
+
+# Off in the local stack: docker-compose has no Caddy in front to set X-Real-IP,
+# so every click would key on the compose network's gateway address.
+vpnBlocklist:
+  enabled: false

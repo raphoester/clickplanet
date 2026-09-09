@@ -38,3 +38,24 @@ rateLimiter:
   # How often the buckets that have refilled completely are forgotten. Only
   # affects memory, never what a caller is allowed.
   sweepInterval: 1m
+
+# Refuses the Click RPC from known VPN and proxy egress ranges, so a player has
+# to come from an address the throttle above can actually hold onto: a bucket
+# keyed on an address you can change at will is a bucket that does not hold.
+# Reads and the websocket are untouched — a VPN user still loads and watches the
+# planet, they just cannot paint.
+#
+# The ranges are vendored from github.com/X4BNet/lists_vpn and embedded in the
+# binary. Refresh them with `make vpn-lists`.
+vpnBlocklist:
+  # Off parses nothing and allocates nothing.
+  enabled: true
+  # Also refuse datacenter and hosting ranges, which catches a self-hosted
+  # WireGuard on a VPS. It also refuses Apple iCloud Private Relay and
+  # Cloudflare WARP, which egress from those same ranges and are on by default
+  # for a lot of ordinary mobile traffic. Watch blocked_clicks{list="vpn"}
+  # against clicks for a sense of the scale before turning this on.
+  includeDatacenters: false
+  # Never refused, whatever the lists say. Prefixes, so /32 for a single
+  # address. Put your own address here.
+  allow: []

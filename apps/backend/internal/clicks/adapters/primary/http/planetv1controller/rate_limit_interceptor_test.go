@@ -12,7 +12,6 @@ import (
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ctxutil"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/httpserver"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ratelimit"
 	"github.com/stretchr/testify/require"
 )
@@ -108,17 +107,10 @@ func TestRateLimitOverHTTP(t *testing.T) {
 	clock := &fakeClock{now: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)}
 	limiter := ratelimit.New(ratelimit.Config{PerSecond: 1, Burst: 10}, clock)
 
-	mux := http.NewServeMux()
-	mux.Handle(planetv1connect.NewClickServiceHandler(
-		NewClickService(stubService{}, stubChecker{}, stubMapReader{}),
-		connect.WithInterceptors(
-			NewErrorInterceptor(nil),
-			NewRateLimitInterceptor(limiter),
-		),
+	server := clickServer(t, connect.WithInterceptors(
+		NewErrorInterceptor(nil),
+		NewRateLimitInterceptor(limiter),
 	))
-
-	server := httptest.NewServer(httpserver.IPReaderMiddleware(mux))
-	t.Cleanup(server.Close)
 
 	click := func(ip string) error {
 		req := connect.NewRequest(&planetv1.ClickRequest{TileId: 1, CountryId: "fr"})
