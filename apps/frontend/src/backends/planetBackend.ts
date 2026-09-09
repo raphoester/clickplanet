@@ -1,4 +1,4 @@
-import {Ownerships, OwnershipsGetter, TileClicker, Update, UpdatesListener} from "./backend.ts";
+import {Ownerships, OwnershipsGetter, RateLimitedError, TileClicker, Update, UpdatesListener} from "./backend.ts";
 import {GetMapResponse, TileUpdate} from "../gen/grpc/planet/v1/planet_pb.ts";
 import {ClickService} from "../gen/grpc/planet/v1/planet_connect.ts";
 import {Code, ConnectError, createPromiseClient, PromiseClient} from "@connectrpc/connect";
@@ -59,8 +59,20 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         this.pendingUpdates = []
     }
 
+    /**
+     * A refused click is not retried — `retrying` only retries a server it
+     * could not reach — so the throttle's answer arrives here on the first
+     * attempt and is translated out of Connect's vocabulary for the app layer.
+     */
     public async clickTile(tileId: number, countryId: string) {
-        await retrying(() => this.client.click({tileId, countryId}), `click ${tileId}`)
+        try {
+            await retrying(() => this.client.click({tileId, countryId}), `click ${tileId}`)
+        } catch (e) {
+            if (e instanceof ConnectError && e.code === Code.ResourceExhausted) {
+                throw new RateLimitedError({cause: e})
+            }
+            throw e
+        }
     }
 
     public async getCurrentOwnershipsByBatch(

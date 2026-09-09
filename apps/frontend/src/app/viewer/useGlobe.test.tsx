@@ -186,3 +186,48 @@ describe("useGlobe", () => {
         expect(createGlobe).not.toHaveBeenCalled()
     })
 })
+
+describe("useGlobe rate limiting", () => {
+    const refuseAClick = async () =>
+        act(async () => createGlobe.mock.calls[0][0].onRateLimited())
+
+    beforeEach(() => createGlobe.mockResolvedValue(fakeGlobe()))
+
+    it("stays quiet until the server refuses a click", async () => {
+        renderHook()
+        await waitFor(() => expect(latest.status.state).toBe('ready'))
+
+        expect(latest.rateLimited).toBe(false)
+    })
+
+    it("raises the flag when the globe reports a refused click", async () => {
+        renderHook()
+        await waitFor(() => expect(latest.status.state).toBe('ready'))
+
+        await refuseAClick()
+        expect(latest.rateLimited).toBe(true)
+    })
+
+    /** A spammer's burst is one thing to say, once, not one dialog per click. */
+    it("stays raised across a burst of refusals", async () => {
+        renderHook()
+        await waitFor(() => expect(latest.status.state).toBe('ready'))
+
+        await refuseAClick()
+        await refuseAClick()
+        await refuseAClick()
+        expect(latest.rateLimited).toBe(true)
+    })
+
+    it("lowers the flag when the player dismisses it, and raises it again after", async () => {
+        renderHook()
+        await waitFor(() => expect(latest.status.state).toBe('ready'))
+
+        await refuseAClick()
+        await act(async () => latest.dismissRateLimited())
+        expect(latest.rateLimited).toBe(false)
+
+        await refuseAClick()
+        expect(latest.rateLimited).toBe(true)
+    })
+})

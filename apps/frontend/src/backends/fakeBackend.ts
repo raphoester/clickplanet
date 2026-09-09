@@ -1,8 +1,17 @@
-import {Ownerships, OwnershipsGetter, TileClicker, Update, UpdatesListener} from "./backend.ts";
+import {Ownerships, OwnershipsGetter, RateLimitedError, TileClicker, Update, UpdatesListener} from "./backend.ts";
 import {v4 as UUIDv4} from 'uuid';
 import {Countries} from "../domain/countries.ts";
 
 const TILE_COUNT = 257_000
+
+/**
+ * The throttle the real backend puts on the Click RPC, in the shape a token
+ * bucket takes there: a sustained rate, and what a caller arriving after a
+ * quiet spell may spend at once. These mirror the backend's defaults so that a
+ * dev pointed at the fake meets the same refusal a player would.
+ */
+const CLICKS_PER_SECOND = 1
+const CLICK_BURST = 10
 
 export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListener {
     private tileBindings: Map<number, string> = new Map()
@@ -10,6 +19,8 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     private pendingUpdates: Update[] = []
     private updateBatchCallbacks: Map<string, (update: Update[]) => void> = new Map()
     private readonly timers: ReturnType<typeof setInterval>[] = []
+    private tokens = CLICK_BURST
+    private lastRefillMs = Date.now()
 
     constructor(batchUpdateDurationMs: number) {
         for (let i = 1; i <= TILE_COUNT; i++) {
@@ -31,9 +42,14 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
             let tileId = Math.floor(Math.random() * 10_000)
             const gap = Math.floor(Math.random() * 100)
 
+            /**
+             * Simulated traffic bypasses the throttle: it stands in for every
+             * other player, not for this one, and a shared bucket would freeze
+             * the whole globe the moment the dev clicked too fast.
+             */
             this.timers.push(setInterval(() => { // simulate updates
                 tileId = (tileId + gap) % TILE_COUNT + 1
-                this.clickTile(tileId, country.code).catch(e => console.error("failed to click", e))
+                this.applyClick(tileId, country.code)
             }, Math.random() * 1000))
         })
     }
@@ -46,6 +62,11 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     }
 
     public async clickTile(tileId: number, countryId: string) {
+        if (!this.allow()) throw new RateLimitedError()
+        this.applyClick(tileId, countryId)
+    }
+
+    private applyClick(tileId: number, countryId: string) {
         const prev = this.tileBindings.get(tileId)
         this.tileBindings.set(tileId, countryId)
         this.updateListeners.forEach(l => l({
@@ -53,6 +74,20 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
             previousCountry: prev,
             newCountry: countryId,
         }))
+    }
+
+    /** The same token bucket the backend keys on a source IP, for one player. */
+    private allow(): boolean {
+        const now = Date.now()
+        this.tokens = Math.min(
+            CLICK_BURST,
+            this.tokens + ((now - this.lastRefillMs) / 1000) * CLICKS_PER_SECOND,
+        )
+        this.lastRefillMs = now
+
+        if (this.tokens < 1) return false
+        this.tokens -= 1
+        return true
     }
 
     public listenForUpdates(

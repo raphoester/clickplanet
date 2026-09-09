@@ -2,7 +2,7 @@ import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {bindingsOf, decodeTileUpdate, openUpdatesSocket, PlanetBackend, websocketUrl} from "./planetBackend.ts"
 import {Code, ConnectError} from "@connectrpc/connect"
 import {GetMapResponse, TileUpdate} from "../gen/grpc/planet/v1/planet_pb.ts"
-import type {Update} from "./backend.ts"
+import {RateLimitedError, type Update} from "./backend.ts"
 
 function frame(update: Partial<{tileId: number, countryId: string, previousCountryId: string}>): ArrayBuffer {
     const bytes = new TileUpdate(update).toBinary()
@@ -283,6 +283,66 @@ describe("PlanetBackend.getCurrentOwnershipsByBatch", () => {
 
         await expect(collect(backend, controller.signal)).rejects.toThrow()
         expect(getMap).toHaveBeenCalledTimes(1)
+        backend.close()
+    })
+})
+
+describe("PlanetBackend.clickTile", () => {
+    const backendWith = (click: ReturnType<typeof vi.fn>) => {
+        const clientStub = {click, getMap: vi.fn(), mapDensity: vi.fn()} as never
+        return new PlanetBackend({baseUrl: "https://api.test"}, clientStub, 1_000)
+    }
+
+    it("sends the tile and the country", async () => {
+        const click = vi.fn().mockResolvedValue({})
+        const backend = backendWith(click)
+
+        await backend.clickTile(42, "fr")
+        expect(click).toHaveBeenCalledWith({tileId: 42, countryId: "fr"})
+        backend.close()
+    })
+
+    /**
+     * The throttle's answer is the one click failure the app shows the player,
+     * so it must not reach them as a Connect code — nor be retried, which would
+     * be the app hammering a server that just asked it to stop.
+     */
+    it("reports the per-IP throttle as a RateLimitedError, without retrying", async () => {
+        const refused = new ConnectError("too many clicks", Code.ResourceExhausted)
+        const click = vi.fn().mockRejectedValue(refused)
+        const backend = backendWith(click)
+
+        await expect(backend.clickTile(1, "fr")).rejects.toBeInstanceOf(RateLimitedError)
+        expect(click).toHaveBeenCalledTimes(1)
+        backend.close()
+    })
+
+    it("keeps the refusal as the cause, so the console still has the detail", async () => {
+        const refused = new ConnectError("too many clicks", Code.ResourceExhausted)
+        const backend = backendWith(vi.fn().mockRejectedValue(refused))
+
+        await expect(backend.clickTile(1, "fr")).rejects.toMatchObject({cause: refused})
+        backend.close()
+    })
+
+    it("leaves every other failure as it was", async () => {
+        const rejected = new ConnectError("nope", Code.InvalidArgument)
+        const backend = backendWith(vi.fn().mockRejectedValue(rejected))
+
+        await expect(backend.clickTile(1, "fr")).rejects.toBe(rejected)
+        backend.close()
+    })
+
+    /** Unreachable is still retried, and is not a throttle. */
+    it("retries a server it could not reach", async () => {
+        vi.spyOn(console, "error").mockImplementation(() => {})
+        const click = vi.fn()
+            .mockRejectedValueOnce(new ConnectError("offline", Code.Unavailable))
+            .mockResolvedValue({})
+        const backend = backendWith(click)
+
+        await backend.clickTile(1, "fr")
+        expect(click).toHaveBeenCalledTimes(2)
         backend.close()
     })
 })

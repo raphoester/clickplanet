@@ -8,7 +8,7 @@ import {ATLAS_SIZE, ATLAS_URL} from "./atlasAsset.ts";
 import {tilePointSize} from "./pointSize.ts";
 import {regions} from "./atlas.ts";
 import {Country} from "../../domain/countries.ts";
-import {OwnershipsGetter, TileClicker, Update, UpdatesListener} from "../../backends/backend.ts";
+import {OwnershipsGetter, RateLimitedError, TileClicker, Update, UpdatesListener} from "../../backends/backend.ts";
 import {LeaderboardEntry, rankCountries} from "../../domain/leaderboard.ts";
 import {OwnerChange, TileOwnership} from "../../domain/tileOwnership.ts";
 import {warnOnce} from "../../domain/warnOnce.ts";
@@ -33,6 +33,12 @@ export type GlobeOptions = {
     /** The country tiles are claimed for, until `setCountry` says otherwise. */
     country: Country
     onLeaderboardChange: (entries: LeaderboardEntry[]) => void
+    /**
+     * The server refused a click as too fast. Fires once per refused click, so
+     * a burst of them calls this many times over: whatever renders it has to be
+     * idempotent, not a queue.
+     */
+    onRateLimited: () => void
     /** Abandons the load; the returned globe is never handed back. */
     signal: AbortSignal
 }
@@ -61,6 +67,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         container: eventTarget,
         country: initialCountry,
         onLeaderboardChange: updateLeaderboard,
+        onRateLimited,
         signal,
     } = options
 
@@ -132,7 +139,16 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             return
         }
 
-        tileClicker.clickTile(tile, country.code).catch(console.error)
+        /**
+         * Being throttled is an ordinary outcome now, not a fault: it is
+         * reported to the player rather than logged, or a spammer would fill
+         * the console with a line per click.
+         */
+        tileClicker.clickTile(tile, country.code).catch((e) => {
+            if (lifetime.signal.aborted) return
+            if (e instanceof RateLimitedError) onRateLimited()
+            else console.error(e)
+        })
 
         /** Painted straight away; the server's echo confirms it later. */
         applyChanges(ownership.applyUpdates([{
