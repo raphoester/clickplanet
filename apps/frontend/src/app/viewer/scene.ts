@@ -1,10 +1,12 @@
 import * as THREE from 'three';
 import {innerSphere} from "./sphere.ts";
+import {layoutViewport} from "./viewport.ts";
 
 export function setupScene(container: HTMLElement) {
     const scene = new THREE.Scene();
     const cameraSize = 1;
-    const aspect = window.innerWidth / window.innerHeight;
+    const {width, height} = layoutViewport();
+    const aspect = width / height;
     const camera = new THREE.OrthographicCamera(
         -cameraSize * aspect, cameraSize * aspect,
         cameraSize, -cameraSize, 0.01, 100
@@ -13,7 +15,7 @@ export function setupScene(container: HTMLElement) {
     camera.position.z = 5
 
     const renderer = new THREE.WebGLRenderer({});
-    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setSize(width, height);
     renderer.setClearColor(0x000000);
     container.appendChild(renderer.domElement);
 

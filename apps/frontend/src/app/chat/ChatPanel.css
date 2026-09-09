@@ -333,6 +333,16 @@
     gap: 8px;
 }
 
+/*
+ * The 16px is load-bearing, not a size choice: iOS Safari zooms the whole page
+ * in when a text field under 16px takes focus, and it never zooms back out. At
+ * the 14px this used to be, the zoom was 16/14 — enough to push the send button
+ * off the right of the screen, and enough that the `resize` iOS fires with the
+ * *visual* viewport width left the globe's canvas an eighth short of the page,
+ * as a black band down the right, for the rest of the session. `viewport.ts`
+ * stops the canvas believing that width; this stops the zoom happening at all.
+ * The other field on the page, `.input-search`, is already well over.
+ */
 .chat-input {
     flex: 1 1 auto;
     min-width: 0;
@@ -343,7 +353,7 @@
     background: #FFFFFF14;
     color: white;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    font-size: 14px;
+    font-size: 16px;
     user-select: text;
     -webkit-user-select: text;
 }

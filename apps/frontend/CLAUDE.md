@@ -321,6 +321,12 @@ curl -s "https://clickplanet.lol$B" | grep -c 'challenges.cloudflare.com/turnsti
   are resolved once per frame, not once per mousemove — each one ends in a
   synchronous GPU read that stalls the pipeline.
 - `points.ts` — fetches and decodes the tile coordinates blob.
+- `viewport.ts` — `layoutViewport()`, the size the canvas is set to. **Never
+  size the renderer from `window.innerWidth`**: on iOS Safari that follows the
+  *visual* viewport, so a pinch fires a `resize` reporting the zoomed-in width,
+  the canvas shrinks to it, and releasing the zoom fires nothing that would
+  widen it again — the globe is left short of the right edge with a black band
+  beside it for the rest of the session.
 - `atlas.ts` / `atlasAsset.ts` — country code → sprite region, and the generated
   atlas URL and size.
 - `shaders/` — GLSL for the display and picking passes.
@@ -472,6 +478,12 @@ browser you have open. `--eval` evaluates in the page (top-level `await` works)
 and prints the result — measuring boxes with `getBoundingClientRect()` beats
 eyeballing a screenshot. `--headed`, `--w/--h/--dpr`, `--full` and `--settle`
 cover the rest; `npm run mobile -- --help` lists them.
+
+Chrome's emulation does not reproduce one iOS behaviour that has bitten this
+page: **Safari zooms the whole page in when a text field under 16px takes
+focus**, and never zooms back out. That is why `.chat-input` is 16px — at 14px
+the zoom pushed the send button off the right of the screen. Keep every `input`
+here at 16px or more; the emulator will not tell you when one drops below.
 
 `--open-menu` exists because two things sit between a fresh load and the menu:
 `DonationModal` rolls a coin on **every** load (`SHOW_PROBABILITY`), and the

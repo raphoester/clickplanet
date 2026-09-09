@@ -20,6 +20,7 @@ import {SessionUnavailableError} from "../../backends/session.ts";
 import {LeaderboardEntry, rankCountries} from "../../domain/leaderboard.ts";
 import {OwnerChange, TileOwnership} from "../../domain/tileOwnership.ts";
 import {warnOnce} from "../../domain/warnOnce.ts";
+import {layoutViewport} from "./viewport.ts";
 
 type Uniforms = {
     pointSize: THREE.IUniform
@@ -72,7 +73,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     const {scene, camera, cameraSize, renderer, cleanup} = setupScene(eventTarget);
     const uniforms: Uniforms = {
-        pointSize: {value: tilePointSize(camera.zoom, window.innerHeight)},
+        pointSize: {value: tilePointSize(camera.zoom, layoutViewport().height)},
         atlasTexture: {value: textureLoader.load(ATLAS_URL)},
         atlasTextureSize: {value: new THREE.Vector2(ATLAS_SIZE.width, ATLAS_SIZE.height)},
     };
@@ -134,8 +135,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     }, listenerOptions);
 
     const resizeListener = () => {
-        const width = window.innerWidth;
-        const height = window.innerHeight;
+        const {width, height} = layoutViewport();
 
         camera.left = -cameraSize * (width / height);
         camera.right = cameraSize * (width / height);
