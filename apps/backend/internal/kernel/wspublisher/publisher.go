@@ -1,4 +1,8 @@
-package websocket_publisher
+// Package wspublisher fans a stream of values out to every connected WebSocket
+// client. It knows nothing about what it is carrying: the payload type and its
+// encoding are the caller's, so a bounded context can broadcast its own
+// messages without either context depending on the other.
+package wspublisher
 
 import (
 	"context"
@@ -7,52 +11,57 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
-	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/domain"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging/lf"
-	"google.golang.org/protobuf/proto"
 )
 
-// writeTimeout bounds how long a single client can hold up the fanout.
-// A client that cannot absorb an update within that delay is dropped, the same
-// way the tile storage drops updates for subscribers that fall behind.
+// writeTimeout bounds how long a single client can hold up the fanout. A client
+// that cannot absorb an update within that delay is dropped.
 const writeTimeout = 2 * time.Second
 
-func New(
-	updates <-chan domain.TileUpdate,
+// New builds a publish-only endpoint serving route. Each stream gets its own
+// route rather than sharing one socket: frames carry a bare protobuf message
+// with no type tag, so a second kind of payload on an existing route would be
+// indistinguishable from the first to every already-deployed client.
+func New[T any](
+	updates <-chan T,
+	route string,
+	encode func(T) ([]byte, error),
 	logger logging.Logger,
-) *Publisher {
+) *Publisher[T] {
 	if logger == nil {
 		logger = logging.NewNopLogger()
 	}
 
-	return &Publisher{
+	return &Publisher[T]{
 		clients: make(map[*websocket.Conn]*clientMD),
 		updates: updates,
+		route:   route,
+		encode:  encode,
 		logger:  logger,
 	}
 }
 
-type Publisher struct {
+type Publisher[T any] struct {
 	mu      sync.RWMutex
 	clients map[*websocket.Conn]*clientMD
-	updates <-chan domain.TileUpdate
+	updates <-chan T
+	route   string
+	encode  func(T) ([]byte, error)
 	logger  logging.Logger
 }
 
 type clientMD struct {
 }
 
-func (p *Publisher) Run() {
+func (p *Publisher[T]) Run() {
 	for update := range p.updates {
-		bin, err := proto.Marshal(&planetv1.TileUpdate{
-			TileId:            update.Tile,
-			CountryId:         update.Value,
-			PreviousCountryId: update.Previous,
-		})
-
+		bin, err := p.encode(update)
 		if err != nil {
+			p.logger.Error("failed to encode an update for the websocket fanout",
+				lf.String("route", p.route),
+				lf.Err(err),
+			)
 			continue
 		}
 
@@ -69,22 +78,25 @@ func (p *Publisher) Run() {
 		}
 		p.mu.RUnlock()
 
-		// Dropped outside of the loop: removal needs the write lock, which
-		// cannot be taken while the read lock above is held.
+		// Dropped outside the loop: removal needs the write lock, which cannot
+		// be taken while the read lock above is held.
 		for _, client := range dead {
 			p.removeClient(client)
 		}
 	}
 }
 
-func (p *Publisher) Subscribe(w http.ResponseWriter, r *http.Request) {
+func (p *Publisher[T]) Subscribe(w http.ResponseWriter, r *http.Request) {
 	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{
 		OriginPatterns:     []string{"*"},
 		InsecureSkipVerify: true,
 	})
 
 	if err != nil {
-		p.logger.Error("failed to accept websocket connection", lf.Err(err))
+		p.logger.Error("failed to accept websocket connection",
+			lf.String("route", p.route),
+			lf.Err(err),
+		)
 		http.Error(w, "cannot accept websocket connection", http.StatusInternalServerError)
 		return
 	}
@@ -107,7 +119,7 @@ func (p *Publisher) Subscribe(w http.ResponseWriter, r *http.Request) {
 
 // removeClient drops a connection from the fanout and closes it. It is safe to
 // call several times for the same connection, and from several goroutines.
-func (p *Publisher) removeClient(conn *websocket.Conn) {
+func (p *Publisher[T]) removeClient(conn *websocket.Conn) {
 	p.mu.Lock()
 	_, registered := p.clients[conn]
 	delete(p.clients, conn)
@@ -120,6 +132,6 @@ func (p *Publisher) removeClient(conn *websocket.Conn) {
 	_ = conn.CloseNow()
 }
 
-func (p *Publisher) DeclareRoutes(router *http.ServeMux) {
-	router.HandleFunc("/listen", p.Subscribe)
+func (p *Publisher[T]) DeclareRoutes(router *http.ServeMux) {
+	router.HandleFunc(p.route, p.Subscribe)
 }

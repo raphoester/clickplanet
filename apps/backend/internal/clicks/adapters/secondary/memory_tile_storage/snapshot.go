@@ -8,9 +8,9 @@ import (
 	"hash/crc32"
 	"io/fs"
 	"os"
-	"path/filepath"
 	"time"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/atomicfile"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging/lf"
 )
 
@@ -45,7 +45,7 @@ func (s *Storage) Run(ctx context.Context) {
 	// Surface an unwritable destination at startup rather than one interval
 	// later: a snapshot path the process cannot write means no durability at
 	// all, which is otherwise easy to miss in the logs.
-	if err := checkWritable(s.config.SnapshotPath); err != nil {
+	if err := atomicfile.CheckWritable(s.config.SnapshotPath); err != nil {
 		s.logger.Error("snapshot path is not writable, tile state will not survive a restart",
 			lf.String("path", s.config.SnapshotPath),
 			lf.Err(err),
@@ -93,7 +93,7 @@ func (s *Storage) Snapshot() error {
 		return nil
 	}
 
-	if err := writeFileAtomic(s.config.SnapshotPath, payload); err != nil {
+	if err := atomicfile.Write(s.config.SnapshotPath, payload); err != nil {
 		// Put the dirty flag back so the next tick retries instead of
 		// silently leaving the state unsaved.
 		s.tilesMu.Lock()
@@ -279,92 +279,4 @@ func decodeSnapshot(raw []byte) ([]string, []uint16, error) {
 	}
 
 	return codes, tiles, nil
-}
-
-// writeFileAtomic writes data to a temp file in the destination directory,
-// fsyncs it, then renames it over path. A crash mid-write leaves the previous
-// snapshot intact.
-func writeFileAtomic(path string, data []byte) error {
-	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return fmt.Errorf("failed to create snapshot directory: %w", err)
-	}
-
-	tmp, err := os.CreateTemp(dir, filepath.Base(path)+".tmp-*")
-	if err != nil {
-		return fmt.Errorf("failed to create temp file: %w", err)
-	}
-	tmpName := tmp.Name()
-
-	defer func() {
-		// No-op once the rename succeeded, cleanup otherwise.
-		_ = os.Remove(tmpName)
-	}()
-
-	// CreateTemp makes the file 0600; snapshots are not secret and backup jobs
-	// may well run as another user.
-	if err := tmp.Chmod(0o644); err != nil {
-		_ = tmp.Close()
-		return fmt.Errorf("failed to chmod temp file: %w", err)
-	}
-
-	if _, err := tmp.Write(data); err != nil {
-		_ = tmp.Close()
-		return fmt.Errorf("failed to write temp file: %w", err)
-	}
-
-	if err := tmp.Sync(); err != nil {
-		_ = tmp.Close()
-		return fmt.Errorf("failed to sync temp file: %w", err)
-	}
-
-	if err := tmp.Close(); err != nil {
-		return fmt.Errorf("failed to close temp file: %w", err)
-	}
-
-	if err := os.Rename(tmpName, path); err != nil {
-		return fmt.Errorf("failed to rename temp file: %w", err)
-	}
-
-	return syncDir(dir)
-}
-
-// syncDir flushes the rename itself, so the snapshot survives a power loss and
-// not just a process crash.
-func syncDir(dir string) error {
-	d, err := os.Open(dir)
-	if err != nil {
-		return fmt.Errorf("failed to open snapshot directory: %w", err)
-	}
-	defer func() { _ = d.Close() }()
-
-	if err := d.Sync(); err != nil {
-		return fmt.Errorf("failed to sync snapshot directory: %w", err)
-	}
-
-	return nil
-}
-
-// checkWritable reports whether a snapshot could be written to path, without
-// disturbing an existing snapshot.
-func checkWritable(path string) error {
-	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return fmt.Errorf("failed to create snapshot directory: %w", err)
-	}
-
-	probe, err := os.CreateTemp(dir, filepath.Base(path)+".probe-*")
-	if err != nil {
-		return fmt.Errorf("failed to create a file in the snapshot directory: %w", err)
-	}
-
-	if err := probe.Close(); err != nil {
-		return fmt.Errorf("failed to close the probe file: %w", err)
-	}
-
-	if err := os.Remove(probe.Name()); err != nil {
-		return fmt.Errorf("failed to remove the probe file: %w", err)
-	}
-
-	return nil
 }

@@ -24,9 +24,6 @@ type GameMapConfig struct {
 	MaxIndex uint32
 }
 
-// BookkeeperConfig controls the background job that reports recent activity to
-// X. It used to be the separate cmd/bookkeeper process; it now runs in-process
-// so it can read the tile storage's recent updates. Off by default.
 type BookkeeperConfig struct {
 	Enabled bool
 	Runner  runner.Config
