@@ -8,7 +8,14 @@ import {ATLAS_SIZE, ATLAS_URL} from "./atlasAsset.ts";
 import {tilePointSize} from "./pointSize.ts";
 import {regions} from "./atlas.ts";
 import {Country} from "../../domain/countries.ts";
-import {OwnershipsGetter, RateLimitedError, TileClicker, Update, UpdatesListener} from "../../backends/backend.ts";
+import {
+    OwnershipsGetter,
+    RateLimitedError,
+    TileClicker,
+    Update,
+    UpdatesListener,
+    VPNBlockedError,
+} from "../../backends/backend.ts";
 import {LeaderboardEntry, rankCountries} from "../../domain/leaderboard.ts";
 import {OwnerChange, TileOwnership} from "../../domain/tileOwnership.ts";
 import {warnOnce} from "../../domain/warnOnce.ts";
@@ -39,6 +46,11 @@ export type GlobeOptions = {
      * idempotent, not a queue.
      */
     onRateLimited: () => void
+    /**
+     * The server refused a click because it came from a VPN or proxy address.
+     * Same contract as {@link onRateLimited}: once per refused click.
+     */
+    onVPNBlocked: () => void
     /** Abandons the load; the returned globe is never handed back. */
     signal: AbortSignal
 }
@@ -68,6 +80,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         country: initialCountry,
         onLeaderboardChange: updateLeaderboard,
         onRateLimited,
+        onVPNBlocked,
         signal,
     } = options
 
@@ -139,15 +152,9 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             return
         }
 
-        /**
-         * Being throttled is an ordinary outcome now, not a fault: it is
-         * reported to the player rather than logged, or a spammer would fill
-         * the console with a line per click.
-         */
         tileClicker.clickTile(tile, country.code).catch((e) => {
             if (lifetime.signal.aborted) return
-            if (e instanceof RateLimitedError) onRateLimited()
-            else console.error(e)
+            reportClickFailure(e, {onRateLimited, onVPNBlocked})
         })
 
         /** Painted straight away; the server's echo confirms it later. */
@@ -252,4 +259,24 @@ function startAnimation(
         renderer.setAnimationLoop(null);
         controls.dispose();
     };
+}
+
+/**
+ * Routes a failed click to the player or to the console.
+ *
+ * The two refusals are ordinary outcomes, not faults: they are shown to the
+ * player rather than logged, or a spammer would fill the console with a line
+ * per click. Everything else is a real fault and still goes to the console.
+ *
+ * Split out of the click handler so it can be tested. Sending one refusal to
+ * the other's dialog is the easiest mistake to make here and the hardest to
+ * spot — the page still works, it just gives the wrong advice.
+ */
+export function reportClickFailure(
+    error: unknown,
+    handlers: {onRateLimited: () => void, onVPNBlocked: () => void},
+) {
+    if (error instanceof RateLimitedError) handlers.onRateLimited()
+    else if (error instanceof VPNBlockedError) handlers.onVPNBlocked()
+    else console.error(error)
 }

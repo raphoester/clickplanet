@@ -41,6 +41,13 @@ export function useGlobe(options: UseGlobeOptions) {
      */
     const [rateLimited, setRateLimited] = useState(false)
 
+    /**
+     * Same flag-not-a-count reasoning. Unlike the throttle this one does not
+     * clear on its own — the player has to change network — so dismissing it
+     * only closes the dialog, and the next refused click raises it again.
+     */
+    const [vpnBlocked, setVPNBlocked] = useState(false)
+
     const globeRef = useRef<Globe | null>(null)
 
     /** Read once, when the globe is built; later changes go through setCountry. */
@@ -63,6 +70,7 @@ export function useGlobe(options: UseGlobeOptions) {
             country: initialCountry.current,
             onLeaderboardChange: setLeaderboard,
             onRateLimited: () => setRateLimited(true),
+            onVPNBlocked: () => setVPNBlocked(true),
             signal: abortController.signal,
         }).then((globe) => {
             if (cancelled) {
@@ -98,6 +106,8 @@ export function useGlobe(options: UseGlobeOptions) {
         tilesCount,
         rateLimited,
         dismissRateLimited: () => setRateLimited(false),
+        vpnBlocked,
+        dismissVPNBlocked: () => setVPNBlocked(false),
     }
 }
 

@@ -1,4 +1,12 @@
-import {Ownerships, OwnershipsGetter, RateLimitedError, TileClicker, Update, UpdatesListener} from "./backend.ts";
+import {
+    Ownerships,
+    OwnershipsGetter,
+    RateLimitedError,
+    TileClicker,
+    Update,
+    UpdatesListener,
+    VPNBlockedError,
+} from "./backend.ts";
 import {GetMapResponse, TileUpdate} from "../gen/grpc/planet/v1/planet_pb.ts";
 import {ClickService} from "../gen/grpc/planet/v1/planet_connect.ts";
 import {Code, ConnectError, createPromiseClient, PromiseClient} from "@connectrpc/connect";
@@ -70,6 +78,9 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         } catch (e) {
             if (e instanceof ConnectError && e.code === Code.ResourceExhausted) {
                 throw new RateLimitedError({cause: e})
+            }
+            if (e instanceof ConnectError && e.code === Code.PermissionDenied) {
+                throw new VPNBlockedError({cause: e})
             }
             throw e
         }

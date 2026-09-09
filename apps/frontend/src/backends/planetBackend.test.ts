@@ -2,7 +2,7 @@ import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {bindingsOf, decodeTileUpdate, openUpdatesSocket, PlanetBackend, websocketUrl} from "./planetBackend.ts"
 import {Code, ConnectError} from "@connectrpc/connect"
 import {GetMapResponse, TileUpdate} from "../gen/grpc/planet/v1/planet_pb.ts"
-import {RateLimitedError, type Update} from "./backend.ts"
+import {RateLimitedError, type Update, VPNBlockedError} from "./backend.ts"
 
 function frame(update: Partial<{tileId: number, countryId: string, previousCountryId: string}>): ArrayBuffer {
     const bytes = new TileUpdate(update).toBinary()
@@ -319,6 +319,30 @@ describe("PlanetBackend.clickTile", () => {
 
     it("keeps the refusal as the cause, so the console still has the detail", async () => {
         const refused = new ConnectError("too many clicks", Code.ResourceExhausted)
+        const backend = backendWith(vi.fn().mockRejectedValue(refused))
+
+        await expect(backend.clickTile(1, "fr")).rejects.toMatchObject({cause: refused})
+        backend.close()
+    })
+
+    /**
+     * Same treatment as the throttle, and for the same reason — but a distinct
+     * class, because the two dialogs give opposite advice: ease off versus turn
+     * the VPN off.
+     */
+    it("reports the VPN refusal as a VPNBlockedError, without retrying", async () => {
+        const refused = new ConnectError("clicks from VPN addresses are refused", Code.PermissionDenied)
+        const click = vi.fn().mockRejectedValue(refused)
+        const backend = backendWith(click)
+
+        await expect(backend.clickTile(1, "fr")).rejects.toBeInstanceOf(VPNBlockedError)
+        await expect(backend.clickTile(1, "fr")).rejects.not.toBeInstanceOf(RateLimitedError)
+        expect(click).toHaveBeenCalledTimes(2)
+        backend.close()
+    })
+
+    it("keeps the VPN refusal as the cause too", async () => {
+        const refused = new ConnectError("clicks from VPN addresses are refused", Code.PermissionDenied)
         const backend = backendWith(vi.fn().mockRejectedValue(refused))
 
         await expect(backend.clickTile(1, "fr")).rejects.toMatchObject({cause: refused})
