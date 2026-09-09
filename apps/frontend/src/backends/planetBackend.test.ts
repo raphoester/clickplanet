@@ -3,6 +3,34 @@ import {bindingsOf, decodeTileUpdate, openUpdatesSocket, PlanetBackend, websocke
 import {Code, ConnectError} from "@connectrpc/connect"
 import {GetMapResponse, TileUpdate} from "../gen/grpc/planet/v1/planet_pb.ts"
 import {RateLimitedError, type Update, VPNBlockedError} from "./backend.ts"
+import {SESSION_HEADER, type SessionProvider, SessionUnavailableError} from "./session.ts"
+
+function fixedSession(token: string): SessionProvider {
+    return {token: async () => token, invalidate: () => {}}
+}
+
+function rotatingSession(tokens: string[]) {
+    let index = 0
+    return {
+        invalidated: 0,
+        async token() {
+            return tokens[Math.min(index, tokens.length - 1)]
+        },
+        invalidate() {
+            this.invalidated++
+            index++
+        },
+    }
+}
+
+function failingSession(): SessionProvider {
+    return {
+        token: async () => {
+            throw new SessionUnavailableError()
+        },
+        invalidate: () => {},
+    }
+}
 
 function frame(update: Partial<{tileId: number, countryId: string, previousCountryId: string}>): ArrayBuffer {
     const bytes = new TileUpdate(update).toBinary()
@@ -276,17 +304,77 @@ describe("PlanetBackend.getCurrentOwnershipsByBatch", () => {
 })
 
 describe("PlanetBackend.clickTile", () => {
-    const backendWith = (click: ReturnType<typeof vi.fn>) => {
+    const backendWith = (click: ReturnType<typeof vi.fn>, session?: SessionProvider) => {
         const clientStub = {click, getMap: vi.fn(), mapDensity: vi.fn()} as never
-        return new PlanetBackend({baseUrl: "https://api.test"}, clientStub, 1_000)
+        return new PlanetBackend({baseUrl: "https://api.test"}, clientStub, 1_000, session)
     }
+
+    const headersOf = (click: ReturnType<typeof vi.fn>, call = 0) =>
+        (click.mock.calls[call][1] as {headers: Headers}).headers
 
     it("sends the tile and the country", async () => {
         const click = vi.fn().mockResolvedValue({})
         const backend = backendWith(click)
 
         await backend.clickTile(42, "fr")
-        expect(click).toHaveBeenCalledWith({tileId: 42, countryId: "fr"})
+        expect(click).toHaveBeenCalledWith({tileId: 42, countryId: "fr"}, expect.anything())
+        backend.close()
+    })
+
+    it("sends no session header when this build has no session to send", async () => {
+        const click = vi.fn().mockResolvedValue({})
+        const backend = backendWith(click)
+
+        await backend.clickTile(42, "fr")
+
+        expect(headersOf(click).has(SESSION_HEADER)).toBe(false)
+        backend.close()
+    })
+
+    it("puts the session token on the click", async () => {
+        const click = vi.fn().mockResolvedValue({})
+        const backend = backendWith(click, fixedSession("session-1"))
+
+        await backend.clickTile(42, "fr")
+
+        expect(headersOf(click).get(SESSION_HEADER)).toBe("session-1")
+        backend.close()
+    })
+
+    // A token that lapsed mid-session, or one bound to an address that changed
+    // when a phone moved onto cellular, is not worth a dialog: mint and retry.
+    it("mints a new session and retries once when the server refuses the token", async () => {
+        const click = vi.fn()
+            .mockRejectedValueOnce(new ConnectError("no session", Code.Unauthenticated))
+            .mockResolvedValueOnce({})
+
+        const session = rotatingSession(["stale", "fresh"])
+        const backend = backendWith(click, session)
+
+        await backend.clickTile(42, "fr")
+
+        expect(click).toHaveBeenCalledTimes(2)
+        expect(headersOf(click, 0).get(SESSION_HEADER)).toBe("stale")
+        expect(headersOf(click, 1).get(SESSION_HEADER)).toBe("fresh")
+        expect(session.invalidated).toBe(1)
+        backend.close()
+    })
+
+    it("gives up after the retry rather than looping", async () => {
+        const click = vi.fn().mockRejectedValue(new ConnectError("no session", Code.Unauthenticated))
+        const backend = backendWith(click, rotatingSession(["stale", "fresh"]))
+
+        await expect(backend.clickTile(1, "fr")).rejects.toBeInstanceOf(SessionUnavailableError)
+        expect(click).toHaveBeenCalledTimes(2)
+        backend.close()
+    })
+
+    it("reports a session that could not be obtained without attempting the click", async () => {
+        const click = vi.fn().mockResolvedValue({})
+        const backend = backendWith(click, failingSession())
+
+        await expect(backend.clickTile(1, "fr")).rejects.toBeInstanceOf(SessionUnavailableError)
+        expect(click).not.toHaveBeenCalled()
         backend.close()
     })
 

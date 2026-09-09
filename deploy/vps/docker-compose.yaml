@@ -53,6 +53,23 @@ services:
       # supposed to prevent. Changing it renames every sender, so treat it as
       # permanent — bootstrap.sh generates one and never overwrites it.
       chat.service.tagSalt: ${CHAT_TAG_SALT:?set CHAT_TAG_SALT in .env (openssl rand -hex 16)}
+      # Signs the session tokens that gate the Click RPC. Here rather than in
+      # backend.yaml for the same reason as the salt: that file is in git, and
+      # anyone holding this can mint a token the API will accept. Changing it
+      # invalidates every session in flight, which costs each player one extra
+      # round trip and nothing else.
+      # Soft default, unlike the two above: an existing box redeploying before
+      # Turnstile has been set up must not have its stack refuse to start over a
+      # variable it does not need yet. Empty makes the API generate one at boot
+      # and warn — which changes every session on every restart, so set it.
+      session.secret: ${SESSION_SECRET:-}
+      # The Turnstile widget's secret key, from the same dashboard page as the
+      # sitekey. The sitekey is public and lives in the frontend build; this one
+      # never leaves the box.
+      # Also soft, and unused while session.turnstile.enabled is false. Once it
+      # is true, an empty value fails the boot loudly rather than quietly
+      # admitting everyone.
+      session.turnstile.secret: ${TURNSTILE_SECRET:-}
     volumes:
       - ./backend.yaml:/home/app/config/config.yaml:ro
       - tile_state:/home/app/state   # snapshot file lives here — back this up

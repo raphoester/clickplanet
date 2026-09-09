@@ -7,6 +7,7 @@ import {
     UpdatesListener,
     VPNBlockedError,
 } from "./backend.ts";
+import {SessionUnavailableError} from "./session.ts";
 import {v4 as UUIDv4} from 'uuid';
 import {Countries} from "../domain/countries.ts";
 
@@ -17,6 +18,7 @@ const CLICK_BURST = 10
 
 export type FakeBackendOptions = {
     vpnBlocked?: boolean
+    sessionUnavailable?: boolean
 }
 
 export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListener {
@@ -28,9 +30,11 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     private tokens = CLICK_BURST
     private lastRefillMs = Date.now()
     private readonly vpnBlocked: boolean
+    private readonly sessionUnavailable: boolean
 
     constructor(batchUpdateDurationMs: number, options: FakeBackendOptions = {}) {
         this.vpnBlocked = options.vpnBlocked ?? false
+        this.sessionUnavailable = options.sessionUnavailable ?? false
 
         for (let i = 1; i <= TILE_COUNT; i++) {
             this.tileBindings.set(i, "fr")
@@ -66,6 +70,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     }
 
     public async clickTile(tileId: number, countryId: string) {
+        if (this.sessionUnavailable) throw new SessionUnavailableError()
         if (this.vpnBlocked) throw new VPNBlockedError()
         if (!this.allow()) throw new RateLimitedError()
         this.applyClick(tileId, countryId)

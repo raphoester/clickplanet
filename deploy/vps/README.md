@@ -193,6 +193,7 @@ Create a Pages project from the GitHub repo:
 | Build command | `npm ci && npm run build` |
 | Output directory | `dist` |
 | Env var | `VITE_API_BASE_URL=https://api.clickplanet.lol` |
+| Env var | `VITE_TURNSTILE_SITEKEY=0x4AAAAAAEuFCQwAVFUYug8z` (see [§5](#5-turnstile-and-the-click-session)) |
 
 Generated protobuf code is committed, so the build needs no `buf`.
 
@@ -209,7 +210,127 @@ The `.bin` name carries a content hash, and `public/_headers` caches it
 stale blob can never be served. If you regenerate it, `gameMap.maxIndex` in
 `backend.yaml` must be updated to match the new tile count.
 
-## 5. CI and the image registry
+## 5. Turnstile and the click session
+
+The API refuses a `Click` that carries no session token it minted, and the only
+way to get one is to pass Turnstile. Without this configured on both sides the
+game still runs — `session.enabled: false` keeps the old address-only
+behaviour — but the anti-bot floor is back to what a blocklist can do.
+
+### The widget
+
+Already created, as **clickplanet click session**:
+
+| | |
+|---|---|
+| Sitekey | `0x4AAAAAAEuFCQwAVFUYug8z` — public, goes in the Pages build |
+| Secret key | dash.cloudflare.com → Turnstile → the widget → *Settings*; goes in `.env` only |
+| Hostnames | `clickplanet.lol`, `www.clickplanet.lol` |
+| Mode | Managed |
+| Pre-clearance | none |
+
+To recreate it, or to make a separate one for development:
+dash.cloudflare.com → **Turnstile** → *Add widget manually* (**not** *Configure
+with Spin* — that path rewrites the frontend and backend integration, which this
+repo already has):
+
+| Setting | Value |
+|---|---|
+| Domains | `clickplanet.lol`, `www.clickplanet.lol` |
+| Widget mode | Managed |
+
+**Do not add `localhost`.** The widget's domain list and the backend's
+`session.turnstile.hostnames` are checked against the hostname siteverify
+reports, and a production allowlist that admits localhost admits a token minted
+from a page an attacker controls locally. Use a second, separate widget for
+development if you want one.
+
+It gives you two keys:
+
+- the **sitekey**, public — it is read straight off the page — which goes in the
+  Pages build as `VITE_TURNSTILE_SITEKEY`
+- the **secret key**, which goes in `.env` on the droplet as `TURNSTILE_SECRET`
+  and never leaves it
+
+### Fill in `.env`
+
+`bootstrap.sh` generates `SESSION_SECRET` and leaves `TURNSTILE_SECRET` empty.
+On an existing box, set the Turnstile one by hand — copy it from the dashboard
+rather than reading it out anywhere it could be logged:
+
+```bash
+# On the droplet, in the stack directory.
+read -rsp 'Turnstile secret: ' s && echo && printf 'TURNSTILE_SECRET=%s\n' "$s" >> .env && unset s
+```
+
+To check a secret is the right one before trusting it, without a browser:
+
+```bash
+read -rsp 'Turnstile secret: ' s && echo && curl -s \
+  https://challenges.cloudflare.com/turnstile/v0/siteverify \
+  -d "secret=$s" -d 'response=dummy'; unset s; echo
+```
+
+`"error-codes":["invalid-input-response"]` means the **secret is valid** and only
+the dummy token was rejected. `invalid-input-secret` means it is not.
+
+If you ever need to regenerate `SESSION_SECRET`:
+
+```bash
+openssl rand -hex 32
+```
+
+`SESSION_SECRET` signs the tokens; anyone holding it can mint one the API will
+accept. Left empty the API generates one at boot and warns, which invalidates
+every session in flight on each restart — every player then pays one extra round
+trip on their next click. Rotating it deliberately costs the same and nothing
+more.
+
+`.env` is gitignored. `.env.example` beside it is the template and is committed.
+
+### Roll it out in three steps
+
+`backend.yaml` ships `session.enabled: false`, and `session.enforce: false`
+under it. Nothing below breaks a running site at any point: the API starts
+minting before anything requires a session, and starts requiring one only once
+the clients that can mint are the overwhelming majority.
+
+1. Set `session.enabled: true` in `backend.yaml` (leave `enforce` false) and
+   deploy the backend. Then watch:
+
+   ```bash
+   docker compose exec backend wget -qO- localhost:8080/metrics | grep click_session_checks
+   ```
+
+   `verdict="missing"` is every click from a client that sends no token —
+   at this point, all of them.
+
+2. Deploy the frontend with `VITE_TURNSTILE_SITEKEY` set. `verdict="valid"`
+   should climb and `missing` should fall away as caches expire.
+
+3. Once `valid` is the overwhelming majority, set `session.enforce: true` in
+   `backend.yaml` and redeploy.
+
+Flipping `enforce` before step 2 has settled refuses real players with a 401.
+The number to watch is `missing`, not the clock.
+
+### If clicks start failing with 401
+
+- **Every click, right after enabling** — the frontend build has no sitekey, or
+  Pages was not rebuilt after the env var was added.
+- **Every click, in the browser only** — check the preflight. `Caddyfile` must
+  list `X-Session-Token` in `Access-Control-Allow-Headers`; a custom header on a
+  cross-origin POST is what makes it preflighted, and a preflight that omits it
+  fails the click before the API ever sees it.
+- **Only some players** — an ad blocker or privacy extension blocking
+  `challenges.cloudflare.com`. That is what `SessionUnavailableModal` tells them
+  to fix; there is nothing to do server-side.
+- **`CreateSession` itself answering 403** — the API log says which check
+  tripped (the caller is never told). Usually `hostnames` not matching the
+  origin the widget is actually embedded on.
+
+
+## 6. CI and the image registry
 
 `.github/workflows/deploy-backend.yml` builds the image to GHCR and rolls the
 container over SSH. GHCR rather than a dedicated registry because it adds no
@@ -254,7 +375,7 @@ and run `docker login ghcr.io` once as `deploy`.
 
 Pages deploys itself on push; no workflow needed.
 
-## 6. Live chat
+## 7. Live chat
 
 `chat.enabled: true` in `backend.yaml` publishes two routes Caddy already
 forwards: `/chat.v1.ChatService/` and `/ws/chat`. `SendMessage` is an
@@ -302,7 +423,7 @@ that file can also be overridden from the `environment:` block instead —
 config path verbatim (`chat.enabled: "false"`), which is how `CHAT_TAG_SALT`
 reaches `chat.service.tagSalt`.
 
-## 7. Backups
+## 8. Backups
 
 The whole game state is one snapshot file in the `tile_state` volume, written
 every 30s and on every clean shutdown. A nightly cron on the box is enough:

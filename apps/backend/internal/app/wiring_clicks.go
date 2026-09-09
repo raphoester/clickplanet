@@ -80,16 +80,48 @@ func (a *App) configureClicks(_ context.Context) error {
 		return err
 	}
 
+	// Error mapping outermost, then the two refusals that must not spend a
+	// token, then the throttle. A click refused for its address or its session
+	// coming back 429 on the next attempt would send the client to the wrong
+	// dialog entirely.
+	interceptors := []connect.Interceptor{errorInterceptor, vpnBlockInterceptor}
+
+	sessionInterceptor, err := a.configureClickSessions()
+	if err != nil {
+		return err
+	}
+	if sessionInterceptor != nil {
+		interceptors = append(interceptors, sessionInterceptor)
+	}
+
+	interceptors = append(interceptors, planetv1controller.NewRateLimitInterceptor(clickLimiter))
+
 	a.mountRPC(planetv1connect.NewClickServiceHandler(
 		clickService,
-		connect.WithInterceptors(
-			errorInterceptor,
-			vpnBlockInterceptor,
-			planetv1controller.NewRateLimitInterceptor(clickLimiter),
-		),
+		connect.WithInterceptors(interceptors...),
 	))
 
 	return nil
+}
+
+// configureClickSessions returns nil when sessions are disabled, which leaves
+// the click chain exactly as it was.
+func (a *App) configureClickSessions() (connect.Interceptor, error) {
+	if a.sessionSigner == nil {
+		return nil, nil
+	}
+
+	interceptor, err := planetv1controller.NewSessionInterceptor(
+		a.sessionSigner,
+		xtime.ActualProvider{},
+		a.config.Session.Enforce,
+		a.promRegistry,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create the click session interceptor: %w", err)
+	}
+
+	return interceptor, nil
 }
 
 func (a *App) configureVPNBlocklist() (connect.Interceptor, error) {

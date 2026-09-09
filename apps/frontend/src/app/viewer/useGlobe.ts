@@ -28,6 +28,8 @@ export function useGlobe(options: UseGlobeOptions) {
 
     const [vpnBlocked, setVPNBlocked] = useState(false)
 
+    const [sessionUnavailable, setSessionUnavailable] = useState(false)
+
     const globeRef = useRef<Globe | null>(null)
 
     const initialCountry = useRef(country)
@@ -50,6 +52,7 @@ export function useGlobe(options: UseGlobeOptions) {
             onLeaderboardChange: setLeaderboard,
             onRateLimited: () => setRateLimited(true),
             onVPNBlocked: () => setVPNBlocked(true),
+            onSessionUnavailable: () => setSessionUnavailable(true),
             signal: abortController.signal,
         }).then((globe) => {
             if (cancelled) {
@@ -87,6 +90,8 @@ export function useGlobe(options: UseGlobeOptions) {
         dismissRateLimited: () => setRateLimited(false),
         vpnBlocked,
         dismissVPNBlocked: () => setVPNBlocked(false),
+        sessionUnavailable,
+        dismissSessionUnavailable: () => setSessionUnavailable(false),
     }
 }
 

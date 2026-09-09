@@ -16,6 +16,7 @@ import {
     UpdatesListener,
     VPNBlockedError,
 } from "../../backends/backend.ts";
+import {SessionUnavailableError} from "../../backends/session.ts";
 import {LeaderboardEntry, rankCountries} from "../../domain/leaderboard.ts";
 import {OwnerChange, TileOwnership} from "../../domain/tileOwnership.ts";
 import {warnOnce} from "../../domain/warnOnce.ts";
@@ -39,6 +40,7 @@ export type GlobeOptions = {
     onLeaderboardChange: (entries: LeaderboardEntry[]) => void
     onRateLimited: () => void
     onVPNBlocked: () => void
+    onSessionUnavailable: () => void
     signal: AbortSignal
 }
 
@@ -58,6 +60,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         onLeaderboardChange: updateLeaderboard,
         onRateLimited,
         onVPNBlocked,
+        onSessionUnavailable,
         signal,
     } = options
 
@@ -120,7 +123,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
         tileClicker.clickTile(tile, country.code).catch((e) => {
             if (lifetime.signal.aborted) return
-            reportClickFailure(e, {onRateLimited, onVPNBlocked})
+            reportClickFailure(e, {onRateLimited, onVPNBlocked, onSessionUnavailable})
         })
 
         applyChanges(ownership.applyUpdates([{
@@ -217,9 +220,14 @@ function startAnimation(
 
 export function reportClickFailure(
     error: unknown,
-    handlers: {onRateLimited: () => void, onVPNBlocked: () => void},
+    handlers: {
+        onRateLimited: () => void,
+        onVPNBlocked: () => void,
+        onSessionUnavailable: () => void,
+    },
 ) {
     if (error instanceof RateLimitedError) handlers.onRateLimited()
     else if (error instanceof VPNBlockedError) handlers.onVPNBlocked()
+    else if (error instanceof SessionUnavailableError) handlers.onSessionUnavailable()
     else console.error(error)
 }

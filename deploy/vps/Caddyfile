@@ -44,7 +44,13 @@
 	header {
 		Access-Control-Allow-Origin "{$FRONTEND_ORIGIN}"
 		Access-Control-Allow-Methods "GET, POST, OPTIONS"
-		Access-Control-Allow-Headers "Content-Type, Connect-Protocol-Version, Connect-Timeout-Ms"
+		# X-Session-Token is what a click carries to prove it came from a caller
+		# that passed Turnstile. A custom header makes the cross-origin POST
+		# preflighted, and a preflight that does not list it fails the click
+		# before the API ever sees it — so omitting it here refuses every click
+		# from the deployed frontend. The Go CORS middleware carries the same
+		# list for anything that reaches it directly.
+		Access-Control-Allow-Headers "Content-Type, Connect-Protocol-Version, Connect-Timeout-Ms, X-Session-Token"
 		Vary "Origin"
 		-Server
 	}
@@ -82,6 +88,17 @@
 	# Connect names its own path. GetMap and MapDensity arrive as GETs and
 	# carry their own Cache-Control, so a cache in front can serve them.
 	handle /planet.v1.ClickService/* {
+		reverse_proxy backend:8080 {
+			header_up X-Real-IP {client_ip}
+		}
+	}
+
+	# Sessions are a third proto package, so they get a third path for free.
+	# CreateSession is a POST that answers no-store: a minted token belongs to
+	# one caller at one address, so nothing in front of this may hold onto it.
+	# It keys on X-Real-IP twice over — the token is bound to that address, and
+	# minting is throttled per address.
+	handle /session.v1.SessionService/* {
 		reverse_proxy backend:8080 {
 			header_up X-Real-IP {client_ip}
 		}

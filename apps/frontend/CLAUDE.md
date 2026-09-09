@@ -79,7 +79,7 @@ app/       components
   id, for the badge on the folded panel.
 - `warnOnce.ts` — for things that would otherwise warn on every frame.
 
-### `src/backends/` — two contracts, one transport
+### `src/backends/` — three contracts, one transport
 
 The tile game's three interfaces are in `backend.ts`:
 
@@ -123,22 +123,27 @@ Connect does not retry, so `retrying` wraps every call: five attempts while the
 server cannot be reached, and never a retry of an answer the server chose to
 send.
 
-The backend refuses a click in two ways, and `clickTile` translates both into
-errors declared in `backend.ts` beside the interfaces, so `globe.ts` recognises
-them without knowing what a Connect code is:
+The backend refuses a click in three ways, and `clickTile` translates all of
+them into errors declared beside the interfaces — the first two in `backend.ts`,
+the third in `session.ts` — so `globe.ts` recognises them without knowing what a
+Connect code is:
 
 - `resource_exhausted` → `RateLimitedError`. The per-IP token bucket is spent.
 - `permission_denied` → `VPNBlockedError`. The address is in the backend's VPN
   and proxy blocklist.
+- `unauthenticated` → `SessionUnavailableError`, **and only after a retry** —
+  see [Sessions](#sessions).
 
-They are separate classes rather than one with a field because the two dialogs
-give opposite advice: ease off for a second, versus turn the VPN off. Everything
-else is a transport fault and still reaches the console.
+They are separate classes rather than one with a field because the dialogs give
+different advice: ease off for a second, turn the VPN off, or reload and unblock
+the challenge. Everything else is a transport fault and still reaches the
+console.
 
-`FakeBackend` reproduces both, so each dialog is reachable in dev: it enforces
-the same bucket with the backend's defaults, and takes a `vpnBlocked` option
-that refuses every click (there is no address there to judge). Its own simulated
-traffic bypasses both, standing in for other players rather than for this one.
+`FakeBackend` reproduces all three, so every dialog is reachable in dev: it
+enforces the same bucket with the backend's defaults, and takes `vpnBlocked` and
+`sessionUnavailable` options that refuse every click (there is no address and no
+widget there to judge). Its own simulated traffic bypasses all of them, standing
+in for other players rather than for this one.
 
 `openUpdatesSocket` reconnects with a capped exponential backoff. It is the only
 source of live changes, so a drop that is not retried freezes the globe until a
@@ -194,6 +199,56 @@ the text back only if the box is still empty when a refusal comes in. Clearing o
 success instead wipes whatever was typed while the message was in flight, which
 is exactly what a fast typer does.
 
+### Sessions
+
+The backend gates `Click` on a token it minted, and refuses one that carries
+none. `session.ts` declares the contract — `SessionProvider`, the
+`X-Session-Token` header name, `SessionUnavailableError`, and `NoSession` —
+and `turnstileSession.ts` implements it in two halves that are worth keeping
+apart:
+
+- **`SessionClient`** holds one session and mints another when it is close to
+  lapsing. No DOM, no script tag, no network of its own — which is why all of
+  its behaviour is under test.
+- **`turnstileAttester`** is the half that touches Cloudflare: it loads
+  `challenges.cloudflare.com/turnstile/v0/api.js` on first use, renders a widget,
+  resolves with its token and removes it again.
+
+**A fresh widget per attestation**, not one reset between uses. Turnstile tokens
+are redeemed exactly once, and a widget that is created and destroyed has no
+lifecycle left to get wrong.
+
+**`appearance: "interaction-only"`** — the widget draws nothing for almost every
+visitor. `.turnstile-host` in `index.css` is where it would appear if Turnstile
+decides this one has to tick a box; it is `pointer-events: none` so an empty host
+never swallows a click meant for the globe.
+
+**Concurrent clicks share one mint.** A page load fires a flurry, and without
+coalescing the first second of play would spend the whole per-IP mint budget on
+one Turnstile round trip per click.
+
+**Minting is refreshed a minute before the server would stop accepting the
+token**, rather than after a refusal — a token that lapses between the check and
+the server reading it costs a round trip the player can feel.
+
+**A refused click is retried once against a freshly minted session, silently.**
+A token that lapsed mid-session, or one bound to an address that changed when a
+phone moved onto cellular, is not worth a dialog. The retry is not a loop: a
+second `unauthenticated` is reported as `SessionUnavailableError` and raises
+`SessionUnavailableModal`.
+
+**Every failure inside the session client leaves as `SessionUnavailableError`.**
+A refused mint answers `permission_denied`, which is also what a VPN-blocked
+click answers — left bare it would reach the dialog telling the player to turn
+off a VPN they may not be using.
+
+**`VITE_TURNSTILE_SITEKEY` is what switches this on.** Unset, `main.tsx` wires
+`NoSession` and the client sends no header, which is what a local backend with
+`session.enabled: false` expects. The sitekey is public — it is read off the
+page — and useless without the secret, which only the backend holds. A server
+that *enforces* sessions refuses every click from a build with no sitekey:
+the two are configured together.
+
 ### `src/app/viewer/` — the GPU layer
 
 - `globe.ts` — `createGlobe(options): Promise<Globe>`. Builds the scene, wires
@@ -227,9 +282,10 @@ is exactly what a fast typer does.
    re-ranked from its counts.
 5. A click paints optimistically and POSTs; the server's echo confirms it later.
    A refused click raises a flag in `useGlobe` that `Viewer` renders as
-   `RateLimitModal` or `VPNBlockedModal`. The globe reports every refused click,
+   `RateLimitModal`, `VPNBlockedModal` or `SessionUnavailableModal`. The globe
+   reports every refused click,
    so each flag is a boolean and not a queue — a burst is one thing to say, once.
-   `reportClickFailure` in `globe.ts` is the three-way branch that picks which,
+   `reportClickFailure` in `globe.ts` is the four-way branch that picks which,
    split out of the click handler because it is the one piece of that handler
    worth testing: sending a refusal to the wrong dialog leaves a working page
    giving the wrong advice.
@@ -258,6 +314,8 @@ the whole `proto` directory, so a new package needs no config change; run
   `GetMapResponse`, `TileUpdate`
 - [`chat/v1/chat.proto`](../../proto/chat/v1/chat.proto) — `ChatMessage`,
   `SendMessageRequest`, `GetHistoryResponse`
+- [`session/v1/session.proto`](../../proto/session/v1/session.proto) —
+  `CreateSessionRequest`, `CreateSessionResponse`
 
 `ChatMessage.sentAtUnixMs` is an `int64`, which `protoc-gen-es` gives you as a
 `bigint` — `chatBackend.ts` converts it at the edge so nothing above it deals in

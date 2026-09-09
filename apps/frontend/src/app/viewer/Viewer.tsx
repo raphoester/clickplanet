@@ -4,6 +4,7 @@ import {ChatBackend} from "../../backends/chat.ts";
 import ChatPanel from "../chat/ChatPanel.tsx";
 import Menu from "../Menu.tsx";
 import RateLimitModal from "../components/RateLimitModal.tsx";
+import SessionUnavailableModal from "../components/SessionUnavailableModal.tsx";
 import VPNBlockedModal from "../components/VPNBlockedModal.tsx";
 import {useCountryStorage} from './useCountryStorage.ts';
 import {GlobeStatus, useGlobe} from './useGlobe.ts';
@@ -28,6 +29,8 @@ export default function Viewer(props: ViewerProps) {
         dismissRateLimited,
         vpnBlocked,
         dismissVPNBlocked,
+        sessionUnavailable,
+        dismissSessionUnavailable,
     } = useGlobe({
         container,
         tileClicker: props.tileClicker,
@@ -56,6 +59,8 @@ export default function Viewer(props: ViewerProps) {
         {rateLimited && <RateLimitModal onClose={dismissRateLimited}/>}
 
         {vpnBlocked && <VPNBlockedModal onClose={dismissVPNBlocked}/>}
+
+        {sessionUnavailable && <SessionUnavailableModal onClose={dismissSessionUnavailable}/>}
     </>
 }
 

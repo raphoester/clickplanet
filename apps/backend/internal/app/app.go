@@ -13,6 +13,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/httpserver"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging/lf"
+	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/session"
 )
 
 type App struct {
@@ -30,6 +31,11 @@ type App struct {
 	wsRoutes    []func(*http.ServeMux)
 
 	promRegistry *prometheus.Registry
+
+	// Left by the session context for the clicks one to verify against. Nil
+	// when sessions are disabled, which is what leaves the click chain as it
+	// was before they existed.
+	sessionSigner *session.Signer
 }
 
 type rpcService struct {
@@ -60,6 +66,11 @@ func New() (*App, error) {
 }
 
 func (a *App) Configure(ctx context.Context) error {
+	// Before the clicks context: it verifies what this one mints.
+	if err := a.configureSessionIfEnabled(ctx); err != nil {
+		return fmt.Errorf("failed to configure the session context: %w", err)
+	}
+
 	if err := a.configureClicks(ctx); err != nil {
 		return fmt.Errorf("failed to configure the clicks context: %w", err)
 	}

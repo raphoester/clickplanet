@@ -231,3 +231,20 @@ table {
     }
 }
   
+
+/* Host for the Turnstile widget the session client renders into. It is empty
+   and invisible for almost every visitor — "interaction-only" draws nothing
+   unless Turnstile decides this one has to tick a box — so it must not take a
+   click that was meant for the globe underneath it. */
+.turnstile-host {
+    position: fixed;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 40;
+    pointer-events: none;
+}
+
+.turnstile-host iframe {
+    pointer-events: auto;
+}

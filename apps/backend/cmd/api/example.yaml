@@ -60,6 +60,39 @@ vpnBlocklist:
   # address. Put your own address here.
   allow: []
 
+# Gates the Click RPC on a token this server minted. Off by default: with it
+# disabled session.v1.SessionService/ 404s and clicks are judged on address
+# alone, exactly as they were before this existed.
+session:
+  enabled: false
+  # Off counts what enforcing would refuse without refusing it — the mode to
+  # deploy in, so a client that predates sessions keeps working while
+  # click_session_checks shows what turning it on would cost.
+  enforce: false
+  # Signs the tokens. Empty generates one at boot, which invalidates every
+  # session in flight on each restart: fine locally, not in production, where it
+  # belongs in the environment rather than in a file that is in git.
+  secret: ""
+  ttl: 1h
+  # Per-IP throttle on minting, separate from the click one: a mint costs a
+  # siteverify round trip, a click costs a map write.
+  rateLimiter:
+    perSecond: 0.033
+    burst: 10
+    sweepInterval: 1m
+  turnstile:
+    # Off mints a session for anyone who asks, which is how a local backend
+    # works without a widget and a secret. The click path is still exercised —
+    # the token is bound and expires — but nothing had to be proved to get one.
+    # Never the production choice.
+    enabled: false
+    secret: ""
+    # The frontend origins siteverify must report. Empty refuses every token
+    # rather than accepting any, so this cannot be left unset by accident.
+    hostnames: []
+    # Must match the widget's data-action.
+    action: session
+
 # Live chat. Its own bounded context and its own Connect service, sharing this
 # process and the transport with the tile game and nothing else. Off by
 # default: when disabled nothing is registered, so /chat.v1.ChatService/ and
