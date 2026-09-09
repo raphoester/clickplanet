@@ -1,9 +1,11 @@
-import {useEffect, useId, useRef, useState} from "react";
+import {useCallback, useEffect, useId, useRef, useState} from "react";
 import {ChatBackend, OutgoingMessage} from "../../backends/chat.ts";
 import {Country} from "../../domain/countries.ts";
-import {unreadSince} from "../../domain/chatLog.ts";
+import {idsSince, unreadSince} from "../../domain/chatLog.ts";
 import {ChevronIcon} from "../components/icons.tsx";
 import {opensFolded} from "../compact.ts";
+import {truncate} from "../truncate.ts";
+import {authorStyle} from "./authorStyle.ts";
 import ChatComposer from "./ChatComposer.tsx";
 import ChatLog from "./ChatLog.tsx";
 import {useChat} from "./useChat.ts";
@@ -17,29 +19,61 @@ export type ChatPanelProps = {
 
 const UNREAD_CAP = 99
 
+const PEEK_AUTHOR_MAX_LENGTH = 12
+
+/** How long a message stays lit after it lands. Matches `chat-message-glow`. */
+const FLASH_MS = 1600
+
+const NOTHING: ReadonlySet<string> = new Set()
+
 export default function ChatPanel(props: ChatPanelProps) {
     const [isOpen, setIsOpen] = useState(() => !opensFolded())
     const [unread, setUnread] = useState(0)
+    const [flashing, setFlashing] = useState<ReadonlySet<string>>(NOTHING)
     const bodyId = useId()
 
-    const {messages, status, failure, send} = useChat({backend: props.backend})
+    const {messages, mine, status, failure, send} = useChat({backend: props.backend})
     const {identity, setName} = useChatIdentity()
 
     const lastSeen = useRef<string | undefined>(undefined)
     const seenAnything = useRef(false)
+    const fading = useRef<number[]>([])
+
+    const flash = useCallback((ids: string[]) => {
+        if (ids.length === 0) return
+
+        setFlashing(current => new Set([...current, ...ids]))
+        fading.current.push(window.setTimeout(() => setFlashing(current => {
+            const rest = new Set(current)
+            ids.forEach(id => rest.delete(id))
+            return rest
+        }), FLASH_MS))
+    }, [])
+
+    useEffect(() => () => fading.current.forEach(clearTimeout), [])
 
     useEffect(() => {
         const last = messages[messages.length - 1]?.id
 
-        if (isOpen || !seenAnything.current) {
-            seenAnything.current = seenAnything.current || messages.length > 0
+        // The history the panel opens on is not news, however long it is.
+        if (!seenAnything.current) {
+            seenAnything.current = messages.length > 0
             lastSeen.current = last
             setUnread(0)
             return
         }
 
-        setUnread(unreadSince(messages, lastSeen.current))
-    }, [messages, isOpen])
+        if (!isOpen) {
+            setUnread(unreadSince(messages, lastSeen.current))
+            return
+        }
+
+        // Everything unseen lights up as it comes into view: one message while
+        // the panel is open, or the whole backlog the moment it is unfolded.
+        flash(idsSince(messages, lastSeen.current).filter(id => !mine.has(id)))
+        lastSeen.current = last
+        setUnread(0)
+    }, [messages, isOpen, mine, flash])
 
     if (status === 'unavailable') return null
 
@@ -53,25 +87,42 @@ export default function ChatPanel(props: ChatPanelProps) {
         return send(message)
     }
 
-    return <section className={isOpen ? "chat chat-open" : "chat"} aria-label="Live chat">
+    const latest = messages[messages.length - 1]
+    const waiting = !isOpen && unread > 0
+
+    return <section className={panelClass(isOpen, waiting)} aria-label="Live chat">
         <button type="button"
                 className="chat-header"
                 aria-expanded={isOpen}
                 aria-controls={bodyId}
                 onClick={() => setIsOpen(!isOpen)}>
-            <span className="chat-header-title">Chat</span>
-            {!isOpen && unread > 0 &&
-                <span className="chat-badge"
-                      aria-label={unread === 1 ? "1 new message" : `${unread} new messages`}>
-                    {unread > UNREAD_CAP ? `${UNREAD_CAP}+` : unread}
-                </span>}
-            <span className={isOpen ? "chat-chevron chat-chevron-open" : "chat-chevron"}>
-                <ChevronIcon/>
+            <span className="chat-header-row">
+                <span className="chat-header-title">Chat</span>
+                {waiting &&
+                    <span className="chat-badge"
+                          key={unread}
+                          aria-label={unread === 1 ? "1 new message" : `${unread} new messages`}>
+                        {unread > UNREAD_CAP ? `${UNREAD_CAP}+` : unread}
+                    </span>}
+                <span className={isOpen ? "chat-chevron chat-chevron-open" : "chat-chevron"}>
+                    <ChevronIcon/>
+                </span>
             </span>
+
+            {waiting && latest &&
+                <span className="chat-peek"
+                      key={latest.id}
+                      aria-hidden="true"
+                      style={authorStyle(latest.authorName, latest.authorTag)}>
+                    <span className="chat-peek-author">
+                        {truncate(latest.authorName, PEEK_AUTHOR_MAX_LENGTH)}
+                    </span>
+                    <span className="chat-peek-text">{latest.text}</span>
+                </span>}
         </button>
 
         {isOpen && <div className="chat-body" id={bodyId}>
-            <ChatLog messages={messages} loading={status === 'loading'}/>
+            <ChatLog messages={messages} loading={status === 'loading'} flashing={flashing}/>
 
             <ChatComposer identity={identity}
                           setName={setName}
@@ -79,4 +130,8 @@ export default function ChatPanel(props: ChatPanelProps) {
                           onSend={onSend}/>
         </div>}
     </section>
+}
+
+function panelClass(isOpen: boolean, waiting: boolean): string {
+    return ["chat", isOpen && "chat-open", waiting && "chat-waiting"].filter(Boolean).join(" ")
 }

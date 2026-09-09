@@ -17,10 +17,11 @@
 
 .chat-header {
     display: flex;
-    align-items: center;
-    gap: 8px;
+    flex-direction: column;
+    justify-content: center;
+    gap: 1px;
     flex-shrink: 0;
-    height: 36px;
+    min-height: 36px;
     padding: 4px 8px 0 12px;
     border: none;
     border-radius: 16px;
@@ -29,6 +30,7 @@
     cursor: pointer;
     font-family: "Luckiest Guy", sans-serif;
     font-size: 20px;
+    text-align: left;
     text-shadow: -1px 1px 0 #000000;
 }
 
@@ -37,9 +39,43 @@
     transition: 0.125s ease;
 }
 
+.chat-header-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
 .chat-header-title {
     flex-grow: 1;
-    text-align: left;
+    transition: color 0.25s ease;
+}
+
+/*
+ * Folded with something unsaid: the panel breathes rather than blinks, the
+ * title takes the accent, and the newest line is quoted under it. All three
+ * say the same thing at three glance distances.
+ */
+.chat-waiting {
+    animation: chat-attention 2.6s ease-in-out infinite;
+}
+
+.chat-waiting .chat-header {
+    padding-bottom: 6px;
+}
+
+.chat-waiting .chat-header-title {
+    color: #FF813F;
+}
+
+@keyframes chat-attention {
+    0%, 100% {
+        border-color: #FFFFFF33;
+        box-shadow: 0 0 0 0 #FF813F00;
+    }
+    50% {
+        border-color: #FF813F99;
+        box-shadow: 0 0 20px 0 #FF813F40;
+    }
 }
 
 .chat-badge {
@@ -51,7 +87,57 @@
     color: #000000;
     font-family: Oswald, sans-serif;
     font-size: 12px;
+    text-align: center;
     text-shadow: none;
+    animation: chat-badge-pop 0.36s cubic-bezier(0.2, 1.5, 0.4, 1);
+}
+
+/* Remounted on every count change, so the pop replays per message. */
+@keyframes chat-badge-pop {
+    from {
+        transform: scale(0.4);
+        opacity: 0;
+    }
+}
+
+.chat-peek {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    min-width: 0;
+    padding-bottom: 1px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 12px;
+    color: #FFFFFFA6;
+    text-shadow: none;
+    animation: chat-peek-in 0.3s ease-out;
+}
+
+.chat-peek-author {
+    flex-shrink: 0;
+    max-width: 45%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: Oswald, sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    color: hsl(var(--author-hue, 0), 70%, 74%);
+}
+
+.chat-peek-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+@keyframes chat-peek-in {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
 }
 
 .chat-chevron {
@@ -73,6 +159,13 @@
     flex: 1 1 auto;
     gap: 6px;
     margin-top: 6px;
+}
+
+.chat-log-shell {
+    position: relative;
+    display: flex;
+    flex: 1 1 auto;
+    min-height: 0;
 }
 
 .chat-log {
@@ -108,11 +201,40 @@
     gap: 6px;
 }
 
+/*
+ * Every message carries its author's hue in --author-hue (authorColor.ts). The
+ * saturation and lightness are fixed here so no author can hash their way to an
+ * unreadable colour, and the stripe down the left is what makes a thread of one
+ * person's messages scannable without reading the names.
+ */
 .chat-message {
-    padding: 6px 8px;
+    --author: hsl(var(--author-hue, 0), 70%, 74%);
+    --author-glow: hsla(var(--author-hue, 0), 70%, 60%, 0.22);
+    padding: 6px 8px 6px 11px;
     border-radius: 12px;
     background: #FFFFFF0F;
     border: 1px solid #FFFFFF1A;
+    box-shadow: inset 3px 0 0 var(--author), 0 0 0 0 #00000000;
+}
+
+/* Lit while it is news: it slid in, then settles into an ordinary message. */
+.chat-message-new {
+    animation: chat-message-in 0.24s ease-out, chat-message-glow 1.6s ease-out;
+}
+
+@keyframes chat-message-in {
+    from {
+        opacity: 0.2;
+        transform: translateY(6px);
+    }
+}
+
+@keyframes chat-message-glow {
+    from {
+        background: var(--author-glow);
+        border-color: var(--author);
+        box-shadow: inset 3px 0 0 var(--author), 0 0 16px 0 var(--author-glow);
+    }
 }
 
 .chat-message-head {
@@ -140,7 +262,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    color: #FFFFFF;
+    color: var(--author);
 }
 
 .chat-message-tag {
@@ -160,6 +282,41 @@
     font-size: 14px;
     color: #DBDBDB;
     overflow-wrap: anywhere;
+}
+
+/* Reading further up is not interrupted; this says what you would have seen. */
+.chat-jump {
+    position: absolute;
+    left: 50%;
+    bottom: 6px;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border: 1px solid #FF813F;
+    border-radius: 999px;
+    background: #171717F2;
+    color: #FF813F;
+    cursor: pointer;
+    font-family: Oswald, sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    animation: chat-jump-in 0.2s ease-out;
+}
+
+.chat-jump:hover {
+    background: #FF813F;
+    color: #000000;
+    transition: 0.125s ease;
+}
+
+@keyframes chat-jump-in {
+    from {
+        opacity: 0;
+        transform: translate(-50%, 8px);
+    }
 }
 
 .chat-composer {
@@ -252,5 +409,22 @@
 
     .chat-log {
         min-height: 96px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .chat-waiting {
+        animation: none;
+        border-color: #FF813F99;
+    }
+
+    .chat-message-new {
+        animation: chat-message-glow 1.6s ease-out;
+    }
+
+    .chat-badge,
+    .chat-peek,
+    .chat-jump {
+        animation: none;
     }
 }

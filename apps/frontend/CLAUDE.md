@@ -76,7 +76,13 @@ app/       components
   message id, ordered on the time the server stamped, and capped at 200. It
   returns the array it was given when nothing was added, so an echo of something
   already shown costs no render. `unreadSince` counts what arrived after a given
-  id, for the badge on the folded panel.
+  id, for the badge on the folded panel, and `idsSince` names those same
+  messages, for highlighting them once they are on screen.
+- `authorColor.ts` — `authorHue`, a stable hue per chat author. It hashes the
+  identity the log actually displays, the name *and* the `author_tag`, so two
+  people typing one name get two colours. **Only the hue is derived**: the
+  saturation and the lightness are fixed in `ChatPanel.css`, so no hash can
+  produce a colour that is unreadable against the dark panel.
 - `warnOnce.ts` — for things that would otherwise warn on every frame.
 
 ### `src/backends/` — three contracts, one transport
@@ -198,6 +204,35 @@ The composer **clears the box when the send starts, not when it lands**, and put
 the text back only if the box is still empty when a refusal comes in. Clearing on
 success instead wipes whatever was typed while the message was in flight, which
 is exactly what a fast typer does.
+
+#### Saying that a message landed
+
+The globe is what the player is looking at, so an arriving message has to catch
+the eye without stealing it. Four things say it, each for a different glance:
+
+- **A message lights up as it comes into view.** `ChatPanel` holds the ids in
+  `flashing` for `FLASH_MS`, matched to the `chat-message-glow` animation,
+  and `ChatLog` turns that into a class. What lights up is what `idsSince`
+  reports as unseen, so the same rule covers one message arriving into an open
+  panel and a whole backlog the moment a folded one is unfolded.
+- **Your own message never flashes.** `useChat` keeps the ids `sendMessage`
+  returned in `mine` and `ChatPanel` filters them out — you know you sent it.
+  This is the only reason `mine` exists.
+- **A folded panel breathes.** `chat-waiting` puts the accent on the title, pops
+  the unread badge (remounted on every count change, so it replays per message)
+  and pulses the panel's own border and glow. It is a slow breath rather than a
+  blink: this sits over a game.
+- **The newest line is quoted under the folded header**, in its author's colour.
+  It is `aria-hidden` — a screen reader gets the count from the badge and the
+  text from the log, and the quote would only say it a third time.
+
+**The log is never yanked down under someone who scrolled up to read.** It
+auto-scrolls only while it is pinned to the bottom (`PINNED_SLACK_PX`);
+otherwise a "New messages" pill appears and scrolling back down, by the pill or
+by hand, dismisses it.
+
+Every one of these animations is dropped or reduced under
+`prefers-reduced-motion: reduce`, keeping the colour and losing the movement.
 
 ### Sessions
 
@@ -377,6 +412,12 @@ thin as it is.
 ## Styling
 
 Plain CSS files co-located with components. No CSS preprocessor or CSS-in-JS.
+
+`ChatPanel.css` is the one file with a custom property contract: each message
+and the folded peek carry `--author-hue` from `authorHue`, and the CSS builds
+the author's stripe, name colour and arrival glow out of it. Keep the hue in the
+TS and the rest in the CSS — that is what stops an author's colour from being
+computed in two places with two different saturations.
 
 `index.css` owns the shared boxes — `.button`, `.button-mini`, `.icon-button`,
 `.menu-label` — **including their `max-width: 768px` sizes**. A component's own

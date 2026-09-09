@@ -18,10 +18,13 @@ export type UseChatOptions = {
     backend?: ChatBackend
 }
 
+const NOTHING_SENT: ReadonlySet<string> = new Set()
+
 export function useChat({backend}: UseChatOptions) {
     const [messages, setMessages] = useState<ChatMessage[]>([])
     const [status, setStatus] = useState<ChatStatus>(backend ? 'loading' : 'unavailable')
     const [failure, setFailure] = useState<ChatSendFailure | undefined>(undefined)
+    const [mine, setMine] = useState<ReadonlySet<string>>(NOTHING_SENT)
 
     const receive = useCallback((incoming: ChatMessage[]) => {
         setMessages(current => addMessages(current, incoming))
@@ -35,6 +38,7 @@ export function useChat({backend}: UseChatOptions) {
 
         setStatus('loading')
         setMessages([])
+        setMine(NOTHING_SENT)
 
         const abort = new AbortController()
         const stopListening = backend.listenForMessages(message => receive([message]))
@@ -63,7 +67,9 @@ export function useChat({backend}: UseChatOptions) {
         setFailure(undefined)
 
         try {
-            receive([await backend.sendMessage(message)])
+            const sent = await backend.sendMessage(message)
+            setMine(current => new Set(current).add(sent.id))
+            receive([sent])
             return true
         } catch (e) {
             console.error("The message could not be sent", e)
@@ -73,7 +79,7 @@ export function useChat({backend}: UseChatOptions) {
         }
     }, [backend, receive])
 
-    return {messages, status, failure, send}
+    return {messages, mine, status, failure, send}
 }
 
 function failureOf(e: unknown): ChatSendFailure {
