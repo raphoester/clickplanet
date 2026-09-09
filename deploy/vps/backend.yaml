@@ -27,10 +27,11 @@ rateLimiter:
 # websocket are untouched, so a VPN user still watches the planet.
 vpnBlocklist:
   enabled: true
-  # Costs you Apple iCloud Private Relay and Cloudflare WARP users, who egress
-  # from datacenter ranges. Check blocked_clicks{list="vpn"} against clicks
-  # before deciding this is worth it.
-  includeDatacenters: false
+  # Also refuses datacenter and hosting ranges, which is what catches a
+  # self-hosted WireGuard on a VPS. It costs you Apple iCloud Private Relay and
+  # Cloudflare WARP users, who egress from those same ranges. Watch
+  # blocked_clicks{list="datacenter"} against clicks for what that is worth.
+  includeDatacenters: true
   allow: []
 
 # Live chat. Every message is appended to a JSONL log on the same tile_state
