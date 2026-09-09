@@ -39,11 +39,9 @@ vpnBlocklist:
 # however many addresses it can reach the game from. The blocklist above raises
 # the floor; this is what makes clicking cost something to start.
 session:
-  # Ships off, because a widget has to exist before this can work: turn it on in
-  # step 3 of deploy/vps/README.md §5, once .env holds SESSION_SECRET and
-  # TURNSTILE_SECRET. Off, session.v1.SessionService/ 404s and clicks are judged
-  # on address alone, exactly as before this existed.
-  enabled: false
+  # On. The widget exists and .env holds SESSION_SECRET and TURNSTILE_SECRET;
+  # without that last one the API does not start at all, it does not degrade.
+  enabled: true
   # Then, separately: false counts what enforcing would refuse and refuses
   # nothing, so every client already out there keeps working. Watch
   # click_session_checks{verdict="valid"} climb as the new frontend rolls out,
