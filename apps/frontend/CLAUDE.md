@@ -96,13 +96,22 @@ Connect does not retry, so `retrying` wraps every call: five attempts while the
 server cannot be reached, and never a retry of an answer the server chose to
 send.
 
-The backend throttles the Click RPC per source IP and answers a spent bucket
-with `resource_exhausted`. `clickTile` translates that one code into
-`RateLimitedError`, declared in `backend.ts` beside the interfaces: it is the
-only click failure the player is shown, and `globe.ts` recognises it without
-knowing what a Connect code is. `FakeBackend` enforces the same bucket, with the
-backend's defaults, so the dialog is reachable in dev — its own simulated
-traffic bypasses it, standing in for other players rather than for this one.
+The backend refuses a click in two ways, and `clickTile` translates both into
+errors declared in `backend.ts` beside the interfaces, so `globe.ts` recognises
+them without knowing what a Connect code is:
+
+- `resource_exhausted` → `RateLimitedError`. The per-IP token bucket is spent.
+- `permission_denied` → `VPNBlockedError`. The address is in the backend's VPN
+  and proxy blocklist.
+
+They are separate classes rather than one with a field because the two dialogs
+give opposite advice: ease off for a second, versus turn the VPN off. Everything
+else is a transport fault and still reaches the console.
+
+`FakeBackend` reproduces both, so each dialog is reachable in dev: it enforces
+the same bucket with the backend's defaults, and takes a `vpnBlocked` option
+that refuses every click (there is no address there to judge). Its own simulated
+traffic bypasses both, standing in for other players rather than for this one.
 
 `openUpdatesSocket` reconnects with a capped exponential backoff. It is the only
 source of live changes, so a drop that is not retried freezes the globe until a
@@ -140,16 +149,25 @@ reload.
 4. Whatever the store reports as changed is painted, and the leaderboard is
    re-ranked from its counts.
 5. A click paints optimistically and POSTs; the server's echo confirms it later.
-   A click the throttle refuses raises a flag in `useGlobe` that `Viewer` renders
-   as `RateLimitModal`. The globe reports every refused click, so the flag is a
-   boolean and not a queue — a burst is one thing to say, once.
+   A refused click raises a flag in `useGlobe` that `Viewer` renders as
+   `RateLimitModal` or `VPNBlockedModal`. The globe reports every refused click,
+   so each flag is a boolean and not a queue — a burst is one thing to say, once.
+   `reportClickFailure` in `globe.ts` is the three-way branch that picks which,
+   split out of the click handler because it is the one piece of that handler
+   worth testing: sending a refusal to the wrong dialog leaves a working page
+   giving the wrong advice.
+
+   Dismissing `VPNBlockedModal` only closes it. Unlike a spent bucket, that
+   refusal does not clear on its own — the player has to change network — so the
+   next click raises it again.
 
 **The optimistic paint of a refused click is never rolled back.** Nothing takes
 a tile back once it is painted: `TileOwnership` marks it claimed-live, the
 initial batches are told to leave those alone, and the websocket only carries
 changes that did happen. So a throttled player keeps looking at tiles the server
 never gave them until they reload. That was already true of any failed click;
-the throttle is what makes it routine rather than rare.
+the throttle is what makes it routine rather than rare, and the VPN blocklist
+makes it permanent for whoever it refuses.
 
 ## Protocol Buffers
 

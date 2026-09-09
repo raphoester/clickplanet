@@ -1,4 +1,12 @@
-import {Ownerships, OwnershipsGetter, RateLimitedError, TileClicker, Update, UpdatesListener} from "./backend.ts";
+import {
+    Ownerships,
+    OwnershipsGetter,
+    RateLimitedError,
+    TileClicker,
+    Update,
+    UpdatesListener,
+    VPNBlockedError,
+} from "./backend.ts";
 import {v4 as UUIDv4} from 'uuid';
 import {Countries} from "../domain/countries.ts";
 
@@ -13,6 +21,16 @@ const TILE_COUNT = 257_000
 const CLICKS_PER_SECOND = 1
 const CLICK_BURST = 10
 
+export type FakeBackendOptions = {
+    /**
+     * Refuse every click as coming from a VPN, the way the backend does for an
+     * address in its blocklist. There is no address here to judge, so it is a
+     * switch: it exists because the dialog is otherwise unreachable without an
+     * actual VPN, and `npm run dev` cannot reach the real API at all.
+     */
+    vpnBlocked?: boolean
+}
+
 export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListener {
     private tileBindings: Map<number, string> = new Map()
     private updateListeners: Map<string, (update: Update) => void> = new Map()
@@ -21,8 +39,11 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     private readonly timers: ReturnType<typeof setInterval>[] = []
     private tokens = CLICK_BURST
     private lastRefillMs = Date.now()
+    private readonly vpnBlocked: boolean
 
-    constructor(batchUpdateDurationMs: number) {
+    constructor(batchUpdateDurationMs: number, options: FakeBackendOptions = {}) {
+        this.vpnBlocked = options.vpnBlocked ?? false
+
         for (let i = 1; i <= TILE_COUNT; i++) {
             this.tileBindings.set(i, "fr")
         }
@@ -62,6 +83,10 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     }
 
     public async clickTile(tileId: number, countryId: string) {
+        // Checked first, like the backend's interceptor chain: a refused address
+        // never reaches the bucket, so its next click cannot come back as a
+        // throttle and raise the wrong dialog.
+        if (this.vpnBlocked) throw new VPNBlockedError()
         if (!this.allow()) throw new RateLimitedError()
         this.applyClick(tileId, countryId)
     }

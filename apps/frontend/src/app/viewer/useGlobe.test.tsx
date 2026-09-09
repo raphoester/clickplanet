@@ -231,3 +231,54 @@ describe("useGlobe rate limiting", () => {
         expect(latest.rateLimited).toBe(true)
     })
 })
+
+describe("useGlobe VPN blocking", () => {
+    const blockAClick = async () =>
+        act(async () => createGlobe.mock.calls[0][0].onVPNBlocked())
+
+    beforeEach(() => createGlobe.mockResolvedValue(fakeGlobe()))
+
+    it("stays quiet until the server refuses a click", async () => {
+        renderHook()
+        await waitFor(() => expect(latest.status.state).toBe('ready'))
+
+        expect(latest.vpnBlocked).toBe(false)
+    })
+
+    it("raises the flag when the globe reports a blocked click", async () => {
+        renderHook()
+        await waitFor(() => expect(latest.status.state).toBe('ready'))
+
+        await blockAClick()
+        expect(latest.vpnBlocked).toBe(true)
+    })
+
+    /**
+     * Dismissing only closes the dialog: the refusal stands until the player
+     * changes network, so the next click has to bring it back.
+     */
+    it("lowers the flag when the player dismisses it, and raises it again after", async () => {
+        renderHook()
+        await waitFor(() => expect(latest.status.state).toBe('ready'))
+
+        await blockAClick()
+        await act(async () => latest.dismissVPNBlocked())
+        expect(latest.vpnBlocked).toBe(false)
+
+        await blockAClick()
+        expect(latest.vpnBlocked).toBe(true)
+    })
+
+    /** The two refusals are separate: one must never raise the other's dialog. */
+    it("does not touch the throttle's flag, and is not touched by it", async () => {
+        renderHook()
+        await waitFor(() => expect(latest.status.state).toBe('ready'))
+
+        await blockAClick()
+        expect(latest.rateLimited).toBe(false)
+
+        await act(async () => createGlobe.mock.calls[0][0].onRateLimited())
+        await act(async () => latest.dismissVPNBlocked())
+        expect(latest.rateLimited).toBe(true)
+    })
+})

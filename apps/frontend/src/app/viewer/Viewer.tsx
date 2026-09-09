@@ -2,6 +2,7 @@ import {useRef} from 'react';
 import {OwnershipsGetter, TileClicker, UpdatesListener} from "../../backends/backend.ts";
 import Menu from "../Menu.tsx";
 import RateLimitModal from "../components/RateLimitModal.tsx";
+import VPNBlockedModal from "../components/VPNBlockedModal.tsx";
 import {useCountryStorage} from './useCountryStorage.ts';
 import {GlobeStatus, useGlobe} from './useGlobe.ts';
 import "./Viewer.css"
@@ -16,7 +17,15 @@ export default function Viewer(props: ViewerProps) {
     const container = useRef<HTMLDivElement>(null)
     const {countryState, handleSetCountry} = useCountryStorage()
 
-    const {status, leaderboard, tilesCount, rateLimited, dismissRateLimited} = useGlobe({
+    const {
+        status,
+        leaderboard,
+        tilesCount,
+        rateLimited,
+        dismissRateLimited,
+        vpnBlocked,
+        dismissVPNBlocked,
+    } = useGlobe({
         container,
         tileClicker: props.tileClicker,
         ownershipsGetter: props.ownershipsGetter,
@@ -37,6 +46,8 @@ export default function Viewer(props: ViewerProps) {
         />}
 
         {rateLimited && <RateLimitModal onClose={dismissRateLimited}/>}
+
+        {vpnBlocked && <VPNBlockedModal onClose={dismissVPNBlocked}/>}
     </>
 }
 

@@ -50,3 +50,21 @@ export class RateLimitedError extends Error {
         this.name = "RateLimitedError"
     }
 }
+
+/**
+ * The server refused a click because it came from a VPN or proxy address — the
+ * backend keeps a list of known egress ranges and answers one with
+ * `permission_denied`.
+ *
+ * Sibling of {@link RateLimitedError}, and for the same reason: it is a refusal
+ * the player is meant to see, not a transport fault. It is a separate class
+ * rather than a field on that one because the two need opposite advice —
+ * the throttle clears itself in a second, this one does not clear until the
+ * player changes network.
+ */
+export class VPNBlockedError extends Error {
+    constructor(options?: {cause?: unknown}) {
+        super("clicks from VPN addresses are refused", options)
+        this.name = "VPNBlockedError"
+    }
+}
