@@ -21,3 +21,14 @@ tilesStorage:
 rateLimiter:
   perSecond: 1
   burst: 10
+
+# Refuses clicks from known VPN and proxy ranges: the throttle above is keyed on
+# an address, and a VPN is the cheap way to get a fresh one. Reads and the
+# websocket are untouched, so a VPN user still watches the planet.
+vpnBlocklist:
+  enabled: true
+  # Costs you Apple iCloud Private Relay and Cloudflare WARP users, who egress
+  # from datacenter ranges. Check blocked_clicks{list="vpn"} against clicks
+  # before deciding this is worth it.
+  includeDatacenters: false
+  allow: []

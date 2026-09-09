@@ -17,6 +17,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/domain/click_handler_service"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/domain/click_handler_service/prom_click_handler_service"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/domain/runner"
+	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ipblock"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging/lf"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ratelimit"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/xtime"
@@ -68,13 +69,23 @@ func (a *App) configureApp(_ context.Context) (*ConfigureAppResponse, error) {
 	clickLimiter := ratelimit.New(a.config.RateLimiter, xtime.ActualProvider{})
 	a.runners = append(a.runners, func() { clickLimiter.Run(a.ctx) })
 
-	// The error interceptor sits outside the limiter so that everything the
-	// handler chain answers goes through the same error mapping; the refusal
-	// already carries its own code, which that mapping leaves alone.
+	vpnBlockInterceptor, err := a.configureVPNBlocklist()
+	if err != nil {
+		return nil, err
+	}
+
+	// The error interceptor sits outside the other two so that everything the
+	// handler chain answers goes through the same error mapping; both refusals
+	// already carry their own code, which that mapping leaves alone.
+	//
+	// The blocklist sits outside the limiter: a refused address must not also
+	// spend a token, or its next click would come back 429 and the web app
+	// would show the throttle dialog rather than the VPN one.
 	connectPath, connectHandler := planetv1connect.NewClickServiceHandler(
 		clickService,
 		connect.WithInterceptors(
 			errorInterceptor,
+			vpnBlockInterceptor,
 			planetv1controller.NewRateLimitInterceptor(clickLimiter),
 		),
 	)
@@ -84,6 +95,28 @@ func (a *App) configureApp(_ context.Context) (*ConfigureAppResponse, error) {
 		connectPath:     connectPath,
 		connectHandler:  connectHandler,
 	}, nil
+}
+
+// configureVPNBlocklist parses the vendored VPN ranges and returns the
+// interceptor that refuses clicks from them. A disabled config yields a nil
+// *ipblock.Blocklist, which blocks nothing, so the interceptor stays in the
+// chain either way and there is no second wiring path to keep in step.
+func (a *App) configureVPNBlocklist() (connect.Interceptor, error) {
+	blocklist, err := ipblock.New(a.config.VPNBlocklist)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build vpn blocklist: %w", err)
+	}
+
+	if sizes := blocklist.Sizes(); len(sizes) > 0 {
+		a.logger.Info("vpn blocklist enabled", lf.Any("ranges", sizes))
+	}
+
+	interceptor, err := planetv1controller.NewVPNBlockInterceptor(blocklist, a.promRegistry)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create vpn block interceptor: %w", err)
+	}
+
+	return interceptor, nil
 }
 
 // configureBookkeeperIfEnabled runs the X reporting job in-process. It used to
