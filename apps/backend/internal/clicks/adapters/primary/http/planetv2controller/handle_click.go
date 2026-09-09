@@ -1,4 +1,4 @@
-package clicks_controller
+package planetv2controller
 
 import (
 	"fmt"

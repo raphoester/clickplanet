@@ -52,13 +52,13 @@ Core interfaces (ports) defined in `gateways.go`:
 ### Adapters
 
 **Primary (input):**
-- `adapters/primary/http/clicks_v3_controller/` — the v3 API, as two separate types:
+- `adapters/primary/http/planetv3controller/` — the v3 API, as two separate types:
   - `ClickService` implements the generated `planetv1connect.ClickServiceHandler` and nothing else. It never sees an `http.ResponseWriter` — that is the point of serving the contract with Connect rather than by hand. Served at `POST /v3/planet.v1.ClickService/<Method>`.
   - `MapHandler` is a plain `http.Handler` for `GET /v3/map`, which is deliberately not an RPC (see below).
   - `NewErrorInterceptor` maps domain errors onto Connect codes, logs the unexpected ones and keeps their cause off the wire. **Handlers return their errors bare** — `domain.ErrInvalidArgument` becomes `CodeInvalidArgument`, a code a handler picked itself is left alone, and anything else is logged once and answered as `internal error`. No handler carries a logger or repeats that block.
 
   Neither declares its own routes: `app/wiring.go` mounts them, the way connect-go's own getting-started does.
-- `adapters/primary/http/clicks_controller/` — **deprecated** v2 endpoints (`POST /v2/rpc/click`, `GET /v2/rpc/map-density`, `POST /v2/rpc/ownerships-by-batch`). They wrap binary protobuf in a base64 JSON envelope and pick that encoding from `httpServer.format` rather than from the request. Frozen; mounted until the deployed frontends move.
+- `adapters/primary/http/planetv2controller/` — **deprecated** v2 endpoints (`POST /v2/rpc/click`, `GET /v2/rpc/map-density`, `POST /v2/rpc/ownerships-by-batch`). They wrap binary protobuf in a base64 JSON envelope and pick that encoding from `httpServer.format` rather than from the request. Frozen; mounted until the deployed frontends move.
 - `adapters/primary/http/websocket_publisher/` — subscribes to the tile update stream, broadcasts to WebSocket clients
 
 Both versions are wired to the same domain instances in `app/wiring.go`, and both serve the same websocket (`/v2/ws/listen` and `/v3/ws/listen`) — the tile map lives in this process, so two sets of adapters over two storages would be two different games.
@@ -126,7 +126,7 @@ Config is loaded from a YAML file (`-config` flag), with environment variables o
 
 API contracts live in the monorepo-shared [`/proto/planet/v1/planet.proto`](../../proto/planet/v1/planet.proto) (also used by the frontend). Generated code goes to `generated/proto/`. Use `make proto` to regenerate after editing `.proto` files (requires the `buf` CLI, plus `protoc-gen-go` and `protoc-gen-connect-go` on `PATH`).
 
-The proto package is `planet.v1`, and stays at `v1`: "v3" is the HTTP API version and lives in the URL prefix, not in the package name. There is no gRPC here — Connect serves the same service definition over ordinary HTTP/1.1 POSTs.
+The proto package is `planet.v1`, and stays at `v1`: it tracks the schema, which never broke. The HTTP API version is a different number, living in the URL prefix — which is why the adapter packages are named after the routes they serve (`planetv2controller` → `/v2/rpc/*`, `planetv3controller` → `/v3/*`) while the generated code stays `planetv1`. There is no gRPC here — Connect serves the same service definition over ordinary HTTP/1.1 POSTs.
 
 ### Testing
 

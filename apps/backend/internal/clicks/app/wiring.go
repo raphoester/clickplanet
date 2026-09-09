@@ -9,8 +9,8 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/primary/http/clicks_controller"
-	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/primary/http/clicks_v3_controller"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/primary/http/planetv2controller"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/primary/http/planetv3controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/primary/http/websocket_publisher"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/secondary/in_memory_country_checker"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/secondary/in_memory_tile_checker"
@@ -64,7 +64,7 @@ func (a *App) configureApp(_ context.Context) (*ConfigureAppResponse, error) {
 
 	a.configureBookkeeperIfEnabled(tilesStorage)
 
-	v2Controller := clicks_controller.New(
+	v2Controller := planetv2controller.New(
 		clickHandlerService,
 		tilesChecker,
 		tilesStorage,
@@ -74,9 +74,9 @@ func (a *App) configureApp(_ context.Context) (*ConfigureAppResponse, error) {
 
 	// v2 and v3 share these instances: the tile map lives in this process, so
 	// two sets of adapters over two storages would be two different games.
-	clickService := clicks_v3_controller.NewClickService(clickHandlerService, tilesChecker)
-	mapHandler := clicks_v3_controller.NewMapHandler(tilesStorage, tilesChecker, a.logger)
-	errorInterceptor := clicks_v3_controller.NewErrorInterceptor(a.logger)
+	clickService := planetv3controller.NewClickService(clickHandlerService, tilesChecker)
+	mapHandler := planetv3controller.NewMapHandler(tilesStorage, tilesChecker, a.logger)
+	errorInterceptor := planetv3controller.NewErrorInterceptor(a.logger)
 
 	return &ConfigureAppResponse{
 		declareWSRoutes:    publisher.DeclareRoutes,
