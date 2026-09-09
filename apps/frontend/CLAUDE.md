@@ -284,6 +284,25 @@ page — and useless without the secret, which only the backend holds. A server
 that *enforces* sessions refuses every click from a build with no sitekey:
 the two are configured together.
 
+**It is a *build* variable, and Vite inlines it.** Setting it on the Workers
+project changes nothing until a build runs: with it unset, `import.meta.env
+.VITE_TURNSTILE_SITEKEY` folds to `undefined`, the `SessionClient` branch in
+`main.tsx` becomes dead code, and Rollup drops `turnstileSession.ts` wholesale.
+So a bundle built without it contains neither the sitekey nor the Turnstile
+script URL — while still containing `X-Session-Token`, which comes from
+`planetBackend.ts` and ships either way. That combination is the signature of a
+stale build, not of a missing variable.
+
+**The project only rebuilds on changes under `apps/frontend/`**, which is its
+build watch path. A change to `deploy/` or `apps/backend/` that turns sessions
+on server-side will therefore *not* ship a frontend that can mint one. Grep the
+deployed bundle rather than trusting the dashboard:
+
+```bash
+B=$(curl -s https://clickplanet.lol | grep -oE '/assets/index-[A-Za-z0-9_-]+\.js' | head -1)
+curl -s "https://clickplanet.lol$B" | grep -c 'challenges.cloudflare.com/turnstile'
+```
+
 ### `src/app/viewer/` — the GPU layer
 
 - `globe.ts` — `createGlobe(options): Promise<Globe>`. Builds the scene, wires
