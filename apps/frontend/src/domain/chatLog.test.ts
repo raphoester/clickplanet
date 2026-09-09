@@ -1,5 +1,5 @@
 import {describe, expect, it} from "vitest"
-import {addMessages, CHAT_LOG_LIMIT, unreadSince} from "./chatLog.ts"
+import {addMessages, CHAT_LOG_LIMIT, idsSince, unreadSince} from "./chatLog.ts"
 import type {ChatMessage} from "../backends/chat.ts"
 
 const message = (id: string, sentAt: number): ChatMessage => ({
@@ -78,5 +78,27 @@ describe("unreadSince", () => {
 
     it("is zero on an empty log", () => {
         expect(unreadSince([], undefined)).toBe(0)
+    })
+})
+
+describe("idsSince", () => {
+    const log = [message("a", 1), message("b", 2), message("c", 3)]
+
+    it("names what arrived after the last seen message", () => {
+        expect(idsSince(log, "a")).toEqual(["b", "c"])
+    })
+
+    it("names nothing when the last seen message is the last one", () => {
+        expect(idsSince(log, "c")).toEqual([])
+    })
+
+    it("names the whole log when nothing has been seen", () => {
+        expect(idsSince(log, undefined)).toEqual(["a", "b", "c"])
+    })
+
+    it("names as many ids as unreadSince counts", () => {
+        for (const seen of [undefined, "a", "b", "c", "gone"]) {
+            expect(idsSince(log, seen)).toHaveLength(unreadSince(log, seen))
+        }
     })
 })
