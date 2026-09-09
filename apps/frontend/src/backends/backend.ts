@@ -33,3 +33,20 @@ export interface UpdatesListener {
         callback: (updates: Update[]) => void,
     ): () => void
 }
+
+/**
+ * The server refused a click because too many arrived from this address — the
+ * backend keeps a token bucket per IP on the Click RPC, and answers a spent
+ * bucket with `resource_exhausted`.
+ *
+ * It is named here, beside the interface it comes out of, because it is the one
+ * click failure the player is meant to see rather than a transport fault: the
+ * app layer shows a dialog for it, and must not have to know what a Connect
+ * code is to recognise it.
+ */
+export class RateLimitedError extends Error {
+    constructor(options?: {cause?: unknown}) {
+        super("too many clicks", options)
+        this.name = "RateLimitedError"
+    }
+}

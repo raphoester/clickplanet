@@ -96,6 +96,14 @@ Connect does not retry, so `retrying` wraps every call: five attempts while the
 server cannot be reached, and never a retry of an answer the server chose to
 send.
 
+The backend throttles the Click RPC per source IP and answers a spent bucket
+with `resource_exhausted`. `clickTile` translates that one code into
+`RateLimitedError`, declared in `backend.ts` beside the interfaces: it is the
+only click failure the player is shown, and `globe.ts` recognises it without
+knowing what a Connect code is. `FakeBackend` enforces the same bucket, with the
+backend's defaults, so the dialog is reachable in dev — its own simulated
+traffic bypasses it, standing in for other players rather than for this one.
+
 `openUpdatesSocket` reconnects with a capped exponential backoff. It is the only
 source of live changes, so a drop that is not retried freezes the globe until a
 reload.
@@ -132,6 +140,16 @@ reload.
 4. Whatever the store reports as changed is painted, and the leaderboard is
    re-ranked from its counts.
 5. A click paints optimistically and POSTs; the server's echo confirms it later.
+   A click the throttle refuses raises a flag in `useGlobe` that `Viewer` renders
+   as `RateLimitModal`. The globe reports every refused click, so the flag is a
+   boolean and not a queue — a burst is one thing to say, once.
+
+**The optimistic paint of a refused click is never rolled back.** Nothing takes
+a tile back once it is painted: `TileOwnership` marks it claimed-live, the
+initial batches are told to leave those alone, and the websocket only carries
+changes that did happen. So a throttled player keeps looking at tiles the server
+never gave them until they reload. That was already true of any failed click;
+the throttle is what makes it routine rather than rare.
 
 ## Protocol Buffers
 

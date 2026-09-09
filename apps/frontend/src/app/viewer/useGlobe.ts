@@ -35,6 +35,12 @@ export function useGlobe(options: UseGlobeOptions) {
     const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
     const [tilesCount, setTilesCount] = useState(0)
 
+    /**
+     * A flag rather than a count: the globe reports every refused click, and a
+     * burst of them is one thing to tell the player, once.
+     */
+    const [rateLimited, setRateLimited] = useState(false)
+
     const globeRef = useRef<Globe | null>(null)
 
     /** Read once, when the globe is built; later changes go through setCountry. */
@@ -56,6 +62,7 @@ export function useGlobe(options: UseGlobeOptions) {
             container: element,
             country: initialCountry.current,
             onLeaderboardChange: setLeaderboard,
+            onRateLimited: () => setRateLimited(true),
             signal: abortController.signal,
         }).then((globe) => {
             if (cancelled) {
@@ -85,7 +92,13 @@ export function useGlobe(options: UseGlobeOptions) {
         globeRef.current?.setCountry(country)
     }, [country])
 
-    return {status, leaderboard, tilesCount}
+    return {
+        status,
+        leaderboard,
+        tilesCount,
+        rateLimited,
+        dismissRateLimited: () => setRateLimited(false),
+    }
 }
 
 function messageOf(error: unknown): string {
