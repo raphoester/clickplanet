@@ -218,8 +218,16 @@ describe("bindingsOf", () => {
     })
 })
 
+type GetMapRequestFields = {startTileId: number, endTileId: number}
+type GetMapMock = ReturnType<typeof getMapMock>
+
+/** Typed so `mock.calls` keeps its argument, which `vi.fn()` alone loses. */
+function getMapMock(impl?: (req: GetMapRequestFields) => Promise<GetMapResponse>) {
+    return vi.fn<(req: GetMapRequestFields) => Promise<GetMapResponse>>(impl)
+}
+
 describe("PlanetBackend.getCurrentOwnershipsByBatch", () => {
-    const backendWith = (getMap: ReturnType<typeof vi.fn>) => {
+    const backendWith = (getMap: GetMapMock) => {
         const client = {click: vi.fn(), getMap, mapDensity: vi.fn()} as never
         return new PlanetBackend({baseUrl: "https://api.test"}, client, 1_000)
     }
@@ -231,7 +239,7 @@ describe("PlanetBackend.getCurrentOwnershipsByBatch", () => {
     }
 
     it("walks the range one chunk at a time", async () => {
-        const getMap = vi.fn(async () => mapResponse(1, ["", "fr"], [1, 0]))
+        const getMap = getMapMock(async () => mapResponse(1, ["", "fr"], [1, 0]))
         const backend = backendWith(getMap)
 
         expect(await collect(backend)).toEqual([new Map([[1, "fr"]]), new Map([[1, "fr"]])])
@@ -244,7 +252,7 @@ describe("PlanetBackend.getCurrentOwnershipsByBatch", () => {
 
     it("retries a server it could not reach", async () => {
         vi.spyOn(console, "error").mockImplementation(() => {})
-        const getMap = vi.fn()
+        const getMap = getMapMock()
             .mockRejectedValueOnce(new ConnectError("offline", Code.Unavailable))
             .mockImplementation(async () => mapResponse(1, [""], [0, 0]))
         const backend = backendWith(getMap)
@@ -256,7 +264,7 @@ describe("PlanetBackend.getCurrentOwnershipsByBatch", () => {
 
     /** An answer the server chose to send is never retried: that only adds load. */
     it("does not retry an error the server answered with", async () => {
-        const getMap = vi.fn().mockRejectedValue(new ConnectError("nope", Code.InvalidArgument))
+        const getMap = getMapMock().mockRejectedValue(new ConnectError("nope", Code.InvalidArgument))
         const backend = backendWith(getMap)
 
         await expect(collect(backend)).rejects.toThrow(/nope/)
@@ -267,7 +275,7 @@ describe("PlanetBackend.getCurrentOwnershipsByBatch", () => {
     it("stops once the caller aborts", async () => {
         vi.spyOn(console, "error").mockImplementation(() => {})
         const controller = new AbortController()
-        const getMap = vi.fn(async () => {
+        const getMap = getMapMock(async () => {
             controller.abort()
             throw new ConnectError("offline", Code.Unavailable)
         })
