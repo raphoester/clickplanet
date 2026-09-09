@@ -65,7 +65,9 @@ app/       components
   while live updates stream in throughout, so the two sources overlap: **live
   updates win permanently**, and a tile someone has claimed is never taken back
   by a batch that was already in flight. Counts follow this map, never the
-  `previousCountry` an event reports.
+  `previousCountry` an event reports. It also holds the third source, **your own
+  clicks, painted before the server has agreed to them** — see [Rolling back a
+  refused click](#rolling-back-a-refused-click).
 - `leaderboard.ts` — `rankCountries`, a pure sort over those counts. Ties break
   on country code so equally-placed rows stop swapping.
 - `countries.ts` — the country list, keyed by code.
@@ -341,9 +343,9 @@ curl -s "https://clickplanet.lol$B" | grep -c 'challenges.cloudflare.com/turnsti
 4. Whatever the store reports as changed is painted, and the leaderboard is
    re-ranked from its counts.
 5. A click paints optimistically and POSTs; the server's echo confirms it later.
-   A refused click raises a flag in `useGlobe` that `Viewer` renders as
-   `RateLimitModal`, `VPNBlockedModal` or `SessionUnavailableModal`. The globe
-   reports every refused click,
+   A refused click is taken back off the map and raises a flag in `useGlobe` that
+   `Viewer` renders as `RateLimitModal`, `VPNBlockedModal` or
+   `SessionUnavailableModal`. The globe reports every refused click,
    so each flag is a boolean and not a queue — a burst is one thing to say, once.
    `reportClickFailure` in `globe.ts` is the four-way branch that picks which,
    split out of the click handler because it is the one piece of that handler
@@ -354,13 +356,45 @@ curl -s "https://clickplanet.lol$B" | grep -c 'challenges.cloudflare.com/turnsti
    refusal does not clear on its own — the player has to change network — so the
    next click raises it again.
 
-**The optimistic paint of a refused click is never rolled back.** Nothing takes
-a tile back once it is painted: `TileOwnership` marks it claimed-live, the
-initial batches are told to leave those alone, and the websocket only carries
-changes that did happen. So a throttled player keeps looking at tiles the server
-never gave them until they reload. That was already true of any failed click;
-the throttle is what makes it routine rather than rare, and the VPN blocklist
-makes it permanent for whoever it refuses.
+### Rolling back a refused click
+
+A click is painted before the server has agreed to it, and the server refuses
+plenty of them — a spent bucket, a blocked VPN, a session it would not mint. The
+paint has to come back off, or a throttled player spends the rest of the session
+looking at tiles nobody gave them, with a leaderboard counting them.
+
+`TileOwnership.applyOptimistic` paints and hands back a **claim**; `rollback`
+takes that claim and returns the tile to what it would hold had the click never
+happened. `globe.ts` calls it from the same `catch` that raises the dialog, and
+feeds what comes back through `applyChanges` — the same path a batch or a live
+update takes, so the repaint and the re-rank need no special case.
+
+What makes this more than an undo is everything that can happen to a tile while
+a click is in flight, and the rule is the same in every case: **a rollback only
+ever takes back what that click itself painted.**
+
+- **The server settled the tile** — its echo, or someone else's claim, arrived
+  first. `applyUpdates` drops the claim, and the refusal that lands afterwards
+  changes nothing. A late refusal of a click the server did in fact record
+  therefore costs nothing either.
+- **A later click on the same tile is still in flight.** It owns the paint, so
+  rolling back the earlier one leaves the map alone. Refuse them all and the
+  tile ends up where it started, whatever order the refusals arrive in — each
+  claim remembers what it painted, so it falls back to the newest one left.
+- **A batch landed while the click was in flight.** It cannot paint over the
+  optimistic claim, but it is what the rollback restores instead of the stale
+  value from before the click — unless a live update had already claimed that
+  tile, which still wins permanently.
+- The tile's claimed-live flag is restored too, so a tile whose only claim was
+  rolled back accepts a later batch again rather than staying blank.
+
+`OwnerChange.country` is `string | undefined` for this: `undefined` is a tile
+going back to unowned, which `TileField` writes as a zero-sized atlas region —
+what the fragment shader already draws as an unclaimed tile.
+
+Rolling back on *any* failure, including a transport fault, is deliberate: if
+the click did land and only the response was lost, the websocket echo repaints
+it, and if the echo arrives first the rollback is already a no-op.
 
 ## Protocol Buffers
 

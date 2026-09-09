@@ -122,16 +122,14 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             return
         }
 
+        const {changes, claim} = ownership.applyOptimistic(tile, country.code)
+        applyChanges(changes)
+
         tileClicker.clickTile(tile, country.code).catch((e) => {
             if (lifetime.signal.aborted) return
+            applyChanges(ownership.rollback(claim))
             reportClickFailure(e, {onRateLimited, onVPNBlocked, onSessionUnavailable})
         })
-
-        applyChanges(ownership.applyUpdates([{
-            tile,
-            previousCountry: ownership.ownerOf(tile),
-            newCountry: country.code,
-        }]))
     }, listenerOptions);
 
     const resizeListener = () => {

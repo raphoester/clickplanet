@@ -60,6 +60,28 @@ describe("setOwners", () => {
         expect(console.warn).toHaveBeenCalledTimes(1)
     })
 
+    it("blanks the tile again when a rolled-back click leaves it unowned", () => {
+        const f = field()
+        f.setOwners([{tile: 3, country: "fr"}])
+
+        f.setOwners([{tile: 3, country: undefined}])
+
+        const values = attr(f, "regionVector").array as Float32Array
+        expect(Array.from(values.slice(8, 12))).toEqual([0, 0, 0, 0])
+        expect(console.warn).not.toHaveBeenCalled()
+    })
+
+    it("uploads the tile a rollback blanked", () => {
+        const f = field()
+        f.setOwners([{tile: 2, country: "fr"}])
+        const region = attr(f, "regionVector")
+        region.clearUpdateRanges()
+
+        f.setOwners([{tile: 2, country: undefined}])
+
+        expect(region.updateRanges).toEqual([{start: 4, count: 4}])
+    })
+
     it("does not touch the buffer when nothing changed", () => {
         const f = field()
         const region = attr(f, "regionVector")

@@ -15,6 +15,10 @@ const REGION_STRIDE = 4
 
 const MAX_INDIVIDUAL_RANGES = 64
 
+// A zero-sized region is what the fragment shader draws as an unclaimed tile,
+// so this is how a rolled-back click leaves one.
+const UNOWNED = {x: 0, y: 0, width: 0, height: 0}
+
 export class TileField {
     readonly displayPoints: THREE.Points
     readonly pickingPoints: THREE.Points
@@ -65,7 +69,7 @@ export class TileField {
         let highest = -Infinity
 
         for (const {tile, country} of changes) {
-            const region = regions.get(country)
+            const region = country === undefined ? UNOWNED : regions.get(country)
             if (!region) {
                 warnOnce(`No sprite region for country "${country}", leaving its tiles blank`)
                 continue
