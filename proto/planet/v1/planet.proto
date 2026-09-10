@@ -12,6 +12,8 @@ service ClickService {
   rpc GetMap(GetMapRequest) returns (GetMapResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+
+  rpc ListenForUpdates(ListenForUpdatesRequest) returns (stream TileUpdate);
 }
 
 message ClickRequest {
@@ -39,6 +41,8 @@ message GetMapResponse {
 
   bytes tiles = 3;
 }
+
+message ListenForUpdatesRequest {}
 
 message TileUpdate {
   uint32 tile_id = 1;

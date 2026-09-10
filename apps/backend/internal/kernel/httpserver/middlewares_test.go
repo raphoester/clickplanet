@@ -8,8 +8,22 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/connectutil"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ctxutil"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/httpserver"
+	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging"
 	"github.com/stretchr/testify/require"
 )
+
+func TestLoggingMiddlewareKeepsTheWriterFlushable(t *testing.T) {
+	var flushable bool
+
+	middleware := httpserver.NewLoggingMiddleware(logging.NewNopLogger())
+	handler := middleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, flushable = w.(http.Flusher)
+	}))
+
+	handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodPost, "/", nil))
+
+	require.True(t, flushable)
+}
 
 func TestIPReaderMiddleware(t *testing.T) {
 	readIP := func(r *http.Request) string {

@@ -17,10 +17,15 @@ type DenseMapReader interface {
 	StateBatchDense(start uint32, end uint32) (domain.DenseBatch, error)
 }
 
+type UpdatesSubscriber interface {
+	Subscribe(ctx context.Context) (<-chan domain.TileUpdate, error)
+}
+
 type ClickService struct {
 	clickHandlerService click_handler_service.IService
 	tilesChecker        domain.TilesChecker
 	mapReader           DenseMapReader
+	subscriber          UpdatesSubscriber
 }
 
 var _ planetv1connect.ClickServiceHandler = (*ClickService)(nil)
@@ -29,11 +34,13 @@ func NewClickService(
 	clickHandlerService click_handler_service.IService,
 	tilesChecker domain.TilesChecker,
 	mapReader DenseMapReader,
+	subscriber UpdatesSubscriber,
 ) *ClickService {
 	return &ClickService{
 		clickHandlerService: clickHandlerService,
 		tilesChecker:        tilesChecker,
 		mapReader:           mapReader,
+		subscriber:          subscriber,
 	}
 }
 
@@ -82,6 +89,34 @@ func (s *ClickService) GetMap(
 	res.Header().Set("Cache-Control", cacheControl())
 
 	return res, nil
+}
+
+// The request context is what unsubscribes, and it is cancelled however the stream ends.
+func (s *ClickService) ListenForUpdates(
+	ctx context.Context,
+	_ *connect.Request[planetv1.ListenForUpdatesRequest],
+	stream *connect.ServerStream[planetv1.TileUpdate],
+) error {
+	updates, err := s.subscriber.Subscribe(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to subscribe to tile updates: %w", err)
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+
+		case update, open := <-updates:
+			if !open {
+				return nil
+			}
+
+			if err := stream.Send(toProto(update)); err != nil {
+				return err
+			}
+		}
+	}
 }
 
 func cacheControl() string {

@@ -301,6 +301,42 @@ func (x *GetMapResponse) GetTiles() []byte {
 	return nil
 }
 
+type ListenForUpdatesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListenForUpdatesRequest) Reset() {
+	*x = ListenForUpdatesRequest{}
+	mi := &file_planet_v1_planet_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListenForUpdatesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListenForUpdatesRequest) ProtoMessage() {}
+
+func (x *ListenForUpdatesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_planet_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListenForUpdatesRequest.ProtoReflect.Descriptor instead.
+func (*ListenForUpdatesRequest) Descriptor() ([]byte, []int) {
+	return file_planet_v1_planet_proto_rawDescGZIP(), []int{6}
+}
+
 type TileUpdate struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
 	TileId            uint32                 `protobuf:"varint,1,opt,name=tile_id,json=tileId,proto3" json:"tile_id,omitempty"`
@@ -312,7 +348,7 @@ type TileUpdate struct {
 
 func (x *TileUpdate) Reset() {
 	*x = TileUpdate{}
-	mi := &file_planet_v1_planet_proto_msgTypes[6]
+	mi := &file_planet_v1_planet_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -324,7 +360,7 @@ func (x *TileUpdate) String() string {
 func (*TileUpdate) ProtoMessage() {}
 
 func (x *TileUpdate) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_planet_proto_msgTypes[6]
+	mi := &file_planet_v1_planet_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -337,7 +373,7 @@ func (x *TileUpdate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TileUpdate.ProtoReflect.Descriptor instead.
 func (*TileUpdate) Descriptor() ([]byte, []int) {
-	return file_planet_v1_planet_proto_rawDescGZIP(), []int{6}
+	return file_planet_v1_planet_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *TileUpdate) GetTileId() uint32 {
@@ -380,18 +416,20 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"\x0eGetMapResponse\x12\"\n" +
 	"\rstart_tile_id\x18\x01 \x01(\rR\vstartTileId\x12\x14\n" +
 	"\x05codes\x18\x02 \x03(\tR\x05codes\x12\x14\n" +
-	"\x05tiles\x18\x03 \x01(\fR\x05tiles\"t\n" +
+	"\x05tiles\x18\x03 \x01(\fR\x05tiles\"\x19\n" +
+	"\x17ListenForUpdatesRequest\"t\n" +
 	"\n" +
 	"TileUpdate\x12\x17\n" +
 	"\atile_id\x18\x01 \x01(\rR\x06tileId\x12\x1d\n" +
 	"\n" +
 	"country_id\x18\x02 \x01(\tR\tcountryId\x12.\n" +
-	"\x13previous_country_id\x18\x03 \x01(\tR\x11previousCountryId2\xde\x01\n" +
+	"\x13previous_country_id\x18\x03 \x01(\tR\x11previousCountryId2\xaf\x02\n" +
 	"\fClickService\x12:\n" +
 	"\x05Click\x12\x17.planet.v1.ClickRequest\x1a\x18.planet.v1.ClickResponse\x12N\n" +
 	"\n" +
 	"MapDensity\x12\x1c.planet.v1.MapDensityRequest\x1a\x1d.planet.v1.MapDensityResponse\"\x03\x90\x02\x01\x12B\n" +
-	"\x06GetMap\x12\x18.planet.v1.GetMapRequest\x1a\x19.planet.v1.GetMapResponse\"\x03\x90\x02\x01B\xb3\x01\n" +
+	"\x06GetMap\x12\x18.planet.v1.GetMapRequest\x1a\x19.planet.v1.GetMapResponse\"\x03\x90\x02\x01\x12O\n" +
+	"\x10ListenForUpdates\x12\".planet.v1.ListenForUpdatesRequest\x1a\x15.planet.v1.TileUpdate0\x01B\xb3\x01\n" +
 	"\rcom.planet.v1B\vPlanetProtoP\x01ZPgithub.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1;planetv1\xa2\x02\x03PXX\xaa\x02\tPlanet.V1\xca\x02\tPlanet\\V1\xe2\x02\x15Planet\\V1\\GPBMetadata\xea\x02\n" +
 	"Planet::V1b\x06proto3"
 
@@ -407,25 +445,28 @@ func file_planet_v1_planet_proto_rawDescGZIP() []byte {
 	return file_planet_v1_planet_proto_rawDescData
 }
 
-var file_planet_v1_planet_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_planet_v1_planet_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_planet_v1_planet_proto_goTypes = []any{
-	(*ClickRequest)(nil),       // 0: planet.v1.ClickRequest
-	(*ClickResponse)(nil),      // 1: planet.v1.ClickResponse
-	(*MapDensityRequest)(nil),  // 2: planet.v1.MapDensityRequest
-	(*MapDensityResponse)(nil), // 3: planet.v1.MapDensityResponse
-	(*GetMapRequest)(nil),      // 4: planet.v1.GetMapRequest
-	(*GetMapResponse)(nil),     // 5: planet.v1.GetMapResponse
-	(*TileUpdate)(nil),         // 6: planet.v1.TileUpdate
+	(*ClickRequest)(nil),            // 0: planet.v1.ClickRequest
+	(*ClickResponse)(nil),           // 1: planet.v1.ClickResponse
+	(*MapDensityRequest)(nil),       // 2: planet.v1.MapDensityRequest
+	(*MapDensityResponse)(nil),      // 3: planet.v1.MapDensityResponse
+	(*GetMapRequest)(nil),           // 4: planet.v1.GetMapRequest
+	(*GetMapResponse)(nil),          // 5: planet.v1.GetMapResponse
+	(*ListenForUpdatesRequest)(nil), // 6: planet.v1.ListenForUpdatesRequest
+	(*TileUpdate)(nil),              // 7: planet.v1.TileUpdate
 }
 var file_planet_v1_planet_proto_depIdxs = []int32{
 	0, // 0: planet.v1.ClickService.Click:input_type -> planet.v1.ClickRequest
 	2, // 1: planet.v1.ClickService.MapDensity:input_type -> planet.v1.MapDensityRequest
 	4, // 2: planet.v1.ClickService.GetMap:input_type -> planet.v1.GetMapRequest
-	1, // 3: planet.v1.ClickService.Click:output_type -> planet.v1.ClickResponse
-	3, // 4: planet.v1.ClickService.MapDensity:output_type -> planet.v1.MapDensityResponse
-	5, // 5: planet.v1.ClickService.GetMap:output_type -> planet.v1.GetMapResponse
-	3, // [3:6] is the sub-list for method output_type
-	0, // [0:3] is the sub-list for method input_type
+	6, // 3: planet.v1.ClickService.ListenForUpdates:input_type -> planet.v1.ListenForUpdatesRequest
+	1, // 4: planet.v1.ClickService.Click:output_type -> planet.v1.ClickResponse
+	3, // 5: planet.v1.ClickService.MapDensity:output_type -> planet.v1.MapDensityResponse
+	5, // 6: planet.v1.ClickService.GetMap:output_type -> planet.v1.GetMapResponse
+	7, // 7: planet.v1.ClickService.ListenForUpdates:output_type -> planet.v1.TileUpdate
+	4, // [4:8] is the sub-list for method output_type
+	0, // [0:4] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
 	0, // [0:0] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name
@@ -442,7 +483,7 @@ func file_planet_v1_planet_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_planet_v1_planet_proto_rawDesc), len(file_planet_v1_planet_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   7,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

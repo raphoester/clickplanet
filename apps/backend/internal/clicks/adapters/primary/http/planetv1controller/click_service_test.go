@@ -23,12 +23,30 @@ type stubChecker struct{}
 func (stubChecker) CheckTile(uint32) bool { return true }
 func (stubChecker) MaxIndex() uint32      { return 100 }
 
+type stubSubscriber struct {
+	updates chan domain.TileUpdate
+	err     error
+}
+
+func (s stubSubscriber) Subscribe(context.Context) (<-chan domain.TileUpdate, error) {
+	return s.updates, s.err
+}
+
 func newTestClient(t *testing.T, svc stubService) planetv1connect.ClickServiceClient {
+	t.Helper()
+	return newTestClientWith(t, svc, stubSubscriber{})
+}
+
+func newTestClientWith(
+	t *testing.T,
+	svc stubService,
+	subscriber UpdatesSubscriber,
+) planetv1connect.ClickServiceClient {
 	t.Helper()
 
 	mux := http.NewServeMux()
 	mux.Handle(planetv1connect.NewClickServiceHandler(
-		NewClickService(svc, stubChecker{}, stubMapReader{}),
+		NewClickService(svc, stubChecker{}, stubMapReader{}, subscriber),
 		connect.WithInterceptors(NewErrorInterceptor(nil)),
 	))
 
@@ -67,6 +85,59 @@ func TestMapDensity(t *testing.T) {
 		context.Background(), connect.NewRequest(&planetv1.MapDensityRequest{}))
 	require.NoError(t, err)
 	require.Equal(t, uint32(100), res.Msg.GetDensity())
+}
+
+func TestListenForUpdates(t *testing.T) {
+	// The call blocks until the first frame, so subscriptions are seeded before it.
+	listen := func(t *testing.T, subscriber UpdatesSubscriber) (*connect.ServerStreamForClient[planetv1.TileUpdate], error) {
+		t.Helper()
+
+		stream, err := newTestClientWith(t, stubService{}, subscriber).ListenForUpdates(
+			context.Background(), connect.NewRequest(&planetv1.ListenForUpdatesRequest{}))
+
+		// Closing it releases the handler, which is still parked on its
+		// subscription; httptest.Server.Close blocks forever otherwise.
+		if stream != nil {
+			t.Cleanup(func() { _ = stream.Close() })
+		}
+
+		return stream, err
+	}
+
+	t.Run("carries an update to the caller", func(t *testing.T) {
+		updates := make(chan domain.TileUpdate, 1)
+		updates <- domain.TileUpdate{Tile: 42, Value: "fr", Previous: "de"}
+
+		stream, err := listen(t, stubSubscriber{updates: updates})
+		require.NoError(t, err)
+
+		require.True(t, stream.Receive())
+		require.Equal(t, uint32(42), stream.Msg().GetTileId())
+		require.Equal(t, "fr", stream.Msg().GetCountryId())
+		require.Equal(t, "de", stream.Msg().GetPreviousCountryId())
+	})
+
+	t.Run("ends when the subscription closes", func(t *testing.T) {
+		updates := make(chan domain.TileUpdate)
+		close(updates)
+
+		stream, err := listen(t, stubSubscriber{updates: updates})
+		require.NoError(t, err)
+
+		require.False(t, stream.Receive())
+		require.NoError(t, stream.Err())
+	})
+
+	t.Run("a failed subscription stays internal and does not leak the cause", func(t *testing.T) {
+		stream, err := listen(t, stubSubscriber{err: fmt.Errorf("disk on fire")})
+		if err == nil {
+			require.False(t, stream.Receive())
+			err = stream.Err()
+		}
+
+		require.Equal(t, connect.CodeInternal, connect.CodeOf(err))
+		require.NotContains(t, err.Error(), "disk on fire")
+	})
 }
 
 type stubMapReader struct{}

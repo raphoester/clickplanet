@@ -90,3 +90,10 @@ func (w *wrappedWriter) WriteHeader(statusCode int) {
 	w.code = statusCode
 	w.ResponseWriter.WriteHeader(statusCode)
 }
+
+// Without this Connect refuses to stream at all: no Flusher, no frames.
+func (w *wrappedWriter) Flush() {
+	if flusher, ok := w.ResponseWriter.(http.Flusher); ok {
+		flusher.Flush()
+	}
+}

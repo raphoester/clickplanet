@@ -9,9 +9,13 @@ import (
 const TileUpdateRoute = "/listen"
 
 func EncodeTileUpdate(update domain.TileUpdate) ([]byte, error) {
-	return proto.Marshal(&planetv1.TileUpdate{
+	return proto.Marshal(toProto(update))
+}
+
+func toProto(update domain.TileUpdate) *planetv1.TileUpdate {
+	return &planetv1.TileUpdate{
 		TileId:            update.Tile,
 		CountryId:         update.Value,
 		PreviousCountryId: update.Previous,
-	})
+	}
 }

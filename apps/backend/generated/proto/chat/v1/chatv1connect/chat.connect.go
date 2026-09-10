@@ -37,12 +37,16 @@ const (
 	ChatServiceSendMessageProcedure = "/chat.v1.ChatService/SendMessage"
 	// ChatServiceGetHistoryProcedure is the fully-qualified name of the ChatService's GetHistory RPC.
 	ChatServiceGetHistoryProcedure = "/chat.v1.ChatService/GetHistory"
+	// ChatServiceListenForMessagesProcedure is the fully-qualified name of the ChatService's
+	// ListenForMessages RPC.
+	ChatServiceListenForMessagesProcedure = "/chat.v1.ChatService/ListenForMessages"
 )
 
 // ChatServiceClient is a client for the chat.v1.ChatService service.
 type ChatServiceClient interface {
 	SendMessage(context.Context, *connect.Request[v1.SendMessageRequest]) (*connect.Response[v1.SendMessageResponse], error)
 	GetHistory(context.Context, *connect.Request[v1.GetHistoryRequest]) (*connect.Response[v1.GetHistoryResponse], error)
+	ListenForMessages(context.Context, *connect.Request[v1.ListenForMessagesRequest]) (*connect.ServerStreamForClient[v1.ChatMessage], error)
 }
 
 // NewChatServiceClient constructs a client for the chat.v1.ChatService service. By default, it uses
@@ -69,13 +73,20 @@ func NewChatServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
+		listenForMessages: connect.NewClient[v1.ListenForMessagesRequest, v1.ChatMessage](
+			httpClient,
+			baseURL+ChatServiceListenForMessagesProcedure,
+			connect.WithSchema(chatServiceMethods.ByName("ListenForMessages")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // chatServiceClient implements ChatServiceClient.
 type chatServiceClient struct {
-	sendMessage *connect.Client[v1.SendMessageRequest, v1.SendMessageResponse]
-	getHistory  *connect.Client[v1.GetHistoryRequest, v1.GetHistoryResponse]
+	sendMessage       *connect.Client[v1.SendMessageRequest, v1.SendMessageResponse]
+	getHistory        *connect.Client[v1.GetHistoryRequest, v1.GetHistoryResponse]
+	listenForMessages *connect.Client[v1.ListenForMessagesRequest, v1.ChatMessage]
 }
 
 // SendMessage calls chat.v1.ChatService.SendMessage.
@@ -88,10 +99,16 @@ func (c *chatServiceClient) GetHistory(ctx context.Context, req *connect.Request
 	return c.getHistory.CallUnary(ctx, req)
 }
 
+// ListenForMessages calls chat.v1.ChatService.ListenForMessages.
+func (c *chatServiceClient) ListenForMessages(ctx context.Context, req *connect.Request[v1.ListenForMessagesRequest]) (*connect.ServerStreamForClient[v1.ChatMessage], error) {
+	return c.listenForMessages.CallServerStream(ctx, req)
+}
+
 // ChatServiceHandler is an implementation of the chat.v1.ChatService service.
 type ChatServiceHandler interface {
 	SendMessage(context.Context, *connect.Request[v1.SendMessageRequest]) (*connect.Response[v1.SendMessageResponse], error)
 	GetHistory(context.Context, *connect.Request[v1.GetHistoryRequest]) (*connect.Response[v1.GetHistoryResponse], error)
+	ListenForMessages(context.Context, *connect.Request[v1.ListenForMessagesRequest], *connect.ServerStream[v1.ChatMessage]) error
 }
 
 // NewChatServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -114,12 +131,20 @@ func NewChatServiceHandler(svc ChatServiceHandler, opts ...connect.HandlerOption
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
+	chatServiceListenForMessagesHandler := connect.NewServerStreamHandler(
+		ChatServiceListenForMessagesProcedure,
+		svc.ListenForMessages,
+		connect.WithSchema(chatServiceMethods.ByName("ListenForMessages")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/chat.v1.ChatService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ChatServiceSendMessageProcedure:
 			chatServiceSendMessageHandler.ServeHTTP(w, r)
 		case ChatServiceGetHistoryProcedure:
 			chatServiceGetHistoryHandler.ServeHTTP(w, r)
+		case ChatServiceListenForMessagesProcedure:
+			chatServiceListenForMessagesHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -135,4 +160,8 @@ func (UnimplementedChatServiceHandler) SendMessage(context.Context, *connect.Req
 
 func (UnimplementedChatServiceHandler) GetHistory(context.Context, *connect.Request[v1.GetHistoryRequest]) (*connect.Response[v1.GetHistoryResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chat.v1.ChatService.GetHistory is not implemented"))
+}
+
+func (UnimplementedChatServiceHandler) ListenForMessages(context.Context, *connect.Request[v1.ListenForMessagesRequest], *connect.ServerStream[v1.ChatMessage]) error {
+	return connect.NewError(connect.CodeUnimplemented, errors.New("chat.v1.ChatService.ListenForMessages is not implemented"))
 }
