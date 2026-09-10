@@ -1,0 +1,44 @@
+name: check backend
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'apps/backend/**'
+      - 'proto/**'
+      - '.github/workflows/check-backend.yml'
+  pull_request:
+    paths:
+      - 'apps/backend/**'
+      - 'proto/**'
+      - '.github/workflows/check-backend.yml'
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: apps/backend
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The version comes from go.mod, so bumping the toolchain is one edit
+      # rather than two that can disagree.
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/backend/go.mod
+          cache-dependency-path: apps/backend/go.sum
+
+      - run: go build ./...
+
+      # vet always loads the test files, so it always needs the tag — without it
+      # it fails on the helpers rather than on anything real.
+      - run: go vet -tags testing ./...
+
+      - run: make test
+
+      # Runs deadcode at a pinned version via `go run`, so there is nothing to
+      # install here.
+      - run: make deadcode
