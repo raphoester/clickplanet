@@ -98,7 +98,7 @@ POST /session.v1.SessionService/CreateSession
   → kernel/session.Signer.Mint [HMAC over expiry+id+IP; nothing stored]
 
 POST /planet.v1.ClickService/Click   [X-Session-Token: <the minted token>]
-  → VPNBlockInterceptor, SessionInterceptor, RateLimitInterceptor
+  → VPNBlockInterceptor, SessionInterceptor, RateLimitInterceptor, ShadowBanInterceptor
   → ClickService
   → ClickHandlerService (validates tile ID + country)
   → MemoryTileStorage.Set() [writes the tile, fans the update out in process]
@@ -198,6 +198,64 @@ The signature is checked **before** the expiry, in constant time, so a forger le
 **What it does not stop:** a person who solves Turnstile in a real browser and then runs a userscript. They hold a genuine session, and nothing here distinguishes them from a player. This raises the floor from "twenty lines of Python" to "drive a real browser"; the signal that survives that is behavioural — timing regularity and tile-id structure over a session — which is what `ctxutil.GetSessionID` exists to be keyed on.
 
 
+### Shadow ban (`internal/kernel/shadowban`)
+
+What is left after sessions. A player who solves Turnstile in a real browser and
+then runs a userscript holds a genuine session, and no address- or token-based
+check can tell them from a player. The signal that survives is **behavioural**,
+and this is the one behaviour worth acting on: taking a tile back moments after
+losing it, over and over.
+
+**A flagged caller's clicks are answered `OK` and dropped.** That is the whole
+point — a refusal names the check that tripped, and the author fixes it in an
+afternoon; a silent no-op names nothing. It is not permanent (the caller reads
+the map back over the same websocket and will notice), but it moves the cost of
+the next round onto them.
+
+**Speed is not the signal; regularity is.** Two humans fighting over a tile
+produce fast re-takes too, and the player clicking back at a bot is the fastest
+of all. What no hand produces is a *narrow* band: a caller flags only on
+`minReactions` reactions whose median is at or under `maxMedian` **and** whose
+p90-p10 spread is at or under `maxSpread`. Either bound alone bans real players.
+
+**Three things are deliberately not reactions**, and each is a way to get an
+honest player flagged if you get it wrong:
+
+- a click onto a tile the caller's own country already holds — it is a no-op,
+  `Set` publishes nothing, so it neither reacts nor becomes something to react to
+- a click the handler refused (invalid country, tile out of range) — it changed
+  no tile, so `Took` is never called for it
+- a click that was itself dropped by the ban — same reason
+
+`Observe` therefore returns `(drop, takes)`, and the interceptor calls `Took`
+only after the handler returns nil. Without that split, a griefer spams a tile
+with deliberately invalid clicks and the next honest player to click it looks
+like it is reacting to something.
+
+**It sits innermost, after the throttle** — the opposite of the blocklist and the
+session check. A shadow-banned caller has to keep hitting the same 429s everyone
+else does; a caller that is never throttled again has been told. `TestShadowBanRunsAfterTheThrottle`
+pins it.
+
+**`shadowBan.detector.enforce` is the rollout switch,** the same shape as
+`session.enforce`: false measures, flags, logs and counts without dropping
+anything. The two surfaces are built for a box with no dashboard —
+`click_reaction_seconds` is a histogram whose raw bucket counts show the bot band
+by eye, and each flag writes one `shadowban candidate` log line carrying the
+scope, the median, the spread, the tiles, and the country the caller painted with
+most. **The address is never a metric label** — unbounded cardinality, and
+personal data in every scrape. `topCountry` is context for a human reading the
+log and never an input to the rule: the client declares it, so it is changed by
+editing one string, and real players paint the same flags a bot does.
+
+Keyed on `ipscope.Of`, the same unit as the throttle, so a v6 caller cannot serve
+a ban on one address and click from the next in its own /64. It only bites a bot
+with a stable address — against a residential proxy pool it evaporates for
+exactly the reason the rate limiter does.
+
+`memory_tile_storage.Owner` exists for this: one indexed read under the existing
+lock, declared as a local port in the controller the way `DenseMapReader` is.
+
 ### Shared interceptors
 
 `kernel/connectutil` holds the two interceptors both contexts need, because the policy is the same whatever the procedure is — only the procedure names and the wording of the refusal differ, and those are arguments:
@@ -251,6 +309,10 @@ Config is loaded from a YAML file (`-config` flag), with environment variables o
 - `bookkeeper.enabled`, `bookkeeper.runner.interval`
 - `rateLimiter.perSecond`, `rateLimiter.burst`, `rateLimiter.sweepInterval` — the per-IP click throttle (defaults 1/s, burst 10, swept every minute)
 - `vpnBlocklist.enabled`, `vpnBlocklist.includeDatacenters`, `vpnBlocklist.allow` — the VPN refusal (see [VPN blocklist](#vpn-blocklist)); disabled parses nothing and allocates nothing
+- `shadowBan.enabled` — off registers nothing and measures nothing
+- `shadowBan.detector.enforce` — off measures, flags and logs without dropping; the mode to deploy in
+- `shadowBan.detector.reactionWindow`, `minReactions`, `maxMedian`, `maxSpread` — what counts as a reaction, and how many of them in how narrow a band flag a caller
+- `shadowBan.detector.trackWindow`, `banDuration`, `sweepInterval` — how far back reactions count, how long a flag lasts, and how often what can no longer matter is forgotten
 - `session.enabled` — off registers nothing, so `session.v1.SessionService/` 404s and clicks are judged on address alone
 - `session.enforce` — off counts what enforcing would refuse without refusing it; the mode to deploy in
 - `session.secret` — signs the tokens; **empty generates one at boot**, invalidating every session in flight on each restart

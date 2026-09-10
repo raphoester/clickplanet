@@ -330,7 +330,72 @@ The number to watch is `missing`, not the clock.
   origin the widget is actually embedded on.
 
 
-## 6. CI and the image registry
+## 6. Watching for bots
+
+Sessions raise the floor to "drive a real browser". What gets through that is a
+userscript in a real browser, holding a genuine session — and the only thing
+left that separates it from a player is behaviour.
+
+`shadowBan` watches for one behaviour: taking a tile back moments after losing
+it, over and over, in a band no hand holds. A flagged caller's clicks are
+answered `OK` and dropped. That is deliberately not a refusal — a 403 names the
+check that tripped, and a silent no-op names nothing, so working around it is
+guesswork instead of a diff. It is not permanent: the caller reads the map back
+over the same websocket and will notice eventually.
+
+`backend.yaml` ships `enabled: true` with `detector.enforce: false`, which
+measures and logs without dropping anything. **Do not flip `enforce` before
+reading both of the following.**
+
+### The histogram says where the line is
+
+```bash
+docker compose exec backend wget -qO- localhost:8080/metrics | grep click_reaction
+```
+
+Every click that takes a tile another caller just took is timed into
+`click_reaction_seconds`. Read the bucket counts directly — a bot answering off
+the update stream piles up in the 50–150 ms buckets and then the curve goes
+flat, while human reactions spread out well past 300 ms. That gap is where
+`maxMedian` and `maxSpread` belong. The buckets are deliberately tight and low,
+because the whole question lives between 0.05 and 0.3.
+
+### The log says who
+
+The address is never a metric label — that is unbounded cardinality, and it
+would put personal data in every scrape. It goes to the log instead:
+
+```bash
+docker compose logs backend | grep "shadowban candidate"
+```
+
+```
+level=WARN msg="shadowban candidate" scope=198.51.100.20 reactions=12
+  median=100.4ms spread=4.4ms topCountry=ps topCountryClicks=12 clicks=12
+  tiles="[105 106 107 108 109 110 111 112]"
+```
+
+`spread=4.4ms` over twelve reactions is the whole case: a hand does not do that.
+
+`topCountry` is the country the caller painted with most. It is **context, not
+evidence** — the client declares it in the request, so it is changed by editing
+one string, and plenty of real players paint the same flags a bot does. Read it
+to understand what a caller was doing; never widen the rule to act on it.
+
+Before enforcing, get into a tile war yourself and confirm no line names your
+own address.
+
+### Then turn it on
+
+Set `detector.enforce: true` in `backend.yaml` and redeploy. `shadowban_flagged`
+is how many callers are inside a ban, and `shadowbanned_clicks` how many clicks
+have been dropped. Both are readable with the `wget` line above.
+
+To undo one, set `enforce` back to false and redeploy — bans live in memory
+only, so a restart clears every one of them.
+
+
+## 7. CI and the image registry
 
 `.github/workflows/deploy-backend.yml` builds the image to GHCR and rolls the
 container over SSH. GHCR rather than a dedicated registry because it adds no
@@ -375,7 +440,7 @@ and run `docker login ghcr.io` once as `deploy`.
 
 Pages deploys itself on push; no workflow needed.
 
-## 7. Live chat
+## 8. Live chat
 
 `chat.enabled: true` in `backend.yaml` publishes two routes Caddy already
 forwards: `/chat.v1.ChatService/` and `/ws/chat`. `SendMessage` is an
@@ -423,7 +488,7 @@ that file can also be overridden from the `environment:` block instead —
 config path verbatim (`chat.enabled: "false"`), which is how `CHAT_TAG_SALT`
 reaches `chat.service.tagSalt`.
 
-## 8. Backups
+## 9. Backups
 
 The whole game state is one snapshot file in the `tile_state` volume, written
 every 30s and on every clean shutdown. A nightly cron on the box is enough:
