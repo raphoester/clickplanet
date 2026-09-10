@@ -1,5 +1,5 @@
 import {useEffect, useId, useRef, useState} from "react";
-import {Country, nameWithoutFlag} from "../domain/countries.ts";
+import {Country} from "../domain/countries.ts";
 import {LeaderboardEntry, rankOf} from "../domain/leaderboard.ts";
 import Leaderboard from "./Leaderboard.tsx";
 import MenuHeader from "./MenuHeader.tsx";
@@ -65,7 +65,7 @@ export default function Menu(props: MenuProps) {
                             <div className="menu-playing-row">
                                 <span className="menu-playing-name">
                                     <CountryFlag code={props.country.code}/>
-                                    {nameWithoutFlag(props.country)}
+                                    {props.country.name}
                                 </span>
                                 <button ref={changeButton}
                                         type="button"

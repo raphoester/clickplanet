@@ -1,6 +1,6 @@
 import "./Leaderboard.css"
 import {useId} from "react";
-import {Country, nameWithoutFlag} from "../domain/countries.ts";
+import {Country} from "../domain/countries.ts";
 import {LeaderboardEntry} from "../domain/leaderboard.ts";
 import {truncate} from "./truncate.ts";
 import CountryFlag from "./components/CountryFlag.tsx";
@@ -39,7 +39,7 @@ export default function Leaderboard(props: LeaderboardProps) {
                         <td className="leaderboard-entry-index">{index + 1}</td>
                         <td className="leaderboard-entry-country">
                             <CountryFlag code={entry.country.code}/>
-                            {truncate(nameWithoutFlag(entry.country), NAME_MAX_LENGTH)}
+                            {truncate(entry.country.name, NAME_MAX_LENGTH)}
                         </td>
                         <td className="leaderboard-table-number leaderboard-table-tiles">{entry.tiles}</td>
                         <td className="leaderboard-table-number">
