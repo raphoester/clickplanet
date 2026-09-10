@@ -68,7 +68,7 @@ func (a *App) configureChatIfEnabled(_ context.Context) error {
 	}
 
 	a.mountRPC(chatv1connect.NewChatServiceHandler(
-		chatv1controller.NewChatService(service),
+		chatv1controller.NewChatService(service, chatStorage),
 		connect.WithInterceptors(
 			chatv1controller.NewErrorInterceptor(a.logger),
 			chatv1controller.NewBlocklistInterceptor(blocklist),

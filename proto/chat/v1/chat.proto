@@ -8,6 +8,8 @@ service ChatService {
   rpc GetHistory(GetHistoryRequest) returns (GetHistoryResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+
+  rpc ListenForMessages(ListenForMessagesRequest) returns (stream ChatMessage);
 }
 
 message ChatMessage {
@@ -35,3 +37,5 @@ message GetHistoryRequest {}
 message GetHistoryResponse {
   repeated ChatMessage messages = 1;
 }
+
+message ListenForMessagesRequest {}

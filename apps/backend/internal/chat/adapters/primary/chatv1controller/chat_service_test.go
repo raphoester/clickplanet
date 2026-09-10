@@ -55,7 +55,26 @@ func (c *fakeClock) Now() time.Time { return c.now }
 
 func (c *fakeClock) advance(d time.Duration) { c.now = c.now.Add(d) }
 
+type stubSubscriber struct {
+	messages chan domain.ChatMessage
+	err      error
+}
+
+func (s stubSubscriber) Subscribe(context.Context) (<-chan domain.ChatMessage, error) {
+	return s.messages, s.err
+}
+
 func startChatServer(t *testing.T, service chat_service.IService, blockedIPs []string) (*httptest.Server, *fakeClock) {
+	t.Helper()
+	return startChatServerWith(t, service, blockedIPs, stubSubscriber{})
+}
+
+func startChatServerWith(
+	t *testing.T,
+	service chat_service.IService,
+	blockedIPs []string,
+	subscriber MessagesSubscriber,
+) (*httptest.Server, *fakeClock) {
 	t.Helper()
 
 	clock := &fakeClock{now: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)}
@@ -66,7 +85,7 @@ func startChatServer(t *testing.T, service chat_service.IService, blockedIPs []s
 
 	mux := http.NewServeMux()
 	mux.Handle(chatv1connect.NewChatServiceHandler(
-		NewChatService(service),
+		NewChatService(service, subscriber),
 		connect.WithInterceptors(
 			NewErrorInterceptor(nil),
 			NewBlocklistInterceptor(blocklist),
@@ -91,6 +110,60 @@ func sendFrom(server *httptest.Server, ip string, text string) (*connect.Respons
 
 	return chatv1connect.NewChatServiceClient(server.Client(), server.URL).
 		SendMessage(context.Background(), req)
+}
+
+func TestListenForMessages(t *testing.T) {
+	// The call blocks until the first frame, so subscriptions are seeded before it.
+	listen := func(t *testing.T, subscriber MessagesSubscriber) (*connect.ServerStreamForClient[chatv1.ChatMessage], error) {
+		t.Helper()
+
+		server, _ := startChatServerWith(t, &stubService{}, nil, subscriber)
+
+		return chatv1connect.NewChatServiceClient(server.Client(), server.URL).
+			ListenForMessages(context.Background(), connect.NewRequest(&chatv1.ListenForMessagesRequest{}))
+	}
+
+	t.Run("carries a message to the caller", func(t *testing.T) {
+		messages := make(chan domain.ChatMessage, 1)
+		messages <- domain.ChatMessage{
+			ID:         "message-1",
+			SentAt:     time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+			AuthorName: "Bob",
+			AuthorTag:  "a1b2c3",
+			CountryID:  "fr",
+			Text:       "hello",
+		}
+
+		stream, err := listen(t, stubSubscriber{messages: messages})
+		require.NoError(t, err)
+
+		require.True(t, stream.Receive())
+		require.Equal(t, "message-1", stream.Msg().GetId())
+		require.Equal(t, "Bob", stream.Msg().GetAuthorName())
+		require.Equal(t, "hello", stream.Msg().GetText())
+	})
+
+	t.Run("ends when the subscription closes", func(t *testing.T) {
+		messages := make(chan domain.ChatMessage)
+		close(messages)
+
+		stream, err := listen(t, stubSubscriber{messages: messages})
+		require.NoError(t, err)
+
+		require.False(t, stream.Receive())
+		require.NoError(t, stream.Err())
+	})
+
+	t.Run("a failed subscription stays internal and does not leak the cause", func(t *testing.T) {
+		stream, err := listen(t, stubSubscriber{err: errors.New("disk on fire")})
+		if err == nil {
+			require.False(t, stream.Receive())
+			err = stream.Err()
+		}
+
+		require.Equal(t, connect.CodeInternal, connect.CodeOf(err))
+		require.NotContains(t, err.Error(), "disk on fire")
+	})
 }
 
 func TestSendMessageReturnsTheStoredMessage(t *testing.T) {

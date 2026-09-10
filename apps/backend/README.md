@@ -59,12 +59,15 @@ The tradeoffs are deliberate: writes since the last snapshot are lost on a hard 
 | `POST` | `/planet.v1.ClickService/Click`          | Claim a tile for a country                 |
 | `GET`  | `/planet.v1.ClickService/MapDensity`     | Total number of tiles on the map           |
 | `GET`  | `/planet.v1.ClickService/GetMap`         | Bulk fetch tile ownership for a tile range |
-| `GET`  | `/ws/listen`                             | WebSocket stream of real-time tile updates |
+| `POST` | `/planet.v1.ClickService/ListenForUpdates` | Server stream of real-time tile updates  |
+| `GET`  | `/ws/listen`                             | The same stream, as a WebSocket             |
 | `GET`  | `/metrics`                               | Prometheus metrics                         |
 
-The RPCs are served with [Connect](https://connectrpc.com), which is plain HTTP — no gRPC. The encoding is negotiated per request (`application/proto` or `application/json`), and the two reads are marked side-effect free, so they arrive as cacheable GETs. The websocket carries raw binary `TileUpdate` frames.
+The RPCs are served with [Connect](https://connectrpc.com), which is plain HTTP — no gRPC. The encoding is negotiated per request (`application/proto` or `application/json`), and the two reads are marked side-effect free, so they arrive as cacheable GETs.
 
-`Click` is rate limited per source IP — 1 click/s with a burst of 10 by default, configurable under `rateLimiter`. Over that, it answers `429`. The reads and the websocket are not limited.
+`ListenForUpdates` is a server-streaming RPC carrying typed `TileUpdate` messages. `/ws/listen` carries the same updates as raw binary frames and is **kept only until the deployed frontend has moved over**.
+
+`Click` is rate limited per source IP — 1 click/s with a burst of 10 by default, configurable under `rateLimiter`. Over that, it answers `429`. The reads and the streams are not limited.
 
 ## Running locally
 

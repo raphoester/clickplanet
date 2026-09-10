@@ -297,6 +297,42 @@ func (x *GetHistoryResponse) GetMessages() []*ChatMessage {
 	return nil
 }
 
+type ListenForMessagesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListenForMessagesRequest) Reset() {
+	*x = ListenForMessagesRequest{}
+	mi := &file_chat_v1_chat_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListenForMessagesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListenForMessagesRequest) ProtoMessage() {}
+
+func (x *ListenForMessagesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chat_v1_chat_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListenForMessagesRequest.ProtoReflect.Descriptor instead.
+func (*ListenForMessagesRequest) Descriptor() ([]byte, []int) {
+	return file_chat_v1_chat_proto_rawDescGZIP(), []int{5}
+}
+
 var File_chat_v1_chat_proto protoreflect.FileDescriptor
 
 const file_chat_v1_chat_proto_rawDesc = "" +
@@ -323,11 +359,13 @@ const file_chat_v1_chat_proto_rawDesc = "" +
 	"\amessage\x18\x01 \x01(\v2\x14.chat.v1.ChatMessageR\amessage\"\x13\n" +
 	"\x11GetHistoryRequest\"F\n" +
 	"\x12GetHistoryResponse\x120\n" +
-	"\bmessages\x18\x01 \x03(\v2\x14.chat.v1.ChatMessageR\bmessages2\xa3\x01\n" +
+	"\bmessages\x18\x01 \x03(\v2\x14.chat.v1.ChatMessageR\bmessages\"\x1a\n" +
+	"\x18ListenForMessagesRequest2\xf3\x01\n" +
 	"\vChatService\x12H\n" +
 	"\vSendMessage\x12\x1b.chat.v1.SendMessageRequest\x1a\x1c.chat.v1.SendMessageResponse\x12J\n" +
 	"\n" +
-	"GetHistory\x12\x1a.chat.v1.GetHistoryRequest\x1a\x1b.chat.v1.GetHistoryResponse\"\x03\x90\x02\x01B\xa3\x01\n" +
+	"GetHistory\x12\x1a.chat.v1.GetHistoryRequest\x1a\x1b.chat.v1.GetHistoryResponse\"\x03\x90\x02\x01\x12N\n" +
+	"\x11ListenForMessages\x12!.chat.v1.ListenForMessagesRequest\x1a\x14.chat.v1.ChatMessage0\x01B\xa3\x01\n" +
 	"\vcom.chat.v1B\tChatProtoP\x01ZLgithub.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1;chatv1\xa2\x02\x03CXX\xaa\x02\aChat.V1\xca\x02\aChat\\V1\xe2\x02\x13Chat\\V1\\GPBMetadata\xea\x02\bChat::V1b\x06proto3"
 
 var (
@@ -342,23 +380,26 @@ func file_chat_v1_chat_proto_rawDescGZIP() []byte {
 	return file_chat_v1_chat_proto_rawDescData
 }
 
-var file_chat_v1_chat_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_chat_v1_chat_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_chat_v1_chat_proto_goTypes = []any{
-	(*ChatMessage)(nil),         // 0: chat.v1.ChatMessage
-	(*SendMessageRequest)(nil),  // 1: chat.v1.SendMessageRequest
-	(*SendMessageResponse)(nil), // 2: chat.v1.SendMessageResponse
-	(*GetHistoryRequest)(nil),   // 3: chat.v1.GetHistoryRequest
-	(*GetHistoryResponse)(nil),  // 4: chat.v1.GetHistoryResponse
+	(*ChatMessage)(nil),              // 0: chat.v1.ChatMessage
+	(*SendMessageRequest)(nil),       // 1: chat.v1.SendMessageRequest
+	(*SendMessageResponse)(nil),      // 2: chat.v1.SendMessageResponse
+	(*GetHistoryRequest)(nil),        // 3: chat.v1.GetHistoryRequest
+	(*GetHistoryResponse)(nil),       // 4: chat.v1.GetHistoryResponse
+	(*ListenForMessagesRequest)(nil), // 5: chat.v1.ListenForMessagesRequest
 }
 var file_chat_v1_chat_proto_depIdxs = []int32{
 	0, // 0: chat.v1.SendMessageResponse.message:type_name -> chat.v1.ChatMessage
 	0, // 1: chat.v1.GetHistoryResponse.messages:type_name -> chat.v1.ChatMessage
 	1, // 2: chat.v1.ChatService.SendMessage:input_type -> chat.v1.SendMessageRequest
 	3, // 3: chat.v1.ChatService.GetHistory:input_type -> chat.v1.GetHistoryRequest
-	2, // 4: chat.v1.ChatService.SendMessage:output_type -> chat.v1.SendMessageResponse
-	4, // 5: chat.v1.ChatService.GetHistory:output_type -> chat.v1.GetHistoryResponse
-	4, // [4:6] is the sub-list for method output_type
-	2, // [2:4] is the sub-list for method input_type
+	5, // 4: chat.v1.ChatService.ListenForMessages:input_type -> chat.v1.ListenForMessagesRequest
+	2, // 5: chat.v1.ChatService.SendMessage:output_type -> chat.v1.SendMessageResponse
+	4, // 6: chat.v1.ChatService.GetHistory:output_type -> chat.v1.GetHistoryResponse
+	0, // 7: chat.v1.ChatService.ListenForMessages:output_type -> chat.v1.ChatMessage
+	5, // [5:8] is the sub-list for method output_type
+	2, // [2:5] is the sub-list for method input_type
 	2, // [2:2] is the sub-list for extension type_name
 	2, // [2:2] is the sub-list for extension extendee
 	0, // [0:2] is the sub-list for field type_name
@@ -375,7 +416,7 @@ func file_chat_v1_chat_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chat_v1_chat_proto_rawDesc), len(file_chat_v1_chat_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   5,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

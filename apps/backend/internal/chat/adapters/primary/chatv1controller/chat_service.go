@@ -2,6 +2,7 @@ package chatv1controller
 
 import (
 	"context"
+	"fmt"
 
 	"connectrpc.com/connect"
 	chatv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1"
@@ -10,14 +11,19 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/domain/chat_service"
 )
 
+type MessagesSubscriber interface {
+	Subscribe(ctx context.Context) (<-chan domain.ChatMessage, error)
+}
+
 type ChatService struct {
 	chatService chat_service.IService
+	subscriber  MessagesSubscriber
 }
 
 var _ chatv1connect.ChatServiceHandler = (*ChatService)(nil)
 
-func NewChatService(chatService chat_service.IService) *ChatService {
-	return &ChatService{chatService: chatService}
+func NewChatService(chatService chat_service.IService, subscriber MessagesSubscriber) *ChatService {
+	return &ChatService{chatService: chatService, subscriber: subscriber}
 }
 
 func (s *ChatService) SendMessage(
@@ -58,6 +64,34 @@ func (s *ChatService) GetHistory(
 	res.Header().Set("Cache-Control", "no-store")
 
 	return res, nil
+}
+
+// The request context is what unsubscribes, and it is cancelled however the stream ends.
+func (s *ChatService) ListenForMessages(
+	ctx context.Context,
+	_ *connect.Request[chatv1.ListenForMessagesRequest],
+	stream *connect.ServerStream[chatv1.ChatMessage],
+) error {
+	messages, err := s.subscriber.Subscribe(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to subscribe to chat messages: %w", err)
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+
+		case message, open := <-messages:
+			if !open {
+				return nil
+			}
+
+			if err := stream.Send(toProto(message)); err != nil {
+				return err
+			}
+		}
+	}
 }
 
 func toProto(message domain.ChatMessage) *chatv1.ChatMessage {
