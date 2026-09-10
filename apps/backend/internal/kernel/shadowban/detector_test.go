@@ -265,7 +265,7 @@ func TestADroppedClickDoesNotFrameTheNextClicker(t *testing.T) {
 		h.clock.advance(time.Second)
 	}
 
-	require.True(t, h.detector.Banned("bot"))
+	require.Equal(t, 1, h.detector.Flagged())
 
 	const contested = uint32(1300)
 	h.click("player", contested, "FR")
@@ -306,6 +306,33 @@ func TestARefusedClickCannotFrameAnHonestPlayer(t *testing.T) {
 	assert.NotContains(t, h.flags, "player")
 }
 
+func TestALapsedBanIsNotHandedStraightBackOnStaleEvidence(t *testing.T) {
+	config := strictConfig()
+	config.TrackWindow = time.Minute
+	config.BanDuration = 10 * time.Minute
+
+	h := newHarness(t, config)
+
+	for i := range 8 {
+		tile := uint32(1500 + i)
+
+		h.click("player", tile, "FR")
+		h.clock.advance(80 * time.Millisecond)
+		h.click("bot", tile, "PS")
+
+		h.clock.advance(time.Second)
+	}
+
+	require.Equal(t, 1, h.detector.Flagged())
+
+	// The reactions that earned the ban are still on the caller when it lapses.
+	h.clock.advance(11 * time.Minute)
+	require.Equal(t, 0, h.detector.Flagged())
+
+	assert.False(t, h.click("bot", 1600, "PS"), "the click lands")
+	assert.Equal(t, 0, h.detector.Flagged(), "and does not earn a fresh ban on its own")
+}
+
 func TestABanOutlivesTheReactionsThatEarnedIt(t *testing.T) {
 	config := strictConfig()
 	config.TrackWindow = time.Minute
@@ -324,13 +351,13 @@ func TestABanOutlivesTheReactionsThatEarnedIt(t *testing.T) {
 	}
 
 	require.Contains(t, h.flags, "bot")
-	require.True(t, h.detector.Banned("bot"))
-	assert.Equal(t, 1, h.detector.Flagged())
+	require.Equal(t, 1, h.detector.Flagged())
 
 	h.clock.advance(30 * time.Minute)
-	assert.True(t, h.detector.Banned("bot"), "the ban runs past the tracking window")
+	assert.Equal(t, 1, h.detector.Flagged(), "the ban runs past the tracking window")
+	assert.True(t, h.click("bot", 1150, "PS"), "and is still dropping clicks")
 
 	h.clock.advance(31 * time.Minute)
-	assert.False(t, h.detector.Banned("bot"))
 	assert.Equal(t, 0, h.detector.Flagged())
+	assert.False(t, h.click("bot", 1151, "PS"), "once it lapses, clicks land again")
 }

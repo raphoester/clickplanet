@@ -488,7 +488,20 @@ func (s *testSuite) TestConcurrentSetsAndReads() {
 		SnapshotInterval: time.Millisecond,
 	})
 
-	go storage.Run(ctx)
+	// Joined before returning: a snapshot landing mid-cleanup breaks RemoveAll.
+	stopped := make(chan struct{})
+	go func() {
+		defer close(stopped)
+		storage.Run(ctx)
+	}()
+	defer func() {
+		cancel()
+		select {
+		case <-stopped:
+		case <-time.After(5 * time.Second):
+			s.T().Error("Run did not return after the context was cancelled")
+		}
+	}()
 
 	received := make(chan struct{})
 	listener, err := storage.Subscribe(ctx)

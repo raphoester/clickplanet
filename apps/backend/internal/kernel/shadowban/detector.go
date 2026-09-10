@@ -226,24 +226,6 @@ func (d *Detector) Took(scope string, tile uint32) {
 	d.tiles[tile] = take{scope: scope, at: now}
 }
 
-func (d *Detector) Banned(scope string) bool {
-	if scope == "" {
-		return false
-	}
-
-	now := d.timeProvider.Now()
-
-	d.mu.Lock()
-	defer d.mu.Unlock()
-
-	c, ok := d.callers[scope]
-	if !ok {
-		return false
-	}
-
-	return d.bannedLocked(c, now)
-}
-
 // Flagged counts callers inside a ban, enforced or not — what the gauge reports.
 func (d *Detector) Flagged() int {
 	now := d.timeProvider.Now()
@@ -280,6 +262,9 @@ func (d *Detector) evaluateLocked(c *caller, now time.Time) (Report, bool) {
 		return Report{}, false
 	}
 
+	// Nothing prunes a caller while it serves a ban, so judging without this re-bans it on hour-old reactions the moment one lapses.
+	c.pruneReactionsLocked(now.Add(-d.config.TrackWindow))
+
 	if len(c.reactions) < d.config.MinReactions {
 		return Report{}, false
 	}
@@ -312,16 +297,19 @@ func (d *Detector) evaluateLocked(c *caller, now time.Time) (Report, bool) {
 	}, true
 }
 
-func (c *caller) addReactionLocked(now time.Time, delay time.Duration, tile uint32, config Config) {
-	cutoff := now.Add(-config.TrackWindow)
-
+func (c *caller) pruneReactionsLocked(cutoff time.Time) {
 	kept := c.reactions[:0]
 	for _, r := range c.reactions {
 		if r.at.After(cutoff) {
 			kept = append(kept, r)
 		}
 	}
-	c.reactions = append(kept, reaction{at: now, delay: delay})
+	c.reactions = kept
+}
+
+func (c *caller) addReactionLocked(now time.Time, delay time.Duration, tile uint32, config Config) {
+	c.pruneReactionsLocked(now.Add(-config.TrackWindow))
+	c.reactions = append(c.reactions, reaction{at: now, delay: delay})
 
 	const keptTiles = 8
 	c.tiles = append(c.tiles, tile)
@@ -395,13 +383,7 @@ func (d *Detector) sweep() {
 			continue
 		}
 
-		kept := c.reactions[:0]
-		for _, r := range c.reactions {
-			if r.at.After(callerCutoff) {
-				kept = append(kept, r)
-			}
-		}
-		c.reactions = kept
+		c.pruneReactionsLocked(callerCutoff)
 	}
 }
 

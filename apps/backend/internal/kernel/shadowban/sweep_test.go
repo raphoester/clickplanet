@@ -65,12 +65,13 @@ func TestSweepKeepsACallerServingABan(t *testing.T) {
 		clock.now = clock.now.Add(time.Second)
 	}
 
-	require.True(t, d.Banned("bot"))
+	require.Equal(t, 1, d.Flagged())
 
 	clock.now = clock.now.Add(2 * time.Hour)
 	d.sweep()
 
-	assert.True(t, d.Banned("bot"), "a sweep must not release a ban still running")
+	assert.Contains(t, d.callers, "bot", "a sweep must not release a ban still running")
+	assert.Equal(t, 1, d.Flagged())
 }
 
 func TestTheCountryTallyIsCapped(t *testing.T) {

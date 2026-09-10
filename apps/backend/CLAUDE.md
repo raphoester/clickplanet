@@ -7,13 +7,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 # Run all tests — no Docker, no database, nothing to start first
 make test
-# or: go test ./... | grep -v 'no test files'
+# or: go test -tags testing ./... | grep -v 'no test files'
 
 # Run a single test
-go test ./internal/clicks/domain/click_handler_service/... -run TestName
+go test -tags testing ./internal/clicks/domain/click_handler_service/... -run TestName
 
 # Run the concurrency-sensitive tests under the race detector
-go test ./... -race
+go test -tags testing ./... -race
+
+# Fail on any unreachable function, production or test helper
+make deadcode
 
 # Run API server locally
 go run ./cmd/api -config cmd/api/example.yaml
@@ -195,7 +198,7 @@ The signature is checked **before** the expiry, in constant time, so a forger le
 
 **Two secrets, neither in git.** `session.secret` signs the tokens; anyone holding it can mint one the API accepts. `session.turnstile.secret` is the widget's secret half. Both come from the environment via `deploy/vps/docker-compose.yaml`, as `chat.service.tagSalt` does. An empty `session.secret` generates one at boot and warns — which invalidates every session in flight on each restart, costing every player one extra round trip.
 
-**What it does not stop:** a person who solves Turnstile in a real browser and then runs a userscript. They hold a genuine session, and nothing here distinguishes them from a player. This raises the floor from "twenty lines of Python" to "drive a real browser"; the signal that survives that is behavioural — timing regularity and tile-id structure over a session — which is what `ctxutil.GetSessionID` exists to be keyed on.
+**What it does not stop:** a person who solves Turnstile in a real browser and then runs a userscript. They hold a genuine session, and nothing here distinguishes them from a player. This raises the floor from "twenty lines of Python" to "drive a real browser"; the signal that survives that is behavioural — timing regularity and tile-id structure over a session — which is what the session id on the context exists to be keyed on. Nothing in production reads it yet, so `ctxutil.GetSessionID` sits behind the `testing` tag (see [Testing](#testing)) until something does.
 
 
 ### Shadow ban (`internal/kernel/shadowban`)
@@ -283,7 +286,7 @@ The snapshot file is the only thing worth backing up.
 
 ### Kernel (`internal/kernel/`)
 
-Shared infrastructure: `cfgutil` (YAML + env config via koanf), `httpserver` (middleware, formats), `logging`, `prom` (Prometheus), `xtime`, `ctxutil`, `basicutil`, `ratelimit`, `ipblock`, `atomicfile`, `wspublisher`.
+Shared infrastructure: `cfgutil` (YAML + env config via koanf), `httpserver` (middleware, formats), `logging`, `prom` (Prometheus), `xtime`, `ctxutil`, `ratelimit`, `ipblock`, `atomicfile`, `wspublisher`.
 
 Two of these are here because both bounded contexts need them and neither should depend on the other:
 
@@ -338,4 +341,8 @@ The proto package is the **only** version number: Connect derives each route fro
 
 ### Testing
 
-Unit tests only, using `testify`. There are no integration tests and no Docker dependency — `go test ./...` runs everything from a clean checkout.
+Unit tests only, using `testify`. There are no integration tests and no Docker dependency — `make test` runs everything from a clean checkout.
+
+**Tests build with `-tags testing`, so use `make test` rather than a bare `go test ./...`.** Anything else that loads test files needs the tag too: `go vet -tags testing ./...`, and an editor's language server (`gopls` `buildFlags: ["-tags=testing"]`, or `go.buildTags` in VS Code), which otherwise reports the helpers as undefined. A helper that more than one package needs cannot live in a `_test.go` file, so it lives in an ordinary `.go` file carrying `//go:build testing`. The tag, not a filename convention, is what keeps such a helper out of the production binary — and what lets `make deadcode` tell a helper apart from production code. `ctxutil.GetSessionID` is the one that exists today.
+
+**`make deadcode` fails on any unreachable function**, in two passes, because "is this reachable?" has two different right answers depending on whether test code counts as a caller. The first pass excludes tests and tagged files, so **production code whose only caller is a test is reported as dead** — the case a plain `deadcode -test` forgives. The second pass includes both but keeps only findings inside tagged files, so an unused shared helper is reported too. `deadcode` is fetched at a pinned version by the target, so there is nothing to install.

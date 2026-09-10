@@ -72,8 +72,11 @@ The RPCs are served with [Connect](https://connectrpc.com), which is plain HTTP 
 # Run the API server — nothing to start first
 go run ./cmd/api -config cmd/api/example.yaml
 
-# Run tests
+# Run tests — use the target, the suite builds with -tags testing
 make test
+
+# Fail on any unreachable function
+make deadcode
 ```
 
 See `cmd/api/example.yaml` for the full configuration schema.
