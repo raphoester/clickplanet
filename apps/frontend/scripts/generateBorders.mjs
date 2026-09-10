@@ -77,7 +77,17 @@ function inRing(ring, x, y) {
     return inside
 }
 
+// A country that wraps the globe cannot be a ring in longitude and latitude
+// without being cut somewhere, and Natural Earth cuts Antarctica down the
+// antimeridian. A tile landing exactly on 180 therefore lands exactly on the
+// polygon's own edge, where an even-odd ray test has no answer to give, and
+// falls out of every country — 24 of them, in a row, straight out from the
+// south pole. On the globe they were the one line of ground not wearing the
+// flag. Nudging off the cut costs a hundredth of a degree, about a kilometre.
+const SEAM = 179.99
+
 function shapeAt(x, y) {
+    if (x > SEAM || x < -SEAM) x = x > 0 ? SEAM : -SEAM
     const i = Math.min(GX - 1, Math.max(0, Math.floor(x + 180)))
     const j = Math.min(GY - 1, Math.max(0, Math.floor(y + 90)))
     const candidates = grid.get(key(i, j))
