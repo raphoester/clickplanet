@@ -13,7 +13,7 @@ function field(size = SIZE) {
         uvs: new Float32Array(size * 2),
         size,
     }
-    return new TileField({zoom: {value: 1}}, data)
+    return new TileField({zoom: {value: 1}}, {pointSize: {value: 1}}, data)
 }
 
 const attr = (f: TileField, name: string) =>
