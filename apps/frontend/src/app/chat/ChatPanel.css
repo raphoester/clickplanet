@@ -173,7 +173,8 @@
     min-height: 120px;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-    padding: 2px 4px;
+    /* Room under the last balloon for its tail and its drop. */
+    padding: 2px 4px 10px 4px;
     user-select: text;
     -webkit-user-select: text;
 }
@@ -198,42 +199,115 @@
     padding: 0;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 7px;
 }
 
 /*
- * Every message carries its author's hue in --author-hue (authorColor.ts). The
- * saturation and lightness are fixed here so no author can hash their way to an
- * unreadable colour, and the stripe down the left is what makes a thread of one
- * person's messages scannable without reading the names.
+ * A message is a speech balloon, not a card: pastel fill, chunky outline, a tail
+ * pointing back at whoever said it. Every author carries their own hue in
+ * --author-hue (authorColor.ts) and it colours the whole balloon — saturation
+ * and lightness are fixed here, so nobody can hash their way to an unreadable
+ * one, and two people are never the same balloon.
+ *
+ * A run by one author is a group: only its first bubble is introduced, only its
+ * last one grows a tail, and the rest tuck in between. That is most of what
+ * makes a busy chat read as people talking rather than a stack of cards.
  */
 .chat-message {
-    --author: hsl(var(--author-hue, 0), 70%, 74%);
-    --author-glow: hsla(var(--author-hue, 0), 70%, 60%, 0.22);
-    padding: 6px 8px 6px 11px;
-    border-radius: 12px;
-    background: #FFFFFF0F;
-    border: 1px solid #FFFFFF1A;
-    box-shadow: inset 3px 0 0 var(--author), 0 0 0 0 #00000000;
+    --author: hsl(var(--author-hue, 0), 80%, 78%);
+    --balloon: hsl(var(--author-hue, 0), 78%, 87%);
+    --balloon-edge: hsl(var(--author-hue, 0), 48%, 30%);
+    --balloon-ink: hsl(var(--author-hue, 0), 50%, 15%);
+    --balloon-drop: hsla(var(--author-hue, 0), 55%, 8%, 0.6);
+    --author-glow: hsla(var(--author-hue, 0), 90%, 72%, 0.75);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
 }
 
-/* Lit while it is news: it slid in, then settles into an ordinary message. */
+/* Air above a new voice, none inside one person's run. */
+.chat-message-opens {
+    margin-top: 4px;
+}
+
+.chat-message-cont {
+    margin-top: -3px;
+}
+
+.chat-message-text {
+    position: relative;
+    max-width: 86%;
+    margin: 0;
+    padding: 6px 13px 7px 13px;
+    border-radius: 18px 18px 18px 7px;
+    background: var(--balloon);
+    border: 2px solid var(--balloon-edge);
+    /* The flat drop the rest of the game is drawn with: it makes a balloon a
+       sticker stuck on the globe rather than a pane floating over it. */
+    box-shadow: 0 3px 0 0 var(--balloon-drop);
+    font-size: 14px;
+    line-height: 1.35;
+    color: var(--balloon-ink);
+    overflow-wrap: anywhere;
+}
+
+/*
+ * The tail, drawn as two triangles: the outer one is the outline, the inner one
+ * fills it back in. It hangs off the balloon that ends a run, so a group of
+ * three gets one tail rather than three.
+ */
+.chat-message:not(:has(+ .chat-message-cont)) .chat-message-text::before,
+.chat-message:not(:has(+ .chat-message-cont)) .chat-message-text::after {
+    content: "";
+    position: absolute;
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-color: transparent;
+}
+
+.chat-message:not(:has(+ .chat-message-cont)) .chat-message-text::before {
+    left: 13px;
+    bottom: -11px;
+    border-width: 11px 13px 0 0;
+    border-top-color: var(--balloon-edge);
+}
+
+.chat-message:not(:has(+ .chat-message-cont)) .chat-message-text::after {
+    left: 15px;
+    bottom: -6px;
+    border-width: 7px 9px 0 0;
+    border-top-color: var(--balloon);
+}
+
+/* Mid-run balloons square up towards their neighbours, so a group is one shape. */
+.chat-message-cont .chat-message-text {
+    border-top-left-radius: 7px;
+}
+
+.chat-message:has(+ .chat-message-cont) .chat-message-text {
+    border-bottom-left-radius: 18px;
+}
+
+/* Lit while it is news: it bounces in, then settles. */
 .chat-message-new {
-    animation: chat-message-in 0.24s ease-out, chat-message-glow 1.6s ease-out;
+    animation: chat-message-in 0.34s cubic-bezier(0.18, 1.6, 0.42, 1);
+}
+
+.chat-message-new .chat-message-text {
+    animation: chat-message-glow 1.6s ease-out;
 }
 
 @keyframes chat-message-in {
     from {
-        opacity: 0.2;
-        transform: translateY(6px);
+        opacity: 0;
+        transform: translate(-12px, 6px) scale(0.85) rotate(-3deg);
     }
 }
 
 @keyframes chat-message-glow {
     from {
-        background: var(--author-glow);
-        border-color: var(--author);
-        box-shadow: inset 3px 0 0 var(--author), 0 0 16px 0 var(--author-glow);
+        box-shadow: 0 3px 0 0 var(--balloon-drop), 0 0 22px 2px var(--author-glow);
     }
 }
 
@@ -241,6 +315,7 @@
     display: flex;
     align-items: baseline;
     gap: 6px;
+    margin: 0 0 3px 7px;
     font-family: Oswald, sans-serif;
     font-weight: 500;
     font-size: 11px;
@@ -251,10 +326,11 @@
 
 .chat-message-country {
     flex-shrink: 0;
-    padding: 1px 4px 0 4px;
-    border: 1px solid #FFFFFF33;
-    border-radius: 6px;
-    color: #FFFFFFCC;
+    font-size: 18px;
+}
+
+.chat-message-country .country-flag {
+    margin-right: 0;
 }
 
 .chat-message-author {
@@ -262,7 +338,11 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    font-family: "Luckiest Guy", sans-serif;
+    font-size: 15px;
+    letter-spacing: 0.4px;
     color: var(--author);
+    text-shadow: -1px 1px 0 #000000;
 }
 
 .chat-message-tag {
@@ -271,17 +351,11 @@
     text-transform: none;
 }
 
+/* Beside the name, not pinned to the far edge: the head belongs to the bubble
+   under it, and a time pushed to the panel's other side belongs to neither. */
 .chat-message-time {
-    margin-left: auto;
     flex-shrink: 0;
     color: #FFFFFF59;
-}
-
-.chat-message-text {
-    margin: 3px 0 0 0;
-    font-size: 14px;
-    color: #DBDBDB;
-    overflow-wrap: anywhere;
 }
 
 /* Reading further up is not interrupted; this says what you would have seen. */
@@ -347,9 +421,10 @@
     flex: 1 1 auto;
     min-width: 0;
     height: 40px;
-    padding: 0 12px;
+    padding: 0 16px;
     border: 1px solid #FFFFFF26;
-    border-radius: 12px;
+    /* Round like the balloons it feeds. */
+    border-radius: 999px;
     background: #FFFFFF14;
     color: white;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -428,8 +503,9 @@
         border-color: #FF813F99;
     }
 
+    /* The pop goes; the glow stays, as it is the part that says "new". */
     .chat-message-new {
-        animation: chat-message-glow 1.6s ease-out;
+        animation: none;
     }
 
     .chat-badge,

@@ -1,11 +1,12 @@
 import {useEffect, useId, useRef, useState} from "react";
-import {Country} from "../domain/countries.ts";
+import {Country, nameWithoutFlag} from "../domain/countries.ts";
 import {LeaderboardEntry, rankOf} from "../domain/leaderboard.ts";
 import Leaderboard from "./Leaderboard.tsx";
 import MenuHeader from "./MenuHeader.tsx";
 import About from "./About.tsx";
 import CountryPicker from "./CountryPicker.tsx";
 import MenuPanel from "./components/MenuPanel.tsx";
+import CountryFlag from "./components/CountryFlag.tsx";
 import Modal from "./components/Modal.tsx";
 import DiscordButton from "./components/DiscordButton.tsx";
 import BuyMeACoffee from "./components/BuyMeACoffee.tsx";
@@ -62,7 +63,10 @@ export default function Menu(props: MenuProps) {
                         <div className="menu-playing">
                             <span className="menu-label">You’re playing for</span>
                             <div className="menu-playing-row">
-                                <span className="menu-playing-name">{props.country.name}</span>
+                                <span className="menu-playing-name">
+                                    <CountryFlag code={props.country.code}/>
+                                    {nameWithoutFlag(props.country)}
+                                </span>
                                 <button ref={changeButton}
                                         type="button"
                                         className="button button-mini menu-change"

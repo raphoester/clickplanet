@@ -1,8 +1,9 @@
 import "./Leaderboard.css"
 import {useId} from "react";
-import {Country} from "../domain/countries.ts";
+import {Country, nameWithoutFlag} from "../domain/countries.ts";
 import {LeaderboardEntry} from "../domain/leaderboard.ts";
 import {truncate} from "./truncate.ts";
+import CountryFlag from "./components/CountryFlag.tsx";
 
 type LeaderboardProps = {
     tilesCount: number,
@@ -36,7 +37,10 @@ export default function Leaderboard(props: LeaderboardProps) {
                                className={isPlayer ? "leaderboard-entry leaderboard-entry-player" : "leaderboard-entry"}
                                aria-current={isPlayer ? "true" : undefined}>
                         <td className="leaderboard-entry-index">{index + 1}</td>
-                        <td>{truncate(entry.country.name, NAME_MAX_LENGTH)}</td>
+                        <td className="leaderboard-entry-country">
+                            <CountryFlag code={entry.country.code}/>
+                            {truncate(nameWithoutFlag(entry.country), NAME_MAX_LENGTH)}
+                        </td>
                         <td className="leaderboard-table-number leaderboard-table-tiles">{entry.tiles}</td>
                         <td className="leaderboard-table-number">
                             {(entry.tiles / props.tilesCount * 100).toFixed(2)}

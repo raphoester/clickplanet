@@ -16,8 +16,8 @@ describe("Leaderboard", () => {
         render(<Leaderboard tilesCount={1000} data={[entry("fr", 500), entry("jp", 250)]}/>)
 
         expect(cells()).toEqual([
-            ["1", "🇫🇷 France", "500", "50.00"],
-            ["2", "🇯🇵 Japan", "250", "25.00"],
+            ["1", "France", "500", "50.00"],
+            ["2", "Japan", "250", "25.00"],
         ])
     })
 
@@ -31,9 +31,17 @@ describe("Leaderboard", () => {
         expect(rows()).toEqual([])
     })
 
+    it("draws a country's flag from the atlas, never as an emoji", () => {
+        render(<Leaderboard tilesCount={1000} data={[entry("fr", 500)]}/>)
+
+        const row = rows()[0]
+        expect(row.querySelectorAll(".country-flag")).toHaveLength(1)
+        expect(row.textContent).not.toMatch(/\p{RI}|\p{Extended_Pictographic}/u)
+    })
+
     it("does not chop a country name to fit its flag", () => {
         render(<Leaderboard tilesCount={100} data={[entry("gb-eng", 5)]}/>)
-        expect(screen.getByText("🏴󠁧󠁢󠁥󠁮󠁧󠁿 England")).toBeDefined()
+        expect(screen.getByText("England")).toBeDefined()
     })
 
     it("names itself, and labels its columns in words", () => {
@@ -51,7 +59,7 @@ describe("Leaderboard", () => {
 
         const marked = rows().filter(r => r.getAttribute("aria-current") === "true")
         expect(marked).toHaveLength(1)
-        expect(within(marked[0]).getByText("🇯🇵 Japan")).toBeDefined()
+        expect(within(marked[0]).getByText("Japan")).toBeDefined()
     })
 
     it("marks nothing when the player's country holds no tile", () => {

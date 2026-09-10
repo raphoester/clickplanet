@@ -1,5 +1,5 @@
 import {describe, expect, it} from "vitest"
-import {addMessages, CHAT_LOG_LIMIT, idsSince, unreadSince} from "./chatLog.ts"
+import {addMessages, CHAT_LOG_LIMIT, GROUP_WINDOW_MS, idsSince, startsGroup, unreadSince} from "./chatLog.ts"
 import type {ChatMessage} from "../backends/chat.ts"
 
 const message = (id: string, sentAt: number): ChatMessage => ({
@@ -100,5 +100,42 @@ describe("idsSince", () => {
         for (const seen of [undefined, "a", "b", "c", "gone"]) {
             expect(idsSince(log, seen)).toHaveLength(unreadSince(log, seen))
         }
+    })
+})
+
+describe("startsGroup", () => {
+    const from = (author: string, tag: string, sentAt: number): ChatMessage =>
+        ({...message("x", sentAt), authorName: author, authorTag: tag})
+
+    it("opens a group on the first message there is", () => {
+        expect(startsGroup(undefined, from("Ana", "4f2ca1", 0))).toBe(true)
+    })
+
+    it("keeps one author's run together", () => {
+        const first = from("Ana", "4f2ca1", 0)
+        const next = from("Ana", "4f2ca1", 1_000)
+
+        expect(startsGroup(first, next)).toBe(false)
+    })
+
+    it("opens a group when somebody else speaks", () => {
+        const ana = from("Ana", "4f2ca1", 0)
+        const bo = from("Bo", "c0ffee", 1_000)
+
+        expect(startsGroup(ana, bo)).toBe(true)
+    })
+
+    it("opens a group for a namesake with another tag", () => {
+        const ana = from("Ana", "4f2ca1", 0)
+        const otherAna = from("Ana", "c0ffee", 1_000)
+
+        expect(startsGroup(ana, otherAna)).toBe(true)
+    })
+
+    it("opens a group again after a long enough silence", () => {
+        const first = from("Ana", "4f2ca1", 0)
+
+        expect(startsGroup(first, from("Ana", "4f2ca1", GROUP_WINDOW_MS))).toBe(false)
+        expect(startsGroup(first, from("Ana", "4f2ca1", GROUP_WINDOW_MS + 1))).toBe(true)
     })
 })
