@@ -25,10 +25,13 @@ type ClickShadowBanner interface {
 	Flagged() int
 }
 
-// Buckets are tight and low, because the whole question is where the bot band
-// ends and human reaction time begins — the Prometheus defaults jump .25 to .5,
-// straight across the answer.
-var reactionBuckets = []float64{0.05, 0.075, 0.1, 0.15, 0.2, 0.3, 0.5, 1, 2}
+// Even resolution to 2s: a bot on a ~1s timer hides in a bucket any wider, which is where 0.5/1/2 left it invisible.
+var reactionBuckets = []float64{
+	0.05, 0.1, 0.2, 0.3, 0.4,
+	0.5, 0.6, 0.7, 0.8, 0.9,
+	1.0, 1.1, 1.25, 1.5, 1.75,
+	2.0, 2.5, 3.0, 4.0, 5.0,
+}
 
 func NewShadowBanInterceptor(
 	detector ClickShadowBanner,

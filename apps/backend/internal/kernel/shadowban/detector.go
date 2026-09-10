@@ -39,7 +39,8 @@ type Config struct {
 }
 
 const (
-	defaultReactionWindow = 2 * time.Second
+	// Too narrow censors rather than misses: the tail is dropped and the median of what is left reads faster than it is.
+	defaultReactionWindow = 5 * time.Second
 	defaultMinReactions   = 12
 	defaultMaxMedian      = 250 * time.Millisecond
 	defaultMaxSpread      = 120 * time.Millisecond
