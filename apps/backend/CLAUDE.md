@@ -7,13 +7,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 # Run all tests — no Docker, no database, nothing to start first
 make test
-# or: go test ./... | grep -v 'no test files'
+# or: go test -tags testing ./... | grep -v 'no test files'
 
 # Run a single test
-go test ./internal/clicks/domain/click_handler_service/... -run TestName
+go test -tags testing ./internal/clicks/domain/click_handler_service/... -run TestName
 
 # Run the concurrency-sensitive tests under the race detector
-go test ./... -race
+go test -tags testing ./... -race
+
+# Fail on any unreachable function, production or test helper
+make deadcode
 
 # Run API server locally
 go run ./cmd/api -config cmd/api/example.yaml
@@ -111,7 +114,7 @@ POST /session.v1.SessionService/CreateSession
   → kernel/session.Signer.Mint [HMAC over expiry+id+IP; nothing stored]
 
 POST /planet.v1.ClickService/Click   [X-Session-Token: <the minted token>]
-  → VPNBlockInterceptor, SessionInterceptor, RateLimitInterceptor
+  → VPNBlockInterceptor, SessionInterceptor, RateLimitInterceptor, ShadowBanInterceptor
   → ClickService
   → ClickHandlerService (validates tile ID + country)
   → MemoryTileStorage.Set() [writes the tile, fans the update out in process]
@@ -208,8 +211,97 @@ The signature is checked **before** the expiry, in constant time, so a forger le
 
 **Two secrets, neither in git.** `session.secret` signs the tokens; anyone holding it can mint one the API accepts. `session.turnstile.secret` is the widget's secret half. Both come from the environment via `deploy/vps/docker-compose.yaml`, as `chat.service.tagSalt` does. An empty `session.secret` generates one at boot and warns — which invalidates every session in flight on each restart, costing every player one extra round trip.
 
-**What it does not stop:** a person who solves Turnstile in a real browser and then runs a userscript. They hold a genuine session, and nothing here distinguishes them from a player. This raises the floor from "twenty lines of Python" to "drive a real browser"; the signal that survives that is behavioural — timing regularity and tile-id structure over a session — which is what `ctxutil.GetSessionID` exists to be keyed on.
+**What it does not stop:** a person who solves Turnstile in a real browser and then runs a userscript. They hold a genuine session, and nothing here distinguishes them from a player. This raises the floor from "twenty lines of Python" to "drive a real browser"; the signal that survives that is behavioural — timing regularity and tile-id structure over a session — which is what the session id on the context exists to be keyed on. Nothing in production reads it yet, so `ctxutil.GetSessionID` sits behind the `testing` tag (see [Testing](#testing)) until something does.
 
+
+### Shadow ban (`internal/kernel/shadowban`)
+
+What is left after sessions. A player who solves Turnstile in a real browser and
+then runs a userscript holds a genuine session, and no address- or token-based
+check can tell them from a player. The signal that survives is **behavioural**,
+and this is the one behaviour worth acting on: taking a tile back moments after
+losing it, over and over.
+
+**A flagged caller's clicks are answered `OK` and dropped.** That is the whole
+point — a refusal names the check that tripped, and the author fixes it in an
+afternoon; a silent no-op names nothing. It is not permanent (the caller reads
+the map back over the same websocket and will notice), but it moves the cost of
+the next round onto them.
+
+**Speed is not the signal; regularity is.** Two humans fighting over a tile
+produce fast re-takes too, and the player clicking back at a bot is the fastest
+of all. What no hand produces is a *narrow* band: a caller flags only on
+`minReactions` reactions whose median is at or under `maxMedian` **and** whose
+p90-p10 spread is at or under `maxSpread`. Either bound alone bans real players.
+
+**`maxMedian` and `maxSpread` cannot be defaulted, and the first defaults here
+were wrong.** They shipped at 250ms/120ms, sized for a bot answering off the
+update stream; the one actually seen in production answers at ~1s, sails past
+`maxMedian`, and never flagged. A bot on a timer picks a human-looking delay on
+purpose, so **regularity is the only thing left** — that caller's spread was
+138ms across twenty reactions. The bounds have to come from measurement, which
+is what the wide `backend.yaml` values and `enforce: false` are for: nothing is
+dropped, candidate lines print, and each carries that caller's real numbers.
+`click_reaction_seconds` is global and cannot give you them — it shows a band
+exists, never who owns it.
+
+`reactionWindow` bounds what is measured at all, so it must sit well above the
+delays in play: a reaction past the edge is not missed but **censored**, and the
+median of what survives reads faster than the caller is.
+
+**A flag repeats, and that is most of its value.** `reflagInterval` is how soon
+an already-flagged caller can flag again; set to `trackWindow` or above, each
+flag rests on reactions the previous one never saw, so `flags=6` in the log is
+six independent windows agreeing rather than one verdict repeated. Before this
+existed a caller went quiet behind its first ban for `banDuration`, and there was
+no way to tell whether it had stopped or was still going.
+
+**`activeFor` and `longestGap` are the answer to a jittered delay.** A spread
+test is beatable by construction — randomise the delay and the band widens to
+look human. What is not cheap to fake is stopping: a person's session has breaks,
+and hours of `activeFor` with `longestGap` in seconds is not one. Neither feeds
+the rule; both go in the log, because deciding on them would ban the genuinely
+obsessed. Note that the sweep keeps a caller alive while it is inside a ban, so
+`activeFor` spans that too — `longestGap` is what says whether the time was
+actually spent playing.
+
+**Three things are deliberately not reactions**, and each is a way to get an
+honest player flagged if you get it wrong:
+
+- a click onto a tile the caller's own country already holds — it is a no-op,
+  `Set` publishes nothing, so it neither reacts nor becomes something to react to
+- a click the handler refused (invalid country, tile out of range) — it changed
+  no tile, so `Took` is never called for it
+- a click that was itself dropped by the ban — same reason
+
+`Observe` therefore returns `(drop, takes)`, and the interceptor calls `Took`
+only after the handler returns nil. Without that split, a griefer spams a tile
+with deliberately invalid clicks and the next honest player to click it looks
+like it is reacting to something.
+
+**It sits innermost, after the throttle** — the opposite of the blocklist and the
+session check. A shadow-banned caller has to keep hitting the same 429s everyone
+else does; a caller that is never throttled again has been told. `TestShadowBanRunsAfterTheThrottle`
+pins it.
+
+**`shadowBan.detector.enforce` is the rollout switch,** the same shape as
+`session.enforce`: false measures, flags, logs and counts without dropping
+anything. The two surfaces are built for a box with no dashboard —
+`click_reaction_seconds` is a histogram whose raw bucket counts show the bot band
+by eye, and each flag writes one `shadowban candidate` log line carrying the
+scope, the median, the spread, the tiles, and the country the caller painted with
+most. **The address is never a metric label** — unbounded cardinality, and
+personal data in every scrape. `topCountry` is context for a human reading the
+log and never an input to the rule: the client declares it, so it is changed by
+editing one string, and real players paint the same flags a bot does.
+
+Keyed on `ipscope.Of`, the same unit as the throttle, so a v6 caller cannot serve
+a ban on one address and click from the next in its own /64. It only bites a bot
+with a stable address — against a residential proxy pool it evaporates for
+exactly the reason the rate limiter does.
+
+`memory_tile_storage.Owner` exists for this: one indexed read under the existing
+lock, declared as a local port in the controller the way `DenseMapReader` is.
 
 ### Shared interceptors
 
@@ -239,7 +331,7 @@ The snapshot file is the only thing worth backing up.
 
 ### Kernel (`internal/kernel/`)
 
-Shared infrastructure: `cfgutil` (YAML + env config via koanf), `httpserver` (middleware, formats), `logging`, `prom` (Prometheus), `xtime`, `ctxutil`, `basicutil`, `ratelimit`, `ipblock`, `atomicfile`, `wspublisher`.
+Shared infrastructure: `cfgutil` (YAML + env config via koanf), `httpserver` (middleware, formats), `logging`, `prom` (Prometheus), `xtime`, `ctxutil`, `ratelimit`, `ipblock`, `atomicfile`, `wspublisher`.
 
 Two of these are here because both bounded contexts need them and neither should depend on the other:
 
@@ -265,6 +357,11 @@ Config is loaded from a YAML file (`-config` flag), with environment variables o
 - `bookkeeper.enabled`, `bookkeeper.runner.interval`
 - `rateLimiter.perSecond`, `rateLimiter.burst`, `rateLimiter.sweepInterval` — the per-IP click throttle (defaults 1/s, burst 10, swept every minute)
 - `vpnBlocklist.enabled`, `vpnBlocklist.includeDatacenters`, `vpnBlocklist.allow` — the VPN refusal (see [VPN blocklist](#vpn-blocklist)); disabled parses nothing and allocates nothing
+- `shadowBan.enabled` — off registers nothing and measures nothing
+- `shadowBan.detector.enforce` — off measures, flags and logs without dropping; the mode to deploy in
+- `shadowBan.detector.reactionWindow`, `minReactions`, `maxMedian`, `maxSpread` — what counts as a reaction, and how many of them in how narrow a band flag a caller
+- `shadowBan.detector.trackWindow`, `banDuration`, `sweepInterval` — how far back reactions count, how long a flag lasts, and how often what can no longer matter is forgotten
+- `shadowBan.detector.reflagInterval` — how soon an already-flagged caller flags again; at `trackWindow` or above each repeat rests on fresh reactions
 - `session.enabled` — off registers nothing, so `session.v1.SessionService/` 404s and clicks are judged on address alone
 - `session.enforce` — off counts what enforcing would refuse without refusing it; the mode to deploy in
 - `session.secret` — signs the tokens; **empty generates one at boot**, invalidating every session in flight on each restart
@@ -290,4 +387,8 @@ The proto package is the **only** version number: Connect derives each route fro
 
 ### Testing
 
-Unit tests only, using `testify`. There are no integration tests and no Docker dependency — `go test ./...` runs everything from a clean checkout.
+Unit tests only, using `testify`. There are no integration tests and no Docker dependency — `make test` runs everything from a clean checkout.
+
+**Tests build with `-tags testing`, so use `make test` rather than a bare `go test ./...`.** Anything else that loads test files needs the tag too: `go vet -tags testing ./...`, and an editor's language server (`gopls` `buildFlags: ["-tags=testing"]`, or `go.buildTags` in VS Code), which otherwise reports the helpers as undefined. A helper that more than one package needs cannot live in a `_test.go` file, so it lives in an ordinary `.go` file carrying `//go:build testing`. The tag, not a filename convention, is what keeps such a helper out of the production binary — and what lets `make deadcode` tell a helper apart from production code. `ctxutil.GetSessionID` is the one that exists today.
+
+**`make deadcode` fails on any unreachable function**, in two passes, because "is this reachable?" has two different right answers depending on whether test code counts as a caller. The first pass excludes tests and tagged files, so **production code whose only caller is a test is reported as dead** — the case a plain `deadcode -test` forgives. The second pass includes both but keeps only findings inside tagged files, so an unused shared helper is reported too. `deadcode` is fetched at a pinned version by the target, so there is nothing to install.

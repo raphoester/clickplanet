@@ -61,6 +61,51 @@ vpnBlocklist:
   # address. Put your own address here.
   allow: []
 
+# Accepts a bot's clicks and drops them, instead of refusing them and telling it
+# which check to route around. What it looks for is not speed — a player in a
+# tile war is fast too — but regularity: a caller driven by the update stream
+# answers in a band no hand holds.
+shadowBan:
+  # Off registers nothing and measures nothing.
+  enabled: true
+  detector:
+    # Off measures, flags, logs and counts without dropping anything. Ship in
+    # this mode: watch click_reaction_seconds for where the bot band actually
+    # sits, check the "shadowban candidate" log lines are not naming you, then
+    # set the bounds below from what you saw and turn this on.
+    enforce: false
+    # How soon after losing a tile a re-take counts as a reaction at all.
+    # Anything slower is somebody who happened to click the same tile later.
+    # Keep this well above the delays you expect to measure: a reaction past the
+    # edge is not missed, it is censored, and the median of what is left reads
+    # faster than the caller really is.
+    reactionWindow: 5s
+    # Reactions needed inside trackWindow before anything is decided. The bound
+    # that stops one unlucky exchange from being evidence.
+    minReactions: 12
+    # Both must hold. maxMedian alone flags a fast human; it is maxSpread, the
+    # p90-p10 of the reactions, that no hand produces.
+    #
+    # These two are the only values here that cannot be defaulted sensibly —
+    # they depend on the bot you actually have. 250ms suits one answering off
+    # the update stream; one on a ~1s timer sails past it. To find yours, open
+    # them right up (maxMedian 2s, maxSpread 1s) while enforce is false: nothing
+    # is dropped, candidate lines start printing, and each one carries that
+    # caller's real median and spread. Set these from those numbers.
+    maxMedian: 250ms
+    maxSpread: 120ms
+    # How far back reactions count, and how long a flag lasts once the
+    # behaviour stops.
+    trackWindow: 5m
+    banDuration: 1h
+    # How soon a caller already flagged can be flagged again. At trackWindow or
+    # above, each flag rests on a fresh set of reactions, so flags=6 in the log
+    # means six independent windows all read the same way — worth far more than
+    # one verdict from one window. Without this a caller goes quiet behind its
+    # first ban and you cannot tell whether it kept going.
+    reflagInterval: 5m
+    sweepInterval: 1m
+
 # Gates the Click RPC on a token this server minted. Off by default: with it
 # disabled session.v1.SessionService/ 404s and clicks are judged on address
 # alone, exactly as they were before this existed.

@@ -1,4 +1,11 @@
-.PHONY: proto test dBuild dRun dRm vpn-lists
+.PHONY: proto test deadcode dBuild dRun dRm vpn-lists metrics
+
+# Test helpers that more than one package needs cannot live in a _test.go file,
+# so they live in an ordinary .go file carrying this tag. The tag is what keeps
+# them out of the binary — a naming convention would not — and it is what lets
+# `make deadcode` tell a helper apart from production code without matching on
+# filenames.
+TEST_TAG := testing
 
 proto:
 	@cd ../../proto && buf lint
@@ -19,8 +26,44 @@ dRun:
 dRm:
 	@docker rm -f clickplanet
 
+# Run under bash for pipefail: without it the recipe takes grep's exit status,
+# so a failing suite would report success and CI would believe it. `.SHELLFLAGS`
+# would be the tidier way to say this, but it needs GNU Make 3.82 and macOS
+# ships 3.81.
 test:
-	@go test -v ./... | grep -v 'no test files'
+	@bash -o pipefail -c "go test -v -tags $(TEST_TAG) ./... | grep -v 'no test files'"
+
+# Dead code is a failure here, not a report. Two passes, because "is this
+# reachable?" has two different right answers depending on whether test code
+# counts as a caller:
+#
+#   production — no tests, no $(TEST_TAG) files. Everything left has to be
+#     reachable from a main package, so a function only the tests call is
+#     reported. That is the case a plain `deadcode -test` misses.
+#   helpers — test binaries and $(TEST_TAG) files. Only findings inside the
+#     tagged files are kept; production was already judged by the first pass,
+#     and judging it again here would forgive exactly what that pass caught.
+#
+# deadcode is fetched at a pinned version rather than expected on PATH, so this
+# needs no setup step and gives the same answer on every machine.
+DEADCODE := go run golang.org/x/tools/cmd/deadcode@v0.50.0
+
+deadcode:
+	@tagged=$$(grep -rl --include='*.go' '^//go:build .*$(TEST_TAG)' . | sed 's|^\./||'); \
+	found=$$($(DEADCODE) ./...); \
+	if [ -n "$$tagged" ]; then \
+		with_tests=$$($(DEADCODE) -test -tags $(TEST_TAG) ./...); \
+		for f in $$tagged; do \
+			found=$$(printf '%s\n%s' "$$found" "$$(printf '%s\n' "$$with_tests" | grep "^$$f:" || true)"); \
+		done; \
+	fi; \
+	found=$$(printf '%s\n' "$$found" | grep -v '^$$' || true); \
+	if [ -n "$$found" ]; then \
+		printf '%s\n' "$$found"; \
+		echo; \
+		echo 'dead code: delete it, or give it a caller.'; \
+		exit 1; \
+	fi
 
 # Refreshes the vendored VPN and datacenter ranges from X4BNet/lists_vpn, which
 # rebuilds them daily from ASN ownership. They are checked in and embedded
@@ -35,3 +78,12 @@ vpn-lists:
 	@curl -sSf $(VPN_LISTS_URL)/datacenter/ipv4.txt -o $(VPN_LISTS_DIR)/datacenter_ipv4.txt
 	@curl -sSf $(VPN_LISTS_URL)/datacenter/ipv6.txt -o $(VPN_LISTS_DIR)/datacenter_ipv6.txt
 	@wc -l $(VPN_LISTS_DIR)/*.txt
+
+# Reads the metrics endpoint on the droplet. It is not routed through Caddy (see
+# the commented handle in deploy/vps/Caddyfile), so this goes through compose.
+# METRIC filters: `make metrics METRIC=click_reaction`.
+METRIC ?= .
+
+metrics:
+	@docker compose -f ../../deploy/vps/docker-compose.yaml exec -T backend \
+		wget -qO- localhost:8080/metrics | grep -E '$(METRIC)'

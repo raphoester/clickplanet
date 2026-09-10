@@ -4,8 +4,10 @@ import {addDisplayObjects, setupScene} from "./scene.ts";
 import {loadPointGeometryData} from "./points.ts";
 import {GpuPicker} from "./gpuPicking.ts";
 import {TileField} from "./tileField.ts";
+import {BorderField, loadBorders} from "./borderField.ts";
 import {ATLAS_SIZE, ATLAS_URL} from "./atlasAsset.ts";
-import {tilePointSize} from "./pointSize.ts";
+import {BORDERS_URL} from "./bordersAsset.ts";
+import {displayPointSize, flagPaint, tilePointSize} from "./pointSize.ts";
 import {regions} from "./atlas.ts";
 import {Country} from "../../domain/countries.ts";
 import {
@@ -26,6 +28,10 @@ type Uniforms = {
     pointSize: THREE.IUniform
     atlasTexture: THREE.IUniform
     atlasTextureSize: THREE.IUniform
+    landmassData: THREE.IUniform
+    landmassCount: THREE.IUniform
+    pixelsPerRadian: THREE.IUniform
+    flagPaint: THREE.IUniform
 }
 
 const TILES_PER_BATCH = 10_000
@@ -65,7 +71,12 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         signal,
     } = options
 
-    const geometryData = await loadPointGeometryData(signal);
+    // Both blobs before a single GPU resource exists, so an abandoned load never
+    // opens a context, and in parallel because neither needs the other.
+    const [geometryData, borders] = await Promise.all([
+        loadPointGeometryData(signal),
+        loadBorders(BORDERS_URL, signal),
+    ]);
     if (signal.aborted) throw new DOMException("globe load aborted", "AbortError");
 
     const lifetime = new AbortController();
@@ -73,12 +84,27 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     const {scene, camera, cameraSize, renderer, cleanup} = setupScene(eventTarget);
     const uniforms: Uniforms = {
-        pointSize: {value: tilePointSize(camera.zoom, layoutViewport().height)},
+        pointSize: {value: displayPointSize(camera.zoom, layoutViewport().height)},
         atlasTexture: {value: textureLoader.load(ATLAS_URL)},
         atlasTextureSize: {value: new THREE.Vector2(ATLAS_SIZE.width, ATLAS_SIZE.height)},
+        landmassData: {value: null},
+        landmassCount: {value: 1},
+        pixelsPerRadian: {value: 1},
+        flagPaint: {value: flagPaint(camera.zoom, layoutViewport().height)},
     };
 
-    const field = new TileField(uniforms, geometryData);
+    // The picking pass keeps the true tile size: the display discs are widened
+    // to cover the ground while the coarse flag is painted through them, and
+    // overlapping discs would hand a click to whichever neighbour drew last.
+    const pickingUniforms = {pointSize: {value: tilePointSize(camera.zoom, layoutViewport().height)}}
+
+    const field = new TileField(uniforms, pickingUniforms, geometryData);
+
+    const territories = new BorderField(borders, field.size)
+    field.setLandmasses(borders.assignment)
+    uniforms.landmassData.value = territories.landmassData
+    uniforms.landmassCount.value = borders.codes.length
+
     const picker = new GpuPicker(renderer, field.pickingPoints);
     const ownership = new TileOwnership(field.size);
 
@@ -87,6 +113,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const applyChanges = (changes: OwnerChange[]) => {
         if (changes.length === 0) return
         field.setOwners(changes)
+        territories.apply(changes)
         updateLeaderboard(rankCountries(ownership.counts()))
     }
 
@@ -158,7 +185,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     addDisplayObjects(scene, field.displayPoints)
 
-    const stopAnimation = startAnimation(renderer, scene, camera, uniforms, () => {
+    const {stop: stopAnimation} = startAnimation(renderer, scene, camera, uniforms, pickingUniforms, () => {
         if (pendingPointer === undefined) return
         const {x, y} = pendingPointer
         pendingPointer = undefined
@@ -178,6 +205,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
             picker.dispose()
             field.dispose()
+            territories.dispose()
 
             cleanup()
         }
@@ -189,8 +217,9 @@ function startAnimation(
     scene: THREE.Scene,
     camera: THREE.OrthographicCamera,
     uniforms: Uniforms,
+    pickingUniforms: {pointSize: THREE.IUniform},
     beforeRender: () => void,
-): () => void {
+): {stop: () => void} {
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.minZoom = 1;
     controls.maxZoom = 50;
@@ -207,12 +236,23 @@ function startAnimation(
         controls.update();
         beforeRender();
         renderer.render(scene, camera);
-        uniforms.pointSize.value = tilePointSize(camera.zoom, renderer.domElement.height);
+        uniforms.pointSize.value = displayPointSize(camera.zoom, renderer.domElement.height);
+        pickingUniforms.pointSize.value = tilePointSize(camera.zoom, renderer.domElement.height);
+
+        // The coarse layer owns the frame until a tile is big enough to be aimed
+        // at. A landmass is painted as its holder's flag until its own tiles are
+        // big enough to be flags in their own right.
+        uniforms.flagPaint.value = flagPaint(camera.zoom, renderer.domElement.height);
+        // The globe's radius is 1, so an arc of one radian is half the viewport
+        // at zoom 1.
+        uniforms.pixelsPerRadian.value = (renderer.domElement.height / 2) * camera.zoom;
     });
 
-    return () => {
-        renderer.setAnimationLoop(null);
-        controls.dispose();
+    return {
+        stop: () => {
+            renderer.setAnimationLoop(null);
+            controls.dispose();
+        },
     };
 }
 

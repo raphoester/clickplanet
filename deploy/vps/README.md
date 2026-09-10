@@ -330,7 +330,108 @@ The number to watch is `missing`, not the clock.
   origin the widget is actually embedded on.
 
 
-## 6. CI and the image registry
+## 6. Watching for bots
+
+Sessions raise the floor to "drive a real browser". What gets through that is a
+userscript in a real browser, holding a genuine session — and the only thing
+left that separates it from a player is behaviour.
+
+`shadowBan` watches for one behaviour: taking a tile back moments after losing
+it, over and over, in a band no hand holds. A flagged caller's clicks are
+answered `OK` and dropped. That is deliberately not a refusal — a 403 names the
+check that tripped, and a silent no-op names nothing, so working around it is
+guesswork instead of a diff. It is not permanent: the caller reads the map back
+over the same websocket and will notice eventually.
+
+`backend.yaml` ships `enabled: true` with `detector.enforce: false`, which
+measures and logs without dropping anything. **Do not flip `enforce` before
+reading both of the following.**
+
+### The histogram says where the line is
+
+```bash
+docker compose exec backend wget -qO- localhost:8080/metrics | grep click_reaction
+```
+
+Every click that takes a tile another caller just took is timed into
+`click_reaction_seconds`. Read the bucket counts directly: a reflex bot driven
+by the update stream piles up under 150 ms, while a bot on a timer sits in a
+narrow band wherever its timer is — one seen in production answered at almost
+exactly 1 s. Human reactions spread out broadly and do neither.
+
+The buckets step evenly to 2 s for that reason. An earlier set jumped 0.5 → 1 →
+2, and a ~1 s bot was invisible in it: every reaction landed in two enormous
+buckets that could not tell a tight timer from a broad human.
+
+**The histogram is global.** It mixes the bot, the players reacting to the bot,
+and everyone else, so it tells you *that* there is a band and roughly where —
+never which caller owns it. Per-caller numbers come from the log below, and
+only for callers that flag. That is why the bounds start wide.
+
+### The log says who
+
+The address is never a metric label — that is unbounded cardinality, and it
+would put personal data in every scrape. It goes to the log instead:
+
+```bash
+docker compose logs backend | grep "shadowban candidate"
+```
+
+```
+level=WARN msg="shadowban candidate" scope=198.51.100.20 flags=2 reactions=10
+  median=1.022s spread=8.3ms activeFor=32.2s longestGap=22.2s
+  topCountry=ps topCountryClicks=10 clicks=10 tiles="[3003 3004 3005 ...]"
+```
+
+**`spread` is the number to judge on, not `median`.** A caller answering at
+almost exactly one second, ten times, within 8 ms of itself, is running a timer —
+the delay is human-looking on purpose and only the regularity gives it away.
+Compare that against the lines real players produce: they are named too at these
+bounds, and their spread is far wider.
+
+**`flags` is how many times this caller has crossed the bar.** At
+`reflagInterval` ≥ `trackWindow` each flag rests on reactions the previous one
+never saw, so `flags=6` is six independent windows agreeing — worth far more
+than one verdict from one window. A caller that flags once and never again was
+probably a bad five minutes; one whose count keeps climbing is a standing
+pattern.
+
+**`activeFor` and `longestGap` are the persistence signal, and the one a
+randomised delay cannot beat.** A bot author who reads this can jitter the delay
+until `spread` looks human. What costs them something real is stopping. Hours of
+`activeFor` with `longestGap` in seconds is nobody's evening; a person's line
+shows the breaks — the example above has a 22 second pause in a 32 second
+session, which is what a human rhythm looks like at small scale.
+
+`topCountry` is the country the caller painted with most. It is **context, not
+evidence** — the client declares it in the request, so it is changed by editing
+one string, and plenty of real players paint the same flags a bot does. Read it
+to understand what a caller was doing; never widen the rule to act on it.
+
+Before enforcing, get into a tile war yourself and confirm your own line's
+numbers sit clearly outside the ones you are about to set.
+
+### Then turn it on
+
+`backend.yaml` ships `maxMedian: 2s` / `maxSpread: 1s`, wide on purpose so the
+log speaks. Tighten both to sit between the bot's line and the human ones, then
+set `detector.enforce: true` and redeploy.
+
+`shadowban_flagged` is how many callers are inside a ban and **counts while
+`enforce` is false too** — a non-zero gauge in observe mode means the rule is
+biting, not that anything was dropped. `shadowbanned_clicks` is the one that
+stays at 0 until you enforce.
+
+`shadowban_flags` counts flags rather than callers, so the two read together:
+`shadowban_flags 40` against `shadowban_flagged 2` is two callers flagged twenty
+times each, which is a very different picture from forty callers caught once.
+All three are readable with the `wget` line above.
+
+To undo one, set `enforce` back to false and redeploy — bans live in memory
+only, so a restart clears every one of them.
+
+
+## 7. CI and the image registry
 
 `.github/workflows/deploy-backend.yml` builds the image to GHCR and rolls the
 container over SSH. GHCR rather than a dedicated registry because it adds no
@@ -375,34 +476,7 @@ and run `docker login ghcr.io` once as `deploy`.
 
 Pages deploys itself on push; no workflow needed.
 
-## Testing a local frontend against this API
-
-`npm run dev` on a laptop serves the frontend from `http://localhost:5173`, and
-the API answers CORS for that origin as well as for `FRONTEND_ORIGIN`. Point the
-dev frontend at `https://$API_DOMAIN` and it works against production data.
-
-CORS carries **exactly one origin and never a list**, so the Caddyfile picks the
-value per request with a `map` on the request's `Origin`. It is written that way
-rather than as a second `header` directive with a matcher for a reason worth
-keeping: the matcher form *adds* a second `Access-Control-Allow-Origin` next to
-the one the Go middleware already sent, and a browser rejects a response
-carrying two of them. `Vary: Origin` is what stops a cache in front serving the
-localhost answer to a real visitor.
-
-This admits any page on port 5173 of a developer's own machine — that is the
-whole cost, and it is why the entry is temporary. **Delete the `map` when the
-frontend has moved off the websockets**, together with the `/ws/*` routes.
-
-Two things it does not buy:
-
-- **Clicking still fails**, because `session.turnstile.hostnames` refuses a
-  token whose siteverify hostname is not listed, and localhost must never be on
-  that list. Reads and both live streams need no session, so watching the planet
-  and the chat works.
-- **Nothing here changes who may write.** The throttle, the blocklist and the
-  session check all key on the caller's address exactly as before.
-
-## 7. Live chat
+## 8. Live chat
 
 `chat.enabled: true` in `backend.yaml` publishes two routes Caddy already
 forwards: `/chat.v1.ChatService/` and `/ws/chat`. `SendMessage` is an
@@ -450,7 +524,7 @@ that file can also be overridden from the `environment:` block instead —
 config path verbatim (`chat.enabled: "false"`), which is how `CHAT_TAG_SALT`
 reaches `chat.service.tagSalt`.
 
-## 8. Backups
+## 9. Backups
 
 The whole game state is one snapshot file in the `tile_state` volume, written
 every 30s and on every clean shutdown. A nightly cron on the box is enough:
@@ -462,6 +536,33 @@ every 30s and on every clean shutdown. A nightly cron on the box is enough:
 
 DigitalOcean's droplet backups (+20% of the droplet price, so ~$1.20/mo) cover
 the whole disk if you would rather not think about it.
+
+## Testing a local frontend against this API
+
+`npm run dev` on a laptop serves the frontend from `http://localhost:5173`, and
+the API answers CORS for that origin as well as for `FRONTEND_ORIGIN`. Point the
+dev frontend at `https://$API_DOMAIN` and it works against production data.
+
+CORS carries **exactly one origin and never a list**, so the Caddyfile picks the
+value per request with a `map` on the request's `Origin`. It is written that way
+rather than as a second `header` directive with a matcher for a reason worth
+keeping: the matcher form *adds* a second `Access-Control-Allow-Origin` next to
+the one the Go middleware already sent, and a browser rejects a response
+carrying two of them. `Vary: Origin` is what stops a cache in front serving the
+localhost answer to a real visitor.
+
+This admits any page on port 5173 of a developer's own machine — that is the
+whole cost, and it is why the entry is temporary. **Delete the `map` when the
+frontend has moved off the websockets**, together with the `/ws/*` routes.
+
+Two things it does not buy:
+
+- **Clicking still fails**, because `session.turnstile.hostnames` refuses a
+  token whose siteverify hostname is not listed, and localhost must never be on
+  that list. Reads and both live streams need no session, so watching the planet
+  and the chat works.
+- **Nothing here changes who may write.** The throttle, the blocklist and the
+  session check all key on the caller's address exactly as before.
 
 ## Rollback
 

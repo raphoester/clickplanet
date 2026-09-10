@@ -20,6 +20,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ipblock"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging/lf"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ratelimit"
+	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/shadowban"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/wspublisher"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/xtime"
 )
@@ -96,6 +97,15 @@ func (a *App) configureClicks(_ context.Context) error {
 
 	interceptors = append(interceptors, planetv1controller.NewRateLimitInterceptor(clickLimiter))
 
+	// Innermost, after the throttle: a shadow-banned caller must keep hitting the same 429s, or never being throttled is the tell.
+	shadowBanInterceptor, err := a.configureShadowBan(tilesStorage)
+	if err != nil {
+		return err
+	}
+	if shadowBanInterceptor != nil {
+		interceptors = append(interceptors, shadowBanInterceptor)
+	}
+
 	a.mountRPC(planetv1connect.NewClickServiceHandler(
 		clickService,
 		connect.WithInterceptors(interceptors...),
@@ -119,6 +129,30 @@ func (a *App) configureClickSessions() (connect.Interceptor, error) {
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create the click session interceptor: %w", err)
+	}
+
+	return interceptor, nil
+}
+
+// configureShadowBan returns nil when disabled, which leaves the click chain exactly as it was.
+func (a *App) configureShadowBan(owner shadowban.TileOwner) (connect.Interceptor, error) {
+	if !a.config.ShadowBan.Enabled {
+		return nil, nil
+	}
+
+	onReaction, onFlag, err := planetv1controller.NewShadowBanReporter(a.logger, a.promRegistry)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create the shadow ban reporter: %w", err)
+	}
+
+	detector := shadowban.New(a.config.ShadowBan.Detector, owner, xtime.ActualProvider{}, onReaction, onFlag)
+	a.runners = append(a.runners, func() { detector.Run(a.ctx) })
+
+	a.logger.Info("shadow ban enabled", lf.Bool("enforce", a.config.ShadowBan.Detector.Enforce))
+
+	interceptor, err := planetv1controller.NewShadowBanInterceptor(detector, a.promRegistry)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create the shadow ban interceptor: %w", err)
 	}
 
 	return interceptor, nil

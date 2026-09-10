@@ -1,54 +1,62 @@
 uniform sampler2D atlasTexture;
 uniform vec2 atlasTextureSize;
+uniform float flagPaint;
 
 flat in vec4 vRegionVector;
+flat in vec2 vFlagUV;
+flat in vec4 vFlagRegion;
+flat in float vFlagShare;
 varying float vHover;
 
-vec4 applyHover(vec4 color, float hover) {
-    color.a = 0.7;
-    if (hover > 0.5) {
-        color.a = 1.0;
+vec2 atlasUVof(vec4 region, vec2 uv) {
+    vec2 origin = vec2(region.x, atlasTextureSize.y - region.y - region.w) / atlasTextureSize;
+    return origin + clamp(uv, 0.002, 0.998) * (region.zw / atlasTextureSize);
+}
+
+// The tile on its own: its owner's flag, drawn into the disc. `flagPaint` is
+// what keeps it off the screen until a tile is big enough to read one — below
+// that size a 100px flag in a 2px disc is noise either way, mip-blurred to grey
+// or aliased into sparkle.
+vec4 ownColour() {
+    if (vRegionVector.z == 0.0 || vRegionVector.w == 0.0) {
+        return vec4(1.0, 1.0, 1.0, vHover > 0.5 ? 0.6 : 0.3);
     }
 
-    return color;
+    float regionAspect = vRegionVector.z / vRegionVector.w;
+    vec2 uv = gl_PointCoord;
+    if (regionAspect > 1.0) {
+        uv.x = (uv.x - 0.5) / regionAspect + 0.5;
+    } else {
+        uv.y = (uv.y - 0.5) * regionAspect + 0.5;
+    }
+    uv.y = 1.0 - uv.y;
+
+    vec4 colour = texture2D(atlasTexture, atlasUVof(vRegionVector, uv));
+    colour.a = vHover > 0.5 ? 1.0 : 0.7;
+    return colour;
 }
 
 void main() {
     vec2 coordinates = gl_PointCoord - vec2(0.5);
-    float dist = length(coordinates);
-    if (dist > 0.5) discard;
+    if (length(coordinates) > 0.5) discard;
 
-    if (vRegionVector.z == 0.0 || vRegionVector.w == 0.0) {
-        gl_FragColor = vec4(1.0, 1.0, 1.0, 0.3);
-        if (vHover > 0.5) {
-            gl_FragColor.a = 0.6;
-        }
-        return;
+    vec4 own = ownColour();
+
+    vec4 painted = vec4(own.rgb, 0.0);
+    if (vFlagRegion.z > 0.0) {
+        vec3 flag = texture(atlasTexture, atlasUVof(vFlagRegion, vec2(vFlagUV.x, 1.0 - vFlagUV.y))).rgb;
+
+        // A keyline around the flag's own rectangle, so its stripes do not read
+        // as more territory. It fades with the flag it belongs to.
+        // Only where the flag itself ends, never out in the extended colour.
+        float edge = max(abs(vFlagUV.x - 0.5), abs(vFlagUV.y - 0.5));
+        float keyline = step(0.478, edge) * step(edge, 0.5);
+        flag = mix(flag, vec3(0.03), keyline * 0.85 * vFlagShare);
+
+        // Opacity is the leader's share of this piece of land, so ground nobody
+        // has settled stays the Earth underneath.
+        painted = vec4(flag, vFlagShare * (vHover > 0.5 ? 1.0 : 0.94));
     }
 
-    vec2 uv = gl_PointCoord;
-
-    vec2 normalizedRegionXY = vec2(vRegionVector.x, atlasTextureSize.y - vRegionVector.y - vRegionVector.w) / atlasTextureSize;
-    vec2 normalizedRegionZW = vRegionVector.zw / atlasTextureSize;
-
-    float regionAspect = normalizedRegionZW.x / normalizedRegionZW.y;
-    float shapeAspect = 1.0;
-
-    vec2 adjustedUV = vec2(0.0);
-    if (regionAspect > shapeAspect) {
-        float scale = shapeAspect / regionAspect;
-        adjustedUV.x = (uv.x - 0.5) * scale + 0.5;
-        adjustedUV.y = uv.y;
-    } else {
-        float scale = regionAspect / shapeAspect;
-        adjustedUV.x = uv.x;
-        adjustedUV.y = (uv.y - 0.5) * scale + 0.5;
-    }
-
-    adjustedUV.y = 1.0 - adjustedUV.y;
-
-    vec2 atlasUV = normalizedRegionXY + adjustedUV * normalizedRegionZW;
-
-    gl_FragColor = texture2D(atlasTexture, atlasUV);
-    gl_FragColor = applyHover(gl_FragColor, vHover);
+    gl_FragColor = mix(own, painted, flagPaint);
 }
