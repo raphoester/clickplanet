@@ -1,4 +1,4 @@
-.PHONY: proto test deadcode dBuild dRun dRm vpn-lists
+.PHONY: proto test deadcode dBuild dRun dRm vpn-lists metrics
 
 # Test helpers that more than one package needs cannot live in a _test.go file,
 # so they live in an ordinary .go file carrying this tag. The tag is what keeps
@@ -78,3 +78,12 @@ vpn-lists:
 	@curl -sSf $(VPN_LISTS_URL)/datacenter/ipv4.txt -o $(VPN_LISTS_DIR)/datacenter_ipv4.txt
 	@curl -sSf $(VPN_LISTS_URL)/datacenter/ipv6.txt -o $(VPN_LISTS_DIR)/datacenter_ipv6.txt
 	@wc -l $(VPN_LISTS_DIR)/*.txt
+
+# Reads the metrics endpoint on the droplet. It is not routed through Caddy (see
+# the commented handle in deploy/vps/Caddyfile), so this goes through compose.
+# METRIC filters: `make metrics METRIC=click_reaction`.
+METRIC ?= .
+
+metrics:
+	@docker compose -f ../../deploy/vps/docker-compose.yaml exec -T backend \
+		wget -qO- localhost:8080/metrics | grep -E '$(METRIC)'

@@ -9,6 +9,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/domain/runner"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ipblock"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ratelimit"
+	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/shadowban"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/turnstile"
 )
 
@@ -19,6 +20,7 @@ type Config struct {
 	Bookkeeper   BookkeeperConfig
 	RateLimiter  ratelimit.Config
 	VPNBlocklist ipblock.Config
+	ShadowBan    ShadowBanConfig
 
 	Session SessionConfig
 
@@ -64,6 +66,12 @@ func (c SessionConfig) withDefaults() SessionConfig {
 		c.Turnstile.Action = defaultSessionTurnstileAction
 	}
 	return c
+}
+
+// ShadowBanConfig drops a bot's clicks instead of refusing them and telling it which check to route around.
+type ShadowBanConfig struct {
+	Enabled  bool
+	Detector shadowban.Config
 }
 
 type ChatConfig struct {

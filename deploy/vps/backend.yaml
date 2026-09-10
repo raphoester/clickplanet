@@ -36,6 +36,23 @@ vpnBlocklist:
   includeDatacenters: true
   allow: []
 
+# Accepts a bot's clicks and drops them, rather than refusing them and naming
+# the check it tripped. Ships observing only: it measures, flags and logs, and
+# drops nothing until detector.enforce is on.
+shadowBan:
+  enabled: true
+  detector:
+    # Turn this on only after reading the histogram and the log lines. See
+    # "Watching for bots" in the README.
+    enforce: false
+    reactionWindow: 2s
+    minReactions: 12
+    maxMedian: 250ms
+    maxSpread: 120ms
+    trackWindow: 5m
+    banDuration: 1h
+    sweepInterval: 1m
+
 # Gates the Click RPC on a token this server minted, which is the one thing an
 # address-based defence cannot do: refuse a caller that never proved anything,
 # however many addresses it can reach the game from. The blocklist above raises

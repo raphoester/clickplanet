@@ -95,6 +95,18 @@ func (s *Storage) Set(_ context.Context, tile uint32, value string) error {
 	return nil
 }
 
+// Owner reads one tile; false means past the end of the map, and an unowned tile reads as an empty code.
+func (s *Storage) Owner(tile uint32) (string, bool) {
+	if tile > s.maxIndex {
+		return "", false
+	}
+
+	s.tilesMu.RLock()
+	defer s.tilesMu.RUnlock()
+
+	return s.codes[s.tiles[tile]], true
+}
+
 func (s *Storage) set(tile uint32, value string) (previous string, changed bool, err error) {
 	s.tilesMu.Lock()
 	defer s.tilesMu.Unlock()
