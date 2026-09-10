@@ -98,6 +98,12 @@ shadowBan:
     # behaviour stops.
     trackWindow: 5m
     banDuration: 1h
+    # How soon a caller already flagged can be flagged again. At trackWindow or
+    # above, each flag rests on a fresh set of reactions, so flags=6 in the log
+    # means six independent windows all read the same way — worth far more than
+    # one verdict from one window. Without this a caller goes quiet behind its
+    # first ban and you cannot tell whether it kept going.
+    reflagInterval: 5m
     sweepInterval: 1m
 
 # Gates the Click RPC on a token this server minted. Off by default: with it

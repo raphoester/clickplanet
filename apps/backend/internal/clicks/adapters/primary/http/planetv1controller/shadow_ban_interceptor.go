@@ -104,8 +104,17 @@ func NewShadowBanReporter(
 		Buckets: reactionBuckets,
 	})
 
-	if err := registerer.Register(reactions); err != nil {
-		return nil, nil, fmt.Errorf("failed to register histogram: %w", err)
+	// Counts flags, not callers: one caller flagged six times is six here and one
+	// on shadowban_flagged, and the gap between the two is the thing to look at.
+	flags := prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "shadowban_flags",
+		Help: "Times a caller has been flagged, counting repeat flags on the same caller",
+	})
+
+	for _, collector := range []prometheus.Collector{reactions, flags} {
+		if err := registerer.Register(collector); err != nil {
+			return nil, nil, fmt.Errorf("failed to register collector: %w", err)
+		}
 	}
 
 	onReaction := func(delay time.Duration) { reactions.Observe(delay.Seconds()) }
@@ -113,11 +122,16 @@ func NewShadowBanReporter(
 	// The address goes in the log and never on a label: per-IP labels are
 	// unbounded cardinality, and they would put personal data in every scrape.
 	onFlag := func(scope string, report shadowban.Report) {
+		flags.Inc()
+
 		logger.Warning("shadowban candidate",
 			lf.String("scope", scope),
+			lf.Int("flags", report.Flags),
 			lf.Int("reactions", report.Reactions),
 			lf.Any("median", report.Median),
 			lf.Any("spread", report.Spread),
+			lf.Any("activeFor", report.ActiveFor),
+			lf.Any("longestGap", report.LongestGap),
 			lf.String("topCountry", report.TopCountry),
 			lf.Int("topCountryClicks", report.TopCountryClicks),
 			lf.Int("clicks", report.Clicks),

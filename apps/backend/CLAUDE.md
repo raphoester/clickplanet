@@ -236,6 +236,22 @@ exists, never who owns it.
 delays in play: a reaction past the edge is not missed but **censored**, and the
 median of what survives reads faster than the caller is.
 
+**A flag repeats, and that is most of its value.** `reflagInterval` is how soon
+an already-flagged caller can flag again; set to `trackWindow` or above, each
+flag rests on reactions the previous one never saw, so `flags=6` in the log is
+six independent windows agreeing rather than one verdict repeated. Before this
+existed a caller went quiet behind its first ban for `banDuration`, and there was
+no way to tell whether it had stopped or was still going.
+
+**`activeFor` and `longestGap` are the answer to a jittered delay.** A spread
+test is beatable by construction — randomise the delay and the band widens to
+look human. What is not cheap to fake is stopping: a person's session has breaks,
+and hours of `activeFor` with `longestGap` in seconds is not one. Neither feeds
+the rule; both go in the log, because deciding on them would ban the genuinely
+obsessed. Note that the sweep keeps a caller alive while it is inside a ban, so
+`activeFor` spans that too — `longestGap` is what says whether the time was
+actually spent playing.
+
 **Three things are deliberately not reactions**, and each is a way to get an
 honest player flagged if you get it wrong:
 
@@ -331,6 +347,7 @@ Config is loaded from a YAML file (`-config` flag), with environment variables o
 - `shadowBan.detector.enforce` — off measures, flags and logs without dropping; the mode to deploy in
 - `shadowBan.detector.reactionWindow`, `minReactions`, `maxMedian`, `maxSpread` — what counts as a reaction, and how many of them in how narrow a band flag a caller
 - `shadowBan.detector.trackWindow`, `banDuration`, `sweepInterval` — how far back reactions count, how long a flag lasts, and how often what can no longer matter is forgotten
+- `shadowBan.detector.reflagInterval` — how soon an already-flagged caller flags again; at `trackWindow` or above each repeat rests on fresh reactions
 - `session.enabled` — off registers nothing, so `session.v1.SessionService/` 404s and clicks are judged on address alone
 - `session.enforce` — off counts what enforcing would refuse without refusing it; the mode to deploy in
 - `session.secret` — signs the tokens; **empty generates one at boot**, invalidating every session in flight on each restart

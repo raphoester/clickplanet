@@ -71,6 +71,7 @@ func strictConfig() shadowban.Config {
 		MaxSpread:      120 * time.Millisecond,
 		TrackWindow:    5 * time.Minute,
 		BanDuration:    time.Hour,
+		ReflagInterval: 5 * time.Minute,
 	}
 }
 
@@ -202,7 +203,7 @@ func TestAFlaggedCallerIsDroppedSilentlyAndOnlyWhileEnforcing(t *testing.T) {
 	}
 }
 
-func TestTheFlagIsReportedOncePerBan(t *testing.T) {
+func TestTheFlagIsNotReportedOnEveryClickInsideIt(t *testing.T) {
 	config := strictConfig()
 
 	h := newHarness(t, config)
@@ -223,7 +224,69 @@ func TestTheFlagIsReportedOncePerBan(t *testing.T) {
 		h.clock.advance(time.Second)
 	}
 
-	assert.Equal(t, 1, flags, "a ban is decided once, not on every click inside it")
+	assert.Equal(t, 1, flags, "one flag per reflagInterval, not one per click")
+}
+
+func TestACallerThatKeepsAtItIsFlaggedAgain(t *testing.T) {
+	config := strictConfig()
+	config.ReflagInterval = time.Minute
+
+	h := newHarness(t, config)
+
+	var reports []shadowban.Report
+	h.detector = shadowban.New(config, h.owner, h.clock, nil,
+		func(_ string, report shadowban.Report) { reports = append(reports, report) },
+	)
+
+	tile := uint32(1700)
+	for range 4 {
+		for range 4 {
+			tile++
+			h.click("player", tile, "FR")
+			h.clock.advance(80 * time.Millisecond)
+			h.click("bot", tile, "PS")
+			h.clock.advance(time.Second)
+		}
+		h.clock.advance(time.Minute)
+	}
+
+	require.Len(t, reports, 4, "each reflagInterval that still looks the same reports again")
+
+	for i, report := range reports {
+		assert.Equal(t, i+1, report.Flags, "the count rises so repeat evidence is legible")
+	}
+
+	assert.Greater(t, reports[3].ActiveFor, 3*time.Minute)
+	assert.Less(t, reports[3].LongestGap, 2*time.Minute)
+}
+
+func TestPersistenceSeparatesASittingCallerFromOneThatLeaves(t *testing.T) {
+	config := strictConfig()
+	config.TrackWindow = time.Hour
+	config.ReflagInterval = time.Minute
+
+	h := newHarness(t, config)
+
+	tile := uint32(1800)
+	war := func() {
+		for range 4 {
+			tile++
+			h.click("bot", tile, "PS")
+			h.clock.advance(80 * time.Millisecond)
+			h.click("player", tile, "FR")
+			h.clock.advance(time.Second)
+		}
+	}
+
+	war()
+
+	// The player walks away for twenty minutes and comes back, as people do.
+	h.clock.advance(20 * time.Minute)
+	war()
+
+	report := h.flags["player"]
+	assert.Greater(t, report.LongestGap, 19*time.Minute, "the break is visible in the line")
+	assert.Greater(t, report.ActiveFor, 20*time.Minute)
 }
 
 func TestTopCountryNamesWhatTheCallerPaintsMost(t *testing.T) {
