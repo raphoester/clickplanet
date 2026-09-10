@@ -35,6 +35,9 @@ type Config struct {
 	TrackWindow time.Duration
 	BanDuration time.Duration
 
+	// At TrackWindow or more, each flag rests on fresh reactions, so N flags means N independent windows agreeing.
+	ReflagInterval time.Duration
+
 	SweepInterval time.Duration
 }
 
@@ -47,6 +50,9 @@ const (
 	defaultTrackWindow    = 5 * time.Minute
 	defaultBanDuration    = time.Hour
 	defaultSweepInterval  = time.Minute
+
+	// Matches TrackWindow, so consecutive flags rest on disjoint reactions.
+	defaultReflagInterval = 5 * time.Minute
 
 	// Caps the country tally: real players use a handful, and without a bound a
 	// client could spend memory by cycling through every valid code.
@@ -72,6 +78,9 @@ func (c Config) withDefaults() Config {
 	if c.BanDuration <= 0 {
 		c.BanDuration = defaultBanDuration
 	}
+	if c.ReflagInterval <= 0 {
+		c.ReflagInterval = defaultReflagInterval
+	}
 	if c.SweepInterval <= 0 {
 		c.SweepInterval = defaultSweepInterval
 	}
@@ -90,6 +99,13 @@ type Report struct {
 	Reactions int
 	Median    time.Duration
 	Spread    time.Duration
+
+	// Includes this flag. Each rests on its own window, so a rising count is independent evidence repeating.
+	Flags int
+
+	// What a randomised delay cannot fake: a person stops.
+	ActiveFor  time.Duration
+	LongestGap time.Duration
 
 	// Self-declared by the client and trivially changed: context for whoever
 	// reads the log, never an input to the decision.
@@ -143,7 +159,10 @@ type take struct {
 }
 
 type caller struct {
-	lastSeen time.Time
+	// The persistence signal: a randomised delay beats a spread test, but hours on one fight without a break is not imitable.
+	firstSeen  time.Time
+	lastSeen   time.Time
+	longestGap time.Duration
 
 	reactions []reaction
 	tiles     []uint32
@@ -151,6 +170,8 @@ type caller struct {
 	clicks    int
 	countries map[string]int
 
+	flags       int
+	nextFlagAt  time.Time
 	bannedUntil time.Time
 }
 
@@ -172,6 +193,9 @@ func (d *Detector) Observe(scope string, tile uint32, country string) (drop bool
 
 	d.mu.Lock()
 	c := d.callerLocked(scope, now)
+	if gap := now.Sub(c.lastSeen); gap > c.longestGap {
+		c.longestGap = gap
+	}
 	c.lastSeen = now
 	c.clicks++
 	c.countCountryLocked(country)
@@ -247,7 +271,7 @@ func (d *Detector) Flagged() int {
 func (d *Detector) callerLocked(scope string, now time.Time) *caller {
 	c, ok := d.callers[scope]
 	if !ok {
-		c = &caller{lastSeen: now, countries: make(map[string]int)}
+		c = &caller{firstSeen: now, lastSeen: now, countries: make(map[string]int)}
 		d.callers[scope] = c
 	}
 	return c
@@ -257,9 +281,10 @@ func (d *Detector) bannedLocked(c *caller, now time.Time) bool {
 	return d.config.Enforce && now.Before(c.bannedUntil)
 }
 
-// evaluateLocked reports a flag once per ban, not once per click inside one.
+// evaluateLocked reports at most one flag per ReflagInterval, so a caller that
+// keeps at it keeps being reported instead of going quiet behind its first ban.
 func (d *Detector) evaluateLocked(c *caller, now time.Time) (Report, bool) {
-	if now.Before(c.bannedUntil) {
+	if now.Before(c.nextFlagAt) {
 		return Report{}, false
 	}
 
@@ -283,7 +308,9 @@ func (d *Detector) evaluateLocked(c *caller, now time.Time) (Report, bool) {
 		return Report{}, false
 	}
 
+	c.flags++
 	c.bannedUntil = now.Add(d.config.BanDuration)
+	c.nextFlagAt = now.Add(d.config.ReflagInterval)
 
 	country, countryClicks := c.topCountryLocked()
 
@@ -291,6 +318,9 @@ func (d *Detector) evaluateLocked(c *caller, now time.Time) (Report, bool) {
 		Reactions:        len(c.reactions),
 		Median:           median,
 		Spread:           spread,
+		Flags:            c.flags,
+		ActiveFor:        now.Sub(c.firstSeen),
+		LongestGap:       c.longestGap,
 		TopCountry:       country,
 		TopCountryClicks: countryClicks,
 		Clicks:           c.clicks,

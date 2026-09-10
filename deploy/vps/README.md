@@ -378,16 +378,30 @@ docker compose logs backend | grep "shadowban candidate"
 ```
 
 ```
-level=WARN msg="shadowban candidate" scope=198.51.100.20 reactions=20
-  median=993.8ms spread=138.1ms topCountry=ps topCountryClicks=20 clicks=20
-  tiles="[2013 2014 2015 2016 2017 2018 2019 2020]"
+level=WARN msg="shadowban candidate" scope=198.51.100.20 flags=2 reactions=10
+  median=1.022s spread=8.3ms activeFor=32.2s longestGap=22.2s
+  topCountry=ps topCountryClicks=10 clicks=10 tiles="[3003 3004 3005 ...]"
 ```
 
 **`spread` is the number to judge on, not `median`.** A caller answering at
-almost exactly one second, twenty times, within 138 ms of itself, is running a
-timer — the delay is human-looking on purpose and only the regularity gives it
-away. Compare that against the lines real players produce: they are named too at
-these bounds, and their spread is far wider.
+almost exactly one second, ten times, within 8 ms of itself, is running a timer —
+the delay is human-looking on purpose and only the regularity gives it away.
+Compare that against the lines real players produce: they are named too at these
+bounds, and their spread is far wider.
+
+**`flags` is how many times this caller has crossed the bar.** At
+`reflagInterval` ≥ `trackWindow` each flag rests on reactions the previous one
+never saw, so `flags=6` is six independent windows agreeing — worth far more
+than one verdict from one window. A caller that flags once and never again was
+probably a bad five minutes; one whose count keeps climbing is a standing
+pattern.
+
+**`activeFor` and `longestGap` are the persistence signal, and the one a
+randomised delay cannot beat.** A bot author who reads this can jitter the delay
+until `spread` looks human. What costs them something real is stopping. Hours of
+`activeFor` with `longestGap` in seconds is nobody's evening; a person's line
+shows the breaks — the example above has a 22 second pause in a 32 second
+session, which is what a human rhythm looks like at small scale.
 
 `topCountry` is the country the caller painted with most. It is **context, not
 evidence** — the client declares it in the request, so it is changed by editing
@@ -406,7 +420,12 @@ set `detector.enforce: true` and redeploy.
 `shadowban_flagged` is how many callers are inside a ban and **counts while
 `enforce` is false too** — a non-zero gauge in observe mode means the rule is
 biting, not that anything was dropped. `shadowbanned_clicks` is the one that
-stays at 0 until you enforce. Both are readable with the `wget` line above.
+stays at 0 until you enforce.
+
+`shadowban_flags` counts flags rather than callers, so the two read together:
+`shadowban_flags 40` against `shadowban_flagged 2` is two callers flagged twenty
+times each, which is a very different picture from forty callers caught once.
+All three are readable with the `wget` line above.
 
 To undo one, set `enforce` back to false and redeploy — bans live in memory
 only, so a restart clears every one of them.

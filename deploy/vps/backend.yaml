@@ -56,6 +56,10 @@ shadowBan:
     maxSpread: 1s
     trackWindow: 5m
     banDuration: 1h
+    # Matches trackWindow, so each repeat flag rests on reactions the previous
+    # one never saw. Watch the flags= count climb on a caller: one flag is a
+    # window, six is a pattern.
+    reflagInterval: 5m
     sweepInterval: 1m
 
 # Gates the Click RPC on a token this server minted, which is the one thing an
