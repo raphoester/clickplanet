@@ -2,7 +2,6 @@ import {KeyboardEvent, useEffect, useRef, useState} from "react";
 import {matchesSearch, type Value, visibleOptions} from "./visibleOptions.ts";
 import {SearchIcon} from "./icons.tsx";
 import CountryFlag from "./CountryFlag.tsx";
-import {nameWithoutFlag} from "../../domain/countries.ts";
 import "./SelectWithSearch.css"
 
 type SelectWithSearchProps = {
@@ -111,7 +110,7 @@ export default function SelectWithSearch(props: SelectWithSearchProps) {
                     data-active={v.code === activeOption?.code}
                     onClick={() => choose(v)}>
                     <CountryFlag code={v.code}/>
-                    {nameWithoutFlag(v)}
+                    {v.name}
                 </div>
             ))}
         </div>

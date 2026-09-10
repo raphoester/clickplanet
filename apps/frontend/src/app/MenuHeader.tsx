@@ -1,4 +1,4 @@
-import {Country, nameWithoutFlag} from "../domain/countries.ts";
+import {Country} from "../domain/countries.ts";
 import {ChevronIcon} from "./components/icons.tsx";
 import CountryFlag from "./components/CountryFlag.tsx";
 import "./MenuHeader.css"
@@ -23,7 +23,7 @@ export default function MenuHeader(props: MenuHeaderProps) {
             ? <h1>ClickPlanet</h1>
             : <span className="menu-header-country">
                 <CountryFlag code={props.country.code}/>
-                {nameWithoutFlag(props.country)}
+                {props.country.name}
             </span>}
 
         <span className="menu-header-spacer"/>

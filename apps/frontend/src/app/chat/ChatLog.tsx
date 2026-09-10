@@ -1,6 +1,6 @@
 import {useEffect, useRef, useState} from "react";
 import {ChatMessage} from "../../backends/chat.ts";
-import {Countries, nameWithoutFlag} from "../../domain/countries.ts";
+import {Countries} from "../../domain/countries.ts";
 import CountryFlag from "../components/CountryFlag.tsx";
 import {ChevronIcon} from "../components/icons.tsx";
 import {startsGroup} from "../../domain/chatLog.ts";
@@ -120,6 +120,5 @@ function messageClass(
 // The badge is a flag and nothing else, so the name it stands for is what the
 // tooltip and the accessibility tree carry.
 function countryName(code: string): string {
-    const country = Countries.get(code)
-    return country ? nameWithoutFlag(country) : code
+    return Countries.get(code)?.name ?? code
 }
