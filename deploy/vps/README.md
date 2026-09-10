@@ -354,11 +354,19 @@ docker compose exec backend wget -qO- localhost:8080/metrics | grep click_reacti
 ```
 
 Every click that takes a tile another caller just took is timed into
-`click_reaction_seconds`. Read the bucket counts directly — a bot answering off
-the update stream piles up in the 50–150 ms buckets and then the curve goes
-flat, while human reactions spread out well past 300 ms. That gap is where
-`maxMedian` and `maxSpread` belong. The buckets are deliberately tight and low,
-because the whole question lives between 0.05 and 0.3.
+`click_reaction_seconds`. Read the bucket counts directly: a reflex bot driven
+by the update stream piles up under 150 ms, while a bot on a timer sits in a
+narrow band wherever its timer is — one seen in production answered at almost
+exactly 1 s. Human reactions spread out broadly and do neither.
+
+The buckets step evenly to 2 s for that reason. An earlier set jumped 0.5 → 1 →
+2, and a ~1 s bot was invisible in it: every reaction landed in two enormous
+buckets that could not tell a tight timer from a broad human.
+
+**The histogram is global.** It mixes the bot, the players reacting to the bot,
+and everyone else, so it tells you *that* there is a band and roughly where —
+never which caller owns it. Per-caller numbers come from the log below, and
+only for callers that flag. That is why the bounds start wide.
 
 ### The log says who
 
@@ -370,26 +378,35 @@ docker compose logs backend | grep "shadowban candidate"
 ```
 
 ```
-level=WARN msg="shadowban candidate" scope=198.51.100.20 reactions=12
-  median=100.4ms spread=4.4ms topCountry=ps topCountryClicks=12 clicks=12
-  tiles="[105 106 107 108 109 110 111 112]"
+level=WARN msg="shadowban candidate" scope=198.51.100.20 reactions=20
+  median=993.8ms spread=138.1ms topCountry=ps topCountryClicks=20 clicks=20
+  tiles="[2013 2014 2015 2016 2017 2018 2019 2020]"
 ```
 
-`spread=4.4ms` over twelve reactions is the whole case: a hand does not do that.
+**`spread` is the number to judge on, not `median`.** A caller answering at
+almost exactly one second, twenty times, within 138 ms of itself, is running a
+timer — the delay is human-looking on purpose and only the regularity gives it
+away. Compare that against the lines real players produce: they are named too at
+these bounds, and their spread is far wider.
 
 `topCountry` is the country the caller painted with most. It is **context, not
 evidence** — the client declares it in the request, so it is changed by editing
 one string, and plenty of real players paint the same flags a bot does. Read it
 to understand what a caller was doing; never widen the rule to act on it.
 
-Before enforcing, get into a tile war yourself and confirm no line names your
-own address.
+Before enforcing, get into a tile war yourself and confirm your own line's
+numbers sit clearly outside the ones you are about to set.
 
 ### Then turn it on
 
-Set `detector.enforce: true` in `backend.yaml` and redeploy. `shadowban_flagged`
-is how many callers are inside a ban, and `shadowbanned_clicks` how many clicks
-have been dropped. Both are readable with the `wget` line above.
+`backend.yaml` ships `maxMedian: 2s` / `maxSpread: 1s`, wide on purpose so the
+log speaks. Tighten both to sit between the bot's line and the human ones, then
+set `detector.enforce: true` and redeploy.
+
+`shadowban_flagged` is how many callers are inside a ban and **counts while
+`enforce` is false too** — a non-zero gauge in observe mode means the rule is
+biting, not that anything was dropped. `shadowbanned_clicks` is the one that
+stays at 0 until you enforce. Both are readable with the `wget` line above.
 
 To undo one, set `enforce` back to false and redeploy — bans live in memory
 only, so a restart clears every one of them.
