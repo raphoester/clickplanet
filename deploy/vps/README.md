@@ -33,7 +33,7 @@ Caddyfile; it moves to any provider that rents a Linux box.
 - `bootstrap.sh` — provisions a fresh droplet end to end. Run it from your
   laptop with `--host`; it copies itself over and re-runs there as root.
 - `docker-compose.yaml` — Caddy + backend. That is the whole stack; there is no database.
-- `Caddyfile` — TLS via DNS-01, reverse proxy, CORS, WebSocket passthrough
+- `Caddyfile` — TLS via DNS-01, reverse proxy, CORS (see [Testing a local frontend against this API](#testing-a-local-frontend-against-this-api)), WebSocket passthrough
 - `caddy/Dockerfile` — Caddy built with `caddy-dns/cloudflare`. The stock image
   has no DNS provider module and cannot solve the DNS-01 challenge.
 - `backend.yaml` — API config; secrets come from env, not this file
@@ -374,6 +374,33 @@ rather keep the package private, generate a read-only PAT with `read:packages`
 and run `docker login ghcr.io` once as `deploy`.
 
 Pages deploys itself on push; no workflow needed.
+
+## Testing a local frontend against this API
+
+`npm run dev` on a laptop serves the frontend from `http://localhost:5173`, and
+the API answers CORS for that origin as well as for `FRONTEND_ORIGIN`. Point the
+dev frontend at `https://$API_DOMAIN` and it works against production data.
+
+CORS carries **exactly one origin and never a list**, so the Caddyfile picks the
+value per request with a `map` on the request's `Origin`. It is written that way
+rather than as a second `header` directive with a matcher for a reason worth
+keeping: the matcher form *adds* a second `Access-Control-Allow-Origin` next to
+the one the Go middleware already sent, and a browser rejects a response
+carrying two of them. `Vary: Origin` is what stops a cache in front serving the
+localhost answer to a real visitor.
+
+This admits any page on port 5173 of a developer's own machine — that is the
+whole cost, and it is why the entry is temporary. **Delete the `map` when the
+frontend has moved off the websockets**, together with the `/ws/*` routes.
+
+Two things it does not buy:
+
+- **Clicking still fails**, because `session.turnstile.hostnames` refuses a
+  token whose siteverify hostname is not listed, and localhost must never be on
+  that list. Reads and both live streams need no session, so watching the planet
+  and the chat works.
+- **Nothing here changes who may write.** The throttle, the blocklist and the
+  session check all key on the caller's address exactly as before.
 
 ## 7. Live chat
 
