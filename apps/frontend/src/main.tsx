@@ -27,7 +27,6 @@ const session: SessionProvider = sitekey
 // public/dev-map.bin, which is the only way to look at realistic ownership from
 // localhost — the real API's CORS header names the deployed origin only.
 const snapshot = import.meta.env.VITE_DEV_SNAPSHOT ? new SnapshotBackend() : undefined
-if (snapshot) await snapshot.load()
 
 const backend = snapshot ?? new PlanetBackend(config, newClickServiceClient(config), 100, session)
 const chatBackend = snapshot

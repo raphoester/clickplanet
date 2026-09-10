@@ -6,18 +6,25 @@ import {Ownerships, OwnershipsGetter, TileClicker, UpdatesListener} from "./back
 
 export class SnapshotBackend implements TileClicker, OwnershipsGetter, UpdatesListener {
     private owners: string[] = []
+    private loading: Promise<void> | undefined
 
-    async load() {
-        const buffer = await (await fetch("/dev-map.bin")).arrayBuffer()
-        const view = new DataView(buffer)
-        const headerBytes = view.getUint32(0, true)
-        const header = JSON.parse(new TextDecoder().decode(new Uint8Array(buffer, 4, headerBytes)))
-        const tiles = new Uint16Array(buffer.slice(4 + headerBytes))
-        this.owners = new Array(header.tiles + 1)
-        for (let i = 0; i < header.tiles; i++) this.owners[i + 1] = header.codes[tiles[i]]
+    // On first use rather than at module scope: awaiting this from the top level
+    // of main.tsx builds under Vite's dev server and then fails the production
+    // bundle, whose browser targets predate top-level await.
+    private load(): Promise<void> {
+        return this.loading ??= (async () => {
+            const buffer = await (await fetch("/dev-map.bin")).arrayBuffer()
+            const view = new DataView(buffer)
+            const headerBytes = view.getUint32(0, true)
+            const header = JSON.parse(new TextDecoder().decode(new Uint8Array(buffer, 4, headerBytes)))
+            const tiles = new Uint16Array(buffer.slice(4 + headerBytes))
+            this.owners = new Array(header.tiles + 1)
+            for (let i = 0; i < header.tiles; i++) this.owners[i + 1] = header.codes[tiles[i]]
+        })()
     }
 
     async clickTile(tile: number, country: string) {
+        await this.load()
         this.owners[tile] = country
     }
 
@@ -26,6 +33,7 @@ export class SnapshotBackend implements TileClicker, OwnershipsGetter, UpdatesLi
         maxIndex: number,
         callback: (ownerships: Ownerships) => void,
     ) {
+        await this.load()
         for (let start = 1; start <= maxIndex; start += batchSize) {
             const bindings = new Map<number, string>()
             for (let tile = start; tile < Math.min(start + batchSize, maxIndex + 1); tile++) {
