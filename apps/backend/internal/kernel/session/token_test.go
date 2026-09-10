@@ -150,3 +150,28 @@ func decode(t *testing.T, value string) []byte {
 func encode(raw []byte) string {
 	return base64.RawURLEncoding.EncodeToString(raw)
 }
+
+func TestAV6TokenVerifiesAcrossItsOwnPrefix(t *testing.T) {
+	signer := newSigner(t)
+
+	// A privacy address rotating under a player must not log them out: the
+	// binding is to the /64, which the caller has not left.
+	token, err := signer.Mint("2001:db8:1:2::1", now)
+	require.NoError(t, err)
+
+	id, err := signer.Verify(token.Value, "2001:db8:1:2:aaaa:bbbb:cccc:dddd", now)
+	require.NoError(t, err)
+	assert.Equal(t, token.ID, id)
+}
+
+func TestAV6TokenIsRefusedOutsideItsPrefix(t *testing.T) {
+	signer := newSigner(t)
+
+	// The other half of the same rule: leaving the /64 is leaving the scope the
+	// token was minted for, so it buys nothing there.
+	token, err := signer.Mint("2001:db8:1:2::1", now)
+	require.NoError(t, err)
+
+	_, err = signer.Verify(token.Value, "2001:db8:1:3::1", now)
+	assert.ErrorIs(t, err, session.ErrBadSignature)
+}

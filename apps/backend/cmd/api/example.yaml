@@ -30,7 +30,8 @@ bookkeeper:
 # Per-IP throttle on the Click RPC. Reads and the websocket are untouched.
 # The defaults below are also what applies when this block is absent.
 rateLimiter:
-  # Sustained clicks per second allowed from one address.
+  # Sustained clicks per second allowed from one caller — one address over
+  # IPv4, one /64 over IPv6, since a v6 subscriber owns its whole prefix.
   perSecond: 1
   # Clicks a caller arriving after a quiet spell may spend at once, so that a
   # normal flurry is not refused.
@@ -41,7 +42,7 @@ rateLimiter:
 
 # Refuses the Click RPC from known VPN and proxy egress ranges, so a player has
 # to come from an address the throttle above can actually hold onto: a bucket
-# keyed on an address you can change at will is a bucket that does not hold.
+# keyed on something you can change at will is a bucket that does not hold.
 # Reads and the websocket are untouched — a VPN user still loads and watches the
 # planet, they just cannot paint.
 #

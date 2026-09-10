@@ -16,8 +16,10 @@ tilesStorage:
   # final snapshot on SIGTERM.
   snapshotInterval: 30s
 
-# Per-IP throttle on the Click RPC. Keyed on the address Caddy puts in
-# X-Real-IP, which is Cloudflare's Cf-Connecting-Ip — the real visitor.
+# Per-caller throttle on the Click RPC. Keyed on the address Caddy puts in
+# X-Real-IP, which is Cloudflare's Cf-Connecting-Ip — the real visitor — over
+# IPv4, and on that address's /64 over IPv6. A v6 subscriber owns every address
+# in its own /64, so charging one address would be charging nothing.
 rateLimiter:
   perSecond: 1
   burst: 10
@@ -88,8 +90,8 @@ chat:
     # API generates one at boot and warns — every sender's tag then changes on
     # each restart.
     tagSalt: ""
-  # One message every three seconds, five in hand. Keyed on the address Caddy
-  # puts in X-Real-IP, as the click limiter is.
+  # One message every three seconds, five in hand. Keyed the same way the click
+  # limiter is: the X-Real-IP address over IPv4, its /64 over IPv6.
   rateLimiter:
     perSecond: 0.33
     burst: 5
