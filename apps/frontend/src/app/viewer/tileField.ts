@@ -25,21 +25,28 @@ export class TileField {
     readonly size: number
 
     private readonly regionVector: THREE.BufferAttribute
+    private readonly landmass: THREE.BufferAttribute
     private readonly hover: THREE.BufferAttribute
     private hovered: number | undefined
 
-    constructor(uniforms: {[uniform: string]: THREE.IUniform}, data: PointGeometryData) {
+    constructor(
+        uniforms: {[uniform: string]: THREE.IUniform},
+        pickingUniforms: {[uniform: string]: THREE.IUniform},
+        data: PointGeometryData,
+    ) {
         const {positions, size} = data
         this.size = size
 
         const position = new THREE.BufferAttribute(positions, 3)
 
         this.regionVector = new THREE.BufferAttribute(new Float32Array(size * REGION_STRIDE), REGION_STRIDE)
+        this.landmass = new THREE.BufferAttribute(new Float32Array(size), 1)
         this.hover = new THREE.BufferAttribute(new Float32Array(size), 1)
 
         const displayGeometry = new THREE.BufferGeometry()
         displayGeometry.setAttribute('position', position)
         displayGeometry.setAttribute('regionVector', this.regionVector)
+        displayGeometry.setAttribute('landmassIndex', this.landmass)
         displayGeometry.setAttribute('hover', this.hover)
 
         const pickingGeometry = new THREE.BufferGeometry()
@@ -54,7 +61,7 @@ export class TileField {
         }))
 
         this.pickingPoints = new THREE.Points(pickingGeometry, new THREE.ShaderMaterial({
-            uniforms,
+            uniforms: pickingUniforms,
             vertexShader: pickerVertex,
             fragmentShader: pickerFragment,
         }))
@@ -93,6 +100,15 @@ export class TileField {
             this.regionVector.addUpdateRange(lowest, highest - lowest)
         }
         this.regionVector.needsUpdate = true
+    }
+
+    // Which piece of land each tile sits on. Static — neither tiles nor borders
+    // move — so the painted-flag lookup costs one upload at load and nothing
+    // afterwards.
+    setLandmasses(assignment: Uint16Array) {
+        const values = this.landmass.array as Float32Array
+        for (let i = 0; i < values.length; i++) values[i] = assignment[i]
+        this.landmass.needsUpdate = true
     }
 
     setHover(tile: number | undefined) {

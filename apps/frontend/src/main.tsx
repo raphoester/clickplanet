@@ -6,6 +6,8 @@ import {newClickServiceClient, newSessionServiceClient, PlanetBackend} from "./b
 import {NoSession, SessionProvider} from "./backends/session.ts"
 import {SessionClient, turnstileAttester} from "./backends/turnstileSession.ts"
 import {ChatServiceBackend, newChatServiceClient} from "./backends/chatBackend.ts"
+import {FakeChatBackend} from "./backends/fakeChatBackend.ts"
+import {SnapshotBackend} from "./backends/snapshotBackend.ts"
 import App from "./app/App.tsx"
 
 const config = {
@@ -21,8 +23,16 @@ const session: SessionProvider = sitekey
     ? new SessionClient(newSessionServiceClient(config), turnstileAttester(sitekey, "session"))
     : new NoSession()
 
-const backend = new PlanetBackend(config, newClickServiceClient(config), 100, session)
-const chatBackend = new ChatServiceBackend(config, newChatServiceClient(config))
+// SCRATCH R&D: VITE_DEV_SNAPSHOT serves a frozen production map from
+// public/dev-map.bin, which is the only way to look at realistic ownership from
+// localhost — the real API's CORS header names the deployed origin only.
+const snapshot = import.meta.env.VITE_DEV_SNAPSHOT ? new SnapshotBackend() : undefined
+if (snapshot) await snapshot.load()
+
+const backend = snapshot ?? new PlanetBackend(config, newClickServiceClient(config), 100, session)
+const chatBackend = snapshot
+    ? new FakeChatBackend({unavailable: true})
+    : new ChatServiceBackend(config, newChatServiceClient(config))
 
 createRoot(document.getElementById('root')!).render(
     <StrictMode>

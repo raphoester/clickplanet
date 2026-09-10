@@ -68,7 +68,7 @@ describe("a refused click, from the paint to the rollback", () => {
     const size = 32
 
     function wiring() {
-        const field = new TileField({zoom: {value: 1}}, {
+        const field = new TileField({zoom: {value: 1}}, {pointSize: {value: 1}}, {
             positions: new Float32Array(size * 3),
             uvs: new Float32Array(size * 2),
             size,

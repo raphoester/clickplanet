@@ -4,8 +4,9 @@ import {addDisplayObjects, setupScene} from "./scene.ts";
 import {loadPointGeometryData} from "./points.ts";
 import {GpuPicker} from "./gpuPicking.ts";
 import {TileField} from "./tileField.ts";
+import {BorderField, loadBorders} from "./borderField.ts";
 import {ATLAS_SIZE, ATLAS_URL} from "./atlasAsset.ts";
-import {tilePointSize} from "./pointSize.ts";
+import {displayPointSize, flagDetail, tilePointSize} from "./pointSize.ts";
 import {regions} from "./atlas.ts";
 import {Country} from "../../domain/countries.ts";
 import {
@@ -26,6 +27,11 @@ type Uniforms = {
     pointSize: THREE.IUniform
     atlasTexture: THREE.IUniform
     atlasTextureSize: THREE.IUniform
+    flagDetail: THREE.IUniform
+    landmassData: THREE.IUniform
+    landmassCount: THREE.IUniform
+    pixelsPerRadian: THREE.IUniform
+    flagPaint: THREE.IUniform
 }
 
 const TILES_PER_BATCH = 10_000
@@ -73,12 +79,37 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     const {scene, camera, cameraSize, renderer, cleanup} = setupScene(eventTarget);
     const uniforms: Uniforms = {
-        pointSize: {value: tilePointSize(camera.zoom, layoutViewport().height)},
+        pointSize: {value: displayPointSize(camera.zoom, layoutViewport().height)},
         atlasTexture: {value: textureLoader.load(ATLAS_URL)},
         atlasTextureSize: {value: new THREE.Vector2(ATLAS_SIZE.width, ATLAS_SIZE.height)},
+        flagDetail: {value: 1},
+        landmassData: {value: null},
+        landmassCount: {value: 1},
+        pixelsPerRadian: {value: 1},
+        flagPaint: {value: 0},
     };
 
-    const field = new TileField(uniforms, geometryData);
+    // The picking pass keeps the old, smaller point: overlapping display discs
+    // would otherwise hand a click to whichever neighbour drew last.
+    const pickingUniforms = {pointSize: {value: tilePointSize(camera.zoom, layoutViewport().height)}}
+
+    const field = new TileField(uniforms, pickingUniforms, geometryData);
+
+    // SCRATCH R&D: real borders.
+    const params = new URLSearchParams(location.search)
+    const borders = await loadBorders("/dev-borders.bin")
+    const minimumShare = Number(params.get("minShare") ?? 0.08)
+    const contrast = Number(params.get("contrast") ?? 3)
+    const minimumTiles = Number(params.get("minTiles") ?? 4)
+    // For comparing against the old behaviour: a big number paints every
+    // landmass at full strength however small it is on screen.
+    const fadeScale = Number(params.get("fadeScale") ?? 1)
+    const territories = new BorderField(borders, field.size, minimumShare, contrast, minimumTiles)
+
+    field.setLandmasses(borders.assignment)
+    uniforms.landmassData.value = territories.landmassData
+    uniforms.landmassCount.value = borders.codes.length
+
     const picker = new GpuPicker(renderer, field.pickingPoints);
     const ownership = new TileOwnership(field.size);
 
@@ -87,6 +118,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const applyChanges = (changes: OwnerChange[]) => {
         if (changes.length === 0) return
         field.setOwners(changes)
+        territories.apply(changes)
         updateLeaderboard(rankCountries(ownership.counts()))
     }
 
@@ -158,12 +190,16 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     addDisplayObjects(scene, field.displayPoints)
 
-    const stopAnimation = startAnimation(renderer, scene, camera, uniforms, () => {
+    const {stop: stopAnimation, controls} = startAnimation(renderer, scene, camera, uniforms, pickingUniforms, fadeScale, () => {
         if (pendingPointer === undefined) return
         const {x, y} = pendingPointer
         pendingPointer = undefined
         field.setHover(picker.pick(camera, x, y))
     });
+
+    // SCRATCH R&D handle
+    ;(window as unknown as {__globe: unknown, __clusters: unknown}).__globe = {camera, controls, renderer, uniforms, field, scene}
+    ;(window as unknown as {__territories: unknown}).__territories = territories
 
     return {
         tilesCount: field.size,
@@ -178,6 +214,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
             picker.dispose()
             field.dispose()
+            territories.dispose()
 
             cleanup()
         }
@@ -189,8 +226,10 @@ function startAnimation(
     scene: THREE.Scene,
     camera: THREE.OrthographicCamera,
     uniforms: Uniforms,
+    pickingUniforms: {pointSize: THREE.IUniform},
+    fadeScale: number,
     beforeRender: () => void,
-): () => void {
+): {stop: () => void, controls: OrbitControls} {
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.minZoom = 1;
     controls.maxZoom = 50;
@@ -207,12 +246,26 @@ function startAnimation(
         controls.update();
         beforeRender();
         renderer.render(scene, camera);
-        uniforms.pointSize.value = tilePointSize(camera.zoom, renderer.domElement.height);
+        const size = displayPointSize(camera.zoom, renderer.domElement.height);
+        uniforms.pointSize.value = size;
+        uniforms.flagDetail.value = flagDetail(size);
+        pickingUniforms.pointSize.value = tilePointSize(camera.zoom, renderer.domElement.height);
+
+        // The coarse layer owns the frame until a tile is big enough to be aimed at.
+        // A finished landmass is painted as its flag until its tiles are big
+        // enough to be flags in their own right.
+        uniforms.flagPaint.value = 1 - Math.min(1, Math.max(0, (size - 4) / 4));
+        // The globe's radius is 1, so an arc of one radian is half the viewport
+        // at zoom 1.
+        uniforms.pixelsPerRadian.value = (renderer.domElement.height / 2) * camera.zoom * fadeScale;
     });
 
-    return () => {
-        renderer.setAnimationLoop(null);
-        controls.dispose();
+    return {
+        stop: () => {
+            renderer.setAnimationLoop(null);
+            controls.dispose();
+        },
+        controls,
     };
 }
 
