@@ -53,8 +53,10 @@ void main() {
 
         // A keyline around the flag's own rectangle, so its stripes do not read
         // as more territory. It fades with the flag it belongs to.
-        vec2 edge = abs(vFlagUV - 0.5);
-        flag = mix(flag, vec3(0.03), step(0.478, max(edge.x, edge.y)) * 0.85 * vFlagShare);
+        // Only where the flag itself ends, never out in the extended colour.
+        float edge = max(abs(vFlagUV.x - 0.5), abs(vFlagUV.y - 0.5));
+        float keyline = step(0.478, edge) * step(edge, 0.5);
+        flag = mix(flag, vec3(0.03), keyline * 0.85 * vFlagShare);
 
         // Opacity is the leader's share of this piece of land, so ground nobody
         // has settled stays the Earth underneath.

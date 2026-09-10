@@ -106,6 +106,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const fadeScale = Number(params.get("fadeScale") ?? 1)
     const territories = new BorderField(
         borders, field.size, minimumShare, contrast, minimumTiles, params.get("stretch") !== "0",
+        params.get("fit") === "contain" ? "contain" : "cover",
     )
 
     field.setLandmasses(borders.assignment)

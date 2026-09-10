@@ -20,7 +20,7 @@
 import * as THREE from "three"
 import type {OwnerChange} from "../../domain/tileOwnership.ts"
 import {regions} from "./atlas.ts"
-import stretchable from "../../../static/countries/flagFit.json"
+import flagFit from "../../../static/countries/flagFit.json"
 
 // Per landmass: centre + half-width, east axis + half-height, atlas region, and
 // the leader's share plus how far the landmass itself reaches. A zero-width
@@ -79,6 +79,7 @@ export class BorderField {
         private readonly contrast = 1,
         private readonly minimumTiles = 4,
         private readonly stretch = true,
+        private readonly fit: "cover" | "contain" = "cover",
     ) {
         this.landmassCount = data.codes.length
         this.ownerOf = new Array(tileCount + 1)
@@ -190,11 +191,17 @@ export class BorderField {
 
         let halfU: number
         let halfV: number
-        if (this.stretch && holder !== undefined && stretches.has(holder) && reachU > 0 && reachV > 0) {
+        if (this.stretch && holder !== undefined && fits[holder]?.stretch && reachU > 0 && reachV > 0) {
             const wanted = reachU / reachV
             const pulled = Math.min(Math.max(wanted, aspect / MAX_STRETCH), aspect * MAX_STRETCH)
             halfV = Math.max(reachV, reachU / pulled)
             halfU = halfV * pulled
+        } else if (this.fit === "contain") {
+            // The whole flag, fitted inside the country. Nothing is cropped, so
+            // a device at the hoist survives — at the price of the flag no
+            // longer reaching the coast, which the edge pixels then extend.
+            halfV = Math.min(reachV, reachU / aspect)
+            halfU = halfV * aspect
         } else {
             halfV = Math.max(reachV, reachU / aspect)
             halfU = halfV * aspect
@@ -212,6 +219,13 @@ export class BorderField {
 
         this.rows[at + 3] = halfU
         this.rows[at + 7] = halfV
+
+        // A narrow country sees a vertical slice of its flag, a wide one a
+        // horizontal band. Taken from the middle, the slice misses whatever the
+        // flag is actually known by, so it is taken around that instead.
+        const named = holder ?? ""
+        this.rows[at + 14] = anchor(focusOf(named, 0), reachU / (2 * halfU))
+        this.rows[at + 15] = anchor(focusOf(named, 1), reachV / (2 * halfV))
         this.rows[at + 8] = region.x
         this.rows[at + 9] = region.y
         this.rows[at + 10] = region.width
@@ -237,4 +251,22 @@ const MAX_FLAG_RADIUS = 0.42
 // flag and start reading as stripes of paint.
 const MAX_STRETCH = 2.6
 
-const stretches: ReadonlySet<string> = new Set(Object.keys(stretchable))
+type FlagFit = {stretch: boolean, focus: number[]}
+const fits: Record<string, FlagFit> = flagFit
+
+// The measure is a centre of mass over every line of the flag, so it lands
+// nearer the middle than the eye does — most of a flag is ordinary, and it all
+// pulls. Doubling the offset puts the crop where a person would put it, and
+// leaves a flag with nothing to aim at exactly where it was.
+const FOCUS_BIAS = 2
+
+function focusOf(code: string, axis: 0 | 1): number {
+    const focus = fits[code]?.focus?.[axis] ?? 0.5
+    return Math.min(1, Math.max(0, 0.5 + (focus - 0.5) * FOCUS_BIAS))
+}
+
+// Where a crop of the given half-width should be centred: on what names the
+// flag, pushed back inside it if that would hang off the edge.
+function anchor(focus: number, half: number): number {
+    return half >= 0.5 ? 0.5 : Math.min(Math.max(focus, half), 1 - half)
+}

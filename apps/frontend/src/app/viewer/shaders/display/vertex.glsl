@@ -31,13 +31,14 @@ void main() {
     if (landmassIndex > 0.5) {
         float row = (landmassIndex + 0.5) / landmassCount;
         vec4 region = texture(landmassData, vec2(5.0 / 8.0, row));
-        vec2 held = texture(landmassData, vec2(7.0 / 8.0, row)).rg;
+        vec4 held = texture(landmassData, vec2(7.0 / 8.0, row));
 
         // A painted flag has to earn its place on screen. Andorra is one tile:
         // from orbit it would be a single hyper-bright speck, so a flag fades in
         // only once its landmass is big enough to read, and the same rule
         // quietly clears the oceans of lone islands.
         float share = held.r * smoothstep(5.0, 16.0, held.g * pixelsPerRadian);
+        vec2 anchor = held.ba;
 
         if (region.z > 0.0 && share > 0.0) {
             vec4 frame = texture(landmassData, vec2(1.0 / 8.0, row));
@@ -56,12 +57,12 @@ void main() {
                 float reach = length(offset);
                 vec2 surface = reach > 1e-6 ? offset / reach * acos(min(along, 1.0)) : vec2(0.0);
 
-                vec2 uv = vec2(surface.x / frame.w, surface.y / axis.w) * 0.5 + 0.5;
-                if (uv.x >= 0.0 && uv.x <= 1.0 && uv.y >= 0.0 && uv.y <= 1.0) {
-                    vFlagUV = uv;
-                    vFlagRegion = region;
-                    vFlagShare = share;
-                }
+                // Left unclamped: the fragment shader clamps it when sampling,
+                // so ground past the flag's own rectangle wears the colour the
+                // flag ends on instead of falling back to bare Earth.
+                vFlagUV = vec2(surface.x / frame.w, surface.y / axis.w) * 0.5 + anchor;
+                vFlagRegion = region;
+                vFlagShare = share;
             }
         }
     }

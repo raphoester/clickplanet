@@ -11,6 +11,15 @@
 // artwork: a flag is stretchable when every row of it is one colour, or every
 // column is.
 //
+// It also records where each flag carries its identity. A flag painted on a
+// narrow country is cropped to a vertical slice of itself, and taking that slice
+// from the middle throws away exactly what names it: Palestine on Argentina came
+// out green, white and black with no red, because the red is the hoist triangle.
+// The columns that least resemble the flag's average column are where its
+// content is — the triangle for Palestine, the canton for the USA, the disc for
+// Japan, and nowhere in particular for a plain tricolour. Their centre of mass
+// is the point a crop should be taken around.
+//
 //   node scripts/generateFlagFit.mjs
 import fs from "node:fs"
 const sharp = (await import(process.cwd() + "/node_modules/sharp/lib/index.js")).default
@@ -52,17 +61,61 @@ function uniformLines(region, vertical) {
     return true
 }
 
+// Where along `axis` the flag stops looking like itself.
+function focusOf(region, vertical) {
+    const outer = vertical ? region.width : region.height
+    const inner = vertical ? region.height : region.width
+
+    // Every line, and the average of them all.
+    const lines = []
+    const mean = new Float64Array(inner * 3)
+    for (let a = 0; a < outer; a++) {
+        const line = new Float64Array(inner * 3)
+        for (let b = 0; b < inner; b++) {
+            const [x, y] = vertical ? [region.x + a, region.y + b] : [region.x + b, region.y + a]
+            const pixel = at(x, y)
+            for (let c = 0; c < 3; c++) {
+                line[b * 3 + c] = pixel[c]
+                mean[b * 3 + c] += pixel[c] / outer
+            }
+        }
+        lines.push(line)
+    }
+
+    let total = 0
+    let weighted = 0
+    for (let a = 0; a < outer; a++) {
+        let apart = 0
+        for (let i = 0; i < inner * 3; i++) apart += Math.abs(lines[a][i] - mean[i])
+        apart /= inner
+        total += apart
+        weighted += apart * (a + 0.5)
+    }
+
+    // A flag of plain bands has no line that stands out, so nothing to aim at.
+    return total < 1e-6 ? 0.5 : weighted / total / outer
+}
+
 const fit = {}
 for (const [code, region] of Object.entries(atlas)) {
     if (region.width <= INSET * 2 || region.height <= INSET * 2) continue
     // Bands running across the flag means every line the other way is uniform.
     const horizontalBands = uniformLines(region, false)
     const verticalBands = uniformLines(region, true)
-    if (horizontalBands || verticalBands) fit[code] = true
+    fit[code] = {
+        stretch: horizontalBands || verticalBands,
+        focus: [
+            Number(focusOf(region, true).toFixed(4)),
+            Number(focusOf(region, false).toFixed(4)),
+        ],
+    }
 }
 
 fs.writeFileSync("static/countries/flagFit.json", JSON.stringify(fit, null, 0) + "\n")
-console.log(`${Object.keys(fit).length} of ${Object.keys(atlas).length} flags are plain bands and may be stretched`)
-for (const code of ["fr", "ru", "it", "de", "nl", "be", "pl", "ps", "es", "cn", "gb", "us", "jp", "pt", "lk", "il", "sd", "dz"]) {
-    console.log("  " + code.padEnd(4), fit[code] ? "stretch" : "keep shape")
+const stretchy = Object.values(fit).filter((f) => f.stretch).length
+console.log(`${stretchy} of ${Object.keys(fit).length} flags are plain bands and may be stretched`)
+console.log("code  stretch  focus across / down")
+for (const code of ["fr", "ru", "ps", "sd", "us", "jp", "ca", "br", "cn", "gb", "es", "cl", "in", "ch"]) {
+    const f = fit[code]
+    if (f) console.log("  " + code.padEnd(4), (f.stretch ? "yes" : "no ").padEnd(8), f.focus[0].toFixed(2), f.focus[1].toFixed(2))
 }
