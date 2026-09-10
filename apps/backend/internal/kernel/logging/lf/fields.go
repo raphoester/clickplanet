@@ -1,9 +1,6 @@
 package lf
 
-import (
-	"fmt"
-	"time"
-)
+import "fmt"
 
 type Field struct {
 	key   string
@@ -26,10 +23,6 @@ func String(key, value string) Field {
 	return Field{key: key, value: value}
 }
 
-func Time(key string, value time.Time) Field {
-	return Field{key: key, value: value}
-}
-
 func Int(key string, value int) Field {
 	return Field{key: key, value: value}
 }
@@ -39,10 +32,6 @@ func Any(key string, value interface{}) Field {
 }
 
 func Bool(key string, value bool) Field {
-	return Field{key: key, value: value}
-}
-
-func Float64(key string, value float64) Field {
 	return Field{key: key, value: value}
 }
 
