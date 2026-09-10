@@ -1,0 +1,20 @@
+/* A flag always stands in front of a country name, and carries the gap the flag
+   emoji it replaced used to leave behind it. Everything here is in em: the box
+   is sized and placed by CountryFlag.tsx to sit on the text's own cap band, and
+   no call site should need a nudge of its own. */
+.country-flag {
+    /* inline-block, not inline-flex: a box holding no text of its own takes its
+       baseline from its bottom edge, which is what puts it on the cap band. */
+    display: inline-block;
+    margin-right: 0.4em;
+    flex: none;
+}
+
+.country-flag-sprite {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    background-repeat: no-repeat;
+    border-radius: 1px;
+    box-shadow: 0 0 0 1px #00000059;
+}

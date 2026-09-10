@@ -34,6 +34,14 @@ describe("Menu", () => {
         expect(aboutDialog()).toBeNull()
     })
 
+    it("draws the country you play for with a flag, not an emoji", () => {
+        const {container} = setup([entry("fr", 500)])
+
+        const playing = container.querySelector(".menu-playing-name")!
+        expect(playing.querySelectorAll(".country-flag")).toHaveLength(1)
+        expect(playing.textContent).toBe("France")
+    })
+
     describe("the collapse", () => {
         it("folds the card away, keeping the country and its rank on screen", async () => {
             const {user} = setup([entry("jp", 500), entry("fr", 250)])
@@ -42,8 +50,18 @@ describe("Menu", () => {
 
             expect(leaderboardRows()).toHaveLength(0)
             expect(screen.queryByRole("button", {name: "About"})).toBeNull()
-            expect(screen.getByText("🇫🇷 France")).toBeDefined()
+            expect(screen.getByText("France")).toBeDefined()
             expect(screen.getByText("#2")).toBeDefined()
+        })
+
+        it("keeps the folded country's flag an image, not an emoji", async () => {
+            const {user, container} = setup([entry("fr", 250)])
+
+            await user.click(collapse())
+
+            const folded = container.querySelector(".menu-header-country")!
+            expect(folded.querySelectorAll(".country-flag")).toHaveLength(1)
+            expect(folded.textContent).not.toMatch(/\p{RI}|\p{Extended_Pictographic}/u)
         })
 
         it("unfolds it again", async () => {
@@ -151,7 +169,7 @@ describe("Menu", () => {
             const {user, setCountry} = setup([entry("fr", 500)])
 
             await user.click(button("Change"))
-            await user.click(screen.getByRole("option", {name: "🇯🇵 Japan"}))
+            await user.click(screen.getByRole("option", {name: "Japan"}))
 
             expect(setCountry).toHaveBeenCalledWith(Countries.get("jp"))
             expect(countryPanel()).toBeNull()
@@ -177,7 +195,7 @@ describe("Menu", () => {
             await user.click(button("About"))
 
             const table = screen.getByRole("region", {name: "Leaderboard"})
-            expect(within(table).getByText("🇫🇷 France")).toBeDefined()
+            expect(within(table).getByText("France")).toBeDefined()
         })
 
         it("pins the coffee button outside the scrolling copy", async () => {

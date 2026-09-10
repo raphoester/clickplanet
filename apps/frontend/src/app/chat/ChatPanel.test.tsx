@@ -101,6 +101,51 @@ describe("ChatPanel", () => {
         expect(container.querySelector("img")).toBeNull()
     })
 
+    it("marks a message with its author's flag, not with a country code", async () => {
+        const {backend} = stubBackend([message("a", "Bonjour")])
+        const {container} = setup(backend)
+
+        await screen.findByText("Bonjour")
+        const badge = container.querySelector(".chat-message-country")!
+        expect(badge.querySelectorAll(".country-flag")).toHaveLength(1)
+        expect(badge.textContent).toBe("")
+        expect(badge.getAttribute("title")).toBe("France")
+    })
+
+    it("names the country its flag stands for, for anyone who cannot see it", async () => {
+        const {backend} = stubBackend([message("a", "Bonjour")])
+        setup(backend)
+
+        await screen.findByText("Bonjour")
+        expect(screen.getByRole("img", {name: "France"})).toBeDefined()
+    })
+
+    it("introduces an author once, not on every message of their run", async () => {
+        const {backend} = stubBackend([
+            message("a", "first"),
+            message("b", "second", 1_700_000_060_000),
+            {...message("c", "third", 1_700_000_120_000), authorName: "Bo", authorTag: "c0ffee"},
+        ])
+        const {container} = setup(backend)
+        await screen.findByText("first")
+
+        expect(container.querySelectorAll(".chat-message-head")).toHaveLength(2)
+        expect(item("first").querySelector(".chat-message-head")).not.toBeNull()
+        expect(item("second").querySelector(".chat-message-head")).toBeNull()
+        expect(item("third").querySelector(".chat-message-head")).not.toBeNull()
+    })
+
+    it("opens a new group when the same author speaks again much later", async () => {
+        const {backend} = stubBackend([
+            message("a", "first"),
+            message("b", "much later", 1_700_000_000_000 + 10 * 60_000),
+        ])
+        const {container} = setup(backend)
+        await screen.findByText("first")
+
+        expect(container.querySelectorAll(".chat-message-head")).toHaveLength(2)
+    })
+
     describe("showing that a message just landed", () => {
         it("highlights one that arrives while the panel is open", async () => {
             const {backend, broadcast} = stubBackend([message("a", "old news")])

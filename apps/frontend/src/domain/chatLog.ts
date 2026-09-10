@@ -35,6 +35,28 @@ export function idsSince(log: readonly ChatMessage[], lastSeenId: string | undef
     return count === 0 ? [] : log.slice(log.length - count).map(message => message.id)
 }
 
+/**
+ * How long a quiet gap has to be before the same author's next message starts a
+ * new group rather than joining the run above it.
+ */
+export const GROUP_WINDOW_MS = 4 * 60_000
+
+/**
+ * Whether a message opens a group — the one message in a run that says who is
+ * talking and when. A run is one author speaking without a long pause; the rest
+ * of it is bubbles alone, which is what a chat looks like.
+ */
+export function startsGroup(
+    previous: ChatMessage | undefined,
+    message: ChatMessage,
+    window: number = GROUP_WINDOW_MS,
+): boolean {
+    if (previous === undefined) return true
+    if (previous.authorTag !== message.authorTag) return true
+    if (previous.authorName !== message.authorName) return true
+    return message.sentAt - previous.sentAt > window
+}
+
 function byArrival(a: ChatMessage, b: ChatMessage): number {
     if (a.sentAt !== b.sentAt) return a.sentAt - b.sentAt
     return a.id < b.id ? -1 : a.id > b.id ? 1 : 0

@@ -1,7 +1,9 @@
 import {useEffect, useRef, useState} from "react";
 import {ChatMessage} from "../../backends/chat.ts";
-import {Countries} from "../../domain/countries.ts";
+import {Countries, nameWithoutFlag} from "../../domain/countries.ts";
+import CountryFlag from "../components/CountryFlag.tsx";
 import {ChevronIcon} from "../components/icons.tsx";
+import {startsGroup} from "../../domain/chatLog.ts";
 import {truncate} from "../truncate.ts";
 import {authorStyle} from "./authorStyle.ts";
 
@@ -67,25 +69,32 @@ export default function ChatLog(props: ChatLogProps) {
     return <div className="chat-log-shell">
         <div className="chat-log" ref={scroll} onScroll={onScroll}>
             <ul className="chat-messages" aria-live="polite">
-                {props.messages.map(message => <li key={message.id}
-                                                   className={messageClass(props.flashing, message.id)}
-                                                   style={authorStyle(message.authorName, message.authorTag)}>
-                    <div className="chat-message-head">
-                        <span className="chat-message-country"
-                              title={Countries.get(message.countryCode)?.name ?? message.countryCode}>
-                            {message.countryCode.toUpperCase()}
-                        </span>
-                        <span className="chat-message-author">
-                            {truncate(message.authorName, AUTHOR_MAX_LENGTH)}
-                        </span>
-                        <span className="chat-message-tag">#{message.authorTag}</span>
-                        <time className="chat-message-time"
-                              dateTime={new Date(message.sentAt).toISOString()}>
-                            {clock.format(message.sentAt)}
-                        </time>
-                    </div>
-                    <p className="chat-message-text">{message.text}</p>
-                </li>)}
+                {props.messages.map((message, index) => {
+                    const opens = startsGroup(props.messages[index - 1], message)
+
+                    return <li key={message.id}
+                               className={messageClass(props.flashing, message.id, opens)}
+                               style={authorStyle(message.authorName, message.authorTag)}>
+                        {opens && <div className="chat-message-head">
+                            <span className="chat-message-country"
+                                  role="img"
+                                  aria-label={countryName(message.countryCode)}
+                                  title={countryName(message.countryCode)}>
+                                <CountryFlag code={message.countryCode}/>
+                            </span>
+                            <span className="chat-message-author">
+                                {truncate(message.authorName, AUTHOR_MAX_LENGTH)}
+                            </span>
+                            <span className="chat-message-tag">#{message.authorTag}</span>
+                            <time className="chat-message-time"
+                                  dateTime={new Date(message.sentAt).toISOString()}>
+                                {clock.format(message.sentAt)}
+                            </time>
+                        </div>}
+
+                        <p className="chat-message-text">{message.text}</p>
+                    </li>
+                })}
             </ul>
         </div>
 
@@ -96,6 +105,21 @@ export default function ChatLog(props: ChatLogProps) {
     </div>
 }
 
-function messageClass(flashing: ReadonlySet<string> | undefined, id: string): string {
-    return flashing?.has(id) ? "chat-message chat-message-new" : "chat-message"
+function messageClass(
+    flashing: ReadonlySet<string> | undefined,
+    id: string,
+    opens: boolean,
+): string {
+    return [
+        "chat-message",
+        opens ? "chat-message-opens" : "chat-message-cont",
+        flashing?.has(id) && "chat-message-new",
+    ].filter(Boolean).join(" ")
+}
+
+// The badge is a flag and nothing else, so the name it stands for is what the
+// tooltip and the accessibility tree carry.
+function countryName(code: string): string {
+    const country = Countries.get(code)
+    return country ? nameWithoutFlag(country) : code
 }

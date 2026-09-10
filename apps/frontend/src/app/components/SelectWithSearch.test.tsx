@@ -22,6 +22,14 @@ describe("SelectWithSearch", () => {
         expect(optionNames()).toEqual(["France", "Japan", "Germany"])
     })
 
+    it("stands a flag in front of every option", () => {
+        const {container} = render(
+            <SelectWithSearch values={VALUES} selected={VALUES[0]} onChange={vi.fn()}/>)
+
+        expect(container.querySelectorAll(".input-select-option .country-flag"))
+            .toHaveLength(VALUES.length)
+    })
+
     it("filters the list as you type, case-insensitively", async () => {
         const user = userEvent.setup()
         render(<SelectWithSearch values={VALUES} selected={VALUES[1]} onChange={vi.fn()}/>)

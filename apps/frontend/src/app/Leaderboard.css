@@ -46,6 +46,13 @@
     white-space: nowrap;
 }
 
+/* Tighter than elsewhere: the country column is the narrowest place a flag
+   stands in, and the usual gap would push names that used to fit into the
+   ellipsis. */
+.leaderboard-entry-country .country-flag {
+    margin-right: 0.3em;
+}
+
 .leaderboard-table-number {
     width: 66px;
     text-align: right;
