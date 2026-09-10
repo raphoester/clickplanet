@@ -200,10 +200,18 @@ export class BorderField {
             halfU = halfV * aspect
         }
 
-        const capped = Math.min(1, MAX_FLAG_RADIUS / Math.max(halfU, halfV))
+        // The cap is on the flag's height, and the width follows from it.
+        // Capping whichever side happens to be larger instead shrinks a wide
+        // country's flag by its own aspect ratio — Antarctica's came out a
+        // quarter of the area, a rectangle adrift in the middle of the
+        // continent rather than the continent wearing it.
+        if (halfV > MAX_FLAG_RADIUS) {
+            halfU *= MAX_FLAG_RADIUS / halfV
+            halfV = MAX_FLAG_RADIUS
+        }
 
-        this.rows[at + 3] = halfU * capped
-        this.rows[at + 7] = halfV * capped
+        this.rows[at + 3] = halfU
+        this.rows[at + 7] = halfV
         this.rows[at + 8] = region.x
         this.rows[at + 9] = region.y
         this.rows[at + 10] = region.width
@@ -217,9 +225,11 @@ export class BorderField {
     }
 }
 
-// The Russian and Antarctic mainlands reach far enough around the globe that a
-// flag stretched over all of one stops reading as a flag. Past this it stays a
-// big flag in the middle of the landmass instead.
+// How tall a painted flag may get. The Russian and Antarctic mainlands reach
+// far enough around the globe that a flag stretched over the whole of one stops
+// reading as a flag, so past this it stays a big flag inside the landmass
+// instead. It bounds the height only — the width follows the flag's own
+// proportions and may exceed it.
 const MAX_FLAG_RADIUS = 0.42
 
 // How far a stretchable flag may be pulled from its own proportions before the
