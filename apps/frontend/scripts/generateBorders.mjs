@@ -164,7 +164,13 @@ for (let t = 0; t < N; t++) {
     const code = shapes[country[t]].code
     const i = Math.min(BL - 1, Math.floor((lat[t] + Math.PI / 2) / Math.PI * BL))
     const j = Math.floor((lon[t] + Math.PI) / (2 * Math.PI) * BLON)
-    const spanLon = Math.ceil(NEIGHBOUR / (2 * Math.PI / BLON) / Math.max(0.05, Math.cos(lat[t])))
+    // How many longitude bins 25km spans depends on the latitude, and near a
+    // pole it is all of them: at 89.9 degrees the whole 360 is a few kilometres
+    // across. Flooring the cosine instead caps the search too early there, so a
+    // pole tile never reaches its own neighbours and every one of them ends up
+    // its own landmass — twelve of them at the south pole, each too small to
+    // paint, each showing bare ice through the flag.
+    const spanLon = Math.min(BLON, Math.ceil(NEIGHBOUR / (2 * Math.PI / BLON) / Math.max(1e-6, Math.cos(lat[t]))))
     for (let di = -spanLat; di <= spanLat; di++) {
         const ii = i + di; if (ii < 0 || ii >= BL) continue
         for (let dj = -spanLon; dj <= spanLon; dj++) {
