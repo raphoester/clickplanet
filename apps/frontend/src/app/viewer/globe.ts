@@ -104,7 +104,9 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     // For comparing against the old behaviour: a big number paints every
     // landmass at full strength however small it is on screen.
     const fadeScale = Number(params.get("fadeScale") ?? 1)
-    const territories = new BorderField(borders, field.size, minimumShare, contrast, minimumTiles)
+    const territories = new BorderField(
+        borders, field.size, minimumShare, contrast, minimumTiles, params.get("stretch") !== "0",
+    )
 
     field.setLandmasses(borders.assignment)
     uniforms.landmassData.value = territories.landmassData

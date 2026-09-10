@@ -20,6 +20,7 @@
 import * as THREE from "three"
 import type {OwnerChange} from "../../domain/tileOwnership.ts"
 import {regions} from "./atlas.ts"
+import stretchable from "../../../static/countries/flagFit.json"
 
 // Per landmass: centre + half-width, east axis + half-height, atlas region, and
 // the leader's share plus how far the landmass itself reaches. A zero-width
@@ -64,6 +65,7 @@ export class BorderField {
      * @param minimumShare a leader holding less than this paints nothing, so a
      *        landmass barely touched stays bare Earth rather than a ghost of a
      *        flag.
+     * @param stretch off, every flag keeps its own proportions and is cropped.
      * @param contrast bends the share → opacity curve. Straight share is too
      *        generous when one player holds ~70% of the planet: everything goes
      *        nearly solid and the globe is wall-to-wall flags again. Cubed, a
@@ -76,6 +78,7 @@ export class BorderField {
         private readonly minimumShare = 0.08,
         private readonly contrast = 1,
         private readonly minimumTiles = 4,
+        private readonly stretch = true,
     ) {
         this.landmassCount = data.codes.length
         this.ownerOf = new Array(tileCount + 1)
@@ -171,16 +174,36 @@ export class BorderField {
             return true
         }
 
-        // The flag keeps its own proportions. It is fitted to cover the whole
-        // landmass and then cropped by its coastline, rather than letterboxed
-        // inside the bounding box with slack down the sides.
+        // Fitting a flag to a shape nobody chose. Keeping its proportions means
+        // covering the landmass and letting the coastline crop the rest, which
+        // is right for a flag carrying a device — but on a narrow country it
+        // leaves only the middle of the flag showing, and the middle of a
+        // tricolour is one band. Portugal and Sri Lanka held by France came out
+        // plain white.
+        //
+        // A flag that is only bands can be pulled to the country's own shape
+        // instead and still say what it is, so it is, up to the point where the
+        // bands stop reading as a flag.
         const aspect = region.width / region.height
-        const halfU = this.data.frames[landmass * 5 + 3]
-        const halfV = this.data.frames[landmass * 5 + 4]
-        const height = Math.min(Math.max(halfV, halfU / aspect), MAX_FLAG_RADIUS)
+        const reachU = this.data.frames[landmass * 5 + 3]
+        const reachV = this.data.frames[landmass * 5 + 4]
 
-        this.rows[at + 3] = height * aspect
-        this.rows[at + 7] = height
+        let halfU: number
+        let halfV: number
+        if (this.stretch && holder !== undefined && stretches.has(holder) && reachU > 0 && reachV > 0) {
+            const wanted = reachU / reachV
+            const pulled = Math.min(Math.max(wanted, aspect / MAX_STRETCH), aspect * MAX_STRETCH)
+            halfV = Math.max(reachV, reachU / pulled)
+            halfU = halfV * pulled
+        } else {
+            halfV = Math.max(reachV, reachU / aspect)
+            halfU = halfV * aspect
+        }
+
+        const capped = Math.min(1, MAX_FLAG_RADIUS / Math.max(halfU, halfV))
+
+        this.rows[at + 3] = halfU * capped
+        this.rows[at + 7] = halfV * capped
         this.rows[at + 8] = region.x
         this.rows[at + 9] = region.y
         this.rows[at + 10] = region.width
@@ -198,3 +221,10 @@ export class BorderField {
 // flag stretched over all of one stops reading as a flag. Past this it stays a
 // big flag in the middle of the landmass instead.
 const MAX_FLAG_RADIUS = 0.42
+
+// How far a stretchable flag may be pulled from its own proportions before the
+// rest is taken out of the crop instead. Past this even bands stop reading as a
+// flag and start reading as stripes of paint.
+const MAX_STRETCH = 2.6
+
+const stretches: ReadonlySet<string> = new Set(Object.keys(stretchable))
