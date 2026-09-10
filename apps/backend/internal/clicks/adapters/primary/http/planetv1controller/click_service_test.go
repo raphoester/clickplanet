@@ -92,8 +92,16 @@ func TestListenForUpdates(t *testing.T) {
 	listen := func(t *testing.T, subscriber UpdatesSubscriber) (*connect.ServerStreamForClient[planetv1.TileUpdate], error) {
 		t.Helper()
 
-		return newTestClientWith(t, stubService{}, subscriber).ListenForUpdates(
+		stream, err := newTestClientWith(t, stubService{}, subscriber).ListenForUpdates(
 			context.Background(), connect.NewRequest(&planetv1.ListenForUpdatesRequest{}))
+
+		// Closing it releases the handler, which is still parked on its
+		// subscription; httptest.Server.Close blocks forever otherwise.
+		if stream != nil {
+			t.Cleanup(func() { _ = stream.Close() })
+		}
+
+		return stream, err
 	}
 
 	t.Run("carries an update to the caller", func(t *testing.T) {

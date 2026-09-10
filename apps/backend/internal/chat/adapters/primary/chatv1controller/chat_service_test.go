@@ -119,8 +119,16 @@ func TestListenForMessages(t *testing.T) {
 
 		server, _ := startChatServerWith(t, &stubService{}, nil, subscriber)
 
-		return chatv1connect.NewChatServiceClient(server.Client(), server.URL).
+		stream, err := chatv1connect.NewChatServiceClient(server.Client(), server.URL).
 			ListenForMessages(context.Background(), connect.NewRequest(&chatv1.ListenForMessagesRequest{}))
+
+		// Closing it releases the handler, which is still parked on its
+		// subscription; httptest.Server.Close blocks forever otherwise.
+		if stream != nil {
+			t.Cleanup(func() { _ = stream.Close() })
+		}
+
+		return stream, err
 	}
 
 	t.Run("carries a message to the caller", func(t *testing.T) {
