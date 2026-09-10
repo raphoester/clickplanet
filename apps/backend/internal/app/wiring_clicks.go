@@ -17,6 +17,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/domain/click_handler_service"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/domain/click_handler_service/prom_click_handler_service"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/domain/runner"
+	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/clickbudget"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ipblock"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging/lf"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ratelimit"
@@ -96,6 +97,16 @@ func (a *App) configureClicks(_ context.Context) error {
 
 	interceptors = append(interceptors, planetv1controller.NewRateLimitInterceptor(clickLimiter))
 
+	// Last, and after the throttle: a click the throttle refused never reached
+	// the map, so charging a budget for it would bill the caller for nothing.
+	budgetInterceptor, err := a.configureClickBudget()
+	if err != nil {
+		return err
+	}
+	if budgetInterceptor != nil {
+		interceptors = append(interceptors, budgetInterceptor)
+	}
+
 	a.mountRPC(planetv1connect.NewClickServiceHandler(
 		clickService,
 		connect.WithInterceptors(interceptors...),
@@ -120,6 +131,39 @@ func (a *App) configureClickSessions() (connect.Interceptor, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create the click session interceptor: %w", err)
 	}
+
+	return interceptor, nil
+}
+
+// configureClickBudget returns nil unless sessions are on and a budget is
+// configured. Without a session there is no ID to charge, so a budget would
+// have nothing to key on and would silently pass every click.
+func (a *App) configureClickBudget() (connect.Interceptor, error) {
+	if a.sessionSigner == nil {
+		return nil, nil
+	}
+
+	// Retention comes from the signer rather than from the config: a tally
+	// forgotten while its token is still valid would hand that token a second
+	// budget, and taking the TTL from the one thing that enforces it is what
+	// makes that impossible to misconfigure.
+	budget := clickbudget.New(
+		a.config.Session.ClickBudget,
+		a.sessionSigner.TTL(),
+		xtime.ActualProvider{},
+	)
+	if budget == nil {
+		return nil, nil
+	}
+
+	a.runners = append(a.runners, func() { budget.Run(a.ctx) })
+
+	interceptor, err := planetv1controller.NewClickBudgetInterceptor(budget, a.promRegistry)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create the click budget interceptor: %w", err)
+	}
+
+	a.logger.Info("click budget enabled", lf.Int("clicks", a.config.Session.ClickBudget.Clicks))
 
 	return interceptor, nil
 }

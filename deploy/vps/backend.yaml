@@ -58,6 +58,22 @@ session:
   rateLimiter:
     perSecond: 0.033
     burst: 10
+  # What one mint is worth. 1000 clicks is about 17 minutes of clicking at the
+  # throttle without a single pause, which is not something a player does and is
+  # exactly what a bot does — so this is sized as a signal, not as a brake.
+  # Watch click_budget_exhausted: near zero is the healthy reading, and anything
+  # sustained is automation holding a genuine session.
+  #
+  # It deliberately does not slow a bot down. Exhausting a budget costs one more
+  # mint, and the throttle above allows ~118 of those an hour; a budget low
+  # enough to bite into throughput (~30) would refuse players mid-game. The
+  # click rateLimiter is what caps the rate, and it still does.
+  #
+  # A player who does hit this never sees it: the refusal is the same 401 a
+  # lapsed token gets, and the client mints again and retries the click.
+  clickBudget:
+    clicks: 1000
+    sweepInterval: 5m
   turnstile:
     enabled: true
     # Must match the frontend origin the widget is embedded on, and must not

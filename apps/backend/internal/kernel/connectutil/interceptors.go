@@ -71,6 +71,53 @@ func NewIPBlockInterceptor(
 	})
 }
 
+type ClickBudget interface {
+	Spend(id string) bool
+}
+
+// NewClickBudgetInterceptor charges each call to the session that carried it,
+// and refuses the call once that session has spent what it was worth.
+//
+// It must sit after the session interceptor, which is what puts the ID on the
+// context, and after the throttle, so that a call the throttle already refused
+// does not also cost a budget it never got to use.
+//
+// A caller with no session ID passes untouched. That is not a hole: it is the
+// state of every caller when sessions are off or not yet enforced, and a
+// budget that refused them would take the click path down with it.
+//
+// Exhaustion answers CodeUnauthenticated, the same as an absent or lapsed
+// token, because it calls for the same thing from the client: mint again and
+// retry. A code of its own would only teach a caller to tell the two apart.
+func NewClickBudgetInterceptor(
+	budget ClickBudget,
+	refusal error,
+	onExhausted func(),
+	procedures ...string,
+) connect.Interceptor {
+	return connect.UnaryInterceptorFunc(func(next connect.UnaryFunc) connect.UnaryFunc {
+		return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
+			if !slices.Contains(procedures, req.Spec().Procedure) {
+				return next(ctx, req)
+			}
+
+			id := ctxutil.GetSessionID(ctx)
+			if id == "" {
+				return next(ctx, req)
+			}
+
+			if !budget.Spend(id) {
+				if onExhausted != nil {
+					onExhausted()
+				}
+				return nil, connect.NewError(connect.CodeUnauthenticated, refusal)
+			}
+
+			return next(ctx, req)
+		}
+	})
+}
+
 // SessionHeader carries the token minted by session.v1.SessionService. A custom
 // header rather than a field on each request: it is an edge concern, the same
 // on every procedure, and keeping it out of the message means the contract of

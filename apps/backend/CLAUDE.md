@@ -195,7 +195,11 @@ The signature is checked **before** the expiry, in constant time, so a forger le
 
 **Two secrets, neither in git.** `session.secret` signs the tokens; anyone holding it can mint one the API accepts. `session.turnstile.secret` is the widget's secret half. Both come from the environment via `deploy/vps/docker-compose.yaml`, as `chat.service.tagSalt` does. An empty `session.secret` generates one at boot and warns — which invalidates every session in flight on each restart, costing every player one extra round trip.
 
-**What it does not stop:** a person who solves Turnstile in a real browser and then runs a userscript. They hold a genuine session, and nothing here distinguishes them from a player. This raises the floor from "twenty lines of Python" to "drive a real browser"; the signal that survives that is behavioural — timing regularity and tile-id structure over a session — which is what `ctxutil.GetSessionID` exists to be keyed on.
+**`session.clickBudget` caps what one mint is worth** (`kernel/clickbudget`, keyed on the session id the interceptor puts on the context). A session spends `clicks` clicks and is then refused `CodeUnauthenticated`, exactly as a lapsed token is, so the client mints another and retries without the player seeing it. Retention comes from the signer's own TTL rather than from config — a tally forgotten while its token is still valid would hand that token a second budget.
+
+**Be clear about what a budget buys, because it is not throughput.** The sustained click rate is the throttle's to set, and a caller who exhausts a budget just mints again: at one mint per 30s the mint throttle allows ~118/hour, so a budget only bites into throughput below ~30 clicks — which is a number that refuses players mid-game. Size it far above real play and it buys the two things it is actually good for: a bound on what a token that escapes its browser is worth, and a signal. `click_budget_exhausted` counts sessions that clicked at the throttle without pause for as long as the budget covers; players do not, so a rate here that is not near zero is the shape of automation. Production runs 1000 — about 17 minutes of unbroken clicking.
+
+**What none of this stops:** a person who solves Turnstile in a real browser and then runs a userscript. They hold a genuine session, and nothing here distinguishes them from a player. This raises the floor from "twenty lines of Python" to "drive a real browser"; the signal that survives that is behavioural — timing regularity and tile-id structure over a session — which is what `ctxutil.GetSessionID` exists to be keyed on, and what the budget counter is a first, crude reading of.
 
 
 ### Shared interceptors
@@ -205,10 +209,13 @@ The signature is checked **before** the expiry, in constant time, so a forger le
 - `NewRateLimitInterceptor(limiter, refusal, procedures...)` — a `kernel/ratelimit` bucket keyed on the context IP, answering `CodeResourceExhausted` (429)
 - `NewIPBlockInterceptor(blocklist, refusal, onBlocked, procedures...)` — an `ipblock.Blocklist` lookup answering `CodePermissionDenied` (403), with an optional hook the click counter hangs on
 - `NewSessionInterceptor(verifier, clock, refusal, enforce, onVerdict, procedures...)` — a `kernel/session` signature check answering `CodeUnauthenticated` (401), which puts the session id on the context and, with `enforce` false, counts without refusing
+- `NewClickBudgetInterceptor(budget, refusal, onExhausted, procedures...)` — a `kernel/clickbudget` charge against that session id, answering `CodeUnauthenticated` (401) once it is spent. A caller with no session id passes untouched, which is every caller when sessions are off or not yet enforced
 
 Each context keeps a thin named constructor over these — `planetv1controller.NewRateLimitInterceptor` and `NewVPNBlockInterceptor`, `chatv1controller.NewRateLimitInterceptor` and `NewBlocklistInterceptor` — which is where the procedure list, the refusal wording and the metric live. **A context names its own policy; neither reimplements the mechanism.**
 
 Both chains order them the same way: error mapping outermost, then the blocklist, then the limiter. **The blocklist has to sit outside the limiter** — a refused address must not also spend a token, or its next call would come back 429 and the client would report the wrong reason. `TestVPNBlockRunsBeforeTheThrottle` pins that for clicks.
+
+The click chain then ends with the budget, **inside** the limiter for the mirror-image reason: a click the throttle already refused never reached the map, so charging a budget for it would bill a caller for nothing. Full order: error mapping, blocklist, session, throttle, budget.
 
 ### Durability
 
@@ -235,6 +242,8 @@ Two of these are here because both bounded contexts need them and neither should
 `session` mints and verifies the click token — see [Sessions](#sessions-internalsession). `turnstile` is the siteverify client it is fed by; both are in the kernel because the session context mints with them and the clicks context verifies with them, and neither context may depend on the other.
 
 `ipblock` is the VPN prefix set — see [VPN blocklist](#vpn-blocklist). `ratelimit` is a keyed token bucket held in this process, like the tile map it protects — with one API instance, a shared counter would buy nothing. Its `Run` loop periodically forgets the buckets that have refilled to capacity, which is free: such a bucket holds exactly what a freshly created one would, and without it the map would keep an entry per address that ever clicked.
+
+`clickbudget` is the non-refilling counterpart to `ratelimit`, keyed on a session id instead of an address — a tally that only goes up, and is swept once the token owning it can no longer be verified. It is a separate type rather than a `ratelimit` variant precisely because a bucket refills, which is the one thing a budget must not do.
 
 `ipscope` decides what a bucket is keyed on, and every throttle goes through it. Over IPv4 that is the address; over IPv6 it is the surrounding **/64**, because the smallest allocation a subscriber receives is a /64 and most receive far more — a bucket per v6 address is one the same line walks out of by picking its next address, turning one home connection into thousands of callers with a throttle each. The session token binds to the same unit, so the address a token is valid for and the address that spends a budget cannot diverge. Blocking deliberately does **not** use it: the VPN and datacenter lists are precise prefixes already, and widening a hit to the surrounding /64 would refuse neighbours who are not on them.
 

@@ -7,6 +7,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/domain/chat_service"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/secondary/memory_tile_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/domain/runner"
+	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/clickbudget"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ipblock"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ratelimit"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/turnstile"
@@ -47,6 +48,12 @@ type SessionConfig struct {
 	// Per-IP throttle on minting. Minting costs a siteverify round trip, so it
 	// needs its own budget rather than the click one.
 	RateLimiter ratelimit.Config
+
+	// Caps what one minted token is worth in clicks, after which the caller
+	// attests again. Off by default; it does not lower a caller's click rate,
+	// which is the throttle's job — see the clickbudget package for what it
+	// does and does not buy, and for how to size one.
+	ClickBudget clickbudget.Config
 
 	Turnstile turnstile.Config
 }

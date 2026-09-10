@@ -81,6 +81,25 @@ session:
     perSecond: 0.033
     burst: 10
     sweepInterval: 1m
+  # Caps what one minted token is worth. A session that spends its clicks is
+  # refused exactly as a lapsed one is, so the client mints another and retries
+  # without the player noticing.
+  #
+  # This is not a second rate limiter and does not lower anyone's click rate —
+  # a caller who exhausts a budget simply mints again, and the mint throttle
+  # above allows far more of that than a sane budget needs. It bounds what a
+  # token that escapes its browser is worth, and it makes click_budget_exhausted
+  # a usable bot signal: nobody playing by hand clicks at the throttle without
+  # pause for as long as a well-sized budget covers.
+  #
+  # Size it well above real play. A budget near what the throttle allows over a
+  # whole TTL refuses players mid-game and still does not slow a bot down.
+  clickBudget:
+    # Zero or less disables it, leaving the click path exactly as it was.
+    clicks: 0
+    # Only affects memory. Tallies are dropped once the token owning them has
+    # expired and can no longer be verified anyway.
+    sweepInterval: 5m
   turnstile:
     # Off mints a session for anyone who asks, which is how a local backend
     # works without a widget and a secret. The click path is still exercised —
