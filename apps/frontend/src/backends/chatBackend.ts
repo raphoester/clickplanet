@@ -13,13 +13,7 @@ import {ChatMessage as ChatMessagePb} from "../gen/grpc/chat/v1/chat_pb.ts";
 import {ChatService} from "../gen/grpc/chat/v1/chat_connect.ts";
 import {Code, ConnectError, createPromiseClient, PromiseClient} from "@connectrpc/connect";
 import {createConnectTransport} from "@connectrpc/connect-web";
-import {Config, openSocket, retrying, websocketUrl} from "./transport.ts";
-
-const CHAT_ROUTE = "/ws/chat"
-
-export function chatWebsocketUrl(baseUrl: string): string {
-    return websocketUrl(baseUrl, CHAT_ROUTE)
-}
+import {Config, NO_TIMEOUT, openStream, retrying} from "./transport.ts";
 
 export function newChatServiceClient(config: Config): PromiseClient<typeof ChatService> {
     return createPromiseClient(ChatService, createConnectTransport({
@@ -31,10 +25,7 @@ export function newChatServiceClient(config: Config): PromiseClient<typeof ChatS
 }
 
 export class ChatServiceBackend implements ChatSender, ChatHistoryGetter, ChatListener {
-    constructor(
-        private config: Config,
-        private client: PromiseClient<typeof ChatService>,
-    ) {
+    constructor(private client: PromiseClient<typeof ChatService>) {
     }
 
     public async sendMessage(message: OutgoingMessage): Promise<ChatMessage> {
@@ -69,10 +60,11 @@ export class ChatServiceBackend implements ChatSender, ChatHistoryGetter, ChatLi
     }
 
     public listenForMessages(callback: (message: ChatMessage) => void): () => void {
-        return openSocket(chatWebsocketUrl(this.config.baseUrl), (data) => {
-            const message = decodeChatMessage(data)
-            if (message) callback(message)
-        })
+        return openStream(
+            (signal) => this.client.listenForMessages({}, {signal, timeoutMs: NO_TIMEOUT}),
+            (message) => callback(decodedMessage(message)),
+            "chat",
+        )
     }
 }
 
@@ -93,21 +85,7 @@ function translate(e: unknown): unknown {
     }
 }
 
-export function decodeChatMessage(data: unknown): ChatMessage | undefined {
-    if (!(data instanceof ArrayBuffer)) {
-        console.error("Ignoring a non-binary chat frame", data)
-        return undefined
-    }
-
-    try {
-        return decodedMessage(ChatMessagePb.fromBinary(new Uint8Array(data)))
-    } catch (e) {
-        console.error("Ignoring a malformed chat frame", e)
-        return undefined
-    }
-}
-
-function decodedMessage(message: ChatMessagePb): ChatMessage {
+export function decodedMessage(message: ChatMessagePb): ChatMessage {
     return {
         id: message.id,
         sentAt: Number(message.sentAtUnixMs),

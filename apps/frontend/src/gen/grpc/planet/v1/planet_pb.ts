@@ -241,6 +241,37 @@ export class GetMapResponse extends Message<GetMapResponse> {
 }
 
 /**
+ * @generated from message planet.v1.ListenForUpdatesRequest
+ */
+export class ListenForUpdatesRequest extends Message<ListenForUpdatesRequest> {
+  constructor(data?: PartialMessage<ListenForUpdatesRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.ListenForUpdatesRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListenForUpdatesRequest {
+    return new ListenForUpdatesRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListenForUpdatesRequest {
+    return new ListenForUpdatesRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListenForUpdatesRequest {
+    return new ListenForUpdatesRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListenForUpdatesRequest | PlainMessage<ListenForUpdatesRequest> | undefined, b: ListenForUpdatesRequest | PlainMessage<ListenForUpdatesRequest> | undefined): boolean {
+    return proto3.util.equals(ListenForUpdatesRequest, a, b);
+  }
+}
+
+/**
  * @generated from message planet.v1.TileUpdate
  */
 export class TileUpdate extends Message<TileUpdate> {

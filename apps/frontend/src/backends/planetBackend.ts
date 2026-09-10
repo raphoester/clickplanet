@@ -13,16 +13,10 @@ import {SessionService} from "../gen/grpc/session/v1/session_connect.ts";
 import {Code, ConnectError, createPromiseClient, PromiseClient} from "@connectrpc/connect";
 import {createConnectTransport} from "@connectrpc/connect-web";
 import {v4 as generateUUID} from 'uuid';
-import {Config, openSocket, retrying, websocketUrl as socketUrl} from "./transport.ts";
+import {Config, NO_TIMEOUT, openStream, retrying} from "./transport.ts";
 import {NoSession, SESSION_HEADER, SessionProvider, SessionUnavailableError} from "./session.ts";
 
 export type {Config}
-
-const TILE_UPDATE_ROUTE = "/ws/listen"
-
-export function websocketUrl(baseUrl: string): string {
-    return socketUrl(baseUrl, TILE_UPDATE_ROUTE)
-}
 
 export function newClickServiceClient(config: Config): PromiseClient<typeof ClickService> {
     return createPromiseClient(ClickService, createConnectTransport({
@@ -52,7 +46,6 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
     private readonly stopListening: () => void
 
     constructor(
-        private config: Config,
         private client: PromiseClient<typeof ClickService>,
         batchUpdateDurationMs: number,
         private session: SessionProvider = new NoSession(),
@@ -130,7 +123,11 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
     }
 
     public listenForUpdates(callback: (update: Update) => void): () => void {
-        return openUpdatesSocket(websocketUrl(this.config.baseUrl), callback)
+        return openStream(
+            (signal) => this.client.listenForUpdates({}, {signal, timeoutMs: NO_TIMEOUT}),
+            (message) => callback(updateOf(message)),
+            "tile updates",
+        )
     }
 
     public listenForUpdatesBatch(
@@ -167,31 +164,10 @@ export function bindingsOf(res: GetMapResponse): Map<number, string> {
     return bindings
 }
 
-export function openUpdatesSocket(
-    url: string,
-    onUpdate: (update: Update) => void,
-): () => void {
-    return openSocket(url, (data) => {
-        const update = decodeTileUpdate(data)
-        if (update) onUpdate(update)
-    })
-}
-
-export function decodeTileUpdate(data: unknown): Update | undefined {
-    if (!(data instanceof ArrayBuffer)) {
-        console.error("Ignoring a non-binary websocket frame", data)
-        return undefined
-    }
-
-    try {
-        const message = TileUpdate.fromBinary(new Uint8Array(data))
-        return {
-            tile: message.tileId,
-            previousCountry: message.previousCountryId === "" ? undefined : message.previousCountryId,
-            newCountry: message.countryId,
-        }
-    } catch (e) {
-        console.error("Ignoring a malformed tile update frame", e)
-        return undefined
+export function updateOf(message: TileUpdate): Update {
+    return {
+        tile: message.tileId,
+        previousCountry: message.previousCountryId === "" ? undefined : message.previousCountryId,
+        newCountry: message.countryId,
     }
 }

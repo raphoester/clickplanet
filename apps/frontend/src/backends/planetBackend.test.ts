@@ -1,8 +1,8 @@
-import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
-import {bindingsOf, decodeTileUpdate, openUpdatesSocket, PlanetBackend, websocketUrl} from "./planetBackend.ts"
+import {describe, expect, it, vi} from "vitest"
+import {bindingsOf, PlanetBackend, updateOf} from "./planetBackend.ts"
 import {Code, ConnectError} from "@connectrpc/connect"
 import {GetMapResponse, TileUpdate} from "../gen/grpc/planet/v1/planet_pb.ts"
-import {RateLimitedError, type Update, VPNBlockedError} from "./backend.ts"
+import {RateLimitedError, VPNBlockedError} from "./backend.ts"
 import {SESSION_HEADER, type SessionProvider, SessionUnavailableError} from "./session.ts"
 
 function fixedSession(token: string): SessionProvider {
@@ -32,171 +32,15 @@ function failingSession(): SessionProvider {
     }
 }
 
-function frame(update: Partial<{tileId: number, countryId: string, previousCountryId: string}>): ArrayBuffer {
-    const bytes = new TileUpdate(update).toBinary()
-    return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer
-}
-
-describe("websocketUrl", () => {
-    it("swaps the scheme and keeps the host", () => {
-        expect(websocketUrl("https://api.clickplanet.lol")).toBe("wss://api.clickplanet.lol/ws/listen")
-        expect(websocketUrl("http://localhost:8080")).toBe("ws://localhost:8080/ws/listen")
-    })
-
-    it("only rewrites the leading scheme", () => {
-        expect(websocketUrl("https://api.http://x.dev")).toBe("wss://api.http://x.dev/ws/listen")
-    })
-})
-
-describe("decodeTileUpdate", () => {
-    it("decodes a tile update frame", () => {
-        expect(decodeTileUpdate(frame({tileId: 7, countryId: "jp", previousCountryId: "fr"})))
+describe("updateOf", () => {
+    it("maps a tile update onto the shape the globe consumes", () => {
+        expect(updateOf(new TileUpdate({tileId: 7, countryId: "jp", previousCountryId: "fr"})))
             .toEqual({tile: 7, previousCountry: "fr", newCountry: "jp"})
     })
 
     it("reports an unowned previous tile as undefined rather than an empty code", () => {
-        expect(decodeTileUpdate(frame({tileId: 1, countryId: "fr"})))
+        expect(updateOf(new TileUpdate({tileId: 1, countryId: "fr"})))
             .toEqual({tile: 1, previousCountry: undefined, newCountry: "fr"})
-    })
-
-    it("drops a frame it cannot parse", () => {
-        vi.spyOn(console, "error").mockImplementation(() => {})
-        expect(decodeTileUpdate(new Uint8Array([0xff, 0xff, 0xff, 0xff]).buffer)).toBeUndefined()
-        expect(decodeTileUpdate("not binary")).toBeUndefined()
-    })
-})
-
-class FakeWebSocket {
-    static instances: FakeWebSocket[] = []
-
-    binaryType = ""
-    onopen: (() => void) | null = null
-    onmessage: ((event: {data: unknown}) => void) | null = null
-    onclose: (() => void) | null = null
-    closed = false
-
-    constructor(public url: string) {
-        FakeWebSocket.instances.push(this)
-    }
-
-    close() {
-        this.closed = true
-        this.onclose?.()
-    }
-
-    drop() {
-        this.onclose?.()
-    }
-}
-
-describe("openUpdatesSocket", () => {
-    beforeEach(() => {
-        vi.useFakeTimers()
-        FakeWebSocket.instances = []
-        vi.stubGlobal("WebSocket", FakeWebSocket)
-    })
-
-    afterEach(() => {
-        vi.useRealTimers()
-        vi.unstubAllGlobals()
-    })
-
-    const latest = () => FakeWebSocket.instances[FakeWebSocket.instances.length - 1]
-
-    it("connects and forwards decoded updates", () => {
-        const received: Update[] = []
-        openUpdatesSocket("wss://example.test/ws", u => received.push(u))
-
-        expect(FakeWebSocket.instances).toHaveLength(1)
-        expect(latest().url).toBe("wss://example.test/ws")
-        expect(latest().binaryType).toBe("arraybuffer")
-
-        latest().onmessage!({data: frame({tileId: 3, countryId: "de"})})
-        expect(received).toEqual([{tile: 3, previousCountry: undefined, newCountry: "de"}])
-    })
-
-    it("does not forward a frame it could not decode", () => {
-        vi.spyOn(console, "error").mockImplementation(() => {})
-        const received: Update[] = []
-        openUpdatesSocket("wss://example.test/ws", u => received.push(u))
-
-        latest().onmessage!({data: "junk"})
-        expect(received).toEqual([])
-    })
-
-    it("reconnects after the connection drops", () => {
-        openUpdatesSocket("wss://example.test/ws", () => {})
-        expect(FakeWebSocket.instances).toHaveLength(1)
-
-        latest().drop()
-        vi.advanceTimersByTime(500)
-        expect(FakeWebSocket.instances).toHaveLength(2)
-    })
-
-    it("backs off exponentially while the backend stays down", () => {
-        openUpdatesSocket("wss://example.test/ws", () => {})
-
-        const delays = [500, 1000, 2000, 4000]
-        for (const [i, delay] of delays.entries()) {
-            latest().drop()
-            vi.advanceTimersByTime(delay - 1)
-            expect(FakeWebSocket.instances, `retry ${i} fired early`).toHaveLength(i + 1)
-            vi.advanceTimersByTime(1)
-            expect(FakeWebSocket.instances, `retry ${i} did not fire`).toHaveLength(i + 2)
-        }
-    })
-
-    it("caps the backoff", () => {
-        openUpdatesSocket("wss://example.test/ws", () => {})
-        for (let i = 0; i < 20; i++) {
-            latest().drop()
-            vi.advanceTimersByTime(30_000)
-        }
-        const before = FakeWebSocket.instances.length
-        latest().drop()
-        vi.advanceTimersByTime(30_000)
-        expect(FakeWebSocket.instances).toHaveLength(before + 1)
-    })
-
-    it("resets the backoff once a connection succeeds", () => {
-        openUpdatesSocket("wss://example.test/ws", () => {})
-
-        latest().drop()
-        vi.advanceTimersByTime(500)
-        latest().drop()
-        vi.advanceTimersByTime(1000)
-
-        latest().onopen!()
-
-        const before = FakeWebSocket.instances.length
-        latest().drop()
-        vi.advanceTimersByTime(500)
-        expect(FakeWebSocket.instances).toHaveLength(before + 1)
-    })
-
-    it("closes the socket when the caller stops listening", () => {
-        const close = openUpdatesSocket("wss://example.test/ws", () => {})
-        const socket = latest()
-
-        close()
-        expect(socket.closed).toBe(true)
-    })
-
-    it("does not reconnect after the caller stops listening", () => {
-        const close = openUpdatesSocket("wss://example.test/ws", () => {})
-        close()
-
-        vi.advanceTimersByTime(60_000)
-        expect(FakeWebSocket.instances).toHaveLength(1)
-    })
-
-    it("cancels a retry that was already scheduled", () => {
-        const close = openUpdatesSocket("wss://example.test/ws", () => {})
-        latest().drop()
-        close()
-
-        vi.advanceTimersByTime(60_000)
-        expect(FakeWebSocket.instances).toHaveLength(1)
     })
 })
 
@@ -246,7 +90,7 @@ function getMapMock(impl?: (req: GetMapRequestFields) => Promise<GetMapResponse>
 describe("PlanetBackend.getCurrentOwnershipsByBatch", () => {
     const backendWith = (getMap: GetMapMock) => {
         const client = {click: vi.fn(), getMap, mapDensity: vi.fn()} as never
-        return new PlanetBackend({baseUrl: "https://api.test"}, client, 1_000)
+        return new PlanetBackend(client, 1_000)
     }
 
     const collect = async (backend: PlanetBackend, signal?: AbortSignal) => {
@@ -306,7 +150,7 @@ describe("PlanetBackend.getCurrentOwnershipsByBatch", () => {
 describe("PlanetBackend.clickTile", () => {
     const backendWith = (click: ReturnType<typeof vi.fn>, session?: SessionProvider) => {
         const clientStub = {click, getMap: vi.fn(), mapDensity: vi.fn()} as never
-        return new PlanetBackend({baseUrl: "https://api.test"}, clientStub, 1_000, session)
+        return new PlanetBackend(clientStub, 1_000, session)
     }
 
     const headersOf = (click: ReturnType<typeof vi.fn>, call = 0) =>

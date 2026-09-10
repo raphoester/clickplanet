@@ -21,8 +21,8 @@ const session: SessionProvider = sitekey
     ? new SessionClient(newSessionServiceClient(config), turnstileAttester(sitekey, "session"))
     : new NoSession()
 
-const backend = new PlanetBackend(config, newClickServiceClient(config), 100, session)
-const chatBackend = new ChatServiceBackend(config, newChatServiceClient(config))
+const backend = new PlanetBackend(newClickServiceClient(config), 100, session)
+const chatBackend = new ChatServiceBackend(newChatServiceClient(config))
 
 createRoot(document.getElementById('root')!).render(
     <StrictMode>

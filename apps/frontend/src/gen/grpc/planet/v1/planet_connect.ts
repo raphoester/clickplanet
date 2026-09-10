@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ClickRequest, ClickResponse, GetMapRequest, GetMapResponse, MapDensityRequest, MapDensityResponse } from "./planet_pb.js";
+import { ClickRequest, ClickResponse, GetMapRequest, GetMapResponse, ListenForUpdatesRequest, MapDensityRequest, MapDensityResponse, TileUpdate } from "./planet_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -40,6 +40,15 @@ export const ClickService = {
       O: GetMapResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * @generated from rpc planet.v1.ClickService.ListenForUpdates
+     */
+    listenForUpdates: {
+      name: "ListenForUpdates",
+      I: ListenForUpdatesRequest,
+      O: TileUpdate,
+      kind: MethodKind.ServerStreaming,
     },
   }
 } as const;

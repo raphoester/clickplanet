@@ -20,12 +20,18 @@ npm run mobile     # Screenshot/inspect a URL as a phone (see "Debugging mobile 
 `.github/workflows/check-frontend.yml` runs lint, build and tests on every PR
 touching this app.
 
-**`npm run dev` cannot reach the production API.** `api.clickplanet.lol` sends
-`access-control-allow-origin: https://clickplanet.lol` and nothing else, so the
-browser blocks every request from `localhost`. Point `VITE_API_BASE_URL` at a
-local backend, or swap `PlanetBackend` for `FakeBackend` in `src/main.tsx` — the
-fake serves a full map and simulates live updates. `FakeChatBackend` is the same
-swap for `ChatServiceBackend`, and reproduces every refusal the chat can show.
+**`npm run dev` can reach the production API**, on port 5173 only:
+`api.clickplanet.lol` answers CORS for `http://localhost:5173` as well as for the
+deployed origin, so `VITE_API_BASE_URL=https://api.clickplanet.lol npm run dev`
+works against real data. **Clicking will not** — `session.turnstile.hostnames`
+refuses a token minted from localhost, deliberately — but the map, the
+leaderboard and both live streams do. That entry is temporary; see
+[deploy/vps/README.md](../../deploy/vps/README.md).
+
+Otherwise point `VITE_API_BASE_URL` at a local backend, or swap `PlanetBackend`
+for `FakeBackend` in `src/main.tsx` — the fake serves a full map and simulates
+live updates. `FakeChatBackend` is the same swap for `ChatServiceBackend`, and
+reproduces every refusal the chat can show.
 
 A local backend is the quickest way to exercise the real chat: `cmd/api`'s
 `example.yaml` has `chat.enabled: true`, and the Go server answers
@@ -74,9 +80,9 @@ app/       components
   on country code so equally-placed rows stop swapping.
 - `countries.ts` — the country list, keyed by code.
 - `chatLog.ts` — `addMessages`, the merge of the history fetch and the live
-  socket into one bounded list. **The two sources overlap**: your own message
+  stream into one bounded list. **The two sources overlap**: your own message
   arrives twice (the `SendMessage` response and the broadcast that follows), and
-  history is fetched after the socket is already open, so it is deduplicated on
+  history is fetched after the stream is already open, so it is deduplicated on
   message id, ordered on the time the server stamped, and capped at 200. It
   returns the array it was given when nothing was added, so an echo of something
   already shown costs no render. `unreadSince` counts what arrived after a given
@@ -102,12 +108,24 @@ The chat's three are in `chat.ts` — see [Live chat](#live-chat). The two files
 share no types: they are separate bounded contexts on the backend and the split
 is worth keeping on this side too.
 
-`transport.ts` holds what both wire protocols need and neither owns:
-`websocketUrl(baseUrl, route)`, `retrying`, and `openSocket`, the reconnecting
-websocket with the capped exponential backoff. `openSocket` takes raw frames and
-knows nothing about what they carry, so each context keeps its own decoder —
-`openUpdatesSocket` and `ChatServiceBackend.listenForMessages` are both three
-lines over it.
+`transport.ts` holds what both contexts need and neither owns: `retrying`,
+`NO_TIMEOUT`, and `openStream`, which follows a server-streaming RPC and reopens
+it with a capped exponential backoff. It is generic over the message type and
+knows nothing about what it carries, so each context keeps its own mapping —
+`PlanetBackend.listenForUpdates` and `ChatServiceBackend.listenForMessages` are
+both four lines over it.
+
+**A stream is a one-shot async iterable.** It ends on a dropped connection, a
+restarted server or a proxy timeout, and nothing reopens it — Connect carries no
+reconnect, which is the whole reason `openStream` exists. The backoff resets on
+a received message rather than on connect, because a connection is only known to
+work once something has come down it.
+
+**`NO_TIMEOUT` is load-bearing, not decoration.** `main.tsx` builds the clients
+with `timeoutMs: 2000`, and connect-web applies `defaultTimeoutMs` to a stream
+exactly as to a unary call — so without passing `timeoutMs: NO_TIMEOUT` on the
+call, every live feed would die two seconds in and reconnect forever. Anything
+`<= 0` means no timeout.
 
 `planetBackend.ts` is production, `fakeBackend.ts` is for development, and the
 active one is wired in `main.tsx`. Both expose `close()`.
@@ -155,16 +173,17 @@ enforces the same bucket with the backend's defaults, and takes `vpnBlocked` and
 widget there to judge). Its own simulated traffic bypasses all of them, standing
 in for other players rather than for this one.
 
-`openUpdatesSocket` reconnects with a capped exponential backoff. It is the only
-source of live changes, so a drop that is not retried freezes the globe until a
-reload.
+`listenForUpdates` goes through `openStream`, which reopens with a capped
+exponential backoff. It is the only source of live changes, so a drop that is not
+retried freezes the globe until a reload.
 
 ### Live chat
 
 The client for the backend's second bounded context: `chat.ts` declares
 `ChatSender`, `ChatHistoryGetter` and `ChatListener` (plus `ChatBackend`, the
 three together), `chatBackend.ts` implements them against `/chat.v1.ChatService/`
-and `/ws/chat`, and `fakeChatBackend.ts` is the dev stand-in. `ChatPanel` docks
+alone — `SendMessage`, `GetHistory` and the `ListenForMessages` stream — and
+`fakeChatBackend.ts` is the dev stand-in. `ChatPanel` docks
 bottom-right, opposite the menu, and starts folded under 768px.
 
 **`MAX_TEXT_LENGTH` and `MAX_NAME_LENGTH` in `chat.ts` mirror
@@ -395,7 +414,7 @@ player's territory, so it has not been done.
    blobs — in parallel, and before allocating any GPU resource, so an abandoned
    load never opens a context.
 2. Ownerships are fetched in batches and fed to `TileOwnership`.
-3. Live updates arrive over the websocket, batched every 100 ms, into the same
+3. Live updates arrive over the `ListenForUpdates` stream, batched every 100 ms, into the same
    store.
 4. Whatever the store reports as changed is painted, and the leaderboard is
    re-ranked from its counts.
@@ -450,7 +469,7 @@ going back to unowned, which `TileField` writes as a zero-sized atlas region —
 what the fragment shader already draws as an unclaimed tile.
 
 Rolling back on *any* failure, including a transport fault, is deliberate: if
-the click did land and only the response was lost, the websocket echo repaints
+the click did land and only the response was lost, the stream's echo repaints
 it, and if the echo arrives first the rollback is already a no-op.
 
 ## Protocol Buffers

@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetHistoryRequest, GetHistoryResponse, SendMessageRequest, SendMessageResponse } from "./chat_pb.js";
+import { ChatMessage, GetHistoryRequest, GetHistoryResponse, ListenForMessagesRequest, SendMessageRequest, SendMessageResponse } from "./chat_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -30,6 +30,15 @@ export const ChatService = {
       O: GetHistoryResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * @generated from rpc chat.v1.ChatService.ListenForMessages
+     */
+    listenForMessages: {
+      name: "ListenForMessages",
+      I: ListenForMessagesRequest,
+      O: ChatMessage,
+      kind: MethodKind.ServerStreaming,
     },
   }
 } as const;
