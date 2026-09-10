@@ -66,11 +66,19 @@ export class BorderField {
      *        landmass barely touched stays bare Earth rather than a ghost of a
      *        flag.
      * @param stretch off, every flag keeps its own proportions and is cropped.
-     * @param contrast bends the share → opacity curve. Straight share is too
-     *        generous when one player holds ~70% of the planet: everything goes
-     *        nearly solid and the globe is wall-to-wall flags again. Cubed, a
-     *        70% hold is a ghost and only a country somebody actually finished
-     *        comes out vivid.
+     * @param contrast bends the share → opacity curve, and is not the free knob
+     *        it looks like. Zoomed in, the same share is already on screen as
+     *        the *fraction* of discs wearing the holder's flag, so a landmass
+     *        wears `share * 0.7` of its ink there whatever this is set to. The
+     *        painted flag wears `share^contrast * 0.94`. Above about 1.1 the
+     *        summary is therefore fainter than the tiles it hands over to, and
+     *        a country gets brighter as you zoom into it — measured at 5x for
+     *        Sudan at contrast 3, which is exactly backwards. At 1 the two
+     *        layers agree to within the 0.94, so the furthest zoom is the
+     *        boldest the globe ever gets and it only eases off from there.
+     *        Calm the zoomed-out globe with `minimumShare` instead: dropping
+     *        the landmasses nobody has really taken keeps the ones that are
+     *        left honest, where bending this curve just lies quietly.
      */
     constructor(
         private readonly data: BorderData,

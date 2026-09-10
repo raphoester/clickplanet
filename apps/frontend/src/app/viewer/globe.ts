@@ -6,7 +6,7 @@ import {GpuPicker} from "./gpuPicking.ts";
 import {TileField} from "./tileField.ts";
 import {BorderField, loadBorders} from "./borderField.ts";
 import {ATLAS_SIZE, ATLAS_URL} from "./atlasAsset.ts";
-import {displayPointSize, flagDetail, tilePointSize} from "./pointSize.ts";
+import {displayPointSize, flagPaint, tilePointSize} from "./pointSize.ts";
 import {regions} from "./atlas.ts";
 import {Country} from "../../domain/countries.ts";
 import {
@@ -27,7 +27,6 @@ type Uniforms = {
     pointSize: THREE.IUniform
     atlasTexture: THREE.IUniform
     atlasTextureSize: THREE.IUniform
-    flagDetail: THREE.IUniform
     landmassData: THREE.IUniform
     landmassCount: THREE.IUniform
     pixelsPerRadian: THREE.IUniform
@@ -82,11 +81,10 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         pointSize: {value: displayPointSize(camera.zoom, layoutViewport().height)},
         atlasTexture: {value: textureLoader.load(ATLAS_URL)},
         atlasTextureSize: {value: new THREE.Vector2(ATLAS_SIZE.width, ATLAS_SIZE.height)},
-        flagDetail: {value: 1},
         landmassData: {value: null},
         landmassCount: {value: 1},
         pixelsPerRadian: {value: 1},
-        flagPaint: {value: 0},
+        flagPaint: {value: flagPaint(camera.zoom, layoutViewport().height)},
     };
 
     // The picking pass keeps the old, smaller point: overlapping display discs
@@ -99,7 +97,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const params = new URLSearchParams(location.search)
     const borders = await loadBorders("/dev-borders.bin")
     const minimumShare = Number(params.get("minShare") ?? 0.08)
-    const contrast = Number(params.get("contrast") ?? 3)
+    const contrast = Number(params.get("contrast") ?? 1)
     const minimumTiles = Number(params.get("minTiles") ?? 4)
     // For comparing against the old behaviour: a big number paints every
     // landmass at full strength however small it is on screen.
@@ -249,15 +247,13 @@ function startAnimation(
         controls.update();
         beforeRender();
         renderer.render(scene, camera);
-        const size = displayPointSize(camera.zoom, renderer.domElement.height);
-        uniforms.pointSize.value = size;
-        uniforms.flagDetail.value = flagDetail(size);
+        uniforms.pointSize.value = displayPointSize(camera.zoom, renderer.domElement.height);
         pickingUniforms.pointSize.value = tilePointSize(camera.zoom, renderer.domElement.height);
 
-        // The coarse layer owns the frame until a tile is big enough to be aimed at.
-        // A finished landmass is painted as its flag until its tiles are big
-        // enough to be flags in their own right.
-        uniforms.flagPaint.value = 1 - Math.min(1, Math.max(0, (size - 4) / 4));
+        // The coarse layer owns the frame until a tile is big enough to be aimed
+        // at. A landmass is painted as its holder's flag until its own tiles are
+        // big enough to be flags in their own right.
+        uniforms.flagPaint.value = flagPaint(camera.zoom, renderer.domElement.height);
         // The globe's radius is 1, so an arc of one radian is half the viewport
         // at zoom 1.
         uniforms.pixelsPerRadian.value = (renderer.domElement.height / 2) * camera.zoom * fadeScale;

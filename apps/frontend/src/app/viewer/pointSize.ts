@@ -5,21 +5,37 @@ export function tilePointSize(zoom: number, viewportHeight: number): number {
 // SCRATCH R&D. Tiles sit ~1.98px apart at zoom 1 on a 1000px-tall globe, so at
 // 1.5 they never touch: the field is 76% covered at every zoom, which is what
 // leaves the zoomed-out globe a dither instead of a surface. Circles on a hex
-// lattice cover it fully at 1.155x the spacing — but only *far out*, where the
-// tiles are meant to read as one painted skin. Zoomed in, a tile is a thing you
-// aim at, and fattening it there just makes the discs collide, so the widening
-// is undone by the time a tile is big enough to see.
+// lattice cover it fully at 1.155x the spacing, and 2.3/1.5 is that ratio.
 const SPREAD = 2.3 / 1.5
+
+// The handover from the flag painted across a landmass to the tiles themselves:
+// 0 while the painted flag owns the frame, 1 once the tiles do. Measured in the
+// tile's own point size rather than in zoom, because what it is really about is
+// how big a tile is on screen, and that depends on the viewport too.
+//
+// One schedule drives all three parts of the handover — the flag fading out,
+// the tiles fading in, and the widening being undone — because they only work
+// together. The painted flag reaches the ground only through the discs, so
+// while it is showing they have to cover the ground; and a tile you are about
+// to aim at must not be fattened, so the widening has to be gone by then.
+// Running them on separate schedules left a band where the discs had already
+// shrunk back to 76% cover while the flag was still being painted through them,
+// and the flag quietly lost a third of its ink there.
+const COARSE_FROM = 5
+const COARSE_UNTIL = 8
+
+export function coarseHandover(tileSize: number): number {
+    return Math.min(1, Math.max(0, (tileSize - COARSE_FROM) / (COARSE_UNTIL - COARSE_FROM)))
+}
 
 export function displayPointSize(zoom: number, viewportHeight: number): number {
     const base = tilePointSize(zoom, viewportHeight)
-    const grown = Math.min(1, Math.max(0, (base - 2.5) / 3.5))
-    return base * (SPREAD + (1 - SPREAD) * grown)
+    return base * (SPREAD + (1 - SPREAD) * coarseHandover(base))
 }
 
-// 1 = the flag is worth drawing, 0 = the tile is a flat patch of its colour.
-export function flagDetail(displaySize: number): number {
-    return Math.min(1, Math.max(0, (displaySize - 2.5) / 2))
+// 1 = the landmass wears its holder's flag, 0 = the tiles speak for themselves.
+export function flagPaint(zoom: number, viewportHeight: number): number {
+    return 1 - coarseHandover(tilePointSize(zoom, viewportHeight))
 }
 
 export const MAX_PICK_WINDOW = 257

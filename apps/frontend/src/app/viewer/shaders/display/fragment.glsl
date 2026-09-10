@@ -1,6 +1,5 @@
 uniform sampler2D atlasTexture;
 uniform vec2 atlasTextureSize;
-uniform float flagDetail;
 uniform float flagPaint;
 
 flat in vec4 vRegionVector;
@@ -14,9 +13,10 @@ vec2 atlasUVof(vec4 region, vec2 uv) {
     return origin + clamp(uv, 0.002, 0.998) * (region.zw / atlasTextureSize);
 }
 
-// The tile on its own: its owner's flag, drawn into the disc. Only ever seen
-// once a tile is big enough to read, which is also the only zoom where the
-// painted landmass flag has faded out.
+// The tile on its own: its owner's flag, drawn into the disc. `flagPaint` is
+// what keeps it off the screen until a tile is big enough to read one — below
+// that size a 100px flag in a 2px disc is noise either way, mip-blurred to grey
+// or aliased into sparkle.
 vec4 ownColour() {
     if (vRegionVector.z == 0.0 || vRegionVector.w == 0.0) {
         return vec4(1.0, 1.0, 1.0, vHover > 0.5 ? 0.6 : 0.3);
@@ -33,11 +33,6 @@ vec4 ownColour() {
 
     vec4 colour = texture2D(atlasTexture, atlasUVof(vRegionVector, uv));
     colour.a = vHover > 0.5 ? 1.0 : 0.7;
-
-    // Below the size a flag can be read at, the tile fades out rather than
-    // sampling one arbitrary texel of it: a 100px flag in a 2px disc is noise
-    // either way, mip-blurred to grey or aliased into sparkle.
-    colour.a *= flagDetail;
     return colour;
 }
 
