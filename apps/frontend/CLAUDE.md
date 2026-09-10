@@ -12,6 +12,8 @@ npm run test:watch # Re-run affected tests on change
 npm run lint       # ESLint check
 npm run proto      # Regenerate protobuf types from the shared ../../proto/ using buf CLI
 npm run atlas      # Repack the flag sprite atlas from static/countries/png100px
+npm run borders    # Resolve every tile to a landmass (see "The zoomed-out view")
+npm run flagFit    # Work out which flags stretch, and where each one is cropped
 npm run mobile     # Screenshot/inspect a URL as a phone (see "Debugging mobile layout")
 ```
 
@@ -331,12 +333,67 @@ curl -s "https://clickplanet.lol$B" | grep -c 'challenges.cloudflare.com/turnsti
   beside it for the rest of the session.
 - `atlas.ts` / `atlasAsset.ts` — country code → sprite region, and the generated
   atlas URL and size.
+- `borderField.ts` / `bordersAsset.ts` — the zoomed-out view: tile → landmass,
+  who holds how much of each, and the per-landmass table the vertex shader reads.
+  See [The zoomed-out view](#the-zoomed-out-view).
+- `pointSize.ts` — how big a tile is drawn, and the single schedule that hands
+  the frame from the painted flag to the tiles.
 - `shaders/` — GLSL for the display and picking passes.
+
+### The zoomed-out view
+
+Zoomed out, a tile is about a pixel and a half sampling a 100px flag out of one
+shared 1300×1232 atlas, so the GPU picks a mip level that is the whole atlas
+averaged and every country comes out the same mud. Turning mipmaps off swaps mud
+for sparkle. Neither end works, so from far enough away the globe is drawn from
+something coarser than a tile.
+
+Every tile resolves **offline** to a *landmass*: a country's tiles split into the
+separate pieces of land they actually form (Natural Earth 1:50m, 189 countries →
+630 landmasses). Neither borders nor tiles move, so `npm run borders` writes the
+whole table once and nothing recomputes it at runtime. A landmass rather than a
+country because a flag belongs to a piece of ground — one frame spanning mainland
+France, Corsica, Guiana and Réunion would stretch the tricolour across half the
+planet and paint nothing recognisable anywhere.
+
+Each landmass flies the flag of whoever holds most of it, painted onto the sphere
+with distance measured **along the surface**, so it bends with the globe and is
+cropped by its own coastline. `BorderField` keeps the running count per landmass
+and writes one row per landmass into a `DataTexture` the vertex shader reads.
+
+**Opacity is the leader's share, and the curve it goes through is not a free
+knob.** Zoomed in, that share is already on screen as the fraction of discs
+wearing the holder's flag, so the tiles show `share * 0.7` of ink no matter what;
+the painted flag shows `share^contrast * 0.94`. Bend the curve and the summary
+becomes fainter than the tiles it hands over to, and a country gets *brighter* as
+you zoom into it — measured at 5x for Sudan at contrast 3. `borderField.test.ts`
+pins this.
+
+**One schedule owns the whole handover** — `coarseHandover` in `pointSize.ts`
+drives the flag fading out, the tiles fading in, and the disc widening being
+undone. They only work together: the flag reaches the ground only through the
+discs, so while it is painted they must cover the ground (circles on this hex
+lattice cover it at 1.155x the spacing), and a tile you are about to aim at must
+not be fattened. Running them on separate schedules left a band where the flag
+was painted through a lattice with holes in it. `pointSize.test.ts` pins that
+too, and those tests fail if the two are split again.
+
+`npm run flagFit` decides the rest: a flag that is only bands can be pulled to
+the country's own shape and still say what it is, while one carrying a device is
+cropped, anchored on the part that names it rather than on its middle. The
+result is `static/countries/flagFit.json`.
+
+Two known faults, both inherited from the coordinates blob rather than from this:
+the antimeridian row carries about a quarter of the tiles it should, and 2,523
+tiles fall outside every country. Regenerating the blob would fix both and
+**renumber every tile** — ids are implicit in array position — moving every
+player's territory, so it has not been done.
 
 ### Data flow
 
-1. `useGlobe` calls `createGlobe`, which fetches the coordinates blob before
-   allocating any GPU resource, so an abandoned load never opens a context.
+1. `useGlobe` calls `createGlobe`, which fetches the coordinates and borders
+   blobs — in parallel, and before allocating any GPU resource, so an abandoned
+   load never opens a context.
 2. Ownerships are fetched in batches and fed to `TileOwnership`.
 3. Live updates arrive over the websocket, batched every 100 ms, into the same
    store.
@@ -417,12 +474,16 @@ two number types.
 
 ## Static assets
 
-Two assets are **content-addressed**, because `public/_headers` caches
+Three assets are **content-addressed**, because `public/_headers` caches
 `/static/*` for a week and a regenerated file under a stable name would be
 served stale. Each has a generated TS module holding its current URL — do not
 edit those by hand, and do not add a `?ts=` cache-buster, which defeats the
 cache entirely:
 
+- `/static/borders-<hash>.bin` — tile → landmass and a frame per landmass,
+  fetched at runtime by `borderField.ts`. URL in `bordersAsset.ts`. Regenerate
+  with `npm run borders`, which needs the coordinates blob to already be in
+  place — it resolves *those* tiles.
 - `/static/coordinates-<hash>.bin` — tile positions, fetched at runtime by
   `points.ts`. Format in `coordinatesBinary.ts`; URL in `coordinatesAsset.ts`.
   Regenerate with `npm run coordinates <detail> <mapFilePath> [threshold]`, or

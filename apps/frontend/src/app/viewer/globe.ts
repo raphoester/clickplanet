@@ -6,6 +6,7 @@ import {GpuPicker} from "./gpuPicking.ts";
 import {TileField} from "./tileField.ts";
 import {BorderField, loadBorders} from "./borderField.ts";
 import {ATLAS_SIZE, ATLAS_URL} from "./atlasAsset.ts";
+import {BORDERS_URL} from "./bordersAsset.ts";
 import {displayPointSize, flagPaint, tilePointSize} from "./pointSize.ts";
 import {regions} from "./atlas.ts";
 import {Country} from "../../domain/countries.ts";
@@ -70,7 +71,12 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         signal,
     } = options
 
-    const geometryData = await loadPointGeometryData(signal);
+    // Both blobs before a single GPU resource exists, so an abandoned load never
+    // opens a context, and in parallel because neither needs the other.
+    const [geometryData, borders] = await Promise.all([
+        loadPointGeometryData(signal),
+        loadBorders(BORDERS_URL, signal),
+    ]);
     if (signal.aborted) throw new DOMException("globe load aborted", "AbortError");
 
     const lifetime = new AbortController();
@@ -87,26 +93,14 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         flagPaint: {value: flagPaint(camera.zoom, layoutViewport().height)},
     };
 
-    // The picking pass keeps the old, smaller point: overlapping display discs
-    // would otherwise hand a click to whichever neighbour drew last.
+    // The picking pass keeps the true tile size: the display discs are widened
+    // to cover the ground while the coarse flag is painted through them, and
+    // overlapping discs would hand a click to whichever neighbour drew last.
     const pickingUniforms = {pointSize: {value: tilePointSize(camera.zoom, layoutViewport().height)}}
 
     const field = new TileField(uniforms, pickingUniforms, geometryData);
 
-    // SCRATCH R&D: real borders.
-    const params = new URLSearchParams(location.search)
-    const borders = await loadBorders("/dev-borders.bin")
-    const minimumShare = Number(params.get("minShare") ?? 0.08)
-    const contrast = Number(params.get("contrast") ?? 1)
-    const minimumTiles = Number(params.get("minTiles") ?? 4)
-    // For comparing against the old behaviour: a big number paints every
-    // landmass at full strength however small it is on screen.
-    const fadeScale = Number(params.get("fadeScale") ?? 1)
-    const territories = new BorderField(
-        borders, field.size, minimumShare, contrast, minimumTiles, params.get("stretch") !== "0",
-        params.get("fit") === "contain" ? "contain" : "cover",
-    )
-
+    const territories = new BorderField(borders, field.size)
     field.setLandmasses(borders.assignment)
     uniforms.landmassData.value = territories.landmassData
     uniforms.landmassCount.value = borders.codes.length
@@ -191,16 +185,12 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     addDisplayObjects(scene, field.displayPoints)
 
-    const {stop: stopAnimation, controls} = startAnimation(renderer, scene, camera, uniforms, pickingUniforms, fadeScale, () => {
+    const {stop: stopAnimation} = startAnimation(renderer, scene, camera, uniforms, pickingUniforms, () => {
         if (pendingPointer === undefined) return
         const {x, y} = pendingPointer
         pendingPointer = undefined
         field.setHover(picker.pick(camera, x, y))
     });
-
-    // SCRATCH R&D handle
-    ;(window as unknown as {__globe: unknown, __clusters: unknown}).__globe = {camera, controls, renderer, uniforms, field, scene}
-    ;(window as unknown as {__territories: unknown}).__territories = territories
 
     return {
         tilesCount: field.size,
@@ -228,9 +218,8 @@ function startAnimation(
     camera: THREE.OrthographicCamera,
     uniforms: Uniforms,
     pickingUniforms: {pointSize: THREE.IUniform},
-    fadeScale: number,
     beforeRender: () => void,
-): {stop: () => void, controls: OrbitControls} {
+): {stop: () => void} {
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.minZoom = 1;
     controls.maxZoom = 50;
@@ -256,7 +245,7 @@ function startAnimation(
         uniforms.flagPaint.value = flagPaint(camera.zoom, renderer.domElement.height);
         // The globe's radius is 1, so an arc of one radian is half the viewport
         // at zoom 1.
-        uniforms.pixelsPerRadian.value = (renderer.domElement.height / 2) * camera.zoom * fadeScale;
+        uniforms.pixelsPerRadian.value = (renderer.domElement.height / 2) * camera.zoom;
     });
 
     return {
@@ -264,7 +253,6 @@ function startAnimation(
             renderer.setAnimationLoop(null);
             controls.dispose();
         },
-        controls,
     };
 }
 

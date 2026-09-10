@@ -1,4 +1,10 @@
-// SCRATCH — R&D prototype of the zoomed-out view, keyed on real borders.
+// The zoomed-out view, keyed on real borders.
+//
+// Zoomed out, a tile is about a pixel and a half sampling a 100px flag out of
+// one shared atlas, so the GPU picks a mip level that is the whole atlas
+// averaged and every country comes out the same mud. Turning mipmaps off swaps
+// mud for sparkle. Neither end works, so from far enough away the globe has to
+// be drawn from something coarser than a tile.
 //
 // Every tile sits inside one *landmass*: a country's tiles split into the
 // separate pieces of land they actually form (Natural Earth 1:50m, resolved
@@ -34,8 +40,10 @@ export type BorderData = {
     totals: Uint32Array
 }
 
-export async function loadBorders(url: string): Promise<BorderData> {
-    const buffer = await (await fetch(url)).arrayBuffer()
+export async function loadBorders(url: string, signal?: AbortSignal): Promise<BorderData> {
+    const response = await fetch(url, {signal})
+    if (!response.ok) throw new Error(`${url} answered ${response.status}`)
+    const buffer = await response.arrayBuffer()
     const headerBytes = new DataView(buffer).getUint32(0, true)
     const header = JSON.parse(new TextDecoder().decode(new Uint8Array(buffer, 4, headerBytes)))
     let at = 4 + headerBytes
@@ -59,33 +67,18 @@ export class BorderField {
     private readonly painted: (string | undefined)[]
 
     /**
-     * @param minimumTiles a landmass smaller than this never paints. A third of
-     *        them are a single tile, and at any zoom where you could see such a
-     *        flag the tile is already drawing its owner's flag by itself.
-     * @param minimumShare a leader holding less than this paints nothing, so a
-     *        landmass barely touched stays bare Earth rather than a ghost of a
-     *        flag.
+     * Everything past `tileCount` has a considered default, documented where it
+     * is defined; they are parameters so the behaviour can be pinned in a test
+     * without reaching into the module.
+     *
      * @param stretch off, every flag keeps its own proportions and is cropped.
-     * @param contrast bends the share → opacity curve, and is not the free knob
-     *        it looks like. Zoomed in, the same share is already on screen as
-     *        the *fraction* of discs wearing the holder's flag, so a landmass
-     *        wears `share * 0.7` of its ink there whatever this is set to. The
-     *        painted flag wears `share^contrast * 0.94`. Above about 1.1 the
-     *        summary is therefore fainter than the tiles it hands over to, and
-     *        a country gets brighter as you zoom into it — measured at 5x for
-     *        Sudan at contrast 3, which is exactly backwards. At 1 the two
-     *        layers agree to within the 0.94, so the furthest zoom is the
-     *        boldest the globe ever gets and it only eases off from there.
-     *        Calm the zoomed-out globe with `minimumShare` instead: dropping
-     *        the landmasses nobody has really taken keeps the ones that are
-     *        left honest, where bending this curve just lies quietly.
      */
     constructor(
         private readonly data: BorderData,
         tileCount: number,
-        private readonly minimumShare = 0.08,
-        private readonly contrast = 1,
-        private readonly minimumTiles = 4,
+        private readonly minimumShare = MINIMUM_SHARE,
+        private readonly contrast = CONTRAST,
+        private readonly minimumTiles = MINIMUM_TILES,
         private readonly stretch = true,
         private readonly fit: "cover" | "contain" = "cover",
     ) {
@@ -246,6 +239,28 @@ export class BorderField {
         this.landmassData.dispose()
     }
 }
+
+// A landmass smaller than this never paints. A third of them are a single tile,
+// and at any zoom where you could make out such a flag the tile is already
+// drawing its owner's flag by itself.
+const MINIMUM_TILES = 4
+
+// A leader holding less than this paints nothing, so a landmass somebody has
+// barely touched stays bare Earth rather than a ghost of a flag. This is the
+// knob for calming the zoomed-out globe: it drops the landmasses nobody has
+// really taken and leaves the rest telling the truth.
+const MINIMUM_SHARE = 0.08
+
+// How the leader's share bends into opacity, and not the free knob it looks
+// like. Zoomed in, that share is already on screen as the *fraction* of discs
+// wearing the holder's flag, so a landmass wears `share * 0.7` of ink there
+// whatever this is set to, while the painted flag wears `share^contrast * 0.94`.
+// Above about 1.1 the summary is therefore fainter than the tiles it hands over
+// to, and a country gets brighter as you zoom into it — measured at 5x for
+// Sudan at 3, which is exactly backwards. At 1 the two layers agree to within
+// the 0.94, so the furthest zoom is the boldest the globe ever gets and it only
+// eases off from there.
+const CONTRAST = 1
 
 // How tall a painted flag may get. The Russian and Antarctic mainlands reach
 // far enough around the globe that a flag stretched over the whole of one stops

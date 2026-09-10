@@ -2,8 +2,8 @@ export function tilePointSize(zoom: number, viewportHeight: number): number {
     return zoom * 1.5 * (viewportHeight / 1000)
 }
 
-// SCRATCH R&D. Tiles sit ~1.98px apart at zoom 1 on a 1000px-tall globe, so at
-// 1.5 they never touch: the field is 76% covered at every zoom, which is what
+// Tiles sit ~1.98px apart at zoom 1 on a 1000px-tall globe, so at 1.5 they
+// never touch: the field is 76% covered at every zoom, which is what
 // leaves the zoomed-out globe a dither instead of a surface. Circles on a hex
 // lattice cover it fully at 1.155x the spacing, and 2.3/1.5 is that ratio.
 const SPREAD = 2.3 / 1.5
