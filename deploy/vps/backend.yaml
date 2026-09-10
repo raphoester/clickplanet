@@ -45,10 +45,15 @@ shadowBan:
     # Turn this on only after reading the histogram and the log lines. See
     # "Watching for bots" in the README.
     enforce: false
-    reactionWindow: 2s
-    minReactions: 12
-    maxMedian: 250ms
-    maxSpread: 120ms
+    reactionWindow: 5s
+    # Deliberately wide, and only safe because enforce is false: nothing is
+    # dropped, but candidate lines print with each caller's real median and
+    # spread — the per-caller numbers the histogram cannot show. Humans will be
+    # named too. That is the point: compare their lines against the bot's, then
+    # tighten these two to sit between them before enforcing.
+    minReactions: 20
+    maxMedian: 2s
+    maxSpread: 1s
     trackWindow: 5m
     banDuration: 1h
     sweepInterval: 1m

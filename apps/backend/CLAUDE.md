@@ -221,6 +221,21 @@ of all. What no hand produces is a *narrow* band: a caller flags only on
 `minReactions` reactions whose median is at or under `maxMedian` **and** whose
 p90-p10 spread is at or under `maxSpread`. Either bound alone bans real players.
 
+**`maxMedian` and `maxSpread` cannot be defaulted, and the first defaults here
+were wrong.** They shipped at 250ms/120ms, sized for a bot answering off the
+update stream; the one actually seen in production answers at ~1s, sails past
+`maxMedian`, and never flagged. A bot on a timer picks a human-looking delay on
+purpose, so **regularity is the only thing left** — that caller's spread was
+138ms across twenty reactions. The bounds have to come from measurement, which
+is what the wide `backend.yaml` values and `enforce: false` are for: nothing is
+dropped, candidate lines print, and each carries that caller's real numbers.
+`click_reaction_seconds` is global and cannot give you them — it shows a band
+exists, never who owns it.
+
+`reactionWindow` bounds what is measured at all, so it must sit well above the
+delays in play: a reaction past the edge is not missed but **censored**, and the
+median of what survives reads faster than the caller is.
+
 **Three things are deliberately not reactions**, and each is a way to get an
 honest player flagged if you get it wrong:
 
