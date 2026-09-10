@@ -8,6 +8,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ctxutil"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ipblock"
+	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ipscope"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/session"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/xtime"
 )
@@ -27,7 +28,10 @@ func NewRateLimitInterceptor(limiter Limiter, refusal error, procedures ...strin
 				return next(ctx, req)
 			}
 
-			if !limiter.Allow(ctxutil.GetSourceIP(ctx)) {
+			// Keyed on the scope rather than the address: an IPv6 caller owns
+			// every address in its own /64, so a bucket per address is one it
+			// steps out of for free. See ipscope.
+			if !limiter.Allow(ipscope.Of(ctxutil.GetSourceIP(ctx))) {
 				return nil, connect.NewError(connect.CodeResourceExhausted, refusal)
 			}
 

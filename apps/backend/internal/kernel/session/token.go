@@ -14,6 +14,8 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ipscope"
 )
 
 var (
@@ -61,10 +63,17 @@ func (s *Signer) TTL() time.Duration {
 	return s.ttl
 }
 
-// Mint binds the token to ip. A caller whose address changes mid-session — a
-// phone moving from wifi to cellular — fails verification and mints again,
-// which is the intended behaviour: the point of the binding is that a token
-// lifted off the wire is worth nothing anywhere else.
+// Mint binds the token to the scope ip sits in — the address itself over IPv4,
+// the surrounding /64 over IPv6. A caller that leaves it mid-session — a phone
+// moving from wifi to cellular — fails verification and mints again, which is
+// the intended behaviour: the point of the binding is that a token lifted off
+// the wire is worth nothing outside the scope it was minted for.
+//
+// The scope rather than the address, for the same reason the throttle uses it:
+// the two must cover the same ground, or a v6 caller sheds a spent bucket by
+// re-minting on the next address in a prefix it already owns. It also stops an
+// IPv6 privacy address rotating under a player mid-session, which on an exact
+// binding would have logged them out on their own connection's schedule.
 func (s *Signer) Mint(ip string, now time.Time) (Token, error) {
 	id := make([]byte, idLen)
 	if _, err := rand.Read(id); err != nil {
@@ -112,9 +121,13 @@ func (s *Signer) Verify(value string, ip string, now time.Time) (ID, error) {
 	return ID(hex.EncodeToString(payload[expiryLen:])), nil
 }
 
+// mac binds the token to the caller's scope rather than its exact address.
+// Normalising here rather than in Mint and Verify is what makes the two
+// incapable of disagreeing: a token is verified under the same key it was
+// minted under, by construction.
 func (s *Signer) mac(payload []byte, ip string) []byte {
 	h := hmac.New(sha256.New, s.key)
 	h.Write(payload)
-	h.Write([]byte(ip))
+	h.Write([]byte(ipscope.Of(ip)))
 	return h.Sum(nil)
 }
