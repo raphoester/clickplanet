@@ -409,7 +409,14 @@ curl -s "https://clickplanet.lol$B" | grep -c 'challenges.cloudflare.com/turnsti
   See [The zoomed-out view](#the-zoomed-out-view).
 - `pointSize.ts` — how big a tile is drawn, and the single schedule that hands
   the frame from the painted flag to the tiles.
-- `shaders/` — GLSL for the display and picking passes.
+- `stars.ts` — the sky behind the globe, drawn as a **pass of its own**. Its
+  camera borrows the main camera's orientation and nothing else, so the sky
+  turns with the view and holds still through a zoom. Stars in the main scene
+  would do neither: that camera is orthographic, so its box frustum would clip
+  them to a tube around the globe, and `camera.zoom` would fan them out across
+  the screen on the way in. Its scene is not the one `disposeScene` walks, so
+  `startAnimation`'s `stop()` disposes it by hand.
+- `shaders/` — GLSL for the display, picking and star passes.
 
 ### The zoomed-out view
 
