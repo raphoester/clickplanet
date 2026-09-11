@@ -74,7 +74,13 @@ func (a *App) configureClicks(_ context.Context) error {
 
 	a.configureBookkeeperIfEnabled(tilesStorage)
 
-	clickService := planetv1controller.NewClickService(clickHandlerService, tilesChecker, tilesStorage, tilesStorage)
+	clickService := planetv1controller.NewClickService(
+		clickHandlerService,
+		tilesChecker,
+		tilesStorage,
+		tilesStorage,
+		a.config.HTTPServer.StreamHeartbeat,
+	)
 	errorInterceptor := planetv1controller.NewErrorInterceptor(a.logger)
 
 	clickLimiter := ratelimit.New(a.config.RateLimiter, xtime.ActualProvider{})

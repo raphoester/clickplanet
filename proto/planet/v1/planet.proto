@@ -13,7 +13,7 @@ service ClickService {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
 
-  rpc ListenForUpdates(ListenForUpdatesRequest) returns (stream TileUpdate);
+  rpc ListenForEvents(ListenForEventsRequest) returns (stream PlanetEvent);
 }
 
 message ClickRequest {
@@ -42,7 +42,23 @@ message GetMapResponse {
   bytes tiles = 3;
 }
 
-message ListenForUpdatesRequest {}
+message ListenForEventsRequest {}
+
+// The one live stream this API has. Everything it pushes travels in this
+// envelope, so a new kind of event is a new case below rather than a second
+// stream: one connection per client, one route, and a client that does not
+// know a case skips it instead of breaking.
+//
+// Heartbeat is what keeps a quiet stream alive — Cloudflare cuts a silent
+// response at ~125s with a 524.
+message PlanetEvent {
+  oneof event {
+    TileUpdate tile_update = 1;
+    Heartbeat heartbeat = 2;
+  }
+}
+
+message Heartbeat {}
 
 message TileUpdate {
   uint32 tile_id = 1;

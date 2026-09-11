@@ -3,6 +3,7 @@ package chatv1controller
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"connectrpc.com/connect"
 	chatv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1"
@@ -18,12 +19,21 @@ type MessagesSubscriber interface {
 type ChatService struct {
 	chatService chat_service.IService
 	subscriber  MessagesSubscriber
+	heartbeat   time.Duration
 }
 
 var _ chatv1connect.ChatServiceHandler = (*ChatService)(nil)
 
-func NewChatService(chatService chat_service.IService, subscriber MessagesSubscriber) *ChatService {
-	return &ChatService{chatService: chatService, subscriber: subscriber}
+func NewChatService(
+	chatService chat_service.IService,
+	subscriber MessagesSubscriber,
+	heartbeat time.Duration,
+) *ChatService {
+	if heartbeat <= 0 {
+		heartbeat = DefaultHeartbeat
+	}
+
+	return &ChatService{chatService: chatService, subscriber: subscriber, heartbeat: heartbeat}
 }
 
 func (s *ChatService) SendMessage(
@@ -67,27 +77,35 @@ func (s *ChatService) GetHistory(
 }
 
 // The request context is what unsubscribes, and it is cancelled however the stream ends.
-func (s *ChatService) ListenForMessages(
+func (s *ChatService) ListenForEvents(
 	ctx context.Context,
-	_ *connect.Request[chatv1.ListenForMessagesRequest],
-	stream *connect.ServerStream[chatv1.ChatMessage],
+	_ *connect.Request[chatv1.ListenForEventsRequest],
+	stream *connect.ServerStream[chatv1.ChatEvent],
 ) error {
 	messages, err := s.subscriber.Subscribe(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to subscribe to chat messages: %w", err)
 	}
 
+	heartbeat := time.NewTicker(s.heartbeat)
+	defer heartbeat.Stop()
+
 	for {
 		select {
 		case <-ctx.Done():
 			return nil
+
+		case <-heartbeat.C:
+			if err := stream.Send(heartbeatEvent()); err != nil {
+				return err
+			}
 
 		case message, open := <-messages:
 			if !open {
 				return nil
 			}
 
-			if err := stream.Send(toProto(message)); err != nil {
+			if err := stream.Send(messageEvent(message)); err != nil {
 				return err
 			}
 		}

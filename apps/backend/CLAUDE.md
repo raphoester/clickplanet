@@ -76,17 +76,21 @@ Core interfaces (ports) defined in `gateways.go`:
 
 **Primary (input):**
 - `adapters/primary/http/planetv1controller/` — the API. `ClickService` implements the generated `planetv1connect.ClickServiceHandler` and nothing else; it never sees an `http.ResponseWriter`, which is the point of serving the contract with Connect rather than by hand. Two interceptors wrap it: `NewRateLimitInterceptor` (see [Rate limiting](#rate-limiting)) and `NewErrorInterceptor`, which maps domain errors onto Connect codes, logs the unexpected ones and keeps their cause off the wire, so **handlers return their errors bare** — `domain.ErrInvalidArgument` becomes `CodeInvalidArgument`, a code a handler picked itself is left alone, and anything else is logged once and answered as `internal error`.
-- the tile stream, served **twice over**: as `ClickService.ListenForUpdates`, a Connect server-streaming RPC, and as the older `/ws/listen` websocket a `kernel/wspublisher` instance broadcasts on. See [The two live streams](#the-two-live-streams).
+- the tile stream, served **twice over**: as `ClickService.ListenForEvents`, a Connect server-streaming RPC, and as the older `/ws/listen` websocket a `kernel/wspublisher` instance broadcasts on. See [The live streams](#the-live-streams).
 
 **There is one server, one mux, and no version prefix.** Connect names each service's path from its proto package — `/planet.v1.ClickService/` and `/chat.v1.ChatService/` — so nothing is mounted under a prefix of ours. The two services, the websocket upgrade and `/metrics` are the only things on the router. Nothing here needs a connection-level demultiplexer such as `cmux`; that is for running a real gRPC server, which owns its own HTTP/2 handler, beside a REST one.
 
 `Configure` sets `http.Protocols` with both HTTP/1.1 and unencrypted HTTP/2, because the generated handler also speaks gRPC and gRPC-Web and those need HTTP/2. Browsers reach the same routes over HTTP/1.1. Verified: HTTP/1.1 and h2c both answer on the same port.
 
-### The two live streams
+### The live streams
 
 Both live feeds are served **two ways at once**, and that is a transition, not a design:
 
-- `ClickService.ListenForUpdates` → `stream TileUpdate`, and `ChatService.ListenForMessages` → `stream ChatMessage`. Ordinary Connect server-streaming RPCs, on the same routes and the same port as everything else.
+- `ClickService.ListenForEvents` → `stream PlanetEvent`, and `ChatService.ListenForEvents` → `stream ChatEvent`. Ordinary Connect server-streaming RPCs, on the same routes and the same port as everything else.
+
+**One stream per API, and an envelope rather than a bare payload.** A `PlanetEvent` is a `oneof` of `tile_update` and `heartbeat`; `ChatEvent` is a `oneof` of `message` and `heartbeat`. **A new kind of live event is a new case in that `oneof`, never a second stream** — one connection per client, one route to configure, and a client that does not know a case reads an unset `oneof` and skips it instead of breaking. That is what the bare `TileUpdate` frame could not do, on the websocket or off it.
+
+**`heartbeat` is not decoration.** Cloudflare cuts a silent response at **~125s with a 524** — measured against production three times, exactly 125.1s. The websocket never hit this because Cloudflare keeps those open; a chunked HTTP response is not so lucky. A quiet chat is the normal case, and a quiet planet happens, so both streams send a heartbeat every `httpServer.streamHeartbeat` (30s by default, and it **must** stay well under 125s). Without it a silent stream dies and reconnects forever, losing whatever was published in each gap.
 - `/ws/listen` and `/ws/chat`, the websockets `kernel/wspublisher` broadcasts on.
 
 The websocket came first and the RPCs were added beside it, because **every already-loaded browser speaks the websocket**. It stays until the deployed frontend has moved over; only then do the `/ws/*` routes, `wspublisher` and the `Encode*` functions go.
@@ -125,7 +129,7 @@ POST /planet.v1.ClickService/Click   [X-Session-Token: <the minted token>]
   → ClickService
   → ClickHandlerService (validates tile ID + country)
   → MemoryTileStorage.Set() [writes the tile, fans the update out in process]
-  → every subscriber: one per ListenForUpdates stream, plus wspublisher's /ws/listen clients
+  → every subscriber: one per open ListenForEvents stream, plus wspublisher's /ws/listen clients
 ```
 
 `Set` is a no-op when the tile already holds that value — no write, no update published.
@@ -136,7 +140,7 @@ POST /chat.v1.ChatService/SendMessage
   → ChatService
   → chat_service (sanitizes, stamps id/time/tag)
   → MemoryChatStorage.Append() [appends to the JSONL log, then fans out]
-  → every subscriber: one per ListenForMessages stream, plus wspublisher's /ws/chat clients
+  → every subscriber: one per open ListenForEvents stream, plus wspublisher's /ws/chat clients
 ```
 
 A failed log write fails the whole post: the log is the audit trail, so a message nobody can account for later is not one that gets broadcast.
@@ -159,7 +163,7 @@ The **vendored VPN lists** do not cover chat: `NewVPNBlockInterceptor` wraps `Cl
 
 That log holds **personal data** — IPs next to user-authored text — so the retention window is a policy decision rather than a cache size. It lives on the `tile_state` volume, which the droplet's weekly disk backup already covers.
 
-**Two streams, two routes.** Chat broadcasts on `/ws/chat`, not on `/ws/listen`. Frames carry a bare protobuf message with no type tag, so a second payload on the tile stream would be indistinguishable from a `TileUpdate` to every already-deployed client. `kernel/wspublisher` is generic over its payload and takes a route, instantiated once per stream. `ChatService.ListenForMessages` carries the same feed as a typed RPC — see [The two live streams](#the-two-live-streams) — and that missing type tag is the thing it fixes.
+**Two streams, two routes.** Chat broadcasts on `/ws/chat`, not on `/ws/listen`. Frames carry a bare protobuf message with no type tag, so a second payload on the tile stream would be indistinguishable from a `TileUpdate` to every already-deployed client. `kernel/wspublisher` is generic over its payload and takes a route, instantiated once per stream. `ChatService.ListenForEvents` carries the same feed in a typed envelope — see [The live streams](#the-live-streams) — and that missing type tag is exactly what its `oneof` fixes.
 
 **Sending is an RPC, not a read on the socket**: both publishers lean on `CloseRead` for instant disconnect detection, and the RPC path already has the middleware stack and the interceptors.
 
@@ -420,6 +424,7 @@ Two of these are here because both bounded contexts need them and neither should
 Config is loaded from a YAML file (`-config` flag), with environment variables overriding it — `cfgutil` uses `.` as the nesting delimiter, so `tilesStorage.snapshotPath=/data/tiles` in the environment overrides the file. See `cmd/api/example.yaml` for the full schema.
 
 - `httpServer.bindAddress` — the encoding is negotiated per request, so there is no format setting.
+- `httpServer.streamHeartbeat` — how often a silent live stream sends a heartbeat (default 30s). **Must stay well under the proxy's idle cut**: Cloudflare answers 524 at ~125s, and a stream that never speaks is one it kills.
 - `gameMap.maxIndex` — total number of tiles
 - `tilesStorage.snapshotPath` — where the state is persisted; **empty disables durability**
 - `tilesStorage.snapshotInterval` — how often a changed state is flushed

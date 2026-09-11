@@ -3,6 +3,7 @@ package planetv1controller
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"connectrpc.com/connect"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
@@ -26,6 +27,7 @@ type ClickService struct {
 	tilesChecker        domain.TilesChecker
 	mapReader           DenseMapReader
 	subscriber          UpdatesSubscriber
+	heartbeat           time.Duration
 }
 
 var _ planetv1connect.ClickServiceHandler = (*ClickService)(nil)
@@ -35,12 +37,18 @@ func NewClickService(
 	tilesChecker domain.TilesChecker,
 	mapReader DenseMapReader,
 	subscriber UpdatesSubscriber,
+	heartbeat time.Duration,
 ) *ClickService {
+	if heartbeat <= 0 {
+		heartbeat = DefaultHeartbeat
+	}
+
 	return &ClickService{
 		clickHandlerService: clickHandlerService,
 		tilesChecker:        tilesChecker,
 		mapReader:           mapReader,
 		subscriber:          subscriber,
+		heartbeat:           heartbeat,
 	}
 }
 
@@ -92,27 +100,35 @@ func (s *ClickService) GetMap(
 }
 
 // The request context is what unsubscribes, and it is cancelled however the stream ends.
-func (s *ClickService) ListenForUpdates(
+func (s *ClickService) ListenForEvents(
 	ctx context.Context,
-	_ *connect.Request[planetv1.ListenForUpdatesRequest],
-	stream *connect.ServerStream[planetv1.TileUpdate],
+	_ *connect.Request[planetv1.ListenForEventsRequest],
+	stream *connect.ServerStream[planetv1.PlanetEvent],
 ) error {
 	updates, err := s.subscriber.Subscribe(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to subscribe to tile updates: %w", err)
 	}
 
+	heartbeat := time.NewTicker(s.heartbeat)
+	defer heartbeat.Stop()
+
 	for {
 		select {
 		case <-ctx.Done():
 			return nil
+
+		case <-heartbeat.C:
+			if err := stream.Send(heartbeatEvent()); err != nil {
+				return err
+			}
 
 		case update, open := <-updates:
 			if !open {
 				return nil
 			}
 
-			if err := stream.Send(toProto(update)); err != nil {
+			if err := stream.Send(tileUpdateEvent(update)); err != nil {
 				return err
 			}
 		}
