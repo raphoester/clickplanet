@@ -66,6 +66,34 @@ vpnBlocklist:
   # address. Put your own address here.
   allow: []
 
+# Bonus boxes: a question-mark box flies past the planet every so often, and
+# whoever catches it clicks at a multiple of their allowance for a minute.
+#
+# The server picks who is offered one and sends it down that one stream. It is
+# deliberately not a race: broadcast to everyone, a box is always caught by
+# whichever client reacts fastest, and that is a script every time — which would
+# make this a machine for handing extra clicks to exactly the callers antiBot
+# exists to stop.
+bonus:
+  # Off means no box is ever offered and ClaimBonus answers Unimplemented, so
+  # the capability is absent rather than present and refusing.
+  enabled: false
+
+  # How often a box is put in front of somebody. Nothing is offered while nobody
+  # is watching, so this is a ceiling and not a schedule.
+  interval: 90s
+
+  # How long the token stays good. It has to outlast the flight the client
+  # draws, or a box caught on its last frame is refused.
+  offerTTL: 15s
+
+  # How long a caught bonus runs, and what it multiplies the click allowance by.
+  # Both the burst and the refill rate are multiplied, and the client reads them
+  # off the answer — so changing these changes the meter with no frontend
+  # release, exactly as rateLimiter does.
+  duration: 60s
+  multiplier: 3
+
 # Accepts a bot's clicks and drops them, rather than refusing them and naming the
 # check it tripped. Three watchdogs read three different behaviours, the jury
 # crosses what they say, and the shadow ban is the one sentence they all pass.

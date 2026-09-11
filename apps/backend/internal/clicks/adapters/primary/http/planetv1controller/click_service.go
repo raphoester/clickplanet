@@ -9,10 +9,12 @@ import (
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/domain"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/domain/bonus"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/domain/click_handler_service"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/connectutil"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ctxutil"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ratelimit"
+	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/xtime"
 )
 
 const mapMaxAge = 5
@@ -38,12 +40,19 @@ type ClickService struct {
 	subscriber          UpdatesSubscriber
 	heartbeat           time.Duration
 	budgets             ClickBudgetReader
+	bonuses             BonusRegistry
+	booster             ClickBooster
+	clock               xtime.Provider
 }
 
 var _ planetv1connect.ClickServiceHandler = (*ClickService)(nil)
 
 // NewClickService takes a nil budgets reader for a server that does not rate
 // limit clicks; its answers then carry no allowance, and a client shows none.
+//
+// A nil bonuses registry is a server with boxes switched off: no offer ever
+// reaches a stream and ClaimBonus answers Unimplemented, which is the same
+// shape as chat being disabled.
 func NewClickService(
 	clickHandlerService click_handler_service.IService,
 	tilesChecker domain.TilesChecker,
@@ -51,9 +60,15 @@ func NewClickService(
 	subscriber UpdatesSubscriber,
 	heartbeat time.Duration,
 	budgets ClickBudgetReader,
+	bonuses BonusRegistry,
+	booster ClickBooster,
+	clock xtime.Provider,
 ) *ClickService {
 	if heartbeat <= 0 {
 		heartbeat = DefaultHeartbeat
+	}
+	if clock == nil {
+		clock = xtime.ActualProvider{}
 	}
 
 	return &ClickService{
@@ -63,6 +78,9 @@ func NewClickService(
 		subscriber:          subscriber,
 		heartbeat:           heartbeat,
 		budgets:             budgets,
+		bonuses:             bonuses,
+		booster:             booster,
+		clock:               clock,
 	}
 }
 
@@ -146,6 +164,21 @@ func (s *ClickService) ListenForEvents(
 		return fmt.Errorf("failed to subscribe to tile updates: %w", err)
 	}
 
+	// The bonus feed is a second subscription on the same connection, not a
+	// second stream: a PlanetEvent oneof is exactly what lets one connection
+	// carry a kind of event that did not exist when the client was written.
+	//
+	// It is also the only feed on this stream that is *addressed* — an offer
+	// arrives here because this caller was drawn for it, and reaches no other
+	// connection. That is why the registry is keyed on the same scope the
+	// throttle is: a caller is one entrant however many tabs it has open.
+	var bonuses <-chan bonus.Event
+	if s.bonuses != nil {
+		events, leave := s.bonuses.Attend(connectutil.RateLimitKey(ctx))
+		defer leave()
+		bonuses = events
+	}
+
 	heartbeat := time.NewTicker(s.heartbeat)
 	defer heartbeat.Stop()
 
@@ -165,6 +198,20 @@ func (s *ClickService) ListenForEvents(
 			}
 
 			if err := stream.Send(tileUpdateEvent(update)); err != nil {
+				return err
+			}
+
+		case event, open := <-bonuses:
+			if !open {
+				return nil
+			}
+
+			frame := bonusEvent(event)
+			if frame == nil {
+				continue
+			}
+
+			if err := stream.Send(frame); err != nil {
 				return err
 			}
 		}

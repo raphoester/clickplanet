@@ -42,6 +42,10 @@ This is a Go backend for a collaborative map-clicking game. It follows **hexagon
 - **`internal/session/`** — the mint: what a caller has to prove before it may click.
 - **`internal/antibot/`** — who is a machine, and what happens to them.
 
+Bonus boxes live inside `internal/clicks/` rather than beside it: what they grant
+is click allowance, and what carries them is the planet stream. A context of
+their own would have to import both.
+
 `antibot` is the one with no proto package and no adapters, because nothing
 calls it: the clicks edge gates on it the way it gates on `session`. It is a
 context and not a kernel package because "is this caller a bot" is the business
@@ -237,6 +241,90 @@ The signature is checked **before** the expiry, in constant time, so a forger le
 
 **What it does not stop:** a person who solves Turnstile in a real browser and then runs a userscript. They hold a genuine session, and nothing here distinguishes them from a player. This raises the floor from "twenty lines of Python" to "drive a real browser"; the signal that survives that is behavioural — timing regularity and tile-id structure over a session — which is what the session id on the context exists to be keyed on. Nothing in production reads it yet, so `ctxutil.GetSessionID` sits behind the `testing` tag (see [Testing](#testing)) until something does.
 
+
+### Bonus boxes (`internal/clicks/domain/bonus/`)
+
+A question-mark box flies past the planet every so often; whoever catches it
+clicks at `bonus.multiplier` times their allowance for `bonus.duration`. Off by
+default — `bonus.enabled` false offers nothing and answers `ClaimBonus` with
+`CodeUnimplemented`, so the capability is absent rather than present and
+refusing, the same shape chat has.
+
+**The server picks who gets one, and that is the whole design.** A box broadcast
+to everyone is caught by whichever client reacts fastest, and that is a script
+every time: it reads the event off the stream and answers in twenty milliseconds
+while a person is still moving the mouse. Broadcasting would make this a machine
+for handing extra clicks to exactly the callers [Anti-bot](#anti-bot-internalantibot)
+exists to stop.
+
+So an offer is **addressed**. `Registry.Offer` draws one attendee uniformly and
+sends the box down that one stream; nobody else sees it and nobody else can
+claim it. Reflexes buy nothing, and what is left to do — notice the box and
+click it — is the part that was meant to be the game.
+
+**Uniformly, and not by how long a connection has been open.** Weighting the draw
+by connection age rewards leaving a tab open, which is the opposite of what
+catching a box is for.
+
+**An attendee is a scope, not a connection.** `Attend` is keyed on `ipscope.Of`,
+the same unit the throttle and the session token use, and counts the streams
+sharing it — so twenty tabs are one entrant with one ticket, and the entry goes
+when the last stream does. The handler's `defer` is what removes it; there is no
+context goroutine per connected client, because the fanout deliberately does not
+pay that cost.
+
+**The offer is the state, so there is no crypto here.** The registry already has
+to remember who it offered what, so the token is 16 random bytes and the map is
+the check: unknown, spent, lapsed, or offered to somebody else all fail the same
+way. Unlike a session token there is nothing to verify statelessly — and nothing
+to sweep either, since both paths that take the lock forget what has lapsed on
+the way past.
+
+**A claim answers `CodeNotFound` and says nothing about why.** The difference
+between "no such token" and "not yours" is exactly what a script guessing tokens
+would measure.
+
+**`ClaimBonus` is session-gated**, appended to `NewSessionInterceptor`'s
+procedure list: a bonus is only ever spent as clicks, and clicks need a session,
+so the box that grants them should not be the one way to widen an allowance
+without proving anything. It is deliberately **not** throttled — a claim is
+already gated on holding a token the server addressed to you, and spending a
+click token to collect a bonus is backwards.
+
+**Two new cases on `PlanetEvent`, not a second stream** — `bonus_offered`, which
+reaches one caller, and `bonus_taken`, which reaches everyone. The private reward
+with a public outcome is what keeps the spectacle without the scramble. A client
+too old to know either case reads an unset `oneof` and skips it, which is the
+whole reason the envelope exists.
+
+The catch is published **after** the boost lands, so a catch announced to the
+planet that then failed to apply is the one lie this cannot tell.
+
+#### What a bonus does to the bucket
+
+`ratelimit.Limiter.Boost(key, multiplier, until)` multiplies both the ceiling and
+the refill rate until it lapses. It is **opt-in and additive**: a bucket nobody
+boosts holds `multiplier: 1` and behaves exactly as it did before boosting
+existed, which matters because the same limiter type throttles chat and session
+mints and neither has any business being boosted.
+
+Three things in there are easy to get wrong, and each has a test:
+
+- **The refill interval is split at the moment the boost lapses.** An interval
+  that straddles the end would otherwise be paid entirely at one rate or the
+  other, over-granting a caller that went quiet across it.
+- **The tokens are clamped back to the plain burst when it ends.** The ceiling
+  came down with it, and a bucket left holding thirty under a burst of ten would
+  spend the difference long after the minute was up.
+- **The sweep skips a bucket still boosted.** It forgets buckets that have
+  refilled to capacity, on the grounds that such a bucket holds what a fresh one
+  would — which stops being true under a boost, and forgetting it would end the
+  boost early.
+
+The reward needs **no frontend release to be visible**: `State` already carries
+the policy as well as the reading, so a boosted bucket reports a capacity of 30
+and a rate of 3/s, and the meter widens off the server's own numbers. See
+[Saying what is left](#saying-what-is-left).
 
 ### Anti-bot (`internal/antibot/`)
 
@@ -445,6 +533,10 @@ Config is loaded from a YAML file (`-config` flag), with environment variables o
 - `bookkeeper.enabled`, `bookkeeper.runner.interval`
 - `rateLimiter.perSecond`, `rateLimiter.burst`, `rateLimiter.sweepInterval` — the per-IP click throttle (defaults 1/s, burst 10, swept every minute)
 - `vpnBlocklist.enabled`, `vpnBlocklist.includeDatacenters`, `vpnBlocklist.allow` — the VPN refusal (see [VPN blocklist](#vpn-blocklist)); disabled parses nothing and allocates nothing
+- `bonus.enabled` — off offers nothing and answers `ClaimBonus` Unimplemented
+- `bonus.interval` — how often a box is put in front of somebody; a ceiling, since nothing is offered while nobody is watching
+- `bonus.offerTTL` — how long the token stays good; **must outlast the flight the client draws**, or a box caught on its last frame is refused
+- `bonus.duration`, `bonus.multiplier` — how long a caught bonus runs and what it multiplies the allowance by; the client reads both off the answer, so changing them changes the meter with no frontend release
 - `antiBot.enabled` — off registers nothing and measures nothing
 - `antiBot.shadowBan.enforce` — off judges, logs and counts without dropping; the mode to deploy in
 - `antiBot.shadowBan.banDuration`, `reflagInterval`, `sweepInterval` — how long one flag silences a caller, how soon it can be judged again, and how often a ban nothing would still print is forgotten

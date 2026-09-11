@@ -19,6 +19,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/secondary/memory_tile_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/secondary/x_publisher"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/domain"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/domain/bonus"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/domain/click_handler_service"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/domain/click_handler_service/prom_click_handler_service"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/domain/runner"
@@ -62,6 +63,15 @@ func (a *App) configureClicks(_ context.Context) error {
 	clickLimiter := ratelimit.New(a.config.RateLimiter, xtime.ActualProvider{})
 	a.runners = append(a.runners, func() { clickLimiter.Run(a.ctx) })
 
+	// nil when boxes are switched off, which is what makes ClaimBonus answer
+	// Unimplemented and leaves the stream carrying exactly what it did before.
+	bonuses := a.configureBonusesIfEnabled()
+
+	var booster planetv1controller.ClickBooster
+	if bonuses != nil {
+		booster = clickLimiter
+	}
+
 	clickService := planetv1controller.NewClickService(
 		clickHandlerService,
 		tilesChecker,
@@ -69,6 +79,9 @@ func (a *App) configureClicks(_ context.Context) error {
 		tilesStorage,
 		a.config.HTTPServer.StreamHeartbeat,
 		clickLimiter,
+		bonuses,
+		booster,
+		xtime.ActualProvider{},
 	)
 	errorInterceptor := planetv1controller.NewErrorInterceptor(a.logger)
 
@@ -108,6 +121,26 @@ func (a *App) configureClicks(_ context.Context) error {
 	))
 
 	return nil
+}
+
+// configureBonusesIfEnabled returns a typed nil-free registry, or nil when boxes
+// are off. Returning the interface rather than the struct matters: a nil
+// *bonus.Registry in an interface is not a nil interface, and the stream tests
+// for nil to decide whether to attend at all.
+func (a *App) configureBonusesIfEnabled() planetv1controller.BonusRegistry {
+	if !a.config.Bonus.Enabled {
+		return nil
+	}
+
+	registry := bonus.New(a.config.Bonus, xtime.ActualProvider{})
+	a.runners = append(a.runners, func() { registry.Run(a.ctx) })
+
+	a.logger.Info("bonus boxes enabled",
+		lf.Any("interval", a.config.Bonus.Interval),
+		lf.Any("duration", a.config.Bonus.Duration),
+	)
+
+	return registry
 }
 
 // configureClickSessions returns nil when sessions are disabled, which leaves
