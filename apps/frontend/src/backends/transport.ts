@@ -5,9 +5,12 @@ export type Config = {
     timeoutMs?: number
 }
 
-export function websocketUrl(baseUrl: string, route: string): string {
-    return baseUrl.replace(/^http/, "ws") + route
-}
+/**
+ * Passed as a call's `timeoutMs` to opt out of the transport's `defaultTimeoutMs`,
+ * which connect-web otherwise applies to a stream exactly as to a unary call —
+ * ending a healthy live feed after five seconds. Anything <= 0 means no timeout.
+ */
+export const NO_TIMEOUT = 0
 
 const ATTEMPTS = 5
 
@@ -42,11 +45,24 @@ function unreachable(e: unknown): boolean {
 const INITIAL_RECONNECT_DELAY_MS = 500
 const MAX_RECONNECT_DELAY_MS = 30_000
 
-export function openSocket(
-    url: string,
-    onFrame: (data: unknown) => void,
+/**
+ * Follows a server-streaming RPC for as long as the caller wants it, reopening
+ * it with a capped exponential backoff.
+ *
+ * A stream is a one-shot async iterable: it ends on a dropped connection, a
+ * restarted server or a proxy timeout, and nothing reopens it. That reconnect
+ * loop is the whole reason this exists — Connect does not carry one, and every
+ * caller would otherwise write it.
+ *
+ * The delay resets on a received message rather than on connect, because a
+ * connection is only known to work once something has come down it.
+ */
+export function openStream<T>(
+    open: (signal: AbortSignal) => AsyncIterable<T>,
+    onMessage: (message: T) => void,
+    what: string,
 ): () => void {
-    let socket: WebSocket | undefined
+    let controller: AbortController | undefined
     let retryTimer: ReturnType<typeof setTimeout> | undefined
     let retryDelayMs = INITIAL_RECONNECT_DELAY_MS
     let stopped = false
@@ -55,42 +71,37 @@ export function openSocket(
         if (stopped || retryTimer !== undefined) return
         retryTimer = setTimeout(() => {
             retryTimer = undefined
-            connect()
+            void connect()
         }, retryDelayMs)
         retryDelayMs = Math.min(retryDelayMs * 2, MAX_RECONNECT_DELAY_MS)
     }
 
-    const connect = () => {
+    const connect = async () => {
         if (stopped) return
 
-        const ws = new WebSocket(url)
-        socket = ws
-        ws.binaryType = "arraybuffer"
+        const attempt = new AbortController()
+        controller = attempt
 
-        ws.onopen = () => {
-            retryDelayMs = INITIAL_RECONNECT_DELAY_MS
+        try {
+            for await (const message of open(attempt.signal)) {
+                retryDelayMs = INITIAL_RECONNECT_DELAY_MS
+                onMessage(message)
+            }
+        } catch (e) {
+            if (stopped || attempt.signal.aborted) return
+            console.error(`${what} stream failed`, e)
         }
 
-        ws.onmessage = (event) => {
-            onFrame(event.data)
-        }
-
-        ws.onclose = () => {
-            if (socket === ws) socket = undefined
-            scheduleReconnect()
-        }
+        if (controller === attempt) controller = undefined
+        scheduleReconnect()
     }
 
-    connect()
+    void connect()
 
     return () => {
         stopped = true
         if (retryTimer !== undefined) clearTimeout(retryTimer)
-        const ws = socket
-        socket = undefined
-        if (ws) {
-            ws.onclose = null
-            ws.close()
-        }
+        controller?.abort()
+        controller = undefined
     }
 }

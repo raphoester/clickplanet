@@ -13,7 +13,7 @@ world change live.
 |------------------|--------------------------------------------------------|
 | **UI**           | React 18, TypeScript, Vite                             |
 | **3D rendering** | Three.js with custom GLSL shaders                      |
-| **Real-time**    | WebSocket + Protocol Buffers (binary)                  |
+| **Real-time**    | Connect server streaming + Protocol Buffers (binary)   |
 | **API**          | HTTP + protobuf serialization via `@bufbuild/protobuf` |
 | **Deployment**   | Docker → Nginx, DigitalOcean                           |
 
@@ -63,8 +63,8 @@ interface UpdatesListener {
 }
 ```
 
-On load, tile ownerships are fetched in batches of 10,000 via HTTP (protobuf binary). A persistent WebSocket then
-streams live `TileUpdate` messages. Updates are batched client-side at 100ms intervals before being applied to the GPU
+On load, tile ownerships are fetched in batches of 10,000 via HTTP (protobuf binary). A `ListenForUpdates` server
+stream then carries live `TileUpdate` messages, reopened with a capped backoff whenever it drops. Updates are batched client-side at 100ms intervals before being applied to the GPU
 geometry, avoiding per-message re-renders under high traffic.
 
 ---
