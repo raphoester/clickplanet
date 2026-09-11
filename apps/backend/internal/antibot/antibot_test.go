@@ -15,7 +15,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/shadowban"
 )
 
-// The whole thing wired the way internal/app wires it, driven by callers that
+// The whole thing wired the way internal/clicks wires it, driven by callers that
 // behave the way the real ones do. The bounds here are the ones cmd/api ships.
 type stack struct {
 	jury  *antibot.Jury

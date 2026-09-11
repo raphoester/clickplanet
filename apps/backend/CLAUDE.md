@@ -48,13 +48,29 @@ context and not a kernel package because "is this caller a bot" is the business
 this game is in, while the kernel is for things that would read the same in any
 other program.
 
-They share the process, the transport and the country list, and **nothing else**. None imports another; each owns its own domain types, its own proto package, its own storage adapter (where it has one) and its own edge. The one place that knows about all three is **`internal/app/`**, the composition root — which is why it sits beside them rather than inside any of them.
+They share the process, the transport and the country list, and **nothing else**. None imports another; each owns its own domain types, its own proto package, its own storage adapter (where it has one) and its own edge.
 
-Clicks and sessions meet only through `kernel/session.Signer`: the session context mints, the clicks context verifies a signature. Neither imports the other, and **clicks knows nothing about Turnstile** — swapping the attester changes one line in `internal/app`.
+### The composite layer
 
-Adding a context that callers talk to means a `proto/<name>/v1`, an `internal/<name>/`, and one `configure<Name>` in `internal/app`. Connect derives the route from the proto package, so there is no prefix to allocate and no router to edit. `internal/session/` is the worked example: it cost one proto file, one domain rule, two adapters and one wiring file, and no existing route changed.
+Each context wires **itself**, in a `module.go` at its root (`internal/clicks/module.go`, `internal/chat/module.go`, `internal/session/module.go`). A module is a `bootstrap.Module` — a name and a DI sequence — and the sequence is handed a `bootstrap.Props` carrying registrars and nothing else:
 
-**`cmd/api`** is the only binary: one HTTP server serving all three contexts. Follows `New()` → `Configure()` → `Run()`.
+- `props.RPC.Mount(path, handler)` — both return values of a generated `New<Service>Handler` go straight into it
+- `props.Runners.Add(name, run)` — a goroutine, given the process-lifetime context
+- `props.Closers.Add(name, close)` — a cleanup, run in reverse registration order
+- `props.Logger`, `props.Metrics`
+
+A module never sees the router, the server, the signal handler or another module's dependencies. **There is no mutable app object and nothing to leave a half-built dependency on**: `internal/kernel/bootstrap` builds every module in order, then serves.
+
+**`internal/app/` is the composition root and does three things**: load the config, build what more than one context needs, and name the modules. That list is the whole DI sequence, and it is readable top to bottom in `describeModules`.
+
+**What two contexts share is a variable there that both are handed**, which is the only way they can share anything:
+
+- `kernel/session.Signer` — the session context mints with it, the clicks context verifies with it. Nil when sessions are off, which leaves the click chain as it was before they existed. Neither imports the other, and **clicks knows nothing about Turnstile** — swapping the attester changes one line in `internal/session/module.go`.
+- the country list — both the tile game and the chat validate against it.
+
+Adding a context that callers talk to means a `proto/<name>/v1`, an `internal/<name>/` with a `module.go`, and one line in `describeModules`. Connect derives the route from the proto package, so there is no prefix to allocate and no router to edit.
+
+**`cmd/api`** is the only binary and is now four lines: `app.Run(ctx)`.
 
 It runs as a **single self-contained container with no dependencies**: the tile map lives in process and is persisted to a local snapshot file. There is no database, no cache, and no second process.
 
@@ -80,7 +96,7 @@ Core interfaces (ports) defined in `gateways.go`:
 
 **There is one server, one mux, and no version prefix.** Connect names each service's path from its proto package — `/planet.v1.ClickService/` and `/chat.v1.ChatService/` — so nothing is mounted under a prefix of ours. The three services and `/metrics` are the only things on the router. Nothing here needs a connection-level demultiplexer such as `cmux`; that is for running a real gRPC server, which owns its own HTTP/2 handler, beside a REST one.
 
-`Configure` sets `http.Protocols` with both HTTP/1.1 and unencrypted HTTP/2, because the generated handler also speaks gRPC and gRPC-Web and those need HTTP/2. Browsers reach the same routes over HTTP/1.1. Verified: HTTP/1.1 and h2c both answer on the same port.
+`bootstrap` sets `http.Protocols` with both HTTP/1.1 and unencrypted HTTP/2, because the generated handler also speaks gRPC and gRPC-Web and those need HTTP/2. Browsers reach the same routes over HTTP/1.1. Verified: HTTP/1.1 and h2c both answer on the same port.
 
 ### The live streams
 
@@ -155,7 +171,7 @@ Chat is a separate bounded context, not a feature of the tile game: it shares th
 
 Refusal reasons are logged, never returned: a sender learns *that* they were refused, not which check tripped. **The stored text is raw — the frontend must escape it.**
 
-The **vendored VPN lists** do not cover chat: `NewVPNBlockInterceptor` wraps `Click` alone. Chat's blocklist is the same `*ipblock.Blocklist` type, built by `ipblock.NewDenyList` from config prefixes instead of vendored data — so entries are CIDRs and a `/24` is one line rather than 256. Extending the vendored lists to chat is therefore a wiring change (hand `configureVPNBlocklist`'s result to `NewBlocklistInterceptor`), not a second list to write.
+The **vendored VPN lists** do not cover chat: `NewVPNBlockInterceptor` wraps `Click` alone. Chat's blocklist is the same `*ipblock.Blocklist` type, built by `ipblock.NewDenyList` from config prefixes instead of vendored data — so entries are CIDRs and a `/24` is one line rather than 256. Extending the vendored lists to chat is therefore a wiring change (build the list in `describeModules` and hand it to both modules, the way the country list already is), not a second list to write.
 
 **The log is an append-only JSONL file**, not the tile snapshot's whole-state codec: different shape, different write pattern. One line per message with `at`, `id`, `name`, `tag`, `authorId`, `country`, `ip`, `userAgent`, `text`. It is fsynced every `flushInterval` rather than per message (a hard kill loses at most that window — the same bargain the snapshot makes), pruned hourly past `retention`, and its tail repopulates the in-memory history at boot so a restart does not blank the chat. Corrupt lines are skipped and reported, never fatal.
 
@@ -419,10 +435,13 @@ The snapshot file is the only thing worth backing up.
 
 ### Kernel (`internal/kernel/`)
 
-Shared infrastructure: `cfgutil` (YAML + env config via koanf), `httpserver` (middleware, formats), `logging`, `prom` (Prometheus), `xtime`, `ctxutil`, `ratelimit`, `ipblock`, `atomicfile`.
+Shared infrastructure: `bootstrap` (the composite layer), `cfgutil` (YAML + env config via koanf), `httpserver` (middleware, formats), `logging`, `prom` (Prometheus), `xtime`, `ctxutil`, `ratelimit`, `ipblock`, `atomicfile`, `secrets`.
 
-One of these is here because both bounded contexts need it and neither should depend on the other:
+`bootstrap` runs the modules — see [The composite layer](#the-composite-layer). It knows nothing about this game: it takes a list of modules, builds each one under a startup deadline, mounts what they claimed on one router, and serves until the process is signalled.
 
+Two of these are here because both bounded contexts need them and neither should depend on the other:
+
+- `secrets` — the random hex a config may leave it to the server to invent. Chat's tag salt and the session signing key are the two, and both pay the same price for an empty setting: what the old one covered stops being recognised on restart.
 - `atomicfile` — temp file, fsync, rename, fsync of the directory. Written for the tile snapshot; the chat log's retention rewrites need the same guarantee, and duplicating 80 lines of carefully-written fsync/rename code is how the two drift apart. Covered by the existing snapshot tests.
 
 `session` mints and verifies the click token — see [Sessions](#sessions-internalsession). `turnstile` is the siteverify client it is fed by; both are in the kernel because the session context mints with them and the clicks context verifies with them, and neither context may depend on the other.
@@ -434,6 +453,8 @@ One of these is here because both bounded contexts need it and neither should de
 ### Configuration
 
 Config is loaded from a YAML file (`-config` flag), with environment variables overriding it — `cfgutil` uses `.` as the nesting delimiter, so `tilesStorage.snapshotPath=/data/tiles` in the environment overrides the file. See `cmd/api/example.yaml` for the full schema.
+
+**Each module owns its own config struct** — `clicks.Config`, `chat.Config`, `session.Config` — and `app.Config` is the three of them plus `httpServer`. The clicks keys stayed at the top level of the file rather than moving under a `clicks:` section: `app.Config` squashes that struct (`koanf:",squash"`), so the file and every `deploy/` environment variable are unchanged.
 
 - `httpServer.bindAddress` — the encoding is negotiated per request, so there is no format setting.
 - `httpServer.streamHeartbeat` — how often a silent live stream sends a heartbeat (default 30s). **Must stay well under the proxy's idle cut**: Cloudflare answers 524 at ~125s, and a stream that never speaks is one it kills.

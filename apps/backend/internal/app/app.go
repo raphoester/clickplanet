@@ -1,124 +1,87 @@
+// Package app is the composition root: the config, what two contexts share, and the module list.
 package app
 
 import (
 	"context"
 	"flag"
 	"fmt"
-	"net/http"
 
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/prom"
-
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/secondary/in_memory_country_checker"
+	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/bootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/cfgutil"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/httpserver"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging/lf"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/session"
+	kernelsession "github.com/raphoester/clickplanet.lol-backend/internal/kernel/session"
+	"github.com/raphoester/clickplanet.lol-backend/internal/session"
 )
 
-type App struct {
-	config Config
-	logger logging.Logger
-	server *http.Server
+func Run(ctx context.Context) error {
+	config, err := loadConfig()
+	if err != nil {
+		return err
+	}
 
-	ctx    context.Context
-	cancel context.CancelFunc
+	logger := logging.NewSLogger() // todo: inject config
+	logger.Debug("config", lf.Any("config", config))
 
-	runners       []func()
-	shutdownFuncs []func()
+	modules, err := describeModules(config, logger)
+	if err != nil {
+		return err
+	}
 
-	rpcServices []rpcService
-
-	promRegistry *prometheus.Registry
-
-	// Left by the session context for the clicks one to verify against. Nil
-	// when sessions are disabled, which is what leaves the click chain as it
-	// was before they existed.
-	sessionSigner *session.Signer
+	return bootstrap.Run(ctx, bootstrap.Options{
+		BindAddress: config.HTTPServer.BindAddress,
+		Logger:      logger,
+		Modules:     modules,
+	})
 }
 
-type rpcService struct {
-	path    string
-	handler http.Handler
+// describeModules builds what more than one context needs, then names the modules.
+func describeModules(config Config, logger logging.Logger) ([]bootstrap.Module, error) {
+	countries := in_memory_country_checker.New()
+
+	// Sessions mint what clicks verifies; a nil signer means sessions are off.
+	var signer *kernelsession.Signer
+
+	modules := make([]bootstrap.Module, 0, 3)
+
+	if config.Session.Enabled {
+		built, err := session.NewSigner(config.Session, logger)
+		if err != nil {
+			return nil, err
+		}
+		signer = built
+
+		modules = append(modules, session.NewModule(config.Session, signer))
+	}
+
+	modules = append(modules, clicks.NewModule(config.Clicks, clicks.Deps{
+		Countries:       countries,
+		Signer:          signer,
+		EnforceSessions: config.Session.Enforce,
+		StreamHeartbeat: config.HTTPServer.StreamHeartbeat,
+	}))
+
+	if config.Chat.Enabled {
+		modules = append(modules, chat.NewModule(config.Chat, chat.Deps{
+			Countries:       countries,
+			StreamHeartbeat: config.HTTPServer.StreamHeartbeat,
+		}))
+	}
+
+	return modules, nil
 }
 
-func New() (*App, error) {
-	c := flag.String("config", "", "path to config file")
+func loadConfig() (Config, error) {
+	path := flag.String("config", "", "path to config file")
 	flag.Parse()
 
-	cfg := Config{}
-	if err := cfgutil.NewLoader(*c).Unmarshal(&cfg); err != nil {
-		return nil, fmt.Errorf("failed reading config: %w", err)
+	var config Config
+	if err := cfgutil.NewLoader(*path).Unmarshal(&config); err != nil {
+		return Config{}, fmt.Errorf("failed reading config: %w", err)
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-
-	app := &App{
-		config: cfg,
-		logger: logging.NewSLogger(), // todo: inject config
-		ctx:    ctx,
-		cancel: cancel,
-	}
-
-	app.logger.Debug("config", lf.Any("config", cfg))
-	return app, nil
-}
-
-func (a *App) Configure(ctx context.Context) error {
-	// Before the clicks context: it verifies what this one mints.
-	if err := a.configureSessionIfEnabled(ctx); err != nil {
-		return fmt.Errorf("failed to configure the session context: %w", err)
-	}
-
-	if err := a.configureClicks(ctx); err != nil {
-		return fmt.Errorf("failed to configure the clicks context: %w", err)
-	}
-
-	if err := a.configureChatIfEnabled(ctx); err != nil {
-		return fmt.Errorf("failed to configure the chat context: %w", err)
-	}
-
-	rpcMiddlewares := httpserver.MiddlewareStack(
-		httpserver.NewLoggingMiddleware(a.logger),
-		httpserver.IPReaderMiddleware,
-		httpserver.CorsMiddleware,
-	)
-
-	router := http.NewServeMux()
-
-	for _, service := range a.rpcServices {
-		router.Handle(service.path, rpcMiddlewares(service.handler))
-	}
-
-	a.declarePrometheusRoutes(router)
-
-	protocols := new(http.Protocols)
-	protocols.SetHTTP1(true)
-	protocols.SetUnencryptedHTTP2(true)
-
-	a.server = &http.Server{
-		Addr:      a.config.HTTPServer.BindAddress,
-		Handler:   router,
-		Protocols: protocols,
-	}
-
-	return nil
-}
-
-func (a *App) mountRPC(path string, handler http.Handler) {
-	a.rpcServices = append(a.rpcServices, rpcService{path: path, handler: handler})
-}
-
-func (a *App) declarePrometheusRoutes(router *http.ServeMux) {
-	promRouter := http.NewServeMux()
-
-	a.configurePromRegistryIfNeeded()
-	middlewareStack := httpserver.MiddlewareStack(
-		httpserver.NewLoggingMiddleware(a.logger),
-	)
-
-	promHandler := prom.HandlerForRegistry(a.promRegistry)
-	promRouter.HandleFunc("GET /", promHandler.ServeHTTP)
-
-	router.Handle("/metrics", middlewareStack(promRouter))
+	return config, nil
 }
