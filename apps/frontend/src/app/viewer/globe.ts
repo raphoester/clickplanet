@@ -23,6 +23,7 @@ import {LeaderboardEntry, rankCountries} from "../../domain/leaderboard.ts";
 import {OwnerChange, TileOwnership} from "../../domain/tileOwnership.ts";
 import {warnOnce} from "../../domain/warnOnce.ts";
 import {layoutViewport} from "./viewport.ts";
+import {createStarfield} from "./stars.ts";
 
 type Uniforms = {
     pointSize: THREE.IUniform
@@ -222,6 +223,8 @@ function startAnimation(
     pickingUniforms: {pointSize: THREE.IUniform},
     beforeRender: () => void,
 ): {stop: () => void} {
+    const starfield = createStarfield();
+
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.minZoom = 1;
     controls.maxZoom = 50;
@@ -237,7 +240,7 @@ function startAnimation(
     renderer.setAnimationLoop(() => {
         controls.update();
         beforeRender();
-        renderer.render(scene, camera);
+        starfield.render(renderer, camera, () => renderer.render(scene, camera));
         uniforms.pointSize.value = displayPointSize(camera.zoom, renderer.domElement.height);
         pickingUniforms.pointSize.value = tilePointSize(camera.zoom, renderer.domElement.height);
 
@@ -254,6 +257,8 @@ function startAnimation(
         stop: () => {
             renderer.setAnimationLoop(null);
             controls.dispose();
+            // Its scene is not the one `disposeScene` walks, so it goes here.
+            starfield.dispose();
         },
     };
 }
