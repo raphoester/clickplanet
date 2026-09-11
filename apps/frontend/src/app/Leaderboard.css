@@ -23,7 +23,16 @@
     overflow-y: auto;
 }
 
+/* Sticky, because the container under it scrolls and this row carries the only
+   statement of what the two number columns are counted in. Sticky sits on the
+   cells rather than on `thead`, which older Safari ignores. The background is
+   opaque — the panel's own near-black — because at anything less the row
+   sliding under it ghosts through the column names. */
 .leaderboard-table-head {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: #04090F;
     font-family: Oswald, sans-serif;
     font-weight: 500;
     font-size: 11px;
@@ -33,6 +42,19 @@
     text-shadow: none;
     padding: 0 0 6px 0;
     border-bottom: 1px solid #FFFFFF1F;
+}
+
+/* One line under the title, naming the whole that "% of map" is a part of —
+   and, in passing, the scale of the planet the "Tiles" column counts. */
+.leaderboard-total {
+    flex-shrink: 0;
+    margin: -2px 0 8px 0;
+    font-family: Oswald, sans-serif;
+    font-weight: 400;
+    font-size: 12px;
+    letter-spacing: 0.4px;
+    color: #FFFFFF80;
+    text-shadow: none;
 }
 
 .leaderboard-table {
@@ -60,6 +82,12 @@
     width: 66px;
     text-align: right;
     padding-left: 12px;
+}
+
+/* Wider than its sibling: the heading is eight uppercase characters, and it has
+   to stay on one line for the column to keep naming its own unit. */
+.leaderboard-table-share {
+    width: 76px;
 }
 
 .leaderboard-entry .leaderboard-table-number {
@@ -114,9 +142,12 @@
 /* Sits in the gap above its own count, right-aligned with it: its bottom edge
    is the top of the count, so it stays between the two rows instead of
    overflowing onto the one above. `animation-duration` comes from
-   DELTA_HOLD_MS, so the badge fades out exactly as it is dropped. */
+   DELTA_HOLD_MS, so the badge fades out exactly as it is dropped. The gap the
+   first row has above it is the sticky header, which the badge still reaches
+   into and so has to out-rank. */
 .leaderboard-delta {
     position: absolute;
+    z-index: 2;
     right: 0;
     bottom: calc(100% - 7px);
     pointer-events: none;
