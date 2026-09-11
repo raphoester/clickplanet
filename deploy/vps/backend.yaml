@@ -36,31 +36,76 @@ vpnBlocklist:
   includeDatacenters: true
   allow: []
 
-# Accepts a bot's clicks and drops them, rather than refusing them and naming
-# the check it tripped. Ships observing only: it measures, flags and logs, and
-# drops nothing until detector.enforce is on.
-shadowBan:
+# Accepts a bot's clicks and drops them, rather than refusing them and naming the
+# check it tripped. Three watchdogs read three different behaviours, the jury
+# crosses what they say, and the shadow ban is the one sentence they all pass.
+# Ships judging only: nothing is dropped until shadowBan.enforce is on.
+antiBot:
   enabled: true
-  detector:
-    # Turn this on only after reading the histogram and the log lines. See
-    # "Watching for bots" in the README.
+
+  shadowBan:
+    # Turn this on only after reading the "antibot ban" lines. See "Watching for
+    # bots" in the README.
     enforce: false
-    reactionWindow: 5s
-    # Deliberately wide, and only safe because enforce is false: nothing is
-    # dropped, but candidate lines print with each caller's real median and
-    # spread — the per-caller numbers the histogram cannot show. Humans will be
-    # named too. That is the point: compare their lines against the bot's, then
-    # tighten these two to sit between them before enforcing.
-    minReactions: 20
-    maxMedian: 2s
-    maxSpread: 1s
-    trackWindow: 5m
     banDuration: 1h
-    # Matches trackWindow, so each repeat flag rests on reactions the previous
-    # one never saw. Watch the flags= count climb on a caller: one flag is a
-    # window, six is a pattern.
+    # Matches the widest watchdog trackWindow, so each repeat flag rests on
+    # evidence the previous one never saw. Watch the flags= count climb on a
+    # caller: one flag is a window, six is a pattern.
     reflagInterval: 5m
     sweepInterval: 1m
+
+  jury:
+    # Two watchdogs at "suspect" ban; one at "certain" bans alone. Raising this
+    # to 3 means every ban needs all three watchdogs, which in practice means
+    # only the retaker's certain rule ever fires — the sequencer and the
+    # metronome are the two that agree with each other most.
+    minSuspects: 2
+    suspicionWindow: 10m
+    trackWindow: 15m
+    sweepInterval: 1m
+
+  retaker:
+    enabled: true
+    detector:
+      reactionWindow: 5s
+      # Deliberately wide, and only safe because enforce is false: nothing is
+      # dropped, but ban lines print with each caller's real median and spread —
+      # the per-caller numbers click_reaction_seconds cannot show. Humans will
+      # be named too. That is the point: compare their lines against the bot's,
+      # then tighten these before enforcing.
+      minReactions: 20
+      maxSpread: 1s
+      maxMedian: 2s
+      trackWindow: 5m
+      sweepInterval: 1m
+
+  sequencer:
+    enabled: true
+    detector:
+      # These need no measuring pass the way the retaker's do. Forty clicks at a
+      # constant step is already past anything a hand produces on an
+      # icosahedral index; two hundred is not arguable.
+      minSteps: 40
+      minShare: 0.75
+      certainSteps: 200
+      certainShare: 0.95
+      trackWindow: 15m
+      sweepInterval: 1m
+
+  metronome:
+    enabled: true
+    detector:
+      maxGap: 3s
+      # Wide while enforce is false, for the same reason as the retaker's
+      # bounds: this is the one number here that depends on the bot you actually
+      # have. A loop calling sleep(1s) sits in single-digit milliseconds; one
+      # that jitters on purpose is wider. Read what the lines say, then close it.
+      maxSpread: 400ms
+      minClicks: 120
+      certainFor: 30m
+      certainClicks: 900
+      trackWindow: 15m
+      sweepInterval: 1m
 
 # Gates the Click RPC on a token this server minted, which is the one thing an
 # address-based defence cannot do: refuse a caller that never proved anything,

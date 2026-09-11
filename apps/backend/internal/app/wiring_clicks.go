@@ -8,6 +8,11 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/metronome"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/retaker"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/sequencer"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/shadowban"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/primary/http/planetv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/secondary/in_memory_country_checker"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/secondary/in_memory_tile_checker"
@@ -20,7 +25,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ipblock"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging/lf"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ratelimit"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/shadowban"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/wspublisher"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/xtime"
 )
@@ -98,12 +102,12 @@ func (a *App) configureClicks(_ context.Context) error {
 	interceptors = append(interceptors, planetv1controller.NewRateLimitInterceptor(clickLimiter))
 
 	// Innermost, after the throttle: a shadow-banned caller must keep hitting the same 429s, or never being throttled is the tell.
-	shadowBanInterceptor, err := a.configureShadowBan(tilesStorage)
+	antiBotInterceptor, err := a.configureAntiBot(tilesStorage)
 	if err != nil {
 		return err
 	}
-	if shadowBanInterceptor != nil {
-		interceptors = append(interceptors, shadowBanInterceptor)
+	if antiBotInterceptor != nil {
+		interceptors = append(interceptors, antiBotInterceptor)
 	}
 
 	a.mountRPC(planetv1connect.NewClickServiceHandler(
@@ -134,25 +138,67 @@ func (a *App) configureClickSessions() (connect.Interceptor, error) {
 	return interceptor, nil
 }
 
-// configureShadowBan returns nil when disabled, which leaves the click chain exactly as it was.
-func (a *App) configureShadowBan(owner shadowban.TileOwner) (connect.Interceptor, error) {
-	if !a.config.ShadowBan.Enabled {
+// configureAntiBot assembles the watchdogs the file asks for, the jury that
+// crosses them and the one shadow ban they all pass. It returns nil when
+// nothing is enabled, which leaves the click chain exactly as it was.
+func (a *App) configureAntiBot(owner planetv1controller.TileOwner) (connect.Interceptor, error) {
+	config := a.config.AntiBot
+	if !config.Enabled {
 		return nil, nil
 	}
 
-	onReaction, onFlag, err := planetv1controller.NewShadowBanReporter(a.logger, a.promRegistry)
+	clock := xtime.ActualProvider{}
+
+	onReaction, onFlag, err := planetv1controller.NewAntiBotReporter(a.logger, a.promRegistry)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create the shadow ban reporter: %w", err)
+		return nil, fmt.Errorf("failed to create the antibot reporter: %w", err)
 	}
 
-	detector := shadowban.New(a.config.ShadowBan.Detector, owner, xtime.ActualProvider{}, onReaction, onFlag)
-	a.runners = append(a.runners, func() { detector.Run(a.ctx) })
+	var (
+		watchdogs []antibot.Watchdog
+		names     []string
+	)
 
-	a.logger.Info("shadow ban enabled", lf.Bool("enforce", a.config.ShadowBan.Detector.Enforce))
+	if config.Retaker.Enabled {
+		watchdog := retaker.New(config.Retaker.Detector, clock, onReaction)
+		a.runners = append(a.runners, func() { watchdog.Run(a.ctx) })
+		watchdogs = append(watchdogs, watchdog)
+		names = append(names, retaker.Name)
+	}
 
-	interceptor, err := planetv1controller.NewShadowBanInterceptor(detector, a.promRegistry)
+	if config.Sequencer.Enabled {
+		watchdog := sequencer.New(config.Sequencer.Detector, clock)
+		a.runners = append(a.runners, func() { watchdog.Run(a.ctx) })
+		watchdogs = append(watchdogs, watchdog)
+		names = append(names, sequencer.Name)
+	}
+
+	if config.Metronome.Enabled {
+		watchdog := metronome.New(config.Metronome.Detector, clock)
+		a.runners = append(a.runners, func() { watchdog.Run(a.ctx) })
+		watchdogs = append(watchdogs, watchdog)
+		names = append(names, metronome.Name)
+	}
+
+	if len(watchdogs) == 0 {
+		return nil, fmt.Errorf("antiBot is enabled with no watchdog turned on")
+	}
+
+	banner := shadowban.New(config.ShadowBan, clock)
+	a.runners = append(a.runners, func() { banner.Run(a.ctx) })
+
+	jury := antibot.NewJury(config.Jury, banner, clock, onFlag, watchdogs...)
+	a.runners = append(a.runners, func() { jury.Run(a.ctx) })
+
+	a.logger.Info("antibot enabled",
+		lf.Any("watchdogs", names),
+		lf.Int("minSuspects", config.Jury.MinSuspects),
+		lf.Bool("enforce", banner.Enforcing()),
+	)
+
+	interceptor, err := planetv1controller.NewAntiBotInterceptor(jury, owner, clock, a.promRegistry)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create the shadow ban interceptor: %w", err)
+		return nil, fmt.Errorf("failed to create the antibot interceptor: %w", err)
 	}
 
 	return interceptor, nil

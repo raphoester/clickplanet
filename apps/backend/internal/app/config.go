@@ -3,13 +3,17 @@ package app
 import (
 	"time"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/metronome"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/retaker"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/sequencer"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/shadowban"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/adapters/secondary/memory_chat_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/domain/chat_service"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/secondary/memory_tile_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/domain/runner"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ipblock"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ratelimit"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/shadowban"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/turnstile"
 )
 
@@ -20,7 +24,7 @@ type Config struct {
 	Bookkeeper   BookkeeperConfig
 	RateLimiter  ratelimit.Config
 	VPNBlocklist ipblock.Config
-	ShadowBan    ShadowBanConfig
+	AntiBot      AntiBotConfig
 
 	Session SessionConfig
 
@@ -68,10 +72,33 @@ func (c SessionConfig) withDefaults() SessionConfig {
 	return c
 }
 
-// ShadowBanConfig drops a bot's clicks instead of refusing them and telling it which check to route around.
-type ShadowBanConfig struct {
+// AntiBotConfig holds the watchdogs, the jury that crosses what they say, and
+// the one shadow ban they all pass. A watchdog left out of the file is off, and
+// the server names the ones it is actually running at boot.
+type AntiBotConfig struct {
+	Enabled bool
+
+	ShadowBan shadowban.Config
+	Jury      antibot.Config
+
+	Retaker   RetakerConfig
+	Sequencer SequencerConfig
+	Metronome MetronomeConfig
+}
+
+type RetakerConfig struct {
 	Enabled  bool
-	Detector shadowban.Config
+	Detector retaker.Config
+}
+
+type SequencerConfig struct {
+	Enabled  bool
+	Detector sequencer.Config
+}
+
+type MetronomeConfig struct {
+	Enabled  bool
+	Detector metronome.Config
 }
 
 type ChatConfig struct {

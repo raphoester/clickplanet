@@ -339,16 +339,26 @@ Sessions raise the floor to "drive a real browser". What gets through that is a
 userscript in a real browser, holding a genuine session — and the only thing
 left that separates it from a player is behaviour.
 
-`shadowBan` watches for one behaviour: taking a tile back moments after losing
-it, over and over, in a band no hand holds. A flagged caller's clicks are
-answered `OK` and dropped. That is deliberately not a refusal — a 403 names the
-check that tripped, and a silent no-op names nothing, so working around it is
-guesswork instead of a diff. It is not permanent: the caller reads the map back
-over the same websocket and will notice eventually.
+`antiBot` watches three behaviours, one per watchdog:
 
-`backend.yaml` ships `enabled: true` with `detector.enforce: false`, which
-measures and logs without dropping anything. **Do not flip `enforce` before
-reading both of the following.**
+- **`retaker`** — takes a tile back moments after losing it, over and over, in a
+  band no hand holds.
+- **`sequencer`** — walks the tile ids rather than the map: 1, 2, 3, 4, on and on
+  until a continent is painted.
+- **`metronome`** — never varies and never stops.
+
+Each returns `certain` or `suspect`. **`certain` bans on its own; `suspect` is a
+reading that would ban real players if it were trusted alone**, and counts only
+alongside a second watchdog. `jury.minSuspects` (2) is how many it takes.
+
+A flagged caller's clicks are answered `OK` and dropped. That is deliberately not
+a refusal — a 403 names the check that tripped, and a silent no-op names nothing,
+so working around it is guesswork instead of a diff. It is not permanent: the
+caller reads the map back over the same websocket and will notice eventually.
+
+`backend.yaml` ships `enabled: true` with `shadowBan.enforce: false`, which
+judges and logs without dropping anything. **Do not flip `enforce` before reading
+both of the following.**
 
 ### The histogram says where the line is
 
@@ -368,8 +378,9 @@ buckets that could not tell a tight timer from a broad human.
 
 **The histogram is global.** It mixes the bot, the players reacting to the bot,
 and everyone else, so it tells you *that* there is a band and roughly where —
-never which caller owns it. Per-caller numbers come from the log below, and
-only for callers that flag. That is why the bounds start wide.
+never which caller owns it. It also only sees `retaker`; the other two watchdogs
+have no histogram, because a sweep has no delay to time. Per-caller numbers come
+from the log below.
 
 ### The log says who
 
@@ -377,68 +388,87 @@ The address is never a metric label — that is unbounded cardinality, and it
 would put personal data in every scrape. It goes to the log instead:
 
 ```bash
-docker compose logs backend | grep "shadowban candidate"
+docker compose logs backend | grep "antibot ban"
 ```
 
 ```
-level=WARN msg="shadowban candidate" scope=198.51.100.20 flags=2 reactions=10
-  median=1.022s spread=8.3ms activeFor=32.2s longestGap=22.2s
-  topCountry=ps topCountryClicks=10 clicks=10 tiles="[3003 3004 3005 ...]"
+level=WARN msg="antibot ban" scope=198.51.100.20 flags=2 clicks=41022
+  activeFor=11h20m2s longestGap=1.9s topCountry=fr topCountryClicks=41022
+  tiles="[184430 184431 184432 ...]"
+  retaker="clear"
+  sequencer="certain stride share=0.991 steps=200 stride=1"
+  metronome="certain cadence clicks=900 median=1.002s spread=11ms sustained=6h2m"
 ```
 
-**`spread` is the number to judge on, not `median`.** A caller answering at
-almost exactly one second, ten times, within 8 ms of itself, is running a timer —
-the delay is human-looking on purpose and only the regularity gives it away.
-Compare that against the lines real players produce: they are named too at these
-bounds, and their spread is far wider.
+**Every watchdog is on the line, including the ones that said `clear`.** What did
+not fire is half of reading a ban that did. The line above is the overnight
+sweep: it never fought anyone for a tile, so `retaker` has nothing to say about
+it, and under the old single-behaviour rule it would have run all night unseen.
+
+**Read `spread`, not `median`.** A caller clicking at almost exactly one second,
+nine hundred times, within 11 ms of itself, is running a timer — the delay is
+human-looking on purpose and only the regularity gives it away. The same is true
+of `retaker`: its `maxSpread` is the bound that does the work.
+
+**`share` is `sequencer`'s equivalent.** 0.991 of two hundred steps sitting at
+`stride=1` is a loop over an integer. Tile ids follow the icosahedron's vertex
+order, so a hand filling in a shape does not produce that, whatever shape it is
+filling.
 
 **`flags` is how many times this caller has crossed the bar.** At
-`reflagInterval` ≥ `trackWindow` each flag rests on reactions the previous one
-never saw, so `flags=6` is six independent windows agreeing — worth far more
-than one verdict from one window. A caller that flags once and never again was
-probably a bad five minutes; one whose count keeps climbing is a standing
-pattern.
+`reflagInterval` ≥ the watchdog's `trackWindow`, each flag rests on evidence the
+previous one never saw, so `flags=6` is six independent judgements agreeing. A
+caller that flags once and never again was probably a bad five minutes; one whose
+count keeps climbing is a standing pattern.
 
 **`activeFor` and `longestGap` are the persistence signal, and the one a
 randomised delay cannot beat.** A bot author who reads this can jitter the delay
-until `spread` looks human. What costs them something real is stopping. Hours of
-`activeFor` with `longestGap` in seconds is nobody's evening; a person's line
-shows the breaks — the example above has a 22 second pause in a 32 second
-session, which is what a human rhythm looks like at small scale.
+until `spread` looks human — and `metronome` will then say `clear`, which is
+exactly why there is more than one watchdog. What costs them something real is
+stopping. Eleven hours of `activeFor` with `longestGap` under two seconds is
+nobody's evening. Neither number feeds a rule on its own, because deciding on
+them would ban the genuinely obsessed.
 
 `topCountry` is the country the caller painted with most. It is **context, not
 evidence** — the client declares it in the request, so it is changed by editing
 one string, and plenty of real players paint the same flags a bot does. Read it
-to understand what a caller was doing; never widen the rule to act on it.
+to understand what a caller was doing; never widen a rule to act on it.
 
 Before enforcing, get into a tile war yourself and confirm your own line's
 numbers sit clearly outside the ones you are about to set.
 
 ### Then turn it on
 
-`backend.yaml` ships `maxMedian: 2s` / `maxSpread: 1s`, wide on purpose so the
-log speaks. Tighten both to sit between the bot's line and the human ones, then
-set `detector.enforce: true` and redeploy.
+Two of the three need a measuring pass first. `backend.yaml` ships
+`retaker.detector.maxSpread: 1s` / `maxMedian: 2s` and
+`metronome.detector.maxSpread: 400ms`, wide on purpose so the log speaks.
+Tighten them to sit between the bot's line and the human ones, then set
+`shadowBan.enforce: true` and redeploy.
+
+`sequencer` needs no such pass and its shipped bounds are already right: forty
+clicks at a constant step is past anything a hand produces, and two hundred is
+not arguable.
 
 `shadowban_flagged` is how many callers are inside a ban and **counts while
-`enforce` is false too** — a non-zero gauge in observe mode means the rule is
+`enforce` is false too** — a non-zero gauge in observe mode means the rules are
 biting, not that anything was dropped. `shadowbanned_clicks` is the one that
 stays at 0 until you enforce.
 
-`shadowban_flags` counts flags rather than callers, so the two read together:
-`shadowban_flags 40` against `shadowban_flagged 2` is two callers flagged twenty
-times each, which is a very different picture from forty callers caught once.
-All three are readable with the `wget` line above.
+`shadowban_flags` counts flags rather than callers, **labelled by watchdog**, so
+the two read together: `shadowban_flags{watchdog="sequencer"} 40` against
+`shadowban_flagged 2` is two callers flagged twenty times each, which is a very
+different picture from forty callers caught once. The labels also tell you which
+watchdog is earning its keep before you enforce. All of them are readable with
+the `wget` line above.
 
 To undo one, set `enforce` back to false and redeploy — bans live in memory
 only, so a restart clears every one of them.
-
 ### Evidence has to outlive a deploy, and by default it does not
 
 Everything above is in-process. A deploy pulls a new image and **recreates** the
 container, which resets every counter and histogram to zero — and, less
 obviously, deletes the log too: Docker's default `json-file` driver stores logs
-per container id, so the old container taking its `shadowban candidate` lines
+per container id, so the old container taking its `antibot ban` lines
 with it is the bigger loss of the two. Two pieces of the compose file exist for
 this.
 
@@ -446,7 +476,7 @@ this.
 the container:
 
 ```bash
-journalctl CONTAINER_NAME=cp-backend --since '2 days ago' | grep shadowban
+journalctl CONTAINER_NAME=cp-backend --since '2 days ago' | grep "antibot ban"
 ```
 
 `docker compose logs backend` still works and still shows only the current
@@ -481,7 +511,6 @@ It is not a Prometheus, deliberately: a real one is 80–150 MB resident beside 
 samples a day apart. If this ever needs `histogram_quantile` and proper
 reset-aware `rate()`, that is the moment to spend the memory — the poller is
 then deleted, not extended.
-
 
 ## 7. CI and the image registry
 

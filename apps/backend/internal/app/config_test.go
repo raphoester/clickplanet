@@ -1,0 +1,62 @@
+package app
+
+import (
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/cfgutil"
+)
+
+// The shipped file is the schema. Nothing else checks that a key in it still
+// reaches the struct it is named after: koanf drops what it cannot match in
+// silence, so a renamed field turns a configured bound back into its default
+// without a word.
+func TestTheExampleConfigStillReachesTheStructs(t *testing.T) {
+	var config Config
+	require.NoError(t, cfgutil.NewLoader("../../cmd/api/example.yaml").Unmarshal(&config))
+
+	require.True(t, config.AntiBot.Enabled)
+
+	assert.False(t, config.AntiBot.ShadowBan.Enforce, "the example must ship observing only")
+	assert.Equal(t, time.Hour, config.AntiBot.ShadowBan.BanDuration)
+	assert.Equal(t, 5*time.Minute, config.AntiBot.ShadowBan.ReflagInterval)
+
+	assert.Equal(t, 2, config.AntiBot.Jury.MinSuspects)
+	assert.Equal(t, 10*time.Minute, config.AntiBot.Jury.SuspicionWindow)
+
+	require.True(t, config.AntiBot.Retaker.Enabled)
+	assert.Equal(t, 5*time.Second, config.AntiBot.Retaker.Detector.ReactionWindow)
+	assert.Equal(t, 12, config.AntiBot.Retaker.Detector.MinReactions)
+	assert.Equal(t, 120*time.Millisecond, config.AntiBot.Retaker.Detector.MaxSpread)
+	assert.Equal(t, 250*time.Millisecond, config.AntiBot.Retaker.Detector.MaxMedian)
+
+	require.True(t, config.AntiBot.Sequencer.Enabled)
+	assert.Equal(t, 40, config.AntiBot.Sequencer.Detector.MinSteps)
+	assert.Equal(t, 0.75, config.AntiBot.Sequencer.Detector.MinShare)
+	assert.Equal(t, 200, config.AntiBot.Sequencer.Detector.CertainSteps)
+	assert.Equal(t, 0.95, config.AntiBot.Sequencer.Detector.CertainShare)
+
+	require.True(t, config.AntiBot.Metronome.Enabled)
+	assert.Equal(t, 3*time.Second, config.AntiBot.Metronome.Detector.MaxGap)
+	assert.Equal(t, 120*time.Millisecond, config.AntiBot.Metronome.Detector.MaxSpread)
+	assert.Equal(t, 120, config.AntiBot.Metronome.Detector.MinClicks)
+	assert.Equal(t, 30*time.Minute, config.AntiBot.Metronome.Detector.CertainFor)
+	assert.Equal(t, 900, config.AntiBot.Metronome.Detector.CertainClicks)
+}
+
+// The blocks the antibot rewrite did not touch, so that moving one of them is a
+// failing test rather than a bound that silently went back to its default.
+func TestTheExampleConfigStillCarriesTheRestOfTheFile(t *testing.T) {
+	var config Config
+	require.NoError(t, cfgutil.NewLoader("../../cmd/api/example.yaml").Unmarshal(&config))
+
+	assert.Equal(t, "0.0.0.0:8080", config.HTTPServer.BindAddress)
+	assert.NotZero(t, config.GameMap.MaxIndex)
+	assert.Equal(t, float64(1), config.RateLimiter.PerSecond)
+	assert.Equal(t, 10, config.RateLimiter.Burst)
+	assert.Equal(t, 30*time.Second, config.TilesStorage.SnapshotInterval)
+	assert.Equal(t, time.Hour, config.Session.TTL)
+}

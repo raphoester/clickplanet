@@ -76,10 +76,10 @@ services:
     command: [ "./api", "-config", "/home/app/config/config.yaml" ]
     # journald, not the default json-file. json-file is stored per container id,
     # and a deploy pulls a new image and *recreates* the container — so every
-    # "shadowban candidate" line written since the last deploy is deleted along
+    # "antibot ban" line written since the last deploy is deleted along
     # with the old container. journald keeps them on the host instead:
     #
-    #   journalctl CONTAINER_NAME=cp-backend --since '2 days ago' | grep shadow
+    #   journalctl CONTAINER_NAME=cp-backend --since '2 days ago' | grep "antibot ban"
     #
     # `docker compose logs backend` still works and still shows only the current
     # container, which is usually what you want; journalctl is how you read
@@ -130,8 +130,11 @@ services:
           if wget -qO- --timeout=10 http://backend:8080/metrics > /tmp/scrape; then
             # `|| true` is load-bearing under `set -e`: grep exits 1 when it
             # matches nothing, which happens the moment a series is switched off
-            # (shadowBan.enabled false, say), and that would kill the loop into a
+            # (antiBot.enabled false, say), and that would kill the loop into a
             # restart cycle rather than record an honest empty sample.
+            # The series are still named shadowban_* though the block that
+            # turns them on is now antiBot: the metric names outlived the
+            # rename on purpose, so an existing history file stays comparable.
             { echo "# $$stamp"
               grep -E '^(click_reaction_seconds|shadowban|blocked_clicks|click_session_checks)' /tmp/scrape || true
               echo
