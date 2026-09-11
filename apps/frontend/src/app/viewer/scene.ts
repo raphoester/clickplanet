@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import {innerSphere} from "./sphere.ts";
+import {createAtmosphere} from "./atmosphere.ts";
 import {layoutViewport} from "./viewport.ts";
 
 export function setupScene(container: HTMLElement) {
@@ -74,4 +75,5 @@ export function addDisplayObjects(
             map: textureLoader.load('/static/earth/earth-4k.jpg'),
         })
     ))
+    scene.add(createAtmosphere());
 }

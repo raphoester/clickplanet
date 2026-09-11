@@ -15,28 +15,15 @@ type LeaderboardProps = {
 
 const NAME_MAX_LENGTH = 18
 
-/* The copy around it is English, so the grouping is too: "257.948 tiles on the
-   map" would read as a decimal to the very readers the sentence is written for. */
-const grouped = new Intl.NumberFormat("en-US")
-
 export default function Leaderboard(props: LeaderboardProps) {
     const titleId = useId()
-    const totalId = useId()
     const deltas = props.deltas ?? NO_TILE_DELTAS
 
     return <section className="leaderboard" aria-labelledby={titleId}>
         <h2 className="menu-section-title" id={titleId}>Leaderboard</h2>
 
-        {/* Names the denominator both number columns are counted against, once,
-            instead of repeating a unit on every line. */}
-        {props.tilesCount > 0 &&
-            <p className="leaderboard-total" id={totalId}>
-                {grouped.format(props.tilesCount)} tiles on the map
-            </p>}
-
         <div className="leaderboard-table-container">
-            <table className="leaderboard-table"
-                   aria-describedby={props.tilesCount > 0 ? totalId : undefined}>
+            <table className="leaderboard-table">
                 <thead>
                 <tr>
                     <th className="leaderboard-table-head leaderboard-table-rank" scope="col">#</th>

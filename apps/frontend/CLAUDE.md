@@ -20,18 +20,12 @@ npm run mobile     # Screenshot/inspect a URL as a phone (see "Debugging mobile 
 `.github/workflows/check-frontend.yml` runs lint, build and tests on every PR
 touching this app.
 
-**`npm run dev` can reach the production API**, on port 5173 only:
-`api.clickplanet.lol` answers CORS for `http://localhost:5173` as well as for the
-deployed origin, so `VITE_API_BASE_URL=https://api.clickplanet.lol npm run dev`
-works against real data. **Clicking will not** — `session.turnstile.hostnames`
-refuses a token minted from localhost, deliberately — but the map, the
-leaderboard and both live streams do. That entry is temporary; see
-[deploy/vps/README.md](../../deploy/vps/README.md).
-
-Otherwise point `VITE_API_BASE_URL` at a local backend, or swap `PlanetBackend`
-for `FakeBackend` in `src/main.tsx` — the fake serves a full map and simulates
-live updates. `FakeChatBackend` is the same swap for `ChatServiceBackend`, and
-reproduces every refusal the chat can show.
+**`npm run dev` cannot reach the production API.** `api.clickplanet.lol` sends
+`access-control-allow-origin: https://clickplanet.lol` and nothing else, so the
+browser blocks every request from `localhost`. Point `VITE_API_BASE_URL` at a
+local backend, or swap `PlanetBackend` for `FakeBackend` in `src/main.tsx` — the
+fake serves a full map and simulates live updates. `FakeChatBackend` is the same
+swap for `ChatServiceBackend`, and reproduces every refusal the chat can show.
 
 A local backend is the quickest way to exercise the real chat: `cmd/api`'s
 `example.yaml` has `chat.enabled: true`, and the Go server answers
@@ -331,8 +325,22 @@ lifecycle left to get wrong.
 
 **`appearance: "interaction-only"`** — the widget draws nothing for almost every
 visitor. `.turnstile-host` in `index.css` is where it would appear if Turnstile
-decides this one has to tick a box; it is `pointer-events: none` so an empty host
-never swallows a click meant for the globe.
+decides this one has to tick a box.
+
+**Turnstile draws the checkbox inside a closed shadow root**, so no selector on
+this page reaches it and no rule of ours styles it. That makes
+`pointer-events: none` on the host unusable, however tempting: the property
+*inherits* across the shadow boundary, and the `.turnstile-host iframe` rule
+that would give it back matches nothing. A challenge styled that way is painted
+on screen and passes every click straight through to the globe behind it — a
+player who is asked to tick a box that cannot be ticked, and so cannot play.
+Measured on the deployed site, not deduced.
+
+Nothing is needed in its place: the host shrink-wraps the widget, and Turnstile
+renders a **0x0** box while it is not challenging, so an idle host has no area
+to swallow a click with. Its `z-index` is above every other layer — the chat
+sheet is bottom-centre on a phone, exactly where the widget appears, and a
+challenge is the one thing on the page that has to be answerable.
 
 **Concurrent clicks share one mint.** A page load fires a flurry, and without
 coalescing the first second of play would spend the whole per-IP mint budget on
@@ -416,7 +424,19 @@ curl -s "https://clickplanet.lol$B" | grep -c 'challenges.cloudflare.com/turnsti
   See [The zoomed-out view](#the-zoomed-out-view).
 - `pointSize.ts` — how big a tile is drawn, and the single schedule that hands
   the frame from the painted flag to the tiles.
-- `shaders/` — GLSL for the display and picking passes.
+- `zoom.ts` — how far the camera may pull back and push in. The camera is
+  orthographic against a globe of radius 1, so `zoom` reads as the share of the
+  viewport's height the globe fills: it opens at 1, edge to edge, and pulls back
+  to 0.5, the whole sphere with sky around it. The idle spin runs at or below
+  the opening zoom and stops once the view is pushed in past it.
+- `stars.ts` — the sky behind the globe, drawn as a **pass of its own**. Its
+  camera borrows the main camera's orientation and nothing else, so the sky
+  turns with the view and holds still through a zoom. Stars in the main scene
+  would do neither: that camera is orthographic, so its box frustum would clip
+  them to a tube around the globe, and `camera.zoom` would fan them out across
+  the screen on the way in. Its scene is not the one `disposeScene` walks, so
+  `startAnimation`'s `stop()` disposes it by hand.
+- `shaders/` — GLSL for the display, picking and star passes.
 
 ### The zoomed-out view
 

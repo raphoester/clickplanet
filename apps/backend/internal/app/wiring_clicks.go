@@ -25,7 +25,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ipblock"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging/lf"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ratelimit"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/wspublisher"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/xtime"
 )
 
@@ -57,20 +56,6 @@ func (a *App) configureClicks(_ context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to create prometheus click handler service: %w", err)
 	}
-
-	updatesCh, err := tilesStorage.Subscribe(a.ctx)
-	if err != nil {
-		return fmt.Errorf("failed to subscribe to tile updates: %w", err)
-	}
-
-	publisher := wspublisher.New(
-		updatesCh,
-		planetv1controller.TileUpdateRoute,
-		planetv1controller.EncodeTileUpdate,
-		a.logger,
-	)
-	a.runners = append(a.runners, publisher.Run)
-	a.mountWS(publisher.DeclareRoutes)
 
 	a.configureBookkeeperIfEnabled(tilesStorage)
 

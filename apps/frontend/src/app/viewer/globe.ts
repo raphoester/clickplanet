@@ -24,6 +24,8 @@ import {LeaderboardEntry, rankCountries} from "../../domain/leaderboard.ts";
 import {OwnerChange, TileOwnership} from "../../domain/tileOwnership.ts";
 import {warnOnce} from "../../domain/warnOnce.ts";
 import {layoutViewport} from "./viewport.ts";
+import {createStarfield} from "./stars.ts";
+import {MAX_ZOOM, MIN_ZOOM, RESTING_ZOOM} from "./zoom.ts";
 
 type Uniforms = {
     pointSize: THREE.IUniform
@@ -258,14 +260,16 @@ function startAnimation(
     beforeRender: () => void,
     afterRender: () => void,
 ): {stop: () => void} {
+    const starfield = createStarfield();
+
     const controls = new OrbitControls(camera, renderer.domElement);
-    controls.minZoom = 1;
-    controls.maxZoom = 50;
+    controls.minZoom = MIN_ZOOM;
+    controls.maxZoom = MAX_ZOOM;
     controls.panSpeed = 0.1;
     controls.enableDamping = true;
 
     controls.addEventListener('change', () => {
-        controls.autoRotate = camera.zoom === 1;
+        controls.autoRotate = camera.zoom <= RESTING_ZOOM;
 
         controls.rotateSpeed = (1 / camera.zoom) / 1.5;
     });
@@ -273,7 +277,9 @@ function startAnimation(
     renderer.setAnimationLoop(() => {
         controls.update();
         beforeRender();
-        renderer.render(scene, camera);
+        starfield.render(renderer, camera, () => renderer.render(scene, camera));
+        // After the starfield's pass, not inside it: the sky is drawn first and
+        // the globe over it, so the buffer only holds the whole frame here.
         afterRender();
         uniforms.pointSize.value = displayPointSize(camera.zoom, renderer.domElement.height);
         pickingUniforms.pointSize.value = tilePointSize(camera.zoom, renderer.domElement.height);
@@ -291,6 +297,8 @@ function startAnimation(
         stop: () => {
             renderer.setAnimationLoop(null);
             controls.dispose();
+            // Its scene is not the one `disposeScene` walks, so it goes here.
+            starfield.dispose();
         },
     };
 }

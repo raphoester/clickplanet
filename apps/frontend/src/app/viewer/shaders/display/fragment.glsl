@@ -44,7 +44,12 @@ void main() {
 
     vec4 painted = vec4(own.rgb, 0.0);
     if (vFlagRegion.z > 0.0) {
-        vec3 flag = texture(atlasTexture, atlasUVof(vFlagRegion, vec2(vFlagUV.x, 1.0 - vFlagUV.y))).rgb;
+        // `vFlagUV` already runs the way `atlasUVof` wants it — both are 0 at
+        // the bottom, the atlas because the texture is uploaded flipped and the
+        // frame because it is built on the landmass's north axis. Turning it
+        // over here, as the per-tile path has to for `gl_PointCoord`, is what
+        // had every painted flag upside down.
+        vec3 flag = texture(atlasTexture, atlasUVof(vFlagRegion, vFlagUV)).rgb;
 
         // A keyline around the flag's own rectangle, so its stripes do not read
         // as more territory. It fades with the flag it belongs to.

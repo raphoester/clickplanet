@@ -234,17 +234,23 @@ table {
 
 /* Host for the Turnstile widget the session client renders into. It is empty
    and invisible for almost every visitor — "interaction-only" draws nothing
-   unless Turnstile decides this one has to tick a box — so it must not take a
-   click that was meant for the globe underneath it. */
+   unless Turnstile decides this one has to tick a box.
+
+   It shrink-wraps the widget, and Turnstile renders a 0x0 box when it is not
+   challenging, so an idle host has no area and cannot take a click meant for
+   the globe underneath it. Do NOT reach for `pointer-events: none` here to get
+   that: the property inherits into the widget, and the exception that would
+   give it back cannot be written, because Turnstile draws the checkbox inside
+   a closed shadow root that no page selector reaches. The whole challenge then
+   goes click-through, which is a player who cannot play.
+
+   Above every other layer for the same reason: it is the one thing on the page
+   that has to be answered, and bottom-centre is where the chat sheet sits on a
+   phone. */
 .turnstile-host {
     position: fixed;
     bottom: 16px;
     left: 50%;
     transform: translateX(-50%);
-    z-index: 40;
-    pointer-events: none;
-}
-
-.turnstile-host iframe {
-    pointer-events: auto;
+    z-index: 512;
 }

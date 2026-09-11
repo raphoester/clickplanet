@@ -7,7 +7,7 @@ managed add-ons were, and none of them are needed. Target cost is **~$6/month**.
 | Piece | Where | Cost |
 |---|---|---|
 | Frontend (static bundle + textures) | Cloudflare Pages | free |
-| API + WebSocket (`cmd/api`) | DigitalOcean droplet, Docker Compose | ~$6/mo |
+| API (`cmd/api`)             | DigitalOcean droplet, Docker Compose | ~$6/mo |
 | TLS | Caddy, automatic Let's Encrypt over DNS-01 | free |
 | Images | GitHub Container Registry | free |
 | DNS | Cloudflare | free |
@@ -36,7 +36,7 @@ Caddyfile; it moves to any provider that rents a Linux box.
   keeps a history the API's in-process counters cannot (see
   [Evidence has to outlive a deploy](#evidence-has-to-outlive-a-deploy-and-by-default-it-does-not)).
   There is no database.
-- `Caddyfile` — TLS via DNS-01, reverse proxy, CORS (see [Testing a local frontend against this API](#testing-a-local-frontend-against-this-api)), WebSocket passthrough
+- `Caddyfile` — TLS via DNS-01, reverse proxy, CORS
 - `caddy/Dockerfile` — Caddy built with `caddy-dns/cloudflare`. The stock image
   has no DNS provider module and cannot solve the DNS-01 challenge.
 - `backend.yaml` — API config; secrets come from env, not this file
@@ -126,7 +126,7 @@ Let's Encrypt certificate, so strict verification passes; the Flexible mode
 talks plain HTTP to the origin, which Caddy redirects to HTTPS, giving a
 redirect loop.
 
-WebSockets work through the proxy on the free plan.
+Long-lived server-streaming responses pass through the proxy on the free plan, provided they are never silent — see `httpServer.streamHeartbeat`.
 
 ## 3. The droplet
 
@@ -354,11 +354,13 @@ alongside a second watchdog. `jury.minSuspects` (2) is how many it takes.
 A flagged caller's clicks are answered `OK` and dropped. That is deliberately not
 a refusal — a 403 names the check that tripped, and a silent no-op names nothing,
 so working around it is guesswork instead of a diff. It is not permanent: the
-caller reads the map back over the same websocket and will notice eventually.
+caller reads the map back over the same stream and will notice eventually.
 
-`backend.yaml` ships `enabled: true` with `shadowBan.enforce: false`, which
-judges and logs without dropping anything. **Do not flip `enforce` before reading
-both of the following.**
+`backend.yaml` now runs with `shadowBan.enforce: true`. It spent 2026-09-11 in
+observe mode (`enforce: false`, which judges and logs without dropping anything)
+and the bounds below were set from what that pass recorded — see "What the
+measuring pass found". **Anything you widen here, widen back in observe mode
+first.**
 
 ### The histogram says where the line is
 
@@ -434,20 +436,45 @@ evidence** — the client declares it in the request, so it is changed by editin
 one string, and plenty of real players paint the same flags a bot does. Read it
 to understand what a caller was doing; never widen a rule to act on it.
 
-Before enforcing, get into a tile war yourself and confirm your own line's
-numbers sit clearly outside the ones you are about to set.
+Before loosening any of these bounds, get into a tile war yourself and confirm
+your own line's numbers sit clearly outside the ones you are about to set.
 
-### Then turn it on
+### What the measuring pass found
 
-Two of the three need a measuring pass first. `backend.yaml` ships
-`retaker.detector.maxSpread: 1s` / `maxMedian: 2s` and
-`metronome.detector.maxSpread: 400ms`, wide on purpose so the log speaks.
-Tighten them to sit between the bot's line and the human ones, then set
-`shadowBan.enforce: true` and redeploy.
+The observe pass on 2026-09-11 flagged six times, all one caller on one IPv6
+/64. Reading those six lines changed two of the three watchdogs' bounds.
 
-`sequencer` needs no such pass and its shipped bounds are already right: forty
-clicks at a constant step is past anything a hand produces, and two hundred is
-not arguable.
+**`sequencer` was the only one whose evidence held, and its shipped bounds were
+already right.** The caller tracked tile id N+1 for 150 of 200 steps. Walking
+the ids is walking a geodesic: the id path turns **0.2° per step**, so following
+it draws a ruler-straight line across the map, and with ~6 neighbours per tile a
+hand choosing freely holds that for a few clicks rather than a hundred and fifty.
+Simulating a perfectly straight human sweep — better than a person manages, one
+click at a time with no drag to help — lands on N+1 a median **0.000** of the
+time. Forty steps at a constant stride is past anything a hand produces; two
+hundred is not arguable.
+
+Note what this is *not*: N+1 being spatially adjacent to N proves nothing on its
+own, and the ids are laid out so it nearly always is. The signal is holding one
+stride, not the stride being small.
+
+**`retaker.maxMedian: 2s` was letting the retaker ban alone, and four of the six
+flags were that.** A median above `maxMedian` only demotes `certain` to
+`suspect` — and 2s is slower than any human reaction, so it could never fail.
+Every retaker suspicion arrived as `certain`, `certain` bans without a second
+watchdog, and `jury.minSuspects` was never consulted. The four lines it produced
+were humans in a tile war, at spreads of 689–879ms. Now `maxSpread: 300ms` /
+`maxMedian: 250ms`, which sits between those humans and the 138ms bot above.
+
+**`metronome.maxSpread` stays at 400ms on purpose.** The caller read 248ms, but
+a player spam-clicking into the 1 click/s throttle has its surviving clicks
+handed back at the refill rate — the rate limiter runs *before* the antibot
+interceptor, so this number partly measures the limiter. That is tolerable at
+`suspect`, which needs a second watchdog to mean anything. `certainFor: 30m` and
+`certainClicks: 900` are the ones that ban alone here, and the claim they rest on
+is the absence of any pause past `maxGap`, not the spread.
+
+Then `shadowBan.enforce: true` and redeploy.
 
 `shadowban_flagged` is how many callers are inside a ban and **counts while
 `enforce` is false too** — a non-zero gauge in observe mode means the rules are
@@ -560,7 +587,7 @@ Pages deploys itself on push; no workflow needed.
 ## 8. Live chat
 
 `chat.enabled: true` in `backend.yaml` publishes two routes Caddy already
-forwards: `/chat.v1.ChatService/` and `/ws/chat`. `SendMessage` is an
+forwards, `ListenForEvents` included: `/chat.v1.ChatService/`. `SendMessage` is an
 **unauthenticated public write endpoint** — anyone who can reach the API can
 post, under any name — so the things that keep it usable are all config:
 
@@ -617,33 +644,6 @@ every 30s and on every clean shutdown. A nightly cron on the box is enough:
 
 DigitalOcean's droplet backups (+20% of the droplet price, so ~$1.20/mo) cover
 the whole disk if you would rather not think about it.
-
-## Testing a local frontend against this API
-
-`npm run dev` on a laptop serves the frontend from `http://localhost:5173`, and
-the API answers CORS for that origin as well as for `FRONTEND_ORIGIN`. Point the
-dev frontend at `https://$API_DOMAIN` and it works against production data.
-
-CORS carries **exactly one origin and never a list**, so the Caddyfile picks the
-value per request with a `map` on the request's `Origin`. It is written that way
-rather than as a second `header` directive with a matcher for a reason worth
-keeping: the matcher form *adds* a second `Access-Control-Allow-Origin` next to
-the one the Go middleware already sent, and a browser rejects a response
-carrying two of them. `Vary: Origin` is what stops a cache in front serving the
-localhost answer to a real visitor.
-
-This admits any page on port 5173 of a developer's own machine — that is the
-whole cost, and it is why the entry is temporary. **Delete the `map` when the
-frontend has moved off the websockets**, together with the `/ws/*` routes.
-
-Two things it does not buy:
-
-- **Clicking still fails**, because `session.turnstile.hostnames` refuses a
-  token whose siteverify hostname is not listed, and localhost must never be on
-  that list. Reads and both live streams need no session, so watching the planet
-  and the chat works.
-- **Nothing here changes who may write.** The throttle, the blocklist and the
-  session check all key on the caller's address exactly as before.
 
 ## Rollback
 

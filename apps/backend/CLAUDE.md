@@ -54,7 +54,7 @@ Clicks and sessions meet only through `kernel/session.Signer`: the session conte
 
 Adding a context that callers talk to means a `proto/<name>/v1`, an `internal/<name>/`, and one `configure<Name>` in `internal/app`. Connect derives the route from the proto package, so there is no prefix to allocate and no router to edit. `internal/session/` is the worked example: it cost one proto file, one domain rule, two adapters and one wiring file, and no existing route changed.
 
-**`cmd/api`** is the only binary: an HTTP/WebSocket server serving all three contexts. Follows `New()` → `Configure()` → `Run()`.
+**`cmd/api`** is the only binary: one HTTP server serving all three contexts. Follows `New()` → `Configure()` → `Run()`.
 
 It runs as a **single self-contained container with no dependencies**: the tile map lives in process and is persisted to a local snapshot file. There is no database, no cache, and no second process.
 
@@ -76,9 +76,9 @@ Core interfaces (ports) defined in `gateways.go`:
 
 **Primary (input):**
 - `adapters/primary/http/planetv1controller/` — the API. `ClickService` implements the generated `planetv1connect.ClickServiceHandler` and nothing else; it never sees an `http.ResponseWriter`, which is the point of serving the contract with Connect rather than by hand. Two interceptors wrap it: `NewRateLimitInterceptor` (see [Rate limiting](#rate-limiting)) and `NewErrorInterceptor`, which maps domain errors onto Connect codes, logs the unexpected ones and keeps their cause off the wire, so **handlers return their errors bare** — `domain.ErrInvalidArgument` becomes `CodeInvalidArgument`, a code a handler picked itself is left alone, and anything else is logged once and answered as `internal error`.
-- the tile stream, served **twice over**: as `ClickService.ListenForEvents`, a Connect server-streaming RPC, and as the older `/ws/listen` websocket a `kernel/wspublisher` instance broadcasts on. See [The live streams](#the-live-streams).
+- the tile stream, as `ClickService.ListenForEvents` — a Connect server-streaming RPC like any other procedure on the service. See [The live streams](#the-live-streams).
 
-**There is one server, one mux, and no version prefix.** Connect names each service's path from its proto package — `/planet.v1.ClickService/` and `/chat.v1.ChatService/` — so nothing is mounted under a prefix of ours. The two services, the websocket upgrade and `/metrics` are the only things on the router. Nothing here needs a connection-level demultiplexer such as `cmux`; that is for running a real gRPC server, which owns its own HTTP/2 handler, beside a REST one.
+**There is one server, one mux, and no version prefix.** Connect names each service's path from its proto package — `/planet.v1.ClickService/` and `/chat.v1.ChatService/` — so nothing is mounted under a prefix of ours. The three services and `/metrics` are the only things on the router. Nothing here needs a connection-level demultiplexer such as `cmux`; that is for running a real gRPC server, which owns its own HTTP/2 handler, beside a REST one.
 
 `Configure` sets `http.Protocols` with both HTTP/1.1 and unencrypted HTTP/2, because the generated handler also speaks gRPC and gRPC-Web and those need HTTP/2. Browsers reach the same routes over HTTP/1.1. Verified: HTTP/1.1 and h2c both answer on the same port.
 
@@ -91,17 +91,15 @@ Both live feeds are served **two ways at once**, and that is a transition, not a
 **One stream per API, and an envelope rather than a bare payload.** A `PlanetEvent` is a `oneof` of `tile_update` and `heartbeat`; `ChatEvent` is a `oneof` of `message` and `heartbeat`. **A new kind of live event is a new case in that `oneof`, never a second stream** — one connection per client, one route to configure, and a client that does not know a case reads an unset `oneof` and skips it instead of breaking. That is what the bare `TileUpdate` frame could not do, on the websocket or off it.
 
 **`heartbeat` is not decoration.** Cloudflare cuts a silent response at **~125s with a 524** — measured against production three times, exactly 125.1s. The websocket never hit this because Cloudflare keeps those open; a chunked HTTP response is not so lucky. A quiet chat is the normal case, and a quiet planet happens, so both streams send a heartbeat every `httpServer.streamHeartbeat` (30s by default, and it **must** stay well under 125s). Without it a silent stream dies and reconnects forever, losing whatever was published in each gap.
-- `/ws/listen` and `/ws/chat`, the websockets `kernel/wspublisher` broadcasts on.
-
-The websocket came first and the RPCs were added beside it, because **every already-loaded browser speaks the websocket**. It stays until the deployed frontend has moved over; only then do the `/ws/*` routes, `wspublisher` and the `Encode*` functions go.
+These replaced a pair of websockets on `/ws/listen` and `/ws/chat`, broadcast by a `kernel/wspublisher` fanout. **Nothing here speaks websocket any more** — no upgrade route, no second mux, no `coder/websocket` dependency.
 
 Each handler calls the storage's `Subscribe(ctx)` **per call**, and the request context is what unsubscribes — it is cancelled however the stream ends, so a disconnect needs no `CloseRead` equivalent. Both storages already handed every subscriber its own buffered channel and dropped rather than blocked for a slow one, so one subscription per connected client is what they were built for; `subscriberBuffer` now bounds a client rather than the single fanout.
 
-**The streaming RPCs are not wrapped by any interceptor except error mapping**, because every other one is a `connect.UnaryInterceptorFunc` and streams skip those by construction. That preserves what was already true of the websocket: reads and the live feed are untouched by the throttle, the VPN blocklist and the session check. A policy that ever has to reach a stream must be written as a full `connect.Interceptor`.
+**The streaming RPCs are not wrapped by any interceptor except error mapping**, because every other one is a `connect.UnaryInterceptorFunc` and streams skip those by construction. Reads and the live feeds are therefore untouched by the throttle, the VPN blocklist and the session check, exactly as they were when they were websockets. A policy that ever has to reach a stream must be written as a full `connect.Interceptor`.
 
 ### The map load
 
-`GetMap` is an ordinary RPC, but marked `idempotency_level = NO_SIDE_EFFECTS` in the proto, so Connect sends it as an **HTTP GET** and the handler sets `Cache-Control: public, max-age=5` on the response. A burst of visitors can therefore share one origin response; the websocket carries everything that happens after a chunk was built, so a client starting from a slightly old map converges anyway. `MapDensity` is marked the same way.
+`GetMap` is an ordinary RPC, but marked `idempotency_level = NO_SIDE_EFFECTS` in the proto, so Connect sends it as an **HTTP GET** and the handler sets `Cache-Control: public, max-age=5` on the response. A burst of visitors can therefore share one origin response; `ListenForEvents` carries everything that happens after a chunk was built, so a client starting from a slightly old map converges anyway. `MapDensity` is marked the same way.
 
 The response never repeats a tile id. `GetMapResponse` carries `start_tile_id`, the interned `codes` table, and `tiles` — a `bytes` field holding two bytes per tile, little endian, indexing into `codes`. Tile ids are implicit in the position, which is what makes it far smaller than the deprecated `map<uint32, string>`: **516 KB against 3.6 MB** for a full 257,948-tile map.
 
@@ -113,7 +111,7 @@ The response never repeats a tile id. `GetMapResponse` carries `start_tile_id`, 
 - `adapters/secondary/in_memory_country_checker/` — validates country codes (hardcoded)
 - `adapters/secondary/x_publisher/` — posts to X/Twitter
 
-Beyond the `domain.TileStorage` port, `memory_tile_storage` also exposes `Subscribe(ctx) (<-chan domain.TileUpdate, error)` for the websocket publisher and `PastUpdates(ctx, duration, now)` for the bookkeeper.
+Beyond the `domain.TileStorage` port, `memory_tile_storage` also exposes `Subscribe(ctx) (<-chan domain.TileUpdate, error)`, one call per open stream, and `PastUpdates(ctx, duration, now)` for the bookkeeper.
 
 ### Key Flow
 
@@ -129,7 +127,7 @@ POST /planet.v1.ClickService/Click   [X-Session-Token: <the minted token>]
   → ClickService
   → ClickHandlerService (validates tile ID + country)
   → MemoryTileStorage.Set() [writes the tile, fans the update out in process]
-  → every subscriber: one per open ListenForEvents stream, plus wspublisher's /ws/listen clients
+  → every subscriber: one per open ListenForEvents stream
 ```
 
 `Set` is a no-op when the tile already holds that value — no write, no update published.
@@ -140,7 +138,7 @@ POST /chat.v1.ChatService/SendMessage
   → ChatService
   → chat_service (sanitizes, stamps id/time/tag)
   → MemoryChatStorage.Append() [appends to the JSONL log, then fans out]
-  → every subscriber: one per open ListenForEvents stream, plus wspublisher's /ws/chat clients
+  → every subscriber: one per open ListenForEvents stream
 ```
 
 A failed log write fails the whole post: the log is the audit trail, so a message nobody can account for later is not one that gets broadcast.
@@ -149,7 +147,7 @@ A failed log write fails the whole post: the log is the audit trail, so a messag
 
 Chat is a separate bounded context, not a feature of the tile game: it shares the process, the transport and the country list, and has its own proto package, domain, storage and edge. Nothing under `internal/chat/` imports `internal/clicks/`, and the reverse holds too.
 
-**Off by default.** With `chat.enabled` false nothing is registered, so `/chat.v1.ChatService/` and `/ws/chat` both answer 404 — the unauthenticated public write endpoint does not exist at all rather than existing and erroring.
+**Off by default.** With `chat.enabled` false nothing is registered, so `/chat.v1.ChatService/` answers 404 — the unauthenticated public write endpoint does not exist at all rather than existing and erroring.
 
 **Identity without accounts.** A client picks its own display name and sends a UUID it persists locally. **Neither is trusted for anything** — anyone can post with any name. What a sender cannot forge is `author_tag`: a salted hash of their IP, 6 hex characters, so two people using the same name still look different and a mute has a key that means something. The salt is `chat.service.tagSalt`; left empty it is regenerated at boot, which changes everyone's tag on restart, and the server warns about it.
 
@@ -163,11 +161,11 @@ The **vendored VPN lists** do not cover chat: `NewVPNBlockInterceptor` wraps `Cl
 
 That log holds **personal data** — IPs next to user-authored text — so the retention window is a policy decision rather than a cache size. It lives on the `tile_state` volume, which the droplet's weekly disk backup already covers.
 
-**Two streams, two routes.** Chat broadcasts on `/ws/chat`, not on `/ws/listen`. Frames carry a bare protobuf message with no type tag, so a second payload on the tile stream would be indistinguishable from a `TileUpdate` to every already-deployed client. `kernel/wspublisher` is generic over its payload and takes a route, instantiated once per stream. `ChatService.ListenForEvents` carries the same feed in a typed envelope — see [The live streams](#the-live-streams) — and that missing type tag is exactly what its `oneof` fixes.
+**Chat has its own stream**, `ChatService.ListenForEvents` — see [The live streams](#the-live-streams). It replaced a `/ws/chat` websocket that had to be kept apart from the tile one because frames carried a bare protobuf message with no type tag: a second payload on either socket would have been indistinguishable from the first. The `oneof` envelope is exactly what removes that constraint.
 
 **Sending is an RPC, not a read on the socket**: both publishers lean on `CloseRead` for instant disconnect detection, and the RPC path already has the middleware stack and the interceptors.
 
-`GetHistory` is marked `NO_SIDE_EFFECTS`, so Connect sends it as a GET — but it answers `Cache-Control: no-store`, the opposite of `GetMap`. A client fetches it once on join to seed what the websocket then keeps up to date, so a cached answer would show a joiner a chat missing the last few minutes.
+`GetHistory` is marked `NO_SIDE_EFFECTS`, so Connect sends it as a GET — but it answers `Cache-Control: no-store`, the opposite of `GetMap`. A client fetches it once on join to seed what the stream then keeps up to date, so a cached answer would show a joiner a chat missing the last few minutes.
 
 ### Rate limiting
 
@@ -201,7 +199,7 @@ Chat and sessions each have **their own limiter instance** with their own budget
 
 **It exists because of the rate limiter, not instead of it.** The bucket is keyed on an address, and a commercial VPN is the cheapest way to get a fresh one; refusing those addresses is what makes the bucket hold. It raises the floor rather than closing the door — residential proxies appear in no public list, and nothing here stops one. **That gap is what [Sessions](#sessions-internalsession) closes**, by requiring something an address cannot buy; chasing list completeness instead is a treadmill.
 
-Reads and the websocket are untouched. A VPN user still loads the planet and follows it live; they cannot paint. That is also what keeps a false positive readable: the page works and says why, instead of failing to load.
+Reads and the streams are untouched. A VPN user still loads the planet and follows it live; they cannot paint. That is also what keeps a false positive readable: the page works and says why, instead of failing to load.
 
 **The ranges are vendored and embedded**, from [X4BNet/lists_vpn](https://github.com/X4BNet/lists_vpn) (MIT, rebuilt daily from ASN ownership), in `internal/kernel/ipblock/data`. Not fetched at boot: `cmd/api` is a self-contained container with no startup dependencies, and a boot that can fail because GitHub is down is a worse trade than a list that ages between deploys — the Cloudflare ranges in `deploy/vps/Caddyfile` are maintained the same way. Refresh with `make vpn-lists` and commit; the tests assert the lists still parse and are not truncated.
 
@@ -227,7 +225,7 @@ The signature is checked **before** the expiry, in constant time, so a forger le
 
 **Where it sits in the chain:** error mapping, VPN blocklist, **session**, throttle. Outside the limiter for the same reason the blocklist is — a click refused for its session must not also spend a token, or the retry that follows the mint would come back 429 and the web app would show the throttle dialog instead. `TestSessionCheckRunsBeforeTheThrottle` pins it.
 
-**Reads and the websocket are untouched.** A visitor loads the planet, watches it live and reads the chat without ever minting anything; a session is only ever needed to paint. `GetMap` is a cacheable GET and a per-session header on it would defeat that cache.
+**Reads and the streams are untouched.** A visitor loads the planet, watches it live and reads the chat without ever minting anything; a session is only ever needed to paint. `GetMap` is a cacheable GET and a per-session header on it would defeat that cache.
 
 **Minting has its own throttle** (`session.rateLimiter`, one every 30s with 10 in hand). A mint costs a siteverify round trip to a third party, so it cannot share the click budget: unthrottled, the endpoint is a free way to spend this server's siteverify quota.
 
@@ -254,7 +252,7 @@ serves three different findings and would serve a fourth.
 **A flagged caller's clicks are answered `OK` and dropped.** That is the whole
 point — a refusal names the check that tripped, and the author fixes it in an
 afternoon; a silent no-op names nothing. It is not permanent (the caller reads
-the map back over the same websocket and will notice), but it moves the cost of
+the map back over the same stream and will notice), but it moves the cost of
 the next round onto them.
 
 #### Three watchdogs, one jury
@@ -415,17 +413,16 @@ The whole map is snapshotted to `tilesStorage.snapshotPath`:
 - restored at boot; a missing, truncated, or corrupt snapshot logs and starts from an empty map, it never prevents a start
 - a snapshot taken at a different `gameMap.maxIndex` restores the overlap
 
-**What this costs:** anything written since the last snapshot is lost on a hard kill (`SIGKILL`, OOM, power loss), bounded by `snapshotInterval`. And because the state is per-process, **this is single-instance only** — two API replicas would each hold their own divergent map. Both are deliberate: the game state is a few MB and the WebSocket fanout was already per-instance, so a database was buying durability alone.
+**What this costs:** anything written since the last snapshot is lost on a hard kill (`SIGKILL`, OOM, power loss), bounded by `snapshotInterval`. And because the state is per-process, **this is single-instance only** — two API replicas would each hold their own divergent map. Both are deliberate: the game state is a few MB and the update fanout was already per-instance, so a database was buying durability alone.
 
 The snapshot file is the only thing worth backing up.
 
 ### Kernel (`internal/kernel/`)
 
-Shared infrastructure: `cfgutil` (YAML + env config via koanf), `httpserver` (middleware, formats), `logging`, `prom` (Prometheus), `xtime`, `ctxutil`, `ratelimit`, `ipblock`, `atomicfile`, `wspublisher`.
+Shared infrastructure: `cfgutil` (YAML + env config via koanf), `httpserver` (middleware, formats), `logging`, `prom` (Prometheus), `xtime`, `ctxutil`, `ratelimit`, `ipblock`, `atomicfile`.
 
-Two of these are here because both bounded contexts need them and neither should depend on the other:
+One of these is here because both bounded contexts need it and neither should depend on the other:
 
-- `wspublisher` — the WebSocket fanout, generic over its payload and its encoder. It knows nothing about what it carries, so the payload type and the wire encoding stay with the context that owns them.
 - `atomicfile` — temp file, fsync, rename, fsync of the directory. Written for the tile snapshot; the chat log's retention rewrites need the same guarantee, and duplicating 80 lines of carefully-written fsync/rename code is how the two drift apart. Covered by the existing snapshot tests.
 
 `session` mints and verifies the click token — see [Sessions](#sessions-internalsession). `turnstile` is the siteverify client it is fed by; both are in the kernel because the session context mints with them and the clicks context verifies with them, and neither context may depend on the other.
