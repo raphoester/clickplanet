@@ -8,8 +8,9 @@
     z-index: 128;
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 8px 16px 6px 14px;
+    gap: 9px;
+    height: 44px;
+    padding: 0 17px 0 15px;
     border: 1px solid #FFFFFF33;
     border-radius: 30px;
     background: #00000075;
@@ -19,7 +20,7 @@
     font-family: "Luckiest Guy", sans-serif;
     font-size: 18px;
     text-shadow: -1px 1px 0 #000000;
-    transition: background-color 0.125s ease, border-color 0.125s ease;
+    transition: background-color 0.125s ease, border-color 0.125s ease, opacity 0.125s ease;
 }
 
 .camera-button:hover {
@@ -29,19 +30,33 @@
 
 .camera-button svg {
     flex-shrink: 0;
-    margin-top: -2px;
+}
+
+/*
+ * The capitals sit above the middle of their line box on this face, so the icon
+ * has to rise to meet them — `align-items: center` lines up the boxes, not the
+ * letters. `TITLE_CAP_RISE` in titleFont.ts is where the 0.13em comes from and
+ * why, and the same fact is what `CountryFlag` sizes its box with.
+ *
+ * It is **doubled** here because centring is what this margin is fighting: the
+ * flex box centres the *margin* box, so shortening that box by 0.26em moves the
+ * icon inside it by half of that. Measured after getting this wrong once: the
+ * single value left the icon 1.15px low, which is half of the 2.32px rise.
+ */
+.camera-button svg {
+    margin-top: -0.26em;
+}
+
+.camera-button-label {
+    line-height: 1;
+    /* The face's own trailing side bearing is wide enough to read as padding
+       that is not there. */
+    margin-right: -0.1em;
 }
 
 .camera-button:disabled {
     cursor: progress;
-    color: #FFFFFFB3;
-}
-
-.camera-button span {
-    /* The label swaps to "One sec…" while the picture is drawn, and the pill
-       must not jump under the cursor when it does. */
-    min-width: 72px;
-    text-align: left;
+    opacity: 0.55;
 }
 
 @media only screen and (max-width: 768px) {
@@ -53,11 +68,21 @@
      */
     .camera-button {
         bottom: 72px;
-        padding: 6px 14px 4px 12px;
-        font-size: 15px;
+        width: 40px;
+        height: 40px;
+        padding: 0;
+        justify-content: center;
+        gap: 0;
     }
 
-    .camera-button span {
-        min-width: 60px;
+    /* A phone has no room to spare and a camera needs no caption. The button
+       keeps its name in `aria-label`. */
+    .camera-button-label {
+        display: none;
+    }
+
+    .camera-button svg {
+        /* Nothing beside it to line up with any more. */
+        margin-top: 0;
     }
 }

@@ -2,6 +2,7 @@ import {CapturedFrame} from "../viewer/capture.ts";
 import {regions} from "../viewer/atlas.ts";
 import {ATLAS_URL} from "../viewer/atlasAsset.ts";
 import {cardSize, fitInBox, shareLabel, ShareStats, statsLine} from "../../domain/shareCard.ts";
+import {TITLE_CAP_HEIGHT, TITLE_FONT_FAMILY} from "../titleFont.ts";
 
 /**
  * The globe's own pixels with the player's standing laid over them, composed on
@@ -9,12 +10,16 @@ import {cardSize, fitInBox, shareLabel, ShareStats, statsLine} from "../../domai
  *
  * Nothing here screenshots the page: the menu is a translucent panel over the
  * globe with a leaderboard scrolling inside it, and what makes sense to look at
- * makes a poor picture. The badge is drawn from the same numbers the menu is
- * drawn from, at a size that reads wherever the image is posted.
+ * makes a poor picture. The mark and the badge are drawn from the same logo,
+ * the same font and the same numbers the menu is drawn from, at a size that
+ * reads wherever the image is posted.
  */
 
-const TITLE_FONT = '"Luckiest Guy", sans-serif'
+const TITLE_FONT = TITLE_FONT_FAMILY
 const LABEL_FONT = 'Oswald, sans-serif'
+
+/** The same mark the menu header flies, drawn the same way: logo then name. */
+const LOGO_URL = "/static/logo.svg"
 
 export async function drawShareCard(frame: CapturedFrame, stats: ShareStats): Promise<Blob> {
     const size = cardSize(frame.width, frame.height)
@@ -28,13 +33,17 @@ export async function drawShareCard(frame: CapturedFrame, stats: ShareStats): Pr
 
     drawGlobe(context, frame, size)
 
-    // Both are wanted before the first `measureText`: a fallback face measures
+    // All three before the first `measureText`: a fallback face measures
     // differently, and a badge laid out against one and drawn in the other has
     // the panel in the wrong place.
-    const [atlas] = await Promise.all([loadAtlas(), fontsReady()])
+    const [atlas, logo] = await Promise.all([
+        loadImage(ATLAS_URL),
+        loadImage(LOGO_URL),
+        fontsReady(),
+    ])
 
+    drawMasthead(context, size, stats, logo)
     drawBadge(context, size, stats, atlas)
-    drawLink(context, size, stats)
 
     return encode(canvas)
 }
@@ -53,6 +62,49 @@ function drawGlobe(
     context.imageSmoothingEnabled = true
     context.imageSmoothingQuality = "high"
     context.drawImage(source, 0, 0, size.width, size.height)
+}
+
+/**
+ * Who this is and where to find it, across the top.
+ *
+ * The link is *drawn into the image* rather than only attached to it — a
+ * picture is what survives being reposted — and it sits on the mark's own line
+ * at the other end, so the two are read together.
+ */
+function drawMasthead(
+    context: CanvasRenderingContext2D,
+    size: {width: number, height: number},
+    stats: ShareStats,
+    logo: HTMLImageElement,
+) {
+    const unit = Math.min(size.width, size.height) / 100
+    const margin = 4 * unit
+    const logoSize = 9 * unit
+    const middle = margin + logoSize / 2
+
+    context.drawImage(logo, margin, margin, logoSize, logoSize)
+
+    shadow(context, unit)
+    context.fillStyle = "#FFFFFF"
+    context.textBaseline = "alphabetic"
+
+    const nameSize = 5 * unit
+    context.textAlign = "left"
+    context.font = `${nameSize}px ${TITLE_FONT}`
+    context.fillText("ClickPlanet", margin + logoSize + 1.6 * unit, capCentred(context, middle, nameSize))
+
+    // The label face, not the display one: the page's title font has no
+    // lowercase, and a query parameter drawn as "?C=PS" is a link that does not
+    // work for whoever retypes it.
+    const linkSize = 3.2 * unit
+    context.textAlign = "right"
+    context.font = `500 ${linkSize}px ${LABEL_FONT}`
+    tracking(context, 0.1 * unit)
+    context.fillText(shareLabel(stats.country.code),
+        size.width - margin, capCentred(context, middle, linkSize))
+    tracking(context, 0)
+
+    clearShadow(context)
 }
 
 function drawBadge(
@@ -91,16 +143,21 @@ function drawBadge(
         context.font = `${nameSize}px ${TITLE_FONT}`
     }
     const nameWidth = context.measureText(stats.country.name).width
+    const nameCap = capHeight(context, nameSize)
 
     const label = statsLine(stats)
     context.font = `${labelSize}px ${LABEL_FONT}`
     tracking(context, 0.18 * unit)
     const labelWidth = context.measureText(label).width
+    const labelCap = capHeight(context, labelSize)
     tracking(context, 0)
 
-    const topRow = Math.max(flag.height, nameSize)
+    // The panel is built from the ink rather than from the em boxes, so the
+    // space above the flag matches the space under the counts. A row measured
+    // in font sizes is mostly the leading these two faces carry.
+    const topRow = Math.max(flag.height, nameCap)
     const width = Math.max(flagRun + nameWidth, labelWidth) + padding * 2
-    const height = topRow + gap + labelSize + padding * 2
+    const height = topRow + gap + labelCap + padding * 2
     const left = margin
     const top = size.height - margin - height
 
@@ -115,46 +172,40 @@ function drawBadge(
 
     shadow(context, unit)
     context.fillStyle = "#FFFFFF"
-    context.textBaseline = "middle"
+    context.textBaseline = "alphabetic"
     context.font = `${nameSize}px ${TITLE_FONT}`
-    context.fillText(stats.country.name, left + padding + flagRun, middle)
+    context.fillText(stats.country.name,
+        left + padding + flagRun, capCentred(context, middle, nameSize))
 
     clearShadow(context)
     context.fillStyle = "#FFFFFFB3"
-    context.textBaseline = "top"
     context.font = `${labelSize}px ${LABEL_FONT}`
     tracking(context, 0.18 * unit)
-    context.fillText(label, left + padding, top + padding + topRow + gap)
+    context.fillText(label, left + padding, top + padding + topRow + gap + labelCap)
     tracking(context, 0)
 }
 
 /**
- * The link is *drawn into the image* rather than only attached to it: a picture
- * is what survives being reposted, and the whole point of this button is that
- * whoever sees it can get here.
+ * The baseline that puts the capitals of the font now set on `context` centred
+ * on `middle`.
  *
- * Opposite the badge rather than beside it, so the two never have to share a
- * width — a long country name already fills the bottom of a phone's card.
+ * Canvas's own `textBaseline: "middle"` centres the **em box**, which for the
+ * display face is not where its capitals are — see `titleFont.ts`, and the flag
+ * that was riding under every country's name before this. Measured off a capital
+ * rather than off the name being drawn, so a country with a descender in it does
+ * not sit at a different height from one without.
  */
-function drawLink(
-    context: CanvasRenderingContext2D,
-    size: {width: number, height: number},
-    stats: ShareStats,
-) {
-    const unit = Math.min(size.width, size.height) / 100
+function capCentred(context: CanvasRenderingContext2D, middle: number, fontSize: number): number {
+    return middle + capHeight(context, fontSize) / 2
+}
 
-    shadow(context, unit)
-    context.fillStyle = "#FFFFFF"
-    context.textAlign = "right"
-    context.textBaseline = "top"
-    // The label face, not the display one: the page's title font has no
-    // lowercase, and a query parameter drawn as "?C=PS" is a link that does not
-    // work for whoever retypes it.
-    context.font = `500 ${3.2 * unit}px ${LABEL_FONT}`
-    tracking(context, 0.1 * unit)
-    context.fillText(shareLabel(stats.country.code), size.width - 4 * unit, 4 * unit)
-    tracking(context, 0)
-    clearShadow(context)
+function capHeight(context: CanvasRenderingContext2D, fontSize: number): number {
+    const measured = context.measureText("H").actualBoundingBoxAscent
+
+    // Every browser this ships to reports it. The fallback is the same number
+    // `CountryFlag` sizes its box with, for one that does not — a zero here
+    // would fold the badge onto a single line.
+    return measured > 0 ? measured : fontSize * TITLE_CAP_HEIGHT
 }
 
 function panel(
@@ -195,23 +246,25 @@ function tracking(context: CanvasRenderingContext2D, pixels: number) {
     (context as {letterSpacing?: string}).letterSpacing = `${pixels}px`
 }
 
-let atlas: Promise<HTMLImageElement> | undefined
+const images = new Map<string, Promise<HTMLImageElement>>()
 
-/** The same sprite sheet the globe and every flag in the menu are cut from, so
- *  the card cannot show a flag the page does not have. Same origin, so the
- *  canvas it is drawn into stays readable. */
-function loadAtlas(): Promise<HTMLImageElement> {
-    atlas ??= new Promise((resolve, reject) => {
+/** Both are same-origin, so the canvas they are drawn into stays readable. */
+function loadImage(url: string): Promise<HTMLImageElement> {
+    const known = images.get(url)
+    if (known) return known
+
+    const loading = new Promise<HTMLImageElement>((resolve, reject) => {
         const image = new Image()
         image.onload = () => resolve(image)
         image.onerror = () => {
-            atlas = undefined
-            reject(new Error(`the flag atlas at ${ATLAS_URL} could not be loaded`))
+            images.delete(url)
+            reject(new Error(`${url} could not be loaded for the share image`))
         }
-        image.src = ATLAS_URL
+        image.src = url
     })
 
-    return atlas
+    images.set(url, loading)
+    return loading
 }
 
 /** The page is already drawing in both faces, so this is only ever a wait on a

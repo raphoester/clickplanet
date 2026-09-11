@@ -615,8 +615,15 @@ what it photographs and the card over it is not in the picture, so the button
 belongs beside the subject. It is also the wrong shape for the menu's row of
 actions: those are 56px slabs for things you do to the *page*, and three of them
 do not fit across the card anyway — an earlier version put the share buttons
-there and pushed Discord out over the edge. It is the click meter's pill instead,
-and on a phone it clears the folded chat the same way the meter clears the menu.
+there and pushed Discord out over the edge, and moving the camera up beside the
+collapse chevron did the same to the chevron. It is the click meter's pill
+instead, and on a phone it clears the folded chat the way the meter clears the
+menu, losing its label there: a camera needs no caption and the name stays in
+`aria-label`.
+
+**Its label never changes.** A pill anchored to a corner that rewrites itself
+mid-press resizes under the cursor, and what answers the press is the preview
+opening. Working is said by the button dimming.
 
 **Pressing it opens a preview, and the preview is where the choice lives.** The
 framing is the player's — the camera takes the globe at whatever angle and zoom
@@ -646,11 +653,27 @@ poor picture. The badge is drawn from the same numbers the menu is drawn from,
 out of the same flag atlas, in hundredths of the card's shortest edge so it
 reads the same on a phone in portrait as on a wide desktop.
 
-**The link is drawn into the image**, not only attached to it — a picture is
-what survives being reposted. It is drawn in Oswald rather than the page's
-title face, which has no lowercase: a query parameter reading `?C=PS` is a link
-that does not work for whoever retypes it. It sits opposite the badge so a long
-country name never has to share a width with it.
+**The card carries the mark across the top** — the same logo and wordmark the
+menu header flies — with the link at the other end of that line, and the
+player's badge at the bottom.
+
+**The link is drawn into the image**, not only attached to it: a picture is what
+survives being reposted. It is drawn in Oswald rather than the page's title
+face, which has no lowercase — a query parameter reading `?C=PS` is a link that
+does not work for whoever retypes it — and it sits on the masthead's line rather
+than over the badge, so a long country name never has to share a width with it.
+
+**Anything drawn beside a title is aligned on the capitals, not on the box.**
+Luckiest Guy carries far more ascent than its capitals use, so `align-items:
+center` and canvas's `textBaseline: "middle"` both leave the letters riding above
+whatever is centred next to them. `titleFont.ts` holds that one fact and what it
+costs; `CountryFlag` is the component that settles it for the DOM and every flag
+beside a name goes through it, while the card measures the cap band off the face
+at draw time and centres on that. The badge's panel is sized from the same
+measurement rather than from font sizes, which is what makes its padding even —
+a row measured in `px` of font is mostly leading. **A flex `margin-top` doing
+this correction has to be twice the rise**, because centring applies to the
+margin box; getting that wrong left the camera icon exactly half-corrected.
 
 **The canvas is sized in CSS pixels** (`renderer.setSize` with no pixel ratio),
 so a phone captures around 390×844. `cardSize` lifts that to a short edge of

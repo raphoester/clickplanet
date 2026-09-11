@@ -1,16 +1,18 @@
 import {CSSProperties} from "react";
 import {regions} from "../viewer/atlas.ts";
 import {ATLAS_SIZE, ATLAS_URL} from "../viewer/atlasAsset.ts";
+import {TITLE_CAP_HEIGHT} from "../titleFont.ts";
 import "./CountryFlag.css"
 
 // The box a flag is drawn in, in em, whatever its own aspect ratio: flags are as
 // wide as they fit and centred, so a column of them lines up on both edges.
 //
-// The height is Luckiest Guy's cap height, measured off the font itself, and the
-// box sits on the baseline — so it covers exactly the band the capitals next to
-// it cover, at 20px in the leaderboard as at 24px in the folded header. A flag
-// sized in px cannot do that: it drifts low as the text around it grows.
-const BOX = {width: 1, height: 0.716} as const
+// The height is Luckiest Guy's cap height, and the box sits on the baseline — so
+// it covers exactly the band the capitals next to it cover, at 20px in the
+// leaderboard as at 24px in the folded header. A flag sized in px cannot do
+// that: it drifts low as the text around it grows. The number is in
+// `titleFont.ts`, which says why anything beside a title needs it.
+const BOX = {width: 1, height: TITLE_CAP_HEIGHT} as const
 const BOX_STYLE: CSSProperties = {width: `${BOX.width}em`, height: `${BOX.height}em`}
 
 // The leaderboard re-renders all 255 rows on every batch of updates, and the
