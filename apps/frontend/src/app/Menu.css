@@ -79,13 +79,14 @@
     flex: 1 1 0;
 }
 
-/* Share gets a row of its own. Three of the shared 28px buttons do not fit
-   across the card — 422px of content in a 326px row, measured — and they do not
-   shrink either, so the third one hangs out over the edge. Share is the one
-   moved because its label changes while it works ("Drawing…", "Copied!"), so it
-   is the one that must not run out of room. Basis rather than width: the wrap
-   is what pushes the other two onto the line below. */
-.menu-actions .button-share {
+/* The share buttons get a row of their own, on both viewports. Three across do
+   not fit the card at either size — 422px of content in a 326px row on a
+   desktop, measured, and on a phone the share group is the one that gives way,
+   squeezed to whatever About and Discord leave over until its label is cut.
+   Share is the one moved because its labels change while it works ("One sec…",
+   "Copied!"), so it is the one that must not run out of room. Basis rather than
+   width: the wrap is what pushes About and Discord onto the line below. */
+.menu-actions .share-actions {
     flex-basis: 100%;
 }
 
@@ -116,11 +117,5 @@
 
     .menu-actions {
         margin-top: 8px;
-    }
-
-    /* At 14px all three fit across, and here a row of its own would cost
-       leaderboard: this menu is a sheet with the rows scrolling inside it. */
-    .menu-actions .button-share {
-        flex-basis: 0;
     }
 }

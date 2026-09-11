@@ -582,11 +582,11 @@ it, and if the echo arrives first the rollback is already a no-op.
 
 ## Sharing the globe
 
-The game's own map is the marketing material, so `ShareButton` turns the globe
+The game's own map is the marketing material, so `ShareActions` turns the globe
 into a PNG and gets it out of the browser. `src/app/share/` holds the three
 steps — `drawShareCard.ts` composes, `deliverShare.ts` delivers, `shareGlobe.ts`
-is the three in a line — and `src/domain/shareCard.ts` holds everything decided
-before a pixel is drawn.
+is the three in a line, and `ShareActions.tsx` is the buttons — and
+`src/domain/shareCard.ts` holds everything decided before a pixel is drawn.
 
 **`preserveDrawingBuffer` is deliberately off**, which is why the capture is
 where it is. Setting it would have the driver keep a second copy of the buffer
@@ -622,24 +622,42 @@ so a phone captures around 390×844. `cardSize` lifts that to a short edge of
 is the half anyone reads — and caps the long edge at 2400 so a share sheet will
 still take the file.
 
-**Delivery is a ladder, tried in the order of how far each rung gets the image
-with no further work from the player**: the share sheet, the clipboard, a
-download. `navigator.canShare({files})` is the only honest test of the first —
-a desktop Safari has `navigator.share` and refuses files. A share sheet the
-player *cancels* stops the ladder rather than falling through, because a
-fallback there would put an image on their clipboard seconds after they said no.
+**The player picks the delivery; nothing picks for them.** `deliveriesOffered`
+reads once, when the menu mounts, and puts one button on screen per way this
+browser actually has of letting go of the file — a phone gets `Share`, a desktop
+gets `Copy` and `Save`. It is never empty: a download needs nothing of the
+browser.
 
-**The share sheet is offered on a coarse pointer only**, and that one rung is
-not a feature test. On a phone the sheet *is* how you share and it carries the
-file; on a desktop it is a shim over the OS share services, and Chrome on macOS
-answers `canShare({files})` true for services that then keep the text and drop
-the image — measured, into Telegram, which posted the sentence and no picture.
+This replaced a ladder that tried the three in turn and reported whichever
+answered first, and both halves of that went wrong in the first minute of real
+use. The desktop share sheet reported success and posted the text with no
+picture. A clipboard write the browser had quietly refused came back as a
+download, so the button said "Saved!" on a press that asked to copy. **What is
+offered is only what this browser can do, and what happens is only what was
+asked for** — which is also why a refused copy reports a failure instead of
+falling through to the download sitting an inch away from it.
+
+**The share sheet is a phone's button**, and that judgement is the one thing
+there that is not a feature test. On a phone the sheet *is* how you send a file
+somewhere and it carries one; on a desktop it is a shim over the OS share
+services, and Chrome on macOS answers `canShare({files})` true for services that
+then keep the text and drop the image — measured, into Telegram, which posted
+the sentence and no picture. `canShare` is asked with a stand-in `File`, since
+it judges the kind of thing it is handed rather than the bytes. A share sheet
+the player *cancels* delivers nothing, rather than handing them a file seconds
+after they said no.
 
 **The clipboard carries the picture and nothing else**, for the same reason
-wearing a different hat: handed an item with `image/png` *and* `text/plain`, a
-chat window pastes the sentence. That is why the link is drawn into the image —
-it has nowhere else it has to be, so the clipboard rung has one fewer way to be
-misunderstood.
+wearing a third hat: handed an item with `image/png` *and* `text/plain`, a chat
+window pastes the sentence. That is why the link is drawn into the image — it
+has nowhere else it has to be, so the copy has one fewer way to be misunderstood.
+
+**The buttons take a row of their own in the menu, on both viewports.** Three of
+the shared 28px boxes do not fit across the card at either size, and they do not
+shrink: on a desktop the third hangs out over the edge, and on a phone the share
+group is the one that gives way and has its label cut. `Menu.css` owns that
+placement; `ShareActions.css` only lays the group out and clamps a label that
+would not fit, which is the guard that caught the phone case.
 
 ## Protocol Buffers
 

@@ -50,6 +50,21 @@ export function ShareIcon({size = 14}: IconProps) {
     </svg>
 }
 
+export function CopyIcon({size = 14}: IconProps) {
+    return <svg {...base(size)} strokeWidth={2.2}>
+        <rect x="9" y="9" width="11.5" height="11.5" rx="2.6"/>
+        <path d="M15 5.5A2 2 0 0 0 13 3.5H5.5a2 2 0 0 0-2 2V13a2 2 0 0 0 2 2"/>
+    </svg>
+}
+
+export function DownloadIcon({size = 14}: IconProps) {
+    return <svg {...base(size)} strokeWidth={2.2}>
+        <path d="M12 3.5v11"/>
+        <path d="M7 10l5 4.5 5-4.5"/>
+        <path d="M4 19.5h16"/>
+    </svg>
+}
+
 export function SearchIcon({size = 20}: IconProps) {
     return <svg {...base(size)} strokeWidth={2} className="input-search-icon">
         <circle cx="11" cy="11" r="7"/>

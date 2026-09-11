@@ -12,7 +12,7 @@ import CountryFlag from "./components/CountryFlag.tsx";
 import Modal from "./components/Modal.tsx";
 import DiscordButton from "./components/DiscordButton.tsx";
 import BuyMeACoffee from "./components/BuyMeACoffee.tsx";
-import ShareButton from "./share/ShareButton.tsx";
+import ShareActions from "./share/ShareActions.tsx";
 import {SwapIcon} from "./components/icons.tsx";
 import {CapturedFrame} from "./viewer/capture.ts";
 import {opensFolded} from "./compact.ts";
@@ -91,7 +91,7 @@ export default function Menu(props: MenuProps) {
                                      highlight={props.country}/>
 
                         <div className="menu-actions">
-                            {props.capture && <ShareButton
+                            {props.capture && <ShareActions
                                 capture={props.capture}
                                 stats={shareStats(props.leaderboard, props.country)}/>}
                             <button type="button"

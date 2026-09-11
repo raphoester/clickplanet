@@ -179,20 +179,24 @@ describe("Menu", () => {
     })
 
     describe("Share", () => {
+        // Which buttons appear is the browser's business — see
+        // `deliveriesOffered`. What the menu owes them is a place in the row.
         it("sits with the other card actions", () => {
             const {container} = setup([entry("fr", 500)])
 
-            expect(container.querySelector(".menu-actions")!
-                .contains(button("Share"))).toBe(true)
+            const shares = container.querySelector(".share-actions")!
+            expect(container.querySelector(".menu-actions")!.contains(shares)).toBe(true)
+            expect(shares.querySelectorAll("button").length).toBeGreaterThan(0)
         })
 
-        // The button has nothing to draw before the globe is running, and
-        // `Viewer` only mounts the menu once it is — so this is the fallback,
-        // not the usual case.
+        // They have nothing to draw before the globe is running, and `Viewer`
+        // only mounts the menu once it is — so this is the fallback, not the
+        // usual case.
         it("stays off the card while there is no globe to capture", () => {
-            render(<Menu country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000}/>)
+            const {container} = render(
+                <Menu country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000}/>)
 
-            expect(screen.queryByRole("button", {name: "Share"})).toBeNull()
+            expect(container.querySelector(".share-actions")).toBeNull()
         })
     })
 
