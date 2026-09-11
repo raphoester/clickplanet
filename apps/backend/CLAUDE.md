@@ -35,17 +35,24 @@ make dBuild
 
 This is a Go backend for a collaborative map-clicking game. It follows **hexagonal architecture (ports & adapters)**.
 
-### Three bounded contexts, one process
+### Four bounded contexts, one process
 
 - **`internal/clicks/`** — the tile game: clicks, ownership, the map, the update stream.
 - **`internal/chat/`** — the live chat: messages, identity, retention.
 - **`internal/session/`** — the mint: what a caller has to prove before it may click.
+- **`internal/antibot/`** — who is a machine, and what happens to them.
+
+`antibot` is the one with no proto package and no adapters, because nothing
+calls it: the clicks edge gates on it the way it gates on `session`. It is a
+context and not a kernel package because "is this caller a bot" is the business
+this game is in, while the kernel is for things that would read the same in any
+other program.
 
 They share the process, the transport and the country list, and **nothing else**. None imports another; each owns its own domain types, its own proto package, its own storage adapter (where it has one) and its own edge. The one place that knows about all three is **`internal/app/`**, the composition root — which is why it sits beside them rather than inside any of them.
 
 Clicks and sessions meet only through `kernel/session.Signer`: the session context mints, the clicks context verifies a signature. Neither imports the other, and **clicks knows nothing about Turnstile** — swapping the attester changes one line in `internal/app`.
 
-Adding a fourth context means a `proto/<name>/v1`, an `internal/<name>/`, and one `configure<Name>` in `internal/app`. Connect derives the route from the proto package, so there is no prefix to allocate and no router to edit. `internal/session/` is the worked example: it cost one proto file, one domain rule, two adapters and one wiring file, and no existing route changed.
+Adding a context that callers talk to means a `proto/<name>/v1`, an `internal/<name>/`, and one `configure<Name>` in `internal/app`. Connect derives the route from the proto package, so there is no prefix to allocate and no router to edit. `internal/session/` is the worked example: it cost one proto file, one domain rule, two adapters and one wiring file, and no existing route changed.
 
 **`cmd/api`** is the only binary: an HTTP/WebSocket server serving all three contexts. Follows `New()` → `Configure()` → `Run()`.
 
@@ -114,7 +121,7 @@ POST /session.v1.SessionService/CreateSession
   → kernel/session.Signer.Mint [HMAC over expiry+id+IP; nothing stored]
 
 POST /planet.v1.ClickService/Click   [X-Session-Token: <the minted token>]
-  → VPNBlockInterceptor, SessionInterceptor, RateLimitInterceptor, ShadowBanInterceptor
+  → VPNBlockInterceptor, SessionInterceptor, RateLimitInterceptor, AntiBotInterceptor
   → ClickService
   → ClickHandlerService (validates tile ID + country)
   → MemoryTileStorage.Set() [writes the tile, fans the update out in process]
@@ -214,13 +221,16 @@ The signature is checked **before** the expiry, in constant time, so a forger le
 **What it does not stop:** a person who solves Turnstile in a real browser and then runs a userscript. They hold a genuine session, and nothing here distinguishes them from a player. This raises the floor from "twenty lines of Python" to "drive a real browser"; the signal that survives that is behavioural — timing regularity and tile-id structure over a session — which is what the session id on the context exists to be keyed on. Nothing in production reads it yet, so `ctxutil.GetSessionID` sits behind the `testing` tag (see [Testing](#testing)) until something does.
 
 
-### Shadow ban (`internal/kernel/shadowban`)
+### Anti-bot (`internal/antibot/`)
 
 What is left after sessions. A player who solves Turnstile in a real browser and
 then runs a userscript holds a genuine session, and no address- or token-based
-check can tell them from a player. The signal that survives is **behavioural**,
-and this is the one behaviour worth acting on: taking a tile back moments after
-losing it, over and over.
+check can tell them from a player. The signal that survives is **behavioural**.
+
+**Detection and consequence are separate, and the consequence is the boring
+half.** `antibot/shadowban` takes a scope and a clock and runs a ban. It knows
+nothing about tiles, reactions or what earned it, which is why the same sentence
+serves three different findings and would serve a fourth.
 
 **A flagged caller's clicks are answered `OK` and dropped.** That is the whole
 point — a refusal names the check that tripped, and the author fixes it in an
@@ -228,72 +238,133 @@ afternoon; a silent no-op names nothing. It is not permanent (the caller reads
 the map back over the same websocket and will notice), but it moves the cost of
 the next round onto them.
 
-**Speed is not the signal; regularity is.** Two humans fighting over a tile
-produce fast re-takes too, and the player clicking back at a bot is the fastest
-of all. What no hand produces is a *narrow* band: a caller flags only on
-`minReactions` reactions whose median is at or under `maxMedian` **and** whose
-p90-p10 spread is at or under `maxSpread`. Either bound alone bans real players.
+#### Three watchdogs, one jury
 
-**`maxMedian` and `maxSpread` cannot be defaulted, and the first defaults here
-were wrong.** They shipped at 250ms/120ms, sized for a bot answering off the
-update stream; the one actually seen in production answers at ~1s, sails past
-`maxMedian`, and never flagged. A bot on a timer picks a human-looking delay on
-purpose, so **regularity is the only thing left** — that caller's spread was
-138ms across twenty reactions. The bounds have to come from measurement, which
-is what the wide `backend.yaml` values and `enforce: false` are for: nothing is
-dropped, candidate lines print, and each carries that caller's real numbers.
-`click_reaction_seconds` is global and cannot give you them — it shows a band
-exists, never who owns it.
+A `Watchdog` measures one behaviour over one caller and returns a `Verdict`:
 
-`reactionWindow` bounds what is measured at all, so it must sit well above the
-delays in play: a reaction past the edge is not missed but **censored**, and the
-median of what survives reads faster than the caller is.
+- **`retaker`** — takes a tile back moments after losing it, over and over.
+- **`sequencer`** — walks the tile ids rather than the map: 1, 2, 3, 4, on and on.
+- **`metronome`** — never varies and never stops.
 
-**A flag repeats, and that is most of its value.** `reflagInterval` is how soon
-an already-flagged caller can flag again; set to `trackWindow` or above, each
-flag rests on reactions the previous one never saw, so `flags=6` in the log is
-six independent windows agreeing rather than one verdict repeated. Before this
-existed a caller went quiet behind its first ban for `banDuration`, and there was
-no way to tell whether it had stopped or was still going.
+**Every watchdog has two levels, and that is the design.** `Certain` is a reading
+no hand produces and bans on its own. `Suspect` is a reading that would ban real
+players if it were trusted alone, and counts only alongside another watchdog
+measuring something else. A watchdog with one level would have to sit at the
+strict end and miss every bot that jitters, or at the loose end and ban humans —
+which is exactly the corner the first version of this was painted into.
 
-**`activeFor` and `longestGap` are the answer to a jittered delay.** A spread
-test is beatable by construction — randomise the delay and the band widens to
-look human. What is not cheap to fake is stopping: a person's session has breaks,
-and hours of `activeFor` with `longestGap` in seconds is not one. Neither feeds
-the rule; both go in the log, because deciding on them would ban the genuinely
-obsessed. Note that the sweep keeps a caller alive while it is inside a ban, so
-`activeFor` spans that too — `longestGap` is what says whether the time was
-actually spent playing.
+The `Jury` crosses them: guilty on one `Certain`, or on `jury.minSuspects`
+different watchdogs at `Suspect` inside `jury.suspicionWindow`.
+
+**Crossing is worth less than it looks, and the config says so.** Weak signals
+only multiply confidence when they are independent, and these only half are: a
+machine sweep is sequential *and* regular *and* never rests, so two suspicions
+can be one behaviour counted twice. So can the most obsessed player. It still
+earns its place because `sequencer` reads ids and `metronome` reads time — two
+genuinely different measurements — but `minSuspects: 2` is the loosest this
+should be, and 3 in practice means only `retaker`'s certain rule ever fires.
+
+**Crossing is also what makes it fast.** The overnight sweep from the
+screenshots trips no watchdog's `Certain` for a long time — `sequencer` wants two
+hundred steps, `metronome` wants half an hour — but both read `Suspect` within
+two minutes, and two `Suspect`s is a ban. `TestTheOvernightSweepIsCaught` pins
+that it is stopped inside 180 clicks.
+
+**And crossing is what the counter-move costs.** Shuffle the ids and `sequencer`
+goes quiet; with nothing left to corroborate it, `metronome` has to reach
+`Certain` alone, which means `certainFor` — thirty minutes of free sweeping,
+bought for one line of the bot's code. `TestSweepingInARandomOrderStillGetsCaught`
+pins that too. The answer to that is a fourth watchdog, not a looser bound on the
+third: loosening `metronome` to catch it sooner is how the obsessed player gets
+banned.
+
+**Every watchdog sees every click, including the ones a ban is already
+dropping.** A watchdog cut off the moment another one banned the caller would be
+judging a caller that appears to have stopped, and the ban would lapse on silence
+the caller never produced. It also means a ban sustains itself: while it runs,
+the caller takes no tiles so `retaker` starves, but ids and timing still flow, so
+`sequencer` and `metronome` keep re-flagging through `reflagInterval`.
+
+#### What each one actually measures
+
+**`retaker`: speed is not the signal, regularity is.** Two humans fighting over a
+tile are fast too, and the player clicking back at a bot is the fastest of all.
+`maxSpread` — the p90-p10 of the reactions — is the bound that does the work, and
+on its own it is `Suspect`. `maxMedian` on top of it is `Certain`.
+
+The first defaults here were wrong, and the split exists because of it. They
+shipped at 250ms/120ms, sized for a bot answering off the update stream; the one
+actually seen in production answers at ~1s, sailed past `maxMedian` and never
+flagged — while holding a spread of 138ms across twenty reactions. Under one
+boolean rule that bot was invisible. It is `Suspect` now.
+
+**`sequencer`: the step, not the size of it.** Tile ids come from the
+icosahedron's vertex order and not from a grid of latitudes, so filling in a
+shape by hand does not hold a constant step from one click to the next. The rule
+is the share of recent steps sitting at the modal step; the modal step's *size*
+is not bounded, because a constant stride of 7 is no more human than a constant
+stride of 1. A modal step of zero is excluded — that is somebody leaning on one
+tile, which is the throttle's problem.
+
+This is the only watchdog whose bounds need no measuring pass. Forty clicks at a
+constant step is already past anything a hand produces; two hundred is not
+arguable.
+
+**`metronome`: the median is deliberately not bounded.** The claim is never that
+the caller is fast. A caller pushing *past* the throttle gets its surviving
+clicks handed back at exactly the refill rate, so tuning to the ceiling works
+against it. What is measured is `maxSpread` over an unbroken run, where a pause
+longer than `maxGap` ends the run and the evidence starts again from nothing.
+
+**That run is the answer to a jittered delay.** A spread test is beatable by
+construction — randomise and the band widens to look human. What is not cheap to
+fake is *stopping*: a person's session has breaks in it. `activeFor` and
+`longestGap` still feed no rule, because deciding on them alone would ban the
+genuinely obsessed; they go in the log, beside a rule that did fire.
+
+#### The parts that are easy to get wrong
 
 **Three things are deliberately not reactions**, and each is a way to get an
-honest player flagged if you get it wrong:
+honest player flagged:
 
 - a click onto a tile the caller's own country already holds — it is a no-op,
   `Set` publishes nothing, so it neither reacts nor becomes something to react to
 - a click the handler refused (invalid country, tile out of range) — it changed
-  no tile, so `Took` is never called for it
+  no tile
 - a click that was itself dropped by the ban — same reason
 
-`Observe` therefore returns `(drop, takes)`, and the interceptor calls `Took`
-only after the handler returns nil. Without that split, a griefer spams a tile
-with deliberately invalid clicks and the next honest player to click it looks
-like it is reacting to something.
+The interceptor reads the tile's owner **before** the handler runs and puts it on
+`antibot.Click` as `Held`/`NoOp`, because afterwards the map no longer remembers
+it. `Committed` is then called only for a click the handler accepted. Without
+that split, a griefer spams a tile with deliberately invalid clicks and the next
+honest player to click it looks like it is reacting to something.
+
+Note that `sequencer` and `metronome` ignore all of it: a bot sweeping ids walks
+over tiles it already owns and over ids the handler refuses, and both are part of
+the walk.
 
 **It sits innermost, after the throttle** — the opposite of the blocklist and the
 session check. A shadow-banned caller has to keep hitting the same 429s everyone
-else does; a caller that is never throttled again has been told. `TestShadowBanRunsAfterTheThrottle`
+else does; a caller that is never throttled again has been told. `TestAntiBotRunsAfterTheThrottle`
 pins it.
 
-**`shadowBan.detector.enforce` is the rollout switch,** the same shape as
-`session.enforce`: false measures, flags, logs and counts without dropping
-anything. The two surfaces are built for a box with no dashboard —
-`click_reaction_seconds` is a histogram whose raw bucket counts show the bot band
-by eye, and each flag writes one `shadowban candidate` log line carrying the
-scope, the median, the spread, the tiles, and the country the caller painted with
+**`antiBot.shadowBan.enforce` is the rollout switch,** the same shape as
+`session.enforce`: false judges, logs and counts without dropping anything. The
+two surfaces are built for a box with no dashboard — `click_reaction_seconds` is
+a histogram whose raw bucket counts show the bot band by eye, and each flag
+writes one `antibot ban` log line carrying the scope, every watchdog's verdict
+and numbers (**including the ones that said `clear`** — what did not fire is half
+of reading a line that did), the tiles, and the country the caller painted with
 most. **The address is never a metric label** — unbounded cardinality, and
 personal data in every scrape. `topCountry` is context for a human reading the
-log and never an input to the rule: the client declares it, so it is changed by
+log and never an input to a rule: the client declares it, so it is changed by
 editing one string, and real players paint the same flags a bot does.
+
+**A flag repeats, and that is most of its value.** `reflagInterval` is how soon a
+caller already serving a ban can be judged again; at or above a watchdog's
+`trackWindow`, each flag rests on evidence the previous one never saw, so
+`flags=6` on a line is six independent judgements agreeing rather than one
+verdict repeated.
 
 Keyed on `ipscope.Of`, the same unit as the throttle, so a v6 caller cannot serve
 a ban on one address and click from the next in its own /64. It only bites a bot
@@ -357,11 +428,15 @@ Config is loaded from a YAML file (`-config` flag), with environment variables o
 - `bookkeeper.enabled`, `bookkeeper.runner.interval`
 - `rateLimiter.perSecond`, `rateLimiter.burst`, `rateLimiter.sweepInterval` — the per-IP click throttle (defaults 1/s, burst 10, swept every minute)
 - `vpnBlocklist.enabled`, `vpnBlocklist.includeDatacenters`, `vpnBlocklist.allow` — the VPN refusal (see [VPN blocklist](#vpn-blocklist)); disabled parses nothing and allocates nothing
-- `shadowBan.enabled` — off registers nothing and measures nothing
-- `shadowBan.detector.enforce` — off measures, flags and logs without dropping; the mode to deploy in
-- `shadowBan.detector.reactionWindow`, `minReactions`, `maxMedian`, `maxSpread` — what counts as a reaction, and how many of them in how narrow a band flag a caller
-- `shadowBan.detector.trackWindow`, `banDuration`, `sweepInterval` — how far back reactions count, how long a flag lasts, and how often what can no longer matter is forgotten
-- `shadowBan.detector.reflagInterval` — how soon an already-flagged caller flags again; at `trackWindow` or above each repeat rests on fresh reactions
+- `antiBot.enabled` — off registers nothing and measures nothing
+- `antiBot.shadowBan.enforce` — off judges, logs and counts without dropping; the mode to deploy in
+- `antiBot.shadowBan.banDuration`, `reflagInterval`, `sweepInterval` — how long one flag silences a caller, how soon it can be judged again, and how often a ban nothing would still print is forgotten
+- `antiBot.jury.minSuspects` — how many watchdogs at `suspect` make a ban; one at `certain` bans alone
+- `antiBot.jury.suspicionWindow`, `trackWindow`, `sweepInterval` — how long a verdict stands while another watchdog catches up, and how long a silent caller is remembered
+- `antiBot.retaker.enabled`, `detector.reactionWindow`, `minReactions`, `maxSpread`, `maxMedian` — what counts as a reaction, how many are needed, and the band that reads `suspect` then `certain`
+- `antiBot.sequencer.enabled`, `detector.minSteps`, `minShare`, `certainSteps`, `certainShare` — how long a run of constant-stride clicks must be, and how much of it must sit at that stride
+- `antiBot.metronome.enabled`, `detector.maxGap`, `maxSpread`, `minClicks`, `certainFor`, `certainClicks` — what ends a run, how tight its gaps must be, and how long it must hold
+- every watchdog also takes `detector.trackWindow` and `detector.sweepInterval` — how far back its evidence counts, and how often what can no longer matter is forgotten
 - `session.enabled` — off registers nothing, so `session.v1.SessionService/` 404s and clicks are judged on address alone
 - `session.enforce` — off counts what enforcing would refuse without refusing it; the mode to deploy in
 - `session.secret` — signs the tokens; **empty generates one at boot**, invalidating every session in flight on each restart

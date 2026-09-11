@@ -61,50 +61,119 @@ vpnBlocklist:
   # address. Put your own address here.
   allow: []
 
-# Accepts a bot's clicks and drops them, instead of refusing them and telling it
-# which check to route around. What it looks for is not speed — a player in a
-# tile war is fast too — but regularity: a caller driven by the update stream
-# answers in a band no hand holds.
-shadowBan:
+# Accepts a bot's clicks and drops them, rather than refusing them and naming the
+# check it tripped. Three watchdogs read three different behaviours, the jury
+# crosses what they say, and the shadow ban is the one sentence they all pass.
+antiBot:
   # Off registers nothing and measures nothing.
   enabled: true
-  detector:
-    # Off measures, flags, logs and counts without dropping anything. Ship in
-    # this mode: watch click_reaction_seconds for where the bot band actually
-    # sits, check the "shadowban candidate" log lines are not naming you, then
-    # set the bounds below from what you saw and turn this on.
+
+  # The sentence, and nothing else: it takes a scope and a clock and runs the
+  # ban. It knows nothing about bots, tiles or what earned it.
+  shadowBan:
+    # Off judges, logs and counts without dropping anything. Ship in this mode:
+    # read the "antibot ban" lines, check none of them is naming you, set the
+    # bounds below from the numbers those lines carry, then turn this on.
     enforce: false
-    # How soon after losing a tile a re-take counts as a reaction at all.
-    # Anything slower is somebody who happened to click the same tile later.
-    # Keep this well above the delays you expect to measure: a reaction past the
-    # edge is not missed, it is censored, and the median of what is left reads
-    # faster than the caller really is.
-    reactionWindow: 5s
-    # Reactions needed inside trackWindow before anything is decided. The bound
-    # that stops one unlucky exchange from being evidence.
-    minReactions: 12
-    # Both must hold. maxMedian alone flags a fast human; it is maxSpread, the
-    # p90-p10 of the reactions, that no hand produces.
-    #
-    # These two are the only values here that cannot be defaulted sensibly —
-    # they depend on the bot you actually have. 250ms suits one answering off
-    # the update stream; one on a ~1s timer sails past it. To find yours, open
-    # them right up (maxMedian 2s, maxSpread 1s) while enforce is false: nothing
-    # is dropped, candidate lines start printing, and each one carries that
-    # caller's real median and spread. Set these from those numbers.
-    maxMedian: 250ms
-    maxSpread: 120ms
-    # How far back reactions count, and how long a flag lasts once the
-    # behaviour stops.
-    trackWindow: 5m
     banDuration: 1h
-    # How soon a caller already flagged can be flagged again. At trackWindow or
-    # above, each flag rests on a fresh set of reactions, so flags=6 in the log
-    # means six independent windows all read the same way — worth far more than
-    # one verdict from one window. Without this a caller goes quiet behind its
-    # first ban and you cannot tell whether it kept going.
+    # How soon a caller already serving a ban can be judged again. At or above a
+    # watchdog's trackWindow each flag rests on evidence the previous one never
+    # saw, so flags=6 on a line is six separate judgements agreeing rather than
+    # one verdict repeated. Without this a caller goes quiet behind its first
+    # ban and you cannot tell whether it stopped or kept going.
     reflagInterval: 5m
     sweepInterval: 1m
+
+  # How the watchdogs are crossed.
+  jury:
+    # A watchdog that says "certain" bans on its own. This is how many must say
+    # "suspect" instead — the level each of them uses for a reading that would
+    # ban real players if it were trusted alone.
+    #
+    # Crossing only buys confidence when the watchdogs measure different things,
+    # and these only half do: a machine sweep is sequential AND regular AND
+    # never rests, so two suspicions can be one behaviour counted twice. So can
+    # the most obsessed player. Two is the loosest this should be.
+    minSuspects: 2
+    # How long a suspicion stands while another watchdog catches up. A caller's
+    # rules do not all trip on the same click — the sequencer needs a run of
+    # steps, the metronome needs a quarter of an hour — but two readings an hour
+    # apart are not a caller doing two things at once.
+    suspicionWindow: 10m
+    # How long a silent caller is remembered. A ban outlives this: it lives in
+    # shadowBan above, on its own clock.
+    trackWindow: 15m
+    sweepInterval: 1m
+
+  # Takes a tile back moments after losing it, over and over. Speed is not the
+  # signal — the player clicking back at a bot is the fastest caller on the map.
+  # Regularity is.
+  retaker:
+    enabled: true
+    detector:
+      # How soon after losing a tile a re-take counts as a reaction at all.
+      # Anything slower is somebody who happened to click the same tile later.
+      # Keep this well above the delays you expect to measure: a reaction past
+      # the edge is not missed, it is censored, and the median of what is left
+      # reads faster than the caller really is.
+      reactionWindow: 5s
+      # Reactions needed inside trackWindow before anything is said. The bound
+      # that stops one unlucky exchange from being evidence.
+      minReactions: 12
+      # The p90-p10 of those reactions. On its own this is "suspect": a caller
+      # answering at a steady 1s holds a band no hand holds, and a steady hand
+      # at a slow tempo is not impossible. This is the bound that does the work
+      # — the bot actually seen in production sat at 138ms across twenty
+      # reactions while picking a human-looking delay on purpose.
+      maxSpread: 120ms
+      # A band this tight that is also faster than a person decides is
+      # "certain", and bans on its own. Either bound alone bans real players.
+      maxMedian: 250ms
+      trackWindow: 5m
+      sweepInterval: 1m
+
+  # Walks the tile ids rather than the map: 1, 2, 3, 4, and on until a continent
+  # is painted. Tile ids come from the icosahedron's vertex order and not from a
+  # grid of latitudes, so filling in a shape by hand does not hold a constant
+  # step from one click to the next. A loop over an integer does nothing else.
+  sequencer:
+    enabled: true
+    detector:
+      # Steps in hand before anything is said, and how many of them must sit at
+      # the same step to read as "suspect". The size of the step says nothing;
+      # holding one says everything.
+      minSteps: 40
+      minShare: 0.75
+      # The same reading held long enough that nothing else explains it. Two
+      # hundred clicks at a constant step is not a player being tidy.
+      certainSteps: 200
+      certainShare: 0.95
+      trackWindow: 15m
+      sweepInterval: 1m
+
+  # Never varies and never stops. A script tuned to sit just under the throttle
+  # spends hours at one tempo with no pauses in it.
+  metronome:
+    enabled: true
+    detector:
+      # The longest pause a run survives. Anything longer ends the run and the
+      # evidence starts again from nothing, which is the point: a person stops
+      # to look at the map, and a loop does not.
+      maxGap: 3s
+      # The p90-p10 of the gaps inside a run, and the bound that does all the
+      # work here. The median is deliberately not bounded at all: the claim is
+      # not that the caller is fast — a caller pushing past the throttle gets
+      # its surviving clicks handed back at exactly the refill rate — it is that
+      # the caller is a clock.
+      maxSpread: 120ms
+      # How long an unbroken run must be to read as "suspect", and what turns it
+      # into "certain". Half an hour without once pausing longer than maxGap is
+      # not somebody who is very keen.
+      minClicks: 120
+      certainFor: 30m
+      certainClicks: 900
+      trackWindow: 15m
+      sweepInterval: 1m
 
 # Gates the Click RPC on a token this server minted. Off by default: with it
 # disabled session.v1.SessionService/ 404s and clicks are judged on address
