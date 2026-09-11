@@ -31,6 +31,7 @@ export default function Viewer(props: ViewerProps) {
         leaderboard,
         tileDeltas,
         tilesCount,
+        capture,
         rateLimited,
         dismissRateLimited,
         vpnBlocked,
@@ -56,6 +57,7 @@ export default function Viewer(props: ViewerProps) {
             leaderboard={leaderboard}
             tileDeltas={tileDeltas}
             tilesCount={tilesCount}
+            capture={capture}
         />}
 
         {status.state === 'ready' && <ClickBudgetMeter budget={clickBudget}/>}

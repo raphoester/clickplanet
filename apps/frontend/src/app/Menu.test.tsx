@@ -11,10 +11,11 @@ const entry = (code: string, tiles: number) => ({country: Countries.get(code)!, 
 
 afterEach(cleanup)
 
-function setup(leaderboard: LeaderboardEntry[] = [], country = france) {
+function setup(leaderboard: LeaderboardEntry[] = [], country = france, capture = vi.fn()) {
     const setCountry = vi.fn()
     const view = render(
-        <Menu country={country} setCountry={setCountry} leaderboard={leaderboard} tilesCount={1000}/>,
+        <Menu country={country} setCountry={setCountry} leaderboard={leaderboard}
+              tilesCount={1000} capture={capture}/>,
     )
     return {...view, setCountry, user: userEvent.setup()}
 }
@@ -174,6 +175,24 @@ describe("Menu", () => {
             expect(setCountry).toHaveBeenCalledWith(Countries.get("jp"))
             expect(countryPanel()).toBeNull()
             expect(leaderboardRows()).toHaveLength(1)
+        })
+    })
+
+    describe("Share", () => {
+        it("sits with the other card actions", () => {
+            const {container} = setup([entry("fr", 500)])
+
+            expect(container.querySelector(".menu-actions")!
+                .contains(button("Share"))).toBe(true)
+        })
+
+        // The button has nothing to draw before the globe is running, and
+        // `Viewer` only mounts the menu once it is — so this is the fallback,
+        // not the usual case.
+        it("stays off the card while there is no globe to capture", () => {
+            render(<Menu country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000}/>)
+
+            expect(screen.queryByRole("button", {name: "Share"})).toBeNull()
         })
     })
 

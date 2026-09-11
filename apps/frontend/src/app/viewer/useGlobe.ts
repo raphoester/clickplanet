@@ -1,5 +1,6 @@
-import {useEffect, useRef, useState} from 'react';
+import {useCallback, useEffect, useRef, useState} from 'react';
 import {createGlobe, Globe} from './globe.ts';
+import {CapturedFrame} from './capture.ts';
 import {Country} from '../../domain/countries.ts';
 import {OwnershipsGetter, TileClicker, UpdatesListener} from '../../backends/backend.ts';
 import {useLeaderboardFeed} from './useLeaderboardFeed.ts';
@@ -83,11 +84,18 @@ export function useGlobe(options: UseGlobeOptions) {
         globeRef.current?.setCountry(country)
     }, [country])
 
+    const capture = useCallback((): Promise<CapturedFrame> => {
+        const globe = globeRef.current
+        if (!globe) return Promise.reject(new Error("the globe is not running yet"))
+        return globe.capture()
+    }, [])
+
     return {
         status,
         leaderboard,
         tileDeltas,
         tilesCount,
+        capture,
         rateLimited,
         dismissRateLimited: () => setRateLimited(false),
         vpnBlocked,

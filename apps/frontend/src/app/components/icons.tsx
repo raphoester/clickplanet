@@ -40,6 +40,16 @@ export function SwapIcon({size = 14}: IconProps) {
     </svg>
 }
 
+export function ShareIcon({size = 14}: IconProps) {
+    return <svg {...base(size)} strokeWidth={2.2}>
+        <circle cx="18" cy="5" r="2.6"/>
+        <circle cx="6" cy="12" r="2.6"/>
+        <circle cx="18" cy="19" r="2.6"/>
+        <path d="M8.3 10.7 15.7 6.5"/>
+        <path d="M8.3 13.3 15.7 17.5"/>
+    </svg>
+}
+
 export function SearchIcon({size = 20}: IconProps) {
     return <svg {...base(size)} strokeWidth={2} className="input-search-icon">
         <circle cx="11" cy="11" r="7"/>

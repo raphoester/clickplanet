@@ -100,6 +100,10 @@ app/       components
   people typing one name get two colours. **Only the hue is derived**: the
   saturation and the lightness are fixed in `ChatPanel.css`, so no hash can
   produce a colour that is unreadable against the dark panel.
+- `shareCard.ts` — everything about a shared image that is decided before a
+  pixel is drawn: the `?c=<code>` link, the text that rides with it, the line
+  under the flag, and the size the card comes out at. See [Sharing the
+  globe](#sharing-the-globe).
 - `warnOnce.ts` — for things that would otherwise warn on every frame.
 
 ### `src/backends/` — three contracts, one transport
@@ -396,6 +400,9 @@ curl -s "https://clickplanet.lol$B" | grep -c 'challenges.cloudflare.com/turnsti
   are resolved once per frame, not once per mousemove — each one ends in a
   synchronous GPU read that stalls the pipeline.
 - `points.ts` — fetches and decodes the tile coordinates blob.
+- `capture.ts` — `readDrawingBuffer`, the frame the player is looking at. **It
+  only works inside the render loop**; see [Sharing the
+  globe](#sharing-the-globe).
 - `viewport.ts` — `layoutViewport()`, the size the canvas is set to. **Never
   size the renderer from `window.innerWidth`**: on iOS Safari that follows the
   *visual* viewport, so a pinch fires a `resize` reporting the zoomed-in width,
@@ -572,6 +579,55 @@ what the fragment shader already draws as an unclaimed tile.
 Rolling back on *any* failure, including a transport fault, is deliberate: if
 the click did land and only the response was lost, the stream's echo repaints
 it, and if the echo arrives first the rollback is already a no-op.
+
+## Sharing the globe
+
+The game's own map is the marketing material, so `ShareButton` turns the globe
+into a PNG and gets it out of the browser. `src/app/share/` holds the three
+steps — `drawShareCard.ts` composes, `deliverShare.ts` delivers, `shareGlobe.ts`
+is the three in a line — and `src/domain/shareCard.ts` holds everything decided
+before a pixel is drawn.
+
+**`preserveDrawingBuffer` is deliberately off**, which is why the capture is
+where it is. Setting it would have the driver keep a second copy of the buffer
+for every frame of every session, permanently, to serve a button most players
+press rarely or never. Instead `globe.ts` runs the read from an `afterRender`
+hook inside the animation loop, in the same tick as the `render()` that filled
+the buffer, and `Globe.capture()` hands back a promise that settles on the next
+frame. A read one tick later comes back blank. Two consequences worth knowing:
+
+- **Reading the canvas rather than an offscreen target is also what keeps the
+  colours right.** three applies the output colour space conversion only when it
+  renders to the canvas — a `WebGLRenderTarget` that is not an XR one is forced
+  to `LinearSRGBColorSpace` — so the same scene drawn into a target comes back
+  visibly different from what the player was offered.
+- **A hidden tab has no frames**, so a capture started and then backgrounded
+  sits on "Drawing…" until the tab is looked at again. It settles by itself.
+
+**The card is composed, never screenshotted.** The DOM over the globe is a
+translucent panel with a scrolling leaderboard in it; what is good to use is a
+poor picture. The badge is drawn from the same numbers the menu is drawn from,
+out of the same flag atlas, in hundredths of the card's shortest edge so it
+reads the same on a phone in portrait as on a wide desktop.
+
+**The link is drawn into the image**, not only attached to it — a picture is
+what survives being reposted. It is drawn in Oswald rather than the page's
+title face, which has no lowercase: a query parameter reading `?C=PS` is a link
+that does not work for whoever retypes it. It sits opposite the badge so a long
+country name never has to share a width with it.
+
+**The canvas is sized in CSS pixels** (`renderer.setSize` with no pixel ratio),
+so a phone captures around 390×844. `cardSize` lifts that to a short edge of
+720 — the globe softens a little and the flag and the counts stay crisp, which
+is the half anyone reads — and caps the long edge at 2400 so a share sheet will
+still take the file.
+
+**Delivery is a ladder, tried in the order of how far each rung gets the image
+with no further work from the player**: the share sheet, the clipboard, a
+download. `navigator.canShare({files})` is the only honest test of the first —
+a desktop Safari has `navigator.share` and refuses files. A share sheet the
+player *cancels* stops the ladder rather than falling through, because a
+fallback there would put an image on their clipboard seconds after they said no.
 
 ## Protocol Buffers
 

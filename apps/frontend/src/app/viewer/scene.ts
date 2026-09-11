@@ -14,6 +14,12 @@ export function setupScene(container: HTMLElement) {
 
     camera.position.z = 5
 
+    // No `preserveDrawingBuffer`. It would make the driver keep a second copy of
+    // the buffer for every frame of every session — a permanent cost on the
+    // thing this page is, a globe at 60fps — to serve a share button that is
+    // pressed once in a while, if at all. The share capture reads the buffer
+    // from inside the render loop instead, while it is still there; see
+    // `readDrawingBuffer` in capture.ts.
     const renderer = new THREE.WebGLRenderer({});
     renderer.setSize(width, height);
     renderer.setClearColor(0x000000);
