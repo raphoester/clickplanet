@@ -224,9 +224,14 @@ export class BorderField {
         // A narrow country sees a vertical slice of its flag, a wide one a
         // horizontal band. Taken from the middle, the slice misses whatever the
         // flag is actually known by, so it is taken around that instead.
+        //
+        // `flagFit` measures the vertical focus *down* the artwork, from its top
+        // row. The frame the shader paints in runs the other way — it is built on
+        // the landmass's north axis, so 0 is its south edge — and the focus has to
+        // be turned over to match.
         const named = holder ?? ""
         this.rows[at + 14] = anchor(focusOf(named, 0), reachU / (2 * halfU))
-        this.rows[at + 15] = anchor(focusOf(named, 1), reachV / (2 * halfV))
+        this.rows[at + 15] = anchor(1 - focusOf(named, 1), reachV / (2 * halfV))
         this.rows[at + 8] = region.x
         this.rows[at + 9] = region.y
         this.rows[at + 10] = region.width
