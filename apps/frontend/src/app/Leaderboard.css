@@ -23,16 +23,11 @@
     overflow-y: auto;
 }
 
-/* Sticky, because the container under it scrolls and this row carries the only
-   statement of what the two number columns are counted in. Sticky sits on the
-   cells rather than on `thead`, which older Safari ignores. The background is
-   opaque — the panel's own near-black — because at anything less the row
-   sliding under it ghosts through the column names. */
+/* Deliberately unpinned and unfilled: it scrolls away with the list. Sticking
+   it needs an opaque fill, or the row sliding under it ghosts through the column
+   names — and that fill reads as a black band across the panel. The column
+   names say what they count ("% of map"), so the row is not worth that. */
 .leaderboard-table-head {
-    position: sticky;
-    top: 0;
-    z-index: 1;
-    background: #04090F;
     font-family: Oswald, sans-serif;
     font-weight: 500;
     font-size: 11px;
@@ -42,19 +37,6 @@
     text-shadow: none;
     padding: 0 0 6px 0;
     border-bottom: 1px solid #FFFFFF1F;
-}
-
-/* One line under the title, naming the whole that "% of map" is a part of —
-   and, in passing, the scale of the planet the "Tiles" column counts. */
-.leaderboard-total {
-    flex-shrink: 0;
-    margin: -2px 0 8px 0;
-    font-family: Oswald, sans-serif;
-    font-weight: 400;
-    font-size: 12px;
-    letter-spacing: 0.4px;
-    color: #FFFFFF80;
-    text-shadow: none;
 }
 
 .leaderboard-table {
@@ -69,6 +51,14 @@
     /* Two rows' worth of this is the gap the delta badge lives in, so it never
        has to be read on top of the count of the country above. */
     padding-block: 7px;
+}
+
+/* The rule above leaves the first row only one row's padding below the header
+   rule, so rank 1 sits nearer the column names than it does the country under
+   it. Match the gap two rows keep between them — two rows' padding — so the
+   header reads as a heading over the list rather than as part of it. */
+.leaderboard-entry:first-child td {
+    padding-top: 14px;
 }
 
 /* Tighter than elsewhere: the country column is the narrowest place a flag
@@ -142,12 +132,9 @@
 /* Sits in the gap above its own count, right-aligned with it: its bottom edge
    is the top of the count, so it stays between the two rows instead of
    overflowing onto the one above. `animation-duration` comes from
-   DELTA_HOLD_MS, so the badge fades out exactly as it is dropped. The gap the
-   first row has above it is the sticky header, which the badge still reaches
-   into and so has to out-rank. */
+   DELTA_HOLD_MS, so the badge fades out exactly as it is dropped. */
 .leaderboard-delta {
     position: absolute;
-    z-index: 2;
     right: 0;
     bottom: calc(100% - 7px);
     pointer-events: none;

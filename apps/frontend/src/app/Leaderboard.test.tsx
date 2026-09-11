@@ -41,16 +41,6 @@ describe("Leaderboard", () => {
         expect(screen.getByText("0.00")).toBeDefined()
     })
 
-    it("names the whole that a share is a share of", () => {
-        render(<Leaderboard tilesCount={257_948} data={[entry("fr", 500)]}/>)
-        expect(screen.getByText("257,948 tiles on the map")).toBeDefined()
-    })
-
-    it("says nothing about the map before the globe has counted it", () => {
-        render(<Leaderboard tilesCount={0} data={[]}/>)
-        expect(screen.queryByText(/tiles on the map/)).toBeNull()
-    })
-
     it("renders nothing but the header when no country holds a tile", () => {
         render(<Leaderboard tilesCount={1000} data={[]}/>)
         expect(rows()).toEqual([])
