@@ -9,35 +9,73 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ctxutil"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ipblock"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ipscope"
+	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ratelimit"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/session"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/xtime"
+	"google.golang.org/protobuf/proto"
 )
 
 type Limiter interface {
-	Allow(key string) bool
+	Take(key string) (bool, ratelimit.State)
 }
 
 type Blocklist interface {
 	Blocked(ip string) (ipblock.List, bool)
 }
 
-func NewRateLimitInterceptor(limiter Limiter, refusal error, procedures ...string) connect.Interceptor {
+// RateLimitKey is the identity a bucket is kept under.
+//
+// Keyed on the scope rather than the address: an IPv6 caller owns every address
+// in its own /64, so a bucket per address is one it steps out of for free. See
+// ipscope. Anything that reports an allowance must derive the key the same way,
+// or it reports somebody else's.
+func RateLimitKey(ctx context.Context) string {
+	return ipscope.Of(ctxutil.GetSourceIP(ctx))
+}
+
+// NewRateLimitInterceptor spends a token per call on the named procedures.
+//
+// What the bucket has left travels onward both ways: onto the context when the
+// call passes, so the handler can put it in its answer, and — where describe is
+// given — onto the refusal as an error detail, since a refused call has no
+// answer to carry it. A client that shows the allowance to a player therefore
+// learns it from its own calls and never has to poll for it.
+func NewRateLimitInterceptor(
+	limiter Limiter,
+	refusal error,
+	describe func(ratelimit.State) proto.Message,
+	procedures ...string,
+) connect.Interceptor {
 	return connect.UnaryInterceptorFunc(func(next connect.UnaryFunc) connect.UnaryFunc {
 		return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
 			if !slices.Contains(procedures, req.Spec().Procedure) {
 				return next(ctx, req)
 			}
 
-			// Keyed on the scope rather than the address: an IPv6 caller owns
-			// every address in its own /64, so a bucket per address is one it
-			// steps out of for free. See ipscope.
-			if !limiter.Allow(ipscope.Of(ctxutil.GetSourceIP(ctx))) {
-				return nil, connect.NewError(connect.CodeResourceExhausted, refusal)
+			allowed, state := limiter.Take(RateLimitKey(ctx))
+			if !allowed {
+				return nil, refuse(refusal, describe, state)
 			}
 
-			return next(ctx, req)
+			return next(ctxutil.AddClickBudgetToContext(ctx, state), req)
 		}
 	})
+}
+
+func refuse(refusal error, describe func(ratelimit.State) proto.Message, state ratelimit.State) error {
+	err := connect.NewError(connect.CodeResourceExhausted, refusal)
+	if describe == nil {
+		return err
+	}
+
+	// Only a message that will not marshal fails here, which a generated one
+	// does not. The caller still has to be refused either way, so it is the
+	// detail that is dropped rather than the refusal that becomes an error.
+	if detail, detailErr := connect.NewErrorDetail(describe(state)); detailErr == nil {
+		err.AddDetail(detail)
+	}
+
+	return err
 }
 
 func NewIPBlockInterceptor(

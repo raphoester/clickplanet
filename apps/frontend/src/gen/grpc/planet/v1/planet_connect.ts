@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ClickRequest, ClickResponse, GetMapRequest, GetMapResponse, MapDensityRequest, MapDensityResponse } from "./planet_pb.js";
+import { ClickRequest, ClickResponse, GetBudgetRequest, GetBudgetResponse, GetMapRequest, GetMapResponse, ListenForUpdatesRequest, MapDensityRequest, MapDensityResponse, TileUpdate } from "./planet_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -19,6 +19,19 @@ export const ClickService = {
       name: "Click",
       I: ClickRequest,
       O: ClickResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Reads the caller's allowance without spending it, for a client that has
+     * just loaded and has no click to learn it from. Deliberately not marked
+     * NO_SIDE_EFFECTS: the answer is about this instant, and a cached one lies.
+     *
+     * @generated from rpc planet.v1.ClickService.GetBudget
+     */
+    getBudget: {
+      name: "GetBudget",
+      I: GetBudgetRequest,
+      O: GetBudgetResponse,
       kind: MethodKind.Unary,
     },
     /**
@@ -40,6 +53,15 @@ export const ClickService = {
       O: GetMapResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * @generated from rpc planet.v1.ClickService.ListenForUpdates
+     */
+    listenForUpdates: {
+      name: "ListenForUpdates",
+      I: ListenForUpdatesRequest,
+      O: TileUpdate,
+      kind: MethodKind.ServerStreaming,
     },
   }
 } as const;

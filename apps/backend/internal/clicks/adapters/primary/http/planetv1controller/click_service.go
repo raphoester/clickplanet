@@ -9,6 +9,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/domain"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/domain/click_handler_service"
+	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/connectutil"
+	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ctxutil"
+	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ratelimit"
 )
 
 const mapMaxAge = 5
@@ -21,29 +24,43 @@ type UpdatesSubscriber interface {
 	Subscribe(ctx context.Context) (<-chan domain.TileUpdate, error)
 }
 
+// ClickBudgetReader reports a caller's click allowance without spending it,
+// under the same key the rate limiter spends it under.
+type ClickBudgetReader interface {
+	Peek(key string) ratelimit.State
+}
+
 type ClickService struct {
 	clickHandlerService click_handler_service.IService
 	tilesChecker        domain.TilesChecker
 	mapReader           DenseMapReader
 	subscriber          UpdatesSubscriber
+	budgets             ClickBudgetReader
 }
 
 var _ planetv1connect.ClickServiceHandler = (*ClickService)(nil)
 
+// NewClickService takes a nil budgets reader for a server that does not rate
+// limit clicks; its answers then carry no allowance, and a client shows none.
 func NewClickService(
 	clickHandlerService click_handler_service.IService,
 	tilesChecker domain.TilesChecker,
 	mapReader DenseMapReader,
 	subscriber UpdatesSubscriber,
+	budgets ClickBudgetReader,
 ) *ClickService {
 	return &ClickService{
 		clickHandlerService: clickHandlerService,
 		tilesChecker:        tilesChecker,
 		mapReader:           mapReader,
 		subscriber:          subscriber,
+		budgets:             budgets,
 	}
 }
 
+// Click answers with what the rate limiter had left after letting this click
+// through. The reading is the interceptor's — taken at the moment the token was
+// spent — so it is never a token behind what the server will enforce next.
 func (s *ClickService) Click(
 	ctx context.Context,
 	req *connect.Request[planetv1.ClickRequest],
@@ -52,7 +69,26 @@ func (s *ClickService) Click(
 		return nil, err
 	}
 
-	return connect.NewResponse(&planetv1.ClickResponse{}), nil
+	res := &planetv1.ClickResponse{}
+	if state, limited := ctxutil.GetClickBudget(ctx); limited {
+		res.Budget = EncodeBudget(state)
+	}
+
+	return connect.NewResponse(res), nil
+}
+
+// GetBudget is how a client that has just loaded learns its allowance. Every
+// click answers with a fresh one afterwards, so this is asked once.
+func (s *ClickService) GetBudget(
+	ctx context.Context,
+	_ *connect.Request[planetv1.GetBudgetRequest],
+) (*connect.Response[planetv1.GetBudgetResponse], error) {
+	res := &planetv1.GetBudgetResponse{}
+	if s.budgets != nil {
+		res.Budget = EncodeBudget(s.budgets.Peek(connectutil.RateLimitKey(ctx)))
+	}
+
+	return connect.NewResponse(res), nil
 }
 
 func (s *ClickService) MapDensity(

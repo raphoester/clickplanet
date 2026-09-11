@@ -74,11 +74,17 @@ func (a *App) configureClicks(_ context.Context) error {
 
 	a.configureBookkeeperIfEnabled(tilesStorage)
 
-	clickService := planetv1controller.NewClickService(clickHandlerService, tilesChecker, tilesStorage, tilesStorage)
-	errorInterceptor := planetv1controller.NewErrorInterceptor(a.logger)
-
 	clickLimiter := ratelimit.New(a.config.RateLimiter, xtime.ActualProvider{})
 	a.runners = append(a.runners, func() { clickLimiter.Run(a.ctx) })
+
+	clickService := planetv1controller.NewClickService(
+		clickHandlerService,
+		tilesChecker,
+		tilesStorage,
+		tilesStorage,
+		clickLimiter,
+	)
+	errorInterceptor := planetv1controller.NewErrorInterceptor(a.logger)
 
 	vpnBlockInterceptor, err := a.configureVPNBlocklist()
 	if err != nil {

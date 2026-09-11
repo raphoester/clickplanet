@@ -233,3 +233,34 @@ export class GetHistoryResponse extends Message<GetHistoryResponse> {
   }
 }
 
+/**
+ * @generated from message chat.v1.ListenForMessagesRequest
+ */
+export class ListenForMessagesRequest extends Message<ListenForMessagesRequest> {
+  constructor(data?: PartialMessage<ListenForMessagesRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chat.v1.ListenForMessagesRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListenForMessagesRequest {
+    return new ListenForMessagesRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListenForMessagesRequest {
+    return new ListenForMessagesRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListenForMessagesRequest {
+    return new ListenForMessagesRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListenForMessagesRequest | PlainMessage<ListenForMessagesRequest> | undefined, b: ListenForMessagesRequest | PlainMessage<ListenForMessagesRequest> | undefined): boolean {
+    return proto3.util.equals(ListenForMessagesRequest, a, b);
+  }
+}
+

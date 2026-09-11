@@ -3,9 +3,12 @@ import {OwnershipsGetter, TileClicker, UpdatesListener} from "../../backends/bac
 import {ChatBackend} from "../../backends/chat.ts";
 import ChatPanel from "../chat/ChatPanel.tsx";
 import Menu from "../Menu.tsx";
+import ClickBudgetMeter from "../components/ClickBudgetMeter.tsx";
 import RateLimitModal from "../components/RateLimitModal.tsx";
 import SessionUnavailableModal from "../components/SessionUnavailableModal.tsx";
 import VPNBlockedModal from "../components/VPNBlockedModal.tsx";
+import {ClickBudgetSource} from "../../backends/clickBudget.ts";
+import {useClickBudget} from './useClickBudget.ts';
 import {useCountryStorage} from './useCountryStorage.ts';
 import {GlobeStatus, useGlobe} from './useGlobe.ts';
 import "./Viewer.css"
@@ -14,12 +17,14 @@ export type ViewerProps = {
     tileClicker: TileClicker
     ownershipsGetter: OwnershipsGetter
     updatesListener: UpdatesListener
+    clickBudgetSource?: ClickBudgetSource
     chatBackend?: ChatBackend
 }
 
 export default function Viewer(props: ViewerProps) {
     const container = useRef<HTMLDivElement>(null)
     const {countryState, handleSetCountry} = useCountryStorage()
+    const clickBudget = useClickBudget(props.clickBudgetSource)
 
     const {
         status,
@@ -50,6 +55,8 @@ export default function Viewer(props: ViewerProps) {
             leaderboard={leaderboard}
             tilesCount={tilesCount}
         />}
+
+        {status.state === 'ready' && <ClickBudgetMeter budget={clickBudget}/>}
 
         {status.state === 'ready' && <ChatPanel
             backend={props.chatBackend}

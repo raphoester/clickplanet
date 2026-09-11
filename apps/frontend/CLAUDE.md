@@ -110,7 +110,8 @@ knows nothing about what they carry, so each context keeps its own decoder —
 lines over it.
 
 `planetBackend.ts` is production, `fakeBackend.ts` is for development, and the
-active one is wired in `main.tsx`. Both expose `close()`.
+active one is wired in `main.tsx`. Both expose `close()`, and both implement the
+fourth contract in `clickBudget.ts` — see [The click budget](#the-click-budget).
 
 `planetBackend.ts` talks to the API through the generated Connect client
 (`src/gen/grpc/planet/v1/planet_connect.ts`). No gRPC is involved — Connect is
@@ -154,6 +155,33 @@ enforces the same bucket with the backend's defaults, and takes `vpnBlocked` and
 `sessionUnavailable` options that refuse every click (there is no address and no
 widget there to judge). Its own simulated traffic bypasses all of them, standing
 in for other players rather than for this one.
+
+#### The click budget
+
+`clickBudget.ts` is the fourth contract: `ClickBudgetSource`, which reports how
+many clicks the server will still take. **The count is the server's and nothing
+else's** — a bucket kept here would drift within seconds, since it cannot see
+the clicks the same address makes from another tab and its idea of when a click
+was spent is a round trip out of date.
+
+Nothing polls for it either. The server sends a *reading plus its policy* —
+`tokens`, `capacity`, `refill_per_second` — and `tokensAt` replays the same
+refill between two readings, so the counter is smooth at 60fps over about one
+message per click. Every click answer re-anchors it, which is why the error can
+never accumulate: it is exact again the moment the player does the thing the
+counter is about.
+
+`PlanetBackend` learns it three ways — `GetBudget` once at load, `ClickResponse
+.budget` on every accepted click, and a **connect error detail** on a refused
+one, which is the reading that matters most. It also subtracts its own clicks in
+flight, so the counter only ever *under*-promises: a counter that says 1 and is
+refused is a bug the player sees, and one that says 0 and works is a click they
+still get.
+
+A server that reports nothing — no throttle, or one too old for the call —
+leaves the counter hidden rather than showing a made-up allowance, so this ships
+ahead of the backend. `FakeBackend` implements the same interface off its own
+bucket, so the counter is live in dev.
 
 `openUpdatesSocket` reconnects with a capped exponential backoff. It is the only
 source of live changes, so a drop that is not retried freezes the globe until a
@@ -413,6 +441,24 @@ player's territory, so it has not been done.
    refusal does not clear on its own — the player has to change network — so the
    next click raises it again.
 
+6. `ClickBudgetMeter` shows what is left of the bucket, bottom-left. It is the
+   warning `RateLimitModal` cannot be — the modal only ever arrives after the
+   click that was refused. **Its shape is read off the server's policy**: one
+   pip per click in the burst (one bar past 12 of them), and the partly-filled
+   pip is the click being granted back, at the server's own rate. Change
+   `rateLimiter.burst` on the backend and this follows with no release here.
+
+   The refill is animated from **one CSS custom property written per frame**,
+   and each pip works out its own share of it with a `clamp()`; the count, the
+   colour and the aria value are written only when the whole number changes.
+   `useClickBudget` therefore re-renders when the *server* says something, not
+   as the bucket refills — this sits beside a WebGL scene that wants the main
+   thread. Under `prefers-reduced-motion` the fill steps four times a second
+   instead of gliding.
+
+   On a phone it moves to under the folded menu: both ends of the screen are
+   full-width sheets there, the menu above and the chat below.
+
 ### Rolling back a refused click
 
 A click is painted before the server has agreed to it, and the server refuses
@@ -462,7 +508,7 @@ the whole `proto` directory, so a new package needs no config change; run
 `npm run proto` after changing a `.proto`.
 
 - [`planet/v1/planet.proto`](../../proto/planet/v1/planet.proto) — `ClickRequest`,
-  `GetMapResponse`, `TileUpdate`
+  `ClickBudget`, `GetMapResponse`, `TileUpdate`
 - [`chat/v1/chat.proto`](../../proto/chat/v1/chat.proto) — `ChatMessage`,
   `SendMessageRequest`, `GetHistoryResponse`
 - [`session/v1/session.proto`](../../proto/session/v1/session.proto) —

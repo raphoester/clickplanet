@@ -7,7 +7,12 @@ import {
     UpdatesListener,
     VPNBlockedError,
 } from "./backend.ts";
-import {GetMapResponse, TileUpdate} from "../gen/grpc/planet/v1/planet_pb.ts";
+import {
+    ClickBudget as ClickBudgetMessage,
+    GetMapResponse,
+    TileUpdate,
+} from "../gen/grpc/planet/v1/planet_pb.ts";
+import {ClickBudget, ClickBudgetSource, now as budgetNow} from "./clickBudget.ts";
 import {ClickService} from "../gen/grpc/planet/v1/planet_connect.ts";
 import {SessionService} from "../gen/grpc/session/v1/session_connect.ts";
 import {Code, ConnectError, createPromiseClient, PromiseClient} from "@connectrpc/connect";
@@ -45,11 +50,18 @@ export function newSessionServiceClient(config: Config): PromiseClient<typeof Se
     }))
 }
 
-export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesListener {
+export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource {
     private pendingUpdates: Update[] = []
     private readonly updateBatchCallbacks = new Map<string, (updates: Update[]) => void>()
+    private readonly budgetCallbacks = new Map<string, (budget: ClickBudget) => void>()
     private readonly flushTimer: ReturnType<typeof setInterval>
     private readonly stopListening: () => void
+
+    /** The last reading the server sent, before this client's own clicks. */
+    private budgetAnchor: ClickBudget | undefined
+
+    /** Clicks sent and not yet answered — see reportBudget. */
+    private inFlight = 0
 
     constructor(
         private config: Config,
@@ -57,6 +69,8 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         batchUpdateDurationMs: number,
         private session: SessionProvider = new NoSession(),
     ) {
+        void this.readBudget()
+
         this.stopListening = this.listenForUpdates((update) => {
             this.pendingUpdates.push(update)
         })
@@ -73,6 +87,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         clearInterval(this.flushTimer)
         this.stopListening()
         this.updateBatchCallbacks.clear()
+        this.budgetCallbacks.clear()
         this.pendingUpdates = []
     }
 
@@ -84,6 +99,9 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
      * is not a loop — a second refusal is reported.
      */
     public async clickTile(tileId: number, countryId: string) {
+        this.inFlight++
+        this.reportBudget()
+
         try {
             await this.click(tileId, countryId)
         } catch (e) {
@@ -98,6 +116,9 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
             } catch (retried) {
                 throw asClickError(retried)
             }
+        } finally {
+            this.inFlight--
+            this.reportBudget()
         }
     }
 
@@ -107,7 +128,81 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         const headers = new Headers()
         if (token) headers.set(SESSION_HEADER, token)
 
-        await retrying(() => this.client.click({tileId, countryId}, {headers}), `click ${tileId}`)
+        try {
+            const res = await retrying(
+                () => this.client.click({tileId, countryId}, {headers}),
+                `click ${tileId}`,
+            )
+            this.anchorBudget(res.budget)
+        } catch (e) {
+            // A refusal carries the reading on the error, because there is no
+            // answer to put it in — and it is the refusal the counter most has
+            // to agree with.
+            this.anchorBudget(budgetDetailOf(e))
+            throw e
+        }
+    }
+
+    /**
+     * Asked once, at load. Everything after that is learned from the answers to
+     * this client's own clicks, so a player who never clicks never asks again.
+     *
+     * A server too old to answer leaves the counter off rather than breaking
+     * the page: the frontend deploys separately from the backend.
+     */
+    private async readBudget(): Promise<void> {
+        try {
+            const res = await this.client.getBudget({})
+            this.anchorBudget(res.budget)
+        } catch (e) {
+            if (e instanceof ConnectError && e.code === Code.Unimplemented) return
+            console.error("could not read the click budget", e)
+        }
+    }
+
+    private anchorBudget(budget: ClickBudgetMessage | undefined): void {
+        // A server with no throttle says nothing, and the counter stays hidden
+        // rather than claiming an allowance nobody is enforcing.
+        if (!budget || budget.capacity === 0) return
+
+        this.budgetAnchor = {
+            tokens: budget.tokens,
+            capacity: budget.capacity,
+            perSecond: budget.refillPerSecond,
+            readAt: budgetNow(),
+        }
+
+        this.reportBudget()
+    }
+
+    /**
+     * Publishes the anchor with this client's own clicks taken off it.
+     *
+     * `readAt` deliberately stays the server's reading rather than becoming
+     * now: the refill since then is real and still owed, and subtracting a
+     * click in flight from a reading is the same arithmetic the server will do
+     * when that click lands. The result only ever *under*-promises, which is
+     * the side to be wrong on — a counter that says 1 and is refused is a bug
+     * the player sees, and one that says 0 and works is a click they still get.
+     */
+    private reportBudget(): void {
+        const anchor = this.budgetAnchor
+        if (!anchor) return
+
+        const budget = {...anchor, tokens: anchor.tokens - this.inFlight}
+        this.budgetCallbacks.forEach(callback => callback(budget))
+    }
+
+    public watchClickBudget(callback: (budget: ClickBudget) => void): () => void {
+        const id = generateUUID()
+        this.budgetCallbacks.set(id, callback)
+
+        // The load-time read usually lands before anything subscribes.
+        if (this.budgetAnchor) {
+            callback({...this.budgetAnchor, tokens: this.budgetAnchor.tokens - this.inFlight})
+        }
+
+        return () => this.budgetCallbacks.delete(id)
     }
 
     public async getCurrentOwnershipsByBatch(
@@ -140,6 +235,12 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         this.updateBatchCallbacks.set(id, callback)
         return () => this.updateBatchCallbacks.delete(id)
     }
+}
+
+export function budgetDetailOf(e: unknown): ClickBudgetMessage | undefined {
+    if (!(e instanceof ConnectError)) return undefined
+
+    return e.findDetails(ClickBudgetMessage)[0]
 }
 
 export function asClickError(e: unknown): unknown {
