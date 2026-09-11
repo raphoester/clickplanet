@@ -72,6 +72,13 @@ app/       components
   refused click](#rolling-back-a-refused-click).
 - `leaderboard.ts` — `rankCountries`, a pure sort over those counts. Ties break
   on country code so equally-placed rows stop swapping.
+- `tileDeltas.ts` — what the leaderboard floats beside a tile count as "+3" or
+  "-2". `takeInChanges` folds one board into the badges already up, so a country
+  on a run keeps one badge counting up instead of flashing "+1" three times, and
+  a country that wins a tile back and loses it again drops its badge rather than
+  reading "+0". `expireBadges` retires one `DELTA_HOLD_MS` after its last tile.
+  **Both hand back the map they were given when nothing moved**, so a quiet
+  leaderboard costs no render.
 - `countries.ts` — the country list, keyed by code.
 - `chatLog.ts` — `addMessages`, the merge of the history fetch and the live
   socket into one bounded list. **The two sources overlap**: your own message
@@ -316,6 +323,9 @@ curl -s "https://clickplanet.lol$B" | grep -c 'challenges.cloudflare.com/turnsti
   must not depend on anything that changes per render**; the selected country is
   pushed into the running globe through a separate effect rather than rebuilding
   it.
+- `useLeaderboardFeed.ts` — the one place React hears about the board, and
+  **it samples rather than follows**. See [Sampling the
+  leaderboard](#sampling-the-leaderboard).
 - `tileField.ts` — owns both point clouds and the two attributes that change at
   runtime (`regionVector`, `hover`). Mutates them in place and reports only the
   changed ranges. Do not replace these attributes: doing so makes the renderer
@@ -398,7 +408,8 @@ player's territory, so it has not been done.
 3. Live updates arrive over the websocket, batched every 100 ms, into the same
    store.
 4. Whatever the store reports as changed is painted, and the leaderboard is
-   re-ranked from its counts.
+   re-ranked from its counts — then handed to `useLeaderboardFeed`, which
+   publishes it to React twice a second rather than ten times.
 5. A click paints optimistically and POSTs; the server's echo confirms it later.
    A refused click is taken back off the map and raises a flag in `useGlobe` that
    `Viewer` renders as `RateLimitModal`, `VPNBlockedModal` or
@@ -412,6 +423,36 @@ player's territory, so it has not been done.
    Dismissing `VPNBlockedModal` only closes it. Unlike a spent bucket, that
    refusal does not clear on its own — the player has to change network — so the
    next click raises it again.
+
+### Sampling the leaderboard
+
+The globe re-ranks on every batch it takes in — ten times a second, over every
+country on the map — and `useLeaderboardFeed` is what stops each of those
+reaching React. Rendering two hundred rows, and restarting two hundred badge
+animations, ten times a second is enough to make the whole machine stutter on a
+busy planet, and it is unreadable anyway: a count nobody can follow flickering
+past.
+
+**The accounting still follows every batch; only the render is sampled.**
+`recordLeaderboard` folds each board into the badges in a ref — pure arithmetic
+over a couple of hundred numbers, no DOM — and a `SAMPLE_MS` interval publishes
+what has accumulated. That split is what makes the badges both cheap and honest:
+
+- A country that won three tiles in half a second says **"+3" once**, rather
+  than "+1" three times too fast to read.
+- The initial load is told apart from live play **exactly**, which sampling the
+  stream alone could not do. `createGlobe` passes `live: false` for the ~26
+  batches of the initial fetch, and live updates stream in throughout, so a
+  half-second window routinely holds both. Folding per batch keeps the map as it
+  loads out of the badges while still counting it into the ground they are
+  measured from.
+- A tick with nothing to publish and nothing to retire **calls no setter at
+  all** — handing React the state it already holds still costs a render before
+  it bails out.
+
+The cost is up to half a second of staleness on the tiles count, including your
+own click. The tile itself paints immediately, which is the feedback that
+matters; the leaderboard is not read that fast.
 
 ### Rolling back a refused click
 
@@ -538,6 +579,12 @@ and the folded peek carry `--author-hue` from `authorHue`, and the CSS builds
 the author's stripe, name colour and arrival glow out of it. Keep the hue in the
 TS and the rest in the CSS — that is what stops an author's colour from being
 computed in two places with two different saturations.
+
+`Leaderboard.css` has the other one: the delta badge's `animation-duration` is
+set inline from `DELTA_HOLD_MS`, so the fade-out ends exactly as the badge is
+dropped from the map. The keyframes are written so the badge **never dips below
+where it comes to rest** — the rows are 25px and a badge that starts low lands
+on the count below it.
 
 `index.css` owns the shared boxes — `.button`, `.button-mini`, `.icon-button`,
 `.menu-label` — **including their `max-width: 768px` sizes**. A component's own

@@ -154,16 +154,31 @@ describe("useGlobe", () => {
         expect(signal.aborted).toBe(true)
     })
 
-    it("passes leaderboard updates straight through", async () => {
+    it("publishes leaderboard updates on the next sample", async () => {
         createGlobe.mockResolvedValue(fakeGlobe())
 
         renderHook()
         await waitFor(() => expect(latest.status.state).toBe('ready'))
 
         const entries = [{country: FRANCE, tiles: 12}]
-        await act(async () => createGlobe.mock.calls[0][0].onLeaderboardChange(entries))
+        await act(async () => createGlobe.mock.calls[0][0].onLeaderboardChange(entries, true))
+        await waitFor(() => expect(latest.leaderboard).toEqual(entries))
+    })
 
-        expect(latest.leaderboard).toEqual(entries)
+    it("badges what lands live, and not the map the globe starts from", async () => {
+        createGlobe.mockResolvedValue(fakeGlobe())
+
+        renderHook()
+        await waitFor(() => expect(latest.status.state).toBe('ready'))
+
+        const change = createGlobe.mock.calls[0][0].onLeaderboardChange
+
+        await act(async () => change([{country: FRANCE, tiles: 12}], false))
+        await waitFor(() => expect(latest.leaderboard).toHaveLength(1))
+        expect(latest.tileDeltas.size).toBe(0)
+
+        await act(async () => change([{country: FRANCE, tiles: 14}], true))
+        await waitFor(() => expect(latest.tileDeltas.get("fr")?.net).toBe(2))
     })
 
     it("does nothing until the container element exists", () => {

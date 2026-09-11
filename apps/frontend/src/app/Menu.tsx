@@ -1,6 +1,7 @@
 import {useEffect, useId, useRef, useState} from "react";
 import {Country} from "../domain/countries.ts";
 import {LeaderboardEntry, rankOf} from "../domain/leaderboard.ts";
+import {NO_TILE_DELTAS, TileDeltas} from "../domain/tileDeltas.ts";
 import Leaderboard from "./Leaderboard.tsx";
 import MenuHeader from "./MenuHeader.tsx";
 import About from "./About.tsx";
@@ -18,6 +19,7 @@ export type MenuProps = {
     country: Country,
     setCountry: (country: Country) => void,
     leaderboard: LeaderboardEntry[],
+    tileDeltas?: TileDeltas,
     tilesCount: number,
 }
 
@@ -78,6 +80,7 @@ export default function Menu(props: MenuProps) {
                         </div>
 
                         <Leaderboard data={props.leaderboard}
+                                     deltas={props.tileDeltas ?? NO_TILE_DELTAS}
                                      tilesCount={props.tilesCount}
                                      highlight={props.country}/>
 

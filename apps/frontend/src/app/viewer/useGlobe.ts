@@ -1,8 +1,8 @@
 import {useEffect, useRef, useState} from 'react';
 import {createGlobe, Globe} from './globe.ts';
 import {Country} from '../../domain/countries.ts';
-import {LeaderboardEntry} from '../../domain/leaderboard.ts';
 import {OwnershipsGetter, TileClicker, UpdatesListener} from '../../backends/backend.ts';
+import {useLeaderboardFeed} from './useLeaderboardFeed.ts';
 
 export type GlobeStatus =
     | {state: 'loading'}
@@ -21,8 +21,9 @@ export function useGlobe(options: UseGlobeOptions) {
     const {container, tileClicker, ownershipsGetter, updatesListener, country} = options
 
     const [status, setStatus] = useState<GlobeStatus>({state: 'loading'})
-    const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
     const [tilesCount, setTilesCount] = useState(0)
+
+    const {leaderboard, tileDeltas, recordLeaderboard} = useLeaderboardFeed()
 
     const [rateLimited, setRateLimited] = useState(false)
 
@@ -49,7 +50,7 @@ export function useGlobe(options: UseGlobeOptions) {
             updatesListener,
             container: element,
             country: initialCountry.current,
-            onLeaderboardChange: setLeaderboard,
+            onLeaderboardChange: recordLeaderboard,
             onRateLimited: () => setRateLimited(true),
             onVPNBlocked: () => setVPNBlocked(true),
             onSessionUnavailable: () => setSessionUnavailable(true),
@@ -75,7 +76,7 @@ export function useGlobe(options: UseGlobeOptions) {
             globeRef.current?.dispose()
             globeRef.current = null
         }
-    }, [container, tileClicker, ownershipsGetter, updatesListener])
+    }, [container, tileClicker, ownershipsGetter, updatesListener, recordLeaderboard])
 
     useEffect(() => {
         initialCountry.current = country
@@ -85,6 +86,7 @@ export function useGlobe(options: UseGlobeOptions) {
     return {
         status,
         leaderboard,
+        tileDeltas,
         tilesCount,
         rateLimited,
         dismissRateLimited: () => setRateLimited(false),
