@@ -327,8 +327,22 @@ lifecycle left to get wrong.
 
 **`appearance: "interaction-only"`** — the widget draws nothing for almost every
 visitor. `.turnstile-host` in `index.css` is where it would appear if Turnstile
-decides this one has to tick a box; it is `pointer-events: none` so an empty host
-never swallows a click meant for the globe.
+decides this one has to tick a box.
+
+**Turnstile draws the checkbox inside a closed shadow root**, so no selector on
+this page reaches it and no rule of ours styles it. That makes
+`pointer-events: none` on the host unusable, however tempting: the property
+*inherits* across the shadow boundary, and the `.turnstile-host iframe` rule
+that would give it back matches nothing. A challenge styled that way is painted
+on screen and passes every click straight through to the globe behind it — a
+player who is asked to tick a box that cannot be ticked, and so cannot play.
+Measured on the deployed site, not deduced.
+
+Nothing is needed in its place: the host shrink-wraps the widget, and Turnstile
+renders a **0x0** box while it is not challenging, so an idle host has no area
+to swallow a click with. Its `z-index` is above every other layer — the chat
+sheet is bottom-centre on a phone, exactly where the widget appears, and a
+challenge is the one thing on the page that has to be answerable.
 
 **Concurrent clicks share one mint.** A page load fires a flurry, and without
 coalescing the first second of play would spend the whole per-IP mint budget on
