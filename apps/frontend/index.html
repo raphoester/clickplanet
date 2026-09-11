@@ -8,6 +8,14 @@
     <meta name="keywords" content="clickplanet, click, planet, multiplayer, online, game, conquer, world, map"/>
     <link rel="canonical" href="https://clickplanet.lol/"/>
 
+    <!--
+      The generic card, and the fallback for every other way this page can be
+      served. A link carrying a country — /?c=de — gets these same tags with a
+      German title, description and image, rewritten in `worker/index.ts` on the
+      way out of Cloudflare. Scrapers do not run JavaScript, so nothing React
+      sets later would reach them; keep the per-country copy in that Worker and
+      the generic copy here.
+    -->
     <meta property="og:title" content="ClickPlanet"/>
     <meta property="og:description" content="Conquer the world with your flag, one click at a time"/>
     <meta property="og:type" content="website"/>

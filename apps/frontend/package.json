@@ -15,6 +15,7 @@
     "proto": "npx buf generate",
     "atlas": "vite-node scripts/generateAtlas.ts --",
     "og-image": "vite-node scripts/generateOgImage.ts",
+    "og-countries": "vite-node scripts/generateCountryOgImages.ts",
     "coordinates": "vite-node scripts/computeCoordinates.ts --",
     "coordinates:convert": "vite-node scripts/convertCoordinates.ts",
     "copy:static": "rm -rf dist/static && mkdir -p dist/static && cp -R static/. dist/static/ && rm -f dist/static/coordinates.json dist/static/og-source.png && { ls dist/static/coordinates-*.bin >/dev/null 2>&1 || { echo \"copy:static: static/coordinates-<hash>.bin is missing - run 'npm run coordinates:convert'\" >&2; exit 1; }; } && { ls dist/static/borders-*.bin >/dev/null 2>&1 || { echo \"copy:static: static/borders-<hash>.bin is missing - run 'npm run borders'\" >&2; exit 1; }; }",
@@ -34,6 +35,7 @@
   "devDependencies": {
     "@bufbuild/buf": "^1.47.2",
     "@bufbuild/protoc-gen-es": "^1.10.0",
+    "@cloudflare/workers-types": "^5.20260911.1",
     "@connectrpc/protoc-gen-connect-es": "^1.7.0",
     "@eslint/js": "^9.13.0",
     "@testing-library/dom": "^10.4.1",
