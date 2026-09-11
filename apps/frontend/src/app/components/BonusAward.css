@@ -1,0 +1,159 @@
+/*
+ * The announcement covers the screen but catches nothing: `pointer-events: none`
+ * the whole way down, so a player mid-click keeps the planet under the cursor.
+ */
+.bonus-award {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    display: grid;
+    place-items: center;
+    pointer-events: none;
+}
+
+/*
+ * One element does the whole move: it pops in at the centre, holds while it is
+ * read, then shrinks towards the top-right, which is where the click meter is.
+ * The meter picks the bonus up from there, so the eye is already travelling the
+ * right way when the badge appears on it.
+ *
+ * The timings here are shares of AWARD_MS in BonusAward.tsx. Change one and
+ * change the other.
+ */
+.bonus-award-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 28px 44px;
+    border: 1px solid #FFB13F66;
+    border-radius: 24px;
+    background: #0A0A0Acc;
+    backdrop-filter: blur(10px);
+    text-align: center;
+    color: #FFFFFF;
+    text-shadow: -1px 1px 0 #000000;
+    animation: bonus-award 1.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.bonus-award-box {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 64px;
+    height: 64px;
+    border: 3px solid #4A2C02;
+    border-radius: 10px;
+    background: #F2A91C;
+    color: #FFF6DF;
+    font-size: 40px;
+    font-weight: 700;
+    line-height: 1;
+    text-shadow: -2px 2px 0 #4A2C02;
+    animation: bonus-award-spin 0.7s ease-out;
+}
+
+.bonus-award-title {
+    /* Big enough to be read across the room, and it still fits a phone. */
+    font-size: clamp(30px, 6vw, 58px);
+    font-weight: 700;
+    line-height: 1.05;
+    letter-spacing: 0.5px;
+    color: #FFC061;
+}
+
+.bonus-award-detail {
+    font-size: clamp(14px, 1.8vw, 22px);
+    line-height: 1.3;
+    opacity: 0.92;
+}
+
+@keyframes bonus-award {
+    0% {
+        opacity: 0;
+        transform: scale(0.55);
+    }
+    /* Overshoot, so it lands rather than merely appearing. */
+    10% {
+        opacity: 1;
+        transform: scale(1.06);
+    }
+    18% {
+        transform: scale(1);
+    }
+    /* The hold: long enough to read both lines. */
+    68% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    100% {
+        opacity: 0;
+        /* Towards the meter in the top-right corner. */
+        transform: translate(36vw, -38vh) scale(0.22);
+    }
+}
+
+@keyframes bonus-award-spin {
+    from {
+        transform: rotate(-160deg) scale(0.2);
+    }
+    to {
+        transform: rotate(0) scale(1);
+    }
+}
+
+@media (max-width: 768px) {
+    .bonus-award-card {
+        padding: 20px 24px;
+        max-width: calc(100vw - 32px);
+    }
+
+    /* The meter sits under the folded menu on a phone, not in the corner. */
+    @keyframes bonus-award {
+        0% {
+            opacity: 0;
+            transform: scale(0.55);
+        }
+        10% {
+            opacity: 1;
+            transform: scale(1.06);
+        }
+        18% {
+            transform: scale(1);
+        }
+        68% {
+            opacity: 1;
+            transform: scale(1);
+        }
+        100% {
+            opacity: 0;
+            transform: translateY(-34vh) scale(0.22);
+        }
+    }
+}
+
+/*
+ * The words carry this on their own; only the travel goes. It still has to end
+ * invisible, or the announcement would sit over the globe for good.
+ */
+@media (prefers-reduced-motion: reduce) {
+    .bonus-award-card {
+        animation: bonus-award-still 1.9s steps(1, end) forwards;
+    }
+
+    .bonus-award-box {
+        animation: none;
+    }
+}
+
+@keyframes bonus-award-still {
+    0% {
+        opacity: 1;
+    }
+    85% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0;
+    }
+}

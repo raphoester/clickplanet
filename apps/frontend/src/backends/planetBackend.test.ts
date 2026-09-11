@@ -1,14 +1,17 @@
 import {describe, expect, it, vi} from "vitest"
-import {bindingsOf, PlanetBackend, updateOf} from "./planetBackend.ts"
+import {asBonusError, bindingsOf, catchOf, offerOf, PlanetBackend, updateOf} from "./planetBackend.ts"
 import {Code, ConnectError} from "@connectrpc/connect"
 import {
+    BonusKind,
+    BonusOffered,
+    BonusTaken,
     ClickBudget as ClickBudgetMessage,
     GetMapResponse,
     Heartbeat,
     PlanetEvent,
     TileUpdate,
 } from "../gen/grpc/planet/v1/planet_pb.ts"
-import {RateLimitedError, VPNBlockedError} from "./backend.ts"
+import {BonusLostError, RateLimitedError, VPNBlockedError} from "./backend.ts"
 import {SESSION_HEADER, type SessionProvider, SessionUnavailableError} from "./session.ts"
 
 function fixedSession(token: string): SessionProvider {
@@ -445,5 +448,103 @@ describe("PlanetBackend click budget", () => {
 
         expect(seen).toEqual([])
         backend.close()
+    })
+})
+
+describe("offerOf", () => {
+    const offered = (fields: {
+        token?: string,
+        seed?: number,
+        kind?: BonusKind,
+        durationSeconds?: number,
+        expiresAtUnixMs?: bigint,
+    } = {}) => new PlanetEvent({
+        event: {
+            case: "bonusOffered",
+            value: new BonusOffered({
+                token: "a-token",
+                seed: 42,
+                kind: BonusKind.TRIPLE_CLICKS,
+                durationSeconds: 60,
+                expiresAtUnixMs: 1_000_000n,
+                ...fields,
+            }),
+        },
+    })
+
+    it("reads the box the server addressed to this client", () => {
+        const offer = offerOf(offered())
+
+        expect(offer?.token).toBe("a-token")
+        expect(offer?.seed).toBe(42)
+        expect(offer?.reward).toEqual({kind: "tripleClicks", seconds: 60})
+    })
+
+    it("builds the deadline from how long is left, not from the server's clock", () => {
+        // The two wall clocks are unrelated. Taking the timestamp at face value
+        // would make every box look already lapsed on a client running fast.
+        const offer = offerOf(offered({expiresAtUnixMs: 1_015_000n}), 5_000, 1_000_000)
+
+        expect(offer?.expiresAt).toBe(5_000 + 15_000)
+    })
+
+    it("is unmoved by a client clock that is minutes out", () => {
+        const skewed = offerOf(offered({expiresAtUnixMs: 1_015_000n}), 5_000, 1_000_000 + 600_000)
+        const honest = offerOf(offered({expiresAtUnixMs: 1_015_000n}), 5_000, 1_000_000)
+
+        expect(honest!.expiresAt - 5_000).toBe(15_000)
+        // The skew is carried, but the box is still given its full window
+        // relative to the reading rather than being born expired.
+        expect(skewed!.expiresAt).toBeLessThan(honest!.expiresAt)
+    })
+
+    it("drops a kind this build cannot describe rather than guessing at it", () => {
+        expect(offerOf(offered({kind: BonusKind.UNSPECIFIED}))).toBeUndefined()
+    })
+
+    it("drops everything that is not an offer", () => {
+        expect(offerOf(new PlanetEvent({event: {case: "heartbeat", value: new Heartbeat()}}))).toBeUndefined()
+        expect(offerOf(tileUpdateEvent({tileId: 1, countryId: "fr"}))).toBeUndefined()
+    })
+})
+
+describe("catchOf", () => {
+    it("reads who caught one", () => {
+        const event = new PlanetEvent({
+            event: {case: "bonusTaken", value: new BonusTaken({countryId: "jp"})},
+        })
+
+        expect(catchOf(event)).toEqual({countryId: "jp"})
+    })
+
+    it("drops everything that is not a catch", () => {
+        expect(catchOf(new PlanetEvent({event: {case: "heartbeat", value: new Heartbeat()}}))).toBeUndefined()
+    })
+})
+
+describe("updateOf with the bonus cases on the stream", () => {
+    it("still ignores them, so an old client is unaffected by either", () => {
+        const offer = new PlanetEvent({
+            event: {case: "bonusOffered", value: new BonusOffered({token: "t"})},
+        })
+
+        expect(updateOf(offer)).toBeUndefined()
+    })
+})
+
+describe("asBonusError", () => {
+    it("reports a box that is gone as lost, whichever way the server said so", () => {
+        expect(asBonusError(new ConnectError("gone", Code.NotFound))).toBeInstanceOf(BonusLostError)
+        expect(asBonusError(new ConnectError("off", Code.Unimplemented))).toBeInstanceOf(BonusLostError)
+    })
+
+    it("keeps a session failure as one, since that is the player's clicks stopping too", () => {
+        expect(asBonusError(new ConnectError("no", Code.Unauthenticated)))
+            .toBeInstanceOf(SessionUnavailableError)
+    })
+
+    it("leaves anything else alone", () => {
+        const boom = new Error("boom")
+        expect(asBonusError(boom)).toBe(boom)
     })
 })

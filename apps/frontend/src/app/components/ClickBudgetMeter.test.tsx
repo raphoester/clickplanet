@@ -92,3 +92,51 @@ describe("ClickBudgetMeter", () => {
         vi.restoreAllMocks()
     })
 })
+
+describe("ClickBudgetMeter while a bonus runs", () => {
+    const running = (seconds = 60) => ({
+        reward: {kind: "tripleClicks", seconds} as const,
+        endsAt: performance.now() + seconds * 1000,
+    })
+
+    it("says nothing about a bonus when none is running", () => {
+        render(<ClickBudgetMeter budget={reading()}/>)
+
+        expect(document.querySelector(".click-budget-bonus")).toBeNull()
+        expect(meter().classList.contains("click-budget-boosted")).toBe(false)
+    })
+
+    it("shows the multiplier that was won", () => {
+        render(<ClickBudgetMeter budget={reading()} bonus={running()}/>)
+
+        expect(screen.getByText("3×")).toBeTruthy()
+    })
+
+    it("counts down how long is left", () => {
+        render(<ClickBudgetMeter budget={reading()} bonus={running(45)}/>)
+
+        expect(screen.getByText("45s")).toBeTruthy()
+    })
+
+    it("marks the whole meter, so the boost reads at a glance", () => {
+        render(<ClickBudgetMeter budget={reading()} bonus={running()}/>)
+
+        expect(meter().classList.contains("click-budget-boosted")).toBe(true)
+    })
+
+    it("still reports the server's own allowance, never a multiplied guess", () => {
+        // The boost is the server's to grant: when it does, capacity and rate
+        // arrive in the reading and the pips widen on their own. Nothing here
+        // may invent them in the meantime.
+        render(<ClickBudgetMeter budget={reading({capacity: 10})} bonus={running()}/>)
+
+        expect(pips()).toHaveLength(10)
+        expect(meter().getAttribute("aria-valuemax")).toBe("10")
+    })
+
+    it("leaves the count itself alone", () => {
+        render(<ClickBudgetMeter budget={reading({tokens: 4})} bonus={running()}/>)
+
+        expect(meter().getAttribute("aria-valuenow")).toBe("4")
+    })
+})

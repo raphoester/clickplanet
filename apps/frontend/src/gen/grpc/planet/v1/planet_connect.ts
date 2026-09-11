@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ClickRequest, ClickResponse, GetBudgetRequest, GetBudgetResponse, GetMapRequest, GetMapResponse, ListenForEventsRequest, MapDensityRequest, MapDensityResponse, PlanetEvent } from "./planet_pb.js";
+import { ClaimBonusRequest, ClaimBonusResponse, ClickRequest, ClickResponse, GetBudgetRequest, GetBudgetResponse, GetMapRequest, GetMapResponse, ListenForEventsRequest, MapDensityRequest, MapDensityResponse, PlanetEvent } from "./planet_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -62,6 +62,15 @@ export const ClickService = {
       I: ListenForEventsRequest,
       O: PlanetEvent,
       kind: MethodKind.ServerStreaming,
+    },
+    /**
+     * @generated from rpc planet.v1.ClickService.ClaimBonus
+     */
+    claimBonus: {
+      name: "ClaimBonus",
+      I: ClaimBonusRequest,
+      O: ClaimBonusResponse,
+      kind: MethodKind.Unary,
     },
   }
 } as const;

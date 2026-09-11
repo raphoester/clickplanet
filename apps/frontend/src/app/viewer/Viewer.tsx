@@ -1,8 +1,9 @@
 import {useRef} from 'react';
-import {OwnershipsGetter, TileClicker, UpdatesListener} from "../../backends/backend.ts";
+import {BonusListener, OwnershipsGetter, TileClicker, UpdatesListener} from "../../backends/backend.ts";
 import {ChatBackend} from "../../backends/chat.ts";
 import ChatPanel from "../chat/ChatPanel.tsx";
 import Menu from "../Menu.tsx";
+import BonusAward from "../components/BonusAward.tsx";
 import ClickBudgetMeter from "../components/ClickBudgetMeter.tsx";
 import RateLimitModal from "../components/RateLimitModal.tsx";
 import SessionUnavailableModal from "../components/SessionUnavailableModal.tsx";
@@ -22,6 +23,7 @@ export type ViewerProps = {
     ownershipsGetter: OwnershipsGetter
     updatesListener: UpdatesListener
     clickBudgetSource?: ClickBudgetSource
+    bonusListener?: BonusListener
     chatBackend?: ChatBackend
 }
 
@@ -42,11 +44,15 @@ export default function Viewer(props: ViewerProps) {
         dismissVPNBlocked,
         sessionUnavailable,
         dismissSessionUnavailable,
+        award,
+        dismissAward,
+        bonus,
     } = useGlobe({
         container,
         tileClicker: props.tileClicker,
         ownershipsGetter: props.ownershipsGetter,
         updatesListener: props.updatesListener,
+        bonusListener: props.bonusListener,
         country: countryState,
     })
 
@@ -74,12 +80,14 @@ export default function Viewer(props: ViewerProps) {
                                stats={shareStats(leaderboard, countryState)}
                                onClose={discard}/>}
 
-        {status.state === 'ready' && <ClickBudgetMeter budget={clickBudget}/>}
+        {status.state === 'ready' && <ClickBudgetMeter budget={clickBudget} bonus={bonus}/>}
 
         {status.state === 'ready' && <ChatPanel
             backend={props.chatBackend}
             country={countryState}
         />}
+
+        {award && <BonusAward reward={award} onDone={dismissAward}/>}
 
         {rateLimited && <RateLimitModal onClose={dismissRateLimited}/>}
 

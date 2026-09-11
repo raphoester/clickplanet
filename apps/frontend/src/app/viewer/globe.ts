@@ -12,6 +12,10 @@ import {displayPointSize, flagPaint, tilePointSize} from "./pointSize.ts";
 import {regions} from "./atlas.ts";
 import {Country} from "../../domain/countries.ts";
 import {
+    BonusCatch,
+    BonusListener,
+    BonusLostError,
+    BonusOffer,
     OwnershipsGetter,
     RateLimitedError,
     TileClicker,
@@ -26,6 +30,8 @@ import {warnOnce} from "../../domain/warnOnce.ts";
 import {layoutViewport} from "./viewport.ts";
 import {createStarfield} from "./stars.ts";
 import {MAX_ZOOM, MIN_ZOOM, RESTING_ZOOM} from "./zoom.ts";
+import {createBonusBox} from "./bonusBox.ts";
+import {BonusReward} from "../../domain/bonus.ts";
 
 type Uniforms = {
     pointSize: THREE.IUniform
@@ -51,6 +57,12 @@ export type GlobeOptions = {
     onRateLimited: () => void
     onVPNBlocked: () => void
     onSessionUnavailable: () => void
+    /** Somebody on the planet caught a box — this client included. */
+    onBonusTaken: (taken: BonusCatch) => void
+    /** What this client won, once the server has agreed to it. */
+    onBonusWon: (reward: BonusReward) => void
+    /** Absent for a backend with no bonus feed, which draws no boxes at all. */
+    bonusListener?: BonusListener
     signal: AbortSignal
 }
 
@@ -79,6 +91,9 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         onRateLimited,
         onVPNBlocked,
         onSessionUnavailable,
+        onBonusTaken,
+        onBonusWon,
+        bonusListener,
         signal,
     } = options
 
@@ -121,6 +136,26 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     let country: Country = initialCountry;
 
+    const bonusBox = createBonusBox()
+    scene.add(bonusBox.object)
+
+    // The box on screen and the token that redeems it, held together: a box
+    // caught is only worth something with the token it arrived with.
+    let offered: BonusOffer | undefined
+
+    // The server decides when a box appears and who sees it, so nothing here
+    // schedules one: the stream says so, and the seed it sends is what draws
+    // the orbit. The box ends itself, so there is no matching "hide".
+    const stopBonuses = bonusListener?.listenForBonuses({
+        onOffered: (offer) => {
+            offered = offer
+            bonusBox.spawn(offer.seed)
+        },
+        onTaken: (taken) => onBonusTaken(taken),
+    })
+
+    const driveBonusBox = (seconds: number) => bonusBox.update(seconds, camera)
+
     // `live` tells the board apart from its own footing: everything that lands
     // while the player watches is news, the map it was handed at the start is not.
     const applyChanges = (changes: OwnerChange[], live = true) => {
@@ -139,6 +174,12 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         }
     }
 
+    const pointerNdc = new THREE.Vector2()
+    const deviceCoordinates = (x: number, y: number) => {
+        const canvas = renderer.domElement
+        return pointerNdc.set((x / canvas.width) * 2 - 1, -(y / canvas.height) * 2 + 1)
+    }
+
     let pendingPointer: {x: number, y: number} | undefined
 
     eventTarget.addEventListener('mousemove', (event: MouseEvent) => {
@@ -154,6 +195,27 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         if (!event.isTrusted) return;
 
         const {x, y} = canvasPosition(event)
+
+        // The box sits above the tile shell, so it has to be asked first:
+        // otherwise a click meant for it paints whatever tile is behind it.
+        // The box pops on the click rather than on the answer: the server
+        // addressed this box to this client, so the only way to lose it now is
+        // to have let it lapse, and making the player watch a round trip before
+        // anything happens would cost every catch its snap.
+        if (bonusBox.hitTest(camera, deviceCoordinates(x, y)) && bonusBox.take()) {
+            const claimed = offered
+            offered = undefined
+            if (!claimed) return
+
+            bonusListener?.claimBonus(claimed.token, country.code)
+                .then(onBonusWon)
+                .catch((e) => {
+                    if (lifetime.signal.aborted) return
+                    reportClaimFailure(e, {onSessionUnavailable})
+                })
+            return
+        }
+
         const tile = picker.pick(camera, x, y)
         if (tile === undefined) return
 
@@ -206,7 +268,9 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         return waiting
     }
 
-    const {stop: stopAnimation} = startAnimation(renderer, scene, camera, uniforms, pickingUniforms, () => {
+    const {stop: stopAnimation} = startAnimation(renderer, scene, camera, uniforms, pickingUniforms, (seconds) => {
+        driveBonusBox(seconds)
+
         if (pendingPointer === undefined) return
         const {x, y} = pendingPointer
         pendingPointer = undefined
@@ -241,10 +305,12 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
             stopAnimation()
             cleanUpdatesListener()
+            stopBonuses?.()
 
             picker.dispose()
             field.dispose()
             territories.dispose()
+            bonusBox.dispose()
 
             cleanup()
         }
@@ -257,7 +323,7 @@ function startAnimation(
     camera: THREE.OrthographicCamera,
     uniforms: Uniforms,
     pickingUniforms: {pointSize: THREE.IUniform},
-    beforeRender: () => void,
+    beforeRender: (seconds: number) => void,
     afterRender: () => void,
 ): {stop: () => void} {
     const starfield = createStarfield();
@@ -274,9 +340,9 @@ function startAnimation(
         controls.rotateSpeed = (1 / camera.zoom) / 1.5;
     });
 
-    renderer.setAnimationLoop(() => {
+    renderer.setAnimationLoop((time: number) => {
         controls.update();
-        beforeRender();
+        beforeRender(time / 1000);
         starfield.render(renderer, camera, () => renderer.render(scene, camera));
         // After the starfield's pass, not inside it: the sky is drawn first and
         // the globe over it, so the buffer only holds the whole frame here.
@@ -301,6 +367,20 @@ function startAnimation(
             starfield.dispose();
         },
     };
+}
+
+/**
+ * A box that got away is not worth a dialog — it lapsed, or the server had
+ * already given it to nobody. A session that could not be minted still is, since
+ * that is the player's clicks stopping too.
+ */
+export function reportClaimFailure(
+    error: unknown,
+    handlers: {onSessionUnavailable: () => void},
+) {
+    if (error instanceof BonusLostError) return
+    if (error instanceof SessionUnavailableError) handlers.onSessionUnavailable()
+    else console.error(error)
 }
 
 export function reportClickFailure(

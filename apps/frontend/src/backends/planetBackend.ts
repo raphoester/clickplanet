@@ -1,4 +1,8 @@
 import {
+    BonusCatch,
+    BonusListener,
+    BonusLostError,
+    BonusOffer,
     Ownerships,
     OwnershipsGetter,
     RateLimitedError,
@@ -7,7 +11,9 @@ import {
     UpdatesListener,
     VPNBlockedError,
 } from "./backend.ts";
+import {BonusReward} from "../domain/bonus.ts";
 import {
+    BonusKind,
     ClickBudget as ClickBudgetMessage,
     GetMapResponse,
     PlanetEvent,
@@ -44,9 +50,11 @@ export function newSessionServiceClient(config: Config): PromiseClient<typeof Se
     }))
 }
 
-export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource {
+export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener {
     private pendingUpdates: Update[] = []
     private readonly updateBatchCallbacks = new Map<string, (updates: Update[]) => void>()
+    private readonly updateCallbacks = new Map<string, (update: Update) => void>()
+    private readonly bonusCallbacks = new Map<string, BonusHandlers>()
     private readonly budgetCallbacks = new Map<string, (budget: ClickBudget) => void>()
     private readonly flushTimer: ReturnType<typeof setInterval>
     private readonly stopListening: () => void
@@ -64,7 +72,13 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
     ) {
         void this.readBudget()
 
-        this.stopListening = this.listenForUpdates((update) => {
+        // One stream, every case. The tile feed and the bonus feed ride the same
+        // connection because they are cases of one `oneof` — opening a second
+        // stream for the second feed is exactly what the envelope exists to
+        // avoid, and would cost every client a second connection.
+        this.stopListening = this.openEventStream()
+
+        this.listenForUpdates((update) => {
             this.pendingUpdates.push(update)
         })
 
@@ -80,6 +94,8 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         clearInterval(this.flushTimer)
         this.stopListening()
         this.updateBatchCallbacks.clear()
+        this.updateCallbacks.clear()
+        this.bonusCallbacks.clear()
         this.budgetCallbacks.clear()
         this.pendingUpdates = []
     }
@@ -217,15 +233,86 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         }
     }
 
-    public listenForUpdates(callback: (update: Update) => void): () => void {
+    /**
+     * Opens the one stream and hands each frame to whichever feed it belongs to.
+     *
+     * A case this build does not know falls through all of them, which is what
+     * lets the backend add an event type without breaking a deployed client.
+     */
+    private openEventStream(): () => void {
         return openStream(
             (signal) => this.client.listenForEvents({}, {signal, timeoutMs: NO_TIMEOUT}),
             (event) => {
                 const update = updateOf(event)
-                if (update) callback(update)
+                if (update) {
+                    this.updateCallbacks.forEach(callback => callback(update))
+                    return
+                }
+
+                const offer = offerOf(event)
+                if (offer) {
+                    this.bonusCallbacks.forEach(handlers => handlers.onOffered(offer))
+                    return
+                }
+
+                const taken = catchOf(event)
+                if (taken) this.bonusCallbacks.forEach(handlers => handlers.onTaken(taken))
             },
-            "tile updates",
+            "planet events",
         )
+    }
+
+    public listenForUpdates(callback: (update: Update) => void): () => void {
+        const id = generateUUID()
+        this.updateCallbacks.set(id, callback)
+
+        return () => this.updateCallbacks.delete(id)
+    }
+
+    public listenForBonuses(handlers: BonusHandlers): () => void {
+        const id = generateUUID()
+        this.bonusCallbacks.set(id, handlers)
+
+        return () => this.bonusCallbacks.delete(id)
+    }
+
+    /**
+     * Redeems a box, with the same one-shot session retry a click gets: a token
+     * that lapsed mid-session is not worth losing the box over.
+     */
+    public async claimBonus(token: string, countryId: string): Promise<BonusReward> {
+        try {
+            return await this.claim(token, countryId)
+        } catch (e) {
+            if (!(e instanceof ConnectError) || e.code !== Code.Unauthenticated) throw asBonusError(e)
+
+            this.session.invalidate()
+
+            try {
+                return await this.claim(token, countryId)
+            } catch (retried) {
+                throw asBonusError(retried)
+            }
+        }
+    }
+
+    private async claim(token: string, countryId: string): Promise<BonusReward> {
+        const sessionToken = await this.session.token()
+
+        const headers = new Headers()
+        if (sessionToken) headers.set(SESSION_HEADER, sessionToken)
+
+        // Deliberately not wrapped in `retrying`: a claim is not idempotent —
+        // the token is spent on the first one that lands, so a retry of a
+        // request whose answer was lost reports the box as lost when it was in
+        // fact won.
+        const res = await this.client.claimBonus({token, countryId}, {headers})
+
+        // The allowance arrives widened on the answer, so the meter follows the
+        // server's own policy rather than a multiplication done here.
+        this.anchorBudget(res.budget)
+
+        return {kind: "tripleClicks", seconds: res.durationSeconds}
     }
 
     public listenForUpdatesBatch(
@@ -235,6 +322,63 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         this.updateBatchCallbacks.set(id, callback)
         return () => this.updateBatchCallbacks.delete(id)
     }
+}
+
+type BonusHandlers = {
+    onOffered: (offer: BonusOffer) => void
+    onTaken: (taken: BonusCatch) => void
+}
+
+/**
+ * Reads the box this client was offered.
+ *
+ * The deadline is rebuilt from how long the server said was **left** rather
+ * than from the timestamp it sent: the two wall clocks are unrelated, and a
+ * client whose clock is a minute fast would otherwise treat every box as
+ * already lapsed.
+ */
+export function offerOf(event: PlanetEvent, at = budgetNow(), wallClock = Date.now()): BonusOffer | undefined {
+    if (event.event.case !== "bonusOffered") return undefined
+
+    const offered = event.event.value
+
+    // A kind this build does not know is a box it cannot describe, so it is not
+    // drawn at all rather than drawn as something it is not.
+    const reward = rewardOf(offered.kind, offered.durationSeconds)
+    if (!reward) return undefined
+
+    return {
+        token: offered.token,
+        seed: offered.seed,
+        reward,
+        expiresAt: at + (Number(offered.expiresAtUnixMs) - wallClock),
+    }
+}
+
+export function catchOf(event: PlanetEvent): BonusCatch | undefined {
+    if (event.event.case !== "bonusTaken") return undefined
+
+    return {countryId: event.event.value.countryId}
+}
+
+function rewardOf(kind: BonusKind, seconds: number): BonusReward | undefined {
+    if (kind !== BonusKind.TRIPLE_CLICKS) return undefined
+
+    return {kind: "tripleClicks", seconds}
+}
+
+export function asBonusError(e: unknown): unknown {
+    if (e instanceof SessionUnavailableError) return e
+
+    if (e instanceof ConnectError) {
+        // NotFound is the box being gone; Unimplemented is a server with boxes
+        // switched off, which a client that drew one can still meet after a
+        // deploy. Both mean the same thing to the player: it got away.
+        if (e.code === Code.NotFound || e.code === Code.Unimplemented) return new BonusLostError({cause: e})
+        if (e.code === Code.Unauthenticated) return new SessionUnavailableError({cause: e})
+    }
+
+    return e
 }
 
 export function budgetDetailOf(e: unknown): ClickBudgetMessage | undefined {
