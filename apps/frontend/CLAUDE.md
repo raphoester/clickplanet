@@ -485,7 +485,7 @@ player's territory, so it has not been done.
    refusal does not clear on its own — the player has to change network — so the
    next click raises it again.
 
-6. `ClickBudgetMeter` shows what is left of the bucket, bottom-left. It is the
+6. `ClickBudgetMeter` shows what is left of the bucket, top-right. It is the
    warning `RateLimitModal` cannot be — the modal only ever arrives after the
    click that was refused. **Its shape is read off the server's policy**: one
    pip per click in the burst (one bar past 12 of them), and the partly-filled
