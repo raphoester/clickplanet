@@ -32,7 +32,10 @@ Caddyfile; it moves to any provider that rents a Linux box.
 
 - `bootstrap.sh` — provisions a fresh droplet end to end. Run it from your
   laptop with `--host`; it copies itself over and re-runs there as root.
-- `docker-compose.yaml` — Caddy + backend. That is the whole stack; there is no database.
+- `docker-compose.yaml` — Caddy + backend, plus a small metrics poller that
+  keeps a history the API's in-process counters cannot (see
+  [Evidence has to outlive a deploy](#evidence-has-to-outlive-a-deploy-and-by-default-it-does-not)).
+  There is no database.
 - `Caddyfile` — TLS via DNS-01, reverse proxy, CORS, WebSocket passthrough
 - `caddy/Dockerfile` — Caddy built with `caddy-dns/cloudflare`. The stock image
   has no DNS provider module and cannot solve the DNS-01 challenge.
@@ -429,6 +432,55 @@ All three are readable with the `wget` line above.
 
 To undo one, set `enforce` back to false and redeploy — bans live in memory
 only, so a restart clears every one of them.
+
+### Evidence has to outlive a deploy, and by default it does not
+
+Everything above is in-process. A deploy pulls a new image and **recreates** the
+container, which resets every counter and histogram to zero — and, less
+obviously, deletes the log too: Docker's default `json-file` driver stores logs
+per container id, so the old container taking its `shadowban candidate` lines
+with it is the bigger loss of the two. Two pieces of the compose file exist for
+this.
+
+**The backend logs to journald**, which is stored on the host rather than under
+the container:
+
+```bash
+journalctl CONTAINER_NAME=cp-backend --since '2 days ago' | grep shadowban
+```
+
+`docker compose logs backend` still works and still shows only the current
+container, which is usually what you want; `journalctl` is how you read across a
+deploy. This needs a persistent journal — check `journalctl --disk-usage`, and
+if `/var/log/journal` does not exist the journal is memory-only and this buys
+nothing.
+
+**`cp-metrics-poller` scrapes `/metrics` every `POLL_INTERVAL` seconds** and
+appends the shadowban and click series to the `metrics_history` volume, one
+file per UTC day, pruned after `POLL_RETENTION_DAYS`:
+
+```bash
+docker compose exec -T metrics-poller ls /history
+docker compose exec -T metrics-poller cat /history/metrics-2026-09-11.prom
+```
+
+Each block is stamped with the time it was taken. The values are cumulative
+since the API started, so **you read this by subtracting two blocks**, not by
+looking at one:
+
+```bash
+docker compose exec -T metrics-poller sh -c \
+  "grep -A22 '^# 2026-09-11T06' /history/metrics-2026-09-11.prom | head -23"
+```
+
+A block whose numbers are *lower* than the block above it is where a deploy
+happened and the counters restarted. Subtract within a run, never across one.
+
+It is not a Prometheus, deliberately: a real one is 80–150 MB resident beside a
+1 GB droplet already holding the tile map, and the job here is comparing two
+samples a day apart. If this ever needs `histogram_quantile` and proper
+reset-aware `rate()`, that is the moment to spend the memory — the poller is
+then deleted, not extended.
 
 
 ## 7. CI and the image registry
