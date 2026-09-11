@@ -18,12 +18,13 @@ import (
 
 type fakeLimiter struct {
 	allow bool
+	state ratelimit.State
 	keys  []string
 }
 
-func (l *fakeLimiter) Allow(key string) bool {
+func (l *fakeLimiter) Take(key string) (bool, ratelimit.State) {
 	l.keys = append(l.keys, key)
-	return l.allow
+	return l.allow, l.state
 }
 
 type fakeRequest struct {
@@ -164,4 +165,115 @@ func (c *fakeClock) Now() time.Time {
 
 func (c *fakeClock) advance(d time.Duration) {
 	c.now = c.now.Add(d)
+}
+
+func TestTheBudgetRidesOnEveryAnswer(t *testing.T) {
+	newServer := func(t *testing.T) (*httptest.Server, *ratelimit.Limiter, *fakeClock) {
+		t.Helper()
+
+		clock := &fakeClock{now: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)}
+		limiter := ratelimit.New(ratelimit.Config{PerSecond: 2, Burst: 5}, clock)
+
+		return clickServerReading(t, limiter, connect.WithInterceptors(
+			NewErrorInterceptor(nil),
+			NewRateLimitInterceptor(limiter),
+		)), limiter, clock
+	}
+
+	click := func(t *testing.T, server *httptest.Server) (*connect.Response[planetv1.ClickResponse], error) {
+		t.Helper()
+
+		req := connect.NewRequest(&planetv1.ClickRequest{TileId: 1, CountryId: "fr"})
+		req.Header().Set("X-Real-IP", "1.2.3.4")
+
+		return planetv1connect.NewClickServiceClient(server.Client(), server.URL).
+			Click(context.Background(), req)
+	}
+
+	t.Run("an accepted click says what is left, and the policy to replay it", func(t *testing.T) {
+		server, _, _ := newServer(t)
+
+		res, err := click(t, server)
+		require.NoError(t, err)
+
+		budget := res.Msg.GetBudget()
+		require.Equal(t, float64(4), budget.GetTokens(), "the click just spent one of five")
+		require.Equal(t, uint32(5), budget.GetCapacity())
+		require.Equal(t, float64(2), budget.GetRefillPerSecond())
+	})
+
+	t.Run("a refused click carries the wait on the error", func(t *testing.T) {
+		server, _, clock := newServer(t)
+
+		for i := 0; i < 5; i++ {
+			_, err := click(t, server)
+			require.NoErrorf(t, err, "click %d should be allowed", i)
+		}
+
+		clock.advance(200 * time.Millisecond)
+
+		_, err := click(t, server)
+		require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(err))
+
+		budget := budgetDetail(t, err)
+		require.InDelta(t, 0.4, budget.GetTokens(), 1e-6, "the next click is 300ms away")
+		require.Equal(t, uint32(5), budget.GetCapacity())
+	})
+
+	t.Run("GetBudget reads the allowance without spending it", func(t *testing.T) {
+		server, _, _ := newServer(t)
+
+		read := func() *planetv1.ClickBudget {
+			t.Helper()
+
+			req := connect.NewRequest(&planetv1.GetBudgetRequest{})
+			req.Header().Set("X-Real-IP", "1.2.3.4")
+
+			res, err := planetv1connect.NewClickServiceClient(server.Client(), server.URL).
+				GetBudget(context.Background(), req)
+			require.NoError(t, err)
+
+			return res.Msg.GetBudget()
+		}
+
+		require.Equal(t, float64(5), read().GetTokens(), "an address that never clicked is full")
+
+		_, err := click(t, server)
+		require.NoError(t, err)
+
+		for i := 0; i < 3; i++ {
+			require.Equal(t, float64(4), read().GetTokens(), "reading is free")
+		}
+	})
+}
+
+func TestTheBudgetIsAbsentWithoutALimiter(t *testing.T) {
+	server := clickServer(t, connect.WithInterceptors(NewErrorInterceptor(nil)))
+
+	res, err := planetv1connect.NewClickServiceClient(server.Client(), server.URL).
+		Click(context.Background(), connect.NewRequest(&planetv1.ClickRequest{TileId: 1, CountryId: "fr"}))
+	require.NoError(t, err)
+
+	require.Nil(t, res.Msg.GetBudget(), "a server that does not throttle promises no allowance")
+}
+
+func budgetDetail(t *testing.T, err error) *planetv1.ClickBudget {
+	t.Helper()
+
+	var connectErr *connect.Error
+	require.ErrorAs(t, err, &connectErr)
+
+	for _, detail := range connectErr.Details() {
+		value, valueErr := detail.Value()
+		if valueErr != nil {
+			continue
+		}
+
+		if budget, ok := value.(*planetv1.ClickBudget); ok {
+			return budget
+		}
+	}
+
+	t.Fatal("the refusal carried no budget")
+	return nil
 }

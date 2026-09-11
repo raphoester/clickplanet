@@ -30,6 +30,7 @@ createRoot(document.getElementById('root')!).render(
             ownershipsGetter={backend}
             tileClicker={backend}
             updatesListener={backend}
+            clickBudgetSource={backend}
             chatBackend={chatBackend}
         />
     </StrictMode>,

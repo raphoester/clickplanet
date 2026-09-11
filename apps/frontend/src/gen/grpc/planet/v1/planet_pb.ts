@@ -7,6 +7,70 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3 } from "@bufbuild/protobuf";
 
 /**
+ * What the rate limiter has left for the caller, and the policy it refills
+ * under. The policy travels with the reading because a client that displays
+ * the allowance replays the refill itself between two answers — that is what
+ * keeps the number honest without polling.
+ *
+ * It rides on every click answer, accepted or refused, so the client is never
+ * more than one click away from the truth.
+ *
+ * @generated from message planet.v1.ClickBudget
+ */
+export class ClickBudget extends Message<ClickBudget> {
+  /**
+   * Clicks left, fractional: 6.4 means six clicks now, and the seventh in
+   * 600ms at a refill of one per second.
+   *
+   * @generated from field: double tokens = 1;
+   */
+  tokens = 0;
+
+  /**
+   * The most a caller can bank: the burst.
+   *
+   * @generated from field: uint32 capacity = 2;
+   */
+  capacity = 0;
+
+  /**
+   * Tokens granted back per second.
+   *
+   * @generated from field: double refill_per_second = 3;
+   */
+  refillPerSecond = 0;
+
+  constructor(data?: PartialMessage<ClickBudget>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.ClickBudget";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "tokens", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 2, name: "capacity", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "refill_per_second", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ClickBudget {
+    return new ClickBudget().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ClickBudget {
+    return new ClickBudget().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ClickBudget {
+    return new ClickBudget().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ClickBudget | PlainMessage<ClickBudget> | undefined, b: ClickBudget | PlainMessage<ClickBudget> | undefined): boolean {
+    return proto3.util.equals(ClickBudget, a, b);
+  }
+}
+
+/**
  * @generated from message planet.v1.ClickRequest
  */
 export class ClickRequest extends Message<ClickRequest> {
@@ -53,6 +117,13 @@ export class ClickRequest extends Message<ClickRequest> {
  * @generated from message planet.v1.ClickResponse
  */
 export class ClickResponse extends Message<ClickResponse> {
+  /**
+   * Absent from a server that does not rate limit clicks.
+   *
+   * @generated from field: planet.v1.ClickBudget budget = 1;
+   */
+  budget?: ClickBudget;
+
   constructor(data?: PartialMessage<ClickResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -61,6 +132,7 @@ export class ClickResponse extends Message<ClickResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "planet.v1.ClickResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "budget", kind: "message", T: ClickBudget },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ClickResponse {
@@ -77,6 +149,74 @@ export class ClickResponse extends Message<ClickResponse> {
 
   static equals(a: ClickResponse | PlainMessage<ClickResponse> | undefined, b: ClickResponse | PlainMessage<ClickResponse> | undefined): boolean {
     return proto3.util.equals(ClickResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.GetBudgetRequest
+ */
+export class GetBudgetRequest extends Message<GetBudgetRequest> {
+  constructor(data?: PartialMessage<GetBudgetRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GetBudgetRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetBudgetRequest {
+    return new GetBudgetRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetBudgetRequest {
+    return new GetBudgetRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetBudgetRequest {
+    return new GetBudgetRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetBudgetRequest | PlainMessage<GetBudgetRequest> | undefined, b: GetBudgetRequest | PlainMessage<GetBudgetRequest> | undefined): boolean {
+    return proto3.util.equals(GetBudgetRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.GetBudgetResponse
+ */
+export class GetBudgetResponse extends Message<GetBudgetResponse> {
+  /**
+   * @generated from field: planet.v1.ClickBudget budget = 1;
+   */
+  budget?: ClickBudget;
+
+  constructor(data?: PartialMessage<GetBudgetResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GetBudgetResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "budget", kind: "message", T: ClickBudget },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetBudgetResponse {
+    return new GetBudgetResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetBudgetResponse {
+    return new GetBudgetResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetBudgetResponse {
+    return new GetBudgetResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetBudgetResponse | PlainMessage<GetBudgetResponse> | undefined, b: GetBudgetResponse | PlainMessage<GetBudgetResponse> | undefined): boolean {
+    return proto3.util.equals(GetBudgetResponse, a, b);
   }
 }
 

@@ -61,7 +61,25 @@ type bucket struct {
 	last   time.Time
 }
 
-func (l *Limiter) Allow(key string) bool {
+// State is what a bucket holds, together with the policy it refills under. The
+// policy travels with the reading because a caller that shows the allowance to
+// a human replays the refill itself between two readings, instead of asking
+// again every frame.
+type State struct {
+	// Tokens left, fractional, so a caller can show the next one arriving.
+	Tokens float64
+
+	// The most a bucket can bank: the burst.
+	Capacity int
+
+	// Tokens granted back per second.
+	PerSecond float64
+}
+
+// Take spends a token when there is one, and reports what the bucket holds
+// afterwards. The state comes back either way: a refused caller is the one
+// most interested in how long the wait is.
+func (l *Limiter) Take(key string) (bool, State) {
 	now := l.timeProvider.Now()
 
 	l.mu.Lock()
@@ -76,11 +94,38 @@ func (l *Limiter) Allow(key string) bool {
 	l.refill(b, now)
 
 	if b.tokens < 1 {
-		return false
+		return false, l.state(b.tokens)
 	}
 
 	b.tokens--
-	return true
+	return true, l.state(b.tokens)
+}
+
+// Peek reports the state without spending anything. An unknown key is a full
+// bucket and stays unknown: reading an allowance must not be a way to make the
+// limiter remember an address that never clicked.
+func (l *Limiter) Peek(key string) State {
+	now := l.timeProvider.Now()
+
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	b, ok := l.buckets[key]
+	if !ok {
+		return l.state(float64(l.config.Burst))
+	}
+
+	l.refill(b, now)
+
+	return l.state(b.tokens)
+}
+
+func (l *Limiter) state(tokens float64) State {
+	return State{
+		Tokens:    tokens,
+		Capacity:  l.config.Burst,
+		PerSecond: l.config.PerSecond,
+	}
 }
 
 func (l *Limiter) Run(ctx context.Context) {

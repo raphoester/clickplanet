@@ -9,6 +9,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1/chatv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ctxutil"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ipblock"
+	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ratelimit"
 	"github.com/stretchr/testify/require"
 )
 
@@ -17,9 +18,9 @@ type fakeLimiter struct {
 	keys  []string
 }
 
-func (l *fakeLimiter) Allow(key string) bool {
+func (l *fakeLimiter) Take(key string) (bool, ratelimit.State) {
 	l.keys = append(l.keys, key)
-	return l.allow
+	return l.allow, ratelimit.State{}
 }
 
 type fakeRequest struct {

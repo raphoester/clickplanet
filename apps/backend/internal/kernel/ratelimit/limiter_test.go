@@ -27,79 +27,84 @@ func (c *fakeClock) advance(d time.Duration) {
 	c.now = c.now.Add(d)
 }
 
+func allow(l *Limiter, key string) bool {
+	allowed, _ := l.Take(key)
+	return allowed
+}
+
 func newTestLimiter() (*Limiter, *fakeClock) {
 	clock := &fakeClock{now: epoch}
 	return New(Config{PerSecond: 1, Burst: 10}, clock), clock
 }
 
-func TestAllowSpendsTheBurstThenRefuses(t *testing.T) {
+func TestTakeSpendsTheBurstThenRefuses(t *testing.T) {
 	limiter, _ := newTestLimiter()
 
 	for i := 0; i < 10; i++ {
-		require.Truef(t, limiter.Allow("1.2.3.4"), "click %d should be allowed", i)
+		require.Truef(t, allow(limiter, "1.2.3.4"), "click %d should be allowed", i)
 	}
 
-	require.False(t, limiter.Allow("1.2.3.4"))
+	require.False(t, allow(limiter, "1.2.3.4"))
 }
 
 func TestRefillsAtTheConfiguredRate(t *testing.T) {
 	limiter, clock := newTestLimiter()
 
 	for i := 0; i < 10; i++ {
-		require.True(t, limiter.Allow("1.2.3.4"))
+		require.True(t, allow(limiter, "1.2.3.4"))
 	}
 
 	clock.advance(500 * time.Millisecond)
-	require.False(t, limiter.Allow("1.2.3.4"), "half a token is not a click")
+	require.False(t, allow(limiter, "1.2.3.4"), "half a token is not a click")
 
 	clock.advance(500 * time.Millisecond)
-	require.True(t, limiter.Allow("1.2.3.4"))
-	require.False(t, limiter.Allow("1.2.3.4"), "the token was just spent")
+	require.True(t, allow(limiter, "1.2.3.4"))
+	require.False(t, allow(limiter, "1.2.3.4"), "the token was just spent")
 }
 
 func TestRefillStopsAtTheBurst(t *testing.T) {
 	limiter, clock := newTestLimiter()
 
-	require.True(t, limiter.Allow("1.2.3.4"))
+	require.True(t, allow(limiter, "1.2.3.4"))
 	clock.advance(time.Hour)
 
 	for i := 0; i < 10; i++ {
-		require.Truef(t, limiter.Allow("1.2.3.4"), "click %d should be allowed", i)
+		require.Truef(t, allow(limiter, "1.2.3.4"), "click %d should be allowed", i)
 	}
 
-	require.False(t, limiter.Allow("1.2.3.4"), "an idle hour must not bank more than the burst")
+	require.False(t, allow(limiter, "1.2.3.4"), "an idle hour must not bank more than the burst")
 }
 
 func TestKeysAreIndependent(t *testing.T) {
 	limiter, _ := newTestLimiter()
 
 	for i := 0; i < 10; i++ {
-		require.True(t, limiter.Allow("1.2.3.4"))
+		require.True(t, allow(limiter, "1.2.3.4"))
 	}
 
-	require.False(t, limiter.Allow("1.2.3.4"))
-	require.True(t, limiter.Allow("5.6.7.8"))
+	require.False(t, allow(limiter, "1.2.3.4"))
+	require.True(t, allow(limiter, "5.6.7.8"))
 }
 
 func TestAClockGoingBackwardsTakesNoTokens(t *testing.T) {
 	limiter, clock := newTestLimiter()
 
-	require.True(t, limiter.Allow("1.2.3.4"))
+	require.True(t, allow(limiter, "1.2.3.4"))
 	clock.advance(-time.Hour)
 
 	for i := 0; i < 9; i++ {
-		require.Truef(t, limiter.Allow("1.2.3.4"), "click %d should be allowed", i)
+		require.Truef(t, allow(limiter, "1.2.3.4"), "click %d should be allowed", i)
 	}
 
-	require.False(t, limiter.Allow("1.2.3.4"))
+	require.False(t, allow(limiter, "1.2.3.4"))
 }
 
 func TestSweepForgetsOnlyTheRefilledBuckets(t *testing.T) {
 	limiter, clock := newTestLimiter()
 
-	require.True(t, limiter.Allow("idle"))
+	require.True(t, allow(limiter, "idle"))
 	for i := 0; i < 10; i++ {
-		require.True(t, limiter.Allow("busy"))
+		require.True(t, allow(limiter, "busy"))
 	}
 
 	limiter.sweep()
@@ -112,12 +117,12 @@ func TestSweepForgetsOnlyTheRefilledBuckets(t *testing.T) {
 	require.Contains(t, limiter.buckets, "busy")
 
 	for i := 0; i < 10; i++ {
-		require.Truef(t, limiter.Allow("idle"), "click %d should be allowed", i)
+		require.Truef(t, allow(limiter, "idle"), "click %d should be allowed", i)
 	}
-	require.False(t, limiter.Allow("idle"))
+	require.False(t, allow(limiter, "idle"))
 
-	require.True(t, limiter.Allow("busy"))
-	require.False(t, limiter.Allow("busy"))
+	require.True(t, allow(limiter, "busy"))
+	require.False(t, allow(limiter, "busy"))
 }
 
 func TestDefaultsApplyToAZeroConfig(t *testing.T) {
@@ -128,7 +133,7 @@ func TestDefaultsApplyToAZeroConfig(t *testing.T) {
 	require.Equal(t, defaultSweepInterval, limiter.config.SweepInterval)
 }
 
-func TestAllowIsSafeUnderConcurrentCallers(t *testing.T) {
+func TestTakeIsSafeUnderConcurrentCallers(t *testing.T) {
 	limiter, _ := newTestLimiter()
 
 	const callers = 50
@@ -139,7 +144,7 @@ func TestAllowIsSafeUnderConcurrentCallers(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			allowed <- limiter.Allow("1.2.3.4")
+			allowed <- allow(limiter, "1.2.3.4")
 		}()
 	}
 	wg.Wait()
@@ -153,4 +158,67 @@ func TestAllowIsSafeUnderConcurrentCallers(t *testing.T) {
 	}
 
 	require.Equal(t, 10, granted, "the burst is the whole allowance, however many goroutines ask")
+}
+
+func TestTakeReportsWhatIsLeftAndThePolicyToReplayIt(t *testing.T) {
+	limiter, clock := newTestLimiter()
+
+	_, state := limiter.Take("1.2.3.4")
+	require.Equal(t, float64(9), state.Tokens)
+	require.Equal(t, 10, state.Capacity)
+	require.Equal(t, float64(1), state.PerSecond)
+
+	clock.advance(500 * time.Millisecond)
+
+	_, state = limiter.Take("1.2.3.4")
+	require.Equal(t, 8.5, state.Tokens, "the half second refilled before the token was spent")
+}
+
+func TestARefusedCallerStillLearnsHowLongTheWaitIs(t *testing.T) {
+	limiter, clock := newTestLimiter()
+
+	for i := 0; i < 10; i++ {
+		require.True(t, allow(limiter, "1.2.3.4"))
+	}
+
+	clock.advance(400 * time.Millisecond)
+
+	allowed, state := limiter.Take("1.2.3.4")
+	require.False(t, allowed)
+	require.InDelta(t, 0.4, state.Tokens, 1e-9, "the wait is readable off the fraction")
+}
+
+func TestPeekSpendsNothing(t *testing.T) {
+	limiter, _ := newTestLimiter()
+
+	require.True(t, allow(limiter, "1.2.3.4"))
+
+	for i := 0; i < 5; i++ {
+		require.Equal(t, float64(9), limiter.Peek("1.2.3.4").Tokens)
+	}
+
+	for i := 0; i < 9; i++ {
+		require.Truef(t, allow(limiter, "1.2.3.4"), "click %d should be allowed", i)
+	}
+	require.False(t, allow(limiter, "1.2.3.4"))
+}
+
+func TestPeekingAtAnUnknownKeyRemembersNothing(t *testing.T) {
+	limiter, _ := newTestLimiter()
+
+	require.Equal(t, float64(10), limiter.Peek("1.2.3.4").Tokens)
+
+	require.Empty(t, limiter.buckets, "reading an allowance must not create one")
+}
+
+func TestPeekRefillsBeforeReporting(t *testing.T) {
+	limiter, clock := newTestLimiter()
+
+	for i := 0; i < 10; i++ {
+		require.True(t, allow(limiter, "1.2.3.4"))
+	}
+
+	clock.advance(3 * time.Second)
+
+	require.Equal(t, float64(3), limiter.Peek("1.2.3.4").Tokens)
 }

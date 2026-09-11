@@ -44,7 +44,7 @@ export type GlobeOptions = {
     updatesListener: UpdatesListener
     container: HTMLElement
     country: Country
-    onLeaderboardChange: (entries: LeaderboardEntry[]) => void
+    onLeaderboardChange: (entries: LeaderboardEntry[], live: boolean) => void
     onRateLimited: () => void
     onVPNBlocked: () => void
     onSessionUnavailable: () => void
@@ -110,11 +110,13 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     let country: Country = initialCountry;
 
-    const applyChanges = (changes: OwnerChange[]) => {
+    // `live` tells the board apart from its own footing: everything that lands
+    // while the player watches is news, the map it was handed at the start is not.
+    const applyChanges = (changes: OwnerChange[], live = true) => {
         if (changes.length === 0) return
         field.setOwners(changes)
         territories.apply(changes)
-        updateLeaderboard(rankCountries(ownership.counts()))
+        updateLeaderboard(rankCountries(ownership.counts()), live)
     }
 
     const canvasPosition = (event: MouseEvent) => {
@@ -173,7 +175,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     ownershipsGetter.getCurrentOwnershipsByBatch(
         TILES_PER_BATCH,
         field.size,
-        (ownerships) => applyChanges(ownership.applyBatch(ownerships)),
+        (ownerships) => applyChanges(ownership.applyBatch(ownerships), false),
         lifetime.signal,
     ).catch((e) => {
         if (lifetime.signal.aborted) return
