@@ -18,7 +18,7 @@ The project follows **hexagonal architecture** (ports & adapters), keeping the d
 internal/clicks/
 ├── domain/          # Core interfaces and business logic
 ├── adapters/
-│   ├── primary/     # Inbound: HTTP REST, WebSocket
+│   ├── primary/     # Inbound: the Connect service, unary and streaming
 │   └── secondary/   # Outbound: tile storage, X publisher
 └── app/             # Wires everything together
 ```
@@ -29,7 +29,7 @@ internal/clicks/
 POST /planet.v1.ClickService/Click
   → validate country + tile ID
   → write the tile in memory, fan the update out in process
-  → WebSocket publisher fans updates out to all connected clients
+  → every open ListenForEvents stream receives it
 ```
 
 Claiming a tile for the country that already owns it writes nothing and publishes nothing, so redundant fan-out is avoided.
@@ -43,7 +43,7 @@ The tradeoffs are deliberate: writes since the last snapshot are lost on a hard 
 | Concern          | Technology                                               |
 |------------------|----------------------------------------------------------|
 | Language         | Go 1.27                                                  |
-| Real-time        | WebSockets (`coder/websocket`), in-process fan-out       |
+| Real-time        | Connect server streaming, in-process fan-out             |
 | Storage          | In-memory, with binary snapshots to a local file         |
 | API contracts    | Protocol Buffers over Connect (no gRPC)                  |
 | Metrics          | Prometheus (decorator pattern over the core service)     |
@@ -60,14 +60,11 @@ The tradeoffs are deliberate: writes since the last snapshot are lost on a hard 
 | `GET`  | `/planet.v1.ClickService/MapDensity`     | Total number of tiles on the map           |
 | `GET`  | `/planet.v1.ClickService/GetMap`         | Bulk fetch tile ownership for a tile range |
 | `POST` | `/planet.v1.ClickService/ListenForEvents` | Server stream of live planet events      |
-| `GET`  | `/ws/listen`                             | The same stream, as a WebSocket             |
 | `GET`  | `/metrics`                               | Prometheus metrics                         |
 
 The RPCs are served with [Connect](https://connectrpc.com), which is plain HTTP — no gRPC. The encoding is negotiated per request (`application/proto` or `application/json`), and the two reads are marked side-effect free, so they arrive as cacheable GETs.
 
 `ListenForEvents` is a server-streaming RPC carrying `PlanetEvent`, a `oneof` of `tile_update` and `heartbeat`. **One stream per API**: a new kind of live event is a new case in that `oneof`, not a second stream, and a client that does not know a case skips it. The heartbeat (every `httpServer.streamHeartbeat`, 30s by default) is what keeps a quiet stream alive — Cloudflare cuts a silent response at ~125s with a 524.
-
-`/ws/listen` carries the same updates as bare `TileUpdate` frames and is **kept only until the deployed frontend has moved over**.
 
 `Click` is rate limited per source IP — 1 click/s with a burst of 10 by default, configurable under `rateLimiter`. Over that, it answers `429`. The reads and the streams are not limited.
 

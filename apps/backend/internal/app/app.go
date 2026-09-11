@@ -28,7 +28,6 @@ type App struct {
 	shutdownFuncs []func()
 
 	rpcServices []rpcService
-	wsRoutes    []func(*http.ServeMux)
 
 	promRegistry *prometheus.Registry
 
@@ -85,21 +84,11 @@ func (a *App) Configure(ctx context.Context) error {
 		httpserver.CorsMiddleware,
 	)
 
-	wsMiddlewares := httpserver.MiddlewareStack(
-		httpserver.IPReaderMiddleware,
-	)
-
 	router := http.NewServeMux()
 
 	for _, service := range a.rpcServices {
 		router.Handle(service.path, rpcMiddlewares(service.handler))
 	}
-
-	wsRouter := http.NewServeMux()
-	for _, declare := range a.wsRoutes {
-		declare(wsRouter)
-	}
-	router.Handle("/ws/", http.StripPrefix("/ws", wsMiddlewares(wsRouter)))
 
 	a.declarePrometheusRoutes(router)
 
@@ -118,10 +107,6 @@ func (a *App) Configure(ctx context.Context) error {
 
 func (a *App) mountRPC(path string, handler http.Handler) {
 	a.rpcServices = append(a.rpcServices, rpcService{path: path, handler: handler})
-}
-
-func (a *App) mountWS(declare func(*http.ServeMux)) {
-	a.wsRoutes = append(a.wsRoutes, declare)
 }
 
 func (a *App) declarePrometheusRoutes(router *http.ServeMux) {

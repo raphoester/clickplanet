@@ -20,18 +20,12 @@ npm run mobile     # Screenshot/inspect a URL as a phone (see "Debugging mobile 
 `.github/workflows/check-frontend.yml` runs lint, build and tests on every PR
 touching this app.
 
-**`npm run dev` can reach the production API**, on port 5173 only:
-`api.clickplanet.lol` answers CORS for `http://localhost:5173` as well as for the
-deployed origin, so `VITE_API_BASE_URL=https://api.clickplanet.lol npm run dev`
-works against real data. **Clicking will not** — `session.turnstile.hostnames`
-refuses a token minted from localhost, deliberately — but the map, the
-leaderboard and both live streams do. That entry is temporary; see
-[deploy/vps/README.md](../../deploy/vps/README.md).
-
-Otherwise point `VITE_API_BASE_URL` at a local backend, or swap `PlanetBackend`
-for `FakeBackend` in `src/main.tsx` — the fake serves a full map and simulates
-live updates. `FakeChatBackend` is the same swap for `ChatServiceBackend`, and
-reproduces every refusal the chat can show.
+**`npm run dev` cannot reach the production API.** `api.clickplanet.lol` sends
+`access-control-allow-origin: https://clickplanet.lol` and nothing else, so the
+browser blocks every request from `localhost`. Point `VITE_API_BASE_URL` at a
+local backend, or swap `PlanetBackend` for `FakeBackend` in `src/main.tsx` — the
+fake serves a full map and simulates live updates. `FakeChatBackend` is the same
+swap for `ChatServiceBackend`, and reproduces every refusal the chat can show.
 
 A local backend is the quickest way to exercise the real chat: `cmd/api`'s
 `example.yaml` has `chat.enabled: true`, and the Go server answers

@@ -39,27 +39,10 @@
 
 	encode zstd gzip
 
-	# A dev frontend, so a change can be tried against this API before it is
-	# deployed. CORS carries exactly one origin and never a list, so the header
-	# below is one value picked per request rather than a set — and picking it
-	# here, rather than with a second `header` directive, is deliberate: a
-	# matcher-form `header` *adds* a second Access-Control-Allow-Origin instead
-	# of replacing the one the Go middleware already sent, and two of them is
-	# what a browser rejects. `Vary: Origin` below is what stops a cache in
-	# front serving the localhost answer to a real visitor.
-	#
-	# This admits any page on that port of a developer's own machine. That is
-	# the whole cost, and it is why it is temporary: delete this map with the
-	# /ws/* routes once the frontend has moved to the streaming RPCs.
-	map {header.Origin} {cors_origin} {
-		http://localhost:5173 "http://localhost:5173"
-		default "{$FRONTEND_ORIGIN}"
-	}
-
 	# CORS: the frontend is served from a different origin (Cloudflare Pages),
 	# so both preflight and actual requests need these.
 	header {
-		Access-Control-Allow-Origin "{cors_origin}"
+		Access-Control-Allow-Origin "{$FRONTEND_ORIGIN}"
 		Access-Control-Allow-Methods "GET, POST, OPTIONS"
 		# X-Session-Token is what a click carries to prove it came from a caller
 		# that passed Turnstile. A custom header makes the cross-origin POST
@@ -87,20 +70,6 @@
 	# incoming value, so a forged one cannot buy a fresh bucket. {client_ip} is
 	# the address resolved through client_ip_headers/trusted_proxies above,
 	# i.e. Cf-Connecting-Ip, the real visitor.
-
-	# WebSocket streams — /ws/listen for tile updates, /ws/chat for messages.
-	# Each stream has its own route because frames carry a bare protobuf
-	# message with no type tag. Caddy upgrades automatically; the disabled
-	# timeouts keep idle spectators connected.
-	handle /ws/* {
-		reverse_proxy backend:8080 {
-			header_up X-Real-IP {client_ip}
-			transport http {
-				read_timeout 0
-				write_timeout 0
-			}
-		}
-	}
 
 	# Connect names its own path. GetMap and MapDensity arrive as GETs and
 	# carry their own Cache-Control, so a cache in front can serve them.
