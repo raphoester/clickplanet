@@ -12,7 +12,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/secondary/memory_tile_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/domain"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/xtime"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -23,35 +22,16 @@ func TestRunSuite(t *testing.T) {
 type testSuite struct {
 	suite.Suite
 	storage *memory_tile_storage.Storage
-	clock   *fakeClock
 }
 
 const maxIndex = 100_000
 
 func (s *testSuite) SetupTest() {
-	s.clock = &fakeClock{now: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)}
 	s.storage = s.newStorage(memory_tile_storage.Config{})
 }
 
 func (s *testSuite) newStorage(cfg memory_tile_storage.Config) *memory_tile_storage.Storage {
-	return memory_tile_storage.New(maxIndex, cfg, s.clock, logging.NewNopLogger())
-}
-
-type fakeClock struct {
-	mu  sync.Mutex
-	now time.Time
-}
-
-func (c *fakeClock) Now() time.Time {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return c.now
-}
-
-func (c *fakeClock) set(t time.Time) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.now = t
+	return memory_tile_storage.New(maxIndex, cfg, logging.NewNopLogger())
 }
 
 func (s *testSuite) TestSetAndPublish() {
@@ -225,72 +205,6 @@ func (s *testSuite) TestGetStateByBatchIgnoresUnsetAndOutOfRangeTiles() {
 	s.Assert().Equal(map[uint32]string{10: "fr"}, state)
 }
 
-func (s *testSuite) TestPastUpdates() {
-	at := func(t time.Time, tile uint32, value string) {
-		s.clock.set(t)
-		s.Require().NoError(s.storage.Set(context.Background(), tile, value))
-	}
-
-	set1Time := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
-	at(set1Time, 10, "fr")
-
-	set2Time := set1Time.Add(45 * time.Minute)
-	at(set2Time, 11, "fr")
-
-	set3Time := set2Time.Add(10 * time.Minute)
-	at(set3Time, 12, "fr")
-
-	queryTime := set3Time.Add(30 * time.Minute)
-
-	pastUpdates, err := s.storage.PastUpdates(context.Background(), 1*time.Hour, queryTime)
-	s.Require().NoError(err)
-	s.Require().Equal(2, len(pastUpdates))
-
-	s.Assert().Equal(uint32(11), pastUpdates[0].Tile)
-	s.Assert().Equal("fr", pastUpdates[0].Value)
-
-	s.Assert().Equal(uint32(12), pastUpdates[1].Tile)
-	s.Assert().Equal("fr", pastUpdates[1].Value)
-}
-
-func (s *testSuite) TestPastUpdatesDropsOldestBeyondTheBufferSize() {
-	storage := s.newStorage(memory_tile_storage.Config{PastUpdatesBuffer: 3})
-
-	for i := uint32(1); i <= 5; i++ {
-		s.Require().NoError(storage.Set(context.Background(), i, "fr"))
-	}
-
-	pastUpdates, err := storage.PastUpdates(context.Background(), time.Hour, s.clock.Now())
-	s.Require().NoError(err)
-	s.Require().Len(pastUpdates, 3)
-	s.Assert().Equal(uint32(3), pastUpdates[0].Tile)
-	s.Assert().Equal(uint32(5), pastUpdates[2].Tile)
-}
-
-func (s *testSuite) TestPastUpdatesEvictsBeyondRetention() {
-	storage := s.newStorage(memory_tile_storage.Config{PastUpdatesRetention: time.Minute})
-
-	start := s.clock.Now()
-	s.Require().NoError(storage.Set(context.Background(), 1, "fr"))
-
-	s.clock.set(start.Add(2 * time.Minute))
-	s.Require().NoError(storage.Set(context.Background(), 2, "fr"))
-
-	pastUpdates, err := storage.PastUpdates(context.Background(), time.Hour, s.clock.Now())
-	s.Require().NoError(err)
-	s.Require().Len(pastUpdates, 1)
-	s.Assert().Equal(uint32(2), pastUpdates[0].Tile)
-}
-
-func (s *testSuite) TestPastUpdatesOnlyRecordsActualChanges() {
-	s.Require().NoError(s.storage.Set(context.Background(), 10, "fr"))
-	s.Require().NoError(s.storage.Set(context.Background(), 10, "fr"))
-
-	pastUpdates, err := s.storage.PastUpdates(context.Background(), time.Hour, s.clock.Now())
-	s.Require().NoError(err)
-	s.Assert().Len(pastUpdates, 1)
-}
-
 func (s *testSuite) TestSnapshotRoundTrip() {
 	path := filepath.Join(s.T().TempDir(), "tiles.snapshot")
 	cfg := memory_tile_storage.Config{SnapshotPath: path}
@@ -416,12 +330,12 @@ func (s *testSuite) TestSnapshotSurvivesADifferentMapSize() {
 	path := filepath.Join(s.T().TempDir(), "tiles.snapshot")
 	cfg := memory_tile_storage.Config{SnapshotPath: path}
 
-	big := memory_tile_storage.New(1_000, cfg, s.clock, logging.NewNopLogger())
+	big := memory_tile_storage.New(1_000, cfg, logging.NewNopLogger())
 	s.Require().NoError(big.Set(context.Background(), 10, "fr"))
 	s.Require().NoError(big.Set(context.Background(), 900, "us"))
 	s.Require().NoError(big.Snapshot())
 
-	small := memory_tile_storage.New(100, cfg, s.clock, logging.NewNopLogger())
+	small := memory_tile_storage.New(100, cfg, logging.NewNopLogger())
 	state, err := stateBatch(small, 0, 100)
 	s.Require().NoError(err)
 	s.Assert().Equal(map[uint32]string{10: "fr"}, state)
@@ -541,10 +455,6 @@ func (s *testSuite) TestConcurrentSetsAndReads() {
 					errs <- err
 					return
 				}
-				if _, err := storage.PastUpdates(context.Background(), time.Hour, s.clock.Now()); err != nil {
-					errs <- err
-					return
-				}
 			}
 		}()
 	}
@@ -568,8 +478,6 @@ func (s *testSuite) TestConcurrentSetsAndReads() {
 }
 
 var _ domain.TileStorage = (*memory_tile_storage.Storage)(nil)
-
-var _ xtime.Provider = (*fakeClock)(nil)
 
 func stateBatch(s *memory_tile_storage.Storage, start uint32, end uint32) (map[uint32]string, error) {
 	batch, err := s.StateBatchDense(start, end)

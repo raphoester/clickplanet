@@ -6,12 +6,10 @@ import (
 	"math"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/domain"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging/lf"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/xtime"
 )
 
 const maxCodes = math.MaxUint16 + 1
@@ -21,28 +19,22 @@ const unownedCode = uint16(0)
 func New(
 	maxIndex uint32,
 	config Config,
-	timeProvider xtime.Provider,
 	logger logging.Logger,
 ) *Storage {
 	if logger == nil {
 		logger = logging.NewNopLogger()
 	}
-	if timeProvider == nil {
-		timeProvider = xtime.ActualProvider{}
-	}
 
 	config = config.withDefaults()
 
 	s := &Storage{
-		config:       config,
-		logger:       logger,
-		timeProvider: timeProvider,
-		maxIndex:     maxIndex,
-		tiles:        make([]uint16, int(maxIndex)+1),
-		codes:        []string{""},
-		codeIDs:      map[string]uint16{"": unownedCode},
-		updates:      newRing(config.PastUpdatesBuffer),
-		subscribers:  make(map[*subscriber]struct{}),
+		config:      config,
+		logger:      logger,
+		maxIndex:    maxIndex,
+		tiles:       make([]uint16, int(maxIndex)+1),
+		codes:       []string{""},
+		codeIDs:     map[string]uint16{"": unownedCode},
+		subscribers: make(map[*subscriber]struct{}),
 	}
 
 	s.restore()
@@ -51,19 +43,15 @@ func New(
 }
 
 type Storage struct {
-	config       Config
-	logger       logging.Logger
-	timeProvider xtime.Provider
-	maxIndex     uint32
+	config   Config
+	logger   logging.Logger
+	maxIndex uint32
 
 	tilesMu sync.RWMutex
 	tiles   []uint16
 	codes   []string
 	codeIDs map[string]uint16
 	dirty   bool
-
-	updatesMu sync.Mutex
-	updates   *ring
 
 	subscribersMu sync.Mutex
 	subscribers   map[*subscriber]struct{}
@@ -88,9 +76,7 @@ func (s *Storage) Set(_ context.Context, tile uint32, value string) error {
 		return nil
 	}
 
-	update := domain.TileUpdate{Tile: tile, Value: value, Previous: previous}
-	s.recordUpdate(update)
-	s.publish(update)
+	s.publish(domain.TileUpdate{Tile: tile, Value: value, Previous: previous})
 
 	return nil
 }
@@ -182,29 +168,6 @@ func (s *Storage) publish(update domain.TileUpdate) {
 			}
 		}
 	}
-}
-
-func (s *Storage) recordUpdate(update domain.TileUpdate) {
-	now := s.timeProvider.Now()
-
-	s.updatesMu.Lock()
-	defer s.updatesMu.Unlock()
-
-	s.updates.evictBefore(now.Add(-s.config.PastUpdatesRetention))
-	s.updates.push(timedUpdate{at: now, update: update})
-}
-
-func (s *Storage) PastUpdates(
-	_ context.Context,
-	duration time.Duration,
-	now time.Time,
-) ([]domain.TileUpdate, error) {
-	start := now.Add(-duration)
-
-	s.updatesMu.Lock()
-	defer s.updatesMu.Unlock()
-
-	return s.updates.since(start), nil
 }
 
 func (s *Storage) DroppedUpdates() uint64 {

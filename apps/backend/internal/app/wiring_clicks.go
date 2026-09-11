@@ -17,11 +17,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/secondary/in_memory_country_checker"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/secondary/in_memory_tile_checker"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/secondary/memory_tile_storage"
-	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/secondary/x_publisher"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/domain"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/domain/click_handler_service"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/domain/click_handler_service/prom_click_handler_service"
-	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/domain/runner"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ipblock"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging/lf"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ratelimit"
@@ -40,7 +38,6 @@ func (a *App) configureClicks(_ context.Context) error {
 	tilesStorage := memory_tile_storage.New(
 		a.config.GameMap.MaxIndex,
 		a.config.TilesStorage,
-		xtime.ActualProvider{},
 		a.logger,
 	)
 
@@ -56,8 +53,6 @@ func (a *App) configureClicks(_ context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to create prometheus click handler service: %w", err)
 	}
-
-	a.configureBookkeeperIfEnabled(tilesStorage)
 
 	clickLimiter := ratelimit.New(a.config.RateLimiter, xtime.ActualProvider{})
 	a.runners = append(a.runners, func() { clickLimiter.Run(a.ctx) })
@@ -212,27 +207,4 @@ func (a *App) configureVPNBlocklist() (connect.Interceptor, error) {
 	}
 
 	return interceptor, nil
-}
-
-func (a *App) configureBookkeeperIfEnabled(tilesStorage *memory_tile_storage.Storage) {
-	if !a.config.Bookkeeper.Enabled {
-		return
-	}
-
-	a.logger.Info("bookkeeper enabled", lf.Any("interval", a.config.Bookkeeper.Runner.Interval))
-
-	bookkeeper := runner.New(
-		a.config.Bookkeeper.Runner,
-		x_publisher.New(),
-		tilesStorage,
-		xtime.ActualProvider{},
-		a.logger,
-	)
-
-	a.runners = append(a.runners, bookkeeper.Run)
-	a.shutdownFuncs = append(a.shutdownFuncs, func() {
-		if err := bookkeeper.GracefulShutdown(); err != nil {
-			a.logger.Error("failed to shut down the bookkeeper", lf.Err(err))
-		}
-	})
 }

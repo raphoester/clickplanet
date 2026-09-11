@@ -58,8 +58,6 @@ Adding a context that callers talk to means a `proto/<name>/v1`, an `internal/<n
 
 It runs as a **single self-contained container with no dependencies**: the tile map lives in process and is persisted to a local snapshot file. There is no database, no cache, and no second process.
 
-The X/Twitter reporting job used to be a separate `cmd/bookkeeper` process. It now runs inside `cmd/api` as an optional goroutine behind `bookkeeper.enabled` (default off) — the recent-updates window only exists inside the API process, so a separate process would have nothing to read.
-
 ### Clicks domain (`internal/clicks/domain/`)
 
 Core interfaces (ports) defined in `gateways.go`:
@@ -69,8 +67,6 @@ Core interfaces (ports) defined in `gateways.go`:
 - `CountryChecker` — validates ISO country codes
 
 `ClickHandlerService` wires these interfaces together and contains all game logic. The Prometheus-instrumented version (`prom_click_handler_service/`) wraps it via decorator pattern.
-
-`runner/` is the scheduled job the bookkeeper uses; it reads through the storage's `PastUpdates`.
 
 ### Adapters
 
@@ -106,12 +102,11 @@ The response never repeats a tile id. `GetMapResponse` carries `start_tile_id`, 
 `memory_tile_storage.StateBatchDense` builds it. The interned ids are copied out exactly as stored and the table travels with them, so nothing is translated on the way out and the client needs no shared country list. Protobuf does all the framing — there is no hand-rolled magic or length-prefixing on either side, and therefore no encoder and decoder that have to be edited together.
 
 **Secondary (output):**
-- `adapters/secondary/memory_tile_storage/` — the tile map. A preallocated `[]uint16` indexed by tile id, with country codes interned into a side table (2 bytes per tile — ~2 MB for a 1M-tile map). Fans updates out in process, serves `PastUpdates` from a bounded ring buffer, and persists to a local snapshot file.
+- `adapters/secondary/memory_tile_storage/` — the tile map. A preallocated `[]uint16` indexed by tile id, with country codes interned into a side table (2 bytes per tile — ~2 MB for a 1M-tile map). Fans updates out in process and persists to a local snapshot file.
 - `adapters/secondary/in_memory_tile_checker/` — validates tile IDs
 - `adapters/secondary/in_memory_country_checker/` — validates country codes (hardcoded)
-- `adapters/secondary/x_publisher/` — posts to X/Twitter
 
-Beyond the `domain.TileStorage` port, `memory_tile_storage` also exposes `Subscribe(ctx) (<-chan domain.TileUpdate, error)`, one call per open stream, and `PastUpdates(ctx, duration, now)` for the bookkeeper.
+Beyond the `domain.TileStorage` port, `memory_tile_storage` also exposes `Subscribe(ctx) (<-chan domain.TileUpdate, error)`, one call per open stream.
 
 ### Key Flow
 
@@ -441,8 +436,6 @@ Config is loaded from a YAML file (`-config` flag), with environment variables o
 - `tilesStorage.snapshotPath` — where the state is persisted; **empty disables durability**
 - `tilesStorage.snapshotInterval` — how often a changed state is flushed
 - `tilesStorage.subscriberBuffer` — per-subscriber channel capacity, which is now per connected client rather than per fanout; updates for a subscriber that cannot keep up are dropped, not blocked on
-- `tilesStorage.pastUpdatesBuffer`, `tilesStorage.pastUpdatesRetention` — size and age bounds on the recent-updates ring buffer the bookkeeper reads
-- `bookkeeper.enabled`, `bookkeeper.runner.interval`
 - `rateLimiter.perSecond`, `rateLimiter.burst`, `rateLimiter.sweepInterval` — the per-IP click throttle (defaults 1/s, burst 10, swept every minute)
 - `vpnBlocklist.enabled`, `vpnBlocklist.includeDatacenters`, `vpnBlocklist.allow` — the VPN refusal (see [VPN blocklist](#vpn-blocklist)); disabled parses nothing and allocates nothing
 - `antiBot.enabled` — off registers nothing and measures nothing

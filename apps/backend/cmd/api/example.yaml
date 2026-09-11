@@ -19,18 +19,6 @@ tilesStorage:
   # Per-websocket-subscriber channel capacity. Updates for a subscriber that
   # cannot keep up are dropped rather than blocking clicks.
   subscriberBuffer: 1024
-  # How many recent updates are kept around for the bookkeeper to read, and for
-  # how long. Both bounds should sit comfortably above bookkeeper.runner.interval.
-  pastUpdatesBuffer: 65536
-  pastUpdatesRetention: 24h
-
-# Reports recent activity to X. Used to be the separate cmd/bookkeeper process;
-# the recent updates only exist inside this process, so it runs here instead.
-# Off by default.
-bookkeeper:
-  enabled: false
-  runner:
-    interval: 1h
 
 # Per-IP throttle on the Click RPC. Reads and the websocket are untouched.
 # The defaults below are also what applies when this block is absent.
