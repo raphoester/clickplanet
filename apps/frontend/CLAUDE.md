@@ -409,6 +409,11 @@ curl -s "https://clickplanet.lol$B" | grep -c 'challenges.cloudflare.com/turnsti
   See [The zoomed-out view](#the-zoomed-out-view).
 - `pointSize.ts` — how big a tile is drawn, and the single schedule that hands
   the frame from the painted flag to the tiles.
+- `zoom.ts` — how far the camera may pull back and push in. The camera is
+  orthographic against a globe of radius 1, so `zoom` reads as the share of the
+  viewport's height the globe fills: it opens at 1, edge to edge, and pulls back
+  to 0.5, the whole sphere with sky around it. The idle spin runs at or below
+  the opening zoom and stops once the view is pushed in past it.
 - `stars.ts` — the sky behind the globe, drawn as a **pass of its own**. Its
   camera borrows the main camera's orientation and nothing else, so the sky
   turns with the view and holds still through a zoom. Stars in the main scene

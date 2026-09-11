@@ -7,10 +7,15 @@ import {
     pickWindowSize,
     tilePointSize,
 } from "./pointSize.ts"
+import {MAX_ZOOM, MIN_ZOOM} from "./zoom.ts"
 
 // Every zoom OrbitControls allows, on viewports a browser really reports.
 const VIEWPORTS = [640, 900, 1243, 2160, 3400]
-const ZOOMS = Array.from({length: 197}, (_, i) => 1 + i * 0.25)   // 1 to 50
+const STEP = 0.25
+const ZOOMS = Array.from(
+    {length: Math.round((MAX_ZOOM - MIN_ZOOM) / STEP) + 1},
+    (_, i) => MIN_ZOOM + i * STEP,
+)
 
 function everyView(check: (zoom: number, height: number) => void) {
     for (const height of VIEWPORTS) for (const zoom of ZOOMS) check(zoom, height)
@@ -56,8 +61,8 @@ describe("pickWindowSize", () => {
         }
     })
 
-    it("covers the real zoom range, which OrbitControls caps at 50", () => {
-        for (const zoom of [1, 5, 10, 25, 50]) {
+    it("covers the real zoom range, from the far view to the cap", () => {
+        for (const zoom of [MIN_ZOOM, 1, 5, 10, 25, MAX_ZOOM]) {
             const pointSize = tilePointSize(zoom, 1243)
             expect(pickWindowSize(pointSize)).toBeGreaterThanOrEqual(pointSize + 1)
         }

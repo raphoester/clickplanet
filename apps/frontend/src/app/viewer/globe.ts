@@ -24,6 +24,7 @@ import {OwnerChange, TileOwnership} from "../../domain/tileOwnership.ts";
 import {warnOnce} from "../../domain/warnOnce.ts";
 import {layoutViewport} from "./viewport.ts";
 import {createStarfield} from "./stars.ts";
+import {MAX_ZOOM, MIN_ZOOM, RESTING_ZOOM} from "./zoom.ts";
 
 type Uniforms = {
     pointSize: THREE.IUniform
@@ -226,13 +227,13 @@ function startAnimation(
     const starfield = createStarfield();
 
     const controls = new OrbitControls(camera, renderer.domElement);
-    controls.minZoom = 1;
-    controls.maxZoom = 50;
+    controls.minZoom = MIN_ZOOM;
+    controls.maxZoom = MAX_ZOOM;
     controls.panSpeed = 0.1;
     controls.enableDamping = true;
 
     controls.addEventListener('change', () => {
-        controls.autoRotate = camera.zoom === 1;
+        controls.autoRotate = camera.zoom <= RESTING_ZOOM;
 
         controls.rotateSpeed = (1 / camera.zoom) / 1.5;
     });
