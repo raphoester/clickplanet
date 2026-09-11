@@ -28,3 +28,8 @@ tls/
 nginx/
 # wrangler dev local state
 .wrangler/
+
+# `wrangler types` output: 15 000 lines of runtime types that
+# @cloudflare/workers-types already provides. Only the Env interface it
+# generates is worth keeping, and that lives in worker/env.d.ts by hand.
+worker-configuration.d.ts

@@ -7,8 +7,24 @@
   "name": "clickplanet",
   "compatibility_date": "2026-09-07",
 
+  // Rewrites the social card's meta tags for /?c=<country>. See worker/index.ts
+  // — it is only there for the crawlers, and everything else it passes straight
+  // through to the asset handler.
+  "main": "./worker/index.ts",
+
   "assets": {
     "directory": "./dist",
+
+    // What the Worker serves the assets through. Without it, `env.ASSETS` does
+    // not exist and the Worker has nothing to put the tags into.
+    "binding": "ASSETS",
+
+    // Which paths reach the Worker before the asset handler answers them. The
+    // default (false) would serve /index.html directly and never run it, so the
+    // documents have to be listed — but the bundles, the textures and the 4.9 MB
+    // coordinates blob are excluded, so the bytes that dominate the traffic keep
+    // going straight out of the asset store with no Worker invocation.
+    "run_worker_first": ["/*", "!/assets/*", "!/static/*"],
 
     // Pages guessed SPA behaviour from the presence of index.html; Workers
     // makes it explicit. Without this, any client-side route (anything
