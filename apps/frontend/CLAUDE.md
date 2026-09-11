@@ -113,7 +113,21 @@ is worth keeping on this side too.
 it with a capped exponential backoff. It is generic over the message type and
 knows nothing about what it carries, so each context keeps its own mapping —
 `PlanetBackend.listenForUpdates` and `ChatServiceBackend.listenForMessages` are
-both four lines over it.
+both a few lines over it.
+
+**One stream per API, carrying an envelope.** `ClickService.ListenForEvents`
+sends `PlanetEvent` and `ChatService.ListenForEvents` sends `ChatEvent`, each a
+`oneof`. `updateOf` and `messageOf` unwrap the case each context cares about and
+**return undefined for everything else** — heartbeats, and any case this build
+does not know, which reads as an unset `oneof`. That is what lets the backend
+add an event type without a second stream and without breaking a deployed
+client, so a new live feature is a new case rather than a new connection.
+
+**Heartbeats are why a quiet stream survives.** Cloudflare cuts a silent
+response after ~125s with a 524 — measured, not guessed — so the server sends an
+empty heartbeat case every 30s. `openStream` resets its backoff on *any*
+message, heartbeats included, so a healthy quiet stream is never mistaken for a
+failing one.
 
 **A stream is a one-shot async iterable.** It ends on a dropped connection, a
 restarted server or a proxy timeout, and nothing reopens it — Connect carries no

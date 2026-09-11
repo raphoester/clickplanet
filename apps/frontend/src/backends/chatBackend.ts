@@ -9,7 +9,7 @@ import {
     ChatUnavailableError,
     OutgoingMessage,
 } from "./chat.ts";
-import {ChatMessage as ChatMessagePb} from "../gen/grpc/chat/v1/chat_pb.ts";
+import {ChatEvent, ChatMessage as ChatMessagePb} from "../gen/grpc/chat/v1/chat_pb.ts";
 import {ChatService} from "../gen/grpc/chat/v1/chat_connect.ts";
 import {Code, ConnectError, createPromiseClient, PromiseClient} from "@connectrpc/connect";
 import {createConnectTransport} from "@connectrpc/connect-web";
@@ -61,8 +61,11 @@ export class ChatServiceBackend implements ChatSender, ChatHistoryGetter, ChatLi
 
     public listenForMessages(callback: (message: ChatMessage) => void): () => void {
         return openStream(
-            (signal) => this.client.listenForMessages({}, {signal, timeoutMs: NO_TIMEOUT}),
-            (message) => callback(decodedMessage(message)),
+            (signal) => this.client.listenForEvents({}, {signal, timeoutMs: NO_TIMEOUT}),
+            (event) => {
+                const message = messageOf(event)
+                if (message) callback(message)
+            },
             "chat",
         )
     }
@@ -83,6 +86,16 @@ function translate(e: unknown): unknown {
         default:
             return e
     }
+}
+
+/**
+ * Anything that is not a message is dropped, heartbeats included — as is an
+ * event case this build does not know, which reads as an unset `oneof`.
+ */
+export function messageOf(event: ChatEvent): ChatMessage | undefined {
+    if (event.event.case !== "message") return undefined
+
+    return decodedMessage(event.event.value)
 }
 
 export function decodedMessage(message: ChatMessagePb): ChatMessage {

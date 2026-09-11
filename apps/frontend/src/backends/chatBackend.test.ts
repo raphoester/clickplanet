@@ -1,7 +1,7 @@
 import {afterEach, describe, expect, it, vi} from "vitest"
-import {ChatServiceBackend, decodedMessage} from "./chatBackend.ts"
+import {ChatServiceBackend, decodedMessage, messageOf} from "./chatBackend.ts"
 import {Code, ConnectError, PromiseClient} from "@connectrpc/connect"
-import {ChatMessage as ChatMessagePb} from "../gen/grpc/chat/v1/chat_pb.ts"
+import {ChatEvent, ChatMessage as ChatMessagePb, Heartbeat} from "../gen/grpc/chat/v1/chat_pb.ts"
 import {ChatService} from "../gen/grpc/chat/v1/chat_connect.ts"
 import {
     ChatBlockedError,
@@ -40,6 +40,23 @@ describe("decodedMessage", () => {
             countryCode: "fr",
             text: "hello",
         })
+    })
+})
+
+describe("messageOf", () => {
+    it("unwraps a message event", () => {
+        const event = new ChatEvent({event: {case: "message", value: proto()}})
+        expect(messageOf(event)?.text).toBe("hello")
+    })
+
+    it("drops a heartbeat", () => {
+        const heartbeat = new ChatEvent({event: {case: "heartbeat", value: new Heartbeat()}})
+        expect(messageOf(heartbeat)).toBeUndefined()
+    })
+
+    it("drops an event case this build does not know", () => {
+        // What a client sees when the backend adds a case: an unset oneof, not a crash.
+        expect(messageOf(new ChatEvent())).toBeUndefined()
     })
 })
 

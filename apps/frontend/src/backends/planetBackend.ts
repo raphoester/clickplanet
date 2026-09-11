@@ -7,7 +7,7 @@ import {
     UpdatesListener,
     VPNBlockedError,
 } from "./backend.ts";
-import {GetMapResponse, TileUpdate} from "../gen/grpc/planet/v1/planet_pb.ts";
+import {GetMapResponse, PlanetEvent} from "../gen/grpc/planet/v1/planet_pb.ts";
 import {ClickService} from "../gen/grpc/planet/v1/planet_connect.ts";
 import {SessionService} from "../gen/grpc/session/v1/session_connect.ts";
 import {Code, ConnectError, createPromiseClient, PromiseClient} from "@connectrpc/connect";
@@ -124,8 +124,11 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
 
     public listenForUpdates(callback: (update: Update) => void): () => void {
         return openStream(
-            (signal) => this.client.listenForUpdates({}, {signal, timeoutMs: NO_TIMEOUT}),
-            (message) => callback(updateOf(message)),
+            (signal) => this.client.listenForEvents({}, {signal, timeoutMs: NO_TIMEOUT}),
+            (event) => {
+                const update = updateOf(event)
+                if (update) callback(update)
+            },
             "tile updates",
         )
     }
@@ -164,10 +167,18 @@ export function bindingsOf(res: GetMapResponse): Map<number, string> {
     return bindings
 }
 
-export function updateOf(message: TileUpdate): Update {
+/**
+ * Anything that is not a tile update is dropped, heartbeats included. An event
+ * case this build does not know reads as an unset `oneof` and lands here too,
+ * which is what lets the backend add one without breaking a deployed client.
+ */
+export function updateOf(event: PlanetEvent): Update | undefined {
+    if (event.event.case !== "tileUpdate") return undefined
+
+    const update = event.event.value
     return {
-        tile: message.tileId,
-        previousCountry: message.previousCountryId === "" ? undefined : message.previousCountryId,
-        newCountry: message.countryId,
+        tile: update.tileId,
+        previousCountry: update.previousCountryId === "" ? undefined : update.previousCountryId,
+        newCountry: update.countryId,
     }
 }

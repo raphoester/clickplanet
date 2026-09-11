@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ChatMessage, GetHistoryRequest, GetHistoryResponse, ListenForMessagesRequest, SendMessageRequest, SendMessageResponse } from "./chat_pb.js";
+import { ChatEvent, GetHistoryRequest, GetHistoryResponse, ListenForEventsRequest, SendMessageRequest, SendMessageResponse } from "./chat_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -32,12 +32,12 @@ export const ChatService = {
       idempotency: MethodIdempotency.NoSideEffects,
     },
     /**
-     * @generated from rpc chat.v1.ChatService.ListenForMessages
+     * @generated from rpc chat.v1.ChatService.ListenForEvents
      */
-    listenForMessages: {
-      name: "ListenForMessages",
-      I: ListenForMessagesRequest,
-      O: ChatMessage,
+    listenForEvents: {
+      name: "ListenForEvents",
+      I: ListenForEventsRequest,
+      O: ChatEvent,
       kind: MethodKind.ServerStreaming,
     },
   }

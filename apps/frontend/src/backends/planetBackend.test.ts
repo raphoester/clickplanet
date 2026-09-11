@@ -1,7 +1,7 @@
 import {describe, expect, it, vi} from "vitest"
 import {bindingsOf, PlanetBackend, updateOf} from "./planetBackend.ts"
 import {Code, ConnectError} from "@connectrpc/connect"
-import {GetMapResponse, TileUpdate} from "../gen/grpc/planet/v1/planet_pb.ts"
+import {GetMapResponse, Heartbeat, PlanetEvent, TileUpdate} from "../gen/grpc/planet/v1/planet_pb.ts"
 import {RateLimitedError, VPNBlockedError} from "./backend.ts"
 import {SESSION_HEADER, type SessionProvider, SessionUnavailableError} from "./session.ts"
 
@@ -32,15 +32,29 @@ function failingSession(): SessionProvider {
     }
 }
 
+function tileUpdateEvent(fields: {tileId: number, countryId: string, previousCountryId?: string}): PlanetEvent {
+    return new PlanetEvent({event: {case: "tileUpdate", value: new TileUpdate(fields)}})
+}
+
 describe("updateOf", () => {
     it("maps a tile update onto the shape the globe consumes", () => {
-        expect(updateOf(new TileUpdate({tileId: 7, countryId: "jp", previousCountryId: "fr"})))
+        expect(updateOf(tileUpdateEvent({tileId: 7, countryId: "jp", previousCountryId: "fr"})))
             .toEqual({tile: 7, previousCountry: "fr", newCountry: "jp"})
     })
 
     it("reports an unowned previous tile as undefined rather than an empty code", () => {
-        expect(updateOf(new TileUpdate({tileId: 1, countryId: "fr"})))
+        expect(updateOf(tileUpdateEvent({tileId: 1, countryId: "fr"})))
             .toEqual({tile: 1, previousCountry: undefined, newCountry: "fr"})
+    })
+
+    it("drops a heartbeat", () => {
+        const heartbeat = new PlanetEvent({event: {case: "heartbeat", value: new Heartbeat()}})
+        expect(updateOf(heartbeat)).toBeUndefined()
+    })
+
+    it("drops an event case this build does not know", () => {
+        // What a client sees when the backend adds a case: an unset oneof, not a crash.
+        expect(updateOf(new PlanetEvent())).toBeUndefined()
     })
 })
 
