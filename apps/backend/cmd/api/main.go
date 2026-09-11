@@ -3,14 +3,14 @@ package main
 
 import (
 	"context"
-	"flag"
+	"errors"
 	"fmt"
 	"os"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/bootstrap"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/cfgutil"
+	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/configs"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/countries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging/lf"
@@ -82,13 +82,23 @@ func describeModules(config Config, logger logging.Logger) ([]bootstrap.Module, 
 }
 
 func loadConfig() (Config, error) {
-	path := flag.String("config", "", "path to config file")
-	flag.Parse()
-
 	var config Config
-	if err := cfgutil.NewLoader(*path).Unmarshal(&config); err != nil {
+	if err := configs.Load(&config, configs.FromFlag()); err != nil {
 		return Config{}, fmt.Errorf("failed reading config: %w", err)
 	}
 
 	return config, nil
+}
+
+// Validate refuses the two settings that have no usable zero value: an empty
+// address listens on port 80, and a map of no tiles refuses every click.
+func (c Config) Validate() error {
+	if c.HTTPServer.BindAddress == "" {
+		return errors.New("httpServer.bindAddress is empty")
+	}
+	if c.Clicks.GameMap.MaxIndex == 0 {
+		return errors.New("gameMap.maxIndex is zero: the map has no tiles")
+	}
+
+	return nil
 }

@@ -442,7 +442,7 @@ The snapshot file is the only thing worth backing up.
 
 ### Kernel (`internal/kernel/`)
 
-Shared infrastructure: `bootstrap` (the composite layer), `countries`, `cfgutil` (YAML + env config via koanf), `httpserver` (middleware, formats), `logging`, `prom` (Prometheus), `xtime`, `ctxutil`, `ratelimit`, `ipblock`, `atomicfile`, `secrets`.
+Shared infrastructure: `bootstrap` (the composite layer), `countries`, `configs` (YAML + env config via koanf), `httpserver` (middleware, formats), `logging`, `prom` (Prometheus), `xtime`, `ctxutil`, `ratelimit`, `ipblock`, `atomicfile`, `secrets`.
 
 `bootstrap` runs the modules — see [The composite layer](#the-composite-layer). It knows nothing about this game: it takes a list of modules, builds each one under a startup deadline, mounts what they claimed on one router, and serves until the process is signalled.
 
@@ -459,7 +459,18 @@ Two of these are here because both bounded contexts need them and neither should
 
 ### Configuration
 
-Config is loaded from a YAML file (`-config` flag), with environment variables overriding it — `cfgutil` uses `.` as the nesting delimiter, so `tilesStorage.snapshotPath=/data/tiles` in the environment overrides the file. See `cmd/api/example.yaml` for the full schema.
+**`kernel/configs` owns loading**, the way `bootstrap` owns running: the binary asks for the config it wants and never for the flag, the parser, or the precedence between file and environment.
+
+```go
+var config Config
+err := configs.Load(&config, configs.FromFlag())
+```
+
+Where the file comes from is an option — `FromFlag()` reads `-config`, which is how the container runs it; `FromFile(path)` names one outright and lives behind the `testing` tag, because two test packages need it and no production caller does (see [Testing](#testing)). **An empty path is not an error**: every field keeps its zero value and the environment alone can carry a whole config.
+
+Config is loaded from a YAML file, with environment variables overriding it — `.` is the nesting delimiter, so `tilesStorage.snapshotPath=/data/tiles` in the environment overrides the file. See `cmd/api/example.yaml` for the full schema.
+
+**A config that implements `Validate() error` is asked to check itself**, and the load fails with its sentence wrapped in `configs.ErrValidation`. That is the only place a bad setting is refused out loud rather than becoming a zero value nothing reports: `cmd/api`'s checks `httpServer.bindAddress` (empty listens on port 80) and `gameMap.maxIndex` (zero is a map that refuses every click). There is no struct-tag validation and therefore no validator dependency — a hook the config implements covers this app's needs.
 
 **Each module owns its own config struct** — `clicks.Config`, `chat.Config`, `session.Config` — and `app.Config` is the three of them plus `httpServer`. The clicks keys stayed at the top level of the file rather than moving under a `clicks:` section: `app.Config` squashes that struct (`koanf:",squash"`), so the file and every `deploy/` environment variable are unchanged.
 
@@ -507,6 +518,6 @@ The proto package is the **only** version number: Connect derives each route fro
 
 Unit tests only, using `testify`. There are no integration tests and no Docker dependency — `make test` runs everything from a clean checkout.
 
-**Tests build with `-tags testing`, so use `make test` rather than a bare `go test ./...`.** Anything else that loads test files needs the tag too: `go vet -tags testing ./...`, and an editor's language server (`gopls` `buildFlags: ["-tags=testing"]`, or `go.buildTags` in VS Code), which otherwise reports the helpers as undefined. A helper that more than one package needs cannot live in a `_test.go` file, so it lives in an ordinary `.go` file carrying `//go:build testing`. The tag, not a filename convention, is what keeps such a helper out of the production binary — and what lets `make deadcode` tell a helper apart from production code. `ctxutil.GetSessionID` is the one that exists today.
+**Tests build with `-tags testing`, so use `make test` rather than a bare `go test ./...`.** Anything else that loads test files needs the tag too: `go vet -tags testing ./...`, and an editor's language server (`gopls` `buildFlags: ["-tags=testing"]`, or `go.buildTags` in VS Code), which otherwise reports the helpers as undefined. A helper that more than one package needs cannot live in a `_test.go` file, so it lives in an ordinary `.go` file carrying `//go:build testing`. The tag, not a filename convention, is what keeps such a helper out of the production binary — and what lets `make deadcode` tell a helper apart from production code. `ctxutil.GetSessionID` and `configs.FromFile` are the two that exist today.
 
 **`make deadcode` fails on any unreachable function**, in two passes, because "is this reachable?" has two different right answers depending on whether test code counts as a caller. The first pass excludes tests and tagged files, so **production code whose only caller is a test is reported as dead** — the case a plain `deadcode -test` forgives. The second pass includes both but keeps only findings inside tagged files, so an unused shared helper is reported too. `deadcode` is fetched at a pinned version by the target, so there is nothing to install.

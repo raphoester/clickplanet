@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/cfgutil"
+	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/configs"
 )
 
 // The shipped file is the schema. Nothing else checks that a key in it still
@@ -16,7 +16,7 @@ import (
 // without a word.
 func TestTheExampleConfigStillReachesTheStructs(t *testing.T) {
 	var config Config
-	require.NoError(t, cfgutil.NewLoader("example.yaml").Unmarshal(&config))
+	require.NoError(t, configs.Load(&config, configs.FromFile("example.yaml")))
 
 	require.True(t, config.Clicks.AntiBot.Enabled)
 
@@ -51,7 +51,7 @@ func TestTheExampleConfigStillReachesTheStructs(t *testing.T) {
 // failing test rather than a bound that silently went back to its default.
 func TestTheExampleConfigStillCarriesTheRestOfTheFile(t *testing.T) {
 	var config Config
-	require.NoError(t, cfgutil.NewLoader("example.yaml").Unmarshal(&config))
+	require.NoError(t, configs.Load(&config, configs.FromFile("example.yaml")))
 
 	assert.Equal(t, "0.0.0.0:8080", config.HTTPServer.BindAddress)
 	assert.NotZero(t, config.Clicks.GameMap.MaxIndex)
