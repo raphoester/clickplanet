@@ -12,6 +12,14 @@
     text-align: center;
 }
 
+/* The panel is a card on every screen, phones included: its height is whatever
+   its contents come to, capped at the room the backdrop leaves.
+
+   It used to go full-bleed under 768px — `height: 100vh`, no radius, no border
+   — which took the whole screen away for three lines of text and hid the globe
+   the dialog is talking about. There is nothing here that needs a phone's full
+   width: the widest of these dialogs is a column of text, and the one that is
+   not says so with a class of its own (see SharePreview.css). */
 .modal-content {
     display: flex;
     flex-direction: column;
@@ -72,17 +80,8 @@
 }
 
 @media only screen and (max-width: 768px) {
-    .modal {
-        padding: 0;
-    }
-
-    .modal-content {
-        height: 100vh;
-        max-height: none;
-        padding: 0 16px 16px 16px;
-        width: 100%;
-        max-width: none;
-        border-radius: 0;
-        border: 1px solid transparent;
+    .modal-header h2 {
+        margin: 12px 0;
+        font-size: 20px;
     }
 }

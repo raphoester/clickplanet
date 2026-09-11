@@ -13,10 +13,11 @@
 }
 
 /* The picture is fitted to the room between the header and the buttons rather
-   than capped in `vh` and left sitting at the top of it: the dialog is the whole
-   screen on a phone, and a portrait card under a fixed ceiling left a hand's
-   width of empty panel under it. Fitted in both axes, so it never pushes the
-   buttons off the bottom either — which is what the cap was there to stop. */
+   than capped in `vh` and left sitting at the top of it: a portrait card under
+   a fixed ceiling left a hand's width of empty panel under it. Fitted in both
+   axes, so it never pushes the buttons off the bottom either — which is what
+   the cap was there to stop. The panel now grows to the picture instead, up to
+   the height the backdrop leaves, and only then does the fitting bite. */
 .modal-picture .modal-body {
     display: flex;
     align-items: center;
