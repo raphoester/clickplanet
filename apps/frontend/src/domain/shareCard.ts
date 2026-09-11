@@ -67,6 +67,23 @@ function headline({country, rank, tiles}: ShareStats): string {
         `${tiles === 1 ? "tile" : "tiles"}. Come and take them.`
 }
 
+/**
+ * The shapes worth posting, as width over height.
+ *
+ * A phone's canvas is around 390×844 — a 1:2.2 column, which every timeline
+ * either shows as a sliver or crops itself, badly. The card takes the middle of
+ * the frame rather than the whole of it, centred because the globe is.
+ *
+ * The portrait limit is a story's shape, and it is the *loosest* of the standard
+ * ones on purpose: the tighter 4:5 a feed prefers cuts a phone's frame nearly in
+ * half, and at rest the sphere's diameter is the viewport's **height**, so it is
+ * already wider than a phone's screen and every row cropped is a row of planet.
+ * The landscape limit catches an ultrawide monitor doing the same thing the
+ * other way, at the shape a timeline shows without cropping it for you.
+ */
+const MIN_ASPECT = 9 / 16
+const MAX_ASPECT = 16 / 9
+
 /** Under this, a shared image reads as a thumbnail wherever it is posted. */
 const MIN_EDGE = 720
 
@@ -76,6 +93,45 @@ const MAX_EDGE = 2400
 /** The globe is captured at the size it is drawn, so anything past this is
  *  interpolation — it only sharpens the text and the flag laid over it. */
 const MAX_SCALE = 2
+
+export type Crop = {x: number, y: number, width: number, height: number}
+
+export type CardLayout = {
+    /** The part of the captured frame the card is made from. */
+    crop: Crop
+    width: number
+    height: number
+}
+
+/** What to take from the capture, and how big to draw it. */
+export function cardLayout(width: number, height: number): CardLayout {
+    const crop = cropToAspect(width, height)
+    return {crop, ...cardSize(crop.width, crop.height)}
+}
+
+/**
+ * The middle of the frame, in a shape a timeline will show whole.
+ *
+ * Centred because the globe is: the orthographic camera looks at the origin, so
+ * the sphere sits in the middle of the canvas and it is only sky that is lost.
+ */
+export function cropToAspect(width: number, height: number): Crop {
+    if (width <= 0 || height <= 0) return {x: 0, y: 0, width, height}
+
+    const aspect = width / height
+
+    if (aspect < MIN_ASPECT) {
+        const kept = Math.round(width / MIN_ASPECT)
+        return {x: 0, y: Math.round((height - kept) / 2), width, height: kept}
+    }
+
+    if (aspect > MAX_ASPECT) {
+        const kept = Math.round(height * MAX_ASPECT)
+        return {x: Math.round((width - kept) / 2), y: 0, width: kept, height}
+    }
+
+    return {x: 0, y: 0, width, height}
+}
 
 /**
  * The size the card comes out at, from the size the globe was captured at.

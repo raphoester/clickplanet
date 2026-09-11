@@ -681,6 +681,15 @@ so a phone captures around 390×844. `cardSize` lifts that to a short edge of
 is the half anyone reads — and caps the long edge at 2400 so a share sheet will
 still take the file.
 
+**And the card is the middle of the frame, not all of it.** 390×844 is a 1:2.2
+column that every timeline either shows as a sliver or crops for you;
+`cropToAspect` brings the shape back inside 9:16 … 16:9 first, centred, because
+the globe is centred — the camera looks at the origin. The portrait limit is the
+loosest of the standard shapes on purpose: at rest the sphere's diameter is the
+viewport's *height*, so on a phone it is already wider than the screen and every
+row cropped is a row of planet. The tighter 4:5 a feed prefers takes nearly half
+the frame.
+
 **The player picks the delivery; nothing picks for them.** `deliveriesOffered`
 reads once, when the menu mounts, and puts one button on screen per way this
 browser actually has of letting go of the file — a phone gets `Share`, a desktop

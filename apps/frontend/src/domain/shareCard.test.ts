@@ -1,7 +1,9 @@
 import {describe, expect, it} from "vitest"
 import {
+    cardLayout,
     cardScale,
     cardSize,
+    cropToAspect,
     fitInBox,
     shareFileName,
     shareLabel,
@@ -71,6 +73,54 @@ describe("reading the player's standing off the board", () => {
     })
 })
 
+describe("the shape the card comes out in", () => {
+    const ratio = ({width, height}: {width: number, height: number}) => width / height
+
+    // A phone's canvas is a 1:2.2 column. Posted, a timeline either shows it as
+    // a sliver or crops it itself, which is the thing worth not leaving to it.
+    it("takes the middle out of a phone's column rather than posting the column", () => {
+        const crop = cropToAspect(390, 844)
+
+        expect(ratio(crop)).toBeCloseTo(9 / 16, 2)
+        expect(crop.width).toBe(390)
+        expect(crop.height).toBeLessThan(844)
+    })
+
+    // The globe is centred in the canvas — the camera looks at the origin — so
+    // an off-centre crop would take the planet's head off.
+    it("crops evenly, so the globe stays in the middle", () => {
+        const crop = cropToAspect(390, 844)
+
+        expect(crop.y).toBe(Math.round((844 - crop.height) / 2))
+        expect(crop.x).toBe(0)
+    })
+
+    it("catches an ultrawide doing the same thing the other way", () => {
+        const crop = cropToAspect(2560, 1080)
+
+        expect(ratio(crop)).toBeCloseTo(16 / 9, 2)
+        expect(crop.height).toBe(1080)
+        expect(crop.x).toBe(Math.round((2560 - crop.width) / 2))
+    })
+
+    it("leaves a shape already worth posting alone", () => {
+        expect(cropToAspect(1920, 1080)).toEqual({x: 0, y: 0, width: 1920, height: 1080})
+        expect(cropToAspect(1024, 768)).toEqual({x: 0, y: 0, width: 1024, height: 768})
+    })
+
+    it("stays on its feet against a canvas with no pixels in it", () => {
+        expect(cropToAspect(0, 0)).toEqual({x: 0, y: 0, width: 0, height: 0})
+    })
+
+    it("sizes the card from what the crop kept, not from the whole canvas", () => {
+        const layout = cardLayout(390, 844)
+
+        expect(ratio(layout)).toBeCloseTo(9 / 16, 2)
+        expect(Math.min(layout.width, layout.height)).toBeGreaterThanOrEqual(720)
+        expect(layout.crop.height).toBeLessThan(844)
+    })
+})
+
 describe("the size the card comes out at", () => {
     // The canvas is sized in CSS pixels, so a desktop already captures something
     // worth posting and reprocessing it would only soften it.
@@ -79,10 +129,10 @@ describe("the size the card comes out at", () => {
     })
 
     it("lifts a phone capture to something that is not a thumbnail", () => {
-        const size = cardSize(390, 844)
+        const size = cardSize(390, 693)
 
         expect(Math.min(size.width, size.height)).toBeGreaterThanOrEqual(720)
-        expect(size.width / size.height).toBeCloseTo(390 / 844, 2)
+        expect(size.width / size.height).toBeCloseTo(390 / 693, 2)
     })
 
     it("never interpolates further than it is worth", () => {

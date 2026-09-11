@@ -1,7 +1,7 @@
 import {CapturedFrame} from "../viewer/capture.ts";
 import {regions} from "../viewer/atlas.ts";
 import {ATLAS_URL} from "../viewer/atlasAsset.ts";
-import {cardSize, fitInBox, shareLabel, ShareStats, statsLine} from "../../domain/shareCard.ts";
+import {cardLayout, Crop, fitInBox, shareLabel, ShareStats, statsLine} from "../../domain/shareCard.ts";
 import {TITLE_CAP_HEIGHT, TITLE_FONT_FAMILY} from "../titleFont.ts";
 
 /**
@@ -22,7 +22,7 @@ const LABEL_FONT = 'Oswald, sans-serif'
 const LOGO_URL = "/static/logo.svg"
 
 export async function drawShareCard(frame: CapturedFrame, stats: ShareStats): Promise<Blob> {
-    const size = cardSize(frame.width, frame.height)
+    const {crop, ...size} = cardLayout(frame.width, frame.height)
 
     const canvas = document.createElement("canvas")
     canvas.width = size.width
@@ -31,7 +31,7 @@ export async function drawShareCard(frame: CapturedFrame, stats: ShareStats): Pr
     const context = canvas.getContext("2d")
     if (!context) throw new Error("this browser would not give a 2D context for the share image")
 
-    drawGlobe(context, frame, size)
+    drawGlobe(context, frame, crop, size)
 
     // All three before the first `measureText`: a fallback face measures
     // differently, and a badge laid out against one and drawn in the other has
@@ -51,6 +51,7 @@ export async function drawShareCard(frame: CapturedFrame, stats: ShareStats): Pr
 function drawGlobe(
     context: CanvasRenderingContext2D,
     frame: CapturedFrame,
+    crop: Crop,
     size: {width: number, height: number},
 ) {
     const source = document.createElement("canvas")
@@ -61,7 +62,11 @@ function drawGlobe(
 
     context.imageSmoothingEnabled = true
     context.imageSmoothingQuality = "high"
-    context.drawImage(source, 0, 0, size.width, size.height)
+    // The middle of the frame rather than all of it, where the canvas is a
+    // shape no timeline would show whole — see `cropToAspect`.
+    context.drawImage(source,
+        crop.x, crop.y, crop.width, crop.height,
+        0, 0, size.width, size.height)
 }
 
 /**
