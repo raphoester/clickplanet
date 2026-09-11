@@ -39,14 +39,17 @@ vpnBlocklist:
 # Accepts a bot's clicks and drops them, rather than refusing them and naming the
 # check it tripped. Three watchdogs read three different behaviours, the jury
 # crosses what they say, and the shadow ban is the one sentence they all pass.
-# Ships judging only: nothing is dropped until shadowBan.enforce is on.
+# Enforcing: a flagged caller's clicks are answered OK and dropped.
 antiBot:
   enabled: true
 
   shadowBan:
-    # Turn this on only after reading the "antibot ban" lines. See "Watching for
-    # bots" in the README.
-    enforce: false
+    # On since the measuring pass: the sequencer earned it. A caller tracking
+    # tile id N+1 for 150 of 200 steps is following a geodesic across the map —
+    # the id path turns 0.2 degrees per step, and each tile has ~6 neighbours, so
+    # a hand choosing freely holds that for a few clicks, not a hundred and
+    # fifty. See "Watching for bots" in the README before widening anything here.
+    enforce: true
     banDuration: 1h
     # Matches the widest watchdog trackWindow, so each repeat flag rests on
     # evidence the previous one never saw. Watch the flags= count climb on a
@@ -68,14 +71,19 @@ antiBot:
     enabled: true
     detector:
       reactionWindow: 5s
-      # Deliberately wide, and only safe because enforce is false: nothing is
-      # dropped, but ban lines print with each caller's real median and spread —
-      # the per-caller numbers click_reaction_seconds cannot show. Humans will
-      # be named too. That is the point: compare their lines against the bot's,
-      # then tighten these before enforcing.
+      # Set from the measuring pass these used to run. Humans caught in a tile
+      # war on 2026-09-11 held spreads of 689-879ms with medians of 1.08-1.50s;
+      # the bot the README cites sat at 138ms. 300ms is the gap between them.
+      #
+      # maxMedian matters more than it looks. A median above it only demotes
+      # "certain" to "suspect" — so the old 2s, being slower than any human
+      # reaction, could never fail, and every retaker suspicion arrived as
+      # "certain". Certain bans on one watchdog alone, so jury.minSuspects was
+      # never consulted and four bans that day rested on a human's reflexes.
+      # Keep this at a delay no person decides within.
       minReactions: 20
-      maxSpread: 1s
-      maxMedian: 2s
+      maxSpread: 300ms
+      maxMedian: 250ms
       trackWindow: 5m
       sweepInterval: 1m
 
@@ -96,10 +104,14 @@ antiBot:
     enabled: true
     detector:
       maxGap: 3s
-      # Wide while enforce is false, for the same reason as the retaker's
-      # bounds: this is the one number here that depends on the bot you actually
-      # have. A loop calling sleep(1s) sits in single-digit milliseconds; one
-      # that jitters on purpose is wider. Read what the lines say, then close it.
+      # Left wide deliberately, unlike the retaker's. The caller measured on
+      # 2026-09-11 read 248ms here, and a player spam-clicking into the 1/s
+      # throttle gets its surviving clicks handed back at the refill rate, so
+      # this number partly measures the limiter rather than the caller. That is
+      # safe at "suspect", which needs a second watchdog to mean anything, and
+      # the retaker no longer supplies one cheaply. Watch certainFor/certainClicks
+      # below instead: those ban alone, and 30m with no pause past maxGap is the
+      # claim doing the work, not the spread.
       maxSpread: 400ms
       minClicks: 120
       certainFor: 30m
