@@ -1,5 +1,10 @@
 httpServer:
   bindAddress: 0.0.0.0:8080
+  # How often a live stream with nothing to say sends a heartbeat, so a proxy
+  # does not mistake a quiet stream for a dead one. Cloudflare cuts a silent
+  # response at ~125s with a 524, so this must stay well under that. Empty or
+  # zero means 30s.
+  streamHeartbeat: 30s
 gameMap:
   maxIndex: 257948
 

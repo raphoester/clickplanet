@@ -29,6 +29,7 @@ export default function Viewer(props: ViewerProps) {
     const {
         status,
         leaderboard,
+        tileDeltas,
         tilesCount,
         rateLimited,
         dismissRateLimited,
@@ -53,6 +54,7 @@ export default function Viewer(props: ViewerProps) {
             country={countryState}
             setCountry={handleSetCountry}
             leaderboard={leaderboard}
+            tileDeltas={tileDeltas}
             tilesCount={tilesCount}
         />}
 

@@ -158,7 +158,8 @@ func clickServerReading(
 
 	mux := http.NewServeMux()
 	mux.Handle(planetv1connect.NewClickServiceHandler(
-		NewClickService(stubService{}, stubChecker{}, stubMapReader{}, stubSubscriber{}, budgets),
+		NewClickService(
+			stubService{}, stubChecker{}, stubMapReader{}, stubSubscriber{}, DefaultHeartbeat, budgets),
 		options...,
 	))
 

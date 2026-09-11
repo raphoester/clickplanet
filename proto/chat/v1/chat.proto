@@ -9,7 +9,7 @@ service ChatService {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
 
-  rpc ListenForMessages(ListenForMessagesRequest) returns (stream ChatMessage);
+  rpc ListenForEvents(ListenForEventsRequest) returns (stream ChatEvent);
 }
 
 message ChatMessage {
@@ -38,4 +38,18 @@ message GetHistoryResponse {
   repeated ChatMessage messages = 1;
 }
 
-message ListenForMessagesRequest {}
+message ListenForEventsRequest {}
+
+// The one live stream this API has — see the note on planet.v1.PlanetEvent. A
+// new kind of event is a new case below, not a second stream.
+//
+// Heartbeat is what keeps a quiet stream alive, and a quiet chat is the normal
+// case: Cloudflare cuts a silent response at ~125s with a 524.
+message ChatEvent {
+  oneof event {
+    ChatMessage message = 1;
+    Heartbeat heartbeat = 2;
+  }
+}
+
+message Heartbeat {}

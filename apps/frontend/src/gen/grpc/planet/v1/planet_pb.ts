@@ -381,33 +381,122 @@ export class GetMapResponse extends Message<GetMapResponse> {
 }
 
 /**
- * @generated from message planet.v1.ListenForUpdatesRequest
+ * @generated from message planet.v1.ListenForEventsRequest
  */
-export class ListenForUpdatesRequest extends Message<ListenForUpdatesRequest> {
-  constructor(data?: PartialMessage<ListenForUpdatesRequest>) {
+export class ListenForEventsRequest extends Message<ListenForEventsRequest> {
+  constructor(data?: PartialMessage<ListenForEventsRequest>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "planet.v1.ListenForUpdatesRequest";
+  static readonly typeName = "planet.v1.ListenForEventsRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListenForUpdatesRequest {
-    return new ListenForUpdatesRequest().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListenForEventsRequest {
+    return new ListenForEventsRequest().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListenForUpdatesRequest {
-    return new ListenForUpdatesRequest().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListenForEventsRequest {
+    return new ListenForEventsRequest().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListenForUpdatesRequest {
-    return new ListenForUpdatesRequest().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListenForEventsRequest {
+    return new ListenForEventsRequest().fromJsonString(jsonString, options);
   }
 
-  static equals(a: ListenForUpdatesRequest | PlainMessage<ListenForUpdatesRequest> | undefined, b: ListenForUpdatesRequest | PlainMessage<ListenForUpdatesRequest> | undefined): boolean {
-    return proto3.util.equals(ListenForUpdatesRequest, a, b);
+  static equals(a: ListenForEventsRequest | PlainMessage<ListenForEventsRequest> | undefined, b: ListenForEventsRequest | PlainMessage<ListenForEventsRequest> | undefined): boolean {
+    return proto3.util.equals(ListenForEventsRequest, a, b);
+  }
+}
+
+/**
+ * The one live stream this API has. Everything it pushes travels in this
+ * envelope, so a new kind of event is a new case below rather than a second
+ * stream: one connection per client, one route, and a client that does not
+ * know a case skips it instead of breaking.
+ *
+ * Heartbeat is what keeps a quiet stream alive — Cloudflare cuts a silent
+ * response at ~125s with a 524.
+ *
+ * @generated from message planet.v1.PlanetEvent
+ */
+export class PlanetEvent extends Message<PlanetEvent> {
+  /**
+   * @generated from oneof planet.v1.PlanetEvent.event
+   */
+  event: {
+    /**
+     * @generated from field: planet.v1.TileUpdate tile_update = 1;
+     */
+    value: TileUpdate;
+    case: "tileUpdate";
+  } | {
+    /**
+     * @generated from field: planet.v1.Heartbeat heartbeat = 2;
+     */
+    value: Heartbeat;
+    case: "heartbeat";
+  } | { case: undefined; value?: undefined } = { case: undefined };
+
+  constructor(data?: PartialMessage<PlanetEvent>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.PlanetEvent";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "tile_update", kind: "message", T: TileUpdate, oneof: "event" },
+    { no: 2, name: "heartbeat", kind: "message", T: Heartbeat, oneof: "event" },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PlanetEvent {
+    return new PlanetEvent().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): PlanetEvent {
+    return new PlanetEvent().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): PlanetEvent {
+    return new PlanetEvent().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: PlanetEvent | PlainMessage<PlanetEvent> | undefined, b: PlanetEvent | PlainMessage<PlanetEvent> | undefined): boolean {
+    return proto3.util.equals(PlanetEvent, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.Heartbeat
+ */
+export class Heartbeat extends Message<Heartbeat> {
+  constructor(data?: PartialMessage<Heartbeat>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.Heartbeat";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Heartbeat {
+    return new Heartbeat().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Heartbeat {
+    return new Heartbeat().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Heartbeat {
+    return new Heartbeat().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Heartbeat | PlainMessage<Heartbeat> | undefined, b: Heartbeat | PlainMessage<Heartbeat> | undefined): boolean {
+    return proto3.util.equals(Heartbeat, a, b);
   }
 }
 

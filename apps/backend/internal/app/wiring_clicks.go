@@ -82,6 +82,7 @@ func (a *App) configureClicks(_ context.Context) error {
 		tilesChecker,
 		tilesStorage,
 		tilesStorage,
+		a.config.HTTPServer.StreamHeartbeat,
 		clickLimiter,
 	)
 	errorInterceptor := planetv1controller.NewErrorInterceptor(a.logger)

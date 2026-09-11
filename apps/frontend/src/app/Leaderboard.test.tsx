@@ -3,8 +3,13 @@ import {afterEach, describe, expect, it} from "vitest"
 import {cleanup, render, screen, within} from "@testing-library/react"
 import Leaderboard from "./Leaderboard.tsx"
 import {Countries} from "../domain/countries.ts"
+import {TileDelta, TileDeltas} from "../domain/tileDeltas.ts"
 
 const entry = (code: string, tiles: number) => ({country: Countries.get(code)!, tiles})
+
+const deltas = (pairs: Record<string, number>): TileDeltas => new Map(
+    Object.entries(pairs).map(([code, net]): [string, TileDelta] =>
+        [code, {net, beat: 1, at: 0}]))
 
 const rows = () => screen.queryAllByRole("row").slice(1)
 const cells = () => rows().map(r => within(r).getAllByRole("cell").map(c => c.textContent))
@@ -73,5 +78,52 @@ describe("Leaderboard", () => {
     it("owns no toggle of its own", () => {
         render(<Leaderboard tilesCount={1000} data={[entry("fr", 500)]}/>)
         expect(screen.queryAllByRole("button")).toEqual([])
+    })
+})
+
+describe("Leaderboard tile deltas", () => {
+    const badges = () => rows().map(r => r.querySelector(".leaderboard-delta")?.textContent)
+
+    it("floats what a country just won next to its count", () => {
+        render(<Leaderboard tilesCount={1000}
+                            data={[entry("fr", 503), entry("jp", 250)]}
+                            deltas={deltas({fr: 3})}/>)
+
+        expect(badges()).toEqual(["+3", undefined])
+    })
+
+    it("spells a loss with its minus", () => {
+        render(<Leaderboard tilesCount={1000} data={[entry("fr", 498)]} deltas={deltas({fr: -2})}/>)
+        expect(badges()).toEqual(["-2"])
+    })
+
+    it("badges nothing while the board is still", () => {
+        render(<Leaderboard tilesCount={1000} data={[entry("fr", 500)]}/>)
+        expect(badges()).toEqual([undefined])
+    })
+
+    it("colours the count itself the way the badge reads", () => {
+        render(<Leaderboard tilesCount={1000}
+                            data={[entry("fr", 503), entry("jp", 248), entry("gb-eng", 10)]}
+                            deltas={deltas({fr: 3, jp: -2})}/>)
+
+        expect(rows().map(r => r.querySelector(".leaderboard-table-tiles")!.className))
+            .toEqual([
+                expect.stringContaining("leaderboard-tiles-up"),
+                expect.stringContaining("leaderboard-tiles-down"),
+                expect.not.stringContaining("leaderboard-tiles-"),
+            ])
+    })
+
+    it("keeps the badge out of the row a screen reader reads", () => {
+        render(<Leaderboard tilesCount={1000} data={[entry("fr", 503)]} deltas={deltas({fr: 3})}/>)
+
+        const badge = rows()[0].querySelector(".leaderboard-delta")!
+        expect(badge.getAttribute("aria-hidden")).toBe("true")
+    })
+
+    it("leaves the count itself as the number it is", () => {
+        render(<Leaderboard tilesCount={1000} data={[entry("fr", 503)]} deltas={deltas({fr: 3})}/>)
+        expect(cells()).toEqual([["1", "France", "503+3", "50.30"]])
     })
 })

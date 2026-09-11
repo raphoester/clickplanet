@@ -92,6 +92,64 @@
     box-shadow: inset 3px 0 0 #FF813F;
 }
 
+/* The badge floats out of the cell, so this one column gives up the clipping
+   the country name needs. */
+.leaderboard-entry .leaderboard-table-tiles {
+    position: relative;
+    overflow: visible;
+    transition: color 300ms ease;
+}
+
+.leaderboard-entry .leaderboard-tiles-up {
+    color: #7BE3A0;
+}
+
+.leaderboard-entry .leaderboard-tiles-down {
+    color: #FF8A8A;
+}
+
+/* Sits above its own count, right-aligned with it. `animation-duration` comes
+   from DELTA_HOLD_MS, so the badge fades out exactly as it is dropped. */
+.leaderboard-delta {
+    position: absolute;
+    right: 0;
+    bottom: calc(100% + 1px);
+    pointer-events: none;
+    font-family: Oswald, sans-serif;
+    font-weight: 600;
+    font-size: 11px;
+    line-height: 1;
+    letter-spacing: 0.5px;
+    color: inherit;
+    text-shadow: 0 0 6px #000000, 0 1px 2px #000000;
+    animation: leaderboard-delta 2.5s ease-out forwards;
+}
+
+/* The rows are tight, so the badge never dips below where it comes to rest:
+   it grows into place from its own middle, and leaves upwards. */
+@keyframes leaderboard-delta {
+    0% {
+        opacity: 0;
+        transform: translateY(2px) scale(0.55);
+    }
+    6% {
+        opacity: 1;
+        transform: translateY(-1px) scale(1.15);
+    }
+    12% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+    78% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+    100% {
+        opacity: 0;
+        transform: translateY(-9px) scale(0.95);
+    }
+}
+
 @media only screen and (max-width: 768px) {
     .leaderboard-entry td {
         font-size: 17px;
@@ -103,5 +161,21 @@
 
     .leaderboard-entry .leaderboard-entry-index {
         font-size: 13px;
+    }
+
+    .leaderboard-delta {
+        font-size: 10px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    /* The badge is news, not decoration: it stays for its couple of seconds,
+       it just no longer moves to get there. */
+    .leaderboard-delta {
+        animation: none;
+    }
+
+    .leaderboard-entry .leaderboard-table-tiles {
+        transition: none;
     }
 }
