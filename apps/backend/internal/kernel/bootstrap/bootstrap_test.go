@@ -26,8 +26,6 @@ func TestAModuleThatFailsToBuildNamesItselfInTheError(t *testing.T) {
 	assert.Contains(t, err.Error(), "no log path")
 }
 
-// The router panics on a second registration for the same pattern, so the
-// second module has to be refused before it gets there.
 func TestTwoModulesCannotClaimTheSameRoute(t *testing.T) {
 	var mountErr error
 
@@ -47,8 +45,6 @@ func TestTwoModulesCannotClaimTheSameRoute(t *testing.T) {
 	assert.Contains(t, mountErr.Error(), "clicks")
 }
 
-// Registration order is dependency order, so reversing it closes a module
-// before the ones it was built on top of.
 func TestCleanupsRunInReverseRegistrationOrder(t *testing.T) {
 	var (
 		mu     sync.Mutex
@@ -79,8 +75,6 @@ func TestCleanupsRunInReverseRegistrationOrder(t *testing.T) {
 	assert.Equal(t, []string{"second", "first"}, closed)
 }
 
-// A runner with no context of its own is stopped by a cleanup, so every cleanup
-// has to have run before the runners are waited on.
 func TestEveryCleanupRunsBeforeTheRunnersAreWaitedOn(t *testing.T) {
 	stop := make(chan struct{})
 	stopped := make(chan struct{})
@@ -130,11 +124,40 @@ func TestAProcessWithNoModuleIsRefused(t *testing.T) {
 	require.Error(t, run(t, nil))
 }
 
+func TestADisabledModuleIsNeverBuilt(t *testing.T) {
+	built := false
+
+	require.NoError(t, run(t, []bootstrap.Module{
+		newModule("clicks", func(bootstrap.Props) error { return nil }),
+		disabled(newModule("chat", func(bootstrap.Props) error {
+			built = true
+			return nil
+		})),
+	}))
+
+	assert.False(t, built, "the disabled module's DI sequence ran")
+}
+
+func TestAProcessWhereEveryModuleIsOffIsRefused(t *testing.T) {
+	err := run(t, []bootstrap.Module{
+		disabled(newModule("clicks", func(bootstrap.Props) error { return nil })),
+	})
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "serves nothing")
+}
+
 func newModule(name string, build func(bootstrap.Props) error) bootstrap.Module {
 	return bootstrap.Module{
 		Name:       name,
+		Enabled:    true,
 		DiSequence: func(_ context.Context, props bootstrap.Props) error { return build(props) },
 	}
+}
+
+func disabled(module bootstrap.Module) bootstrap.Module {
+	module.Enabled = false
+	return module
 }
 
 // run boots on an ephemeral port and shuts down as soon as it is serving.
@@ -149,8 +172,8 @@ func run(t *testing.T, modules []bootstrap.Module) error {
 	defer cancel()
 
 	return bootstrap.Run(ctx, bootstrap.Options{
-		BindAddress: "127.0.0.1:0",
-		Logger:      logging.NewNopLogger(),
-		Modules:     modules,
+		Server:  bootstrap.ServerConfig{BindAddress: "127.0.0.1:0"},
+		Logger:  logging.NewNopLogger(),
+		Modules: modules,
 	})
 }

@@ -6,7 +6,6 @@ package clicks
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"connectrpc.com/connect"
 
@@ -36,20 +35,17 @@ const moduleName = "clicks"
 type Deps struct {
 	Countries domain.CountryChecker
 
-	Signer *session.Signer
-
-	// Off counts what enforcing would refuse without refusing it. Read here and
-	// not from a config of ours, because it is the session context's rollout
-	// switch and this one only ever checks a signature.
+	Signer          *session.Signer
 	EnforceSessions bool
 
-	// Must stay well under the proxy's idle cut: Cloudflare answers 524 at ~125s.
-	StreamHeartbeat time.Duration
+	Server bootstrap.ServerConfig
 }
 
+// NewModule is always enabled: a process without the tile game is not this game.
 func NewModule(config Config, deps Deps) bootstrap.Module {
 	return bootstrap.Module{
-		Name: moduleName,
+		Name:    moduleName,
+		Enabled: true,
 		DiSequence: func(_ context.Context, props bootstrap.Props) error {
 			return build(config, deps, props)
 		},
@@ -84,7 +80,7 @@ func build(config Config, deps Deps, props bootstrap.Props) error {
 			tilesChecker,
 			tilesStorage,
 			tilesStorage,
-			deps.StreamHeartbeat,
+			deps.Server.StreamHeartbeat,
 			clickLimiter,
 		),
 		connect.WithInterceptors(interceptors...),

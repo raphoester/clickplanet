@@ -4,7 +4,7 @@
 // routes, registers whatever has to keep running, and says what has to be shut
 // down. It never sees the router, the server, the signal handler or another
 // module's dependencies, so what two contexts share is exactly what the
-// composition root chose to hand both of them — see internal/app.
+// composition root chose to hand both of them — see cmd/api.
 //
 // This is a modular monolith and is meant to stay one: there is one binary, one
 // port and one process, and a module is a boundary inside it rather than a
@@ -16,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -29,6 +30,9 @@ import (
 // Module is one bounded context and the sequence that builds it.
 type Module struct {
 	Name string
+
+	// Off is skipped: its routes are never mounted, so they 404 rather than existing and refusing.
+	Enabled bool
 
 	// DiSequence builds the context. Its ctx is the startup one and is
 	// cancelled once every module is built, so nothing may capture it — what
@@ -64,8 +68,16 @@ type CloserRegistrar interface {
 	Add(name string, close func() error)
 }
 
-type Options struct {
+// ServerConfig is the transport, which the modules speak over but none of them owns.
+type ServerConfig struct {
 	BindAddress string
+
+	// Must stay well under the proxy's idle cut: Cloudflare answers 524 at ~125s.
+	StreamHeartbeat time.Duration
+}
+
+type Options struct {
+	Server ServerConfig
 
 	// How long the whole DI sequence may take before the boot is abandoned.
 	StartupTimeout time.Duration
@@ -90,8 +102,8 @@ const (
 func Run(ctx context.Context, options Options) error {
 	options = options.withDefaults()
 
-	if len(options.Modules) == 0 {
-		return errors.New("the process serves nothing: it was given no module")
+	if !slices.ContainsFunc(options.Modules, func(m Module) bool { return m.Enabled }) {
+		return errors.New("the process serves nothing: every module it was given is off")
 	}
 
 	metrics := prom.NewRegistry()
@@ -127,6 +139,11 @@ func buildModules(
 	defer cancel()
 
 	for _, module := range options.Modules {
+		if !module.Enabled {
+			options.Logger.Info("module disabled", lf.String("module", module.Name))
+			continue
+		}
+
 		before := runners.count()
 
 		err := module.DiSequence(ctx, Props{

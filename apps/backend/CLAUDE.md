@@ -52,7 +52,7 @@ They share the process, the transport and the country list, and **nothing else**
 
 ### The composite layer
 
-Each context wires **itself**, in a `module.go` at its root (`internal/clicks/module.go`, `internal/chat/module.go`, `internal/session/module.go`). A module is a `bootstrap.Module` — a name and a DI sequence — and the sequence is handed a `bootstrap.Props` carrying registrars and nothing else:
+Each context wires **itself**, in a `module.go` at its root (`internal/clicks/module.go`, `internal/chat/module.go`, `internal/session/module.go`). That file is the context's manifest: its `Config`, the `Deps` it cannot build for itself, whether it is on, and its DI sequence. A module is a `bootstrap.Module` — a name, an `Enabled` flag and a DI sequence — and the sequence is handed a `bootstrap.Props` carrying registrars and nothing else:
 
 - `props.RPC.Mount(path, handler)` — both return values of a generated `New<Service>Handler` go straight into it
 - `props.Runners.Add(name, run)` — a goroutine, given the process-lifetime context
@@ -61,16 +61,28 @@ Each context wires **itself**, in a `module.go` at its root (`internal/clicks/mo
 
 A module never sees the router, the server, the signal handler or another module's dependencies. **There is no mutable app object and nothing to leave a half-built dependency on**: `internal/kernel/bootstrap` builds every module in order, then serves.
 
-**`internal/app/` is the composition root and does three things**: load the config, build what more than one context needs, and name the modules. That list is the whole DI sequence, and it is readable top to bottom in `describeModules`.
+**`cmd/api/main.go` is the composition root, and it is the only one** — there is no `internal/app`, because a package whose whole job is to be called once by `main` was a level of indirection and nothing else. It does three things: load the config, build what more than one context needs, and list the modules.
 
-**What two contexts share is a variable there that both are handed**, which is the only way they can share anything:
+**The list is declarative — a flat slice, no branches:**
 
-- `kernel/session.Signer` — the session context mints with it, the clicks context verifies with it. Nil when sessions are off, which leaves the click chain as it was before they existed. Neither imports the other, and **clicks knows nothing about Turnstile** — swapping the attester changes one line in `internal/session/module.go`.
-- the country list — both the tile game and the chat validate against it.
+```go
+return []bootstrap.Module{
+	session.NewModule(config.Session, signer),
+	clicks.NewModule(config.Clicks, clicks.Deps{...}),
+	chat.NewModule(config.Chat, chat.Deps{...}),
+}, nil
+```
 
-Adding a context that callers talk to means a `proto/<name>/v1`, an `internal/<name>/` with a `module.go`, and one line in `describeModules`. Connect derives the route from the proto package, so there is no prefix to allocate and no router to edit.
+**Every module is always listed; each reads its own switch.** `NewModule` sets `Enabled` from the module's own config and `bootstrap` skips the ones that are off, so turning chat off is a config change and never an edit here. A disabled module is never built, so its routes are **absent** rather than present and refusing — `/chat.v1.ChatService/` 404s, which is the contract chat and sessions already had.
 
-**`cmd/api`** is the only binary and is now four lines: `app.Run(ctx)`.
+**What two contexts share is a variable in `describeModules` that both are handed**, which is the only way they can share anything:
+
+- `kernel/session.Signer` — the session context mints with it, the clicks context verifies with it. `session.NewSigner` returns nil when sessions are off, which leaves the click chain as it was before they existed. Neither imports the other, and **clicks knows nothing about Turnstile** — swapping the attester changes one line in `internal/session/module.go`.
+- `kernel/countries` — both the tile game and the chat validate against it. It sits in the kernel and not under `clicks/adapters/` for exactly the reason the kernel exists: neither context may depend on the other.
+
+Adding a context that callers talk to means a `proto/<name>/v1`, an `internal/<name>/` with a `module.go`, and one line in the slice. Connect derives the route from the proto package, so there is no prefix to allocate and no router to edit.
+
+**`cmd/api`** is the only binary: `main.go` is the composition root, about 90 lines, and `bootstrap` is the rest.
 
 It runs as a **single self-contained container with no dependencies**: the tile map lives in process and is persisted to a local snapshot file. There is no database, no cache, and no second process.
 
@@ -120,7 +132,7 @@ The response never repeats a tile id. `GetMapResponse` carries `start_tile_id`, 
 **Secondary (output):**
 - `adapters/secondary/memory_tile_storage/` — the tile map. A preallocated `[]uint16` indexed by tile id, with country codes interned into a side table (2 bytes per tile — ~2 MB for a 1M-tile map). Fans updates out in process and persists to a local snapshot file.
 - `adapters/secondary/in_memory_tile_checker/` — validates tile IDs
-- `adapters/secondary/in_memory_country_checker/` — validates country codes (hardcoded)
+- country codes are validated by `kernel/countries`, which chat shares — see [The composite layer](#the-composite-layer)
 
 Beyond the `domain.TileStorage` port, `memory_tile_storage` also exposes `Subscribe(ctx) (<-chan domain.TileUpdate, error)`, one call per open stream.
 
@@ -166,7 +178,7 @@ Chat is a separate bounded context, not a feature of the tile game: it shares th
 
 Refusal reasons are logged, never returned: a sender learns *that* they were refused, not which check tripped. **The stored text is raw — the frontend must escape it.**
 
-The **vendored VPN lists** do not cover chat: `NewVPNBlockInterceptor` wraps `Click` alone. Chat's blocklist is the same `*ipblock.Blocklist` type, built by `ipblock.NewDenyList` from config prefixes instead of vendored data — so entries are CIDRs and a `/24` is one line rather than 256. Extending the vendored lists to chat is therefore a wiring change (build the list in `describeModules` and hand it to both modules, the way the country list already is), not a second list to write.
+The **vendored VPN lists** do not cover chat: `NewVPNBlockInterceptor` wraps `Click` alone. Chat's blocklist is the same `*ipblock.Blocklist` type, built by `ipblock.NewDenyList` from config prefixes instead of vendored data — so entries are CIDRs and a `/24` is one line rather than 256. Extending the vendored lists to chat is therefore a wiring change (build the list in `describeModules` and hand it to both modules, the way `kernel/countries` already is), not a second list to write.
 
 **The log is an append-only JSONL file**, not the tile snapshot's whole-state codec: different shape, different write pattern. One line per message with `at`, `id`, `name`, `tag`, `authorId`, `country`, `ip`, `userAgent`, `text`. It is fsynced every `flushInterval` rather than per message (a hard kill loses at most that window — the same bargain the snapshot makes), pruned hourly past `retention`, and its tail repopulates the in-memory history at boot so a restart does not blank the chat. Corrupt lines are skipped and reported, never fatal.
 
@@ -430,7 +442,7 @@ The snapshot file is the only thing worth backing up.
 
 ### Kernel (`internal/kernel/`)
 
-Shared infrastructure: `bootstrap` (the composite layer), `cfgutil` (YAML + env config via koanf), `httpserver` (middleware, formats), `logging`, `prom` (Prometheus), `xtime`, `ctxutil`, `ratelimit`, `ipblock`, `atomicfile`, `secrets`.
+Shared infrastructure: `bootstrap` (the composite layer), `countries`, `cfgutil` (YAML + env config via koanf), `httpserver` (middleware, formats), `logging`, `prom` (Prometheus), `xtime`, `ctxutil`, `ratelimit`, `ipblock`, `atomicfile`, `secrets`.
 
 `bootstrap` runs the modules — see [The composite layer](#the-composite-layer). It knows nothing about this game: it takes a list of modules, builds each one under a startup deadline, mounts what they claimed on one router, and serves until the process is signalled.
 
@@ -441,7 +453,7 @@ Two of these are here because both bounded contexts need them and neither should
 
 `session` mints and verifies the click token — see [Sessions](#sessions-internalsession). `turnstile` is the siteverify client it is fed by; both are in the kernel because the session context mints with them and the clicks context verifies with them, and neither context may depend on the other.
 
-`ipblock` is the VPN prefix set — see [VPN blocklist](#vpn-blocklist). `ratelimit` is a keyed token bucket held in this process, like the tile map it protects — with one API instance, a shared counter would buy nothing. Its `Run` loop periodically forgets the buckets that have refilled to capacity, which is free: such a bucket holds exactly what a freshly created one would, and without it the map would keep an entry per address that ever clicked.
+`countries` is the ISO country list both the tile game and the chat validate against. `ipblock` is the VPN prefix set — see [VPN blocklist](#vpn-blocklist). `ratelimit` is a keyed token bucket held in this process, like the tile map it protects — with one API instance, a shared counter would buy nothing. Its `Run` loop periodically forgets the buckets that have refilled to capacity, which is free: such a bucket holds exactly what a freshly created one would, and without it the map would keep an entry per address that ever clicked.
 
 `ipscope` decides what a bucket is keyed on, and every throttle goes through it. Over IPv4 that is the address; over IPv6 it is the surrounding **/64**, because the smallest allocation a subscriber receives is a /64 and most receive far more — a bucket per v6 address is one the same line walks out of by picking its next address, turning one home connection into thousands of callers with a throttle each. The session token binds to the same unit, so the address a token is valid for and the address that spends a budget cannot diverge. Blocking deliberately does **not** use it: the VPN and datacenter lists are precise prefixes already, and widening a hit to the surrounding /64 would refuse neighbours who are not on them.
 

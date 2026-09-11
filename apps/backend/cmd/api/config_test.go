@@ -1,4 +1,4 @@
-package app
+package main
 
 import (
 	"testing"
@@ -16,7 +16,7 @@ import (
 // without a word.
 func TestTheExampleConfigStillReachesTheStructs(t *testing.T) {
 	var config Config
-	require.NoError(t, cfgutil.NewLoader("../../cmd/api/example.yaml").Unmarshal(&config))
+	require.NoError(t, cfgutil.NewLoader("example.yaml").Unmarshal(&config))
 
 	require.True(t, config.Clicks.AntiBot.Enabled)
 
@@ -51,7 +51,7 @@ func TestTheExampleConfigStillReachesTheStructs(t *testing.T) {
 // failing test rather than a bound that silently went back to its default.
 func TestTheExampleConfigStillCarriesTheRestOfTheFile(t *testing.T) {
 	var config Config
-	require.NoError(t, cfgutil.NewLoader("../../cmd/api/example.yaml").Unmarshal(&config))
+	require.NoError(t, cfgutil.NewLoader("example.yaml").Unmarshal(&config))
 
 	assert.Equal(t, "0.0.0.0:8080", config.HTTPServer.BindAddress)
 	assert.NotZero(t, config.Clicks.GameMap.MaxIndex)

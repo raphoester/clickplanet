@@ -30,14 +30,14 @@ import (
 
 const moduleName = "session"
 
-// NewSigner builds the thing this context mints with and the clicks context
-// verifies with.
-//
-// It is deliberately not built inside the DI sequence: it is the one dependency
-// two contexts share, so the composition root holds it and hands it to both.
-// Neither context can then reach into the other for it, and a build with
-// sessions off is a nil signer rather than a module that half exists.
+// NewSigner builds what this context mints with and the clicks context verifies
+// with, nil when sessions are off. It is built outside the DI sequence because
+// it is the one dependency two contexts share.
 func NewSigner(config Config, logger logging.Logger) (*kernelsession.Signer, error) {
+	if !config.Enabled {
+		return nil, nil
+	}
+
 	config = config.withDefaults()
 
 	secret := config.Secret
@@ -60,7 +60,8 @@ func NewSigner(config Config, logger logging.Logger) (*kernelsession.Signer, err
 
 func NewModule(config Config, signer *kernelsession.Signer) bootstrap.Module {
 	return bootstrap.Module{
-		Name: moduleName,
+		Name:    moduleName,
+		Enabled: config.Enabled,
 		DiSequence: func(_ context.Context, props bootstrap.Props) error {
 			return build(config.withDefaults(), signer, props)
 		},

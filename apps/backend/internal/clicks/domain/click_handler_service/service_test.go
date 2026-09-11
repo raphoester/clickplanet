@@ -4,10 +4,10 @@ import (
 	"context"
 	"testing"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/secondary/in_memory_country_checker"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/secondary/in_memory_tile_checker"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/secondary/memory_tile_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/domain/click_handler_service"
+	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/countries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging"
 	"github.com/stretchr/testify/suite"
 )
@@ -31,7 +31,7 @@ func (s *testSuite) SetupSuite() {
 		logging.NewNopLogger(),
 	)
 	tileChecker := in_memory_tile_checker.New(maxIndex)
-	countryChecker := in_memory_country_checker.New()
+	countryChecker := countries.New()
 	s.service = click_handler_service.New(tileChecker, s.storage, countryChecker)
 }
 

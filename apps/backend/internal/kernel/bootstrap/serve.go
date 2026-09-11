@@ -44,7 +44,7 @@ func serve(
 	protocols.SetUnencryptedHTTP2(true)
 
 	server := &http.Server{
-		Addr:      options.BindAddress,
+		Addr:      options.Server.BindAddress,
 		Handler:   router,
 		Protocols: protocols,
 	}

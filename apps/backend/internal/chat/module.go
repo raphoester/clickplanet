@@ -9,7 +9,6 @@ package chat
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"connectrpc.com/connect"
 
@@ -29,19 +28,17 @@ import (
 
 const moduleName = "chat"
 
-// Deps is what the composition root owns rather than this context: the country
-// list both contexts validate against, and the heartbeat period the transport
-// dictates rather than the chat.
+// Deps is what the composition root owns rather than this context.
 type Deps struct {
 	Countries domain.CountryChecker
 
-	// Must stay well under the proxy's idle cut: Cloudflare answers 524 at ~125s.
-	StreamHeartbeat time.Duration
+	Server bootstrap.ServerConfig
 }
 
 func NewModule(config Config, deps Deps) bootstrap.Module {
 	return bootstrap.Module{
-		Name: moduleName,
+		Name:    moduleName,
+		Enabled: config.Enabled,
 		DiSequence: func(_ context.Context, props bootstrap.Props) error {
 			return build(config, deps, props)
 		},
@@ -73,7 +70,7 @@ func build(config Config, deps Deps, props bootstrap.Props) error {
 	}
 
 	err = props.RPC.Mount(chatv1connect.NewChatServiceHandler(
-		chatv1controller.NewChatService(service, storage, deps.StreamHeartbeat),
+		chatv1controller.NewChatService(service, storage, deps.Server.StreamHeartbeat),
 		connect.WithInterceptors(
 			chatv1controller.NewErrorInterceptor(props.Logger),
 			chatv1controller.NewBlocklistInterceptor(blocklist),
