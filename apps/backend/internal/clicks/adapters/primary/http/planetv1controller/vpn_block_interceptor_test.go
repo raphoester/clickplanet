@@ -9,6 +9,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
+	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ratelimit"
 	"github.com/stretchr/testify/require"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
@@ -145,10 +146,20 @@ func TestVPNBlockRunsBeforeTheThrottle(t *testing.T) {
 
 func clickServer(t *testing.T, options ...connect.HandlerOption) *httptest.Server {
 	t.Helper()
+	return clickServerReading(t, nil, options...)
+}
+
+func clickServerReading(
+	t *testing.T,
+	budgets ClickBudgetReader,
+	options ...connect.HandlerOption,
+) *httptest.Server {
+	t.Helper()
 
 	mux := http.NewServeMux()
 	mux.Handle(planetv1connect.NewClickServiceHandler(
-		NewClickService(stubService{}, stubChecker{}, stubMapReader{}, stubSubscriber{}, DefaultHeartbeat),
+		NewClickService(
+			stubService{}, stubChecker{}, stubMapReader{}, stubSubscriber{}, DefaultHeartbeat, budgets),
 		options...,
 	))
 
@@ -160,7 +171,7 @@ func clickServer(t *testing.T, options ...connect.HandlerOption) *httptest.Serve
 
 type allowAll struct{}
 
-func (allowAll) Allow(string) bool { return true }
+func (allowAll) Take(string) (bool, ratelimit.State) { return true, ratelimit.State{} }
 
 func counter(t *testing.T, gatherer prometheus.Gatherer, list string) prometheus.Counter {
 	t.Helper()

@@ -1,7 +1,7 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {bindingsOf, decodeTileUpdate, openUpdatesSocket, PlanetBackend, websocketUrl} from "./planetBackend.ts"
 import {Code, ConnectError} from "@connectrpc/connect"
-import {GetMapResponse, TileUpdate} from "../gen/grpc/planet/v1/planet_pb.ts"
+import {ClickBudget as ClickBudgetMessage, GetMapResponse, TileUpdate} from "../gen/grpc/planet/v1/planet_pb.ts"
 import {RateLimitedError, type Update, VPNBlockedError} from "./backend.ts"
 import {SESSION_HEADER, type SessionProvider, SessionUnavailableError} from "./session.ts"
 
@@ -236,6 +236,11 @@ describe("bindingsOf", () => {
     })
 })
 
+/** A server that throttles nothing, which is what most of these tests are. */
+function noBudget() {
+    return vi.fn().mockResolvedValue({})
+}
+
 type GetMapRequestFields = {startTileId: number, endTileId: number}
 type GetMapMock = ReturnType<typeof getMapMock>
 
@@ -245,7 +250,7 @@ function getMapMock(impl?: (req: GetMapRequestFields) => Promise<GetMapResponse>
 
 describe("PlanetBackend.getCurrentOwnershipsByBatch", () => {
     const backendWith = (getMap: GetMapMock) => {
-        const client = {click: vi.fn(), getMap, mapDensity: vi.fn()} as never
+        const client = {click: vi.fn(), getMap, getBudget: noBudget(), mapDensity: vi.fn()} as never
         return new PlanetBackend({baseUrl: "https://api.test"}, client, 1_000)
     }
 
@@ -305,7 +310,7 @@ describe("PlanetBackend.getCurrentOwnershipsByBatch", () => {
 
 describe("PlanetBackend.clickTile", () => {
     const backendWith = (click: ReturnType<typeof vi.fn>, session?: SessionProvider) => {
-        const clientStub = {click, getMap: vi.fn(), mapDensity: vi.fn()} as never
+        const clientStub = {click, getMap: vi.fn(), getBudget: noBudget(), mapDensity: vi.fn()} as never
         return new PlanetBackend({baseUrl: "https://api.test"}, clientStub, 1_000, session)
     }
 
@@ -432,6 +437,141 @@ describe("PlanetBackend.clickTile", () => {
 
         await backend.clickTile(1, "fr")
         expect(click).toHaveBeenCalledTimes(2)
+        backend.close()
+    })
+})
+
+describe("PlanetBackend click budget", () => {
+    const budgetClient = (
+        click: ReturnType<typeof vi.fn>,
+        getBudget: ReturnType<typeof vi.fn> = noBudget(),
+    ) => ({click, getMap: vi.fn(), getBudget, mapDensity: vi.fn()} as never)
+
+    const budget = (tokens: number, capacity = 10, refillPerSecond = 1) =>
+        new ClickBudgetMessage({tokens, capacity, refillPerSecond})
+
+    const watch = (backend: PlanetBackend) => {
+        const seen: number[] = []
+        backend.watchClickBudget(b => seen.push(b.tokens))
+        return seen
+    }
+
+    it("reads the allowance once at load, for a client that has not clicked yet", async () => {
+        const getBudget = vi.fn().mockResolvedValue({budget: budget(7)})
+        const backend = new PlanetBackend({baseUrl: "https://api.test"}, budgetClient(vi.fn(), getBudget), 1_000)
+
+        await vi.waitFor(() => expect(getBudget).toHaveBeenCalledTimes(1))
+
+        // Subscribing after the read still gets it: a React tree mounts later.
+        expect(watch(backend)).toEqual([7])
+        backend.close()
+    })
+
+    it("re-anchors on what every click answers", async () => {
+        const click = vi.fn()
+            .mockResolvedValueOnce({budget: budget(6)})
+            .mockResolvedValueOnce({budget: budget(5)})
+        const backend = new PlanetBackend({baseUrl: "https://api.test"}, budgetClient(click), 1_000)
+
+        const seen = watch(backend)
+        await backend.clickTile(1, "fr")
+        await backend.clickTile(2, "fr")
+
+        expect(seen.at(-1)).toBe(5)
+        backend.close()
+    })
+
+    it("takes a click off the counter the moment it is sent, not when it lands", async () => {
+        let land: (res: unknown) => void = () => {}
+        const click = vi.fn().mockImplementation(() => new Promise(resolve => {
+            land = resolve
+        }))
+        const getBudget = vi.fn().mockResolvedValue({budget: budget(4)})
+        const backend = new PlanetBackend({baseUrl: "https://api.test"}, budgetClient(click, getBudget), 1_000)
+
+        await vi.waitFor(() => expect(getBudget).toHaveBeenCalledTimes(1))
+        const seen = watch(backend)
+
+        const inFlight = backend.clickTile(1, "fr")
+        expect(seen.at(-1)).toBe(3)
+
+        // The click only leaves once the session has answered, a microtask later.
+        await vi.waitFor(() => expect(click).toHaveBeenCalledTimes(1))
+        land({budget: budget(3)})
+        await inFlight
+
+        expect(seen.at(-1)).toBe(3)
+        backend.close()
+    })
+
+    it("never promises a click the server has already spent", async () => {
+        let land: (res: unknown) => void = () => {}
+        const click = vi.fn()
+            .mockResolvedValueOnce({budget: budget(9)})
+            .mockImplementationOnce(() => new Promise(resolve => {
+                land = resolve
+            }))
+        const backend = new PlanetBackend({baseUrl: "https://api.test"}, budgetClient(click), 1_000)
+
+        const seen = watch(backend)
+        await backend.clickTile(1, "fr")
+
+        const second = backend.clickTile(2, "fr")
+        expect(seen.at(-1)).toBe(8)
+
+        await vi.waitFor(() => expect(click).toHaveBeenCalledTimes(2))
+        land({budget: budget(8)})
+        await second
+        backend.close()
+    })
+
+    it("takes the reading off a refusal, which is where it matters most", async () => {
+        const refusal = new ConnectError(
+            "too many clicks", Code.ResourceExhausted, undefined, [budget(0)])
+        const click = vi.fn().mockRejectedValue(refusal)
+        const backend = new PlanetBackend({baseUrl: "https://api.test"}, budgetClient(click), 1_000)
+
+        const seen = watch(backend)
+        await expect(backend.clickTile(1, "fr")).rejects.toBeInstanceOf(RateLimitedError)
+
+        expect(seen.at(-1)).toBe(0)
+        backend.close()
+    })
+
+    it("says nothing at all against a server that does not throttle clicks", async () => {
+        const click = vi.fn().mockResolvedValue({})
+        const backend = new PlanetBackend({baseUrl: "https://api.test"}, budgetClient(click), 1_000)
+
+        const seen = watch(backend)
+        await backend.clickTile(1, "fr")
+
+        expect(seen).toEqual([])
+        backend.close()
+    })
+
+    it("stays quiet against a server too old to know the call", async () => {
+        const error = vi.spyOn(console, "error").mockImplementation(() => {})
+        const getBudget = vi.fn().mockRejectedValue(new ConnectError("nope", Code.Unimplemented))
+        const backend = new PlanetBackend({baseUrl: "https://api.test"}, budgetClient(vi.fn(), getBudget), 1_000)
+
+        await vi.waitFor(() => expect(getBudget).toHaveBeenCalledTimes(1))
+
+        expect(watch(backend)).toEqual([])
+        expect(error).not.toHaveBeenCalled()
+        backend.close()
+    })
+
+    it("stops reporting once unsubscribed", async () => {
+        const click = vi.fn().mockResolvedValue({budget: budget(6)})
+        const backend = new PlanetBackend({baseUrl: "https://api.test"}, budgetClient(click), 1_000)
+
+        const seen: number[] = []
+        const stop = backend.watchClickBudget(b => seen.push(b.tokens))
+        stop()
+
+        await backend.clickTile(1, "fr")
+
+        expect(seen).toEqual([])
         backend.close()
     })
 })

@@ -7,6 +7,7 @@ import {
     UpdatesListener,
     VPNBlockedError,
 } from "./backend.ts";
+import {ClickBudget, ClickBudgetSource, now as budgetNow} from "./clickBudget.ts";
 import {SessionUnavailableError} from "./session.ts";
 import {v4 as UUIDv4} from 'uuid';
 import {Countries} from "../domain/countries.ts";
@@ -21,11 +22,12 @@ export type FakeBackendOptions = {
     sessionUnavailable?: boolean
 }
 
-export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListener {
+export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource {
     private tileBindings: Map<number, string> = new Map()
     private updateListeners: Map<string, (update: Update) => void> = new Map()
     private pendingUpdates: Update[] = []
     private updateBatchCallbacks: Map<string, (update: Update[]) => void> = new Map()
+    private budgetCallbacks: Map<string, (budget: ClickBudget) => void> = new Map()
     private readonly timers: ReturnType<typeof setInterval>[] = []
     private tokens = CLICK_BURST
     private lastRefillMs = Date.now()
@@ -67,13 +69,46 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         this.timers.length = 0
         this.updateListeners.clear()
         this.updateBatchCallbacks.clear()
+        this.budgetCallbacks.clear()
     }
 
     public async clickTile(tileId: number, countryId: string) {
         if (this.sessionUnavailable) throw new SessionUnavailableError()
         if (this.vpnBlocked) throw new VPNBlockedError()
-        if (!this.allow()) throw new RateLimitedError()
+
+        const allowed = this.allow()
+        this.reportBudget()
+
+        if (!allowed) throw new RateLimitedError()
         this.applyClick(tileId, countryId)
+    }
+
+    /**
+     * Stands in for what the real server puts on every click answer, so the
+     * counter is live in dev without a backend. There is no latency here, so it
+     * is also the one place the counter cannot be caught lying.
+     */
+    public watchClickBudget(callback: (budget: ClickBudget) => void): () => void {
+        const id = UUIDv4()
+        this.budgetCallbacks.set(id, callback)
+        callback(this.budget())
+        return () => this.budgetCallbacks.delete(id)
+    }
+
+    private reportBudget() {
+        const budget = this.budget()
+        this.budgetCallbacks.forEach(callback => callback(budget))
+    }
+
+    private budget(): ClickBudget {
+        this.refill()
+
+        return {
+            tokens: this.tokens,
+            capacity: CLICK_BURST,
+            perSecond: CLICKS_PER_SECOND,
+            readAt: budgetNow(),
+        }
     }
 
     private applyClick(tileId: number, countryId: string) {
@@ -87,16 +122,20 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     }
 
     private allow(): boolean {
+        this.refill()
+
+        if (this.tokens < 1) return false
+        this.tokens -= 1
+        return true
+    }
+
+    private refill() {
         const now = Date.now()
         this.tokens = Math.min(
             CLICK_BURST,
             this.tokens + ((now - this.lastRefillMs) / 1000) * CLICKS_PER_SECOND,
         )
         this.lastRefillMs = now
-
-        if (this.tokens < 1) return false
-        this.tokens -= 1
-        return true
     }
 
     public listenForUpdates(

@@ -1,0 +1,112 @@
+import {useEffect, useRef} from 'react'
+import {ClickBudget, now, tokensAt} from "../../backends/clickBudget.ts"
+import "./ClickBudgetMeter.css"
+
+export type ClickBudgetMeterProps = {
+    budget?: ClickBudget
+}
+
+/** Above this many, a row of pips is unreadable and it becomes one bar. */
+const MAX_PIPS = 12
+
+/** Below this, the player is close enough to the wall to be warned. */
+const LOW_WATER = 3
+
+/** Reduced motion steps the fill instead of gliding it. */
+const STEP_MS = 250
+
+/**
+ * How many clicks the server will still take, and the next one arriving.
+ *
+ * The count comes from the server and nowhere else — see clickBudget.ts for why
+ * a client-side bucket could not tell the truth here. What this adds is the
+ * only part that is honestly local: replaying the refill between two readings,
+ * so the pip fills smoothly rather than jumping once per answer.
+ *
+ * Everything about the shape is read off the server's own policy. The number of
+ * pips *is* the burst, and the fill rate *is* the refill rate, so changing
+ * either in the backend's config changes this with no frontend release.
+ */
+export default function ClickBudgetMeter({budget}: ClickBudgetMeterProps) {
+    const root = useRef<HTMLDivElement>(null)
+    const count = useRef<HTMLSpanElement>(null)
+
+    useEffect(() => {
+        if (!budget) return
+
+        const box = root.current
+        const label = count.current
+        if (!box || !label) return
+
+        let shown = -1
+
+        const draw = () => {
+            const tokens = tokensAt(budget, now())
+            const whole = Math.floor(tokens)
+
+            // One write, and every pip works out its own share of it.
+            box.style.setProperty("--click-budget-tokens", tokens.toFixed(3))
+
+            // The rest changes about once a second, so it is not written per
+            // frame — this sits beside a WebGL scene that wants the main thread.
+            if (whole === shown) return
+            shown = whole
+
+            label.textContent = String(whole)
+            box.setAttribute("aria-valuenow", String(whole))
+            box.classList.toggle("click-budget-empty", whole === 0)
+            box.classList.toggle("click-budget-low", whole > 0 && whole <= LOW_WATER)
+            box.classList.toggle("click-budget-full", whole >= budget.capacity)
+        }
+
+        draw()
+
+        if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+            const timer = setInterval(draw, STEP_MS)
+            return () => clearInterval(timer)
+        }
+
+        let frame = requestAnimationFrame(function tick() {
+            draw()
+            frame = requestAnimationFrame(tick)
+        })
+
+        return () => cancelAnimationFrame(frame)
+    }, [budget])
+
+    // A backend that reports no allowance is one that enforces none here.
+    if (!budget) return null
+
+    const pips = budget.capacity <= MAX_PIPS ? budget.capacity : 0
+
+    // The effect redraws this on its first frame; rendering the reading rather
+    // than a placeholder is what stops the count flashing a wrong number first.
+    const whole = Math.floor(tokensAt(budget, now()))
+
+    return <div
+        ref={root}
+        className="click-budget"
+        role="meter"
+        aria-valuemin={0}
+        aria-valuenow={whole}
+        aria-valuemax={budget.capacity}
+        aria-label="Clicks left before the server slows you down"
+        style={{"--click-budget-capacity": budget.capacity} as React.CSSProperties}>
+
+        <div className="click-budget-count">
+            <span ref={count} className="click-budget-number">{whole}</span>
+            <span className="click-budget-unit">left</span>
+        </div>
+
+        {pips > 0
+            ? <div className="click-budget-pips">
+                {Array.from({length: pips}, (_, index) =>
+                    <span
+                        key={index}
+                        className="click-budget-pip"
+                        style={{"--click-budget-index": index} as React.CSSProperties}/>,
+                )}
+            </div>
+            : <div className="click-budget-bar"/>}
+    </div>
+}

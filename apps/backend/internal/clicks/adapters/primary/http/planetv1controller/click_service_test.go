@@ -48,7 +48,7 @@ func newTestClientWith(
 
 	mux := http.NewServeMux()
 	mux.Handle(planetv1connect.NewClickServiceHandler(
-		NewClickService(svc, stubChecker{}, stubMapReader{}, subscriber, heartbeat),
+		NewClickService(svc, stubChecker{}, stubMapReader{}, subscriber, heartbeat, nil),
 		connect.WithInterceptors(NewErrorInterceptor(nil)),
 	))
 

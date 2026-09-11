@@ -233,3 +233,121 @@ export class GetHistoryResponse extends Message<GetHistoryResponse> {
   }
 }
 
+/**
+ * @generated from message chat.v1.ListenForEventsRequest
+ */
+export class ListenForEventsRequest extends Message<ListenForEventsRequest> {
+  constructor(data?: PartialMessage<ListenForEventsRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chat.v1.ListenForEventsRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListenForEventsRequest {
+    return new ListenForEventsRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListenForEventsRequest {
+    return new ListenForEventsRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListenForEventsRequest {
+    return new ListenForEventsRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListenForEventsRequest | PlainMessage<ListenForEventsRequest> | undefined, b: ListenForEventsRequest | PlainMessage<ListenForEventsRequest> | undefined): boolean {
+    return proto3.util.equals(ListenForEventsRequest, a, b);
+  }
+}
+
+/**
+ * The one live stream this API has — see the note on planet.v1.PlanetEvent. A
+ * new kind of event is a new case below, not a second stream.
+ *
+ * Heartbeat is what keeps a quiet stream alive, and a quiet chat is the normal
+ * case: Cloudflare cuts a silent response at ~125s with a 524.
+ *
+ * @generated from message chat.v1.ChatEvent
+ */
+export class ChatEvent extends Message<ChatEvent> {
+  /**
+   * @generated from oneof chat.v1.ChatEvent.event
+   */
+  event: {
+    /**
+     * @generated from field: chat.v1.ChatMessage message = 1;
+     */
+    value: ChatMessage;
+    case: "message";
+  } | {
+    /**
+     * @generated from field: chat.v1.Heartbeat heartbeat = 2;
+     */
+    value: Heartbeat;
+    case: "heartbeat";
+  } | { case: undefined; value?: undefined } = { case: undefined };
+
+  constructor(data?: PartialMessage<ChatEvent>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chat.v1.ChatEvent";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "message", kind: "message", T: ChatMessage, oneof: "event" },
+    { no: 2, name: "heartbeat", kind: "message", T: Heartbeat, oneof: "event" },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ChatEvent {
+    return new ChatEvent().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ChatEvent {
+    return new ChatEvent().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ChatEvent {
+    return new ChatEvent().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ChatEvent | PlainMessage<ChatEvent> | undefined, b: ChatEvent | PlainMessage<ChatEvent> | undefined): boolean {
+    return proto3.util.equals(ChatEvent, a, b);
+  }
+}
+
+/**
+ * @generated from message chat.v1.Heartbeat
+ */
+export class Heartbeat extends Message<Heartbeat> {
+  constructor(data?: PartialMessage<Heartbeat>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chat.v1.Heartbeat";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Heartbeat {
+    return new Heartbeat().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Heartbeat {
+    return new Heartbeat().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Heartbeat {
+    return new Heartbeat().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Heartbeat | PlainMessage<Heartbeat> | undefined, b: Heartbeat | PlainMessage<Heartbeat> | undefined): boolean {
+    return proto3.util.equals(Heartbeat, a, b);
+  }
+}
+
