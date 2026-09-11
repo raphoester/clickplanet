@@ -119,13 +119,18 @@
     /*
      * Both ends of a phone screen are taken: the menu is a header sheet and the
      * chat is a footer one, each full width. So it moves to just under the
-     * folded menu instead — opening either sheet covers it, which is what the
-     * player asked for by opening it.
+     * folded menu instead.
+     *
+     * That puts it under the menu when the sheet unfolds, and the menu carries
+     * the same z-index while being painted first — so the meter would sit on
+     * top and strike through the leading leaderboard rows. One below hands the
+     * sheet the front, where its blurred back leaves only a soft patch.
      */
     .click-budget {
         top: 66px;
         left: 16px;
         right: auto;
+        z-index: 127;
         padding: 6px 10px;
         gap: 8px;
         border-radius: 24px;
