@@ -7,7 +7,7 @@ managed add-ons were, and none of them are needed. Target cost is **~$6/month**.
 | Piece | Where | Cost |
 |---|---|---|
 | Frontend (static bundle + textures) | Cloudflare Pages | free |
-| API + WebSocket (`cmd/api`) | DigitalOcean droplet, Docker Compose | ~$6/mo |
+| API (`cmd/api`)             | DigitalOcean droplet, Docker Compose | ~$6/mo |
 | TLS | Caddy, automatic Let's Encrypt over DNS-01 | free |
 | Images | GitHub Container Registry | free |
 | DNS | Cloudflare | free |
@@ -36,7 +36,7 @@ Caddyfile; it moves to any provider that rents a Linux box.
   keeps a history the API's in-process counters cannot (see
   [Evidence has to outlive a deploy](#evidence-has-to-outlive-a-deploy-and-by-default-it-does-not)).
   There is no database.
-- `Caddyfile` — TLS via DNS-01, reverse proxy, CORS (see [Testing a local frontend against this API](#testing-a-local-frontend-against-this-api)), WebSocket passthrough
+- `Caddyfile` — TLS via DNS-01, reverse proxy, CORS
 - `caddy/Dockerfile` — Caddy built with `caddy-dns/cloudflare`. The stock image
   has no DNS provider module and cannot solve the DNS-01 challenge.
 - `backend.yaml` — API config; secrets come from env, not this file
@@ -126,7 +126,7 @@ Let's Encrypt certificate, so strict verification passes; the Flexible mode
 talks plain HTTP to the origin, which Caddy redirects to HTTPS, giving a
 redirect loop.
 
-WebSockets work through the proxy on the free plan.
+Long-lived server-streaming responses pass through the proxy on the free plan, provided they are never silent — see `httpServer.streamHeartbeat`.
 
 ## 3. The droplet
 
@@ -354,7 +354,7 @@ alongside a second watchdog. `jury.minSuspects` (2) is how many it takes.
 A flagged caller's clicks are answered `OK` and dropped. That is deliberately not
 a refusal — a 403 names the check that tripped, and a silent no-op names nothing,
 so working around it is guesswork instead of a diff. It is not permanent: the
-caller reads the map back over the same websocket and will notice eventually.
+caller reads the map back over the same stream and will notice eventually.
 
 `backend.yaml` ships `enabled: true` with `shadowBan.enforce: false`, which
 judges and logs without dropping anything. **Do not flip `enforce` before reading
@@ -560,7 +560,7 @@ Pages deploys itself on push; no workflow needed.
 ## 8. Live chat
 
 `chat.enabled: true` in `backend.yaml` publishes two routes Caddy already
-forwards: `/chat.v1.ChatService/` and `/ws/chat`. `SendMessage` is an
+forwards, `ListenForEvents` included: `/chat.v1.ChatService/`. `SendMessage` is an
 **unauthenticated public write endpoint** — anyone who can reach the API can
 post, under any name — so the things that keep it usable are all config:
 
@@ -617,33 +617,6 @@ every 30s and on every clean shutdown. A nightly cron on the box is enough:
 
 DigitalOcean's droplet backups (+20% of the droplet price, so ~$1.20/mo) cover
 the whole disk if you would rather not think about it.
-
-## Testing a local frontend against this API
-
-`npm run dev` on a laptop serves the frontend from `http://localhost:5173`, and
-the API answers CORS for that origin as well as for `FRONTEND_ORIGIN`. Point the
-dev frontend at `https://$API_DOMAIN` and it works against production data.
-
-CORS carries **exactly one origin and never a list**, so the Caddyfile picks the
-value per request with a `map` on the request's `Origin`. It is written that way
-rather than as a second `header` directive with a matcher for a reason worth
-keeping: the matcher form *adds* a second `Access-Control-Allow-Origin` next to
-the one the Go middleware already sent, and a browser rejects a response
-carrying two of them. `Vary: Origin` is what stops a cache in front serving the
-localhost answer to a real visitor.
-
-This admits any page on port 5173 of a developer's own machine — that is the
-whole cost, and it is why the entry is temporary. **Delete the `map` when the
-frontend has moved off the websockets**, together with the `/ws/*` routes.
-
-Two things it does not buy:
-
-- **Clicking still fails**, because `session.turnstile.hostnames` refuses a
-  token whose siteverify hostname is not listed, and localhost must never be on
-  that list. Reads and both live streams need no session, so watching the planet
-  and the chat works.
-- **Nothing here changes who may write.** The throttle, the blocklist and the
-  session check all key on the caller's address exactly as before.
 
 ## Rollback
 

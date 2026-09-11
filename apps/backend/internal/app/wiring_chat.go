@@ -16,7 +16,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ipblock"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging/lf"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ratelimit"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/wspublisher"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/xtime"
 )
 
@@ -44,20 +43,6 @@ func (a *App) configureChatIfEnabled(_ context.Context) error {
 		xtime.ActualProvider{},
 		serviceConfig,
 	)
-
-	messagesCh, err := chatStorage.Subscribe(a.ctx)
-	if err != nil {
-		return fmt.Errorf("failed to subscribe to chat messages: %w", err)
-	}
-
-	publisher := wspublisher.New(
-		messagesCh,
-		chatv1controller.MessageRoute,
-		chatv1controller.EncodeMessage,
-		a.logger,
-	)
-	a.runners = append(a.runners, publisher.Run)
-	a.mountWS(publisher.DeclareRoutes)
 
 	messageLimiter := ratelimit.New(a.config.Chat.RateLimiter, xtime.ActualProvider{})
 	a.runners = append(a.runners, func() { messageLimiter.Run(a.ctx) })

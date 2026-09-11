@@ -26,7 +26,7 @@ rateLimiter:
 
 # Refuses clicks from known VPN and proxy ranges: the throttle above is keyed on
 # an address, and a VPN is the cheap way to get a fresh one. Reads and the
-# websocket are untouched, so a VPN user still watches the planet.
+# streams are untouched, so a VPN user still watches the planet.
 vpnBlocklist:
   enabled: true
   # Also refuses datacenter and hosting ranges, which is what catches a

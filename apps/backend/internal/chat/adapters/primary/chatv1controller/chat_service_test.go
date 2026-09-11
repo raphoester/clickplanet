@@ -18,7 +18,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ipblock"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ratelimit"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/proto"
 )
 
 type stubService struct {
@@ -281,24 +280,6 @@ func TestGetHistoryIsNeverCached(t *testing.T) {
 
 	require.Len(t, res.Msg.GetMessages(), 1)
 	require.Equal(t, "no-store", res.Header().Get("Cache-Control"))
-}
-
-func TestEncodeMessageProducesABareChatMessage(t *testing.T) {
-	bin, err := EncodeMessage(domain.ChatMessage{
-		ID:         "message-1",
-		SentAt:     time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-		AuthorName: "Bob",
-		AuthorTag:  "a1b2c3",
-		CountryID:  "fr",
-		Text:       "hello planet",
-	})
-	require.NoError(t, err)
-
-	var decoded chatv1.ChatMessage
-	require.NoError(t, proto.Unmarshal(bin, &decoded))
-	require.Equal(t, "message-1", decoded.GetId())
-	require.Equal(t, "hello planet", decoded.GetText())
-	require.Equal(t, "a1b2c3", decoded.GetAuthorTag())
 }
 
 func sendOnce(server *httptest.Server, ip string) error {
