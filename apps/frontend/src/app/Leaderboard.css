@@ -44,6 +44,9 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    /* Two rows' worth of this is the gap the delta badge lives in, so it never
+       has to be read on top of the count of the country above. */
+    padding-block: 7px;
 }
 
 /* Tighter than elsewhere: the country column is the narrowest place a flag
@@ -108,12 +111,14 @@
     color: #FF8A8A;
 }
 
-/* Sits above its own count, right-aligned with it. `animation-duration` comes
-   from DELTA_HOLD_MS, so the badge fades out exactly as it is dropped. */
+/* Sits in the gap above its own count, right-aligned with it: its bottom edge
+   is the top of the count, so it stays between the two rows instead of
+   overflowing onto the one above. `animation-duration` comes from
+   DELTA_HOLD_MS, so the badge fades out exactly as it is dropped. */
 .leaderboard-delta {
     position: absolute;
     right: 0;
-    bottom: calc(100% + 1px);
+    bottom: calc(100% - 7px);
     pointer-events: none;
     font-family: Oswald, sans-serif;
     font-weight: 600;
@@ -125,8 +130,8 @@
     animation: leaderboard-delta 2.5s ease-out forwards;
 }
 
-/* The rows are tight, so the badge never dips below where it comes to rest:
-   it grows into place from its own middle, and leaves upwards. */
+/* The badge never dips below where it comes to rest: it grows into place from
+   its own middle, and leaves upwards into the gap it already sits in. */
 @keyframes leaderboard-delta {
     0% {
         opacity: 0;
@@ -146,7 +151,7 @@
     }
     100% {
         opacity: 0;
-        transform: translateY(-9px) scale(0.95);
+        transform: translateY(-4px) scale(0.95);
     }
 }
 
