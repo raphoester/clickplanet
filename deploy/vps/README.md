@@ -32,8 +32,11 @@ Caddyfile; it moves to any provider that rents a Linux box.
 
 - `bootstrap.sh` — provisions a fresh droplet end to end. Run it from your
   laptop with `--host`; it copies itself over and re-runs there as root.
-- `docker-compose.yaml` — Caddy + backend. That is the whole stack; there is no database.
-- `Caddyfile` — TLS via DNS-01, reverse proxy, CORS, WebSocket passthrough
+- `docker-compose.yaml` — Caddy + backend, plus a small metrics poller that
+  keeps a history the API's in-process counters cannot (see
+  [Evidence has to outlive a deploy](#evidence-has-to-outlive-a-deploy-and-by-default-it-does-not)).
+  There is no database.
+- `Caddyfile` — TLS via DNS-01, reverse proxy, CORS (see [Testing a local frontend against this API](#testing-a-local-frontend-against-this-api)), WebSocket passthrough
 - `caddy/Dockerfile` — Caddy built with `caddy-dns/cloudflare`. The stock image
   has no DNS provider module and cannot solve the DNS-01 challenge.
 - `backend.yaml` — API config; secrets come from env, not this file
@@ -460,6 +463,55 @@ the `wget` line above.
 
 To undo one, set `enforce` back to false and redeploy — bans live in memory
 only, so a restart clears every one of them.
+### Evidence has to outlive a deploy, and by default it does not
+
+Everything above is in-process. A deploy pulls a new image and **recreates** the
+container, which resets every counter and histogram to zero — and, less
+obviously, deletes the log too: Docker's default `json-file` driver stores logs
+per container id, so the old container taking its `antibot ban` lines
+with it is the bigger loss of the two. Two pieces of the compose file exist for
+this.
+
+**The backend logs to journald**, which is stored on the host rather than under
+the container:
+
+```bash
+journalctl CONTAINER_NAME=cp-backend --since '2 days ago' | grep "antibot ban"
+```
+
+`docker compose logs backend` still works and still shows only the current
+container, which is usually what you want; `journalctl` is how you read across a
+deploy. This needs a persistent journal — check `journalctl --disk-usage`, and
+if `/var/log/journal` does not exist the journal is memory-only and this buys
+nothing.
+
+**`cp-metrics-poller` scrapes `/metrics` every `POLL_INTERVAL` seconds** and
+appends the shadowban and click series to the `metrics_history` volume, one
+file per UTC day, pruned after `POLL_RETENTION_DAYS`:
+
+```bash
+docker compose exec -T metrics-poller ls /history
+docker compose exec -T metrics-poller cat /history/metrics-2026-09-11.prom
+```
+
+Each block is stamped with the time it was taken. The values are cumulative
+since the API started, so **you read this by subtracting two blocks**, not by
+looking at one:
+
+```bash
+docker compose exec -T metrics-poller sh -c \
+  "grep -A22 '^# 2026-09-11T06' /history/metrics-2026-09-11.prom | head -23"
+```
+
+A block whose numbers are *lower* than the block above it is where a deploy
+happened and the counters restarted. Subtract within a run, never across one.
+
+It is not a Prometheus, deliberately: a real one is 80–150 MB resident beside a
+1 GB droplet already holding the tile map, and the job here is comparing two
+samples a day apart. If this ever needs `histogram_quantile` and proper
+reset-aware `rate()`, that is the moment to spend the memory — the poller is
+then deleted, not extended.
+
 ## 7. CI and the image registry
 
 `.github/workflows/deploy-backend.yml` builds the image to GHCR and rolls the
@@ -565,6 +617,33 @@ every 30s and on every clean shutdown. A nightly cron on the box is enough:
 
 DigitalOcean's droplet backups (+20% of the droplet price, so ~$1.20/mo) cover
 the whole disk if you would rather not think about it.
+
+## Testing a local frontend against this API
+
+`npm run dev` on a laptop serves the frontend from `http://localhost:5173`, and
+the API answers CORS for that origin as well as for `FRONTEND_ORIGIN`. Point the
+dev frontend at `https://$API_DOMAIN` and it works against production data.
+
+CORS carries **exactly one origin and never a list**, so the Caddyfile picks the
+value per request with a `map` on the request's `Origin`. It is written that way
+rather than as a second `header` directive with a matcher for a reason worth
+keeping: the matcher form *adds* a second `Access-Control-Allow-Origin` next to
+the one the Go middleware already sent, and a browser rejects a response
+carrying two of them. `Vary: Origin` is what stops a cache in front serving the
+localhost answer to a real visitor.
+
+This admits any page on port 5173 of a developer's own machine — that is the
+whole cost, and it is why the entry is temporary. **Delete the `map` when the
+frontend has moved off the websockets**, together with the `/ws/*` routes.
+
+Two things it does not buy:
+
+- **Clicking still fails**, because `session.turnstile.hostnames` refuses a
+  token whose siteverify hostname is not listed, and localhost must never be on
+  that list. Reads and both live streams need no session, so watching the planet
+  and the chat works.
+- **Nothing here changes who may write.** The throttle, the blocklist and the
+  session check all key on the caller's address exactly as before.
 
 ## Rollback
 

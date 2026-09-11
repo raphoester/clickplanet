@@ -74,8 +74,84 @@ services:
       - ./backend.yaml:/home/app/config/config.yaml:ro
       - tile_state:/home/app/state   # snapshot file lives here — back this up
     command: [ "./api", "-config", "/home/app/config/config.yaml" ]
+    # journald, not the default json-file. json-file is stored per container id,
+    # and a deploy pulls a new image and *recreates* the container — so every
+    # "antibot ban" line written since the last deploy is deleted along
+    # with the old container. journald keeps them on the host instead:
+    #
+    #   journalctl CONTAINER_NAME=cp-backend --since '2 days ago' | grep "antibot ban"
+    #
+    # `docker compose logs backend` still works and still shows only the current
+    # container, which is usually what you want; journalctl is how you read
+    # across a deploy. Needs a persistent journal — check `journalctl
+    # --disk-usage`, and if /var/log/journal is missing this buys nothing.
+    logging:
+      driver: journald
+      options:
+        tag: cp-backend
+
+  # Scrapes /metrics on a timer and appends it to a volume, because the API's
+  # metrics live in its process and a deploy resets every counter and histogram
+  # to zero. Not a Prometheus: a real one is 80-150 MB resident next to a 1 GB
+  # droplet already holding the tile map, and what this is for is reading two
+  # samples a day apart and subtracting them.
+  #
+  # Counters only ever go up within one container's life, so a block whose
+  # values are *lower* than the block above it is where a deploy happened —
+  # compare within a run, not across one.
+  metrics-poller:
+    image: alpine:3
+    container_name: cp-metrics-poller
+    restart: unless-stopped
+    depends_on:
+      - backend
+    volumes:
+      - metrics_history:/history
+    environment:
+      # Seconds between scrapes, and days of files to keep. A sample every five
+      # minutes is 288 blocks a day, a few hundred KB — the counters are
+      # cumulative, so resolution only decides how precisely you can place a
+      # change in time, never what you can total.
+      POLL_INTERVAL: ${POLL_INTERVAL:-300}
+      POLL_RETENTION_DAYS: ${POLL_RETENTION_DAYS:-14}
+    # No shell file to mount: the whole job is a loop, and keeping it here means
+    # it cannot drift from the compose file that runs it.
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        interval=$${POLL_INTERVAL:-300}
+        retention=$${POLL_RETENTION_DAYS:-14}
+        echo "polling backend:8080/metrics every $${interval}s, keeping $${retention} days"
+        while true; do
+          stamp=$$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          file=/history/metrics-$$(date -u +%Y-%m-%d).prom
+          if wget -qO- --timeout=10 http://backend:8080/metrics > /tmp/scrape; then
+            # `|| true` is load-bearing under `set -e`: grep exits 1 when it
+            # matches nothing, which happens the moment a series is switched off
+            # (antiBot.enabled false, say), and that would kill the loop into a
+            # restart cycle rather than record an honest empty sample.
+            # The series are still named shadowban_* though the block that
+            # turns them on is now antiBot: the metric names outlived the
+            # rename on purpose, so an existing history file stays comparable.
+            { echo "# $$stamp"
+              grep -E '^(click_reaction_seconds|shadowban|blocked_clicks|click_session_checks)' /tmp/scrape || true
+              echo
+            } >> "$$file"
+          else
+            echo "# $$stamp scrape failed" >> "$$file"
+          fi
+          find /history -name 'metrics-*.prom' -mtime +$$retention -delete 2>/dev/null || true
+          sleep "$$interval"
+        done
+    logging:
+      driver: journald
+      options:
+        tag: cp-metrics-poller
 
 volumes:
   caddy_data:
   caddy_config:
   tile_state:
+  metrics_history:
