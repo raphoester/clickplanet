@@ -50,6 +50,13 @@ export function ShareIcon({size = 14}: IconProps) {
     </svg>
 }
 
+export function CameraIcon({size = 20}: IconProps) {
+    return <svg {...base(size)} strokeWidth={2}>
+        <path d="M3 8.8a2 2 0 0 1 2-2h2.3l1.3-2.1h6.8l1.3 2.1H19a2 2 0 0 1 2 2v8.4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+        <circle cx="12" cy="12.9" r="3.5"/>
+    </svg>
+}
+
 export function CopyIcon({size = 14}: IconProps) {
     return <svg {...base(size)} strokeWidth={2.2}>
         <rect x="9" y="9" width="11.5" height="11.5" rx="2.6"/>

@@ -1,0 +1,42 @@
+/* Modal.css sizes the panel for a column of text. This one holds a picture
+   whose shape follows the canvas — 4:3 on a desktop, tall on a phone — so it is
+   given the room to be looked at rather than squinted at. */
+.modal-picture {
+    max-width: 640px;
+}
+
+/* Modal.css fades the foot of the body to say there is more text below it. The
+   picture is sized never to overflow, so here the fade says nothing and only
+   veils the badge at the bottom of the card. */
+.modal-picture .modal-scroll::after {
+    display: none;
+}
+
+/* The picture is fitted to the room between the header and the buttons rather
+   than capped in `vh` and left sitting at the top of it: the dialog is the whole
+   screen on a phone, and a portrait card under a fixed ceiling left a hand's
+   width of empty panel under it. Fitted in both axes, so it never pushes the
+   buttons off the bottom either — which is what the cap was there to stop. */
+.modal-picture .modal-body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.share-picture {
+    display: block;
+    max-width: 100%;
+    max-height: 100%;
+    border-radius: 12px;
+    border: 1px solid #FFFFFF26;
+}
+
+/* A flex item, like the picture it stands in for, so it takes the body's width
+   and wraps instead of running out of it at its longest line. */
+.share-picture-failed {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin: 8px 0 16px 0;
+    text-align: left;
+}

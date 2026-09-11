@@ -69,7 +69,6 @@
 
 .menu-actions {
     display: flex;
-    flex-wrap: wrap;
     gap: 8px;
     margin-top: 14px;
     flex-shrink: 0;
@@ -77,17 +76,6 @@
 
 .menu-actions > * {
     flex: 1 1 0;
-}
-
-/* The share buttons get a row of their own, on both viewports. Three across do
-   not fit the card at either size — 422px of content in a 326px row on a
-   desktop, measured, and on a phone the share group is the one that gives way,
-   squeezed to whatever About and Discord leave over until its label is cut.
-   Share is the one moved because its labels change while it works ("One sec…",
-   "Copied!"), so it is the one that must not run out of room. Basis rather than
-   width: the wrap is what pushes About and Discord onto the line below. */
-.menu-actions .share-actions {
-    flex-basis: 100%;
 }
 
 @media only screen and (max-width: 768px) {

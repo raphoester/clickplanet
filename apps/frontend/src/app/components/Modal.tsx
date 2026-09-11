@@ -8,6 +8,9 @@ export type ModalProps = {
     children: ReactNode;
     footer?: ReactNode;
     stayOnBackdropClick?: boolean;
+    /** Added to the panel. Modal.css sizes the box for a column of text; this is
+     *  how a dialog that holds something else says so. */
+    className?: string;
     onClose: () => void;
 }
 
@@ -27,7 +30,7 @@ export default function Modal(props: ModalProps) {
             }}>
             <div
                 ref={panel}
-                className="modal-content"
+                className={props.className ? `modal-content ${props.className}` : "modal-content"}
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby={titleId}

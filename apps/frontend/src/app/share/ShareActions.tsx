@@ -1,14 +1,12 @@
 import {useEffect, useRef, useState} from "react";
-import {CapturedFrame} from "../viewer/capture.ts";
-import {ShareStats} from "../../domain/shareCard.ts";
 import {CopyIcon, DownloadIcon, ShareIcon} from "../components/icons.tsx";
-import {deliveriesOffered, ShareDelivery, ShareOutcome} from "./deliverShare.ts";
-import {shareGlobe} from "./shareGlobe.ts";
+import {deliveriesOffered, deliverShare, ShareDelivery, ShareOutcome} from "./deliverShare.ts";
 import "./ShareActions.css"
 
 export type ShareActionsProps = {
-    stats: ShareStats
-    capture: () => Promise<CapturedFrame>
+    file: File
+    /** What rides along where the delivery takes text — the share sheet only. */
+    text: string
 }
 
 type ShareState =
@@ -21,8 +19,8 @@ type ShareState =
 const SETTLE_MS = 2_500
 
 /**
- * Turning the globe into a picture, and the ways this browser has of letting go
- * of it. A phone gets one button and its share sheet; a desktop gets the two
+ * The ways this browser has of letting go of a picture that has already been
+ * taken. A phone gets one button and its share sheet; a desktop gets the two
  * that cannot lie about what they did. See `deliveriesOffered`.
  *
  * Each button says its own outcome in its own label rather than in a line of
@@ -30,7 +28,7 @@ const SETTLE_MS = 2_500
  * the button that was pressed says anything — which is also what tells the
  * player which of the two they actually got.
  */
-export default function ShareActions({stats, capture}: ShareActionsProps) {
+export default function ShareActions({file, text}: ShareActionsProps) {
     // Nothing about what this browser can do changes while the page is open.
     const [deliveries] = useState(deliveriesOffered)
     const [state, setState] = useState<ShareState>({kind: "idle"})
@@ -53,10 +51,10 @@ export default function ShareActions({stats, capture}: ShareActionsProps) {
 
     const attempt = async (delivery: ShareDelivery): Promise<ShareState> => {
         try {
-            const outcome = await shareGlobe(capture, stats, delivery)
+            const outcome = await deliverShare(delivery, file, text)
             return outcome === "cancelled" ? {kind: "idle"} : {kind: "done", delivery, outcome}
         } catch (error) {
-            console.error(`Failed to share the globe (${delivery})`, error)
+            console.error(`Failed to deliver the picture (${delivery})`, error)
             return {kind: "failed", delivery}
         }
     }
@@ -66,8 +64,6 @@ export default function ShareActions({stats, capture}: ShareActionsProps) {
             <button key={delivery}
                     type="button"
                     className={`button button-ghost button-share button-share-${delivery}`}
-                    // Both, not just the one pressed: there is one globe to
-                    // capture and one frame it is captured from.
                     disabled={state.kind === "working"}
                     onClick={() => run(delivery)}>
                 <Icon delivery={delivery}/>

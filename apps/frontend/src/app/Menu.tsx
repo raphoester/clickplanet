@@ -1,7 +1,6 @@
 import {useEffect, useId, useRef, useState} from "react";
 import {Country} from "../domain/countries.ts";
 import {LeaderboardEntry, rankOf} from "../domain/leaderboard.ts";
-import {shareStats} from "../domain/shareCard.ts";
 import {NO_TILE_DELTAS, TileDeltas} from "../domain/tileDeltas.ts";
 import Leaderboard from "./Leaderboard.tsx";
 import MenuHeader from "./MenuHeader.tsx";
@@ -12,9 +11,7 @@ import CountryFlag from "./components/CountryFlag.tsx";
 import Modal from "./components/Modal.tsx";
 import DiscordButton from "./components/DiscordButton.tsx";
 import BuyMeACoffee from "./components/BuyMeACoffee.tsx";
-import ShareActions from "./share/ShareActions.tsx";
 import {SwapIcon} from "./components/icons.tsx";
-import {CapturedFrame} from "./viewer/capture.ts";
 import {opensFolded} from "./compact.ts";
 import "./Menu.css"
 
@@ -24,9 +21,6 @@ export type MenuProps = {
     leaderboard: LeaderboardEntry[],
     tileDeltas?: TileDeltas,
     tilesCount: number,
-    /** Absent until the globe is running — the share button has nothing to draw
-     *  without it, so it stays off the card rather than failing when pressed. */
-    capture?: () => Promise<CapturedFrame>,
 }
 
 export default function Menu(props: MenuProps) {
@@ -91,9 +85,6 @@ export default function Menu(props: MenuProps) {
                                      highlight={props.country}/>
 
                         <div className="menu-actions">
-                            {props.capture && <ShareActions
-                                capture={props.capture}
-                                stats={shareStats(props.leaderboard, props.country)}/>}
                             <button type="button"
                                     className="button button-ghost"
                                     onClick={() => setAboutOpen(true)}>

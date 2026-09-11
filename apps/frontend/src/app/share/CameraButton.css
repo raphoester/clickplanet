@@ -1,0 +1,63 @@
+/* The pill the click meter is built on — border, blur, dark ground — rather
+   than `.button`, which is a 56px slab for the menu's own actions. This one sits
+   on the canvas beside the globe it photographs. */
+.camera-button {
+    position: absolute;
+    left: 16px;
+    bottom: 16px;
+    z-index: 128;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px 6px 14px;
+    border: 1px solid #FFFFFF33;
+    border-radius: 30px;
+    background: #00000075;
+    backdrop-filter: blur(8px);
+    cursor: pointer;
+    color: #FFFFFF;
+    font-family: "Luckiest Guy", sans-serif;
+    font-size: 18px;
+    text-shadow: -1px 1px 0 #000000;
+    transition: background-color 0.125s ease, border-color 0.125s ease;
+}
+
+.camera-button:hover {
+    background: #000000A0;
+    border-color: #FFFFFF66;
+}
+
+.camera-button svg {
+    flex-shrink: 0;
+    margin-top: -2px;
+}
+
+.camera-button:disabled {
+    cursor: progress;
+    color: #FFFFFFB3;
+}
+
+.camera-button span {
+    /* The label swaps to "One sec…" while the picture is drawn, and the pill
+       must not jump under the cursor when it does. */
+    min-width: 72px;
+    text-align: left;
+}
+
+@media only screen and (max-width: 768px) {
+    /*
+     * Both ends of a phone screen are sheets — the menu above, the chat below —
+     * so it clears the folded chat rather than sitting on it. Unfolding the chat
+     * covers it, which is what the player asked for by unfolding it; the click
+     * meter makes the same trade at the other end.
+     */
+    .camera-button {
+        bottom: 72px;
+        padding: 6px 14px 4px 12px;
+        font-size: 15px;
+    }
+
+    .camera-button span {
+        min-width: 60px;
+    }
+}

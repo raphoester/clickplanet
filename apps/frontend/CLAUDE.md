@@ -602,11 +602,27 @@ it, and if the echo arrives first the rollback is already a no-op.
 
 ## Sharing the globe
 
-The game's own map is the marketing material, so `ShareActions` turns the globe
-into a PNG and gets it out of the browser. `src/app/share/` holds the three
-steps — `drawShareCard.ts` composes, `deliverShare.ts` delivers, `shareGlobe.ts`
-is the three in a line, and `ShareActions.tsx` is the buttons — and
+The game's own map is the marketing material, so the globe can be photographed
+and the picture taken out of the browser. `src/app/share/` holds it:
+`CameraButton.tsx` takes the shot, `takePicture.ts` captures and composes it,
+`drawShareCard.ts` draws the card, `SharePreview.tsx` shows it, `ShareActions
+.tsx` is the row of buttons under it and `deliverShare.ts` is what they do.
+`useSharePicture.ts` holds the one picture there is at a time.
 `src/domain/shareCard.ts` holds everything decided before a pixel is drawn.
+
+**The camera sits on the canvas, bottom-left, not in the menu.** The globe is
+what it photographs and the card over it is not in the picture, so the button
+belongs beside the subject. It is also the wrong shape for the menu's row of
+actions: those are 56px slabs for things you do to the *page*, and three of them
+do not fit across the card anyway — an earlier version put the share buttons
+there and pushed Discord out over the edge. It is the click meter's pill instead,
+and on a phone it clears the folded chat the same way the meter clears the menu.
+
+**Pressing it opens a preview, and the preview is where the choice lives.** The
+framing is the player's — the camera takes the globe at whatever angle and zoom
+they left it — and that is the one thing they cannot check after the fact. A
+capture that fails opens the preview too, saying so: a camera button that does
+nothing visible is a button pressed again and again.
 
 **`preserveDrawingBuffer` is deliberately off**, which is why the capture is
 where it is. Setting it would have the driver keep a second copy of the buffer
@@ -672,12 +688,13 @@ wearing a third hat: handed an item with `image/png` *and* `text/plain`, a chat
 window pastes the sentence. That is why the link is drawn into the image — it
 has nowhere else it has to be, so the copy has one fewer way to be misunderstood.
 
-**The buttons take a row of their own in the menu, on both viewports.** Three of
-the shared 28px boxes do not fit across the card at either size, and they do not
-shrink: on a desktop the third hangs out over the edge, and on a phone the share
-group is the one that gives way and has its label cut. `Menu.css` owns that
-placement; `ShareActions.css` only lays the group out and clamps a label that
-would not fit, which is the guard that caught the phone case.
+**The delivery buttons live in the preview's footer**, so the picture is on
+screen while the player picks what to do with it. `Modal` takes a `className`
+for the panel — `SharePreview.css` widens it past the 360px `Modal.css` sizes a
+column of text to, drops the scroll fade that would veil the bottom of the card,
+and fits the picture to the room between the header and the buttons rather than
+capping it in `vh`, which left a hand's width of empty panel under a portrait
+card on a phone.
 
 ## Protocol Buffers
 
