@@ -3,6 +3,7 @@ import {OrbitControls} from "three/addons/controls/OrbitControls.js";
 import {addDisplayObjects, setupScene} from "./scene.ts";
 import {loadPointGeometryData} from "./points.ts";
 import {GpuPicker} from "./gpuPicking.ts";
+import {CapturedFrame, readDrawingBuffer} from "./capture.ts";
 import {TileField} from "./tileField.ts";
 import {BorderField, loadBorders} from "./borderField.ts";
 import {ATLAS_SIZE, ATLAS_URL} from "./atlasAsset.ts";
@@ -56,7 +57,15 @@ export type GlobeOptions = {
 export type Globe = {
     readonly tilesCount: number
     setCountry(country: Country): void
+    /** The globe as it is framed right now, resolved on the next frame — the
+     *  only tick the drawing buffer can be read from. See capture.ts. */
+    capture(): Promise<CapturedFrame>
     dispose(): void
+}
+
+type CaptureRequest = {
+    resolve: (frame: CapturedFrame) => void
+    reject: (reason: Error) => void
 }
 
 export async function createGlobe(options: GlobeOptions): Promise<Globe> {
@@ -189,11 +198,26 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     addDisplayObjects(scene, field.displayPoints)
 
+    let captureRequests: CaptureRequest[] = []
+
+    const takeCaptureRequests = () => {
+        const waiting = captureRequests
+        captureRequests = []
+        return waiting
+    }
+
     const {stop: stopAnimation} = startAnimation(renderer, scene, camera, uniforms, pickingUniforms, () => {
         if (pendingPointer === undefined) return
         const {x, y} = pendingPointer
         pendingPointer = undefined
         field.setHover(picker.pick(camera, x, y))
+    }, () => {
+        if (captureRequests.length === 0) return
+
+        // Still inside the frame that drew it, which is the whole reason this
+        // hook exists rather than a method anyone could call.
+        const frame = readDrawingBuffer(renderer)
+        for (const request of takeCaptureRequests()) request.resolve(frame)
     });
 
     return {
@@ -201,8 +225,19 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         setCountry: (newCountry: Country) => {
             country = newCountry
         },
+        capture: () => new Promise<CapturedFrame>((resolve, reject) => {
+            if (lifetime.signal.aborted) {
+                reject(new Error("the globe is no longer running"))
+                return
+            }
+            captureRequests.push({resolve, reject})
+        }),
         dispose: () => {
             lifetime.abort()
+
+            for (const request of takeCaptureRequests()) {
+                request.reject(new Error("the globe was disposed before the frame was read"))
+            }
 
             stopAnimation()
             cleanUpdatesListener()
@@ -223,6 +258,7 @@ function startAnimation(
     uniforms: Uniforms,
     pickingUniforms: {pointSize: THREE.IUniform},
     beforeRender: () => void,
+    afterRender: () => void,
 ): {stop: () => void} {
     const starfield = createStarfield();
 
@@ -242,6 +278,9 @@ function startAnimation(
         controls.update();
         beforeRender();
         starfield.render(renderer, camera, () => renderer.render(scene, camera));
+        // After the starfield's pass, not inside it: the sky is drawn first and
+        // the globe over it, so the buffer only holds the whole frame here.
+        afterRender();
         uniforms.pointSize.value = displayPointSize(camera.zoom, renderer.domElement.height);
         pickingUniforms.pointSize.value = tilePointSize(camera.zoom, renderer.domElement.height);
 

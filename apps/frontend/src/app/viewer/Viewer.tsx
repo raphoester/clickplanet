@@ -7,6 +7,10 @@ import ClickBudgetMeter from "../components/ClickBudgetMeter.tsx";
 import RateLimitModal from "../components/RateLimitModal.tsx";
 import SessionUnavailableModal from "../components/SessionUnavailableModal.tsx";
 import VPNBlockedModal from "../components/VPNBlockedModal.tsx";
+import CameraButton from "../share/CameraButton.tsx";
+import SharePreview from "../share/SharePreview.tsx";
+import {useSharePicture} from "../share/useSharePicture.ts";
+import {shareStats} from "../../domain/shareCard.ts";
 import {ClickBudgetSource} from "../../backends/clickBudget.ts";
 import {useClickBudget} from './useClickBudget.ts';
 import {useCountryStorage} from './useCountryStorage.ts';
@@ -31,6 +35,7 @@ export default function Viewer(props: ViewerProps) {
         leaderboard,
         tileDeltas,
         tilesCount,
+        capture,
         rateLimited,
         dismissRateLimited,
         vpnBlocked,
@@ -45,6 +50,11 @@ export default function Viewer(props: ViewerProps) {
         country: countryState,
     })
 
+    // The camera lives out here rather than in the menu: the globe is what it
+    // photographs, and the card over it is not in the picture.
+    const {shot, taking, take, discard} = useSharePicture(
+        capture, shareStats(leaderboard, countryState))
+
     return <>
         <div ref={container} className="viewer-canvas"/>
 
@@ -57,6 +67,12 @@ export default function Viewer(props: ViewerProps) {
             tileDeltas={tileDeltas}
             tilesCount={tilesCount}
         />}
+
+        {status.state === 'ready' && <CameraButton busy={taking} onClick={take}/>}
+
+        {shot && <SharePreview shot={shot}
+                               stats={shareStats(leaderboard, countryState)}
+                               onClose={discard}/>}
 
         {status.state === 'ready' && <ClickBudgetMeter budget={clickBudget}/>}
 

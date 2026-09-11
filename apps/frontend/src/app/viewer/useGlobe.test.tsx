@@ -19,8 +19,12 @@ const backends = () => ({
     updatesListener: {} as UpdatesListener,
 })
 
-function fakeGlobe(): Globe & {setCountry: ReturnType<typeof vi.fn>, dispose: ReturnType<typeof vi.fn>} {
-    return {tilesCount: 257_948, setCountry: vi.fn(), dispose: vi.fn()}
+function fakeGlobe(): Globe & {
+    setCountry: ReturnType<typeof vi.fn>,
+    capture: ReturnType<typeof vi.fn>,
+    dispose: ReturnType<typeof vi.fn>,
+} {
+    return {tilesCount: 257_948, setCountry: vi.fn(), capture: vi.fn(), dispose: vi.fn()}
 }
 
 function Harness(props: {country: typeof FRANCE, backends: ReturnType<typeof backends>, onResult: (r: unknown) => void}) {
@@ -179,6 +183,29 @@ describe("useGlobe", () => {
 
         await act(async () => change([{country: FRANCE, tiles: 14}], true))
         await waitFor(() => expect(latest.tileDeltas.get("fr")?.net).toBe(2))
+    })
+
+    it("hands a capture to the globe that is running", async () => {
+        const globe = fakeGlobe()
+        const frame = {pixels: new Uint8ClampedArray(4), width: 1, height: 1}
+        globe.capture.mockResolvedValue(frame)
+        createGlobe.mockResolvedValue(globe)
+
+        renderHook()
+        await waitFor(() => expect(latest.status.state).toBe('ready'))
+
+        await expect(latest.capture()).resolves.toBe(frame)
+    })
+
+    // The share button is only mounted once the globe is ready, so this is the
+    // fallback rather than the usual case — and a promise that never settles
+    // would leave the button saying it was working for the rest of the session.
+    it("refuses a capture before there is a globe, rather than waiting forever", async () => {
+        createGlobe.mockReturnValue(new Promise(() => {}))
+
+        renderHook()
+
+        await expect(latest.capture()).rejects.toThrow()
     })
 
     it("does nothing until the container element exists", () => {
