@@ -4,7 +4,6 @@ go 1.27.0
 
 require (
 	connectrpc.com/connect v1.21.0
-	github.com/go-co-op/gocron v1.37.0
 	github.com/google/uuid v1.4.0
 	github.com/knadh/koanf/parsers/yaml v0.1.0
 	github.com/knadh/koanf/providers/env v1.0.0
@@ -31,9 +30,7 @@ require (
 	github.com/prometheus/client_model v0.6.1 // indirect
 	github.com/prometheus/common v0.55.0 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
-	github.com/robfig/cron/v3 v3.0.1 // indirect
 	github.com/rogpeppe/go-internal v1.13.1 // indirect
-	go.uber.org/atomic v1.9.0 // indirect
 	golang.org/x/sys v0.26.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

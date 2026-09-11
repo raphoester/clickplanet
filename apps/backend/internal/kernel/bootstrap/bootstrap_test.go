@@ -86,12 +86,12 @@ func TestEveryCleanupRunsBeforeTheRunnersAreWaitedOn(t *testing.T) {
 	stopped := make(chan struct{})
 
 	require.NoError(t, run(t, []bootstrap.Module{
-		newModule("bookkeeper", func(props bootstrap.Props) error {
-			props.Runners.Add("bookkeeper", func(context.Context) {
+		newModule("scheduled-job", func(props bootstrap.Props) error {
+			props.Runners.Add("scheduled-job", func(context.Context) {
 				<-stop
 				close(stopped)
 			})
-			props.Closers.Add("bookkeeper", func() error {
+			props.Closers.Add("scheduled-job", func() error {
 				close(stop)
 				return nil
 			})

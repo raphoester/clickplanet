@@ -7,7 +7,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/sequencer"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/shadowban"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/secondary/memory_tile_storage"
-	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/domain/runner"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ipblock"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ratelimit"
 )
@@ -17,7 +16,6 @@ import (
 type Config struct {
 	GameMap      GameMapConfig
 	TilesStorage memory_tile_storage.Config
-	Bookkeeper   BookkeeperConfig
 	RateLimiter  ratelimit.Config
 	VPNBlocklist ipblock.Config
 	AntiBot      AntiBotConfig
@@ -25,11 +23,6 @@ type Config struct {
 
 type GameMapConfig struct {
 	MaxIndex uint32
-}
-
-type BookkeeperConfig struct {
-	Enabled bool
-	Runner  runner.Config
 }
 
 // AntiBotConfig holds the watchdogs, the jury that crosses what they say, and

@@ -15,11 +15,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/primary/http/planetv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/secondary/in_memory_tile_checker"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/secondary/memory_tile_storage"
-	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/secondary/x_publisher"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/domain"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/domain/click_handler_service"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/domain/click_handler_service/prom_click_handler_service"
-	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/domain/runner"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/bootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ipblock"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging/lf"
@@ -63,17 +61,13 @@ func build(config Config, deps Deps, props bootstrap.Props) error {
 
 	tilesChecker := in_memory_tile_checker.New(config.GameMap.MaxIndex)
 
-	tilesStorage := memory_tile_storage.New(config.GameMap.MaxIndex, config.TilesStorage, clock, props.Logger)
+	tilesStorage := memory_tile_storage.New(config.GameMap.MaxIndex, config.TilesStorage, props.Logger)
 	props.Runners.Add("tiles-storage", tilesStorage.Run)
 
 	var handler click_handler_service.IService = click_handler_service.New(tilesChecker, tilesStorage, deps.Countries)
 	handler, err := prom_click_handler_service.New(handler, props.Metrics)
 	if err != nil {
 		return fmt.Errorf("failed to create prometheus click handler service: %w", err)
-	}
-
-	if err := addBookkeeper(config.Bookkeeper, tilesStorage, props); err != nil {
-		return err
 	}
 
 	clickLimiter := ratelimit.New(config.RateLimiter, clock)
@@ -163,21 +157,4 @@ func newVPNBlockInterceptor(config ipblock.Config, props bootstrap.Props) (conne
 	}
 
 	return interceptor, nil
-}
-
-func addBookkeeper(config BookkeeperConfig, storage *memory_tile_storage.Storage, props bootstrap.Props) error {
-	if !config.Enabled {
-		return nil
-	}
-
-	props.Logger.Info("bookkeeper enabled", lf.Any("interval", config.Runner.Interval))
-
-	bookkeeper := runner.New(config.Runner, x_publisher.New(), storage, xtime.ActualProvider{}, props.Logger)
-
-	// The bookkeeper stops on its own channel rather than on a context, so the
-	// cleanup is what ends it and the runner is only waited on afterwards.
-	props.Runners.Add("bookkeeper", func(context.Context) { bookkeeper.Run() })
-	props.Closers.Add("bookkeeper", bookkeeper.GracefulShutdown)
-
-	return nil
 }

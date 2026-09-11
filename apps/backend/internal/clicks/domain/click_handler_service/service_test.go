@@ -9,7 +9,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/secondary/memory_tile_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/domain/click_handler_service"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/xtime"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -29,7 +28,6 @@ func (s *testSuite) SetupSuite() {
 	s.storage = memory_tile_storage.New(
 		maxIndex,
 		memory_tile_storage.Config{},
-		xtime.ActualProvider{},
 		logging.NewNopLogger(),
 	)
 	tileChecker := in_memory_tile_checker.New(maxIndex)
