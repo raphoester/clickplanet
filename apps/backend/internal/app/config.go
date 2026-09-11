@@ -113,6 +113,9 @@ type ChatConfig struct {
 
 type HTTPServerConfig struct {
 	BindAddress string
+
+	// Must stay well under the proxy's idle cut: Cloudflare answers 524 at ~125s.
+	StreamHeartbeat time.Duration
 }
 
 type GameMapConfig struct {

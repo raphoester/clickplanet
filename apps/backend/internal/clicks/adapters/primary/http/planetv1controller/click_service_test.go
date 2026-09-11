@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
@@ -34,19 +35,20 @@ func (s stubSubscriber) Subscribe(context.Context) (<-chan domain.TileUpdate, er
 
 func newTestClient(t *testing.T, svc stubService) planetv1connect.ClickServiceClient {
 	t.Helper()
-	return newTestClientWith(t, svc, stubSubscriber{})
+	return newTestClientWith(t, svc, stubSubscriber{}, DefaultHeartbeat)
 }
 
 func newTestClientWith(
 	t *testing.T,
 	svc stubService,
 	subscriber UpdatesSubscriber,
+	heartbeat time.Duration,
 ) planetv1connect.ClickServiceClient {
 	t.Helper()
 
 	mux := http.NewServeMux()
 	mux.Handle(planetv1connect.NewClickServiceHandler(
-		NewClickService(svc, stubChecker{}, stubMapReader{}, subscriber),
+		NewClickService(svc, stubChecker{}, stubMapReader{}, subscriber, heartbeat),
 		connect.WithInterceptors(NewErrorInterceptor(nil)),
 	))
 
@@ -87,13 +89,17 @@ func TestMapDensity(t *testing.T) {
 	require.Equal(t, uint32(100), res.Msg.GetDensity())
 }
 
-func TestListenForUpdates(t *testing.T) {
+func TestListenForEvents(t *testing.T) {
 	// The call blocks until the first frame, so subscriptions are seeded before it.
-	listen := func(t *testing.T, subscriber UpdatesSubscriber) (*connect.ServerStreamForClient[planetv1.TileUpdate], error) {
+	listen := func(
+		t *testing.T,
+		subscriber UpdatesSubscriber,
+		heartbeat time.Duration,
+	) (*connect.ServerStreamForClient[planetv1.PlanetEvent], error) {
 		t.Helper()
 
-		stream, err := newTestClientWith(t, stubService{}, subscriber).ListenForUpdates(
-			context.Background(), connect.NewRequest(&planetv1.ListenForUpdatesRequest{}))
+		stream, err := newTestClientWith(t, stubService{}, subscriber, heartbeat).ListenForEvents(
+			context.Background(), connect.NewRequest(&planetv1.ListenForEventsRequest{}))
 
 		// Closing it releases the handler, which is still parked on its
 		// subscription; httptest.Server.Close blocks forever otherwise.
@@ -108,20 +114,34 @@ func TestListenForUpdates(t *testing.T) {
 		updates := make(chan domain.TileUpdate, 1)
 		updates <- domain.TileUpdate{Tile: 42, Value: "fr", Previous: "de"}
 
-		stream, err := listen(t, stubSubscriber{updates: updates})
+		stream, err := listen(t, stubSubscriber{updates: updates}, DefaultHeartbeat)
 		require.NoError(t, err)
 
 		require.True(t, stream.Receive())
-		require.Equal(t, uint32(42), stream.Msg().GetTileId())
-		require.Equal(t, "fr", stream.Msg().GetCountryId())
-		require.Equal(t, "de", stream.Msg().GetPreviousCountryId())
+		update := stream.Msg().GetTileUpdate()
+		require.NotNil(t, update, "a tile update arrives as the tile_update case")
+		require.Equal(t, uint32(42), update.GetTileId())
+		require.Equal(t, "fr", update.GetCountryId())
+		require.Equal(t, "de", update.GetPreviousCountryId())
+	})
+
+	t.Run("keeps a silent stream alive with heartbeats", func(t *testing.T) {
+		// Nothing is ever published, so every frame here is a heartbeat.
+		stream, err := listen(t, stubSubscriber{updates: make(chan domain.TileUpdate)}, 10*time.Millisecond)
+		require.NoError(t, err)
+
+		for i := range 3 {
+			require.Truef(t, stream.Receive(), "heartbeat %d never arrived", i)
+			require.NotNil(t, stream.Msg().GetHeartbeat(), "frame %d is not a heartbeat", i)
+			require.Nil(t, stream.Msg().GetTileUpdate())
+		}
 	})
 
 	t.Run("ends when the subscription closes", func(t *testing.T) {
 		updates := make(chan domain.TileUpdate)
 		close(updates)
 
-		stream, err := listen(t, stubSubscriber{updates: updates})
+		stream, err := listen(t, stubSubscriber{updates: updates}, DefaultHeartbeat)
 		require.NoError(t, err)
 
 		require.False(t, stream.Receive())
@@ -129,7 +149,7 @@ func TestListenForUpdates(t *testing.T) {
 	})
 
 	t.Run("a failed subscription stays internal and does not leak the cause", func(t *testing.T) {
-		stream, err := listen(t, stubSubscriber{err: fmt.Errorf("disk on fire")})
+		stream, err := listen(t, stubSubscriber{err: fmt.Errorf("disk on fire")}, DefaultHeartbeat)
 		if err == nil {
 			require.False(t, stream.Receive())
 			err = stream.Err()

@@ -148,7 +148,7 @@ func clickServer(t *testing.T, options ...connect.HandlerOption) *httptest.Serve
 
 	mux := http.NewServeMux()
 	mux.Handle(planetv1connect.NewClickServiceHandler(
-		NewClickService(stubService{}, stubChecker{}, stubMapReader{}, stubSubscriber{}),
+		NewClickService(stubService{}, stubChecker{}, stubMapReader{}, stubSubscriber{}, DefaultHeartbeat),
 		options...,
 	))
 

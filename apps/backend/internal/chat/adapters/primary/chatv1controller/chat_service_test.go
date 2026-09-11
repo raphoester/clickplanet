@@ -66,7 +66,7 @@ func (s stubSubscriber) Subscribe(context.Context) (<-chan domain.ChatMessage, e
 
 func startChatServer(t *testing.T, service chat_service.IService, blockedIPs []string) (*httptest.Server, *fakeClock) {
 	t.Helper()
-	return startChatServerWith(t, service, blockedIPs, stubSubscriber{})
+	return startChatServerWith(t, service, blockedIPs, stubSubscriber{}, DefaultHeartbeat)
 }
 
 func startChatServerWith(
@@ -74,6 +74,7 @@ func startChatServerWith(
 	service chat_service.IService,
 	blockedIPs []string,
 	subscriber MessagesSubscriber,
+	heartbeat time.Duration,
 ) (*httptest.Server, *fakeClock) {
 	t.Helper()
 
@@ -85,7 +86,7 @@ func startChatServerWith(
 
 	mux := http.NewServeMux()
 	mux.Handle(chatv1connect.NewChatServiceHandler(
-		NewChatService(service, subscriber),
+		NewChatService(service, subscriber, heartbeat),
 		connect.WithInterceptors(
 			NewErrorInterceptor(nil),
 			NewBlocklistInterceptor(blocklist),
@@ -112,15 +113,19 @@ func sendFrom(server *httptest.Server, ip string, text string) (*connect.Respons
 		SendMessage(context.Background(), req)
 }
 
-func TestListenForMessages(t *testing.T) {
+func TestListenForEvents(t *testing.T) {
 	// The call blocks until the first frame, so subscriptions are seeded before it.
-	listen := func(t *testing.T, subscriber MessagesSubscriber) (*connect.ServerStreamForClient[chatv1.ChatMessage], error) {
+	listen := func(
+		t *testing.T,
+		subscriber MessagesSubscriber,
+		heartbeat time.Duration,
+	) (*connect.ServerStreamForClient[chatv1.ChatEvent], error) {
 		t.Helper()
 
-		server, _ := startChatServerWith(t, &stubService{}, nil, subscriber)
+		server, _ := startChatServerWith(t, &stubService{}, nil, subscriber, heartbeat)
 
 		stream, err := chatv1connect.NewChatServiceClient(server.Client(), server.URL).
-			ListenForMessages(context.Background(), connect.NewRequest(&chatv1.ListenForMessagesRequest{}))
+			ListenForEvents(context.Background(), connect.NewRequest(&chatv1.ListenForEventsRequest{}))
 
 		// Closing it releases the handler, which is still parked on its
 		// subscription; httptest.Server.Close blocks forever otherwise.
@@ -142,20 +147,34 @@ func TestListenForMessages(t *testing.T) {
 			Text:       "hello",
 		}
 
-		stream, err := listen(t, stubSubscriber{messages: messages})
+		stream, err := listen(t, stubSubscriber{messages: messages}, DefaultHeartbeat)
 		require.NoError(t, err)
 
 		require.True(t, stream.Receive())
-		require.Equal(t, "message-1", stream.Msg().GetId())
-		require.Equal(t, "Bob", stream.Msg().GetAuthorName())
-		require.Equal(t, "hello", stream.Msg().GetText())
+		posted := stream.Msg().GetMessage()
+		require.NotNil(t, posted, "a message arrives as the message case")
+		require.Equal(t, "message-1", posted.GetId())
+		require.Equal(t, "Bob", posted.GetAuthorName())
+		require.Equal(t, "hello", posted.GetText())
+	})
+
+	t.Run("keeps a silent stream alive with heartbeats", func(t *testing.T) {
+		// A quiet chat is the normal case, so every frame here is a heartbeat.
+		stream, err := listen(t, stubSubscriber{messages: make(chan domain.ChatMessage)}, 10*time.Millisecond)
+		require.NoError(t, err)
+
+		for i := range 3 {
+			require.Truef(t, stream.Receive(), "heartbeat %d never arrived", i)
+			require.NotNil(t, stream.Msg().GetHeartbeat(), "frame %d is not a heartbeat", i)
+			require.Nil(t, stream.Msg().GetMessage())
+		}
 	})
 
 	t.Run("ends when the subscription closes", func(t *testing.T) {
 		messages := make(chan domain.ChatMessage)
 		close(messages)
 
-		stream, err := listen(t, stubSubscriber{messages: messages})
+		stream, err := listen(t, stubSubscriber{messages: messages}, DefaultHeartbeat)
 		require.NoError(t, err)
 
 		require.False(t, stream.Receive())
@@ -163,7 +182,7 @@ func TestListenForMessages(t *testing.T) {
 	})
 
 	t.Run("a failed subscription stays internal and does not leak the cause", func(t *testing.T) {
-		stream, err := listen(t, stubSubscriber{err: errors.New("disk on fire")})
+		stream, err := listen(t, stubSubscriber{err: errors.New("disk on fire")}, DefaultHeartbeat)
 		if err == nil {
 			require.False(t, stream.Receive())
 			err = stream.Err()

@@ -297,26 +297,26 @@ func (x *GetHistoryResponse) GetMessages() []*ChatMessage {
 	return nil
 }
 
-type ListenForMessagesRequest struct {
+type ListenForEventsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ListenForMessagesRequest) Reset() {
-	*x = ListenForMessagesRequest{}
+func (x *ListenForEventsRequest) Reset() {
+	*x = ListenForEventsRequest{}
 	mi := &file_chat_v1_chat_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ListenForMessagesRequest) String() string {
+func (x *ListenForEventsRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ListenForMessagesRequest) ProtoMessage() {}
+func (*ListenForEventsRequest) ProtoMessage() {}
 
-func (x *ListenForMessagesRequest) ProtoReflect() protoreflect.Message {
+func (x *ListenForEventsRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_chat_v1_chat_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -328,9 +328,132 @@ func (x *ListenForMessagesRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ListenForMessagesRequest.ProtoReflect.Descriptor instead.
-func (*ListenForMessagesRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use ListenForEventsRequest.ProtoReflect.Descriptor instead.
+func (*ListenForEventsRequest) Descriptor() ([]byte, []int) {
 	return file_chat_v1_chat_proto_rawDescGZIP(), []int{5}
+}
+
+// The one live stream this API has — see the note on planet.v1.PlanetEvent. A
+// new kind of event is a new case below, not a second stream.
+//
+// Heartbeat is what keeps a quiet stream alive, and a quiet chat is the normal
+// case: Cloudflare cuts a silent response at ~125s with a 524.
+type ChatEvent struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Event:
+	//
+	//	*ChatEvent_Message
+	//	*ChatEvent_Heartbeat
+	Event         isChatEvent_Event `protobuf_oneof:"event"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ChatEvent) Reset() {
+	*x = ChatEvent{}
+	mi := &file_chat_v1_chat_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ChatEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ChatEvent) ProtoMessage() {}
+
+func (x *ChatEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chat_v1_chat_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ChatEvent.ProtoReflect.Descriptor instead.
+func (*ChatEvent) Descriptor() ([]byte, []int) {
+	return file_chat_v1_chat_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *ChatEvent) GetEvent() isChatEvent_Event {
+	if x != nil {
+		return x.Event
+	}
+	return nil
+}
+
+func (x *ChatEvent) GetMessage() *ChatMessage {
+	if x != nil {
+		if x, ok := x.Event.(*ChatEvent_Message); ok {
+			return x.Message
+		}
+	}
+	return nil
+}
+
+func (x *ChatEvent) GetHeartbeat() *Heartbeat {
+	if x != nil {
+		if x, ok := x.Event.(*ChatEvent_Heartbeat); ok {
+			return x.Heartbeat
+		}
+	}
+	return nil
+}
+
+type isChatEvent_Event interface {
+	isChatEvent_Event()
+}
+
+type ChatEvent_Message struct {
+	Message *ChatMessage `protobuf:"bytes,1,opt,name=message,proto3,oneof"`
+}
+
+type ChatEvent_Heartbeat struct {
+	Heartbeat *Heartbeat `protobuf:"bytes,2,opt,name=heartbeat,proto3,oneof"`
+}
+
+func (*ChatEvent_Message) isChatEvent_Event() {}
+
+func (*ChatEvent_Heartbeat) isChatEvent_Event() {}
+
+type Heartbeat struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Heartbeat) Reset() {
+	*x = Heartbeat{}
+	mi := &file_chat_v1_chat_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Heartbeat) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Heartbeat) ProtoMessage() {}
+
+func (x *Heartbeat) ProtoReflect() protoreflect.Message {
+	mi := &file_chat_v1_chat_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Heartbeat.ProtoReflect.Descriptor instead.
+func (*Heartbeat) Descriptor() ([]byte, []int) {
+	return file_chat_v1_chat_proto_rawDescGZIP(), []int{7}
 }
 
 var File_chat_v1_chat_proto protoreflect.FileDescriptor
@@ -359,13 +482,18 @@ const file_chat_v1_chat_proto_rawDesc = "" +
 	"\amessage\x18\x01 \x01(\v2\x14.chat.v1.ChatMessageR\amessage\"\x13\n" +
 	"\x11GetHistoryRequest\"F\n" +
 	"\x12GetHistoryResponse\x120\n" +
-	"\bmessages\x18\x01 \x03(\v2\x14.chat.v1.ChatMessageR\bmessages\"\x1a\n" +
-	"\x18ListenForMessagesRequest2\xf3\x01\n" +
+	"\bmessages\x18\x01 \x03(\v2\x14.chat.v1.ChatMessageR\bmessages\"\x18\n" +
+	"\x16ListenForEventsRequest\"z\n" +
+	"\tChatEvent\x120\n" +
+	"\amessage\x18\x01 \x01(\v2\x14.chat.v1.ChatMessageH\x00R\amessage\x122\n" +
+	"\theartbeat\x18\x02 \x01(\v2\x12.chat.v1.HeartbeatH\x00R\theartbeatB\a\n" +
+	"\x05event\"\v\n" +
+	"\tHeartbeat2\xed\x01\n" +
 	"\vChatService\x12H\n" +
 	"\vSendMessage\x12\x1b.chat.v1.SendMessageRequest\x1a\x1c.chat.v1.SendMessageResponse\x12J\n" +
 	"\n" +
-	"GetHistory\x12\x1a.chat.v1.GetHistoryRequest\x1a\x1b.chat.v1.GetHistoryResponse\"\x03\x90\x02\x01\x12N\n" +
-	"\x11ListenForMessages\x12!.chat.v1.ListenForMessagesRequest\x1a\x14.chat.v1.ChatMessage0\x01B\xa3\x01\n" +
+	"GetHistory\x12\x1a.chat.v1.GetHistoryRequest\x1a\x1b.chat.v1.GetHistoryResponse\"\x03\x90\x02\x01\x12H\n" +
+	"\x0fListenForEvents\x12\x1f.chat.v1.ListenForEventsRequest\x1a\x12.chat.v1.ChatEvent0\x01B\xa3\x01\n" +
 	"\vcom.chat.v1B\tChatProtoP\x01ZLgithub.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1;chatv1\xa2\x02\x03CXX\xaa\x02\aChat.V1\xca\x02\aChat\\V1\xe2\x02\x13Chat\\V1\\GPBMetadata\xea\x02\bChat::V1b\x06proto3"
 
 var (
@@ -380,29 +508,33 @@ func file_chat_v1_chat_proto_rawDescGZIP() []byte {
 	return file_chat_v1_chat_proto_rawDescData
 }
 
-var file_chat_v1_chat_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_chat_v1_chat_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_chat_v1_chat_proto_goTypes = []any{
-	(*ChatMessage)(nil),              // 0: chat.v1.ChatMessage
-	(*SendMessageRequest)(nil),       // 1: chat.v1.SendMessageRequest
-	(*SendMessageResponse)(nil),      // 2: chat.v1.SendMessageResponse
-	(*GetHistoryRequest)(nil),        // 3: chat.v1.GetHistoryRequest
-	(*GetHistoryResponse)(nil),       // 4: chat.v1.GetHistoryResponse
-	(*ListenForMessagesRequest)(nil), // 5: chat.v1.ListenForMessagesRequest
+	(*ChatMessage)(nil),            // 0: chat.v1.ChatMessage
+	(*SendMessageRequest)(nil),     // 1: chat.v1.SendMessageRequest
+	(*SendMessageResponse)(nil),    // 2: chat.v1.SendMessageResponse
+	(*GetHistoryRequest)(nil),      // 3: chat.v1.GetHistoryRequest
+	(*GetHistoryResponse)(nil),     // 4: chat.v1.GetHistoryResponse
+	(*ListenForEventsRequest)(nil), // 5: chat.v1.ListenForEventsRequest
+	(*ChatEvent)(nil),              // 6: chat.v1.ChatEvent
+	(*Heartbeat)(nil),              // 7: chat.v1.Heartbeat
 }
 var file_chat_v1_chat_proto_depIdxs = []int32{
 	0, // 0: chat.v1.SendMessageResponse.message:type_name -> chat.v1.ChatMessage
 	0, // 1: chat.v1.GetHistoryResponse.messages:type_name -> chat.v1.ChatMessage
-	1, // 2: chat.v1.ChatService.SendMessage:input_type -> chat.v1.SendMessageRequest
-	3, // 3: chat.v1.ChatService.GetHistory:input_type -> chat.v1.GetHistoryRequest
-	5, // 4: chat.v1.ChatService.ListenForMessages:input_type -> chat.v1.ListenForMessagesRequest
-	2, // 5: chat.v1.ChatService.SendMessage:output_type -> chat.v1.SendMessageResponse
-	4, // 6: chat.v1.ChatService.GetHistory:output_type -> chat.v1.GetHistoryResponse
-	0, // 7: chat.v1.ChatService.ListenForMessages:output_type -> chat.v1.ChatMessage
-	5, // [5:8] is the sub-list for method output_type
-	2, // [2:5] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	0, // 2: chat.v1.ChatEvent.message:type_name -> chat.v1.ChatMessage
+	7, // 3: chat.v1.ChatEvent.heartbeat:type_name -> chat.v1.Heartbeat
+	1, // 4: chat.v1.ChatService.SendMessage:input_type -> chat.v1.SendMessageRequest
+	3, // 5: chat.v1.ChatService.GetHistory:input_type -> chat.v1.GetHistoryRequest
+	5, // 6: chat.v1.ChatService.ListenForEvents:input_type -> chat.v1.ListenForEventsRequest
+	2, // 7: chat.v1.ChatService.SendMessage:output_type -> chat.v1.SendMessageResponse
+	4, // 8: chat.v1.ChatService.GetHistory:output_type -> chat.v1.GetHistoryResponse
+	6, // 9: chat.v1.ChatService.ListenForEvents:output_type -> chat.v1.ChatEvent
+	7, // [7:10] is the sub-list for method output_type
+	4, // [4:7] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_chat_v1_chat_proto_init() }
@@ -410,13 +542,17 @@ func file_chat_v1_chat_proto_init() {
 	if File_chat_v1_chat_proto != nil {
 		return
 	}
+	file_chat_v1_chat_proto_msgTypes[6].OneofWrappers = []any{
+		(*ChatEvent_Message)(nil),
+		(*ChatEvent_Heartbeat)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chat_v1_chat_proto_rawDesc), len(file_chat_v1_chat_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
