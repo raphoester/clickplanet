@@ -69,6 +69,7 @@
 
 .menu-actions {
     display: flex;
+    flex-wrap: wrap;
     gap: 8px;
     margin-top: 14px;
     flex-shrink: 0;
@@ -76,6 +77,16 @@
 
 .menu-actions > * {
     flex: 1 1 0;
+}
+
+/* Share gets a row of its own. Three of the shared 28px buttons do not fit
+   across the card — 422px of content in a 326px row, measured — and they do not
+   shrink either, so the third one hangs out over the edge. Share is the one
+   moved because its label changes while it works ("Drawing…", "Copied!"), so it
+   is the one that must not run out of room. Basis rather than width: the wrap
+   is what pushes the other two onto the line below. */
+.menu-actions .button-share {
+    flex-basis: 100%;
 }
 
 @media only screen and (max-width: 768px) {
@@ -105,5 +116,11 @@
 
     .menu-actions {
         margin-top: 8px;
+    }
+
+    /* At 14px all three fit across, and here a row of its own would cost
+       leaderboard: this menu is a sheet with the rows scrolling inside it. */
+    .menu-actions .button-share {
+        flex-basis: 0;
     }
 }

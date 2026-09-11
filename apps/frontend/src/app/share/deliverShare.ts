@@ -8,6 +8,15 @@
  * reached when the browser says no — a Safari on a desktop has `navigator.share`
  * but will not take files, and no amount of feature detection on `share` alone
  * would have caught that.
+ *
+ * **The share sheet is offered on a touch device only**, which is the one thing
+ * here that is not a feature test. On a phone the sheet *is* how you share, and
+ * it carries the file. On a desktop it is a shim over the OS share services,
+ * and `canShare({files})` answers true for services that then keep the text and
+ * drop the image — measured with Chrome on macOS into Telegram, which posted
+ * the sentence and no picture. A rung that reports success and silently loses
+ * the thing being shared is worse than not having it: the clipboard puts a real
+ * PNG into that same Telegram window with one paste.
  */
 
 export type ShareOutcome =
@@ -20,13 +29,21 @@ export type ShareOutcome =
     | "downloaded"
 
 export async function deliverShare(file: File, text: string): Promise<ShareOutcome> {
-    const sheet = await offerToShareSheet(file, text)
-    if (sheet) return sheet
+    if (sharesFilesFaithfully()) {
+        const sheet = await offerToShareSheet(file, text)
+        if (sheet) return sheet
+    }
 
-    if (await copyToClipboard(file, text)) return "copied"
+    if (await copyToClipboard(file)) return "copied"
 
     download(file)
     return "downloaded"
+}
+
+/** A coarse primary pointer is a phone or a tablet, where the share sheet is the
+ *  platform's own way of sending a file somewhere rather than a bridge to it. */
+function sharesFilesFaithfully(): boolean {
+    return window.matchMedia?.("(pointer: coarse)").matches ?? false
 }
 
 async function offerToShareSheet(file: File, text: string): Promise<ShareOutcome | undefined> {
@@ -45,21 +62,20 @@ async function offerToShareSheet(file: File, text: string): Promise<ShareOutcome
     }
 }
 
-async function copyToClipboard(file: File, text: string): Promise<boolean> {
+/**
+ * The picture and nothing else.
+ *
+ * Putting the link on as `text/plain` beside it looks like a free extra and is
+ * the same bug as the desktop share sheet wearing a different hat: handed a
+ * clipboard carrying both, a chat window pastes the sentence. The link is drawn
+ * into the image for exactly this reason, so there is nothing to lose by
+ * leaving it out here and one way to be misunderstood fewer.
+ */
+async function copyToClipboard(file: File): Promise<boolean> {
     if (!navigator.clipboard?.write || typeof ClipboardItem === "undefined") return false
 
-    const image = {[file.type]: file}
-    const withText = {...image, "text/plain": new Blob([text], {type: "text/plain"})}
-
-    // Two types in one item is what puts the link on the clipboard alongside the
-    // picture, where the paste target takes text. Where it does not, the item is
-    // refused whole — so the image goes on its own rather than nothing at all.
-    return await written(withText) || await written(image)
-}
-
-async function written(types: Record<string, Blob>): Promise<boolean> {
     try {
-        await navigator.clipboard.write([new ClipboardItem(types)])
+        await navigator.clipboard.write([new ClipboardItem({[file.type]: file})])
         return true
     } catch {
         return false

@@ -629,6 +629,18 @@ a desktop Safari has `navigator.share` and refuses files. A share sheet the
 player *cancels* stops the ladder rather than falling through, because a
 fallback there would put an image on their clipboard seconds after they said no.
 
+**The share sheet is offered on a coarse pointer only**, and that one rung is
+not a feature test. On a phone the sheet *is* how you share and it carries the
+file; on a desktop it is a shim over the OS share services, and Chrome on macOS
+answers `canShare({files})` true for services that then keep the text and drop
+the image — measured, into Telegram, which posted the sentence and no picture.
+
+**The clipboard carries the picture and nothing else**, for the same reason
+wearing a different hat: handed an item with `image/png` *and* `text/plain`, a
+chat window pastes the sentence. That is why the link is drawn into the image —
+it has nowhere else it has to be, so the clipboard rung has one fewer way to be
+misunderstood.
+
 ## Protocol Buffers
 
 Types are defined in the monorepo-shared [`/proto`](../../proto), one package per

@@ -17,6 +17,13 @@ function browser(capabilities: Navigatorish) {
     }
 }
 
+/** jsdom has no `matchMedia` at all, so the ladder reads as a desktop unless a
+ *  test says otherwise — which is the safe default for it to have. */
+function touchDevice(coarse: boolean) {
+    vi.stubGlobal("matchMedia", (query: string) =>
+        ({matches: coarse && query === "(pointer: coarse)"}))
+}
+
 /** jsdom carries neither, and what the ladder does with them is the whole point. */
 function clipboard(write = vi.fn().mockResolvedValue(undefined)) {
     vi.stubGlobal("ClipboardItem", class {
@@ -45,6 +52,7 @@ afterEach(() => {
 
 describe("delivering the share image", () => {
     it("hands the file to the share sheet where the browser will take one", async () => {
+        touchDevice(true)
         const share = vi.fn().mockResolvedValue(undefined)
         browser({share, canShare: () => true, clipboard: {write: vi.fn()}})
 
@@ -56,6 +64,7 @@ describe("delivering the share image", () => {
     // A desktop Safari has `navigator.share` and refuses files, so `share`
     // alone is not a test of anything.
     it("asks whether the sheet takes files rather than whether it exists", async () => {
+        touchDevice(true)
         const share = vi.fn()
         const write = clipboard()
         browser({share, canShare: () => false, clipboard: {write}})
@@ -65,6 +74,7 @@ describe("delivering the share image", () => {
     })
 
     it("stops when the player closes the sheet, instead of copying behind their back", async () => {
+        touchDevice(true)
         const write = clipboard()
         browser({
             share: vi.fn().mockRejectedValue(new DOMException("cancelled", "AbortError")),
@@ -77,6 +87,7 @@ describe("delivering the share image", () => {
     })
 
     it("falls to the clipboard when the sheet itself fails", async () => {
+        touchDevice(true)
         const write = clipboard()
         browser({
             share: vi.fn().mockRejectedValue(new Error("the sheet fell over")),
@@ -87,26 +98,28 @@ describe("delivering the share image", () => {
         expect(await deliverShare(image(), TEXT)).toBe("copied")
     })
 
-    it("puts the link on the clipboard beside the picture", async () => {
+    // Chrome on macOS answers `canShare({files})` true and then hands Telegram
+    // the sentence without the picture. A rung that reports success and loses
+    // what it was given is worse than not having it.
+    it("keeps a desktop off the share sheet, whatever it claims it can share", async () => {
+        touchDevice(false)
+        const share = vi.fn()
+        const write = clipboard()
+        browser({share, canShare: () => true, clipboard: {write}})
+
+        expect(await deliverShare(image(), TEXT)).toBe("copied")
+        expect(share).not.toHaveBeenCalled()
+    })
+
+    // The link is drawn into the image for this reason. Handed a clipboard
+    // carrying the picture and the sentence, a chat window pastes the sentence —
+    // the same complaint the desktop share sheet produced.
+    it("copies the picture alone, with no text for a paste target to prefer", async () => {
         const write = clipboard()
         browser({clipboard: {write}})
 
-        await deliverShare(image(), TEXT)
-
-        expect(write.mock.calls[0][0][0].types).toEqual(["image/png", "text/plain"])
-    })
-
-    // Some targets refuse a two-type item whole, and the image is the half
-    // worth having.
-    it("copies the picture on its own when both types together are refused", async () => {
-        const write = vi.fn()
-            .mockRejectedValueOnce(new Error("not supported"))
-            .mockResolvedValueOnce(undefined)
-        clipboard()
-        browser({clipboard: {write}})
-
         expect(await deliverShare(image(), TEXT)).toBe("copied")
-        expect(write.mock.calls[1][0][0].types).toEqual(["image/png"])
+        expect(write.mock.calls[0][0][0].types).toEqual(["image/png"])
     })
 
     it("downloads the file when there is no clipboard to write to", async () => {
