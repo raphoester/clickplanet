@@ -15,21 +15,36 @@ type LeaderboardProps = {
 
 const NAME_MAX_LENGTH = 18
 
+/* The copy around it is English, so the grouping is too: "257.948 tiles on the
+   map" would read as a decimal to the very readers the sentence is written for. */
+const grouped = new Intl.NumberFormat("en-US")
+
 export default function Leaderboard(props: LeaderboardProps) {
     const titleId = useId()
+    const totalId = useId()
     const deltas = props.deltas ?? NO_TILE_DELTAS
 
     return <section className="leaderboard" aria-labelledby={titleId}>
         <h2 className="menu-section-title" id={titleId}>Leaderboard</h2>
 
+        {/* Names the denominator both number columns are counted against, once,
+            instead of repeating a unit on every line. */}
+        {props.tilesCount > 0 &&
+            <p className="leaderboard-total" id={totalId}>
+                {grouped.format(props.tilesCount)} tiles on the map
+            </p>}
+
         <div className="leaderboard-table-container">
-            <table className="leaderboard-table">
+            <table className="leaderboard-table"
+                   aria-describedby={props.tilesCount > 0 ? totalId : undefined}>
                 <thead>
                 <tr>
                     <th className="leaderboard-table-head leaderboard-table-rank" scope="col">#</th>
                     <th className="leaderboard-table-head" scope="col">Country</th>
                     <th className="leaderboard-table-head leaderboard-table-number" scope="col">Tiles</th>
-                    <th className="leaderboard-table-head leaderboard-table-number" scope="col">Share</th>
+                    <th className="leaderboard-table-head leaderboard-table-number leaderboard-table-share"
+                        scope="col">% of map
+                    </th>
                 </tr>
                 </thead>
 
@@ -52,8 +67,8 @@ export default function Leaderboard(props: LeaderboardProps) {
                                             style={{animationDuration: `${DELTA_HOLD_MS}ms`}}
                                             aria-hidden="true">{signed(delta.net)}</span>}
                         </td>
-                        <td className="leaderboard-table-number">
-                            {(entry.tiles / props.tilesCount * 100).toFixed(2)}
+                        <td className="leaderboard-table-number leaderboard-table-share">
+                            {share(entry.tiles, props.tilesCount)}
                         </td>
                     </tr>
                 })}
@@ -63,8 +78,14 @@ export default function Leaderboard(props: LeaderboardProps) {
     </section>
 }
 
-// The count itself takes the badge's colour while it is up, so a row that moved
-// reads as one thing rather than a number and a sticker beside it.
+/* A country holding a couple of hundred tiles out of a quarter of a million
+   rounds to "0.00", which reads as none at all. Say "small" instead of "none". */
+function share(tiles: number, tilesCount: number): string {
+    const percent = tiles / tilesCount * 100
+    const rounded = percent.toFixed(2)
+    return percent > 0 && rounded === "0.00" ? "<0.01" : rounded
+}
+
 function tilesClass(net: number | undefined): string {
     const base = "leaderboard-table-number leaderboard-table-tiles"
     if (net === undefined) return base

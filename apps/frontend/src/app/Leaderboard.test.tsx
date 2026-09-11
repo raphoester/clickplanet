@@ -27,8 +27,28 @@ describe("Leaderboard", () => {
     })
 
     it("shows each country's share of the map to two decimals", () => {
+        render(<Leaderboard tilesCount={1000} data={[entry("fr", 123)]}/>)
+        expect(screen.getByText("12.30")).toBeDefined()
+    })
+
+    it("says a share is small rather than rounding it away to nothing", () => {
         render(<Leaderboard tilesCount={257_948} data={[entry("fr", 1)]}/>)
+        expect(screen.getByText("<0.01")).toBeDefined()
+    })
+
+    it("still writes a plain zero for a country holding no tile at all", () => {
+        render(<Leaderboard tilesCount={257_948} data={[entry("fr", 0)]}/>)
         expect(screen.getByText("0.00")).toBeDefined()
+    })
+
+    it("names the whole that a share is a share of", () => {
+        render(<Leaderboard tilesCount={257_948} data={[entry("fr", 500)]}/>)
+        expect(screen.getByText("257,948 tiles on the map")).toBeDefined()
+    })
+
+    it("says nothing about the map before the globe has counted it", () => {
+        render(<Leaderboard tilesCount={0} data={[]}/>)
+        expect(screen.queryByText(/tiles on the map/)).toBeNull()
     })
 
     it("renders nothing but the header when no country holds a tile", () => {
@@ -54,7 +74,7 @@ describe("Leaderboard", () => {
 
         expect(screen.getByRole("region", {name: "Leaderboard"})).toBeDefined()
         expect(screen.getAllByRole("columnheader").map(h => h.textContent))
-            .toEqual(["#", "Country", "Tiles", "Share"])
+            .toEqual(["#", "Country", "Tiles", "% of map"])
     })
 
     it("marks the player's own row", () => {
