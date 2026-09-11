@@ -65,7 +65,7 @@ func sessionServer(
 
 func newSigner(t *testing.T) *session.Signer {
 	t.Helper()
-	signer, err := session.NewSigner("a-test-secret", time.Hour)
+	signer, err := session.NewSigner(session.Config{Secret: "a-test-secret", TTL: time.Hour})
 	require.NoError(t, err)
 	return signer
 }

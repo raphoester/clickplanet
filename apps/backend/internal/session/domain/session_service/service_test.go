@@ -45,7 +45,7 @@ func (m *countingMinter) Mint(ip string, at time.Time) (session.Token, error) {
 func newService(t *testing.T, attester domain.Attester) (*session_service.Service, *countingMinter) {
 	t.Helper()
 
-	signer, err := session.NewSigner("a-test-secret", time.Hour)
+	signer, err := session.NewSigner(session.Config{Secret: "a-test-secret", TTL: time.Hour})
 	require.NoError(t, err)
 
 	minter := &countingMinter{signer: signer}

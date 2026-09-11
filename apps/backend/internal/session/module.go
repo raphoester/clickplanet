@@ -1,13 +1,12 @@
 // Package session wires the mint: what a caller has to prove before it may
-// click. Everything below it — the domain, the attesters, the edge — is what
-// this file assembles; the signer it mints with is built by the composition
-// root, because the clicks context verifies with the same one.
+// click. It builds everything it needs from its own config, including the
+// signer — the clicks context builds an identical one from the same `session:`
+// block rather than being handed this one.
 package session
 
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"connectrpc.com/connect"
 
@@ -17,7 +16,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging/lf"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ratelimit"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/secrets"
 	kernelsession "github.com/raphoester/clickplanet.lol-backend/internal/kernel/session"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/turnstile"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/xtime"
@@ -30,45 +28,22 @@ import (
 
 const moduleName = "session"
 
-// NewSigner builds what this context mints with and the clicks context verifies
-// with, nil when sessions are off. It is built outside the DI sequence because
-// it is the one dependency two contexts share.
-func NewSigner(config Config, logger logging.Logger) (*kernelsession.Signer, error) {
-	if !config.Enabled {
-		return nil, nil
-	}
-
-	config = config.withDefaults()
-
-	secret := config.Secret
-	if secret == "" {
-		generated, err := secrets.RandomHex()
-		if err != nil {
-			return nil, fmt.Errorf("failed to generate a session secret: %w", err)
-		}
-		secret = generated
-		logger.Warning("no session.secret configured, generated a random one: every session in flight is invalidated on each restart")
-	}
-
-	signer, err := kernelsession.NewSigner(secret, config.TTL)
-	if err != nil {
-		return nil, fmt.Errorf("failed to build the session signer: %w", err)
-	}
-
-	return signer, nil
-}
-
-func NewModule(config Config, signer *kernelsession.Signer) bootstrap.Module {
+func NewModule(config Config) bootstrap.Module {
 	return bootstrap.Module{
 		Name:    moduleName,
 		Enabled: config.Enabled,
 		DiSequence: func(_ context.Context, props bootstrap.Props) error {
-			return build(config.withDefaults(), signer, props)
+			return build(config.withDefaults(), props)
 		},
 	}
 }
 
-func build(config Config, signer *kernelsession.Signer, props bootstrap.Props) error {
+func build(config Config, props bootstrap.Props) error {
+	signer, err := kernelsession.NewSigner(config.Config)
+	if err != nil {
+		return fmt.Errorf("failed to build the session signer: %w", err)
+	}
+
 	attester, err := newAttester(config, props.Logger)
 	if err != nil {
 		return err
@@ -113,24 +88,10 @@ func newAttester(config Config, logger logging.Logger) (domain.Attester, error) 
 	return attester, nil
 }
 
-// Config gates the Click RPC on a token this server minted, which is the one
-// thing an address-based defence cannot do: refuse a caller that never proved
-// anything, however many addresses it has.
+// Config is the `session:` block. The token half is the kernel's, because the
+// clicks context declares the same type to verify what this one mints.
 type Config struct {
-	// Off registers nothing: session.v1.SessionService/ 404s and clicks are
-	// judged on address alone, as they were before this existed.
-	Enabled bool
-
-	// Off counts what enforcing would refuse without refusing it. Ship in this
-	// mode, watch click_session_checks, then turn it on.
-	Enforce bool
-
-	// Signs the tokens. Empty regenerates one at boot, which invalidates every
-	// session in flight on each restart.
-	Secret string
-
-	// How long a minted token is accepted for.
-	TTL time.Duration
+	kernelsession.Config `koanf:",squash"`
 
 	// Per-IP throttle on minting. Minting costs a siteverify round trip, so it
 	// needs its own budget rather than the click one.
@@ -139,15 +100,9 @@ type Config struct {
 	Turnstile turnstile.Config
 }
 
-const (
-	defaultTTL             = time.Hour
-	defaultTurnstileAction = "session"
-)
+const defaultTurnstileAction = "session"
 
 func (c Config) withDefaults() Config {
-	if c.TTL <= 0 {
-		c.TTL = defaultTTL
-	}
 	if c.Turnstile.Action == "" {
 		c.Turnstile.Action = defaultTurnstileAction
 	}

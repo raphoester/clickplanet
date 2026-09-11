@@ -21,17 +21,38 @@ var now = time.Date(2026, 9, 9, 12, 0, 0, 0, time.UTC)
 
 func newSigner(t *testing.T) *session.Signer {
 	t.Helper()
-	signer, err := session.NewSigner(secret, ttl)
+	signer, err := session.NewSigner(session.Config{Secret: secret, TTL: ttl})
 	require.NoError(t, err)
 	return signer
 }
 
-func TestNewSignerRejectsAnEmptySecretAndANonPositiveTTL(t *testing.T) {
-	_, err := session.NewSigner("", ttl)
+func TestNewSignerRejectsAnEmptySecretAndANegativeTTL(t *testing.T) {
+	_, err := session.NewSigner(session.Config{Secret: "", TTL: ttl})
 	assert.Error(t, err)
 
-	_, err = session.NewSigner(secret, 0)
+	_, err = session.NewSigner(session.Config{Secret: secret, TTL: -1})
 	assert.Error(t, err)
+}
+
+func TestAnUnsetTTLTakesTheDefault(t *testing.T) {
+	signer, err := session.NewSigner(session.Config{Secret: secret})
+	require.NoError(t, err)
+	assert.Equal(t, time.Hour, signer.TTL())
+}
+
+func TestTwoSignersOverOneConfigAgree(t *testing.T) {
+	config := session.Config{Secret: secret, TTL: ttl}
+
+	minter, err := session.NewSigner(config)
+	require.NoError(t, err)
+	verifier, err := session.NewSigner(config)
+	require.NoError(t, err)
+
+	token, err := minter.Mint("1.2.3.4", now)
+	require.NoError(t, err)
+
+	_, err = verifier.Verify(token.Value, "1.2.3.4", now)
+	assert.NoError(t, err, "the clicks context builds its own signer from the same block")
 }
 
 func TestAMintedTokenVerifiesForTheAddressItWasMintedFor(t *testing.T) {
@@ -75,7 +96,7 @@ func TestATokenIsRefusedByASignerHoldingAnotherSecret(t *testing.T) {
 	token, err := signer.Mint("203.0.113.7", now)
 	require.NoError(t, err)
 
-	other, err := session.NewSigner("another-secret", ttl)
+	other, err := session.NewSigner(session.Config{Secret: "another-secret", TTL: ttl})
 	require.NoError(t, err)
 
 	_, err = other.Verify(token.Value, "203.0.113.7", now)

@@ -14,10 +14,10 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/primary/http/planetv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/secondary/in_memory_tile_checker"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/secondary/memory_tile_storage"
-	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/domain"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/domain/click_handler_service"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/domain/click_handler_service/prom_click_handler_service"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/bootstrap"
+	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/countries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ipblock"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging/lf"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ratelimit"
@@ -27,32 +27,18 @@ import (
 
 const moduleName = "clicks"
 
-// Deps is what the composition root owns rather than this context.
-//
-// Signer is the worked example: sessions mint with it and clicks verifies with
-// it, so it belongs to neither and is handed to both. Nil means sessions are
-// off, which leaves the click chain exactly as it was before they existed.
-type Deps struct {
-	Countries domain.CountryChecker
-
-	Signer          *session.Signer
-	EnforceSessions bool
-
-	Server bootstrap.ServerConfig
-}
-
 // NewModule is always enabled: a process without the tile game is not this game.
-func NewModule(config Config, deps Deps) bootstrap.Module {
+func NewModule(config Config) bootstrap.Module {
 	return bootstrap.Module{
 		Name:    moduleName,
 		Enabled: true,
 		DiSequence: func(_ context.Context, props bootstrap.Props) error {
-			return build(config, deps, props)
+			return build(config, props)
 		},
 	}
 }
 
-func build(config Config, deps Deps, props bootstrap.Props) error {
+func build(config Config, props bootstrap.Props) error {
 	clock := xtime.ActualProvider{}
 
 	tilesChecker := in_memory_tile_checker.New(config.GameMap.MaxIndex)
@@ -60,7 +46,7 @@ func build(config Config, deps Deps, props bootstrap.Props) error {
 	tilesStorage := memory_tile_storage.New(config.GameMap.MaxIndex, config.TilesStorage, props.Logger)
 	props.Runners.Add("tiles-storage", tilesStorage.Run)
 
-	var handler click_handler_service.IService = click_handler_service.New(tilesChecker, tilesStorage, deps.Countries)
+	var handler click_handler_service.IService = click_handler_service.New(tilesChecker, tilesStorage, countries.New())
 	handler, err := prom_click_handler_service.New(handler, props.Metrics)
 	if err != nil {
 		return fmt.Errorf("failed to create prometheus click handler service: %w", err)
@@ -69,7 +55,7 @@ func build(config Config, deps Deps, props bootstrap.Props) error {
 	clickLimiter := ratelimit.New(config.RateLimiter, clock)
 	props.Runners.Add("click-limiter", clickLimiter.Run)
 
-	interceptors, err := clickChain(config, deps, tilesStorage, clickLimiter, props)
+	interceptors, err := clickChain(config, tilesStorage, clickLimiter, props)
 	if err != nil {
 		return err
 	}
@@ -80,7 +66,7 @@ func build(config Config, deps Deps, props bootstrap.Props) error {
 			tilesChecker,
 			tilesStorage,
 			tilesStorage,
-			deps.Server.StreamHeartbeat,
+			props.Server.StreamHeartbeat,
 			clickLimiter,
 		),
 		connect.WithInterceptors(interceptors...),
@@ -96,7 +82,6 @@ func build(config Config, deps Deps, props bootstrap.Props) error {
 // has been told it is banned.
 func clickChain(
 	config Config,
-	deps Deps,
 	owner planetv1controller.TileOwner,
 	clickLimiter *ratelimit.Limiter,
 	props bootstrap.Props,
@@ -111,16 +96,11 @@ func clickChain(
 		vpnBlockInterceptor,
 	}
 
-	if deps.Signer != nil {
-		sessionInterceptor, err := planetv1controller.NewSessionInterceptor(
-			deps.Signer,
-			xtime.ActualProvider{},
-			deps.EnforceSessions,
-			props.Metrics,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create the click session interceptor: %w", err)
-		}
+	sessionInterceptor, err := newSessionInterceptor(config.Session, props)
+	if err != nil {
+		return nil, err
+	}
+	if sessionInterceptor != nil {
 		interceptors = append(interceptors, sessionInterceptor)
 	}
 
@@ -135,6 +115,32 @@ func clickChain(
 	}
 
 	return interceptors, nil
+}
+
+// newSessionInterceptor builds this context's own verifier from the same
+// `session:` block the session context mints with — same secret, same MAC — so
+// neither module has to hand the other an object. Nil when sessions are off.
+func newSessionInterceptor(config session.Config, props bootstrap.Props) (connect.Interceptor, error) {
+	if !config.Enabled {
+		return nil, nil
+	}
+
+	verifier, err := session.NewSigner(config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build the click session verifier: %w", err)
+	}
+
+	interceptor, err := planetv1controller.NewSessionInterceptor(
+		verifier,
+		xtime.ActualProvider{},
+		config.Enforce,
+		props.Metrics,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create the click session interceptor: %w", err)
+	}
+
+	return interceptor, nil
 }
 
 func newVPNBlockInterceptor(config ipblock.Config, props bootstrap.Props) (connect.Interceptor, error) {

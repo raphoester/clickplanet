@@ -58,11 +58,12 @@ services:
       # anyone holding this can mint a token the API will accept. Changing it
       # invalidates every session in flight, which costs each player one extra
       # round trip and nothing else.
-      # Soft default, unlike the two above: an existing box redeploying before
-      # Turnstile has been set up must not have its stack refuse to start over a
-      # variable it does not need yet. Empty makes the API generate one at boot
-      # and warn — which changes every session on every restart, so set it.
-      session.secret: ${SESSION_SECRET:-}
+      # Hard, like the two above, because backend.yaml has session.enabled true
+      # and the API now refuses to start without it: the mint and the click
+      # check each derive a signer from this string, so one the server invented
+      # would differ between them. The box this runs on already needs
+      # TURNSTILE_SECRET to start, so it has been set up either way.
+      session.secret: ${SESSION_SECRET:?set SESSION_SECRET in .env (openssl rand -hex 32)}
       # The Turnstile widget's secret key, from the same dashboard page as the
       # sitekey. The sitekey is public and lives in the frontend build; this one
       # never leaves the box.

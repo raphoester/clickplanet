@@ -9,6 +9,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/secondary/memory_tile_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ipblock"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ratelimit"
+	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/session"
 )
 
 // Config is squashed into the process config, so these keys sit at the top
@@ -19,6 +20,10 @@ type Config struct {
 	RateLimiter  ratelimit.Config
 	VPNBlocklist ipblock.Config
 	AntiBot      AntiBotConfig
+
+	// The same `session:` keys the session context mints with. Declared here
+	// rather than handed over, so this module needs nothing but its config.
+	Session session.Config
 }
 
 type GameMapConfig struct {

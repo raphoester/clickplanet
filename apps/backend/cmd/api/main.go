@@ -11,7 +11,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/bootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/configs"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/countries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging/lf"
 	"github.com/raphoester/clickplanet.lol-backend/internal/session"
@@ -43,42 +42,21 @@ func run(ctx context.Context) error {
 	logger := logging.NewSLogger() // todo: inject config
 	logger.Debug("config", lf.Any("config", config))
 
-	modules, err := describeModules(config, logger)
-	if err != nil {
-		return err
-	}
-
 	return bootstrap.Run(ctx, bootstrap.Options{
 		Server:  config.HTTPServer,
 		Logger:  logger,
-		Modules: modules,
+		Modules: describeModules(config),
 	})
 }
 
-// describeModules builds what more than one context needs, then lists them all.
-func describeModules(config Config, logger logging.Logger) ([]bootstrap.Module, error) {
-	// Sessions mint what clicks verifies; nil when sessions are off.
-	signer, err := session.NewSigner(config.Session, logger)
-	if err != nil {
-		return nil, err
-	}
-
-	// The country list. Both the tile game and the chat validate against it.
-	checker := countries.New()
-
+// describeModules is the whole aggregation: every module takes its own config
+// and builds everything else itself.
+func describeModules(config Config) []bootstrap.Module {
 	return []bootstrap.Module{
-		session.NewModule(config.Session, signer),
-		clicks.NewModule(config.Clicks, clicks.Deps{
-			Countries:       checker,
-			Signer:          signer,
-			EnforceSessions: config.Session.Enforce,
-			Server:          config.HTTPServer,
-		}),
-		chat.NewModule(config.Chat, chat.Deps{
-			Countries: checker,
-			Server:    config.HTTPServer,
-		}),
-	}, nil
+		session.NewModule(config.Session),
+		clicks.NewModule(config.Clicks),
+		chat.NewModule(config.Chat),
+	}
 }
 
 func loadConfig() (Config, error) {
@@ -98,6 +76,12 @@ func (c Config) Validate() error {
 	}
 	if c.Clicks.GameMap.MaxIndex == 0 {
 		return errors.New("gameMap.maxIndex is zero: the map has no tiles")
+	}
+
+	// Both contexts derive their signer from this one string, so a server that
+	// invented one could not verify what it had just minted.
+	if c.Session.Enabled && c.Session.Secret == "" {
+		return errors.New("session.secret is empty while session.enabled is true: set SESSION_SECRET")
 	}
 
 	return nil

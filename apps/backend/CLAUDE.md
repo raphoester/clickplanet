@@ -52,37 +52,42 @@ They share the process, the transport and the country list, and **nothing else**
 
 ### The composite layer
 
-Each context wires **itself**, in a `module.go` at its root (`internal/clicks/module.go`, `internal/chat/module.go`, `internal/session/module.go`). That file is the context's manifest: its `Config`, the `Deps` it cannot build for itself, whether it is on, and its DI sequence. A module is a `bootstrap.Module` — a name, an `Enabled` flag and a DI sequence — and the sequence is handed a `bootstrap.Props` carrying registrars and nothing else:
+Each context wires **itself**, in a `module.go` at its root (`internal/clicks/module.go`, `internal/chat/module.go`, `internal/session/module.go`). That file is the context's manifest: its `Config`, whether it is on, and its DI sequence. **A module takes its config and nothing else, and builds every object it needs itself** — there is no `Deps` struct and nothing is handed down from `main`. A module is a `bootstrap.Module` — a name, an `Enabled` flag and a DI sequence — and the sequence is handed a `bootstrap.Props` carrying registrars and nothing else:
 
 - `props.RPC.Mount(path, handler)` — both return values of a generated `New<Service>Handler` go straight into it
 - `props.Runners.Add(name, run)` — a goroutine, given the process-lifetime context
 - `props.Closers.Add(name, close)` — a cleanup, run in reverse registration order
 - `props.Logger`, `props.Metrics`
+- `props.Server` — the bind address and the stream heartbeat, **the only config a module reads that is not its own**. It is the transport every module answers over, so it belongs to the layer that owns the server rather than to any context.
 
-A module never sees the router, the server, the signal handler or another module's dependencies. **There is no mutable app object and nothing to leave a half-built dependency on**: `internal/kernel/bootstrap` builds every module in order, then serves.
+A module never sees the router, the signal handler or another module's objects. **There is no mutable app object and nothing to leave a half-built dependency on**: `internal/kernel/bootstrap` builds every module in order, then serves.
 
-**`cmd/api/main.go` is the composition root, and it is the only one** — there is no `internal/app`, because a package whose whole job is to be called once by `main` was a level of indirection and nothing else. It does three things: load the config, build what more than one context needs, and list the modules.
+**`cmd/api/main.go` is the composition root, and it is the only one** — there is no `internal/app`, because a package whose whole job is to be called once by `main` was a level of indirection and nothing else. It does two things: load the config, and list the modules.
 
-**The list is declarative — a flat slice, no branches:**
+**The aggregation is the whole of it — a flat slice, no branches, no dependencies threaded through:**
 
 ```go
 return []bootstrap.Module{
-	session.NewModule(config.Session, signer),
-	clicks.NewModule(config.Clicks, clicks.Deps{...}),
-	chat.NewModule(config.Chat, chat.Deps{...}),
-}, nil
+	session.NewModule(config.Session),
+	clicks.NewModule(config.Clicks),
+	chat.NewModule(config.Chat),
+}
 ```
 
 **Every module is always listed; each reads its own switch.** `NewModule` sets `Enabled` from the module's own config and `bootstrap` skips the ones that are off, so turning chat off is a config change and never an edit here. A disabled module is never built, so its routes are **absent** rather than present and refusing — `/chat.v1.ChatService/` 404s, which is the contract chat and sessions already had.
 
-**What two contexts share is a variable in `describeModules` that both are handed**, which is the only way they can share anything:
+#### What two contexts need, without either handing it to the other
 
-- `kernel/session.Signer` — the session context mints with it, the clicks context verifies with it. `session.NewSigner` returns nil when sessions are off, which leaves the click chain as it was before they existed. Neither imports the other, and **clicks knows nothing about Turnstile** — swapping the attester changes one line in `internal/session/module.go`.
-- `kernel/countries` — both the tile game and the chat validate against it. It sits in the kernel and not under `clicks/adapters/` for exactly the reason the kernel exists: neither context may depend on the other.
+`main` builds no objects at all, so a thing two contexts need is **a config block they both declare**, and each builds its own instance from it.
+
+- **`kernel/session.Config`** is the `session:` block, and it lives in the kernel because two contexts read it: `session` mints with it, `clicks` verifies with it. Each calls `session.NewSigner(config)` itself. The same secret and TTL produce the same MAC, so the two signers agree by construction and there is no object to pass — `TestBothContextsReadTheSameSessionBlock` pins that they read one block, and `TestTwoSignersOverOneConfigAgree` pins that one block means one key. Neither module imports the other, and **clicks knows nothing about Turnstile** — swapping the attester changes one line in `internal/session/module.go`.
+- **`kernel/countries`** is the ISO list. It is stateless and hardcoded, so each module just calls `countries.New()`, the way it calls `xtime.ActualProvider{}`. It sits in the kernel and not under `clicks/adapters/` for exactly the reason the kernel exists: neither context may depend on the other.
+
+**This is why `session.secret` is now required** rather than invented at boot — see [Sessions](#sessions-internalsession).
 
 Adding a context that callers talk to means a `proto/<name>/v1`, an `internal/<name>/` with a `module.go`, and one line in the slice. Connect derives the route from the proto package, so there is no prefix to allocate and no router to edit.
 
-**`cmd/api`** is the only binary: `main.go` is the composition root, about 90 lines, and `bootstrap` is the rest.
+**`cmd/api`** is the only binary: `main.go` is the composition root, about 85 lines of config and a module list, and `bootstrap` is the rest.
 
 It runs as a **single self-contained container with no dependencies**: the tile map lives in process and is persisted to a local snapshot file. There is no database, no cache, and no second process.
 
@@ -256,7 +261,7 @@ The signature is checked **before** the expiry, in constant time, so a forger le
 
 **`session.turnstile.enabled: false` mints for anyone who asks** (`open_attester`). That is how a local backend runs without a widget and a secret, and it still exercises the whole click path — the token is bound and expires. It is never the production choice, and the server warns at boot when it is on.
 
-**Two secrets, neither in git.** `session.secret` signs the tokens; anyone holding it can mint one the API accepts. `session.turnstile.secret` is the widget's secret half. Both come from the environment via `deploy/vps/docker-compose.yaml`, as `chat.service.tagSalt` does. An empty `session.secret` generates one at boot and warns — which invalidates every session in flight on each restart, costing every player one extra round trip.
+**Two secrets, neither in git.** `session.secret` signs the tokens; anyone holding it can mint one the API accepts. `session.turnstile.secret` is the widget's secret half. Both come from the environment via `deploy/vps/docker-compose.yaml`, as `chat.service.tagSalt` does. **An empty `session.secret` with `session.enabled` true refuses the boot**, naming the variable to set. It used to generate one and warn; that stopped being possible when the two contexts started deriving their own signer from the block instead of sharing one object — a server that invented a secret would invent a different one per context and could not verify what it had just minted. Failing at boot is also the better trade on its own: the generated key invalidated every session in flight on each restart.
 
 **What it does not stop:** a person who solves Turnstile in a real browser and then runs a userscript. They hold a genuine session, and nothing here distinguishes them from a player. This raises the floor from "twenty lines of Python" to "drive a real browser"; the signal that survives that is behavioural — timing regularity and tile-id structure over a session — which is what the session id on the context exists to be keyed on. Nothing in production reads it yet, so `ctxutil.GetSessionID` sits behind the `testing` tag (see [Testing](#testing)) until something does.
 
@@ -493,7 +498,7 @@ Config is loaded from a YAML file, with environment variables overriding it — 
 - every watchdog also takes `detector.trackWindow` and `detector.sweepInterval` — how far back its evidence counts, and how often what can no longer matter is forgotten
 - `session.enabled` — off registers nothing, so `session.v1.SessionService/` 404s and clicks are judged on address alone
 - `session.enforce` — off counts what enforcing would refuse without refusing it; the mode to deploy in
-- `session.secret` — signs the tokens; **empty generates one at boot**, invalidating every session in flight on each restart
+- `session.secret` — signs the tokens; **required once `session.enabled` is true**, and an empty one refuses the boot rather than being invented
 - `session.ttl` — how long a minted token is accepted (default 1h)
 - `session.rateLimiter.*` — the per-IP `CreateSession` throttle, same shape as `rateLimiter`
 - `session.turnstile.enabled` — off mints for anyone who asks, which is how a local backend runs without a widget

@@ -16,9 +16,9 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/adapters/primary/chatv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/adapters/secondary/memory_chat_storage"
-	"github.com/raphoester/clickplanet.lol-backend/internal/chat/domain"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/domain/chat_service"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/bootstrap"
+	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/countries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ipblock"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging/lf"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ratelimit"
@@ -28,24 +28,17 @@ import (
 
 const moduleName = "chat"
 
-// Deps is what the composition root owns rather than this context.
-type Deps struct {
-	Countries domain.CountryChecker
-
-	Server bootstrap.ServerConfig
-}
-
-func NewModule(config Config, deps Deps) bootstrap.Module {
+func NewModule(config Config) bootstrap.Module {
 	return bootstrap.Module{
 		Name:    moduleName,
 		Enabled: config.Enabled,
 		DiSequence: func(_ context.Context, props bootstrap.Props) error {
-			return build(config, deps, props)
+			return build(config, props)
 		},
 	}
 }
 
-func build(config Config, deps Deps, props bootstrap.Props) error {
+func build(config Config, props bootstrap.Props) error {
 	serviceConfig := config.Service
 	if serviceConfig.TagSalt == "" {
 		salt, err := secrets.RandomHex()
@@ -59,7 +52,7 @@ func build(config Config, deps Deps, props bootstrap.Props) error {
 	storage := memory_chat_storage.New(config.Storage, xtime.ActualProvider{}, props.Logger)
 	props.Runners.Add("chat-storage", storage.Run)
 
-	service := chat_service.New(storage, deps.Countries, xtime.ActualProvider{}, serviceConfig)
+	service := chat_service.New(storage, countries.New(), xtime.ActualProvider{}, serviceConfig)
 
 	messageLimiter := ratelimit.New(config.RateLimiter, xtime.ActualProvider{})
 	props.Runners.Add("message-limiter", messageLimiter.Run)
@@ -70,7 +63,7 @@ func build(config Config, deps Deps, props bootstrap.Props) error {
 	}
 
 	err = props.RPC.Mount(chatv1connect.NewChatServiceHandler(
-		chatv1controller.NewChatService(service, storage, deps.Server.StreamHeartbeat),
+		chatv1controller.NewChatService(service, storage, props.Server.StreamHeartbeat),
 		connect.WithInterceptors(
 			chatv1controller.NewErrorInterceptor(props.Logger),
 			chatv1controller.NewBlocklistInterceptor(blocklist),

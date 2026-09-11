@@ -46,6 +46,10 @@ type Props struct {
 	Logger  logging.Logger
 	Metrics prometheus.Registerer
 
+	// The transport every module answers over, and the only config a module
+	// reads that is not its own.
+	Server ServerConfig
+
 	RPC     RPCRegistrar
 	Runners RunnerRegistrar
 	Closers CloserRegistrar
@@ -149,6 +153,7 @@ func buildModules(
 		err := module.DiSequence(ctx, Props{
 			Logger:  options.Logger,
 			Metrics: metrics,
+			Server:  options.Server,
 			RPC:     routes.forModule(module.Name),
 			Runners: runners,
 			Closers: closers,

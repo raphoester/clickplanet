@@ -1,8 +1,9 @@
 // Package secrets generates the values a config may leave empty.
 //
-// Both the chat tag salt and the session signing key are secrets the server
-// will invent rather than refuse to start without, and both pay the same price
-// for it: what the old one covered stops being recognised on every restart.
+// Only the chat tag salt qualifies: one module derives it and nothing else
+// reads it, so an invented one costs a restart's worth of tags. The session
+// secret is not here — two contexts derive a signer from it, and one the server
+// invented would differ between them.
 package secrets
 
 import (

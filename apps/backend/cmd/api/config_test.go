@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -59,4 +61,37 @@ func TestTheExampleConfigStillCarriesTheRestOfTheFile(t *testing.T) {
 	assert.Equal(t, 10, config.Clicks.RateLimiter.Burst)
 	assert.Equal(t, 30*time.Second, config.Clicks.TilesStorage.SnapshotInterval)
 	assert.Equal(t, time.Hour, config.Session.TTL)
+}
+
+func TestBothContextsReadTheSameSessionBlock(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	require.NoError(t, os.WriteFile(path, []byte(`
+httpServer:
+  bindAddress: 0.0.0.0:8080
+gameMap:
+  maxIndex: 100
+session:
+  enabled: true
+  enforce: true
+  secret: a-shared-secret
+  ttl: 2h
+`), 0o600))
+
+	var config Config
+	require.NoError(t, configs.Load(&config, configs.FromFile(path)))
+
+	assert.Equal(t, config.Session.Config, config.Clicks.Session,
+		"the mint and the click check derive their signer from one block, so these cannot diverge")
+	assert.Equal(t, "a-shared-secret", config.Clicks.Session.Secret)
+	assert.Equal(t, 2*time.Hour, config.Clicks.Session.TTL)
+	assert.True(t, config.Clicks.Session.Enforce)
+}
+
+func TestSessionsWithoutASecretAreRefused(t *testing.T) {
+	config := Config{}
+	config.HTTPServer.BindAddress = "0.0.0.0:8080"
+	config.Clicks.GameMap.MaxIndex = 100
+	config.Session.Enabled = true
+
+	require.ErrorContains(t, config.Validate(), "session.secret is empty")
 }
