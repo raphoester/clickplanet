@@ -1,6 +1,10 @@
 package session
 
-import "time"
+import (
+	"errors"
+	"fmt"
+	"time"
+)
 
 // Config is the `session:` block, and it is in the kernel because two bounded
 // contexts read it: the session context mints with it, the clicks context
@@ -34,4 +38,20 @@ func (c Config) withDefaults() Config {
 	}
 
 	return c
+}
+
+// Validate is what keeps a signer from being built twice over different keys.
+func (c Config) Validate() error {
+	if !c.Enabled {
+		return nil
+	}
+
+	if c.Secret == "" {
+		return errors.New("session.secret is empty while session.enabled is true: set SESSION_SECRET")
+	}
+	if c.TTL < 0 {
+		return fmt.Errorf("session.ttl must be positive, got %s", c.TTL)
+	}
+
+	return nil
 }

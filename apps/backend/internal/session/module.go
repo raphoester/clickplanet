@@ -109,3 +109,9 @@ func (c Config) withDefaults() Config {
 
 	return c
 }
+
+// Validate checks the `session:` block, which the clicks context also reads and
+// therefore does not check itself.
+func (c Config) Validate() error {
+	return c.Config.Validate()
+}

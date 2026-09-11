@@ -92,3 +92,10 @@ type Config struct {
 
 	BlockedIPs []string
 }
+
+// Validate has nothing to refuse: every chat setting has a usable default, so
+// an unset one is a default rather than a misconfiguration. It exists so a
+// check added later lands here and not in the binary's config.
+func (Config) Validate() error {
+	return nil
+}

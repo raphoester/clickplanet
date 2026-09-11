@@ -475,7 +475,29 @@ Where the file comes from is an option — `FromFlag()` reads `-config`, which i
 
 Config is loaded from a YAML file, with environment variables overriding it — `.` is the nesting delimiter, so `tilesStorage.snapshotPath=/data/tiles` in the environment overrides the file. See `cmd/api/example.yaml` for the full schema.
 
-**A config that implements `Validate() error` is asked to check itself**, and the load fails with its sentence wrapped in `configs.ErrValidation`. That is the only place a bad setting is refused out loud rather than becoming a zero value nothing reports: `cmd/api`'s checks `httpServer.bindAddress` (empty listens on port 80) and `gameMap.maxIndex` (zero is a map that refuses every click). There is no struct-tag validation and therefore no validator dependency — a hook the config implements covers this app's needs.
+**A config that implements `Validate() error` is asked to check itself**, and the load fails with its sentence wrapped in `configs.ErrValidation`. That is where a bad setting is refused out loud rather than becoming a zero value nothing reports.
+
+**Every block validates its own, and `cmd/api` only fans out:**
+
+```go
+func (c Config) Validate() error {
+	return errors.Join(
+		c.HTTPServer.Validate(),
+		c.Clicks.Validate(),
+		c.Session.Validate(),
+		c.Chat.Validate(),
+	)
+}
+```
+
+The binary never reads inside a block to check it, so a new bound is added in the module that owns it and nothing here changes. `errors.Join` also means a broken file reports **everything** wrong at once rather than one line per restart.
+
+- `bootstrap.ServerConfig` — `bindAddress` empty listens on port 80
+- `clicks.Config` — `gameMap.maxIndex` zero is a map that refuses every click
+- `kernel/session.Config` — `secret` empty while `enabled`, and a negative `ttl`. It sits with the block rather than with either context, because both read it and it must be checked exactly once
+- `chat.Config` — nothing: every chat setting has a usable default, so an unset one is a default and not a mistake. It implements the hook anyway, so a check added later lands in chat
+
+There is no struct-tag validation and therefore no validator dependency — a hook the config implements covers this app's needs.
 
 **Each module owns its own config struct** — `clicks.Config`, `chat.Config`, `session.Config` — and `app.Config` is the three of them plus `httpServer`. The clicks keys stayed at the top level of the file rather than moving under a `clicks:` section: `app.Config` squashes that struct (`koanf:",squash"`), so the file and every `deploy/` environment variable are unchanged.
 

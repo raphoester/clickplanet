@@ -80,6 +80,15 @@ type ServerConfig struct {
 	StreamHeartbeat time.Duration
 }
 
+// Validate refuses the address that has no usable zero value: empty listens on port 80.
+func (c ServerConfig) Validate() error {
+	if c.BindAddress == "" {
+		return errors.New("httpServer.bindAddress is empty")
+	}
+
+	return nil
+}
+
 type Options struct {
 	Server ServerConfig
 

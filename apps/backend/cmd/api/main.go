@@ -68,21 +68,12 @@ func loadConfig() (Config, error) {
 	return config, nil
 }
 
-// Validate refuses the two settings that have no usable zero value: an empty
-// address listens on port 80, and a map of no tiles refuses every click.
+// Validate asks each block to check itself, and reports everything wrong at once.
 func (c Config) Validate() error {
-	if c.HTTPServer.BindAddress == "" {
-		return errors.New("httpServer.bindAddress is empty")
-	}
-	if c.Clicks.GameMap.MaxIndex == 0 {
-		return errors.New("gameMap.maxIndex is zero: the map has no tiles")
-	}
-
-	// Both contexts derive their signer from this one string, so a server that
-	// invented one could not verify what it had just minted.
-	if c.Session.Enabled && c.Session.Secret == "" {
-		return errors.New("session.secret is empty while session.enabled is true: set SESSION_SECRET")
-	}
-
-	return nil
+	return errors.Join(
+		c.HTTPServer.Validate(),
+		c.Clicks.Validate(),
+		c.Session.Validate(),
+		c.Chat.Validate(),
+	)
 }
