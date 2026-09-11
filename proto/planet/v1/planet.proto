@@ -5,6 +5,11 @@ package planet.v1;
 service ClickService {
   rpc Click(ClickRequest) returns (ClickResponse);
 
+  // Reads the caller's allowance without spending it, for a client that has
+  // just loaded and has no click to learn it from. Deliberately not marked
+  // NO_SIDE_EFFECTS: the answer is about this instant, and a cached one lies.
+  rpc GetBudget(GetBudgetRequest) returns (GetBudgetResponse);
+
   rpc MapDensity(MapDensityRequest) returns (MapDensityResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
@@ -16,12 +21,40 @@ service ClickService {
   rpc ListenForEvents(ListenForEventsRequest) returns (stream PlanetEvent);
 }
 
+// What the rate limiter has left for the caller, and the policy it refills
+// under. The policy travels with the reading because a client that displays
+// the allowance replays the refill itself between two answers — that is what
+// keeps the number honest without polling.
+//
+// It rides on every click answer, accepted or refused, so the client is never
+// more than one click away from the truth.
+message ClickBudget {
+  // Clicks left, fractional: 6.4 means six clicks now, and the seventh in
+  // 600ms at a refill of one per second.
+  double tokens = 1;
+
+  // The most a caller can bank: the burst.
+  uint32 capacity = 2;
+
+  // Tokens granted back per second.
+  double refill_per_second = 3;
+}
+
 message ClickRequest {
   uint32 tile_id = 1;
   string country_id = 2;
 }
 
-message ClickResponse {}
+message ClickResponse {
+  // Absent from a server that does not rate limit clicks.
+  ClickBudget budget = 1;
+}
+
+message GetBudgetRequest {}
+
+message GetBudgetResponse {
+  ClickBudget budget = 1;
+}
 
 message MapDensityRequest {}
 

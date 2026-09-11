@@ -35,6 +35,8 @@ const (
 const (
 	// ClickServiceClickProcedure is the fully-qualified name of the ClickService's Click RPC.
 	ClickServiceClickProcedure = "/planet.v1.ClickService/Click"
+	// ClickServiceGetBudgetProcedure is the fully-qualified name of the ClickService's GetBudget RPC.
+	ClickServiceGetBudgetProcedure = "/planet.v1.ClickService/GetBudget"
 	// ClickServiceMapDensityProcedure is the fully-qualified name of the ClickService's MapDensity RPC.
 	ClickServiceMapDensityProcedure = "/planet.v1.ClickService/MapDensity"
 	// ClickServiceGetMapProcedure is the fully-qualified name of the ClickService's GetMap RPC.
@@ -47,6 +49,10 @@ const (
 // ClickServiceClient is a client for the planet.v1.ClickService service.
 type ClickServiceClient interface {
 	Click(context.Context, *connect.Request[v1.ClickRequest]) (*connect.Response[v1.ClickResponse], error)
+	// Reads the caller's allowance without spending it, for a client that has
+	// just loaded and has no click to learn it from. Deliberately not marked
+	// NO_SIDE_EFFECTS: the answer is about this instant, and a cached one lies.
+	GetBudget(context.Context, *connect.Request[v1.GetBudgetRequest]) (*connect.Response[v1.GetBudgetResponse], error)
 	MapDensity(context.Context, *connect.Request[v1.MapDensityRequest]) (*connect.Response[v1.MapDensityResponse], error)
 	GetMap(context.Context, *connect.Request[v1.GetMapRequest]) (*connect.Response[v1.GetMapResponse], error)
 	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest]) (*connect.ServerStreamForClient[v1.PlanetEvent], error)
@@ -67,6 +73,12 @@ func NewClickServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			httpClient,
 			baseURL+ClickServiceClickProcedure,
 			connect.WithSchema(clickServiceMethods.ByName("Click")),
+			connect.WithClientOptions(opts...),
+		),
+		getBudget: connect.NewClient[v1.GetBudgetRequest, v1.GetBudgetResponse](
+			httpClient,
+			baseURL+ClickServiceGetBudgetProcedure,
+			connect.WithSchema(clickServiceMethods.ByName("GetBudget")),
 			connect.WithClientOptions(opts...),
 		),
 		mapDensity: connect.NewClient[v1.MapDensityRequest, v1.MapDensityResponse](
@@ -95,6 +107,7 @@ func NewClickServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 // clickServiceClient implements ClickServiceClient.
 type clickServiceClient struct {
 	click           *connect.Client[v1.ClickRequest, v1.ClickResponse]
+	getBudget       *connect.Client[v1.GetBudgetRequest, v1.GetBudgetResponse]
 	mapDensity      *connect.Client[v1.MapDensityRequest, v1.MapDensityResponse]
 	getMap          *connect.Client[v1.GetMapRequest, v1.GetMapResponse]
 	listenForEvents *connect.Client[v1.ListenForEventsRequest, v1.PlanetEvent]
@@ -103,6 +116,11 @@ type clickServiceClient struct {
 // Click calls planet.v1.ClickService.Click.
 func (c *clickServiceClient) Click(ctx context.Context, req *connect.Request[v1.ClickRequest]) (*connect.Response[v1.ClickResponse], error) {
 	return c.click.CallUnary(ctx, req)
+}
+
+// GetBudget calls planet.v1.ClickService.GetBudget.
+func (c *clickServiceClient) GetBudget(ctx context.Context, req *connect.Request[v1.GetBudgetRequest]) (*connect.Response[v1.GetBudgetResponse], error) {
+	return c.getBudget.CallUnary(ctx, req)
 }
 
 // MapDensity calls planet.v1.ClickService.MapDensity.
@@ -123,6 +141,10 @@ func (c *clickServiceClient) ListenForEvents(ctx context.Context, req *connect.R
 // ClickServiceHandler is an implementation of the planet.v1.ClickService service.
 type ClickServiceHandler interface {
 	Click(context.Context, *connect.Request[v1.ClickRequest]) (*connect.Response[v1.ClickResponse], error)
+	// Reads the caller's allowance without spending it, for a client that has
+	// just loaded and has no click to learn it from. Deliberately not marked
+	// NO_SIDE_EFFECTS: the answer is about this instant, and a cached one lies.
+	GetBudget(context.Context, *connect.Request[v1.GetBudgetRequest]) (*connect.Response[v1.GetBudgetResponse], error)
 	MapDensity(context.Context, *connect.Request[v1.MapDensityRequest]) (*connect.Response[v1.MapDensityResponse], error)
 	GetMap(context.Context, *connect.Request[v1.GetMapRequest]) (*connect.Response[v1.GetMapResponse], error)
 	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest], *connect.ServerStream[v1.PlanetEvent]) error
@@ -139,6 +161,12 @@ func NewClickServiceHandler(svc ClickServiceHandler, opts ...connect.HandlerOpti
 		ClickServiceClickProcedure,
 		svc.Click,
 		connect.WithSchema(clickServiceMethods.ByName("Click")),
+		connect.WithHandlerOptions(opts...),
+	)
+	clickServiceGetBudgetHandler := connect.NewUnaryHandler(
+		ClickServiceGetBudgetProcedure,
+		svc.GetBudget,
+		connect.WithSchema(clickServiceMethods.ByName("GetBudget")),
 		connect.WithHandlerOptions(opts...),
 	)
 	clickServiceMapDensityHandler := connect.NewUnaryHandler(
@@ -165,6 +193,8 @@ func NewClickServiceHandler(svc ClickServiceHandler, opts ...connect.HandlerOpti
 		switch r.URL.Path {
 		case ClickServiceClickProcedure:
 			clickServiceClickHandler.ServeHTTP(w, r)
+		case ClickServiceGetBudgetProcedure:
+			clickServiceGetBudgetHandler.ServeHTTP(w, r)
 		case ClickServiceMapDensityProcedure:
 			clickServiceMapDensityHandler.ServeHTTP(w, r)
 		case ClickServiceGetMapProcedure:
@@ -182,6 +212,10 @@ type UnimplementedClickServiceHandler struct{}
 
 func (UnimplementedClickServiceHandler) Click(context.Context, *connect.Request[v1.ClickRequest]) (*connect.Response[v1.ClickResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.ClickService.Click is not implemented"))
+}
+
+func (UnimplementedClickServiceHandler) GetBudget(context.Context, *connect.Request[v1.GetBudgetRequest]) (*connect.Response[v1.GetBudgetResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.ClickService.GetBudget is not implemented"))
 }
 
 func (UnimplementedClickServiceHandler) MapDensity(context.Context, *connect.Request[v1.MapDensityRequest]) (*connect.Response[v1.MapDensityResponse], error) {

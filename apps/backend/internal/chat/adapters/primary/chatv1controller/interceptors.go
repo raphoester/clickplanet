@@ -21,6 +21,7 @@ func NewRateLimitInterceptor(limiter MessageLimiter) connect.Interceptor {
 	return connectutil.NewRateLimitInterceptor(
 		limiter,
 		ErrTooManyMessages,
+		nil, // the composer shows no allowance, so a refusal carries none
 		chatv1connect.ChatServiceSendMessageProcedure,
 	)
 }

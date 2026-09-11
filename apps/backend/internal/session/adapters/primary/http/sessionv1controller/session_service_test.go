@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ratelimit"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -31,11 +32,11 @@ func (refusingAttester) Attest(context.Context, string, string) error {
 
 type allowAll struct{}
 
-func (allowAll) Allow(string) bool { return true }
+func (allowAll) Take(string) (bool, ratelimit.State) { return true, ratelimit.State{} }
 
 type refuseAll struct{}
 
-func (refuseAll) Allow(string) bool { return false }
+func (refuseAll) Take(string) (bool, ratelimit.State) { return false, ratelimit.State{} }
 
 func sessionServer(
 	t *testing.T,
