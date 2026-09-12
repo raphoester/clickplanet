@@ -3,22 +3,21 @@ package memory_chat_storage
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"sync"
 	"sync/atomic"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/domain"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cplogging"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cplogging/cplf"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 func New(
 	config Config,
 	timeProvider cptime.Provider,
-	logger cplogging.Logger,
+	logger *slog.Logger,
 ) *Storage {
 	if logger == nil {
-		logger = cplogging.NewNopLogger()
+		logger = slog.New(slog.DiscardHandler)
 	}
 	if timeProvider == nil {
 		timeProvider = cptime.ActualProvider{}
@@ -41,7 +40,7 @@ func New(
 
 type Storage struct {
 	config       Config
-	logger       cplogging.Logger
+	logger       *slog.Logger
 	timeProvider cptime.Provider
 
 	historyMu sync.RWMutex
@@ -120,9 +119,9 @@ func (s *Storage) publish(message domain.ChatMessage) {
 		default:
 			dropped := sub.dropped.Add(1)
 			if dropped == 1 || dropped%dropLogInterval == 0 {
-				s.logger.Warning("dropped a chat message for a slow subscriber",
-					cplf.String("messageId", message.ID),
-					cplf.Any("droppedTotal", dropped),
+				s.logger.Warn("dropped a chat message for a slow subscriber",
+					slog.String("messageId", message.ID),
+					slog.Uint64("droppedTotal", dropped),
 				)
 			}
 		}

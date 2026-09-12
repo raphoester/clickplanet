@@ -9,6 +9,7 @@ package planet
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"connectrpc.com/connect"
 
@@ -22,7 +23,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cplogging/cplf"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -153,7 +153,7 @@ func newVPNBlockInterceptor(config cpipblock.Config, props cpbootstrap.Props) (c
 	}
 
 	if sizes := blocklist.Sizes(); len(sizes) > 0 {
-		props.Logger.Info("vpn blocklist enabled", cplf.Any("ranges", sizes))
+		props.Logger.Info("vpn blocklist enabled", slog.Any("ranges", sizes))
 	}
 
 	interceptor, err := planetv1controller.NewVPNBlockInterceptor(blocklist, props.Metrics)

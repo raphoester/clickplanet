@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,7 +14,6 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/adapters/secondary/memory_chat_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/domain"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cplogging"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 	"github.com/stretchr/testify/suite"
 )
@@ -36,7 +36,7 @@ func (s *testSuite) SetupTest() {
 
 func (s *testSuite) newStorage(config memory_chat_storage.Config) *memory_chat_storage.Storage {
 	config.LogPath = s.logPath
-	return memory_chat_storage.New(config, s.clock, cplogging.NewNopLogger())
+	return memory_chat_storage.New(config, s.clock, slog.New(slog.DiscardHandler))
 }
 
 func (s *testSuite) record(text string) domain.ChatRecord {
@@ -305,7 +305,7 @@ func (s *testSuite) waitUntilGone(text string) {
 }
 
 func (s *testSuite) TestNoLogPathKeepsChatInMemory() {
-	storage := memory_chat_storage.New(memory_chat_storage.Config{}, s.clock, cplogging.NewNopLogger())
+	storage := memory_chat_storage.New(memory_chat_storage.Config{}, s.clock, slog.New(slog.DiscardHandler))
 
 	s.Require().NoError(storage.Append(context.Background(), s.record("hello")))
 	s.Assert().Len(storage.History(context.Background()), 1)

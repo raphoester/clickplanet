@@ -9,6 +9,7 @@ package chat
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"connectrpc.com/connect"
 
@@ -20,7 +21,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cplogging/cplf"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsecrets"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -46,7 +46,7 @@ func build(config Config, props cpbootstrap.Props) error {
 			return fmt.Errorf("failed to generate a chat tag salt: %w", err)
 		}
 		serviceConfig.TagSalt = salt
-		props.Logger.Warning("no chat.service.tagSalt configured, generated a random one: sender tags will change on every restart")
+		props.Logger.Warn("no chat.service.tagSalt configured, generated a random one: sender tags will change on every restart")
 	}
 
 	storage := memory_chat_storage.New(config.Storage, cptime.ActualProvider{}, props.Logger)
@@ -74,7 +74,7 @@ func build(config Config, props cpbootstrap.Props) error {
 		return err
 	}
 
-	props.Logger.Info("chat enabled", cplf.String("logPath", config.Storage.LogPath))
+	props.Logger.Info("chat enabled", slog.String("logPath", config.Storage.LogPath))
 
 	return nil
 }

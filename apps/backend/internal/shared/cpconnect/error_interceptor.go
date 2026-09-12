@@ -3,10 +3,9 @@ package cpconnect
 import (
 	"context"
 	"errors"
+	"log/slog"
 
 	"connectrpc.com/connect"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cplogging"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cplogging/cplf"
 )
 
 // Mapper turns a bare handler error into the Connect error to answer with, or
@@ -17,16 +16,16 @@ type Mapper func(error) *connect.Error
 // handlers may return theirs bare. It covers streaming handlers as well as
 // unary ones: without that, a stream is the one procedure whose raw error the
 // caller would see.
-func NewErrorInterceptor(logger cplogging.Logger, mapper Mapper) connect.Interceptor {
+func NewErrorInterceptor(logger *slog.Logger, mapper Mapper) connect.Interceptor {
 	if logger == nil {
-		logger = cplogging.NewNopLogger()
+		logger = slog.New(slog.DiscardHandler)
 	}
 
 	return &errorInterceptor{logger: logger, mapper: mapper}
 }
 
 type errorInterceptor struct {
-	logger cplogging.Logger
+	logger *slog.Logger
 	mapper Mapper
 }
 
@@ -46,8 +45,8 @@ func (i *errorInterceptor) translate(procedure string, err error) error {
 	}
 
 	i.logger.Error("rpc failed",
-		cplf.String("procedure", procedure),
-		cplf.Err(err),
+		slog.String("procedure", procedure),
+		slog.Any("error", err),
 	)
 
 	return connect.NewError(connect.CodeInternal, errors.New("internal error"))

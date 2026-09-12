@@ -8,12 +8,12 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"os"
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/domain"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomicfile"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cplogging/cplf"
 )
 
 type logRecord struct {
@@ -60,14 +60,14 @@ type appendLog struct {
 
 func (s *Storage) Run(ctx context.Context) {
 	if s.config.LogPath == "" {
-		s.logger.Warning("no chat log path configured, messages will not survive a restart")
+		s.logger.Warn("no chat log path configured, messages will not survive a restart")
 		<-ctx.Done()
 		return
 	}
 
 	s.logger.Info("logging chat",
-		cplf.String("path", s.config.LogPath),
-		cplf.Any("retention", s.config.Retention),
+		slog.String("path", s.config.LogPath),
+		slog.Duration("retention", s.config.Retention),
 	)
 
 	flush := time.NewTicker(s.config.FlushInterval)
@@ -97,8 +97,8 @@ func (s *Storage) restore() {
 
 	if err := cpatomicfile.CheckWritable(s.config.LogPath); err != nil {
 		s.logger.Error("chat log path is not writable, messages will not be recorded",
-			cplf.String("path", s.config.LogPath),
-			cplf.Err(err),
+			slog.String("path", s.config.LogPath),
+			slog.Any("error", err),
 		)
 		return
 	}
@@ -106,14 +106,14 @@ func (s *Storage) restore() {
 	records, skipped, err := readRecords(s.config.LogPath)
 	if err != nil {
 		s.logger.Error("failed to read the chat log, starting with an empty history",
-			cplf.String("path", s.config.LogPath),
-			cplf.Err(err),
+			slog.String("path", s.config.LogPath),
+			slog.Any("error", err),
 		)
 	}
 	if skipped > 0 {
-		s.logger.Warning("skipped unreadable chat log lines",
-			cplf.String("path", s.config.LogPath),
-			cplf.Int("skipped", skipped),
+		s.logger.Warn("skipped unreadable chat log lines",
+			slog.String("path", s.config.LogPath),
+			slog.Int("skipped", skipped),
 		)
 	}
 
@@ -130,8 +130,8 @@ func (s *Storage) restore() {
 	file, err := openForAppend(s.config.LogPath)
 	if err != nil {
 		s.logger.Error("failed to open the chat log for appending",
-			cplf.String("path", s.config.LogPath),
-			cplf.Err(err),
+			slog.String("path", s.config.LogPath),
+			slog.Any("error", err),
 		)
 		return
 	}
@@ -170,8 +170,8 @@ func (s *Storage) flush() {
 
 	if err := s.log.file.Sync(); err != nil {
 		s.logger.Error("failed to flush the chat log",
-			cplf.String("path", s.config.LogPath),
-			cplf.Err(err),
+			slog.String("path", s.config.LogPath),
+			slog.Any("error", err),
 		)
 		return
 	}
@@ -188,7 +188,7 @@ func (s *Storage) closeLog() {
 	}
 
 	if err := s.log.file.Close(); err != nil {
-		s.logger.Error("failed to close the chat log", cplf.Err(err))
+		s.logger.Error("failed to close the chat log", slog.Any("error", err))
 	}
 
 	s.log = nil
@@ -203,14 +203,14 @@ func (s *Storage) prune() {
 	}
 
 	if err := s.log.file.Sync(); err != nil {
-		s.logger.Error("failed to flush the chat log before pruning", cplf.Err(err))
+		s.logger.Error("failed to flush the chat log before pruning", slog.Any("error", err))
 		return
 	}
 	s.log.dirty = false
 
 	records, _, err := readRecords(s.config.LogPath)
 	if err != nil {
-		s.logger.Error("failed to read the chat log for pruning", cplf.Err(err))
+		s.logger.Error("failed to read the chat log for pruning", slog.Any("error", err))
 		return
 	}
 
@@ -223,7 +223,7 @@ func (s *Storage) prune() {
 	for _, record := range kept {
 		line, err := json.Marshal(record)
 		if err != nil {
-			s.logger.Error("failed to re-encode a chat record while pruning", cplf.Err(err))
+			s.logger.Error("failed to re-encode a chat record while pruning", slog.Any("error", err))
 			return
 		}
 		payload.Write(line)
@@ -231,24 +231,24 @@ func (s *Storage) prune() {
 	}
 
 	if err := s.log.file.Close(); err != nil {
-		s.logger.Error("failed to close the chat log before pruning", cplf.Err(err))
+		s.logger.Error("failed to close the chat log before pruning", slog.Any("error", err))
 	}
 	s.log = nil
 
 	if err := cpatomicfile.Write(s.config.LogPath, payload.Bytes()); err != nil {
-		s.logger.Error("failed to write the pruned chat log", cplf.Err(err))
+		s.logger.Error("failed to write the pruned chat log", slog.Any("error", err))
 	}
 
 	file, err := openForAppend(s.config.LogPath)
 	if err != nil {
-		s.logger.Error("failed to reopen the chat log after pruning", cplf.Err(err))
+		s.logger.Error("failed to reopen the chat log after pruning", slog.Any("error", err))
 		return
 	}
 
 	s.log = &appendLog{file: file}
 	s.logger.Info("pruned the chat log",
-		cplf.Int("dropped", len(records)-len(kept)),
-		cplf.Int("kept", len(kept)),
+		slog.Int("dropped", len(records)-len(kept)),
+		slog.Int("kept", len(kept)),
 	)
 }
 

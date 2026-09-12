@@ -3,6 +3,7 @@ package cpbootstrap_test
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 	"sync"
 	"testing"
@@ -12,7 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cplogging"
 )
 
 func TestAModuleThatFailsToBuildNamesItselfInTheError(t *testing.T) {
@@ -173,7 +173,7 @@ func run(t *testing.T, modules []cpbootstrap.Module) error {
 
 	return cpbootstrap.Run(ctx, cpbootstrap.Options{
 		Server:  cpbootstrap.ServerConfig{BindAddress: "127.0.0.1:0"},
-		Logger:  cplogging.NewNopLogger(),
+		Logger:  slog.New(slog.DiscardHandler),
 		Modules: modules,
 	})
 }

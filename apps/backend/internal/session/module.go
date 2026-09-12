@@ -7,6 +7,7 @@ package session
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"connectrpc.com/connect"
 
@@ -19,8 +20,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/session/internal/domain/session_service"
 	"github.com/raphoester/clickplanet.lol-backend/internal/session/internal/turnstile"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cplogging"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cplogging/cplf"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -66,17 +65,17 @@ func build(config Config, props cpbootstrap.Props) error {
 	}
 
 	props.Logger.Info("sessions enabled",
-		cplf.Any("ttl", config.TTL),
-		cplf.Bool("enforce", config.Enforce),
-		cplf.Bool("turnstile", config.Turnstile.Enabled),
+		slog.Duration("ttl", config.TTL),
+		slog.Bool("enforce", config.Enforce),
+		slog.Bool("turnstile", config.Turnstile.Enabled),
 	)
 
 	return nil
 }
 
-func newAttester(config Config, logger cplogging.Logger) (domain.Attester, error) {
+func newAttester(config Config, logger *slog.Logger) (domain.Attester, error) {
 	if !config.Turnstile.Enabled {
-		logger.Warning("session.turnstile is disabled: a session is minted for anyone who asks for one")
+		logger.Warn("session.turnstile is disabled: a session is minted for anyone who asks for one")
 		return open_attester.New(), nil
 	}
 

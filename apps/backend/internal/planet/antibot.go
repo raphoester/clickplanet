@@ -2,13 +2,13 @@ package planet
 
 import (
 	"fmt"
+	"log/slog"
 
 	"connectrpc.com/connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cplogging/cplf"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -37,9 +37,9 @@ func newAntiBotInterceptor(
 
 	described := guard.Describe()
 	props.Logger.Info("antibot enabled",
-		cplf.Any("watchdogs", described.Watchdogs),
-		cplf.Int("minSuspects", described.MinSuspects),
-		cplf.Bool("enforce", described.Enforcing),
+		slog.Any("watchdogs", described.Watchdogs),
+		slog.Int("minSuspects", described.MinSuspects),
+		slog.Bool("enforce", described.Enforcing),
 	)
 
 	interceptor, err := planetv1controller.NewAntiBotInterceptor(guard, owner, clock, props.Metrics)

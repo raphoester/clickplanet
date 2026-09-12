@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat"
@@ -12,8 +13,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/session"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconfigs"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cplogging"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cplogging/cplf"
 )
 
 type Config struct {
@@ -39,8 +38,10 @@ func run(ctx context.Context) error {
 		return err
 	}
 
-	logger := cplogging.NewSLogger() // todo: inject config
-	logger.Debug("config", cplf.Any("config", config))
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelDebug, // todo: inject config
+	}))
+	logger.Debug("config", slog.Any("config", config))
 
 	return cpbootstrap.Run(ctx, cpbootstrap.Options{
 		Server:  config.HTTPServer,
