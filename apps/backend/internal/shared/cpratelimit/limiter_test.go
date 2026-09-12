@@ -128,7 +128,7 @@ func TestSweepForgetsOnlyTheRefilledBuckets(t *testing.T) {
 func TestDefaultsApplyToAZeroConfig(t *testing.T) {
 	limiter := New(Config{}, &fakeClock{now: epoch})
 
-	require.Equal(t, float64(defaultPerSecond), limiter.config.PerSecond)
+	require.InDelta(t, float64(defaultPerSecond), limiter.config.PerSecond, 1e-9)
 	require.Equal(t, defaultBurst, limiter.config.Burst)
 	require.Equal(t, defaultSweepInterval, limiter.config.SweepInterval)
 }
@@ -164,14 +164,14 @@ func TestTakeReportsWhatIsLeftAndThePolicyToReplayIt(t *testing.T) {
 	limiter, clock := newTestLimiter()
 
 	_, state := limiter.Take("1.2.3.4")
-	require.Equal(t, float64(9), state.Tokens)
+	require.InDelta(t, float64(9), state.Tokens, 1e-9)
 	require.Equal(t, 10, state.Capacity)
-	require.Equal(t, float64(1), state.PerSecond)
+	require.InDelta(t, float64(1), state.PerSecond, 1e-9)
 
 	clock.advance(500 * time.Millisecond)
 
 	_, state = limiter.Take("1.2.3.4")
-	require.Equal(t, 8.5, state.Tokens, "the half second refilled before the token was spent")
+	require.InDelta(t, 8.5, state.Tokens, 1e-9, "the half second refilled before the token was spent")
 }
 
 func TestARefusedCallerStillLearnsHowLongTheWaitIs(t *testing.T) {
@@ -194,7 +194,7 @@ func TestPeekSpendsNothing(t *testing.T) {
 	require.True(t, allow(limiter, "1.2.3.4"))
 
 	for i := 0; i < 5; i++ {
-		require.Equal(t, float64(9), limiter.Peek("1.2.3.4").Tokens)
+		require.InDelta(t, float64(9), limiter.Peek("1.2.3.4").Tokens, 1e-9)
 	}
 
 	for i := 0; i < 9; i++ {
@@ -206,7 +206,7 @@ func TestPeekSpendsNothing(t *testing.T) {
 func TestPeekingAtAnUnknownKeyRemembersNothing(t *testing.T) {
 	limiter, _ := newTestLimiter()
 
-	require.Equal(t, float64(10), limiter.Peek("1.2.3.4").Tokens)
+	require.InDelta(t, float64(10), limiter.Peek("1.2.3.4").Tokens, 1e-9)
 
 	require.Empty(t, limiter.buckets, "reading an allowance must not create one")
 }
@@ -220,5 +220,5 @@ func TestPeekRefillsBeforeReporting(t *testing.T) {
 
 	clock.advance(3 * time.Second)
 
-	require.Equal(t, float64(3), limiter.Peek("1.2.3.4").Tokens)
+	require.InDelta(t, float64(3), limiter.Peek("1.2.3.4").Tokens, 1e-9)
 }

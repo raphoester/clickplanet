@@ -84,7 +84,7 @@ func TestAntiBotInterceptor(t *testing.T) {
 	t.Run("lets an unflagged click reach the handler", func(t *testing.T) {
 		guard := &fakeGuard{drop: false}
 
-		ran, _, err := antiBot(t, context.Background(), guard, fakeOwner{}, planetv1connect.ClickServiceClickProcedure, click)
+		ran, _, err := antiBot(t, t.Context(), guard, fakeOwner{}, planetv1connect.ClickServiceClickProcedure, click)
 
 		require.NoError(t, err)
 		require.True(t, ran)
@@ -94,7 +94,7 @@ func TestAntiBotInterceptor(t *testing.T) {
 	t.Run("answers a flagged click OK without reaching the handler", func(t *testing.T) {
 		guard := &fakeGuard{drop: true}
 
-		ran, res, err := antiBot(t, context.Background(), guard, fakeOwner{}, planetv1connect.ClickServiceClickProcedure, click)
+		ran, res, err := antiBot(t, t.Context(), guard, fakeOwner{}, planetv1connect.ClickServiceClickProcedure, click)
 
 		require.NoError(t, err, "a shadow ban must look exactly like success")
 		require.False(t, ran, "the map must not be touched")
@@ -105,7 +105,7 @@ func TestAntiBotInterceptor(t *testing.T) {
 	t.Run("charges the same scope the throttle is charged to", func(t *testing.T) {
 		guard := &fakeGuard{}
 
-		ctx := cpctx.AddIPToContext(context.Background(), "2001:db8::dead:beef")
+		ctx := cpctx.AddIPToContext(t.Context(), "2001:db8::dead:beef")
 
 		_, _, err := antiBot(t, ctx, guard, fakeOwner{}, planetv1connect.ClickServiceClickProcedure, click)
 
@@ -117,7 +117,7 @@ func TestAntiBotInterceptor(t *testing.T) {
 	t.Run("reads who held the tile before the handler could change it", func(t *testing.T) {
 		guard := &fakeGuard{}
 
-		_, _, err := antiBot(t, context.Background(), guard, fakeOwner{42: "FR"}, planetv1connect.ClickServiceClickProcedure, click)
+		_, _, err := antiBot(t, t.Context(), guard, fakeOwner{42: "FR"}, planetv1connect.ClickServiceClickProcedure, click)
 
 		require.NoError(t, err)
 		require.Len(t, guard.seen, 1)
@@ -128,7 +128,7 @@ func TestAntiBotInterceptor(t *testing.T) {
 	t.Run("marks a click onto a tile the caller's own country holds", func(t *testing.T) {
 		guard := &fakeGuard{}
 
-		_, _, err := antiBot(t, context.Background(), guard, fakeOwner{42: "PS"}, planetv1connect.ClickServiceClickProcedure, click)
+		_, _, err := antiBot(t, t.Context(), guard, fakeOwner{42: "PS"}, planetv1connect.ClickServiceClickProcedure, click)
 
 		require.NoError(t, err)
 		require.Len(t, guard.seen, 1)
@@ -138,7 +138,7 @@ func TestAntiBotInterceptor(t *testing.T) {
 	t.Run("ignores every procedure but Click", func(t *testing.T) {
 		guard := &fakeGuard{drop: true}
 
-		ran, _, err := antiBot(t, context.Background(), guard, fakeOwner{}, planetv1connect.ClickServiceGetMapProcedure, click)
+		ran, _, err := antiBot(t, t.Context(), guard, fakeOwner{}, planetv1connect.ClickServiceGetMapProcedure, click)
 
 		require.NoError(t, err)
 		require.True(t, ran, "reads are never shadow banned")

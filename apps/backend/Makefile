@@ -1,4 +1,4 @@
-.PHONY: proto test deadcode dBuild dRun dRm vpn-lists metrics
+.PHONY: proto test lint lint-ci fmt setup-tools deadcode dBuild dRun dRm vpn-lists metrics
 
 # Test helpers that more than one package needs cannot live in a _test.go file,
 # so they live in an ordinary .go file carrying this tag. The tag is what keeps
@@ -64,6 +64,28 @@ deadcode:
 		echo 'dead code: delete it, or give it a caller.'; \
 		exit 1; \
 	fi
+
+# golangci-lint is pinned: an unpinned linter turns a green branch red on
+# somebody else's release schedule, and the CI job reads the same version from
+# here. Install it with `make setup-tools`.
+GOLANGCI_LINT_VERSION := v2.13.1
+
+lint:
+	@golangci-lint run --timeout=10m
+
+# --allow-parallel-runners so the pre-push hook can run this beside the other
+# checks without the two fighting over the lint cache.
+lint-ci:
+	@golangci-lint run --timeout=10m --allow-parallel-runners
+
+# gofmt over the tree, minus generated/: `make proto` writes that, and
+# reformatting it only makes the next generation a diff.
+fmt:
+	@gofmt -l -w ./cmd ./internal
+
+setup-tools: ## Install the pinned linter into $(go env GOPATH)/bin
+	@curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh \
+		| sh -s -- -b $$(go env GOPATH)/bin $(GOLANGCI_LINT_VERSION)
 
 # Refreshes the vendored VPN and datacenter ranges from X4BNet/lists_vpn, which
 # rebuilds them daily from ASN ownership. They are checked in and embedded

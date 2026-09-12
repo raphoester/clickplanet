@@ -57,7 +57,7 @@ func TestAnAttestedCallerIsMintedATokenBoundToItsAddress(t *testing.T) {
 	attester := &fakeAttester{}
 	service, minter := newService(t, attester)
 
-	token, err := service.Create(context.Background(), "a-widget-token", "203.0.113.7")
+	token, err := service.Create(t.Context(), "a-widget-token", "203.0.113.7")
 	require.NoError(t, err)
 
 	assert.NotEmpty(t, token.Value)
@@ -66,7 +66,7 @@ func TestAnAttestedCallerIsMintedATokenBoundToItsAddress(t *testing.T) {
 	assert.Equal(t, 1, minter.mints)
 
 	_, err = minter.signer.Verify(token.Value, "203.0.113.7", now)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	_, err = minter.signer.Verify(token.Value, "203.0.113.8", now)
 	assert.Error(t, err, "the token is worth nothing from another address")
@@ -76,7 +76,7 @@ func TestTheAttestationTokenAndTheAddressReachTheAttester(t *testing.T) {
 	attester := &fakeAttester{}
 	service, _ := newService(t, attester)
 
-	_, err := service.Create(context.Background(), "a-widget-token", "203.0.113.7")
+	_, err := service.Create(t.Context(), "a-widget-token", "203.0.113.7")
 	require.NoError(t, err)
 
 	assert.Equal(t, []string{"a-widget-token"}, attester.tokens)
@@ -87,7 +87,7 @@ func TestARefusedAttestationMintsNothing(t *testing.T) {
 	attester := &fakeAttester{err: errors.New("siteverify said no")}
 	service, minter := newService(t, attester)
 
-	_, err := service.Create(context.Background(), "a-widget-token", "203.0.113.7")
+	_, err := service.Create(t.Context(), "a-widget-token", "203.0.113.7")
 
 	assert.ErrorIs(t, err, domain.ErrAttestationFailed)
 	assert.Zero(t, minter.mints)
@@ -99,7 +99,7 @@ func TestACallerWithNoAddressIsRefusedBeforeAttestation(t *testing.T) {
 	attester := &fakeAttester{}
 	service, minter := newService(t, attester)
 
-	_, err := service.Create(context.Background(), "a-widget-token", "")
+	_, err := service.Create(t.Context(), "a-widget-token", "")
 
 	assert.ErrorIs(t, err, domain.ErrAttestationFailed)
 	assert.Empty(t, attester.tokens, "attestation is not even attempted")

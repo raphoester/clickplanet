@@ -63,12 +63,12 @@ func (s *testSuite) TestNominalCase() {
 	message, err := s.post(validRequest())
 	s.Require().NoError(err)
 
-	s.Assert().NotEmpty(message.ID)
-	s.Assert().Equal("Bob", message.AuthorName)
-	s.Assert().Equal("fr", message.CountryID)
-	s.Assert().Equal("hello planet", message.Text)
-	s.Assert().Equal(s.clock.now, message.SentAt)
-	s.Assert().Len(s.storage.records, 1)
+	s.NotEmpty(message.ID)
+	s.Equal("Bob", message.AuthorName)
+	s.Equal("fr", message.CountryID)
+	s.Equal("hello planet", message.Text)
+	s.Equal(s.clock.now, message.SentAt)
+	s.Len(s.storage.records, 1)
 }
 
 func (s *testSuite) TestTheSenderIPIsRecordedButNeverReturned() {
@@ -76,11 +76,11 @@ func (s *testSuite) TestTheSenderIPIsRecordedButNeverReturned() {
 	s.Require().NoError(err)
 
 	s.Require().Len(s.storage.records, 1)
-	s.Assert().Equal("1.2.3.4", s.storage.records[0].IP)
+	s.Equal("1.2.3.4", s.storage.records[0].IP)
 
-	s.Assert().NotContains(message.AuthorTag, "1.2.3.4")
-	s.Assert().NotContains(message.AuthorName, "1.2.3.4")
-	s.Assert().NotContains(message.Text, "1.2.3.4")
+	s.NotContains(message.AuthorTag, "1.2.3.4")
+	s.NotContains(message.AuthorName, "1.2.3.4")
+	s.NotContains(message.Text, "1.2.3.4")
 }
 
 func (s *testSuite) TestTheSameSenderAlwaysGetsTheSameTag() {
@@ -90,7 +90,7 @@ func (s *testSuite) TestTheSameSenderAlwaysGetsTheSameTag() {
 	second, err := s.post(validRequest())
 	s.Require().NoError(err)
 
-	s.Assert().Equal(first.AuthorTag, second.AuthorTag)
+	s.Equal(first.AuthorTag, second.AuthorTag)
 }
 
 func (s *testSuite) TestDifferentSendersGetDifferentTags() {
@@ -100,7 +100,7 @@ func (s *testSuite) TestDifferentSendersGetDifferentTags() {
 	theirs, err := s.service.Post(s.ctxFromIP("5.6.7.8"), validRequest())
 	s.Require().NoError(err)
 
-	s.Assert().NotEqual(mine.AuthorTag, theirs.AuthorTag)
+	s.NotEqual(mine.AuthorTag, theirs.AuthorTag)
 }
 
 func (s *testSuite) TestTheSaltChangesTheTag() {
@@ -112,7 +112,7 @@ func (s *testSuite) TestTheSaltChangesTheTag() {
 	other, err := otherwiseSalted.Post(s.ctxFromIP("1.2.3.4"), validRequest())
 	s.Require().NoError(err)
 
-	s.Assert().NotEqual(salted.AuthorTag, other.AuthorTag)
+	s.NotEqual(salted.AuthorTag, other.AuthorTag)
 }
 
 func (s *testSuite) TestEmptyTextIsRefused() {
@@ -120,7 +120,7 @@ func (s *testSuite) TestEmptyTextIsRefused() {
 	req.Text = "   "
 
 	_, err := s.post(req)
-	s.Assert().True(errors.Is(err, domain.ErrInvalidMessage))
+	s.ErrorIs(err, domain.ErrInvalidMessage)
 }
 
 func (s *testSuite) TestOverlongTextIsRefused() {
@@ -128,7 +128,7 @@ func (s *testSuite) TestOverlongTextIsRefused() {
 	req.Text = strings.Repeat("a", 281)
 
 	_, err := s.post(req)
-	s.Assert().True(errors.Is(err, domain.ErrInvalidMessage))
+	s.ErrorIs(err, domain.ErrInvalidMessage)
 }
 
 func (s *testSuite) TestLengthIsCountedInRunesNotBytes() {
@@ -136,7 +136,7 @@ func (s *testSuite) TestLengthIsCountedInRunesNotBytes() {
 	req.Text = strings.Repeat("🌍", 280)
 
 	_, err := s.post(req)
-	s.Assert().NoError(err)
+	s.NoError(err)
 }
 
 func (s *testSuite) TestInvalidUTF8IsRefused() {
@@ -144,7 +144,7 @@ func (s *testSuite) TestInvalidUTF8IsRefused() {
 	req.Text = string([]byte{0xff, 0xfe, 0xfd})
 
 	_, err := s.post(req)
-	s.Assert().True(errors.Is(err, domain.ErrInvalidMessage))
+	s.ErrorIs(err, domain.ErrInvalidMessage)
 }
 
 func (s *testSuite) TestControlCharactersAreStripped() {
@@ -154,9 +154,9 @@ func (s *testSuite) TestControlCharactersAreStripped() {
 	message, err := s.post(req)
 	s.Require().NoError(err)
 
-	s.Assert().NotContains(message.Text, "\n")
-	s.Assert().NotContains(message.Text, "\r")
-	s.Assert().NotContains(message.Text, "\x00")
+	s.NotContains(message.Text, "\n")
+	s.NotContains(message.Text, "\r")
+	s.NotContains(message.Text, "\x00")
 }
 
 func (s *testSuite) TestTabsBecomeSpaces() {
@@ -165,7 +165,7 @@ func (s *testSuite) TestTabsBecomeSpaces() {
 
 	message, err := s.post(req)
 	s.Require().NoError(err)
-	s.Assert().Equal("hello planet", message.Text)
+	s.Equal("hello planet", message.Text)
 }
 
 func (s *testSuite) TestEmptyNameIsRefused() {
@@ -173,7 +173,7 @@ func (s *testSuite) TestEmptyNameIsRefused() {
 	req.AuthorName = ""
 
 	_, err := s.post(req)
-	s.Assert().True(errors.Is(err, domain.ErrInvalidMessage))
+	s.ErrorIs(err, domain.ErrInvalidMessage)
 }
 
 func (s *testSuite) TestOverlongNameIsRefused() {
@@ -181,7 +181,7 @@ func (s *testSuite) TestOverlongNameIsRefused() {
 	req.AuthorName = strings.Repeat("a", 25)
 
 	_, err := s.post(req)
-	s.Assert().True(errors.Is(err, domain.ErrInvalidMessage))
+	s.ErrorIs(err, domain.ErrInvalidMessage)
 }
 
 func (s *testSuite) TestInvalidCountryIsRefused() {
@@ -189,7 +189,7 @@ func (s *testSuite) TestInvalidCountryIsRefused() {
 	req.CountryID = "atlantis"
 
 	_, err := s.post(req)
-	s.Assert().True(errors.Is(err, domain.ErrInvalidMessage))
+	s.ErrorIs(err, domain.ErrInvalidMessage)
 }
 
 func (s *testSuite) TestOverlongAuthorIDIsTruncated() {
@@ -200,7 +200,7 @@ func (s *testSuite) TestOverlongAuthorIDIsTruncated() {
 	s.Require().NoError(err)
 
 	s.Require().Len(s.storage.records, 1)
-	s.Assert().LessOrEqual(len(s.storage.records[0].AuthorID), 64)
+	s.LessOrEqual(len(s.storage.records[0].AuthorID), 64)
 }
 
 func (s *testSuite) TestOverlongUserAgentIsTruncated() {
@@ -211,21 +211,21 @@ func (s *testSuite) TestOverlongUserAgentIsTruncated() {
 	s.Require().NoError(err)
 
 	s.Require().Len(s.storage.records, 1)
-	s.Assert().LessOrEqual(len(s.storage.records[0].UserAgent), 256)
+	s.LessOrEqual(len(s.storage.records[0].UserAgent), 256)
 }
 
 func (s *testSuite) TestStorageFailureFailsThePost() {
 	s.storage.err = errors.New("disk on fire")
 
 	_, err := s.post(validRequest())
-	s.Assert().Error(err)
+	s.Error(err)
 }
 
 func (s *testSuite) TestHistoryComesFromStorage() {
 	_, err := s.post(validRequest())
 	s.Require().NoError(err)
 
-	s.Assert().Len(s.service.History(context.Background()), 1)
+	s.Len(s.service.History(context.Background()), 1)
 }
 
 type fakeStorage struct {

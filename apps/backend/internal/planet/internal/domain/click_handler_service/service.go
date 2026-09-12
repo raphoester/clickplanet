@@ -20,7 +20,7 @@ func New(
 }
 
 type IService interface {
-	HandleClick(ctx context.Context, tileId uint32, countryID string) error
+	HandleClick(ctx context.Context, tileID uint32, countryID string) error
 }
 
 type Service struct {
@@ -29,16 +29,16 @@ type Service struct {
 	countryChecker domain.CountryChecker
 }
 
-func (s *Service) HandleClick(ctx context.Context, tileId uint32, countryID string) error {
+func (s *Service) HandleClick(ctx context.Context, tileID uint32, countryID string) error {
 	if !s.countryChecker.CheckCountry(countryID) {
 		return fmt.Errorf("%w: country code %q", domain.ErrInvalidArgument, countryID)
 	}
 
-	if !s.tilesChecker.CheckTile(tileId) {
-		return fmt.Errorf("%w: tile id %d", domain.ErrInvalidArgument, tileId)
+	if !s.tilesChecker.CheckTile(tileID) {
+		return fmt.Errorf("%w: tile id %d", domain.ErrInvalidArgument, tileID)
 	}
 
-	if err := s.tileStorage.Set(ctx, tileId, countryID); err != nil {
+	if err := s.tileStorage.Set(ctx, tileID, countryID); err != nil {
 		return fmt.Errorf("failed to set tile: %w", err)
 	}
 

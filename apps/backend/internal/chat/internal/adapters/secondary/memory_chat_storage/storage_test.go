@@ -69,8 +69,8 @@ func (s *testSuite) TestAppendedMessagesShowUpInHistory() {
 
 	history := storage.History(context.Background())
 	s.Require().Len(history, 2)
-	s.Assert().Equal("hello", history[0].Text)
-	s.Assert().Equal("planet", history[1].Text)
+	s.Equal("hello", history[0].Text)
+	s.Equal("planet", history[1].Text)
 }
 
 func (s *testSuite) TestHistoryIsCapped() {
@@ -82,8 +82,8 @@ func (s *testSuite) TestHistoryIsCapped() {
 
 	history := storage.History(context.Background())
 	s.Require().Len(history, 3)
-	s.Assert().Equal("msg-7", history[0].Text)
-	s.Assert().Equal("msg-9", history[2].Text)
+	s.Equal("msg-7", history[0].Text)
+	s.Equal("msg-9", history[2].Text)
 }
 
 func (s *testSuite) TestHistoryIsACopy() {
@@ -93,7 +93,7 @@ func (s *testSuite) TestHistoryIsACopy() {
 	history := storage.History(context.Background())
 	history[0].Text = "tampered"
 
-	s.Assert().Equal("hello", storage.History(context.Background())[0].Text)
+	s.Equal("hello", storage.History(context.Background())[0].Text)
 }
 
 func (s *testSuite) TestSubscribersReceiveMessages() {
@@ -109,7 +109,7 @@ func (s *testSuite) TestSubscribersReceiveMessages() {
 
 	select {
 	case message := <-messages:
-		s.Assert().Equal("hello", message.Text)
+		s.Equal("hello", message.Text)
 	case <-time.After(2 * time.Second):
 		s.T().Fatal("the subscriber never received the message")
 	}
@@ -126,7 +126,7 @@ func (s *testSuite) TestSubscriberChannelClosesWithItsContext() {
 
 	select {
 	case _, open := <-messages:
-		s.Assert().False(open)
+		s.False(open)
 	case <-time.After(2 * time.Second):
 		s.T().Fatal("the subscriber channel was never closed")
 	}
@@ -145,20 +145,20 @@ func (s *testSuite) TestSlowSubscribersHaveMessagesDropped() {
 		s.Require().NoError(storage.Append(context.Background(), s.record(fmt.Sprintf("msg-%d", i))))
 	}
 
-	s.Assert().Positive(storage.DroppedMessages())
-	s.Assert().Len(storage.History(context.Background()), 10)
+	s.Positive(storage.DroppedMessages())
+	s.Len(storage.History(context.Background()), 10)
 }
 
 func (s *testSuite) TestTheSenderIPReachesTheLogButNotTheHistory() {
 	storage := s.newStorage(memory_chat_storage.Config{})
 	s.Require().NoError(storage.Append(context.Background(), s.record("hello")))
 
-	s.Assert().Contains(s.readLog(), "203.0.113.7")
+	s.Contains(s.readLog(), "203.0.113.7")
 
 	encoded, err := json.Marshal(storage.History(context.Background()))
 	s.Require().NoError(err)
-	s.Assert().NotContains(string(encoded), "203.0.113.7")
-	s.Assert().NotContains(string(encoded), "test-agent")
+	s.NotContains(string(encoded), "203.0.113.7")
+	s.NotContains(string(encoded), "test-agent")
 }
 
 func (s *testSuite) TestOneLinePerMessage() {
@@ -168,7 +168,7 @@ func (s *testSuite) TestOneLinePerMessage() {
 		s.Require().NoError(storage.Append(context.Background(), s.record(fmt.Sprintf("msg-%d", i))))
 	}
 
-	s.Assert().Len(strings.Split(strings.TrimSpace(s.readLog()), "\n"), 3)
+	s.Len(strings.Split(strings.TrimSpace(s.readLog()), "\n"), 3)
 }
 
 func (s *testSuite) TestHistorySurvivesARestart() {
@@ -180,8 +180,8 @@ func (s *testSuite) TestHistorySurvivesARestart() {
 
 	history := restarted.History(context.Background())
 	s.Require().Len(history, 1)
-	s.Assert().Equal("hello", history[0].Text)
-	s.Assert().Equal("a1b2c3", history[0].AuthorTag)
+	s.Equal("hello", history[0].Text)
+	s.Equal("a1b2c3", history[0].AuthorTag)
 }
 
 func (s *testSuite) TestRestoreKeepsOnlyTheMostRecentHistory() {
@@ -195,7 +195,7 @@ func (s *testSuite) TestRestoreKeepsOnlyTheMostRecentHistory() {
 
 	history := restarted.History(context.Background())
 	s.Require().Len(history, 3)
-	s.Assert().Equal("msg-9", history[2].Text)
+	s.Equal("msg-9", history[2].Text)
 }
 
 func (s *testSuite) TestRestoreIgnoresMessagesPastRetention() {
@@ -210,17 +210,17 @@ func (s *testSuite) TestRestoreIgnoresMessagesPastRetention() {
 
 	history := restarted.History(context.Background())
 	s.Require().Len(history, 1)
-	s.Assert().Equal("recent", history[0].Text)
+	s.Equal("recent", history[0].Text)
 }
 
 func (s *testSuite) TestACorruptLineCostsHistoryNotTheStart() {
-	s.Require().NoError(os.WriteFile(s.logPath, []byte("{not json\n"), 0o644))
+	s.Require().NoError(os.WriteFile(s.logPath, []byte("{not json\n"), 0o600))
 
 	storage := s.newStorage(memory_chat_storage.Config{})
 
-	s.Assert().Empty(storage.History(context.Background()))
-	s.Assert().NoError(storage.Append(context.Background(), s.record("hello")))
-	s.Assert().Len(storage.History(context.Background()), 1)
+	s.Empty(storage.History(context.Background()))
+	s.Require().NoError(storage.Append(context.Background(), s.record("hello")))
+	s.Len(storage.History(context.Background()), 1)
 }
 
 func (s *testSuite) TestAppendingIsAppendingNotOverwriting() {
@@ -233,8 +233,8 @@ func (s *testSuite) TestAppendingIsAppendingNotOverwriting() {
 	second.Run(cancelledContext())
 
 	log := s.readLog()
-	s.Assert().Contains(log, "hello")
-	s.Assert().Contains(log, "planet")
+	s.Contains(log, "hello")
+	s.Contains(log, "planet")
 }
 
 func (s *testSuite) TestPruningDropsExpiredRecords() {
@@ -253,8 +253,8 @@ func (s *testSuite) TestPruningDropsExpiredRecords() {
 	stop()
 
 	log := s.readLog()
-	s.Assert().NotContains(log, "ancient")
-	s.Assert().Contains(log, "recent")
+	s.NotContains(log, "ancient")
+	s.Contains(log, "recent")
 }
 
 func (s *testSuite) TestAppendingStillWorksAfterAPrune() {
@@ -276,7 +276,7 @@ func (s *testSuite) TestAppendingStillWorksAfterAPrune() {
 	restarted := s.newStorage(memory_chat_storage.Config{Retention: 24 * time.Hour})
 	history := restarted.History(context.Background())
 	s.Require().Len(history, 1)
-	s.Assert().Equal("after-prune", history[0].Text)
+	s.Equal("after-prune", history[0].Text)
 }
 
 func (s *testSuite) startRunning(storage *memory_chat_storage.Storage) func() {
@@ -308,10 +308,10 @@ func (s *testSuite) TestNoLogPathKeepsChatInMemory() {
 	storage := memory_chat_storage.New(memory_chat_storage.Config{}, s.clock, slog.New(slog.DiscardHandler))
 
 	s.Require().NoError(storage.Append(context.Background(), s.record("hello")))
-	s.Assert().Len(storage.History(context.Background()), 1)
+	s.Len(storage.History(context.Background()), 1)
 
 	storage.Run(cancelledContext())
-	s.Assert().NoFileExists(s.logPath)
+	s.NoFileExists(s.logPath)
 }
 
 func (s *testSuite) TestConcurrentUseIsSafe() {
@@ -323,13 +323,21 @@ func (s *testSuite) TestConcurrentUseIsSafe() {
 	_, err := storage.Subscribe(ctx)
 	s.Require().NoError(err)
 
+	// Append errors are collected rather than asserted in the goroutine: a failed
+	// require there calls runtime.Goexit on that goroutine, which would strand the
+	// WaitGroup and let the suite report a pass.
+	appendErrs := make(chan error, 10*20)
+
 	var wg sync.WaitGroup
 	for writer := range 10 {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			for i := range 20 {
-				s.Require().NoError(storage.Append(context.Background(), s.record(fmt.Sprintf("w%d-%d", writer, i))))
+				if err := storage.Append(context.Background(), s.record(fmt.Sprintf("w%d-%d", writer, i))); err != nil {
+					appendErrs <- err
+					return
+				}
 			}
 		}()
 	}
@@ -345,9 +353,14 @@ func (s *testSuite) TestConcurrentUseIsSafe() {
 	}
 
 	wg.Wait()
+	close(appendErrs)
 
-	s.Assert().Len(storage.History(context.Background()), 50)
-	s.Assert().Len(strings.Split(strings.TrimSpace(s.readLog()), "\n"), 200)
+	for err := range appendErrs {
+		s.Require().NoError(err)
+	}
+
+	s.Len(storage.History(context.Background()), 50)
+	s.Len(strings.Split(strings.TrimSpace(s.readLog()), "\n"), 200)
 }
 
 func cancelledContext() context.Context {

@@ -20,7 +20,7 @@ func TestLoggingMiddlewareKeepsTheWriterFlushable(t *testing.T) {
 		_, flushable = w.(http.Flusher)
 	}))
 
-	handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodPost, "/", nil))
+	handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/", nil))
 
 	require.True(t, flushable)
 }
@@ -36,7 +36,7 @@ func TestIPReaderMiddleware(t *testing.T) {
 	}
 
 	t.Run("prefers the address the reverse proxy resolved", func(t *testing.T) {
-		r := httptest.NewRequest(http.MethodPost, "/planet.v1.ClickService/Click", nil)
+		r := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/planet.v1.ClickService/Click", nil)
 		r.RemoteAddr = "10.0.0.1:4242"
 		r.Header.Set("X-Real-IP", "1.2.3.4")
 
@@ -44,14 +44,14 @@ func TestIPReaderMiddleware(t *testing.T) {
 	})
 
 	t.Run("falls back to the peer address, without its port", func(t *testing.T) {
-		r := httptest.NewRequest(http.MethodPost, "/planet.v1.ClickService/Click", nil)
+		r := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/planet.v1.ClickService/Click", nil)
 		r.RemoteAddr = "192.168.1.7:51234"
 
 		require.Equal(t, "192.168.1.7", readIP(r))
 	})
 
 	t.Run("keeps a peer address that carries no port", func(t *testing.T) {
-		r := httptest.NewRequest(http.MethodPost, "/planet.v1.ClickService/Click", nil)
+		r := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/planet.v1.ClickService/Click", nil)
 		r.RemoteAddr = "@"
 
 		require.Equal(t, "@", readIP(r))
@@ -65,7 +65,7 @@ func TestCorsMiddlewareAllowsTheSessionHeader(t *testing.T) {
 	handler := cphttpserver.CorsMiddleware(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
 
 	recorder := httptest.NewRecorder()
-	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodOptions, "/planet.v1.ClickService/Click", nil))
+	handler.ServeHTTP(recorder, httptest.NewRequestWithContext(t.Context(), http.MethodOptions, "/planet.v1.ClickService/Click", nil))
 
 	allowed := recorder.Header().Get("Access-Control-Allow-Headers")
 	require.Contains(t, allowed, cpconnect.SessionHeader)

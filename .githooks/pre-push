@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# The slow checks, run concurrently. Bypass with `git push --no-verify`.
+set -euo pipefail
+
+_norm="$(dirname "$0")/_normalize-hooks-path.sh"
+[ -f "$_norm" ] && . "$_norm"
+
+cd "$(git rev-parse --show-toplevel)"
+
+# git delivers the pushed refs on stdin (the pre-push protocol). Nothing here
+# reads them, but draining stdin keeps git from seeing a broken pipe.
+cat > /dev/null || true
+
+LOGDIR=$(mktemp -d)
+trap 'rm -rf "$LOGDIR"' EXIT
+
+# ─────────────────────────────────────────────
+# Each entry is a full command, run concurrently in its own subshell.
+# Add a step by appending its command here.
+# ─────────────────────────────────────────────
+STEPS=(
+  'cd apps/backend && make test'
+  'cd apps/backend && make deadcode'
+  'cd apps/backend && make lint-ci'
+)
+# ─────────────────────────────────────────────
+
+run_step() {
+    local index="$1"
+    local cmd="$2"
+    local logfile="$LOGDIR/step-$index.log"
+
+    if bash -c "$cmd" > "$logfile" 2>&1; then
+        echo "pre-push: ✓ $cmd"
+    else
+        echo "pre-push: ✗ $cmd — output:"
+        cat "$logfile"
+        return 1
+    fi
+}
+
+PIDS=()
+for i in "${!STEPS[@]}"; do
+    echo "pre-push: starting ${STEPS[$i]}..."
+    run_step "$i" "${STEPS[$i]}" &
+    PIDS+=($!)
+done
+
+FAILED=0
+for pid in "${PIDS[@]}"; do
+    wait "$pid" || FAILED=1
+done
+
+if [ "$FAILED" -ne 0 ]; then
+    echo "pre-push: one or more checks failed."
+    exit 1
+fi
+
+echo "pre-push: all checks passed."

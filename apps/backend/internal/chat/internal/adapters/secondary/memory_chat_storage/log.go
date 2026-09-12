@@ -253,7 +253,8 @@ func (s *Storage) prune() {
 }
 
 func openForAppend(path string) (*os.File, error) {
-	file, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	//nolint:gosec // G304: path is chat.storage.logPath from config, never a request.
+	file, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open %q: %w", path, err)
 	}
@@ -261,6 +262,7 @@ func openForAppend(path string) (*os.File, error) {
 }
 
 func readRecords(path string) ([]logRecord, int, error) {
+	//nolint:gosec // G304: path is chat.storage.logPath from config, never a request.
 	file, err := os.Open(path)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {

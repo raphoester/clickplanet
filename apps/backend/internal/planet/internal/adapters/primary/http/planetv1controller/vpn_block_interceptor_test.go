@@ -52,7 +52,7 @@ func vpnBlock(t *testing.T, ctx context.Context, blocklist ClickBlocklist, proce
 
 func TestVPNBlockInterceptor(t *testing.T) {
 	t.Run("refuses a click from a blocked address without reaching the handler", func(t *testing.T) {
-		ctx := cpctx.AddIPToContext(context.Background(), "1.2.3.4")
+		ctx := cpctx.AddIPToContext(t.Context(), "1.2.3.4")
 		blocklist := &fakeBlocklist{blocked: map[string]cpipblock.List{"1.2.3.4": cpipblock.ListVPN}}
 
 		ran, registry, err := vpnBlock(t, ctx, blocklist, planetv1connect.ClickServiceClickProcedure)
@@ -60,11 +60,11 @@ func TestVPNBlockInterceptor(t *testing.T) {
 		require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
 		require.ErrorIs(t, err, ErrVPNBlocked)
 		require.False(t, ran, "a refused click must not reach the domain")
-		require.Equal(t, 1.0, testutil.ToFloat64(counter(t, registry, "vpn")))
+		require.InDelta(t, 1.0, testutil.ToFloat64(counter(t, registry, "vpn")), 1e-9)
 	})
 
 	t.Run("lets an address that is in no list through", func(t *testing.T) {
-		ctx := cpctx.AddIPToContext(context.Background(), "5.6.7.8")
+		ctx := cpctx.AddIPToContext(t.Context(), "5.6.7.8")
 		blocklist := &fakeBlocklist{blocked: map[string]cpipblock.List{"1.2.3.4": cpipblock.ListVPN}}
 
 		ran, _, err := vpnBlock(t, ctx, blocklist, planetv1connect.ClickServiceClickProcedure)
@@ -74,17 +74,17 @@ func TestVPNBlockInterceptor(t *testing.T) {
 	})
 
 	t.Run("labels the refusal with the list that matched", func(t *testing.T) {
-		ctx := cpctx.AddIPToContext(context.Background(), "1.2.3.4")
+		ctx := cpctx.AddIPToContext(t.Context(), "1.2.3.4")
 		blocklist := &fakeBlocklist{blocked: map[string]cpipblock.List{"1.2.3.4": cpipblock.ListDatacenter}}
 
 		_, registry, err := vpnBlock(t, ctx, blocklist, planetv1connect.ClickServiceClickProcedure)
 
 		require.Error(t, err)
-		require.Equal(t, 1.0, testutil.ToFloat64(counter(t, registry, "datacenter")))
+		require.InDelta(t, 1.0, testutil.ToFloat64(counter(t, registry, "datacenter")), 1e-9)
 	})
 
 	t.Run("leaves the read procedures alone", func(t *testing.T) {
-		ctx := cpctx.AddIPToContext(context.Background(), "1.2.3.4")
+		ctx := cpctx.AddIPToContext(t.Context(), "1.2.3.4")
 		blocklist := &fakeBlocklist{blocked: map[string]cpipblock.List{"1.2.3.4": cpipblock.ListVPN}}
 
 		for _, procedure := range []string{
@@ -103,7 +103,7 @@ func TestVPNBlockInterceptor(t *testing.T) {
 	t.Run("lets a request with no source IP through", func(t *testing.T) {
 		blocklist := &fakeBlocklist{blocked: map[string]cpipblock.List{"": cpipblock.ListVPN}}
 
-		ran, _, err := vpnBlock(t, context.Background(), blocklist, planetv1connect.ClickServiceClickProcedure)
+		ran, _, err := vpnBlock(t, t.Context(), blocklist, planetv1connect.ClickServiceClickProcedure)
 
 		require.NoError(t, err)
 		require.True(t, ran)

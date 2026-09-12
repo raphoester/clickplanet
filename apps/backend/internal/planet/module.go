@@ -125,6 +125,7 @@ func clickChain(
 // neither module has to hand the other an object. Nil when sessions are off.
 func newSessionInterceptor(config cpsession.Config, props cpbootstrap.Props) (connect.Interceptor, error) {
 	if !config.Enabled {
+		//nolint:nilnil // nil means "sessions are off"; clickChain skips it.
 		return nil, nil
 	}
 

@@ -164,7 +164,7 @@ func disabled(module cpbootstrap.Module) cpbootstrap.Module {
 func run(t *testing.T, modules []cpbootstrap.Module) error {
 	t.Helper()
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	go func() {
 		time.Sleep(50 * time.Millisecond)
 		cancel()

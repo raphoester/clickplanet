@@ -122,7 +122,7 @@ func (s *ClickService) GetMap(
 
 	batch, err := s.mapReader.StateBatchDense(req.Msg.GetStartTileId(), end)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %s", domain.ErrInvalidArgument, err)
+		return nil, fmt.Errorf("%w: %w", domain.ErrInvalidArgument, err)
 	}
 
 	res := connect.NewResponse(&planetv1.GetMapResponse{

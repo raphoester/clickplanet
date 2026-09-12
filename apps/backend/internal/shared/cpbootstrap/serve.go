@@ -10,6 +10,7 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 
@@ -46,6 +47,12 @@ func serve(
 		Addr:      options.Server.BindAddress,
 		Handler:   router,
 		Protocols: protocols,
+
+		// A connection that opens and then dribbles its headers holds a goroutine
+		// open for as long as it likes; enough of them is the whole attack. Only
+		// the header read is bounded — the body and the response are not, because
+		// the live streams are responses that stay open for hours by design.
+		ReadHeaderTimeout: readHeaderTimeout,
 	}
 
 	running, stopRunning := context.WithCancel(ctx)
@@ -95,6 +102,8 @@ func serve(
 
 	return nil
 }
+
+const readHeaderTimeout = 10 * time.Second
 
 func startRunners(ctx context.Context, runners *runnerRegistry, logger *slog.Logger) *sync.WaitGroup {
 	started := &sync.WaitGroup{}

@@ -62,7 +62,7 @@ func TestRateLimitInterceptor(t *testing.T) {
 	t.Run("lets an allowed click through", func(t *testing.T) {
 		limiter := &fakeLimiter{allow: true}
 
-		ran, err := rateLimit(context.Background(), limiter, planetv1connect.ClickServiceClickProcedure)
+		ran, err := rateLimit(t.Context(), limiter, planetv1connect.ClickServiceClickProcedure)
 
 		require.NoError(t, err)
 		require.True(t, ran)
@@ -71,7 +71,7 @@ func TestRateLimitInterceptor(t *testing.T) {
 	t.Run("refuses a click over the limit without reaching the handler", func(t *testing.T) {
 		limiter := &fakeLimiter{allow: false}
 
-		ran, err := rateLimit(context.Background(), limiter, planetv1connect.ClickServiceClickProcedure)
+		ran, err := rateLimit(t.Context(), limiter, planetv1connect.ClickServiceClickProcedure)
 
 		require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(err))
 		require.False(t, ran, "a refused click must not reach the domain")
@@ -79,7 +79,7 @@ func TestRateLimitInterceptor(t *testing.T) {
 
 	t.Run("keys on the source IP from the context", func(t *testing.T) {
 		limiter := &fakeLimiter{allow: true}
-		ctx := cpctx.AddIPToContext(context.Background(), "1.2.3.4")
+		ctx := cpctx.AddIPToContext(t.Context(), "1.2.3.4")
 
 		_, err := rateLimit(ctx, limiter, planetv1connect.ClickServiceClickProcedure)
 
@@ -94,7 +94,7 @@ func TestRateLimitInterceptor(t *testing.T) {
 			planetv1connect.ClickServiceGetMapProcedure,
 			planetv1connect.ClickServiceMapDensityProcedure,
 		} {
-			ran, err := rateLimit(context.Background(), limiter, procedure)
+			ran, err := rateLimit(t.Context(), limiter, procedure)
 
 			require.NoError(t, err)
 			require.True(t, ran)
@@ -117,7 +117,7 @@ func TestRateLimitOverHTTP(t *testing.T) {
 		req := connect.NewRequest(&planetv1.ClickRequest{TileId: 1, CountryId: "fr"})
 		req.Header().Set("X-Real-IP", ip)
 		_, err := planetv1connect.NewClickServiceClient(server.Client(), server.URL).
-			Click(context.Background(), req)
+			Click(t.Context(), req)
 		return err
 	}
 
@@ -139,7 +139,7 @@ func TestRateLimitOverHTTP(t *testing.T) {
 func clickStatus(t *testing.T, server *httptest.Server, ip string) int {
 	t.Helper()
 
-	req, err := http.NewRequest(http.MethodPost,
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodPost,
 		server.URL+planetv1connect.ClickServiceClickProcedure,
 		strings.NewReader(`{"tileId":1,"countryId":"fr"}`))
 	require.NoError(t, err)
@@ -187,7 +187,7 @@ func TestTheBudgetRidesOnEveryAnswer(t *testing.T) {
 		req.Header().Set("X-Real-IP", "1.2.3.4")
 
 		return planetv1connect.NewClickServiceClient(server.Client(), server.URL).
-			Click(context.Background(), req)
+			Click(t.Context(), req)
 	}
 
 	t.Run("an accepted click says what is left, and the policy to replay it", func(t *testing.T) {
@@ -197,9 +197,9 @@ func TestTheBudgetRidesOnEveryAnswer(t *testing.T) {
 		require.NoError(t, err)
 
 		budget := res.Msg.GetBudget()
-		require.Equal(t, float64(4), budget.GetTokens(), "the click just spent one of five")
+		require.InDelta(t, float64(4), budget.GetTokens(), 1e-9, "the click just spent one of five")
 		require.Equal(t, uint32(5), budget.GetCapacity())
-		require.Equal(t, float64(2), budget.GetRefillPerSecond())
+		require.InDelta(t, float64(2), budget.GetRefillPerSecond(), 1e-9)
 	})
 
 	t.Run("a refused click carries the wait on the error", func(t *testing.T) {
@@ -230,19 +230,19 @@ func TestTheBudgetRidesOnEveryAnswer(t *testing.T) {
 			req.Header().Set("X-Real-IP", "1.2.3.4")
 
 			res, err := planetv1connect.NewClickServiceClient(server.Client(), server.URL).
-				GetBudget(context.Background(), req)
+				GetBudget(t.Context(), req)
 			require.NoError(t, err)
 
 			return res.Msg.GetBudget()
 		}
 
-		require.Equal(t, float64(5), read().GetTokens(), "an address that never clicked is full")
+		require.InDelta(t, float64(5), read().GetTokens(), 1e-9, "an address that never clicked is full")
 
 		_, err := click(t, server)
 		require.NoError(t, err)
 
 		for i := 0; i < 3; i++ {
-			require.Equal(t, float64(4), read().GetTokens(), "reading is free")
+			require.InDelta(t, float64(4), read().GetTokens(), 1e-9, "reading is free")
 		}
 	})
 }
@@ -251,7 +251,7 @@ func TestTheBudgetIsAbsentWithoutALimiter(t *testing.T) {
 	server := clickServer(t, connect.WithInterceptors(NewErrorInterceptor(nil)))
 
 	res, err := planetv1connect.NewClickServiceClient(server.Client(), server.URL).
-		Click(context.Background(), connect.NewRequest(&planetv1.ClickRequest{TileId: 1, CountryId: "fr"}))
+		Click(t.Context(), connect.NewRequest(&planetv1.ClickRequest{TileId: 1, CountryId: "fr"}))
 	require.NoError(t, err)
 
 	require.Nil(t, res.Msg.GetBudget(), "a server that does not throttle promises no allowance")

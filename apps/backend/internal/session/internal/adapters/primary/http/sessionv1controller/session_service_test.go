@@ -94,7 +94,7 @@ func TestAMintedTokenIsUsableByTheCallerThatMintedIt(t *testing.T) {
 	assert.InDelta(t, time.Now().Add(time.Hour).UnixMilli(), res.GetExpiresAtUnixMs(), float64(time.Minute.Milliseconds()))
 
 	_, err = signer.Verify(res.GetToken(), "203.0.113.7", time.Now())
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	_, err = signer.Verify(res.GetToken(), "198.51.100.4", time.Now())
 	assert.Error(t, err, "the token does not travel to another address")
@@ -125,7 +125,7 @@ func TestARefusalIsA403OverHTTPAndAMintIsNeverCached(t *testing.T) {
 	signer := newSigner(t)
 
 	post := func(server *httptest.Server) *http.Response {
-		req, err := http.NewRequest(http.MethodPost,
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodPost,
 			server.URL+sessionv1connect.SessionServiceCreateSessionProcedure,
 			strings.NewReader(`{"attestationToken":"a-widget-token"}`))
 		require.NoError(t, err)
@@ -141,10 +141,12 @@ func TestARefusalIsA403OverHTTPAndAMintIsNeverCached(t *testing.T) {
 		return res
 	}
 
+	//nolint:bodyclose // post() closes the body via t.Cleanup.
 	minted := post(sessionServer(t, open_attester.New(), signer, allowAll{}))
 	assert.Equal(t, http.StatusOK, minted.StatusCode)
 	assert.Equal(t, "no-store", minted.Header.Get("Cache-Control"))
 
+	//nolint:bodyclose // post() closes the body via t.Cleanup.
 	refused := post(sessionServer(t, refusingAttester{}, signer, allowAll{}))
 	assert.Equal(t, http.StatusForbidden, refused.StatusCode)
 }

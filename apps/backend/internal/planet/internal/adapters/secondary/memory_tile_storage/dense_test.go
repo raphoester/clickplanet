@@ -1,7 +1,6 @@
 package memory_tile_storage
 
 import (
-	"context"
 	"encoding/binary"
 	"testing"
 
@@ -23,8 +22,8 @@ func readBatch(t *testing.T, batch domain.DenseBatch) []string {
 
 func TestStateBatchDense(t *testing.T) {
 	storage := New(9, Config{}, nil)
-	require.NoError(t, storage.Set(context.Background(), 2, "fr"))
-	require.NoError(t, storage.Set(context.Background(), 4, "gb-eng"))
+	require.NoError(t, storage.Set(t.Context(), 2, "fr"))
+	require.NoError(t, storage.Set(t.Context(), 4, "gb-eng"))
 
 	dense := func(t *testing.T, start uint32, end uint32) domain.DenseBatch {
 		t.Helper()
@@ -52,7 +51,7 @@ func TestStateBatchDense(t *testing.T) {
 	t.Run("the code table is a copy, not the live one", func(t *testing.T) {
 		batch := dense(t, 0, 0)
 		batch.Codes[0] = "tampered"
-		require.Equal(t, "", dense(t, 0, 0).Codes[0])
+		require.Empty(t, dense(t, 0, 0).Codes[0])
 	})
 
 	t.Run("an inverted range is refused", func(t *testing.T) {

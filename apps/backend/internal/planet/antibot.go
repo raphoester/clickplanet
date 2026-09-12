@@ -30,6 +30,7 @@ func newAntiBotInterceptor(
 		return nil, fmt.Errorf("failed to build the antibot guard: %w", err)
 	}
 	if guard == nil {
+		//nolint:nilnil // antibot.New returns a nil Guard when the block is off.
 		return nil, nil
 	}
 
