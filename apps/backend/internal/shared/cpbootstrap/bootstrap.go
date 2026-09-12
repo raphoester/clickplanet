@@ -15,6 +15,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"slices"
 	"time"
@@ -22,8 +23,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cphttpserver"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cplogging"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cplogging/cplf"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpprom"
 )
 
@@ -43,7 +42,7 @@ type Module struct {
 
 // Props is everything a module may reach outside itself.
 type Props struct {
-	Logger  cplogging.Logger
+	Logger  *slog.Logger
 	Metrics prometheus.Registerer
 
 	// The transport every module answers over, and the only config a module
@@ -98,7 +97,7 @@ type Options struct {
 	// How long the HTTP server is given to drain in-flight requests.
 	ShutdownTimeout time.Duration
 
-	Logger cplogging.Logger
+	Logger *slog.Logger
 
 	// Built in the order they are given, and that order is the only coupling
 	// between them: no module reads what another one left behind, because
@@ -153,7 +152,7 @@ func buildModules(
 
 	for _, module := range options.Modules {
 		if !module.Enabled {
-			options.Logger.Info("module disabled", cplf.String("module", module.Name))
+			options.Logger.Info("module disabled", slog.String("module", module.Name))
 			continue
 		}
 
@@ -172,8 +171,8 @@ func buildModules(
 		}
 
 		options.Logger.Debug("module built",
-			cplf.String("module", module.Name),
-			cplf.Int("runners", runners.count()-before),
+			slog.String("module", module.Name),
+			slog.Int("runners", runners.count()-before),
 		)
 	}
 

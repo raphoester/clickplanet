@@ -3,6 +3,7 @@ package planetv1controller
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"sort"
 	"strings"
 	"time"
@@ -15,8 +16,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipscope"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cplogging"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cplogging/cplf"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -116,11 +115,11 @@ func NewAntiBotInterceptor(
 // NewAntiBotObserver builds the hooks the guard reports through: a histogram for
 // the shape of the reactions, and a log line for who.
 func NewAntiBotObserver(
-	logger cplogging.Logger,
+	logger *slog.Logger,
 	registerer prometheus.Registerer,
 ) (antibot.Observer, error) {
 	if logger == nil {
-		logger = cplogging.NewNopLogger()
+		logger = slog.New(slog.DiscardHandler)
 	}
 
 	reactions := prometheus.NewHistogram(prometheus.HistogramOpts{
@@ -148,28 +147,28 @@ func NewAntiBotObserver(
 	// The address goes in the log and never on a label: per-IP labels are
 	// unbounded cardinality, and they would put personal data in every scrape.
 	onFlag := func(report antibot.Report) {
-		fields := []cplf.Field{
-			cplf.String("scope", report.Scope),
-			cplf.Int("flags", report.Flags),
-			cplf.Int("clicks", report.Clicks),
-			cplf.Any("activeFor", report.ActiveFor),
-			cplf.Any("longestGap", report.LongestGap),
-			cplf.String("topCountry", report.TopCountry),
-			cplf.Int("topCountryClicks", report.TopCountryClicks),
-			cplf.Any("tiles", report.Tiles),
+		fields := []any{
+			slog.String("scope", report.Scope),
+			slog.Int("flags", report.Flags),
+			slog.Int("clicks", report.Clicks),
+			slog.Duration("activeFor", report.ActiveFor),
+			slog.Duration("longestGap", report.LongestGap),
+			slog.String("topCountry", report.TopCountry),
+			slog.Int("topCountryClicks", report.TopCountryClicks),
+			slog.Any("tiles", report.Tiles),
 		}
 
 		// Every watchdog goes in the line, the quiet ones included: what did not
 		// fire is half of reading a ban that did.
 		for _, opinion := range report.Opinions {
-			fields = append(fields, cplf.String(opinion.Watchdog, formatOpinion(opinion)))
+			fields = append(fields, slog.String(opinion.Watchdog, formatOpinion(opinion)))
 
 			if opinion.Verdict != antibot.Clear {
 				flags.WithLabelValues(opinion.Watchdog).Inc()
 			}
 		}
 
-		logger.Warning("antibot ban", fields...)
+		logger.Warn("antibot ban", fields...)
 	}
 
 	return antibot.Observer{OnReaction: onReaction, OnFlag: onFlag}, nil

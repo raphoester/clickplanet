@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -13,15 +14,13 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cphttpserver"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cplogging"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cplogging/cplf"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpprom"
 )
 
 // mountMetrics puts the scrape endpoint on the same router as the RPC routes.
 // It carries the logging middleware alone: the CORS and IP headers are for
 // callers of the API, and nothing browses this.
-func mountMetrics(router *http.ServeMux, metrics *prometheus.Registry, logger cplogging.Logger) {
+func mountMetrics(router *http.ServeMux, metrics *prometheus.Registry, logger *slog.Logger) {
 	metricsRouter := http.NewServeMux()
 	metricsRouter.HandleFunc("GET /", cpprom.HandlerForRegistry(metrics).ServeHTTP)
 
@@ -54,7 +53,7 @@ func serve(
 
 	started := startRunners(running, runners, options.Logger)
 
-	options.Logger.Info("Listening", cplf.String("address", server.Addr))
+	options.Logger.Info("Listening", slog.String("address", server.Addr))
 
 	serveErr := make(chan error, 1)
 	go func() {
@@ -78,17 +77,17 @@ func serve(
 		return nil
 
 	case sig := <-signals:
-		options.Logger.Info("shutting down", cplf.String("signal", sig.String()))
+		options.Logger.Info("shutting down", slog.String("signal", sig.String()))
 
 	case <-ctx.Done():
-		options.Logger.Info("shutting down", cplf.String("reason", "context cancelled"))
+		options.Logger.Info("shutting down", slog.String("reason", "context cancelled"))
 	}
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), options.ShutdownTimeout)
 	defer cancel()
 
 	if err := server.Shutdown(shutdownCtx); err != nil {
-		options.Logger.Error("failed to shut down the http server", cplf.Err(err))
+		options.Logger.Error("failed to shut down the http server", slog.Any("error", err))
 	}
 
 	stop(options, closers, stopRunning, started)
@@ -97,7 +96,7 @@ func serve(
 	return nil
 }
 
-func startRunners(ctx context.Context, runners *runnerRegistry, logger cplogging.Logger) *sync.WaitGroup {
+func startRunners(ctx context.Context, runners *runnerRegistry, logger *slog.Logger) *sync.WaitGroup {
 	started := &sync.WaitGroup{}
 
 	for _, runner := range runners.runners {
@@ -105,7 +104,7 @@ func startRunners(ctx context.Context, runners *runnerRegistry, logger cplogging
 		go func() {
 			defer started.Done()
 			runner.run(ctx)
-			logger.Debug("runner stopped", cplf.String("runner", runner.name))
+			logger.Debug("runner stopped", slog.String("runner", runner.name))
 		}()
 	}
 
@@ -119,8 +118,8 @@ func stop(options Options, closers *closerRegistry, stopRunning context.CancelFu
 	for _, closer := range closers.all() {
 		if err := closer.close(); err != nil {
 			options.Logger.Error("failed to close",
-				cplf.String("closer", closer.name),
-				cplf.Err(err),
+				slog.String("closer", closer.name),
+				slog.Any("error", err),
 			)
 		}
 	}

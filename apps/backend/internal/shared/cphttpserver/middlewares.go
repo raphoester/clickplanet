@@ -1,14 +1,13 @@
 package cphttpserver
 
 import (
+	"log/slog"
 	"net"
 	"net/http"
 	"strings"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconnect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cplogging"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cplogging/cplf"
 )
 
 func MiddlewareStack(middlewares ...func(http.Handler) http.Handler) func(http.Handler) http.Handler {
@@ -66,16 +65,16 @@ func remoteIP(r *http.Request) string {
 	return host
 }
 
-func NewLoggingMiddleware(logger cplogging.Logger) func(http.Handler) http.Handler {
+func NewLoggingMiddleware(logger *slog.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			wrapped := &wrappedWriter{ResponseWriter: w}
 			next.ServeHTTP(wrapped, r)
 			logger.Info(
 				"new request on web server",
-				cplf.String("method", r.Method),
-				cplf.String("uri", r.RequestURI),
-				cplf.Int("status_code", wrapped.code),
+				slog.String("method", r.Method),
+				slog.String("uri", r.RequestURI),
+				slog.Int("status_code", wrapped.code),
 			)
 		})
 	}

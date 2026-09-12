@@ -489,7 +489,7 @@ The snapshot file is the only thing worth backing up.
 
 ### Shared (`internal/shared/`)
 
-Shared infrastructure: `cpbootstrap` (the composite layer), `cpcountries`, `cpconfigs` (YAML + env config via koanf), `cphttpserver` (middleware, formats), `cplogging` and `cplogging/cplf`, `cpprom` (Prometheus), `cptime`, `cpctx`, `cpconnect`, `cpratelimit`, `cpipblock`, `cpipscope`, `cpsession`, `cpatomicfile`, `cpsecrets`.
+Shared infrastructure: `cpbootstrap` (the composite layer), `cpcountries`, `cpconfigs` (YAML + env config via koanf), `cphttpserver` (middleware, formats), `cpprom` (Prometheus), `cptime`, `cpctx`, `cpconnect`, `cpratelimit`, `cpipblock`, `cpipscope`, `cpsession`, `cpatomicfile`, `cpsecrets`.
 
 **Every package here is prefixed `cp`, and a new one must be.** A call site reads
 `cptime.ActualProvider{}` or `cpctx.GetSourceIP(ctx)`, so the prefix says the
@@ -499,6 +499,14 @@ settles the collisions a shared layer attracts: `cptime` beside stdlib `time`,
 `cpsession` beside the session *module*, `cpconnect` beside `connectrpc.com/connect`.
 `cpsession` is what let `internal/session/module.go` drop the `sharedsession`
 import alias it needed while the two were both called `session`.
+
+**There is no logging package here, deliberately.** Every constructor that logs
+takes a `*slog.Logger` from the standard library. The wrapper that used to sit
+here was an interface of four methods over `log/slog` plus a `cplf` field type
+that stringified every value on the way in — so a structured logger was being
+flattened to strings by the layer whose job was to keep them structured. A
+handler is the supported way to change where logs go, and `slog.New(slog.DiscardHandler)`
+is the nop. The one thing lost is the name `Warning`, which is `Warn` in slog.
 
 The `util` suffix is dropped rather than prefixed — `cpctx`, not `cpctxutil`.
 A package named for what it *is* stays that; one named "utilities for X" was

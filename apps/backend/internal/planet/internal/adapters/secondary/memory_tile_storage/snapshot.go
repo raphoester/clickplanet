@@ -7,11 +7,11 @@ import (
 	"fmt"
 	"hash/crc32"
 	"io/fs"
+	"log/slog"
 	"os"
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomicfile"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cplogging/cplf"
 )
 
 const (
@@ -24,21 +24,21 @@ var errCorruptSnapshot = errors.New("corrupt snapshot")
 
 func (s *Storage) Run(ctx context.Context) {
 	if s.config.SnapshotPath == "" {
-		s.logger.Warning("no snapshot path configured, tile state will not survive a restart")
+		s.logger.Warn("no snapshot path configured, tile state will not survive a restart")
 		<-ctx.Done()
 		return
 	}
 
 	if err := cpatomicfile.CheckWritable(s.config.SnapshotPath); err != nil {
 		s.logger.Error("snapshot path is not writable, tile state will not survive a restart",
-			cplf.String("path", s.config.SnapshotPath),
-			cplf.Err(err),
+			slog.String("path", s.config.SnapshotPath),
+			slog.Any("error", err),
 		)
 	}
 
 	s.logger.Info("snapshotting tile state",
-		cplf.String("path", s.config.SnapshotPath),
-		cplf.Any("interval", s.config.SnapshotInterval),
+		slog.String("path", s.config.SnapshotPath),
+		slog.Duration("interval", s.config.SnapshotInterval),
 	)
 
 	ticker := time.NewTicker(s.config.SnapshotInterval)
@@ -58,8 +58,8 @@ func (s *Storage) Run(ctx context.Context) {
 func (s *Storage) snapshotIfDirty() {
 	if err := s.Snapshot(); err != nil {
 		s.logger.Error("failed to write tile snapshot",
-			cplf.String("path", s.config.SnapshotPath),
-			cplf.Err(err),
+			slog.String("path", s.config.SnapshotPath),
+			slog.Any("error", err),
 		)
 	}
 }
@@ -133,14 +133,14 @@ func (s *Storage) restore() {
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			s.logger.Info("no tile snapshot found, starting from an empty map",
-				cplf.String("path", s.config.SnapshotPath),
+				slog.String("path", s.config.SnapshotPath),
 			)
 			return
 		}
 
 		s.logger.Error("failed to read tile snapshot, starting from an empty map",
-			cplf.String("path", s.config.SnapshotPath),
-			cplf.Err(err),
+			slog.String("path", s.config.SnapshotPath),
+			slog.Any("error", err),
 		)
 		return
 	}
@@ -148,16 +148,16 @@ func (s *Storage) restore() {
 	codes, tiles, err := decodeSnapshot(raw)
 	if err != nil {
 		s.logger.Error("failed to decode tile snapshot, starting from an empty map",
-			cplf.String("path", s.config.SnapshotPath),
-			cplf.Err(err),
+			slog.String("path", s.config.SnapshotPath),
+			slog.Any("error", err),
 		)
 		return
 	}
 
 	if len(tiles) != len(s.tiles) {
-		s.logger.Warning("tile snapshot was taken with a different map size, restoring the overlap",
-			cplf.Int("snapshotTiles", len(tiles)),
-			cplf.Int("configuredTiles", len(s.tiles)),
+		s.logger.Warn("tile snapshot was taken with a different map size, restoring the overlap",
+			slog.Int("snapshotTiles", len(tiles)),
+			slog.Int("configuredTiles", len(s.tiles)),
 		)
 		if len(tiles) > len(s.tiles) {
 			tiles = tiles[:len(s.tiles)]
@@ -171,7 +171,7 @@ func (s *Storage) restore() {
 		}
 		if int(code) >= len(codes) {
 			s.logger.Error("tile snapshot references an unknown country code, starting from an empty map",
-				cplf.Int("codeID", int(code)),
+				slog.Int("codeID", int(code)),
 			)
 			return
 		}
@@ -186,9 +186,9 @@ func (s *Storage) restore() {
 	}
 
 	s.logger.Info("restored tile state from snapshot",
-		cplf.String("path", s.config.SnapshotPath),
-		cplf.Int("ownedTiles", owned),
-		cplf.Int("countryCodes", len(codes)-1),
+		slog.String("path", s.config.SnapshotPath),
+		slog.Int("ownedTiles", owned),
+		slog.Int("countryCodes", len(codes)-1),
 	)
 }
 

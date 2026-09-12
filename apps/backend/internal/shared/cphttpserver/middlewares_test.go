@@ -1,6 +1,7 @@
 package cphttpserver_test
 
 import (
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -8,14 +9,13 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconnect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cphttpserver"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cplogging"
 	"github.com/stretchr/testify/require"
 )
 
 func TestLoggingMiddlewareKeepsTheWriterFlushable(t *testing.T) {
 	var flushable bool
 
-	middleware := cphttpserver.NewLoggingMiddleware(cplogging.NewNopLogger())
+	middleware := cphttpserver.NewLoggingMiddleware(slog.New(slog.DiscardHandler))
 	handler := middleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, flushable = w.(http.Flusher)
 	}))

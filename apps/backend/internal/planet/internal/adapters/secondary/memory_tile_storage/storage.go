@@ -3,13 +3,12 @@ package memory_tile_storage
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"math"
 	"sync"
 	"sync/atomic"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/domain"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cplogging"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cplogging/cplf"
 )
 
 const maxCodes = math.MaxUint16 + 1
@@ -19,10 +18,10 @@ const unownedCode = uint16(0)
 func New(
 	maxIndex uint32,
 	config Config,
-	logger cplogging.Logger,
+	logger *slog.Logger,
 ) *Storage {
 	if logger == nil {
-		logger = cplogging.NewNopLogger()
+		logger = slog.New(slog.DiscardHandler)
 	}
 
 	config = config.withDefaults()
@@ -44,7 +43,7 @@ func New(
 
 type Storage struct {
 	config   Config
-	logger   cplogging.Logger
+	logger   *slog.Logger
 	maxIndex uint32
 
 	tilesMu sync.RWMutex
@@ -161,9 +160,9 @@ func (s *Storage) publish(update domain.TileUpdate) {
 		default:
 			dropped := sub.dropped.Add(1)
 			if dropped == 1 || dropped%dropLogInterval == 0 {
-				s.logger.Warning("dropped tile update for a slow subscriber",
-					cplf.Any("tile", update.Tile),
-					cplf.Any("droppedTotal", dropped),
+				s.logger.Warn("dropped tile update for a slow subscriber",
+					slog.Uint64("tile", uint64(update.Tile)),
+					slog.Uint64("droppedTotal", dropped),
 				)
 			}
 		}
