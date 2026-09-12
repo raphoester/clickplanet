@@ -36,11 +36,22 @@ const N = dv.getUint32(8, true)
 const pos = new Float32Array(buf.buffer, buf.byteOffset + 12, N * 3)
 const uvs = new Float32Array(buf.buffer, buf.byteOffset + 12 + N * 12, N * 2)
 
+// Natural Earth leaves ISO_A2 at -99 for the three territories it maps but does
+// not hand a country code to. The flag layer paints per piece of land, so a
+// territory without a code is not a blank flag, it is a hole: 327 tiles of
+// Somaliland showed bare ground while the tiles under them were owned and
+// wearing a flag up close. Fold the two that sit inside a country into it —
+// Natural Earth's own ADM0_ISO says which — and the piece is whole again.
+// Siachen Glacier has no ADM0_ISO either, because India and Pakistan both claim
+// it and the dataset declines to pick; its 4 tiles stay unassigned.
+const ABSORBED = {SOL: "so", CYN: "cy"}
+
 // --- polygons, flattened to rings with bboxes
 const shapes = []   // {code, rings: [[x,y,...]], bbox}
 for (const f of geo.features) {
-    const code = (f.properties.ISO_A2_EH ?? f.properties.ISO_A2 ?? "").toLowerCase()
-    if (!code || code === "-99") continue
+    const named = (f.properties.ISO_A2_EH ?? f.properties.ISO_A2 ?? "").toLowerCase()
+    const code = named && named !== "-99" ? named : ABSORBED[f.properties.ADM0_A3] ?? ""
+    if (!code) continue
     const polys = f.geometry.type === "Polygon" ? [f.geometry.coordinates] : f.geometry.coordinates
     for (const poly of polys) {
         let minX = 180, minY = 90, maxX = -180, maxY = -90
