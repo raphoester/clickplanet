@@ -21,8 +21,11 @@ make deadcode
 # Lint. Needs golangci-lint on PATH at the pinned version: make setup-tools
 make lint
 
-# gofmt over cmd/ and internal/ — never generated/, which `make proto` owns
-make fmt
+# gofumpt every Go file and run go mod tidy — rewrites in place
+make tidy
+
+# Fail if `make tidy` would change anything, go.mod included
+make check-format
 
 # Run API server locally
 go run ./cmd/api -config cmd/api/example.yaml
@@ -625,6 +628,18 @@ The version is pinned in the `Makefile` and matched by the CI job, because an
 unpinned linter turns a green branch red on somebody else's release schedule.
 `make setup-tools` installs that version.
 
+**Formatting is gofumpt**, enabled in the `formatters` block of the same file
+and run by `make tidy`. It goes through golangci-lint rather than a `gofumpt`
+binary of its own: one pinned version to install instead of two that can
+disagree, and it already knows which files are generated. gofumpt is a strict
+superset of gofmt, so anything it accepts `gofmt` accepts.
+
+`make check-format` is the non-rewriting half, and it is what CI runs. Note that
+`golangci-lint fmt --diff` **prints a diff but exits 0 either way**, so the
+target tests its output rather than its status — a `check-format` written the
+obvious way passes on an unformatted tree. It also runs `go mod tidy` and fails
+on a resulting diff, so an untidy `go.mod` is caught in the same place.
+
 **`run.build-tags` is `testing`**, for the same reason `go vet` needs it: without
 the tag the linters load a tree where the shared helpers are undefined and report
 that instead of anything real.
@@ -667,14 +682,15 @@ what failed.
 script rather than a root `Makefile` target because this repo keeps build tooling
 inside each app, and hooks are the one genuinely repo-wide thing.
 
-- **pre-commit** — `make fmt` (re-staging only what was already staged) and
-  `make lint-ci`, plus the frontend's eslint, each only when that app has staged
-  changes.
+- **pre-commit** — `make tidy` (re-staging only what was already staged, plus
+  `go.mod`/`go.sum` if tidy moved them) and `make lint-ci`, plus the frontend's
+  eslint, each only when that app has staged changes.
 - **commit-msg** — conventional commits, which the history already uses, and a
   72-character subject so `git log --oneline` stays readable. Merge, revert,
   fixup and squash subjects are git's to format and are left alone.
-- **pre-push** — `make test`, `make deadcode` and `make lint-ci`, run
-  concurrently; output is only printed for a step that fails.
+- **pre-push** — `make test`, `make deadcode`, `make lint-ci` and
+  `make check-format`, run concurrently; output is only printed for a step that
+  fails.
 
 All three take `--no-verify`. The hooks re-point `core.hooksPath` at a *relative*
 `.githooks` on every run, so a worktree runs its own branch's hooks rather than

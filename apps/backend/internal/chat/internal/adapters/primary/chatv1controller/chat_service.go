@@ -47,7 +47,6 @@ func (s *ChatService) SendMessage(
 		Text:       req.Msg.GetText(),
 		UserAgent:  req.Header().Get("User-Agent"),
 	})
-
 	if err != nil {
 		return nil, err
 	}

@@ -150,5 +150,12 @@ linters:
       - generated/
 
 formatters:
+  enable:
+    # gofumpt is gofmt plus the rules gofmt left out — it is a strict superset,
+    # so anything it accepts gofmt accepts. Run through golangci-lint rather than
+    # as its own binary: one pinned version to install, and it already knows
+    # which files are generated.
+    - gofumpt
+
   exclusions:
     generated: lax
