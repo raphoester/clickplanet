@@ -117,7 +117,7 @@ func (s *Storage) restore() {
 		)
 	}
 
-	kept := withinRetention(records, s.timeProvider.Now().Add(-s.config.Retention))
+	kept := withinRetention(records, s.clock.Now().Add(-s.config.Retention))
 	if len(kept) > s.config.HistorySize {
 		kept = kept[len(kept)-s.config.HistorySize:]
 	}
@@ -214,7 +214,7 @@ func (s *Storage) prune() {
 		return
 	}
 
-	kept := withinRetention(records, s.timeProvider.Now().Add(-s.config.Retention))
+	kept := withinRetention(records, s.clock.Now().Add(-s.config.Retention))
 	if len(kept) == len(records) {
 		return
 	}

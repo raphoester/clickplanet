@@ -31,17 +31,17 @@ type PostRequest struct {
 func New(
 	storage domain.Storage,
 	countryChecker domain.CountryChecker,
-	timeProvider cptime.Provider,
+	clock cptime.Clock,
 	config Config,
 ) *Service {
-	if timeProvider == nil {
-		timeProvider = cptime.ActualProvider{}
+	if clock == nil {
+		clock = cptime.SystemClock{}
 	}
 
 	return &Service{
 		storage:        storage,
 		countryChecker: countryChecker,
-		timeProvider:   timeProvider,
+		clock:          clock,
 		config:         config.withDefaults(),
 	}
 }
@@ -49,7 +49,7 @@ func New(
 type Service struct {
 	storage        domain.Storage
 	countryChecker domain.CountryChecker
-	timeProvider   cptime.Provider
+	clock          cptime.Clock
 	config         Config
 }
 
@@ -72,7 +72,7 @@ func (s *Service) Post(ctx context.Context, req PostRequest) (domain.ChatMessage
 
 	message := domain.ChatMessage{
 		ID:         uuid.NewString(),
-		SentAt:     s.timeProvider.Now(),
+		SentAt:     s.clock.Now(),
 		AuthorName: name,
 		AuthorTag:  s.tag(ip),
 		CountryID:  req.CountryID,

@@ -12,13 +12,10 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/session/internal/domain"
 	"github.com/raphoester/clickplanet.lol-backend/internal/session/internal/domain/session_service"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 var now = time.Date(2026, 9, 9, 12, 0, 0, 0, time.UTC)
-
-type fakeClock struct{ now time.Time }
-
-func (c fakeClock) Now() time.Time { return c.now }
 
 type fakeAttester struct {
 	err    error
@@ -50,7 +47,7 @@ func newService(t *testing.T, attester domain.Attester) (*session_service.Servic
 
 	minter := &countingMinter{signer: signer}
 
-	return session_service.New(attester, minter, fakeClock{now: now}), minter
+	return session_service.New(attester, minter, cptime.NewFixedClock(now)), minter
 }
 
 func TestAnAttestedCallerIsMintedATokenBoundToItsAddress(t *testing.T) {

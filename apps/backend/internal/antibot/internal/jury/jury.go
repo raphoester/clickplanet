@@ -72,30 +72,30 @@ type Banner interface {
 func New(
 	config Config,
 	banner Banner,
-	timeProvider cptime.Provider,
+	clock cptime.Clock,
 	onFlag func(detect.Report),
 	watchdogs ...detect.Watchdog,
 ) *Jury {
-	if timeProvider == nil {
-		timeProvider = cptime.ActualProvider{}
+	if clock == nil {
+		clock = cptime.SystemClock{}
 	}
 
 	return &Jury{
-		config:       config.WithDefaults(),
-		banner:       banner,
-		timeProvider: timeProvider,
-		onFlag:       onFlag,
-		watchdogs:    watchdogs,
-		callers:      make(map[string]*caller),
+		config:    config.WithDefaults(),
+		banner:    banner,
+		clock:     clock,
+		onFlag:    onFlag,
+		watchdogs: watchdogs,
+		callers:   make(map[string]*caller),
 	}
 }
 
 type Jury struct {
-	config       Config
-	banner       Banner
-	timeProvider cptime.Provider
-	onFlag       func(detect.Report)
-	watchdogs    []detect.Watchdog
+	config    Config
+	banner    Banner
+	clock     cptime.Clock
+	onFlag    func(detect.Report)
+	watchdogs []detect.Watchdog
 
 	mu      sync.Mutex
 	callers map[string]*caller
@@ -301,7 +301,7 @@ func (j *Jury) Run(ctx context.Context) {
 // caller record on purpose: the ban lives in the banner, which has its own
 // clock, so forgetting the evidence here never shortens a sentence.
 func (j *Jury) sweep() {
-	now := j.timeProvider.Now()
+	now := j.clock.Now()
 
 	j.mu.Lock()
 	defer j.mu.Unlock()

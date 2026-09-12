@@ -49,12 +49,12 @@ func build(config Config, props cpbootstrap.Props) error {
 		props.Logger.Warn("no chat.service.tagSalt configured, generated a random one: sender tags will change on every restart")
 	}
 
-	storage := memory_chat_storage.New(config.Storage, cptime.ActualProvider{}, props.Logger)
+	storage := memory_chat_storage.New(config.Storage, cptime.SystemClock{}, props.Logger)
 	props.Runners.Add("chat-storage", storage.Run)
 
-	service := chat_service.New(storage, cpcountries.New(), cptime.ActualProvider{}, serviceConfig)
+	service := chat_service.New(storage, cpcountries.New(), cptime.SystemClock{}, serviceConfig)
 
-	messageLimiter := cpratelimit.New(config.RateLimiter, cptime.ActualProvider{})
+	messageLimiter := cpratelimit.New(config.RateLimiter, cptime.SystemClock{})
 	props.Runners.Add("message-limiter", messageLimiter.Run)
 
 	blocklist, err := cpipblock.NewDenyList(config.BlockedIPs)

@@ -13,24 +13,24 @@ import (
 
 func New(
 	config Config,
-	timeProvider cptime.Provider,
+	clock cptime.Clock,
 	logger *slog.Logger,
 ) *Storage {
 	if logger == nil {
 		logger = slog.New(slog.DiscardHandler)
 	}
-	if timeProvider == nil {
-		timeProvider = cptime.ActualProvider{}
+	if clock == nil {
+		clock = cptime.SystemClock{}
 	}
 
 	config = config.withDefaults()
 
 	s := &Storage{
-		config:       config,
-		logger:       logger,
-		timeProvider: timeProvider,
-		history:      make([]domain.ChatMessage, 0, config.HistorySize),
-		subscribers:  make(map[*subscriber]struct{}),
+		config:      config,
+		logger:      logger,
+		clock:       clock,
+		history:     make([]domain.ChatMessage, 0, config.HistorySize),
+		subscribers: make(map[*subscriber]struct{}),
 	}
 
 	s.restore()
@@ -39,9 +39,9 @@ func New(
 }
 
 type Storage struct {
-	config       Config
-	logger       *slog.Logger
-	timeProvider cptime.Provider
+	config Config
+	logger *slog.Logger
+	clock  cptime.Clock
 
 	historyMu sync.RWMutex
 	history   []domain.ChatMessage

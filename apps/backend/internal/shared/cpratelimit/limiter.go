@@ -36,21 +36,21 @@ func (c Config) withDefaults() Config {
 	return c
 }
 
-func New(config Config, timeProvider cptime.Provider) *Limiter {
-	if timeProvider == nil {
-		timeProvider = cptime.ActualProvider{}
+func New(config Config, clock cptime.Clock) *Limiter {
+	if clock == nil {
+		clock = cptime.SystemClock{}
 	}
 
 	return &Limiter{
-		config:       config.withDefaults(),
-		timeProvider: timeProvider,
-		buckets:      make(map[string]*bucket),
+		config:  config.withDefaults(),
+		clock:   clock,
+		buckets: make(map[string]*bucket),
 	}
 }
 
 type Limiter struct {
-	config       Config
-	timeProvider cptime.Provider
+	config Config
+	clock  cptime.Clock
 
 	mu      sync.Mutex
 	buckets map[string]*bucket
@@ -80,7 +80,7 @@ type State struct {
 // afterwards. The state comes back either way: a refused caller is the one
 // most interested in how long the wait is.
 func (l *Limiter) Take(key string) (bool, State) {
-	now := l.timeProvider.Now()
+	now := l.clock.Now()
 
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -105,7 +105,7 @@ func (l *Limiter) Take(key string) (bool, State) {
 // bucket and stays unknown: reading an allowance must not be a way to make the
 // limiter remember an address that never clicked.
 func (l *Limiter) Peek(key string) State {
-	now := l.timeProvider.Now()
+	now := l.clock.Now()
 
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -143,7 +143,7 @@ func (l *Limiter) Run(ctx context.Context) {
 }
 
 func (l *Limiter) sweep() {
-	now := l.timeProvider.Now()
+	now := l.clock.Now()
 
 	l.mu.Lock()
 	defer l.mu.Unlock()

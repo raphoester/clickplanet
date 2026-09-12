@@ -141,14 +141,14 @@ const (
 // rather than to show the player an error.
 func NewSessionInterceptor(
 	verifier SessionVerifier,
-	timeProvider cptime.Provider,
+	clock cptime.Clock,
 	refusal error,
 	enforce bool,
 	onVerdict func(SessionVerdict),
 	procedures ...string,
 ) connect.Interceptor {
-	if timeProvider == nil {
-		timeProvider = cptime.ActualProvider{}
+	if clock == nil {
+		clock = cptime.SystemClock{}
 	}
 
 	record := func(verdict SessionVerdict) {
@@ -172,7 +172,7 @@ func NewSessionInterceptor(
 				return next(ctx, req)
 			}
 
-			id, err := verifier.Verify(token, cpctx.GetSourceIP(ctx), timeProvider.Now())
+			id, err := verifier.Verify(token, cpctx.GetSourceIP(ctx), clock.Now())
 			if err != nil {
 				record(SessionInvalid)
 				if enforce {

@@ -22,19 +22,19 @@ type IService interface {
 }
 
 type Service struct {
-	attester     domain.Attester
-	minter       Minter
-	timeProvider cptime.Provider
+	attester domain.Attester
+	minter   Minter
+	clock    cptime.Clock
 }
 
 var _ IService = (*Service)(nil)
 
-func New(attester domain.Attester, minter Minter, timeProvider cptime.Provider) *Service {
-	if timeProvider == nil {
-		timeProvider = cptime.ActualProvider{}
+func New(attester domain.Attester, minter Minter, clock cptime.Clock) *Service {
+	if clock == nil {
+		clock = cptime.SystemClock{}
 	}
 
-	return &Service{attester: attester, minter: minter, timeProvider: timeProvider}
+	return &Service{attester: attester, minter: minter, clock: clock}
 }
 
 func (s *Service) Create(ctx context.Context, attestationToken string, ip string) (cpsession.Token, error) {
@@ -49,7 +49,7 @@ func (s *Service) Create(ctx context.Context, attestationToken string, ip string
 		return cpsession.Token{}, fmt.Errorf("%w: %w", domain.ErrAttestationFailed, err)
 	}
 
-	token, err := s.minter.Mint(ip, s.timeProvider.Now())
+	token, err := s.minter.Mint(ip, s.clock.Now())
 	if err != nil {
 		return cpsession.Token{}, fmt.Errorf("failed to mint a session token: %w", err)
 	}

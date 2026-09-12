@@ -18,7 +18,7 @@ func newAntiBotInterceptor(
 	owner planetv1controller.TileOwner,
 	props cpbootstrap.Props,
 ) (connect.Interceptor, error) {
-	clock := cptime.ActualProvider{}
+	clock := cptime.SystemClock{}
 
 	observer, err := planetv1controller.NewAntiBotObserver(props.Logger, props.Metrics)
 	if err != nil {

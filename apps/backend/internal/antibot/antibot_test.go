@@ -9,18 +9,15 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
-
-type fakeClock struct{ now time.Time }
-
-func (c *fakeClock) Now() time.Time { return c.now }
 
 // The whole thing built the way internal/planet builds it — through the one
 // published constructor, with the bounds cmd/api ships — and driven by callers
 // that behave the way the real ones do.
 type stack struct {
 	guard antibot.Guard
-	clock *fakeClock
+	clock *cptime.FixedClock
 
 	owner   map[uint32]string
 	reports []antibot.Report
@@ -28,7 +25,7 @@ type stack struct {
 
 func newStack() *stack {
 	s := &stack{
-		clock: &fakeClock{now: time.Date(2026, 9, 11, 2, 0, 0, 0, time.UTC)},
+		clock: cptime.NewFixedClock(time.Date(2026, 9, 11, 2, 0, 0, 0, time.UTC)),
 		owner: map[uint32]string{},
 	}
 
@@ -87,7 +84,7 @@ func (s *stack) click(scope string, tile uint32, country string) bool {
 		Scope:   scope,
 		Tile:    tile,
 		Country: country,
-		At:      s.clock.now,
+		At:      s.clock.Now(),
 		Held:    held,
 		NoOp:    held == country,
 	}
@@ -102,8 +99,6 @@ func (s *stack) click(scope string, tile uint32, country string) bool {
 
 	return drop
 }
-
-func (s *stack) advance(d time.Duration) { s.clock.now = s.clock.now.Add(d) }
 
 func (s *stack) verdicts(scope string) map[string]antibot.Verdict {
 	out := map[string]antibot.Verdict{}
@@ -131,7 +126,7 @@ func TestTheOvernightSweepIsCaught(t *testing.T) {
 	)
 
 	for range 400 {
-		s.advance(time.Second)
+		s.clock.Advance(time.Second)
 		clicks++
 		if s.click("sweeper", tile, "FR") {
 			dropped = true
@@ -169,7 +164,7 @@ func TestSweepingInARandomOrderStillGetsCaught(t *testing.T) {
 	)
 
 	for range 3000 {
-		s.advance(time.Second)
+		s.clock.Advance(time.Second)
 		clicks++
 		if s.click("shuffler", 180000+uint32(random.IntN(60000)), "FR") {
 			dropped = true
@@ -204,13 +199,13 @@ func TestAnObsessedPlayerIsNotBanned(t *testing.T) {
 	for range 90 {
 		// A burst of clicks around one area, then a pause to look at the map.
 		for range 20 + random.IntN(25) {
-			s.advance(time.Duration(250+random.IntN(1400)) * time.Millisecond)
+			s.clock.Advance(time.Duration(250+random.IntN(1400)) * time.Millisecond)
 
 			tile = uint32(int(tile) + random.IntN(80) - 40)
 			require.False(t, s.click("player", tile, "IT"), "a player must never be dropped")
 		}
 
-		s.advance(time.Duration(4+random.IntN(40)) * time.Second)
+		s.clock.Advance(time.Duration(4+random.IntN(40)) * time.Second)
 	}
 
 	assert.Empty(t, s.reports, "nothing about this reads as a machine")
@@ -228,10 +223,10 @@ func TestATileWarBansNeither(t *testing.T) {
 	tile := uint32(70000)
 
 	for range 200 {
-		s.advance(time.Duration(300+random.IntN(1800)) * time.Millisecond)
+		s.clock.Advance(time.Duration(300+random.IntN(1800)) * time.Millisecond)
 		require.False(t, s.click("attacker", tile, "IL"))
 
-		s.advance(time.Duration(300+random.IntN(1800)) * time.Millisecond)
+		s.clock.Advance(time.Duration(300+random.IntN(1800)) * time.Millisecond)
 		require.False(t, s.click("defender", tile, "PS"))
 
 		if random.IntN(4) == 0 {
@@ -257,11 +252,11 @@ func TestTheReflexBotIsStillCaught(t *testing.T) {
 	for range 40 {
 		tile++
 
-		s.advance(time.Duration(600+random.IntN(2500)) * time.Millisecond)
+		s.clock.Advance(time.Duration(600+random.IntN(2500)) * time.Millisecond)
 		s.click("player", tile, "FR")
 
 		// Answers off the update stream, in a band no hand holds.
-		s.advance(time.Duration(70+random.IntN(30)) * time.Millisecond)
+		s.clock.Advance(time.Duration(70+random.IntN(30)) * time.Millisecond)
 		if s.click("reflex", tile, "PS") {
 			dropped = true
 			break

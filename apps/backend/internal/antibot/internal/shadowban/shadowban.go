@@ -50,21 +50,21 @@ func (c Config) withDefaults() Config {
 	return c
 }
 
-func New(config Config, timeProvider cptime.Provider) *Banner {
-	if timeProvider == nil {
-		timeProvider = cptime.ActualProvider{}
+func New(config Config, clock cptime.Clock) *Banner {
+	if clock == nil {
+		clock = cptime.SystemClock{}
 	}
 
 	return &Banner{
-		config:       config.withDefaults(),
-		timeProvider: timeProvider,
-		bans:         make(map[string]*ban),
+		config: config.withDefaults(),
+		clock:  clock,
+		bans:   make(map[string]*ban),
 	}
 }
 
 type Banner struct {
-	config       Config
-	timeProvider cptime.Provider
+	config Config
+	clock  cptime.Clock
 
 	mu   sync.Mutex
 	bans map[string]*ban
@@ -84,7 +84,7 @@ func (b *Banner) Flag(scope string) (flags int, accepted bool) {
 		return 0, false
 	}
 
-	now := b.timeProvider.Now()
+	now := b.clock.Now()
 
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -113,7 +113,7 @@ func (b *Banner) Banned(scope string) bool {
 		return false
 	}
 
-	now := b.timeProvider.Now()
+	now := b.clock.Now()
 
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -125,7 +125,7 @@ func (b *Banner) Banned(scope string) bool {
 // Flagged counts the bans currently running, whether or not Enforce is on, so
 // the gauge answers "what would this drop" before anything is dropped.
 func (b *Banner) Flagged() int {
-	now := b.timeProvider.Now()
+	now := b.clock.Now()
 
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -157,7 +157,7 @@ func (b *Banner) Run(ctx context.Context) {
 }
 
 func (b *Banner) sweep() {
-	now := b.timeProvider.Now()
+	now := b.clock.Now()
 
 	b.mu.Lock()
 	defer b.mu.Unlock()

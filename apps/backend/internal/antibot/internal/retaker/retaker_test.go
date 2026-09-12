@@ -9,24 +9,19 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/retaker"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
-
-type fakeClock struct{ now time.Time }
-
-func (c *fakeClock) Now() time.Time { return c.now }
-
-func (c *fakeClock) advance(d time.Duration) { c.now = c.now.Add(d) }
 
 type harness struct {
 	watchdog  *retaker.Watchdog
-	clock     *fakeClock
+	clock     *cptime.FixedClock
 	owner     map[uint32]string
 	reactions []time.Duration
 }
 
 func newHarness(config retaker.Config) *harness {
 	h := &harness{
-		clock: &fakeClock{now: time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC)},
+		clock: cptime.NewFixedClock(time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC)),
 		owner: map[uint32]string{},
 	}
 
@@ -57,7 +52,7 @@ func (h *harness) deliver(scope string, tile uint32, country string, accepted bo
 		Scope:   scope,
 		Tile:    tile,
 		Country: country,
-		At:      h.clock.now,
+		At:      h.clock.Now(),
 		Held:    held,
 		NoOp:    held == country,
 	}
@@ -102,10 +97,10 @@ func (h *harness) war(suspect string, first uint32, delays []time.Duration) dete
 		tile := first + uint32(i)
 
 		h.click("player", tile, "FR")
-		h.clock.advance(delay)
+		h.clock.Advance(delay)
 		verdict = h.click(suspect, tile, "PS")
 
-		h.clock.advance(time.Second)
+		h.clock.Advance(time.Second)
 	}
 
 	return verdict
@@ -155,11 +150,11 @@ func TestSpammingATileYouAlreadyOwnDoesNotFrameTheNextClicker(t *testing.T) {
 	h.click("bot", tile, "PS")
 
 	for range 20 {
-		h.clock.advance(100 * time.Millisecond)
+		h.clock.Advance(100 * time.Millisecond)
 		h.click("bot", tile, "PS")
 	}
 
-	h.clock.advance(50 * time.Millisecond)
+	h.clock.Advance(50 * time.Millisecond)
 	assert.Equal(t, detect.Clear, h.click("player", tile, "FR"))
 	assert.Empty(t, h.reactions, "a no-op click is not part of an exchange")
 }
@@ -171,10 +166,10 @@ func TestReactingToYourselfIsNotAReaction(t *testing.T) {
 		tile := 600 + i
 
 		h.click("bot", tile, "PS")
-		h.clock.advance(80 * time.Millisecond)
+		h.clock.Advance(80 * time.Millisecond)
 		h.click("bot", tile, "IL")
 
-		h.clock.advance(time.Second)
+		h.clock.Advance(time.Second)
 	}
 
 	assert.Empty(t, h.reactions)
@@ -199,10 +194,10 @@ func TestARefusedClickCannotFrameAnHonestPlayer(t *testing.T) {
 
 		require.Equal(t, detect.Clear, h.refused("griefer", tile, "zz"))
 
-		h.clock.advance(60 * time.Millisecond)
+		h.clock.Advance(60 * time.Millisecond)
 		h.click("player", tile, "FR")
 
-		h.clock.advance(time.Second)
+		h.clock.Advance(time.Second)
 	}
 
 	assert.Empty(t, h.reactions, "a refused click takes no tile")
@@ -218,12 +213,12 @@ func TestADroppedClickCannotFrameAnHonestPlayer(t *testing.T) {
 	// A banned caller's click is answered OK and never reaches the map, so the
 	// jury never calls Committed for it. The bot reacting to the player is real
 	// and is counted; what must not happen is the reverse.
-	h.clock.advance(80 * time.Millisecond)
+	h.clock.Advance(80 * time.Millisecond)
 	h.refused("bot", contested, "PS")
 
 	before := len(h.reactions)
 
-	h.clock.advance(80 * time.Millisecond)
+	h.clock.Advance(80 * time.Millisecond)
 	h.click("player", contested, "FR")
 
 	assert.Len(t, h.reactions, before, "the player is not reacting to a click that never landed")
@@ -237,7 +232,7 @@ func TestReactionsAgeOutOfTheWindow(t *testing.T) {
 
 	require.Equal(t, detect.Certain, h.war("bot", 1000, ms(80, 85, 78, 90)))
 
-	h.clock.advance(2 * time.Minute)
+	h.clock.Advance(2 * time.Minute)
 
 	assert.Equal(t, detect.Clear, h.click("bot", 1100, "PS"),
 		"stale reactions must not keep a verdict alive")
