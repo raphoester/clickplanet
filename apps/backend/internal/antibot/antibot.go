@@ -24,53 +24,49 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-// The vocabulary a caller reads. It is defined under internal/detect because the
-// watchdogs share it and cannot import this package without a cycle, so these
-// aliases are what publish it and there is still one definition of each.
+// The two types a caller writes down, because they appear in the signatures it
+// implements: it builds a Click and it is handed a Report. They are defined
+// under internal/detect because the watchdogs share them and cannot import this
+// package without a cycle, so these aliases are what publish them and there is
+// still one definition of each.
+//
+// Nothing else is aliased, because nothing else has to be named. A caller ranges
+// a Report's opinions and asks each one whether it Fired and what it says for
+// itself; the verdict ladder, the rule that tripped and the numbers behind it
+// never leave this package as vocabulary the edge has to speak.
 type (
-	Click    = detect.Click    // one Click RPC, as the guard sees it
-	Report   = detect.Report   // one ban, with every watchdog's opinion behind it
-	Opinion  = detect.Opinion  // one watchdog's standing verdict on a caller
-	Verdict  = detect.Verdict  // how sure one watchdog is
-	Evidence = detect.Evidence // why a watchdog returned the verdict it did
-	Field    = detect.Field    // one number a watchdog wanted in the log line
-
-	// Settings are published even though what reads them is not: they are in the file.
-	JuryConfig      = jury.Config
-	ShadowBanConfig = shadowban.Config
-)
-
-const (
-	Clear   = detect.Clear   // looks like anybody else
-	Suspect = detect.Suspect // counts only alongside another watchdog
-	Certain = detect.Certain // a reading no hand produces; bans on its own
+	Click  = detect.Click  // one Click RPC, as the guard sees it
+	Report = detect.Report // one ban, with every watchdog's opinion behind it
 )
 
 // Config is the `antiBot:` block. A watchdog left out of the file is off, and the
-// nested types are this package's, so a new bound lands with the watchdog that
-// reads it rather than here.
+// nested types are this package's or its interior's, so a new bound lands with
+// the watchdog that reads it rather than here. None of them is named outside:
+// koanf fills them by reflection and a caller still sets their fields, it just
+// cannot write the type — the settings are published because they are in the
+// file, the code that reads them is not.
 type Config struct {
 	Enabled bool
 
-	ShadowBan ShadowBanConfig
-	Jury      JuryConfig
+	ShadowBan shadowban.Config
+	Jury      jury.Config
 
-	Retaker   RetakerConfig
-	Sequencer SequencerConfig
-	Metronome MetronomeConfig
+	Retaker   retakerConfig
+	Sequencer sequencerConfig
+	Metronome metronomeConfig
 }
 
-type RetakerConfig struct {
+type retakerConfig struct {
 	Enabled  bool
 	Detector retaker.Config
 }
 
-type SequencerConfig struct {
+type sequencerConfig struct {
 	Enabled  bool
 	Detector sequencer.Config
 }
 
-type MetronomeConfig struct {
+type metronomeConfig struct {
 	Enabled  bool
 	Detector metronome.Config
 }

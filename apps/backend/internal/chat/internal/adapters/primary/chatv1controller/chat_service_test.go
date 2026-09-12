@@ -14,6 +14,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1/chatv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/domain"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/domain/chat_service"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconnect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cphttpserver"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
@@ -80,7 +81,7 @@ func startChatServerWith(
 	mux.Handle(chatv1connect.NewChatServiceHandler(
 		NewChatService(service, subscriber, heartbeat),
 		connect.WithInterceptors(
-			NewErrorInterceptor(nil),
+			cpconnect.NewErrorInterceptor(nil, nil),
 			NewBlocklistInterceptor(blocklist),
 			NewRateLimitInterceptor(limiter),
 		),

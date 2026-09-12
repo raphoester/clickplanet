@@ -10,7 +10,7 @@ make test
 # or: go test -tags testing ./... | grep -v 'no test files'
 
 # Run a single test
-go test -tags testing ./internal/planet/internal/domain/click_handler_service/... -run TestName
+go test -tags testing ./internal/planet/internal/clicks/usecases/click/... -run TestName
 
 # Run the concurrency-sensitive tests under the race detector
 go test -tags testing ./... -race
@@ -65,10 +65,10 @@ while `shared` is for things that would read the same in any other program.
 
 #### A module publishes its root package and hides the rest
 
-Every module's interior lives behind **its own `internal/`** — `internal/planet/internal/domain`,
+Every module's interior lives behind **its own `internal/`** — `internal/planet/internal/clicks`,
 `internal/chat/internal/adapters/…`, `internal/antibot/internal/jury`. Go's own
 rule does the enforcing: such a package is importable only from the tree rooted
-at the parent of that `internal`, so `chat` importing `planet/internal/domain`
+at the parent of that `internal`, so `chat` importing `planet/internal/clicks`
 **does not compile**. There is no linter to run, no allowlist to maintain and
 nothing to keep in sync.
 
@@ -80,7 +80,7 @@ root package**:
 | `planet` | `Config`, `NewModule` |
 | `chat` | `Config`, `NewModule` |
 | `session` | `Config`, `NewModule` |
-| `antibot` | `Config`, `Observer`, `Guard`, `New` |
+| `antibot` | `Config`, `Observer`, `Guard`, `New`, `Description`, `Click`, `Report` |
 
 That holds for `cmd/api` too: the composition root lists modules and cannot
 reach a domain type, a storage adapter or a controller even if it wanted to. A
@@ -98,7 +98,7 @@ directory.
 
 Each context wires **itself**, in a `module.go` at its root (`internal/planet/module.go`, `internal/chat/module.go`, `internal/session/module.go`). That file is the context's manifest: its `Config`, whether it is on, and its DI sequence. **A module takes its config and nothing else, and builds every object it needs itself** — there is no `Deps` struct and nothing is handed down from `main`. A module is a `cpbootstrap.Module` — a name, an `Enabled` flag and a DI sequence — and the sequence is handed a `cpbootstrap.Props` carrying registrars and nothing else:
 
-- `props.RPC.Mount(path, handler)` — both return values of a generated `New<Service>Handler` go straight into it
+- `props.RPC.Mount(build, interceptors...)` — the module hands over what *builds* the handler, plus the interceptors it wants. `cpbootstrap` builds it, so it can put its own interceptor outside every module's — see [The error net](#the-error-net)
 - `props.Runners.Add(name, run)` — a goroutine, given the process-lifetime context
 - `props.Closers.Add(name, close)` — a cleanup, run in reverse registration order
 - `props.Logger`, `props.Metrics`
@@ -135,20 +135,72 @@ Adding a context that callers talk to means a `proto/<name>/v1`, an `internal/<n
 
 It runs as a **single self-contained container with no dependencies**: the tile map lives in process and is persisted to a local snapshot file. There is no database, no cache, and no second process.
 
-### Planet domain (`internal/planet/internal/domain/`)
+### Inside the planet module: parts, not layers
 
-Core interfaces (ports) defined in `gateways.go`:
-- `TilesChecker` — validates tile IDs (0..maxIndex)
-- `TileStorage` — reads/writes tile→country ownership
-- `TileReporter` — notifies downstream of tile updates
-- `CountryChecker` — validates ISO country codes
+**There is no `domain` package, deliberately.** "Domain" names a layer, and a
+layer is the one thing every part of a module has in common — so a package
+called that collects whatever does not fit elsewhere and grows until nothing in
+it has a reason to sit beside anything else. It had shrunk to a sentinel and two
+structs, which is what a shell looks like.
 
-`ClickHandlerService` wires these interfaces together and contains all game logic. The Prometheus-instrumented version (`prom_click_handler_service/`) wraps it via decorator pattern.
+What sits under `internal/planet/internal/` is **one package per part of the
+game**, each named for what it is:
+
+- **`clicks/`** — the tile game: what a click is worth, what the map looks like,
+  and what changes when somebody takes a tile.
+- **`bonuses/`** — next, and the reason this is worth doing now. A part named
+  for itself is a directory to add; under a `domain` package it would have been
+  a subdirectory of a word that describes neither.
+
+A part's **root holds its vocabulary** — the sentinels and the types that cross
+between a use case and an adapter, so belong to neither. `clicks` holds
+its caller-error sentinels, `TileUpdate` and `DenseBatch`, and nothing else: no ports,
+no service, no logic. **Its rules live one level down, one package per use case.**
+
+The adapters stay where they are, under `internal/adapters/`, because an adapter
+is answerable to the transport or the store and not to one part — `planetv1controller`
+already serves both parts over one Connect service.
+
+#### Use cases (`internal/planet/internal/clicks/usecases/`)
+
+**One package per procedure, and each declares its own ports.** The service the
+edge serves has five procedures, so there are five packages, each exporting
+`New` and a `UseCase` with one `Execute`:
+
+| package | what it does | what it needs |
+|---|---|---|
+| `click` | validates the country and the tile, then writes | `TilesChecker`, `TileStorage`, `CountryChecker` |
+| `get_map` | a range of the map as one dense batch | `MaxIndexReader`, `DenseMapReader` |
+| `map_density` | how many tiles there are | `MaxIndexReader` |
+| `get_budget` | a caller's allowance, unspent | `ClickBudgetReader` |
+| `listen_for_events` | one client's live feed, heartbeat included | `UpdatesSubscriber` |
+
+**The interfaces in that last column are declared by the package that calls
+them**, not gathered in a `gateways.go` every use case imports. That is the
+whole point of the split: a shared port file makes every dependency everyone's,
+so `Click` ends up compiling against the map reader it never calls and a change
+to one procedure's needs is a change to the file all five read. Here, adding a
+dependency to `get_map` is invisible to the other four. The adapters are
+unchanged — `memory_tile_storage` happens to satisfy three of these ports at
+once, which is why `module.go` hands it over three times.
+
+**`click` is the only one that writes**, and the only one with an interface of
+its own (`IUseCase`), because `click/prom_click` decorates it — the counting is
+a wrapper rather than a line inside the rule, so a process that does not want it
+leaves it out and the rule does not change.
+
+The ports are written in the vocabulary the `clicks` root holds, and nothing
+travels between a use case and an adapter that is not declared in one of the
+two.
 
 ### Adapters
 
 **Primary (input):**
-- `internal/adapters/primary/http/planetv1controller/` — the API. `ClickService` implements the generated `planetv1connect.ClickServiceHandler` and nothing else; it never sees an `http.ResponseWriter`, which is the point of serving the contract with Connect rather than by hand. Two interceptors wrap it: `NewRateLimitInterceptor` (see [Rate limiting](#rate-limiting)) and `NewErrorInterceptor`, which maps domain errors onto Connect codes, logs the unexpected ones and keeps their cause off the wire, so **handlers return their errors bare** — `domain.ErrInvalidArgument` becomes `CodeInvalidArgument`, a code a handler picked itself is left alone, and anything else is logged once and answered as `internal error`.
+- `internal/adapters/primary/http/planetv1controller/` — the API. `ClickService` implements the generated `planetv1connect.ClickServiceHandler` and nothing else; it never sees an `http.ResponseWriter`, which is the point of serving the contract with Connect rather than by hand. **Each procedure is its own package** — `click_handler`, `get_map_handler`, `map_density_handler`, `get_budget_handler`, `listen_for_events_handler` — holding the one use case it calls and declaring the one port it needs. Each owns the mapping both ways, and each is tested on that mapping alone.
+
+`ClickService` is those five embedded, and **nothing else**: no fields of its own, no methods of its own, and **no constructor** — it is a bag of handlers, so the DI sequence that already builds them writes the literal. It has no test either. An aggregation's only claim is that it carries all five procedures, and `var _ planetv1connect.ClickServiceHandler = ClickService{}` is that claim, checked at compile time. A test that served it and called a procedure would be re-testing the handler package that procedure lives in.
+
+**A caller error becomes a Connect code in the handler, not centrally.** `click_handler` turns `clicks.ErrUnknownCountry` and `clicks.ErrTileOutOfRange` into `CodeInvalidArgument` and `clicks.ErrThrottled` into `CodeResourceExhausted`; `get_map_handler` turns `clicks.ErrInvalidTileRange` into `CodeInvalidArgument`. The sentinel these replaced was `ErrInvalidArgument`, which was a status code wearing a domain hat: it told a reader nothing a use case could act on, and it made every caller error in the game the same one. There is **no error interceptor in this package** — see [The error net](#the-error-net).
 - the tile stream, as `ClickService.ListenForEvents` — a Connect server-streaming RPC like any other procedure on the service. See [The live streams](#the-live-streams).
 
 **There is one server, one mux, and no version prefix.** Connect names each service's path from its proto package — `/planet.v1.ClickService/` and `/chat.v1.ChatService/` — so nothing is mounted under a prefix of ours. The three services and `/metrics` are the only things on the router. Nothing here needs a connection-level demultiplexer such as `cmux`; that is for running a real gRPC server, which owns its own HTTP/2 handler, beside a REST one.
@@ -183,7 +235,7 @@ The response never repeats a tile id. `GetMapResponse` carries `start_tile_id`, 
 - `internal/adapters/secondary/in_memory_tile_checker/` — validates tile IDs
 - country codes are validated by `shared/cpcountries`, which chat shares — see [The composite layer](#the-composite-layer)
 
-Beyond the `domain.TileStorage` port, `memory_tile_storage` also exposes `Subscribe(ctx) (<-chan domain.TileUpdate, error)`, one call per open stream.
+Beyond the `click.TileStorage` port, `memory_tile_storage` also exposes `Subscribe(ctx) (<-chan clicks.TileUpdate, error)`, one call per open stream.
 
 ### Key Flow
 
@@ -195,9 +247,12 @@ POST /session.v1.SessionService/CreateSession
   → shared/cpsession.Signer.Mint [HMAC over expiry+id+IP; nothing stored]
 
 POST /planet.v1.ClickService/Click   [X-Session-Token: <the minted token>]
-  → VPNBlockInterceptor, SessionInterceptor, RateLimitInterceptor, AntiBotInterceptor
-  → ClickService
-  → ClickHandlerService (validates tile ID + country)
+  → [cpbootstrap: error net], CacheInterceptor, VPNBlockInterceptor, SessionInterceptor
+  → ClickService → click_handler
+  → throttle_click  (spends a token, or refuses)
+  → antibot_click   (judges; a flagged caller is answered OK and dropped)
+  → prom_click      (counts)
+  → clicks/usecases/click (validates tile ID + country)
   → MemoryTileStorage.Set() [writes the tile, fans the update out in process]
   → every subscriber: one per open ListenForEvents stream
 ```
@@ -206,7 +261,7 @@ POST /planet.v1.ClickService/Click   [X-Session-Token: <the minted token>]
 
 ```
 POST /chat.v1.ChatService/SendMessage
-  → BlocklistInterceptor, then RateLimitInterceptor (both shared/cpconnect)
+  → [cpbootstrap: error net], BlocklistInterceptor, then RateLimitInterceptor (both shared/cpconnect)
   → ChatService
   → chat_service (sanitizes, stamps id/time/tag)
   → MemoryChatStorage.Append() [appends to the JSONL log, then fans out]
@@ -241,7 +296,9 @@ That log holds **personal data** — IPs next to user-authored text — so the r
 
 ### Rate limiting
 
-`NewRateLimitInterceptor` throttles **`Click` only**, per source IP, from a `shared/cpratelimit` token bucket — 1 click/s with a burst of 10 by default (`rateLimiter.*`). `MapDensity` and `GetMap` are cacheable reads a proxy in front absorbs; limiting them would punish a page load rather than a bot. A refused click answers `CodeResourceExhausted`, i.e. HTTP 429, and never reaches the domain.
+`throttle_click` throttles clicks, per source IP, from a `shared/cpratelimit` token bucket — 1 click/s with a burst of 10 by default (`rateLimiter.*`). `MapDensity` and `GetMap` are cacheable reads a proxy in front absorbs; limiting them would punish a page load rather than a bot. A refused click answers `CodeResourceExhausted`, i.e. HTTP 429, and never reaches the map.
+
+**It is a decorator over the click use case, not an interceptor over the procedure.** Two things fall out of that. The allowance comes back as a return value (`click.Out`) instead of being left on the context for a handler to find, which is what `cpctx.AddRateBudgetToContext` existed for and why it is gone. And "a click refused for its address or its session must not also spend a token" stops being a rule about the order of a list and becomes a property of the shape: every interceptor is outside the whole click chain by construction. `MapDensity` and `GetMap` are untouched for free, being other procedures entirely — under an interceptor that took a procedure list.
 
 #### Saying what is left
 
@@ -251,8 +308,10 @@ Polling for it would be worse, so nothing polls. `Limiter.Take` returns the buck
 
 That reading travels two ways, because a refused call has no response message to put it in:
 
-- an allowed call gets it on the context (`cpctx.AddRateBudgetToContext`), and `ClickService.Click` puts it in `ClickResponse.budget`. The interceptor decides the policy; the handler decides how to say it — the same split `NewSessionInterceptor` already uses for the session id.
-- a refused one gets it as a **connect error detail**, built by the `describe` function each context passes. `planetv1controller` passes one; chat and sessions pass nil, because nothing displays those allowances.
+- an allowed call carries it on `click.Out`, and `click_handler` puts it in `ClickResponse.budget`.
+- a refused one carries it on the same `click.Out`, beside `clicks.ErrThrottled`, and `click_handler` attaches it as a **connect error detail** — a refusal has no response message to put it in.
+
+Either way the decorator decides the policy and the handler decides how to say it. `clickbudget.Encode` is the one place that shape is agreed, because two procedures answer with a `ClickBudget`: the click that just spent a token, and `GetBudget`.
 
 `ClickService.GetBudget` covers the cold start — a client that has just loaded and has no click to learn from. It reads through `Limiter.Peek`, which spends nothing and, for an address that never clicked, **creates no bucket**: reading an allowance must not be a way to make the limiter remember a caller. It is deliberately not `NO_SIDE_EFFECTS`, so it is a POST no cache will serve a stale answer to; every click re-anchors the client afterwards, so it is asked once per page load.
 
@@ -310,7 +369,7 @@ The signature is checked **before** the expiry, in constant time, so a forger le
 **What it does not stop:** a person who solves Turnstile in a real browser and then runs a userscript. They hold a genuine session, and nothing here distinguishes them from a player. This raises the floor from "twenty lines of Python" to "drive a real browser"; the signal that survives that is behavioural — timing regularity and tile-id structure over a session — which is what the session id on the context exists to be keyed on. Nothing in production reads it yet, so `cpctx.GetSessionID` sits behind the `testing` tag (see [Testing](#testing)) until something does.
 
 
-### Bonus boxes (`internal/planet/internal/domain/bonus/`)
+### Bonus boxes (`internal/planet/internal/clicks/bonus/`)
 
 A question-mark box flies past the planet every so often; whoever catches it
 clicks at `bonus.multiplier` times their allowance for `bonus.duration`. Off by
@@ -434,16 +493,36 @@ What is left after sessions. A player who solves Turnstile in a real browser and
 then runs a userscript holds a genuine session, and no address- or token-based
 check can tell them from a player. The signal that survives is **behavioural**.
 
-**The whole of its API is four names**, and `internal/antibot/antibot.go` is all
-of it: `Config`, `Observer`, `Guard` and `New`. A caller hands over the block and
-the two hooks it wants findings reported through, and gets back a `Guard` — nil
-when the block is off — that answers `Inspect`, `Committed`, `Flagged`, `Run` and
-`Describe`. It is **one** `Run` whatever the file turned on: how many sweepers
-there are is this package's business, which is why `planet` registers one runner
-rather than six. Everything else is under `antibot/internal/`, so the click edge
+**The whole of its API is seven names**, and `internal/antibot/antibot.go` is all
+of it: `Config`, `Observer`, `Guard`, `New` and `Description` to wire it, plus
+`Click` and `Report` — the two types a caller writes down, because it builds one
+and is handed the other. A caller hands over the block and the two hooks it wants
+findings reported through, and gets back a `Guard` — nil when the block is off —
+that answers `Inspect`, `Committed`, `Flagged`, `Run` and `Describe`. It is
+**one** `Run` whatever the file turned on: how many sweepers there are is this
+package's business, which is why `planet` registers one runner rather than six.
+
+**A caller is never taught this package's vocabulary.** The edge does two things
+with a watchdog's opinion — count it if it argued for the ban, and put it in the
+log line — so an `Opinion` answers `Fired()` and renders itself with `String()`,
+and `Verdict`, `Evidence`, `Field` and the `clear`/`suspect`/`certain` ladder stay
+inside. The alternative shipped briefly and is what this rule is written against:
+the edge held a `formatOpinion` that compared against `antibot.Clear`, reached
+through `Evidence.Rule` and `Evidence.Fields`, and decided their ordering —
+sixteen lines of antibot's business in the clicks package, and four exported
+names to support it. **The edge owns the message and the attribute names; how one
+reading words itself is this package's.**
+
+The config blocks are the same bargain the rest of the backend makes — the
+settings are published because they are in the file, and koanf fills them by
+reflection, so a caller sets `config.Retaker.Detector.MaxSpread` without ever
+naming a type.
+
+Everything else is under `antibot/internal/`, so the click edge
 could not assemble a jury out of watchdogs even if it wanted to. `internal/planet/antibot.go`
 is the whole of the clicks side, and what is left in it is genuinely the edge's:
-the metric names, the wording of the ban line, and where in the chain it sits.
+the metric names, the message and attribute names of the ban line, and where
+in the chain it sits.
 
 **Detection and consequence are separate, and the consequence is the boring
 half.** `antibot/internal/shadowban` takes a scope and a clock and runs a ban. It knows
@@ -561,7 +640,13 @@ Note that `sequencer` and `metronome` ignore all of it: a bot sweeping ids walks
 over tiles it already owns and over ids the handler refuses, and both are part of
 the walk.
 
-**It sits innermost, after the throttle** — the opposite of the blocklist and the
+**It is a decorator over the click use case** (`antibot_click`), not an interceptor.
+None of what it does is about HTTP: it reads who held the tile before the write,
+reports the take afterwards, and answers a flagged caller OK with nothing
+written — and the middle one only works adjacent to the write, because
+afterwards the map no longer remembers who held the tile.
+
+**It sits innermost, inside the throttle** — the opposite of the blocklist and the
 session check. A shadow-banned caller has to keep hitting the same 429s everyone
 else does; a caller that is never throttled again has been told. `TestAntiBotRunsAfterTheThrottle`
 pins it.
@@ -590,18 +675,53 @@ with a stable address — against a residential proxy pool it evaporates for
 exactly the reason the rate limiter does.
 
 `memory_tile_storage.Owner` exists for this: one indexed read under the existing
-lock, declared as a local port in the controller the way `DenseMapReader` is.
+lock, declared as a local port in the controller the way each use case declares
+its own.
+
+### The error net
+
+**No handler's raw error reaches the wire, and no module has to remember that.**
+`cpbootstrap` wraps `cpconnect.NewErrorInterceptor` around every service it
+mounts, outside whatever interceptors the module named: an unrecognised error is
+logged once, with its procedure, and answered as `internal error` with the cause
+stripped. `TestEveryMountedServiceGetsTheErrorNet` mounts a module that asks for
+nothing and pins that it still gets it.
+
+**It lives at the mount and not in a controller because it is a property of the
+process**, not of a context. It used to be three near-identical constructors,
+one per module, each of which could have been left out of a chain and none of
+which any test would have missed.
+
+**That is also why `Mount` takes a builder rather than a handler.** A Connect
+interceptor is baked in at `New<Service>Handler`, so there is nothing to wrap
+afterwards, and an HTTP middleware is far too late — by then the error is a
+serialized response body. Building inside `Mount` is the only place the server
+can put anything around every procedure in the process. The module writes a
+one-line closure, because the generated constructor takes the service
+*interface* while the module holds the concrete type, and no type parameter can
+infer that conversion.
+
+**What each module still owns is its own mapping.** A caller error is named by
+the part that found it and turned into a code by the handler that knows which
+procedure was asked — `click_handler` and `get_map_handler` in planet,
+`chatv1controller.toConnect` for `ErrInvalidMessage`, `sessionv1controller.toConnect`
+for `ErrAttestationFailed`. The net never sees those, because a `*connect.Error`
+is passed through untouched.
+
+The session one keeps a log line of its own: a refused mint is logged at **Info**
+there, because the net logs at Error and a refusal is the check doing its job
+rather than a fault of this server — on a public endpoint it is the common case.
 
 ### Shared interceptors
 
 `shared/cpconnect` holds the two interceptors both contexts need, because the policy is the same whatever the procedure is — only the procedure names and the wording of the refusal differ, and those are arguments:
 
-- `NewRateLimitInterceptor(limiter, refusal, describe, procedures...)` — a `shared/cpratelimit` bucket keyed on the context IP, answering `CodeResourceExhausted` (429). `describe` is optional and is what makes the allowance visible — see [Saying what is left](#saying-what-is-left); chat and sessions pass nil
+- `NewRateLimitInterceptor(limiter, refusal, procedures...)` — a `shared/cpratelimit` bucket keyed on `cpctx.RateLimitKey`, answering `CodeResourceExhausted` (429). It reports nothing about what is left: a context that shows a player their allowance throttles inside its own use case instead, where the reading is a return value. This is for the procedures where a refusal is the whole story — chat and sessions
 - `NewIPBlockInterceptor(blocklist, refusal, onBlocked, procedures...)` — a `cpipblock.Blocklist` lookup answering `CodePermissionDenied` (403), with an optional hook the click counter hangs on
 - `NewSessionInterceptor(verifier, clock, refusal, enforce, onVerdict, procedures...)` — a `shared/cpsession` signature check answering `CodeUnauthenticated` (401), which puts the session id on the context and, with `enforce` false, counts without refusing
-- `NewErrorInterceptor(logger, mapper)` — the one that keeps an unexpected error's cause off the wire. It is a full `connect.Interceptor` rather than a `UnaryInterceptorFunc`, so it covers the streaming handlers too; without that, a stream would be the one procedure whose raw error the caller sees. Each context passes the `Mapper` naming the domain errors it wants translated, and returns nil from it for anything it does not recognise.
+- `NewErrorInterceptor(logger, mapper)` — the net, applied by `cpbootstrap` rather than by any module (see [The error net](#the-error-net)). It is a full `connect.Interceptor` rather than a `UnaryInterceptorFunc`, so it covers the streaming handlers too; without that, a stream would be the one procedure whose raw error the caller sees. The `Mapper` is optional and nothing passes one any more.
 
-Each context keeps a thin named constructor over these — `planetv1controller.NewRateLimitInterceptor`, `NewVPNBlockInterceptor` and `NewErrorInterceptor`, `chatv1controller.NewRateLimitInterceptor`, `NewBlocklistInterceptor` and `NewErrorInterceptor` — which is where the procedure list, the refusal wording, the domain errors and the metric live. **A context names its own policy; neither reimplements the mechanism.**
+Each context keeps a thin named constructor over these — `planetv1controller.NewVPNBlockInterceptor`, `chatv1controller.NewRateLimitInterceptor` and `NewBlocklistInterceptor` — which is where the procedure list, the refusal wording and the metric live. **A context names its own policy; neither reimplements the mechanism.**
 
 Both chains order them the same way: error mapping outermost, then the blocklist, then the limiter. **The blocklist has to sit outside the limiter** — a refused address must not also spend a token, or its next call would come back 429 and the client would report the wrong reason. `TestVPNBlockRunsBeforeTheThrottle` pins that for clicks.
 
@@ -797,7 +917,7 @@ rather than left out:
   a retired pattern needs to stay retired.
 
 `wrapcheck` is on, with `extra-ignore-sigs` for the signatures this codebase
-returns bare **on purpose**: handlers, because `NewErrorInterceptor` maps the
+returns bare **on purpose**: use cases called by a handler, because the handler maps the
 domain sentinels centrally and a wrap would put a second sentence in front of a
 message it already chose; and pure delegations, where the callee already named
 what failed.

@@ -20,6 +20,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/session/internal/adapters/secondary/open_attester"
 	"github.com/raphoester/clickplanet.lol-backend/internal/session/internal/domain"
 	"github.com/raphoester/clickplanet.lol-backend/internal/session/internal/domain/session_service"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconnect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cphttpserver"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
@@ -50,9 +51,11 @@ func sessionServer(
 	mux.Handle(sessionv1connect.NewSessionServiceHandler(
 		sessionv1controller.NewSessionService(
 			session_service.New(attester, signer, nil),
+			nil,
 		),
 		connect.WithInterceptors(
-			sessionv1controller.NewErrorInterceptor(nil),
+			// What cpbootstrap wraps every mounted service in.
+			cpconnect.NewErrorInterceptor(nil, nil),
 			sessionv1controller.NewRateLimitInterceptor(limiter),
 		),
 	))

@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+
+	"connectrpc.com/connect"
 )
 
 // rpcRoutes collects what every module mounted, so the router is built once
@@ -12,13 +14,18 @@ type rpcRoutes struct {
 	owners map[string]string
 	paths  []string
 	byPath map[string]http.Handler
+
+	// Wrapped outside every interceptor a module names, so a module's own
+	// mapping runs first and only what none of them recognised is redacted.
+	errorNet connect.Interceptor
 }
 
-func newRPCRoutes() *rpcRoutes {
+func newRPCRoutes(errorNet connect.Interceptor) *rpcRoutes {
 	return &rpcRoutes{
-		owners: map[string]string{},
-		paths:  nil,
-		byPath: map[string]http.Handler{},
+		owners:   map[string]string{},
+		paths:    nil,
+		byPath:   map[string]http.Handler{},
+		errorNet: errorNet,
 	}
 }
 
@@ -40,7 +47,15 @@ type moduleRoutes struct {
 	routes *rpcRoutes
 }
 
-func (m moduleRoutes) Mount(path string, handler http.Handler) error {
+func (m moduleRoutes) Mount(build ServiceBuilder, interceptors ...connect.Interceptor) error {
+	if build == nil {
+		return fmt.Errorf("module %s mounted a nil service", m.module)
+	}
+
+	chain := append([]connect.Interceptor{m.routes.errorNet}, interceptors...)
+
+	path, handler := build(connect.WithInterceptors(chain...))
+
 	if path == "" {
 		return fmt.Errorf("module %s mounted a handler on no path", m.module)
 	}

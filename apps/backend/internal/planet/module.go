@@ -10,17 +10,31 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/http"
 
 	"connectrpc.com/connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/claim_bonus_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/click_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/get_budget_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/get_map_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/listen_for_events_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/map_density_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/secondary/in_memory_tile_checker"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/secondary/memory_tile_storage"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/domain/bonus"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/domain/click_handler_service"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/domain/click_handler_service/prom_click_handler_service"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/bonus"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/claim_bonus"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click/bonus_click"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click/prom_click"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click/throttle_click"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_budget"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_map"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/listen_for_events"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/map_density"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
@@ -50,94 +64,80 @@ func build(config Config, props cpbootstrap.Props) error {
 	tilesStorage := memory_tile_storage.New(config.GameMap.MaxIndex, config.TilesStorage, props.Logger)
 	props.Runners.Add("tiles-storage", tilesStorage.Run)
 
-	var handler click_handler_service.IService = click_handler_service.New(tilesChecker, tilesStorage, cpcountries.New())
-	handler, err := prom_click_handler_service.New(handler, props.Metrics)
-	if err != nil {
-		return fmt.Errorf("failed to create prometheus click handler service: %w", err)
-	}
+	limiter := cpratelimit.New(config.RateLimiter, clock)
+	props.Runners.Add("click-limiter", limiter.Run)
 
-	clickLimiter := cpratelimit.New(config.RateLimiter, clock)
-	props.Runners.Add("click-limiter", clickLimiter.Run)
-
-	// nil when boxes are off, which leaves the stream carrying exactly what it
-	// did before and makes ClaimBonus answer Unimplemented.
+	// nil when boxes are off, which leaves the feed and the click chain exactly
+	// as they were and makes ClaimBonus answer Unimplemented.
 	bonuses := newBonusRegistry(config.Bonus, clock, props)
 
-	var booster planetv1controller.ClickBooster
-	if bonuses != nil {
-		booster = clickLimiter
-	}
-
-	interceptors, err := clickChain(config, tilesStorage, clickLimiter, props)
+	clickUseCase, err := clickChain(config, tilesChecker, tilesStorage, limiter, bonuses, props)
 	if err != nil {
 		return err
 	}
 
-	return props.RPC.Mount(planetv1connect.NewClickServiceHandler(
-		planetv1controller.NewClickService(
-			handler,
-			tilesChecker,
-			tilesStorage,
-			tilesStorage,
-			props.Server.StreamHeartbeat,
-			clickLimiter,
-			bonuses,
-			booster,
-			clock,
-		),
-		connect.WithInterceptors(interceptors...),
-	))
+	interceptors, err := edgeChain(config, props)
+	if err != nil {
+		return err
+	}
+
+	// Each use case is handed only what it reads or writes, which is why the
+	// storage appears three times here rather than once as a single object the
+	// service holds: the map reader, the subscription and the tile writer are
+	// three ports that happen to be served by one adapter.
+	service := planetv1controller.ClickService{
+		ClickHandler:      click_handler.New(clickUseCase),
+		GetBudgetHandler:  get_budget_handler.New(get_budget.New(limiter)),
+		MapDensityHandler: map_density_handler.New(map_density.New(tilesChecker)),
+		GetMapHandler:     get_map_handler.New(get_map.New(tilesChecker, tilesStorage)),
+		ListenForEventsHandler: listen_for_events_handler.New(
+			listen_for_events.New(tilesStorage, props.Server.StreamHeartbeat, bonusFeed(bonuses))),
+		ClaimBonusHandler: claim_bonus_handler.New(claimBonusUseCase(bonuses, limiter, clock)),
+	}
+
+	return props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
+		return planetv1connect.NewClickServiceHandler(service, options...)
+	}, interceptors...)
 }
 
-// clickChain builds the interceptors in the order they wrap the handler.
-//
-// Error mapping outermost, then the two refusals that must not spend a token,
-// then the throttle, then the shadow ban. A click refused for its address or
-// its session coming back 429 on the next attempt would send the client to the
-// wrong dialog entirely; a shadow-banned caller that is never throttled again
-// has been told it is banned.
+// clickChain wraps the rule in the policies that guard it, innermost first:
+// count it, judge it, then charge it. The throttle is outermost of the three so
+// a shadow-banned caller keeps hitting the same 429s everyone else does — a
+// caller that is never throttled again has been told it is banned.
 func clickChain(
 	config Config,
-	owner planetv1controller.TileOwner,
-	clickLimiter *cpratelimit.Limiter,
+	tilesChecker *in_memory_tile_checker.Checker,
+	tilesStorage *memory_tile_storage.Storage,
+	limiter *cpratelimit.Limiter,
+	bonuses *bonus.Registry,
 	props cpbootstrap.Props,
-) ([]connect.Interceptor, error) {
-	vpnBlockInterceptor, err := newVPNBlockInterceptor(config.VPNBlocklist, props)
+) (click.IUseCase, error) {
+	useCase, err := prom_click.New(
+		click.New(tilesChecker, tilesStorage, cpcountries.New()),
+		props.Metrics,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create prometheus click use case: %w", err)
+	}
+
+	guarded, err := wrapWithAntiBot(useCase, config.AntiBot, tilesStorage, props)
 	if err != nil {
 		return nil, err
 	}
 
-	interceptors := []connect.Interceptor{
-		planetv1controller.NewErrorInterceptor(props.Logger),
-		vpnBlockInterceptor,
+	// Inside the throttle: presence is what a caller actually managed to do,
+	// not what they attempted.
+	if bonuses != nil {
+		guarded = bonus_click.New(guarded, bonuses)
 	}
 
-	sessionInterceptor, err := newSessionInterceptor(config.Session, props)
-	if err != nil {
-		return nil, err
-	}
-	if sessionInterceptor != nil {
-		interceptors = append(interceptors, sessionInterceptor)
-	}
-
-	interceptors = append(interceptors, planetv1controller.NewRateLimitInterceptor(clickLimiter))
-
-	antiBotInterceptor, err := newAntiBotInterceptor(config.AntiBot, owner, props)
-	if err != nil {
-		return nil, err
-	}
-	if antiBotInterceptor != nil {
-		interceptors = append(interceptors, antiBotInterceptor)
-	}
-
-	return interceptors, nil
+	return throttle_click.New(guarded, limiter), nil
 }
 
-// newBonusRegistry returns the interface rather than the struct, and nil when
-// boxes are off. That distinction matters here: a nil *bonus.Registry inside a
-// non-nil interface is not a nil interface, and the stream tests for nil to
-// decide whether to put the caller in the draw at all.
-func newBonusRegistry(config bonus.Config, clock cptime.Clock, props cpbootstrap.Props) planetv1controller.BonusRegistry {
+// newBonusRegistry returns nil when boxes are off. A typed nil in an interface
+// is not a nil interface, which is why the concrete type is returned here and
+// the two helpers below do the widening.
+func newBonusRegistry(config bonus.Config, clock cptime.Clock, props cpbootstrap.Props) *bonus.Registry {
 	if !config.Enabled {
 		return nil
 	}
@@ -152,6 +152,58 @@ func newBonusRegistry(config bonus.Config, clock cptime.Clock, props cpbootstrap
 	)
 
 	return registry
+}
+
+func bonusFeed(registry *bonus.Registry) listen_for_events.BonusFeed {
+	if registry == nil {
+		return nil
+	}
+
+	return registry
+}
+
+func claimBonusUseCase(
+	registry *bonus.Registry,
+	limiter *cpratelimit.Limiter,
+	clock cptime.Clock,
+) claim_bonus_handler.UseCase {
+	if registry == nil {
+		return nil
+	}
+
+	return claim_bonus.New(registry, limiter, clock)
+}
+
+// edgeChain builds the interceptors in the order they wrap the handler: the
+// cache marks, then the two refusals that must not spend a token.
+//
+// The error net is not here. cpbootstrap wraps it around every service it
+// mounts, so no module has to remember it and none can leave it out.
+//
+// The throttle and the shadow ban are no longer here. Both are decorators over
+// the click use case, which puts them inside every interceptor by construction
+// — so "a refused click must not also spend a token" is now a property of the
+// shape rather than a rule about list order that a test has to pin.
+func edgeChain(config Config, props cpbootstrap.Props) ([]connect.Interceptor, error) {
+	vpnBlockInterceptor, err := newVPNBlockInterceptor(config.VPNBlocklist, props)
+	if err != nil {
+		return nil, err
+	}
+
+	interceptors := []connect.Interceptor{
+		planetv1controller.NewCacheInterceptor(),
+		vpnBlockInterceptor,
+	}
+
+	sessionInterceptor, err := newSessionInterceptor(config.Session, props)
+	if err != nil {
+		return nil, err
+	}
+	if sessionInterceptor != nil {
+		interceptors = append(interceptors, sessionInterceptor)
+	}
+
+	return interceptors, nil
 }
 
 // newSessionInterceptor builds this context's own verifier from the same

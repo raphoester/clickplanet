@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/http"
 
 	"connectrpc.com/connect"
 
@@ -51,15 +52,16 @@ func build(config Config, props cpbootstrap.Props) error {
 	mintLimiter := cpratelimit.New(config.RateLimiter, cptime.SystemClock{})
 	props.Runners.Add("mint-limiter", mintLimiter.Run)
 
-	err = props.RPC.Mount(sessionv1connect.NewSessionServiceHandler(
-		sessionv1controller.NewSessionService(
-			session_service.New(attester, signer, cptime.SystemClock{}),
-		),
-		connect.WithInterceptors(
-			sessionv1controller.NewErrorInterceptor(props.Logger),
-			sessionv1controller.NewRateLimitInterceptor(mintLimiter),
-		),
-	))
+	sessionService := sessionv1controller.NewSessionService(
+		session_service.New(attester, signer, cptime.SystemClock{}),
+		props.Logger,
+	)
+
+	err = props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
+		return sessionv1connect.NewSessionServiceHandler(sessionService, options...)
+	},
+		sessionv1controller.NewRateLimitInterceptor(mintLimiter),
+	)
 	if err != nil {
 		return err
 	}

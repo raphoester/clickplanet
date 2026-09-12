@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -29,19 +30,15 @@ func newStack() *stack {
 		owner: map[uint32]string{},
 	}
 
-	config := antibot.Config{
-		Enabled: true,
-		ShadowBan: antibot.ShadowBanConfig{
-			Enforce:        true,
-			BanDuration:    time.Hour,
-			ReflagInterval: 5 * time.Minute,
-		},
-		Jury: antibot.JuryConfig{
-			MinSuspects:     2,
-			SuspicionWindow: 10 * time.Minute,
-			TrackWindow:     15 * time.Minute,
-		},
-	}
+	config := antibot.Config{Enabled: true}
+
+	config.ShadowBan.Enforce = true
+	config.ShadowBan.BanDuration = time.Hour
+	config.ShadowBan.ReflagInterval = 5 * time.Minute
+
+	config.Jury.MinSuspects = 2
+	config.Jury.SuspicionWindow = 10 * time.Minute
+	config.Jury.TrackWindow = 15 * time.Minute
 
 	config.Retaker.Enabled = true
 	config.Retaker.Detector.ReactionWindow = 5 * time.Second
@@ -100,8 +97,8 @@ func (s *stack) click(scope string, tile uint32, country string) bool {
 	return drop
 }
 
-func (s *stack) verdicts(scope string) map[string]antibot.Verdict {
-	out := map[string]antibot.Verdict{}
+func (s *stack) verdicts(scope string) map[string]detect.Verdict {
+	out := map[string]detect.Verdict{}
 	for _, report := range s.reports {
 		if report.Scope != scope {
 			continue
@@ -145,9 +142,9 @@ func TestTheOvernightSweepIsCaught(t *testing.T) {
 	assert.Less(t, clicks, 180, "caught long before either watchdog is sure on its own")
 
 	verdicts := s.verdicts("sweeper")
-	assert.Equal(t, antibot.Suspect, verdicts["sequencer"])
-	assert.Equal(t, antibot.Suspect, verdicts["metronome"])
-	assert.Equal(t, antibot.Clear, verdicts["retaker"], "it never fought anyone, and it did not have to")
+	assert.Equal(t, detect.Suspect, verdicts["sequencer"])
+	assert.Equal(t, detect.Suspect, verdicts["metronome"])
+	assert.Equal(t, detect.Clear, verdicts["retaker"], "it never fought anyone, and it did not have to")
 }
 
 // The same bot with the one cheap fix its author would reach for first.
@@ -175,8 +172,8 @@ func TestSweepingInARandomOrderStillGetsCaught(t *testing.T) {
 	require.True(t, dropped, "shuffling the ids leaves the clock running")
 
 	verdicts := s.verdicts("shuffler")
-	assert.Equal(t, antibot.Clear, verdicts["sequencer"], "there is no stride left to find")
-	assert.Equal(t, antibot.Certain, verdicts["metronome"])
+	assert.Equal(t, detect.Clear, verdicts["sequencer"], "there is no stride left to find")
+	assert.Equal(t, detect.Certain, verdicts["metronome"])
 
 	// The honest cost of shuffling: with nothing left to corroborate it, the
 	// metronome has to reach Certain on its own, and Certain means certainFor.
@@ -264,5 +261,5 @@ func TestTheReflexBotIsStillCaught(t *testing.T) {
 	}
 
 	require.True(t, dropped)
-	assert.Equal(t, antibot.Certain, s.verdicts("reflex")["retaker"])
+	assert.Equal(t, detect.Certain, s.verdicts("reflex")["retaker"])
 }

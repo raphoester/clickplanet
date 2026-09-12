@@ -5,7 +5,7 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/secondary/memory_tile_storage"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/domain/bonus"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/bonus"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
