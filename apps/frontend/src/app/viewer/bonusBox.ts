@@ -95,6 +95,9 @@ export type BonusBox = {
     /** True while a box is up, whether flying or playing its pop. */
     readonly visible: boolean
 
+    /** True only while it is still there to be caught. */
+    readonly flying: boolean
+
     /** Puts a box on a fresh orbit drawn from `seed`. */
     spawn(seed: number): void
 
@@ -193,6 +196,10 @@ export function createBonusBox(): BonusBox {
 
         get visible() {
             return group.visible
+        },
+
+        get flying() {
+            return phase === "flying"
         },
 
         spawn(seed: number) {

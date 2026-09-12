@@ -31,6 +31,7 @@ import {layoutViewport} from "./viewport.ts";
 import {createStarfield} from "./stars.ts";
 import {MAX_ZOOM, MIN_ZOOM, RESTING_ZOOM} from "./zoom.ts";
 import {createBonusBox} from "./bonusBox.ts";
+import {createBonusPointer} from "./bonusPointer.ts";
 import {BonusReward} from "../../domain/bonus.ts";
 
 type Uniforms = {
@@ -139,6 +140,10 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const bonusBox = createBonusBox()
     scene.add(bonusBox.object)
 
+    // Zoomed in the box is nearly always outside the frame, so without this a
+    // zoomed player never learns one was theirs.
+    const bonusPointer = createBonusPointer(eventTarget)
+
     // The box on screen and the token that redeems it, held together: a box
     // caught is only worth something with the token it arrived with.
     let offered: BonusOffer | undefined
@@ -154,7 +159,10 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         onTaken: (taken) => onBonusTaken(taken),
     })
 
-    const driveBonusBox = (seconds: number) => bonusBox.update(seconds, camera)
+    const driveBonusBox = (seconds: number) => {
+        bonusBox.update(seconds, camera)
+        bonusPointer.update(bonusBox.flying ? bonusBox.object.position : undefined, camera)
+    }
 
     // `live` tells the board apart from its own footing: everything that lands
     // while the player watches is news, the map it was handed at the start is not.
@@ -308,6 +316,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             stopBonuses?.()
 
             picker.dispose()
+            bonusPointer.dispose()
             field.dispose()
             territories.dispose()
             bonusBox.dispose()
