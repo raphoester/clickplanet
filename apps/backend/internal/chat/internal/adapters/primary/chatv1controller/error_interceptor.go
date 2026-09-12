@@ -5,12 +5,12 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/domain"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/connectutil"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/logging"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconnect"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cplogging"
 )
 
-func NewErrorInterceptor(logger logging.Logger) connect.Interceptor {
-	return connectutil.NewErrorInterceptor(logger, func(err error) *connect.Error {
+func NewErrorInterceptor(logger cplogging.Logger) connect.Interceptor {
+	return cpconnect.NewErrorInterceptor(logger, func(err error) *connect.Error {
 		if errors.Is(err, domain.ErrInvalidMessage) {
 			return connect.NewError(connect.CodeInvalidArgument, domain.ErrInvalidMessage)
 		}

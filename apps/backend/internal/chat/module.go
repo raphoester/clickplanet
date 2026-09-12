@@ -17,31 +17,31 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/adapters/primary/chatv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/adapters/secondary/memory_chat_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/domain/chat_service"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/bootstrap"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/countries"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/ipblock"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/logging/lf"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/ratelimit"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/secrets"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/xtime"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cplogging/cplf"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsecrets"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 const moduleName = "chat"
 
-func NewModule(config Config) bootstrap.Module {
-	return bootstrap.Module{
+func NewModule(config Config) cpbootstrap.Module {
+	return cpbootstrap.Module{
 		Name:    moduleName,
 		Enabled: config.Enabled,
-		DiSequence: func(_ context.Context, props bootstrap.Props) error {
+		DiSequence: func(_ context.Context, props cpbootstrap.Props) error {
 			return build(config, props)
 		},
 	}
 }
 
-func build(config Config, props bootstrap.Props) error {
+func build(config Config, props cpbootstrap.Props) error {
 	serviceConfig := config.Service
 	if serviceConfig.TagSalt == "" {
-		salt, err := secrets.RandomHex()
+		salt, err := cpsecrets.RandomHex()
 		if err != nil {
 			return fmt.Errorf("failed to generate a chat tag salt: %w", err)
 		}
@@ -49,15 +49,15 @@ func build(config Config, props bootstrap.Props) error {
 		props.Logger.Warning("no chat.service.tagSalt configured, generated a random one: sender tags will change on every restart")
 	}
 
-	storage := memory_chat_storage.New(config.Storage, xtime.ActualProvider{}, props.Logger)
+	storage := memory_chat_storage.New(config.Storage, cptime.ActualProvider{}, props.Logger)
 	props.Runners.Add("chat-storage", storage.Run)
 
-	service := chat_service.New(storage, countries.New(), xtime.ActualProvider{}, serviceConfig)
+	service := chat_service.New(storage, cpcountries.New(), cptime.ActualProvider{}, serviceConfig)
 
-	messageLimiter := ratelimit.New(config.RateLimiter, xtime.ActualProvider{})
+	messageLimiter := cpratelimit.New(config.RateLimiter, cptime.ActualProvider{})
 	props.Runners.Add("message-limiter", messageLimiter.Run)
 
-	blocklist, err := ipblock.NewDenyList(config.BlockedIPs)
+	blocklist, err := cpipblock.NewDenyList(config.BlockedIPs)
 	if err != nil {
 		return fmt.Errorf("failed to build the chat blocklist: %w", err)
 	}
@@ -74,7 +74,7 @@ func build(config Config, props bootstrap.Props) error {
 		return err
 	}
 
-	props.Logger.Info("chat enabled", lf.String("logPath", config.Storage.LogPath))
+	props.Logger.Info("chat enabled", cplf.String("logPath", config.Storage.LogPath))
 
 	return nil
 }
@@ -88,7 +88,7 @@ type Config struct {
 	Storage memory_chat_storage.Config
 	Service chat_service.Config
 
-	RateLimiter ratelimit.Config
+	RateLimiter cpratelimit.Config
 
 	BlockedIPs []string
 }

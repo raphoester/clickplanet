@@ -13,8 +13,8 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/adapters/secondary/memory_chat_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/domain"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/logging"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/xtime"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cplogging"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -36,7 +36,7 @@ func (s *testSuite) SetupTest() {
 
 func (s *testSuite) newStorage(config memory_chat_storage.Config) *memory_chat_storage.Storage {
 	config.LogPath = s.logPath
-	return memory_chat_storage.New(config, s.clock, logging.NewNopLogger())
+	return memory_chat_storage.New(config, s.clock, cplogging.NewNopLogger())
 }
 
 func (s *testSuite) record(text string) domain.ChatRecord {
@@ -305,7 +305,7 @@ func (s *testSuite) waitUntilGone(text string) {
 }
 
 func (s *testSuite) TestNoLogPathKeepsChatInMemory() {
-	storage := memory_chat_storage.New(memory_chat_storage.Config{}, s.clock, logging.NewNopLogger())
+	storage := memory_chat_storage.New(memory_chat_storage.Config{}, s.clock, cplogging.NewNopLogger())
 
 	s.Require().NoError(storage.Append(context.Background(), s.record("hello")))
 	s.Assert().Len(storage.History(context.Background()), 1)
@@ -374,6 +374,6 @@ func (c *fakeClock) advance(d time.Duration) {
 }
 
 var (
-	_ xtime.Provider = (*fakeClock)(nil)
-	_ domain.Storage = (*memory_chat_storage.Storage)(nil)
+	_ cptime.Provider = (*fakeClock)(nil)
+	_ domain.Storage  = (*memory_chat_storage.Storage)(nil)
 )

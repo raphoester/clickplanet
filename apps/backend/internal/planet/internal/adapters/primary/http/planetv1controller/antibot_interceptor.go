@@ -13,14 +13,14 @@ import (
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/ctxutil"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/ipscope"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/logging"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/logging/lf"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/xtime"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipscope"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cplogging"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cplogging/cplf"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-// This one cannot live in connectutil like the other three: it reads tile_id
+// This one cannot live in cpconnect like the other three: it reads tile_id
 // and country_id out of the message, so it is tied to this contract.
 type ClickGuard interface {
 	Inspect(click antibot.Click) (drop bool)
@@ -45,11 +45,11 @@ var reactionBuckets = []float64{
 func NewAntiBotInterceptor(
 	guard ClickGuard,
 	owner TileOwner,
-	timeProvider xtime.Provider,
+	timeProvider cptime.Provider,
 	registerer prometheus.Registerer,
 ) (connect.Interceptor, error) {
 	if timeProvider == nil {
-		timeProvider = xtime.ActualProvider{}
+		timeProvider = cptime.ActualProvider{}
 	}
 
 	dropped := prometheus.NewCounter(prometheus.CounterOpts{
@@ -83,7 +83,7 @@ func NewAntiBotInterceptor(
 			// cannot serve a ban on one address and click from the next one in
 			// its own /64.
 			click := antibot.Click{
-				Scope:   ipscope.Of(ctxutil.GetSourceIP(ctx)),
+				Scope:   cpipscope.Of(cpctx.GetSourceIP(ctx)),
 				Tile:    msg.GetTileId(),
 				Country: msg.GetCountryId(),
 				At:      timeProvider.Now(),
@@ -116,11 +116,11 @@ func NewAntiBotInterceptor(
 // NewAntiBotObserver builds the hooks the guard reports through: a histogram for
 // the shape of the reactions, and a log line for who.
 func NewAntiBotObserver(
-	logger logging.Logger,
+	logger cplogging.Logger,
 	registerer prometheus.Registerer,
 ) (antibot.Observer, error) {
 	if logger == nil {
-		logger = logging.NewNopLogger()
+		logger = cplogging.NewNopLogger()
 	}
 
 	reactions := prometheus.NewHistogram(prometheus.HistogramOpts{
@@ -148,21 +148,21 @@ func NewAntiBotObserver(
 	// The address goes in the log and never on a label: per-IP labels are
 	// unbounded cardinality, and they would put personal data in every scrape.
 	onFlag := func(report antibot.Report) {
-		fields := []lf.Field{
-			lf.String("scope", report.Scope),
-			lf.Int("flags", report.Flags),
-			lf.Int("clicks", report.Clicks),
-			lf.Any("activeFor", report.ActiveFor),
-			lf.Any("longestGap", report.LongestGap),
-			lf.String("topCountry", report.TopCountry),
-			lf.Int("topCountryClicks", report.TopCountryClicks),
-			lf.Any("tiles", report.Tiles),
+		fields := []cplf.Field{
+			cplf.String("scope", report.Scope),
+			cplf.Int("flags", report.Flags),
+			cplf.Int("clicks", report.Clicks),
+			cplf.Any("activeFor", report.ActiveFor),
+			cplf.Any("longestGap", report.LongestGap),
+			cplf.String("topCountry", report.TopCountry),
+			cplf.Int("topCountryClicks", report.TopCountryClicks),
+			cplf.Any("tiles", report.Tiles),
 		}
 
 		// Every watchdog goes in the line, the quiet ones included: what did not
 		// fire is half of reading a ban that did.
 		for _, opinion := range report.Opinions {
-			fields = append(fields, lf.String(opinion.Watchdog, formatOpinion(opinion)))
+			fields = append(fields, cplf.String(opinion.Watchdog, formatOpinion(opinion)))
 
 			if opinion.Verdict != antibot.Clear {
 				flags.WithLabelValues(opinion.Watchdog).Inc()

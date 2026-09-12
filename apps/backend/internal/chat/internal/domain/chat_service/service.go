@@ -11,8 +11,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/domain"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/ctxutil"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/xtime"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 type IService interface {
@@ -31,11 +31,11 @@ type PostRequest struct {
 func New(
 	storage domain.Storage,
 	countryChecker domain.CountryChecker,
-	timeProvider xtime.Provider,
+	timeProvider cptime.Provider,
 	config Config,
 ) *Service {
 	if timeProvider == nil {
-		timeProvider = xtime.ActualProvider{}
+		timeProvider = cptime.ActualProvider{}
 	}
 
 	return &Service{
@@ -49,7 +49,7 @@ func New(
 type Service struct {
 	storage        domain.Storage
 	countryChecker domain.CountryChecker
-	timeProvider   xtime.Provider
+	timeProvider   cptime.Provider
 	config         Config
 }
 
@@ -68,7 +68,7 @@ func (s *Service) Post(ctx context.Context, req PostRequest) (domain.ChatMessage
 		return domain.ChatMessage{}, fmt.Errorf("%w: invalid country code %q", domain.ErrInvalidMessage, req.CountryID)
 	}
 
-	ip := ctxutil.GetSourceIP(ctx)
+	ip := cpctx.GetSourceIP(ctx)
 
 	message := domain.ChatMessage{
 		ID:         uuid.NewString(),

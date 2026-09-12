@@ -5,9 +5,9 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/secondary/memory_tile_storage"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/ipblock"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/ratelimit"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/session"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
 // Config is squashed into the process config, so these keys sit at the top
@@ -15,13 +15,13 @@ import (
 type Config struct {
 	GameMap      GameMapConfig
 	TilesStorage memory_tile_storage.Config
-	RateLimiter  ratelimit.Config
-	VPNBlocklist ipblock.Config
+	RateLimiter  cpratelimit.Config
+	VPNBlocklist cpipblock.Config
 	AntiBot      antibot.Config
 
 	// The same `session:` keys the session context mints with. Declared here
 	// rather than handed over, so this module needs nothing but its config.
-	Session session.Config
+	Session cpsession.Config
 }
 
 type GameMapConfig struct {

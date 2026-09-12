@@ -8,7 +8,7 @@ import (
 	sessionv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/session/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/session/v1/sessionv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/session/internal/domain/session_service"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/ctxutil"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
 type SessionService struct {
@@ -25,7 +25,7 @@ func (s *SessionService) CreateSession(
 	ctx context.Context,
 	req *connect.Request[sessionv1.CreateSessionRequest],
 ) (*connect.Response[sessionv1.CreateSessionResponse], error) {
-	token, err := s.service.Create(ctx, req.Msg.GetAttestationToken(), ctxutil.GetSourceIP(ctx))
+	token, err := s.service.Create(ctx, req.Msg.GetAttestationToken(), cpctx.GetSourceIP(ctx))
 	if err != nil {
 		return nil, err
 	}

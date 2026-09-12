@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/xtime"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 type Config struct {
@@ -50,9 +50,9 @@ func (c Config) withDefaults() Config {
 	return c
 }
 
-func New(config Config, timeProvider xtime.Provider) *Banner {
+func New(config Config, timeProvider cptime.Provider) *Banner {
 	if timeProvider == nil {
-		timeProvider = xtime.ActualProvider{}
+		timeProvider = cptime.ActualProvider{}
 	}
 
 	return &Banner{
@@ -64,7 +64,7 @@ func New(config Config, timeProvider xtime.Provider) *Banner {
 
 type Banner struct {
 	config       Config
-	timeProvider xtime.Provider
+	timeProvider cptime.Provider
 
 	mu   sync.Mutex
 	bans map[string]*ban

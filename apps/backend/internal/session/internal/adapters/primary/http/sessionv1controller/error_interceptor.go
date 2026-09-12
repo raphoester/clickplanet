@@ -7,8 +7,8 @@ import (
 	"connectrpc.com/connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/session/internal/domain"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/logging"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/logging/lf"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cplogging"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cplogging/cplf"
 )
 
 // ErrRefused is the whole of what a refused caller is told. The reason — a
@@ -16,9 +16,9 @@ import (
 // logged here and goes no further.
 var ErrRefused = errors.New("could not start a session")
 
-func NewErrorInterceptor(logger logging.Logger) connect.Interceptor {
+func NewErrorInterceptor(logger cplogging.Logger) connect.Interceptor {
 	if logger == nil {
-		logger = logging.NewNopLogger()
+		logger = cplogging.NewNopLogger()
 	}
 
 	return connect.UnaryInterceptorFunc(func(next connect.UnaryFunc) connect.UnaryFunc {
@@ -33,15 +33,15 @@ func NewErrorInterceptor(logger logging.Logger) connect.Interceptor {
 
 			case errors.Is(err, domain.ErrAttestationFailed):
 				logger.Info("refused a session",
-					lf.String("procedure", req.Spec().Procedure),
-					lf.Err(err),
+					cplf.String("procedure", req.Spec().Procedure),
+					cplf.Err(err),
 				)
 				return nil, connect.NewError(connect.CodePermissionDenied, ErrRefused)
 			}
 
 			logger.Error("rpc failed",
-				lf.String("procedure", req.Spec().Procedure),
-				lf.Err(err),
+				cplf.String("procedure", req.Spec().Procedure),
+				cplf.Err(err),
 			)
 
 			return nil, connect.NewError(connect.CodeInternal, errors.New("internal error"))

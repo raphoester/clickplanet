@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/xtime"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 type Config struct {
@@ -72,12 +72,12 @@ type Banner interface {
 func New(
 	config Config,
 	banner Banner,
-	timeProvider xtime.Provider,
+	timeProvider cptime.Provider,
 	onFlag func(detect.Report),
 	watchdogs ...detect.Watchdog,
 ) *Jury {
 	if timeProvider == nil {
-		timeProvider = xtime.ActualProvider{}
+		timeProvider = cptime.ActualProvider{}
 	}
 
 	return &Jury{
@@ -93,7 +93,7 @@ func New(
 type Jury struct {
 	config       Config
 	banner       Banner
-	timeProvider xtime.Provider
+	timeProvider cptime.Provider
 	onFlag       func(detect.Report)
 	watchdogs    []detect.Watchdog
 

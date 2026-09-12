@@ -70,7 +70,7 @@ deadcode:
 # rather than fetched at boot, so refreshing them is a commit: run this, run the
 # tests (they assert the lists still parse and are not truncated), and commit.
 VPN_LISTS_URL := https://raw.githubusercontent.com/X4BNet/lists_vpn/main/output
-VPN_LISTS_DIR := internal/shared/ipblock/data
+VPN_LISTS_DIR := internal/shared/cpipblock/cpdata
 
 vpn-lists:
 	@curl -sSf $(VPN_LISTS_URL)/vpn/ipv4.txt        -o $(VPN_LISTS_DIR)/vpn_ipv4.txt

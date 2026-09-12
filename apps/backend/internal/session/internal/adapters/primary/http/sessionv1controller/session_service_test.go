@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/ratelimit"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -20,8 +20,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/session/internal/adapters/secondary/open_attester"
 	"github.com/raphoester/clickplanet.lol-backend/internal/session/internal/domain"
 	"github.com/raphoester/clickplanet.lol-backend/internal/session/internal/domain/session_service"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/httpserver"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/session"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cphttpserver"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
 type refusingAttester struct{}
@@ -32,16 +32,16 @@ func (refusingAttester) Attest(context.Context, string, string) error {
 
 type allowAll struct{}
 
-func (allowAll) Take(string) (bool, ratelimit.State) { return true, ratelimit.State{} }
+func (allowAll) Take(string) (bool, cpratelimit.State) { return true, cpratelimit.State{} }
 
 type refuseAll struct{}
 
-func (refuseAll) Take(string) (bool, ratelimit.State) { return false, ratelimit.State{} }
+func (refuseAll) Take(string) (bool, cpratelimit.State) { return false, cpratelimit.State{} }
 
 func sessionServer(
 	t *testing.T,
 	attester domain.Attester,
-	signer *session.Signer,
+	signer *cpsession.Signer,
 	limiter sessionv1controller.MintLimiter,
 ) *httptest.Server {
 	t.Helper()
@@ -57,15 +57,15 @@ func sessionServer(
 		),
 	))
 
-	server := httptest.NewServer(httpserver.IPReaderMiddleware(mux))
+	server := httptest.NewServer(cphttpserver.IPReaderMiddleware(mux))
 	t.Cleanup(server.Close)
 
 	return server
 }
 
-func newSigner(t *testing.T) *session.Signer {
+func newSigner(t *testing.T) *cpsession.Signer {
 	t.Helper()
-	signer, err := session.NewSigner(session.Config{Secret: "a-test-secret", TTL: time.Hour})
+	signer, err := cpsession.NewSigner(cpsession.Config{Secret: "a-test-secret", TTL: time.Hour})
 	require.NoError(t, err)
 	return signer
 }

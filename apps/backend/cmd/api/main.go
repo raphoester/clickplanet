@@ -10,14 +10,14 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet"
 	"github.com/raphoester/clickplanet.lol-backend/internal/session"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/bootstrap"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/configs"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/logging"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/logging/lf"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconfigs"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cplogging"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cplogging/cplf"
 )
 
 type Config struct {
-	HTTPServer bootstrap.ServerConfig
+	HTTPServer cpbootstrap.ServerConfig
 
 	// Squashed: the planet keys sit at the top level of the file.
 	Planet planet.Config `koanf:",squash"`
@@ -39,10 +39,10 @@ func run(ctx context.Context) error {
 		return err
 	}
 
-	logger := logging.NewSLogger() // todo: inject config
-	logger.Debug("config", lf.Any("config", config))
+	logger := cplogging.NewSLogger() // todo: inject config
+	logger.Debug("config", cplf.Any("config", config))
 
-	return bootstrap.Run(ctx, bootstrap.Options{
+	return cpbootstrap.Run(ctx, cpbootstrap.Options{
 		Server:  config.HTTPServer,
 		Logger:  logger,
 		Modules: describeModules(config),
@@ -51,8 +51,8 @@ func run(ctx context.Context) error {
 
 // describeModules is the whole aggregation: every module takes its own config
 // and builds everything else itself.
-func describeModules(config Config) []bootstrap.Module {
-	return []bootstrap.Module{
+func describeModules(config Config) []cpbootstrap.Module {
+	return []cpbootstrap.Module{
 		session.NewModule(config.Session),
 		planet.NewModule(config.Planet),
 		chat.NewModule(config.Chat),
@@ -61,7 +61,7 @@ func describeModules(config Config) []bootstrap.Module {
 
 func loadConfig() (Config, error) {
 	var config Config
-	if err := configs.Load(&config, configs.FromFlag()); err != nil {
+	if err := cpconfigs.Load(&config, cpconfigs.FromFlag()); err != nil {
 		return Config{}, fmt.Errorf("failed reading config: %w", err)
 	}
 

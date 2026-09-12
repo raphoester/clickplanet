@@ -7,18 +7,18 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/bootstrap"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/logging/lf"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/xtime"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cplogging/cplf"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 // newAntiBotInterceptor wraps the click edge in an antibot guard, nil when off.
 func newAntiBotInterceptor(
 	config antibot.Config,
 	owner planetv1controller.TileOwner,
-	props bootstrap.Props,
+	props cpbootstrap.Props,
 ) (connect.Interceptor, error) {
-	clock := xtime.ActualProvider{}
+	clock := cptime.ActualProvider{}
 
 	observer, err := planetv1controller.NewAntiBotObserver(props.Logger, props.Metrics)
 	if err != nil {
@@ -37,9 +37,9 @@ func newAntiBotInterceptor(
 
 	described := guard.Describe()
 	props.Logger.Info("antibot enabled",
-		lf.Any("watchdogs", described.Watchdogs),
-		lf.Int("minSuspects", described.MinSuspects),
-		lf.Bool("enforce", described.Enforcing),
+		cplf.Any("watchdogs", described.Watchdogs),
+		cplf.Int("minSuspects", described.MinSuspects),
+		cplf.Bool("enforce", described.Enforcing),
 	)
 
 	interceptor, err := planetv1controller.NewAntiBotInterceptor(guard, owner, clock, props.Metrics)

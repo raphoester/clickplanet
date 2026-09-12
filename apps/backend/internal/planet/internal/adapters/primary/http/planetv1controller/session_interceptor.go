@@ -8,8 +8,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/connectutil"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/xtime"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconnect"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 // ErrNoSession is a refusal the player never reads: the client mints a token
@@ -17,11 +17,11 @@ import (
 // client, which is the point.
 var ErrNoSession = errors.New("clicks require a session; call session.v1.SessionService/CreateSession first")
 
-type ClickSessionVerifier = connectutil.SessionVerifier
+type ClickSessionVerifier = cpconnect.SessionVerifier
 
 func NewSessionInterceptor(
 	verifier ClickSessionVerifier,
-	timeProvider xtime.Provider,
+	timeProvider cptime.Provider,
 	enforce bool,
 	registerer prometheus.Registerer,
 ) (connect.Interceptor, error) {
@@ -37,12 +37,12 @@ func NewSessionInterceptor(
 		return nil, fmt.Errorf("failed to register counter: %w", err)
 	}
 
-	return connectutil.NewSessionInterceptor(
+	return cpconnect.NewSessionInterceptor(
 		verifier,
 		timeProvider,
 		ErrNoSession,
 		enforce,
-		func(verdict connectutil.SessionVerdict) { checks.WithLabelValues(string(verdict)).Inc() },
+		func(verdict cpconnect.SessionVerdict) { checks.WithLabelValues(string(verdict)).Inc() },
 		planetv1connect.ClickServiceClickProcedure,
 	), nil
 }

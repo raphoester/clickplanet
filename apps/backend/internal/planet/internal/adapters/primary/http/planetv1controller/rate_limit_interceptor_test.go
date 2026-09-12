@@ -11,18 +11,18 @@ import (
 	"connectrpc.com/connect"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/ctxutil"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/ratelimit"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 	"github.com/stretchr/testify/require"
 )
 
 type fakeLimiter struct {
 	allow bool
-	state ratelimit.State
+	state cpratelimit.State
 	keys  []string
 }
 
-func (l *fakeLimiter) Take(key string) (bool, ratelimit.State) {
+func (l *fakeLimiter) Take(key string) (bool, cpratelimit.State) {
 	l.keys = append(l.keys, key)
 	return l.allow, l.state
 }
@@ -79,7 +79,7 @@ func TestRateLimitInterceptor(t *testing.T) {
 
 	t.Run("keys on the source IP from the context", func(t *testing.T) {
 		limiter := &fakeLimiter{allow: true}
-		ctx := ctxutil.AddIPToContext(context.Background(), "1.2.3.4")
+		ctx := cpctx.AddIPToContext(context.Background(), "1.2.3.4")
 
 		_, err := rateLimit(ctx, limiter, planetv1connect.ClickServiceClickProcedure)
 
@@ -106,7 +106,7 @@ func TestRateLimitInterceptor(t *testing.T) {
 
 func TestRateLimitOverHTTP(t *testing.T) {
 	clock := &fakeClock{now: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)}
-	limiter := ratelimit.New(ratelimit.Config{PerSecond: 1, Burst: 10}, clock)
+	limiter := cpratelimit.New(cpratelimit.Config{PerSecond: 1, Burst: 10}, clock)
 
 	server := clickServer(t, connect.WithInterceptors(
 		NewErrorInterceptor(nil),
@@ -168,11 +168,11 @@ func (c *fakeClock) advance(d time.Duration) {
 }
 
 func TestTheBudgetRidesOnEveryAnswer(t *testing.T) {
-	newServer := func(t *testing.T) (*httptest.Server, *ratelimit.Limiter, *fakeClock) {
+	newServer := func(t *testing.T) (*httptest.Server, *cpratelimit.Limiter, *fakeClock) {
 		t.Helper()
 
 		clock := &fakeClock{now: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)}
-		limiter := ratelimit.New(ratelimit.Config{PerSecond: 2, Burst: 5}, clock)
+		limiter := cpratelimit.New(cpratelimit.Config{PerSecond: 2, Burst: 5}, clock)
 
 		return clickServerReading(t, limiter, connect.WithInterceptors(
 			NewErrorInterceptor(nil),
