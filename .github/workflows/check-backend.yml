@@ -62,3 +62,9 @@ jobs:
         with:
           version: v2.13.1
           working-directory: apps/backend
+
+      # Formatting is checked in the lint job because it runs through the same
+      # pinned golangci-lint the action just installed — there is no second tool
+      # to set up. It also catches an untidy go.mod.
+      - run: make check-format
+        working-directory: apps/backend

@@ -14,9 +14,12 @@ STAGED_GO=$(git diff --name-only --cached --diff-filter=ACM -- 'apps/backend/**/
 STAGED_WEB=$(git diff --name-only --cached --diff-filter=ACM -- 'apps/frontend/src/**' 'apps/frontend/*.json' || true)
 
 if [ -n "$STAGED_GO" ]; then
-    echo "pre-commit: gofmt..."
-    (cd apps/backend && make fmt)
+    echo "pre-commit: gofumpt + go mod tidy..."
+    (cd apps/backend && make tidy)
+    # Re-stage only what was already staged, plus go.mod/go.sum if tidy moved
+    # them — never an unrelated working-tree change.
     echo "$STAGED_GO" | xargs git add --
+    (cd apps/backend && git diff --quiet -- go.mod go.sum) || git add -- apps/backend/go.mod apps/backend/go.sum
 
     echo "pre-commit: golangci-lint..."
     (cd apps/backend && make lint-ci)

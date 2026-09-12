@@ -1,4 +1,4 @@
-.PHONY: proto test lint lint-ci fmt setup-tools deadcode dBuild dRun dRm vpn-lists metrics
+.PHONY: proto test lint lint-ci tidy check-format setup-tools deadcode dBuild dRun dRm vpn-lists metrics
 
 # Test helpers that more than one package needs cannot live in a _test.go file,
 # so they live in an ordinary .go file carrying this tag. The tag is what keeps
@@ -78,10 +78,29 @@ lint:
 lint-ci:
 	@golangci-lint run --timeout=10m --allow-parallel-runners
 
-# gofmt over the tree, minus generated/: `make proto` writes that, and
-# reformatting it only makes the next generation a diff.
-fmt:
-	@gofmt -l -w ./cmd ./internal
+# gofumpt runs through golangci-lint's formatters block rather than as its own
+# binary: one pinned version to install instead of two that can disagree, and it
+# already knows which files are generated.
+#
+# Mutates the tree — `go mod tidy` rewrites go.mod/go.sum in place.
+tidy:
+	@go mod tidy
+	@golangci-lint fmt
+
+# `golangci-lint fmt --diff` prints the diff but exits 0 either way, so the
+# output is what has to be tested rather than the status.
+check-format:
+	@out=$$(golangci-lint fmt --diff 2>&1); \
+	if [ -n "$$out" ]; then \
+		echo "These files are not formatted. Run 'make tidy':"; \
+		printf '%s\n' "$$out" | grep '^diff ' | awk '{print "  " $$3}'; \
+		exit 1; \
+	fi
+	@go mod tidy
+	@git diff --quiet -- go.mod go.sum || { \
+		echo "go.mod or go.sum is not tidy. Run 'make tidy' and commit the result."; \
+		git --no-pager diff --stat -- go.mod go.sum; \
+		exit 1; }
 
 setup-tools: ## Install the pinned linter into $(go env GOPATH)/bin
 	@curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh \

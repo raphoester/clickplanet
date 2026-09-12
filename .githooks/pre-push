@@ -22,6 +22,7 @@ STEPS=(
   'cd apps/backend && make test'
   'cd apps/backend && make deadcode'
   'cd apps/backend && make lint-ci'
+  'cd apps/backend && make check-format'
 )
 # ─────────────────────────────────────────────
 
