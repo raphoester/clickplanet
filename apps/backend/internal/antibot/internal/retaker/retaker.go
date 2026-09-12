@@ -75,24 +75,24 @@ func (c Config) withDefaults() Config {
 	return c
 }
 
-func New(config Config, timeProvider cptime.Provider, onReaction func(time.Duration)) *Watchdog {
-	if timeProvider == nil {
-		timeProvider = cptime.ActualProvider{}
+func New(config Config, clock cptime.Clock, onReaction func(time.Duration)) *Watchdog {
+	if clock == nil {
+		clock = cptime.SystemClock{}
 	}
 
 	return &Watchdog{
-		config:       config.withDefaults(),
-		timeProvider: timeProvider,
-		onReaction:   onReaction,
-		tiles:        make(map[uint32]take),
-		callers:      make(map[string]*caller),
+		config:     config.withDefaults(),
+		clock:      clock,
+		onReaction: onReaction,
+		tiles:      make(map[uint32]take),
+		callers:    make(map[string]*caller),
 	}
 }
 
 type Watchdog struct {
-	config       Config
-	timeProvider cptime.Provider
-	onReaction   func(time.Duration)
+	config     Config
+	clock      cptime.Clock
+	onReaction func(time.Duration)
 
 	mu      sync.Mutex
 	tiles   map[uint32]take
@@ -253,7 +253,7 @@ func (w *Watchdog) Run(ctx context.Context) {
 }
 
 func (w *Watchdog) sweep() {
-	now := w.timeProvider.Now()
+	now := w.clock.Now()
 
 	w.mu.Lock()
 	defer w.mu.Unlock()

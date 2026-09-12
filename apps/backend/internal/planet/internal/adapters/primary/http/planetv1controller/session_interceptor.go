@@ -21,7 +21,7 @@ type ClickSessionVerifier = cpconnect.SessionVerifier
 
 func NewSessionInterceptor(
 	verifier ClickSessionVerifier,
-	timeProvider cptime.Provider,
+	clock cptime.Clock,
 	enforce bool,
 	registerer prometheus.Registerer,
 ) (connect.Interceptor, error) {
@@ -39,7 +39,7 @@ func NewSessionInterceptor(
 
 	return cpconnect.NewSessionInterceptor(
 		verifier,
-		timeProvider,
+		clock,
 		ErrNoSession,
 		enforce,
 		func(verdict cpconnect.SessionVerdict) { checks.WithLabelValues(string(verdict)).Inc() },

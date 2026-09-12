@@ -23,13 +23,13 @@ type testSuite struct {
 	suite.Suite
 
 	storage *fakeStorage
-	clock   *fakeClock
+	clock   *cptime.FixedClock
 	service *chat_service.Service
 }
 
 func (s *testSuite) SetupTest() {
 	s.storage = &fakeStorage{}
-	s.clock = &fakeClock{now: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)}
+	s.clock = cptime.NewFixedClock(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC))
 	s.service = s.newService(chat_service.Config{TagSalt: "pepper"})
 }
 
@@ -67,7 +67,7 @@ func (s *testSuite) TestNominalCase() {
 	s.Equal("Bob", message.AuthorName)
 	s.Equal("fr", message.CountryID)
 	s.Equal("hello planet", message.Text)
-	s.Equal(s.clock.now, message.SentAt)
+	s.Equal(s.clock.Now(), message.SentAt)
 	s.Len(s.storage.records, 1)
 }
 
@@ -265,17 +265,8 @@ func (f fakeCountryChecker) CheckCountry(country string) bool {
 	return f.known[country]
 }
 
-type fakeClock struct {
-	now time.Time
-}
-
-func (c *fakeClock) Now() time.Time {
-	return c.now
-}
-
 var (
 	_ domain.Storage        = (*fakeStorage)(nil)
 	_ domain.CountryChecker = fakeCountryChecker{}
-	_ cptime.Provider       = (*fakeClock)(nil)
 	_ chat_service.IService = (*chat_service.Service)(nil)
 )

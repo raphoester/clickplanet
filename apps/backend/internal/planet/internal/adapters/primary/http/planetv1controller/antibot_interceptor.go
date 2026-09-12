@@ -42,11 +42,11 @@ var reactionBuckets = []float64{
 func NewAntiBotInterceptor(
 	guard ClickGuard,
 	owner TileOwner,
-	timeProvider cptime.Provider,
+	clock cptime.Clock,
 	registerer prometheus.Registerer,
 ) (connect.Interceptor, error) {
-	if timeProvider == nil {
-		timeProvider = cptime.ActualProvider{}
+	if clock == nil {
+		clock = cptime.SystemClock{}
 	}
 
 	dropped := prometheus.NewCounter(prometheus.CounterOpts{
@@ -83,7 +83,7 @@ func NewAntiBotInterceptor(
 				Scope:   cpipscope.Of(cpctx.GetSourceIP(ctx)),
 				Tile:    msg.GetTileId(),
 				Country: msg.GetCountryId(),
-				At:      timeProvider.Now(),
+				At:      clock.Now(),
 			}
 
 			if held, known := owner.Owner(click.Tile); known {

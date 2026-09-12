@@ -13,6 +13,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 	"github.com/stretchr/testify/require"
 )
 
@@ -105,7 +106,7 @@ func TestRateLimitInterceptor(t *testing.T) {
 }
 
 func TestRateLimitOverHTTP(t *testing.T) {
-	clock := &fakeClock{now: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)}
+	clock := cptime.NewFixedClock(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC))
 	limiter := cpratelimit.New(cpratelimit.Config{PerSecond: 1, Burst: 10}, clock)
 
 	server := clickServer(t, connect.WithInterceptors(
@@ -132,7 +133,7 @@ func TestRateLimitOverHTTP(t *testing.T) {
 
 	require.NoError(t, click("5.6.7.8"), "another address has its own allowance")
 
-	clock.advance(time.Second)
+	clock.Advance(time.Second)
 	require.NoError(t, click("1.2.3.4"), "a second later the bucket has a token again")
 }
 
@@ -155,23 +156,11 @@ func clickStatus(t *testing.T, server *httptest.Server, ip string) int {
 	return res.StatusCode
 }
 
-type fakeClock struct {
-	now time.Time
-}
-
-func (c *fakeClock) Now() time.Time {
-	return c.now
-}
-
-func (c *fakeClock) advance(d time.Duration) {
-	c.now = c.now.Add(d)
-}
-
 func TestTheBudgetRidesOnEveryAnswer(t *testing.T) {
-	newServer := func(t *testing.T) (*httptest.Server, *cpratelimit.Limiter, *fakeClock) {
+	newServer := func(t *testing.T) (*httptest.Server, *cpratelimit.Limiter, *cptime.FixedClock) {
 		t.Helper()
 
-		clock := &fakeClock{now: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)}
+		clock := cptime.NewFixedClock(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC))
 		limiter := cpratelimit.New(cpratelimit.Config{PerSecond: 2, Burst: 5}, clock)
 
 		return clickServerReading(t, limiter, connect.WithInterceptors(
@@ -210,7 +199,7 @@ func TestTheBudgetRidesOnEveryAnswer(t *testing.T) {
 			require.NoErrorf(t, err, "click %d should be allowed", i)
 		}
 
-		clock.advance(200 * time.Millisecond)
+		clock.Advance(200 * time.Millisecond)
 
 		_, err := click(t, server)
 		require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(err))

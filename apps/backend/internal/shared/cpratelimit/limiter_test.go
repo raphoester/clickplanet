@@ -6,34 +6,19 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 var epoch = time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
-
-type fakeClock struct {
-	mu  sync.Mutex
-	now time.Time
-}
-
-func (c *fakeClock) Now() time.Time {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return c.now
-}
-
-func (c *fakeClock) advance(d time.Duration) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.now = c.now.Add(d)
-}
 
 func allow(l *Limiter, key string) bool {
 	allowed, _ := l.Take(key)
 	return allowed
 }
 
-func newTestLimiter() (*Limiter, *fakeClock) {
-	clock := &fakeClock{now: epoch}
+func newTestLimiter() (*Limiter, *cptime.FixedClock) {
+	clock := cptime.NewFixedClock(epoch)
 	return New(Config{PerSecond: 1, Burst: 10}, clock), clock
 }
 
@@ -54,10 +39,10 @@ func TestRefillsAtTheConfiguredRate(t *testing.T) {
 		require.True(t, allow(limiter, "1.2.3.4"))
 	}
 
-	clock.advance(500 * time.Millisecond)
+	clock.Advance(500 * time.Millisecond)
 	require.False(t, allow(limiter, "1.2.3.4"), "half a token is not a click")
 
-	clock.advance(500 * time.Millisecond)
+	clock.Advance(500 * time.Millisecond)
 	require.True(t, allow(limiter, "1.2.3.4"))
 	require.False(t, allow(limiter, "1.2.3.4"), "the token was just spent")
 }
@@ -66,7 +51,7 @@ func TestRefillStopsAtTheBurst(t *testing.T) {
 	limiter, clock := newTestLimiter()
 
 	require.True(t, allow(limiter, "1.2.3.4"))
-	clock.advance(time.Hour)
+	clock.Advance(time.Hour)
 
 	for i := 0; i < 10; i++ {
 		require.Truef(t, allow(limiter, "1.2.3.4"), "click %d should be allowed", i)
@@ -90,7 +75,7 @@ func TestAClockGoingBackwardsTakesNoTokens(t *testing.T) {
 	limiter, clock := newTestLimiter()
 
 	require.True(t, allow(limiter, "1.2.3.4"))
-	clock.advance(-time.Hour)
+	clock.Advance(-time.Hour)
 
 	for i := 0; i < 9; i++ {
 		require.Truef(t, allow(limiter, "1.2.3.4"), "click %d should be allowed", i)
@@ -110,7 +95,7 @@ func TestSweepForgetsOnlyTheRefilledBuckets(t *testing.T) {
 	limiter.sweep()
 	require.Len(t, limiter.buckets, 2, "neither bucket has refilled yet")
 
-	clock.advance(time.Second)
+	clock.Advance(time.Second)
 	limiter.sweep()
 
 	require.NotContains(t, limiter.buckets, "idle")
@@ -126,7 +111,7 @@ func TestSweepForgetsOnlyTheRefilledBuckets(t *testing.T) {
 }
 
 func TestDefaultsApplyToAZeroConfig(t *testing.T) {
-	limiter := New(Config{}, &fakeClock{now: epoch})
+	limiter := New(Config{}, cptime.NewFixedClock(epoch))
 
 	require.InDelta(t, float64(defaultPerSecond), limiter.config.PerSecond, 1e-9)
 	require.Equal(t, defaultBurst, limiter.config.Burst)
@@ -168,7 +153,7 @@ func TestTakeReportsWhatIsLeftAndThePolicyToReplayIt(t *testing.T) {
 	require.Equal(t, 10, state.Capacity)
 	require.InDelta(t, float64(1), state.PerSecond, 1e-9)
 
-	clock.advance(500 * time.Millisecond)
+	clock.Advance(500 * time.Millisecond)
 
 	_, state = limiter.Take("1.2.3.4")
 	require.InDelta(t, 8.5, state.Tokens, 1e-9, "the half second refilled before the token was spent")
@@ -181,7 +166,7 @@ func TestARefusedCallerStillLearnsHowLongTheWaitIs(t *testing.T) {
 		require.True(t, allow(limiter, "1.2.3.4"))
 	}
 
-	clock.advance(400 * time.Millisecond)
+	clock.Advance(400 * time.Millisecond)
 
 	allowed, state := limiter.Take("1.2.3.4")
 	require.False(t, allowed)
@@ -218,7 +203,7 @@ func TestPeekRefillsBeforeReporting(t *testing.T) {
 		require.True(t, allow(limiter, "1.2.3.4"))
 	}
 
-	clock.advance(3 * time.Second)
+	clock.Advance(3 * time.Second)
 
 	require.InDelta(t, float64(3), limiter.Peek("1.2.3.4").Tokens, 1e-9)
 }

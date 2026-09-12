@@ -8,16 +8,11 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/shadowban"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-type fakeClock struct{ now time.Time }
-
-func (c *fakeClock) Now() time.Time { return c.now }
-
-func (c *fakeClock) advance(d time.Duration) { c.now = c.now.Add(d) }
-
-func newClock() *fakeClock {
-	return &fakeClock{now: time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC)}
+func newClock() *cptime.FixedClock {
+	return cptime.NewFixedClock(time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC))
 }
 
 func config() shadowban.Config {
@@ -42,10 +37,10 @@ func TestAFlagBansForItsDuration(t *testing.T) {
 	assert.True(t, banner.Banned("bot"))
 	assert.Equal(t, 1, banner.Flagged())
 
-	clock.advance(59 * time.Minute)
+	clock.Advance(59 * time.Minute)
 	assert.True(t, banner.Banned("bot"))
 
-	clock.advance(2 * time.Minute)
+	clock.Advance(2 * time.Minute)
 	assert.False(t, banner.Banned("bot"), "the ban lapses on its own")
 	assert.Equal(t, 0, banner.Flagged())
 }
@@ -71,12 +66,12 @@ func TestAFlagInsideTheReflagIntervalSaysNothingNew(t *testing.T) {
 	_, accepted := banner.Flag("bot")
 	require.True(t, accepted)
 
-	clock.advance(time.Minute)
+	clock.Advance(time.Minute)
 	flags, accepted := banner.Flag("bot")
 	assert.False(t, accepted, "the caller is already serving this one")
 	assert.Equal(t, 1, flags)
 
-	clock.advance(5 * time.Minute)
+	clock.Advance(5 * time.Minute)
 	flags, accepted = banner.Flag("bot")
 	assert.True(t, accepted, "past the interval it is a fresh judgement")
 	assert.Equal(t, 2, flags, "a rising count is independent evidence repeating")
@@ -88,11 +83,11 @@ func TestABanIsExtendedByEachNewFlag(t *testing.T) {
 
 	banner.Flag("bot")
 
-	clock.advance(50 * time.Minute)
+	clock.Advance(50 * time.Minute)
 	_, accepted := banner.Flag("bot")
 	require.True(t, accepted)
 
-	clock.advance(30 * time.Minute)
+	clock.Advance(30 * time.Minute)
 	assert.True(t, banner.Banned("bot"), "the second flag carries its own hour")
 }
 

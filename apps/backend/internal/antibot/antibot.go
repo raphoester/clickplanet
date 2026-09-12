@@ -105,7 +105,7 @@ type Guard interface {
 // the one ban they all pass. A nil Guard means the block is off, which leaves the
 // click chain exactly as it was; enabling it with every watchdog off is an error,
 // because that measures nothing while looking like a defence.
-func New(config Config, clock cptime.Provider, observer Observer) (Guard, error) {
+func New(config Config, clock cptime.Clock, observer Observer) (Guard, error) {
 	if !config.Enabled {
 		//nolint:nilnil // a nil Guard is the contract: the caller skips the
 		// interceptor entirely. See the doc comment above.
@@ -113,7 +113,7 @@ func New(config Config, clock cptime.Provider, observer Observer) (Guard, error)
 	}
 
 	if clock == nil {
-		clock = cptime.ActualProvider{}
+		clock = cptime.SystemClock{}
 	}
 
 	g := &guard{}

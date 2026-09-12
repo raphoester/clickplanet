@@ -10,11 +10,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/jury"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/shadowban"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
-
-type fakeClock struct{ now time.Time }
-
-func (c *fakeClock) Now() time.Time { return c.now }
 
 // stubWatchdog says whatever the test tells it to, and remembers every click it
 // was shown.
@@ -40,12 +37,12 @@ func (w *stubWatchdog) Committed(detect.Click) { w.committed++ }
 
 type harness struct {
 	jury    *jury.Jury
-	clock   *fakeClock
+	clock   *cptime.FixedClock
 	reports []detect.Report
 }
 
 func newHarness(config jury.Config, ban shadowban.Config, watchdogs ...detect.Watchdog) *harness {
-	h := &harness{clock: &fakeClock{now: time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC)}}
+	h := &harness{clock: cptime.NewFixedClock(time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC))}
 
 	banner := shadowban.New(ban, h.clock)
 	h.jury = jury.New(config, banner, h.clock, func(report detect.Report) {
@@ -60,10 +57,10 @@ func (h *harness) click() bool {
 		Scope:   "caller",
 		Tile:    1,
 		Country: "FR",
-		At:      h.clock.now,
+		At:      h.clock.Now(),
 	})
 
-	h.clock.now = h.clock.now.Add(time.Second)
+	h.clock.Advance(time.Second)
 
 	return drop
 }
@@ -138,7 +135,7 @@ func TestASuspicionOlderThanTheWindowStopsCounting(t *testing.T) {
 	require.False(t, h.click())
 
 	stale.verdict = detect.Clear
-	h.clock.now = h.clock.now.Add(5 * time.Minute)
+	h.clock.Advance(5 * time.Minute)
 
 	// The second watchdog only speaks up now, long after the first went quiet.
 	// Two readings five minutes apart are not a caller doing two things at once.
@@ -201,7 +198,7 @@ func TestACallerThatKeepsAtItIsReportedAgain(t *testing.T) {
 
 	for range 4 {
 		h.click()
-		h.clock.now = h.clock.now.Add(time.Minute)
+		h.clock.Advance(time.Minute)
 	}
 
 	require.Len(t, h.reports, 4)
@@ -227,7 +224,7 @@ func TestCommittedReachesEveryWatchdog(t *testing.T) {
 
 	h := newHarness(juryConfig(), banConfig(), first, second)
 
-	h.jury.Committed(detect.Click{Scope: "caller", Tile: 1, Country: "FR", At: h.clock.now})
+	h.jury.Committed(detect.Click{Scope: "caller", Tile: 1, Country: "FR", At: h.clock.Now()})
 
 	assert.Equal(t, 1, first.committed)
 	assert.Equal(t, 1, second.committed)
@@ -238,7 +235,7 @@ func TestACallerWithNoScopeIsNotJudged(t *testing.T) {
 
 	h := newHarness(juryConfig(), banConfig(), watchdog)
 
-	assert.False(t, h.jury.Inspect(detect.Click{Tile: 1, Country: "FR", At: h.clock.now}))
+	assert.False(t, h.jury.Inspect(detect.Click{Tile: 1, Country: "FR", At: h.clock.Now()}))
 	assert.Equal(t, 0, watchdog.seen)
 }
 
@@ -251,7 +248,7 @@ func TestTheCallerFactsTravelWithTheBan(t *testing.T) {
 		h.click()
 	}
 
-	h.clock.now = h.clock.now.Add(20 * time.Minute)
+	h.clock.Advance(20 * time.Minute)
 	watchdog.verdict = detect.Certain
 
 	require.True(t, h.click())

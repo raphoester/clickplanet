@@ -42,7 +42,7 @@ func NewModule(config Config) cpbootstrap.Module {
 }
 
 func build(config Config, props cpbootstrap.Props) error {
-	clock := cptime.ActualProvider{}
+	clock := cptime.SystemClock{}
 
 	tilesChecker := in_memory_tile_checker.New(config.GameMap.MaxIndex)
 
@@ -136,7 +136,7 @@ func newSessionInterceptor(config cpsession.Config, props cpbootstrap.Props) (co
 
 	interceptor, err := planetv1controller.NewSessionInterceptor(
 		verifier,
-		cptime.ActualProvider{},
+		cptime.SystemClock{},
 		config.Enforce,
 		props.Metrics,
 	)
