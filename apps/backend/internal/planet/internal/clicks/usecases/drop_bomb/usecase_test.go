@@ -31,16 +31,17 @@ func (s *stubSchedule) Dropped(scope string) { s.dropped = append(s.dropped, sco
 type stubMap struct {
 	nearest uint32
 	arc     float64
-	rings   int
+	centre  clicks.Vec3
+	radius  float64
 }
 
 func (s *stubMap) Nearest(clicks.Vec3) (uint32, float64) { return s.nearest, s.arc }
 
 func (s *stubMap) Position(uint32) (clicks.Vec3, bool) { return clicks.Vec3{Y: 1}, true }
 
-func (s *stubMap) Disc(id uint32, radius int) []uint32 {
-	s.rings = radius
-	return []uint32{id - 1, id, id + 1}
+func (s *stubMap) Within(centre clicks.Vec3, radius float64) []uint32 {
+	s.centre, s.radius = centre, radius
+	return []uint32{9, 10, 11}
 }
 
 type stubClearer struct{ cleared []clicks.Blast }
@@ -54,7 +55,7 @@ type countries struct{}
 
 func (countries) CheckCountry(country string) bool { return country == "fr" }
 
-var rules = drop_bomb.Rules{Rings: 8, Radius: 0.03, Reach: 0.005}
+var rules = drop_bomb.Rules{Radius: 0.03, Reach: 0.005}
 
 type parts struct {
 	bombs    *stubBombs
@@ -74,7 +75,7 @@ func setup(held bool, arc float64) (*drop_bomb.UseCase, parts) {
 	return drop_bomb.New(p.bombs, p.schedule, p.geo, p.clearer, countries{}, rules), p
 }
 
-func TestABombOnLandClearsTheRingsAroundTheTileHit(t *testing.T) {
+func TestABombOnLandClearsACircleAroundTheTileHit(t *testing.T) {
 	useCase, p := setup(true, 0.001)
 
 	blast, err := useCase.Execute(t.Context(), drop_bomb.In{Target: clicks.Vec3{X: 2}, CountryID: "fr"})
@@ -82,7 +83,8 @@ func TestABombOnLandClearsTheRingsAroundTheTileHit(t *testing.T) {
 
 	assert.Equal(t, uint32(10), blast.Tile)
 	assert.Equal(t, []uint32{9, 10, 11}, blast.Cleared)
-	assert.Equal(t, 8, p.geo.rings)
+	assert.Equal(t, clicks.Vec3{Y: 1}, p.geo.centre, "the circle is centred on the tile hit, not the raw aim")
+	assert.InDelta(t, 0.03, p.geo.radius, 1e-9)
 	assert.InDelta(t, 0.03, blast.Radius, 1e-9)
 	assert.Equal(t, clicks.Vec3{Y: 1}, blast.Point, "drawn at the tile's centre")
 	assert.Equal(t, []string{cpctx.RateLimitKey(t.Context())}, p.schedule.dropped)

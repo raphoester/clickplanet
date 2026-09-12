@@ -33,7 +33,7 @@ type Config struct {
 	// How long a bomb may be held before it is lost; it counts towards MaxBoostPerHour like any bonus.
 	BombDuration time.Duration
 
-	// How many rings of tiles around the one hit a bomb clears.
+	// How wide a circle a bomb clears, in tile spacings: 8 is ~230 tiles inland.
 	BombRings int
 
 	Multiplier float64
@@ -145,7 +145,7 @@ func (c Config) durationOf(kind Kind) time.Duration {
 	return c.Duration
 }
 
-// Rings is how many rings of tiles a bomb clears, defaults applied.
+// Rings is a bomb's radius in tile spacings, defaults applied.
 func (c Config) Rings() int {
 	return c.withDefaults().BombRings
 }

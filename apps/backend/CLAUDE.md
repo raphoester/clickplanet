@@ -386,8 +386,8 @@ strong ones can be made rare (production runs 5 : 2 : 1):
 - **`spread_clicks`** — every click also takes the tiles touching the one
   clicked, for `bonus.spreadDuration` instead (10s by default — it is strong). See [What a spread does to a click](#what-a-spread-does-to-a-click).
 - **`bomb`** — one bomb, to be dropped within `bonus.bombDuration` (30s). It
-  clears `bonus.bombRings` rings of tiles around where it lands, whoever holds
-  them. See [What a bomb does](#what-a-bomb-does).
+  clears a circle of `bonus.bombRings` tile spacings around where it lands,
+  whoever holds the tiles. See [What a bomb does](#what-a-bomb-does).
 
 Off by
 default — `bonus.enabled` false offers nothing and answers `ClaimBonus` with
@@ -516,11 +516,17 @@ and an aim further than one tile spacing from it is **in the sea** — the bomb 
 spent, nothing is cleared, and the blast is still broadcast with tile 0 so every
 screen draws a splash. That was a product decision: a bad aim costs the bomb.
 
-On land the tiles are `Geography.Disc(tile, bombRings)` — rings of neighbours, so
-a bomb on a coast takes only the land there is. **8 rings is at most 217 tiles.**
-The radius sent to clients is `bombRings × Geography.Spacing()`, the mean arc
-between touching tiles measured at boot (0.0040 rad on the 257,948-tile map, so
-0.032), rather than a number in the config that could drift from the map.
+On land the tiles are `Geography.Within(centre, radius)`: every tile within
+`radius` of arc of the tile hit — a true circle, ~230 tiles inland, found by a
+straight scan (~0.5ms, once per bomb). The radius is `bombRings × Geography.Spacing()`,
+the mean arc between touching tiles measured at boot (0.0040 rad on the
+257,948-tile map, so 0.032), rather than a number in the config that could drift
+from the map; the same radius goes to clients, so the ring they draw is the clear.
+
+**It is not `Disc`, deliberately.** Rings of neighbours on a honeycomb make a
+hexagon, which showed in production as a hexagonal crater inside a round ring —
+and a walk over neighbours stops at water, so an island just offshore survived a
+bomb that visibly covered it. A circle has neither problem.
 
 `drop_bomb` checks the country and the target **before** taking the bomb, so a
 malformed request does not cost one. `Registry.Dropped` then brings the next box
@@ -969,9 +975,9 @@ from a pool, one per concurrent caller, so nothing is cleared per call and two c
 the same array.
 
 `Neighbours` is what the spread bonus reads — see [What a spread does to a click](#what-a-spread-does-to-a-click).
-`Disc`, `Position`, `Nearest` and `Spacing` are what the bomb reads — see [What a bomb does](#what-a-bomb-does).
-`Nearest` and `Spacing` are straight scans (a few ms over 257,948 tiles): `Spacing` runs once at
-boot, `Nearest` once per bomb.
+`Within`, `Position`, `Nearest` and `Spacing` are what the bomb reads — see [What a bomb does](#what-a-bomb-does).
+`Within`, `Nearest` and `Spacing` are straight scans (a few ms over 257,948 tiles): `Spacing` runs once at
+boot, `Within` and `Nearest` once per bomb. `Disc` is back behind the `testing` tag — see [Testing](#testing).
 
 #### Known faults, inherited and documented
 
@@ -1149,8 +1155,8 @@ All three take `--no-verify`. The hooks re-point `core.hooksPath` at a *relative
 the main checkout's.
 
 The tag has a second use, same mechanism and a different reason: **production code that is written
-and tested but has no caller yet**. `clicks.Geography`'s `Disc` and `Position` sat there until the
-bomb gave them one. The tag is what keeps `make deadcode` a wall rather than a thing people learn to
+and tested but has no caller yet**. `clicks.Geography`'s `Disc` is there: the bomb used it for a
+release, then moved to a circle. The tag is what keeps `make deadcode` a wall rather than a thing people learn to
 ignore, and removing the line is the whole of promoting such a function.
 
 **`make deadcode` fails on any unreachable function**, in two passes, because "is this reachable?" has two different right answers depending on whether test code counts as a caller. The first pass excludes tests and tagged files, so **production code whose only caller is a test is reported as dead** — the case a plain `deadcode -test` forgives. The second pass includes both but keeps only findings inside tagged files, so an unused shared helper is reported too. `deadcode` is fetched at a pinned version by the target, so there is nothing to install.

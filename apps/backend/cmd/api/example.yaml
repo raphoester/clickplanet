@@ -84,7 +84,7 @@ bonus:
   # left out, or at 0, is never offered. Empty offers every kind equally.
   #   triple_clicks - the allowance is multiplied by `multiplier`
   #   spread_clicks - every click also takes the tiles touching the one clicked
-  #   bomb          - one bomb, dropped anywhere to clear `bombRings` around it
+  #   bomb          - one bomb, dropped anywhere to clear a circle of tiles
   kinds:
     triple_clicks: 5
     spread_clicks: 2
@@ -111,9 +111,9 @@ bonus:
   # dropped.
   bombDuration: 30s
 
-  # How many rings of tiles around the one hit a bomb clears, whoever holds them:
-  # 8 is at most 217 tiles inland. The blast radius the client draws is worked
-  # out from this and the map's own tile spacing.
+  # The radius of the circle a bomb clears, whoever holds the tiles, in tile
+  # spacings: 8 is ~230 tiles inland. The radius in radians is this times the
+  # map's own tile spacing, so the client's ring and the clear always agree.
   bombRings: 8
 
   # How recently a caller must have clicked to be offered a box. A tab left open

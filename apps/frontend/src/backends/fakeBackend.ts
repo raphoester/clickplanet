@@ -38,7 +38,7 @@ const BONUS_KINDS: BonusReward["kind"][] = [
     "bomb",
 ]
 
-/** Radians of arc: the server's 8 rings at its measured tile spacing of 0.004. */
+/** Radians of arc: the server's 8 tile spacings, at its measured spacing of 0.004. */
 const BOMB_RADIUS = 0.032
 
 /** How far from the nearest tile an aim still hits land, as the server measures it. */
