@@ -33,6 +33,9 @@ go run ./cmd/api -config cmd/api/example.yaml
 # Generate protobuf code (requires buf CLI)
 make proto
 
+# Refresh the embedded tile coordinates blob from the shared /map, then commit it
+make map
+
 # Refresh the vendored VPN/datacenter ranges from upstream, then commit them
 make vpn-lists
 
@@ -192,6 +195,8 @@ leaves it out and the rule does not change.
 The ports are written in the vocabulary the `clicks` root holds, and nothing
 travels between a use case and an adapter that is not declared in one of the
 two.
+
+`Geography` is the other thing the `clicks` root holds, beside the sentinels and `TileUpdate`: the shape of the map, in `geography.go`. It is a model rather than a port — `geodesic_map` builds one and hands it over. See [Map geography](#map-geography).
 
 ### Adapters
 
@@ -778,6 +783,124 @@ The siteverify client it is fed by is **not** here. `turnstile` sat here on the 
 
 `cpipscope` decides what a bucket is keyed on, and every throttle goes through it. Over IPv4 that is the address; over IPv6 it is the surrounding **/64**, because the smallest allocation a subscriber receives is a /64 and most receive far more — a bucket per v6 address is one the same line walks out of by picking its next address, turning one home connection into thousands of callers with a throttle each. The session token binds to the same unit, so the address a token is valid for and the address that spends a budget cannot diverge. Blocking deliberately does **not** use it: the VPN and datacenter lists are precise prefixes already, and widening a hit to the surrounding /64 would refuse neighbours who are not on them.
 
+### Map geography
+
+**Which tiles touch which.** It exists so that bonuses depending on the shape of the map can be
+decided by the server: "a click spreads to the 6 adjacent tiles" cannot be computed on the client
+without the client naming the tiles it gets, which is the whole of the cheat.
+
+**It is `clicks`, not kernel**: the kernel is for what would read the same in any other program,
+and this is the tile game's own map. It is then split across the two layers, on the line of *what
+survives a change of input format*:
+
+- **`clicks.Geography`** (`internal/clicks/geography.go`) — the model. `NewGeography(positions, edges)`
+  builds it, and `Neighbours`, `Disc` and `Position` read it. It knows nothing about icosahedra,
+  blobs or file formats; it takes an edge list in any order, with repeats, and enforces what has
+  to be true of a map: tiles in range, nothing touching itself, no tile above `MaxDegree`, and
+  **no asymmetric edge** — a tile that spreads onto a neighbour which would not spread back is a
+  one-way street on the map.
+- **`internal/adapters/secondary/geodesic_map`** — the recovery. Everything in it exists because the
+  adjacency is *not* shipped: the positions are, and the edges have to be worked back out of them.
+  The blob decode, the icosahedron lattice and the position index are all knowledge of the shipped
+  artifact, not of the game. **Ship a precomputed edge list one day and this package goes while
+  `clicks.Geography` does not change at all.**
+
+The blob itself is **`generated/map`**, beside `generated/proto` and for the same reason: both are
+this app's committed copy of something the root owns, written by a `make` target and never edited
+by hand. The vendored VPN ranges sit next to their reader instead (`shared/cpipblock/cpdata`) because
+they come from a third party, not from `/`. The directory is `map` to mirror its source; the
+package is `mapdata`, since `map` is a keyword.
+
+That line also splits the checks. The domain enforces what is true of any map; the adapter enforces
+what is true of *this* blob — the tile count against `gameMap.maxIndex`, and that every tile lands
+on a detail-300 lattice vertex.
+
+And it splits the tests. `domain` is tested against a hand-built patch of honeycomb — fast, no 5 MB
+asset, and it says what `Geography` does rather than what the shipped blob happens to contain.
+`geodesic_map` is tested against the real blob, and holds every number below.
+
+**The tile grid is a regular honeycomb, not an arbitrary numbering.** Tile ids look like noise but
+they are the land vertices of `THREE.IcosahedronGeometry(1, 300)`, deduplicated by position — a
+geodesic sphere, where **every interior vertex has exactly 6 neighbours** and the 12 icosahedron
+corners have 5. The parameters and the evidence for them are in [`/map/README.md`](../../map/README.md).
+
+#### How adjacency is computed
+
+Each icosahedron face is a triangular integer lattice: `(p, q, r)` with `p + q + r = 301`, all
+non-negative, sitting at `normalize(p*A + q*B + r*C)` for the face's **un-normalised** corners —
+THREE lerps across the flat triangle and normalises afterwards, so normalising the corners first
+moves every vertex. The six neighbours are the ±1 exchanges between any two coordinates. Walking
+all 20 faces, resolving each lattice vertex back to a tile by position, and taking the union gives
+the adjacency exactly.
+
+**Cross-face edges and the 12 corners need no special case.** A vertex on a shared edge is reached
+from both faces, contributing 4 neighbours each with 2 in common; a corner is reached from all five
+faces that meet there, 2 each with each shared once. 6 and 5, which is what the lattice says.
+
+**Do not replace this with a radius-based nearest-neighbour search.** It is the obvious approach and
+it fails quietly: because THREE subdivides the flat triangle, spacing varies ~25% between face
+middles and corners (nearest-neighbour distances run 0.00309 to 0.00440), so no single radius works
+anywhere. Measured, a tuned radius gave **2,137 tiles degrees of 7, 8 and even 10**. The lattice
+walk has no threshold in it at all — the only tolerance is `matchEpsilon`, and that is f32 rounding
+(~1e-7 against a 3.09e-3 gap between the closest two tiles), not a search radius.
+
+#### The off-by-one
+
+**Wire tile id = blob array index + 1.** The blob is 0-indexed by position; ids on the wire are
+1-based, which is what `in_memory_tile_checker`, `memory_tile_storage`'s unused slot 0 and the
+frontend's `integerToColor(i + 1)` all agree on. Getting it wrong shifts every neighbourhood by one
+tile, **symmetrically, with a degree histogram that still looks right** —
+`TestTileIDsAreOneBasedOverTheBlob` is what catches it.
+
+#### Checked at boot, not just in the tests
+
+`geodesic_map.Load` is the first thing the planet module builds and **fails the boot** on a blob whose
+tile count is not `gameMap.maxIndex`, on any tile that does not sit on the detail-300 lattice, on a
+degree above 6, or on an asymmetric edge. The tests cannot see the blob a container was actually
+built with, and that is the thing that drifts; regenerating the coordinates renumbers every tile, so
+a process quietly disagreeing with the frontend about what tile 42 is has no repair after the fact.
+In practice the failure is unreachable in production — the blob is embedded, so a bad one fails
+`make test` long before a deploy — which is what makes it cheap.
+
+It costs ~0.3s of boot and about 12 MB resident. The boot log carries the whole result in one line:
+
+```
+map geography loaded asset=coordinates-26a9aeab.bin tiles=257948 edges=752820
+  degrees="[186 530 1440 4087 6216 7829 237660]" took=263ms
+```
+
+Those numbers are pinned by the tests. 752,820 undirected edges, average degree 5.837, and the
+degree histogram reads: 186 tiles with no neighbours, then 530, 1440, 4087, 6216, 7829, and 237,660
+inland tiles with the full 6. Walking adjacency alone finds **443 landmasses**, the largest four
+being 142,827 (Afro-Eurasia), 67,957 (the Americas), 20,037 (Antarctica) and 12,335 (Australia).
+
+#### The API, and what is not in it yet
+
+All three are on `clicks.Geography`, so a rule that reads them needs no port and no adapter import.
+
+`Neighbours(id)` hands back a window into the map's own CSR table — read it, never write it, which
+is what keeps it allocation-free on a click path. **It returns nothing for the 186 single-tile
+islands**, so a consumer has to have an answer for an empty neighbour set; whether the game paints
+nothing or refunds the bonus there is a rule, not a fact about the map.
+
+`Disc(id, radius)` is a breadth-first walk over that, returning `1 + 3r(r+1)` tiles inland and less
+wherever the land runs out. **Discs are computed, never stored**: a radius-3 table would be ~38 MB
+to save ~50µs, behind a 1 click/sec/IP throttle. The search scratch is a generation-stamped array
+from a pool, one per concurrent caller, so nothing is cleared per call and two clicks cannot stamp
+the same array.
+
+`Disc` and `Position` sit behind the `testing` tag, as `cpctx.GetSessionID` does and for the same
+reason — see [Testing](#testing). They have no production caller until the spread-click bonus lands,
+and `make deadcode` reports production code whose only caller is a test. **Deleting the tag line is
+the whole of wiring them up**; both are already tested against the numbers above.
+
+#### Known faults, inherited and documented
+
+From the blob, not from this package: the antimeridian row carries ~¼ the tiles it should, so
+neighbourhoods near the dateline are lopsided, and 2,523 tiles fall outside every country. Both
+leave tiles with fewer than 6 neighbours, which is also what a coastline does — there is no way to
+tell them apart from the geometry, and fixing them means regenerating and renumbering.
+
 ### Configuration
 
 **`shared/cpconfigs` owns loading**, the way `cpbootstrap` owns running: the binary asks for the config it wants and never for the flag, the parser, or the precedence between file and environment.
@@ -858,6 +981,8 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 ### Protobuf
 
 API contracts live in the monorepo-shared [`/proto`](../../proto) (also used by the frontend), one package per bounded context: [`planet/v1/planet.proto`](../../proto/planet/v1/planet.proto) and [`chat/v1/chat.proto`](../../proto/chat/v1/chat.proto). Generated code goes to `generated/proto/`. Use `make proto` to regenerate after editing `.proto` files (requires the `buf` CLI, plus `protoc-gen-go` and `protoc-gen-connect-go` on `PATH`).
+
+`generated/` is for everything the root owns and this app carries a committed copy of, because the Docker build context is this directory: `generated/proto` from [`/proto`](../../proto) via `make proto`, and `generated/map` from [`/map`](../../map) via `make map` — see [Map geography](#map-geography). Nothing in there is edited by hand; run the target.
 
 The proto package is the **only** version number: Connect derives each route from it, and the controller and connect package names follow — `planet.v1` gives `planetv1controller` and `planetv1connect`, `chat.v1` gives `chatv1controller` and `chatv1connect`. There is no gRPC here — Connect serves the service definitions over ordinary HTTP/1.1 POSTs (and h2c, for clients that want it).
 
@@ -941,5 +1066,11 @@ inside each app, and hooks are the one genuinely repo-wide thing.
 All three take `--no-verify`. The hooks re-point `core.hooksPath` at a *relative*
 `.githooks` on every run, so a worktree runs its own branch's hooks rather than
 the main checkout's.
+
+The tag has a second use, same mechanism and a different reason: **production code that is written
+and tested but has no caller yet**. `clicks.Geography`'s `Disc` and `Position` are there, waiting on
+the bonus that will read them (see [Map geography](#map-geography)). The tag
+is what keeps `make deadcode` a wall rather than a thing people learn to ignore, and removing the
+line is the whole of promoting such a function.
 
 **`make deadcode` fails on any unreachable function**, in two passes, because "is this reachable?" has two different right answers depending on whether test code counts as a caller. The first pass excludes tests and tagged files, so **production code whose only caller is a test is reported as dead** — the case a plain `deadcode -test` forgives. The second pass includes both but keeps only findings inside tagged files, so an unused shared helper is reported too. `deadcode` is fetched at a pinned version by the target, so there is nothing to install.

@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"connectrpc.com/connect"
 
@@ -23,6 +24,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/get_map_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/map_density_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/secondary/geodesic_map"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/secondary/in_memory_tile_checker"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/secondary/memory_tile_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/bonus"
@@ -59,6 +61,11 @@ func NewModule(config Config) cpbootstrap.Module {
 
 func build(config Config, props cpbootstrap.Props) error {
 	clock := cptime.SystemClock{}
+
+	// First: nothing else here is worth starting if the map is not the one the frontend draws.
+	if err := loadMapGeography(config.GameMap.MaxIndex, props); err != nil {
+		return err
+	}
 
 	tilesChecker := in_memory_tile_checker.New(config.GameMap.MaxIndex)
 
@@ -104,6 +111,28 @@ func build(config Config, props cpbootstrap.Props) error {
 	return props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return planetv1connect.NewClickServiceHandler(service, options...)
 	}, interceptors...)
+}
+
+// Unconditional, and fatal: a blob that disagrees with the frontend renumbers every tile, and the
+// snapshot on disk is numbered the old way. See CLAUDE.md, "Map geography".
+func loadMapGeography(maxIndex uint32, props cpbootstrap.Props) error {
+	started := time.Now()
+
+	geography, asset, err := geodesic_map.Load(maxIndex)
+	if err != nil {
+		return fmt.Errorf("failed to load the map geography: %w", err)
+	}
+
+	stats := geography.Stats()
+	props.Logger.Info("map geography loaded",
+		slog.String("asset", asset),
+		slog.Int("tiles", int(stats.Tiles)),
+		slog.Int("edges", int(stats.Edges)),
+		slog.Any("degrees", stats.Degrees),
+		slog.Any("took", time.Since(started).Round(time.Millisecond)),
+	)
+
+	return nil
 }
 
 // clickChain wraps the rule in the policies that guard it, innermost first:

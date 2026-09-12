@@ -1,4 +1,4 @@
-.PHONY: proto test lint lint-ci tidy check-format setup-tools deadcode dBuild dRun dRm vpn-lists metrics
+.PHONY: proto map test lint lint-ci tidy check-format setup-tools deadcode dBuild dRun dRm vpn-lists metrics
 
 # Test helpers that more than one package needs cannot live in a _test.go file,
 # so they live in an ordinary .go file carrying this tag. The tag is what keeps
@@ -10,6 +10,19 @@ TEST_TAG := testing
 proto:
 	@cd ../../proto && buf lint
 	@cd proto && buf generate
+
+# The tile coordinates blob, the same way `proto` works: the monorepo-shared /map is the source and
+# generated/ holds this app's copy, because its Docker build context is its own directory. The copy
+# is embedded, so run this and commit. The name is the content hash, so the previous one has to go
+# or the embed glob matches two files and refuses to pick.
+MAP_DIR := ../../map
+MAP_ASSET_DIR := generated/map
+
+map:
+	@test -n "$$(ls $(MAP_DIR)/coordinates-*.bin 2>/dev/null)" || { echo 'map: no $(MAP_DIR)/coordinates-<hash>.bin' >&2; exit 1; }
+	@rm -f $(MAP_ASSET_DIR)/coordinates-*.bin
+	@cp $(MAP_DIR)/coordinates-*.bin $(MAP_ASSET_DIR)/
+	@ls $(MAP_ASSET_DIR)/coordinates-*.bin
 
 dBuild:
 	@docker build -t clickplanet-back:local .
