@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/configs"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/configs"
 )
 
 // The shipped file is the schema. Nothing else checks that a key in it still

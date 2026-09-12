@@ -6,10 +6,10 @@ import (
 	"connectrpc.com/connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/bootstrap"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging/lf"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/xtime"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/bootstrap"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/logging/lf"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/xtime"
 )
 
 // newAntiBotInterceptor wraps the click edge in an antibot guard, nil when off.

@@ -1,6 +1,6 @@
 package logging
 
-import "github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging/lf"
+import "github.com/raphoester/clickplanet.lol-backend/internal/shared/logging/lf"
 
 func NewNopLogger() *NopLogger {
 	return &NopLogger{}

@@ -12,8 +12,8 @@ import (
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/domain"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/atomicfile"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging/lf"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/atomicfile"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/logging/lf"
 )
 
 type logRecord struct {

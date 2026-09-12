@@ -11,8 +11,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/bootstrap"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/bootstrap"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/logging"
 )
 
 func TestAModuleThatFailsToBuildNamesItselfInTheError(t *testing.T) {

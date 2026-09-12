@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/secondary/memory_tile_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/domain"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/logging"
 	"github.com/stretchr/testify/suite"
 )
 

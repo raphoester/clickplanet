@@ -10,8 +10,8 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/domain"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/domain/chat_service"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ctxutil"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/xtime"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/ctxutil"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/xtime"
 	"github.com/stretchr/testify/suite"
 )
 

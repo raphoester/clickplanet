@@ -10,18 +10,18 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ratelimit"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/ratelimit"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	sessionv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/session/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/session/v1/sessionv1connect"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/httpserver"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/session"
 	"github.com/raphoester/clickplanet.lol-backend/internal/session/internal/adapters/primary/http/sessionv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/session/internal/adapters/secondary/open_attester"
 	"github.com/raphoester/clickplanet.lol-backend/internal/session/internal/domain"
 	"github.com/raphoester/clickplanet.lol-backend/internal/session/internal/domain/session_service"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/httpserver"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/session"
 )
 
 type refusingAttester struct{}

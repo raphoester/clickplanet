@@ -4,11 +4,11 @@ import (
 	"context"
 	"testing"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/countries"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/secondary/in_memory_tile_checker"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/secondary/memory_tile_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/domain/click_handler_service"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/countries"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/logging"
 	"github.com/stretchr/testify/suite"
 )
 

@@ -14,7 +14,7 @@ import (
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ctxutil"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/ctxutil"
 )
 
 type fakeGuard struct {

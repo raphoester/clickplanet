@@ -5,8 +5,8 @@ import (
 	"errors"
 
 	"connectrpc.com/connect"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging/lf"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/logging"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/logging/lf"
 )
 
 // Mapper turns a bare handler error into the Connect error to answer with, or

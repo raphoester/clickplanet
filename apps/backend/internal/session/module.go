@@ -12,18 +12,18 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/session/v1/sessionv1connect"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/bootstrap"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging/lf"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ratelimit"
-	kernelsession "github.com/raphoester/clickplanet.lol-backend/internal/kernel/session"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/xtime"
 	"github.com/raphoester/clickplanet.lol-backend/internal/session/internal/adapters/primary/http/sessionv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/session/internal/adapters/secondary/open_attester"
 	"github.com/raphoester/clickplanet.lol-backend/internal/session/internal/adapters/secondary/turnstile_attester"
 	"github.com/raphoester/clickplanet.lol-backend/internal/session/internal/domain"
 	"github.com/raphoester/clickplanet.lol-backend/internal/session/internal/domain/session_service"
 	"github.com/raphoester/clickplanet.lol-backend/internal/session/internal/turnstile"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/bootstrap"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/logging"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/logging/lf"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/ratelimit"
+	sharedsession "github.com/raphoester/clickplanet.lol-backend/internal/shared/session"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/xtime"
 )
 
 const moduleName = "session"
@@ -39,7 +39,7 @@ func NewModule(config Config) bootstrap.Module {
 }
 
 func build(config Config, props bootstrap.Props) error {
-	signer, err := kernelsession.NewSigner(config.Config)
+	signer, err := sharedsession.NewSigner(config.Config)
 	if err != nil {
 		return fmt.Errorf("failed to build the session signer: %w", err)
 	}
@@ -88,10 +88,10 @@ func newAttester(config Config, logger logging.Logger) (domain.Attester, error) 
 	return attester, nil
 }
 
-// Config is the `session:` block. The token half is the kernel's, because the
+// Config is the `session:` block. The token half is the shared layer's, because the
 // planet context declares the same type to verify what this one mints.
 type Config struct {
-	kernelsession.Config `koanf:",squash"`
+	sharedsession.Config `koanf:",squash"`
 
 	// Per-IP throttle on minting. Minting costs a siteverify round trip, so it
 	// needs its own budget rather than the click one.

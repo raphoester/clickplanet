@@ -14,18 +14,18 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/bootstrap"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/countries"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ipblock"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging/lf"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ratelimit"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/session"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/xtime"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/secondary/in_memory_tile_checker"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/secondary/memory_tile_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/domain/click_handler_service"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/domain/click_handler_service/prom_click_handler_service"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/bootstrap"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/countries"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/ipblock"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/logging/lf"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/ratelimit"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/session"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/xtime"
 )
 
 const moduleName = "planet"

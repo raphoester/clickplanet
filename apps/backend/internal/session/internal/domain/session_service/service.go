@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/session"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/xtime"
 	"github.com/raphoester/clickplanet.lol-backend/internal/session/internal/domain"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/session"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/xtime"
 )
 
 type Minter interface {

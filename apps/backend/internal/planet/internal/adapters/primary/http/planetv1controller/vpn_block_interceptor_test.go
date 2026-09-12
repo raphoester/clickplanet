@@ -9,14 +9,14 @@ import (
 	"connectrpc.com/connect"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ratelimit"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/ratelimit"
 	"github.com/stretchr/testify/require"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ctxutil"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/httpserver"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ipblock"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/ctxutil"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/httpserver"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/ipblock"
 )
 
 type fakeBlocklist struct {

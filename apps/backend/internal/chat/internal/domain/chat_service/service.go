@@ -11,8 +11,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/domain"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ctxutil"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/xtime"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/ctxutil"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/xtime"
 )
 
 type IService interface {

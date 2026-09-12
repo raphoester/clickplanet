@@ -46,8 +46,8 @@ They share the process, the transport and the country list, and **nothing else**
 **`internal/antibot/` is a domain library, not a fourth context.** It has no proto
 package, no adapters and no `module.go`, and it cannot be wired without a caller
 composing it — the clicks edge does, the way it gates on `session`. It is not a
-kernel package because "is this caller a bot" is the business this game is in,
-while the kernel is for things that would read the same in any other program.
+shared package because "is this caller a bot" is the business this game is in,
+while `shared` is for things that would read the same in any other program.
 `planet` → `antibot` is the only module-to-module import in the backend.
 
 #### A module publishes its root package and hides the rest
@@ -91,7 +91,7 @@ Each context wires **itself**, in a `module.go` at its root (`internal/planet/mo
 - `props.Logger`, `props.Metrics`
 - `props.Server` — the bind address and the stream heartbeat, **the only config a module reads that is not its own**. It is the transport every module answers over, so it belongs to the layer that owns the server rather than to any context.
 
-A module never sees the router, the signal handler or another module's objects. **There is no mutable app object and nothing to leave a half-built dependency on**: `internal/kernel/bootstrap` builds every module in order, then serves.
+A module never sees the router, the signal handler or another module's objects. **There is no mutable app object and nothing to leave a half-built dependency on**: `internal/shared/bootstrap` builds every module in order, then serves.
 
 **`cmd/api/main.go` is the composition root, and it is the only one** — there is no `internal/app`, because a package whose whole job is to be called once by `main` was a level of indirection and nothing else. It does two things: load the config, and list the modules.
 
@@ -111,8 +111,8 @@ return []bootstrap.Module{
 
 `main` builds no objects at all, so a thing two contexts need is **a config block they both declare**, and each builds its own instance from it.
 
-- **`kernel/session.Config`** is the `session:` block, and it lives in the kernel because two contexts read it: `session` mints with it, `planet` verifies with it. Each calls `session.NewSigner(config)` itself. The same secret and TTL produce the same MAC, so the two signers agree by construction and there is no object to pass — `TestBothContextsReadTheSameSessionBlock` pins that they read one block, and `TestTwoSignersOverOneConfigAgree` pins that one block means one key. Neither module imports the other, and **the planet context knows nothing about Turnstile** — the siteverify client lives at `session/internal/turnstile`, so it *cannot* reach it, and swapping the attester changes one line in `internal/session/module.go`.
-- **`kernel/countries`** is the ISO list. It is stateless and hardcoded, so each module just calls `countries.New()`, the way it calls `xtime.ActualProvider{}`. It sits in the kernel and not under `planet/internal/adapters/` for exactly the reason the kernel exists: neither context may depend on the other — and now could not, since that directory is unreachable from chat.
+- **`shared/session.Config`** is the `session:` block, and it is shared because two contexts read it: `session` mints with it, `planet` verifies with it. Each calls `session.NewSigner(config)` itself. The same secret and TTL produce the same MAC, so the two signers agree by construction and there is no object to pass — `TestBothContextsReadTheSameSessionBlock` pins that they read one block, and `TestTwoSignersOverOneConfigAgree` pins that one block means one key. Neither module imports the other, and **the planet context knows nothing about Turnstile** — the siteverify client lives at `session/internal/turnstile`, so it *cannot* reach it, and swapping the attester changes one line in `internal/session/module.go`.
+- **`shared/countries`** is the ISO list. It is stateless and hardcoded, so each module just calls `countries.New()`, the way it calls `xtime.ActualProvider{}`. It sits in `shared` and not under `planet/internal/adapters/` for exactly the reason that layer exists: neither context may depend on the other — and now could not, since that directory is unreachable from chat.
 
 **This is why `session.secret` is now required** rather than invented at boot — see [Sessions](#sessions-internalsession).
 
@@ -151,7 +151,7 @@ Both live feeds are served **two ways at once**, and that is a transition, not a
 **One stream per API, and an envelope rather than a bare payload.** A `PlanetEvent` is a `oneof` of `tile_update` and `heartbeat`; `ChatEvent` is a `oneof` of `message` and `heartbeat`. **A new kind of live event is a new case in that `oneof`, never a second stream** — one connection per client, one route to configure, and a client that does not know a case reads an unset `oneof` and skips it instead of breaking. That is what the bare `TileUpdate` frame could not do, on the websocket or off it.
 
 **`heartbeat` is not decoration.** Cloudflare cuts a silent response at **~125s with a 524** — measured against production three times, exactly 125.1s. The websocket never hit this because Cloudflare keeps those open; a chunked HTTP response is not so lucky. A quiet chat is the normal case, and a quiet planet happens, so both streams send a heartbeat every `httpServer.streamHeartbeat` (30s by default, and it **must** stay well under 125s). Without it a silent stream dies and reconnects forever, losing whatever was published in each gap.
-These replaced a pair of websockets on `/ws/listen` and `/ws/chat`, broadcast by a `kernel/wspublisher` fanout. **Nothing here speaks websocket any more** — no upgrade route, no second mux, no `coder/websocket` dependency.
+These replaced a pair of websockets on `/ws/listen` and `/ws/chat`, broadcast by a `wspublisher` fanout. **Nothing here speaks websocket any more** — no upgrade route, no second mux, no `coder/websocket` dependency.
 
 Each handler calls the storage's `Subscribe(ctx)` **per call**, and the request context is what unsubscribes — it is cancelled however the stream ends, so a disconnect needs no `CloseRead` equivalent. Both storages already handed every subscriber its own buffered channel and dropped rather than blocked for a slow one, so one subscription per connected client is what they were built for; `subscriberBuffer` now bounds a client rather than the single fanout.
 
@@ -168,7 +168,7 @@ The response never repeats a tile id. `GetMapResponse` carries `start_tile_id`, 
 **Secondary (output):**
 - `internal/adapters/secondary/memory_tile_storage/` — the tile map. A preallocated `[]uint16` indexed by tile id, with country codes interned into a side table (2 bytes per tile — ~2 MB for a 1M-tile map). Fans updates out in process and persists to a local snapshot file.
 - `internal/adapters/secondary/in_memory_tile_checker/` — validates tile IDs
-- country codes are validated by `kernel/countries`, which chat shares — see [The composite layer](#the-composite-layer)
+- country codes are validated by `shared/countries`, which chat shares — see [The composite layer](#the-composite-layer)
 
 Beyond the `domain.TileStorage` port, `memory_tile_storage` also exposes `Subscribe(ctx) (<-chan domain.TileUpdate, error)`, one call per open stream.
 
@@ -179,7 +179,7 @@ POST /session.v1.SessionService/CreateSession
   → SessionService
   → session_service (attests, then mints)
   → turnstile_attester → Cloudflare siteverify
-  → kernel/session.Signer.Mint [HMAC over expiry+id+IP; nothing stored]
+  → shared/session.Signer.Mint [HMAC over expiry+id+IP; nothing stored]
 
 POST /planet.v1.ClickService/Click   [X-Session-Token: <the minted token>]
   → VPNBlockInterceptor, SessionInterceptor, RateLimitInterceptor, AntiBotInterceptor
@@ -193,7 +193,7 @@ POST /planet.v1.ClickService/Click   [X-Session-Token: <the minted token>]
 
 ```
 POST /chat.v1.ChatService/SendMessage
-  → BlocklistInterceptor, then RateLimitInterceptor (both kernel/connectutil)
+  → BlocklistInterceptor, then RateLimitInterceptor (both shared/connectutil)
   → ChatService
   → chat_service (sanitizes, stamps id/time/tag)
   → MemoryChatStorage.Append() [appends to the JSONL log, then fans out]
@@ -210,11 +210,11 @@ Chat is a separate bounded context, not a feature of the tile game: it shares th
 
 **Identity without accounts.** A client picks its own display name and sends a UUID it persists locally. **Neither is trusted for anything** — anyone can post with any name. What a sender cannot forge is `author_tag`: a salted hash of their IP, 6 hex characters, so two people using the same name still look different and a mute has a key that means something. The salt is `chat.service.tagSalt`; left empty it is regenerated at boot, which changes everyone's tag on restart, and the server warns about it.
 
-**Abuse controls live at the edge**, in two interceptors — ahead of decoding the message and well ahead of validating it, so a flood of malformed messages costs a sender exactly what a flood of well-formed ones does. `chat.blockedIPs` cuts an address off from every chat RPC; `chat.rateLimiter` throttles `SendMessage` alone (`GetHistory` is one read on join, and limiting it would punish a page load). **Both are `kernel/connectutil`'s**, the same ones the click chain uses — see [Shared interceptors](#shared-interceptors). The domain then bounds the message in **runes** (280) and the name (24), validates UTF-8, and **strips control characters** — a newline would otherwise let a sender forge a line in the JSONL log.
+**Abuse controls live at the edge**, in two interceptors — ahead of decoding the message and well ahead of validating it, so a flood of malformed messages costs a sender exactly what a flood of well-formed ones does. `chat.blockedIPs` cuts an address off from every chat RPC; `chat.rateLimiter` throttles `SendMessage` alone (`GetHistory` is one read on join, and limiting it would punish a page load). **Both are `shared/connectutil`'s**, the same ones the click chain uses — see [Shared interceptors](#shared-interceptors). The domain then bounds the message in **runes** (280) and the name (24), validates UTF-8, and **strips control characters** — a newline would otherwise let a sender forge a line in the JSONL log.
 
 Refusal reasons are logged, never returned: a sender learns *that* they were refused, not which check tripped. **The stored text is raw — the frontend must escape it.**
 
-The **vendored VPN lists** do not cover chat: `NewVPNBlockInterceptor` wraps `Click` alone. Chat's blocklist is the same `*ipblock.Blocklist` type, built by `ipblock.NewDenyList` from config prefixes instead of vendored data — so entries are CIDRs and a `/24` is one line rather than 256. Extending the vendored lists to chat is therefore a wiring change (build the list in `describeModules` and hand it to both modules, the way `kernel/countries` already is), not a second list to write.
+The **vendored VPN lists** do not cover chat: `NewVPNBlockInterceptor` wraps `Click` alone. Chat's blocklist is the same `*ipblock.Blocklist` type, built by `ipblock.NewDenyList` from config prefixes instead of vendored data — so entries are CIDRs and a `/24` is one line rather than 256. Extending the vendored lists to chat is therefore a wiring change (build the list in `describeModules` and hand it to both modules, the way `shared/countries` already is), not a second list to write.
 
 **The log is an append-only JSONL file**, not the tile snapshot's whole-state codec: different shape, different write pattern. One line per message with `at`, `id`, `name`, `tag`, `authorId`, `country`, `ip`, `userAgent`, `text`. It is fsynced every `flushInterval` rather than per message (a hard kill loses at most that window — the same bargain the snapshot makes), pruned hourly past `retention`, and its tail repopulates the in-memory history at boot so a restart does not blank the chat. Corrupt lines are skipped and reported, never fatal.
 
@@ -228,7 +228,7 @@ That log holds **personal data** — IPs next to user-authored text — so the r
 
 ### Rate limiting
 
-`NewRateLimitInterceptor` throttles **`Click` only**, per source IP, from a `kernel/ratelimit` token bucket — 1 click/s with a burst of 10 by default (`rateLimiter.*`). `MapDensity` and `GetMap` are cacheable reads a proxy in front absorbs; limiting them would punish a page load rather than a bot. A refused click answers `CodeResourceExhausted`, i.e. HTTP 429, and never reaches the domain.
+`NewRateLimitInterceptor` throttles **`Click` only**, per source IP, from a `shared/ratelimit` token bucket — 1 click/s with a burst of 10 by default (`rateLimiter.*`). `MapDensity` and `GetMap` are cacheable reads a proxy in front absorbs; limiting them would punish a page load rather than a bot. A refused click answers `CodeResourceExhausted`, i.e. HTTP 429, and never reaches the domain.
 
 #### Saying what is left
 
@@ -260,7 +260,7 @@ Chat and sessions each have **their own limiter instance** with their own budget
 
 Reads and the streams are untouched. A VPN user still loads the planet and follows it live; they cannot paint. That is also what keeps a false positive readable: the page works and says why, instead of failing to load.
 
-**The ranges are vendored and embedded**, from [X4BNet/lists_vpn](https://github.com/X4BNet/lists_vpn) (MIT, rebuilt daily from ASN ownership), in `internal/kernel/ipblock/data`. Not fetched at boot: `cmd/api` is a self-contained container with no startup dependencies, and a boot that can fail because GitHub is down is a worse trade than a list that ages between deploys — the Cloudflare ranges in `deploy/vps/Caddyfile` are maintained the same way. Refresh with `make vpn-lists` and commit; the tests assert the lists still parse and are not truncated.
+**The ranges are vendored and embedded**, from [X4BNet/lists_vpn](https://github.com/X4BNet/lists_vpn) (MIT, rebuilt daily from ASN ownership), in `internal/shared/ipblock/data`. Not fetched at boot: `cmd/api` is a self-contained container with no startup dependencies, and a boot that can fail because GitHub is down is a worse trade than a list that ages between deploys — the Cloudflare ranges in `deploy/vps/Caddyfile` are maintained the same way. Refresh with `make vpn-lists` and commit; the tests assert the lists still parse and are not truncated.
 
 `ipblock` holds them as sorted, merged `[lo, hi]` ranges of 16-byte addresses and binary-searches them — ~63k prefixes fold to far fewer ranges, about 2 MB resident and well under 100 ns per lookup. **IPv4 and IPv6 live in separate slices.** They cannot share one: an IPv4 address in its v4-mapped form sits inside `::ffff:0:0/96`, so a single ordering would let a v6 prefix as short as `::/16` silently swallow every IPv4 address on the internet.
 
@@ -274,7 +274,7 @@ The answer to the one thing an address-based defence cannot do. The rate limiter
 
 `Click` requires a token this server minted, in the `X-Session-Token` header. The only way to get one is `session.v1.SessionService/CreateSession`, which verifies a **Cloudflare Turnstile** token against siteverify before minting. A script that reads the proto and POSTs `Click` no longer has a complete client: it has to solve Turnstile first.
 
-**The token is stateless.** `kernel/session` mints `base64url(expiry ‖ random id ‖ HMAC-SHA256(expiry ‖ id ‖ ip))` — 48 bytes, 64 characters. Nothing is stored, swept or replicated; verification is one HMAC. That is what keeps this compatible with a process that holds the whole game in memory and has no database to put a session table in.
+**The token is stateless.** `shared/session` mints `base64url(expiry ‖ random id ‖ HMAC-SHA256(expiry ‖ id ‖ ip))` — 48 bytes, 64 characters. Nothing is stored, swept or replicated; verification is one HMAC. That is what keeps this compatible with a process that holds the whole game in memory and has no database to put a session table in.
 
 **It is bound to the address that minted it**, so a token lifted off the wire is worth nothing anywhere else. The MAC covers the address without carrying it, so the token leaks nothing. A player whose address changes mid-session — a phone moving from wifi to cellular — fails verification, and the client mints again and retries: self-healing, and invisible.
 
@@ -463,11 +463,11 @@ lock, declared as a local port in the controller the way `DenseMapReader` is.
 
 ### Shared interceptors
 
-`kernel/connectutil` holds the two interceptors both contexts need, because the policy is the same whatever the procedure is — only the procedure names and the wording of the refusal differ, and those are arguments:
+`shared/connectutil` holds the two interceptors both contexts need, because the policy is the same whatever the procedure is — only the procedure names and the wording of the refusal differ, and those are arguments:
 
-- `NewRateLimitInterceptor(limiter, refusal, describe, procedures...)` — a `kernel/ratelimit` bucket keyed on the context IP, answering `CodeResourceExhausted` (429). `describe` is optional and is what makes the allowance visible — see [Saying what is left](#saying-what-is-left); chat and sessions pass nil
+- `NewRateLimitInterceptor(limiter, refusal, describe, procedures...)` — a `shared/ratelimit` bucket keyed on the context IP, answering `CodeResourceExhausted` (429). `describe` is optional and is what makes the allowance visible — see [Saying what is left](#saying-what-is-left); chat and sessions pass nil
 - `NewIPBlockInterceptor(blocklist, refusal, onBlocked, procedures...)` — an `ipblock.Blocklist` lookup answering `CodePermissionDenied` (403), with an optional hook the click counter hangs on
-- `NewSessionInterceptor(verifier, clock, refusal, enforce, onVerdict, procedures...)` — a `kernel/session` signature check answering `CodeUnauthenticated` (401), which puts the session id on the context and, with `enforce` false, counts without refusing
+- `NewSessionInterceptor(verifier, clock, refusal, enforce, onVerdict, procedures...)` — a `shared/session` signature check answering `CodeUnauthenticated` (401), which puts the session id on the context and, with `enforce` false, counts without refusing
 - `NewErrorInterceptor(logger, mapper)` — the one that keeps an unexpected error's cause off the wire. It is a full `connect.Interceptor` rather than a `UnaryInterceptorFunc`, so it covers the streaming handlers too; without that, a stream would be the one procedure whose raw error the caller sees. Each context passes the `Mapper` naming the domain errors it wants translated, and returns nil from it for anything it does not recognise.
 
 Each context keeps a thin named constructor over these — `planetv1controller.NewRateLimitInterceptor`, `NewVPNBlockInterceptor` and `NewErrorInterceptor`, `chatv1controller.NewRateLimitInterceptor`, `NewBlocklistInterceptor` and `NewErrorInterceptor` — which is where the procedure list, the refusal wording, the domain errors and the metric live. **A context names its own policy; neither reimplements the mechanism.**
@@ -487,7 +487,7 @@ The whole map is snapshotted to `tilesStorage.snapshotPath`:
 
 The snapshot file is the only thing worth backing up.
 
-### Kernel (`internal/kernel/`)
+### Shared (`internal/shared/`)
 
 Shared infrastructure: `bootstrap` (the composite layer), `countries`, `configs` (YAML + env config via koanf), `httpserver` (middleware, formats), `logging`, `prom` (Prometheus), `xtime`, `ctxutil`, `ratelimit`, `ipblock`, `atomicfile`, `secrets`.
 
@@ -498,9 +498,9 @@ Two of these are here because both bounded contexts need them and neither should
 - `secrets` — the random hex a config may leave it to the server to invent. Chat's tag salt and the session signing key are the two, and both pay the same price for an empty setting: what the old one covered stops being recognised on restart.
 - `atomicfile` — temp file, fsync, rename, fsync of the directory. Written for the tile snapshot; the chat log's retention rewrites need the same guarantee, and duplicating 80 lines of carefully-written fsync/rename code is how the two drift apart. Covered by the existing snapshot tests.
 
-`session` mints and verifies the click token — see [Sessions](#sessions-internalsession). It is in the kernel because **both** contexts read it: the session context mints with it, the clicks context verifies with it, and neither may depend on the other.
+`session` mints and verifies the click token — see [Sessions](#sessions-internalsession). It is here because **both** contexts read it: the session context mints with it, the planet context verifies with it, and neither may depend on the other.
 
-The siteverify client it is fed by is **not** here. `turnstile` sat in the kernel on the same "both contexts need it" rule, but only one ever did, so it now lives at `session/internal/turnstile` where the compiler keeps it. That is the test for a kernel package: two modules actually import it, not that it *could* be shared. `secrets` passes narrowly — chat is its only caller today, but it is twenty lines of `crypto/rand` with no domain in it at all.
+The siteverify client it is fed by is **not** here. `turnstile` sat here on the same "both contexts need it" rule, but only one ever did, so it now lives at `session/internal/turnstile` where the compiler keeps it. **The bar is not that a package is shareable, it is that it would read the same in any other program and that two modules actually import it** — "shared" names the symptom, and a directory admitted on the weaker reading becomes a dumping ground. `secrets` passes narrowly — chat is its only caller today, but it is twenty lines of `crypto/rand` with no domain in it at all.
 
 `countries` is the ISO country list both the tile game and the chat validate against. `ipblock` is the VPN prefix set — see [VPN blocklist](#vpn-blocklist). `ratelimit` is a keyed token bucket held in this process, like the tile map it protects — with one API instance, a shared counter would buy nothing. Its `Run` loop periodically forgets the buckets that have refilled to capacity, which is free: such a bucket holds exactly what a freshly created one would, and without it the map would keep an entry per address that ever clicked.
 
@@ -508,7 +508,7 @@ The siteverify client it is fed by is **not** here. `turnstile` sat in the kerne
 
 ### Configuration
 
-**`kernel/configs` owns loading**, the way `bootstrap` owns running: the binary asks for the config it wants and never for the flag, the parser, or the precedence between file and environment.
+**`shared/configs` owns loading**, the way `bootstrap` owns running: the binary asks for the config it wants and never for the flag, the parser, or the precedence between file and environment.
 
 ```go
 var config Config
@@ -538,7 +538,7 @@ The binary never reads inside a block to check it, so a new bound is added in th
 
 - `bootstrap.ServerConfig` — `bindAddress` empty listens on port 80
 - `planet.Config` — `gameMap.maxIndex` zero is a map that refuses every click
-- `kernel/session.Config` — `secret` empty while `enabled`, and a negative `ttl`. It sits with the block rather than with either context, because both read it and it must be checked exactly once
+- `shared/session.Config` — `secret` empty while `enabled`, and a negative `ttl`. It sits with the block rather than with either context, because both read it and it must be checked exactly once
 - `chat.Config` — nothing: every chat setting has a usable default, so an unset one is a default and not a mistake. It implements the hook anyway, so a check added later lands in chat
 
 There is no struct-tag validation and therefore no validator dependency — a hook the config implements covers this app's needs.
@@ -577,7 +577,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `chat.service.tagSalt` — salts the per-sender tag; **empty regenerates one at boot**, changing every tag on restart
 - `chat.service.maxTextLength`, `chat.service.maxNameLength` — bounds in runes (280, 24)
 - `chat.rateLimiter.*` — the per-IP `SendMessage` throttle, same shape as `rateLimiter`
-- `chat.blockedIPs` — prefixes refused every chat RPC, parsed by `kernel/ipblock` exactly as `vpnBlocklist.allow` is
+- `chat.blockedIPs` — prefixes refused every chat RPC, parsed by `shared/ipblock` exactly as `vpnBlocklist.allow` is
 
 ### Protobuf
 

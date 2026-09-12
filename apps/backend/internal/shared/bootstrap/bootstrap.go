@@ -21,10 +21,10 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/httpserver"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging/lf"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/prom"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/httpserver"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/logging"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/logging/lf"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/prom"
 )
 
 // Module is one bounded context and the sequence that builds it.

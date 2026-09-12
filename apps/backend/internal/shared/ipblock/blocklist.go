@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ipblock/data"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/ipblock/data"
 )
 
 type Config struct {

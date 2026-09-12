@@ -7,8 +7,8 @@ import (
 
 	sessionv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/session/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/session/v1/sessionv1connect"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ctxutil"
 	"github.com/raphoester/clickplanet.lol-backend/internal/session/internal/domain/session_service"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/ctxutil"
 )
 
 type SessionService struct {

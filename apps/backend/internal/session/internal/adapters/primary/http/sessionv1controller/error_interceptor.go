@@ -6,9 +6,9 @@ import (
 
 	"connectrpc.com/connect"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging/lf"
 	"github.com/raphoester/clickplanet.lol-backend/internal/session/internal/domain"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/logging"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/logging/lf"
 )
 
 // ErrRefused is the whole of what a refused caller is told. The reason — a

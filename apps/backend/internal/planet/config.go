@@ -4,10 +4,10 @@ import (
 	"errors"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ipblock"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ratelimit"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/session"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/secondary/memory_tile_storage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/ipblock"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/ratelimit"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/session"
 )
 
 // Config is squashed into the process config, so these keys sit at the top

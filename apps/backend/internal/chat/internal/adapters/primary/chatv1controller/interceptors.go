@@ -5,7 +5,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1/chatv1connect"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/connectutil"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/connectutil"
 )
 
 type MessageLimiter = connectutil.Limiter

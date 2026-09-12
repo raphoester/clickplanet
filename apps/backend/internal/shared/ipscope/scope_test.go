@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ipscope"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/ipscope"
 )
 
 func TestAnIPv4AddressIsChargedToItself(t *testing.T) {

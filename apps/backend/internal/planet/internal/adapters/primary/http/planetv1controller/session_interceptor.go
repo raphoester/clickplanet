@@ -8,8 +8,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/connectutil"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/xtime"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/connectutil"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/xtime"
 )
 
 // ErrNoSession is a refusal the player never reads: the client mints a token

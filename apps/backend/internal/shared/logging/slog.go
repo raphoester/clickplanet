@@ -4,7 +4,7 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging/lf"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/logging/lf"
 )
 
 // TODO: inject config

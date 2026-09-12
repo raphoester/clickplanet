@@ -3,7 +3,7 @@ package ctxutil
 import (
 	"context"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ratelimit"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/ratelimit"
 )
 
 type rateBudgetKey struct{}

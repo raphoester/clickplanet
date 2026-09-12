@@ -7,9 +7,9 @@ import (
 	"connectrpc.com/connect"
 	chatv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1/chatv1connect"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ctxutil"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ipblock"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ratelimit"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/ctxutil"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/ipblock"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/ratelimit"
 	"github.com/stretchr/testify/require"
 )
 

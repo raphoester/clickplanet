@@ -6,7 +6,7 @@ import (
 	"connectrpc.com/connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/session/v1/sessionv1connect"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/connectutil"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/connectutil"
 )
 
 type MintLimiter = connectutil.Limiter

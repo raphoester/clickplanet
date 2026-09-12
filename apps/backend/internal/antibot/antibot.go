@@ -21,7 +21,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/retaker"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/sequencer"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/shadowban"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/xtime"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/xtime"
 )
 
 // The vocabulary a caller reads. It is defined under internal/detect because the

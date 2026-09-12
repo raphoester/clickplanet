@@ -8,12 +8,12 @@ import (
 	"os"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/bootstrap"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/configs"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging/lf"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet"
 	"github.com/raphoester/clickplanet.lol-backend/internal/session"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/bootstrap"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/configs"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/logging"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/logging/lf"
 )
 
 type Config struct {

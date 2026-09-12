@@ -14,9 +14,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1/chatv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/domain"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/domain/chat_service"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/httpserver"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ipblock"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ratelimit"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/httpserver"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/ipblock"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/ratelimit"
 	"github.com/stretchr/testify/require"
 )
 

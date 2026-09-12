@@ -5,8 +5,8 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/domain"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/connectutil"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/connectutil"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/logging"
 )
 
 func NewErrorInterceptor(logger logging.Logger) connect.Interceptor {

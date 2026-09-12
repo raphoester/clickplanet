@@ -6,12 +6,12 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ctxutil"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ipblock"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ipscope"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ratelimit"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/session"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/xtime"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/ctxutil"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/ipblock"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/ipscope"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/ratelimit"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/session"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/xtime"
 	"google.golang.org/protobuf/proto"
 )
 

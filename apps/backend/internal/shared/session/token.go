@@ -15,7 +15,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ipscope"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/ipscope"
 )
 
 var (
