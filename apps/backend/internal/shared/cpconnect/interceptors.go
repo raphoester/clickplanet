@@ -8,11 +8,9 @@ import (
 	"connectrpc.com/connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipscope"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
-	"google.golang.org/protobuf/proto"
 )
 
 type Limiter interface {
@@ -23,27 +21,16 @@ type Blocklist interface {
 	Blocked(ip string) (cpipblock.List, bool)
 }
 
-// RateLimitKey is the identity a bucket is kept under.
+// NewRateLimitInterceptor spends a token per call on the named procedures, and
+// answers CodeResourceExhausted when there is none.
 //
-// Keyed on the scope rather than the address: an IPv6 caller owns every address
-// in its own /64, so a bucket per address is one it steps out of for free. See
-// cpipscope. Anything that reports an allowance must derive the key the same way,
-// or it reports somebody else's.
-func RateLimitKey(ctx context.Context) string {
-	return cpipscope.Of(cpctx.GetSourceIP(ctx))
-}
-
-// NewRateLimitInterceptor spends a token per call on the named procedures.
-//
-// What the bucket has left travels onward both ways: onto the context when the
-// call passes, so the handler can put it in its answer, and — where describe is
-// given — onto the refusal as an error detail, since a refused call has no
-// answer to carry it. A client that shows the allowance to a player therefore
-// learns it from its own calls and never has to poll for it.
+// It reports nothing about what is left. A context that shows a player their
+// allowance throttles inside its own use case instead, where the reading is a
+// return value rather than something smuggled along the context — see the
+// clicks module. This is for the procedures where a refusal is the whole story.
 func NewRateLimitInterceptor(
 	limiter Limiter,
 	refusal error,
-	describe func(cpratelimit.State) proto.Message,
 	procedures ...string,
 ) connect.Interceptor {
 	return connect.UnaryInterceptorFunc(func(next connect.UnaryFunc) connect.UnaryFunc {
@@ -52,30 +39,13 @@ func NewRateLimitInterceptor(
 				return next(ctx, req)
 			}
 
-			allowed, state := limiter.Take(RateLimitKey(ctx))
-			if !allowed {
-				return nil, refuse(refusal, describe, state)
+			if allowed, _ := limiter.Take(cpctx.RateLimitKey(ctx)); !allowed {
+				return nil, connect.NewError(connect.CodeResourceExhausted, refusal)
 			}
 
-			return next(cpctx.AddRateBudgetToContext(ctx, state), req)
+			return next(ctx, req)
 		}
 	})
-}
-
-func refuse(refusal error, describe func(cpratelimit.State) proto.Message, state cpratelimit.State) error {
-	err := connect.NewError(connect.CodeResourceExhausted, refusal)
-	if describe == nil {
-		return err
-	}
-
-	// Only a message that will not marshal fails here, which a generated one
-	// does not. The caller still has to be refused either way, so it is the
-	// detail that is dropped rather than the refusal that becomes an error.
-	if detail, detailErr := connect.NewErrorDetail(describe(state)); detailErr == nil {
-		err.AddDetail(detail)
-	}
-
-	return err
 }
 
 func NewIPBlockInterceptor(

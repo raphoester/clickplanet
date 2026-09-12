@@ -20,7 +20,6 @@ func NewRateLimitInterceptor(limiter MintLimiter) connect.Interceptor {
 	return cpconnect.NewRateLimitInterceptor(
 		limiter,
 		ErrTooManySessions,
-		nil, // nothing shows a mint allowance, so a refusal carries none
 		sessionv1connect.SessionServiceCreateSessionProcedure,
 	)
 }

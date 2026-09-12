@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"connectrpc.com/connect"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -31,10 +33,10 @@ func TestTwoModulesCannotClaimTheSameRoute(t *testing.T) {
 
 	err := run(t, []cpbootstrap.Module{
 		newModule("planet", func(props cpbootstrap.Props) error {
-			return props.RPC.Mount("/planet.v1.ClickService/", http.NotFoundHandler())
+			return props.RPC.Mount(mountOn("/planet.v1.ClickService/"))
 		}),
 		newModule("impostor", func(props cpbootstrap.Props) error {
-			mountErr = props.RPC.Mount("/planet.v1.ClickService/", http.NotFoundHandler())
+			mountErr = props.RPC.Mount(mountOn("/planet.v1.ClickService/"))
 			return mountErr
 		}),
 	})
@@ -176,4 +178,12 @@ func run(t *testing.T, modules []cpbootstrap.Module) error {
 		Logger:  slog.New(slog.DiscardHandler),
 		Modules: modules,
 	})
+}
+
+// mountOn stands in for a generated New<Service>Handler: the options carry the
+// interceptors cpbootstrap insists on, which a real service would pass along.
+func mountOn(path string) cpbootstrap.ServiceBuilder {
+	return func(...connect.HandlerOption) (string, http.Handler) {
+		return path, http.NotFoundHandler()
+	}
 }

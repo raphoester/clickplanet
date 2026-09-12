@@ -3,19 +3,17 @@ package planetv1controller
 import (
 	"context"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"connectrpc.com/connect"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click/throttle_click"
 	"github.com/stretchr/testify/require"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cphttpserver"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
 )
 
@@ -59,7 +57,7 @@ func TestVPNBlockInterceptor(t *testing.T) {
 
 		require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
 		require.ErrorIs(t, err, ErrVPNBlocked)
-		require.False(t, ran, "a refused click must not reach the domain")
+		require.False(t, ran, "a refused click must not reach the use case")
 		require.InDelta(t, 1.0, testutil.ToFloat64(counter(t, registry, "vpn")), 1e-9)
 	})
 
@@ -118,9 +116,8 @@ func TestVPNBlockOverHTTP(t *testing.T) {
 	require.NoError(t, err)
 
 	server := clickServer(t, connect.WithInterceptors(
-		NewErrorInterceptor(nil),
+		errorNet(),
 		blockInterceptor,
-		NewRateLimitInterceptor(allowAll{}),
 	))
 
 	require.Equal(t, http.StatusForbidden, clickStatus(t, server, "2.26.157.1"))
@@ -134,44 +131,14 @@ func TestVPNBlockRunsBeforeTheThrottle(t *testing.T) {
 	require.NoError(t, err)
 
 	limiter := &fakeLimiter{allow: true}
-	server := clickServer(t, connect.WithInterceptors(
-		NewErrorInterceptor(nil),
+	server := clickServerWith(t, throttle_click.New(stubService{}, limiter), nil, connect.WithInterceptors(
+		errorNet(),
 		blockInterceptor,
-		NewRateLimitInterceptor(limiter),
 	))
 
 	require.Equal(t, http.StatusForbidden, clickStatus(t, server, "1.2.3.4"))
 	require.Empty(t, limiter.keys, "the refused address never reached the bucket")
 }
-
-func clickServer(t *testing.T, options ...connect.HandlerOption) *httptest.Server {
-	t.Helper()
-	return clickServerReading(t, nil, options...)
-}
-
-func clickServerReading(
-	t *testing.T,
-	budgets ClickBudgetReader,
-	options ...connect.HandlerOption,
-) *httptest.Server {
-	t.Helper()
-
-	mux := http.NewServeMux()
-	mux.Handle(planetv1connect.NewClickServiceHandler(
-		NewClickService(
-			stubService{}, stubChecker{}, stubMapReader{}, stubSubscriber{}, DefaultHeartbeat, budgets),
-		options...,
-	))
-
-	server := httptest.NewServer(cphttpserver.IPReaderMiddleware(mux))
-	t.Cleanup(server.Close)
-
-	return server
-}
-
-type allowAll struct{}
-
-func (allowAll) Take(string) (bool, cpratelimit.State) { return true, cpratelimit.State{} }
 
 func counter(t *testing.T, gatherer prometheus.Gatherer, list string) prometheus.Counter {
 	t.Helper()

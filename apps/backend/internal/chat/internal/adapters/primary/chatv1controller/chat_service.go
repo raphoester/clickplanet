@@ -48,7 +48,7 @@ func (s *ChatService) SendMessage(
 		UserAgent:  req.Header().Get("User-Agent"),
 	})
 	if err != nil {
-		return nil, err
+		return nil, toConnect(err)
 	}
 
 	return connect.NewResponse(&chatv1.SendMessageResponse{
