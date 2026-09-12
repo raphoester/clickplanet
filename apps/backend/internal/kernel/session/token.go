@@ -48,15 +48,20 @@ type Signer struct {
 	ttl time.Duration
 }
 
-func NewSigner(secret string, ttl time.Duration) (*Signer, error) {
-	if secret == "" {
+// NewSigner builds the same signer for anyone holding the same config, which
+// is what lets the minting context and the verifying context each build their
+// own instead of passing one between them.
+func NewSigner(config Config) (*Signer, error) {
+	config = config.withDefaults()
+
+	if config.Secret == "" {
 		return nil, errors.New("session secret is empty")
 	}
-	if ttl <= 0 {
-		return nil, fmt.Errorf("session ttl must be positive, got %s", ttl)
+	if config.TTL <= 0 {
+		return nil, fmt.Errorf("session ttl must be positive, got %s", config.TTL)
 	}
 
-	return &Signer{key: []byte(secret), ttl: ttl}, nil
+	return &Signer{key: []byte(config.Secret), ttl: config.TTL}, nil
 }
 
 func (s *Signer) TTL() time.Duration {

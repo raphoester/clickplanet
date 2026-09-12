@@ -1,4 +1,4 @@
-package in_memory_country_checker
+package countries
 
 var countries = map[string]struct{}{
 	"ad":     {},

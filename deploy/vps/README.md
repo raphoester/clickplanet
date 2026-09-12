@@ -284,10 +284,11 @@ openssl rand -hex 32
 ```
 
 `SESSION_SECRET` signs the tokens; anyone holding it can mint one the API will
-accept. Left empty the API generates one at boot and warns, which invalidates
-every session in flight on each restart — every player then pays one extra round
-trip on their next click. Rotating it deliberately costs the same and nothing
-more.
+accept. **It cannot be left empty** while `session.enabled` is true: the mint and
+the click check each derive their signer from it, so a server that invented one
+would invent a different one per context and could not verify what it had just
+minted. The stack refuses to start instead, naming the variable. Rotating it
+deliberately is cheap — every client mints again on its next click.
 
 `.env` is gitignored. `.env.example` beside it is the template and is committed.
 

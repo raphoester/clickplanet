@@ -1,47 +1,79 @@
+// api is the composition root: the config, what two contexts share, the module list.
 package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
-	"time"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/app"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/bootstrap"
+	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/configs"
+	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging"
+	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging/lf"
+	"github.com/raphoester/clickplanet.lol-backend/internal/session"
 )
 
-const startupTimeout = 5 * time.Second
+type Config struct {
+	HTTPServer bootstrap.ServerConfig
+
+	// Squashed: the clicks keys sit at the top level of the file.
+	Clicks clicks.Config `koanf:",squash"`
+
+	Session session.Config
+	Chat    chat.Config
+}
 
 func main() {
-	if err := run(); err != nil {
+	if err := run(context.Background()); err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
 		os.Exit(1)
 	}
 }
 
-func run() error {
-	a, err := app.New()
+func run(ctx context.Context) error {
+	config, err := loadConfig()
 	if err != nil {
-		return fmt.Errorf("failed to create app: %w", err)
-	}
-
-	if err := configure(a); err != nil {
 		return err
 	}
 
-	if err := a.Run(); err != nil {
-		return fmt.Errorf("failed to run app: %w", err)
-	}
+	logger := logging.NewSLogger() // todo: inject config
+	logger.Debug("config", lf.Any("config", config))
 
-	return nil
+	return bootstrap.Run(ctx, bootstrap.Options{
+		Server:  config.HTTPServer,
+		Logger:  logger,
+		Modules: describeModules(config),
+	})
 }
 
-func configure(a *app.App) error {
-	ctx, cancel := context.WithTimeout(context.Background(), startupTimeout)
-	defer cancel()
+// describeModules is the whole aggregation: every module takes its own config
+// and builds everything else itself.
+func describeModules(config Config) []bootstrap.Module {
+	return []bootstrap.Module{
+		session.NewModule(config.Session),
+		clicks.NewModule(config.Clicks),
+		chat.NewModule(config.Chat),
+	}
+}
 
-	if err := a.Configure(ctx); err != nil {
-		return fmt.Errorf("failed to configure app: %w", err)
+func loadConfig() (Config, error) {
+	var config Config
+	if err := configs.Load(&config, configs.FromFlag()); err != nil {
+		return Config{}, fmt.Errorf("failed reading config: %w", err)
 	}
 
-	return nil
+	return config, nil
+}
+
+// Validate asks each block to check itself, and reports everything wrong at once.
+func (c Config) Validate() error {
+	return errors.Join(
+		c.HTTPServer.Validate(),
+		c.Clicks.Validate(),
+		c.Session.Validate(),
+		c.Chat.Validate(),
+	)
 }
