@@ -325,19 +325,53 @@ while a person is still moving the mouse. Broadcasting would make this a machine
 for handing extra clicks to exactly the callers [Anti-bot](#anti-bot-internalantibot)
 exists to stop.
 
-So an offer is **addressed**. `Registry.Offer` draws one attendee uniformly and
-sends the box down that one stream; nobody else sees it and nobody else can
-claim it. Reflexes buy nothing, and what is left to do — notice the box and
-click it — is the part that was meant to be the game.
+So an offer is **addressed**: it is sent down one caller's stream, and nobody
+else sees it or can claim it. Reflexes buy nothing, and what is left to do —
+notice the box and click it — is the part that was meant to be the game.
 
-**Uniformly, and not by how long a connection has been open.** Weighting the draw
-by connection age rewards leaving a tab open, which is the opposite of what
-catching a box is for.
+**Every caller is on a schedule of their own.** A single server-wide ticker
+drawing one winner made the rate each player saw `1/(interval × players)`, so
+the feature got rarer the busier the game was — a box every couple of minutes at
+ten players, one an hour at three hundred. What a player experiences must not
+depend on how many other people are online.
 
-**An attendee is a scope, not a connection.** `Attend` is keyed on `cpipscope.Of`,
-the same unit the throttle and the session token use, and counts the streams
-sharing it — so twenty tabs are one entrant with one ticket, and the entry goes
-when the last stream does. The handler's `defer` is what removes it; there is no
+That schedule is one `nextOfferAt` per caller and **one sweep for everybody**,
+not a timer each: `bonus.sweepInterval` walks the map the way the antibot sweeps
+already do.
+
+**The wait is drawn uniformly from `[minInterval, maxInterval]`.** The spread is
+for feel and not for defence — a script does not predict the schedule, it
+watches the stream, so there is nothing here to hide from one.
+
+**The pace answers what the player did with the last box:**
+
+- **Missed** — the token lapsed unclaimed, which the sweep sees without the
+  client saying anything — the next one comes at `missRetry`. That applies to
+  **one** miss; a second in a row waits the ordinary window, or a tab that never
+  catches anything would collect a box every `missRetry` forever.
+- **Caught** — the next is due a window after the **bonus ends**, not after the
+  catch. Timed from the catch, a second box lands on a running bonus and either
+  stacks or is wasted.
+
+**Only callers who have clicked inside `activeWithin` are offered anything.** A
+tab left open overnight is not playing, and it is also what keeps the miss rule
+from needing a back-off of its own. A caller whose turn comes up while they are
+away **loses the slot rather than banking it** — otherwise they are handed a box
+the instant they come back.
+
+**A schedule outlives its stream by `forgetAfter`.** Without that, closing the
+tab and opening it again draws a fresh wait, and a player could reload until
+they got a short one.
+
+**`maxBoostPerHour` bounds what a caller can be granted.** Nothing here is a race
+any more, but catch rate is where an advantage is left: a script catches every
+box it is offered where a person catches some. This makes the worst case a
+number you choose rather than a function of reflexes.
+
+**A caller is a scope, not a connection.** `Attend` is keyed on `cpipscope.Of`,
+the same unit the throttle and the session token use, and holds every stream
+sharing it — so twenty tabs are one entrant on one schedule, and all of them are
+sent the box. The handler's `defer` is what removes it; there is no
 context goroutine per connected client, because the fanout deliberately does not
 pay that cost.
 

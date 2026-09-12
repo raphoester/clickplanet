@@ -43,6 +43,8 @@ func (s *stubBonuses) Claim(token string, scope string) (bonus.Reward, bool) {
 	return s.reward, true
 }
 
+func (s *stubBonuses) Clicked(string) {}
+
 func (s *stubBonuses) Publish(taken bonus.Taken) { s.published = append(s.published, taken) }
 
 func (s *stubBonuses) Multiplier() float64 { return 3 }

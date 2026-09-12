@@ -17,6 +17,7 @@ import (
 // domain does not know it is being served over Connect.
 type BonusRegistry interface {
 	Attend(scope string) (<-chan bonus.Event, func())
+	Clicked(scope string)
 	Claim(token string, scope string) (bonus.Reward, bool)
 	Publish(taken bonus.Taken)
 	Multiplier() float64

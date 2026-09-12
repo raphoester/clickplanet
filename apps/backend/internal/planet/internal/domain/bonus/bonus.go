@@ -1,20 +1,5 @@
-// Package bonus hands out the question-mark boxes that fly past the planet, and
-// decides who gets one.
-//
-// **The server picks the winner, and it is not a race.** A box broadcast to
-// everyone would be caught by whichever client reacts fastest, and that is
-// always a script: it reads the event off the stream and answers in twenty
-// milliseconds while a person is still moving the mouse. This would then be a
-// machine for handing extra clicks to exactly the callers internal/antibot
-// exists to stop.
-//
-// So an offer is **addressed**. One attendee is drawn at random, the box is sent
-// down that one stream, and nobody else can see it or claim it. Reflexes buy
-// nothing; the only thing left to do is notice the box and click it, which is
-// the part that was supposed to be the game.
-//
-// What everyone *does* see is the catch, once it has happened. A private reward
-// with a public outcome keeps the spectacle without the scramble.
+// Package bonus hands out the question-mark boxes that fly past the planet:
+// addressed to one caller, on a schedule of that caller's own.
 package bonus
 
 import (
@@ -29,19 +14,14 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-// Kind is what a box is worth. One today; the type exists because the wire
-// already carries an enum and a second kind must not be a second code path.
 type Kind string
 
 const KindTripleClicks Kind = "triple_clicks"
 
-// Offer is a box put in front of one attendee.
 type Offer struct {
-	// Unguessable, single use, and only good for the scope it was sent to.
 	Token string
 
-	// Names the flight path. Every client draws the same orbit from the same
-	// number, so this travels instead of a trajectory.
+	// Names the flight path; every client draws the same orbit from it.
 	Seed uint32
 
 	Kind      Kind
@@ -49,45 +29,47 @@ type Offer struct {
 	ExpiresAt time.Time
 }
 
-// Taken is the public half: somebody caught one.
 type Taken struct {
 	CountryID string
 	Kind      Kind
 }
 
-// Event is what an attendee's stream carries. Exactly one field is set — an
-// Offer reaches only the attendee it was drawn for, a Taken reaches everyone.
+// Event carries exactly one: an Offer reaches its caller, a Taken everyone.
 type Event struct {
 	Offer *Offer
 	Taken *Taken
 }
 
-// Reward is what a redeemed token is worth to the caller that redeemed it.
 type Reward struct {
 	Kind     Kind
 	Duration time.Duration
 }
 
-// attendee is one caller that is currently watching the planet.
-//
-// Keyed on the caller's scope rather than on the connection, so twenty tabs are
-// one entry and not twenty tickets in the draw — but each of those tabs holds
-// its **own channel**, and a box goes to all of them.
-//
-// One channel shared between the tabs would be delivered to whichever goroutine
-// happened to win the receive, so the box would appear in a tab at random —
-// including one the player is not looking at.
-type attendee struct {
+// caller is one scope: its open streams, and the schedule that outlives them.
+type caller struct {
 	streams map[uint64]chan Event
+
+	nextOfferAt time.Time
+	lastSeen    time.Time
+	lastClickAt time.Time
+
+	outstanding string
+	misses      int
+
+	// When each bonus was granted, for MaxBoostPerHour.
+	grants []time.Time
 }
 
-func (a *attendee) send(event Event) {
-	for _, events := range a.streams {
+func (c *caller) watching() bool {
+	return len(c.streams) > 0
+}
+
+// send drops rather than blocks, as the tile fanout does for a slow subscriber.
+func (c *caller) send(event Event) {
+	for _, events := range c.streams {
 		select {
 		case events <- event:
 		default:
-			// This tab is not reading. It costs the draw nothing, exactly as a
-			// slow tile subscriber drops updates rather than stalling the fanout.
 		}
 	}
 }
@@ -96,10 +78,10 @@ type Registry struct {
 	config Config
 	clock  cptime.Clock
 
-	mu        sync.Mutex
-	attendees map[string]*attendee
-	offers    map[string]*pending
-	nextID    uint64
+	mu      sync.Mutex
+	callers map[string]*caller
+	offers  map[string]*pending
+	nextID  uint64
 }
 
 type pending struct {
@@ -109,9 +91,6 @@ type pending struct {
 	expiresAt time.Time
 }
 
-// The buffer is per attendee. An offer nobody is reading is an offer that is
-// dropped rather than one that blocks the draw, exactly as a slow subscriber
-// drops tile updates rather than stalling the fanout.
 const eventBuffer = 8
 
 func New(config Config, clock cptime.Clock) *Registry {
@@ -120,77 +99,173 @@ func New(config Config, clock cptime.Clock) *Registry {
 	}
 
 	return &Registry{
-		config:    config.withDefaults(),
-		clock:     clock,
-		attendees: make(map[string]*attendee),
-		offers:    make(map[string]*pending),
+		config:  config.withDefaults(),
+		clock:   clock,
+		callers: make(map[string]*caller),
+		offers:  make(map[string]*pending),
 	}
 }
 
-// Attend puts a caller in the draw for as long as its stream is open, and hands
-// back the channel its boxes arrive on.
-//
-// The returned cancel must be called when the stream ends. There is no context
-// goroutine here on purpose: the caller is a streaming handler that already has
-// a `defer`, and one goroutine per connected client to watch a context is a cost
-// the fanout deliberately does not pay.
+// Attend adds a stream to the feed; the returned func must be called when it ends.
 func (r *Registry) Attend(scope string) (<-chan Event, func()) {
+	now := r.clock.Now()
+
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	entry, ok := r.attendees[scope]
-	if !ok {
-		entry = &attendee{streams: make(map[uint64]chan Event)}
-		r.attendees[scope] = entry
-	}
+	entry := r.caller(scope, now)
 
 	r.nextID++
 	id := r.nextID
 
 	events := make(chan Event, eventBuffer)
 	entry.streams[id] = events
+	entry.lastSeen = now
 
 	return events, func() { r.leave(scope, id) }
+}
+
+// caller keeps a schedule across a disconnect, so reloading cannot reroll it.
+func (r *Registry) caller(scope string, now time.Time) *caller {
+	entry, ok := r.callers[scope]
+	if ok {
+		return entry
+	}
+
+	entry = &caller{
+		streams:     make(map[uint64]chan Event),
+		nextOfferAt: now.Add(r.window()),
+		lastSeen:    now,
+	}
+	r.callers[scope] = entry
+
+	return entry
 }
 
 func (r *Registry) leave(scope string, id uint64) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	entry, ok := r.attendees[scope]
+	entry, ok := r.callers[scope]
 	if !ok {
 		return
 	}
 
 	delete(entry.streams, id)
-	if len(entry.streams) == 0 {
-		delete(r.attendees, scope)
-	}
+	entry.lastSeen = r.clock.Now()
 }
 
-// Offer draws one attendee and puts a box in front of them.
-//
-// It reports whether anything was offered: with nobody watching there is nobody
-// to draw, and a box offered to an empty room would only be a token to sweep up
-// later.
-func (r *Registry) Offer() (Offer, bool) {
+// Clicked marks a caller as playing. Boxes only go to callers who are.
+func (r *Registry) Clicked(scope string) {
 	now := r.clock.Now()
-
-	token, err := newToken()
-	if err != nil {
-		// The only failure is the system's entropy source, and a box is not
-		// worth failing anything over: skip this round.
-		return Offer{}, false
-	}
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	r.forgetLapsed(now)
+	r.caller(scope, now).lastClickAt = now
+}
 
-	scope, entry, ok := r.draw()
-	if !ok {
-		return Offer{}, false
+// Claim fails for a token unknown, spent, lapsed, or offered to somebody else.
+func (r *Registry) Claim(token string, scope string) (Reward, bool) {
+	now := r.clock.Now()
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	offer, ok := r.offers[token]
+	if !ok || offer.scope != scope || !now.Before(offer.expiresAt) {
+		return Reward{}, false
+	}
+
+	delete(r.offers, token)
+
+	if entry, known := r.callers[scope]; known {
+		entry.outstanding = ""
+		entry.misses = 0
+		entry.grants = append(entry.grants, now)
+
+		// A window after the bonus ends, so a second can never land on a running one.
+		entry.nextOfferAt = now.Add(offer.duration).Add(r.window())
+	}
+
+	return Reward{Kind: offer.kind, Duration: offer.duration}, true
+}
+
+func (r *Registry) Publish(taken Taken) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	for _, entry := range r.callers {
+		entry.send(Event{Taken: &taken})
+	}
+}
+
+func (r *Registry) Multiplier() float64 {
+	return r.config.Multiplier
+}
+
+func (r *Registry) Run(ctx context.Context) {
+	ticker := time.NewTicker(r.config.SweepInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			r.sweep()
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func (r *Registry) sweep() {
+	now := r.clock.Now()
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.collectMisses(now)
+	r.forgetStale(now)
+
+	for scope, entry := range r.callers {
+		if r.due(entry, now) {
+			r.offer(scope, entry, now)
+		}
+	}
+}
+
+// due loses the slot for a caller who was away, rather than banking it.
+func (r *Registry) due(entry *caller, now time.Time) bool {
+	if !entry.watching() || entry.outstanding != "" || now.Before(entry.nextOfferAt) {
+		return false
+	}
+
+	if now.Sub(entry.lastClickAt) > r.config.ActiveWithin || r.capped(entry, now) {
+		entry.nextOfferAt = now.Add(r.window())
+		return false
+	}
+
+	return true
+}
+
+func (r *Registry) capped(entry *caller, now time.Time) bool {
+	since := now.Add(-time.Hour)
+
+	kept := entry.grants[:0]
+	for _, at := range entry.grants {
+		if at.After(since) {
+			kept = append(kept, at)
+		}
+	}
+	entry.grants = kept
+
+	return time.Duration(len(kept))*r.config.Duration >= r.config.MaxBoostPerHour
+}
+
+func (r *Registry) offer(scope string, entry *caller, now time.Time) {
+	token, err := newToken()
+	if err != nil {
+		return
 	}
 
 	offer := Offer{
@@ -208,103 +283,56 @@ func (r *Registry) Offer() (Offer, bool) {
 		expiresAt: offer.ExpiresAt,
 	}
 
-	// Every tab this caller has open, and no other caller's. Nothing is retried
-	// into a second attendee if they are not reading: the draw has happened,
-	// and the token simply lapses.
+	entry.outstanding = token
+	entry.nextOfferAt = offer.ExpiresAt.Add(r.window())
+
 	entry.send(Event{Offer: &offer})
-
-	return offer, true
 }
 
-// draw picks one attendee uniformly. Uniformly and not by how long they have
-// been connected: rewarding a long connection rewards leaving a tab open, which
-// is the opposite of the thing this is meant to reward.
-func (r *Registry) draw() (string, *attendee, bool) {
-	if len(r.attendees) == 0 {
-		return "", nil, false
-	}
-
-	n, err := rand.Int(rand.Reader, big.NewInt(int64(len(r.attendees))))
-	if err != nil {
-		return "", nil, false
-	}
-
-	// Go randomises map iteration order, but not uniformly enough to be the
-	// draw itself; the index is what decides, and the walk only reaches it.
-	wanted := int(n.Int64())
-	for scope, entry := range r.attendees {
-		if wanted == 0 {
-			return scope, entry, true
-		}
-		wanted--
-	}
-
-	return "", nil, false
-}
-
-// Claim redeems a token for the caller holding it.
-//
-// It fails for a token that was never offered, one already redeemed, one that
-// has lapsed, and — the one that matters — one offered to somebody else. A
-// token lifted off another caller's stream is worth nothing here.
-func (r *Registry) Claim(token string, scope string) (Reward, bool) {
-	now := r.clock.Now()
-
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	r.forgetLapsed(now)
-
-	offer, ok := r.offers[token]
-	if !ok || offer.scope != scope {
-		return Reward{}, false
-	}
-
-	// Taken off the moment it is spent, which is what makes it single use.
-	delete(r.offers, token)
-
-	return Reward{Kind: offer.kind, Duration: offer.duration}, true
-}
-
-// Publish tells every attendee that a box was caught.
-func (r *Registry) Publish(taken Taken) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	for _, entry := range r.attendees {
-		entry.send(Event{Taken: &taken})
-	}
-}
-
-// Multiplier is what a reward multiplies the click allowance by.
-func (r *Registry) Multiplier() float64 {
-	return r.config.Multiplier
-}
-
-// Run offers a box every interval for as long as the process lives.
-func (r *Registry) Run(ctx context.Context) {
-	ticker := time.NewTicker(r.config.Interval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ticker.C:
-			r.Offer()
-		case <-ctx.Done():
-			return
-		}
-	}
-}
-
-// forgetLapsed drops the tokens that can no longer be spent. Called from the
-// two paths that already hold the lock, so an offer nobody claimed costs no
-// timer of its own.
-func (r *Registry) forgetLapsed(now time.Time) {
+// collectMisses retires unspent tokens, bringing the next box forward once.
+func (r *Registry) collectMisses(now time.Time) {
 	for token, offer := range r.offers {
-		if !now.Before(offer.expiresAt) {
-			delete(r.offers, token)
+		if now.Before(offer.expiresAt) {
+			continue
 		}
+
+		delete(r.offers, token)
+
+		entry, ok := r.callers[offer.scope]
+		if !ok || entry.outstanding != token {
+			continue
+		}
+
+		entry.outstanding = ""
+		if entry.misses == 0 {
+			entry.nextOfferAt = now.Add(r.config.MissRetry)
+		}
+		entry.misses++
 	}
+}
+
+func (r *Registry) forgetStale(now time.Time) {
+	for scope, entry := range r.callers {
+		if entry.watching() || now.Sub(entry.lastSeen) <= r.config.ForgetAfter {
+			continue
+		}
+
+		delete(r.callers, scope)
+	}
+}
+
+func (r *Registry) window() time.Duration {
+	spread := r.config.MaxInterval - r.config.MinInterval
+	if spread <= 0 {
+		return r.config.MinInterval
+	}
+
+	n, err := rand.Int(rand.Reader, big.NewInt(int64(spread)))
+	if err != nil {
+		return r.config.MinInterval
+	}
+
+	return r.config.MinInterval + time.Duration(n.Int64())
 }
 
 func newToken() (string, error) {

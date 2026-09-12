@@ -1,39 +1,50 @@
 package bonus
 
 import (
-	"sync"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 var epoch = time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 
-type fakeClock struct {
-	mu  sync.Mutex
-	now time.Time
+const window = time.Minute
+
+// A fixed window makes the schedule assertable; the spread has its own test.
+func newTestRegistry() (*Registry, *cptime.FixedClock) {
+	clock := cptime.NewFixedClock(epoch)
+
+	return New(Config{
+		Enabled:         true,
+		MinInterval:     window,
+		MaxInterval:     window,
+		MissRetry:       20 * time.Second,
+		OfferTTL:        15 * time.Second,
+		Duration:        time.Minute,
+		Multiplier:      3,
+		ActiveWithin:    5 * time.Minute,
+		ForgetAfter:     5 * time.Minute,
+		MaxBoostPerHour: 15 * time.Minute,
+		SweepInterval:   time.Second,
+	}, clock), clock
 }
 
-func (c *fakeClock) Now() time.Time {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return c.now
+// playing is a caller with a stream open who has clicked, which is what it
+// takes to be offered anything.
+func playing(t *testing.T, r *Registry, scope string) <-chan Event {
+	t.Helper()
+
+	events, leave := r.Attend(scope)
+	t.Cleanup(leave)
+	r.Clicked(scope)
+
+	return events
 }
 
-func (c *fakeClock) advance(d time.Duration) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.now = c.now.Add(d)
-}
-
-func newTestRegistry() (*Registry, *fakeClock) {
-	clock := &fakeClock{now: epoch}
-	return New(Config{Enabled: true, OfferTTL: 15 * time.Second, Duration: time.Minute, Multiplier: 3}, clock), clock
-}
-
-// offered drains the one event an attendee should have been sent.
 func offered(t *testing.T, events <-chan Event) *Offer {
 	t.Helper()
 
@@ -46,128 +57,298 @@ func offered(t *testing.T, events <-chan Event) *Offer {
 	}
 }
 
-func TestNothingIsOfferedWithNobodyWatching(t *testing.T) {
-	registry, _ := newTestRegistry()
-
-	_, ok := registry.Offer()
-
-	assert.False(t, ok, "a box offered to an empty room is only a token to sweep up later")
+func drain(events <-chan Event) {
+	for {
+		select {
+		case <-events:
+		default:
+			return
+		}
+	}
 }
 
-func TestTheOfferGoesToTheOneAttendeeDrawn(t *testing.T) {
-	registry, _ := newTestRegistry()
+// waitOut moves past a caller's whole window and sweeps, which is one turn.
+func waitOut(r *Registry, clock *cptime.FixedClock) {
+	clock.Advance(window + time.Second)
+	r.sweep()
+}
+
+func TestABoxGoesToAnAttendingCallerOnceTheWindowPasses(t *testing.T) {
+	registry, clock := newTestRegistry()
+	events := playing(t, registry, "scope-a")
+
+	require.Nil(t, offered(t, events), "nothing is due yet")
+
+	waitOut(registry, clock)
+
+	assert.NotNil(t, offered(t, events))
+}
+
+func TestEveryCallerIsOnTheirOwnScheduleRatherThanSharingOne(t *testing.T) {
+	registry, clock := newTestRegistry()
+
+	// The bug this replaces: one global ticker drew a single winner, so the
+	// rate each player saw fell as 1/(interval × players).
+	channels := map[string]<-chan Event{}
+	for _, scope := range []string{"a", "b", "c", "d"} {
+		channels[scope] = playing(t, registry, scope)
+	}
+
+	waitOut(registry, clock)
+
+	for scope, events := range channels {
+		assert.NotNilf(t, offered(t, events), "%s was not offered a box on its own turn", scope)
+	}
+}
+
+func TestABoxReachesNobodyButTheCallerItWasDrawnFor(t *testing.T) {
+	registry, clock := newTestRegistry()
+
+	mine := playing(t, registry, "scope-a")
+	theirs, leave := registry.Attend("scope-b")
+	t.Cleanup(leave)
+
+	// scope-b never clicked, so it is not playing and gets nothing.
+	waitOut(registry, clock)
+
+	assert.NotNil(t, offered(t, mine))
+	assert.Nil(t, offered(t, theirs))
+}
+
+func TestEveryTabOfOneCallerIsSentTheBox(t *testing.T) {
+	registry, clock := newTestRegistry()
+
+	first := playing(t, registry, "scope-a")
+	second, leave := registry.Attend("scope-a")
+	t.Cleanup(leave)
+
+	require.Len(t, registry.callers, 1, "tabs are one entrant, not many")
+
+	waitOut(registry, clock)
+
+	one, two := offered(t, first), offered(t, second)
+	require.NotNil(t, one)
+	require.NotNil(t, two)
+	assert.Equal(t, one.Token, two.Token)
+}
+
+func TestNothingIsOfferedToACallerWhoIsNotClicking(t *testing.T) {
+	registry, clock := newTestRegistry()
 
 	events, leave := registry.Attend("scope-a")
-	defer leave()
+	t.Cleanup(leave)
 
-	offer, ok := registry.Offer()
-	require.True(t, ok)
+	waitOut(registry, clock)
 
-	got := offered(t, events)
-	require.NotNil(t, got)
-	assert.Equal(t, offer.Token, got.Token)
+	assert.Nil(t, offered(t, events), "a tab left open is not playing")
 }
 
-func TestAnOfferReachesNobodyElse(t *testing.T) {
-	registry, _ := newTestRegistry()
+func TestATurnThatCameUpWhileAwayIsLostRatherThanBanked(t *testing.T) {
+	registry, clock := newTestRegistry()
+	events := playing(t, registry, "scope-a")
 
-	// The whole point of addressing the offer: with it broadcast, the fastest
-	// script always wins, and this would hand extra clicks to exactly the
-	// callers the antibot package exists to stop.
-	a, leaveA := registry.Attend("scope-a")
-	defer leaveA()
-	b, leaveB := registry.Attend("scope-b")
-	defer leaveB()
+	// Past ActiveWithin, so several turns come and go unclaimed.
+	clock.Advance(10 * time.Minute)
+	registry.sweep()
+	require.Nil(t, offered(t, events))
 
-	_, ok := registry.Offer()
-	require.True(t, ok)
+	// Clicking again does not hand over a backlog.
+	registry.Clicked("scope-a")
+	registry.sweep()
+	assert.Nil(t, offered(t, events), "the slot was lost, not saved up")
 
-	drawnA := offered(t, a) != nil
-	drawnB := offered(t, b) != nil
-
-	assert.NotEqual(t, drawnA, drawnB, "exactly one of them should have been sent the box")
+	waitOut(registry, clock)
+	assert.NotNil(t, offered(t, events))
 }
 
-func TestManyTabsAreOneEntrantAndNotMany(t *testing.T) {
-	registry, _ := newTestRegistry()
+func TestOnlyOneBoxIsOutstandingAtATime(t *testing.T) {
+	registry, clock := newTestRegistry()
+	events := playing(t, registry, "scope-a")
 
-	_, leaveOne := registry.Attend("scope-a")
-	_, leaveTwo := registry.Attend("scope-a")
-	defer leaveOne()
-	defer leaveTwo()
+	waitOut(registry, clock)
+	require.NotNil(t, offered(t, events))
 
-	assert.Equal(t, 1, registry.countAttendees())
+	clock.Advance(time.Second)
+	registry.sweep()
+
+	assert.Nil(t, offered(t, events))
 }
 
-func TestAnAttendeeStaysWhileAnyOfItsStreamsIsOpen(t *testing.T) {
-	registry, _ := newTestRegistry()
+func TestAMissedBoxBringsTheNextOneForwardOnce(t *testing.T) {
+	registry, clock := newTestRegistry()
+	events := playing(t, registry, "scope-a")
 
-	_, leaveOne := registry.Attend("scope-a")
-	_, leaveTwo := registry.Attend("scope-a")
+	waitOut(registry, clock)
+	require.NotNil(t, offered(t, events))
 
-	leaveOne()
-	assert.Equal(t, 1, registry.countAttendees(), "one tab closing is not the caller leaving")
+	// Let it lapse: the retry is due sooner than a fresh window would be.
+	clock.Advance(16 * time.Second)
+	registry.sweep()
+	require.Nil(t, offered(t, events))
 
-	leaveTwo()
-	assert.Equal(t, 0, registry.countAttendees())
+	clock.Advance(21 * time.Second)
+	registry.sweep()
+
+	assert.NotNil(t, offered(t, events), "a missed box should come back sooner")
 }
 
-func TestLeavingTwiceDoesNotStrandTheEntry(t *testing.T) {
-	registry, _ := newTestRegistry()
+func TestASecondMissInARowWaitsTheOrdinaryWindow(t *testing.T) {
+	registry, clock := newTestRegistry()
+	events := playing(t, registry, "scope-a")
+
+	// Miss twice. Compounding the retry would hand a tab a box every
+	// MissRetry for the rest of the session.
+	for range 2 {
+		waitOut(registry, clock)
+		require.NotNil(t, offered(t, events))
+		clock.Advance(16 * time.Second)
+		registry.sweep()
+	}
+
+	clock.Advance(21 * time.Second)
+	registry.sweep()
+	assert.Nil(t, offered(t, events), "the second miss is not accelerated")
+
+	waitOut(registry, clock)
+	assert.NotNil(t, offered(t, events))
+}
+
+func TestCatchingOneHoldsTheNextUntilTheBonusIsOver(t *testing.T) {
+	registry, clock := newTestRegistry()
+	events := playing(t, registry, "scope-a")
+
+	waitOut(registry, clock)
+	offer := offered(t, events)
+	require.NotNil(t, offer)
+
+	_, claimed := registry.Claim(offer.Token, "scope-a")
+	require.True(t, claimed)
+
+	// A window on its own would land a second box on a running bonus.
+	clock.Advance(window + time.Second)
+	registry.Clicked("scope-a")
+	registry.sweep()
+	assert.Nil(t, offered(t, events), "a bonus is still running")
+
+	clock.Advance(window + time.Second)
+	registry.Clicked("scope-a")
+	registry.sweep()
+	assert.NotNil(t, offered(t, events))
+}
+
+func TestCatchingOneClearsTheMissThatCameBefore(t *testing.T) {
+	registry, clock := newTestRegistry()
+	events := playing(t, registry, "scope-a")
+
+	waitOut(registry, clock)
+	require.NotNil(t, offered(t, events))
+	clock.Advance(16 * time.Second)
+	registry.sweep()
+
+	clock.Advance(21 * time.Second)
+	registry.sweep()
+	offer := offered(t, events)
+	require.NotNil(t, offer)
+
+	_, claimed := registry.Claim(offer.Token, "scope-a")
+	require.True(t, claimed)
+
+	assert.Equal(t, 0, registry.callers["scope-a"].misses)
+}
+
+func TestReloadingCannotRerollTheSchedule(t *testing.T) {
+	registry, clock := newTestRegistry()
+
+	_, leave := registry.Attend("scope-a")
+	registry.Clicked("scope-a")
+
+	clock.Advance(30 * time.Second)
+	due := registry.callers["scope-a"].nextOfferAt
+
+	leave()
+	events, second := registry.Attend("scope-a")
+	t.Cleanup(second)
+
+	assert.Equal(t, due, registry.callers["scope-a"].nextOfferAt)
+
+	clock.Advance(29 * time.Second)
+	registry.sweep()
+	assert.Nil(t, offered(t, events), "the wait carried over the reconnect")
+}
+
+func TestAScheduleIsForgottenOnceTheCallerHasBeenGoneLongEnough(t *testing.T) {
+	registry, clock := newTestRegistry()
 
 	_, leave := registry.Attend("scope-a")
 	leave()
-	leave()
 
-	assert.Equal(t, 0, registry.countAttendees())
+	clock.Advance(4 * time.Minute)
+	registry.sweep()
+	require.Len(t, registry.callers, 1)
+
+	clock.Advance(2 * time.Minute)
+	registry.sweep()
+	assert.Empty(t, registry.callers)
 }
 
-func TestTheDrawReachesEveryAttendeeOverEnoughRounds(t *testing.T) {
-	registry, _ := newTestRegistry()
+func TestTheHourlyCapStopsTheOffers(t *testing.T) {
+	registry, clock := newTestRegistry()
+	events := playing(t, registry, "scope-a")
 
-	scopes := []string{"a", "b", "c", "d"}
-	channels := map[string]<-chan Event{}
-	for _, scope := range scopes {
-		events, leave := registry.Attend(scope)
-		t.Cleanup(leave)
-		channels[scope] = events
+	// Fifteen minutes of bonus at a minute each.
+	for range 15 {
+		clock.Advance(window + time.Second)
+		registry.Clicked("scope-a")
+		registry.sweep()
+
+		offer := offered(t, events)
+		require.NotNil(t, offer)
+
+		_, claimed := registry.Claim(offer.Token, "scope-a")
+		require.True(t, claimed)
+
+		clock.Advance(time.Minute)
 	}
 
-	// Uniform rather than weighted by how long a connection has been open:
-	// rewarding an old connection rewards leaving a tab open, which is the
-	// opposite of what catching a box is meant to reward.
-	//
-	// Every round is drained, or the per-attendee buffers saturate after eight
-	// and this stops counting anything.
-	const rounds = 2000
-
-	seen := map[string]int{}
-	for i := 0; i < rounds; i++ {
-		_, ok := registry.Offer()
-		require.True(t, ok)
-
-		for scope, events := range channels {
-			if offered(t, events) != nil {
-				seen[scope]++
-			}
-		}
+	for range 5 {
+		clock.Advance(window + time.Second)
+		registry.Clicked("scope-a")
+		registry.sweep()
+		require.Nil(t, offered(t, events), "the cap should hold")
 	}
 
-	expected := rounds / len(scopes)
-	for _, scope := range scopes {
-		assert.InEpsilonf(t, expected, seen[scope], 0.25,
-			"%s was drawn %d times out of %d, which is not an even share", scope, seen[scope], rounds)
+	// It is an hour's cap, not a permanent one.
+	clock.Advance(time.Hour)
+	registry.Clicked("scope-a")
+	registry.sweep()
+	assert.NotNil(t, offered(t, events))
+}
+
+func TestTheWaitIsDrawnFromTheConfiguredWindow(t *testing.T) {
+	clock := cptime.NewFixedClock(epoch)
+	registry := New(Config{
+		Enabled: true, MinInterval: time.Minute, MaxInterval: 3 * time.Minute,
+	}, clock)
+
+	seen := map[time.Duration]bool{}
+	for range 200 {
+		drawn := registry.window()
+
+		require.GreaterOrEqual(t, drawn, time.Minute)
+		require.Less(t, drawn, 3*time.Minute)
+		seen[drawn] = true
 	}
+
+	assert.Greater(t, len(seen), 100, "the wait should be spread, not fixed")
 }
 
 func TestAClaimByTheCallerItWasOfferedToSucceeds(t *testing.T) {
-	registry, _ := newTestRegistry()
+	registry, clock := newTestRegistry()
+	events := playing(t, registry, "scope-a")
 
-	_, leave := registry.Attend("scope-a")
-	defer leave()
-
-	offer, ok := registry.Offer()
-	require.True(t, ok)
+	waitOut(registry, clock)
+	offer := offered(t, events)
+	require.NotNil(t, offer)
 
 	reward, claimed := registry.Claim(offer.Token, "scope-a")
 
@@ -177,29 +358,27 @@ func TestAClaimByTheCallerItWasOfferedToSucceeds(t *testing.T) {
 }
 
 func TestATokenIsWorthNothingToAnybodyElse(t *testing.T) {
-	registry, _ := newTestRegistry()
+	registry, clock := newTestRegistry()
+	events := playing(t, registry, "scope-a")
 
-	_, leave := registry.Attend("scope-a")
-	defer leave()
+	waitOut(registry, clock)
+	offer := offered(t, events)
+	require.NotNil(t, offer)
 
-	offer, ok := registry.Offer()
-	require.True(t, ok)
+	_, stolen := registry.Claim(offer.Token, "scope-b")
+	assert.False(t, stolen)
 
-	// Lifted off the wire, or guessed. Either way it is not this caller's.
-	_, claimed := registry.Claim(offer.Token, "scope-b")
-	assert.False(t, claimed)
-
-	_, stillMine := registry.Claim(offer.Token, "scope-a")
-	assert.True(t, stillMine, "a failed theft must not spend the real owner's box")
+	_, mine := registry.Claim(offer.Token, "scope-a")
+	assert.True(t, mine, "a failed theft must not spend the owner's box")
 }
 
 func TestATokenIsSpentExactlyOnce(t *testing.T) {
-	registry, _ := newTestRegistry()
+	registry, clock := newTestRegistry()
+	events := playing(t, registry, "scope-a")
 
-	_, leave := registry.Attend("scope-a")
-	defer leave()
-
-	offer, _ := registry.Offer()
+	waitOut(registry, clock)
+	offer := offered(t, events)
+	require.NotNil(t, offer)
 
 	_, first := registry.Claim(offer.Token, "scope-a")
 	_, second := registry.Claim(offer.Token, "scope-a")
@@ -210,15 +389,15 @@ func TestATokenIsSpentExactlyOnce(t *testing.T) {
 
 func TestALapsedTokenIsRefused(t *testing.T) {
 	registry, clock := newTestRegistry()
+	events := playing(t, registry, "scope-a")
 
-	_, leave := registry.Attend("scope-a")
-	defer leave()
+	waitOut(registry, clock)
+	offer := offered(t, events)
+	require.NotNil(t, offer)
 
-	offer, _ := registry.Offer()
-	clock.advance(15 * time.Second)
+	clock.Advance(16 * time.Second)
 
 	_, claimed := registry.Claim(offer.Token, "scope-a")
-
 	assert.False(t, claimed)
 }
 
@@ -232,127 +411,82 @@ func TestAnUnknownTokenIsRefused(t *testing.T) {
 
 func TestLapsedTokensAreForgottenRatherThanKept(t *testing.T) {
 	registry, clock := newTestRegistry()
+	events := playing(t, registry, "scope-a")
 
-	_, leave := registry.Attend("scope-a")
-	defer leave()
+	waitOut(registry, clock)
+	require.NotNil(t, offered(t, events))
 
-	for i := 0; i < 5; i++ {
-		registry.Offer()
-	}
-	require.Len(t, registry.offers, 5)
+	clock.Advance(16 * time.Second)
+	registry.sweep()
 
-	clock.advance(time.Hour)
-	registry.Offer()
-
-	assert.Len(t, registry.offers, 1, "only the one just made should still be held")
+	assert.Empty(t, registry.offers)
 }
 
 func TestEveryTokenIsDifferent(t *testing.T) {
-	registry, _ := newTestRegistry()
-
-	_, leave := registry.Attend("scope-a")
-	defer leave()
+	registry, clock := newTestRegistry()
+	events := playing(t, registry, "scope-a")
 
 	seen := map[string]bool{}
-	for i := 0; i < 200; i++ {
-		offer, ok := registry.Offer()
-		require.True(t, ok)
+	for range 20 {
+		clock.Advance(window + time.Second)
+		registry.Clicked("scope-a")
+		registry.sweep()
+
+		offer := offered(t, events)
+		require.NotNil(t, offer)
 		require.False(t, seen[offer.Token], "a token was handed out twice")
 		seen[offer.Token] = true
+
+		clock.Advance(16 * time.Second)
+		registry.sweep()
 	}
 }
 
 func TestACatchIsAnnouncedToEveryone(t *testing.T) {
 	registry, _ := newTestRegistry()
 
-	a, leaveA := registry.Attend("scope-a")
-	defer leaveA()
-	b, leaveB := registry.Attend("scope-b")
-	defer leaveB()
+	watchers := []<-chan Event{playing(t, registry, "scope-a"), playing(t, registry, "scope-b")}
+	for _, events := range watchers {
+		drain(events)
+	}
 
 	registry.Publish(Taken{CountryID: "fr", Kind: KindTripleClicks})
 
-	for _, events := range []<-chan Event{a, b} {
+	for _, events := range watchers {
 		select {
 		case event := <-events:
 			require.NotNil(t, event.Taken)
 			assert.Equal(t, "fr", event.Taken.CountryID)
 		default:
-			t.Fatal("an attendee was not told about the catch")
+			t.Fatal("a caller was not told about the catch")
 		}
 	}
 }
 
-func TestAnAttendeeThatIsNotReadingIsDroppedRatherThanBlocking(t *testing.T) {
+func TestACallerThatIsNotReadingIsDroppedRatherThanBlocking(t *testing.T) {
 	registry, _ := newTestRegistry()
+	events := playing(t, registry, "scope-a")
 
-	events, leave := registry.Attend("scope-a")
-	defer leave()
-
-	// Well past the buffer. A client that has stopped reading must cost the
-	// draw nothing, exactly as a slow tile subscriber drops updates rather
-	// than stalling the fanout.
-	for i := 0; i < eventBuffer*4; i++ {
-		registry.Offer()
+	for range eventBuffer * 4 {
+		registry.Publish(Taken{CountryID: "fr", Kind: KindTripleClicks})
 	}
 
 	assert.Len(t, events, eventBuffer)
 }
 
 func TestTheDefaultsFillInWhatTheFileLeavesOut(t *testing.T) {
-	registry := New(Config{Enabled: true}, &fakeClock{now: epoch})
+	registry := New(Config{Enabled: true}, cptime.NewFixedClock(epoch))
 
-	assert.Equal(t, defaultInterval, registry.config.Interval)
-	assert.Equal(t, defaultDuration, registry.config.Duration)
+	assert.Equal(t, defaultMinInterval, registry.config.MinInterval)
+	assert.Equal(t, defaultMaxInterval, registry.config.MaxInterval)
 	assert.InDelta(t, float64(defaultMultiplier), registry.Multiplier(), 1e-9)
 }
 
-func TestAMultiplierOfOneOrLessIsNotABonus(t *testing.T) {
-	registry := New(Config{Enabled: true, Multiplier: 1}, &fakeClock{now: epoch})
+func TestAMaxBelowTheMinIsNotAWindow(t *testing.T) {
+	registry := New(Config{
+		Enabled: true, MinInterval: 10 * time.Minute, MaxInterval: time.Second,
+	}, cptime.NewFixedClock(epoch))
 
-	assert.InDelta(t, float64(defaultMultiplier), registry.Multiplier(), 1e-9)
-}
-
-// countAttendees reads what Offer draws from, under the same lock.
-func (r *Registry) countAttendees() int {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	return len(r.attendees)
-}
-
-func TestEveryTabOfOneCallerIsSentTheBox(t *testing.T) {
-	registry, _ := newTestRegistry()
-
-	// One entry in the draw, but the box appears in all of this caller's tabs.
-	// A single shared channel would deliver it to whichever goroutine won the
-	// receive, so the box would show up in a tab at random — possibly one the
-	// player is not even looking at.
-	first, leaveFirst := registry.Attend("scope-a")
-	defer leaveFirst()
-	second, leaveSecond := registry.Attend("scope-a")
-	defer leaveSecond()
-
-	require.Equal(t, 1, registry.countAttendees())
-
-	offer, ok := registry.Offer()
-	require.True(t, ok)
-
-	assert.Equal(t, offer.Token, offered(t, first).Token)
-	assert.Equal(t, offer.Token, offered(t, second).Token)
-}
-
-func TestOneTabClosingLeavesTheOthersReceiving(t *testing.T) {
-	registry, _ := newTestRegistry()
-
-	_, leaveFirst := registry.Attend("scope-a")
-	second, leaveSecond := registry.Attend("scope-a")
-	defer leaveSecond()
-
-	leaveFirst()
-
-	_, ok := registry.Offer()
-	require.True(t, ok)
-
-	assert.NotNil(t, offered(t, second), "the surviving tab should still be sent the box")
+	assert.GreaterOrEqual(t, registry.config.MaxInterval, registry.config.MinInterval)
+	assert.Equal(t, 10*time.Minute, registry.window())
 }

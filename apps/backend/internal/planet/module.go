@@ -146,7 +146,8 @@ func newBonusRegistry(config bonus.Config, clock cptime.Clock, props cpbootstrap
 	props.Runners.Add("bonus-boxes", registry.Run)
 
 	props.Logger.Info("bonus boxes enabled",
-		slog.Any("interval", config.Interval),
+		slog.Any("minInterval", config.MinInterval),
+		slog.Any("maxInterval", config.MaxInterval),
 		slog.Any("duration", config.Duration),
 	)
 
