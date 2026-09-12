@@ -1,6 +1,6 @@
 // Package session wires the mint: what a caller has to prove before it may
 // click. It builds everything it needs from its own config, including the
-// signer — the clicks context builds an identical one from the same `session:`
+// signer — the planet context builds an identical one from the same `session:`
 // block rather than being handed this one.
 package session
 
@@ -89,7 +89,7 @@ func newAttester(config Config, logger logging.Logger) (domain.Attester, error) 
 }
 
 // Config is the `session:` block. The token half is the kernel's, because the
-// clicks context declares the same type to verify what this one mints.
+// planet context declares the same type to verify what this one mints.
 type Config struct {
 	kernelsession.Config `koanf:",squash"`
 
@@ -110,7 +110,7 @@ func (c Config) withDefaults() Config {
 	return c
 }
 
-// Validate checks the `session:` block, which the clicks context also reads and
+// Validate checks the `session:` block, which the planet context also reads and
 // therefore does not check itself.
 func (c Config) Validate() error {
 	return c.Config.Validate()

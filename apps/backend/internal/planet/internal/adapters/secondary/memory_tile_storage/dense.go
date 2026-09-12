@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/internal/domain"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/domain"
 )
 
 func (s *Storage) StateBatchDense(start uint32, end uint32) (domain.DenseBatch, error) {

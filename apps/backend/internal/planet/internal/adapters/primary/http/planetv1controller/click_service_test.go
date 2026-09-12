@@ -11,7 +11,7 @@ import (
 	"connectrpc.com/connect"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
-	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/internal/domain"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/domain"
 	"github.com/stretchr/testify/require"
 )
 

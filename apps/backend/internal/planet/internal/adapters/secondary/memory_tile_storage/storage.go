@@ -7,9 +7,9 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/internal/domain"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging/lf"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/domain"
 )
 
 const maxCodes = math.MaxUint16 + 1

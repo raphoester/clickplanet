@@ -5,7 +5,7 @@ import (
 	"encoding/binary"
 	"testing"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/internal/domain"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/domain"
 	"github.com/stretchr/testify/require"
 )
 

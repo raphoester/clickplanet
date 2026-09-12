@@ -15,7 +15,7 @@ type fakeClock struct{ now time.Time }
 
 func (c *fakeClock) Now() time.Time { return c.now }
 
-// The whole thing built the way internal/clicks builds it — through the one
+// The whole thing built the way internal/planet builds it — through the one
 // published constructor, with the bounds cmd/api ships — and driven by callers
 // that behave the way the real ones do.
 type stack struct {
