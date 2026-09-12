@@ -9,22 +9,22 @@ import (
 	"connectrpc.com/connect"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ratelimit"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 	"github.com/stretchr/testify/require"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ctxutil"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/httpserver"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ipblock"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cphttpserver"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
 )
 
 type fakeBlocklist struct {
-	blocked map[string]ipblock.List
+	blocked map[string]cpipblock.List
 	asked   []string
 }
 
-func (b *fakeBlocklist) Blocked(ip string) (ipblock.List, bool) {
+func (b *fakeBlocklist) Blocked(ip string) (cpipblock.List, bool) {
 	b.asked = append(b.asked, ip)
 	list, ok := b.blocked[ip]
 	return list, ok
@@ -52,8 +52,8 @@ func vpnBlock(t *testing.T, ctx context.Context, blocklist ClickBlocklist, proce
 
 func TestVPNBlockInterceptor(t *testing.T) {
 	t.Run("refuses a click from a blocked address without reaching the handler", func(t *testing.T) {
-		ctx := ctxutil.AddIPToContext(context.Background(), "1.2.3.4")
-		blocklist := &fakeBlocklist{blocked: map[string]ipblock.List{"1.2.3.4": ipblock.ListVPN}}
+		ctx := cpctx.AddIPToContext(context.Background(), "1.2.3.4")
+		blocklist := &fakeBlocklist{blocked: map[string]cpipblock.List{"1.2.3.4": cpipblock.ListVPN}}
 
 		ran, registry, err := vpnBlock(t, ctx, blocklist, planetv1connect.ClickServiceClickProcedure)
 
@@ -64,8 +64,8 @@ func TestVPNBlockInterceptor(t *testing.T) {
 	})
 
 	t.Run("lets an address that is in no list through", func(t *testing.T) {
-		ctx := ctxutil.AddIPToContext(context.Background(), "5.6.7.8")
-		blocklist := &fakeBlocklist{blocked: map[string]ipblock.List{"1.2.3.4": ipblock.ListVPN}}
+		ctx := cpctx.AddIPToContext(context.Background(), "5.6.7.8")
+		blocklist := &fakeBlocklist{blocked: map[string]cpipblock.List{"1.2.3.4": cpipblock.ListVPN}}
 
 		ran, _, err := vpnBlock(t, ctx, blocklist, planetv1connect.ClickServiceClickProcedure)
 
@@ -74,8 +74,8 @@ func TestVPNBlockInterceptor(t *testing.T) {
 	})
 
 	t.Run("labels the refusal with the list that matched", func(t *testing.T) {
-		ctx := ctxutil.AddIPToContext(context.Background(), "1.2.3.4")
-		blocklist := &fakeBlocklist{blocked: map[string]ipblock.List{"1.2.3.4": ipblock.ListDatacenter}}
+		ctx := cpctx.AddIPToContext(context.Background(), "1.2.3.4")
+		blocklist := &fakeBlocklist{blocked: map[string]cpipblock.List{"1.2.3.4": cpipblock.ListDatacenter}}
 
 		_, registry, err := vpnBlock(t, ctx, blocklist, planetv1connect.ClickServiceClickProcedure)
 
@@ -84,8 +84,8 @@ func TestVPNBlockInterceptor(t *testing.T) {
 	})
 
 	t.Run("leaves the read procedures alone", func(t *testing.T) {
-		ctx := ctxutil.AddIPToContext(context.Background(), "1.2.3.4")
-		blocklist := &fakeBlocklist{blocked: map[string]ipblock.List{"1.2.3.4": ipblock.ListVPN}}
+		ctx := cpctx.AddIPToContext(context.Background(), "1.2.3.4")
+		blocklist := &fakeBlocklist{blocked: map[string]cpipblock.List{"1.2.3.4": cpipblock.ListVPN}}
 
 		for _, procedure := range []string{
 			planetv1connect.ClickServiceGetMapProcedure,
@@ -101,7 +101,7 @@ func TestVPNBlockInterceptor(t *testing.T) {
 	})
 
 	t.Run("lets a request with no source IP through", func(t *testing.T) {
-		blocklist := &fakeBlocklist{blocked: map[string]ipblock.List{"": ipblock.ListVPN}}
+		blocklist := &fakeBlocklist{blocked: map[string]cpipblock.List{"": cpipblock.ListVPN}}
 
 		ran, _, err := vpnBlock(t, context.Background(), blocklist, planetv1connect.ClickServiceClickProcedure)
 
@@ -111,7 +111,7 @@ func TestVPNBlockInterceptor(t *testing.T) {
 }
 
 func TestVPNBlockOverHTTP(t *testing.T) {
-	blocklist, err := ipblock.New(ipblock.Config{Enabled: true})
+	blocklist, err := cpipblock.New(cpipblock.Config{Enabled: true})
 	require.NoError(t, err)
 
 	blockInterceptor, err := NewVPNBlockInterceptor(blocklist, prometheus.NewRegistry())
@@ -128,7 +128,7 @@ func TestVPNBlockOverHTTP(t *testing.T) {
 }
 
 func TestVPNBlockRunsBeforeTheThrottle(t *testing.T) {
-	blocklist := &fakeBlocklist{blocked: map[string]ipblock.List{"1.2.3.4": ipblock.ListVPN}}
+	blocklist := &fakeBlocklist{blocked: map[string]cpipblock.List{"1.2.3.4": cpipblock.ListVPN}}
 
 	blockInterceptor, err := NewVPNBlockInterceptor(blocklist, prometheus.NewRegistry())
 	require.NoError(t, err)
@@ -163,7 +163,7 @@ func clickServerReading(
 		options...,
 	))
 
-	server := httptest.NewServer(httpserver.IPReaderMiddleware(mux))
+	server := httptest.NewServer(cphttpserver.IPReaderMiddleware(mux))
 	t.Cleanup(server.Close)
 
 	return server
@@ -171,7 +171,7 @@ func clickServerReading(
 
 type allowAll struct{}
 
-func (allowAll) Take(string) (bool, ratelimit.State) { return true, ratelimit.State{} }
+func (allowAll) Take(string) (bool, cpratelimit.State) { return true, cpratelimit.State{} }
 
 func counter(t *testing.T, gatherer prometheus.Gatherer, list string) prometheus.Counter {
 	t.Helper()

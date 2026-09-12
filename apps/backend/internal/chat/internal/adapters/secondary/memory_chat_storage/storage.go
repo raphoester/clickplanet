@@ -7,21 +7,21 @@ import (
 	"sync/atomic"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/domain"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging/lf"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/xtime"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cplogging"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cplogging/cplf"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 func New(
 	config Config,
-	timeProvider xtime.Provider,
-	logger logging.Logger,
+	timeProvider cptime.Provider,
+	logger cplogging.Logger,
 ) *Storage {
 	if logger == nil {
-		logger = logging.NewNopLogger()
+		logger = cplogging.NewNopLogger()
 	}
 	if timeProvider == nil {
-		timeProvider = xtime.ActualProvider{}
+		timeProvider = cptime.ActualProvider{}
 	}
 
 	config = config.withDefaults()
@@ -41,8 +41,8 @@ func New(
 
 type Storage struct {
 	config       Config
-	logger       logging.Logger
-	timeProvider xtime.Provider
+	logger       cplogging.Logger
+	timeProvider cptime.Provider
 
 	historyMu sync.RWMutex
 	history   []domain.ChatMessage
@@ -121,8 +121,8 @@ func (s *Storage) publish(message domain.ChatMessage) {
 			dropped := sub.dropped.Add(1)
 			if dropped == 1 || dropped%dropLogInterval == 0 {
 				s.logger.Warning("dropped a chat message for a slow subscriber",
-					lf.String("messageId", message.ID),
-					lf.Any("droppedTotal", dropped),
+					cplf.String("messageId", message.ID),
+					cplf.Any("droppedTotal", dropped),
 				)
 			}
 		}

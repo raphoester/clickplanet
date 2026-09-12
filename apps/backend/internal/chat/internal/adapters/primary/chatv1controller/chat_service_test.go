@@ -14,9 +14,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1/chatv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/domain"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/domain/chat_service"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/httpserver"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ipblock"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ratelimit"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cphttpserver"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 	"github.com/stretchr/testify/require"
 )
 
@@ -78,9 +78,9 @@ func startChatServerWith(
 	t.Helper()
 
 	clock := &fakeClock{now: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)}
-	limiter := ratelimit.New(ratelimit.Config{PerSecond: 1, Burst: 3}, clock)
+	limiter := cpratelimit.New(cpratelimit.Config{PerSecond: 1, Burst: 3}, clock)
 
-	blocklist, err := ipblock.NewDenyList(blockedIPs)
+	blocklist, err := cpipblock.NewDenyList(blockedIPs)
 	require.NoError(t, err)
 
 	mux := http.NewServeMux()
@@ -93,7 +93,7 @@ func startChatServerWith(
 		),
 	))
 
-	server := httptest.NewServer(httpserver.IPReaderMiddleware(mux))
+	server := httptest.NewServer(cphttpserver.IPReaderMiddleware(mux))
 	t.Cleanup(server.Close)
 
 	return server, clock

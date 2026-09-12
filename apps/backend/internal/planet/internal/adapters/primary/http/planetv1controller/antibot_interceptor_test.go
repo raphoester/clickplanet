@@ -14,7 +14,7 @@ import (
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ctxutil"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
 type fakeGuard struct {
@@ -105,7 +105,7 @@ func TestAntiBotInterceptor(t *testing.T) {
 	t.Run("charges the same scope the throttle is charged to", func(t *testing.T) {
 		guard := &fakeGuard{}
 
-		ctx := ctxutil.AddIPToContext(context.Background(), "2001:db8::dead:beef")
+		ctx := cpctx.AddIPToContext(context.Background(), "2001:db8::dead:beef")
 
 		_, _, err := antiBot(t, ctx, guard, fakeOwner{}, planetv1connect.ClickServiceClickProcedure, click)
 

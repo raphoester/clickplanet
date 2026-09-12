@@ -10,8 +10,8 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/domain"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/domain/chat_service"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ctxutil"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/xtime"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -47,7 +47,7 @@ func (s *testSuite) post(req chat_service.PostRequest) (domain.ChatMessage, erro
 }
 
 func (s *testSuite) ctxFromIP(ip string) context.Context {
-	return ctxutil.AddIPToContext(context.Background(), ip)
+	return cpctx.AddIPToContext(context.Background(), ip)
 }
 
 func validRequest() chat_service.PostRequest {
@@ -276,6 +276,6 @@ func (c *fakeClock) Now() time.Time {
 var (
 	_ domain.Storage        = (*fakeStorage)(nil)
 	_ domain.CountryChecker = fakeCountryChecker{}
-	_ xtime.Provider        = (*fakeClock)(nil)
+	_ cptime.Provider       = (*fakeClock)(nil)
 	_ chat_service.IService = (*chat_service.Service)(nil)
 )

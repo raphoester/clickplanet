@@ -8,13 +8,13 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/connectutil"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ipblock"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconnect"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
 )
 
 var ErrVPNBlocked = errors.New("clicks from VPN and proxy addresses are refused; turn yours off to play")
 
-type ClickBlocklist = connectutil.Blocklist
+type ClickBlocklist = cpconnect.Blocklist
 
 func NewVPNBlockInterceptor(blocklist ClickBlocklist, registerer prometheus.Registerer) (connect.Interceptor, error) {
 	blocked := prometheus.NewCounterVec(prometheus.CounterOpts{
@@ -26,10 +26,10 @@ func NewVPNBlockInterceptor(blocklist ClickBlocklist, registerer prometheus.Regi
 		return nil, fmt.Errorf("failed to register counter: %w", err)
 	}
 
-	return connectutil.NewIPBlockInterceptor(
+	return cpconnect.NewIPBlockInterceptor(
 		blocklist,
 		ErrVPNBlocked,
-		func(list ipblock.List) { blocked.WithLabelValues(string(list)).Inc() },
+		func(list cpipblock.List) { blocked.WithLabelValues(string(list)).Inc() },
 		planetv1connect.ClickServiceClickProcedure,
 	), nil
 }

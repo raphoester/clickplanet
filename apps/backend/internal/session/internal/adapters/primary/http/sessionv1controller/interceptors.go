@@ -6,10 +6,10 @@ import (
 	"connectrpc.com/connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/session/v1/sessionv1connect"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/connectutil"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconnect"
 )
 
-type MintLimiter = connectutil.Limiter
+type MintLimiter = cpconnect.Limiter
 
 // ErrTooManySessions throttles minting itself. Without it the endpoint is a
 // free way to spend this server's siteverify budget, and a way to make a
@@ -17,7 +17,7 @@ type MintLimiter = connectutil.Limiter
 var ErrTooManySessions = errors.New("too many session attempts")
 
 func NewRateLimitInterceptor(limiter MintLimiter) connect.Interceptor {
-	return connectutil.NewRateLimitInterceptor(
+	return cpconnect.NewRateLimitInterceptor(
 		limiter,
 		ErrTooManySessions,
 		nil, // nothing shows a mint allowance, so a refusal carries none

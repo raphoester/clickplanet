@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ctxutil"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/domain/click_handler_service"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
 func New(
@@ -38,7 +38,7 @@ type Service struct {
 }
 
 func (s *Service) HandleClick(ctx context.Context, tileId uint32, countryID string) error {
-	sourceIp := ctxutil.GetSourceIP(ctx)
+	sourceIp := cpctx.GetSourceIP(ctx)
 	status := "ok"
 	err := s.implementation.HandleClick(ctx, tileId, countryID)
 	if err != nil {

@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/xtime"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 const Name = "metronome"
@@ -83,9 +83,9 @@ func (c Config) withDefaults() Config {
 	return c
 }
 
-func New(config Config, timeProvider xtime.Provider) *Watchdog {
+func New(config Config, timeProvider cptime.Provider) *Watchdog {
 	if timeProvider == nil {
-		timeProvider = xtime.ActualProvider{}
+		timeProvider = cptime.ActualProvider{}
 	}
 
 	return &Watchdog{
@@ -97,7 +97,7 @@ func New(config Config, timeProvider xtime.Provider) *Watchdog {
 
 type Watchdog struct {
 	config       Config
-	timeProvider xtime.Provider
+	timeProvider cptime.Provider
 
 	mu      sync.Mutex
 	callers map[string]*caller

@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/secondary/memory_tile_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/domain"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cplogging"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -31,7 +31,7 @@ func (s *testSuite) SetupTest() {
 }
 
 func (s *testSuite) newStorage(cfg memory_tile_storage.Config) *memory_tile_storage.Storage {
-	return memory_tile_storage.New(maxIndex, cfg, logging.NewNopLogger())
+	return memory_tile_storage.New(maxIndex, cfg, cplogging.NewNopLogger())
 }
 
 func (s *testSuite) TestSetAndPublish() {
@@ -330,12 +330,12 @@ func (s *testSuite) TestSnapshotSurvivesADifferentMapSize() {
 	path := filepath.Join(s.T().TempDir(), "tiles.snapshot")
 	cfg := memory_tile_storage.Config{SnapshotPath: path}
 
-	big := memory_tile_storage.New(1_000, cfg, logging.NewNopLogger())
+	big := memory_tile_storage.New(1_000, cfg, cplogging.NewNopLogger())
 	s.Require().NoError(big.Set(context.Background(), 10, "fr"))
 	s.Require().NoError(big.Set(context.Background(), 900, "us"))
 	s.Require().NoError(big.Snapshot())
 
-	small := memory_tile_storage.New(100, cfg, logging.NewNopLogger())
+	small := memory_tile_storage.New(100, cfg, cplogging.NewNopLogger())
 	state, err := stateBatch(small, 0, 100)
 	s.Require().NoError(err)
 	s.Assert().Equal(map[uint32]string{10: "fr"}, state)

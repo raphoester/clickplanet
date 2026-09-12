@@ -21,7 +21,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/retaker"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/sequencer"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/shadowban"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/xtime"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 // The vocabulary a caller reads. It is defined under internal/detect because the
@@ -109,13 +109,13 @@ type Guard interface {
 // the one ban they all pass. A nil Guard means the block is off, which leaves the
 // click chain exactly as it was; enabling it with every watchdog off is an error,
 // because that measures nothing while looking like a defence.
-func New(config Config, clock xtime.Provider, observer Observer) (Guard, error) {
+func New(config Config, clock cptime.Provider, observer Observer) (Guard, error) {
 	if !config.Enabled {
 		return nil, nil
 	}
 
 	if clock == nil {
-		clock = xtime.ActualProvider{}
+		clock = cptime.ActualProvider{}
 	}
 
 	g := &guard{}

@@ -5,12 +5,12 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1/chatv1connect"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/connectutil"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconnect"
 )
 
-type MessageLimiter = connectutil.Limiter
+type MessageLimiter = cpconnect.Limiter
 
-type SenderBlocklist = connectutil.Blocklist
+type SenderBlocklist = cpconnect.Blocklist
 
 var (
 	ErrTooManyMessages = errors.New("too many messages")
@@ -18,7 +18,7 @@ var (
 )
 
 func NewRateLimitInterceptor(limiter MessageLimiter) connect.Interceptor {
-	return connectutil.NewRateLimitInterceptor(
+	return cpconnect.NewRateLimitInterceptor(
 		limiter,
 		ErrTooManyMessages,
 		nil, // the composer shows no allowance, so a refusal carries none
@@ -27,7 +27,7 @@ func NewRateLimitInterceptor(limiter MessageLimiter) connect.Interceptor {
 }
 
 func NewBlocklistInterceptor(blocklist SenderBlocklist) connect.Interceptor {
-	return connectutil.NewIPBlockInterceptor(
+	return cpconnect.NewIPBlockInterceptor(
 		blocklist,
 		ErrSenderBlocked,
 		nil,

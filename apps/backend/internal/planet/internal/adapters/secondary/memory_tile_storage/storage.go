@@ -7,9 +7,9 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging/lf"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/domain"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cplogging"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cplogging/cplf"
 )
 
 const maxCodes = math.MaxUint16 + 1
@@ -19,10 +19,10 @@ const unownedCode = uint16(0)
 func New(
 	maxIndex uint32,
 	config Config,
-	logger logging.Logger,
+	logger cplogging.Logger,
 ) *Storage {
 	if logger == nil {
-		logger = logging.NewNopLogger()
+		logger = cplogging.NewNopLogger()
 	}
 
 	config = config.withDefaults()
@@ -44,7 +44,7 @@ func New(
 
 type Storage struct {
 	config   Config
-	logger   logging.Logger
+	logger   cplogging.Logger
 	maxIndex uint32
 
 	tilesMu sync.RWMutex
@@ -162,8 +162,8 @@ func (s *Storage) publish(update domain.TileUpdate) {
 			dropped := sub.dropped.Add(1)
 			if dropped == 1 || dropped%dropLogInterval == 0 {
 				s.logger.Warning("dropped tile update for a slow subscriber",
-					lf.Any("tile", update.Tile),
-					lf.Any("droppedTotal", dropped),
+					cplf.Any("tile", update.Tile),
+					cplf.Any("droppedTotal", dropped),
 				)
 			}
 		}

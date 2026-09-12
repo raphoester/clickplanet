@@ -7,9 +7,9 @@ import (
 	"connectrpc.com/connect"
 	chatv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1/chatv1connect"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ctxutil"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ipblock"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ratelimit"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 	"github.com/stretchr/testify/require"
 )
 
@@ -18,9 +18,9 @@ type fakeLimiter struct {
 	keys  []string
 }
 
-func (l *fakeLimiter) Take(key string) (bool, ratelimit.State) {
+func (l *fakeLimiter) Take(key string) (bool, cpratelimit.State) {
 	l.keys = append(l.keys, key)
-	return l.allow, ratelimit.State{}
+	return l.allow, cpratelimit.State{}
 }
 
 type fakeRequest struct {
@@ -66,7 +66,7 @@ func TestRateLimitInterceptor(t *testing.T) {
 
 	t.Run("keys on the source IP from the context", func(t *testing.T) {
 		limiter := &fakeLimiter{allow: true}
-		ctx := ctxutil.AddIPToContext(context.Background(), "1.2.3.4")
+		ctx := cpctx.AddIPToContext(context.Background(), "1.2.3.4")
 
 		_, err := run(ctx, NewRateLimitInterceptor(limiter),
 			chatv1connect.ChatServiceSendMessageProcedure)
@@ -92,7 +92,7 @@ func TestBlocklistInterceptor(t *testing.T) {
 
 	t.Run("cuts a blocked sender off from every procedure", func(t *testing.T) {
 		blocklist := blocklistOf(t, []string{"9.9.9.9/32"})
-		ctx := ctxutil.AddIPToContext(context.Background(), "9.9.9.9")
+		ctx := cpctx.AddIPToContext(context.Background(), "9.9.9.9")
 
 		for _, procedure := range []string{
 			chatv1connect.ChatServiceSendMessageProcedure,
@@ -109,14 +109,14 @@ func TestBlocklistInterceptor(t *testing.T) {
 		blocklist := blocklistOf(t, []string{"203.0.113.0/24"})
 
 		for _, ip := range []string{"203.0.113.1", "203.0.113.254"} {
-			ctx := ctxutil.AddIPToContext(context.Background(), ip)
+			ctx := cpctx.AddIPToContext(context.Background(), ip)
 			_, err := run(ctx, NewBlocklistInterceptor(blocklist),
 				chatv1connect.ChatServiceSendMessageProcedure)
 
 			require.Equalf(t, connect.CodePermissionDenied, connect.CodeOf(err), "%s should be refused", ip)
 		}
 
-		ctx := ctxutil.AddIPToContext(context.Background(), "203.0.114.1")
+		ctx := cpctx.AddIPToContext(context.Background(), "203.0.114.1")
 		ran, err := run(ctx, NewBlocklistInterceptor(blocklist),
 			chatv1connect.ChatServiceSendMessageProcedure)
 
@@ -125,7 +125,7 @@ func TestBlocklistInterceptor(t *testing.T) {
 	})
 
 	t.Run("an empty list blocks nobody", func(t *testing.T) {
-		ctx := ctxutil.AddIPToContext(context.Background(), "9.9.9.9")
+		ctx := cpctx.AddIPToContext(context.Background(), "9.9.9.9")
 
 		ran, err := run(ctx, NewBlocklistInterceptor(blocklistOf(t, nil)),
 			chatv1connect.ChatServiceSendMessageProcedure)
@@ -144,14 +144,14 @@ func TestBlocklistInterceptor(t *testing.T) {
 }
 
 func TestABareAddressIsRejectedAtStartup(t *testing.T) {
-	_, err := ipblock.NewDenyList([]string{"9.9.9.9"})
+	_, err := cpipblock.NewDenyList([]string{"9.9.9.9"})
 	require.Error(t, err, "entries are prefixes; a single address needs /32")
 }
 
 func blocklistOf(t *testing.T, prefixes []string) SenderBlocklist {
 	t.Helper()
 
-	blocklist, err := ipblock.NewDenyList(prefixes)
+	blocklist, err := cpipblock.NewDenyList(prefixes)
 	require.NoError(t, err)
 
 	return blocklist

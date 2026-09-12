@@ -4,11 +4,11 @@ import (
 	"context"
 	"testing"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/countries"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/secondary/in_memory_tile_checker"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/secondary/memory_tile_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/domain/click_handler_service"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cplogging"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -28,10 +28,10 @@ func (s *testSuite) SetupSuite() {
 	s.storage = memory_tile_storage.New(
 		maxIndex,
 		memory_tile_storage.Config{},
-		logging.NewNopLogger(),
+		cplogging.NewNopLogger(),
 	)
 	tileChecker := in_memory_tile_checker.New(maxIndex)
-	countryChecker := countries.New()
+	countryChecker := cpcountries.New()
 	s.service = click_handler_service.New(tileChecker, s.storage, countryChecker)
 }
 

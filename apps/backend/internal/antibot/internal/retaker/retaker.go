@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/xtime"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 const Name = "retaker"
@@ -75,9 +75,9 @@ func (c Config) withDefaults() Config {
 	return c
 }
 
-func New(config Config, timeProvider xtime.Provider, onReaction func(time.Duration)) *Watchdog {
+func New(config Config, timeProvider cptime.Provider, onReaction func(time.Duration)) *Watchdog {
 	if timeProvider == nil {
-		timeProvider = xtime.ActualProvider{}
+		timeProvider = cptime.ActualProvider{}
 	}
 
 	return &Watchdog{
@@ -91,7 +91,7 @@ func New(config Config, timeProvider xtime.Provider, onReaction func(time.Durati
 
 type Watchdog struct {
 	config       Config
-	timeProvider xtime.Provider
+	timeProvider cptime.Provider
 	onReaction   func(time.Duration)
 
 	mu      sync.Mutex

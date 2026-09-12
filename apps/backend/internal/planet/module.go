@@ -14,48 +14,48 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/bootstrap"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/countries"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ipblock"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging/lf"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ratelimit"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/session"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/xtime"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/secondary/in_memory_tile_checker"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/secondary/memory_tile_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/domain/click_handler_service"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/domain/click_handler_service/prom_click_handler_service"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cplogging/cplf"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 const moduleName = "planet"
 
 // NewModule is always enabled: a process without the tile game is not this game.
-func NewModule(config Config) bootstrap.Module {
-	return bootstrap.Module{
+func NewModule(config Config) cpbootstrap.Module {
+	return cpbootstrap.Module{
 		Name:    moduleName,
 		Enabled: true,
-		DiSequence: func(_ context.Context, props bootstrap.Props) error {
+		DiSequence: func(_ context.Context, props cpbootstrap.Props) error {
 			return build(config, props)
 		},
 	}
 }
 
-func build(config Config, props bootstrap.Props) error {
-	clock := xtime.ActualProvider{}
+func build(config Config, props cpbootstrap.Props) error {
+	clock := cptime.ActualProvider{}
 
 	tilesChecker := in_memory_tile_checker.New(config.GameMap.MaxIndex)
 
 	tilesStorage := memory_tile_storage.New(config.GameMap.MaxIndex, config.TilesStorage, props.Logger)
 	props.Runners.Add("tiles-storage", tilesStorage.Run)
 
-	var handler click_handler_service.IService = click_handler_service.New(tilesChecker, tilesStorage, countries.New())
+	var handler click_handler_service.IService = click_handler_service.New(tilesChecker, tilesStorage, cpcountries.New())
 	handler, err := prom_click_handler_service.New(handler, props.Metrics)
 	if err != nil {
 		return fmt.Errorf("failed to create prometheus click handler service: %w", err)
 	}
 
-	clickLimiter := ratelimit.New(config.RateLimiter, clock)
+	clickLimiter := cpratelimit.New(config.RateLimiter, clock)
 	props.Runners.Add("click-limiter", clickLimiter.Run)
 
 	interceptors, err := clickChain(config, tilesStorage, clickLimiter, props)
@@ -86,8 +86,8 @@ func build(config Config, props bootstrap.Props) error {
 func clickChain(
 	config Config,
 	owner planetv1controller.TileOwner,
-	clickLimiter *ratelimit.Limiter,
-	props bootstrap.Props,
+	clickLimiter *cpratelimit.Limiter,
+	props cpbootstrap.Props,
 ) ([]connect.Interceptor, error) {
 	vpnBlockInterceptor, err := newVPNBlockInterceptor(config.VPNBlocklist, props)
 	if err != nil {
@@ -123,19 +123,19 @@ func clickChain(
 // newSessionInterceptor builds this context's own verifier from the same
 // `session:` block the session context mints with — same secret, same MAC — so
 // neither module has to hand the other an object. Nil when sessions are off.
-func newSessionInterceptor(config session.Config, props bootstrap.Props) (connect.Interceptor, error) {
+func newSessionInterceptor(config cpsession.Config, props cpbootstrap.Props) (connect.Interceptor, error) {
 	if !config.Enabled {
 		return nil, nil
 	}
 
-	verifier, err := session.NewSigner(config)
+	verifier, err := cpsession.NewSigner(config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build the click session verifier: %w", err)
 	}
 
 	interceptor, err := planetv1controller.NewSessionInterceptor(
 		verifier,
-		xtime.ActualProvider{},
+		cptime.ActualProvider{},
 		config.Enforce,
 		props.Metrics,
 	)
@@ -146,14 +146,14 @@ func newSessionInterceptor(config session.Config, props bootstrap.Props) (connec
 	return interceptor, nil
 }
 
-func newVPNBlockInterceptor(config ipblock.Config, props bootstrap.Props) (connect.Interceptor, error) {
-	blocklist, err := ipblock.New(config)
+func newVPNBlockInterceptor(config cpipblock.Config, props cpbootstrap.Props) (connect.Interceptor, error) {
+	blocklist, err := cpipblock.New(config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build vpn blocklist: %w", err)
 	}
 
 	if sizes := blocklist.Sizes(); len(sizes) > 0 {
-		props.Logger.Info("vpn blocklist enabled", lf.Any("ranges", sizes))
+		props.Logger.Info("vpn blocklist enabled", cplf.Any("ranges", sizes))
 	}
 
 	interceptor, err := planetv1controller.NewVPNBlockInterceptor(blocklist, props.Metrics)

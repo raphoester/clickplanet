@@ -14,17 +14,17 @@ import (
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/connectutil"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ctxutil"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/session"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconnect"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
 type fakeVerifier struct {
-	valid map[string]session.ID
+	valid map[string]cpsession.ID
 	asked []string
 }
 
-func (v *fakeVerifier) Verify(token string, _ string, _ time.Time) (session.ID, error) {
+func (v *fakeVerifier) Verify(token string, _ string, _ time.Time) (cpsession.ID, error) {
 	v.asked = append(v.asked, token)
 
 	id, ok := v.valid[token]
@@ -57,13 +57,13 @@ func checkSession(
 	result := sessionResult{registry: registry}
 	next := connect.UnaryFunc(func(ctx context.Context, _ connect.AnyRequest) (connect.AnyResponse, error) {
 		result.ran = true
-		result.sessionID = ctxutil.GetSessionID(ctx)
+		result.sessionID = cpctx.GetSessionID(ctx)
 		return connect.NewResponse(&planetv1.ClickResponse{}), nil
 	})
 
 	header := http.Header{}
 	if token != "" {
-		header.Set(connectutil.SessionHeader, token)
+		header.Set(cpconnect.SessionHeader, token)
 	}
 
 	req := fakeRequest{spec: connect.Spec{Procedure: procedure}, header: header}
@@ -74,7 +74,7 @@ func checkSession(
 }
 
 func validVerifier() *fakeVerifier {
-	return &fakeVerifier{valid: map[string]session.ID{"good-token": "abcd1234"}}
+	return &fakeVerifier{valid: map[string]cpsession.ID{"good-token": "abcd1234"}}
 }
 
 func TestSessionInterceptorWhenEnforcing(t *testing.T) {
@@ -186,7 +186,7 @@ func TestSessionRefusalIsA401OverHTTP(t *testing.T) {
 		req := connect.NewRequest(&planetv1.ClickRequest{TileId: 1, CountryId: "fr"})
 		req.Header().Set("X-Real-IP", "1.2.3.4")
 		if token != "" {
-			req.Header().Set(connectutil.SessionHeader, token)
+			req.Header().Set(cpconnect.SessionHeader, token)
 		}
 		_, err := planetv1connect.NewClickServiceClient(server.Client(), server.URL).
 			Click(context.Background(), req)

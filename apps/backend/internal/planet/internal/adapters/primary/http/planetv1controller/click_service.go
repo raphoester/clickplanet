@@ -8,11 +8,11 @@ import (
 	"connectrpc.com/connect"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/connectutil"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ctxutil"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ratelimit"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/domain"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/domain/click_handler_service"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconnect"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 )
 
 const mapMaxAge = 5
@@ -28,7 +28,7 @@ type UpdatesSubscriber interface {
 // ClickBudgetReader reports a caller's click allowance without spending it,
 // under the same key the rate limiter spends it under.
 type ClickBudgetReader interface {
-	Peek(key string) ratelimit.State
+	Peek(key string) cpratelimit.State
 }
 
 type ClickService struct {
@@ -78,7 +78,7 @@ func (s *ClickService) Click(
 	}
 
 	res := &planetv1.ClickResponse{}
-	if state, limited := ctxutil.GetRateBudget(ctx); limited {
+	if state, limited := cpctx.GetRateBudget(ctx); limited {
 		res.Budget = EncodeBudget(state)
 	}
 
@@ -93,7 +93,7 @@ func (s *ClickService) GetBudget(
 ) (*connect.Response[planetv1.GetBudgetResponse], error) {
 	res := &planetv1.GetBudgetResponse{}
 	if s.budgets != nil {
-		res.Budget = EncodeBudget(s.budgets.Peek(connectutil.RateLimitKey(ctx)))
+		res.Budget = EncodeBudget(s.budgets.Peek(cpconnect.RateLimitKey(ctx)))
 	}
 
 	return connect.NewResponse(res), nil

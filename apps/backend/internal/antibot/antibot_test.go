@@ -237,7 +237,7 @@ func TestATileWarBansNeither(t *testing.T) {
 }
 
 // The reflex bot the first version of this was written for, to prove the move
-// out of kernel/shadowban did not lose it.
+// into antibot/internal/shadowban did not lose it.
 func TestTheReflexBotIsStillCaught(t *testing.T) {
 	s := newStack()
 

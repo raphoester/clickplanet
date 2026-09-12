@@ -8,50 +8,50 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/session"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/xtime"
 	"github.com/raphoester/clickplanet.lol-backend/internal/session/internal/domain"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 type Minter interface {
-	Mint(ip string, now time.Time) (session.Token, error)
+	Mint(ip string, now time.Time) (cpsession.Token, error)
 }
 
 type IService interface {
-	Create(ctx context.Context, attestationToken string, ip string) (session.Token, error)
+	Create(ctx context.Context, attestationToken string, ip string) (cpsession.Token, error)
 }
 
 type Service struct {
 	attester     domain.Attester
 	minter       Minter
-	timeProvider xtime.Provider
+	timeProvider cptime.Provider
 }
 
 var _ IService = (*Service)(nil)
 
-func New(attester domain.Attester, minter Minter, timeProvider xtime.Provider) *Service {
+func New(attester domain.Attester, minter Minter, timeProvider cptime.Provider) *Service {
 	if timeProvider == nil {
-		timeProvider = xtime.ActualProvider{}
+		timeProvider = cptime.ActualProvider{}
 	}
 
 	return &Service{attester: attester, minter: minter, timeProvider: timeProvider}
 }
 
-func (s *Service) Create(ctx context.Context, attestationToken string, ip string) (session.Token, error) {
+func (s *Service) Create(ctx context.Context, attestationToken string, ip string) (cpsession.Token, error) {
 	// A session is an address that proved something. Minting one against no
 	// address at all would produce a token every caller could use, since
 	// verification would bind to the same empty string.
 	if ip == "" {
-		return session.Token{}, fmt.Errorf("%w: the request carries no source address", domain.ErrAttestationFailed)
+		return cpsession.Token{}, fmt.Errorf("%w: the request carries no source address", domain.ErrAttestationFailed)
 	}
 
 	if err := s.attester.Attest(ctx, attestationToken, ip); err != nil {
-		return session.Token{}, fmt.Errorf("%w: %s", domain.ErrAttestationFailed, err)
+		return cpsession.Token{}, fmt.Errorf("%w: %s", domain.ErrAttestationFailed, err)
 	}
 
 	token, err := s.minter.Mint(ip, s.timeProvider.Now())
 	if err != nil {
-		return session.Token{}, fmt.Errorf("failed to mint a session token: %w", err)
+		return cpsession.Token{}, fmt.Errorf("failed to mint a session token: %w", err)
 	}
 
 	return token, nil

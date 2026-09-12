@@ -9,9 +9,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/session"
 	"github.com/raphoester/clickplanet.lol-backend/internal/session/internal/domain"
 	"github.com/raphoester/clickplanet.lol-backend/internal/session/internal/domain/session_service"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
 var now = time.Date(2026, 9, 9, 12, 0, 0, 0, time.UTC)
@@ -33,11 +33,11 @@ func (a *fakeAttester) Attest(_ context.Context, token string, ip string) error 
 }
 
 type countingMinter struct {
-	signer *session.Signer
+	signer *cpsession.Signer
 	mints  int
 }
 
-func (m *countingMinter) Mint(ip string, at time.Time) (session.Token, error) {
+func (m *countingMinter) Mint(ip string, at time.Time) (cpsession.Token, error) {
 	m.mints++
 	return m.signer.Mint(ip, at)
 }
@@ -45,7 +45,7 @@ func (m *countingMinter) Mint(ip string, at time.Time) (session.Token, error) {
 func newService(t *testing.T, attester domain.Attester) (*session_service.Service, *countingMinter) {
 	t.Helper()
 
-	signer, err := session.NewSigner(session.Config{Secret: "a-test-secret", TTL: time.Hour})
+	signer, err := cpsession.NewSigner(cpsession.Config{Secret: "a-test-secret", TTL: time.Hour})
 	require.NoError(t, err)
 
 	minter := &countingMinter{signer: signer}
