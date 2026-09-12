@@ -8,7 +8,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/domain"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
 
 const maxCodes = math.MaxUint16 + 1
@@ -57,7 +57,7 @@ type Storage struct {
 }
 
 type subscriber struct {
-	ch      chan domain.TileUpdate
+	ch      chan clicks.TileUpdate
 	dropped atomic.Uint64
 }
 
@@ -75,7 +75,7 @@ func (s *Storage) Set(_ context.Context, tile uint32, value string) error {
 		return nil
 	}
 
-	s.publish(domain.TileUpdate{Tile: tile, Value: value, Previous: previous})
+	s.publish(clicks.TileUpdate{Tile: tile, Value: value, Previous: previous})
 
 	return nil
 }
@@ -128,8 +128,8 @@ func (s *Storage) internLocked(value string) (uint16, error) {
 	return id, nil
 }
 
-func (s *Storage) Subscribe(ctx context.Context) (<-chan domain.TileUpdate, error) {
-	sub := &subscriber{ch: make(chan domain.TileUpdate, s.config.SubscriberBuffer)}
+func (s *Storage) Subscribe(ctx context.Context) (<-chan clicks.TileUpdate, error) {
+	sub := &subscriber{ch: make(chan clicks.TileUpdate, s.config.SubscriberBuffer)}
 
 	s.subscribersMu.Lock()
 	s.subscribers[sub] = struct{}{}
@@ -150,7 +150,7 @@ func (s *Storage) Subscribe(ctx context.Context) (<-chan domain.TileUpdate, erro
 
 const dropLogInterval = 1000
 
-func (s *Storage) publish(update domain.TileUpdate) {
+func (s *Storage) publish(update clicks.TileUpdate) {
 	s.subscribersMu.Lock()
 	defer s.subscribersMu.Unlock()
 

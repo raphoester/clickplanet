@@ -82,8 +82,10 @@ linters:
 
         # Handlers return their domain errors bare on purpose: NewErrorInterceptor
         # maps the sentinels onto Connect codes centrally, and wrapping here would
-        # put a second sentence in front of a message it already chose.
-        - .HandleClick(
+        # put a second sentence in front of a message it already chose. `.Execute(`
+        # is every clicks use case, which is exactly that set of calls: the
+        # controller delegates to one and returns what it said.
+        - .Execute(
         - .Post(
         - .Create(
 
@@ -96,8 +98,10 @@ linters:
         - .Send(
         - cpbootstrap.Run(
 
-        # Generated Connect clients, called from tests.
+        # Connect procedures called straight from a test: the handler under test,
+        # and the generated clients.
         - .Click(
+        - .GetMap(
         - .SendMessage(
         - .ListenForEvents(
         - .CreateSession(

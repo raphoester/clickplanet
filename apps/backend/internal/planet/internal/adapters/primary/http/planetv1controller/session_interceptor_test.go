@@ -14,6 +14,7 @@ import (
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click/throttle_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconnect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
@@ -94,7 +95,7 @@ func TestSessionInterceptorWhenEnforcing(t *testing.T) {
 
 		require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(result.err))
 		require.ErrorIs(t, result.err, ErrNoSession)
-		require.False(t, result.ran, "a refused click must not reach the domain")
+		require.False(t, result.ran, "a refused click must not reach the use case")
 		require.InDelta(t, 1.0, sessionChecks(t, result.registry, "missing"), 1e-9)
 	})
 
@@ -157,16 +158,20 @@ func TestSessionInterceptorWhenObserving(t *testing.T) {
 // Same reason the blocklist sits outside the throttle: a click refused for its
 // session must not also spend a token, or the retry that follows the mint would
 // come back 429 and the player would be shown the throttle dialog instead.
+//
+// The throttle is a decorator over the use case now, so every interceptor is
+// outside it by construction. This pins that the chain really is assembled that
+// way — that the refusal happens before anything reaches the click chain at all.
 func TestSessionCheckRunsBeforeTheThrottle(t *testing.T) {
 	interceptor, err := NewSessionInterceptor(validVerifier(), nil, true, prometheus.NewRegistry())
 	require.NoError(t, err)
 
 	limiter := &fakeLimiter{allow: true}
-	server := clickServer(t, connect.WithInterceptors(
-		NewErrorInterceptor(nil),
-		interceptor,
-		NewRateLimitInterceptor(limiter),
-	))
+	server := clickServerWith(t, throttle_click.New(stubService{}, limiter), nil,
+		connect.WithInterceptors(
+			errorNet(),
+			interceptor,
+		))
 
 	require.Equal(t, http.StatusUnauthorized, clickStatus(t, server, "1.2.3.4"))
 	require.Empty(t, limiter.keys, "the refused click never reached the bucket")
@@ -177,9 +182,8 @@ func TestSessionRefusalIsA401OverHTTP(t *testing.T) {
 	require.NoError(t, err)
 
 	server := clickServer(t, connect.WithInterceptors(
-		NewErrorInterceptor(nil),
+		errorNet(),
 		interceptor,
-		NewRateLimitInterceptor(allowAll{}),
 	))
 
 	click := func(token string) error {

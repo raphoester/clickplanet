@@ -10,6 +10,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/http"
 
 	"connectrpc.com/connect"
 
@@ -62,14 +63,14 @@ func build(config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to build the chat blocklist: %w", err)
 	}
 
-	err = props.RPC.Mount(chatv1connect.NewChatServiceHandler(
-		chatv1controller.NewChatService(service, storage, props.Server.StreamHeartbeat),
-		connect.WithInterceptors(
-			chatv1controller.NewErrorInterceptor(props.Logger),
-			chatv1controller.NewBlocklistInterceptor(blocklist),
-			chatv1controller.NewRateLimitInterceptor(messageLimiter),
-		),
-	))
+	chatService := chatv1controller.NewChatService(service, storage, props.Server.StreamHeartbeat)
+
+	err = props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
+		return chatv1connect.NewChatServiceHandler(chatService, options...)
+	},
+		chatv1controller.NewBlocklistInterceptor(blocklist),
+		chatv1controller.NewRateLimitInterceptor(messageLimiter),
+	)
 	if err != nil {
 		return err
 	}

@@ -4,11 +4,11 @@ import (
 	"encoding/binary"
 	"testing"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/domain"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/stretchr/testify/require"
 )
 
-func readBatch(t *testing.T, batch domain.DenseBatch) []string {
+func readBatch(t *testing.T, batch clicks.DenseBatch) []string {
 	t.Helper()
 	require.Len(t, batch.Tiles, len(batch.Tiles)/2*2)
 
@@ -25,7 +25,7 @@ func TestStateBatchDense(t *testing.T) {
 	require.NoError(t, storage.Set(t.Context(), 2, "fr"))
 	require.NoError(t, storage.Set(t.Context(), 4, "gb-eng"))
 
-	dense := func(t *testing.T, start uint32, end uint32) domain.DenseBatch {
+	dense := func(t *testing.T, start uint32, end uint32) clicks.DenseBatch {
 		t.Helper()
 		batch, err := storage.StateBatchDense(start, end)
 		require.NoError(t, err)

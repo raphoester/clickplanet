@@ -11,7 +11,8 @@ import (
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/secondary/memory_tile_storage"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/domain"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -108,7 +109,7 @@ func (s *testSuite) TestSubscribeFansOutToEverySubscriber() {
 	defer cancel()
 
 	const subscribers = 5
-	listeners := make([]<-chan domain.TileUpdate, 0, subscribers)
+	listeners := make([]<-chan clicks.TileUpdate, 0, subscribers)
 	for range subscribers {
 		listener, err := s.storage.Subscribe(ctx)
 		s.Require().NoError(err)
@@ -478,7 +479,7 @@ func (s *testSuite) TestConcurrentSetsAndReads() {
 	}
 }
 
-var _ domain.TileStorage = (*memory_tile_storage.Storage)(nil)
+var _ click.TileStorage = (*memory_tile_storage.Storage)(nil)
 
 func stateBatch(s *memory_tile_storage.Storage, start uint32, end uint32) (map[uint32]string, error) {
 	batch, err := s.StateBatchDense(start, end)
