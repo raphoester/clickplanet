@@ -45,7 +45,7 @@ const (
 	defaultMaxInterval     = 210 * time.Second
 	defaultMissRetry       = 45 * time.Second
 	defaultOfferTTL        = 15 * time.Second
-	defaultDuration        = 60 * time.Second
+	defaultDuration        = 20 * time.Second
 	defaultSpreadDuration  = 10 * time.Second
 	defaultMultiplier      = 3
 	defaultActiveWithin    = 2 * time.Minute

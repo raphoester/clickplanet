@@ -120,7 +120,7 @@ antiBot:
       sweepInterval: 1m
 
 # A question-mark box flies past the planet every so often, and whoever catches
-# it clicks at three times their allowance for a minute.
+# it clicks at three times their allowance for 20 seconds.
 #
 # On ahead of the frontend that can draw one. The two events ride the existing
 # stream as new cases of its oneof, so a deployed client reads them as unset and
@@ -151,7 +151,7 @@ bonus:
   # Multiplies the burst and the refill rate together, and the client reads both
   # off the answer - so changing these changes the meter with no frontend
   # release, exactly as rateLimiter does.
-  duration: 60s
+  duration: 20s
   multiplier: 3
 
   # spread_clicks' own duration. It takes seven tiles a click, so it is short.

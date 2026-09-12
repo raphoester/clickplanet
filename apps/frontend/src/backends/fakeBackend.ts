@@ -26,7 +26,7 @@ const CLICK_BURST = 10
 const BONUS_EVERY_MS = 20_000
 const BONUS_OFFER_TTL_MS = 15_000
 /** The server's defaults: a spread is strong, so it is short and rarer. */
-const BONUS_SECONDS: Record<BonusReward["kind"], number> = {tripleClicks: 60, spreadClicks: 10}
+const BONUS_SECONDS: Record<BonusReward["kind"], number> = {tripleClicks: 20, spreadClicks: 10}
 const BONUS_KINDS: BonusReward["kind"][] = ["tripleClicks", "tripleClicks", "tripleClicks", "spreadClicks"]
 
 export type FakeBackendOptions = {

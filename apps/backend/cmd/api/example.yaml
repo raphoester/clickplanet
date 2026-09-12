@@ -97,7 +97,7 @@ bonus:
   # off the answer - so changing these changes the meter with no frontend
   # release, exactly as rateLimiter does. The next box is due a window after the
   # bonus ends, so two can never overlap.
-  duration: 60s
+  duration: 20s
   multiplier: 3
 
   # How long a caught spread_clicks runs. Far shorter than `duration`: a click
