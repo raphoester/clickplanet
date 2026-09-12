@@ -31,11 +31,11 @@ const MAX_APPARENT_SIZE = 0.9
 
 const SPIN_PER_SECOND = 0.8
 
-/** A full orbit in about six seconds — it is meant to be chased, not waited for. */
-const ORBIT_PER_SECOND = 1
+/** A full orbit in about sixteen seconds: at six, players could not land a click. */
+const ORBIT_PER_SECOND = 0.4
 
-/** How long a box is up before it leaves on its own. */
-const LIFETIME_SECONDS = 7
+/** How long a box is up. Must stay under the server's offerTTL (15s), claim round trip included. */
+const LIFETIME_SECONDS = 12
 
 /** The tail of that life it spends fading, so it is never cut off mid-flight. */
 const FADE_SECONDS = 0.9
