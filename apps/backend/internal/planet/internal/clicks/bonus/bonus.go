@@ -21,10 +21,13 @@ const (
 
 	// KindSpreadClicks makes every click take the tiles touching it as well.
 	KindSpreadClicks Kind = "spread_clicks"
+
+	// KindBomb grants one bomb, to be dropped within the duration.
+	KindBomb Kind = "bomb"
 )
 
 // Kinds is every kind this server knows how to grant.
-var Kinds = []Kind{KindTripleClicks, KindSpreadClicks}
+var Kinds = []Kind{KindTripleClicks, KindSpreadClicks, KindBomb}
 
 type Offer struct {
 	Token string
@@ -225,6 +228,29 @@ func (r *Registry) Claim(token string, scope string) (Reward, bool) {
 	}
 
 	return Reward{Kind: offer.kind, Duration: offer.duration}, true
+}
+
+// Dropped brings the next box to a window from now, rather than from when the bomb would have lapsed.
+func (r *Registry) Dropped(scope string) {
+	now := r.clock.Now()
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	entry, ok := r.callers[scope]
+	if !ok || entry.outstanding != "" {
+		return
+	}
+
+	entry.nextOfferAt = minTime(entry.nextOfferAt, now.Add(r.window()))
+}
+
+func minTime(a, b time.Time) time.Time {
+	if b.Before(a) {
+		return b
+	}
+
+	return a
 }
 
 func (r *Registry) Publish(taken Taken) {

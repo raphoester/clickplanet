@@ -240,7 +240,7 @@ The response never repeats a tile id. `GetMapResponse` carries `start_tile_id`, 
 - `internal/adapters/secondary/in_memory_tile_checker/` — validates tile IDs
 - country codes are validated by `shared/cpcountries`, which chat shares — see [The composite layer](#the-composite-layer)
 
-Beyond the `click.TileStorage` port, `memory_tile_storage` also exposes `Subscribe(ctx) (<-chan clicks.TileUpdate, error)`, one call per open stream.
+Beyond the `click.TileStorage` port, `memory_tile_storage` also exposes `Subscribe(ctx) (<-chan clicks.Change, error)`, one call per open stream. A `Change` is a tile update or a bomb blast, on one channel so the two keep their order — see [What a bomb does](#what-a-bomb-does).
 
 ### Key Flow
 
@@ -377,14 +377,17 @@ The signature is checked **before** the expiry, in constant time, so a forger le
 ### Bonus boxes (`internal/planet/internal/clicks/bonus/`)
 
 A question-mark box flies past the planet every so often; whoever catches it
-gets one of two bonuses for `bonus.duration`. Each box draws its kind from
-`bonus.kinds`, a weight per kind — a kind's chance is its weight over the sum of
-the weights, so the strong spread can be made rare:
+gets one of three bonuses. Each box draws its kind from `bonus.kinds`, a weight
+per kind — a kind's chance is its weight over the sum of the weights, so the
+strong ones can be made rare (production runs 5 : 2 : 1):
 
-- **`triple_clicks`** — the allowance is multiplied by `bonus.multiplier`. See
-  [What a bonus does to the bucket](#what-a-bonus-does-to-the-bucket).
+- **`triple_clicks`** — the allowance is multiplied by `bonus.multiplier` for
+  `bonus.duration`. See [What a bonus does to the bucket](#what-a-bonus-does-to-the-bucket).
 - **`spread_clicks`** — every click also takes the tiles touching the one
   clicked, for `bonus.spreadDuration` instead (10s by default — it is strong). See [What a spread does to a click](#what-a-spread-does-to-a-click).
+- **`bomb`** — one bomb, to be dropped within `bonus.bombDuration` (30s). It
+  clears `bonus.bombRings` rings of tiles around where it lands, whoever holds
+  them. See [What a bomb does](#what-a-bomb-does).
 
 Off by
 default — `bonus.enabled` false offers nothing and answers `ClaimBonus` with
@@ -499,6 +502,48 @@ Each neighbour is an ordinary `Set`, so it publishes its own `TileUpdate` and a
 tile already held is a no-op. One click is at most 7 updates. **A lone island
 takes itself and nothing else**: `Neighbours` is empty there, and the bonus does
 not pretend otherwise.
+
+#### What a bomb does
+
+`claim_bonus` hands the bomb over with `bonus.Bombs.Grant(scope, until)` — the
+spread's counterpart, a map of scope to deadline — and answers the blast radius
+on `ClaimBonusResponse.blast_radius`, so the client draws its aiming ring at the
+width of what it will clear. `DropBomb` spends it through `drop_bomb`.
+
+**The client names a point, never a tile.** The sea has no tiles, and whether an
+aim is on land is the server's call: `Geography.Nearest` finds the closest tile,
+and an aim further than one tile spacing from it is **in the sea** — the bomb is
+spent, nothing is cleared, and the blast is still broadcast with tile 0 so every
+screen draws a splash. That was a product decision: a bad aim costs the bomb.
+
+On land the tiles are `Geography.Disc(tile, bombRings)` — rings of neighbours, so
+a bomb on a coast takes only the land there is. **8 rings is at most 217 tiles.**
+The radius sent to clients is `bombRings × Geography.Spacing()`, the mean arc
+between touching tiles measured at boot (0.0040 rad on the 257,948-tile map, so
+0.032), rather than a number in the config that could drift from the map.
+
+`drop_bomb` checks the country and the target **before** taking the bomb, so a
+malformed request does not cost one. `Registry.Dropped` then brings the next box
+to a window from the drop, not from when the bomb would have lapsed. Held time
+still counts in full towards `maxBoostPerHour`, like any bonus.
+
+**The blast is one event, and it rides the tile feed.** `memory_tile_storage.Clear`
+empties the tiles under one lock and publishes a single `clicks.Change{Blast}`
+on the same channel as the `clicks.Change{Update}` every `Set` sends. Two
+reasons it is not one `TileUpdate` per tile:
+
+- **Order.** A bonus event travels on the registry's channel, and two channels
+  merged by a `select` have no order between them. A tile retaken a moment after
+  the blast could then reach a client *before* the blast and be blanked by it,
+  with nothing to repair it until a reload. On one channel it cannot.
+- **Timing.** The client holds the clear back until its drawing of the bomb hits
+  the ground, which it can only do with the whole clear in one message. 217
+  updates in a burst would also overflow a slow subscriber's buffer.
+
+`DropBomb` is session-gated like `Click` and `ClaimBonus` — it writes the map.
+It is not throttled: holding a bomb the server granted is the gate.
+`prom_drop_bomb` counts `bonus_bombs_dropped_total{outcome=land|sea|refused}`
+and `bonus_bomb_tiles_cleared_total`.
 
 #### What a bonus does to the bucket
 
@@ -924,12 +969,9 @@ from a pool, one per concurrent caller, so nothing is cleared per call and two c
 the same array.
 
 `Neighbours` is what the spread bonus reads — see [What a spread does to a click](#what-a-spread-does-to-a-click).
-
-`Disc` and `Position` sit behind the `testing` tag, as `cpctx.GetSessionID` does and for the same
-reason — see [Testing](#testing). The spread takes one ring, which is `Neighbours`; they have no
-production caller until a bonus reaches further, and `make deadcode` reports production code whose
-only caller is a test. **Deleting the tag line is
-the whole of wiring them up**; both are already tested against the numbers above.
+`Disc`, `Position`, `Nearest` and `Spacing` are what the bomb reads — see [What a bomb does](#what-a-bomb-does).
+`Nearest` and `Spacing` are straight scans (a few ms over 257,948 tiles): `Spacing` runs once at
+boot, `Nearest` once per bomb.
 
 #### Known faults, inherited and documented
 
@@ -1107,9 +1149,8 @@ All three take `--no-verify`. The hooks re-point `core.hooksPath` at a *relative
 the main checkout's.
 
 The tag has a second use, same mechanism and a different reason: **production code that is written
-and tested but has no caller yet**. `clicks.Geography`'s `Disc` and `Position` are there, waiting on
-a bonus that reaches further than one ring (see [Map geography](#map-geography)). The tag
-is what keeps `make deadcode` a wall rather than a thing people learn to ignore, and removing the
-line is the whole of promoting such a function.
+and tested but has no caller yet**. `clicks.Geography`'s `Disc` and `Position` sat there until the
+bomb gave them one. The tag is what keeps `make deadcode` a wall rather than a thing people learn to
+ignore, and removing the line is the whole of promoting such a function.
 
 **`make deadcode` fails on any unreachable function**, in two passes, because "is this reachable?" has two different right answers depending on whether test code counts as a caller. The first pass excludes tests and tagged files, so **production code whose only caller is a test is reported as dead** — the case a plain `deadcode -test` forgives. The second pass includes both but keeps only findings inside tagged files, so an unused shared helper is reported too. `deadcode` is fetched at a pinned version by the target, so there is nothing to install.

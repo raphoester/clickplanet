@@ -57,7 +57,7 @@ type Storage struct {
 }
 
 type subscriber struct {
-	ch      chan clicks.TileUpdate
+	ch      chan clicks.Change
 	dropped atomic.Uint64
 }
 
@@ -75,9 +75,35 @@ func (s *Storage) Set(_ context.Context, tile uint32, value string) error {
 		return nil
 	}
 
-	s.publish(clicks.TileUpdate{Tile: tile, Value: value, Previous: previous})
+	s.publish(clicks.Change{Update: &clicks.TileUpdate{Tile: tile, Value: value, Previous: previous}})
 
 	return nil
+}
+
+// Clear empties blast.Cleared and publishes the blast once, holding only the tiles that were owned.
+func (s *Storage) Clear(_ context.Context, blast clicks.Blast) (clicks.Blast, error) {
+	cleared := make([]uint32, 0, len(blast.Cleared))
+
+	s.tilesMu.Lock()
+	for _, tile := range blast.Cleared {
+		if tile > s.maxIndex {
+			s.tilesMu.Unlock()
+			return clicks.Blast{}, fmt.Errorf("tile %d out of range (max %d)", tile, s.maxIndex)
+		}
+		if s.tiles[tile] != unownedCode {
+			s.tiles[tile] = unownedCode
+			cleared = append(cleared, tile)
+		}
+	}
+	if len(cleared) > 0 {
+		s.dirty = true
+	}
+	s.tilesMu.Unlock()
+
+	blast.Cleared = cleared
+	s.publish(clicks.Change{Blast: &blast})
+
+	return blast, nil
 }
 
 // Owner reads one tile; false means past the end of the map, and an unowned tile reads as an empty code.
@@ -128,8 +154,8 @@ func (s *Storage) internLocked(value string) (uint16, error) {
 	return id, nil
 }
 
-func (s *Storage) Subscribe(ctx context.Context) (<-chan clicks.TileUpdate, error) {
-	sub := &subscriber{ch: make(chan clicks.TileUpdate, s.config.SubscriberBuffer)}
+func (s *Storage) Subscribe(ctx context.Context) (<-chan clicks.Change, error) {
+	sub := &subscriber{ch: make(chan clicks.Change, s.config.SubscriberBuffer)}
 
 	s.subscribersMu.Lock()
 	s.subscribers[sub] = struct{}{}
@@ -150,23 +176,31 @@ func (s *Storage) Subscribe(ctx context.Context) (<-chan clicks.TileUpdate, erro
 
 const dropLogInterval = 1000
 
-func (s *Storage) publish(update clicks.TileUpdate) {
+func (s *Storage) publish(change clicks.Change) {
 	s.subscribersMu.Lock()
 	defer s.subscribersMu.Unlock()
 
 	for sub := range s.subscribers {
 		select {
-		case sub.ch <- update:
+		case sub.ch <- change:
 		default:
 			dropped := sub.dropped.Add(1)
 			if dropped == 1 || dropped%dropLogInterval == 0 {
-				s.logger.Warn("dropped tile update for a slow subscriber",
-					slog.Uint64("tile", uint64(update.Tile)),
+				s.logger.Warn("dropped map change for a slow subscriber",
+					slog.Uint64("tile", uint64(tileOf(change))),
 					slog.Uint64("droppedTotal", dropped),
 				)
 			}
 		}
 	}
+}
+
+func tileOf(change clicks.Change) uint32 {
+	if change.Blast != nil {
+		return change.Blast.Tile
+	}
+
+	return change.Update.Tile
 }
 
 func (s *Storage) DroppedUpdates() uint64 {

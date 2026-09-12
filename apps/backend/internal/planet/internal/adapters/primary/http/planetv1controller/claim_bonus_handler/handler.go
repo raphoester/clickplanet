@@ -47,6 +47,7 @@ func (h ClaimBonusHandler) ClaimBonus(
 		Budget:          clickbudget.Encode(out.Budget),
 		Kind:            EncodeKind(out.Kind),
 		DurationSeconds: uint32(out.Duration / time.Second),
+		BlastRadius:     out.BlastRadius,
 	}), nil
 }
 
@@ -56,6 +57,8 @@ func EncodeKind(kind bonus.Kind) planetv1.BonusKind {
 		return planetv1.BonusKind_BONUS_KIND_TRIPLE_CLICKS
 	case bonus.KindSpreadClicks:
 		return planetv1.BonusKind_BONUS_KIND_SPREAD_CLICKS
+	case bonus.KindBomb:
+		return planetv1.BonusKind_BONUS_KIND_BOMB
 	}
 
 	return planetv1.BonusKind_BONUS_KIND_UNSPECIFIED

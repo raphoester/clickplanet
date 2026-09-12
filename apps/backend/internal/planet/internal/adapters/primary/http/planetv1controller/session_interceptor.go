@@ -48,5 +48,7 @@ func NewSessionInterceptor(
 		// box that grants them asks for one too, rather than being the one way
 		// to widen an allowance without proving anything.
 		planetv1connect.ClickServiceClaimBonusProcedure,
+		// A bomb writes the map, so it asks for what a click does.
+		planetv1connect.ClickServiceDropBombProcedure,
 	), nil
 }

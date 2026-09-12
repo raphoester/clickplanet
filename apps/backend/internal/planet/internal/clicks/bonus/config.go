@@ -30,6 +30,12 @@ type Config struct {
 	Duration       time.Duration
 	SpreadDuration time.Duration
 
+	// How long a bomb may be held before it is lost; it counts towards MaxBoostPerHour like any bonus.
+	BombDuration time.Duration
+
+	// How many rings of tiles around the one hit a bomb clears.
+	BombRings int
+
 	Multiplier float64
 
 	ActiveWithin time.Duration
@@ -47,6 +53,8 @@ const (
 	defaultOfferTTL        = 15 * time.Second
 	defaultDuration        = 20 * time.Second
 	defaultSpreadDuration  = 10 * time.Second
+	defaultBombDuration    = 30 * time.Second
+	defaultBombRings       = 8
 	defaultMultiplier      = 3
 	defaultActiveWithin    = 2 * time.Minute
 	defaultForgetAfter     = 5 * time.Minute
@@ -78,6 +86,12 @@ func (c Config) withDefaults() Config {
 	}
 	if c.SpreadDuration <= 0 {
 		c.SpreadDuration = defaultSpreadDuration
+	}
+	if c.BombDuration <= 0 {
+		c.BombDuration = defaultBombDuration
+	}
+	if c.BombRings <= 0 {
+		c.BombRings = defaultBombRings
 	}
 	if c.Multiplier <= 1 {
 		c.Multiplier = defaultMultiplier
@@ -121,9 +135,17 @@ func (c Config) Validate() error {
 }
 
 func (c Config) durationOf(kind Kind) time.Duration {
-	if kind == KindSpreadClicks {
+	switch kind {
+	case KindSpreadClicks:
 		return c.SpreadDuration
+	case KindBomb:
+		return c.BombDuration
 	}
 
 	return c.Duration
+}
+
+// Rings is how many rings of tiles a bomb clears, defaults applied.
+func (c Config) Rings() int {
+	return c.withDefaults().BombRings
 }

@@ -46,11 +46,11 @@ type stubChecker struct{}
 func (stubChecker) MaxIndex() uint32 { return 100 }
 
 type stubSubscriber struct {
-	updates chan clicks.TileUpdate
+	updates chan clicks.Change
 	err     error
 }
 
-func (s stubSubscriber) Subscribe(context.Context) (<-chan clicks.TileUpdate, error) {
+func (s stubSubscriber) Subscribe(context.Context) (<-chan clicks.Change, error) {
 	return s.updates, s.err
 }
 

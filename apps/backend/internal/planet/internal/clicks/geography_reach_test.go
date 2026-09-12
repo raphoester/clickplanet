@@ -1,6 +1,7 @@
 package clicks_test
 
 import (
+	"math"
 	"sync"
 	"testing"
 
@@ -156,6 +157,39 @@ func TestPositionRefusesATileThatIsNotOne(t *testing.T) {
 
 	_, ok = geography.Position(loneIsland)
 	assert.True(t, ok, "the highest tile id is the tile count itself")
+}
+
+func equatorRow(t *testing.T) *clicks.Geography {
+	t.Helper()
+
+	positions := make([]float32, 0, 9)
+	for _, a := range []float64{0, 0.1, 0.2} {
+		positions = append(positions, float32(math.Cos(a)), float32(math.Sin(a)), 0)
+	}
+
+	geography, err := clicks.NewGeography(positions, []clicks.Edge{
+		{From: 1, To: 2}, {From: 2, To: 1}, {From: 2, To: 3}, {From: 3, To: 2},
+	})
+	require.NoError(t, err)
+
+	return geography
+}
+
+func TestSpacingIsTheMeanArcBetweenTouchingTiles(t *testing.T) {
+	assert.InDelta(t, 0.1, equatorRow(t).Spacing(), 1e-6)
+}
+
+func TestNearestFindsTheClosestTileAndHowFarItIs(t *testing.T) {
+	tile, arc := equatorRow(t).Nearest(clicks.Vec3{X: 3 * math.Cos(0.13), Y: 3 * math.Sin(0.13)})
+
+	assert.Equal(t, uint32(2), tile)
+	assert.InDelta(t, 0.03, arc, 1e-6)
+}
+
+func TestNearestRefusesAPointWithNoDirection(t *testing.T) {
+	tile, _ := equatorRow(t).Nearest(clicks.Vec3{})
+
+	assert.Zero(t, tile)
 }
 
 func sortedAscending(tiles []uint32) bool {
