@@ -17,6 +17,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/claim_bonus_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/click_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/get_budget_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/get_map_handler"
@@ -24,7 +25,11 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/map_density_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/secondary/in_memory_tile_checker"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/secondary/memory_tile_storage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/bonus"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/claim_bonus"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/claim_bonus/prom_claim_bonus"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click/bonus_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click/prom_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click/throttle_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_budget"
@@ -63,12 +68,21 @@ func build(config Config, props cpbootstrap.Props) error {
 	limiter := cpratelimit.New(config.RateLimiter, clock)
 	props.Runners.Add("click-limiter", limiter.Run)
 
-	clickUseCase, err := clickChain(config, tilesChecker, tilesStorage, limiter, props)
+	// nil when boxes are off, which leaves the feed and the click chain exactly
+	// as they were and makes ClaimBonus answer Unimplemented.
+	bonuses := newBonusRegistry(config.Bonus, clock, props)
+
+	clickUseCase, err := clickChain(config, tilesChecker, tilesStorage, limiter, bonuses, props)
 	if err != nil {
 		return err
 	}
 
 	interceptors, err := edgeChain(config, props)
+	if err != nil {
+		return err
+	}
+
+	claimBonus, err := claimBonusUseCase(bonuses, limiter, clock, props)
 	if err != nil {
 		return err
 	}
@@ -83,7 +97,8 @@ func build(config Config, props cpbootstrap.Props) error {
 		MapDensityHandler: map_density_handler.New(map_density.New(tilesChecker)),
 		GetMapHandler:     get_map_handler.New(get_map.New(tilesChecker, tilesStorage)),
 		ListenForEventsHandler: listen_for_events_handler.New(
-			listen_for_events.New(tilesStorage, props.Server.StreamHeartbeat)),
+			listen_for_events.New(tilesStorage, props.Server.StreamHeartbeat, bonusFeed(bonuses))),
+		ClaimBonusHandler: claim_bonus_handler.New(claimBonus),
 	}
 
 	return props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
@@ -100,6 +115,7 @@ func clickChain(
 	tilesChecker *in_memory_tile_checker.Checker,
 	tilesStorage *memory_tile_storage.Storage,
 	limiter *cpratelimit.Limiter,
+	bonuses *bonus.Registry,
 	props cpbootstrap.Props,
 ) (click.IUseCase, error) {
 	useCase, err := prom_click.New(
@@ -115,7 +131,67 @@ func clickChain(
 		return nil, err
 	}
 
+	// Inside the throttle: presence is what a caller actually managed to do,
+	// not what they attempted.
+	if bonuses != nil {
+		guarded = bonus_click.New(guarded, bonuses)
+	}
+
 	return throttle_click.New(guarded, limiter), nil
+}
+
+// newBonusRegistry returns nil when boxes are off. A typed nil in an interface
+// is not a nil interface, which is why the concrete type is returned here and
+// the two helpers below do the widening.
+func newBonusRegistry(config bonus.Config, clock cptime.Clock, props cpbootstrap.Props) *bonus.Registry {
+	if !config.Enabled {
+		return nil
+	}
+
+	registry := bonus.New(config, clock)
+	props.Runners.Add("bonus-boxes", registry.Run)
+
+	props.Logger.Info("bonus boxes enabled",
+		slog.Any("minInterval", config.MinInterval),
+		slog.Any("maxInterval", config.MaxInterval),
+		slog.Any("duration", config.Duration),
+	)
+
+	return registry
+}
+
+func bonusFeed(registry *bonus.Registry) listen_for_events.BonusFeed {
+	if registry == nil {
+		return nil
+	}
+
+	return registry
+}
+
+// claimBonusUseCase also hands the registry its counters, which is why it takes
+// the metrics registerer: offered against caught is the only way to see whether
+// the pacing and the flight time are set anywhere near right.
+func claimBonusUseCase(
+	registry *bonus.Registry,
+	limiter *cpratelimit.Limiter,
+	clock cptime.Clock,
+	props cpbootstrap.Props,
+) (claim_bonus_handler.UseCase, error) {
+	if registry == nil {
+		return nil, nil //nolint:nilnil // nil means "boxes are off"; the handler answers Unimplemented.
+	}
+
+	useCase, counters, err := prom_claim_bonus.New(claim_bonus.New(registry, limiter, clock), props.Metrics)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create the bonus claim use case: %w", err)
+	}
+
+	registry.Observe(bonus.Report{
+		Offered: counters.Offered.Inc,
+		Lapsed:  counters.Lapsed.Inc,
+	})
+
+	return useCase, nil
 }
 
 // edgeChain builds the interceptors in the order they wrap the handler: the

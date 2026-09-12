@@ -52,6 +52,10 @@ This is a Go backend for a collaborative map-clicking game. It follows **hexagon
 
 They share the process, the transport and the country list, and **nothing else**. None imports another; each owns its own domain types, its own proto package, its own storage adapter (where it has one) and its own edge.
 
+Bonus boxes live inside `internal/planet/` rather than beside it: what they grant
+is click allowance, and what carries them is the planet stream. A context of
+their own would have to import both.
+
 **`internal/antibot/` is a domain library, not a fourth context.** It has no proto
 package, no adapters and no `module.go`, and it cannot be wired without a caller
 composing it — the clicks edge does, the way it gates on `session`. It is not a
@@ -364,6 +368,124 @@ The signature is checked **before** the expiry, in constant time, so a forger le
 
 **What it does not stop:** a person who solves Turnstile in a real browser and then runs a userscript. They hold a genuine session, and nothing here distinguishes them from a player. This raises the floor from "twenty lines of Python" to "drive a real browser"; the signal that survives that is behavioural — timing regularity and tile-id structure over a session — which is what the session id on the context exists to be keyed on. Nothing in production reads it yet, so `cpctx.GetSessionID` sits behind the `testing` tag (see [Testing](#testing)) until something does.
 
+
+### Bonus boxes (`internal/planet/internal/clicks/bonus/`)
+
+A question-mark box flies past the planet every so often; whoever catches it
+clicks at `bonus.multiplier` times their allowance for `bonus.duration`. Off by
+default — `bonus.enabled` false offers nothing and answers `ClaimBonus` with
+`CodeUnimplemented`, so the capability is absent rather than present and
+refusing, the same shape chat has.
+
+**The server picks who gets one, and that is the whole design.** A box broadcast
+to everyone is caught by whichever client reacts fastest, and that is a script
+every time: it reads the event off the stream and answers in twenty milliseconds
+while a person is still moving the mouse. Broadcasting would make this a machine
+for handing extra clicks to exactly the callers [Anti-bot](#anti-bot-internalantibot)
+exists to stop.
+
+So an offer is **addressed**: it is sent down one caller's stream, and nobody
+else sees it or can claim it. Reflexes buy nothing, and what is left to do —
+notice the box and click it — is the part that was meant to be the game.
+
+**Every caller is on a schedule of their own.** A single server-wide ticker
+drawing one winner made the rate each player saw `1/(interval × players)`, so
+the feature got rarer the busier the game was — a box every couple of minutes at
+ten players, one an hour at three hundred. What a player experiences must not
+depend on how many other people are online.
+
+That schedule is one `nextOfferAt` per caller and **one sweep for everybody**,
+not a timer each: `bonus.sweepInterval` walks the map the way the antibot sweeps
+already do.
+
+**The wait is drawn uniformly from `[minInterval, maxInterval]`.** The spread is
+for feel and not for defence — a script does not predict the schedule, it
+watches the stream, so there is nothing here to hide from one.
+
+**The pace answers what the player did with the last box:**
+
+- **Missed** — the token lapsed unclaimed, which the sweep sees without the
+  client saying anything — the next one comes at `missRetry`. That applies to
+  **one** miss; a second in a row waits the ordinary window, or a tab that never
+  catches anything would collect a box every `missRetry` forever.
+- **Caught** — the next is due a window after the **bonus ends**, not after the
+  catch. Timed from the catch, a second box lands on a running bonus and either
+  stacks or is wasted.
+
+**Only callers who have clicked inside `activeWithin` are offered anything.** A
+tab left open overnight is not playing, and it is also what keeps the miss rule
+from needing a back-off of its own. A caller whose turn comes up while they are
+away **loses the slot rather than banking it** — otherwise they are handed a box
+the instant they come back.
+
+**A schedule outlives its stream by `forgetAfter`.** Without that, closing the
+tab and opening it again draws a fresh wait, and a player could reload until
+they got a short one.
+
+**`maxBoostPerHour` bounds what a caller can be granted.** Nothing here is a race
+any more, but catch rate is where an advantage is left: a script catches every
+box it is offered where a person catches some. This makes the worst case a
+number you choose rather than a function of reflexes.
+
+**A caller is a scope, not a connection.** `Attend` is keyed on `cpipscope.Of`,
+the same unit the throttle and the session token use, and holds every stream
+sharing it — so twenty tabs are one entrant on one schedule, and all of them are
+sent the box. The handler's `defer` is what removes it; there is no
+context goroutine per connected client, because the fanout deliberately does not
+pay that cost.
+
+**The offer is the state, so there is no crypto here.** The registry already has
+to remember who it offered what, so the token is 16 random bytes and the map is
+the check: unknown, spent, lapsed, or offered to somebody else all fail the same
+way. Unlike a session token there is nothing to verify statelessly — and nothing
+to sweep either, since both paths that take the lock forget what has lapsed on
+the way past.
+
+**A claim answers `CodeNotFound` and says nothing about why.** The difference
+between "no such token" and "not yours" is exactly what a script guessing tokens
+would measure.
+
+**`ClaimBonus` is session-gated**, appended to `NewSessionInterceptor`'s
+procedure list: a bonus is only ever spent as clicks, and clicks need a session,
+so the box that grants them should not be the one way to widen an allowance
+without proving anything. It is deliberately **not** throttled — a claim is
+already gated on holding a token the server addressed to you, and spending a
+click token to collect a bonus is backwards.
+
+**Two new cases on `PlanetEvent`, not a second stream** — `bonus_offered`, which
+reaches one caller, and `bonus_taken`, which reaches everyone. The private reward
+with a public outcome is what keeps the spectacle without the scramble. A client
+too old to know either case reads an unset `oneof` and skips it, which is the
+whole reason the envelope exists.
+
+The catch is published **after** the boost lands, so a catch announced to the
+planet that then failed to apply is the one lie this cannot tell.
+
+#### What a bonus does to the bucket
+
+`cpratelimit.Limiter.Boost(key, multiplier, until)` multiplies both the ceiling and
+the refill rate until it lapses. It is **opt-in and additive**: a bucket nobody
+boosts holds `multiplier: 1` and behaves exactly as it did before boosting
+existed, which matters because the same limiter type throttles chat and session
+mints and neither has any business being boosted.
+
+Three things in there are easy to get wrong, and each has a test:
+
+- **The refill interval is split at the moment the boost lapses.** An interval
+  that straddles the end would otherwise be paid entirely at one rate or the
+  other, over-granting a caller that went quiet across it.
+- **The tokens are clamped back to the plain burst when it ends.** The ceiling
+  came down with it, and a bucket left holding thirty under a burst of ten would
+  spend the difference long after the minute was up.
+- **The sweep skips a bucket still boosted.** It forgets buckets that have
+  refilled to capacity, on the grounds that such a bucket holds what a fresh one
+  would — which stops being true under a boost, and forgetting it would end the
+  boost early.
+
+The reward needs **no frontend release to be visible**: `State` already carries
+the policy as well as the reading, so a boosted bucket reports a capacity of 30
+and a rate of 3/s, and the meter widens off the server's own numbers. See
+[Saying what is left](#saying-what-is-left).
 
 ### Anti-bot (`internal/antibot/`)
 
@@ -703,6 +825,10 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `tilesStorage.subscriberBuffer` — per-subscriber channel capacity, which is now per connected client rather than per fanout; updates for a subscriber that cannot keep up are dropped, not blocked on
 - `rateLimiter.perSecond`, `rateLimiter.burst`, `rateLimiter.sweepInterval` — the per-IP click throttle (defaults 1/s, burst 10, swept every minute)
 - `vpnBlocklist.enabled`, `vpnBlocklist.includeDatacenters`, `vpnBlocklist.allow` — the VPN refusal (see [VPN blocklist](#vpn-blocklist)); disabled parses nothing and allocates nothing
+- `bonus.enabled` — off offers nothing and answers `ClaimBonus` Unimplemented
+- `bonus.interval` — how often a box is put in front of somebody; a ceiling, since nothing is offered while nobody is watching
+- `bonus.offerTTL` — how long the token stays good; **must outlast the flight the client draws**, or a box caught on its last frame is refused
+- `bonus.duration`, `bonus.multiplier` — how long a caught bonus runs and what it multiplies the allowance by; the client reads both off the answer, so changing them changes the meter with no frontend release
 - `antiBot.enabled` — off registers nothing and measures nothing
 - `antiBot.shadowBan.enforce` — off judges, logs and counts without dropping; the mode to deploy in
 - `antiBot.shadowBan.banDuration`, `reflagInterval`, `sweepInterval` — how long one flag silences a caller, how soon it can be judged again, and how often a ban nothing would still print is forgotten

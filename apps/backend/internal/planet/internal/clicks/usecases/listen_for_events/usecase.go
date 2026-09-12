@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/bonus"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
 // DefaultHeartbeat is well under Cloudflare's ~125s idle cut, and cheap: a
@@ -24,6 +26,16 @@ type UpdatesSubscriber interface {
 type Event struct {
 	Update    clicks.TileUpdate
 	Heartbeat bool
+
+	// A box put in front of this caller alone, and a catch anyone made.
+	Offer *bonus.Offer
+	Taken *bonus.Taken
+}
+
+// BonusFeed is this caller's boxes. Nil when boxes are off, which leaves the
+// feed carrying exactly what it did before they existed.
+type BonusFeed interface {
+	Attend(scope string) (<-chan bonus.Event, func())
 }
 
 // Sink is whatever carries a frame to the caller. The use case decides what to
@@ -32,7 +44,7 @@ type Sink interface {
 	Send(event Event) error
 }
 
-func New(subscriber UpdatesSubscriber, heartbeat time.Duration) *UseCase {
+func New(subscriber UpdatesSubscriber, heartbeat time.Duration, bonuses BonusFeed) *UseCase {
 	if heartbeat <= 0 {
 		heartbeat = DefaultHeartbeat
 	}
@@ -40,12 +52,14 @@ func New(subscriber UpdatesSubscriber, heartbeat time.Duration) *UseCase {
 	return &UseCase{
 		subscriber: subscriber,
 		heartbeat:  heartbeat,
+		bonuses:    bonuses,
 	}
 }
 
 type UseCase struct {
 	subscriber UpdatesSubscriber
 	heartbeat  time.Duration
+	bonuses    BonusFeed
 }
 
 // Execute returns when the feed ends, and the context is what ends it: it is
@@ -54,6 +68,16 @@ func (u *UseCase) Execute(ctx context.Context, sink Sink) error {
 	updates, err := u.subscriber.Subscribe(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to subscribe to tile updates: %w", err)
+	}
+
+	// A second subscription on the same connection, not a second feed: the
+	// envelope is what lets one stream carry a frame that did not exist when
+	// the client was written.
+	var boxes <-chan bonus.Event
+	if u.bonuses != nil {
+		events, leave := u.bonuses.Attend(cpctx.RateLimitKey(ctx))
+		defer leave()
+		boxes = events
 	}
 
 	heartbeat := time.NewTicker(u.heartbeat)
@@ -75,6 +99,15 @@ func (u *UseCase) Execute(ctx context.Context, sink Sink) error {
 			}
 
 			if err := sink.Send(Event{Update: update}); err != nil {
+				return err
+			}
+
+		case event, open := <-boxes:
+			if !open {
+				return nil
+			}
+
+			if err := sink.Send(Event{Offer: event.Offer, Taken: event.Taken}); err != nil {
 				return err
 			}
 		}

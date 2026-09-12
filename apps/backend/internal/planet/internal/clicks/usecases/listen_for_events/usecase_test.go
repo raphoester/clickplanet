@@ -54,7 +54,7 @@ func (r *recorder) seen() []listen_for_events.Event {
 func TestAFailedSubscriptionEndsTheFeed(t *testing.T) {
 	cause := errors.New("disk on fire")
 
-	err := listen_for_events.New(stubSubscriber{err: cause}, time.Hour).
+	err := listen_for_events.New(stubSubscriber{err: cause}, time.Hour, nil).
 		Execute(t.Context(), &recorder{})
 
 	require.ErrorIs(t, err, cause)
@@ -68,7 +68,9 @@ func TestAnUpdateIsCarriedToTheSink(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(t.Context())
 	done := make(chan error, 1)
-	go func() { done <- listen_for_events.New(stubSubscriber{updates: updates}, time.Hour).Execute(ctx, sink) }()
+	go func() {
+		done <- listen_for_events.New(stubSubscriber{updates: updates}, time.Hour, nil).Execute(ctx, sink)
+	}()
 
 	<-sink.fed
 	cancel()
@@ -88,7 +90,7 @@ func TestASilentFeedKeepsSendingHeartbeats(t *testing.T) {
 	done := make(chan error, 1)
 	go func() {
 		done <- listen_for_events.New(
-			stubSubscriber{updates: make(chan clicks.TileUpdate)}, time.Millisecond).Execute(ctx, sink)
+			stubSubscriber{updates: make(chan clicks.TileUpdate)}, time.Millisecond, nil).Execute(ctx, sink)
 	}()
 
 	for range 3 {
@@ -106,7 +108,7 @@ func TestTheFeedEndsWhenTheSubscriptionCloses(t *testing.T) {
 	updates := make(chan clicks.TileUpdate)
 	close(updates)
 
-	err := listen_for_events.New(stubSubscriber{updates: updates}, time.Hour).
+	err := listen_for_events.New(stubSubscriber{updates: updates}, time.Hour, nil).
 		Execute(t.Context(), &recorder{})
 
 	require.NoError(t, err, "the map going away is not the caller's error")
@@ -117,7 +119,7 @@ func TestAFailedSendEndsTheFeed(t *testing.T) {
 	updates := make(chan clicks.TileUpdate, 1)
 	updates <- clicks.TileUpdate{Tile: 1}
 
-	err := listen_for_events.New(stubSubscriber{updates: updates}, time.Hour).
+	err := listen_for_events.New(stubSubscriber{updates: updates}, time.Hour, nil).
 		Execute(t.Context(), &recorder{err: assert.AnError})
 
 	require.ErrorIs(t, err, assert.AnError)

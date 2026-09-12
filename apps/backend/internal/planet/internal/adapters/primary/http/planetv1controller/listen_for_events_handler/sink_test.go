@@ -2,6 +2,7 @@ package listen_for_events_handler_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -9,6 +10,7 @@ import (
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/bonus"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/listen_for_events"
 )
 
@@ -58,4 +60,45 @@ func TestSinkReportsAFailedSend(t *testing.T) {
 	err := listen_for_events_handler.NewSink(stream).Send(listen_for_events.Event{Heartbeat: true})
 
 	require.ErrorIs(t, err, assert.AnError)
+}
+
+func TestASinkFramesABoxOfferedToThisCaller(t *testing.T) {
+	stream := &recorder{}
+
+	require.NoError(t, listen_for_events_handler.NewSink(stream).Send(listen_for_events.Event{
+		Offer: &bonus.Offer{
+			Token:     "a-token",
+			Seed:      42,
+			Kind:      bonus.KindTripleClicks,
+			Duration:  time.Minute,
+			ExpiresAt: time.Unix(0, 0).Add(15 * time.Second),
+		},
+	}))
+
+	offered := stream.sent[0].GetBonusOffered()
+	require.NotNil(t, offered, "expected a bonus_offered case, got %+v", stream.sent[0].GetEvent())
+	assert.Equal(t, "a-token", offered.GetToken())
+	assert.Equal(t, uint32(42), offered.GetSeed())
+	assert.Equal(t, uint32(60), offered.GetDurationSeconds())
+	assert.Equal(t, int64(15_000), offered.GetExpiresAtUnixMs())
+}
+
+func TestASinkFramesACatchWithNoTokenOnIt(t *testing.T) {
+	stream := &recorder{}
+
+	require.NoError(t, listen_for_events_handler.NewSink(stream).Send(listen_for_events.Event{
+		Taken: &bonus.Taken{CountryID: "jp", Kind: bonus.KindTripleClicks},
+	}))
+
+	taken := stream.sent[0].GetBonusTaken()
+	require.NotNil(t, taken)
+	assert.Equal(t, "jp", taken.GetCountryId())
+}
+
+func TestAHeartbeatStillWinsOverEverything(t *testing.T) {
+	stream := &recorder{}
+
+	require.NoError(t, listen_for_events_handler.NewSink(stream).Send(listen_for_events.Event{Heartbeat: true}))
+
+	assert.NotNil(t, stream.sent[0].GetHeartbeat())
 }

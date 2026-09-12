@@ -19,6 +19,8 @@ service ClickService {
   }
 
   rpc ListenForEvents(ListenForEventsRequest) returns (stream PlanetEvent);
+
+  rpc ClaimBonus(ClaimBonusRequest) returns (ClaimBonusResponse);
 }
 
 // What the rate limiter has left for the caller, and the policy it refills
@@ -88,7 +90,64 @@ message PlanetEvent {
   oneof event {
     TileUpdate tile_update = 1;
     Heartbeat heartbeat = 2;
+
+    // Addressed to one client: it is sent down the stream of the caller the
+    // server drew, and nobody else's.
+    BonusOffered bonus_offered = 3;
+
+    // Broadcast to everyone, so catching a box is something the whole planet
+    // sees rather than a private event.
+    BonusTaken bonus_taken = 4;
   }
+}
+
+// What a bonus is worth. The client never decides this, and an unknown kind is
+// one a client skips rather than guesses at.
+enum BonusKind {
+  BONUS_KIND_UNSPECIFIED = 0;
+  BONUS_KIND_TRIPLE_CLICKS = 1;
+}
+
+// A box put in front of one player, and the token that claims it.
+message BonusOffered {
+  // Unguessable, single use, and only good for the caller it was sent to.
+  string token = 1;
+
+  // Names the flight path. Every client draws the same orbit from it, so the
+  // server sends one number instead of a trajectory.
+  uint32 seed = 2;
+
+  BonusKind kind = 3;
+
+  uint32 duration_seconds = 4;
+
+  // After this the token is refused, whatever the client is still drawing.
+  int64 expires_at_unix_ms = 5;
+}
+
+// Somebody caught one. Carries no token and names no address — it exists so the
+// rest of the planet sees it happen.
+message BonusTaken {
+  string country_id = 1;
+
+  BonusKind kind = 2;
+}
+
+message ClaimBonusRequest {
+  string token = 1;
+
+  // What to say the catcher was playing for, in the broadcast that follows.
+  string country_id = 2;
+}
+
+message ClaimBonusResponse {
+  // The allowance as it stands with the bonus applied, so the client does not
+  // have to wait for its next click to see the wider budget.
+  ClickBudget budget = 1;
+
+  BonusKind kind = 2;
+
+  uint32 duration_seconds = 3;
 }
 
 message Heartbeat {}

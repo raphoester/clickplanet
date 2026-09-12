@@ -21,6 +21,54 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// What a bonus is worth. The client never decides this, and an unknown kind is
+// one a client skips rather than guesses at.
+type BonusKind int32
+
+const (
+	BonusKind_BONUS_KIND_UNSPECIFIED   BonusKind = 0
+	BonusKind_BONUS_KIND_TRIPLE_CLICKS BonusKind = 1
+)
+
+// Enum value maps for BonusKind.
+var (
+	BonusKind_name = map[int32]string{
+		0: "BONUS_KIND_UNSPECIFIED",
+		1: "BONUS_KIND_TRIPLE_CLICKS",
+	}
+	BonusKind_value = map[string]int32{
+		"BONUS_KIND_UNSPECIFIED":   0,
+		"BONUS_KIND_TRIPLE_CLICKS": 1,
+	}
+)
+
+func (x BonusKind) Enum() *BonusKind {
+	p := new(BonusKind)
+	*p = x
+	return p
+}
+
+func (x BonusKind) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (BonusKind) Descriptor() protoreflect.EnumDescriptor {
+	return file_planet_v1_planet_proto_enumTypes[0].Descriptor()
+}
+
+func (BonusKind) Type() protoreflect.EnumType {
+	return &file_planet_v1_planet_proto_enumTypes[0]
+}
+
+func (x BonusKind) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use BonusKind.Descriptor instead.
+func (BonusKind) EnumDescriptor() ([]byte, []int) {
+	return file_planet_v1_planet_proto_rawDescGZIP(), []int{0}
+}
+
 // What the rate limiter has left for the caller, and the policy it refills
 // under. The policy travels with the reading because a client that displays
 // the allowance replays the refill itself between two answers — that is what
@@ -510,6 +558,8 @@ type PlanetEvent struct {
 	//
 	//	*PlanetEvent_TileUpdate
 	//	*PlanetEvent_Heartbeat
+	//	*PlanetEvent_BonusOffered
+	//	*PlanetEvent_BonusTaken
 	Event         isPlanetEvent_Event `protobuf_oneof:"event"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -570,6 +620,24 @@ func (x *PlanetEvent) GetHeartbeat() *Heartbeat {
 	return nil
 }
 
+func (x *PlanetEvent) GetBonusOffered() *BonusOffered {
+	if x != nil {
+		if x, ok := x.Event.(*PlanetEvent_BonusOffered); ok {
+			return x.BonusOffered
+		}
+	}
+	return nil
+}
+
+func (x *PlanetEvent) GetBonusTaken() *BonusTaken {
+	if x != nil {
+		if x, ok := x.Event.(*PlanetEvent_BonusTaken); ok {
+			return x.BonusTaken
+		}
+	}
+	return nil
+}
+
 type isPlanetEvent_Event interface {
 	isPlanetEvent_Event()
 }
@@ -582,9 +650,275 @@ type PlanetEvent_Heartbeat struct {
 	Heartbeat *Heartbeat `protobuf:"bytes,2,opt,name=heartbeat,proto3,oneof"`
 }
 
+type PlanetEvent_BonusOffered struct {
+	// Addressed to one client: it is sent down the stream of the caller the
+	// server drew, and nobody else's.
+	BonusOffered *BonusOffered `protobuf:"bytes,3,opt,name=bonus_offered,json=bonusOffered,proto3,oneof"`
+}
+
+type PlanetEvent_BonusTaken struct {
+	// Broadcast to everyone, so catching a box is something the whole planet
+	// sees rather than a private event.
+	BonusTaken *BonusTaken `protobuf:"bytes,4,opt,name=bonus_taken,json=bonusTaken,proto3,oneof"`
+}
+
 func (*PlanetEvent_TileUpdate) isPlanetEvent_Event() {}
 
 func (*PlanetEvent_Heartbeat) isPlanetEvent_Event() {}
+
+func (*PlanetEvent_BonusOffered) isPlanetEvent_Event() {}
+
+func (*PlanetEvent_BonusTaken) isPlanetEvent_Event() {}
+
+// A box put in front of one player, and the token that claims it.
+type BonusOffered struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Unguessable, single use, and only good for the caller it was sent to.
+	Token string `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
+	// Names the flight path. Every client draws the same orbit from it, so the
+	// server sends one number instead of a trajectory.
+	Seed            uint32    `protobuf:"varint,2,opt,name=seed,proto3" json:"seed,omitempty"`
+	Kind            BonusKind `protobuf:"varint,3,opt,name=kind,proto3,enum=planet.v1.BonusKind" json:"kind,omitempty"`
+	DurationSeconds uint32    `protobuf:"varint,4,opt,name=duration_seconds,json=durationSeconds,proto3" json:"duration_seconds,omitempty"`
+	// After this the token is refused, whatever the client is still drawing.
+	ExpiresAtUnixMs int64 `protobuf:"varint,5,opt,name=expires_at_unix_ms,json=expiresAtUnixMs,proto3" json:"expires_at_unix_ms,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *BonusOffered) Reset() {
+	*x = BonusOffered{}
+	mi := &file_planet_v1_planet_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BonusOffered) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BonusOffered) ProtoMessage() {}
+
+func (x *BonusOffered) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_planet_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BonusOffered.ProtoReflect.Descriptor instead.
+func (*BonusOffered) Descriptor() ([]byte, []int) {
+	return file_planet_v1_planet_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *BonusOffered) GetToken() string {
+	if x != nil {
+		return x.Token
+	}
+	return ""
+}
+
+func (x *BonusOffered) GetSeed() uint32 {
+	if x != nil {
+		return x.Seed
+	}
+	return 0
+}
+
+func (x *BonusOffered) GetKind() BonusKind {
+	if x != nil {
+		return x.Kind
+	}
+	return BonusKind_BONUS_KIND_UNSPECIFIED
+}
+
+func (x *BonusOffered) GetDurationSeconds() uint32 {
+	if x != nil {
+		return x.DurationSeconds
+	}
+	return 0
+}
+
+func (x *BonusOffered) GetExpiresAtUnixMs() int64 {
+	if x != nil {
+		return x.ExpiresAtUnixMs
+	}
+	return 0
+}
+
+// Somebody caught one. Carries no token and names no address — it exists so the
+// rest of the planet sees it happen.
+type BonusTaken struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CountryId     string                 `protobuf:"bytes,1,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
+	Kind          BonusKind              `protobuf:"varint,2,opt,name=kind,proto3,enum=planet.v1.BonusKind" json:"kind,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BonusTaken) Reset() {
+	*x = BonusTaken{}
+	mi := &file_planet_v1_planet_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BonusTaken) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BonusTaken) ProtoMessage() {}
+
+func (x *BonusTaken) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_planet_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BonusTaken.ProtoReflect.Descriptor instead.
+func (*BonusTaken) Descriptor() ([]byte, []int) {
+	return file_planet_v1_planet_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *BonusTaken) GetCountryId() string {
+	if x != nil {
+		return x.CountryId
+	}
+	return ""
+}
+
+func (x *BonusTaken) GetKind() BonusKind {
+	if x != nil {
+		return x.Kind
+	}
+	return BonusKind_BONUS_KIND_UNSPECIFIED
+}
+
+type ClaimBonusRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Token string                 `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
+	// What to say the catcher was playing for, in the broadcast that follows.
+	CountryId     string `protobuf:"bytes,2,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ClaimBonusRequest) Reset() {
+	*x = ClaimBonusRequest{}
+	mi := &file_planet_v1_planet_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ClaimBonusRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ClaimBonusRequest) ProtoMessage() {}
+
+func (x *ClaimBonusRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_planet_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ClaimBonusRequest.ProtoReflect.Descriptor instead.
+func (*ClaimBonusRequest) Descriptor() ([]byte, []int) {
+	return file_planet_v1_planet_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *ClaimBonusRequest) GetToken() string {
+	if x != nil {
+		return x.Token
+	}
+	return ""
+}
+
+func (x *ClaimBonusRequest) GetCountryId() string {
+	if x != nil {
+		return x.CountryId
+	}
+	return ""
+}
+
+type ClaimBonusResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The allowance as it stands with the bonus applied, so the client does not
+	// have to wait for its next click to see the wider budget.
+	Budget          *ClickBudget `protobuf:"bytes,1,opt,name=budget,proto3" json:"budget,omitempty"`
+	Kind            BonusKind    `protobuf:"varint,2,opt,name=kind,proto3,enum=planet.v1.BonusKind" json:"kind,omitempty"`
+	DurationSeconds uint32       `protobuf:"varint,3,opt,name=duration_seconds,json=durationSeconds,proto3" json:"duration_seconds,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *ClaimBonusResponse) Reset() {
+	*x = ClaimBonusResponse{}
+	mi := &file_planet_v1_planet_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ClaimBonusResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ClaimBonusResponse) ProtoMessage() {}
+
+func (x *ClaimBonusResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_planet_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ClaimBonusResponse.ProtoReflect.Descriptor instead.
+func (*ClaimBonusResponse) Descriptor() ([]byte, []int) {
+	return file_planet_v1_planet_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *ClaimBonusResponse) GetBudget() *ClickBudget {
+	if x != nil {
+		return x.Budget
+	}
+	return nil
+}
+
+func (x *ClaimBonusResponse) GetKind() BonusKind {
+	if x != nil {
+		return x.Kind
+	}
+	return BonusKind_BONUS_KIND_UNSPECIFIED
+}
+
+func (x *ClaimBonusResponse) GetDurationSeconds() uint32 {
+	if x != nil {
+		return x.DurationSeconds
+	}
+	return 0
+}
 
 type Heartbeat struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -594,7 +928,7 @@ type Heartbeat struct {
 
 func (x *Heartbeat) Reset() {
 	*x = Heartbeat{}
-	mi := &file_planet_v1_planet_proto_msgTypes[11]
+	mi := &file_planet_v1_planet_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -606,7 +940,7 @@ func (x *Heartbeat) String() string {
 func (*Heartbeat) ProtoMessage() {}
 
 func (x *Heartbeat) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_planet_proto_msgTypes[11]
+	mi := &file_planet_v1_planet_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -619,7 +953,7 @@ func (x *Heartbeat) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Heartbeat.ProtoReflect.Descriptor instead.
 func (*Heartbeat) Descriptor() ([]byte, []int) {
-	return file_planet_v1_planet_proto_rawDescGZIP(), []int{11}
+	return file_planet_v1_planet_proto_rawDescGZIP(), []int{15}
 }
 
 type TileUpdate struct {
@@ -633,7 +967,7 @@ type TileUpdate struct {
 
 func (x *TileUpdate) Reset() {
 	*x = TileUpdate{}
-	mi := &file_planet_v1_planet_proto_msgTypes[12]
+	mi := &file_planet_v1_planet_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -645,7 +979,7 @@ func (x *TileUpdate) String() string {
 func (*TileUpdate) ProtoMessage() {}
 
 func (x *TileUpdate) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_planet_proto_msgTypes[12]
+	mi := &file_planet_v1_planet_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -658,7 +992,7 @@ func (x *TileUpdate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TileUpdate.ProtoReflect.Descriptor instead.
 func (*TileUpdate) Descriptor() ([]byte, []int) {
-	return file_planet_v1_planet_proto_rawDescGZIP(), []int{12}
+	return file_planet_v1_planet_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *TileUpdate) GetTileId() uint32 {
@@ -710,26 +1044,53 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"\rstart_tile_id\x18\x01 \x01(\rR\vstartTileId\x12\x14\n" +
 	"\x05codes\x18\x02 \x03(\tR\x05codes\x12\x14\n" +
 	"\x05tiles\x18\x03 \x01(\fR\x05tiles\"\x18\n" +
-	"\x16ListenForEventsRequest\"\x86\x01\n" +
+	"\x16ListenForEventsRequest\"\x80\x02\n" +
 	"\vPlanetEvent\x128\n" +
 	"\vtile_update\x18\x01 \x01(\v2\x15.planet.v1.TileUpdateH\x00R\n" +
 	"tileUpdate\x124\n" +
-	"\theartbeat\x18\x02 \x01(\v2\x14.planet.v1.HeartbeatH\x00R\theartbeatB\a\n" +
-	"\x05event\"\v\n" +
+	"\theartbeat\x18\x02 \x01(\v2\x14.planet.v1.HeartbeatH\x00R\theartbeat\x12>\n" +
+	"\rbonus_offered\x18\x03 \x01(\v2\x17.planet.v1.BonusOfferedH\x00R\fbonusOffered\x128\n" +
+	"\vbonus_taken\x18\x04 \x01(\v2\x15.planet.v1.BonusTakenH\x00R\n" +
+	"bonusTakenB\a\n" +
+	"\x05event\"\xba\x01\n" +
+	"\fBonusOffered\x12\x14\n" +
+	"\x05token\x18\x01 \x01(\tR\x05token\x12\x12\n" +
+	"\x04seed\x18\x02 \x01(\rR\x04seed\x12(\n" +
+	"\x04kind\x18\x03 \x01(\x0e2\x14.planet.v1.BonusKindR\x04kind\x12)\n" +
+	"\x10duration_seconds\x18\x04 \x01(\rR\x0fdurationSeconds\x12+\n" +
+	"\x12expires_at_unix_ms\x18\x05 \x01(\x03R\x0fexpiresAtUnixMs\"U\n" +
+	"\n" +
+	"BonusTaken\x12\x1d\n" +
+	"\n" +
+	"country_id\x18\x01 \x01(\tR\tcountryId\x12(\n" +
+	"\x04kind\x18\x02 \x01(\x0e2\x14.planet.v1.BonusKindR\x04kind\"H\n" +
+	"\x11ClaimBonusRequest\x12\x14\n" +
+	"\x05token\x18\x01 \x01(\tR\x05token\x12\x1d\n" +
+	"\n" +
+	"country_id\x18\x02 \x01(\tR\tcountryId\"\x99\x01\n" +
+	"\x12ClaimBonusResponse\x12.\n" +
+	"\x06budget\x18\x01 \x01(\v2\x16.planet.v1.ClickBudgetR\x06budget\x12(\n" +
+	"\x04kind\x18\x02 \x01(\x0e2\x14.planet.v1.BonusKindR\x04kind\x12)\n" +
+	"\x10duration_seconds\x18\x03 \x01(\rR\x0fdurationSeconds\"\v\n" +
 	"\tHeartbeat\"t\n" +
 	"\n" +
 	"TileUpdate\x12\x17\n" +
 	"\atile_id\x18\x01 \x01(\rR\x06tileId\x12\x1d\n" +
 	"\n" +
 	"country_id\x18\x02 \x01(\tR\tcountryId\x12.\n" +
-	"\x13previous_country_id\x18\x03 \x01(\tR\x11previousCountryId2\xf6\x02\n" +
+	"\x13previous_country_id\x18\x03 \x01(\tR\x11previousCountryId*E\n" +
+	"\tBonusKind\x12\x1a\n" +
+	"\x16BONUS_KIND_UNSPECIFIED\x10\x00\x12\x1c\n" +
+	"\x18BONUS_KIND_TRIPLE_CLICKS\x10\x012\xc1\x03\n" +
 	"\fClickService\x12:\n" +
 	"\x05Click\x12\x17.planet.v1.ClickRequest\x1a\x18.planet.v1.ClickResponse\x12F\n" +
 	"\tGetBudget\x12\x1b.planet.v1.GetBudgetRequest\x1a\x1c.planet.v1.GetBudgetResponse\x12N\n" +
 	"\n" +
 	"MapDensity\x12\x1c.planet.v1.MapDensityRequest\x1a\x1d.planet.v1.MapDensityResponse\"\x03\x90\x02\x01\x12B\n" +
 	"\x06GetMap\x12\x18.planet.v1.GetMapRequest\x1a\x19.planet.v1.GetMapResponse\"\x03\x90\x02\x01\x12N\n" +
-	"\x0fListenForEvents\x12!.planet.v1.ListenForEventsRequest\x1a\x16.planet.v1.PlanetEvent0\x01B\xb3\x01\n" +
+	"\x0fListenForEvents\x12!.planet.v1.ListenForEventsRequest\x1a\x16.planet.v1.PlanetEvent0\x01\x12I\n" +
+	"\n" +
+	"ClaimBonus\x12\x1c.planet.v1.ClaimBonusRequest\x1a\x1d.planet.v1.ClaimBonusResponseB\xb3\x01\n" +
 	"\rcom.planet.v1B\vPlanetProtoP\x01ZPgithub.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1;planetv1\xa2\x02\x03PXX\xaa\x02\tPlanet.V1\xca\x02\tPlanet\\V1\xe2\x02\x15Planet\\V1\\GPBMetadata\xea\x02\n" +
 	"Planet::V1b\x06proto3"
 
@@ -745,42 +1106,56 @@ func file_planet_v1_planet_proto_rawDescGZIP() []byte {
 	return file_planet_v1_planet_proto_rawDescData
 }
 
-var file_planet_v1_planet_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_planet_v1_planet_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_planet_v1_planet_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_planet_v1_planet_proto_goTypes = []any{
-	(*ClickBudget)(nil),            // 0: planet.v1.ClickBudget
-	(*ClickRequest)(nil),           // 1: planet.v1.ClickRequest
-	(*ClickResponse)(nil),          // 2: planet.v1.ClickResponse
-	(*GetBudgetRequest)(nil),       // 3: planet.v1.GetBudgetRequest
-	(*GetBudgetResponse)(nil),      // 4: planet.v1.GetBudgetResponse
-	(*MapDensityRequest)(nil),      // 5: planet.v1.MapDensityRequest
-	(*MapDensityResponse)(nil),     // 6: planet.v1.MapDensityResponse
-	(*GetMapRequest)(nil),          // 7: planet.v1.GetMapRequest
-	(*GetMapResponse)(nil),         // 8: planet.v1.GetMapResponse
-	(*ListenForEventsRequest)(nil), // 9: planet.v1.ListenForEventsRequest
-	(*PlanetEvent)(nil),            // 10: planet.v1.PlanetEvent
-	(*Heartbeat)(nil),              // 11: planet.v1.Heartbeat
-	(*TileUpdate)(nil),             // 12: planet.v1.TileUpdate
+	(BonusKind)(0),                 // 0: planet.v1.BonusKind
+	(*ClickBudget)(nil),            // 1: planet.v1.ClickBudget
+	(*ClickRequest)(nil),           // 2: planet.v1.ClickRequest
+	(*ClickResponse)(nil),          // 3: planet.v1.ClickResponse
+	(*GetBudgetRequest)(nil),       // 4: planet.v1.GetBudgetRequest
+	(*GetBudgetResponse)(nil),      // 5: planet.v1.GetBudgetResponse
+	(*MapDensityRequest)(nil),      // 6: planet.v1.MapDensityRequest
+	(*MapDensityResponse)(nil),     // 7: planet.v1.MapDensityResponse
+	(*GetMapRequest)(nil),          // 8: planet.v1.GetMapRequest
+	(*GetMapResponse)(nil),         // 9: planet.v1.GetMapResponse
+	(*ListenForEventsRequest)(nil), // 10: planet.v1.ListenForEventsRequest
+	(*PlanetEvent)(nil),            // 11: planet.v1.PlanetEvent
+	(*BonusOffered)(nil),           // 12: planet.v1.BonusOffered
+	(*BonusTaken)(nil),             // 13: planet.v1.BonusTaken
+	(*ClaimBonusRequest)(nil),      // 14: planet.v1.ClaimBonusRequest
+	(*ClaimBonusResponse)(nil),     // 15: planet.v1.ClaimBonusResponse
+	(*Heartbeat)(nil),              // 16: planet.v1.Heartbeat
+	(*TileUpdate)(nil),             // 17: planet.v1.TileUpdate
 }
 var file_planet_v1_planet_proto_depIdxs = []int32{
-	0,  // 0: planet.v1.ClickResponse.budget:type_name -> planet.v1.ClickBudget
-	0,  // 1: planet.v1.GetBudgetResponse.budget:type_name -> planet.v1.ClickBudget
-	12, // 2: planet.v1.PlanetEvent.tile_update:type_name -> planet.v1.TileUpdate
-	11, // 3: planet.v1.PlanetEvent.heartbeat:type_name -> planet.v1.Heartbeat
-	1,  // 4: planet.v1.ClickService.Click:input_type -> planet.v1.ClickRequest
-	3,  // 5: planet.v1.ClickService.GetBudget:input_type -> planet.v1.GetBudgetRequest
-	5,  // 6: planet.v1.ClickService.MapDensity:input_type -> planet.v1.MapDensityRequest
-	7,  // 7: planet.v1.ClickService.GetMap:input_type -> planet.v1.GetMapRequest
-	9,  // 8: planet.v1.ClickService.ListenForEvents:input_type -> planet.v1.ListenForEventsRequest
-	2,  // 9: planet.v1.ClickService.Click:output_type -> planet.v1.ClickResponse
-	4,  // 10: planet.v1.ClickService.GetBudget:output_type -> planet.v1.GetBudgetResponse
-	6,  // 11: planet.v1.ClickService.MapDensity:output_type -> planet.v1.MapDensityResponse
-	8,  // 12: planet.v1.ClickService.GetMap:output_type -> planet.v1.GetMapResponse
-	10, // 13: planet.v1.ClickService.ListenForEvents:output_type -> planet.v1.PlanetEvent
-	9,  // [9:14] is the sub-list for method output_type
-	4,  // [4:9] is the sub-list for method input_type
-	4,  // [4:4] is the sub-list for extension type_name
-	4,  // [4:4] is the sub-list for extension extendee
-	0,  // [0:4] is the sub-list for field type_name
+	1,  // 0: planet.v1.ClickResponse.budget:type_name -> planet.v1.ClickBudget
+	1,  // 1: planet.v1.GetBudgetResponse.budget:type_name -> planet.v1.ClickBudget
+	17, // 2: planet.v1.PlanetEvent.tile_update:type_name -> planet.v1.TileUpdate
+	16, // 3: planet.v1.PlanetEvent.heartbeat:type_name -> planet.v1.Heartbeat
+	12, // 4: planet.v1.PlanetEvent.bonus_offered:type_name -> planet.v1.BonusOffered
+	13, // 5: planet.v1.PlanetEvent.bonus_taken:type_name -> planet.v1.BonusTaken
+	0,  // 6: planet.v1.BonusOffered.kind:type_name -> planet.v1.BonusKind
+	0,  // 7: planet.v1.BonusTaken.kind:type_name -> planet.v1.BonusKind
+	1,  // 8: planet.v1.ClaimBonusResponse.budget:type_name -> planet.v1.ClickBudget
+	0,  // 9: planet.v1.ClaimBonusResponse.kind:type_name -> planet.v1.BonusKind
+	2,  // 10: planet.v1.ClickService.Click:input_type -> planet.v1.ClickRequest
+	4,  // 11: planet.v1.ClickService.GetBudget:input_type -> planet.v1.GetBudgetRequest
+	6,  // 12: planet.v1.ClickService.MapDensity:input_type -> planet.v1.MapDensityRequest
+	8,  // 13: planet.v1.ClickService.GetMap:input_type -> planet.v1.GetMapRequest
+	10, // 14: planet.v1.ClickService.ListenForEvents:input_type -> planet.v1.ListenForEventsRequest
+	14, // 15: planet.v1.ClickService.ClaimBonus:input_type -> planet.v1.ClaimBonusRequest
+	3,  // 16: planet.v1.ClickService.Click:output_type -> planet.v1.ClickResponse
+	5,  // 17: planet.v1.ClickService.GetBudget:output_type -> planet.v1.GetBudgetResponse
+	7,  // 18: planet.v1.ClickService.MapDensity:output_type -> planet.v1.MapDensityResponse
+	9,  // 19: planet.v1.ClickService.GetMap:output_type -> planet.v1.GetMapResponse
+	11, // 20: planet.v1.ClickService.ListenForEvents:output_type -> planet.v1.PlanetEvent
+	15, // 21: planet.v1.ClickService.ClaimBonus:output_type -> planet.v1.ClaimBonusResponse
+	16, // [16:22] is the sub-list for method output_type
+	10, // [10:16] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_planet_v1_planet_proto_init() }
@@ -791,19 +1166,22 @@ func file_planet_v1_planet_proto_init() {
 	file_planet_v1_planet_proto_msgTypes[10].OneofWrappers = []any{
 		(*PlanetEvent_TileUpdate)(nil),
 		(*PlanetEvent_Heartbeat)(nil),
+		(*PlanetEvent_BonusOffered)(nil),
+		(*PlanetEvent_BonusTaken)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_planet_v1_planet_proto_rawDesc), len(file_planet_v1_planet_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   13,
+			NumEnums:      1,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_planet_v1_planet_proto_goTypes,
 		DependencyIndexes: file_planet_v1_planet_proto_depIdxs,
+		EnumInfos:         file_planet_v1_planet_proto_enumTypes,
 		MessageInfos:      file_planet_v1_planet_proto_msgTypes,
 	}.Build()
 	File_planet_v1_planet_proto = out.File

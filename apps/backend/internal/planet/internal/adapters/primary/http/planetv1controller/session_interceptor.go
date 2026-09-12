@@ -44,5 +44,9 @@ func NewSessionInterceptor(
 		enforce,
 		func(verdict cpconnect.SessionVerdict) { checks.WithLabelValues(string(verdict)).Inc() },
 		planetv1connect.ClickServiceClickProcedure,
+		// A bonus is only ever spent as clicks, which need a session — so the
+		// box that grants them asks for one too, rather than being the one way
+		// to widen an allowance without proving anything.
+		planetv1connect.ClickServiceClaimBonusProcedure,
 	), nil
 }

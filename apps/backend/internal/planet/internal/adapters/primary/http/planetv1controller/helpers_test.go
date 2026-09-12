@@ -87,7 +87,7 @@ func clickServerWith(
 			MapDensityHandler: map_density_handler.New(map_density.New(stubChecker{})),
 			GetMapHandler:     get_map_handler.New(get_map.New(stubChecker{}, stubMapReader{})),
 			ListenForEventsHandler: listen_for_events_handler.New(
-				listen_for_events.New(stubSubscriber{}, listen_for_events.DefaultHeartbeat)),
+				listen_for_events.New(stubSubscriber{}, listen_for_events.DefaultHeartbeat, nil)),
 		},
 		options...,
 	))

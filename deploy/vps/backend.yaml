@@ -119,6 +119,47 @@ antiBot:
       trackWindow: 15m
       sweepInterval: 1m
 
+# A question-mark box flies past the planet every so often, and whoever catches
+# it clicks at three times their allowance for a minute.
+#
+# On ahead of the frontend that can draw one. The two events ride the existing
+# stream as new cases of its oneof, so a deployed client reads them as unset and
+# skips them: nothing is offered to anybody who can see it yet, and
+# bonus_offers_total against bonus_claims_total says the moment that changes.
+bonus:
+  enabled: true
+
+  # Per caller, not per server. A single ticker made the rate each player saw
+  # 1/(interval x players), so the feature got rarer the busier the game was.
+  minInterval: 90s
+  maxInterval: 210s
+
+  # One miss is retried sooner; a second in a row waits the ordinary window.
+  missRetry: 45s
+
+  # Has to outlast the flight the client draws, or a box caught on its last
+  # frame is refused.
+  offerTTL: 15s
+
+  # Multiplies the burst and the refill rate together, and the client reads both
+  # off the answer - so changing these changes the meter with no frontend
+  # release, exactly as rateLimiter does.
+  duration: 60s
+  multiplier: 3
+
+  # A tab left open overnight is not playing, and a box sent to it is one nobody
+  # catches. Until the frontend ships, this is every caller.
+  activeWithin: 2m
+
+  # Survives a reconnect, or a player could reload until they drew a short wait.
+  forgetAfter: 5m
+
+  # Nothing here is a race, but a script catches every box it is offered where a
+  # person catches some. This bounds what that is worth.
+  maxBoostPerHour: 15m
+
+  sweepInterval: 1s
+
 # Gates the Click RPC on a token this server minted, which is the one thing an
 # address-based defence cannot do: refuse a caller that never proved anything,
 # however many addresses it can reach the game from. The blocklist above raises

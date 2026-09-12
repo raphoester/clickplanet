@@ -54,6 +54,60 @@ vpnBlocklist:
   # address. Put your own address here.
   allow: []
 
+# Bonus boxes: a question-mark box flies past the planet, and whoever catches it
+# clicks at a multiple of their allowance for a minute.
+#
+# The server picks who is offered one and sends it down that one stream. It is
+# deliberately not a race: broadcast to everyone, a box is always caught by
+# whichever client reacts fastest, and that is a script every time.
+#
+# Each caller is on a schedule of their own. A single server-wide ticker made
+# the rate each player saw 1/(interval x players), so the feature got rarer the
+# busier the game was.
+bonus:
+  # Off means no box is ever offered and ClaimBonus answers Unimplemented.
+  enabled: false
+
+  # A caller's next box is due this long after the last one, drawn uniformly.
+  # The spread is for feel: a script does not predict the schedule, it watches
+  # the stream, so nothing here is hidden from one.
+  minInterval: 90s
+  maxInterval: 210s
+
+  # How soon to try again after a box was not caught. It applies to one miss;
+  # a second in a row waits the ordinary window, so a player who is not
+  # catching them does not collect a box every 45s all session.
+  missRetry: 45s
+
+  # How long the token stays good. It has to outlast the flight the client
+  # draws, or a box caught on its last frame is refused.
+  offerTTL: 15s
+
+  # How long a caught bonus runs, and what it multiplies the click allowance by.
+  # Both the burst and the refill rate are multiplied, and the client reads them
+  # off the answer - so changing these changes the meter with no frontend
+  # release, exactly as rateLimiter does. The next box is due a window after the
+  # bonus ends, so two can never overlap.
+  duration: 60s
+  multiplier: 3
+
+  # How recently a caller must have clicked to be offered a box. A tab left open
+  # overnight is not playing, and a box sent to it is one nobody catches.
+  activeWithin: 2m
+
+  # How long a caller's schedule outlives its last stream. Without it, closing
+  # the tab and reopening it draws a fresh wait, so a player could reload until
+  # they got a short one.
+  forgetAfter: 5m
+
+  # The most bonus time one caller may be granted per hour. Nothing here is a
+  # race any more, but a script still catches every box it is offered where a
+  # person catches some - this bounds what that is worth.
+  maxBoostPerHour: 15m
+
+  # One sweep for everybody, rather than a timer per caller.
+  sweepInterval: 1s
+
 # Accepts a bot's clicks and drops them, rather than refusing them and naming the
 # check it tripped. Three watchdogs read three different behaviours, the jury
 # crosses what they say, and the shadow ban is the one sentence they all pass.
