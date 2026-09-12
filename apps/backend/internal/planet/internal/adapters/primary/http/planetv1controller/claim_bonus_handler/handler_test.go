@@ -81,3 +81,10 @@ func TestWithBoxesOffTheProcedureIsUnimplemented(t *testing.T) {
 	require.Error(t, err)
 	assert.Equal(t, connect.CodeUnimplemented, connect.CodeOf(err))
 }
+
+func TestEveryKindTheServerGrantsHasAWireName(t *testing.T) {
+	for _, kind := range bonus.Kinds {
+		assert.NotEqualf(t, planetv1.BonusKind_BONUS_KIND_UNSPECIFIED, claim_bonus_handler.EncodeKind(kind),
+			"%s would reach the client as a box it cannot draw", kind)
+	}
+}

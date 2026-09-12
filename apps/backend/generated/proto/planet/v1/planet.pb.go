@@ -28,6 +28,9 @@ type BonusKind int32
 const (
 	BonusKind_BONUS_KIND_UNSPECIFIED   BonusKind = 0
 	BonusKind_BONUS_KIND_TRIPLE_CLICKS BonusKind = 1
+	// Every click also takes the tiles touching the one clicked. The server picks
+	// those tiles from its own map, so a client never names what it gets.
+	BonusKind_BONUS_KIND_SPREAD_CLICKS BonusKind = 2
 )
 
 // Enum value maps for BonusKind.
@@ -35,10 +38,12 @@ var (
 	BonusKind_name = map[int32]string{
 		0: "BONUS_KIND_UNSPECIFIED",
 		1: "BONUS_KIND_TRIPLE_CLICKS",
+		2: "BONUS_KIND_SPREAD_CLICKS",
 	}
 	BonusKind_value = map[string]int32{
 		"BONUS_KIND_UNSPECIFIED":   0,
 		"BONUS_KIND_TRIPLE_CLICKS": 1,
+		"BONUS_KIND_SPREAD_CLICKS": 2,
 	}
 )
 
@@ -861,7 +866,8 @@ func (x *ClaimBonusRequest) GetCountryId() string {
 type ClaimBonusResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The allowance as it stands with the bonus applied, so the client does not
-	// have to wait for its next click to see the wider budget.
+	// have to wait for its next click to see the wider budget. A kind that does
+	// not widen it answers the allowance unchanged.
 	Budget          *ClickBudget `protobuf:"bytes,1,opt,name=budget,proto3" json:"budget,omitempty"`
 	Kind            BonusKind    `protobuf:"varint,2,opt,name=kind,proto3,enum=planet.v1.BonusKind" json:"kind,omitempty"`
 	DurationSeconds uint32       `protobuf:"varint,3,opt,name=duration_seconds,json=durationSeconds,proto3" json:"duration_seconds,omitempty"`
@@ -1078,10 +1084,11 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"\atile_id\x18\x01 \x01(\rR\x06tileId\x12\x1d\n" +
 	"\n" +
 	"country_id\x18\x02 \x01(\tR\tcountryId\x12.\n" +
-	"\x13previous_country_id\x18\x03 \x01(\tR\x11previousCountryId*E\n" +
+	"\x13previous_country_id\x18\x03 \x01(\tR\x11previousCountryId*c\n" +
 	"\tBonusKind\x12\x1a\n" +
 	"\x16BONUS_KIND_UNSPECIFIED\x10\x00\x12\x1c\n" +
-	"\x18BONUS_KIND_TRIPLE_CLICKS\x10\x012\xc1\x03\n" +
+	"\x18BONUS_KIND_TRIPLE_CLICKS\x10\x01\x12\x1c\n" +
+	"\x18BONUS_KIND_SPREAD_CLICKS\x10\x022\xc1\x03\n" +
 	"\fClickService\x12:\n" +
 	"\x05Click\x12\x17.planet.v1.ClickRequest\x1a\x18.planet.v1.ClickResponse\x12F\n" +
 	"\tGetBudget\x12\x1b.planet.v1.GetBudgetRequest\x1a\x1c.planet.v1.GetBudgetResponse\x12N\n" +

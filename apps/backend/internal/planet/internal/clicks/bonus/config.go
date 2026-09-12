@@ -1,6 +1,10 @@
 package bonus
 
-import "time"
+import (
+	"fmt"
+	"slices"
+	"time"
+)
 
 // Config is per caller: a global ticker made the rate 1/(interval × players).
 type Config struct {
@@ -11,6 +15,9 @@ type Config struct {
 
 	// One miss only; a second in a row waits the ordinary window.
 	MissRetry time.Duration
+
+	// What a box can be worth, drawn uniformly per box. Empty offers every kind.
+	Kinds []Kind
 
 	OfferTTL   time.Duration
 	Duration   time.Duration
@@ -44,6 +51,9 @@ func (c Config) withDefaults() Config {
 	if c.MaxInterval < c.MinInterval {
 		c.MaxInterval = max(c.MinInterval, defaultMaxInterval)
 	}
+	if len(c.Kinds) == 0 {
+		c.Kinds = Kinds
+	}
 	if c.MissRetry <= 0 {
 		c.MissRetry = defaultMissRetry
 	}
@@ -70,4 +80,16 @@ func (c Config) withDefaults() Config {
 	}
 
 	return c
+}
+
+// Validate refuses a kind this server cannot grant, rather than offering a box
+// that nobody can claim.
+func (c Config) Validate() error {
+	for _, kind := range c.Kinds {
+		if !slices.Contains(Kinds, kind) {
+			return fmt.Errorf("bonus.kinds holds %q, which is not one of %v", kind, Kinds)
+		}
+	}
+
+	return nil
 }

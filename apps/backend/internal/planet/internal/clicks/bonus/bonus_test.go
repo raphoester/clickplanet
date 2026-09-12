@@ -342,6 +342,32 @@ func TestTheWaitIsDrawnFromTheConfiguredWindow(t *testing.T) {
 	assert.Greater(t, len(seen), 100, "the wait should be spread, not fixed")
 }
 
+func TestEveryKindConfiguredIsOffered(t *testing.T) {
+	registry, _ := newTestRegistry()
+
+	seen := map[Kind]bool{}
+	for range 200 {
+		seen[registry.drawKind()] = true
+	}
+
+	assert.Len(t, seen, len(Kinds), "an empty bonus.kinds offers every kind")
+}
+
+func TestOnlyTheKindsConfiguredAreOffered(t *testing.T) {
+	registry := New(Config{Enabled: true, Kinds: []Kind{KindSpreadClicks}}, cptime.NewFixedClock(epoch))
+
+	for range 50 {
+		require.Equal(t, KindSpreadClicks, registry.drawKind())
+	}
+}
+
+func TestAnUnknownKindRefusesTheConfig(t *testing.T) {
+	require.NoError(t, Config{Kinds: []Kind{KindTripleClicks, KindSpreadClicks}}.Validate())
+	require.NoError(t, Config{}.Validate())
+
+	assert.ErrorContains(t, Config{Kinds: []Kind{"quadruple_clicks"}}.Validate(), "quadruple_clicks")
+}
+
 func TestAClaimByTheCallerItWasOfferedToSucceeds(t *testing.T) {
 	registry, clock := newTestRegistry()
 	events := playing(t, registry, "scope-a")
@@ -353,7 +379,7 @@ func TestAClaimByTheCallerItWasOfferedToSucceeds(t *testing.T) {
 	reward, claimed := registry.Claim(offer.Token, "scope-a")
 
 	require.True(t, claimed)
-	assert.Equal(t, KindTripleClicks, reward.Kind)
+	assert.Equal(t, offer.Kind, reward.Kind, "the claim grants what the box said it was")
 	assert.Equal(t, time.Minute, reward.Duration)
 }
 

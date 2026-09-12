@@ -38,5 +38,5 @@ func (c Config) Validate() error {
 		return errors.New("gameMap.maxIndex is zero: the map has no tiles")
 	}
 
-	return nil
+	return c.Bonus.Validate()
 }

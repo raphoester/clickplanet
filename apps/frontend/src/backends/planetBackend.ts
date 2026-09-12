@@ -312,7 +312,11 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         // server's own policy rather than a multiplication done here.
         this.anchorBudget(res.budget)
 
-        return {kind: "tripleClicks", seconds: res.durationSeconds}
+        // Only a kind this build knows is ever drawn, so only one can be caught.
+        const reward = rewardOf(res.kind, res.durationSeconds)
+        if (!reward) throw new BonusLostError()
+
+        return reward
     }
 
     public listenForUpdatesBatch(
@@ -362,9 +366,14 @@ export function catchOf(event: PlanetEvent): BonusCatch | undefined {
 }
 
 function rewardOf(kind: BonusKind, seconds: number): BonusReward | undefined {
-    if (kind !== BonusKind.TRIPLE_CLICKS) return undefined
-
-    return {kind: "tripleClicks", seconds}
+    switch (kind) {
+        case BonusKind.TRIPLE_CLICKS:
+            return {kind: "tripleClicks", seconds}
+        case BonusKind.SPREAD_CLICKS:
+            return {kind: "spreadClicks", seconds}
+        default:
+            return undefined
+    }
 }
 
 export function asBonusError(e: unknown): unknown {

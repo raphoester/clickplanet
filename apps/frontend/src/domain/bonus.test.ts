@@ -36,6 +36,22 @@ describe("describeReward", () => {
     })
 })
 
+describe("a spread reward", () => {
+    const SPREAD = {kind: "spreadClicks", seconds: 60} as const
+
+    it("multiplies nothing, so the meter keeps the server's plain allowance", () => {
+        expect(multiplierOf(SPREAD)).toBe(1)
+    })
+
+    it("says what it does, for how long, with a badge that fits the meter", () => {
+        const {title, detail, badge} = describeReward(SPREAD)
+
+        expect(title).toBe("Spread clicks")
+        expect(detail).toContain("60")
+        expect(badge.length).toBeLessThanOrEqual(3)
+    })
+})
+
 describe("secondsLeft", () => {
     it("counts down against the clock it was stamped on", () => {
         expect(secondsLeft(RUNNING, 0)).toBe(60)

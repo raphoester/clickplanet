@@ -25,7 +25,8 @@ const CLICK_BURST = 10
 /** Often enough to be worth developing against, not so often it is the game. */
 const BONUS_EVERY_MS = 20_000
 const BONUS_OFFER_TTL_MS = 15_000
-const BONUS_REWARD: BonusReward = {kind: "tripleClicks", seconds: 60}
+const BONUS_SECONDS = 60
+const BONUS_KINDS: BonusReward["kind"][] = ["tripleClicks", "spreadClicks"]
 
 export type FakeBackendOptions = {
     vpnBlocked?: boolean
@@ -43,7 +44,9 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     /** The one box outstanding, exactly as the server keeps it. */
     private offered: BonusOffer | undefined
 
-    private boostedUntilMs = 0
+    /** The bonus caught last, and when it runs out. */
+    private active: BonusReward | undefined
+    private activeUntilMs = 0
     private readonly timers: ReturnType<typeof setInterval>[] = []
     private tokens = CLICK_BURST
     private lastRefillMs = Date.now()
@@ -75,7 +78,10 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
             const offer: BonusOffer = {
                 token: UUIDv4(),
                 seed: Math.floor(Math.random() * 0xffffffff),
-                reward: BONUS_REWARD,
+                reward: {
+                    kind: BONUS_KINDS[Math.floor(Math.random() * BONUS_KINDS.length)],
+                    seconds: BONUS_SECONDS,
+                },
                 expiresAt: budgetNow() + BONUS_OFFER_TTL_MS,
             }
 
@@ -136,7 +142,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         // The policy widens while a bonus runs, exactly as the server's does —
         // so the meter here is driven by the same thing it will be in
         // production rather than by anything the component does itself.
-        const boost = this.boosting() ? multiplierOf(BONUS_REWARD) : 1
+        const boost = this.boost()
 
         return {
             tokens: this.tokens,
@@ -146,8 +152,14 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         }
     }
 
-    private boosting(): boolean {
-        return Date.now() < this.boostedUntilMs
+    /**
+     * A spread multiplies nothing, and this fake has no map geometry to spread
+     * with, so it only exercises the announcement and the meter's badge.
+     */
+    private boost(): number {
+        if (!this.active || Date.now() >= this.activeUntilMs) return 1
+
+        return multiplierOf(this.active)
     }
 
     private applyClick(tileId: number, countryId: string) {
@@ -170,7 +182,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
 
     private refill() {
         const now = Date.now()
-        const boost = this.boosting() ? multiplierOf(BONUS_REWARD) : 1
+        const boost = this.boost()
 
         this.tokens = Math.min(
             CLICK_BURST * boost,
@@ -199,7 +211,8 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         }
 
         this.offered = undefined
-        this.boostedUntilMs = Date.now() + offer.reward.seconds * 1000
+        this.active = offer.reward
+        this.activeUntilMs = Date.now() + offer.reward.seconds * 1000
         this.reportBudget()
 
         this.bonusCallbacks.forEach(handlers => handlers.onTaken({countryId}))

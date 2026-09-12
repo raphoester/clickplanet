@@ -498,6 +498,11 @@ describe("offerOf", () => {
         expect(skewed!.expiresAt).toBeLessThan(honest!.expiresAt)
     })
 
+    it("reads a spread box as one", () => {
+        expect(offerOf(offered({kind: BonusKind.SPREAD_CLICKS}))?.reward)
+            .toEqual({kind: "spreadClicks", seconds: 60})
+    })
+
     it("drops a kind this build cannot describe rather than guessing at it", () => {
         expect(offerOf(offered({kind: BonusKind.UNSPECIFIED}))).toBeUndefined()
     })

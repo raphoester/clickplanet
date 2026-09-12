@@ -22,11 +22,20 @@ export enum BonusKind {
    * @generated from enum value: BONUS_KIND_TRIPLE_CLICKS = 1;
    */
   TRIPLE_CLICKS = 1,
+
+  /**
+   * Every click also takes the tiles touching the one clicked. The server picks
+   * those tiles from its own map, so a client never names what it gets.
+   *
+   * @generated from enum value: BONUS_KIND_SPREAD_CLICKS = 2;
+   */
+  SPREAD_CLICKS = 2,
 }
 // Retrieve enum metadata with: proto3.getEnumType(BonusKind)
 proto3.util.setEnumType(BonusKind, "planet.v1.BonusKind", [
   { no: 0, name: "BONUS_KIND_UNSPECIFIED" },
   { no: 1, name: "BONUS_KIND_TRIPLE_CLICKS" },
+  { no: 2, name: "BONUS_KIND_SPREAD_CLICKS" },
 ]);
 
 /**
@@ -679,7 +688,8 @@ export class ClaimBonusRequest extends Message<ClaimBonusRequest> {
 export class ClaimBonusResponse extends Message<ClaimBonusResponse> {
   /**
    * The allowance as it stands with the bonus applied, so the client does not
-   * have to wait for its next click to see the wider budget.
+   * have to wait for its next click to see the wider budget. A kind that does
+   * not widen it answers the allowance unchanged.
    *
    * @generated from field: planet.v1.ClickBudget budget = 1;
    */

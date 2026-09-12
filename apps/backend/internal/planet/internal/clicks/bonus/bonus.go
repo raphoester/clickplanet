@@ -16,7 +16,15 @@ import (
 
 type Kind string
 
-const KindTripleClicks Kind = "triple_clicks"
+const (
+	KindTripleClicks Kind = "triple_clicks"
+
+	// KindSpreadClicks makes every click take the tiles touching it as well.
+	KindSpreadClicks Kind = "spread_clicks"
+)
+
+// Kinds is every kind this server knows how to grant.
+var Kinds = []Kind{KindTripleClicks, KindSpreadClicks}
 
 type Offer struct {
 	Token string
@@ -294,7 +302,7 @@ func (r *Registry) offer(scope string, entry *caller, now time.Time) {
 	offer := Offer{
 		Token:     token,
 		Seed:      randomSeed(),
-		Kind:      KindTripleClicks,
+		Kind:      r.drawKind(),
 		Duration:  r.config.Duration,
 		ExpiresAt: now.Add(r.config.OfferTTL),
 	}
@@ -358,6 +366,16 @@ func (r *Registry) window() time.Duration {
 	}
 
 	return r.config.MinInterval + time.Duration(n.Int64())
+}
+
+// drawKind picks uniformly among the configured kinds, so each box is a surprise.
+func (r *Registry) drawKind() Kind {
+	n, err := rand.Int(rand.Reader, big.NewInt(int64(len(r.config.Kinds))))
+	if err != nil {
+		return r.config.Kinds[0]
+	}
+
+	return r.config.Kinds[n.Int64()]
 }
 
 func newToken() (string, error) {

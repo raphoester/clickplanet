@@ -45,10 +45,22 @@ type stubBooster struct {
 	state      cpratelimit.State
 }
 
+func (s *stubBooster) Peek(key string) cpratelimit.State {
+	s.key = key
+	return s.state
+}
+
 func (s *stubBooster) Boost(key string, multiplier float64, until time.Time) cpratelimit.State {
 	s.key, s.multiplier, s.until = key, multiplier, until
 	return s.state
 }
+
+type stubSpreader struct {
+	scope string
+	until time.Time
+}
+
+func (s *stubSpreader) Grant(scope string, until time.Time) { s.scope, s.until = scope, until }
 
 func granted() *stubRegistry {
 	return &stubRegistry{claimable: true, reward: bonus.Reward{Kind: bonus.KindTripleClicks, Duration: time.Minute}}
@@ -57,7 +69,7 @@ func granted() *stubRegistry {
 func TestAClaimStartsTheBoostForTheDurationGranted(t *testing.T) {
 	booster := &stubBooster{state: cpratelimit.State{Capacity: 30, PerSecond: 3}}
 
-	out, err := claim_bonus.New(granted(), booster, cptime.NewFixedClock(epoch)).
+	out, err := claim_bonus.New(granted(), booster, &stubSpreader{}, cptime.NewFixedClock(epoch)).
 		Execute(t.Context(), claim_bonus.In{Token: "a-token", CountryID: "fr"})
 	require.NoError(t, err)
 
@@ -70,7 +82,7 @@ func TestAClaimStartsTheBoostForTheDurationGranted(t *testing.T) {
 func TestTheClaimAndTheBoostUseTheSameScope(t *testing.T) {
 	registry, booster := granted(), &stubBooster{}
 
-	_, err := claim_bonus.New(registry, booster, cptime.NewFixedClock(epoch)).
+	_, err := claim_bonus.New(registry, booster, &stubSpreader{}, cptime.NewFixedClock(epoch)).
 		Execute(t.Context(), claim_bonus.In{Token: "a-token"})
 	require.NoError(t, err)
 
@@ -81,7 +93,7 @@ func TestTheClaimAndTheBoostUseTheSameScope(t *testing.T) {
 func TestACatchIsAnnouncedWithTheCountryTheClaimNamed(t *testing.T) {
 	registry := granted()
 
-	_, err := claim_bonus.New(registry, &stubBooster{}, cptime.NewFixedClock(epoch)).
+	_, err := claim_bonus.New(registry, &stubBooster{}, &stubSpreader{}, cptime.NewFixedClock(epoch)).
 		Execute(t.Context(), claim_bonus.In{Token: "a-token", CountryID: "jp"})
 	require.NoError(t, err)
 
@@ -92,10 +104,27 @@ func TestACatchIsAnnouncedWithTheCountryTheClaimNamed(t *testing.T) {
 func TestARefusedClaimBoostsNothingAndAnnouncesNothing(t *testing.T) {
 	registry, booster := &stubRegistry{claimable: false}, &stubBooster{}
 
-	_, err := claim_bonus.New(registry, booster, cptime.NewFixedClock(epoch)).
+	_, err := claim_bonus.New(registry, booster, &stubSpreader{}, cptime.NewFixedClock(epoch)).
 		Execute(t.Context(), claim_bonus.In{Token: "not-mine"})
 
 	require.ErrorIs(t, err, claim_bonus.ErrNoSuchBonus)
 	assert.Zero(t, booster.multiplier)
 	assert.Empty(t, registry.published)
+}
+
+func TestASpreadClaimStartsTheSpreadAndWidensNothing(t *testing.T) {
+	registry := &stubRegistry{claimable: true, reward: bonus.Reward{Kind: bonus.KindSpreadClicks, Duration: time.Minute}}
+	booster := &stubBooster{state: cpratelimit.State{Tokens: 4, Capacity: 10, PerSecond: 1}}
+	spreader := &stubSpreader{}
+
+	out, err := claim_bonus.New(registry, booster, spreader, cptime.NewFixedClock(epoch)).
+		Execute(t.Context(), claim_bonus.In{Token: "a-token", CountryID: "fr"})
+	require.NoError(t, err)
+
+	assert.Equal(t, cpctx.RateLimitKey(t.Context()), spreader.scope)
+	assert.Equal(t, epoch.Add(time.Minute), spreader.until)
+	assert.Zero(t, booster.multiplier, "a spread is not a boost")
+	assert.Equal(t, 10, out.Budget.Capacity, "the allowance is answered as it stands")
+	assert.Equal(t, bonus.KindSpreadClicks, out.Kind)
+	require.Len(t, registry.published, 1)
 }

@@ -79,6 +79,11 @@ bonus:
   # catching them does not collect a box every 45s all session.
   missRetry: 45s
 
+  # What a box can be worth, drawn uniformly per box. Empty offers every kind.
+  #   triple_clicks - the allowance is multiplied by `multiplier`
+  #   spread_clicks - every click also takes the tiles touching the one clicked
+  kinds: [triple_clicks, spread_clicks]
+
   # How long the token stays good. It has to outlast the flight the client
   # draws, or a box caught on its last frame is refused.
   offerTTL: 15s
