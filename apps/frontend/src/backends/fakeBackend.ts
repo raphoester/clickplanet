@@ -1,8 +1,11 @@
 import {
+    BombDrop,
+    Bomber,
     BonusCatch,
     BonusListener,
     BonusLostError,
     BonusOffer,
+    GlobePoint,
     Ownerships,
     OwnershipsGetter,
     RateLimitedError,
@@ -16,6 +19,7 @@ import {ClickBudget, ClickBudgetSource, now as budgetNow} from "./clickBudget.ts
 import {SessionUnavailableError} from "./session.ts";
 import {v4 as UUIDv4} from 'uuid';
 import {Countries} from "../domain/countries.ts";
+import {nearestTile, tilesWithin} from "../domain/blast.ts";
 
 const TILE_COUNT = 257_000
 
@@ -26,21 +30,49 @@ const CLICK_BURST = 10
 const BONUS_EVERY_MS = 20_000
 const BONUS_OFFER_TTL_MS = 15_000
 /** The server's defaults: a spread is strong, so it is short and rarer. */
-const BONUS_SECONDS: Record<BonusReward["kind"], number> = {tripleClicks: 20, spreadClicks: 10}
-const BONUS_KINDS: BonusReward["kind"][] = ["tripleClicks", "tripleClicks", "tripleClicks", "spreadClicks"]
+const BONUS_SECONDS: Record<BonusReward["kind"], number> = {tripleClicks: 20, spreadClicks: 10, bomb: 30}
+/** The production weights, 5 : 2 : 1. `giveBomb()` in the console skips the wait. */
+const BONUS_KINDS: BonusReward["kind"][] = [
+    "tripleClicks", "tripleClicks", "tripleClicks", "tripleClicks", "tripleClicks",
+    "spreadClicks", "spreadClicks",
+    "bomb",
+]
+
+/** Radians of arc: the server's 8 rings at its measured tile spacing of 0.004. */
+const BOMB_RADIUS = 0.032
+
+/** How far from the nearest tile an aim still hits land, as the server measures it. */
+const SEA_REACH = 0.004
+
+/** Other players' bombs, so a blast elsewhere on the planet can be watched too. */
+const BOT_BOMB_EVERY_MS = 25_000
+
+/** Everyone else's clicks, together. */
+const BOT_CLICKS_PER_SECOND = 4
 
 export type FakeBackendOptions = {
     vpnBlocked?: boolean
     sessionUnavailable?: boolean
+    /**
+     * Where the tiles are. The real server picks a bomb's tiles from its own
+     * map; this fake has none, so without this it never offers a bomb.
+     */
+    tilePositions?: () => Promise<Float32Array>
 }
 
-export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener {
+export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, Bomber {
     private tileBindings: Map<number, string> = new Map()
     private updateListeners: Map<string, (update: Update) => void> = new Map()
     private pendingUpdates: Update[] = []
     private updateBatchCallbacks: Map<string, (update: Update[]) => void> = new Map()
     private budgetCallbacks: Map<string, (budget: ClickBudget) => void> = new Map()
     private bonusCallbacks: Map<string, {onOffered: (offer: BonusOffer) => void, onTaken: (taken: BonusCatch) => void}> = new Map()
+    private bombCallbacks: Map<string, (drop: BombDrop) => void> = new Map()
+
+    /** When the bomb this client holds stops being droppable; 0 for none. */
+    private bombHeldUntilMs = 0
+    private positions: Promise<Float32Array> | undefined
+    private readonly tilePositions: (() => Promise<Float32Array>) | undefined
 
     /** The one box outstanding, exactly as the server keeps it. */
     private offered: BonusOffer | undefined
@@ -57,6 +89,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     constructor(batchUpdateDurationMs: number, options: FakeBackendOptions = {}) {
         this.vpnBlocked = options.vpnBlocked ?? false
         this.sessionUnavailable = options.sessionUnavailable ?? false
+        this.tilePositions = options.tilePositions
 
         for (let i = 1; i <= TILE_COUNT; i++) {
             this.tileBindings.set(i, "fr")
@@ -75,11 +108,13 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
 
         // The real server draws one connected caller and offers the box to them
         // alone. There is only one client here, so it is always this one.
+        const kinds = this.tilePositions ? BONUS_KINDS : BONUS_KINDS.filter((kind) => kind !== "bomb")
+
         this.timers.push(setInterval(() => {
             const offer: BonusOffer = {
                 token: UUIDv4(),
                 seed: Math.floor(Math.random() * 0xffffffff),
-                reward: rewardOfKind(BONUS_KINDS[Math.floor(Math.random() * BONUS_KINDS.length)]),
+                reward: rewardOfKind(kinds[Math.floor(Math.random() * kinds.length)]),
                 expiresAt: budgetNow() + BONUS_OFFER_TTL_MS,
             }
 
@@ -87,15 +122,25 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
             this.bonusCallbacks.forEach(handlers => handlers.onOffered(offer))
         }, BONUS_EVERY_MS))
 
-        Countries.forEach((country) => {
-            let tileId = Math.floor(Math.random() * 10_000)
-            const gap = Math.floor(Math.random() * 100)
+        const codes = [...Countries.keys()]
 
+        if (this.tilePositions) {
             this.timers.push(setInterval(() => {
-                tileId = (tileId + gap) % TILE_COUNT + 1
-                this.applyClick(tileId, country.code)
-            }, Math.random() * 1000))
-        })
+                const tile = Math.floor(Math.random() * TILE_COUNT) + 1
+                void this.botBomb(tile, codes[Math.floor(Math.random() * codes.length)])
+            }, BOT_BOMB_EVERY_MS))
+        }
+
+        // Other players, as one steady trickle. A timer per country at a random
+        // period had some firing every few milliseconds, which was thousands of
+        // updates a second and enough to make the whole machine lag.
+        const runs = codes.map(() => ({tile: Math.floor(Math.random() * TILE_COUNT), gap: 1 + Math.floor(Math.random() * 100)}))
+        this.timers.push(setInterval(() => {
+            const index = Math.floor(Math.random() * codes.length)
+            const run = runs[index]
+            run.tile = (run.tile + run.gap) % TILE_COUNT + 1
+            this.applyClick(run.tile, codes[index])
+        }, 1000 / BOT_CLICKS_PER_SECOND))
     }
 
     public close() {
@@ -104,6 +149,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         this.updateListeners.clear()
         this.updateBatchCallbacks.clear()
         this.budgetCallbacks.clear()
+        this.bombCallbacks.clear()
     }
 
     public async clickTile(tileId: number, countryId: string) {
@@ -209,13 +255,75 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         }
 
         this.offered = undefined
-        this.active = offer.reward
-        this.activeUntilMs = Date.now() + offer.reward.seconds * 1000
-        this.reportBudget()
+        if (offer.reward.kind === "bomb") {
+            this.bombHeldUntilMs = Date.now() + offer.reward.seconds * 1000
+        } else {
+            this.active = offer.reward
+            this.activeUntilMs = Date.now() + offer.reward.seconds * 1000
+            this.reportBudget()
+        }
 
         this.bonusCallbacks.forEach(handlers => handlers.onTaken({countryId}))
 
         return offer.reward
+    }
+
+    /**
+     * Grants a bomb as if a box had just been caught, skipping the box. Only
+     * the server's half: the globe still has to be told, see `giveBomb` in
+     * main.tsx.
+     */
+    public grantBomb(): BonusReward {
+        const reward = rewardOfKind("bomb")
+        this.bombHeldUntilMs = Date.now() + reward.seconds * 1000
+        return reward
+    }
+
+    public listenForBombs(onDropped: (drop: BombDrop) => void): () => void {
+        const identifier = UUIDv4()
+        this.bombCallbacks.set(identifier, onDropped)
+        return () => this.bombCallbacks.delete(identifier)
+    }
+
+    public async dropBomb(target: GlobePoint, countryId: string): Promise<void> {
+        if (this.sessionUnavailable) throw new SessionUnavailableError()
+        if (Date.now() >= this.bombHeldUntilMs) throw new BonusLostError()
+
+        this.bombHeldUntilMs = 0
+        await this.explode(target, countryId)
+    }
+
+    /** Someone else's bomb, on `tile`. Public for the console: `fakeBackend.botBomb(tile, "fr")`. */
+    public async botBomb(tile: number, countryId: string) {
+        if (!this.tilePositions) return
+        const positions = await this.loadPositions()
+        const o = (tile - 1) * 3
+        await this.explode({x: positions[o], y: positions[o + 1], z: positions[o + 2]}, countryId)
+    }
+
+    /** Lands a bomb as the server does: on the nearest tile, or in the sea past SEA_REACH. */
+    private async explode(target: GlobePoint, countryId: string) {
+        if (!this.tilePositions) return
+        const positions = await this.loadPositions()
+
+        const {tile, arc, point} = nearestTile(positions, target)
+        const onLand = tile !== undefined && arc <= SEA_REACH
+
+        const cleared = onLand ? tilesWithin(positions, tile, BOMB_RADIUS).filter((id) => this.tileBindings.delete(id)) : []
+
+        const drop: BombDrop = {
+            tile: onLand ? tile : undefined,
+            point,
+            countryId,
+            radius: BOMB_RADIUS,
+            cleared,
+        }
+        this.bombCallbacks.forEach((callback) => callback(drop))
+    }
+
+    private loadPositions(): Promise<Float32Array> {
+        this.positions ??= this.tilePositions!()
+        return this.positions
     }
 
     public listenForUpdates(
@@ -259,5 +367,6 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
 }
 
 function rewardOfKind(kind: BonusReward["kind"]): BonusReward {
+    if (kind === "bomb") return {kind, seconds: BONUS_SECONDS.bomb, radius: BOMB_RADIUS}
     return {kind, seconds: BONUS_SECONDS[kind]}
 }

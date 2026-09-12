@@ -12,6 +12,8 @@ import {displayPointSize, flagPaint, tilePointSize} from "./pointSize.ts";
 import {regions} from "./atlas.ts";
 import {Country} from "../../domain/countries.ts";
 import {
+    BombDrop,
+    Bomber,
     BonusCatch,
     BonusListener,
     BonusLostError,
@@ -34,16 +36,31 @@ import {createBonusBox} from "./bonusBox.ts";
 import {createBonusPointer} from "./bonusPointer.ts";
 import {BonusReward} from "../../domain/bonus.ts";
 import {now as monotonicNow} from "../../backends/clickBudget.ts";
+import {BlastUniforms, blastUniforms, createBlasts} from "./blasts.ts";
+import {IMPACT_DELAY} from "../../domain/blast.ts";
+import {HoldToDrop} from "../../domain/holdToDrop.ts";
 
-type Uniforms = {
+type Uniforms = BlastUniforms & {
     pointSize: THREE.IUniform
     atlasTexture: THREE.IUniform
     atlasTextureSize: THREE.IUniform
     landmassData: THREE.IUniform
     landmassCount: THREE.IUniform
-    pixelsPerRadian: THREE.IUniform
+    pixelsPerRadian: THREE.IUniform<number>
     flagPaint: THREE.IUniform
 }
+
+/** How long the screen shakes when your own bomb lands, in seconds. */
+const SHAKE_SECONDS = 0.5
+
+/** How long a press on the planet has to be held to drop a bomb. */
+const HOLD_TO_DROP_SECONDS = 0.7
+
+/** How far a held press may wander before it counts as a drag of the globe. */
+const HOLD_TOLERANCE_PX = 6
+
+/** How long after our own drop a blast in our colours is taken to be it. */
+const OWN_DROP_WINDOW_SECONDS = 5
 
 const TILES_PER_BATCH = 10_000
 
@@ -71,12 +88,21 @@ export type GlobeOptions = {
     onBonusWon: (reward: BonusReward) => void
     /** Absent for a backend with no bonus feed, which draws no boxes at all. */
     bonusListener?: BonusListener
+    /** Absent for a backend with no bombs: a bomb won is then never armed. */
+    bomber?: Bomber
+    /** A bomb landed somewhere on the planet — this client's included. */
+    onBombDropped: (drop: BombDrop) => void
+    /** The bomb this client held is gone: dropped, or held too long. */
+    onBombSpent: () => void
     signal: AbortSignal
 }
 
 export type Globe = {
     readonly tilesCount: number
     setCountry(country: Country): void
+    /** Plays out a reward as if a box had just been caught and the server had
+     *  answered with it. The click path's own step, exposed for dev tooling. */
+    takeReward(reward: BonusReward): void
     /** The globe as it is framed right now, resolved on the next frame — the
      *  only tick the drawing buffer can be read from. See capture.ts. */
     capture(): Promise<CapturedFrame>
@@ -102,6 +128,9 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         onBonusTaken,
         onBonusWon,
         bonusListener,
+        bomber,
+        onBombDropped,
+        onBombSpent,
         signal,
     } = options
 
@@ -125,6 +154,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         landmassCount: {value: 1},
         pixelsPerRadian: {value: 1},
         flagPaint: {value: flagPaint(camera.zoom, layoutViewport().height)},
+        ...blastUniforms(prefersReducedMotion()),
     };
 
     // The picking pass keeps the true tile size: the display discs are widened
@@ -182,6 +212,135 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         updateLeaderboard(rankCountries(ownership.counts()), live)
     }
 
+    const blasts = createBlasts(uniforms, uniforms.pixelsPerRadian)
+    scene.add(blasts.object)
+    // A blast is usually on the side of the planet nobody is looking at.
+    const blastPointer = createBonusPointer(eventTarget, "💥", "blast")
+
+    // The bomb this client holds, from the answer to its claim until it is
+    // dropped or lapses.
+    //
+    // Aiming follows the sphere under the cursor, not the tile picker: the
+    // picker finds nothing between tiles or over the sea, and a ring that
+    // followed it blinked off and jumped from tile to tile as the mouse moved.
+    let armed: {endsAt: number, radius: number} | undefined
+
+    // See domain/holdToDrop.ts: a bomb goes on a press held still, never a click.
+    const hold = new HoldToDrop<THREE.Vector3>({holdSeconds: HOLD_TO_DROP_SECONDS, tolerancePx: HOLD_TOLERANCE_PX})
+
+    // The click that follows a press ends nothing while a bomb is involved.
+    let swallowClick = false
+
+    const cancelCharge = () => {
+        hold.cancel()
+        blasts.setCharge(0)
+    }
+
+    const disarm = () => {
+        armed = undefined
+        cancelCharge()
+        blasts.setAim(undefined, 0)
+        eventTarget.classList.remove("viewer-canvas--armed")
+        onBombSpent()
+    }
+
+    const aimAt = (point: THREE.Vector3 | undefined) => {
+        if (!armed) return
+        blasts.setAim(point, armed.radius)
+    }
+
+    // What the server granted for a caught box. A bomb is armed here; every
+    // reward is then announced the same way.
+    const takeReward = (reward: BonusReward) => {
+        if (reward.kind === "bomb" && bomber) {
+            armed = {endsAt: monotonicNow() + reward.seconds * 1000, radius: reward.radius}
+            eventTarget.classList.add("viewer-canvas--armed")
+        }
+        onBonusWon(reward)
+    }
+
+    // When this client last dropped one, until its broadcast comes back: the
+    // server picks the tile, so the next blast in our colours is ours, for the shake.
+    let ownDropAt: number | undefined
+
+    const dropBomb = (point: THREE.Vector3) => {
+        if (!bomber) return
+        disarm()
+        ownDropAt = performance.now() / 1000
+        bomber.dropBomb({x: point.x, y: point.y, z: point.z}, country.code).catch((e) => {
+            if (lifetime.signal.aborted) return
+            ownDropAt = undefined
+            reportClaimFailure(e, {onSessionUnavailable})
+        })
+    }
+
+    // Cleared tiles wait for the blast to hit them, so the ground goes when the
+    // bomb explodes rather than when the message arrives.
+    let pendingClears: {at: number, tiles: Set<number>}[] = []
+
+    const flushClears = (upTo: number) => {
+        if (pendingClears.length === 0) return
+        const due = pendingClears.filter((clear) => clear.at <= upTo)
+        if (due.length === 0) return
+        pendingClears = pendingClears.filter((clear) => clear.at > upTo)
+        applyChanges(ownership.applyClears(due.flatMap((clear) => [...clear.tiles])))
+    }
+
+    let shakeFrom: number | undefined
+    const shake = new THREE.Vector3()
+
+    const stopBombs = bomber?.listenForBombs((drop) => {
+        // The animation loop's own clock, so the blast starts on this frame.
+        const seconds = performance.now() / 1000
+        const centre = new THREE.Vector3(drop.point.x, drop.point.y, drop.point.z)
+        blasts.start(centre, drop.radius, seconds, drop.tile === undefined)
+
+        // A hidden tab draws no frames, so nothing would ever reach the impact.
+        if (document.hidden) {
+            applyChanges(ownership.applyClears(drop.cleared))
+        } else if (drop.cleared.length > 0) {
+            pendingClears.push({at: seconds + IMPACT_DELAY, tiles: new Set(drop.cleared)})
+        }
+
+        if (ownDropAt !== undefined && drop.countryId === country.code && seconds - ownDropAt < OWN_DROP_WINDOW_SECONDS) {
+            ownDropAt = undefined
+            shakeFrom = seconds + IMPACT_DELAY
+        }
+        onBombDropped(drop)
+    })
+
+    const driveBlasts = (seconds: number) => {
+        blasts.update(seconds, camera)
+        blastPointer.update(blasts.newest(seconds), camera)
+        flushClears(seconds)
+
+        if (armed && monotonicNow() >= armed.endsAt) disarm()
+
+        if (armed) {
+            const {progress, drop} = hold.tick(seconds)
+            if (drop) dropBomb(drop)
+            else blasts.setCharge(progress)
+        }
+
+        if (shakeFrom !== undefined && uniforms.motion.value > 0) {
+            const s = seconds - shakeFrom
+            if (s > SHAKE_SECONDS) {
+                shakeFrom = undefined
+            } else if (s >= 0) {
+                // Undone after the frame is drawn, or OrbitControls would read
+                // it back as the player turning the globe.
+                const amplitude = 0.015 * (1 - s / SHAKE_SECONDS) ** 2 / camera.zoom
+                shake.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(amplitude)
+                camera.position.add(shake)
+            }
+        }
+    }
+
+    const undoShake = () => {
+        camera.position.sub(shake)
+        shake.set(0, 0, 0)
+    }
+
     const canvasPosition = (event: MouseEvent) => {
         const canvas = renderer.domElement
         const rect = canvas.getBoundingClientRect()
@@ -197,6 +356,15 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         return pointerNdc.set((x / canvas.width) * 2 - 1, -(y / canvas.height) * 2 + 1)
     }
 
+    const raycaster = new THREE.Raycaster()
+    const globeSurface = new THREE.Sphere(new THREE.Vector3(), 1)
+
+    /** Where on the globe the canvas point (x, y) is, or undefined off the planet. */
+    const surfacePoint = (x: number, y: number) => {
+        raycaster.setFromCamera(deviceCoordinates(x, y), camera)
+        return raycaster.ray.intersectSphere(globeSurface, new THREE.Vector3()) ?? undefined
+    }
+
     let pendingPointer: {x: number, y: number} | undefined
 
     eventTarget.addEventListener('mousemove', (event: MouseEvent) => {
@@ -206,10 +374,36 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     eventTarget.addEventListener('mouseleave', () => {
         pendingPointer = undefined
         field.setHover(undefined)
+        if (armed && !hold.holding) aimAt(undefined)
     }, listenerOptions);
+
+    eventTarget.addEventListener('pointerdown', (event: PointerEvent) => {
+        if (!armed || !event.isTrusted || !event.isPrimary || event.button !== 0) return
+
+        const {x, y} = canvasPosition(event)
+        const point = surfacePoint(x, y)
+        if (!point) return
+
+        hold.begin(event.pointerId, event.clientX, event.clientY, performance.now() / 1000, point)
+        swallowClick = true
+        aimAt(point)
+    }, listenerOptions);
+
+    eventTarget.addEventListener('pointermove', (event: PointerEvent) => {
+        hold.move(event.pointerId, event.clientX, event.clientY)
+    }, listenerOptions);
+
+    for (const ending of ['pointerup', 'pointercancel'] as const) {
+        eventTarget.addEventListener(ending, (event: PointerEvent) => hold.end(event.pointerId), listenerOptions);
+    }
 
     eventTarget.addEventListener('click', (event: MouseEvent) => {
         if (!event.isTrusted) return;
+
+        if (swallowClick) {
+            swallowClick = false
+            return
+        }
 
         const {x, y} = canvasPosition(event)
 
@@ -232,13 +426,16 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             if (!claimed) return
 
             bonusListener?.claimBonus(claimed.token, country.code)
-                .then(onBonusWon)
+                .then(takeReward)
                 .catch((e) => {
                     if (lifetime.signal.aborted) return
                     reportClaimFailure(e, {onSessionUnavailable})
                 })
             return
         }
+
+        // Holding a bomb, a click claims nothing: the bomb goes on a held press.
+        if (armed) return
 
         const tile = picker.pick(camera, x, y)
         if (tile === undefined) return
@@ -279,8 +476,15 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         console.error("Failed to fetch initial ownerships", e)
     })
 
-    const cleanUpdatesListener = updatesListener.listenForUpdatesBatch(
-        (updates: Update[]) => applyChanges(ownership.applyUpdates(updates)))
+    const cleanUpdatesListener = updatesListener.listenForUpdatesBatch((updates: Update[]) => {
+        // An update reaches this client after the blast it follows, so it wins
+        // its tile: that tile is taken out of the waiting clear, and the rest of
+        // the crater still goes on impact.
+        for (const clear of pendingClears) {
+            for (const update of updates) clear.tiles.delete(update.tile)
+        }
+        applyChanges(ownership.applyUpdates(updates))
+    })
 
     addDisplayObjects(scene, field.displayPoints)
 
@@ -294,12 +498,21 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     const {stop: stopAnimation} = startAnimation(renderer, scene, camera, uniforms, pickingUniforms, (seconds) => {
         driveBonusBox(seconds)
+        driveBlasts(seconds)
 
         if (pendingPointer === undefined) return
         const {x, y} = pendingPointer
         pendingPointer = undefined
+        // Holding a bomb, the ring is the only hover: no tile pick, no tile
+        // highlight blinking on and off under it.
+        if (armed) {
+            field.setHover(undefined)
+            if (!hold.holding) aimAt(surfacePoint(x, y))
+            return
+        }
         field.setHover(picker.pick(camera, x, y))
     }, () => {
+        undoShake()
         if (captureRequests.length === 0) return
 
         // Still inside the frame that drew it, which is the whole reason this
@@ -313,6 +526,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         setCountry: (newCountry: Country) => {
             country = newCountry
         },
+        takeReward,
         capture: () => new Promise<CapturedFrame>((resolve, reject) => {
             if (lifetime.signal.aborted) {
                 reject(new Error("the globe is no longer running"))
@@ -330,9 +544,12 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             stopAnimation()
             cleanUpdatesListener()
             stopBonuses?.()
+            stopBombs?.()
 
             picker.dispose()
             bonusPointer.dispose()
+            blastPointer.dispose()
+            blasts.dispose()
             field.dispose()
             territories.dispose()
             bonusBox.dispose()
@@ -392,6 +609,11 @@ function startAnimation(
             starfield.dispose();
         },
     };
+}
+
+function prefersReducedMotion(): boolean {
+    return typeof window.matchMedia === "function"
+        && window.matchMedia("(prefers-reduced-motion: reduce)").matches
 }
 
 /**

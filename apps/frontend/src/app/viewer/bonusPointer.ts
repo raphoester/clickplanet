@@ -58,9 +58,9 @@ export type BonusPointer = {
  * loop rather than from React: it moves every frame, and this sits beside a
  * WebGL scene that wants the main thread.
  */
-export function createBonusPointer(container: HTMLElement): BonusPointer {
+export function createBonusPointer(container: HTMLElement, label = "?", variant?: string): BonusPointer {
     const root = document.createElement("div")
-    root.className = "bonus-pointer"
+    root.className = variant ? `bonus-pointer bonus-pointer--${variant}` : "bonus-pointer"
     root.hidden = true
 
     const arrow = document.createElement("span")
@@ -68,7 +68,7 @@ export function createBonusPointer(container: HTMLElement): BonusPointer {
 
     const badge = document.createElement("span")
     badge.className = "bonus-pointer-badge"
-    badge.textContent = "?"
+    badge.textContent = label
 
     root.append(arrow, badge)
     container.append(root)

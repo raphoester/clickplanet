@@ -1,12 +1,14 @@
 import {describe, expect, it, vi} from "vitest"
-import {asBonusError, bindingsOf, catchOf, offerOf, PlanetBackend, updateOf} from "./planetBackend.ts"
+import {asBonusError, bindingsOf, bombOf, catchOf, offerOf, PlanetBackend, updateOf} from "./planetBackend.ts"
 import {Code, ConnectError} from "@connectrpc/connect"
 import {
+    BombDropped,
     BonusKind,
     BonusOffered,
     BonusTaken,
     ClickBudget as ClickBudgetMessage,
     GetMapResponse,
+    GlobePoint,
     Heartbeat,
     PlanetEvent,
     TileUpdate,
@@ -498,6 +500,11 @@ describe("offerOf", () => {
         expect(skewed!.expiresAt).toBeLessThan(honest!.expiresAt)
     })
 
+    it("reads a bomb box as one, with no blast radius until it is claimed", () => {
+        expect(offerOf(offered({kind: BonusKind.BOMB, durationSeconds: 30}))?.reward)
+            .toEqual({kind: "bomb", seconds: 30, radius: 0})
+    })
+
     it("reads a spread box as one", () => {
         expect(offerOf(offered({kind: BonusKind.SPREAD_CLICKS}))?.reward)
             .toEqual({kind: "spreadClicks", seconds: 60})
@@ -534,6 +541,89 @@ describe("updateOf with the bonus cases on the stream", () => {
         })
 
         expect(updateOf(offer)).toBeUndefined()
+    })
+})
+
+describe("bombOf", () => {
+    const dropped = (fields: Partial<{tileId: number, clearedTileIds: number[]}> = {}) => new PlanetEvent({
+        event: {
+            case: "bombDropped",
+            value: new BombDropped({
+                tileId: 7,
+                countryId: "fr",
+                radius: 0.03,
+                clearedTileIds: [6, 7, 8],
+                point: new GlobePoint({x: 0, y: 1, z: 0}),
+                ...fields,
+            }),
+        },
+    })
+
+    it("reads a blast on land, with every tile it cleared", () => {
+        expect(bombOf(dropped())).toEqual({
+            tile: 7,
+            point: {x: 0, y: 1, z: 0},
+            countryId: "fr",
+            radius: 0.03,
+            cleared: [6, 7, 8],
+        })
+    })
+
+    it("reads tile 0 as a bomb that fell in the sea", () => {
+        const splash = bombOf(dropped({tileId: 0, clearedTileIds: []}))
+
+        expect(splash?.tile).toBeUndefined()
+        expect(splash?.cleared).toEqual([])
+    })
+
+    it("drops everything that is not a blast, and a tile update is not one", () => {
+        expect(bombOf(tileUpdateEvent({tileId: 1, countryId: "fr"}))).toBeUndefined()
+        expect(updateOf(dropped())).toBeUndefined()
+    })
+})
+
+describe("PlanetBackend bombs", () => {
+    const clientWith = (fields: Record<string, unknown>) =>
+        ({click: vi.fn(), getMap: vi.fn(), getBudget: noBudget(), mapDensity: vi.fn(), listenForEvents: noEvents(), ...fields}) as never
+
+    it("sends where the player aimed and the session token", async () => {
+        const dropBomb = vi.fn().mockResolvedValue({})
+        const backend = new PlanetBackend(clientWith({dropBomb}), 1_000, fixedSession("session-1"))
+
+        await backend.dropBomb({x: 1, y: 2, z: 3}, "fr")
+
+        expect(dropBomb).toHaveBeenCalledWith({target: {x: 1, y: 2, z: 3}, countryId: "fr"}, expect.anything())
+        expect((dropBomb.mock.calls[0][1] as {headers: Headers}).headers.get(SESSION_HEADER)).toBe("session-1")
+        backend.close()
+    })
+
+    it("reports a bomb the server no longer holds for this player as lost", async () => {
+        const dropBomb = vi.fn().mockRejectedValue(new ConnectError("gone", Code.NotFound))
+        const backend = new PlanetBackend(clientWith({dropBomb}), 1_000)
+
+        await expect(backend.dropBomb({x: 1, y: 0, z: 0}, "fr")).rejects.toBeInstanceOf(BonusLostError)
+        backend.close()
+    })
+
+    it("hands over the tile updates that came before a blast, before the blast", async () => {
+        const events = [
+            tileUpdateEvent({tileId: 7, countryId: "jp"}),
+            new PlanetEvent({
+                event: {case: "bombDropped", value: new BombDropped({tileId: 7, countryId: "fr", clearedTileIds: [7]})},
+            }),
+        ]
+        const listenForEvents = vi.fn(async function* () {
+            yield* events
+            await new Promise(() => {})
+        })
+        const backend = new PlanetBackend(clientWith({listenForEvents}), 60_000)
+
+        const order: string[] = []
+        backend.listenForUpdatesBatch(() => order.push("updates"))
+        backend.listenForBombs(() => order.push("bomb"))
+
+        await vi.waitFor(() => expect(order).toEqual(["updates", "bomb"]))
+        backend.close()
     })
 })
 

@@ -15,6 +15,15 @@ export type BonusReward = {
      */
     kind: "tripleClicks" | "spreadClicks"
     seconds: number
+} | {
+    /**
+     * One bomb, to be dropped anywhere on the planet within `seconds`. It clears
+     * every tile within `radius` radians of arc of where it lands. `radius` is
+     * only what the aiming ring is drawn at: the server picks the tiles.
+     */
+    kind: "bomb"
+    seconds: number
+    radius: number
 }
 
 /**
@@ -36,6 +45,7 @@ export function multiplierOf(reward: BonusReward): number {
         case "tripleClicks":
             return 3
         case "spreadClicks":
+        case "bomb":
             return 1
     }
 }
@@ -64,6 +74,12 @@ export function describeReward(reward: BonusReward): {
                 title: "Spread clicks",
                 detail: `Every click also takes the tiles around it for ${reward.seconds} seconds`,
                 badge: "+6",
+            }
+        case "bomb":
+            return {
+                title: "Bomb",
+                detail: `Press and hold anywhere on the planet in the next ${reward.seconds} seconds to drop it`,
+                badge: "💣",
             }
     }
 }

@@ -5,7 +5,7 @@ import {Country} from '../../domain/countries.ts';
 import {OwnershipsGetter, TileClicker, UpdatesListener} from '../../backends/backend.ts';
 import {useLeaderboardFeed} from './useLeaderboardFeed.ts';
 import {ActiveBonus, BonusReward} from '../../domain/bonus.ts';
-import {BonusCatch, BonusListener} from '../../backends/backend.ts';
+import {BombDrop, Bomber, BonusCatch, BonusListener} from '../../backends/backend.ts';
 import {now} from '../../backends/clickBudget.ts';
 
 export type GlobeStatus =
@@ -20,11 +20,12 @@ export type UseGlobeOptions = {
     updatesListener: UpdatesListener
     /** Absent for a backend with no bonus feed, which draws no boxes at all. */
     bonusListener?: BonusListener
+    bomber?: Bomber
     country: Country
 }
 
 export function useGlobe(options: UseGlobeOptions) {
-    const {container, tileClicker, ownershipsGetter, updatesListener, bonusListener, country} = options
+    const {container, tileClicker, ownershipsGetter, updatesListener, bonusListener, bomber, country} = options
 
     const [status, setStatus] = useState<GlobeStatus>({state: 'loading'})
     const [tilesCount, setTilesCount] = useState(0)
@@ -49,6 +50,19 @@ export function useGlobe(options: UseGlobeOptions) {
     const [lastCatch, setLastCatch] = useState<BonusCatch | undefined>()
 
     const recordCatch = useCallback((taken: BonusCatch) => setLastCatch(taken), [])
+
+    // The latest bomb on the planet, for the news line.
+    // Numbered, so two bombs in a row replay the line rather than leaving it up.
+    const [lastBomb, setLastBomb] = useState<{drop: BombDrop, id: number} | undefined>()
+    const recordBomb = useCallback((drop: BombDrop) => {
+        setLastBomb((previous) => ({drop, id: (previous?.id ?? 0) + 1}))
+    }, [])
+
+    // A held bomb is shown on the meter like any bonus, and leaves it the
+    // moment it is dropped rather than when its time would have run out.
+    const spendBomb = useCallback(() => {
+        setBonus((running) => running?.reward.kind === "bomb" ? undefined : running)
+    }, [])
 
     const takeBonus = useCallback((reward: BonusReward) => {
         setAward(reward)
@@ -94,6 +108,9 @@ export function useGlobe(options: UseGlobeOptions) {
             onBonusWon: takeBonus,
             onBonusTaken: recordCatch,
             bonusListener,
+            bomber,
+            onBombDropped: recordBomb,
+            onBombSpent: spendBomb,
             signal: abortController.signal,
         }).then((globe) => {
             if (cancelled) {
@@ -102,6 +119,8 @@ export function useGlobe(options: UseGlobeOptions) {
             }
 
             globeRef.current = globe
+            // For console tooling in dev, e.g. `giveBomb()` in main.tsx.
+            if (import.meta.env.DEV) Object.assign(window, {clickplanetGlobe: globe})
             setTilesCount(globe.tilesCount)
             setStatus({state: 'ready'})
         }).catch((error) => {
@@ -116,7 +135,7 @@ export function useGlobe(options: UseGlobeOptions) {
             globeRef.current?.dispose()
             globeRef.current = null
         }
-    }, [container, tileClicker, ownershipsGetter, updatesListener, bonusListener, recordLeaderboard, takeBonus, recordCatch])
+    }, [container, tileClicker, ownershipsGetter, updatesListener, bonusListener, bomber, recordLeaderboard, takeBonus, recordCatch, recordBomb, spendBomb])
 
     useEffect(() => {
         initialCountry.current = country
@@ -130,6 +149,7 @@ export function useGlobe(options: UseGlobeOptions) {
     }, [])
 
     const dismissAward = useCallback(() => setAward(undefined), [])
+    const dismissBomb = useCallback(() => setLastBomb(undefined), [])
 
     return {
         status,
@@ -147,6 +167,8 @@ export function useGlobe(options: UseGlobeOptions) {
         dismissAward,
         bonus,
         lastCatch,
+        lastBomb,
+        dismissBomb,
     }
 }
 
