@@ -8,20 +8,23 @@ Every tile on the map has an owner (a country code). Players click tiles to clai
 
 It is a **single binary with no dependencies** — `api`. The whole game state is ~1M tiles × a two-byte country code, so it lives in memory and is snapshotted to a local file rather than in a database.
 
-An optional background job reports recent activity to X/Twitter. It used to be a second binary; it now runs inside `api` as a goroutine behind `bookkeeper.enabled` (off by default), because the recent-updates window only exists inside the API process.
-
 ## Architecture
 
 The project follows **hexagonal architecture** (ports & adapters), keeping the domain model isolated from infrastructure concerns.
 
 ```
-internal/clicks/
-├── domain/          # Core interfaces and business logic
-├── adapters/
-│   ├── primary/     # Inbound: the Connect service, unary and streaming
-│   └── secondary/   # Outbound: tile storage, X publisher
-└── app/             # Wires everything together
+internal/planet/             # the module's public API: Config, NewModule
+└── internal/                # unreachable from any other module
+    ├── domain/              # Core interfaces and business logic
+    └── adapters/
+        ├── primary/         # Inbound: the Connect service, unary and streaming
+        └── secondary/       # Outbound: the tile map and its snapshot
 ```
+
+The directory is named for its proto package, `planet.v1`, as `internal/chat/`
+and `internal/session/` are for theirs. Each module keeps its interior behind
+its own `internal/`, so the whole of what one may use of another is what sits in
+the other's root package.
 
 **Click flow:**
 
@@ -48,7 +51,6 @@ The tradeoffs are deliberate: writes since the last snapshot are lost on a hard 
 | API contracts    | Protocol Buffers over Connect (no gRPC)                  |
 | Metrics          | Prometheus (decorator pattern over the core service)     |
 | Config           | YAML + environment variable overrides (`koanf`)          |
-| Scheduling       | `gocron` (bookkeeper interval jobs)                      |
 | Testing          | `testify` (unit tests only — no Docker needed)           |
 | Containerization | Docker (multi-stage build, non-root runtime)             |
 

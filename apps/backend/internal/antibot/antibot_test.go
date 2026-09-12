@@ -9,17 +9,15 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/metronome"
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/retaker"
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/sequencer"
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/shadowban"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-// The whole thing wired the way internal/app wires it, driven by callers that
-// behave the way the real ones do. The bounds here are the ones cmd/api ships.
+// The whole thing built the way internal/planet builds it — through the one
+// published constructor, with the bounds cmd/api ships — and driven by callers
+// that behave the way the real ones do.
 type stack struct {
-	jury  *antibot.Jury
-	clock *fakeClock
+	guard antibot.Guard
+	clock *cptime.FixedClock
 
 	owner   map[uint32]string
 	reports []antibot.Report
@@ -27,44 +25,54 @@ type stack struct {
 
 func newStack() *stack {
 	s := &stack{
-		clock: &fakeClock{now: time.Date(2026, 9, 11, 2, 0, 0, 0, time.UTC)},
+		clock: cptime.NewFixedClock(time.Date(2026, 9, 11, 2, 0, 0, 0, time.UTC)),
 		owner: map[uint32]string{},
 	}
 
-	banner := shadowban.New(shadowban.Config{
-		Enforce:        true,
-		BanDuration:    time.Hour,
-		ReflagInterval: 5 * time.Minute,
-	}, s.clock)
+	config := antibot.Config{
+		Enabled: true,
+		ShadowBan: antibot.ShadowBanConfig{
+			Enforce:        true,
+			BanDuration:    time.Hour,
+			ReflagInterval: 5 * time.Minute,
+		},
+		Jury: antibot.JuryConfig{
+			MinSuspects:     2,
+			SuspicionWindow: 10 * time.Minute,
+			TrackWindow:     15 * time.Minute,
+		},
+	}
 
-	s.jury = antibot.NewJury(
-		antibot.Config{MinSuspects: 2, SuspicionWindow: 10 * time.Minute, TrackWindow: 15 * time.Minute},
-		banner,
-		s.clock,
-		func(report antibot.Report) { s.reports = append(s.reports, report) },
-		retaker.New(retaker.Config{
-			ReactionWindow: 5 * time.Second,
-			MinReactions:   12,
-			MaxSpread:      120 * time.Millisecond,
-			MaxMedian:      250 * time.Millisecond,
-			TrackWindow:    5 * time.Minute,
-		}, s.clock, nil),
-		sequencer.New(sequencer.Config{
-			MinSteps:     40,
-			MinShare:     0.75,
-			CertainSteps: 200,
-			CertainShare: 0.95,
-			TrackWindow:  15 * time.Minute,
-		}, s.clock),
-		metronome.New(metronome.Config{
-			MaxGap:        3 * time.Second,
-			MaxSpread:     120 * time.Millisecond,
-			MinClicks:     120,
-			CertainFor:    30 * time.Minute,
-			CertainClicks: 900,
-			TrackWindow:   15 * time.Minute,
-		}, s.clock),
-	)
+	config.Retaker.Enabled = true
+	config.Retaker.Detector.ReactionWindow = 5 * time.Second
+	config.Retaker.Detector.MinReactions = 12
+	config.Retaker.Detector.MaxSpread = 120 * time.Millisecond
+	config.Retaker.Detector.MaxMedian = 250 * time.Millisecond
+	config.Retaker.Detector.TrackWindow = 5 * time.Minute
+
+	config.Sequencer.Enabled = true
+	config.Sequencer.Detector.MinSteps = 40
+	config.Sequencer.Detector.MinShare = 0.75
+	config.Sequencer.Detector.CertainSteps = 200
+	config.Sequencer.Detector.CertainShare = 0.95
+	config.Sequencer.Detector.TrackWindow = 15 * time.Minute
+
+	config.Metronome.Enabled = true
+	config.Metronome.Detector.MaxGap = 3 * time.Second
+	config.Metronome.Detector.MaxSpread = 120 * time.Millisecond
+	config.Metronome.Detector.MinClicks = 120
+	config.Metronome.Detector.CertainFor = 30 * time.Minute
+	config.Metronome.Detector.CertainClicks = 900
+	config.Metronome.Detector.TrackWindow = 15 * time.Minute
+
+	guard, err := antibot.New(config, s.clock, antibot.Observer{
+		OnFlag: func(report antibot.Report) { s.reports = append(s.reports, report) },
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	s.guard = guard
 
 	return s
 }
@@ -76,14 +84,14 @@ func (s *stack) click(scope string, tile uint32, country string) bool {
 		Scope:   scope,
 		Tile:    tile,
 		Country: country,
-		At:      s.clock.now,
+		At:      s.clock.Now(),
 		Held:    held,
 		NoOp:    held == country,
 	}
 
-	drop := s.jury.Inspect(click)
+	drop := s.guard.Inspect(click)
 	if !drop {
-		s.jury.Committed(click)
+		s.guard.Committed(click)
 		if !click.NoOp {
 			s.owner[tile] = country
 		}
@@ -91,8 +99,6 @@ func (s *stack) click(scope string, tile uint32, country string) bool {
 
 	return drop
 }
-
-func (s *stack) advance(d time.Duration) { s.clock.now = s.clock.now.Add(d) }
 
 func (s *stack) verdicts(scope string) map[string]antibot.Verdict {
 	out := map[string]antibot.Verdict{}
@@ -120,7 +126,7 @@ func TestTheOvernightSweepIsCaught(t *testing.T) {
 	)
 
 	for range 400 {
-		s.advance(time.Second)
+		s.clock.Advance(time.Second)
 		clicks++
 		if s.click("sweeper", tile, "FR") {
 			dropped = true
@@ -148,6 +154,8 @@ func TestTheOvernightSweepIsCaught(t *testing.T) {
 func TestSweepingInARandomOrderStillGetsCaught(t *testing.T) {
 	s := newStack()
 
+	//nolint:gosec // G404: deterministic PRNG, seeded per test so the click
+	// stream replays exactly. Not security-relevant.
 	random := rand.New(rand.NewPCG(1, 2))
 
 	var (
@@ -156,7 +164,7 @@ func TestSweepingInARandomOrderStillGetsCaught(t *testing.T) {
 	)
 
 	for range 3000 {
-		s.advance(time.Second)
+		s.clock.Advance(time.Second)
 		clicks++
 		if s.click("shuffler", 180000+uint32(random.IntN(60000)), "FR") {
 			dropped = true
@@ -182,6 +190,8 @@ func TestSweepingInARandomOrderStillGetsCaught(t *testing.T) {
 func TestAnObsessedPlayerIsNotBanned(t *testing.T) {
 	s := newStack()
 
+	//nolint:gosec // G404: deterministic PRNG, seeded per test so the click
+	// stream replays exactly. Not security-relevant.
 	random := rand.New(rand.NewPCG(3, 4))
 
 	tile := uint32(50000)
@@ -189,13 +199,13 @@ func TestAnObsessedPlayerIsNotBanned(t *testing.T) {
 	for range 90 {
 		// A burst of clicks around one area, then a pause to look at the map.
 		for range 20 + random.IntN(25) {
-			s.advance(time.Duration(250+random.IntN(1400)) * time.Millisecond)
+			s.clock.Advance(time.Duration(250+random.IntN(1400)) * time.Millisecond)
 
 			tile = uint32(int(tile) + random.IntN(80) - 40)
 			require.False(t, s.click("player", tile, "IT"), "a player must never be dropped")
 		}
 
-		s.advance(time.Duration(4+random.IntN(40)) * time.Second)
+		s.clock.Advance(time.Duration(4+random.IntN(40)) * time.Second)
 	}
 
 	assert.Empty(t, s.reports, "nothing about this reads as a machine")
@@ -206,15 +216,17 @@ func TestAnObsessedPlayerIsNotBanned(t *testing.T) {
 func TestATileWarBansNeither(t *testing.T) {
 	s := newStack()
 
+	//nolint:gosec // G404: deterministic PRNG, seeded per test so the click
+	// stream replays exactly. Not security-relevant.
 	random := rand.New(rand.NewPCG(5, 6))
 
 	tile := uint32(70000)
 
 	for range 200 {
-		s.advance(time.Duration(300+random.IntN(1800)) * time.Millisecond)
+		s.clock.Advance(time.Duration(300+random.IntN(1800)) * time.Millisecond)
 		require.False(t, s.click("attacker", tile, "IL"))
 
-		s.advance(time.Duration(300+random.IntN(1800)) * time.Millisecond)
+		s.clock.Advance(time.Duration(300+random.IntN(1800)) * time.Millisecond)
 		require.False(t, s.click("defender", tile, "PS"))
 
 		if random.IntN(4) == 0 {
@@ -226,10 +238,12 @@ func TestATileWarBansNeither(t *testing.T) {
 }
 
 // The reflex bot the first version of this was written for, to prove the move
-// out of kernel/shadowban did not lose it.
+// into antibot/internal/shadowban did not lose it.
 func TestTheReflexBotIsStillCaught(t *testing.T) {
 	s := newStack()
 
+	//nolint:gosec // G404: deterministic PRNG, seeded per test so the click
+	// stream replays exactly. Not security-relevant.
 	random := rand.New(rand.NewPCG(7, 8))
 
 	tile := uint32(90000)
@@ -238,11 +252,11 @@ func TestTheReflexBotIsStillCaught(t *testing.T) {
 	for range 40 {
 		tile++
 
-		s.advance(time.Duration(600+random.IntN(2500)) * time.Millisecond)
+		s.clock.Advance(time.Duration(600+random.IntN(2500)) * time.Millisecond)
 		s.click("player", tile, "FR")
 
 		// Answers off the update stream, in a band no hand holds.
-		s.advance(time.Duration(70+random.IntN(30)) * time.Millisecond)
+		s.clock.Advance(time.Duration(70+random.IntN(30)) * time.Millisecond)
 		if s.click("reflex", tile, "PS") {
 			dropped = true
 			break

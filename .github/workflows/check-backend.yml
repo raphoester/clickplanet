@@ -42,3 +42,29 @@ jobs:
       # Runs deadcode at a pinned version via `go run`, so there is nothing to
       # install here.
       - run: make deadcode
+
+  # Its own job: the linter is the slowest check here and has its own cache, so
+  # running it beside `check` rather than after it keeps the wall clock down.
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/backend/go.mod
+          cache-dependency-path: apps/backend/go.sum
+
+      # The version is pinned so a linter release cannot turn a green branch
+      # red on its own schedule. It must match GOLANGCI_LINT_VERSION in
+      # apps/backend/Makefile, which is what `make setup-tools` installs.
+      - uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.13.1
+          working-directory: apps/backend
+
+      # Formatting is checked in the lint job because it runs through the same
+      # pinned golangci-lint the action just installed — there is no second tool
+      # to set up. It also catches an untidy go.mod.
+      - run: make check-format
+        working-directory: apps/backend

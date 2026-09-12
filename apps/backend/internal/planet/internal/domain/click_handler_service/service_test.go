@@ -1,0 +1,61 @@
+package click_handler_service_test
+
+import (
+	"context"
+	"log/slog"
+	"testing"
+
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/secondary/in_memory_tile_checker"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/secondary/memory_tile_storage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/domain/click_handler_service"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
+	"github.com/stretchr/testify/suite"
+)
+
+func TestRunSuite(t *testing.T) {
+	suite.Run(t, new(testSuite))
+}
+
+type testSuite struct {
+	suite.Suite
+
+	storage *memory_tile_storage.Storage
+	service *click_handler_service.Service
+}
+
+func (s *testSuite) SetupSuite() {
+	const maxIndex = 250_000
+	s.storage = memory_tile_storage.New(
+		maxIndex,
+		memory_tile_storage.Config{},
+		slog.New(slog.DiscardHandler),
+	)
+	tileChecker := in_memory_tile_checker.New(maxIndex)
+	countryChecker := cpcountries.New()
+	s.service = click_handler_service.New(tileChecker, s.storage, countryChecker)
+}
+
+func (s *testSuite) TestNominalCase() {
+	err := s.service.HandleClick(context.Background(), 1, "fr")
+	s.NoError(err)
+}
+
+func (s *testSuite) TestTileOnZeroIndex() {
+	err := s.service.HandleClick(context.Background(), 0, "fr")
+	s.Error(err)
+}
+
+func (s *testSuite) TestInvalidCountry() {
+	err := s.service.HandleClick(context.Background(), 10, "invalid")
+	s.Error(err)
+}
+
+func (s *testSuite) TestInvalidTile() {
+	err := s.service.HandleClick(context.Background(), 250_001, "fr")
+	s.Error(err)
+}
+
+func (s *testSuite) TestTileOnLimit() {
+	err := s.service.HandleClick(context.Background(), 250_000, "fr")
+	s.NoError(err)
+}

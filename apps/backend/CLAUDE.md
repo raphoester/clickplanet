@@ -10,13 +10,22 @@ make test
 # or: go test -tags testing ./... | grep -v 'no test files'
 
 # Run a single test
-go test -tags testing ./internal/clicks/domain/click_handler_service/... -run TestName
+go test -tags testing ./internal/planet/internal/domain/click_handler_service/... -run TestName
 
 # Run the concurrency-sensitive tests under the race detector
 go test -tags testing ./... -race
 
 # Fail on any unreachable function, production or test helper
 make deadcode
+
+# Lint. Needs golangci-lint on PATH at the pinned version: make setup-tools
+make lint
+
+# gofumpt every Go file and run go mod tidy — rewrites in place
+make tidy
+
+# Fail if `make tidy` would change anything, go.mod included
+make check-format
 
 # Run API server locally
 go run ./cmd/api -config cmd/api/example.yaml
@@ -35,36 +44,98 @@ make dBuild
 
 This is a Go backend for a collaborative map-clicking game. It follows **hexagonal architecture (ports & adapters)**.
 
-### Four bounded contexts, one process
+### Three bounded contexts, one process
 
-- **`internal/clicks/`** — the tile game: clicks, ownership, the map, the update stream.
+- **`internal/planet/`** — the tile game: clicks, ownership, the map, the update stream.
 - **`internal/chat/`** — the live chat: messages, identity, retention.
 - **`internal/session/`** — the mint: what a caller has to prove before it may click.
-- **`internal/antibot/`** — who is a machine, and what happens to them.
 
-Bonus boxes live inside `internal/clicks/` rather than beside it: what they grant
+They share the process, the transport and the country list, and **nothing else**. None imports another; each owns its own domain types, its own proto package, its own storage adapter (where it has one) and its own edge.
+
+Bonus boxes live inside `internal/planet/` rather than beside it: what they grant
 is click allowance, and what carries them is the planet stream. A context of
 their own would have to import both.
 
-`antibot` is the one with no proto package and no adapters, because nothing
-calls it: the clicks edge gates on it the way it gates on `session`. It is a
-context and not a kernel package because "is this caller a bot" is the business
-this game is in, while the kernel is for things that would read the same in any
-other program.
+**`internal/antibot/` is a domain library, not a fourth context.** It has no proto
+package, no adapters and no `module.go`, and it cannot be wired without a caller
+composing it — the clicks edge does, the way it gates on `session`. It is not a
+shared package because "is this caller a bot" is the business this game is in,
+while `shared` is for things that would read the same in any other program.
+`planet` → `antibot` is the only module-to-module import in the backend.
 
-They share the process, the transport and the country list, and **nothing else**. None imports another; each owns its own domain types, its own proto package, its own storage adapter (where it has one) and its own edge. The one place that knows about all three is **`internal/app/`**, the composition root — which is why it sits beside them rather than inside any of them.
+#### A module publishes its root package and hides the rest
 
-Clicks and sessions meet only through `kernel/session.Signer`: the session context mints, the clicks context verifies a signature. Neither imports the other, and **clicks knows nothing about Turnstile** — swapping the attester changes one line in `internal/app`.
+Every module's interior lives behind **its own `internal/`** — `internal/planet/internal/domain`,
+`internal/chat/internal/adapters/…`, `internal/antibot/internal/jury`. Go's own
+rule does the enforcing: such a package is importable only from the tree rooted
+at the parent of that `internal`, so `chat` importing `planet/internal/domain`
+**does not compile**. There is no linter to run, no allowlist to maintain and
+nothing to keep in sync.
 
-Adding a context that callers talk to means a `proto/<name>/v1`, an `internal/<name>/`, and one `configure<Name>` in `internal/app`. Connect derives the route from the proto package, so there is no prefix to allocate and no router to edit. `internal/session/` is the worked example: it cost one proto file, one domain rule, two adapters and one wiring file, and no existing route changed.
+So the whole of what one module may use of another is **what sits in the other's
+root package**:
 
-**`cmd/api`** is the only binary: one HTTP server serving all three contexts. Follows `New()` → `Configure()` → `Run()`.
+| module | its public API |
+|---|---|
+| `planet` | `Config`, `NewModule` |
+| `chat` | `Config`, `NewModule` |
+| `session` | `Config`, `NewModule` |
+| `antibot` | `Config`, `Observer`, `Guard`, `New` |
+
+That holds for `cmd/api` too: the composition root lists modules and cannot
+reach a domain type, a storage adapter or a controller even if it wanted to. A
+module's `Config` may carry a field whose *type* is internal (`planet.Config.TilesStorage`
+is `memory_tile_storage.Config`) — koanf fills it by reflection and a caller can
+still set its fields, it just cannot name the type. That is the right amount of
+access: the settings are published because they are in the file, and the code
+that reads them is not.
+
+**Adding a package inside a module is therefore free, and taking one out of
+`internal/` is a deliberate act** that shows up in review as exactly one moved
+directory.
+
+### The composite layer
+
+Each context wires **itself**, in a `module.go` at its root (`internal/planet/module.go`, `internal/chat/module.go`, `internal/session/module.go`). That file is the context's manifest: its `Config`, whether it is on, and its DI sequence. **A module takes its config and nothing else, and builds every object it needs itself** — there is no `Deps` struct and nothing is handed down from `main`. A module is a `cpbootstrap.Module` — a name, an `Enabled` flag and a DI sequence — and the sequence is handed a `cpbootstrap.Props` carrying registrars and nothing else:
+
+- `props.RPC.Mount(path, handler)` — both return values of a generated `New<Service>Handler` go straight into it
+- `props.Runners.Add(name, run)` — a goroutine, given the process-lifetime context
+- `props.Closers.Add(name, close)` — a cleanup, run in reverse registration order
+- `props.Logger`, `props.Metrics`
+- `props.Server` — the bind address and the stream heartbeat, **the only config a module reads that is not its own**. It is the transport every module answers over, so it belongs to the layer that owns the server rather than to any context.
+
+A module never sees the router, the signal handler or another module's objects. **There is no mutable app object and nothing to leave a half-built dependency on**: `internal/shared/cpbootstrap` builds every module in order, then serves.
+
+**`cmd/api/main.go` is the composition root, and it is the only one** — there is no `internal/app`, because a package whose whole job is to be called once by `main` was a level of indirection and nothing else. It does two things: load the config, and list the modules.
+
+**The aggregation is the whole of it — a flat slice, no branches, no dependencies threaded through:**
+
+```go
+return []bootstrap.Module{
+	session.NewModule(config.Session),
+	planet.NewModule(config.Planet),
+	chat.NewModule(config.Chat),
+}
+```
+
+**Every module is always listed; each reads its own switch.** `NewModule` sets `Enabled` from the module's own config and `cpbootstrap` skips the ones that are off, so turning chat off is a config change and never an edit here. A disabled module is never built, so its routes are **absent** rather than present and refusing — `/chat.v1.ChatService/` 404s, which is the contract chat and sessions already had.
+
+#### What two contexts need, without either handing it to the other
+
+`main` builds no objects at all, so a thing two contexts need is **a config block they both declare**, and each builds its own instance from it.
+
+- **`shared/cpsession.Config`** is the `session:` block, and it is shared because two contexts read it: `session` mints with it, `planet` verifies with it. Each calls `cpsession.NewSigner(config)` itself. The same secret and TTL produce the same MAC, so the two signers agree by construction and there is no object to pass — `TestBothContextsReadTheSameSessionBlock` pins that they read one block, and `TestTwoSignersOverOneConfigAgree` pins that one block means one key. Neither module imports the other, and **the planet context knows nothing about Turnstile** — the siteverify client lives at `session/internal/turnstile`, so it *cannot* reach it, and swapping the attester changes one line in `internal/session/module.go`.
+- **`shared/cpcountries`** is the ISO list. It is stateless and hardcoded, so each module just calls `cpcountries.New()`, the way it calls `cptime.SystemClock{}`. It sits in `shared` and not under `planet/internal/adapters/` for exactly the reason that layer exists: neither context may depend on the other — and now could not, since that directory is unreachable from chat.
+
+**This is why `session.secret` is now required** rather than invented at boot — see [Sessions](#sessions-internalsession).
+
+Adding a context that callers talk to means a `proto/<name>/v1`, an `internal/<name>/` with a `module.go`, and one line in the slice. Connect derives the route from the proto package, so there is no prefix to allocate and no router to edit.
+
+**`cmd/api`** is the only binary: `main.go` is the composition root, about 85 lines of config and a module list, and `cpbootstrap` is the rest.
 
 It runs as a **single self-contained container with no dependencies**: the tile map lives in process and is persisted to a local snapshot file. There is no database, no cache, and no second process.
 
-The X/Twitter reporting job used to be a separate `cmd/bookkeeper` process. It now runs inside `cmd/api` as an optional goroutine behind `bookkeeper.enabled` (default off) — the recent-updates window only exists inside the API process, so a separate process would have nothing to read.
-
-### Clicks domain (`internal/clicks/domain/`)
+### Planet domain (`internal/planet/internal/domain/`)
 
 Core interfaces (ports) defined in `gateways.go`:
 - `TilesChecker` — validates tile IDs (0..maxIndex)
@@ -74,17 +145,15 @@ Core interfaces (ports) defined in `gateways.go`:
 
 `ClickHandlerService` wires these interfaces together and contains all game logic. The Prometheus-instrumented version (`prom_click_handler_service/`) wraps it via decorator pattern.
 
-`runner/` is the scheduled job the bookkeeper uses; it reads through the storage's `PastUpdates`.
-
 ### Adapters
 
 **Primary (input):**
-- `adapters/primary/http/planetv1controller/` — the API. `ClickService` implements the generated `planetv1connect.ClickServiceHandler` and nothing else; it never sees an `http.ResponseWriter`, which is the point of serving the contract with Connect rather than by hand. Two interceptors wrap it: `NewRateLimitInterceptor` (see [Rate limiting](#rate-limiting)) and `NewErrorInterceptor`, which maps domain errors onto Connect codes, logs the unexpected ones and keeps their cause off the wire, so **handlers return their errors bare** — `domain.ErrInvalidArgument` becomes `CodeInvalidArgument`, a code a handler picked itself is left alone, and anything else is logged once and answered as `internal error`.
+- `internal/adapters/primary/http/planetv1controller/` — the API. `ClickService` implements the generated `planetv1connect.ClickServiceHandler` and nothing else; it never sees an `http.ResponseWriter`, which is the point of serving the contract with Connect rather than by hand. Two interceptors wrap it: `NewRateLimitInterceptor` (see [Rate limiting](#rate-limiting)) and `NewErrorInterceptor`, which maps domain errors onto Connect codes, logs the unexpected ones and keeps their cause off the wire, so **handlers return their errors bare** — `domain.ErrInvalidArgument` becomes `CodeInvalidArgument`, a code a handler picked itself is left alone, and anything else is logged once and answered as `internal error`.
 - the tile stream, as `ClickService.ListenForEvents` — a Connect server-streaming RPC like any other procedure on the service. See [The live streams](#the-live-streams).
 
 **There is one server, one mux, and no version prefix.** Connect names each service's path from its proto package — `/planet.v1.ClickService/` and `/chat.v1.ChatService/` — so nothing is mounted under a prefix of ours. The three services and `/metrics` are the only things on the router. Nothing here needs a connection-level demultiplexer such as `cmux`; that is for running a real gRPC server, which owns its own HTTP/2 handler, beside a REST one.
 
-`Configure` sets `http.Protocols` with both HTTP/1.1 and unencrypted HTTP/2, because the generated handler also speaks gRPC and gRPC-Web and those need HTTP/2. Browsers reach the same routes over HTTP/1.1. Verified: HTTP/1.1 and h2c both answer on the same port.
+`cpbootstrap` sets `http.Protocols` with both HTTP/1.1 and unencrypted HTTP/2, because the generated handler also speaks gRPC and gRPC-Web and those need HTTP/2. Browsers reach the same routes over HTTP/1.1. Verified: HTTP/1.1 and h2c both answer on the same port.
 
 ### The live streams
 
@@ -95,7 +164,7 @@ Both live feeds are served **two ways at once**, and that is a transition, not a
 **One stream per API, and an envelope rather than a bare payload.** A `PlanetEvent` is a `oneof` of `tile_update` and `heartbeat`; `ChatEvent` is a `oneof` of `message` and `heartbeat`. **A new kind of live event is a new case in that `oneof`, never a second stream** — one connection per client, one route to configure, and a client that does not know a case reads an unset `oneof` and skips it instead of breaking. That is what the bare `TileUpdate` frame could not do, on the websocket or off it.
 
 **`heartbeat` is not decoration.** Cloudflare cuts a silent response at **~125s with a 524** — measured against production three times, exactly 125.1s. The websocket never hit this because Cloudflare keeps those open; a chunked HTTP response is not so lucky. A quiet chat is the normal case, and a quiet planet happens, so both streams send a heartbeat every `httpServer.streamHeartbeat` (30s by default, and it **must** stay well under 125s). Without it a silent stream dies and reconnects forever, losing whatever was published in each gap.
-These replaced a pair of websockets on `/ws/listen` and `/ws/chat`, broadcast by a `kernel/wspublisher` fanout. **Nothing here speaks websocket any more** — no upgrade route, no second mux, no `coder/websocket` dependency.
+These replaced a pair of websockets on `/ws/listen` and `/ws/chat`, broadcast by a `wspublisher` fanout. **Nothing here speaks websocket any more** — no upgrade route, no second mux, no `coder/websocket` dependency.
 
 Each handler calls the storage's `Subscribe(ctx)` **per call**, and the request context is what unsubscribes — it is cancelled however the stream ends, so a disconnect needs no `CloseRead` equivalent. Both storages already handed every subscriber its own buffered channel and dropped rather than blocked for a slow one, so one subscription per connected client is what they were built for; `subscriberBuffer` now bounds a client rather than the single fanout.
 
@@ -110,12 +179,11 @@ The response never repeats a tile id. `GetMapResponse` carries `start_tile_id`, 
 `memory_tile_storage.StateBatchDense` builds it. The interned ids are copied out exactly as stored and the table travels with them, so nothing is translated on the way out and the client needs no shared country list. Protobuf does all the framing — there is no hand-rolled magic or length-prefixing on either side, and therefore no encoder and decoder that have to be edited together.
 
 **Secondary (output):**
-- `adapters/secondary/memory_tile_storage/` — the tile map. A preallocated `[]uint16` indexed by tile id, with country codes interned into a side table (2 bytes per tile — ~2 MB for a 1M-tile map). Fans updates out in process, serves `PastUpdates` from a bounded ring buffer, and persists to a local snapshot file.
-- `adapters/secondary/in_memory_tile_checker/` — validates tile IDs
-- `adapters/secondary/in_memory_country_checker/` — validates country codes (hardcoded)
-- `adapters/secondary/x_publisher/` — posts to X/Twitter
+- `internal/adapters/secondary/memory_tile_storage/` — the tile map. A preallocated `[]uint16` indexed by tile id, with country codes interned into a side table (2 bytes per tile — ~2 MB for a 1M-tile map). Fans updates out in process and persists to a local snapshot file.
+- `internal/adapters/secondary/in_memory_tile_checker/` — validates tile IDs
+- country codes are validated by `shared/cpcountries`, which chat shares — see [The composite layer](#the-composite-layer)
 
-Beyond the `domain.TileStorage` port, `memory_tile_storage` also exposes `Subscribe(ctx) (<-chan domain.TileUpdate, error)`, one call per open stream, and `PastUpdates(ctx, duration, now)` for the bookkeeper.
+Beyond the `domain.TileStorage` port, `memory_tile_storage` also exposes `Subscribe(ctx) (<-chan domain.TileUpdate, error)`, one call per open stream.
 
 ### Key Flow
 
@@ -124,7 +192,7 @@ POST /session.v1.SessionService/CreateSession
   → SessionService
   → session_service (attests, then mints)
   → turnstile_attester → Cloudflare siteverify
-  → kernel/session.Signer.Mint [HMAC over expiry+id+IP; nothing stored]
+  → shared/cpsession.Signer.Mint [HMAC over expiry+id+IP; nothing stored]
 
 POST /planet.v1.ClickService/Click   [X-Session-Token: <the minted token>]
   → VPNBlockInterceptor, SessionInterceptor, RateLimitInterceptor, AntiBotInterceptor
@@ -138,7 +206,7 @@ POST /planet.v1.ClickService/Click   [X-Session-Token: <the minted token>]
 
 ```
 POST /chat.v1.ChatService/SendMessage
-  → BlocklistInterceptor, then RateLimitInterceptor (both kernel/connectutil)
+  → BlocklistInterceptor, then RateLimitInterceptor (both shared/cpconnect)
   → ChatService
   → chat_service (sanitizes, stamps id/time/tag)
   → MemoryChatStorage.Append() [appends to the JSONL log, then fans out]
@@ -149,17 +217,17 @@ A failed log write fails the whole post: the log is the audit trail, so a messag
 
 ### Chat (`internal/chat/`)
 
-Chat is a separate bounded context, not a feature of the tile game: it shares the process, the transport and the country list, and has its own proto package, domain, storage and edge. Nothing under `internal/chat/` imports `internal/clicks/`, and the reverse holds too.
+Chat is a separate bounded context, not a feature of the tile game: it shares the process, the transport and the country list, and has its own proto package, domain, storage and edge. Nothing under `internal/chat/` imports `internal/planet/`, and the reverse holds too — and since each module's interior sits behind its own `internal/`, neither now can.
 
 **Off by default.** With `chat.enabled` false nothing is registered, so `/chat.v1.ChatService/` answers 404 — the unauthenticated public write endpoint does not exist at all rather than existing and erroring.
 
 **Identity without accounts.** A client picks its own display name and sends a UUID it persists locally. **Neither is trusted for anything** — anyone can post with any name. What a sender cannot forge is `author_tag`: a salted hash of their IP, 6 hex characters, so two people using the same name still look different and a mute has a key that means something. The salt is `chat.service.tagSalt`; left empty it is regenerated at boot, which changes everyone's tag on restart, and the server warns about it.
 
-**Abuse controls live at the edge**, in two interceptors — ahead of decoding the message and well ahead of validating it, so a flood of malformed messages costs a sender exactly what a flood of well-formed ones does. `chat.blockedIPs` cuts an address off from every chat RPC; `chat.rateLimiter` throttles `SendMessage` alone (`GetHistory` is one read on join, and limiting it would punish a page load). **Both are `kernel/connectutil`'s**, the same ones the click chain uses — see [Shared interceptors](#shared-interceptors). The domain then bounds the message in **runes** (280) and the name (24), validates UTF-8, and **strips control characters** — a newline would otherwise let a sender forge a line in the JSONL log.
+**Abuse controls live at the edge**, in two interceptors — ahead of decoding the message and well ahead of validating it, so a flood of malformed messages costs a sender exactly what a flood of well-formed ones does. `chat.blockedIPs` cuts an address off from every chat RPC; `chat.rateLimiter` throttles `SendMessage` alone (`GetHistory` is one read on join, and limiting it would punish a page load). **Both are `shared/cpconnect`'s**, the same ones the click chain uses — see [Shared interceptors](#shared-interceptors). The domain then bounds the message in **runes** (280) and the name (24), validates UTF-8, and **strips control characters** — a newline would otherwise let a sender forge a line in the JSONL log.
 
 Refusal reasons are logged, never returned: a sender learns *that* they were refused, not which check tripped. **The stored text is raw — the frontend must escape it.**
 
-The **vendored VPN lists** do not cover chat: `NewVPNBlockInterceptor` wraps `Click` alone. Chat's blocklist is the same `*ipblock.Blocklist` type, built by `ipblock.NewDenyList` from config prefixes instead of vendored data — so entries are CIDRs and a `/24` is one line rather than 256. Extending the vendored lists to chat is therefore a wiring change (hand `configureVPNBlocklist`'s result to `NewBlocklistInterceptor`), not a second list to write.
+The **vendored VPN lists** do not cover chat: `NewVPNBlockInterceptor` wraps `Click` alone. Chat's blocklist is the same `*cpipblock.Blocklist` type, built by `cpipblock.NewDenyList` from config prefixes instead of vendored data — so entries are CIDRs and a `/24` is one line rather than 256. Extending the vendored lists to chat is therefore a wiring change (build the list in `describeModules` and hand it to both modules, the way `shared/cpcountries` already is), not a second list to write.
 
 **The log is an append-only JSONL file**, not the tile snapshot's whole-state codec: different shape, different write pattern. One line per message with `at`, `id`, `name`, `tag`, `authorId`, `country`, `ip`, `userAgent`, `text`. It is fsynced every `flushInterval` rather than per message (a hard kill loses at most that window — the same bargain the snapshot makes), pruned hourly past `retention`, and its tail repopulates the in-memory history at boot so a restart does not blank the chat. Corrupt lines are skipped and reported, never fatal.
 
@@ -173,7 +241,7 @@ That log holds **personal data** — IPs next to user-authored text — so the r
 
 ### Rate limiting
 
-`NewRateLimitInterceptor` throttles **`Click` only**, per source IP, from a `kernel/ratelimit` token bucket — 1 click/s with a burst of 10 by default (`rateLimiter.*`). `MapDensity` and `GetMap` are cacheable reads a proxy in front absorbs; limiting them would punish a page load rather than a bot. A refused click answers `CodeResourceExhausted`, i.e. HTTP 429, and never reaches the domain.
+`NewRateLimitInterceptor` throttles **`Click` only**, per source IP, from a `shared/cpratelimit` token bucket — 1 click/s with a burst of 10 by default (`rateLimiter.*`). `MapDensity` and `GetMap` are cacheable reads a proxy in front absorbs; limiting them would punish a page load rather than a bot. A refused click answers `CodeResourceExhausted`, i.e. HTTP 429, and never reaches the domain.
 
 #### Saying what is left
 
@@ -183,7 +251,7 @@ Polling for it would be worse, so nothing polls. `Limiter.Take` returns the buck
 
 That reading travels two ways, because a refused call has no response message to put it in:
 
-- an allowed call gets it on the context (`ctxutil.AddClickBudgetToContext`), and `ClickService.Click` puts it in `ClickResponse.budget`. The interceptor decides the policy; the handler decides how to say it — the same split `NewSessionInterceptor` already uses for the session id.
+- an allowed call gets it on the context (`cpctx.AddRateBudgetToContext`), and `ClickService.Click` puts it in `ClickResponse.budget`. The interceptor decides the policy; the handler decides how to say it — the same split `NewSessionInterceptor` already uses for the session id.
 - a refused one gets it as a **connect error detail**, built by the `describe` function each context passes. `planetv1controller` passes one; chat and sessions pass nil, because nothing displays those allowances.
 
 `ClickService.GetBudget` covers the cold start — a client that has just loaded and has no click to learn from. It reads through `Limiter.Peek`, which spends nothing and, for an address that never clicked, **creates no bucket**: reading an allowance must not be a way to make the limiter remember a caller. It is deliberately not `NO_SIDE_EFFECTS`, so it is a POST no cache will serve a stale answer to; every click re-anchors the client afterwards, so it is asked once per page load.
@@ -205,9 +273,9 @@ Chat and sessions each have **their own limiter instance** with their own budget
 
 Reads and the streams are untouched. A VPN user still loads the planet and follows it live; they cannot paint. That is also what keeps a false positive readable: the page works and says why, instead of failing to load.
 
-**The ranges are vendored and embedded**, from [X4BNet/lists_vpn](https://github.com/X4BNet/lists_vpn) (MIT, rebuilt daily from ASN ownership), in `internal/kernel/ipblock/data`. Not fetched at boot: `cmd/api` is a self-contained container with no startup dependencies, and a boot that can fail because GitHub is down is a worse trade than a list that ages between deploys — the Cloudflare ranges in `deploy/vps/Caddyfile` are maintained the same way. Refresh with `make vpn-lists` and commit; the tests assert the lists still parse and are not truncated.
+**The ranges are vendored and embedded**, from [X4BNet/lists_vpn](https://github.com/X4BNet/lists_vpn) (MIT, rebuilt daily from ASN ownership), in `internal/shared/cpipblock/cpdata`. Not fetched at boot: `cmd/api` is a self-contained container with no startup dependencies, and a boot that can fail because GitHub is down is a worse trade than a list that ages between deploys — the Cloudflare ranges in `deploy/vps/Caddyfile` are maintained the same way. Refresh with `make vpn-lists` and commit; the tests assert the lists still parse and are not truncated.
 
-`ipblock` holds them as sorted, merged `[lo, hi]` ranges of 16-byte addresses and binary-searches them — ~63k prefixes fold to far fewer ranges, about 2 MB resident and well under 100 ns per lookup. **IPv4 and IPv6 live in separate slices.** They cannot share one: an IPv4 address in its v4-mapped form sits inside `::ffff:0:0/96`, so a single ordering would let a v6 prefix as short as `::/16` silently swallow every IPv4 address on the internet.
+`cpipblock` holds them as sorted, merged `[lo, hi]` ranges of 16-byte addresses and binary-searches them — ~63k prefixes fold to far fewer ranges, about 2 MB resident and well under 100 ns per lookup. **IPv4 and IPv6 live in separate slices.** They cannot share one: an IPv4 address in its v4-mapped form sits inside `::ffff:0:0/96`, so a single ordering would let a v6 prefix as short as `::/16` silently swallow every IPv4 address on the internet.
 
 `vpnBlocklist.includeDatacenters` adds the much broader hosting list, which catches a self-hosted VPN on a VPS. It is off by default because it also refuses Apple iCloud Private Relay and Cloudflare WARP — both egress from datacenter ranges, both on by default for a lot of ordinary mobile traffic. `blocked_clicks{list}` is labelled per list precisely so you can see what turning it on would cost before turning it on. `vpnBlocklist.allow` is the escape hatch and beats both lists.
 
@@ -219,7 +287,7 @@ The answer to the one thing an address-based defence cannot do. The rate limiter
 
 `Click` requires a token this server minted, in the `X-Session-Token` header. The only way to get one is `session.v1.SessionService/CreateSession`, which verifies a **Cloudflare Turnstile** token against siteverify before minting. A script that reads the proto and POSTs `Click` no longer has a complete client: it has to solve Turnstile first.
 
-**The token is stateless.** `kernel/session` mints `base64url(expiry ‖ random id ‖ HMAC-SHA256(expiry ‖ id ‖ ip))` — 48 bytes, 64 characters. Nothing is stored, swept or replicated; verification is one HMAC. That is what keeps this compatible with a process that holds the whole game in memory and has no database to put a session table in.
+**The token is stateless.** `shared/cpsession` mints `base64url(expiry ‖ random id ‖ HMAC-SHA256(expiry ‖ id ‖ ip))` — 48 bytes, 64 characters. Nothing is stored, swept or replicated; verification is one HMAC. That is what keeps this compatible with a process that holds the whole game in memory and has no database to put a session table in.
 
 **It is bound to the address that minted it**, so a token lifted off the wire is worth nothing anywhere else. The MAC covers the address without carrying it, so the token leaks nothing. A player whose address changes mid-session — a phone moving from wifi to cellular — fails verification, and the client mints again and retries: self-healing, and invisible.
 
@@ -233,16 +301,16 @@ The signature is checked **before** the expiry, in constant time, so a forger le
 
 **Minting has its own throttle** (`session.rateLimiter`, one every 30s with 10 in hand). A mint costs a siteverify round trip to a third party, so it cannot share the click budget: unthrottled, the endpoint is a free way to spend this server's siteverify quota.
 
-**`kernel/turnstile` fails closed on everything.** A network error, a non-2xx, a body that is not JSON, a token for another action or another hostname are all refused exactly as a forged one is. Failing open would make the check decorative — an attacker who can reach the backend can also make siteverify unreachable from it. It validates `action` and `hostname` as well as `success`, because **the sitekey is public**: without those two checks a token minted by the same widget embedded on any other page would be accepted here.
+**`session/internal/turnstile` fails closed on everything.** A network error, a non-2xx, a body that is not JSON, a token for another action or another hostname are all refused exactly as a forged one is. Failing open would make the check decorative — an attacker who can reach the backend can also make siteverify unreachable from it. It validates `action` and `hostname` as well as `success`, because **the sitekey is public**: without those two checks a token minted by the same widget embedded on any other page would be accepted here.
 
 **`session.turnstile.enabled: false` mints for anyone who asks** (`open_attester`). That is how a local backend runs without a widget and a secret, and it still exercises the whole click path — the token is bound and expires. It is never the production choice, and the server warns at boot when it is on.
 
-**Two secrets, neither in git.** `session.secret` signs the tokens; anyone holding it can mint one the API accepts. `session.turnstile.secret` is the widget's secret half. Both come from the environment via `deploy/vps/docker-compose.yaml`, as `chat.service.tagSalt` does. An empty `session.secret` generates one at boot and warns — which invalidates every session in flight on each restart, costing every player one extra round trip.
+**Two secrets, neither in git.** `session.secret` signs the tokens; anyone holding it can mint one the API accepts. `session.turnstile.secret` is the widget's secret half. Both come from the environment via `deploy/vps/docker-compose.yaml`, as `chat.service.tagSalt` does. **An empty `session.secret` with `session.enabled` true refuses the boot**, naming the variable to set. It used to generate one and warn; that stopped being possible when the two contexts started deriving their own signer from the block instead of sharing one object — a server that invented a secret would invent a different one per context and could not verify what it had just minted. Failing at boot is also the better trade on its own: the generated key invalidated every session in flight on each restart.
 
-**What it does not stop:** a person who solves Turnstile in a real browser and then runs a userscript. They hold a genuine session, and nothing here distinguishes them from a player. This raises the floor from "twenty lines of Python" to "drive a real browser"; the signal that survives that is behavioural — timing regularity and tile-id structure over a session — which is what the session id on the context exists to be keyed on. Nothing in production reads it yet, so `ctxutil.GetSessionID` sits behind the `testing` tag (see [Testing](#testing)) until something does.
+**What it does not stop:** a person who solves Turnstile in a real browser and then runs a userscript. They hold a genuine session, and nothing here distinguishes them from a player. This raises the floor from "twenty lines of Python" to "drive a real browser"; the signal that survives that is behavioural — timing regularity and tile-id structure over a session — which is what the session id on the context exists to be keyed on. Nothing in production reads it yet, so `cpctx.GetSessionID` sits behind the `testing` tag (see [Testing](#testing)) until something does.
 
 
-### Bonus boxes (`internal/clicks/domain/bonus/`)
+### Bonus boxes (`internal/planet/internal/domain/bonus/`)
 
 A question-mark box flies past the planet every so often; whoever catches it
 clicks at `bonus.multiplier` times their allowance for `bonus.duration`. Off by
@@ -266,7 +334,7 @@ click it — is the part that was meant to be the game.
 by connection age rewards leaving a tab open, which is the opposite of what
 catching a box is for.
 
-**An attendee is a scope, not a connection.** `Attend` is keyed on `ipscope.Of`,
+**An attendee is a scope, not a connection.** `Attend` is keyed on `cpipscope.Of`,
 the same unit the throttle and the session token use, and counts the streams
 sharing it — so twenty tabs are one entrant with one ticket, and the entry goes
 when the last stream does. The handler's `defer` is what removes it; there is no
@@ -302,7 +370,7 @@ planet that then failed to apply is the one lie this cannot tell.
 
 #### What a bonus does to the bucket
 
-`ratelimit.Limiter.Boost(key, multiplier, until)` multiplies both the ceiling and
+`cpratelimit.Limiter.Boost(key, multiplier, until)` multiplies both the ceiling and
 the refill rate until it lapses. It is **opt-in and additive**: a bucket nobody
 boosts holds `multiplier: 1` and behaves exactly as it did before boosting
 existed, which matters because the same limiter type throttles chat and session
@@ -332,8 +400,19 @@ What is left after sessions. A player who solves Turnstile in a real browser and
 then runs a userscript holds a genuine session, and no address- or token-based
 check can tell them from a player. The signal that survives is **behavioural**.
 
+**The whole of its API is four names**, and `internal/antibot/antibot.go` is all
+of it: `Config`, `Observer`, `Guard` and `New`. A caller hands over the block and
+the two hooks it wants findings reported through, and gets back a `Guard` — nil
+when the block is off — that answers `Inspect`, `Committed`, `Flagged`, `Run` and
+`Describe`. It is **one** `Run` whatever the file turned on: how many sweepers
+there are is this package's business, which is why `planet` registers one runner
+rather than six. Everything else is under `antibot/internal/`, so the click edge
+could not assemble a jury out of watchdogs even if it wanted to. `internal/planet/antibot.go`
+is the whole of the clicks side, and what is left in it is genuinely the edge's:
+the metric names, the wording of the ban line, and where in the chain it sits.
+
 **Detection and consequence are separate, and the consequence is the boring
-half.** `antibot/shadowban` takes a scope and a clock and runs a ban. It knows
+half.** `antibot/internal/shadowban` takes a scope and a clock and runs a ban. It knows
 nothing about tiles, reactions or what earned it, which is why the same sentence
 serves three different findings and would serve a fourth.
 
@@ -471,7 +550,7 @@ caller already serving a ban can be judged again; at or above a watchdog's
 `flags=6` on a line is six independent judgements agreeing rather than one
 verdict repeated.
 
-Keyed on `ipscope.Of`, the same unit as the throttle, so a v6 caller cannot serve
+Keyed on `cpipscope.Of`, the same unit as the throttle, so a v6 caller cannot serve
 a ban on one address and click from the next in its own /64. It only bites a bot
 with a stable address — against a residential proxy pool it evaporates for
 exactly the reason the rate limiter does.
@@ -481,11 +560,11 @@ lock, declared as a local port in the controller the way `DenseMapReader` is.
 
 ### Shared interceptors
 
-`kernel/connectutil` holds the two interceptors both contexts need, because the policy is the same whatever the procedure is — only the procedure names and the wording of the refusal differ, and those are arguments:
+`shared/cpconnect` holds the two interceptors both contexts need, because the policy is the same whatever the procedure is — only the procedure names and the wording of the refusal differ, and those are arguments:
 
-- `NewRateLimitInterceptor(limiter, refusal, describe, procedures...)` — a `kernel/ratelimit` bucket keyed on the context IP, answering `CodeResourceExhausted` (429). `describe` is optional and is what makes the allowance visible — see [Saying what is left](#saying-what-is-left); chat and sessions pass nil
-- `NewIPBlockInterceptor(blocklist, refusal, onBlocked, procedures...)` — an `ipblock.Blocklist` lookup answering `CodePermissionDenied` (403), with an optional hook the click counter hangs on
-- `NewSessionInterceptor(verifier, clock, refusal, enforce, onVerdict, procedures...)` — a `kernel/session` signature check answering `CodeUnauthenticated` (401), which puts the session id on the context and, with `enforce` false, counts without refusing
+- `NewRateLimitInterceptor(limiter, refusal, describe, procedures...)` — a `shared/cpratelimit` bucket keyed on the context IP, answering `CodeResourceExhausted` (429). `describe` is optional and is what makes the allowance visible — see [Saying what is left](#saying-what-is-left); chat and sessions pass nil
+- `NewIPBlockInterceptor(blocklist, refusal, onBlocked, procedures...)` — a `cpipblock.Blocklist` lookup answering `CodePermissionDenied` (403), with an optional hook the click counter hangs on
+- `NewSessionInterceptor(verifier, clock, refusal, enforce, onVerdict, procedures...)` — a `shared/cpsession` signature check answering `CodeUnauthenticated` (401), which puts the session id on the context and, with `enforce` false, counts without refusing
 - `NewErrorInterceptor(logger, mapper)` — the one that keeps an unexpected error's cause off the wire. It is a full `connect.Interceptor` rather than a `UnaryInterceptorFunc`, so it covers the streaming handlers too; without that, a stream would be the one procedure whose raw error the caller sees. Each context passes the `Mapper` naming the domain errors it wants translated, and returns nil from it for anything it does not recognise.
 
 Each context keeps a thin named constructor over these — `planetv1controller.NewRateLimitInterceptor`, `NewVPNBlockInterceptor` and `NewErrorInterceptor`, `chatv1controller.NewRateLimitInterceptor`, `NewBlocklistInterceptor` and `NewErrorInterceptor` — which is where the procedure list, the refusal wording, the domain errors and the metric live. **A context names its own policy; neither reimplements the mechanism.**
@@ -505,23 +584,84 @@ The whole map is snapshotted to `tilesStorage.snapshotPath`:
 
 The snapshot file is the only thing worth backing up.
 
-### Kernel (`internal/kernel/`)
+### Shared (`internal/shared/`)
 
-Shared infrastructure: `cfgutil` (YAML + env config via koanf), `httpserver` (middleware, formats), `logging`, `prom` (Prometheus), `xtime`, `ctxutil`, `ratelimit`, `ipblock`, `atomicfile`.
+Shared infrastructure: `cpbootstrap` (the composite layer), `cpcountries`, `cpconfigs` (YAML + env config via koanf), `cphttpserver` (middleware, formats), `cpprom` (Prometheus), `cptime`, `cpctx`, `cpconnect`, `cpratelimit`, `cpipblock`, `cpipscope`, `cpsession`, `cpatomicfile`, `cpsecrets`.
 
-One of these is here because both bounded contexts need it and neither should depend on the other:
+**Every package here is prefixed `cp`, and a new one must be.** A call site reads
+`cptime.SystemClock{}` or `cpctx.GetSourceIP(ctx)`, so the prefix says the
+dependency is this layer's without the reader going to the import block — and an
+unprefixed name in a module is a module's own package by construction. It also
+settles the collisions a shared layer attracts: `cptime` beside stdlib `time`,
+`cpsession` beside the session *module*, `cpconnect` beside `connectrpc.com/connect`.
+`cpsession` is what let `internal/session/module.go` drop the `sharedsession`
+import alias it needed while the two were both called `session`.
 
-- `atomicfile` — temp file, fsync, rename, fsync of the directory. Written for the tile snapshot; the chat log's retention rewrites need the same guarantee, and duplicating 80 lines of carefully-written fsync/rename code is how the two drift apart. Covered by the existing snapshot tests.
+**There is no logging package here, deliberately.** Every constructor that logs
+takes a `*slog.Logger` from the standard library. The wrapper that used to sit
+here was an interface of four methods over `log/slog` plus a `cplf` field type
+that stringified every value on the way in — so a structured logger was being
+flattened to strings by the layer whose job was to keep them structured. A
+handler is the supported way to change where logs go, and `slog.New(slog.DiscardHandler)`
+is the nop. The one thing lost is the name `Warning`, which is `Warn` in slog.
 
-`session` mints and verifies the click token — see [Sessions](#sessions-internalsession). `turnstile` is the siteverify client it is fed by; both are in the kernel because the session context mints with them and the clicks context verifies with them, and neither context may depend on the other.
+The `util` suffix is dropped rather than prefixed — `cpctx`, not `cpctxutil`.
+A package named for what it *is* stays that; one named "utilities for X" was
+never saying anything the prefix does not.
 
-`ipblock` is the VPN prefix set — see [VPN blocklist](#vpn-blocklist). `ratelimit` is a keyed token bucket held in this process, like the tile map it protects — with one API instance, a shared counter would buy nothing. Its `Run` loop periodically forgets the buckets that have refilled to capacity, which is free: such a bucket holds exactly what a freshly created one would, and without it the map would keep an entry per address that ever clicked.
+`cpbootstrap` runs the modules — see [The composite layer](#the-composite-layer). It knows nothing about this game: it takes a list of modules, builds each one under a startup deadline, mounts what they claimed on one router, and serves until the process is signalled.
 
-`ipscope` decides what a bucket is keyed on, and every throttle goes through it. Over IPv4 that is the address; over IPv6 it is the surrounding **/64**, because the smallest allocation a subscriber receives is a /64 and most receive far more — a bucket per v6 address is one the same line walks out of by picking its next address, turning one home connection into thousands of callers with a throttle each. The session token binds to the same unit, so the address a token is valid for and the address that spends a budget cannot diverge. Blocking deliberately does **not** use it: the VPN and datacenter lists are precise prefixes already, and widening a hit to the surrounding /64 would refuse neighbours who are not on them.
+Two of these are here because both bounded contexts need them and neither should depend on the other:
+
+- `cpsecrets` — the random hex a config may leave it to the server to invent. Chat's tag salt and the session signing key are the two, and both pay the same price for an empty setting: what the old one covered stops being recognised on restart.
+- `cpatomicfile` — temp file, fsync, rename, fsync of the directory. Written for the tile snapshot; the chat log's retention rewrites need the same guarantee, and duplicating 80 lines of carefully-written fsync/rename code is how the two drift apart. Covered by the existing snapshot tests.
+
+`cpsession` mints and verifies the click token — see [Sessions](#sessions-internalsession). It is here because **both** contexts read it: the session context mints with it, the planet context verifies with it, and neither may depend on the other.
+
+The siteverify client it is fed by is **not** here. `turnstile` sat here on the same "both contexts need it" rule, but only one ever did, so it now lives at `session/internal/turnstile` where the compiler keeps it. **The bar is not that a package is shareable, it is that it would read the same in any other program and that two modules actually import it** — "shared" names the symptom, and a directory admitted on the weaker reading becomes a dumping ground. `cpsecrets` passes narrowly — chat is its only caller today, but it is twenty lines of `crypto/rand` with no domain in it at all.
+
+`cpcountries` is the ISO country list both the tile game and the chat validate against. `cpipblock` is the VPN prefix set — see [VPN blocklist](#vpn-blocklist). `cpratelimit` is a keyed token bucket held in this process, like the tile map it protects — with one API instance, a shared counter would buy nothing. Its `Run` loop periodically forgets the buckets that have refilled to capacity, which is free: such a bucket holds exactly what a freshly created one would, and without it the map would keep an entry per address that ever clicked.
+
+`cpipscope` decides what a bucket is keyed on, and every throttle goes through it. Over IPv4 that is the address; over IPv6 it is the surrounding **/64**, because the smallest allocation a subscriber receives is a /64 and most receive far more — a bucket per v6 address is one the same line walks out of by picking its next address, turning one home connection into thousands of callers with a throttle each. The session token binds to the same unit, so the address a token is valid for and the address that spends a budget cannot diverge. Blocking deliberately does **not** use it: the VPN and datacenter lists are precise prefixes already, and widening a hit to the surrounding /64 would refuse neighbours who are not on them.
 
 ### Configuration
 
-Config is loaded from a YAML file (`-config` flag), with environment variables overriding it — `cfgutil` uses `.` as the nesting delimiter, so `tilesStorage.snapshotPath=/data/tiles` in the environment overrides the file. See `cmd/api/example.yaml` for the full schema.
+**`shared/cpconfigs` owns loading**, the way `cpbootstrap` owns running: the binary asks for the config it wants and never for the flag, the parser, or the precedence between file and environment.
+
+```go
+var config Config
+err := configs.Load(&config, configs.FromFlag())
+```
+
+Where the file comes from is an option — `FromFlag()` reads `-config`, which is how the container runs it; `FromFile(path)` names one outright and lives behind the `testing` tag, because two test packages need it and no production caller does (see [Testing](#testing)). **An empty path is not an error**: every field keeps its zero value and the environment alone can carry a whole config.
+
+Config is loaded from a YAML file, with environment variables overriding it — `.` is the nesting delimiter, so `tilesStorage.snapshotPath=/data/tiles` in the environment overrides the file. See `cmd/api/example.yaml` for the full schema.
+
+**A config that implements `Validate() error` is asked to check itself**, and the load fails with its sentence wrapped in `cpconfigs.ErrValidation`. That is where a bad setting is refused out loud rather than becoming a zero value nothing reports.
+
+**Every block validates its own, and `cmd/api` only fans out:**
+
+```go
+func (c Config) Validate() error {
+	return errors.Join(
+		c.HTTPServer.Validate(),
+		c.Clicks.Validate(),
+		c.Session.Validate(),
+		c.Chat.Validate(),
+	)
+}
+```
+
+The binary never reads inside a block to check it, so a new bound is added in the module that owns it and nothing here changes. `errors.Join` also means a broken file reports **everything** wrong at once rather than one line per restart.
+
+- `cpbootstrap.ServerConfig` — `bindAddress` empty listens on port 80
+- `planet.Config` — `gameMap.maxIndex` zero is a map that refuses every click
+- `shared/cpsession.Config` — `secret` empty while `enabled`, and a negative `ttl`. It sits with the block rather than with either context, because both read it and it must be checked exactly once
+- `chat.Config` — nothing: every chat setting has a usable default, so an unset one is a default and not a mistake. It implements the hook anyway, so a check added later lands in chat
+
+There is no struct-tag validation and therefore no validator dependency — a hook the config implements covers this app's needs.
+
+**Each module owns its own config struct** — `planet.Config`, `chat.Config`, `session.Config` — and `app.Config` is the three of them plus `httpServer`. The planet keys stayed at the top level of the file rather than moving under a `planet:` section: `app.Config` squashes that struct (`koanf:",squash"`), so the file and every `deploy/` environment variable are unchanged.
 
 - `httpServer.bindAddress` — the encoding is negotiated per request, so there is no format setting.
 - `httpServer.streamHeartbeat` — how often a silent live stream sends a heartbeat (default 30s). **Must stay well under the proxy's idle cut**: Cloudflare answers 524 at ~125s, and a stream that never speaks is one it kills.
@@ -529,8 +669,6 @@ Config is loaded from a YAML file (`-config` flag), with environment variables o
 - `tilesStorage.snapshotPath` — where the state is persisted; **empty disables durability**
 - `tilesStorage.snapshotInterval` — how often a changed state is flushed
 - `tilesStorage.subscriberBuffer` — per-subscriber channel capacity, which is now per connected client rather than per fanout; updates for a subscriber that cannot keep up are dropped, not blocked on
-- `tilesStorage.pastUpdatesBuffer`, `tilesStorage.pastUpdatesRetention` — size and age bounds on the recent-updates ring buffer the bookkeeper reads
-- `bookkeeper.enabled`, `bookkeeper.runner.interval`
 - `rateLimiter.perSecond`, `rateLimiter.burst`, `rateLimiter.sweepInterval` — the per-IP click throttle (defaults 1/s, burst 10, swept every minute)
 - `vpnBlocklist.enabled`, `vpnBlocklist.includeDatacenters`, `vpnBlocklist.allow` — the VPN refusal (see [VPN blocklist](#vpn-blocklist)); disabled parses nothing and allocates nothing
 - `bonus.enabled` — off offers nothing and answers `ClaimBonus` Unimplemented
@@ -548,7 +686,7 @@ Config is loaded from a YAML file (`-config` flag), with environment variables o
 - every watchdog also takes `detector.trackWindow` and `detector.sweepInterval` — how far back its evidence counts, and how often what can no longer matter is forgotten
 - `session.enabled` — off registers nothing, so `session.v1.SessionService/` 404s and clicks are judged on address alone
 - `session.enforce` — off counts what enforcing would refuse without refusing it; the mode to deploy in
-- `session.secret` — signs the tokens; **empty generates one at boot**, invalidating every session in flight on each restart
+- `session.secret` — signs the tokens; **required once `session.enabled` is true**, and an empty one refuses the boot rather than being invented
 - `session.ttl` — how long a minted token is accepted (default 1h)
 - `session.rateLimiter.*` — the per-IP `CreateSession` throttle, same shape as `rateLimiter`
 - `session.turnstile.enabled` — off mints for anyone who asks, which is how a local backend runs without a widget
@@ -561,7 +699,7 @@ Config is loaded from a YAML file (`-config` flag), with environment variables o
 - `chat.service.tagSalt` — salts the per-sender tag; **empty regenerates one at boot**, changing every tag on restart
 - `chat.service.maxTextLength`, `chat.service.maxNameLength` — bounds in runes (280, 24)
 - `chat.rateLimiter.*` — the per-IP `SendMessage` throttle, same shape as `rateLimiter`
-- `chat.blockedIPs` — prefixes refused every chat RPC, parsed by `kernel/ipblock` exactly as `vpnBlocklist.allow` is
+- `chat.blockedIPs` — prefixes refused every chat RPC, parsed by `shared/cpipblock` exactly as `vpnBlocklist.allow` is
 
 ### Protobuf
 
@@ -573,6 +711,81 @@ The proto package is the **only** version number: Connect derives each route fro
 
 Unit tests only, using `testify`. There are no integration tests and no Docker dependency — `make test` runs everything from a clean checkout.
 
-**Tests build with `-tags testing`, so use `make test` rather than a bare `go test ./...`.** Anything else that loads test files needs the tag too: `go vet -tags testing ./...`, and an editor's language server (`gopls` `buildFlags: ["-tags=testing"]`, or `go.buildTags` in VS Code), which otherwise reports the helpers as undefined. A helper that more than one package needs cannot live in a `_test.go` file, so it lives in an ordinary `.go` file carrying `//go:build testing`. The tag, not a filename convention, is what keeps such a helper out of the production binary — and what lets `make deadcode` tell a helper apart from production code. `ctxutil.GetSessionID` is the one that exists today.
+**Tests build with `-tags testing`, so use `make test` rather than a bare `go test ./...`.** Anything else that loads test files needs the tag too: `go vet -tags testing ./...`, and an editor's language server (`gopls` `buildFlags: ["-tags=testing"]`, or `go.buildTags` in VS Code), which otherwise reports the helpers as undefined. A helper that more than one package needs cannot live in a `_test.go` file, so it lives in an ordinary `.go` file carrying `//go:build testing`. The tag, not a filename convention, is what keeps such a helper out of the production binary — and what lets `make deadcode` tell a helper apart from production code. `cpctx.GetSessionID`, `cpconfigs.FromFile` and `cptime.FixedClock` — the stand-still clock a dozen test packages drive time with — are the three that exist today.
+
+### Linting
+
+`make lint` runs **golangci-lint**, configured in [`.golangci.yaml`](.golangci.yaml).
+The version is pinned in the `Makefile` and matched by the CI job, because an
+unpinned linter turns a green branch red on somebody else's release schedule.
+`make setup-tools` installs that version.
+
+**Formatting is gofumpt**, enabled in the `formatters` block of the same file
+and run by `make tidy`. It goes through golangci-lint rather than a `gofumpt`
+binary of its own: one pinned version to install instead of two that can
+disagree, and it already knows which files are generated. gofumpt is a strict
+superset of gofmt, so anything it accepts `gofmt` accepts.
+
+`make check-format` is the non-rewriting half, and it is what CI runs. Note that
+`golangci-lint fmt --diff` **prints a diff but exits 0 either way**, so the
+target tests its output rather than its status — a `check-format` written the
+obvious way passes on an unformatted tree. It also runs `go mod tidy` and fails
+on a resulting diff, so an untidy `go.mod` is caught in the same place.
+
+**`run.build-tags` is `testing`**, for the same reason `go vet` needs it: without
+the tag the linters load a tree where the shared helpers are undefined and report
+that instead of anything real.
+
+**Test files are linted like production code.** The only per-path exclusion is
+`generated/`, which `make proto` owns. Where a linter is wrong about a specific
+line, the line carries a `//nolint` naming the linter and the reason — which
+keeps the rule live everywhere else:
+
+- `nilnil` — six constructors return `(nil, nil)` for **"this feature is off"**,
+  and the caller checks for nil and mounts nothing. A sentinel would make every
+  caller unwrap one. Annotated per site so an *accidental* `nil, nil` is still caught.
+- `gosec` G304 — file paths that come from config, never from a request.
+- `gosec` G404 — `math/rand` in the antibot tests is deterministic on purpose:
+  a fixed seed replays the exact click stream a watchdog is asserted against.
+- `bodyclose` — it cannot see a body closed by a helper's `t.Cleanup`.
+
+**Two linters are deliberately off**, and both were switched off on evidence
+rather than left out:
+
+- **`exhaustruct`** wants every field named at every struct literal. That suits
+  DTOs; it does not suit this codebase, where most structs are stateful objects
+  whose zero values are correct and meaningful. It produced 161 findings, of
+  which the representative ones are `Jury is missing field mu` (a `sync.Mutex`
+  you cannot meaningfully write in a literal), `caller is missing fields clicks,
+  tiles` (counters that start at zero), and nine `Evidence is missing fields
+  Rule, Fields` — where `Evidence{}` *is* the "nothing to report" value.
+- **`forbidigo`** has nothing to forbid here yet. It is worth turning on the day
+  a retired pattern needs to stay retired.
+
+`wrapcheck` is on, with `extra-ignore-sigs` for the signatures this codebase
+returns bare **on purpose**: handlers, because `NewErrorInterceptor` maps the
+domain sentinels centrally and a wrap would put a second sentence in front of a
+message it already chose; and pure delegations, where the callee already named
+what failed.
+
+### Git hooks
+
+`./.githooks/install` points git at [`.githooks/`](../../.githooks). It is a
+script rather than a root `Makefile` target because this repo keeps build tooling
+inside each app, and hooks are the one genuinely repo-wide thing.
+
+- **pre-commit** — `make tidy` (re-staging only what was already staged, plus
+  `go.mod`/`go.sum` if tidy moved them) and `make lint-ci`, plus the frontend's
+  eslint, each only when that app has staged changes.
+- **commit-msg** — conventional commits, which the history already uses, and a
+  72-character subject so `git log --oneline` stays readable. Merge, revert,
+  fixup and squash subjects are git's to format and are left alone.
+- **pre-push** — `make test`, `make deadcode`, `make lint-ci` and
+  `make check-format`, run concurrently; output is only printed for a step that
+  fails.
+
+All three take `--no-verify`. The hooks re-point `core.hooksPath` at a *relative*
+`.githooks` on every run, so a worktree runs its own branch's hooks rather than
+the main checkout's.
 
 **`make deadcode` fails on any unreachable function**, in two passes, because "is this reachable?" has two different right answers depending on whether test code counts as a caller. The first pass excludes tests and tagged files, so **production code whose only caller is a test is reported as dead** — the case a plain `deadcode -test` forgives. The second pass includes both but keeps only findings inside tagged files, so an unused shared helper is reported too. `deadcode` is fetched at a pinned version by the target, so there is nothing to install.

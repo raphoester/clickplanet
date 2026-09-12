@@ -30,6 +30,17 @@ cd apps/frontend && npm run proto   # regenerates apps/frontend/src/gen/grpc
 
 Both apps' `buf.gen.yaml` reference `../../proto` (or `../../../proto` for the backend, whose config lives one level deeper at `apps/backend/proto/`) — do not create per-app copies of the `.proto` files again.
 
+## Git hooks
+
+`./.githooks/install` points git at [`.githooks/`](.githooks), once per clone.
+pre-commit formats (gofumpt, via `make tidy`) and lints whichever app has staged
+changes, commit-msg enforces conventional commits, and pre-push runs the
+backend's tests, dead-code check, linter and format check concurrently. All three
+take `--no-verify`.
+
+It is a script rather than a root `Makefile` target on purpose — see
+[Independence of the two apps](#independence-of-the-two-apps).
+
 ## Local full stack
 
 `deploy/docker-compose.yaml` runs backend + frontend together using locally built Docker images. Build each app's image first (`apps/frontend`'s `npm run dBuild`, `apps/backend`'s `make dBuild`), then `cd deploy && docker compose up`.

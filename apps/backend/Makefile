@@ -1,4 +1,4 @@
-.PHONY: proto test deadcode dBuild dRun dRm vpn-lists metrics
+.PHONY: proto test lint lint-ci tidy check-format setup-tools deadcode dBuild dRun dRm vpn-lists metrics
 
 # Test helpers that more than one package needs cannot live in a _test.go file,
 # so they live in an ordinary .go file carrying this tag. The tag is what keeps
@@ -65,12 +65,53 @@ deadcode:
 		exit 1; \
 	fi
 
+# golangci-lint is pinned: an unpinned linter turns a green branch red on
+# somebody else's release schedule, and the CI job reads the same version from
+# here. Install it with `make setup-tools`.
+GOLANGCI_LINT_VERSION := v2.13.1
+
+lint:
+	@golangci-lint run --timeout=10m
+
+# --allow-parallel-runners so the pre-push hook can run this beside the other
+# checks without the two fighting over the lint cache.
+lint-ci:
+	@golangci-lint run --timeout=10m --allow-parallel-runners
+
+# gofumpt runs through golangci-lint's formatters block rather than as its own
+# binary: one pinned version to install instead of two that can disagree, and it
+# already knows which files are generated.
+#
+# Mutates the tree — `go mod tidy` rewrites go.mod/go.sum in place.
+tidy:
+	@go mod tidy
+	@golangci-lint fmt
+
+# `golangci-lint fmt --diff` prints the diff but exits 0 either way, so the
+# output is what has to be tested rather than the status.
+check-format:
+	@out=$$(golangci-lint fmt --diff 2>&1); \
+	if [ -n "$$out" ]; then \
+		echo "These files are not formatted. Run 'make tidy':"; \
+		printf '%s\n' "$$out" | grep '^diff ' | awk '{print "  " $$3}'; \
+		exit 1; \
+	fi
+	@go mod tidy
+	@git diff --quiet -- go.mod go.sum || { \
+		echo "go.mod or go.sum is not tidy. Run 'make tidy' and commit the result."; \
+		git --no-pager diff --stat -- go.mod go.sum; \
+		exit 1; }
+
+setup-tools: ## Install the pinned linter into $(go env GOPATH)/bin
+	@curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh \
+		| sh -s -- -b $$(go env GOPATH)/bin $(GOLANGCI_LINT_VERSION)
+
 # Refreshes the vendored VPN and datacenter ranges from X4BNet/lists_vpn, which
 # rebuilds them daily from ASN ownership. They are checked in and embedded
 # rather than fetched at boot, so refreshing them is a commit: run this, run the
 # tests (they assert the lists still parse and are not truncated), and commit.
 VPN_LISTS_URL := https://raw.githubusercontent.com/X4BNet/lists_vpn/main/output
-VPN_LISTS_DIR := internal/kernel/ipblock/data
+VPN_LISTS_DIR := internal/shared/cpipblock/cpdata
 
 vpn-lists:
 	@curl -sSf $(VPN_LISTS_URL)/vpn/ipv4.txt        -o $(VPN_LISTS_DIR)/vpn_ipv4.txt

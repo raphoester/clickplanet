@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# Formats and lints what is being committed. The slow checks (tests, deadcode)
+# are in pre-push. Bypass with `git commit --no-verify`.
+set -euo pipefail
+
+_norm="$(dirname "$0")/_normalize-hooks-path.sh"
+[ -f "$_norm" ] && . "$_norm"
+
+cd "$(git rev-parse --show-toplevel)"
+
+# Captured before formatting so only what was already staged gets re-staged —
+# never an unrelated working-tree change.
+STAGED_GO=$(git diff --name-only --cached --diff-filter=ACM -- 'apps/backend/**/*.go' 'apps/backend/go.mod' 'apps/backend/go.sum' || true)
+STAGED_WEB=$(git diff --name-only --cached --diff-filter=ACM -- 'apps/frontend/src/**' 'apps/frontend/*.json' || true)
+
+if [ -n "$STAGED_GO" ]; then
+    echo "pre-commit: gofumpt + go mod tidy..."
+    (cd apps/backend && make tidy)
+    # Re-stage only what was already staged, plus go.mod/go.sum if tidy moved
+    # them — never an unrelated working-tree change.
+    echo "$STAGED_GO" | xargs git add --
+    (cd apps/backend && git diff --quiet -- go.mod go.sum) || git add -- apps/backend/go.mod apps/backend/go.sum
+
+    echo "pre-commit: golangci-lint..."
+    (cd apps/backend && make lint-ci)
+fi
+
+if [ -n "$STAGED_WEB" ]; then
+    echo "pre-commit: eslint..."
+    (cd apps/frontend && npm run --silent lint)
+fi
+
+echo "pre-commit: ok."
