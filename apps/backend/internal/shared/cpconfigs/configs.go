@@ -11,6 +11,7 @@ import (
 	"flag"
 	"fmt"
 
+	"github.com/go-viper/mapstructure/v2"
 	"github.com/knadh/koanf/parsers/yaml"
 	"github.com/knadh/koanf/providers/env"
 	"github.com/knadh/koanf/providers/file"
@@ -70,7 +71,18 @@ func Load(config any, opts ...LoadOption) error {
 		return fmt.Errorf("failed loading env variables: %w", err)
 	}
 
-	if err := k.Unmarshal("", config); err != nil {
+	// koanf's own two hooks, restated because a DecoderConfig replaces them wholesale.
+	if err := k.UnmarshalWithConf("", config, koanf.UnmarshalConf{
+		DecoderConfig: &mapstructure.DecoderConfig{
+			DecodeHook: mapstructure.ComposeDecodeHookFunc(
+				resolveSecrets(resolvers),
+				mapstructure.StringToTimeDurationHookFunc(),
+				mapstructure.TextUnmarshallerHookFunc(),
+			),
+			Result:           config,
+			WeaklyTypedInput: true,
+		},
+	}); err != nil {
 		return fmt.Errorf("failed unmarshalling config: %w", err)
 	}
 
@@ -84,6 +96,9 @@ func Load(config any, opts ...LoadOption) error {
 }
 
 const delimiter = "."
+
+// The anchor chain. A second scheme is another SecretResolver here.
+var resolvers = []SecretResolver{EnvResolver{}}
 
 func pathFromFlag() string {
 	path := flag.String("config", "", "path to config file")

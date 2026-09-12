@@ -5,10 +5,9 @@
 # what lets the same target run locally against a fake SECRETS_JSON.
 ENV_OUT ?= .
 
-# Renders both env files: .env from env.public plus every secret not claimed by
-# backend.env.map, and .env.backend from the ones that are. Adding a secret
-# Caddy reads needs no edit anywhere; one the API reads needs a line in
-# backend.env.map, and nothing else.
+# Renders both env files, each from the secrets its own service's config names:
+# the Caddyfile's {env.NAME} into .env, backend.yaml's env://NAME into
+# .env.backend. Adding a secret is the GitHub UI plus the line that uses it.
 env:
 	@./render-env.sh $(ENV_OUT)
 

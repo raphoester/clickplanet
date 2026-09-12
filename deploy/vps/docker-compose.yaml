@@ -46,17 +46,9 @@ services:
     restart: unless-stopped
     expose:
       - "8080"
-    # The API's secrets, and only the API's — Caddy loads .env and never sees
-    # these. Its keys are already config keys (`chat.service.tagSalt`, not
-    # CHAT_TAG_SALT): render-env.sh does the rename on the way in, because
-    # cpconfigs nests on "." and a GitHub secret name cannot contain one.
-    # deploy/vps/backend.env.map is where that mapping is written down, and it
-    # is the only place in the repository any of these names appears.
-    #
-    # They are not in backend.yaml because that file is in git. The salt lets a
-    # holder recompute a sender's tag from a guessed address, which is the one
-    # thing the tag prevents; the session secret lets a holder mint a token the
-    # API accepts.
+    # One line per env:// anchor in backend.yaml, and only the API's — Caddy
+    # loads .env and never sees these. Which secrets those are is backend.yaml's
+    # business, not this file's, so nothing here changes when one is added.
     env_file: .env.backend
     volumes:
       - ./backend.yaml:/home/app/config/config.yaml:ro
