@@ -37,17 +37,17 @@ type Service struct {
 	histogram      *prometheus.HistogramVec
 }
 
-func (s *Service) HandleClick(ctx context.Context, tileId uint32, countryID string) error {
-	sourceIp := cpctx.GetSourceIP(ctx)
+func (s *Service) HandleClick(ctx context.Context, tileID uint32, countryID string) error {
+	sourceIP := cpctx.GetSourceIP(ctx)
 	status := "ok"
-	err := s.implementation.HandleClick(ctx, tileId, countryID)
+	err := s.implementation.HandleClick(ctx, tileID, countryID)
 	if err != nil {
 		status = "error"
 		err = fmt.Errorf("failed to handle click: %w", err)
 	}
 
 	s.histogram.WithLabelValues(
-		sourceIp,
+		sourceIP,
 		countryID,
 		status,
 	).Observe(1)

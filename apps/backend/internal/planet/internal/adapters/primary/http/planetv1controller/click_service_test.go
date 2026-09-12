@@ -60,7 +60,7 @@ func newTestClientWith(
 
 func TestClick(t *testing.T) {
 	click := func(client planetv1connect.ClickServiceClient, country string) error {
-		_, err := client.Click(context.Background(),
+		_, err := client.Click(t.Context(),
 			connect.NewRequest(&planetv1.ClickRequest{TileId: 1, CountryId: country}))
 		return err
 	}
@@ -84,7 +84,7 @@ func TestClick(t *testing.T) {
 
 func TestMapDensity(t *testing.T) {
 	res, err := newTestClient(t, stubService{}).MapDensity(
-		context.Background(), connect.NewRequest(&planetv1.MapDensityRequest{}))
+		t.Context(), connect.NewRequest(&planetv1.MapDensityRequest{}))
 	require.NoError(t, err)
 	require.Equal(t, uint32(100), res.Msg.GetDensity())
 }
@@ -99,7 +99,7 @@ func TestListenForEvents(t *testing.T) {
 		t.Helper()
 
 		stream, err := newTestClientWith(t, stubService{}, subscriber, heartbeat).ListenForEvents(
-			context.Background(), connect.NewRequest(&planetv1.ListenForEventsRequest{}))
+			t.Context(), connect.NewRequest(&planetv1.ListenForEventsRequest{}))
 
 		// Closing it releases the handler, which is still parked on its
 		// subscription; httptest.Server.Close blocks forever otherwise.
@@ -177,7 +177,7 @@ func (stubMapReader) StateBatchDense(start uint32, end uint32) (domain.DenseBatc
 func TestGetMap(t *testing.T) {
 	getMap := func(t *testing.T, req *planetv1.GetMapRequest) (*connect.Response[planetv1.GetMapResponse], error) {
 		t.Helper()
-		return newTestClient(t, stubService{}).GetMap(context.Background(), connect.NewRequest(req))
+		return newTestClient(t, stubService{}).GetMap(t.Context(), connect.NewRequest(req))
 	}
 
 	t.Run("answers the dense batch with its code table", func(t *testing.T) {

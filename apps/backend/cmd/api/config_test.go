@@ -37,9 +37,9 @@ func TestTheExampleConfigStillReachesTheStructs(t *testing.T) {
 
 	require.True(t, config.Planet.AntiBot.Sequencer.Enabled)
 	assert.Equal(t, 40, config.Planet.AntiBot.Sequencer.Detector.MinSteps)
-	assert.Equal(t, 0.75, config.Planet.AntiBot.Sequencer.Detector.MinShare)
+	assert.InDelta(t, 0.75, config.Planet.AntiBot.Sequencer.Detector.MinShare, 1e-9)
 	assert.Equal(t, 200, config.Planet.AntiBot.Sequencer.Detector.CertainSteps)
-	assert.Equal(t, 0.95, config.Planet.AntiBot.Sequencer.Detector.CertainShare)
+	assert.InDelta(t, 0.95, config.Planet.AntiBot.Sequencer.Detector.CertainShare, 1e-9)
 
 	require.True(t, config.Planet.AntiBot.Metronome.Enabled)
 	assert.Equal(t, 3*time.Second, config.Planet.AntiBot.Metronome.Detector.MaxGap)
@@ -57,7 +57,7 @@ func TestTheExampleConfigStillCarriesTheRestOfTheFile(t *testing.T) {
 
 	assert.Equal(t, "0.0.0.0:8080", config.HTTPServer.BindAddress)
 	assert.NotZero(t, config.Planet.GameMap.MaxIndex)
-	assert.Equal(t, float64(1), config.Planet.RateLimiter.PerSecond)
+	assert.InDelta(t, float64(1), config.Planet.RateLimiter.PerSecond, 1e-9)
 	assert.Equal(t, 10, config.Planet.RateLimiter.Burst)
 	assert.Equal(t, 30*time.Second, config.Planet.TilesStorage.SnapshotInterval)
 	assert.Equal(t, time.Hour, config.Session.TTL)

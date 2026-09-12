@@ -47,7 +47,7 @@ func run(ctx context.Context, interceptor connect.Interceptor, procedure string)
 
 func TestRateLimitInterceptor(t *testing.T) {
 	t.Run("lets an allowed message through", func(t *testing.T) {
-		ran, err := run(context.Background(),
+		ran, err := run(t.Context(),
 			NewRateLimitInterceptor(&fakeLimiter{allow: true}),
 			chatv1connect.ChatServiceSendMessageProcedure)
 
@@ -56,7 +56,7 @@ func TestRateLimitInterceptor(t *testing.T) {
 	})
 
 	t.Run("refuses a message over the limit without reaching the domain", func(t *testing.T) {
-		ran, err := run(context.Background(),
+		ran, err := run(t.Context(),
 			NewRateLimitInterceptor(&fakeLimiter{allow: false}),
 			chatv1connect.ChatServiceSendMessageProcedure)
 
@@ -66,7 +66,7 @@ func TestRateLimitInterceptor(t *testing.T) {
 
 	t.Run("keys on the source IP from the context", func(t *testing.T) {
 		limiter := &fakeLimiter{allow: true}
-		ctx := cpctx.AddIPToContext(context.Background(), "1.2.3.4")
+		ctx := cpctx.AddIPToContext(t.Context(), "1.2.3.4")
 
 		_, err := run(ctx, NewRateLimitInterceptor(limiter),
 			chatv1connect.ChatServiceSendMessageProcedure)
@@ -78,7 +78,7 @@ func TestRateLimitInterceptor(t *testing.T) {
 	t.Run("does not throttle the history read", func(t *testing.T) {
 		limiter := &fakeLimiter{allow: false}
 
-		ran, err := run(context.Background(), NewRateLimitInterceptor(limiter),
+		ran, err := run(t.Context(), NewRateLimitInterceptor(limiter),
 			chatv1connect.ChatServiceGetHistoryProcedure)
 
 		require.NoError(t, err)
@@ -92,7 +92,7 @@ func TestBlocklistInterceptor(t *testing.T) {
 
 	t.Run("cuts a blocked sender off from every procedure", func(t *testing.T) {
 		blocklist := blocklistOf(t, []string{"9.9.9.9/32"})
-		ctx := cpctx.AddIPToContext(context.Background(), "9.9.9.9")
+		ctx := cpctx.AddIPToContext(t.Context(), "9.9.9.9")
 
 		for _, procedure := range []string{
 			chatv1connect.ChatServiceSendMessageProcedure,
@@ -109,14 +109,14 @@ func TestBlocklistInterceptor(t *testing.T) {
 		blocklist := blocklistOf(t, []string{"203.0.113.0/24"})
 
 		for _, ip := range []string{"203.0.113.1", "203.0.113.254"} {
-			ctx := cpctx.AddIPToContext(context.Background(), ip)
+			ctx := cpctx.AddIPToContext(t.Context(), ip)
 			_, err := run(ctx, NewBlocklistInterceptor(blocklist),
 				chatv1connect.ChatServiceSendMessageProcedure)
 
 			require.Equalf(t, connect.CodePermissionDenied, connect.CodeOf(err), "%s should be refused", ip)
 		}
 
-		ctx := cpctx.AddIPToContext(context.Background(), "203.0.114.1")
+		ctx := cpctx.AddIPToContext(t.Context(), "203.0.114.1")
 		ran, err := run(ctx, NewBlocklistInterceptor(blocklist),
 			chatv1connect.ChatServiceSendMessageProcedure)
 
@@ -125,7 +125,7 @@ func TestBlocklistInterceptor(t *testing.T) {
 	})
 
 	t.Run("an empty list blocks nobody", func(t *testing.T) {
-		ctx := cpctx.AddIPToContext(context.Background(), "9.9.9.9")
+		ctx := cpctx.AddIPToContext(t.Context(), "9.9.9.9")
 
 		ran, err := run(ctx, NewBlocklistInterceptor(blocklistOf(t, nil)),
 			chatv1connect.ChatServiceSendMessageProcedure)
@@ -135,7 +135,7 @@ func TestBlocklistInterceptor(t *testing.T) {
 	})
 
 	t.Run("an unresolved address is passed through", func(t *testing.T) {
-		ran, err := run(context.Background(), NewBlocklistInterceptor(blocklistOf(t, []string{"9.9.9.9/32"})),
+		ran, err := run(t.Context(), NewBlocklistInterceptor(blocklistOf(t, []string{"9.9.9.9/32"})),
 			chatv1connect.ChatServiceSendMessageProcedure)
 
 		require.NoError(t, err)

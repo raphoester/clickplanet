@@ -18,6 +18,12 @@ go test -tags testing ./... -race
 # Fail on any unreachable function, production or test helper
 make deadcode
 
+# Lint. Needs golangci-lint on PATH at the pinned version: make setup-tools
+make lint
+
+# gofmt over cmd/ and internal/ — never generated/, which `make proto` owns
+make fmt
+
 # Run API server locally
 go run ./cmd/api -config cmd/api/example.yaml
 
@@ -611,5 +617,67 @@ The proto package is the **only** version number: Connect derives each route fro
 Unit tests only, using `testify`. There are no integration tests and no Docker dependency — `make test` runs everything from a clean checkout.
 
 **Tests build with `-tags testing`, so use `make test` rather than a bare `go test ./...`.** Anything else that loads test files needs the tag too: `go vet -tags testing ./...`, and an editor's language server (`gopls` `buildFlags: ["-tags=testing"]`, or `go.buildTags` in VS Code), which otherwise reports the helpers as undefined. A helper that more than one package needs cannot live in a `_test.go` file, so it lives in an ordinary `.go` file carrying `//go:build testing`. The tag, not a filename convention, is what keeps such a helper out of the production binary — and what lets `make deadcode` tell a helper apart from production code. `cpctx.GetSessionID` and `cpconfigs.FromFile` are the two that exist today.
+
+### Linting
+
+`make lint` runs **golangci-lint**, configured in [`.golangci.yaml`](.golangci.yaml).
+The version is pinned in the `Makefile` and matched by the CI job, because an
+unpinned linter turns a green branch red on somebody else's release schedule.
+`make setup-tools` installs that version.
+
+**`run.build-tags` is `testing`**, for the same reason `go vet` needs it: without
+the tag the linters load a tree where the shared helpers are undefined and report
+that instead of anything real.
+
+**Test files are linted like production code.** The only per-path exclusion is
+`generated/`, which `make proto` owns. Where a linter is wrong about a specific
+line, the line carries a `//nolint` naming the linter and the reason — which
+keeps the rule live everywhere else:
+
+- `nilnil` — six constructors return `(nil, nil)` for **"this feature is off"**,
+  and the caller checks for nil and mounts nothing. A sentinel would make every
+  caller unwrap one. Annotated per site so an *accidental* `nil, nil` is still caught.
+- `gosec` G304 — file paths that come from config, never from a request.
+- `gosec` G404 — `math/rand` in the antibot tests is deterministic on purpose:
+  a fixed seed replays the exact click stream a watchdog is asserted against.
+- `bodyclose` — it cannot see a body closed by a helper's `t.Cleanup`.
+
+**Two linters are deliberately off**, and both were switched off on evidence
+rather than left out:
+
+- **`exhaustruct`** wants every field named at every struct literal. That suits
+  DTOs; it does not suit this codebase, where most structs are stateful objects
+  whose zero values are correct and meaningful. It produced 161 findings, of
+  which the representative ones are `Jury is missing field mu` (a `sync.Mutex`
+  you cannot meaningfully write in a literal), `caller is missing fields clicks,
+  tiles` (counters that start at zero), and nine `Evidence is missing fields
+  Rule, Fields` — where `Evidence{}` *is* the "nothing to report" value.
+- **`forbidigo`** has nothing to forbid here yet. It is worth turning on the day
+  a retired pattern needs to stay retired.
+
+`wrapcheck` is on, with `extra-ignore-sigs` for the signatures this codebase
+returns bare **on purpose**: handlers, because `NewErrorInterceptor` maps the
+domain sentinels centrally and a wrap would put a second sentence in front of a
+message it already chose; and pure delegations, where the callee already named
+what failed.
+
+### Git hooks
+
+`./.githooks/install` points git at [`.githooks/`](../../.githooks). It is a
+script rather than a root `Makefile` target because this repo keeps build tooling
+inside each app, and hooks are the one genuinely repo-wide thing.
+
+- **pre-commit** — `make fmt` (re-staging only what was already staged) and
+  `make lint-ci`, plus the frontend's eslint, each only when that app has staged
+  changes.
+- **commit-msg** — conventional commits, which the history already uses, and a
+  72-character subject so `git log --oneline` stays readable. Merge, revert,
+  fixup and squash subjects are git's to format and are left alone.
+- **pre-push** — `make test`, `make deadcode` and `make lint-ci`, run
+  concurrently; output is only printed for a step that fails.
+
+All three take `--no-verify`. The hooks re-point `core.hooksPath` at a *relative*
+`.githooks` on every run, so a worktree runs its own branch's hooks rather than
+the main checkout's.
 
 **`make deadcode` fails on any unreachable function**, in two passes, because "is this reachable?" has two different right answers depending on whether test code counts as a caller. The first pass excludes tests and tagged files, so **production code whose only caller is a test is reported as dead** — the case a plain `deadcode -test` forgives. The second pass includes both but keeps only findings inside tagged files, so an unused shared helper is reported too. `deadcode` is fetched at a pinned version by the target, so there is nothing to install.

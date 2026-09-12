@@ -37,25 +37,25 @@ func (s *testSuite) SetupSuite() {
 
 func (s *testSuite) TestNominalCase() {
 	err := s.service.HandleClick(context.Background(), 1, "fr")
-	s.Assert().NoError(err)
+	s.NoError(err)
 }
 
 func (s *testSuite) TestTileOnZeroIndex() {
 	err := s.service.HandleClick(context.Background(), 0, "fr")
-	s.Assert().Error(err)
+	s.Error(err)
 }
 
 func (s *testSuite) TestInvalidCountry() {
 	err := s.service.HandleClick(context.Background(), 10, "invalid")
-	s.Assert().Error(err)
+	s.Error(err)
 }
 
 func (s *testSuite) TestInvalidTile() {
 	err := s.service.HandleClick(context.Background(), 250_001, "fr")
-	s.Assert().Error(err)
+	s.Error(err)
 }
 
 func (s *testSuite) TestTileOnLimit() {
 	err := s.service.HandleClick(context.Background(), 250_000, "fr")
-	s.Assert().NoError(err)
+	s.NoError(err)
 }

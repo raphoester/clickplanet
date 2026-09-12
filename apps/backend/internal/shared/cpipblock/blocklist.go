@@ -36,6 +36,8 @@ type namedSet struct {
 
 func New(config Config) (*Blocklist, error) {
 	if !config.Enabled {
+		//nolint:nilnil // a nil Blocklist is "no blocking configured"; the caller
+		// checks for it and mounts no interceptor.
 		return nil, nil
 	}
 
@@ -95,6 +97,7 @@ func (b *Blocklist) Sizes() map[List]int {
 
 func NewDenyList(prefixes []string) (*Blocklist, error) {
 	if len(prefixes) == 0 {
+		//nolint:nilnil // no prefixes is "no blocking configured", not a failure.
 		return nil, nil
 	}
 
@@ -104,6 +107,7 @@ func NewDenyList(prefixes []string) (*Blocklist, error) {
 	}
 
 	if deny.Len() == 0 {
+		//nolint:nilnil // an empty deny list is "no blocking configured".
 		return nil, nil
 	}
 

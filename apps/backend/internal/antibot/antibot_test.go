@@ -159,6 +159,8 @@ func TestTheOvernightSweepIsCaught(t *testing.T) {
 func TestSweepingInARandomOrderStillGetsCaught(t *testing.T) {
 	s := newStack()
 
+	//nolint:gosec // G404: deterministic PRNG, seeded per test so the click
+	// stream replays exactly. Not security-relevant.
 	random := rand.New(rand.NewPCG(1, 2))
 
 	var (
@@ -193,6 +195,8 @@ func TestSweepingInARandomOrderStillGetsCaught(t *testing.T) {
 func TestAnObsessedPlayerIsNotBanned(t *testing.T) {
 	s := newStack()
 
+	//nolint:gosec // G404: deterministic PRNG, seeded per test so the click
+	// stream replays exactly. Not security-relevant.
 	random := rand.New(rand.NewPCG(3, 4))
 
 	tile := uint32(50000)
@@ -217,6 +221,8 @@ func TestAnObsessedPlayerIsNotBanned(t *testing.T) {
 func TestATileWarBansNeither(t *testing.T) {
 	s := newStack()
 
+	//nolint:gosec // G404: deterministic PRNG, seeded per test so the click
+	// stream replays exactly. Not security-relevant.
 	random := rand.New(rand.NewPCG(5, 6))
 
 	tile := uint32(70000)
@@ -241,6 +247,8 @@ func TestATileWarBansNeither(t *testing.T) {
 func TestTheReflexBotIsStillCaught(t *testing.T) {
 	s := newStack()
 
+	//nolint:gosec // G404: deterministic PRNG, seeded per test so the click
+	// stream replays exactly. Not security-relevant.
 	random := rand.New(rand.NewPCG(7, 8))
 
 	tile := uint32(90000)

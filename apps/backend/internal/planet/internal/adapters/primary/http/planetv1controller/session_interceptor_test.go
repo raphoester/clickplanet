@@ -68,7 +68,7 @@ func checkSession(
 
 	req := fakeRequest{spec: connect.Spec{Procedure: procedure}, header: header}
 
-	_, result.err = interceptor.WrapUnary(next)(context.Background(), req)
+	_, result.err = interceptor.WrapUnary(next)(t.Context(), req)
 
 	return result
 }
@@ -86,7 +86,7 @@ func TestSessionInterceptorWhenEnforcing(t *testing.T) {
 		require.NoError(t, result.err)
 		require.True(t, result.ran)
 		require.Equal(t, "abcd1234", result.sessionID)
-		require.Equal(t, 1.0, sessionChecks(t, result.registry, "valid"))
+		require.InDelta(t, 1.0, sessionChecks(t, result.registry, "valid"), 1e-9)
 	})
 
 	t.Run("refuses a click carrying no session at all", func(t *testing.T) {
@@ -95,7 +95,7 @@ func TestSessionInterceptorWhenEnforcing(t *testing.T) {
 		require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(result.err))
 		require.ErrorIs(t, result.err, ErrNoSession)
 		require.False(t, result.ran, "a refused click must not reach the domain")
-		require.Equal(t, 1.0, sessionChecks(t, result.registry, "missing"))
+		require.InDelta(t, 1.0, sessionChecks(t, result.registry, "missing"), 1e-9)
 	})
 
 	t.Run("refuses a click carrying a session it did not mint", func(t *testing.T) {
@@ -103,7 +103,7 @@ func TestSessionInterceptorWhenEnforcing(t *testing.T) {
 
 		require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(result.err))
 		require.False(t, result.ran)
-		require.Equal(t, 1.0, sessionChecks(t, result.registry, "invalid"))
+		require.InDelta(t, 1.0, sessionChecks(t, result.registry, "invalid"), 1e-9)
 	})
 
 	t.Run("leaves the read procedures alone", func(t *testing.T) {
@@ -134,7 +134,7 @@ func TestSessionInterceptorWhenObserving(t *testing.T) {
 		require.NoError(t, result.err)
 		require.True(t, result.ran)
 		require.Empty(t, result.sessionID)
-		require.Equal(t, 1.0, sessionChecks(t, result.registry, "missing"))
+		require.InDelta(t, 1.0, sessionChecks(t, result.registry, "missing"), 1e-9)
 	})
 
 	t.Run("lets a click carrying a forged session through, and counts it", func(t *testing.T) {
@@ -142,7 +142,7 @@ func TestSessionInterceptorWhenObserving(t *testing.T) {
 
 		require.NoError(t, result.err)
 		require.True(t, result.ran)
-		require.Equal(t, 1.0, sessionChecks(t, result.registry, "invalid"))
+		require.InDelta(t, 1.0, sessionChecks(t, result.registry, "invalid"), 1e-9)
 	})
 
 	t.Run("still reports the id of a session it did mint", func(t *testing.T) {
@@ -150,7 +150,7 @@ func TestSessionInterceptorWhenObserving(t *testing.T) {
 
 		require.NoError(t, result.err)
 		require.Equal(t, "abcd1234", result.sessionID)
-		require.Equal(t, 1.0, sessionChecks(t, result.registry, "valid"))
+		require.InDelta(t, 1.0, sessionChecks(t, result.registry, "valid"), 1e-9)
 	})
 }
 
@@ -189,7 +189,7 @@ func TestSessionRefusalIsA401OverHTTP(t *testing.T) {
 			req.Header().Set(cpconnect.SessionHeader, token)
 		}
 		_, err := planetv1connect.NewClickServiceClient(server.Client(), server.URL).
-			Click(context.Background(), req)
+			Click(t.Context(), req)
 		return err
 	}
 

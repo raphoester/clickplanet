@@ -47,9 +47,9 @@ func (s *testSuite) TestSetAndPublish() {
 	case <-ctx.Done():
 		s.T().Fatal("timeout")
 	case val := <-listener:
-		s.Assert().Equal("fr", val.Value)
-		s.Assert().Equal(uint32(10), val.Tile)
-		s.Assert().Equal("", val.Previous)
+		s.Equal("fr", val.Value)
+		s.Equal(uint32(10), val.Tile)
+		s.Empty(val.Previous)
 	}
 }
 
@@ -70,9 +70,9 @@ func (s *testSuite) TestSetAndPublishWithOverride() {
 	case <-ctx.Done():
 		s.T().Fatal("timeout")
 	case val := <-listener:
-		s.Assert().Equal(newValue, val.Value)
-		s.Assert().Equal(uint32(10), val.Tile)
-		s.Assert().Equal(previousValue, val.Previous)
+		s.Equal(newValue, val.Value)
+		s.Equal(uint32(10), val.Tile)
+		s.Equal(previousValue, val.Previous)
 	}
 }
 
@@ -100,7 +100,7 @@ func (s *testSuite) TestSetAndPublishWithOverrideAndNoChange() {
 }
 
 func (s *testSuite) TestSetOutOfRange() {
-	s.Assert().Error(s.storage.Set(context.Background(), maxIndex+1, "fr"))
+	s.Error(s.storage.Set(context.Background(), maxIndex+1, "fr"))
 }
 
 func (s *testSuite) TestSubscribeFansOutToEverySubscriber() {
@@ -122,8 +122,8 @@ func (s *testSuite) TestSubscribeFansOutToEverySubscriber() {
 		case <-ctx.Done():
 			s.T().Fatalf("subscriber %d timed out", i)
 		case val := <-listener:
-			s.Assert().Equal(uint32(42), val.Tile)
-			s.Assert().Equal("fr", val.Value)
+			s.Equal(uint32(42), val.Tile)
+			s.Equal("fr", val.Value)
 		}
 	}
 }
@@ -138,12 +138,12 @@ func (s *testSuite) TestSubscribeClosesChannelOnContextCancel() {
 
 	select {
 	case _, ok := <-listener:
-		s.Assert().False(ok, "channel should be closed")
+		s.False(ok, "channel should be closed")
 	case <-time.After(2 * time.Second):
 		s.T().Fatal("channel was not closed after the context was cancelled")
 	}
 
-	s.Assert().NoError(s.storage.Set(context.Background(), 1, "fr"))
+	s.NoError(s.storage.Set(context.Background(), 1, "fr"))
 }
 
 func (s *testSuite) TestSlowSubscriberIsDroppedNotBlocking() {
@@ -173,12 +173,12 @@ func (s *testSuite) TestSlowSubscriberIsDroppedNotBlocking() {
 		s.T().Fatal("a slow subscriber blocked the writers")
 	}
 
-	s.Assert().Equal(uint64(999), storage.DroppedUpdates())
-	s.Assert().Len(listener, 1)
+	s.Equal(uint64(999), storage.DroppedUpdates())
+	s.Len(listener, 1)
 
 	state, err := stateBatch(storage, 1, 1000)
 	s.Require().NoError(err)
-	s.Assert().Len(state, 1000)
+	s.Len(state, 1000)
 }
 
 func (s *testSuite) TestGetStateByBatch() {
@@ -191,10 +191,10 @@ func (s *testSuite) TestGetStateByBatch() {
 	state, err := stateBatch(s.storage, 10, 30)
 	s.Require().NoError(err)
 
-	s.Assert().Equal(3, len(state))
-	s.Assert().Equal(constantValue, state[10])
-	s.Assert().Equal(constantValue, state[20])
-	s.Assert().Equal(constantValue, state[30])
+	s.Len(state, 3)
+	s.Equal(constantValue, state[10])
+	s.Equal(constantValue, state[20])
+	s.Equal(constantValue, state[30])
 }
 
 func (s *testSuite) TestGetStateByBatchIgnoresUnsetAndOutOfRangeTiles() {
@@ -202,7 +202,7 @@ func (s *testSuite) TestGetStateByBatchIgnoresUnsetAndOutOfRangeTiles() {
 
 	state, err := stateBatch(s.storage, 5, maxIndex+1_000)
 	s.Require().NoError(err)
-	s.Assert().Equal(map[uint32]string{10: "fr"}, state)
+	s.Equal(map[uint32]string{10: "fr"}, state)
 }
 
 func (s *testSuite) TestSnapshotRoundTrip() {
@@ -219,7 +219,7 @@ func (s *testSuite) TestSnapshotRoundTrip() {
 	state, err := stateBatch(restored, 0, maxIndex)
 	s.Require().NoError(err)
 
-	s.Assert().Equal(map[uint32]string{1: "fr", 2: "us", maxIndex: "de"}, state)
+	s.Equal(map[uint32]string{1: "fr", 2: "us", maxIndex: "de"}, state)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
@@ -232,8 +232,8 @@ func (s *testSuite) TestSnapshotRoundTrip() {
 	case <-ctx.Done():
 		s.T().Fatal("timeout")
 	case update := <-listener:
-		s.Assert().Equal("fr", update.Previous)
-		s.Assert().Equal("us", update.Value)
+		s.Equal("fr", update.Previous)
+		s.Equal("us", update.Value)
 	}
 }
 
@@ -252,7 +252,7 @@ func (s *testSuite) TestSnapshotIsSkippedWhenNothingChanged() {
 
 	after, err := os.Stat(path)
 	s.Require().NoError(err)
-	s.Assert().Equal(before.ModTime(), after.ModTime())
+	s.Equal(before.ModTime(), after.ModTime())
 }
 
 func (s *testSuite) TestSnapshotWritesNoTempFileBehind() {
@@ -266,7 +266,7 @@ func (s *testSuite) TestSnapshotWritesNoTempFileBehind() {
 	entries, err := os.ReadDir(dir)
 	s.Require().NoError(err)
 	s.Require().Len(entries, 1)
-	s.Assert().Equal("tiles.snapshot", entries[0].Name())
+	s.Equal("tiles.snapshot", entries[0].Name())
 }
 
 func (s *testSuite) TestMissingSnapshotStartsEmpty() {
@@ -276,7 +276,7 @@ func (s *testSuite) TestMissingSnapshotStartsEmpty() {
 
 	state, err := stateBatch(storage, 0, maxIndex)
 	s.Require().NoError(err)
-	s.Assert().Empty(state)
+	s.Empty(state)
 
 	s.Require().NoError(storage.Set(context.Background(), 1, "fr"))
 }
@@ -287,6 +287,7 @@ func (s *testSuite) TestCorruptSnapshotStartsEmpty() {
 		storage := s.newStorage(memory_tile_storage.Config{SnapshotPath: path})
 		s.Require().NoError(storage.Set(context.Background(), 1, "fr"))
 		s.Require().NoError(storage.Snapshot())
+		//nolint:gosec // G304: path is this test's own t.TempDir() snapshot.
 		raw, err := os.ReadFile(path)
 		s.Require().NoError(err)
 		return raw
@@ -312,13 +313,13 @@ func (s *testSuite) TestCorruptSnapshotStartsEmpty() {
 	for name, raw := range corruptions {
 		s.Run(name, func() {
 			path := filepath.Join(s.T().TempDir(), "tiles.snapshot")
-			s.Require().NoError(os.WriteFile(path, raw, 0o644))
+			s.Require().NoError(os.WriteFile(path, raw, 0o600))
 
 			storage := s.newStorage(memory_tile_storage.Config{SnapshotPath: path})
 
 			state, err := stateBatch(storage, 0, maxIndex)
 			s.Require().NoError(err)
-			s.Assert().Empty(state)
+			s.Empty(state)
 
 			s.Require().NoError(storage.Set(context.Background(), 1, "fr"))
 			s.Require().NoError(storage.Snapshot())
@@ -338,7 +339,7 @@ func (s *testSuite) TestSnapshotSurvivesADifferentMapSize() {
 	small := memory_tile_storage.New(100, cfg, slog.New(slog.DiscardHandler))
 	state, err := stateBatch(small, 0, 100)
 	s.Require().NoError(err)
-	s.Assert().Equal(map[uint32]string{10: "fr"}, state)
+	s.Equal(map[uint32]string{10: "fr"}, state)
 }
 
 func (s *testSuite) TestRunSnapshotsPeriodicallyAndOnShutdown() {
@@ -367,7 +368,7 @@ func (s *testSuite) TestRunSnapshotsPeriodicallyAndOnShutdown() {
 	restored := s.newStorage(cfg)
 	state, err := stateBatch(restored, 0, maxIndex)
 	s.Require().NoError(err)
-	s.Assert().Equal(map[uint32]string{7: "fr"}, state)
+	s.Equal(map[uint32]string{7: "fr"}, state)
 }
 
 func (s *testSuite) TestRunWithoutSnapshotPathReturnsOnCancel() {
@@ -467,7 +468,7 @@ func (s *testSuite) TestConcurrentSetsAndReads() {
 
 	state, err := stateBatch(storage, 1, writers*tilesPerWriter)
 	s.Require().NoError(err)
-	s.Assert().Len(state, writers*tilesPerWriter)
+	s.Len(state, writers*tilesPerWriter)
 
 	cancel()
 	select {

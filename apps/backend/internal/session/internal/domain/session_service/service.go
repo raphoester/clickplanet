@@ -46,7 +46,7 @@ func (s *Service) Create(ctx context.Context, attestationToken string, ip string
 	}
 
 	if err := s.attester.Attest(ctx, attestationToken, ip); err != nil {
-		return cpsession.Token{}, fmt.Errorf("%w: %s", domain.ErrAttestationFailed, err)
+		return cpsession.Token{}, fmt.Errorf("%w: %w", domain.ErrAttestationFailed, err)
 	}
 
 	token, err := s.minter.Mint(ip, s.timeProvider.Now())

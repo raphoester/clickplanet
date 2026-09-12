@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# Conventional commits, which is what this repo's history already uses:
+#
+#     type(scope): summary          refactor(backend): rename the kernel layer
+#     type: summary                 chore: bump the node version
+#     type(scope)!: summary         feat(backend)!: drop the websocket routes
+#
+# Bypass with `git commit --no-verify`.
+set -euo pipefail
+
+_norm="$(dirname "$0")/_normalize-hooks-path.sh"
+[ -f "$_norm" ] && . "$_norm"
+
+subject=$(grep -v '^#' "$1" | sed '/^[[:space:]]*$/d' | head -1 || true)
+
+# git writes these itself; they are not the author's to format.
+case "$subject" in
+    "Merge "*|"Revert "*|"fixup! "*|"squash! "*) exit 0 ;;
+esac
+
+if [ -z "$subject" ]; then
+    echo "commit-msg: empty commit message." >&2
+    exit 1
+fi
+
+if ! printf '%s' "$subject" \
+    | grep -Eq '^(feat|fix|refactor|perf|docs|test|build|ci|chore|style|revert)(\([a-z0-9./-]+\))?!?: .+'; then
+    echo "commit-msg: the subject is not a conventional commit." >&2
+    echo >&2
+    echo "  got:      $subject" >&2
+    echo "  expected: type(scope): summary" >&2
+    echo "  types:    feat fix refactor perf docs test build ci chore style revert" >&2
+    echo >&2
+    echo "  e.g.      refactor(backend): rename the kernel layer to shared" >&2
+    exit 1
+fi
+
+# 72 keeps `git log --oneline` readable in a terminal.
+if [ "${#subject}" -gt 72 ]; then
+    echo "commit-msg: subject is ${#subject} characters, over the 72 limit." >&2
+    echo "  $subject" >&2
+    exit 1
+fi

@@ -111,6 +111,8 @@ type Guard interface {
 // because that measures nothing while looking like a defence.
 func New(config Config, clock cptime.Provider, observer Observer) (Guard, error) {
 	if !config.Enabled {
+		//nolint:nilnil // a nil Guard is the contract: the caller skips the
+		// interceptor entirely. See the doc comment above.
 		return nil, nil
 	}
 

@@ -124,7 +124,7 @@ func TestListenForEvents(t *testing.T) {
 		server, _ := startChatServerWith(t, &stubService{}, nil, subscriber, heartbeat)
 
 		stream, err := chatv1connect.NewChatServiceClient(server.Client(), server.URL).
-			ListenForEvents(context.Background(), connect.NewRequest(&chatv1.ListenForEventsRequest{}))
+			ListenForEvents(t.Context(), connect.NewRequest(&chatv1.ListenForEventsRequest{}))
 
 		// Closing it releases the handler, which is still parked on its
 		// subscription; httptest.Server.Close blocks forever otherwise.
@@ -275,7 +275,7 @@ func TestGetHistoryIsNeverCached(t *testing.T) {
 	server, _ := startChatServer(t, service, nil)
 
 	res, err := chatv1connect.NewChatServiceClient(server.Client(), server.URL).
-		GetHistory(context.Background(), connect.NewRequest(&chatv1.GetHistoryRequest{}))
+		GetHistory(t.Context(), connect.NewRequest(&chatv1.GetHistoryRequest{}))
 	require.NoError(t, err)
 
 	require.Len(t, res.Msg.GetMessages(), 1)

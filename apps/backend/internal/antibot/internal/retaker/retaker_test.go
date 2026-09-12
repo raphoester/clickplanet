@@ -226,7 +226,7 @@ func TestADroppedClickCannotFrameAnHonestPlayer(t *testing.T) {
 	h.clock.advance(80 * time.Millisecond)
 	h.click("player", contested, "FR")
 
-	assert.Equal(t, before, len(h.reactions), "the player is not reacting to a click that never landed")
+	assert.Len(t, h.reactions, before, "the player is not reacting to a click that never landed")
 }
 
 func TestReactionsAgeOutOfTheWindow(t *testing.T) {

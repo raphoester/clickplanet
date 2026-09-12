@@ -91,7 +91,12 @@ func (s *Signer) Mint(ip string, now time.Time) (Token, error) {
 	binary.BigEndian.PutUint64(payload[:expiryLen], uint64(expiresAt.UnixMilli()))
 	copy(payload[expiryLen:], id)
 
-	token := append(payload, s.mac(payload, ip)...)
+	// Built into its own slice rather than appended onto payload: append would
+	// alias payload the moment it had spare capacity, and the MAC is computed
+	// over payload.
+	token := make([]byte, 0, tokenLen)
+	token = append(token, payload...)
+	token = append(token, s.mac(payload, ip)...)
 
 	return Token{
 		Value:     base64.RawURLEncoding.EncodeToString(token),
@@ -103,7 +108,7 @@ func (s *Signer) Mint(ip string, now time.Time) (Token, error) {
 func (s *Signer) Verify(value string, ip string, now time.Time) (ID, error) {
 	raw, err := base64.RawURLEncoding.DecodeString(value)
 	if err != nil {
-		return "", fmt.Errorf("%w: %s", ErrMalformed, err)
+		return "", fmt.Errorf("%w: %w", ErrMalformed, err)
 	}
 
 	if len(raw) != tokenLen {

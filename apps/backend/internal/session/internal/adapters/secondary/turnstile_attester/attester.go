@@ -2,6 +2,7 @@ package turnstile_attester
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/session/internal/domain"
 	"github.com/raphoester/clickplanet.lol-backend/internal/session/internal/turnstile"
@@ -20,7 +21,7 @@ var _ domain.Attester = (*Attester)(nil)
 func New(config turnstile.Config) (*Attester, error) {
 	client, err := turnstile.New(config)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to build the turnstile client: %w", err)
 	}
 
 	return &Attester{verifier: client}, nil
