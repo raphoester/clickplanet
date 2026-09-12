@@ -25,6 +25,7 @@ func newTestRegistry() (*Registry, *cptime.FixedClock) {
 		MissRetry:       20 * time.Second,
 		OfferTTL:        15 * time.Second,
 		Duration:        time.Minute,
+		SpreadDuration:  time.Minute,
 		Multiplier:      3,
 		ActiveWithin:    5 * time.Minute,
 		ForgetAfter:     5 * time.Minute,
@@ -351,6 +352,37 @@ func TestEveryKindConfiguredIsOffered(t *testing.T) {
 	}
 
 	assert.Len(t, seen, len(Kinds), "an empty bonus.kinds offers every kind")
+}
+
+func TestASpreadBoxRunsForItsOwnShorterDuration(t *testing.T) {
+	clock := cptime.NewFixedClock(epoch)
+	registry := New(Config{
+		Enabled: true, MinInterval: window, MaxInterval: window, ActiveWithin: 5 * time.Minute,
+		Duration: time.Minute, SpreadDuration: 10 * time.Second,
+		Kinds: map[Kind]float64{KindSpreadClicks: 1},
+	}, clock)
+	events := playing(t, registry, "scope-a")
+
+	waitOut(registry, clock)
+	offer := offered(t, events)
+	require.NotNil(t, offer)
+	assert.Equal(t, 10*time.Second, offer.Duration)
+
+	reward, claimed := registry.Claim(offer.Token, "scope-a")
+	require.True(t, claimed)
+	assert.Equal(t, 10*time.Second, reward.Duration)
+}
+
+func TestTheHourlyCapCountsTheTimeEachBonusActuallyRan(t *testing.T) {
+	registry, clock := newTestRegistry()
+	entry := registry.caller("scope-a", clock.Now())
+
+	// Five ten-second spreads are under a minute, far from a fifteen-minute cap.
+	for range 5 {
+		entry.grants = append(entry.grants, grant{at: clock.Now(), duration: 10 * time.Second})
+	}
+
+	assert.False(t, registry.capped(entry, clock.Now()))
 }
 
 func TestAKindLeftOutOrAtZeroIsNeverOffered(t *testing.T) {

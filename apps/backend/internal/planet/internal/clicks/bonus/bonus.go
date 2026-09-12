@@ -64,8 +64,13 @@ type caller struct {
 	outstanding string
 	misses      int
 
-	// When each bonus was granted, for MaxBoostPerHour.
-	grants []time.Time
+	// Each bonus granted, for MaxBoostPerHour.
+	grants []grant
+}
+
+type grant struct {
+	at       time.Time
+	duration time.Duration
 }
 
 func (c *caller) watching() bool {
@@ -213,7 +218,7 @@ func (r *Registry) Claim(token string, scope string) (Reward, bool) {
 	if entry, known := r.callers[scope]; known {
 		entry.outstanding = ""
 		entry.misses = 0
-		entry.grants = append(entry.grants, now)
+		entry.grants = append(entry.grants, grant{at: now, duration: offer.duration})
 
 		// A window after the bonus ends, so a second can never land on a running one.
 		entry.nextOfferAt = now.Add(offer.duration).Add(r.window())
@@ -283,14 +288,16 @@ func (r *Registry) capped(entry *caller, now time.Time) bool {
 	since := now.Add(-time.Hour)
 
 	kept := entry.grants[:0]
-	for _, at := range entry.grants {
-		if at.After(since) {
-			kept = append(kept, at)
+	total := time.Duration(0)
+	for _, g := range entry.grants {
+		if g.at.After(since) {
+			kept = append(kept, g)
+			total += g.duration
 		}
 	}
 	entry.grants = kept
 
-	return time.Duration(len(kept))*r.config.Duration >= r.config.MaxBoostPerHour
+	return total >= r.config.MaxBoostPerHour
 }
 
 func (r *Registry) offer(scope string, entry *caller, now time.Time) {
@@ -299,11 +306,12 @@ func (r *Registry) offer(scope string, entry *caller, now time.Time) {
 		return
 	}
 
+	kind := r.drawKind()
 	offer := Offer{
 		Token:     token,
 		Seed:      randomSeed(),
-		Kind:      r.drawKind(),
-		Duration:  r.config.Duration,
+		Kind:      kind,
+		Duration:  r.config.durationOf(kind),
 		ExpiresAt: now.Add(r.config.OfferTTL),
 	}
 

@@ -18,13 +18,18 @@ type Config struct {
 	MissRetry time.Duration
 
 	// What a box can be worth. Each kind is drawn with a chance of its weight over
-	// the sum of the weights, so {triple_clicks: 4, spread_clicks: 1} makes one
-	// box in five a spread. A kind left out, or at 0, is never offered. Empty
+	// the sum of the weights, so {triple_clicks: 3, spread_clicks: 1} makes one
+	// box in four a spread. A kind left out, or at 0, is never offered. Empty
 	// offers every kind equally.
 	Kinds map[Kind]float64
 
-	OfferTTL   time.Duration
-	Duration   time.Duration
+	OfferTTL time.Duration
+
+	// How long a caught bonus runs. SpreadDuration is spread_clicks' own, much
+	// shorter: a click that takes seven tiles is worth far more than three clicks.
+	Duration       time.Duration
+	SpreadDuration time.Duration
+
 	Multiplier float64
 
 	ActiveWithin time.Duration
@@ -41,6 +46,7 @@ const (
 	defaultMissRetry       = 45 * time.Second
 	defaultOfferTTL        = 15 * time.Second
 	defaultDuration        = 60 * time.Second
+	defaultSpreadDuration  = 10 * time.Second
 	defaultMultiplier      = 3
 	defaultActiveWithin    = 2 * time.Minute
 	defaultForgetAfter     = 5 * time.Minute
@@ -69,6 +75,9 @@ func (c Config) withDefaults() Config {
 	}
 	if c.Duration <= 0 {
 		c.Duration = defaultDuration
+	}
+	if c.SpreadDuration <= 0 {
+		c.SpreadDuration = defaultSpreadDuration
 	}
 	if c.Multiplier <= 1 {
 		c.Multiplier = defaultMultiplier
@@ -109,4 +118,12 @@ func (c Config) Validate() error {
 	}
 
 	return nil
+}
+
+func (c Config) durationOf(kind Kind) time.Duration {
+	if kind == KindSpreadClicks {
+		return c.SpreadDuration
+	}
+
+	return c.Duration
 }

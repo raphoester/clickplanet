@@ -25,8 +25,9 @@ const CLICK_BURST = 10
 /** Often enough to be worth developing against, not so often it is the game. */
 const BONUS_EVERY_MS = 20_000
 const BONUS_OFFER_TTL_MS = 15_000
-const BONUS_SECONDS = 60
-const BONUS_KINDS: BonusReward["kind"][] = ["tripleClicks", "spreadClicks"]
+/** The server's defaults: a spread is strong, so it is short and rarer. */
+const BONUS_SECONDS: Record<BonusReward["kind"], number> = {tripleClicks: 60, spreadClicks: 10}
+const BONUS_KINDS: BonusReward["kind"][] = ["tripleClicks", "tripleClicks", "tripleClicks", "spreadClicks"]
 
 export type FakeBackendOptions = {
     vpnBlocked?: boolean
@@ -78,10 +79,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
             const offer: BonusOffer = {
                 token: UUIDv4(),
                 seed: Math.floor(Math.random() * 0xffffffff),
-                reward: {
-                    kind: BONUS_KINDS[Math.floor(Math.random() * BONUS_KINDS.length)],
-                    seconds: BONUS_SECONDS,
-                },
+                reward: rewardOfKind(BONUS_KINDS[Math.floor(Math.random() * BONUS_KINDS.length)]),
                 expiresAt: budgetNow() + BONUS_OFFER_TTL_MS,
             }
 
@@ -258,4 +256,8 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
             callback({bindings})
         }
     }
+}
+
+function rewardOfKind(kind: BonusReward["kind"]): BonusReward {
+    return {kind, seconds: BONUS_SECONDS[kind]}
 }

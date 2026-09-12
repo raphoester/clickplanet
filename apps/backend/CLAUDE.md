@@ -384,7 +384,7 @@ the weights, so the strong spread can be made rare:
 - **`triple_clicks`** — the allowance is multiplied by `bonus.multiplier`. See
   [What a bonus does to the bucket](#what-a-bonus-does-to-the-bucket).
 - **`spread_clicks`** — every click also takes the tiles touching the one
-  clicked. See [What a spread does to a click](#what-a-spread-does-to-a-click).
+  clicked, for `bonus.spreadDuration` instead (10s by default — it is strong). See [What a spread does to a click](#what-a-spread-does-to-a-click).
 
 Off by
 default — `bonus.enabled` false offers nothing and answers `ClaimBonus` with
@@ -989,7 +989,8 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `bonus.interval` — how often a box is put in front of somebody; a ceiling, since nothing is offered while nobody is watching
 - `bonus.offerTTL` — how long the token stays good; **must outlast the flight the client draws**, or a box caught on its last frame is refused
 - `bonus.kinds` — a weight per kind (`triple_clicks`, `spread_clicks`); a kind's chance is its weight over the sum. Left out or 0 is never offered, empty offers every kind equally, and an unknown kind, a negative weight or all zeros refuse the boot
-- `bonus.duration`, `bonus.multiplier` — how long a caught bonus runs and what `triple_clicks` multiplies the allowance by; the client reads both off the answer, so changing them changes the meter with no frontend release
+- `bonus.spreadDuration` — how long a caught `spread_clicks` runs (default 10s). It is much shorter than `bonus.duration` because a click that takes seven tiles is worth far more than three clicks; `maxBoostPerHour` counts the time each bonus really ran
+- `bonus.duration`, `bonus.multiplier` — how long a caught `triple_clicks` runs and what it multiplies the allowance by; the client reads both off the answer, so changing them changes the meter with no frontend release
 - `antiBot.enabled` — off registers nothing and measures nothing
 - `antiBot.shadowBan.enforce` — off judges, logs and counts without dropping; the mode to deploy in
 - `antiBot.shadowBan.banDuration`, `reflagInterval`, `sweepInterval` — how long one flag silences a caller, how soon it can be judged again, and how often a ban nothing would still print is forgotten

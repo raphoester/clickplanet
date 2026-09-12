@@ -138,10 +138,10 @@ bonus:
   missRetry: 20s
 
   # A weight per kind: a kind's chance is its weight over the sum. spread_clicks
-  # is the strong one, so it is one box in five. A frontend too old to know it
+  # is the strong one, so it is one box in four. A frontend too old to know it
   # skips that box, which the schedule reads as a miss - so this can ship first.
   kinds:
-    triple_clicks: 4
+    triple_clicks: 3
     spread_clicks: 1
 
   # Has to outlast the flight the client draws, or a box caught on its last
@@ -153,6 +153,9 @@ bonus:
   # release, exactly as rateLimiter does.
   duration: 60s
   multiplier: 3
+
+  # spread_clicks' own duration. It takes seven tiles a click, so it is short.
+  spreadDuration: 10s
 
   # A tab left open overnight is not playing, and a box sent to it is one nobody
   # catches. Until the frontend ships, this is every caller.

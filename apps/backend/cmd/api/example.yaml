@@ -80,12 +80,12 @@ bonus:
   missRetry: 45s
 
   # What a box can be worth, as a weight per kind. A kind's chance is its weight
-  # over the sum of the weights: 4 and 1 make one box in five a spread. A kind
+  # over the sum of the weights: 3 and 1 make one box in four a spread. A kind
   # left out, or at 0, is never offered. Empty offers every kind equally.
   #   triple_clicks - the allowance is multiplied by `multiplier`
   #   spread_clicks - every click also takes the tiles touching the one clicked
   kinds:
-    triple_clicks: 4
+    triple_clicks: 3
     spread_clicks: 1
 
   # How long the token stays good. It has to outlast the flight the client
@@ -99,6 +99,10 @@ bonus:
   # bonus ends, so two can never overlap.
   duration: 60s
   multiplier: 3
+
+  # How long a caught spread_clicks runs. Far shorter than `duration`: a click
+  # that takes seven tiles is worth much more than three clicks.
+  spreadDuration: 10s
 
   # How recently a caller must have clicked to be offered a box. A tab left open
   # overnight is not playing, and a box sent to it is one nobody catches.
