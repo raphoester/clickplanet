@@ -8,19 +8,19 @@ import (
 	"os"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat"
-	"github.com/raphoester/clickplanet.lol-backend/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/bootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/configs"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging/lf"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet"
 	"github.com/raphoester/clickplanet.lol-backend/internal/session"
 )
 
 type Config struct {
 	HTTPServer bootstrap.ServerConfig
 
-	// Squashed: the clicks keys sit at the top level of the file.
-	Clicks clicks.Config `koanf:",squash"`
+	// Squashed: the planet keys sit at the top level of the file.
+	Planet planet.Config `koanf:",squash"`
 
 	Session session.Config
 	Chat    chat.Config
@@ -54,7 +54,7 @@ func run(ctx context.Context) error {
 func describeModules(config Config) []bootstrap.Module {
 	return []bootstrap.Module{
 		session.NewModule(config.Session),
-		clicks.NewModule(config.Clicks),
+		planet.NewModule(config.Planet),
 		chat.NewModule(config.Chat),
 	}
 }
@@ -72,7 +72,7 @@ func loadConfig() (Config, error) {
 func (c Config) Validate() error {
 	return errors.Join(
 		c.HTTPServer.Validate(),
-		c.Clicks.Validate(),
+		c.Planet.Validate(),
 		c.Session.Validate(),
 		c.Chat.Validate(),
 	)

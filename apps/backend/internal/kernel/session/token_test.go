@@ -52,7 +52,7 @@ func TestTwoSignersOverOneConfigAgree(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = verifier.Verify(token.Value, "1.2.3.4", now)
-	assert.NoError(t, err, "the clicks context builds its own signer from the same block")
+	assert.NoError(t, err, "the planet context builds its own signer from the same block")
 }
 
 func TestAMintedTokenVerifiesForTheAddressItWasMintedFor(t *testing.T) {

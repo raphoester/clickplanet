@@ -17,7 +17,7 @@ import (
 
 func TestAModuleThatFailsToBuildNamesItselfInTheError(t *testing.T) {
 	err := run(t, []bootstrap.Module{
-		newModule("clicks", func(bootstrap.Props) error { return nil }),
+		newModule("planet", func(bootstrap.Props) error { return nil }),
 		newModule("chat", func(bootstrap.Props) error { return errors.New("no log path") }),
 	})
 
@@ -30,7 +30,7 @@ func TestTwoModulesCannotClaimTheSameRoute(t *testing.T) {
 	var mountErr error
 
 	err := run(t, []bootstrap.Module{
-		newModule("clicks", func(props bootstrap.Props) error {
+		newModule("planet", func(props bootstrap.Props) error {
 			return props.RPC.Mount("/planet.v1.ClickService/", http.NotFoundHandler())
 		}),
 		newModule("impostor", func(props bootstrap.Props) error {
@@ -42,7 +42,7 @@ func TestTwoModulesCannotClaimTheSameRoute(t *testing.T) {
 	require.Error(t, err)
 	require.Error(t, mountErr)
 	assert.Contains(t, mountErr.Error(), "impostor")
-	assert.Contains(t, mountErr.Error(), "clicks")
+	assert.Contains(t, mountErr.Error(), "planet")
 }
 
 func TestCleanupsRunInReverseRegistrationOrder(t *testing.T) {
@@ -104,7 +104,7 @@ func TestARunnerIsCancelledOnShutdown(t *testing.T) {
 	cancelled := make(chan struct{})
 
 	require.NoError(t, run(t, []bootstrap.Module{
-		newModule("clicks", func(props bootstrap.Props) error {
+		newModule("planet", func(props bootstrap.Props) error {
 			props.Runners.Add("tiles-storage", func(ctx context.Context) {
 				<-ctx.Done()
 				close(cancelled)
@@ -128,7 +128,7 @@ func TestADisabledModuleIsNeverBuilt(t *testing.T) {
 	built := false
 
 	require.NoError(t, run(t, []bootstrap.Module{
-		newModule("clicks", func(bootstrap.Props) error { return nil }),
+		newModule("planet", func(bootstrap.Props) error { return nil }),
 		disabled(newModule("chat", func(bootstrap.Props) error {
 			built = true
 			return nil
@@ -140,7 +140,7 @@ func TestADisabledModuleIsNeverBuilt(t *testing.T) {
 
 func TestAProcessWhereEveryModuleIsOffIsRefused(t *testing.T) {
 	err := run(t, []bootstrap.Module{
-		disabled(newModule("clicks", func(bootstrap.Props) error { return nil })),
+		disabled(newModule("planet", func(bootstrap.Props) error { return nil })),
 	})
 
 	require.Error(t, err)

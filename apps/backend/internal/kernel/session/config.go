@@ -7,7 +7,7 @@ import (
 )
 
 // Config is the `session:` block, and it is in the kernel because two bounded
-// contexts read it: the session context mints with it, the clicks context
+// contexts read it: the session context mints with it, the planet context
 // verifies with it. Each builds its own Signer from the same settings, so the
 // two never share an object and cannot drift — the same secret and TTL produce
 // the same MAC.

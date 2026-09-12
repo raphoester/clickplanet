@@ -20,33 +20,33 @@ func TestTheExampleConfigStillReachesTheStructs(t *testing.T) {
 	var config Config
 	require.NoError(t, configs.Load(&config, configs.FromFile("example.yaml")))
 
-	require.True(t, config.Clicks.AntiBot.Enabled)
+	require.True(t, config.Planet.AntiBot.Enabled)
 
-	assert.False(t, config.Clicks.AntiBot.ShadowBan.Enforce, "the example must ship observing only")
-	assert.Equal(t, time.Hour, config.Clicks.AntiBot.ShadowBan.BanDuration)
-	assert.Equal(t, 5*time.Minute, config.Clicks.AntiBot.ShadowBan.ReflagInterval)
+	assert.False(t, config.Planet.AntiBot.ShadowBan.Enforce, "the example must ship observing only")
+	assert.Equal(t, time.Hour, config.Planet.AntiBot.ShadowBan.BanDuration)
+	assert.Equal(t, 5*time.Minute, config.Planet.AntiBot.ShadowBan.ReflagInterval)
 
-	assert.Equal(t, 2, config.Clicks.AntiBot.Jury.MinSuspects)
-	assert.Equal(t, 10*time.Minute, config.Clicks.AntiBot.Jury.SuspicionWindow)
+	assert.Equal(t, 2, config.Planet.AntiBot.Jury.MinSuspects)
+	assert.Equal(t, 10*time.Minute, config.Planet.AntiBot.Jury.SuspicionWindow)
 
-	require.True(t, config.Clicks.AntiBot.Retaker.Enabled)
-	assert.Equal(t, 5*time.Second, config.Clicks.AntiBot.Retaker.Detector.ReactionWindow)
-	assert.Equal(t, 12, config.Clicks.AntiBot.Retaker.Detector.MinReactions)
-	assert.Equal(t, 120*time.Millisecond, config.Clicks.AntiBot.Retaker.Detector.MaxSpread)
-	assert.Equal(t, 250*time.Millisecond, config.Clicks.AntiBot.Retaker.Detector.MaxMedian)
+	require.True(t, config.Planet.AntiBot.Retaker.Enabled)
+	assert.Equal(t, 5*time.Second, config.Planet.AntiBot.Retaker.Detector.ReactionWindow)
+	assert.Equal(t, 12, config.Planet.AntiBot.Retaker.Detector.MinReactions)
+	assert.Equal(t, 120*time.Millisecond, config.Planet.AntiBot.Retaker.Detector.MaxSpread)
+	assert.Equal(t, 250*time.Millisecond, config.Planet.AntiBot.Retaker.Detector.MaxMedian)
 
-	require.True(t, config.Clicks.AntiBot.Sequencer.Enabled)
-	assert.Equal(t, 40, config.Clicks.AntiBot.Sequencer.Detector.MinSteps)
-	assert.Equal(t, 0.75, config.Clicks.AntiBot.Sequencer.Detector.MinShare)
-	assert.Equal(t, 200, config.Clicks.AntiBot.Sequencer.Detector.CertainSteps)
-	assert.Equal(t, 0.95, config.Clicks.AntiBot.Sequencer.Detector.CertainShare)
+	require.True(t, config.Planet.AntiBot.Sequencer.Enabled)
+	assert.Equal(t, 40, config.Planet.AntiBot.Sequencer.Detector.MinSteps)
+	assert.Equal(t, 0.75, config.Planet.AntiBot.Sequencer.Detector.MinShare)
+	assert.Equal(t, 200, config.Planet.AntiBot.Sequencer.Detector.CertainSteps)
+	assert.Equal(t, 0.95, config.Planet.AntiBot.Sequencer.Detector.CertainShare)
 
-	require.True(t, config.Clicks.AntiBot.Metronome.Enabled)
-	assert.Equal(t, 3*time.Second, config.Clicks.AntiBot.Metronome.Detector.MaxGap)
-	assert.Equal(t, 120*time.Millisecond, config.Clicks.AntiBot.Metronome.Detector.MaxSpread)
-	assert.Equal(t, 120, config.Clicks.AntiBot.Metronome.Detector.MinClicks)
-	assert.Equal(t, 30*time.Minute, config.Clicks.AntiBot.Metronome.Detector.CertainFor)
-	assert.Equal(t, 900, config.Clicks.AntiBot.Metronome.Detector.CertainClicks)
+	require.True(t, config.Planet.AntiBot.Metronome.Enabled)
+	assert.Equal(t, 3*time.Second, config.Planet.AntiBot.Metronome.Detector.MaxGap)
+	assert.Equal(t, 120*time.Millisecond, config.Planet.AntiBot.Metronome.Detector.MaxSpread)
+	assert.Equal(t, 120, config.Planet.AntiBot.Metronome.Detector.MinClicks)
+	assert.Equal(t, 30*time.Minute, config.Planet.AntiBot.Metronome.Detector.CertainFor)
+	assert.Equal(t, 900, config.Planet.AntiBot.Metronome.Detector.CertainClicks)
 }
 
 // The blocks the antibot rewrite did not touch, so that moving one of them is a
@@ -56,10 +56,10 @@ func TestTheExampleConfigStillCarriesTheRestOfTheFile(t *testing.T) {
 	require.NoError(t, configs.Load(&config, configs.FromFile("example.yaml")))
 
 	assert.Equal(t, "0.0.0.0:8080", config.HTTPServer.BindAddress)
-	assert.NotZero(t, config.Clicks.GameMap.MaxIndex)
-	assert.Equal(t, float64(1), config.Clicks.RateLimiter.PerSecond)
-	assert.Equal(t, 10, config.Clicks.RateLimiter.Burst)
-	assert.Equal(t, 30*time.Second, config.Clicks.TilesStorage.SnapshotInterval)
+	assert.NotZero(t, config.Planet.GameMap.MaxIndex)
+	assert.Equal(t, float64(1), config.Planet.RateLimiter.PerSecond)
+	assert.Equal(t, 10, config.Planet.RateLimiter.Burst)
+	assert.Equal(t, 30*time.Second, config.Planet.TilesStorage.SnapshotInterval)
 	assert.Equal(t, time.Hour, config.Session.TTL)
 }
 
@@ -80,17 +80,17 @@ session:
 	var config Config
 	require.NoError(t, configs.Load(&config, configs.FromFile(path)))
 
-	assert.Equal(t, config.Session.Config, config.Clicks.Session,
+	assert.Equal(t, config.Session.Config, config.Planet.Session,
 		"the mint and the click check derive their signer from one block, so these cannot diverge")
-	assert.Equal(t, "a-shared-secret", config.Clicks.Session.Secret)
-	assert.Equal(t, 2*time.Hour, config.Clicks.Session.TTL)
-	assert.True(t, config.Clicks.Session.Enforce)
+	assert.Equal(t, "a-shared-secret", config.Planet.Session.Secret)
+	assert.Equal(t, 2*time.Hour, config.Planet.Session.TTL)
+	assert.True(t, config.Planet.Session.Enforce)
 }
 
 func TestSessionsWithoutASecretAreRefused(t *testing.T) {
 	config := Config{}
 	config.HTTPServer.BindAddress = "0.0.0.0:8080"
-	config.Clicks.GameMap.MaxIndex = 100
+	config.Planet.GameMap.MaxIndex = 100
 	config.Session.Enabled = true
 
 	require.ErrorContains(t, config.Validate(), "session.secret is empty")

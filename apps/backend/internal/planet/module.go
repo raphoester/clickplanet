@@ -1,7 +1,10 @@
-// Package clicks wires the tile game: the map, the click chain and the live
-// stream. It is the one module that is never off — a process without it is not
-// this game — so it has no Enabled switch, only the ones inside it.
-package clicks
+// Package planet wires the tile game: the map, the click chain and the live
+// stream. It is named for its proto package, planet.v1, the way chat and session
+// are for theirs — Click is one procedure on the service, not the whole of it.
+//
+// It is the one module that is never off — a process without it is not this game
+// — so it has no Enabled switch, only the ones inside it.
+package planet
 
 import (
 	"context"
@@ -11,11 +14,6 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/internal/adapters/primary/http/planetv1controller"
-	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/internal/adapters/secondary/in_memory_tile_checker"
-	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/internal/adapters/secondary/memory_tile_storage"
-	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/internal/domain/click_handler_service"
-	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/internal/domain/click_handler_service/prom_click_handler_service"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/bootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/countries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ipblock"
@@ -23,9 +21,14 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ratelimit"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/session"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/xtime"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/secondary/in_memory_tile_checker"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/secondary/memory_tile_storage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/domain/click_handler_service"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/domain/click_handler_service/prom_click_handler_service"
 )
 
-const moduleName = "clicks"
+const moduleName = "planet"
 
 // NewModule is always enabled: a process without the tile game is not this game.
 func NewModule(config Config) bootstrap.Module {

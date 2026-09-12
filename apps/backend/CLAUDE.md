@@ -10,7 +10,7 @@ make test
 # or: go test -tags testing ./... | grep -v 'no test files'
 
 # Run a single test
-go test -tags testing ./internal/clicks/internal/domain/click_handler_service/... -run TestName
+go test -tags testing ./internal/planet/internal/domain/click_handler_service/... -run TestName
 
 # Run the concurrency-sensitive tests under the race detector
 go test -tags testing ./... -race
@@ -37,7 +37,7 @@ This is a Go backend for a collaborative map-clicking game. It follows **hexagon
 
 ### Three bounded contexts, one process
 
-- **`internal/clicks/`** — the tile game: clicks, ownership, the map, the update stream.
+- **`internal/planet/`** — the tile game: clicks, ownership, the map, the update stream.
 - **`internal/chat/`** — the live chat: messages, identity, retention.
 - **`internal/session/`** — the mint: what a caller has to prove before it may click.
 
@@ -48,14 +48,14 @@ package, no adapters and no `module.go`, and it cannot be wired without a caller
 composing it — the clicks edge does, the way it gates on `session`. It is not a
 kernel package because "is this caller a bot" is the business this game is in,
 while the kernel is for things that would read the same in any other program.
-`clicks` → `antibot` is the only module-to-module import in the backend.
+`planet` → `antibot` is the only module-to-module import in the backend.
 
 #### A module publishes its root package and hides the rest
 
-Every module's interior lives behind **its own `internal/`** — `internal/clicks/internal/domain`,
+Every module's interior lives behind **its own `internal/`** — `internal/planet/internal/domain`,
 `internal/chat/internal/adapters/…`, `internal/antibot/internal/jury`. Go's own
 rule does the enforcing: such a package is importable only from the tree rooted
-at the parent of that `internal`, so `chat` importing `clicks/internal/domain`
+at the parent of that `internal`, so `chat` importing `planet/internal/domain`
 **does not compile**. There is no linter to run, no allowlist to maintain and
 nothing to keep in sync.
 
@@ -64,14 +64,14 @@ root package**:
 
 | module | its public API |
 |---|---|
-| `clicks` | `Config`, `NewModule` |
+| `planet` | `Config`, `NewModule` |
 | `chat` | `Config`, `NewModule` |
 | `session` | `Config`, `NewModule` |
 | `antibot` | `Config`, `Observer`, `Guard`, `New` |
 
 That holds for `cmd/api` too: the composition root lists modules and cannot
 reach a domain type, a storage adapter or a controller even if it wanted to. A
-module's `Config` may carry a field whose *type* is internal (`clicks.Config.TilesStorage`
+module's `Config` may carry a field whose *type* is internal (`planet.Config.TilesStorage`
 is `memory_tile_storage.Config`) — koanf fills it by reflection and a caller can
 still set its fields, it just cannot name the type. That is the right amount of
 access: the settings are published because they are in the file, and the code
@@ -83,7 +83,7 @@ directory.
 
 ### The composite layer
 
-Each context wires **itself**, in a `module.go` at its root (`internal/clicks/module.go`, `internal/chat/module.go`, `internal/session/module.go`). That file is the context's manifest: its `Config`, whether it is on, and its DI sequence. **A module takes its config and nothing else, and builds every object it needs itself** — there is no `Deps` struct and nothing is handed down from `main`. A module is a `bootstrap.Module` — a name, an `Enabled` flag and a DI sequence — and the sequence is handed a `bootstrap.Props` carrying registrars and nothing else:
+Each context wires **itself**, in a `module.go` at its root (`internal/planet/module.go`, `internal/chat/module.go`, `internal/session/module.go`). That file is the context's manifest: its `Config`, whether it is on, and its DI sequence. **A module takes its config and nothing else, and builds every object it needs itself** — there is no `Deps` struct and nothing is handed down from `main`. A module is a `bootstrap.Module` — a name, an `Enabled` flag and a DI sequence — and the sequence is handed a `bootstrap.Props` carrying registrars and nothing else:
 
 - `props.RPC.Mount(path, handler)` — both return values of a generated `New<Service>Handler` go straight into it
 - `props.Runners.Add(name, run)` — a goroutine, given the process-lifetime context
@@ -100,7 +100,7 @@ A module never sees the router, the signal handler or another module's objects. 
 ```go
 return []bootstrap.Module{
 	session.NewModule(config.Session),
-	clicks.NewModule(config.Clicks),
+	planet.NewModule(config.Planet),
 	chat.NewModule(config.Chat),
 }
 ```
@@ -111,8 +111,8 @@ return []bootstrap.Module{
 
 `main` builds no objects at all, so a thing two contexts need is **a config block they both declare**, and each builds its own instance from it.
 
-- **`kernel/session.Config`** is the `session:` block, and it lives in the kernel because two contexts read it: `session` mints with it, `clicks` verifies with it. Each calls `session.NewSigner(config)` itself. The same secret and TTL produce the same MAC, so the two signers agree by construction and there is no object to pass — `TestBothContextsReadTheSameSessionBlock` pins that they read one block, and `TestTwoSignersOverOneConfigAgree` pins that one block means one key. Neither module imports the other, and **clicks knows nothing about Turnstile** — the siteverify client lives at `session/internal/turnstile`, so clicks *cannot* reach it, and swapping the attester changes one line in `internal/session/module.go`.
-- **`kernel/countries`** is the ISO list. It is stateless and hardcoded, so each module just calls `countries.New()`, the way it calls `xtime.ActualProvider{}`. It sits in the kernel and not under `clicks/internal/adapters/` for exactly the reason the kernel exists: neither context may depend on the other — and now could not, since that directory is unreachable from chat.
+- **`kernel/session.Config`** is the `session:` block, and it lives in the kernel because two contexts read it: `session` mints with it, `planet` verifies with it. Each calls `session.NewSigner(config)` itself. The same secret and TTL produce the same MAC, so the two signers agree by construction and there is no object to pass — `TestBothContextsReadTheSameSessionBlock` pins that they read one block, and `TestTwoSignersOverOneConfigAgree` pins that one block means one key. Neither module imports the other, and **the planet context knows nothing about Turnstile** — the siteverify client lives at `session/internal/turnstile`, so it *cannot* reach it, and swapping the attester changes one line in `internal/session/module.go`.
+- **`kernel/countries`** is the ISO list. It is stateless and hardcoded, so each module just calls `countries.New()`, the way it calls `xtime.ActualProvider{}`. It sits in the kernel and not under `planet/internal/adapters/` for exactly the reason the kernel exists: neither context may depend on the other — and now could not, since that directory is unreachable from chat.
 
 **This is why `session.secret` is now required** rather than invented at boot — see [Sessions](#sessions-internalsession).
 
@@ -122,7 +122,7 @@ Adding a context that callers talk to means a `proto/<name>/v1`, an `internal/<n
 
 It runs as a **single self-contained container with no dependencies**: the tile map lives in process and is persisted to a local snapshot file. There is no database, no cache, and no second process.
 
-### Clicks domain (`internal/clicks/internal/domain/`)
+### Planet domain (`internal/planet/internal/domain/`)
 
 Core interfaces (ports) defined in `gateways.go`:
 - `TilesChecker` — validates tile IDs (0..maxIndex)
@@ -204,7 +204,7 @@ A failed log write fails the whole post: the log is the audit trail, so a messag
 
 ### Chat (`internal/chat/`)
 
-Chat is a separate bounded context, not a feature of the tile game: it shares the process, the transport and the country list, and has its own proto package, domain, storage and edge. Nothing under `internal/chat/` imports `internal/clicks/`, and the reverse holds too — and since each module's interior sits behind its own `internal/`, neither now can.
+Chat is a separate bounded context, not a feature of the tile game: it shares the process, the transport and the country list, and has its own proto package, domain, storage and edge. Nothing under `internal/chat/` imports `internal/planet/`, and the reverse holds too — and since each module's interior sits behind its own `internal/`, neither now can.
 
 **Off by default.** With `chat.enabled` false nothing is registered, so `/chat.v1.ChatService/` answers 404 — the unauthenticated public write endpoint does not exist at all rather than existing and erroring.
 
@@ -308,9 +308,9 @@ of it: `Config`, `Observer`, `Guard` and `New`. A caller hands over the block an
 the two hooks it wants findings reported through, and gets back a `Guard` — nil
 when the block is off — that answers `Inspect`, `Committed`, `Flagged`, `Run` and
 `Describe`. It is **one** `Run` whatever the file turned on: how many sweepers
-there are is this package's business, which is why `clicks` registers one runner
+there are is this package's business, which is why `planet` registers one runner
 rather than six. Everything else is under `antibot/internal/`, so the click edge
-could not assemble a jury out of watchdogs even if it wanted to. `internal/clicks/antibot.go`
+could not assemble a jury out of watchdogs even if it wanted to. `internal/planet/antibot.go`
 is the whole of the clicks side, and what is left in it is genuinely the edge's:
 the metric names, the wording of the ban line, and where in the chain it sits.
 
@@ -537,13 +537,13 @@ func (c Config) Validate() error {
 The binary never reads inside a block to check it, so a new bound is added in the module that owns it and nothing here changes. `errors.Join` also means a broken file reports **everything** wrong at once rather than one line per restart.
 
 - `bootstrap.ServerConfig` — `bindAddress` empty listens on port 80
-- `clicks.Config` — `gameMap.maxIndex` zero is a map that refuses every click
+- `planet.Config` — `gameMap.maxIndex` zero is a map that refuses every click
 - `kernel/session.Config` — `secret` empty while `enabled`, and a negative `ttl`. It sits with the block rather than with either context, because both read it and it must be checked exactly once
 - `chat.Config` — nothing: every chat setting has a usable default, so an unset one is a default and not a mistake. It implements the hook anyway, so a check added later lands in chat
 
 There is no struct-tag validation and therefore no validator dependency — a hook the config implements covers this app's needs.
 
-**Each module owns its own config struct** — `clicks.Config`, `chat.Config`, `session.Config` — and `app.Config` is the three of them plus `httpServer`. The clicks keys stayed at the top level of the file rather than moving under a `clicks:` section: `app.Config` squashes that struct (`koanf:",squash"`), so the file and every `deploy/` environment variable are unchanged.
+**Each module owns its own config struct** — `planet.Config`, `chat.Config`, `session.Config` — and `app.Config` is the three of them plus `httpServer`. The planet keys stayed at the top level of the file rather than moving under a `planet:` section: `app.Config` squashes that struct (`koanf:",squash"`), so the file and every `deploy/` environment variable are unchanged.
 
 - `httpServer.bindAddress` — the encoding is negotiated per request, so there is no format setting.
 - `httpServer.streamHeartbeat` — how often a silent live stream sends a heartbeat (default 30s). **Must stay well under the proxy's idle cut**: Cloudflare answers 524 at ~125s, and a stream that never speaks is one it kills.

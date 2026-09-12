@@ -13,13 +13,18 @@ It is a **single binary with no dependencies** — `api`. The whole game state i
 The project follows **hexagonal architecture** (ports & adapters), keeping the domain model isolated from infrastructure concerns.
 
 ```
-internal/clicks/
-├── domain/          # Core interfaces and business logic
-├── adapters/
-│   ├── primary/     # Inbound: the Connect service, unary and streaming
-│   └── secondary/   # Outbound: tile storage, X publisher
-└── app/             # Wires everything together
+internal/planet/             # the module's public API: Config, NewModule
+└── internal/                # unreachable from any other module
+    ├── domain/              # Core interfaces and business logic
+    └── adapters/
+        ├── primary/         # Inbound: the Connect service, unary and streaming
+        └── secondary/       # Outbound: the tile map and its snapshot
 ```
+
+The directory is named for its proto package, `planet.v1`, as `internal/chat/`
+and `internal/session/` are for theirs. Each module keeps its interior behind
+its own `internal/`, so the whole of what one may use of another is what sits in
+the other's root package.
 
 **Click flow:**
 
