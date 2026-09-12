@@ -27,6 +27,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/secondary/memory_tile_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/bonus"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/claim_bonus"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/claim_bonus/prom_claim_bonus"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click/bonus_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click/prom_click"
@@ -81,6 +82,11 @@ func build(config Config, props cpbootstrap.Props) error {
 		return err
 	}
 
+	claimBonus, err := claimBonusUseCase(bonuses, limiter, clock, props)
+	if err != nil {
+		return err
+	}
+
 	// Each use case is handed only what it reads or writes, which is why the
 	// storage appears three times here rather than once as a single object the
 	// service holds: the map reader, the subscription and the tile writer are
@@ -92,7 +98,7 @@ func build(config Config, props cpbootstrap.Props) error {
 		GetMapHandler:     get_map_handler.New(get_map.New(tilesChecker, tilesStorage)),
 		ListenForEventsHandler: listen_for_events_handler.New(
 			listen_for_events.New(tilesStorage, props.Server.StreamHeartbeat, bonusFeed(bonuses))),
-		ClaimBonusHandler: claim_bonus_handler.New(claimBonusUseCase(bonuses, limiter, clock)),
+		ClaimBonusHandler: claim_bonus_handler.New(claimBonus),
 	}
 
 	return props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
@@ -162,16 +168,30 @@ func bonusFeed(registry *bonus.Registry) listen_for_events.BonusFeed {
 	return registry
 }
 
+// claimBonusUseCase also hands the registry its counters, which is why it takes
+// the metrics registerer: offered against caught is the only way to see whether
+// the pacing and the flight time are set anywhere near right.
 func claimBonusUseCase(
 	registry *bonus.Registry,
 	limiter *cpratelimit.Limiter,
 	clock cptime.Clock,
-) claim_bonus_handler.UseCase {
+	props cpbootstrap.Props,
+) (claim_bonus_handler.UseCase, error) {
 	if registry == nil {
-		return nil
+		return nil, nil //nolint:nilnil // nil means "boxes are off"; the handler answers Unimplemented.
 	}
 
-	return claim_bonus.New(registry, limiter, clock)
+	useCase, counters, err := prom_claim_bonus.New(claim_bonus.New(registry, limiter, clock), props.Metrics)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create the bonus claim use case: %w", err)
+	}
+
+	registry.Observe(bonus.Report{
+		Offered: counters.Offered.Inc,
+		Lapsed:  counters.Lapsed.Inc,
+	})
+
+	return useCase, nil
 }
 
 // edgeChain builds the interceptors in the order they wrap the handler: the

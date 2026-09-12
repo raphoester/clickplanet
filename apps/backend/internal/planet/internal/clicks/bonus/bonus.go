@@ -74,9 +74,17 @@ func (c *caller) send(event Event) {
 	}
 }
 
+// Report is told what the sweep did, so the counters live at the edge and this
+// package keeps knowing nothing about Prometheus.
+type Report struct {
+	Offered func()
+	Lapsed  func()
+}
+
 type Registry struct {
 	config Config
 	clock  cptime.Clock
+	report Report
 
 	mu      sync.Mutex
 	callers map[string]*caller
@@ -103,6 +111,21 @@ func New(config Config, clock cptime.Clock) *Registry {
 		clock:   clock,
 		callers: make(map[string]*caller),
 		offers:  make(map[string]*pending),
+	}
+}
+
+// Observe attaches the counters. Optional, so a test builds a registry without
+// touching a metrics registry.
+func (r *Registry) Observe(report Report) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.report = report
+}
+
+func (r *Registry) counted(hook func()) {
+	if hook != nil {
+		hook()
 	}
 }
 
@@ -287,6 +310,7 @@ func (r *Registry) offer(scope string, entry *caller, now time.Time) {
 	entry.nextOfferAt = offer.ExpiresAt.Add(r.window())
 
 	entry.send(Event{Offer: &offer})
+	r.counted(r.report.Offered)
 }
 
 // collectMisses retires unspent tokens, bringing the next box forward once.
@@ -308,6 +332,7 @@ func (r *Registry) collectMisses(now time.Time) {
 			entry.nextOfferAt = now.Add(r.config.MissRetry)
 		}
 		entry.misses++
+		r.counted(r.report.Lapsed)
 	}
 }
 
