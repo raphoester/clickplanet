@@ -22,14 +22,17 @@ services:
     ports:
       - "80:80"
       - "443:443"
-    environment:
-      API_DOMAIN: ${API_DOMAIN:?set API_DOMAIN in .env}
-      # The Caddyfile reads this for Access-Control-Allow-Origin. Unset, Caddy
-      # substitutes an empty string and every browser call from Pages fails CORS.
-      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:?set FRONTEND_ORIGIN in .env}
-      # Scoped Cloudflare token (Zone:DNS:Edit + Zone:Zone:Read) Caddy uses to
-      # write the ACME TXT record. This is the one real secret on the box.
-      CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:?set CLOUDFLARE_API_TOKEN in .env}
+    # The whole file, rather than a line per value: Caddy reads API_DOMAIN,
+    # FRONTEND_ORIGIN (Access-Control-Allow-Origin) and CLOUDFLARE_API_TOKEN
+    # (the scoped Zone:DNS:Edit token it writes the ACME TXT record with) under
+    # exactly the names .env already gives them, so naming each one here only
+    # said it twice.
+    #
+    # What that drops is the ${VAR:?} guard. It was worth having while .env was
+    # hand-edited; it is not now — render-env.sh writes the file, the first two
+    # come from env.public which is tracked in git, and the third cannot go
+    # missing without the render failing first.
+    env_file: .env
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data      # certificates — losing this means re-issuing certs
@@ -43,34 +46,18 @@ services:
     restart: unless-stopped
     expose:
       - "8080"
-    # cfgutil loads env vars with "." as the nesting delimiter, so a key like
-    # `tilesStorage.snapshotInterval` can be overridden here without editing
-    # backend.yaml.
-    environment:
-      # Salts the per-sender chat tag. It lives here rather than in backend.yaml
-      # because that file is in git: anyone holding the salt can recompute a
-      # sender's tag from a guessed address, which is the one thing the tag is
-      # supposed to prevent. Changing it renames every sender, so treat it as
-      # permanent — bootstrap.sh generates one and never overwrites it.
-      chat.service.tagSalt: ${CHAT_TAG_SALT:?set CHAT_TAG_SALT in .env (openssl rand -hex 16)}
-      # Signs the session tokens that gate the Click RPC. Here rather than in
-      # backend.yaml for the same reason as the salt: that file is in git, and
-      # anyone holding this can mint a token the API will accept. Changing it
-      # invalidates every session in flight, which costs each player one extra
-      # round trip and nothing else.
-      # Hard, like the two above, because backend.yaml has session.enabled true
-      # and the API now refuses to start without it: the mint and the click
-      # check each derive a signer from this string, so one the server invented
-      # would differ between them. The box this runs on already needs
-      # TURNSTILE_SECRET to start, so it has been set up either way.
-      session.secret: ${SESSION_SECRET:?set SESSION_SECRET in .env (openssl rand -hex 32)}
-      # The Turnstile widget's secret key, from the same dashboard page as the
-      # sitekey. The sitekey is public and lives in the frontend build; this one
-      # never leaves the box.
-      # Also soft, and unused while session.turnstile.enabled is false. Once it
-      # is true, an empty value fails the boot loudly rather than quietly
-      # admitting everyone.
-      session.turnstile.secret: ${TURNSTILE_SECRET:-}
+    # The API's secrets, and only the API's — Caddy loads .env and never sees
+    # these. Its keys are already config keys (`chat.service.tagSalt`, not
+    # CHAT_TAG_SALT): render-env.sh does the rename on the way in, because
+    # cpconfigs nests on "." and a GitHub secret name cannot contain one.
+    # deploy/vps/backend.env.map is where that mapping is written down, and it
+    # is the only place in the repository any of these names appears.
+    #
+    # They are not in backend.yaml because that file is in git. The salt lets a
+    # holder recompute a sender's tag from a guessed address, which is the one
+    # thing the tag prevents; the session secret lets a holder mint a token the
+    # API accepts.
+    env_file: .env.backend
     volumes:
       - ./backend.yaml:/home/app/config/config.yaml:ro
       - tile_state:/home/app/state   # snapshot file lives here — back this up

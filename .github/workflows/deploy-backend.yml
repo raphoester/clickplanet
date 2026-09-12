@@ -113,21 +113,24 @@ jobs:
       # Rendered on the runner rather than over ssh: the logic lives in a script
       # that can be run and tested outside CI (`make env-preview`), and the box
       # receives a finished file instead of a heredoc.
-      - name: render the droplet's .env
+      - name: render the droplet's env files
         working-directory: deploy/vps
         env:
           SECRETS_JSON: ${{ toJSON(secrets) }}
-        run: make env ENV_OUT=rendered.env
+        run: make env ENV_OUT=rendered
 
-      - name: copy it to the VPS
+      - name: copy them to the VPS
         uses: appleboy/scp-action@v1.0.0
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          source: deploy/vps/rendered.env
-          target: /tmp
-          strip_components: 2
+          # Both files, and only these two. Caddy loads .env, the backend loads
+          # .env.backend, and neither sees the other's — which is the whole
+          # reason there are two.
+          source: deploy/vps/rendered/.env,deploy/vps/rendered/.env.backend
+          target: /tmp/cp-env
+          strip_components: 3
 
       - name: ssh to the VPS and roll the container
         uses: appleboy/ssh-action@v1.2.0
@@ -140,17 +143,20 @@ jobs:
             cd /opt/clickplanet/deploy/vps
             git -C /opt/clickplanet pull --ff-only
 
-            # Keep the outgoing file: if a secret is ever dropped from the
-            # repository, compose refuses to start and names it, but only after
-            # this one has been replaced. CHAT_TAG_SALT and SESSION_SECRET are
-            # the two that matter — regenerating either is visible to every
-            # player — and .env.previous is what gets them back.
-            if [ -f .env ]; then
-              cp -p .env .env.previous   # gitignored by .env.*
-              chown --reference=.env /tmp/rendered.env
-            fi
-            chmod 600 /tmp/rendered.env
-            mv /tmp/rendered.env .env
+            # Keep the outgoing files. If a secret is ever dropped from the
+            # repository the stack fails to come up, but only after these have
+            # been replaced — and CHAT_TAG_SALT and SESSION_SECRET are the two
+            # where that is visible to every player. The .previous copies are
+            # what get them back.
+            for f in .env .env.backend; do
+              if [ -f "$f" ]; then
+                cp -p "$f" "$f.previous"   # gitignored by .env.*
+                chown --reference="$f" "/tmp/cp-env/$f"
+              fi
+              chmod 600 "/tmp/cp-env/$f"
+              mv "/tmp/cp-env/$f" "$f"
+            done
+            rmdir /tmp/cp-env
 
             docker compose pull
             docker compose up -d

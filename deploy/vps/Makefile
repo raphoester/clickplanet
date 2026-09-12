@@ -1,22 +1,24 @@
 .PHONY: env env-preview
 
-# Where render-env.sh writes. The deploy workflow renders into the runner's
-# workspace and copies the result to the box; overriding this is what lets the
-# same target be run locally against a fake SECRETS_JSON.
-ENV_OUT ?= .env
+# Where render-env.sh writes .env and .env.backend. The deploy workflow renders
+# into the runner's workspace and copies both to the box; overriding this is
+# what lets the same target run locally against a fake SECRETS_JSON.
+ENV_OUT ?= .
 
-# Renders .env from env.public plus every repository secret. SECRETS_JSON is
-# filled by the workflow from toJSON(secrets); adding an application secret is
-# done entirely in the GitHub UI and needs no edit here.
+# Renders both env files: .env from env.public plus every secret not claimed by
+# backend.env.map, and .env.backend from the ones that are. Adding a secret
+# Caddy reads needs no edit anywhere; one the API reads needs a line in
+# backend.env.map, and nothing else.
 env:
 	@./render-env.sh $(ENV_OUT)
 
-# The same render with invented values, to check the shape of the file without
-# holding a single real secret. Useful after editing env.public or the script.
-# Writes to a temp file rather than stdout because the script renames its output
-# into place, and renaming onto /dev/stdout replaces the device node.
+# The same render with invented values, to check the shape of both files without
+# holding a single real secret.
 env-preview:
-	@tmp=$$(mktemp); \
-		SECRETS_JSON='{"EXAMPLE_SECRET":"not-a-real-value","VPS_SSH_KEY":"excluded"}' \
-			./render-env.sh "$$tmp" >/dev/null; \
-		cat "$$tmp"; rm -f "$$tmp"
+	@dir=$$(mktemp -d); \
+		SECRETS_JSON='{"CLOUDFLARE_API_TOKEN":"cf-not-real","CHAT_TAG_SALT":"salt-not-real","SESSION_SECRET":"sess-not-real","VPS_SSH_KEY":"excluded"}' \
+			./render-env.sh "$$dir"; \
+		for f in "$$dir/.env" "$$dir/.env.backend"; do \
+			echo; echo "=== $$(basename $$f) ==="; cat "$$f"; \
+		done; \
+		rm -rf "$$dir"

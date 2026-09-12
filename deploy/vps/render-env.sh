@@ -1,57 +1,76 @@
 #!/bin/sh
-# Renders the droplet's .env: the public settings in env.public, then every
-# repository secret that is not part of the deploy machinery itself.
+# Renders the two env files the droplet's stack loads, into the directory given
+# as the first argument:
 #
-# Nothing here names an application secret. Creating one under
-# Settings > Secrets and variables > Actions is the whole of adding it — it
-# reaches the box on the next deploy with no edit to this script, the Makefile,
-# the workflow or docker-compose.yaml. Reading it is `${THE_NAME}` in
-# docker-compose.yaml, and that is the only place the name is written down.
+#   .env          the public settings in env.public, plus every repository
+#                 secret not claimed by backend.env.map. Caddy loads it.
+#   .env.backend  the secrets backend.env.map claims, each renamed to the config
+#                 key the API answers to. The backend loads it.
+#
+# Two files rather than one because env_file is all-or-nothing: a container that
+# loads a file gets everything in it, so a single .env would hand the TLS proxy
+# the secret that mints click sessions.
+#
+# Nothing here names a secret. Creating one under Settings > Secrets and
+# variables > Actions is the whole of adding one Caddy reads; one the API reads
+# additionally takes a line in backend.env.map, because the config key it maps
+# to cannot be derived from the name.
 #
 # Secrets arrive as one JSON object in SECRETS_JSON, which the workflow fills
 # from toJSON(secrets) — Actions secrets cannot be read any other way, so this
-# has to run inside a workflow run. Locally it renders whatever you put in
-# SECRETS_JSON, which is what makes it testable without the real values.
+# has to run inside a workflow run. Locally it renders whatever SECRETS_JSON
+# holds, which is what makes it testable without a real value in sight.
 set -eu
 
 here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-out=${1:?usage: render-env.sh <output-file>}
+outdir=${1:?usage: render-env.sh <output-directory>}
 
-# The only hand-maintained list, and it does not grow when an application
-# secret is added — these are the secrets that drive the deploy rather than the
-# app. VPS_SSH_KEY especially must never land on the box: it is the key to the
-# host, and writing it into a file a container reads hands a breakout the
-# machine. github_token is the one Actions injects on its own.
+# The only list of names in this file, and it does not grow when an application
+# secret is added: these drive the deploy rather than the app. VPS_SSH_KEY
+# especially must never reach the box — it is the key to the host, and writing
+# it where a container can read it hands a breakout the machine. github_token is
+# the one Actions injects on its own.
 EXCLUDE='VPS_HOST VPS_USER VPS_SSH_KEY github_token'
 
 : "${SECRETS_JSON:?SECRETS_JSON is unset — the workflow fills it from toJSON(secrets)}"
 
-skip=$(printf '%s\n' $EXCLUDE | jq -R . | jq -sc .)
+map="$here/backend.env.map"
+[ -f "$map" ] || { echo "render-env.sh: $map is missing" >&2; exit 1; }
 
-# A value spanning lines cannot be written as KEY=value: compose would read the
-# first line as the secret and try to parse the rest as further settings. Refuse
-# it by name rather than truncating it into something that looks like it worked.
-multiline=$(printf '%s' "$SECRETS_JSON" | jq -r --argjson skip "$skip" '
-	to_entries
-	| map(select(.key as $k | $skip | index($k) | not))
-	| map(select(.value | test("\n")))
-	| map(.key)
-	| join(" ")
+# Strip comments and blank lines once; every read of the map goes through this.
+map_entries=$(sed -e 's/#.*//' -e '/^[[:space:]]*$/d' "$map" | grep '=' || true)
+mapped_names=$(printf '%s\n' "$map_entries" | sed 's/^[^=]*=//' | tr -d ' ')
+
+# Everything the backend claims is withheld from Caddy's file, so the split
+# needs no second list to fall out of step with the map.
+skip=$(printf '%s\n' $EXCLUDE $mapped_names | sed '/^$/d' | jq -R . | jq -sc .)
+
+# A value spanning lines cannot be written as KEY=value: whatever loads the file
+# would read the first line as the secret and try to parse the rest as further
+# settings. Refuse it by name instead of truncating it into something that looks
+# like it worked.
+multiline=$(printf '%s' "$SECRETS_JSON" | jq -r '
+	to_entries | map(select(.value | test("\n"))) | map(.key) | join(" ")
 ')
-if [ -n "$multiline" ]; then
-	echo "render-env.sh: secret(s) span multiple lines and cannot go in .env:$multiline" >&2
-	echo "render-env.sh: base64-encode the value, or add it to EXCLUDE if the app does not read it" >&2
+for name in $multiline; do
+	case " $EXCLUDE " in
+		*" $name "*) continue ;;
+	esac
+	echo "render-env.sh: secret $name spans multiple lines and cannot go in an env file" >&2
+	echo "render-env.sh: base64-encode the value, or add it to EXCLUDE if nothing on the box reads it" >&2
 	exit 1
-fi
+done
 
 umask 077
-tmp="${out}.tmp.$$"
-trap 'rm -f "$tmp"' EXIT
+env_tmp="$outdir/.env.tmp.$$"
+backend_tmp="$outdir/.env.backend.tmp.$$"
+trap 'rm -f "$env_tmp" "$backend_tmp"' EXIT
 
+# ------------------------------------------------------------------- Caddy's
 {
 	echo "# Generated by deploy/vps/render-env.sh — do not edit by hand."
-	echo "# The next deploy overwrites it. Public settings live in env.public;"
-	echo "# everything else is a repository secret."
+	echo "# The next deploy overwrites it. Public settings come from env.public;"
+	echo "# the rest are repository secrets not claimed by backend.env.map."
 	echo
 	cat "$here/env.public"
 	echo
@@ -62,20 +81,40 @@ trap 'rm -f "$tmp"' EXIT
 		| .[]
 		| "\(.key)=\(.value)"
 	'
-} >"$tmp"
+} >"$env_tmp"
 
-# An empty or malformed SECRETS_JSON parses to no entries at all, which would
-# render a file that is valid, complete-looking and carries not one secret.
-# Every required value is checked by name in docker-compose.yaml, so the stack
-# would refuse to start — but only after this file had already replaced a good
-# one. Cheaper to notice here.
-written=$(grep -c '^[A-Za-z_][A-Za-z0-9_]*=' "$tmp" || true)
-public=$(grep -c '^[A-Za-z_][A-Za-z0-9_]*=' "$here/env.public" || true)
-if [ "$written" -le "$public" ]; then
+# ----------------------------------------------------------------- backend's
+skipped=""
+{
+	echo "# Generated by deploy/vps/render-env.sh — do not edit by hand."
+	echo "# Keys are config keys, not secret names: backend.env.map holds the"
+	echo "# rename, because cpconfigs nests on '.' and a secret name cannot."
+	echo
+	printf '%s\n' "$map_entries" | while IFS='=' read -r key name; do
+		key=$(printf '%s' "$key" | tr -d ' ')
+		name=$(printf '%s' "$name" | tr -d ' ')
+		[ -n "$key" ] && [ -n "$name" ] || continue
+		value=$(printf '%s' "$SECRETS_JSON" | jq -r --arg n "$name" '.[$n] // empty')
+		if [ -z "$value" ]; then
+			echo "render-env.sh: $name is not set — leaving $key to the API's own default" >&2
+			continue
+		fi
+		printf '%s=%s\n' "$key" "$value"
+	done
+} >"$backend_tmp"
+
+# An empty or malformed SECRETS_JSON parses to no entries at all, which renders
+# two files that are valid, complete-looking and carry not one secret. Cheaper to
+# notice here than after they have replaced the files that worked.
+count_keys() { grep -c '^[^#][^=]*=' "$1" 2>/dev/null || true; }
+public=$(count_keys "$here/env.public")
+rendered=$(( $(count_keys "$env_tmp") - public + $(count_keys "$backend_tmp") ))
+if [ "$rendered" -le 0 ]; then
 	echo "render-env.sh: no secrets rendered — is SECRETS_JSON really toJSON(secrets)?" >&2
 	exit 1
 fi
 
-mv "$tmp" "$out"
+mv "$env_tmp" "$outdir/.env"
+mv "$backend_tmp" "$outdir/.env.backend"
 trap - EXIT
-echo "render-env.sh: wrote $out ($((written - public)) secrets, $public public settings)"
+echo "render-env.sh: wrote .env and .env.backend ($rendered secrets, $public public settings)"
