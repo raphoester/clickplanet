@@ -31,6 +31,10 @@ const (
 	// Every click also takes the tiles touching the one clicked. The server picks
 	// those tiles from its own map, so a client never names what it gets.
 	BonusKind_BONUS_KIND_SPREAD_CLICKS BonusKind = 2
+	// One bomb, dropped with DropBomb anywhere on the planet within the duration.
+	// It clears every tile within a few rings of where it lands, whoever holds
+	// them. The server picks the tiles.
+	BonusKind_BONUS_KIND_BOMB BonusKind = 3
 )
 
 // Enum value maps for BonusKind.
@@ -39,11 +43,13 @@ var (
 		0: "BONUS_KIND_UNSPECIFIED",
 		1: "BONUS_KIND_TRIPLE_CLICKS",
 		2: "BONUS_KIND_SPREAD_CLICKS",
+		3: "BONUS_KIND_BOMB",
 	}
 	BonusKind_value = map[string]int32{
 		"BONUS_KIND_UNSPECIFIED":   0,
 		"BONUS_KIND_TRIPLE_CLICKS": 1,
 		"BONUS_KIND_SPREAD_CLICKS": 2,
+		"BONUS_KIND_BOMB":          3,
 	}
 )
 
@@ -565,6 +571,7 @@ type PlanetEvent struct {
 	//	*PlanetEvent_Heartbeat
 	//	*PlanetEvent_BonusOffered
 	//	*PlanetEvent_BonusTaken
+	//	*PlanetEvent_BombDropped
 	Event         isPlanetEvent_Event `protobuf_oneof:"event"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -643,6 +650,15 @@ func (x *PlanetEvent) GetBonusTaken() *BonusTaken {
 	return nil
 }
 
+func (x *PlanetEvent) GetBombDropped() *BombDropped {
+	if x != nil {
+		if x, ok := x.Event.(*PlanetEvent_BombDropped); ok {
+			return x.BombDropped
+		}
+	}
+	return nil
+}
+
 type isPlanetEvent_Event interface {
 	isPlanetEvent_Event()
 }
@@ -667,6 +683,12 @@ type PlanetEvent_BonusTaken struct {
 	BonusTaken *BonusTaken `protobuf:"bytes,4,opt,name=bonus_taken,json=bonusTaken,proto3,oneof"`
 }
 
+type PlanetEvent_BombDropped struct {
+	// Broadcast to everyone. It travels in order with the tile updates, so a
+	// tile retaken just after the blast is never blanked by it.
+	BombDropped *BombDropped `protobuf:"bytes,5,opt,name=bomb_dropped,json=bombDropped,proto3,oneof"`
+}
+
 func (*PlanetEvent_TileUpdate) isPlanetEvent_Event() {}
 
 func (*PlanetEvent_Heartbeat) isPlanetEvent_Event() {}
@@ -674,6 +696,8 @@ func (*PlanetEvent_Heartbeat) isPlanetEvent_Event() {}
 func (*PlanetEvent_BonusOffered) isPlanetEvent_Event() {}
 
 func (*PlanetEvent_BonusTaken) isPlanetEvent_Event() {}
+
+func (*PlanetEvent_BombDropped) isPlanetEvent_Event() {}
 
 // A box put in front of one player, and the token that claims it.
 type BonusOffered struct {
@@ -871,8 +895,11 @@ type ClaimBonusResponse struct {
 	Budget          *ClickBudget `protobuf:"bytes,1,opt,name=budget,proto3" json:"budget,omitempty"`
 	Kind            BonusKind    `protobuf:"varint,2,opt,name=kind,proto3,enum=planet.v1.BonusKind" json:"kind,omitempty"`
 	DurationSeconds uint32       `protobuf:"varint,3,opt,name=duration_seconds,json=durationSeconds,proto3" json:"duration_seconds,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// For a bomb: how wide its blast is, in radians of arc, so the client can
+	// draw the aiming ring at the size of what it will clear. Zero otherwise.
+	BlastRadius   float64 `protobuf:"fixed64,4,opt,name=blast_radius,json=blastRadius,proto3" json:"blast_radius,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ClaimBonusResponse) Reset() {
@@ -926,6 +953,249 @@ func (x *ClaimBonusResponse) GetDurationSeconds() uint32 {
 	return 0
 }
 
+func (x *ClaimBonusResponse) GetBlastRadius() float64 {
+	if x != nil {
+		return x.BlastRadius
+	}
+	return 0
+}
+
+// A point on the globe, as a direction from its centre. Need not be unit length.
+type GlobePoint struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	X             float64                `protobuf:"fixed64,1,opt,name=x,proto3" json:"x,omitempty"`
+	Y             float64                `protobuf:"fixed64,2,opt,name=y,proto3" json:"y,omitempty"`
+	Z             float64                `protobuf:"fixed64,3,opt,name=z,proto3" json:"z,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GlobePoint) Reset() {
+	*x = GlobePoint{}
+	mi := &file_planet_v1_planet_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GlobePoint) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GlobePoint) ProtoMessage() {}
+
+func (x *GlobePoint) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_planet_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GlobePoint.ProtoReflect.Descriptor instead.
+func (*GlobePoint) Descriptor() ([]byte, []int) {
+	return file_planet_v1_planet_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *GlobePoint) GetX() float64 {
+	if x != nil {
+		return x.X
+	}
+	return 0
+}
+
+func (x *GlobePoint) GetY() float64 {
+	if x != nil {
+		return x.Y
+	}
+	return 0
+}
+
+func (x *GlobePoint) GetZ() float64 {
+	if x != nil {
+		return x.Z
+	}
+	return 0
+}
+
+type DropBombRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Where the player aimed, not a tile: the sea has no tiles, and whether the
+	// aim is on land or in the water is the server's call.
+	Target *GlobePoint `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
+	// What to say the bomber was playing for, in the broadcast that follows.
+	CountryId     string `protobuf:"bytes,2,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DropBombRequest) Reset() {
+	*x = DropBombRequest{}
+	mi := &file_planet_v1_planet_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DropBombRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DropBombRequest) ProtoMessage() {}
+
+func (x *DropBombRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_planet_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DropBombRequest.ProtoReflect.Descriptor instead.
+func (*DropBombRequest) Descriptor() ([]byte, []int) {
+	return file_planet_v1_planet_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *DropBombRequest) GetTarget() *GlobePoint {
+	if x != nil {
+		return x.Target
+	}
+	return nil
+}
+
+func (x *DropBombRequest) GetCountryId() string {
+	if x != nil {
+		return x.CountryId
+	}
+	return ""
+}
+
+type DropBombResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DropBombResponse) Reset() {
+	*x = DropBombResponse{}
+	mi := &file_planet_v1_planet_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DropBombResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DropBombResponse) ProtoMessage() {}
+
+func (x *DropBombResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_planet_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DropBombResponse.ProtoReflect.Descriptor instead.
+func (*DropBombResponse) Descriptor() ([]byte, []int) {
+	return file_planet_v1_planet_proto_rawDescGZIP(), []int{17}
+}
+
+// A bomb landed. Everything a client needs to draw it and to clear the map.
+type BombDropped struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The tile it hit. Zero when it fell in the sea: the bomb is spent, nothing
+	// is cleared, and the client draws a splash.
+	TileId    uint32 `protobuf:"varint,1,opt,name=tile_id,json=tileId,proto3" json:"tile_id,omitempty"`
+	CountryId string `protobuf:"bytes,2,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
+	// Radians of arc, so the drawing matches what was cleared.
+	Radius float64 `protobuf:"fixed64,3,opt,name=radius,proto3" json:"radius,omitempty"`
+	// The tiles that were held and now are not. Carried here rather than as one
+	// TileUpdate each, so the client can hold them back until the blast hits.
+	ClearedTileIds []uint32 `protobuf:"varint,4,rep,packed,name=cleared_tile_ids,json=clearedTileIds,proto3" json:"cleared_tile_ids,omitempty"`
+	// Where to draw it, on the unit sphere: the tile's centre, or the aimed spot
+	// in the sea.
+	Point         *GlobePoint `protobuf:"bytes,5,opt,name=point,proto3" json:"point,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BombDropped) Reset() {
+	*x = BombDropped{}
+	mi := &file_planet_v1_planet_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BombDropped) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BombDropped) ProtoMessage() {}
+
+func (x *BombDropped) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_planet_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BombDropped.ProtoReflect.Descriptor instead.
+func (*BombDropped) Descriptor() ([]byte, []int) {
+	return file_planet_v1_planet_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *BombDropped) GetTileId() uint32 {
+	if x != nil {
+		return x.TileId
+	}
+	return 0
+}
+
+func (x *BombDropped) GetCountryId() string {
+	if x != nil {
+		return x.CountryId
+	}
+	return ""
+}
+
+func (x *BombDropped) GetRadius() float64 {
+	if x != nil {
+		return x.Radius
+	}
+	return 0
+}
+
+func (x *BombDropped) GetClearedTileIds() []uint32 {
+	if x != nil {
+		return x.ClearedTileIds
+	}
+	return nil
+}
+
+func (x *BombDropped) GetPoint() *GlobePoint {
+	if x != nil {
+		return x.Point
+	}
+	return nil
+}
+
 type Heartbeat struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -934,7 +1204,7 @@ type Heartbeat struct {
 
 func (x *Heartbeat) Reset() {
 	*x = Heartbeat{}
-	mi := &file_planet_v1_planet_proto_msgTypes[15]
+	mi := &file_planet_v1_planet_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -946,7 +1216,7 @@ func (x *Heartbeat) String() string {
 func (*Heartbeat) ProtoMessage() {}
 
 func (x *Heartbeat) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_planet_proto_msgTypes[15]
+	mi := &file_planet_v1_planet_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -959,7 +1229,7 @@ func (x *Heartbeat) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Heartbeat.ProtoReflect.Descriptor instead.
 func (*Heartbeat) Descriptor() ([]byte, []int) {
-	return file_planet_v1_planet_proto_rawDescGZIP(), []int{15}
+	return file_planet_v1_planet_proto_rawDescGZIP(), []int{19}
 }
 
 type TileUpdate struct {
@@ -973,7 +1243,7 @@ type TileUpdate struct {
 
 func (x *TileUpdate) Reset() {
 	*x = TileUpdate{}
-	mi := &file_planet_v1_planet_proto_msgTypes[16]
+	mi := &file_planet_v1_planet_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -985,7 +1255,7 @@ func (x *TileUpdate) String() string {
 func (*TileUpdate) ProtoMessage() {}
 
 func (x *TileUpdate) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_planet_proto_msgTypes[16]
+	mi := &file_planet_v1_planet_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -998,7 +1268,7 @@ func (x *TileUpdate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TileUpdate.ProtoReflect.Descriptor instead.
 func (*TileUpdate) Descriptor() ([]byte, []int) {
-	return file_planet_v1_planet_proto_rawDescGZIP(), []int{16}
+	return file_planet_v1_planet_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *TileUpdate) GetTileId() uint32 {
@@ -1050,14 +1320,15 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"\rstart_tile_id\x18\x01 \x01(\rR\vstartTileId\x12\x14\n" +
 	"\x05codes\x18\x02 \x03(\tR\x05codes\x12\x14\n" +
 	"\x05tiles\x18\x03 \x01(\fR\x05tiles\"\x18\n" +
-	"\x16ListenForEventsRequest\"\x80\x02\n" +
+	"\x16ListenForEventsRequest\"\xbd\x02\n" +
 	"\vPlanetEvent\x128\n" +
 	"\vtile_update\x18\x01 \x01(\v2\x15.planet.v1.TileUpdateH\x00R\n" +
 	"tileUpdate\x124\n" +
 	"\theartbeat\x18\x02 \x01(\v2\x14.planet.v1.HeartbeatH\x00R\theartbeat\x12>\n" +
 	"\rbonus_offered\x18\x03 \x01(\v2\x17.planet.v1.BonusOfferedH\x00R\fbonusOffered\x128\n" +
 	"\vbonus_taken\x18\x04 \x01(\v2\x15.planet.v1.BonusTakenH\x00R\n" +
-	"bonusTakenB\a\n" +
+	"bonusTaken\x12;\n" +
+	"\fbomb_dropped\x18\x05 \x01(\v2\x16.planet.v1.BombDroppedH\x00R\vbombDroppedB\a\n" +
 	"\x05event\"\xba\x01\n" +
 	"\fBonusOffered\x12\x14\n" +
 	"\x05token\x18\x01 \x01(\tR\x05token\x12\x12\n" +
@@ -1073,22 +1344,41 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"\x11ClaimBonusRequest\x12\x14\n" +
 	"\x05token\x18\x01 \x01(\tR\x05token\x12\x1d\n" +
 	"\n" +
-	"country_id\x18\x02 \x01(\tR\tcountryId\"\x99\x01\n" +
+	"country_id\x18\x02 \x01(\tR\tcountryId\"\xbc\x01\n" +
 	"\x12ClaimBonusResponse\x12.\n" +
 	"\x06budget\x18\x01 \x01(\v2\x16.planet.v1.ClickBudgetR\x06budget\x12(\n" +
 	"\x04kind\x18\x02 \x01(\x0e2\x14.planet.v1.BonusKindR\x04kind\x12)\n" +
-	"\x10duration_seconds\x18\x03 \x01(\rR\x0fdurationSeconds\"\v\n" +
+	"\x10duration_seconds\x18\x03 \x01(\rR\x0fdurationSeconds\x12!\n" +
+	"\fblast_radius\x18\x04 \x01(\x01R\vblastRadius\"6\n" +
+	"\n" +
+	"GlobePoint\x12\f\n" +
+	"\x01x\x18\x01 \x01(\x01R\x01x\x12\f\n" +
+	"\x01y\x18\x02 \x01(\x01R\x01y\x12\f\n" +
+	"\x01z\x18\x03 \x01(\x01R\x01z\"_\n" +
+	"\x0fDropBombRequest\x12-\n" +
+	"\x06target\x18\x01 \x01(\v2\x15.planet.v1.GlobePointR\x06target\x12\x1d\n" +
+	"\n" +
+	"country_id\x18\x02 \x01(\tR\tcountryId\"\x12\n" +
+	"\x10DropBombResponse\"\xb4\x01\n" +
+	"\vBombDropped\x12\x17\n" +
+	"\atile_id\x18\x01 \x01(\rR\x06tileId\x12\x1d\n" +
+	"\n" +
+	"country_id\x18\x02 \x01(\tR\tcountryId\x12\x16\n" +
+	"\x06radius\x18\x03 \x01(\x01R\x06radius\x12(\n" +
+	"\x10cleared_tile_ids\x18\x04 \x03(\rR\x0eclearedTileIds\x12+\n" +
+	"\x05point\x18\x05 \x01(\v2\x15.planet.v1.GlobePointR\x05point\"\v\n" +
 	"\tHeartbeat\"t\n" +
 	"\n" +
 	"TileUpdate\x12\x17\n" +
 	"\atile_id\x18\x01 \x01(\rR\x06tileId\x12\x1d\n" +
 	"\n" +
 	"country_id\x18\x02 \x01(\tR\tcountryId\x12.\n" +
-	"\x13previous_country_id\x18\x03 \x01(\tR\x11previousCountryId*c\n" +
+	"\x13previous_country_id\x18\x03 \x01(\tR\x11previousCountryId*x\n" +
 	"\tBonusKind\x12\x1a\n" +
 	"\x16BONUS_KIND_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18BONUS_KIND_TRIPLE_CLICKS\x10\x01\x12\x1c\n" +
-	"\x18BONUS_KIND_SPREAD_CLICKS\x10\x022\xc1\x03\n" +
+	"\x18BONUS_KIND_SPREAD_CLICKS\x10\x02\x12\x13\n" +
+	"\x0fBONUS_KIND_BOMB\x10\x032\x86\x04\n" +
 	"\fClickService\x12:\n" +
 	"\x05Click\x12\x17.planet.v1.ClickRequest\x1a\x18.planet.v1.ClickResponse\x12F\n" +
 	"\tGetBudget\x12\x1b.planet.v1.GetBudgetRequest\x1a\x1c.planet.v1.GetBudgetResponse\x12N\n" +
@@ -1097,7 +1387,8 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"\x06GetMap\x12\x18.planet.v1.GetMapRequest\x1a\x19.planet.v1.GetMapResponse\"\x03\x90\x02\x01\x12N\n" +
 	"\x0fListenForEvents\x12!.planet.v1.ListenForEventsRequest\x1a\x16.planet.v1.PlanetEvent0\x01\x12I\n" +
 	"\n" +
-	"ClaimBonus\x12\x1c.planet.v1.ClaimBonusRequest\x1a\x1d.planet.v1.ClaimBonusResponseB\xb3\x01\n" +
+	"ClaimBonus\x12\x1c.planet.v1.ClaimBonusRequest\x1a\x1d.planet.v1.ClaimBonusResponse\x12C\n" +
+	"\bDropBomb\x12\x1a.planet.v1.DropBombRequest\x1a\x1b.planet.v1.DropBombResponseB\xb3\x01\n" +
 	"\rcom.planet.v1B\vPlanetProtoP\x01ZPgithub.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1;planetv1\xa2\x02\x03PXX\xaa\x02\tPlanet.V1\xca\x02\tPlanet\\V1\xe2\x02\x15Planet\\V1\\GPBMetadata\xea\x02\n" +
 	"Planet::V1b\x06proto3"
 
@@ -1114,7 +1405,7 @@ func file_planet_v1_planet_proto_rawDescGZIP() []byte {
 }
 
 var file_planet_v1_planet_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_planet_v1_planet_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
+var file_planet_v1_planet_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_planet_v1_planet_proto_goTypes = []any{
 	(BonusKind)(0),                 // 0: planet.v1.BonusKind
 	(*ClickBudget)(nil),            // 1: planet.v1.ClickBudget
@@ -1132,37 +1423,46 @@ var file_planet_v1_planet_proto_goTypes = []any{
 	(*BonusTaken)(nil),             // 13: planet.v1.BonusTaken
 	(*ClaimBonusRequest)(nil),      // 14: planet.v1.ClaimBonusRequest
 	(*ClaimBonusResponse)(nil),     // 15: planet.v1.ClaimBonusResponse
-	(*Heartbeat)(nil),              // 16: planet.v1.Heartbeat
-	(*TileUpdate)(nil),             // 17: planet.v1.TileUpdate
+	(*GlobePoint)(nil),             // 16: planet.v1.GlobePoint
+	(*DropBombRequest)(nil),        // 17: planet.v1.DropBombRequest
+	(*DropBombResponse)(nil),       // 18: planet.v1.DropBombResponse
+	(*BombDropped)(nil),            // 19: planet.v1.BombDropped
+	(*Heartbeat)(nil),              // 20: planet.v1.Heartbeat
+	(*TileUpdate)(nil),             // 21: planet.v1.TileUpdate
 }
 var file_planet_v1_planet_proto_depIdxs = []int32{
 	1,  // 0: planet.v1.ClickResponse.budget:type_name -> planet.v1.ClickBudget
 	1,  // 1: planet.v1.GetBudgetResponse.budget:type_name -> planet.v1.ClickBudget
-	17, // 2: planet.v1.PlanetEvent.tile_update:type_name -> planet.v1.TileUpdate
-	16, // 3: planet.v1.PlanetEvent.heartbeat:type_name -> planet.v1.Heartbeat
+	21, // 2: planet.v1.PlanetEvent.tile_update:type_name -> planet.v1.TileUpdate
+	20, // 3: planet.v1.PlanetEvent.heartbeat:type_name -> planet.v1.Heartbeat
 	12, // 4: planet.v1.PlanetEvent.bonus_offered:type_name -> planet.v1.BonusOffered
 	13, // 5: planet.v1.PlanetEvent.bonus_taken:type_name -> planet.v1.BonusTaken
-	0,  // 6: planet.v1.BonusOffered.kind:type_name -> planet.v1.BonusKind
-	0,  // 7: planet.v1.BonusTaken.kind:type_name -> planet.v1.BonusKind
-	1,  // 8: planet.v1.ClaimBonusResponse.budget:type_name -> planet.v1.ClickBudget
-	0,  // 9: planet.v1.ClaimBonusResponse.kind:type_name -> planet.v1.BonusKind
-	2,  // 10: planet.v1.ClickService.Click:input_type -> planet.v1.ClickRequest
-	4,  // 11: planet.v1.ClickService.GetBudget:input_type -> planet.v1.GetBudgetRequest
-	6,  // 12: planet.v1.ClickService.MapDensity:input_type -> planet.v1.MapDensityRequest
-	8,  // 13: planet.v1.ClickService.GetMap:input_type -> planet.v1.GetMapRequest
-	10, // 14: planet.v1.ClickService.ListenForEvents:input_type -> planet.v1.ListenForEventsRequest
-	14, // 15: planet.v1.ClickService.ClaimBonus:input_type -> planet.v1.ClaimBonusRequest
-	3,  // 16: planet.v1.ClickService.Click:output_type -> planet.v1.ClickResponse
-	5,  // 17: planet.v1.ClickService.GetBudget:output_type -> planet.v1.GetBudgetResponse
-	7,  // 18: planet.v1.ClickService.MapDensity:output_type -> planet.v1.MapDensityResponse
-	9,  // 19: planet.v1.ClickService.GetMap:output_type -> planet.v1.GetMapResponse
-	11, // 20: planet.v1.ClickService.ListenForEvents:output_type -> planet.v1.PlanetEvent
-	15, // 21: planet.v1.ClickService.ClaimBonus:output_type -> planet.v1.ClaimBonusResponse
-	16, // [16:22] is the sub-list for method output_type
-	10, // [10:16] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	19, // 6: planet.v1.PlanetEvent.bomb_dropped:type_name -> planet.v1.BombDropped
+	0,  // 7: planet.v1.BonusOffered.kind:type_name -> planet.v1.BonusKind
+	0,  // 8: planet.v1.BonusTaken.kind:type_name -> planet.v1.BonusKind
+	1,  // 9: planet.v1.ClaimBonusResponse.budget:type_name -> planet.v1.ClickBudget
+	0,  // 10: planet.v1.ClaimBonusResponse.kind:type_name -> planet.v1.BonusKind
+	16, // 11: planet.v1.DropBombRequest.target:type_name -> planet.v1.GlobePoint
+	16, // 12: planet.v1.BombDropped.point:type_name -> planet.v1.GlobePoint
+	2,  // 13: planet.v1.ClickService.Click:input_type -> planet.v1.ClickRequest
+	4,  // 14: planet.v1.ClickService.GetBudget:input_type -> planet.v1.GetBudgetRequest
+	6,  // 15: planet.v1.ClickService.MapDensity:input_type -> planet.v1.MapDensityRequest
+	8,  // 16: planet.v1.ClickService.GetMap:input_type -> planet.v1.GetMapRequest
+	10, // 17: planet.v1.ClickService.ListenForEvents:input_type -> planet.v1.ListenForEventsRequest
+	14, // 18: planet.v1.ClickService.ClaimBonus:input_type -> planet.v1.ClaimBonusRequest
+	17, // 19: planet.v1.ClickService.DropBomb:input_type -> planet.v1.DropBombRequest
+	3,  // 20: planet.v1.ClickService.Click:output_type -> planet.v1.ClickResponse
+	5,  // 21: planet.v1.ClickService.GetBudget:output_type -> planet.v1.GetBudgetResponse
+	7,  // 22: planet.v1.ClickService.MapDensity:output_type -> planet.v1.MapDensityResponse
+	9,  // 23: planet.v1.ClickService.GetMap:output_type -> planet.v1.GetMapResponse
+	11, // 24: planet.v1.ClickService.ListenForEvents:output_type -> planet.v1.PlanetEvent
+	15, // 25: planet.v1.ClickService.ClaimBonus:output_type -> planet.v1.ClaimBonusResponse
+	18, // 26: planet.v1.ClickService.DropBomb:output_type -> planet.v1.DropBombResponse
+	20, // [20:27] is the sub-list for method output_type
+	13, // [13:20] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_planet_v1_planet_proto_init() }
@@ -1175,6 +1475,7 @@ func file_planet_v1_planet_proto_init() {
 		(*PlanetEvent_Heartbeat)(nil),
 		(*PlanetEvent_BonusOffered)(nil),
 		(*PlanetEvent_BonusTaken)(nil),
+		(*PlanetEvent_BombDropped)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -1182,7 +1483,7 @@ func file_planet_v1_planet_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_planet_v1_planet_proto_rawDesc), len(file_planet_v1_planet_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   17,
+			NumMessages:   21,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

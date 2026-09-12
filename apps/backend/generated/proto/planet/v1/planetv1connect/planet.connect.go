@@ -46,6 +46,8 @@ const (
 	ClickServiceListenForEventsProcedure = "/planet.v1.ClickService/ListenForEvents"
 	// ClickServiceClaimBonusProcedure is the fully-qualified name of the ClickService's ClaimBonus RPC.
 	ClickServiceClaimBonusProcedure = "/planet.v1.ClickService/ClaimBonus"
+	// ClickServiceDropBombProcedure is the fully-qualified name of the ClickService's DropBomb RPC.
+	ClickServiceDropBombProcedure = "/planet.v1.ClickService/DropBomb"
 )
 
 // ClickServiceClient is a client for the planet.v1.ClickService service.
@@ -59,6 +61,9 @@ type ClickServiceClient interface {
 	GetMap(context.Context, *connect.Request[v1.GetMapRequest]) (*connect.Response[v1.GetMapResponse], error)
 	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest]) (*connect.ServerStreamForClient[v1.PlanetEvent], error)
 	ClaimBonus(context.Context, *connect.Request[v1.ClaimBonusRequest]) (*connect.Response[v1.ClaimBonusResponse], error)
+	// Drops the bomb a caught box granted. Answers NotFound when the caller holds
+	// none — never won, already dropped, or held past its time — and says no more.
+	DropBomb(context.Context, *connect.Request[v1.DropBombRequest]) (*connect.Response[v1.DropBombResponse], error)
 }
 
 // NewClickServiceClient constructs a client for the planet.v1.ClickService service. By default, it
@@ -110,6 +115,12 @@ func NewClickServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(clickServiceMethods.ByName("ClaimBonus")),
 			connect.WithClientOptions(opts...),
 		),
+		dropBomb: connect.NewClient[v1.DropBombRequest, v1.DropBombResponse](
+			httpClient,
+			baseURL+ClickServiceDropBombProcedure,
+			connect.WithSchema(clickServiceMethods.ByName("DropBomb")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -121,6 +132,7 @@ type clickServiceClient struct {
 	getMap          *connect.Client[v1.GetMapRequest, v1.GetMapResponse]
 	listenForEvents *connect.Client[v1.ListenForEventsRequest, v1.PlanetEvent]
 	claimBonus      *connect.Client[v1.ClaimBonusRequest, v1.ClaimBonusResponse]
+	dropBomb        *connect.Client[v1.DropBombRequest, v1.DropBombResponse]
 }
 
 // Click calls planet.v1.ClickService.Click.
@@ -153,6 +165,11 @@ func (c *clickServiceClient) ClaimBonus(ctx context.Context, req *connect.Reques
 	return c.claimBonus.CallUnary(ctx, req)
 }
 
+// DropBomb calls planet.v1.ClickService.DropBomb.
+func (c *clickServiceClient) DropBomb(ctx context.Context, req *connect.Request[v1.DropBombRequest]) (*connect.Response[v1.DropBombResponse], error) {
+	return c.dropBomb.CallUnary(ctx, req)
+}
+
 // ClickServiceHandler is an implementation of the planet.v1.ClickService service.
 type ClickServiceHandler interface {
 	Click(context.Context, *connect.Request[v1.ClickRequest]) (*connect.Response[v1.ClickResponse], error)
@@ -164,6 +181,9 @@ type ClickServiceHandler interface {
 	GetMap(context.Context, *connect.Request[v1.GetMapRequest]) (*connect.Response[v1.GetMapResponse], error)
 	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest], *connect.ServerStream[v1.PlanetEvent]) error
 	ClaimBonus(context.Context, *connect.Request[v1.ClaimBonusRequest]) (*connect.Response[v1.ClaimBonusResponse], error)
+	// Drops the bomb a caught box granted. Answers NotFound when the caller holds
+	// none — never won, already dropped, or held past its time — and says no more.
+	DropBomb(context.Context, *connect.Request[v1.DropBombRequest]) (*connect.Response[v1.DropBombResponse], error)
 }
 
 // NewClickServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -211,6 +231,12 @@ func NewClickServiceHandler(svc ClickServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(clickServiceMethods.ByName("ClaimBonus")),
 		connect.WithHandlerOptions(opts...),
 	)
+	clickServiceDropBombHandler := connect.NewUnaryHandler(
+		ClickServiceDropBombProcedure,
+		svc.DropBomb,
+		connect.WithSchema(clickServiceMethods.ByName("DropBomb")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/planet.v1.ClickService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ClickServiceClickProcedure:
@@ -225,6 +251,8 @@ func NewClickServiceHandler(svc ClickServiceHandler, opts ...connect.HandlerOpti
 			clickServiceListenForEventsHandler.ServeHTTP(w, r)
 		case ClickServiceClaimBonusProcedure:
 			clickServiceClaimBonusHandler.ServeHTTP(w, r)
+		case ClickServiceDropBombProcedure:
+			clickServiceDropBombHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -256,4 +284,8 @@ func (UnimplementedClickServiceHandler) ListenForEvents(context.Context, *connec
 
 func (UnimplementedClickServiceHandler) ClaimBonus(context.Context, *connect.Request[v1.ClaimBonusRequest]) (*connect.Response[v1.ClaimBonusResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.ClickService.ClaimBonus is not implemented"))
+}
+
+func (UnimplementedClickServiceHandler) DropBomb(context.Context, *connect.Request[v1.DropBombRequest]) (*connect.Response[v1.DropBombResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.ClickService.DropBomb is not implemented"))
 }

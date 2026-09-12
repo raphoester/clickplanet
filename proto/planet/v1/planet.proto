@@ -21,6 +21,10 @@ service ClickService {
   rpc ListenForEvents(ListenForEventsRequest) returns (stream PlanetEvent);
 
   rpc ClaimBonus(ClaimBonusRequest) returns (ClaimBonusResponse);
+
+  // Drops the bomb a caught box granted. Answers NotFound when the caller holds
+  // none — never won, already dropped, or held past its time — and says no more.
+  rpc DropBomb(DropBombRequest) returns (DropBombResponse);
 }
 
 // What the rate limiter has left for the caller, and the policy it refills
@@ -98,6 +102,10 @@ message PlanetEvent {
     // Broadcast to everyone, so catching a box is something the whole planet
     // sees rather than a private event.
     BonusTaken bonus_taken = 4;
+
+    // Broadcast to everyone. It travels in order with the tile updates, so a
+    // tile retaken just after the blast is never blanked by it.
+    BombDropped bomb_dropped = 5;
   }
 }
 
@@ -110,6 +118,11 @@ enum BonusKind {
   // Every click also takes the tiles touching the one clicked. The server picks
   // those tiles from its own map, so a client never names what it gets.
   BONUS_KIND_SPREAD_CLICKS = 2;
+
+  // One bomb, dropped with DropBomb anywhere on the planet within the duration.
+  // It clears every tile within a few rings of where it lands, whoever holds
+  // them. The server picks the tiles.
+  BONUS_KIND_BOMB = 3;
 }
 
 // A box put in front of one player, and the token that claims it.
@@ -153,6 +166,48 @@ message ClaimBonusResponse {
   BonusKind kind = 2;
 
   uint32 duration_seconds = 3;
+
+  // For a bomb: how wide its blast is, in radians of arc, so the client can
+  // draw the aiming ring at the size of what it will clear. Zero otherwise.
+  double blast_radius = 4;
+}
+
+// A point on the globe, as a direction from its centre. Need not be unit length.
+message GlobePoint {
+  double x = 1;
+  double y = 2;
+  double z = 3;
+}
+
+message DropBombRequest {
+  // Where the player aimed, not a tile: the sea has no tiles, and whether the
+  // aim is on land or in the water is the server's call.
+  GlobePoint target = 1;
+
+  // What to say the bomber was playing for, in the broadcast that follows.
+  string country_id = 2;
+}
+
+message DropBombResponse {}
+
+// A bomb landed. Everything a client needs to draw it and to clear the map.
+message BombDropped {
+  // The tile it hit. Zero when it fell in the sea: the bomb is spent, nothing
+  // is cleared, and the client draws a splash.
+  uint32 tile_id = 1;
+
+  string country_id = 2;
+
+  // Radians of arc, so the drawing matches what was cleared.
+  double radius = 3;
+
+  // The tiles that were held and now are not. Carried here rather than as one
+  // TileUpdate each, so the client can hold them back until the blast hits.
+  repeated uint32 cleared_tile_ids = 4;
+
+  // Where to draw it, on the unit sphere: the tile's centre, or the aimed spot
+  // in the sea.
+  GlobePoint point = 5;
 }
 
 message Heartbeat {}
