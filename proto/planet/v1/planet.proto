@@ -106,6 +106,10 @@ message PlanetEvent {
 enum BonusKind {
   BONUS_KIND_UNSPECIFIED = 0;
   BONUS_KIND_TRIPLE_CLICKS = 1;
+
+  // Every click also takes the tiles touching the one clicked. The server picks
+  // those tiles from its own map, so a client never names what it gets.
+  BONUS_KIND_SPREAD_CLICKS = 2;
 }
 
 // A box put in front of one player, and the token that claims it.
@@ -142,7 +146,8 @@ message ClaimBonusRequest {
 
 message ClaimBonusResponse {
   // The allowance as it stands with the bonus applied, so the client does not
-  // have to wait for its next click to see the wider budget.
+  // have to wait for its next click to see the wider budget. A kind that does
+  // not widen it answers the allowance unchanged.
   ClickBudget budget = 1;
 
   BonusKind kind = 2;

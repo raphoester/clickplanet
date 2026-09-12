@@ -7,7 +7,13 @@
  * and says what it granted, and this is the shape that answer arrives in.
  */
 export type BonusReward = {
-    kind: "tripleClicks"
+    /**
+     * - `tripleClicks`: the click allowance is multiplied.
+     * - `spreadClicks`: every click also takes the tiles touching the one
+     *   clicked. The server picks those tiles and sends them down the stream,
+     *   so nothing here knows which they are.
+     */
+    kind: "tripleClicks" | "spreadClicks"
     seconds: number
 }
 
@@ -29,6 +35,8 @@ export function multiplierOf(reward: BonusReward): number {
     switch (reward.kind) {
         case "tripleClicks":
             return 3
+        case "spreadClicks":
+            return 1
     }
 }
 
@@ -50,6 +58,12 @@ export function describeReward(reward: BonusReward): {
                 title: "Triple clicks",
                 detail: `${multiplierOf(reward)}× your click rate for ${reward.seconds} seconds`,
                 badge: `${multiplierOf(reward)}×`,
+            }
+        case "spreadClicks":
+            return {
+                title: "Spread clicks",
+                detail: `Every click also takes the tiles around it for ${reward.seconds} seconds`,
+                badge: "+6",
             }
     }
 }

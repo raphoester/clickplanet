@@ -377,7 +377,16 @@ The signature is checked **before** the expiry, in constant time, so a forger le
 ### Bonus boxes (`internal/planet/internal/clicks/bonus/`)
 
 A question-mark box flies past the planet every so often; whoever catches it
-clicks at `bonus.multiplier` times their allowance for `bonus.duration`. Off by
+gets one of two bonuses for `bonus.duration`. Each box draws its kind from
+`bonus.kinds`, a weight per kind — a kind's chance is its weight over the sum of
+the weights, so the strong spread can be made rare:
+
+- **`triple_clicks`** — the allowance is multiplied by `bonus.multiplier`. See
+  [What a bonus does to the bucket](#what-a-bonus-does-to-the-bucket).
+- **`spread_clicks`** — every click also takes the tiles touching the one
+  clicked, for `bonus.spreadDuration` instead (10s by default — it is strong). See [What a spread does to a click](#what-a-spread-does-to-a-click).
+
+Off by
 default — `bonus.enabled` false offers nothing and answers `ClaimBonus` with
 `CodeUnimplemented`, so the capability is absent rather than present and
 refusing, the same shape chat has.
@@ -465,6 +474,31 @@ whole reason the envelope exists.
 
 The catch is published **after** the boost lands, so a catch announced to the
 planet that then failed to apply is the one lie this cannot tell.
+
+#### What a spread does to a click
+
+**The server picks the tiles, off its own map.** A client that named the tiles
+a click spreads to could name any tiles it liked — that is why the spread waited
+for [Map geography](#map-geography). The client paints the tile it clicked, as it
+always has, and the neighbours reach it over the stream like anyone else's.
+
+`claim_bonus` starts it with `bonus.Spreads.Grant(scope, until)` instead of a
+boost, and answers the allowance unchanged. `bonus.Spreads` is a map of scope to
+end time; each grant forgets the spreads that ran out, so it needs no sweep.
+
+`click/spread_click` is the decorator that reads it, and **it sits right against
+the rule**, inside the count, the shadow ban and the throttle:
+
+- a click is **one click** to the throttle and to `prom_click`, however many tiles it took
+- a click the shadow ban drops never reaches the rule, so it spreads nothing
+- a click the rule refuses (unknown country, tile out of range) spreads nothing
+- the neighbours are not reported to the antibot jury — only the clicked tile is
+  a click the caller made
+
+Each neighbour is an ordinary `Set`, so it publishes its own `TileUpdate` and a
+tile already held is a no-op. One click is at most 7 updates. **A lone island
+takes itself and nothing else**: `Neighbours` is empty there, and the bonus does
+not pretend otherwise.
 
 #### What a bonus does to the bucket
 
@@ -889,9 +923,12 @@ to save ~50µs, behind a 1 click/sec/IP throttle. The search scratch is a genera
 from a pool, one per concurrent caller, so nothing is cleared per call and two clicks cannot stamp
 the same array.
 
+`Neighbours` is what the spread bonus reads — see [What a spread does to a click](#what-a-spread-does-to-a-click).
+
 `Disc` and `Position` sit behind the `testing` tag, as `cpctx.GetSessionID` does and for the same
-reason — see [Testing](#testing). They have no production caller until the spread-click bonus lands,
-and `make deadcode` reports production code whose only caller is a test. **Deleting the tag line is
+reason — see [Testing](#testing). The spread takes one ring, which is `Neighbours`; they have no
+production caller until a bonus reaches further, and `make deadcode` reports production code whose
+only caller is a test. **Deleting the tag line is
 the whole of wiring them up**; both are already tested against the numbers above.
 
 #### Known faults, inherited and documented
@@ -951,7 +988,9 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `bonus.enabled` — off offers nothing and answers `ClaimBonus` Unimplemented
 - `bonus.interval` — how often a box is put in front of somebody; a ceiling, since nothing is offered while nobody is watching
 - `bonus.offerTTL` — how long the token stays good; **must outlast the flight the client draws**, or a box caught on its last frame is refused
-- `bonus.duration`, `bonus.multiplier` — how long a caught bonus runs and what it multiplies the allowance by; the client reads both off the answer, so changing them changes the meter with no frontend release
+- `bonus.kinds` — a weight per kind (`triple_clicks`, `spread_clicks`); a kind's chance is its weight over the sum. Left out or 0 is never offered, empty offers every kind equally, and an unknown kind, a negative weight or all zeros refuse the boot
+- `bonus.spreadDuration` — how long a caught `spread_clicks` runs (default 10s). It is much shorter than `bonus.duration` because a click that takes seven tiles is worth far more than three clicks; `maxBoostPerHour` counts the time each bonus really ran
+- `bonus.duration`, `bonus.multiplier` — how long a caught `triple_clicks` runs and what it multiplies the allowance by; the client reads both off the answer, so changing them changes the meter with no frontend release
 - `antiBot.enabled` — off registers nothing and measures nothing
 - `antiBot.shadowBan.enforce` — off judges, logs and counts without dropping; the mode to deploy in
 - `antiBot.shadowBan.banDuration`, `reflagInterval`, `sweepInterval` — how long one flag silences a caller, how soon it can be judged again, and how often a ban nothing would still print is forgotten
@@ -1069,7 +1108,7 @@ the main checkout's.
 
 The tag has a second use, same mechanism and a different reason: **production code that is written
 and tested but has no caller yet**. `clicks.Geography`'s `Disc` and `Position` are there, waiting on
-the bonus that will read them (see [Map geography](#map-geography)). The tag
+a bonus that reaches further than one ring (see [Map geography](#map-geography)). The tag
 is what keeps `make deadcode` a wall rather than a thing people learn to ignore, and removing the
 line is the whole of promoting such a function.
 

@@ -27,12 +27,14 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/secondary/geodesic_map"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/secondary/in_memory_tile_checker"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/secondary/memory_tile_storage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/bonus"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/claim_bonus"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/claim_bonus/prom_claim_bonus"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click/bonus_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click/prom_click"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click/spread_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click/throttle_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_budget"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_map"
@@ -63,7 +65,8 @@ func build(config Config, props cpbootstrap.Props) error {
 	clock := cptime.SystemClock{}
 
 	// First: nothing else here is worth starting if the map is not the one the frontend draws.
-	if err := loadMapGeography(config.GameMap.MaxIndex, props); err != nil {
+	geography, err := loadMapGeography(config.GameMap.MaxIndex, props)
+	if err != nil {
 		return err
 	}
 
@@ -78,8 +81,16 @@ func build(config Config, props cpbootstrap.Props) error {
 	// nil when boxes are off, which leaves the feed and the click chain exactly
 	// as they were and makes ClaimBonus answer Unimplemented.
 	bonuses := newBonusRegistry(config.Bonus, clock, props)
+	spreads := bonus.NewSpreads(clock)
 
-	clickUseCase, err := clickChain(config, tilesChecker, tilesStorage, limiter, bonuses, props)
+	clickUseCase, err := clickChain(config, clickParts{
+		tilesChecker: tilesChecker,
+		tilesStorage: tilesStorage,
+		limiter:      limiter,
+		bonuses:      bonuses,
+		spreads:      spreads,
+		geography:    geography,
+	}, props)
 	if err != nil {
 		return err
 	}
@@ -89,7 +100,7 @@ func build(config Config, props cpbootstrap.Props) error {
 		return err
 	}
 
-	claimBonus, err := claimBonusUseCase(bonuses, limiter, clock, props)
+	claimBonus, err := claimBonusUseCase(bonuses, limiter, spreads, clock, props)
 	if err != nil {
 		return err
 	}
@@ -115,12 +126,12 @@ func build(config Config, props cpbootstrap.Props) error {
 
 // Unconditional, and fatal: a blob that disagrees with the frontend renumbers every tile, and the
 // snapshot on disk is numbered the old way. See CLAUDE.md, "Map geography".
-func loadMapGeography(maxIndex uint32, props cpbootstrap.Props) error {
+func loadMapGeography(maxIndex uint32, props cpbootstrap.Props) (*clicks.Geography, error) {
 	started := time.Now()
 
 	geography, asset, err := geodesic_map.Load(maxIndex)
 	if err != nil {
-		return fmt.Errorf("failed to load the map geography: %w", err)
+		return nil, fmt.Errorf("failed to load the map geography: %w", err)
 	}
 
 	stats := geography.Stats()
@@ -132,41 +143,49 @@ func loadMapGeography(maxIndex uint32, props cpbootstrap.Props) error {
 		slog.Any("took", time.Since(started).Round(time.Millisecond)),
 	)
 
-	return nil
+	return geography, nil
+}
+
+// clickParts is what the click chain is built from.
+type clickParts struct {
+	tilesChecker *in_memory_tile_checker.Checker
+	tilesStorage *memory_tile_storage.Storage
+	limiter      *cpratelimit.Limiter
+	bonuses      *bonus.Registry
+	spreads      *bonus.Spreads
+	geography    *clicks.Geography
 }
 
 // clickChain wraps the rule in the policies that guard it, innermost first:
-// count it, judge it, then charge it. The throttle is outermost of the three so
+// spread it, count it, judge it, then charge it. The throttle is outermost so
 // a shadow-banned caller keeps hitting the same 429s everyone else does — a
 // caller that is never throttled again has been told it is banned.
-func clickChain(
-	config Config,
-	tilesChecker *in_memory_tile_checker.Checker,
-	tilesStorage *memory_tile_storage.Storage,
-	limiter *cpratelimit.Limiter,
-	bonuses *bonus.Registry,
-	props cpbootstrap.Props,
-) (click.IUseCase, error) {
-	useCase, err := prom_click.New(
-		click.New(tilesChecker, tilesStorage, cpcountries.New()),
-		props.Metrics,
-	)
+func clickChain(config Config, parts clickParts, props cpbootstrap.Props) (click.IUseCase, error) {
+	// Right against the rule, inside the shadow ban: a dropped click never
+	// reaches the rule, so it spreads nothing either. It is counted as one click
+	// however many tiles it took.
+	var rule click.IUseCase = click.New(parts.tilesChecker, parts.tilesStorage, cpcountries.New())
+	if parts.bonuses != nil {
+		rule = spread_click.New(rule, parts.spreads, parts.geography, parts.tilesStorage)
+	}
+
+	useCase, err := prom_click.New(rule, props.Metrics)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create prometheus click use case: %w", err)
 	}
 
-	guarded, err := wrapWithAntiBot(useCase, config.AntiBot, tilesStorage, props)
+	guarded, err := wrapWithAntiBot(useCase, config.AntiBot, parts.tilesStorage, props)
 	if err != nil {
 		return nil, err
 	}
 
 	// Inside the throttle: presence is what a caller actually managed to do,
 	// not what they attempted.
-	if bonuses != nil {
-		guarded = bonus_click.New(guarded, bonuses)
+	if parts.bonuses != nil {
+		guarded = bonus_click.New(guarded, parts.bonuses)
 	}
 
-	return throttle_click.New(guarded, limiter), nil
+	return throttle_click.New(guarded, parts.limiter), nil
 }
 
 // newBonusRegistry returns nil when boxes are off. A typed nil in an interface
@@ -184,6 +203,7 @@ func newBonusRegistry(config bonus.Config, clock cptime.Clock, props cpbootstrap
 		slog.Any("minInterval", config.MinInterval),
 		slog.Any("maxInterval", config.MaxInterval),
 		slog.Any("duration", config.Duration),
+		slog.Any("kinds", config.Kinds),
 	)
 
 	return registry
@@ -203,6 +223,7 @@ func bonusFeed(registry *bonus.Registry) listen_for_events.BonusFeed {
 func claimBonusUseCase(
 	registry *bonus.Registry,
 	limiter *cpratelimit.Limiter,
+	spreads *bonus.Spreads,
 	clock cptime.Clock,
 	props cpbootstrap.Props,
 ) (claim_bonus_handler.UseCase, error) {
@@ -210,7 +231,7 @@ func claimBonusUseCase(
 		return nil, nil //nolint:nilnil // nil means "boxes are off"; the handler answers Unimplemented.
 	}
 
-	useCase, counters, err := prom_claim_bonus.New(claim_bonus.New(registry, limiter, clock), props.Metrics)
+	useCase, counters, err := prom_claim_bonus.New(claim_bonus.New(registry, limiter, spreads, clock), props.Metrics)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create the bonus claim use case: %w", err)
 	}

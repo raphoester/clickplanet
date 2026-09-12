@@ -27,6 +27,12 @@ type Registry interface {
 // spends: a bonus that did not move that bucket would not be a bonus.
 type Booster interface {
 	Boost(key string, multiplier float64, until time.Time) cpratelimit.State
+	Peek(key string) cpratelimit.State
+}
+
+// Spreader starts a spread bonus, which the click chain then reads on every click.
+type Spreader interface {
+	Grant(scope string, until time.Time)
 }
 
 type In struct {
@@ -40,17 +46,18 @@ type Out struct {
 	Duration time.Duration
 }
 
-func New(registry Registry, booster Booster, clock cptime.Clock) *UseCase {
+func New(registry Registry, booster Booster, spreader Spreader, clock cptime.Clock) *UseCase {
 	if clock == nil {
 		clock = cptime.SystemClock{}
 	}
 
-	return &UseCase{registry: registry, booster: booster, clock: clock}
+	return &UseCase{registry: registry, booster: booster, spreader: spreader, clock: clock}
 }
 
 type UseCase struct {
 	registry Registry
 	booster  Booster
+	spreader Spreader
 	clock    cptime.Clock
 }
 
@@ -65,11 +72,24 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 		return Out{}, ErrNoSuchBonus
 	}
 
-	state := u.booster.Boost(scope, u.registry.Multiplier(), u.clock.Now().Add(reward.Duration))
+	state := u.apply(scope, reward)
 
 	// Only once the boost has landed: a catch announced to the planet that then
 	// failed to apply is the one lie this could tell.
 	u.registry.Publish(bonus.Taken{CountryID: in.CountryID, Kind: reward.Kind})
 
 	return Out{Budget: state, Kind: reward.Kind, Duration: reward.Duration}, nil
+}
+
+// apply starts what the reward is worth, and answers the allowance as it stands
+// afterwards. A spread does not widen the allowance, so it answers it unchanged.
+func (u *UseCase) apply(scope string, reward bonus.Reward) cpratelimit.State {
+	until := u.clock.Now().Add(reward.Duration)
+
+	if reward.Kind == bonus.KindSpreadClicks {
+		u.spreader.Grant(scope, until)
+		return u.booster.Peek(scope)
+	}
+
+	return u.booster.Boost(scope, u.registry.Multiplier(), until)
 }

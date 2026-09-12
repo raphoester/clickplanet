@@ -51,8 +51,11 @@ func (h ClaimBonusHandler) ClaimBonus(
 }
 
 func EncodeKind(kind bonus.Kind) planetv1.BonusKind {
-	if kind == bonus.KindTripleClicks {
+	switch kind {
+	case bonus.KindTripleClicks:
 		return planetv1.BonusKind_BONUS_KIND_TRIPLE_CLICKS
+	case bonus.KindSpreadClicks:
+		return planetv1.BonusKind_BONUS_KIND_SPREAD_CLICKS
 	}
 
 	return planetv1.BonusKind_BONUS_KIND_UNSPECIFIED

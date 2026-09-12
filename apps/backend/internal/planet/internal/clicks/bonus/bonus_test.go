@@ -25,6 +25,7 @@ func newTestRegistry() (*Registry, *cptime.FixedClock) {
 		MissRetry:       20 * time.Second,
 		OfferTTL:        15 * time.Second,
 		Duration:        time.Minute,
+		SpreadDuration:  time.Minute,
 		Multiplier:      3,
 		ActiveWithin:    5 * time.Minute,
 		ForgetAfter:     5 * time.Minute,
@@ -342,6 +343,89 @@ func TestTheWaitIsDrawnFromTheConfiguredWindow(t *testing.T) {
 	assert.Greater(t, len(seen), 100, "the wait should be spread, not fixed")
 }
 
+func TestEveryKindConfiguredIsOffered(t *testing.T) {
+	registry, _ := newTestRegistry()
+
+	seen := map[Kind]bool{}
+	for range 200 {
+		seen[registry.drawKind()] = true
+	}
+
+	assert.Len(t, seen, len(Kinds), "an empty bonus.kinds offers every kind")
+}
+
+func TestASpreadBoxRunsForItsOwnShorterDuration(t *testing.T) {
+	clock := cptime.NewFixedClock(epoch)
+	registry := New(Config{
+		Enabled: true, MinInterval: window, MaxInterval: window, ActiveWithin: 5 * time.Minute,
+		Duration: time.Minute, SpreadDuration: 10 * time.Second,
+		Kinds: map[Kind]float64{KindSpreadClicks: 1},
+	}, clock)
+	events := playing(t, registry, "scope-a")
+
+	waitOut(registry, clock)
+	offer := offered(t, events)
+	require.NotNil(t, offer)
+	assert.Equal(t, 10*time.Second, offer.Duration)
+
+	reward, claimed := registry.Claim(offer.Token, "scope-a")
+	require.True(t, claimed)
+	assert.Equal(t, 10*time.Second, reward.Duration)
+}
+
+func TestTheHourlyCapCountsTheTimeEachBonusActuallyRan(t *testing.T) {
+	registry, clock := newTestRegistry()
+	entry := registry.caller("scope-a", clock.Now())
+
+	// Five ten-second spreads are under a minute, far from a fifteen-minute cap.
+	for range 5 {
+		entry.grants = append(entry.grants, grant{at: clock.Now(), duration: 10 * time.Second})
+	}
+
+	assert.False(t, registry.capped(entry, clock.Now()))
+}
+
+func TestAKindLeftOutOrAtZeroIsNeverOffered(t *testing.T) {
+	for _, kinds := range []map[Kind]float64{
+		{KindSpreadClicks: 1},
+		{KindSpreadClicks: 1, KindTripleClicks: 0},
+	} {
+		registry := New(Config{Enabled: true, Kinds: kinds}, cptime.NewFixedClock(epoch))
+
+		for range 50 {
+			require.Equal(t, KindSpreadClicks, registry.drawKind())
+		}
+	}
+}
+
+func TestKindsAreDrawnInProportionToTheirWeight(t *testing.T) {
+	registry := New(Config{
+		Enabled: true,
+		Kinds:   map[Kind]float64{KindTripleClicks: 9, KindSpreadClicks: 1},
+	}, cptime.NewFixedClock(epoch))
+
+	const draws = 20_000
+	spreads := 0
+	for range draws {
+		if registry.drawKind() == KindSpreadClicks {
+			spreads++
+		}
+	}
+
+	// One in ten, give or take far more than the noise of 20,000 draws.
+	assert.InDelta(t, 0.1, float64(spreads)/draws, 0.02)
+}
+
+func TestKindWeightsThatMakeNoSenseRefuseTheConfig(t *testing.T) {
+	require.NoError(t, Config{Kinds: map[Kind]float64{KindTripleClicks: 4, KindSpreadClicks: 1}}.Validate())
+	require.NoError(t, Config{Kinds: map[Kind]float64{KindTripleClicks: 1, KindSpreadClicks: 0}}.Validate())
+	require.NoError(t, Config{}.Validate())
+
+	assert.ErrorContains(t, Config{Kinds: map[Kind]float64{"quadruple_clicks": 1}}.Validate(), "quadruple_clicks")
+	assert.ErrorContains(t, Config{Kinds: map[Kind]float64{KindSpreadClicks: -1}}.Validate(), "spread_clicks")
+	assert.ErrorContains(t, Config{Kinds: map[Kind]float64{KindTripleClicks: 0}}.Validate(), "weight of 0")
+}
+
 func TestAClaimByTheCallerItWasOfferedToSucceeds(t *testing.T) {
 	registry, clock := newTestRegistry()
 	events := playing(t, registry, "scope-a")
@@ -353,7 +437,7 @@ func TestAClaimByTheCallerItWasOfferedToSucceeds(t *testing.T) {
 	reward, claimed := registry.Claim(offer.Token, "scope-a")
 
 	require.True(t, claimed)
-	assert.Equal(t, KindTripleClicks, reward.Kind)
+	assert.Equal(t, offer.Kind, reward.Kind, "the claim grants what the box said it was")
 	assert.Equal(t, time.Minute, reward.Duration)
 }
 

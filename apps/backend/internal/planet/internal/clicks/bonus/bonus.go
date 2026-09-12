@@ -16,7 +16,15 @@ import (
 
 type Kind string
 
-const KindTripleClicks Kind = "triple_clicks"
+const (
+	KindTripleClicks Kind = "triple_clicks"
+
+	// KindSpreadClicks makes every click take the tiles touching it as well.
+	KindSpreadClicks Kind = "spread_clicks"
+)
+
+// Kinds is every kind this server knows how to grant.
+var Kinds = []Kind{KindTripleClicks, KindSpreadClicks}
 
 type Offer struct {
 	Token string
@@ -56,8 +64,13 @@ type caller struct {
 	outstanding string
 	misses      int
 
-	// When each bonus was granted, for MaxBoostPerHour.
-	grants []time.Time
+	// Each bonus granted, for MaxBoostPerHour.
+	grants []grant
+}
+
+type grant struct {
+	at       time.Time
+	duration time.Duration
 }
 
 func (c *caller) watching() bool {
@@ -205,7 +218,7 @@ func (r *Registry) Claim(token string, scope string) (Reward, bool) {
 	if entry, known := r.callers[scope]; known {
 		entry.outstanding = ""
 		entry.misses = 0
-		entry.grants = append(entry.grants, now)
+		entry.grants = append(entry.grants, grant{at: now, duration: offer.duration})
 
 		// A window after the bonus ends, so a second can never land on a running one.
 		entry.nextOfferAt = now.Add(offer.duration).Add(r.window())
@@ -275,14 +288,16 @@ func (r *Registry) capped(entry *caller, now time.Time) bool {
 	since := now.Add(-time.Hour)
 
 	kept := entry.grants[:0]
-	for _, at := range entry.grants {
-		if at.After(since) {
-			kept = append(kept, at)
+	total := time.Duration(0)
+	for _, g := range entry.grants {
+		if g.at.After(since) {
+			kept = append(kept, g)
+			total += g.duration
 		}
 	}
 	entry.grants = kept
 
-	return time.Duration(len(kept))*r.config.Duration >= r.config.MaxBoostPerHour
+	return total >= r.config.MaxBoostPerHour
 }
 
 func (r *Registry) offer(scope string, entry *caller, now time.Time) {
@@ -291,11 +306,12 @@ func (r *Registry) offer(scope string, entry *caller, now time.Time) {
 		return
 	}
 
+	kind := r.drawKind()
 	offer := Offer{
 		Token:     token,
 		Seed:      randomSeed(),
-		Kind:      KindTripleClicks,
-		Duration:  r.config.Duration,
+		Kind:      kind,
+		Duration:  r.config.durationOf(kind),
 		ExpiresAt: now.Add(r.config.OfferTTL),
 	}
 
@@ -358,6 +374,39 @@ func (r *Registry) window() time.Duration {
 	}
 
 	return r.config.MinInterval + time.Duration(n.Int64())
+}
+
+// drawKind picks a kind with a chance of its weight over the sum of the weights.
+// It walks Kinds rather than the map, so the same draw always lands on the same
+// kind.
+func (r *Registry) drawKind() Kind {
+	total := 0.0
+	for _, kind := range Kinds {
+		total += r.config.Kinds[kind]
+	}
+
+	const resolution = 1 << 53
+	n, err := rand.Int(rand.Reader, big.NewInt(resolution))
+	if err != nil {
+		return KindTripleClicks
+	}
+
+	left := float64(n.Int64()) / resolution * total
+	last := KindTripleClicks
+	for _, kind := range Kinds {
+		weight := r.config.Kinds[kind]
+		if weight <= 0 {
+			continue
+		}
+		if left < weight {
+			return kind
+		}
+		left -= weight
+		last = kind
+	}
+
+	// Only float rounding reaches here; it belongs to the last kind with a weight.
+	return last
 }
 
 func newToken() (string, error) {
