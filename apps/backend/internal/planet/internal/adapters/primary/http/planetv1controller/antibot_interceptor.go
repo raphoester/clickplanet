@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"sort"
-	"strings"
 	"time"
 
 	"connectrpc.com/connect"
@@ -161,10 +159,13 @@ func NewAntiBotObserver(
 
 		// Every watchdog goes in the line, the quiet ones included: what did not
 		// fire is half of reading a ban that did.
+		// Every watchdog, not only the ones that argued for the ban: what did not
+		// fire is half of reading a line that did. How a reading words itself is
+		// antibot's; the attribute name and the message are ours.
 		for _, opinion := range report.Opinions {
-			fields = append(fields, slog.String(opinion.Watchdog, formatOpinion(opinion)))
+			fields = append(fields, slog.String(opinion.Watchdog, opinion.String()))
 
-			if opinion.Verdict != antibot.Clear {
+			if opinion.Fired() {
 				flags.WithLabelValues(opinion.Watchdog).Inc()
 			}
 		}
@@ -173,22 +174,4 @@ func NewAntiBotObserver(
 	}
 
 	return antibot.Observer{OnReaction: onReaction, OnFlag: onFlag}, nil
-}
-
-func formatOpinion(opinion antibot.Opinion) string {
-	if opinion.Verdict == antibot.Clear {
-		return antibot.Clear.String()
-	}
-
-	parts := make([]string, 0, len(opinion.Evidence.Fields)+1)
-	parts = append(parts, fmt.Sprintf("%s %s", opinion.Verdict, opinion.Evidence.Rule))
-
-	fields := opinion.Evidence.Fields
-	sort.SliceStable(fields, func(i, j int) bool { return fields[i].Key < fields[j].Key })
-
-	for _, field := range fields {
-		parts = append(parts, fmt.Sprintf("%s=%v", field.Key, field.Value))
-	}
-
-	return strings.Join(parts, " ")
 }

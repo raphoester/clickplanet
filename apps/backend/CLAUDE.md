@@ -76,7 +76,7 @@ root package**:
 | `planet` | `Config`, `NewModule` |
 | `chat` | `Config`, `NewModule` |
 | `session` | `Config`, `NewModule` |
-| `antibot` | `Config`, `Observer`, `Guard`, `New` |
+| `antibot` | `Config`, `Observer`, `Guard`, `New`, `Description`, `Click`, `Report` |
 
 That holds for `cmd/api` too: the composition root lists modules and cannot
 reach a domain type, a storage adapter or a controller even if it wanted to. A
@@ -312,16 +312,36 @@ What is left after sessions. A player who solves Turnstile in a real browser and
 then runs a userscript holds a genuine session, and no address- or token-based
 check can tell them from a player. The signal that survives is **behavioural**.
 
-**The whole of its API is four names**, and `internal/antibot/antibot.go` is all
-of it: `Config`, `Observer`, `Guard` and `New`. A caller hands over the block and
-the two hooks it wants findings reported through, and gets back a `Guard` — nil
-when the block is off — that answers `Inspect`, `Committed`, `Flagged`, `Run` and
-`Describe`. It is **one** `Run` whatever the file turned on: how many sweepers
-there are is this package's business, which is why `planet` registers one runner
-rather than six. Everything else is under `antibot/internal/`, so the click edge
+**The whole of its API is seven names**, and `internal/antibot/antibot.go` is all
+of it: `Config`, `Observer`, `Guard`, `New` and `Description` to wire it, plus
+`Click` and `Report` — the two types a caller writes down, because it builds one
+and is handed the other. A caller hands over the block and the two hooks it wants
+findings reported through, and gets back a `Guard` — nil when the block is off —
+that answers `Inspect`, `Committed`, `Flagged`, `Run` and `Describe`. It is
+**one** `Run` whatever the file turned on: how many sweepers there are is this
+package's business, which is why `planet` registers one runner rather than six.
+
+**A caller is never taught this package's vocabulary.** The edge does two things
+with a watchdog's opinion — count it if it argued for the ban, and put it in the
+log line — so an `Opinion` answers `Fired()` and renders itself with `String()`,
+and `Verdict`, `Evidence`, `Field` and the `clear`/`suspect`/`certain` ladder stay
+inside. The alternative shipped briefly and is what this rule is written against:
+the edge held a `formatOpinion` that compared against `antibot.Clear`, reached
+through `Evidence.Rule` and `Evidence.Fields`, and decided their ordering —
+sixteen lines of antibot's business in the clicks package, and four exported
+names to support it. **The edge owns the message and the attribute names; how one
+reading words itself is this package's.**
+
+The config blocks are the same bargain the rest of the backend makes — the
+settings are published because they are in the file, and koanf fills them by
+reflection, so a caller sets `config.Retaker.Detector.MaxSpread` without ever
+naming a type.
+
+Everything else is under `antibot/internal/`, so the click edge
 could not assemble a jury out of watchdogs even if it wanted to. `internal/planet/antibot.go`
 is the whole of the clicks side, and what is left in it is genuinely the edge's:
-the metric names, the wording of the ban line, and where in the chain it sits.
+the metric names, the message and attribute names of the ban line, and where
+in the chain it sits.
 
 **Detection and consequence are separate, and the consequence is the boring
 half.** `antibot/internal/shadowban` takes a scope and a clock and runs a ban. It knows
