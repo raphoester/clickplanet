@@ -1,5 +1,5 @@
 import {describe, expect, it, vi} from "vitest"
-import {asBonusError, bindingsOf, bombOf, catchOf, offerOf, PlanetBackend, updateOf} from "./planetBackend.ts"
+import {asBonusError, bindingsOf, bombOf, catchOf, enclosureOf, offerOf, PlanetBackend, updateOf} from "./planetBackend.ts"
 import {Code, ConnectError} from "@connectrpc/connect"
 import {
     BombDropped,
@@ -11,6 +11,7 @@ import {
     GlobePoint,
     Heartbeat,
     PlanetEvent,
+    TilesEnclosed,
     TileUpdate,
 } from "../gen/grpc/planet/v1/planet_pb.ts"
 import {BonusLostError, RateLimitedError, VPNBlockedError} from "./backend.ts"
@@ -468,6 +469,22 @@ describe("PlanetBackend click budget", () => {
         }
     })
 
+    it("reads how many shapes an enclose claim is worth, and how big", async () => {
+        const claimBonus = vi.fn().mockResolvedValue({
+            budget: budget(10),
+            kind: BonusKind.ENCLOSE_CLICKS,
+            durationSeconds: 30,
+            enclosures: 3,
+            enclosureMaxTiles: 10,
+        })
+        const client = {...budgetClient(vi.fn()) as object, claimBonus} as never
+        const backend = new PlanetBackend(client, 1_000)
+
+        await expect(backend.claimBonus("t", "fr"))
+            .resolves.toEqual({kind: "encloseClicks", seconds: 30, shapes: 3, maxTiles: 10})
+        backend.close()
+    })
+
     it("stops reporting once unsubscribed", async () => {
         const click = vi.fn().mockResolvedValue({budget: budget(6)})
         const backend = new PlanetBackend(budgetClient(click), 1_000)
@@ -535,6 +552,10 @@ describe("offerOf", () => {
             .toEqual({kind: "bomb", seconds: 30, radius: 0})
     })
 
+    it("reads an enclose box as one", () => {
+        expect(offerOf(offered({kind: BonusKind.ENCLOSE_CLICKS}))?.reward.kind).toBe("encloseClicks")
+    })
+
     it("reads a spread box as one", () => {
         expect(offerOf(offered({kind: BonusKind.SPREAD_CLICKS}))?.reward)
             .toEqual({kind: "spreadClicks", seconds: 60})
@@ -561,6 +582,40 @@ describe("catchOf", () => {
 
     it("drops everything that is not a catch", () => {
         expect(catchOf(new PlanetEvent({event: {case: "heartbeat", value: new Heartbeat()}}))).toBeUndefined()
+    })
+})
+
+describe("enclosureOf", () => {
+    const enclosed = (fields: Partial<TilesEnclosed> = {}) => new PlanetEvent({
+        event: {
+            case: "tilesEnclosed",
+            value: new TilesEnclosed({
+                countryId: "jp",
+                closingTileId: 4,
+                wallTileIds: [4, 5, 6],
+                filledTileIds: [9, 10],
+                ...fields,
+            }),
+        },
+    })
+
+    it("reads the shape and what it took", () => {
+        expect(enclosureOf(enclosed())).toEqual({
+            countryId: "jp",
+            closingTile: 4,
+            wall: [4, 5, 6],
+            filled: [9, 10],
+            yours: undefined,
+        })
+    })
+
+    it("says how many shapes are left only when the shape is this client's", () => {
+        expect(enclosureOf(enclosed({yours: true, enclosuresLeft: 0}))?.yours).toEqual({shapesLeft: 0})
+        expect(enclosureOf(enclosed({yours: false}))?.yours).toBeUndefined()
+    })
+
+    it("drops everything that is not a closed shape", () => {
+        expect(enclosureOf(new PlanetEvent({event: {case: "heartbeat", value: new Heartbeat()}}))).toBeUndefined()
     })
 })
 

@@ -115,6 +115,26 @@ func TestASinkFramesABlastWithEveryTileItCleared(t *testing.T) {
 	assert.InDelta(t, 1, dropped.GetPoint().GetZ(), 1e-9)
 }
 
+func TestASinkFramesAClosedShape(t *testing.T) {
+	stream := &recorder{}
+
+	require.NoError(t, listen_for_events_handler.NewSink(stream).Send(listen_for_events.Event{
+		Enclosed: &bonus.Enclosed{
+			CountryID: "jp", ClosingTile: 4, Wall: []uint32{4, 5, 6}, Filled: []uint32{9, 10},
+			Yours: true, Left: 2,
+		},
+	}))
+
+	enclosed := stream.sent[0].GetTilesEnclosed()
+	require.NotNil(t, enclosed)
+	assert.Equal(t, "jp", enclosed.GetCountryId())
+	assert.Equal(t, uint32(4), enclosed.GetClosingTileId())
+	assert.Equal(t, []uint32{4, 5, 6}, enclosed.GetWallTileIds())
+	assert.Equal(t, []uint32{9, 10}, enclosed.GetFilledTileIds())
+	assert.True(t, enclosed.GetYours())
+	assert.Equal(t, uint32(2), enclosed.GetEnclosuresLeft())
+}
+
 func TestAHeartbeatStillWinsOverEverything(t *testing.T) {
 	stream := &recorder{}
 

@@ -377,9 +377,9 @@ The signature is checked **before** the expiry, in constant time, so a forger le
 ### Bonus boxes (`internal/planet/internal/clicks/bonus/`)
 
 A question-mark box flies past the planet every so often; whoever catches it
-gets one of three bonuses. Each box draws its kind from `bonus.kinds`, a weight
+gets one of four bonuses. Each box draws its kind from `bonus.kinds`, a weight
 per kind — a kind's chance is its weight over the sum of the weights, so the
-strong ones can be made rare (production runs 5 : 2 : 1):
+strong ones can be made rare (production runs 5 : 2 : 1 : 2):
 
 - **`triple_clicks`** — the allowance is multiplied by `bonus.multiplier` for
   `bonus.duration`. See [What a bonus does to the bucket](#what-a-bonus-does-to-the-bucket).
@@ -388,6 +388,10 @@ strong ones can be made rare (production runs 5 : 2 : 1):
 - **`bomb`** — one bomb, to be dropped within `bonus.bombDuration` (30s). It
   clears a circle of `bonus.bombRings` tile spacings around where it lands,
   whoever holds the tiles. See [What a bomb does](#what-a-bomb-does).
+- **`enclose_clicks`** — a click that closes a shape of the caller's own tiles
+  also takes the tiles inside it: `bonus.encloseShapes` shapes (3), each of at
+  most `bonus.encloseMaxTiles` tiles (15), within `bonus.encloseDuration` (30s).
+  See [What an enclose does to a click](#what-an-enclose-does-to-a-click).
 
 Off by
 default — `bonus.enabled` false offers nothing and answers `ClaimBonus` with
@@ -550,6 +554,47 @@ reasons it is not one `TileUpdate` per tile:
 It is not throttled: holding a bomb the server granted is the gate.
 `prom_drop_bomb` counts `bonus_bombs_dropped_total{outcome=land|sea|refused}`
 and `bonus_bomb_tiles_cleared_total`.
+
+#### What an enclose does to a click
+
+**It looks for a small inside, never for the outline.** On a sphere every loop
+cuts the planet in two, and both halves are inside it. So after an accepted
+click, `click/enclose_click` floods out from each neighbour of the clicked tile
+that is not the caller's, over tiles that are not the caller's. A flood that
+runs out before passing `encloseMaxTiles` found a pocket; one that passes it is
+open ground or too big, and takes nothing. The limit is therefore also what
+tells closed from open — there is no second rule.
+
+- **A pocket is walled by the caller's tiles alone.** A flood that reaches a tile
+  with fewer than six neighbours has reached the edge of the land — a coast, a
+  lake — and is open. Cutting off the tip of a peninsula is not a closed shape.
+  The twelve lattice corners have five neighbours and read as an edge too.
+- **A shape too big takes nothing.** Taking part of it would mean choosing which
+  part, and there is no good answer.
+- **A triangle costs nothing**: three tiles that touch each other have no inside,
+  so the flood finds open ground and no shape is spent.
+- **Only a click that takes a tile closes a shape.** A click on a tile the caller
+  already held changes nothing, so it closes nothing: a shape finished before the
+  bonus stays as it is. The owner is read before the rule writes, since afterwards
+  the map no longer says whether the click took the tile.
+- **Each pocket costs one shape**, spent through `bonus.Enclosures.Spend`, which
+  settles two clicks racing for the last one. A click that closes two shapes with
+  one left takes the first. A bonus with no shape left is over before its time.
+
+It sits beside `spread_click`, against the rule and inside everything else, so
+it is one click to the throttle and to `prom_click`, a shadow-banned click never
+reaches it, and the tiles it takes are not reported to the antibot jury. Each
+tile taken is an ordinary `Set`. The search holds no lock across the map, so a
+tile can change under it; the worst that does is fill a pocket that opened a
+moment ago.
+
+**Then it tells the planet, with `tiles_enclosed`.** The tiles already travel as
+tile updates, but a patch flipping at once says nothing about why, so every
+client is sent the shape — closing tile, wall, and filled tiles nearest the
+closing tile first — to animate. `Registry.PublishEnclosed` sends it after the
+tiles are set, to every caller. The caller who closed it gets a copy of their own
+with `yours` and `enclosures_left`, which is how the meter counts down; nobody
+else learns how many shapes somebody has left.
 
 #### What a bonus does to the bucket
 

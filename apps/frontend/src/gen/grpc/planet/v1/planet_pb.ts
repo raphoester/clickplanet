@@ -39,6 +39,15 @@ export enum BonusKind {
    * @generated from enum value: BONUS_KIND_BOMB = 3;
    */
   BOMB = 3,
+
+  /**
+   * A click that closes a shape of the player's own tiles also takes the tiles
+   * inside it, a few shapes at most. The server finds the shape, so a client
+   * never names what it gets.
+   *
+   * @generated from enum value: BONUS_KIND_ENCLOSE_CLICKS = 4;
+   */
+  ENCLOSE_CLICKS = 4,
 }
 // Retrieve enum metadata with: proto3.getEnumType(BonusKind)
 proto3.util.setEnumType(BonusKind, "planet.v1.BonusKind", [
@@ -46,6 +55,7 @@ proto3.util.setEnumType(BonusKind, "planet.v1.BonusKind", [
   { no: 1, name: "BONUS_KIND_TRIPLE_CLICKS" },
   { no: 2, name: "BONUS_KIND_SPREAD_CLICKS" },
   { no: 3, name: "BONUS_KIND_BOMB" },
+  { no: 4, name: "BONUS_KIND_ENCLOSE_CLICKS" },
 ]);
 
 /**
@@ -507,6 +517,16 @@ export class PlanetEvent extends Message<PlanetEvent> {
      */
     value: BombDropped;
     case: "bombDropped";
+  } | {
+    /**
+     * Broadcast to everyone: a player closed a shape and took what was inside.
+     * The tiles themselves still arrive as tile updates; this is what lets every
+     * client show why they changed.
+     *
+     * @generated from field: planet.v1.TilesEnclosed tiles_enclosed = 6;
+     */
+    value: TilesEnclosed;
+    case: "tilesEnclosed";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<PlanetEvent>) {
@@ -522,6 +542,7 @@ export class PlanetEvent extends Message<PlanetEvent> {
     { no: 3, name: "bonus_offered", kind: "message", T: BonusOffered, oneof: "event" },
     { no: 4, name: "bonus_taken", kind: "message", T: BonusTaken, oneof: "event" },
     { no: 5, name: "bomb_dropped", kind: "message", T: BombDropped, oneof: "event" },
+    { no: 6, name: "tiles_enclosed", kind: "message", T: TilesEnclosed, oneof: "event" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PlanetEvent {
@@ -733,6 +754,19 @@ export class ClaimBonusResponse extends Message<ClaimBonusResponse> {
    */
   blastRadius = 0;
 
+  /**
+   * For an enclose bonus only: how many shapes it may close, and the most tiles
+   * one shape may hold. Zero for every other kind.
+   *
+   * @generated from field: uint32 enclosures = 5;
+   */
+  enclosures = 0;
+
+  /**
+   * @generated from field: uint32 enclosure_max_tiles = 6;
+   */
+  enclosureMaxTiles = 0;
+
   constructor(data?: PartialMessage<ClaimBonusResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -745,6 +779,8 @@ export class ClaimBonusResponse extends Message<ClaimBonusResponse> {
     { no: 2, name: "kind", kind: "enum", T: proto3.getEnumType(BonusKind) },
     { no: 3, name: "duration_seconds", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 4, name: "blast_radius", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 5, name: "enclosures", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 6, name: "enclosure_max_tiles", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ClaimBonusResponse {
@@ -965,6 +1001,84 @@ export class BombDropped extends Message<BombDropped> {
 
   static equals(a: BombDropped | PlainMessage<BombDropped> | undefined, b: BombDropped | PlainMessage<BombDropped> | undefined): boolean {
     return proto3.util.equals(BombDropped, a, b);
+  }
+}
+
+/**
+ * A shape closed by an enclose bonus, and what it took.
+ *
+ * @generated from message planet.v1.TilesEnclosed
+ */
+export class TilesEnclosed extends Message<TilesEnclosed> {
+  /**
+   * @generated from field: string country_id = 1;
+   */
+  countryId = "";
+
+  /**
+   * The click that closed the shape. It is one of the wall tiles.
+   *
+   * @generated from field: uint32 closing_tile_id = 2;
+   */
+  closingTileId = 0;
+
+  /**
+   * The player's tiles that touch the inside: the shape's outline.
+   *
+   * @generated from field: repeated uint32 wall_tile_ids = 3;
+   */
+  wallTileIds: number[] = [];
+
+  /**
+   * The tiles taken, nearest the closing tile first.
+   *
+   * @generated from field: repeated uint32 filled_tile_ids = 4;
+   */
+  filledTileIds: number[] = [];
+
+  /**
+   * Set only on the stream of the caller who closed it, with how many shapes
+   * their bonus may still close.
+   *
+   * @generated from field: bool yours = 5;
+   */
+  yours = false;
+
+  /**
+   * @generated from field: uint32 enclosures_left = 6;
+   */
+  enclosuresLeft = 0;
+
+  constructor(data?: PartialMessage<TilesEnclosed>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.TilesEnclosed";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "closing_tile_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "wall_tile_ids", kind: "scalar", T: 13 /* ScalarType.UINT32 */, repeated: true },
+    { no: 4, name: "filled_tile_ids", kind: "scalar", T: 13 /* ScalarType.UINT32 */, repeated: true },
+    { no: 5, name: "yours", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 6, name: "enclosures_left", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TilesEnclosed {
+    return new TilesEnclosed().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): TilesEnclosed {
+    return new TilesEnclosed().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): TilesEnclosed {
+    return new TilesEnclosed().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: TilesEnclosed | PlainMessage<TilesEnclosed> | undefined, b: TilesEnclosed | PlainMessage<TilesEnclosed> | undefined): boolean {
+    return proto3.util.equals(TilesEnclosed, a, b);
   }
 }
 

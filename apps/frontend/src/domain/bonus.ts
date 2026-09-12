@@ -6,7 +6,8 @@
  * neither owns it. **The client never decides a reward**: the server grants it
  * and says what it granted, and this is the shape that answer arrives in.
  */
-export type BonusReward = {
+export type BonusReward =
+    | {
     /**
      * - `tripleClicks`: the click allowance is multiplied.
      * - `spreadClicks`: every click also takes the tiles touching the one
@@ -24,6 +25,19 @@ export type BonusReward = {
     kind: "bomb"
     seconds: number
     radius: number
+}
+    | {
+    /**
+     * A click that closes a shape of the player's own tiles also takes the
+     * tiles inside it. The server finds the shape; this only says how many
+     * shapes the bonus may close and how big each may be.
+     */
+    kind: "encloseClicks"
+    seconds: number
+    /** How many shapes are left to close. Counts down as the player closes them. */
+    shapes: number
+    /** The most tiles one shape may hold. */
+    maxTiles: number
 }
 
 /**
@@ -46,6 +60,7 @@ export function multiplierOf(reward: BonusReward): number {
             return 3
         case "spreadClicks":
         case "bomb":
+        case "encloseClicks":
             return 1
     }
 }
@@ -81,7 +96,28 @@ export function describeReward(reward: BonusReward): {
                 detail: `Press and hold anywhere on the planet in the next ${reward.seconds} seconds to drop it`,
                 badge: "💣",
             }
+        case "encloseClicks":
+            return {
+                title: "Enclose",
+                detail: `Close a shape of your tiles to take what is inside it, up to ${reward.maxTiles} tiles. ${shapesWord(reward.shapes)} in ${reward.seconds} seconds`,
+                badge: `⬡${reward.shapes}`,
+            }
     }
+}
+
+function shapesWord(shapes: number): string {
+    return shapes === 1 ? "1 shape" : `${shapes} shapes`
+}
+
+/**
+ * The bonus once the player has closed a shape with it: the server said how many
+ * are left, and a bonus with none left is over whatever its clock says.
+ */
+export function afterShapeClosed(bonus: ActiveBonus, shapesLeft: number): ActiveBonus | undefined {
+    if (bonus.reward.kind !== "encloseClicks") return bonus
+    if (shapesLeft <= 0) return undefined
+
+    return {...bonus, reward: {...bonus.reward, shapes: shapesLeft}}
 }
 
 /**

@@ -66,6 +66,20 @@ func TestABombClaimSaysHowWideTheBlastIs(t *testing.T) {
 	assert.InDelta(t, 0.03, msg.GetBlastRadius(), 1e-9)
 }
 
+func TestAnEncloseClaimSaysHowManyShapesAndHowBig(t *testing.T) {
+	msg, err := claim(t, &stubUseCase{out: claim_bonus.Out{
+		Kind:              bonus.KindEncloseClicks,
+		Duration:          30 * time.Second,
+		Enclosures:        3,
+		EnclosureMaxTiles: 10,
+	}})
+	require.NoError(t, err)
+
+	assert.Equal(t, planetv1.BonusKind_BONUS_KIND_ENCLOSE_CLICKS, msg.GetKind())
+	assert.Equal(t, uint32(3), msg.GetEnclosures())
+	assert.Equal(t, uint32(10), msg.GetEnclosureMaxTiles())
+}
+
 func TestTheTokenAndCountryReachTheUseCase(t *testing.T) {
 	useCase := &stubUseCase{}
 

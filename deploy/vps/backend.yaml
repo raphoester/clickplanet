@@ -139,12 +139,14 @@ bonus:
   missRetry: 7s
 
   # A weight per kind: a kind's chance is its weight over the sum, so one box in
-  # eight is a bomb. A frontend too old to know a kind skips that box, which the
-  # schedule reads as a miss - so this can ship first.
+  # ten is a bomb, and one in five each a spread or an enclose. A frontend too old
+  # to know a kind skips that box, which the schedule reads as a miss - so this
+  # can ship first.
   kinds:
     triple_clicks: 5
     spread_clicks: 2
     bomb: 1
+    enclose_clicks: 2
 
   # Has to outlast the flight the client draws, or a box caught on its last
   # frame is refused.
@@ -163,6 +165,12 @@ bonus:
   # of the circle it clears, in tile spacings (8 is ~230 tiles inland).
   bombDuration: 30s
   bombRings: 8
+
+  # enclose_clicks: close a shape of your tiles and take the tiles inside it.
+  # A few shapes, a short time: it rewards spotting a shape that is nearly done.
+  encloseDuration: 30s
+  encloseShapes: 3
+  encloseMaxTiles: 15
 
   # A tab left open overnight is not playing, and a box sent to it is one nobody
   # catches. Until the frontend ships, this is every caller.

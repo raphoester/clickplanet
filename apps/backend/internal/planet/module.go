@@ -34,6 +34,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/claim_bonus/prom_claim_bonus"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click/bonus_click"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click/enclose_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click/prom_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click/spread_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click/throttle_click"
@@ -87,6 +88,7 @@ func build(config Config, props cpbootstrap.Props) error {
 	spreads := bonus.NewSpreads(clock)
 	bombs := bonus.NewBombs(clock)
 	bombRules := bombRulesOf(config.Bonus, geography)
+	enclosures := bonus.NewEnclosures(clock)
 
 	clickUseCase, err := clickChain(config, clickParts{
 		tilesChecker: tilesChecker,
@@ -94,6 +96,7 @@ func build(config Config, props cpbootstrap.Props) error {
 		limiter:      limiter,
 		bonuses:      bonuses,
 		spreads:      spreads,
+		enclosures:   enclosures,
 		geography:    geography,
 	}, props)
 	if err != nil {
@@ -105,7 +108,7 @@ func build(config Config, props cpbootstrap.Props) error {
 		return err
 	}
 
-	claimBonus, err := claimBonusUseCase(bonuses, limiter, spreads, bombs, bombRules.Radius, clock, props)
+	claimBonus, err := claimBonusUseCase(bonuses, limiter, spreads, bombs, bombRules.Radius, enclosures, clock, props)
 	if err != nil {
 		return err
 	}
@@ -164,20 +167,23 @@ type clickParts struct {
 	limiter      *cpratelimit.Limiter
 	bonuses      *bonus.Registry
 	spreads      *bonus.Spreads
+	enclosures   *bonus.Enclosures
 	geography    *clicks.Geography
 }
 
 // clickChain wraps the rule in the policies that guard it, innermost first:
-// spread it, count it, judge it, then charge it. The throttle is outermost so
+// spread or enclose it, count it, judge it, then charge it. The throttle is outermost so
 // a shadow-banned caller keeps hitting the same 429s everyone else does — a
 // caller that is never throttled again has been told it is banned.
 func clickChain(config Config, parts clickParts, props cpbootstrap.Props) (click.IUseCase, error) {
 	// Right against the rule, inside the shadow ban: a dropped click never
-	// reaches the rule, so it spreads nothing either. It is counted as one click
-	// however many tiles it took.
+	// reaches the rule, so it spreads and encloses nothing either. It is counted
+	// as one click however many tiles it took.
 	var rule click.IUseCase = click.New(parts.tilesChecker, parts.tilesStorage, cpcountries.New())
 	if parts.bonuses != nil {
 		rule = spread_click.New(rule, parts.spreads, parts.geography, parts.tilesStorage)
+		rule = enclose_click.New(rule, parts.enclosures, parts.geography,
+			parts.tilesStorage, parts.tilesStorage, parts.bonuses)
 	}
 
 	useCase, err := prom_click.New(rule, props.Metrics)
@@ -237,6 +243,7 @@ func claimBonusUseCase(
 	spreads *bonus.Spreads,
 	bombs *bonus.Bombs,
 	blastRadius float64,
+	enclosures *bonus.Enclosures,
 	clock cptime.Clock,
 	props cpbootstrap.Props,
 ) (claim_bonus_handler.UseCase, error) {
@@ -244,7 +251,7 @@ func claimBonusUseCase(
 		return nil, nil //nolint:nilnil // nil means "boxes are off"; the handler answers Unimplemented.
 	}
 
-	claim := claim_bonus.New(registry, limiter, spreads, bombs, blastRadius, clock)
+	claim := claim_bonus.New(registry, limiter, spreads, bombs, blastRadius, enclosures, clock)
 	useCase, counters, err := prom_claim_bonus.New(claim, props.Metrics)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create the bonus claim use case: %w", err)

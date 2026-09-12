@@ -1,5 +1,5 @@
 import {describe, expect, it} from "vitest"
-import {ActiveBonus, describeReward, hasLapsed, multiplierOf, secondsLeft} from "./bonus.ts"
+import {ActiveBonus, afterShapeClosed, describeReward, hasLapsed, multiplierOf, secondsLeft} from "./bonus.ts"
 
 const REWARD = {kind: "tripleClicks", seconds: 60} as const
 
@@ -65,6 +65,42 @@ describe("a bomb", () => {
         expect(title).toBe("Bomb")
         expect(detail).toContain("30")
         expect(badge.length).toBeLessThanOrEqual(3)
+    })
+})
+
+describe("an enclose reward", () => {
+    const ENCLOSE = {kind: "encloseClicks", seconds: 30, shapes: 3, maxTiles: 10} as const
+
+    it("multiplies nothing, so the meter keeps the server's plain allowance", () => {
+        expect(multiplierOf(ENCLOSE)).toBe(1)
+    })
+
+    it("says what it does, how many shapes, how big and for how long", () => {
+        const {title, detail, badge} = describeReward(ENCLOSE)
+
+        expect(title).toBe("Enclose")
+        expect(detail).toContain("3 shapes")
+        expect(detail).toContain("10 tiles")
+        expect(detail).toContain("30 seconds")
+        expect(badge.length).toBeLessThanOrEqual(3)
+    })
+
+    it("counts the shapes left down on the badge", () => {
+        const running: ActiveBonus = {reward: ENCLOSE, endsAt: 30_000}
+
+        const after = afterShapeClosed(running, 2)
+
+        expect(after?.reward).toMatchObject({shapes: 2})
+        expect(after?.endsAt).toBe(30_000)
+        expect(describeReward(after!.reward).badge).toContain("2")
+    })
+
+    it("is over once its last shape is closed, whatever the clock says", () => {
+        expect(afterShapeClosed({reward: ENCLOSE, endsAt: 30_000}, 0)).toBeUndefined()
+    })
+
+    it("leaves any other bonus alone", () => {
+        expect(afterShapeClosed(RUNNING, 0)).toBe(RUNNING)
     })
 })
 

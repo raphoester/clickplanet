@@ -34,6 +34,7 @@ import {createStarfield} from "./stars.ts";
 import {MAX_ZOOM, MIN_ZOOM, RESTING_ZOOM} from "./zoom.ts";
 import {createBonusBox} from "./bonusBox.ts";
 import {createBonusPointer} from "./bonusPointer.ts";
+import {createEnclosureEffects} from "./enclosureEffect.ts";
 import {BonusReward} from "../../domain/bonus.ts";
 import {now as monotonicNow} from "../../backends/clickBudget.ts";
 import {BlastUniforms, blastUniforms, createBlasts} from "./blasts.ts";
@@ -86,6 +87,8 @@ export type GlobeOptions = {
     onBonusTaken: (taken: BonusCatch) => void
     /** What this client won, once the server has agreed to it. */
     onBonusWon: (reward: BonusReward) => void
+    /** This client closed a shape with its enclose bonus, which has this many left. */
+    onShapeClosed: (shapesLeft: number) => void
     /** Absent for a backend with no bonus feed, which draws no boxes at all. */
     bonusListener?: BonusListener
     /** Absent for a backend with no bombs: a bomb won is then never armed. */
@@ -127,6 +130,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         onSessionUnavailable,
         onBonusTaken,
         onBonusWon,
+        onShapeClosed,
         bonusListener,
         bomber,
         onBombDropped,
@@ -181,6 +185,11 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     // zoomed player never learns one was theirs.
     const bonusPointer = createBonusPointer(eventTarget)
 
+    // Every shape anyone closes, drawn on every screen: the tiles alone flip
+    // with no reason given.
+    const enclosures = createEnclosureEffects(geometryData.positions)
+    scene.add(enclosures.object)
+
     // The box on screen and the token that redeems it, held together: a box
     // caught is only worth something with the token it arrived with.
     let offered: BonusOffer | undefined
@@ -196,9 +205,14 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             bonusBox.spawn(offer.seed, (offer.expiresAt - CLAIM_MARGIN_MS) / 1000)
         },
         onTaken: (taken) => onBonusTaken(taken),
+        onEnclosed: (enclosure) => {
+            enclosures.play(enclosure)
+            if (enclosure.yours) onShapeClosed(enclosure.yours.shapesLeft)
+        },
     })
 
     const driveBonusBox = (seconds: number) => {
+        enclosures.update(seconds, camera, renderer.domElement.height)
         bonusBox.update(seconds, camera)
         bonusPointer.update(bonusBox.flying ? bonusBox.object.position : undefined, camera)
     }
@@ -553,6 +567,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             field.dispose()
             territories.dispose()
             bonusBox.dispose()
+            enclosures.dispose()
 
             cleanup()
         }

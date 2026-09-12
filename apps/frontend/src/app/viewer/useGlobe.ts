@@ -4,7 +4,7 @@ import {CapturedFrame} from './capture.ts';
 import {Country} from '../../domain/countries.ts';
 import {OwnershipsGetter, TileClicker, UpdatesListener} from '../../backends/backend.ts';
 import {useLeaderboardFeed} from './useLeaderboardFeed.ts';
-import {ActiveBonus, BonusReward} from '../../domain/bonus.ts';
+import {ActiveBonus, afterShapeClosed, BonusReward} from '../../domain/bonus.ts';
 import {BombDrop, Bomber, BonusCatch, BonusListener} from '../../backends/backend.ts';
 import {now} from '../../backends/clickBudget.ts';
 
@@ -72,6 +72,12 @@ export function useGlobe(options: UseGlobeOptions) {
         setBonus({reward, endsAt: now() + reward.seconds * 1000})
     }, [])
 
+    // The server says how many shapes are left each time one closes, and an
+    // enclose bonus with none left is over before its clock is.
+    const closeShape = useCallback((shapesLeft: number) => {
+        setBonus((running) => running && afterShapeClosed(running, shapesLeft))
+    }, [])
+
     // The bonus takes itself off, so nothing has to remember to. A second box
     // caught mid-bonus replaces the whole thing, and this effect re-runs with
     // the new deadline rather than leaving the old timer to cut it short.
@@ -107,6 +113,7 @@ export function useGlobe(options: UseGlobeOptions) {
             onSessionUnavailable: () => setSessionUnavailable(true),
             onBonusWon: takeBonus,
             onBonusTaken: recordCatch,
+            onShapeClosed: closeShape,
             bonusListener,
             bomber,
             onBombDropped: recordBomb,
@@ -135,7 +142,7 @@ export function useGlobe(options: UseGlobeOptions) {
             globeRef.current?.dispose()
             globeRef.current = null
         }
-    }, [container, tileClicker, ownershipsGetter, updatesListener, bonusListener, bomber, recordLeaderboard, takeBonus, recordCatch, recordBomb, spendBomb])
+    }, [container, tileClicker, ownershipsGetter, updatesListener, bonusListener, bomber, recordLeaderboard, takeBonus, recordCatch, recordBomb, spendBomb, closeShape])
 
     useEffect(() => {
         initialCountry.current = country

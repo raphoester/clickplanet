@@ -44,10 +44,12 @@ func (h ClaimBonusHandler) ClaimBonus(
 	}
 
 	return connect.NewResponse(&planetv1.ClaimBonusResponse{
-		Budget:          clickbudget.Encode(out.Budget),
-		Kind:            EncodeKind(out.Kind),
-		DurationSeconds: uint32(out.Duration / time.Second),
-		BlastRadius:     out.BlastRadius,
+		Budget:            clickbudget.Encode(out.Budget),
+		Kind:              EncodeKind(out.Kind),
+		DurationSeconds:   uint32(out.Duration / time.Second),
+		Enclosures:        uint32(out.Enclosures),
+		EnclosureMaxTiles: uint32(out.EnclosureMaxTiles),
+		BlastRadius:       out.BlastRadius,
 	}), nil
 }
 
@@ -59,6 +61,8 @@ func EncodeKind(kind bonus.Kind) planetv1.BonusKind {
 		return planetv1.BonusKind_BONUS_KIND_SPREAD_CLICKS
 	case bonus.KindBomb:
 		return planetv1.BonusKind_BONUS_KIND_BOMB
+	case bonus.KindEncloseClicks:
+		return planetv1.BonusKind_BONUS_KIND_ENCLOSE_CLICKS
 	}
 
 	return planetv1.BonusKind_BONUS_KIND_UNSPECIFIED
