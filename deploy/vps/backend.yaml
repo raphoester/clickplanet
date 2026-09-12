@@ -131,11 +131,11 @@ bonus:
 
   # Per caller, not per server. A single ticker made the rate each player saw
   # 1/(interval x players), so the feature got rarer the busier the game was.
-  minInterval: 90s
-  maxInterval: 210s
+  minInterval: 45s
+  maxInterval: 105s
 
   # One miss is retried sooner; a second in a row waits the ordinary window.
-  missRetry: 45s
+  missRetry: 20s
 
   # Has to outlast the flight the client draws, or a box caught on its last
   # frame is refused.
