@@ -179,6 +179,26 @@ func TestSpacingIsTheMeanArcBetweenTouchingTiles(t *testing.T) {
 	assert.InDelta(t, 0.1, equatorRow(t).Spacing(), 1e-6)
 }
 
+func TestWithinIsACircleOfArcAroundThePoint(t *testing.T) {
+	geography := equatorRow(t)
+
+	assert.Equal(t, []uint32{1, 2}, geography.Within(clicks.Vec3{X: 1}, 0.15))
+	assert.Equal(t, []uint32{1, 2, 3}, geography.Within(clicks.Vec3{X: 5}, 0.25), "any length of centre will do")
+	assert.Empty(t, geography.Within(clicks.Vec3{}, 1))
+}
+
+func TestWithinReachesTilesNoEdgeLeadsTo(t *testing.T) {
+	positions := make([]float32, 0, 6)
+	for _, a := range []float64{0, 0.05} {
+		positions = append(positions, float32(math.Cos(a)), float32(math.Sin(a)), 0)
+	}
+	across, err := clicks.NewGeography(positions, nil)
+	require.NoError(t, err)
+
+	assert.Equal(t, []uint32{1, 2}, across.Within(clicks.Vec3{X: 1}, 0.1),
+		"two islands with water between them are both in the blast")
+}
+
 func TestNearestFindsTheClosestTileAndHowFarItIs(t *testing.T) {
 	tile, arc := equatorRow(t).Nearest(clicks.Vec3{X: 3 * math.Cos(0.13), Y: 3 * math.Sin(0.13)})
 

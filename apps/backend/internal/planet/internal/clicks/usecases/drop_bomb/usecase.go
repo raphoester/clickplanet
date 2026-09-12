@@ -27,7 +27,7 @@ type Schedule interface {
 type Map interface {
 	Nearest(point clicks.Vec3) (uint32, float64)
 	Position(id uint32) (clicks.Vec3, bool)
-	Disc(id uint32, radius int) []uint32
+	Within(centre clicks.Vec3, radius float64) []uint32
 }
 
 type Clearer interface {
@@ -43,10 +43,8 @@ type In struct {
 	CountryID string
 }
 
-// Rules is what a bomb is: how many rings it clears, how wide that is, and how far from a tile an aim may land
-// and still hit it.
+// Rules is what a bomb is: how wide a circle it clears, and how far from a tile an aim may land and still hit it.
 type Rules struct {
-	Rings  int
 	Radius float64
 	Reach  float64
 }
@@ -94,7 +92,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) (clicks.Blast, error) {
 	if arc <= u.rules.Reach {
 		blast.Tile = tile
 		blast.Point, _ = u.geography.Position(tile)
-		blast.Cleared = u.geography.Disc(tile, u.rules.Rings)
+		blast.Cleared = u.geography.Within(blast.Point, u.rules.Radius)
 	}
 
 	blast, err := u.clearer.Clear(ctx, blast)

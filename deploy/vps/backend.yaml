@@ -159,8 +159,8 @@ bonus:
   # spread_clicks' own duration. It takes seven tiles a click, so it is short.
   spreadDuration: 10s
 
-  # How long a bomb may be held, counted towards maxBoostPerHour, and how many
-  # rings of tiles it clears (8 rings is at most 217 tiles).
+  # How long a bomb may be held, counted towards maxBoostPerHour, and the radius
+  # of the circle it clears, in tile spacings (8 is ~230 tiles inland).
   bombDuration: 30s
   bombRings: 8
 

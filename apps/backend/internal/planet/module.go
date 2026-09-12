@@ -263,7 +263,6 @@ func bombRulesOf(config bonus.Config, geography *clicks.Geography) drop_bomb.Rul
 	spacing := geography.Spacing()
 
 	return drop_bomb.Rules{
-		Rings:  config.Rings(),
 		Radius: float64(config.Rings()) * spacing,
 		// Within a tile of the nearest tile is land; further out is the sea.
 		Reach: spacing,
