@@ -111,7 +111,7 @@ return []bootstrap.Module{
 
 `main` builds no objects at all, so a thing two contexts need is **a config block they both declare**, and each builds its own instance from it.
 
-- **`kernel/session.Config`** is the `session:` block, and it lives in the kernel because two contexts read it: `session` mints with it, `clicks` verifies with it. Each calls `session.NewSigner(config)` itself. The same secret and TTL produce the same MAC, so the two signers agree by construction and there is no object to pass — `TestBothContextsReadTheSameSessionBlock` pins that they read one block, and `TestTwoSignersOverOneConfigAgree` pins that one block means one key. Neither module imports the other, and **clicks knows nothing about Turnstile** — swapping the attester changes one line in `internal/session/module.go`.
+- **`kernel/session.Config`** is the `session:` block, and it lives in the kernel because two contexts read it: `session` mints with it, `clicks` verifies with it. Each calls `session.NewSigner(config)` itself. The same secret and TTL produce the same MAC, so the two signers agree by construction and there is no object to pass — `TestBothContextsReadTheSameSessionBlock` pins that they read one block, and `TestTwoSignersOverOneConfigAgree` pins that one block means one key. Neither module imports the other, and **clicks knows nothing about Turnstile** — the siteverify client lives at `session/internal/turnstile`, so clicks *cannot* reach it, and swapping the attester changes one line in `internal/session/module.go`.
 - **`kernel/countries`** is the ISO list. It is stateless and hardcoded, so each module just calls `countries.New()`, the way it calls `xtime.ActualProvider{}`. It sits in the kernel and not under `clicks/internal/adapters/` for exactly the reason the kernel exists: neither context may depend on the other — and now could not, since that directory is unreachable from chat.
 
 **This is why `session.secret` is now required** rather than invented at boot — see [Sessions](#sessions-internalsession).
@@ -238,7 +238,7 @@ Polling for it would be worse, so nothing polls. `Limiter.Take` returns the buck
 
 That reading travels two ways, because a refused call has no response message to put it in:
 
-- an allowed call gets it on the context (`ctxutil.AddClickBudgetToContext`), and `ClickService.Click` puts it in `ClickResponse.budget`. The interceptor decides the policy; the handler decides how to say it — the same split `NewSessionInterceptor` already uses for the session id.
+- an allowed call gets it on the context (`ctxutil.AddRateBudgetToContext`), and `ClickService.Click` puts it in `ClickResponse.budget`. The interceptor decides the policy; the handler decides how to say it — the same split `NewSessionInterceptor` already uses for the session id.
 - a refused one gets it as a **connect error detail**, built by the `describe` function each context passes. `planetv1controller` passes one; chat and sessions pass nil, because nothing displays those allowances.
 
 `ClickService.GetBudget` covers the cold start — a client that has just loaded and has no click to learn from. It reads through `Limiter.Peek`, which spends nothing and, for an address that never clicked, **creates no bucket**: reading an allowance must not be a way to make the limiter remember a caller. It is deliberately not `NO_SIDE_EFFECTS`, so it is a POST no cache will serve a stale answer to; every click re-anchors the client afterwards, so it is asked once per page load.
@@ -288,7 +288,7 @@ The signature is checked **before** the expiry, in constant time, so a forger le
 
 **Minting has its own throttle** (`session.rateLimiter`, one every 30s with 10 in hand). A mint costs a siteverify round trip to a third party, so it cannot share the click budget: unthrottled, the endpoint is a free way to spend this server's siteverify quota.
 
-**`kernel/turnstile` fails closed on everything.** A network error, a non-2xx, a body that is not JSON, a token for another action or another hostname are all refused exactly as a forged one is. Failing open would make the check decorative — an attacker who can reach the backend can also make siteverify unreachable from it. It validates `action` and `hostname` as well as `success`, because **the sitekey is public**: without those two checks a token minted by the same widget embedded on any other page would be accepted here.
+**`session/internal/turnstile` fails closed on everything.** A network error, a non-2xx, a body that is not JSON, a token for another action or another hostname are all refused exactly as a forged one is. Failing open would make the check decorative — an attacker who can reach the backend can also make siteverify unreachable from it. It validates `action` and `hostname` as well as `success`, because **the sitekey is public**: without those two checks a token minted by the same widget embedded on any other page would be accepted here.
 
 **`session.turnstile.enabled: false` mints for anyone who asks** (`open_attester`). That is how a local backend runs without a widget and a secret, and it still exercises the whole click path — the token is bound and expires. It is never the production choice, and the server warns at boot when it is on.
 
@@ -498,7 +498,9 @@ Two of these are here because both bounded contexts need them and neither should
 - `secrets` — the random hex a config may leave it to the server to invent. Chat's tag salt and the session signing key are the two, and both pay the same price for an empty setting: what the old one covered stops being recognised on restart.
 - `atomicfile` — temp file, fsync, rename, fsync of the directory. Written for the tile snapshot; the chat log's retention rewrites need the same guarantee, and duplicating 80 lines of carefully-written fsync/rename code is how the two drift apart. Covered by the existing snapshot tests.
 
-`session` mints and verifies the click token — see [Sessions](#sessions-internalsession). `turnstile` is the siteverify client it is fed by; both are in the kernel because the session context mints with them and the clicks context verifies with them, and neither context may depend on the other.
+`session` mints and verifies the click token — see [Sessions](#sessions-internalsession). It is in the kernel because **both** contexts read it: the session context mints with it, the clicks context verifies with it, and neither may depend on the other.
+
+The siteverify client it is fed by is **not** here. `turnstile` sat in the kernel on the same "both contexts need it" rule, but only one ever did, so it now lives at `session/internal/turnstile` where the compiler keeps it. That is the test for a kernel package: two modules actually import it, not that it *could* be shared. `secrets` passes narrowly — chat is its only caller today, but it is twenty lines of `crypto/rand` with no domain in it at all.
 
 `countries` is the ISO country list both the tile game and the chat validate against. `ipblock` is the VPN prefix set — see [VPN blocklist](#vpn-blocklist). `ratelimit` is a keyed token bucket held in this process, like the tile map it protects — with one API instance, a shared counter would buy nothing. Its `Run` loop periodically forgets the buckets that have refilled to capacity, which is free: such a bucket holds exactly what a freshly created one would, and without it the map would keep an entry per address that ever clicked.
 

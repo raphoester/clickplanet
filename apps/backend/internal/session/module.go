@@ -17,13 +17,13 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging/lf"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ratelimit"
 	kernelsession "github.com/raphoester/clickplanet.lol-backend/internal/kernel/session"
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/turnstile"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/xtime"
 	"github.com/raphoester/clickplanet.lol-backend/internal/session/internal/adapters/primary/http/sessionv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/session/internal/adapters/secondary/open_attester"
 	"github.com/raphoester/clickplanet.lol-backend/internal/session/internal/adapters/secondary/turnstile_attester"
 	"github.com/raphoester/clickplanet.lol-backend/internal/session/internal/domain"
 	"github.com/raphoester/clickplanet.lol-backend/internal/session/internal/domain/session_service"
+	"github.com/raphoester/clickplanet.lol-backend/internal/session/internal/turnstile"
 )
 
 const moduleName = "session"

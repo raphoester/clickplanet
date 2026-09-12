@@ -3,8 +3,8 @@ package turnstile_attester
 import (
 	"context"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/turnstile"
 	"github.com/raphoester/clickplanet.lol-backend/internal/session/internal/domain"
+	"github.com/raphoester/clickplanet.lol-backend/internal/session/internal/turnstile"
 )
 
 type Verifier interface {

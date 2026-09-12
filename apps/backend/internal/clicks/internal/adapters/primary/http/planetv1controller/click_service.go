@@ -78,7 +78,7 @@ func (s *ClickService) Click(
 	}
 
 	res := &planetv1.ClickResponse{}
-	if state, limited := ctxutil.GetClickBudget(ctx); limited {
+	if state, limited := ctxutil.GetRateBudget(ctx); limited {
 		res.Budget = EncodeBudget(state)
 	}
 
