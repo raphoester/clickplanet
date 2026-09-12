@@ -596,6 +596,9 @@ tiles are set, to every caller. The caller who closed it gets a copy of their ow
 with `yours` and `enclosures_left`, which is how the meter counts down; nobody
 else learns how many shapes somebody has left.
 
+`prom_enclose` wraps that publisher, so it counts exactly the shapes that were
+closed: `bonus_enclosures_total` and `bonus_enclosed_tiles_total`.
+
 #### What a bonus does to the bucket
 
 `cpratelimit.Limiter.Boost(key, multiplier, until)` multiplies both the ceiling and

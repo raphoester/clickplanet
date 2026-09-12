@@ -35,6 +35,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click/bonus_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click/enclose_click"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click/enclose_click/prom_enclose"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click/prom_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click/spread_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click/throttle_click"
@@ -182,8 +183,13 @@ func clickChain(config Config, parts clickParts, props cpbootstrap.Props) (click
 	var rule click.IUseCase = click.New(parts.tilesChecker, parts.tilesStorage, cpcountries.New())
 	if parts.bonuses != nil {
 		rule = spread_click.New(rule, parts.spreads, parts.geography, parts.tilesStorage)
+		published, err := prom_enclose.New(parts.bonuses, props.Metrics)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create prometheus enclose publisher: %w", err)
+		}
+
 		rule = enclose_click.New(rule, parts.enclosures, parts.geography,
-			parts.tilesStorage, parts.tilesStorage, parts.bonuses)
+			parts.tilesStorage, parts.tilesStorage, published)
 	}
 
 	useCase, err := prom_click.New(rule, props.Metrics)
