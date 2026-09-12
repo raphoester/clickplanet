@@ -34,7 +34,7 @@ const SPIN_PER_SECOND = 0.8
 /** A full orbit in about sixteen seconds: at six, players could not land a click. */
 const ORBIT_PER_SECOND = 0.4
 
-/** How long a box is up. Must stay under the server's offerTTL (15s), claim round trip included. */
+/** How long a box is up at most; the offer's own deadline can cut it shorter. */
 const LIFETIME_SECONDS = 12
 
 /** The tail of that life it spends fading, so it is never cut off mid-flight. */
@@ -98,8 +98,16 @@ export type BonusBox = {
     /** True only while it is still there to be caught. */
     readonly flying: boolean
 
-    /** Puts a box on a fresh orbit drawn from `seed`. */
-    spawn(seed: number): void
+    /**
+     * Puts a box on a fresh orbit drawn from `seed`.
+     *
+     * `deadline` is when it must be gone, on the clock `update` is given. The
+     * lifetime alone is not enough: it starts at the first frame drawn, and the
+     * server's token started lapsing when the offer was sent — a slow stream or
+     * a hidden tab (which draws no frames) spends that difference, and a box
+     * caught after the token lapsed pops and wins nothing.
+     */
+    spawn(seed: number, deadline?: number): void
 
     /**
      * Takes the box, starting the pop where it was caught. False when there was
@@ -180,6 +188,8 @@ export function createBonusBox(): BonusBox {
     let phase: "gone" | "flying" | "taken" = "gone"
     let spawnedAt: number | undefined
     let takenAt: number | undefined
+    let deadline = Infinity
+    let lifetime = LIFETIME_SECONDS
 
     const setFade = (opacity: number, flare: number) => {
         for (const material of materials) material.opacity = opacity
@@ -202,8 +212,9 @@ export function createBonusBox(): BonusBox {
             return phase === "flying"
         },
 
-        spawn(seed: number) {
+        spawn(seed: number, until = Infinity) {
             orbit = orbitFromSeed(seed)
+            deadline = until
             spawnedAt = undefined
             takenAt = undefined
             phase = "flying"
@@ -227,7 +238,10 @@ export function createBonusBox(): BonusBox {
 
             // The first frame after a spawn is what the clock is measured from,
             // so a box always appears where its orbit begins.
-            if (spawnedAt === undefined) spawnedAt = seconds
+            if (spawnedAt === undefined) {
+                spawnedAt = seconds
+                lifetime = Math.min(LIFETIME_SECONDS, deadline - seconds)
+            }
 
             const scale = boxScale(camera.zoom)
 
@@ -250,7 +264,7 @@ export function createBonusBox(): BonusBox {
             group.scale.setScalar(scale)
             box.rotation.set(age * SPIN_PER_SECOND, age * SPIN_PER_SECOND * 0.7, 0)
 
-            const opacity = flightOpacity(age)
+            const opacity = flightOpacity(age, lifetime)
             setFade(opacity, 1)
 
             if (opacity <= 0) stop()
