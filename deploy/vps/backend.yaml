@@ -121,6 +121,7 @@ antiBot:
 
 # A question-mark box flies past the planet every so often, and whoever catches
 # it clicks at three times their allowance for 20 seconds.
+
 #
 # On ahead of the frontend that can draw one. The two events ride the existing
 # stream as new cases of its oneof, so a deployed client reads them as unset and
@@ -131,11 +132,11 @@ bonus:
 
   # Per caller, not per server. A single ticker made the rate each player saw
   # 1/(interval x players), so the feature got rarer the busier the game was.
-  minInterval: 45s
-  maxInterval: 105s
+  minInterval: 15s
+  maxInterval: 35s
 
   # One miss is retried sooner; a second in a row waits the ordinary window.
-  missRetry: 20s
+  missRetry: 7s
 
   # A weight per kind: a kind's chance is its weight over the sum. spread_clicks
   # is the strong one, so it is one box in four. A frontend too old to know it

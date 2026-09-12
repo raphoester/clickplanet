@@ -33,6 +33,7 @@ import {MAX_ZOOM, MIN_ZOOM, RESTING_ZOOM} from "./zoom.ts";
 import {createBonusBox} from "./bonusBox.ts";
 import {createBonusPointer} from "./bonusPointer.ts";
 import {BonusReward} from "../../domain/bonus.ts";
+import {now as monotonicNow} from "../../backends/clickBudget.ts";
 
 type Uniforms = {
     pointSize: THREE.IUniform
@@ -45,6 +46,12 @@ type Uniforms = {
 }
 
 const TILES_PER_BATCH = 10_000
+
+/**
+ * How long before the token lapses the box has to be gone: the claim still has
+ * to reach the server, and may have to mint a session on the way.
+ */
+const CLAIM_MARGIN_MS = 2_000
 
 const textureLoader = new THREE.TextureLoader();
 
@@ -154,7 +161,9 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const stopBonuses = bonusListener?.listenForBonuses({
         onOffered: (offer) => {
             offered = offer
-            bonusBox.spawn(offer.seed)
+            // The animation loop's clock is `performance.now()` in seconds, the
+            // same clock the offer's deadline is on.
+            bonusBox.spawn(offer.seed, (offer.expiresAt - CLAIM_MARGIN_MS) / 1000)
         },
         onTaken: (taken) => onBonusTaken(taken),
     })
@@ -210,6 +219,13 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         // addressed this box to this client, so the only way to lose it now is
         // to have let it lapse, and making the player watch a round trip before
         // anything happens would cost every catch its snap.
+        // A box whose token is about to lapse is let go rather than popped: the
+        // frame that would have ended it may not have been drawn yet.
+        if (offered && monotonicNow() >= offered.expiresAt - CLAIM_MARGIN_MS) {
+            offered = undefined
+            bonusBox.hide()
+        }
+
         if (bonusBox.hitTest(camera, deviceCoordinates(x, y)) && bonusBox.take()) {
             const claimed = offered
             offered = undefined
