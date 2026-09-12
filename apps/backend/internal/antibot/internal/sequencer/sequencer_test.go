@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/sequencer"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/sequencer"
 )
 
 type fakeClock struct{ now time.Time }
@@ -26,8 +26,8 @@ func newHarness(config sequencer.Config) *harness {
 	return h
 }
 
-func (h *harness) click(tile uint32) (antibot.Verdict, antibot.Evidence) {
-	verdict, evidence := h.watchdog.Watch(antibot.Click{
+func (h *harness) click(tile uint32) (detect.Verdict, detect.Evidence) {
+	verdict, evidence := h.watchdog.Watch(detect.Click{
 		Scope:   "caller",
 		Tile:    tile,
 		Country: "FR",
@@ -40,10 +40,10 @@ func (h *harness) click(tile uint32) (antibot.Verdict, antibot.Evidence) {
 }
 
 // walk clicks count tiles, each stride on from the last.
-func (h *harness) walk(first uint32, stride uint32, count int) (antibot.Verdict, antibot.Evidence) {
+func (h *harness) walk(first uint32, stride uint32, count int) (detect.Verdict, detect.Evidence) {
 	var (
-		verdict  antibot.Verdict
-		evidence antibot.Evidence
+		verdict  detect.Verdict
+		evidence detect.Evidence
 	)
 
 	for i := range count {
@@ -68,9 +68,9 @@ func TestWalkingTheIdsForLongEnoughIsCertain(t *testing.T) {
 
 	verdict, evidence := h.walk(1000, 1, 60)
 
-	require.Equal(t, antibot.Certain, verdict)
+	require.Equal(t, detect.Certain, verdict)
 	assert.Equal(t, "stride", evidence.Rule)
-	assert.Contains(t, evidence.Fields, antibot.Field{Key: "stride", Value: int64(1)})
+	assert.Contains(t, evidence.Fields, detect.Field{Key: "stride", Value: int64(1)})
 }
 
 func TestAShortWalkIsOnlySuspect(t *testing.T) {
@@ -78,7 +78,7 @@ func TestAShortWalkIsOnlySuspect(t *testing.T) {
 
 	verdict, _ := h.walk(2000, 1, 15)
 
-	assert.Equal(t, antibot.Suspect, verdict, "fifteen tidy clicks is not yet a machine")
+	assert.Equal(t, detect.Suspect, verdict, "fifteen tidy clicks is not yet a machine")
 }
 
 func TestAnyConstantStrideIsAWalk(t *testing.T) {
@@ -87,8 +87,8 @@ func TestAnyConstantStrideIsAWalk(t *testing.T) {
 	// The size of the step says nothing. Holding one says everything.
 	verdict, evidence := h.walk(3000, 7, 60)
 
-	require.Equal(t, antibot.Certain, verdict)
-	assert.Contains(t, evidence.Fields, antibot.Field{Key: "stride", Value: int64(7)})
+	require.Equal(t, detect.Certain, verdict)
+	assert.Contains(t, evidence.Fields, detect.Field{Key: "stride", Value: int64(7)})
 }
 
 func TestWalkingBackwardsCountsToo(t *testing.T) {
@@ -100,8 +100,8 @@ func TestWalkingBackwardsCountsToo(t *testing.T) {
 
 	verdict, evidence := h.click(8940)
 
-	require.Equal(t, antibot.Certain, verdict)
-	assert.Contains(t, evidence.Fields, antibot.Field{Key: "stride", Value: int64(-1)})
+	require.Equal(t, detect.Certain, verdict)
+	assert.Contains(t, evidence.Fields, detect.Field{Key: "stride", Value: int64(-1)})
 }
 
 func TestOneBreakInTheRunDoesNotSaveIt(t *testing.T) {
@@ -113,7 +113,7 @@ func TestOneBreakInTheRunDoesNotSaveIt(t *testing.T) {
 	h.click(50000)
 	verdict, _ := h.walk(50001, 1, 30)
 
-	assert.Equal(t, antibot.Certain, verdict)
+	assert.Equal(t, detect.Certain, verdict)
 }
 
 func TestAHandWanderingIsClear(t *testing.T) {
@@ -124,7 +124,7 @@ func TestAHandWanderingIsClear(t *testing.T) {
 	steps := []int{3, -1, 12, 2, -7, 1, 40, -3, 5, 1, -22, 8, 2, 17, -4, 1, 9, -13, 6, 2}
 
 	tile := uint32(5000)
-	var verdict antibot.Verdict
+	var verdict detect.Verdict
 	for range 4 {
 		for _, step := range steps {
 			tile = uint32(int(tile) + step)
@@ -132,29 +132,29 @@ func TestAHandWanderingIsClear(t *testing.T) {
 		}
 	}
 
-	assert.Equal(t, antibot.Clear, verdict)
+	assert.Equal(t, detect.Clear, verdict)
 }
 
 func TestLeaningOnOneTileIsNotAWalk(t *testing.T) {
 	h := newHarness(config())
 
-	var verdict antibot.Verdict
+	var verdict detect.Verdict
 	for range 60 {
 		verdict, _ = h.click(6000)
 	}
 
-	assert.Equal(t, antibot.Clear, verdict, "a caller sitting on one tile is the throttle's problem")
+	assert.Equal(t, detect.Clear, verdict, "a caller sitting on one tile is the throttle's problem")
 }
 
 func TestFightingOverTwoTilesIsNotAWalk(t *testing.T) {
 	h := newHarness(config())
 
-	var verdict antibot.Verdict
+	var verdict detect.Verdict
 	for i := range 60 {
 		verdict, _ = h.click(uint32(7000 + i%2))
 	}
 
-	assert.Equal(t, antibot.Clear, verdict)
+	assert.Equal(t, detect.Clear, verdict)
 }
 
 func TestStepsAgeOutOfTheWindow(t *testing.T) {
@@ -163,10 +163,10 @@ func TestStepsAgeOutOfTheWindow(t *testing.T) {
 
 	h := newHarness(c)
 
-	require.Equal(t, antibot.Certain, func() antibot.Verdict { v, _ := h.walk(8000, 1, 60); return v }())
+	require.Equal(t, detect.Certain, func() detect.Verdict { v, _ := h.walk(8000, 1, 60); return v }())
 
 	h.clock.now = h.clock.now.Add(10 * time.Minute)
 
 	verdict, _ := h.click(8100)
-	assert.Equal(t, antibot.Clear, verdict, "a walk from an hour ago is not a walk now")
+	assert.Equal(t, detect.Clear, verdict, "a walk from an hour ago is not a walk now")
 }

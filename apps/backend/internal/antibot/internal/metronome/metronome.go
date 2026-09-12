@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/xtime"
 )
 
@@ -103,7 +103,7 @@ type Watchdog struct {
 	callers map[string]*caller
 }
 
-var _ antibot.Watchdog = (*Watchdog)(nil)
+var _ detect.Watchdog = (*Watchdog)(nil)
 
 // caller holds one run. Only the gaps needed for a spread are kept: how long the
 // run has lasted is two timestamps, not a list, and a run that breaks is thrown
@@ -121,9 +121,9 @@ func (w *Watchdog) Name() string { return Name }
 
 // Committed is nothing to this watchdog. What the map did with a click has no
 // bearing on when the next one arrived.
-func (w *Watchdog) Committed(antibot.Click) {}
+func (w *Watchdog) Committed(detect.Click) {}
 
-func (w *Watchdog) Watch(click antibot.Click) (antibot.Verdict, antibot.Evidence) {
+func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
@@ -132,7 +132,7 @@ func (w *Watchdog) Watch(click antibot.Click) (antibot.Verdict, antibot.Evidence
 		c = &caller{}
 		w.callers[click.Scope] = c
 		c.restart(click.At)
-		return antibot.Clear, antibot.Evidence{}
+		return detect.Clear, detect.Evidence{}
 	}
 
 	gap := click.At.Sub(c.lastSeen)
@@ -140,7 +140,7 @@ func (w *Watchdog) Watch(click antibot.Click) (antibot.Verdict, antibot.Evidence
 
 	if gap < 0 || gap > w.config.MaxGap {
 		c.restart(click.At)
-		return antibot.Clear, antibot.Evidence{}
+		return detect.Clear, detect.Evidence{}
 	}
 
 	c.runClicks++
@@ -150,24 +150,24 @@ func (w *Watchdog) Watch(click antibot.Click) (antibot.Verdict, antibot.Evidence
 	}
 
 	if c.runClicks < w.config.MinClicks {
-		return antibot.Clear, antibot.Evidence{}
+		return detect.Clear, detect.Evidence{}
 	}
 
-	median, spread := antibot.Spread(append([]time.Duration(nil), c.gaps...))
+	median, spread := detect.Spread(append([]time.Duration(nil), c.gaps...))
 	if spread > w.config.MaxSpread {
-		return antibot.Clear, antibot.Evidence{}
+		return detect.Clear, detect.Evidence{}
 	}
 
 	sustained := click.At.Sub(c.runStart)
 
-	verdict := antibot.Suspect
+	verdict := detect.Suspect
 	if sustained >= w.config.CertainFor && c.runClicks >= w.config.CertainClicks {
-		verdict = antibot.Certain
+		verdict = detect.Certain
 	}
 
-	return verdict, antibot.Evidence{
+	return verdict, detect.Evidence{
 		Rule: "cadence",
-		Fields: []antibot.Field{
+		Fields: []detect.Field{
 			{Key: "spread", Value: spread},
 			{Key: "median", Value: median},
 			{Key: "clicks", Value: c.runClicks},

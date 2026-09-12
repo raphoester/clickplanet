@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/xtime"
 )
 
@@ -95,7 +95,7 @@ type Watchdog struct {
 	callers map[string]*caller
 }
 
-var _ antibot.Watchdog = (*Watchdog)(nil)
+var _ detect.Watchdog = (*Watchdog)(nil)
 
 type caller struct {
 	lastTile uint32
@@ -113,9 +113,9 @@ func (w *Watchdog) Name() string { return Name }
 
 // Committed is nothing to this watchdog. A bot sweeping ids walks over tiles it
 // already owns and over ids the handler refuses, and both are part of the walk.
-func (w *Watchdog) Committed(antibot.Click) {}
+func (w *Watchdog) Committed(detect.Click) {}
 
-func (w *Watchdog) Watch(click antibot.Click) (antibot.Verdict, antibot.Evidence) {
+func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
@@ -138,7 +138,7 @@ func (w *Watchdog) Watch(click antibot.Click) (antibot.Verdict, antibot.Evidence
 	c.prune(click.At.Add(-w.config.TrackWindow))
 
 	if len(c.steps) < w.config.MinSteps {
-		return antibot.Clear, antibot.Evidence{}
+		return detect.Clear, detect.Evidence{}
 	}
 
 	stride, share := c.stride()
@@ -147,17 +147,17 @@ func (w *Watchdog) Watch(click antibot.Click) (antibot.Verdict, antibot.Evidence
 	// somebody leaning on a tile, which is the throttle's problem and the
 	// retaker's, not a walk.
 	if stride == 0 || share < w.config.MinShare {
-		return antibot.Clear, antibot.Evidence{}
+		return detect.Clear, detect.Evidence{}
 	}
 
-	verdict := antibot.Suspect
+	verdict := detect.Suspect
 	if len(c.steps) >= w.config.CertainSteps && share >= w.config.CertainShare {
-		verdict = antibot.Certain
+		verdict = detect.Certain
 	}
 
-	return verdict, antibot.Evidence{
+	return verdict, detect.Evidence{
 		Rule: "stride",
-		Fields: []antibot.Field{
+		Fields: []detect.Field{
 			{Key: "stride", Value: stride},
 			{Key: "share", Value: share},
 			{Key: "steps", Value: len(c.steps)},

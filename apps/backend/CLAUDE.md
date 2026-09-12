@@ -35,20 +35,28 @@ make dBuild
 
 This is a Go backend for a collaborative map-clicking game. It follows **hexagonal architecture (ports & adapters)**.
 
-### Four bounded contexts, one process
+### Three bounded contexts, one process
 
 - **`internal/clicks/`** — the tile game: clicks, ownership, the map, the update stream.
 - **`internal/chat/`** — the live chat: messages, identity, retention.
 - **`internal/session/`** — the mint: what a caller has to prove before it may click.
-- **`internal/antibot/`** — who is a machine, and what happens to them.
-
-`antibot` is the one with no proto package and no adapters, because nothing
-calls it: the clicks edge gates on it the way it gates on `session`. It is a
-context and not a kernel package because "is this caller a bot" is the business
-this game is in, while the kernel is for things that would read the same in any
-other program.
 
 They share the process, the transport and the country list, and **nothing else**. None imports another; each owns its own domain types, its own proto package, its own storage adapter (where it has one) and its own edge.
+
+**`internal/antibot/` is a domain library, not a fourth context.** It has no proto
+package, no adapters and no `module.go`, and it cannot be wired without a caller
+composing it — the clicks edge does, the way it gates on `session`. It is not a
+kernel package because "is this caller a bot" is the business this game is in,
+while the kernel is for things that would read the same in any other program.
+`clicks` → `antibot` is the only module-to-module import in the backend.
+
+**A module publishes its root package and hides the rest behind its own
+`internal/`.** `internal/antibot/internal/jury` is importable only from
+`internal/antibot/...` — the compiler says so, there is no linter to run and
+nothing to keep in sync. So the whole of what one module may use of another is
+what sits in the other's root: for `antibot` that is `Config`, `Observer`,
+`Guard` and `New`, and a caller cannot reach a watchdog or the jury to assemble
+one itself.
 
 ### The composite layer
 
@@ -272,8 +280,19 @@ What is left after sessions. A player who solves Turnstile in a real browser and
 then runs a userscript holds a genuine session, and no address- or token-based
 check can tell them from a player. The signal that survives is **behavioural**.
 
+**The whole of its API is four names**, and `internal/antibot/antibot.go` is all
+of it: `Config`, `Observer`, `Guard` and `New`. A caller hands over the block and
+the two hooks it wants findings reported through, and gets back a `Guard` — nil
+when the block is off — that answers `Inspect`, `Committed`, `Flagged`, `Run` and
+`Describe`. It is **one** `Run` whatever the file turned on: how many sweepers
+there are is this package's business, which is why `clicks` registers one runner
+rather than six. Everything else is under `antibot/internal/`, so the click edge
+could not assemble a jury out of watchdogs even if it wanted to. `internal/clicks/antibot.go`
+is the whole of the clicks side, and what is left in it is genuinely the edge's:
+the metric names, the wording of the ban line, and where in the chain it sits.
+
 **Detection and consequence are separate, and the consequence is the boring
-half.** `antibot/shadowban` takes a scope and a clock and runs a ban. It knows
+half.** `antibot/internal/shadowban` takes a scope and a clock and runs a ban. It knows
 nothing about tiles, reactions or what earned it, which is why the same sentence
 serves three different findings and would serve a fourth.
 

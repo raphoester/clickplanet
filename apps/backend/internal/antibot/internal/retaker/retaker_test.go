@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/retaker"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/retaker"
 )
 
 type fakeClock struct{ now time.Time }
@@ -40,20 +40,20 @@ func newHarness(config retaker.Config) *harness {
 // click walks one click through the watchdog the way the interceptor does: the
 // tile's owner is read before the handler runs, and Committed only follows a
 // click the handler accepted.
-func (h *harness) click(scope string, tile uint32, country string) antibot.Verdict {
+func (h *harness) click(scope string, tile uint32, country string) detect.Verdict {
 	return h.deliver(scope, tile, country, true)
 }
 
 // refused is a click the handler turned down. It changed no tile, so nothing
 // reports back.
-func (h *harness) refused(scope string, tile uint32, country string) antibot.Verdict {
+func (h *harness) refused(scope string, tile uint32, country string) detect.Verdict {
 	return h.deliver(scope, tile, country, false)
 }
 
-func (h *harness) deliver(scope string, tile uint32, country string, accepted bool) antibot.Verdict {
+func (h *harness) deliver(scope string, tile uint32, country string, accepted bool) detect.Verdict {
 	held := h.owner[tile]
 
-	c := antibot.Click{
+	c := detect.Click{
 		Scope:   scope,
 		Tile:    tile,
 		Country: country,
@@ -95,8 +95,8 @@ func strictConfig() retaker.Config {
 
 // war runs one exchange per delay: somebody takes the tile, the suspect takes it
 // straight back.
-func (h *harness) war(suspect string, first uint32, delays []time.Duration) antibot.Verdict {
-	var verdict antibot.Verdict
+func (h *harness) war(suspect string, first uint32, delays []time.Duration) detect.Verdict {
+	var verdict detect.Verdict
 
 	for i, delay := range delays {
 		tile := first + uint32(i)
@@ -116,7 +116,7 @@ func TestATightBandOfFastReactionsIsCertain(t *testing.T) {
 
 	verdict := h.war("bot", 100, ms(80, 85, 78, 90, 82, 88))
 
-	assert.Equal(t, antibot.Certain, verdict, "faster than a hand decides, and in a band no hand holds")
+	assert.Equal(t, detect.Certain, verdict, "faster than a hand decides, and in a band no hand holds")
 }
 
 func TestATightBandAtAHumanTempoIsOnlySuspect(t *testing.T) {
@@ -127,7 +127,7 @@ func TestATightBandAtAHumanTempoIsOnlySuspect(t *testing.T) {
 	// regularity alone must not ban on its own.
 	verdict := h.war("bot", 200, ms(980, 1010, 995, 1020, 1000, 990))
 
-	assert.Equal(t, antibot.Suspect, verdict)
+	assert.Equal(t, detect.Suspect, verdict)
 }
 
 func TestAHumanTileWarIsClear(t *testing.T) {
@@ -135,7 +135,7 @@ func TestAHumanTileWarIsClear(t *testing.T) {
 
 	verdict := h.war("defender", 300, ms(420, 900, 310, 1500, 640, 1100, 380, 780))
 
-	assert.Equal(t, antibot.Clear, verdict, "human reaction spread flags nobody")
+	assert.Equal(t, detect.Clear, verdict, "human reaction spread flags nobody")
 }
 
 func TestTheReactionIsTimedAndReported(t *testing.T) {
@@ -160,7 +160,7 @@ func TestSpammingATileYouAlreadyOwnDoesNotFrameTheNextClicker(t *testing.T) {
 	}
 
 	h.clock.advance(50 * time.Millisecond)
-	assert.Equal(t, antibot.Clear, h.click("player", tile, "FR"))
+	assert.Equal(t, detect.Clear, h.click("player", tile, "FR"))
 	assert.Empty(t, h.reactions, "a no-op click is not part of an exchange")
 }
 
@@ -197,7 +197,7 @@ func TestARefusedClickCannotFrameAnHonestPlayer(t *testing.T) {
 	for i := range uint32(12) {
 		tile := 800 + i
 
-		require.Equal(t, antibot.Clear, h.refused("griefer", tile, "zz"))
+		require.Equal(t, detect.Clear, h.refused("griefer", tile, "zz"))
 
 		h.clock.advance(60 * time.Millisecond)
 		h.click("player", tile, "FR")
@@ -235,10 +235,10 @@ func TestReactionsAgeOutOfTheWindow(t *testing.T) {
 
 	h := newHarness(config)
 
-	require.Equal(t, antibot.Certain, h.war("bot", 1000, ms(80, 85, 78, 90)))
+	require.Equal(t, detect.Certain, h.war("bot", 1000, ms(80, 85, 78, 90)))
 
 	h.clock.advance(2 * time.Minute)
 
-	assert.Equal(t, antibot.Clear, h.click("bot", 1100, "PS"),
+	assert.Equal(t, detect.Clear, h.click("bot", 1100, "PS"),
 		"stale reactions must not keep a verdict alive")
 }

@@ -1,10 +1,12 @@
-package antibot
+// Package jury crosses what the watchdogs say and passes the sentence.
+package jury
 
 import (
 	"context"
 	"sync"
 	"time"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/xtime"
 )
 
@@ -42,7 +44,9 @@ const (
 	keptTiles           = 8
 )
 
-func (c Config) withDefaults() Config {
+// WithDefaults fills the unset bounds. Exported inside this tree so the caller
+// can log the numbers that will actually be enforced rather than the raw file.
+func (c Config) WithDefaults() Config {
 	if c.MinSuspects <= 0 {
 		c.MinSuspects = defaultMinSuspects
 	}
@@ -65,19 +69,19 @@ type Banner interface {
 	Flagged() int
 }
 
-func NewJury(
+func New(
 	config Config,
 	banner Banner,
 	timeProvider xtime.Provider,
-	onFlag func(Report),
-	watchdogs ...Watchdog,
+	onFlag func(detect.Report),
+	watchdogs ...detect.Watchdog,
 ) *Jury {
 	if timeProvider == nil {
 		timeProvider = xtime.ActualProvider{}
 	}
 
 	return &Jury{
-		config:       config.withDefaults(),
+		config:       config.WithDefaults(),
 		banner:       banner,
 		timeProvider: timeProvider,
 		onFlag:       onFlag,
@@ -90,8 +94,8 @@ type Jury struct {
 	config       Config
 	banner       Banner
 	timeProvider xtime.Provider
-	onFlag       func(Report)
-	watchdogs    []Watchdog
+	onFlag       func(detect.Report)
+	watchdogs    []detect.Watchdog
 
 	mu      sync.Mutex
 	callers map[string]*caller
@@ -106,12 +110,12 @@ type caller struct {
 	countries map[string]int
 	tiles     []uint32
 
-	opinions map[string]Opinion
+	opinions map[string]detect.Opinion
 }
 
 // Inspect runs every watchdog over the click and says whether it should be
 // dropped.
-func (j *Jury) Inspect(click Click) bool {
+func (j *Jury) Inspect(click detect.Click) bool {
 	if click.Scope == "" {
 		return false
 	}
@@ -142,7 +146,7 @@ func (j *Jury) Inspect(click Click) bool {
 
 // Committed tells the watchdogs the click reached the map. Watchdogs that read
 // the map decide for themselves what that is worth.
-func (j *Jury) Committed(click Click) {
+func (j *Jury) Committed(click detect.Click) {
 	for _, watchdog := range j.watchdogs {
 		watchdog.Committed(click)
 	}
@@ -150,7 +154,7 @@ func (j *Jury) Committed(click Click) {
 
 func (j *Jury) Flagged() int { return j.banner.Flagged() }
 
-func (j *Jury) record(click Click) {
+func (j *Jury) record(click detect.Click) {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 
@@ -170,12 +174,12 @@ func (j *Jury) record(click Click) {
 	}
 }
 
-func (j *Jury) opine(click Click, watchdog string, verdict Verdict, evidence Evidence) {
+func (j *Jury) opine(click detect.Click, watchdog string, verdict detect.Verdict, evidence detect.Evidence) {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 
 	c := j.callerLocked(click)
-	c.opinions[watchdog] = Opinion{
+	c.opinions[watchdog] = detect.Opinion{
 		Watchdog: watchdog,
 		Verdict:  verdict,
 		Evidence: evidence,
@@ -183,7 +187,7 @@ func (j *Jury) opine(click Click, watchdog string, verdict Verdict, evidence Evi
 	}
 }
 
-func (j *Jury) deliberate(click Click) (Report, bool) {
+func (j *Jury) deliberate(click detect.Click) (detect.Report, bool) {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 
@@ -194,7 +198,7 @@ func (j *Jury) deliberate(click Click) (Report, bool) {
 	var (
 		certain  bool
 		suspects int
-		opinions = make([]Opinion, 0, len(j.watchdogs))
+		opinions = make([]detect.Opinion, 0, len(j.watchdogs))
 	)
 
 	for _, watchdog := range j.watchdogs {
@@ -206,14 +210,14 @@ func (j *Jury) deliberate(click Click) (Report, bool) {
 		// A verdict older than the window is not evidence any more, but it is
 		// still worth printing next to the one that banned the caller.
 		if opinion.At.Before(cutoff) {
-			opinion.Verdict = Clear
+			opinion.Verdict = detect.Clear
 		}
 
 		switch opinion.Verdict {
-		case Certain:
+		case detect.Certain:
 			certain = true
 			suspects++
-		case Suspect:
+		case detect.Suspect:
 			suspects++
 		}
 
@@ -221,12 +225,12 @@ func (j *Jury) deliberate(click Click) (Report, bool) {
 	}
 
 	if !certain && suspects < j.config.MinSuspects {
-		return Report{}, false
+		return detect.Report{}, false
 	}
 
 	country, countryClicks := c.topCountry()
 
-	return Report{
+	return detect.Report{
 		Scope:            click.Scope,
 		Opinions:         opinions,
 		Clicks:           c.clicks,
@@ -238,14 +242,14 @@ func (j *Jury) deliberate(click Click) (Report, bool) {
 	}, true
 }
 
-func (j *Jury) callerLocked(click Click) *caller {
+func (j *Jury) callerLocked(click detect.Click) *caller {
 	c, ok := j.callers[click.Scope]
 	if !ok {
 		c = &caller{
 			firstSeen: click.At,
 			lastSeen:  click.At,
 			countries: make(map[string]int),
-			opinions:  make(map[string]Opinion),
+			opinions:  make(map[string]detect.Opinion),
 		}
 		j.callers[click.Scope] = c
 	}

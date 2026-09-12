@@ -1,4 +1,4 @@
-package metronome
+package sequencer
 
 import (
 	"testing"
@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
 )
 
 type stubClock struct{ now time.Time }
@@ -19,7 +19,9 @@ func TestSweepForgetsIdleCallers(t *testing.T) {
 
 	w := New(Config{TrackWindow: time.Minute}, clock)
 
-	w.Watch(antibot.Click{Scope: "caller", Tile: 1, Country: "FR", At: clock.now})
+	for i := range uint32(5) {
+		w.Watch(detect.Click{Scope: "caller", Tile: i, Country: "FR", At: clock.now})
+	}
 	require.Len(t, w.callers, 1)
 
 	clock.now = clock.now.Add(2 * time.Hour)
@@ -28,16 +30,15 @@ func TestSweepForgetsIdleCallers(t *testing.T) {
 	assert.Empty(t, w.callers)
 }
 
-func TestTheGapRingIsBounded(t *testing.T) {
+func TestTheStepRingIsBounded(t *testing.T) {
 	clock := &stubClock{now: time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC)}
 
-	w := New(Config{MaxGap: 3 * time.Second, MinClicks: 8, TrackWindow: time.Hour}, clock)
+	w := New(Config{MinSteps: 4, CertainSteps: 16, TrackWindow: time.Hour}, clock)
 
 	for i := range uint32(500) {
-		clock.now = clock.now.Add(time.Second)
-		w.Watch(antibot.Click{Scope: "caller", Tile: i, Country: "FR", At: clock.now})
+		w.Watch(detect.Click{Scope: "caller", Tile: i, Country: "FR", At: clock.now})
 	}
 
-	assert.LessOrEqual(t, len(w.callers["caller"].gaps), 8,
-		"only the gaps a spread needs are kept; how long the run has lasted is two timestamps")
+	assert.LessOrEqual(t, len(w.callers["caller"].steps), 16,
+		"a caller clicking for hours must not cost memory for hours")
 }

@@ -1,8 +1,10 @@
-package antibot
+package jury
 
 import (
 	"testing"
 	"time"
+
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -23,9 +25,9 @@ func (stubBanner) Flagged() int { return 0 }
 func TestSweepForgetsIdleCallers(t *testing.T) {
 	clock := &stubClock{now: time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC)}
 
-	j := NewJury(Config{TrackWindow: time.Minute}, stubBanner{}, clock, nil)
+	j := New(Config{TrackWindow: time.Minute}, stubBanner{}, clock, nil)
 
-	j.Inspect(Click{Scope: "caller", Tile: 1, Country: "FR", At: clock.now})
+	j.Inspect(detect.Click{Scope: "caller", Tile: 1, Country: "FR", At: clock.now})
 	require.Len(t, j.callers, 1)
 
 	clock.now = clock.now.Add(2 * time.Hour)
@@ -37,10 +39,10 @@ func TestSweepForgetsIdleCallers(t *testing.T) {
 func TestTheCountryTallyIsCapped(t *testing.T) {
 	clock := &stubClock{now: time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC)}
 
-	j := NewJury(Config{}, stubBanner{}, clock, nil)
+	j := New(Config{}, stubBanner{}, clock, nil)
 
 	for i := range 100 {
-		j.Inspect(Click{
+		j.Inspect(detect.Click{
 			Scope:   "spreader",
 			Tile:    uint32(i),
 			Country: string(rune('A'+i%26)) + string(rune('A'+i/26)),
@@ -55,10 +57,10 @@ func TestTheCountryTallyIsCapped(t *testing.T) {
 func TestOnlyTheLastFewTilesAreKept(t *testing.T) {
 	clock := &stubClock{now: time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC)}
 
-	j := NewJury(Config{}, stubBanner{}, clock, nil)
+	j := New(Config{}, stubBanner{}, clock, nil)
 
 	for i := range uint32(100) {
-		j.Inspect(Click{Scope: "caller", Tile: i, Country: "FR", At: clock.now})
+		j.Inspect(detect.Click{Scope: "caller", Tile: i, Country: "FR", At: clock.now})
 	}
 
 	assert.Len(t, j.callers["caller"].tiles, keptTiles)

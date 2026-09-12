@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/shadowban"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/shadowban"
 )
 
 type fakeClock struct{ now time.Time }

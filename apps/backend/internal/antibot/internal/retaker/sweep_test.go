@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
 )
 
 type stubClock struct{ now time.Time }
@@ -19,13 +19,13 @@ func TestSweepForgetsIdleCallersAndStaleTiles(t *testing.T) {
 
 	w := New(Config{ReactionWindow: time.Second, TrackWindow: time.Minute, MinReactions: 4}, clock, nil)
 
-	player := antibot.Click{Scope: "player", Tile: 1, Country: "FR", At: clock.now}
+	player := detect.Click{Scope: "player", Tile: 1, Country: "FR", At: clock.now}
 	w.Watch(player)
 	w.Committed(player)
 
 	clock.now = clock.now.Add(80 * time.Millisecond)
 
-	bot := antibot.Click{Scope: "bot", Tile: 1, Country: "PS", At: clock.now, Held: "FR"}
+	bot := detect.Click{Scope: "bot", Tile: 1, Country: "PS", At: clock.now, Held: "FR"}
 	w.Watch(bot)
 	w.Committed(bot)
 

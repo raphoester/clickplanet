@@ -1,4 +1,4 @@
-package antibot_test
+package jury_test
 
 import (
 	"testing"
@@ -7,8 +7,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/shadowban"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/jury"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/shadowban"
 )
 
 type fakeClock struct{ now time.Time }
@@ -19,7 +20,7 @@ func (c *fakeClock) Now() time.Time { return c.now }
 // was shown.
 type stubWatchdog struct {
 	name    string
-	verdict antibot.Verdict
+	verdict detect.Verdict
 
 	seen      int
 	committed int
@@ -27,27 +28,27 @@ type stubWatchdog struct {
 
 func (w *stubWatchdog) Name() string { return w.name }
 
-func (w *stubWatchdog) Watch(antibot.Click) (antibot.Verdict, antibot.Evidence) {
+func (w *stubWatchdog) Watch(detect.Click) (detect.Verdict, detect.Evidence) {
 	w.seen++
-	return w.verdict, antibot.Evidence{
+	return w.verdict, detect.Evidence{
 		Rule:   w.name + "-rule",
-		Fields: []antibot.Field{{Key: "seen", Value: w.seen}},
+		Fields: []detect.Field{{Key: "seen", Value: w.seen}},
 	}
 }
 
-func (w *stubWatchdog) Committed(antibot.Click) { w.committed++ }
+func (w *stubWatchdog) Committed(detect.Click) { w.committed++ }
 
 type harness struct {
-	jury    *antibot.Jury
+	jury    *jury.Jury
 	clock   *fakeClock
-	reports []antibot.Report
+	reports []detect.Report
 }
 
-func newHarness(config antibot.Config, ban shadowban.Config, watchdogs ...antibot.Watchdog) *harness {
+func newHarness(config jury.Config, ban shadowban.Config, watchdogs ...detect.Watchdog) *harness {
 	h := &harness{clock: &fakeClock{now: time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC)}}
 
 	banner := shadowban.New(ban, h.clock)
-	h.jury = antibot.NewJury(config, banner, h.clock, func(report antibot.Report) {
+	h.jury = jury.New(config, banner, h.clock, func(report detect.Report) {
 		h.reports = append(h.reports, report)
 	}, watchdogs...)
 
@@ -55,7 +56,7 @@ func newHarness(config antibot.Config, ban shadowban.Config, watchdogs ...antibo
 }
 
 func (h *harness) click() bool {
-	drop := h.jury.Inspect(antibot.Click{
+	drop := h.jury.Inspect(detect.Click{
 		Scope:   "caller",
 		Tile:    1,
 		Country: "FR",
@@ -67,8 +68,8 @@ func (h *harness) click() bool {
 	return drop
 }
 
-func juryConfig() antibot.Config {
-	return antibot.Config{
+func juryConfig() jury.Config {
+	return jury.Config{
 		MinSuspects:     2,
 		SuspicionWindow: 10 * time.Minute,
 		TrackWindow:     time.Hour,
@@ -85,8 +86,8 @@ func banConfig() shadowban.Config {
 
 func TestOneCertainWatchdogBansOnItsOwn(t *testing.T) {
 	h := newHarness(juryConfig(), banConfig(),
-		&stubWatchdog{name: "sure", verdict: antibot.Certain},
-		&stubWatchdog{name: "quiet", verdict: antibot.Clear},
+		&stubWatchdog{name: "sure", verdict: detect.Certain},
+		&stubWatchdog{name: "quiet", verdict: detect.Clear},
 	)
 
 	assert.True(t, h.click())
@@ -95,8 +96,8 @@ func TestOneCertainWatchdogBansOnItsOwn(t *testing.T) {
 
 func TestOneSuspectIsNotEnough(t *testing.T) {
 	h := newHarness(juryConfig(), banConfig(),
-		&stubWatchdog{name: "unsure", verdict: antibot.Suspect},
-		&stubWatchdog{name: "quiet", verdict: antibot.Clear},
+		&stubWatchdog{name: "unsure", verdict: detect.Suspect},
+		&stubWatchdog{name: "quiet", verdict: detect.Clear},
 	)
 
 	assert.False(t, h.click(), "a bound loose enough to be Suspect bans real players on its own")
@@ -105,8 +106,8 @@ func TestOneSuspectIsNotEnough(t *testing.T) {
 
 func TestTwoSuspectsCrossIntoABan(t *testing.T) {
 	h := newHarness(juryConfig(), banConfig(),
-		&stubWatchdog{name: "first", verdict: antibot.Suspect},
-		&stubWatchdog{name: "second", verdict: antibot.Suspect},
+		&stubWatchdog{name: "first", verdict: detect.Suspect},
+		&stubWatchdog{name: "second", verdict: detect.Suspect},
 	)
 
 	assert.True(t, h.click())
@@ -118,8 +119,8 @@ func TestMinSuspectsIsWhereTheLineIs(t *testing.T) {
 	config.MinSuspects = 3
 
 	h := newHarness(config, banConfig(),
-		&stubWatchdog{name: "first", verdict: antibot.Suspect},
-		&stubWatchdog{name: "second", verdict: antibot.Suspect},
+		&stubWatchdog{name: "first", verdict: detect.Suspect},
+		&stubWatchdog{name: "second", verdict: detect.Suspect},
 	)
 
 	assert.False(t, h.click())
@@ -129,25 +130,25 @@ func TestASuspicionOlderThanTheWindowStopsCounting(t *testing.T) {
 	config := juryConfig()
 	config.SuspicionWindow = time.Minute
 
-	stale := &stubWatchdog{name: "stale", verdict: antibot.Suspect}
-	late := &stubWatchdog{name: "late", verdict: antibot.Clear}
+	stale := &stubWatchdog{name: "stale", verdict: detect.Suspect}
+	late := &stubWatchdog{name: "late", verdict: detect.Clear}
 
 	h := newHarness(config, banConfig(), stale, late)
 
 	require.False(t, h.click())
 
-	stale.verdict = antibot.Clear
+	stale.verdict = detect.Clear
 	h.clock.now = h.clock.now.Add(5 * time.Minute)
 
 	// The second watchdog only speaks up now, long after the first went quiet.
 	// Two readings five minutes apart are not a caller doing two things at once.
-	late.verdict = antibot.Suspect
+	late.verdict = detect.Suspect
 	assert.False(t, h.click())
 }
 
 func TestEveryWatchdogSeesEveryClickIncludingTheDroppedOnes(t *testing.T) {
-	certain := &stubWatchdog{name: "sure", verdict: antibot.Certain}
-	other := &stubWatchdog{name: "other", verdict: antibot.Clear}
+	certain := &stubWatchdog{name: "sure", verdict: detect.Certain}
+	other := &stubWatchdog{name: "other", verdict: detect.Clear}
 
 	h := newHarness(juryConfig(), banConfig(), certain, other)
 
@@ -163,8 +164,8 @@ func TestEveryWatchdogSeesEveryClickIncludingTheDroppedOnes(t *testing.T) {
 
 func TestTheReportNamesEveryWatchdogIncludingTheQuietOnes(t *testing.T) {
 	h := newHarness(juryConfig(), banConfig(),
-		&stubWatchdog{name: "sure", verdict: antibot.Certain},
-		&stubWatchdog{name: "quiet", verdict: antibot.Clear},
+		&stubWatchdog{name: "sure", verdict: detect.Certain},
+		&stubWatchdog{name: "quiet", verdict: detect.Clear},
 	)
 
 	require.True(t, h.click())
@@ -176,13 +177,13 @@ func TestTheReportNamesEveryWatchdogIncludingTheQuietOnes(t *testing.T) {
 	assert.Equal(t, "FR", report.TopCountry)
 
 	require.Len(t, report.Opinions, 2, "what did not fire is half of reading a ban that did")
-	assert.Equal(t, antibot.Certain, report.Opinions[0].Verdict)
-	assert.Equal(t, antibot.Clear, report.Opinions[1].Verdict)
+	assert.Equal(t, detect.Certain, report.Opinions[0].Verdict)
+	assert.Equal(t, detect.Clear, report.Opinions[1].Verdict)
 }
 
 func TestTheFlagIsNotRepeatedOnEveryClickInsideIt(t *testing.T) {
 	h := newHarness(juryConfig(), banConfig(),
-		&stubWatchdog{name: "sure", verdict: antibot.Certain},
+		&stubWatchdog{name: "sure", verdict: detect.Certain},
 	)
 
 	for range 60 {
@@ -196,7 +197,7 @@ func TestACallerThatKeepsAtItIsReportedAgain(t *testing.T) {
 	ban := banConfig()
 	ban.ReflagInterval = time.Minute
 
-	h := newHarness(juryConfig(), ban, &stubWatchdog{name: "sure", verdict: antibot.Certain})
+	h := newHarness(juryConfig(), ban, &stubWatchdog{name: "sure", verdict: detect.Certain})
 
 	for range 4 {
 		h.click()
@@ -213,7 +214,7 @@ func TestEnforceOffJudgesAndDropsNothing(t *testing.T) {
 	ban := banConfig()
 	ban.Enforce = false
 
-	h := newHarness(juryConfig(), ban, &stubWatchdog{name: "sure", verdict: antibot.Certain})
+	h := newHarness(juryConfig(), ban, &stubWatchdog{name: "sure", verdict: detect.Certain})
 
 	assert.False(t, h.click(), "the mode to deploy in")
 	assert.Len(t, h.reports, 1, "enforce must not change what is judged")
@@ -226,23 +227,23 @@ func TestCommittedReachesEveryWatchdog(t *testing.T) {
 
 	h := newHarness(juryConfig(), banConfig(), first, second)
 
-	h.jury.Committed(antibot.Click{Scope: "caller", Tile: 1, Country: "FR", At: h.clock.now})
+	h.jury.Committed(detect.Click{Scope: "caller", Tile: 1, Country: "FR", At: h.clock.now})
 
 	assert.Equal(t, 1, first.committed)
 	assert.Equal(t, 1, second.committed)
 }
 
 func TestACallerWithNoScopeIsNotJudged(t *testing.T) {
-	watchdog := &stubWatchdog{name: "sure", verdict: antibot.Certain}
+	watchdog := &stubWatchdog{name: "sure", verdict: detect.Certain}
 
 	h := newHarness(juryConfig(), banConfig(), watchdog)
 
-	assert.False(t, h.jury.Inspect(antibot.Click{Tile: 1, Country: "FR", At: h.clock.now}))
+	assert.False(t, h.jury.Inspect(detect.Click{Tile: 1, Country: "FR", At: h.clock.now}))
 	assert.Equal(t, 0, watchdog.seen)
 }
 
 func TestTheCallerFactsTravelWithTheBan(t *testing.T) {
-	watchdog := &stubWatchdog{name: "sure", verdict: antibot.Clear}
+	watchdog := &stubWatchdog{name: "sure", verdict: detect.Clear}
 
 	h := newHarness(juryConfig(), banConfig(), watchdog)
 
@@ -251,7 +252,7 @@ func TestTheCallerFactsTravelWithTheBan(t *testing.T) {
 	}
 
 	h.clock.now = h.clock.now.Add(20 * time.Minute)
-	watchdog.verdict = antibot.Certain
+	watchdog.verdict = detect.Certain
 
 	require.True(t, h.click())
 	require.Len(t, h.reports, 1)

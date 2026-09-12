@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/xtime"
 )
 
@@ -99,7 +99,7 @@ type Watchdog struct {
 	callers map[string]*caller
 }
 
-var _ antibot.Watchdog = (*Watchdog)(nil)
+var _ detect.Watchdog = (*Watchdog)(nil)
 
 // take is the last click that changed a tile's owner.
 type take struct {
@@ -119,7 +119,7 @@ type reaction struct {
 
 func (w *Watchdog) Name() string { return Name }
 
-func (w *Watchdog) Watch(click antibot.Click) (antibot.Verdict, antibot.Evidence) {
+func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
 	// A click onto a tile the caller's own country already holds changes
 	// nothing and publishes nothing, so it is neither a reaction nor something
 	// to react to. Counting it would let a caller spam one tile it owns and
@@ -154,7 +154,7 @@ func (w *Watchdog) Watch(click antibot.Click) (antibot.Verdict, antibot.Evidence
 // Committed records that the click actually changed the tile, which is what
 // makes it something the next caller can react to. A refused click changed no
 // tile, and a dropped one changed no tile either.
-func (w *Watchdog) Committed(click antibot.Click) {
+func (w *Watchdog) Committed(click detect.Click) {
 	if click.NoOp || click.Scope == "" {
 		return
 	}
@@ -165,13 +165,13 @@ func (w *Watchdog) Committed(click antibot.Click) {
 	w.tiles[click.Tile] = take{scope: click.Scope, at: click.At}
 }
 
-func (w *Watchdog) verdict(click antibot.Click) (antibot.Verdict, antibot.Evidence) {
+func (w *Watchdog) verdict(click detect.Click) (detect.Verdict, detect.Evidence) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
 	c, ok := w.callers[click.Scope]
 	if !ok {
-		return antibot.Clear, antibot.Evidence{}
+		return detect.Clear, detect.Evidence{}
 	}
 
 	// Nothing prunes a caller while it serves a ban, so judging without this
@@ -179,7 +179,7 @@ func (w *Watchdog) verdict(click antibot.Click) (antibot.Verdict, antibot.Eviden
 	c.prune(click.At.Add(-w.config.TrackWindow))
 
 	if len(c.reactions) < w.config.MinReactions {
-		return antibot.Clear, antibot.Evidence{}
+		return detect.Clear, detect.Evidence{}
 	}
 
 	delays := make([]time.Duration, 0, len(c.reactions))
@@ -187,20 +187,20 @@ func (w *Watchdog) verdict(click antibot.Click) (antibot.Verdict, antibot.Eviden
 		delays = append(delays, r.delay)
 	}
 
-	median, spread := antibot.Spread(delays)
+	median, spread := detect.Spread(delays)
 
 	if spread > w.config.MaxSpread {
-		return antibot.Clear, antibot.Evidence{}
+		return detect.Clear, detect.Evidence{}
 	}
 
-	verdict := antibot.Suspect
+	verdict := detect.Suspect
 	if median <= w.config.MaxMedian {
-		verdict = antibot.Certain
+		verdict = detect.Certain
 	}
 
-	return verdict, antibot.Evidence{
+	return verdict, detect.Evidence{
 		Rule: "reflex",
-		Fields: []antibot.Field{
+		Fields: []detect.Field{
 			{Key: "reactions", Value: len(c.reactions)},
 			{Key: "median", Value: median},
 			{Key: "spread", Value: spread},
@@ -218,7 +218,7 @@ func (w *Watchdog) callerLocked(scope string) *caller {
 	return c
 }
 
-func (c *caller) addReaction(click antibot.Click, delay time.Duration, window time.Duration) {
+func (c *caller) addReaction(click detect.Click, delay time.Duration, window time.Duration) {
 	c.prune(click.At.Add(-window))
 	c.reactions = append(c.reactions, reaction{at: click.At, delay: delay})
 

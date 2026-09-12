@@ -22,7 +22,7 @@ import (
 
 // This one cannot live in connectutil like the other three: it reads tile_id
 // and country_id out of the message, so it is tied to this contract.
-type ClickJury interface {
+type ClickGuard interface {
 	Inspect(click antibot.Click) (drop bool)
 	Committed(click antibot.Click)
 	Flagged() int
@@ -43,7 +43,7 @@ var reactionBuckets = []float64{
 }
 
 func NewAntiBotInterceptor(
-	jury ClickJury,
+	guard ClickGuard,
 	owner TileOwner,
 	timeProvider xtime.Provider,
 	registerer prometheus.Registerer,
@@ -60,7 +60,7 @@ func NewAntiBotInterceptor(
 	flagged := prometheus.NewGaugeFunc(prometheus.GaugeOpts{
 		Name: "shadowban_flagged",
 		Help: "Callers currently banned, whether or not shadowBan.enforce is on",
-	}, func() float64 { return float64(jury.Flagged()) })
+	}, func() float64 { return float64(guard.Flagged()) })
 
 	for _, collector := range []prometheus.Collector{dropped, flagged} {
 		if err := registerer.Register(collector); err != nil {
@@ -94,7 +94,7 @@ func NewAntiBotInterceptor(
 				click.NoOp = held == click.Country
 			}
 
-			if jury.Inspect(click) {
+			if guard.Inspect(click) {
 				dropped.Inc()
 				return connect.NewResponse(&planetv1.ClickResponse{}), nil
 			}
@@ -105,7 +105,7 @@ func NewAntiBotInterceptor(
 			// refused one recorded as a take is a way to have the next honest
 			// clicker of that tile look like it is reacting to something.
 			if err == nil {
-				jury.Committed(click)
+				guard.Committed(click)
 			}
 
 			return res, err
@@ -113,12 +113,12 @@ func NewAntiBotInterceptor(
 	}), nil
 }
 
-// NewAntiBotReporter builds the hooks the jury reports through: a histogram for
+// NewAntiBotObserver builds the hooks the guard reports through: a histogram for
 // the shape of the reactions, and a log line for who.
-func NewAntiBotReporter(
+func NewAntiBotObserver(
 	logger logging.Logger,
 	registerer prometheus.Registerer,
-) (func(time.Duration), func(antibot.Report), error) {
+) (antibot.Observer, error) {
 	if logger == nil {
 		logger = logging.NewNopLogger()
 	}
@@ -139,7 +139,7 @@ func NewAntiBotReporter(
 
 	for _, collector := range []prometheus.Collector{reactions, flags} {
 		if err := registerer.Register(collector); err != nil {
-			return nil, nil, fmt.Errorf("failed to register collector: %w", err)
+			return antibot.Observer{}, fmt.Errorf("failed to register collector: %w", err)
 		}
 	}
 
@@ -172,7 +172,7 @@ func NewAntiBotReporter(
 		logger.Warning("antibot ban", fields...)
 	}
 
-	return onReaction, onFlag, nil
+	return antibot.Observer{OnReaction: onReaction, OnFlag: onFlag}, nil
 }
 
 func formatOpinion(opinion antibot.Opinion) string {
