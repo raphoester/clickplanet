@@ -12,6 +12,7 @@ npm run test:watch # Re-run affected tests on change
 npm run lint       # ESLint check
 npm run proto      # Regenerate protobuf types from the shared ../../proto/ using buf CLI
 npm run atlas      # Repack the flag sprite atlas from static/countries/png100px
+npm run map        # Copy the shared /map coordinates blob into static/ (see "Static assets")
 npm run borders    # Resolve every tile to a landmass (see "The zoomed-out view")
 npm run flagFit    # Work out which flags stretch, and where each one is cropped
 npm run mobile     # Screenshot/inspect a URL as a phone (see "Debugging mobile layout")
@@ -761,8 +762,14 @@ cache entirely:
   place — it resolves *those* tiles.
 - `/static/coordinates-<hash>.bin` — tile positions, fetched at runtime by
   `points.ts`. Format in `coordinatesBinary.ts`; URL in `coordinatesAsset.ts`.
-  Regenerate with `npm run coordinates <detail> <mapFilePath> [threshold]`, or
-  rebuild the binary from the existing JSON with `npm run coordinates:convert`.
+  **This one is not ours alone.** The source of truth is the monorepo-shared
+  [`/map`](../../map/README.md), which the backend also builds its tile adjacency
+  from; `static/` holds a generated copy, exactly as `src/gen/grpc/` holds a copy
+  of the proto contract. `npm run map` re-copies it, and the generators —
+  `npm run coordinates <detail> <mapFilePath> [threshold]`, or
+  `npm run coordinates:convert` to rebuild from the existing JSON — write to
+  `/map` first and then sync. **Run the backend's `make map` after either, and
+  commit all three copies**, or the two apps disagree about what a tile id means.
 - `/static/countries/atlas-<hash>.png` — the flag sprite atlas. URL and pixel
   size in `atlasAsset.ts`. Regenerate with `npm run atlas`.
 
