@@ -65,6 +65,9 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
     /** Clicks sent and not yet answered — see reportBudget. */
     private inFlight = 0
 
+    /** Re-reads the allowance when a caught bonus runs out — see claim. */
+    private bonusEndTimer: ReturnType<typeof setTimeout> | undefined
+
     constructor(
         private client: PromiseClient<typeof ClickService>,
         batchUpdateDurationMs: number,
@@ -92,6 +95,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
 
     public close() {
         clearInterval(this.flushTimer)
+        clearTimeout(this.bonusEndTimer)
         this.stopListening()
         this.updateBatchCallbacks.clear()
         this.updateCallbacks.clear()
@@ -153,8 +157,8 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
     }
 
     /**
-     * Asked once, at load. Everything after that is learned from the answers to
-     * this client's own clicks, so a player who never clicks never asks again.
+     * Asked at load, and when a caught bonus ends. Everything else is learned
+     * from the answers to this client's own clicks.
      *
      * A server too old to answer leaves the counter off rather than breaking
      * the page: the frontend deploys separately from the backend.
@@ -315,6 +319,13 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         // Only a kind this build knows is ever drawn, so only one can be caught.
         const reward = rewardOf(res.kind, res.durationSeconds)
         if (!reward) throw new BonusLostError()
+
+        // The widened reading says nothing about when the widening stops, so
+        // left alone the meter keeps replaying a burst of 30 until the next
+        // click re-anchors it. Ask again once it is over. The server started
+        // the bonus before it answered, so this always lands after its end.
+        clearTimeout(this.bonusEndTimer)
+        this.bonusEndTimer = setTimeout(() => void this.readBudget(), reward.seconds * 1000)
 
         return reward
     }
