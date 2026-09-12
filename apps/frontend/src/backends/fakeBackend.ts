@@ -48,6 +48,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     /** The bonus caught last, and when it runs out. */
     private active: BonusReward | undefined
     private activeUntilMs = 0
+    private bonusEndTimer: ReturnType<typeof setTimeout> | undefined
     private readonly timers: ReturnType<typeof setInterval>[] = []
     private tokens = CLICK_BURST
     private lastRefillMs = Date.now()
@@ -101,6 +102,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     public close() {
         this.timers.forEach(clearInterval)
         this.timers.length = 0
+        clearTimeout(this.bonusEndTimer)
         this.updateListeners.clear()
         this.updateBatchCallbacks.clear()
         this.budgetCallbacks.clear()
@@ -212,6 +214,10 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         this.active = offer.reward
         this.activeUntilMs = Date.now() + offer.reward.seconds * 1000
         this.reportBudget()
+
+        // The narrowing is a reading too, or the meter keeps the wide burst.
+        clearTimeout(this.bonusEndTimer)
+        this.bonusEndTimer = setTimeout(() => this.reportBudget(), offer.reward.seconds * 1000)
 
         this.bonusCallbacks.forEach(handlers => handlers.onTaken({countryId}))
 

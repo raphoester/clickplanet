@@ -436,6 +436,36 @@ describe("PlanetBackend click budget", () => {
         backend.close()
     })
 
+    it("narrows back to the plain burst when a caught bonus ends, with no click", async () => {
+        vi.useFakeTimers()
+        try {
+            const getBudget = vi.fn()
+                .mockResolvedValueOnce({budget: budget(10)})
+                .mockResolvedValueOnce({budget: budget(10)})
+            const claimBonus = vi.fn().mockResolvedValue({
+                budget: budget(30, 30, 3),
+                kind: BonusKind.TRIPLE_CLICKS,
+                durationSeconds: 20,
+            })
+            const client = {...budgetClient(vi.fn(), getBudget) as object, claimBonus} as never
+            const backend = new PlanetBackend(client, 1_000)
+
+            const capacities: number[] = []
+            backend.watchClickBudget(b => capacities.push(b.capacity))
+
+            await backend.claimBonus("t", "fr")
+            expect(capacities.at(-1)).toBe(30)
+
+            await vi.advanceTimersByTimeAsync(20_000)
+
+            expect(getBudget).toHaveBeenCalledTimes(2)
+            expect(capacities.at(-1)).toBe(10)
+            backend.close()
+        } finally {
+            vi.useRealTimers()
+        }
+    })
+
     it("stops reporting once unsubscribed", async () => {
         const click = vi.fn().mockResolvedValue({budget: budget(6)})
         const backend = new PlanetBackend(budgetClient(click), 1_000)
