@@ -48,9 +48,10 @@ func (s *testSuite) TestSetAndPublish() {
 	case <-ctx.Done():
 		s.T().Fatal("timeout")
 	case val := <-listener:
-		s.Equal("fr", val.Value)
-		s.Equal(uint32(10), val.Tile)
-		s.Empty(val.Previous)
+		s.Require().NotNil(val.Update)
+		s.Equal("fr", val.Update.Value)
+		s.Equal(uint32(10), val.Update.Tile)
+		s.Empty(val.Update.Previous)
 	}
 }
 
@@ -71,9 +72,10 @@ func (s *testSuite) TestSetAndPublishWithOverride() {
 	case <-ctx.Done():
 		s.T().Fatal("timeout")
 	case val := <-listener:
-		s.Equal(newValue, val.Value)
-		s.Equal(uint32(10), val.Tile)
-		s.Equal(previousValue, val.Previous)
+		s.Require().NotNil(val.Update)
+		s.Equal(newValue, val.Update.Value)
+		s.Equal(uint32(10), val.Update.Tile)
+		s.Equal(previousValue, val.Update.Previous)
 	}
 }
 
@@ -109,7 +111,7 @@ func (s *testSuite) TestSubscribeFansOutToEverySubscriber() {
 	defer cancel()
 
 	const subscribers = 5
-	listeners := make([]<-chan clicks.TileUpdate, 0, subscribers)
+	listeners := make([]<-chan clicks.Change, 0, subscribers)
 	for range subscribers {
 		listener, err := s.storage.Subscribe(ctx)
 		s.Require().NoError(err)
@@ -123,10 +125,44 @@ func (s *testSuite) TestSubscribeFansOutToEverySubscriber() {
 		case <-ctx.Done():
 			s.T().Fatalf("subscriber %d timed out", i)
 		case val := <-listener:
-			s.Equal(uint32(42), val.Tile)
-			s.Equal("fr", val.Value)
+			s.Require().NotNil(val.Update)
+			s.Equal(uint32(42), val.Update.Tile)
+			s.Equal("fr", val.Update.Value)
 		}
 	}
+}
+
+func (s *testSuite) TestClearEmptiesTheTilesAndPublishesOneBlast() {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	s.Require().NoError(s.storage.Set(ctx, 10, "fr"))
+	s.Require().NoError(s.storage.Set(ctx, 12, "jp"))
+
+	listener, err := s.storage.Subscribe(ctx)
+	s.Require().NoError(err)
+
+	blast, err := s.storage.Clear(ctx, clicks.Blast{Tile: 11, CountryID: "de", Cleared: []uint32{10, 11, 12}})
+	s.Require().NoError(err)
+	s.Equal([]uint32{10, 12}, blast.Cleared, "only tiles that were held are reported")
+
+	select {
+	case <-ctx.Done():
+		s.T().Fatal("timeout")
+	case val := <-listener:
+		s.Require().NotNil(val.Blast)
+		s.Equal([]uint32{10, 12}, val.Blast.Cleared)
+		s.Equal("de", val.Blast.CountryID)
+	}
+	s.Empty(listener, "one event for the blast, not one per tile")
+
+	owner, _ := s.storage.Owner(10)
+	s.Empty(owner)
+}
+
+func (s *testSuite) TestClearRefusesATileOutOfRange() {
+	_, err := s.storage.Clear(context.Background(), clicks.Blast{Cleared: []uint32{maxIndex + 1}})
+	s.Error(err)
 }
 
 func (s *testSuite) TestSubscribeClosesChannelOnContextCancel() {
@@ -232,9 +268,10 @@ func (s *testSuite) TestSnapshotRoundTrip() {
 	select {
 	case <-ctx.Done():
 		s.T().Fatal("timeout")
-	case update := <-listener:
-		s.Equal("fr", update.Previous)
-		s.Equal("us", update.Value)
+	case change := <-listener:
+		s.Require().NotNil(change.Update)
+		s.Equal("fr", change.Update.Previous)
+		s.Equal("us", change.Update.Value)
 	}
 }
 

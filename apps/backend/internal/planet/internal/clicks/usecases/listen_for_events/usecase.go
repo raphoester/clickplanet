@@ -17,7 +17,7 @@ import (
 const DefaultHeartbeat = 30 * time.Second
 
 type UpdatesSubscriber interface {
-	Subscribe(ctx context.Context) (<-chan clicks.TileUpdate, error)
+	Subscribe(ctx context.Context) (<-chan clicks.Change, error)
 }
 
 // Event is one frame of the feed. Exactly one of the two cases is set, which is
@@ -25,6 +25,7 @@ type UpdatesSubscriber interface {
 // second feed.
 type Event struct {
 	Update    clicks.TileUpdate
+	Blast     *clicks.Blast
 	Heartbeat bool
 
 	// A box put in front of this caller alone, and a catch anyone made.
@@ -93,12 +94,12 @@ func (u *UseCase) Execute(ctx context.Context, sink Sink) error {
 				return err
 			}
 
-		case update, open := <-updates:
+		case change, open := <-updates:
 			if !open {
 				return nil
 			}
 
-			if err := sink.Send(Event{Update: update}); err != nil {
+			if err := sink.Send(eventOf(change)); err != nil {
 				return err
 			}
 
@@ -112,4 +113,12 @@ func (u *UseCase) Execute(ctx context.Context, sink Sink) error {
 			}
 		}
 	}
+}
+
+func eventOf(change clicks.Change) Event {
+	if change.Blast != nil {
+		return Event{Blast: change.Blast}
+	}
+
+	return Event{Update: *change.Update}
 }

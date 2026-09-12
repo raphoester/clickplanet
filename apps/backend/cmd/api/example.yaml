@@ -84,9 +84,11 @@ bonus:
   # left out, or at 0, is never offered. Empty offers every kind equally.
   #   triple_clicks - the allowance is multiplied by `multiplier`
   #   spread_clicks - every click also takes the tiles touching the one clicked
+  #   bomb          - one bomb, dropped anywhere to clear `bombRings` around it
   kinds:
-    triple_clicks: 3
-    spread_clicks: 1
+    triple_clicks: 5
+    spread_clicks: 2
+    bomb: 1
 
   # How long the token stays good. It has to outlast the flight the client
   # draws, or a box caught on its last frame is refused.
@@ -103,6 +105,16 @@ bonus:
   # How long a caught spread_clicks runs. Far shorter than `duration`: a click
   # that takes seven tiles is worth much more than three clicks.
   spreadDuration: 10s
+
+  # How long a caught bomb may be held before it is lost. It counts towards
+  # maxBoostPerHour like any bonus, and the next box is due a window after it is
+  # dropped.
+  bombDuration: 30s
+
+  # How many rings of tiles around the one hit a bomb clears, whoever holds them:
+  # 8 is at most 217 tiles inland. The blast radius the client draws is worked
+  # out from this and the map's own tile spacing.
+  bombRings: 8
 
   # How recently a caller must have clicked to be offered a box. A tab left open
   # overnight is not playing, and a box sent to it is one nobody catches.

@@ -38,6 +38,8 @@ func (s Sink) Send(event listen_for_events.Event) error {
 		return s.stream.Send(bonusOfferedEvent(event.Offer))
 	case event.Taken != nil:
 		return s.stream.Send(bonusTakenEvent(event.Taken))
+	case event.Blast != nil:
+		return s.stream.Send(bombDroppedEvent(event.Blast))
 	default:
 		return s.stream.Send(tileUpdateEvent(event.Update))
 	}
@@ -63,6 +65,20 @@ func bonusTakenEvent(taken *bonus.Taken) *planetv1.PlanetEvent {
 			BonusTaken: &planetv1.BonusTaken{
 				CountryId: taken.CountryID,
 				Kind:      claim_bonus_handler.EncodeKind(taken.Kind),
+			},
+		},
+	}
+}
+
+func bombDroppedEvent(blast *clicks.Blast) *planetv1.PlanetEvent {
+	return &planetv1.PlanetEvent{
+		Event: &planetv1.PlanetEvent_BombDropped{
+			BombDropped: &planetv1.BombDropped{
+				TileId:         blast.Tile,
+				CountryId:      blast.CountryID,
+				Radius:         blast.Radius,
+				ClearedTileIds: blast.Cleared,
+				Point:          &planetv1.GlobePoint{X: blast.Point.X, Y: blast.Point.Y, Z: blast.Point.Z},
 			},
 		},
 	}

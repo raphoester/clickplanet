@@ -26,6 +26,7 @@ func newTestRegistry() (*Registry, *cptime.FixedClock) {
 		OfferTTL:        15 * time.Second,
 		Duration:        time.Minute,
 		SpreadDuration:  time.Minute,
+		BombDuration:    time.Minute,
 		Multiplier:      3,
 		ActiveWithin:    5 * time.Minute,
 		ForgetAfter:     5 * time.Minute,
@@ -371,6 +372,47 @@ func TestASpreadBoxRunsForItsOwnShorterDuration(t *testing.T) {
 	reward, claimed := registry.Claim(offer.Token, "scope-a")
 	require.True(t, claimed)
 	assert.Equal(t, 10*time.Second, reward.Duration)
+}
+
+func bombRegistry() (*Registry, *cptime.FixedClock) {
+	clock := cptime.NewFixedClock(epoch)
+
+	return New(Config{
+		Enabled: true, MinInterval: window, MaxInterval: window, ActiveWithin: 5 * time.Minute,
+		BombDuration: 30 * time.Second,
+		Kinds:        map[Kind]float64{KindBomb: 1},
+	}, clock), clock
+}
+
+func TestABombBoxIsHeldForTheBombsOwnDuration(t *testing.T) {
+	registry, clock := bombRegistry()
+	events := playing(t, registry, "scope-a")
+
+	waitOut(registry, clock)
+	offer := offered(t, events)
+	require.NotNil(t, offer)
+
+	reward, claimed := registry.Claim(offer.Token, "scope-a")
+	require.True(t, claimed)
+	assert.Equal(t, KindBomb, reward.Kind)
+	assert.Equal(t, 30*time.Second, reward.Duration)
+}
+
+func TestDroppingABombBringsTheNextBoxToAWindowFromTheDrop(t *testing.T) {
+	registry, clock := bombRegistry()
+	events := playing(t, registry, "scope-a")
+
+	waitOut(registry, clock)
+	offer := offered(t, events)
+	require.NotNil(t, offer)
+	_, claimed := registry.Claim(offer.Token, "scope-a")
+	require.True(t, claimed)
+
+	clock.Advance(5 * time.Second)
+	registry.Dropped("scope-a")
+
+	assert.Equal(t, clock.Now().Add(window), registry.callers["scope-a"].nextOfferAt,
+		"not a window after the 25 seconds the bomb could still have been held")
 }
 
 func TestTheHourlyCapCountsTheTimeEachBonusActuallyRan(t *testing.T) {

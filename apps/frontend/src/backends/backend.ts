@@ -80,6 +80,45 @@ export interface BonusListener {
     claimBonus(token: string, countryId: string): Promise<BonusReward>
 }
 
+/** A direction from the centre of the globe. Need not be unit length. */
+export type GlobePoint = {x: number, y: number, z: number}
+
+/**
+ * A bomb that landed, anywhere on the planet — broadcast to everyone, the
+ * dropper included, so every screen plays the same blast.
+ */
+export type BombDrop = {
+    /** The tile it hit, or undefined for a bomb that fell in the sea. */
+    tile: number | undefined
+
+    /** Where to draw it, on the unit sphere. */
+    point: GlobePoint
+
+    /** Who dropped it, for the news line. */
+    countryId: string
+
+    /** Radians of arc, so the drawing matches what was cleared. */
+    radius: number
+
+    /**
+     * The tiles the server cleared. Carried here rather than as tile updates so
+     * the client can hold them back until the blast hits, instead of the ground
+     * going blank before the bomb has landed.
+     */
+    cleared: number[]
+}
+
+export interface Bomber {
+    listenForBombs(onDropped: (drop: BombDrop) => void): () => void
+
+    /**
+     * Drops the bomb this client won where it was aimed. Whether that is land or
+     * sea is the server's call. Rejects with `BonusLostError` when there is none
+     * to drop — never won, already dropped, or held too long.
+     */
+    dropBomb(target: GlobePoint, countryId: string): Promise<void>
+}
+
 /**
  * The box could not be claimed. Deliberately one error and not four: the server
  * does not say which of the reasons it was, because the difference is what a

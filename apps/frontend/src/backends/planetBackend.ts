@@ -1,6 +1,9 @@
 import {
+    BombDrop,
+    Bomber,
     BonusCatch,
     BonusListener,
+    GlobePoint,
     BonusLostError,
     BonusOffer,
     Ownerships,
@@ -50,11 +53,12 @@ export function newSessionServiceClient(config: Config): PromiseClient<typeof Se
     }))
 }
 
-export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener {
+export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, Bomber {
     private pendingUpdates: Update[] = []
     private readonly updateBatchCallbacks = new Map<string, (updates: Update[]) => void>()
     private readonly updateCallbacks = new Map<string, (update: Update) => void>()
     private readonly bonusCallbacks = new Map<string, BonusHandlers>()
+    private readonly bombCallbacks = new Map<string, (drop: BombDrop) => void>()
     private readonly budgetCallbacks = new Map<string, (budget: ClickBudget) => void>()
     private readonly flushTimer: ReturnType<typeof setInterval>
     private readonly stopListening: () => void
@@ -85,12 +89,14 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
             this.pendingUpdates.push(update)
         })
 
-        this.flushTimer = setInterval(() => {
-            if (this.pendingUpdates.length === 0) return
-            const updates = this.pendingUpdates
-            this.pendingUpdates = []
-            this.updateBatchCallbacks.forEach(callback => callback(updates))
-        }, batchUpdateDurationMs)
+        this.flushTimer = setInterval(() => this.flushUpdates(), batchUpdateDurationMs)
+    }
+
+    private flushUpdates() {
+        if (this.pendingUpdates.length === 0) return
+        const updates = this.pendingUpdates
+        this.pendingUpdates = []
+        this.updateBatchCallbacks.forEach(callback => callback(updates))
     }
 
     public close() {
@@ -100,6 +106,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         this.updateBatchCallbacks.clear()
         this.updateCallbacks.clear()
         this.bonusCallbacks.clear()
+        this.bombCallbacks.clear()
         this.budgetCallbacks.clear()
         this.pendingUpdates = []
     }
@@ -260,7 +267,19 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                 }
 
                 const taken = catchOf(event)
-                if (taken) this.bonusCallbacks.forEach(handlers => handlers.onTaken(taken))
+                if (taken) {
+                    this.bonusCallbacks.forEach(handlers => handlers.onTaken(taken))
+                    return
+                }
+
+                const drop = bombOf(event)
+                if (drop) {
+                    // Tile updates wait for the next batch; the ones that came
+                    // before this blast on the wire have to land before it too,
+                    // or a tile taken just before the bomb repaints over the crater.
+                    this.flushUpdates()
+                    this.bombCallbacks.forEach(callback => callback(drop))
+                }
             },
             "planet events",
         )
@@ -317,7 +336,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         this.anchorBudget(res.budget)
 
         // Only a kind this build knows is ever drawn, so only one can be caught.
-        const reward = rewardOf(res.kind, res.durationSeconds)
+        const reward = rewardOf(res.kind, res.durationSeconds, res.blastRadius)
         if (!reward) throw new BonusLostError()
 
         // The widened reading says nothing about when the widening stops, so
@@ -328,6 +347,41 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         this.bonusEndTimer = setTimeout(() => void this.readBudget(), reward.seconds * 1000)
 
         return reward
+    }
+
+    public listenForBombs(onDropped: (drop: BombDrop) => void): () => void {
+        const id = generateUUID()
+        this.bombCallbacks.set(id, onDropped)
+
+        return () => this.bombCallbacks.delete(id)
+    }
+
+    /** With the same one-shot session retry a claim gets: a bomb is worth keeping. */
+    public async dropBomb(target: GlobePoint, countryId: string): Promise<void> {
+        try {
+            await this.drop(target, countryId)
+        } catch (e) {
+            if (!(e instanceof ConnectError) || e.code !== Code.Unauthenticated) throw asBonusError(e)
+
+            this.session.invalidate()
+
+            try {
+                await this.drop(target, countryId)
+            } catch (retried) {
+                throw asBonusError(retried)
+            }
+        }
+    }
+
+    private async drop(target: GlobePoint, countryId: string): Promise<void> {
+        const sessionToken = await this.session.token()
+
+        const headers = new Headers()
+        if (sessionToken) headers.set(SESSION_HEADER, sessionToken)
+
+        // Not wrapped in `retrying`, for the reason a claim is not: the bomb is
+        // spent by the first request that lands.
+        await this.client.dropBomb({target, countryId}, {headers})
     }
 
     public listenForUpdatesBatch(
@@ -376,14 +430,30 @@ export function catchOf(event: PlanetEvent): BonusCatch | undefined {
     return {countryId: event.event.value.countryId}
 }
 
-function rewardOf(kind: BonusKind, seconds: number): BonusReward | undefined {
+/** An offer carries no blast radius; only the answer to a claim does, which is when it is needed. */
+function rewardOf(kind: BonusKind, seconds: number, blastRadius = 0): BonusReward | undefined {
     switch (kind) {
         case BonusKind.TRIPLE_CLICKS:
             return {kind: "tripleClicks", seconds}
         case BonusKind.SPREAD_CLICKS:
             return {kind: "spreadClicks", seconds}
+        case BonusKind.BOMB:
+            return {kind: "bomb", seconds, radius: blastRadius}
         default:
             return undefined
+    }
+}
+
+export function bombOf(event: PlanetEvent): BombDrop | undefined {
+    if (event.event.case !== "bombDropped") return undefined
+
+    const dropped = event.event.value
+    return {
+        tile: dropped.tileId === 0 ? undefined : dropped.tileId,
+        point: {x: dropped.point?.x ?? 0, y: dropped.point?.y ?? 0, z: dropped.point?.z ?? 1},
+        countryId: dropped.countryId,
+        radius: dropped.radius,
+        cleared: dropped.clearedTileIds,
     }
 }
 

@@ -63,6 +63,16 @@ func TestTheExampleConfigStillCarriesTheRestOfTheFile(t *testing.T) {
 	assert.Equal(t, time.Hour, config.Session.TTL)
 }
 
+func TestTheExampleConfigReachesTheBombSettings(t *testing.T) {
+	var config Config
+	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
+
+	assert.Equal(t, 30*time.Second, config.Planet.Bonus.BombDuration)
+	assert.Equal(t, 8, config.Planet.Bonus.BombRings)
+	assert.InDelta(t, 1.0, config.Planet.Bonus.Kinds["bomb"], 1e-9)
+	require.NoError(t, config.Planet.Bonus.Validate())
+}
+
 func TestBothContextsReadTheSameSessionBlock(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.yaml")
 	require.NoError(t, os.WriteFile(path, []byte(`

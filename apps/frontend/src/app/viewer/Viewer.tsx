@@ -1,5 +1,6 @@
 import {useRef} from 'react';
-import {BonusListener, OwnershipsGetter, TileClicker, UpdatesListener} from "../../backends/backend.ts";
+import {Bomber, BonusListener, OwnershipsGetter, TileClicker, UpdatesListener} from "../../backends/backend.ts";
+import BombNews from "../components/BombNews.tsx";
 import {ChatBackend} from "../../backends/chat.ts";
 import ChatPanel from "../chat/ChatPanel.tsx";
 import Menu from "../Menu.tsx";
@@ -24,6 +25,7 @@ export type ViewerProps = {
     updatesListener: UpdatesListener
     clickBudgetSource?: ClickBudgetSource
     bonusListener?: BonusListener
+    bomber?: Bomber
     chatBackend?: ChatBackend
 }
 
@@ -47,12 +49,15 @@ export default function Viewer(props: ViewerProps) {
         award,
         dismissAward,
         bonus,
+        lastBomb,
+        dismissBomb,
     } = useGlobe({
         container,
         tileClicker: props.tileClicker,
         ownershipsGetter: props.ownershipsGetter,
         updatesListener: props.updatesListener,
         bonusListener: props.bonusListener,
+        bomber: props.bomber,
         country: countryState,
     })
 
@@ -88,6 +93,8 @@ export default function Viewer(props: ViewerProps) {
         />}
 
         {award && <BonusAward reward={award} onDone={dismissAward}/>}
+
+        {lastBomb && <BombNews key={lastBomb.id} drop={lastBomb.drop} onDone={dismissBomb}/>}
 
         {rateLimited && <RateLimitModal onClose={dismissRateLimited}/>}
 

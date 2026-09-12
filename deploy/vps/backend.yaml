@@ -138,12 +138,13 @@ bonus:
   # One miss is retried sooner; a second in a row waits the ordinary window.
   missRetry: 7s
 
-  # A weight per kind: a kind's chance is its weight over the sum. spread_clicks
-  # is the strong one, so it is one box in four. A frontend too old to know it
-  # skips that box, which the schedule reads as a miss - so this can ship first.
+  # A weight per kind: a kind's chance is its weight over the sum, so one box in
+  # eight is a bomb. A frontend too old to know a kind skips that box, which the
+  # schedule reads as a miss - so this can ship first.
   kinds:
-    triple_clicks: 3
-    spread_clicks: 1
+    triple_clicks: 5
+    spread_clicks: 2
+    bomb: 1
 
   # Has to outlast the flight the client draws, or a box caught on its last
   # frame is refused.
@@ -157,6 +158,11 @@ bonus:
 
   # spread_clicks' own duration. It takes seven tiles a click, so it is short.
   spreadDuration: 10s
+
+  # How long a bomb may be held, counted towards maxBoostPerHour, and how many
+  # rings of tiles it clears (8 rings is at most 217 tiles).
+  bombDuration: 30s
+  bombRings: 8
 
   # A tab left open overnight is not playing, and a box sent to it is one nobody
   # catches. Until the frontend ships, this is every caller.

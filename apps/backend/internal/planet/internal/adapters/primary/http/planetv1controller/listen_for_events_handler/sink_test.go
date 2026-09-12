@@ -95,6 +95,26 @@ func TestASinkFramesACatchWithNoTokenOnIt(t *testing.T) {
 	assert.Equal(t, "jp", taken.GetCountryId())
 }
 
+func TestASinkFramesABlastWithEveryTileItCleared(t *testing.T) {
+	stream := &recorder{}
+
+	require.NoError(t, listen_for_events_handler.NewSink(stream).Send(listen_for_events.Event{
+		Blast: &clicks.Blast{
+			Tile: 7, CountryID: "fr", Radius: 0.03,
+			Point:   clicks.Vec3{X: 0, Y: 0, Z: 1},
+			Cleared: []uint32{6, 7, 8},
+		},
+	}))
+
+	dropped := stream.sent[0].GetBombDropped()
+	require.NotNil(t, dropped, "expected a bomb_dropped case, got %+v", stream.sent[0].GetEvent())
+	assert.Equal(t, uint32(7), dropped.GetTileId())
+	assert.Equal(t, "fr", dropped.GetCountryId())
+	assert.InDelta(t, 0.03, dropped.GetRadius(), 1e-9)
+	assert.Equal(t, []uint32{6, 7, 8}, dropped.GetClearedTileIds())
+	assert.InDelta(t, 1, dropped.GetPoint().GetZ(), 1e-9)
+}
+
 func TestAHeartbeatStillWinsOverEverything(t *testing.T) {
 	stream := &recorder{}
 

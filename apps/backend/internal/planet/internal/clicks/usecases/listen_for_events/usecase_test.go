@@ -15,11 +15,11 @@ import (
 )
 
 type stubSubscriber struct {
-	updates chan clicks.TileUpdate
+	updates chan clicks.Change
 	err     error
 }
 
-func (s stubSubscriber) Subscribe(context.Context) (<-chan clicks.TileUpdate, error) {
+func (s stubSubscriber) Subscribe(context.Context) (<-chan clicks.Change, error) {
 	return s.updates, s.err
 }
 
@@ -61,8 +61,8 @@ func TestAFailedSubscriptionEndsTheFeed(t *testing.T) {
 }
 
 func TestAnUpdateIsCarriedToTheSink(t *testing.T) {
-	updates := make(chan clicks.TileUpdate, 1)
-	updates <- clicks.TileUpdate{Tile: 42, Value: "fr", Previous: "de"}
+	updates := make(chan clicks.Change, 1)
+	updates <- clicks.Change{Update: &clicks.TileUpdate{Tile: 42, Value: "fr", Previous: "de"}}
 
 	sink := &recorder{fed: make(chan struct{})}
 
@@ -81,6 +81,26 @@ func TestAnUpdateIsCarriedToTheSink(t *testing.T) {
 	}, sink.seen())
 }
 
+func TestABlastIsCarriedToTheSinkAsOneFrame(t *testing.T) {
+	updates := make(chan clicks.Change, 1)
+	blast := &clicks.Blast{Tile: 7, CountryID: "fr", Cleared: []uint32{6, 7, 8}}
+	updates <- clicks.Change{Blast: blast}
+
+	sink := &recorder{fed: make(chan struct{})}
+
+	ctx, cancel := context.WithCancel(t.Context())
+	done := make(chan error, 1)
+	go func() {
+		done <- listen_for_events.New(stubSubscriber{updates: updates}, time.Hour, nil).Execute(ctx, sink)
+	}()
+
+	<-sink.fed
+	cancel()
+	require.NoError(t, <-done)
+
+	require.Equal(t, []listen_for_events.Event{{Blast: blast}}, sink.seen())
+}
+
 // Cloudflare cuts a silent response at ~125s with a 524, so a quiet feed has to
 // keep speaking or it dies and reconnects forever, losing each gap.
 func TestASilentFeedKeepsSendingHeartbeats(t *testing.T) {
@@ -90,7 +110,7 @@ func TestASilentFeedKeepsSendingHeartbeats(t *testing.T) {
 	done := make(chan error, 1)
 	go func() {
 		done <- listen_for_events.New(
-			stubSubscriber{updates: make(chan clicks.TileUpdate)}, time.Millisecond, nil).Execute(ctx, sink)
+			stubSubscriber{updates: make(chan clicks.Change)}, time.Millisecond, nil).Execute(ctx, sink)
 	}()
 
 	for range 3 {
@@ -105,7 +125,7 @@ func TestASilentFeedKeepsSendingHeartbeats(t *testing.T) {
 }
 
 func TestTheFeedEndsWhenTheSubscriptionCloses(t *testing.T) {
-	updates := make(chan clicks.TileUpdate)
+	updates := make(chan clicks.Change)
 	close(updates)
 
 	err := listen_for_events.New(stubSubscriber{updates: updates}, time.Hour, nil).
@@ -116,8 +136,8 @@ func TestTheFeedEndsWhenTheSubscriptionCloses(t *testing.T) {
 
 // A stream that has gone away ends the feed rather than being retried.
 func TestAFailedSendEndsTheFeed(t *testing.T) {
-	updates := make(chan clicks.TileUpdate, 1)
-	updates <- clicks.TileUpdate{Tile: 1}
+	updates := make(chan clicks.Change, 1)
+	updates <- clicks.Change{Update: &clicks.TileUpdate{Tile: 1}}
 
 	err := listen_for_events.New(stubSubscriber{updates: updates}, time.Hour, nil).
 		Execute(t.Context(), &recorder{err: assert.AnError})

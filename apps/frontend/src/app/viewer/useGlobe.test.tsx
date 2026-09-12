@@ -24,7 +24,7 @@ function fakeGlobe(): Globe & {
     capture: ReturnType<typeof vi.fn>,
     dispose: ReturnType<typeof vi.fn>,
 } {
-    return {tilesCount: 257_948, setCountry: vi.fn(), capture: vi.fn(), dispose: vi.fn()}
+    return {tilesCount: 257_948, setCountry: vi.fn(), takeReward: vi.fn(), capture: vi.fn(), dispose: vi.fn()}
 }
 
 function Harness(props: {country: typeof FRANCE, backends: ReturnType<typeof backends>, onResult: (r: unknown) => void}) {

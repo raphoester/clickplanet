@@ -30,12 +30,22 @@ export enum BonusKind {
    * @generated from enum value: BONUS_KIND_SPREAD_CLICKS = 2;
    */
   SPREAD_CLICKS = 2,
+
+  /**
+   * One bomb, dropped with DropBomb anywhere on the planet within the duration.
+   * It clears every tile within a few rings of where it lands, whoever holds
+   * them. The server picks the tiles.
+   *
+   * @generated from enum value: BONUS_KIND_BOMB = 3;
+   */
+  BOMB = 3,
 }
 // Retrieve enum metadata with: proto3.getEnumType(BonusKind)
 proto3.util.setEnumType(BonusKind, "planet.v1.BonusKind", [
   { no: 0, name: "BONUS_KIND_UNSPECIFIED" },
   { no: 1, name: "BONUS_KIND_TRIPLE_CLICKS" },
   { no: 2, name: "BONUS_KIND_SPREAD_CLICKS" },
+  { no: 3, name: "BONUS_KIND_BOMB" },
 ]);
 
 /**
@@ -488,6 +498,15 @@ export class PlanetEvent extends Message<PlanetEvent> {
      */
     value: BonusTaken;
     case: "bonusTaken";
+  } | {
+    /**
+     * Broadcast to everyone. It travels in order with the tile updates, so a
+     * tile retaken just after the blast is never blanked by it.
+     *
+     * @generated from field: planet.v1.BombDropped bomb_dropped = 5;
+     */
+    value: BombDropped;
+    case: "bombDropped";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<PlanetEvent>) {
@@ -502,6 +521,7 @@ export class PlanetEvent extends Message<PlanetEvent> {
     { no: 2, name: "heartbeat", kind: "message", T: Heartbeat, oneof: "event" },
     { no: 3, name: "bonus_offered", kind: "message", T: BonusOffered, oneof: "event" },
     { no: 4, name: "bonus_taken", kind: "message", T: BonusTaken, oneof: "event" },
+    { no: 5, name: "bomb_dropped", kind: "message", T: BombDropped, oneof: "event" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PlanetEvent {
@@ -705,6 +725,14 @@ export class ClaimBonusResponse extends Message<ClaimBonusResponse> {
    */
   durationSeconds = 0;
 
+  /**
+   * For a bomb: how wide its blast is, in radians of arc, so the client can
+   * draw the aiming ring at the size of what it will clear. Zero otherwise.
+   *
+   * @generated from field: double blast_radius = 4;
+   */
+  blastRadius = 0;
+
   constructor(data?: PartialMessage<ClaimBonusResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -716,6 +744,7 @@ export class ClaimBonusResponse extends Message<ClaimBonusResponse> {
     { no: 1, name: "budget", kind: "message", T: ClickBudget },
     { no: 2, name: "kind", kind: "enum", T: proto3.getEnumType(BonusKind) },
     { no: 3, name: "duration_seconds", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 4, name: "blast_radius", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ClaimBonusResponse {
@@ -732,6 +761,210 @@ export class ClaimBonusResponse extends Message<ClaimBonusResponse> {
 
   static equals(a: ClaimBonusResponse | PlainMessage<ClaimBonusResponse> | undefined, b: ClaimBonusResponse | PlainMessage<ClaimBonusResponse> | undefined): boolean {
     return proto3.util.equals(ClaimBonusResponse, a, b);
+  }
+}
+
+/**
+ * A point on the globe, as a direction from its centre. Need not be unit length.
+ *
+ * @generated from message planet.v1.GlobePoint
+ */
+export class GlobePoint extends Message<GlobePoint> {
+  /**
+   * @generated from field: double x = 1;
+   */
+  x = 0;
+
+  /**
+   * @generated from field: double y = 2;
+   */
+  y = 0;
+
+  /**
+   * @generated from field: double z = 3;
+   */
+  z = 0;
+
+  constructor(data?: PartialMessage<GlobePoint>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GlobePoint";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "x", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 2, name: "y", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 3, name: "z", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GlobePoint {
+    return new GlobePoint().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GlobePoint {
+    return new GlobePoint().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GlobePoint {
+    return new GlobePoint().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GlobePoint | PlainMessage<GlobePoint> | undefined, b: GlobePoint | PlainMessage<GlobePoint> | undefined): boolean {
+    return proto3.util.equals(GlobePoint, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.DropBombRequest
+ */
+export class DropBombRequest extends Message<DropBombRequest> {
+  /**
+   * Where the player aimed, not a tile: the sea has no tiles, and whether the
+   * aim is on land or in the water is the server's call.
+   *
+   * @generated from field: planet.v1.GlobePoint target = 1;
+   */
+  target?: GlobePoint;
+
+  /**
+   * What to say the bomber was playing for, in the broadcast that follows.
+   *
+   * @generated from field: string country_id = 2;
+   */
+  countryId = "";
+
+  constructor(data?: PartialMessage<DropBombRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.DropBombRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "target", kind: "message", T: GlobePoint },
+    { no: 2, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DropBombRequest {
+    return new DropBombRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DropBombRequest {
+    return new DropBombRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DropBombRequest {
+    return new DropBombRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: DropBombRequest | PlainMessage<DropBombRequest> | undefined, b: DropBombRequest | PlainMessage<DropBombRequest> | undefined): boolean {
+    return proto3.util.equals(DropBombRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.DropBombResponse
+ */
+export class DropBombResponse extends Message<DropBombResponse> {
+  constructor(data?: PartialMessage<DropBombResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.DropBombResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DropBombResponse {
+    return new DropBombResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DropBombResponse {
+    return new DropBombResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DropBombResponse {
+    return new DropBombResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: DropBombResponse | PlainMessage<DropBombResponse> | undefined, b: DropBombResponse | PlainMessage<DropBombResponse> | undefined): boolean {
+    return proto3.util.equals(DropBombResponse, a, b);
+  }
+}
+
+/**
+ * A bomb landed. Everything a client needs to draw it and to clear the map.
+ *
+ * @generated from message planet.v1.BombDropped
+ */
+export class BombDropped extends Message<BombDropped> {
+  /**
+   * The tile it hit. Zero when it fell in the sea: the bomb is spent, nothing
+   * is cleared, and the client draws a splash.
+   *
+   * @generated from field: uint32 tile_id = 1;
+   */
+  tileId = 0;
+
+  /**
+   * @generated from field: string country_id = 2;
+   */
+  countryId = "";
+
+  /**
+   * Radians of arc, so the drawing matches what was cleared.
+   *
+   * @generated from field: double radius = 3;
+   */
+  radius = 0;
+
+  /**
+   * The tiles that were held and now are not. Carried here rather than as one
+   * TileUpdate each, so the client can hold them back until the blast hits.
+   *
+   * @generated from field: repeated uint32 cleared_tile_ids = 4;
+   */
+  clearedTileIds: number[] = [];
+
+  /**
+   * Where to draw it, on the unit sphere: the tile's centre, or the aimed spot
+   * in the sea.
+   *
+   * @generated from field: planet.v1.GlobePoint point = 5;
+   */
+  point?: GlobePoint;
+
+  constructor(data?: PartialMessage<BombDropped>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.BombDropped";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "tile_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 2, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "radius", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 4, name: "cleared_tile_ids", kind: "scalar", T: 13 /* ScalarType.UINT32 */, repeated: true },
+    { no: 5, name: "point", kind: "message", T: GlobePoint },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BombDropped {
+    return new BombDropped().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BombDropped {
+    return new BombDropped().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BombDropped {
+    return new BombDropped().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: BombDropped | PlainMessage<BombDropped> | undefined, b: BombDropped | PlainMessage<BombDropped> | undefined): boolean {
+    return proto3.util.equals(BombDropped, a, b);
   }
 }
 

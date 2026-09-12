@@ -52,6 +52,22 @@ describe("a spread reward", () => {
     })
 })
 
+describe("a bomb", () => {
+    const BOMB = {kind: "bomb", seconds: 30, radius: 0.06} as const
+
+    it("multiplies nothing", () => {
+        expect(multiplierOf(BOMB)).toBe(1)
+    })
+
+    it("says how long there is to drop it, with a badge that fits the meter", () => {
+        const {title, detail, badge} = describeReward(BOMB)
+
+        expect(title).toBe("Bomb")
+        expect(detail).toContain("30")
+        expect(badge.length).toBeLessThanOrEqual(3)
+    })
+})
+
 describe("secondsLeft", () => {
     it("counts down against the clock it was stamped on", () => {
         expect(secondsLeft(RUNNING, 0)).toBe(60)

@@ -42,6 +42,18 @@
     transform-origin: 3px 7px;
 }
 
+/* A blast somewhere out of frame: red, so it is never mistaken for a box. */
+.bonus-pointer--blast .bonus-pointer-badge {
+    border-color: #4A0A02;
+    background: #D8341C;
+    box-shadow: 0 0 14px #FF5A3F88;
+    font-size: 15px;
+}
+
+.bonus-pointer--blast .bonus-pointer-arrow {
+    border-left-color: #FF6A4F;
+}
+
 @keyframes bonus-pointer-pulse {
     0%, 100% {
         transform: scale(1);

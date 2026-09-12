@@ -56,6 +56,16 @@ func TestAClaimAnswersTheWidenedAllowance(t *testing.T) {
 	assert.Equal(t, uint32(60), msg.GetDurationSeconds())
 }
 
+func TestABombClaimSaysHowWideTheBlastIs(t *testing.T) {
+	msg, err := claim(t, &stubUseCase{out: claim_bonus.Out{
+		Kind: bonus.KindBomb, Duration: 30 * time.Second, BlastRadius: 0.03,
+	}})
+	require.NoError(t, err)
+
+	assert.Equal(t, planetv1.BonusKind_BONUS_KIND_BOMB, msg.GetKind())
+	assert.InDelta(t, 0.03, msg.GetBlastRadius(), 1e-9)
+}
+
 func TestTheTokenAndCountryReachTheUseCase(t *testing.T) {
 	useCase := &stubUseCase{}
 

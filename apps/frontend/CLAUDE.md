@@ -24,9 +24,16 @@ touching this app.
 **`npm run dev` cannot reach the production API.** `api.clickplanet.lol` sends
 `access-control-allow-origin: https://clickplanet.lol` and nothing else, so the
 browser blocks every request from `localhost`. Point `VITE_API_BASE_URL` at a
-local backend, or swap `PlanetBackend` for `FakeBackend` in `src/main.tsx` — the
-fake serves a full map and simulates live updates. `FakeChatBackend` is the same
-swap for `ChatServiceBackend`, and reproduces every refusal the chat can show.
+local backend, or run `VITE_FAKE_BACKEND=1 npm run dev` to play against
+`FakeBackend` and `FakeChatBackend` — the fake serves a full map, simulates other
+players at a few clicks a second, and reproduces every refusal the chat can show.
+The switch is gated on `import.meta.env.DEV` as well, because an unset `VITE_*`
+variable is **not** folded away in a build: without the `DEV` check both fakes
+ship in the production bundle.
+
+In fake mode the console has two commands: `giveBomb()` arms a bomb as if a box
+holding one had just been caught, and `fakeBackend.botBomb(tile, "fr")` drops
+somebody else's.
 
 A local backend is the quickest way to exercise the real chat: `cmd/api`'s
 `example.yaml` has `chat.enabled: true`, and the Go server answers
@@ -600,6 +607,61 @@ what the fragment shader already draws as an unclaimed tile.
 Rolling back on *any* failure, including a transport fault, is deliberate: if
 the click did land and only the response was lost, the stream's echo repaints
 it, and if the echo arrives first the rollback is already a no-op.
+
+## Bombs
+
+A bonus box can hold a bomb (`BonusReward` kind `bomb`). The player has
+`seconds` to drop it anywhere on the planet, and it clears every tile within
+`radius` of where it lands — the server's call, not this client's. The pieces:
+`backends/backend.ts` declares `Bomber` and `BombDrop`, `domain/blast.ts` the
+timeline every screen agrees on, `domain/holdToDrop.ts` the gesture,
+`viewer/blasts.ts` the drawing, and `components/BombNews.tsx` the line at the top.
+
+**It drops on a press held still for 0.7s, never on a click.** A bomb is precious
+and a click is also what ends every drag of the globe — releasing a drag over the
+planet used to drop it. `HoldToDrop` is the whole rule: a press that moves more
+than 6px is a drag, a press let go early is a change of mind, and only a press
+held to the end drops. The aiming ring fills in clockwise while it is held. Mouse
+and touch go through the same pointer events, so there is one flow and no
+two-tap variant for phones. While armed, a click claims no tile, and the
+`viewer-canvas--armed` class blocks the long-press callout on iOS.
+
+**The client sends where it aimed, not a tile.** The sea has no tiles, and whether
+an aim is land is decided by the server: past one tile spacing from the nearest
+tile it is the sea, the bomb is spent, and everyone sees a splash (`BombDrop.tile`
+undefined, nothing cleared). The aiming ring follows the sphere under the cursor
+(a ray against the unit sphere), not the tile picker, which finds nothing between
+tiles or over water and made a ring that followed it blink.
+
+**Rings are meshes, not tiles.** The aiming ring and the closing "incoming" ring
+are a flat quad laid on the globe with a per-pixel ring shader
+(`shaders/ring/`). Drawn out of tile discs they broke up over the sea and crawled
+as they moved.
+
+**The ground effects are in the tile shader.** The shock wave that throws tiles
+outward, the flash and the scorch are computed per vertex from a few uniforms per
+blast (`blasts`, `blastRadii`, up to `MAX_BLASTS` at once), so a blast costs a
+uniform write per frame and nothing per tile. Each blast slot also owns a flash
+sprite and 140 GPU-animated debris points, allocated once and reused.
+
+**The clear waits for the explosion.** `BombDrop.cleared` arrives in one event,
+and the globe holds it for `IMPACT_DELAY` so the ground goes when the bomb hits,
+not when the message lands. Two things keep that honest:
+
+- A tile update that arrives while a clear is waiting **wins its tile**: it came
+  after the blast on the wire, so the tile is taken out of the waiting clear and
+  the rest of the crater still goes on impact. (Flushing the whole clear early
+  instead is what made craters appear before the explosion on a busy map.)
+- `PlanetBackend` batches tile updates every 100ms but delivers a blast at once,
+  so it **flushes the pending batch first** — otherwise a tile taken just before
+  the blast would be applied after it and repaint the crater.
+
+A hidden tab draws no frames, so there the clear is applied immediately.
+
+The dropper's own screen shakes on impact; nobody else's does. Under
+`prefers-reduced-motion` nothing moves — no shake, no debris, no displaced tiles —
+and the colours stay. A blast off screen gets the red 💥 edge pointer, the same
+component as the bonus box's.
 
 ## Sharing the globe
 

@@ -7,6 +7,8 @@ flat in vec2 vFlagUV;
 flat in vec4 vFlagRegion;
 flat in float vFlagShare;
 varying float vHover;
+varying float vGlow;
+varying float vScorch;
 
 vec2 atlasUVof(vec4 region, vec2 uv) {
     vec2 origin = vec2(region.x, atlasTextureSize.y - region.y - region.w) / atlasTextureSize;
@@ -63,5 +65,15 @@ void main() {
         painted = vec4(flag, vFlagShare * (vHover > 0.5 ? 1.0 : 0.94));
     }
 
-    gl_FragColor = mix(own, painted, flagPaint);
+    vec4 colour = mix(own, painted, flagPaint);
+
+    // Bombs, laid over both the tile and the painted flag so they read at any
+    // zoom. The crater glows like embers and cools to char.
+    vec3 ember = mix(vec3(0.07, 0.02, 0.01), vec3(1.0, 0.32, 0.04), vScorch * vScorch);
+    colour = mix(colour, vec4(ember, 0.95), vScorch * 0.9);
+
+    vec3 hot = mix(vec3(1.0, 0.42, 0.08), vec3(1.0, 0.96, 0.82), vGlow * vGlow);
+    colour = mix(colour, vec4(hot, 1.0), vGlow);
+
+    gl_FragColor = colour;
 }

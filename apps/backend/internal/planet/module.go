@@ -20,6 +20,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/claim_bonus_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/click_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/drop_bomb_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/get_budget_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/get_map_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/listen_for_events_handler"
@@ -36,6 +37,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click/prom_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click/spread_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click/throttle_click"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/drop_bomb"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/drop_bomb/prom_drop_bomb"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_budget"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_map"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/listen_for_events"
@@ -82,6 +85,8 @@ func build(config Config, props cpbootstrap.Props) error {
 	// as they were and makes ClaimBonus answer Unimplemented.
 	bonuses := newBonusRegistry(config.Bonus, clock, props)
 	spreads := bonus.NewSpreads(clock)
+	bombs := bonus.NewBombs(clock)
+	bombRules := bombRulesOf(config.Bonus, geography)
 
 	clickUseCase, err := clickChain(config, clickParts{
 		tilesChecker: tilesChecker,
@@ -100,7 +105,12 @@ func build(config Config, props cpbootstrap.Props) error {
 		return err
 	}
 
-	claimBonus, err := claimBonusUseCase(bonuses, limiter, spreads, clock, props)
+	claimBonus, err := claimBonusUseCase(bonuses, limiter, spreads, bombs, bombRules.Radius, clock, props)
+	if err != nil {
+		return err
+	}
+
+	dropBomb, err := dropBombUseCase(bonuses, bombs, geography, tilesStorage, bombRules, props)
 	if err != nil {
 		return err
 	}
@@ -117,6 +127,7 @@ func build(config Config, props cpbootstrap.Props) error {
 		ListenForEventsHandler: listen_for_events_handler.New(
 			listen_for_events.New(tilesStorage, props.Server.StreamHeartbeat, bonusFeed(bonuses))),
 		ClaimBonusHandler: claim_bonus_handler.New(claimBonus),
+		DropBombHandler:   drop_bomb_handler.New(dropBomb),
 	}
 
 	return props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
@@ -224,6 +235,8 @@ func claimBonusUseCase(
 	registry *bonus.Registry,
 	limiter *cpratelimit.Limiter,
 	spreads *bonus.Spreads,
+	bombs *bonus.Bombs,
+	blastRadius float64,
 	clock cptime.Clock,
 	props cpbootstrap.Props,
 ) (claim_bonus_handler.UseCase, error) {
@@ -231,7 +244,8 @@ func claimBonusUseCase(
 		return nil, nil //nolint:nilnil // nil means "boxes are off"; the handler answers Unimplemented.
 	}
 
-	useCase, counters, err := prom_claim_bonus.New(claim_bonus.New(registry, limiter, spreads, clock), props.Metrics)
+	claim := claim_bonus.New(registry, limiter, spreads, bombs, blastRadius, clock)
+	useCase, counters, err := prom_claim_bonus.New(claim, props.Metrics)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create the bonus claim use case: %w", err)
 	}
@@ -240,6 +254,39 @@ func claimBonusUseCase(
 		Offered: counters.Offered.Inc,
 		Lapsed:  counters.Lapsed.Inc,
 	})
+
+	return useCase, nil
+}
+
+// bombRulesOf sizes a bomb off the map itself, so the ring a client draws is the width of what it clears.
+func bombRulesOf(config bonus.Config, geography *clicks.Geography) drop_bomb.Rules {
+	spacing := geography.Spacing()
+
+	return drop_bomb.Rules{
+		Rings:  config.Rings(),
+		Radius: float64(config.Rings()) * spacing,
+		// Within a tile of the nearest tile is land; further out is the sea.
+		Reach: spacing,
+	}
+}
+
+func dropBombUseCase(
+	registry *bonus.Registry,
+	bombs *bonus.Bombs,
+	geography *clicks.Geography,
+	storage *memory_tile_storage.Storage,
+	rules drop_bomb.Rules,
+	props cpbootstrap.Props,
+) (drop_bomb_handler.UseCase, error) {
+	if registry == nil {
+		return nil, nil //nolint:nilnil // nil means "boxes are off"; the handler answers Unimplemented.
+	}
+
+	useCase, err := prom_drop_bomb.New(
+		drop_bomb.New(bombs, registry, geography, storage, cpcountries.New(), rules), props.Metrics)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create the bomb drop use case: %w", err)
+	}
 
 	return useCase, nil
 }

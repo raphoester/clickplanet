@@ -1,0 +1,62 @@
+.bomb-news {
+    position: fixed;
+    top: 16px;
+    left: 50%;
+    z-index: 150;
+    transform: translateX(-50%);
+    pointer-events: none;
+}
+
+.bomb-news-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border: 1px solid #FF5A3F66;
+    border-radius: 999px;
+    background: #0A0A0Acc;
+    backdrop-filter: blur(10px);
+    color: #FFFFFF;
+    font-size: 15px;
+    white-space: nowrap;
+    box-shadow: 0 0 18px #FF5A3F44;
+    animation: bomb-news 4s ease-out forwards;
+}
+
+/* Timings are shares of BOMB_NEWS_MS in BombNews.tsx. */
+@keyframes bomb-news {
+    0% {
+        opacity: 0;
+        transform: translateY(-12px) scale(0.9);
+    }
+    6% {
+        opacity: 1;
+        transform: translateY(0) scale(1.06);
+    }
+    12% {
+        transform: scale(1);
+    }
+    85% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0;
+    }
+}
+
+@media (max-width: 768px) {
+    .bomb-news {
+        top: auto;
+        bottom: 96px;
+    }
+
+    .bomb-news-line {
+        font-size: 13px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .bomb-news-line {
+        animation: none;
+    }
+}
