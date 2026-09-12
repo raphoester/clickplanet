@@ -188,8 +188,9 @@ func clickChain(config Config, parts clickParts, props cpbootstrap.Props) (click
 			return nil, fmt.Errorf("failed to create prometheus enclose publisher: %w", err)
 		}
 
-		rule = enclose_click.New(rule, parts.enclosures, parts.geography,
-			parts.tilesStorage, parts.tilesStorage, published)
+		rule = enclose_click.New(rule, parts.enclosures,
+			enclose_click.NewTerrain(parts.geography, parts.tilesStorage),
+			enclose_click.NewAnnexer(parts.tilesStorage, published))
 	}
 
 	useCase, err := prom_click.New(rule, props.Metrics)

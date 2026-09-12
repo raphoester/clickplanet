@@ -7,22 +7,12 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-// Enclosures remembers who holds a running enclose bonus, and how many shapes it
-// may still close. The claim starts one, and the click chain spends it.
-//
-// Unlike a spread it can end before its time: a bonus that has closed all its
-// shapes is over, whatever the clock says.
+// Enclosures holds the running enclose bonuses, by scope.
 type Enclosures struct {
 	clock cptime.Clock
 
 	mu      sync.Mutex
-	running map[string]*enclosure
-}
-
-type enclosure struct {
-	until    time.Time
-	left     int
-	maxTiles int
+	running map[string]*Enclosure
 }
 
 func NewEnclosures(clock cptime.Clock) *Enclosures {
@@ -30,66 +20,70 @@ func NewEnclosures(clock cptime.Clock) *Enclosures {
 		clock = cptime.SystemClock{}
 	}
 
-	return &Enclosures{clock: clock, running: make(map[string]*enclosure)}
+	return &Enclosures{clock: clock, running: make(map[string]*Enclosure)}
 }
 
-// Grant starts an enclose bonus for scope: until the given time, at most
-// `shapes` shapes, each holding at most maxTiles tiles.
-//
-// It also forgets every bonus that has run out, the way Spreads.Grant does.
+// Grant also forgets every bonus that is over, so the map needs no sweep.
 func (e *Enclosures) Grant(scope string, until time.Time, shapes int, maxTiles int) {
-	now := e.clock.Now()
-
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	for other, running := range e.running {
-		if !running.live(now) {
+	for other, enclosure := range e.running {
+		if !enclosure.Running() {
 			delete(e.running, other)
 		}
 	}
 
-	e.running[scope] = &enclosure{until: until, left: shapes, maxTiles: maxTiles}
+	e.running[scope] = &Enclosure{clock: e.clock, until: until, left: shapes, maxTiles: maxTiles}
 }
 
-// Enclosing reports whether scope's clicks may close a shape right now, and the
-// most tiles that shape may hold.
-func (e *Enclosures) Enclosing(scope string) (maxTiles int, ok bool) {
-	now := e.clock.Now()
-
+func (e *Enclosures) Running(scope string) (*Enclosure, bool) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	running, found := e.running[scope]
-	if !found || !running.live(now) {
-		return 0, false
+	enclosure, found := e.running[scope]
+	if !found || !enclosure.Running() {
+		return nil, false
 	}
 
-	return running.maxTiles, true
+	return enclosure, true
 }
 
-// Spend uses one shape. It fails when the bonus has run out or has no shape
-// left, and otherwise says how many are left after this one.
-//
-// Finding a shape and spending it are two steps, so two clicks at once can both
-// find one while a single shape is left. Spend is what settles it: only one of
-// them gets it.
-func (e *Enclosures) Spend(scope string) (left int, ok bool) {
-	now := e.clock.Now()
+// Enclosure ends with its time or its last shape, whichever comes first.
+type Enclosure struct {
+	clock    cptime.Clock
+	until    time.Time
+	maxTiles int
 
+	mu   sync.Mutex
+	left int
+}
+
+func (e *Enclosure) MaxTiles() int {
+	return e.maxTiles
+}
+
+func (e *Enclosure) Running() bool {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	running, found := e.running[scope]
-	if !found || !running.live(now) {
+	return e.runningLocked()
+}
+
+// Spend settles two clicks racing for the last shape: only one gets it.
+func (e *Enclosure) Spend() (left int, ok bool) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	if !e.runningLocked() {
 		return 0, false
 	}
 
-	running.left--
+	e.left--
 
-	return running.left, true
+	return e.left, true
 }
 
-func (e *enclosure) live(now time.Time) bool {
-	return e.left > 0 && now.Before(e.until)
+func (e *Enclosure) runningLocked() bool {
+	return e.left > 0 && e.clock.Now().Before(e.until)
 }

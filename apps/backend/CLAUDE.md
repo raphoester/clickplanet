@@ -577,9 +577,16 @@ tells closed from open — there is no second rule.
   already held changes nothing, so it closes nothing: a shape finished before the
   bonus stays as it is. The owner is read before the rule writes, since afterwards
   the map no longer says whether the click took the tile.
-- **Each pocket costs one shape**, spent through `bonus.Enclosures.Spend`, which
+- **Each pocket costs one shape**, spent through `bonus.Enclosure.Spend`, which
   settles two clicks racing for the last one. A click that closes two shapes with
   one left takes the first. A bonus with no shape left is over before its time.
+
+**The use case only wires three objects together.** `Terrain` is the map as
+the search sees it — who holds a tile, what touches it — and finds the pockets a
+click closed. `bonus.Enclosure` is one caller's running bonus: its size limit and
+its shapes left. `Annexer` spends a shape per pocket, takes the tiles and
+announces them. `Execute` asks for the running bonus, lets the rule write, and
+hands the pockets to the annexer.
 
 It sits beside `spread_click`, against the rule and inside everything else, so
 it is one click to the throttle and to `prom_click`, a shadow-banned click never

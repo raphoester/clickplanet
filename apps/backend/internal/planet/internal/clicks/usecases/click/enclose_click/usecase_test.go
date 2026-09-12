@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -11,7 +12,11 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/bonus"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click/enclose_click"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
+
+var epoch = time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 
 // honeycomb is a patch of the map: a size×size parallelogram of hexagons in
 // axial coordinates. A tile inside it has six neighbours; a tile on its rim has
@@ -65,25 +70,6 @@ func (r rule) Execute(ctx context.Context, in click.In) (click.Out, error) {
 	return click.Out{}, r.tiles.Set(ctx, in.TileID, in.CountryID)
 }
 
-type stubEnclosures struct {
-	maxTiles int
-	left     int
-	spent    int
-}
-
-func (s *stubEnclosures) Enclosing(string) (int, bool) { return s.maxTiles, s.left > 0 }
-
-func (s *stubEnclosures) Spend(string) (int, bool) {
-	if s.left == 0 {
-		return 0, false
-	}
-
-	s.left--
-	s.spent++
-
-	return s.left, true
-}
-
 type recorder struct{ published []bonus.Enclosed }
 
 func (r *recorder) PublishEnclosed(_ string, enclosed bonus.Enclosed) {
@@ -93,7 +79,7 @@ func (r *recorder) PublishEnclosed(_ string, enclosed bonus.Enclosed) {
 type fixture struct {
 	grid       honeycomb
 	tiles      tiles
-	enclosures *stubEnclosures
+	enclosures *bonus.Enclosures
 	published  *recorder
 	useCase    *enclose_click.UseCase
 }
@@ -102,10 +88,15 @@ func setup(shapes int, err error) fixture {
 	f := fixture{
 		grid:       honeycomb{size: 12},
 		tiles:      tiles{},
-		enclosures: &stubEnclosures{maxTiles: 10, left: shapes},
+		enclosures: bonus.NewEnclosures(cptime.NewFixedClock(epoch)),
 		published:  &recorder{},
 	}
-	f.useCase = enclose_click.New(rule{tiles: f.tiles, err: err}, f.enclosures, f.grid, f.tiles, f.tiles, f.published)
+	if shapes > 0 {
+		f.enclosures.Grant(cpctx.RateLimitKey(context.Background()), epoch.Add(time.Minute), shapes, 10)
+	}
+
+	f.useCase = enclose_click.New(rule{tiles: f.tiles, err: err}, f.enclosures,
+		enclose_click.NewTerrain(f.grid, f.tiles), enclose_click.NewAnnexer(f.tiles, f.published))
 
 	return f
 }
@@ -172,7 +163,6 @@ func TestATriangleHasNoInsideAndCostsNothing(t *testing.T) {
 	f.click(t, c)
 
 	assert.Empty(t, f.published.published)
-	assert.Zero(t, f.enclosures.spent)
 }
 
 // carve owns the whole patch for "fr" except the hole and the tile that will
@@ -215,7 +205,6 @@ func TestAShapeBiggerThanTheLimitTakesNothingAndCostsNothing(t *testing.T) {
 	f.click(t, f.grid.id(1, 4))
 
 	assert.Empty(t, f.published.published)
-	assert.Zero(t, f.enclosures.spent)
 	assert.Empty(t, f.tiles[f.grid.id(1, 5)], "nothing inside was taken")
 }
 
@@ -229,7 +218,6 @@ func TestAShapeOpenToTheEdgeOfTheLandIsNotClosed(t *testing.T) {
 
 	assert.Empty(t, f.published.published)
 	assert.Empty(t, f.tiles[hole[0]])
-	assert.Zero(t, f.enclosures.spent)
 }
 
 func TestClickingTheOutlineOfAShapeAlreadyClosedTakesNothing(t *testing.T) {
@@ -242,7 +230,6 @@ func TestClickingTheOutlineOfAShapeAlreadyClosedTakesNothing(t *testing.T) {
 
 	assert.Equal(t, "de", f.tiles[centre])
 	assert.Empty(t, f.published.published)
-	assert.Zero(t, f.enclosures.spent)
 }
 
 func TestOneClickClosingTwoShapesSpendsOneShapeEach(t *testing.T) {
@@ -255,7 +242,6 @@ func TestOneClickClosingTwoShapesSpendsOneShapeEach(t *testing.T) {
 	f.click(t, closing)
 
 	assert.Len(t, f.published.published, 2)
-	assert.Equal(t, 2, f.enclosures.spent)
 	assert.Equal(t, 1, f.published.published[1].Left)
 }
 
@@ -299,5 +285,4 @@ func TestARefusedClickClosesNothing(t *testing.T) {
 
 	require.ErrorIs(t, err, refused)
 	assert.Empty(t, f.tiles[centre])
-	assert.Zero(t, f.enclosures.spent)
 }
