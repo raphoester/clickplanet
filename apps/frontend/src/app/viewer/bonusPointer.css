@@ -1,0 +1,58 @@
+/* The box's own gold, so the arrow reads as the thing it points at. */
+.bonus-pointer {
+    position: absolute;
+    z-index: 100;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+}
+
+.bonus-pointer-badge {
+    position: absolute;
+    top: -14px;
+    left: -14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: 2px solid #4A2C02;
+    border-radius: 6px;
+    background: #F2A91C;
+    color: #FFF6DF;
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 1;
+    text-shadow: -1px 1px 0 #4A2C02;
+    box-shadow: 0 0 14px #FFB13F88;
+    animation: bonus-pointer-pulse 1.4s ease-in-out infinite;
+}
+
+/* Orbits the badge on the rotation, so it always points outward at the box. */
+.bonus-pointer-arrow {
+    position: absolute;
+    top: -7px;
+    left: -7px;
+    width: 0;
+    height: 0;
+    border-top: 7px solid transparent;
+    border-bottom: 7px solid transparent;
+    border-left: 11px solid #FFC061;
+    transform: rotate(var(--bonus-pointer-angle, 0deg)) translateX(24px);
+    transform-origin: 3px 7px;
+}
+
+@keyframes bonus-pointer-pulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.12);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .bonus-pointer-badge {
+        animation: none;
+    }
+}

@@ -4,7 +4,30 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3 } from "@bufbuild/protobuf";
+import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
+
+/**
+ * What a bonus is worth. The client never decides this, and an unknown kind is
+ * one a client skips rather than guesses at.
+ *
+ * @generated from enum planet.v1.BonusKind
+ */
+export enum BonusKind {
+  /**
+   * @generated from enum value: BONUS_KIND_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: BONUS_KIND_TRIPLE_CLICKS = 1;
+   */
+  TRIPLE_CLICKS = 1,
+}
+// Retrieve enum metadata with: proto3.getEnumType(BonusKind)
+proto3.util.setEnumType(BonusKind, "planet.v1.BonusKind", [
+  { no: 0, name: "BONUS_KIND_UNSPECIFIED" },
+  { no: 1, name: "BONUS_KIND_TRIPLE_CLICKS" },
+]);
 
 /**
  * What the rate limiter has left for the caller, and the policy it refills
@@ -438,6 +461,24 @@ export class PlanetEvent extends Message<PlanetEvent> {
      */
     value: Heartbeat;
     case: "heartbeat";
+  } | {
+    /**
+     * Addressed to one client: it is sent down the stream of the caller the
+     * server drew, and nobody else's.
+     *
+     * @generated from field: planet.v1.BonusOffered bonus_offered = 3;
+     */
+    value: BonusOffered;
+    case: "bonusOffered";
+  } | {
+    /**
+     * Broadcast to everyone, so catching a box is something the whole planet
+     * sees rather than a private event.
+     *
+     * @generated from field: planet.v1.BonusTaken bonus_taken = 4;
+     */
+    value: BonusTaken;
+    case: "bonusTaken";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<PlanetEvent>) {
@@ -450,6 +491,8 @@ export class PlanetEvent extends Message<PlanetEvent> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "tile_update", kind: "message", T: TileUpdate, oneof: "event" },
     { no: 2, name: "heartbeat", kind: "message", T: Heartbeat, oneof: "event" },
+    { no: 3, name: "bonus_offered", kind: "message", T: BonusOffered, oneof: "event" },
+    { no: 4, name: "bonus_taken", kind: "message", T: BonusTaken, oneof: "event" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PlanetEvent {
@@ -466,6 +509,219 @@ export class PlanetEvent extends Message<PlanetEvent> {
 
   static equals(a: PlanetEvent | PlainMessage<PlanetEvent> | undefined, b: PlanetEvent | PlainMessage<PlanetEvent> | undefined): boolean {
     return proto3.util.equals(PlanetEvent, a, b);
+  }
+}
+
+/**
+ * A box put in front of one player, and the token that claims it.
+ *
+ * @generated from message planet.v1.BonusOffered
+ */
+export class BonusOffered extends Message<BonusOffered> {
+  /**
+   * Unguessable, single use, and only good for the caller it was sent to.
+   *
+   * @generated from field: string token = 1;
+   */
+  token = "";
+
+  /**
+   * Names the flight path. Every client draws the same orbit from it, so the
+   * server sends one number instead of a trajectory.
+   *
+   * @generated from field: uint32 seed = 2;
+   */
+  seed = 0;
+
+  /**
+   * @generated from field: planet.v1.BonusKind kind = 3;
+   */
+  kind = BonusKind.UNSPECIFIED;
+
+  /**
+   * @generated from field: uint32 duration_seconds = 4;
+   */
+  durationSeconds = 0;
+
+  /**
+   * After this the token is refused, whatever the client is still drawing.
+   *
+   * @generated from field: int64 expires_at_unix_ms = 5;
+   */
+  expiresAtUnixMs = protoInt64.zero;
+
+  constructor(data?: PartialMessage<BonusOffered>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.BonusOffered";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "token", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "seed", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "kind", kind: "enum", T: proto3.getEnumType(BonusKind) },
+    { no: 4, name: "duration_seconds", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 5, name: "expires_at_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BonusOffered {
+    return new BonusOffered().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BonusOffered {
+    return new BonusOffered().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BonusOffered {
+    return new BonusOffered().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: BonusOffered | PlainMessage<BonusOffered> | undefined, b: BonusOffered | PlainMessage<BonusOffered> | undefined): boolean {
+    return proto3.util.equals(BonusOffered, a, b);
+  }
+}
+
+/**
+ * Somebody caught one. Carries no token and names no address — it exists so the
+ * rest of the planet sees it happen.
+ *
+ * @generated from message planet.v1.BonusTaken
+ */
+export class BonusTaken extends Message<BonusTaken> {
+  /**
+   * @generated from field: string country_id = 1;
+   */
+  countryId = "";
+
+  /**
+   * @generated from field: planet.v1.BonusKind kind = 2;
+   */
+  kind = BonusKind.UNSPECIFIED;
+
+  constructor(data?: PartialMessage<BonusTaken>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.BonusTaken";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "kind", kind: "enum", T: proto3.getEnumType(BonusKind) },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BonusTaken {
+    return new BonusTaken().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BonusTaken {
+    return new BonusTaken().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BonusTaken {
+    return new BonusTaken().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: BonusTaken | PlainMessage<BonusTaken> | undefined, b: BonusTaken | PlainMessage<BonusTaken> | undefined): boolean {
+    return proto3.util.equals(BonusTaken, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.ClaimBonusRequest
+ */
+export class ClaimBonusRequest extends Message<ClaimBonusRequest> {
+  /**
+   * @generated from field: string token = 1;
+   */
+  token = "";
+
+  /**
+   * What to say the catcher was playing for, in the broadcast that follows.
+   *
+   * @generated from field: string country_id = 2;
+   */
+  countryId = "";
+
+  constructor(data?: PartialMessage<ClaimBonusRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.ClaimBonusRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "token", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ClaimBonusRequest {
+    return new ClaimBonusRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ClaimBonusRequest {
+    return new ClaimBonusRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ClaimBonusRequest {
+    return new ClaimBonusRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ClaimBonusRequest | PlainMessage<ClaimBonusRequest> | undefined, b: ClaimBonusRequest | PlainMessage<ClaimBonusRequest> | undefined): boolean {
+    return proto3.util.equals(ClaimBonusRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.ClaimBonusResponse
+ */
+export class ClaimBonusResponse extends Message<ClaimBonusResponse> {
+  /**
+   * The allowance as it stands with the bonus applied, so the client does not
+   * have to wait for its next click to see the wider budget.
+   *
+   * @generated from field: planet.v1.ClickBudget budget = 1;
+   */
+  budget?: ClickBudget;
+
+  /**
+   * @generated from field: planet.v1.BonusKind kind = 2;
+   */
+  kind = BonusKind.UNSPECIFIED;
+
+  /**
+   * @generated from field: uint32 duration_seconds = 3;
+   */
+  durationSeconds = 0;
+
+  constructor(data?: PartialMessage<ClaimBonusResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.ClaimBonusResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "budget", kind: "message", T: ClickBudget },
+    { no: 2, name: "kind", kind: "enum", T: proto3.getEnumType(BonusKind) },
+    { no: 3, name: "duration_seconds", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ClaimBonusResponse {
+    return new ClaimBonusResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ClaimBonusResponse {
+    return new ClaimBonusResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ClaimBonusResponse {
+    return new ClaimBonusResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ClaimBonusResponse | PlainMessage<ClaimBonusResponse> | undefined, b: ClaimBonusResponse | PlainMessage<ClaimBonusResponse> | undefined): boolean {
+    return proto3.util.equals(ClaimBonusResponse, a, b);
   }
 }
 

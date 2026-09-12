@@ -1,4 +1,8 @@
 import {
+    BonusCatch,
+    BonusListener,
+    BonusLostError,
+    BonusOffer,
     Ownerships,
     OwnershipsGetter,
     RateLimitedError,
@@ -7,6 +11,7 @@ import {
     UpdatesListener,
     VPNBlockedError,
 } from "./backend.ts";
+import {BonusReward, multiplierOf} from "../domain/bonus.ts";
 import {ClickBudget, ClickBudgetSource, now as budgetNow} from "./clickBudget.ts";
 import {SessionUnavailableError} from "./session.ts";
 import {v4 as UUIDv4} from 'uuid';
@@ -17,17 +22,28 @@ const TILE_COUNT = 257_000
 const CLICKS_PER_SECOND = 1
 const CLICK_BURST = 10
 
+/** Often enough to be worth developing against, not so often it is the game. */
+const BONUS_EVERY_MS = 20_000
+const BONUS_OFFER_TTL_MS = 15_000
+const BONUS_REWARD: BonusReward = {kind: "tripleClicks", seconds: 60}
+
 export type FakeBackendOptions = {
     vpnBlocked?: boolean
     sessionUnavailable?: boolean
 }
 
-export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource {
+export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener {
     private tileBindings: Map<number, string> = new Map()
     private updateListeners: Map<string, (update: Update) => void> = new Map()
     private pendingUpdates: Update[] = []
     private updateBatchCallbacks: Map<string, (update: Update[]) => void> = new Map()
     private budgetCallbacks: Map<string, (budget: ClickBudget) => void> = new Map()
+    private bonusCallbacks: Map<string, {onOffered: (offer: BonusOffer) => void, onTaken: (taken: BonusCatch) => void}> = new Map()
+
+    /** The one box outstanding, exactly as the server keeps it. */
+    private offered: BonusOffer | undefined
+
+    private boostedUntilMs = 0
     private readonly timers: ReturnType<typeof setInterval>[] = []
     private tokens = CLICK_BURST
     private lastRefillMs = Date.now()
@@ -52,6 +68,20 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
             this.pendingUpdates = []
             this.updateBatchCallbacks.forEach(callback => callback(updates))
         }, batchUpdateDurationMs))
+
+        // The real server draws one connected caller and offers the box to them
+        // alone. There is only one client here, so it is always this one.
+        this.timers.push(setInterval(() => {
+            const offer: BonusOffer = {
+                token: UUIDv4(),
+                seed: Math.floor(Math.random() * 0xffffffff),
+                reward: BONUS_REWARD,
+                expiresAt: budgetNow() + BONUS_OFFER_TTL_MS,
+            }
+
+            this.offered = offer
+            this.bonusCallbacks.forEach(handlers => handlers.onOffered(offer))
+        }, BONUS_EVERY_MS))
 
         Countries.forEach((country) => {
             let tileId = Math.floor(Math.random() * 10_000)
@@ -103,12 +133,21 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     private budget(): ClickBudget {
         this.refill()
 
+        // The policy widens while a bonus runs, exactly as the server's does —
+        // so the meter here is driven by the same thing it will be in
+        // production rather than by anything the component does itself.
+        const boost = this.boosting() ? multiplierOf(BONUS_REWARD) : 1
+
         return {
             tokens: this.tokens,
-            capacity: CLICK_BURST,
-            perSecond: CLICKS_PER_SECOND,
+            capacity: CLICK_BURST * boost,
+            perSecond: CLICKS_PER_SECOND * boost,
             readAt: budgetNow(),
         }
+    }
+
+    private boosting(): boolean {
+        return Date.now() < this.boostedUntilMs
     }
 
     private applyClick(tileId: number, countryId: string) {
@@ -131,11 +170,41 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
 
     private refill() {
         const now = Date.now()
+        const boost = this.boosting() ? multiplierOf(BONUS_REWARD) : 1
+
         this.tokens = Math.min(
-            CLICK_BURST,
-            this.tokens + ((now - this.lastRefillMs) / 1000) * CLICKS_PER_SECOND,
+            CLICK_BURST * boost,
+            this.tokens + ((now - this.lastRefillMs) / 1000) * CLICKS_PER_SECOND * boost,
         )
         this.lastRefillMs = now
+    }
+
+    public listenForBonuses(handlers: {
+        onOffered: (offer: BonusOffer) => void
+        onTaken: (taken: BonusCatch) => void
+    }): () => void {
+        const identifier = UUIDv4()
+        this.bonusCallbacks.set(identifier, handlers)
+
+        return () => this.bonusCallbacks.delete(identifier)
+    }
+
+    public async claimBonus(token: string, countryId: string): Promise<BonusReward> {
+        const offer = this.offered
+
+        // The same four refusals the server has, answered as one: unknown,
+        // spent, lapsed, or never this caller's.
+        if (!offer || offer.token !== token || budgetNow() > offer.expiresAt) {
+            throw new BonusLostError()
+        }
+
+        this.offered = undefined
+        this.boostedUntilMs = Date.now() + offer.reward.seconds * 1000
+        this.reportBudget()
+
+        this.bonusCallbacks.forEach(handlers => handlers.onTaken({countryId}))
+
+        return offer.reward
     }
 
     public listenForUpdates(

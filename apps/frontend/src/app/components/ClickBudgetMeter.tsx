@@ -1,9 +1,17 @@
 import {useEffect, useRef} from 'react'
 import {ClickBudget, now, tokensAt} from "../../backends/clickBudget.ts"
+import {ActiveBonus, describeReward, secondsLeft} from "../../domain/bonus.ts"
 import "./ClickBudgetMeter.css"
 
 export type ClickBudgetMeterProps = {
     budget?: ClickBudget
+    /**
+     * The bonus currently running, if any. The meter is the one place that says
+     * a bonus is live, because it is where the allowance is read — and once the
+     * backend grants the boost, the pips and the fill rate widen on their own
+     * off the server's policy, with nothing here to change.
+     */
+    bonus?: ActiveBonus
 }
 
 /** Above this many, a row of pips is unreadable and it becomes one bar. */
@@ -27,9 +35,10 @@ const STEP_MS = 250
  * pips *is* the burst, and the fill rate *is* the refill rate, so changing
  * either in the backend's config changes this with no frontend release.
  */
-export default function ClickBudgetMeter({budget}: ClickBudgetMeterProps) {
+export default function ClickBudgetMeter({budget, bonus}: ClickBudgetMeterProps) {
     const root = useRef<HTMLDivElement>(null)
     const count = useRef<HTMLSpanElement>(null)
+    const countdown = useRef<HTMLSpanElement>(null)
 
     useEffect(() => {
         if (!budget) return
@@ -39,10 +48,22 @@ export default function ClickBudgetMeter({budget}: ClickBudgetMeterProps) {
         if (!box || !label) return
 
         let shown = -1
+        let shownSecond = -1
 
         const draw = () => {
-            const tokens = tokensAt(budget, now())
+            const at = now()
+            const tokens = tokensAt(budget, at)
             const whole = Math.floor(tokens)
+
+            // Written the same way the count is — only when the displayed value
+            // changes, so a 60 second bonus costs 60 writes and not 3,600.
+            if (bonus && countdown.current) {
+                const left = secondsLeft(bonus, at)
+                if (left !== shownSecond) {
+                    shownSecond = left
+                    countdown.current.textContent = `${left}s`
+                }
+            }
 
             // One write, and every pip works out its own share of it.
             box.style.setProperty("--click-budget-tokens", tokens.toFixed(3))
@@ -72,7 +93,7 @@ export default function ClickBudgetMeter({budget}: ClickBudgetMeterProps) {
         })
 
         return () => cancelAnimationFrame(frame)
-    }, [budget])
+    }, [budget, bonus])
 
     // A backend that reports no allowance is one that enforces none here.
     if (!budget) return null
@@ -85,13 +106,18 @@ export default function ClickBudgetMeter({budget}: ClickBudgetMeterProps) {
 
     return <div
         ref={root}
-        className="click-budget"
+        className={bonus ? "click-budget click-budget-boosted" : "click-budget"}
         role="meter"
         aria-valuemin={0}
         aria-valuenow={whole}
         aria-valuemax={budget.capacity}
         aria-label="Clicks left before the server slows you down"
         style={{"--click-budget-capacity": budget.capacity} as React.CSSProperties}>
+
+        {bonus && <span className="click-budget-bonus">
+            <span className="click-budget-bonus-badge">{describeReward(bonus.reward).badge}</span>
+            <span ref={countdown} className="click-budget-bonus-left">{secondsLeft(bonus, now())}s</span>
+        </span>}
 
         <div className="click-budget-count">
             <span ref={count} className="click-budget-number">{whole}</span>
