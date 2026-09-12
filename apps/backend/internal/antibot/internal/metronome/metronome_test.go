@@ -9,21 +9,18 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/metronome"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
-
-type fakeClock struct{ now time.Time }
-
-func (c *fakeClock) Now() time.Time { return c.now }
 
 type harness struct {
 	watchdog *metronome.Watchdog
-	clock    *fakeClock
+	clock    *cptime.FixedClock
 	tile     uint32
 }
 
 func newHarness(config metronome.Config) *harness {
 	h := &harness{
-		clock: &fakeClock{now: time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC)},
+		clock: cptime.NewFixedClock(time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC)),
 		tile:  1,
 	}
 	h.watchdog = metronome.New(config, h.clock)
@@ -33,14 +30,14 @@ func newHarness(config metronome.Config) *harness {
 // after waits, then clicks. The tile moves every time so nothing here depends on
 // what the map does.
 func (h *harness) after(gap time.Duration) (detect.Verdict, detect.Evidence) {
-	h.clock.now = h.clock.now.Add(gap)
+	h.clock.Advance(gap)
 	h.tile++
 
 	return h.watchdog.Watch(detect.Click{
 		Scope:   "caller",
 		Tile:    h.tile,
 		Country: "FR",
-		At:      h.clock.now,
+		At:      h.clock.Now(),
 	})
 }
 

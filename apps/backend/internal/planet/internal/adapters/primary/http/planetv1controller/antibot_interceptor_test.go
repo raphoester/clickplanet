@@ -15,6 +15,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 type fakeGuard struct {
@@ -68,7 +69,7 @@ func antiBot(
 		return connect.NewResponse(&planetv1.ClickResponse{}), nil
 	})
 
-	clock := &fakeClock{now: time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC)}
+	clock := cptime.NewFixedClock(time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC))
 
 	interceptor, err := NewAntiBotInterceptor(guard, owner, clock, prometheus.NewRegistry())
 	require.NoError(t, err)
@@ -149,7 +150,7 @@ func TestAntiBotInterceptor(t *testing.T) {
 func TestAntiBotRunsAfterTheThrottle(t *testing.T) {
 	guard := &fakeGuard{drop: true}
 
-	clock := &fakeClock{now: time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC)}
+	clock := cptime.NewFixedClock(time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC))
 
 	interceptor, err := NewAntiBotInterceptor(guard, fakeOwner{}, clock, prometheus.NewRegistry())
 	require.NoError(t, err)

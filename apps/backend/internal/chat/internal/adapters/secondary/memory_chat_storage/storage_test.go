@@ -25,12 +25,12 @@ func TestRunSuite(t *testing.T) {
 type testSuite struct {
 	suite.Suite
 
-	clock   *fakeClock
+	clock   *cptime.FixedClock
 	logPath string
 }
 
 func (s *testSuite) SetupTest() {
-	s.clock = &fakeClock{now: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)}
+	s.clock = cptime.NewFixedClock(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC))
 	s.logPath = filepath.Join(s.T().TempDir(), "chat.log")
 }
 
@@ -202,7 +202,7 @@ func (s *testSuite) TestRestoreIgnoresMessagesPastRetention() {
 	storage := s.newStorage(memory_chat_storage.Config{})
 	s.Require().NoError(storage.Append(context.Background(), s.record("ancient")))
 
-	s.clock.advance(48 * time.Hour)
+	s.clock.Advance(48 * time.Hour)
 	s.Require().NoError(storage.Append(context.Background(), s.record("recent")))
 	storage.Run(cancelledContext())
 
@@ -245,7 +245,7 @@ func (s *testSuite) TestPruningDropsExpiredRecords() {
 	})
 
 	s.Require().NoError(storage.Append(context.Background(), s.record("ancient")))
-	s.clock.advance(48 * time.Hour)
+	s.clock.Advance(48 * time.Hour)
 	s.Require().NoError(storage.Append(context.Background(), s.record("recent")))
 
 	stop := s.startRunning(storage)
@@ -265,7 +265,7 @@ func (s *testSuite) TestAppendingStillWorksAfterAPrune() {
 	})
 
 	s.Require().NoError(storage.Append(context.Background(), s.record("ancient")))
-	s.clock.advance(48 * time.Hour)
+	s.clock.Advance(48 * time.Hour)
 
 	stop := s.startRunning(storage)
 	s.waitUntilGone("ancient")
@@ -369,24 +369,4 @@ func cancelledContext() context.Context {
 	return ctx
 }
 
-type fakeClock struct {
-	mu  sync.Mutex
-	now time.Time
-}
-
-func (c *fakeClock) Now() time.Time {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return c.now
-}
-
-func (c *fakeClock) advance(d time.Duration) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.now = c.now.Add(d)
-}
-
-var (
-	_ cptime.Provider = (*fakeClock)(nil)
-	_ domain.Storage  = (*memory_chat_storage.Storage)(nil)
-)
+var _ domain.Storage = (*memory_chat_storage.Storage)(nil)

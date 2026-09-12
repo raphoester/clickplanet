@@ -17,6 +17,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cphttpserver"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 	"github.com/stretchr/testify/require"
 )
 
@@ -46,14 +47,6 @@ func (s *stubService) History(context.Context) []domain.ChatMessage {
 	return s.history
 }
 
-type fakeClock struct {
-	now time.Time
-}
-
-func (c *fakeClock) Now() time.Time { return c.now }
-
-func (c *fakeClock) advance(d time.Duration) { c.now = c.now.Add(d) }
-
 type stubSubscriber struct {
 	messages chan domain.ChatMessage
 	err      error
@@ -63,7 +56,7 @@ func (s stubSubscriber) Subscribe(context.Context) (<-chan domain.ChatMessage, e
 	return s.messages, s.err
 }
 
-func startChatServer(t *testing.T, service chat_service.IService, blockedIPs []string) (*httptest.Server, *fakeClock) {
+func startChatServer(t *testing.T, service chat_service.IService, blockedIPs []string) (*httptest.Server, *cptime.FixedClock) {
 	t.Helper()
 	return startChatServerWith(t, service, blockedIPs, stubSubscriber{}, DefaultHeartbeat)
 }
@@ -74,10 +67,10 @@ func startChatServerWith(
 	blockedIPs []string,
 	subscriber MessagesSubscriber,
 	heartbeat time.Duration,
-) (*httptest.Server, *fakeClock) {
+) (*httptest.Server, *cptime.FixedClock) {
 	t.Helper()
 
-	clock := &fakeClock{now: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)}
+	clock := cptime.NewFixedClock(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC))
 	limiter := cpratelimit.New(cpratelimit.Config{PerSecond: 1, Burst: 3}, clock)
 
 	blocklist, err := cpipblock.NewDenyList(blockedIPs)
@@ -255,7 +248,7 @@ func TestThrottleRefusesAFloodPerIP(t *testing.T) {
 
 	require.NoError(t, sendOnce(server, "5.6.7.8"), "another address has its own allowance")
 
-	clock.advance(time.Second)
+	clock.Advance(time.Second)
 	require.NoError(t, sendOnce(server, "1.2.3.4"), "a second later the bucket has a token again")
 }
 

@@ -48,12 +48,12 @@ func build(config Config, props cpbootstrap.Props) error {
 		return err
 	}
 
-	mintLimiter := cpratelimit.New(config.RateLimiter, cptime.ActualProvider{})
+	mintLimiter := cpratelimit.New(config.RateLimiter, cptime.SystemClock{})
 	props.Runners.Add("mint-limiter", mintLimiter.Run)
 
 	err = props.RPC.Mount(sessionv1connect.NewSessionServiceHandler(
 		sessionv1controller.NewSessionService(
-			session_service.New(attester, signer, cptime.ActualProvider{}),
+			session_service.New(attester, signer, cptime.SystemClock{}),
 		),
 		connect.WithInterceptors(
 			sessionv1controller.NewErrorInterceptor(props.Logger),

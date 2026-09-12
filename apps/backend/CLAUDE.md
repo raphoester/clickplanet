@@ -121,7 +121,7 @@ return []bootstrap.Module{
 `main` builds no objects at all, so a thing two contexts need is **a config block they both declare**, and each builds its own instance from it.
 
 - **`shared/cpsession.Config`** is the `session:` block, and it is shared because two contexts read it: `session` mints with it, `planet` verifies with it. Each calls `cpsession.NewSigner(config)` itself. The same secret and TTL produce the same MAC, so the two signers agree by construction and there is no object to pass — `TestBothContextsReadTheSameSessionBlock` pins that they read one block, and `TestTwoSignersOverOneConfigAgree` pins that one block means one key. Neither module imports the other, and **the planet context knows nothing about Turnstile** — the siteverify client lives at `session/internal/turnstile`, so it *cannot* reach it, and swapping the attester changes one line in `internal/session/module.go`.
-- **`shared/cpcountries`** is the ISO list. It is stateless and hardcoded, so each module just calls `cpcountries.New()`, the way it calls `cptime.ActualProvider{}`. It sits in `shared` and not under `planet/internal/adapters/` for exactly the reason that layer exists: neither context may depend on the other — and now could not, since that directory is unreachable from chat.
+- **`shared/cpcountries`** is the ISO list. It is stateless and hardcoded, so each module just calls `cpcountries.New()`, the way it calls `cptime.SystemClock{}`. It sits in `shared` and not under `planet/internal/adapters/` for exactly the reason that layer exists: neither context may depend on the other — and now could not, since that directory is unreachable from chat.
 
 **This is why `session.secret` is now required** rather than invented at boot — see [Sessions](#sessions-internalsession).
 
@@ -501,7 +501,7 @@ The snapshot file is the only thing worth backing up.
 Shared infrastructure: `cpbootstrap` (the composite layer), `cpcountries`, `cpconfigs` (YAML + env config via koanf), `cphttpserver` (middleware, formats), `cpprom` (Prometheus), `cptime`, `cpctx`, `cpconnect`, `cpratelimit`, `cpipblock`, `cpipscope`, `cpsession`, `cpatomicfile`, `cpsecrets`.
 
 **Every package here is prefixed `cp`, and a new one must be.** A call site reads
-`cptime.ActualProvider{}` or `cpctx.GetSourceIP(ctx)`, so the prefix says the
+`cptime.SystemClock{}` or `cpctx.GetSourceIP(ctx)`, so the prefix says the
 dependency is this layer's without the reader going to the import block — and an
 unprefixed name in a module is a module's own package by construction. It also
 settles the collisions a shared layer attracts: `cptime` beside stdlib `time`,
@@ -619,7 +619,7 @@ The proto package is the **only** version number: Connect derives each route fro
 
 Unit tests only, using `testify`. There are no integration tests and no Docker dependency — `make test` runs everything from a clean checkout.
 
-**Tests build with `-tags testing`, so use `make test` rather than a bare `go test ./...`.** Anything else that loads test files needs the tag too: `go vet -tags testing ./...`, and an editor's language server (`gopls` `buildFlags: ["-tags=testing"]`, or `go.buildTags` in VS Code), which otherwise reports the helpers as undefined. A helper that more than one package needs cannot live in a `_test.go` file, so it lives in an ordinary `.go` file carrying `//go:build testing`. The tag, not a filename convention, is what keeps such a helper out of the production binary — and what lets `make deadcode` tell a helper apart from production code. `cpctx.GetSessionID` and `cpconfigs.FromFile` are the two that exist today.
+**Tests build with `-tags testing`, so use `make test` rather than a bare `go test ./...`.** Anything else that loads test files needs the tag too: `go vet -tags testing ./...`, and an editor's language server (`gopls` `buildFlags: ["-tags=testing"]`, or `go.buildTags` in VS Code), which otherwise reports the helpers as undefined. A helper that more than one package needs cannot live in a `_test.go` file, so it lives in an ordinary `.go` file carrying `//go:build testing`. The tag, not a filename convention, is what keeps such a helper out of the production binary — and what lets `make deadcode` tell a helper apart from production code. `cpctx.GetSessionID`, `cpconfigs.FromFile` and `cptime.FixedClock` — the stand-still clock a dozen test packages drive time with — are the three that exist today.
 
 ### Linting
 
