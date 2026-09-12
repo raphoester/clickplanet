@@ -10,7 +10,7 @@ make test
 # or: go test -tags testing ./... | grep -v 'no test files'
 
 # Run a single test
-go test -tags testing ./internal/clicks/domain/click_handler_service/... -run TestName
+go test -tags testing ./internal/clicks/internal/domain/click_handler_service/... -run TestName
 
 # Run the concurrency-sensitive tests under the race detector
 go test -tags testing ./... -race
@@ -35,20 +35,51 @@ make dBuild
 
 This is a Go backend for a collaborative map-clicking game. It follows **hexagonal architecture (ports & adapters)**.
 
-### Four bounded contexts, one process
+### Three bounded contexts, one process
 
 - **`internal/clicks/`** — the tile game: clicks, ownership, the map, the update stream.
 - **`internal/chat/`** — the live chat: messages, identity, retention.
 - **`internal/session/`** — the mint: what a caller has to prove before it may click.
-- **`internal/antibot/`** — who is a machine, and what happens to them.
-
-`antibot` is the one with no proto package and no adapters, because nothing
-calls it: the clicks edge gates on it the way it gates on `session`. It is a
-context and not a kernel package because "is this caller a bot" is the business
-this game is in, while the kernel is for things that would read the same in any
-other program.
 
 They share the process, the transport and the country list, and **nothing else**. None imports another; each owns its own domain types, its own proto package, its own storage adapter (where it has one) and its own edge.
+
+**`internal/antibot/` is a domain library, not a fourth context.** It has no proto
+package, no adapters and no `module.go`, and it cannot be wired without a caller
+composing it — the clicks edge does, the way it gates on `session`. It is not a
+kernel package because "is this caller a bot" is the business this game is in,
+while the kernel is for things that would read the same in any other program.
+`clicks` → `antibot` is the only module-to-module import in the backend.
+
+#### A module publishes its root package and hides the rest
+
+Every module's interior lives behind **its own `internal/`** — `internal/clicks/internal/domain`,
+`internal/chat/internal/adapters/…`, `internal/antibot/internal/jury`. Go's own
+rule does the enforcing: such a package is importable only from the tree rooted
+at the parent of that `internal`, so `chat` importing `clicks/internal/domain`
+**does not compile**. There is no linter to run, no allowlist to maintain and
+nothing to keep in sync.
+
+So the whole of what one module may use of another is **what sits in the other's
+root package**:
+
+| module | its public API |
+|---|---|
+| `clicks` | `Config`, `NewModule` |
+| `chat` | `Config`, `NewModule` |
+| `session` | `Config`, `NewModule` |
+| `antibot` | `Config`, `Observer`, `Guard`, `New` |
+
+That holds for `cmd/api` too: the composition root lists modules and cannot
+reach a domain type, a storage adapter or a controller even if it wanted to. A
+module's `Config` may carry a field whose *type* is internal (`clicks.Config.TilesStorage`
+is `memory_tile_storage.Config`) — koanf fills it by reflection and a caller can
+still set its fields, it just cannot name the type. That is the right amount of
+access: the settings are published because they are in the file, and the code
+that reads them is not.
+
+**Adding a package inside a module is therefore free, and taking one out of
+`internal/` is a deliberate act** that shows up in review as exactly one moved
+directory.
 
 ### The composite layer
 
@@ -80,8 +111,8 @@ return []bootstrap.Module{
 
 `main` builds no objects at all, so a thing two contexts need is **a config block they both declare**, and each builds its own instance from it.
 
-- **`kernel/session.Config`** is the `session:` block, and it lives in the kernel because two contexts read it: `session` mints with it, `clicks` verifies with it. Each calls `session.NewSigner(config)` itself. The same secret and TTL produce the same MAC, so the two signers agree by construction and there is no object to pass — `TestBothContextsReadTheSameSessionBlock` pins that they read one block, and `TestTwoSignersOverOneConfigAgree` pins that one block means one key. Neither module imports the other, and **clicks knows nothing about Turnstile** — swapping the attester changes one line in `internal/session/module.go`.
-- **`kernel/countries`** is the ISO list. It is stateless and hardcoded, so each module just calls `countries.New()`, the way it calls `xtime.ActualProvider{}`. It sits in the kernel and not under `clicks/adapters/` for exactly the reason the kernel exists: neither context may depend on the other.
+- **`kernel/session.Config`** is the `session:` block, and it lives in the kernel because two contexts read it: `session` mints with it, `clicks` verifies with it. Each calls `session.NewSigner(config)` itself. The same secret and TTL produce the same MAC, so the two signers agree by construction and there is no object to pass — `TestBothContextsReadTheSameSessionBlock` pins that they read one block, and `TestTwoSignersOverOneConfigAgree` pins that one block means one key. Neither module imports the other, and **clicks knows nothing about Turnstile** — the siteverify client lives at `session/internal/turnstile`, so clicks *cannot* reach it, and swapping the attester changes one line in `internal/session/module.go`.
+- **`kernel/countries`** is the ISO list. It is stateless and hardcoded, so each module just calls `countries.New()`, the way it calls `xtime.ActualProvider{}`. It sits in the kernel and not under `clicks/internal/adapters/` for exactly the reason the kernel exists: neither context may depend on the other — and now could not, since that directory is unreachable from chat.
 
 **This is why `session.secret` is now required** rather than invented at boot — see [Sessions](#sessions-internalsession).
 
@@ -91,7 +122,7 @@ Adding a context that callers talk to means a `proto/<name>/v1`, an `internal/<n
 
 It runs as a **single self-contained container with no dependencies**: the tile map lives in process and is persisted to a local snapshot file. There is no database, no cache, and no second process.
 
-### Clicks domain (`internal/clicks/domain/`)
+### Clicks domain (`internal/clicks/internal/domain/`)
 
 Core interfaces (ports) defined in `gateways.go`:
 - `TilesChecker` — validates tile IDs (0..maxIndex)
@@ -104,7 +135,7 @@ Core interfaces (ports) defined in `gateways.go`:
 ### Adapters
 
 **Primary (input):**
-- `adapters/primary/http/planetv1controller/` — the API. `ClickService` implements the generated `planetv1connect.ClickServiceHandler` and nothing else; it never sees an `http.ResponseWriter`, which is the point of serving the contract with Connect rather than by hand. Two interceptors wrap it: `NewRateLimitInterceptor` (see [Rate limiting](#rate-limiting)) and `NewErrorInterceptor`, which maps domain errors onto Connect codes, logs the unexpected ones and keeps their cause off the wire, so **handlers return their errors bare** — `domain.ErrInvalidArgument` becomes `CodeInvalidArgument`, a code a handler picked itself is left alone, and anything else is logged once and answered as `internal error`.
+- `internal/adapters/primary/http/planetv1controller/` — the API. `ClickService` implements the generated `planetv1connect.ClickServiceHandler` and nothing else; it never sees an `http.ResponseWriter`, which is the point of serving the contract with Connect rather than by hand. Two interceptors wrap it: `NewRateLimitInterceptor` (see [Rate limiting](#rate-limiting)) and `NewErrorInterceptor`, which maps domain errors onto Connect codes, logs the unexpected ones and keeps their cause off the wire, so **handlers return their errors bare** — `domain.ErrInvalidArgument` becomes `CodeInvalidArgument`, a code a handler picked itself is left alone, and anything else is logged once and answered as `internal error`.
 - the tile stream, as `ClickService.ListenForEvents` — a Connect server-streaming RPC like any other procedure on the service. See [The live streams](#the-live-streams).
 
 **There is one server, one mux, and no version prefix.** Connect names each service's path from its proto package — `/planet.v1.ClickService/` and `/chat.v1.ChatService/` — so nothing is mounted under a prefix of ours. The three services and `/metrics` are the only things on the router. Nothing here needs a connection-level demultiplexer such as `cmux`; that is for running a real gRPC server, which owns its own HTTP/2 handler, beside a REST one.
@@ -135,8 +166,8 @@ The response never repeats a tile id. `GetMapResponse` carries `start_tile_id`, 
 `memory_tile_storage.StateBatchDense` builds it. The interned ids are copied out exactly as stored and the table travels with them, so nothing is translated on the way out and the client needs no shared country list. Protobuf does all the framing — there is no hand-rolled magic or length-prefixing on either side, and therefore no encoder and decoder that have to be edited together.
 
 **Secondary (output):**
-- `adapters/secondary/memory_tile_storage/` — the tile map. A preallocated `[]uint16` indexed by tile id, with country codes interned into a side table (2 bytes per tile — ~2 MB for a 1M-tile map). Fans updates out in process and persists to a local snapshot file.
-- `adapters/secondary/in_memory_tile_checker/` — validates tile IDs
+- `internal/adapters/secondary/memory_tile_storage/` — the tile map. A preallocated `[]uint16` indexed by tile id, with country codes interned into a side table (2 bytes per tile — ~2 MB for a 1M-tile map). Fans updates out in process and persists to a local snapshot file.
+- `internal/adapters/secondary/in_memory_tile_checker/` — validates tile IDs
 - country codes are validated by `kernel/countries`, which chat shares — see [The composite layer](#the-composite-layer)
 
 Beyond the `domain.TileStorage` port, `memory_tile_storage` also exposes `Subscribe(ctx) (<-chan domain.TileUpdate, error)`, one call per open stream.
@@ -173,7 +204,7 @@ A failed log write fails the whole post: the log is the audit trail, so a messag
 
 ### Chat (`internal/chat/`)
 
-Chat is a separate bounded context, not a feature of the tile game: it shares the process, the transport and the country list, and has its own proto package, domain, storage and edge. Nothing under `internal/chat/` imports `internal/clicks/`, and the reverse holds too.
+Chat is a separate bounded context, not a feature of the tile game: it shares the process, the transport and the country list, and has its own proto package, domain, storage and edge. Nothing under `internal/chat/` imports `internal/clicks/`, and the reverse holds too — and since each module's interior sits behind its own `internal/`, neither now can.
 
 **Off by default.** With `chat.enabled` false nothing is registered, so `/chat.v1.ChatService/` answers 404 — the unauthenticated public write endpoint does not exist at all rather than existing and erroring.
 
@@ -207,7 +238,7 @@ Polling for it would be worse, so nothing polls. `Limiter.Take` returns the buck
 
 That reading travels two ways, because a refused call has no response message to put it in:
 
-- an allowed call gets it on the context (`ctxutil.AddClickBudgetToContext`), and `ClickService.Click` puts it in `ClickResponse.budget`. The interceptor decides the policy; the handler decides how to say it — the same split `NewSessionInterceptor` already uses for the session id.
+- an allowed call gets it on the context (`ctxutil.AddRateBudgetToContext`), and `ClickService.Click` puts it in `ClickResponse.budget`. The interceptor decides the policy; the handler decides how to say it — the same split `NewSessionInterceptor` already uses for the session id.
 - a refused one gets it as a **connect error detail**, built by the `describe` function each context passes. `planetv1controller` passes one; chat and sessions pass nil, because nothing displays those allowances.
 
 `ClickService.GetBudget` covers the cold start — a client that has just loaded and has no click to learn from. It reads through `Limiter.Peek`, which spends nothing and, for an address that never clicked, **creates no bucket**: reading an allowance must not be a way to make the limiter remember a caller. It is deliberately not `NO_SIDE_EFFECTS`, so it is a POST no cache will serve a stale answer to; every click re-anchors the client afterwards, so it is asked once per page load.
@@ -257,7 +288,7 @@ The signature is checked **before** the expiry, in constant time, so a forger le
 
 **Minting has its own throttle** (`session.rateLimiter`, one every 30s with 10 in hand). A mint costs a siteverify round trip to a third party, so it cannot share the click budget: unthrottled, the endpoint is a free way to spend this server's siteverify quota.
 
-**`kernel/turnstile` fails closed on everything.** A network error, a non-2xx, a body that is not JSON, a token for another action or another hostname are all refused exactly as a forged one is. Failing open would make the check decorative — an attacker who can reach the backend can also make siteverify unreachable from it. It validates `action` and `hostname` as well as `success`, because **the sitekey is public**: without those two checks a token minted by the same widget embedded on any other page would be accepted here.
+**`session/internal/turnstile` fails closed on everything.** A network error, a non-2xx, a body that is not JSON, a token for another action or another hostname are all refused exactly as a forged one is. Failing open would make the check decorative — an attacker who can reach the backend can also make siteverify unreachable from it. It validates `action` and `hostname` as well as `success`, because **the sitekey is public**: without those two checks a token minted by the same widget embedded on any other page would be accepted here.
 
 **`session.turnstile.enabled: false` mints for anyone who asks** (`open_attester`). That is how a local backend runs without a widget and a secret, and it still exercises the whole click path — the token is bound and expires. It is never the production choice, and the server warns at boot when it is on.
 
@@ -272,8 +303,19 @@ What is left after sessions. A player who solves Turnstile in a real browser and
 then runs a userscript holds a genuine session, and no address- or token-based
 check can tell them from a player. The signal that survives is **behavioural**.
 
+**The whole of its API is four names**, and `internal/antibot/antibot.go` is all
+of it: `Config`, `Observer`, `Guard` and `New`. A caller hands over the block and
+the two hooks it wants findings reported through, and gets back a `Guard` — nil
+when the block is off — that answers `Inspect`, `Committed`, `Flagged`, `Run` and
+`Describe`. It is **one** `Run` whatever the file turned on: how many sweepers
+there are is this package's business, which is why `clicks` registers one runner
+rather than six. Everything else is under `antibot/internal/`, so the click edge
+could not assemble a jury out of watchdogs even if it wanted to. `internal/clicks/antibot.go`
+is the whole of the clicks side, and what is left in it is genuinely the edge's:
+the metric names, the wording of the ban line, and where in the chain it sits.
+
 **Detection and consequence are separate, and the consequence is the boring
-half.** `antibot/shadowban` takes a scope and a clock and runs a ban. It knows
+half.** `antibot/internal/shadowban` takes a scope and a clock and runs a ban. It knows
 nothing about tiles, reactions or what earned it, which is why the same sentence
 serves three different findings and would serve a fourth.
 
@@ -456,7 +498,9 @@ Two of these are here because both bounded contexts need them and neither should
 - `secrets` — the random hex a config may leave it to the server to invent. Chat's tag salt and the session signing key are the two, and both pay the same price for an empty setting: what the old one covered stops being recognised on restart.
 - `atomicfile` — temp file, fsync, rename, fsync of the directory. Written for the tile snapshot; the chat log's retention rewrites need the same guarantee, and duplicating 80 lines of carefully-written fsync/rename code is how the two drift apart. Covered by the existing snapshot tests.
 
-`session` mints and verifies the click token — see [Sessions](#sessions-internalsession). `turnstile` is the siteverify client it is fed by; both are in the kernel because the session context mints with them and the clicks context verifies with them, and neither context may depend on the other.
+`session` mints and verifies the click token — see [Sessions](#sessions-internalsession). It is in the kernel because **both** contexts read it: the session context mints with it, the clicks context verifies with it, and neither may depend on the other.
+
+The siteverify client it is fed by is **not** here. `turnstile` sat in the kernel on the same "both contexts need it" rule, but only one ever did, so it now lives at `session/internal/turnstile` where the compiler keeps it. That is the test for a kernel package: two modules actually import it, not that it *could* be shared. `secrets` passes narrowly — chat is its only caller today, but it is twenty lines of `crypto/rand` with no domain in it at all.
 
 `countries` is the ISO country list both the tile game and the chat validate against. `ipblock` is the VPN prefix set — see [VPN blocklist](#vpn-blocklist). `ratelimit` is a keyed token bucket held in this process, like the tile map it protects — with one API instance, a shared counter would buy nothing. Its `Run` loop periodically forgets the buckets that have refilled to capacity, which is free: such a bucket holds exactly what a freshly created one would, and without it the map would keep an entry per address that ever clicked.
 

@@ -14,9 +14,9 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1/chatv1connect"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/chat/adapters/primary/chatv1controller"
-	"github.com/raphoester/clickplanet.lol-backend/internal/chat/adapters/secondary/memory_chat_storage"
-	"github.com/raphoester/clickplanet.lol-backend/internal/chat/domain/chat_service"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/adapters/primary/chatv1controller"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/adapters/secondary/memory_chat_storage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/domain/chat_service"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/bootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/countries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ipblock"

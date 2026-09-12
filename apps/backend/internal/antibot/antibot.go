@@ -1,147 +1,206 @@
-// Package antibot holds what is left after the address blocklist and the
-// session mint: a caller who solved Turnstile in a real browser and then pointed
-// a script at the API. Nothing about the address or the token separates them
-// from a player, so everything here reads behaviour instead.
+// Package antibot holds what is left after the address blocklist and the session
+// mint: a caller who solved Turnstile in a real browser and then pointed a script
+// at the API. Nothing about the address or the token separates them from a
+// player, so everything here reads behaviour instead.
 //
-// A Watchdog measures one behaviour and says how sure it is. The Jury crosses
-// what the watchdogs say. The shadowban subpackage carries out the sentence and
-// knows nothing about bots.
+// This file is the whole of what a caller may use. The watchdogs, the jury that
+// crosses what they say and the ban they all pass live under internal/, so the
+// click edge cannot assemble them itself — how a bot is recognised is this
+// package's business and changing it is one package's edit.
 package antibot
 
 import (
-	"sort"
+	"context"
+	"fmt"
+	"sync"
 	"time"
+
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/jury"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/metronome"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/retaker"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/sequencer"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/shadowban"
+	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/xtime"
 )
 
-// Click is one Click RPC as the jury sees it, before the handler runs.
-type Click struct {
-	Scope   string
-	Tile    uint32
-	Country string
-	At      time.Time
+// The vocabulary a caller reads. It is defined under internal/detect because the
+// watchdogs share it and cannot import this package without a cycle, so these
+// aliases are what publish it and there is still one definition of each.
+type (
+	Click    = detect.Click    // one Click RPC, as the guard sees it
+	Report   = detect.Report   // one ban, with every watchdog's opinion behind it
+	Opinion  = detect.Opinion  // one watchdog's standing verdict on a caller
+	Verdict  = detect.Verdict  // how sure one watchdog is
+	Evidence = detect.Evidence // why a watchdog returned the verdict it did
+	Field    = detect.Field    // one number a watchdog wanted in the log line
 
-	// Held is the country owning the tile as the click arrives, empty when
-	// nobody does, and NoOp says the caller's own country already holds it. Both
-	// are read before the handler runs, because by the time it has run the map
-	// no longer remembers what was there.
-	Held string
-	NoOp bool
-}
-
-// Verdict is how sure one watchdog is. The split exists because the bounds that
-// catch a bot on their own also catch the most obsessed players: a watchdog that
-// only had one level would have to be set at the strict end and would then miss
-// every bot that jitters, or at the loose end and ban humans.
-type Verdict uint8
+	// Settings are published even though what reads them is not: they are in the file.
+	JuryConfig      = jury.Config
+	ShadowBanConfig = shadowban.Config
+)
 
 const (
-	// Clear is the caller looking like anybody else.
-	Clear Verdict = iota
-	// Suspect is a reading no single watchdog should ban on. It counts only
-	// alongside another watchdog measuring something else.
-	Suspect
-	// Certain is a reading no hand produces. It bans on its own.
-	Certain
+	Clear   = detect.Clear   // looks like anybody else
+	Suspect = detect.Suspect // counts only alongside another watchdog
+	Certain = detect.Certain // a reading no hand produces; bans on its own
 )
 
-func (v Verdict) String() string {
-	switch v {
-	case Suspect:
-		return "suspect"
-	case Certain:
-		return "certain"
-	default:
-		return "clear"
-	}
+// Config is the `antiBot:` block. A watchdog left out of the file is off, and the
+// nested types are this package's, so a new bound lands with the watchdog that
+// reads it rather than here.
+type Config struct {
+	Enabled bool
+
+	ShadowBan ShadowBanConfig
+	Jury      JuryConfig
+
+	Retaker   RetakerConfig
+	Sequencer SequencerConfig
+	Metronome MetronomeConfig
 }
 
-// Field is one number a watchdog wants in the log line. Watchdogs measure
-// different things, so the shape of the evidence is theirs and not the jury's.
-type Field struct {
-	Key   string
-	Value any
+type RetakerConfig struct {
+	Enabled  bool
+	Detector retaker.Config
 }
 
-// Evidence is why a watchdog returned the verdict it did. Rule names which of
-// its rules spoke, for the watchdogs that have more than one.
-type Evidence struct {
-	Rule   string
-	Fields []Field
+type SequencerConfig struct {
+	Enabled  bool
+	Detector sequencer.Config
 }
 
-// Watchdog measures one behaviour over one caller.
-type Watchdog interface {
-	Name() string
+type MetronomeConfig struct {
+	Enabled  bool
+	Detector metronome.Config
+}
 
-	// Watch records the click and says how the caller reads now. It is called
-	// for every click, including the ones an existing ban is already dropping:
-	// a watchdog that stops being fed while its caller is banned cannot say
-	// whether the ban is still earned, and the ban would lapse on silence the
-	// caller never actually produced.
-	Watch(click Click) (Verdict, Evidence)
+// Observer is how a finding leaves this package, which measures and judges but
+// logs and counts nothing itself. Both hooks are optional.
+type Observer struct {
+	// Every reaction, not only the ones arguing for a ban: the shape of the whole
+	// distribution is what shows the bot band.
+	OnReaction func(delay time.Duration)
 
-	// Committed is called once the click has reached the map. A watchdog that
-	// does not care what the map does ignores it.
+	OnFlag func(report Report)
+}
+
+// Guard is the whole surface the click edge gates on.
+type Guard interface {
+	// Called before the handler runs, because the map stops remembering who held
+	// the tile the moment it does.
+	Inspect(click Click) (drop bool)
+
+	// Only for a click the handler accepted: a refused one recorded as a take is
+	// how the next honest clicker of that tile comes to look like it is reacting.
 	Committed(click Click)
+
+	// Flagged is how many callers are currently banned, for the gauge.
+	Flagged() int
+
+	// One runner whatever the config turned on: how many sweepers there are is
+	// this package's business.
+	Run(ctx context.Context)
+
+	Describe() Description
 }
 
-// Opinion is one watchdog's standing verdict on a caller.
-type Opinion struct {
-	Watchdog string
-	Verdict  Verdict
-	Evidence Evidence
-	At       time.Time
-}
-
-// Report is one ban, with everything that argued for it. Every watchdog is in
-// Opinions, including the ones that said Clear, because what did not fire is
-// half of reading a line that did.
-type Report struct {
-	Scope string
-	Flags int
-
-	Opinions []Opinion
-
-	Clicks int
-
-	// What a randomised delay cannot fake: a person stops. Neither feeds any
-	// rule — deciding on them would ban the genuinely obsessed — but a ban with
-	// hours of ActiveFor and a LongestGap in seconds reads very differently from
-	// one without.
-	ActiveFor  time.Duration
-	LongestGap time.Duration
-
-	// Self-declared by the client and trivially changed: context for whoever
-	// reads the line, never an input to a decision.
-	TopCountry       string
-	TopCountryClicks int
-
-	// A few of the tiles involved, most recent last.
-	Tiles []uint32
-}
-
-// Quantile reads a sorted slice. It rounds to the nearest sample rather than
-// interpolating, so every number reaching a log line is one that was actually
-// measured. Watchdogs judge callers on the spread of what they measured rather
-// than its average, so they all need this.
-func Quantile(sorted []time.Duration, q float64) time.Duration {
-	if len(sorted) == 0 {
-		return 0
+// New assembles the watchdogs the config asks for, the jury that crosses them and
+// the one ban they all pass. A nil Guard means the block is off, which leaves the
+// click chain exactly as it was; enabling it with every watchdog off is an error,
+// because that measures nothing while looking like a defence.
+func New(config Config, clock xtime.Provider, observer Observer) (Guard, error) {
+	if !config.Enabled {
+		return nil, nil
 	}
 
-	i := int(q * float64(len(sorted)-1))
-	if i < 0 {
-		i = 0
-	}
-	if i >= len(sorted) {
-		i = len(sorted) - 1
+	if clock == nil {
+		clock = xtime.ActualProvider{}
 	}
 
-	return sorted[i]
+	g := &guard{}
+
+	var (
+		watchdogs []detect.Watchdog
+		names     []string
+	)
+
+	if config.Retaker.Enabled {
+		watchdog := retaker.New(config.Retaker.Detector, clock, observer.OnReaction)
+		g.runners = append(g.runners, watchdog.Run)
+		watchdogs = append(watchdogs, watchdog)
+		names = append(names, retaker.Name)
+	}
+
+	if config.Sequencer.Enabled {
+		watchdog := sequencer.New(config.Sequencer.Detector, clock)
+		g.runners = append(g.runners, watchdog.Run)
+		watchdogs = append(watchdogs, watchdog)
+		names = append(names, sequencer.Name)
+	}
+
+	if config.Metronome.Enabled {
+		watchdog := metronome.New(config.Metronome.Detector, clock)
+		g.runners = append(g.runners, watchdog.Run)
+		watchdogs = append(watchdogs, watchdog)
+		names = append(names, metronome.Name)
+	}
+
+	if len(watchdogs) == 0 {
+		return nil, fmt.Errorf("antiBot is enabled with no watchdog turned on")
+	}
+
+	// Defaulted here so the description carries the bounds actually enforced.
+	juryConfig := config.Jury.WithDefaults()
+
+	banner := shadowban.New(config.ShadowBan, clock)
+	g.runners = append(g.runners, banner.Run)
+
+	g.jury = jury.New(juryConfig, banner, clock, observer.OnFlag, watchdogs...)
+	g.runners = append(g.runners, g.jury.Run)
+
+	g.description = Description{
+		Watchdogs:   names,
+		MinSuspects: juryConfig.MinSuspects,
+		Enforcing:   banner.Enforcing(),
+	}
+
+	return g, nil
 }
 
-// Spread is the p90-p10 of what a watchdog measured. It sorts in place.
-func Spread(delays []time.Duration) (median, spread time.Duration) {
-	sort.Slice(delays, func(i, j int) bool { return delays[i] < delays[j] })
-	return Quantile(delays, 0.5), Quantile(delays, 0.9) - Quantile(delays, 0.1)
+// Description is what a guard says about itself for the caller's boot line. Not
+// the config back: this is what was turned on, after the defaults were applied.
+type Description struct {
+	Watchdogs   []string
+	MinSuspects int
+	Enforcing   bool
+}
+
+type guard struct {
+	jury        *jury.Jury
+	runners     []func(context.Context)
+	description Description
+}
+
+func (g *guard) Inspect(click Click) bool { return g.jury.Inspect(click) }
+
+func (g *guard) Committed(click Click) { g.jury.Committed(click) }
+
+func (g *guard) Flagged() int { return g.jury.Flagged() }
+
+func (g *guard) Describe() Description { return g.description }
+
+// Run fans out to every sweeper enabled and blocks until they all return.
+func (g *guard) Run(ctx context.Context) {
+	var wg sync.WaitGroup
+
+	for _, run := range g.runners {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			run(ctx)
+		}()
+	}
+
+	wg.Wait()
 }

@@ -9,16 +9,17 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/metronome"
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/retaker"
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/sequencer"
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/shadowban"
 )
 
-// The whole thing wired the way internal/clicks wires it, driven by callers that
-// behave the way the real ones do. The bounds here are the ones cmd/api ships.
+type fakeClock struct{ now time.Time }
+
+func (c *fakeClock) Now() time.Time { return c.now }
+
+// The whole thing built the way internal/clicks builds it — through the one
+// published constructor, with the bounds cmd/api ships — and driven by callers
+// that behave the way the real ones do.
 type stack struct {
-	jury  *antibot.Jury
+	guard antibot.Guard
 	clock *fakeClock
 
 	owner   map[uint32]string
@@ -31,40 +32,50 @@ func newStack() *stack {
 		owner: map[uint32]string{},
 	}
 
-	banner := shadowban.New(shadowban.Config{
-		Enforce:        true,
-		BanDuration:    time.Hour,
-		ReflagInterval: 5 * time.Minute,
-	}, s.clock)
+	config := antibot.Config{
+		Enabled: true,
+		ShadowBan: antibot.ShadowBanConfig{
+			Enforce:        true,
+			BanDuration:    time.Hour,
+			ReflagInterval: 5 * time.Minute,
+		},
+		Jury: antibot.JuryConfig{
+			MinSuspects:     2,
+			SuspicionWindow: 10 * time.Minute,
+			TrackWindow:     15 * time.Minute,
+		},
+	}
 
-	s.jury = antibot.NewJury(
-		antibot.Config{MinSuspects: 2, SuspicionWindow: 10 * time.Minute, TrackWindow: 15 * time.Minute},
-		banner,
-		s.clock,
-		func(report antibot.Report) { s.reports = append(s.reports, report) },
-		retaker.New(retaker.Config{
-			ReactionWindow: 5 * time.Second,
-			MinReactions:   12,
-			MaxSpread:      120 * time.Millisecond,
-			MaxMedian:      250 * time.Millisecond,
-			TrackWindow:    5 * time.Minute,
-		}, s.clock, nil),
-		sequencer.New(sequencer.Config{
-			MinSteps:     40,
-			MinShare:     0.75,
-			CertainSteps: 200,
-			CertainShare: 0.95,
-			TrackWindow:  15 * time.Minute,
-		}, s.clock),
-		metronome.New(metronome.Config{
-			MaxGap:        3 * time.Second,
-			MaxSpread:     120 * time.Millisecond,
-			MinClicks:     120,
-			CertainFor:    30 * time.Minute,
-			CertainClicks: 900,
-			TrackWindow:   15 * time.Minute,
-		}, s.clock),
-	)
+	config.Retaker.Enabled = true
+	config.Retaker.Detector.ReactionWindow = 5 * time.Second
+	config.Retaker.Detector.MinReactions = 12
+	config.Retaker.Detector.MaxSpread = 120 * time.Millisecond
+	config.Retaker.Detector.MaxMedian = 250 * time.Millisecond
+	config.Retaker.Detector.TrackWindow = 5 * time.Minute
+
+	config.Sequencer.Enabled = true
+	config.Sequencer.Detector.MinSteps = 40
+	config.Sequencer.Detector.MinShare = 0.75
+	config.Sequencer.Detector.CertainSteps = 200
+	config.Sequencer.Detector.CertainShare = 0.95
+	config.Sequencer.Detector.TrackWindow = 15 * time.Minute
+
+	config.Metronome.Enabled = true
+	config.Metronome.Detector.MaxGap = 3 * time.Second
+	config.Metronome.Detector.MaxSpread = 120 * time.Millisecond
+	config.Metronome.Detector.MinClicks = 120
+	config.Metronome.Detector.CertainFor = 30 * time.Minute
+	config.Metronome.Detector.CertainClicks = 900
+	config.Metronome.Detector.TrackWindow = 15 * time.Minute
+
+	guard, err := antibot.New(config, s.clock, antibot.Observer{
+		OnFlag: func(report antibot.Report) { s.reports = append(s.reports, report) },
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	s.guard = guard
 
 	return s
 }
@@ -81,9 +92,9 @@ func (s *stack) click(scope string, tile uint32, country string) bool {
 		NoOp:    held == country,
 	}
 
-	drop := s.jury.Inspect(click)
+	drop := s.guard.Inspect(click)
 	if !drop {
-		s.jury.Committed(click)
+		s.guard.Committed(click)
 		if !click.NoOp {
 			s.owner[tile] = country
 		}

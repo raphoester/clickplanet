@@ -57,7 +57,7 @@ func NewRateLimitInterceptor(
 				return nil, refuse(refusal, describe, state)
 			}
 
-			return next(ctxutil.AddClickBudgetToContext(ctx, state), req)
+			return next(ctxutil.AddRateBudgetToContext(ctx, state), req)
 		}
 	})
 }
