@@ -120,7 +120,7 @@ antiBot:
       sweepInterval: 1m
 
 # A question-mark box flies past the planet every so often, and whoever catches
-# it clicks at three times their allowance for a minute.
+# it clicks at three times their allowance for twenty seconds.
 #
 # On ahead of the frontend that can draw one. The two events ride the existing
 # stream as new cases of its oneof, so a deployed client reads them as unset and
@@ -131,11 +131,11 @@ bonus:
 
   # Per caller, not per server. A single ticker made the rate each player saw
   # 1/(interval x players), so the feature got rarer the busier the game was.
-  minInterval: 45s
-  maxInterval: 105s
+  minInterval: 15s
+  maxInterval: 35s
 
   # One miss is retried sooner; a second in a row waits the ordinary window.
-  missRetry: 20s
+  missRetry: 7s
 
   # Has to outlast the flight the client draws, or a box caught on its last
   # frame is refused.
@@ -144,7 +144,7 @@ bonus:
   # Multiplies the burst and the refill rate together, and the client reads both
   # off the answer - so changing these changes the meter with no frontend
   # release, exactly as rateLimiter does.
-  duration: 60s
+  duration: 20s
   multiplier: 3
 
   # A tab left open overnight is not playing, and a box sent to it is one nobody
