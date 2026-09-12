@@ -8,7 +8,9 @@
 package detect
 
 import (
+	"fmt"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -90,6 +92,35 @@ type Opinion struct {
 	Verdict  Verdict
 	Evidence Evidence
 	At       time.Time
+}
+
+// Fired says whether this watchdog argued for the ban. It is the only thing a
+// caller asks of a verdict — how sure the ones that did fire are is the jury's
+// business — so it is a method here rather than a verdict a caller compares.
+func (o Opinion) Fired() bool { return o.Verdict != Clear }
+
+// String renders one watchdog's reading for the log line: the verdict, the rule
+// that tripped, and every number that rule wanted, ordered by key so two lines
+// about the same watchdog read the same way. The caller owns the message and the
+// attribute names; what one reading says is this package's to word.
+func (o Opinion) String() string {
+	if !o.Fired() {
+		return o.Verdict.String()
+	}
+
+	parts := make([]string, 0, len(o.Evidence.Fields)+1)
+	parts = append(parts, fmt.Sprintf("%s %s", o.Verdict, o.Evidence.Rule))
+
+	// Copied before sorting: the report holds this slice and rendering it must
+	// not reorder what the caller is still holding.
+	fields := append([]Field(nil), o.Evidence.Fields...)
+	sort.SliceStable(fields, func(i, j int) bool { return fields[i].Key < fields[j].Key })
+
+	for _, field := range fields {
+		parts = append(parts, fmt.Sprintf("%s=%v", field.Key, field.Value))
+	}
+
+	return strings.Join(parts, " ")
 }
 
 // Report is one ban, with everything that argued for it. Every watchdog is in
