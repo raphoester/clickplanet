@@ -137,9 +137,12 @@ bonus:
   # One miss is retried sooner; a second in a row waits the ordinary window.
   missRetry: 20s
 
-  # Drawn uniformly per box. A frontend too old to know spread_clicks skips
-  # that box, which the schedule reads as a miss - so this can ship first.
-  kinds: [triple_clicks, spread_clicks]
+  # A weight per kind: a kind's chance is its weight over the sum. spread_clicks
+  # is the strong one, so it is one box in five. A frontend too old to know it
+  # skips that box, which the schedule reads as a miss - so this can ship first.
+  kinds:
+    triple_clicks: 4
+    spread_clicks: 1
 
   # Has to outlast the flight the client draws, or a box caught on its last
   # frame is refused.

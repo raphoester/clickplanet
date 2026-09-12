@@ -368,14 +368,37 @@ func (r *Registry) window() time.Duration {
 	return r.config.MinInterval + time.Duration(n.Int64())
 }
 
-// drawKind picks uniformly among the configured kinds, so each box is a surprise.
+// drawKind picks a kind with a chance of its weight over the sum of the weights.
+// It walks Kinds rather than the map, so the same draw always lands on the same
+// kind.
 func (r *Registry) drawKind() Kind {
-	n, err := rand.Int(rand.Reader, big.NewInt(int64(len(r.config.Kinds))))
-	if err != nil {
-		return r.config.Kinds[0]
+	total := 0.0
+	for _, kind := range Kinds {
+		total += r.config.Kinds[kind]
 	}
 
-	return r.config.Kinds[n.Int64()]
+	const resolution = 1 << 53
+	n, err := rand.Int(rand.Reader, big.NewInt(resolution))
+	if err != nil {
+		return KindTripleClicks
+	}
+
+	left := float64(n.Int64()) / resolution * total
+	last := KindTripleClicks
+	for _, kind := range Kinds {
+		weight := r.config.Kinds[kind]
+		if weight <= 0 {
+			continue
+		}
+		if left < weight {
+			return kind
+		}
+		left -= weight
+		last = kind
+	}
+
+	// Only float rounding reaches here; it belongs to the last kind with a weight.
+	return last
 }
 
 func newToken() (string, error) {

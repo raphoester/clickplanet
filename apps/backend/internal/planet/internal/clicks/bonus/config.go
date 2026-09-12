@@ -2,6 +2,7 @@ package bonus
 
 import (
 	"fmt"
+	"math"
 	"slices"
 	"time"
 )
@@ -16,8 +17,11 @@ type Config struct {
 	// One miss only; a second in a row waits the ordinary window.
 	MissRetry time.Duration
 
-	// What a box can be worth, drawn uniformly per box. Empty offers every kind.
-	Kinds []Kind
+	// What a box can be worth. Each kind is drawn with a chance of its weight over
+	// the sum of the weights, so {triple_clicks: 4, spread_clicks: 1} makes one
+	// box in five a spread. A kind left out, or at 0, is never offered. Empty
+	// offers every kind equally.
+	Kinds map[Kind]float64
 
 	OfferTTL   time.Duration
 	Duration   time.Duration
@@ -52,7 +56,10 @@ func (c Config) withDefaults() Config {
 		c.MaxInterval = max(c.MinInterval, defaultMaxInterval)
 	}
 	if len(c.Kinds) == 0 {
-		c.Kinds = Kinds
+		c.Kinds = make(map[Kind]float64, len(Kinds))
+		for _, kind := range Kinds {
+			c.Kinds[kind] = 1
+		}
 	}
 	if c.MissRetry <= 0 {
 		c.MissRetry = defaultMissRetry
@@ -82,13 +89,23 @@ func (c Config) withDefaults() Config {
 	return c
 }
 
-// Validate refuses a kind this server cannot grant, rather than offering a box
-// that nobody can claim.
+// Validate refuses a kind this server cannot grant, and weights that could never
+// draw anything, rather than offering boxes nobody asked for.
 func (c Config) Validate() error {
-	for _, kind := range c.Kinds {
+	total := 0.0
+
+	for kind, weight := range c.Kinds {
 		if !slices.Contains(Kinds, kind) {
 			return fmt.Errorf("bonus.kinds holds %q, which is not one of %v", kind, Kinds)
 		}
+		if weight < 0 || math.IsNaN(weight) || math.IsInf(weight, 0) {
+			return fmt.Errorf("bonus.kinds.%s is %v: a weight must be a number of 0 or more", kind, weight)
+		}
+		total += weight
+	}
+
+	if len(c.Kinds) > 0 && total == 0 {
+		return fmt.Errorf("bonus.kinds gives every kind a weight of 0, so no box could be anything")
 	}
 
 	return nil

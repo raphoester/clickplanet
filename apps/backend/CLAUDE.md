@@ -377,8 +377,9 @@ The signature is checked **before** the expiry, in constant time, so a forger le
 ### Bonus boxes (`internal/planet/internal/clicks/bonus/`)
 
 A question-mark box flies past the planet every so often; whoever catches it
-gets one of two bonuses for `bonus.duration`, drawn uniformly per box from
-`bonus.kinds`:
+gets one of two bonuses for `bonus.duration`. Each box draws its kind from
+`bonus.kinds`, a weight per kind — a kind's chance is its weight over the sum of
+the weights, so the strong spread can be made rare:
 
 - **`triple_clicks`** — the allowance is multiplied by `bonus.multiplier`. See
   [What a bonus does to the bucket](#what-a-bonus-does-to-the-bucket).
@@ -987,7 +988,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `bonus.enabled` — off offers nothing and answers `ClaimBonus` Unimplemented
 - `bonus.interval` — how often a box is put in front of somebody; a ceiling, since nothing is offered while nobody is watching
 - `bonus.offerTTL` — how long the token stays good; **must outlast the flight the client draws**, or a box caught on its last frame is refused
-- `bonus.kinds` — what a box can be worth, drawn uniformly per box: `triple_clicks`, `spread_clicks`; empty offers every kind, and an unknown one refuses the boot
+- `bonus.kinds` — a weight per kind (`triple_clicks`, `spread_clicks`); a kind's chance is its weight over the sum. Left out or 0 is never offered, empty offers every kind equally, and an unknown kind, a negative weight or all zeros refuse the boot
 - `bonus.duration`, `bonus.multiplier` — how long a caught bonus runs and what `triple_clicks` multiplies the allowance by; the client reads both off the answer, so changing them changes the meter with no frontend release
 - `antiBot.enabled` — off registers nothing and measures nothing
 - `antiBot.shadowBan.enforce` — off judges, logs and counts without dropping; the mode to deploy in

@@ -79,10 +79,14 @@ bonus:
   # catching them does not collect a box every 45s all session.
   missRetry: 45s
 
-  # What a box can be worth, drawn uniformly per box. Empty offers every kind.
+  # What a box can be worth, as a weight per kind. A kind's chance is its weight
+  # over the sum of the weights: 4 and 1 make one box in five a spread. A kind
+  # left out, or at 0, is never offered. Empty offers every kind equally.
   #   triple_clicks - the allowance is multiplied by `multiplier`
   #   spread_clicks - every click also takes the tiles touching the one clicked
-  kinds: [triple_clicks, spread_clicks]
+  kinds:
+    triple_clicks: 4
+    spread_clicks: 1
 
   # How long the token stays good. It has to outlast the flight the client
   # draws, or a box caught on its last frame is refused.

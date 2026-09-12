@@ -353,19 +353,45 @@ func TestEveryKindConfiguredIsOffered(t *testing.T) {
 	assert.Len(t, seen, len(Kinds), "an empty bonus.kinds offers every kind")
 }
 
-func TestOnlyTheKindsConfiguredAreOffered(t *testing.T) {
-	registry := New(Config{Enabled: true, Kinds: []Kind{KindSpreadClicks}}, cptime.NewFixedClock(epoch))
+func TestAKindLeftOutOrAtZeroIsNeverOffered(t *testing.T) {
+	for _, kinds := range []map[Kind]float64{
+		{KindSpreadClicks: 1},
+		{KindSpreadClicks: 1, KindTripleClicks: 0},
+	} {
+		registry := New(Config{Enabled: true, Kinds: kinds}, cptime.NewFixedClock(epoch))
 
-	for range 50 {
-		require.Equal(t, KindSpreadClicks, registry.drawKind())
+		for range 50 {
+			require.Equal(t, KindSpreadClicks, registry.drawKind())
+		}
 	}
 }
 
-func TestAnUnknownKindRefusesTheConfig(t *testing.T) {
-	require.NoError(t, Config{Kinds: []Kind{KindTripleClicks, KindSpreadClicks}}.Validate())
+func TestKindsAreDrawnInProportionToTheirWeight(t *testing.T) {
+	registry := New(Config{
+		Enabled: true,
+		Kinds:   map[Kind]float64{KindTripleClicks: 9, KindSpreadClicks: 1},
+	}, cptime.NewFixedClock(epoch))
+
+	const draws = 20_000
+	spreads := 0
+	for range draws {
+		if registry.drawKind() == KindSpreadClicks {
+			spreads++
+		}
+	}
+
+	// One in ten, give or take far more than the noise of 20,000 draws.
+	assert.InDelta(t, 0.1, float64(spreads)/draws, 0.02)
+}
+
+func TestKindWeightsThatMakeNoSenseRefuseTheConfig(t *testing.T) {
+	require.NoError(t, Config{Kinds: map[Kind]float64{KindTripleClicks: 4, KindSpreadClicks: 1}}.Validate())
+	require.NoError(t, Config{Kinds: map[Kind]float64{KindTripleClicks: 1, KindSpreadClicks: 0}}.Validate())
 	require.NoError(t, Config{}.Validate())
 
-	assert.ErrorContains(t, Config{Kinds: []Kind{"quadruple_clicks"}}.Validate(), "quadruple_clicks")
+	assert.ErrorContains(t, Config{Kinds: map[Kind]float64{"quadruple_clicks": 1}}.Validate(), "quadruple_clicks")
+	assert.ErrorContains(t, Config{Kinds: map[Kind]float64{KindSpreadClicks: -1}}.Validate(), "spread_clicks")
+	assert.ErrorContains(t, Config{Kinds: map[Kind]float64{KindTripleClicks: 0}}.Validate(), "weight of 0")
 }
 
 func TestAClaimByTheCallerItWasOfferedToSucceeds(t *testing.T) {
