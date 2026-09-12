@@ -6,7 +6,7 @@ import (
 	"connectrpc.com/connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
-	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/primary/http/planetv1controller"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/internal/adapters/primary/http/planetv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/bootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/logging/lf"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/xtime"

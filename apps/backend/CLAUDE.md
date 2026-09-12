@@ -10,7 +10,7 @@ make test
 # or: go test -tags testing ./... | grep -v 'no test files'
 
 # Run a single test
-go test -tags testing ./internal/clicks/domain/click_handler_service/... -run TestName
+go test -tags testing ./internal/clicks/internal/domain/click_handler_service/... -run TestName
 
 # Run the concurrency-sensitive tests under the race detector
 go test -tags testing ./... -race
@@ -50,13 +50,36 @@ kernel package because "is this caller a bot" is the business this game is in,
 while the kernel is for things that would read the same in any other program.
 `clicks` → `antibot` is the only module-to-module import in the backend.
 
-**A module publishes its root package and hides the rest behind its own
-`internal/`.** `internal/antibot/internal/jury` is importable only from
-`internal/antibot/...` — the compiler says so, there is no linter to run and
-nothing to keep in sync. So the whole of what one module may use of another is
-what sits in the other's root: for `antibot` that is `Config`, `Observer`,
-`Guard` and `New`, and a caller cannot reach a watchdog or the jury to assemble
-one itself.
+#### A module publishes its root package and hides the rest
+
+Every module's interior lives behind **its own `internal/`** — `internal/clicks/internal/domain`,
+`internal/chat/internal/adapters/…`, `internal/antibot/internal/jury`. Go's own
+rule does the enforcing: such a package is importable only from the tree rooted
+at the parent of that `internal`, so `chat` importing `clicks/internal/domain`
+**does not compile**. There is no linter to run, no allowlist to maintain and
+nothing to keep in sync.
+
+So the whole of what one module may use of another is **what sits in the other's
+root package**:
+
+| module | its public API |
+|---|---|
+| `clicks` | `Config`, `NewModule` |
+| `chat` | `Config`, `NewModule` |
+| `session` | `Config`, `NewModule` |
+| `antibot` | `Config`, `Observer`, `Guard`, `New` |
+
+That holds for `cmd/api` too: the composition root lists modules and cannot
+reach a domain type, a storage adapter or a controller even if it wanted to. A
+module's `Config` may carry a field whose *type* is internal (`clicks.Config.TilesStorage`
+is `memory_tile_storage.Config`) — koanf fills it by reflection and a caller can
+still set its fields, it just cannot name the type. That is the right amount of
+access: the settings are published because they are in the file, and the code
+that reads them is not.
+
+**Adding a package inside a module is therefore free, and taking one out of
+`internal/` is a deliberate act** that shows up in review as exactly one moved
+directory.
 
 ### The composite layer
 
@@ -89,7 +112,7 @@ return []bootstrap.Module{
 `main` builds no objects at all, so a thing two contexts need is **a config block they both declare**, and each builds its own instance from it.
 
 - **`kernel/session.Config`** is the `session:` block, and it lives in the kernel because two contexts read it: `session` mints with it, `clicks` verifies with it. Each calls `session.NewSigner(config)` itself. The same secret and TTL produce the same MAC, so the two signers agree by construction and there is no object to pass — `TestBothContextsReadTheSameSessionBlock` pins that they read one block, and `TestTwoSignersOverOneConfigAgree` pins that one block means one key. Neither module imports the other, and **clicks knows nothing about Turnstile** — swapping the attester changes one line in `internal/session/module.go`.
-- **`kernel/countries`** is the ISO list. It is stateless and hardcoded, so each module just calls `countries.New()`, the way it calls `xtime.ActualProvider{}`. It sits in the kernel and not under `clicks/adapters/` for exactly the reason the kernel exists: neither context may depend on the other.
+- **`kernel/countries`** is the ISO list. It is stateless and hardcoded, so each module just calls `countries.New()`, the way it calls `xtime.ActualProvider{}`. It sits in the kernel and not under `clicks/internal/adapters/` for exactly the reason the kernel exists: neither context may depend on the other — and now could not, since that directory is unreachable from chat.
 
 **This is why `session.secret` is now required** rather than invented at boot — see [Sessions](#sessions-internalsession).
 
@@ -99,7 +122,7 @@ Adding a context that callers talk to means a `proto/<name>/v1`, an `internal/<n
 
 It runs as a **single self-contained container with no dependencies**: the tile map lives in process and is persisted to a local snapshot file. There is no database, no cache, and no second process.
 
-### Clicks domain (`internal/clicks/domain/`)
+### Clicks domain (`internal/clicks/internal/domain/`)
 
 Core interfaces (ports) defined in `gateways.go`:
 - `TilesChecker` — validates tile IDs (0..maxIndex)
@@ -112,7 +135,7 @@ Core interfaces (ports) defined in `gateways.go`:
 ### Adapters
 
 **Primary (input):**
-- `adapters/primary/http/planetv1controller/` — the API. `ClickService` implements the generated `planetv1connect.ClickServiceHandler` and nothing else; it never sees an `http.ResponseWriter`, which is the point of serving the contract with Connect rather than by hand. Two interceptors wrap it: `NewRateLimitInterceptor` (see [Rate limiting](#rate-limiting)) and `NewErrorInterceptor`, which maps domain errors onto Connect codes, logs the unexpected ones and keeps their cause off the wire, so **handlers return their errors bare** — `domain.ErrInvalidArgument` becomes `CodeInvalidArgument`, a code a handler picked itself is left alone, and anything else is logged once and answered as `internal error`.
+- `internal/adapters/primary/http/planetv1controller/` — the API. `ClickService` implements the generated `planetv1connect.ClickServiceHandler` and nothing else; it never sees an `http.ResponseWriter`, which is the point of serving the contract with Connect rather than by hand. Two interceptors wrap it: `NewRateLimitInterceptor` (see [Rate limiting](#rate-limiting)) and `NewErrorInterceptor`, which maps domain errors onto Connect codes, logs the unexpected ones and keeps their cause off the wire, so **handlers return their errors bare** — `domain.ErrInvalidArgument` becomes `CodeInvalidArgument`, a code a handler picked itself is left alone, and anything else is logged once and answered as `internal error`.
 - the tile stream, as `ClickService.ListenForEvents` — a Connect server-streaming RPC like any other procedure on the service. See [The live streams](#the-live-streams).
 
 **There is one server, one mux, and no version prefix.** Connect names each service's path from its proto package — `/planet.v1.ClickService/` and `/chat.v1.ChatService/` — so nothing is mounted under a prefix of ours. The three services and `/metrics` are the only things on the router. Nothing here needs a connection-level demultiplexer such as `cmux`; that is for running a real gRPC server, which owns its own HTTP/2 handler, beside a REST one.
@@ -143,8 +166,8 @@ The response never repeats a tile id. `GetMapResponse` carries `start_tile_id`, 
 `memory_tile_storage.StateBatchDense` builds it. The interned ids are copied out exactly as stored and the table travels with them, so nothing is translated on the way out and the client needs no shared country list. Protobuf does all the framing — there is no hand-rolled magic or length-prefixing on either side, and therefore no encoder and decoder that have to be edited together.
 
 **Secondary (output):**
-- `adapters/secondary/memory_tile_storage/` — the tile map. A preallocated `[]uint16` indexed by tile id, with country codes interned into a side table (2 bytes per tile — ~2 MB for a 1M-tile map). Fans updates out in process and persists to a local snapshot file.
-- `adapters/secondary/in_memory_tile_checker/` — validates tile IDs
+- `internal/adapters/secondary/memory_tile_storage/` — the tile map. A preallocated `[]uint16` indexed by tile id, with country codes interned into a side table (2 bytes per tile — ~2 MB for a 1M-tile map). Fans updates out in process and persists to a local snapshot file.
+- `internal/adapters/secondary/in_memory_tile_checker/` — validates tile IDs
 - country codes are validated by `kernel/countries`, which chat shares — see [The composite layer](#the-composite-layer)
 
 Beyond the `domain.TileStorage` port, `memory_tile_storage` also exposes `Subscribe(ctx) (<-chan domain.TileUpdate, error)`, one call per open stream.
@@ -181,7 +204,7 @@ A failed log write fails the whole post: the log is the audit trail, so a messag
 
 ### Chat (`internal/chat/`)
 
-Chat is a separate bounded context, not a feature of the tile game: it shares the process, the transport and the country list, and has its own proto package, domain, storage and edge. Nothing under `internal/chat/` imports `internal/clicks/`, and the reverse holds too.
+Chat is a separate bounded context, not a feature of the tile game: it shares the process, the transport and the country list, and has its own proto package, domain, storage and edge. Nothing under `internal/chat/` imports `internal/clicks/`, and the reverse holds too — and since each module's interior sits behind its own `internal/`, neither now can.
 
 **Off by default.** With `chat.enabled` false nothing is registered, so `/chat.v1.ChatService/` answers 404 — the unauthenticated public write endpoint does not exist at all rather than existing and erroring.
 

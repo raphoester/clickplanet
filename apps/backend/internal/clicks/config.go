@@ -4,7 +4,7 @@ import (
 	"errors"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
-	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/adapters/secondary/memory_tile_storage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clicks/internal/adapters/secondary/memory_tile_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ipblock"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/ratelimit"
 	"github.com/raphoester/clickplanet.lol-backend/internal/kernel/session"
