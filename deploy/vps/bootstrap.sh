@@ -368,6 +368,16 @@ chown -R "$DEPLOY_USER:$DEPLOY_USER" "$CHECKOUT"
 	|| die "${STACK_DIR}/docker-compose.yaml missing — wrong branch or bad clone?"
 
 # --------------------------------------------------------------------- .env
+#
+# This writes the .env the stack comes up on before any deploy has run, and
+# nothing more: the first deploy replaces the whole file from the repository's
+# Actions secrets (see render-env.sh). So the salt and secret generated below
+# survive only until then, and on a fresh box that costs nothing — there is no
+# chat history yet whose tags a new salt would change.
+#
+# On a box that has been running, push the values already in .env to the
+# Actions secrets BEFORE deploying, or the deploy hands the box a different
+# salt and renames every chat sender at once.
 
 env_file="${STACK_DIR}/.env"
 if [[ -f "$env_file" && $FORCE_ENV -eq 0 ]]; then

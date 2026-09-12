@@ -91,10 +91,44 @@ jobs:
           package-type: container
           min-versions-to-keep: 20
 
+  # The droplet's .env is rendered here and never edited by hand. Editing it over
+  # ssh meant the only copy of every secret lived on one box: nothing else knew
+  # what was set, a rebuild started from a blank file, and a typo was found by
+  # the stack failing to come up.
+  #
+  # Actions secrets are write-only — nothing outside a workflow run can read them
+  # back — so this job is the one place able to render the file. That also means
+  # they cannot be recovered if lost: keep a copy in a password manager.
+  #
+  # The whole secret set is handed to the render step as one object, so **no
+  # secret is named anywhere in this file**. Adding one is done in the GitHub UI
+  # and read as ${THE_NAME} in deploy/vps/docker-compose.yaml; nothing between
+  # those two points has to learn about it.
   deploy:
     needs: [ build, caddy ]
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
+      # Rendered on the runner rather than over ssh: the logic lives in a script
+      # that can be run and tested outside CI (`make env-preview`), and the box
+      # receives a finished file instead of a heredoc.
+      - name: render the droplet's .env
+        working-directory: deploy/vps
+        env:
+          SECRETS_JSON: ${{ toJSON(secrets) }}
+        run: make env ENV_OUT=rendered.env
+
+      - name: copy it to the VPS
+        uses: appleboy/scp-action@v1.0.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: deploy/vps/rendered.env
+          target: /tmp
+          strip_components: 2
+
       - name: ssh to the VPS and roll the container
         uses: appleboy/ssh-action@v1.2.0
         with:
@@ -105,6 +139,19 @@ jobs:
             set -euo pipefail
             cd /opt/clickplanet/deploy/vps
             git -C /opt/clickplanet pull --ff-only
+
+            # Keep the outgoing file: if a secret is ever dropped from the
+            # repository, compose refuses to start and names it, but only after
+            # this one has been replaced. CHAT_TAG_SALT and SESSION_SECRET are
+            # the two that matter — regenerating either is visible to every
+            # player — and .env.previous is what gets them back.
+            if [ -f .env ]; then
+              cp -p .env .env.previous   # gitignored by .env.*
+              chown --reference=.env /tmp/rendered.env
+            fi
+            chmod 600 /tmp/rendered.env
+            mv /tmp/rendered.env .env
+
             docker compose pull
             docker compose up -d
             docker image prune -f
