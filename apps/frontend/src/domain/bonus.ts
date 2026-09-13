@@ -69,6 +69,9 @@ export function multiplierOf(reward: BonusReward): number {
  * The words for a reward, in the three lengths the screen needs them: shouted
  * in the middle of the screen, explained under it, and squeezed onto the meter.
  *
+ * The explanation says what the bonus does and nothing about how long: the
+ * meter counts that down, and it is read in the second the announcement is up.
+ *
  * Kept in one place so a second kind of reward is one case here rather than an
  * edit in every component that mentions it.
  */
@@ -81,25 +84,25 @@ export function describeReward(reward: BonusReward): {
         case "tripleClicks":
             return {
                 title: "Triple clicks",
-                detail: `${multiplierOf(reward)}× your click rate for ${reward.seconds} seconds`,
+                detail: `${multiplierOf(reward)}× your click rate`,
                 badge: `${multiplierOf(reward)}×`,
             }
         case "spreadClicks":
             return {
                 title: "Spread clicks",
-                detail: `Every click also takes the tiles around it for ${reward.seconds} seconds`,
+                detail: "Each click also takes the tiles around it",
                 badge: "+6",
             }
         case "bomb":
             return {
                 title: "Bomb",
-                detail: `Press and hold anywhere on the planet in the next ${reward.seconds} seconds to drop it`,
+                detail: "Resets the tiles in an area",
                 badge: "💣",
             }
         case "encloseClicks":
             return {
                 title: "Enclose",
-                detail: `Close a shape of your tiles to take what is inside it, up to ${reward.maxTiles} tiles. ${shapesWord(reward.shapes)} in ${reward.seconds} seconds`,
+                detail: `Close a shape to take the tiles inside. ${shapesWord(reward.shapes)}, ${reward.maxTiles} tiles max`,
                 badge: `⬡${reward.shapes}`,
             }
     }

@@ -16,12 +16,12 @@ describe("describeReward", () => {
         const {title, detail, badge} = describeReward(REWARD)
 
         expect(title).toBe("Triple clicks")
-        expect(detail).toContain("60")
+        expect(detail).toBe("3× your click rate")
         expect(badge).toBe("3×")
     })
 
-    it("takes the duration from the reward rather than stating one", () => {
-        expect(describeReward({kind: "tripleClicks", seconds: 5}).detail).toContain("5")
+    it("leaves the duration to the meter", () => {
+        expect(describeReward(REWARD).detail).not.toContain("60")
     })
 
     it("keeps the badge short enough to sit on the meter", () => {
@@ -43,11 +43,11 @@ describe("a spread reward", () => {
         expect(multiplierOf(SPREAD)).toBe(1)
     })
 
-    it("says what it does, for how long, with a badge that fits the meter", () => {
+    it("says what it does, with a badge that fits the meter", () => {
         const {title, detail, badge} = describeReward(SPREAD)
 
         expect(title).toBe("Spread clicks")
-        expect(detail).toContain("60")
+        expect(detail).toBe("Each click also takes the tiles around it")
         expect(badge.length).toBeLessThanOrEqual(3)
     })
 })
@@ -59,11 +59,11 @@ describe("a bomb", () => {
         expect(multiplierOf(BOMB)).toBe(1)
     })
 
-    it("says how long there is to drop it, with a badge that fits the meter", () => {
+    it("says what it does, with a badge that fits the meter", () => {
         const {title, detail, badge} = describeReward(BOMB)
 
         expect(title).toBe("Bomb")
-        expect(detail).toContain("30")
+        expect(detail).toBe("Resets the tiles in an area")
         expect(badge.length).toBeLessThanOrEqual(3)
     })
 })
@@ -75,13 +75,13 @@ describe("an enclose reward", () => {
         expect(multiplierOf(ENCLOSE)).toBe(1)
     })
 
-    it("says what it does, how many shapes, how big and for how long", () => {
+    it("says what it does, how many shapes and how big", () => {
         const {title, detail, badge} = describeReward(ENCLOSE)
 
         expect(title).toBe("Enclose")
         expect(detail).toContain("3 shapes")
         expect(detail).toContain("10 tiles")
-        expect(detail).toContain("30 seconds")
+        expect(detail).not.toContain("30")
         expect(badge.length).toBeLessThanOrEqual(3)
     })
 
