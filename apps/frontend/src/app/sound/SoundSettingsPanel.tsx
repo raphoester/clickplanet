@@ -29,8 +29,26 @@ export default function SoundSettingsPanel({settings, onChange, preview}: SoundS
         if (on) preview(name)
     }
 
+    const setAnthem = (anthem: SoundSettings["anthem"]) => onChange({...settings, anthem})
+
     return <div className="sound-settings">
         <Switch label="Sound" checked={settings.enabled} onChange={setEnabled} main/>
+
+        <div className={settings.enabled ? "sound-settings-list" : "sound-settings-list sound-settings-list--off"}>
+            <Switch label="Leader's national anthem"
+                    checked={settings.anthem.on}
+                    disabled={!settings.enabled}
+                    onChange={(on) => setAnthem({...settings.anthem, on})}/>
+            <label className="sound-volume">
+                <span className="sound-switch-label">Anthem volume</span>
+                <input type="range"
+                       className="sound-volume-input"
+                       min={0} max={1} step={0.05}
+                       value={settings.anthem.volume}
+                       disabled={!settings.enabled || !settings.anthem.on}
+                       onChange={(event) => setAnthem({...settings.anthem, volume: Number(event.target.value)})}/>
+            </label>
+        </div>
 
         <ul className={settings.enabled ? "sound-settings-list" : "sound-settings-list sound-settings-list--off"}>
             {SWITCHES.map((name) => <li key={name}>

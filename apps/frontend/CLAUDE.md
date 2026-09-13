@@ -860,6 +860,28 @@ the chat in `ChatPanel` for a message that is not yours. **Your own message is
 filtered on your name as well as on `mine`**: its broadcast can arrive before
 the send answer that fills `mine` in.
 
+### The leader's anthem
+
+The one sound that **is** a file. `src/app/anthem/` plays the national anthem of
+the country leading the map, on a loop, with a player at the bottom of the screen.
+The recordings are the US Navy Band's (public domain); `npm run anthems` downloads
+them, normalises loudness, trims the silence so the loop has no gap, and writes
+`static/anthems/<code>-<hash>.m4a` plus `anthemsAsset.ts`, which pairs each file
+with the anthem's title (`TITLES` in the script, written by hand: Wikidata's
+labels mix titles with "National Anthem of X"). It needs ffmpeg.
+Territories share their country's file (`SHARES` in the script); a country with
+no recording shows the player with its play button off.
+
+- `domain/anthemLeader.ts` — `followLeader`: a new leader must hold first place
+  for `HOLD_MS` (15s) before the music follows it. The first leader plays at once.
+- `anthemPlayer.ts` — two `<audio>` elements crossfade through Web Audio gain
+  nodes. **Not `audio.volume`: iOS ignores it.** A muted or hidden tab fades out
+  and pauses rather than streaming silence.
+- `useAnthem.ts` — ties the board and the settings to the player, which is built
+  once, so a tick or a toggle never restarts the music.
+- `AnthemBar.tsx` — the player: the anthem's title, then the country. Play and volume write `SoundSettings.anthem`, so
+  it and the settings panel never disagree. Pressing play lifts the master switch.
+
 ## Protocol Buffers
 
 Types are defined in the monorepo-shared [`/proto`](../../proto), one package per
