@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import {afterEach, describe, expect, it, vi} from 'vitest'
-import {cleanup, render, screen} from '@testing-library/react'
+import {cleanup, fireEvent, render, screen} from '@testing-library/react'
 import ClickBudgetMeter from './ClickBudgetMeter.tsx'
 import {ClickBudget} from "../../backends/clickBudget.ts"
 
@@ -152,5 +152,19 @@ describe("ClickBudgetMeter while a bonus runs", () => {
         render(<ClickBudgetMeter countryName="Chad" budget={reading({price: {cost: 1, share: 0.01, next: {share: 0.1, cost: 2}}})}/>)
 
         expect(document.querySelector(".click-budget-toll")).toBeNull()
+    })
+
+    it("shakes on each refused click, and not before", () => {
+        const {rerender} = render(<ClickBudgetMeter budget={reading({tokens: 0})}/>)
+        expect(meter().classList.contains("click-budget-refused")).toBe(false)
+
+        rerender(<ClickBudgetMeter budget={reading({tokens: 0})} refusals={1}/>)
+        expect(meter().classList.contains("click-budget-refused")).toBe(true)
+
+        fireEvent.animationEnd(meter())
+        expect(meter().classList.contains("click-budget-refused")).toBe(false)
+
+        rerender(<ClickBudgetMeter budget={reading({tokens: 0})} refusals={2}/>)
+        expect(meter().classList.contains("click-budget-refused")).toBe(true)
     })
 })

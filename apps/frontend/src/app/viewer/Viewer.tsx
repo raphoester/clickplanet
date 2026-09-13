@@ -6,7 +6,6 @@ import ChatPanel from "../chat/ChatPanel.tsx";
 import Menu from "../Menu.tsx";
 import BonusAward from "../components/BonusAward.tsx";
 import ClickBudgetMeter from "../components/ClickBudgetMeter.tsx";
-import RateLimitModal from "../components/RateLimitModal.tsx";
 import SessionUnavailableModal from "../components/SessionUnavailableModal.tsx";
 import VPNBlockedModal from "../components/VPNBlockedModal.tsx";
 import CameraButton from "../share/CameraButton.tsx";
@@ -40,8 +39,7 @@ export default function Viewer(props: ViewerProps) {
         tileDeltas,
         tilesCount,
         capture,
-        rateLimited,
-        dismissRateLimited,
+        refusals,
         vpnBlocked,
         dismissVPNBlocked,
         sessionUnavailable,
@@ -85,7 +83,7 @@ export default function Viewer(props: ViewerProps) {
                                stats={shareStats(leaderboard, countryState)}
                                onClose={discard}/>}
 
-        {status.state === 'ready' && <ClickBudgetMeter budget={clickBudget} bonus={bonus} countryName={countryState.name}/>}
+        {status.state === 'ready' && <ClickBudgetMeter budget={clickBudget} bonus={bonus} countryName={countryState.name} refusals={refusals}/>}
 
         {status.state === 'ready' && <ChatPanel
             backend={props.chatBackend}
@@ -95,8 +93,6 @@ export default function Viewer(props: ViewerProps) {
         {award && <BonusAward reward={award} onDone={dismissAward}/>}
 
         {lastBomb && <BombNews key={lastBomb.id} drop={lastBomb.drop} onDone={dismissBomb}/>}
-
-        {rateLimited && <RateLimitModal onClose={dismissRateLimited}/>}
 
         {vpnBlocked && <VPNBlockedModal onClose={dismissVPNBlocked}/>}
 

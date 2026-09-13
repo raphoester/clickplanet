@@ -12,11 +12,11 @@ function handlers() {
     return {onRateLimited: vi.fn(), onVPNBlocked: vi.fn(), onSessionUnavailable: vi.fn()}
 }
 
-// Three refusals give three different pieces of advice — ease off, turn the VPN
-// off, reload or unblock the challenge — so sending one to the wrong dialog
-// leaves a working page telling the player to fix the wrong thing.
+// Three refusals mean three different things — ease off (said by the meter),
+// turn the VPN off, reload or unblock the challenge — so sending one to the
+// wrong place leaves a working page telling the player to fix the wrong thing.
 describe("reportClickFailure", () => {
-    it("sends the throttle's refusal to the throttle's dialog, and nowhere else", () => {
+    it("sends the throttle's refusal to the meter, and to no dialog", () => {
         const h = handlers()
 
         reportClickFailure(new RateLimitedError(), h)
