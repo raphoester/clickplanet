@@ -246,8 +246,52 @@
     }
 }
 
+/*
+ * The server refused a click: a short shake and a red flash, instead of a
+ * dialog. The class is put back on for every refusal, so a burst keeps it
+ * moving and it stops as soon as the clicks do.
+ */
+.click-budget-refused {
+    animation: click-budget-refused 0.45s ease-out;
+}
+
+@keyframes click-budget-refused {
+    0% {
+        transform: translateX(0);
+        border-color: #FF5C5C;
+        box-shadow: 0 0 22px #FF5C5CAA;
+    }
+    20% {
+        transform: translateX(-6px);
+    }
+    40% {
+        transform: translateX(5px);
+    }
+    60% {
+        transform: translateX(-3px);
+    }
+    80% {
+        transform: translateX(2px);
+    }
+    100% {
+        transform: translateX(0);
+    }
+}
+
+/* No movement, the flash stays. */
+@keyframes click-budget-refused-still {
+    from {
+        border-color: #FF5C5C;
+        box-shadow: 0 0 22px #FF5C5CAA;
+    }
+}
+
 @media (prefers-reduced-motion: reduce) {
     .click-budget-bonus {
         animation: none;
+    }
+
+    .click-budget-refused {
+        animation-name: click-budget-refused-still;
     }
 }

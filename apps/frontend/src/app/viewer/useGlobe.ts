@@ -32,7 +32,9 @@ export function useGlobe(options: UseGlobeOptions) {
 
     const {leaderboard, tileDeltas, recordLeaderboard} = useLeaderboardFeed()
 
-    const [rateLimited, setRateLimited] = useState(false)
+    // A count, not a flag: every refusal bumps it, so the meter can shake once
+    // per refused click instead of raising a dialog.
+    const [refusals, setRefusals] = useState(0)
 
     const [vpnBlocked, setVPNBlocked] = useState(false)
 
@@ -102,7 +104,7 @@ export function useGlobe(options: UseGlobeOptions) {
             container: element,
             country: initialCountry.current,
             onLeaderboardChange: recordLeaderboard,
-            onRateLimited: () => setRateLimited(true),
+            onRateLimited: () => setRefusals(n => n + 1),
             onVPNBlocked: () => setVPNBlocked(true),
             onSessionUnavailable: () => setSessionUnavailable(true),
             onBonusWon: takeBonus,
@@ -157,8 +159,7 @@ export function useGlobe(options: UseGlobeOptions) {
         tileDeltas,
         tilesCount,
         capture,
-        rateLimited,
-        dismissRateLimited: () => setRateLimited(false),
+        refusals,
         vpnBlocked,
         dismissVPNBlocked: () => setVPNBlocked(false),
         sessionUnavailable,

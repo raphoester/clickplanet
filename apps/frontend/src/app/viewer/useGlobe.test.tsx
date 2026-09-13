@@ -227,41 +227,21 @@ describe("useGlobe rate limiting", () => {
 
     beforeEach(() => createGlobe.mockResolvedValue(fakeGlobe()))
 
-    it("stays quiet until the server refuses a click", async () => {
+    it("counts nothing until the server refuses a click", async () => {
         renderHook()
         await waitFor(() => expect(latest.status.state).toBe('ready'))
 
-        expect(latest.rateLimited).toBe(false)
+        expect(latest.refusals).toBe(0)
     })
 
-    it("raises the flag when the globe reports a refused click", async () => {
-        renderHook()
-        await waitFor(() => expect(latest.status.state).toBe('ready'))
-
-        await refuseAClick()
-        expect(latest.rateLimited).toBe(true)
-    })
-
-    it("stays raised across a burst of refusals", async () => {
+    it("counts every refused click, so each one can be shown", async () => {
         renderHook()
         await waitFor(() => expect(latest.status.state).toBe('ready'))
 
         await refuseAClick()
         await refuseAClick()
         await refuseAClick()
-        expect(latest.rateLimited).toBe(true)
-    })
-
-    it("lowers the flag when the player dismisses it, and raises it again after", async () => {
-        renderHook()
-        await waitFor(() => expect(latest.status.state).toBe('ready'))
-
-        await refuseAClick()
-        await act(async () => latest.dismissRateLimited())
-        expect(latest.rateLimited).toBe(false)
-
-        await refuseAClick()
-        expect(latest.rateLimited).toBe(true)
+        expect(latest.refusals).toBe(3)
     })
 })
 
@@ -298,15 +278,11 @@ describe("useGlobe VPN blocking", () => {
         expect(latest.vpnBlocked).toBe(true)
     })
 
-    it("does not touch the throttle's flag, and is not touched by it", async () => {
+    it("does not count as a throttled click", async () => {
         renderHook()
         await waitFor(() => expect(latest.status.state).toBe('ready'))
 
         await blockAClick()
-        expect(latest.rateLimited).toBe(false)
-
-        await act(async () => createGlobe.mock.calls[0][0].onRateLimited())
-        await act(async () => latest.dismissVPNBlocked())
-        expect(latest.rateLimited).toBe(true)
+        expect(latest.refusals).toBe(0)
     })
 })

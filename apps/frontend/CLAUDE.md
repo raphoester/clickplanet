@@ -190,12 +190,12 @@ Connect code is:
 - `unauthenticated` → `SessionUnavailableError`, **and only after a retry** —
   see [Sessions](#sessions).
 
-They are separate classes rather than one with a field because the dialogs give
-different advice: ease off for a second, turn the VPN off, or reload and unblock
-the challenge. Everything else is a transport fault and still reaches the
+They are separate classes rather than one with a field because each one says
+something different: ease off for a second (the click meter shakes — no dialog),
+turn the VPN off, or reload and unblock the challenge. Everything else is a transport fault and still reaches the
 console.
 
-`FakeBackend` reproduces all three, so every dialog is reachable in dev: it
+`FakeBackend` reproduces all three, so every refusal is reachable in dev: it
 enforces the same bucket with the backend's defaults, and takes `vpnBlocked` and
 `sessionUnavailable` options that refuse every click (there is no address and no
 widget there to judge). Its own simulated traffic bypasses all of them, standing
@@ -515,10 +515,13 @@ player's territory, so it has not been done.
    re-ranked from its counts — then handed to `useLeaderboardFeed`, which
    publishes it to React twice a second rather than ten times.
 5. A click paints optimistically and POSTs; the server's echo confirms it later.
-   A refused click is taken back off the map and raises a flag in `useGlobe` that
-   `Viewer` renders as `RateLimitModal`, `VPNBlockedModal` or
-   `SessionUnavailableModal`. The globe reports every refused click,
-   so each flag is a boolean and not a queue — a burst is one thing to say, once.
+   A refused click is taken back off the map. A throttled one bumps `refusals` in
+   `useGlobe`, and `ClickBudgetMeter` shakes and flashes red once per bump — a
+   dialog here was annoying, since a player hits the wall mid-burst and the meter
+   already says why. The other two raise a flag that `Viewer` renders as
+   `VPNBlockedModal` or `SessionUnavailableModal`. The globe reports every refused
+   click, so those flags are booleans and not a queue — a burst is one thing to
+   say, once.
    `reportClickFailure` in `globe.ts` is the four-way branch that picks which,
    split out of the click handler because it is the one piece of that handler
    worth testing: sending a refusal to the wrong dialog leaves a working page
@@ -528,9 +531,8 @@ player's territory, so it has not been done.
    refusal does not clear on its own — the player has to change network — so the
    next click raises it again.
 
-6. `ClickBudgetMeter` shows what is left of the bucket, top-right. It is the
-   warning `RateLimitModal` cannot be — the modal only ever arrives after the
-   click that was refused. **Its shape is read off the server's policy**: one
+6. `ClickBudgetMeter` shows what is left of the bucket, top-right. It warns
+   before the wall, and shakes when a click hits it. **Its shape is read off the server's policy**: one
    pip per click in the burst (one bar past 12 of them), and the partly-filled
    pip is the click being granted back, at the server's own rate. Change
    `rateLimiter.burst` on the backend and this follows with no release here.
