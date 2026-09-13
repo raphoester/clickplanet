@@ -49,16 +49,20 @@ message ClickBudget {
   // Clicks granted back per second.
   double refill_per_second = 3;
 
-  // Tokens one click costs, from the country's share of the map. Zero from a
-  // server too old to price clicks, which means one.
-  uint32 cost = 4;
+  // Were whole-token costs. A cost can now be a fraction of a token, and a
+  // double on the old numbers would not decode on a client built against them.
+  reserved 4, 7;
+
+  // Tokens one click costs, from the country's share of the map: 1.5 is half
+  // as slow again. Zero from a server too old to price clicks, which means one.
+  double cost = 8;
 
   // The fraction of the whole map the country holds, 0 to 1.
   double share = 5;
 
   // The share at which a click starts to cost next_cost. Zero at the top step.
   double next_share = 6;
-  uint32 next_cost = 7;
+  double next_cost = 9;
 }
 
 message ClickRequest {

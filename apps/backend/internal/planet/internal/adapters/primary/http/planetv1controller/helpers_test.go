@@ -105,7 +105,7 @@ type fakeLimiter struct {
 	keys  []string
 }
 
-func (l *fakeLimiter) TakeN(key string, _ int) (bool, cpratelimit.State) {
+func (l *fakeLimiter) TakeN(key string, _ float64) (bool, cpratelimit.State) {
 	l.keys = append(l.keys, key)
 	return l.allow, l.state
 }

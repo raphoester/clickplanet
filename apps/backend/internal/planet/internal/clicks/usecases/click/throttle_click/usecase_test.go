@@ -20,10 +20,10 @@ type fakeLimiter struct {
 	allow bool
 	state cpratelimit.State
 	keys  []string
-	spent []int
+	spent []float64
 }
 
-func (l *fakeLimiter) TakeN(key string, n int) (bool, cpratelimit.State) {
+func (l *fakeLimiter) TakeN(key string, n float64) (bool, cpratelimit.State) {
 	l.keys = append(l.keys, key)
 	l.spent = append(l.spent, n)
 	return l.allow, l.state
@@ -101,16 +101,16 @@ func TestThrottleClick(t *testing.T) {
 
 	t.Run("charges the price of the country clicked for, and counts what is left in clicks", func(t *testing.T) {
 		limiter := &fakeLimiter{allow: true, state: cpratelimit.State{Tokens: 6, Capacity: 10, PerSecond: 1}}
-		pricer := &fakePricer{price: toll.Price{Cost: 3, Share: 0.4}}
+		pricer := &fakePricer{price: toll.Price{Cost: 1.5, Share: 0.4}}
 
 		out, err := throttle_click.New(&fakeClick{}, limiter, pricer).
 			Execute(t.Context(), click.In{TileID: 1, CountryID: "bg"})
 
 		require.NoError(t, err)
 		assert.Equal(t, []string{"bg"}, pricer.countries)
-		assert.Equal(t, []int{3}, limiter.spent)
-		assert.InDelta(t, 2.0, out.Budget.Tokens, 1e-9)
-		assert.Equal(t, 3, out.Budget.Capacity)
-		assert.Equal(t, 3, out.Budget.Price.Cost)
+		assert.Equal(t, []float64{1.5}, limiter.spent)
+		assert.InDelta(t, 4.0, out.Budget.Tokens, 1e-9)
+		assert.Equal(t, 6, out.Budget.Capacity, "6.67 clicks of room is six whole ones")
+		assert.InDelta(t, 1.5, out.Budget.Price.Cost, 1e-9)
 	})
 }

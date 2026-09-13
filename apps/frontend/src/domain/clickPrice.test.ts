@@ -1,5 +1,5 @@
 import {describe, expect, it} from "vitest"
-import {describePrice, percent} from "./clickPrice.ts"
+import {describePrice, factor, percent} from "./clickPrice.ts"
 
 describe("describePrice", () => {
     it("says nothing against a server that does not price clicks", () => {
@@ -18,14 +18,22 @@ describe("describePrice", () => {
     })
 
     it("says why a big country's meter is narrow, and what comes next", () => {
-        expect(describePrice({cost: 8, share: 0.8, next: {share: 0.9, cost: 10}}, "Bulgaria")).toEqual({
-            headline: "Bulgaria holds 80% of the map",
-            detail: "Clicks 8× slower · 10× at 90%",
+        expect(describePrice({cost: 1.5, share: 0.6, next: {share: 0.7, cost: 2}}, "Bulgaria")).toEqual({
+            headline: "Bulgaria holds 60% of the map",
+            detail: "Clicks 1.5× slower · 2× at 70%",
         })
     })
 
     it("names no next step at the top", () => {
-        expect(describePrice({cost: 10, share: 0.95}, "Bulgaria")?.detail).toBe("Clicks 10× slower")
+        expect(describePrice({cost: 2, share: 0.95}, "Bulgaria")?.detail).toBe("Clicks 2× slower")
+    })
+})
+
+describe("factor", () => {
+    it("writes a cost the way the config does", () => {
+        expect(factor(2)).toBe("2")
+        expect(factor(1.5)).toBe("1.5")
+        expect(factor(1.25)).toBe("1.25")
     })
 })
 

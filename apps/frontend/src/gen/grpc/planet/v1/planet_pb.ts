@@ -87,10 +87,10 @@ export class ClickBudget extends Message<ClickBudget> {
   refillPerSecond = 0;
 
   /**
-   * Tokens one click costs, from the country's share of the map. Zero from a
-   * server too old to price clicks, which means one.
+   * Tokens one click costs, from the country's share of the map: 1.5 is half
+   * as slow again. Zero from a server too old to price clicks, which means one.
    *
-   * @generated from field: uint32 cost = 4;
+   * @generated from field: double cost = 8;
    */
   cost = 0;
 
@@ -109,7 +109,7 @@ export class ClickBudget extends Message<ClickBudget> {
   nextShare = 0;
 
   /**
-   * @generated from field: uint32 next_cost = 7;
+   * @generated from field: double next_cost = 9;
    */
   nextCost = 0;
 
@@ -124,10 +124,10 @@ export class ClickBudget extends Message<ClickBudget> {
     { no: 1, name: "tokens", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
     { no: 2, name: "capacity", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 3, name: "refill_per_second", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
-    { no: 4, name: "cost", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 8, name: "cost", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
     { no: 5, name: "share", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
     { no: 6, name: "next_share", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
-    { no: 7, name: "next_cost", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 9, name: "next_cost", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ClickBudget {

@@ -329,6 +329,10 @@ The bucket key is whatever `IPReaderMiddleware` put on the context: `X-Real-IP` 
 A click costs more tokens the more of the map its country holds. `toll.steps` is
 a table of `{share, cost}`: from `share` of **every tile on the map**, a click for
 that country costs `cost` tokens. No steps prices every click at one.
+A cost may be a fraction of a token (production runs x1.25 from 25%, x1.5 from
+50%, x2 from 70%), which is why `ClickBudget.cost` is a double. It moved to new
+field numbers rather than changing type in place: a client built against the old
+`uint32` reads a cost of zero and simply says nothing about price.
 
 - **The price is taken at the click, from the country clicked for.** A slower
   refill for a big country would have been read off whatever country the caller
