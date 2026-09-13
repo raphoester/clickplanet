@@ -30,6 +30,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/secondary/memory_tile_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/bonus"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/toll"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/claim_bonus"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/claim_bonus/prom_claim_bonus"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click"
@@ -83,6 +84,8 @@ func build(config Config, props cpbootstrap.Props) error {
 	limiter := cpratelimit.New(config.RateLimiter, clock)
 	props.Runners.Add("click-limiter", limiter.Run)
 
+	pricer := toll.New(config.Toll, tilesStorage)
+
 	// nil when boxes are off, which leaves the feed and the click chain exactly
 	// as they were and makes ClaimBonus answer Unimplemented.
 	bonuses := newBonusRegistry(config.Bonus, clock, props)
@@ -95,6 +98,7 @@ func build(config Config, props cpbootstrap.Props) error {
 		tilesChecker: tilesChecker,
 		tilesStorage: tilesStorage,
 		limiter:      limiter,
+		pricer:       pricer,
 		bonuses:      bonuses,
 		spreads:      spreads,
 		enclosures:   enclosures,
@@ -109,7 +113,7 @@ func build(config Config, props cpbootstrap.Props) error {
 		return err
 	}
 
-	claimBonus, err := claimBonusUseCase(bonuses, limiter, spreads, bombs, bombRules.Radius, enclosures, clock, props)
+	claimBonus, err := claimBonusUseCase(bonuses, limiter, pricer, spreads, bombs, bombRules.Radius, enclosures, clock, props)
 	if err != nil {
 		return err
 	}
@@ -125,7 +129,7 @@ func build(config Config, props cpbootstrap.Props) error {
 	// three ports that happen to be served by one adapter.
 	service := planetv1controller.ClickService{
 		ClickHandler:      click_handler.New(clickUseCase),
-		GetBudgetHandler:  get_budget_handler.New(get_budget.New(limiter)),
+		GetBudgetHandler:  get_budget_handler.New(get_budget.New(limiter, pricer)),
 		MapDensityHandler: map_density_handler.New(map_density.New(tilesChecker)),
 		GetMapHandler:     get_map_handler.New(get_map.New(tilesChecker, tilesStorage)),
 		ListenForEventsHandler: listen_for_events_handler.New(
@@ -166,6 +170,7 @@ type clickParts struct {
 	tilesChecker *in_memory_tile_checker.Checker
 	tilesStorage *memory_tile_storage.Storage
 	limiter      *cpratelimit.Limiter
+	pricer       *toll.Toll
 	bonuses      *bonus.Registry
 	spreads      *bonus.Spreads
 	enclosures   *bonus.Enclosures
@@ -209,7 +214,7 @@ func clickChain(config Config, parts clickParts, props cpbootstrap.Props) (click
 		guarded = bonus_click.New(guarded, parts.bonuses)
 	}
 
-	return throttle_click.New(guarded, parts.limiter), nil
+	return throttle_click.New(guarded, parts.limiter, parts.pricer), nil
 }
 
 // newBonusRegistry returns nil when boxes are off. A typed nil in an interface
@@ -247,6 +252,7 @@ func bonusFeed(registry *bonus.Registry) listen_for_events.BonusFeed {
 func claimBonusUseCase(
 	registry *bonus.Registry,
 	limiter *cpratelimit.Limiter,
+	pricer *toll.Toll,
 	spreads *bonus.Spreads,
 	bombs *bonus.Bombs,
 	blastRadius float64,
@@ -258,7 +264,7 @@ func claimBonusUseCase(
 		return nil, nil //nolint:nilnil // nil means "boxes are off"; the handler answers Unimplemented.
 	}
 
-	claim := claim_bonus.New(registry, limiter, spreads, bombs, blastRadius, enclosures, clock)
+	claim := claim_bonus.New(registry, limiter, pricer, spreads, bombs, blastRadius, enclosures, clock)
 	useCase, counters, err := prom_claim_bonus.New(claim, props.Metrics)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create the bonus claim use case: %w", err)
@@ -354,8 +360,7 @@ func newSessionInterceptor(config cpsession.Config, props cpbootstrap.Props) (co
 		verifier,
 		cptime.SystemClock{},
 		config.Enforce,
-		props.Metrics,
-	)
+		props.Metrics)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create the click session interceptor: %w", err)
 	}

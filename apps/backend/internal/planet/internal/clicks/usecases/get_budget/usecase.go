@@ -6,6 +6,7 @@ package get_budget
 import (
 	"context"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/toll"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 )
@@ -17,14 +18,19 @@ type ClickBudgetReader interface {
 	Peek(key string) cpratelimit.State
 }
 
+type Pricer interface {
+	Price(country string) toll.Price
+}
+
 // New takes a nil reader for a server that does not rate limit clicks; Execute
 // then reports no allowance and a client shows none.
-func New(budgets ClickBudgetReader) *UseCase {
-	return &UseCase{budgets: budgets}
+func New(budgets ClickBudgetReader, pricer Pricer) *UseCase {
+	return &UseCase{budgets: budgets, pricer: pricer}
 }
 
 type UseCase struct {
 	budgets ClickBudgetReader
+	pricer  Pricer
 }
 
 // Execute derives the key the same way the throttle charges it. Deriving it
@@ -32,10 +38,10 @@ type UseCase struct {
 //
 // It reports false when nothing is limiting clicks, which is not the same answer
 // as an allowance of zero.
-func (u *UseCase) Execute(ctx context.Context) (cpratelimit.State, bool) {
+func (u *UseCase) Execute(ctx context.Context, country string) (toll.Budget, bool) {
 	if u.budgets == nil {
-		return cpratelimit.State{}, false
+		return toll.Budget{}, false
 	}
 
-	return u.budgets.Peek(cpctx.RateLimitKey(ctx)), true
+	return toll.Of(u.budgets.Peek(cpctx.RateLimitKey(ctx)), u.pricer.Price(country)), true
 }

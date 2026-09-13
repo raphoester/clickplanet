@@ -6,6 +6,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/secondary/memory_tile_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/bonus"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/toll"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
@@ -17,6 +18,7 @@ type Config struct {
 	GameMap      GameMapConfig
 	TilesStorage memory_tile_storage.Config
 	RateLimiter  cpratelimit.Config
+	Toll         toll.Config
 	VPNBlocklist cpipblock.Config
 	AntiBot      antibot.Config
 	Bonus        bonus.Config
@@ -36,6 +38,10 @@ type GameMapConfig struct {
 func (c Config) Validate() error {
 	if c.GameMap.MaxIndex == 0 {
 		return errors.New("gameMap.maxIndex is zero: the map has no tiles")
+	}
+
+	if err := c.Toll.Validate(c.RateLimiter.Capacity()); err != nil {
+		return err
 	}
 
 	return c.Bonus.Validate()

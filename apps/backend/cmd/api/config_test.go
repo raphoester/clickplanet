@@ -63,6 +63,10 @@ func TestTheExampleConfigStillCarriesTheRestOfTheFile(t *testing.T) {
 	assert.NotZero(t, config.Planet.GameMap.MaxIndex)
 	assert.InDelta(t, float64(1), config.Planet.RateLimiter.PerSecond, 1e-9)
 	assert.Equal(t, 10, config.Planet.RateLimiter.Burst)
+	require.Len(t, config.Planet.Toll.Steps, 3)
+	assert.InDelta(t, 0.75, config.Planet.Toll.Steps[2].Share, 1e-9)
+	assert.Equal(t, 4, config.Planet.Toll.Steps[2].Cost)
+	require.NoError(t, config.Planet.Validate())
 	assert.Equal(t, 30*time.Second, config.Planet.TilesStorage.SnapshotInterval)
 	assert.Equal(t, time.Hour, config.Session.TTL)
 }

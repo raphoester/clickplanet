@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/bonus"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/toll"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -30,6 +31,10 @@ type Booster interface {
 	Peek(key string) cpratelimit.State
 }
 
+type Pricer interface {
+	Price(country string) toll.Price
+}
+
 // Spreader starts a spread bonus, which the click chain then reads on every click.
 type Spreader interface {
 	Grant(scope string, until time.Time)
@@ -51,7 +56,7 @@ type In struct {
 }
 
 type Out struct {
-	Budget   cpratelimit.State
+	Budget   toll.Budget
 	Kind     bonus.Kind
 	Duration time.Duration
 
@@ -65,6 +70,7 @@ type Out struct {
 func New(
 	registry Registry,
 	booster Booster,
+	pricer Pricer,
 	spreader Spreader,
 	bomber Bomber,
 	blastRadius float64,
@@ -78,6 +84,7 @@ func New(
 	return &UseCase{
 		registry:    registry,
 		booster:     booster,
+		pricer:      pricer,
 		spreader:    spreader,
 		bomber:      bomber,
 		blastRadius: blastRadius,
@@ -89,6 +96,7 @@ func New(
 type UseCase struct {
 	registry    Registry
 	booster     Booster
+	pricer      Pricer
 	spreader    Spreader
 	bomber      Bomber
 	blastRadius float64
@@ -114,7 +122,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	u.registry.Publish(bonus.Taken{CountryID: in.CountryID, Kind: reward.Kind})
 
 	out := Out{
-		Budget:            state,
+		Budget:            toll.Of(state, u.pricer.Price(in.CountryID)),
 		Kind:              reward.Kind,
 		Duration:          reward.Duration,
 		Enclosures:        reward.Enclosures,

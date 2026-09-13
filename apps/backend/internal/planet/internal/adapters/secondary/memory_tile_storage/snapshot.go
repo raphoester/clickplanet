@@ -165,6 +165,7 @@ func (s *Storage) restore() {
 	}
 
 	owned := 0
+	counts := make([]uint32, len(codes))
 	for _, code := range tiles {
 		if code == unownedCode {
 			continue
@@ -175,10 +176,12 @@ func (s *Storage) restore() {
 			)
 			return
 		}
+		counts[code]++
 		owned++
 	}
 
 	copy(s.tiles, tiles)
+	s.counts = counts
 	s.codes = codes
 	s.codeIDs = make(map[string]uint16, len(codes))
 	for id, code := range codes {
