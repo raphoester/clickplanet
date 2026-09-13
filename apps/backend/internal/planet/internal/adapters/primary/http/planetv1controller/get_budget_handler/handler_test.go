@@ -42,7 +42,7 @@ func TestGetBudgetMapsTheReading(t *testing.T) {
 	budget := getBudget(t, stubUseCase{
 		state: toll.Budget{
 			State: cpratelimit.State{Tokens: 7.25, Capacity: 10, PerSecond: 1.5},
-			Price: toll.Price{Cost: 2, Share: 0.3, NextShare: 0.5, NextCost: 4},
+			Price: toll.Price{Cost: 1.25, Share: 0.3, NextShare: 0.5, NextCost: 1.5},
 		},
 		limited: true,
 	})
@@ -51,10 +51,10 @@ func TestGetBudgetMapsTheReading(t *testing.T) {
 	assert.InDelta(t, 7.25, budget.GetTokens(), 1e-9)
 	assert.Equal(t, uint32(10), budget.GetCapacity())
 	assert.InDelta(t, 1.5, budget.GetRefillPerSecond(), 1e-9)
-	assert.Equal(t, uint32(2), budget.GetCost())
+	assert.InDelta(t, 1.25, budget.GetCost(), 1e-9)
 	assert.InDelta(t, 0.3, budget.GetShare(), 1e-9)
 	assert.InDelta(t, 0.5, budget.GetNextShare(), 1e-9)
-	assert.Equal(t, uint32(4), budget.GetNextCost())
+	assert.InDelta(t, 1.5, budget.GetNextCost(), 1e-9)
 }
 
 func TestGetBudgetPricesTheCountryAskedAbout(t *testing.T) {

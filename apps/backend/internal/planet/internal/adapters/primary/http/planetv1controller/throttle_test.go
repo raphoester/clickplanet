@@ -124,27 +124,27 @@ func TestTheBudgetRidesOnEveryAnswer(t *testing.T) {
 
 func TestABigCountryPaysMorePerClick(t *testing.T) {
 	server, _ := pricedServer(t, cpratelimit.Config{PerSecond: 1, Burst: 10},
-		stubPricer{Cost: 3, Share: 0.4, NextShare: 0.5, NextCost: 5})
+		stubPricer{Cost: 1.5, Share: 0.4, NextShare: 0.7, NextCost: 2})
 
 	res, err := clickAs(t, server, "1.2.3.4")
 	require.NoError(t, err)
 
 	budget := res.Msg.GetBudget()
-	require.InDelta(t, 7.0/3, budget.GetTokens(), 1e-9, "seven tokens left are two and a third clicks")
-	require.Equal(t, uint32(3), budget.GetCapacity())
-	require.InDelta(t, 1.0/3, budget.GetRefillPerSecond(), 1e-9)
-	require.Equal(t, uint32(3), budget.GetCost())
+	require.InDelta(t, 8.5/1.5, budget.GetTokens(), 1e-9, "8.5 tokens left are five and two thirds clicks")
+	require.Equal(t, uint32(6), budget.GetCapacity(), "ten tokens hold six whole clicks at 1.5")
+	require.InDelta(t, 1/1.5, budget.GetRefillPerSecond(), 1e-9)
+	require.InDelta(t, 1.5, budget.GetCost(), 1e-9)
 	require.InDelta(t, 0.4, budget.GetShare(), 1e-9)
-	require.InDelta(t, 0.5, budget.GetNextShare(), 1e-9)
-	require.Equal(t, uint32(5), budget.GetNextCost())
+	require.InDelta(t, 0.7, budget.GetNextShare(), 1e-9)
+	require.InDelta(t, 2, budget.GetNextCost(), 1e-9)
 
-	for i := range 2 {
+	for i := range 5 {
 		_, err := clickAs(t, server, "1.2.3.4")
 		require.NoErrorf(t, err, "click %d should be allowed", i)
 	}
 
 	_, err = clickAs(t, server, "1.2.3.4")
-	require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(err), "one token left does not pay for three")
+	require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(err), "one token left does not pay for one and a half")
 }
 
 func TestTheBudgetIsAbsentWithoutAThrottle(t *testing.T) {

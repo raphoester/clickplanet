@@ -15,6 +15,12 @@ export type ClickBudgetMeterProps = {
     bonus?: ActiveBonus
     /** The country clicks are priced for, to say why the meter is narrower. */
     countryName?: string
+    /**
+     * How many clicks the server has refused for the throttle. Each new one
+     * shakes the meter and flashes it red — the only thing said about a refused
+     * click, since this is where the player already looks for the allowance.
+     */
+    refusals?: number
 }
 
 /** Above this many, a row of pips is unreadable and it becomes one bar. */
@@ -38,10 +44,25 @@ const STEP_MS = 250
  * pips *is* the burst, and the fill rate *is* the refill rate, so changing
  * either in the backend's config changes this with no frontend release.
  */
-export default function ClickBudgetMeter({budget, bonus, countryName = ""}: ClickBudgetMeterProps) {
+export default function ClickBudgetMeter({budget, bonus, countryName = "", refusals = 0}: ClickBudgetMeterProps) {
     const root = useRef<HTMLDivElement>(null)
     const count = useRef<HTMLSpanElement>(null)
     const countdown = useRef<HTMLSpanElement>(null)
+
+    useEffect(() => {
+        const box = root.current
+        if (!box || refusals === 0) return
+
+        // Take the class off and put it back, with a layout read between, so a
+        // refusal during the animation restarts it rather than being lost.
+        box.classList.remove("click-budget-refused")
+        void box.offsetWidth
+        box.classList.add("click-budget-refused")
+
+        const done = () => box.classList.remove("click-budget-refused")
+        box.addEventListener("animationend", done, {once: true})
+        return () => box.removeEventListener("animationend", done)
+    }, [refusals])
 
     useEffect(() => {
         if (!budget) return

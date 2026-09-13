@@ -106,14 +106,14 @@ type ClickBudget struct {
 	Capacity uint32 `protobuf:"varint,2,opt,name=capacity,proto3" json:"capacity,omitempty"`
 	// Clicks granted back per second.
 	RefillPerSecond float64 `protobuf:"fixed64,3,opt,name=refill_per_second,json=refillPerSecond,proto3" json:"refill_per_second,omitempty"`
-	// Tokens one click costs, from the country's share of the map. Zero from a
-	// server too old to price clicks, which means one.
-	Cost uint32 `protobuf:"varint,4,opt,name=cost,proto3" json:"cost,omitempty"`
+	// Tokens one click costs, from the country's share of the map: 1.5 is half
+	// as slow again. Zero from a server too old to price clicks, which means one.
+	Cost float64 `protobuf:"fixed64,8,opt,name=cost,proto3" json:"cost,omitempty"`
 	// The fraction of the whole map the country holds, 0 to 1.
 	Share float64 `protobuf:"fixed64,5,opt,name=share,proto3" json:"share,omitempty"`
 	// The share at which a click starts to cost next_cost. Zero at the top step.
 	NextShare     float64 `protobuf:"fixed64,6,opt,name=next_share,json=nextShare,proto3" json:"next_share,omitempty"`
-	NextCost      uint32  `protobuf:"varint,7,opt,name=next_cost,json=nextCost,proto3" json:"next_cost,omitempty"`
+	NextCost      float64 `protobuf:"fixed64,9,opt,name=next_cost,json=nextCost,proto3" json:"next_cost,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -169,7 +169,7 @@ func (x *ClickBudget) GetRefillPerSecond() float64 {
 	return 0
 }
 
-func (x *ClickBudget) GetCost() uint32 {
+func (x *ClickBudget) GetCost() float64 {
 	if x != nil {
 		return x.Cost
 	}
@@ -190,7 +190,7 @@ func (x *ClickBudget) GetNextShare() float64 {
 	return 0
 }
 
-func (x *ClickBudget) GetNextCost() uint32 {
+func (x *ClickBudget) GetNextCost() float64 {
 	if x != nil {
 		return x.NextCost
 	}
@@ -1478,16 +1478,16 @@ var File_planet_v1_planet_proto protoreflect.FileDescriptor
 
 const file_planet_v1_planet_proto_rawDesc = "" +
 	"\n" +
-	"\x16planet/v1/planet.proto\x12\tplanet.v1\"\xd3\x01\n" +
+	"\x16planet/v1/planet.proto\x12\tplanet.v1\"\xdf\x01\n" +
 	"\vClickBudget\x12\x16\n" +
 	"\x06tokens\x18\x01 \x01(\x01R\x06tokens\x12\x1a\n" +
 	"\bcapacity\x18\x02 \x01(\rR\bcapacity\x12*\n" +
 	"\x11refill_per_second\x18\x03 \x01(\x01R\x0frefillPerSecond\x12\x12\n" +
-	"\x04cost\x18\x04 \x01(\rR\x04cost\x12\x14\n" +
+	"\x04cost\x18\b \x01(\x01R\x04cost\x12\x14\n" +
 	"\x05share\x18\x05 \x01(\x01R\x05share\x12\x1d\n" +
 	"\n" +
 	"next_share\x18\x06 \x01(\x01R\tnextShare\x12\x1b\n" +
-	"\tnext_cost\x18\a \x01(\rR\bnextCost\"F\n" +
+	"\tnext_cost\x18\t \x01(\x01R\bnextCostJ\x04\b\x04\x10\x05J\x04\b\a\x10\b\"F\n" +
 	"\fClickRequest\x12\x17\n" +
 	"\atile_id\x18\x01 \x01(\rR\x06tileId\x12\x1d\n" +
 	"\n" +

@@ -6,7 +6,6 @@ import ChatPanel from "../chat/ChatPanel.tsx";
 import Menu from "../Menu.tsx";
 import BonusAward from "../components/BonusAward.tsx";
 import ClickBudgetMeter from "../components/ClickBudgetMeter.tsx";
-import RateLimitModal from "../components/RateLimitModal.tsx";
 import SessionUnavailableModal from "../components/SessionUnavailableModal.tsx";
 import VPNBlockedModal from "../components/VPNBlockedModal.tsx";
 import CameraButton from "../share/CameraButton.tsx";
@@ -17,6 +16,7 @@ import {ClickBudgetSource} from "../../backends/clickBudget.ts";
 import {useClickBudget} from './useClickBudget.ts';
 import {useCountryStorage} from './useCountryStorage.ts';
 import {GlobeStatus, useGlobe} from './useGlobe.ts';
+import {useSound} from '../sound/useSound.ts';
 import "./Viewer.css"
 
 export type ViewerProps = {
@@ -33,6 +33,7 @@ export default function Viewer(props: ViewerProps) {
     const container = useRef<HTMLDivElement>(null)
     const {countryState, handleSetCountry} = useCountryStorage()
     const clickBudget = useClickBudget(props.clickBudgetSource, countryState.code)
+    const sound = useSound()
 
     const {
         status,
@@ -40,8 +41,7 @@ export default function Viewer(props: ViewerProps) {
         tileDeltas,
         tilesCount,
         capture,
-        rateLimited,
-        dismissRateLimited,
+        refusals,
         vpnBlocked,
         dismissVPNBlocked,
         sessionUnavailable,
@@ -58,6 +58,7 @@ export default function Viewer(props: ViewerProps) {
         updatesListener: props.updatesListener,
         bonusListener: props.bonusListener,
         bomber: props.bomber,
+        playSound: sound.play,
         country: countryState,
     })
 
@@ -77,6 +78,7 @@ export default function Viewer(props: ViewerProps) {
             leaderboard={leaderboard}
             tileDeltas={tileDeltas}
             tilesCount={tilesCount}
+            sound={{settings: sound.settings, onChange: sound.setSettings, preview: sound.preview}}
         />}
 
         {status.state === 'ready' && <CameraButton busy={taking} onClick={take}/>}
@@ -85,18 +87,17 @@ export default function Viewer(props: ViewerProps) {
                                stats={shareStats(leaderboard, countryState)}
                                onClose={discard}/>}
 
-        {status.state === 'ready' && <ClickBudgetMeter budget={clickBudget} bonus={bonus} countryName={countryState.name}/>}
+        {status.state === 'ready' && <ClickBudgetMeter budget={clickBudget} bonus={bonus} countryName={countryState.name} refusals={refusals}/>}
 
         {status.state === 'ready' && <ChatPanel
             backend={props.chatBackend}
             country={countryState}
+            playSound={sound.play}
         />}
 
         {award && <BonusAward reward={award} onDone={dismissAward}/>}
 
         {lastBomb && <BombNews key={lastBomb.id} drop={lastBomb.drop} onDone={dismissBomb}/>}
-
-        {rateLimited && <RateLimitModal onClose={dismissRateLimited}/>}
 
         {vpnBlocked && <VPNBlockedModal onClose={dismissVPNBlocked}/>}
 

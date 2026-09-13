@@ -46,7 +46,7 @@ export type ClickBudget = {
 
 /** A click costs more tokens the more of the map its country holds. */
 export type ClickPrice = {
-    /** Tokens per click: 1 is the plain rate, 8 is eight times slower. */
+    /** Tokens per click: 1 is the plain rate, 1.5 is half as slow again. */
     cost: number
 
     /** The country's fraction of the whole map, 0 to 1. */

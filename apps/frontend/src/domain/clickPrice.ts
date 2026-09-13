@@ -14,15 +14,20 @@ export function describePrice(price: ClickPrice | undefined, countryName: string
     const next = price.next
 
     if (price.cost > 1) {
-        const then = next ? ` · ${next.cost}× at ${percent(next.share)}` : ""
-        return {headline, detail: `Clicks ${price.cost}× slower${then}`}
+        const then = next ? ` · ${factor(next.cost)}× at ${percent(next.share)}` : ""
+        return {headline, detail: `Clicks ${factor(price.cost)}× slower${then}`}
     }
 
     if (next && price.share >= next.share * NEAR_NEXT_STEP) {
-        return {headline, detail: `Clicks ${next.cost}× slower at ${percent(next.share)}`}
+        return {headline, detail: `Clicks ${factor(next.cost)}× slower at ${percent(next.share)}`}
     }
 
     return undefined
+}
+
+/** A cost as the config writes it: 2, 1.5, 1.25 — never 1.50. */
+export function factor(cost: number): string {
+    return `${Math.round(cost * 100) / 100}`
 }
 
 /** Rounded down, so a country is never told it has reached a step it has not. */

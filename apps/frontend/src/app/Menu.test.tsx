@@ -5,6 +5,7 @@ import userEvent from "@testing-library/user-event"
 import Menu from "./Menu.tsx"
 import {Countries} from "../domain/countries.ts"
 import type {LeaderboardEntry} from "../domain/leaderboard.ts"
+import {DEFAULT_SOUND_SETTINGS} from "../domain/soundSettings.ts"
 
 const france = Countries.get("fr")!
 const entry = (code: string, tiles: number) => ({country: Countries.get(code)!, tiles})
@@ -225,6 +226,42 @@ describe("Menu", () => {
             await user.keyboard("{Escape}")
 
             expect(aboutDialog()).toBeNull()
+        })
+    })
+
+    describe("the sound settings", () => {
+        const withSound = () => {
+            const onChange = vi.fn()
+            const preview = vi.fn()
+            const view = render(<Menu country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000}
+                                      sound={{settings: DEFAULT_SOUND_SETTINGS, onChange, preview}}/>)
+            return {...view, onChange, preview, user: userEvent.setup()}
+        }
+
+        it("offers no sound button without sound settings", () => {
+            setup()
+            expect(screen.queryByRole("button", {name: "Sound settings"})).toBeNull()
+        })
+
+        it("switches a sound off without playing it", async () => {
+            const {user, onChange, preview} = withSound()
+            await user.click(button("Sound settings"))
+
+            await user.click(screen.getByRole("switch", {name: "Chat message"}))
+
+            expect(onChange).toHaveBeenCalledWith({
+                ...DEFAULT_SOUND_SETTINGS,
+                sounds: {...DEFAULT_SOUND_SETTINGS.sounds, chat: false},
+            })
+            expect(preview).not.toHaveBeenCalled()
+        })
+
+        it("goes back to the button that opened it", async () => {
+            const {user} = withSound()
+            await user.click(button("Sound settings"))
+            await user.click(button("Back"))
+
+            expect(document.activeElement).toBe(button("Sound settings"))
         })
     })
 })

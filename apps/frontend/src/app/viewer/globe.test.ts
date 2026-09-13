@@ -12,14 +12,14 @@ function handlers() {
     return {onRateLimited: vi.fn(), onVPNBlocked: vi.fn(), onSessionUnavailable: vi.fn()}
 }
 
-// Three refusals give three different pieces of advice — ease off, turn the VPN
-// off, reload or unblock the challenge — so sending one to the wrong dialog
-// leaves a working page telling the player to fix the wrong thing.
+// Three refusals mean three different things — ease off (said by the meter),
+// turn the VPN off, reload or unblock the challenge — so sending one to the
+// wrong place leaves a working page telling the player to fix the wrong thing.
 describe("reportClickFailure", () => {
-    it("sends the throttle's refusal to the throttle's dialog, and nowhere else", () => {
+    it("sends the throttle's refusal to the meter, and to no dialog", () => {
         const h = handlers()
 
-        reportClickFailure(new RateLimitedError(), h)
+        expect(reportClickFailure(new RateLimitedError(), h)).toBe(true)
 
         expect(h.onRateLimited).toHaveBeenCalledTimes(1)
         expect(h.onVPNBlocked).not.toHaveBeenCalled()
@@ -29,7 +29,7 @@ describe("reportClickFailure", () => {
     it("sends the VPN refusal to the VPN dialog, and nowhere else", () => {
         const h = handlers()
 
-        reportClickFailure(new VPNBlockedError(), h)
+        expect(reportClickFailure(new VPNBlockedError(), h)).toBe(true)
 
         expect(h.onVPNBlocked).toHaveBeenCalledTimes(1)
         expect(h.onRateLimited).not.toHaveBeenCalled()
@@ -39,7 +39,7 @@ describe("reportClickFailure", () => {
     it("sends a session that could not be obtained to its own dialog, and nowhere else", () => {
         const h = handlers()
 
-        reportClickFailure(new SessionUnavailableError(), h)
+        expect(reportClickFailure(new SessionUnavailableError(), h)).toBe(true)
 
         expect(h.onSessionUnavailable).toHaveBeenCalledTimes(1)
         expect(h.onRateLimited).not.toHaveBeenCalled()
@@ -50,7 +50,7 @@ describe("reportClickFailure", () => {
         const h = handlers()
         const logged = vi.spyOn(console, "error").mockImplementation(() => {})
 
-        reportClickFailure(new Error("the network fell over"), h)
+        expect(reportClickFailure(new Error("the network fell over"), h)).toBe(false)
 
         expect(logged).toHaveBeenCalledTimes(1)
         expect(h.onRateLimited).not.toHaveBeenCalled()
