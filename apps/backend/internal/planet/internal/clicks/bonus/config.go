@@ -33,8 +33,8 @@ type Config struct {
 	// How long a bomb may be held before it is lost; it counts towards MaxBoostPerHour like any bonus.
 	BombDuration time.Duration
 
-	// How wide a circle a bomb clears, in tile spacings: 8 is ~230 tiles inland.
-	BombRings int
+	// How wide a circle a bomb clears, in tile spacings: 10.4 is ~390 tiles inland.
+	BombRings float64
 
 	Multiplier float64
 
@@ -54,7 +54,7 @@ const (
 	defaultDuration        = 20 * time.Second
 	defaultSpreadDuration  = 10 * time.Second
 	defaultBombDuration    = 30 * time.Second
-	defaultBombRings       = 8
+	defaultBombRings       = 10.4
 	defaultMultiplier      = 3
 	defaultActiveWithin    = 2 * time.Minute
 	defaultForgetAfter     = 5 * time.Minute
@@ -146,6 +146,6 @@ func (c Config) durationOf(kind Kind) time.Duration {
 }
 
 // Rings is a bomb's radius in tile spacings, defaults applied.
-func (c Config) Rings() int {
+func (c Config) Rings() float64 {
 	return c.withDefaults().BombRings
 }

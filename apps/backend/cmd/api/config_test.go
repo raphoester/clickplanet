@@ -68,7 +68,7 @@ func TestTheExampleConfigReachesTheBombSettings(t *testing.T) {
 	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
 
 	assert.Equal(t, 30*time.Second, config.Planet.Bonus.BombDuration)
-	assert.Equal(t, 8, config.Planet.Bonus.BombRings)
+	assert.InDelta(t, 10.4, config.Planet.Bonus.BombRings, 1e-9)
 	assert.InDelta(t, 1.0, config.Planet.Bonus.Kinds["bomb"], 1e-9)
 	require.NoError(t, config.Planet.Bonus.Validate())
 }

@@ -160,9 +160,9 @@ bonus:
   spreadDuration: 10s
 
   # How long a bomb may be held, counted towards maxBoostPerHour, and the radius
-  # of the circle it clears, in tile spacings (8 is ~230 tiles inland).
+  # of the circle it clears, in tile spacings (10.4 is ~390 tiles inland).
   bombDuration: 30s
-  bombRings: 8
+  bombRings: 10.4
 
   # A tab left open overnight is not playing, and a box sent to it is one nobody
   # catches. Until the frontend ships, this is every caller.
