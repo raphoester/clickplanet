@@ -94,3 +94,16 @@ export function SpeakerOffIcon({size = 22}: IconProps) {
         <path d="M21 9.5l-5 5"/>
     </svg>
 }
+
+export function PlayIcon({size = 18}: IconProps) {
+    return <svg {...base(size)} fill="currentColor" strokeWidth={1.6}>
+        <path d="M7.5 5.2v13.6L18.5 12z"/>
+    </svg>
+}
+
+export function PauseIcon({size = 18}: IconProps) {
+    return <svg {...base(size)} fill="currentColor" strokeWidth={1.6}>
+        <rect x="6.5" y="5.5" width="3.6" height="13" rx="0.8"/>
+        <rect x="13.9" y="5.5" width="3.6" height="13" rx="0.8"/>
+    </svg>
+}

@@ -33,6 +33,29 @@
     cursor: pointer;
 }
 
+.sound-volume {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 44px;
+    padding: 0 12px;
+    border-top: 1px solid #FFFFFF14;
+    font-family: Oswald, sans-serif;
+    font-size: 16px;
+    color: white;
+}
+
+.sound-volume-input {
+    width: 120px;
+    accent-color: #34C759;
+    cursor: pointer;
+}
+
+.sound-volume-input:disabled {
+    cursor: default;
+}
+
 .sound-switch--main {
     border-radius: 16px;
     background: #FFFFFF0F;

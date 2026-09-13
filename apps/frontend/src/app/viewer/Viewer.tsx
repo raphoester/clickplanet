@@ -17,6 +17,8 @@ import {useClickBudget} from './useClickBudget.ts';
 import {useCountryStorage} from './useCountryStorage.ts';
 import {GlobeStatus, useGlobe} from './useGlobe.ts';
 import {useSound} from '../sound/useSound.ts';
+import AnthemBar from "../anthem/AnthemBar.tsx";
+import {useAnthem} from "../anthem/useAnthem.ts";
 import "./Viewer.css"
 
 export type ViewerProps = {
@@ -64,6 +66,8 @@ export default function Viewer(props: ViewerProps) {
 
     // The camera lives out here rather than in the menu: the globe is what it
     // photographs, and the card over it is not in the picture.
+    const anthem = useAnthem(leaderboard, sound.settings)
+
     const {shot, taking, take, discard} = useSharePicture(
         capture, shareStats(leaderboard, countryState))
 
@@ -80,6 +84,10 @@ export default function Viewer(props: ViewerProps) {
             tilesCount={tilesCount}
             sound={{settings: sound.settings, onChange: sound.setSettings, preview: sound.preview}}
         />}
+
+        {status.state === 'ready' && <AnthemBar anthem={anthem}
+                                                settings={sound.settings}
+                                                onChange={sound.setSettings}/>}
 
         {status.state === 'ready' && <CameraButton busy={taking} onClick={take}/>}
 
