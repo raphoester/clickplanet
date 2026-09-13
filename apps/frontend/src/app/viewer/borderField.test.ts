@@ -1,5 +1,5 @@
 import {describe, expect, it} from "vitest"
-import {BorderField, type BorderData} from "./borderField.ts"
+import {BorderField, countryOfTile, type BorderData} from "./borderField.ts"
 import {regions} from "./atlas.ts"
 
 const TEXELS = 4
@@ -29,6 +29,15 @@ const regionOf = (field: BorderField, piece = 1) =>
 
 const claims = (country: string | undefined, from: number, to: number) =>
     Array.from({length: to - from + 1}, (_, i) => ({tile: from + i, country}))
+
+describe("countryOfTile", () => {
+    it("names the country a tile lies in, and nothing outside every country", () => {
+        const data = world(3, 1)
+        expect(countryOfTile(data, 1)).toBe("xx")
+        expect(countryOfTile(data, 4)).toBeUndefined()
+        expect(countryOfTile(data, 99)).toBeUndefined()
+    })
+})
 
 describe("who a landmass flies", () => {
     it("is whoever holds the most of it, not whoever arrived last", () => {

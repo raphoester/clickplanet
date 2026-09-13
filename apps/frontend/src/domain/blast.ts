@@ -24,9 +24,14 @@ export const BLAST_TIMELINE = {fall: 0.8, shock: 1.2, scorch: 5} as const
 /** Seconds from the drop to the moment the tiles are cleared. */
 export const IMPACT_DELAY = BLAST_TIMELINE.fall
 
-/** What the news line says a bomb did, after the name of whoever dropped it. */
-export function describeBlast(drop: {tile: number | undefined, cleared: readonly number[]}): string {
+/**
+ * What the news line says a bomb did, after the name of whoever dropped it.
+ * `land` is the name of the country whose ground it hit, when there is one:
+ * that is the line people laugh at, so it wins over the tile count.
+ */
+export function describeBlast(drop: {tile: number | undefined, cleared: readonly number[]}, land?: string): string {
     if (drop.tile === undefined) return "bombed the ocean"
+    if (land) return `bombed ${land}`
     if (drop.cleared.length === 0) return "bombed empty land"
     return `bombed ${drop.cleared.length} ${drop.cleared.length === 1 ? "tile" : "tiles"}`
 }

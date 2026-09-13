@@ -53,6 +53,12 @@ describe("describeBlast", () => {
         expect(describeBlast({tile: 7, cleared: []})).toBe("bombed empty land")
         expect(describeBlast({tile: undefined, cleared: []})).toBe("bombed the ocean")
     })
+
+    it("names the country whose ground was hit", () => {
+        expect(describeBlast({tile: 7, cleared: [6, 7, 8]}, "Germany")).toBe("bombed Germany")
+        expect(describeBlast({tile: 7, cleared: []}, "Germany")).toBe("bombed Germany")
+        expect(describeBlast({tile: undefined, cleared: []}, "Germany")).toBe("bombed the ocean")
+    })
 })
 
 describe("blastOver", () => {

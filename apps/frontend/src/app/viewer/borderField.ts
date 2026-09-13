@@ -57,6 +57,12 @@ export async function loadBorders(url: string, signal?: AbortSignal): Promise<Bo
     return {codes: header.codes, assignment, frames, totals}
 }
 
+/** The code of the country a tile lies in, or undefined for one outside every country. */
+export function countryOfTile(data: BorderData, tile: number): string | undefined {
+    const index = data.assignment[tile - 1]
+    return index ? data.codes[index] : undefined
+}
+
 export class BorderField {
     readonly landmassData: THREE.DataTexture
     readonly landmassCount: number

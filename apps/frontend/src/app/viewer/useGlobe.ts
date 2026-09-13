@@ -58,9 +58,9 @@ export function useGlobe(options: UseGlobeOptions) {
 
     // The latest bomb on the planet, for the news line.
     // Numbered, so two bombs in a row replay the line rather than leaving it up.
-    const [lastBomb, setLastBomb] = useState<{drop: BombDrop, id: number} | undefined>()
-    const recordBomb = useCallback((drop: BombDrop) => {
-        setLastBomb((previous) => ({drop, id: (previous?.id ?? 0) + 1}))
+    const [lastBomb, setLastBomb] = useState<{drop: BombDrop, land: string | undefined, id: number} | undefined>()
+    const recordBomb = useCallback((drop: BombDrop, land: string | undefined) => {
+        setLastBomb((previous) => ({drop, land, id: (previous?.id ?? 0) + 1}))
     }, [])
 
     // A held bomb is shown on the meter like any bonus, and leaves it the
