@@ -1,15 +1,12 @@
 import {useId} from "react";
-import {SOUNDS, SoundName, SoundSettings} from "../../domain/soundSettings.ts";
+import {SoundSettings, SWITCHES, SwitchName} from "../../domain/soundSettings.ts";
 import "./SoundSettingsPanel.css"
 
-const LABELS: Record<SoundName, string> = {
+const LABELS: Record<SwitchName, string> = {
     click: "Tile click",
     refused: "Refused click",
     bonusSpawn: "Bonus box appears",
     bonusCaught: "Bonus box caught",
-    spread: "Your spread click",
-    boost: "Your boosted click",
-    enclose: "Your enclosed shape",
     bomb: "Bomb explosion",
     chat: "Chat message",
 }
@@ -18,7 +15,7 @@ export type SoundSettingsPanelProps = {
     settings: SoundSettings
     onChange: (settings: SoundSettings) => void
     /** Plays a sound regardless of the settings, so a switch turned on is heard. */
-    preview: (name: SoundName) => void
+    preview: (name: SwitchName) => void
 }
 
 export default function SoundSettingsPanel({settings, onChange, preview}: SoundSettingsPanelProps) {
@@ -27,7 +24,7 @@ export default function SoundSettingsPanel({settings, onChange, preview}: SoundS
         if (enabled) preview("click")
     }
 
-    const setSound = (name: SoundName, on: boolean) => {
+    const setSound = (name: SwitchName, on: boolean) => {
         onChange({...settings, sounds: {...settings.sounds, [name]: on}})
         if (on) preview(name)
     }
@@ -36,7 +33,7 @@ export default function SoundSettingsPanel({settings, onChange, preview}: SoundS
         <Switch label="Sound" checked={settings.enabled} onChange={setEnabled} main/>
 
         <ul className={settings.enabled ? "sound-settings-list" : "sound-settings-list sound-settings-list--off"}>
-            {SOUNDS.map((name) => <li key={name}>
+            {SWITCHES.map((name) => <li key={name}>
                 <Switch label={LABELS[name]}
                         checked={settings.sounds[name]}
                         disabled={!settings.enabled}

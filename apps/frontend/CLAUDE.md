@@ -852,7 +852,8 @@ back, so each lands with its effect on screen. **Only the player who made one
 hears it.** An enclosure carries `yours`; a spread or a boost says nothing of
 whose it is, so `domain/ownClicks.ts` remembers the tiles this client clicked in
 the last 3s and a broadcast on one of them, for the same country, is taken as
-ours;
+ours. They have no switch of their own: `switchOf` puts them under the tile
+click's;
 the chat in `ChatPanel` for a message that is not yours. **Your own message is
 filtered on your name as well as on `mine`**: its broadcast can arrive before
 the send answer that fills `mine` in.
