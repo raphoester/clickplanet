@@ -31,9 +31,11 @@ The switch is gated on `import.meta.env.DEV` as well, because an unset `VITE_*`
 variable is **not** folded away in a build: without the `DEV` check both fakes
 ship in the production bundle.
 
-In fake mode the console has two commands: `giveBomb()` arms a bomb as if a box
-holding one had just been caught, and `fakeBackend.botBomb(tile, "fr")` drops
-somebody else's.
+In fake mode the console has a few commands: `giveBomb()` arms a bomb as if a box
+holding one had just been caught, `giveBonus("spreadClicks")` does the same for
+any other bonus, and `fakeBackend.botBomb(tile, "fr")`, `fakeBackend.botSpread(tile, "fr")`
+and `fakeBackend.botBoost(tile, "fr")` play somebody else's bomb, spread click or
+boosted click.
 
 A local backend is the quickest way to exercise the real chat: `cmd/api`'s
 `example.yaml` has `chat.enabled: true`, and the Go server answers
@@ -461,6 +463,13 @@ curl -s "https://clickplanet.lol$B" | grep -c 'challenges.cloudflare.com/turnsti
   size in pixels, so a shape closed while zoomed out is still seen. A shape that
   arrives while the tab is hidden is not played — it would all start at once on
   return.
+- `bonusClickEffects.ts` — the same, for every click made under a spread bonus
+  (`tilesSpread`: a green burst, a spark popping onto each tile around it in
+  turn, two rings) or a triple clicks bonus (`Update.boosted` on a live tile
+  update, played from the update batch: a cyan flash, three streaks, three quick
+  rings). It reuses the enclosure's shaders, with normal
+  rather than additive rings, which vanished on the white of a flag. Boosted
+  players click fast, so an effect is short and at most `MAX_PLAYING` run at once.
 - `shaders/` — GLSL for the display, picking, star and enclosure passes.
 
 ### The zoomed-out view

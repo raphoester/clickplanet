@@ -11,6 +11,7 @@ import {
     Ownerships,
     OwnershipsGetter,
     RateLimitedError,
+    SpreadClick,
     TileClicker,
     Update,
     UpdatesListener,
@@ -303,7 +304,13 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                 }
 
                 const enclosure = enclosureOf(event)
-                if (enclosure) this.bonusCallbacks.forEach(handlers => handlers.onEnclosed(enclosure))
+                if (enclosure) {
+                    this.bonusCallbacks.forEach(handlers => handlers.onEnclosed(enclosure))
+                    return
+                }
+
+                const spread = spreadOf(event)
+                if (spread) this.bonusCallbacks.forEach(handlers => handlers.onSpread(spread))
             },
             "planet events",
         )
@@ -467,6 +474,13 @@ export function enclosureOf(event: PlanetEvent): Enclosure | undefined {
     }
 }
 
+export function spreadOf(event: PlanetEvent): SpreadClick | undefined {
+    if (event.event.case !== "tilesSpread") return undefined
+
+    const spread = event.event.value
+    return {countryId: spread.countryId, tile: spread.tileId, spread: [...spread.spreadTileIds]}
+}
+
 /**
  * An offer carries neither a blast radius nor an enclose bonus's shapes; only the
  * answer to a claim does, which is when they are needed.
@@ -572,5 +586,6 @@ export function updateOf(event: PlanetEvent): Update | undefined {
         tile: update.tileId,
         previousCountry: update.previousCountryId === "" ? undefined : update.previousCountryId,
         newCountry: update.countryId,
+        boosted: update.boosted,
     }
 }

@@ -135,6 +135,32 @@ func TestASinkFramesAClosedShape(t *testing.T) {
 	assert.Equal(t, uint32(2), enclosed.GetEnclosuresLeft())
 }
 
+func TestASinkFramesASpreadClick(t *testing.T) {
+	stream := &recorder{}
+
+	require.NoError(t, listen_for_events_handler.NewSink(stream).Send(listen_for_events.Event{
+		Spread: &bonus.Spread{CountryID: "br", Tile: 100, Neighbours: []uint32{99, 101}},
+	}))
+
+	spread := stream.sent[0].GetTilesSpread()
+	require.NotNil(t, spread)
+	assert.Equal(t, "br", spread.GetCountryId())
+	assert.Equal(t, uint32(100), spread.GetTileId())
+	assert.Equal(t, []uint32{99, 101}, spread.GetSpreadTileIds())
+}
+
+func TestASinkSaysATileUpdateWasBoosted(t *testing.T) {
+	stream := &recorder{}
+
+	require.NoError(t, listen_for_events_handler.NewSink(stream).Send(listen_for_events.Event{
+		Update: clicks.TileUpdate{Tile: 42, Value: "it", Boosted: true},
+	}))
+
+	update := stream.sent[0].GetTileUpdate()
+	require.NotNil(t, update)
+	assert.True(t, update.GetBoosted())
+}
+
 func TestAHeartbeatStillWinsOverEverything(t *testing.T) {
 	stream := &recorder{}
 

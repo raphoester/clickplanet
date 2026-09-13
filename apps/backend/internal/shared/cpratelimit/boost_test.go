@@ -156,3 +156,19 @@ func TestTheBoostIsOverAtItsDeadlineRatherThanAfterIt(t *testing.T) {
 	clock.Advance(time.Millisecond)
 	require.Equal(t, 10, limiter.Peek(boostKey).Capacity, "over on the deadline itself")
 }
+
+func TestTheReadingSaysWhetherABoostRuns(t *testing.T) {
+	limiter, clock := newTestLimiter()
+
+	_, plain := limiter.Take(boostKey)
+	assert.False(t, plain.Boosted)
+
+	assert.True(t, limiter.Boost(boostKey, 3, clock.Now().Add(time.Minute)).Boosted)
+	_, boosted := limiter.Take(boostKey)
+	assert.True(t, boosted.Boosted)
+	assert.False(t, limiter.Peek("5.6.7.8").Boosted)
+
+	clock.Advance(time.Minute)
+	_, over := limiter.Take(boostKey)
+	assert.False(t, over.Boosted, "over on the deadline itself")
+}

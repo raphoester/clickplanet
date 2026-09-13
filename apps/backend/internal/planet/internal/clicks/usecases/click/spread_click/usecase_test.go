@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/bonus"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click/spread_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
@@ -42,6 +43,12 @@ func (r *recordingStorage) Set(_ context.Context, tile uint32, value string) err
 	return nil
 }
 
+type recordingPublisher struct{ spreads []bonus.Spread }
+
+func (r *recordingPublisher) PublishSpread(spread bonus.Spread) {
+	r.spreads = append(r.spreads, spread)
+}
+
 // A tile inland with its six neighbours, and a lone island with none.
 var honeycomb = stubNeighbours{
 	100: {90, 91, 99, 101, 109, 110},
@@ -49,13 +56,20 @@ var honeycomb = stubNeighbours{
 }
 
 func setup(spreading bool, err error) (*spread_click.UseCase, *recordingStorage) {
+	useCase, storage, _ := setupWithPublisher(spreading, err)
+	return useCase, storage
+}
+
+func setupWithPublisher(spreading bool, err error) (*spread_click.UseCase, *recordingStorage, *recordingPublisher) {
 	storage := &recordingStorage{tiles: map[uint32]string{}}
 	spreads := stubSpreads{scopes: map[string]bool{}}
 	if spreading {
 		spreads.scopes[cpctx.RateLimitKey(context.Background())] = true
 	}
 
-	return spread_click.New(stubClick{storage: storage, err: err}, spreads, honeycomb, storage), storage
+	publisher := &recordingPublisher{}
+
+	return spread_click.New(stubClick{storage: storage, err: err}, spreads, honeycomb, storage, publisher), storage, publisher
 }
 
 func TestASpreadingClickTakesTheTileAndEveryTileTouchingIt(t *testing.T) {
@@ -95,4 +109,40 @@ func TestALoneIslandTakesItselfAndNothingElse(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, map[uint32]string{7: "fr"}, storage.tiles)
+}
+
+func TestASpreadingClickIsAnnouncedWithTheTilesItTook(t *testing.T) {
+	useCase, _, publisher := setupWithPublisher(true, nil)
+
+	_, err := useCase.Execute(t.Context(), click.In{TileID: 100, CountryID: "fr"})
+	require.NoError(t, err)
+
+	assert.Equal(t, []bonus.Spread{{
+		CountryID:  "fr",
+		Tile:       100,
+		Neighbours: []uint32{90, 91, 99, 101, 109, 110},
+	}}, publisher.spreads)
+}
+
+func TestTheAnnouncementDoesNotShareTheMapsTable(t *testing.T) {
+	useCase, _, publisher := setupWithPublisher(true, nil)
+
+	_, err := useCase.Execute(t.Context(), click.In{TileID: 100, CountryID: "fr"})
+	require.NoError(t, err)
+
+	publisher.spreads[0].Neighbours[0] = 0
+	assert.Equal(t, uint32(90), honeycomb[100][0])
+}
+
+func TestNeitherAPlainNorARefusedClickIsAnnounced(t *testing.T) {
+	plain, _, quiet := setupWithPublisher(false, nil)
+	_, err := plain.Execute(t.Context(), click.In{TileID: 100, CountryID: "fr"})
+	require.NoError(t, err)
+
+	refused, _, refusedQuiet := setupWithPublisher(true, errors.New("unknown country"))
+	_, err = refused.Execute(t.Context(), click.In{TileID: 100, CountryID: "zz"})
+	require.Error(t, err)
+
+	assert.Empty(t, quiet.spreads)
+	assert.Empty(t, refusedQuiet.spreads)
 }

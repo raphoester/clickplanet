@@ -42,6 +42,8 @@ func (s Sink) Send(event listen_for_events.Event) error {
 		return s.stream.Send(bombDroppedEvent(event.Blast))
 	case event.Enclosed != nil:
 		return s.stream.Send(tilesEnclosedEvent(event.Enclosed))
+	case event.Spread != nil:
+		return s.stream.Send(tilesSpreadEvent(event.Spread))
 	default:
 		return s.stream.Send(tileUpdateEvent(event.Update))
 	}
@@ -101,11 +103,24 @@ func tilesEnclosedEvent(enclosed *bonus.Enclosed) *planetv1.PlanetEvent {
 	}
 }
 
+func tilesSpreadEvent(spread *bonus.Spread) *planetv1.PlanetEvent {
+	return &planetv1.PlanetEvent{
+		Event: &planetv1.PlanetEvent_TilesSpread{
+			TilesSpread: &planetv1.TilesSpread{
+				CountryId:     spread.CountryID,
+				TileId:        spread.Tile,
+				SpreadTileIds: spread.Neighbours,
+			},
+		},
+	}
+}
+
 func toProto(update clicks.TileUpdate) *planetv1.TileUpdate {
 	return &planetv1.TileUpdate{
 		TileId:            update.Tile,
 		CountryId:         update.Value,
 		PreviousCountryId: update.Previous,
+		Boosted:           update.Boosted,
 	}
 }
 

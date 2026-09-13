@@ -86,6 +86,9 @@ type State struct {
 
 	// Tokens granted back per second.
 	PerSecond float64
+
+	// A boost is running.
+	Boosted bool
 }
 
 // Take spends a token when there is one, and reports what the bucket holds
@@ -180,6 +183,7 @@ func (l *Limiter) state(b *bucket) State {
 		Tokens:    b.tokens,
 		Capacity:  int(l.capacity(b)),
 		PerSecond: l.config.PerSecond * b.multiplier,
+		Boosted:   b.multiplier > 1,
 	}
 }
 

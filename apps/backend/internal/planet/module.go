@@ -187,7 +187,7 @@ func clickChain(config Config, parts clickParts, props cpbootstrap.Props) (click
 	// as one click however many tiles it took.
 	var rule click.IUseCase = click.New(parts.tilesChecker, parts.tilesStorage, cpcountries.New())
 	if parts.bonuses != nil {
-		rule = spread_click.New(rule, parts.spreads, parts.geography, parts.tilesStorage)
+		rule = spread_click.New(rule, parts.spreads, parts.geography, parts.tilesStorage, parts.bonuses)
 		published, err := prom_enclose.New(parts.bonuses, props.Metrics)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create prometheus enclose publisher: %w", err)

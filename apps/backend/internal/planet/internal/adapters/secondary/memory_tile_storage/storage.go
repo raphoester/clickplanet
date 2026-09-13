@@ -64,6 +64,16 @@ type subscriber struct {
 }
 
 func (s *Storage) Set(_ context.Context, tile uint32, value string) error {
+	return s.write(tile, value, false)
+}
+
+// SetBoosted is Set for a click made under a triple clicks bonus: the update it
+// publishes is marked, so every client can show the click.
+func (s *Storage) SetBoosted(_ context.Context, tile uint32, value string) error {
+	return s.write(tile, value, true)
+}
+
+func (s *Storage) write(tile uint32, value string, boosted bool) error {
 	if tile > s.maxIndex {
 		return fmt.Errorf("tile %d out of range (max %d)", tile, s.maxIndex)
 	}
@@ -77,7 +87,7 @@ func (s *Storage) Set(_ context.Context, tile uint32, value string) error {
 		return nil
 	}
 
-	s.publish(clicks.Change{Update: &clicks.TileUpdate{Tile: tile, Value: value, Previous: previous}})
+	s.publish(clicks.Change{Update: &clicks.TileUpdate{Tile: tile, Value: value, Previous: previous, Boosted: boosted}})
 
 	return nil
 }

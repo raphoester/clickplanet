@@ -133,6 +133,10 @@ message PlanetEvent {
     // The tiles themselves still arrive as tile updates; this is what lets every
     // client show why they changed.
     TilesEnclosed tiles_enclosed = 6;
+
+    // Broadcast to everyone, like tiles_enclosed: the tiles arrive as tile
+    // updates, and this says a spread bonus is why, so every client can show it.
+    TilesSpread tiles_spread = 7;
   }
 }
 
@@ -266,10 +270,24 @@ message TilesEnclosed {
   uint32 enclosures_left = 6;
 }
 
+// A click made under a spread bonus, and the tiles it spread onto.
+message TilesSpread {
+  string country_id = 1;
+
+  // The tile the player clicked.
+  uint32 tile_id = 2;
+
+  // The tiles touching it, which the click also took. Empty for a lone island.
+  repeated uint32 spread_tile_ids = 3;
+}
+
 message Heartbeat {}
 
 message TileUpdate {
   uint32 tile_id = 1;
   string country_id = 2;
   string previous_country_id = 3;
+
+  // The click that made this change was made under a triple clicks bonus.
+  bool boosted = 4;
 }
