@@ -87,17 +87,29 @@ func (BonusKind) EnumDescriptor() ([]byte, []int) {
 //
 // It rides on every click answer, accepted or refused, so the client is never
 // more than one click away from the truth.
+//
+// The first three are counted in clicks for the country asked about, not in
+// tokens: a click for a country that holds much of the map costs several
+// tokens, and the server has already divided by that cost.
 type ClickBudget struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Clicks left, fractional: 6.4 means six clicks now, and the seventh in
 	// 600ms at a refill of one per second.
 	Tokens float64 `protobuf:"fixed64,1,opt,name=tokens,proto3" json:"tokens,omitempty"`
-	// The most a caller can bank: the burst.
+	// The most a caller can bank: the burst, in clicks.
 	Capacity uint32 `protobuf:"varint,2,opt,name=capacity,proto3" json:"capacity,omitempty"`
-	// Tokens granted back per second.
+	// Clicks granted back per second.
 	RefillPerSecond float64 `protobuf:"fixed64,3,opt,name=refill_per_second,json=refillPerSecond,proto3" json:"refill_per_second,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Tokens one click costs, from the country's share of the map. Zero from a
+	// server too old to price clicks, which means one.
+	Cost uint32 `protobuf:"varint,4,opt,name=cost,proto3" json:"cost,omitempty"`
+	// The fraction of the whole map the country holds, 0 to 1.
+	Share float64 `protobuf:"fixed64,5,opt,name=share,proto3" json:"share,omitempty"`
+	// The share at which a click starts to cost next_cost. Zero at the top step.
+	NextShare     float64 `protobuf:"fixed64,6,opt,name=next_share,json=nextShare,proto3" json:"next_share,omitempty"`
+	NextCost      uint32  `protobuf:"varint,7,opt,name=next_cost,json=nextCost,proto3" json:"next_cost,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ClickBudget) Reset() {
@@ -147,6 +159,34 @@ func (x *ClickBudget) GetCapacity() uint32 {
 func (x *ClickBudget) GetRefillPerSecond() float64 {
 	if x != nil {
 		return x.RefillPerSecond
+	}
+	return 0
+}
+
+func (x *ClickBudget) GetCost() uint32 {
+	if x != nil {
+		return x.Cost
+	}
+	return 0
+}
+
+func (x *ClickBudget) GetShare() float64 {
+	if x != nil {
+		return x.Share
+	}
+	return 0
+}
+
+func (x *ClickBudget) GetNextShare() float64 {
+	if x != nil {
+		return x.NextShare
+	}
+	return 0
+}
+
+func (x *ClickBudget) GetNextCost() uint32 {
+	if x != nil {
+		return x.NextCost
 	}
 	return 0
 }
@@ -249,7 +289,9 @@ func (x *ClickResponse) GetBudget() *ClickBudget {
 }
 
 type GetBudgetRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The country the allowance is priced for.
+	CountryId     string `protobuf:"bytes,1,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -282,6 +324,13 @@ func (x *GetBudgetRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use GetBudgetRequest.ProtoReflect.Descriptor instead.
 func (*GetBudgetRequest) Descriptor() ([]byte, []int) {
 	return file_planet_v1_planet_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *GetBudgetRequest) GetCountryId() string {
+	if x != nil {
+		return x.CountryId
+	}
+	return ""
 }
 
 type GetBudgetResponse struct {
@@ -1296,18 +1345,25 @@ var File_planet_v1_planet_proto protoreflect.FileDescriptor
 
 const file_planet_v1_planet_proto_rawDesc = "" +
 	"\n" +
-	"\x16planet/v1/planet.proto\x12\tplanet.v1\"m\n" +
+	"\x16planet/v1/planet.proto\x12\tplanet.v1\"\xd3\x01\n" +
 	"\vClickBudget\x12\x16\n" +
 	"\x06tokens\x18\x01 \x01(\x01R\x06tokens\x12\x1a\n" +
 	"\bcapacity\x18\x02 \x01(\rR\bcapacity\x12*\n" +
-	"\x11refill_per_second\x18\x03 \x01(\x01R\x0frefillPerSecond\"F\n" +
+	"\x11refill_per_second\x18\x03 \x01(\x01R\x0frefillPerSecond\x12\x12\n" +
+	"\x04cost\x18\x04 \x01(\rR\x04cost\x12\x14\n" +
+	"\x05share\x18\x05 \x01(\x01R\x05share\x12\x1d\n" +
+	"\n" +
+	"next_share\x18\x06 \x01(\x01R\tnextShare\x12\x1b\n" +
+	"\tnext_cost\x18\a \x01(\rR\bnextCost\"F\n" +
 	"\fClickRequest\x12\x17\n" +
 	"\atile_id\x18\x01 \x01(\rR\x06tileId\x12\x1d\n" +
 	"\n" +
 	"country_id\x18\x02 \x01(\tR\tcountryId\"?\n" +
 	"\rClickResponse\x12.\n" +
-	"\x06budget\x18\x01 \x01(\v2\x16.planet.v1.ClickBudgetR\x06budget\"\x12\n" +
-	"\x10GetBudgetRequest\"C\n" +
+	"\x06budget\x18\x01 \x01(\v2\x16.planet.v1.ClickBudgetR\x06budget\"1\n" +
+	"\x10GetBudgetRequest\x12\x1d\n" +
+	"\n" +
+	"country_id\x18\x01 \x01(\tR\tcountryId\"C\n" +
 	"\x11GetBudgetResponse\x12.\n" +
 	"\x06budget\x18\x01 \x01(\v2\x16.planet.v1.ClickBudgetR\x06budget\"\x13\n" +
 	"\x11MapDensityRequest\".\n" +

@@ -34,16 +34,31 @@ service ClickService {
 //
 // It rides on every click answer, accepted or refused, so the client is never
 // more than one click away from the truth.
+//
+// The first three are counted in clicks for the country asked about, not in
+// tokens: a click for a country that holds much of the map costs several
+// tokens, and the server has already divided by that cost.
 message ClickBudget {
   // Clicks left, fractional: 6.4 means six clicks now, and the seventh in
   // 600ms at a refill of one per second.
   double tokens = 1;
 
-  // The most a caller can bank: the burst.
+  // The most a caller can bank: the burst, in clicks.
   uint32 capacity = 2;
 
-  // Tokens granted back per second.
+  // Clicks granted back per second.
   double refill_per_second = 3;
+
+  // Tokens one click costs, from the country's share of the map. Zero from a
+  // server too old to price clicks, which means one.
+  uint32 cost = 4;
+
+  // The fraction of the whole map the country holds, 0 to 1.
+  double share = 5;
+
+  // The share at which a click starts to cost next_cost. Zero at the top step.
+  double next_share = 6;
+  uint32 next_cost = 7;
 }
 
 message ClickRequest {
@@ -56,7 +71,10 @@ message ClickResponse {
   ClickBudget budget = 1;
 }
 
-message GetBudgetRequest {}
+message GetBudgetRequest {
+  // The country the allowance is priced for.
+  string country_id = 1;
+}
 
 message GetBudgetResponse {
   ClickBudget budget = 1;
