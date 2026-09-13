@@ -1,5 +1,7 @@
 import * as THREE from "three"
 import {isBehindGlobe} from "./bonusBox.ts"
+import {blastMarkSvg} from "./blastMark.ts"
+import {questionMarkSvg} from "./questionMark.ts"
 import "./bonusPointer.css"
 
 /** How far in from the edge the pointer sits, as a share of the half-viewport. */
@@ -58,7 +60,7 @@ export type BonusPointer = {
  * loop rather than from React: it moves every frame, and this sits beside a
  * WebGL scene that wants the main thread.
  */
-export function createBonusPointer(container: HTMLElement, label = "?", variant?: string): BonusPointer {
+export function createBonusPointer(container: HTMLElement, variant?: "blast"): BonusPointer {
     const root = document.createElement("div")
     root.className = variant ? `bonus-pointer bonus-pointer--${variant}` : "bonus-pointer"
     root.hidden = true
@@ -68,7 +70,11 @@ export function createBonusPointer(container: HTMLElement, label = "?", variant?
 
     const badge = document.createElement("span")
     badge.className = "bonus-pointer-badge"
-    badge.textContent = label
+    // Drawn marks rather than a "?" or a 💥 set in a font, which look different
+    // on every platform.
+    badge.append(variant === "blast"
+        ? blastMarkSvg("bonus-pointer-mark")
+        : questionMarkSvg("bonus-pointer-mark", "#FFF6DF"))
 
     root.append(arrow, badge)
     container.append(root)

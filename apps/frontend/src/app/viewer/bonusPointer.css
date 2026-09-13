@@ -24,15 +24,19 @@
     border: 2px solid #4A2C02;
     border-radius: 6px;
     background: #F2A91C;
-    color: #FFF6DF;
-    font-size: 17px;
-    font-weight: 700;
-    line-height: 1;
+    /* The drawn mark's shadow; its ink is set on the SVG itself. */
+    color: #4A2C02;
     text-shadow: -1px 1px 0 #4A2C02;
     box-shadow: 0 0 14px #FFB13F88;
     animation:
         bonus-pointer-pulse 1.4s ease-in-out infinite,
         bonus-pointer-badge-colours 2.8s ease-in-out infinite;
+}
+
+/* The box's question mark, drawn rather than typed: see questionMark.ts. */
+.bonus-pointer-mark {
+    width: 20px;
+    height: 20px;
 }
 
 /* Orbits the badge on the rotation, so it always points outward at the box. */
@@ -55,7 +59,6 @@
     border-color: #4A0A02;
     background: #D8341C;
     box-shadow: 0 0 14px #FF5A3F88;
-    font-size: 15px;
     animation: bonus-pointer-pulse 1.4s ease-in-out infinite;
 }
 
@@ -69,25 +72,25 @@
     0%, 100% {
         border-color: #4A2C02;
         background-color: #F2A91C;
-        text-shadow: -1px 1px 0 #4A2C02;
+        color: #4A2C02;
         box-shadow: 0 0 14px #FFB13F88;
     }
     25% {
         border-color: #4A0E07;
         background-color: #E0412F;
-        text-shadow: -1px 1px 0 #4A0E07;
+        color: #4A0E07;
         box-shadow: 0 0 14px #FF7A6B88;
     }
     50% {
         border-color: #0A2A55;
         background-color: #2F8CFF;
-        text-shadow: -1px 1px 0 #0A2A55;
+        color: #0A2A55;
         box-shadow: 0 0 14px #7CC4FF88;
     }
     75% {
         border-color: #0B3D25;
         background-color: #25B872;
-        text-shadow: -1px 1px 0 #0B3D25;
+        color: #0B3D25;
         box-shadow: 0 0 14px #6FE3A888;
     }
 }

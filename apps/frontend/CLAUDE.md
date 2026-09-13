@@ -679,8 +679,10 @@ A hidden tab draws no frames, so there the clear is applied immediately.
 
 The dropper's own screen shakes on impact; nobody else's does. Under
 `prefers-reduced-motion` nothing moves — no shake, no debris, no displaced tiles —
-and the colours stay. A blast off screen gets the red 💥 edge pointer, the same
-component as the bonus box's.
+and the colours stay. A blast off screen gets a red edge pointer with a drawn burst on it
+(`blastMark.ts`) — the same component as the bonus box's, which carries a drawn
+question mark (`questionMark.ts`). Neither is a character: a glyph is a
+different picture on every platform.
 
 ## Sharing the globe
 

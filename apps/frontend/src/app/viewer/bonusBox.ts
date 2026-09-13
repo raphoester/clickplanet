@@ -7,6 +7,7 @@ import glowVertex from "./shaders/atmosphere/vertex.glsl"
 import glowFragment from "./shaders/atmosphere/fragment.glsl"
 
 import {mulberry32} from "./stars.ts"
+import {drawQuestionMark} from "./questionMark.ts"
 
 /** Outside the 1.0 tile shell, so the box never sinks into the flags. */
 const ORBIT_RADIUS = 1.15
@@ -512,14 +513,8 @@ function faceTexture(colour: BoxColour): THREE.CanvasTexture {
         context.fill()
     }
 
-    context.font = `bold ${size * 0.62}px system-ui, -apple-system, "Segoe UI", sans-serif`
-    context.textAlign = "center"
-    context.textBaseline = "middle"
-
-    context.fillStyle = edge
-    context.fillText("?", size / 2, size * 0.54)
-    context.fillStyle = "#fff6df"
-    context.fillText("?", size / 2, size * 0.51)
+    const mark = size * 0.56
+    drawQuestionMark(context, (size - mark) / 2, (size - mark) / 2, mark, "#fff6df", edge)
 
     const texture = new THREE.CanvasTexture(canvas)
     // Without this the colours are read as linear and come out washed out.
