@@ -1,0 +1,96 @@
+.sound-settings {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-bottom: 24px;
+}
+
+.sound-settings-list {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 4px 0;
+    list-style: none;
+    border-radius: 16px;
+    background: #FFFFFF0F;
+    border: 1px solid #FFFFFF26;
+}
+
+.sound-settings-list--off {
+    opacity: 0.45;
+}
+
+.sound-switch {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 44px;
+    padding: 0 12px;
+    font-family: Oswald, sans-serif;
+    font-size: 16px;
+    color: white;
+    cursor: pointer;
+}
+
+.sound-switch--main {
+    border-radius: 16px;
+    background: #FFFFFF0F;
+    border: 1px solid #FFFFFF26;
+    font-size: 18px;
+}
+
+.sound-settings-list li + li .sound-switch {
+    border-top: 1px solid #FFFFFF14;
+}
+
+.sound-switch:has(.sound-switch-input:disabled) {
+    cursor: default;
+}
+
+/* A native checkbox, redrawn as a switch: it keeps its keyboard and screen
+   reader behaviour for free. */
+.sound-switch-input {
+    appearance: none;
+    position: relative;
+    flex-shrink: 0;
+    width: 40px;
+    height: 24px;
+    margin: 0;
+    border-radius: 12px;
+    background: #FFFFFF33;
+    cursor: inherit;
+    transition: background 0.15s ease;
+}
+
+.sound-switch-input::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: white;
+    transition: transform 0.15s ease;
+}
+
+.sound-switch-input:checked {
+    background: #34C759;
+}
+
+.sound-switch-input:checked::after {
+    transform: translateX(16px);
+}
+
+.sound-switch-input:focus-visible {
+    outline: 2px solid white;
+    outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sound-switch-input,
+    .sound-switch-input::after {
+        transition: none;
+    }
+}

@@ -61,6 +61,39 @@ const named = async (user: ReturnType<typeof userEvent.setup>, name: string) => 
 beforeEach(() => window.localStorage.clear())
 afterEach(cleanup)
 
+describe("ChatPanel sound", () => {
+    const withSound = (backend: ChatBackend) => {
+        const playSound = vi.fn()
+        return {playSound, user: userEvent.setup(), ...render(<ChatPanel backend={backend} country={france} playSound={playSound}/>)}
+    }
+
+    it("pings for someone else's message, not for the history it opens on", async () => {
+        const {backend, broadcast} = stubBackend([message("old", "from before")])
+        const {playSound} = withSound(backend)
+
+        await screen.findByText("from before")
+        expect(playSound).not.toHaveBeenCalled()
+
+        broadcast(message("live", "gm everyone", 1_700_000_050_000))
+        await screen.findByText("gm everyone")
+        expect(playSound).toHaveBeenCalledWith("chat")
+    })
+
+    it("stays quiet for your own message, even when its broadcast comes first", async () => {
+        const {backend, broadcast} = stubBackend()
+        const {playSound, user} = withSound(backend)
+        await screen.findByText("Nobody has said anything yet. Go on.")
+        await named(user, "Bo")
+
+        broadcast({...message("sent-hello", "hello"), authorName: "Bo"})
+        await screen.findByText("hello")
+        await user.type(messageBox(), "hello")
+        await user.click(screen.getByRole("button", {name: "Send"}))
+
+        expect(playSound).not.toHaveBeenCalled()
+    })
+})
+
 describe("ChatPanel", () => {
     it("shows what the server already holds", async () => {
         const {backend} = stubBackend([message("a", "who took Brittany")])

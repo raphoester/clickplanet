@@ -7,6 +7,7 @@ import {useLeaderboardFeed} from './useLeaderboardFeed.ts';
 import {ActiveBonus, BonusReward} from '../../domain/bonus.ts';
 import {BombDrop, Bomber, BonusCatch, BonusListener} from '../../backends/backend.ts';
 import {now} from '../../backends/clickBudget.ts';
+import {PlaySound} from '../sound/soundPlayer.ts';
 
 export type GlobeStatus =
     | {state: 'loading'}
@@ -21,11 +22,13 @@ export type UseGlobeOptions = {
     /** Absent for a backend with no bonus feed, which draws no boxes at all. */
     bonusListener?: BonusListener
     bomber?: Bomber
+    /** Must not change identity: a new one rebuilds the globe. */
+    playSound?: PlaySound
     country: Country
 }
 
 export function useGlobe(options: UseGlobeOptions) {
-    const {container, tileClicker, ownershipsGetter, updatesListener, bonusListener, bomber, country} = options
+    const {container, tileClicker, ownershipsGetter, updatesListener, bonusListener, bomber, playSound, country} = options
 
     const [status, setStatus] = useState<GlobeStatus>({state: 'loading'})
     const [tilesCount, setTilesCount] = useState(0)
@@ -113,6 +116,7 @@ export function useGlobe(options: UseGlobeOptions) {
             bomber,
             onBombDropped: recordBomb,
             onBombSpent: spendBomb,
+            playSound,
             signal: abortController.signal,
         }).then((globe) => {
             if (cancelled) {
@@ -137,7 +141,7 @@ export function useGlobe(options: UseGlobeOptions) {
             globeRef.current?.dispose()
             globeRef.current = null
         }
-    }, [container, tileClicker, ownershipsGetter, updatesListener, bonusListener, bomber, recordLeaderboard, takeBonus, recordCatch, recordBomb, spendBomb])
+    }, [container, tileClicker, ownershipsGetter, updatesListener, bonusListener, bomber, playSound, recordLeaderboard, takeBonus, recordCatch, recordBomb, spendBomb])
 
     useEffect(() => {
         initialCountry.current = country

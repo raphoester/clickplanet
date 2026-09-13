@@ -801,6 +801,38 @@ and fits the picture to the room between the header and the buttons rather than
 capping it in `vh`, which left a hand's width of empty panel under a portrait
 card on a phone.
 
+## Sound
+
+`src/app/sound/` holds it. **There is no audio file**: every sound is built
+from oscillators and noise with the Web Audio API at the moment it plays, in
+`synths.ts`. Tuning a sound is changing numbers there.
+
+- `soundPlayer.ts` — `createSoundPlayer`: settings check, a per-sound
+  `MIN_GAP_MS` (fast clicks and a busy chat would otherwise be one long buzz),
+  nothing in a hidden tab. Its context, synths and clock are injectable, so it is
+  tested without audio.
+- `useSound.ts` — the settings in `clickplanet-sound-settings`
+  (`domain/soundSettings.ts` parses them; a sound added later starts on) and
+  the one player. **`play` never changes identity** and reads the settings
+  through a ref: `useGlobe` rebuilds the globe when an option changes, and a
+  toggle must not do that.
+- `SoundSettingsPanel.tsx` — the switches, behind the speaker button in the
+  menu. Turning a sound on previews it.
+
+**Audio is locked until a gesture.** The `AudioContext` is only created by the
+first `pointerdown`/`keydown` on the window, so a bonus box or a chat message
+before the player has touched the page is silent, by design of the browser.
+
+Where each one fires: the click and the refusal in `globe.ts`'s click handler
+(`reportClickFailure` returns whether the server refused — a transport fault is
+not a "nope"); the box appearing and being caught at the same places the box
+itself does; the bomb when its broadcast arrives, with the boom scheduled
+`IMPACT_DELAY` later so it lands with the tiles, quieter for someone else's,
+and a splash instead of a blast when the drop has no tile under it (the ocean);
+the chat in `ChatPanel` for a message that is not yours. **Your own message is
+filtered on your name as well as on `mine`**: its broadcast can arrive before
+the send answer that fills `mine` in.
+
 ## Protocol Buffers
 
 Types are defined in the monorepo-shared [`/proto`](../../proto), one package per

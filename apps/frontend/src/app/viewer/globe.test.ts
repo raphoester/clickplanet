@@ -19,7 +19,7 @@ describe("reportClickFailure", () => {
     it("sends the throttle's refusal to the meter, and to no dialog", () => {
         const h = handlers()
 
-        reportClickFailure(new RateLimitedError(), h)
+        expect(reportClickFailure(new RateLimitedError(), h)).toBe(true)
 
         expect(h.onRateLimited).toHaveBeenCalledTimes(1)
         expect(h.onVPNBlocked).not.toHaveBeenCalled()
@@ -29,7 +29,7 @@ describe("reportClickFailure", () => {
     it("sends the VPN refusal to the VPN dialog, and nowhere else", () => {
         const h = handlers()
 
-        reportClickFailure(new VPNBlockedError(), h)
+        expect(reportClickFailure(new VPNBlockedError(), h)).toBe(true)
 
         expect(h.onVPNBlocked).toHaveBeenCalledTimes(1)
         expect(h.onRateLimited).not.toHaveBeenCalled()
@@ -39,7 +39,7 @@ describe("reportClickFailure", () => {
     it("sends a session that could not be obtained to its own dialog, and nowhere else", () => {
         const h = handlers()
 
-        reportClickFailure(new SessionUnavailableError(), h)
+        expect(reportClickFailure(new SessionUnavailableError(), h)).toBe(true)
 
         expect(h.onSessionUnavailable).toHaveBeenCalledTimes(1)
         expect(h.onRateLimited).not.toHaveBeenCalled()
@@ -50,7 +50,7 @@ describe("reportClickFailure", () => {
         const h = handlers()
         const logged = vi.spyOn(console, "error").mockImplementation(() => {})
 
-        reportClickFailure(new Error("the network fell over"), h)
+        expect(reportClickFailure(new Error("the network fell over"), h)).toBe(false)
 
         expect(logged).toHaveBeenCalledTimes(1)
         expect(h.onRateLimited).not.toHaveBeenCalled()

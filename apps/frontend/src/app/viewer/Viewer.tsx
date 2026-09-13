@@ -16,6 +16,7 @@ import {ClickBudgetSource} from "../../backends/clickBudget.ts";
 import {useClickBudget} from './useClickBudget.ts';
 import {useCountryStorage} from './useCountryStorage.ts';
 import {GlobeStatus, useGlobe} from './useGlobe.ts';
+import {useSound} from '../sound/useSound.ts';
 import "./Viewer.css"
 
 export type ViewerProps = {
@@ -32,6 +33,7 @@ export default function Viewer(props: ViewerProps) {
     const container = useRef<HTMLDivElement>(null)
     const {countryState, handleSetCountry} = useCountryStorage()
     const clickBudget = useClickBudget(props.clickBudgetSource, countryState.code)
+    const sound = useSound()
 
     const {
         status,
@@ -56,6 +58,7 @@ export default function Viewer(props: ViewerProps) {
         updatesListener: props.updatesListener,
         bonusListener: props.bonusListener,
         bomber: props.bomber,
+        playSound: sound.play,
         country: countryState,
     })
 
@@ -75,6 +78,7 @@ export default function Viewer(props: ViewerProps) {
             leaderboard={leaderboard}
             tileDeltas={tileDeltas}
             tilesCount={tilesCount}
+            sound={{settings: sound.settings, onChange: sound.setSettings, preview: sound.preview}}
         />}
 
         {status.state === 'ready' && <CameraButton busy={taking} onClick={take}/>}
@@ -88,6 +92,7 @@ export default function Viewer(props: ViewerProps) {
         {status.state === 'ready' && <ChatPanel
             backend={props.chatBackend}
             country={countryState}
+            playSound={sound.play}
         />}
 
         {award && <BonusAward reward={award} onDone={dismissAward}/>}

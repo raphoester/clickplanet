@@ -39,6 +39,7 @@ import {now as monotonicNow} from "../../backends/clickBudget.ts";
 import {BlastUniforms, blastUniforms, createBlasts} from "./blasts.ts";
 import {IMPACT_DELAY} from "../../domain/blast.ts";
 import {HoldToDrop} from "../../domain/holdToDrop.ts";
+import {PlaySound} from "../sound/soundPlayer.ts";
 
 type Uniforms = BlastUniforms & {
     pointSize: THREE.IUniform
@@ -58,6 +59,9 @@ const HOLD_TO_DROP_SECONDS = 0.7
 
 /** How far a held press may wander before it counts as a drag of the globe. */
 const HOLD_TOLERANCE_PX = 6
+
+/** How loud someone else's bomb is, against your own at 1. */
+const DISTANT_BOMB_VOLUME = 0.45
 
 /** How long after our own drop a blast in our colours is taken to be it. */
 const OWN_DROP_WINDOW_SECONDS = 5
@@ -94,6 +98,8 @@ export type GlobeOptions = {
     onBombDropped: (drop: BombDrop) => void
     /** The bomb this client held is gone: dropped, or held too long. */
     onBombSpent: () => void
+    /** Read for the globe's whole life, so it must not change identity. */
+    playSound?: PlaySound
     signal: AbortSignal
 }
 
@@ -131,6 +137,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         bomber,
         onBombDropped,
         onBombSpent,
+        playSound = () => {},
         signal,
     } = options
 
@@ -194,6 +201,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             // The animation loop's clock is `performance.now()` in seconds, the
             // same clock the offer's deadline is on.
             bonusBox.spawn(offer.seed, (offer.expiresAt - CLAIM_MARGIN_MS) / 1000)
+            playSound("bonusSpawn")
         },
         onTaken: (taken) => onBonusTaken(taken),
     })
@@ -302,10 +310,14 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             pendingClears.push({at: seconds + IMPACT_DELAY, tiles: new Set(drop.cleared)})
         }
 
-        if (ownDropAt !== undefined && drop.countryId === country.code && seconds - ownDropAt < OWN_DROP_WINDOW_SECONDS) {
+        const own = ownDropAt !== undefined && drop.countryId === country.code && seconds - ownDropAt < OWN_DROP_WINDOW_SECONDS
+        if (own) {
             ownDropAt = undefined
             shakeFrom = seconds + IMPACT_DELAY
         }
+        // The synth waits `IMPACT_DELAY` itself, so the boom lands with the tiles.
+        // A drop with no tile under it landed in the ocean, and splashes.
+        playSound("bomb", {volume: own ? 1 : DISTANT_BOMB_VOLUME, onWater: drop.tile === undefined})
         onBombDropped(drop)
     })
 
@@ -424,6 +436,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             const claimed = offered
             offered = undefined
             if (!claimed) return
+            playSound("bonusCaught")
 
             bonusListener?.claimBonus(claimed.token, country.code)
                 .then(takeReward)
@@ -447,11 +460,12 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
         const {changes, claim} = ownership.applyOptimistic(tile, country.code)
         applyChanges(changes)
+        playSound("click")
 
         tileClicker.clickTile(tile, country.code).catch((e) => {
             if (lifetime.signal.aborted) return
             applyChanges(ownership.rollback(claim))
-            reportClickFailure(e, {onRateLimited, onVPNBlocked, onSessionUnavailable})
+            if (reportClickFailure(e, {onRateLimited, onVPNBlocked, onSessionUnavailable})) playSound("refused")
         })
     }, listenerOptions);
 
@@ -630,6 +644,7 @@ export function reportClaimFailure(
     else console.error(error)
 }
 
+/** Whether the server refused the click, as opposed to it never getting an answer. */
 export function reportClickFailure(
     error: unknown,
     handlers: {
@@ -637,9 +652,13 @@ export function reportClickFailure(
         onVPNBlocked: () => void,
         onSessionUnavailable: () => void,
     },
-) {
+): boolean {
     if (error instanceof RateLimitedError) handlers.onRateLimited()
     else if (error instanceof VPNBlockedError) handlers.onVPNBlocked()
     else if (error instanceof SessionUnavailableError) handlers.onSessionUnavailable()
-    else console.error(error)
+    else {
+        console.error(error)
+        return false
+    }
+    return true
 }
