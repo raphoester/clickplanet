@@ -31,11 +31,9 @@ rateLimiter:
 # the boot, since no bucket could ever pay it.
 toll:
   steps:
-    - {share: 0.10, cost: 2}
-    - {share: 0.25, cost: 3}
-    - {share: 0.50, cost: 5}
-    - {share: 0.70, cost: 8}
-    - {share: 0.90, cost: 10}
+    - {share: 0.25, cost: 2}
+    - {share: 0.50, cost: 3}
+    - {share: 0.75, cost: 4}
 
 # Refuses clicks from known VPN and proxy ranges: the throttle above is keyed on
 # an address, and a VPN is the cheap way to get a fresh one. Reads and the
