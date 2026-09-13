@@ -825,7 +825,8 @@ Where each one fires: the click and the refusal in `globe.ts`'s click handler
 (`reportClickFailure` returns whether the server refused — a transport fault is
 not a "nope"); the box appearing and being caught at the same places the box
 itself does; the bomb when its broadcast arrives, with the boom scheduled
-`IMPACT_DELAY` later so it lands with the tiles, quieter for someone else's;
+`IMPACT_DELAY` later so it lands with the tiles, quieter for someone else's,
+and a splash instead of a blast when the drop has no tile under it (the ocean);
 the chat in `ChatPanel` for a message that is not yours. **Your own message is
 filtered on your name as well as on `mine`**: its broadcast can arrive before
 the send answer that fills `mine` in.

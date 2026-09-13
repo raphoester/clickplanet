@@ -316,7 +316,8 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             shakeFrom = seconds + IMPACT_DELAY
         }
         // The synth waits `IMPACT_DELAY` itself, so the boom lands with the tiles.
-        playSound("bomb", {volume: own ? 1 : DISTANT_BOMB_VOLUME})
+        // A drop with no tile under it landed in the ocean, and splashes.
+        playSound("bomb", {volume: own ? 1 : DISTANT_BOMB_VOLUME, onWater: drop.tile === undefined})
         onBombDropped(drop)
     })
 

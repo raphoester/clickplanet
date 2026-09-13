@@ -33,16 +33,16 @@ describe("createSoundPlayer", () => {
 
         player.unlock()
         player.play("click")
-        expect(synths.click).toHaveBeenCalledWith(expect.anything(), 3, 1)
+        expect(synths.click).toHaveBeenCalledWith(expect.anything(), 3, {volume: 1, onWater: false})
     })
 
     it("plays nothing the settings have switched off", () => {
         const {player, synths} = setup({audible: (name) => name !== "chat"})
         player.unlock()
         player.play("chat")
-        player.play("bomb", {volume: 0.5})
+        player.play("bomb", {volume: 0.5, onWater: true})
         expect(synths.chat).not.toHaveBeenCalled()
-        expect(synths.bomb).toHaveBeenCalledWith(expect.anything(), 3, 0.5)
+        expect(synths.bomb).toHaveBeenCalledWith(expect.anything(), 3, {volume: 0.5, onWater: true})
     })
 
     it("plays nothing in a hidden tab", () => {

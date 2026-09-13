@@ -1,7 +1,7 @@
 import {SoundName} from "../../domain/soundSettings.ts";
-import {Synth, SYNTHS} from "./synths.ts";
+import {Synth, SynthOptions, SYNTHS} from "./synths.ts";
 
-export type PlaySound = (name: SoundName, options?: {volume?: number}) => void
+export type PlaySound = (name: SoundName, options?: Partial<SynthOptions>) => void
 
 /**
  * The shortest gap between two plays of one sound, in milliseconds. A player
@@ -54,12 +54,12 @@ export function createSoundPlayer(options: SoundPlayerOptions): SoundPlayer {
     let ctx: AudioContext | undefined
     const lastPlayed = new Map<SoundName, number>()
 
-    const start = (name: SoundName, volume: number) => {
+    const start = (name: SoundName, options: SynthOptions) => {
         if (!ctx) return
         const context = ctx
 
         if (context.state === "running") {
-            synths[name](context, context.currentTime, volume)
+            synths[name](context, context.currentTime, options)
             return
         }
 
@@ -69,7 +69,7 @@ export function createSoundPlayer(options: SoundPlayerOptions): SoundPlayer {
         context.resume()
             .then(() => {
                 if (context.state === "running" && now() - asked <= LATE_MS) {
-                    synths[name](context, context.currentTime, volume)
+                    synths[name](context, context.currentTime, options)
                 }
             })
             .catch(() => {
@@ -77,7 +77,7 @@ export function createSoundPlayer(options: SoundPlayerOptions): SoundPlayer {
     }
 
     return {
-        play: (name, {volume = 1} = {}) => {
+        play: (name, {volume = 1, onWater = false} = {}) => {
             if (!ctx || !isAudible(name) || isHidden()) return
 
             const t = now()
@@ -85,11 +85,11 @@ export function createSoundPlayer(options: SoundPlayerOptions): SoundPlayer {
             if (last !== undefined && t - last < MIN_GAP_MS[name]) return
             lastPlayed.set(name, t)
 
-            start(name, volume)
+            start(name, {volume, onWater})
         },
         preview: (name) => {
             if (!ctx) ctx = createContext()
-            start(name, 1)
+            start(name, {volume: 1, onWater: false})
         },
         unlock: () => {
             if (!ctx) ctx = createContext()

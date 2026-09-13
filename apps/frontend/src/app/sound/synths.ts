@@ -6,7 +6,13 @@ import {SoundName} from "../../domain/soundSettings.ts";
  * plays — there is no audio file anywhere. A synth schedules its nodes from
  * `at` on the context's own clock; they disconnect themselves once stopped.
  */
-export type Synth = (ctx: AudioContext, at: number, volume: number) => void
+export type Synth = (ctx: AudioContext, at: number, options: SynthOptions) => void
+
+export type SynthOptions = {
+    volume: number
+    /** Only the bomb reads it: a bomb that landed in the ocean splashes. */
+    onWater: boolean
+}
 
 type Tone = {
     type: OscillatorType
@@ -55,26 +61,26 @@ function noise(ctx: AudioContext): AudioBuffer {
 /** Up to ±`spread` of a frequency, so a sound heard fifty times is never quite the same twice. */
 const detune = (spread: number) => 1 + (Math.random() * 2 - 1) * spread
 
-const click: Synth = (ctx, at, volume) => {
+const click: Synth = (ctx, at, {volume}) => {
     const pitch = detune(0.08)
     tone(ctx, at, volume, {type: "sine", from: 720 * pitch, to: 260 * pitch, start: 0, length: 0.07, gain: 0.25})
 }
 
 // Two falling notes, low and dull: "nope".
-const refused: Synth = (ctx, at, volume) => {
+const refused: Synth = (ctx, at, {volume}) => {
     tone(ctx, at, volume, {type: "triangle", from: 240, to: 220, start: 0, length: 0.09, gain: 0.35})
     tone(ctx, at, volume, {type: "triangle", from: 170, to: 150, start: 0.1, length: 0.16, gain: 0.35})
 }
 
 // A rising sparkle, C major up an octave: something appeared.
-const bonusSpawn: Synth = (ctx, at, volume) => {
+const bonusSpawn: Synth = (ctx, at, {volume}) => {
     ;[1047, 1319, 1568, 2093].forEach((from, i) => {
         tone(ctx, at, volume, {type: "sine", from, start: i * 0.06, length: 0.22, gain: 0.14})
     })
 }
 
 // The coin: a short note and a long one a fourth above.
-const bonusCaught: Synth = (ctx, at, volume) => {
+const bonusCaught: Synth = (ctx, at, {volume}) => {
     tone(ctx, at, volume, {type: "square", from: 988, start: 0, length: 0.08, gain: 0.07})
     tone(ctx, at, volume, {type: "square", from: 1319, start: 0.08, length: 0.45, gain: 0.07})
 }
@@ -141,18 +147,25 @@ const saturation = new Float32Array(1024).map((_, i) => {
     return Math.tanh(3 * x)
 })
 
-// The bomb, the one sound meant to be felt. The drop is heard when it is
-// broadcast, so the fall takes `IMPACT_DELAY` and the blast lands on the frame
-// the tiles go, exactly as the drawing does.
-//
-// Everything runs through a soft clipper (grit, and the harmonics that let a
-// laptop speaker suggest a sub it cannot play), a compressor (loud without
-// clipping), and a long reverb (the size of the thing).
-const bomb: Synth = (ctx, at, volume) => {
-    const impact = at + IMPACT_DELAY
-    const tail = 4.5
+type Rig = {
+    /** Where every layer goes: clipper, compressor, level, reverb. */
+    bus: GainNode
+    impact: number
+    /** Disconnects the rig once everything scheduled on it has rung out. */
+    release: (lastsUntil: number) => void
+}
 
-    // The layers below add up well past 1, which the clipper would square off.
+// What every bomb shares: the output chain and the fall. The drop is heard when
+// it is broadcast, so the fall takes `IMPACT_DELAY` and the impact lands on the
+// frame the tiles go, exactly as the drawing does.
+//
+// The soft clipper adds grit, and the harmonics that let a laptop speaker
+// suggest a sub it cannot play; the compressor keeps it loud without clipping;
+// the reverb is the size of the thing.
+function bombRig(ctx: AudioContext, at: number, volume: number, roomSize: number): Rig {
+    const impact = at + IMPACT_DELAY
+
+    // The layers add up well past 1, which the clipper would square off.
     const bus = ctx.createGain()
     bus.gain.value = 0.4
 
@@ -170,7 +183,7 @@ const bomb: Synth = (ctx, at, volume) => {
     const room = ctx.createConvolver()
     room.buffer = reverb(ctx)
     const wet = ctx.createGain()
-    wet.gain.value = 0.55
+    wet.gain.value = roomSize
 
     // Volume after the dynamics, so a distant bomb is quieter, not cleaner.
     const level = ctx.createGain()
@@ -200,17 +213,30 @@ const bomb: Synth = (ctx, at, volume) => {
     wobble.stop(impact + 0.02)
     filteredNoise(ctx, at, bus, {start: 0, length: IMPACT_DELAY, attack: IMPACT_DELAY * 0.9, gain: 0.08, filter: "bandpass", from: 600, to: 2400, q: 1.5})
 
-    // The crack: a split second of bright noise, the edge of the blast.
-    filteredNoise(ctx, impact, bus, {start: 0, length: 0.12, attack: 0.001, gain: 1.4, filter: "highpass", from: 1500})
+    const nodes: AudioNode[] = [whistleGain, wobbleDepth, bus, drive, limiter, level, room, wet]
+    return {
+        bus,
+        impact,
+        // The reverb's own four seconds come after the last sound.
+        release: (lastsUntil) => window.setTimeout(
+            () => nodes.forEach((node) => node.disconnect()),
+            (lastsUntil - ctx.currentTime + 4.5) * 1000,
+        ),
+    }
+}
 
-    // The body: wide noise closing down from bright to dark.
+// On land: a crack, a blast closing from bright to dark, a sub drop, and a
+// rumble pulsing like debris coming down.
+function landBlast(ctx: AudioContext, {bus, impact, release}: Rig) {
+    const tail = 4.5
+
+    filteredNoise(ctx, impact, bus, {start: 0, length: 0.12, attack: 0.001, gain: 1.4, filter: "highpass", from: 1500})
     filteredNoise(ctx, impact, bus, {start: 0, length: 2.6, attack: 0.004, gain: 1.6, filter: "lowpass", from: 5000, to: 90, q: 0.9})
 
     // The sub drop, and a fifth above it so it survives a small speaker.
     tone(ctx, impact, 1, {type: "sine", from: 110, to: 26, start: 0, length: 1.6, gain: 1.8}, bus)
     tone(ctx, impact, 1, {type: "triangle", from: 165, to: 40, start: 0, length: 0.9, gain: 0.7}, bus)
 
-    // The rumble that rolls on after, pulsing like debris coming down.
     const rumble = ctx.createGain()
     const pulse = ctx.createOscillator()
     const pulseDepth = ctx.createGain()
@@ -222,28 +248,58 @@ const bomb: Synth = (ctx, at, volume) => {
     rumble.connect(bus)
     pulse.start(impact)
     pulse.stop(impact + tail)
-    filteredNoise(ctx, impact, rumble, {start: 0.15, length: tail - 0.15, attack: 0.3, gain: 1.1, filter: "lowpass", from: 220, to: 50, q: 1.2})
-
-    // One node graph per blast, torn down once the reverb has rung out.
     pulse.onended = () => {
-        pulse.disconnect()
         pulseDepth.disconnect()
         rumble.disconnect()
-        whistleGain.disconnect()
-        wobbleDepth.disconnect()
-        window.setTimeout(() => {
-            bus.disconnect()
-            drive.disconnect()
-            limiter.disconnect()
-            level.disconnect()
-            room.disconnect()
-            wet.disconnect()
-        }, 4000)
     }
+    filteredNoise(ctx, impact, rumble, {start: 0.15, length: tail - 0.15, attack: 0.3, gain: 1.1, filter: "lowpass", from: 220, to: 50, q: 1.2})
+
+    release(impact + tail)
+}
+
+// In the ocean: the blast muffled under the surface, the column of water
+// thrown up, the spray raining back down, and bubbles for a while after.
+function waterBlast(ctx: AudioContext, {bus, impact, release}: Rig) {
+    const tail = 3
+
+    // The boom from under the water: no crack, and everything above a few
+    // hundred hertz swallowed.
+    tone(ctx, impact, 1, {type: "sine", from: 95, to: 32, start: 0, length: 1.1, gain: 1.6}, bus)
+    filteredNoise(ctx, impact, bus, {start: 0, length: 1.3, attack: 0.01, gain: 1.4, filter: "lowpass", from: 900, to: 110, q: 0.8})
+
+    // The plume: a wide hiss that opens up as the water goes into the air.
+    filteredNoise(ctx, impact, bus, {start: 0.02, length: 1.5, attack: 0.07, gain: 1.3, filter: "bandpass", from: 900, to: 3200, q: 0.6})
+
+    // The spray coming back down.
+    filteredNoise(ctx, impact, bus, {start: 0.35, length: tail - 0.35, attack: 0.5, gain: 0.55, filter: "highpass", from: 2800, to: 1600})
+
+    // Bubbles and droplets: short blips whose pitch rises, which is the sound
+    // of a bubble closing. Denser and louder at first, sparse at the end.
+    for (let i = 0; i < 45; i++) {
+        const when = 0.15 + (tail - 0.3) * Math.random() ** 1.8
+        const from = 450 + Math.random() * 1100
+        const fade = 1 - when / tail
+        tone(ctx, impact, 1, {
+            type: "sine",
+            from,
+            to: from * (2 + Math.random()),
+            start: when,
+            length: 0.025 + Math.random() * 0.035,
+            gain: (0.08 + Math.random() * 0.25) * fade,
+        }, bus)
+    }
+
+    release(impact + tail)
+}
+
+// The bomb, the one sound meant to be felt.
+const bomb: Synth = (ctx, at, {volume, onWater}) => {
+    if (onWater) waterBlast(ctx, bombRig(ctx, at, volume, 0.35))
+    else landBlast(ctx, bombRig(ctx, at, volume, 0.55))
 }
 
 // Two soft notes going up: someone said something.
-const chat: Synth = (ctx, at, volume) => {
+const chat: Synth = (ctx, at, {volume}) => {
     tone(ctx, at, volume, {type: "sine", from: 880, start: 0, length: 0.08, gain: 0.12})
     tone(ctx, at, volume, {type: "sine", from: 1175, start: 0.07, length: 0.14, gain: 0.12})
 }
