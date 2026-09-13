@@ -28,9 +28,9 @@
  * change the other.
  */
 .bonus-award--tripleClicks {
-    --bonus-accent: #FFC061;
-    --bonus-box: #F2A91C;
-    --bonus-box-edge: #4A2C02;
+    --bonus-accent: #7CC4FF;
+    --bonus-box: #2F8CFF;
+    --bonus-box-edge: #0A2A55;
 }
 
 .bonus-award--spreadClicks {
@@ -45,10 +45,11 @@
     --bonus-box-edge: #4A0E07;
 }
 
+/* The gold the enclosure effect draws on the globe (GOLD in enclosureEffect.ts). */
 .bonus-award--encloseClicks {
-    --bonus-accent: #C9A2FF;
-    --bonus-box: #8B52E8;
-    --bonus-box-edge: #2A0F52;
+    --bonus-accent: #FFC061;
+    --bonus-box: #F2A91C;
+    --bonus-box-edge: #4A2C02;
 }
 
 .bonus-award-card {

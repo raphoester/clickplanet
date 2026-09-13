@@ -19,9 +19,9 @@ export const DISMISS_GRACE_MS = 400
 /** The mark in the box, one per kind. The colour that goes with it is in the CSS. */
 const ICONS: Record<BonusReward["kind"], string> = {
     tripleClicks: "⚡",
-    spreadClicks: "✳",
+    spreadClicks: "🦠",
     bomb: "💣",
-    encloseClicks: "⬡",
+    encloseClicks: "🪢",
 }
 
 export type BonusAwardProps = {
