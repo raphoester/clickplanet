@@ -1,8 +1,15 @@
 /*
  * The announcement covers the screen but catches nothing: `pointer-events: none`
  * the whole way down, so a player mid-click keeps the planet under the cursor.
+ * The press that dismisses it is heard on the window, in BonusAward.tsx.
+ *
+ * Each kind of bonus has its own colour, set here once and read by the card,
+ * the box and the title.
  */
 .bonus-award {
+    --bonus-accent: #FFC061;
+    --bonus-box: #F2A91C;
+    --bonus-box-edge: #4A2C02;
     position: fixed;
     inset: 0;
     z-index: 200;
@@ -20,20 +27,49 @@
  * The timings here are shares of AWARD_MS in BonusAward.tsx. Change one and
  * change the other.
  */
+.bonus-award--tripleClicks {
+    --bonus-accent: #7CC4FF;
+    --bonus-box: #2F8CFF;
+    --bonus-box-edge: #0A2A55;
+}
+
+.bonus-award--spreadClicks {
+    --bonus-accent: #6FE3A8;
+    --bonus-box: #25B872;
+    --bonus-box-edge: #0B3D25;
+}
+
+.bonus-award--bomb {
+    --bonus-accent: #FF7A6B;
+    --bonus-box: #E0412F;
+    --bonus-box-edge: #4A0E07;
+}
+
+/* The gold the enclosure effect draws on the globe (GOLD in enclosureEffect.ts). */
+.bonus-award--encloseClicks {
+    --bonus-accent: #FFC061;
+    --bonus-box: #F2A91C;
+    --bonus-box-edge: #4A2C02;
+}
+
 .bonus-award-card {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 10px;
     padding: 28px 44px;
-    border: 1px solid #FFB13F66;
+    /* A long explanation wraps rather than stretching the card across the globe. */
+    max-width: min(520px, calc(100vw - 32px));
+    box-sizing: border-box;
+    border: 1px solid color-mix(in srgb, var(--bonus-accent) 45%, transparent);
+    box-shadow: 0 0 32px color-mix(in srgb, var(--bonus-box) 35%, transparent);
     border-radius: 24px;
     background: #0A0A0Acc;
     backdrop-filter: blur(10px);
     text-align: center;
     color: #FFFFFF;
     text-shadow: -1px 1px 0 #000000;
-    animation: bonus-award 1.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation: bonus-award 2.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 .bonus-award-box {
@@ -42,15 +78,65 @@
     justify-content: center;
     width: 64px;
     height: 64px;
-    border: 3px solid #4A2C02;
+    border: 3px solid var(--bonus-box-edge);
     border-radius: 10px;
-    background: #F2A91C;
-    color: #FFF6DF;
-    font-size: 40px;
-    font-weight: 700;
-    line-height: 1;
-    text-shadow: -2px 2px 0 #4A2C02;
+    /* On top of the card's gap, so the icon does not sit on the title. */
+    margin-bottom: 8px;
+    background: var(--bonus-box);
     animation: bonus-award-spin 0.7s ease-out;
+}
+
+/*
+ * The drawings in BonusIcon.tsx. Everything is inked in the box's own edge
+ * colour, so one set of rules serves every kind.
+ */
+.bonus-icon {
+    width: 50px;
+    height: 50px;
+    overflow: visible;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+}
+
+.bonus-icon-ink {
+    fill: #FFF6DF;
+    stroke: var(--bonus-box-edge);
+    stroke-width: 2.5;
+}
+
+.bonus-icon-ink--soft {
+    fill: color-mix(in srgb, #FFF6DF 55%, var(--bonus-box));
+}
+
+.bonus-icon-line {
+    fill: none;
+    stroke: #FFF6DF;
+    stroke-width: 3;
+}
+
+.bonus-icon-fuse {
+    fill: none;
+    stroke: var(--bonus-box-edge);
+    stroke-width: 3;
+}
+
+.bonus-icon-dark {
+    fill: var(--bonus-box-edge);
+    stroke: var(--bonus-box-edge);
+    stroke-width: 2.5;
+}
+
+.bonus-icon-shine {
+    fill: none;
+    stroke: #FFF6DF;
+    stroke-width: 3;
+    opacity: 0.8;
+}
+
+.bonus-icon-spark {
+    fill: #FFE27A;
+    stroke: var(--bonus-box-edge);
+    stroke-width: 1.5;
 }
 
 .bonus-award-title {
@@ -59,11 +145,12 @@
     font-weight: 700;
     line-height: 1.05;
     letter-spacing: 0.5px;
-    color: #FFC061;
+    color: var(--bonus-accent);
 }
 
 .bonus-award-detail {
     font-size: clamp(14px, 1.8vw, 22px);
+    text-wrap: balance;
     line-height: 1.3;
     opacity: 0.92;
 }
@@ -74,15 +161,15 @@
         transform: scale(0.55);
     }
     /* Overshoot, so it lands rather than merely appearing. */
-    10% {
+    6.5% {
         opacity: 1;
         transform: scale(1.06);
     }
-    18% {
+    12% {
         transform: scale(1);
     }
     /* The hold: long enough to read both lines. */
-    68% {
+    79% {
         opacity: 1;
         transform: scale(1);
     }
@@ -105,7 +192,6 @@
 @media (max-width: 768px) {
     .bonus-award-card {
         padding: 20px 24px;
-        max-width: calc(100vw - 32px);
     }
 
     /* The meter sits under the folded menu on a phone, not in the corner. */
@@ -114,14 +200,14 @@
             opacity: 0;
             transform: scale(0.55);
         }
-        10% {
+        6.5% {
             opacity: 1;
             transform: scale(1.06);
         }
-        18% {
+        12% {
             transform: scale(1);
         }
-        68% {
+        79% {
             opacity: 1;
             transform: scale(1);
         }
@@ -138,7 +224,7 @@
  */
 @media (prefers-reduced-motion: reduce) {
     .bonus-award-card {
-        animation: bonus-award-still 1.9s steps(1, end) forwards;
+        animation: bonus-award-still 2.9s steps(1, end) forwards;
     }
 
     .bonus-award-box {
@@ -150,7 +236,7 @@
     0% {
         opacity: 1;
     }
-    85% {
+    90% {
         opacity: 1;
     }
     100% {
