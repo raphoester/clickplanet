@@ -33,4 +33,12 @@ describe("isAudible", () => {
         expect(isAudible(chatOff, "chat")).toBe(false)
         expect(isAudible({...DEFAULT_SOUND_SETTINGS, enabled: false}, "click")).toBe(false)
     })
+
+    it("lets the click switch cover every bonus click", () => {
+        const clickOff = {enabled: true, sounds: {...DEFAULT_SOUND_SETTINGS.sounds, click: false}}
+        for (const name of ["spread", "boost", "enclose"] as const) {
+            expect(isAudible(DEFAULT_SOUND_SETTINGS, name)).toBe(true)
+            expect(isAudible(clickOff, name)).toBe(false)
+        }
+    })
 })
