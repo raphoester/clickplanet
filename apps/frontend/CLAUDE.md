@@ -847,6 +847,12 @@ not a "nope"); the box appearing and being caught at the same places the box
 itself does; the bomb when its broadcast arrives, with the boom scheduled
 `IMPACT_DELAY` later so it lands with the tiles, quieter for someone else's,
 and a splash instead of a blast when the drop has no tile under it (the ocean);
+your own spread click, boosted click and closed shape when their broadcast comes
+back, so each lands with its effect on screen. **Only the player who made one
+hears it.** An enclosure carries `yours`; a spread or a boost says nothing of
+whose it is, so `domain/ownClicks.ts` remembers the tiles this client clicked in
+the last 3s and a broadcast on one of them, for the same country, is taken as
+ours;
 the chat in `ChatPanel` for a message that is not yours. **Your own message is
 filtered on your name as well as on `mine`**: its broadcast can arrive before
 the send answer that fills `mine` in.

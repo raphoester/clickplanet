@@ -41,6 +41,7 @@ import {now as monotonicNow} from "../../backends/clickBudget.ts";
 import {BlastUniforms, blastUniforms, createBlasts} from "./blasts.ts";
 import {IMPACT_DELAY} from "../../domain/blast.ts";
 import {HoldToDrop} from "../../domain/holdToDrop.ts";
+import {OwnClicks} from "../../domain/ownClicks.ts";
 import {PlaySound} from "../sound/soundPlayer.ts";
 
 type Uniforms = BlastUniforms & {
@@ -67,6 +68,9 @@ const DISTANT_BOMB_VOLUME = 0.45
 
 /** How long after our own drop a blast in our colours is taken to be it. */
 const OWN_DROP_WINDOW_SECONDS = 5
+
+/** How long after our own click a spread or boost on its tile is taken to be it. */
+const OWN_CLICK_WINDOW_SECONDS = 3
 
 const TILES_PER_BATCH = 10_000
 
@@ -206,6 +210,10 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     // caught is only worth something with the token it arrived with.
     let offered: BonusOffer | undefined
 
+    // A spread or a boost is broadcast to everyone with no word of whose it is,
+    // and only the player who made it hears it: its tile is one they just clicked.
+    const ownClicks = new OwnClicks(OWN_CLICK_WINDOW_SECONDS)
+
     // The server decides when a box appears and who sees it, so nothing here
     // schedules one: the stream says so, and the seed it sends is what draws
     // the orbit. The box ends itself, so there is no matching "hide".
@@ -220,9 +228,15 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         onTaken: (taken) => onBonusTaken(taken),
         onEnclosed: (enclosure) => {
             enclosures.play(enclosure)
-            if (enclosure.yours) onShapeClosed(enclosure.yours.shapesLeft)
+            if (enclosure.yours) {
+                playSound("enclose")
+                onShapeClosed(enclosure.yours.shapesLeft)
+            }
         },
-        onSpread: (spread) => bonusClicks.playSpread(spread),
+        onSpread: (spread) => {
+            bonusClicks.playSpread(spread)
+            if (ownClicks.has(spread.tile, spread.countryId, performance.now() / 1000)) playSound("spread")
+        },
     })
 
     const driveBonusBox = (seconds: number) => {
@@ -482,6 +496,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         const {changes, claim} = ownership.applyOptimistic(tile, country.code)
         applyChanges(changes)
         playSound("click")
+        ownClicks.record(tile, country.code, performance.now() / 1000)
 
         tileClicker.clickTile(tile, country.code).catch((e) => {
             if (lifetime.signal.aborted) return
@@ -520,8 +535,11 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         }
         applyChanges(ownership.applyUpdates(updates))
 
+        const seconds = performance.now() / 1000
         for (const update of updates) {
-            if (update.boosted) bonusClicks.playBoost(update.tile)
+            if (!update.boosted) continue
+            bonusClicks.playBoost(update.tile)
+            if (ownClicks.has(update.tile, update.newCountry, seconds)) playSound("boost")
         }
     })
 

@@ -7,6 +7,9 @@ const LABELS: Record<SoundName, string> = {
     refused: "Refused click",
     bonusSpawn: "Bonus box appears",
     bonusCaught: "Bonus box caught",
+    spread: "Your spread click",
+    boost: "Your boosted click",
+    enclose: "Your enclosed shape",
     bomb: "Bomb explosion",
     chat: "Chat message",
 }

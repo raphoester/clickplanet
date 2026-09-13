@@ -4,7 +4,7 @@
  * there, and anything it does not recognise falls back to the default.
  */
 
-export const SOUNDS = ["click", "refused", "bonusSpawn", "bonusCaught", "bomb", "chat"] as const
+export const SOUNDS = ["click", "refused", "bonusSpawn", "bonusCaught", "spread", "boost", "enclose", "bomb", "chat"] as const
 
 export type SoundName = typeof SOUNDS[number]
 
@@ -18,7 +18,7 @@ export const SOUND_SETTINGS_STORAGE_KEY = "clickplanet-sound-settings"
 
 export const DEFAULT_SOUND_SETTINGS: SoundSettings = {
     enabled: true,
-    sounds: {click: true, refused: true, bonusSpawn: true, bonusCaught: true, bomb: true, chat: true},
+    sounds: {click: true, refused: true, bonusSpawn: true, bonusCaught: true, spread: true, boost: true, enclose: true, bomb: true, chat: true},
 }
 
 export function parseSoundSettings(raw: string | null): SoundSettings {
