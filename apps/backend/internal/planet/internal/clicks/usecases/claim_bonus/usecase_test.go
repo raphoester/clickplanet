@@ -96,7 +96,7 @@ func TestTheWidenedAllowanceIsPricedForTheCatchersCountry(t *testing.T) {
 	assert.Equal(t, 10, out.Budget.Capacity, "a triple bonus at a cost of three is ten clicks")
 	assert.InDelta(t, 1.0, out.Budget.PerSecond, 1e-9)
 	assert.InDelta(t, 4.0, out.Budget.Tokens, 1e-9)
-	assert.Equal(t, 3, out.Budget.Price.Cost)
+	assert.InDelta(t, 3, out.Budget.Price.Cost, 1e-9)
 }
 
 func TestTheClaimAndTheBoostUseTheSameScope(t *testing.T) {

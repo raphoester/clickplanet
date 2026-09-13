@@ -40,7 +40,9 @@ rateLimiter:
 # the boot, since no bucket could ever pay it.
 toll:
   steps:
-    - {share: 0.25, cost: 2}
+    - {share: 0.25, cost: 1.25}
+    - {share: 0.50, cost: 1.5}
+    - {share: 0.70, cost: 2}
 
 # Refuses the Click RPC from known VPN and proxy egress ranges, so a player has
 # to come from an address the throttle above can actually hold onto: a bucket

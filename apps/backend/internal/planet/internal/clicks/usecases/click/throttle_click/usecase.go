@@ -23,7 +23,7 @@ import (
 // reading comes back either way: a refused caller is the one that most needs to
 // know when the next token lands.
 type Limiter interface {
-	TakeN(key string, n int) (bool, cpratelimit.State)
+	TakeN(key string, n float64) (bool, cpratelimit.State)
 }
 
 // Pricer says how many tokens a click for a country costs.

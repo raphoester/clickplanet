@@ -95,8 +95,8 @@ func (l *Limiter) Take(key string) (bool, State) {
 	return l.TakeN(key, 1)
 }
 
-// TakeN spends n tokens at once, or none: a click that costs three is refused on two.
-func (l *Limiter) TakeN(key string, n int) (bool, State) {
+// TakeN spends n tokens at once, or none: a click that costs 1.5 is refused on 1.4.
+func (l *Limiter) TakeN(key string, n float64) (bool, State) {
 	now := l.clock.Now()
 
 	l.mu.Lock()
@@ -110,11 +110,11 @@ func (l *Limiter) TakeN(key string, n int) (bool, State) {
 
 	l.refill(b, now)
 
-	if b.tokens < float64(n) {
+	if b.tokens < n {
 		return false, l.state(b)
 	}
 
-	b.tokens -= float64(n)
+	b.tokens -= n
 	return true, l.state(b)
 }
 
