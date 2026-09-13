@@ -1,5 +1,6 @@
 import {useEffect, useRef} from 'react'
 import {BonusReward, describeReward} from '../../domain/bonus.ts'
+import BonusIcon from './BonusIcon.tsx'
 import './BonusAward.css'
 
 /**
@@ -15,14 +16,6 @@ export const AWARD_MS = 2900
  * announcement away before anyone had seen it.
  */
 export const DISMISS_GRACE_MS = 400
-
-/** The mark in the box, one per kind. The colour that goes with it is in the CSS. */
-const ICONS: Record<BonusReward["kind"], string> = {
-    tripleClicks: "⚡",
-    spreadClicks: "🦠",
-    bomb: "💣",
-    encloseClicks: "🪢",
-}
 
 export type BonusAwardProps = {
     reward: BonusReward
@@ -74,7 +67,7 @@ export default function BonusAward({reward, onDone}: BonusAwardProps) {
 
     return <div className={`bonus-award bonus-award--${reward.kind}`} role="status" aria-live="polite">
         <div className="bonus-award-card">
-            <span className="bonus-award-box" aria-hidden="true">{ICONS[reward.kind]}</span>
+            <span className="bonus-award-box" aria-hidden="true"><BonusIcon kind={reward.kind}/></span>
             <strong className="bonus-award-title">{title}</strong>
             <span className="bonus-award-detail">{detail}</span>
         </div>

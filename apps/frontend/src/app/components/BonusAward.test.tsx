@@ -120,7 +120,7 @@ describe("BonusAward", () => {
             const {container} = render(<BonusAward reward={reward} onDone={() => {}}/>)
             const look = {
                 className: container.querySelector(".bonus-award")!.className,
-                icon: container.querySelector(".bonus-award-box")!.textContent,
+                icon: container.querySelector(".bonus-award-box svg")!.innerHTML,
             }
             cleanup()
             return look

@@ -78,12 +78,60 @@
     border: 3px solid var(--bonus-box-edge);
     border-radius: 10px;
     background: var(--bonus-box);
-    color: #FFF6DF;
-    font-size: 40px;
-    font-weight: 700;
-    line-height: 1;
-    text-shadow: -2px 2px 0 var(--bonus-box-edge);
     animation: bonus-award-spin 0.7s ease-out;
+}
+
+/*
+ * The drawings in BonusIcon.tsx. Everything is inked in the box's own edge
+ * colour, so one set of rules serves every kind.
+ */
+.bonus-icon {
+    width: 50px;
+    height: 50px;
+    overflow: visible;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+}
+
+.bonus-icon-ink {
+    fill: #FFF6DF;
+    stroke: var(--bonus-box-edge);
+    stroke-width: 2.5;
+}
+
+.bonus-icon-ink--soft {
+    fill: color-mix(in srgb, #FFF6DF 55%, var(--bonus-box));
+}
+
+.bonus-icon-line {
+    fill: none;
+    stroke: #FFF6DF;
+    stroke-width: 3;
+}
+
+.bonus-icon-fuse {
+    fill: none;
+    stroke: var(--bonus-box-edge);
+    stroke-width: 3;
+}
+
+.bonus-icon-dark {
+    fill: var(--bonus-box-edge);
+    stroke: var(--bonus-box-edge);
+    stroke-width: 2.5;
+}
+
+.bonus-icon-shine {
+    fill: none;
+    stroke: #FFF6DF;
+    stroke-width: 3;
+    opacity: 0.8;
+}
+
+.bonus-icon-spark {
+    fill: #FFE27A;
+    stroke: var(--bonus-box-edge);
+    stroke-width: 1.5;
 }
 
 .bonus-award-title {
