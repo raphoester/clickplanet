@@ -131,7 +131,7 @@ func TestVPNBlockRunsBeforeTheThrottle(t *testing.T) {
 	require.NoError(t, err)
 
 	limiter := &fakeLimiter{allow: true}
-	server := clickServerWith(t, throttle_click.New(stubService{}, limiter), nil, connect.WithInterceptors(
+	server := clickServerWith(t, throttle_click.New(stubService{}, limiter, onePrice), nil, connect.WithInterceptors(
 		errorNet(),
 		blockInterceptor,
 	))

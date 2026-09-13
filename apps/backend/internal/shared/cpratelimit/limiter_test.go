@@ -32,6 +32,22 @@ func TestTakeSpendsTheBurstThenRefuses(t *testing.T) {
 	require.False(t, allow(limiter, "1.2.3.4"))
 }
 
+func TestTakeNSpendsAllOrNothing(t *testing.T) {
+	limiter, _ := newTestLimiter()
+
+	for range 3 {
+		allowed, _ := limiter.TakeN("1.2.3.4", 3)
+		require.True(t, allowed)
+	}
+
+	allowed, state := limiter.TakeN("1.2.3.4", 3)
+	require.False(t, allowed, "one token left does not pay for three")
+	require.InDelta(t, 1.0, state.Tokens, 1e-9, "a refusal spends nothing")
+
+	allowed, _ = limiter.TakeN("1.2.3.4", 1)
+	require.True(t, allowed)
+}
+
 func TestRefillsAtTheConfiguredRate(t *testing.T) {
 	limiter, clock := newTestLimiter()
 

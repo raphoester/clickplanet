@@ -167,7 +167,7 @@ func TestSessionCheckRunsBeforeTheThrottle(t *testing.T) {
 	require.NoError(t, err)
 
 	limiter := &fakeLimiter{allow: true}
-	server := clickServerWith(t, throttle_click.New(stubService{}, limiter), nil,
+	server := clickServerWith(t, throttle_click.New(stubService{}, limiter, onePrice), nil,
 		connect.WithInterceptors(
 			errorNet(),
 			interceptor,
