@@ -16,6 +16,7 @@ import {
 } from "../gen/grpc/planet/v1/planet_pb.ts"
 import {BonusLostError, RateLimitedError, VPNBlockedError} from "./backend.ts"
 import {SESSION_HEADER, type SessionProvider, SessionUnavailableError} from "./session.ts"
+import type {ClickBudget} from "./clickBudget.ts"
 
 function fixedSession(token: string): SessionProvider {
     return {token: async () => token, invalidate: () => {}}
@@ -482,6 +483,69 @@ describe("PlanetBackend click budget", () => {
 
         await expect(backend.claimBonus("t", "fr"))
             .resolves.toEqual({kind: "encloseClicks", seconds: 30, shapes: 3, maxTiles: 10})
+        backend.close()
+    })
+
+    it("reads the price the server sends, already divided into clicks", async () => {
+        const click = vi.fn().mockResolvedValue({
+            budget: new ClickBudgetMessage({tokens: 1, capacity: 1, refillPerSecond: 0.125, cost: 8, share: 0.8, nextShare: 0.9, nextCost: 10}),
+        })
+        const backend = new PlanetBackend(budgetClient(click), 1_000)
+
+        const seen: ClickBudget[] = []
+        backend.watchClickBudget(b => seen.push(b))
+        await backend.clickTile(1, "bg")
+
+        expect(seen.at(-1)?.capacity).toBe(1)
+        expect(seen.at(-1)?.price).toEqual({cost: 8, share: 0.8, next: {share: 0.9, cost: 10}})
+        backend.close()
+    })
+
+    it("says nothing about price against a server too old to send one", async () => {
+        const click = vi.fn().mockResolvedValue({budget: budget(6)})
+        const backend = new PlanetBackend(budgetClient(click), 1_000)
+
+        const seen: ClickBudget[] = []
+        backend.watchClickBudget(b => seen.push(b))
+        await backend.clickTile(1, "fr")
+
+        expect(seen.at(-1)?.price).toBeUndefined()
+        backend.close()
+    })
+
+    it("re-reads the allowance for the country the player switches to", async () => {
+        const getBudget = vi.fn().mockImplementation(({countryId}: {countryId: string}) =>
+            Promise.resolve({budget: budget(countryId === "bg" ? 1 : 10)}))
+        const backend = new PlanetBackend(budgetClient(vi.fn(), getBudget), 1_000)
+
+        const seen = watch(backend)
+        backend.priceFor("bg")
+
+        await vi.waitFor(() => expect(getBudget).toHaveBeenCalledWith({countryId: "bg"}))
+        await vi.waitFor(() => expect(seen.at(-1)).toBe(1))
+
+        backend.priceFor("bg")
+        expect(getBudget).toHaveBeenCalledTimes(2)
+        backend.close()
+    })
+
+    it("drops a reading priced for a country the player has left", async () => {
+        let land: (res: unknown) => void = () => {}
+        const click = vi.fn().mockImplementation(() => new Promise(resolve => {
+            land = resolve
+        }))
+        const getBudget = vi.fn().mockResolvedValue({budget: budget(2)})
+        const backend = new PlanetBackend(budgetClient(click, getBudget), 1_000)
+        backend.priceFor("bg")
+        await vi.waitFor(() => expect(getBudget).toHaveBeenCalledTimes(2))
+
+        const seen = watch(backend)
+        const inFlight = backend.clickTile(1, "fr")
+        await vi.waitFor(() => expect(click).toHaveBeenCalledTimes(1))
+        land({budget: budget(9)})
+        await inFlight
+
+        expect(seen).not.toContain(9)
         backend.close()
     })
 

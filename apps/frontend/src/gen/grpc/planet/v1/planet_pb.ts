@@ -67,6 +67,10 @@ proto3.util.setEnumType(BonusKind, "planet.v1.BonusKind", [
  * It rides on every click answer, accepted or refused, so the client is never
  * more than one click away from the truth.
  *
+ * The first three are counted in clicks for the country asked about, not in
+ * tokens: a click for a country that holds much of the map costs several
+ * tokens, and the server has already divided by that cost.
+ *
  * @generated from message planet.v1.ClickBudget
  */
 export class ClickBudget extends Message<ClickBudget> {
@@ -79,18 +83,45 @@ export class ClickBudget extends Message<ClickBudget> {
   tokens = 0;
 
   /**
-   * The most a caller can bank: the burst.
+   * The most a caller can bank: the burst, in clicks.
    *
    * @generated from field: uint32 capacity = 2;
    */
   capacity = 0;
 
   /**
-   * Tokens granted back per second.
+   * Clicks granted back per second.
    *
    * @generated from field: double refill_per_second = 3;
    */
   refillPerSecond = 0;
+
+  /**
+   * Tokens one click costs, from the country's share of the map. Zero from a
+   * server too old to price clicks, which means one.
+   *
+   * @generated from field: uint32 cost = 4;
+   */
+  cost = 0;
+
+  /**
+   * The fraction of the whole map the country holds, 0 to 1.
+   *
+   * @generated from field: double share = 5;
+   */
+  share = 0;
+
+  /**
+   * The share at which a click starts to cost next_cost. Zero at the top step.
+   *
+   * @generated from field: double next_share = 6;
+   */
+  nextShare = 0;
+
+  /**
+   * @generated from field: uint32 next_cost = 7;
+   */
+  nextCost = 0;
 
   constructor(data?: PartialMessage<ClickBudget>) {
     super();
@@ -103,6 +134,10 @@ export class ClickBudget extends Message<ClickBudget> {
     { no: 1, name: "tokens", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
     { no: 2, name: "capacity", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 3, name: "refill_per_second", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 4, name: "cost", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 5, name: "share", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 6, name: "next_share", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 7, name: "next_cost", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ClickBudget {
@@ -208,6 +243,13 @@ export class ClickResponse extends Message<ClickResponse> {
  * @generated from message planet.v1.GetBudgetRequest
  */
 export class GetBudgetRequest extends Message<GetBudgetRequest> {
+  /**
+   * The country the allowance is priced for.
+   *
+   * @generated from field: string country_id = 1;
+   */
+  countryId = "";
+
   constructor(data?: PartialMessage<GetBudgetRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -216,6 +258,7 @@ export class GetBudgetRequest extends Message<GetBudgetRequest> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "planet.v1.GetBudgetRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetBudgetRequest {

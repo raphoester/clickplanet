@@ -23,7 +23,7 @@ import {
     GetMapResponse,
     PlanetEvent,
 } from "../gen/grpc/planet/v1/planet_pb.ts";
-import {ClickBudget, ClickBudgetSource, now as budgetNow} from "./clickBudget.ts";
+import {ClickBudget, ClickBudgetSource, ClickPrice, now as budgetNow} from "./clickBudget.ts";
 import {ClickService} from "../gen/grpc/planet/v1/planet_connect.ts";
 import {SessionService} from "../gen/grpc/session/v1/session_connect.ts";
 import {Code, ConnectError, createPromiseClient, PromiseClient} from "@connectrpc/connect";
@@ -70,6 +70,9 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
 
     /** Clicks sent and not yet answered — see reportBudget. */
     private inFlight = 0
+
+    /** The country readings are priced for — see priceFor. */
+    private budgetCountry = ""
 
     /** Re-reads the allowance when a caught bonus runs out — see claim. */
     private bonusEndTimer: ReturnType<typeof setTimeout> | undefined
@@ -155,12 +158,12 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                 () => this.client.click({tileId, countryId}, {headers}),
                 `click ${tileId}`,
             )
-            this.anchorBudget(res.budget)
+            this.anchorBudget(res.budget, countryId)
         } catch (e) {
             // A refusal carries the reading on the error, because there is no
             // answer to put it in — and it is the refusal the counter most has
             // to agree with.
-            this.anchorBudget(budgetDetailOf(e))
+            this.anchorBudget(budgetDetailOf(e), countryId)
             throw e
         }
     }
@@ -173,28 +176,43 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
      * the page: the frontend deploys separately from the backend.
      */
     private async readBudget(): Promise<void> {
+        const countryId = this.budgetCountry
+
         try {
-            const res = await this.client.getBudget({})
-            this.anchorBudget(res.budget)
+            const res = await this.client.getBudget({countryId})
+            this.anchorBudget(res.budget, countryId)
         } catch (e) {
             if (e instanceof ConnectError && e.code === Code.Unimplemented) return
             console.error("could not read the click budget", e)
         }
     }
 
-    private anchorBudget(budget: ClickBudgetMessage | undefined): void {
+    /**
+     * A reading is priced for one country, so once priceFor has named one, a
+     * reading for any other is dropped rather than shown at the wrong price.
+     */
+    private anchorBudget(budget: ClickBudgetMessage | undefined, countryId: string): void {
         // A server with no throttle says nothing, and the counter stays hidden
         // rather than claiming an allowance nobody is enforcing.
         if (!budget || budget.capacity === 0) return
+        if (this.budgetCountry !== "" && countryId !== this.budgetCountry) return
 
         this.budgetAnchor = {
             tokens: budget.tokens,
             capacity: budget.capacity,
             perSecond: budget.refillPerSecond,
+            price: priceOf(budget),
             readAt: budgetNow(),
         }
 
         this.reportBudget()
+    }
+
+    public priceFor(countryId: string): void {
+        if (countryId === this.budgetCountry) return
+
+        this.budgetCountry = countryId
+        void this.readBudget()
     }
 
     /**
@@ -339,7 +357,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
 
         // The allowance arrives widened on the answer, so the meter follows the
         // server's own policy rather than a multiplication done here.
-        this.anchorBudget(res.budget)
+        this.anchorBudget(res.budget, countryId)
 
         // Only a kind this build knows is ever drawn, so only one can be caught.
         const reward = rewardOf(res.kind, res.durationSeconds, {blastRadius: res.blastRadius, shapes: res.enclosures, maxTiles: res.enclosureMaxTiles})
@@ -497,6 +515,17 @@ export function asBonusError(e: unknown): unknown {
     }
 
     return e
+}
+
+/** A server too old to price clicks sends a cost of zero, and the meter says nothing about price. */
+export function priceOf(budget: ClickBudgetMessage): ClickPrice | undefined {
+    if (budget.cost === 0) return undefined
+
+    return {
+        cost: budget.cost,
+        share: budget.share,
+        next: budget.nextCost === 0 ? undefined : {share: budget.nextShare, cost: budget.nextCost},
+    }
 }
 
 export function budgetDetailOf(e: unknown): ClickBudgetMessage | undefined {

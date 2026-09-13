@@ -14,7 +14,7 @@ import {ClickBudget, ClickBudgetSource} from "../../backends/clickBudget.ts"
  * or one too old to report. Nothing is shown in that case rather than a
  * made-up allowance.
  */
-export function useClickBudget(source?: ClickBudgetSource): ClickBudget | undefined {
+export function useClickBudget(source: ClickBudgetSource | undefined, countryId: string): ClickBudget | undefined {
     const [budget, setBudget] = useState<ClickBudget | undefined>()
 
     useEffect(() => {
@@ -22,6 +22,11 @@ export function useClickBudget(source?: ClickBudgetSource): ClickBudget | undefi
 
         return source.watchClickBudget(setBudget)
     }, [source])
+
+    // The price depends on the country, so a switch asks for a reading at the new one.
+    useEffect(() => {
+        source?.priceFor(countryId)
+    }, [source, countryId])
 
     return budget
 }
