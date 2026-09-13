@@ -29,8 +29,6 @@ const CLICK_BURST = 10
 /** Production's `toll.steps`: from each share of the map, a click costs that many tokens. */
 const TOLL_STEPS = [
     {share: 0.25, cost: 2},
-    {share: 0.50, cost: 3},
-    {share: 0.75, cost: 4},
 ]
 
 /** Often enough to be worth developing against, not so often it is the game. */

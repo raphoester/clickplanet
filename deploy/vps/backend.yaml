@@ -32,8 +32,6 @@ rateLimiter:
 toll:
   steps:
     - {share: 0.25, cost: 2}
-    - {share: 0.50, cost: 3}
-    - {share: 0.75, cost: 4}
 
 # Refuses clicks from known VPN and proxy ranges: the throttle above is keyed on
 # an address, and a VPN is the cheap way to get a fresh one. Reads and the
