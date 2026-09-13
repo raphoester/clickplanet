@@ -13,6 +13,9 @@ export const MIN_GAP_MS: Record<SoundName, number> = {
     refused: 250,
     bonusSpawn: 0,
     bonusCaught: 0,
+    spread: 60,
+    boost: 35,
+    enclose: 200,
     bomb: 150,
     chat: 1500,
 }

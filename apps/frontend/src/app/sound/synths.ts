@@ -85,6 +85,40 @@ const bonusCaught: Synth = (ctx, at, {volume}) => {
     tone(ctx, at, volume, {type: "square", from: 1319, start: 0.08, length: 0.45, gain: 0.07})
 }
 
+// Your spread click, heard with its burst: a soft puff, then a pop for each
+// spark landing on the tiles around it, climbing as they go out.
+const spread: Synth = (ctx, at, {volume}) => {
+    const pitch = detune(0.05)
+    tone(ctx, at, volume, {type: "sine", from: 320 * pitch, to: 140 * pitch, start: 0, length: 0.12, gain: 0.3})
+    ;[660, 784, 880, 1047, 1175, 1319].forEach((from, i) => {
+        tone(ctx, at, volume, {type: "sine", from: from * pitch, to: from * pitch * 1.6, start: 0.03 + i * 0.035, length: 0.06, gain: 0.1})
+    })
+}
+
+// Your boosted click: three quick zaps going up, one per streak. Short and
+// quiet, since a boosted player clicks fast.
+const boost: Synth = (ctx, at, {volume}) => {
+    const pitch = detune(0.06)
+    ;[900, 1200, 1600].forEach((from, i) => {
+        tone(ctx, at, volume, {type: "square", from: from * pitch, to: from * pitch * 1.5, start: i * 0.03, length: 0.045, gain: 0.07})
+    })
+}
+
+// Your shape closing, on the effect's own timeline: a sweep up while the
+// outline runs round, a chord when it meets, a shimmer as the inside pours in,
+// and a low bell for each ring.
+const enclose: Synth = (ctx, at, {volume}) => {
+    tone(ctx, at, volume, {type: "triangle", from: 220, to: 880, start: 0, length: 0.5, gain: 0.12})
+    ;[523, 659, 784, 1047].forEach((from) => {
+        tone(ctx, at, volume, {type: "triangle", from, start: 0.5, length: 0.7, gain: 0.08})
+    })
+    for (let i = 0; i < 8; i++) {
+        tone(ctx, at, volume, {type: "sine", from: 1568 + Math.random() * 1200, start: 0.52 + i * 0.055, length: 0.12, gain: 0.05})
+    }
+    tone(ctx, at, volume, {type: "sine", from: 262, start: 0.55, length: 0.9, gain: 0.2})
+    tone(ctx, at, volume, {type: "sine", from: 196, start: 0.8, length: 1.1, gain: 0.18})
+}
+
 type Noise = {
     start: number
     length: number
@@ -304,4 +338,4 @@ const chat: Synth = (ctx, at, {volume}) => {
     tone(ctx, at, volume, {type: "sine", from: 1175, start: 0.07, length: 0.14, gain: 0.12})
 }
 
-export const SYNTHS: Record<SoundName, Synth> = {click, refused, bonusSpawn, bonusCaught, bomb, chat}
+export const SYNTHS: Record<SoundName, Synth> = {click, refused, bonusSpawn, bonusCaught, spread, boost, enclose, bomb, chat}
