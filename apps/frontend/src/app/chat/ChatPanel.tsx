@@ -5,6 +5,7 @@ import {idsSince, unreadSince} from "../../domain/chatLog.ts";
 import {ChevronIcon} from "../components/icons.tsx";
 import {opensFolded} from "../compact.ts";
 import {truncate} from "../truncate.ts";
+import {PlaySound} from "../sound/soundPlayer.ts";
 import {authorStyle} from "./authorStyle.ts";
 import ChatComposer from "./ChatComposer.tsx";
 import ChatLog from "./ChatLog.tsx";
@@ -15,6 +16,7 @@ import "./ChatPanel.css"
 export type ChatPanelProps = {
     backend?: ChatBackend
     country: Country
+    playSound?: PlaySound
 }
 
 const UNREAD_CAP = 99
@@ -38,6 +40,8 @@ export default function ChatPanel(props: ChatPanelProps) {
     const lastSeen = useRef<string | undefined>(undefined)
     const seenAnything = useRef(false)
     const fading = useRef<number[]>([])
+    const lastHeard = useRef<string | undefined>(undefined)
+    const heardAnything = useRef(false)
 
     const flash = useCallback((ids: string[]) => {
         if (ids.length === 0) return
@@ -74,6 +78,28 @@ export default function ChatPanel(props: ChatPanelProps) {
         lastSeen.current = last
         setUnread(0)
     }, [messages, isOpen, mine, flash])
+
+    // Kept apart from `lastSeen`, which a folded panel holds back for the badge:
+    // a message is heard as it arrives, whether or not it has been seen.
+    const {playSound} = props
+    useEffect(() => {
+        const last = messages[messages.length - 1]?.id
+
+        if (!heardAnything.current) {
+            heardAnything.current = messages.length > 0
+            lastHeard.current = last
+            return
+        }
+
+        const fresh = messages.slice(messages.length - idsSince(messages, lastHeard.current).length)
+        lastHeard.current = last
+
+        // Your own message never pings. `mine` alone is not enough: the
+        // broadcast of it can arrive before the answer that fills `mine` in.
+        if (fresh.some(message => !mine.has(message.id) && message.authorName !== identity.name)) {
+            playSound?.('chat')
+        }
+    }, [messages, mine, identity.name, playSound])
 
     if (status === 'unavailable') return null
 

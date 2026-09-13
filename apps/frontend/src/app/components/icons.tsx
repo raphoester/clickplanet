@@ -78,3 +78,19 @@ export function SearchIcon({size = 20}: IconProps) {
         <path d="M16.5 16.5 21 21"/>
     </svg>
 }
+
+export function SpeakerIcon({size = 22}: IconProps) {
+    return <svg {...base(size)} strokeWidth={2}>
+        <path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/>
+        <path d="M15.5 9a4 4 0 0 1 0 6"/>
+        <path d="M18.3 6.5a7.5 7.5 0 0 1 0 11"/>
+    </svg>
+}
+
+export function SpeakerOffIcon({size = 22}: IconProps) {
+    return <svg {...base(size)} strokeWidth={2}>
+        <path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/>
+        <path d="M16 9.5l5 5"/>
+        <path d="M21 9.5l-5 5"/>
+    </svg>
+}
