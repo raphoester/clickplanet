@@ -7,7 +7,22 @@ import './BonusAward.css'
  * in the CSS — it shouts, holds long enough to be read, then shrinks away
  * towards the meter, which is where the bonus lives for the rest of its life.
  */
-export const AWARD_MS = 1900
+export const AWARD_MS = 2900
+
+/**
+ * How long a press is ignored after the announcement appears. The box is caught
+ * mid-burst, and without this the very next click of that burst would take the
+ * announcement away before anyone had seen it.
+ */
+export const DISMISS_GRACE_MS = 400
+
+/** The mark in the box, one per kind. The colour that goes with it is in the CSS. */
+const ICONS: Record<BonusReward["kind"], string> = {
+    tripleClicks: "⚡",
+    spreadClicks: "✳",
+    bomb: "💣",
+    encloseClicks: "⬡",
+}
 
 export type BonusAwardProps = {
     reward: BonusReward
@@ -22,8 +37,9 @@ export type BonusAwardProps = {
  * allowance is actually read off. Two places both claiming to say how long is
  * left is two places that can disagree.
  *
- * Nothing here is clickable: it is over the globe for under two seconds, and a
- * player mid-click must not have the planet taken away from under the cursor.
+ * Any press, on it or anywhere else, takes it away. It still catches nothing:
+ * the press is heard on the window and goes on to whatever is under it, so a
+ * player mid-click never has the planet taken away from under the cursor.
  */
 export default function BonusAward({reward, onDone}: BonusAwardProps) {
     const {title, detail} = describeReward(reward)
@@ -42,13 +58,23 @@ export default function BonusAward({reward, onDone}: BonusAwardProps) {
     }, [onDone])
 
     useEffect(() => {
+        let armed = false
+        const grace = setTimeout(() => armed = true, DISMISS_GRACE_MS)
         const timer = setTimeout(() => done.current(), AWARD_MS)
-        return () => clearTimeout(timer)
+        const dismiss = () => {
+            if (armed) done.current()
+        }
+        window.addEventListener("pointerdown", dismiss, true)
+        return () => {
+            clearTimeout(grace)
+            clearTimeout(timer)
+            window.removeEventListener("pointerdown", dismiss, true)
+        }
     }, [reward])
 
-    return <div className="bonus-award" role="status" aria-live="polite">
+    return <div className={`bonus-award bonus-award--${reward.kind}`} role="status" aria-live="polite">
         <div className="bonus-award-card">
-            <span className="bonus-award-box" aria-hidden="true">?</span>
+            <span className="bonus-award-box" aria-hidden="true">{ICONS[reward.kind]}</span>
             <strong className="bonus-award-title">{title}</strong>
             <span className="bonus-award-detail">{detail}</span>
         </div>
