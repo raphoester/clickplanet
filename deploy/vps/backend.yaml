@@ -24,6 +24,17 @@ rateLimiter:
   perSecond: 1
   burst: 10
 
+# A click costs more tokens the more of the map its country holds: from each
+# share below (a fraction of every tile on the map), a click for that country
+# costs that many tokens. The meter shows the budget already divided, in clicks.
+# No steps means every click costs one. A cost above rateLimiter.burst refuses
+# the boot, since no bucket could ever pay it.
+toll:
+  steps:
+    - {share: 0.25, cost: 2}
+    - {share: 0.50, cost: 3}
+    - {share: 0.75, cost: 4}
+
 # Refuses clicks from known VPN and proxy ranges: the throttle above is keyed on
 # an address, and a VPN is the cheap way to get a fresh one. Reads and the
 # streams are untouched, so a VPN user still watches the planet.

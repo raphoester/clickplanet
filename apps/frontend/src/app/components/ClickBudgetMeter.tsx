@@ -1,6 +1,7 @@
 import {useEffect, useRef} from 'react'
 import {ClickBudget, now, tokensAt} from "../../backends/clickBudget.ts"
 import {ActiveBonus, describeReward, secondsLeft} from "../../domain/bonus.ts"
+import {describePrice} from "../../domain/clickPrice.ts"
 import "./ClickBudgetMeter.css"
 
 export type ClickBudgetMeterProps = {
@@ -12,6 +13,8 @@ export type ClickBudgetMeterProps = {
      * off the server's policy, with nothing here to change.
      */
     bonus?: ActiveBonus
+    /** The country clicks are priced for, to say why the meter is narrower. */
+    countryName?: string
 }
 
 /** Above this many, a row of pips is unreadable and it becomes one bar. */
@@ -35,7 +38,7 @@ const STEP_MS = 250
  * pips *is* the burst, and the fill rate *is* the refill rate, so changing
  * either in the backend's config changes this with no frontend release.
  */
-export default function ClickBudgetMeter({budget, bonus}: ClickBudgetMeterProps) {
+export default function ClickBudgetMeter({budget, bonus, countryName = ""}: ClickBudgetMeterProps) {
     const root = useRef<HTMLDivElement>(null)
     const count = useRef<HTMLSpanElement>(null)
     const countdown = useRef<HTMLSpanElement>(null)
@@ -104,9 +107,13 @@ export default function ClickBudgetMeter({budget, bonus}: ClickBudgetMeterProps)
     // than a placeholder is what stops the count flashing a wrong number first.
     const whole = Math.floor(tokensAt(budget, now()))
 
+    const price = describePrice(budget.price, countryName)
+    const className = ["click-budget", bonus && "click-budget-boosted", price && "click-budget-priced"]
+        .filter(Boolean).join(" ")
+
     return <div
         ref={root}
-        className={bonus ? "click-budget click-budget-boosted" : "click-budget"}
+        className={className}
         role="meter"
         aria-valuemin={0}
         aria-valuenow={whole}
@@ -134,5 +141,10 @@ export default function ClickBudgetMeter({budget, bonus}: ClickBudgetMeterProps)
                 )}
             </div>
             : <div className="click-budget-bar"/>}
+
+        {price && <div className="click-budget-toll">
+            <span className="click-budget-toll-headline">{price.headline}</span>
+            <span className="click-budget-toll-detail">{price.detail}</span>
+        </div>}
     </div>
 }

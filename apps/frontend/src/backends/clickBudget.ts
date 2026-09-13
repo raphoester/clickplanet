@@ -22,11 +22,19 @@ export type ClickBudget = {
      */
     tokens: number
 
-    /** The most that can be banked: the server's burst. */
+    /** The most that can be banked: the server's burst, in clicks. */
     capacity: number
 
-    /** Tokens granted back per second. */
+    /** Clicks granted back per second. */
     perSecond: number
+
+    /**
+     * What a click costs for the country the reading is about. The three
+     * numbers above are already divided by it, so nothing here multiplies;
+     * this is only for saying why the meter is narrower. Absent from a server
+     * too old to price clicks.
+     */
+    price?: ClickPrice
 
     /**
      * When `tokens` was true, on the monotonic clock. Not a server timestamp:
@@ -34,6 +42,18 @@ export type ClickBudget = {
      * has watched the bucket refill since.
      */
     readAt: number
+}
+
+/** A click costs more tokens the more of the map its country holds. */
+export type ClickPrice = {
+    /** Tokens per click: 1 is the plain rate, 8 is eight times slower. */
+    cost: number
+
+    /** The country's fraction of the whole map, 0 to 1. */
+    share: number
+
+    /** Where the next step starts, and what it costs. Undefined at the top step. */
+    next?: {share: number, cost: number}
 }
 
 /** The monotonic clock every reading is stamped against. */
@@ -90,4 +110,11 @@ export interface ClickBudgetSource {
      * nothing is shown.
      */
     watchClickBudget(callback: (budget: ClickBudget) => void): () => void
+
+    /**
+     * Says which country the meter is about, since that sets the price. The
+     * reading changes with it: a click for a country holding most of the map
+     * costs more than one for a country holding none.
+     */
+    priceFor(countryId: string): void
 }

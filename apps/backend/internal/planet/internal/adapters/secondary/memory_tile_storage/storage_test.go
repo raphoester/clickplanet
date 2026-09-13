@@ -275,6 +275,40 @@ func (s *testSuite) TestSnapshotRoundTrip() {
 	}
 }
 
+func (s *testSuite) TestShareFollowsSetsAndBlasts() {
+	ctx := context.Background()
+	for tile := uint32(1); tile <= 10; tile++ {
+		s.Require().NoError(s.storage.Set(ctx, tile, "bg"))
+	}
+	s.Require().NoError(s.storage.Set(ctx, 3, "fr"))
+	s.Require().NoError(s.storage.Set(ctx, 4, "bg"))
+
+	s.InDelta(9.0/maxIndex, s.storage.Share("bg"), 1e-12)
+	s.InDelta(1.0/maxIndex, s.storage.Share("fr"), 1e-12)
+
+	_, err := s.storage.Clear(ctx, clicks.Blast{Cleared: []uint32{1, 2, 3, 50}})
+	s.Require().NoError(err)
+
+	s.InDelta(7.0/maxIndex, s.storage.Share("bg"), 1e-12)
+	s.Zero(s.storage.Share("fr"))
+	s.Zero(s.storage.Share("de"), "a country that never clicked holds nothing")
+	s.Zero(s.storage.Share(""), "unowned ground is nobody's share")
+}
+
+func (s *testSuite) TestShareIsRebuiltFromTheSnapshot() {
+	cfg := memory_tile_storage.Config{SnapshotPath: filepath.Join(s.T().TempDir(), "tiles.snapshot")}
+
+	storage := s.newStorage(cfg)
+	s.Require().NoError(storage.Set(context.Background(), 1, "bg"))
+	s.Require().NoError(storage.Set(context.Background(), 2, "bg"))
+	s.Require().NoError(storage.Set(context.Background(), 3, "fr"))
+	s.Require().NoError(storage.Snapshot())
+
+	restored := s.newStorage(cfg)
+	s.InDelta(2.0/maxIndex, restored.Share("bg"), 1e-12)
+	s.InDelta(1.0/maxIndex, restored.Share("fr"), 1e-12)
+}
+
 func (s *testSuite) TestSnapshotIsSkippedWhenNothingChanged() {
 	path := filepath.Join(s.T().TempDir(), "tiles.snapshot")
 	cfg := memory_tile_storage.Config{SnapshotPath: path}

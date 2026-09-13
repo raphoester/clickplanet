@@ -12,6 +12,7 @@ import (
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/click_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/toll"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 )
@@ -46,7 +47,7 @@ func TestClickMapsTheRequest(t *testing.T) {
 }
 
 func TestClickMapsTheBudget(t *testing.T) {
-	state := cpratelimit.State{Tokens: 4.5, Capacity: 10, PerSecond: 2}
+	state := toll.Budget{State: cpratelimit.State{Tokens: 4.5, Capacity: 10, PerSecond: 2}}
 
 	t.Run("carries the allowance when something throttles clicks", func(t *testing.T) {
 		useCase := &stubUseCase{out: click.Out{Budget: state, Limited: true}}
@@ -69,7 +70,7 @@ func TestClickMapsTheBudget(t *testing.T) {
 	})
 
 	t.Run("clamps a spent bucket at zero rather than showing it negative", func(t *testing.T) {
-		useCase := &stubUseCase{out: click.Out{Budget: cpratelimit.State{Tokens: -3}, Limited: true}}
+		useCase := &stubUseCase{out: click.Out{Budget: toll.Budget{State: cpratelimit.State{Tokens: -3}}, Limited: true}}
 
 		res, err := clickOn(t, useCase, &planetv1.ClickRequest{})
 
@@ -92,7 +93,7 @@ func TestClickMapsTheErrors(t *testing.T) {
 	}
 
 	t.Run("a throttled click is resource exhausted and carries the wait", func(t *testing.T) {
-		state := cpratelimit.State{Tokens: 0.4, Capacity: 5, PerSecond: 2}
+		state := toll.Budget{State: cpratelimit.State{Tokens: 0.4, Capacity: 5, PerSecond: 2}}
 		useCase := &stubUseCase{err: clicks.ErrThrottled, out: click.Out{Budget: state, Limited: true}}
 
 		_, err := clickOn(t, useCase, &planetv1.ClickRequest{})

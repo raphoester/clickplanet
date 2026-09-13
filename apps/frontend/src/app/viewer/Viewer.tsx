@@ -33,7 +33,7 @@ export type ViewerProps = {
 export default function Viewer(props: ViewerProps) {
     const container = useRef<HTMLDivElement>(null)
     const {countryState, handleSetCountry} = useCountryStorage()
-    const clickBudget = useClickBudget(props.clickBudgetSource)
+    const clickBudget = useClickBudget(props.clickBudgetSource, countryState.code)
     const sound = useSound()
 
     const {
@@ -89,7 +89,7 @@ export default function Viewer(props: ViewerProps) {
                                stats={shareStats(leaderboard, countryState)}
                                onClose={discard}/>}
 
-        {status.state === 'ready' && <ClickBudgetMeter budget={clickBudget} bonus={bonus}/>}
+        {status.state === 'ready' && <ClickBudgetMeter budget={clickBudget} bonus={bonus} countryName={countryState.name}/>}
 
         {status.state === 'ready' && <ChatPanel
             backend={props.chatBackend}

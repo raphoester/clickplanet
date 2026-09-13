@@ -223,6 +223,14 @@ flight, so the counter only ever *under*-promises: a counter that says 1 and is
 refused is a bug the player sees, and one that says 0 and works is a click they
 still get.
 
+**The reading is priced for one country.** The server charges more tokens per
+click the more of the map a country holds, and sends the budget already divided
+into clicks, with the price beside it (`ClickBudget.price`). `useClickBudget`
+calls `priceFor(country)` whenever the selected country changes, and
+`PlanetBackend` drops any reading priced for a country other than that one. The
+meter only explains the price (`domain/clickPrice.ts`): it says nothing at the
+plain rate unless the country is within 80% of the first step.
+
 A server that reports nothing — no throttle, or one too old for the call —
 leaves the counter hidden rather than showing a made-up allowance, so this ships
 ahead of the backend. `FakeBackend` implements the same interface off its own

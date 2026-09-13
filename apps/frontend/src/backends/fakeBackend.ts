@@ -15,7 +15,7 @@ import {
     VPNBlockedError,
 } from "./backend.ts";
 import {BonusReward, multiplierOf} from "../domain/bonus.ts";
-import {ClickBudget, ClickBudgetSource, now as budgetNow} from "./clickBudget.ts";
+import {ClickBudget, ClickBudgetSource, ClickPrice, now as budgetNow} from "./clickBudget.ts";
 import {SessionUnavailableError} from "./session.ts";
 import {v4 as UUIDv4} from 'uuid';
 import {Countries} from "../domain/countries.ts";
@@ -25,6 +25,13 @@ const TILE_COUNT = 257_000
 
 const CLICKS_PER_SECOND = 1
 const CLICK_BURST = 10
+
+/** Production's `toll.steps`: from each share of the map, a click costs that many tokens. */
+const TOLL_STEPS = [
+    {share: 0.25, cost: 2},
+    {share: 0.50, cost: 3},
+    {share: 0.75, cost: 4},
+]
 
 /** Often enough to be worth developing against, not so often it is the game. */
 const BONUS_EVERY_MS = 20_000
@@ -62,6 +69,8 @@ export type FakeBackendOptions = {
 
 export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, Bomber {
     private tileBindings: Map<number, string> = new Map()
+    private tileCounts: Map<string, number> = new Map()
+    private budgetCountry = ""
     private updateListeners: Map<string, (update: Update) => void> = new Map()
     private pendingUpdates: Update[] = []
     private updateBatchCallbacks: Map<string, (update: Update[]) => void> = new Map()
@@ -95,6 +104,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         for (let i = 1; i <= TILE_COUNT; i++) {
             this.tileBindings.set(i, "fr")
         }
+        this.tileCounts.set("fr", TILE_COUNT)
 
         this.listenForUpdates((update) => {
             this.pendingUpdates.push(update)
@@ -158,7 +168,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         if (this.sessionUnavailable) throw new SessionUnavailableError()
         if (this.vpnBlocked) throw new VPNBlockedError()
 
-        const allowed = this.allow()
+        const allowed = this.allow(countryId)
         this.reportBudget()
 
         if (!allowed) throw new RateLimitedError()
@@ -182,20 +192,39 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         this.budgetCallbacks.forEach(callback => callback(budget))
     }
 
+    public priceFor(countryId: string): void {
+        this.budgetCountry = countryId
+        this.reportBudget()
+    }
+
     private budget(): ClickBudget {
         this.refill()
 
-        // The policy widens while a bonus runs, exactly as the server's does —
-        // so the meter here is driven by the same thing it will be in
-        // production rather than by anything the component does itself.
+        // The policy widens while a bonus runs and narrows with the price,
+        // exactly as the server's does — so the meter here is driven by the
+        // same thing it will be in production rather than by the component.
         const boost = this.boost()
+        const price = this.price(this.budgetCountry)
 
         return {
-            tokens: this.tokens,
-            capacity: CLICK_BURST * boost,
-            perSecond: CLICKS_PER_SECOND * boost,
+            tokens: this.tokens / price.cost,
+            capacity: Math.floor(CLICK_BURST * boost / price.cost),
+            perSecond: CLICKS_PER_SECOND * boost / price.cost,
+            price,
             readAt: budgetNow(),
         }
+    }
+
+    private price(countryId: string): ClickPrice {
+        const share = (this.tileCounts.get(countryId) ?? 0) / TILE_COUNT
+
+        let cost = 1
+        for (const step of TOLL_STEPS) {
+            if (share < step.share) return {cost, share, next: step}
+            cost = step.cost
+        }
+
+        return {cost, share}
     }
 
     /**
@@ -211,6 +240,8 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     private applyClick(tileId: number, countryId: string) {
         const prev = this.tileBindings.get(tileId)
         this.tileBindings.set(tileId, countryId)
+        this.count(prev, -1)
+        this.count(countryId, 1)
         this.updateListeners.forEach(l => l({
             tile: tileId,
             previousCountry: prev,
@@ -218,11 +249,16 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         }))
     }
 
-    private allow(): boolean {
+    private count(countryId: string | undefined, by: number) {
+        if (countryId) this.tileCounts.set(countryId, (this.tileCounts.get(countryId) ?? 0) + by)
+    }
+
+    private allow(countryId: string): boolean {
         this.refill()
 
-        if (this.tokens < 1) return false
-        this.tokens -= 1
+        const {cost} = this.price(countryId)
+        if (this.tokens < cost) return false
+        this.tokens -= cost
         return true
     }
 
@@ -315,7 +351,10 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         const {tile, arc, point} = nearestTile(positions, target)
         const onLand = tile !== undefined && arc <= SEA_REACH
 
-        const cleared = onLand ? tilesWithin(positions, tile, BOMB_RADIUS).filter((id) => this.tileBindings.delete(id)) : []
+        const cleared = onLand ? tilesWithin(positions, tile, BOMB_RADIUS).filter((id) => {
+            this.count(this.tileBindings.get(id), -1)
+            return this.tileBindings.delete(id)
+        }) : []
 
         const drop: BombDrop = {
             tile: onLand ? tile : undefined,
