@@ -23,6 +23,11 @@ const (
 	defaultSweepInterval = time.Minute
 )
 
+// Capacity is the burst this config refills to, defaults applied.
+func (c Config) Capacity() int {
+	return c.withDefaults().Burst
+}
+
 func (c Config) withDefaults() Config {
 	if c.PerSecond <= 0 {
 		c.PerSecond = defaultPerSecond
@@ -87,6 +92,11 @@ type State struct {
 // afterwards. The state comes back either way: a refused caller is the one
 // most interested in how long the wait is.
 func (l *Limiter) Take(key string) (bool, State) {
+	return l.TakeN(key, 1)
+}
+
+// TakeN spends n tokens at once, or none: a click that costs three is refused on two.
+func (l *Limiter) TakeN(key string, n int) (bool, State) {
 	now := l.clock.Now()
 
 	l.mu.Lock()
@@ -100,11 +110,11 @@ func (l *Limiter) Take(key string) (bool, State) {
 
 	l.refill(b, now)
 
-	if b.tokens < 1 {
+	if b.tokens < float64(n) {
 		return false, l.state(b)
 	}
 
-	b.tokens--
+	b.tokens -= float64(n)
 	return true, l.state(b)
 }
 

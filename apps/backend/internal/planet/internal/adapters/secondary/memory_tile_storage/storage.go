@@ -31,6 +31,7 @@ func New(
 		logger:      logger,
 		maxIndex:    maxIndex,
 		tiles:       make([]uint16, int(maxIndex)+1),
+		counts:      []uint32{0},
 		codes:       []string{""},
 		codeIDs:     map[string]uint16{"": unownedCode},
 		subscribers: make(map[*subscriber]struct{}),
@@ -48,6 +49,7 @@ type Storage struct {
 
 	tilesMu sync.RWMutex
 	tiles   []uint16
+	counts  []uint32
 	codes   []string
 	codeIDs map[string]uint16
 	dirty   bool
@@ -91,6 +93,7 @@ func (s *Storage) Clear(_ context.Context, blast clicks.Blast) (clicks.Blast, er
 			return clicks.Blast{}, fmt.Errorf("tile %d out of range (max %d)", tile, s.maxIndex)
 		}
 		if s.tiles[tile] != unownedCode {
+			s.counts[s.tiles[tile]]--
 			s.tiles[tile] = unownedCode
 			cleared = append(cleared, tile)
 		}
@@ -104,6 +107,19 @@ func (s *Storage) Clear(_ context.Context, blast clicks.Blast) (clicks.Blast, er
 	s.publish(clicks.Change{Blast: &blast})
 
 	return blast, nil
+}
+
+// Share is the fraction of the whole map a country holds, unowned tiles counted in the whole.
+func (s *Storage) Share(country string) float64 {
+	s.tilesMu.RLock()
+	defer s.tilesMu.RUnlock()
+
+	id, ok := s.codeIDs[country]
+	if !ok || id == unownedCode {
+		return 0
+	}
+
+	return float64(s.counts[id]) / float64(s.maxIndex)
 }
 
 // Owner reads one tile; false means past the end of the map, and an unowned tile reads as an empty code.
@@ -132,6 +148,12 @@ func (s *Storage) set(tile uint32, value string) (previous string, changed bool,
 		return "", false, err
 	}
 
+	if s.tiles[tile] != unownedCode {
+		s.counts[s.tiles[tile]]--
+	}
+	if id != unownedCode {
+		s.counts[id]++
+	}
 	s.tiles[tile] = id
 	s.dirty = true
 
@@ -149,6 +171,7 @@ func (s *Storage) internLocked(value string) (uint16, error) {
 
 	id := uint16(len(s.codes))
 	s.codes = append(s.codes, value)
+	s.counts = append(s.counts, 0)
 	s.codeIDs[value] = id
 
 	return id, nil

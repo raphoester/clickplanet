@@ -13,25 +13,32 @@ import (
 	"context"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/toll"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 )
 
-// Limiter spends a token and reports what the bucket holds afterwards. The
+// Limiter spends tokens and reports what the bucket holds afterwards. The
 // reading comes back either way: a refused caller is the one that most needs to
 // know when the next token lands.
 type Limiter interface {
-	Take(key string) (bool, cpratelimit.State)
+	TakeN(key string, n int) (bool, cpratelimit.State)
 }
 
-func New(implementation click.IUseCase, limiter Limiter) *UseCase {
-	return &UseCase{implementation: implementation, limiter: limiter}
+// Pricer says how many tokens a click for a country costs.
+type Pricer interface {
+	Price(country string) toll.Price
+}
+
+func New(implementation click.IUseCase, limiter Limiter, pricer Pricer) *UseCase {
+	return &UseCase{implementation: implementation, limiter: limiter, pricer: pricer}
 }
 
 type UseCase struct {
 	implementation click.IUseCase
 	limiter        Limiter
+	pricer         Pricer
 }
 
 // Execute answers the reading on both paths. The allowed one carries it because
@@ -39,13 +46,15 @@ type UseCase struct {
 // carries it because that is the moment a client most needs to know how long to
 // wait, and it has no success message to read it from.
 func (u *UseCase) Execute(ctx context.Context, in click.In) (click.Out, error) {
-	allowed, state := u.limiter.Take(cpctx.RateLimitKey(ctx))
+	price := u.pricer.Price(in.CountryID)
+
+	allowed, state := u.limiter.TakeN(cpctx.RateLimitKey(ctx), price.Cost)
 	if !allowed {
-		return click.Out{Budget: state, Limited: true}, clicks.ErrThrottled
+		return click.Out{Budget: toll.Of(state, price), Limited: true}, clicks.ErrThrottled
 	}
 
 	out, err := u.implementation.Execute(ctx, in)
-	out.Budget, out.Limited = state, true
+	out.Budget, out.Limited = toll.Of(state, price), true
 
 	return out, err
 }

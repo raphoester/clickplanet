@@ -17,6 +17,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/map_density_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/toll"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_budget"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_map"
@@ -83,7 +84,7 @@ func clickServerWith(
 	mux.Handle(planetv1connect.NewClickServiceHandler(
 		ClickService{
 			ClickHandler:      click_handler.New(clickUseCase),
-			GetBudgetHandler:  get_budget_handler.New(get_budget.New(budgets)),
+			GetBudgetHandler:  get_budget_handler.New(get_budget.New(budgets, onePrice)),
 			MapDensityHandler: map_density_handler.New(map_density.New(stubChecker{})),
 			GetMapHandler:     get_map_handler.New(get_map.New(stubChecker{}, stubMapReader{})),
 			ListenForEventsHandler: listen_for_events_handler.New(
@@ -104,10 +105,16 @@ type fakeLimiter struct {
 	keys  []string
 }
 
-func (l *fakeLimiter) Take(key string) (bool, cpratelimit.State) {
+func (l *fakeLimiter) TakeN(key string, _ int) (bool, cpratelimit.State) {
 	l.keys = append(l.keys, key)
 	return l.allow, l.state
 }
+
+type stubPricer toll.Price
+
+func (p stubPricer) Price(string) toll.Price { return toll.Price(p) }
+
+var onePrice = stubPricer{Cost: 1}
 
 type fakeRequest struct {
 	connect.AnyRequest

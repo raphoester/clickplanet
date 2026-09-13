@@ -33,6 +33,17 @@ rateLimiter:
   # affects memory, never what a caller is allowed.
   sweepInterval: 1m
 
+# A click costs more tokens the more of the map its country holds: from each
+# share below (a fraction of every tile on the map), a click for that country
+# costs that many tokens. The meter shows the budget already divided, in clicks.
+# No steps means every click costs one. A cost above rateLimiter.burst refuses
+# the boot, since no bucket could ever pay it.
+toll:
+  steps:
+    - {share: 0.25, cost: 2}
+    - {share: 0.50, cost: 3}
+    - {share: 0.75, cost: 4}
+
 # Refuses the Click RPC from known VPN and proxy egress ranges, so a player has
 # to come from an address the throttle above can actually hold onto: a bucket
 # keyed on something you can change at will is a bucket that does not hold.

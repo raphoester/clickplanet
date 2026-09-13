@@ -7,11 +7,11 @@ import (
 	"connectrpc.com/connect"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/clickbudget"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/toll"
 )
 
 type UseCase interface {
-	Execute(ctx context.Context) (cpratelimit.State, bool)
+	Execute(ctx context.Context, country string) (toll.Budget, bool)
 }
 
 func New(useCase UseCase) GetBudgetHandler {
@@ -26,11 +26,11 @@ type GetBudgetHandler struct {
 // click answers with a fresh one afterwards, so this is asked once per page load.
 func (h GetBudgetHandler) GetBudget(
 	ctx context.Context,
-	_ *connect.Request[planetv1.GetBudgetRequest],
+	req *connect.Request[planetv1.GetBudgetRequest],
 ) (*connect.Response[planetv1.GetBudgetResponse], error) {
 	res := &planetv1.GetBudgetResponse{}
-	if state, limited := h.useCase.Execute(ctx); limited {
-		res.Budget = clickbudget.Encode(state)
+	if budget, limited := h.useCase.Execute(ctx, req.Msg.GetCountryId()); limited {
+		res.Budget = clickbudget.Encode(budget)
 	}
 
 	return connect.NewResponse(res), nil

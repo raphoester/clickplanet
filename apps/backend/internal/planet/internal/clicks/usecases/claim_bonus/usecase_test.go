@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/bonus"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/toll"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/claim_bonus"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
@@ -62,6 +63,12 @@ type stubSpreader struct {
 
 func (s *stubSpreader) Grant(scope string, until time.Time) { s.scope, s.until = scope, until }
 
+type stubPricer toll.Price
+
+func (p stubPricer) Price(string) toll.Price { return toll.Price(p) }
+
+var onePrice = stubPricer{Cost: 1}
+
 func granted() *stubRegistry {
 	return &stubRegistry{claimable: true, reward: bonus.Reward{Kind: bonus.KindTripleClicks, Duration: time.Minute}}
 }
@@ -69,7 +76,7 @@ func granted() *stubRegistry {
 func TestAClaimStartsTheBoostForTheDurationGranted(t *testing.T) {
 	booster := &stubBooster{state: cpratelimit.State{Capacity: 30, PerSecond: 3}}
 
-	out, err := claim_bonus.New(granted(), booster, &stubSpreader{}, &stubSpreader{}, 0.03, cptime.NewFixedClock(epoch)).
+	out, err := claim_bonus.New(granted(), booster, onePrice, &stubSpreader{}, &stubSpreader{}, 0.03, cptime.NewFixedClock(epoch)).
 		Execute(t.Context(), claim_bonus.In{Token: "a-token", CountryID: "fr"})
 	require.NoError(t, err)
 
@@ -79,10 +86,23 @@ func TestAClaimStartsTheBoostForTheDurationGranted(t *testing.T) {
 	assert.Equal(t, time.Minute, out.Duration)
 }
 
+func TestTheWidenedAllowanceIsPricedForTheCatchersCountry(t *testing.T) {
+	booster := &stubBooster{state: cpratelimit.State{Tokens: 12, Capacity: 30, PerSecond: 3}}
+
+	out, err := claim_bonus.New(granted(), booster, stubPricer{Cost: 3, Share: 0.4}, &stubSpreader{}, &stubSpreader{}, 0.03, cptime.NewFixedClock(epoch)).
+		Execute(t.Context(), claim_bonus.In{Token: "a-token", CountryID: "bg"})
+	require.NoError(t, err)
+
+	assert.Equal(t, 10, out.Budget.Capacity, "a triple bonus at a cost of three is ten clicks")
+	assert.InDelta(t, 1.0, out.Budget.PerSecond, 1e-9)
+	assert.InDelta(t, 4.0, out.Budget.Tokens, 1e-9)
+	assert.Equal(t, 3, out.Budget.Price.Cost)
+}
+
 func TestTheClaimAndTheBoostUseTheSameScope(t *testing.T) {
 	registry, booster := granted(), &stubBooster{}
 
-	_, err := claim_bonus.New(registry, booster, &stubSpreader{}, &stubSpreader{}, 0.03, cptime.NewFixedClock(epoch)).
+	_, err := claim_bonus.New(registry, booster, onePrice, &stubSpreader{}, &stubSpreader{}, 0.03, cptime.NewFixedClock(epoch)).
 		Execute(t.Context(), claim_bonus.In{Token: "a-token"})
 	require.NoError(t, err)
 
@@ -93,7 +113,7 @@ func TestTheClaimAndTheBoostUseTheSameScope(t *testing.T) {
 func TestACatchIsAnnouncedWithTheCountryTheClaimNamed(t *testing.T) {
 	registry := granted()
 
-	_, err := claim_bonus.New(registry, &stubBooster{}, &stubSpreader{}, &stubSpreader{}, 0.03, cptime.NewFixedClock(epoch)).
+	_, err := claim_bonus.New(registry, &stubBooster{}, onePrice, &stubSpreader{}, &stubSpreader{}, 0.03, cptime.NewFixedClock(epoch)).
 		Execute(t.Context(), claim_bonus.In{Token: "a-token", CountryID: "jp"})
 	require.NoError(t, err)
 
@@ -104,7 +124,7 @@ func TestACatchIsAnnouncedWithTheCountryTheClaimNamed(t *testing.T) {
 func TestARefusedClaimBoostsNothingAndAnnouncesNothing(t *testing.T) {
 	registry, booster := &stubRegistry{claimable: false}, &stubBooster{}
 
-	_, err := claim_bonus.New(registry, booster, &stubSpreader{}, &stubSpreader{}, 0.03, cptime.NewFixedClock(epoch)).
+	_, err := claim_bonus.New(registry, booster, onePrice, &stubSpreader{}, &stubSpreader{}, 0.03, cptime.NewFixedClock(epoch)).
 		Execute(t.Context(), claim_bonus.In{Token: "not-mine"})
 
 	require.ErrorIs(t, err, claim_bonus.ErrNoSuchBonus)
@@ -117,7 +137,7 @@ func TestABombClaimHandsOverTheBombAndSaysHowWideItIs(t *testing.T) {
 	booster := &stubBooster{state: cpratelimit.State{Capacity: 10, PerSecond: 1}}
 	bomber := &stubSpreader{}
 
-	out, err := claim_bonus.New(registry, booster, &stubSpreader{}, bomber, 0.03, cptime.NewFixedClock(epoch)).
+	out, err := claim_bonus.New(registry, booster, onePrice, &stubSpreader{}, bomber, 0.03, cptime.NewFixedClock(epoch)).
 		Execute(t.Context(), claim_bonus.In{Token: "a-token", CountryID: "fr"})
 	require.NoError(t, err)
 
@@ -129,7 +149,7 @@ func TestABombClaimHandsOverTheBombAndSaysHowWideItIs(t *testing.T) {
 }
 
 func TestOnlyABombSaysHowWideItIs(t *testing.T) {
-	out, err := claim_bonus.New(granted(), &stubBooster{}, &stubSpreader{}, &stubSpreader{}, 0.03, cptime.NewFixedClock(epoch)).
+	out, err := claim_bonus.New(granted(), &stubBooster{}, onePrice, &stubSpreader{}, &stubSpreader{}, 0.03, cptime.NewFixedClock(epoch)).
 		Execute(t.Context(), claim_bonus.In{Token: "a-token"})
 	require.NoError(t, err)
 
@@ -141,7 +161,7 @@ func TestASpreadClaimStartsTheSpreadAndWidensNothing(t *testing.T) {
 	booster := &stubBooster{state: cpratelimit.State{Tokens: 4, Capacity: 10, PerSecond: 1}}
 	spreader := &stubSpreader{}
 
-	out, err := claim_bonus.New(registry, booster, spreader, &stubSpreader{}, 0.03, cptime.NewFixedClock(epoch)).
+	out, err := claim_bonus.New(registry, booster, onePrice, spreader, &stubSpreader{}, 0.03, cptime.NewFixedClock(epoch)).
 		Execute(t.Context(), claim_bonus.In{Token: "a-token", CountryID: "fr"})
 	require.NoError(t, err)
 

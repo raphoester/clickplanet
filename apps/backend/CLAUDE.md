@@ -324,6 +324,30 @@ Either way the decorator decides the policy and the handler decides how to say i
 
 The bucket key is whatever `IPReaderMiddleware` put on the context: `X-Real-IP` if present, otherwise the peer address. **The reverse proxy must set that header itself** — `deploy/vps/Caddyfile` does, with `header_up X-Real-IP {client_ip}` on every backend route. Merely forwarding it would let a client send its own and buy a fresh bucket per request. The fallback is the peer address rather than a constant precisely so a missing header degrades to per-connection buckets instead of rate limiting the whole game as one player.
 
+#### A big country pays more per click (`clicks/toll`)
+
+A click costs more tokens the more of the map its country holds. `toll.steps` is
+a table of `{share, cost}`: from `share` of **every tile on the map**, a click for
+that country costs `cost` tokens. No steps prices every click at one.
+
+- **The price is taken at the click, from the country clicked for.** A slower
+  refill for a big country would have been read off whatever country the caller
+  played last, so a player could bank tokens on a small one and spend them on a big one.
+- **The share is of the whole map, not of owned tiles**, so early in a game nobody pays more.
+- **`memory_tile_storage` keeps a tile count per country**, moved by `set` and
+  `Clear` and rebuilt from the snapshot, so `Share` is one read and no scan.
+- **The budget goes out already divided by the cost** (`toll.Of`): ten tokens at a
+  cost of 2 are five clicks refilling at 0.5/s. The meter narrows off the server's
+  numbers the way a bonus widens it, and `ClickBudget` also carries `cost`,
+  `share` and the next step so the client can say why.
+- **Bonuses compose with it.** A triple bonus multiplies the bucket and the price
+  divides it, so it is still worth three times the clicks. A spread is one click at
+  the country's price. A bomb is not throttled, and lowers the share of whoever it hits.
+- **A cost above `rateLimiter.burst` refuses the boot**: no bucket could ever pay it.
+
+`GetBudget` takes the country, because the price depends on it. Known risk, not
+handled yet: a country sitting on a step can cross it back and forth click to click.
+
 Chat and sessions each have **their own limiter instance** with their own budget, because what each call costs has nothing to do with what a click costs:
 
 - `chat.rateLimiter` — one message every 3s, five in hand. A message fans out to every connected client and lands in a log everyone will read.
