@@ -1,9 +1,12 @@
 import {describe, expect, it} from "vitest"
 import * as THREE from "three"
 import {
+    BOX_PALETTE,
     boxScale,
     burstAt,
+    FACE_COLOURS,
     FACE_TONES,
+    haloColourAt,
     flightOpacity,
     isBehindGlobe,
     Orbit,
@@ -252,5 +255,65 @@ describe("burstAt", () => {
 
     it("clamps a negative age instead of shrinking the box", () => {
         expect(burstAt(-1, 0.45)).toEqual({scale: 1, opacity: 1})
+    })
+})
+
+describe("the box's colours", () => {
+    // BoxGeometry's material order pairs the faces: +X/-X, +Y/-Y, +Z/-Z.
+    const OPPOSITE = [1, 0, 3, 2, 5, 4]
+
+    it("colours all six faces, and wears every colour in the palette", () => {
+        expect(FACE_COLOURS).toHaveLength(6)
+        expect(new Set(FACE_COLOURS)).toEqual(new Set(Object.keys(BOX_PALETTE)))
+    })
+
+    it("never shows one colour on two faces at once", () => {
+        // A cube shows at most one face of each opposite pair, so two faces that
+        // are not opposite can be on screen together.
+        for (let face = 0; face < 6; face++) {
+            for (let other = 0; other < 6; other++) {
+                if (other === face || other === OPPOSITE[face]) continue
+                expect(FACE_COLOURS[face]).not.toBe(FACE_COLOURS[other])
+            }
+        }
+    })
+})
+
+describe("haloColourAt", () => {
+    const glowOf = (colour: keyof typeof BOX_PALETTE) => new THREE.Color(...BOX_PALETTE[colour].glow)
+
+    it("starts on the classic gold", () => {
+        expect(haloColourAt(0).equals(glowOf("gold"))).toBe(true)
+    })
+
+    it("passes through every colour of the palette", () => {
+        const seen = new Set<string>()
+        for (let step = 0; step < 4; step++) {
+            const colour = haloColourAt(step * 0.7)
+            for (const name of Object.keys(BOX_PALETTE) as (keyof typeof BOX_PALETTE)[]) {
+                if (colour.equals(glowOf(name))) seen.add(name)
+            }
+        }
+
+        expect(seen.size).toBe(4)
+    })
+
+    it("comes back round to where it started", () => {
+        expect(haloColourAt(4 * 0.7).getHex()).toBe(haloColourAt(0).getHex())
+    })
+
+    it("eases between colours rather than jumping", () => {
+        for (let frame = 0; frame < 300; frame++) {
+            const now = haloColourAt(frame / 60)
+            const next = haloColourAt((frame + 1) / 60)
+
+            expect(Math.abs(now.r - next.r) + Math.abs(now.g - next.g) + Math.abs(now.b - next.b)).toBeLessThan(0.1)
+        }
+    })
+
+    it("writes into the colour it is given, so a frame allocates nothing", () => {
+        const into = new THREE.Color()
+
+        expect(haloColourAt(1, into)).toBe(into)
     })
 })

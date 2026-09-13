@@ -7,6 +7,7 @@ import glowVertex from "./shaders/atmosphere/vertex.glsl"
 import glowFragment from "./shaders/atmosphere/fragment.glsl"
 
 import {mulberry32} from "./stars.ts"
+import {drawQuestionMark} from "./questionMark.ts"
 
 /** Outside the 1.0 tile shell, so the box never sinks into the flags. */
 const ORBIT_RADIUS = 1.15
@@ -60,10 +61,39 @@ const GLOW_POWER = 2.6
 const GLOW_INTENSITY = 1.4
 
 /**
- * Written straight to the framebuffer like the atmosphere's, so read these as
- * the colour on screen. Warm, against the blue limb and the black sky.
+ * The four bonuses a box can hold, in the colours the award announces them in
+ * (`BonusAward.css`). The box does not know which one it holds — the server
+ * picks at the catch — so it wears all four.
+ *
+ * `glow` is written straight to the framebuffer like the atmosphere's, so read
+ * it as the colour on screen: brighter than the face, or it vanishes against
+ * the blue limb.
  */
-const GLOW_COLOUR = new THREE.Color(1.0, 0.68, 0.16)
+export const BOX_PALETTE = {
+    gold: {face: "#f2a91c", edge: "#4a2c02", glow: [1.0, 0.68, 0.16]},
+    red: {face: "#e0412f", edge: "#4a0e07", glow: [1.0, 0.36, 0.3]},
+    blue: {face: "#2f8cff", edge: "#0a2a55", glow: [0.35, 0.65, 1.0]},
+    green: {face: "#25b872", edge: "#0b3d25", glow: [0.35, 0.95, 0.6]},
+} as const
+
+export type BoxColour = keyof typeof BOX_PALETTE
+
+/**
+ * Which colour each face wears, in `BoxGeometry`'s material order — +X, -X, +Y,
+ * -Y, +Z, -Z, the same order as `FACE_TONES`.
+ *
+ * A cube shows at most one face of each opposite pair, so any three faces on
+ * screen at once are three different colours as long as no colour sits on two
+ * pairs. With four colours and six faces that means two pairs wear one colour
+ * each: the top and bottom keep the classic gold, the front and back are red,
+ * and blue and green share the sides. The spin does the rest — every turn
+ * brings a new colour round.
+ */
+export const FACE_COLOURS: readonly BoxColour[] = ["blue", "green", "gold", "gold", "red", "red"]
+
+/** The order the halo runs through the palette, and how long it takes over each step. */
+const HALO_CYCLE: readonly BoxColour[] = ["gold", "red", "blue", "green"]
+const HALO_STEP_SECONDS = 0.7
 
 /**
  * The key light, painted on rather than lit.
@@ -140,11 +170,19 @@ export type BonusBox = {
  * texture to hold the silhouette against the map, and the spin.
  */
 export function createBonusBox(): BonusBox {
-    const texture = faceTexture()
+    const textures = new Map<BoxColour, THREE.CanvasTexture>()
+    const textureFor = (colour: BoxColour) => {
+        let texture = textures.get(colour)
+        if (!texture) {
+            texture = faceTexture(colour)
+            textures.set(colour, texture)
+        }
+        return texture
+    }
 
     const geometry = new THREE.BoxGeometry(1, 1, 1)
-    const materials = FACE_TONES.map((tone) => new THREE.MeshBasicMaterial({
-        map: texture,
+    const materials = FACE_TONES.map((tone, face) => new THREE.MeshBasicMaterial({
+        map: textureFor(FACE_COLOURS[face]),
         color: new THREE.Color(tone, tone, tone),
         transparent: true,
     }))
@@ -154,7 +192,7 @@ export function createBonusBox(): BonusBox {
     const glowGeometry = new THREE.IcosahedronGeometry(GLOW_RADIUS, 8)
     const glowMaterial = new THREE.ShaderMaterial({
         uniforms: {
-            colour: {value: GLOW_COLOUR},
+            colour: {value: haloColourAt(0)},
             power: {value: GLOW_POWER},
             intensity: {value: GLOW_INTENSITY},
         },
@@ -244,6 +282,7 @@ export function createBonusBox(): BonusBox {
             }
 
             const scale = boxScale(camera.zoom)
+            haloColourAt(seconds, glowMaterial.uniforms.colour.value)
 
             if (phase === "taken") {
                 // The position is left where it was caught, so the pop happens
@@ -288,7 +327,7 @@ export function createBonusBox(): BonusBox {
             for (const material of materials) material.dispose()
             glowGeometry.dispose()
             glowMaterial.dispose()
-            texture.dispose()
+            for (const texture of textures.values()) texture.dispose()
         },
     }
 }
@@ -299,6 +338,30 @@ export function createBonusBox(): BonusBox {
  */
 export function boxScale(zoom: number): number {
     return Math.min(WORLD_SIZE, MAX_APPARENT_SIZE / zoom)
+}
+
+/**
+ * The halo's colour at `seconds`: it runs through the palette, easing from one
+ * colour to the next rather than blinking, so the glow reads as a shimmer.
+ */
+export function haloColourAt(seconds: number, into = new THREE.Color()): THREE.Color {
+    const steps = seconds / HALO_STEP_SECONDS
+    const index = Math.floor(steps)
+    const through = steps - index
+    const eased = through * through * (3 - 2 * through)
+
+    const glowAt = (step: number) => {
+        const length = HALO_CYCLE.length
+        return BOX_PALETTE[HALO_CYCLE[((step % length) + length) % length]].glow
+    }
+    const from = glowAt(index)
+    const to = glowAt(index + 1)
+
+    return into.setRGB(
+        from[0] + (to[0] - from[0]) * eased,
+        from[1] + (to[1] - from[1]) * eased,
+        from[2] + (to[2] - from[2]) * eased,
+    )
 }
 
 /** Full until the last `fade` seconds of the box's life, then out. */
@@ -391,17 +454,24 @@ export function isBehindGlobe(
 }
 
 /**
- * The `?` face, drawn rather than loaded.
+ * One `?` face, drawn rather than loaded, in one of the palette's colours.
  *
  * A canvas keeps this out of the content-addressed asset pipeline — there is no
- * file to hash, deploy or cache-bust for one 128px square, and nothing to load
+ * file to hash, deploy or cache-bust for a few 128px squares, and nothing to load
  * before the box can first appear.
  *
  * The dark border is what makes the box readable at the ~40px it occupies: over
  * a map of saturated flags, the silhouette is most of what the eye gets, and an
- * unbordered gold square dissolves into a yellow country.
+ * unbordered square dissolves into a country of its own colour. The border is
+ * the face's own dark edge rather than one brown for all four, so a blue face
+ * does not look muddy.
+ *
+ * The gradient and the gloss band are what make it look like a sweet rather
+ * than a swatch: a face lit from the top left, with a shine across that corner.
  */
-function faceTexture(): THREE.CanvasTexture {
+function faceTexture(colour: BoxColour): THREE.CanvasTexture {
+    const {face, edge} = BOX_PALETTE[colour]
+
     const canvas = document.createElement("canvas")
     canvas.width = TEXTURE_SIZE
     canvas.height = TEXTURE_SIZE
@@ -411,16 +481,30 @@ function faceTexture(): THREE.CanvasTexture {
 
     const size = TEXTURE_SIZE
 
-    context.fillStyle = "#f2a91c"
+    const ground = context.createLinearGradient(0, 0, size, size)
+    ground.addColorStop(0, mix(face, "#ffffff", 0.35))
+    ground.addColorStop(0.55, face)
+    ground.addColorStop(1, mix(face, edge, 0.3))
+    context.fillStyle = ground
     context.fillRect(0, 0, size, size)
 
-    context.strokeStyle = "#4a2c02"
+    // The shine: a pale band across the top-left corner.
+    context.fillStyle = "rgba(255, 255, 255, 0.22)"
+    context.beginPath()
+    context.moveTo(0, size * 0.18)
+    context.lineTo(size * 0.18, 0)
+    context.lineTo(size * 0.46, 0)
+    context.lineTo(0, size * 0.46)
+    context.closePath()
+    context.fill()
+
+    context.strokeStyle = edge
     context.lineWidth = size * 0.09
     context.strokeRect(context.lineWidth / 2, context.lineWidth / 2, size - context.lineWidth, size - context.lineWidth)
 
     // The rivets are Mario's, and they also break up the flat ground so the
     // face reads as a panel rather than as a swatch.
-    context.fillStyle = "#4a2c02"
+    context.fillStyle = edge
     const inset = size * 0.19
     const rivet = size * 0.035
     for (const [x, y] of [[inset, inset], [size - inset, inset], [inset, size - inset], [size - inset, size - inset]]) {
@@ -429,18 +513,20 @@ function faceTexture(): THREE.CanvasTexture {
         context.fill()
     }
 
-    context.font = `bold ${size * 0.62}px system-ui, -apple-system, "Segoe UI", sans-serif`
-    context.textAlign = "center"
-    context.textBaseline = "middle"
-
-    context.fillStyle = "#4a2c02"
-    context.fillText("?", size / 2, size * 0.54)
-    context.fillStyle = "#fff6df"
-    context.fillText("?", size / 2, size * 0.51)
+    const mark = size * 0.56
+    drawQuestionMark(context, (size - mark) / 2, (size - mark) / 2, mark, "#fff6df", edge)
 
     const texture = new THREE.CanvasTexture(canvas)
-    // Without this the gold is read as a linear colour and comes out washed out.
+    // Without this the colours are read as linear and come out washed out.
     texture.colorSpace = THREE.SRGBColorSpace
 
     return texture
+}
+
+/** `a` moved `amount` of the way towards `b`, both as `#rrggbb`. */
+function mix(a: string, b: string, amount: number): string {
+    const channel = (hex: string, at: number) => parseInt(hex.slice(at, at + 2), 16)
+    const out = [1, 3, 5].map((at) => Math.round(channel(a, at) + (channel(b, at) - channel(a, at)) * amount))
+
+    return `#${out.map((value) => value.toString(16).padStart(2, "0")).join("")}`
 }

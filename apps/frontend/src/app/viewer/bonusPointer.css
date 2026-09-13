@@ -1,4 +1,9 @@
-/* The box's own gold, so the arrow reads as the thing it points at. */
+/*
+ * The box's own colours, so the arrow reads as the thing it points at: the badge
+ * and the arrow run through the four bonus colours in the order and at the pace
+ * the box's halo does (HALO_CYCLE and HALO_STEP_SECONDS in bonusBox.ts, four
+ * steps of 0.7s).
+ */
 .bonus-pointer {
     position: absolute;
     z-index: 100;
@@ -19,13 +24,19 @@
     border: 2px solid #4A2C02;
     border-radius: 6px;
     background: #F2A91C;
-    color: #FFF6DF;
-    font-size: 17px;
-    font-weight: 700;
-    line-height: 1;
+    /* The drawn mark's shadow; its ink is set on the SVG itself. */
+    color: #4A2C02;
     text-shadow: -1px 1px 0 #4A2C02;
     box-shadow: 0 0 14px #FFB13F88;
-    animation: bonus-pointer-pulse 1.4s ease-in-out infinite;
+    animation:
+        bonus-pointer-pulse 1.4s ease-in-out infinite,
+        bonus-pointer-badge-colours 2.8s ease-in-out infinite;
+}
+
+/* The box's question mark, drawn rather than typed: see questionMark.ts. */
+.bonus-pointer-mark {
+    width: 20px;
+    height: 20px;
 }
 
 /* Orbits the badge on the rotation, so it always points outward at the box. */
@@ -40,6 +51,7 @@
     border-left: 11px solid #FFC061;
     transform: rotate(var(--bonus-pointer-angle, 0deg)) translateX(24px);
     transform-origin: 3px 7px;
+    animation: bonus-pointer-arrow-colours 2.8s ease-in-out infinite;
 }
 
 /* A blast somewhere out of frame: red, so it is never mistaken for a box. */
@@ -47,11 +59,55 @@
     border-color: #4A0A02;
     background: #D8341C;
     box-shadow: 0 0 14px #FF5A3F88;
-    font-size: 15px;
+    animation: bonus-pointer-pulse 1.4s ease-in-out infinite;
 }
 
 .bonus-pointer--blast .bonus-pointer-arrow {
     border-left-color: #FF6A4F;
+    animation: none;
+}
+
+/* The palette of BOX_PALETTE in bonusBox.ts, and of BonusAward.css. */
+@keyframes bonus-pointer-badge-colours {
+    0%, 100% {
+        border-color: #4A2C02;
+        background-color: #F2A91C;
+        color: #4A2C02;
+        box-shadow: 0 0 14px #FFB13F88;
+    }
+    25% {
+        border-color: #4A0E07;
+        background-color: #E0412F;
+        color: #4A0E07;
+        box-shadow: 0 0 14px #FF7A6B88;
+    }
+    50% {
+        border-color: #0A2A55;
+        background-color: #2F8CFF;
+        color: #0A2A55;
+        box-shadow: 0 0 14px #7CC4FF88;
+    }
+    75% {
+        border-color: #0B3D25;
+        background-color: #25B872;
+        color: #0B3D25;
+        box-shadow: 0 0 14px #6FE3A888;
+    }
+}
+
+@keyframes bonus-pointer-arrow-colours {
+    0%, 100% {
+        border-left-color: #FFC061;
+    }
+    25% {
+        border-left-color: #FF7A6B;
+    }
+    50% {
+        border-left-color: #7CC4FF;
+    }
+    75% {
+        border-left-color: #6FE3A8;
+    }
 }
 
 @keyframes bonus-pointer-pulse {
@@ -63,8 +119,10 @@
     }
 }
 
+/* Still, and gold: a colour that keeps changing is movement too. */
 @media (prefers-reduced-motion: reduce) {
-    .bonus-pointer-badge {
+    .bonus-pointer-badge,
+    .bonus-pointer-arrow {
         animation: none;
     }
 }

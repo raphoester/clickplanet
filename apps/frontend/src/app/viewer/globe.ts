@@ -244,7 +244,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const blasts = createBlasts(uniforms, uniforms.pixelsPerRadian)
     scene.add(blasts.object)
     // A blast is usually on the side of the planet nobody is looking at.
-    const blastPointer = createBonusPointer(eventTarget, "💥", "blast")
+    const blastPointer = createBonusPointer(eventTarget, "blast")
 
     // The bomb this client holds, from the answer to its claim until it is
     // dropped or lapses.
