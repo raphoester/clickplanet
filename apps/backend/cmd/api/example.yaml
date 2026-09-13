@@ -114,9 +114,9 @@ bonus:
   bombDuration: 30s
 
   # The radius of the circle a bomb clears, whoever holds the tiles, in tile
-  # spacings: 8 is ~230 tiles inland. The radius in radians is this times the
+  # spacings: 10.4 is ~390 tiles inland. The radius in radians is this times the
   # map's own tile spacing, so the client's ring and the clear always agree.
-  bombRings: 8
+  bombRings: 10.4
 
   # enclose_clicks: how long it runs, how many shapes it may close in that time,
   # and the most tiles one shape may hold. A click that takes the last tile of a

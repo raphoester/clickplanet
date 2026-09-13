@@ -33,8 +33,8 @@ type Config struct {
 	// How long a bomb may be held before it is lost; it counts towards MaxBoostPerHour like any bonus.
 	BombDuration time.Duration
 
-	// How wide a circle a bomb clears, in tile spacings: 8 is ~230 tiles inland.
-	BombRings int
+	// How wide a circle a bomb clears, in tile spacings: 10.4 is ~390 tiles inland.
+	BombRings float64
 	// enclose_clicks: how long it runs, how many shapes it may close in that
 	// time, and the most tiles one shape may hold. A shape bigger than that
 	// takes nothing, and costs nothing.
@@ -60,7 +60,7 @@ const (
 	defaultDuration        = 20 * time.Second
 	defaultSpreadDuration  = 10 * time.Second
 	defaultBombDuration    = 30 * time.Second
-	defaultBombRings       = 8
+	defaultBombRings       = 10.4
 	defaultEncloseDuration = 30 * time.Second
 	defaultEncloseShapes   = 3
 	defaultEncloseMaxTiles = 15
@@ -167,6 +167,6 @@ func (c Config) durationOf(kind Kind) time.Duration {
 }
 
 // Rings is a bomb's radius in tile spacings, defaults applied.
-func (c Config) Rings() int {
+func (c Config) Rings() float64 {
 	return c.withDefaults().BombRings
 }
