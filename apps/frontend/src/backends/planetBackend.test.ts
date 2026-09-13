@@ -1,12 +1,11 @@
 import {describe, expect, it, vi} from "vitest"
-import {asBonusError, bindingsOf, bombOf, boostedOf, catchOf, enclosureOf, offerOf, PlanetBackend, spreadOf, updateOf} from "./planetBackend.ts"
+import {asBonusError, bindingsOf, bombOf, catchOf, enclosureOf, offerOf, PlanetBackend, spreadOf, updateOf} from "./planetBackend.ts"
 import {Code, ConnectError} from "@connectrpc/connect"
 import {
     BombDropped,
     BonusKind,
     BonusOffered,
     BonusTaken,
-    ClickBoosted,
     ClickBudget as ClickBudgetMessage,
     GetMapResponse,
     GlobePoint,
@@ -47,19 +46,23 @@ function failingSession(): SessionProvider {
     }
 }
 
-function tileUpdateEvent(fields: {tileId: number, countryId: string, previousCountryId?: string}): PlanetEvent {
+function tileUpdateEvent(fields: {tileId: number, countryId: string, previousCountryId?: string, boosted?: boolean}): PlanetEvent {
     return new PlanetEvent({event: {case: "tileUpdate", value: new TileUpdate(fields)}})
 }
 
 describe("updateOf", () => {
     it("maps a tile update onto the shape the globe consumes", () => {
         expect(updateOf(tileUpdateEvent({tileId: 7, countryId: "jp", previousCountryId: "fr"})))
-            .toEqual({tile: 7, previousCountry: "fr", newCountry: "jp"})
+            .toEqual({tile: 7, previousCountry: "fr", newCountry: "jp", boosted: false})
     })
 
     it("reports an unowned previous tile as undefined rather than an empty code", () => {
         expect(updateOf(tileUpdateEvent({tileId: 1, countryId: "fr"})))
-            .toEqual({tile: 1, previousCountry: undefined, newCountry: "fr"})
+            .toEqual({tile: 1, previousCountry: undefined, newCountry: "fr", boosted: false})
+    })
+
+    it("says when the click that made it was boosted", () => {
+        expect(updateOf(tileUpdateEvent({tileId: 7, countryId: "jp", boosted: true}))?.boosted).toBe(true)
     })
 
     it("drops a heartbeat", () => {
@@ -696,20 +699,6 @@ describe("spreadOf", () => {
 
     it("drops everything that is not a spread click", () => {
         expect(spreadOf(new PlanetEvent({event: {case: "heartbeat", value: new Heartbeat()}}))).toBeUndefined()
-    })
-})
-
-describe("boostedOf", () => {
-    it("reads the tile clicked", () => {
-        const event = new PlanetEvent({
-            event: {case: "clickBoosted", value: new ClickBoosted({countryId: "it", tileId: 42})},
-        })
-
-        expect(boostedOf(event)).toEqual({countryId: "it", tile: 42})
-    })
-
-    it("drops everything that is not a boosted click", () => {
-        expect(boostedOf(new PlanetEvent({event: {case: "heartbeat", value: new Heartbeat()}}))).toBeUndefined()
     })
 })
 

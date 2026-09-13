@@ -21,6 +21,8 @@ export type Update = {
     tile: number,
     previousCountry: string | undefined,
     newCountry: string
+    /** The click that made it was under a triple clicks bonus. */
+    boosted?: boolean
 }
 
 export interface UpdatesListener {
@@ -94,25 +96,18 @@ export type SpreadClick = {
     spread: number[]
 }
 
-/** Somebody clicked under a triple clicks bonus. */
-export type BoostedClick = {
-    countryId: string
-    tile: number
-}
-
 export type BonusHandlers = {
     onOffered: (offer: BonusOffer) => void
     onTaken: (taken: BonusCatch) => void
     onEnclosed: (enclosure: Enclosure) => void
     onSpread: (spread: SpreadClick) => void
-    onBoosted: (boosted: BoostedClick) => void
 }
 
 export interface BonusListener {
     /**
      * Follows the bonus feed on the connection that is already open: the box
-     * drawn for this client, and every catch, shape closed, spread click and
-     * boosted click on the planet.
+     * drawn for this client, and every catch, shape closed and spread click on
+     * the planet. A boosted click is not here: it is a flag on its tile update.
      */
     listenForBonuses(handlers: BonusHandlers): () => void
 

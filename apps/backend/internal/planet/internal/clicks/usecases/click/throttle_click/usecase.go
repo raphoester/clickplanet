@@ -53,6 +53,8 @@ func (u *UseCase) Execute(ctx context.Context, in click.In) (click.Out, error) {
 		return click.Out{Budget: toll.Of(state, price), Limited: true}, clicks.ErrThrottled
 	}
 
+	in.Boosted = state.Boosted
+
 	out, err := u.implementation.Execute(ctx, in)
 	out.Budget, out.Limited = toll.Of(state, price), true
 

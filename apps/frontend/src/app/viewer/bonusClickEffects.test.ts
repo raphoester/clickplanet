@@ -16,7 +16,7 @@ import {
     SPREAD_TRAVEL_SECONDS,
     waveLook,
 } from "./bonusClickEffects.ts"
-import type {BoostedClick, SpreadClick} from "../../backends/backend.ts"
+import type {SpreadClick} from "../../backends/backend.ts"
 
 // Tile 1 on the ground facing +Z, and six tiles round it. Tile 2 is due east of
 // it, and the rest follow counter-clockwise.
@@ -31,7 +31,7 @@ const tileAt = (tile: number) => new THREE.Vector3(
 
 // Out of order, the way the server's map hands them over.
 const spread: SpreadClick = {countryId: "br", tile: 1, spread: [5, 2, 7, 3, 6, 4]}
-const boosted: BoostedClick = {countryId: "it", tile: 1}
+const boosted = 1
 
 describe("choreographSpread", () => {
     it("bursts at the tile clicked and throws one spark onto each tile around it", () => {
@@ -86,7 +86,7 @@ describe("choreographBoost", () => {
     it("turns the star by tile, the same way on every screen", () => {
         const one = choreographBoost(boosted, positions).sparks[1].to
         const again = choreographBoost(boosted, positions).sparks[1].to
-        const other = choreographBoost({...boosted, tile: 2}, positions).sparks[1].to.clone()
+        const other = choreographBoost(2, positions).sparks[1].to.clone()
             .sub(tileAt(2)).normalize()
 
         expect(one.distanceTo(again)).toBe(0)

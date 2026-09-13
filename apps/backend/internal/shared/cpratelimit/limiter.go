@@ -86,6 +86,9 @@ type State struct {
 
 	// Tokens granted back per second.
 	PerSecond float64
+
+	// A boost is running.
+	Boosted bool
 }
 
 // Take spends a token when there is one, and reports what the bucket holds
@@ -167,19 +170,6 @@ func (l *Limiter) Boost(key string, multiplier float64, until time.Time) State {
 	return l.state(b)
 }
 
-// Boosted reports whether a boost is running for key. It reads without
-// refilling and without creating a bucket, like Peek.
-func (l *Limiter) Boosted(key string) bool {
-	now := l.clock.Now()
-
-	l.mu.Lock()
-	defer l.mu.Unlock()
-
-	b, ok := l.buckets[key]
-
-	return ok && b.multiplier > 1 && now.Before(b.boostUntil)
-}
-
 func newBucket(tokens float64, now time.Time) *bucket {
 	return &bucket{tokens: tokens, last: now, multiplier: 1}
 }
@@ -193,6 +183,7 @@ func (l *Limiter) state(b *bucket) State {
 		Tokens:    b.tokens,
 		Capacity:  int(l.capacity(b)),
 		PerSecond: l.config.PerSecond * b.multiplier,
+		Boosted:   b.multiplier > 1,
 	}
 }
 

@@ -149,17 +149,16 @@ func TestASinkFramesASpreadClick(t *testing.T) {
 	assert.Equal(t, []uint32{99, 101}, spread.GetSpreadTileIds())
 }
 
-func TestASinkFramesABoostedClick(t *testing.T) {
+func TestASinkSaysATileUpdateWasBoosted(t *testing.T) {
 	stream := &recorder{}
 
 	require.NoError(t, listen_for_events_handler.NewSink(stream).Send(listen_for_events.Event{
-		Boosted: &bonus.Boosted{CountryID: "it", Tile: 42},
+		Update: clicks.TileUpdate{Tile: 42, Value: "it", Boosted: true},
 	}))
 
-	boosted := stream.sent[0].GetClickBoosted()
-	require.NotNil(t, boosted)
-	assert.Equal(t, "it", boosted.GetCountryId())
-	assert.Equal(t, uint32(42), boosted.GetTileId())
+	update := stream.sent[0].GetTileUpdate()
+	require.NotNil(t, update)
+	assert.True(t, update.GetBoosted())
 }
 
 func TestAHeartbeatStillWinsOverEverything(t *testing.T) {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"testing"
+	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/secondary/in_memory_tile_checker"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/secondary/memory_tile_storage"
@@ -38,6 +39,25 @@ func (s *testSuite) SetupSuite() {
 func (s *testSuite) execute(tileID uint32, countryID string) error {
 	_, err := s.useCase.Execute(context.Background(), click.In{TileID: tileID, CountryID: countryID})
 	return err
+}
+
+func (s *testSuite) TestABoostedClickPublishesABoostedUpdate() {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	listener, err := s.storage.Subscribe(ctx)
+	s.Require().NoError(err)
+
+	_, err = s.useCase.Execute(context.Background(), click.In{TileID: 77, CountryID: "jp", Boosted: true})
+	s.Require().NoError(err)
+
+	select {
+	case <-ctx.Done():
+		s.T().Fatal("timeout")
+	case change := <-listener:
+		s.Require().NotNil(change.Update)
+		s.True(change.Update.Boosted)
+	}
 }
 
 func (s *testSuite) TestNominalCase() {

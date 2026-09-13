@@ -55,6 +55,27 @@ func (s *testSuite) TestSetAndPublish() {
 	}
 }
 
+func (s *testSuite) TestSetBoostedMarksTheUpdate() {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	listener, err := s.storage.Subscribe(ctx)
+	s.Require().NoError(err)
+
+	s.Require().NoError(s.storage.Set(context.Background(), 11, "fr"))
+	s.Require().NoError(s.storage.SetBoosted(context.Background(), 12, "fr"))
+
+	for _, boosted := range []bool{false, true} {
+		select {
+		case <-ctx.Done():
+			s.T().Fatal("timeout")
+		case val := <-listener:
+			s.Require().NotNil(val.Update)
+			s.Equal(boosted, val.Update.Boosted)
+		}
+	}
+}
+
 func (s *testSuite) TestSetAndPublishWithOverride() {
 	previousValue, newValue := "us", "fr"
 

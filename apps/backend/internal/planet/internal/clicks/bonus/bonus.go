@@ -75,19 +75,12 @@ type Spread struct {
 	Neighbours []uint32
 }
 
-// Boosted is a click made while a triple clicks bonus runs.
-type Boosted struct {
-	CountryID string
-	Tile      uint32
-}
-
 // Event carries exactly one: an Offer reaches its caller, the rest everyone.
 type Event struct {
 	Offer    *Offer
 	Taken    *Taken
 	Enclosed *Enclosed
 	Spread   *Spread
-	Boosted  *Boosted
 }
 
 type Reward struct {
@@ -158,9 +151,9 @@ type pending struct {
 	expiresAt time.Time
 }
 
-// A stream gets an event per bonus click anyone makes, a few a second each, so
+// A stream gets an event per spread click anyone makes, a few a second each, so
 // this is sized for a burst of those rather than for the rare offer.
-const eventBuffer = 64
+const eventBuffer = 32
 
 func New(config Config, clock cptime.Clock) *Registry {
 	if clock == nil {
@@ -333,11 +326,6 @@ func (r *Registry) PublishEnclosed(scope string, enclosed Enclosed) {
 // PublishSpread sends a spread click to everyone, so every client can show it.
 func (r *Registry) PublishSpread(spread Spread) {
 	r.broadcast(Event{Spread: &spread})
-}
-
-// PublishBoosted sends a boosted click to everyone, so every client can show it.
-func (r *Registry) PublishBoosted(boosted Boosted) {
-	r.broadcast(Event{Boosted: &boosted})
 }
 
 func (r *Registry) broadcast(event Event) {

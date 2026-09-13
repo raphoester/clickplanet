@@ -540,12 +540,17 @@ not pretend otherwise.
 so every client can animate why seven tiles flipped. `Registry.PublishSpread`
 sends it to every caller.
 
-A triple clicks bonus is announced the same way, with `click_boosted`, by
-`click/boost_click`: it asks the limiter whether the caller's bucket is boosted
-(`Limiter.Boosted`, which reads without creating a bucket) and publishes each
-accepted click while it is. It sits beside `spread_click`, so a click the shadow
-ban drops is never shown to the planet. Both are one event per click, which is
-why a caller's bonus feed buffers 64 events rather than a handful.
+A spread is one event per click, which is why a caller's bonus feed buffers 32
+events rather than a handful.
+
+**A triple clicks bonus is not an event of its own: it is `TileUpdate.boosted`.**
+The limiter's `State` says whether a boost runs, `throttle_click` copies that
+onto `click.In.Boosted`, and the rule writes with `SetBoosted` instead of `Set`,
+so the update it publishes carries the flag. The flag rides with the change it
+describes — same message, same order, no second frame per click — and a click on
+a tile already held publishes nothing, so it shows nothing either. A spread
+could not be done this way: its animation needs the clicked tile and its
+neighbours together, which one flag per tile cannot say.
 
 #### What a bomb does
 

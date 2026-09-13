@@ -465,8 +465,9 @@ curl -s "https://clickplanet.lol$B" | grep -c 'challenges.cloudflare.com/turnsti
   return.
 - `bonusClickEffects.ts` — the same, for every click made under a spread bonus
   (`tilesSpread`: a green burst, a spark popping onto each tile around it in
-  turn, two rings) or a triple clicks bonus (`clickBoosted`: a cyan flash, three
-  streaks, three quick rings). It reuses the enclosure's shaders, with normal
+  turn, two rings) or a triple clicks bonus (`Update.boosted` on a live tile
+  update, played from the update batch: a cyan flash, three streaks, three quick
+  rings). It reuses the enclosure's shaders, with normal
   rather than additive rings, which vanished on the white of a flag. Boosted
   players click fast, so an effect is short and at most `MAX_PLAYING` run at once.
 - `shaders/` — GLSL for the display, picking, star and enclosure passes.

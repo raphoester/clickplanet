@@ -573,18 +573,12 @@ export class PlanetEvent extends Message<PlanetEvent> {
   } | {
     /**
      * Broadcast to everyone, like tiles_enclosed: the tiles arrive as tile
-     * updates, and these say a bonus is why, so every client can show it.
+     * updates, and this says a spread bonus is why, so every client can show it.
      *
      * @generated from field: planet.v1.TilesSpread tiles_spread = 7;
      */
     value: TilesSpread;
     case: "tilesSpread";
-  } | {
-    /**
-     * @generated from field: planet.v1.ClickBoosted click_boosted = 8;
-     */
-    value: ClickBoosted;
-    case: "clickBoosted";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<PlanetEvent>) {
@@ -602,7 +596,6 @@ export class PlanetEvent extends Message<PlanetEvent> {
     { no: 5, name: "bomb_dropped", kind: "message", T: BombDropped, oneof: "event" },
     { no: 6, name: "tiles_enclosed", kind: "message", T: TilesEnclosed, oneof: "event" },
     { no: 7, name: "tiles_spread", kind: "message", T: TilesSpread, oneof: "event" },
-    { no: 8, name: "click_boosted", kind: "message", T: ClickBoosted, oneof: "event" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PlanetEvent {
@@ -1198,51 +1191,6 @@ export class TilesSpread extends Message<TilesSpread> {
 }
 
 /**
- * A click made under a triple clicks bonus.
- *
- * @generated from message planet.v1.ClickBoosted
- */
-export class ClickBoosted extends Message<ClickBoosted> {
-  /**
-   * @generated from field: string country_id = 1;
-   */
-  countryId = "";
-
-  /**
-   * @generated from field: uint32 tile_id = 2;
-   */
-  tileId = 0;
-
-  constructor(data?: PartialMessage<ClickBoosted>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "planet.v1.ClickBoosted";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "tile_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ClickBoosted {
-    return new ClickBoosted().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ClickBoosted {
-    return new ClickBoosted().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ClickBoosted {
-    return new ClickBoosted().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: ClickBoosted | PlainMessage<ClickBoosted> | undefined, b: ClickBoosted | PlainMessage<ClickBoosted> | undefined): boolean {
-    return proto3.util.equals(ClickBoosted, a, b);
-  }
-}
-
-/**
  * @generated from message planet.v1.Heartbeat
  */
 export class Heartbeat extends Message<Heartbeat> {
@@ -1292,6 +1240,13 @@ export class TileUpdate extends Message<TileUpdate> {
    */
   previousCountryId = "";
 
+  /**
+   * The click that made this change was made under a triple clicks bonus.
+   *
+   * @generated from field: bool boosted = 4;
+   */
+  boosted = false;
+
   constructor(data?: PartialMessage<TileUpdate>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1303,6 +1258,7 @@ export class TileUpdate extends Message<TileUpdate> {
     { no: 1, name: "tile_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 2, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "previous_country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "boosted", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TileUpdate {

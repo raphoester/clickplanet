@@ -223,7 +223,6 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             if (enclosure.yours) onShapeClosed(enclosure.yours.shapesLeft)
         },
         onSpread: (spread) => bonusClicks.playSpread(spread),
-        onBoosted: (boosted) => bonusClicks.playBoost(boosted),
     })
 
     const driveBonusBox = (seconds: number) => {
@@ -520,6 +519,10 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             for (const update of updates) clear.tiles.delete(update.tile)
         }
         applyChanges(ownership.applyUpdates(updates))
+
+        for (const update of updates) {
+            if (update.boosted) bonusClicks.playBoost(update.tile)
+        }
     })
 
     addDisplayObjects(scene, field.displayPoints)

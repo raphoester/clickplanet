@@ -28,13 +28,12 @@ type Event struct {
 	Blast     *clicks.Blast
 	Heartbeat bool
 
-	// A box put in front of this caller alone; a catch, a closed shape, a spread
-	// click and a boosted click, anyone's.
+	// A box put in front of this caller alone; a catch, a closed shape and a
+	// spread click, anyone's.
 	Offer    *bonus.Offer
 	Taken    *bonus.Taken
 	Enclosed *bonus.Enclosed
 	Spread   *bonus.Spread
-	Boosted  *bonus.Boosted
 }
 
 // BonusFeed is this caller's boxes. Nil when boxes are off, which leaves the
@@ -114,7 +113,7 @@ func (u *UseCase) Execute(ctx context.Context, sink Sink) error {
 
 			if err := sink.Send(Event{
 				Offer: event.Offer, Taken: event.Taken, Enclosed: event.Enclosed,
-				Spread: event.Spread, Boosted: event.Boosted,
+				Spread: event.Spread,
 			}); err != nil {
 				return err
 			}

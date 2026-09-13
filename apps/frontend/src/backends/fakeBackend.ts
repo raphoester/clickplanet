@@ -196,9 +196,12 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         if (active.kind === "spreadClicks") void this.botSpread(tileId, countryId)
     }
 
-    /** A boosted click on `tile`. Public for the console: `fakeBackend.botBoost(tile, "fr")`. */
+    /**
+     * A boosted click on `tile`, which the server says with a flag on the tile
+     * update. Public for the console: `fakeBackend.botBoost(tile, "fr")`.
+     */
     public botBoost(tile: number, countryId: string) {
-        this.bonusCallbacks.forEach(handlers => handlers.onBoosted({countryId, tile}))
+        this.applyClick(tile, countryId, true)
     }
 
     /**
@@ -315,7 +318,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         return multiplierOf(this.active)
     }
 
-    private applyClick(tileId: number, countryId: string) {
+    private applyClick(tileId: number, countryId: string, boosted = false) {
         const prev = this.tileBindings.get(tileId)
         this.tileBindings.set(tileId, countryId)
         this.count(prev, -1)
@@ -324,6 +327,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
             tile: tileId,
             previousCountry: prev,
             newCountry: countryId,
+            boosted,
         }))
     }
 

@@ -1,5 +1,5 @@
 import * as THREE from "three"
-import type {BoostedClick, SpreadClick} from "../../backends/backend.ts"
+import type {SpreadClick} from "../../backends/backend.ts"
 import {tilePointSize} from "./pointSize.ts"
 
 import markVertex from "./shaders/enclosureMark/vertex.glsl"
@@ -143,11 +143,11 @@ export function choreographSpread(spread: SpreadClick, positions: ArrayLike<numb
  * turned by the tile id, so a run of clicks does not repeat the same star, and
  * the same click looks the same on every screen.
  */
-export function choreographBoost(boosted: BoostedClick, positions: ArrayLike<number>): Choreography {
-    const centre = at(positions, boosted.tile)
+export function choreographBoost(tile: number, positions: ArrayLike<number>): Choreography {
+    const centre = at(positions, tile)
     const {east, north} = groundFrame(centre)
 
-    const turn = (boosted.tile * 2.399963) % (Math.PI * 2)
+    const turn = (tile * 2.399963) % (Math.PI * 2)
     const sparks: Spark[] = [{from: centre, to: centre, start: 0, travel: 0, role: "burst"}]
 
     for (let i = 0; i < BOOST_STREAKS; i++) {
@@ -240,8 +240,8 @@ export type BonusClickEffects = {
     readonly object: THREE.Object3D
     /** Starts a spread click's effect on the next frame. */
     playSpread(spread: SpreadClick): void
-    /** Starts a boosted click's effect on the next frame. */
-    playBoost(boosted: BoostedClick): void
+    /** Starts the effect of a boosted click on `tile` on the next frame. */
+    playBoost(tile: number): void
     update(seconds: number, camera: THREE.OrthographicCamera, viewportHeight: number): void
     dispose(): void
 }
@@ -400,7 +400,7 @@ export function createBonusClickEffects(positions: ArrayLike<number>): BonusClic
     return {
         object: group,
         playSpread: (spread) => play(choreographSpread(spread, positions)),
-        playBoost: (boosted) => play(choreographBoost(boosted, positions)),
+        playBoost: (tile) => play(choreographBoost(tile, positions)),
         update,
         dispose: () => {
             for (const effect of playing) stop(effect)

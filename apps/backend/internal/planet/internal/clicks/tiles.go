@@ -5,6 +5,9 @@ type TileUpdate struct {
 	Tile     uint32
 	Value    string
 	Previous string
+
+	// Made by a click under a triple clicks bonus.
+	Boosted bool
 }
 
 // Blast is a bomb landing, as one event so a client can hold the clear back until the blast hits.

@@ -157,26 +157,18 @@ func TestTheBoostIsOverAtItsDeadlineRatherThanAfterIt(t *testing.T) {
 	require.Equal(t, 10, limiter.Peek(boostKey).Capacity, "over on the deadline itself")
 }
 
-func TestBoostedIsTrueOnlyWhileABoostRuns(t *testing.T) {
+func TestTheReadingSaysWhetherABoostRuns(t *testing.T) {
 	limiter, clock := newTestLimiter()
 
-	assert.False(t, limiter.Boosted(boostKey), "a caller the limiter never saw")
+	_, plain := limiter.Take(boostKey)
+	assert.False(t, plain.Boosted)
 
-	allow(limiter, boostKey)
-	assert.False(t, limiter.Boosted(boostKey), "a plain bucket")
-
-	limiter.Boost(boostKey, 3, clock.Now().Add(time.Minute))
-	assert.True(t, limiter.Boosted(boostKey))
-	assert.False(t, limiter.Boosted("5.6.7.8"))
+	assert.True(t, limiter.Boost(boostKey, 3, clock.Now().Add(time.Minute)).Boosted)
+	_, boosted := limiter.Take(boostKey)
+	assert.True(t, boosted.Boosted)
+	assert.False(t, limiter.Peek("5.6.7.8").Boosted)
 
 	clock.Advance(time.Minute)
-	assert.False(t, limiter.Boosted(boostKey), "over on the deadline itself")
-}
-
-func TestBoostedRemembersNobody(t *testing.T) {
-	limiter, _ := newTestLimiter()
-
-	limiter.Boosted(boostKey)
-
-	assert.Empty(t, limiter.buckets)
+	_, over := limiter.Take(boostKey)
+	assert.False(t, over.Boosted, "over on the deadline itself")
 }
