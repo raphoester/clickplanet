@@ -80,6 +80,8 @@
     height: 64px;
     border: 3px solid var(--bonus-box-edge);
     border-radius: 10px;
+    /* On top of the card's gap, so the icon does not sit on the title. */
+    margin-bottom: 8px;
     background: var(--bonus-box);
     animation: bonus-award-spin 0.7s ease-out;
 }
