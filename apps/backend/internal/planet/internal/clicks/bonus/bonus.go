@@ -66,12 +66,28 @@ type Enclosed struct {
 	Left  int
 }
 
-// Event carries exactly one: an Offer reaches its caller, a Taken and an
-// Enclosed everyone.
+// Spread is a click a spread bonus carried onto the tiles touching it.
+type Spread struct {
+	CountryID string
+	Tile      uint32
+
+	// The neighbours the click also took. Empty for a lone island.
+	Neighbours []uint32
+}
+
+// Boosted is a click made while a triple clicks bonus runs.
+type Boosted struct {
+	CountryID string
+	Tile      uint32
+}
+
+// Event carries exactly one: an Offer reaches its caller, the rest everyone.
 type Event struct {
 	Offer    *Offer
 	Taken    *Taken
 	Enclosed *Enclosed
+	Spread   *Spread
+	Boosted  *Boosted
 }
 
 type Reward struct {
@@ -142,7 +158,9 @@ type pending struct {
 	expiresAt time.Time
 }
 
-const eventBuffer = 8
+// A stream gets an event per bonus click anyone makes, a few a second each, so
+// this is sized for a burst of those rather than for the rare offer.
+const eventBuffer = 64
 
 func New(config Config, clock cptime.Clock) *Registry {
 	if clock == nil {
@@ -287,12 +305,7 @@ func minTime(a, b time.Time) time.Time {
 }
 
 func (r *Registry) Publish(taken Taken) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	for _, entry := range r.callers {
-		entry.send(Event{Taken: &taken})
-	}
+	r.broadcast(Event{Taken: &taken})
 }
 
 // PublishEnclosed sends a closed shape to everyone. The caller who closed it gets
@@ -314,6 +327,25 @@ func (r *Registry) PublishEnclosed(scope string, enclosed Enclosed) {
 		}
 
 		entry.send(Event{Enclosed: &theirs})
+	}
+}
+
+// PublishSpread sends a spread click to everyone, so every client can show it.
+func (r *Registry) PublishSpread(spread Spread) {
+	r.broadcast(Event{Spread: &spread})
+}
+
+// PublishBoosted sends a boosted click to everyone, so every client can show it.
+func (r *Registry) PublishBoosted(boosted Boosted) {
+	r.broadcast(Event{Boosted: &boosted})
+}
+
+func (r *Registry) broadcast(event Event) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	for _, entry := range r.callers {
+		entry.send(event)
 	}
 }
 

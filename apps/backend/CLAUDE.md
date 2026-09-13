@@ -535,6 +535,18 @@ tile already held is a no-op. One click is at most 7 updates. **A lone island
 takes itself and nothing else**: `Neighbours` is empty there, and the bonus does
 not pretend otherwise.
 
+**Then it tells the planet, with `tiles_spread`**, as an enclose does with
+`tiles_enclosed`: the tile clicked and the neighbours it took, after they are set,
+so every client can animate why seven tiles flipped. `Registry.PublishSpread`
+sends it to every caller.
+
+A triple clicks bonus is announced the same way, with `click_boosted`, by
+`click/boost_click`: it asks the limiter whether the caller's bucket is boosted
+(`Limiter.Boosted`, which reads without creating a bucket) and publishes each
+accepted click while it is. It sits beside `spread_click`, so a click the shadow
+ban drops is never shown to the planet. Both are one event per click, which is
+why a caller's bonus feed buffers 64 events rather than a handful.
+
 #### What a bomb does
 
 `claim_bonus` hands the bomb over with `bonus.Bombs.Grant(scope, until)` — the

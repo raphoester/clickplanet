@@ -1,17 +1,19 @@
 import {describe, expect, it, vi} from "vitest"
-import {asBonusError, bindingsOf, bombOf, catchOf, enclosureOf, offerOf, PlanetBackend, updateOf} from "./planetBackend.ts"
+import {asBonusError, bindingsOf, bombOf, boostedOf, catchOf, enclosureOf, offerOf, PlanetBackend, spreadOf, updateOf} from "./planetBackend.ts"
 import {Code, ConnectError} from "@connectrpc/connect"
 import {
     BombDropped,
     BonusKind,
     BonusOffered,
     BonusTaken,
+    ClickBoosted,
     ClickBudget as ClickBudgetMessage,
     GetMapResponse,
     GlobePoint,
     Heartbeat,
     PlanetEvent,
     TilesEnclosed,
+    TilesSpread,
     TileUpdate,
 } from "../gen/grpc/planet/v1/planet_pb.ts"
 import {BonusLostError, RateLimitedError, VPNBlockedError} from "./backend.ts"
@@ -680,6 +682,34 @@ describe("enclosureOf", () => {
 
     it("drops everything that is not a closed shape", () => {
         expect(enclosureOf(new PlanetEvent({event: {case: "heartbeat", value: new Heartbeat()}}))).toBeUndefined()
+    })
+})
+
+describe("spreadOf", () => {
+    it("reads the tile clicked and the tiles it spread onto", () => {
+        const event = new PlanetEvent({
+            event: {case: "tilesSpread", value: new TilesSpread({countryId: "br", tileId: 100, spreadTileIds: [99, 101]})},
+        })
+
+        expect(spreadOf(event)).toEqual({countryId: "br", tile: 100, spread: [99, 101]})
+    })
+
+    it("drops everything that is not a spread click", () => {
+        expect(spreadOf(new PlanetEvent({event: {case: "heartbeat", value: new Heartbeat()}}))).toBeUndefined()
+    })
+})
+
+describe("boostedOf", () => {
+    it("reads the tile clicked", () => {
+        const event = new PlanetEvent({
+            event: {case: "clickBoosted", value: new ClickBoosted({countryId: "it", tileId: 42})},
+        })
+
+        expect(boostedOf(event)).toEqual({countryId: "it", tile: 42})
+    })
+
+    it("drops everything that is not a boosted click", () => {
+        expect(boostedOf(new PlanetEvent({event: {case: "heartbeat", value: new Heartbeat()}}))).toBeUndefined()
     })
 })
 

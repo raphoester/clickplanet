@@ -590,6 +590,30 @@ func TestACatchIsAnnouncedToEveryone(t *testing.T) {
 	}
 }
 
+func TestSpreadAndBoostedClicksAreAnnouncedToEveryone(t *testing.T) {
+	registry, _ := newTestRegistry()
+
+	watchers := []<-chan Event{playing(t, registry, "scope-a"), playing(t, registry, "scope-b")}
+	for _, events := range watchers {
+		drain(events)
+	}
+
+	registry.PublishSpread(Spread{CountryID: "fr", Tile: 100, Neighbours: []uint32{99, 101}})
+	registry.PublishBoosted(Boosted{CountryID: "de", Tile: 7})
+
+	for _, events := range watchers {
+		require.Len(t, events, 2)
+
+		spread := <-events
+		require.NotNil(t, spread.Spread)
+		assert.Equal(t, Spread{CountryID: "fr", Tile: 100, Neighbours: []uint32{99, 101}}, *spread.Spread)
+
+		boosted := <-events
+		require.NotNil(t, boosted.Boosted)
+		assert.Equal(t, Boosted{CountryID: "de", Tile: 7}, *boosted.Boosted)
+	}
+}
+
 func TestACallerThatIsNotReadingIsDroppedRatherThanBlocking(t *testing.T) {
 	registry, _ := newTestRegistry()
 	events := playing(t, registry, "scope-a")

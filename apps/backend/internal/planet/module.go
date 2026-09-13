@@ -35,6 +35,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/claim_bonus/prom_claim_bonus"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click/bonus_click"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click/boost_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click/enclose_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click/enclose_click/prom_enclose"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click/prom_click"
@@ -187,7 +188,9 @@ func clickChain(config Config, parts clickParts, props cpbootstrap.Props) (click
 	// as one click however many tiles it took.
 	var rule click.IUseCase = click.New(parts.tilesChecker, parts.tilesStorage, cpcountries.New())
 	if parts.bonuses != nil {
-		rule = spread_click.New(rule, parts.spreads, parts.geography, parts.tilesStorage)
+		// Only a click that got past the shadow ban is shown to the planet.
+		rule = boost_click.New(rule, parts.limiter, parts.bonuses)
+		rule = spread_click.New(rule, parts.spreads, parts.geography, parts.tilesStorage, parts.bonuses)
 		published, err := prom_enclose.New(parts.bonuses, props.Metrics)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create prometheus enclose publisher: %w", err)

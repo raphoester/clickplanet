@@ -53,6 +53,9 @@ const BOMB_RADIUS = 0.032
 /** How far from the nearest tile an aim still hits land, as the server measures it. */
 const SEA_REACH = 0.004
 
+/** Past the nearest tiles and short of the next ring: tiles sit 0.003 to 0.0044 apart. */
+const SPREAD_REACH = 0.0052
+
 /** Other players' bombs, so a blast elsewhere on the planet can be watched too. */
 const BOT_BOMB_EVERY_MS = 25_000
 
@@ -178,6 +181,54 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         if (!allowed) throw new RateLimitedError()
         this.applyClick(tileId, countryId)
         this.pretendToEnclose(tileId, countryId)
+        this.announceBonusClick(tileId, countryId)
+    }
+
+    /**
+     * What the server broadcasts for a click made under a spread or a triple
+     * clicks bonus.
+     */
+    private announceBonusClick(tileId: number, countryId: string) {
+        const active = this.active
+        if (!active || Date.now() >= this.activeUntilMs) return
+
+        if (active.kind === "tripleClicks") this.botBoost(tileId, countryId)
+        if (active.kind === "spreadClicks") void this.botSpread(tileId, countryId)
+    }
+
+    /** A boosted click on `tile`. Public for the console: `fakeBackend.botBoost(tile, "fr")`. */
+    public botBoost(tile: number, countryId: string) {
+        this.bonusCallbacks.forEach(handlers => handlers.onBoosted({countryId, tile}))
+    }
+
+    /**
+     * A spread click on `tile`, which takes the tiles within about a tile
+     * spacing of it. Public for the console: `fakeBackend.botSpread(tile, "fr")`.
+     */
+    public async botSpread(tile: number, countryId: string) {
+        if (!this.tilePositions) return
+        const positions = await this.loadPositions()
+
+        const spread = tilesWithin(positions, tile, SPREAD_REACH).filter(id => id !== tile)
+        this.applyClick(tile, countryId)
+        spread.forEach(id => this.applyClick(id, countryId))
+        this.bonusCallbacks.forEach(handlers => handlers.onSpread({countryId, tile, spread}))
+    }
+
+    /**
+     * Grants a bonus as if a box had just been caught, skipping the box. Only
+     * the server's half, like `grantBomb`: see `giveBonus` in main.tsx.
+     */
+    public grantBonus(kind: Exclude<BonusReward["kind"], "bomb">): BonusReward {
+        const reward = rewardOfKind(kind)
+        this.active = reward
+        this.activeUntilMs = Date.now() + reward.seconds * 1000
+        this.reportBudget()
+
+        clearTimeout(this.bonusEndTimer)
+        this.bonusEndTimer = setTimeout(() => this.reportBudget(), reward.seconds * 1000)
+
+        return reward
     }
 
     /**

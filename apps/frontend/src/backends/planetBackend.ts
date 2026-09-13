@@ -7,10 +7,12 @@ import {
     GlobePoint,
     BonusLostError,
     BonusOffer,
+    BoostedClick,
     Enclosure,
     Ownerships,
     OwnershipsGetter,
     RateLimitedError,
+    SpreadClick,
     TileClicker,
     Update,
     UpdatesListener,
@@ -303,7 +305,19 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                 }
 
                 const enclosure = enclosureOf(event)
-                if (enclosure) this.bonusCallbacks.forEach(handlers => handlers.onEnclosed(enclosure))
+                if (enclosure) {
+                    this.bonusCallbacks.forEach(handlers => handlers.onEnclosed(enclosure))
+                    return
+                }
+
+                const spread = spreadOf(event)
+                if (spread) {
+                    this.bonusCallbacks.forEach(handlers => handlers.onSpread(spread))
+                    return
+                }
+
+                const boosted = boostedOf(event)
+                if (boosted) this.bonusCallbacks.forEach(handlers => handlers.onBoosted(boosted))
             },
             "planet events",
         )
@@ -465,6 +479,19 @@ export function enclosureOf(event: PlanetEvent): Enclosure | undefined {
         filled: [...enclosed.filledTileIds],
         yours: enclosed.yours ? {shapesLeft: enclosed.enclosuresLeft} : undefined,
     }
+}
+
+export function spreadOf(event: PlanetEvent): SpreadClick | undefined {
+    if (event.event.case !== "tilesSpread") return undefined
+
+    const spread = event.event.value
+    return {countryId: spread.countryId, tile: spread.tileId, spread: [...spread.spreadTileIds]}
+}
+
+export function boostedOf(event: PlanetEvent): BoostedClick | undefined {
+    if (event.event.case !== "clickBoosted") return undefined
+
+    return {countryId: event.event.value.countryId, tile: event.event.value.tileId}
 }
 
 /**

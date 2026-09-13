@@ -35,6 +35,7 @@ import {MAX_ZOOM, MIN_ZOOM, RESTING_ZOOM} from "./zoom.ts";
 import {createBonusBox} from "./bonusBox.ts";
 import {createBonusPointer} from "./bonusPointer.ts";
 import {createEnclosureEffects} from "./enclosureEffect.ts";
+import {createBonusClickEffects} from "./bonusClickEffects.ts";
 import {BonusReward} from "../../domain/bonus.ts";
 import {now as monotonicNow} from "../../backends/clickBudget.ts";
 import {BlastUniforms, blastUniforms, createBlasts} from "./blasts.ts";
@@ -197,6 +198,10 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const enclosures = createEnclosureEffects(geometryData.positions)
     scene.add(enclosures.object)
 
+    // And every click made under a spread or a triple clicks bonus, anyone's.
+    const bonusClicks = createBonusClickEffects(geometryData.positions)
+    scene.add(bonusClicks.object)
+
     // The box on screen and the token that redeems it, held together: a box
     // caught is only worth something with the token it arrived with.
     let offered: BonusOffer | undefined
@@ -217,10 +222,13 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             enclosures.play(enclosure)
             if (enclosure.yours) onShapeClosed(enclosure.yours.shapesLeft)
         },
+        onSpread: (spread) => bonusClicks.playSpread(spread),
+        onBoosted: (boosted) => bonusClicks.playBoost(boosted),
     })
 
     const driveBonusBox = (seconds: number) => {
         enclosures.update(seconds, camera, renderer.domElement.height)
+        bonusClicks.update(seconds, camera, renderer.domElement.height)
         bonusBox.update(seconds, camera)
         bonusPointer.update(bonusBox.flying ? bonusBox.object.position : undefined, camera)
     }
@@ -582,6 +590,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             territories.dispose()
             bonusBox.dispose()
             enclosures.dispose()
+            bonusClicks.dispose()
 
             cleanup()
         }

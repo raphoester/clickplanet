@@ -82,16 +82,37 @@ export type Enclosure = {
     yours?: {shapesLeft: number}
 }
 
+/**
+ * Somebody clicked under a spread bonus. The tiles arrive as tile updates, like
+ * an enclosure's; this is what lets every client show why.
+ */
+export type SpreadClick = {
+    countryId: string
+    /** The tile clicked. */
+    tile: number
+    /** The tiles touching it, which the click also took. Empty for a lone island. */
+    spread: number[]
+}
+
+/** Somebody clicked under a triple clicks bonus. */
+export type BoostedClick = {
+    countryId: string
+    tile: number
+}
+
 export type BonusHandlers = {
     onOffered: (offer: BonusOffer) => void
     onTaken: (taken: BonusCatch) => void
     onEnclosed: (enclosure: Enclosure) => void
+    onSpread: (spread: SpreadClick) => void
+    onBoosted: (boosted: BoostedClick) => void
 }
 
 export interface BonusListener {
     /**
      * Follows the bonus feed on the connection that is already open: the box
-     * drawn for this client, every catch on the planet, and every shape closed.
+     * drawn for this client, and every catch, shape closed, spread click and
+     * boosted click on the planet.
      */
     listenForBonuses(handlers: BonusHandlers): () => void
 

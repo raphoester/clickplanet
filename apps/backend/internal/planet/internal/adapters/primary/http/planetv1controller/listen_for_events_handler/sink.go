@@ -42,6 +42,10 @@ func (s Sink) Send(event listen_for_events.Event) error {
 		return s.stream.Send(bombDroppedEvent(event.Blast))
 	case event.Enclosed != nil:
 		return s.stream.Send(tilesEnclosedEvent(event.Enclosed))
+	case event.Spread != nil:
+		return s.stream.Send(tilesSpreadEvent(event.Spread))
+	case event.Boosted != nil:
+		return s.stream.Send(clickBoostedEvent(event.Boosted))
 	default:
 		return s.stream.Send(tileUpdateEvent(event.Update))
 	}
@@ -96,6 +100,29 @@ func tilesEnclosedEvent(enclosed *bonus.Enclosed) *planetv1.PlanetEvent {
 				FilledTileIds:  enclosed.Filled,
 				Yours:          enclosed.Yours,
 				EnclosuresLeft: uint32(enclosed.Left),
+			},
+		},
+	}
+}
+
+func tilesSpreadEvent(spread *bonus.Spread) *planetv1.PlanetEvent {
+	return &planetv1.PlanetEvent{
+		Event: &planetv1.PlanetEvent_TilesSpread{
+			TilesSpread: &planetv1.TilesSpread{
+				CountryId:     spread.CountryID,
+				TileId:        spread.Tile,
+				SpreadTileIds: spread.Neighbours,
+			},
+		},
+	}
+}
+
+func clickBoostedEvent(boosted *bonus.Boosted) *planetv1.PlanetEvent {
+	return &planetv1.PlanetEvent{
+		Event: &planetv1.PlanetEvent_ClickBoosted{
+			ClickBoosted: &planetv1.ClickBoosted{
+				CountryId: boosted.CountryID,
+				TileId:    boosted.Tile,
 			},
 		},
 	}

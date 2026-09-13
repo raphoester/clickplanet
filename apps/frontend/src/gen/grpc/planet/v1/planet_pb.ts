@@ -570,6 +570,21 @@ export class PlanetEvent extends Message<PlanetEvent> {
      */
     value: TilesEnclosed;
     case: "tilesEnclosed";
+  } | {
+    /**
+     * Broadcast to everyone, like tiles_enclosed: the tiles arrive as tile
+     * updates, and these say a bonus is why, so every client can show it.
+     *
+     * @generated from field: planet.v1.TilesSpread tiles_spread = 7;
+     */
+    value: TilesSpread;
+    case: "tilesSpread";
+  } | {
+    /**
+     * @generated from field: planet.v1.ClickBoosted click_boosted = 8;
+     */
+    value: ClickBoosted;
+    case: "clickBoosted";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<PlanetEvent>) {
@@ -586,6 +601,8 @@ export class PlanetEvent extends Message<PlanetEvent> {
     { no: 4, name: "bonus_taken", kind: "message", T: BonusTaken, oneof: "event" },
     { no: 5, name: "bomb_dropped", kind: "message", T: BombDropped, oneof: "event" },
     { no: 6, name: "tiles_enclosed", kind: "message", T: TilesEnclosed, oneof: "event" },
+    { no: 7, name: "tiles_spread", kind: "message", T: TilesSpread, oneof: "event" },
+    { no: 8, name: "click_boosted", kind: "message", T: ClickBoosted, oneof: "event" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PlanetEvent {
@@ -1122,6 +1139,106 @@ export class TilesEnclosed extends Message<TilesEnclosed> {
 
   static equals(a: TilesEnclosed | PlainMessage<TilesEnclosed> | undefined, b: TilesEnclosed | PlainMessage<TilesEnclosed> | undefined): boolean {
     return proto3.util.equals(TilesEnclosed, a, b);
+  }
+}
+
+/**
+ * A click made under a spread bonus, and the tiles it spread onto.
+ *
+ * @generated from message planet.v1.TilesSpread
+ */
+export class TilesSpread extends Message<TilesSpread> {
+  /**
+   * @generated from field: string country_id = 1;
+   */
+  countryId = "";
+
+  /**
+   * The tile the player clicked.
+   *
+   * @generated from field: uint32 tile_id = 2;
+   */
+  tileId = 0;
+
+  /**
+   * The tiles touching it, which the click also took. Empty for a lone island.
+   *
+   * @generated from field: repeated uint32 spread_tile_ids = 3;
+   */
+  spreadTileIds: number[] = [];
+
+  constructor(data?: PartialMessage<TilesSpread>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.TilesSpread";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "tile_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "spread_tile_ids", kind: "scalar", T: 13 /* ScalarType.UINT32 */, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TilesSpread {
+    return new TilesSpread().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): TilesSpread {
+    return new TilesSpread().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): TilesSpread {
+    return new TilesSpread().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: TilesSpread | PlainMessage<TilesSpread> | undefined, b: TilesSpread | PlainMessage<TilesSpread> | undefined): boolean {
+    return proto3.util.equals(TilesSpread, a, b);
+  }
+}
+
+/**
+ * A click made under a triple clicks bonus.
+ *
+ * @generated from message planet.v1.ClickBoosted
+ */
+export class ClickBoosted extends Message<ClickBoosted> {
+  /**
+   * @generated from field: string country_id = 1;
+   */
+  countryId = "";
+
+  /**
+   * @generated from field: uint32 tile_id = 2;
+   */
+  tileId = 0;
+
+  constructor(data?: PartialMessage<ClickBoosted>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.ClickBoosted";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "tile_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ClickBoosted {
+    return new ClickBoosted().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ClickBoosted {
+    return new ClickBoosted().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ClickBoosted {
+    return new ClickBoosted().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ClickBoosted | PlainMessage<ClickBoosted> | undefined, b: ClickBoosted | PlainMessage<ClickBoosted> | undefined): boolean {
+    return proto3.util.equals(ClickBoosted, a, b);
   }
 }
 
