@@ -2,10 +2,12 @@ import {
     BombDrop,
     Bomber,
     BonusCatch,
+    BonusHandlers,
     BonusListener,
     GlobePoint,
     BonusLostError,
     BonusOffer,
+    Enclosure,
     Ownerships,
     OwnershipsGetter,
     RateLimitedError,
@@ -297,7 +299,11 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                     // or a tile taken just before the bomb repaints over the crater.
                     this.flushUpdates()
                     this.bombCallbacks.forEach(callback => callback(drop))
+                    return
                 }
+
+                const enclosure = enclosureOf(event)
+                if (enclosure) this.bonusCallbacks.forEach(handlers => handlers.onEnclosed(enclosure))
             },
             "planet events",
         )
@@ -354,7 +360,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         this.anchorBudget(res.budget, countryId)
 
         // Only a kind this build knows is ever drawn, so only one can be caught.
-        const reward = rewardOf(res.kind, res.durationSeconds, res.blastRadius)
+        const reward = rewardOf(res.kind, res.durationSeconds, {blastRadius: res.blastRadius, shapes: res.enclosures, maxTiles: res.enclosureMaxTiles})
         if (!reward) throw new BonusLostError()
 
         // The widened reading says nothing about when the widening stops, so
@@ -411,11 +417,6 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
     }
 }
 
-type BonusHandlers = {
-    onOffered: (offer: BonusOffer) => void
-    onTaken: (taken: BonusCatch) => void
-}
-
 /**
  * Reads the box this client was offered.
  *
@@ -448,8 +449,33 @@ export function catchOf(event: PlanetEvent): BonusCatch | undefined {
     return {countryId: event.event.value.countryId}
 }
 
-/** An offer carries no blast radius; only the answer to a claim does, which is when it is needed. */
-function rewardOf(kind: BonusKind, seconds: number, blastRadius = 0): BonusReward | undefined {
+/**
+ * Somebody closed a shape. `yours` is only read when the server marked it so:
+ * how many shapes somebody else has left is not sent, and a zero here would
+ * read as "your bonus is over".
+ */
+export function enclosureOf(event: PlanetEvent): Enclosure | undefined {
+    if (event.event.case !== "tilesEnclosed") return undefined
+
+    const enclosed = event.event.value
+    return {
+        countryId: enclosed.countryId,
+        closingTile: enclosed.closingTileId,
+        wall: [...enclosed.wallTileIds],
+        filled: [...enclosed.filledTileIds],
+        yours: enclosed.yours ? {shapesLeft: enclosed.enclosuresLeft} : undefined,
+    }
+}
+
+/**
+ * An offer carries neither a blast radius nor an enclose bonus's shapes; only the
+ * answer to a claim does, which is when they are needed.
+ */
+function rewardOf(
+    kind: BonusKind,
+    seconds: number,
+    {blastRadius = 0, shapes = 0, maxTiles = 0}: {blastRadius?: number, shapes?: number, maxTiles?: number} = {},
+): BonusReward | undefined {
     switch (kind) {
         case BonusKind.TRIPLE_CLICKS:
             return {kind: "tripleClicks", seconds}
@@ -457,6 +483,8 @@ function rewardOf(kind: BonusKind, seconds: number, blastRadius = 0): BonusRewar
             return {kind: "spreadClicks", seconds}
         case BonusKind.BOMB:
             return {kind: "bomb", seconds, radius: blastRadius}
+        case BonusKind.ENCLOSE_CLICKS:
+            return {kind: "encloseClicks", seconds, shapes, maxTiles}
         default:
             return undefined
     }

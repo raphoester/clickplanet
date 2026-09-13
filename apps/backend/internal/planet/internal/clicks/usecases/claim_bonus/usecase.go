@@ -45,6 +45,11 @@ type Bomber interface {
 	Grant(scope string, until time.Time)
 }
 
+// Encloser starts an enclose bonus, which the click chain then spends.
+type Encloser interface {
+	Grant(scope string, until time.Time, shapes int, maxTiles int)
+}
+
 type In struct {
 	Token     string
 	CountryID string
@@ -57,6 +62,9 @@ type Out struct {
 
 	// BlastRadius is set for a bomb only, in radians of arc.
 	BlastRadius float64
+	// For an enclose bonus only.
+	Enclosures        int
+	EnclosureMaxTiles int
 }
 
 func New(
@@ -66,6 +74,7 @@ func New(
 	spreader Spreader,
 	bomber Bomber,
 	blastRadius float64,
+	encloser Encloser,
 	clock cptime.Clock,
 ) *UseCase {
 	if clock == nil {
@@ -79,6 +88,7 @@ func New(
 		spreader:    spreader,
 		bomber:      bomber,
 		blastRadius: blastRadius,
+		encloser:    encloser,
 		clock:       clock,
 	}
 }
@@ -90,6 +100,7 @@ type UseCase struct {
 	spreader    Spreader
 	bomber      Bomber
 	blastRadius float64
+	encloser    Encloser
 	clock       cptime.Clock
 }
 
@@ -110,7 +121,13 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	// failed to apply is the one lie this could tell.
 	u.registry.Publish(bonus.Taken{CountryID: in.CountryID, Kind: reward.Kind})
 
-	out := Out{Budget: toll.Of(state, u.pricer.Price(in.CountryID)), Kind: reward.Kind, Duration: reward.Duration}
+	out := Out{
+		Budget:            toll.Of(state, u.pricer.Price(in.CountryID)),
+		Kind:              reward.Kind,
+		Duration:          reward.Duration,
+		Enclosures:        reward.Enclosures,
+		EnclosureMaxTiles: reward.EnclosureMaxTiles,
+	}
 	if reward.Kind == bonus.KindBomb {
 		out.BlastRadius = u.blastRadius
 	}
@@ -119,7 +136,8 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 }
 
 // apply starts what the reward is worth, and answers the allowance as it stands
-// afterwards. A spread does not widen the allowance, so it answers it unchanged.
+// afterwards. A spread or an enclose does not widen the allowance, so it answers
+// it unchanged.
 func (u *UseCase) apply(scope string, reward bonus.Reward) cpratelimit.State {
 	until := u.clock.Now().Add(reward.Duration)
 
@@ -130,6 +148,10 @@ func (u *UseCase) apply(scope string, reward bonus.Reward) cpratelimit.State {
 	case bonus.KindBomb:
 		u.bomber.Grant(scope, until)
 		return u.booster.Peek(scope)
+	case bonus.KindEncloseClicks:
+		u.encloser.Grant(scope, until, reward.Enclosures, reward.EnclosureMaxTiles)
+		return u.booster.Peek(scope)
+	case bonus.KindTripleClicks:
 	}
 
 	return u.booster.Boost(scope, u.registry.Multiplier(), until)

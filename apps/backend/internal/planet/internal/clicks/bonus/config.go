@@ -35,6 +35,12 @@ type Config struct {
 
 	// How wide a circle a bomb clears, in tile spacings: 10.4 is ~390 tiles inland.
 	BombRings float64
+	// enclose_clicks: how long it runs, how many shapes it may close in that
+	// time, and the most tiles one shape may hold. A shape bigger than that
+	// takes nothing, and costs nothing.
+	EncloseDuration time.Duration
+	EncloseShapes   int
+	EncloseMaxTiles int
 
 	Multiplier float64
 
@@ -55,6 +61,9 @@ const (
 	defaultSpreadDuration  = 10 * time.Second
 	defaultBombDuration    = 30 * time.Second
 	defaultBombRings       = 10.4
+	defaultEncloseDuration = 30 * time.Second
+	defaultEncloseShapes   = 3
+	defaultEncloseMaxTiles = 15
 	defaultMultiplier      = 3
 	defaultActiveWithin    = 2 * time.Minute
 	defaultForgetAfter     = 5 * time.Minute
@@ -92,6 +101,15 @@ func (c Config) withDefaults() Config {
 	}
 	if c.BombRings <= 0 {
 		c.BombRings = defaultBombRings
+	}
+	if c.EncloseDuration <= 0 {
+		c.EncloseDuration = defaultEncloseDuration
+	}
+	if c.EncloseShapes <= 0 {
+		c.EncloseShapes = defaultEncloseShapes
+	}
+	if c.EncloseMaxTiles <= 0 {
+		c.EncloseMaxTiles = defaultEncloseMaxTiles
 	}
 	if c.Multiplier <= 1 {
 		c.Multiplier = defaultMultiplier
@@ -140,6 +158,9 @@ func (c Config) durationOf(kind Kind) time.Duration {
 		return c.SpreadDuration
 	case KindBomb:
 		return c.BombDuration
+	case KindEncloseClicks:
+		return c.EncloseDuration
+	case KindTripleClicks:
 	}
 
 	return c.Duration

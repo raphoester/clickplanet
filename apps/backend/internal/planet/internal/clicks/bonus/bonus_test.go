@@ -27,6 +27,7 @@ func newTestRegistry() (*Registry, *cptime.FixedClock) {
 		Duration:        time.Minute,
 		SpreadDuration:  time.Minute,
 		BombDuration:    time.Minute,
+		EncloseDuration: time.Minute,
 		Multiplier:      3,
 		ActiveWithin:    5 * time.Minute,
 		ForgetAfter:     5 * time.Minute,
@@ -615,4 +616,68 @@ func TestAMaxBelowTheMinIsNotAWindow(t *testing.T) {
 
 	assert.GreaterOrEqual(t, registry.config.MaxInterval, registry.config.MinInterval)
 	assert.Equal(t, 10*time.Minute, registry.window())
+}
+
+func TestAnEncloseBoxRunsForItsOwnDurationAndSaysHowManyShapes(t *testing.T) {
+	clock := cptime.NewFixedClock(epoch)
+	registry := New(Config{
+		Enabled: true, MinInterval: window, MaxInterval: window, ActiveWithin: 5 * time.Minute,
+		Duration: time.Minute, EncloseDuration: 30 * time.Second, EncloseShapes: 3, EncloseMaxTiles: 10,
+		Kinds: map[Kind]float64{KindEncloseClicks: 1},
+	}, clock)
+	events := playing(t, registry, "scope-a")
+
+	waitOut(registry, clock)
+	offer := offered(t, events)
+	require.NotNil(t, offer)
+	assert.Equal(t, 30*time.Second, offer.Duration)
+
+	reward, claimed := registry.Claim(offer.Token, "scope-a")
+	require.True(t, claimed)
+	assert.Equal(t, Reward{
+		Kind: KindEncloseClicks, Duration: 30 * time.Second, Enclosures: 3, EnclosureMaxTiles: 10,
+	}, reward)
+}
+
+func TestOnlyAnEncloseRewardCarriesShapes(t *testing.T) {
+	clock := cptime.NewFixedClock(epoch)
+	registry := New(Config{
+		Enabled: true, MinInterval: window, MaxInterval: window, ActiveWithin: 5 * time.Minute,
+		Kinds: map[Kind]float64{KindTripleClicks: 1},
+	}, clock)
+	events := playing(t, registry, "scope-a")
+
+	waitOut(registry, clock)
+	offer := offered(t, events)
+	require.NotNil(t, offer)
+
+	reward, claimed := registry.Claim(offer.Token, "scope-a")
+	require.True(t, claimed)
+	assert.Zero(t, reward.Enclosures)
+	assert.Zero(t, reward.EnclosureMaxTiles)
+}
+
+func TestAClosedShapeReachesEveryoneAndOnlyItsCloserIsToldItIsTheirs(t *testing.T) {
+	registry, _ := newTestRegistry()
+	mine, leaveMine := registry.Attend("scope-a")
+	t.Cleanup(leaveMine)
+	theirs, leaveTheirs := registry.Attend("scope-b")
+	t.Cleanup(leaveTheirs)
+
+	registry.PublishEnclosed("scope-a", Enclosed{
+		CountryID: "fr", ClosingTile: 7, Wall: []uint32{7, 8}, Filled: []uint32{9}, Left: 2,
+	})
+
+	yours := (<-mine).Enclosed
+	require.NotNil(t, yours)
+	assert.True(t, yours.Yours)
+	assert.Equal(t, 2, yours.Left)
+	assert.Equal(t, []uint32{9}, yours.Filled)
+
+	seen := (<-theirs).Enclosed
+	require.NotNil(t, seen)
+	assert.False(t, seen.Yours)
+	assert.Zero(t, seen.Left, "how many shapes somebody has left is theirs to know")
+	assert.Equal(t, "fr", seen.CountryID)
+	assert.Equal(t, []uint32{7, 8}, seen.Wall)
 }

@@ -63,15 +63,37 @@ export type BonusCatch = {
     countryId: string
 }
 
+/**
+ * Somebody closed a shape with an enclose bonus, and took what was inside.
+ *
+ * The tiles themselves arrive as ordinary tile updates. This is what lets every
+ * client show *why* they changed, which a patch of tiles flipping at once would
+ * not say on its own.
+ */
+export type Enclosure = {
+    countryId: string
+    /** The click that closed it; one of the wall tiles. */
+    closingTile: number
+    /** The closer's tiles around the inside: the shape's outline. */
+    wall: number[]
+    /** The tiles taken, nearest the closing tile first. */
+    filled: number[]
+    /** Set only when this client closed it: how many shapes its bonus has left. */
+    yours?: {shapesLeft: number}
+}
+
+export type BonusHandlers = {
+    onOffered: (offer: BonusOffer) => void
+    onTaken: (taken: BonusCatch) => void
+    onEnclosed: (enclosure: Enclosure) => void
+}
+
 export interface BonusListener {
     /**
-     * Follows both halves of the bonus feed on the connection that is already
-     * open: the box drawn for this client, and every catch on the planet.
+     * Follows the bonus feed on the connection that is already open: the box
+     * drawn for this client, every catch on the planet, and every shape closed.
      */
-    listenForBonuses(handlers: {
-        onOffered: (offer: BonusOffer) => void
-        onTaken: (taken: BonusCatch) => void
-    }): () => void
+    listenForBonuses(handlers: BonusHandlers): () => void
 
     /**
      * Redeems a box. Rejects with `BonusLostError` when the server will not

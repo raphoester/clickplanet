@@ -452,7 +452,16 @@ curl -s "https://clickplanet.lol$B" | grep -c 'challenges.cloudflare.com/turnsti
   them to a tube around the globe, and `camera.zoom` would fan them out across
   the screen on the way in. Its scene is not the one `disposeScene` walks, so
   `startAnimation`'s `stop()` disposes it by hand.
-- `shaders/` — GLSL for the display, picking and star passes.
+- `enclosureEffect.ts` — what every screen shows when somebody closes a shape
+  with the enclose bonus (`tilesEnclosed` on the stream): the outline lights up
+  and meets at the closing tile, the inside pours in, and a gold ring runs out
+  over the ground. **The curves are TypeScript, written into attributes per
+  frame**, not GLSL: a shape is a few dozen points, and that is what lets
+  `enclosureEffect.test.ts` pin the timing. Marks and the ring have a minimum
+  size in pixels, so a shape closed while zoomed out is still seen. A shape that
+  arrives while the tab is hidden is not played — it would all start at once on
+  return.
+- `shaders/` — GLSL for the display, picking, star and enclosure passes.
 
 ### The zoomed-out view
 

@@ -28,9 +28,11 @@ type Event struct {
 	Blast     *clicks.Blast
 	Heartbeat bool
 
-	// A box put in front of this caller alone, and a catch anyone made.
-	Offer *bonus.Offer
-	Taken *bonus.Taken
+	// A box put in front of this caller alone, a catch anyone made, and a shape
+	// anyone closed.
+	Offer    *bonus.Offer
+	Taken    *bonus.Taken
+	Enclosed *bonus.Enclosed
 }
 
 // BonusFeed is this caller's boxes. Nil when boxes are off, which leaves the
@@ -108,7 +110,7 @@ func (u *UseCase) Execute(ctx context.Context, sink Sink) error {
 				return nil
 			}
 
-			if err := sink.Send(Event{Offer: event.Offer, Taken: event.Taken}); err != nil {
+			if err := sink.Send(Event{Offer: event.Offer, Taken: event.Taken, Enclosed: event.Enclosed}); err != nil {
 				return err
 			}
 		}

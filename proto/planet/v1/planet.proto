@@ -128,6 +128,11 @@ message PlanetEvent {
     // Broadcast to everyone. It travels in order with the tile updates, so a
     // tile retaken just after the blast is never blanked by it.
     BombDropped bomb_dropped = 5;
+
+    // Broadcast to everyone: a player closed a shape and took what was inside.
+    // The tiles themselves still arrive as tile updates; this is what lets every
+    // client show why they changed.
+    TilesEnclosed tiles_enclosed = 6;
   }
 }
 
@@ -145,6 +150,11 @@ enum BonusKind {
   // It clears every tile within a few rings of where it lands, whoever holds
   // them. The server picks the tiles.
   BONUS_KIND_BOMB = 3;
+
+  // A click that closes a shape of the player's own tiles also takes the tiles
+  // inside it, a few shapes at most. The server finds the shape, so a client
+  // never names what it gets.
+  BONUS_KIND_ENCLOSE_CLICKS = 4;
 }
 
 // A box put in front of one player, and the token that claims it.
@@ -192,6 +202,11 @@ message ClaimBonusResponse {
   // For a bomb: how wide its blast is, in radians of arc, so the client can
   // draw the aiming ring at the size of what it will clear. Zero otherwise.
   double blast_radius = 4;
+
+  // For an enclose bonus only: how many shapes it may close, and the most tiles
+  // one shape may hold. Zero for every other kind.
+  uint32 enclosures = 5;
+  uint32 enclosure_max_tiles = 6;
 }
 
 // A point on the globe, as a direction from its centre. Need not be unit length.
@@ -230,6 +245,25 @@ message BombDropped {
   // Where to draw it, on the unit sphere: the tile's centre, or the aimed spot
   // in the sea.
   GlobePoint point = 5;
+}
+
+// A shape closed by an enclose bonus, and what it took.
+message TilesEnclosed {
+  string country_id = 1;
+
+  // The click that closed the shape. It is one of the wall tiles.
+  uint32 closing_tile_id = 2;
+
+  // The player's tiles that touch the inside: the shape's outline.
+  repeated uint32 wall_tile_ids = 3;
+
+  // The tiles taken, nearest the closing tile first.
+  repeated uint32 filled_tile_ids = 4;
+
+  // Set only on the stream of the caller who closed it, with how many shapes
+  // their bonus may still close.
+  bool yours = 5;
+  uint32 enclosures_left = 6;
 }
 
 message Heartbeat {}

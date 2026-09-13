@@ -96,10 +96,12 @@ bonus:
   #   triple_clicks - the allowance is multiplied by `multiplier`
   #   spread_clicks - every click also takes the tiles touching the one clicked
   #   bomb          - one bomb, dropped anywhere to clear a circle of tiles
+  #   enclose_clicks - a click that closes a shape of your tiles takes the inside
   kinds:
     triple_clicks: 5
     spread_clicks: 2
     bomb: 1
+    enclose_clicks: 2
 
   # How long the token stays good. It has to outlast the flight the client
   # draws, or a box caught on its last frame is refused.
@@ -126,6 +128,17 @@ bonus:
   # spacings: 10.4 is ~390 tiles inland. The radius in radians is this times the
   # map's own tile spacing, so the client's ring and the clear always agree.
   bombRings: 10.4
+
+  # enclose_clicks: how long it runs, how many shapes it may close in that time,
+  # and the most tiles one shape may hold. A click that takes the last tile of a
+  # wall around a pocket of other tiles takes the pocket too. Clicking a tile you
+  # already hold closes nothing, so a shape finished before the bonus does not
+  # count. A pocket bigger than encloseMaxTiles, or open to the coast, takes
+  # nothing and costs no shape - so a triangle of three tiles, which has no
+  # inside, is free.
+  encloseDuration: 30s
+  encloseShapes: 3
+  encloseMaxTiles: 15
 
   # How recently a caller must have clicked to be offered a box. A tab left open
   # overnight is not playing, and a box sent to it is one nobody catches.

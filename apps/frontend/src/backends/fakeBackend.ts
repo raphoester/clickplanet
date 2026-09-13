@@ -1,11 +1,12 @@
 import {
     BombDrop,
     Bomber,
-    BonusCatch,
+    BonusHandlers,
     BonusListener,
     BonusLostError,
     BonusOffer,
     GlobePoint,
+    Enclosure,
     Ownerships,
     OwnershipsGetter,
     RateLimitedError,
@@ -37,12 +38,13 @@ const TOLL_STEPS = [
 const BONUS_EVERY_MS = 20_000
 const BONUS_OFFER_TTL_MS = 15_000
 /** The server's defaults: a spread is strong, so it is short and rarer. */
-const BONUS_SECONDS: Record<BonusReward["kind"], number> = {tripleClicks: 20, spreadClicks: 10, bomb: 30}
-/** The production weights, 5 : 2 : 1. `giveBomb()` in the console skips the wait. */
+const BONUS_SECONDS: Record<BonusReward["kind"], number> = {tripleClicks: 20, spreadClicks: 10, bomb: 30, encloseClicks: 30}
+/** The production weights, 5 : 2 : 1 : 2. `giveBomb()` in the console skips the wait. */
 const BONUS_KINDS: BonusReward["kind"][] = [
     "tripleClicks", "tripleClicks", "tripleClicks", "tripleClicks", "tripleClicks",
     "spreadClicks", "spreadClicks",
     "bomb",
+    "encloseClicks", "encloseClicks",
 ]
 
 /** Radians of arc: the server's 8 tile spacings, at its measured spacing of 0.004. */
@@ -56,6 +58,8 @@ const BOT_BOMB_EVERY_MS = 25_000
 
 /** Everyone else's clicks, together. */
 const BOT_CLICKS_PER_SECOND = 4
+const ENCLOSE_SHAPES = 3
+const ENCLOSE_MAX_TILES = 15
 
 export type FakeBackendOptions = {
     vpnBlocked?: boolean
@@ -75,7 +79,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     private pendingUpdates: Update[] = []
     private updateBatchCallbacks: Map<string, (update: Update[]) => void> = new Map()
     private budgetCallbacks: Map<string, (budget: ClickBudget) => void> = new Map()
-    private bonusCallbacks: Map<string, {onOffered: (offer: BonusOffer) => void, onTaken: (taken: BonusCatch) => void}> = new Map()
+    private bonusCallbacks: Map<string, BonusHandlers> = new Map()
     private bombCallbacks: Map<string, (drop: BombDrop) => void> = new Map()
 
     /** When the bomb this client holds stops being droppable; 0 for none. */
@@ -173,6 +177,29 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
 
         if (!allowed) throw new RateLimitedError()
         this.applyClick(tileId, countryId)
+        this.pretendToEnclose(tileId, countryId)
+    }
+
+    /**
+     * This fake has no map geometry, so it cannot find a shape. While an
+     * enclose bonus runs, every click pretends it closed one instead: a run of
+     * neighbouring ids as the outline, and the ids just past it as the inside.
+     * Consecutive ids mostly sit side by side on the globe, so it draws a short
+     * streak rather than a shape — enough to develop the effect against.
+     */
+    private pretendToEnclose(tileId: number, countryId: string) {
+        const active = this.active
+        if (active?.kind !== "encloseClicks" || Date.now() >= this.activeUntilMs) return
+
+        const wall = [0, 1, 2, 3, 4, 5].map(step => tileId + step).filter(id => id <= TILE_COUNT)
+        const filled = [6, 7, 8].map(step => tileId + step).filter(id => id <= TILE_COUNT)
+        filled.forEach(id => this.applyClick(id, countryId))
+
+        const shapesLeft = active.shapes - 1
+        this.active = shapesLeft > 0 ? {...active, shapes: shapesLeft} : undefined
+
+        const enclosure: Enclosure = {countryId, closingTile: tileId, wall, filled, yours: {shapesLeft}}
+        this.bonusCallbacks.forEach(handlers => handlers.onEnclosed(enclosure))
     }
 
     /**
@@ -273,10 +300,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         this.lastRefillMs = now
     }
 
-    public listenForBonuses(handlers: {
-        onOffered: (offer: BonusOffer) => void
-        onTaken: (taken: BonusCatch) => void
-    }): () => void {
+    public listenForBonuses(handlers: BonusHandlers): () => void {
         const identifier = UUIDv4()
         this.bonusCallbacks.set(identifier, handlers)
 
@@ -413,5 +437,9 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
 
 function rewardOfKind(kind: BonusReward["kind"]): BonusReward {
     if (kind === "bomb") return {kind, seconds: BONUS_SECONDS.bomb, radius: BOMB_RADIUS}
+    if (kind === "encloseClicks") {
+        return {kind, seconds: BONUS_SECONDS[kind], shapes: ENCLOSE_SHAPES, maxTiles: ENCLOSE_MAX_TILES}
+    }
+
     return {kind, seconds: BONUS_SECONDS[kind]}
 }

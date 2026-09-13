@@ -24,10 +24,13 @@ const (
 
 	// KindBomb grants one bomb, to be dropped within the duration.
 	KindBomb Kind = "bomb"
+	// KindEncloseClicks makes a click that closes a shape of the caller's own
+	// tiles take the tiles inside it as well.
+	KindEncloseClicks Kind = "enclose_clicks"
 )
 
 // Kinds is every kind this server knows how to grant.
-var Kinds = []Kind{KindTripleClicks, KindSpreadClicks, KindBomb}
+var Kinds = []Kind{KindTripleClicks, KindSpreadClicks, KindBomb, KindEncloseClicks}
 
 type Offer struct {
 	Token string
@@ -45,15 +48,39 @@ type Taken struct {
 	Kind      Kind
 }
 
-// Event carries exactly one: an Offer reaches its caller, a Taken everyone.
+// Enclosed is a shape an enclose bonus closed, and the tiles it took.
+type Enclosed struct {
+	CountryID string
+
+	// The click that closed it, which is also one of the wall tiles.
+	ClosingTile uint32
+
+	// The caller's tiles that touch the inside.
+	Wall []uint32
+
+	// The tiles taken, nearest the closing tile first.
+	Filled []uint32
+
+	// Set only on the copy sent to the caller who closed it.
+	Yours bool
+	Left  int
+}
+
+// Event carries exactly one: an Offer reaches its caller, a Taken and an
+// Enclosed everyone.
 type Event struct {
-	Offer *Offer
-	Taken *Taken
+	Offer    *Offer
+	Taken    *Taken
+	Enclosed *Enclosed
 }
 
 type Reward struct {
 	Kind     Kind
 	Duration time.Duration
+
+	// For an enclose bonus only: how many shapes, and how big each may be.
+	Enclosures        int
+	EnclosureMaxTiles int
 }
 
 // caller is one scope: its open streams, and the schedule that outlives them.
@@ -227,7 +254,13 @@ func (r *Registry) Claim(token string, scope string) (Reward, bool) {
 		entry.nextOfferAt = now.Add(offer.duration).Add(r.window())
 	}
 
-	return Reward{Kind: offer.kind, Duration: offer.duration}, true
+	reward := Reward{Kind: offer.kind, Duration: offer.duration}
+	if offer.kind == KindEncloseClicks {
+		reward.Enclosures = r.config.EncloseShapes
+		reward.EnclosureMaxTiles = r.config.EncloseMaxTiles
+	}
+
+	return reward, true
 }
 
 // Dropped brings the next box to a window from now, rather than from when the bomb would have lapsed.
@@ -259,6 +292,28 @@ func (r *Registry) Publish(taken Taken) {
 
 	for _, entry := range r.callers {
 		entry.send(Event{Taken: &taken})
+	}
+}
+
+// PublishEnclosed sends a closed shape to everyone. The caller who closed it gets
+// a copy of their own, which says so and says how many shapes they have left.
+func (r *Registry) PublishEnclosed(scope string, enclosed Enclosed) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	theirs := enclosed
+	theirs.Yours, theirs.Left = false, 0
+
+	for other, entry := range r.callers {
+		if other == scope {
+			yours := enclosed
+			yours.Yours = true
+			entry.send(Event{Enclosed: &yours})
+
+			continue
+		}
+
+		entry.send(Event{Enclosed: &theirs})
 	}
 }
 
