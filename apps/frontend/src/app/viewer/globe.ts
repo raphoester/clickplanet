@@ -5,7 +5,7 @@ import {loadPointGeometryData} from "./points.ts";
 import {GpuPicker} from "./gpuPicking.ts";
 import {CapturedFrame, readDrawingBuffer} from "./capture.ts";
 import {TileField} from "./tileField.ts";
-import {BorderField, loadBorders} from "./borderField.ts";
+import {BorderField, countryOfTile, loadBorders} from "./borderField.ts";
 import {ATLAS_SIZE, ATLAS_URL} from "./atlasAsset.ts";
 import {BORDERS_URL} from "./bordersAsset.ts";
 import {displayPointSize, flagPaint, tilePointSize} from "./pointSize.ts";
@@ -102,8 +102,9 @@ export type GlobeOptions = {
     bonusListener?: BonusListener
     /** Absent for a backend with no bombs: a bomb won is then never armed. */
     bomber?: Bomber
-    /** A bomb landed somewhere on the planet — this client's included. */
-    onBombDropped: (drop: BombDrop) => void
+    /** A bomb landed somewhere on the planet — this client's included. `land` is
+     *  the code of the country whose ground it hit, not of who holds the tiles. */
+    onBombDropped: (drop: BombDrop, land: string | undefined) => void
     /** The bomb this client held is gone: dropped, or held too long. */
     onBombSpent: () => void
     /** Read for the globe's whole life, so it must not change identity. */
@@ -353,7 +354,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         // The synth waits `IMPACT_DELAY` itself, so the boom lands with the tiles.
         // A drop with no tile under it landed in the ocean, and splashes.
         playSound("bomb", {volume: own ? 1 : DISTANT_BOMB_VOLUME, onWater: drop.tile === undefined})
-        onBombDropped(drop)
+        onBombDropped(drop, drop.tile === undefined ? undefined : countryOfTile(borders, drop.tile))
     })
 
     const driveBlasts = (seconds: number) => {

@@ -10,6 +10,8 @@ export const BOMB_NEWS_MS = 4000
 
 export type BombNewsProps = {
     drop: BombDrop
+    /** The code of the country whose ground the bomb hit, if it hit one. */
+    land?: string
     onDone: () => void
 }
 
@@ -18,8 +20,10 @@ export type BombNewsProps = {
  * Most blasts happen where the player is not looking, so this is how they hear
  * about them at all. Nothing here is clickable.
  */
-export default function BombNews({drop, onDone}: BombNewsProps) {
+export default function BombNews({drop, land, onDone}: BombNewsProps) {
     const name = Countries.get(drop.countryId)?.name ?? drop.countryId
+    // A code with no name on the list falls back to the tile count.
+    const landName = land === undefined ? undefined : Countries.get(land)?.name
 
     // Held in a ref so only a new drop restarts the countdown; see BonusAward.
     const done = useRef(onDone)
@@ -36,7 +40,7 @@ export default function BombNews({drop, onDone}: BombNewsProps) {
         <div className="bomb-news-line">
             <span aria-hidden="true">{drop.tile === undefined ? "🌊" : "💥"}</span>
             <CountryFlag code={drop.countryId}/>
-            <span><strong>{name}</strong> {describeBlast(drop)}</span>
+            <span><strong>{name}</strong> {describeBlast(drop, landName)}</span>
         </div>
     </div>
 }

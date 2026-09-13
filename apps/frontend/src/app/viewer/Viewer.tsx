@@ -97,7 +97,7 @@ export default function Viewer(props: ViewerProps) {
 
         {award && <BonusAward reward={award} onDone={dismissAward}/>}
 
-        {lastBomb && <BombNews key={lastBomb.id} drop={lastBomb.drop} onDone={dismissBomb}/>}
+        {lastBomb && <BombNews key={lastBomb.id} drop={lastBomb.drop} land={lastBomb.land} onDone={dismissBomb}/>}
 
         {vpnBlocked && <VPNBlockedModal onClose={dismissVPNBlocked}/>}
 
