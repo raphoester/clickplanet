@@ -111,6 +111,7 @@ type Guard interface {
 
 	// One runner whatever the config turned on: how many sweepers there are is
 	// this package's business.
+	Name() string
 	Run(ctx context.Context)
 
 	Describe() Description
@@ -216,6 +217,8 @@ func (g *guard) Sentence(scope string) (Sentence, bool) { return g.banner.Senten
 func (g *guard) Enforcing() bool { return g.banner.Enforcing() }
 
 func (g *guard) Banned(scope string) bool { return g.banner.Banned(scope) }
+
+func (g *guard) Name() string { return "antibot" }
 
 // Run fans out to every sweeper enabled and blocks until they all return.
 func (g *guard) Run(ctx context.Context) {
