@@ -55,7 +55,13 @@ func (b *Blocklist) Load() error {
 		return fmt.Errorf("failed to parse allowlist: %w", err)
 	}
 
-	vpn, err := Parse(bytes.NewReader(cpdata.VPNv4), bytes.NewReader(cpdata.VPNv6))
+	vpn, err := Parse(
+		bytes.NewReader(cpdata.VPNv4),
+		bytes.NewReader(cpdata.VPNv6),
+		bytes.NewReader(cpdata.VPNProviders),
+		bytes.NewReader(cpdata.TorExits),
+		bytes.NewReader(cpdata.VPNNetnames),
+	)
 	if err != nil {
 		return fmt.Errorf("failed to parse vpn list: %w", err)
 	}

@@ -1,12 +1,14 @@
 package cpipblock_test
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock/cpdata"
 )
 
 func TestVendoredListsParse(t *testing.T) {
@@ -29,6 +31,33 @@ func TestVendoredVPNListBlocksAKnownRange(t *testing.T) {
 
 	_, blocked = blocklist.Blocked("8.8.8.8")
 	assert.False(t, blocked, "a well-known resolver is not a VPN egress")
+}
+
+func TestVendoredSourcesAreNotTruncated(t *testing.T) {
+	for name, data := range map[string][]byte{
+		"providers": cpdata.VPNProviders,
+		"tor exits": cpdata.TorExits,
+		"netnames":  cpdata.VPNNetnames,
+	} {
+		set, err := cpipblock.Parse(bytes.NewReader(data))
+		require.NoErrorf(t, err, "%s should parse", name)
+		assert.Positivef(t, set.Len(), "%s should not be empty", name)
+	}
+
+	providers, err := cpipblock.Parse(bytes.NewReader(cpdata.VPNProviders))
+	require.NoError(t, err)
+	assert.Greater(t, providers.Len(), 5_000)
+}
+
+func TestVPNListBlocksFirefoxVPN(t *testing.T) {
+	blocklist := cpipblock.New(cpipblock.Config{Enabled: true})
+	require.NoError(t, blocklist.Load())
+
+	for _, ip := range []string{"2a00:8c40:f0c8:8e3::1", "63.245.216.1"} {
+		list, blocked := blocklist.Blocked(ip)
+		require.Truef(t, blocked, "%s should be refused", ip)
+		require.Equal(t, cpipblock.ListVPN, list)
+	}
 }
 
 func TestDatacenterListIsOffUnlessAskedFor(t *testing.T) {
