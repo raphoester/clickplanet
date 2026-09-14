@@ -98,6 +98,9 @@ type Guard interface {
 	// Flagged is how many callers are currently banned, for the gauge.
 	Flagged() int
 
+	// Banned says whether a scope's actions should be dropped: false while enforce is off.
+	Banned(scope string) bool
+
 	// Ban is an operator's ban on a scope; a zero duration takes the ladder's. Enforcing says whether it drops anything.
 	Ban(scope string, duration time.Duration) Sentence
 	Sentence(scope string) (Sentence, bool)
@@ -206,6 +209,8 @@ func (g *guard) Ban(scope string, duration time.Duration) Sentence {
 func (g *guard) Sentence(scope string) (Sentence, bool) { return g.banner.Sentence(scope) }
 
 func (g *guard) Enforcing() bool { return g.banner.Enforcing() }
+
+func (g *guard) Banned(scope string) bool { return g.banner.Banned(scope) }
 
 // Run fans out to every sweeper enabled and blocks until they all return.
 func (g *guard) Run(ctx context.Context) {

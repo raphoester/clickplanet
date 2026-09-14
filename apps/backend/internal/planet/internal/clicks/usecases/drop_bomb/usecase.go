@@ -41,6 +41,9 @@ type CountryChecker interface {
 type In struct {
 	Target    clicks.Vec3
 	CountryID string
+
+	// Dud is set by antibot_drop_bomb for a banned caller: the bomb is spent, clears nothing and is shown to nobody.
+	Dud bool
 }
 
 // Rules is what a bomb is: how wide a circle it clears, and how far from a tile an aim may land and still hit it.
@@ -85,6 +88,10 @@ func (u *UseCase) Execute(ctx context.Context, in In) (clicks.Blast, error) {
 		return clicks.Blast{}, ErrNoBomb
 	}
 	u.schedule.Dropped(scope)
+
+	if in.Dud {
+		return clicks.Blast{}, nil
+	}
 
 	blast := clicks.Blast{CountryID: in.CountryID, Radius: u.rules.Radius, Point: unit(in.Target)}
 
