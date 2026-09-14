@@ -28,6 +28,7 @@ type savedCaller struct {
 type savedReaction struct {
 	At    int64
 	Delay int64
+	Tile  uint32
 }
 
 func (w *Watchdog) Save() ([]byte, error) {
@@ -43,7 +44,7 @@ func (w *Watchdog) Save() ([]byte, error) {
 	for scope, c := range w.callers {
 		reactions := make([]savedReaction, 0, len(c.reactions))
 		for _, r := range c.reactions {
-			reactions = append(reactions, savedReaction{At: evidence.Nanos(r.at), Delay: int64(r.delay)})
+			reactions = append(reactions, savedReaction{At: evidence.Nanos(r.at), Delay: int64(r.delay), Tile: r.tile})
 		}
 		saved.Callers = append(saved.Callers, savedCaller{
 			Scope:     scope,
@@ -72,7 +73,7 @@ func (w *Watchdog) Load(data []byte) error {
 	for _, c := range saved.Callers {
 		loaded := &caller{tiles: c.Tiles}
 		for _, r := range c.Reactions {
-			loaded.reactions = append(loaded.reactions, reaction{at: evidence.Time(r.At), delay: time.Duration(r.Delay)})
+			loaded.reactions = append(loaded.reactions, reaction{at: evidence.Time(r.At), delay: time.Duration(r.Delay), tile: r.Tile})
 		}
 		if len(loaded.tiles) > keptTiles {
 			loaded.tiles = loaded.tiles[len(loaded.tiles)-keptTiles:]

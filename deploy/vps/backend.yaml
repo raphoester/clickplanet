@@ -127,7 +127,16 @@ antiBot:
       minReactions: 20
       maxSpread: 300ms
       maxMedian: 250ms
-      trackWindow: 5m
+      # The band above missed the Bulgaria recapture bot of 2026-09-14: 62
+      # retakes on 61 different tiles, median ~280ms, but a p90-p10 of ~750ms
+      # because its retakes queue behind the throttle. A hand is that fast only on
+      # the tile it already points at, so speed across many tiles reads on its
+      # own. 600ms is half the fastest human median measured on 2026-09-11.
+      minTiles: 15
+      roamMedian: 600ms
+      certainTiles: 30
+      # 15m, not 5m: a bot that only answers attacks gathers reactions slowly.
+      trackWindow: 15m
       sweepInterval: 1m
 
   sequencer:
@@ -164,15 +173,16 @@ antiBot:
   defender:
     enabled: true
     detector:
-      # Measuring only, since 2026-09-14: no share is set, so it never argues
-      # for a ban. The Bulgaria bots retook from a queue, 0.4s to 40s after the
-      # loss, far past the retaker's reaction window. Read click_retake_share in
-      # the poller history before setting minShare/certainShare — two players
-      # fighting over one tile also read as all retakes.
+      # Suspect only. On 2026-09-14 click_retake_share held 26 callers under
+      # 0.1 and the Bulgaria recapture bot at 0.7-0.8. certainShare stays unset:
+      # two players fighting over one tile also read as all retakes, so this
+      # must never ban alone. The bot only clicks when attacked, ~4 takes a
+      # minute on average, so minClicks 60 in 5m never judged it.
       retakeWindow: 2m
-      minClicks: 60
+      minClicks: 40
+      minShare: 0.6
       certainClicks: 200
-      trackWindow: 5m
+      trackWindow: 10m
       sweepInterval: 1m
 
   # Catches every one of its last five boxes, at once. See cmd/api/example.yaml.

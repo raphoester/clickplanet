@@ -266,6 +266,14 @@ antiBot:
       # A band this tight that is also faster than a person decides is
       # "certain", and bans on its own. Either bound alone bans real players.
       maxMedian: 250ms
+      # Reactions on this many different tiles, with a median at or under
+      # roamMedian, read "suspect" whatever the spread; certainTiles reads
+      # "certain". A player at war is fast on the tile it watches, and a bot
+      # reading the stream is fast everywhere — including when its retakes
+      # queue behind the throttle and the band above goes wide. 0 is off.
+      minTiles: 15
+      roamMedian: 600ms
+      certainTiles: 30
       trackWindow: 5m
       sweepInterval: 1m
 

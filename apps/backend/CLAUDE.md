@@ -887,6 +887,16 @@ actually seen in production answers at ~1s, sailed past `maxMedian` and never
 flagged â€” while holding a spread of 138ms across twenty reactions. Under one
 boolean rule that bot was invisible. It is `Suspect` now.
 
+**Speed on one tile is not the signal, and speed on many tiles is (`roam`).** The
+band missed the Bulgaria recapture bot of 2026-09-14 from the other side: 62
+retakes on 61 different tiles, median ~280ms, but a p90-p10 of ~750ms, because its
+retakes queue behind the throttle. A player at war is fast only on the tile its
+cursor is already on. So reactions on `minTiles` different tiles with a median at
+or under `roamMedian` read `Suspect` whatever the spread, and `certainTiles` reads
+`Certain`. The ban line names the stronger rule (`reflex` or `roam`) and carries
+`tiles` either way. `TestTheSameSpeedOnAFewTilesIsATileWar` pins the player
+clicking back at a bot; `TestTheRecaptureBotOfSeptember14IsCaught` replays the bot.
+
 **`sequencer`: the step, not the size of it.** Tile ids come from the
 icosahedron's vertex order and not from a grid of latitudes, so filling in a
 shape by hand does not hold a constant step from one click to the next. The rule
@@ -933,6 +943,11 @@ held there five minutes is five samples). That is not caution for its own sake â
 two people fighting over one tile retake on every click, and
 `TestTwoPlayersFightingOverOneTileReadAsRetakes` pins it. Set the shares from the
 histogram, and expect the tile war to be the case that decides them.
+
+Production reads `Suspect` since 2026-09-14 (`minShare` 0.6, `minClicks` 40 over
+10m): the histogram held 26 callers under 0.1 and the recapture bot at 0.7-0.8.
+`certainShare` stays unset for the tile war. A bot that only answers attacks
+clicks a few times a minute, so the old 60 takes in 5m never judged it at all.
 
 **`catcher`: every box, and fast.** A box is addressed to one caller and flies
 a slow orbit that is rarely in view, so a person has to zoom out to orbit height
