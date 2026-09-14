@@ -239,11 +239,12 @@ func (x *TopPlayersResponse) GetTotal() uint32 {
 type Player struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The address for IPv4, the /64 for IPv6: what the throttle and the ban key on.
-	Scope       string                 `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
-	Tiles       uint32                 `protobuf:"varint,2,opt,name=tiles,proto3" json:"tiles,omitempty"`
-	FirstAt     *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=first_at,json=firstAt,proto3" json:"first_at,omitempty"`
-	LastAt      *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=last_at,json=lastAt,proto3" json:"last_at,omitempty"`
-	Banned      bool                   `protobuf:"varint,5,opt,name=banned,proto3" json:"banned,omitempty"`
+	Scope   string                 `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
+	Tiles   uint32                 `protobuf:"varint,2,opt,name=tiles,proto3" json:"tiles,omitempty"`
+	FirstAt *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=first_at,json=firstAt,proto3" json:"first_at,omitempty"`
+	LastAt  *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=last_at,json=lastAt,proto3" json:"last_at,omitempty"`
+	// Optional so JSON always carries it: a plain bool is dropped when false.
+	Banned      *bool                  `protobuf:"varint,5,opt,name=banned,proto3,oneof" json:"banned,omitempty"`
 	BannedUntil *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=banned_until,json=bannedUntil,proto3" json:"banned_until,omitempty"`
 	Offence     uint32                 `protobuf:"varint,7,opt,name=offence,proto3" json:"offence,omitempty"`
 	// last_at minus first_at.
@@ -313,8 +314,8 @@ func (x *Player) GetLastAt() *timestamppb.Timestamp {
 }
 
 func (x *Player) GetBanned() bool {
-	if x != nil {
-		return x.Banned
+	if x != nil && x.Banned != nil {
+		return *x.Banned
 	}
 	return false
 }
@@ -744,18 +745,19 @@ const file_planet_v1_admin_proto_rawDesc = "" +
 	"\x05limit\x18\x01 \x01(\rR\x05limit\"W\n" +
 	"\x12TopPlayersResponse\x12+\n" +
 	"\aplayers\x18\x01 \x03(\v2\x11.planet.v1.PlayerR\aplayers\x12\x14\n" +
-	"\x05total\x18\x02 \x01(\rR\x05total\"\xf5\x02\n" +
+	"\x05total\x18\x02 \x01(\rR\x05total\"\x85\x03\n" +
 	"\x06Player\x12\x14\n" +
 	"\x05scope\x18\x01 \x01(\tR\x05scope\x12\x14\n" +
 	"\x05tiles\x18\x02 \x01(\rR\x05tiles\x125\n" +
 	"\bfirst_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\afirstAt\x123\n" +
-	"\alast_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x06lastAt\x12\x16\n" +
-	"\x06banned\x18\x05 \x01(\bR\x06banned\x12=\n" +
+	"\alast_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x06lastAt\x12\x1b\n" +
+	"\x06banned\x18\x05 \x01(\bH\x00R\x06banned\x88\x01\x01\x12=\n" +
 	"\fbanned_until\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\vbannedUntil\x12\x18\n" +
 	"\aoffence\x18\a \x01(\rR\aoffence\x128\n" +
 	"\n" +
 	"active_for\x18\b \x01(\v2\x19.google.protobuf.DurationR\tactiveFor\x12(\n" +
-	"\x10tiles_per_minute\x18\t \x01(\x01R\x0etilesPerMinute\"_\n" +
+	"\x10tiles_per_minute\x18\t \x01(\x01R\x0etilesPerMinuteB\t\n" +
+	"\a_banned\"_\n" +
 	"\x10BanPlayerRequest\x12\x14\n" +
 	"\x05scope\x18\x01 \x01(\tR\x05scope\x125\n" +
 	"\bduration\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\bduration\"\x9e\x01\n" +
@@ -854,6 +856,7 @@ func file_planet_v1_admin_proto_init() {
 	if File_planet_v1_admin_proto != nil {
 		return
 	}
+	file_planet_v1_admin_proto_msgTypes[4].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
