@@ -21,7 +21,7 @@ func readBatch(t *testing.T, batch clicks.DenseBatch) []string {
 }
 
 func TestStateBatchDense(t *testing.T) {
-	storage := New(9, Config{}, nil)
+	storage := New(9, Config{}, nil, nil)
 	require.NoError(t, storage.Set(t.Context(), 2, "fr"))
 	require.NoError(t, storage.Set(t.Context(), 4, "gb-eng"))
 

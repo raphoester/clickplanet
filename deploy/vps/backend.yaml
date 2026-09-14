@@ -1,8 +1,8 @@
 # Production backend config for the VPS stack.
 #
-# There is no database: the API holds the whole tile map in process and
-# snapshots it to /home/app/state, which is the tile_state volume in
-# docker-compose.yaml. That file is the only thing worth backing up.
+# The API holds the whole tile map in process and keeps it in the postgres
+# service of docker-compose.yaml. Bans and the chat log are still files on the
+# tile_state volume.
 
 httpServer:
   bindAddress: 0.0.0.0:8080
@@ -11,12 +11,26 @@ httpServer:
 gameMap:
   maxIndex: 257948 # must match the tile count baked into the frontend coordinates
 
+# The postgres service. The password comes from the environment
+# (database.password in docker-compose.yaml), never from this file.
+database:
+  host: postgres
+  port: "5432"
+  user: clickplanet
+  dbName: clickplanet
+  sslMode: disable # the compose network, never the internet
+  pool:
+    maxOpenConns: 4
+
 tilesStorage:
-  snapshotPath: /home/app/state/tiles.snapshot
   # Upper bound on what a hard kill (OOM, power loss) can lose. A clean
-  # `docker compose down` or a rolling redeploy loses nothing: the API writes a
-  # final snapshot on SIGTERM.
-  snapshotInterval: 30s
+  # `docker compose down` or a rolling redeploy loses nothing: the API flushes
+  # once more on SIGTERM.
+  flushInterval: 1s
+  # The pre-postgres snapshot. The first boot imports it into an empty tiles
+  # table and renames it tiles.snapshot.imported. Remove this key once that has
+  # happened.
+  legacySnapshotPath: /home/app/state/tiles.snapshot
 
 # Who last took each tile, for the operator tools. In memory only: a restart
 # empties it, so a player can only be traced and reverted back to the last deploy.
@@ -242,8 +256,8 @@ session:
     # for another surface on the same sitekey is not accepted here.
     action: session
 
-# Live chat. Every message is appended to a JSONL log on the same tile_state
-# volume as the snapshot, so the droplet's weekly disk backup covers it — with
+# Live chat. Every message is appended to a JSONL log on the tile_state
+# volume, so the droplet's weekly disk backup covers it — with
 # a recovery point up to a week old.
 #
 # The log holds sender IPs alongside message text. Retention is therefore a

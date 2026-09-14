@@ -72,7 +72,8 @@ func TestTheExampleConfigStillCarriesTheRestOfTheFile(t *testing.T) {
 	assert.InDelta(t, 0.70, config.Planet.Toll.Steps[2].Share, 1e-9)
 	assert.InDelta(t, 2, config.Planet.Toll.Steps[2].Cost, 1e-9)
 	require.NoError(t, config.Planet.Validate())
-	assert.Equal(t, 30*time.Second, config.Planet.TilesStorage.SnapshotInterval)
+	assert.Equal(t, time.Second, config.Planet.TilesStorage.FlushInterval)
+	assert.Equal(t, "./data/tiles.snapshot", config.Planet.TilesStorage.LegacySnapshotPath)
 	assert.Equal(t, "127.0.0.1:8081", config.HTTPServer.AdminBindAddress)
 	assert.Equal(t, time.Hour, config.Session.TTL)
 }
@@ -94,6 +95,7 @@ httpServer:
   bindAddress: 0.0.0.0:8080
 gameMap:
   maxIndex: 100
+database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable}
 session:
   enabled: true
   enforce: true
@@ -109,6 +111,27 @@ session:
 	assert.Equal(t, "a-shared-secret", config.Planet.Session.Secret)
 	assert.Equal(t, 2*time.Hour, config.Planet.Session.TTL)
 	assert.True(t, config.Planet.Session.Enforce)
+}
+
+func TestTheMigrationAndTheModulesReadTheSameDatabaseBlock(t *testing.T) {
+	var config Config
+	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
+
+	assert.Equal(t, config.Database, config.Planet.Database)
+	assert.Equal(t, "localhost", config.Database.Host)
+	assert.Equal(t, "5432", config.Database.Port)
+	assert.Equal(t, "postgres", config.Database.DBName)
+	assert.Equal(t, "disable", config.Database.SSLMode)
+	require.NotNil(t, config.Database.Pool.MaxOpenConns)
+	assert.Equal(t, 4, *config.Database.Pool.MaxOpenConns)
+}
+
+func TestTheProcessRefusesToStartWithoutADatabase(t *testing.T) {
+	config := Config{}
+	config.HTTPServer.BindAddress = "0.0.0.0:8080"
+	config.Planet.GameMap.MaxIndex = 100
+
+	require.ErrorContains(t, config.Validate(), "database.host")
 }
 
 func TestSessionsWithoutASecretAreRefused(t *testing.T) {

@@ -12,15 +12,34 @@ httpServer:
 gameMap:
   maxIndex: 257948
 
-# The whole tile map lives in this process and is snapshotted to a local file.
-# There is no database and no second service to run.
+# Where the process keeps what must survive a restart. Every module that stores
+# something reads this one block and opens its own small pool. The schema is
+# migrated at boot, before any module is built. There is no fallback: without a
+# database the process refuses to start.
+#
+#   docker run -d --name cp-postgres -p 5432:5432 -e POSTGRES_PASSWORD=postgres postgres:16-alpine
+database:
+  host: localhost
+  port: "5432"
+  user: postgres
+  # Belongs in the environment in production (database.password), not in a file in git.
+  password: postgres
+  dbName: postgres
+  sslMode: disable
+  pool:
+    maxOpenConns: 4
+
+# The whole tile map lives in this process. Postgres is where it is kept between
+# boots: it is loaded once at boot, and only the tiles that changed are written
+# back, on a timer. A click never waits on the database.
 tilesStorage:
-  # Where the tile state is persisted. Leave empty to disable durability
-  # entirely (state is then lost on restart).
-  snapshotPath: ./data/tiles.snapshot
-  # How often a modified state is flushed to disk.
-  snapshotInterval: 30s
-  # Per-websocket-subscriber channel capacity. Updates for a subscriber that
+  # The most a hard kill can lose. A clean stop loses nothing: the last flush
+  # runs on SIGTERM.
+  flushInterval: 1s
+  # The tile snapshot file from before postgres. Imported once, if the tiles
+  # table is empty, then renamed with an .imported suffix. Empty imports nothing.
+  legacySnapshotPath: ./data/tiles.snapshot
+  # Per-stream subscriber channel capacity. Updates for a subscriber that
   # cannot keep up are dropped rather than blocking clicks.
   subscriberBuffer: 1024
 

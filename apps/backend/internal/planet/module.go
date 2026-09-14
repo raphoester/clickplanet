@@ -33,6 +33,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/secondary/geodesic_map"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/secondary/in_memory_tile_checker"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/secondary/memory_tile_storage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/secondary/postgres_tile_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/bonus"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/ledger"
@@ -64,6 +65,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -76,13 +78,13 @@ func NewModule(config Config) cpbootstrap.Module {
 	return cpbootstrap.Module{
 		Name:    moduleName,
 		Enabled: true,
-		DiSequence: func(_ context.Context, props cpbootstrap.Props) error {
-			return build(config, props)
+		DiSequence: func(ctx context.Context, props cpbootstrap.Props) error {
+			return build(ctx, config, props)
 		},
 	}
 }
 
-func build(config Config, props cpbootstrap.Props) error {
+func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	clock := cptime.SystemClock{}
 
 	// First: nothing else here is worth starting if the map is not the one the frontend draws.
@@ -98,8 +100,10 @@ func build(config Config, props cpbootstrap.Props) error {
 
 	tilesChecker := in_memory_tile_checker.New(config.GameMap.MaxIndex)
 
-	tilesStorage := memory_tile_storage.New(config.GameMap.MaxIndex, config.TilesStorage, props.Logger)
-	props.Runners.Add("tiles-storage", tilesStorage.Run)
+	tilesStorage, err := loadTiles(ctx, config, props)
+	if err != nil {
+		return err
+	}
 
 	takings := ledger.New(config.Ledger, clock)
 	props.Runners.Add("tile-ledger", takings.Run)
@@ -177,7 +181,7 @@ func build(config Config, props cpbootstrap.Props) error {
 }
 
 // Unconditional, and fatal: a blob that disagrees with the frontend renumbers every tile, and the
-// snapshot on disk is numbered the old way. See CLAUDE.md, "Map geography".
+// tiles in postgres are numbered the old way. See CLAUDE.md, "Map geography".
 func loadMapGeography(maxIndex uint32, props cpbootstrap.Props) (*clicks.Geography, error) {
 	started := time.Now()
 
@@ -208,6 +212,30 @@ func loadBorders(maxIndex uint32, props cpbootstrap.Props) (*clicks.Borders, err
 	props.Logger.Info("map borders loaded", slog.String("asset", asset))
 
 	return borders, nil
+}
+
+// loadTiles closes the pool from the runner, not a closer: closers run before the last flush.
+func loadTiles(ctx context.Context, config Config, props cpbootstrap.Props) (*memory_tile_storage.Storage, error) {
+	db := cppg.New(config.Database)
+	if err := db.ConnectCtx(ctx); err != nil {
+		return nil, fmt.Errorf("failed to connect the tile map to postgres: %w", err)
+	}
+
+	storage := memory_tile_storage.New(
+		config.GameMap.MaxIndex, config.TilesStorage, postgres_tile_store.New(db), props.Logger)
+	if err := storage.Load(ctx); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("failed to load the tile map: %w", err)
+	}
+
+	props.Runners.Add("tiles-storage", func(ctx context.Context) {
+		storage.Run(ctx)
+		if err := db.Close(); err != nil {
+			props.Logger.Error("failed to close the tile map's postgres pool", slog.Any("error", err))
+		}
+	})
+
+	return storage, nil
 }
 
 const adminPause = 50 * time.Millisecond

@@ -431,7 +431,14 @@ if [[ -f "$env_file" && $FORCE_ENV -eq 0 ]]; then
 		sed -i '/^SESSION_SECRET=/d' "$env_file"
 		printf 'SESSION_SECRET=%s\n' "$(random_secret)" >> "$env_file"
 	fi
-	# Unlike the two above this cannot be generated: it is half of a keypair
+	# Generated once and never rotated here: postgres reads it only when its
+	# volume is empty, so a new one would lock the API out of the existing data.
+	if ! grep -q '^POSTGRES_PASSWORD=.' "$env_file"; then
+		log "adding a generated POSTGRES_PASSWORD to the existing .env"
+		sed -i '/^POSTGRES_PASSWORD=/d' "$env_file"
+		printf 'POSTGRES_PASSWORD=%s\n' "$(random_secret)" >> "$env_file"
+	fi
+	# Unlike the salt and the session secret this cannot be generated: it is half of a keypair
 	# Cloudflare issues. Left empty, docker compose refuses to start the stack
 	# and says so, which beats booting with attestation quietly doing nothing.
 	if ! grep -q '^TURNSTILE_SECRET=' "$env_file"; then
@@ -447,6 +454,7 @@ FRONTEND_ORIGIN=${FRONTEND_ORIGIN}
 CLOUDFLARE_API_TOKEN=${CF_TOKEN}
 CHAT_TAG_SALT=$(random_salt)
 SESSION_SECRET=$(random_secret)
+POSTGRES_PASSWORD=$(random_secret)
 # Secret half of the Turnstile widget, from dash.cloudflare.com > Turnstile.
 # Cannot be generated here. The stack will not start until it is set.
 TURNSTILE_SECRET=
@@ -458,8 +466,8 @@ fi
 
 # ----------------------------------------------------------------- backups
 
-# The snapshot in the tile_state volume is the entire game state and the only
-# thing on this box worth backing up.
+# The bans and the chat log in the tile_state volume. The tile map is in postgres,
+# which this does not back up yet.
 if ! crontab -u "$DEPLOY_USER" -l 2>/dev/null | grep -q 'vps_tile_state'; then
 	log "installing nightly tile-state backup cron"
 	install -d -m 755 -o "$DEPLOY_USER" -g "$DEPLOY_USER" "$BACKUP_DIR"

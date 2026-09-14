@@ -3,21 +3,21 @@ package memory_tile_storage
 import "time"
 
 type Config struct {
-	SnapshotPath string
+	FlushInterval time.Duration
 
-	SnapshotInterval time.Duration
+	LegacySnapshotPath string
 
 	SubscriberBuffer int
 }
 
 const (
-	defaultSnapshotInterval = 30 * time.Second
+	defaultFlushInterval    = time.Second
 	defaultSubscriberBuffer = 1024
 )
 
 func (c Config) withDefaults() Config {
-	if c.SnapshotInterval <= 0 {
-		c.SnapshotInterval = defaultSnapshotInterval
+	if c.FlushInterval <= 0 {
+		c.FlushInterval = defaultFlushInterval
 	}
 	if c.SubscriberBuffer <= 0 {
 		c.SubscriberBuffer = defaultSubscriberBuffer

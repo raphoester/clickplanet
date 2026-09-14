@@ -34,8 +34,8 @@ Caddyfile; it moves to any provider that rents a Linux box.
   laptop with `--host`; it copies itself over and re-runs there as root.
 - `docker-compose.yaml` — Caddy + backend, plus a small metrics poller that
   keeps a history the API's in-process counters cannot (see
-  [Evidence has to outlive a deploy](#evidence-has-to-outlive-a-deploy-and-by-default-it-does-not)).
-  There is no database.
+  [Evidence has to outlive a deploy](#evidence-has-to-outlive-a-deploy-and-by-default-it-does-not)),
+  and the postgres that holds the tile map (see [9. Postgres](#9-postgres)).
 - `Caddyfile` — TLS via DNS-01, reverse proxy, CORS
 - `caddy/Dockerfile` — Caddy built with `caddy-dns/cloudflare`. The stock image
   has no DNS provider module and cannot solve the DNS-01 challenge.
@@ -169,8 +169,8 @@ and it stops with a specific message rather than a confusing one when something
 is not ready: the wrong CPU architecture, a token you did not pass, a
 grey-clouded DNS record, or a backend image that is not pullable yet.
 
-On first boot the API finds no snapshot and starts from an empty map, logging
-`no tile snapshot found`. Check it:
+On first boot the API finds no tiles in postgres and starts from an empty map,
+logging `no stored tiles, starting from an empty map`. Check it:
 
 ```bash
 curl -sS 'https://api.clickplanet.lol/planet.v1.ClickService/MapDensity?connect=v1&encoding=json&message=%7B%7D'
@@ -661,7 +661,7 @@ generates a fresh salt at every boot, logs `no chat.service.tagSalt configured`,
 and every tag changes on each restart.
 
 **`chat.log` holds personal data.** One JSONL line per message with the sender's
-IP beside their text, in the same `tile_state` volume as the snapshot — so the
+IP beside their text, in the `tile_state` volume — so the
 nightly backup below now copies personal data too, and its own retention is
 whatever you keep those tarballs for. `chat.storage.retention` (30 days) is a
 policy decision, not a cache size; shorten it if you would rather hold less.
@@ -673,14 +673,46 @@ that file can also be overridden from the `environment:` block instead —
 config path verbatim (`chat.enabled: "false"`), which is how `CHAT_TAG_SALT`
 reaches `chat.service.tagSalt`.
 
-## 9. Backups
+## 9. Postgres
 
-The whole game state is one snapshot file in the `tile_state` volume, written
-every 30s and on every clean shutdown. A nightly cron on the box is enough:
+The tile map is kept in the `postgres` service, on the `pg_data` volume. The API
+loads it at boot and writes the tiles that changed every second, and once more
+on a clean shutdown. It is not published on any port: only the backend reaches
+it. The API migrates the schema itself at boot, and refuses to start without it.
+
+**The password is `POSTGRES_PASSWORD` in `.env`.** `bootstrap.sh` generates it.
+A box set up before postgres needs it added once, **before** the deploy that
+brings postgres, or `docker compose up` refuses to start:
 
 ```bash
-0 4 * * * docker run --rm -v vps_tile_state:/state -v /home/deploy/backups:/out alpine \
-  tar czf /out/tiles-$(date +\%F).tar.gz -C /state .
+echo "POSTGRES_PASSWORD=$(openssl rand -hex 32)" >> .env
+```
+
+Never change it afterwards: postgres reads it only when `pg_data` is empty, so a
+new value locks the API out of the existing data.
+
+**The first boot on postgres imports the old snapshot.** The tiles table is
+empty and `/home/app/state/tiles.snapshot` exists, so the API loads it, writes
+it to postgres in one transaction, and renames it `tiles.snapshot.imported`.
+Check it:
+
+```bash
+journalctl CONTAINER_NAME=cp-backend | grep "legacy tile snapshot"
+docker compose exec postgres psql -U clickplanet -c "select count(*) from tiles"
+```
+
+Then remove `tilesStorage.legacySnapshotPath` from `backend.yaml`.
+
+A psql shell: `docker compose exec postgres psql -U clickplanet`.
+
+### Backups
+
+The nightly cron `bootstrap.sh` installs tars the `tile_state` volume, which
+holds the bans and the chat log. **The tile map in postgres is not backed up
+yet.** For a copy by hand:
+
+```bash
+docker compose exec postgres pg_dump -U clickplanet -t tiles clickplanet > tiles-$(date +%F).sql
 ```
 
 DigitalOcean's droplet backups (+20% of the droplet price, so ~$1.20/mo) cover
@@ -708,7 +740,7 @@ Then the same without `"dryRun":true`. There is no restart:
 - It moves every tile `from` holds, 256 at a time every 50ms — about 4.5s for
   22,000 tiles.
 - Each tile goes out on the live stream as an ordinary update, so open tabs
-  repaint, the toll sees the new counts, and the next snapshot writes it to disk.
+  repaint, the toll sees the new counts, and the next flush writes it to postgres.
 - A tile `from` takes back while it runs stays theirs. `fromAfter` in the answer
   says how many; run it again.
 - **A count of zero is left out of the answer** — that is how protobuf JSON
@@ -717,12 +749,15 @@ Then the same without `"dryRun":true`. There is no restart:
 - Every call is logged: `journalctl CONTAINER_NAME=cp-backend | grep "admin country reassignment"`.
 
 **Reassigning back does not undo it**: it would also move the tiles `to` held
-before. Copy the snapshot first if you may want to return (the file is written
-atomically, so a copy is always whole):
+before. Copy the table first if you may want to return:
 
 ```bash
-docker compose exec backend cp /home/app/state/tiles.snapshot /home/app/state/tiles.before-reassign
+docker compose exec postgres psql -U clickplanet -c "create table tiles_before_reassign as table tiles"
 ```
+
+To go back: stop the backend (its last flush runs on the way down), then
+`truncate tiles; insert into tiles select * from tiles_before_reassign;` in psql,
+then start it.
 
 ### Find, ban and revert one player
 
@@ -769,6 +804,7 @@ docker compose exec backend wget -qO- --header 'Content-Type: application/json' 
 ## Rollback
 
 - **Bad backend build:** `BACKEND_IMAGE=ghcr.io/raphoester/clickplanet-backend:<sha>` in `.env`, then `docker compose up -d backend`.
-- **Lost or corrupt tile state:** stop the backend, drop the newest backup's `tiles.snapshot` into the `tile_state` volume, start it again. A snapshot the API cannot parse is not fatal — it logs and starts from an empty map, so a bad file degrades to a reset rather than a crash loop.
+- **Lost or corrupt tile state:** stop the backend, restore the `tiles` table from a dump (`psql -U clickplanet clickplanet < tiles-DATE.sql` after `truncate tiles`), start it again.
+- **Back to a pre-postgres build:** that image reads `tiles.snapshot`, which the import renamed. Rename `tiles.snapshot.imported` back first — it holds the map as of the import, so every click since is lost.
 - **In-process storage misbehaving:** there is no config switch back to Redis — that code is gone. Roll the backend image back to a pre-migration `<sha>` and restore the matching Redis stack from git history.
 - **Frontend:** roll back the deployment in the Pages dashboard.

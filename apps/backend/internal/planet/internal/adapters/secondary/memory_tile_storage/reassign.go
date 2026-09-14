@@ -52,6 +52,7 @@ func (s *Storage) Reassign(_ context.Context, from, to string, start uint32, lim
 		}
 
 		s.tiles[tile] = toID
+		s.markDirtyLocked(uint32(tile)) //nolint:gosec // tile <= maxIndex, which is a uint32.
 		s.counts[fromID]--
 		if toID != unownedCode {
 			s.counts[toID]++
@@ -63,9 +64,6 @@ func (s *Storage) Reassign(_ context.Context, from, to string, start uint32, lim
 		})
 	}
 
-	if len(updates) > 0 {
-		s.dirty = true
-	}
 	s.tilesMu.Unlock()
 
 	s.publishUpdates(updates)
@@ -102,6 +100,7 @@ func (s *Storage) Restore(_ context.Context, restorations []clicks.Restoration) 
 			s.counts[toID]++
 		}
 		s.tiles[restoration.Tile] = toID
+		s.markDirtyLocked(restoration.Tile)
 
 		updates = append(updates, clicks.TileUpdate{
 			Tile:     restoration.Tile,
@@ -110,9 +109,6 @@ func (s *Storage) Restore(_ context.Context, restorations []clicks.Restoration) 
 		})
 	}
 
-	if len(updates) > 0 {
-		s.dirty = true
-	}
 	s.tilesMu.Unlock()
 
 	s.publishUpdates(updates)

@@ -13,6 +13,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/session"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconfigs"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/migrations"
 )
 
 type Config struct {
@@ -23,6 +25,8 @@ type Config struct {
 
 	Session session.Config
 	Chat    chat.Config
+
+	Database cppg.Config
 }
 
 func main() {
@@ -42,6 +46,11 @@ func run(ctx context.Context) error {
 		Level: slog.LevelDebug, // todo: inject config
 	}))
 	logger.Debug("config", slog.Any("config", config))
+
+	// Before any module is built, since each one reads its tables while it builds.
+	if err := cppg.New(config.Database).Migrate(migrations.FS); err != nil {
+		return fmt.Errorf("failed to migrate postgres: %w", err)
+	}
 
 	return cpbootstrap.Run(ctx, cpbootstrap.Options{
 		Server:  config.HTTPServer,
@@ -73,6 +82,7 @@ func loadConfig() (Config, error) {
 func (c Config) Validate() error {
 	return errors.Join(
 		c.HTTPServer.Validate(),
+		c.Database.Validate(),
 		c.Planet.Validate(),
 		c.Session.Validate(),
 		c.Chat.Validate(),

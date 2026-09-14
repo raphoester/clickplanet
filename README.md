@@ -38,4 +38,4 @@ cd apps/frontend && npm run proto
 cd deploy && docker compose up
 ```
 
-There is no database: the backend holds the tile map in process and snapshots it to the `tile_state` volume.
+The stack includes a postgres: the backend holds the tile map in process and writes what changed to it every second.

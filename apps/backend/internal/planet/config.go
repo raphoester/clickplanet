@@ -9,6 +9,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/toll"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
@@ -30,6 +31,8 @@ type Config struct {
 	// The same `session:` keys the session context mints with. Declared here
 	// rather than handed over, so this module needs nothing but its config.
 	Session cpsession.Config
+
+	Database cppg.Config
 }
 
 type GameMapConfig struct {
@@ -42,6 +45,10 @@ type GameMapConfig struct {
 func (c Config) Validate() error {
 	if c.GameMap.MaxIndex == 0 {
 		return errors.New("gameMap.maxIndex is zero: the map has no tiles")
+	}
+
+	if err := c.Database.Validate(); err != nil {
+		return err
 	}
 
 	if err := c.Toll.Validate(c.RateLimiter.Capacity()); err != nil {

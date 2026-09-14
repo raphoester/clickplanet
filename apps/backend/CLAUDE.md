@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-# Run all tests — no Docker, no database, nothing to start first
+# Run all tests. The postgres store tests start a postgres:16-alpine container, so Docker must be running
 make test
 # or: go test -tags testing ./... | grep -v 'no test files'
 
@@ -137,7 +137,7 @@ Adding a context that callers talk to means a `proto/<name>/v1`, an `internal/<n
 
 **`cmd/api`** is the only binary: `main.go` is the composition root, about 85 lines of config and a module list, and `cpbootstrap` is the rest.
 
-It runs as a **single self-contained container with no dependencies**: the tile map lives in process and is persisted to a local snapshot file. There is no database, no cache, and no second process.
+It runs as **one container beside a postgres**: the tile map lives in process, and postgres is where it is kept between boots — see [Durability](#durability). There is no cache and no second API process.
 
 ### Inside the planet module: parts, not layers
 
@@ -237,7 +237,8 @@ The response never repeats a tile id. `GetMapResponse` carries `start_tile_id`, 
 `memory_tile_storage.StateBatchDense` builds it. The interned ids are copied out exactly as stored and the table travels with them, so nothing is translated on the way out and the client needs no shared country list. Protobuf does all the framing — there is no hand-rolled magic or length-prefixing on either side, and therefore no encoder and decoder that have to be edited together.
 
 **Secondary (output):**
-- `internal/adapters/secondary/memory_tile_storage/` — the tile map. A preallocated `[]uint16` indexed by tile id, with country codes interned into a side table (2 bytes per tile — ~2 MB for a 1M-tile map). Fans updates out in process and persists to a local snapshot file.
+- `internal/adapters/secondary/memory_tile_storage/` — the tile map. A preallocated `[]uint16` indexed by tile id, with country codes interned into a side table (2 bytes per tile — ~2 MB for a 1M-tile map). Fans updates out in process, and flushes the tiles that changed through its `Persistence` port.
+- `internal/adapters/secondary/postgres_tile_store/` — that port, over the `tiles` table. See [Durability](#durability).
 - `internal/adapters/secondary/in_memory_tile_checker/` — validates tile IDs
 - country codes are validated by `shared/cpcountries`, which chat shares — see [The composite layer](#the-composite-layer)
 
@@ -340,7 +341,7 @@ field numbers rather than changing type in place: a client built against the old
   played last, so a player could bank tokens on a small one and spend them on a big one.
 - **The share is of the whole map, not of owned tiles**, so early in a game nobody pays more.
 - **`memory_tile_storage` keeps a tile count per country**, moved by `set` and
-  `Clear` and rebuilt from the snapshot, so `Share` is one read and no scan.
+  `Clear` and rebuilt at boot from postgres, so `Share` is one read and no scan.
 - **The budget goes out already divided by the cost** (`toll.Of`): ten tokens at a
   cost of 2 are five clicks refilling at 0.5/s. The meter narrows off the server's
   numbers the way a bonus widens it, and `ClickBudget` also carries `cost`,
@@ -923,16 +924,20 @@ Both chains order them the same way: error mapping outermost, then the blocklist
 
 ### Durability
 
-The whole map is snapshotted to `tilesStorage.snapshotPath`:
-- a compact binary encoding, not JSON: magic + version + CRC32, then the interned country code table, then two bytes per tile
-- written atomically — temp file, fsync, `os.Rename`, fsync of the directory — so a crash mid-write leaves the previous snapshot intact
-- flushed every `snapshotInterval` when the state changed, and once more on graceful shutdown (`cmd/api` handles SIGINT/SIGTERM for exactly this)
-- restored at boot; a missing, truncated, or corrupt snapshot logs and starts from an empty map, it never prevents a start
-- a snapshot taken at a different `gameMap.maxIndex` restores the overlap
+**The map lives in memory; postgres is where it is kept.** A click never waits on the database.
 
-**What this costs:** anything written since the last snapshot is lost on a hard kill (`SIGKILL`, OOM, power loss), bounded by `snapshotInterval`. And because the state is per-process, **this is single-instance only** — two API replicas would each hold their own divergent map. Both are deliberate: the game state is a few MB and the update fanout was already per-instance, so a database was buying durability alone.
+- **Boot loads it.** `memory_tile_storage.Load` reads every row of `tiles` — one per owned tile, `(id, country)`; an unowned tile has no row. 180k rows load in about 60ms. **A failed load refuses the boot**: an empty map that then flushes would be every player's territory gone. A row past `gameMap.maxIndex` is skipped and logged.
+- **A flush writes what changed.** Every write under the tiles lock sets the tile's bit in a `dirty` bitmap (one bit per tile, ~32 KB). Every `tilesStorage.flushInterval` (1s), `Flush` takes the bits, reads each tile's owner **as it is now**, and hands them to `postgres_tile_store.Save`: one transaction, an upsert for owned tiles and a delete for freed ones, in chunks of 10k. A tile clicked five times between flushes is written once. A failed save puts the bits back; the next tick retries. Each flush has a 10s timeout, so a stuck connection cannot stall the loop.
+- **Shutdown flushes once more**, from `Run`. That is also why the tile map's pool is closed by its runner rather than registered on `props.Closers`: closers run before the runners stop, so the last flush would find the pool already closed.
+- **What a hard kill loses** (`SIGKILL`, OOM, power loss) is bounded by `flushInterval`. The state is still per-process, so **this is single-instance only**: two API replicas would each hold their own divergent map.
 
-The snapshot file is the only thing worth backing up.
+**The schema** is `migrations/`, embedded, golang-migrate pairs. `cmd/api` runs them at boot before any module is built, since each module reads its tables while it builds. One directory for every module, because they share one database and one migration history — a table still belongs to the one module whose adapter reads it.
+
+**`shared/cppg` is the client**, ported from on-core-platform's `onpg`: `Config` (the `database:` block), `New`, `ConnectCtx`, `Migrate`, and the `Querier`/`Beginner` interfaces a store depends on. Cut from the original: gorm (`make deadcode` rejects what nothing calls, and plain SQL is enough), the SSM tunnel, tracing and lazy config. **Every module that stores something reads the same `database:` block and opens its own small pool** — the way two contexts read `session:` — so nothing is handed between modules. `Config.String` leaves the password out of the boot's config log line.
+
+**The pre-postgres snapshot is imported once.** When `tiles` is empty and `tilesStorage.legacySnapshotPath` exists, `Load` decodes the old binary snapshot into memory and marks every owned tile dirty; the first successful flush writes it in one transaction and renames the file `.imported`. A crash before that flush imports it again on the next boot. A snapshot it cannot decode **refuses the boot** rather than starting empty. When `tiles` already holds rows, the file is logged and ignored. `legacy_snapshot.go` goes once production has booted on postgres.
+
+Bans (`antiBot.shadowBan.statePath`) and the chat log (`chat.storage.logPath`) are still files on the `tile_state` volume, and move to postgres next.
 
 ### Operator tools (`AdminService`)
 
@@ -941,7 +946,7 @@ The snapshot file is the only thing worth backing up.
 `planet.v1.AdminService` is the one there today, in `proto/planet/v1/admin.proto`. `planetv1controller.AdminService` is its bag of handlers, the way `ClickService` is. `ReassignCountry` runs `clicks/usecases/reassign_country`, wrapped in `audit_reassign`: every tile `from_country_id` holds goes to `to_country_id`, while the game runs.
 
 - **The move is paced.** `memory_tile_storage.Reassign` moves one batch under the lock and returns where to resume; the use case sleeps 50ms between batches. A batch is a quarter of `tilesStorage.subscriberBuffer`, because each tile is one update on every open stream and the clicks still arriving need the rest of the buffer.
-- **Each tile is an ordinary `TileUpdate`** with `Previous` set, not a new event kind: open clients repaint with no frontend release, `counts` move so the toll prices the next click right, and `dirty` puts it in the next snapshot.
+- **Each tile is an ordinary `TileUpdate`** with `Previous` set, not a new event kind: open clients repaint with no frontend release, `counts` move so the toll prices the next click right, and `dirty` puts it in the next flush.
 - **A tile `from` retakes behind the scan stays theirs.** The answer reads both counts again at the end, so `from_after` says whether to run it again.
 - **`audit_reassign` logs every call at Warn**, dry runs and failures included: it is the only record that those tiles did not change hands through play. It is a decorator for the reason `prom_click` is — handlers here do not log.
 
@@ -961,7 +966,7 @@ For the patterns no watchdog catches but a person sees on the map. A player is a
 
 ### Shared (`internal/shared/`)
 
-Shared infrastructure: `cpbootstrap` (the composite layer), `cpcountries`, `cpconfigs` (YAML + env config via koanf), `cphttpserver` (middleware, formats), `cpprom` (Prometheus), `cptime`, `cpctx`, `cpconnect`, `cpratelimit`, `cpipblock`, `cpipscope`, `cpsession`, `cpatomicfile`, `cpsecrets`.
+Shared infrastructure: `cpbootstrap` (the composite layer), `cpcountries`, `cpconfigs` (YAML + env config via koanf), `cphttpserver` (middleware, formats), `cpprom` (Prometheus), `cptime`, `cpctx`, `cpconnect`, `cpratelimit`, `cpipblock`, `cpipscope`, `cpsession`, `cpatomicfile`, `cpsecrets`, `cppg` (postgres — see [Durability](#durability)).
 
 **Every package here is prefixed `cp`, and a new one must be.** A call site reads
 `cptime.SystemClock{}` or `cpctx.GetSourceIP(ctx)`, so the prefix says the
@@ -989,7 +994,7 @@ never saying anything the prefix does not.
 Two of these are here because both bounded contexts need them and neither should depend on the other:
 
 - `cpsecrets` — the random hex a config may leave it to the server to invent. Chat's tag salt and the session signing key are the two, and both pay the same price for an empty setting: what the old one covered stops being recognised on restart.
-- `cpatomicfile` — temp file, fsync, rename, fsync of the directory. Written for the tile snapshot; the chat log's retention rewrites need the same guarantee, and duplicating 80 lines of carefully-written fsync/rename code is how the two drift apart. Covered by the existing snapshot tests.
+- `cpatomicfile` — temp file, fsync, rename, fsync of the directory. The ban file and the chat log's retention rewrites need the same guarantee. It goes when they move to postgres.
 
 `cpsession` mints and verifies the click token — see [Sessions](#sessions-internalsession). It is here because **both** contexts read it: the session context mints with it, the planet context verifies with it, and neither may depend on the other.
 
@@ -1132,7 +1137,7 @@ err := configs.Load(&config, configs.FromFlag())
 
 Where the file comes from is an option — `FromFlag()` reads `-config`, which is how the container runs it; `FromFile(path)` names one outright and lives behind the `testing` tag, because two test packages need it and no production caller does (see [Testing](#testing)). **An empty path is not an error**: every field keeps its zero value and the environment alone can carry a whole config.
 
-Config is loaded from a YAML file, with environment variables overriding it — `.` is the nesting delimiter, so `tilesStorage.snapshotPath=/data/tiles` in the environment overrides the file. See `cmd/api/example.yaml` for the full schema.
+Config is loaded from a YAML file, with environment variables overriding it — `.` is the nesting delimiter, so `database.password=...` in the environment overrides the file. See `cmd/api/example.yaml` for the full schema.
 
 **A config that implements `Validate() error` is asked to check itself**, and the load fails with its sentence wrapped in `cpconfigs.ErrValidation`. That is where a bad setting is refused out loud rather than becoming a zero value nothing reports.
 
@@ -1152,6 +1157,7 @@ func (c Config) Validate() error {
 The binary never reads inside a block to check it, so a new bound is added in the module that owns it and nothing here changes. `errors.Join` also means a broken file reports **everything** wrong at once rather than one line per restart.
 
 - `cpbootstrap.ServerConfig` — `bindAddress` empty listens on port 80; `adminBindAddress` set to anything but loopback
+- `shared/cppg.Config` — a connection setting left empty. Checked by `cmd/api`, which migrates with it, and by `planet.Config`, which loads the map with it
 - `planet.Config` — `gameMap.maxIndex` zero is a map that refuses every click
 - `shared/cpsession.Config` — `secret` empty while `enabled`, and a negative `ttl`. It sits with the block rather than with either context, because both read it and it must be checked exactly once
 - `chat.Config` — nothing: every chat setting has a usable default, so an unset one is a default and not a mistake. It implements the hook anyway, so a check added later lands in chat
@@ -1164,8 +1170,9 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `httpServer.streamHeartbeat` — how often a silent live stream sends a heartbeat (default 30s). **Must stay well under the proxy's idle cut**: Cloudflare answers 524 at ~125s, and a stream that never speaks is one it kills.
 - `httpServer.adminBindAddress` — where the operator services listen (see [Operator tools](#operator-tools-adminservice)); empty serves none, and a non-loopback address refuses the boot
 - `gameMap.maxIndex` — total number of tiles
-- `tilesStorage.snapshotPath` — where the state is persisted; **empty disables durability**
-- `tilesStorage.snapshotInterval` — how often a changed state is flushed
+- `database.host`, `port`, `user`, `password`, `dbName`, `sslMode`, `pool.*` — the postgres every module keeps its state in; any of the first five but `password` empty refuses the boot. `database.password` belongs in the environment
+- `tilesStorage.flushInterval` — how often the tiles changed since the last flush are written to postgres (1s)
+- `tilesStorage.legacySnapshotPath` — the pre-postgres snapshot, imported once into an empty `tiles` table (see [Durability](#durability))
 - `ledger.retention`, `ledger.sweepInterval` — how long the operator tools can trace and revert a take (24h), in memory only
 - `tilesStorage.subscriberBuffer` — per-subscriber channel capacity, which is now per connected client rather than per fanout; updates for a subscriber that cannot keep up are dropped, not blocked on
 - `rateLimiter.perSecond`, `rateLimiter.burst`, `rateLimiter.sweepInterval` — the per-IP click throttle (defaults 1/s, burst 10, swept every minute)
@@ -1214,9 +1221,11 @@ The proto package is the **only** version number: Connect derives each route fro
 
 ### Testing
 
-Unit tests only, using `testify`. There are no integration tests and no Docker dependency — `make test` runs everything from a clean checkout.
+Tests use `testify`. **A postgres store's own tests need Docker**, and nothing else does: `cppg.ForTests(t, migrations.FS)` (behind the `testing` tag) starts one `postgres:16-alpine` container per test binary, migrates it once, and empties every table on each call — call it from `SetupTest`. The testcontainers reaper removes the container when the binary exits. Everything above a store is tested against a fake of its port (`memory_tile_storage`'s tests fake `Persistence`), so it runs without Docker.
 
-**Tests build with `-tags testing`, so use `make test` rather than a bare `go test ./...`.** Anything else that loads test files needs the tag too: `go vet -tags testing ./...`, and an editor's language server (`gopls` `buildFlags: ["-tags=testing"]`, or `go.buildTags` in VS Code), which otherwise reports the helpers as undefined. A helper that more than one package needs cannot live in a `_test.go` file, so it lives in an ordinary `.go` file carrying `//go:build testing`. The tag, not a filename convention, is what keeps such a helper out of the production binary — and what lets `make deadcode` tell a helper apart from production code. `cpctx.GetSessionID`, `cpconfigs.FromFile` and `cptime.FixedClock` — the stand-still clock a dozen test packages drive time with — are the three that exist today.
+On macOS, testcontainers asks the Docker credential helper before it pulls an image, and that can hang with no prompt in a non-interactive shell. `docker pull postgres:16-alpine` once from a terminal avoids it.
+
+**Tests build with `-tags testing`, so use `make test` rather than a bare `go test ./...`.** Anything else that loads test files needs the tag too: `go vet -tags testing ./...`, and an editor's language server (`gopls` `buildFlags: ["-tags=testing"]`, or `go.buildTags` in VS Code), which otherwise reports the helpers as undefined. A helper that more than one package needs cannot live in a `_test.go` file, so it lives in an ordinary `.go` file carrying `//go:build testing`. The tag, not a filename convention, is what keeps such a helper out of the production binary — and what lets `make deadcode` tell a helper apart from production code. `cpctx.GetSessionID`, `cpconfigs.FromFile`, `cppg.ForTests` and `cptime.FixedClock` — the stand-still clock a dozen test packages drive time with — are the four that exist today.
 
 ### Linting
 

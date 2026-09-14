@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/binary"
 	"log/slog"
-	"os"
-	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -32,7 +30,11 @@ func (s *testSuite) SetupTest() {
 }
 
 func (s *testSuite) newStorage(cfg memory_tile_storage.Config) *memory_tile_storage.Storage {
-	return memory_tile_storage.New(maxIndex, cfg, slog.New(slog.DiscardHandler))
+	return s.newStorageOn(cfg, newFakePersistence())
+}
+
+func (s *testSuite) newStorageOn(cfg memory_tile_storage.Config, persistence memory_tile_storage.Persistence) *memory_tile_storage.Storage {
+	return memory_tile_storage.New(maxIndex, cfg, persistence, slog.New(slog.DiscardHandler))
 }
 
 func (s *testSuite) TestSetAndPublish() {
@@ -263,39 +265,6 @@ func (s *testSuite) TestGetStateByBatchIgnoresUnsetAndOutOfRangeTiles() {
 	s.Equal(map[uint32]string{10: "fr"}, state)
 }
 
-func (s *testSuite) TestSnapshotRoundTrip() {
-	path := filepath.Join(s.T().TempDir(), "tiles.snapshot")
-	cfg := memory_tile_storage.Config{SnapshotPath: path}
-
-	storage := s.newStorage(cfg)
-	s.Require().NoError(storage.Set(context.Background(), 1, "fr"))
-	s.Require().NoError(storage.Set(context.Background(), 2, "us"))
-	s.Require().NoError(storage.Set(context.Background(), maxIndex, "de"))
-	s.Require().NoError(storage.Snapshot())
-
-	restored := s.newStorage(cfg)
-	state, err := stateBatch(restored, 0, maxIndex)
-	s.Require().NoError(err)
-
-	s.Equal(map[uint32]string{1: "fr", 2: "us", maxIndex: "de"}, state)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-
-	listener, err := restored.Subscribe(ctx)
-	s.Require().NoError(err)
-	s.Require().NoError(restored.Set(context.Background(), 1, "us"))
-
-	select {
-	case <-ctx.Done():
-		s.T().Fatal("timeout")
-	case change := <-listener:
-		s.Require().NotNil(change.Update)
-		s.Equal("fr", change.Update.Previous)
-		s.Equal("us", change.Update.Value)
-	}
-}
-
 func (s *testSuite) TestShareFollowsSetsAndBlasts() {
 	ctx := context.Background()
 	for tile := uint32(1); tile <= 10; tile++ {
@@ -316,172 +285,6 @@ func (s *testSuite) TestShareFollowsSetsAndBlasts() {
 	s.Zero(s.storage.Share(""), "unowned ground is nobody's share")
 }
 
-func (s *testSuite) TestShareIsRebuiltFromTheSnapshot() {
-	cfg := memory_tile_storage.Config{SnapshotPath: filepath.Join(s.T().TempDir(), "tiles.snapshot")}
-
-	storage := s.newStorage(cfg)
-	s.Require().NoError(storage.Set(context.Background(), 1, "bg"))
-	s.Require().NoError(storage.Set(context.Background(), 2, "bg"))
-	s.Require().NoError(storage.Set(context.Background(), 3, "fr"))
-	s.Require().NoError(storage.Snapshot())
-
-	restored := s.newStorage(cfg)
-	s.InDelta(2.0/maxIndex, restored.Share("bg"), 1e-12)
-	s.InDelta(1.0/maxIndex, restored.Share("fr"), 1e-12)
-}
-
-func (s *testSuite) TestSnapshotIsSkippedWhenNothingChanged() {
-	path := filepath.Join(s.T().TempDir(), "tiles.snapshot")
-	cfg := memory_tile_storage.Config{SnapshotPath: path}
-
-	storage := s.newStorage(cfg)
-	s.Require().NoError(storage.Set(context.Background(), 1, "fr"))
-	s.Require().NoError(storage.Snapshot())
-
-	before, err := os.Stat(path)
-	s.Require().NoError(err)
-
-	s.Require().NoError(storage.Snapshot())
-
-	after, err := os.Stat(path)
-	s.Require().NoError(err)
-	s.Equal(before.ModTime(), after.ModTime())
-}
-
-func (s *testSuite) TestSnapshotWritesNoTempFileBehind() {
-	dir := s.T().TempDir()
-	path := filepath.Join(dir, "tiles.snapshot")
-
-	storage := s.newStorage(memory_tile_storage.Config{SnapshotPath: path})
-	s.Require().NoError(storage.Set(context.Background(), 1, "fr"))
-	s.Require().NoError(storage.Snapshot())
-
-	entries, err := os.ReadDir(dir)
-	s.Require().NoError(err)
-	s.Require().Len(entries, 1)
-	s.Equal("tiles.snapshot", entries[0].Name())
-}
-
-func (s *testSuite) TestMissingSnapshotStartsEmpty() {
-	path := filepath.Join(s.T().TempDir(), "does-not-exist.snapshot")
-
-	storage := s.newStorage(memory_tile_storage.Config{SnapshotPath: path})
-
-	state, err := stateBatch(storage, 0, maxIndex)
-	s.Require().NoError(err)
-	s.Empty(state)
-
-	s.Require().NoError(storage.Set(context.Background(), 1, "fr"))
-}
-
-func (s *testSuite) TestCorruptSnapshotStartsEmpty() {
-	valid := func() []byte {
-		path := filepath.Join(s.T().TempDir(), "tiles.snapshot")
-		storage := s.newStorage(memory_tile_storage.Config{SnapshotPath: path})
-		s.Require().NoError(storage.Set(context.Background(), 1, "fr"))
-		s.Require().NoError(storage.Snapshot())
-		//nolint:gosec // G304: path is this test's own t.TempDir() snapshot.
-		raw, err := os.ReadFile(path)
-		s.Require().NoError(err)
-		return raw
-	}()
-
-	corruptions := map[string][]byte{
-		"empty file":          {},
-		"shorter than header": valid[:4],
-		"bad magic":           append([]byte("NOTATILE"), valid[8:]...),
-		"truncated body":      valid[:len(valid)-10],
-		"flipped byte": func() []byte {
-			raw := append([]byte(nil), valid...)
-			raw[len(raw)-1] ^= 0xff
-			return raw
-		}(),
-		"unknown version": func() []byte {
-			raw := append([]byte(nil), valid...)
-			raw[8] = 99
-			return raw
-		}(),
-	}
-
-	for name, raw := range corruptions {
-		s.Run(name, func() {
-			path := filepath.Join(s.T().TempDir(), "tiles.snapshot")
-			s.Require().NoError(os.WriteFile(path, raw, 0o600))
-
-			storage := s.newStorage(memory_tile_storage.Config{SnapshotPath: path})
-
-			state, err := stateBatch(storage, 0, maxIndex)
-			s.Require().NoError(err)
-			s.Empty(state)
-
-			s.Require().NoError(storage.Set(context.Background(), 1, "fr"))
-			s.Require().NoError(storage.Snapshot())
-		})
-	}
-}
-
-func (s *testSuite) TestSnapshotSurvivesADifferentMapSize() {
-	path := filepath.Join(s.T().TempDir(), "tiles.snapshot")
-	cfg := memory_tile_storage.Config{SnapshotPath: path}
-
-	big := memory_tile_storage.New(1_000, cfg, slog.New(slog.DiscardHandler))
-	s.Require().NoError(big.Set(context.Background(), 10, "fr"))
-	s.Require().NoError(big.Set(context.Background(), 900, "us"))
-	s.Require().NoError(big.Snapshot())
-
-	small := memory_tile_storage.New(100, cfg, slog.New(slog.DiscardHandler))
-	state, err := stateBatch(small, 0, 100)
-	s.Require().NoError(err)
-	s.Equal(map[uint32]string{10: "fr"}, state)
-}
-
-func (s *testSuite) TestRunSnapshotsPeriodicallyAndOnShutdown() {
-	path := filepath.Join(s.T().TempDir(), "tiles.snapshot")
-	cfg := memory_tile_storage.Config{SnapshotPath: path, SnapshotInterval: time.Hour}
-
-	storage := s.newStorage(cfg)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		storage.Run(ctx)
-	}()
-
-	s.Require().NoError(storage.Set(context.Background(), 7, "fr"))
-
-	cancel()
-
-	select {
-	case <-done:
-	case <-time.After(5 * time.Second):
-		s.T().Fatal("Run did not return after the context was cancelled")
-	}
-
-	restored := s.newStorage(cfg)
-	state, err := stateBatch(restored, 0, maxIndex)
-	s.Require().NoError(err)
-	s.Equal(map[uint32]string{7: "fr"}, state)
-}
-
-func (s *testSuite) TestRunWithoutSnapshotPathReturnsOnCancel() {
-	ctx, cancel := context.WithCancel(context.Background())
-
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		s.storage.Run(ctx)
-	}()
-
-	cancel()
-
-	select {
-	case <-done:
-	case <-time.After(5 * time.Second):
-		s.T().Fatal("Run did not return after the context was cancelled")
-	}
-}
-
 func (s *testSuite) TestConcurrentSetsAndReads() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -491,12 +294,8 @@ func (s *testSuite) TestConcurrentSetsAndReads() {
 		tilesPerWriter = 2_000
 	)
 
-	storage := s.newStorage(memory_tile_storage.Config{
-		SnapshotPath:     filepath.Join(s.T().TempDir(), "tiles.snapshot"),
-		SnapshotInterval: time.Millisecond,
-	})
+	storage := s.newStorage(memory_tile_storage.Config{FlushInterval: time.Millisecond})
 
-	// Joined before returning: a snapshot landing mid-cleanup breaks RemoveAll.
 	stopped := make(chan struct{})
 	go func() {
 		defer close(stopped)
