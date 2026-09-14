@@ -7,6 +7,126 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Duration, Message, proto3, Timestamp } from "@bufbuild/protobuf";
 
 /**
+ * @generated from message planet.v1.PaintRandomTilesRequest
+ */
+export class PaintRandomTilesRequest extends Message<PaintRandomTilesRequest> {
+  /**
+   * @generated from field: string flag_country_id = 1;
+   */
+  flagCountryId = "";
+
+  /**
+   * The country whose ground the tiles sit on.
+   *
+   * @generated from field: string area_country_id = 2;
+   */
+  areaCountryId = "";
+
+  /**
+   * @generated from field: uint32 count = 3;
+   */
+  count = 0;
+
+  /**
+   * From 0 to 1. 0 picks anywhere in the area; 1 grows one patch while it can.
+   *
+   * @generated from field: double proximity = 4;
+   */
+  proximity = 0;
+
+  /**
+   * @generated from field: bool dry_run = 5;
+   */
+  dryRun = false;
+
+  constructor(data?: PartialMessage<PaintRandomTilesRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.PaintRandomTilesRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "flag_country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "area_country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "count", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 4, name: "proximity", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 5, name: "dry_run", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PaintRandomTilesRequest {
+    return new PaintRandomTilesRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): PaintRandomTilesRequest {
+    return new PaintRandomTilesRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): PaintRandomTilesRequest {
+    return new PaintRandomTilesRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: PaintRandomTilesRequest | PlainMessage<PaintRandomTilesRequest> | undefined, b: PaintRandomTilesRequest | PlainMessage<PaintRandomTilesRequest> | undefined): boolean {
+    return proto3.util.equals(PaintRandomTilesRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.PaintRandomTilesResponse
+ */
+export class PaintRandomTilesResponse extends Message<PaintRandomTilesResponse> {
+  /**
+   * Tiles of the area that do not wear the flag yet.
+   *
+   * @generated from field: uint32 eligible = 1;
+   */
+  eligible = 0;
+
+  /**
+   * min(count, eligible).
+   *
+   * @generated from field: uint32 picked = 2;
+   */
+  picked = 0;
+
+  /**
+   * Picked tiles that nobody took between the pick and the paint.
+   *
+   * @generated from field: uint32 painted = 3;
+   */
+  painted = 0;
+
+  constructor(data?: PartialMessage<PaintRandomTilesResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.PaintRandomTilesResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "eligible", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 2, name: "picked", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "painted", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PaintRandomTilesResponse {
+    return new PaintRandomTilesResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): PaintRandomTilesResponse {
+    return new PaintRandomTilesResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): PaintRandomTilesResponse {
+    return new PaintRandomTilesResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: PaintRandomTilesResponse | PlainMessage<PaintRandomTilesResponse> | undefined, b: PaintRandomTilesResponse | PlainMessage<PaintRandomTilesResponse> | undefined): boolean {
+    return proto3.util.equals(PaintRandomTilesResponse, a, b);
+  }
+}
+
+/**
  * @generated from message planet.v1.FindPlayersRequest
  */
 export class FindPlayersRequest extends Message<FindPlayersRequest> {
