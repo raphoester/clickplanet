@@ -2,10 +2,10 @@ package planetv1controller
 
 import (
 	"errors"
-	"fmt"
 
 	"connectrpc.com/connect"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconnect"
@@ -24,18 +24,14 @@ func NewSessionInterceptor(
 	clock cptime.Clock,
 	enforce bool,
 	registerer prometheus.Registerer,
-) (connect.Interceptor, error) {
+) connect.Interceptor {
 	// Labelled per verdict so the cost of enforcing is visible while
 	// sessions.enforce is still false: the "missing" and "invalid" series are
 	// exactly the clicks that flipping it would start refusing.
-	checks := prometheus.NewCounterVec(prometheus.CounterOpts{
+	checks := promauto.With(registerer).NewCounterVec(prometheus.CounterOpts{
 		Name: "click_session_checks",
 		Help: "Clicks by the verdict on the session token they carried",
 	}, []string{"verdict"})
-
-	if err := registerer.Register(checks); err != nil {
-		return nil, fmt.Errorf("failed to register counter: %w", err)
-	}
 
 	return cpconnect.NewSessionInterceptor(
 		verifier,
@@ -50,5 +46,5 @@ func NewSessionInterceptor(
 		planetv1connect.ClickServiceClaimBonusProcedure,
 		// A bomb writes the map, so it asks for what a click does.
 		planetv1connect.ClickServiceDropBombProcedure,
-	), nil
+	)
 }

@@ -23,8 +23,7 @@ func TestEveryShapeIsCountedWithTheTilesItTookAndStillPublished(t *testing.T) {
 	registry := prometheus.NewRegistry()
 	inner := &recorder{}
 
-	publisher, err := prom_enclose.New(inner, registry)
-	require.NoError(t, err)
+	publisher := prom_enclose.New(inner, registry)
 
 	publisher.PublishEnclosed("scope-a", bonus.Enclosed{Filled: []uint32{1, 2, 3}})
 	publisher.PublishEnclosed("scope-a", bonus.Enclosed{Filled: []uint32{4}})

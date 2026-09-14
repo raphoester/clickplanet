@@ -10,9 +10,9 @@ package antibot_click
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
@@ -39,26 +39,22 @@ func New(
 	owner TileOwner,
 	clock cptime.Clock,
 	registerer prometheus.Registerer,
-) (*UseCase, error) {
+) *UseCase {
 	if clock == nil {
 		clock = cptime.SystemClock{}
 	}
 
-	dropped := prometheus.NewCounter(prometheus.CounterOpts{
+	factory := promauto.With(registerer)
+
+	dropped := factory.NewCounter(prometheus.CounterOpts{
 		Name: "shadowbanned_clicks",
 		Help: "Clicks answered OK and dropped without touching the map",
 	})
 
-	flagged := prometheus.NewGaugeFunc(prometheus.GaugeOpts{
+	factory.NewGaugeFunc(prometheus.GaugeOpts{
 		Name: "shadowban_flagged",
 		Help: "Callers currently banned, whether or not shadowBan.enforce is on",
 	}, func() float64 { return float64(guard.Flagged()) })
-
-	for _, collector := range []prometheus.Collector{dropped, flagged} {
-		if err := registerer.Register(collector); err != nil {
-			return nil, fmt.Errorf("failed to register collector: %w", err)
-		}
-	}
 
 	return &UseCase{
 		implementation: implementation,
@@ -66,7 +62,7 @@ func New(
 		owner:          owner,
 		clock:          clock,
 		dropped:        dropped,
-	}, nil
+	}
 }
 
 type UseCase struct {

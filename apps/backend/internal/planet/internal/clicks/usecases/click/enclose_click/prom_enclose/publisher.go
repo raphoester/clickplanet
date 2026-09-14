@@ -6,32 +6,27 @@
 package prom_enclose
 
 import (
-	"fmt"
-
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/bonus"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click/enclose_click"
 )
 
-func New(implementation enclose_click.Publisher, registerer prometheus.Registerer) (*Publisher, error) {
-	shapes := prometheus.NewCounter(prometheus.CounterOpts{
+func New(implementation enclose_click.Publisher, registerer prometheus.Registerer) *Publisher {
+	factory := promauto.With(registerer)
+
+	shapes := factory.NewCounter(prometheus.CounterOpts{
 		Name: "bonus_enclosures_total",
 		Help: "Shapes closed with the enclose bonus",
 	})
 
-	tiles := prometheus.NewCounter(prometheus.CounterOpts{
+	tiles := factory.NewCounter(prometheus.CounterOpts{
 		Name: "bonus_enclosed_tiles_total",
 		Help: "Tiles taken inside shapes closed with the enclose bonus",
 	})
 
-	for _, collector := range []prometheus.Collector{shapes, tiles} {
-		if err := registerer.Register(collector); err != nil {
-			return nil, fmt.Errorf("failed to register enclose collector: %w", err)
-		}
-	}
-
-	return &Publisher{implementation: implementation, shapes: shapes, tiles: tiles}, nil
+	return &Publisher{implementation: implementation, shapes: shapes, tiles: tiles}
 }
 
 type Publisher struct {
