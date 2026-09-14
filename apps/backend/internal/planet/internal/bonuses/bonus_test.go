@@ -482,6 +482,64 @@ func TestAClaimByTheCallerItWasOfferedToSucceeds(t *testing.T) {
 	assert.Equal(t, time.Minute, reward.Duration)
 }
 
+func TestACatchIsReportedWithHowLongItTook(t *testing.T) {
+	registry, clock := newTestRegistry()
+
+	var (
+		caughtBy string
+		after    time.Duration
+	)
+	registry.Observe(Report{Caught: func(scope string, took time.Duration) { caughtBy, after = scope, took }})
+
+	events := playing(t, registry, "scope-a")
+
+	waitOut(registry, clock)
+	offer := offered(t, events)
+	require.NotNil(t, offer)
+
+	clock.Advance(1200 * time.Millisecond)
+	_, claimed := registry.Claim(offer.Token, "scope-a")
+	require.True(t, claimed)
+
+	assert.Equal(t, "scope-a", caughtBy)
+	assert.Equal(t, 1200*time.Millisecond, after, "from the offer being sent, not from the sweep's window")
+}
+
+func TestARefusedClaimIsNotACatch(t *testing.T) {
+	registry, clock := newTestRegistry()
+
+	caught := 0
+	registry.Observe(Report{Caught: func(string, time.Duration) { caught++ }})
+
+	events := playing(t, registry, "scope-a")
+
+	waitOut(registry, clock)
+	offer := offered(t, events)
+	require.NotNil(t, offer)
+
+	_, stolen := registry.Claim(offer.Token, "scope-b")
+	require.False(t, stolen)
+
+	assert.Zero(t, caught)
+}
+
+func TestALapsedBoxIsReportedAgainstItsCaller(t *testing.T) {
+	registry, clock := newTestRegistry()
+
+	var missedBy []string
+	registry.Observe(Report{Lapsed: func(scope string) { missedBy = append(missedBy, scope) }})
+
+	events := playing(t, registry, "scope-a")
+
+	waitOut(registry, clock)
+	require.NotNil(t, offered(t, events))
+
+	clock.Advance(16 * time.Second)
+	registry.sweep()
+
+	assert.Equal(t, []string{"scope-a"}, missedBy)
+}
+
 func TestATokenIsWorthNothingToAnybodyElse(t *testing.T) {
 	registry, clock := newTestRegistry()
 	events := playing(t, registry, "scope-a")

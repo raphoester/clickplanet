@@ -166,7 +166,7 @@ bonus:
   sweepInterval: 1s
 
 # Accepts a bot's clicks and drops them, rather than refusing them and naming the
-# check it tripped. Three watchdogs read three different behaviours, the jury
+# check it tripped. Four watchdogs read four different behaviours, the jury
 # crosses what they say, and the shadow ban is the one sentence they all pass.
 antiBot:
   # Off registers nothing and measures nothing.
@@ -284,6 +284,27 @@ antiBot:
       certainFor: 30m
       certainClicks: 900
       trackWindow: 15m
+      sweepInterval: 1m
+
+  # Catches every bonus box, at once. A box flies a slow orbit that is rarely in
+  # view: a person zooms out to orbit height, often drags the globe round, and
+  # lets some go by. A script reads the offer off the stream and claims it
+  # before the box has left its spawn. Only callers who catch every one of
+  # their last minCatches boxes are judged at all: one miss clears them.
+  catcher:
+    enabled: true
+    detector:
+      # Boxes in a row, all caught, before anything is said.
+      minCatches: 5
+      # The median delay from offer to claim over those boxes. It includes the
+      # round trip, which only makes a person look slower.
+      maxMedian: 3s
+      # The same median at a speed no hand holds box after box, which bans
+      # on its own.
+      certainMedian: 1500ms
+      # Must hold minCatches boxes at bonus.maxInterval plus bonus.offerTTL, or
+      # the rule can never fire.
+      trackWindow: 30m
       sweepInterval: 1m
 
 # Gates the Click RPC on a token this server minted. Off by default: with it
