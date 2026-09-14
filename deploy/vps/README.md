@@ -646,6 +646,40 @@ every 30s and on every clean shutdown. A nightly cron on the box is enough:
 DigitalOcean's droplet backups (+20% of the droplet price, so ~$1.20/mo) cover
 the whole disk if you would rather not think about it.
 
+## 10. Operator tools
+
+`admin.enabled` starts a second HTTP listener on `127.0.0.1:8081`, inside the
+backend container. It is not behind Caddy and has **no authentication**:
+loopback is its whole protection, so a non-loopback `admin.bindAddress` refuses
+the boot. Reach it from the box with `docker compose exec`.
+
+### Give one country's tiles to another
+
+Dry run first. It changes nothing and says how many tiles each side holds:
+
+```bash
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"from":"dz","to":"fr","dryRun":true}' http://127.0.0.1:8081/admin/reassign-country
+```
+
+Then the same without `"dryRun":true`. There is no restart:
+
+- It moves every tile `from` holds, 256 at a time every 50ms — about 4.5s for
+  22,000 tiles.
+- Each tile goes out on the live stream as an ordinary update, so open tabs
+  repaint, the toll sees the new counts, and the next snapshot writes it to disk.
+- A tile `from` takes back while it runs stays theirs. `fromAfter` in the answer
+  says how many; run it again.
+- A refusal (unknown or identical country) shows as `server returned error: HTTP/1.1 400`.
+- Every call is logged: `journalctl CONTAINER_NAME=cp-backend | grep "admin country reassignment"`.
+
+**Reassigning back does not undo it**: it would also move the tiles `to` held
+before. Copy the snapshot first if you may want to return (the file is written
+atomically, so a copy is always whole):
+
+```bash
+docker compose exec backend cp /home/app/state/tiles.snapshot /home/app/state/tiles.before-reassign
+```
+
 ## Rollback
 
 - **Bad backend build:** `BACKEND_IMAGE=ghcr.io/raphoester/clickplanet-backend:<sha>` in `.env`, then `docker compose up -d backend`.

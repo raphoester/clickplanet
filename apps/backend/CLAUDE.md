@@ -208,7 +208,7 @@ two.
 **A caller error becomes a Connect code in the handler, not centrally.** `click_handler` turns `clicks.ErrUnknownCountry` and `clicks.ErrTileOutOfRange` into `CodeInvalidArgument` and `clicks.ErrThrottled` into `CodeResourceExhausted`; `get_map_handler` turns `clicks.ErrInvalidTileRange` into `CodeInvalidArgument`. The sentinel these replaced was `ErrInvalidArgument`, which was a status code wearing a domain hat: it told a reader nothing a use case could act on, and it made every caller error in the game the same one. There is **no error interceptor in this package** — see [The error net](#the-error-net).
 - the tile stream, as `ClickService.ListenForEvents` — a Connect server-streaming RPC like any other procedure on the service. See [The live streams](#the-live-streams).
 
-**There is one server, one mux, and no version prefix.** Connect names each service's path from its proto package — `/planet.v1.ClickService/` and `/chat.v1.ChatService/` — so nothing is mounted under a prefix of ours. The three services and `/metrics` are the only things on the router. Nothing here needs a connection-level demultiplexer such as `cmux`; that is for running a real gRPC server, which owns its own HTTP/2 handler, beside a REST one.
+**There is one server, one mux, and no version prefix.** Connect names each service's path from its proto package — `/planet.v1.ClickService/` and `/chat.v1.ChatService/` — so nothing is mounted under a prefix of ours. The three services and `/metrics` are the only things on the router; the operator tools listen on a loopback port of their own (see [Operator tools](#operator-tools-admin_server)). Nothing here needs a connection-level demultiplexer such as `cmux`; that is for running a real gRPC server, which owns its own HTTP/2 handler, beside a REST one.
 
 `cpbootstrap` sets `http.Protocols` with both HTTP/1.1 and unencrypted HTTP/2, because the generated handler also speaks gRPC and gRPC-Web and those need HTTP/2. Browsers reach the same routes over HTTP/1.1. Verified: HTTP/1.1 and h2c both answer on the same port.
 
@@ -928,6 +928,19 @@ The whole map is snapshotted to `tilesStorage.snapshotPath`:
 
 The snapshot file is the only thing worth backing up.
 
+### Operator tools (`admin_server`)
+
+**A second listener, not a route.** `admin.enabled` starts plain HTTP on `admin.bindAddress` (`127.0.0.1:8081`), served by `adapters/primary/http/admin_server`. It has no authentication, so loopback is its whole protection: `Config.Validate` refuses any other address, a bare port included, and a port already taken refuses the boot. It is off the router Caddy forwards to on purpose — a route there would be one Caddyfile edit away from letting anybody repaint the map. It is reached with `docker compose exec backend wget`; see `deploy/vps/README.md`, "Operator tools".
+
+`POST /admin/reassign-country` with `{"from", "to", "dryRun"}` runs `clicks/usecases/reassign_country`: every tile `from` holds goes to `to`, while the game runs.
+
+- **The move is paced.** `memory_tile_storage.Reassign` moves one batch under the lock and returns where to resume; the use case sleeps 50ms between batches. A batch is a quarter of `tilesStorage.subscriberBuffer`, because each tile is one update on every open stream and the clicks still arriving need the rest of the buffer.
+- **Each tile is an ordinary `TileUpdate`** with `Previous` set, not a new event kind: open clients repaint with no frontend release, `counts` move so the toll prices the next click right, and `dirty` puts it in the next snapshot.
+- **A tile `from` retakes behind the scan stays theirs.** The answer reads both counts again at the end, so `fromAfter` says whether to run it again.
+- **Every call is logged at Warn**, dry runs and failures included: it is the only record that those tiles did not change hands through play.
+
+Measured on a copy of production's snapshot: 22,040 tiles in 4.4s, all 22,040 updates delivered to an open stream, none dropped, and the snapshot written byte-identical to the same change made offline.
+
 ### Shared (`internal/shared/`)
 
 Shared infrastructure: `cpbootstrap` (the composite layer), `cpcountries`, `cpconfigs` (YAML + env config via koanf), `cphttpserver` (middleware, formats), `cpprom` (Prometheus), `cptime`, `cpctx`, `cpconnect`, `cpratelimit`, `cpipblock`, `cpipscope`, `cpsession`, `cpatomicfile`, `cpsecrets`.
@@ -1133,6 +1146,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `tilesStorage.subscriberBuffer` — per-subscriber channel capacity, which is now per connected client rather than per fanout; updates for a subscriber that cannot keep up are dropped, not blocked on
 - `rateLimiter.perSecond`, `rateLimiter.burst`, `rateLimiter.sweepInterval` — the per-IP click throttle (defaults 1/s, burst 10, swept every minute)
 - `vpnBlocklist.enabled`, `vpnBlocklist.includeDatacenters`, `vpnBlocklist.allow` — the VPN refusal (see [VPN blocklist](#vpn-blocklist)); disabled parses nothing and allocates nothing
+- `admin.enabled`, `admin.bindAddress` — the operator listener (see [Operator tools](#operator-tools-admin_server)); off binds nothing, and a non-loopback address refuses the boot
 - `bonus.enabled` — off offers nothing and answers `ClaimBonus` Unimplemented
 - `bonus.interval` — how often a box is put in front of somebody; a ceiling, since nothing is offered while nobody is watching
 - `bonus.offerTTL` — how long the token stays good; **must outlast the flight the client draws**, or a box caught on its last frame is refused
