@@ -17,7 +17,6 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/admin_server"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/claim_bonus_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/click_handler"
@@ -26,6 +25,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/get_map_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/map_density_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/reassign_country_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/secondary/geodesic_map"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/secondary/in_memory_tile_checker"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/secondary/memory_tile_storage"
@@ -48,6 +48,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/listen_for_events"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/map_density"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/reassign_country"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/reassign_country/audit_reassign"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
@@ -83,7 +84,7 @@ func build(config Config, props cpbootstrap.Props) error {
 	tilesStorage := memory_tile_storage.New(config.GameMap.MaxIndex, config.TilesStorage, props.Logger)
 	props.Runners.Add("tiles-storage", tilesStorage.Run)
 
-	if err := startAdminServer(config, tilesStorage, props); err != nil {
+	if err := mountAdminService(config, tilesStorage, props); err != nil {
 		return err
 	}
 
@@ -173,16 +174,7 @@ func loadMapGeography(maxIndex uint32, props cpbootstrap.Props) (*clicks.Geograp
 
 const reassignPause = 50 * time.Millisecond
 
-func startAdminServer(config Config, storage *memory_tile_storage.Storage, props cpbootstrap.Props) error {
-	if !config.Admin.Enabled {
-		return nil
-	}
-
-	listener, err := admin_server.Listen(config.Admin)
-	if err != nil {
-		return fmt.Errorf("failed to start the admin server: %w", err)
-	}
-
+func mountAdminService(config Config, storage *memory_tile_storage.Storage, props cpbootstrap.Props) error {
 	// A quarter of a subscriber's buffer per batch leaves room for the clicks still arriving.
 	batch := config.TilesStorage.SubscriberBuffer / 4
 	if batch <= 0 {
@@ -190,13 +182,13 @@ func startAdminServer(config Config, storage *memory_tile_storage.Storage, props
 	}
 
 	reassign := reassign_country.New(storage, cpcountries.New(), reassign_country.Pacing{Batch: batch, Pause: reassignPause})
-	handler := admin_server.NewHandler(reassign, props.Logger)
+	service := planetv1controller.AdminService{
+		ReassignCountryHandler: reassign_country_handler.New(audit_reassign.New(reassign, props.Logger)),
+	}
 
-	props.Runners.Add("admin-server", func(ctx context.Context) {
-		admin_server.Serve(ctx, listener, handler, props.Logger)
+	return props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
+		return planetv1connect.NewAdminServiceHandler(service, options...)
 	})
-
-	return nil
 }
 
 // clickParts is what the click chain is built from.

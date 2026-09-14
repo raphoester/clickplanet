@@ -648,17 +648,19 @@ the whole disk if you would rather not think about it.
 
 ## 10. Operator tools
 
-`admin.enabled` starts a second HTTP listener on `127.0.0.1:8081`, inside the
-backend container. It is not behind Caddy and has **no authentication**:
-loopback is its whole protection, so a non-loopback `admin.bindAddress` refuses
-the boot. Reach it from the box with `docker compose exec`.
+`httpServer.adminBindAddress` serves the backend's operator services
+(`planet.v1.AdminService`) on `127.0.0.1:8081`, inside the container. They are
+not behind Caddy and have **no authentication**: loopback is their whole
+protection, so a non-loopback address refuses the boot. Reach them from the box
+with `docker compose exec`. They are ordinary Connect RPCs, so a request is a
+JSON POST to `/<package>.<Service>/<Method>`.
 
 ### Give one country's tiles to another
 
 Dry run first. It changes nothing and says how many tiles each side holds:
 
 ```bash
-docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"from":"dz","to":"fr","dryRun":true}' http://127.0.0.1:8081/admin/reassign-country
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"fromCountryId":"dz","toCountryId":"fr","dryRun":true}' http://127.0.0.1:8081/planet.v1.AdminService/ReassignCountry
 ```
 
 Then the same without `"dryRun":true`. There is no restart:
@@ -669,6 +671,8 @@ Then the same without `"dryRun":true`. There is no restart:
   repaint, the toll sees the new counts, and the next snapshot writes it to disk.
 - A tile `from` takes back while it runs stays theirs. `fromAfter` in the answer
   says how many; run it again.
+- **A count of zero is left out of the answer** — that is how protobuf JSON
+  writes it. `{"fromBefore":22040,"moved":22040,"toAfter":22040}` means `fromAfter` is 0.
 - A refusal (unknown or identical country) shows as `server returned error: HTTP/1.1 400`.
 - Every call is logged: `journalctl CONTAINER_NAME=cp-backend | grep "admin country reassignment"`.
 

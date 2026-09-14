@@ -4,7 +4,6 @@ import (
 	"errors"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/admin_server"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/secondary/memory_tile_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/bonus"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/toll"
@@ -23,7 +22,6 @@ type Config struct {
 	VPNBlocklist cpipblock.Config
 	AntiBot      antibot.Config
 	Bonus        bonus.Config
-	Admin        admin_server.Config
 
 	// The same `session:` keys the session context mints with. Declared here
 	// rather than handed over, so this module needs nothing but its config.
@@ -43,10 +41,6 @@ func (c Config) Validate() error {
 	}
 
 	if err := c.Toll.Validate(c.RateLimiter.Capacity()); err != nil {
-		return err
-	}
-
-	if err := c.Admin.Validate(); err != nil {
 		return err
 	}
 

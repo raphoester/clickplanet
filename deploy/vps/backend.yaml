@@ -6,6 +6,8 @@
 
 httpServer:
   bindAddress: 0.0.0.0:8080
+  # Operator services, loopback only. See "Operator tools" in the README.
+  adminBindAddress: 127.0.0.1:8081
 gameMap:
   maxIndex: 257948 # must match the tile count baked into the frontend coordinates
 
@@ -15,11 +17,6 @@ tilesStorage:
   # `docker compose down` or a rolling redeploy loses nothing: the API writes a
   # final snapshot on SIGTERM.
   snapshotInterval: 30s
-
-# Loopback only, reached with `docker compose exec backend wget`. See "Operator
-# tools" in the README.
-admin:
-  enabled: true
 
 # Per-caller throttle on the Click RPC. Keyed on the address Caddy puts in
 # X-Real-IP, which is Cloudflare's Cf-Connecting-Ip — the real visitor — over
