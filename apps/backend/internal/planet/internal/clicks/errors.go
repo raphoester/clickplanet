@@ -31,7 +31,4 @@ var (
 	// why the throttle is a decorator over the click use case and not an
 	// interceptor over the procedure.
 	ErrThrottled = errors.New("too many clicks")
-
-	// ErrInvalidScope is an operator naming a caller by something that is neither an address nor a scope.
-	ErrInvalidScope = errors.New("not an address or a scope")
 )

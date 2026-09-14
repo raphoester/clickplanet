@@ -13,6 +13,7 @@ import (
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/find_players_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/find_players_handler"
 )
@@ -42,7 +43,7 @@ func find(t *testing.T, useCase *stubUseCase) (*planetv1.FindPlayersResponse, er
 
 func TestTheRequestReachesTheUseCaseAndThePlayersComeBack(t *testing.T) {
 	at := time.Date(2026, 9, 14, 12, 0, 0, 0, time.UTC)
-	useCase := &stubUseCase{out: find_players_usecase.Out{Total: 7, Players: []find_players_usecase.Player{
+	useCase := &stubUseCase{out: find_players_usecase.Out{Total: 7, Players: []ledger.Player{
 		{Scope: "9.9.9.9", Tiles: 40, FirstAt: at, LastAt: at.Add(time.Minute), Banned: true, BannedUntil: at.Add(time.Hour), Offence: 2},
 		{Scope: "2001:db8::/64", Tiles: 1, FirstAt: at, LastAt: at},
 	}}}

@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipscope"
 )
 
@@ -52,7 +52,7 @@ func (u *UseCase) Execute(_ context.Context, in In) (Out, error) {
 
 	scope, ok := cpipscope.Parse(in.Scope)
 	if !ok {
-		return Out{}, fmt.Errorf("%w: %q", clicks.ErrInvalidScope, in.Scope)
+		return Out{}, fmt.Errorf("%w: %q", ledger.ErrInvalidScope, in.Scope)
 	}
 	if in.Duration < 0 {
 		return Out{}, fmt.Errorf("%w: %s", ErrNegativeDuration, in.Duration)

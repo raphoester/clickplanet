@@ -10,6 +10,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/find_players_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -36,15 +37,15 @@ type countries struct{}
 func (countries) CheckCountry(country string) bool { return len(country) == 2 }
 
 // Tiles 1-4 are Israel's ground, 5 is Jordan's. Every take is a second apart, in order.
-func setup(t *testing.T) (*ledger.Ledger, owners) {
+func setup(t *testing.T) (*inmemory_ledger_storage.Storage, owners) {
 	t.Helper()
 
 	clock := cptime.NewFixedClock(start)
-	book := ledger.New(ledger.Config{}, clock)
+	book := inmemory_ledger_storage.New()
 	current := owners{}
 
 	take := func(tile uint32, scope, country string) {
-		book.Record(tile, scope, current[tile], country)
+		book.Put(ledger.Taking{Tile: tile, Scope: scope, Country: country, Previous: current[tile], At: clock.Now()})
 		current[tile] = country
 		clock.Advance(time.Second)
 	}
@@ -68,7 +69,7 @@ func TestItListsWhoseFlagStillHoldsInTheAreaLatestFirst(t *testing.T) {
 	out, err := useCase.Execute(t.Context(), find_players_usecase.In{Flag: "ps", Area: "il"})
 	require.NoError(t, err)
 
-	assert.Equal(t, find_players_usecase.Out{Total: 2, Players: []find_players_usecase.Player{
+	assert.Equal(t, find_players_usecase.Out{Total: 2, Players: []ledger.Player{
 		{
 			Scope: "bot", Tiles: 2, FirstAt: start, LastAt: start.Add(2 * time.Second),
 			Banned: true, BannedUntil: start.Add(time.Hour), Offence: 2,

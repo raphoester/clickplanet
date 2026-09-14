@@ -156,6 +156,7 @@ internal/planet/internal/
     inmemory_tile_storage/        an adapter: <tech>_<thing>_<role>
     embedded_geodesic_map/
   ledger/                         who took which tile, and the operator tools that read it
+    inmemory_ledger_storage/
     usecases/
   bonuses/                        the boxes, and what each one grants
     usecases/
@@ -166,7 +167,8 @@ internal/planet/internal/
   changes when somebody takes a tile. Its root holds the rules that need no
   port: `Board` (which tile ids exist), `Toll` (what a click costs), `Pacing`
   (how an operator's bulk change is spread out), `Geography` and `Borders`.
-- **`ledger/`** — who last took each tile. `FindPlayers`, `BanPlayer` and
+- **`ledger/`** — who last took each tile. Its root holds `Taking`, `Player`,
+  the `Storage` port, `Recording` (the tile writer that records) and `Retention`. `FindPlayers`, `BanPlayer` and
   `RevertPlayer` live here: they are one moderation workflow — find, ban, undo.
 - **`bonuses/`** — the boxes, their schedule, and the running bonuses they grant.
 
@@ -965,7 +967,8 @@ Measured on a copy of production's snapshot: 22,040 tiles in 4.4s, all 22,040 up
 For the patterns no watchdog catches but a person sees on the map. A player is a **scope** (`cpipscope`): the address over IPv4, the /64 over IPv6 — what the throttle and the ban already key on.
 
 - **`ledger` remembers, per tile, the last scope that took it** and what the tile held before that scope's first take. `ledger.Recording` wraps the storage the click chain writes through — the rule, `spread_click` and the enclose annexer — so every tile a click takes is recorded, a no-op is not, and a click the shadow ban drops never reaches it. A take by somebody else replaces the entry; that is what "covered" means. Bombs and reassigns do not write the ledger: the tile no longer wears the paint, and both use cases check the owner.
-- **In memory only**, one entry per tile at most, forgotten after `ledger.retention` (24h). A restart empties it.
+- **In memory only** (`inmemory_ledger_storage`, behind `ledger.Storage`), one entry per tile at most, forgotten after `ledger.retention` (24h) by `ledger.Retention`. A restart empties it.
+- **The rules are in the `ledger` root, not in the use cases**: `Taking.Over` (a retake keeps the first owner), `Taking.WornBy` and `Taking.Restoration` (what a revert may give back), `Players` and `Top` (how `FindPlayers` gathers and cuts). The two use cases only load, filter through their ports, and call these.
 - **`FindPlayers(flag, area, limit)`** lists the scopes whose paint of `flag` still holds, on tiles whose ground is `area` (empty is the whole map), latest take first, with any running ban. The ground comes from `clicks.Borders`, built by `embedded_geodesic_map.Loader.LoadBorders` from the borders blob the frontend paints flags from — see [Map geography](#map-geography). A blob for another map refuses the boot.
 - **`BanPlayer(scope, duration)`** is `shadowban.Banner.Ban`, and drops the scope's clicks and bombs alike: the same record, ladder and state file as a watchdog's ban, and it counts as an offence. It skips `reflagInterval`, and an empty duration takes the ladder's step. Any address is accepted and banned as its scope (`cpipscope.Parse`). **It follows `antiBot.shadowBan.enforce`**, and says so in `enforced`. With `antiBot.enabled` false it answers `FailedPrecondition`.
 - **`RevertPlayer(scope, dry_run)`** gives each tile the scope took back to its previous owner, **only if it still wears the scope's paint** — `inmemory_tile_storage.Restore` is a compare-and-set under the lock, so a tile retaken mid-revert stays retaken. Paced like the reassign (`clicks.Pacing`), each tile an ordinary `TileUpdate`. A tile that was nobody's goes back to nobody, as an update with an empty country. It then forgets the scope's takes, so a second run does nothing.

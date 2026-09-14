@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/revert_player_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/revert_player_handler"
 )
@@ -53,7 +53,7 @@ func TestTheRequestReachesTheUseCaseAndTheCountsComeBack(t *testing.T) {
 }
 
 func TestAnInvalidScopeIsInvalidArgument(t *testing.T) {
-	_, err := revert(t, &stubUseCase{err: fmt.Errorf("%w: %q", clicks.ErrInvalidScope, "bot")})
+	_, err := revert(t, &stubUseCase{err: fmt.Errorf("%w: %q", ledger.ErrInvalidScope, "bot")})
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 }
 

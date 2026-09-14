@@ -11,8 +11,8 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/revert_player_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 type stubMap struct {
@@ -40,17 +40,17 @@ func (m *stubMap) Restore(_ context.Context, restorations []clicks.Restoration) 
 }
 
 // The bot took 1-5 over whoever held them; somebody took 4 back and a bomb cleared 5.
-func setup(t *testing.T) (*ledger.Ledger, *stubMap) {
+func setup(t *testing.T) (*inmemory_ledger_storage.Storage, *stubMap) {
 	t.Helper()
 
-	book := ledger.New(ledger.Config{}, cptime.NewFixedClock(time.Date(2026, 9, 14, 12, 0, 0, 0, time.UTC)))
+	book := inmemory_ledger_storage.New()
 	tiles := &stubMap{owners: map[uint32]string{1: "il", 2: "", 3: "il", 4: "il", 5: "il"}}
 
 	for tile := uint32(1); tile <= 5; tile++ {
-		book.Record(tile, "9.9.9.9", tiles.owners[tile], "ps")
+		book.Put(ledger.Taking{Tile: tile, Scope: "9.9.9.9", Country: "ps", Previous: tiles.owners[tile]})
 		tiles.owners[tile] = "ps"
 	}
-	book.Record(4, "1.1.1.1", "ps", "il")
+	book.Put(ledger.Taking{Tile: 4, Scope: "1.1.1.1", Country: "il", Previous: "ps"})
 	tiles.owners[4] = "il"
 	tiles.owners[5] = ""
 
@@ -87,7 +87,7 @@ func TestItRefusesWhatIsNotAScope(t *testing.T) {
 	book, tiles := setup(t)
 
 	_, err := revert_player_usecase.New(book, tiles, clicks.Pacing{Batch: 2}).Execute(t.Context(), revert_player_usecase.In{Scope: "bot"})
-	require.ErrorIs(t, err, clicks.ErrInvalidScope)
+	require.ErrorIs(t, err, ledger.ErrInvalidScope)
 }
 
 func TestItStopsWhenTheContextEndsAndSaysHowFarItGot(t *testing.T) {
