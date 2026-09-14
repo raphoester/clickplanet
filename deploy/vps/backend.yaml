@@ -145,15 +145,7 @@ antiBot:
 
 # A question-mark box flies past the planet every so often, and whoever catches
 # it clicks at three times their allowance for 20 seconds.
-
-#
-# On ahead of the frontend that can draw one. The two events ride the existing
-# stream as new cases of its oneof, so a deployed client reads them as unset and
-# skips them: nothing is offered to anybody who can see it yet, and
-# bonus_offers_total against bonus_claims_total says the moment that changes.
 bonus:
-  enabled: true
-
   # Per caller, not per server. A single ticker made the rate each player saw
   # 1/(interval x players), so the feature got rarer the busier the game was.
   minInterval: 15s

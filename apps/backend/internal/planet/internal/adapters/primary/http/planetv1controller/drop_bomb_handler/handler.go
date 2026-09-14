@@ -27,10 +27,6 @@ func (h DropBombHandler) DropBomb(
 	ctx context.Context,
 	req *connect.Request[planetv1.DropBombRequest],
 ) (*connect.Response[planetv1.DropBombResponse], error) {
-	if h.useCase == nil {
-		return nil, connect.NewError(connect.CodeUnimplemented, drop_bomb.ErrNoBomb)
-	}
-
 	target := req.Msg.GetTarget()
 	_, err := h.useCase.Execute(ctx, drop_bomb.In{
 		Target:    clicks.Vec3{X: target.GetX(), Y: target.GetY(), Z: target.GetZ()},

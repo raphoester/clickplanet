@@ -36,8 +36,7 @@ type Event struct {
 	Spread   *bonus.Spread
 }
 
-// BonusFeed is this caller's boxes. Nil when boxes are off, which leaves the
-// feed carrying exactly what it did before they existed.
+// BonusFeed is this caller's boxes.
 type BonusFeed interface {
 	Attend(scope string) (<-chan bonus.Event, func())
 }
@@ -77,12 +76,8 @@ func (u *UseCase) Execute(ctx context.Context, sink Sink) error {
 	// A second subscription on the same connection, not a second feed: the
 	// envelope is what lets one stream carry a frame that did not exist when
 	// the client was written.
-	var boxes <-chan bonus.Event
-	if u.bonuses != nil {
-		events, leave := u.bonuses.Attend(cpctx.RateLimitKey(ctx))
-		defer leave()
-		boxes = events
-	}
+	boxes, leave := u.bonuses.Attend(cpctx.RateLimitKey(ctx))
+	defer leave()
 
 	heartbeat := time.NewTicker(u.heartbeat)
 	defer heartbeat.Stop()

@@ -424,10 +424,7 @@ strong ones can be made rare (production runs 5 : 2 : 1 : 2):
   most `bonus.encloseMaxTiles` tiles (15), within `bonus.encloseDuration` (30s).
   See [What an enclose does to a click](#what-an-enclose-does-to-a-click).
 
-Off by
-default — `bonus.enabled` false offers nothing and answers `ClaimBonus` with
-`CodeUnimplemented`, so the capability is absent rather than present and
-refusing, the same shape chat has.
+Boxes are always on: there is no switch.
 
 **The server picks who gets one, and that is the whole design.** A box broadcast
 to everyone is caught by whichever client reacts fastest, and that is a script
@@ -1172,7 +1169,6 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `tilesStorage.subscriberBuffer` — per-subscriber channel capacity, which is now per connected client rather than per fanout; updates for a subscriber that cannot keep up are dropped, not blocked on
 - `rateLimiter.perSecond`, `rateLimiter.burst`, `rateLimiter.sweepInterval` — the per-IP click throttle (defaults 1/s, burst 10, swept every minute)
 - `vpnBlocklist.enabled`, `vpnBlocklist.includeDatacenters`, `vpnBlocklist.allow` — the VPN refusal (see [VPN blocklist](#vpn-blocklist)); disabled parses nothing and allocates nothing
-- `bonus.enabled` — off offers nothing and answers `ClaimBonus` Unimplemented
 - `bonus.interval` — how often a box is put in front of somebody; a ceiling, since nothing is offered while nobody is watching
 - `bonus.offerTTL` — how long the token stays good; **must outlast the flight the client draws**, or a box caught on its last frame is refused
 - `bonus.kinds` — a weight per kind (`triple_clicks`, `spread_clicks`); a kind's chance is its weight over the sum. Left out or 0 is never offered, empty offers every kind equally, and an unknown kind, a negative weight or all zeros refuse the boot

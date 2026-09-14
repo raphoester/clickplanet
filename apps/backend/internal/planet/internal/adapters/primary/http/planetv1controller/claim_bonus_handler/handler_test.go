@@ -100,13 +100,6 @@ func TestARefusedClaimIsNotFoundAndSaysNothingAboutWhy(t *testing.T) {
 	assert.NotContains(t, err.Error(), "lapsed")
 }
 
-func TestWithBoxesOffTheProcedureIsUnimplemented(t *testing.T) {
-	_, err := claim(t, nil)
-
-	require.Error(t, err)
-	assert.Equal(t, connect.CodeUnimplemented, connect.CodeOf(err))
-}
-
 func TestEveryKindTheServerGrantsHasAWireName(t *testing.T) {
 	for _, kind := range bonus.Kinds {
 		assert.NotEqualf(t, planetv1.BonusKind_BONUS_KIND_UNSPECIFIED, claim_bonus_handler.EncodeKind(kind),

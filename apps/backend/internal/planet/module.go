@@ -124,24 +124,8 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			// ---- Bonus boxes ----
 
-			// nil when boxes are off, which leaves the feed and the click chain exactly
-			// as they were and makes ClaimBonus answer Unimplemented. A typed nil in an
-			// interface is not a nil interface, which is why bonusFeed is only widened
-			// from it when it is set.
-			var bonuses *bonus.Registry
-			var bonusFeed listen_for_events.BonusFeed
-			if config.Bonus.Enabled {
-				bonuses = bonus.New(config.Bonus, clock)
-				bonusFeed = bonuses
-				props.Runners.Add("bonus-boxes", bonuses.Run)
-
-				props.Logger.Info("bonus boxes enabled",
-					slog.Any("minInterval", config.Bonus.MinInterval),
-					slog.Any("maxInterval", config.Bonus.MaxInterval),
-					slog.Any("duration", config.Bonus.Duration),
-					slog.Any("kinds", config.Bonus.Kinds),
-				)
-			}
+			bonuses := bonus.New(config.Bonus, clock)
+			props.Runners.Add("bonus-boxes", bonuses.Run)
 
 			spreads := bonus.NewSpreads(clock)
 			bombs := bonus.NewBombs(clock)
@@ -166,13 +150,11 @@ func NewModule(config Config) cpbootstrap.Module {
 			// reaches the rule, so it spreads and encloses nothing either. It is counted
 			// as one click however many tiles it took.
 			var clickUseCase click.IUseCase = click.New(tilesChecker, writer, countries)
-			if bonuses != nil {
-				clickUseCase = spread_click.New(clickUseCase, spreads, geography, writer, bonuses)
+			clickUseCase = spread_click.New(clickUseCase, spreads, geography, writer, bonuses)
 
-				clickUseCase = enclose_click.New(clickUseCase, enclosures,
-					enclose_click.NewTerrain(geography, tilesStorage),
-					enclose_click.NewAnnexer(writer, prom_enclose.New(bonuses, props.Metrics)))
-			}
+			clickUseCase = enclose_click.New(clickUseCase, enclosures,
+				enclose_click.NewTerrain(geography, tilesStorage),
+				enclose_click.NewAnnexer(writer, prom_enclose.New(bonuses, props.Metrics)))
 
 			clickUseCase = prom_click.New(clickUseCase, props.Metrics)
 
@@ -261,9 +243,7 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			// Inside the throttle: presence is what a caller actually managed to do,
 			// not what they attempted.
-			if bonuses != nil {
-				clickUseCase = bonus_click.New(clickUseCase, bonuses)
-			}
+			clickUseCase = bonus_click.New(clickUseCase, bonuses)
 
 			clickUseCase = throttle_click.New(clickUseCase, limiter, pricer)
 
@@ -342,31 +322,25 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			// ---- Bonus use cases ----
 
-			// Both stay nil when boxes are off; their handlers answer Unimplemented.
-			var claimBonus claim_bonus_handler.UseCase
-			var dropBomb drop_bomb_handler.UseCase
-			if bonuses != nil {
-				// The claim also hands the registry its counters: offered against caught
-				// is the only way to see whether the pacing and the flight time are set
-				// anywhere near right.
-				claimed, counters := prom_claim_bonus.New(
-					claim_bonus.New(bonuses, limiter, pricer, spreads, bombs, bombRules.Radius, enclosures, clock),
-					props.Metrics)
+			// The claim also hands the registry its counters: offered against caught
+			// is the only way to see whether the pacing and the flight time are set
+			// anywhere near right.
+			claimBonus, counters := prom_claim_bonus.New(
+				claim_bonus.New(bonuses, limiter, pricer, spreads, bombs, bombRules.Radius, enclosures, clock),
+				props.Metrics)
 
-				bonuses.Observe(bonus.Report{
-					Offered: counters.Offered.Inc,
-					Lapsed:  counters.Lapsed.Inc,
-				})
-				claimBonus = claimed
+			bonuses.Observe(bonus.Report{
+				Offered: counters.Offered.Inc,
+				Lapsed:  counters.Lapsed.Inc,
+			})
 
-				dropped := prom_drop_bomb.New(
-					drop_bomb.New(bombs, bonuses, geography, tilesStorage, countries, bombRules), props.Metrics)
-				dropBomb = dropped
+			dropped := prom_drop_bomb.New(
+				drop_bomb.New(bombs, bonuses, geography, tilesStorage, countries, bombRules), props.Metrics)
 
-				// Outside the count, so it can tell the counter a drop was a dud.
-				if guard != nil {
-					dropBomb = antibot_drop_bomb.New(dropped, guard)
-				}
+			// Outside the count, so it can tell the counter a drop was a dud.
+			var dropBomb drop_bomb_handler.UseCase = dropped
+			if guard != nil {
+				dropBomb = antibot_drop_bomb.New(dropped, guard)
 			}
 
 			// ---- Click service ----
@@ -381,7 +355,7 @@ func NewModule(config Config) cpbootstrap.Module {
 				MapDensityHandler: map_density_handler.New(map_density.New(tilesChecker)),
 				GetMapHandler:     get_map_handler.New(get_map.New(tilesChecker, tilesStorage)),
 				ListenForEventsHandler: listen_for_events_handler.New(
-					listen_for_events.New(tilesStorage, props.Server.StreamHeartbeat, bonusFeed)),
+					listen_for_events.New(tilesStorage, props.Server.StreamHeartbeat, bonuses)),
 				ClaimBonusHandler: claim_bonus_handler.New(claimBonus),
 				DropBombHandler:   drop_bomb_handler.New(dropBomb),
 			}

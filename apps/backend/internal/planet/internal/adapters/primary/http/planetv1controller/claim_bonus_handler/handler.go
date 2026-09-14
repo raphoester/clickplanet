@@ -16,9 +16,6 @@ type UseCase interface {
 	Execute(ctx context.Context, in claim_bonus.In) (claim_bonus.Out, error)
 }
 
-// New takes a nil use case for a server with boxes switched off: ClaimBonus
-// then answers Unimplemented, so the capability is absent rather than present
-// and refusing.
 func New(useCase UseCase) ClaimBonusHandler {
 	return ClaimBonusHandler{useCase: useCase}
 }
@@ -31,10 +28,6 @@ func (h ClaimBonusHandler) ClaimBonus(
 	ctx context.Context,
 	req *connect.Request[planetv1.ClaimBonusRequest],
 ) (*connect.Response[planetv1.ClaimBonusResponse], error) {
-	if h.useCase == nil {
-		return nil, connect.NewError(connect.CodeUnimplemented, claim_bonus.ErrNoSuchBonus)
-	}
-
 	out, err := h.useCase.Execute(ctx, claim_bonus.In{
 		Token:     req.Msg.GetToken(),
 		CountryID: req.Msg.GetCountryId(),
