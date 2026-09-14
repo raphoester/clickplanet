@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/bonus"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
@@ -30,15 +30,15 @@ type Event struct {
 
 	// A box put in front of this caller alone; a catch, a closed shape and a
 	// spread click, anyone's.
-	Offer    *bonus.Offer
-	Taken    *bonus.Taken
-	Enclosed *bonus.Enclosed
-	Spread   *bonus.Spread
+	Offer    *bonuses.Offer
+	Taken    *bonuses.Taken
+	Enclosed *bonuses.Enclosed
+	Spread   *bonuses.Spread
 }
 
 // BonusFeed is this caller's boxes.
 type BonusFeed interface {
-	Attend(scope string) (<-chan bonus.Event, func())
+	Attend(scope string) (<-chan bonuses.Event, func())
 }
 
 // Sink is whatever carries a frame to the caller. The use case decides what to

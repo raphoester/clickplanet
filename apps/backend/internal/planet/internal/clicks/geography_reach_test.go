@@ -19,7 +19,7 @@ const (
 
 // A hand-built patch of honeycomb — every tile within two steps of a centre — plus one tile with
 // no edges at all. Built here rather than read off the shipped blob so that these tests say what
-// Geography does; what the real map contains is geodesic_map's to prove.
+// Geography does; what the real map contains is embedded_geodesic_map's to prove.
 func honeycomb(t *testing.T) *clicks.Geography {
 	t.Helper()
 

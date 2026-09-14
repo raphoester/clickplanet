@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/bonus"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 )
 
@@ -14,7 +14,7 @@ type TileStorage interface {
 
 // Publisher tells the planet a shape was closed, so every client can show it.
 type Publisher interface {
-	PublishEnclosed(scope string, enclosed bonus.Enclosed)
+	PublishEnclosed(scope string, enclosed bonuses.Enclosed)
 }
 
 // Annexer takes the pockets a click closed, one shape of the bonus each.
@@ -28,7 +28,7 @@ func NewAnnexer(storage TileStorage, publisher Publisher) Annexer {
 }
 
 // Annex stops when the bonus runs out: a click closing two shapes with one left takes the first.
-func (a Annexer) Annex(ctx context.Context, scope string, closing click_usecase.In, enclosure *bonus.Enclosure, pockets []Pocket) error {
+func (a Annexer) Annex(ctx context.Context, scope string, closing click_usecase.In, enclosure *bonuses.Enclosure, pockets []Pocket) error {
 	for _, pocket := range pockets {
 		left, ok := enclosure.Spend()
 		if !ok {

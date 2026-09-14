@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/bonus"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/enclose_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
@@ -70,16 +70,16 @@ func (r rule) Execute(ctx context.Context, in click_usecase.In) (click_usecase.O
 	return click_usecase.Out{}, r.tiles.Set(ctx, in.TileID, in.CountryID)
 }
 
-type recorder struct{ published []bonus.Enclosed }
+type recorder struct{ published []bonuses.Enclosed }
 
-func (r *recorder) PublishEnclosed(_ string, enclosed bonus.Enclosed) {
+func (r *recorder) PublishEnclosed(_ string, enclosed bonuses.Enclosed) {
 	r.published = append(r.published, enclosed)
 }
 
 type fixture struct {
 	grid       honeycomb
 	tiles      tiles
-	enclosures *bonus.Enclosures
+	enclosures *bonuses.Enclosures
 	published  *recorder
 	useCase    *enclose_click.UseCase
 }
@@ -88,7 +88,7 @@ func setup(shapes int, err error) fixture {
 	f := fixture{
 		grid:       honeycomb{size: 12},
 		tiles:      tiles{},
-		enclosures: bonus.NewEnclosures(cptime.NewFixedClock(epoch)),
+		enclosures: bonuses.NewEnclosures(cptime.NewFixedClock(epoch)),
 		published:  &recorder{},
 	}
 	if shapes > 0 {

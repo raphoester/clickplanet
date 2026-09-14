@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/bonus"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/spread_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
@@ -43,9 +43,9 @@ func (r *recordingStorage) Set(_ context.Context, tile uint32, value string) err
 	return nil
 }
 
-type recordingPublisher struct{ spreads []bonus.Spread }
+type recordingPublisher struct{ spreads []bonuses.Spread }
 
-func (r *recordingPublisher) PublishSpread(spread bonus.Spread) {
+func (r *recordingPublisher) PublishSpread(spread bonuses.Spread) {
 	r.spreads = append(r.spreads, spread)
 }
 
@@ -117,7 +117,7 @@ func TestASpreadingClickIsAnnouncedWithTheTilesItTook(t *testing.T) {
 	_, err := useCase.Execute(t.Context(), click_usecase.In{TileID: 100, CountryID: "fr"})
 	require.NoError(t, err)
 
-	assert.Equal(t, []bonus.Spread{{
+	assert.Equal(t, []bonuses.Spread{{
 		CountryID:  "fr",
 		Tile:       100,
 		Neighbours: []uint32{90, 91, 99, 101, 109, 110},

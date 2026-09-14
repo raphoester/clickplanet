@@ -9,7 +9,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/bonus"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/enclose_click"
 )
 
@@ -37,7 +37,7 @@ type Publisher struct {
 
 var _ enclose_click.Publisher = (*Publisher)(nil)
 
-func (p *Publisher) PublishEnclosed(scope string, enclosed bonus.Enclosed) {
+func (p *Publisher) PublishEnclosed(scope string, enclosed bonuses.Enclosed) {
 	p.shapes.Inc()
 	p.tiles.Add(float64(len(enclosed.Filled)))
 

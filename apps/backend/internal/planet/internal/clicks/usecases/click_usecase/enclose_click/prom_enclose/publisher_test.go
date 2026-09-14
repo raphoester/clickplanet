@@ -9,13 +9,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/bonus"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/enclose_click/prom_enclose"
 )
 
-type recorder struct{ published []bonus.Enclosed }
+type recorder struct{ published []bonuses.Enclosed }
 
-func (r *recorder) PublishEnclosed(_ string, enclosed bonus.Enclosed) {
+func (r *recorder) PublishEnclosed(_ string, enclosed bonuses.Enclosed) {
 	r.published = append(r.published, enclosed)
 }
 
@@ -25,8 +25,8 @@ func TestEveryShapeIsCountedWithTheTilesItTookAndStillPublished(t *testing.T) {
 
 	publisher := prom_enclose.New(inner, registry)
 
-	publisher.PublishEnclosed("scope-a", bonus.Enclosed{Filled: []uint32{1, 2, 3}})
-	publisher.PublishEnclosed("scope-a", bonus.Enclosed{Filled: []uint32{4}})
+	publisher.PublishEnclosed("scope-a", bonuses.Enclosed{Filled: []uint32{1, 2, 3}})
+	publisher.PublishEnclosed("scope-a", bonuses.Enclosed{Filled: []uint32{4}})
 
 	assert.Len(t, inner.published, 2)
 	require.NoError(t, testutil.GatherAndCompare(registry, strings.NewReader(`

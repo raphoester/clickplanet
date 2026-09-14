@@ -5,13 +5,13 @@ package enclose_click
 import (
 	"context"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/bonus"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
 type Enclosures interface {
-	Running(scope string) (*bonus.Enclosure, bool)
+	Running(scope string) (*bonuses.Enclosure, bool)
 }
 
 func New(implementation click_usecase.IUseCase, enclosures Enclosures, terrain Terrain, annexer Annexer) *UseCase {
