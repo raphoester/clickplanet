@@ -9,8 +9,8 @@ type BombRules struct {
 }
 
 // NewBombRules sizes a bomb off the map, so the ring a client draws is the width of what it clears.
-func NewBombRules(rings, spacing float64) BombRules {
-	return BombRules{Radius: rings * spacing, Reach: spacing}
+func NewBombRules(config BombConfig, spacing float64) BombRules {
+	return BombRules{Radius: config.withDefaults().Rings * spacing, Reach: spacing}
 }
 
 type Ground interface {

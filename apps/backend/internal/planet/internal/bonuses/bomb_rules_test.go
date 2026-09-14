@@ -21,7 +21,7 @@ func (g *ground) Within(centre clicks.Vec3, radius float64) []uint32 {
 	return []uint32{9, 10, 11}
 }
 
-var bomb = bonuses.NewBombRules(10, 0.003)
+var bomb = bonuses.NewBombRules(bonuses.BombConfig{Rings: 10}, 0.003)
 
 func TestABombIsSizedOffTheMap(t *testing.T) {
 	assert.InDelta(t, 0.03, bomb.Radius, 1e-9)

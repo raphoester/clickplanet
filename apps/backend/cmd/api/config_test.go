@@ -22,9 +22,9 @@ func TestTheExampleConfigStillReachesTheStructs(t *testing.T) {
 
 	require.True(t, config.Planet.AntiBot.Enabled)
 
-	assert.Equal(t, 30*time.Second, config.Planet.Bonus.EncloseDuration)
-	assert.Equal(t, 3, config.Planet.Bonus.EncloseShapes)
-	assert.Equal(t, 15, config.Planet.Bonus.EncloseMaxTiles)
+	assert.Equal(t, 30*time.Second, config.Planet.Bonus.Enclose.Duration)
+	assert.Equal(t, 3, config.Planet.Bonus.Enclose.Shapes)
+	assert.Equal(t, 15, config.Planet.Bonus.Enclose.MaxTiles)
 
 	assert.Equal(t, 24*time.Hour, config.Planet.Ledger.Retention)
 	assert.Equal(t, 5*time.Minute, config.Planet.Ledger.SweepInterval)
@@ -81,8 +81,8 @@ func TestTheExampleConfigReachesTheBombSettings(t *testing.T) {
 	var config Config
 	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
 
-	assert.Equal(t, 30*time.Second, config.Planet.Bonus.BombDuration)
-	assert.InDelta(t, 10.4, config.Planet.Bonus.BombRings, 1e-9)
+	assert.Equal(t, 30*time.Second, config.Planet.Bonus.Bomb.Duration)
+	assert.InDelta(t, 10.4, config.Planet.Bonus.Bomb.Rings, 1e-9)
 	assert.InDelta(t, 1.0, config.Planet.Bonus.Kinds["bomb"], 1e-9)
 	require.NoError(t, config.Planet.Bonus.Validate())
 }

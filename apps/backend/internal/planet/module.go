@@ -128,7 +128,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			bombs := bonuses.NewBombs(clock)
 			enclosures := bonuses.NewEnclosures(clock)
 
-			bombRules := bonuses.NewBombRules(config.Bonus.Rings(), geography.Spacing())
+			bombRules := bonuses.NewBombRules(config.Bonus.Bomb, geography.Spacing())
 
 			// ---- Click chain ----
 

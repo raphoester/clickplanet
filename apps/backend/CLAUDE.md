@@ -439,16 +439,16 @@ gets one of four bonuses. Each box draws its kind from `bonus.kinds`, a weight
 per kind — a kind's chance is its weight over the sum of the weights, so the
 strong ones can be made rare (production runs 5 : 2 : 1 : 2):
 
-- **`triple_clicks`** — the allowance is multiplied by `bonus.multiplier` for
-  `bonus.duration`. See [What a bonus does to the bucket](#what-a-bonus-does-to-the-bucket).
+- **`triple_clicks`** — the allowance is multiplied by `bonus.triple.multiplier` for
+  `bonus.triple.duration`. See [What a bonus does to the bucket](#what-a-bonus-does-to-the-bucket).
 - **`spread_clicks`** — every click also takes the tiles touching the one
-  clicked, for `bonus.spreadDuration` instead (10s by default — it is strong). See [What a spread does to a click](#what-a-spread-does-to-a-click).
-- **`bomb`** — one bomb, to be dropped within `bonus.bombDuration` (30s). It
-  clears a circle of `bonus.bombRings` tile spacings around where it lands,
+  clicked, for `bonus.spread.duration` instead (10s by default — it is strong). See [What a spread does to a click](#what-a-spread-does-to-a-click).
+- **`bomb`** — one bomb, to be dropped within `bonus.bomb.duration` (30s). It
+  clears a circle of `bonus.bomb.rings` tile spacings around where it lands,
   whoever holds the tiles. See [What a bomb does](#what-a-bomb-does).
 - **`enclose_clicks`** — a click that closes a shape of the caller's own tiles
-  also takes the tiles inside it: `bonus.encloseShapes` shapes (3), each of at
-  most `bonus.encloseMaxTiles` tiles (15), within `bonus.encloseDuration` (30s).
+  also takes the tiles inside it: `bonus.enclose.shapes` shapes (3), each of at
+  most `bonus.enclose.maxTiles` tiles (15), within `bonus.enclose.duration` (30s).
   See [What an enclose does to a click](#what-an-enclose-does-to-a-click).
 
 Boxes are always on: there is no switch.
@@ -594,7 +594,7 @@ screen draws a splash. That was a product decision: a bad aim costs the bomb.
 
 On land the tiles are `Geography.Within(centre, radius)`: every tile within
 `radius` of arc of the tile hit — a true circle, ~230 tiles inland, found by a
-straight scan (~0.5ms, once per bomb). The radius is `bombRings × Geography.Spacing()` (`bonuses.NewBombRules`, and `BombRules.Blast` decides land or sea),
+straight scan (~0.5ms, once per bomb). The radius is `bomb.rings × Geography.Spacing()` (`bonuses.NewBombRules`, and `BombRules.Blast` decides land or sea),
 the mean arc between touching tiles measured at boot (0.0040 rad on the
 257,948-tile map, so 0.032), rather than a number in the config that could drift
 from the map; the same radius goes to clients, so the ring they draw is the clear.
@@ -637,7 +637,7 @@ and `bonus_bomb_tiles_cleared_total`.
 cuts the planet in two, and both halves are inside it. So after an accepted
 click, `click/enclose_click` floods out from each neighbour of the clicked tile
 that is not the caller's, over tiles that are not the caller's. A flood that
-runs out before passing `encloseMaxTiles` found a pocket; one that passes it is
+runs out before passing `enclose.maxTiles` found a pocket; one that passes it is
 open ground or too big, and takes nothing. The limit is therefore also what
 tells closed from open — there is no second rule.
 
@@ -1200,8 +1200,8 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `bonus.interval` — how often a box is put in front of somebody; a ceiling, since nothing is offered while nobody is watching
 - `bonus.offerTTL` — how long the token stays good; **must outlast the flight the client draws**, or a box caught on its last frame is refused
 - `bonus.kinds` — a weight per kind (`triple_clicks`, `spread_clicks`); a kind's chance is its weight over the sum. Left out or 0 is never offered, empty offers every kind equally, and an unknown kind, a negative weight or all zeros refuse the boot
-- `bonus.spreadDuration` — how long a caught `spread_clicks` runs (default 10s). It is much shorter than `bonus.duration` because a click that takes seven tiles is worth far more than three clicks; `maxBoostPerHour` counts the time each bonus really ran
-- `bonus.duration`, `bonus.multiplier` — how long a caught `triple_clicks` runs and what it multiplies the allowance by; the client reads both off the answer, so changing them changes the meter with no frontend release
+- `bonus.spread.duration` — how long a caught `spread_clicks` runs (default 10s). It is much shorter than `bonus.triple.duration` because a click that takes seven tiles is worth far more than three clicks; `maxBoostPerHour` counts the time each bonus really ran
+- `bonus.triple.duration`, `bonus.triple.multiplier` — how long a caught `triple_clicks` runs and what it multiplies the allowance by; the client reads both off the answer, so changing them changes the meter with no frontend release
 - `antiBot.enabled` — off registers nothing and measures nothing
 - `antiBot.shadowBan.enforce` — off judges, logs and counts without dropping; the mode to deploy in
 - `antiBot.shadowBan.banDurations` — the ban for each offence (the last step repeats). An offence is a ban that starts while none is running; a flag on a running ban only extends it. **Offences are never forgotten**
