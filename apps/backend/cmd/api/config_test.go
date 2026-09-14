@@ -70,6 +70,7 @@ func TestTheExampleConfigStillCarriesTheRestOfTheFile(t *testing.T) {
 	assert.InDelta(t, 2, config.Planet.Toll.Steps[2].Cost, 1e-9)
 	require.NoError(t, config.Planet.Validate())
 	assert.Equal(t, 30*time.Second, config.Planet.TilesStorage.SnapshotInterval)
+	assert.Equal(t, "127.0.0.1:8081", config.HTTPServer.AdminBindAddress)
 	assert.Equal(t, time.Hour, config.Session.TTL)
 }
 

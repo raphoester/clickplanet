@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package planet.v1;
+
+// Operator tools. Served only on the backend's loopback admin listener
+// (httpServer.adminBindAddress), never on the public router: nothing here is
+// authenticated.
+service AdminService {
+  // Gives every tile one country holds to another, while the game runs. Each
+  // tile goes out on the stream as an ordinary TileUpdate. dry_run counts and
+  // moves nothing.
+  rpc ReassignCountry(ReassignCountryRequest) returns (ReassignCountryResponse);
+}
+
+message ReassignCountryRequest {
+  string from_country_id = 1;
+  string to_country_id = 2;
+  bool dry_run = 3;
+}
+
+message ReassignCountryResponse {
+  uint32 from_before = 1;
+  uint32 to_before = 2;
+  uint32 moved = 3;
+  // Read again at the end: a caller still clicking can retake tiles behind the scan.
+  uint32 from_after = 4;
+  uint32 to_after = 5;
+}

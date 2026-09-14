@@ -663,6 +663,44 @@ every 30s and on every clean shutdown. A nightly cron on the box is enough:
 DigitalOcean's droplet backups (+20% of the droplet price, so ~$1.20/mo) cover
 the whole disk if you would rather not think about it.
 
+## 10. Operator tools
+
+`httpServer.adminBindAddress` serves the backend's operator services
+(`planet.v1.AdminService`) on `127.0.0.1:8081`, inside the container. They are
+not behind Caddy and have **no authentication**: loopback is their whole
+protection, so a non-loopback address refuses the boot. Reach them from the box
+with `docker compose exec`. They are ordinary Connect RPCs, so a request is a
+JSON POST to `/<package>.<Service>/<Method>`.
+
+### Give one country's tiles to another
+
+Dry run first. It changes nothing and says how many tiles each side holds:
+
+```bash
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"fromCountryId":"dz","toCountryId":"fr","dryRun":true}' http://127.0.0.1:8081/planet.v1.AdminService/ReassignCountry
+```
+
+Then the same without `"dryRun":true`. There is no restart:
+
+- It moves every tile `from` holds, 256 at a time every 50ms — about 4.5s for
+  22,000 tiles.
+- Each tile goes out on the live stream as an ordinary update, so open tabs
+  repaint, the toll sees the new counts, and the next snapshot writes it to disk.
+- A tile `from` takes back while it runs stays theirs. `fromAfter` in the answer
+  says how many; run it again.
+- **A count of zero is left out of the answer** — that is how protobuf JSON
+  writes it. `{"fromBefore":22040,"moved":22040,"toAfter":22040}` means `fromAfter` is 0.
+- A refusal (unknown or identical country) shows as `server returned error: HTTP/1.1 400`.
+- Every call is logged: `journalctl CONTAINER_NAME=cp-backend | grep "admin country reassignment"`.
+
+**Reassigning back does not undo it**: it would also move the tiles `to` held
+before. Copy the snapshot first if you may want to return (the file is written
+atomically, so a copy is always whole):
+
+```bash
+docker compose exec backend cp /home/app/state/tiles.snapshot /home/app/state/tiles.before-reassign
+```
+
 ## Rollback
 
 - **Bad backend build:** `BACKEND_IMAGE=ghcr.io/raphoester/clickplanet-backend:<sha>` in `.env`, then `docker compose up -d backend`.

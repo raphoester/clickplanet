@@ -5,6 +5,10 @@ httpServer:
   # response at ~125s with a 524, so this must stay well under that. Empty or
   # zero means 30s.
   streamHeartbeat: 30s
+  # A second listener for operator services (planet.v1.AdminService). They have
+  # no authentication, so anything but a loopback address refuses the boot.
+  # Empty serves no admin listener at all.
+  adminBindAddress: 127.0.0.1:8081
 gameMap:
   maxIndex: 257948
 

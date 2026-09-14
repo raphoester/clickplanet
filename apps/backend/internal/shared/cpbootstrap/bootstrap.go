@@ -16,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"slices"
 	"time"
@@ -55,6 +56,9 @@ type Props struct {
 	RPC     RPCRegistrar
 	Runners RunnerRegistrar
 	Closers CloserRegistrar
+
+	// AdminRPC mounts on the loopback admin listener, which has no authentication and no CORS.
+	AdminRPC RPCRegistrar
 }
 
 // RPCRegistrar mounts a Connect service.
@@ -98,6 +102,9 @@ type ServerConfig struct {
 
 	// Must stay well under the proxy's idle cut: Cloudflare answers 524 at ~125s.
 	StreamHeartbeat time.Duration
+
+	// Empty serves no admin listener; anything but a loopback address refuses the boot.
+	AdminBindAddress string
 }
 
 // Validate refuses the address that has no usable zero value: empty listens on port 80.
@@ -106,7 +113,27 @@ func (c ServerConfig) Validate() error {
 		return errors.New("httpServer.bindAddress is empty")
 	}
 
+	if c.AdminBindAddress != "" && !isLoopback(c.AdminBindAddress) {
+		return fmt.Errorf(
+			"httpServer.adminBindAddress %q is not a loopback host:port: the admin services have no authentication",
+			c.AdminBindAddress,
+		)
+	}
+
 	return nil
+}
+
+func isLoopback(address string) bool {
+	host, _, err := net.SplitHostPort(address)
+	if err != nil {
+		return false
+	}
+	if host == "localhost" {
+		return true
+	}
+
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
 }
 
 type Options struct {
@@ -140,11 +167,13 @@ func Run(ctx context.Context, options Options) error {
 	}
 
 	metrics := cpprom.NewRegistry()
-	routes := newRPCRoutes(cpconnect.NewErrorInterceptor(options.Logger, nil))
+	errorNet := cpconnect.NewErrorInterceptor(options.Logger, nil)
+	routes := newRPCRoutes(errorNet)
+	adminRoutes := newRPCRoutes(errorNet)
 	runners := newRunnerRegistry()
 	closers := newCloserRegistry()
 
-	if err := buildModules(ctx, options, metrics, routes, runners, closers); err != nil {
+	if err := buildModules(ctx, options, metrics, routes, adminRoutes, runners, closers); err != nil {
 		return err
 	}
 
@@ -156,7 +185,12 @@ func Run(ctx context.Context, options Options) error {
 	))
 	mountMetrics(router, metrics, options.Logger)
 
-	return serve(ctx, options, router, runners, closers)
+	admin, err := listenAdmin(options, adminRoutes)
+	if err != nil {
+		return err
+	}
+
+	return serve(ctx, options, router, admin, runners, closers)
 }
 
 // buildModules runs every module's DI sequence under one startup deadline.
@@ -165,6 +199,7 @@ func buildModules(
 	options Options,
 	metrics *prometheus.Registry,
 	routes *rpcRoutes,
+	adminRoutes *rpcRoutes,
 	runners *runnerRegistry,
 	closers *closerRegistry,
 ) error {
@@ -180,12 +215,13 @@ func buildModules(
 		before := runners.count()
 
 		err := module.DiSequence(ctx, Props{
-			Logger:  options.Logger,
-			Metrics: metrics,
-			Server:  options.Server,
-			RPC:     routes.forModule(module.Name),
-			Runners: runners,
-			Closers: closers,
+			Logger:   options.Logger,
+			Metrics:  metrics,
+			Server:   options.Server,
+			RPC:      routes.forModule(module.Name),
+			AdminRPC: adminRoutes.forModule(module.Name),
+			Runners:  runners,
+			Closers:  closers,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to build the %s module: %w", module.Name, err)
