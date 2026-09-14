@@ -926,14 +926,14 @@ Both chains order them the same way: error mapping outermost, then the blocklist
 
 **The map lives in memory; postgres is where it is kept.** A click never waits on the database.
 
-- **Boot loads it.** `memory_tile_storage.Load` reads every row of `tiles` — one per owned tile, `(id, country)`; an unowned tile has no row. 180k rows load in about 60ms. **A failed load refuses the boot**: an empty map that then flushes would be every player's territory gone. A row past `gameMap.maxIndex` is skipped and logged.
+- **Boot loads it.** `memory_tile_storage.Load` reads every row of `planet.tiles` — one per owned tile, `(id, country)`; an unowned tile has no row. 180k rows load in about 60ms. **A failed load refuses the boot**: an empty map that then flushes would be every player's territory gone. A row past `gameMap.maxIndex` is skipped and logged.
 - **A flush writes what changed.** Every write under the tiles lock sets the tile's bit in a `dirty` bitmap (one bit per tile, ~32 KB). Every `tilesStorage.flushInterval` (1s), `Flush` takes the bits, reads each tile's owner **as it is now**, and hands them to `postgres_tile_store.Save`: one transaction, an upsert for owned tiles and a delete for freed ones, in chunks of 10k. A tile clicked five times between flushes is written once. A failed save puts the bits back; the next tick retries. Each flush has a 10s timeout, so a stuck connection cannot stall the loop.
 - **Shutdown flushes once more**, from `Run`. That is also why the tile map's pool is closed by its runner rather than registered on `props.Closers`: closers run before the runners stop, so the last flush would find the pool already closed.
 - **What a hard kill loses** (`SIGKILL`, OOM, power loss) is bounded by `flushInterval`. The state is still per-process, so **this is single-instance only**: two API replicas would each hold their own divergent map.
 
-**The schema** is `migrations/`, embedded, golang-migrate pairs. `cmd/api` runs them at boot before any module is built, since each module reads its tables while it builds. One directory for every module, because they share one database and one migration history — a table still belongs to the one module whose adapter reads it.
+**Each module owns a postgres schema named for it**, and its migrations: `internal/planet/internal/migrations` is the `planet` schema, embedded golang-migrate pairs. The module migrates it while it builds, right after connecting — `cppg.Migrate` creates the schema if it is missing and keeps the history in that schema's own `schema_migrations`, so two modules never share a migration history or a migration lock. Every connection sets `search_path` to the module's schema, so the SQL says `tiles`, not `planet.tiles`, and no module's adapter can reach another's tables by accident. `TestEachSchemaHoldsItsOwnTablesAndMigrationHistory` pins it.
 
-**`shared/cppg` is the client**, ported from on-core-platform's `onpg`: `Config` (the `database:` block), `New`, `ConnectCtx`, `Migrate`, and the `Querier`/`Beginner` interfaces a store depends on. Cut from the original: gorm (`make deadcode` rejects what nothing calls, and plain SQL is enough), the SSM tunnel, tracing and lazy config. **Every module that stores something reads the same `database:` block and opens its own small pool** — the way two contexts read `session:` — so nothing is handed between modules. `Config.String` leaves the password out of the boot's config log line.
+**`shared/cppg` is the client**, ported from on-core-platform's `onpg`: `Config` (the `database:` block), `New(config, schema)`, `ConnectCtx`, `Migrate`, and the `Querier`/`Beginner` interfaces a store depends on. Cut from the original: gorm (`make deadcode` rejects what nothing calls, and plain SQL is enough), the SSM tunnel, tracing and lazy config. **Every module that stores something reads the same `database:` block and opens its own small pool** — the way two contexts read `session:` — so nothing is handed between modules. `Config.String` leaves the password out of the boot's config log line.
 
 **The pre-postgres snapshot is imported once.** When `tiles` is empty and `tilesStorage.legacySnapshotPath` exists, `Load` decodes the old binary snapshot into memory and marks every owned tile dirty; the first successful flush writes it in one transaction and renames the file `.imported`. A crash before that flush imports it again on the next boot. A snapshot it cannot decode **refuses the boot** rather than starting empty. When `tiles` already holds rows, the file is logged and ignored. `legacy_snapshot.go` goes once production has booted on postgres.
 
@@ -1157,7 +1157,7 @@ func (c Config) Validate() error {
 The binary never reads inside a block to check it, so a new bound is added in the module that owns it and nothing here changes. `errors.Join` also means a broken file reports **everything** wrong at once rather than one line per restart.
 
 - `cpbootstrap.ServerConfig` — `bindAddress` empty listens on port 80; `adminBindAddress` set to anything but loopback
-- `shared/cppg.Config` — a connection setting left empty. Checked by `cmd/api`, which migrates with it, and by `planet.Config`, which loads the map with it
+- `shared/cppg.Config` — a connection setting left empty. Checked by each module that stores something, starting with `planet.Config`
 - `planet.Config` — `gameMap.maxIndex` zero is a map that refuses every click
 - `shared/cpsession.Config` — `secret` empty while `enabled`, and a negative `ttl`. It sits with the block rather than with either context, because both read it and it must be checked exactly once
 - `chat.Config` — nothing: every chat setting has a usable default, so an unset one is a default and not a mistake. It implements the hook anyway, so a check added later lands in chat
@@ -1221,7 +1221,7 @@ The proto package is the **only** version number: Connect derives each route fro
 
 ### Testing
 
-Tests use `testify`. **A postgres store's own tests need Docker**, and nothing else does: `cppg.ForTests(t, migrations.FS)` (behind the `testing` tag) starts one `postgres:16-alpine` container per test binary, migrates it once, and empties every table on each call — call it from `SetupTest`. The testcontainers reaper removes the container when the binary exits. Everything above a store is tested against a fake of its port (`memory_tile_storage`'s tests fake `Persistence`), so it runs without Docker.
+Tests use `testify`. **A postgres store's own tests need Docker**, and nothing else does: `cppg.ForTests(t, schema, migrations.FS)` (behind the `testing` tag) starts one `postgres:16-alpine` container per test binary, migrates each schema once, and empties that schema's tables on each call — call it from `SetupTest`. The testcontainers reaper removes the container when the binary exits. Everything above a store is tested against a fake of its port (`memory_tile_storage`'s tests fake `Persistence`), so it runs without Docker.
 
 On macOS, testcontainers asks the Docker credential helper before it pulls an image, and that can hang with no prompt in a non-interactive shell. `docker pull postgres:16-alpine` once from a terminal avoids it.
 

@@ -113,17 +113,16 @@ session:
 	assert.True(t, config.Planet.Session.Enforce)
 }
 
-func TestTheMigrationAndTheModulesReadTheSameDatabaseBlock(t *testing.T) {
+func TestTheExampleConfigReachesTheDatabaseBlock(t *testing.T) {
 	var config Config
 	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
 
-	assert.Equal(t, config.Database, config.Planet.Database)
-	assert.Equal(t, "localhost", config.Database.Host)
-	assert.Equal(t, "5432", config.Database.Port)
-	assert.Equal(t, "postgres", config.Database.DBName)
-	assert.Equal(t, "disable", config.Database.SSLMode)
-	require.NotNil(t, config.Database.Pool.MaxOpenConns)
-	assert.Equal(t, 4, *config.Database.Pool.MaxOpenConns)
+	assert.Equal(t, "localhost", config.Planet.Database.Host)
+	assert.Equal(t, "5432", config.Planet.Database.Port)
+	assert.Equal(t, "postgres", config.Planet.Database.DBName)
+	assert.Equal(t, "disable", config.Planet.Database.SSLMode)
+	require.NotNil(t, config.Planet.Database.Pool.MaxOpenConns)
+	assert.Equal(t, 4, *config.Planet.Database.Pool.MaxOpenConns)
 }
 
 func TestTheProcessRefusesToStartWithoutADatabase(t *testing.T) {

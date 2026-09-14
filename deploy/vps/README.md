@@ -678,7 +678,8 @@ reaches `chat.service.tagSalt`.
 The tile map is kept in the `postgres` service, on the `pg_data` volume. The API
 loads it at boot and writes the tiles that changed every second, and once more
 on a clean shutdown. It is not published on any port: only the backend reaches
-it. The API migrates the schema itself at boot, and refuses to start without it.
+it. Each backend module keeps its tables in a schema of its own (`planet` for the
+tile map) and migrates it at boot. The API refuses to start without postgres.
 
 **The password is `POSTGRES_PASSWORD` in `.env`.** `bootstrap.sh` generates it.
 A box set up before postgres needs it added once, **before** the deploy that
@@ -698,7 +699,7 @@ Check it:
 
 ```bash
 journalctl CONTAINER_NAME=cp-backend | grep "legacy tile snapshot"
-docker compose exec postgres psql -U clickplanet -c "select count(*) from tiles"
+docker compose exec postgres psql -U clickplanet -c "select count(*) from planet.tiles"
 ```
 
 Then remove `tilesStorage.legacySnapshotPath` from `backend.yaml`.
@@ -712,7 +713,7 @@ holds the bans and the chat log. **The tile map in postgres is not backed up
 yet.** For a copy by hand:
 
 ```bash
-docker compose exec postgres pg_dump -U clickplanet -t tiles clickplanet > tiles-$(date +%F).sql
+docker compose exec postgres pg_dump -U clickplanet -n planet clickplanet > planet-$(date +%F).sql
 ```
 
 DigitalOcean's droplet backups (+20% of the droplet price, so ~$1.20/mo) cover
@@ -752,11 +753,11 @@ Then the same without `"dryRun":true`. There is no restart:
 before. Copy the table first if you may want to return:
 
 ```bash
-docker compose exec postgres psql -U clickplanet -c "create table tiles_before_reassign as table tiles"
+docker compose exec postgres psql -U clickplanet -c "create table planet.tiles_before_reassign as table planet.tiles"
 ```
 
 To go back: stop the backend (its last flush runs on the way down), then
-`truncate tiles; insert into tiles select * from tiles_before_reassign;` in psql,
+`truncate planet.tiles; insert into planet.tiles select * from planet.tiles_before_reassign;` in psql,
 then start it.
 
 ### Find, ban and revert one player
@@ -804,7 +805,7 @@ docker compose exec backend wget -qO- --header 'Content-Type: application/json' 
 ## Rollback
 
 - **Bad backend build:** `BACKEND_IMAGE=ghcr.io/raphoester/clickplanet-backend:<sha>` in `.env`, then `docker compose up -d backend`.
-- **Lost or corrupt tile state:** stop the backend, restore the `tiles` table from a dump (`psql -U clickplanet clickplanet < tiles-DATE.sql` after `truncate tiles`), start it again.
+- **Lost or corrupt tile state:** stop the backend, restore the `planet` schema from a dump (`drop schema planet cascade`, then `psql -U clickplanet clickplanet < planet-DATE.sql`), start it again.
 - **Back to a pre-postgres build:** that image reads `tiles.snapshot`, which the import renamed. Rename `tiles.snapshot.imported` back first — it holds the map as of the import, so every click since is lost.
 - **In-process storage misbehaving:** there is no config switch back to Redis — that code is gone. Roll the backend image back to a pre-migration `<sha>` and restore the matching Redis stack from git history.
 - **Frontend:** roll back the deployment in the Pages dashboard.

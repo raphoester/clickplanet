@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/secondary/postgres_tile_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
-	"github.com/raphoester/clickplanet.lol-backend/migrations"
 )
 
 func TestRunSuite(t *testing.T) {
@@ -22,7 +22,7 @@ type testSuite struct {
 }
 
 func (s *testSuite) SetupTest() {
-	s.db = cppg.ForTests(s.T(), migrations.FS)
+	s.db = cppg.ForTests(s.T(), "planet", migrations.FS)
 	s.store = postgres_tile_store.New(s.db)
 }
 

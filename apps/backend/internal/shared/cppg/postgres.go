@@ -10,12 +10,13 @@ import (
 	"fmt"
 	"io/fs"
 	"net/url"
+	"regexp"
 	"time"
 
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres" // registers the postgres driver for migrate
 	"github.com/golang-migrate/migrate/v4/source/iofs"
-	_ "github.com/lib/pq" // registers the postgres driver for database/sql
+	"github.com/lib/pq"
 )
 
 type Querier interface {
@@ -80,12 +81,14 @@ func (c Config) Validate() error {
 	return nil
 }
 
-func New(config Config) *Postgres {
-	return &Postgres{config: config}
+// New connects inside schema: a module's tables live in a schema named for it, so no module reads another's.
+func New(config Config, schema string) *Postgres {
+	return &Postgres{config: config, schema: schema}
 }
 
 type Postgres struct {
 	config Config
+	schema string
 
 	sqlClient *sql.DB
 }
@@ -120,13 +123,14 @@ func (p *Postgres) QueryRowContext(ctx context.Context, query string, args ...an
 
 func (p *Postgres) dsn() string {
 	return fmt.Sprintf(
-		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
+		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s search_path=%s",
 		p.config.Host,
 		p.config.Port,
 		p.config.User,
 		p.config.Password,
 		p.config.DBName,
 		p.config.SSLMode,
+		p.schema,
 	)
 }
 
@@ -140,6 +144,7 @@ func (p *Postgres) url() string {
 
 	q := u.Query()
 	q.Set("sslmode", p.config.SSLMode)
+	q.Set("search_path", p.schema)
 	u.RawQuery = q.Encode()
 
 	return u.String()
@@ -160,8 +165,14 @@ func applyPoolConfig(db *sql.DB, cfg PoolConfig) {
 	}
 }
 
+var schemaName = regexp.MustCompile(`^[a-z_][a-z0-9_]{0,62}$`)
+
 // ConnectCtx pings before returning: sql.Open is lazy, and a database that is not there should refuse the boot rather than the first query.
 func (p *Postgres) ConnectCtx(ctx context.Context) error {
+	if !schemaName.MatchString(p.schema) {
+		return fmt.Errorf("schema %q is not a lowercase identifier", p.schema)
+	}
+
 	sqlDB, err := sql.Open("postgres", p.dsn())
 	if err != nil {
 		return fmt.Errorf("open sql: %w", err)
@@ -187,8 +198,13 @@ func (p *Postgres) Close() error {
 	return p.sqlClient.Close()
 }
 
-// Migrate applies every migration in migrations not applied yet. It opens a connection of its own, so it needs no ConnectCtx first.
-func (p *Postgres) Migrate(migrations fs.FS) error {
+// Migrate creates the schema, then applies every migration in migrations not applied yet. Its history
+// is the schema's own schema_migrations table, so each module migrates independently. Needs ConnectCtx first.
+func (p *Postgres) Migrate(ctx context.Context, migrations fs.FS) error {
+	if _, err := p.ExecContext(ctx, "CREATE SCHEMA IF NOT EXISTS "+pq.QuoteIdentifier(p.schema)); err != nil {
+		return fmt.Errorf("failed to create schema %s: %w", p.schema, err)
+	}
+
 	source, err := iofs.New(migrations, ".")
 	if err != nil {
 		return fmt.Errorf("failed to create iofs source: %w", err)
@@ -202,7 +218,7 @@ func (p *Postgres) Migrate(migrations fs.FS) error {
 	defer func() { _, _ = m.Close() }()
 
 	if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
-		return fmt.Errorf("failed to run migrations: %w", err)
+		return fmt.Errorf("failed to run migrations in schema %s: %w", p.schema, err)
 	}
 
 	return nil
