@@ -15,6 +15,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 
@@ -178,26 +179,20 @@ func NewModule(config Config) cpbootstrap.Module {
 			if bonuses != nil {
 				clickUseCase = spread_click.New(clickUseCase, spreads, geography, writer, bonuses)
 
-				publishedEnclosures, err := prom_enclose.New(bonuses, props.Metrics)
-				if err != nil {
-					return fmt.Errorf("failed to create prometheus enclose publisher: %w", err)
-				}
-
 				clickUseCase = enclose_click.New(clickUseCase, enclosures,
 					enclose_click.NewTerrain(geography, tilesStorage),
-					enclose_click.NewAnnexer(writer, publishedEnclosures))
+					enclose_click.NewAnnexer(writer, prom_enclose.New(bonuses, props.Metrics)))
 			}
 
-			clickUseCase, err = prom_click.New(clickUseCase, props.Metrics)
-			if err != nil {
-				return fmt.Errorf("failed to create prometheus click use case: %w", err)
-			}
+			clickUseCase = prom_click.New(clickUseCase, props.Metrics)
 
 			// The shadow ban. Nothing about it reaches the edge: what is left of the
 			// clicks side is the metric names and the words of the ban line, both here.
 
+			metrics := promauto.With(props.Metrics)
+
 			// Even resolution to 2s: a bot on a ~1s timer hides in a bucket any wider, which is where 0.5/1/2 left it invisible.
-			reactions := prometheus.NewHistogram(prometheus.HistogramOpts{
+			reactions := metrics.NewHistogram(prometheus.HistogramOpts{
 				Name: "click_reaction_seconds",
 				Help: "Delay between a tile being taken and another caller taking it back",
 				Buckets: []float64{
@@ -211,16 +206,10 @@ func NewModule(config Config) cpbootstrap.Module {
 			// Counts flags, not callers, and once per watchdog that argued for each one:
 			// a caller flagged six times is six here and one on shadowban_flagged, and
 			// the gap between the two is the thing to look at.
-			flags := prometheus.NewCounterVec(prometheus.CounterOpts{
+			flags := metrics.NewCounterVec(prometheus.CounterOpts{
 				Name: "shadowban_flags",
 				Help: "Times a caller has been flagged, counted once per watchdog that argued for it",
 			}, []string{"watchdog"})
-
-			for _, collector := range []prometheus.Collector{reactions, flags} {
-				if err := props.Metrics.Register(collector); err != nil {
-					return fmt.Errorf("failed to create the antibot observer: failed to register collector: %w", err)
-				}
-			}
 
 			guard, err := antibot.New(config.AntiBot, clock, antibot.Observer{
 				OnReaction: func(delay time.Duration) { reactions.Observe(delay.Seconds()) },
@@ -276,10 +265,7 @@ func NewModule(config Config) cpbootstrap.Module {
 					slog.Bool("enforce", described.Enforcing),
 				)
 
-				clickUseCase, err = antibot_click.New(clickUseCase, guard, tilesStorage, clock, props.Metrics)
-				if err != nil {
-					return fmt.Errorf("failed to create the antibot click use case: %w", err)
-				}
+				clickUseCase = antibot_click.New(clickUseCase, guard, tilesStorage, clock, props.Metrics)
 			}
 
 			// Inside the throttle: presence is what a caller actually managed to do,
@@ -342,14 +328,9 @@ func NewModule(config Config) cpbootstrap.Module {
 				props.Logger.Info("vpn blocklist enabled", slog.Any("ranges", sizes))
 			}
 
-			vpnBlockInterceptor, err := planetv1controller.NewVPNBlockInterceptor(blocklist, props.Metrics)
-			if err != nil {
-				return fmt.Errorf("failed to create vpn block interceptor: %w", err)
-			}
-
 			interceptors := []connect.Interceptor{
 				planetv1controller.NewCacheInterceptor(),
-				vpnBlockInterceptor,
+				planetv1controller.NewVPNBlockInterceptor(blocklist, props.Metrics),
 			}
 
 			// This context builds its own verifier from the same `session:` block the
@@ -361,16 +342,11 @@ func NewModule(config Config) cpbootstrap.Module {
 					return fmt.Errorf("failed to build the click session verifier: %w", err)
 				}
 
-				sessionInterceptor, err := planetv1controller.NewSessionInterceptor(
+				interceptors = append(interceptors, planetv1controller.NewSessionInterceptor(
 					verifier,
 					clock,
 					config.Session.Enforce,
-					props.Metrics)
-				if err != nil {
-					return fmt.Errorf("failed to create the click session interceptor: %w", err)
-				}
-
-				interceptors = append(interceptors, sessionInterceptor)
+					props.Metrics))
 			}
 
 			// ---- Bonus use cases ----
@@ -382,12 +358,9 @@ func NewModule(config Config) cpbootstrap.Module {
 				// The claim also hands the registry its counters: offered against caught
 				// is the only way to see whether the pacing and the flight time are set
 				// anywhere near right.
-				claimed, counters, err := prom_claim_bonus.New(
+				claimed, counters := prom_claim_bonus.New(
 					claim_bonus.New(bonuses, limiter, pricer, spreads, bombs, bombRules.Radius, enclosures, clock),
 					props.Metrics)
-				if err != nil {
-					return fmt.Errorf("failed to create the bonus claim use case: %w", err)
-				}
 
 				bonuses.Observe(bonus.Report{
 					Offered: counters.Offered.Inc,
@@ -395,11 +368,8 @@ func NewModule(config Config) cpbootstrap.Module {
 				})
 				claimBonus = claimed
 
-				dropped, err := prom_drop_bomb.New(
+				dropped := prom_drop_bomb.New(
 					drop_bomb.New(bombs, bonuses, geography, tilesStorage, countries, bombRules), props.Metrics)
-				if err != nil {
-					return fmt.Errorf("failed to create the bomb drop use case: %w", err)
-				}
 				dropBomb = dropped
 
 				// Outside the count, so it can tell the counter a drop was a dud.

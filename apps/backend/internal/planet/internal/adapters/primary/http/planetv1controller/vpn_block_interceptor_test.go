@@ -32,8 +32,7 @@ func vpnBlock(t *testing.T, ctx context.Context, blocklist ClickBlocklist, proce
 	t.Helper()
 
 	registry := prometheus.NewRegistry()
-	interceptor, err := NewVPNBlockInterceptor(blocklist, registry)
-	require.NoError(t, err)
+	interceptor := NewVPNBlockInterceptor(blocklist, registry)
 
 	handlerRan := false
 	next := connect.UnaryFunc(func(context.Context, connect.AnyRequest) (connect.AnyResponse, error) {
@@ -43,7 +42,7 @@ func vpnBlock(t *testing.T, ctx context.Context, blocklist ClickBlocklist, proce
 
 	req := fakeRequest{spec: connect.Spec{Procedure: procedure}}
 
-	_, err = interceptor.WrapUnary(next)(ctx, req)
+	_, err := interceptor.WrapUnary(next)(ctx, req)
 
 	return handlerRan, registry, err
 }
@@ -112,8 +111,7 @@ func TestVPNBlockOverHTTP(t *testing.T) {
 	blocklist, err := cpipblock.New(cpipblock.Config{Enabled: true})
 	require.NoError(t, err)
 
-	blockInterceptor, err := NewVPNBlockInterceptor(blocklist, prometheus.NewRegistry())
-	require.NoError(t, err)
+	blockInterceptor := NewVPNBlockInterceptor(blocklist, prometheus.NewRegistry())
 
 	server := clickServer(t, connect.WithInterceptors(
 		errorNet(),
@@ -127,8 +125,7 @@ func TestVPNBlockOverHTTP(t *testing.T) {
 func TestVPNBlockRunsBeforeTheThrottle(t *testing.T) {
 	blocklist := &fakeBlocklist{blocked: map[string]cpipblock.List{"1.2.3.4": cpipblock.ListVPN}}
 
-	blockInterceptor, err := NewVPNBlockInterceptor(blocklist, prometheus.NewRegistry())
-	require.NoError(t, err)
+	blockInterceptor := NewVPNBlockInterceptor(blocklist, prometheus.NewRegistry())
 
 	limiter := &fakeLimiter{allow: true}
 	server := clickServerWith(t, throttle_click.New(stubService{}, limiter, onePrice), nil, connect.WithInterceptors(

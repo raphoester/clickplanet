@@ -8,6 +8,7 @@ import (
 	"fmt"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
@@ -15,8 +16,8 @@ import (
 func New(
 	implementation click.IUseCase,
 	registerer prometheus.Registerer,
-) (*UseCase, error) {
-	histogram := prometheus.NewHistogramVec(prometheus.HistogramOpts{
+) *UseCase {
+	histogram := promauto.With(registerer).NewHistogramVec(prometheus.HistogramOpts{
 		Name: "clicks",
 		Help: "Registered clicks",
 	}, []string{
@@ -25,14 +26,10 @@ func New(
 		"status",
 	})
 
-	if err := registerer.Register(histogram); err != nil {
-		return nil, fmt.Errorf("failed to register histogram: %w", err)
-	}
-
 	return &UseCase{
 		histogram:      histogram,
 		implementation: implementation,
-	}, nil
+	}
 }
 
 type UseCase struct {

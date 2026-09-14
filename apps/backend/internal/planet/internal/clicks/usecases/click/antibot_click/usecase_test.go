@@ -63,8 +63,7 @@ func execute(
 
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC))
 
-	useCase, err := antibot_click.New(inner, guard, owner, clock, prometheus.NewRegistry())
-	require.NoError(t, err)
+	useCase := antibot_click.New(inner, guard, owner, clock, prometheus.NewRegistry())
 
 	_, executeErr := useCase.Execute(ctx, click.In{TileID: 42, CountryID: "PS"})
 

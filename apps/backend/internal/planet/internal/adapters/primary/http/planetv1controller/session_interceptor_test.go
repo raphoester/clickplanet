@@ -52,8 +52,7 @@ func checkSession(
 	t.Helper()
 
 	registry := prometheus.NewRegistry()
-	interceptor, err := NewSessionInterceptor(verifier, nil, enforce, registry)
-	require.NoError(t, err)
+	interceptor := NewSessionInterceptor(verifier, nil, enforce, registry)
 
 	result := sessionResult{registry: registry}
 	next := connect.UnaryFunc(func(ctx context.Context, _ connect.AnyRequest) (connect.AnyResponse, error) {
@@ -163,8 +162,7 @@ func TestSessionInterceptorWhenObserving(t *testing.T) {
 // outside it by construction. This pins that the chain really is assembled that
 // way — that the refusal happens before anything reaches the click chain at all.
 func TestSessionCheckRunsBeforeTheThrottle(t *testing.T) {
-	interceptor, err := NewSessionInterceptor(validVerifier(), nil, true, prometheus.NewRegistry())
-	require.NoError(t, err)
+	interceptor := NewSessionInterceptor(validVerifier(), nil, true, prometheus.NewRegistry())
 
 	limiter := &fakeLimiter{allow: true}
 	server := clickServerWith(t, throttle_click.New(stubService{}, limiter, onePrice), nil,
@@ -178,8 +176,7 @@ func TestSessionCheckRunsBeforeTheThrottle(t *testing.T) {
 }
 
 func TestSessionRefusalIsA401OverHTTP(t *testing.T) {
-	interceptor, err := NewSessionInterceptor(validVerifier(), nil, true, prometheus.NewRegistry())
-	require.NoError(t, err)
+	interceptor := NewSessionInterceptor(validVerifier(), nil, true, prometheus.NewRegistry())
 
 	server := clickServer(t, connect.WithInterceptors(
 		errorNet(),

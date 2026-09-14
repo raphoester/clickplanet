@@ -3,9 +3,9 @@ package prom_drop_bomb
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/drop_bomb"
 )
@@ -14,24 +14,20 @@ type UseCase interface {
 	Execute(ctx context.Context, in drop_bomb.In) (clicks.Blast, error)
 }
 
-func New(implementation UseCase, registerer prometheus.Registerer) (*Decorator, error) {
-	drops := prometheus.NewCounterVec(prometheus.CounterOpts{
+func New(implementation UseCase, registerer prometheus.Registerer) *Decorator {
+	factory := promauto.With(registerer)
+
+	drops := factory.NewCounterVec(prometheus.CounterOpts{
 		Name: "bonus_bombs_dropped_total",
 		Help: "Bomb drops, by outcome: land, sea, refused or shadowbanned",
 	}, []string{"outcome"})
 
-	cleared := prometheus.NewCounter(prometheus.CounterOpts{
+	cleared := factory.NewCounter(prometheus.CounterOpts{
 		Name: "bonus_bomb_tiles_cleared_total",
 		Help: "Tiles bombs took away from whoever held them",
 	})
 
-	for _, collector := range []prometheus.Collector{drops, cleared} {
-		if err := registerer.Register(collector); err != nil {
-			return nil, fmt.Errorf("failed to register bomb collector: %w", err)
-		}
-	}
-
-	return &Decorator{implementation: implementation, drops: drops, cleared: cleared}, nil
+	return &Decorator{implementation: implementation, drops: drops, cleared: cleared}
 }
 
 type Decorator struct {
