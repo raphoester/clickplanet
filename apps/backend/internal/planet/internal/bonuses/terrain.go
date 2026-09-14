@@ -1,4 +1,4 @@
-package enclose_click
+package bonuses
 
 import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"

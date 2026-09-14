@@ -6,8 +6,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
@@ -25,9 +25,8 @@ type Schedule interface {
 }
 
 type Map interface {
+	bonuses.Ground
 	Nearest(point clicks.Vec3) (uint32, float64)
-	Position(id uint32) (clicks.Vec3, bool)
-	Within(centre clicks.Vec3, radius float64) []uint32
 }
 
 type Clearer interface {
@@ -46,13 +45,7 @@ type In struct {
 	Dud bool
 }
 
-// Rules is what a bomb is: how wide a circle it clears, and how far from a tile an aim may land and still hit it.
-type Rules struct {
-	Radius float64
-	Reach  float64
-}
-
-func New(bombs Bombs, schedule Schedule, geography Map, clearer Clearer, countries CountryChecker, rules Rules) *UseCase {
+func New(bombs Bombs, schedule Schedule, geography Map, clearer Clearer, countries CountryChecker, rules bonuses.BombRules) *UseCase {
 	return &UseCase{
 		bombs:     bombs,
 		schedule:  schedule,
@@ -69,7 +62,7 @@ type UseCase struct {
 	geography Map
 	clearer   Clearer
 	countries CountryChecker
-	rules     Rules
+	rules     bonuses.BombRules
 }
 
 // Execute checks the request before it takes the bomb, so a malformed drop does not cost one.
@@ -93,30 +86,10 @@ func (u *UseCase) Execute(ctx context.Context, in In) (clicks.Blast, error) {
 		return clicks.Blast{}, nil
 	}
 
-	blast := clicks.Blast{CountryID: in.CountryID, Radius: u.rules.Radius, Point: unit(in.Target)}
-
-	// Too far from any tile is the sea: the bomb is spent all the same.
-	if arc <= u.rules.Reach {
-		blast.Tile = tile
-		blast.Point, _ = u.geography.Position(tile)
-		blast.Cleared = u.geography.Within(blast.Point, u.rules.Radius)
-	}
-
-	blast, err := u.clearer.Clear(ctx, blast)
+	blast, err := u.clearer.Clear(ctx, u.rules.Blast(in.CountryID, in.Target, tile, arc, u.geography))
 	if err != nil {
 		return clicks.Blast{}, fmt.Errorf("failed to clear the blast at tile %d: %w", tile, err)
 	}
 
 	return blast, nil
-}
-
-func unit(v clicks.Vec3) clicks.Vec3 {
-	length := v.X*v.X + v.Y*v.Y + v.Z*v.Z
-	if length == 0 {
-		return v
-	}
-
-	scale := 1 / math.Sqrt(length)
-
-	return clicks.Vec3{X: v.X * scale, Y: v.Y * scale, Z: v.Z * scale}
 }

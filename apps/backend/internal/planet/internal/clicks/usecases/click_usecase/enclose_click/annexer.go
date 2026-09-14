@@ -28,7 +28,7 @@ func NewAnnexer(storage TileStorage, publisher Publisher) Annexer {
 }
 
 // Annex stops when the bonus runs out: a click closing two shapes with one left takes the first.
-func (a Annexer) Annex(ctx context.Context, scope string, closing click_usecase.In, enclosure *bonuses.Enclosure, pockets []Pocket) error {
+func (a Annexer) Annex(ctx context.Context, scope string, closing click_usecase.In, enclosure *bonuses.Enclosure, pockets []bonuses.Pocket) error {
 	for _, pocket := range pockets {
 		left, ok := enclosure.Spend()
 		if !ok {
@@ -40,14 +40,14 @@ func (a Annexer) Annex(ctx context.Context, scope string, closing click_usecase.
 		}
 
 		// After the tiles, so no client shows a shape filling that the map has not taken.
-		a.publisher.PublishEnclosed(scope, pocket.announcement(closing, left))
+		a.publisher.PublishEnclosed(scope, pocket.Announcement(closing.CountryID, closing.TileID, left))
 	}
 
 	return nil
 }
 
-func (a Annexer) take(ctx context.Context, pocket Pocket, country string) error {
-	for _, tile := range pocket.inside {
+func (a Annexer) take(ctx context.Context, pocket bonuses.Pocket, country string) error {
+	for _, tile := range pocket.Inside() {
 		if err := a.storage.Set(ctx, tile, country); err != nil {
 			return fmt.Errorf("failed to take enclosed tile %d: %w", tile, err)
 		}

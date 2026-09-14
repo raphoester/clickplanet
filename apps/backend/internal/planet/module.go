@@ -128,13 +128,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			bombs := bonuses.NewBombs(clock)
 			enclosures := bonuses.NewEnclosures(clock)
 
-			// A bomb is sized off the map itself, so the ring a client draws is the width of what it clears.
-			spacing := geography.Spacing()
-			bombRules := drop_bomb_usecase.Rules{
-				Radius: config.Bonus.Rings() * spacing,
-				// Within a tile of the nearest tile is land; further out is the sea.
-				Reach: spacing,
-			}
+			bombRules := bonuses.NewBombRules(config.Bonus.Rings(), geography.Spacing())
 
 			// ---- Click chain ----
 
@@ -150,7 +144,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			clickUseCase = spread_click.New(clickUseCase, spreads, geography, writer, registry)
 
 			clickUseCase = enclose_click.New(clickUseCase, enclosures,
-				enclose_click.NewTerrain(geography, tilesStorage),
+				bonuses.NewTerrain(geography, tilesStorage),
 				enclose_click.NewAnnexer(writer, prom_enclose.New(registry, props.Metrics)))
 
 			clickUseCase = prom_click.New(clickUseCase, props.Metrics)

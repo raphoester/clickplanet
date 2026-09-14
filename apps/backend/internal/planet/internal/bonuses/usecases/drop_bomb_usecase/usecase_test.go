@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/drop_bomb_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
@@ -55,7 +56,7 @@ type countries struct{}
 
 func (countries) CheckCountry(country string) bool { return country == "fr" }
 
-var rules = drop_bomb_usecase.Rules{Radius: 0.03, Reach: 0.005}
+var rules = bonuses.BombRules{Radius: 0.03, Reach: 0.005}
 
 type parts struct {
 	bombs    *stubBombs

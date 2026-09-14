@@ -1,9 +1,4 @@
-package enclose_click
-
-import (
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
-)
+package bonuses
 
 // Pocket is a closed shape: the tiles inside it, and the owner's tiles around them.
 type Pocket struct {
@@ -11,10 +6,15 @@ type Pocket struct {
 	wall   []uint32
 }
 
-func (p Pocket) announcement(closing click_usecase.In, left int) bonuses.Enclosed {
-	return bonuses.Enclosed{
-		CountryID:   closing.CountryID,
-		ClosingTile: closing.TileID,
+func (p Pocket) Inside() []uint32 {
+	return p.inside
+}
+
+// Announcement is the shape as the planet is told of it, closed by a click for country on closingTile.
+func (p Pocket) Announcement(country string, closingTile uint32, left int) Enclosed {
+	return Enclosed{
+		CountryID:   country,
+		ClosingTile: closingTile,
 		Wall:        p.wall,
 		Filled:      p.inside,
 		Left:        left,
