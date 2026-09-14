@@ -157,7 +157,7 @@ Everything else is one command from your laptop:
 ```
 
 It copies itself to the box over SSH and re-runs there as root, then: installs
-Docker, creates the `deploy` user, generates and installs a CI keypair
+Docker and turns off its userland proxy (see below), creates the `deploy` user, generates and installs a CI keypair
 (`~/.ssh/clickplanet_ci`, private half never leaves your laptop), restricts ufw
 to SSH plus Cloudflare's ranges on 80/443, clones the repo to
 `/opt/clickplanet`, writes `.env`, installs the nightly backup cron, builds
@@ -185,6 +185,29 @@ ssh deploy@YOUR_IP 'cd /opt/clickplanet/deploy/vps && docker compose logs caddy 
 
 An `unauthorized` or zone-lookup error there almost always means the token is
 missing one of the two permissions in step 1.
+
+### Docker's userland proxy is off, and must stay off
+
+With it on, every request on some Cloudflare connections reaches the API as the
+same caller, `172.18.0.1`. `docker-proxy` starts listening on 80/443 slightly
+before the NAT rule that forwards to Caddy exists. A connection that lands in
+that gap stays on `docker-proxy` for its whole life, and Caddy sees the bridge
+gateway as its peer. That is not a Cloudflare range, so Caddy ignores
+`Cf-Connecting-Ip`. Cloudflare keeps origin connections open for hours and
+shares them between visitors. On 2026-09-14 one connection, opened 1.8 s after a
+Caddy restart, carried 78% of all clicks. It merged a bot into a crowd, so no
+watchdog could see it, and it put the crowd one metronome flag away from a
+persistent ban. Every deploy restarts Caddy.
+
+`bootstrap.sh` sets `"userland-proxy": false` in `/etc/docker/daemon.json` and
+restarts Docker once when it changes. Re-running it on an existing box applies
+the fix, with a few seconds of downtime. To check a running box:
+
+```bash
+ssh root@YOUR_IP 'docker info | grep EnableUserlandProxy; ss -tn src 172.18.0.1 dport = :443'
+```
+
+`false` and an empty socket list means every request keeps its real address.
 
 ## 4. Frontend on Cloudflare Pages
 
