@@ -87,7 +87,13 @@ type ServiceBuilder func(options ...connect.HandlerOption) (string, http.Handler
 
 // RunnerRegistrar takes a goroutine that runs until its context is cancelled.
 type RunnerRegistrar interface {
-	Add(name string, run func(ctx context.Context))
+	Add(runner Runner)
+}
+
+// Runner is a loop that lives as long as the process, and names itself.
+type Runner interface {
+	Name() string
+	Run(ctx context.Context)
 }
 
 // CloserRegistrar takes a cleanup, run in reverse registration order before the

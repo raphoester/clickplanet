@@ -164,8 +164,8 @@ func startRunners(ctx context.Context, runners *runnerRegistry, logger *slog.Log
 		started.Add(1)
 		go func() {
 			defer started.Done()
-			runner.run(ctx)
-			logger.Debug("runner stopped", slog.String("runner", runner.name))
+			runner.Run(ctx)
+			logger.Debug("runner stopped", slog.String("runner", runner.Name()))
 		}()
 	}
 

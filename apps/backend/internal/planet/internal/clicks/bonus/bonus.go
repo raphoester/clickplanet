@@ -341,6 +341,8 @@ func (r *Registry) Multiplier() float64 {
 	return r.config.Multiplier
 }
 
+func (r *Registry) Name() string { return "bonus-boxes" }
+
 func (r *Registry) Run(ctx context.Context) {
 	ticker := time.NewTicker(r.config.SweepInterval)
 	defer ticker.Stop()

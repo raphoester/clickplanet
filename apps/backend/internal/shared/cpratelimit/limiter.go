@@ -41,12 +41,14 @@ func (c Config) withDefaults() Config {
 	return c
 }
 
-func New(config Config, clock cptime.Clock) *Limiter {
+// New takes a name because one process runs several limiters.
+func New(name string, config Config, clock cptime.Clock) *Limiter {
 	if clock == nil {
 		clock = cptime.SystemClock{}
 	}
 
 	return &Limiter{
+		name:    name,
 		config:  config.withDefaults(),
 		clock:   clock,
 		buckets: make(map[string]*bucket),
@@ -54,6 +56,7 @@ func New(config Config, clock cptime.Clock) *Limiter {
 }
 
 type Limiter struct {
+	name   string
 	config Config
 	clock  cptime.Clock
 
@@ -190,6 +193,8 @@ func (l *Limiter) state(b *bucket) State {
 func (l *Limiter) capacity(b *bucket) float64 {
 	return float64(l.config.Burst) * b.multiplier
 }
+
+func (l *Limiter) Name() string { return l.name }
 
 func (l *Limiter) Run(ctx context.Context) {
 	ticker := time.NewTicker(l.config.SweepInterval)

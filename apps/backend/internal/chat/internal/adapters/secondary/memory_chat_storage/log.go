@@ -58,6 +58,8 @@ type appendLog struct {
 	dirty bool
 }
 
+func (s *Storage) Name() string { return "chat-storage" }
+
 func (s *Storage) Run(ctx context.Context) {
 	if s.config.LogPath == "" {
 		s.logger.Warn("no chat log path configured, messages will not survive a restart")

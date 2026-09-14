@@ -1,7 +1,6 @@
 package cpbootstrap
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 
@@ -76,21 +75,16 @@ func (m moduleRoutes) Mount(build ServiceBuilder, interceptors ...connect.Interc
 	return nil
 }
 
-type namedRunner struct {
-	name string
-	run  func(ctx context.Context)
-}
-
 type runnerRegistry struct {
-	runners []namedRunner
+	runners []Runner
 }
 
 func newRunnerRegistry() *runnerRegistry {
 	return &runnerRegistry{runners: nil}
 }
 
-func (r *runnerRegistry) Add(name string, run func(ctx context.Context)) {
-	r.runners = append(r.runners, namedRunner{name: name, run: run})
+func (r *runnerRegistry) Add(runner Runner) {
+	r.runners = append(r.runners, runner)
 }
 
 func (r *runnerRegistry) count() int {

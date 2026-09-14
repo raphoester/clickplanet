@@ -72,7 +72,7 @@ func startChatServerWith(
 	t.Helper()
 
 	clock := cptime.NewFixedClock(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC))
-	limiter := cpratelimit.New(cpratelimit.Config{PerSecond: 1, Burst: 3}, clock)
+	limiter := cpratelimit.New("test", cpratelimit.Config{PerSecond: 1, Burst: 3}, clock)
 
 	blocklist, err := cpipblock.NewDenyList(blockedIPs)
 	require.NoError(t, err)

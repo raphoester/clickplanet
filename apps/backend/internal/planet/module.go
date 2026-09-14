@@ -109,13 +109,13 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			tilesStorage := memory_tile_storage.New(config.GameMap.MaxIndex, config.TilesStorage, props.Logger)
 			tilesStorage.LoadSnapshot()
-			props.Runners.Add("tiles-storage", tilesStorage.Run)
+			props.Runners.Add(tilesStorage)
 
 			takings := ledger.New(config.Ledger, clock)
-			props.Runners.Add("tile-ledger", takings.Run)
+			props.Runners.Add(takings)
 
-			limiter := cpratelimit.New(config.RateLimiter, clock)
-			props.Runners.Add("click-limiter", limiter.Run)
+			limiter := cpratelimit.New("click-limiter", config.RateLimiter, clock)
+			props.Runners.Add(limiter)
 
 			pricer := toll.New(config.Toll, tilesStorage)
 
@@ -125,7 +125,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			// ---- Bonus boxes ----
 
 			bonuses := bonus.New(config.Bonus, clock)
-			props.Runners.Add("bonus-boxes", bonuses.Run)
+			props.Runners.Add(bonuses)
 
 			spreads := bonus.NewSpreads(clock)
 			bombs := bonus.NewBombs(clock)
@@ -229,7 +229,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			// BanPlayer refuses, FindPlayers says nothing of bans and a bomb is never a dud.
 			if guard != nil {
 				guard.LoadBans()
-				props.Runners.Add("antibot", guard.Run)
+				props.Runners.Add(guard)
 
 				described := guard.Describe()
 				props.Logger.Info("antibot enabled",
