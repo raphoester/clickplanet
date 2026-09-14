@@ -364,3 +364,27 @@ func TestWithTheBlockOffTheGuardPassesEveryClick(t *testing.T) {
 	assert.False(t, guard.Inspect(antibot.Click{Scope: "1.2.3.4", Tile: 1, Country: "fr"}))
 	assert.False(t, guard.Banned("1.2.3.4"))
 }
+
+func TestExaminingABannedScopeCarriesItsSentence(t *testing.T) {
+	s := newStack()
+
+	s.clock.Advance(time.Second)
+	s.click("player", 1, "FR")
+	s.guard.Ban("player", 2*time.Hour)
+
+	examination := s.guard.Examine("player")
+
+	assert.True(t, examination.Tracked)
+	assert.True(t, examination.Banned)
+	assert.Equal(t, 1, examination.Offence)
+	assert.Equal(t, s.clock.Now().Add(2*time.Hour), examination.BannedUntil)
+	assert.Len(t, examination.Readings, 4)
+	assert.False(t, examination.Guilty)
+}
+
+func TestAGuardThatIsOffExaminesNothing(t *testing.T) {
+	guard, err := antibot.New(antibot.Config{}, nil, antibot.Observer{})
+	require.NoError(t, err)
+
+	assert.Equal(t, antibot.Examination{Scope: "player"}, guard.Examine("player"))
+}

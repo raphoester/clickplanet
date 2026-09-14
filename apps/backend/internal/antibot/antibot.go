@@ -34,12 +34,16 @@ import (
 //
 // Nothing else is aliased, because nothing else has to be named. A caller ranges
 // a Report's opinions and asks each one whether it Fired and what it says for
-// itself; the verdict ladder, the rule that tripped and the numbers behind it
-// never leave this package as vocabulary the edge has to speak.
+// itself, and an Examination's Readings are already strings; the verdict ladder,
+// the rule that tripped and the numbers behind it never leave this package as
+// vocabulary the edge has to speak.
 type (
 	Click    = detect.Click       // one Click RPC, as the guard sees it
 	Report   = detect.Report      // one ban, with every watchdog's opinion behind it
 	Sentence = shadowban.Sentence // a scope's ban, as the operator tools read it
+
+	Examination = detect.Examination // what the jury holds on one scope, as InspectPlayer reads it
+	Reading     = detect.Reading     // one watchdog's opinion, already worded
 )
 
 // Config is the `antiBot:` block. A watchdog left out of the file is off, and the
@@ -137,6 +141,9 @@ type Guard interface {
 	Ban(scope string, duration time.Duration) Sentence
 	Sentence(scope string) (Sentence, bool)
 	Enforcing() bool
+
+	// Examine reads every watchdog's opinion, the jury's decision and any ban on a scope, and changes nothing.
+	Examine(scope string) Examination
 
 	// Enabled is false for the guard New hands back when the block is off: it
 	// drops nothing, bans nothing and its Run returns at once.
@@ -274,6 +281,19 @@ func (g *guard) Sentence(scope string) (Sentence, bool) { return g.banner.Senten
 
 func (g *guard) Enforcing() bool { return g.banner.Enforcing() }
 
+func (g *guard) Examine(scope string) Examination {
+	examination := g.jury.Examine(scope)
+
+	if sentence, banned := g.banner.Sentence(scope); banned {
+		examination.Banned = true
+		examination.Flags = sentence.Flags
+		examination.Offence = sentence.Offence
+		examination.BannedUntil = sentence.Until
+	}
+
+	return examination
+}
+
 func (g *guard) Banned(scope string) bool { return g.banner.Banned(scope) }
 
 func (g *guard) Enabled() bool { return true }
@@ -313,6 +333,7 @@ func (off) Banned(string) bool                 { return false }
 func (off) Ban(string, time.Duration) Sentence { return Sentence{} }
 func (off) Sentence(string) (Sentence, bool)   { return Sentence{}, false }
 func (off) Enforcing() bool                    { return false }
+func (off) Examine(scope string) Examination   { return Examination{Scope: scope} }
 func (off) Enabled() bool                      { return false }
 func (off) Name() string                       { return "antibot" }
 func (off) Run(context.Context)                {}

@@ -278,3 +278,88 @@ func TestTheCallerFactsTravelWithTheBan(t *testing.T) {
 	assert.Greater(t, report.LongestGap, 19*time.Minute, "the break is visible in the line")
 	assert.Equal(t, 21, report.TopCountryClicks)
 }
+
+func TestExaminingAnUnknownCallerListsEveryWatchdogAsClear(t *testing.T) {
+	h := newHarness(juryConfig(), banConfig(),
+		&stubWatchdog{name: "first", verdict: detect.Certain},
+		&stubWatchdog{name: "second", verdict: detect.Suspect},
+	)
+
+	examination := h.jury.Examine("stranger")
+
+	assert.False(t, examination.Tracked)
+	assert.False(t, examination.Guilty)
+	assert.Equal(t, 2, examination.MinSuspects)
+	assert.Equal(t, []detect.Reading{
+		{Watchdog: "first", Level: "clear"},
+		{Watchdog: "second", Level: "clear"},
+	}, examination.Readings)
+}
+
+func TestExaminingSaysHowCloseACallerIsAndChangesNothing(t *testing.T) {
+	unsure := &stubWatchdog{name: "unsure", verdict: detect.Suspect}
+	quiet := &stubWatchdog{name: "quiet", verdict: detect.Clear}
+
+	h := newHarness(juryConfig(), banConfig(), unsure, quiet)
+
+	first := h.clock.Now()
+	require.False(t, h.click())
+	require.False(t, h.click())
+	last := first.Add(time.Second)
+
+	examination := h.jury.Examine("caller")
+
+	assert.Equal(t, detect.Examination{
+		Scope:   "caller",
+		Tracked: true,
+		Readings: []detect.Reading{
+			{Watchdog: "unsure", Level: "suspect", Evidence: "unsure-rule seen=2", At: last},
+			{Watchdog: "quiet", Level: "clear", Evidence: "quiet-rule seen=2", At: last},
+		},
+		Suspects:         1,
+		MinSuspects:      2,
+		Clicks:           2,
+		ActiveFor:        time.Second,
+		LongestGap:       time.Second,
+		LastClickAt:      last,
+		TopCountry:       "FR",
+		TopCountryClicks: 2,
+	}, examination)
+
+	assert.Equal(t, 2, unsure.seen, "examining asks no watchdog again")
+	assert.Empty(t, h.reports)
+	assert.Zero(t, h.jury.Flagged())
+}
+
+func TestExaminingWithTwoSuspectsReadsGuiltyWithoutBanning(t *testing.T) {
+	h := newHarness(juryConfig(), banConfig(),
+		&stubWatchdog{name: "first", verdict: detect.Suspect},
+		&stubWatchdog{name: "second", verdict: detect.Suspect},
+	)
+
+	// The first click bans; the examination afterwards must not ban a second time.
+	require.True(t, h.click())
+
+	examination := h.jury.Examine("caller")
+
+	assert.True(t, examination.Guilty)
+	assert.Equal(t, 2, examination.Suspects)
+	assert.Len(t, h.reports, 1)
+}
+
+func TestExaminingAgesASuspicionPastTheWindow(t *testing.T) {
+	h := newHarness(juryConfig(), banConfig(),
+		&stubWatchdog{name: "first", verdict: detect.Suspect},
+		&stubWatchdog{name: "second", verdict: detect.Suspect},
+	)
+
+	require.True(t, h.click())
+	h.clock.Advance(11 * time.Minute)
+
+	examination := h.jury.Examine("caller")
+
+	assert.False(t, examination.Guilty)
+	assert.Zero(t, examination.Suspects)
+	assert.Equal(t, "clear", examination.Readings[0].Level)
+	assert.Equal(t, "first-rule seen=1", examination.Readings[0].Evidence, "the evidence stays to read")
+}

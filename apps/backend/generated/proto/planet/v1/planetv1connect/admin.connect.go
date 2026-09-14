@@ -46,6 +46,9 @@ const (
 	// AdminServiceRevertPlayerProcedure is the fully-qualified name of the AdminService's RevertPlayer
 	// RPC.
 	AdminServiceRevertPlayerProcedure = "/planet.v1.AdminService/RevertPlayer"
+	// AdminServiceInspectPlayerProcedure is the fully-qualified name of the AdminService's
+	// InspectPlayer RPC.
+	AdminServiceInspectPlayerProcedure = "/planet.v1.AdminService/InspectPlayer"
 )
 
 // AdminServiceClient is a client for the planet.v1.AdminService service.
@@ -65,6 +68,9 @@ type AdminServiceClient interface {
 	// Gives back every tile the scope took that nobody has taken since, to
 	// whoever held it before. dry_run counts and restores nothing.
 	RevertPlayer(context.Context, *connect.Request[v1.RevertPlayerRequest]) (*connect.Response[v1.RevertPlayerResponse], error)
+	// What the antibot holds on a scope: every watchdog's reading, what the jury
+	// would decide now, and any running ban. Reads only.
+	InspectPlayer(context.Context, *connect.Request[v1.InspectPlayerRequest]) (*connect.Response[v1.InspectPlayerResponse], error)
 }
 
 // NewAdminServiceClient constructs a client for the planet.v1.AdminService service. By default, it
@@ -108,6 +114,12 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(adminServiceMethods.ByName("RevertPlayer")),
 			connect.WithClientOptions(opts...),
 		),
+		inspectPlayer: connect.NewClient[v1.InspectPlayerRequest, v1.InspectPlayerResponse](
+			httpClient,
+			baseURL+AdminServiceInspectPlayerProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("InspectPlayer")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -118,6 +130,7 @@ type adminServiceClient struct {
 	topPlayers      *connect.Client[v1.TopPlayersRequest, v1.TopPlayersResponse]
 	banPlayer       *connect.Client[v1.BanPlayerRequest, v1.BanPlayerResponse]
 	revertPlayer    *connect.Client[v1.RevertPlayerRequest, v1.RevertPlayerResponse]
+	inspectPlayer   *connect.Client[v1.InspectPlayerRequest, v1.InspectPlayerResponse]
 }
 
 // ReassignCountry calls planet.v1.AdminService.ReassignCountry.
@@ -145,6 +158,11 @@ func (c *adminServiceClient) RevertPlayer(ctx context.Context, req *connect.Requ
 	return c.revertPlayer.CallUnary(ctx, req)
 }
 
+// InspectPlayer calls planet.v1.AdminService.InspectPlayer.
+func (c *adminServiceClient) InspectPlayer(ctx context.Context, req *connect.Request[v1.InspectPlayerRequest]) (*connect.Response[v1.InspectPlayerResponse], error) {
+	return c.inspectPlayer.CallUnary(ctx, req)
+}
+
 // AdminServiceHandler is an implementation of the planet.v1.AdminService service.
 type AdminServiceHandler interface {
 	// Gives every tile one country holds to another, while the game runs. Each
@@ -162,6 +180,9 @@ type AdminServiceHandler interface {
 	// Gives back every tile the scope took that nobody has taken since, to
 	// whoever held it before. dry_run counts and restores nothing.
 	RevertPlayer(context.Context, *connect.Request[v1.RevertPlayerRequest]) (*connect.Response[v1.RevertPlayerResponse], error)
+	// What the antibot holds on a scope: every watchdog's reading, what the jury
+	// would decide now, and any running ban. Reads only.
+	InspectPlayer(context.Context, *connect.Request[v1.InspectPlayerRequest]) (*connect.Response[v1.InspectPlayerResponse], error)
 }
 
 // NewAdminServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -201,6 +222,12 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(adminServiceMethods.ByName("RevertPlayer")),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminServiceInspectPlayerHandler := connect.NewUnaryHandler(
+		AdminServiceInspectPlayerProcedure,
+		svc.InspectPlayer,
+		connect.WithSchema(adminServiceMethods.ByName("InspectPlayer")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/planet.v1.AdminService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AdminServiceReassignCountryProcedure:
@@ -213,6 +240,8 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 			adminServiceBanPlayerHandler.ServeHTTP(w, r)
 		case AdminServiceRevertPlayerProcedure:
 			adminServiceRevertPlayerHandler.ServeHTTP(w, r)
+		case AdminServiceInspectPlayerProcedure:
+			adminServiceInspectPlayerHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -240,4 +269,8 @@ func (UnimplementedAdminServiceHandler) BanPlayer(context.Context, *connect.Requ
 
 func (UnimplementedAdminServiceHandler) RevertPlayer(context.Context, *connect.Request[v1.RevertPlayerRequest]) (*connect.Response[v1.RevertPlayerResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.RevertPlayer is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) InspectPlayer(context.Context, *connect.Request[v1.InspectPlayerRequest]) (*connect.Response[v1.InspectPlayerResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.InspectPlayer is not implemented"))
 }

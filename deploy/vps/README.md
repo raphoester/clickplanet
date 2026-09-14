@@ -791,6 +791,29 @@ docker compose exec backend wget -qO- --header 'Content-Type: application/json' 
 - A second run answers zeros: a reverted player has nothing left to revert.
 - Every ban and revert is logged: `journalctl CONTAINER_NAME=cp-backend | grep "admin ban\|admin player revert"`.
 
+### See how close the antibot is to one player
+
+The `antibot ban` log line is only written when a ban fires. To see where a
+player stands before that, inspect its scope (an address is read as its scope).
+It changes nothing and is not logged:
+
+```bash
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"scope":"203.0.113.7"}' http://127.0.0.1:8081/planet.v1.AdminService/InspectPlayer
+```
+
+- `readings` has one entry per watchdog: `level` is `clear`, `suspect` or
+  `certain`, and `evidence` is the rule and its numbers, as the ban line writes
+  them. A `clear` watchdog has no evidence. A verdict older than
+  `antiBot.jury.suspicionWindow` reads `clear`.
+- `suspects` against `minSuspects`, and `guilty`: what the jury would decide if
+  the player clicked now. One `certain` is enough alone.
+- `clicks`, `activeFor`, `longestGap`, `lastClickAt`, `topCountry`: the same
+  summary the ban line carries.
+- `banned`, `bannedUntil`, `offence`, `flags` when a ban is running, enforced or not.
+- `"tracked":false` means the jury has not seen the scope in
+  `antiBot.jury.trackWindow`: it is not clicking now, or not from this scope.
+- With `antiBot.enabled` off it is refused: `server returned error: HTTP/1.1 400`. A bad scope is refused the same way.
+
 ## Rollback
 
 - **Bad backend build:** `BACKEND_IMAGE=ghcr.io/raphoester/clickplanet-backend:<sha>` in `.env`, then `docker compose up -d backend`.
