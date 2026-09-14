@@ -70,8 +70,11 @@ func NewLoggingMiddleware(logger *slog.Logger) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			wrapped := &wrappedWriter{ResponseWriter: w}
 			next.ServeHTTP(wrapped, r)
-			logger.Info(
-				"new request on web server",
+			if wrapped.code < http.StatusInternalServerError {
+				return
+			}
+			logger.Warn(
+				"request failed on web server",
 				slog.String("method", r.Method),
 				slog.String("uri", r.RequestURI),
 				slog.Int("status_code", wrapped.code),
