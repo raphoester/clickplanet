@@ -132,7 +132,6 @@ type Report struct {
 
 	Offence     int
 	BannedUntil time.Time
-	Permanent   bool
 
 	Opinions []Opinion
 

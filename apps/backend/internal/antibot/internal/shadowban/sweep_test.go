@@ -60,18 +60,3 @@ func TestSweepForgetsAServedBanPastTheStrikeMemory(t *testing.T) {
 
 	assert.Empty(t, b.bans)
 }
-
-func TestSweepNeverForgetsAPermanentBan(t *testing.T) {
-	b, clock := newSweepBanner(Config{
-		BanDurations:   []time.Duration{time.Minute},
-		PermanentAfter: 1,
-		StrikeMemory:   time.Hour,
-	})
-
-	b.Flag("bot")
-
-	clock.Advance(365 * 24 * time.Hour)
-	b.sweep()
-
-	assert.Contains(t, b.bans, "bot")
-}

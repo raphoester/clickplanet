@@ -15,9 +15,6 @@ type Config struct {
 	// The Nth offence bans for the Nth entry; past the end the last one repeats.
 	BanDurations []time.Duration
 
-	// The offence from which a ban never lapses. Zero never.
-	PermanentAfter int
-
 	// How long a served ban still counts towards the next offence.
 	StrikeMemory time.Duration
 
@@ -35,10 +32,7 @@ const (
 
 func (c Config) withDefaults() Config {
 	if len(c.BanDurations) == 0 {
-		c.BanDurations = []time.Duration{24 * time.Hour, 7 * 24 * time.Hour}
-	}
-	if c.PermanentAfter < 0 {
-		c.PermanentAfter = 0
+		c.BanDurations = []time.Duration{24 * time.Hour, 7 * 24 * time.Hour, 3 * 365 * 24 * time.Hour}
 	}
 	if c.StrikeMemory <= 0 {
 		c.StrikeMemory = defaultStrikeMemory
@@ -53,10 +47,9 @@ func (c Config) withDefaults() Config {
 }
 
 type Sentence struct {
-	Flags     int
-	Offence   int
-	Until     time.Time
-	Permanent bool
+	Flags   int
+	Offence int
+	Until   time.Time
 }
 
 func New(config Config, clock cptime.Clock, onStateError func(error)) *Banner {
@@ -95,16 +88,15 @@ type ban struct {
 	flags      int
 	offences   int
 	until      time.Time
-	permanent  bool
 	nextFlagAt time.Time
 }
 
 func (r *ban) running(now time.Time) bool {
-	return r.permanent || now.Before(r.until)
+	return now.Before(r.until)
 }
 
 func (r *ban) sentence() Sentence {
-	return Sentence{Flags: r.flags, Offence: r.offences, Until: r.until, Permanent: r.permanent}
+	return Sentence{Flags: r.flags, Offence: r.offences, Until: r.until}
 }
 
 func (b *Banner) Flag(scope string) (Sentence, bool) {
@@ -134,10 +126,7 @@ func (b *Banner) Flag(scope string) (Sentence, bool) {
 	record.flags++
 	record.nextFlagAt = now.Add(b.config.ReflagInterval)
 
-	if b.config.PermanentAfter > 0 && record.offences >= b.config.PermanentAfter {
-		record.permanent = true
-		record.until = time.Time{}
-	} else if until := now.Add(b.duration(record.offences)); until.After(record.until) {
+	if until := now.Add(b.duration(record.offences)); until.After(record.until) {
 		record.until = until
 	}
 

@@ -174,13 +174,11 @@ antiBot:
     # The Nth offence bans for the Nth step; past the end the last one repeats.
     # A flag on a running ban only extends it: an offence is a ban that starts
     # while none is running.
-    banDurations: [24h, 168h]
-    # The offence from which a ban never lapses. 0 never.
-    permanentAfter: 3
+    banDurations: [24h, 168h, 26280h]
     # How long a served ban still counts towards the next offence.
     strikeMemory: 720h
     # One JSON line per banned scope, so bans survive a restart. Empty keeps
-    # them in memory, where a deploy clears every one — permanent included.
+    # them in memory, where a deploy clears every one.
     statePath: ./data/bans.jsonl
     # How soon a caller already serving a ban can be judged again. At or above a
     # watchdog's trackWindow each flag rests on evidence the previous one never

@@ -104,7 +104,7 @@ func newAntiBotObserver(
 			slog.String("scope", report.Scope),
 			slog.Int("flags", report.Flags),
 			slog.Int("offence", report.Offence),
-			banLength(report),
+			slog.Time("bannedUntil", report.BannedUntil),
 			slog.Int("clicks", report.Clicks),
 			slog.Duration("activeFor", report.ActiveFor),
 			slog.Duration("longestGap", report.LongestGap),
@@ -132,11 +132,4 @@ func newAntiBotObserver(
 	}
 
 	return antibot.Observer{OnReaction: onReaction, OnFlag: onFlag, OnStateError: onStateError}, nil
-}
-
-func banLength(report antibot.Report) slog.Attr {
-	if report.Permanent {
-		return slog.String("bannedUntil", "permanent")
-	}
-	return slog.Time("bannedUntil", report.BannedUntil)
 }

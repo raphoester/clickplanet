@@ -138,7 +138,6 @@ func (j *Jury) Inspect(click detect.Click) bool {
 			report.Flags = sentence.Flags
 			report.Offence = sentence.Offence
 			report.BannedUntil = sentence.Until
-			report.Permanent = sentence.Permanent
 			if j.onFlag != nil {
 				j.onFlag(report)
 			}

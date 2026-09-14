@@ -61,10 +61,10 @@ antiBot:
     # a hand choosing freely holds that for a few clicks, not a hundred and
     # fifty. See "Watching for bots" in the README before widening anything here.
     enforce: true
-    # 1st offence 24h, 2nd 7 days, 3rd forever. A caller that keeps going while
-    # banned only extends its ban; a new offence is a ban that starts fresh.
-    banDurations: [24h, 168h]
-    permanentAfter: 3
+    # 1st offence 24h, 2nd 7 days, 3rd and later 3 years. A caller that keeps
+    # going while banned only extends its ban; a new offence is a ban that starts
+    # fresh.
+    banDurations: [24h, 168h, 26280h]
     strikeMemory: 720h
     # On the tile_state volume, so a deploy does not free every banned caller.
     # Unban one scope: stop the backend, delete its line, start it again.

@@ -489,7 +489,7 @@ different picture from forty callers caught once. The labels also tell you which
 watchdog is earning its keep before you enforce. All of them are readable with
 the `wget` line above.
 
-Bans escalate: 24h for a first offence, 7 days for a second, forever from the
+Bans escalate: 24h for a first offence, 7 days for a second, 3 years from the
 third. A caller that keeps going while banned only extends the ban it has. Bans
 are saved to `bans.jsonl` on the `tile_state` volume, so a deploy keeps them.
 

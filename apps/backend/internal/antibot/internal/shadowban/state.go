@@ -16,11 +16,10 @@ import (
 
 // One JSON object per line, so a single scope can be unbanned with grep -v.
 type savedBan struct {
-	Scope     string    `json:"scope"`
-	Flags     int       `json:"flags"`
-	Offences  int       `json:"offences"`
-	Until     time.Time `json:"until,omitzero"`
-	Permanent bool      `json:"permanent,omitempty"`
+	Scope    string    `json:"scope"`
+	Flags    int       `json:"flags"`
+	Offences int       `json:"offences"`
+	Until    time.Time `json:"until"`
 }
 
 func (b *Banner) restore() error {
@@ -51,10 +50,9 @@ func (b *Banner) restore() error {
 		}
 
 		bans[saved.Scope] = &ban{
-			flags:     saved.Flags,
-			offences:  saved.Offences,
-			until:     saved.Until,
-			permanent: saved.Permanent,
+			flags:    saved.Flags,
+			offences: saved.Offences,
+			until:    saved.Until,
 		}
 	}
 	if err := scanner.Err(); err != nil {
@@ -83,11 +81,10 @@ func (b *Banner) saveIfDirty() {
 	saved := make([]savedBan, 0, len(b.bans))
 	for scope, record := range b.bans {
 		saved = append(saved, savedBan{
-			Scope:     scope,
-			Flags:     record.flags,
-			Offences:  record.offences,
-			Until:     record.until,
-			Permanent: record.permanent,
+			Scope:    scope,
+			Flags:    record.flags,
+			Offences: record.offences,
+			Until:    record.until,
 		})
 	}
 	b.mu.Unlock()

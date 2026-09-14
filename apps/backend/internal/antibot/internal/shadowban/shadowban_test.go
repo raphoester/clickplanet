@@ -19,11 +19,12 @@ func newClock() *cptime.FixedClock {
 	return cptime.NewFixedClock(time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC))
 }
 
+const threeYears = 3 * 365 * 24 * time.Hour
+
 func config() shadowban.Config {
 	return shadowban.Config{
 		Enforce:        true,
-		BanDurations:   []time.Duration{time.Hour, 24 * time.Hour},
-		PermanentAfter: 3,
+		BanDurations:   []time.Duration{time.Hour, 24 * time.Hour, threeYears},
 		StrikeMemory:   30 * 24 * time.Hour,
 		ReflagInterval: 5 * time.Minute,
 		SweepInterval:  time.Minute,
@@ -40,7 +41,6 @@ func TestAFirstOffenceBansForTheFirstStep(t *testing.T) {
 	require.True(t, accepted)
 	assert.Equal(t, 1, sentence.Flags)
 	assert.Equal(t, 1, sentence.Offence)
-	assert.False(t, sentence.Permanent)
 	assert.Equal(t, clock.Now().Add(time.Hour), sentence.Until)
 
 	clock.Advance(59 * time.Minute)
@@ -118,24 +118,7 @@ func TestAnOffenceAfterALapsedBanClimbsTheLadder(t *testing.T) {
 	assert.True(t, banner.Banned("bot"))
 }
 
-func TestTheLastStepRepeatsWhenNothingIsPermanent(t *testing.T) {
-	c := config()
-	c.PermanentAfter = 0
-
-	clock := newClock()
-	banner := shadowban.New(c, clock, nil)
-
-	var sentence shadowban.Sentence
-	for range 5 {
-		sentence, _ = banner.Flag("bot")
-		clock.Advance(25 * time.Hour)
-	}
-
-	assert.Equal(t, 5, sentence.Offence)
-	assert.False(t, sentence.Permanent)
-}
-
-func TestTheThirdOffenceIsPermanent(t *testing.T) {
+func TestTheThirdOffenceBansForThreeYears(t *testing.T) {
 	clock := newClock()
 	banner := shadowban.New(config(), clock, nil)
 
@@ -147,11 +130,30 @@ func TestTheThirdOffenceIsPermanent(t *testing.T) {
 	sentence, accepted := banner.Flag("bot")
 	require.True(t, accepted)
 	assert.Equal(t, 3, sentence.Offence)
-	assert.True(t, sentence.Permanent)
+	assert.Equal(t, clock.Now().Add(threeYears), sentence.Until)
 
-	clock.Advance(10 * 365 * 24 * time.Hour)
+	clock.Advance(threeYears - time.Hour)
 	assert.True(t, banner.Banned("bot"))
-	assert.Equal(t, 1, banner.Flagged())
+
+	clock.Advance(2 * time.Hour)
+	assert.False(t, banner.Banned("bot"))
+}
+
+func TestTheLastStepRepeats(t *testing.T) {
+	c := config()
+	c.BanDurations = []time.Duration{time.Hour, 24 * time.Hour}
+
+	clock := newClock()
+	banner := shadowban.New(c, clock, nil)
+
+	var sentence shadowban.Sentence
+	for range 5 {
+		sentence, _ = banner.Flag("bot")
+		clock.Advance(25 * time.Hour)
+	}
+
+	assert.Equal(t, 5, sentence.Offence)
+	assert.Equal(t, clock.Now().Add(-time.Hour), sentence.Until)
 }
 
 func TestAnEmptyScopeIsNeverBanned(t *testing.T) {
@@ -183,7 +185,7 @@ func TestBansSurviveARestart(t *testing.T) {
 	assert.True(t, after.Banned("fresh"))
 
 	clock.Advance(2 * time.Hour)
-	assert.True(t, after.Banned("repeat"), "a permanent ban outlives the restart")
+	assert.True(t, after.Banned("repeat"), "a three-year ban outlives the restart")
 	assert.False(t, after.Banned("fresh"), "the first offence still lapses on time")
 
 	sentence, accepted := after.Flag("fresh")
