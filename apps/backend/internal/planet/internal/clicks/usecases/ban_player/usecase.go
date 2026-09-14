@@ -20,6 +20,7 @@ var (
 type Banner interface {
 	Ban(scope string, duration time.Duration) antibot.Sentence
 	Enforcing() bool
+	Enabled() bool
 }
 
 type In struct {
@@ -36,7 +37,6 @@ type Out struct {
 	Enforced bool
 }
 
-// New takes a nil banner when the antibot is off.
 func New(banner Banner) *UseCase {
 	return &UseCase{banner: banner}
 }
@@ -46,7 +46,7 @@ type UseCase struct {
 }
 
 func (u *UseCase) Execute(_ context.Context, in In) (Out, error) {
-	if u.banner == nil {
+	if !u.banner.Enabled() {
 		return Out{}, ErrAntiBotOff
 	}
 

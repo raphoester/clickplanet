@@ -691,8 +691,8 @@ check can tell them from a player. The signal that survives is **behavioural**.
 of it: `Config`, `Observer`, `Guard`, `New` and `Description` to wire it, plus
 `Click`, `Report` and `Sentence` — the types a caller writes down, because it builds one
 and is handed the others. A caller hands over the block and the two hooks it wants
-findings reported through, and gets back a `Guard` — nil when the block is off —
-that answers `Inspect`, `Committed`, `Flagged`, `Banned`, `LoadBans`, `Run` and `Describe`, plus `Ban`,
+findings reported through, and gets back a `Guard` — one that drops and bans nothing when the block is off, so
+the DI sequence wires it the same way either way — that answers `Inspect`, `Committed`, `Flagged`, `Banned`, `LoadBans`, `Run` and `Enabled`, plus `Ban`,
 `Sentence` and `Enforcing` for the operator tools (see [Operator tools](#operator-tools-adminservice)). It is
 **one** `Run` whatever the file turned on: how many sweepers there are is this
 package's business, which is why `planet` registers one runner rather than six.
@@ -1244,7 +1244,7 @@ that instead of anything real.
 line, the line carries a `//nolint` naming the linter and the reason — which
 keeps the rule live everywhere else:
 
-- `nilnil` — six constructors return `(nil, nil)` for **"this feature is off"**,
+- `nilnil` — three constructors return `(nil, nil)` for **"this feature is off"**,
   and the caller checks for nil and mounts nothing. A sentinel would make every
   caller unwrap one. Annotated per site so an *accidental* `nil, nil` is still caught.
 - `gosec` G304 — file paths that come from config, never from a request.

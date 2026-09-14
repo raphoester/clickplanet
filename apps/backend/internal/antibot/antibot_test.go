@@ -263,3 +263,12 @@ func TestTheReflexBotIsStillCaught(t *testing.T) {
 	require.True(t, dropped)
 	assert.Equal(t, detect.Certain, s.verdicts("reflex")["retaker"])
 }
+
+func TestWithTheBlockOffTheGuardPassesEveryClick(t *testing.T) {
+	guard, err := antibot.New(antibot.Config{}, nil, antibot.Observer{})
+	require.NoError(t, err)
+
+	assert.False(t, guard.Enabled())
+	assert.False(t, guard.Inspect(antibot.Click{Scope: "1.2.3.4", Tile: 1, Country: "fr"}))
+	assert.False(t, guard.Banned("1.2.3.4"))
+}

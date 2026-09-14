@@ -17,6 +17,7 @@ var until = time.Date(2026, 9, 15, 12, 0, 0, 0, time.UTC)
 type banner struct {
 	scopes    []string
 	durations []time.Duration
+	off       bool
 }
 
 func (b *banner) Ban(scope string, duration time.Duration) antibot.Sentence {
@@ -26,6 +27,8 @@ func (b *banner) Ban(scope string, duration time.Duration) antibot.Sentence {
 }
 
 func (b *banner) Enforcing() bool { return true }
+
+func (b *banner) Enabled() bool { return !b.off }
 
 func TestAnAddressIsBannedAsItsScope(t *testing.T) {
 	b := &banner{}
@@ -51,6 +54,6 @@ func TestItRefusesWhatIsNotAScope(t *testing.T) {
 }
 
 func TestWithTheAntiBotOffThereIsNothingToBanWith(t *testing.T) {
-	_, err := ban_player.New(nil).Execute(t.Context(), ban_player.In{Scope: "1.2.3.4"})
+	_, err := ban_player.New(&banner{off: true}).Execute(t.Context(), ban_player.In{Scope: "1.2.3.4"})
 	require.ErrorIs(t, err, ban_player.ErrAntiBotOff)
 }

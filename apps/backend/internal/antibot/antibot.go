@@ -83,6 +83,9 @@ type Observer struct {
 
 	// Bans that could not be restored at boot or saved since.
 	OnStateError func(err error)
+
+	// What was turned on, once, when the guard starts running. Never called when the block is off.
+	OnStart func(description Description)
 }
 
 // Guard is the whole surface the click edge gates on.
@@ -109,30 +112,30 @@ type Guard interface {
 	Sentence(scope string) (Sentence, bool)
 	Enforcing() bool
 
+	// Enabled is false for the guard New hands back when the block is off: it
+	// drops nothing, bans nothing and its Run returns at once.
+	Enabled() bool
+
 	// One runner whatever the config turned on: how many sweepers there are is
 	// this package's business.
 	Name() string
 	Run(ctx context.Context)
-
-	Describe() Description
 }
 
 // New assembles the watchdogs the config asks for, the jury that crosses them and
-// the one ban they all pass. A nil Guard means the block is off, which leaves the
-// click chain exactly as it was; enabling it with every watchdog off is an error,
-// because that measures nothing while looking like a defence.
+// the one ban they all pass. With the block off it hands back a guard that drops
+// and bans nothing, so a caller wires it the same way either way; enabling it with
+// every watchdog off is an error, because that measures nothing while looking like a defence.
 func New(config Config, clock cptime.Clock, observer Observer) (Guard, error) {
 	if !config.Enabled {
-		//nolint:nilnil // a nil Guard is the contract: the caller skips the
-		// interceptor entirely. See the doc comment above.
-		return nil, nil
+		return off{}, nil
 	}
 
 	if clock == nil {
 		clock = cptime.SystemClock{}
 	}
 
-	g := &guard{}
+	g := &guard{onStart: observer.OnStart}
 
 	var (
 		watchdogs []detect.Watchdog
@@ -183,7 +186,7 @@ func New(config Config, clock cptime.Clock, observer Observer) (Guard, error) {
 	return g, nil
 }
 
-// Description is what a guard says about itself for the caller's boot line. Not
+// Description is what a guard says about itself, through OnStart, for the caller's boot line. Not
 // the config back: this is what was turned on, after the defaults were applied.
 type Description struct {
 	Watchdogs   []string
@@ -196,6 +199,7 @@ type guard struct {
 	banner      *shadowban.Banner
 	runners     []func(context.Context)
 	description Description
+	onStart     func(Description)
 }
 
 func (g *guard) Inspect(click Click) bool { return g.jury.Inspect(click) }
@@ -205,8 +209,6 @@ func (g *guard) Committed(click Click) { g.jury.Committed(click) }
 func (g *guard) LoadBans() { g.banner.LoadState() }
 
 func (g *guard) Flagged() int { return g.jury.Flagged() }
-
-func (g *guard) Describe() Description { return g.description }
 
 func (g *guard) Ban(scope string, duration time.Duration) Sentence {
 	return g.banner.Ban(scope, duration)
@@ -218,10 +220,16 @@ func (g *guard) Enforcing() bool { return g.banner.Enforcing() }
 
 func (g *guard) Banned(scope string) bool { return g.banner.Banned(scope) }
 
+func (g *guard) Enabled() bool { return true }
+
 func (g *guard) Name() string { return "antibot" }
 
 // Run fans out to every sweeper enabled and blocks until they all return.
 func (g *guard) Run(ctx context.Context) {
+	if g.onStart != nil {
+		g.onStart(g.description)
+	}
+
 	var wg sync.WaitGroup
 
 	for _, run := range g.runners {
@@ -234,3 +242,18 @@ func (g *guard) Run(ctx context.Context) {
 
 	wg.Wait()
 }
+
+// off is the guard for a block that is off: every click passes and nothing is ever banned.
+type off struct{}
+
+func (off) Inspect(Click) bool                 { return false }
+func (off) Committed(Click)                    {}
+func (off) LoadBans()                          {}
+func (off) Flagged() int                       { return 0 }
+func (off) Banned(string) bool                 { return false }
+func (off) Ban(string, time.Duration) Sentence { return Sentence{} }
+func (off) Sentence(string) (Sentence, bool)   { return Sentence{}, false }
+func (off) Enforcing() bool                    { return false }
+func (off) Enabled() bool                      { return false }
+func (off) Name() string                       { return "antibot" }
+func (off) Run(context.Context)                {}

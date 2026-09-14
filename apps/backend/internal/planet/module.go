@@ -14,8 +14,6 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
 
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 
@@ -158,88 +156,19 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			clickUseCase = prom_click.New(clickUseCase, props.Metrics)
 
-			// The shadow ban. Nothing about it reaches the edge: what is left of the
-			// clicks side is the metric names and the words of the ban line, both here.
-
-			metrics := promauto.With(props.Metrics)
-
-			// Even resolution to 2s: a bot on a ~1s timer hides in a bucket any wider, which is where 0.5/1/2 left it invisible.
-			reactions := metrics.NewHistogram(prometheus.HistogramOpts{
-				Name: "click_reaction_seconds",
-				Help: "Delay between a tile being taken and another caller taking it back",
-				Buckets: []float64{
-					0.05, 0.1, 0.2, 0.3, 0.4,
-					0.5, 0.6, 0.7, 0.8, 0.9,
-					1.0, 1.1, 1.25, 1.5, 1.75,
-					2.0, 2.5, 3.0, 4.0, 5.0,
-				},
-			})
-
-			// Counts flags, not callers, and once per watchdog that argued for each one:
-			// a caller flagged six times is six here and one on shadowban_flagged, and
-			// the gap between the two is the thing to look at.
-			flags := metrics.NewCounterVec(prometheus.CounterOpts{
-				Name: "shadowban_flags",
-				Help: "Times a caller has been flagged, counted once per watchdog that argued for it",
-			}, []string{"watchdog"})
-
-			guard, err := antibot.New(config.AntiBot, clock, antibot.Observer{
-				OnReaction: func(delay time.Duration) { reactions.Observe(delay.Seconds()) },
-
-				// The address goes in the log and never on a label: per-IP labels are
-				// unbounded cardinality, and they would put personal data in every scrape.
-				OnFlag: func(report antibot.Report) {
-					fields := make([]any, 0, 10+len(report.Opinions))
-					fields = append(fields,
-						slog.String("scope", report.Scope),
-						slog.Int("flags", report.Flags),
-						slog.Int("offence", report.Offence),
-						slog.Time("bannedUntil", report.BannedUntil),
-						slog.Int("clicks", report.Clicks),
-						slog.Duration("activeFor", report.ActiveFor),
-						slog.Duration("longestGap", report.LongestGap),
-						slog.String("topCountry", report.TopCountry),
-						slog.Int("topCountryClicks", report.TopCountryClicks),
-						slog.Any("tiles", report.Tiles),
-					)
-
-					// Every watchdog, not only the ones that argued for the ban: what did not
-					// fire is half of reading a line that did. How a reading words itself is
-					// antibot's; the attribute name and the message are ours.
-					for _, opinion := range report.Opinions {
-						fields = append(fields, slog.String(opinion.Watchdog, opinion.String()))
-
-						if opinion.Fired() {
-							flags.WithLabelValues(opinion.Watchdog).Inc()
-						}
-					}
-
-					props.Logger.Warn("antibot ban", fields...)
-				},
-
-				OnStateError: func(err error) {
-					props.Logger.Error("antibot bans not persisted", slog.Any("error", err))
-				},
-			})
+			// The shadow ban. The metric names and the words of the ban line are the
+			// observer's; the guard measures and judges.
+			guard, err := antibot.New(config.AntiBot, clock, antibot_click.NewObserver(props.Logger, props.Metrics))
 			if err != nil {
 				return fmt.Errorf("failed to build the antibot guard: %w", err)
 			}
 
-			// guard is nil when the antibot is off: the use case goes unwrapped,
-			// BanPlayer refuses, FindPlayers says nothing of bans and a bomb is never a dud.
-			if guard != nil {
-				guard.LoadBans()
-				props.Runners.Add(guard)
+			// With the antibot off the guard drops nothing: the click passes, BanPlayer
+			// refuses, FindPlayers says nothing of bans and a bomb is never a dud.
+			guard.LoadBans()
+			props.Runners.Add(guard)
 
-				described := guard.Describe()
-				props.Logger.Info("antibot enabled",
-					slog.Any("watchdogs", described.Watchdogs),
-					slog.Int("minSuspects", described.MinSuspects),
-					slog.Bool("enforce", described.Enforcing),
-				)
-
-				clickUseCase = antibot_click.New(clickUseCase, guard, tilesStorage, clock, props.Metrics)
-			}
+			clickUseCase = antibot_click.New(clickUseCase, guard, tilesStorage, clock, props.Metrics)
 
 			// Inside the throttle: presence is what a caller actually managed to do,
 			// not what they attempted.
@@ -256,18 +185,12 @@ func NewModule(config Config) cpbootstrap.Module {
 			}
 			pace := pacing.Pacing{Batch: adminBatch, Pause: 50 * time.Millisecond}
 
-			var bans find_players.Bans
-			var banner ban_player.Banner
-			if guard != nil {
-				bans, banner = guard, guard
-			}
-
 			adminService := planetv1controller.AdminService{
 				ReassignCountryHandler: reassign_country_handler.New(audit_reassign.New(
 					reassign_country.New(tilesStorage, countries, pace), props.Logger)),
 				FindPlayersHandler: find_players_handler.New(
-					find_players.New(takings, tilesStorage, borders, bans, countries)),
-				BanPlayerHandler: ban_player_handler.New(audit_ban.New(ban_player.New(banner), props.Logger)),
+					find_players.New(takings, tilesStorage, borders, guard, countries)),
+				BanPlayerHandler: ban_player_handler.New(audit_ban.New(ban_player.New(guard), props.Logger)),
 				RevertPlayerHandler: revert_player_handler.New(
 					audit_revert.New(revert_player.New(takings, tilesStorage, pace), props.Logger)),
 			}
@@ -338,10 +261,7 @@ func NewModule(config Config) cpbootstrap.Module {
 				drop_bomb.New(bombs, bonuses, geography, tilesStorage, countries, bombRules), props.Metrics)
 
 			// Outside the count, so it can tell the counter a drop was a dud.
-			var dropBomb drop_bomb_handler.UseCase = dropped
-			if guard != nil {
-				dropBomb = antibot_drop_bomb.New(dropped, guard)
-			}
+			dropBomb := antibot_drop_bomb.New(dropped, guard)
 
 			// ---- Click service ----
 
