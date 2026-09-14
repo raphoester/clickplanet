@@ -46,6 +46,9 @@ const (
 	// AdminServiceRevertPlayerProcedure is the fully-qualified name of the AdminService's RevertPlayer
 	// RPC.
 	AdminServiceRevertPlayerProcedure = "/planet.v1.AdminService/RevertPlayer"
+	// AdminServicePaintRandomTilesProcedure is the fully-qualified name of the AdminService's
+	// PaintRandomTiles RPC.
+	AdminServicePaintRandomTilesProcedure = "/planet.v1.AdminService/PaintRandomTiles"
 	// AdminServiceInspectPlayerProcedure is the fully-qualified name of the AdminService's
 	// InspectPlayer RPC.
 	AdminServiceInspectPlayerProcedure = "/planet.v1.AdminService/InspectPlayer"
@@ -68,6 +71,10 @@ type AdminServiceClient interface {
 	// Gives back every tile the scope took that nobody has taken since, to
 	// whoever held it before. dry_run counts and restores nothing.
 	RevertPlayer(context.Context, *connect.Request[v1.RevertPlayerRequest]) (*connect.Response[v1.RevertPlayerResponse], error)
+	// Paints count random tiles of one country's ground with a flag. proximity
+	// favours tiles that touch the ones already picked. dry_run picks and paints
+	// nothing.
+	PaintRandomTiles(context.Context, *connect.Request[v1.PaintRandomTilesRequest]) (*connect.Response[v1.PaintRandomTilesResponse], error)
 	// What the antibot holds on a scope: every watchdog's reading, what the jury
 	// would decide now, and any running ban. Reads only.
 	InspectPlayer(context.Context, *connect.Request[v1.InspectPlayerRequest]) (*connect.Response[v1.InspectPlayerResponse], error)
@@ -114,6 +121,12 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(adminServiceMethods.ByName("RevertPlayer")),
 			connect.WithClientOptions(opts...),
 		),
+		paintRandomTiles: connect.NewClient[v1.PaintRandomTilesRequest, v1.PaintRandomTilesResponse](
+			httpClient,
+			baseURL+AdminServicePaintRandomTilesProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("PaintRandomTiles")),
+			connect.WithClientOptions(opts...),
+		),
 		inspectPlayer: connect.NewClient[v1.InspectPlayerRequest, v1.InspectPlayerResponse](
 			httpClient,
 			baseURL+AdminServiceInspectPlayerProcedure,
@@ -125,12 +138,13 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 
 // adminServiceClient implements AdminServiceClient.
 type adminServiceClient struct {
-	reassignCountry *connect.Client[v1.ReassignCountryRequest, v1.ReassignCountryResponse]
-	findPlayers     *connect.Client[v1.FindPlayersRequest, v1.FindPlayersResponse]
-	topPlayers      *connect.Client[v1.TopPlayersRequest, v1.TopPlayersResponse]
-	banPlayer       *connect.Client[v1.BanPlayerRequest, v1.BanPlayerResponse]
-	revertPlayer    *connect.Client[v1.RevertPlayerRequest, v1.RevertPlayerResponse]
-	inspectPlayer   *connect.Client[v1.InspectPlayerRequest, v1.InspectPlayerResponse]
+	reassignCountry  *connect.Client[v1.ReassignCountryRequest, v1.ReassignCountryResponse]
+	findPlayers      *connect.Client[v1.FindPlayersRequest, v1.FindPlayersResponse]
+	topPlayers       *connect.Client[v1.TopPlayersRequest, v1.TopPlayersResponse]
+	banPlayer        *connect.Client[v1.BanPlayerRequest, v1.BanPlayerResponse]
+	revertPlayer     *connect.Client[v1.RevertPlayerRequest, v1.RevertPlayerResponse]
+	paintRandomTiles *connect.Client[v1.PaintRandomTilesRequest, v1.PaintRandomTilesResponse]
+	inspectPlayer    *connect.Client[v1.InspectPlayerRequest, v1.InspectPlayerResponse]
 }
 
 // ReassignCountry calls planet.v1.AdminService.ReassignCountry.
@@ -158,6 +172,11 @@ func (c *adminServiceClient) RevertPlayer(ctx context.Context, req *connect.Requ
 	return c.revertPlayer.CallUnary(ctx, req)
 }
 
+// PaintRandomTiles calls planet.v1.AdminService.PaintRandomTiles.
+func (c *adminServiceClient) PaintRandomTiles(ctx context.Context, req *connect.Request[v1.PaintRandomTilesRequest]) (*connect.Response[v1.PaintRandomTilesResponse], error) {
+	return c.paintRandomTiles.CallUnary(ctx, req)
+}
+
 // InspectPlayer calls planet.v1.AdminService.InspectPlayer.
 func (c *adminServiceClient) InspectPlayer(ctx context.Context, req *connect.Request[v1.InspectPlayerRequest]) (*connect.Response[v1.InspectPlayerResponse], error) {
 	return c.inspectPlayer.CallUnary(ctx, req)
@@ -180,6 +199,10 @@ type AdminServiceHandler interface {
 	// Gives back every tile the scope took that nobody has taken since, to
 	// whoever held it before. dry_run counts and restores nothing.
 	RevertPlayer(context.Context, *connect.Request[v1.RevertPlayerRequest]) (*connect.Response[v1.RevertPlayerResponse], error)
+	// Paints count random tiles of one country's ground with a flag. proximity
+	// favours tiles that touch the ones already picked. dry_run picks and paints
+	// nothing.
+	PaintRandomTiles(context.Context, *connect.Request[v1.PaintRandomTilesRequest]) (*connect.Response[v1.PaintRandomTilesResponse], error)
 	// What the antibot holds on a scope: every watchdog's reading, what the jury
 	// would decide now, and any running ban. Reads only.
 	InspectPlayer(context.Context, *connect.Request[v1.InspectPlayerRequest]) (*connect.Response[v1.InspectPlayerResponse], error)
@@ -222,6 +245,12 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(adminServiceMethods.ByName("RevertPlayer")),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminServicePaintRandomTilesHandler := connect.NewUnaryHandler(
+		AdminServicePaintRandomTilesProcedure,
+		svc.PaintRandomTiles,
+		connect.WithSchema(adminServiceMethods.ByName("PaintRandomTiles")),
+		connect.WithHandlerOptions(opts...),
+	)
 	adminServiceInspectPlayerHandler := connect.NewUnaryHandler(
 		AdminServiceInspectPlayerProcedure,
 		svc.InspectPlayer,
@@ -240,6 +269,8 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 			adminServiceBanPlayerHandler.ServeHTTP(w, r)
 		case AdminServiceRevertPlayerProcedure:
 			adminServiceRevertPlayerHandler.ServeHTTP(w, r)
+		case AdminServicePaintRandomTilesProcedure:
+			adminServicePaintRandomTilesHandler.ServeHTTP(w, r)
 		case AdminServiceInspectPlayerProcedure:
 			adminServiceInspectPlayerHandler.ServeHTTP(w, r)
 		default:
@@ -269,6 +300,10 @@ func (UnimplementedAdminServiceHandler) BanPlayer(context.Context, *connect.Requ
 
 func (UnimplementedAdminServiceHandler) RevertPlayer(context.Context, *connect.Request[v1.RevertPlayerRequest]) (*connect.Response[v1.RevertPlayerResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.RevertPlayer is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) PaintRandomTiles(context.Context, *connect.Request[v1.PaintRandomTilesRequest]) (*connect.Response[v1.PaintRandomTilesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.PaintRandomTiles is not implemented"))
 }
 
 func (UnimplementedAdminServiceHandler) InspectPlayer(context.Context, *connect.Request[v1.InspectPlayerRequest]) (*connect.Response[v1.InspectPlayerResponse], error) {

@@ -207,6 +207,7 @@ because it serves every concept over one Connect service. It only maps.
 | `clicks/usecases/get_budget_usecase` | a caller's allowance, unspent | `ClickBudgetReader` |
 | `clicks/usecases/listen_for_events_usecase` | one client's live feed, heartbeat included | `UpdatesSubscriber` |
 | `clicks/usecases/reassign_country_usecase` | gives one country's tiles to another | `Map`, `CountryChecker` |
+| `clicks/usecases/paint_random_tiles_usecase` | paints random tiles of one country's ground with a flag | `Borders`, `Neighbours`, `Map`, `CountryChecker` |
 | `ledger/usecases/find_players_usecase` | who is painting a flag, and where | `Ledger`, `Owners`, `Borders`, `Bans` |
 | `ledger/usecases/top_players_usecase` | who holds the most tiles, every flag | `Ledger`, `Owners`, `Bans` |
 | `ledger/usecases/ban_player_usecase` | the operator's shadow ban | `Banner` |
@@ -362,8 +363,8 @@ The bucket key is whatever `IPReaderMiddleware` put on the context: `X-Real-IP` 
 A click costs more tokens the more of the map its country holds. `toll.steps` is
 a table of `{share, cost}`: from `share` of **every tile on the map**, a click for
 that country costs `cost` tokens. No steps prices every click at one.
-A cost may be a fraction of a token (production runs x1.25 from 25%, x1.5 from
-50%, x2 from 70%), which is why `ClickBudget.cost` is a double. It moved to new
+A cost may be a fraction of a token (production runs x1.5 from 25%, x2 from
+50%, x3 from 70%), which is why `ClickBudget.cost` is a double. It moved to new
 field numbers rather than changing type in place: a client built against the old
 `uint32` reads a cost of zero and simply says nothing about price.
 
@@ -1037,6 +1038,15 @@ The snapshot file is the only thing worth backing up.
 - **`audit_reassign` logs every call at Warn**, dry runs and failures included: it is the only record that those tiles did not change hands through play. It is a decorator for the reason `prom_click` is — handlers here do not log.
 
 Measured on a copy of production's snapshot: 22,040 tiles in 4.4s, all 22,040 updates delivered to an open stream, none dropped, and the snapshot written byte-identical to the same change made offline.
+
+#### `PaintRandomTiles`
+
+`PaintRandomTiles(flag, area, count, proximity, dry_run)` runs `clicks/usecases/paint_random_tiles_usecase`, wrapped in `audit_paint_random`: it paints `count` tiles of `area`'s ground (from `clicks.Borders`) with `flag`.
+
+- **The candidates are every tile of the area not wearing the flag.** `count` above that paints them all; `picked` says how many.
+- **`clicks.Pick` is the rule.** Before each draw, with probability `proximity`, it takes a candidate touching a tile already picked (`Geography.Neighbours`); otherwise, or when none touches, any candidate. 0 is uniform; 1 grows one patch and jumps only when the patch is walled in. Between the two you get a few patches.
+- **The paint is `Restore`**, the revert's compare-and-set, against the owner read at the pick. A tile somebody takes in between stays theirs, so `painted` can be below `picked`. Paced like the reassign, each tile an ordinary `TileUpdate`. It does not write the ledger, like the reassign.
+- The draw is `clicks.SystemRandom`, math/rand/v2's global source; tests pass a seeded `*rand.Rand`.
 
 #### Manual bans: `FindPlayers`, `TopPlayers`, `BanPlayer`, `RevertPlayer`, `InspectPlayer`
 

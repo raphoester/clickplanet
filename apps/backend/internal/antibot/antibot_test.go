@@ -17,7 +17,7 @@ import (
 // published constructor, with the bounds cmd/api ships — and driven by callers
 // that behave the way the real ones do.
 type stack struct {
-	guard antibot.Guard
+	guard *antibot.Guard
 	clock *cptime.FixedClock
 
 	owner   map[uint32]string

@@ -741,6 +741,21 @@ atomically, so a copy is always whole):
 docker compose exec backend cp /home/app/state/tiles.snapshot /home/app/state/tiles.before-reassign
 ```
 
+### Paint random tiles of a country with a flag
+
+Paints `count` tiles on `areaCountryId`'s ground with `flagCountryId`. Dry run
+first; it says how many tiles are eligible (in the area, not wearing the flag):
+
+```bash
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"flagCountryId":"dz","areaCountryId":"fr","count":500,"proximity":0.8,"dryRun":true}' http://127.0.0.1:8081/planet.v1.AdminService/PaintRandomTiles
+```
+
+- `proximity` goes from 0 to 1. 0 scatters the tiles over the whole country;
+  1 grows one patch. Between the two you get a few patches.
+- A tile somebody takes while it runs stays theirs: `painted` can be below `picked`.
+- It is not undone by anything. Copy the snapshot first, as for a reassign.
+- Every call is logged: `journalctl CONTAINER_NAME=cp-backend | grep "admin random paint"`.
+
 ### Find, ban and revert one player
 
 For a pattern you see on the map and no watchdog catches. A player is a
