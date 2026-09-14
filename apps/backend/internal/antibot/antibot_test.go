@@ -68,6 +68,20 @@ func newStack() *stack {
 	config.Catcher.Detector.CertainMedian = 1500 * time.Millisecond
 	config.Catcher.Detector.TrackWindow = 30 * time.Minute
 
+	config.Cohort.Enabled = true
+	config.Cohort.Detector.StartWindow = 5 * time.Second
+	config.Cohort.Detector.MinClicks = 20
+	config.Cohort.Detector.MinFlagShare = 0.9
+	config.Cohort.Detector.RateRatio = 1.5
+	config.Cohort.Detector.LengthRatio = 1.2
+	config.Cohort.Detector.QuietAfter = time.Minute
+	config.Cohort.Detector.MinMembers = 2
+	config.Cohort.Detector.V4Bits = 24
+	config.Cohort.Detector.V6Bits = 44
+	config.Cohort.Detector.CertainCohorts = 3
+	config.Cohort.Detector.CertainMembers = 6
+	config.Cohort.Detector.ChainWindow = 30 * time.Minute
+
 	guard, err := antibot.New(config, s.clock, antibot.Observer{
 		OnFlag: func(report antibot.Report) { s.reports = append(s.reports, report) },
 	})
@@ -356,6 +370,107 @@ func TestAPlayerWhoMissesABoxIsNotBanned(t *testing.T) {
 	assert.Empty(t, s.reports, "fast, but one box in four got away")
 }
 
+// rotation is a pool of identities clicking at once, each on its own scope, from
+// its own first click for as long as it stays. Clicks go out in time order, the
+// way the server sees them.
+type rotation struct {
+	scope string
+	first time.Time
+	stays time.Duration
+}
+
+// paint replays the identities at ~30 tiles a minute for flag, on random tiles,
+// and returns when each scope was first dropped.
+func (s *stack) paint(seed uint64, flag string, identities ...rotation) map[string]time.Time {
+	//nolint:gosec // G404: deterministic PRNG, seeded per test so the click
+	// stream replays exactly. Not security-relevant.
+	random := rand.New(rand.NewPCG(seed, seed+1))
+
+	next := make([]time.Time, len(identities))
+	for i, id := range identities {
+		next[i] = id.first
+	}
+
+	dropped := map[string]time.Time{}
+
+	for {
+		who := -1
+		for i, id := range identities {
+			if next[i].After(id.first.Add(id.stays)) {
+				continue
+			}
+			if who < 0 || next[i].Before(next[who]) {
+				who = i
+			}
+		}
+		if who < 0 {
+			return dropped
+		}
+
+		s.clock.Advance(next[who].Sub(s.clock.Now()))
+		scope := identities[who].scope
+		if s.click(scope, 100000+uint32(random.IntN(60000)), flag) {
+			if _, seen := dropped[scope]; !seen {
+				dropped[scope] = s.clock.Now()
+			}
+		}
+
+		next[who] = next[who].Add(time.Duration(1600+random.IntN(800)) * time.Millisecond)
+	}
+}
+
+// The pool of 2026-09-14: pairs of /64s out of Firefox's built-in VPN, started
+// in the same second, painting bg for ~8 minutes and followed at once by the
+// next pair. No identity lives long enough for a watchdog judging one scope, and
+// none of them said a word all day.
+func TestTheRotatingPoolIsCaught(t *testing.T) {
+	s := newStack()
+
+	start := s.clock.Now()
+	stays := 476 * time.Second
+	pool := []rotation{
+		{"2a00:8c40:f0c2:11a0::/64", start, stays},
+		{"2a00:8c40:f0c8:5e31::/64", start.Add(1913 * time.Millisecond), stays},
+		{"2a00:8c40:f0cd:0b7c::/64", start.Add(3827 * time.Millisecond), stays},
+		{"2a00:8c40:f0c7:a1a5::/64", start.Add(192 * time.Second), stays},
+		{"2a00:8c40:f0ce:fda7::/64", start.Add(192*time.Second + 640*time.Millisecond), stays},
+		{"2a00:8c40:f0c5:6713::/64", start.Add(674 * time.Second), stays},
+		{"2a00:8c40:f0c1:9190::/64", start.Add(674*time.Second + 5*time.Millisecond), stays},
+	}
+
+	dropped := s.paint(11, "bg", pool...)
+
+	for _, id := range pool[:5] {
+		assert.NotContains(t, dropped, id.scope, "one group, then two: nothing yet that two friends could not do")
+	}
+
+	for _, id := range pool[5:] {
+		require.Contains(t, dropped, id.scope)
+		assert.Less(t, dropped[id.scope].Sub(id.first), time.Minute, "the third group is dropped a minute into its eight")
+
+		verdicts := s.verdicts(id.scope)
+		assert.Equal(t, detect.Certain, verdicts["cohort"])
+		for _, watchdog := range []string{"retaker", "sequencer", "metronome", "catcher"} {
+			assert.Equal(t, detect.Clear, verdicts[watchdog], "%s: every other watchdog judges one scope, and saw nothing", watchdog)
+		}
+	}
+}
+
+// Two friends from the same ISP join a bg war in the same second and paint side
+// by side for twenty minutes. That is one group, and one group bans nobody.
+func TestTwoFriendsJoiningAFlagWarAreNotBanned(t *testing.T) {
+	s := newStack()
+
+	start := s.clock.Now()
+	dropped := s.paint(12, "bg",
+		rotation{"2a00:8c40:f0c5:6713::/64", start, 20 * time.Minute},
+		rotation{"2a00:8c40:f0c1:9190::/64", start.Add(400 * time.Millisecond), 20 * time.Minute},
+	)
+
+	assert.Empty(t, dropped)
+	assert.Empty(t, s.reports)
+}
+
 func TestWithTheBlockOffTheGuardPassesEveryClick(t *testing.T) {
 	guard, err := antibot.New(antibot.Config{}, nil, antibot.Observer{})
 	require.NoError(t, err)
@@ -363,4 +478,18 @@ func TestWithTheBlockOffTheGuardPassesEveryClick(t *testing.T) {
 	assert.False(t, guard.Enabled())
 	assert.False(t, guard.Inspect(antibot.Click{Scope: "1.2.3.4", Tile: 1, Country: "fr"}))
 	assert.False(t, guard.Banned("1.2.3.4"))
+}
+
+func TestValidateNamesTheCohortBoundItRefuses(t *testing.T) {
+	config := antibot.Config{Enabled: true}
+	config.Cohort.Enabled = true
+	config.Cohort.Detector.MinMembers = 1
+
+	err := config.Validate()
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "antiBot.cohort.detector: minMembers")
+
+	config.Cohort.Enabled = false
+	assert.NoError(t, config.Validate(), "a watchdog that is off has no bounds to get wrong")
 }

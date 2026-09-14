@@ -33,6 +33,13 @@ func NewObserver(logger *slog.Logger, registerer prometheus.Registerer) antibot.
 		Buckets: []float64{0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99, 1.0},
 	})
 
+	// Set once a sweep. A pool that rotates addresses shows here as a floor that
+	// never drops to zero, long before its cohorts chain into a ban.
+	cohortScopes := factory.NewGauge(prometheus.GaugeOpts{
+		Name: "click_cohort_scopes",
+		Help: "Callers clicking in step with another caller: same flag, same start, same pace",
+	})
+
 	// Counts flags, not callers, and once per watchdog that argued for each one:
 	// a caller flagged six times is six here and one on shadowban_flagged, and
 	// the gap between the two is the thing to look at.
@@ -45,6 +52,8 @@ func NewObserver(logger *slog.Logger, registerer prometheus.Registerer) antibot.
 		OnReaction: func(delay time.Duration) { reactions.Observe(delay.Seconds()) },
 
 		OnRetakeShare: retakeShares.Observe,
+
+		OnCohortScopes: func(scopes int) { cohortScopes.Set(float64(scopes)) },
 
 		// The address goes in the log and never on a label: per-IP labels are
 		// unbounded cardinality, and they would put personal data in every scrape.
