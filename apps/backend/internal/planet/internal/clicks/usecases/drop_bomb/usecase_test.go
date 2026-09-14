@@ -125,3 +125,15 @@ func TestAMalformedDropDoesNotCostTheBomb(t *testing.T) {
 
 	assert.True(t, p.bombs.held)
 }
+
+func TestADudIsSpentAndClearsAndAnnouncesNothing(t *testing.T) {
+	useCase, p := setup(true, 0.001)
+
+	blast, err := useCase.Execute(t.Context(), drop_bomb.In{Target: clicks.Vec3{X: 2}, CountryID: "fr", Dud: true})
+	require.NoError(t, err)
+
+	assert.Empty(t, blast.Cleared)
+	assert.Empty(t, p.clearer.cleared, "nobody sees a banned caller's bomb")
+	assert.False(t, p.bombs.held, "the bomb is gone, as it would be for anyone")
+	assert.Len(t, p.schedule.dropped, 1, "the next box comes on the usual schedule")
+}

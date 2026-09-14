@@ -17,7 +17,7 @@ type UseCase interface {
 func New(implementation UseCase, registerer prometheus.Registerer) (*Decorator, error) {
 	drops := prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "bonus_bombs_dropped_total",
-		Help: "Bomb drops, by outcome: land, sea or refused",
+		Help: "Bomb drops, by outcome: land, sea, refused or shadowbanned",
 	}, []string{"outcome"})
 
 	cleared := prometheus.NewCounter(prometheus.CounterOpts{
@@ -46,6 +46,8 @@ func (d *Decorator) Execute(ctx context.Context, in drop_bomb.In) (clicks.Blast,
 	switch {
 	case err != nil:
 		d.drops.WithLabelValues("refused").Inc()
+	case in.Dud:
+		d.drops.WithLabelValues("shadowbanned").Inc()
 	case blast.Tile == 0:
 		d.drops.WithLabelValues("sea").Inc()
 	default:
