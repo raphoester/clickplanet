@@ -91,3 +91,12 @@ func (g *Geography) Position(id uint32) (Vec3, bool) {
 		Z: float64(g.positions[i+2]),
 	}, true
 }
+
+// Unit is v scaled onto the unit sphere; a vector with no direction stays as it is.
+func (v Vec3) Unit() Vec3 {
+	if unit, ok := normalize(v); ok {
+		return unit
+	}
+
+	return v
+}

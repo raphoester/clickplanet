@@ -96,7 +96,7 @@ func setup(shapes int, err error) fixture {
 	}
 
 	f.useCase = enclose_click.New(rule{tiles: f.tiles, err: err}, f.enclosures,
-		enclose_click.NewTerrain(f.grid, f.tiles), enclose_click.NewAnnexer(f.tiles, f.published))
+		bonuses.NewTerrain(f.grid, f.tiles), enclose_click.NewAnnexer(f.tiles, f.published))
 
 	return f
 }

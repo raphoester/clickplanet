@@ -14,14 +14,14 @@ type Enclosures interface {
 	Running(scope string) (*bonuses.Enclosure, bool)
 }
 
-func New(implementation click_usecase.IUseCase, enclosures Enclosures, terrain Terrain, annexer Annexer) *UseCase {
+func New(implementation click_usecase.IUseCase, enclosures Enclosures, terrain bonuses.Terrain, annexer Annexer) *UseCase {
 	return &UseCase{implementation: implementation, enclosures: enclosures, terrain: terrain, annexer: annexer}
 }
 
 type UseCase struct {
 	implementation click_usecase.IUseCase
 	enclosures     Enclosures
-	terrain        Terrain
+	terrain        bonuses.Terrain
 	annexer        Annexer
 }
 

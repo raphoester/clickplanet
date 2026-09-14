@@ -171,6 +171,8 @@ internal/planet/internal/
   the `Storage` port, `Recording` (the tile writer that records) and `Retention`. `FindPlayers`, `BanPlayer` and
   `RevertPlayer` live here: they are one moderation workflow — find, ban, undo.
 - **`bonuses/`** — the boxes, their schedule, and the running bonuses they grant.
+  Its root also holds the rules a bonus plays by: `Terrain` and `Pocket` (what an
+  enclose closes) and `BombRules` (where a bomb lands and what it clears).
 
 **A concept's root is its domain.** The use cases under `usecases/` load, call
 the root, and persist; a rule that could be unit-tested without a port belongs
@@ -583,7 +585,7 @@ screen draws a splash. That was a product decision: a bad aim costs the bomb.
 
 On land the tiles are `Geography.Within(centre, radius)`: every tile within
 `radius` of arc of the tile hit — a true circle, ~230 tiles inland, found by a
-straight scan (~0.5ms, once per bomb). The radius is `bombRings × Geography.Spacing()`,
+straight scan (~0.5ms, once per bomb). The radius is `bombRings × Geography.Spacing()` (`bonuses.NewBombRules`, and `BombRules.Blast` decides land or sea),
 the mean arc between touching tiles measured at boot (0.0040 rad on the
 257,948-tile map, so 0.032), rather than a number in the config that could drift
 from the map; the same radius goes to clients, so the ring they draw is the clear.
@@ -646,7 +648,7 @@ tells closed from open — there is no second rule.
   settles two clicks racing for the last one. A click that closes two shapes with
   one left takes the first. A bonus with no shape left is over before its time.
 
-**The use case only wires three objects together.** `Terrain` is the map as
+**The use case only wires three objects together.** `bonuses.Terrain` is the map as
 the search sees it — who holds a tile, what touches it — and finds the pockets a
 click closed. `bonuses.Enclosure` is one caller's running bonus: its size limit and
 its shapes left. `Annexer` spends a shape per pocket, takes the tiles and
