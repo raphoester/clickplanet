@@ -125,14 +125,43 @@ setup-tools: ## Install the pinned linter into $(go env GOPATH)/bin
 # rebuilds them daily from ASN ownership. They are checked in and embedded
 # rather than fetched at boot, so refreshing them is a commit: run this, run the
 # tests (they assert the lists still parse and are not truncated), and commit.
+#
+# X4BNet works from ASN ownership, so it misses VPN servers rented inside other
+# networks. Three more sources fill that in, all folded into the vpn list:
+#   - Joe12387/open-source-vpn-ip-lists (CC0): each provider's own server list
+#   - the Tor Project's exit list
+#   - every range registered under a netname in VPN_NETNAMES, from the RIPE and
+#     ARIN RDAP servers. Firefox's built-in VPN is announced by Fastly, so no
+#     ASN list catches it; its registration name does.
+# Needs jq. Bare addresses become /32 and /128, since the parser takes prefixes.
 VPN_LISTS_URL := https://raw.githubusercontent.com/X4BNet/lists_vpn/main/output
 VPN_LISTS_DIR := internal/shared/cpipblock/cpdata
+VPN_PROVIDERS_API := https://api.github.com/repos/Joe12387/open-source-vpn-ip-lists/contents/
+TOR_EXITS_URL := https://check.torproject.org/torbulkexitlist
+VPN_NETNAMES := MOZILLA-FIREFOX-VPN
+VPN_RDAP_SERVERS := https://rdap.db.ripe.net https://rdap.arin.net/registry
+TO_PREFIX := awk '/^[0-9a-fA-F:.]+$$/ { print $$1 (index($$1, ":") ? "/128" : "/32") }'
 
 vpn-lists:
+	@command -v jq >/dev/null || { echo "vpn-lists needs jq" >&2; exit 1; }
 	@curl -sSf $(VPN_LISTS_URL)/vpn/ipv4.txt        -o $(VPN_LISTS_DIR)/vpn_ipv4.txt
 	@curl -sSf $(VPN_LISTS_URL)/vpn/ipv6.txt        -o $(VPN_LISTS_DIR)/vpn_ipv6.txt
 	@curl -sSf $(VPN_LISTS_URL)/datacenter/ipv4.txt -o $(VPN_LISTS_DIR)/datacenter_ipv4.txt
 	@curl -sSf $(VPN_LISTS_URL)/datacenter/ipv6.txt -o $(VPN_LISTS_DIR)/datacenter_ipv6.txt
+	@set -e; tmp=$$(mktemp -d); trap 'rm -rf "$$tmp"' EXIT; \
+		curl -sSf $(VPN_PROVIDERS_API) -o "$$tmp/index.json"; \
+		for u in $$(jq -r '.[] | select(.name | endswith(".txt")) | .download_url' "$$tmp/index.json"); do \
+			curl -sSf "$$u" >> "$$tmp/providers"; \
+		done; \
+		$(TO_PREFIX) "$$tmp/providers" > $(VPN_LISTS_DIR)/vpn_providers.txt; \
+		curl -sSf $(TOR_EXITS_URL) -o "$$tmp/tor"; \
+		$(TO_PREFIX) "$$tmp/tor" > $(VPN_LISTS_DIR)/tor_exits.txt; \
+		: > "$$tmp/netnames"; \
+		for name in $(VPN_NETNAMES); do for server in $(VPN_RDAP_SERVERS); do \
+			curl -sSf "$$server/ips?name=$$name" -o "$$tmp/rdap.json"; \
+			jq -r '.ipSearchResults[]?.cidr0_cidrs[]? | "\(.v4prefix // .v6prefix)/\(.length)"' "$$tmp/rdap.json" >> "$$tmp/netnames"; \
+		done; done; \
+		mv "$$tmp/netnames" $(VPN_LISTS_DIR)/vpn_netnames.txt
 	@wc -l $(VPN_LISTS_DIR)/*.txt
 
 # Reads the metrics endpoint on the droplet. It is not routed through Caddy (see
