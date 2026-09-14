@@ -1,4 +1,4 @@
-// Package find_players_usecase answers "who is painting this flag over there": the callers whose paint still holds, latest first.
+// Package find_players_usecase answers "who is painting this flag over there": every caller who took such a tile, latest first.
 package find_players_usecase
 
 import (
@@ -11,7 +11,7 @@ import (
 )
 
 type Ledger interface {
-	PaintedWith(country string) []ledger.Taking
+	Replay(see func(ledger.Taking)) ledger.Position
 }
 
 type Owners interface {
@@ -64,17 +64,12 @@ func (u *UseCase) Execute(_ context.Context, in In) (Out, error) {
 		return Out{}, fmt.Errorf("%w: area %q", clicks.ErrUnknownCountry, in.Area)
 	}
 
-	var worn []ledger.Taking
-	for _, taking := range u.ledger.PaintedWith(in.Flag) {
-		if in.Area != "" && u.borders.CountryOf(taking.Tile) != in.Area {
-			continue
-		}
-		if owner, _ := u.owners.Owner(taking.Tile); taking.WornBy(owner) {
-			worn = append(worn, taking)
-		}
-	}
+	tally := ledger.NewTally(func(taking ledger.Taking) bool {
+		return taking.Country == in.Flag && (in.Area == "" || u.borders.CountryOf(taking.Tile) == in.Area)
+	})
+	u.ledger.Replay(tally.See)
 
-	players := ledger.Players(worn)
+	players := tally.Players(u.owners)
 	out := Out{Total: len(players), Players: ledger.Top(players, in.Limit)}
 
 	if u.bans == nil {

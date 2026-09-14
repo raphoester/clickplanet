@@ -24,7 +24,7 @@ tilesStorage:
   # cannot keep up are dropped rather than blocking clicks.
   subscriberBuffer: 1024
 
-# Who last took each tile, for the operator tools (FindPlayers, RevertPlayer).
+# Every take of every tile, for the operator tools (FindPlayers, TopPlayers, RevertPlayer).
 ledger:
   # How long a take can still be traced or reverted.
   retention: 72h
@@ -34,8 +34,11 @@ ledgerStorage:
   # Where the ledger is saved, so a restart keeps it. Empty keeps it in memory
   # only, where a restart empties it.
   statePath: ./data/ledger.bin
-  # How often a changed ledger is written. It is also written on shutdown.
+  # How often new takes are appended to the file. It is also written on shutdown.
   saveInterval: 1m
+  # The most takes kept, 16 bytes each plus strings (~85 MiB). Past it the oldest go before
+  # the retention, and the log says so once.
+  maxTakes: 4000000
 
 # Per-IP throttle on the Click RPC. Reads and the websocket are untouched.
 # The defaults below are also what applies when this block is absent.

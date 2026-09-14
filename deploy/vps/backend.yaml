@@ -18,15 +18,20 @@ tilesStorage:
   # final snapshot on SIGTERM.
   snapshotInterval: 30s
 
-# Who last took each tile, for the operator tools. Kept three days, so a ban
+# Every take of every tile, for the operator tools. Kept three days, so a ban
 # can be decided on more than the last few hours.
 ledger:
   retention: 72h
 
 # Saved on the tile_state volume beside the snapshot, so a deploy keeps it.
+# 4M takes is ~85 MiB in memory and a ~75 MiB file, which grows to at most
+# twice that before it is written again whole: three days at ~15 takes a
+# second. A busier stretch drops the oldest takes first and logs "the ledger is
+# full".
 ledgerStorage:
   statePath: /home/app/state/ledger.bin
   saveInterval: 1m
+  maxTakes: 4000000
 
 # Per-caller throttle on the Click RPC. Keyed on the address Caddy puts in
 # X-Real-IP, which is Cloudflare's Cf-Connecting-Ip — the real visitor — over

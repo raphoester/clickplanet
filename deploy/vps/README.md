@@ -787,25 +787,35 @@ docker compose exec backend wget -qO- --header 'Content-Type: application/json' 
 For a pattern you see on the map and no watchdog catches. A player is a
 **scope**: the address over IPv4, the /64 over IPv6.
 
-Who is painting the `ps` flag on Israel's ground, latest first (`limit` is 20
-when left out; leave out `areaCountryId` for the whole map):
+Who painted the `ps` flag on Israel's ground, held or painted over since,
+latest take first (`limit` is 20 when left out; leave out `areaCountryId` for
+the whole map):
 
 ```bash
 docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"flagCountryId":"ps","areaCountryId":"il"}' http://127.0.0.1:8081/planet.v1.AdminService/FindPlayers
 ```
 
-Who holds the most tiles, over every flag and the whole map, most first
-(`limit` is 20 when left out):
+Who took the most tiles, over every flag and the whole map: most takes first,
+then most tiles held (`limit` is 20 when left out):
 
 ```bash
 docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{}' http://127.0.0.1:8081/planet.v1.AdminService/TopPlayers
 ```
 
-Each player has `scope`, `tiles` (how many of those tiles still wear its
-paint), `firstAt`, `lastAt`, `activeFor` (`lastAt` minus `firstAt`),
-`tilesPerMinute` (`tiles` over `activeFor`, 0 for a single take), and
-`banned`/`bannedUntil`/`offence` when a ban is running. It only knows takes
-since the last restart, and for 24h (`ledger.retention`).
+Each player has:
+
+- `scope`, `firstAt`, `lastAt`, `activeFor` (`lastAt` minus `firstAt`)
+- `tiles`: tiles it still holds — its take is the tile's latest and the paint is
+  still there
+- `takes`: every take it made, held or painted over since; a tile taken twice
+  counts twice
+- `tilesPerMinute` and `takesPerMinute`: each over `activeFor`, 0 for a single take
+- `banned`/`bannedUntil`/`offence` when a ban is running
+
+**High `takes` and `tiles` near zero is a bot being painted over as fast as it
+paints.** The ledger keeps takes for 72h (`ledger.retention`) and survives a
+restart. It keeps at most 4M takes (`ledgerStorage.maxTakes`); a busier stretch
+drops the oldest first and logs `the ledger is full`.
 
 Ban first, or the player repaints behind the revert. Leave out `duration` to
 take the ladder's step (24h, 7 days, 3 years); it counts as an offence either
@@ -825,9 +835,12 @@ Then revert, dry run first:
 docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"scope":"203.0.113.7","dryRun":true}' http://127.0.0.1:8081/planet.v1.AdminService/RevertPlayer
 ```
 
-- `touched` is every tile the player was last to take; `held` is those still
-  wearing its paint. Only `held` tiles change: each goes back to whoever held it
-  before the player, or to nobody. A tile somebody took since stays theirs.
+- `touched` is every tile the player took; `held` is those it still holds. Only
+  `held` tiles change. A tile somebody took since stays theirs.
+- Each goes back to what it held before the player's current run on it, or to
+  nobody. When another player retook the tile in between, it goes back to that
+  player's paint, not further: player il→ps, other ps→de, player de→ps gives
+  `de`.
 - Paced like the reassign, each tile an ordinary update on the live stream.
 - A second run answers zeros: a reverted player has nothing left to revert.
 - Every ban and revert is logged: `journalctl CONTAINER_NAME=cp-backend | grep "admin ban\|admin player revert"`.

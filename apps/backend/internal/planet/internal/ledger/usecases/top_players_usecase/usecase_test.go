@@ -35,7 +35,7 @@ func setup(t *testing.T) (*inmemory_ledger_storage.Storage, owners) {
 	current := owners{}
 
 	take := func(tile uint32, scope, country string) {
-		book.Put(ledger.Taking{Tile: tile, Scope: scope, Country: country, Previous: current[tile], At: clock.Now()})
+		book.Append(ledger.Taking{Tile: tile, Scope: scope, Country: country, Previous: current[tile], At: clock.Now()})
 		current[tile] = country
 		clock.Advance(time.Second)
 	}
@@ -55,21 +55,22 @@ func setup(t *testing.T) (*inmemory_ledger_storage.Storage, owners) {
 	return book, current
 }
 
-func TestItRanksByTilesStillWornOverEveryFlag(t *testing.T) {
+func TestItRanksByTakesThenTilesHeldOverEveryFlag(t *testing.T) {
 	book, current := setup(t)
 	useCase := top_players_usecase.New(book, current, bans{"painter": {Offence: 1, Until: start.Add(time.Hour)}})
 
 	out, err := useCase.Execute(t.Context(), top_players_usecase.In{})
 	require.NoError(t, err)
 
-	assert.Equal(t, top_players_usecase.Out{Total: 3, Players: []ledger.Player{
+	assert.Equal(t, top_players_usecase.Out{Total: 4, Players: []ledger.Player{
 		{
-			Scope: "painter", Tiles: 3, FirstAt: start, LastAt: start.Add(2 * time.Second),
+			Scope: "painter", Tiles: 3, Takes: 3, FirstAt: start, LastAt: start.Add(2 * time.Second),
 			Banned: true, BannedUntil: start.Add(time.Hour), Offence: 1,
 		},
-		{Scope: "late", Tiles: 2, FirstAt: start.Add(3 * time.Second), LastAt: start.Add(6 * time.Second)},
-		{Scope: "covered", Tiles: 1, FirstAt: start.Add(5 * time.Second), LastAt: start.Add(5 * time.Second)},
-	}}, out, "a tile taken over and a tile bombed count for nobody")
+		{Scope: "late", Tiles: 2, Takes: 2, FirstAt: start.Add(3 * time.Second), LastAt: start.Add(6 * time.Second)},
+		{Scope: "covered", Tiles: 1, Takes: 2, FirstAt: start.Add(4 * time.Second), LastAt: start.Add(5 * time.Second)},
+		{Scope: "bombed", Takes: 2, FirstAt: start.Add(7 * time.Second), LastAt: start.Add(8 * time.Second)},
+	}}, out, "a tile taken over and a tile bombed count as takes, not as tiles")
 }
 
 func TestTheLimitCutsAfterTheRanking(t *testing.T) {
@@ -79,7 +80,7 @@ func TestTheLimitCutsAfterTheRanking(t *testing.T) {
 	out, err := useCase.Execute(t.Context(), top_players_usecase.In{Limit: 1})
 	require.NoError(t, err)
 
-	assert.Equal(t, 3, out.Total)
+	assert.Equal(t, 4, out.Total)
 	require.Len(t, out.Players, 1)
 	assert.Equal(t, "painter", out.Players[0].Scope)
 	assert.False(t, out.Players[0].Banned, "with the antibot off nobody is serving")

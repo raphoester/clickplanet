@@ -1,4 +1,4 @@
-// Package revert_player_usecase gives back every tile one caller took and nobody has taken since.
+// Package revert_player_usecase gives back every tile one caller still holds, to what it held before the caller's run on it.
 package revert_player_usecase
 
 import (
@@ -12,8 +12,8 @@ import (
 )
 
 type Ledger interface {
-	TakenBy(scope string) []ledger.Taking
-	Forget(takings []ledger.Taking)
+	Replay(see func(ledger.Taking)) ledger.Position
+	Forget(scope string, before ledger.Position)
 }
 
 type Map interface {
@@ -28,7 +28,7 @@ type In struct {
 
 type Out struct {
 	Scope string
-	// Touched is every tile the ledger says this scope took last; Held is those still wearing its paint.
+	// Touched is every tile this scope took inside the retention; Held is those it still holds.
 	Touched  int
 	Held     int
 	Restored int
@@ -53,16 +53,11 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 		return Out{}, errors.New("revert batch must be positive")
 	}
 
-	takings := u.ledger.TakenBy(scope)
-	out := Out{Scope: scope, Touched: len(takings)}
+	runs := ledger.NewRuns(scope)
+	end := u.ledger.Replay(runs.See)
 
-	restorations := make([]clicks.Restoration, 0, len(takings))
-	for _, taking := range takings {
-		if owner, _ := u.tiles.Owner(taking.Tile); taking.WornBy(owner) {
-			restorations = append(restorations, taking.Restoration())
-		}
-	}
-	out.Held = len(restorations)
+	restorations := runs.Restorations(u.tiles)
+	out := Out{Scope: scope, Touched: runs.Touched(), Held: len(restorations)}
 
 	if in.DryRun {
 		return out, nil
@@ -85,8 +80,8 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 		}
 	}
 
-	// Every take, covered ones included: none of them is this scope's to undo any more.
-	u.ledger.Forget(takings)
+	// Every take up to the replay, covered ones included: none of them is this scope's to undo any more.
+	u.ledger.Forget(scope, end)
 
 	return out, nil
 }

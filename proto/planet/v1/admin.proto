@@ -14,19 +14,19 @@ service AdminService {
   // moves nothing.
   rpc ReassignCountry(ReassignCountryRequest) returns (ReassignCountryResponse);
 
-  // Who painted the flag's tiles in the area that still wear it, latest first.
-  // Read from an in-memory ledger that a restart empties.
+  // Who took tiles for the flag on the area's ground, held or painted over
+  // since, latest take first. Read from the ledger (ledger.retention).
   rpc FindPlayers(FindPlayersRequest) returns (FindPlayersResponse);
 
-  // Who holds the most tiles still wearing their paint, over every flag and
-  // the whole map, most first. Read from the same ledger as FindPlayers.
+  // Who took the most tiles, over every flag and the whole map: most takes
+  // first, then most tiles held. Read from the same ledger as FindPlayers.
   rpc TopPlayers(TopPlayersRequest) returns (TopPlayersResponse);
 
   // The antibot's shadow ban, on a scope a person picked. It counts as an offence.
   rpc BanPlayer(BanPlayerRequest) returns (BanPlayerResponse);
 
-  // Gives back every tile the scope took that nobody has taken since, to
-  // whoever held it before. dry_run counts and restores nothing.
+  // Gives back every tile the scope still holds to what it held before the
+  // scope's current run on it. dry_run counts and restores nothing.
   rpc RevertPlayer(RevertPlayerRequest) returns (RevertPlayerResponse);
 
   // Paints count random tiles with a flag, starting on one country's ground.
@@ -131,13 +131,14 @@ message TopPlayersRequest {
 
 message TopPlayersResponse {
   repeated Player players = 1;
-  // How many scopes still wear paint on any tile, before the limit.
+  // How many scopes took any tile, before the limit.
   uint32 total = 2;
 }
 
 message Player {
   // The address for IPv4, the /64 for IPv6: what the throttle and the ban key on.
   string scope = 1;
+  // Tiles it still holds: its take is the tile's latest and the paint is still there.
   uint32 tiles = 2;
   google.protobuf.Timestamp first_at = 3;
   google.protobuf.Timestamp last_at = 4;
@@ -149,6 +150,10 @@ message Player {
   google.protobuf.Duration active_for = 8;
   // tiles over active_for. 0 when active_for is 0.
   double tiles_per_minute = 9;
+  // Every take it made, held or painted over since; a tile taken twice counts twice.
+  uint32 takes = 10;
+  // takes over active_for. 0 when active_for is 0.
+  double takes_per_minute = 11;
 }
 
 message BanPlayerRequest {
@@ -173,7 +178,7 @@ message RevertPlayerRequest {
 
 message RevertPlayerResponse {
   string scope = 1;
-  // Tiles the scope was the last to take, and those still wearing its paint.
+  // Tiles the scope took, and those it still holds.
   uint32 touched = 2;
   uint32 held = 3;
   uint32 restored = 4;

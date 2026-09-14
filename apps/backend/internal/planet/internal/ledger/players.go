@@ -11,8 +11,9 @@ const defaultLimit = 20
 
 type Player struct {
 	Scope string
-	// Tiles is how many of the takes gathered into this player the scope made.
+	// Tiles is what the scope still holds; Takes counts every take, so a painted-over bot still shows.
 	Tiles   int
+	Takes   int
 	FirstAt time.Time
 	LastAt  time.Time
 
@@ -21,30 +22,56 @@ type Player struct {
 	Offence     int
 }
 
-// Players gathers takes by scope, latest take first, and scope order between equal times.
-func Players(takings []Taking) []Player {
-	byScope := make(map[string]*Player)
-	for _, taking := range takings {
-		player, ok := byScope[taking.Scope]
-		if !ok {
-			player = &Player{Scope: taking.Scope, FirstAt: taking.At, LastAt: taking.At}
-			byScope[taking.Scope] = player
-		}
+func NewTally(counts func(Taking) bool) *Tally {
+	return &Tally{counts: counts, scopes: make(map[string]int), tiles: make(map[uint32]hold)}
+}
 
-		player.Tiles++
-		if taking.At.Before(player.FirstAt) {
-			player.FirstAt = taking.At
-		}
-		if taking.At.After(player.LastAt) {
-			player.LastAt = taking.At
+type Tally struct {
+	counts  func(Taking) bool
+	scopes  map[string]int
+	players []Player
+	tiles   map[uint32]hold
+}
+
+type hold struct {
+	player  int
+	country string
+}
+
+func (t *Tally) See(taking Taking) {
+	if !t.counts(taking) {
+		delete(t.tiles, taking.Tile)
+		return
+	}
+
+	index, ok := t.scopes[taking.Scope]
+	if !ok {
+		index = len(t.players)
+		t.scopes[taking.Scope] = index
+		t.players = append(t.players, Player{Scope: taking.Scope, FirstAt: taking.At, LastAt: taking.At})
+	}
+
+	player := &t.players[index]
+	player.Takes++
+	if taking.At.Before(player.FirstAt) {
+		player.FirstAt = taking.At
+	}
+	if taking.At.After(player.LastAt) {
+		player.LastAt = taking.At
+	}
+
+	t.tiles[taking.Tile] = hold{player: index, country: taking.Country}
+}
+
+// Players is every scope with a take that counts, latest take first, then scope order.
+func (t *Tally) Players(owners Owners) []Player {
+	for tile, hold := range t.tiles {
+		if owner, _ := owners.Owner(tile); owner == hold.country {
+			t.players[hold.player].Tiles++
 		}
 	}
 
-	players := make([]Player, 0, len(byScope))
-	for _, player := range byScope {
-		players = append(players, *player)
-	}
-
+	players := t.players
 	sort.Slice(players, func(i, j int) bool {
 		if !players[i].LastAt.Equal(players[j].LastAt) {
 			return players[i].LastAt.After(players[j].LastAt)
@@ -55,9 +82,12 @@ func Players(takings []Taking) []Player {
 	return players
 }
 
-// ByTiles orders players most tiles first, keeping Players' order between equal counts.
-func ByTiles(players []Player) []Player {
+// ByTakes orders players most takes first, then most tiles held, keeping the order between equals.
+func ByTakes(players []Player) []Player {
 	sort.SliceStable(players, func(i, j int) bool {
+		if players[i].Takes != players[j].Takes {
+			return players[i].Takes > players[j].Takes
+		}
 		return players[i].Tiles > players[j].Tiles
 	})
 
@@ -79,12 +109,20 @@ func (p Player) ActiveFor() time.Duration {
 }
 
 func (p Player) TilesPerMinute() float64 {
+	return p.perMinute(p.Tiles)
+}
+
+func (p Player) TakesPerMinute() float64 {
+	return p.perMinute(p.Takes)
+}
+
+func (p Player) perMinute(count int) float64 {
 	active := p.ActiveFor()
 	if active <= 0 {
 		return 0
 	}
 
-	return float64(p.Tiles) / active.Minutes()
+	return float64(count) / active.Minutes()
 }
 
 // Serving marks the player as under a running ban.

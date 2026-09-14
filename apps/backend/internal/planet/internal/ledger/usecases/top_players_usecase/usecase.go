@@ -1,4 +1,4 @@
-// Package top_players_usecase answers "who holds the most of the map": the callers whose paint still holds on the most tiles.
+// Package top_players_usecase answers "who paints the most of the map": the callers with the most takes, every flag.
 package top_players_usecase
 
 import (
@@ -9,7 +9,7 @@ import (
 )
 
 type Ledger interface {
-	All() []ledger.Taking
+	Replay(see func(ledger.Taking)) ledger.Position
 }
 
 type Owners interface {
@@ -27,7 +27,7 @@ type In struct {
 
 type Out struct {
 	Players []ledger.Player
-	// Total is how many scopes still wear paint, before the limit.
+	// Total is how many scopes took a tile, before the limit.
 	Total int
 }
 
@@ -42,14 +42,10 @@ type UseCase struct {
 }
 
 func (u *UseCase) Execute(_ context.Context, in In) (Out, error) {
-	var worn []ledger.Taking
-	for _, taking := range u.ledger.All() {
-		if owner, _ := u.owners.Owner(taking.Tile); taking.WornBy(owner) {
-			worn = append(worn, taking)
-		}
-	}
+	tally := ledger.NewTally(func(ledger.Taking) bool { return true })
+	u.ledger.Replay(tally.See)
 
-	players := ledger.ByTiles(ledger.Players(worn))
+	players := ledger.ByTakes(tally.Players(u.owners))
 	out := Out{Total: len(players), Players: ledger.Top(players, in.Limit)}
 
 	if u.bans == nil {

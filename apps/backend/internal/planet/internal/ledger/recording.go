@@ -38,8 +38,8 @@ func (r Recording) SetBoosted(ctx context.Context, tile uint32, value string) er
 	return r.write(ctx, tile, value, r.tiles.SetBoosted)
 }
 
-// The owner and the last take are read apart from the writes, so a click racing this one can leave a stale Previous.
-// A revert only restores a tile still wearing this caller's paint, so the worst it does is pick that stale owner.
+// The owner is read apart from the write, so a click racing this one can leave a stale Previous. A stale
+// one breaks the caller's run on the tile, so the worst a revert does is give back less far.
 func (r Recording) write(
 	ctx context.Context,
 	tile uint32,
@@ -57,9 +57,7 @@ func (r Recording) write(
 		return nil
 	}
 
-	taking := Taking{Tile: tile, Scope: scope, Country: value, Previous: previous, At: r.clock.Now()}
-	last, found := r.takings.Last(tile)
-	r.takings.Put(taking.Over(last, found))
+	r.takings.Append(Taking{Tile: tile, Scope: scope, Country: value, Previous: previous, At: r.clock.Now()})
 
 	return nil
 }

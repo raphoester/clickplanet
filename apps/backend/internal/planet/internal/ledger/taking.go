@@ -1,44 +1,33 @@
-// Package ledger remembers, per tile, the last caller who took it and what the tile held before.
+// Package ledger remembers every take of a tile, oldest first, for as long as the retention keeps it.
 //
-// It is what the operator tools read to say who is painting what, and to undo one caller's paint.
+// A scope holds a tile when the tile's latest take is the scope's and the tile still wears that paint.
+//
+// A revert gives a held tile back to what it held before the scope's current run on it. The run walks
+// back over the scope's own takes while each took the tile from the paint of the one before:
+//
+//	A il→ps, A ps→fr           back to il
+//	A il→ps, B ps→de, A de→ps  back to de: B broke the run
+//	A il→ps, B ps→de           A holds nothing
+//	A il→ps, bomb, A ""→ps     back to nobody: a change the ledger never saw breaks the run
+//
+// A run reaches no further back than the retention, and a forgotten take is as if it never happened.
 package ledger
 
 import (
 	"errors"
 	"time"
-
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
 
 // ErrInvalidScope is an operator naming a caller by something that is neither an address nor a scope.
 var ErrInvalidScope = errors.New("not an address or a scope")
 
-// Taking is one tile, as its last taker left it.
 type Taking struct {
-	Tile  uint32
-	Scope string
-	// Country is what the scope painted; Previous is what the tile held before the scope first took it.
+	Tile     uint32
+	Scope    string
 	Country  string
 	Previous string
 	At       time.Time
 }
 
-// Over is this take recorded on top of the tile's last one. A scope that retakes its own tile
-// keeps the owner from before its first take, so a revert goes back past all of them.
-func (t Taking) Over(last Taking, found bool) Taking {
-	if found && last.Scope == t.Scope {
-		t.Previous = last.Previous
-	}
-
-	return t
-}
-
-// WornBy says whether a tile held by owner still wears this take's paint.
-func (t Taking) WornBy(owner string) bool {
-	return owner == t.Country
-}
-
-// Restoration gives the tile back to what it held before, only if it still wears this take's paint.
-func (t Taking) Restoration() clicks.Restoration {
-	return clicks.Restoration{Tile: t.Tile, From: t.Country, To: t.Previous}
-}
+// Position is a take's place in the ledger; it survives a restart.
+type Position uint64

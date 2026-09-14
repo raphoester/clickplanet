@@ -60,16 +60,16 @@ type AdminServiceClient interface {
 	// tile goes out on the stream as an ordinary TileUpdate. dry_run counts and
 	// moves nothing.
 	ReassignCountry(context.Context, *connect.Request[v1.ReassignCountryRequest]) (*connect.Response[v1.ReassignCountryResponse], error)
-	// Who painted the flag's tiles in the area that still wear it, latest first.
-	// Read from an in-memory ledger that a restart empties.
+	// Who took tiles for the flag on the area's ground, held or painted over
+	// since, latest take first. Read from the ledger (ledger.retention).
 	FindPlayers(context.Context, *connect.Request[v1.FindPlayersRequest]) (*connect.Response[v1.FindPlayersResponse], error)
-	// Who holds the most tiles still wearing their paint, over every flag and
-	// the whole map, most first. Read from the same ledger as FindPlayers.
+	// Who took the most tiles, over every flag and the whole map: most takes
+	// first, then most tiles held. Read from the same ledger as FindPlayers.
 	TopPlayers(context.Context, *connect.Request[v1.TopPlayersRequest]) (*connect.Response[v1.TopPlayersResponse], error)
 	// The antibot's shadow ban, on a scope a person picked. It counts as an offence.
 	BanPlayer(context.Context, *connect.Request[v1.BanPlayerRequest]) (*connect.Response[v1.BanPlayerResponse], error)
-	// Gives back every tile the scope took that nobody has taken since, to
-	// whoever held it before. dry_run counts and restores nothing.
+	// Gives back every tile the scope still holds to what it held before the
+	// scope's current run on it. dry_run counts and restores nothing.
 	RevertPlayer(context.Context, *connect.Request[v1.RevertPlayerRequest]) (*connect.Response[v1.RevertPlayerResponse], error)
 	// Paints count random tiles with a flag, starting on one country's ground.
 	// proximity favours tiles that touch the ones already picked, and a patch
@@ -188,16 +188,16 @@ type AdminServiceHandler interface {
 	// tile goes out on the stream as an ordinary TileUpdate. dry_run counts and
 	// moves nothing.
 	ReassignCountry(context.Context, *connect.Request[v1.ReassignCountryRequest]) (*connect.Response[v1.ReassignCountryResponse], error)
-	// Who painted the flag's tiles in the area that still wear it, latest first.
-	// Read from an in-memory ledger that a restart empties.
+	// Who took tiles for the flag on the area's ground, held or painted over
+	// since, latest take first. Read from the ledger (ledger.retention).
 	FindPlayers(context.Context, *connect.Request[v1.FindPlayersRequest]) (*connect.Response[v1.FindPlayersResponse], error)
-	// Who holds the most tiles still wearing their paint, over every flag and
-	// the whole map, most first. Read from the same ledger as FindPlayers.
+	// Who took the most tiles, over every flag and the whole map: most takes
+	// first, then most tiles held. Read from the same ledger as FindPlayers.
 	TopPlayers(context.Context, *connect.Request[v1.TopPlayersRequest]) (*connect.Response[v1.TopPlayersResponse], error)
 	// The antibot's shadow ban, on a scope a person picked. It counts as an offence.
 	BanPlayer(context.Context, *connect.Request[v1.BanPlayerRequest]) (*connect.Response[v1.BanPlayerResponse], error)
-	// Gives back every tile the scope took that nobody has taken since, to
-	// whoever held it before. dry_run counts and restores nothing.
+	// Gives back every tile the scope still holds to what it held before the
+	// scope's current run on it. dry_run counts and restores nothing.
 	RevertPlayer(context.Context, *connect.Request[v1.RevertPlayerRequest]) (*connect.Response[v1.RevertPlayerResponse], error)
 	// Paints count random tiles with a flag, starting on one country's ground.
 	// proximity favours tiles that touch the ones already picked, and a patch

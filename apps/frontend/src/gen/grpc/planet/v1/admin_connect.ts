@@ -30,8 +30,8 @@ export const AdminService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Who painted the flag's tiles in the area that still wear it, latest first.
-     * Read from an in-memory ledger that a restart empties.
+     * Who took tiles for the flag on the area's ground, held or painted over
+     * since, latest take first. Read from the ledger (ledger.retention).
      *
      * @generated from rpc planet.v1.AdminService.FindPlayers
      */
@@ -42,8 +42,8 @@ export const AdminService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Who holds the most tiles still wearing their paint, over every flag and
-     * the whole map, most first. Read from the same ledger as FindPlayers.
+     * Who took the most tiles, over every flag and the whole map: most takes
+     * first, then most tiles held. Read from the same ledger as FindPlayers.
      *
      * @generated from rpc planet.v1.AdminService.TopPlayers
      */
@@ -65,8 +65,8 @@ export const AdminService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Gives back every tile the scope took that nobody has taken since, to
-     * whoever held it before. dry_run counts and restores nothing.
+     * Gives back every tile the scope still holds to what it held before the
+     * scope's current run on it. dry_run counts and restores nothing.
      *
      * @generated from rpc planet.v1.AdminService.RevertPlayer
      */
