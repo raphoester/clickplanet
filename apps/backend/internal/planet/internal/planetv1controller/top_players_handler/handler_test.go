@@ -9,6 +9,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/encoding/protojson"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
@@ -54,6 +55,10 @@ func TestTheLimitReachesTheUseCaseAndThePlayersComeBack(t *testing.T) {
 	assert.InDelta(t, 40.0, top.GetTilesPerMinute(), 1e-9)
 
 	assert.Nil(t, res.Msg.GetPlayers()[1].GetBannedUntil(), "an unbanned scope has no end date to print")
+
+	encoded, err := protojson.Marshal(res.Msg.GetPlayers()[1])
+	require.NoError(t, err)
+	assert.Contains(t, string(encoded), `"banned":false`, "an unbanned scope still says so in JSON")
 }
 
 func TestAnErrorIsLeftToTheErrorNet(t *testing.T) {

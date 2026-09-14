@@ -61,7 +61,8 @@ message Player {
   uint32 tiles = 2;
   google.protobuf.Timestamp first_at = 3;
   google.protobuf.Timestamp last_at = 4;
-  bool banned = 5;
+  // Optional so JSON always carries it: a plain bool is dropped when false.
+  optional bool banned = 5;
   google.protobuf.Timestamp banned_until = 6;
   uint32 offence = 7;
   // last_at minus first_at.

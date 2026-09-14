@@ -215,9 +215,11 @@ export class Player extends Message<Player> {
   lastAt?: Timestamp;
 
   /**
-   * @generated from field: bool banned = 5;
+   * Optional so JSON always carries it: a plain bool is dropped when false.
+   *
+   * @generated from field: optional bool banned = 5;
    */
-  banned = false;
+  banned?: boolean;
 
   /**
    * @generated from field: google.protobuf.Timestamp banned_until = 6;
@@ -255,7 +257,7 @@ export class Player extends Message<Player> {
     { no: 2, name: "tiles", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 3, name: "first_at", kind: "message", T: Timestamp },
     { no: 4, name: "last_at", kind: "message", T: Timestamp },
-    { no: 5, name: "banned", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 5, name: "banned", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
     { no: 6, name: "banned_until", kind: "message", T: Timestamp },
     { no: 7, name: "offence", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 8, name: "active_for", kind: "message", T: Duration },

@@ -18,7 +18,7 @@ func Encode(players []ledger.Player) []*planetv1.Player {
 			Tiles:          uint32(player.Tiles), //nolint:gosec // a tile count, bounded by the map.
 			FirstAt:        timestamppb.New(player.FirstAt),
 			LastAt:         timestamppb.New(player.LastAt),
-			Banned:         player.Banned,
+			Banned:         &player.Banned,
 			BannedUntil:    timestampOrNil(player.BannedUntil),
 			Offence:        uint32(player.Offence), //nolint:gosec // an offence count, never negative.
 			ActiveFor:      durationpb.New(player.ActiveFor()),
