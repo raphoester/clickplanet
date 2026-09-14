@@ -87,9 +87,6 @@ vpnBlocklist:
 # the rate each player saw 1/(interval x players), so the feature got rarer the
 # busier the game was.
 bonus:
-  # Off means no box is ever offered and ClaimBonus answers Unimplemented.
-  enabled: false
-
   # A caller's next box is due this long after the last one, drawn uniformly.
   # The spread is for feel: a script does not predict the schedule, it watches
   # the stream, so nothing here is hidden from one.

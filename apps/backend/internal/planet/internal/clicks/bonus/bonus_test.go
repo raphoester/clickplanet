@@ -19,7 +19,6 @@ func newTestRegistry() (*Registry, *cptime.FixedClock) {
 	clock := cptime.NewFixedClock(epoch)
 
 	return New(Config{
-		Enabled:         true,
 		MinInterval:     window,
 		MaxInterval:     window,
 		MissRetry:       20 * time.Second,
@@ -330,7 +329,7 @@ func TestTheHourlyCapStopsTheOffers(t *testing.T) {
 func TestTheWaitIsDrawnFromTheConfiguredWindow(t *testing.T) {
 	clock := cptime.NewFixedClock(epoch)
 	registry := New(Config{
-		Enabled: true, MinInterval: time.Minute, MaxInterval: 3 * time.Minute,
+		MinInterval: time.Minute, MaxInterval: 3 * time.Minute,
 	}, clock)
 
 	seen := map[time.Duration]bool{}
@@ -359,7 +358,7 @@ func TestEveryKindConfiguredIsOffered(t *testing.T) {
 func TestASpreadBoxRunsForItsOwnShorterDuration(t *testing.T) {
 	clock := cptime.NewFixedClock(epoch)
 	registry := New(Config{
-		Enabled: true, MinInterval: window, MaxInterval: window, ActiveWithin: 5 * time.Minute,
+		MinInterval: window, MaxInterval: window, ActiveWithin: 5 * time.Minute,
 		Duration: time.Minute, SpreadDuration: 10 * time.Second,
 		Kinds: map[Kind]float64{KindSpreadClicks: 1},
 	}, clock)
@@ -379,7 +378,7 @@ func bombRegistry() (*Registry, *cptime.FixedClock) {
 	clock := cptime.NewFixedClock(epoch)
 
 	return New(Config{
-		Enabled: true, MinInterval: window, MaxInterval: window, ActiveWithin: 5 * time.Minute,
+		MinInterval: window, MaxInterval: window, ActiveWithin: 5 * time.Minute,
 		BombDuration: 30 * time.Second,
 		Kinds:        map[Kind]float64{KindBomb: 1},
 	}, clock), clock
@@ -433,7 +432,7 @@ func TestAKindLeftOutOrAtZeroIsNeverOffered(t *testing.T) {
 		{KindSpreadClicks: 1},
 		{KindSpreadClicks: 1, KindTripleClicks: 0},
 	} {
-		registry := New(Config{Enabled: true, Kinds: kinds}, cptime.NewFixedClock(epoch))
+		registry := New(Config{Kinds: kinds}, cptime.NewFixedClock(epoch))
 
 		for range 50 {
 			require.Equal(t, KindSpreadClicks, registry.drawKind())
@@ -443,8 +442,7 @@ func TestAKindLeftOutOrAtZeroIsNeverOffered(t *testing.T) {
 
 func TestKindsAreDrawnInProportionToTheirWeight(t *testing.T) {
 	registry := New(Config{
-		Enabled: true,
-		Kinds:   map[Kind]float64{KindTripleClicks: 9, KindSpreadClicks: 1},
+		Kinds: map[Kind]float64{KindTripleClicks: 9, KindSpreadClicks: 1},
 	}, cptime.NewFixedClock(epoch))
 
 	const draws = 20_000
@@ -621,7 +619,7 @@ func TestACallerThatIsNotReadingIsDroppedRatherThanBlocking(t *testing.T) {
 }
 
 func TestTheDefaultsFillInWhatTheFileLeavesOut(t *testing.T) {
-	registry := New(Config{Enabled: true}, cptime.NewFixedClock(epoch))
+	registry := New(Config{}, cptime.NewFixedClock(epoch))
 
 	assert.Equal(t, defaultMinInterval, registry.config.MinInterval)
 	assert.Equal(t, defaultMaxInterval, registry.config.MaxInterval)
@@ -630,7 +628,7 @@ func TestTheDefaultsFillInWhatTheFileLeavesOut(t *testing.T) {
 
 func TestAMaxBelowTheMinIsNotAWindow(t *testing.T) {
 	registry := New(Config{
-		Enabled: true, MinInterval: 10 * time.Minute, MaxInterval: time.Second,
+		MinInterval: 10 * time.Minute, MaxInterval: time.Second,
 	}, cptime.NewFixedClock(epoch))
 
 	assert.GreaterOrEqual(t, registry.config.MaxInterval, registry.config.MinInterval)
@@ -640,7 +638,7 @@ func TestAMaxBelowTheMinIsNotAWindow(t *testing.T) {
 func TestAnEncloseBoxRunsForItsOwnDurationAndSaysHowManyShapes(t *testing.T) {
 	clock := cptime.NewFixedClock(epoch)
 	registry := New(Config{
-		Enabled: true, MinInterval: window, MaxInterval: window, ActiveWithin: 5 * time.Minute,
+		MinInterval: window, MaxInterval: window, ActiveWithin: 5 * time.Minute,
 		Duration: time.Minute, EncloseDuration: 30 * time.Second, EncloseShapes: 3, EncloseMaxTiles: 10,
 		Kinds: map[Kind]float64{KindEncloseClicks: 1},
 	}, clock)
@@ -661,7 +659,7 @@ func TestAnEncloseBoxRunsForItsOwnDurationAndSaysHowManyShapes(t *testing.T) {
 func TestOnlyAnEncloseRewardCarriesShapes(t *testing.T) {
 	clock := cptime.NewFixedClock(epoch)
 	registry := New(Config{
-		Enabled: true, MinInterval: window, MaxInterval: window, ActiveWithin: 5 * time.Minute,
+		MinInterval: window, MaxInterval: window, ActiveWithin: 5 * time.Minute,
 		Kinds: map[Kind]float64{KindTripleClicks: 1},
 	}, clock)
 	events := playing(t, registry, "scope-a")

@@ -9,8 +9,6 @@ import (
 
 // Config is per caller: a global ticker made the rate 1/(interval × players).
 type Config struct {
-	Enabled bool
-
 	MinInterval time.Duration
 	MaxInterval time.Duration
 

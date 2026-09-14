@@ -61,9 +61,3 @@ func TestAMalformedDropIsAnInvalidArgument(t *testing.T) {
 		assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 	}
 }
-
-func TestWithBoxesOffDroppingIsUnimplemented(t *testing.T) {
-	err := drop(t, nil)
-
-	assert.Equal(t, connect.CodeUnimplemented, connect.CodeOf(err))
-}

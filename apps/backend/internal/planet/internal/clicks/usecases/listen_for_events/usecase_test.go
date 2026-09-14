@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/bonus"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/listen_for_events"
 )
 
@@ -21,6 +22,12 @@ type stubSubscriber struct {
 
 func (s stubSubscriber) Subscribe(context.Context) (<-chan clicks.Change, error) {
 	return s.updates, s.err
+}
+
+type silentFeed struct{}
+
+func (silentFeed) Attend(string) (<-chan bonus.Event, func()) {
+	return nil, func() {}
 }
 
 // recorder stands in for the stream. Send is called from the use case's own
@@ -54,7 +61,7 @@ func (r *recorder) seen() []listen_for_events.Event {
 func TestAFailedSubscriptionEndsTheFeed(t *testing.T) {
 	cause := errors.New("disk on fire")
 
-	err := listen_for_events.New(stubSubscriber{err: cause}, time.Hour, nil).
+	err := listen_for_events.New(stubSubscriber{err: cause}, time.Hour, silentFeed{}).
 		Execute(t.Context(), &recorder{})
 
 	require.ErrorIs(t, err, cause)
@@ -69,7 +76,7 @@ func TestAnUpdateIsCarriedToTheSink(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	done := make(chan error, 1)
 	go func() {
-		done <- listen_for_events.New(stubSubscriber{updates: updates}, time.Hour, nil).Execute(ctx, sink)
+		done <- listen_for_events.New(stubSubscriber{updates: updates}, time.Hour, silentFeed{}).Execute(ctx, sink)
 	}()
 
 	<-sink.fed
@@ -91,7 +98,7 @@ func TestABlastIsCarriedToTheSinkAsOneFrame(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	done := make(chan error, 1)
 	go func() {
-		done <- listen_for_events.New(stubSubscriber{updates: updates}, time.Hour, nil).Execute(ctx, sink)
+		done <- listen_for_events.New(stubSubscriber{updates: updates}, time.Hour, silentFeed{}).Execute(ctx, sink)
 	}()
 
 	<-sink.fed
@@ -110,7 +117,7 @@ func TestASilentFeedKeepsSendingHeartbeats(t *testing.T) {
 	done := make(chan error, 1)
 	go func() {
 		done <- listen_for_events.New(
-			stubSubscriber{updates: make(chan clicks.Change)}, time.Millisecond, nil).Execute(ctx, sink)
+			stubSubscriber{updates: make(chan clicks.Change)}, time.Millisecond, silentFeed{}).Execute(ctx, sink)
 	}()
 
 	for range 3 {
@@ -128,7 +135,7 @@ func TestTheFeedEndsWhenTheSubscriptionCloses(t *testing.T) {
 	updates := make(chan clicks.Change)
 	close(updates)
 
-	err := listen_for_events.New(stubSubscriber{updates: updates}, time.Hour, nil).
+	err := listen_for_events.New(stubSubscriber{updates: updates}, time.Hour, silentFeed{}).
 		Execute(t.Context(), &recorder{})
 
 	require.NoError(t, err, "the map going away is not the caller's error")
@@ -139,7 +146,7 @@ func TestAFailedSendEndsTheFeed(t *testing.T) {
 	updates := make(chan clicks.Change, 1)
 	updates <- clicks.Change{Update: &clicks.TileUpdate{Tile: 1}}
 
-	err := listen_for_events.New(stubSubscriber{updates: updates}, time.Hour, nil).
+	err := listen_for_events.New(stubSubscriber{updates: updates}, time.Hour, silentFeed{}).
 		Execute(t.Context(), &recorder{err: assert.AnError})
 
 	require.ErrorIs(t, err, assert.AnError)
