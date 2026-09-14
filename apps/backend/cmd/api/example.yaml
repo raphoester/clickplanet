@@ -333,6 +333,50 @@ antiBot:
       trackWindow: 30m
       sweepInterval: 1m
 
+  # Scopes that act together. Every other watchdog judges one scope, so a pool
+  # that rotates its address every few minutes starts each identity clean: on
+  # 2026-09-14 pairs of /64s out of Firefox's built-in VPN painted bg for eight
+  # minutes each, started in the same millisecond, and no watchdog said a word
+  # all day. What the pool cannot hide is that its identities come in groups,
+  # and that the groups follow one another.
+  #
+  # The flag is an input here, unlike topCountry in the ban line: a pool that
+  # paints another flag to dodge this has stopped painting the one it came for.
+  cohort:
+    enabled: true
+    detector:
+      # How close two scopes' first clicks must be to have started together.
+      # The pool's pairs were milliseconds apart; a group of three took four seconds.
+      startWindow: 5s
+      # Clicks a scope needs before it is compared, and how much of them must
+      # be for one flag.
+      minClicks: 20
+      minFlagShare: 0.9
+      # How far apart two scopes' paces may be (faster over slower), and how
+      # long they stayed (longer over shorter). The length is only compared once
+      # the shorter one has been quiet for quietAfter: a pool's identities stop
+      # together, and people who started together do not.
+      rateRatio: 1.5
+      lengthRatio: 1.2
+      quietAfter: 1m
+      # Scopes in step that read "suspect". Two friends joining a flag war in
+      # the same second are exactly this, which is why it never bans alone.
+      minMembers: 2
+      # The wider prefix "certain" needs every scope to share: a crowd answering
+      # one link starts together from all over, a pool from one range. The
+      # Firefox VPN pairs all sat in 2a00:8c40:f0c0::/44.
+      v4Bits: 24
+      v6Bits: 44
+      # "certain": this many separate groups inside chainWindow, on the same
+      # flag and prefix — a person keeps their address when they come back, a
+      # pool does not — or this many scopes in step in one group.
+      certainCohorts: 3
+      certainMembers: 6
+      chainWindow: 30m
+      # Never shorter than chainWindow, or a chain's first links are forgotten.
+      trackWindow: 30m
+      sweepInterval: 1m
+
 # Gates the Click RPC on a token this server minted. Off by default: with it
 # disabled session.v1.SessionService/ 404s and clicks are judged on address
 # alone, exactly as they were before this existed.
