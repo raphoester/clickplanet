@@ -33,6 +33,13 @@ func NewObserver(logger *slog.Logger, registerer prometheus.Registerer) antibot.
 		Buckets: []float64{0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99, 1.0},
 	})
 
+	// Set once a sweep. A pool that rotates addresses shows here as a floor that
+	// never drops to zero, long before its cohorts chain into a ban.
+	cohortScopes := factory.NewGauge(prometheus.GaugeOpts{
+		Name: "click_cohort_scopes",
+		Help: "Callers clicking in step with another caller: same flag, same start, same pace",
+	})
+
 	// Counts flags, not callers, and once per watchdog that argued for each one:
 	// a caller flagged six times is six here and one on shadowban_flagged, and
 	// the gap between the two is the thing to look at.
@@ -41,10 +48,27 @@ func NewObserver(logger *slog.Logger, registerer prometheus.Registerer) antibot.
 		Help: "Times a caller has been flagged, counted once per watchdog that argued for it",
 	}, []string{"watchdog"})
 
+	// Counts rises, not clicks: a watchdog's reading of a caller reaching a level
+	// it has not held within jury.suspicionWindow. Levels are cumulative, so
+	// suspect includes every certain, and suspect minus certain is the near misses.
+	// It is the signal on a day with no ban: how close the watchdogs came.
+	opinions := factory.NewCounterVec(prometheus.CounterOpts{
+		Name: "antibot_opinions_total",
+		Help: "Times a watchdog's reading of a caller rose to a level it had not held within jury.suspicionWindow; suspect includes certain",
+	}, []string{"watchdog", "level"})
+
+	// Set once a jury sweep, so it lags by up to a minute.
+	standing := factory.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "antibot_opinions_standing",
+		Help: "Callers a watchdog reads at a level or above at the last jury sweep; suspect includes certain",
+	}, []string{"watchdog", "level"})
+
 	return antibot.Observer{
 		OnReaction: func(delay time.Duration) { reactions.Observe(delay.Seconds()) },
 
 		OnRetakeShare: retakeShares.Observe,
+
+		OnCohortScopes: func(scopes int) { cohortScopes.Set(float64(scopes)) },
 
 		// The address goes in the log and never on a label: per-IP labels are
 		// unbounded cardinality, and they would put personal data in every scrape.
@@ -75,6 +99,14 @@ func NewObserver(logger *slog.Logger, registerer prometheus.Registerer) antibot.
 			}
 
 			logger.Warn("antibot ban", fields...)
+		},
+
+		OnRise: func(watchdog, level string) {
+			opinions.WithLabelValues(watchdog, level).Inc()
+		},
+
+		OnStanding: func(watchdog, level string, callers int) {
+			standing.WithLabelValues(watchdog, level).Set(float64(callers))
 		},
 
 		OnStateError: func(err error) {

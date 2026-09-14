@@ -529,6 +529,28 @@ different picture from forty callers caught once. The labels also tell you which
 watchdog is earning its keep before you enforce. All of them are readable with
 the `wget` line above.
 
+**A ban is the only thing those two count, so a day with no ban reads as
+nothing.** On 2026-09-14 a bot attack produced zero bans and no sign of how
+close the watchdogs came. Two series fill that gap, both labelled
+`{watchdog, level}` with `level` `suspect` or `certain`:
+
+```bash
+docker compose exec backend wget -qO- localhost:8080/metrics | grep antibot_opinions
+```
+
+- `antibot_opinions_total` counts **rises**: a watchdog's reading of a caller
+  reaching a level it has not held within `jury.suspicionWindow` (10m). A
+  reading flapping across a bound counts once a window, not once a click; one
+  that lapses and comes back counts again.
+- `antibot_opinions_standing` is how many callers each watchdog reads at that
+  level right now, set once a minute by the jury's sweep.
+
+**Levels are cumulative**: `suspect` includes every `certain`, so
+`suspect − certain` is the near misses. `antibot_opinions_total{watchdog="sequencer",level="suspect"} 30`
+with `shadowban_flags` still at 0 is thirty suspicions nobody corroborated — look
+at what the other watchdogs were reading on the same callers before loosening
+`jury.minSuspects`. The poller keeps both.
+
 Bans escalate: 24h for a first offence, 7 days for a second, 3 years from the
 third. A caller that keeps going while banned only extends the ban it has. Bans
 are saved to `bans.jsonl` on the `tile_state` volume, so a deploy keeps them.
@@ -743,6 +765,21 @@ atomically, so a copy is always whole):
 docker compose exec backend cp /home/app/state/tiles.snapshot /home/app/state/tiles.before-reassign
 ```
 
+### Paint random tiles of a country with a flag
+
+Paints `count` tiles on `areaCountryId`'s ground with `flagCountryId`. Dry run
+first; it says how many tiles are eligible (in the area, not wearing the flag):
+
+```bash
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"flagCountryId":"dz","areaCountryId":"fr","count":500,"proximity":0.8,"dryRun":true}' http://127.0.0.1:8081/planet.v1.AdminService/PaintRandomTiles
+```
+
+- `proximity` goes from 0 to 1. 0 scatters the tiles over the whole country;
+  1 grows one patch. Between the two you get a few patches.
+- A tile somebody takes while it runs stays theirs: `painted` can be below `picked`.
+- It is not undone by anything. Copy the snapshot first, as for a reassign.
+- Every call is logged: `journalctl CONTAINER_NAME=cp-backend | grep "admin random paint"`.
+
 ### Find, ban and revert one player
 
 For a pattern you see on the map and no watchdog catches. A player is a
@@ -792,6 +829,29 @@ docker compose exec backend wget -qO- --header 'Content-Type: application/json' 
 - Paced like the reassign, each tile an ordinary update on the live stream.
 - A second run answers zeros: a reverted player has nothing left to revert.
 - Every ban and revert is logged: `journalctl CONTAINER_NAME=cp-backend | grep "admin ban\|admin player revert"`.
+
+### See how close the antibot is to one player
+
+The `antibot ban` log line is only written when a ban fires. To see where a
+player stands before that, inspect its scope (an address is read as its scope).
+It changes nothing and is not logged:
+
+```bash
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"scope":"203.0.113.7"}' http://127.0.0.1:8081/planet.v1.AdminService/InspectPlayer
+```
+
+- `readings` has one entry per watchdog: `level` is `clear`, `suspect` or
+  `certain`, and `evidence` is the rule and its numbers, as the ban line writes
+  them. A `clear` watchdog has no evidence. A verdict older than
+  `antiBot.jury.suspicionWindow` reads `clear`.
+- `suspects` against `minSuspects`, and `guilty`: what the jury would decide if
+  the player clicked now. One `certain` is enough alone.
+- `clicks`, `activeFor`, `longestGap`, `lastClickAt`, `topCountry`: the same
+  summary the ban line carries.
+- `banned`, `bannedUntil`, `offence`, `flags` when a ban is running, enforced or not.
+- `"tracked":false` means the jury has not seen the scope in
+  `antiBot.jury.trackWindow`: it is not clicking now, or not from this scope.
+- With `antiBot.enabled` off it is refused: `server returned error: HTTP/1.1 400`. A bad scope is refused the same way.
 
 ## Rollback
 

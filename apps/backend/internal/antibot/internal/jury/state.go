@@ -22,6 +22,7 @@ type savedCaller struct {
 	Countries  map[string]int
 	Tiles      []uint32
 	Opinions   []savedOpinion
+	Reached    map[string][]int64 // per watchdog, indexed by level
 }
 
 type savedOpinion struct {
@@ -65,6 +66,15 @@ func (j *Jury) Save() ([]byte, error) {
 			countries[country] = n
 		}
 
+		reached := make(map[string][]int64, len(c.reached))
+		for watchdog, levels := range c.reached {
+			nanos := make([]int64, len(levels))
+			for level, at := range levels {
+				nanos[level] = evidence.Nanos(at)
+			}
+			reached[watchdog] = nanos
+		}
+
 		saved = append(saved, savedCaller{
 			Scope:      scope,
 			FirstSeen:  evidence.Nanos(c.firstSeen),
@@ -74,6 +84,7 @@ func (j *Jury) Save() ([]byte, error) {
 			Countries:  countries,
 			Tiles:      append([]uint32(nil), c.tiles...),
 			Opinions:   opinions,
+			Reached:    reached,
 		})
 	}
 
@@ -98,6 +109,14 @@ func (j *Jury) Load(data []byte) error {
 			countries:  make(map[string]int, len(c.Countries)),
 			tiles:      c.Tiles,
 			opinions:   make(map[string]detect.Opinion, len(c.Opinions)),
+			reached:    make(map[string]*[detect.Certain + 1]time.Time, len(c.Reached)),
+		}
+		for watchdog, nanos := range c.Reached {
+			levels := new([detect.Certain + 1]time.Time)
+			for level := range min(len(nanos), len(levels)) {
+				levels[level] = evidence.Time(nanos[level])
+			}
+			loaded.reached[watchdog] = levels
 		}
 		for country, n := range c.Countries {
 			loaded.countries[country] = n

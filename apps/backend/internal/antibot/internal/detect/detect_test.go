@@ -2,6 +2,7 @@ package detect_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -51,4 +52,23 @@ func TestRenderingDoesNotReorderTheReportsOwnFields(t *testing.T) {
 
 	assert.Equal(t, "steps", fields[0].Key)
 	assert.Equal(t, "share", fields[1].Key)
+}
+
+func TestAReadingWordsTheLevelAndTheEvidenceApart(t *testing.T) {
+	at := time.Date(2026, 9, 14, 12, 0, 0, 0, time.UTC)
+	opinion := detect.Opinion{
+		Watchdog: "sequencer",
+		Verdict:  detect.Suspect,
+		Evidence: detect.Evidence{Rule: "constant-stride", Fields: []detect.Field{{Key: "steps", Value: 40}}},
+		At:       at,
+	}
+
+	assert.Equal(t, detect.Reading{
+		Watchdog: "sequencer",
+		Level:    "suspect",
+		Evidence: "constant-stride steps=40",
+		At:       at,
+	}, opinion.Reading())
+
+	assert.Equal(t, detect.Reading{Watchdog: "retaker", Level: "clear"}, detect.Opinion{Watchdog: "retaker"}.Reading())
 }

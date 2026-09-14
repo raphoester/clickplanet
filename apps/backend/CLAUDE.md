@@ -83,7 +83,7 @@ root package**:
 | `planet` | `Config`, `NewModule` |
 | `chat` | `Config`, `NewModule` |
 | `session` | `Config`, `NewModule` |
-| `antibot` | `Config`, `Observer`, `Guard`, `New`, `Description`, `Click`, `Report`, `Sentence` |
+| `antibot` | `Config`, `Observer`, `Guard`, `New`, `Description`, `Click`, `Report`, `Sentence`, `Examination`, `Reading` |
 
 That holds for `cmd/api` too: the composition root lists modules and cannot
 reach a domain type, a storage adapter or a controller even if it wanted to. A
@@ -207,9 +207,11 @@ because it serves every concept over one Connect service. It only maps.
 | `clicks/usecases/get_budget_usecase` | a caller's allowance, unspent | `ClickBudgetReader` |
 | `clicks/usecases/listen_for_events_usecase` | one client's live feed, heartbeat included | `UpdatesSubscriber` |
 | `clicks/usecases/reassign_country_usecase` | gives one country's tiles to another | `Map`, `CountryChecker` |
+| `clicks/usecases/paint_random_tiles_usecase` | paints random tiles of one country's ground with a flag | `Borders`, `Neighbours`, `Map`, `CountryChecker` |
 | `ledger/usecases/find_players_usecase` | who is painting a flag, and where | `Ledger`, `Owners`, `Borders`, `Bans` |
 | `ledger/usecases/top_players_usecase` | who holds the most tiles, every flag | `Ledger`, `Owners`, `Bans` |
 | `ledger/usecases/ban_player_usecase` | the operator's shadow ban | `Banner` |
+| `ledger/usecases/inspect_player_usecase` | what the antibot holds on one caller | `Examiner` |
 | `ledger/usecases/revert_player_usecase` | gives back what one caller took | `Ledger`, `Map` |
 | `bonuses/usecases/claim_bonus_usecase` | redeems a box | `Registry`, `Booster`, `Spreader`, `Bomber`, `Encloser` |
 | `bonuses/usecases/drop_bomb_usecase` | spends a bomb where it was aimed | `Bombs`, `Map`, `Clearer` |
@@ -361,8 +363,8 @@ The bucket key is whatever `IPReaderMiddleware` put on the context: `X-Real-IP` 
 A click costs more tokens the more of the map its country holds. `toll.steps` is
 a table of `{share, cost}`: from `share` of **every tile on the map**, a click for
 that country costs `cost` tokens. No steps prices every click at one.
-A cost may be a fraction of a token (production runs x1.25 from 25%, x1.5 from
-50%, x2 from 70%), which is why `ClickBudget.cost` is a double. It moved to new
+A cost may be a fraction of a token (production runs x1.5 from 25%, x2 from
+50%, x3 from 70%), which is why `ClickBudget.cost` is a double. It moved to new
 field numbers rather than changing type in place: a client built against the old
 `uint32` reads a cost of zero and simply says nothing about price.
 
@@ -725,21 +727,23 @@ What is left after sessions. A player who solves Turnstile in a real browser and
 then runs a userscript holds a genuine session, and no address- or token-based
 check can tell them from a player. The signal that survives is **behavioural**.
 
-**The whole of its API is eight names**, and `internal/antibot/antibot.go` is all
+**The whole of its API is ten names**, and `internal/antibot/antibot.go` is all
 of it: `Config`, `Observer`, `Guard`, `New` and `Description` to wire it, plus
-`Click`, `Report` and `Sentence` — the types a caller writes down, because it builds one
+`Click`, `Report`, `Sentence`, `Examination` and `Reading` — the types a caller writes down, because it builds one
 and is handed the others. A caller hands over the block and the two hooks it wants
 findings reported through, and gets back a `Guard` — one that drops and bans nothing when the block is off, so
 the DI sequence wires it the same way either way — that answers `Attempted`, `Inspect`, `Committed`, `Caught`, `Missed`, `Flagged`, `Banned`, `LoadState`, `Run` and `Enabled`, plus `Ban`,
-`Sentence` and `Enforcing` for the operator tools (see [Operator tools](#operator-tools-adminservice)). It is
+`Sentence`, `Enforcing` and `Examine` for the operator tools (see [Operator tools](#operator-tools-adminservice)). It is
 **one** `Run` whatever the file turned on: how many sweepers there are is this
-package's business, which is why `planet` registers one runner rather than six.
+package's business, which is why `planet` registers one runner rather than one per sweeper.
 
 **A caller is never taught this package's vocabulary.** The edge does two things
 with a watchdog's opinion — count it if it argued for the ban, and put it in the
 log line — so an `Opinion` answers `Fired()` and renders itself with `String()`,
 and `Verdict`, `Evidence`, `Field` and the `clear`/`suspect`/`certain` ladder stay
-inside. The alternative shipped briefly and is what this rule is written against:
+inside. `Examine` follows the same rule: an `Examination` carries `Reading`s whose
+level and evidence are already strings, so the edge copies them onto the wire and
+never compares against the ladder. The alternative shipped briefly and is what this rule is written against:
 the edge held a `formatOpinion` that compared against `antibot.Clear`, reached
 through `Evidence.Rule` and `Evidence.Fields`, and decided their ordering —
 sixteen lines of antibot's business in the clicks package, and four exported
@@ -768,7 +772,7 @@ afternoon; a silent no-op names nothing. It is not permanent (the caller reads
 the map back over the same stream and will notice), but it moves the cost of
 the next round onto them.
 
-#### Five watchdogs, one jury
+#### Six watchdogs, one jury
 
 A `Watchdog` measures one behaviour over one caller and returns a `Verdict`:
 
@@ -777,6 +781,7 @@ A `Watchdog` measures one behaviour over one caller and returns a `Verdict`:
 - **`metronome`** — never varies and never stops.
 - **`defender`** — nearly every take is a retake, however slowly it comes.
 - **`catcher`** — catches every bonus box, at once.
+- **`cohort`** — starts, paces and stops in step with other scopes, group after group.
 
 **Every watchdog has two levels, and that is the design.** `Certain` is a reading
 no hand produces and bans on its own. `Suspect` is a reading that would ban real
@@ -860,6 +865,10 @@ in memory no window of 10m (`suspicionWindow`), 15m (`trackWindow`) or 30m
   crash is the same, with the outage starting at the last periodic save.
 - The jury does the same for `longestGap` and `activeFor`, which only feed the
   log line: a restart is not the caller pausing, nor time it was active.
+- The jury also keeps when each watchdog last reached each level, so a reading
+  standing before the restart is not reported again through `OnRise` after it.
+  `cohort` saves its members and rebuilds its indexes; its cached judgement is
+  not saved, so a loaded member is judged again on its next click.
 - **What this does not change:** the jury refreshes every watchdog's opinion on
   every click before it deliberates, so a saved opinion carries its words into the
   next ban line but never decides one — the verdicts come back because each
@@ -947,6 +956,54 @@ The counter-move is cheap — wait a random few seconds, or let one box in five 
 — and that is fine: a bot that does either has stopped taking every box the
 moment it is offered.
 
+**`cohort`: between scopes, not within one.** Every other watchdog judges one
+scope, and a scope is only as long-lived as the caller wants it to be. On
+2026-09-14 a pool painted `bg` through Firefox's built-in VPN
+(`2a00:8c40:f000::/36`): pairs of /64s whose first takes were milliseconds apart,
+~30 tiles a minute each for ~476s, followed at once by the next pair on new /64s.
+Each identity started clean and none lived long enough to read anything — zero
+`antibot ban` lines all day.
+
+Two scopes are **in step** when both have `minClicks` for one flag
+(`minFlagShare`), their first clicks are within `startWindow`, their paces are
+within `rateRatio`, and — once the shorter one has been quiet for `quietAfter` —
+their lengths are within `lengthRatio`. The first click is timed from `Attempted`,
+since a pool starts its tries together and the throttle only blurs that.
+
+- **`Suspect` (`lockstep`)** is `minMembers` scopes in step, from anywhere. Two
+  friends joining a flag war in the same second are exactly this, which is why it
+  never bans alone. It usually clears on its own: people who start together do not
+  stop together, and `TestAPartnerWhoLeavesClearsTheOneWhoStays` pins it.
+- **`Certain` (`chain`)** is the scope's group being the `certainCohorts`th
+  separate group inside `chainWindow`, painting the same flag from the same wider
+  prefix (`v4Bits`/`v6Bits`, a /24 and a /44). **A person keeps their address when
+  they come back and a pool does not**, so a chain of fresh scopes is the pattern
+  no crowd produces. The prefix is what separates it from a raid — waves of people
+  answering one link start together too, but from all over, and
+  `TestARaidFromAllOverIsNeverCertain` pins that they never reach it.
+- **`Certain` (`crowd`)** is `certainMembers` scopes in step in one group from one prefix.
+
+**How a finding reaches every member.** The jury asks per click of one scope, and
+nothing here is pushed to anyone. The watchdog keeps one table of every scope,
+indexed by the second of its first click and by its wider prefix, and each member
+answers for itself from that table on its own next click (re-judged at most every
+2s). A member that has already rotated away needs no ban; it still counts as a
+link in the next group's chain. `TestTheRotatingPoolIsCaught` replays the
+production pool: the third group is dropped under a minute into its eight, and
+the first two are left alone because nothing about them yet is more than a suspicion.
+
+**The flag is an input here**, unlike `topCountry` in the ban line: a pool that
+paints another flag to dodge this has stopped painting the one it came for. The
+counter-moves that are left cost the pool something too — stagger each start
+past `startWindow`, draw its identities from unrelated ranges, or vary pace and
+stay length between them. `click_cohort_scopes` is the gauge of scopes in step
+right now, set once a sweep through `Observer.OnCohortScopes`: a floor that never drops to zero is a pool, whether or
+not its groups have chained yet.
+
+The chain bounds are the only ones in the antibot that `Validate` refuses at
+boot (`antiBot.cohort.detector`), because a `minMembers` or `certainCohorts` of 1
+would read one scope, or one group, as a pattern.
+
 #### The parts that are easy to get wrong
 
 **Three things are deliberately not reactions**, and each is a way to get an
@@ -992,8 +1049,9 @@ and numbers (**including the ones that said `clear`** — what did not fire is h
 of reading a line that did), the tiles, and the country the caller painted with
 most. **The address is never a metric label** — unbounded cardinality, and
 personal data in every scrape. `topCountry` is context for a human reading the
-log and never an input to a rule: the client declares it, so it is changed by
-editing one string, and real players paint the same flags a bot does.
+log and never an input to a rule on its own: the client declares it, so it is changed by
+editing one string, and real players paint the same flags a bot does. `cohort` only uses the flag
+to group scopes that already started together — see above.
 
 **A flag repeats, and that is most of its value.** `reflagInterval` is how soon a
 caller already serving a ban can be judged again; at or above a watchdog's
@@ -1001,10 +1059,36 @@ caller already serving a ban can be judged again; at or above a watchdog's
 `flags=6` on a line is six independent judgements agreeing rather than one
 verdict repeated.
 
+**A day with no ban still says how close it came.** A ban is the only thing
+`OnFlag` reports, so on 2026-09-14 a bot attack produced zero lines and zero
+metrics about the watchdogs. The jury now also reports, through
+`Observer.OnRise` and `Observer.OnStanding`, into `antibot_opinions_total` and
+`antibot_opinions_standing`, both `{watchdog, level}`:
+
+- **The counter counts rises, not clicks.** A rise is a watchdog's reading of a
+  caller reaching a level it has not held within `jury.suspicionWindow` — the
+  same window the jury expires a reading on. A reading flapping across a bound
+  every click counts once a window; one that lapses and comes back counts again.
+  Per-click would say how often the watchdog was asked, and a sweep sample would
+  count a standing suspicion once a minute for as long as it stands.
+- **The gauge is set once a jury sweep** (`sweepInterval`, 1m): how many
+  callers each watchdog reads at the level now, by the jury's own rule (latest
+  reading, expired past the window). Every watchdog and level is set, zero
+  included, or a gauge would hold its last non-zero value forever.
+- **Levels are cumulative**, like histogram buckets: `level="suspect"` includes
+  every `certain`, so a caller going straight to certain rises through both, and
+  `suspect − certain` is the near misses.
+
+The level leaves as the string `Verdict.String()` gives, not as a type — the
+same rule as `Opinion`: the edge puts it on a label and never compares it.
+`jury.Hooks` carries the typed verdict inside the package, and `antibot.New`
+words it on the way out.
+
 Keyed on `cpipscope.Of`, the same unit as the throttle, so a v6 caller cannot serve
 a ban on one address and click from the next in its own /64. It only bites a bot
 with a stable address — against a residential proxy pool it evaporates for
-exactly the reason the rate limiter does.
+exactly the reason the rate limiter does. `cohort` is the one watchdog that reads
+across scopes, and it is the answer to a pool that rotates inside one range.
 
 `inmemory_tile_storage.Owner` exists for this: one indexed read under the existing
 lock, declared as a local port in the controller the way each use case declares
@@ -1083,7 +1167,16 @@ The snapshot file is the only thing worth backing up.
 
 Measured on a copy of production's snapshot: 22,040 tiles in 4.4s, all 22,040 updates delivered to an open stream, none dropped, and the snapshot written byte-identical to the same change made offline.
 
-#### Manual bans: `FindPlayers`, `TopPlayers`, `BanPlayer`, `RevertPlayer`
+#### `PaintRandomTiles`
+
+`PaintRandomTiles(flag, area, count, proximity, dry_run)` runs `clicks/usecases/paint_random_tiles_usecase`, wrapped in `audit_paint_random`: it paints `count` tiles of `area`'s ground (from `clicks.Borders`) with `flag`.
+
+- **The candidates are every tile of the area not wearing the flag.** `count` above that paints them all; `picked` says how many.
+- **`clicks.Pick` is the rule.** Before each draw, with probability `proximity`, it takes a candidate touching a tile already picked (`Geography.Neighbours`); otherwise, or when none touches, any candidate. 0 is uniform; 1 grows one patch and jumps only when the patch is walled in. Between the two you get a few patches.
+- **The paint is `Restore`**, the revert's compare-and-set, against the owner read at the pick. A tile somebody takes in between stays theirs, so `painted` can be below `picked`. Paced like the reassign, each tile an ordinary `TileUpdate`. It does not write the ledger, like the reassign.
+- The draw is `clicks.SystemRandom`, math/rand/v2's global source; tests pass a seeded `*rand.Rand`.
+
+#### Manual bans: `FindPlayers`, `TopPlayers`, `BanPlayer`, `RevertPlayer`, `InspectPlayer`
 
 For the patterns no watchdog catches but a person sees on the map. A player is a **scope** (`cpipscope`): the address over IPv4, the /64 over IPv6 — what the throttle and the ban already key on.
 
@@ -1095,7 +1188,8 @@ For the patterns no watchdog catches but a person sees on the map. A player is a
 - **`BanPlayer(scope, duration)`** is `shadowban.Banner.Ban`, and drops the scope's clicks and bombs alike: the same record, ladder and state file as a watchdog's ban, and it counts as an offence. It skips `reflagInterval`, and an empty duration takes the ladder's step. Any address is accepted and banned as its scope (`cpipscope.Parse`). **It follows `antiBot.shadowBan.enforce`**, and says so in `enforced`. With `antiBot.enabled` false it answers `FailedPrecondition`.
 - **`RevertPlayer(scope, dry_run)`** gives each tile the scope took back to its previous owner, **only if it still wears the scope's paint** — `inmemory_tile_storage.Restore` is a compare-and-set under the lock, so a tile retaken mid-revert stays retaken. Paced like the reassign (`clicks.Pacing`), each tile an ordinary `TileUpdate`. A tile that was nobody's goes back to nobody, as an update with an empty country. It then forgets the scope's takes, so a second run does nothing.
 - **Ban before reverting**: an unbanned player repaints behind the revert.
-- `audit_ban` and `audit_revert` log every call at Warn, as `audit_reassign` does. `FindPlayers` and `TopPlayers` are reads and log nothing.
+- **`InspectPlayer(scope)`** answers how close the antibot is to a caller, which the `antibot ban` log line cannot: it is only written when a ban fires, so on 2026-09-14 a day of bots and no bans left nothing to read. It is `Guard.Examine`, and it changes nothing — no caller record is created, no watchdog is asked again, no ban is passed. It answers any running ban (`banned`, `bannedUntil`, `offence`, `flags`); per watchdog its `level` and `evidence`, aged the way the jury ages them (past `suspicionWindow` a verdict reads `clear` but keeps its evidence); `suspects` against `minSuspects` and `guilty`, what the jury would decide on a click now (the ban itself would still wait for `reflagInterval`); and the click summary the ban line carries. `tracked` false is a scope the jury has not seen inside its `trackWindow`. Parsed with `cpipscope.Parse` and refused with `FailedPrecondition` when `antiBot.enabled` is false, as `BanPlayer` is. **A watchdog that reads `clear` has no evidence**: watchdogs only word the rule that tripped, so it says how close a caller is only once some rule has.
+- `audit_ban` and `audit_revert` log every call at Warn, as `audit_reassign` does. `FindPlayers`, `TopPlayers` and `InspectPlayer` are reads and log nothing.
 
 ### Shared (`internal/shared/`)
 
@@ -1245,7 +1339,7 @@ the same array.
 
 `clicks.Borders` is the other half of the geography: which country's ground a tile sits on, from
 `generated/map/borders-<hash>.bin`, the table the frontend's `npm run borders` writes to `/map`.
-Only the operator tools read it — see [Manual bans](#manual-bans-findplayers-topplayers-banplayer-revertplayer).
+Only the operator tools read it — see [Manual bans](#manual-bans-findplayers-topplayers-banplayer-revertplayer-inspectplayer).
 
 `Neighbours` is what the spread bonus reads — see [What a spread does to a click](#what-a-spread-does-to-a-click).
 `Within`, `Position`, `Nearest` and `Spacing` are what the bomb reads — see [What a bomb does](#what-a-bomb-does).
@@ -1290,7 +1384,7 @@ func (c Config) Validate() error {
 The binary never reads inside a block to check it, so a new bound is added in the module that owns it and nothing here changes. `errors.Join` also means a broken file reports **everything** wrong at once rather than one line per restart.
 
 - `cpbootstrap.ServerConfig` — `bindAddress` empty listens on port 80; `adminBindAddress` set to anything but loopback
-- `planet.Config` — `gameMap.maxIndex` zero is a map that refuses every click
+- `planet.Config` — `gameMap.maxIndex` zero is a map that refuses every click, plus whatever `bonus` and `antiBot` refuse of their own
 - `shared/cpsession.Config` — `secret` empty while `enabled`, and a negative `ttl`. It sits with the block rather than with either context, because both read it and it must be checked exactly once
 - `chat.Config` — nothing: every chat setting has a usable default, so an unset one is a default and not a mistake. It implements the hook anyway, so a check added later lands in chat
 
@@ -1326,6 +1420,8 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `antiBot.sequencer.enabled`, `detector.minSteps`, `minShare`, `certainSteps`, `certainShare` — how long a run of constant-stride clicks must be, and how much of it must sit at that stride
 - `antiBot.metronome.enabled`, `detector.maxGap`, `maxSpread`, `minClicks`, `certainFor`, `certainClicks` — what ends a run, how tight its gaps must be, and how long it must hold
 - `antiBot.defender.enabled`, `detector.retakeWindow`, `minClicks`, `minShare`, `certainClicks`, `certainShare` — what counts as a retake, and the share of takes that reads `suspect` then `certain`; a zero share never reads
+- `antiBot.cohort.enabled`, `detector.startWindow`, `minClicks`, `minFlagShare`, `rateRatio`, `lengthRatio`, `quietAfter`, `minMembers` — what makes two scopes in step, and how many of them read `suspect`
+- `antiBot.cohort.detector.v4Bits`, `v6Bits`, `certainCohorts`, `certainMembers`, `chainWindow` — the prefix a chain must share, and how many groups, or scopes in one group, read `certain`. Its `trackWindow` is raised to `chainWindow` if shorter; bad bounds refuse the boot
 - `antiBot.catcher.enabled`, `detector.minCatches`, `maxMedian`, `certainMedian` — how many boxes in a row must all be caught, and the median offer-to-claim delay that reads `suspect` then `certain`. Its `trackWindow` must hold `minCatches` boxes at `bonus.maxInterval` plus `bonus.offerTTL`
 - every watchdog also takes `detector.trackWindow` and `detector.sweepInterval` — how far back its evidence counts, and how often what can no longer matter is forgotten
 - `session.enabled` — off registers nothing, so `session.v1.SessionService/` 404s and clicks are judged on address alone

@@ -111,12 +111,21 @@ func (o Opinion) String() string {
 		return o.Verdict.String()
 	}
 
-	parts := make([]string, 0, len(o.Evidence.Fields)+1)
-	parts = append(parts, fmt.Sprintf("%s %s", o.Verdict, o.Evidence.Rule))
+	return o.Verdict.String() + " " + o.Evidence.String()
+}
+
+// String renders the rule and its numbers, ordered by key; Evidence{} renders empty.
+func (e Evidence) String() string {
+	if e.Rule == "" && len(e.Fields) == 0 {
+		return ""
+	}
+
+	parts := make([]string, 0, len(e.Fields)+1)
+	parts = append(parts, e.Rule)
 
 	// Copied before sorting: the report holds this slice and rendering it must
 	// not reorder what the caller is still holding.
-	fields := append([]Field(nil), o.Evidence.Fields...)
+	fields := append([]Field(nil), e.Fields...)
 	sort.SliceStable(fields, func(i, j int) bool { return fields[i].Key < fields[j].Key })
 
 	for _, field := range fields {
@@ -124,6 +133,44 @@ func (o Opinion) String() string {
 	}
 
 	return strings.Join(parts, " ")
+}
+
+// Reading is an opinion already worded as strings, so nothing outside this tree compares against the ladder.
+type Reading struct {
+	Watchdog string
+	Level    string // clear, suspect or certain
+	Evidence string // empty when the watchdog had nothing to say
+	At       time.Time
+}
+
+func (o Opinion) Reading() Reading {
+	return Reading{Watchdog: o.Watchdog, Level: o.Verdict.String(), Evidence: o.Evidence.String(), At: o.At}
+}
+
+// Examination is what the jury and the ban hold on one scope, read without changing either.
+type Examination struct {
+	Scope   string
+	Tracked bool // false for a caller not seen inside trackWindow
+
+	Banned      bool // a sentence is running, enforced or not
+	Flags       int
+	Offence     int
+	BannedUntil time.Time
+
+	// Every watchdog, aged as the jury ages them: past the suspicion window a verdict reads clear.
+	Readings []Reading
+
+	// What the jury would decide if the caller clicked now.
+	Suspects    int
+	MinSuspects int
+	Guilty      bool
+
+	Clicks           int
+	ActiveFor        time.Duration
+	LongestGap       time.Duration
+	LastClickAt      time.Time
+	TopCountry       string
+	TopCountryClicks int
 }
 
 // Report is one ban, with everything that argued for it. Every watchdog is in

@@ -50,5 +50,5 @@ func (c Config) Validate() error {
 		return err
 	}
 
-	return c.Bonus.Validate()
+	return errors.Join(c.Bonus.Validate(), c.AntiBot.Validate())
 }
