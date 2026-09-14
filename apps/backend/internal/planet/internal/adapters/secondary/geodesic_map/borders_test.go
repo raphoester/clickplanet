@@ -6,12 +6,16 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	mapdata "github.com/raphoester/clickplanet.lol-backend/generated/map"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/secondary/geodesic_map"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
 
 func TestTheShippedBordersPutEveryTileInItsCountry(t *testing.T) {
-	borders, asset, err := geodesic_map.LoadBorders(tiles)
+	borders, err := geodesic_map.New(tiles, nil).LoadBorders()
+	require.NoError(t, err)
+
+	_, asset, err := mapdata.Borders()
 	require.NoError(t, err)
 
 	assert.Equal(t, "borders-e9353d0c.bin", asset)
@@ -30,7 +34,7 @@ func TestTheShippedBordersPutEveryTileInItsCountry(t *testing.T) {
 }
 
 func TestBordersForAnotherMapRefuseTheBoot(t *testing.T) {
-	_, _, err := geodesic_map.LoadBorders(tiles - 1)
+	_, err := geodesic_map.New(tiles-1, nil).LoadBorders()
 	require.Error(t, err)
 }
 

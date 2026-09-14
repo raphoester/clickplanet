@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 
 	mapdata "github.com/raphoester/clickplanet.lol-backend/generated/map"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
@@ -12,24 +13,26 @@ import (
 
 // LoadBorders reads the tile to landmass table the frontend's `npm run borders` writes.
 // Format: uint32 header length | JSON {tiles, codes} | tiles*2 uint16 landmass | frames and totals, unread here.
-func LoadBorders(expectTiles uint32) (*clicks.Borders, string, error) {
+func (l *Loader) LoadBorders() (*clicks.Borders, error) {
 	blob, asset, err := mapdata.Borders()
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to read the embedded borders blob: %w", err)
+		return nil, fmt.Errorf("failed to read the embedded borders blob: %w", err)
 	}
 
 	borders, err := decodeBorders(blob)
 	if err != nil {
-		return nil, asset, fmt.Errorf("failed to decode %s: %w", asset, err)
+		return nil, fmt.Errorf("failed to decode %s: %w", asset, err)
 	}
 
-	if borders.Tiles() != expectTiles {
-		return nil, asset, fmt.Errorf(
+	if borders.Tiles() != l.expectTiles {
+		return nil, fmt.Errorf(
 			"%s holds %d tiles but gameMap.maxIndex is %d: the blob and the config were updated apart",
-			asset, borders.Tiles(), expectTiles)
+			asset, borders.Tiles(), l.expectTiles)
 	}
 
-	return borders, asset, nil
+	l.logger.Info("map borders loaded", slog.String("asset", asset))
+
+	return borders, nil
 }
 
 func decodeBorders(blob []byte) (*clicks.Borders, error) {

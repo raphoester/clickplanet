@@ -51,6 +51,7 @@ func build(config Config, props cpbootstrap.Props) error {
 	}
 
 	storage := memory_chat_storage.New(config.Storage, cptime.SystemClock{}, props.Logger)
+	storage.LoadLog()
 	props.Runners.Add("chat-storage", storage.Run)
 
 	service := chat_service.New(storage, cpcountries.New(), cptime.SystemClock{}, serviceConfig)

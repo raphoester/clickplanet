@@ -22,7 +22,14 @@ type savedBan struct {
 	Until    time.Time `json:"until"`
 }
 
-func (b *Banner) restore() error {
+// LoadState reads the bans saved at the last shutdown; a bad file is reported and starts with none.
+func (b *Banner) LoadState() {
+	if err := b.loadState(); err != nil {
+		b.onStateError(err)
+	}
+}
+
+func (b *Banner) loadState() error {
 	if b.config.StatePath == "" {
 		return nil
 	}

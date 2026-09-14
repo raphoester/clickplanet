@@ -33,8 +33,6 @@ func New(
 		subscribers: make(map[*subscriber]struct{}),
 	}
 
-	s.restore()
-
 	return s
 }
 

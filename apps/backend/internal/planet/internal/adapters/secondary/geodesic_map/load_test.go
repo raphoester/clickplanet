@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	mapdata "github.com/raphoester/clickplanet.lol-backend/generated/map"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/secondary/geodesic_map"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
@@ -16,17 +17,20 @@ import (
 // swapped underneath this suite fails it.
 const tiles = 257948
 
-var geography, asset = mustLoad()
+var geography = mustLoad()
 
-func mustLoad() (*clicks.Geography, string) {
-	geography, asset, err := geodesic_map.Load(tiles)
+func mustLoad() *clicks.Geography {
+	geography, err := geodesic_map.New(tiles, nil).LoadGeography()
 	if err != nil {
 		panic(err)
 	}
-	return geography, asset
+	return geography
 }
 
 func TestTheShippedBlobIsADetail300Honeycomb(t *testing.T) {
+	_, asset, err := mapdata.Coordinates()
+	require.NoError(t, err)
+
 	assert.Equal(t, "coordinates-26a9aeab.bin", asset,
 		"regenerating the blob renumbers every tile and moves every player's territory")
 	assert.Equal(t, uint32(tiles), geography.Stats().Tiles)
@@ -117,7 +121,7 @@ func TestAdjacencyAloneFindsTheContinents(t *testing.T) {
 }
 
 func TestLoadRefusesABlobThatDisagreesWithTheConfiguredTileCount(t *testing.T) {
-	_, _, err := geodesic_map.Load(tiles - 1)
+	_, err := geodesic_map.New(tiles-1, nil).LoadGeography()
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "updated apart")

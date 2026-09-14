@@ -95,6 +95,9 @@ type Guard interface {
 	// how the next honest clicker of that tile comes to look like it is reacting.
 	Committed(click Click)
 
+	// LoadBans reads the bans saved at the last shutdown, reporting a bad file through OnStateError.
+	LoadBans()
+
 	// Flagged is how many callers are currently banned, for the gauge.
 	Flagged() int
 
@@ -197,6 +200,8 @@ type guard struct {
 func (g *guard) Inspect(click Click) bool { return g.jury.Inspect(click) }
 
 func (g *guard) Committed(click Click) { g.jury.Committed(click) }
+
+func (g *guard) LoadBans() { g.banner.LoadState() }
 
 func (g *guard) Flagged() int { return g.jury.Flagged() }
 

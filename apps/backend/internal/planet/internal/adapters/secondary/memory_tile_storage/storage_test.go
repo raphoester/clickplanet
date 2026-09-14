@@ -32,7 +32,9 @@ func (s *testSuite) SetupTest() {
 }
 
 func (s *testSuite) newStorage(cfg memory_tile_storage.Config) *memory_tile_storage.Storage {
-	return memory_tile_storage.New(maxIndex, cfg, slog.New(slog.DiscardHandler))
+	storage := memory_tile_storage.New(maxIndex, cfg, slog.New(slog.DiscardHandler))
+	storage.LoadSnapshot()
+	return storage
 }
 
 func (s *testSuite) TestSetAndPublish() {
@@ -430,6 +432,7 @@ func (s *testSuite) TestSnapshotSurvivesADifferentMapSize() {
 	s.Require().NoError(big.Snapshot())
 
 	small := memory_tile_storage.New(100, cfg, slog.New(slog.DiscardHandler))
+	small.LoadSnapshot()
 	state, err := stateBatch(small, 0, 100)
 	s.Require().NoError(err)
 	s.Equal(map[uint32]string{10: "fr"}, state)

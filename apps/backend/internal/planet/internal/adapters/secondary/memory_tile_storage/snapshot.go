@@ -124,7 +124,8 @@ func (s *Storage) encode() ([]byte, bool) {
 	return buf, true
 }
 
-func (s *Storage) restore() {
+// LoadSnapshot fills the map from the snapshot file; a missing or bad one is logged and leaves it empty.
+func (s *Storage) LoadSnapshot() {
 	if s.config.SnapshotPath == "" {
 		return
 	}
