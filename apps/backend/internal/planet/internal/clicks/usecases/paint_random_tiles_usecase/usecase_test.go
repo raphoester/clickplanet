@@ -25,7 +25,15 @@ func (borders) Tiles() uint32 { return uint32(len(ground) - 1) } //nolint:gosec 
 
 type row struct{}
 
-func (row) Neighbours(id uint32) []uint32 { return []uint32{id - 1, id + 1} }
+func (row) Neighbours(id uint32) []uint32 {
+	var neighbours []uint32
+	for _, next := range []uint32{id - 1, id + 1} {
+		if next >= 1 && int(next) < len(ground) {
+			neighbours = append(neighbours, next)
+		}
+	}
+	return neighbours
+}
 
 type stubMap struct {
 	tiles   []string
@@ -72,16 +80,24 @@ func newUseCase(tiles *stubMap, pace clicks.Pacing) *paint_random_tiles_usecase.
 	return paint_random_tiles_usecase.New(borders{}, row{}, tiles, countries{}, random, pace)
 }
 
-func TestItPaintsOnlyTheAreaAndSkipsTilesAlreadyWearingTheFlag(t *testing.T) {
+func TestItGrowsPastTheAreaAndSkipsTilesAlreadyWearingTheFlag(t *testing.T) {
 	tiles := newMap()
 
 	out, err := newUseCase(tiles, clicks.Pacing{Batch: 2}).Execute(t.Context(),
 		paint_random_tiles_usecase.In{Flag: "dz", Area: "fr", Count: 10, Proximity: 0.5})
 	require.NoError(t, err)
 
+	assert.Equal(t, paint_random_tiles_usecase.Out{Eligible: 4, Picked: 5, OutsideArea: 1, Painted: 5}, out)
+	assert.Equal(t, []string{"", "dz", "dz", "dz", "dz", "dz", "dz", "dz", "dz"}, tiles.tiles, "tile 7 is bg ground, reached from tile 6")
+	assert.Len(t, tiles.batches, 3, "five tiles, two per batch")
+}
+
+func TestNoProximityStaysInTheAreaWhileItHasTiles(t *testing.T) {
+	out, err := newUseCase(newMap(), clicks.Pacing{Batch: 10}).Execute(t.Context(),
+		paint_random_tiles_usecase.In{Flag: "dz", Area: "fr", Count: 4})
+	require.NoError(t, err)
+
 	assert.Equal(t, paint_random_tiles_usecase.Out{Eligible: 4, Picked: 4, Painted: 4}, out)
-	assert.Equal(t, []string{"", "dz", "dz", "dz", "dz", "dz", "dz", "", "dz"}, tiles.tiles, "bg ground is left alone")
-	assert.Len(t, tiles.batches, 2, "four tiles, two per batch")
 }
 
 func TestItPicksNoMoreThanAsked(t *testing.T) {
@@ -91,7 +107,8 @@ func TestItPicksNoMoreThanAsked(t *testing.T) {
 		paint_random_tiles_usecase.In{Flag: "dz", Area: "fr", Count: 2, Proximity: 1})
 	require.NoError(t, err)
 
-	assert.Equal(t, paint_random_tiles_usecase.Out{Eligible: 4, Picked: 2, Painted: 2}, out)
+	assert.Equal(t, 2, out.Picked)
+	assert.Equal(t, 2, out.Painted)
 }
 
 func TestATileRetakenAfterThePickIsNotPainted(t *testing.T) {

@@ -10,14 +10,24 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
 
-// line is tiles 1..n in a row, each touching the one before and after; 0 and n+1 are not candidates.
-func line(n uint32) ([]uint32, func(uint32) []uint32) {
-	tiles := make([]uint32, 0, n)
-	for tile := uint32(1); tile <= n; tile++ {
+// row is tiles in a line, each touching the one before and after.
+func row(tile uint32) []uint32 { return []uint32{tile - 1, tile + 1} }
+
+func span(from, to uint32) []uint32 {
+	tiles := make([]uint32, 0, to-from+1)
+	for tile := from; tile <= to; tile++ {
 		tiles = append(tiles, tile)
 	}
 
-	return tiles, func(tile uint32) []uint32 { return []uint32{tile - 1, tile + 1} }
+	return tiles
+}
+
+func in(tiles []uint32) func(uint32) bool {
+	return func(tile uint32) bool { return slices.Contains(tiles, tile) }
+}
+
+func between(from, to uint32) func(uint32) bool {
+	return func(tile uint32) bool { return tile >= from && tile <= to }
 }
 
 func seeded(seed uint64) *rand.Rand {
@@ -29,10 +39,10 @@ func contiguous(tiles []uint32) bool {
 }
 
 func TestFullProximityGrowsOnePatch(t *testing.T) {
-	candidates, neighbours := line(1000)
+	seeds := span(1, 1000)
 
 	for seed := range uint64(20) {
-		picked := clicks.Pick(candidates, 50, 1, neighbours, seeded(seed))
+		picked := clicks.Pick(seeds, 50, 1, row, in(seeds), seeded(seed))
 
 		assert.Len(t, picked, 50)
 		assert.True(t, contiguous(picked), "seed %d: a gap means a draw left the patch", seed)
@@ -40,28 +50,53 @@ func TestFullProximityGrowsOnePatch(t *testing.T) {
 }
 
 func TestNoProximityScattersTheTiles(t *testing.T) {
-	candidates, neighbours := line(1000)
+	seeds := span(1, 1000)
 
-	picked := clicks.Pick(candidates, 50, 0, neighbours, seeded(1))
+	picked := clicks.Pick(seeds, 50, 0, row, in(seeds), seeded(1))
 
 	assert.Len(t, picked, 50)
 	assert.False(t, contiguous(picked))
 }
 
+func TestAPatchGrowsPastTheSeeds(t *testing.T) {
+	seeds := span(500, 509)
+
+	picked := clicks.Pick(seeds, 50, 1, row, between(1, 1000), seeded(4))
+
+	assert.Len(t, picked, 50)
+	assert.True(t, contiguous(picked))
+	assert.Less(t, slices.Min(picked), uint32(500))
+	assert.Greater(t, slices.Max(picked), uint32(509))
+}
+
+func TestNoProximityStaysOnTheSeedsWhileThereAreAny(t *testing.T) {
+	seeds := span(500, 509)
+
+	picked := clicks.Pick(seeds, 10, 0, row, between(1, 1000), seeded(4))
+
+	assert.ElementsMatch(t, seeds, picked)
+}
+
+func TestAPatchNeverGrowsIntoATileThatIsNotEligible(t *testing.T) {
+	seeds := span(500, 509)
+
+	picked := clicks.Pick(seeds, 100, 1, row, between(495, 514), seeded(4))
+
+	assert.ElementsMatch(t, span(495, 514), picked)
+}
+
 func TestFullProximityJumpsWhenThePatchIsWalledIn(t *testing.T) {
-	// Two islands of three: once one is taken, the only way to go on is a fresh draw.
-	candidates := []uint32{1, 2, 3, 11, 12, 13}
-	neighbours := func(tile uint32) []uint32 { return []uint32{tile - 1, tile + 1} }
+	seeds := []uint32{1, 2, 3, 11, 12, 13}
 
-	picked := clicks.Pick(candidates, 6, 1, neighbours, seeded(7))
+	picked := clicks.Pick(seeds, 6, 1, row, in(seeds), seeded(7))
 
-	assert.ElementsMatch(t, candidates, picked)
+	assert.ElementsMatch(t, seeds, picked)
 }
 
 func TestItNeverPicksATileTwiceNorMoreThanThereAre(t *testing.T) {
-	candidates, neighbours := line(30)
+	seeds := span(1, 30)
 
-	picked := clicks.Pick(candidates, 100, 0.5, neighbours, seeded(3))
+	picked := clicks.Pick(seeds, 100, 0.5, row, in(seeds), seeded(3))
 
-	assert.ElementsMatch(t, candidates, picked)
+	assert.ElementsMatch(t, seeds, picked)
 }

@@ -29,7 +29,7 @@ func audited(inner stubUseCase) (*audit_paint_random.Audited, *bytes.Buffer) {
 }
 
 func TestAPaintIsLoggedWithItsCounts(t *testing.T) {
-	want := paint_random_tiles_usecase.Out{Eligible: 9000, Picked: 500, Painted: 498}
+	want := paint_random_tiles_usecase.Out{Eligible: 9000, Picked: 500, OutsideArea: 40, Painted: 498}
 	useCase, logs := audited(stubUseCase{out: want})
 
 	out, err := useCase.Execute(t.Context(),
@@ -38,7 +38,7 @@ func TestAPaintIsLoggedWithItsCounts(t *testing.T) {
 
 	assert.Equal(t, want, out)
 	assert.Contains(t, logs.String(),
-		`level=WARN msg="admin random paint" flag=dz area=fr count=500 proximity=0.8 dryRun=true eligible=9000 picked=500 painted=498`)
+		`level=WARN msg="admin random paint" flag=dz area=fr count=500 proximity=0.8 dryRun=true eligible=9000 picked=500 outsideArea=40 painted=498`)
 }
 
 func TestAFailureIsLoggedWithHowFarItGot(t *testing.T) {

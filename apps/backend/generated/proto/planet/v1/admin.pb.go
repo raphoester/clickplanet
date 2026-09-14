@@ -26,7 +26,8 @@ const (
 type PaintRandomTilesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	FlagCountryId string                 `protobuf:"bytes,1,opt,name=flag_country_id,json=flagCountryId,proto3" json:"flag_country_id,omitempty"`
-	// The country whose ground the tiles sit on.
+	// The country a fresh draw lands in. A patch grows from there into any
+	// tile not wearing the flag, across the border too.
 	AreaCountryId string `protobuf:"bytes,2,opt,name=area_country_id,json=areaCountryId,proto3" json:"area_country_id,omitempty"`
 	Count         uint32 `protobuf:"varint,3,opt,name=count,proto3" json:"count,omitempty"`
 	// From 0 to 1. 0 picks anywhere in the area; 1 grows one patch while it can.
@@ -105,10 +106,12 @@ type PaintRandomTilesResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Tiles of the area that do not wear the flag yet.
 	Eligible uint32 `protobuf:"varint,1,opt,name=eligible,proto3" json:"eligible,omitempty"`
-	// min(count, eligible).
+	// Below count only when nothing is left to pick.
 	Picked uint32 `protobuf:"varint,2,opt,name=picked,proto3" json:"picked,omitempty"`
 	// Picked tiles that nobody took between the pick and the paint.
-	Painted       uint32 `protobuf:"varint,3,opt,name=painted,proto3" json:"painted,omitempty"`
+	Painted uint32 `protobuf:"varint,3,opt,name=painted,proto3" json:"painted,omitempty"`
+	// Picked tiles past the area's border.
+	OutsideArea   uint32 `protobuf:"varint,4,opt,name=outside_area,json=outsideArea,proto3" json:"outside_area,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -160,6 +163,13 @@ func (x *PaintRandomTilesResponse) GetPicked() uint32 {
 func (x *PaintRandomTilesResponse) GetPainted() uint32 {
 	if x != nil {
 		return x.Painted
+	}
+	return 0
+}
+
+func (x *PaintRandomTilesResponse) GetOutsideArea() uint32 {
+	if x != nil {
+		return x.OutsideArea
 	}
 	return 0
 }
@@ -1170,11 +1180,12 @@ const file_planet_v1_admin_proto_rawDesc = "" +
 	"\x0farea_country_id\x18\x02 \x01(\tR\rareaCountryId\x12\x14\n" +
 	"\x05count\x18\x03 \x01(\rR\x05count\x12\x1c\n" +
 	"\tproximity\x18\x04 \x01(\x01R\tproximity\x12\x17\n" +
-	"\adry_run\x18\x05 \x01(\bR\x06dryRun\"h\n" +
+	"\adry_run\x18\x05 \x01(\bR\x06dryRun\"\x8b\x01\n" +
 	"\x18PaintRandomTilesResponse\x12\x1a\n" +
 	"\beligible\x18\x01 \x01(\rR\beligible\x12\x16\n" +
 	"\x06picked\x18\x02 \x01(\rR\x06picked\x12\x18\n" +
-	"\apainted\x18\x03 \x01(\rR\apainted\",\n" +
+	"\apainted\x18\x03 \x01(\rR\apainted\x12!\n" +
+	"\foutside_area\x18\x04 \x01(\rR\voutsideArea\",\n" +
 	"\x14InspectPlayerRequest\x12\x14\n" +
 	"\x05scope\x18\x01 \x01(\tR\x05scope\"\xab\x05\n" +
 	"\x15InspectPlayerResponse\x12\x14\n" +

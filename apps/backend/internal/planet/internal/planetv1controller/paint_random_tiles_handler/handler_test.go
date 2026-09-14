@@ -42,7 +42,7 @@ func paint(t *testing.T, useCase *stubUseCase) (*planetv1.PaintRandomTilesRespon
 }
 
 func TestTheRequestReachesTheUseCaseAndTheCountsComeBack(t *testing.T) {
-	useCase := &stubUseCase{out: paint_random_tiles_usecase.Out{Eligible: 9000, Picked: 500, Painted: 498}}
+	useCase := &stubUseCase{out: paint_random_tiles_usecase.Out{Eligible: 9000, Picked: 500, OutsideArea: 40, Painted: 498}}
 
 	res, err := paint(t, useCase)
 	require.NoError(t, err)
@@ -51,6 +51,7 @@ func TestTheRequestReachesTheUseCaseAndTheCountsComeBack(t *testing.T) {
 	assert.Equal(t, uint32(9000), res.GetEligible())
 	assert.Equal(t, uint32(500), res.GetPicked())
 	assert.Equal(t, uint32(498), res.GetPainted())
+	assert.Equal(t, uint32(40), res.GetOutsideArea())
 }
 
 func TestACallerMistakeIsInvalidArgument(t *testing.T) {

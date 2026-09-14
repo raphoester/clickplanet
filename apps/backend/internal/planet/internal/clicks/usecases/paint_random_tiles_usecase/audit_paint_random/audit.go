@@ -28,7 +28,7 @@ func (a *Audited) Execute(ctx context.Context, in paint_random_tiles_usecase.In)
 	attrs := []any{
 		slog.String("flag", in.Flag), slog.String("area", in.Area), slog.Int("count", in.Count),
 		slog.Float64("proximity", in.Proximity), slog.Bool("dryRun", in.DryRun),
-		slog.Int("eligible", out.Eligible), slog.Int("picked", out.Picked), slog.Int("painted", out.Painted),
+		slog.Int("eligible", out.Eligible), slog.Int("picked", out.Picked), slog.Int("outsideArea", out.OutsideArea), slog.Int("painted", out.Painted),
 	}
 
 	if err != nil {
