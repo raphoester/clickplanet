@@ -92,6 +92,8 @@ func (s *stack) click(scope string, tile uint32, country string) bool {
 		NoOp:    held == country,
 	}
 
+	s.guard.Attempted(click)
+
 	drop := s.guard.Inspect(click)
 	if !drop {
 		s.guard.Committed(click)
@@ -186,6 +188,33 @@ func TestSweepingInARandomOrderStillGetsCaught(t *testing.T) {
 	// Half an hour of sweeping is bought for one line of the bot's code. The
 	// answer is another watchdog, not a looser bound on this one.
 	assert.Greater(t, clicks, 1700, "a lone watchdog has to be sure, and sure takes certainFor")
+}
+
+func TestALoopFiringIntoTheThrottleIsCaught(t *testing.T) {
+	s := newStack()
+
+	//nolint:gosec // G404: deterministic PRNG, seeded per test so the click
+	// stream replays exactly. Not security-relevant.
+	random := rand.New(rand.NewPCG(9, 10))
+
+	var dropped bool
+	for range 4000 {
+		s.clock.Advance(950 * time.Millisecond)
+
+		// The throttle refuses about half the tries, unevenly; only those it keeps reach Inspect.
+		if random.IntN(2) == 0 {
+			s.guard.Attempted(antibot.Click{Scope: "looper", Tile: 1, Country: "BG", At: s.clock.Now()})
+			continue
+		}
+
+		if s.click("looper", 180000+uint32(random.IntN(60000)), "BG") {
+			dropped = true
+			break
+		}
+	}
+
+	require.True(t, dropped)
+	assert.Equal(t, detect.Certain, s.verdicts("looper")["metronome"])
 }
 
 // A player who is very keen: fast, for a long time, on tiles next to each other

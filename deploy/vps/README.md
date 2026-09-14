@@ -363,13 +363,17 @@ Sessions raise the floor to "drive a real browser". What gets through that is a
 userscript in a real browser, holding a genuine session — and the only thing
 left that separates it from a player is behaviour.
 
-`antiBot` watches three behaviours, one per watchdog:
+`antiBot` watches five behaviours, one per watchdog:
 
 - **`retaker`** — takes a tile back moments after losing it, over and over, in a
   band no hand holds.
 - **`sequencer`** — walks the tile ids rather than the map: 1, 2, 3, 4, on and on
   until a continent is painted.
-- **`metronome`** — never varies and never stops.
+- **`metronome`** — never varies and never stops. Timed between clicks *tried*,
+  429s included, so the throttle cannot hide a steady loop.
+- **`defender`** — nearly every take wins back a tile its country just lost.
+  **Measuring only**: it sets no verdict until `minShare`/`certainShare` are set.
+- **`catcher`** — catches every bonus box, at once.
 
 Each returns `certain` or `suspect`. **`certain` bans on its own; `suspect` is a
 reading that would ban real players if it were trusted alone**, and counts only
@@ -407,6 +411,19 @@ and everyone else, so it tells you *that* there is a band and roughly where —
 never which caller owns it. It also only sees `retaker`; the other two watchdogs
 have no histogram, because a sweep has no delay to time. Per-caller numbers come
 from the log below.
+
+### Setting the defender's shares
+
+```bash
+docker compose exec backend wget -qO- localhost:8080/metrics | grep click_retake_share
+```
+
+Once a minute, every caller with `minClicks` takes in the last `trackWindow` adds
+its retake share to `click_retake_share`. The poller keeps it. A defence loop sits
+at the top bucket for as long as it runs; a painter sits low. **Two people fighting
+over one tile also sit at the top**, for as long as the fight lasts — so read how
+long callers stay there, not only that they get there, and set `certainClicks`
+past what a fight lasts.
 
 ### The log says who
 

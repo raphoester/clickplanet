@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/catcher"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/defender"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/jury"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/metronome"
@@ -56,6 +57,7 @@ type Config struct {
 	Retaker   retakerConfig
 	Sequencer sequencerConfig
 	Metronome metronomeConfig
+	Defender  defenderConfig
 	Catcher   catcherConfig
 }
 
@@ -74,6 +76,11 @@ type metronomeConfig struct {
 	Detector metronome.Config
 }
 
+type defenderConfig struct {
+	Enabled  bool
+	Detector defender.Config
+}
+
 type catcherConfig struct {
 	Enabled  bool
 	Detector catcher.Config
@@ -86,6 +93,9 @@ type Observer struct {
 	// distribution is what shows the bot band.
 	OnReaction func(delay time.Duration)
 
+	// Each caller's retake share, once a sweep, whether or not a bound is set to judge it.
+	OnRetakeShare func(share float64)
+
 	OnFlag func(report Report)
 
 	// Bans that could not be restored at boot or saved since.
@@ -97,6 +107,9 @@ type Observer struct {
 
 // Guard is the whole surface the click edge gates on.
 type Guard interface {
+	// Attempted is every click tried, before the throttle: a loop's timing survives only here.
+	Attempted(click Click)
+
 	// Called before the handler runs, because the map stops remembering who held
 	// the tile the moment it does.
 	Inspect(click Click) (drop bool)
@@ -176,6 +189,13 @@ func New(config Config, clock cptime.Clock, observer Observer) (Guard, error) {
 		names = append(names, metronome.Name)
 	}
 
+	if config.Defender.Enabled {
+		watchdog := defender.New(config.Defender.Detector, clock, observer.OnRetakeShare)
+		g.runners = append(g.runners, watchdog.Run)
+		watchdogs = append(watchdogs, watchdog)
+		names = append(names, defender.Name)
+	}
+
 	if config.Catcher.Enabled {
 		watchdog := catcher.New(config.Catcher.Detector, clock)
 		g.runners = append(g.runners, watchdog.Run)
@@ -223,6 +243,8 @@ type guard struct {
 	description Description
 	onStart     func(Description)
 }
+
+func (g *guard) Attempted(click Click) { g.jury.Attempted(click) }
 
 func (g *guard) Inspect(click Click) bool { return g.jury.Inspect(click) }
 
@@ -280,6 +302,7 @@ func (g *guard) Run(ctx context.Context) {
 // off is the guard for a block that is off: every click passes and nothing is ever banned.
 type off struct{}
 
+func (off) Attempted(Click)                    {}
 func (off) Inspect(Click) bool                 { return false }
 func (off) Committed(Click)                    {}
 func (off) Caught(string, time.Duration)       {}

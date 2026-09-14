@@ -74,6 +74,9 @@ type Evidence struct {
 type Watchdog interface {
 	Name() string
 
+	// Attempted sees every click tried, throttled ones included; Held and NoOp are unset.
+	Attempted(click Click)
+
 	// Watch records the click and says how the caller reads now. It is called
 	// for every click, including the ones an existing ban is already dropping:
 	// a watchdog that stops being fed while its caller is banned cannot say

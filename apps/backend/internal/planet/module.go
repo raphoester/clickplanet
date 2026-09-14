@@ -28,6 +28,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/embedded_geodesic_map"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/antibot_attempt_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/antibot_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/bonus_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/enclose_click"
@@ -170,6 +171,9 @@ func NewModule(config Config) cpbootstrap.Module {
 			clickUseCase = bonus_click.New(clickUseCase, registry)
 
 			clickUseCase = throttle_click.New(clickUseCase, limiter, pricer)
+
+			// Outside the throttle: a loop's timing is only whole before it drops clicks.
+			clickUseCase = antibot_attempt_click.New(clickUseCase, guard, clock)
 
 			// ---- Admin service ----
 

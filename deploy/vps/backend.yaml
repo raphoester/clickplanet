@@ -129,18 +129,31 @@ antiBot:
     detector:
       maxGap: 3s
       # Left wide deliberately, unlike the retaker's. The caller measured on
-      # 2026-09-11 read 248ms here, and a player spam-clicking into the 1/s
-      # throttle gets its surviving clicks handed back at the refill rate, so
-      # this number partly measures the limiter rather than the caller. That is
-      # safe at "suspect", which needs a second watchdog to mean anything, and
-      # the retaker no longer supplies one cheaply. Watch certainFor/certainClicks
-      # below instead: those ban alone, and 30m with no pause past maxGap is the
-      # claim doing the work, not the spread.
+      # 2026-09-11 read 248ms here. Gaps are timed between clicks *tried*, 429s
+      # included, since 2026-09-14: before that the throttle's refusals turned a
+      # bot firing every 950ms (+-60ms) into gaps of 0.95/1.9/2.85s and it read
+      # clear. That is safe at "suspect", which needs a second watchdog to mean
+      # anything. Watch certainFor/certainClicks below instead: those ban alone,
+      # and 30m with no pause past maxGap is the claim doing the work, not the spread.
       maxSpread: 400ms
       minClicks: 120
       certainFor: 30m
       certainClicks: 900
       trackWindow: 15m
+      sweepInterval: 1m
+
+  defender:
+    enabled: true
+    detector:
+      # Measuring only, since 2026-09-14: no share is set, so it never argues
+      # for a ban. The Bulgaria bots retook from a queue, 0.4s to 40s after the
+      # loss, far past the retaker's reaction window. Read click_retake_share in
+      # the poller history before setting minShare/certainShare — two players
+      # fighting over one tile also read as all retakes.
+      retakeWindow: 2m
+      minClicks: 60
+      certainClicks: 200
+      trackWindow: 5m
       sweepInterval: 1m
 
   # Catches every one of its last five boxes, at once. See cmd/api/example.yaml.

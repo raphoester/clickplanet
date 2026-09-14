@@ -26,6 +26,13 @@ func NewObserver(logger *slog.Logger, registerer prometheus.Registerer) antibot.
 		},
 	})
 
+	// Sampled once a sweep per caller, so a caller held there five minutes is five samples.
+	retakeShares := factory.NewHistogram(prometheus.HistogramOpts{
+		Name:    "click_retake_share",
+		Help:    "Share of a caller's takes that win back a tile its country just lost, per caller per sweep",
+		Buckets: []float64{0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99, 1.0},
+	})
+
 	// Counts flags, not callers, and once per watchdog that argued for each one:
 	// a caller flagged six times is six here and one on shadowban_flagged, and
 	// the gap between the two is the thing to look at.
@@ -36,6 +43,8 @@ func NewObserver(logger *slog.Logger, registerer prometheus.Registerer) antibot.
 
 	return antibot.Observer{
 		OnReaction: func(delay time.Duration) { reactions.Observe(delay.Seconds()) },
+
+		OnRetakeShare: retakeShares.Observe,
 
 		// The address goes in the log and never on a label: per-IP labels are
 		// unbounded cardinality, and they would put personal data in every scrape.

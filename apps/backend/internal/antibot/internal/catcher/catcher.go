@@ -104,6 +104,9 @@ type outcome struct {
 
 func (w *Watchdog) Name() string { return Name }
 
+// Attempted is nothing to this watchdog: it reads boxes, not clicks.
+func (w *Watchdog) Attempted(detect.Click) {}
+
 // Committed is nothing to this watchdog: it reads boxes, not tiles.
 func (w *Watchdog) Committed(detect.Click) {}
 

@@ -21,6 +21,7 @@ type stubWatchdog struct {
 
 	seen      int
 	committed int
+	attempted int
 }
 
 func (w *stubWatchdog) Name() string { return w.name }
@@ -34,6 +35,8 @@ func (w *stubWatchdog) Watch(detect.Click) (detect.Verdict, detect.Evidence) {
 }
 
 func (w *stubWatchdog) Committed(detect.Click) { w.committed++ }
+
+func (w *stubWatchdog) Attempted(detect.Click) { w.attempted++ }
 
 type harness struct {
 	jury    *jury.Jury
@@ -228,6 +231,21 @@ func TestCommittedReachesEveryWatchdog(t *testing.T) {
 
 	assert.Equal(t, 1, first.committed)
 	assert.Equal(t, 1, second.committed)
+}
+
+func TestAttemptedReachesEveryWatchdogAndJudgesNothing(t *testing.T) {
+	first := &stubWatchdog{name: "first", verdict: detect.Certain}
+	second := &stubWatchdog{name: "second"}
+
+	h := newHarness(juryConfig(), banConfig(), first, second)
+
+	h.jury.Attempted(detect.Click{Scope: "caller", Tile: 1, Country: "FR", At: h.clock.Now()})
+	h.jury.Attempted(detect.Click{Tile: 1, Country: "FR", At: h.clock.Now()})
+
+	assert.Equal(t, 1, first.attempted, "a click with no scope is nobody's")
+	assert.Equal(t, 1, second.attempted)
+	assert.Equal(t, 0, first.seen, "a try the throttle may still refuse is never a verdict")
+	assert.Empty(t, h.reports)
 }
 
 func TestACallerWithNoScopeIsNotJudged(t *testing.T) {

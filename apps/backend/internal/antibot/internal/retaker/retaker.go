@@ -119,6 +119,9 @@ type reaction struct {
 
 func (w *Watchdog) Name() string { return Name }
 
+// Attempted is nothing to this watchdog. A refused click took nothing back.
+func (w *Watchdog) Attempted(detect.Click) {}
+
 func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
 	// A click onto a tile the caller's own country already holds changes
 	// nothing and publishes nothing, so it is neither a reaction nor something
