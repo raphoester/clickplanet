@@ -50,6 +50,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click/spread_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click/throttle_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/drop_bomb"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/drop_bomb/antibot_drop_bomb"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/drop_bomb/prom_drop_bomb"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/find_players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_budget"
@@ -150,7 +151,7 @@ func build(config Config, props cpbootstrap.Props) error {
 		return err
 	}
 
-	dropBomb, err := dropBombUseCase(bonuses, bombs, geography, tilesStorage, bombRules, props)
+	dropBomb, err := dropBombUseCase(bonuses, bombs, geography, tilesStorage, bombRules, guard, props)
 	if err != nil {
 		return err
 	}
@@ -382,6 +383,7 @@ func dropBombUseCase(
 	geography *clicks.Geography,
 	storage *memory_tile_storage.Storage,
 	rules drop_bomb.Rules,
+	guard antibot.Guard,
 	props cpbootstrap.Props,
 ) (drop_bomb_handler.UseCase, error) {
 	if registry == nil {
@@ -392,6 +394,11 @@ func dropBombUseCase(
 		drop_bomb.New(bombs, registry, geography, storage, cpcountries.New(), rules), props.Metrics)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create the bomb drop use case: %w", err)
+	}
+
+	// Outside the count, so it can tell the counter a drop was a dud.
+	if guard != nil {
+		return antibot_drop_bomb.New(useCase, guard), nil
 	}
 
 	return useCase, nil
