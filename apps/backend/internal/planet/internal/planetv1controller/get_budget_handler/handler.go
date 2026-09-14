@@ -6,12 +6,12 @@ import (
 
 	"connectrpc.com/connect"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/toll"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/clickbudget"
 )
 
 type UseCase interface {
-	Execute(ctx context.Context, country string) (toll.Budget, bool)
+	Execute(ctx context.Context, country string) (clicks.Budget, bool)
 }
 
 func New(useCase UseCase) GetBudgetHandler {

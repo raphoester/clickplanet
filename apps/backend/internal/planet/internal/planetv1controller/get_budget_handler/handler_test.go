@@ -9,18 +9,18 @@ import (
 	"github.com/stretchr/testify/require"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/toll"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_budget_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 )
 
 type stubUseCase struct {
-	state   toll.Budget
+	state   clicks.Budget
 	limited bool
 	country *string
 }
 
-func (s stubUseCase) Execute(_ context.Context, country string) (toll.Budget, bool) {
+func (s stubUseCase) Execute(_ context.Context, country string) (clicks.Budget, bool) {
 	if s.country != nil {
 		*s.country = country
 	}
@@ -40,9 +40,9 @@ func getBudget(t *testing.T, useCase stubUseCase) *planetv1.ClickBudget {
 
 func TestGetBudgetMapsTheReading(t *testing.T) {
 	budget := getBudget(t, stubUseCase{
-		state: toll.Budget{
+		state: clicks.Budget{
 			State: cpratelimit.State{Tokens: 7.25, Capacity: 10, PerSecond: 1.5},
-			Price: toll.Price{Cost: 1.25, Share: 0.3, NextShare: 0.5, NextCost: 1.5},
+			Price: clicks.Price{Cost: 1.25, Share: 0.3, NextShare: 0.5, NextCost: 1.5},
 		},
 		limited: true,
 	})

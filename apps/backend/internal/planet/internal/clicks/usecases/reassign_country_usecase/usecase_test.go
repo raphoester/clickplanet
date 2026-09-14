@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/pacing"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/reassign_country_usecase"
 )
 
@@ -64,7 +63,7 @@ func newMap() *stubMap {
 
 func TestItMovesEveryTileInBatches(t *testing.T) {
 	tiles := newMap()
-	useCase := reassign_country_usecase.New(tiles, countries{}, pacing.Pacing{Batch: 2})
+	useCase := reassign_country_usecase.New(tiles, countries{}, clicks.Pacing{Batch: 2})
 
 	out, err := useCase.Execute(t.Context(), reassign_country_usecase.In{From: "dz", To: "fr"})
 	require.NoError(t, err)
@@ -77,7 +76,7 @@ func TestItMovesEveryTileInBatches(t *testing.T) {
 
 func TestADryRunCountsAndMovesNothing(t *testing.T) {
 	tiles := newMap()
-	useCase := reassign_country_usecase.New(tiles, countries{}, pacing.Pacing{Batch: 2})
+	useCase := reassign_country_usecase.New(tiles, countries{}, clicks.Pacing{Batch: 2})
 
 	out, err := useCase.Execute(t.Context(), reassign_country_usecase.In{From: "dz", To: "fr", DryRun: true})
 	require.NoError(t, err)
@@ -87,7 +86,7 @@ func TestADryRunCountsAndMovesNothing(t *testing.T) {
 }
 
 func TestItRefusesAnUnknownCountryOnEitherSide(t *testing.T) {
-	useCase := reassign_country_usecase.New(newMap(), countries{}, pacing.Pacing{Batch: 2})
+	useCase := reassign_country_usecase.New(newMap(), countries{}, clicks.Pacing{Batch: 2})
 
 	_, err := useCase.Execute(t.Context(), reassign_country_usecase.In{From: "xx", To: "fr"})
 	require.ErrorIs(t, err, clicks.ErrUnknownCountry)
@@ -97,7 +96,7 @@ func TestItRefusesAnUnknownCountryOnEitherSide(t *testing.T) {
 }
 
 func TestItRefusesACountryToItself(t *testing.T) {
-	useCase := reassign_country_usecase.New(newMap(), countries{}, pacing.Pacing{Batch: 2})
+	useCase := reassign_country_usecase.New(newMap(), countries{}, clicks.Pacing{Batch: 2})
 
 	_, err := useCase.Execute(t.Context(), reassign_country_usecase.In{From: "fr", To: "fr"})
 	require.ErrorIs(t, err, reassign_country_usecase.ErrSameCountry)
@@ -105,7 +104,7 @@ func TestItRefusesACountryToItself(t *testing.T) {
 
 func TestItStopsWhenTheContextEndsAndSaysHowFarItGot(t *testing.T) {
 	tiles := newMap()
-	useCase := reassign_country_usecase.New(tiles, countries{}, pacing.Pacing{Batch: 2, Pause: time.Hour})
+	useCase := reassign_country_usecase.New(tiles, countries{}, clicks.Pacing{Batch: 2, Pause: time.Hour})
 
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
@@ -121,7 +120,7 @@ func TestItStopsWhenTheContextEndsAndSaysHowFarItGot(t *testing.T) {
 func TestAStorageErrorIsReturned(t *testing.T) {
 	tiles := newMap()
 	tiles.err = errors.New("code table full")
-	useCase := reassign_country_usecase.New(tiles, countries{}, pacing.Pacing{Batch: 2})
+	useCase := reassign_country_usecase.New(tiles, countries{}, clicks.Pacing{Batch: 2})
 
 	_, err := useCase.Execute(t.Context(), reassign_country_usecase.In{From: "dz", To: "fr"})
 	require.ErrorIs(t, err, tiles.err)

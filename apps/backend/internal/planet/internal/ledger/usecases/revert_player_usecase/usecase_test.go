@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/pacing"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/revert_player_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -60,7 +59,7 @@ func setup(t *testing.T) (*ledger.Ledger, *stubMap) {
 
 func TestItGivesBackOnlyTheTilesStillWearingThePaintInBatches(t *testing.T) {
 	book, tiles := setup(t)
-	useCase := revert_player_usecase.New(book, tiles, pacing.Pacing{Batch: 2})
+	useCase := revert_player_usecase.New(book, tiles, clicks.Pacing{Batch: 2})
 
 	out, err := useCase.Execute(t.Context(), revert_player_usecase.In{Scope: "9.9.9.9"})
 	require.NoError(t, err)
@@ -74,7 +73,7 @@ func TestItGivesBackOnlyTheTilesStillWearingThePaintInBatches(t *testing.T) {
 
 func TestADryRunCountsAndRestoresNothing(t *testing.T) {
 	book, tiles := setup(t)
-	useCase := revert_player_usecase.New(book, tiles, pacing.Pacing{Batch: 2})
+	useCase := revert_player_usecase.New(book, tiles, clicks.Pacing{Batch: 2})
 
 	out, err := useCase.Execute(t.Context(), revert_player_usecase.In{Scope: "9.9.9.9", DryRun: true})
 	require.NoError(t, err)
@@ -87,13 +86,13 @@ func TestADryRunCountsAndRestoresNothing(t *testing.T) {
 func TestItRefusesWhatIsNotAScope(t *testing.T) {
 	book, tiles := setup(t)
 
-	_, err := revert_player_usecase.New(book, tiles, pacing.Pacing{Batch: 2}).Execute(t.Context(), revert_player_usecase.In{Scope: "bot"})
+	_, err := revert_player_usecase.New(book, tiles, clicks.Pacing{Batch: 2}).Execute(t.Context(), revert_player_usecase.In{Scope: "bot"})
 	require.ErrorIs(t, err, clicks.ErrInvalidScope)
 }
 
 func TestItStopsWhenTheContextEndsAndSaysHowFarItGot(t *testing.T) {
 	book, tiles := setup(t)
-	useCase := revert_player_usecase.New(book, tiles, pacing.Pacing{Batch: 2, Pause: time.Hour})
+	useCase := revert_player_usecase.New(book, tiles, clicks.Pacing{Batch: 2, Pause: time.Hour})
 
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
@@ -109,6 +108,6 @@ func TestAStorageErrorIsReturned(t *testing.T) {
 	book, tiles := setup(t)
 	tiles.err = errors.New("code table full")
 
-	_, err := revert_player_usecase.New(book, tiles, pacing.Pacing{Batch: 2}).Execute(t.Context(), revert_player_usecase.In{Scope: "9.9.9.9"})
+	_, err := revert_player_usecase.New(book, tiles, clicks.Pacing{Batch: 2}).Execute(t.Context(), revert_player_usecase.In{Scope: "9.9.9.9"})
 	require.ErrorIs(t, err, tiles.err)
 }

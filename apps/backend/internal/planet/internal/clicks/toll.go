@@ -1,10 +1,4 @@
-// Package toll prices a click by how much of the map its country already holds.
-//
-// The price is in tokens and is taken at the moment of the click, from the
-// country clicked for. A slower refill for big countries would have been read
-// off whatever country the caller played last, so a player could bank tokens
-// on a small country and spend them on a big one.
-package toll
+package clicks
 
 import (
 	"fmt"
@@ -13,22 +7,22 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 )
 
-// Step is one row of the table: from Share of the map, a click costs Cost
+// TollStep is one row of the table: from Share of the map, a click costs Cost
 // tokens. Cost may be a fraction: 1.5 is half as slow again.
-type Step struct {
+type TollStep struct {
 	Share float64
 	Cost  float64
 }
 
-// Config holds the steps, lowest share first. Empty prices every click at one token.
-type Config struct {
-	Steps []Step
+// TollConfig holds the steps, lowest share first. Empty prices every click at one token.
+type TollConfig struct {
+	Steps []TollStep
 }
 
 // Validate refuses a table that could lock a country out: a cost above the
 // burst is one no bucket can ever pay.
-func (c Config) Validate(burst int) error {
-	previous := Step{Cost: 1}
+func (c TollConfig) Validate(burst int) error {
+	previous := TollStep{Cost: 1}
 
 	for i, step := range c.Steps {
 		if math.IsNaN(step.Share) || step.Share <= previous.Share || step.Share > 1 {
@@ -62,11 +56,11 @@ type Budget struct {
 	Price Price
 }
 
-// Of reads a bucket in clicks: at a cost of 2, ten tokens refilling at 1/s are
+// BudgetOf reads a bucket in clicks: at a cost of 2, ten tokens refilling at 1/s are
 // five clicks refilling at 0.5/s, so the meter on screen narrows with no client
 // arithmetic, the way a bonus widens it. The capacity rounds down, so the meter
 // never shows a click the bucket cannot hold.
-func Of(state cpratelimit.State, price Price) Budget {
+func BudgetOf(state cpratelimit.State, price Price) Budget {
 	cost := max(price.Cost, 1)
 
 	return Budget{
@@ -83,12 +77,18 @@ type ShareReader interface {
 	Share(country string) float64
 }
 
-func New(config Config, shares ShareReader) *Toll {
+func NewToll(config TollConfig, shares ShareReader) *Toll {
 	return &Toll{steps: config.Steps, shares: shares}
 }
 
+// A toll prices a click by how much of the map its country already holds.
+//
+// The price is in tokens and is taken at the moment of the click, from the
+// country clicked for. A slower refill for big countries would have been read
+// off whatever country the caller played last, so a player could bank tokens
+// on a small country and spend them on a big one.
 type Toll struct {
-	steps  []Step
+	steps  []TollStep
 	shares ShareReader
 }
 

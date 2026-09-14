@@ -13,7 +13,6 @@ import (
 	"context"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/toll"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
@@ -28,7 +27,7 @@ type Limiter interface {
 
 // Pricer says how many tokens a click for a country costs.
 type Pricer interface {
-	Price(country string) toll.Price
+	Price(country string) clicks.Price
 }
 
 func New(implementation click_usecase.IUseCase, limiter Limiter, pricer Pricer) *UseCase {
@@ -50,13 +49,13 @@ func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_useca
 
 	allowed, state := u.limiter.TakeN(cpctx.RateLimitKey(ctx), price.Cost)
 	if !allowed {
-		return click_usecase.Out{Budget: toll.Of(state, price), Limited: true}, clicks.ErrThrottled
+		return click_usecase.Out{Budget: clicks.BudgetOf(state, price), Limited: true}, clicks.ErrThrottled
 	}
 
 	in.Boosted = state.Boosted
 
 	out, err := u.implementation.Execute(ctx, in)
-	out.Budget, out.Limited = toll.Of(state, price), true
+	out.Budget, out.Limited = clicks.BudgetOf(state, price), true
 
 	return out, err
 }

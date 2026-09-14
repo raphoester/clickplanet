@@ -7,7 +7,6 @@ import (
 	"fmt"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/pacing"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipscope"
 )
@@ -35,14 +34,14 @@ type Out struct {
 	Restored int
 }
 
-func New(ledger Ledger, tiles Map, pace pacing.Pacing) *UseCase {
+func New(ledger Ledger, tiles Map, pace clicks.Pacing) *UseCase {
 	return &UseCase{ledger: ledger, tiles: tiles, pacing: pace}
 }
 
 type UseCase struct {
 	ledger Ledger
 	tiles  Map
-	pacing pacing.Pacing
+	pacing clicks.Pacing
 }
 
 func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {

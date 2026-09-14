@@ -9,7 +9,7 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/claim_bonus_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/toll"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -74,9 +74,9 @@ func (s *stubEncloser) Grant(scope string, until time.Time, shapes int, maxTiles
 	s.scope, s.until, s.shapes, s.maxTiles = scope, until, shapes, maxTiles
 }
 
-type stubPricer toll.Price
+type stubPricer clicks.Price
 
-func (p stubPricer) Price(string) toll.Price { return toll.Price(p) }
+func (p stubPricer) Price(string) clicks.Price { return clicks.Price(p) }
 
 var onePrice = stubPricer{Cost: 1}
 

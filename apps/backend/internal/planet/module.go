@@ -24,11 +24,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/drop_bomb_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/drop_bomb_usecase/antibot_drop_bomb"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/drop_bomb_usecase/prom_drop_bomb"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/embedded_geodesic_map"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_checker"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/pacing"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/toll"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/antibot_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/bonus_click"
@@ -103,7 +101,7 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			// ---- Storage, ledger, limiter, toll ----
 
-			tilesChecker := inmemory_tile_checker.New(config.GameMap.MaxIndex)
+			tilesChecker := clicks.NewBoard(config.GameMap.MaxIndex)
 
 			tilesStorage := inmemory_tile_storage.New(config.GameMap.MaxIndex, config.TilesStorage, props.Logger)
 			tilesStorage.LoadSnapshot()
@@ -115,7 +113,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			limiter := cpratelimit.New("click-limiter", config.RateLimiter, clock)
 			props.Runners.Add(limiter)
 
-			pricer := toll.New(config.Toll, tilesStorage)
+			pricer := clicks.NewToll(config.Toll, tilesStorage)
 
 			// writer is the storage as the click chain writes it, so every tile it takes lands in the ledger.
 			writer := ledger.Recording{Tiles: tilesStorage, Ledger: takings}
@@ -183,7 +181,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			if adminBatch <= 0 {
 				adminBatch = 256
 			}
-			pace := pacing.Pacing{Batch: adminBatch, Pause: 50 * time.Millisecond}
+			pace := clicks.Pacing{Batch: adminBatch, Pause: 50 * time.Millisecond}
 
 			adminService := planetv1controller.AdminService{
 				ReassignCountryHandler: reassign_country_handler.New(audit_reassign.New(

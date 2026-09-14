@@ -14,7 +14,7 @@ import (
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/claim_bonus_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/toll"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/claim_bonus_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 )
@@ -45,7 +45,7 @@ func claim(t *testing.T, useCase claim_bonus_handler.UseCase) (*planetv1.ClaimBo
 
 func TestAClaimAnswersTheWidenedAllowance(t *testing.T) {
 	msg, err := claim(t, &stubUseCase{out: claim_bonus_usecase.Out{
-		Budget:   toll.Budget{State: cpratelimit.State{Tokens: 7, Capacity: 30, PerSecond: 3}},
+		Budget:   clicks.Budget{State: cpratelimit.State{Tokens: 7, Capacity: 30, PerSecond: 3}},
 		Kind:     bonuses.KindTripleClicks,
 		Duration: time.Minute,
 	}})

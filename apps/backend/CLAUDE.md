@@ -154,7 +154,6 @@ internal/planet/internal/
   clicks/                         the board: tiles, the map, what a click costs
     usecases/<name>_usecase/      one package per procedure
     inmemory_tile_storage/        an adapter: <tech>_<thing>_<role>
-    inmemory_tile_checker/
     embedded_geodesic_map/
   ledger/                         who took which tile, and the operator tools that read it
     usecases/
@@ -164,7 +163,9 @@ internal/planet/internal/
 ```
 
 - **`clicks/`** — what a click is worth, what the map looks like, and what
-  changes when somebody takes a tile.
+  changes when somebody takes a tile. Its root holds the rules that need no
+  port: `Board` (which tile ids exist), `Toll` (what a click costs), `Pacing`
+  (how an operator's bulk change is spread out), `Geography` and `Borders`.
 - **`ledger/`** — who last took each tile. `FindPlayers`, `BanPlayer` and
   `RevertPlayer` live here: they are one moderation workflow — find, ban, undo.
 - **`bonuses/`** — the boxes, their schedule, and the running bonuses they grant.
@@ -253,7 +254,7 @@ The response never repeats a tile id. `GetMapResponse` carries `start_tile_id`, 
 
 **Secondary (output):**
 - `clicks/inmemory_tile_storage/` — the tile map. A preallocated `[]uint16` indexed by tile id, with country codes interned into a side table (2 bytes per tile — ~2 MB for a 1M-tile map). Fans updates out in process and persists to a local snapshot file.
-- `clicks/inmemory_tile_checker/` — validates tile IDs
+- `clicks.Board` (not an adapter) — validates tile IDs
 - country codes are validated by `shared/cpcountries`, which chat shares — see [The composite layer](#the-composite-layer)
 
 Beyond the `click_usecase.TileStorage` port, `inmemory_tile_storage` also exposes `Subscribe(ctx) (<-chan clicks.Change, error)`, one call per open stream. A `Change` is a tile update or a bomb blast, on one channel so the two keep their order — see [What a bomb does](#what-a-bomb-does).
@@ -340,7 +341,7 @@ Either way the decorator decides the policy and the handler decides how to say i
 
 The bucket key is whatever `IPReaderMiddleware` put on the context: `X-Real-IP` if present, otherwise the peer address. **The reverse proxy must set that header itself** — `deploy/vps/Caddyfile` does, with `header_up X-Real-IP {client_ip}` on every backend route. Merely forwarding it would let a client send its own and buy a fresh bucket per request. The fallback is the peer address rather than a constant precisely so a missing header degrades to per-connection buckets instead of rate limiting the whole game as one player.
 
-#### A big country pays more per click (`clicks/toll`)
+#### A big country pays more per click (`clicks.Toll`)
 
 A click costs more tokens the more of the map its country holds. `toll.steps` is
 a table of `{share, cost}`: from `share` of **every tile on the map**, a click for
@@ -356,7 +357,7 @@ field numbers rather than changing type in place: a client built against the old
 - **The share is of the whole map, not of owned tiles**, so early in a game nobody pays more.
 - **`inmemory_tile_storage` keeps a tile count per country**, moved by `set` and
   `Clear` and rebuilt from the snapshot, so `Share` is one read and no scan.
-- **The budget goes out already divided by the cost** (`toll.Of`): ten tokens at a
+- **The budget goes out already divided by the cost** (`clicks.BudgetOf`): ten tokens at a
   cost of 2 are five clicks refilling at 0.5/s. The meter narrows off the server's
   numbers the way a bonus widens it, and `ClickBudget` also carries `cost`,
   `share` and the next step so the client can say why.
@@ -967,7 +968,7 @@ For the patterns no watchdog catches but a person sees on the map. A player is a
 - **In memory only**, one entry per tile at most, forgotten after `ledger.retention` (24h). A restart empties it.
 - **`FindPlayers(flag, area, limit)`** lists the scopes whose paint of `flag` still holds, on tiles whose ground is `area` (empty is the whole map), latest take first, with any running ban. The ground comes from `clicks.Borders`, built by `embedded_geodesic_map.Loader.LoadBorders` from the borders blob the frontend paints flags from — see [Map geography](#map-geography). A blob for another map refuses the boot.
 - **`BanPlayer(scope, duration)`** is `shadowban.Banner.Ban`, and drops the scope's clicks and bombs alike: the same record, ladder and state file as a watchdog's ban, and it counts as an offence. It skips `reflagInterval`, and an empty duration takes the ladder's step. Any address is accepted and banned as its scope (`cpipscope.Parse`). **It follows `antiBot.shadowBan.enforce`**, and says so in `enforced`. With `antiBot.enabled` false it answers `FailedPrecondition`.
-- **`RevertPlayer(scope, dry_run)`** gives each tile the scope took back to its previous owner, **only if it still wears the scope's paint** — `inmemory_tile_storage.Restore` is a compare-and-set under the lock, so a tile retaken mid-revert stays retaken. Paced like the reassign (`clicks/pacing`), each tile an ordinary `TileUpdate`. A tile that was nobody's goes back to nobody, as an update with an empty country. It then forgets the scope's takes, so a second run does nothing.
+- **`RevertPlayer(scope, dry_run)`** gives each tile the scope took back to its previous owner, **only if it still wears the scope's paint** — `inmemory_tile_storage.Restore` is a compare-and-set under the lock, so a tile retaken mid-revert stays retaken. Paced like the reassign (`clicks.Pacing`), each tile an ordinary `TileUpdate`. A tile that was nobody's goes back to nobody, as an update with an empty country. It then forgets the scope's takes, so a second run does nothing.
 - **Ban before reverting**: an unbanned player repaints behind the revert.
 - `audit_ban` and `audit_revert` log every call at Warn, as `audit_reassign` does. `FindPlayers` is a read and logs nothing.
 
@@ -1075,7 +1076,7 @@ walk has no threshold in it at all — the only tolerance is `matchEpsilon`, and
 #### The off-by-one
 
 **Wire tile id = blob array index + 1.** The blob is 0-indexed by position; ids on the wire are
-1-based, which is what `inmemory_tile_checker`, `inmemory_tile_storage`'s unused slot 0 and the
+1-based, which is what `clicks.Board`, `inmemory_tile_storage`'s unused slot 0 and the
 frontend's `integerToColor(i + 1)` all agree on. Getting it wrong shifts every neighbourhood by one
 tile, **symmetrically, with a degree histogram that still looks right** —
 `TestTileIDsAreOneBasedOverTheBlob` is what catches it.

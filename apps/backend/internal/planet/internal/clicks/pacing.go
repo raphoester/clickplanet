@@ -1,5 +1,4 @@
-// Package pacing spreads an operator's bulk change over time, so each batch of updates fits what an open stream can buffer.
-package pacing
+package clicks
 
 import (
 	"context"
@@ -7,6 +6,7 @@ import (
 	"time"
 )
 
+// Pacing spreads an operator's bulk change over time, so each batch of updates fits what an open stream can buffer.
 type Pacing struct {
 	Batch int
 	Pause time.Duration
