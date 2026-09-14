@@ -79,6 +79,9 @@ type Observer struct {
 	OnReaction func(delay time.Duration)
 
 	OnFlag func(report Report)
+
+	// Bans that could not be restored at boot or saved since.
+	OnStateError func(err error)
 }
 
 // Guard is the whole surface the click edge gates on.
@@ -151,7 +154,7 @@ func New(config Config, clock cptime.Clock, observer Observer) (Guard, error) {
 	// Defaulted here so the description carries the bounds actually enforced.
 	juryConfig := config.Jury.WithDefaults()
 
-	banner := shadowban.New(config.ShadowBan, clock)
+	banner := shadowban.New(config.ShadowBan, clock, observer.OnStateError)
 	g.runners = append(g.runners, banner.Run)
 
 	g.jury = jury.New(juryConfig, banner, clock, observer.OnFlag, watchdogs...)

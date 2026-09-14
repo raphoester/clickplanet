@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/shadowban"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -64,7 +65,7 @@ func (c Config) WithDefaults() Config {
 
 // Banner is the sentence the jury passes. shadowban.Banner implements it.
 type Banner interface {
-	Flag(scope string) (flags int, accepted bool)
+	Flag(scope string) (shadowban.Sentence, bool)
 	Banned(scope string) bool
 	Flagged() int
 }
@@ -133,8 +134,11 @@ func (j *Jury) Inspect(click detect.Click) bool {
 	// Outside the lock from here: onFlag writes a log line, and holding the
 	// caller map through that would queue every other clicker behind the I/O.
 	if report, guilty := j.deliberate(click); guilty {
-		if flags, accepted := j.banner.Flag(click.Scope); accepted {
-			report.Flags = flags
+		if sentence, accepted := j.banner.Flag(click.Scope); accepted {
+			report.Flags = sentence.Flags
+			report.Offence = sentence.Offence
+			report.BannedUntil = sentence.Until
+			report.Permanent = sentence.Permanent
 			if j.onFlag != nil {
 				j.onFlag(report)
 			}

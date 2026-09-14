@@ -33,7 +33,7 @@ func newStack() *stack {
 	config := antibot.Config{Enabled: true}
 
 	config.ShadowBan.Enforce = true
-	config.ShadowBan.BanDuration = time.Hour
+	config.ShadowBan.BanDurations = []time.Duration{time.Hour}
 	config.ShadowBan.ReflagInterval = 5 * time.Minute
 
 	config.Jury.MinSuspects = 2

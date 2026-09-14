@@ -130,6 +130,10 @@ type Report struct {
 	Scope string
 	Flags int
 
+	Offence     int
+	BannedUntil time.Time
+	Permanent   bool
+
 	Opinions []Opinion
 
 	Clicks int

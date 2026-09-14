@@ -10,48 +10,68 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-func TestSweepKeepsACallerServingABan(t *testing.T) {
+func newSweepBanner(config Config) (*Banner, *cptime.FixedClock) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC))
+	config.Enforce = true
+	return New(config, clock, nil), clock
+}
 
-	b := New(Config{Enforce: true, BanDuration: 24 * time.Hour, ReflagInterval: 5 * time.Minute}, clock)
+func TestSweepKeepsACallerServingABan(t *testing.T) {
+	b, clock := newSweepBanner(Config{BanDurations: []time.Duration{24 * time.Hour}})
 
 	b.Flag("bot")
-	require.Equal(t, 1, b.Flagged())
 
 	clock.Advance(2 * time.Hour)
 	b.sweep()
 
-	assert.Contains(t, b.bans, "bot", "a sweep must not release a ban still running")
+	assert.Contains(t, b.bans, "bot")
 	assert.Equal(t, 1, b.Flagged())
 }
 
-func TestSweepForgetsABanNothingWouldStillPrint(t *testing.T) {
-	clock := cptime.NewFixedClock(time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC))
-
-	b := New(Config{Enforce: true, BanDuration: time.Minute, ReflagInterval: time.Minute}, clock)
+func TestSweepKeepsAServedBanInsideTheStrikeMemory(t *testing.T) {
+	b, clock := newSweepBanner(Config{
+		BanDurations: []time.Duration{time.Minute},
+		StrikeMemory: 24 * time.Hour,
+	})
 
 	b.Flag("bot")
-	require.Len(t, b.bans, 1)
 
-	clock.Advance(2 * time.Minute)
+	clock.Advance(time.Hour)
+	b.sweep()
+
+	require.Contains(t, b.bans, "bot", "forgetting here would make the next offence a first")
+
+	sentence, accepted := b.Flag("bot")
+	require.True(t, accepted)
+	assert.Equal(t, 2, sentence.Offence)
+}
+
+func TestSweepForgetsAServedBanPastTheStrikeMemory(t *testing.T) {
+	b, clock := newSweepBanner(Config{
+		BanDurations:   []time.Duration{time.Minute},
+		StrikeMemory:   time.Hour,
+		ReflagInterval: time.Minute,
+	})
+
+	b.Flag("bot")
+
+	clock.Advance(2 * time.Hour)
 	b.sweep()
 
 	assert.Empty(t, b.bans)
 }
 
-func TestSweepKeepsALapsedBanWhileItsFlagCountStillMeansSomething(t *testing.T) {
-	clock := cptime.NewFixedClock(time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC))
-
-	b := New(Config{Enforce: true, BanDuration: time.Minute, ReflagInterval: time.Hour}, clock)
+func TestSweepNeverForgetsAPermanentBan(t *testing.T) {
+	b, clock := newSweepBanner(Config{
+		BanDurations:   []time.Duration{time.Minute},
+		PermanentAfter: 1,
+		StrikeMemory:   time.Hour,
+	})
 
 	b.Flag("bot")
 
-	clock.Advance(2 * time.Minute)
+	clock.Advance(365 * 24 * time.Hour)
 	b.sweep()
 
-	require.Contains(t, b.bans, "bot", "forgetting here would reset the count to one")
-
-	flags, accepted := b.Flag("bot")
-	assert.False(t, accepted)
-	assert.Equal(t, 1, flags)
+	assert.Contains(t, b.bans, "bot")
 }

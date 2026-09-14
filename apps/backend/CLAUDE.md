@@ -1141,7 +1141,9 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `bonus.duration`, `bonus.multiplier` — how long a caught `triple_clicks` runs and what it multiplies the allowance by; the client reads both off the answer, so changing them changes the meter with no frontend release
 - `antiBot.enabled` — off registers nothing and measures nothing
 - `antiBot.shadowBan.enforce` — off judges, logs and counts without dropping; the mode to deploy in
-- `antiBot.shadowBan.banDuration`, `reflagInterval`, `sweepInterval` — how long one flag silences a caller, how soon it can be judged again, and how often a ban nothing would still print is forgotten
+- `antiBot.shadowBan.banDurations`, `permanentAfter`, `strikeMemory` — the ban for each offence (the last step repeats), the offence from which a ban never lapses, and how long a served ban still counts. An offence is a ban that starts while none is running; a flag on a running ban only extends it
+- `antiBot.shadowBan.statePath` — one JSON line per banned scope, restored at boot and saved every sweep and on shutdown; **empty keeps bans in memory**, where a deploy clears every one. An unreadable file is logged and starts empty, it never prevents a start
+- `antiBot.shadowBan.reflagInterval`, `sweepInterval` — how soon a banned caller can be judged again, and how often a record that can no longer matter is forgotten
 - `antiBot.jury.minSuspects` — how many watchdogs at `suspect` make a ban; one at `certain` bans alone
 - `antiBot.jury.suspicionWindow`, `trackWindow`, `sweepInterval` — how long a verdict stands while another watchdog catches up, and how long a silent caller is remembered
 - `antiBot.retaker.enabled`, `detector.reactionWindow`, `minReactions`, `maxSpread`, `maxMedian` — what counts as a reaction, how many are needed, and the band that reads `suspect` then `certain`

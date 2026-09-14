@@ -489,8 +489,25 @@ different picture from forty callers caught once. The labels also tell you which
 watchdog is earning its keep before you enforce. All of them are readable with
 the `wget` line above.
 
-To undo one, set `enforce` back to false and redeploy — bans live in memory
-only, so a restart clears every one of them.
+Bans escalate: 24h for a first offence, 7 days for a second, forever from the
+third. A caller that keeps going while banned only extends the ban it has. Bans
+are saved to `bans.jsonl` on the `tile_state` volume, so a deploy keeps them.
+
+See every ban:
+
+```bash
+docker compose exec backend cat /home/app/state/bans.jsonl
+```
+
+Unban one scope (stop first, or the running backend writes it back):
+
+```bash
+docker compose stop backend
+docker run --rm -v vps_tile_state:/s alpine sh -c "grep -v '\"scope\":\"1.2.3.4\"' /s/bans.jsonl > /s/b && mv /s/b /s/bans.jsonl"
+docker compose start backend
+```
+
+Set `enforce` back to false to stop dropping clicks for everyone at once.
 ### Evidence has to outlive a deploy, and by default it does not
 
 Everything above is in-process. A deploy pulls a new image and **recreates** the
