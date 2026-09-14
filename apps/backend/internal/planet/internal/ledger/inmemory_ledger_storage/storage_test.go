@@ -30,6 +30,7 @@ func TestAPutReplacesTheTilesLastTake(t *testing.T) {
 
 	_, found = storage.Last(8)
 	assert.False(t, found)
+	assert.Len(t, storage.All(), 1)
 }
 
 func TestForgetLeavesATileTakenAgainSince(t *testing.T) {

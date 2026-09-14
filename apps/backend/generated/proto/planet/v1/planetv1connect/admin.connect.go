@@ -39,6 +39,8 @@ const (
 	// AdminServiceFindPlayersProcedure is the fully-qualified name of the AdminService's FindPlayers
 	// RPC.
 	AdminServiceFindPlayersProcedure = "/planet.v1.AdminService/FindPlayers"
+	// AdminServiceTopPlayersProcedure is the fully-qualified name of the AdminService's TopPlayers RPC.
+	AdminServiceTopPlayersProcedure = "/planet.v1.AdminService/TopPlayers"
 	// AdminServiceBanPlayerProcedure is the fully-qualified name of the AdminService's BanPlayer RPC.
 	AdminServiceBanPlayerProcedure = "/planet.v1.AdminService/BanPlayer"
 	// AdminServiceRevertPlayerProcedure is the fully-qualified name of the AdminService's RevertPlayer
@@ -55,6 +57,9 @@ type AdminServiceClient interface {
 	// Who painted the flag's tiles in the area that still wear it, latest first.
 	// Read from an in-memory ledger that a restart empties.
 	FindPlayers(context.Context, *connect.Request[v1.FindPlayersRequest]) (*connect.Response[v1.FindPlayersResponse], error)
+	// Who holds the most tiles still wearing their paint, over every flag and
+	// the whole map, most first. Read from the same ledger as FindPlayers.
+	TopPlayers(context.Context, *connect.Request[v1.TopPlayersRequest]) (*connect.Response[v1.TopPlayersResponse], error)
 	// The antibot's shadow ban, on a scope a person picked. It counts as an offence.
 	BanPlayer(context.Context, *connect.Request[v1.BanPlayerRequest]) (*connect.Response[v1.BanPlayerResponse], error)
 	// Gives back every tile the scope took that nobody has taken since, to
@@ -85,6 +90,12 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(adminServiceMethods.ByName("FindPlayers")),
 			connect.WithClientOptions(opts...),
 		),
+		topPlayers: connect.NewClient[v1.TopPlayersRequest, v1.TopPlayersResponse](
+			httpClient,
+			baseURL+AdminServiceTopPlayersProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("TopPlayers")),
+			connect.WithClientOptions(opts...),
+		),
 		banPlayer: connect.NewClient[v1.BanPlayerRequest, v1.BanPlayerResponse](
 			httpClient,
 			baseURL+AdminServiceBanPlayerProcedure,
@@ -104,6 +115,7 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 type adminServiceClient struct {
 	reassignCountry *connect.Client[v1.ReassignCountryRequest, v1.ReassignCountryResponse]
 	findPlayers     *connect.Client[v1.FindPlayersRequest, v1.FindPlayersResponse]
+	topPlayers      *connect.Client[v1.TopPlayersRequest, v1.TopPlayersResponse]
 	banPlayer       *connect.Client[v1.BanPlayerRequest, v1.BanPlayerResponse]
 	revertPlayer    *connect.Client[v1.RevertPlayerRequest, v1.RevertPlayerResponse]
 }
@@ -116,6 +128,11 @@ func (c *adminServiceClient) ReassignCountry(ctx context.Context, req *connect.R
 // FindPlayers calls planet.v1.AdminService.FindPlayers.
 func (c *adminServiceClient) FindPlayers(ctx context.Context, req *connect.Request[v1.FindPlayersRequest]) (*connect.Response[v1.FindPlayersResponse], error) {
 	return c.findPlayers.CallUnary(ctx, req)
+}
+
+// TopPlayers calls planet.v1.AdminService.TopPlayers.
+func (c *adminServiceClient) TopPlayers(ctx context.Context, req *connect.Request[v1.TopPlayersRequest]) (*connect.Response[v1.TopPlayersResponse], error) {
+	return c.topPlayers.CallUnary(ctx, req)
 }
 
 // BanPlayer calls planet.v1.AdminService.BanPlayer.
@@ -137,6 +154,9 @@ type AdminServiceHandler interface {
 	// Who painted the flag's tiles in the area that still wear it, latest first.
 	// Read from an in-memory ledger that a restart empties.
 	FindPlayers(context.Context, *connect.Request[v1.FindPlayersRequest]) (*connect.Response[v1.FindPlayersResponse], error)
+	// Who holds the most tiles still wearing their paint, over every flag and
+	// the whole map, most first. Read from the same ledger as FindPlayers.
+	TopPlayers(context.Context, *connect.Request[v1.TopPlayersRequest]) (*connect.Response[v1.TopPlayersResponse], error)
 	// The antibot's shadow ban, on a scope a person picked. It counts as an offence.
 	BanPlayer(context.Context, *connect.Request[v1.BanPlayerRequest]) (*connect.Response[v1.BanPlayerResponse], error)
 	// Gives back every tile the scope took that nobody has taken since, to
@@ -163,6 +183,12 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(adminServiceMethods.ByName("FindPlayers")),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminServiceTopPlayersHandler := connect.NewUnaryHandler(
+		AdminServiceTopPlayersProcedure,
+		svc.TopPlayers,
+		connect.WithSchema(adminServiceMethods.ByName("TopPlayers")),
+		connect.WithHandlerOptions(opts...),
+	)
 	adminServiceBanPlayerHandler := connect.NewUnaryHandler(
 		AdminServiceBanPlayerProcedure,
 		svc.BanPlayer,
@@ -181,6 +207,8 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 			adminServiceReassignCountryHandler.ServeHTTP(w, r)
 		case AdminServiceFindPlayersProcedure:
 			adminServiceFindPlayersHandler.ServeHTTP(w, r)
+		case AdminServiceTopPlayersProcedure:
+			adminServiceTopPlayersHandler.ServeHTTP(w, r)
 		case AdminServiceBanPlayerProcedure:
 			adminServiceBanPlayerHandler.ServeHTTP(w, r)
 		case AdminServiceRevertPlayerProcedure:
@@ -200,6 +228,10 @@ func (UnimplementedAdminServiceHandler) ReassignCountry(context.Context, *connec
 
 func (UnimplementedAdminServiceHandler) FindPlayers(context.Context, *connect.Request[v1.FindPlayersRequest]) (*connect.Response[v1.FindPlayersResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.FindPlayers is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) TopPlayers(context.Context, *connect.Request[v1.TopPlayersRequest]) (*connect.Response[v1.TopPlayersResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.TopPlayers is not implemented"))
 }
 
 func (UnimplementedAdminServiceHandler) BanPlayer(context.Context, *connect.Request[v1.BanPlayerRequest]) (*connect.Response[v1.BanPlayerResponse], error) {

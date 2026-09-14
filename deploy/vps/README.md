@@ -736,10 +736,18 @@ when left out; leave out `areaCountryId` for the whole map):
 docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"flagCountryId":"ps","areaCountryId":"il"}' http://127.0.0.1:8081/planet.v1.AdminService/FindPlayers
 ```
 
+Who holds the most tiles, over every flag and the whole map, most first
+(`limit` is 20 when left out):
+
+```bash
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{}' http://127.0.0.1:8081/planet.v1.AdminService/TopPlayers
+```
+
 Each player has `scope`, `tiles` (how many of those tiles still wear its
-paint), `firstAt`, `lastAt`, and `banned`/`bannedUntil`/`offence` when a ban is
-running. It only knows takes since the last restart, and for 24h
-(`ledger.retention`).
+paint), `firstAt`, `lastAt`, `activeFor` (`lastAt` minus `firstAt`),
+`tilesPerMinute` (`tiles` over `activeFor`, 0 for a single take), and
+`banned`/`bannedUntil`/`offence` when a ban is running. It only knows takes
+since the last restart, and for 24h (`ledger.retention`).
 
 Ban first, or the player repaints behind the revert. Leave out `duration` to
 take the ladder's step (24h, 7 days, 3 years); it counts as an offence either

@@ -18,6 +18,10 @@ service AdminService {
   // Read from an in-memory ledger that a restart empties.
   rpc FindPlayers(FindPlayersRequest) returns (FindPlayersResponse);
 
+  // Who holds the most tiles still wearing their paint, over every flag and
+  // the whole map, most first. Read from the same ledger as FindPlayers.
+  rpc TopPlayers(TopPlayersRequest) returns (TopPlayersResponse);
+
   // The antibot's shadow ban, on a scope a person picked. It counts as an offence.
   rpc BanPlayer(BanPlayerRequest) returns (BanPlayerResponse);
 
@@ -40,6 +44,17 @@ message FindPlayersResponse {
   uint32 total = 2;
 }
 
+message TopPlayersRequest {
+  // 20 when unset.
+  uint32 limit = 1;
+}
+
+message TopPlayersResponse {
+  repeated Player players = 1;
+  // How many scopes still wear paint on any tile, before the limit.
+  uint32 total = 2;
+}
+
 message Player {
   // The address for IPv4, the /64 for IPv6: what the throttle and the ban key on.
   string scope = 1;
@@ -49,6 +64,10 @@ message Player {
   bool banned = 5;
   google.protobuf.Timestamp banned_until = 6;
   uint32 offence = 7;
+  // last_at minus first_at.
+  google.protobuf.Duration active_for = 8;
+  // tiles over active_for. 0 when active_for is 0.
+  double tiles_per_minute = 9;
 }
 
 message BanPlayerRequest {

@@ -168,7 +168,7 @@ internal/planet/internal/
   port: `Board` (which tile ids exist), `Toll` (what a click costs), `Pacing`
   (how an operator's bulk change is spread out), `Geography` and `Borders`.
 - **`ledger/`** — who last took each tile. Its root holds `Taking`, `Player`,
-  the `Storage` port, `Recording` (the tile writer that records) and `Retention`. `FindPlayers`, `BanPlayer` and
+  the `Storage` port, `Recording` (the tile writer that records) and `Retention`. `FindPlayers`, `TopPlayers`, `BanPlayer` and
   `RevertPlayer` live here: they are one moderation workflow — find, ban, undo.
 - **`bonuses/`** — the boxes, their schedule, and the running bonuses they grant.
   Its root also holds the rules a bonus plays by: `Terrain` and `Pocket` (what an
@@ -208,6 +208,7 @@ because it serves every concept over one Connect service. It only maps.
 | `clicks/usecases/listen_for_events_usecase` | one client's live feed, heartbeat included | `UpdatesSubscriber` |
 | `clicks/usecases/reassign_country_usecase` | gives one country's tiles to another | `Map`, `CountryChecker` |
 | `ledger/usecases/find_players_usecase` | who is painting a flag, and where | `Ledger`, `Owners`, `Borders`, `Bans` |
+| `ledger/usecases/top_players_usecase` | who holds the most tiles, every flag | `Ledger`, `Owners`, `Bans` |
 | `ledger/usecases/ban_player_usecase` | the operator's shadow ban | `Banner` |
 | `ledger/usecases/revert_player_usecase` | gives back what one caller took | `Ledger`, `Map` |
 | `bonuses/usecases/claim_bonus_usecase` | redeems a box | `Registry`, `Booster`, `Spreader`, `Bomber`, `Encloser` |
@@ -996,18 +997,19 @@ The snapshot file is the only thing worth backing up.
 
 Measured on a copy of production's snapshot: 22,040 tiles in 4.4s, all 22,040 updates delivered to an open stream, none dropped, and the snapshot written byte-identical to the same change made offline.
 
-#### Manual bans: `FindPlayers`, `BanPlayer`, `RevertPlayer`
+#### Manual bans: `FindPlayers`, `TopPlayers`, `BanPlayer`, `RevertPlayer`
 
 For the patterns no watchdog catches but a person sees on the map. A player is a **scope** (`cpipscope`): the address over IPv4, the /64 over IPv6 — what the throttle and the ban already key on.
 
 - **`ledger` remembers, per tile, the last scope that took it** and what the tile held before that scope's first take. `ledger.Recording` wraps the storage the click chain writes through — the rule, `spread_click` and the enclose annexer — so every tile a click takes is recorded, a no-op is not, and a click the shadow ban drops never reaches it. A take by somebody else replaces the entry; that is what "covered" means. Bombs and reassigns do not write the ledger: the tile no longer wears the paint, and both use cases check the owner.
 - **In memory only** (`inmemory_ledger_storage`, behind `ledger.Storage`), one entry per tile at most, forgotten after `ledger.retention` (24h) by `ledger.Retention`. A restart empties it.
-- **The rules are in the `ledger` root, not in the use cases**: `Taking.Over` (a retake keeps the first owner), `Taking.WornBy` and `Taking.Restoration` (what a revert may give back), `Players` and `Top` (how `FindPlayers` gathers and cuts). The two use cases only load, filter through their ports, and call these.
+- **The rules are in the `ledger` root, not in the use cases**: `Taking.Over` (a retake keeps the first owner), `Taking.WornBy` and `Taking.Restoration` (what a revert may give back), `Players`, `ByTiles` and `Top` (how `FindPlayers` and `TopPlayers` gather, rank and cut). The two use cases only load, filter through their ports, and call these.
 - **`FindPlayers(flag, area, limit)`** lists the scopes whose paint of `flag` still holds, on tiles whose ground is `area` (empty is the whole map), latest take first, with any running ban. The ground comes from `clicks.Borders`, built by `embedded_geodesic_map.Loader.LoadBorders` from the borders blob the frontend paints flags from — see [Map geography](#map-geography). A blob for another map refuses the boot.
+- **`TopPlayers(limit)`** is the same list over every flag and the whole map, most tiles still worn first, then latest take. Every player, in both answers, carries `active_for` (last take minus first take) and `tiles_per_minute` (tiles over that). Both only see tiles that still wear the paint: a tile taken and lost counts for nobody, so the rate is what a player holds, not what it clicked.
 - **`BanPlayer(scope, duration)`** is `shadowban.Banner.Ban`, and drops the scope's clicks and bombs alike: the same record, ladder and state file as a watchdog's ban, and it counts as an offence. It skips `reflagInterval`, and an empty duration takes the ladder's step. Any address is accepted and banned as its scope (`cpipscope.Parse`). **It follows `antiBot.shadowBan.enforce`**, and says so in `enforced`. With `antiBot.enabled` false it answers `FailedPrecondition`.
 - **`RevertPlayer(scope, dry_run)`** gives each tile the scope took back to its previous owner, **only if it still wears the scope's paint** — `inmemory_tile_storage.Restore` is a compare-and-set under the lock, so a tile retaken mid-revert stays retaken. Paced like the reassign (`clicks.Pacing`), each tile an ordinary `TileUpdate`. A tile that was nobody's goes back to nobody, as an update with an empty country. It then forgets the scope's takes, so a second run does nothing.
 - **Ban before reverting**: an unbanned player repaints behind the revert.
-- `audit_ban` and `audit_revert` log every call at Warn, as `audit_reassign` does. `FindPlayers` is a read and logs nothing.
+- `audit_ban` and `audit_revert` log every call at Warn, as `audit_reassign` does. `FindPlayers` and `TopPlayers` are reads and log nothing.
 
 ### Shared (`internal/shared/`)
 
@@ -1157,7 +1159,7 @@ the same array.
 
 `clicks.Borders` is the other half of the geography: which country's ground a tile sits on, from
 `generated/map/borders-<hash>.bin`, the table the frontend's `npm run borders` writes to `/map`.
-Only the operator tools read it — see [Manual bans](#manual-bans-findplayers-banplayer-revertplayer).
+Only the operator tools read it — see [Manual bans](#manual-bans-findplayers-topplayers-banplayer-revertplayer).
 
 `Neighbours` is what the spread bonus reads — see [What a spread does to a click](#what-a-spread-does-to-a-click).
 `Within`, `Position`, `Nearest` and `Spacing` are what the bomb reads — see [What a bomb does](#what-a-bomb-does).
