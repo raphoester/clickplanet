@@ -9,6 +9,7 @@ type Storage interface {
 	Put(taking Taking)
 	PaintedWith(country string) []Taking
 	TakenBy(scope string) []Taking
+	All() []Taking
 	// Forget drops these takes, unless the tile was taken again since.
 	Forget(takings []Taking)
 	ForgetBefore(cutoff time.Time)

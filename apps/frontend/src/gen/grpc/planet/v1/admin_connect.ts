@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BanPlayerRequest, BanPlayerResponse, FindPlayersRequest, FindPlayersResponse, ReassignCountryRequest, ReassignCountryResponse, RevertPlayerRequest, RevertPlayerResponse } from "./admin_pb.js";
+import { BanPlayerRequest, BanPlayerResponse, FindPlayersRequest, FindPlayersResponse, ReassignCountryRequest, ReassignCountryResponse, RevertPlayerRequest, RevertPlayerResponse, TopPlayersRequest, TopPlayersResponse } from "./admin_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -39,6 +39,18 @@ export const AdminService = {
       name: "FindPlayers",
       I: FindPlayersRequest,
       O: FindPlayersResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Who holds the most tiles still wearing their paint, over every flag and
+     * the whole map, most first. Read from the same ledger as FindPlayers.
+     *
+     * @generated from rpc planet.v1.AdminService.TopPlayers
+     */
+    topPlayers: {
+      name: "TopPlayers",
+      I: TopPlayersRequest,
+      O: TopPlayersResponse,
       kind: MethodKind.Unary,
     },
     /**

@@ -71,6 +71,10 @@ func (s *Storage) TakenBy(scope string) []ledger.Taking {
 	return s.collect(func(taking ledger.Taking) bool { return taking.Scope == scope })
 }
 
+func (s *Storage) All() []ledger.Taking {
+	return s.collect(func(ledger.Taking) bool { return true })
+}
+
 func (s *Storage) collect(keep func(ledger.Taking) bool) []ledger.Taking {
 	s.mu.Lock()
 	defer s.mu.Unlock()

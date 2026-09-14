@@ -57,12 +57,39 @@ func TestPlayersAreGatheredByScopeLatestFirst(t *testing.T) {
 	}, players, "equal times fall back to scope order")
 }
 
+func TestByTilesPutsTheMostTilesFirstAndKeepsTheOrderBetweenEqualCounts(t *testing.T) {
+	players := ledger.ByTiles([]ledger.Player{
+		{Scope: "latest", Tiles: 1},
+		{Scope: "big", Tiles: 5},
+		{Scope: "older", Tiles: 1},
+		{Scope: "middle", Tiles: 3},
+	})
+
+	scopes := make([]string, 0, len(players))
+	for _, player := range players {
+		scopes = append(scopes, player.Scope)
+	}
+
+	assert.Equal(t, []string{"big", "middle", "latest", "older"}, scopes)
+}
+
 func TestTopCutsToTheLimitOrTheDefault(t *testing.T) {
 	players := make([]ledger.Player, 30)
 
 	assert.Len(t, ledger.Top(players, 3), 3)
 	assert.Len(t, ledger.Top(players, 0), 20)
 	assert.Len(t, ledger.Top(players[:2], 5), 2)
+}
+
+func TestAPlayersRateIsItsTilesOverTheTimeFromFirstToLastTake(t *testing.T) {
+	player := ledger.Player{Tiles: 30, FirstAt: start, LastAt: start.Add(10 * time.Minute)}
+
+	assert.Equal(t, 10*time.Minute, player.ActiveFor())
+	assert.InDelta(t, 3.0, player.TilesPerMinute(), 1e-9)
+
+	single := ledger.Player{Tiles: 1, FirstAt: start, LastAt: start}
+	assert.Zero(t, single.ActiveFor())
+	assert.Zero(t, single.TilesPerMinute(), "one instant has no rate")
 }
 
 func TestAServingPlayerCarriesTheSentence(t *testing.T) {
