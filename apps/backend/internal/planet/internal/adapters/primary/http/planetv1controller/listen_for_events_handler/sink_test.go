@@ -11,7 +11,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/bonus"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/listen_for_events"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/listen_for_events_usecase"
 )
 
 type recorder struct {
@@ -27,7 +27,7 @@ func (r *recorder) Send(event *planetv1.PlanetEvent) error {
 func TestSinkFramesATileUpdate(t *testing.T) {
 	stream := &recorder{}
 
-	err := listen_for_events_handler.NewSink(stream).Send(listen_for_events.Event{
+	err := listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{
 		Update: clicks.TileUpdate{Tile: 42, Value: "fr", Previous: "de"},
 	})
 
@@ -45,7 +45,7 @@ func TestSinkFramesATileUpdate(t *testing.T) {
 func TestSinkFramesAHeartbeat(t *testing.T) {
 	stream := &recorder{}
 
-	err := listen_for_events_handler.NewSink(stream).Send(listen_for_events.Event{Heartbeat: true})
+	err := listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{Heartbeat: true})
 
 	require.NoError(t, err)
 	require.Len(t, stream.sent, 1)
@@ -57,7 +57,7 @@ func TestSinkFramesAHeartbeat(t *testing.T) {
 func TestSinkReportsAFailedSend(t *testing.T) {
 	stream := &recorder{err: assert.AnError}
 
-	err := listen_for_events_handler.NewSink(stream).Send(listen_for_events.Event{Heartbeat: true})
+	err := listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{Heartbeat: true})
 
 	require.ErrorIs(t, err, assert.AnError)
 }
@@ -65,7 +65,7 @@ func TestSinkReportsAFailedSend(t *testing.T) {
 func TestASinkFramesABoxOfferedToThisCaller(t *testing.T) {
 	stream := &recorder{}
 
-	require.NoError(t, listen_for_events_handler.NewSink(stream).Send(listen_for_events.Event{
+	require.NoError(t, listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{
 		Offer: &bonus.Offer{
 			Token:     "a-token",
 			Seed:      42,
@@ -86,7 +86,7 @@ func TestASinkFramesABoxOfferedToThisCaller(t *testing.T) {
 func TestASinkFramesACatchWithNoTokenOnIt(t *testing.T) {
 	stream := &recorder{}
 
-	require.NoError(t, listen_for_events_handler.NewSink(stream).Send(listen_for_events.Event{
+	require.NoError(t, listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{
 		Taken: &bonus.Taken{CountryID: "jp", Kind: bonus.KindTripleClicks},
 	}))
 
@@ -98,7 +98,7 @@ func TestASinkFramesACatchWithNoTokenOnIt(t *testing.T) {
 func TestASinkFramesABlastWithEveryTileItCleared(t *testing.T) {
 	stream := &recorder{}
 
-	require.NoError(t, listen_for_events_handler.NewSink(stream).Send(listen_for_events.Event{
+	require.NoError(t, listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{
 		Blast: &clicks.Blast{
 			Tile: 7, CountryID: "fr", Radius: 0.03,
 			Point:   clicks.Vec3{X: 0, Y: 0, Z: 1},
@@ -118,7 +118,7 @@ func TestASinkFramesABlastWithEveryTileItCleared(t *testing.T) {
 func TestASinkFramesAClosedShape(t *testing.T) {
 	stream := &recorder{}
 
-	require.NoError(t, listen_for_events_handler.NewSink(stream).Send(listen_for_events.Event{
+	require.NoError(t, listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{
 		Enclosed: &bonus.Enclosed{
 			CountryID: "jp", ClosingTile: 4, Wall: []uint32{4, 5, 6}, Filled: []uint32{9, 10},
 			Yours: true, Left: 2,
@@ -138,7 +138,7 @@ func TestASinkFramesAClosedShape(t *testing.T) {
 func TestASinkFramesASpreadClick(t *testing.T) {
 	stream := &recorder{}
 
-	require.NoError(t, listen_for_events_handler.NewSink(stream).Send(listen_for_events.Event{
+	require.NoError(t, listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{
 		Spread: &bonus.Spread{CountryID: "br", Tile: 100, Neighbours: []uint32{99, 101}},
 	}))
 
@@ -152,7 +152,7 @@ func TestASinkFramesASpreadClick(t *testing.T) {
 func TestASinkSaysATileUpdateWasBoosted(t *testing.T) {
 	stream := &recorder{}
 
-	require.NoError(t, listen_for_events_handler.NewSink(stream).Send(listen_for_events.Event{
+	require.NoError(t, listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{
 		Update: clicks.TileUpdate{Tile: 42, Value: "it", Boosted: true},
 	}))
 
@@ -164,7 +164,7 @@ func TestASinkSaysATileUpdateWasBoosted(t *testing.T) {
 func TestAHeartbeatStillWinsOverEverything(t *testing.T) {
 	stream := &recorder{}
 
-	require.NoError(t, listen_for_events_handler.NewSink(stream).Send(listen_for_events.Event{Heartbeat: true}))
+	require.NoError(t, listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{Heartbeat: true}))
 
 	assert.NotNil(t, stream.sent[0].GetHeartbeat())
 }

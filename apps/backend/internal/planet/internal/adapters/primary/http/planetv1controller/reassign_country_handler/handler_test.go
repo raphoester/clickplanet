@@ -13,16 +13,16 @@ import (
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/reassign_country_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/reassign_country"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/reassign_country_usecase"
 )
 
 type stubUseCase struct {
-	in  reassign_country.In
-	out reassign_country.Out
+	in  reassign_country_usecase.In
+	out reassign_country_usecase.Out
 	err error
 }
 
-func (s *stubUseCase) Execute(_ context.Context, in reassign_country.In) (reassign_country.Out, error) {
+func (s *stubUseCase) Execute(_ context.Context, in reassign_country_usecase.In) (reassign_country_usecase.Out, error) {
 	s.in = in
 	return s.out, s.err
 }
@@ -40,12 +40,12 @@ func reassign(t *testing.T, useCase *stubUseCase) (*planetv1.ReassignCountryResp
 }
 
 func TestTheRequestReachesTheUseCaseAndTheCountsComeBack(t *testing.T) {
-	useCase := &stubUseCase{out: reassign_country.Out{FromBefore: 22040, ToBefore: 3, Moved: 22040, FromAfter: 0, ToAfter: 22043}}
+	useCase := &stubUseCase{out: reassign_country_usecase.Out{FromBefore: 22040, ToBefore: 3, Moved: 22040, FromAfter: 0, ToAfter: 22043}}
 
 	res, err := reassign(t, useCase)
 	require.NoError(t, err)
 
-	assert.Equal(t, reassign_country.In{From: "dz", To: "fr", DryRun: true}, useCase.in)
+	assert.Equal(t, reassign_country_usecase.In{From: "dz", To: "fr", DryRun: true}, useCase.in)
 	assert.Equal(t, uint32(22040), res.GetFromBefore())
 	assert.Equal(t, uint32(3), res.GetToBefore())
 	assert.Equal(t, uint32(22040), res.GetMoved())
@@ -56,7 +56,7 @@ func TestTheRequestReachesTheUseCaseAndTheCountsComeBack(t *testing.T) {
 func TestACallerMistakeIsInvalidArgument(t *testing.T) {
 	for _, err := range []error{
 		fmt.Errorf("%w: %q", clicks.ErrUnknownCountry, "xx"),
-		fmt.Errorf("%w: %q", reassign_country.ErrSameCountry, "fr"),
+		fmt.Errorf("%w: %q", reassign_country_usecase.ErrSameCountry, "fr"),
 	} {
 		_, got := reassign(t, &stubUseCase{err: err})
 		assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(got), err.Error())

@@ -10,7 +10,7 @@ make test
 # or: go test -tags testing ./... | grep -v 'no test files'
 
 # Run a single test
-go test -tags testing ./internal/planet/internal/clicks/usecases/click/... -run TestName
+go test -tags testing ./internal/planet/internal/clicks/usecases/click_usecase/... -run TestName
 
 # Run the concurrency-sensitive tests under the race detector
 go test -tags testing ./... -race
@@ -175,22 +175,22 @@ edge serves has five procedures, so there are five packages, each exporting
 
 | package | what it does | what it needs |
 |---|---|---|
-| `click` | validates the country and the tile, then writes | `TilesChecker`, `TileStorage`, `CountryChecker` |
-| `get_map` | a range of the map as one dense batch | `MaxIndexReader`, `DenseMapReader` |
-| `map_density` | how many tiles there are | `MaxIndexReader` |
-| `get_budget` | a caller's allowance, unspent | `ClickBudgetReader` |
-| `listen_for_events` | one client's live feed, heartbeat included | `UpdatesSubscriber` |
+| `click_usecase` | validates the country and the tile, then writes | `TilesChecker`, `TileStorage`, `CountryChecker` |
+| `get_map_usecase` | a range of the map as one dense batch | `MaxIndexReader`, `DenseMapReader` |
+| `map_density_usecase` | how many tiles there are | `MaxIndexReader` |
+| `get_budget_usecase` | a caller's allowance, unspent | `ClickBudgetReader` |
+| `listen_for_events_usecase` | one client's live feed, heartbeat included | `UpdatesSubscriber` |
 
 **The interfaces in that last column are declared by the package that calls
 them**, not gathered in a `gateways.go` every use case imports. That is the
 whole point of the split: a shared port file makes every dependency everyone's,
 so `Click` ends up compiling against the map reader it never calls and a change
 to one procedure's needs is a change to the file all five read. Here, adding a
-dependency to `get_map` is invisible to the other four. The adapters are
+dependency to `get_map_usecase` is invisible to the other four. The adapters are
 unchanged — `memory_tile_storage` happens to satisfy three of these ports at
 once, which is why `module.go` hands it over three times.
 
-**`click` is the only one that writes**, and the only one with an interface of
+**`click_usecase` is the only one that writes**, and the only one with an interface of
 its own (`IUseCase`), because `click/prom_click` decorates it — the counting is
 a wrapper rather than a line inside the rule, so a process that does not want it
 leaves it out and the rule does not change.
@@ -243,7 +243,7 @@ The response never repeats a tile id. `GetMapResponse` carries `start_tile_id`, 
 - `internal/adapters/secondary/in_memory_tile_checker/` — validates tile IDs
 - country codes are validated by `shared/cpcountries`, which chat shares — see [The composite layer](#the-composite-layer)
 
-Beyond the `click.TileStorage` port, `memory_tile_storage` also exposes `Subscribe(ctx) (<-chan clicks.Change, error)`, one call per open stream. A `Change` is a tile update or a bomb blast, on one channel so the two keep their order — see [What a bomb does](#what-a-bomb-does).
+Beyond the `click_usecase.TileStorage` port, `memory_tile_storage` also exposes `Subscribe(ctx) (<-chan clicks.Change, error)`, one call per open stream. A `Change` is a tile update or a bomb blast, on one channel so the two keep their order — see [What a bomb does](#what-a-bomb-does).
 
 ### Key Flow
 
@@ -260,7 +260,7 @@ POST /planet.v1.ClickService/Click   [X-Session-Token: <the minted token>]
   → throttle_click  (spends a token, or refuses)
   → antibot_click   (judges; a flagged caller is answered OK and dropped)
   → prom_click      (counts)
-  → clicks/usecases/click (validates tile ID + country)
+  → clicks/usecases/click_usecase (validates tile ID + country)
   → MemoryTileStorage.Set() [writes the tile, fans the update out in process]
   → every subscriber: one per open ListenForEvents stream
 ```
@@ -306,7 +306,7 @@ That log holds **personal data** — IPs next to user-authored text — so the r
 
 `throttle_click` throttles clicks, per source IP, from a `shared/cpratelimit` token bucket — 1 click/s with a burst of 10 by default (`rateLimiter.*`). `MapDensity` and `GetMap` are cacheable reads a proxy in front absorbs; limiting them would punish a page load rather than a bot. A refused click answers `CodeResourceExhausted`, i.e. HTTP 429, and never reaches the map.
 
-**It is a decorator over the click use case, not an interceptor over the procedure.** Two things fall out of that. The allowance comes back as a return value (`click.Out`) instead of being left on the context for a handler to find, which is what `cpctx.AddRateBudgetToContext` existed for and why it is gone. And "a click refused for its address or its session must not also spend a token" stops being a rule about the order of a list and becomes a property of the shape: every interceptor is outside the whole click chain by construction. `MapDensity` and `GetMap` are untouched for free, being other procedures entirely — under an interceptor that took a procedure list.
+**It is a decorator over the click use case, not an interceptor over the procedure.** Two things fall out of that. The allowance comes back as a return value (`click_usecase.Out`) instead of being left on the context for a handler to find, which is what `cpctx.AddRateBudgetToContext` existed for and why it is gone. And "a click refused for its address or its session must not also spend a token" stops being a rule about the order of a list and becomes a property of the shape: every interceptor is outside the whole click chain by construction. `MapDensity` and `GetMap` are untouched for free, being other procedures entirely — under an interceptor that took a procedure list.
 
 #### Saying what is left
 
@@ -316,8 +316,8 @@ Polling for it would be worse, so nothing polls. `Limiter.Take` returns the buck
 
 That reading travels two ways, because a refused call has no response message to put it in:
 
-- an allowed call carries it on `click.Out`, and `click_handler` puts it in `ClickResponse.budget`.
-- a refused one carries it on the same `click.Out`, beside `clicks.ErrThrottled`, and `click_handler` attaches it as a **connect error detail** — a refusal has no response message to put it in.
+- an allowed call carries it on `click_usecase.Out`, and `click_handler` puts it in `ClickResponse.budget`.
+- a refused one carries it on the same `click_usecase.Out`, beside `clicks.ErrThrottled`, and `click_handler` attaches it as a **connect error detail** — a refusal has no response message to put it in.
 
 Either way the decorator decides the policy and the handler decides how to say it. `clickbudget.Encode` is the one place that shape is agreed, because two procedures answer with a `ClickBudget`: the click that just spent a token, and `GetBudget`.
 
@@ -517,7 +517,7 @@ a click spreads to could name any tiles it liked — that is why the spread wait
 for [Map geography](#map-geography). The client paints the tile it clicked, as it
 always has, and the neighbours reach it over the stream like anyone else's.
 
-`claim_bonus` starts it with `bonus.Spreads.Grant(scope, until)` instead of a
+`claim_bonus_usecase` starts it with `bonus.Spreads.Grant(scope, until)` instead of a
 boost, and answers the allowance unchanged. `bonus.Spreads` is a map of scope to
 end time; each grant forgets the spreads that ran out, so it needs no sweep.
 
@@ -545,7 +545,7 @@ events rather than a handful.
 
 **A triple clicks bonus is not an event of its own: it is `TileUpdate.boosted`.**
 The limiter's `State` says whether a boost runs, `throttle_click` copies that
-onto `click.In.Boosted`, and the rule writes with `SetBoosted` instead of `Set`,
+onto `click_usecase.In.Boosted`, and the rule writes with `SetBoosted` instead of `Set`,
 so the update it publishes carries the flag. The flag rides with the change it
 describes — same message, same order, no second frame per click — and a click on
 a tile already held publishes nothing, so it shows nothing either. A spread
@@ -554,10 +554,10 @@ neighbours together, which one flag per tile cannot say.
 
 #### What a bomb does
 
-`claim_bonus` hands the bomb over with `bonus.Bombs.Grant(scope, until)` — the
+`claim_bonus_usecase` hands the bomb over with `bonus.Bombs.Grant(scope, until)` — the
 spread's counterpart, a map of scope to deadline — and answers the blast radius
 on `ClaimBonusResponse.blast_radius`, so the client draws its aiming ring at the
-width of what it will clear. `DropBomb` spends it through `drop_bomb`.
+width of what it will clear. `DropBomb` spends it through `drop_bomb_usecase`.
 
 **The client names a point, never a tile.** The sea has no tiles, and whether an
 aim is on land is the server's call: `Geography.Nearest` finds the closest tile,
@@ -577,7 +577,7 @@ hexagon, which showed in production as a hexagonal crater inside a round ring �
 and a walk over neighbours stops at water, so an island just offshore survived a
 bomb that visibly covered it. A circle has neither problem.
 
-`drop_bomb` checks the country and the target **before** taking the bomb, so a
+`drop_bomb_usecase` checks the country and the target **before** taking the bomb, so a
 malformed request does not cost one. `Registry.Dropped` then brings the next box
 to a window from the drop, not from when the bomb would have lapsed. Held time
 still counts in full towards `maxBoostPerHour`, like any bonus.
@@ -937,7 +937,7 @@ The snapshot file is the only thing worth backing up.
 
 **A second router, on a loopback listener.** `props.AdminRPC.Mount` is `props.RPC.Mount` for services an operator calls: same builder, same error net, but `cpbootstrap` serves them on `httpServer.adminBindAddress` instead of the public router — logging middleware only, no CORS. Empty serves no admin listener; anything but a loopback `host:port` refuses the boot, both in `ServerConfig.Validate` and again in `Run`, and a port already taken refuses it too. They have no authentication, so loopback is their whole protection, and they are off the router Caddy forwards to on purpose: one Caddyfile edit would otherwise let anybody repaint the map. In production they are reached with `docker compose exec backend wget`; see `deploy/vps/README.md`, "Operator tools".
 
-`planet.v1.AdminService` is the one there today, in `proto/planet/v1/admin.proto`. `planetv1controller.AdminService` is its bag of handlers, the way `ClickService` is. `ReassignCountry` runs `clicks/usecases/reassign_country`, wrapped in `audit_reassign`: every tile `from_country_id` holds goes to `to_country_id`, while the game runs.
+`planet.v1.AdminService` is the one there today, in `proto/planet/v1/admin.proto`. `planetv1controller.AdminService` is its bag of handlers, the way `ClickService` is. `ReassignCountry` runs `clicks/usecases/reassign_country_usecase`, wrapped in `audit_reassign`: every tile `from_country_id` holds goes to `to_country_id`, while the game runs.
 
 - **The move is paced.** `memory_tile_storage.Reassign` moves one batch under the lock and returns where to resume; the use case sleeps 50ms between batches. A batch is a quarter of `tilesStorage.subscriberBuffer`, because each tile is one update on every open stream and the clicks still arriving need the rest of the buffer.
 - **Each tile is an ordinary `TileUpdate`** with `Previous` set, not a new event kind: open clients repaint with no frontend release, `counts` move so the toll prices the next click right, and `dirty` puts it in the next snapshot.

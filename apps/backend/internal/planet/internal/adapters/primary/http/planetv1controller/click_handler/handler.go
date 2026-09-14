@@ -8,14 +8,14 @@ import (
 	"connectrpc.com/connect"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/clickbudget"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 )
 
 // UseCase is the port this handler calls, declared here the way every use case
 // declares its own: what click_handler needs is a method, not a package's
 // concrete type — which is also what lets a test stub the whole chain.
 type UseCase interface {
-	Execute(ctx context.Context, in click.In) (click.Out, error)
+	Execute(ctx context.Context, in click_usecase.In) (click_usecase.Out, error)
 }
 
 func New(useCase UseCase) ClickHandler {
@@ -36,7 +36,7 @@ func (h ClickHandler) Click(
 	ctx context.Context,
 	req *connect.Request[planetv1.ClickRequest],
 ) (*connect.Response[planetv1.ClickResponse], error) {
-	out, err := h.useCase.Execute(ctx, click.In{
+	out, err := h.useCase.Execute(ctx, click_usecase.In{
 		TileID:    req.Msg.GetTileId(),
 		CountryID: req.Msg.GetCountryId(),
 	})

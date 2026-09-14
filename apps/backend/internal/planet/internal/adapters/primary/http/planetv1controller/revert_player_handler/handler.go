@@ -8,11 +8,11 @@ import (
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/revert_player"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/revert_player_usecase"
 )
 
 type UseCase interface {
-	Execute(ctx context.Context, in revert_player.In) (revert_player.Out, error)
+	Execute(ctx context.Context, in revert_player_usecase.In) (revert_player_usecase.Out, error)
 }
 
 func New(useCase UseCase) RevertPlayerHandler {
@@ -27,7 +27,7 @@ func (h RevertPlayerHandler) RevertPlayer(
 	ctx context.Context,
 	req *connect.Request[planetv1.RevertPlayerRequest],
 ) (*connect.Response[planetv1.RevertPlayerResponse], error) {
-	out, err := h.useCase.Execute(ctx, revert_player.In{
+	out, err := h.useCase.Execute(ctx, revert_player_usecase.In{
 		Scope:  req.Msg.GetScope(),
 		DryRun: req.Msg.GetDryRun(),
 	})

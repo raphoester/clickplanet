@@ -18,11 +18,11 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/map_density_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/toll"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_budget"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_map"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/listen_for_events"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/map_density"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_budget_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_map_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/listen_for_events_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/map_density_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconnect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cphttpserver"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
@@ -37,10 +37,12 @@ import (
 
 type stubService struct {
 	err error
-	out click.Out
+	out click_usecase.Out
 }
 
-func (s stubService) Execute(context.Context, click.In) (click.Out, error) { return s.out, s.err }
+func (s stubService) Execute(context.Context, click_usecase.In) (click_usecase.Out, error) {
+	return s.out, s.err
+}
 
 type stubChecker struct{}
 
@@ -74,8 +76,8 @@ func clickServer(t *testing.T, options ...connect.HandlerOption) *httptest.Serve
 // throttle wires a throttled one and every other test wires the bare stub.
 func clickServerWith(
 	t *testing.T,
-	clickUseCase click.IUseCase,
-	budgets get_budget.ClickBudgetReader,
+	clickUseCase click_usecase.IUseCase,
+	budgets get_budget_usecase.ClickBudgetReader,
 	options ...connect.HandlerOption,
 ) *httptest.Server {
 	t.Helper()
@@ -84,11 +86,11 @@ func clickServerWith(
 	mux.Handle(planetv1connect.NewClickServiceHandler(
 		ClickService{
 			ClickHandler:      click_handler.New(clickUseCase),
-			GetBudgetHandler:  get_budget_handler.New(get_budget.New(budgets, onePrice)),
-			MapDensityHandler: map_density_handler.New(map_density.New(stubChecker{})),
-			GetMapHandler:     get_map_handler.New(get_map.New(stubChecker{}, stubMapReader{})),
+			GetBudgetHandler:  get_budget_handler.New(get_budget_usecase.New(budgets, onePrice)),
+			MapDensityHandler: map_density_handler.New(map_density_usecase.New(stubChecker{})),
+			GetMapHandler:     get_map_handler.New(get_map_usecase.New(stubChecker{}, stubMapReader{})),
 			ListenForEventsHandler: listen_for_events_handler.New(
-				listen_for_events.New(stubSubscriber{}, listen_for_events.DefaultHeartbeat, nil)),
+				listen_for_events_usecase.New(stubSubscriber{}, listen_for_events_usecase.DefaultHeartbeat, nil)),
 		},
 		options...,
 	))

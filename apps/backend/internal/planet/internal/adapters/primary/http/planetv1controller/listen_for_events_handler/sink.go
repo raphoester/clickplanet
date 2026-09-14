@@ -7,7 +7,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/claim_bonus_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/bonus"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/listen_for_events"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/listen_for_events_usecase"
 )
 
 // EventStream is what a sink writes to. The generated server stream satisfies
@@ -28,9 +28,9 @@ type Sink struct {
 	stream EventStream
 }
 
-var _ listen_for_events.Sink = Sink{}
+var _ listen_for_events_usecase.Sink = Sink{}
 
-func (s Sink) Send(event listen_for_events.Event) error {
+func (s Sink) Send(event listen_for_events_usecase.Event) error {
 	switch {
 	case event.Heartbeat:
 		return s.stream.Send(heartbeatEvent())
