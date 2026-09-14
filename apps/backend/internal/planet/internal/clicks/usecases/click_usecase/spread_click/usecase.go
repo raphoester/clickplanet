@@ -9,7 +9,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/bonus"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
@@ -30,7 +30,7 @@ type TileStorage interface {
 
 // Publisher tells the planet a click spread, so every client can show it.
 type Publisher interface {
-	PublishSpread(spread bonus.Spread)
+	PublishSpread(spread bonuses.Spread)
 }
 
 func New(implementation click_usecase.IUseCase, spreads Spreads, neighbours Neighbours, storage TileStorage, publisher Publisher) *UseCase {
@@ -73,7 +73,7 @@ func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_useca
 
 	// After the tiles, so no client shows a spread the map has not taken. The
 	// slice is the map's own table, so it is copied before it leaves.
-	u.publisher.PublishSpread(bonus.Spread{
+	u.publisher.PublishSpread(bonuses.Spread{
 		CountryID:  in.CountryID,
 		Tile:       in.TileID,
 		Neighbours: append([]uint32(nil), neighbours...),

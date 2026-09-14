@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/secondary/in_memory_tile_checker"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/secondary/memory_tile_storage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_checker"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/stretchr/testify/suite"
@@ -20,18 +20,18 @@ func TestRunSuite(t *testing.T) {
 type testSuite struct {
 	suite.Suite
 
-	storage *memory_tile_storage.Storage
+	storage *inmemory_tile_storage.Storage
 	useCase *click_usecase.UseCase
 }
 
 func (s *testSuite) SetupSuite() {
 	const maxIndex = 250_000
-	s.storage = memory_tile_storage.New(
+	s.storage = inmemory_tile_storage.New(
 		maxIndex,
-		memory_tile_storage.Config{},
+		inmemory_tile_storage.Config{},
 		slog.New(slog.DiscardHandler),
 	)
-	tileChecker := in_memory_tile_checker.New(maxIndex)
+	tileChecker := inmemory_tile_checker.New(maxIndex)
 	countryChecker := cpcountries.New()
 	s.useCase = click_usecase.New(tileChecker, s.storage, countryChecker)
 }

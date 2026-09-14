@@ -88,7 +88,7 @@ root package**:
 That holds for `cmd/api` too: the composition root lists modules and cannot
 reach a domain type, a storage adapter or a controller even if it wanted to. A
 module's `Config` may carry a field whose *type* is internal (`planet.Config.TilesStorage`
-is `memory_tile_storage.Config`) — koanf fills it by reflection and a caller can
+is `inmemory_tile_storage.Config`) — koanf fills it by reflection and a caller can
 still set its fields, it just cannot name the type. That is the right amount of
 access: the settings are published because they are in the file, and the code
 that reads them is not.
@@ -108,7 +108,7 @@ Each context wires **itself**, in a `module.go` at its root (`internal/planet/mo
 - `props.Logger`, `props.Metrics`
 - `props.Server` — the bind address and the stream heartbeat, **the only config a module reads that is not its own**. It is the transport every module answers over, so it belongs to the layer that owns the server rather than to any context.
 
-**A constructor builds and a `Load…` method reads.** Nothing that reads a file or parses a blob happens inside `New`: the DI sequence calls `New`, then the load, one line each — `geodesic_map.New` then `LoadGeography`/`LoadBorders`, `memory_tile_storage.New` then `LoadSnapshot`, `memory_chat_storage.New` then `LoadLog`, `cpipblock.New` then `Load`, `antibot.New` then `LoadBans`.
+**A constructor builds and a `Load…` method reads.** Nothing that reads a file or parses a blob happens inside `New`: the DI sequence calls `New`, then the load, one line each — `embedded_geodesic_map.New` then `LoadGeography`/`LoadBorders`, `inmemory_tile_storage.New` then `LoadSnapshot`, `memory_chat_storage.New` then `LoadLog`, `cpipblock.New` then `Load`, `antibot.New` then `LoadBans`.
 
 A module never sees the router, the signal handler or another module's objects. **There is no mutable app object and nothing to leave a half-built dependency on**: `internal/shared/cpbootstrap` builds every module in order, then serves.
 
@@ -131,7 +131,7 @@ return []bootstrap.Module{
 `main` builds no objects at all, so a thing two contexts need is **a config block they both declare**, and each builds its own instance from it.
 
 - **`shared/cpsession.Config`** is the `session:` block, and it is shared because two contexts read it: `session` mints with it, `planet` verifies with it. Each calls `cpsession.NewSigner(config)` itself. The same secret and TTL produce the same MAC, so the two signers agree by construction and there is no object to pass — `TestBothContextsReadTheSameSessionBlock` pins that they read one block, and `TestTwoSignersOverOneConfigAgree` pins that one block means one key. Neither module imports the other, and **the planet context knows nothing about Turnstile** — the siteverify client lives at `session/internal/turnstile`, so it *cannot* reach it, and swapping the attester changes one line in `internal/session/module.go`.
-- **`shared/cpcountries`** is the ISO list. It is stateless and hardcoded, so each module just calls `cpcountries.New()`, the way it calls `cptime.SystemClock{}`. It sits in `shared` and not under `planet/internal/adapters/` for exactly the reason that layer exists: neither context may depend on the other — and now could not, since that directory is unreachable from chat.
+- **`shared/cpcountries`** is the ISO list. It is stateless and hardcoded, so each module just calls `cpcountries.New()`, the way it calls `cptime.SystemClock{}`. It sits in `shared` and not under `planet/internal/clicks/` for exactly the reason that layer exists: neither context may depend on the other — and now could not, since that directory is unreachable from chat.
 
 **This is why `session.secret` is now required** rather than invented at boot — see [Sessions](#sessions-internalsession).
 
@@ -141,70 +141,83 @@ Adding a context that callers talk to means a `proto/<name>/v1`, an `internal/<n
 
 It runs as a **single self-contained container with no dependencies**: the tile map lives in process and is persisted to a local snapshot file. There is no database, no cache, and no second process.
 
-### Inside the planet module: parts, not layers
+### Inside the planet module: concepts, not layers
 
-**There is no `domain` package, deliberately.** "Domain" names a layer, and a
-layer is the one thing every part of a module has in common — so a package
-called that collects whatever does not fit elsewhere and grows until nothing in
-it has a reason to sit beside anything else. It had shrunk to a sentinel and two
-structs, which is what a shell looks like.
+**There is no `domain` package and no `adapters` package, deliberately.** Both
+name a layer, and a layer is the one thing every part of a module has in common
+— so a package called that collects whatever does not fit elsewhere. What sits
+under `internal/planet/internal/` is **one directory per concept of the game**,
+and each concept carries its own layers inside it:
 
-What sits under `internal/planet/internal/` is **one package per part of the
-game**, each named for what it is:
+```
+internal/planet/internal/
+  clicks/                         the board: tiles, the map, what a click costs
+    usecases/<name>_usecase/      one package per procedure
+    inmemory_tile_storage/        an adapter: <tech>_<thing>_<role>
+    inmemory_tile_checker/
+    embedded_geodesic_map/
+  ledger/                         who took which tile, and the operator tools that read it
+    usecases/
+  bonuses/                        the boxes, and what each one grants
+    usecases/
+  planetv1controller/             the edge: maps the wire to the use cases, nothing else
+```
 
-- **`clicks/`** — the tile game: what a click is worth, what the map looks like,
-  and what changes when somebody takes a tile.
-- **`bonuses/`** — next, and the reason this is worth doing now. A part named
-  for itself is a directory to add; under a `domain` package it would have been
-  a subdirectory of a word that describes neither.
+- **`clicks/`** — what a click is worth, what the map looks like, and what
+  changes when somebody takes a tile.
+- **`ledger/`** — who last took each tile. `FindPlayers`, `BanPlayer` and
+  `RevertPlayer` live here: they are one moderation workflow — find, ban, undo.
+- **`bonuses/`** — the boxes, their schedule, and the running bonuses they grant.
 
-A part's **root holds its vocabulary** — the sentinels and the types that cross
-between a use case and an adapter, so belong to neither. `clicks` holds
-its caller-error sentinels, `TileUpdate` and `DenseBatch`, and nothing else: no ports,
-no service, no logic. **Its rules live one level down, one package per use case.**
+**A concept's root is its domain.** The use cases under `usecases/` load, call
+the root, and persist; a rule that could be unit-tested without a port belongs
+in the root.
 
-The adapters stay where they are, under `internal/adapters/`, because an adapter
-is answerable to the transport or the store and not to one part — `planetv1controller`
-already serves both parts over one Connect service.
+**An adapter lives under the concept whose port it implements**, named
+`<tech>_<thing>_<role>` — `inmemory_tile_storage`, `embedded_geodesic_map`. A
+second implementation of the same port is a sibling directory, not a new layer.
 
-#### Use cases (`internal/planet/internal/clicks/usecases/`)
+**The controller is the one exception**, at `internal/planet/internal/planetv1controller/`,
+because it serves every concept over one Connect service. It only maps.
 
-**One package per procedure, and each declares its own ports.** The service the
-edge serves has five procedures, so there are five packages, each exporting
+#### Use cases (`<concept>/usecases/`)
+
+**One package per procedure, and each declares its own ports.** Each exports
 `New` and a `UseCase` with one `Execute`:
 
 | package | what it does | what it needs |
 |---|---|---|
-| `click_usecase` | validates the country and the tile, then writes | `TilesChecker`, `TileStorage`, `CountryChecker` |
-| `get_map_usecase` | a range of the map as one dense batch | `MaxIndexReader`, `DenseMapReader` |
-| `map_density_usecase` | how many tiles there are | `MaxIndexReader` |
-| `get_budget_usecase` | a caller's allowance, unspent | `ClickBudgetReader` |
-| `listen_for_events_usecase` | one client's live feed, heartbeat included | `UpdatesSubscriber` |
+| `clicks/usecases/click_usecase` | validates the country and the tile, then writes | `TilesChecker`, `TileStorage`, `CountryChecker` |
+| `clicks/usecases/get_map_usecase` | a range of the map as one dense batch | `MaxIndexReader`, `DenseMapReader` |
+| `clicks/usecases/map_density_usecase` | how many tiles there are | `MaxIndexReader` |
+| `clicks/usecases/get_budget_usecase` | a caller's allowance, unspent | `ClickBudgetReader` |
+| `clicks/usecases/listen_for_events_usecase` | one client's live feed, heartbeat included | `UpdatesSubscriber` |
+| `clicks/usecases/reassign_country_usecase` | gives one country's tiles to another | `Map`, `CountryChecker` |
+| `ledger/usecases/find_players_usecase` | who is painting a flag, and where | `Ledger`, `Owners`, `Borders`, `Bans` |
+| `ledger/usecases/ban_player_usecase` | the operator's shadow ban | `Banner` |
+| `ledger/usecases/revert_player_usecase` | gives back what one caller took | `Ledger`, `Map` |
+| `bonuses/usecases/claim_bonus_usecase` | redeems a box | `Registry`, `Booster`, `Spreader`, `Bomber`, `Encloser` |
+| `bonuses/usecases/drop_bomb_usecase` | spends a bomb where it was aimed | `Bombs`, `Map`, `Clearer` |
 
 **The interfaces in that last column are declared by the package that calls
-them**, not gathered in a `gateways.go` every use case imports. That is the
-whole point of the split: a shared port file makes every dependency everyone's,
-so `Click` ends up compiling against the map reader it never calls and a change
-to one procedure's needs is a change to the file all five read. Here, adding a
-dependency to `get_map_usecase` is invisible to the other four. The adapters are
-unchanged — `memory_tile_storage` happens to satisfy three of these ports at
-once, which is why `module.go` hands it over three times.
+them**, not gathered in a `gateways.go` every use case imports. A shared port
+file makes every dependency everyone's, so `Click` ends up compiling against the
+map reader it never calls. Here, adding a dependency to `get_map_usecase` is
+invisible to the others — `inmemory_tile_storage` happens to satisfy several of
+these ports at once, which is why `module.go` hands it over several times.
 
-**`click_usecase` is the only one that writes**, and the only one with an interface of
-its own (`IUseCase`), because `click/prom_click` decorates it — the counting is
-a wrapper rather than a line inside the rule, so a process that does not want it
-leaves it out and the rule does not change.
+**`click_usecase` is the only one with an interface of its own (`IUseCase`)**,
+because the click chain decorates it — `prom_click`, `throttle_click`,
+`antibot_click`, and the bonus decorators `spread_click`, `enclose_click` and
+`bonus_click`. The counting is a wrapper rather than a line inside the rule, so
+a process that does not want it leaves it out and the rule does not change.
 
-The ports are written in the vocabulary the `clicks` root holds, and nothing
-travels between a use case and an adapter that is not declared in one of the
-two.
-
-`Geography` is the other thing the `clicks` root holds, beside the sentinels and `TileUpdate`: the shape of the map, in `geography.go`. It is a model rather than a port — `geodesic_map` builds one and hands it over. See [Map geography](#map-geography).
+`Geography` is in the `clicks` root, beside the sentinels and `TileUpdate`: the shape of the map, in `geography.go`. It is a model rather than a port — `embedded_geodesic_map` builds one and hands it over. See [Map geography](#map-geography).
 
 ### Adapters
 
 **Primary (input):**
-- `internal/adapters/primary/http/planetv1controller/` — the API. `ClickService` implements the generated `planetv1connect.ClickServiceHandler` and nothing else; it never sees an `http.ResponseWriter`, which is the point of serving the contract with Connect rather than by hand. **Each procedure is its own package** — `click_handler`, `get_map_handler`, `map_density_handler`, `get_budget_handler`, `listen_for_events_handler` — holding the one use case it calls and declaring the one port it needs. Each owns the mapping both ways, and each is tested on that mapping alone.
+- `internal/planet/internal/planetv1controller/` — the API. `ClickService` implements the generated `planetv1connect.ClickServiceHandler` and nothing else; it never sees an `http.ResponseWriter`, which is the point of serving the contract with Connect rather than by hand. **Each procedure is its own package** — `click_handler`, `get_map_handler`, `map_density_handler`, `get_budget_handler`, `listen_for_events_handler` — holding the one use case it calls and declaring the one port it needs. Each owns the mapping both ways, and each is tested on that mapping alone.
 
 `ClickService` is those five embedded, and **nothing else**: no fields of its own, no methods of its own, and **no constructor** — it is a bag of handlers, so the DI sequence that already builds them writes the literal. It has no test either. An aggregation's only claim is that it carries all five procedures, and `var _ planetv1connect.ClickServiceHandler = ClickService{}` is that claim, checked at compile time. A test that served it and called a procedure would be re-testing the handler package that procedure lives in.
 
@@ -236,14 +249,14 @@ Each handler calls the storage's `Subscribe(ctx)` **per call**, and the request 
 
 The response never repeats a tile id. `GetMapResponse` carries `start_tile_id`, the interned `codes` table, and `tiles` — a `bytes` field holding two bytes per tile, little endian, indexing into `codes`. Tile ids are implicit in the position, which is what makes it far smaller than the deprecated `map<uint32, string>`: **516 KB against 3.6 MB** for a full 257,948-tile map.
 
-`memory_tile_storage.StateBatchDense` builds it. The interned ids are copied out exactly as stored and the table travels with them, so nothing is translated on the way out and the client needs no shared country list. Protobuf does all the framing — there is no hand-rolled magic or length-prefixing on either side, and therefore no encoder and decoder that have to be edited together.
+`inmemory_tile_storage.StateBatchDense` builds it. The interned ids are copied out exactly as stored and the table travels with them, so nothing is translated on the way out and the client needs no shared country list. Protobuf does all the framing — there is no hand-rolled magic or length-prefixing on either side, and therefore no encoder and decoder that have to be edited together.
 
 **Secondary (output):**
-- `internal/adapters/secondary/memory_tile_storage/` — the tile map. A preallocated `[]uint16` indexed by tile id, with country codes interned into a side table (2 bytes per tile — ~2 MB for a 1M-tile map). Fans updates out in process and persists to a local snapshot file.
-- `internal/adapters/secondary/in_memory_tile_checker/` — validates tile IDs
+- `clicks/inmemory_tile_storage/` — the tile map. A preallocated `[]uint16` indexed by tile id, with country codes interned into a side table (2 bytes per tile — ~2 MB for a 1M-tile map). Fans updates out in process and persists to a local snapshot file.
+- `clicks/inmemory_tile_checker/` — validates tile IDs
 - country codes are validated by `shared/cpcountries`, which chat shares — see [The composite layer](#the-composite-layer)
 
-Beyond the `click_usecase.TileStorage` port, `memory_tile_storage` also exposes `Subscribe(ctx) (<-chan clicks.Change, error)`, one call per open stream. A `Change` is a tile update or a bomb blast, on one channel so the two keep their order — see [What a bomb does](#what-a-bomb-does).
+Beyond the `click_usecase.TileStorage` port, `inmemory_tile_storage` also exposes `Subscribe(ctx) (<-chan clicks.Change, error)`, one call per open stream. A `Change` is a tile update or a bomb blast, on one channel so the two keep their order — see [What a bomb does](#what-a-bomb-does).
 
 ### Key Flow
 
@@ -341,7 +354,7 @@ field numbers rather than changing type in place: a client built against the old
   refill for a big country would have been read off whatever country the caller
   played last, so a player could bank tokens on a small one and spend them on a big one.
 - **The share is of the whole map, not of owned tiles**, so early in a game nobody pays more.
-- **`memory_tile_storage` keeps a tile count per country**, moved by `set` and
+- **`inmemory_tile_storage` keeps a tile count per country**, moved by `set` and
   `Clear` and rebuilt from the snapshot, so `Share` is one read and no scan.
 - **The budget goes out already divided by the cost** (`toll.Of`): ten tokens at a
   cost of 2 are five clicks refilling at 0.5/s. The meter narrows off the server's
@@ -405,7 +418,7 @@ The signature is checked **before** the expiry, in constant time, so a forger le
 **What it does not stop:** a person who solves Turnstile in a real browser and then runs a userscript. They hold a genuine session, and nothing here distinguishes them from a player. This raises the floor from "twenty lines of Python" to "drive a real browser"; the signal that survives that is behavioural — timing regularity and tile-id structure over a session — which is what the session id on the context exists to be keyed on. Nothing in production reads it yet, so `cpctx.GetSessionID` sits behind the `testing` tag (see [Testing](#testing)) until something does.
 
 
-### Bonus boxes (`internal/planet/internal/clicks/bonus/`)
+### Bonus boxes (`internal/planet/internal/bonuses/`)
 
 A question-mark box flies past the planet every so often; whoever catches it
 gets one of four bonuses. Each box draws its kind from `bonus.kinds`, a weight
@@ -517,8 +530,8 @@ a click spreads to could name any tiles it liked — that is why the spread wait
 for [Map geography](#map-geography). The client paints the tile it clicked, as it
 always has, and the neighbours reach it over the stream like anyone else's.
 
-`claim_bonus_usecase` starts it with `bonus.Spreads.Grant(scope, until)` instead of a
-boost, and answers the allowance unchanged. `bonus.Spreads` is a map of scope to
+`claim_bonus_usecase` starts it with `bonuses.Spreads.Grant(scope, until)` instead of a
+boost, and answers the allowance unchanged. `bonuses.Spreads` is a map of scope to
 end time; each grant forgets the spreads that ran out, so it needs no sweep.
 
 `click/spread_click` is the decorator that reads it, and **it sits right against
@@ -554,7 +567,7 @@ neighbours together, which one flag per tile cannot say.
 
 #### What a bomb does
 
-`claim_bonus_usecase` hands the bomb over with `bonus.Bombs.Grant(scope, until)` — the
+`claim_bonus_usecase` hands the bomb over with `bonuses.Bombs.Grant(scope, until)` — the
 spread's counterpart, a map of scope to deadline — and answers the blast radius
 on `ClaimBonusResponse.blast_radius`, so the client draws its aiming ring at the
 width of what it will clear. `DropBomb` spends it through `drop_bomb_usecase`.
@@ -582,7 +595,7 @@ malformed request does not cost one. `Registry.Dropped` then brings the next box
 to a window from the drop, not from when the bomb would have lapsed. Held time
 still counts in full towards `maxBoostPerHour`, like any bonus.
 
-**The blast is one event, and it rides the tile feed.** `memory_tile_storage.Clear`
+**The blast is one event, and it rides the tile feed.** `inmemory_tile_storage.Clear`
 empties the tiles under one lock and publishes a single `clicks.Change{Blast}`
 on the same channel as the `clicks.Change{Update}` every `Set` sends. Two
 reasons it is not one `TileUpdate` per tile:
@@ -626,13 +639,13 @@ tells closed from open — there is no second rule.
   already held changes nothing, so it closes nothing: a shape finished before the
   bonus stays as it is. The owner is read before the rule writes, since afterwards
   the map no longer says whether the click took the tile.
-- **Each pocket costs one shape**, spent through `bonus.Enclosure.Spend`, which
+- **Each pocket costs one shape**, spent through `bonuses.Enclosure.Spend`, which
   settles two clicks racing for the last one. A click that closes two shapes with
   one left takes the first. A bonus with no shape left is over before its time.
 
 **The use case only wires three objects together.** `Terrain` is the map as
 the search sees it — who holds a tile, what touches it — and finds the pockets a
-click closed. `bonus.Enclosure` is one caller's running bonus: its size limit and
+click closed. `bonuses.Enclosure` is one caller's running bonus: its size limit and
 its shapes left. `Annexer` spends a shape per pocket, takes the tiles and
 announces them. `Execute` asks for the running bonus, lets the rule write, and
 hands the pockets to the annexer.
@@ -869,7 +882,7 @@ a ban on one address and click from the next in its own /64. It only bites a bot
 with a stable address — against a residential proxy pool it evaporates for
 exactly the reason the rate limiter does.
 
-`memory_tile_storage.Owner` exists for this: one indexed read under the existing
+`inmemory_tile_storage.Owner` exists for this: one indexed read under the existing
 lock, declared as a local port in the controller the way each use case declares
 its own.
 
@@ -939,7 +952,7 @@ The snapshot file is the only thing worth backing up.
 
 `planet.v1.AdminService` is the one there today, in `proto/planet/v1/admin.proto`. `planetv1controller.AdminService` is its bag of handlers, the way `ClickService` is. `ReassignCountry` runs `clicks/usecases/reassign_country_usecase`, wrapped in `audit_reassign`: every tile `from_country_id` holds goes to `to_country_id`, while the game runs.
 
-- **The move is paced.** `memory_tile_storage.Reassign` moves one batch under the lock and returns where to resume; the use case sleeps 50ms between batches. A batch is a quarter of `tilesStorage.subscriberBuffer`, because each tile is one update on every open stream and the clicks still arriving need the rest of the buffer.
+- **The move is paced.** `inmemory_tile_storage.Reassign` moves one batch under the lock and returns where to resume; the use case sleeps 50ms between batches. A batch is a quarter of `tilesStorage.subscriberBuffer`, because each tile is one update on every open stream and the clicks still arriving need the rest of the buffer.
 - **Each tile is an ordinary `TileUpdate`** with `Previous` set, not a new event kind: open clients repaint with no frontend release, `counts` move so the toll prices the next click right, and `dirty` puts it in the next snapshot.
 - **A tile `from` retakes behind the scan stays theirs.** The answer reads both counts again at the end, so `from_after` says whether to run it again.
 - **`audit_reassign` logs every call at Warn**, dry runs and failures included: it is the only record that those tiles did not change hands through play. It is a decorator for the reason `prom_click` is — handlers here do not log.
@@ -950,11 +963,11 @@ Measured on a copy of production's snapshot: 22,040 tiles in 4.4s, all 22,040 up
 
 For the patterns no watchdog catches but a person sees on the map. A player is a **scope** (`cpipscope`): the address over IPv4, the /64 over IPv6 — what the throttle and the ban already key on.
 
-- **`clicks/ledger` remembers, per tile, the last scope that took it** and what the tile held before that scope's first take. `ledger.Recording` wraps the storage the click chain writes through — the rule, `spread_click` and the enclose annexer — so every tile a click takes is recorded, a no-op is not, and a click the shadow ban drops never reaches it. A take by somebody else replaces the entry; that is what "covered" means. Bombs and reassigns do not write the ledger: the tile no longer wears the paint, and both use cases check the owner.
+- **`ledger` remembers, per tile, the last scope that took it** and what the tile held before that scope's first take. `ledger.Recording` wraps the storage the click chain writes through — the rule, `spread_click` and the enclose annexer — so every tile a click takes is recorded, a no-op is not, and a click the shadow ban drops never reaches it. A take by somebody else replaces the entry; that is what "covered" means. Bombs and reassigns do not write the ledger: the tile no longer wears the paint, and both use cases check the owner.
 - **In memory only**, one entry per tile at most, forgotten after `ledger.retention` (24h). A restart empties it.
-- **`FindPlayers(flag, area, limit)`** lists the scopes whose paint of `flag` still holds, on tiles whose ground is `area` (empty is the whole map), latest take first, with any running ban. The ground comes from `clicks.Borders`, built by `geodesic_map.Loader.LoadBorders` from the borders blob the frontend paints flags from — see [Map geography](#map-geography). A blob for another map refuses the boot.
+- **`FindPlayers(flag, area, limit)`** lists the scopes whose paint of `flag` still holds, on tiles whose ground is `area` (empty is the whole map), latest take first, with any running ban. The ground comes from `clicks.Borders`, built by `embedded_geodesic_map.Loader.LoadBorders` from the borders blob the frontend paints flags from — see [Map geography](#map-geography). A blob for another map refuses the boot.
 - **`BanPlayer(scope, duration)`** is `shadowban.Banner.Ban`, and drops the scope's clicks and bombs alike: the same record, ladder and state file as a watchdog's ban, and it counts as an offence. It skips `reflagInterval`, and an empty duration takes the ladder's step. Any address is accepted and banned as its scope (`cpipscope.Parse`). **It follows `antiBot.shadowBan.enforce`**, and says so in `enforced`. With `antiBot.enabled` false it answers `FailedPrecondition`.
-- **`RevertPlayer(scope, dry_run)`** gives each tile the scope took back to its previous owner, **only if it still wears the scope's paint** — `memory_tile_storage.Restore` is a compare-and-set under the lock, so a tile retaken mid-revert stays retaken. Paced like the reassign (`clicks/pacing`), each tile an ordinary `TileUpdate`. A tile that was nobody's goes back to nobody, as an update with an empty country. It then forgets the scope's takes, so a second run does nothing.
+- **`RevertPlayer(scope, dry_run)`** gives each tile the scope took back to its previous owner, **only if it still wears the scope's paint** — `inmemory_tile_storage.Restore` is a compare-and-set under the lock, so a tile retaken mid-revert stays retaken. Paced like the reassign (`clicks/pacing`), each tile an ordinary `TileUpdate`. A tile that was nobody's goes back to nobody, as an update with an empty country. It then forgets the scope's takes, so a second run does nothing.
 - **Ban before reverting**: an unbanned player repaints behind the revert.
 - `audit_ban` and `audit_revert` log every call at Warn, as `audit_reassign` does. `FindPlayers` is a read and logs nothing.
 
@@ -1014,7 +1027,7 @@ survives a change of input format*:
   to be true of a map: tiles in range, nothing touching itself, no tile above `MaxDegree`, and
   **no asymmetric edge** — a tile that spreads onto a neighbour which would not spread back is a
   one-way street on the map.
-- **`internal/adapters/secondary/geodesic_map`** — the recovery. Everything in it exists because the
+- **`clicks/embedded_geodesic_map`** — the recovery. Everything in it exists because the
   adjacency is *not* shipped: the positions are, and the edges have to be worked back out of them.
   The blob decode, the icosahedron lattice and the position index are all knowledge of the shipped
   artifact, not of the game. **Ship a precomputed edge list one day and this package goes while
@@ -1032,7 +1045,7 @@ on a detail-300 lattice vertex.
 
 And it splits the tests. `domain` is tested against a hand-built patch of honeycomb — fast, no 5 MB
 asset, and it says what `Geography` does rather than what the shipped blob happens to contain.
-`geodesic_map` is tested against the real blob, and holds every number below.
+`embedded_geodesic_map` is tested against the real blob, and holds every number below.
 
 **The tile grid is a regular honeycomb, not an arbitrary numbering.** Tile ids look like noise but
 they are the land vertices of `THREE.IcosahedronGeometry(1, 300)`, deduplicated by position — a
@@ -1062,14 +1075,14 @@ walk has no threshold in it at all — the only tolerance is `matchEpsilon`, and
 #### The off-by-one
 
 **Wire tile id = blob array index + 1.** The blob is 0-indexed by position; ids on the wire are
-1-based, which is what `in_memory_tile_checker`, `memory_tile_storage`'s unused slot 0 and the
+1-based, which is what `inmemory_tile_checker`, `inmemory_tile_storage`'s unused slot 0 and the
 frontend's `integerToColor(i + 1)` all agree on. Getting it wrong shifts every neighbourhood by one
 tile, **symmetrically, with a degree histogram that still looks right** —
 `TestTileIDsAreOneBasedOverTheBlob` is what catches it.
 
 #### Checked at boot, not just in the tests
 
-`geodesic_map.Loader.LoadGeography` is the first thing the planet module loads and **fails the boot** on a blob whose
+`embedded_geodesic_map.Loader.LoadGeography` is the first thing the planet module loads and **fails the boot** on a blob whose
 tile count is not `gameMap.maxIndex`, on any tile that does not sit on the detail-300 lattice, on a
 degree above 6, or on an asymmetric edge. The tests cannot see the blob a container was actually
 built with, and that is the thing that drifts; regenerating the coordinates renumbers every tile, so

@@ -10,8 +10,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/bonus"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/listen_for_events_usecase"
 )
 
@@ -26,7 +26,7 @@ func (s stubSubscriber) Subscribe(context.Context) (<-chan clicks.Change, error)
 
 type silentFeed struct{}
 
-func (silentFeed) Attend(string) (<-chan bonus.Event, func()) {
+func (silentFeed) Attend(string) (<-chan bonuses.Event, func()) {
 	return nil, func() {}
 }
 

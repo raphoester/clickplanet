@@ -1,7 +1,7 @@
 package enclose_click
 
 import (
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/bonus"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 )
 
@@ -11,8 +11,8 @@ type Pocket struct {
 	wall   []uint32
 }
 
-func (p Pocket) announcement(closing click_usecase.In, left int) bonus.Enclosed {
-	return bonus.Enclosed{
+func (p Pocket) announcement(closing click_usecase.In, left int) bonuses.Enclosed {
+	return bonuses.Enclosed{
 		CountryID:   closing.CountryID,
 		ClosingTile: closing.TileID,
 		Wall:        p.wall,

@@ -4,10 +4,10 @@ import (
 	"errors"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/secondary/memory_tile_storage"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/bonus"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/ledger"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/toll"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
@@ -17,12 +17,12 @@ import (
 // level of the file where they have always been.
 type Config struct {
 	GameMap      GameMapConfig
-	TilesStorage memory_tile_storage.Config
+	TilesStorage inmemory_tile_storage.Config
 	RateLimiter  cpratelimit.Config
 	Toll         toll.Config
 	VPNBlocklist cpipblock.Config
 	AntiBot      antibot.Config
-	Bonus        bonus.Config
+	Bonus        bonuses.Config
 
 	// Who last took each tile, for the operator tools.
 	Ledger ledger.Config

@@ -18,29 +18,17 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/ban_player_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/claim_bonus_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/click_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/drop_bomb_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/find_players_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/get_budget_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/get_map_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/listen_for_events_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/map_density_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/reassign_country_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/revert_player_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/secondary/geodesic_map"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/secondary/in_memory_tile_checker"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/secondary/memory_tile_storage"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/bonus"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/ledger"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/claim_bonus_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/claim_bonus_usecase/prom_claim_bonus"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/drop_bomb_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/drop_bomb_usecase/antibot_drop_bomb"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/drop_bomb_usecase/prom_drop_bomb"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/embedded_geodesic_map"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_checker"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/pacing"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/toll"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/ban_player_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/ban_player_usecase/audit_ban"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/claim_bonus_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/claim_bonus_usecase/prom_claim_bonus"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/antibot_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/bonus_click"
@@ -49,18 +37,30 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/prom_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/spread_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/throttle_click"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/drop_bomb_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/drop_bomb_usecase/antibot_drop_bomb"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/drop_bomb_usecase/prom_drop_bomb"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/find_players_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_budget_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_map_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/listen_for_events_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/map_density_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/reassign_country_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/reassign_country_usecase/audit_reassign"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/revert_player_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/revert_player_usecase/audit_revert"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/ban_player_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/ban_player_usecase/audit_ban"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/find_players_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/revert_player_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/revert_player_usecase/audit_revert"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/ban_player_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/claim_bonus_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/click_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/drop_bomb_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/find_players_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_budget_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_map_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/listen_for_events_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/map_density_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/reassign_country_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/revert_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
@@ -88,7 +88,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			// First: nothing else here is worth starting if the map is not the one the frontend draws.
 			// Unconditional, and fatal: a blob that disagrees with the frontend renumbers every tile, and the
 			// snapshot on disk is numbered the old way. See CLAUDE.md, "Map geography".
-			gameMap := geodesic_map.New(config.GameMap.MaxIndex, props.Logger)
+			gameMap := embedded_geodesic_map.New(config.GameMap.MaxIndex, props.Logger)
 
 			geography, err := gameMap.LoadGeography()
 			if err != nil {
@@ -103,9 +103,9 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			// ---- Storage, ledger, limiter, toll ----
 
-			tilesChecker := in_memory_tile_checker.New(config.GameMap.MaxIndex)
+			tilesChecker := inmemory_tile_checker.New(config.GameMap.MaxIndex)
 
-			tilesStorage := memory_tile_storage.New(config.GameMap.MaxIndex, config.TilesStorage, props.Logger)
+			tilesStorage := inmemory_tile_storage.New(config.GameMap.MaxIndex, config.TilesStorage, props.Logger)
 			tilesStorage.LoadSnapshot()
 			props.Runners.Add(tilesStorage)
 
@@ -122,12 +122,12 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			// ---- Bonus boxes ----
 
-			bonuses := bonus.New(config.Bonus, clock)
-			props.Runners.Add(bonuses)
+			registry := bonuses.New(config.Bonus, clock)
+			props.Runners.Add(registry)
 
-			spreads := bonus.NewSpreads(clock)
-			bombs := bonus.NewBombs(clock)
-			enclosures := bonus.NewEnclosures(clock)
+			spreads := bonuses.NewSpreads(clock)
+			bombs := bonuses.NewBombs(clock)
+			enclosures := bonuses.NewEnclosures(clock)
 
 			// A bomb is sized off the map itself, so the ring a client draws is the width of what it clears.
 			spacing := geography.Spacing()
@@ -148,11 +148,11 @@ func NewModule(config Config) cpbootstrap.Module {
 			// reaches the rule, so it spreads and encloses nothing either. It is counted
 			// as one click however many tiles it took.
 			var clickUseCase click_usecase.IUseCase = click_usecase.New(tilesChecker, writer, countries)
-			clickUseCase = spread_click.New(clickUseCase, spreads, geography, writer, bonuses)
+			clickUseCase = spread_click.New(clickUseCase, spreads, geography, writer, registry)
 
 			clickUseCase = enclose_click.New(clickUseCase, enclosures,
 				enclose_click.NewTerrain(geography, tilesStorage),
-				enclose_click.NewAnnexer(writer, prom_enclose.New(bonuses, props.Metrics)))
+				enclose_click.NewAnnexer(writer, prom_enclose.New(registry, props.Metrics)))
 
 			clickUseCase = prom_click.New(clickUseCase, props.Metrics)
 
@@ -172,7 +172,7 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			// Inside the throttle: presence is what a caller actually managed to do,
 			// not what they attempted.
-			clickUseCase = bonus_click.New(clickUseCase, bonuses)
+			clickUseCase = bonus_click.New(clickUseCase, registry)
 
 			clickUseCase = throttle_click.New(clickUseCase, limiter, pricer)
 
@@ -249,16 +249,16 @@ func NewModule(config Config) cpbootstrap.Module {
 			// is the only way to see whether the pacing and the flight time are set
 			// anywhere near right.
 			claimBonus, counters := prom_claim_bonus.New(
-				claim_bonus_usecase.New(bonuses, limiter, pricer, spreads, bombs, bombRules.Radius, enclosures, clock),
+				claim_bonus_usecase.New(registry, limiter, pricer, spreads, bombs, bombRules.Radius, enclosures, clock),
 				props.Metrics)
 
-			bonuses.Observe(bonus.Report{
+			registry.Observe(bonuses.Report{
 				Offered: counters.Offered.Inc,
 				Lapsed:  counters.Lapsed.Inc,
 			})
 
 			dropped := prom_drop_bomb.New(
-				drop_bomb_usecase.New(bombs, bonuses, geography, tilesStorage, countries, bombRules), props.Metrics)
+				drop_bomb_usecase.New(bombs, registry, geography, tilesStorage, countries, bombRules), props.Metrics)
 
 			// Outside the count, so it can tell the counter a drop was a dud.
 			dropBomb := antibot_drop_bomb.New(dropped, guard)
@@ -275,7 +275,7 @@ func NewModule(config Config) cpbootstrap.Module {
 				MapDensityHandler: map_density_handler.New(map_density_usecase.New(tilesChecker)),
 				GetMapHandler:     get_map_handler.New(get_map_usecase.New(tilesChecker, tilesStorage)),
 				ListenForEventsHandler: listen_for_events_handler.New(
-					listen_for_events_usecase.New(tilesStorage, props.Server.StreamHeartbeat, bonuses)),
+					listen_for_events_usecase.New(tilesStorage, props.Server.StreamHeartbeat, registry)),
 				ClaimBonusHandler: claim_bonus_handler.New(claimBonus),
 				DropBombHandler:   drop_bomb_handler.New(dropBomb),
 			}
