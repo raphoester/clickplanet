@@ -280,6 +280,35 @@ else
 	log "docker already present ($(docker --version))"
 fi
 
+# No userland proxy. With it on, docker-proxy listens on 80/443 from the moment
+# a container starts, a beat before the NAT rule that forwards straight to the
+# container exists. A connection that lands in that gap is carried by
+# docker-proxy for its whole life, and docker-proxy is the peer Caddy sees: the
+# source becomes the bridge gateway (172.18.0.1), which is not a Cloudflare
+# range, so Caddy ignores Cf-Connecting-Ip and every request on it reaches the
+# API as one caller. Cloudflare keeps an origin connection open for hours and
+# multiplexes many visitors over it — on 2026-09-14 one such connection, opened
+# 1.8s after a Caddy restart, carried 78% of all clicks. That hides a bot inside
+# a crowd and exposes the crowd to a single ban. Every deploy restarts Caddy, so
+# this was not a one-off. With the proxy off, a connection in the gap is refused
+# and Cloudflare retries onto the NAT rule, which keeps the real peer address.
+daemon_json=/etc/docker/daemon.json
+if [[ ! -s "$daemon_json" ]]; then
+	# Restarting the daemon stops every container (SIGTERM, so the API writes its
+	# final snapshot) and restart: unless-stopped brings them back: a few seconds
+	# of downtime, once, on a box that already runs the stack.
+	log "disabling docker's userland proxy (restarts docker)"
+	mkdir -p /etc/docker
+	echo '{ "userland-proxy": false }' > "$daemon_json"
+	systemctl restart docker
+elif grep -Eq '"userland-proxy"[[:space:]]*:[[:space:]]*false' "$daemon_json"; then
+	log "docker userland proxy already disabled"
+else
+	# Not rewritten by hand: that file may hold settings this script knows
+	# nothing about, and a bad edit stops docker from starting at all.
+	die "${daemon_json} exists without \"userland-proxy\": false. Add it, then run: systemctl restart docker"
+fi
+
 if ! command -v git >/dev/null 2>&1; then
 	log "installing git"
 	apt-get update -qq && apt-get install -y -qq git
