@@ -207,7 +207,7 @@ because it serves every concept over one Connect service. It only maps.
 | `clicks/usecases/get_budget_usecase` | a caller's allowance, unspent | `ClickBudgetReader` |
 | `clicks/usecases/listen_for_events_usecase` | one client's live feed, heartbeat included | `UpdatesSubscriber` |
 | `clicks/usecases/reassign_country_usecase` | gives one country's tiles to another | `Map`, `CountryChecker` |
-| `clicks/usecases/paint_random_tiles_usecase` | paints random tiles of one country's ground with a flag | `Borders`, `Neighbours`, `Map`, `CountryChecker` |
+| `clicks/usecases/paint_random_tiles_usecase` | paints random tiles with a flag, starting on one country's ground | `Borders`, `Neighbours`, `Map`, `CountryChecker` |
 | `ledger/usecases/find_players_usecase` | who is painting a flag, and where | `Ledger`, `Owners`, `Borders`, `Bans` |
 | `ledger/usecases/top_players_usecase` | who holds the most tiles, every flag | `Ledger`, `Owners`, `Bans` |
 | `ledger/usecases/ban_player_usecase` | the operator's shadow ban | `Banner` |
@@ -1038,10 +1038,10 @@ Measured on a copy of production's snapshot: 22,040 tiles in 4.4s, all 22,040 up
 
 #### `PaintRandomTiles`
 
-`PaintRandomTiles(flag, area, count, proximity, dry_run)` runs `clicks/usecases/paint_random_tiles_usecase`, wrapped in `audit_paint_random`: it paints `count` tiles of `area`'s ground (from `clicks.Borders`) with `flag`.
+`PaintRandomTiles(flag, area, count, proximity, dry_run)` runs `clicks/usecases/paint_random_tiles_usecase`, wrapped in `audit_paint_random`: it paints `count` tiles with `flag`, starting on `area`'s ground (from `clicks.Borders`).
 
-- **The candidates are every tile of the area not wearing the flag.** `count` above that paints them all; `picked` says how many.
-- **`clicks.Pick` is the rule.** Before each draw, with probability `proximity`, it takes a candidate touching a tile already picked (`Geography.Neighbours`); otherwise, or when none touches, any candidate. 0 is uniform; 1 grows one patch and jumps only when the patch is walled in. Between the two you get a few patches.
+- **The area is where a patch starts, not a wall.** A fresh draw (a seed) is a tile of the area not wearing the flag; `eligible` counts those. A patch grows into any tile not wearing the flag, across the border too; `outside_area` counts what it took there.
+- **`clicks.Pick` is the rule.** Before each draw, with probability `proximity`, it takes an eligible tile touching one already picked (`Geography.Neighbours`); otherwise a seed. 0 is uniform over the area; 1 grows one patch and draws a new seed only when the patch is walled in. Between the two you get a few patches. When the seeds run out, patches keep growing; `picked` is below `count` only when nothing is left.
 - **The paint is `Restore`**, the revert's compare-and-set, against the owner read at the pick. A tile somebody takes in between stays theirs, so `painted` can be below `picked`. Paced like the reassign, each tile an ordinary `TileUpdate`. It does not write the ledger, like the reassign.
 - The draw is `clicks.SystemRandom`, math/rand/v2's global source; tests pass a seeded `*rand.Rand`.
 

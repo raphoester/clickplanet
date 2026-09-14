@@ -16,7 +16,8 @@ export class PaintRandomTilesRequest extends Message<PaintRandomTilesRequest> {
   flagCountryId = "";
 
   /**
-   * The country whose ground the tiles sit on.
+   * The country a fresh draw lands in. A patch grows from there into any
+   * tile not wearing the flag, across the border too.
    *
    * @generated from field: string area_country_id = 2;
    */
@@ -83,7 +84,7 @@ export class PaintRandomTilesResponse extends Message<PaintRandomTilesResponse> 
   eligible = 0;
 
   /**
-   * min(count, eligible).
+   * Below count only when nothing is left to pick.
    *
    * @generated from field: uint32 picked = 2;
    */
@@ -96,6 +97,13 @@ export class PaintRandomTilesResponse extends Message<PaintRandomTilesResponse> 
    */
   painted = 0;
 
+  /**
+   * Picked tiles past the area's border.
+   *
+   * @generated from field: uint32 outside_area = 4;
+   */
+  outsideArea = 0;
+
   constructor(data?: PartialMessage<PaintRandomTilesResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -107,6 +115,7 @@ export class PaintRandomTilesResponse extends Message<PaintRandomTilesResponse> 
     { no: 1, name: "eligible", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 2, name: "picked", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 3, name: "painted", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 4, name: "outside_area", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PaintRandomTilesResponse {
