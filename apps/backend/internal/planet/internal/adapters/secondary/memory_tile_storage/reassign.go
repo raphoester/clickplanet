@@ -68,9 +68,60 @@ func (s *Storage) Reassign(_ context.Context, from, to string, start uint32, lim
 	}
 	s.tilesMu.Unlock()
 
+	s.publishUpdates(updates)
+
+	return next, len(updates), nil
+}
+
+// Restore applies each restoration whose tile still holds From, under one lock, and publishes each as an ordinary update.
+func (s *Storage) Restore(_ context.Context, restorations []clicks.Restoration) (int, error) {
+	updates := make([]clicks.TileUpdate, 0, len(restorations))
+
+	s.tilesMu.Lock()
+	for _, restoration := range restorations {
+		if restoration.Tile > s.maxIndex || restoration.From == restoration.To {
+			continue
+		}
+
+		fromID, ok := s.codeIDs[restoration.From]
+		if !ok || s.tiles[restoration.Tile] != fromID {
+			continue
+		}
+
+		toID, err := s.internLocked(restoration.To)
+		if err != nil {
+			s.tilesMu.Unlock()
+			s.publishUpdates(updates)
+			return len(updates), err
+		}
+
+		if fromID != unownedCode {
+			s.counts[fromID]--
+		}
+		if toID != unownedCode {
+			s.counts[toID]++
+		}
+		s.tiles[restoration.Tile] = toID
+
+		updates = append(updates, clicks.TileUpdate{
+			Tile:     restoration.Tile,
+			Value:    restoration.To,
+			Previous: restoration.From,
+		})
+	}
+
+	if len(updates) > 0 {
+		s.dirty = true
+	}
+	s.tilesMu.Unlock()
+
+	s.publishUpdates(updates)
+
+	return len(updates), nil
+}
+
+func (s *Storage) publishUpdates(updates []clicks.TileUpdate) {
 	for i := range updates {
 		s.publish(clicks.Change{Update: &updates[i]})
 	}
-
-	return next, len(updates), nil
 }

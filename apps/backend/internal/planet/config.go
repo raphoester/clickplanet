@@ -6,6 +6,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/secondary/memory_tile_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/bonus"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/toll"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
@@ -22,6 +23,9 @@ type Config struct {
 	VPNBlocklist cpipblock.Config
 	AntiBot      antibot.Config
 	Bonus        bonus.Config
+
+	// Who last took each tile, for the operator tools.
+	Ledger ledger.Config
 
 	// The same `session:` keys the session context mints with. Declared here
 	// rather than handed over, so this module needs nothing but its config.

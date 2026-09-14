@@ -2,6 +2,9 @@ syntax = "proto3";
 
 package planet.v1;
 
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+
 // Operator tools. Served only on the backend's loopback admin listener
 // (httpServer.adminBindAddress), never on the public router: nothing here is
 // authenticated.
@@ -10,6 +13,70 @@ service AdminService {
   // tile goes out on the stream as an ordinary TileUpdate. dry_run counts and
   // moves nothing.
   rpc ReassignCountry(ReassignCountryRequest) returns (ReassignCountryResponse);
+
+  // Who painted the flag's tiles in the area that still wear it, latest first.
+  // Read from an in-memory ledger that a restart empties.
+  rpc FindPlayers(FindPlayersRequest) returns (FindPlayersResponse);
+
+  // The antibot's shadow ban, on a scope a person picked. It counts as an offence.
+  rpc BanPlayer(BanPlayerRequest) returns (BanPlayerResponse);
+
+  // Gives back every tile the scope took that nobody has taken since, to
+  // whoever held it before. dry_run counts and restores nothing.
+  rpc RevertPlayer(RevertPlayerRequest) returns (RevertPlayerResponse);
+}
+
+message FindPlayersRequest {
+  string flag_country_id = 1;
+  // The country whose ground the tiles sit on. Empty is the whole map.
+  string area_country_id = 2;
+  // 20 when unset.
+  uint32 limit = 3;
+}
+
+message FindPlayersResponse {
+  repeated Player players = 1;
+  // How many scopes matched, before the limit.
+  uint32 total = 2;
+}
+
+message Player {
+  // The address for IPv4, the /64 for IPv6: what the throttle and the ban key on.
+  string scope = 1;
+  uint32 tiles = 2;
+  google.protobuf.Timestamp first_at = 3;
+  google.protobuf.Timestamp last_at = 4;
+  bool banned = 5;
+  google.protobuf.Timestamp banned_until = 6;
+  uint32 offence = 7;
+}
+
+message BanPlayerRequest {
+  // A scope, or any address, which is banned as its scope.
+  string scope = 1;
+  // Unset takes the ladder's step for the offence (antiBot.shadowBan.banDurations).
+  google.protobuf.Duration duration = 2;
+}
+
+message BanPlayerResponse {
+  string scope = 1;
+  uint32 offence = 2;
+  google.protobuf.Timestamp banned_until = 3;
+  // False when antiBot.shadowBan.enforce is off: the ban is kept but drops nothing.
+  bool enforced = 4;
+}
+
+message RevertPlayerRequest {
+  string scope = 1;
+  bool dry_run = 2;
+}
+
+message RevertPlayerResponse {
+  string scope = 1;
+  // Tiles the scope was the last to take, and those still wearing its paint.
+  uint32 touched = 2;
+  uint32 held = 3;
+  uint32 restored = 4;
 }
 
 message ReassignCountryRequest {

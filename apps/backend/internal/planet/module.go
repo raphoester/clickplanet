@@ -17,21 +17,29 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/ban_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/claim_bonus_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/click_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/drop_bomb_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/find_players_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/get_budget_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/get_map_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/map_density_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/reassign_country_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/revert_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/secondary/geodesic_map"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/secondary/in_memory_tile_checker"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/secondary/memory_tile_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/bonus"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/ledger"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/pacing"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/toll"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/ban_player"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/ban_player/audit_ban"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/claim_bonus"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/claim_bonus/prom_claim_bonus"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click"
@@ -43,12 +51,15 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click/throttle_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/drop_bomb"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/drop_bomb/prom_drop_bomb"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/find_players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_budget"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_map"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/listen_for_events"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/map_density"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/reassign_country"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/reassign_country/audit_reassign"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/revert_player"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/revert_player/audit_revert"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
@@ -79,14 +90,18 @@ func build(config Config, props cpbootstrap.Props) error {
 		return err
 	}
 
+	borders, err := loadBorders(config.GameMap.MaxIndex, props)
+	if err != nil {
+		return err
+	}
+
 	tilesChecker := in_memory_tile_checker.New(config.GameMap.MaxIndex)
 
 	tilesStorage := memory_tile_storage.New(config.GameMap.MaxIndex, config.TilesStorage, props.Logger)
 	props.Runners.Add("tiles-storage", tilesStorage.Run)
 
-	if err := mountAdminService(config, tilesStorage, props); err != nil {
-		return err
-	}
+	takings := ledger.New(config.Ledger, clock)
+	props.Runners.Add("tile-ledger", takings.Run)
 
 	limiter := cpratelimit.New(config.RateLimiter, clock)
 	props.Runners.Add("click-limiter", limiter.Run)
@@ -101,9 +116,10 @@ func build(config Config, props cpbootstrap.Props) error {
 	bombRules := bombRulesOf(config.Bonus, geography)
 	enclosures := bonus.NewEnclosures(clock)
 
-	clickUseCase, err := clickChain(config, clickParts{
+	clickUseCase, guard, err := clickChain(config, clickParts{
 		tilesChecker: tilesChecker,
 		tilesStorage: tilesStorage,
+		writer:       ledger.Recording{Tiles: tilesStorage, Ledger: takings},
 		limiter:      limiter,
 		pricer:       pricer,
 		bonuses:      bonuses,
@@ -112,6 +128,15 @@ func build(config Config, props cpbootstrap.Props) error {
 		geography:    geography,
 	}, props)
 	if err != nil {
+		return err
+	}
+
+	if err := mountAdminService(config, adminParts{
+		storage: tilesStorage,
+		ledger:  takings,
+		borders: borders,
+		guard:   guard,
+	}, props); err != nil {
 		return err
 	}
 
@@ -172,18 +197,52 @@ func loadMapGeography(maxIndex uint32, props cpbootstrap.Props) (*clicks.Geograp
 	return geography, nil
 }
 
-const reassignPause = 50 * time.Millisecond
+// Unconditional, and fatal, for the reason loadMapGeography is: borders for another map name the wrong ground.
+func loadBorders(maxIndex uint32, props cpbootstrap.Props) (*clicks.Borders, error) {
+	borders, asset, err := geodesic_map.LoadBorders(maxIndex)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load the map borders: %w", err)
+	}
 
-func mountAdminService(config Config, storage *memory_tile_storage.Storage, props cpbootstrap.Props) error {
+	props.Logger.Info("map borders loaded", slog.String("asset", asset))
+
+	return borders, nil
+}
+
+const adminPause = 50 * time.Millisecond
+
+// adminParts is what the operator tools read and write.
+type adminParts struct {
+	storage *memory_tile_storage.Storage
+	ledger  *ledger.Ledger
+	borders *clicks.Borders
+	// nil when the antibot is off, which leaves BanPlayer refusing and FindPlayers saying nothing of bans.
+	guard antibot.Guard
+}
+
+func mountAdminService(config Config, parts adminParts, props cpbootstrap.Props) error {
 	// A quarter of a subscriber's buffer per batch leaves room for the clicks still arriving.
 	batch := config.TilesStorage.SubscriberBuffer / 4
 	if batch <= 0 {
 		batch = 256
 	}
+	pace := pacing.Pacing{Batch: batch, Pause: adminPause}
+	countries := cpcountries.New()
 
-	reassign := reassign_country.New(storage, cpcountries.New(), reassign_country.Pacing{Batch: batch, Pause: reassignPause})
+	var bans find_players.Bans
+	var banner ban_player.Banner
+	if parts.guard != nil {
+		bans, banner = parts.guard, parts.guard
+	}
+
+	reassign := reassign_country.New(parts.storage, countries, pace)
 	service := planetv1controller.AdminService{
 		ReassignCountryHandler: reassign_country_handler.New(audit_reassign.New(reassign, props.Logger)),
+		FindPlayersHandler: find_players_handler.New(
+			find_players.New(parts.ledger, parts.storage, parts.borders, bans, countries)),
+		BanPlayerHandler: ban_player_handler.New(audit_ban.New(ban_player.New(banner), props.Logger)),
+		RevertPlayerHandler: revert_player_handler.New(
+			audit_revert.New(revert_player.New(parts.ledger, parts.storage, pace), props.Logger)),
 	}
 
 	return props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
@@ -195,43 +254,45 @@ func mountAdminService(config Config, storage *memory_tile_storage.Storage, prop
 type clickParts struct {
 	tilesChecker *in_memory_tile_checker.Checker
 	tilesStorage *memory_tile_storage.Storage
-	limiter      *cpratelimit.Limiter
-	pricer       *toll.Toll
-	bonuses      *bonus.Registry
-	spreads      *bonus.Spreads
-	enclosures   *bonus.Enclosures
-	geography    *clicks.Geography
+	// writer is the storage as the click chain writes it, so every tile it takes lands in the ledger.
+	writer     ledger.Recording
+	limiter    *cpratelimit.Limiter
+	pricer     *toll.Toll
+	bonuses    *bonus.Registry
+	spreads    *bonus.Spreads
+	enclosures *bonus.Enclosures
+	geography  *clicks.Geography
 }
 
 // clickChain wraps the rule in the policies that guard it, innermost first:
 // spread or enclose it, count it, judge it, then charge it. The throttle is outermost so
 // a shadow-banned caller keeps hitting the same 429s everyone else does — a
 // caller that is never throttled again has been told it is banned.
-func clickChain(config Config, parts clickParts, props cpbootstrap.Props) (click.IUseCase, error) {
+func clickChain(config Config, parts clickParts, props cpbootstrap.Props) (click.IUseCase, antibot.Guard, error) {
 	// Right against the rule, inside the shadow ban: a dropped click never
 	// reaches the rule, so it spreads and encloses nothing either. It is counted
 	// as one click however many tiles it took.
-	var rule click.IUseCase = click.New(parts.tilesChecker, parts.tilesStorage, cpcountries.New())
+	var rule click.IUseCase = click.New(parts.tilesChecker, parts.writer, cpcountries.New())
 	if parts.bonuses != nil {
-		rule = spread_click.New(rule, parts.spreads, parts.geography, parts.tilesStorage, parts.bonuses)
+		rule = spread_click.New(rule, parts.spreads, parts.geography, parts.writer, parts.bonuses)
 		published, err := prom_enclose.New(parts.bonuses, props.Metrics)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create prometheus enclose publisher: %w", err)
+			return nil, nil, fmt.Errorf("failed to create prometheus enclose publisher: %w", err)
 		}
 
 		rule = enclose_click.New(rule, parts.enclosures,
 			enclose_click.NewTerrain(parts.geography, parts.tilesStorage),
-			enclose_click.NewAnnexer(parts.tilesStorage, published))
+			enclose_click.NewAnnexer(parts.writer, published))
 	}
 
 	useCase, err := prom_click.New(rule, props.Metrics)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create prometheus click use case: %w", err)
+		return nil, nil, fmt.Errorf("failed to create prometheus click use case: %w", err)
 	}
 
-	guarded, err := wrapWithAntiBot(useCase, config.AntiBot, parts.tilesStorage, props)
+	guarded, guard, err := wrapWithAntiBot(useCase, config.AntiBot, parts.tilesStorage, props)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Inside the throttle: presence is what a caller actually managed to do,
@@ -240,7 +301,7 @@ func clickChain(config Config, parts clickParts, props cpbootstrap.Props) (click
 		guarded = bonus_click.New(guarded, parts.bonuses)
 	}
 
-	return throttle_click.New(guarded, parts.limiter, parts.pricer), nil
+	return throttle_click.New(guarded, parts.limiter, parts.pricer), guard, nil
 }
 
 // newBonusRegistry returns nil when boxes are off. A typed nil in an interface

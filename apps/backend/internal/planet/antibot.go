@@ -31,20 +31,20 @@ func wrapWithAntiBot(
 	config antibot.Config,
 	owner antibot_click.TileOwner,
 	props cpbootstrap.Props,
-) (click.IUseCase, error) {
+) (click.IUseCase, antibot.Guard, error) {
 	clock := cptime.SystemClock{}
 
 	observer, err := newAntiBotObserver(props.Logger, props.Metrics)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create the antibot observer: %w", err)
+		return nil, nil, fmt.Errorf("failed to create the antibot observer: %w", err)
 	}
 
 	guard, err := antibot.New(config, clock, observer)
 	if err != nil {
-		return nil, fmt.Errorf("failed to build the antibot guard: %w", err)
+		return nil, nil, fmt.Errorf("failed to build the antibot guard: %w", err)
 	}
 	if guard == nil {
-		return useCase, nil
+		return useCase, nil, nil
 	}
 
 	props.Runners.Add("antibot", guard.Run)
@@ -58,10 +58,10 @@ func wrapWithAntiBot(
 
 	wrapped, err := antibot_click.New(useCase, guard, owner, clock, props.Metrics)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create the antibot click use case: %w", err)
+		return nil, nil, fmt.Errorf("failed to create the antibot click use case: %w", err)
 	}
 
-	return wrapped, nil
+	return wrapped, guard, nil
 }
 
 // newAntiBotObserver builds the hooks the guard reports through: a histogram for

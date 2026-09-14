@@ -56,3 +56,17 @@ func Of(ip string) string {
 	// not the address the budget was meant to price.
 	return prefix.String()
 }
+
+// Parse reads a scope an operator typed: an address becomes its scope, and a prefix must already be one.
+func Parse(text string) (string, bool) {
+	if addr, err := netip.ParseAddr(text); err == nil {
+		return Of(addr.String()), true
+	}
+
+	prefix, err := netip.ParsePrefix(text)
+	if err != nil || Of(prefix.Addr().String()) != prefix.String() {
+		return "", false
+	}
+
+	return prefix.String(), true
+}

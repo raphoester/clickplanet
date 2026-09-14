@@ -5,9 +5,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/pacing"
 )
 
 var ErrSameCountry = errors.New("cannot reassign a country to itself")
@@ -19,12 +19,6 @@ type Map interface {
 
 type CountryChecker interface {
 	CheckCountry(country string) bool
-}
-
-// Pacing keeps each batch of updates inside what an open stream can buffer.
-type Pacing struct {
-	Batch int
-	Pause time.Duration
 }
 
 type In struct {
@@ -41,14 +35,14 @@ type Out struct {
 	ToAfter    int
 }
 
-func New(tiles Map, countries CountryChecker, pacing Pacing) *UseCase {
-	return &UseCase{tiles: tiles, countries: countries, pacing: pacing}
+func New(tiles Map, countries CountryChecker, pace pacing.Pacing) *UseCase {
+	return &UseCase{tiles: tiles, countries: countries, pacing: pace}
 }
 
 type UseCase struct {
 	tiles     Map
 	countries CountryChecker
-	pacing    Pacing
+	pacing    pacing.Pacing
 }
 
 func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
@@ -82,8 +76,8 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 		}
 		start = next
 
-		if err := pause(ctx, u.pacing.Pause); err != nil {
-			return u.settle(out, in), err
+		if err := u.pacing.Wait(ctx); err != nil {
+			return u.settle(out, in), fmt.Errorf("reassignment %w", err)
 		}
 	}
 
@@ -93,22 +87,4 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 func (u *UseCase) settle(out Out, in In) Out {
 	out.FromAfter, out.ToAfter = u.tiles.Held(in.From), u.tiles.Held(in.To)
 	return out
-}
-
-func pause(ctx context.Context, d time.Duration) error {
-	if d > 0 {
-		timer := time.NewTimer(d)
-		defer timer.Stop()
-
-		select {
-		case <-ctx.Done():
-		case <-timer.C:
-		}
-	}
-
-	if err := ctx.Err(); err != nil {
-		return fmt.Errorf("reassignment interrupted: %w", err)
-	}
-
-	return nil
 }

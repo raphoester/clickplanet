@@ -61,6 +61,11 @@ describe("updateOf", () => {
             .toEqual({tile: 1, previousCountry: undefined, newCountry: "fr", boosted: false})
     })
 
+    it("reports a tile given back to nobody as undefined, so nobody gets a leaderboard row", () => {
+        expect(updateOf(tileUpdateEvent({tileId: 1, countryId: "", previousCountryId: "ps"})))
+            .toEqual({tile: 1, previousCountry: "ps", newCountry: undefined, boosted: false})
+    })
+
     it("says when the click that made it was boosted", () => {
         expect(updateOf(tileUpdateEvent({tileId: 7, countryId: "jp", boosted: true}))?.boosted).toBe(true)
     })
