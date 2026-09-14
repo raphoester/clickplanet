@@ -912,7 +912,9 @@ cache entirely:
 - `/static/borders-<hash>.bin` — tile → landmass and a frame per landmass,
   fetched at runtime by `borderField.ts`. URL in `bordersAsset.ts`. Regenerate
   with `npm run borders`, which needs the coordinates blob to already be in
-  place — it resolves *those* tiles.
+  place — it resolves *those* tiles. It writes `/map` too, because the backend's
+  admin tools read it: **run the backend's `make map` after it, and commit all
+  three copies.**
 - `/static/coordinates-<hash>.bin` — tile positions, fetched at runtime by
   `points.ts`. Format in `coordinatesBinary.ts`; URL in `coordinatesAsset.ts`.
   **This one is not ours alone.** The source of truth is the monorepo-shared

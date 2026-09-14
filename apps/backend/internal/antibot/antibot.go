@@ -35,8 +35,9 @@ import (
 // itself; the verdict ladder, the rule that tripped and the numbers behind it
 // never leave this package as vocabulary the edge has to speak.
 type (
-	Click  = detect.Click  // one Click RPC, as the guard sees it
-	Report = detect.Report // one ban, with every watchdog's opinion behind it
+	Click    = detect.Click       // one Click RPC, as the guard sees it
+	Report   = detect.Report      // one ban, with every watchdog's opinion behind it
+	Sentence = shadowban.Sentence // a scope's ban, as the operator tools read it
 )
 
 // Config is the `antiBot:` block. A watchdog left out of the file is off, and the
@@ -96,6 +97,11 @@ type Guard interface {
 
 	// Flagged is how many callers are currently banned, for the gauge.
 	Flagged() int
+
+	// Ban is an operator's ban on a scope; a zero duration takes the ladder's. Enforcing says whether it drops anything.
+	Ban(scope string, duration time.Duration) Sentence
+	Sentence(scope string) (Sentence, bool)
+	Enforcing() bool
 
 	// One runner whatever the config turned on: how many sweepers there are is
 	// this package's business.
@@ -157,6 +163,7 @@ func New(config Config, clock cptime.Clock, observer Observer) (Guard, error) {
 	banner := shadowban.New(config.ShadowBan, clock, observer.OnStateError)
 	g.runners = append(g.runners, banner.Run)
 
+	g.banner = banner
 	g.jury = jury.New(juryConfig, banner, clock, observer.OnFlag, watchdogs...)
 	g.runners = append(g.runners, g.jury.Run)
 
@@ -179,6 +186,7 @@ type Description struct {
 
 type guard struct {
 	jury        *jury.Jury
+	banner      *shadowban.Banner
 	runners     []func(context.Context)
 	description Description
 }
@@ -190,6 +198,14 @@ func (g *guard) Committed(click Click) { g.jury.Committed(click) }
 func (g *guard) Flagged() int { return g.jury.Flagged() }
 
 func (g *guard) Describe() Description { return g.description }
+
+func (g *guard) Ban(scope string, duration time.Duration) Sentence {
+	return g.banner.Ban(scope, duration)
+}
+
+func (g *guard) Sentence(scope string) (Sentence, bool) { return g.banner.Sentence(scope) }
+
+func (g *guard) Enforcing() bool { return g.banner.Enforcing() }
 
 // Run fans out to every sweeper enabled and blocks until they all return.
 func (g *guard) Run(ctx context.Context) {

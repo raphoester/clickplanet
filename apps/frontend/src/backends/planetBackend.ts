@@ -585,7 +585,7 @@ export function updateOf(event: PlanetEvent): Update | undefined {
     return {
         tile: update.tileId,
         previousCountry: update.previousCountryId === "" ? undefined : update.previousCountryId,
-        newCountry: update.countryId,
+        newCountry: update.countryId === "" ? undefined : update.countryId,
         boosted: update.boosted,
     }
 }

@@ -36,6 +36,14 @@ const (
 	// AdminServiceReassignCountryProcedure is the fully-qualified name of the AdminService's
 	// ReassignCountry RPC.
 	AdminServiceReassignCountryProcedure = "/planet.v1.AdminService/ReassignCountry"
+	// AdminServiceFindPlayersProcedure is the fully-qualified name of the AdminService's FindPlayers
+	// RPC.
+	AdminServiceFindPlayersProcedure = "/planet.v1.AdminService/FindPlayers"
+	// AdminServiceBanPlayerProcedure is the fully-qualified name of the AdminService's BanPlayer RPC.
+	AdminServiceBanPlayerProcedure = "/planet.v1.AdminService/BanPlayer"
+	// AdminServiceRevertPlayerProcedure is the fully-qualified name of the AdminService's RevertPlayer
+	// RPC.
+	AdminServiceRevertPlayerProcedure = "/planet.v1.AdminService/RevertPlayer"
 )
 
 // AdminServiceClient is a client for the planet.v1.AdminService service.
@@ -44,6 +52,14 @@ type AdminServiceClient interface {
 	// tile goes out on the stream as an ordinary TileUpdate. dry_run counts and
 	// moves nothing.
 	ReassignCountry(context.Context, *connect.Request[v1.ReassignCountryRequest]) (*connect.Response[v1.ReassignCountryResponse], error)
+	// Who painted the flag's tiles in the area that still wear it, latest first.
+	// Read from an in-memory ledger that a restart empties.
+	FindPlayers(context.Context, *connect.Request[v1.FindPlayersRequest]) (*connect.Response[v1.FindPlayersResponse], error)
+	// The antibot's shadow ban, on a scope a person picked. It counts as an offence.
+	BanPlayer(context.Context, *connect.Request[v1.BanPlayerRequest]) (*connect.Response[v1.BanPlayerResponse], error)
+	// Gives back every tile the scope took that nobody has taken since, to
+	// whoever held it before. dry_run counts and restores nothing.
+	RevertPlayer(context.Context, *connect.Request[v1.RevertPlayerRequest]) (*connect.Response[v1.RevertPlayerResponse], error)
 }
 
 // NewAdminServiceClient constructs a client for the planet.v1.AdminService service. By default, it
@@ -63,17 +79,53 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(adminServiceMethods.ByName("ReassignCountry")),
 			connect.WithClientOptions(opts...),
 		),
+		findPlayers: connect.NewClient[v1.FindPlayersRequest, v1.FindPlayersResponse](
+			httpClient,
+			baseURL+AdminServiceFindPlayersProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("FindPlayers")),
+			connect.WithClientOptions(opts...),
+		),
+		banPlayer: connect.NewClient[v1.BanPlayerRequest, v1.BanPlayerResponse](
+			httpClient,
+			baseURL+AdminServiceBanPlayerProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("BanPlayer")),
+			connect.WithClientOptions(opts...),
+		),
+		revertPlayer: connect.NewClient[v1.RevertPlayerRequest, v1.RevertPlayerResponse](
+			httpClient,
+			baseURL+AdminServiceRevertPlayerProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("RevertPlayer")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // adminServiceClient implements AdminServiceClient.
 type adminServiceClient struct {
 	reassignCountry *connect.Client[v1.ReassignCountryRequest, v1.ReassignCountryResponse]
+	findPlayers     *connect.Client[v1.FindPlayersRequest, v1.FindPlayersResponse]
+	banPlayer       *connect.Client[v1.BanPlayerRequest, v1.BanPlayerResponse]
+	revertPlayer    *connect.Client[v1.RevertPlayerRequest, v1.RevertPlayerResponse]
 }
 
 // ReassignCountry calls planet.v1.AdminService.ReassignCountry.
 func (c *adminServiceClient) ReassignCountry(ctx context.Context, req *connect.Request[v1.ReassignCountryRequest]) (*connect.Response[v1.ReassignCountryResponse], error) {
 	return c.reassignCountry.CallUnary(ctx, req)
+}
+
+// FindPlayers calls planet.v1.AdminService.FindPlayers.
+func (c *adminServiceClient) FindPlayers(ctx context.Context, req *connect.Request[v1.FindPlayersRequest]) (*connect.Response[v1.FindPlayersResponse], error) {
+	return c.findPlayers.CallUnary(ctx, req)
+}
+
+// BanPlayer calls planet.v1.AdminService.BanPlayer.
+func (c *adminServiceClient) BanPlayer(ctx context.Context, req *connect.Request[v1.BanPlayerRequest]) (*connect.Response[v1.BanPlayerResponse], error) {
+	return c.banPlayer.CallUnary(ctx, req)
+}
+
+// RevertPlayer calls planet.v1.AdminService.RevertPlayer.
+func (c *adminServiceClient) RevertPlayer(ctx context.Context, req *connect.Request[v1.RevertPlayerRequest]) (*connect.Response[v1.RevertPlayerResponse], error) {
+	return c.revertPlayer.CallUnary(ctx, req)
 }
 
 // AdminServiceHandler is an implementation of the planet.v1.AdminService service.
@@ -82,6 +134,14 @@ type AdminServiceHandler interface {
 	// tile goes out on the stream as an ordinary TileUpdate. dry_run counts and
 	// moves nothing.
 	ReassignCountry(context.Context, *connect.Request[v1.ReassignCountryRequest]) (*connect.Response[v1.ReassignCountryResponse], error)
+	// Who painted the flag's tiles in the area that still wear it, latest first.
+	// Read from an in-memory ledger that a restart empties.
+	FindPlayers(context.Context, *connect.Request[v1.FindPlayersRequest]) (*connect.Response[v1.FindPlayersResponse], error)
+	// The antibot's shadow ban, on a scope a person picked. It counts as an offence.
+	BanPlayer(context.Context, *connect.Request[v1.BanPlayerRequest]) (*connect.Response[v1.BanPlayerResponse], error)
+	// Gives back every tile the scope took that nobody has taken since, to
+	// whoever held it before. dry_run counts and restores nothing.
+	RevertPlayer(context.Context, *connect.Request[v1.RevertPlayerRequest]) (*connect.Response[v1.RevertPlayerResponse], error)
 }
 
 // NewAdminServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -97,10 +157,34 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(adminServiceMethods.ByName("ReassignCountry")),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminServiceFindPlayersHandler := connect.NewUnaryHandler(
+		AdminServiceFindPlayersProcedure,
+		svc.FindPlayers,
+		connect.WithSchema(adminServiceMethods.ByName("FindPlayers")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminServiceBanPlayerHandler := connect.NewUnaryHandler(
+		AdminServiceBanPlayerProcedure,
+		svc.BanPlayer,
+		connect.WithSchema(adminServiceMethods.ByName("BanPlayer")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminServiceRevertPlayerHandler := connect.NewUnaryHandler(
+		AdminServiceRevertPlayerProcedure,
+		svc.RevertPlayer,
+		connect.WithSchema(adminServiceMethods.ByName("RevertPlayer")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/planet.v1.AdminService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AdminServiceReassignCountryProcedure:
 			adminServiceReassignCountryHandler.ServeHTTP(w, r)
+		case AdminServiceFindPlayersProcedure:
+			adminServiceFindPlayersHandler.ServeHTTP(w, r)
+		case AdminServiceBanPlayerProcedure:
+			adminServiceBanPlayerHandler.ServeHTTP(w, r)
+		case AdminServiceRevertPlayerProcedure:
+			adminServiceRevertPlayerHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -112,4 +196,16 @@ type UnimplementedAdminServiceHandler struct{}
 
 func (UnimplementedAdminServiceHandler) ReassignCountry(context.Context, *connect.Request[v1.ReassignCountryRequest]) (*connect.Response[v1.ReassignCountryResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.ReassignCountry is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) FindPlayers(context.Context, *connect.Request[v1.FindPlayersRequest]) (*connect.Response[v1.FindPlayersResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.FindPlayers is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) BanPlayer(context.Context, *connect.Request[v1.BanPlayerRequest]) (*connect.Response[v1.BanPlayerResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.BanPlayer is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) RevertPlayer(context.Context, *connect.Request[v1.RevertPlayerRequest]) (*connect.Response[v1.RevertPlayerResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.RevertPlayer is not implemented"))
 }

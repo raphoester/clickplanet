@@ -34,3 +34,10 @@ type DenseBatch struct {
 	Codes []string
 	Tiles []byte
 }
+
+// Restoration gives Tile back To, only if it still holds From: a tile somebody took since is theirs.
+type Restoration struct {
+	Tile uint32
+	From string
+	To   string
+}

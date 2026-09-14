@@ -26,6 +26,9 @@ func TestTheExampleConfigStillReachesTheStructs(t *testing.T) {
 	assert.Equal(t, 3, config.Planet.Bonus.EncloseShapes)
 	assert.Equal(t, 15, config.Planet.Bonus.EncloseMaxTiles)
 
+	assert.Equal(t, 24*time.Hour, config.Planet.Ledger.Retention)
+	assert.Equal(t, 5*time.Minute, config.Planet.Ledger.SweepInterval)
+
 	assert.False(t, config.Planet.AntiBot.ShadowBan.Enforce, "the example must ship observing only")
 	assert.Equal(t, []time.Duration{24 * time.Hour, 7 * 24 * time.Hour, 3 * 365 * 24 * time.Hour}, config.Planet.AntiBot.ShadowBan.BanDurations)
 	assert.Equal(t, time.Minute, config.Planet.AntiBot.ShadowBan.SaveInterval)

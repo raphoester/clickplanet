@@ -4,7 +4,384 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3 } from "@bufbuild/protobuf";
+import { Duration, Message, proto3, Timestamp } from "@bufbuild/protobuf";
+
+/**
+ * @generated from message planet.v1.FindPlayersRequest
+ */
+export class FindPlayersRequest extends Message<FindPlayersRequest> {
+  /**
+   * @generated from field: string flag_country_id = 1;
+   */
+  flagCountryId = "";
+
+  /**
+   * The country whose ground the tiles sit on. Empty is the whole map.
+   *
+   * @generated from field: string area_country_id = 2;
+   */
+  areaCountryId = "";
+
+  /**
+   * 20 when unset.
+   *
+   * @generated from field: uint32 limit = 3;
+   */
+  limit = 0;
+
+  constructor(data?: PartialMessage<FindPlayersRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.FindPlayersRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "flag_country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "area_country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "limit", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): FindPlayersRequest {
+    return new FindPlayersRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): FindPlayersRequest {
+    return new FindPlayersRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): FindPlayersRequest {
+    return new FindPlayersRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: FindPlayersRequest | PlainMessage<FindPlayersRequest> | undefined, b: FindPlayersRequest | PlainMessage<FindPlayersRequest> | undefined): boolean {
+    return proto3.util.equals(FindPlayersRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.FindPlayersResponse
+ */
+export class FindPlayersResponse extends Message<FindPlayersResponse> {
+  /**
+   * @generated from field: repeated planet.v1.Player players = 1;
+   */
+  players: Player[] = [];
+
+  /**
+   * How many scopes matched, before the limit.
+   *
+   * @generated from field: uint32 total = 2;
+   */
+  total = 0;
+
+  constructor(data?: PartialMessage<FindPlayersResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.FindPlayersResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "players", kind: "message", T: Player, repeated: true },
+    { no: 2, name: "total", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): FindPlayersResponse {
+    return new FindPlayersResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): FindPlayersResponse {
+    return new FindPlayersResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): FindPlayersResponse {
+    return new FindPlayersResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: FindPlayersResponse | PlainMessage<FindPlayersResponse> | undefined, b: FindPlayersResponse | PlainMessage<FindPlayersResponse> | undefined): boolean {
+    return proto3.util.equals(FindPlayersResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.Player
+ */
+export class Player extends Message<Player> {
+  /**
+   * The address for IPv4, the /64 for IPv6: what the throttle and the ban key on.
+   *
+   * @generated from field: string scope = 1;
+   */
+  scope = "";
+
+  /**
+   * @generated from field: uint32 tiles = 2;
+   */
+  tiles = 0;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp first_at = 3;
+   */
+  firstAt?: Timestamp;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp last_at = 4;
+   */
+  lastAt?: Timestamp;
+
+  /**
+   * @generated from field: bool banned = 5;
+   */
+  banned = false;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp banned_until = 6;
+   */
+  bannedUntil?: Timestamp;
+
+  /**
+   * @generated from field: uint32 offence = 7;
+   */
+  offence = 0;
+
+  constructor(data?: PartialMessage<Player>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.Player";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "scope", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "tiles", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "first_at", kind: "message", T: Timestamp },
+    { no: 4, name: "last_at", kind: "message", T: Timestamp },
+    { no: 5, name: "banned", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 6, name: "banned_until", kind: "message", T: Timestamp },
+    { no: 7, name: "offence", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Player {
+    return new Player().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Player {
+    return new Player().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Player {
+    return new Player().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Player | PlainMessage<Player> | undefined, b: Player | PlainMessage<Player> | undefined): boolean {
+    return proto3.util.equals(Player, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.BanPlayerRequest
+ */
+export class BanPlayerRequest extends Message<BanPlayerRequest> {
+  /**
+   * A scope, or any address, which is banned as its scope.
+   *
+   * @generated from field: string scope = 1;
+   */
+  scope = "";
+
+  /**
+   * Unset takes the ladder's step for the offence (antiBot.shadowBan.banDurations).
+   *
+   * @generated from field: google.protobuf.Duration duration = 2;
+   */
+  duration?: Duration;
+
+  constructor(data?: PartialMessage<BanPlayerRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.BanPlayerRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "scope", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "duration", kind: "message", T: Duration },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BanPlayerRequest {
+    return new BanPlayerRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BanPlayerRequest {
+    return new BanPlayerRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BanPlayerRequest {
+    return new BanPlayerRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: BanPlayerRequest | PlainMessage<BanPlayerRequest> | undefined, b: BanPlayerRequest | PlainMessage<BanPlayerRequest> | undefined): boolean {
+    return proto3.util.equals(BanPlayerRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.BanPlayerResponse
+ */
+export class BanPlayerResponse extends Message<BanPlayerResponse> {
+  /**
+   * @generated from field: string scope = 1;
+   */
+  scope = "";
+
+  /**
+   * @generated from field: uint32 offence = 2;
+   */
+  offence = 0;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp banned_until = 3;
+   */
+  bannedUntil?: Timestamp;
+
+  /**
+   * False when antiBot.shadowBan.enforce is off: the ban is kept but drops nothing.
+   *
+   * @generated from field: bool enforced = 4;
+   */
+  enforced = false;
+
+  constructor(data?: PartialMessage<BanPlayerResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.BanPlayerResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "scope", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "offence", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "banned_until", kind: "message", T: Timestamp },
+    { no: 4, name: "enforced", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BanPlayerResponse {
+    return new BanPlayerResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BanPlayerResponse {
+    return new BanPlayerResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BanPlayerResponse {
+    return new BanPlayerResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: BanPlayerResponse | PlainMessage<BanPlayerResponse> | undefined, b: BanPlayerResponse | PlainMessage<BanPlayerResponse> | undefined): boolean {
+    return proto3.util.equals(BanPlayerResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.RevertPlayerRequest
+ */
+export class RevertPlayerRequest extends Message<RevertPlayerRequest> {
+  /**
+   * @generated from field: string scope = 1;
+   */
+  scope = "";
+
+  /**
+   * @generated from field: bool dry_run = 2;
+   */
+  dryRun = false;
+
+  constructor(data?: PartialMessage<RevertPlayerRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.RevertPlayerRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "scope", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "dry_run", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RevertPlayerRequest {
+    return new RevertPlayerRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RevertPlayerRequest {
+    return new RevertPlayerRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RevertPlayerRequest {
+    return new RevertPlayerRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RevertPlayerRequest | PlainMessage<RevertPlayerRequest> | undefined, b: RevertPlayerRequest | PlainMessage<RevertPlayerRequest> | undefined): boolean {
+    return proto3.util.equals(RevertPlayerRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.RevertPlayerResponse
+ */
+export class RevertPlayerResponse extends Message<RevertPlayerResponse> {
+  /**
+   * @generated from field: string scope = 1;
+   */
+  scope = "";
+
+  /**
+   * Tiles the scope was the last to take, and those still wearing its paint.
+   *
+   * @generated from field: uint32 touched = 2;
+   */
+  touched = 0;
+
+  /**
+   * @generated from field: uint32 held = 3;
+   */
+  held = 0;
+
+  /**
+   * @generated from field: uint32 restored = 4;
+   */
+  restored = 0;
+
+  constructor(data?: PartialMessage<RevertPlayerResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.RevertPlayerResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "scope", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "touched", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "held", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 4, name: "restored", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RevertPlayerResponse {
+    return new RevertPlayerResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RevertPlayerResponse {
+    return new RevertPlayerResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RevertPlayerResponse {
+    return new RevertPlayerResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RevertPlayerResponse | PlainMessage<RevertPlayerResponse> | undefined, b: RevertPlayerResponse | PlainMessage<RevertPlayerResponse> | undefined): boolean {
+    return proto3.util.equals(RevertPlayerResponse, a, b);
+  }
+}
 
 /**
  * @generated from message planet.v1.ReassignCountryRequest

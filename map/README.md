@@ -58,6 +58,21 @@ integers with a worst error of 1e-5 — float32's own precision — at `cols = 3
 around 0.49, i.e. noise, at every other `cols` in 280..330. The backend re-runs that check on every
 boot and refuses to start if it fails.
 
+## The borders blob
+
+`borders-<hash>.bin` says which country's ground each tile sits on, from Natural Earth 1:50m. The
+frontend paints the zoomed-out flags from it; the backend's admin tools read it to answer "who is
+painting over this country". It is written by the frontend's `npm run borders`, to `/map` and to
+`apps/frontend/static/`; run the backend's `make map` afterwards and commit all three copies, as for
+the coordinates. It is tied to the coordinates blob: regenerating that renumbers every tile, so
+regenerate this with it.
+
+```
+uint32 header length | JSON {"tiles": N, "codes": [...]} | N*2 uint16 landmass | frames | totals
+```
+
+Landmass 0 is no country; `codes[k]` is landmass `k`'s ISO code, so one country has many landmasses.
+
 ## Known faults
 
 Both are inherited from how this file was generated and are **documented rather than fixed**,

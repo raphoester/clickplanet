@@ -261,3 +261,51 @@ func stopAndSave(banner *shadowban.Banner) {
 	cancel()
 	banner.Run(ctx)
 }
+
+func TestAManualBanTakesTheLadderAndCountsAsAnOffence(t *testing.T) {
+	clock := newClock()
+	banner := shadowban.New(config(), clock, nil)
+
+	sentence := banner.Ban("bot", 0)
+	assert.Equal(t, shadowban.Sentence{Offence: 1, Until: clock.Now().Add(time.Hour)}, sentence)
+	assert.True(t, banner.Banned("bot"))
+
+	clock.Advance(2 * time.Hour)
+	_, running := banner.Sentence("bot")
+	assert.False(t, running)
+
+	sentence, accepted := banner.Flag("bot")
+	require.True(t, accepted)
+	assert.Equal(t, 2, sentence.Offence, "the next flag is a second offence")
+}
+
+func TestAManualBanWithADurationNeverShortensARunningOne(t *testing.T) {
+	clock := newClock()
+	banner := shadowban.New(config(), clock, nil)
+
+	banner.Ban("bot", 48*time.Hour)
+	sentence := banner.Ban("bot", time.Minute)
+
+	assert.Equal(t, 1, sentence.Offence, "a ban on a running ban extends it, it is not a new offence")
+	assert.Equal(t, clock.Now().Add(48*time.Hour), sentence.Until)
+
+	running, ok := banner.Sentence("bot")
+	require.True(t, ok)
+	assert.Equal(t, sentence, running)
+}
+
+func TestAManualBanIsSaved(t *testing.T) {
+	c := config()
+	c.StatePath = filepath.Join(t.TempDir(), "bans.jsonl")
+
+	ctx, cancel := context.WithCancel(t.Context())
+	banner := shadowban.New(c, newClock(), nil)
+	done := make(chan struct{})
+	go func() { banner.Run(ctx); close(done) }()
+
+	banner.Ban("bot", 0)
+	cancel()
+	<-done
+
+	assert.True(t, shadowban.New(c, newClock(), nil).Banned("bot"))
+}

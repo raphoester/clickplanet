@@ -20,7 +20,8 @@ export interface OwnershipsGetter {
 export type Update = {
     tile: number,
     previousCountry: string | undefined,
-    newCountry: string
+    /** Undefined when an operator gives a tile back to nobody. */
+    newCountry: string | undefined
     /** The click that made it was under a triple clicks bonus. */
     boosted?: boolean
 }

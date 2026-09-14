@@ -18,6 +18,11 @@ tilesStorage:
   # final snapshot on SIGTERM.
   snapshotInterval: 30s
 
+# Who last took each tile, for the operator tools. In memory only: a restart
+# empties it, so a player can only be traced and reverted back to the last deploy.
+ledger:
+  retention: 24h
+
 # Per-caller throttle on the Click RPC. Keyed on the address Caddy puts in
 # X-Real-IP, which is Cloudflare's Cf-Connecting-Ip — the real visitor — over
 # IPv4, and on that address's /64 over IPv6. A v6 subscriber owns every address

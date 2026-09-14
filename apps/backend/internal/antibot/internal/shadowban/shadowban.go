@@ -128,6 +128,49 @@ func (b *Banner) Flag(scope string) (Sentence, bool) {
 	return record.sentence(), true
 }
 
+// Ban is a ban an operator decided on. It counts as an offence like a flag does; a zero duration takes the ladder's.
+func (b *Banner) Ban(scope string, duration time.Duration) Sentence {
+	now := b.clock.Now()
+
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	record, ok := b.bans[scope]
+	if !ok {
+		record = &ban{}
+		b.bans[scope] = record
+	}
+
+	if !record.running(now) {
+		record.offences++
+	}
+	if duration <= 0 {
+		duration = b.duration(record.offences)
+	}
+	if until := now.Add(duration); until.After(record.until) {
+		record.until = until
+	}
+
+	b.dirty = true
+
+	return record.sentence()
+}
+
+// Sentence is the scope's ban, if one is running.
+func (b *Banner) Sentence(scope string) (Sentence, bool) {
+	now := b.clock.Now()
+
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	record, ok := b.bans[scope]
+	if !ok || !record.running(now) {
+		return Sentence{}, false
+	}
+
+	return record.sentence(), true
+}
+
 func (b *Banner) duration(offence int) time.Duration {
 	ladder := b.config.BanDurations
 	if offence > len(ladder) {

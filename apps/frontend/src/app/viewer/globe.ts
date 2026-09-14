@@ -538,7 +538,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
         const seconds = performance.now() / 1000
         for (const update of updates) {
-            if (!update.boosted) continue
+            if (!update.boosted || update.newCountry === undefined) continue
             bonusClicks.playBoost(update.tile)
             if (ownClicks.has(update.tile, update.newCountry, seconds)) playSound("boost")
         }

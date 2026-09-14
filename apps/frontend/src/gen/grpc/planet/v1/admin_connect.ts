@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ReassignCountryRequest, ReassignCountryResponse } from "./admin_pb.js";
+import { BanPlayerRequest, BanPlayerResponse, FindPlayersRequest, FindPlayersResponse, ReassignCountryRequest, ReassignCountryResponse, RevertPlayerRequest, RevertPlayerResponse } from "./admin_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -27,6 +27,41 @@ export const AdminService = {
       name: "ReassignCountry",
       I: ReassignCountryRequest,
       O: ReassignCountryResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Who painted the flag's tiles in the area that still wear it, latest first.
+     * Read from an in-memory ledger that a restart empties.
+     *
+     * @generated from rpc planet.v1.AdminService.FindPlayers
+     */
+    findPlayers: {
+      name: "FindPlayers",
+      I: FindPlayersRequest,
+      O: FindPlayersResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * The antibot's shadow ban, on a scope a person picked. It counts as an offence.
+     *
+     * @generated from rpc planet.v1.AdminService.BanPlayer
+     */
+    banPlayer: {
+      name: "BanPlayer",
+      I: BanPlayerRequest,
+      O: BanPlayerResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Gives back every tile the scope took that nobody has taken since, to
+     * whoever held it before. dry_run counts and restores nothing.
+     *
+     * @generated from rpc planet.v1.AdminService.RevertPlayer
+     */
+    revertPlayer: {
+      name: "RevertPlayer",
+      I: RevertPlayerRequest,
+      O: RevertPlayerResponse,
       kind: MethodKind.Unary,
     },
   }

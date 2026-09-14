@@ -701,6 +701,48 @@ atomically, so a copy is always whole):
 docker compose exec backend cp /home/app/state/tiles.snapshot /home/app/state/tiles.before-reassign
 ```
 
+### Find, ban and revert one player
+
+For a pattern you see on the map and no watchdog catches. A player is a
+**scope**: the address over IPv4, the /64 over IPv6.
+
+Who is painting the `ps` flag on Israel's ground, latest first (`limit` is 20
+when left out; leave out `areaCountryId` for the whole map):
+
+```bash
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"flagCountryId":"ps","areaCountryId":"il"}' http://127.0.0.1:8081/planet.v1.AdminService/FindPlayers
+```
+
+Each player has `scope`, `tiles` (how many of those tiles still wear its
+paint), `firstAt`, `lastAt`, and `banned`/`bannedUntil`/`offence` when a ban is
+running. It only knows takes since the last restart, and for 24h
+(`ledger.retention`).
+
+Ban first, or the player repaints behind the revert. Leave out `duration` to
+take the ladder's step (24h, 7 days, 3 years); it counts as an offence either
+way. An address is banned as its scope:
+
+```bash
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"scope":"203.0.113.7"}' http://127.0.0.1:8081/planet.v1.AdminService/BanPlayer
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"scope":"2001:db8:1:2::/64","duration":"3600s"}' http://127.0.0.1:8081/planet.v1.AdminService/BanPlayer
+```
+
+`"enforced":false` in the answer means `antiBot.shadowBan.enforce` is off: the
+ban is kept but drops nothing. There is no unban call yet.
+
+Then revert, dry run first:
+
+```bash
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"scope":"203.0.113.7","dryRun":true}' http://127.0.0.1:8081/planet.v1.AdminService/RevertPlayer
+```
+
+- `touched` is every tile the player was last to take; `held` is those still
+  wearing its paint. Only `held` tiles change: each goes back to whoever held it
+  before the player, or to nobody. A tile somebody took since stays theirs.
+- Paced like the reassign, each tile an ordinary update on the live stream.
+- A second run answers zeros: a reverted player has nothing left to revert.
+- Every ban and revert is logged: `journalctl CONTAINER_NAME=cp-backend | grep "admin ban\|admin player revert"`.
+
 ## Rollback
 
 - **Bad backend build:** `BACKEND_IMAGE=ghcr.io/raphoester/clickplanet-backend:<sha>` in `.env`, then `docker compose up -d backend`.
