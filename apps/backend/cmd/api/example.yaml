@@ -12,10 +12,10 @@ httpServer:
 gameMap:
   maxIndex: 257948
 
-# Where the process keeps what must survive a restart. Every module that stores
-# something reads this one block and opens its own small pool. The schema is
-# migrated at boot, before any module is built. There is no fallback: without a
-# database the process refuses to start.
+# The planet module's database: its own connection, and the schema its tables
+# live in. It creates and migrates the schema while it builds. Another module
+# that stores something gets a block of its own. There is no fallback: without
+# a database the process refuses to start.
 #
 #   docker run -d --name cp-postgres -p 5432:5432 -e POSTGRES_PASSWORD=postgres postgres:16-alpine
 database:
@@ -26,6 +26,7 @@ database:
   password: postgres
   dbName: postgres
   sslMode: disable
+  schema: planet
   pool:
     maxOpenConns: 4
 

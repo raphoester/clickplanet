@@ -2,6 +2,7 @@ package planet
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/secondary/memory_tile_storage"
@@ -48,7 +49,7 @@ func (c Config) Validate() error {
 	}
 
 	if err := c.Database.Validate(); err != nil {
-		return err
+		return fmt.Errorf("database: %w", err)
 	}
 
 	if err := c.Toll.Validate(c.RateLimiter.Capacity()); err != nil {

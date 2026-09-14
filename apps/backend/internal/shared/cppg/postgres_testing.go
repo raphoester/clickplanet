@@ -47,7 +47,9 @@ func ForTests(t testing.TB, schema string, migrations fs.FS) *Postgres {
 
 	client, ok := shared.schemas[schema]
 	if !ok {
-		client = New(shared.config, schema)
+		config := shared.config
+		config.Schema = schema
+		client = New(config)
 		if err := client.ConnectCtx(ctx); err != nil {
 			t.Fatalf("failed to connect the test postgres: %v", err)
 		}
@@ -114,7 +116,7 @@ func (p *Postgres) purge(ctx context.Context) error {
 		WHERE table_schema = $1
 		  AND table_type = 'BASE TABLE'
 		  AND table_name <> 'schema_migrations'
-	`, p.schema)
+	`, p.config.Schema)
 	if err != nil {
 		return err
 	}

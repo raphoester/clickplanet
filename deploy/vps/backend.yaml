@@ -11,7 +11,7 @@ httpServer:
 gameMap:
   maxIndex: 257948 # must match the tile count baked into the frontend coordinates
 
-# The postgres service. The password comes from the environment
+# The planet module's database. The password comes from the environment
 # (database.password in docker-compose.yaml), never from this file.
 database:
   host: postgres
@@ -19,6 +19,7 @@ database:
   user: clickplanet
   dbName: clickplanet
   sslMode: disable # the compose network, never the internet
+  schema: planet
   pool:
     maxOpenConns: 4
 

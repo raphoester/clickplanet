@@ -45,7 +45,7 @@ type PoolConfig struct {
 	ConnMaxIdleTime *time.Duration
 }
 
-// Config is the `database:` block. Every module that stores something reads the same one and opens its own pool.
+// Config is one module's database block: its own connection, and the schema its tables live in.
 type Config struct {
 	Host     string
 	Port     string
@@ -53,12 +53,14 @@ type Config struct {
 	Password string
 	DBName   string
 	SSLMode  string
+	Schema   string
 	Pool     PoolConfig
 }
 
 // String keeps the password out of the boot's config log line.
 func (c Config) String() string {
-	return fmt.Sprintf("{Host:%s Port:%s User:%s DBName:%s SSLMode:%s}", c.Host, c.Port, c.User, c.DBName, c.SSLMode)
+	return fmt.Sprintf("{Host:%s Port:%s User:%s DBName:%s SSLMode:%s Schema:%s}",
+		c.Host, c.Port, c.User, c.DBName, c.SSLMode, c.Schema)
 }
 
 func (c Config) Validate() error {
@@ -69,26 +71,29 @@ func (c Config) Validate() error {
 		{"user", c.User},
 		{"dbName", c.DBName},
 		{"sslMode", c.SSLMode},
+		{"schema", c.Schema},
 	} {
 		if field.value == "" {
-			missing = append(missing, "database."+field.key)
+			missing = append(missing, field.key)
 		}
 	}
 	if len(missing) > 0 {
-		return fmt.Errorf("%v is empty: the process keeps its state in postgres and cannot start without it", missing)
+		return fmt.Errorf("%v is empty", missing)
+	}
+
+	if !schemaName.MatchString(c.Schema) {
+		return fmt.Errorf("schema %q is not a lowercase identifier", c.Schema)
 	}
 
 	return nil
 }
 
-// New connects inside schema: a module's tables live in a schema named for it, so no module reads another's.
-func New(config Config, schema string) *Postgres {
-	return &Postgres{config: config, schema: schema}
+func New(config Config) *Postgres {
+	return &Postgres{config: config}
 }
 
 type Postgres struct {
 	config Config
-	schema string
 
 	sqlClient *sql.DB
 }
@@ -130,7 +135,7 @@ func (p *Postgres) dsn() string {
 		p.config.Password,
 		p.config.DBName,
 		p.config.SSLMode,
-		p.schema,
+		p.config.Schema,
 	)
 }
 
@@ -144,7 +149,7 @@ func (p *Postgres) url() string {
 
 	q := u.Query()
 	q.Set("sslmode", p.config.SSLMode)
-	q.Set("search_path", p.schema)
+	q.Set("search_path", p.config.Schema)
 	u.RawQuery = q.Encode()
 
 	return u.String()
@@ -169,8 +174,8 @@ var schemaName = regexp.MustCompile(`^[a-z_][a-z0-9_]{0,62}$`)
 
 // ConnectCtx pings before returning: sql.Open is lazy, and a database that is not there should refuse the boot rather than the first query.
 func (p *Postgres) ConnectCtx(ctx context.Context) error {
-	if !schemaName.MatchString(p.schema) {
-		return fmt.Errorf("schema %q is not a lowercase identifier", p.schema)
+	if err := p.config.Validate(); err != nil {
+		return err
 	}
 
 	sqlDB, err := sql.Open("postgres", p.dsn())
@@ -201,8 +206,8 @@ func (p *Postgres) Close() error {
 // Migrate creates the schema, then applies every migration in migrations not applied yet. Its history
 // is the schema's own schema_migrations table, so each module migrates independently. Needs ConnectCtx first.
 func (p *Postgres) Migrate(ctx context.Context, migrations fs.FS) error {
-	if _, err := p.ExecContext(ctx, "CREATE SCHEMA IF NOT EXISTS "+pq.QuoteIdentifier(p.schema)); err != nil {
-		return fmt.Errorf("failed to create schema %s: %w", p.schema, err)
+	if _, err := p.ExecContext(ctx, "CREATE SCHEMA IF NOT EXISTS "+pq.QuoteIdentifier(p.config.Schema)); err != nil {
+		return fmt.Errorf("failed to create schema %s: %w", p.config.Schema, err)
 	}
 
 	source, err := iofs.New(migrations, ".")
@@ -218,7 +223,7 @@ func (p *Postgres) Migrate(ctx context.Context, migrations fs.FS) error {
 	defer func() { _, _ = m.Close() }()
 
 	if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
-		return fmt.Errorf("failed to run migrations in schema %s: %w", p.schema, err)
+		return fmt.Errorf("failed to run migrations in schema %s: %w", p.config.Schema, err)
 	}
 
 	return nil

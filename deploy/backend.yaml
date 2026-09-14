@@ -11,6 +11,7 @@ database:
   password: postgres
   dbName: postgres
   sslMode: disable
+  schema: planet
 
 # Off in the local stack: docker-compose has no Caddy in front to set X-Real-IP,
 # so every click would key on the compose network's gateway address.

@@ -74,9 +74,6 @@ import (
 
 const moduleName = "planet"
 
-// schema is where this module's tables live, and no other module's adapter reads it.
-const schema = moduleName
-
 // NewModule is always enabled: a process without the tile game is not this game.
 func NewModule(config Config) cpbootstrap.Module {
 	return cpbootstrap.Module{
@@ -220,14 +217,14 @@ func loadBorders(maxIndex uint32, props cpbootstrap.Props) (*clicks.Borders, err
 
 // loadTiles closes the pool from the runner, not a closer: closers run before the last flush.
 func loadTiles(ctx context.Context, config Config, props cpbootstrap.Props) (*memory_tile_storage.Storage, error) {
-	db := cppg.New(config.Database, schema)
+	db := cppg.New(config.Database)
 	if err := db.ConnectCtx(ctx); err != nil {
 		return nil, fmt.Errorf("failed to connect the tile map to postgres: %w", err)
 	}
 
 	if err := db.Migrate(ctx, migrations.FS); err != nil {
 		_ = db.Close()
-		return nil, fmt.Errorf("failed to migrate the %s schema: %w", schema, err)
+		return nil, fmt.Errorf("failed to migrate the %s schema: %w", config.Database.Schema, err)
 	}
 
 	storage := memory_tile_storage.New(

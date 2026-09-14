@@ -95,7 +95,7 @@ httpServer:
   bindAddress: 0.0.0.0:8080
 gameMap:
   maxIndex: 100
-database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable}
+database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: planet}
 session:
   enabled: true
   enforce: true
@@ -121,6 +121,7 @@ func TestTheExampleConfigReachesTheDatabaseBlock(t *testing.T) {
 	assert.Equal(t, "5432", config.Planet.Database.Port)
 	assert.Equal(t, "postgres", config.Planet.Database.DBName)
 	assert.Equal(t, "disable", config.Planet.Database.SSLMode)
+	assert.Equal(t, "planet", config.Planet.Database.Schema)
 	require.NotNil(t, config.Planet.Database.Pool.MaxOpenConns)
 	assert.Equal(t, 4, *config.Planet.Database.Pool.MaxOpenConns)
 }
@@ -130,7 +131,7 @@ func TestTheProcessRefusesToStartWithoutADatabase(t *testing.T) {
 	config.HTTPServer.BindAddress = "0.0.0.0:8080"
 	config.Planet.GameMap.MaxIndex = 100
 
-	require.ErrorContains(t, config.Validate(), "database.host")
+	require.ErrorContains(t, config.Validate(), "database: [host port user dbName sslMode schema] is empty")
 }
 
 func TestSessionsWithoutASecretAreRefused(t *testing.T) {

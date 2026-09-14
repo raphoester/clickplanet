@@ -24,11 +24,17 @@ func TestAnIncompleteConfigNamesEveryMissingKey(t *testing.T) {
 	err := cppg.Config{Host: "postgres", Port: "5432"}.Validate()
 
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "database.user database.dbName database.sslMode")
+	assert.Contains(t, err.Error(), "[user dbName sslMode schema] is empty")
+}
+
+func TestASchemaThatIsNotAPlainIdentifierIsRefused(t *testing.T) {
+	config := cppg.Config{Host: "h", Port: "5432", User: "u", DBName: "d", SSLMode: "disable", Schema: "planet; drop"}
+
+	require.ErrorContains(t, config.Validate(), "not a lowercase identifier")
 }
 
 func TestACompleteConfigIsValid(t *testing.T) {
-	require.NoError(t, cppg.Config{Host: "h", Port: "5432", User: "u", DBName: "d", SSLMode: "disable"}.Validate())
+	require.NoError(t, cppg.Config{Host: "h", Port: "5432", User: "u", DBName: "d", SSLMode: "disable", Schema: "planet"}.Validate())
 }
 
 func TestEachSchemaHoldsItsOwnTablesAndMigrationHistory(t *testing.T) {
