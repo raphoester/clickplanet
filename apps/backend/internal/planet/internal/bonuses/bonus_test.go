@@ -23,11 +23,10 @@ func newTestRegistry() (*Registry, *cptime.FixedClock) {
 		MaxInterval:     window,
 		MissRetry:       20 * time.Second,
 		OfferTTL:        15 * time.Second,
-		Duration:        time.Minute,
-		SpreadDuration:  time.Minute,
-		BombDuration:    time.Minute,
-		EncloseDuration: time.Minute,
-		Multiplier:      3,
+		Triple:          TripleConfig{Duration: time.Minute, Multiplier: 3},
+		Spread:          SpreadConfig{Duration: time.Minute},
+		Bomb:            BombConfig{Duration: time.Minute},
+		Enclose:         EncloseConfig{Duration: time.Minute},
 		ActiveWithin:    5 * time.Minute,
 		ForgetAfter:     5 * time.Minute,
 		MaxBoostPerHour: 15 * time.Minute,
@@ -359,7 +358,7 @@ func TestASpreadBoxRunsForItsOwnShorterDuration(t *testing.T) {
 	clock := cptime.NewFixedClock(epoch)
 	registry := New(Config{
 		MinInterval: window, MaxInterval: window, ActiveWithin: 5 * time.Minute,
-		Duration: time.Minute, SpreadDuration: 10 * time.Second,
+		Triple: TripleConfig{Duration: time.Minute}, Spread: SpreadConfig{Duration: 10 * time.Second},
 		Kinds: map[Kind]float64{KindSpreadClicks: 1},
 	}, clock)
 	events := playing(t, registry, "scope-a")
@@ -379,8 +378,8 @@ func bombRegistry() (*Registry, *cptime.FixedClock) {
 
 	return New(Config{
 		MinInterval: window, MaxInterval: window, ActiveWithin: 5 * time.Minute,
-		BombDuration: 30 * time.Second,
-		Kinds:        map[Kind]float64{KindBomb: 1},
+		Bomb:  BombConfig{Duration: 30 * time.Second},
+		Kinds: map[Kind]float64{KindBomb: 1},
 	}, clock), clock
 }
 
@@ -697,8 +696,9 @@ func TestAnEncloseBoxRunsForItsOwnDurationAndSaysHowManyShapes(t *testing.T) {
 	clock := cptime.NewFixedClock(epoch)
 	registry := New(Config{
 		MinInterval: window, MaxInterval: window, ActiveWithin: 5 * time.Minute,
-		Duration: time.Minute, EncloseDuration: 30 * time.Second, EncloseShapes: 3, EncloseMaxTiles: 10,
-		Kinds: map[Kind]float64{KindEncloseClicks: 1},
+		Triple:  TripleConfig{Duration: time.Minute},
+		Enclose: EncloseConfig{Duration: 30 * time.Second, Shapes: 3, MaxTiles: 10},
+		Kinds:   map[Kind]float64{KindEncloseClicks: 1},
 	}, clock)
 	events := playing(t, registry, "scope-a")
 

@@ -279,8 +279,8 @@ func (r *Registry) Claim(token string, scope string) (Reward, bool) {
 
 	reward := Reward{Kind: offer.kind, Duration: offer.duration}
 	if offer.kind == KindEncloseClicks {
-		reward.Enclosures = r.config.EncloseShapes
-		reward.EnclosureMaxTiles = r.config.EncloseMaxTiles
+		reward.Enclosures = r.config.Enclose.Shapes
+		reward.EnclosureMaxTiles = r.config.Enclose.MaxTiles
 	}
 
 	return reward, true
@@ -350,7 +350,7 @@ func (r *Registry) broadcast(event Event) {
 }
 
 func (r *Registry) Multiplier() float64 {
-	return r.config.Multiplier
+	return r.config.Triple.Multiplier
 }
 
 func (r *Registry) Name() string { return "bonus-boxes" }
