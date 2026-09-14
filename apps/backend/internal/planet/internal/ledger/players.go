@@ -55,6 +55,15 @@ func Players(takings []Taking) []Player {
 	return players
 }
 
+// ByTiles orders players most tiles first, keeping Players' order between equal counts.
+func ByTiles(players []Player) []Player {
+	sort.SliceStable(players, func(i, j int) bool {
+		return players[i].Tiles > players[j].Tiles
+	})
+
+	return players
+}
+
 // Top cuts players to limit; zero or less is the default.
 func Top(players []Player, limit int) []Player {
 	if limit <= 0 {
@@ -62,6 +71,20 @@ func Top(players []Player, limit int) []Player {
 	}
 
 	return players[:min(limit, len(players))]
+}
+
+// ActiveFor is the time from the player's first take to its last.
+func (p Player) ActiveFor() time.Duration {
+	return p.LastAt.Sub(p.FirstAt)
+}
+
+func (p Player) TilesPerMinute() float64 {
+	active := p.ActiveFor()
+	if active <= 0 {
+		return 0
+	}
+
+	return float64(p.Tiles) / active.Minutes()
 }
 
 // Serving marks the player as under a running ban.

@@ -105,6 +105,90 @@ export class FindPlayersResponse extends Message<FindPlayersResponse> {
 }
 
 /**
+ * @generated from message planet.v1.TopPlayersRequest
+ */
+export class TopPlayersRequest extends Message<TopPlayersRequest> {
+  /**
+   * 20 when unset.
+   *
+   * @generated from field: uint32 limit = 1;
+   */
+  limit = 0;
+
+  constructor(data?: PartialMessage<TopPlayersRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.TopPlayersRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "limit", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TopPlayersRequest {
+    return new TopPlayersRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): TopPlayersRequest {
+    return new TopPlayersRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): TopPlayersRequest {
+    return new TopPlayersRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: TopPlayersRequest | PlainMessage<TopPlayersRequest> | undefined, b: TopPlayersRequest | PlainMessage<TopPlayersRequest> | undefined): boolean {
+    return proto3.util.equals(TopPlayersRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.TopPlayersResponse
+ */
+export class TopPlayersResponse extends Message<TopPlayersResponse> {
+  /**
+   * @generated from field: repeated planet.v1.Player players = 1;
+   */
+  players: Player[] = [];
+
+  /**
+   * How many scopes still wear paint on any tile, before the limit.
+   *
+   * @generated from field: uint32 total = 2;
+   */
+  total = 0;
+
+  constructor(data?: PartialMessage<TopPlayersResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.TopPlayersResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "players", kind: "message", T: Player, repeated: true },
+    { no: 2, name: "total", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TopPlayersResponse {
+    return new TopPlayersResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): TopPlayersResponse {
+    return new TopPlayersResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): TopPlayersResponse {
+    return new TopPlayersResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: TopPlayersResponse | PlainMessage<TopPlayersResponse> | undefined, b: TopPlayersResponse | PlainMessage<TopPlayersResponse> | undefined): boolean {
+    return proto3.util.equals(TopPlayersResponse, a, b);
+  }
+}
+
+/**
  * @generated from message planet.v1.Player
  */
 export class Player extends Message<Player> {
@@ -145,6 +229,20 @@ export class Player extends Message<Player> {
    */
   offence = 0;
 
+  /**
+   * last_at minus first_at.
+   *
+   * @generated from field: google.protobuf.Duration active_for = 8;
+   */
+  activeFor?: Duration;
+
+  /**
+   * tiles over active_for. 0 when active_for is 0.
+   *
+   * @generated from field: double tiles_per_minute = 9;
+   */
+  tilesPerMinute = 0;
+
   constructor(data?: PartialMessage<Player>) {
     super();
     proto3.util.initPartial(data, this);
@@ -160,6 +258,8 @@ export class Player extends Message<Player> {
     { no: 5, name: "banned", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 6, name: "banned_until", kind: "message", T: Timestamp },
     { no: 7, name: "offence", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 8, name: "active_for", kind: "message", T: Duration },
+    { no: 9, name: "tiles_per_minute", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Player {

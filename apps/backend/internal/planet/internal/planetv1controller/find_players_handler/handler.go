@@ -3,14 +3,13 @@ package find_players_handler
 import (
 	"context"
 	"errors"
-	"time"
 
 	"connectrpc.com/connect"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/find_players_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/adminplayer"
 )
 
 type UseCase interface {
@@ -43,28 +42,8 @@ func (h FindPlayersHandler) FindPlayers(
 		return nil, err
 	}
 
-	players := make([]*planetv1.Player, 0, len(out.Players))
-	for _, player := range out.Players {
-		players = append(players, &planetv1.Player{
-			Scope:       player.Scope,
-			Tiles:       uint32(player.Tiles), //nolint:gosec // a tile count, bounded by the map.
-			FirstAt:     timestamppb.New(player.FirstAt),
-			LastAt:      timestamppb.New(player.LastAt),
-			Banned:      player.Banned,
-			BannedUntil: timestampOrNil(player.BannedUntil),
-			Offence:     uint32(player.Offence), //nolint:gosec // an offence count, never negative.
-		})
-	}
-
 	return connect.NewResponse(&planetv1.FindPlayersResponse{
-		Players: players,
+		Players: adminplayer.Encode(out.Players),
 		Total:   uint32(out.Total), //nolint:gosec // a scope count, bounded by the map.
 	}), nil
-}
-
-func timestampOrNil(at time.Time) *timestamppb.Timestamp {
-	if at.IsZero() {
-		return nil
-	}
-	return timestamppb.New(at)
 }
