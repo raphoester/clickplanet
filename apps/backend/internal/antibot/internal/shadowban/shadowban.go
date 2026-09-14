@@ -60,10 +60,6 @@ func New(config Config, clock cptime.Clock, onStateError func(error)) *Banner {
 		bans:         make(map[string]*ban),
 	}
 
-	if err := b.restore(); err != nil {
-		onStateError(err)
-	}
-
 	return b
 }
 

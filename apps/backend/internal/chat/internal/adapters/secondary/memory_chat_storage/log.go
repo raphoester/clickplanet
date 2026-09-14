@@ -90,7 +90,8 @@ func (s *Storage) Run(ctx context.Context) {
 	}
 }
 
-func (s *Storage) restore() {
+// LoadLog fills the history from the log file and opens it for appending; failures are logged, never fatal.
+func (s *Storage) LoadLog() {
 	if s.config.LogPath == "" {
 		return
 	}

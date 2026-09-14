@@ -90,35 +90,25 @@ func NewModule(config Config) cpbootstrap.Module {
 			// First: nothing else here is worth starting if the map is not the one the frontend draws.
 			// Unconditional, and fatal: a blob that disagrees with the frontend renumbers every tile, and the
 			// snapshot on disk is numbered the old way. See CLAUDE.md, "Map geography".
-			geographyStarted := time.Now()
+			gameMap := geodesic_map.New(config.GameMap.MaxIndex, props.Logger)
 
-			geography, geographyAsset, err := geodesic_map.Load(config.GameMap.MaxIndex)
+			geography, err := gameMap.LoadGeography()
 			if err != nil {
 				return fmt.Errorf("failed to load the map geography: %w", err)
 			}
 
-			geographyStats := geography.Stats()
-			props.Logger.Info("map geography loaded",
-				slog.String("asset", geographyAsset),
-				slog.Int("tiles", int(geographyStats.Tiles)),
-				slog.Int("edges", int(geographyStats.Edges)),
-				slog.Any("degrees", geographyStats.Degrees),
-				slog.Any("took", time.Since(geographyStarted).Round(time.Millisecond)),
-			)
-
 			// Unconditional, and fatal, for the same reason: borders for another map name the wrong ground.
-			borders, bordersAsset, err := geodesic_map.LoadBorders(config.GameMap.MaxIndex)
+			borders, err := gameMap.LoadBorders()
 			if err != nil {
 				return fmt.Errorf("failed to load the map borders: %w", err)
 			}
-
-			props.Logger.Info("map borders loaded", slog.String("asset", bordersAsset))
 
 			// ---- Storage, ledger, limiter, toll ----
 
 			tilesChecker := in_memory_tile_checker.New(config.GameMap.MaxIndex)
 
 			tilesStorage := memory_tile_storage.New(config.GameMap.MaxIndex, config.TilesStorage, props.Logger)
+			tilesStorage.LoadSnapshot()
 			props.Runners.Add("tiles-storage", tilesStorage.Run)
 
 			takings := ledger.New(config.Ledger, clock)
@@ -256,6 +246,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			// guard is nil when the antibot is off: the use case goes unwrapped,
 			// BanPlayer refuses, FindPlayers says nothing of bans and a bomb is never a dud.
 			if guard != nil {
+				guard.LoadBans()
 				props.Runners.Add("antibot", guard.Run)
 
 				described := guard.Describe()
@@ -319,9 +310,9 @@ func NewModule(config Config) cpbootstrap.Module {
 			// over the click use case, which puts them inside every interceptor by
 			// construction — so "a refused click must not also spend a token" is a
 			// property of the shape rather than a rule about list order.
-			blocklist, err := cpipblock.New(config.VPNBlocklist)
-			if err != nil {
-				return fmt.Errorf("failed to build vpn blocklist: %w", err)
+			blocklist := cpipblock.New(config.VPNBlocklist)
+			if err := blocklist.Load(); err != nil {
+				return fmt.Errorf("failed to load the vpn blocklist: %w", err)
 			}
 
 			if sizes := blocklist.Sizes(); len(sizes) > 0 {

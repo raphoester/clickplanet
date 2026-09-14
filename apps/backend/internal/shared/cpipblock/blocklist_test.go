@@ -10,8 +10,8 @@ import (
 )
 
 func TestVendoredListsParse(t *testing.T) {
-	blocklist, err := cpipblock.New(cpipblock.Config{Enabled: true, IncludeDatacenters: true})
-	require.NoError(t, err)
+	blocklist := cpipblock.New(cpipblock.Config{Enabled: true, IncludeDatacenters: true})
+	require.NoError(t, blocklist.Load())
 
 	sizes := blocklist.Sizes()
 
@@ -20,8 +20,8 @@ func TestVendoredListsParse(t *testing.T) {
 }
 
 func TestVendoredVPNListBlocksAKnownRange(t *testing.T) {
-	blocklist, err := cpipblock.New(cpipblock.Config{Enabled: true})
-	require.NoError(t, err)
+	blocklist := cpipblock.New(cpipblock.Config{Enabled: true})
+	require.NoError(t, blocklist.Load())
 
 	list, blocked := blocklist.Blocked("2.26.157.1")
 	assert.True(t, blocked)
@@ -32,36 +32,36 @@ func TestVendoredVPNListBlocksAKnownRange(t *testing.T) {
 }
 
 func TestDatacenterListIsOffUnlessAskedFor(t *testing.T) {
-	off, err := cpipblock.New(cpipblock.Config{Enabled: true})
-	require.NoError(t, err)
+	off := cpipblock.New(cpipblock.Config{Enabled: true})
+	require.NoError(t, off.Load())
 	assert.NotContains(t, off.Sizes(), cpipblock.ListDatacenter)
 
-	on, err := cpipblock.New(cpipblock.Config{Enabled: true, IncludeDatacenters: true})
-	require.NoError(t, err)
+	on := cpipblock.New(cpipblock.Config{Enabled: true, IncludeDatacenters: true})
+	require.NoError(t, on.Load())
 	assert.Contains(t, on.Sizes(), cpipblock.ListDatacenter)
 }
 
 func TestAllowlistWinsOverTheLists(t *testing.T) {
-	blocklist, err := cpipblock.New(cpipblock.Config{
+	blocklist := cpipblock.New(cpipblock.Config{
 		Enabled: true,
 		Allow:   []string{"2.26.157.0/24"},
 	})
-	require.NoError(t, err)
+	require.NoError(t, blocklist.Load())
 
 	_, blocked := blocklist.Blocked("2.26.157.1")
 	assert.False(t, blocked)
 }
 
 func TestAllowlistRejectsAMalformedEntry(t *testing.T) {
-	_, err := cpipblock.New(cpipblock.Config{Enabled: true, Allow: []string{"10.0.0.1"}})
+	err := cpipblock.New(cpipblock.Config{Enabled: true, Allow: []string{"10.0.0.1"}}).Load()
 
 	require.Error(t, err, "a bare address is not a prefix; say /32")
 	assert.Contains(t, err.Error(), "allowlist")
 }
 
 func TestDisabledBlocklistBlocksNothing(t *testing.T) {
-	blocklist, err := cpipblock.New(cpipblock.Config{Enabled: false})
-	require.NoError(t, err)
+	blocklist := cpipblock.New(cpipblock.Config{Enabled: false})
+	require.NoError(t, blocklist.Load())
 	require.Nil(t, blocklist)
 
 	list, blocked := blocklist.Blocked("2.26.157.1")

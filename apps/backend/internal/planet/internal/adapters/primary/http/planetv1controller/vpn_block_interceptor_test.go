@@ -108,8 +108,8 @@ func TestVPNBlockInterceptor(t *testing.T) {
 }
 
 func TestVPNBlockOverHTTP(t *testing.T) {
-	blocklist, err := cpipblock.New(cpipblock.Config{Enabled: true})
-	require.NoError(t, err)
+	blocklist := cpipblock.New(cpipblock.Config{Enabled: true})
+	require.NoError(t, blocklist.Load())
 
 	blockInterceptor := NewVPNBlockInterceptor(blocklist, prometheus.NewRegistry())
 

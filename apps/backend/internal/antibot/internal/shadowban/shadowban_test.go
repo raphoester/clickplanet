@@ -181,6 +181,7 @@ func TestBansSurviveARestart(t *testing.T) {
 
 	clock := newClock()
 	before := shadowban.New(c, clock, failOnStateError(t))
+	before.LoadState()
 
 	before.Flag("repeat")
 	clock.Advance(2 * time.Hour)
@@ -191,6 +192,7 @@ func TestBansSurviveARestart(t *testing.T) {
 	stopAndSave(before)
 
 	after := shadowban.New(c, clock, failOnStateError(t))
+	after.LoadState()
 
 	assert.True(t, after.Banned("repeat"))
 	assert.True(t, after.Banned("fresh"))
@@ -211,6 +213,7 @@ func TestAnUnreadableStateIsReportedAndStartsEmpty(t *testing.T) {
 
 	var reported error
 	banner := shadowban.New(c, newClock(), func(err error) { reported = err })
+	banner.LoadState()
 
 	require.Error(t, reported)
 	assert.Equal(t, 0, banner.Flagged())
@@ -221,6 +224,7 @@ func TestAMissingStateIsAFirstBoot(t *testing.T) {
 	c.StatePath = filepath.Join(t.TempDir(), "bans.jsonl")
 
 	banner := shadowban.New(c, newClock(), failOnStateError(t))
+	banner.LoadState()
 
 	assert.Equal(t, 0, banner.Flagged())
 }
@@ -231,6 +235,7 @@ func TestOneScopeIsUnbannedByRemovingItsLine(t *testing.T) {
 
 	clock := newClock()
 	before := shadowban.New(c, clock, failOnStateError(t))
+	before.LoadState()
 	before.Flag("keep")
 	before.Flag("release")
 	stopAndSave(before)
@@ -247,6 +252,7 @@ func TestOneScopeIsUnbannedByRemovingItsLine(t *testing.T) {
 	require.NoError(t, os.WriteFile(c.StatePath, kept, 0o600))
 
 	after := shadowban.New(c, clock, failOnStateError(t))
+	after.LoadState()
 	assert.True(t, after.Banned("keep"))
 	assert.False(t, after.Banned("release"))
 }
@@ -300,6 +306,7 @@ func TestAManualBanIsSaved(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(t.Context())
 	banner := shadowban.New(c, newClock(), nil)
+	banner.LoadState()
 	done := make(chan struct{})
 	go func() { banner.Run(ctx); close(done) }()
 
@@ -307,5 +314,7 @@ func TestAManualBanIsSaved(t *testing.T) {
 	cancel()
 	<-done
 
-	assert.True(t, shadowban.New(c, newClock(), nil).Banned("bot"))
+	after := shadowban.New(c, newClock(), nil)
+	after.LoadState()
+	assert.True(t, after.Banned("bot"))
 }

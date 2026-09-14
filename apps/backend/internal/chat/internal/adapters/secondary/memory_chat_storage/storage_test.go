@@ -36,7 +36,9 @@ func (s *testSuite) SetupTest() {
 
 func (s *testSuite) newStorage(config memory_chat_storage.Config) *memory_chat_storage.Storage {
 	config.LogPath = s.logPath
-	return memory_chat_storage.New(config, s.clock, slog.New(slog.DiscardHandler))
+	storage := memory_chat_storage.New(config, s.clock, slog.New(slog.DiscardHandler))
+	storage.LoadLog()
+	return storage
 }
 
 func (s *testSuite) record(text string) domain.ChatRecord {

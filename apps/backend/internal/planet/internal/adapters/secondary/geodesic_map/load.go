@@ -10,43 +10,67 @@ package geodesic_map
 
 import (
 	"fmt"
+	"log/slog"
+	"time"
 
 	mapdata "github.com/raphoester/clickplanet.lol-backend/generated/map"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
 
-// Load builds the geography from the embedded blob and names the blob it used, refusing to start
-// rather than serving a map that disagrees with the one players are looking at. expectTiles is
-// gameMap.maxIndex.
-func Load(expectTiles uint32) (*clicks.Geography, string, error) {
+// Loader reads the embedded map blobs and refuses any whose tile count is not gameMap.maxIndex.
+type Loader struct {
+	expectTiles uint32
+	logger      *slog.Logger
+}
+
+func New(expectTiles uint32, logger *slog.Logger) *Loader {
+	if logger == nil {
+		logger = slog.New(slog.DiscardHandler)
+	}
+
+	return &Loader{expectTiles: expectTiles, logger: logger}
+}
+
+func (l *Loader) LoadGeography() (*clicks.Geography, error) {
+	started := time.Now()
+
 	blob, asset, err := mapdata.Coordinates()
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to read the embedded coordinates blob: %w", err)
+		return nil, fmt.Errorf("failed to read the embedded coordinates blob: %w", err)
 	}
 
 	positions, err := decodeCoordinates(blob)
 	if err != nil {
-		return nil, asset, fmt.Errorf("failed to decode %s: %w", asset, err)
+		return nil, fmt.Errorf("failed to decode %s: %w", asset, err)
 	}
 
 	tiles := uint32(len(positions) / 3)
-	if tiles != expectTiles {
-		return nil, asset, fmt.Errorf(
+	if tiles != l.expectTiles {
+		return nil, fmt.Errorf(
 			"%s holds %d tiles but gameMap.maxIndex is %d: the blob and the config were updated apart",
-			asset, tiles, expectTiles)
+			asset, tiles, l.expectTiles)
 	}
 
 	edges, err := walkLattice(positions)
 	if err != nil {
-		return nil, asset, fmt.Errorf("failed to read the lattice out of %s: %w", asset, err)
+		return nil, fmt.Errorf("failed to read the lattice out of %s: %w", asset, err)
 	}
 
 	geography, err := clicks.NewGeography(positions, edges)
 	if err != nil {
-		return nil, asset, fmt.Errorf("failed to build the geography from %s: %w", asset, err)
+		return nil, fmt.Errorf("failed to build the geography from %s: %w", asset, err)
 	}
 
-	return geography, asset, nil
+	stats := geography.Stats()
+	l.logger.Info("map geography loaded",
+		slog.String("asset", asset),
+		slog.Int("tiles", int(stats.Tiles)),
+		slog.Int("edges", int(stats.Edges)),
+		slog.Any("degrees", stats.Degrees),
+		slog.Any("took", time.Since(started).Round(time.Millisecond)),
+	)
+
+	return geography, nil
 }
 
 // walkLattice resolves every vertex of all 20 icosahedron faces back to a tile and reports the
