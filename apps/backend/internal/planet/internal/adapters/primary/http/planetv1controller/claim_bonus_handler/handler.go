@@ -9,11 +9,11 @@ import (
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/clickbudget"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/bonus"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/claim_bonus"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/claim_bonus_usecase"
 )
 
 type UseCase interface {
-	Execute(ctx context.Context, in claim_bonus.In) (claim_bonus.Out, error)
+	Execute(ctx context.Context, in claim_bonus_usecase.In) (claim_bonus_usecase.Out, error)
 }
 
 func New(useCase UseCase) ClaimBonusHandler {
@@ -28,12 +28,12 @@ func (h ClaimBonusHandler) ClaimBonus(
 	ctx context.Context,
 	req *connect.Request[planetv1.ClaimBonusRequest],
 ) (*connect.Response[planetv1.ClaimBonusResponse], error) {
-	out, err := h.useCase.Execute(ctx, claim_bonus.In{
+	out, err := h.useCase.Execute(ctx, claim_bonus_usecase.In{
 		Token:     req.Msg.GetToken(),
 		CountryID: req.Msg.GetCountryId(),
 	})
 	if err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, claim_bonus.ErrNoSuchBonus)
+		return nil, connect.NewError(connect.CodeNotFound, claim_bonus_usecase.ErrNoSuchBonus)
 	}
 
 	return connect.NewResponse(&planetv1.ClaimBonusResponse{

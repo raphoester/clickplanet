@@ -6,7 +6,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/clickbudget"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 )
 
 // callerErrors are the refusals this procedure earns a 400 for. Two different
@@ -19,7 +19,7 @@ var callerErrors = []error{
 
 // toConnect leaves anything it does not recognise alone, for NewErrorInterceptor
 // to log once and answer as an internal error.
-func toConnect(err error, out click.Out) error {
+func toConnect(err error, out click_usecase.Out) error {
 	if errors.Is(err, clicks.ErrThrottled) {
 		return throttled(err, out)
 	}
@@ -36,7 +36,7 @@ func toConnect(err error, out click.Out) error {
 // throttled carries the reading as an error detail, because a refusal has no
 // response message to put it in — and it is the answer a client most needs to
 // read, since it says when the next token lands.
-func throttled(err error, out click.Out) error {
+func throttled(err error, out click_usecase.Out) error {
 	refusal := connect.NewError(connect.CodeResourceExhausted, err)
 	if !out.Limited {
 		return refusal

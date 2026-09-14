@@ -12,15 +12,15 @@ import (
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/drop_bomb_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/drop_bomb"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/drop_bomb_usecase"
 )
 
 type stubUseCase struct {
 	err error
-	in  drop_bomb.In
+	in  drop_bomb_usecase.In
 }
 
-func (s *stubUseCase) Execute(_ context.Context, in drop_bomb.In) (clicks.Blast, error) {
+func (s *stubUseCase) Execute(_ context.Context, in drop_bomb_usecase.In) (clicks.Blast, error) {
 	s.in = in
 	return clicks.Blast{}, s.err
 }
@@ -49,7 +49,7 @@ func TestTheTargetAndCountryReachTheUseCase(t *testing.T) {
 }
 
 func TestDroppingWithNoBombIsNotFound(t *testing.T) {
-	err := drop(t, &stubUseCase{err: drop_bomb.ErrNoBomb})
+	err := drop(t, &stubUseCase{err: drop_bomb_usecase.ErrNoBomb})
 
 	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
 }

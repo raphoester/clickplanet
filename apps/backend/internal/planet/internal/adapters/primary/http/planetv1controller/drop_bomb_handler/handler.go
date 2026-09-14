@@ -7,11 +7,11 @@ import (
 	"connectrpc.com/connect"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/drop_bomb"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/drop_bomb_usecase"
 )
 
 type UseCase interface {
-	Execute(ctx context.Context, in drop_bomb.In) (clicks.Blast, error)
+	Execute(ctx context.Context, in drop_bomb_usecase.In) (clicks.Blast, error)
 }
 
 func New(useCase UseCase) DropBombHandler {
@@ -28,7 +28,7 @@ func (h DropBombHandler) DropBomb(
 	req *connect.Request[planetv1.DropBombRequest],
 ) (*connect.Response[planetv1.DropBombResponse], error) {
 	target := req.Msg.GetTarget()
-	_, err := h.useCase.Execute(ctx, drop_bomb.In{
+	_, err := h.useCase.Execute(ctx, drop_bomb_usecase.In{
 		Target:    clicks.Vec3{X: target.GetX(), Y: target.GetY(), Z: target.GetZ()},
 		CountryID: req.Msg.GetCountryId(),
 	})
@@ -38,8 +38,8 @@ func (h DropBombHandler) DropBomb(
 		return connect.NewResponse(&planetv1.DropBombResponse{}), nil
 	case errors.Is(err, clicks.ErrUnknownCountry), errors.Is(err, clicks.ErrTileOutOfRange):
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
-	case errors.Is(err, drop_bomb.ErrNoBomb):
-		return nil, connect.NewError(connect.CodeNotFound, drop_bomb.ErrNoBomb)
+	case errors.Is(err, drop_bomb_usecase.ErrNoBomb):
+		return nil, connect.NewError(connect.CodeNotFound, drop_bomb_usecase.ErrNoBomb)
 	default:
 		return nil, err
 	}

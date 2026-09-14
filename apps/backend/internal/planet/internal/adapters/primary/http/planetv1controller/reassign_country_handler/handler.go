@@ -7,11 +7,11 @@ import (
 	"connectrpc.com/connect"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/reassign_country"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/reassign_country_usecase"
 )
 
 type UseCase interface {
-	Execute(ctx context.Context, in reassign_country.In) (reassign_country.Out, error)
+	Execute(ctx context.Context, in reassign_country_usecase.In) (reassign_country_usecase.Out, error)
 }
 
 func New(useCase UseCase) ReassignCountryHandler {
@@ -26,7 +26,7 @@ func (h ReassignCountryHandler) ReassignCountry(
 	ctx context.Context,
 	req *connect.Request[planetv1.ReassignCountryRequest],
 ) (*connect.Response[planetv1.ReassignCountryResponse], error) {
-	out, err := h.useCase.Execute(ctx, reassign_country.In{
+	out, err := h.useCase.Execute(ctx, reassign_country_usecase.In{
 		From:   req.Msg.GetFromCountryId(),
 		To:     req.Msg.GetToCountryId(),
 		DryRun: req.Msg.GetDryRun(),
@@ -41,7 +41,7 @@ func (h ReassignCountryHandler) ReassignCountry(
 			FromAfter:  uint32(out.FromAfter),  //nolint:gosec // a tile count, bounded by the map.
 			ToAfter:    uint32(out.ToAfter),    //nolint:gosec // a tile count, bounded by the map.
 		}), nil
-	case errors.Is(err, clicks.ErrUnknownCountry), errors.Is(err, reassign_country.ErrSameCountry):
+	case errors.Is(err, clicks.ErrUnknownCountry), errors.Is(err, reassign_country_usecase.ErrSameCountry):
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	default:
 		return nil, err

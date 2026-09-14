@@ -6,11 +6,11 @@ import (
 
 	"connectrpc.com/connect"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/listen_for_events"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/listen_for_events_usecase"
 )
 
 type UseCase interface {
-	Execute(ctx context.Context, sink listen_for_events.Sink) error
+	Execute(ctx context.Context, sink listen_for_events_usecase.Sink) error
 }
 
 func New(useCase UseCase) ListenForEventsHandler {

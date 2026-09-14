@@ -14,16 +14,16 @@ import (
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/find_players_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/find_players"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/find_players_usecase"
 )
 
 type stubUseCase struct {
-	in  find_players.In
-	out find_players.Out
+	in  find_players_usecase.In
+	out find_players_usecase.Out
 	err error
 }
 
-func (s *stubUseCase) Execute(_ context.Context, in find_players.In) (find_players.Out, error) {
+func (s *stubUseCase) Execute(_ context.Context, in find_players_usecase.In) (find_players_usecase.Out, error) {
 	s.in = in
 	return s.out, s.err
 }
@@ -42,7 +42,7 @@ func find(t *testing.T, useCase *stubUseCase) (*planetv1.FindPlayersResponse, er
 
 func TestTheRequestReachesTheUseCaseAndThePlayersComeBack(t *testing.T) {
 	at := time.Date(2026, 9, 14, 12, 0, 0, 0, time.UTC)
-	useCase := &stubUseCase{out: find_players.Out{Total: 7, Players: []find_players.Player{
+	useCase := &stubUseCase{out: find_players_usecase.Out{Total: 7, Players: []find_players_usecase.Player{
 		{Scope: "9.9.9.9", Tiles: 40, FirstAt: at, LastAt: at.Add(time.Minute), Banned: true, BannedUntil: at.Add(time.Hour), Offence: 2},
 		{Scope: "2001:db8::/64", Tiles: 1, FirstAt: at, LastAt: at},
 	}}}
@@ -50,7 +50,7 @@ func TestTheRequestReachesTheUseCaseAndThePlayersComeBack(t *testing.T) {
 	res, err := find(t, useCase)
 	require.NoError(t, err)
 
-	assert.Equal(t, find_players.In{Flag: "ps", Area: "il", Limit: 5}, useCase.in)
+	assert.Equal(t, find_players_usecase.In{Flag: "ps", Area: "il", Limit: 5}, useCase.in)
 	assert.Equal(t, uint32(7), res.GetTotal())
 	require.Len(t, res.GetPlayers(), 2)
 

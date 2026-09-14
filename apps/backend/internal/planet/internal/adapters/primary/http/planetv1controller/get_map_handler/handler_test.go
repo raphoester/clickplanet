@@ -12,16 +12,16 @@ import (
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/get_map_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_map"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_map_usecase"
 )
 
 type stubUseCase struct {
 	batch clicks.DenseBatch
 	err   error
-	seen  []get_map.In
+	seen  []get_map_usecase.In
 }
 
-func (s *stubUseCase) Execute(_ context.Context, in get_map.In) (clicks.DenseBatch, error) {
+func (s *stubUseCase) Execute(_ context.Context, in get_map_usecase.In) (clicks.DenseBatch, error) {
 	s.seen = append(s.seen, in)
 	return s.batch, s.err
 }
@@ -41,7 +41,7 @@ func TestGetMapMapsTheRequest(t *testing.T) {
 	_, err := getMap(t, useCase, &planetv1.GetMapRequest{StartTileId: 7, EndTileId: 9})
 
 	require.NoError(t, err)
-	require.Equal(t, []get_map.In{{Start: 7, End: 9}}, useCase.seen)
+	require.Equal(t, []get_map_usecase.In{{Start: 7, End: 9}}, useCase.seen)
 }
 
 func TestGetMapMapsTheBatch(t *testing.T) {

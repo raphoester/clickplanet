@@ -15,18 +15,18 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/primary/http/planetv1controller/claim_bonus_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/bonus"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/toll"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/claim_bonus"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/claim_bonus_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 )
 
 type stubUseCase struct {
-	out claim_bonus.Out
+	out claim_bonus_usecase.Out
 	err error
 
-	in claim_bonus.In
+	in claim_bonus_usecase.In
 }
 
-func (s *stubUseCase) Execute(_ context.Context, in claim_bonus.In) (claim_bonus.Out, error) {
+func (s *stubUseCase) Execute(_ context.Context, in claim_bonus_usecase.In) (claim_bonus_usecase.Out, error) {
 	s.in = in
 	return s.out, s.err
 }
@@ -44,7 +44,7 @@ func claim(t *testing.T, useCase claim_bonus_handler.UseCase) (*planetv1.ClaimBo
 }
 
 func TestAClaimAnswersTheWidenedAllowance(t *testing.T) {
-	msg, err := claim(t, &stubUseCase{out: claim_bonus.Out{
+	msg, err := claim(t, &stubUseCase{out: claim_bonus_usecase.Out{
 		Budget:   toll.Budget{State: cpratelimit.State{Tokens: 7, Capacity: 30, PerSecond: 3}},
 		Kind:     bonus.KindTripleClicks,
 		Duration: time.Minute,
@@ -58,7 +58,7 @@ func TestAClaimAnswersTheWidenedAllowance(t *testing.T) {
 }
 
 func TestABombClaimSaysHowWideTheBlastIs(t *testing.T) {
-	msg, err := claim(t, &stubUseCase{out: claim_bonus.Out{
+	msg, err := claim(t, &stubUseCase{out: claim_bonus_usecase.Out{
 		Kind: bonus.KindBomb, Duration: 30 * time.Second, BlastRadius: 0.03,
 	}})
 	require.NoError(t, err)
@@ -68,7 +68,7 @@ func TestABombClaimSaysHowWideTheBlastIs(t *testing.T) {
 }
 
 func TestAnEncloseClaimSaysHowManyShapesAndHowBig(t *testing.T) {
-	msg, err := claim(t, &stubUseCase{out: claim_bonus.Out{
+	msg, err := claim(t, &stubUseCase{out: claim_bonus_usecase.Out{
 		Kind:              bonus.KindEncloseClicks,
 		Duration:          30 * time.Second,
 		Enclosures:        3,
@@ -96,7 +96,7 @@ func TestARefusedClaimIsNotFoundAndSaysNothingAboutWhy(t *testing.T) {
 
 	require.Error(t, err)
 	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
-	assert.Contains(t, err.Error(), claim_bonus.ErrNoSuchBonus.Error())
+	assert.Contains(t, err.Error(), claim_bonus_usecase.ErrNoSuchBonus.Error())
 	assert.NotContains(t, err.Error(), "lapsed")
 }
 

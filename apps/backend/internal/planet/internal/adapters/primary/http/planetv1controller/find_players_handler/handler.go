@@ -10,11 +10,11 @@ import (
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/find_players"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/find_players_usecase"
 )
 
 type UseCase interface {
-	Execute(ctx context.Context, in find_players.In) (find_players.Out, error)
+	Execute(ctx context.Context, in find_players_usecase.In) (find_players_usecase.Out, error)
 }
 
 func New(useCase UseCase) FindPlayersHandler {
@@ -29,7 +29,7 @@ func (h FindPlayersHandler) FindPlayers(
 	ctx context.Context,
 	req *connect.Request[planetv1.FindPlayersRequest],
 ) (*connect.Response[planetv1.FindPlayersResponse], error) {
-	out, err := h.useCase.Execute(ctx, find_players.In{
+	out, err := h.useCase.Execute(ctx, find_players_usecase.In{
 		Flag:  req.Msg.GetFlagCountryId(),
 		Area:  req.Msg.GetAreaCountryId(),
 		Limit: int(req.Msg.GetLimit()),

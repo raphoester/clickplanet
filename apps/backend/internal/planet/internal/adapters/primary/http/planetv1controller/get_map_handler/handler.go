@@ -7,11 +7,11 @@ import (
 	"connectrpc.com/connect"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_map"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_map_usecase"
 )
 
 type UseCase interface {
-	Execute(ctx context.Context, in get_map.In) (clicks.DenseBatch, error)
+	Execute(ctx context.Context, in get_map_usecase.In) (clicks.DenseBatch, error)
 }
 
 func New(useCase UseCase) GetMapHandler {
@@ -28,7 +28,7 @@ func (h GetMapHandler) GetMap(
 	ctx context.Context,
 	req *connect.Request[planetv1.GetMapRequest],
 ) (*connect.Response[planetv1.GetMapResponse], error) {
-	batch, err := h.useCase.Execute(ctx, get_map.In{
+	batch, err := h.useCase.Execute(ctx, get_map_usecase.In{
 		Start: req.Msg.GetStartTileId(),
 		End:   req.Msg.GetEndTileId(),
 	})

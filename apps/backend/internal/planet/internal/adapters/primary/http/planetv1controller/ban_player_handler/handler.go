@@ -9,11 +9,11 @@ import (
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/ban_player"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/ban_player_usecase"
 )
 
 type UseCase interface {
-	Execute(ctx context.Context, in ban_player.In) (ban_player.Out, error)
+	Execute(ctx context.Context, in ban_player_usecase.In) (ban_player_usecase.Out, error)
 }
 
 func New(useCase UseCase) BanPlayerHandler {
@@ -28,7 +28,7 @@ func (h BanPlayerHandler) BanPlayer(
 	ctx context.Context,
 	req *connect.Request[planetv1.BanPlayerRequest],
 ) (*connect.Response[planetv1.BanPlayerResponse], error) {
-	in := ban_player.In{Scope: req.Msg.GetScope()}
+	in := ban_player_usecase.In{Scope: req.Msg.GetScope()}
 	if duration := req.Msg.GetDuration(); duration != nil {
 		in.Duration = duration.AsDuration()
 	}
@@ -43,9 +43,9 @@ func (h BanPlayerHandler) BanPlayer(
 			BannedUntil: timestamppb.New(out.Until),
 			Enforced:    out.Enforced,
 		}), nil
-	case errors.Is(err, clicks.ErrInvalidScope), errors.Is(err, ban_player.ErrNegativeDuration):
+	case errors.Is(err, clicks.ErrInvalidScope), errors.Is(err, ban_player_usecase.ErrNegativeDuration):
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
-	case errors.Is(err, ban_player.ErrAntiBotOff):
+	case errors.Is(err, ban_player_usecase.ErrAntiBotOff):
 		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 	default:
 		return nil, err
