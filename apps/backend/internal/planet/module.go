@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 
@@ -33,7 +34,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/secondary/geodesic_map"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/secondary/in_memory_tile_checker"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/secondary/memory_tile_storage"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/bonus"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/pacing"
@@ -43,6 +43,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/claim_bonus"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/claim_bonus/prom_claim_bonus"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click/antibot_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click/bonus_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click/enclose_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click/enclose_click/prom_enclose"
@@ -72,410 +73,361 @@ import (
 const moduleName = "planet"
 
 // NewModule is always enabled: a process without the tile game is not this game.
+//
+// The whole DI sequence is the one function below, top to bottom, in the order
+// things are built and registered.
 func NewModule(config Config) cpbootstrap.Module {
 	return cpbootstrap.Module{
 		Name:    moduleName,
 		Enabled: true,
 		DiSequence: func(_ context.Context, props cpbootstrap.Props) error {
-			return build(config, props)
+			clock := cptime.SystemClock{}
+			countries := cpcountries.New()
+
+			// ---- Map geography ----
+
+			// First: nothing else here is worth starting if the map is not the one the frontend draws.
+			// Unconditional, and fatal: a blob that disagrees with the frontend renumbers every tile, and the
+			// snapshot on disk is numbered the old way. See CLAUDE.md, "Map geography".
+			geographyStarted := time.Now()
+
+			geography, geographyAsset, err := geodesic_map.Load(config.GameMap.MaxIndex)
+			if err != nil {
+				return fmt.Errorf("failed to load the map geography: %w", err)
+			}
+
+			geographyStats := geography.Stats()
+			props.Logger.Info("map geography loaded",
+				slog.String("asset", geographyAsset),
+				slog.Int("tiles", int(geographyStats.Tiles)),
+				slog.Int("edges", int(geographyStats.Edges)),
+				slog.Any("degrees", geographyStats.Degrees),
+				slog.Any("took", time.Since(geographyStarted).Round(time.Millisecond)),
+			)
+
+			// Unconditional, and fatal, for the same reason: borders for another map name the wrong ground.
+			borders, bordersAsset, err := geodesic_map.LoadBorders(config.GameMap.MaxIndex)
+			if err != nil {
+				return fmt.Errorf("failed to load the map borders: %w", err)
+			}
+
+			props.Logger.Info("map borders loaded", slog.String("asset", bordersAsset))
+
+			// ---- Storage, ledger, limiter, toll ----
+
+			tilesChecker := in_memory_tile_checker.New(config.GameMap.MaxIndex)
+
+			tilesStorage := memory_tile_storage.New(config.GameMap.MaxIndex, config.TilesStorage, props.Logger)
+			props.Runners.Add("tiles-storage", tilesStorage.Run)
+
+			takings := ledger.New(config.Ledger, clock)
+			props.Runners.Add("tile-ledger", takings.Run)
+
+			limiter := cpratelimit.New(config.RateLimiter, clock)
+			props.Runners.Add("click-limiter", limiter.Run)
+
+			pricer := toll.New(config.Toll, tilesStorage)
+
+			// writer is the storage as the click chain writes it, so every tile it takes lands in the ledger.
+			writer := ledger.Recording{Tiles: tilesStorage, Ledger: takings}
+
+			// ---- Bonus boxes ----
+
+			// nil when boxes are off, which leaves the feed and the click chain exactly
+			// as they were and makes ClaimBonus answer Unimplemented. A typed nil in an
+			// interface is not a nil interface, which is why bonusFeed is only widened
+			// from it when it is set.
+			var bonuses *bonus.Registry
+			var bonusFeed listen_for_events.BonusFeed
+			if config.Bonus.Enabled {
+				bonuses = bonus.New(config.Bonus, clock)
+				bonusFeed = bonuses
+				props.Runners.Add("bonus-boxes", bonuses.Run)
+
+				props.Logger.Info("bonus boxes enabled",
+					slog.Any("minInterval", config.Bonus.MinInterval),
+					slog.Any("maxInterval", config.Bonus.MaxInterval),
+					slog.Any("duration", config.Bonus.Duration),
+					slog.Any("kinds", config.Bonus.Kinds),
+				)
+			}
+
+			spreads := bonus.NewSpreads(clock)
+			bombs := bonus.NewBombs(clock)
+			enclosures := bonus.NewEnclosures(clock)
+
+			// A bomb is sized off the map itself, so the ring a client draws is the width of what it clears.
+			spacing := geography.Spacing()
+			bombRules := drop_bomb.Rules{
+				Radius: config.Bonus.Rings() * spacing,
+				// Within a tile of the nearest tile is land; further out is the sea.
+				Reach: spacing,
+			}
+
+			// ---- Click chain ----
+
+			// The rule is wrapped in the policies that guard it, innermost first:
+			// spread or enclose it, count it, judge it, then charge it. The throttle is outermost so
+			// a shadow-banned caller keeps hitting the same 429s everyone else does — a
+			// caller that is never throttled again has been told it is banned.
+
+			// Right against the rule, inside the shadow ban: a dropped click never
+			// reaches the rule, so it spreads and encloses nothing either. It is counted
+			// as one click however many tiles it took.
+			var clickUseCase click.IUseCase = click.New(tilesChecker, writer, countries)
+			if bonuses != nil {
+				clickUseCase = spread_click.New(clickUseCase, spreads, geography, writer, bonuses)
+
+				publishedEnclosures, err := prom_enclose.New(bonuses, props.Metrics)
+				if err != nil {
+					return fmt.Errorf("failed to create prometheus enclose publisher: %w", err)
+				}
+
+				clickUseCase = enclose_click.New(clickUseCase, enclosures,
+					enclose_click.NewTerrain(geography, tilesStorage),
+					enclose_click.NewAnnexer(writer, publishedEnclosures))
+			}
+
+			clickUseCase, err = prom_click.New(clickUseCase, props.Metrics)
+			if err != nil {
+				return fmt.Errorf("failed to create prometheus click use case: %w", err)
+			}
+
+			// The shadow ban. Nothing about it reaches the edge: what is left of the
+			// clicks side is the metric names and the words of the ban line, both here.
+
+			// Even resolution to 2s: a bot on a ~1s timer hides in a bucket any wider, which is where 0.5/1/2 left it invisible.
+			reactions := prometheus.NewHistogram(prometheus.HistogramOpts{
+				Name: "click_reaction_seconds",
+				Help: "Delay between a tile being taken and another caller taking it back",
+				Buckets: []float64{
+					0.05, 0.1, 0.2, 0.3, 0.4,
+					0.5, 0.6, 0.7, 0.8, 0.9,
+					1.0, 1.1, 1.25, 1.5, 1.75,
+					2.0, 2.5, 3.0, 4.0, 5.0,
+				},
+			})
+
+			// Counts flags, not callers, and once per watchdog that argued for each one:
+			// a caller flagged six times is six here and one on shadowban_flagged, and
+			// the gap between the two is the thing to look at.
+			flags := prometheus.NewCounterVec(prometheus.CounterOpts{
+				Name: "shadowban_flags",
+				Help: "Times a caller has been flagged, counted once per watchdog that argued for it",
+			}, []string{"watchdog"})
+
+			for _, collector := range []prometheus.Collector{reactions, flags} {
+				if err := props.Metrics.Register(collector); err != nil {
+					return fmt.Errorf("failed to create the antibot observer: failed to register collector: %w", err)
+				}
+			}
+
+			guard, err := antibot.New(config.AntiBot, clock, antibot.Observer{
+				OnReaction: func(delay time.Duration) { reactions.Observe(delay.Seconds()) },
+
+				// The address goes in the log and never on a label: per-IP labels are
+				// unbounded cardinality, and they would put personal data in every scrape.
+				OnFlag: func(report antibot.Report) {
+					fields := make([]any, 0, 10+len(report.Opinions))
+					fields = append(fields,
+						slog.String("scope", report.Scope),
+						slog.Int("flags", report.Flags),
+						slog.Int("offence", report.Offence),
+						slog.Time("bannedUntil", report.BannedUntil),
+						slog.Int("clicks", report.Clicks),
+						slog.Duration("activeFor", report.ActiveFor),
+						slog.Duration("longestGap", report.LongestGap),
+						slog.String("topCountry", report.TopCountry),
+						slog.Int("topCountryClicks", report.TopCountryClicks),
+						slog.Any("tiles", report.Tiles),
+					)
+
+					// Every watchdog, not only the ones that argued for the ban: what did not
+					// fire is half of reading a line that did. How a reading words itself is
+					// antibot's; the attribute name and the message are ours.
+					for _, opinion := range report.Opinions {
+						fields = append(fields, slog.String(opinion.Watchdog, opinion.String()))
+
+						if opinion.Fired() {
+							flags.WithLabelValues(opinion.Watchdog).Inc()
+						}
+					}
+
+					props.Logger.Warn("antibot ban", fields...)
+				},
+
+				OnStateError: func(err error) {
+					props.Logger.Error("antibot bans not persisted", slog.Any("error", err))
+				},
+			})
+			if err != nil {
+				return fmt.Errorf("failed to build the antibot guard: %w", err)
+			}
+
+			// guard is nil when the antibot is off: the use case goes unwrapped,
+			// BanPlayer refuses, FindPlayers says nothing of bans and a bomb is never a dud.
+			if guard != nil {
+				props.Runners.Add("antibot", guard.Run)
+
+				described := guard.Describe()
+				props.Logger.Info("antibot enabled",
+					slog.Any("watchdogs", described.Watchdogs),
+					slog.Int("minSuspects", described.MinSuspects),
+					slog.Bool("enforce", described.Enforcing),
+				)
+
+				clickUseCase, err = antibot_click.New(clickUseCase, guard, tilesStorage, clock, props.Metrics)
+				if err != nil {
+					return fmt.Errorf("failed to create the antibot click use case: %w", err)
+				}
+			}
+
+			// Inside the throttle: presence is what a caller actually managed to do,
+			// not what they attempted.
+			if bonuses != nil {
+				clickUseCase = bonus_click.New(clickUseCase, bonuses)
+			}
+
+			clickUseCase = throttle_click.New(clickUseCase, limiter, pricer)
+
+			// ---- Admin service ----
+
+			// A quarter of a subscriber's buffer per batch leaves room for the clicks still arriving.
+			adminBatch := config.TilesStorage.SubscriberBuffer / 4
+			if adminBatch <= 0 {
+				adminBatch = 256
+			}
+			pace := pacing.Pacing{Batch: adminBatch, Pause: 50 * time.Millisecond}
+
+			var bans find_players.Bans
+			var banner ban_player.Banner
+			if guard != nil {
+				bans, banner = guard, guard
+			}
+
+			adminService := planetv1controller.AdminService{
+				ReassignCountryHandler: reassign_country_handler.New(audit_reassign.New(
+					reassign_country.New(tilesStorage, countries, pace), props.Logger)),
+				FindPlayersHandler: find_players_handler.New(
+					find_players.New(takings, tilesStorage, borders, bans, countries)),
+				BanPlayerHandler: ban_player_handler.New(audit_ban.New(ban_player.New(banner), props.Logger)),
+				RevertPlayerHandler: revert_player_handler.New(
+					audit_revert.New(revert_player.New(takings, tilesStorage, pace), props.Logger)),
+			}
+
+			if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
+				return planetv1connect.NewAdminServiceHandler(adminService, options...)
+			}); err != nil {
+				return err
+			}
+
+			// ---- Edge interceptors ----
+
+			// In the order they wrap the handler: the cache marks, then the two refusals
+			// that must not spend a token.
+			//
+			// The error net is not here. cpbootstrap wraps it around every service it
+			// mounts, so no module has to remember it and none can leave it out.
+			//
+			// The throttle and the shadow ban are not here either. Both are decorators
+			// over the click use case, which puts them inside every interceptor by
+			// construction — so "a refused click must not also spend a token" is a
+			// property of the shape rather than a rule about list order.
+			blocklist, err := cpipblock.New(config.VPNBlocklist)
+			if err != nil {
+				return fmt.Errorf("failed to build vpn blocklist: %w", err)
+			}
+
+			if sizes := blocklist.Sizes(); len(sizes) > 0 {
+				props.Logger.Info("vpn blocklist enabled", slog.Any("ranges", sizes))
+			}
+
+			vpnBlockInterceptor, err := planetv1controller.NewVPNBlockInterceptor(blocklist, props.Metrics)
+			if err != nil {
+				return fmt.Errorf("failed to create vpn block interceptor: %w", err)
+			}
+
+			interceptors := []connect.Interceptor{
+				planetv1controller.NewCacheInterceptor(),
+				vpnBlockInterceptor,
+			}
+
+			// This context builds its own verifier from the same `session:` block the
+			// session context mints with — same secret, same MAC — so neither module
+			// has to hand the other an object. Skipped when sessions are off.
+			if config.Session.Enabled {
+				verifier, err := cpsession.NewSigner(config.Session)
+				if err != nil {
+					return fmt.Errorf("failed to build the click session verifier: %w", err)
+				}
+
+				sessionInterceptor, err := planetv1controller.NewSessionInterceptor(
+					verifier,
+					clock,
+					config.Session.Enforce,
+					props.Metrics)
+				if err != nil {
+					return fmt.Errorf("failed to create the click session interceptor: %w", err)
+				}
+
+				interceptors = append(interceptors, sessionInterceptor)
+			}
+
+			// ---- Bonus use cases ----
+
+			// Both stay nil when boxes are off; their handlers answer Unimplemented.
+			var claimBonus claim_bonus_handler.UseCase
+			var dropBomb drop_bomb_handler.UseCase
+			if bonuses != nil {
+				// The claim also hands the registry its counters: offered against caught
+				// is the only way to see whether the pacing and the flight time are set
+				// anywhere near right.
+				claimed, counters, err := prom_claim_bonus.New(
+					claim_bonus.New(bonuses, limiter, pricer, spreads, bombs, bombRules.Radius, enclosures, clock),
+					props.Metrics)
+				if err != nil {
+					return fmt.Errorf("failed to create the bonus claim use case: %w", err)
+				}
+
+				bonuses.Observe(bonus.Report{
+					Offered: counters.Offered.Inc,
+					Lapsed:  counters.Lapsed.Inc,
+				})
+				claimBonus = claimed
+
+				dropped, err := prom_drop_bomb.New(
+					drop_bomb.New(bombs, bonuses, geography, tilesStorage, countries, bombRules), props.Metrics)
+				if err != nil {
+					return fmt.Errorf("failed to create the bomb drop use case: %w", err)
+				}
+				dropBomb = dropped
+
+				// Outside the count, so it can tell the counter a drop was a dud.
+				if guard != nil {
+					dropBomb = antibot_drop_bomb.New(dropped, guard)
+				}
+			}
+
+			// ---- Click service ----
+
+			// Each use case is handed only what it reads or writes, which is why the
+			// storage appears three times here rather than once as a single object the
+			// service holds: the map reader, the subscription and the tile writer are
+			// three ports that happen to be served by one adapter.
+			service := planetv1controller.ClickService{
+				ClickHandler:      click_handler.New(clickUseCase),
+				GetBudgetHandler:  get_budget_handler.New(get_budget.New(limiter, pricer)),
+				MapDensityHandler: map_density_handler.New(map_density.New(tilesChecker)),
+				GetMapHandler:     get_map_handler.New(get_map.New(tilesChecker, tilesStorage)),
+				ListenForEventsHandler: listen_for_events_handler.New(
+					listen_for_events.New(tilesStorage, props.Server.StreamHeartbeat, bonusFeed)),
+				ClaimBonusHandler: claim_bonus_handler.New(claimBonus),
+				DropBombHandler:   drop_bomb_handler.New(dropBomb),
+			}
+
+			return props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
+				return planetv1connect.NewClickServiceHandler(service, options...)
+			}, interceptors...)
 		},
 	}
-}
-
-func build(config Config, props cpbootstrap.Props) error {
-	clock := cptime.SystemClock{}
-
-	// First: nothing else here is worth starting if the map is not the one the frontend draws.
-	geography, err := loadMapGeography(config.GameMap.MaxIndex, props)
-	if err != nil {
-		return err
-	}
-
-	borders, err := loadBorders(config.GameMap.MaxIndex, props)
-	if err != nil {
-		return err
-	}
-
-	tilesChecker := in_memory_tile_checker.New(config.GameMap.MaxIndex)
-
-	tilesStorage := memory_tile_storage.New(config.GameMap.MaxIndex, config.TilesStorage, props.Logger)
-	props.Runners.Add("tiles-storage", tilesStorage.Run)
-
-	takings := ledger.New(config.Ledger, clock)
-	props.Runners.Add("tile-ledger", takings.Run)
-
-	limiter := cpratelimit.New(config.RateLimiter, clock)
-	props.Runners.Add("click-limiter", limiter.Run)
-
-	pricer := toll.New(config.Toll, tilesStorage)
-
-	// nil when boxes are off, which leaves the feed and the click chain exactly
-	// as they were and makes ClaimBonus answer Unimplemented.
-	bonuses := newBonusRegistry(config.Bonus, clock, props)
-	spreads := bonus.NewSpreads(clock)
-	bombs := bonus.NewBombs(clock)
-	bombRules := bombRulesOf(config.Bonus, geography)
-	enclosures := bonus.NewEnclosures(clock)
-
-	clickUseCase, guard, err := clickChain(config, clickParts{
-		tilesChecker: tilesChecker,
-		tilesStorage: tilesStorage,
-		writer:       ledger.Recording{Tiles: tilesStorage, Ledger: takings},
-		limiter:      limiter,
-		pricer:       pricer,
-		bonuses:      bonuses,
-		spreads:      spreads,
-		enclosures:   enclosures,
-		geography:    geography,
-	}, props)
-	if err != nil {
-		return err
-	}
-
-	if err := mountAdminService(config, adminParts{
-		storage: tilesStorage,
-		ledger:  takings,
-		borders: borders,
-		guard:   guard,
-	}, props); err != nil {
-		return err
-	}
-
-	interceptors, err := edgeChain(config, props)
-	if err != nil {
-		return err
-	}
-
-	claimBonus, err := claimBonusUseCase(bonuses, limiter, pricer, spreads, bombs, bombRules.Radius, enclosures, clock, props)
-	if err != nil {
-		return err
-	}
-
-	dropBomb, err := dropBombUseCase(bonuses, bombs, geography, tilesStorage, bombRules, guard, props)
-	if err != nil {
-		return err
-	}
-
-	// Each use case is handed only what it reads or writes, which is why the
-	// storage appears three times here rather than once as a single object the
-	// service holds: the map reader, the subscription and the tile writer are
-	// three ports that happen to be served by one adapter.
-	service := planetv1controller.ClickService{
-		ClickHandler:      click_handler.New(clickUseCase),
-		GetBudgetHandler:  get_budget_handler.New(get_budget.New(limiter, pricer)),
-		MapDensityHandler: map_density_handler.New(map_density.New(tilesChecker)),
-		GetMapHandler:     get_map_handler.New(get_map.New(tilesChecker, tilesStorage)),
-		ListenForEventsHandler: listen_for_events_handler.New(
-			listen_for_events.New(tilesStorage, props.Server.StreamHeartbeat, bonusFeed(bonuses))),
-		ClaimBonusHandler: claim_bonus_handler.New(claimBonus),
-		DropBombHandler:   drop_bomb_handler.New(dropBomb),
-	}
-
-	return props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
-		return planetv1connect.NewClickServiceHandler(service, options...)
-	}, interceptors...)
-}
-
-// Unconditional, and fatal: a blob that disagrees with the frontend renumbers every tile, and the
-// snapshot on disk is numbered the old way. See CLAUDE.md, "Map geography".
-func loadMapGeography(maxIndex uint32, props cpbootstrap.Props) (*clicks.Geography, error) {
-	started := time.Now()
-
-	geography, asset, err := geodesic_map.Load(maxIndex)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load the map geography: %w", err)
-	}
-
-	stats := geography.Stats()
-	props.Logger.Info("map geography loaded",
-		slog.String("asset", asset),
-		slog.Int("tiles", int(stats.Tiles)),
-		slog.Int("edges", int(stats.Edges)),
-		slog.Any("degrees", stats.Degrees),
-		slog.Any("took", time.Since(started).Round(time.Millisecond)),
-	)
-
-	return geography, nil
-}
-
-// Unconditional, and fatal, for the reason loadMapGeography is: borders for another map name the wrong ground.
-func loadBorders(maxIndex uint32, props cpbootstrap.Props) (*clicks.Borders, error) {
-	borders, asset, err := geodesic_map.LoadBorders(maxIndex)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load the map borders: %w", err)
-	}
-
-	props.Logger.Info("map borders loaded", slog.String("asset", asset))
-
-	return borders, nil
-}
-
-const adminPause = 50 * time.Millisecond
-
-// adminParts is what the operator tools read and write.
-type adminParts struct {
-	storage *memory_tile_storage.Storage
-	ledger  *ledger.Ledger
-	borders *clicks.Borders
-	// nil when the antibot is off, which leaves BanPlayer refusing and FindPlayers saying nothing of bans.
-	guard antibot.Guard
-}
-
-func mountAdminService(config Config, parts adminParts, props cpbootstrap.Props) error {
-	// A quarter of a subscriber's buffer per batch leaves room for the clicks still arriving.
-	batch := config.TilesStorage.SubscriberBuffer / 4
-	if batch <= 0 {
-		batch = 256
-	}
-	pace := pacing.Pacing{Batch: batch, Pause: adminPause}
-	countries := cpcountries.New()
-
-	var bans find_players.Bans
-	var banner ban_player.Banner
-	if parts.guard != nil {
-		bans, banner = parts.guard, parts.guard
-	}
-
-	reassign := reassign_country.New(parts.storage, countries, pace)
-	service := planetv1controller.AdminService{
-		ReassignCountryHandler: reassign_country_handler.New(audit_reassign.New(reassign, props.Logger)),
-		FindPlayersHandler: find_players_handler.New(
-			find_players.New(parts.ledger, parts.storage, parts.borders, bans, countries)),
-		BanPlayerHandler: ban_player_handler.New(audit_ban.New(ban_player.New(banner), props.Logger)),
-		RevertPlayerHandler: revert_player_handler.New(
-			audit_revert.New(revert_player.New(parts.ledger, parts.storage, pace), props.Logger)),
-	}
-
-	return props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
-		return planetv1connect.NewAdminServiceHandler(service, options...)
-	})
-}
-
-// clickParts is what the click chain is built from.
-type clickParts struct {
-	tilesChecker *in_memory_tile_checker.Checker
-	tilesStorage *memory_tile_storage.Storage
-	// writer is the storage as the click chain writes it, so every tile it takes lands in the ledger.
-	writer     ledger.Recording
-	limiter    *cpratelimit.Limiter
-	pricer     *toll.Toll
-	bonuses    *bonus.Registry
-	spreads    *bonus.Spreads
-	enclosures *bonus.Enclosures
-	geography  *clicks.Geography
-}
-
-// clickChain wraps the rule in the policies that guard it, innermost first:
-// spread or enclose it, count it, judge it, then charge it. The throttle is outermost so
-// a shadow-banned caller keeps hitting the same 429s everyone else does — a
-// caller that is never throttled again has been told it is banned.
-func clickChain(config Config, parts clickParts, props cpbootstrap.Props) (click.IUseCase, antibot.Guard, error) {
-	// Right against the rule, inside the shadow ban: a dropped click never
-	// reaches the rule, so it spreads and encloses nothing either. It is counted
-	// as one click however many tiles it took.
-	var rule click.IUseCase = click.New(parts.tilesChecker, parts.writer, cpcountries.New())
-	if parts.bonuses != nil {
-		rule = spread_click.New(rule, parts.spreads, parts.geography, parts.writer, parts.bonuses)
-		published, err := prom_enclose.New(parts.bonuses, props.Metrics)
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to create prometheus enclose publisher: %w", err)
-		}
-
-		rule = enclose_click.New(rule, parts.enclosures,
-			enclose_click.NewTerrain(parts.geography, parts.tilesStorage),
-			enclose_click.NewAnnexer(parts.writer, published))
-	}
-
-	useCase, err := prom_click.New(rule, props.Metrics)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create prometheus click use case: %w", err)
-	}
-
-	guarded, guard, err := wrapWithAntiBot(useCase, config.AntiBot, parts.tilesStorage, props)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// Inside the throttle: presence is what a caller actually managed to do,
-	// not what they attempted.
-	if parts.bonuses != nil {
-		guarded = bonus_click.New(guarded, parts.bonuses)
-	}
-
-	return throttle_click.New(guarded, parts.limiter, parts.pricer), guard, nil
-}
-
-// newBonusRegistry returns nil when boxes are off. A typed nil in an interface
-// is not a nil interface, which is why the concrete type is returned here and
-// the two helpers below do the widening.
-func newBonusRegistry(config bonus.Config, clock cptime.Clock, props cpbootstrap.Props) *bonus.Registry {
-	if !config.Enabled {
-		return nil
-	}
-
-	registry := bonus.New(config, clock)
-	props.Runners.Add("bonus-boxes", registry.Run)
-
-	props.Logger.Info("bonus boxes enabled",
-		slog.Any("minInterval", config.MinInterval),
-		slog.Any("maxInterval", config.MaxInterval),
-		slog.Any("duration", config.Duration),
-		slog.Any("kinds", config.Kinds),
-	)
-
-	return registry
-}
-
-func bonusFeed(registry *bonus.Registry) listen_for_events.BonusFeed {
-	if registry == nil {
-		return nil
-	}
-
-	return registry
-}
-
-// claimBonusUseCase also hands the registry its counters, which is why it takes
-// the metrics registerer: offered against caught is the only way to see whether
-// the pacing and the flight time are set anywhere near right.
-func claimBonusUseCase(
-	registry *bonus.Registry,
-	limiter *cpratelimit.Limiter,
-	pricer *toll.Toll,
-	spreads *bonus.Spreads,
-	bombs *bonus.Bombs,
-	blastRadius float64,
-	enclosures *bonus.Enclosures,
-	clock cptime.Clock,
-	props cpbootstrap.Props,
-) (claim_bonus_handler.UseCase, error) {
-	if registry == nil {
-		return nil, nil //nolint:nilnil // nil means "boxes are off"; the handler answers Unimplemented.
-	}
-
-	claim := claim_bonus.New(registry, limiter, pricer, spreads, bombs, blastRadius, enclosures, clock)
-	useCase, counters, err := prom_claim_bonus.New(claim, props.Metrics)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create the bonus claim use case: %w", err)
-	}
-
-	registry.Observe(bonus.Report{
-		Offered: counters.Offered.Inc,
-		Lapsed:  counters.Lapsed.Inc,
-	})
-
-	return useCase, nil
-}
-
-// bombRulesOf sizes a bomb off the map itself, so the ring a client draws is the width of what it clears.
-func bombRulesOf(config bonus.Config, geography *clicks.Geography) drop_bomb.Rules {
-	spacing := geography.Spacing()
-
-	return drop_bomb.Rules{
-		Radius: config.Rings() * spacing,
-		// Within a tile of the nearest tile is land; further out is the sea.
-		Reach: spacing,
-	}
-}
-
-func dropBombUseCase(
-	registry *bonus.Registry,
-	bombs *bonus.Bombs,
-	geography *clicks.Geography,
-	storage *memory_tile_storage.Storage,
-	rules drop_bomb.Rules,
-	guard antibot.Guard,
-	props cpbootstrap.Props,
-) (drop_bomb_handler.UseCase, error) {
-	if registry == nil {
-		return nil, nil //nolint:nilnil // nil means "boxes are off"; the handler answers Unimplemented.
-	}
-
-	useCase, err := prom_drop_bomb.New(
-		drop_bomb.New(bombs, registry, geography, storage, cpcountries.New(), rules), props.Metrics)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create the bomb drop use case: %w", err)
-	}
-
-	// Outside the count, so it can tell the counter a drop was a dud.
-	if guard != nil {
-		return antibot_drop_bomb.New(useCase, guard), nil
-	}
-
-	return useCase, nil
-}
-
-// edgeChain builds the interceptors in the order they wrap the handler: the
-// cache marks, then the two refusals that must not spend a token.
-//
-// The error net is not here. cpbootstrap wraps it around every service it
-// mounts, so no module has to remember it and none can leave it out.
-//
-// The throttle and the shadow ban are no longer here. Both are decorators over
-// the click use case, which puts them inside every interceptor by construction
-// — so "a refused click must not also spend a token" is now a property of the
-// shape rather than a rule about list order that a test has to pin.
-func edgeChain(config Config, props cpbootstrap.Props) ([]connect.Interceptor, error) {
-	vpnBlockInterceptor, err := newVPNBlockInterceptor(config.VPNBlocklist, props)
-	if err != nil {
-		return nil, err
-	}
-
-	interceptors := []connect.Interceptor{
-		planetv1controller.NewCacheInterceptor(),
-		vpnBlockInterceptor,
-	}
-
-	sessionInterceptor, err := newSessionInterceptor(config.Session, props)
-	if err != nil {
-		return nil, err
-	}
-	if sessionInterceptor != nil {
-		interceptors = append(interceptors, sessionInterceptor)
-	}
-
-	return interceptors, nil
-}
-
-// newSessionInterceptor builds this context's own verifier from the same
-// `session:` block the session context mints with — same secret, same MAC — so
-// neither module has to hand the other an object. Nil when sessions are off.
-func newSessionInterceptor(config cpsession.Config, props cpbootstrap.Props) (connect.Interceptor, error) {
-	if !config.Enabled {
-		//nolint:nilnil // nil means "sessions are off"; clickChain skips it.
-		return nil, nil
-	}
-
-	verifier, err := cpsession.NewSigner(config)
-	if err != nil {
-		return nil, fmt.Errorf("failed to build the click session verifier: %w", err)
-	}
-
-	interceptor, err := planetv1controller.NewSessionInterceptor(
-		verifier,
-		cptime.SystemClock{},
-		config.Enforce,
-		props.Metrics)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create the click session interceptor: %w", err)
-	}
-
-	return interceptor, nil
-}
-
-func newVPNBlockInterceptor(config cpipblock.Config, props cpbootstrap.Props) (connect.Interceptor, error) {
-	blocklist, err := cpipblock.New(config)
-	if err != nil {
-		return nil, fmt.Errorf("failed to build vpn blocklist: %w", err)
-	}
-
-	if sizes := blocklist.Sizes(); len(sizes) > 0 {
-		props.Logger.Info("vpn blocklist enabled", slog.Any("ranges", sizes))
-	}
-
-	interceptor, err := planetv1controller.NewVPNBlockInterceptor(blocklist, props.Metrics)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create vpn block interceptor: %w", err)
-	}
-
-	return interceptor, nil
 }
