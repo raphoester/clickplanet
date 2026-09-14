@@ -245,3 +245,5 @@ func (s *Storage) DroppedUpdates() uint64 {
 
 	return total
 }
+
+var _ clicks.TileStorage = (*Storage)(nil)

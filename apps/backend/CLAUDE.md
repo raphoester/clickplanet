@@ -182,6 +182,15 @@ in the root.
 `<tech>_<thing>_<role>` — `inmemory_tile_storage`, `embedded_geodesic_map`. A
 second implementation of the same port is a sibling directory, not a new layer.
 
+**A port with a contract suite pins what every adapter must do.** `clicks.TileStorage`
+is the whole tile map as it is kept, and `clicks.TileStorageContractSuite`
+(`tile_storage_contract_testing.go`, behind the `testing` tag) is its behaviour:
+a no-op publishes nothing, a blast is one event, a restore is a compare-and-set,
+and so on. An adapter's test suite embeds it and sets `NewStorage`, then adds only
+what is its own — `inmemory_tile_storage` adds the snapshot and the slow-subscriber
+tests. A second tile storage runs the same suite by embedding it the same way.
+A port with one adapter and no second one coming (`ledger.Storage`) has no suite.
+
 **The controller is the one exception**, at `internal/planet/internal/planetv1controller/`,
 because it serves every concept over one Connect service. It only maps.
 
@@ -261,7 +270,7 @@ The response never repeats a tile id. `GetMapResponse` carries `start_tile_id`, 
 - `clicks.Board` (not an adapter) — validates tile IDs
 - country codes are validated by `shared/cpcountries`, which chat shares — see [The composite layer](#the-composite-layer)
 
-Beyond the `click_usecase.TileStorage` port, `inmemory_tile_storage` also exposes `Subscribe(ctx) (<-chan clicks.Change, error)`, one call per open stream. A `Change` is a tile update or a bomb blast, on one channel so the two keep their order — see [What a bomb does](#what-a-bomb-does).
+`inmemory_tile_storage` implements `clicks.TileStorage`, including `Subscribe(ctx) (<-chan clicks.Change, error)`, one call per open stream. A `Change` is a tile update or a bomb blast, on one channel so the two keep their order — see [What a bomb does](#what-a-bomb-does).
 
 ### Key Flow
 
