@@ -33,12 +33,24 @@ func (h *harness) after(gap time.Duration) (detect.Verdict, detect.Evidence) {
 	h.clock.Advance(gap)
 	h.tile++
 
-	return h.watchdog.Watch(detect.Click{
+	click := detect.Click{
 		Scope:   "caller",
 		Tile:    h.tile,
 		Country: "FR",
 		At:      h.clock.Now(),
-	})
+	}
+
+	h.watchdog.Attempted(click)
+
+	return h.watchdog.Watch(click)
+}
+
+// throttled tries a click the throttle refuses: timed, never judged.
+func (h *harness) throttled(gap time.Duration) {
+	h.clock.Advance(gap)
+	h.tile++
+
+	h.watchdog.Attempted(detect.Click{Scope: "caller", Tile: h.tile, Country: "FR", At: h.clock.Now()})
 }
 
 func (h *harness) beat(gap time.Duration, count int) (detect.Verdict, detect.Evidence) {
@@ -141,6 +153,45 @@ func TestASmallWobbleIsStillAClock(t *testing.T) {
 	}
 
 	assert.Equal(t, detect.Certain, verdict)
+}
+
+func TestTheThrottleDoesNotHideTheClock(t *testing.T) {
+	h := newHarness(config())
+
+	// The bot of 2026-09-14: a try every 950ms, and the throttle keeps two in three.
+	var verdict detect.Verdict
+	for try := range 3000 {
+		if try%3 == 0 {
+			h.throttled(950 * time.Millisecond)
+			continue
+		}
+		verdict, _ = h.after(950 * time.Millisecond)
+	}
+
+	assert.Equal(t, detect.Certain, verdict, "the accepted clicks alone read 950ms, then 1.9s")
+}
+
+func TestTheAcceptedClicksAloneDoNotLookLikeAClock(t *testing.T) {
+	h := newHarness(config())
+
+	var verdict detect.Verdict
+	for try := range 3000 {
+		if try%3 == 0 {
+			h.clock.Advance(950 * time.Millisecond)
+			continue
+		}
+		verdict, _ = h.after(950 * time.Millisecond)
+	}
+
+	assert.Equal(t, detect.Clear, verdict, "why the throttled tries have to be seen")
+}
+
+func TestAClickNeverTriedIsNotJudged(t *testing.T) {
+	h := newHarness(config())
+
+	verdict, _ := h.watchdog.Watch(detect.Click{Scope: "caller", Tile: 1, Country: "FR", At: h.clock.Now()})
+
+	assert.Equal(t, detect.Clear, verdict)
 }
 
 func TestJitteringWideEnoughBuysTheCallerOut(t *testing.T) {

@@ -147,6 +147,17 @@ func (j *Jury) Inspect(click detect.Click) bool {
 	return j.banner.Banned(click.Scope)
 }
 
+// Attempted hands the watchdogs a click before the throttle judges it.
+func (j *Jury) Attempted(click detect.Click) {
+	if click.Scope == "" {
+		return
+	}
+
+	for _, watchdog := range j.watchdogs {
+		watchdog.Attempted(click)
+	}
+}
+
 // Committed tells the watchdogs the click reached the map. Watchdogs that read
 // the map decide for themselves what that is worth.
 func (j *Jury) Committed(click detect.Click) {

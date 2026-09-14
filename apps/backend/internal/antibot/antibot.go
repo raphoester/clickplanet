@@ -90,6 +90,9 @@ type Observer struct {
 
 // Guard is the whole surface the click edge gates on.
 type Guard interface {
+	// Attempted is every click tried, before the throttle: a loop's timing survives only here.
+	Attempted(click Click)
+
 	// Called before the handler runs, because the map stops remembering who held
 	// the tile the moment it does.
 	Inspect(click Click) (drop bool)
@@ -202,6 +205,8 @@ type guard struct {
 	onStart     func(Description)
 }
 
+func (g *guard) Attempted(click Click) { g.jury.Attempted(click) }
+
 func (g *guard) Inspect(click Click) bool { return g.jury.Inspect(click) }
 
 func (g *guard) Committed(click Click) { g.jury.Committed(click) }
@@ -246,6 +251,7 @@ func (g *guard) Run(ctx context.Context) {
 // off is the guard for a block that is off: every click passes and nothing is ever banned.
 type off struct{}
 
+func (off) Attempted(Click)                    {}
 func (off) Inspect(Click) bool                 { return false }
 func (off) Committed(Click)                    {}
 func (off) LoadBans()                          {}

@@ -222,7 +222,7 @@ these ports at once, which is why `module.go` hands it over several times.
 
 **`click_usecase` is the only one with an interface of its own (`IUseCase`)**,
 because the click chain decorates it — `prom_click`, `throttle_click`,
-`antibot_click`, and the bonus decorators `spread_click`, `enclose_click` and
+`antibot_click`, `antibot_attempt_click`, and the bonus decorators `spread_click`, `enclose_click` and
 `bonus_click`. The counting is a wrapper rather than a line inside the rule, so
 a process that does not want it leaves it out and the rule does not change.
 
@@ -284,6 +284,7 @@ POST /session.v1.SessionService/CreateSession
 POST /planet.v1.ClickService/Click   [X-Session-Token: <the minted token>]
   → [cpbootstrap: error net], CacheInterceptor, VPNBlockInterceptor, SessionInterceptor
   → ClickService → click_handler
+  → antibot_attempt_click (times every try for the metronome; drops nothing)
   → throttle_click  (spends a token, or refuses)
   → antibot_click   (judges; a flagged caller is answered OK and dropped)
   → prom_click      (counts)
@@ -719,7 +720,7 @@ of it: `Config`, `Observer`, `Guard`, `New` and `Description` to wire it, plus
 `Click`, `Report` and `Sentence` — the types a caller writes down, because it builds one
 and is handed the others. A caller hands over the block and the two hooks it wants
 findings reported through, and gets back a `Guard` — one that drops and bans nothing when the block is off, so
-the DI sequence wires it the same way either way — that answers `Inspect`, `Committed`, `Flagged`, `Banned`, `LoadBans`, `Run` and `Enabled`, plus `Ban`,
+the DI sequence wires it the same way either way — that answers `Attempted`, `Inspect`, `Committed`, `Flagged`, `Banned`, `LoadBans`, `Run` and `Enabled`, plus `Ban`,
 `Sentence` and `Enforcing` for the operator tools (see [Operator tools](#operator-tools-adminservice)). It is
 **one** `Run` whatever the file turned on: how many sweepers there are is this
 package's business, which is why `planet` registers one runner rather than six.
@@ -830,10 +831,17 @@ constant step is already past anything a hand produces; two hundred is not
 arguable.
 
 **`metronome`: the median is deliberately not bounded.** The claim is never that
-the caller is fast. A caller pushing *past* the throttle gets its surviving
-clicks handed back at exactly the refill rate, so tuning to the ceiling works
-against it. What is measured is `maxSpread` over an unbroken run, where a pause
-longer than `maxGap` ends the run and the evidence starts again from nothing.
+the caller is fast. What is measured is `maxSpread` over an unbroken run, where a
+pause longer than `maxGap` ends the run and the evidence starts again from nothing.
+
+**The run is timed off every click tried, not every click accepted.** A loop firing
+just above the refill rate has some of its tries refused, unevenly, so the gaps
+between the survivors are 0.95s, 1.9s, 2.85s — a spread no clock shows. That is
+exactly the bot of 2026-09-14: a try every 950ms (±60ms) for twenty minutes, half
+of them 429s, read `clear`. So `antibot_attempt_click` sits **outside** the
+throttle and hands every try to `Guard.Attempted`; the metronome records there
+and only judges in `Watch`. It also helps a player: someone spam-clicking into the
+throttle is timed by their own hand, not by the refill rate.
 
 **That run is the answer to a jittered delay.** A spread test is beatable by
 construction — randomise and the band widens to look human. What is not cheap to
@@ -872,6 +880,10 @@ afterwards the map no longer remembers who held the tile.
 session check. A shadow-banned caller has to keep hitting the same 429s everyone
 else does; a caller that is never throttled again has been told. `TestAntiBotRunsAfterTheThrottle`
 pins it.
+
+**Only the watching is outside it.** `antibot_attempt_click` wraps the throttle and
+reports each try through `Attempted`, which judges and drops nothing. Moving the
+whole guard out instead would let a banned caller skip its 429s.
 
 **`antiBot.shadowBan.enforce` is the rollout switch,** the same shape as
 `session.enforce`: false judges, logs and counts without dropping anything. The

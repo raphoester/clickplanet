@@ -111,6 +111,9 @@ type step struct {
 
 func (w *Watchdog) Name() string { return Name }
 
+// Attempted is nothing to this watchdog: the stride is read off accepted clicks.
+func (w *Watchdog) Attempted(detect.Click) {}
+
 // Committed is nothing to this watchdog. A bot sweeping ids walks over tiles it
 // already owns and over ids the handler refuses, and both are part of the walk.
 func (w *Watchdog) Committed(detect.Click) {}

@@ -16,7 +16,7 @@ func TestSweepForgetsIdleCallers(t *testing.T) {
 
 	w := New(Config{TrackWindow: time.Minute}, clock)
 
-	w.Watch(detect.Click{Scope: "caller", Tile: 1, Country: "FR", At: clock.Now()})
+	w.Attempted(detect.Click{Scope: "caller", Tile: 1, Country: "FR", At: clock.Now()})
 	require.Len(t, w.callers, 1)
 
 	clock.Advance(2 * time.Hour)
@@ -32,7 +32,7 @@ func TestTheGapRingIsBounded(t *testing.T) {
 
 	for i := range uint32(500) {
 		clock.Advance(time.Second)
-		w.Watch(detect.Click{Scope: "caller", Tile: i, Country: "FR", At: clock.Now()})
+		w.Attempted(detect.Click{Scope: "caller", Tile: i, Country: "FR", At: clock.Now()})
 	}
 
 	assert.LessOrEqual(t, len(w.callers["caller"].gaps), 8,
