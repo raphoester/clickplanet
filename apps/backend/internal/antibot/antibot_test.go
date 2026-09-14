@@ -22,6 +22,7 @@ type stack struct {
 
 	owner   map[uint32]string
 	reports []antibot.Report
+	rises   []string
 }
 
 func newStack() *stack {
@@ -70,6 +71,7 @@ func newStack() *stack {
 
 	guard, err := antibot.New(config, s.clock, antibot.Observer{
 		OnFlag: func(report antibot.Report) { s.reports = append(s.reports, report) },
+		OnRise: func(watchdog, level string) { s.rises = append(s.rises, watchdog+" "+level) },
 	})
 	if err != nil {
 		panic(err)
@@ -153,6 +155,26 @@ func TestTheOvernightSweepIsCaught(t *testing.T) {
 	assert.Equal(t, detect.Suspect, verdicts["sequencer"])
 	assert.Equal(t, detect.Suspect, verdicts["metronome"])
 	assert.Equal(t, detect.Clear, verdicts["retaker"], "it never fought anyone, and it did not have to")
+}
+
+// The day of 2026-09-14: a bot that jitters its delay reads clear on the
+// metronome, so the sequencer's suspicion stands alone and nothing is banned.
+// The rise is the signal left of how close it came.
+func TestALoneSuspicionIsReportedWithoutABan(t *testing.T) {
+	s := newStack()
+
+	//nolint:gosec // G404: deterministic PRNG, seeded so the delays are the same every run.
+	rng := rand.New(rand.NewPCG(14, 9))
+	tile := uint32(180000)
+
+	for range 100 {
+		s.clock.Advance(500*time.Millisecond + time.Duration(rng.Int64N(int64(1500*time.Millisecond))))
+		require.False(t, s.click("jitterer", tile, "FR"))
+		tile++
+	}
+
+	assert.Empty(t, s.reports)
+	assert.Equal(t, []string{"sequencer suspect"}, s.rises, "once per standing suspicion, worded by the package")
 }
 
 // The same bot with the one cheap fix its author would reach for first.

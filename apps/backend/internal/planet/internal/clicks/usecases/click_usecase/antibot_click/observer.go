@@ -41,6 +41,21 @@ func NewObserver(logger *slog.Logger, registerer prometheus.Registerer) antibot.
 		Help: "Times a caller has been flagged, counted once per watchdog that argued for it",
 	}, []string{"watchdog"})
 
+	// Counts rises, not clicks: a watchdog's reading of a caller reaching a level
+	// it has not held within jury.suspicionWindow. Levels are cumulative, so
+	// suspect includes every certain, and suspect minus certain is the near misses.
+	// It is the signal on a day with no ban: how close the watchdogs came.
+	opinions := factory.NewCounterVec(prometheus.CounterOpts{
+		Name: "antibot_opinions_total",
+		Help: "Times a watchdog's reading of a caller rose to a level it had not held within jury.suspicionWindow; suspect includes certain",
+	}, []string{"watchdog", "level"})
+
+	// Set once a jury sweep, so it lags by up to a minute.
+	standing := factory.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "antibot_opinions_standing",
+		Help: "Callers a watchdog reads at a level or above at the last jury sweep; suspect includes certain",
+	}, []string{"watchdog", "level"})
+
 	return antibot.Observer{
 		OnReaction: func(delay time.Duration) { reactions.Observe(delay.Seconds()) },
 
@@ -75,6 +90,14 @@ func NewObserver(logger *slog.Logger, registerer prometheus.Registerer) antibot.
 			}
 
 			logger.Warn("antibot ban", fields...)
+		},
+
+		OnRise: func(watchdog, level string) {
+			opinions.WithLabelValues(watchdog, level).Inc()
+		},
+
+		OnStanding: func(watchdog, level string, callers int) {
+			standing.WithLabelValues(watchdog, level).Set(float64(callers))
 		},
 
 		OnStateError: func(err error) {

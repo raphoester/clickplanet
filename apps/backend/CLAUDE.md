@@ -954,6 +954,31 @@ caller already serving a ban can be judged again; at or above a watchdog's
 `flags=6` on a line is six independent judgements agreeing rather than one
 verdict repeated.
 
+**A day with no ban still says how close it came.** A ban is the only thing
+`OnFlag` reports, so on 2026-09-14 a bot attack produced zero lines and zero
+metrics about the watchdogs. The jury now also reports, through
+`Observer.OnRise` and `Observer.OnStanding`, into `antibot_opinions_total` and
+`antibot_opinions_standing`, both `{watchdog, level}`:
+
+- **The counter counts rises, not clicks.** A rise is a watchdog's reading of a
+  caller reaching a level it has not held within `jury.suspicionWindow` — the
+  same window the jury expires a reading on. A reading flapping across a bound
+  every click counts once a window; one that lapses and comes back counts again.
+  Per-click would say how often the watchdog was asked, and a sweep sample would
+  count a standing suspicion once a minute for as long as it stands.
+- **The gauge is set once a jury sweep** (`sweepInterval`, 1m): how many
+  callers each watchdog reads at the level now, by the jury's own rule (latest
+  reading, expired past the window). Every watchdog and level is set, zero
+  included, or a gauge would hold its last non-zero value forever.
+- **Levels are cumulative**, like histogram buckets: `level="suspect"` includes
+  every `certain`, so a caller going straight to certain rises through both, and
+  `suspect − certain` is the near misses.
+
+The level leaves as the string `Verdict.String()` gives, not as a type — the
+same rule as `Opinion`: the edge puts it on a label and never compares it.
+`jury.Hooks` carries the typed verdict inside the package, and `antibot.New`
+words it on the way out.
+
 Keyed on `cpipscope.Of`, the same unit as the throttle, so a v6 caller cannot serve
 a ban on one address and click from the next in its own /64. It only bites a bot
 with a stable address — against a residential proxy pool it evaporates for
