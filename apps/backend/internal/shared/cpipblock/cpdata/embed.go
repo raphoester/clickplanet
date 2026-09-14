@@ -10,6 +10,11 @@ var VPNv4 []byte
 //go:embed vpn_ipv6.txt
 var VPNv6 []byte
 
+// Kept by hand, not vendored: `make vpn-lists` leaves it alone.
+//
+//go:embed vpn_extra.txt
+var VPNExtra []byte
+
 //go:embed datacenter_ipv4.txt
 var DatacenterV4 []byte
 
