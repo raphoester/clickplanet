@@ -715,8 +715,8 @@ reflection, so a caller sets `config.Retaker.Detector.MaxSpread` without ever
 naming a type.
 
 Everything else is under `antibot/internal/`, so the click edge
-could not assemble a jury out of watchdogs even if it wanted to. `internal/planet/antibot.go`
-is the whole of the clicks side, and what is left in it is genuinely the edge's:
+could not assemble a jury out of watchdogs even if it wanted to. The shadow-ban step of
+the DI sequence in `internal/planet/module.go` is the whole of the clicks side, and what is left in it is genuinely the edge's:
 the metric names, the message and attribute names of the ban line, and where
 in the chain it sits.
 
