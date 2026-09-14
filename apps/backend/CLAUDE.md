@@ -758,13 +758,14 @@ afternoon; a silent no-op names nothing. It is not permanent (the caller reads
 the map back over the same stream and will notice), but it moves the cost of
 the next round onto them.
 
-#### Three watchdogs, one jury
+#### Four watchdogs, one jury
 
 A `Watchdog` measures one behaviour over one caller and returns a `Verdict`:
 
 - **`retaker`** — takes a tile back moments after losing it, over and over.
 - **`sequencer`** — walks the tile ids rather than the map: 1, 2, 3, 4, on and on.
 - **`metronome`** — never varies and never stops.
+- **`defender`** — nearly every take is a retake, however slowly it comes.
 
 **Every watchdog has two levels, and that is the design.** `Certain` is a reading
 no hand produces and bans on its own. `Suspect` is a reading that would ban real
@@ -848,6 +849,22 @@ construction — randomise and the band widens to look human. What is not cheap 
 fake is *stopping*: a person's session has breaks in it. `activeFor` and
 `longestGap` still feed no rule, because deciding on them alone would ban the
 genuinely obsessed; they go in the log, beside a rule that did fire.
+
+**`defender`: what is clicked, not when.** The bots of 2026-09-14 retook from a
+queue behind the throttle: tiles came back 0.4s, 1.5s, 2.5s … 40s after they were
+lost, one refill at a time, so the retaker's reaction window saw almost none of
+it. The rule is the share of a caller's takes, over `trackWindow`, that win a
+tile back for the country that lost it within `retakeWindow`. A take for another
+country, a take of what the same caller took, a refused click and a no-op are not
+retakes.
+
+**It ships measuring.** `minShare` and `certainShare` default to zero, and zero
+never reads anything: the watchdog only reports each caller's share once a sweep
+through `Observer.OnRetakeShare`, into the `click_retake_share` histogram (a caller
+held there five minutes is five samples). That is not caution for its own sake —
+two people fighting over one tile retake on every click, and
+`TestTwoPlayersFightingOverOneTileReadAsRetakes` pins it. Set the shares from the
+histogram, and expect the tile war to be the case that decides them.
 
 #### The parts that are easy to get wrong
 
@@ -1224,6 +1241,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `antiBot.retaker.enabled`, `detector.reactionWindow`, `minReactions`, `maxSpread`, `maxMedian` — what counts as a reaction, how many are needed, and the band that reads `suspect` then `certain`
 - `antiBot.sequencer.enabled`, `detector.minSteps`, `minShare`, `certainSteps`, `certainShare` — how long a run of constant-stride clicks must be, and how much of it must sit at that stride
 - `antiBot.metronome.enabled`, `detector.maxGap`, `maxSpread`, `minClicks`, `certainFor`, `certainClicks` — what ends a run, how tight its gaps must be, and how long it must hold
+- `antiBot.defender.enabled`, `detector.retakeWindow`, `minClicks`, `minShare`, `certainClicks`, `certainShare` — what counts as a retake, and the share of takes that reads `suspect` then `certain`; a zero share never reads
 - every watchdog also takes `detector.trackWindow` and `detector.sweepInterval` — how far back its evidence counts, and how often what can no longer matter is forgotten
 - `session.enabled` — off registers nothing, so `session.v1.SessionService/` 404s and clicks are judged on address alone
 - `session.enforce` — off counts what enforcing would refuse without refusing it; the mode to deploy in

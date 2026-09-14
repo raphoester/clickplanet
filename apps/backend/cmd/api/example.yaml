@@ -273,9 +273,8 @@ antiBot:
       maxGap: 3s
       # The p90-p10 of the gaps inside a run, and the bound that does all the
       # work here. The median is deliberately not bounded at all: the claim is
-      # not that the caller is fast — a caller pushing past the throttle gets
-      # its surviving clicks handed back at exactly the refill rate — it is that
-      # the caller is a clock.
+      # not that the caller is fast, it is that the caller is a clock. Gaps are
+      # timed between clicks tried, 429s included, so the throttle cannot hide one.
       maxSpread: 120ms
       # How long an unbroken run must be to read as "suspect", and what turns it
       # into "certain". Half an hour without once pausing longer than maxGap is
@@ -284,6 +283,24 @@ antiBot:
       certainFor: 30m
       certainClicks: 900
       trackWindow: 15m
+      sweepInterval: 1m
+
+  # The caller whose takes are nearly all retakes: a tile its country lost a
+  # moment ago, taken back. It is not timed, so a bot draining a queue behind
+  # the throttle cannot hide in slowness.
+  defender:
+    enabled: true
+    detector:
+      # How long after a country loses a tile a take for it counts as a retake.
+      retakeWindow: 2m
+      # No share set means no verdict: the watchdog only feeds the
+      # click_retake_share histogram. Two players fighting over one tile retake
+      # every click, so set these from what that histogram shows, never before.
+      minClicks: 60
+      # minShare: 0.9
+      certainClicks: 200
+      # certainShare: 0.98
+      trackWindow: 5m
       sweepInterval: 1m
 
 # Gates the Click RPC on a token this server minted. Off by default: with it

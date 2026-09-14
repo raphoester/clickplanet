@@ -142,6 +142,20 @@ antiBot:
       trackWindow: 15m
       sweepInterval: 1m
 
+  defender:
+    enabled: true
+    detector:
+      # Measuring only, since 2026-09-14: no share is set, so it never argues
+      # for a ban. The Bulgaria bots retook from a queue, 0.4s to 40s after the
+      # loss, far past the retaker's reaction window. Read click_retake_share in
+      # the poller history before setting minShare/certainShare — two players
+      # fighting over one tile also read as all retakes.
+      retakeWindow: 2m
+      minClicks: 60
+      certainClicks: 200
+      trackWindow: 5m
+      sweepInterval: 1m
+
 # A question-mark box flies past the planet every so often, and whoever catches
 # it clicks at three times their allowance for 20 seconds.
 bonus:

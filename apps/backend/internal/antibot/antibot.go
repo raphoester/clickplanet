@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/defender"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/jury"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/metronome"
@@ -55,6 +56,7 @@ type Config struct {
 	Retaker   retakerConfig
 	Sequencer sequencerConfig
 	Metronome metronomeConfig
+	Defender  defenderConfig
 }
 
 type retakerConfig struct {
@@ -72,12 +74,20 @@ type metronomeConfig struct {
 	Detector metronome.Config
 }
 
+type defenderConfig struct {
+	Enabled  bool
+	Detector defender.Config
+}
+
 // Observer is how a finding leaves this package, which measures and judges but
 // logs and counts nothing itself. Both hooks are optional.
 type Observer struct {
 	// Every reaction, not only the ones arguing for a ban: the shape of the whole
 	// distribution is what shows the bot band.
 	OnReaction func(delay time.Duration)
+
+	// Each caller's retake share, once a sweep, whether or not a bound is set to judge it.
+	OnRetakeShare func(share float64)
 
 	OnFlag func(report Report)
 
@@ -164,6 +174,13 @@ func New(config Config, clock cptime.Clock, observer Observer) (Guard, error) {
 		g.runners = append(g.runners, watchdog.Run)
 		watchdogs = append(watchdogs, watchdog)
 		names = append(names, metronome.Name)
+	}
+
+	if config.Defender.Enabled {
+		watchdog := defender.New(config.Defender.Detector, clock, observer.OnRetakeShare)
+		g.runners = append(g.runners, watchdog.Run)
+		watchdogs = append(watchdogs, watchdog)
+		names = append(names, defender.Name)
 	}
 
 	if len(watchdogs) == 0 {
