@@ -1,5 +1,0 @@
-# VPN ranges the vendored list misses. Kept by hand; `make vpn-lists` skips it.
-
-# Mozilla VPN and Firefox's built-in VPN (AS42037, from RADB).
-2a00:8c40::/32
-185.155.180.0/22
