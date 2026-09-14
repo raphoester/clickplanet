@@ -171,6 +171,31 @@ antiBot:
       trackWindow: 30m
       sweepInterval: 1m
 
+  # Scopes that act together. See cmd/api/example.yaml. On 2026-09-14 pairs of
+  # /64s out of Firefox's built-in VPN (2a00:8c40:f000::/36) painted bg for
+  # ~8 minutes each, started milliseconds apart, and were followed at once by
+  # the next pair: zero "antibot ban" lines all day. Suspect is one group in
+  # step, which two friends are too; certain is the third group in a /44 inside
+  # 30 minutes, which a person keeping their address never produces. Watch
+  # click_cohort_scopes and the cohort= field of the ban lines after deploying.
+  cohort:
+    enabled: true
+    detector:
+      startWindow: 5s
+      minClicks: 20
+      minFlagShare: 0.9
+      rateRatio: 1.5
+      lengthRatio: 1.2
+      quietAfter: 1m
+      minMembers: 2
+      v4Bits: 24
+      v6Bits: 44
+      certainCohorts: 3
+      certainMembers: 6
+      chainWindow: 30m
+      trackWindow: 30m
+      sweepInterval: 1m
+
 # A question-mark box flies past the planet every so often, and whoever catches
 # it clicks at three times their allowance for 20 seconds.
 bonus:

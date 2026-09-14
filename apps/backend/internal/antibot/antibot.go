@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/catcher"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/cohort"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/defender"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/jury"
@@ -59,6 +60,21 @@ type Config struct {
 	Metronome metronomeConfig
 	Defender  defenderConfig
 	Catcher   catcherConfig
+	Cohort    cohortConfig
+}
+
+// Validate refuses a bound that cannot mean what it says. Only the cohort has
+// any yet: the other watchdogs clamp what they are given.
+func (c Config) Validate() error {
+	if !c.Enabled || !c.Cohort.Enabled {
+		return nil
+	}
+
+	if err := c.Cohort.Detector.Validate(); err != nil {
+		return fmt.Errorf("antiBot.cohort.detector: %w", err)
+	}
+
+	return nil
 }
 
 type retakerConfig struct {
@@ -86,6 +102,11 @@ type catcherConfig struct {
 	Detector catcher.Config
 }
 
+type cohortConfig struct {
+	Enabled  bool
+	Detector cohort.Config
+}
+
 // Observer is how a finding leaves this package, which measures and judges but
 // logs and counts nothing itself. Every hook is optional.
 type Observer struct {
@@ -95,6 +116,9 @@ type Observer struct {
 
 	// Each caller's retake share, once a sweep, whether or not a bound is set to judge it.
 	OnRetakeShare func(share float64)
+
+	// How many callers are clicking in step with another, once a sweep, whether or not it reads as more than clear.
+	OnCohortScopes func(scopes int)
 
 	OnFlag func(report Report)
 
@@ -170,6 +194,13 @@ func New(config Config, clock cptime.Clock, observer Observer) (*Guard, error) {
 		watchdogs = append(watchdogs, watchdog)
 		names = append(names, catcher.Name)
 		g.catcher = watchdog
+	}
+
+	if config.Cohort.Enabled {
+		watchdog := cohort.New(config.Cohort.Detector, clock, observer.OnCohortScopes)
+		g.runners = append(g.runners, watchdog.Run)
+		watchdogs = append(watchdogs, watchdog)
+		names = append(names, cohort.Name)
 	}
 
 	if len(watchdogs) == 0 {
