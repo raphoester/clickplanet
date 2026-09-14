@@ -118,6 +118,8 @@ func (l *Ledger) Forget(takings []Taking) {
 	}
 }
 
+func (l *Ledger) Name() string { return "tile-ledger" }
+
 func (l *Ledger) Run(ctx context.Context) {
 	ticker := time.NewTicker(l.config.SweepInterval)
 	defer ticker.Stop()

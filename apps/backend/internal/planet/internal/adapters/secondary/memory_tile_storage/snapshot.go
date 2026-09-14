@@ -22,6 +22,8 @@ const (
 
 var errCorruptSnapshot = errors.New("corrupt snapshot")
 
+func (s *Storage) Name() string { return "tiles-storage" }
+
 func (s *Storage) Run(ctx context.Context) {
 	if s.config.SnapshotPath == "" {
 		s.logger.Warn("no snapshot path configured, tile state will not survive a restart")

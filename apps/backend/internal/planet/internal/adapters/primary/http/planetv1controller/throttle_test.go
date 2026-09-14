@@ -27,7 +27,7 @@ func pricedServer(t *testing.T, config cpratelimit.Config, pricer stubPricer) (*
 	t.Helper()
 
 	clock := cptime.NewFixedClock(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC))
-	limiter := cpratelimit.New(config, clock)
+	limiter := cpratelimit.New("test", config, clock)
 
 	server := clickServerWith(t, throttle_click.New(stubService{}, limiter, pricer), limiter,
 		connect.WithInterceptors(errorNet()))

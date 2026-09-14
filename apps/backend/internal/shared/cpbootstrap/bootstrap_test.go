@@ -83,10 +83,10 @@ func TestEveryCleanupRunsBeforeTheRunnersAreWaitedOn(t *testing.T) {
 
 	require.NoError(t, run(t, []cpbootstrap.Module{
 		newModule("scheduled-job", func(props cpbootstrap.Props) error {
-			props.Runners.Add("scheduled-job", func(context.Context) {
+			props.Runners.Add(runner{name: "scheduled-job", run: func(context.Context) {
 				<-stop
 				close(stopped)
-			})
+			}})
 			props.Closers.Add("scheduled-job", func() error {
 				close(stop)
 				return nil
@@ -107,10 +107,10 @@ func TestARunnerIsCancelledOnShutdown(t *testing.T) {
 
 	require.NoError(t, run(t, []cpbootstrap.Module{
 		newModule("planet", func(props cpbootstrap.Props) error {
-			props.Runners.Add("tiles-storage", func(ctx context.Context) {
+			props.Runners.Add(runner{name: "tiles-storage", run: func(ctx context.Context) {
 				<-ctx.Done()
 				close(cancelled)
-			})
+			}})
 			return nil
 		}),
 	}))
@@ -187,3 +187,12 @@ func mountOn(path string) cpbootstrap.ServiceBuilder {
 		return path, http.NotFoundHandler()
 	}
 }
+
+type runner struct {
+	name string
+	run  func(ctx context.Context)
+}
+
+func (r runner) Name() string { return r.name }
+
+func (r runner) Run(ctx context.Context) { r.run(ctx) }

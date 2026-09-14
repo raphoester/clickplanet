@@ -19,7 +19,7 @@ func allow(l *Limiter, key string) bool {
 
 func newTestLimiter() (*Limiter, *cptime.FixedClock) {
 	clock := cptime.NewFixedClock(epoch)
-	return New(Config{PerSecond: 1, Burst: 10}, clock), clock
+	return New("test", Config{PerSecond: 1, Burst: 10}, clock), clock
 }
 
 func TestTakeSpendsTheBurstThenRefuses(t *testing.T) {
@@ -127,7 +127,7 @@ func TestSweepForgetsOnlyTheRefilledBuckets(t *testing.T) {
 }
 
 func TestDefaultsApplyToAZeroConfig(t *testing.T) {
-	limiter := New(Config{}, cptime.NewFixedClock(epoch))
+	limiter := New("test", Config{}, cptime.NewFixedClock(epoch))
 
 	require.InDelta(t, float64(defaultPerSecond), limiter.config.PerSecond, 1e-9)
 	require.Equal(t, defaultBurst, limiter.config.Burst)

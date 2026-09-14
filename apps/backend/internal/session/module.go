@@ -49,8 +49,8 @@ func build(config Config, props cpbootstrap.Props) error {
 		return err
 	}
 
-	mintLimiter := cpratelimit.New(config.RateLimiter, cptime.SystemClock{})
-	props.Runners.Add("mint-limiter", mintLimiter.Run)
+	mintLimiter := cpratelimit.New("mint-limiter", config.RateLimiter, cptime.SystemClock{})
+	props.Runners.Add(mintLimiter)
 
 	sessionService := sessionv1controller.NewSessionService(
 		session_service.New(attester, signer, cptime.SystemClock{}),
