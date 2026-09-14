@@ -529,6 +529,28 @@ different picture from forty callers caught once. The labels also tell you which
 watchdog is earning its keep before you enforce. All of them are readable with
 the `wget` line above.
 
+**A ban is the only thing those two count, so a day with no ban reads as
+nothing.** On 2026-09-14 a bot attack produced zero bans and no sign of how
+close the watchdogs came. Two series fill that gap, both labelled
+`{watchdog, level}` with `level` `suspect` or `certain`:
+
+```bash
+docker compose exec backend wget -qO- localhost:8080/metrics | grep antibot_opinions
+```
+
+- `antibot_opinions_total` counts **rises**: a watchdog's reading of a caller
+  reaching a level it has not held within `jury.suspicionWindow` (10m). A
+  reading flapping across a bound counts once a window, not once a click; one
+  that lapses and comes back counts again.
+- `antibot_opinions_standing` is how many callers each watchdog reads at that
+  level right now, set once a minute by the jury's sweep.
+
+**Levels are cumulative**: `suspect` includes every `certain`, so
+`suspect − certain` is the near misses. `antibot_opinions_total{watchdog="sequencer",level="suspect"} 30`
+with `shadowban_flags` still at 0 is thirty suspicions nobody corroborated — look
+at what the other watchdogs were reading on the same callers before loosening
+`jury.minSuspects`. The poller keeps both.
+
 Bans escalate: 24h for a first offence, 7 days for a second, 3 years from the
 third. A caller that keeps going while banned only extends the ban it has. Bans
 are saved to `bans.jsonl` on the `tile_state` volume, so a deploy keeps them.

@@ -42,14 +42,20 @@ type harness struct {
 	jury    *jury.Jury
 	clock   *cptime.FixedClock
 	reports []detect.Report
+	rises   []string
 }
 
 func newHarness(config jury.Config, ban shadowban.Config, watchdogs ...detect.Watchdog) *harness {
 	h := &harness{clock: cptime.NewFixedClock(time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC))}
 
 	banner := shadowban.New(ban, h.clock, nil)
-	h.jury = jury.New(config, banner, h.clock, func(report detect.Report) {
-		h.reports = append(h.reports, report)
+	h.jury = jury.New(config, banner, h.clock, jury.Hooks{
+		OnFlag: func(report detect.Report) {
+			h.reports = append(h.reports, report)
+		},
+		OnRise: func(watchdog string, level detect.Verdict) {
+			h.rises = append(h.rises, watchdog+" "+level.String())
+		},
 	}, watchdogs...)
 
 	return h
@@ -362,4 +368,48 @@ func TestExaminingAgesASuspicionPastTheWindow(t *testing.T) {
 	assert.Zero(t, examination.Suspects)
 	assert.Equal(t, "clear", examination.Readings[0].Level)
 	assert.Equal(t, "first-rule seen=1", examination.Readings[0].Evidence, "the evidence stays to read")
+}
+
+func TestAReadingFlappingAcrossABoundRisesOncePerWindow(t *testing.T) {
+	watchdog := &stubWatchdog{name: "unsure", verdict: detect.Suspect}
+
+	h := newHarness(juryConfig(), banConfig(), watchdog)
+
+	// Suspect, clear, suspect … for five minutes: one standing suspicion, not one per click.
+	for i := range 300 {
+		watchdog.verdict = detect.Verdict(i % 2)
+		h.click()
+	}
+
+	assert.Equal(t, []string{"unsure suspect"}, h.rises, "a counter per click would say how often it was asked, not how close it came")
+
+	watchdog.verdict = detect.Clear
+	h.click()
+	h.clock.Advance(11 * time.Minute)
+
+	watchdog.verdict = detect.Suspect
+	h.click()
+
+	assert.Equal(t, []string{"unsure suspect", "unsure suspect"}, h.rises, "past the window the suspicion had lapsed, so this is a new one")
+}
+
+func TestGoingStraightToCertainRisesThroughSuspect(t *testing.T) {
+	watchdog := &stubWatchdog{name: "sure", verdict: detect.Clear}
+	quiet := &stubWatchdog{name: "quiet", verdict: detect.Clear}
+
+	h := newHarness(juryConfig(), banConfig(), watchdog, quiet)
+
+	h.click()
+	assert.Empty(t, h.rises, "clear is not a level")
+
+	watchdog.verdict = detect.Certain
+	h.click()
+	h.click()
+
+	assert.Equal(t, []string{"sure suspect", "sure certain"}, h.rises, "levels are cumulative, like histogram buckets")
+
+	watchdog.verdict = detect.Suspect
+	h.click()
+
+	assert.Len(t, h.rises, 2, "falling back to suspect is not a rise")
 }
