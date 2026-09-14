@@ -5,8 +5,8 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/toll"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
@@ -19,7 +19,7 @@ type Config struct {
 	GameMap      GameMapConfig
 	TilesStorage inmemory_tile_storage.Config
 	RateLimiter  cpratelimit.Config
-	Toll         toll.Config
+	Toll         clicks.TollConfig
 	VPNBlocklist cpipblock.Config
 	AntiBot      antibot.Config
 	Bonus        bonuses.Config

@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_checker"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
@@ -31,7 +31,7 @@ func (s *testSuite) SetupSuite() {
 		inmemory_tile_storage.Config{},
 		slog.New(slog.DiscardHandler),
 	)
-	tileChecker := inmemory_tile_checker.New(maxIndex)
+	tileChecker := clicks.NewBoard(maxIndex)
 	countryChecker := cpcountries.New()
 	s.useCase = click_usecase.New(tileChecker, s.storage, countryChecker)
 }

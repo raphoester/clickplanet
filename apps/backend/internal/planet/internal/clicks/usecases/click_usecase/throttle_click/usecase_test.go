@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/toll"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/throttle_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
@@ -30,16 +29,16 @@ func (l *fakeLimiter) TakeN(key string, n float64) (bool, cpratelimit.State) {
 }
 
 type fakePricer struct {
-	price     toll.Price
+	price     clicks.Price
 	countries []string
 }
 
-func (p *fakePricer) Price(country string) toll.Price {
+func (p *fakePricer) Price(country string) clicks.Price {
 	p.countries = append(p.countries, country)
 	return p.price
 }
 
-func onePrice() *fakePricer { return &fakePricer{price: toll.Price{Cost: 1}} }
+func onePrice() *fakePricer { return &fakePricer{price: clicks.Price{Cost: 1}} }
 
 type fakeClick struct {
 	err error
@@ -119,7 +118,7 @@ func TestThrottleClick(t *testing.T) {
 
 	t.Run("charges the price of the country clicked for, and counts what is left in clicks", func(t *testing.T) {
 		limiter := &fakeLimiter{allow: true, state: cpratelimit.State{Tokens: 6, Capacity: 10, PerSecond: 1}}
-		pricer := &fakePricer{price: toll.Price{Cost: 1.5, Share: 0.4}}
+		pricer := &fakePricer{price: clicks.Price{Cost: 1.5, Share: 0.4}}
 
 		out, err := throttle_click.New(&fakeClick{}, limiter, pricer).
 			Execute(t.Context(), click_usecase.In{TileID: 1, CountryID: "bg"})

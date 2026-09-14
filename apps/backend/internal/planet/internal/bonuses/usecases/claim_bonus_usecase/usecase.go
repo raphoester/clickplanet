@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/toll"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -32,7 +32,7 @@ type Booster interface {
 }
 
 type Pricer interface {
-	Price(country string) toll.Price
+	Price(country string) clicks.Price
 }
 
 // Spreader starts a spread bonus, which the click chain then reads on every click.
@@ -56,7 +56,7 @@ type In struct {
 }
 
 type Out struct {
-	Budget   toll.Budget
+	Budget   clicks.Budget
 	Kind     bonuses.Kind
 	Duration time.Duration
 
@@ -122,7 +122,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	u.registry.Publish(bonuses.Taken{CountryID: in.CountryID, Kind: reward.Kind})
 
 	out := Out{
-		Budget:            toll.Of(state, u.pricer.Price(in.CountryID)),
+		Budget:            clicks.BudgetOf(state, u.pricer.Price(in.CountryID)),
 		Kind:              reward.Kind,
 		Duration:          reward.Duration,
 		Enclosures:        reward.Enclosures,

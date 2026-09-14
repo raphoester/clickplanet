@@ -6,7 +6,7 @@ package get_budget_usecase
 import (
 	"context"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/toll"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 )
@@ -19,7 +19,7 @@ type ClickBudgetReader interface {
 }
 
 type Pricer interface {
-	Price(country string) toll.Price
+	Price(country string) clicks.Price
 }
 
 // New takes a nil reader for a server that does not rate limit clicks; Execute
@@ -38,10 +38,10 @@ type UseCase struct {
 //
 // It reports false when nothing is limiting clicks, which is not the same answer
 // as an allowance of zero.
-func (u *UseCase) Execute(ctx context.Context, country string) (toll.Budget, bool) {
+func (u *UseCase) Execute(ctx context.Context, country string) (clicks.Budget, bool) {
 	if u.budgets == nil {
-		return toll.Budget{}, false
+		return clicks.Budget{}, false
 	}
 
-	return toll.Of(u.budgets.Peek(cpctx.RateLimitKey(ctx)), u.pricer.Price(country)), true
+	return clicks.BudgetOf(u.budgets.Peek(cpctx.RateLimitKey(ctx)), u.pricer.Price(country)), true
 }

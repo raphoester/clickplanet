@@ -7,7 +7,6 @@ import (
 	"fmt"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/pacing"
 )
 
 var ErrSameCountry = errors.New("cannot reassign a country to itself")
@@ -35,14 +34,14 @@ type Out struct {
 	ToAfter    int
 }
 
-func New(tiles Map, countries CountryChecker, pace pacing.Pacing) *UseCase {
+func New(tiles Map, countries CountryChecker, pace clicks.Pacing) *UseCase {
 	return &UseCase{tiles: tiles, countries: countries, pacing: pace}
 }
 
 type UseCase struct {
 	tiles     Map
 	countries CountryChecker
-	pacing    pacing.Pacing
+	pacing    clicks.Pacing
 }
 
 func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {

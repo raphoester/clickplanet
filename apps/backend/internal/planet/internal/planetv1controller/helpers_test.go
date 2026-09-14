@@ -12,7 +12,6 @@ import (
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/toll"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_budget_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_map_usecase"
@@ -112,9 +111,9 @@ func (l *fakeLimiter) TakeN(key string, _ float64) (bool, cpratelimit.State) {
 	return l.allow, l.state
 }
 
-type stubPricer toll.Price
+type stubPricer clicks.Price
 
-func (p stubPricer) Price(string) toll.Price { return toll.Price(p) }
+func (p stubPricer) Price(string) clicks.Price { return clicks.Price(p) }
 
 var onePrice = stubPricer{Cost: 1}
 

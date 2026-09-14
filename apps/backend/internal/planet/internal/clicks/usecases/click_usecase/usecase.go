@@ -8,7 +8,6 @@ import (
 	"fmt"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/toll"
 )
 
 // The three ports below are this use case's own, declared here and nowhere
@@ -47,7 +46,7 @@ type In struct {
 // value that has to be smuggled past one is a sign the policy is in the wrong
 // place.
 type Out struct {
-	Budget toll.Budget
+	Budget clicks.Budget
 
 	// Limited says whether anything throttles clicks at all, which is not the
 	// same answer as an allowance of zero.

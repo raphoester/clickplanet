@@ -35,7 +35,7 @@ The uvs are dead weight — neither shader reads them any more — and dropping 
 off a 4.9 MB download, but it touches the encoder, both decoders, three scripts and the tests.
 
 **Positions are 0-indexed by array position; wire tile ids are 1-based.** Tile id = array index + 1.
-That is what `inmemory_tile_checker` (`tile > 0 && tile <= maxIndex`), `inmemory_tile_storage`
+That is what `clicks.Board` (`tile > 0 && tile <= maxIndex`), `inmemory_tile_storage`
 (slot 0 unused) and the frontend's GPU picking (`integerToColor(i + 1)`) all agree on.
 
 ## The grid is a regular honeycomb
