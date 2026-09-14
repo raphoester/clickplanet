@@ -13,7 +13,7 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/ban_player_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/ban_player_handler"
 )
@@ -67,7 +67,7 @@ func TestErrorsMapToTheirCodes(t *testing.T) {
 	cause := errors.New("boom")
 
 	for err, code := range map[error]connect.Code{
-		fmt.Errorf("%w: %q", clicks.ErrInvalidScope, "bot"):           connect.CodeInvalidArgument,
+		fmt.Errorf("%w: %q", ledger.ErrInvalidScope, "bot"):           connect.CodeInvalidArgument,
 		fmt.Errorf("%w: -1h", ban_player_usecase.ErrNegativeDuration): connect.CodeInvalidArgument,
 		ban_player_usecase.ErrAntiBotOff:                              connect.CodeFailedPrecondition,
 		cause:                                                         connect.CodeUnknown,

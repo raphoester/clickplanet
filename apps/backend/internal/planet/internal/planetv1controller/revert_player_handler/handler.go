@@ -7,7 +7,7 @@ import (
 	"connectrpc.com/connect"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/revert_player_usecase"
 )
 
@@ -40,7 +40,7 @@ func (h RevertPlayerHandler) RevertPlayer(
 			Held:     uint32(out.Held),     //nolint:gosec // a tile count, bounded by the map.
 			Restored: uint32(out.Restored), //nolint:gosec // a tile count, bounded by the map.
 		}), nil
-	case errors.Is(err, clicks.ErrInvalidScope):
+	case errors.Is(err, ledger.ErrInvalidScope):
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	default:
 		return nil, err

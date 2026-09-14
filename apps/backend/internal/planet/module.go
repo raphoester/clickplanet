@@ -42,6 +42,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/reassign_country_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/reassign_country_usecase/audit_reassign"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/ban_player_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/ban_player_usecase/audit_ban"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/find_players_usecase"
@@ -107,8 +108,8 @@ func NewModule(config Config) cpbootstrap.Module {
 			tilesStorage.LoadSnapshot()
 			props.Runners.Add(tilesStorage)
 
-			takings := ledger.New(config.Ledger, clock)
-			props.Runners.Add(takings)
+			takings := inmemory_ledger_storage.New()
+			props.Runners.Add(ledger.NewRetention(config.Ledger, takings, clock))
 
 			limiter := cpratelimit.New("click-limiter", config.RateLimiter, clock)
 			props.Runners.Add(limiter)
@@ -116,7 +117,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			pricer := clicks.NewToll(config.Toll, tilesStorage)
 
 			// writer is the storage as the click chain writes it, so every tile it takes lands in the ledger.
-			writer := ledger.Recording{Tiles: tilesStorage, Ledger: takings}
+			writer := ledger.NewRecording(tilesStorage, takings, clock)
 
 			// ---- Bonus boxes ----
 

@@ -47,7 +47,7 @@ type UseCase struct {
 func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	scope, ok := cpipscope.Parse(in.Scope)
 	if !ok {
-		return Out{}, fmt.Errorf("%w: %q", clicks.ErrInvalidScope, in.Scope)
+		return Out{}, fmt.Errorf("%w: %q", ledger.ErrInvalidScope, in.Scope)
 	}
 	if u.pacing.Batch <= 0 {
 		return Out{}, errors.New("revert batch must be positive")
@@ -58,8 +58,8 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 
 	restorations := make([]clicks.Restoration, 0, len(takings))
 	for _, taking := range takings {
-		if owner, _ := u.tiles.Owner(taking.Tile); owner == taking.Country {
-			restorations = append(restorations, clicks.Restoration{Tile: taking.Tile, From: taking.Country, To: taking.Previous})
+		if owner, _ := u.tiles.Owner(taking.Tile); taking.WornBy(owner) {
+			restorations = append(restorations, taking.Restoration())
 		}
 	}
 	out.Held = len(restorations)

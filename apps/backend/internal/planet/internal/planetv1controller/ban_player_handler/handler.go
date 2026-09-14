@@ -8,7 +8,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/ban_player_usecase"
 )
 
@@ -43,7 +43,7 @@ func (h BanPlayerHandler) BanPlayer(
 			BannedUntil: timestamppb.New(out.Until),
 			Enforced:    out.Enforced,
 		}), nil
-	case errors.Is(err, clicks.ErrInvalidScope), errors.Is(err, ban_player_usecase.ErrNegativeDuration):
+	case errors.Is(err, ledger.ErrInvalidScope), errors.Is(err, ban_player_usecase.ErrNegativeDuration):
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	case errors.Is(err, ban_player_usecase.ErrAntiBotOff):
 		return nil, connect.NewError(connect.CodeFailedPrecondition, err)

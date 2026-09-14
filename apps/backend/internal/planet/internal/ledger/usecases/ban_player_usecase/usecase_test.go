@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/ban_player_usecase"
 )
 
@@ -45,7 +45,7 @@ func TestItRefusesWhatIsNotAScope(t *testing.T) {
 	b := &banner{}
 
 	_, err := ban_player_usecase.New(b).Execute(t.Context(), ban_player_usecase.In{Scope: "1.2.3.0/24"})
-	require.ErrorIs(t, err, clicks.ErrInvalidScope)
+	require.ErrorIs(t, err, ledger.ErrInvalidScope)
 
 	_, err = ban_player_usecase.New(b).Execute(t.Context(), ban_player_usecase.In{Scope: "1.2.3.4", Duration: -time.Hour})
 	require.ErrorIs(t, err, ban_player_usecase.ErrNegativeDuration)
