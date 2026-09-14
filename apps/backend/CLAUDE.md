@@ -440,16 +440,16 @@ gets one of four bonuses. Each box draws its kind from `bonus.kinds`, a weight
 per kind — a kind's chance is its weight over the sum of the weights, so the
 strong ones can be made rare (production runs 5 : 2 : 1 : 2):
 
-- **`triple_clicks`** — the allowance is multiplied by `bonus.multiplier` for
-  `bonus.duration`. See [What a bonus does to the bucket](#what-a-bonus-does-to-the-bucket).
+- **`triple_clicks`** — the allowance is multiplied by `bonus.triple.multiplier` for
+  `bonus.triple.duration`. See [What a bonus does to the bucket](#what-a-bonus-does-to-the-bucket).
 - **`spread_clicks`** — every click also takes the tiles touching the one
-  clicked, for `bonus.spreadDuration` instead (10s by default — it is strong). See [What a spread does to a click](#what-a-spread-does-to-a-click).
-- **`bomb`** — one bomb, to be dropped within `bonus.bombDuration` (30s). It
-  clears a circle of `bonus.bombRings` tile spacings around where it lands,
+  clicked, for `bonus.spread.duration` instead (10s by default — it is strong). See [What a spread does to a click](#what-a-spread-does-to-a-click).
+- **`bomb`** — one bomb, to be dropped within `bonus.bomb.duration` (30s). It
+  clears a circle of `bonus.bomb.rings` tile spacings around where it lands,
   whoever holds the tiles. See [What a bomb does](#what-a-bomb-does).
 - **`enclose_clicks`** — a click that closes a shape of the caller's own tiles
-  also takes the tiles inside it: `bonus.encloseShapes` shapes (3), each of at
-  most `bonus.encloseMaxTiles` tiles (15), within `bonus.encloseDuration` (30s).
+  also takes the tiles inside it: `bonus.enclose.shapes` shapes (3), each of at
+  most `bonus.enclose.maxTiles` tiles (15), within `bonus.enclose.duration` (30s).
   See [What an enclose does to a click](#what-an-enclose-does-to-a-click).
 
 Boxes are always on: there is no switch.
@@ -595,7 +595,7 @@ screen draws a splash. That was a product decision: a bad aim costs the bomb.
 
 On land the tiles are `Geography.Within(centre, radius)`: every tile within
 `radius` of arc of the tile hit — a true circle, ~230 tiles inland, found by a
-straight scan (~0.5ms, once per bomb). The radius is `bombRings × Geography.Spacing()` (`bonuses.NewBombRules`, and `BombRules.Blast` decides land or sea),
+straight scan (~0.5ms, once per bomb). The radius is `bomb.rings × Geography.Spacing()` (`bonuses.NewBombRules`, and `BombRules.Blast` decides land or sea),
 the mean arc between touching tiles measured at boot (0.0040 rad on the
 257,948-tile map, so 0.032), rather than a number in the config that could drift
 from the map; the same radius goes to clients, so the ring they draw is the clear.
@@ -638,7 +638,7 @@ and `bonus_bomb_tiles_cleared_total`.
 cuts the planet in two, and both halves are inside it. So after an accepted
 click, `click/enclose_click` floods out from each neighbour of the clicked tile
 that is not the caller's, over tiles that are not the caller's. A flood that
-runs out before passing `encloseMaxTiles` found a pocket; one that passes it is
+runs out before passing `enclose.maxTiles` found a pocket; one that passes it is
 open ground or too big, and takes nothing. The limit is therefore also what
 tells closed from open — there is no second rule.
 
@@ -720,7 +720,7 @@ of it: `Config`, `Observer`, `Guard`, `New` and `Description` to wire it, plus
 `Click`, `Report` and `Sentence` — the types a caller writes down, because it builds one
 and is handed the others. A caller hands over the block and the two hooks it wants
 findings reported through, and gets back a `Guard` — one that drops and bans nothing when the block is off, so
-the DI sequence wires it the same way either way — that answers `Attempted`, `Inspect`, `Committed`, `Flagged`, `Banned`, `LoadBans`, `Run` and `Enabled`, plus `Ban`,
+the DI sequence wires it the same way either way — that answers `Attempted`, `Inspect`, `Committed`, `Caught`, `Missed`, `Flagged`, `Banned`, `LoadBans`, `Run` and `Enabled`, plus `Ban`,
 `Sentence` and `Enforcing` for the operator tools (see [Operator tools](#operator-tools-adminservice)). It is
 **one** `Run` whatever the file turned on: how many sweepers there are is this
 package's business, which is why `planet` registers one runner rather than six.
@@ -758,7 +758,7 @@ afternoon; a silent no-op names nothing. It is not permanent (the caller reads
 the map back over the same stream and will notice), but it moves the cost of
 the next round onto them.
 
-#### Four watchdogs, one jury
+#### Five watchdogs, one jury
 
 A `Watchdog` measures one behaviour over one caller and returns a `Verdict`:
 
@@ -766,6 +766,7 @@ A `Watchdog` measures one behaviour over one caller and returns a `Verdict`:
 - **`sequencer`** — walks the tile ids rather than the map: 1, 2, 3, 4, on and on.
 - **`metronome`** — never varies and never stops.
 - **`defender`** — nearly every take is a retake, however slowly it comes.
+- **`catcher`** — catches every bonus box, at once.
 
 **Every watchdog has two levels, and that is the design.** `Certain` is a reading
 no hand produces and bans on its own. `Suspect` is a reading that would ban real
@@ -865,6 +866,28 @@ held there five minutes is five samples). That is not caution for its own sake �
 two people fighting over one tile retake on every click, and
 `TestTwoPlayersFightingOverOneTileReadAsRetakes` pins it. Set the shares from the
 histogram, and expect the tile war to be the case that decides them.
+
+**`catcher`: every box, and fast.** A box is addressed to one caller and flies
+a slow orbit that is rarely in view, so a person has to zoom out to orbit height
+and often drag the globe round to click it, and some boxes go by unseen. A script
+reads `bonus_offered` off the stream and claims at once. Over the last
+`minCatches` boxes offered (5), **all of them must be caught** — one lapse clears
+the caller — and the median delay from offer to claim reads `Suspect` at or under
+`maxMedian` (3s) and `Certain` at or under `certainMedian` (1.5s). Neither half is
+enough alone: a player already zoomed out gets lucky once, and a keen player
+catches a lot.
+
+It is the one watchdog that does not read clicks. The registry reports each box
+through `bonuses.Report` — `Caught(scope, after)` from `Claim`, timed from the
+offer being sent, and `Lapsed(scope)` from the sweep — and `internal/planet/module.go`
+hands both to `Guard.Caught` and `Guard.Missed`. The watchdog keeps the outcomes
+and answers from them on the caller's next click, since the jury only asks on a
+click. The delay includes the round trip, which only makes a person look slower.
+`bonus_catch_seconds` is the same delay as a histogram, whether the antibot is on or not.
+
+The counter-move is cheap — wait a random few seconds, or let one box in five go
+— and that is fine: a bot that does either has stopped taking every box the
+moment it is offered.
 
 #### The parts that are easy to get wrong
 
@@ -1229,8 +1252,8 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `bonus.interval` — how often a box is put in front of somebody; a ceiling, since nothing is offered while nobody is watching
 - `bonus.offerTTL` — how long the token stays good; **must outlast the flight the client draws**, or a box caught on its last frame is refused
 - `bonus.kinds` — a weight per kind (`triple_clicks`, `spread_clicks`); a kind's chance is its weight over the sum. Left out or 0 is never offered, empty offers every kind equally, and an unknown kind, a negative weight or all zeros refuse the boot
-- `bonus.spreadDuration` — how long a caught `spread_clicks` runs (default 10s). It is much shorter than `bonus.duration` because a click that takes seven tiles is worth far more than three clicks; `maxBoostPerHour` counts the time each bonus really ran
-- `bonus.duration`, `bonus.multiplier` — how long a caught `triple_clicks` runs and what it multiplies the allowance by; the client reads both off the answer, so changing them changes the meter with no frontend release
+- `bonus.spread.duration` — how long a caught `spread_clicks` runs (default 10s). It is much shorter than `bonus.triple.duration` because a click that takes seven tiles is worth far more than three clicks; `maxBoostPerHour` counts the time each bonus really ran
+- `bonus.triple.duration`, `bonus.triple.multiplier` — how long a caught `triple_clicks` runs and what it multiplies the allowance by; the client reads both off the answer, so changing them changes the meter with no frontend release
 - `antiBot.enabled` — off registers nothing and measures nothing
 - `antiBot.shadowBan.enforce` — off judges, logs and counts without dropping; the mode to deploy in
 - `antiBot.shadowBan.banDurations` — the ban for each offence (the last step repeats). An offence is a ban that starts while none is running; a flag on a running ban only extends it. **Offences are never forgotten**
@@ -1242,6 +1265,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `antiBot.sequencer.enabled`, `detector.minSteps`, `minShare`, `certainSteps`, `certainShare` — how long a run of constant-stride clicks must be, and how much of it must sit at that stride
 - `antiBot.metronome.enabled`, `detector.maxGap`, `maxSpread`, `minClicks`, `certainFor`, `certainClicks` — what ends a run, how tight its gaps must be, and how long it must hold
 - `antiBot.defender.enabled`, `detector.retakeWindow`, `minClicks`, `minShare`, `certainClicks`, `certainShare` — what counts as a retake, and the share of takes that reads `suspect` then `certain`; a zero share never reads
+- `antiBot.catcher.enabled`, `detector.minCatches`, `maxMedian`, `certainMedian` — how many boxes in a row must all be caught, and the median offer-to-claim delay that reads `suspect` then `certain`. Its `trackWindow` must hold `minCatches` boxes at `bonus.maxInterval` plus `bonus.offerTTL`
 - every watchdog also takes `detector.trackWindow` and `detector.sweepInterval` — how far back its evidence counts, and how often what can no longer matter is forgotten
 - `session.enabled` — off registers nothing, so `session.v1.SessionService/` 404s and clicks are judged on address alone
 - `session.enforce` — off counts what enforcing would refuse without refusing it; the mode to deploy in

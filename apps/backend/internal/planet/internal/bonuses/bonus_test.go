@@ -23,11 +23,10 @@ func newTestRegistry() (*Registry, *cptime.FixedClock) {
 		MaxInterval:     window,
 		MissRetry:       20 * time.Second,
 		OfferTTL:        15 * time.Second,
-		Duration:        time.Minute,
-		SpreadDuration:  time.Minute,
-		BombDuration:    time.Minute,
-		EncloseDuration: time.Minute,
-		Multiplier:      3,
+		Triple:          TripleConfig{Duration: time.Minute, Multiplier: 3},
+		Spread:          SpreadConfig{Duration: time.Minute},
+		Bomb:            BombConfig{Duration: time.Minute},
+		Enclose:         EncloseConfig{Duration: time.Minute},
 		ActiveWithin:    5 * time.Minute,
 		ForgetAfter:     5 * time.Minute,
 		MaxBoostPerHour: 15 * time.Minute,
@@ -359,7 +358,7 @@ func TestASpreadBoxRunsForItsOwnShorterDuration(t *testing.T) {
 	clock := cptime.NewFixedClock(epoch)
 	registry := New(Config{
 		MinInterval: window, MaxInterval: window, ActiveWithin: 5 * time.Minute,
-		Duration: time.Minute, SpreadDuration: 10 * time.Second,
+		Triple: TripleConfig{Duration: time.Minute}, Spread: SpreadConfig{Duration: 10 * time.Second},
 		Kinds: map[Kind]float64{KindSpreadClicks: 1},
 	}, clock)
 	events := playing(t, registry, "scope-a")
@@ -379,8 +378,8 @@ func bombRegistry() (*Registry, *cptime.FixedClock) {
 
 	return New(Config{
 		MinInterval: window, MaxInterval: window, ActiveWithin: 5 * time.Minute,
-		BombDuration: 30 * time.Second,
-		Kinds:        map[Kind]float64{KindBomb: 1},
+		Bomb:  BombConfig{Duration: 30 * time.Second},
+		Kinds: map[Kind]float64{KindBomb: 1},
 	}, clock), clock
 }
 
@@ -480,6 +479,64 @@ func TestAClaimByTheCallerItWasOfferedToSucceeds(t *testing.T) {
 	require.True(t, claimed)
 	assert.Equal(t, offer.Kind, reward.Kind, "the claim grants what the box said it was")
 	assert.Equal(t, time.Minute, reward.Duration)
+}
+
+func TestACatchIsReportedWithHowLongItTook(t *testing.T) {
+	registry, clock := newTestRegistry()
+
+	var (
+		caughtBy string
+		after    time.Duration
+	)
+	registry.Observe(Report{Caught: func(scope string, took time.Duration) { caughtBy, after = scope, took }})
+
+	events := playing(t, registry, "scope-a")
+
+	waitOut(registry, clock)
+	offer := offered(t, events)
+	require.NotNil(t, offer)
+
+	clock.Advance(1200 * time.Millisecond)
+	_, claimed := registry.Claim(offer.Token, "scope-a")
+	require.True(t, claimed)
+
+	assert.Equal(t, "scope-a", caughtBy)
+	assert.Equal(t, 1200*time.Millisecond, after, "from the offer being sent, not from the sweep's window")
+}
+
+func TestARefusedClaimIsNotACatch(t *testing.T) {
+	registry, clock := newTestRegistry()
+
+	caught := 0
+	registry.Observe(Report{Caught: func(string, time.Duration) { caught++ }})
+
+	events := playing(t, registry, "scope-a")
+
+	waitOut(registry, clock)
+	offer := offered(t, events)
+	require.NotNil(t, offer)
+
+	_, stolen := registry.Claim(offer.Token, "scope-b")
+	require.False(t, stolen)
+
+	assert.Zero(t, caught)
+}
+
+func TestALapsedBoxIsReportedAgainstItsCaller(t *testing.T) {
+	registry, clock := newTestRegistry()
+
+	var missedBy []string
+	registry.Observe(Report{Lapsed: func(scope string) { missedBy = append(missedBy, scope) }})
+
+	events := playing(t, registry, "scope-a")
+
+	waitOut(registry, clock)
+	require.NotNil(t, offered(t, events))
+
+	clock.Advance(16 * time.Second)
+	registry.sweep()
+
+	assert.Equal(t, []string{"scope-a"}, missedBy)
 }
 
 func TestATokenIsWorthNothingToAnybodyElse(t *testing.T) {
@@ -639,8 +696,9 @@ func TestAnEncloseBoxRunsForItsOwnDurationAndSaysHowManyShapes(t *testing.T) {
 	clock := cptime.NewFixedClock(epoch)
 	registry := New(Config{
 		MinInterval: window, MaxInterval: window, ActiveWithin: 5 * time.Minute,
-		Duration: time.Minute, EncloseDuration: 30 * time.Second, EncloseShapes: 3, EncloseMaxTiles: 10,
-		Kinds: map[Kind]float64{KindEncloseClicks: 1},
+		Triple:  TripleConfig{Duration: time.Minute},
+		Enclose: EncloseConfig{Duration: 30 * time.Second, Shapes: 3, MaxTiles: 10},
+		Kinds:   map[Kind]float64{KindEncloseClicks: 1},
 	}, clock)
 	events := playing(t, registry, "scope-a")
 

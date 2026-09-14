@@ -62,6 +62,12 @@ func newStack() *stack {
 	config.Metronome.Detector.CertainClicks = 900
 	config.Metronome.Detector.TrackWindow = 15 * time.Minute
 
+	config.Catcher.Enabled = true
+	config.Catcher.Detector.MinCatches = 5
+	config.Catcher.Detector.MaxMedian = 3 * time.Second
+	config.Catcher.Detector.CertainMedian = 1500 * time.Millisecond
+	config.Catcher.Detector.TrackWindow = 30 * time.Minute
+
 	guard, err := antibot.New(config, s.clock, antibot.Observer{
 		OnFlag: func(report antibot.Report) { s.reports = append(s.reports, report) },
 	})
@@ -291,6 +297,63 @@ func TestTheReflexBotIsStillCaught(t *testing.T) {
 
 	require.True(t, dropped)
 	assert.Equal(t, detect.Certain, s.verdicts("reflex")["retaker"])
+}
+
+// A script that reads the offer off the stream and claims it before the box has
+// left its spawn. It paints like a person, so only the boxes give it away.
+func TestTheBoxSnatcherIsCaught(t *testing.T) {
+	s := newStack()
+
+	//nolint:gosec // G404: deterministic PRNG, seeded per test so the click
+	// stream replays exactly. Not security-relevant.
+	random := rand.New(rand.NewPCG(9, 10))
+
+	tile := uint32(60000)
+
+	var dropped bool
+	for box := range 8 {
+		// A couple of minutes of ordinary painting between two boxes.
+		for range 60 {
+			s.clock.Advance(time.Duration(800+random.IntN(2500)) * time.Millisecond)
+			tile = uint32(int(tile) + random.IntN(40) - 20)
+			if s.click("snatcher", tile, "FR") {
+				dropped = true
+			}
+		}
+
+		if dropped {
+			assert.Equal(t, 5, box, "banned on the first click after the fifth box")
+			break
+		}
+
+		s.guard.Caught("snatcher", time.Duration(200+random.IntN(400))*time.Millisecond)
+	}
+
+	require.True(t, dropped)
+	assert.Equal(t, detect.Certain, s.verdicts("snatcher")["catcher"])
+}
+
+// A good player catches most boxes, some of them fast, and misses the ones that
+// went by behind the globe.
+func TestAPlayerWhoMissesABoxIsNotBanned(t *testing.T) {
+	s := newStack()
+
+	for box := range 30 {
+		s.clock.Advance(2 * time.Minute)
+		require.False(t, s.click("player", uint32(40000+box), "IT"))
+
+		if box%4 == 3 {
+			s.guard.Missed("player")
+			continue
+		}
+
+		s.guard.Caught("player", 900*time.Millisecond)
+	}
+
+	s.clock.Advance(time.Second)
+	require.False(t, s.click("player", 50000, "IT"))
+
+	assert.Empty(t, s.reports, "fast, but one box in four got away")
 }
 
 func TestWithTheBlockOffTheGuardPassesEveryClick(t *testing.T) {

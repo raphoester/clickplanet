@@ -126,11 +126,18 @@ func (c *caller) send(event Event) {
 	}
 }
 
-// Report is told what the sweep did, so the counters live at the edge and this
-// package keeps knowing nothing about Prometheus.
+// Report is told what happened to each box, so the counters and the antibot
+// live at the edge and this package keeps knowing nothing about either. Every
+// hook is optional, and each is called with the registry locked, so none may
+// call back into it.
 type Report struct {
 	Offered func()
-	Lapsed  func()
+
+	// Lapsed is a box its caller never claimed.
+	Lapsed func(scope string)
+
+	// Caught is a box claimed, and how long after it was offered.
+	Caught func(scope string, after time.Duration)
 }
 
 type Registry struct {
@@ -148,6 +155,7 @@ type pending struct {
 	scope     string
 	kind      Kind
 	duration  time.Duration
+	offeredAt time.Time
 	expiresAt time.Time
 }
 
@@ -256,6 +264,10 @@ func (r *Registry) Claim(token string, scope string) (Reward, bool) {
 
 	delete(r.offers, token)
 
+	if r.report.Caught != nil {
+		r.report.Caught(scope, now.Sub(offer.offeredAt))
+	}
+
 	if entry, known := r.callers[scope]; known {
 		entry.outstanding = ""
 		entry.misses = 0
@@ -267,8 +279,8 @@ func (r *Registry) Claim(token string, scope string) (Reward, bool) {
 
 	reward := Reward{Kind: offer.kind, Duration: offer.duration}
 	if offer.kind == KindEncloseClicks {
-		reward.Enclosures = r.config.EncloseShapes
-		reward.EnclosureMaxTiles = r.config.EncloseMaxTiles
+		reward.Enclosures = r.config.Enclose.Shapes
+		reward.EnclosureMaxTiles = r.config.Enclose.MaxTiles
 	}
 
 	return reward, true
@@ -338,7 +350,7 @@ func (r *Registry) broadcast(event Event) {
 }
 
 func (r *Registry) Multiplier() float64 {
-	return r.config.Multiplier
+	return r.config.Triple.Multiplier
 }
 
 func (r *Registry) Name() string { return "bonus-boxes" }
@@ -422,6 +434,7 @@ func (r *Registry) offer(scope string, entry *caller, now time.Time) {
 		scope:     scope,
 		kind:      offer.Kind,
 		duration:  offer.Duration,
+		offeredAt: now,
 		expiresAt: offer.ExpiresAt,
 	}
 
@@ -451,7 +464,9 @@ func (r *Registry) collectMisses(now time.Time) {
 			entry.nextOfferAt = now.Add(r.config.MissRetry)
 		}
 		entry.misses++
-		r.counted(r.report.Lapsed)
+		if r.report.Lapsed != nil {
+			r.report.Lapsed(offer.scope)
+		}
 	}
 }
 

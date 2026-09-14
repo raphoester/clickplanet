@@ -129,7 +129,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			bombs := bonuses.NewBombs(clock)
 			enclosures := bonuses.NewEnclosures(clock)
 
-			bombRules := bonuses.NewBombRules(config.Bonus.Rings(), geography.Spacing())
+			bombRules := bonuses.NewBombRules(config.Bonus.Bomb, geography.Spacing())
 
 			// ---- Click chain ----
 
@@ -244,14 +244,22 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			// The claim also hands the registry its counters: offered against caught
 			// is the only way to see whether the pacing and the flight time are set
-			// anywhere near right.
+			// anywhere near right. What each caller did with their box goes to the
+			// guard as well, for the catcher watchdog.
 			claimBonus, counters := prom_claim_bonus.New(
 				claim_bonus_usecase.New(registry, limiter, pricer, spreads, bombs, bombRules.Radius, enclosures, clock),
 				props.Metrics)
 
 			registry.Observe(bonuses.Report{
 				Offered: counters.Offered.Inc,
-				Lapsed:  counters.Lapsed.Inc,
+				Lapsed: func(scope string) {
+					counters.Lapsed.Inc()
+					guard.Missed(scope)
+				},
+				Caught: func(scope string, after time.Duration) {
+					counters.Caught.Observe(after.Seconds())
+					guard.Caught(scope, after)
+				},
 			})
 
 			dropped := prom_drop_bomb.New(

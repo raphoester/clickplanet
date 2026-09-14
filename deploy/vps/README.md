@@ -363,7 +363,7 @@ Sessions raise the floor to "drive a real browser". What gets through that is a
 userscript in a real browser, holding a genuine session — and the only thing
 left that separates it from a player is behaviour.
 
-`antiBot` watches four behaviours, one per watchdog:
+`antiBot` watches five behaviours, one per watchdog:
 
 - **`retaker`** — takes a tile back moments after losing it, over and over, in a
   band no hand holds.
@@ -373,6 +373,7 @@ left that separates it from a player is behaviour.
   429s included, so the throttle cannot hide a steady loop.
 - **`defender`** — nearly every take wins back a tile its country just lost.
   **Measuring only**: it sets no verdict until `minShare`/`certainShare` are set.
+- **`catcher`** — catches every bonus box, at once.
 
 Each returns `certain` or `suspect`. **`certain` bans on its own; `suspect` is a
 reading that would ban real players if it were trusted alone**, and counts only

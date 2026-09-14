@@ -23,24 +23,10 @@ type Config struct {
 
 	OfferTTL time.Duration
 
-	// How long a caught bonus runs. SpreadDuration is spread_clicks' own, much
-	// shorter: a click that takes seven tiles is worth far more than three clicks.
-	Duration       time.Duration
-	SpreadDuration time.Duration
-
-	// How long a bomb may be held before it is lost; it counts towards MaxBoostPerHour like any bonus.
-	BombDuration time.Duration
-
-	// How wide a circle a bomb clears, in tile spacings: 10.4 is ~390 tiles inland.
-	BombRings float64
-	// enclose_clicks: how long it runs, how many shapes it may close in that
-	// time, and the most tiles one shape may hold. A shape bigger than that
-	// takes nothing, and costs nothing.
-	EncloseDuration time.Duration
-	EncloseShapes   int
-	EncloseMaxTiles int
-
-	Multiplier float64
+	Triple  TripleConfig
+	Spread  SpreadConfig
+	Bomb    BombConfig
+	Enclose EncloseConfig
 
 	ActiveWithin time.Duration
 
@@ -50,23 +36,49 @@ type Config struct {
 	SweepInterval   time.Duration
 }
 
+type TripleConfig struct {
+	Duration   time.Duration
+	Multiplier float64
+}
+
+// Much shorter than a triple: a click that takes seven tiles is worth far more than three clicks.
+type SpreadConfig struct {
+	Duration time.Duration
+}
+
+type BombConfig struct {
+	// How long a bomb may be held before it is lost; it counts towards MaxBoostPerHour like any bonus.
+	Duration time.Duration
+
+	// How wide a circle a bomb clears, in tile spacings: 10.4 is ~390 tiles inland.
+	Rings float64
+}
+
+// A shape bigger than MaxTiles takes nothing, and costs nothing.
+type EncloseConfig struct {
+	Duration time.Duration
+	Shapes   int
+	MaxTiles int
+}
+
 const (
 	defaultMinInterval     = 90 * time.Second
 	defaultMaxInterval     = 210 * time.Second
 	defaultMissRetry       = 45 * time.Second
 	defaultOfferTTL        = 15 * time.Second
-	defaultDuration        = 20 * time.Second
+	defaultActiveWithin    = 2 * time.Minute
+	defaultForgetAfter     = 5 * time.Minute
+	defaultMaxBoostPerHour = 15 * time.Minute
+	defaultSweepInterval   = time.Second
+
+	defaultTripleDuration  = 20 * time.Second
+	defaultMultiplier      = 3
 	defaultSpreadDuration  = 10 * time.Second
 	defaultBombDuration    = 30 * time.Second
 	defaultBombRings       = 10.4
 	defaultEncloseDuration = 30 * time.Second
 	defaultEncloseShapes   = 3
 	defaultEncloseMaxTiles = 15
-	defaultMultiplier      = 3
-	defaultActiveWithin    = 2 * time.Minute
-	defaultForgetAfter     = 5 * time.Minute
-	defaultMaxBoostPerHour = 15 * time.Minute
-	defaultSweepInterval   = time.Second
 )
 
 func (c Config) withDefaults() Config {
@@ -88,30 +100,6 @@ func (c Config) withDefaults() Config {
 	if c.OfferTTL <= 0 {
 		c.OfferTTL = defaultOfferTTL
 	}
-	if c.Duration <= 0 {
-		c.Duration = defaultDuration
-	}
-	if c.SpreadDuration <= 0 {
-		c.SpreadDuration = defaultSpreadDuration
-	}
-	if c.BombDuration <= 0 {
-		c.BombDuration = defaultBombDuration
-	}
-	if c.BombRings <= 0 {
-		c.BombRings = defaultBombRings
-	}
-	if c.EncloseDuration <= 0 {
-		c.EncloseDuration = defaultEncloseDuration
-	}
-	if c.EncloseShapes <= 0 {
-		c.EncloseShapes = defaultEncloseShapes
-	}
-	if c.EncloseMaxTiles <= 0 {
-		c.EncloseMaxTiles = defaultEncloseMaxTiles
-	}
-	if c.Multiplier <= 1 {
-		c.Multiplier = defaultMultiplier
-	}
 	if c.ActiveWithin <= 0 {
 		c.ActiveWithin = defaultActiveWithin
 	}
@@ -123,6 +111,55 @@ func (c Config) withDefaults() Config {
 	}
 	if c.SweepInterval <= 0 {
 		c.SweepInterval = defaultSweepInterval
+	}
+
+	c.Triple = c.Triple.withDefaults()
+	c.Spread = c.Spread.withDefaults()
+	c.Bomb = c.Bomb.withDefaults()
+	c.Enclose = c.Enclose.withDefaults()
+
+	return c
+}
+
+func (c TripleConfig) withDefaults() TripleConfig {
+	if c.Duration <= 0 {
+		c.Duration = defaultTripleDuration
+	}
+	if c.Multiplier <= 1 {
+		c.Multiplier = defaultMultiplier
+	}
+
+	return c
+}
+
+func (c SpreadConfig) withDefaults() SpreadConfig {
+	if c.Duration <= 0 {
+		c.Duration = defaultSpreadDuration
+	}
+
+	return c
+}
+
+func (c BombConfig) withDefaults() BombConfig {
+	if c.Duration <= 0 {
+		c.Duration = defaultBombDuration
+	}
+	if c.Rings <= 0 {
+		c.Rings = defaultBombRings
+	}
+
+	return c
+}
+
+func (c EncloseConfig) withDefaults() EncloseConfig {
+	if c.Duration <= 0 {
+		c.Duration = defaultEncloseDuration
+	}
+	if c.Shapes <= 0 {
+		c.Shapes = defaultEncloseShapes
+	}
+	if c.MaxTiles <= 0 {
+		c.MaxTiles = defaultEncloseMaxTiles
 	}
 
 	return c
@@ -153,18 +190,13 @@ func (c Config) Validate() error {
 func (c Config) durationOf(kind Kind) time.Duration {
 	switch kind {
 	case KindSpreadClicks:
-		return c.SpreadDuration
+		return c.Spread.Duration
 	case KindBomb:
-		return c.BombDuration
+		return c.Bomb.Duration
 	case KindEncloseClicks:
-		return c.EncloseDuration
+		return c.Enclose.Duration
 	case KindTripleClicks:
 	}
 
-	return c.Duration
-}
-
-// Rings is a bomb's radius in tile spacings, defaults applied.
-func (c Config) Rings() float64 {
-	return c.withDefaults().BombRings
+	return c.Triple.Duration
 }

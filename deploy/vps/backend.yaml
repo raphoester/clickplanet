@@ -55,7 +55,7 @@ vpnBlocklist:
   allow: []
 
 # Accepts a bot's clicks and drops them, rather than refusing them and naming the
-# check it tripped. Three watchdogs read three different behaviours, the jury
+# check it tripped. Four watchdogs read four different behaviours, the jury
 # crosses what they say, and the shadow ban is the one sentence they all pass.
 # Enforcing: a flagged caller's clicks are answered OK and dropped.
 antiBot:
@@ -156,6 +156,16 @@ antiBot:
       trackWindow: 5m
       sweepInterval: 1m
 
+  # Catches every one of its last five boxes, at once. See cmd/api/example.yaml.
+  catcher:
+    enabled: true
+    detector:
+      minCatches: 5
+      maxMedian: 3s
+      certainMedian: 1500ms
+      trackWindow: 30m
+      sweepInterval: 1m
+
 # A question-mark box flies past the planet every so often, and whoever catches
 # it clicks at three times their allowance for 20 seconds.
 bonus:
@@ -184,22 +194,26 @@ bonus:
   # Multiplies the burst and the refill rate together, and the client reads both
   # off the answer - so changing these changes the meter with no frontend
   # release, exactly as rateLimiter does.
-  duration: 20s
-  multiplier: 3
+  triple:
+    duration: 20s
+    multiplier: 3
 
   # spread_clicks' own duration. It takes seven tiles a click, so it is short.
-  spreadDuration: 10s
+  spread:
+    duration: 10s
 
   # How long a bomb may be held, counted towards maxBoostPerHour, and the radius
   # of the circle it clears, in tile spacings (10.4 is ~390 tiles inland).
-  bombDuration: 30s
-  bombRings: 10.4
+  bomb:
+    duration: 30s
+    rings: 10.4
 
   # enclose_clicks: close a shape of your tiles and take the tiles inside it.
   # A few shapes, a short time: it rewards spotting a shape that is nearly done.
-  encloseDuration: 30s
-  encloseShapes: 3
-  encloseMaxTiles: 15
+  enclose:
+    duration: 30s
+    shapes: 3
+    maxTiles: 15
 
   # A tab left open overnight is not playing, and a box sent to it is one nobody
   # catches. Until the frontend ships, this is every caller.
