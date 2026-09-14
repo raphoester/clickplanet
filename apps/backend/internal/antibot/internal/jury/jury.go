@@ -70,11 +70,27 @@ type Banner interface {
 	Flagged() int
 }
 
+// Hooks is how the jury reports what it sees short of a ban. Every hook is optional.
+type Hooks struct {
+	OnFlag func(detect.Report)
+
+	// OnRise is a watchdog's reading of a caller reaching a level it has not held
+	// inside SuspicionWindow. Levels are cumulative, so a caller going straight to
+	// Certain rises to Suspect too, and a reading flapping across a bound counts
+	// once a window rather than once a click.
+	OnRise func(watchdog string, level detect.Verdict)
+
+	// OnStanding is, once a sweep, how many callers each watchdog reads at the
+	// level or above — the readings the jury would count if it deliberated now.
+	// Reported for every watchdog and level, zero included, so a gauge falls back.
+	OnStanding func(watchdog string, level detect.Verdict, callers int)
+}
+
 func New(
 	config Config,
 	banner Banner,
 	clock cptime.Clock,
-	onFlag func(detect.Report),
+	hooks Hooks,
 	watchdogs ...detect.Watchdog,
 ) *Jury {
 	if clock == nil {
@@ -85,7 +101,7 @@ func New(
 		config:    config.WithDefaults(),
 		banner:    banner,
 		clock:     clock,
-		onFlag:    onFlag,
+		hooks:     hooks,
 		watchdogs: watchdogs,
 		callers:   make(map[string]*caller),
 	}
@@ -95,7 +111,7 @@ type Jury struct {
 	config    Config
 	banner    Banner
 	clock     cptime.Clock
-	onFlag    func(detect.Report)
+	hooks     Hooks
 	watchdogs []detect.Watchdog
 
 	mu      sync.Mutex
@@ -112,6 +128,10 @@ type caller struct {
 	tiles     []uint32
 
 	opinions map[string]detect.Opinion
+
+	// reached is, per watchdog and indexed by level, when this caller was last
+	// read at that level or above: what tells a rise from a reading still standing.
+	reached map[string]*[detect.Certain + 1]time.Time
 }
 
 // Inspect runs every watchdog over the click and says whether it should be
@@ -128,7 +148,11 @@ func (j *Jury) Inspect(click detect.Click) bool {
 	// banned the caller would be judging a caller that appears to have stopped.
 	for _, watchdog := range j.watchdogs {
 		verdict, evidence := watchdog.Watch(click)
-		j.opine(click, watchdog.Name(), verdict, evidence)
+		for _, level := range j.opine(click, watchdog.Name(), verdict, evidence) {
+			if j.hooks.OnRise != nil {
+				j.hooks.OnRise(watchdog.Name(), level)
+			}
+		}
 	}
 
 	// Outside the lock from here: onFlag writes a log line, and holding the
@@ -138,8 +162,8 @@ func (j *Jury) Inspect(click detect.Click) bool {
 			report.Flags = sentence.Flags
 			report.Offence = sentence.Offence
 			report.BannedUntil = sentence.Until
-			if j.onFlag != nil {
-				j.onFlag(report)
+			if j.hooks.OnFlag != nil {
+				j.hooks.OnFlag(report)
 			}
 		}
 	}
@@ -188,7 +212,8 @@ func (j *Jury) record(click detect.Click) {
 	}
 }
 
-func (j *Jury) opine(click detect.Click, watchdog string, verdict detect.Verdict, evidence detect.Evidence) {
+// opine stores the watchdog's reading and returns the levels it rose to.
+func (j *Jury) opine(click detect.Click, watchdog string, verdict detect.Verdict, evidence detect.Evidence) []detect.Verdict {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 
@@ -199,6 +224,26 @@ func (j *Jury) opine(click detect.Click, watchdog string, verdict detect.Verdict
 		Evidence: evidence,
 		At:       click.At,
 	}
+
+	reached, ok := c.reached[watchdog]
+	if !ok {
+		reached = new([detect.Certain + 1]time.Time)
+		c.reached[watchdog] = reached
+	}
+
+	// The same window deliberate expires a reading on: a level last held longer
+	// ago than that is no longer standing, so reaching it again is a rise.
+	cutoff := click.At.Add(-j.config.SuspicionWindow)
+
+	var rises []detect.Verdict
+	for level := detect.Suspect; level <= verdict; level++ {
+		if reached[level].IsZero() || reached[level].Before(cutoff) {
+			rises = append(rises, level)
+		}
+		reached[level] = click.At
+	}
+
+	return rises
 }
 
 func (j *Jury) deliberate(click detect.Click) (detect.Report, bool) {
@@ -264,6 +309,7 @@ func (j *Jury) callerLocked(click detect.Click) *caller {
 			lastSeen:  click.At,
 			countries: make(map[string]int),
 			opinions:  make(map[string]detect.Opinion),
+			reached:   make(map[string]*[detect.Certain + 1]time.Time),
 		}
 		j.callers[click.Scope] = c
 	}
@@ -317,13 +363,46 @@ func (j *Jury) Run(ctx context.Context) {
 func (j *Jury) sweep() {
 	now := j.clock.Now()
 
+	standing := j.forget(now)
+
+	// Outside the lock, for the same reason as onFlag.
+	if j.hooks.OnStanding == nil {
+		return
+	}
+	for i, watchdog := range j.watchdogs {
+		for level := detect.Suspect; level <= detect.Certain; level++ {
+			j.hooks.OnStanding(watchdog.Name(), level, standing[i][level])
+		}
+	}
+}
+
+// forget drops idle callers and counts, per watchdog, the callers still read at
+// each level or above.
+func (j *Jury) forget(now time.Time) [][detect.Certain + 1]int {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 
-	cutoff := now.Add(-j.config.TrackWindow)
+	trackCutoff := now.Add(-j.config.TrackWindow)
+	suspicionCutoff := now.Add(-j.config.SuspicionWindow)
+
+	standing := make([][detect.Certain + 1]int, len(j.watchdogs))
+
 	for scope, c := range j.callers {
-		if c.lastSeen.Before(cutoff) {
+		if c.lastSeen.Before(trackCutoff) {
 			delete(j.callers, scope)
+			continue
+		}
+
+		for i, watchdog := range j.watchdogs {
+			opinion, ok := c.opinions[watchdog.Name()]
+			if !ok || opinion.At.Before(suspicionCutoff) {
+				continue
+			}
+			for level := detect.Suspect; level <= opinion.Verdict; level++ {
+				standing[i][level]++
+			}
 		}
 	}
+
+	return standing
 }

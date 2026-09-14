@@ -144,7 +144,7 @@ services:
             # turns them on is now antiBot: the metric names outlived the
             # rename on purpose, so an existing history file stays comparable.
             { echo "# $$stamp"
-              grep -E '^(click_reaction_seconds|click_retake_share|shadowban|blocked_clicks|click_session_checks)' /tmp/scrape || true
+              grep -E '^(click_reaction_seconds|click_retake_share|shadowban|antibot_opinions|blocked_clicks|click_session_checks)' /tmp/scrape || true
               echo
             } >> "$$file"
           else

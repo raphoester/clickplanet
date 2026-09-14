@@ -87,7 +87,7 @@ type catcherConfig struct {
 }
 
 // Observer is how a finding leaves this package, which measures and judges but
-// logs and counts nothing itself. Both hooks are optional.
+// logs and counts nothing itself. Every hook is optional.
 type Observer struct {
 	// Every reaction, not only the ones arguing for a ban: the shape of the whole
 	// distribution is what shows the bot band.
@@ -97,6 +97,17 @@ type Observer struct {
 	OnRetakeShare func(share float64)
 
 	OnFlag func(report Report)
+
+	// OnRise is a watchdog's reading of a caller reaching level, "suspect" or
+	// "certain", when it has not held that level inside jury.suspicionWindow: a
+	// rise, not a click. Levels are cumulative, so going straight to certain rises
+	// to suspect too. It is the near miss a ban never reports.
+	OnRise func(watchdog, level string)
+
+	// OnStanding is, once a jury sweep, how many callers a watchdog reads at level
+	// or above right now, zero included — what the jury would count if it
+	// deliberated at that moment.
+	OnStanding func(watchdog, level string, callers int)
 
 	// Bans that could not be restored at boot or saved since.
 	OnStateError func(err error)
@@ -215,7 +226,7 @@ func New(config Config, clock cptime.Clock, observer Observer) (Guard, error) {
 	g.runners = append(g.runners, banner.Run)
 
 	g.banner = banner
-	g.jury = jury.New(juryConfig, banner, clock, observer.OnFlag, watchdogs...)
+	g.jury = jury.New(juryConfig, banner, clock, juryHooks(observer), watchdogs...)
 	g.runners = append(g.runners, g.jury.Run)
 
 	g.description = Description{
@@ -225,6 +236,25 @@ func New(config Config, clock cptime.Clock, observer Observer) (Guard, error) {
 	}
 
 	return g, nil
+}
+
+// juryHooks words the jury's levels for the observer, so the ladder never leaves this package as a type.
+func juryHooks(observer Observer) jury.Hooks {
+	hooks := jury.Hooks{OnFlag: observer.OnFlag}
+
+	if observer.OnRise != nil {
+		hooks.OnRise = func(watchdog string, level detect.Verdict) {
+			observer.OnRise(watchdog, level.String())
+		}
+	}
+
+	if observer.OnStanding != nil {
+		hooks.OnStanding = func(watchdog string, level detect.Verdict, callers int) {
+			observer.OnStanding(watchdog, level.String(), callers)
+		}
+	}
+
+	return hooks
 }
 
 // Description is what a guard says about itself, through OnStart, for the caller's boot line. Not
