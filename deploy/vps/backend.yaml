@@ -96,6 +96,15 @@ antiBot:
     trackWindow: 15m
     sweepInterval: 1m
 
+  # On the tile_state volume too. On 2026-09-14 the API restarted 23 times,
+  # every 5-10 minutes, and with this in memory no 10m, 15m or 30m window ever
+  # filled, so nothing was banned. Delete the file with the backend stopped to
+  # start every watchdog from nothing.
+  evidence:
+    statePath: /home/app/state/antibot-evidence.bin
+    saveInterval: 1m
+    retention: 72h
+
   retaker:
     enabled: true
     detector:

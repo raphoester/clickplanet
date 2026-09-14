@@ -78,7 +78,7 @@ func NewObserver(logger *slog.Logger, registerer prometheus.Registerer) antibot.
 		},
 
 		OnStateError: func(err error) {
-			logger.Error("antibot bans not persisted", slog.Any("error", err))
+			logger.Error("antibot state not persisted", slog.Any("error", err))
 		},
 
 		OnStart: func(described antibot.Description) {

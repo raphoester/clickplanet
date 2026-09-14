@@ -40,6 +40,10 @@ func TestTheExampleConfigStillReachesTheStructs(t *testing.T) {
 	assert.Equal(t, 2, config.Planet.AntiBot.Jury.MinSuspects)
 	assert.Equal(t, 10*time.Minute, config.Planet.AntiBot.Jury.SuspicionWindow)
 
+	assert.Equal(t, "./data/antibot-evidence.bin", config.Planet.AntiBot.Evidence.StatePath)
+	assert.Equal(t, time.Minute, config.Planet.AntiBot.Evidence.SaveInterval)
+	assert.Equal(t, 72*time.Hour, config.Planet.AntiBot.Evidence.Retention)
+
 	require.True(t, config.Planet.AntiBot.Retaker.Enabled)
 	assert.Equal(t, 5*time.Second, config.Planet.AntiBot.Retaker.Detector.ReactionWindow)
 	assert.Equal(t, 12, config.Planet.AntiBot.Retaker.Detector.MinReactions)

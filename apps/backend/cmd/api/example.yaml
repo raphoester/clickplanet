@@ -225,6 +225,20 @@ antiBot:
     trackWindow: 15m
     sweepInterval: 1m
 
+  # What every watchdog and the jury are tracking, saved so a restart does not
+  # reset their windows: a process restarted every 10 minutes never fills a
+  # window of 15 or 30. Bans are saved on their own, in shadowBan above.
+  evidence:
+    # Empty keeps it in memory, where a restart starts every window again. A
+    # missing or corrupt file is logged and starts empty; it never stops a boot.
+    statePath: ./data/antibot-evidence.bin
+    # How often it is written, and it is written once more on shutdown. A hard
+    # kill loses at most this much.
+    saveInterval: 1m
+    # The oldest evidence kept, on load and by a sweep before each save,
+    # whatever a trackWindow says. A run still going is kept whole.
+    retention: 72h
+
   # Takes a tile back moments after losing it, over and over. Speed is not the
   # signal — the player clicking back at a bot is the fastest caller on the map.
   # Regularity is.

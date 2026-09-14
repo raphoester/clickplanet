@@ -163,7 +163,7 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			// With the antibot off the guard drops nothing: the click passes, BanPlayer
 			// refuses, FindPlayers says nothing of bans and a bomb is never a dud.
-			guard.LoadBans()
+			guard.LoadState()
 			props.Runners.Add(guard)
 
 			clickUseCase = antibot_click.New(clickUseCase, guard, tilesStorage, clock, props.Metrics)

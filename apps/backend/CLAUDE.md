@@ -108,7 +108,7 @@ Each context wires **itself**, in a `module.go` at its root (`internal/planet/mo
 - `props.Logger`, `props.Metrics`
 - `props.Server` — the bind address and the stream heartbeat, **the only config a module reads that is not its own**. It is the transport every module answers over, so it belongs to the layer that owns the server rather than to any context.
 
-**A constructor builds and a `Load…` method reads.** Nothing that reads a file or parses a blob happens inside `New`: the DI sequence calls `New`, then the load, one line each — `embedded_geodesic_map.New` then `LoadGeography`/`LoadBorders`, `inmemory_tile_storage.New` then `LoadSnapshot`, `memory_chat_storage.New` then `LoadLog`, `cpipblock.New` then `Load`, `antibot.New` then `LoadBans`, `inmemory_ledger_storage.New` then `LoadState`.
+**A constructor builds and a `Load…` method reads.** Nothing that reads a file or parses a blob happens inside `New`: the DI sequence calls `New`, then the load, one line each — `embedded_geodesic_map.New` then `LoadGeography`/`LoadBorders`, `inmemory_tile_storage.New` then `LoadSnapshot`, `memory_chat_storage.New` then `LoadLog`, `cpipblock.New` then `Load`, `antibot.New` then `LoadState`, `inmemory_ledger_storage.New` then `LoadState`.
 
 A module never sees the router, the signal handler or another module's objects. **There is no mutable app object and nothing to leave a half-built dependency on**: `internal/shared/cpbootstrap` builds every module in order, then serves.
 
@@ -730,7 +730,7 @@ of it: `Config`, `Observer`, `Guard`, `New` and `Description` to wire it, plus
 `Click`, `Report` and `Sentence` — the types a caller writes down, because it builds one
 and is handed the others. A caller hands over the block and the two hooks it wants
 findings reported through, and gets back a `Guard` — one that drops and bans nothing when the block is off, so
-the DI sequence wires it the same way either way — that answers `Attempted`, `Inspect`, `Committed`, `Caught`, `Missed`, `Flagged`, `Banned`, `LoadBans`, `Run` and `Enabled`, plus `Ban`,
+the DI sequence wires it the same way either way — that answers `Attempted`, `Inspect`, `Committed`, `Caught`, `Missed`, `Flagged`, `Banned`, `LoadState`, `Run` and `Enabled`, plus `Ban`,
 `Sentence` and `Enforcing` for the operator tools (see [Operator tools](#operator-tools-adminservice)). It is
 **one** `Run` whatever the file turned on: how many sweepers there are is this
 package's business, which is why `planet` registers one runner rather than six.
@@ -816,6 +816,54 @@ judging a caller that appears to have stopped, and the ban would lapse on silenc
 the caller never produced. It also means a ban sustains itself: while it runs,
 the caller takes no tiles so `retaker` starves, but ids and timing still flow, so
 `sequencer` and `metronome` keep re-flagging through `reflagInterval`.
+
+#### What survives a restart
+
+**Bans and evidence both, in two files.** Bans are `shadowBan.statePath`. What
+each watchdog is tracking and the jury's record of each caller — its tally and
+the last opinion of every watchdog — are `antiBot.evidence.statePath`, written by
+`antibot/internal/evidence`. This exists because of 2026-09-14: production
+restarted 23 times, every 5-10 minutes, during a bot attack, and with the evidence
+in memory no window of 10m (`suspicionWindow`), 15m (`trackWindow`) or 30m
+(`certainFor`, the catcher's `trackWindow`) ever filled. Nothing was banned.
+`TestALoopRestartedEveryFewMinutesIsStillCaught` replays that, both ways.
+
+- **The file is the ledger's envelope**: magic, version, CRC32, then gob. Inside
+  is one section per watchdog and one for the jury, each encoded by its own
+  package (`state.go` beside it), so a watchdog's fields stay unexported. Written
+  atomically through `cpatomicfile` every `saveInterval` and on shutdown.
+- **`Guard.LoadState` reads both files** at boot. A missing file starts empty and
+  says nothing; a corrupt one (bad magic, version, checksum or gob) is reported
+  through `OnStateError` and starts empty. A section that does not decode starts
+  that one watchdog empty and loads the others. Never a failed boot.
+- **`antiBot.evidence.retention` (72h) is a ceiling on top of every window**:
+  evidence older than it is dropped on load and by a sweep before each save. The
+  watchdogs' own sweeps still forget at their `trackWindow`, which is far
+  shorter; retention is what bounds the file after a long outage or a
+  `trackWindow` set in days. An entry goes when its last event does: a metronome
+  run or a jury tally still being added to is kept whole, however old its start.
+- **Timestamps are wall clock, and the windows stay wall clock.** A restart of
+  20 seconds costs every window 20 seconds, and a caller away for an hour is away
+  whether or not the process was. Stretching every window by the outage would buy
+  nothing measurable and let a long outage hide a real absence.
+- **Except where a gap is the signal.** `metronome` ends a run on any gap over
+  `maxGap` (3s), and no restart is that short — so a gap spanning the outage
+  would read as a break every time, and the half hour of `certainFor` could never
+  be reached across restarts. So the outage is taken out of that one gap
+  (`detect.Outage`): it runs from the save the file was written at to the moment
+  the new guard's `Run` starts — not to the load, because the boot is not over
+  then, and runners start before the server listens. If what is left is still
+  under `maxGap` — the caller was clicking when the process went down and again
+  as soon as it came back — the run goes on. That gap is **not a sample**: it is
+  stitched from two pieces, and a stitched 0.4s inside a 950ms loop would widen
+  the spread like a burst. The outage is not counted in `sustained` either. A
+  crash is the same, with the outage starting at the last periodic save.
+- The jury does the same for `longestGap` and `activeFor`, which only feed the
+  log line: a restart is not the caller pausing, nor time it was active.
+- **What this does not change:** the jury refreshes every watchdog's opinion on
+  every click before it deliberates, so a saved opinion carries its words into the
+  next ban line but never decides one — the verdicts come back because each
+  watchdog's own evidence does.
 
 #### What each one actually measures
 
@@ -1273,6 +1321,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `antiBot.shadowBan.reflagInterval` — how soon a banned caller can be judged again
 - `antiBot.jury.minSuspects` — how many watchdogs at `suspect` make a ban; one at `certain` bans alone
 - `antiBot.jury.suspicionWindow`, `trackWindow`, `sweepInterval` — how long a verdict stands while another watchdog catches up, and how long a silent caller is remembered
+- `antiBot.evidence.statePath`, `saveInterval`, `retention` — where every watchdog's evidence and the jury's record are saved (1m, and on shutdown), and the oldest kept (72h) on load and in memory; **empty keeps them in memory**, where a restart starts every window again. See [What survives a restart](#what-survives-a-restart)
 - `antiBot.retaker.enabled`, `detector.reactionWindow`, `minReactions`, `maxSpread`, `maxMedian` — what counts as a reaction, how many are needed, and the band that reads `suspect` then `certain`
 - `antiBot.sequencer.enabled`, `detector.minSteps`, `minShare`, `certainSteps`, `certainShare` — how long a run of constant-stride clicks must be, and how much of it must sit at that stride
 - `antiBot.metronome.enabled`, `detector.maxGap`, `maxSpread`, `minClicks`, `certainFor`, `certainClicks` — what ends a run, how tight its gaps must be, and how long it must hold

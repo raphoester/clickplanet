@@ -156,6 +156,32 @@ type Report struct {
 	Tiles []uint32
 }
 
+// Outage is from the last save of the evidence to the start of the process that loaded it: nobody was watching.
+type Outage struct {
+	From time.Time
+	To   time.Time
+}
+
+func (o Outage) Across(last, next time.Time) bool {
+	return o.To.After(o.From) && !last.After(o.From) && !next.Before(o.To)
+}
+
+func (o Outage) Length() time.Duration {
+	if !o.To.After(o.From) {
+		return 0
+	}
+	return o.To.Sub(o.From)
+}
+
+// Gap is next minus last, less the outage when the gap spans it.
+func (o Outage) Gap(last, next time.Time) time.Duration {
+	gap := next.Sub(last)
+	if o.Across(last, next) {
+		gap -= o.Length()
+	}
+	return gap
+}
+
 // Quantile reads a sorted slice. It rounds to the nearest sample rather than
 // interpolating, so every number reaching a log line is one that was actually
 // measured. Watchdogs judge callers on the spread of what they measured rather
