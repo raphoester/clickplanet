@@ -45,7 +45,7 @@ func setup(t *testing.T) (*inmemory_ledger_storage.Storage, owners) {
 	current := owners{}
 
 	take := func(tile uint32, scope, country string) {
-		book.Put(ledger.Taking{Tile: tile, Scope: scope, Country: country, Previous: current[tile], At: clock.Now()})
+		book.Append(ledger.Taking{Tile: tile, Scope: scope, Country: country, Previous: current[tile], At: clock.Now()})
 		current[tile] = country
 		clock.Advance(time.Second)
 	}
@@ -62,20 +62,21 @@ func setup(t *testing.T) (*inmemory_ledger_storage.Storage, owners) {
 
 var israel = borders{1: "il", 2: "il", 3: "il", 4: "il", 5: "jo"}
 
-func TestItListsWhoseFlagStillHoldsInTheAreaLatestFirst(t *testing.T) {
+func TestItListsEveryoneWhoPaintedTheFlagInTheAreaLatestFirst(t *testing.T) {
 	book, current := setup(t)
 	useCase := find_players_usecase.New(book, current, israel, bans{"bot": {Offence: 2, Until: start.Add(time.Hour)}}, countries{})
 
 	out, err := useCase.Execute(t.Context(), find_players_usecase.In{Flag: "ps", Area: "il"})
 	require.NoError(t, err)
 
-	assert.Equal(t, find_players_usecase.Out{Total: 2, Players: []ledger.Player{
+	assert.Equal(t, find_players_usecase.Out{Total: 3, Players: []ledger.Player{
+		{Scope: "covered", Takes: 1, FirstAt: start.Add(4 * time.Second), LastAt: start.Add(4 * time.Second)},
 		{
-			Scope: "bot", Tiles: 2, FirstAt: start, LastAt: start.Add(2 * time.Second),
+			Scope: "bot", Tiles: 2, Takes: 2, FirstAt: start, LastAt: start.Add(2 * time.Second),
 			Banned: true, BannedUntil: start.Add(time.Hour), Offence: 2,
 		},
-		{Scope: "player", Tiles: 1, FirstAt: start.Add(time.Second), LastAt: start.Add(time.Second)},
-	}}, out, "a tile outside the area and a tile taken back are nobody's")
+		{Scope: "player", Tiles: 1, Takes: 1, FirstAt: start.Add(time.Second), LastAt: start.Add(time.Second)},
+	}}, out, "a tile outside the area is nobody's, and a tile taken back still counts as a take")
 }
 
 func TestNoAreaIsTheWholeMapAndTheLimitCuts(t *testing.T) {
@@ -85,9 +86,9 @@ func TestNoAreaIsTheWholeMapAndTheLimitCuts(t *testing.T) {
 	out, err := useCase.Execute(t.Context(), find_players_usecase.In{Flag: "ps", Limit: 1})
 	require.NoError(t, err)
 
-	assert.Equal(t, 3, out.Total)
+	assert.Equal(t, 4, out.Total)
 	require.Len(t, out.Players, 1)
-	assert.Equal(t, "far", out.Players[0].Scope)
+	assert.Equal(t, "covered", out.Players[0].Scope)
 }
 
 func TestItRefusesAnUnknownFlagOrArea(t *testing.T) {

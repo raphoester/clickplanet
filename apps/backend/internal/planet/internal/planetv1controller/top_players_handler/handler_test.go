@@ -31,7 +31,7 @@ func (s *stubUseCase) Execute(_ context.Context, in top_players_usecase.In) (top
 func TestTheLimitReachesTheUseCaseAndThePlayersComeBack(t *testing.T) {
 	at := time.Date(2026, 9, 14, 12, 0, 0, 0, time.UTC)
 	useCase := &stubUseCase{out: top_players_usecase.Out{Total: 7, Players: []ledger.Player{
-		{Scope: "9.9.9.9", Tiles: 40, FirstAt: at, LastAt: at.Add(time.Minute), Banned: true, BannedUntil: at.Add(time.Hour), Offence: 2},
+		{Scope: "9.9.9.9", Tiles: 40, Takes: 300, FirstAt: at, LastAt: at.Add(time.Minute), Banned: true, BannedUntil: at.Add(time.Hour), Offence: 2},
 		{Scope: "2001:db8::/64", Tiles: 1, FirstAt: at, LastAt: at},
 	}}}
 
@@ -53,6 +53,8 @@ func TestTheLimitReachesTheUseCaseAndThePlayersComeBack(t *testing.T) {
 	assert.Equal(t, uint32(2), top.GetOffence())
 	assert.Equal(t, time.Minute, top.GetActiveFor().AsDuration())
 	assert.InDelta(t, 40.0, top.GetTilesPerMinute(), 1e-9)
+	assert.Equal(t, uint32(300), top.GetTakes())
+	assert.InDelta(t, 300.0, top.GetTakesPerMinute(), 1e-9)
 
 	assert.Nil(t, res.Msg.GetPlayers()[1].GetBannedUntil(), "an unbanned scope has no end date to print")
 

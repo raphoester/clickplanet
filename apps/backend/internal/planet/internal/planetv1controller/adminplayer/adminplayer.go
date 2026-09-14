@@ -23,6 +23,8 @@ func Encode(players []ledger.Player) []*planetv1.Player {
 			Offence:        uint32(player.Offence), //nolint:gosec // an offence count, never negative.
 			ActiveFor:      durationpb.New(player.ActiveFor()),
 			TilesPerMinute: player.TilesPerMinute(),
+			Takes:          uint32(player.Takes), //nolint:gosec // a take count, bounded by the ledger's cap.
+			TakesPerMinute: player.TakesPerMinute(),
 		})
 	}
 

@@ -153,7 +153,7 @@ export class TopPlayersResponse extends Message<TopPlayersResponse> {
   players: Player[] = [];
 
   /**
-   * How many scopes still wear paint on any tile, before the limit.
+   * How many scopes took any tile, before the limit.
    *
    * @generated from field: uint32 total = 2;
    */
@@ -200,6 +200,8 @@ export class Player extends Message<Player> {
   scope = "";
 
   /**
+   * Tiles it still holds: its take is the tile's latest and the paint is still there.
+   *
    * @generated from field: uint32 tiles = 2;
    */
   tiles = 0;
@@ -245,6 +247,20 @@ export class Player extends Message<Player> {
    */
   tilesPerMinute = 0;
 
+  /**
+   * Every take it made, held or painted over since; a tile taken twice counts twice.
+   *
+   * @generated from field: uint32 takes = 10;
+   */
+  takes = 0;
+
+  /**
+   * takes over active_for. 0 when active_for is 0.
+   *
+   * @generated from field: double takes_per_minute = 11;
+   */
+  takesPerMinute = 0;
+
   constructor(data?: PartialMessage<Player>) {
     super();
     proto3.util.initPartial(data, this);
@@ -262,6 +278,8 @@ export class Player extends Message<Player> {
     { no: 7, name: "offence", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 8, name: "active_for", kind: "message", T: Duration },
     { no: 9, name: "tiles_per_minute", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 10, name: "takes", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 11, name: "takes_per_minute", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Player {
@@ -438,7 +456,7 @@ export class RevertPlayerResponse extends Message<RevertPlayerResponse> {
   scope = "";
 
   /**
-   * Tiles the scope was the last to take, and those still wearing its paint.
+   * Tiles the scope took, and those it still holds.
    *
    * @generated from field: uint32 touched = 2;
    */

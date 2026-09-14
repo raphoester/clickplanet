@@ -186,7 +186,7 @@ func (x *TopPlayersRequest) GetLimit() uint32 {
 type TopPlayersResponse struct {
 	state   protoimpl.MessageState `protogen:"open.v1"`
 	Players []*Player              `protobuf:"bytes,1,rep,name=players,proto3" json:"players,omitempty"`
-	// How many scopes still wear paint on any tile, before the limit.
+	// How many scopes took any tile, before the limit.
 	Total         uint32 `protobuf:"varint,2,opt,name=total,proto3" json:"total,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -239,7 +239,8 @@ func (x *TopPlayersResponse) GetTotal() uint32 {
 type Player struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The address for IPv4, the /64 for IPv6: what the throttle and the ban key on.
-	Scope   string                 `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
+	Scope string `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
+	// Tiles it still holds: its take is the tile's latest and the paint is still there.
 	Tiles   uint32                 `protobuf:"varint,2,opt,name=tiles,proto3" json:"tiles,omitempty"`
 	FirstAt *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=first_at,json=firstAt,proto3" json:"first_at,omitempty"`
 	LastAt  *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=last_at,json=lastAt,proto3" json:"last_at,omitempty"`
@@ -251,6 +252,10 @@ type Player struct {
 	ActiveFor *durationpb.Duration `protobuf:"bytes,8,opt,name=active_for,json=activeFor,proto3" json:"active_for,omitempty"`
 	// tiles over active_for. 0 when active_for is 0.
 	TilesPerMinute float64 `protobuf:"fixed64,9,opt,name=tiles_per_minute,json=tilesPerMinute,proto3" json:"tiles_per_minute,omitempty"`
+	// Every take it made, held or painted over since; a tile taken twice counts twice.
+	Takes uint32 `protobuf:"varint,10,opt,name=takes,proto3" json:"takes,omitempty"`
+	// takes over active_for. 0 when active_for is 0.
+	TakesPerMinute float64 `protobuf:"fixed64,11,opt,name=takes_per_minute,json=takesPerMinute,proto3" json:"takes_per_minute,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -344,6 +349,20 @@ func (x *Player) GetActiveFor() *durationpb.Duration {
 func (x *Player) GetTilesPerMinute() float64 {
 	if x != nil {
 		return x.TilesPerMinute
+	}
+	return 0
+}
+
+func (x *Player) GetTakes() uint32 {
+	if x != nil {
+		return x.Takes
+	}
+	return 0
+}
+
+func (x *Player) GetTakesPerMinute() float64 {
+	if x != nil {
+		return x.TakesPerMinute
 	}
 	return 0
 }
@@ -526,7 +545,7 @@ func (x *RevertPlayerRequest) GetDryRun() bool {
 type RevertPlayerResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Scope string                 `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
-	// Tiles the scope was the last to take, and those still wearing its paint.
+	// Tiles the scope took, and those it still holds.
 	Touched       uint32 `protobuf:"varint,2,opt,name=touched,proto3" json:"touched,omitempty"`
 	Held          uint32 `protobuf:"varint,3,opt,name=held,proto3" json:"held,omitempty"`
 	Restored      uint32 `protobuf:"varint,4,opt,name=restored,proto3" json:"restored,omitempty"`
@@ -745,7 +764,7 @@ const file_planet_v1_admin_proto_rawDesc = "" +
 	"\x05limit\x18\x01 \x01(\rR\x05limit\"W\n" +
 	"\x12TopPlayersResponse\x12+\n" +
 	"\aplayers\x18\x01 \x03(\v2\x11.planet.v1.PlayerR\aplayers\x12\x14\n" +
-	"\x05total\x18\x02 \x01(\rR\x05total\"\x85\x03\n" +
+	"\x05total\x18\x02 \x01(\rR\x05total\"\xc5\x03\n" +
 	"\x06Player\x12\x14\n" +
 	"\x05scope\x18\x01 \x01(\tR\x05scope\x12\x14\n" +
 	"\x05tiles\x18\x02 \x01(\rR\x05tiles\x125\n" +
@@ -756,7 +775,10 @@ const file_planet_v1_admin_proto_rawDesc = "" +
 	"\aoffence\x18\a \x01(\rR\aoffence\x128\n" +
 	"\n" +
 	"active_for\x18\b \x01(\v2\x19.google.protobuf.DurationR\tactiveFor\x12(\n" +
-	"\x10tiles_per_minute\x18\t \x01(\x01R\x0etilesPerMinuteB\t\n" +
+	"\x10tiles_per_minute\x18\t \x01(\x01R\x0etilesPerMinute\x12\x14\n" +
+	"\x05takes\x18\n" +
+	" \x01(\rR\x05takes\x12(\n" +
+	"\x10takes_per_minute\x18\v \x01(\x01R\x0etakesPerMinuteB\t\n" +
 	"\a_banned\"_\n" +
 	"\x10BanPlayerRequest\x12\x14\n" +
 	"\x05scope\x18\x01 \x01(\tR\x05scope\x125\n" +

@@ -2,15 +2,10 @@ package ledger
 
 import "time"
 
-// Storage keeps one take per tile at most.
 type Storage interface {
-	Last(tile uint32) (Taking, bool)
-	// Put replaces the tile's last take.
-	Put(taking Taking)
-	PaintedWith(country string) []Taking
-	TakenBy(scope string) []Taking
-	All() []Taking
-	// Forget drops these takes, unless the tile was taken again since.
-	Forget(takings []Taking)
+	Append(taking Taking)
+	// Replay hands see every take not forgotten, oldest first, and returns the position after the last.
+	Replay(see func(Taking)) Position
+	Forget(scope string, before Position)
 	ForgetBefore(cutoff time.Time)
 }
