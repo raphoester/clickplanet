@@ -63,9 +63,8 @@ antiBot:
     enforce: true
     # 1st offence 24h, 2nd 7 days, 3rd and later 3 years. A caller that keeps
     # going while banned only extends its ban; a new offence is a ban that starts
-    # fresh.
+    # fresh. Offences are never forgotten.
     banDurations: [24h, 168h, 26280h]
-    strikeMemory: 720h
     # On the tile_state volume, so a deploy does not free every banned caller.
     # Unban one scope: stop the backend, delete its line, start it again.
     statePath: /home/app/state/bans.jsonl
@@ -73,7 +72,7 @@ antiBot:
     # evidence the previous one never saw. Watch the flags= count climb on a
     # caller: one flag is a window, six is a pattern.
     reflagInterval: 5m
-    sweepInterval: 1m
+    saveInterval: 1m
 
   jury:
     # Two watchdogs at "suspect" ban; one at "certain" bans alone. Raising this

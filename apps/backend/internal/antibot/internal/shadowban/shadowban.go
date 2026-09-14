@@ -15,33 +15,26 @@ type Config struct {
 	// The Nth offence bans for the Nth entry; past the end the last one repeats.
 	BanDurations []time.Duration
 
-	// How long a served ban still counts towards the next offence.
-	StrikeMemory time.Duration
-
 	ReflagInterval time.Duration
-	SweepInterval  time.Duration
+	SaveInterval   time.Duration
 
 	StatePath string
 }
 
 const (
-	defaultStrikeMemory   = 30 * 24 * time.Hour
 	defaultReflagInterval = 5 * time.Minute
-	defaultSweepInterval  = time.Minute
+	defaultSaveInterval   = time.Minute
 )
 
 func (c Config) withDefaults() Config {
 	if len(c.BanDurations) == 0 {
 		c.BanDurations = []time.Duration{24 * time.Hour, 7 * 24 * time.Hour, 3 * 365 * 24 * time.Hour}
 	}
-	if c.StrikeMemory <= 0 {
-		c.StrikeMemory = defaultStrikeMemory
-	}
 	if c.ReflagInterval <= 0 {
 		c.ReflagInterval = defaultReflagInterval
 	}
-	if c.SweepInterval <= 0 {
-		c.SweepInterval = defaultSweepInterval
+	if c.SaveInterval <= 0 {
+		c.SaveInterval = defaultSaveInterval
 	}
 	return c
 }
@@ -176,34 +169,16 @@ func (b *Banner) Flagged() int {
 func (b *Banner) Enforcing() bool { return b.config.Enforce }
 
 func (b *Banner) Run(ctx context.Context) {
-	ticker := time.NewTicker(b.config.SweepInterval)
+	ticker := time.NewTicker(b.config.SaveInterval)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ticker.C:
-			b.sweep()
 			b.saveIfDirty()
 		case <-ctx.Done():
 			b.saveIfDirty()
 			return
 		}
-	}
-}
-
-func (b *Banner) sweep() {
-	now := b.clock.Now()
-
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	for scope, record := range b.bans {
-		if record.running(now) ||
-			now.Before(record.nextFlagAt) ||
-			now.Before(record.until.Add(b.config.StrikeMemory)) {
-			continue
-		}
-		delete(b.bans, scope)
-		b.dirty = true
 	}
 }

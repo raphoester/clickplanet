@@ -28,7 +28,7 @@ func TestTheExampleConfigStillReachesTheStructs(t *testing.T) {
 
 	assert.False(t, config.Planet.AntiBot.ShadowBan.Enforce, "the example must ship observing only")
 	assert.Equal(t, []time.Duration{24 * time.Hour, 7 * 24 * time.Hour, 3 * 365 * 24 * time.Hour}, config.Planet.AntiBot.ShadowBan.BanDurations)
-	assert.Equal(t, 30*24*time.Hour, config.Planet.AntiBot.ShadowBan.StrikeMemory)
+	assert.Equal(t, time.Minute, config.Planet.AntiBot.ShadowBan.SaveInterval)
 	assert.Equal(t, "./data/bans.jsonl", config.Planet.AntiBot.ShadowBan.StatePath)
 	assert.Equal(t, 5*time.Minute, config.Planet.AntiBot.ShadowBan.ReflagInterval)
 

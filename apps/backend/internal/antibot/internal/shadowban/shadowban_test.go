@@ -25,9 +25,8 @@ func config() shadowban.Config {
 	return shadowban.Config{
 		Enforce:        true,
 		BanDurations:   []time.Duration{time.Hour, 24 * time.Hour, threeYears},
-		StrikeMemory:   30 * 24 * time.Hour,
 		ReflagInterval: 5 * time.Minute,
-		SweepInterval:  time.Minute,
+		SaveInterval:   time.Minute,
 	}
 }
 
@@ -154,6 +153,18 @@ func TestTheLastStepRepeats(t *testing.T) {
 
 	assert.Equal(t, 5, sentence.Offence)
 	assert.Equal(t, clock.Now().Add(-time.Hour), sentence.Until)
+}
+
+func TestAnOffenceCountsForever(t *testing.T) {
+	clock := newClock()
+	banner := shadowban.New(config(), clock, nil)
+
+	banner.Flag("bot")
+	clock.Advance(10 * 365 * 24 * time.Hour)
+
+	sentence, accepted := banner.Flag("bot")
+	require.True(t, accepted)
+	assert.Equal(t, 2, sentence.Offence)
 }
 
 func TestAnEmptyScopeIsNeverBanned(t *testing.T) {
