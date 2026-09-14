@@ -28,6 +28,30 @@ service AdminService {
   // Gives back every tile the scope took that nobody has taken since, to
   // whoever held it before. dry_run counts and restores nothing.
   rpc RevertPlayer(RevertPlayerRequest) returns (RevertPlayerResponse);
+
+  // Paints count random tiles of one country's ground with a flag. proximity
+  // favours tiles that touch the ones already picked. dry_run picks and paints
+  // nothing.
+  rpc PaintRandomTiles(PaintRandomTilesRequest) returns (PaintRandomTilesResponse);
+}
+
+message PaintRandomTilesRequest {
+  string flag_country_id = 1;
+  // The country whose ground the tiles sit on.
+  string area_country_id = 2;
+  uint32 count = 3;
+  // From 0 to 1. 0 picks anywhere in the area; 1 grows one patch while it can.
+  double proximity = 4;
+  bool dry_run = 5;
+}
+
+message PaintRandomTilesResponse {
+  // Tiles of the area that do not wear the flag yet.
+  uint32 eligible = 1;
+  // min(count, eligible).
+  uint32 picked = 2;
+  // Picked tiles that nobody took between the pick and the paint.
+  uint32 painted = 3;
 }
 
 message FindPlayersRequest {
