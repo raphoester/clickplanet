@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/shadowban"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 
 	"github.com/stretchr/testify/assert"
@@ -13,7 +14,7 @@ import (
 
 type stubBanner struct{}
 
-func (stubBanner) Flag(string) (int, bool) { return 1, true }
+func (stubBanner) Flag(string) (shadowban.Sentence, bool) { return shadowban.Sentence{Flags: 1}, true }
 
 func (stubBanner) Banned(string) bool { return false }
 

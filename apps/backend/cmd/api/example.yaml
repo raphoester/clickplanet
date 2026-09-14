@@ -171,14 +171,21 @@ antiBot:
     # read the "antibot ban" lines, check none of them is naming you, set the
     # bounds below from the numbers those lines carry, then turn this on.
     enforce: false
-    banDuration: 1h
+    # The Nth offence bans for the Nth step; past the end the last one repeats.
+    # A flag on a running ban only extends it: an offence is a ban that starts
+    # while none is running. Offences are never forgotten.
+    banDurations: [24h, 168h, 26280h]
+    # One JSON line per banned scope, so bans survive a restart. Empty keeps
+    # them in memory, where a deploy clears every one.
+    statePath: ./data/bans.jsonl
     # How soon a caller already serving a ban can be judged again. At or above a
     # watchdog's trackWindow each flag rests on evidence the previous one never
     # saw, so flags=6 on a line is six separate judgements agreeing rather than
     # one verdict repeated. Without this a caller goes quiet behind its first
     # ban and you cannot tell whether it stopped or kept going.
     reflagInterval: 5m
-    sweepInterval: 1m
+    # How often a changed ban list is written to statePath.
+    saveInterval: 1m
 
   # How the watchdogs are crossed.
   jury:

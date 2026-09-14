@@ -99,10 +99,12 @@ func newAntiBotObserver(
 	// The address goes in the log and never on a label: per-IP labels are
 	// unbounded cardinality, and they would put personal data in every scrape.
 	onFlag := func(report antibot.Report) {
-		fields := make([]any, 0, 8+len(report.Opinions))
+		fields := make([]any, 0, 10+len(report.Opinions))
 		fields = append(fields,
 			slog.String("scope", report.Scope),
 			slog.Int("flags", report.Flags),
+			slog.Int("offence", report.Offence),
+			slog.Time("bannedUntil", report.BannedUntil),
 			slog.Int("clicks", report.Clicks),
 			slog.Duration("activeFor", report.ActiveFor),
 			slog.Duration("longestGap", report.LongestGap),
@@ -125,5 +127,9 @@ func newAntiBotObserver(
 		logger.Warn("antibot ban", fields...)
 	}
 
-	return antibot.Observer{OnReaction: onReaction, OnFlag: onFlag}, nil
+	onStateError := func(err error) {
+		logger.Error("antibot bans not persisted", slog.Any("error", err))
+	}
+
+	return antibot.Observer{OnReaction: onReaction, OnFlag: onFlag, OnStateError: onStateError}, nil
 }
