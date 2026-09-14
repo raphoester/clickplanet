@@ -1,6 +1,7 @@
 package cphttpserver_test
 
 import (
+	"bytes"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -23,6 +24,41 @@ func TestLoggingMiddlewareKeepsTheWriterFlushable(t *testing.T) {
 	handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/", nil))
 
 	require.True(t, flushable)
+}
+
+func TestLoggingMiddlewareLogsOnlyServerErrors(t *testing.T) {
+	for _, tc := range []struct {
+		status int
+		logged bool
+	}{
+		{http.StatusOK, false},
+		{http.StatusTooManyRequests, false},
+		{http.StatusUnauthorized, false},
+		{http.StatusInternalServerError, true},
+		{http.StatusBadGateway, true},
+	} {
+		var out bytes.Buffer
+		middleware := cphttpserver.NewLoggingMiddleware(slog.New(slog.NewTextHandler(&out, nil)))
+		handler := middleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(tc.status)
+		}))
+
+		handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/x", nil))
+
+		require.Equal(t, tc.logged, out.Len() > 0, "status %d", tc.status)
+	}
+}
+
+func TestLoggingMiddlewareSaysNothingForAnImplicitOK(t *testing.T) {
+	var out bytes.Buffer
+	middleware := cphttpserver.NewLoggingMiddleware(slog.New(slog.NewTextHandler(&out, nil)))
+	handler := middleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("ok"))
+	}))
+
+	handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/x", nil))
+
+	require.Zero(t, out.Len())
 }
 
 func TestIPReaderMiddleware(t *testing.T) {
