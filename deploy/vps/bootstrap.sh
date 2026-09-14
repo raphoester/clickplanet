@@ -292,34 +292,21 @@ fi
 # a crowd and exposes the crowd to a single ban. Every deploy restarts Caddy, so
 # this was not a one-off. With the proxy off, a connection in the gap is refused
 # and Cloudflare retries onto the NAT rule, which keeps the real peer address.
-command -v python3 >/dev/null || die "python3 is missing on this box; it is needed to edit /etc/docker/daemon.json"
 daemon_json=/etc/docker/daemon.json
-mkdir -p /etc/docker
-status=0
-python3 - "$daemon_json" <<'PY' || status=$?
-import json, os, sys
-path = sys.argv[1]
-config = {}
-if os.path.exists(path) and os.path.getsize(path) > 0:
-    with open(path) as f:
-        config = json.load(f)
-if config.get("userland-proxy") is False:
-    sys.exit(10)
-config["userland-proxy"] = False
-with open(path, "w") as f:
-    json.dump(config, f, indent=2)
-    f.write("\n")
-PY
-if [[ $status -eq 0 ]]; then
+if [[ ! -s "$daemon_json" ]]; then
 	# Restarting the daemon stops every container (SIGTERM, so the API writes its
 	# final snapshot) and restart: unless-stopped brings them back: a few seconds
 	# of downtime, once, on a box that already runs the stack.
 	log "disabling docker's userland proxy (restarts docker)"
+	mkdir -p /etc/docker
+	echo '{ "userland-proxy": false }' > "$daemon_json"
 	systemctl restart docker
-elif [[ $status -eq 10 ]]; then
+elif grep -Eq '"userland-proxy"[[:space:]]*:[[:space:]]*false' "$daemon_json"; then
 	log "docker userland proxy already disabled"
 else
-	die "could not update ${daemon_json} (is it valid JSON?)"
+	# Not rewritten by hand: that file may hold settings this script knows
+	# nothing about, and a bad edit stops docker from starting at all.
+	die "${daemon_json} exists without \"userland-proxy\": false. Add it, then run: systemctl restart docker"
 fi
 
 if ! command -v git >/dev/null 2>&1; then
