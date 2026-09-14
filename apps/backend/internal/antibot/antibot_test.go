@@ -1,7 +1,9 @@
 package antibot_test
 
 import (
+	"context"
 	"math/rand/v2"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -17,15 +19,18 @@ import (
 // published constructor, with the bounds cmd/api ships — and driven by callers
 // that behave the way the real ones do.
 type stack struct {
-	guard *antibot.Guard
-	clock *cptime.FixedClock
+	guard  *antibot.Guard
+	clock  *cptime.FixedClock
+	config antibot.Config
+	stop   func()
 
 	owner   map[uint32]string
 	reports []antibot.Report
 	rises   []string
+	errors  []error
 }
 
-func newStack() *stack {
+func newStack(options ...func(*antibot.Config)) *stack {
 	s := &stack{
 		clock: cptime.NewFixedClock(time.Date(2026, 9, 11, 2, 0, 0, 0, time.UTC)),
 		owner: map[uint32]string{},
@@ -83,17 +88,52 @@ func newStack() *stack {
 	config.Cohort.Detector.CertainMembers = 6
 	config.Cohort.Detector.ChainWindow = 30 * time.Minute
 
-	guard, err := antibot.New(config, s.clock, antibot.Observer{
-		OnFlag: func(report antibot.Report) { s.reports = append(s.reports, report) },
-		OnRise: func(watchdog, level string) { s.rises = append(s.rises, watchdog+" "+level) },
+	for _, option := range options {
+		option(&config)
+	}
+
+	s.config = config
+	s.boot()
+
+	return s
+}
+
+// boot builds the guard, loads what the last one saved and runs it, the way internal/planet does.
+func (s *stack) boot() {
+	started := make(chan struct{})
+
+	guard, err := antibot.New(s.config, s.clock, antibot.Observer{
+		OnFlag:       func(report antibot.Report) { s.reports = append(s.reports, report) },
+		OnRise:       func(watchdog, level string) { s.rises = append(s.rises, watchdog+" "+level) },
+		OnStateError: func(err error) { s.errors = append(s.errors, err) },
+		OnStart:      func(antibot.Description) { close(started) },
 	})
 	if err != nil {
 		panic(err)
 	}
 
+	guard.LoadState()
 	s.guard = guard
 
-	return s
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		guard.Run(ctx)
+		close(done)
+	}()
+	<-started
+
+	s.stop = func() {
+		cancel()
+		<-done
+	}
+}
+
+// restart stops the process, which saves, and boots the next one after the outage.
+func (s *stack) restart(outage time.Duration) {
+	s.stop()
+	s.clock.Advance(outage)
+	s.boot()
 }
 
 func (s *stack) click(scope string, tile uint32, country string) bool {
@@ -500,6 +540,45 @@ func TestWithTheBlockOffTheGuardPassesEveryClick(t *testing.T) {
 	assert.False(t, guard.Enabled())
 	assert.False(t, guard.Inspect(antibot.Click{Scope: "1.2.3.4", Tile: 1, Country: "fr"}))
 	assert.False(t, guard.Banned("1.2.3.4"))
+}
+
+// Production on 2026-09-14: restarted every few minutes during the attack, so no window of 10m or more ever filled.
+func TestALoopRestartedEveryFewMinutesIsStillCaught(t *testing.T) {
+	for name, persisted := range map[string]bool{"with the evidence saved": true, "in memory": false} {
+		t.Run(name, func(t *testing.T) {
+			dir := t.TempDir()
+			s := newStack(func(config *antibot.Config) {
+				if persisted {
+					config.Evidence.StatePath = filepath.Join(dir, "evidence.bin")
+				}
+			})
+			defer func() { s.stop() }()
+
+			//nolint:gosec // G404: deterministic PRNG, seeded per test so the click
+			// stream replays exactly. Not security-relevant.
+			random := rand.New(rand.NewPCG(11, 12))
+
+			var dropped bool
+			for i := 1; i <= 3600 && !dropped; i++ {
+				s.clock.Advance(time.Second)
+				dropped = s.click("looper", 180000+uint32(random.IntN(60000)), "BG")
+
+				if i%(5*60) == 0 {
+					s.restart(20 * time.Second)
+				}
+			}
+
+			require.Empty(t, s.errors)
+
+			if !persisted {
+				assert.False(t, dropped, "every restart started the metronome's run again")
+				return
+			}
+
+			require.True(t, dropped)
+			assert.Equal(t, detect.Certain, s.verdicts("looper")["metronome"])
+		})
+	}
 }
 
 func TestExaminingABannedScopeCarriesItsSentence(t *testing.T) {

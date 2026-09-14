@@ -554,6 +554,8 @@ at what the other watchdogs were reading on the same callers before loosening
 Bans escalate: 24h for a first offence, 7 days for a second, 3 years from the
 third. A caller that keeps going while banned only extends the ban it has. Bans
 are saved to `bans.jsonl` on the `tile_state` volume, so a deploy keeps them.
+What the watchdogs are tracking is saved beside them, in `antibot-evidence.bin`,
+so a restart does not start their windows again; it keeps three days at most.
 
 See every ban:
 

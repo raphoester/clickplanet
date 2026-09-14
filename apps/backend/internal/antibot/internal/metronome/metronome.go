@@ -100,6 +100,7 @@ type Watchdog struct {
 
 	mu      sync.Mutex
 	callers map[string]*caller
+	outage  detect.Outage
 }
 
 var _ detect.Watchdog = (*Watchdog)(nil)
@@ -135,7 +136,8 @@ func (w *Watchdog) Attempted(click detect.Click) {
 		return
 	}
 
-	gap := click.At.Sub(c.lastSeen)
+	across := w.outage.Across(c.lastSeen, click.At)
+	gap := w.outage.Gap(c.lastSeen, click.At)
 	c.lastSeen = click.At
 
 	if gap < 0 || gap > w.config.MaxGap {
@@ -144,6 +146,13 @@ func (w *Watchdog) Attempted(click detect.Click) {
 	}
 
 	c.runClicks++
+
+	// Stitched across a restart, not measured: neither a break nor a sample, and the outage is not time sustained.
+	if across {
+		c.runStart = c.runStart.Add(w.outage.Length())
+		return
+	}
+
 	c.gaps = append(c.gaps, gap)
 	if capacity := w.capacity(); len(c.gaps) > capacity {
 		c.gaps = append(c.gaps[:0], c.gaps[len(c.gaps)-capacity:]...)

@@ -19,6 +19,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/cohort"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/defender"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/evidence"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/jury"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/metronome"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/retaker"
@@ -58,6 +59,7 @@ type Config struct {
 
 	ShadowBan shadowban.Config
 	Jury      jury.Config
+	Evidence  evidence.Config
 
 	Retaker   retakerConfig
 	Sequencer sequencerConfig
@@ -137,7 +139,7 @@ type Observer struct {
 	// deliberated at that moment.
 	OnStanding func(watchdog, level string, callers int)
 
-	// Bans that could not be restored at boot or saved since.
+	// Bans or evidence that could not be restored at boot or saved since.
 	OnStateError func(err error)
 
 	// What was turned on, once, when the guard starts running. Never called when the block is off.
@@ -161,6 +163,7 @@ func New(config Config, clock cptime.Clock, observer Observer) (*Guard, error) {
 
 	var (
 		watchdogs []detect.Watchdog
+		sections  []evidence.Section
 		names     []string
 	)
 
@@ -168,6 +171,7 @@ func New(config Config, clock cptime.Clock, observer Observer) (*Guard, error) {
 		watchdog := retaker.New(config.Retaker.Detector, clock, observer.OnReaction)
 		g.runners = append(g.runners, watchdog.Run)
 		watchdogs = append(watchdogs, watchdog)
+		sections = append(sections, watchdog)
 		names = append(names, retaker.Name)
 	}
 
@@ -175,6 +179,7 @@ func New(config Config, clock cptime.Clock, observer Observer) (*Guard, error) {
 		watchdog := sequencer.New(config.Sequencer.Detector, clock)
 		g.runners = append(g.runners, watchdog.Run)
 		watchdogs = append(watchdogs, watchdog)
+		sections = append(sections, watchdog)
 		names = append(names, sequencer.Name)
 	}
 
@@ -182,6 +187,7 @@ func New(config Config, clock cptime.Clock, observer Observer) (*Guard, error) {
 		watchdog := metronome.New(config.Metronome.Detector, clock)
 		g.runners = append(g.runners, watchdog.Run)
 		watchdogs = append(watchdogs, watchdog)
+		sections = append(sections, watchdog)
 		names = append(names, metronome.Name)
 	}
 
@@ -189,6 +195,7 @@ func New(config Config, clock cptime.Clock, observer Observer) (*Guard, error) {
 		watchdog := defender.New(config.Defender.Detector, clock, observer.OnRetakeShare)
 		g.runners = append(g.runners, watchdog.Run)
 		watchdogs = append(watchdogs, watchdog)
+		sections = append(sections, watchdog)
 		names = append(names, defender.Name)
 	}
 
@@ -196,6 +203,7 @@ func New(config Config, clock cptime.Clock, observer Observer) (*Guard, error) {
 		watchdog := catcher.New(config.Catcher.Detector, clock)
 		g.runners = append(g.runners, watchdog.Run)
 		watchdogs = append(watchdogs, watchdog)
+		sections = append(sections, watchdog)
 		names = append(names, catcher.Name)
 		g.catcher = watchdog
 	}
@@ -204,6 +212,7 @@ func New(config Config, clock cptime.Clock, observer Observer) (*Guard, error) {
 		watchdog := cohort.New(config.Cohort.Detector, clock, observer.OnCohortScopes)
 		g.runners = append(g.runners, watchdog.Run)
 		watchdogs = append(watchdogs, watchdog)
+		sections = append(sections, watchdog)
 		names = append(names, cohort.Name)
 	}
 
@@ -220,6 +229,9 @@ func New(config Config, clock cptime.Clock, observer Observer) (*Guard, error) {
 	g.banner = banner
 	g.jury = jury.New(juryConfig, banner, clock, juryHooks(observer), watchdogs...)
 	g.runners = append(g.runners, g.jury.Run)
+
+	g.evidence = evidence.New(config.Evidence, clock, observer.OnStateError, append(sections, g.jury)...)
+	g.runners = append(g.runners, g.evidence.Run)
 
 	g.description = Description{
 		Watchdogs:   names,
@@ -264,6 +276,7 @@ type Description struct {
 type Guard struct {
 	jury        *jury.Jury        // nil when the block is off
 	banner      *shadowban.Banner // nil when the block is off
+	evidence    *evidence.Store   // nil when the block is off
 	catcher     *catcher.Watchdog // nil when the catcher is off
 	runners     []func(context.Context)
 	description Description
@@ -306,10 +319,11 @@ func (g *Guard) Missed(scope string) {
 	}
 }
 
-// LoadBans reads the bans saved at the last shutdown, reporting a bad file through OnStateError.
-func (g *Guard) LoadBans() {
+// LoadState reads the bans and the evidence saved by the last process, reporting a bad file through OnStateError.
+func (g *Guard) LoadState() {
 	if g.Enabled() {
 		g.banner.LoadState()
+		g.evidence.LoadState()
 	}
 }
 
@@ -375,6 +389,9 @@ func (g *Guard) Run(ctx context.Context) {
 	if !g.Enabled() {
 		return
 	}
+
+	// Before any runner, and before the server listens: the outage ends when this process starts watching.
+	g.evidence.Resume()
 
 	if g.onStart != nil {
 		g.onStart(g.description)

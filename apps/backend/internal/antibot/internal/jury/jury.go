@@ -116,6 +116,7 @@ type Jury struct {
 
 	mu      sync.Mutex
 	callers map[string]*caller
+	outage  detect.Outage
 }
 
 type caller struct {
@@ -198,7 +199,11 @@ func (j *Jury) record(click detect.Click) {
 
 	c := j.callerLocked(click)
 
-	if gap := click.At.Sub(c.lastSeen); gap > c.longestGap {
+	// A restart is not the caller stopping, nor time it was active.
+	if j.outage.Across(c.lastSeen, click.At) {
+		c.firstSeen = c.firstSeen.Add(j.outage.Length())
+	}
+	if gap := j.outage.Gap(c.lastSeen, click.At); gap > c.longestGap {
 		c.longestGap = gap
 	}
 	c.lastSeen = click.At
