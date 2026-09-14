@@ -36,6 +36,7 @@ func TestVendoredVPNListBlocksAKnownRange(t *testing.T) {
 func TestVendoredSourcesAreNotTruncated(t *testing.T) {
 	for name, data := range map[string][]byte{
 		"providers": cpdata.VPNProviders,
+		"az0":       cpdata.VPNAz0,
 		"tor exits": cpdata.TorExits,
 		"netnames":  cpdata.VPNNetnames,
 	} {
@@ -44,9 +45,11 @@ func TestVendoredSourcesAreNotTruncated(t *testing.T) {
 		assert.Positivef(t, set.Len(), "%s should not be empty", name)
 	}
 
-	providers, err := cpipblock.Parse(bytes.NewReader(cpdata.VPNProviders))
-	require.NoError(t, err)
-	assert.Greater(t, providers.Len(), 5_000)
+	for name, data := range map[string][]byte{"providers": cpdata.VPNProviders, "az0": cpdata.VPNAz0} {
+		set, err := cpipblock.Parse(bytes.NewReader(data))
+		require.NoError(t, err)
+		assert.Greaterf(t, set.Len(), 5_000, "%s looks truncated", name)
+	}
 }
 
 func TestVPNListBlocksFirefoxVPN(t *testing.T) {
