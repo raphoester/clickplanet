@@ -1,20 +1,47 @@
-// Package inmemory_ledger_storage keeps the ledger in memory only: a restart forgets it, the way it forgets the throttle.
 package inmemory_ledger_storage
 
 import (
+	"log/slog"
 	"sync"
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 )
 
-func New() *Storage {
-	return &Storage{tiles: make(map[uint32]ledger.Taking)}
+type Config struct {
+	// Where the ledger is saved. Empty keeps it in memory, where a restart empties it.
+	StatePath    string
+	SaveInterval time.Duration
+}
+
+const defaultSaveInterval = time.Minute
+
+func (c Config) withDefaults() Config {
+	if c.SaveInterval <= 0 {
+		c.SaveInterval = defaultSaveInterval
+	}
+	return c
+}
+
+func New(config Config, logger *slog.Logger) *Storage {
+	if logger == nil {
+		logger = slog.New(slog.DiscardHandler)
+	}
+
+	return &Storage{
+		config: config.withDefaults(),
+		logger: logger,
+		tiles:  make(map[uint32]ledger.Taking),
+	}
 }
 
 type Storage struct {
+	config Config
+	logger *slog.Logger
+
 	mu    sync.Mutex
 	tiles map[uint32]ledger.Taking
+	dirty bool
 }
 
 var _ ledger.Storage = (*Storage)(nil)
@@ -33,6 +60,7 @@ func (s *Storage) Put(taking ledger.Taking) {
 	defer s.mu.Unlock()
 
 	s.tiles[taking.Tile] = taking
+	s.dirty = true
 }
 
 func (s *Storage) PaintedWith(country string) []ledger.Taking {
@@ -64,6 +92,7 @@ func (s *Storage) Forget(takings []ledger.Taking) {
 	for _, taking := range takings {
 		if s.tiles[taking.Tile] == taking {
 			delete(s.tiles, taking.Tile)
+			s.dirty = true
 		}
 	}
 }
@@ -75,6 +104,7 @@ func (s *Storage) ForgetBefore(cutoff time.Time) {
 	for tile, taking := range s.tiles {
 		if taking.At.Before(cutoff) {
 			delete(s.tiles, tile)
+			s.dirty = true
 		}
 	}
 }

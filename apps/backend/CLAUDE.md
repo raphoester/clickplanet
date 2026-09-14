@@ -108,7 +108,7 @@ Each context wires **itself**, in a `module.go` at its root (`internal/planet/mo
 - `props.Logger`, `props.Metrics`
 - `props.Server` — the bind address and the stream heartbeat, **the only config a module reads that is not its own**. It is the transport every module answers over, so it belongs to the layer that owns the server rather than to any context.
 
-**A constructor builds and a `Load…` method reads.** Nothing that reads a file or parses a blob happens inside `New`: the DI sequence calls `New`, then the load, one line each — `embedded_geodesic_map.New` then `LoadGeography`/`LoadBorders`, `inmemory_tile_storage.New` then `LoadSnapshot`, `memory_chat_storage.New` then `LoadLog`, `cpipblock.New` then `Load`, `antibot.New` then `LoadBans`.
+**A constructor builds and a `Load…` method reads.** Nothing that reads a file or parses a blob happens inside `New`: the DI sequence calls `New`, then the load, one line each — `embedded_geodesic_map.New` then `LoadGeography`/`LoadBorders`, `inmemory_tile_storage.New` then `LoadSnapshot`, `memory_chat_storage.New` then `LoadLog`, `cpipblock.New` then `Load`, `antibot.New` then `LoadBans`, `inmemory_ledger_storage.New` then `LoadState`.
 
 A module never sees the router, the signal handler or another module's objects. **There is no mutable app object and nothing to leave a half-built dependency on**: `internal/shared/cpbootstrap` builds every module in order, then serves.
 
@@ -1001,7 +1001,7 @@ Measured on a copy of production's snapshot: 22,040 tiles in 4.4s, all 22,040 up
 For the patterns no watchdog catches but a person sees on the map. A player is a **scope** (`cpipscope`): the address over IPv4, the /64 over IPv6 — what the throttle and the ban already key on.
 
 - **`ledger` remembers, per tile, the last scope that took it** and what the tile held before that scope's first take. `ledger.Recording` wraps the storage the click chain writes through — the rule, `spread_click` and the enclose annexer — so every tile a click takes is recorded, a no-op is not, and a click the shadow ban drops never reaches it. A take by somebody else replaces the entry; that is what "covered" means. Bombs and reassigns do not write the ledger: the tile no longer wears the paint, and both use cases check the owner.
-- **In memory only** (`inmemory_ledger_storage`, behind `ledger.Storage`), one entry per tile at most, forgotten after `ledger.retention` (24h) by `ledger.Retention`. A restart empties it.
+- **Kept in memory and saved to a file** (`inmemory_ledger_storage`, behind `ledger.Storage`), one entry per tile at most, forgotten after `ledger.retention` (72h) by `ledger.Retention`. Three days is the context a ban is decided on. The file is the tile snapshot's shape — magic, version, CRC32, a string table, then 24 bytes per tile, ~6 MB for a full map — written atomically every `ledgerStorage.saveInterval` when it changed and once more on shutdown, and read at boot by `LoadState`. A missing or corrupt file is logged and starts empty; it never prevents a start.
 - **The rules are in the `ledger` root, not in the use cases**: `Taking.Over` (a retake keeps the first owner), `Taking.WornBy` and `Taking.Restoration` (what a revert may give back), `Players` and `Top` (how `FindPlayers` gathers and cuts). The two use cases only load, filter through their ports, and call these.
 - **`FindPlayers(flag, area, limit)`** lists the scopes whose paint of `flag` still holds, on tiles whose ground is `area` (empty is the whole map), latest take first, with any running ban. The ground comes from `clicks.Borders`, built by `embedded_geodesic_map.Loader.LoadBorders` from the borders blob the frontend paints flags from — see [Map geography](#map-geography). A blob for another map refuses the boot.
 - **`BanPlayer(scope, duration)`** is `shadowban.Banner.Ban`, and drops the scope's clicks and bombs alike: the same record, ladder and state file as a watchdog's ban, and it counts as an offence. It skips `reflagInterval`, and an empty duration takes the ladder's step. Any address is accepted and banned as its scope (`cpipscope.Parse`). **It follows `antiBot.shadowBan.enforce`**, and says so in `enforced`. With `antiBot.enabled` false it answers `FailedPrecondition`.
@@ -1216,7 +1216,8 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `gameMap.maxIndex` — total number of tiles
 - `tilesStorage.snapshotPath` — where the state is persisted; **empty disables durability**
 - `tilesStorage.snapshotInterval` — how often a changed state is flushed
-- `ledger.retention`, `ledger.sweepInterval` — how long the operator tools can trace and revert a take (24h), in memory only
+- `ledger.retention`, `ledger.sweepInterval` — how long the operator tools can trace and revert a take (72h)
+- `ledgerStorage.statePath`, `ledgerStorage.saveInterval` — where the ledger is saved and how often (1m, and on shutdown); **empty keeps it in memory**, where a restart empties it
 - `tilesStorage.subscriberBuffer` — per-subscriber channel capacity, which is now per connected client rather than per fanout; updates for a subscriber that cannot keep up are dropped, not blocked on
 - `rateLimiter.perSecond`, `rateLimiter.burst`, `rateLimiter.sweepInterval` — the per-IP click throttle (defaults 1/s, burst 10, swept every minute)
 - `vpnBlocklist.enabled`, `vpnBlocklist.includeDatacenters`, `vpnBlocklist.allow` — the VPN refusal (see [VPN blocklist](#vpn-blocklist)); disabled parses nothing and allocates nothing
