@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/catcher"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/jury"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/metronome"
@@ -55,6 +56,7 @@ type Config struct {
 	Retaker   retakerConfig
 	Sequencer sequencerConfig
 	Metronome metronomeConfig
+	Catcher   catcherConfig
 }
 
 type retakerConfig struct {
@@ -70,6 +72,11 @@ type sequencerConfig struct {
 type metronomeConfig struct {
 	Enabled  bool
 	Detector metronome.Config
+}
+
+type catcherConfig struct {
+	Enabled  bool
+	Detector catcher.Config
 }
 
 // Observer is how a finding leaves this package, which measures and judges but
@@ -97,6 +104,12 @@ type Guard interface {
 	// Only for a click the handler accepted: a refused one recorded as a take is
 	// how the next honest clicker of that tile comes to look like it is reacting.
 	Committed(click Click)
+
+	// Caught and Missed tell the guard what a caller did with a bonus box offered
+	// to them: claimed after a delay, or let lapse. They say nothing about the
+	// click that follows until the jury next asks.
+	Caught(scope string, after time.Duration)
+	Missed(scope string)
 
 	// LoadBans reads the bans saved at the last shutdown, reporting a bad file through OnStateError.
 	LoadBans()
@@ -163,6 +176,14 @@ func New(config Config, clock cptime.Clock, observer Observer) (Guard, error) {
 		names = append(names, metronome.Name)
 	}
 
+	if config.Catcher.Enabled {
+		watchdog := catcher.New(config.Catcher.Detector, clock)
+		g.runners = append(g.runners, watchdog.Run)
+		watchdogs = append(watchdogs, watchdog)
+		names = append(names, catcher.Name)
+		g.catcher = watchdog
+	}
+
 	if len(watchdogs) == 0 {
 		return nil, fmt.Errorf("antiBot is enabled with no watchdog turned on")
 	}
@@ -197,6 +218,7 @@ type Description struct {
 type guard struct {
 	jury        *jury.Jury
 	banner      *shadowban.Banner
+	catcher     *catcher.Watchdog // nil when the catcher is off
 	runners     []func(context.Context)
 	description Description
 	onStart     func(Description)
@@ -205,6 +227,18 @@ type guard struct {
 func (g *guard) Inspect(click Click) bool { return g.jury.Inspect(click) }
 
 func (g *guard) Committed(click Click) { g.jury.Committed(click) }
+
+func (g *guard) Caught(scope string, after time.Duration) {
+	if g.catcher != nil {
+		g.catcher.Caught(scope, after)
+	}
+}
+
+func (g *guard) Missed(scope string) {
+	if g.catcher != nil {
+		g.catcher.Missed(scope)
+	}
+}
 
 func (g *guard) LoadBans() { g.banner.LoadState() }
 
@@ -248,6 +282,8 @@ type off struct{}
 
 func (off) Inspect(Click) bool                 { return false }
 func (off) Committed(Click)                    {}
+func (off) Caught(string, time.Duration)       {}
+func (off) Missed(string)                      {}
 func (off) LoadBans()                          {}
 func (off) Flagged() int                       { return 0 }
 func (off) Banned(string) bool                 { return false }

@@ -55,7 +55,7 @@ vpnBlocklist:
   allow: []
 
 # Accepts a bot's clicks and drops them, rather than refusing them and naming the
-# check it tripped. Three watchdogs read three different behaviours, the jury
+# check it tripped. Four watchdogs read four different behaviours, the jury
 # crosses what they say, and the shadow ban is the one sentence they all pass.
 # Enforcing: a flagged caller's clicks are answered OK and dropped.
 antiBot:
@@ -141,6 +141,16 @@ antiBot:
       certainFor: 30m
       certainClicks: 900
       trackWindow: 15m
+      sweepInterval: 1m
+
+  # Catches every one of its last five boxes, at once. See cmd/api/example.yaml.
+  catcher:
+    enabled: true
+    detector:
+      minCatches: 5
+      maxMedian: 3s
+      certainMedian: 1500ms
+      trackWindow: 30m
       sweepInterval: 1m
 
 # A question-mark box flies past the planet every so often, and whoever catches

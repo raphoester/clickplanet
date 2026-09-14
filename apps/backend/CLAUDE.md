@@ -719,7 +719,7 @@ of it: `Config`, `Observer`, `Guard`, `New` and `Description` to wire it, plus
 `Click`, `Report` and `Sentence` — the types a caller writes down, because it builds one
 and is handed the others. A caller hands over the block and the two hooks it wants
 findings reported through, and gets back a `Guard` — one that drops and bans nothing when the block is off, so
-the DI sequence wires it the same way either way — that answers `Inspect`, `Committed`, `Flagged`, `Banned`, `LoadBans`, `Run` and `Enabled`, plus `Ban`,
+the DI sequence wires it the same way either way — that answers `Inspect`, `Committed`, `Caught`, `Missed`, `Flagged`, `Banned`, `LoadBans`, `Run` and `Enabled`, plus `Ban`,
 `Sentence` and `Enforcing` for the operator tools (see [Operator tools](#operator-tools-adminservice)). It is
 **one** `Run` whatever the file turned on: how many sweepers there are is this
 package's business, which is why `planet` registers one runner rather than six.
@@ -757,13 +757,14 @@ afternoon; a silent no-op names nothing. It is not permanent (the caller reads
 the map back over the same stream and will notice), but it moves the cost of
 the next round onto them.
 
-#### Three watchdogs, one jury
+#### Four watchdogs, one jury
 
 A `Watchdog` measures one behaviour over one caller and returns a `Verdict`:
 
 - **`retaker`** — takes a tile back moments after losing it, over and over.
 - **`sequencer`** — walks the tile ids rather than the map: 1, 2, 3, 4, on and on.
 - **`metronome`** — never varies and never stops.
+- **`catcher`** — catches every bonus box, at once.
 
 **Every watchdog has two levels, and that is the design.** `Certain` is a reading
 no hand produces and bans on its own. `Suspect` is a reading that would ban real
@@ -840,6 +841,28 @@ construction — randomise and the band widens to look human. What is not cheap 
 fake is *stopping*: a person's session has breaks in it. `activeFor` and
 `longestGap` still feed no rule, because deciding on them alone would ban the
 genuinely obsessed; they go in the log, beside a rule that did fire.
+
+**`catcher`: every box, and fast.** A box is addressed to one caller and flies
+a slow orbit that is rarely in view, so a person has to zoom out to orbit height
+and often drag the globe round to click it, and some boxes go by unseen. A script
+reads `bonus_offered` off the stream and claims at once. Over the last
+`minCatches` boxes offered (5), **all of them must be caught** — one lapse clears
+the caller — and the median delay from offer to claim reads `Suspect` at or under
+`maxMedian` (3s) and `Certain` at or under `certainMedian` (1.5s). Neither half is
+enough alone: a player already zoomed out gets lucky once, and a keen player
+catches a lot.
+
+It is the one watchdog that does not read clicks. The registry reports each box
+through `bonuses.Report` — `Caught(scope, after)` from `Claim`, timed from the
+offer being sent, and `Lapsed(scope)` from the sweep — and `internal/planet/module.go`
+hands both to `Guard.Caught` and `Guard.Missed`. The watchdog keeps the outcomes
+and answers from them on the caller's next click, since the jury only asks on a
+click. The delay includes the round trip, which only makes a person look slower.
+`bonus_catch_seconds` is the same delay as a histogram, whether the antibot is on or not.
+
+The counter-move is cheap — wait a random few seconds, or let one box in five go
+— and that is fine: a bot that does either has stopped taking every box the
+moment it is offered.
 
 #### The parts that are easy to get wrong
 
@@ -1212,6 +1235,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `antiBot.retaker.enabled`, `detector.reactionWindow`, `minReactions`, `maxSpread`, `maxMedian` — what counts as a reaction, how many are needed, and the band that reads `suspect` then `certain`
 - `antiBot.sequencer.enabled`, `detector.minSteps`, `minShare`, `certainSteps`, `certainShare` — how long a run of constant-stride clicks must be, and how much of it must sit at that stride
 - `antiBot.metronome.enabled`, `detector.maxGap`, `maxSpread`, `minClicks`, `certainFor`, `certainClicks` — what ends a run, how tight its gaps must be, and how long it must hold
+- `antiBot.catcher.enabled`, `detector.minCatches`, `maxMedian`, `certainMedian` — how many boxes in a row must all be caught, and the median offer-to-claim delay that reads `suspect` then `certain`. Its `trackWindow` must hold `minCatches` boxes at `bonus.maxInterval` plus `bonus.offerTTL`
 - every watchdog also takes `detector.trackWindow` and `detector.sweepInterval` — how far back its evidence counts, and how often what can no longer matter is forgotten
 - `session.enabled` — off registers nothing, so `session.v1.SessionService/` 404s and clicks are judged on address alone
 - `session.enforce` — off counts what enforcing would refuse without refusing it; the mode to deploy in

@@ -21,6 +21,11 @@ type UseCase interface {
 type Counters struct {
 	Offered prometheus.Counter
 	Lapsed  prometheus.Counter
+
+	// Caught is how long after the offer each box was claimed. The raw bucket
+	// counts are what show a band of callers claiming before a person could
+	// have found the box.
+	Caught prometheus.Histogram
 }
 
 func New(implementation UseCase, registerer prometheus.Registerer) (*Decorator, Counters) {
@@ -41,8 +46,14 @@ func New(implementation UseCase, registerer prometheus.Registerer) (*Decorator, 
 		Help: "Bonus boxes that were offered and not caught",
 	})
 
+	caught := factory.NewHistogram(prometheus.HistogramOpts{
+		Name:    "bonus_catch_seconds",
+		Help:    "How long after a bonus box was offered it was claimed",
+		Buckets: []float64{0.25, 0.5, 1, 1.5, 2, 3, 4, 6, 8, 10, 12, 15},
+	})
+
 	return &Decorator{implementation: implementation, claims: claims},
-		Counters{Offered: offers, Lapsed: lapsed}
+		Counters{Offered: offers, Lapsed: lapsed, Caught: caught}
 }
 
 type Decorator struct {
