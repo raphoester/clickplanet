@@ -59,6 +59,7 @@ func (b *Blocklist) Load() error {
 		bytes.NewReader(cpdata.VPNv4),
 		bytes.NewReader(cpdata.VPNv6),
 		bytes.NewReader(cpdata.VPNProviders),
+		bytes.NewReader(cpdata.VPNAz0),
 		bytes.NewReader(cpdata.TorExits),
 		bytes.NewReader(cpdata.VPNNetnames),
 	)

@@ -127,8 +127,9 @@ setup-tools: ## Install the pinned linter into $(go env GOPATH)/bin
 # tests (they assert the lists still parse and are not truncated), and commit.
 #
 # X4BNet works from ASN ownership, so it misses VPN servers rented inside other
-# networks. Three more sources fill that in, all folded into the vpn list:
+# networks. Four more sources fill that in, all folded into the vpn list:
 #   - Joe12387/open-source-vpn-ip-lists (CC0): each provider's own server list
+#   - az0/vpn_ip (GPL-3): VPN hostnames resolved, from apps and extensions
 #   - the Tor Project's exit list
 #   - every range registered under a netname in VPN_NETNAMES, from the RIPE and
 #     ARIN RDAP servers. Firefox's built-in VPN is announced by Fastly, so no
@@ -137,10 +138,11 @@ setup-tools: ## Install the pinned linter into $(go env GOPATH)/bin
 VPN_LISTS_URL := https://raw.githubusercontent.com/X4BNet/lists_vpn/main/output
 VPN_LISTS_DIR := internal/shared/cpipblock/cpdata
 VPN_PROVIDERS_API := https://api.github.com/repos/Joe12387/open-source-vpn-ip-lists/contents/
+VPN_AZ0_URL := https://az0-vpnip-public.oooninja.com/ip.txt
 TOR_EXITS_URL := https://check.torproject.org/torbulkexitlist
 VPN_NETNAMES := MOZILLA-FIREFOX-VPN
 VPN_RDAP_SERVERS := https://rdap.db.ripe.net https://rdap.arin.net/registry
-TO_PREFIX := awk '/^[0-9a-fA-F:.]+$$/ { print $$1 (index($$1, ":") ? "/128" : "/32") }'
+TO_PREFIX := awk '$$1 ~ /^[0-9a-fA-F:.]+$$/ { print $$1 (index($$1, ":") ? "/128" : "/32") }'
 
 vpn-lists:
 	@command -v jq >/dev/null || { echo "vpn-lists needs jq" >&2; exit 1; }
@@ -154,6 +156,8 @@ vpn-lists:
 			curl -sSf "$$u" >> "$$tmp/providers"; \
 		done; \
 		$(TO_PREFIX) "$$tmp/providers" > $(VPN_LISTS_DIR)/vpn_providers.txt; \
+		curl -sSf $(VPN_AZ0_URL) -o "$$tmp/az0"; \
+		$(TO_PREFIX) "$$tmp/az0" > $(VPN_LISTS_DIR)/vpn_az0.txt; \
 		curl -sSf $(TOR_EXITS_URL) -o "$$tmp/tor"; \
 		$(TO_PREFIX) "$$tmp/tor" > $(VPN_LISTS_DIR)/tor_exits.txt; \
 		: > "$$tmp/netnames"; \
