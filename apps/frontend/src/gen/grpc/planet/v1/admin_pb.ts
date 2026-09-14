@@ -127,6 +127,250 @@ export class PaintRandomTilesResponse extends Message<PaintRandomTilesResponse> 
 }
 
 /**
+ * @generated from message planet.v1.InspectPlayerRequest
+ */
+export class InspectPlayerRequest extends Message<InspectPlayerRequest> {
+  /**
+   * A scope, or any address, which is read as its scope.
+   *
+   * @generated from field: string scope = 1;
+   */
+  scope = "";
+
+  constructor(data?: PartialMessage<InspectPlayerRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.InspectPlayerRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "scope", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): InspectPlayerRequest {
+    return new InspectPlayerRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): InspectPlayerRequest {
+    return new InspectPlayerRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): InspectPlayerRequest {
+    return new InspectPlayerRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: InspectPlayerRequest | PlainMessage<InspectPlayerRequest> | undefined, b: InspectPlayerRequest | PlainMessage<InspectPlayerRequest> | undefined): boolean {
+    return proto3.util.equals(InspectPlayerRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.InspectPlayerResponse
+ */
+export class InspectPlayerResponse extends Message<InspectPlayerResponse> {
+  /**
+   * @generated from field: string scope = 1;
+   */
+  scope = "";
+
+  /**
+   * False when the jury has not seen the scope inside antiBot.jury.trackWindow:
+   * the readings are then all clear and the click summary is empty.
+   *
+   * @generated from field: optional bool tracked = 2;
+   */
+  tracked?: boolean;
+
+  /**
+   * Running whether or not antiBot.shadowBan.enforce is on.
+   *
+   * @generated from field: optional bool banned = 3;
+   */
+  banned?: boolean;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp banned_until = 4;
+   */
+  bannedUntil?: Timestamp;
+
+  /**
+   * @generated from field: uint32 offence = 5;
+   */
+  offence = 0;
+
+  /**
+   * @generated from field: uint32 flags = 6;
+   */
+  flags = 0;
+
+  /**
+   * One per watchdog turned on, in the order the jury asks them.
+   *
+   * @generated from field: repeated planet.v1.WatchdogReading readings = 7;
+   */
+  readings: WatchdogReading[] = [];
+
+  /**
+   * Watchdogs at suspect or certain, inside antiBot.jury.suspicionWindow.
+   *
+   * @generated from field: uint32 suspects = 8;
+   */
+  suspects = 0;
+
+  /**
+   * @generated from field: uint32 min_suspects = 9;
+   */
+  minSuspects = 0;
+
+  /**
+   * What the jury would decide if the scope clicked now: one certain, or
+   * min_suspects suspects. A ban still waits for antiBot.shadowBan.reflagInterval.
+   *
+   * @generated from field: optional bool guilty = 10;
+   */
+  guilty?: boolean;
+
+  /**
+   * @generated from field: uint32 clicks = 11;
+   */
+  clicks = 0;
+
+  /**
+   * Last click minus first click the jury remembers.
+   *
+   * @generated from field: google.protobuf.Duration active_for = 12;
+   */
+  activeFor?: Duration;
+
+  /**
+   * @generated from field: google.protobuf.Duration longest_gap = 13;
+   */
+  longestGap?: Duration;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp last_click_at = 14;
+   */
+  lastClickAt?: Timestamp;
+
+  /**
+   * Declared by the client: context, never evidence.
+   *
+   * @generated from field: string top_country = 15;
+   */
+  topCountry = "";
+
+  /**
+   * @generated from field: uint32 top_country_clicks = 16;
+   */
+  topCountryClicks = 0;
+
+  constructor(data?: PartialMessage<InspectPlayerResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.InspectPlayerResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "scope", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "tracked", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
+    { no: 3, name: "banned", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
+    { no: 4, name: "banned_until", kind: "message", T: Timestamp },
+    { no: 5, name: "offence", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 6, name: "flags", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 7, name: "readings", kind: "message", T: WatchdogReading, repeated: true },
+    { no: 8, name: "suspects", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 9, name: "min_suspects", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 10, name: "guilty", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
+    { no: 11, name: "clicks", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 12, name: "active_for", kind: "message", T: Duration },
+    { no: 13, name: "longest_gap", kind: "message", T: Duration },
+    { no: 14, name: "last_click_at", kind: "message", T: Timestamp },
+    { no: 15, name: "top_country", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 16, name: "top_country_clicks", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): InspectPlayerResponse {
+    return new InspectPlayerResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): InspectPlayerResponse {
+    return new InspectPlayerResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): InspectPlayerResponse {
+    return new InspectPlayerResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: InspectPlayerResponse | PlainMessage<InspectPlayerResponse> | undefined, b: InspectPlayerResponse | PlainMessage<InspectPlayerResponse> | undefined): boolean {
+    return proto3.util.equals(InspectPlayerResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.WatchdogReading
+ */
+export class WatchdogReading extends Message<WatchdogReading> {
+  /**
+   * @generated from field: string watchdog = 1;
+   */
+  watchdog = "";
+
+  /**
+   * clear, suspect or certain. A verdict older than the suspicion window reads clear.
+   *
+   * @generated from field: string level = 2;
+   */
+  level = "";
+
+  /**
+   * The rule and its numbers, as the "antibot ban" log line words them after the level. Empty
+   * when the watchdog had nothing to say.
+   *
+   * @generated from field: string evidence = 3;
+   */
+  evidence = "";
+
+  /**
+   * The click the reading was taken on.
+   *
+   * @generated from field: google.protobuf.Timestamp at = 4;
+   */
+  at?: Timestamp;
+
+  constructor(data?: PartialMessage<WatchdogReading>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.WatchdogReading";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "watchdog", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "level", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "evidence", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): WatchdogReading {
+    return new WatchdogReading().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): WatchdogReading {
+    return new WatchdogReading().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): WatchdogReading {
+    return new WatchdogReading().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: WatchdogReading | PlainMessage<WatchdogReading> | undefined, b: WatchdogReading | PlainMessage<WatchdogReading> | undefined): boolean {
+    return proto3.util.equals(WatchdogReading, a, b);
+  }
+}
+
+/**
  * @generated from message planet.v1.FindPlayersRequest
  */
 export class FindPlayersRequest extends Message<FindPlayersRequest> {

@@ -252,7 +252,28 @@ func (j *Jury) deliberate(click detect.Click) (detect.Report, bool) {
 
 	c := j.callerLocked(click)
 
-	cutoff := click.At.Add(-j.config.SuspicionWindow)
+	opinions, _, guilty := j.weighLocked(c, click.At)
+	if !guilty {
+		return detect.Report{}, false
+	}
+
+	country, countryClicks := c.topCountry()
+
+	return detect.Report{
+		Scope:            click.Scope,
+		Opinions:         opinions,
+		Clicks:           c.clicks,
+		ActiveFor:        click.At.Sub(c.firstSeen),
+		LongestGap:       c.longestGap,
+		TopCountry:       country,
+		TopCountryClicks: countryClicks,
+		Tiles:            append([]uint32(nil), c.tiles...),
+	}, true
+}
+
+// weighLocked is the decision, shared by a click that may ban and an operator who only asks.
+func (j *Jury) weighLocked(c *caller, at time.Time) ([]detect.Opinion, int, bool) {
+	cutoff := at.Add(-j.config.SuspicionWindow)
 
 	var (
 		certain  bool
@@ -261,9 +282,10 @@ func (j *Jury) deliberate(click detect.Click) (detect.Report, bool) {
 	)
 
 	for _, watchdog := range j.watchdogs {
+		// Missing only for a caller never seen, which an examination still lists as clear.
 		opinion, ok := c.opinions[watchdog.Name()]
 		if !ok {
-			continue
+			opinion = detect.Opinion{Watchdog: watchdog.Name()}
 		}
 
 		// A verdict older than the window is not evidence any more, but it is
@@ -283,22 +305,47 @@ func (j *Jury) deliberate(click detect.Click) (detect.Report, bool) {
 		opinions = append(opinions, opinion)
 	}
 
-	if !certain && suspects < j.config.MinSuspects {
-		return detect.Report{}, false
+	return opinions, suspects, certain || suspects >= j.config.MinSuspects
+}
+
+// Examine reads what the jury holds on a scope as of now; it creates no caller and passes no ban.
+func (j *Jury) Examine(scope string) detect.Examination {
+	now := j.clock.Now()
+
+	j.mu.Lock()
+	defer j.mu.Unlock()
+
+	examination := detect.Examination{Scope: scope, MinSuspects: j.config.MinSuspects}
+
+	c, tracked := j.callers[scope]
+	if !tracked {
+		c = &caller{}
+	}
+
+	opinions, suspects, guilty := j.weighLocked(c, now)
+
+	examination.Readings = make([]detect.Reading, 0, len(opinions))
+	for _, opinion := range opinions {
+		examination.Readings = append(examination.Readings, opinion.Reading())
+	}
+
+	if !tracked {
+		return examination
 	}
 
 	country, countryClicks := c.topCountry()
 
-	return detect.Report{
-		Scope:            click.Scope,
-		Opinions:         opinions,
-		Clicks:           c.clicks,
-		ActiveFor:        click.At.Sub(c.firstSeen),
-		LongestGap:       c.longestGap,
-		TopCountry:       country,
-		TopCountryClicks: countryClicks,
-		Tiles:            append([]uint32(nil), c.tiles...),
-	}, true
+	examination.Tracked = true
+	examination.Suspects = suspects
+	examination.Guilty = guilty
+	examination.Clicks = c.clicks
+	examination.ActiveFor = c.lastSeen.Sub(c.firstSeen)
+	examination.LongestGap = c.longestGap
+	examination.LastClickAt = c.lastSeen
+	examination.TopCountry = country
+	examination.TopCountryClicks = countryClicks
+
+	return examination
 }
 
 func (j *Jury) callerLocked(click detect.Click) *caller {

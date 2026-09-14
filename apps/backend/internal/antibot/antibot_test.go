@@ -502,6 +502,34 @@ func TestWithTheBlockOffTheGuardPassesEveryClick(t *testing.T) {
 	assert.False(t, guard.Banned("1.2.3.4"))
 }
 
+func TestExaminingABannedScopeCarriesItsSentence(t *testing.T) {
+	s := newStack()
+
+	s.clock.Advance(time.Second)
+	s.click("player", 1, "FR")
+	s.guard.Ban("player", 2*time.Hour)
+
+	examination := s.guard.Examine("player")
+
+	assert.True(t, examination.Tracked)
+	assert.True(t, examination.Banned)
+	assert.Equal(t, 1, examination.Offence)
+	assert.Equal(t, s.clock.Now().Add(2*time.Hour), examination.BannedUntil)
+	watchdogs := make([]string, 0, len(examination.Readings))
+	for _, reading := range examination.Readings {
+		watchdogs = append(watchdogs, reading.Watchdog)
+	}
+	assert.Equal(t, []string{"retaker", "sequencer", "metronome", "catcher", "cohort"}, watchdogs)
+	assert.False(t, examination.Guilty)
+}
+
+func TestAGuardThatIsOffExaminesNothing(t *testing.T) {
+	guard, err := antibot.New(antibot.Config{}, nil, antibot.Observer{})
+	require.NoError(t, err)
+
+	assert.Equal(t, antibot.Examination{Scope: "player"}, guard.Examine("player"))
+}
+
 func TestValidateNamesTheCohortBoundItRefuses(t *testing.T) {
 	config := antibot.Config{Enabled: true}
 	config.Cohort.Enabled = true

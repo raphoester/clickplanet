@@ -49,6 +49,9 @@ const (
 	// AdminServicePaintRandomTilesProcedure is the fully-qualified name of the AdminService's
 	// PaintRandomTiles RPC.
 	AdminServicePaintRandomTilesProcedure = "/planet.v1.AdminService/PaintRandomTiles"
+	// AdminServiceInspectPlayerProcedure is the fully-qualified name of the AdminService's
+	// InspectPlayer RPC.
+	AdminServiceInspectPlayerProcedure = "/planet.v1.AdminService/InspectPlayer"
 )
 
 // AdminServiceClient is a client for the planet.v1.AdminService service.
@@ -72,6 +75,9 @@ type AdminServiceClient interface {
 	// favours tiles that touch the ones already picked. dry_run picks and paints
 	// nothing.
 	PaintRandomTiles(context.Context, *connect.Request[v1.PaintRandomTilesRequest]) (*connect.Response[v1.PaintRandomTilesResponse], error)
+	// What the antibot holds on a scope: every watchdog's reading, what the jury
+	// would decide now, and any running ban. Reads only.
+	InspectPlayer(context.Context, *connect.Request[v1.InspectPlayerRequest]) (*connect.Response[v1.InspectPlayerResponse], error)
 }
 
 // NewAdminServiceClient constructs a client for the planet.v1.AdminService service. By default, it
@@ -121,6 +127,12 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(adminServiceMethods.ByName("PaintRandomTiles")),
 			connect.WithClientOptions(opts...),
 		),
+		inspectPlayer: connect.NewClient[v1.InspectPlayerRequest, v1.InspectPlayerResponse](
+			httpClient,
+			baseURL+AdminServiceInspectPlayerProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("InspectPlayer")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -132,6 +144,7 @@ type adminServiceClient struct {
 	banPlayer        *connect.Client[v1.BanPlayerRequest, v1.BanPlayerResponse]
 	revertPlayer     *connect.Client[v1.RevertPlayerRequest, v1.RevertPlayerResponse]
 	paintRandomTiles *connect.Client[v1.PaintRandomTilesRequest, v1.PaintRandomTilesResponse]
+	inspectPlayer    *connect.Client[v1.InspectPlayerRequest, v1.InspectPlayerResponse]
 }
 
 // ReassignCountry calls planet.v1.AdminService.ReassignCountry.
@@ -164,6 +177,11 @@ func (c *adminServiceClient) PaintRandomTiles(ctx context.Context, req *connect.
 	return c.paintRandomTiles.CallUnary(ctx, req)
 }
 
+// InspectPlayer calls planet.v1.AdminService.InspectPlayer.
+func (c *adminServiceClient) InspectPlayer(ctx context.Context, req *connect.Request[v1.InspectPlayerRequest]) (*connect.Response[v1.InspectPlayerResponse], error) {
+	return c.inspectPlayer.CallUnary(ctx, req)
+}
+
 // AdminServiceHandler is an implementation of the planet.v1.AdminService service.
 type AdminServiceHandler interface {
 	// Gives every tile one country holds to another, while the game runs. Each
@@ -185,6 +203,9 @@ type AdminServiceHandler interface {
 	// favours tiles that touch the ones already picked. dry_run picks and paints
 	// nothing.
 	PaintRandomTiles(context.Context, *connect.Request[v1.PaintRandomTilesRequest]) (*connect.Response[v1.PaintRandomTilesResponse], error)
+	// What the antibot holds on a scope: every watchdog's reading, what the jury
+	// would decide now, and any running ban. Reads only.
+	InspectPlayer(context.Context, *connect.Request[v1.InspectPlayerRequest]) (*connect.Response[v1.InspectPlayerResponse], error)
 }
 
 // NewAdminServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -230,6 +251,12 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(adminServiceMethods.ByName("PaintRandomTiles")),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminServiceInspectPlayerHandler := connect.NewUnaryHandler(
+		AdminServiceInspectPlayerProcedure,
+		svc.InspectPlayer,
+		connect.WithSchema(adminServiceMethods.ByName("InspectPlayer")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/planet.v1.AdminService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AdminServiceReassignCountryProcedure:
@@ -244,6 +271,8 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 			adminServiceRevertPlayerHandler.ServeHTTP(w, r)
 		case AdminServicePaintRandomTilesProcedure:
 			adminServicePaintRandomTilesHandler.ServeHTTP(w, r)
+		case AdminServiceInspectPlayerProcedure:
+			adminServiceInspectPlayerHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -275,4 +304,8 @@ func (UnimplementedAdminServiceHandler) RevertPlayer(context.Context, *connect.R
 
 func (UnimplementedAdminServiceHandler) PaintRandomTiles(context.Context, *connect.Request[v1.PaintRandomTilesRequest]) (*connect.Response[v1.PaintRandomTilesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.PaintRandomTiles is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) InspectPlayer(context.Context, *connect.Request[v1.InspectPlayerRequest]) (*connect.Response[v1.InspectPlayerResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.InspectPlayer is not implemented"))
 }

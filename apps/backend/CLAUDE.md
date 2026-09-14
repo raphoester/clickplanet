@@ -83,7 +83,7 @@ root package**:
 | `planet` | `Config`, `NewModule` |
 | `chat` | `Config`, `NewModule` |
 | `session` | `Config`, `NewModule` |
-| `antibot` | `Config`, `Observer`, `Guard`, `New`, `Description`, `Click`, `Report`, `Sentence` |
+| `antibot` | `Config`, `Observer`, `Guard`, `New`, `Description`, `Click`, `Report`, `Sentence`, `Examination`, `Reading` |
 
 That holds for `cmd/api` too: the composition root lists modules and cannot
 reach a domain type, a storage adapter or a controller even if it wanted to. A
@@ -211,6 +211,7 @@ because it serves every concept over one Connect service. It only maps.
 | `ledger/usecases/find_players_usecase` | who is painting a flag, and where | `Ledger`, `Owners`, `Borders`, `Bans` |
 | `ledger/usecases/top_players_usecase` | who holds the most tiles, every flag | `Ledger`, `Owners`, `Bans` |
 | `ledger/usecases/ban_player_usecase` | the operator's shadow ban | `Banner` |
+| `ledger/usecases/inspect_player_usecase` | what the antibot holds on one caller | `Examiner` |
 | `ledger/usecases/revert_player_usecase` | gives back what one caller took | `Ledger`, `Map` |
 | `bonuses/usecases/claim_bonus_usecase` | redeems a box | `Registry`, `Booster`, `Spreader`, `Bomber`, `Encloser` |
 | `bonuses/usecases/drop_bomb_usecase` | spends a bomb where it was aimed | `Bombs`, `Map`, `Clearer` |
@@ -726,13 +727,13 @@ What is left after sessions. A player who solves Turnstile in a real browser and
 then runs a userscript holds a genuine session, and no address- or token-based
 check can tell them from a player. The signal that survives is **behavioural**.
 
-**The whole of its API is eight names**, and `internal/antibot/antibot.go` is all
+**The whole of its API is ten names**, and `internal/antibot/antibot.go` is all
 of it: `Config`, `Observer`, `Guard`, `New` and `Description` to wire it, plus
-`Click`, `Report` and `Sentence` — the types a caller writes down, because it builds one
+`Click`, `Report`, `Sentence`, `Examination` and `Reading` — the types a caller writes down, because it builds one
 and is handed the others. A caller hands over the block and the two hooks it wants
 findings reported through, and gets back a `Guard` — one that drops and bans nothing when the block is off, so
 the DI sequence wires it the same way either way — that answers `Attempted`, `Inspect`, `Committed`, `Caught`, `Missed`, `Flagged`, `Banned`, `LoadBans`, `Run` and `Enabled`, plus `Ban`,
-`Sentence` and `Enforcing` for the operator tools (see [Operator tools](#operator-tools-adminservice)). It is
+`Sentence`, `Enforcing` and `Examine` for the operator tools (see [Operator tools](#operator-tools-adminservice)). It is
 **one** `Run` whatever the file turned on: how many sweepers there are is this
 package's business, which is why `planet` registers one runner rather than one per sweeper.
 
@@ -740,7 +741,9 @@ package's business, which is why `planet` registers one runner rather than one p
 with a watchdog's opinion — count it if it argued for the ban, and put it in the
 log line — so an `Opinion` answers `Fired()` and renders itself with `String()`,
 and `Verdict`, `Evidence`, `Field` and the `clear`/`suspect`/`certain` ladder stay
-inside. The alternative shipped briefly and is what this rule is written against:
+inside. `Examine` follows the same rule: an `Examination` carries `Reading`s whose
+level and evidence are already strings, so the edge copies them onto the wire and
+never compares against the ladder. The alternative shipped briefly and is what this rule is written against:
 the edge held a `formatOpinion` that compared against `antibot.Clear`, reached
 through `Evidence.Rule` and `Evidence.Fields`, and decided their ordering —
 sixteen lines of antibot's business in the clicks package, and four exported
@@ -1121,7 +1124,7 @@ Measured on a copy of production's snapshot: 22,040 tiles in 4.4s, all 22,040 up
 - **The paint is `Restore`**, the revert's compare-and-set, against the owner read at the pick. A tile somebody takes in between stays theirs, so `painted` can be below `picked`. Paced like the reassign, each tile an ordinary `TileUpdate`. It does not write the ledger, like the reassign.
 - The draw is `clicks.SystemRandom`, math/rand/v2's global source; tests pass a seeded `*rand.Rand`.
 
-#### Manual bans: `FindPlayers`, `TopPlayers`, `BanPlayer`, `RevertPlayer`
+#### Manual bans: `FindPlayers`, `TopPlayers`, `BanPlayer`, `RevertPlayer`, `InspectPlayer`
 
 For the patterns no watchdog catches but a person sees on the map. A player is a **scope** (`cpipscope`): the address over IPv4, the /64 over IPv6 — what the throttle and the ban already key on.
 
@@ -1133,7 +1136,8 @@ For the patterns no watchdog catches but a person sees on the map. A player is a
 - **`BanPlayer(scope, duration)`** is `shadowban.Banner.Ban`, and drops the scope's clicks and bombs alike: the same record, ladder and state file as a watchdog's ban, and it counts as an offence. It skips `reflagInterval`, and an empty duration takes the ladder's step. Any address is accepted and banned as its scope (`cpipscope.Parse`). **It follows `antiBot.shadowBan.enforce`**, and says so in `enforced`. With `antiBot.enabled` false it answers `FailedPrecondition`.
 - **`RevertPlayer(scope, dry_run)`** gives each tile the scope took back to its previous owner, **only if it still wears the scope's paint** — `inmemory_tile_storage.Restore` is a compare-and-set under the lock, so a tile retaken mid-revert stays retaken. Paced like the reassign (`clicks.Pacing`), each tile an ordinary `TileUpdate`. A tile that was nobody's goes back to nobody, as an update with an empty country. It then forgets the scope's takes, so a second run does nothing.
 - **Ban before reverting**: an unbanned player repaints behind the revert.
-- `audit_ban` and `audit_revert` log every call at Warn, as `audit_reassign` does. `FindPlayers` and `TopPlayers` are reads and log nothing.
+- **`InspectPlayer(scope)`** answers how close the antibot is to a caller, which the `antibot ban` log line cannot: it is only written when a ban fires, so on 2026-09-14 a day of bots and no bans left nothing to read. It is `Guard.Examine`, and it changes nothing — no caller record is created, no watchdog is asked again, no ban is passed. It answers any running ban (`banned`, `bannedUntil`, `offence`, `flags`); per watchdog its `level` and `evidence`, aged the way the jury ages them (past `suspicionWindow` a verdict reads `clear` but keeps its evidence); `suspects` against `minSuspects` and `guilty`, what the jury would decide on a click now (the ban itself would still wait for `reflagInterval`); and the click summary the ban line carries. `tracked` false is a scope the jury has not seen inside its `trackWindow`. Parsed with `cpipscope.Parse` and refused with `FailedPrecondition` when `antiBot.enabled` is false, as `BanPlayer` is. **A watchdog that reads `clear` has no evidence**: watchdogs only word the rule that tripped, so it says how close a caller is only once some rule has.
+- `audit_ban` and `audit_revert` log every call at Warn, as `audit_reassign` does. `FindPlayers`, `TopPlayers` and `InspectPlayer` are reads and log nothing.
 
 ### Shared (`internal/shared/`)
 
@@ -1283,7 +1287,7 @@ the same array.
 
 `clicks.Borders` is the other half of the geography: which country's ground a tile sits on, from
 `generated/map/borders-<hash>.bin`, the table the frontend's `npm run borders` writes to `/map`.
-Only the operator tools read it — see [Manual bans](#manual-bans-findplayers-topplayers-banplayer-revertplayer).
+Only the operator tools read it — see [Manual bans](#manual-bans-findplayers-topplayers-banplayer-revertplayer-inspectplayer).
 
 `Neighbours` is what the spread bonus reads — see [What a spread does to a click](#what-a-spread-does-to-a-click).
 `Within`, `Position`, `Nearest` and `Spacing` are what the bomb reads — see [What a bomb does](#what-a-bomb-does).

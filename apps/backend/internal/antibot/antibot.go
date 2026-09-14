@@ -35,12 +35,16 @@ import (
 //
 // Nothing else is aliased, because nothing else has to be named. A caller ranges
 // a Report's opinions and asks each one whether it Fired and what it says for
-// itself; the verdict ladder, the rule that tripped and the numbers behind it
-// never leave this package as vocabulary the edge has to speak.
+// itself, and an Examination's Readings are already strings; the verdict ladder,
+// the rule that tripped and the numbers behind it never leave this package as
+// vocabulary the edge has to speak.
 type (
 	Click    = detect.Click       // one Click RPC, as the guard sees it
 	Report   = detect.Report      // one ban, with every watchdog's opinion behind it
 	Sentence = shadowban.Sentence // a scope's ban, as the operator tools read it
+
+	Examination = detect.Examination // what the jury holds on one scope, as InspectPlayer reads it
+	Reading     = detect.Reading     // one watchdog's opinion, already worded
 )
 
 // Config is the `antiBot:` block. A watchdog left out of the file is off, and the
@@ -333,6 +337,24 @@ func (g *Guard) Sentence(scope string) (Sentence, bool) {
 	}
 
 	return g.banner.Sentence(scope)
+}
+
+// Examine reads every watchdog's opinion, the jury's decision and any ban on a scope, and changes nothing.
+func (g *Guard) Examine(scope string) Examination {
+	if !g.Enabled() {
+		return Examination{Scope: scope}
+	}
+
+	examination := g.jury.Examine(scope)
+
+	if sentence, banned := g.banner.Sentence(scope); banned {
+		examination.Banned = true
+		examination.Flags = sentence.Flags
+		examination.Offence = sentence.Offence
+		examination.BannedUntil = sentence.Until
+	}
+
+	return examination
 }
 
 // Enforcing says whether a ban drops anything.

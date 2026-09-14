@@ -33,6 +33,10 @@ service AdminService {
   // favours tiles that touch the ones already picked. dry_run picks and paints
   // nothing.
   rpc PaintRandomTiles(PaintRandomTilesRequest) returns (PaintRandomTilesResponse);
+
+  // What the antibot holds on a scope: every watchdog's reading, what the jury
+  // would decide now, and any running ban. Reads only.
+  rpc InspectPlayer(InspectPlayerRequest) returns (InspectPlayerResponse);
 }
 
 message PaintRandomTilesRequest {
@@ -52,6 +56,55 @@ message PaintRandomTilesResponse {
   uint32 picked = 2;
   // Picked tiles that nobody took between the pick and the paint.
   uint32 painted = 3;
+}
+
+message InspectPlayerRequest {
+  // A scope, or any address, which is read as its scope.
+  string scope = 1;
+}
+
+message InspectPlayerResponse {
+  string scope = 1;
+
+  // False when the jury has not seen the scope inside antiBot.jury.trackWindow:
+  // the readings are then all clear and the click summary is empty.
+  optional bool tracked = 2;
+
+  // Running whether or not antiBot.shadowBan.enforce is on.
+  optional bool banned = 3;
+  google.protobuf.Timestamp banned_until = 4;
+  uint32 offence = 5;
+  uint32 flags = 6;
+
+  // One per watchdog turned on, in the order the jury asks them.
+  repeated WatchdogReading readings = 7;
+
+  // Watchdogs at suspect or certain, inside antiBot.jury.suspicionWindow.
+  uint32 suspects = 8;
+  uint32 min_suspects = 9;
+  // What the jury would decide if the scope clicked now: one certain, or
+  // min_suspects suspects. A ban still waits for antiBot.shadowBan.reflagInterval.
+  optional bool guilty = 10;
+
+  uint32 clicks = 11;
+  // Last click minus first click the jury remembers.
+  google.protobuf.Duration active_for = 12;
+  google.protobuf.Duration longest_gap = 13;
+  google.protobuf.Timestamp last_click_at = 14;
+  // Declared by the client: context, never evidence.
+  string top_country = 15;
+  uint32 top_country_clicks = 16;
+}
+
+message WatchdogReading {
+  string watchdog = 1;
+  // clear, suspect or certain. A verdict older than the suspicion window reads clear.
+  string level = 2;
+  // The rule and its numbers, as the "antibot ban" log line words them after the level. Empty
+  // when the watchdog had nothing to say.
+  string evidence = 3;
+  // The click the reading was taken on.
+  google.protobuf.Timestamp at = 4;
 }
 
 message FindPlayersRequest {

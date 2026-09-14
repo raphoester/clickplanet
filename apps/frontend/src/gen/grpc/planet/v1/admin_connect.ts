@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BanPlayerRequest, BanPlayerResponse, FindPlayersRequest, FindPlayersResponse, PaintRandomTilesRequest, PaintRandomTilesResponse, ReassignCountryRequest, ReassignCountryResponse, RevertPlayerRequest, RevertPlayerResponse, TopPlayersRequest, TopPlayersResponse } from "./admin_pb.js";
+import { BanPlayerRequest, BanPlayerResponse, FindPlayersRequest, FindPlayersResponse, InspectPlayerRequest, InspectPlayerResponse, PaintRandomTilesRequest, PaintRandomTilesResponse, ReassignCountryRequest, ReassignCountryResponse, RevertPlayerRequest, RevertPlayerResponse, TopPlayersRequest, TopPlayersResponse } from "./admin_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -87,6 +87,18 @@ export const AdminService = {
       name: "PaintRandomTiles",
       I: PaintRandomTilesRequest,
       O: PaintRandomTilesResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * What the antibot holds on a scope: every watchdog's reading, what the jury
+     * would decide now, and any running ban. Reads only.
+     *
+     * @generated from rpc planet.v1.AdminService.InspectPlayer
+     */
+    inspectPlayer: {
+      name: "InspectPlayer",
+      I: InspectPlayerRequest,
+      O: InspectPlayerResponse,
       kind: MethodKind.Unary,
     },
   }
