@@ -37,9 +37,10 @@ func (h PaintRandomTilesHandler) PaintRandomTiles(
 	switch {
 	case err == nil:
 		return connect.NewResponse(&planetv1.PaintRandomTilesResponse{
-			Eligible: uint32(out.Eligible), //nolint:gosec // a tile count, bounded by the map.
-			Picked:   uint32(out.Picked),   //nolint:gosec // a tile count, bounded by the map.
-			Painted:  uint32(out.Painted),  //nolint:gosec // a tile count, bounded by the map.
+			Eligible:    uint32(out.Eligible),    //nolint:gosec // a tile count, bounded by the map.
+			Picked:      uint32(out.Picked),      //nolint:gosec // a tile count, bounded by the map.
+			Painted:     uint32(out.Painted),     //nolint:gosec // a tile count, bounded by the map.
+			OutsideArea: uint32(out.OutsideArea), //nolint:gosec // a tile count, bounded by the map.
 		}), nil
 	case errors.Is(err, clicks.ErrUnknownCountry),
 		errors.Is(err, paint_random_tiles_usecase.ErrInvalidCount),

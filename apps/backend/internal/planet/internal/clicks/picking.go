@@ -15,19 +15,23 @@ func (SystemRandom) IntN(n int) int { return rand.IntN(n) } //nolint:gosec // an
 
 func (SystemRandom) Float64() float64 { return rand.Float64() } //nolint:gosec // an operator's pick, not a secret.
 
-// Pick draws up to count of candidates, each one once.
-//
-// Before each draw, with probability proximity, it takes a candidate touching a tile
-// already picked; otherwise, or when none touches, any candidate left. So 0 is a
-// uniform draw, and 1 grows one patch until the ground around it runs out.
-func Pick(candidates []uint32, count int, proximity float64, neighbours func(uint32) []uint32, random Random) []uint32 {
-	pool := newDrawSet(candidates)
+// Pick draws count tiles: with probability proximity an eligible tile touching one picked, else a seed.
+func Pick(
+	seeds []uint32,
+	count int,
+	proximity float64,
+	neighbours func(uint32) []uint32,
+	eligible func(uint32) bool,
+	random Random,
+) []uint32 {
+	pool := newDrawSet(seeds)
 	frontier := newDrawSet(nil)
-	picked := make([]uint32, 0, min(count, len(candidates)))
+	taken := make(map[uint32]struct{}, min(count, len(seeds)))
+	picked := make([]uint32, 0, min(count, len(seeds)))
 
-	for len(picked) < count && pool.len() > 0 {
+	for len(picked) < count && (pool.len() > 0 || frontier.len() > 0) {
 		var tile uint32
-		if frontier.len() > 0 && random.Float64() < proximity {
+		if frontier.len() > 0 && (pool.len() == 0 || random.Float64() < proximity) {
 			tile = frontier.at(random.IntN(frontier.len()))
 		} else {
 			tile = pool.at(random.IntN(pool.len()))
@@ -35,10 +39,11 @@ func Pick(candidates []uint32, count int, proximity float64, neighbours func(uin
 
 		pool.remove(tile)
 		frontier.remove(tile)
+		taken[tile] = struct{}{}
 		picked = append(picked, tile)
 
 		for _, next := range neighbours(tile) {
-			if pool.has(next) {
+			if _, done := taken[next]; !done && !frontier.has(next) && eligible(next) {
 				frontier.add(next)
 			}
 		}

@@ -1,4 +1,4 @@
-// Package paint_random_tiles_usecase paints random tiles of one country's ground with a flag, while the game runs.
+// Package paint_random_tiles_usecase paints random tiles with a flag, seeded on one country's ground, while the game runs.
 package paint_random_tiles_usecase
 
 import (
@@ -42,9 +42,10 @@ type In struct {
 
 type Out struct {
 	// Eligible is every tile of the area not wearing the flag yet.
-	Eligible int
-	Picked   int
-	Painted  int
+	Eligible    int
+	Picked      int
+	OutsideArea int
+	Painted     int
 }
 
 func New(
@@ -91,22 +92,32 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 		return Out{}, errors.New("paint batch must be positive")
 	}
 
-	// The owner each candidate holds now, so the paint is a compare-and-set against it.
+	// The owner each tile held when it was judged eligible, so the paint is a compare-and-set against it.
 	owners := map[uint32]string{}
-	var candidates []uint32
-	for tile := uint32(1); tile <= u.borders.Tiles(); tile++ {
-		if u.borders.CountryOf(tile) != in.Area {
-			continue
+	eligible := func(tile uint32) bool {
+		owner, _ := u.tiles.Owner(tile)
+		if owner == in.Flag {
+			return false
 		}
-		if owner, _ := u.tiles.Owner(tile); owner != in.Flag {
-			owners[tile] = owner
-			candidates = append(candidates, tile)
+		owners[tile] = owner
+		return true
+	}
+
+	var seeds []uint32
+	for tile := uint32(1); tile <= u.borders.Tiles(); tile++ {
+		if u.borders.CountryOf(tile) == in.Area && eligible(tile) {
+			seeds = append(seeds, tile)
 		}
 	}
 
-	picked := clicks.Pick(candidates, in.Count, in.Proximity, u.neighbours.Neighbours, u.random)
+	picked := clicks.Pick(seeds, in.Count, in.Proximity, u.neighbours.Neighbours, eligible, u.random)
 
-	out := Out{Eligible: len(candidates), Picked: len(picked)}
+	out := Out{Eligible: len(seeds), Picked: len(picked)}
+	for _, tile := range picked {
+		if u.borders.CountryOf(tile) != in.Area {
+			out.OutsideArea++
+		}
+	}
 	if in.DryRun {
 		return out, nil
 	}

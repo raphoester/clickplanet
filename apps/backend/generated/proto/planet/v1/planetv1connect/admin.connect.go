@@ -71,9 +71,9 @@ type AdminServiceClient interface {
 	// Gives back every tile the scope took that nobody has taken since, to
 	// whoever held it before. dry_run counts and restores nothing.
 	RevertPlayer(context.Context, *connect.Request[v1.RevertPlayerRequest]) (*connect.Response[v1.RevertPlayerResponse], error)
-	// Paints count random tiles of one country's ground with a flag. proximity
-	// favours tiles that touch the ones already picked. dry_run picks and paints
-	// nothing.
+	// Paints count random tiles with a flag, starting on one country's ground.
+	// proximity favours tiles that touch the ones already picked, and a patch
+	// may grow past the country's border. dry_run picks and paints nothing.
 	PaintRandomTiles(context.Context, *connect.Request[v1.PaintRandomTilesRequest]) (*connect.Response[v1.PaintRandomTilesResponse], error)
 	// What the antibot holds on a scope: every watchdog's reading, what the jury
 	// would decide now, and any running ban. Reads only.
@@ -199,9 +199,9 @@ type AdminServiceHandler interface {
 	// Gives back every tile the scope took that nobody has taken since, to
 	// whoever held it before. dry_run counts and restores nothing.
 	RevertPlayer(context.Context, *connect.Request[v1.RevertPlayerRequest]) (*connect.Response[v1.RevertPlayerResponse], error)
-	// Paints count random tiles of one country's ground with a flag. proximity
-	// favours tiles that touch the ones already picked. dry_run picks and paints
-	// nothing.
+	// Paints count random tiles with a flag, starting on one country's ground.
+	// proximity favours tiles that touch the ones already picked, and a patch
+	// may grow past the country's border. dry_run picks and paints nothing.
 	PaintRandomTiles(context.Context, *connect.Request[v1.PaintRandomTilesRequest]) (*connect.Response[v1.PaintRandomTilesResponse], error)
 	// What the antibot holds on a scope: every watchdog's reading, what the jury
 	// would decide now, and any running ban. Reads only.
