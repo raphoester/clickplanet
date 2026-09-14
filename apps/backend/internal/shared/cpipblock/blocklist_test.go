@@ -31,6 +31,20 @@ func TestVendoredVPNListBlocksAKnownRange(t *testing.T) {
 	assert.False(t, blocked, "a well-known resolver is not a VPN egress")
 }
 
+func TestHandKeptVPNListBlocksFirefoxVPN(t *testing.T) {
+	blocklist := cpipblock.New(cpipblock.Config{Enabled: true})
+	require.NoError(t, blocklist.Load())
+
+	for _, ip := range []string{"2a00:8c40:f0c8:8e3::1", "2a00:8c40:f0ab:d099::1", "185.155.181.7"} {
+		list, blocked := blocklist.Blocked(ip)
+		require.Truef(t, blocked, "%s should be refused", ip)
+		require.Equal(t, cpipblock.ListVPN, list)
+	}
+
+	_, blocked := blocklist.Blocked("2a01:e0a:a63:11a0::1")
+	assert.False(t, blocked, "a Free home line is not a VPN egress")
+}
+
 func TestDatacenterListIsOffUnlessAskedFor(t *testing.T) {
 	off := cpipblock.New(cpipblock.Config{Enabled: true})
 	require.NoError(t, off.Load())
