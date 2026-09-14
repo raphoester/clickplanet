@@ -41,7 +41,7 @@ func setup(t *testing.T) (*inmemory_ledger_storage.Storage, owners) {
 	t.Helper()
 
 	clock := cptime.NewFixedClock(start)
-	book := inmemory_ledger_storage.New()
+	book := inmemory_ledger_storage.New(inmemory_ledger_storage.Config{}, nil)
 	current := owners{}
 
 	take := func(tile uint32, scope, country string) {

@@ -111,7 +111,9 @@ func NewModule(config Config) cpbootstrap.Module {
 			tilesStorage.LoadSnapshot()
 			props.Runners.Add(tilesStorage)
 
-			takings := inmemory_ledger_storage.New()
+			takings := inmemory_ledger_storage.New(config.LedgerStorage, props.Logger)
+			takings.LoadState()
+			props.Runners.Add(takings)
 			props.Runners.Add(ledger.NewRetention(config.Ledger, takings, clock))
 
 			limiter := cpratelimit.New("click-limiter", config.RateLimiter, clock)

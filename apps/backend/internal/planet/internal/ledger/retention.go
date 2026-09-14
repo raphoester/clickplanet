@@ -14,7 +14,7 @@ type Config struct {
 }
 
 const (
-	defaultRetention     = 24 * time.Hour
+	defaultRetention     = 72 * time.Hour
 	defaultSweepInterval = 5 * time.Minute
 )
 

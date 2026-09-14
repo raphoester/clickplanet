@@ -43,7 +43,7 @@ func (m *stubMap) Restore(_ context.Context, restorations []clicks.Restoration) 
 func setup(t *testing.T) (*inmemory_ledger_storage.Storage, *stubMap) {
 	t.Helper()
 
-	book := inmemory_ledger_storage.New()
+	book := inmemory_ledger_storage.New(inmemory_ledger_storage.Config{}, nil)
 	tiles := &stubMap{owners: map[uint32]string{1: "il", 2: "", 3: "il", 4: "il", 5: "il"}}
 
 	for tile := uint32(1); tile <= 5; tile++ {
