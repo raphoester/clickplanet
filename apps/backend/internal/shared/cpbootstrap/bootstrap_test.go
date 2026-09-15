@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"connectrpc.com/connect"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -31,10 +33,10 @@ func TestTwoModulesCannotClaimTheSameRoute(t *testing.T) {
 
 	err := run(t, []cpbootstrap.Module{
 		newModule("planet", func(props cpbootstrap.Props) error {
-			return props.RPC.Mount("/planet.v1.ClickService/", http.NotFoundHandler())
+			return props.RPC.Mount(mountOn("/planet.v1.ClickService/"))
 		}),
 		newModule("impostor", func(props cpbootstrap.Props) error {
-			mountErr = props.RPC.Mount("/planet.v1.ClickService/", http.NotFoundHandler())
+			mountErr = props.RPC.Mount(mountOn("/planet.v1.ClickService/"))
 			return mountErr
 		}),
 	})
@@ -81,10 +83,10 @@ func TestEveryCleanupRunsBeforeTheRunnersAreWaitedOn(t *testing.T) {
 
 	require.NoError(t, run(t, []cpbootstrap.Module{
 		newModule("scheduled-job", func(props cpbootstrap.Props) error {
-			props.Runners.Add("scheduled-job", func(context.Context) {
+			props.Runners.Add(runner{name: "scheduled-job", run: func(context.Context) {
 				<-stop
 				close(stopped)
-			})
+			}})
 			props.Closers.Add("scheduled-job", func() error {
 				close(stop)
 				return nil
@@ -105,10 +107,10 @@ func TestARunnerIsCancelledOnShutdown(t *testing.T) {
 
 	require.NoError(t, run(t, []cpbootstrap.Module{
 		newModule("planet", func(props cpbootstrap.Props) error {
-			props.Runners.Add("tiles-storage", func(ctx context.Context) {
+			props.Runners.Add(runner{name: "tiles-storage", run: func(ctx context.Context) {
 				<-ctx.Done()
 				close(cancelled)
-			})
+			}})
 			return nil
 		}),
 	}))
@@ -164,7 +166,7 @@ func disabled(module cpbootstrap.Module) cpbootstrap.Module {
 func run(t *testing.T, modules []cpbootstrap.Module) error {
 	t.Helper()
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	go func() {
 		time.Sleep(50 * time.Millisecond)
 		cancel()
@@ -177,3 +179,20 @@ func run(t *testing.T, modules []cpbootstrap.Module) error {
 		Modules: modules,
 	})
 }
+
+// mountOn stands in for a generated New<Service>Handler: the options carry the
+// interceptors cpbootstrap insists on, which a real service would pass along.
+func mountOn(path string) cpbootstrap.ServiceBuilder {
+	return func(...connect.HandlerOption) (string, http.Handler) {
+		return path, http.NotFoundHandler()
+	}
+}
+
+type runner struct {
+	name string
+	run  func(ctx context.Context)
+}
+
+func (r runner) Name() string { return r.name }
+
+func (r runner) Run(ctx context.Context) { r.run(ctx) }

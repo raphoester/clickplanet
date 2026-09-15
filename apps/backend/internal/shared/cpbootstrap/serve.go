@@ -5,11 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 
@@ -29,10 +31,45 @@ func mountMetrics(router *http.ServeMux, metrics *prometheus.Registry, logger *s
 	)(metricsRouter))
 }
 
+type adminServer struct {
+	server   *http.Server
+	listener net.Listener
+}
+
+// listenAdmin binds before anything is served, so a taken address refuses the boot.
+func listenAdmin(options Options, routes *rpcRoutes) (*adminServer, error) {
+	address := options.Server.AdminBindAddress
+	if address == "" {
+		if len(routes.paths) > 0 {
+			options.Logger.Info("admin listener off, admin services not served", slog.Int("services", len(routes.paths)))
+		}
+		return nil, nil //nolint:nilnil // nil means "no admin listener"; serve skips it.
+	}
+
+	if !isLoopback(address) {
+		return nil, fmt.Errorf("httpServer.adminBindAddress %q is not a loopback host:port", address)
+	}
+
+	listener, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp", address)
+	if err != nil {
+		return nil, fmt.Errorf("failed to listen on httpServer.adminBindAddress %q: %w", address, err)
+	}
+
+	router := http.NewServeMux()
+	routes.mountOn(router, cphttpserver.MiddlewareStack(cphttpserver.NewLoggingMiddleware(options.Logger)))
+
+	return &adminServer{
+		server:   &http.Server{Handler: router, ReadHeaderTimeout: readHeaderTimeout},
+		listener: listener,
+	}, nil
+}
+
 func serve(
 	ctx context.Context,
 	options Options,
 	router http.Handler,
+	admin *adminServer,
+	drain context.CancelFunc,
 	runners *runnerRegistry,
 	closers *closerRegistry,
 ) error {
@@ -46,6 +83,12 @@ func serve(
 		Addr:      options.Server.BindAddress,
 		Handler:   router,
 		Protocols: protocols,
+
+		// A connection that opens and then dribbles its headers holds a goroutine
+		// open for as long as it likes; enough of them is the whole attack. Only
+		// the header read is bounded — the body and the response are not, because
+		// the live streams are responses that stay open for hours by design.
+		ReadHeaderTimeout: readHeaderTimeout,
 	}
 
 	running, stopRunning := context.WithCancel(ctx)
@@ -64,12 +107,24 @@ func serve(
 		serveErr <- err
 	}()
 
+	if admin != nil {
+		options.Logger.Info("Listening for admin", slog.String("address", admin.listener.Addr().String()))
+		go func() {
+			if err := admin.server.Serve(admin.listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				options.Logger.Error("admin server stopped", slog.Any("error", err))
+			}
+		}()
+	}
+
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
 	defer signal.Stop(signals)
 
 	select {
 	case err := <-serveErr:
+		if admin != nil {
+			_ = admin.server.Close()
+		}
 		stop(options, closers, stopRunning, started)
 		if err != nil {
 			return fmt.Errorf("failed to serve: %w", err)
@@ -86,8 +141,18 @@ func serve(
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), options.ShutdownTimeout)
 	defer cancel()
 
+	// Before Shutdown, which waits for every connection to go idle and would
+	// otherwise wait out its deadline on the first stream still open. Unary
+	// calls in flight are left to finish: only the streams read this.
+	drain()
+
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		options.Logger.Error("failed to shut down the http server", slog.Any("error", err))
+	}
+	if admin != nil {
+		if err := admin.server.Shutdown(shutdownCtx); err != nil {
+			options.Logger.Error("failed to shut down the admin server", slog.Any("error", err))
+		}
 	}
 
 	stop(options, closers, stopRunning, started)
@@ -96,6 +161,8 @@ func serve(
 	return nil
 }
 
+const readHeaderTimeout = 10 * time.Second
+
 func startRunners(ctx context.Context, runners *runnerRegistry, logger *slog.Logger) *sync.WaitGroup {
 	started := &sync.WaitGroup{}
 
@@ -103,8 +170,8 @@ func startRunners(ctx context.Context, runners *runnerRegistry, logger *slog.Log
 		started.Add(1)
 		go func() {
 			defer started.Done()
-			runner.run(ctx)
-			logger.Debug("runner stopped", slog.String("runner", runner.name))
+			runner.Run(ctx)
+			logger.Debug("runner stopped", slog.String("runner", runner.Name()))
 		}()
 	}
 

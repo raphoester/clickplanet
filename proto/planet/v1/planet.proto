@@ -19,6 +19,12 @@ service ClickService {
   }
 
   rpc ListenForEvents(ListenForEventsRequest) returns (stream PlanetEvent);
+
+  rpc ClaimBonus(ClaimBonusRequest) returns (ClaimBonusResponse);
+
+  // Drops the bomb a caught box granted. Answers NotFound when the caller holds
+  // none — never won, already dropped, or held past its time — and says no more.
+  rpc DropBomb(DropBombRequest) returns (DropBombResponse);
 }
 
 // What the rate limiter has left for the caller, and the policy it refills
@@ -28,16 +34,35 @@ service ClickService {
 //
 // It rides on every click answer, accepted or refused, so the client is never
 // more than one click away from the truth.
+//
+// The first three are counted in clicks for the country asked about, not in
+// tokens: a click for a country that holds much of the map costs several
+// tokens, and the server has already divided by that cost.
 message ClickBudget {
   // Clicks left, fractional: 6.4 means six clicks now, and the seventh in
   // 600ms at a refill of one per second.
   double tokens = 1;
 
-  // The most a caller can bank: the burst.
+  // The most a caller can bank: the burst, in clicks.
   uint32 capacity = 2;
 
-  // Tokens granted back per second.
+  // Clicks granted back per second.
   double refill_per_second = 3;
+
+  // Were whole-token costs. A cost can now be a fraction of a token, and a
+  // double on the old numbers would not decode on a client built against them.
+  reserved 4, 7;
+
+  // Tokens one click costs, from the country's share of the map: 1.5 is half
+  // as slow again. Zero from a server too old to price clicks, which means one.
+  double cost = 8;
+
+  // The fraction of the whole map the country holds, 0 to 1.
+  double share = 5;
+
+  // The share at which a click starts to cost next_cost. Zero at the top step.
+  double next_share = 6;
+  double next_cost = 9;
 }
 
 message ClickRequest {
@@ -50,7 +75,10 @@ message ClickResponse {
   ClickBudget budget = 1;
 }
 
-message GetBudgetRequest {}
+message GetBudgetRequest {
+  // The country the allowance is priced for.
+  string country_id = 1;
+}
 
 message GetBudgetResponse {
   ClickBudget budget = 1;
@@ -88,7 +116,169 @@ message PlanetEvent {
   oneof event {
     TileUpdate tile_update = 1;
     Heartbeat heartbeat = 2;
+
+    // Addressed to one client: it is sent down the stream of the caller the
+    // server drew, and nobody else's.
+    BonusOffered bonus_offered = 3;
+
+    // Broadcast to everyone, so catching a box is something the whole planet
+    // sees rather than a private event.
+    BonusTaken bonus_taken = 4;
+
+    // Broadcast to everyone. It travels in order with the tile updates, so a
+    // tile retaken just after the blast is never blanked by it.
+    BombDropped bomb_dropped = 5;
+
+    // Broadcast to everyone: a player closed a shape and took what was inside.
+    // The tiles themselves still arrive as tile updates; this is what lets every
+    // client show why they changed.
+    TilesEnclosed tiles_enclosed = 6;
+
+    // Broadcast to everyone, like tiles_enclosed: the tiles arrive as tile
+    // updates, and this says a spread bonus is why, so every client can show it.
+    TilesSpread tiles_spread = 7;
   }
+}
+
+// What a bonus is worth. The client never decides this, and an unknown kind is
+// one a client skips rather than guesses at.
+enum BonusKind {
+  BONUS_KIND_UNSPECIFIED = 0;
+  BONUS_KIND_TRIPLE_CLICKS = 1;
+
+  // Every click also takes the tiles touching the one clicked. The server picks
+  // those tiles from its own map, so a client never names what it gets.
+  BONUS_KIND_SPREAD_CLICKS = 2;
+
+  // One bomb, dropped with DropBomb anywhere on the planet within the duration.
+  // It clears every tile within a few rings of where it lands, whoever holds
+  // them. The server picks the tiles.
+  BONUS_KIND_BOMB = 3;
+
+  // A click that closes a shape of the player's own tiles also takes the tiles
+  // inside it, a few shapes at most. The server finds the shape, so a client
+  // never names what it gets.
+  BONUS_KIND_ENCLOSE_CLICKS = 4;
+}
+
+// A box put in front of one player, and the token that claims it.
+message BonusOffered {
+  // Unguessable, single use, and only good for the caller it was sent to.
+  string token = 1;
+
+  // Names the flight path. Every client draws the same orbit from it, so the
+  // server sends one number instead of a trajectory.
+  uint32 seed = 2;
+
+  BonusKind kind = 3;
+
+  uint32 duration_seconds = 4;
+
+  // After this the token is refused, whatever the client is still drawing.
+  int64 expires_at_unix_ms = 5;
+}
+
+// Somebody caught one. Carries no token and names no address — it exists so the
+// rest of the planet sees it happen.
+message BonusTaken {
+  string country_id = 1;
+
+  BonusKind kind = 2;
+}
+
+message ClaimBonusRequest {
+  string token = 1;
+
+  // What to say the catcher was playing for, in the broadcast that follows.
+  string country_id = 2;
+}
+
+message ClaimBonusResponse {
+  // The allowance as it stands with the bonus applied, so the client does not
+  // have to wait for its next click to see the wider budget. A kind that does
+  // not widen it answers the allowance unchanged.
+  ClickBudget budget = 1;
+
+  BonusKind kind = 2;
+
+  uint32 duration_seconds = 3;
+
+  // For a bomb: how wide its blast is, in radians of arc, so the client can
+  // draw the aiming ring at the size of what it will clear. Zero otherwise.
+  double blast_radius = 4;
+
+  // For an enclose bonus only: how many shapes it may close, and the most tiles
+  // one shape may hold. Zero for every other kind.
+  uint32 enclosures = 5;
+  uint32 enclosure_max_tiles = 6;
+}
+
+// A point on the globe, as a direction from its centre. Need not be unit length.
+message GlobePoint {
+  double x = 1;
+  double y = 2;
+  double z = 3;
+}
+
+message DropBombRequest {
+  // Where the player aimed, not a tile: the sea has no tiles, and whether the
+  // aim is on land or in the water is the server's call.
+  GlobePoint target = 1;
+
+  // What to say the bomber was playing for, in the broadcast that follows.
+  string country_id = 2;
+}
+
+message DropBombResponse {}
+
+// A bomb landed. Everything a client needs to draw it and to clear the map.
+message BombDropped {
+  // The tile it hit. Zero when it fell in the sea: the bomb is spent, nothing
+  // is cleared, and the client draws a splash.
+  uint32 tile_id = 1;
+
+  string country_id = 2;
+
+  // Radians of arc, so the drawing matches what was cleared.
+  double radius = 3;
+
+  // The tiles that were held and now are not. Carried here rather than as one
+  // TileUpdate each, so the client can hold them back until the blast hits.
+  repeated uint32 cleared_tile_ids = 4;
+
+  // Where to draw it, on the unit sphere: the tile's centre, or the aimed spot
+  // in the sea.
+  GlobePoint point = 5;
+}
+
+// A shape closed by an enclose bonus, and what it took.
+message TilesEnclosed {
+  string country_id = 1;
+
+  // The click that closed the shape. It is one of the wall tiles.
+  uint32 closing_tile_id = 2;
+
+  // The player's tiles that touch the inside: the shape's outline.
+  repeated uint32 wall_tile_ids = 3;
+
+  // The tiles taken, nearest the closing tile first.
+  repeated uint32 filled_tile_ids = 4;
+
+  // Set only on the stream of the caller who closed it, with how many shapes
+  // their bonus may still close.
+  bool yours = 5;
+  uint32 enclosures_left = 6;
+}
+
+// A click made under a spread bonus, and the tiles it spread onto.
+message TilesSpread {
+  string country_id = 1;
+
+  // The tile the player clicked.
+  uint32 tile_id = 2;
+
+  // The tiles touching it, which the click also took. Empty for a lone island.
+  repeated uint32 spread_tile_ids = 3;
 }
 
 message Heartbeat {}
@@ -97,4 +287,7 @@ message TileUpdate {
   uint32 tile_id = 1;
   string country_id = 2;
   string previous_country_id = 3;
+
+  // The click that made this change was made under a triple clicks bonus.
+  bool boosted = 4;
 }

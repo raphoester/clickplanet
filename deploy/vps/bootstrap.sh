@@ -280,9 +280,44 @@ else
 	log "docker already present ($(docker --version))"
 fi
 
+# No userland proxy. With it on, docker-proxy listens on 80/443 from the moment
+# a container starts, a beat before the NAT rule that forwards straight to the
+# container exists. A connection that lands in that gap is carried by
+# docker-proxy for its whole life, and docker-proxy is the peer Caddy sees: the
+# source becomes the bridge gateway (172.18.0.1), which is not a Cloudflare
+# range, so Caddy ignores Cf-Connecting-Ip and every request on it reaches the
+# API as one caller. Cloudflare keeps an origin connection open for hours and
+# multiplexes many visitors over it — on 2026-09-14 one such connection, opened
+# 1.8s after a Caddy restart, carried 78% of all clicks. That hides a bot inside
+# a crowd and exposes the crowd to a single ban. Every deploy restarts Caddy, so
+# this was not a one-off. With the proxy off, a connection in the gap is refused
+# and Cloudflare retries onto the NAT rule, which keeps the real peer address.
+daemon_json=/etc/docker/daemon.json
+if [[ ! -s "$daemon_json" ]]; then
+	# Restarting the daemon stops every container (SIGTERM, so the API writes its
+	# final snapshot) and restart: unless-stopped brings them back: a few seconds
+	# of downtime, once, on a box that already runs the stack.
+	log "disabling docker's userland proxy (restarts docker)"
+	mkdir -p /etc/docker
+	echo '{ "userland-proxy": false }' > "$daemon_json"
+	systemctl restart docker
+elif grep -Eq '"userland-proxy"[[:space:]]*:[[:space:]]*false' "$daemon_json"; then
+	log "docker userland proxy already disabled"
+else
+	# Not rewritten by hand: that file may hold settings this script knows
+	# nothing about, and a bad edit stops docker from starting at all.
+	die "${daemon_json} exists without \"userland-proxy\": false. Add it, then run: systemctl restart docker"
+fi
+
 if ! command -v git >/dev/null 2>&1; then
 	log "installing git"
 	apt-get update -qq && apt-get install -y -qq git
+fi
+
+# Reads Caddy's JSON access log; see "Reading the access log" in README.md.
+if ! command -v jq >/dev/null 2>&1; then
+	log "installing jq"
+	apt-get update -qq && apt-get install -y -qq jq
 fi
 
 # --------------------------------------------------------------- deploy user
@@ -412,7 +447,14 @@ if [[ -f "$env_file" && $FORCE_ENV -eq 0 ]]; then
 		sed -i '/^SESSION_SECRET=/d' "$env_file"
 		printf 'SESSION_SECRET=%s\n' "$(random_secret)" >> "$env_file"
 	fi
-	# Unlike the two above this cannot be generated: it is half of a keypair
+	# Generated once and never rotated here: postgres reads it only when its
+	# volume is empty, so a new one would lock the API out of the existing data.
+	if ! grep -q '^POSTGRES_PASSWORD=.' "$env_file"; then
+		log "adding a generated POSTGRES_PASSWORD to the existing .env"
+		sed -i '/^POSTGRES_PASSWORD=/d' "$env_file"
+		printf 'POSTGRES_PASSWORD=%s\n' "$(random_secret)" >> "$env_file"
+	fi
+	# Unlike the salt and the session secret this cannot be generated: it is half of a keypair
 	# Cloudflare issues. Left empty, docker compose refuses to start the stack
 	# and says so, which beats booting with attestation quietly doing nothing.
 	if ! grep -q '^TURNSTILE_SECRET=' "$env_file"; then
@@ -428,6 +470,7 @@ FRONTEND_ORIGIN=${FRONTEND_ORIGIN}
 CLOUDFLARE_API_TOKEN=${CF_TOKEN}
 CHAT_TAG_SALT=$(random_salt)
 SESSION_SECRET=$(random_secret)
+POSTGRES_PASSWORD=$(random_secret)
 # Secret half of the Turnstile widget, from dash.cloudflare.com > Turnstile.
 # Cannot be generated here. The stack will not start until it is set.
 TURNSTILE_SECRET=
@@ -439,8 +482,8 @@ fi
 
 # ----------------------------------------------------------------- backups
 
-# The snapshot in the tile_state volume is the entire game state and the only
-# thing on this box worth backing up.
+# The ledger, bans, antibot evidence and chat log in the tile_state volume. The tile map is in postgres,
+# which this does not back up yet.
 if ! crontab -u "$DEPLOY_USER" -l 2>/dev/null | grep -q 'vps_tile_state'; then
 	log "installing nightly tile-state backup cron"
 	install -d -m 755 -o "$DEPLOY_USER" -g "$DEPLOY_USER" "$BACKUP_DIR"

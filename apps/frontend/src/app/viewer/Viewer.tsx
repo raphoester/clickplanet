@@ -1,10 +1,11 @@
 import {useRef} from 'react';
-import {OwnershipsGetter, TileClicker, UpdatesListener} from "../../backends/backend.ts";
+import {Bomber, BonusListener, OwnershipsGetter, TileClicker, UpdatesListener} from "../../backends/backend.ts";
+import BombNews from "../components/BombNews.tsx";
 import {ChatBackend} from "../../backends/chat.ts";
 import ChatPanel from "../chat/ChatPanel.tsx";
 import Menu from "../Menu.tsx";
+import BonusAward from "../components/BonusAward.tsx";
 import ClickBudgetMeter from "../components/ClickBudgetMeter.tsx";
-import RateLimitModal from "../components/RateLimitModal.tsx";
 import SessionUnavailableModal from "../components/SessionUnavailableModal.tsx";
 import VPNBlockedModal from "../components/VPNBlockedModal.tsx";
 import CameraButton from "../share/CameraButton.tsx";
@@ -15,6 +16,9 @@ import {ClickBudgetSource} from "../../backends/clickBudget.ts";
 import {useClickBudget} from './useClickBudget.ts';
 import {useCountryStorage} from './useCountryStorage.ts';
 import {GlobeStatus, useGlobe} from './useGlobe.ts';
+import {useSound} from '../sound/useSound.ts';
+import AnthemBar from "../anthem/AnthemBar.tsx";
+import {useAnthem} from "../anthem/useAnthem.ts";
 import "./Viewer.css"
 
 export type ViewerProps = {
@@ -22,13 +26,16 @@ export type ViewerProps = {
     ownershipsGetter: OwnershipsGetter
     updatesListener: UpdatesListener
     clickBudgetSource?: ClickBudgetSource
+    bonusListener?: BonusListener
+    bomber?: Bomber
     chatBackend?: ChatBackend
 }
 
 export default function Viewer(props: ViewerProps) {
     const container = useRef<HTMLDivElement>(null)
     const {countryState, handleSetCountry} = useCountryStorage()
-    const clickBudget = useClickBudget(props.clickBudgetSource)
+    const clickBudget = useClickBudget(props.clickBudgetSource, countryState.code)
+    const sound = useSound()
 
     const {
         status,
@@ -36,22 +43,31 @@ export default function Viewer(props: ViewerProps) {
         tileDeltas,
         tilesCount,
         capture,
-        rateLimited,
-        dismissRateLimited,
+        refusals,
         vpnBlocked,
         dismissVPNBlocked,
         sessionUnavailable,
         dismissSessionUnavailable,
+        award,
+        dismissAward,
+        bonus,
+        lastBomb,
+        dismissBomb,
     } = useGlobe({
         container,
         tileClicker: props.tileClicker,
         ownershipsGetter: props.ownershipsGetter,
         updatesListener: props.updatesListener,
+        bonusListener: props.bonusListener,
+        bomber: props.bomber,
+        playSound: sound.play,
         country: countryState,
     })
 
     // The camera lives out here rather than in the menu: the globe is what it
     // photographs, and the card over it is not in the picture.
+    const anthem = useAnthem(leaderboard, sound.settings)
+
     const {shot, taking, take, discard} = useSharePicture(
         capture, shareStats(leaderboard, countryState))
 
@@ -66,7 +82,12 @@ export default function Viewer(props: ViewerProps) {
             leaderboard={leaderboard}
             tileDeltas={tileDeltas}
             tilesCount={tilesCount}
+            sound={{settings: sound.settings, onChange: sound.setSettings, preview: sound.preview}}
         />}
+
+        {status.state === 'ready' && <AnthemBar anthem={anthem}
+                                                settings={sound.settings}
+                                                onChange={sound.setSettings}/>}
 
         {status.state === 'ready' && <CameraButton busy={taking} onClick={take}/>}
 
@@ -74,14 +95,17 @@ export default function Viewer(props: ViewerProps) {
                                stats={shareStats(leaderboard, countryState)}
                                onClose={discard}/>}
 
-        {status.state === 'ready' && <ClickBudgetMeter budget={clickBudget}/>}
+        {status.state === 'ready' && <ClickBudgetMeter budget={clickBudget} bonus={bonus} countryName={countryState.name} refusals={refusals}/>}
 
         {status.state === 'ready' && <ChatPanel
             backend={props.chatBackend}
             country={countryState}
+            playSound={sound.play}
         />}
 
-        {rateLimited && <RateLimitModal onClose={dismissRateLimited}/>}
+        {award && <BonusAward reward={award} onDone={dismissAward}/>}
+
+        {lastBomb && <BombNews key={lastBomb.id} drop={lastBomb.drop} land={lastBomb.land} onDone={dismissBomb}/>}
 
         {vpnBlocked && <VPNBlockedModal onClose={dismissVPNBlocked}/>}
 

@@ -11,6 +11,7 @@ interface ImportMetaEnv {
     // useless without the secret, which only the backend holds. Unset means
     // this build sends no session.
     readonly VITE_TURNSTILE_SITEKEY?: string
+    readonly VITE_FAKE_BACKEND?: string
 }
 
 interface ImportMeta {

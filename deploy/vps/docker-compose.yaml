@@ -7,8 +7,8 @@
 # Cloudflare Pages. The origin IP stays private: the A record is proxied and
 # ufw admits only Cloudflare's ranges on 80/443.
 #
-# There is no database. The API keeps the tile map in process and snapshots it
-# to the tile_state volume.
+# Postgres runs beside the API, reachable only on the compose network. The API
+# keeps the tile map in process and writes what changed to postgres every second.
 
 services:
   caddy:
@@ -22,23 +22,54 @@ services:
     ports:
       - "80:80"
       - "443:443"
-    # The whole file, rather than a line per value: Caddy reads API_DOMAIN,
-    # FRONTEND_ORIGIN (Access-Control-Allow-Origin) and CLOUDFLARE_API_TOKEN
-    # (the scoped Zone:DNS:Edit token it writes the ACME TXT record with) under
-    # exactly the names .env already gives them, so naming each one here only
-    # said it twice.
-    #
-    # What that drops is the ${VAR:?} guard. It was worth having while .env was
-    # hand-edited; it is not now — render-env.sh writes the file, the first two
-    # come from env.public which is tracked in git, and the third cannot go
-    # missing without the render failing first.
-    env_file: .env
+    # The Caddyfile's {$NAME} and {env.NAME} values, and nothing else: .env is
+    # compose's own interpolation file and holds the postgres password, so Caddy
+    # loads a file of its own.
+    env_file: .env.caddy
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data      # certificates — losing this means re-issuing certs
       - caddy_config:/config
+      # The JSON access log, rolled and pruned by Caddy itself (14 days; see the
+      # Caddyfile). A volume because the container is recreated on every deploy,
+      # and on 2026-09-14 that deleted the only record of a bot attack. It holds
+      # client IPs, so it is personal data like chat.log.
+      - caddy_logs:/var/log/caddy
     depends_on:
       - backend
+    # Caddy writes a ~2 KB access line per request. Unbounded, that filled the
+    # disk at ~1 GB a day, so keep 3 × 50 MB and drop the oldest. This is only
+    # the live copy for `docker logs`; the caddy_logs volume is the record.
+    logging:
+      driver: json-file
+      options:
+        max-size: 50m
+        max-file: "3"
+
+  postgres:
+    # Pinned to a major: a new major cannot read the old one's data directory,
+    # so upgrading is a dump and restore, never an image bump.
+    image: postgres:16-alpine
+    container_name: cp-postgres
+    restart: unless-stopped
+    # No ports: only the backend reaches it, over the compose network.
+    environment:
+      POSTGRES_USER: clickplanet
+      POSTGRES_DB: clickplanet
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env (openssl rand -hex 32)}
+    # Sized for a 1 GB droplet that also holds the tile map in the API's memory.
+    command: [ "postgres", "-c", "shared_buffers=64MB", "-c", "max_connections=20" ]
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U clickplanet -d clickplanet" ]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+    logging:
+      driver: journald
+      options:
+        tag: cp-postgres
 
   backend:
     image: ${BACKEND_IMAGE:-ghcr.io/raphoester/clickplanet-backend:latest}
@@ -46,13 +77,18 @@ services:
     restart: unless-stopped
     expose:
       - "8080"
-    # One line per env:// anchor in backend.yaml, and only the API's — Caddy
-    # loads .env and never sees these. Which secrets those are is backend.yaml's
-    # business, not this file's, so nothing here changes when one is added.
+    # The API migrates and loads the map at boot, and refuses to start without postgres.
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # One line per env:// anchor in backend.yaml, and only the API's. Which secrets
+    # those are is backend.yaml's business, so nothing here changes when one is added.
     env_file: .env.backend
     volumes:
       - ./backend.yaml:/home/app/config/config.yaml:ro
-      - tile_state:/home/app/state   # snapshot file lives here — back this up
+      # The ledger, bans, antibot evidence and chat log still live here. The old tile snapshot is imported
+      # into postgres on the first boot and left beside them as tiles.snapshot.imported.
+      - tile_state:/home/app/state
     command: [ "./api", "-config", "/home/app/config/config.yaml" ]
     # journald, not the default json-file. json-file is stored per container id,
     # and a deploy pulls a new image and *recreates* the container — so every
@@ -116,7 +152,7 @@ services:
             # turns them on is now antiBot: the metric names outlived the
             # rename on purpose, so an existing history file stays comparable.
             { echo "# $$stamp"
-              grep -E '^(click_reaction_seconds|shadowban|blocked_clicks|click_session_checks)' /tmp/scrape || true
+              grep -E '^(click_reaction_seconds|click_retake_share|shadowban|antibot_opinions|blocked_clicks|click_session_checks)' /tmp/scrape || true
               echo
             } >> "$$file"
           else
@@ -133,5 +169,7 @@ services:
 volumes:
   caddy_data:
   caddy_config:
+  caddy_logs:
+  pg_data:
   tile_state:
   metrics_history:

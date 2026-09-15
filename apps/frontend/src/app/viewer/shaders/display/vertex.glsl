@@ -6,6 +6,24 @@ uniform float landmassCount;
 // Screen pixels per radian of arc at the current zoom.
 uniform float pixelsPerRadian;
 
+// Bombs. Matches MAX_BLASTS and BLAST_TIMELINE in domain/blast.ts.
+#define MAX_BLASTS 4
+const float BLAST_FALL = 0.8;
+const float BLAST_SCORCH = 5.0;
+
+uniform float time;
+// xyz: where it lands, on the unit sphere. w: when it was dropped, in seconds.
+uniform vec4 blasts[MAX_BLASTS];
+// Radians of arc; zero for a slot with nothing in it.
+uniform float blastRadii[MAX_BLASTS];
+// Zero under prefers-reduced-motion: the colours stay, nothing moves.
+uniform float motion;
+
+// The target rings are not drawn here but as meshes (blasts.ts): the tiles are
+// dots with sea between them, and a ring made of dots breaks up as it moves.
+varying float vGlow;
+varying float vScorch;
+
 attribute float hover;
 attribute vec4 regionVector;
 attribute float landmassIndex;
@@ -67,6 +85,52 @@ void main() {
         }
     }
 
-    gl_PointSize = pointSize;
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    vec3 ground = normalize(position);
+    vec3 displaced = position;
+    float swell = 0.0;
+
+    vGlow = 0.0;
+    vScorch = 0.0;
+
+    for (int i = 0; i < MAX_BLASTS; i++) {
+        float radius = blastRadii[i];
+        if (radius <= 0.0) continue;
+
+        float t = time - blasts[i].w;
+        if (t < 0.0 || t > BLAST_FALL + BLAST_SCORCH) continue;
+
+        // Nothing past three radii ever lights up, and that is nearly every
+        // tile on the planet: one dot product and out.
+        float along = dot(ground, blasts[i].xyz);
+        if (along < cos(min(radius * 3.0, 3.14159))) continue;
+
+        // In radii from the centre: 1.0 is the edge of what was cleared.
+        float d = acos(min(along, 1.0)) / radius;
+
+        // Still falling: the ground is untouched until it lands.
+        if (t < BLAST_FALL) continue;
+
+        float s = t - BLAST_FALL;
+
+        // The shock front runs out past the crater and dies on the way.
+        float front = 2.6 * (1.0 - exp(-s * 3.2));
+        float ring = exp(-pow((d - front) * 2.8, 2.0)) * exp(-s * 1.6);
+        float flash = (1.0 - smoothstep(0.0, 1.1, d)) * exp(-s * 5.0);
+        vGlow = max(vGlow, max(ring, flash));
+
+        // Tiles are thrown out along the ground by the front, and the crater
+        // swells toward the viewer as it flashes.
+        vec3 outward = ground - blasts[i].xyz * along;
+        float reach = length(outward);
+        if (reach > 1e-5) displaced += motion * (outward / reach) * ring * radius * 0.3;
+        displaced += motion * ground * flash * radius * 0.25;
+        swell = max(swell, ring * 1.2 + flash * 1.8);
+
+        // The crater itself stays burnt, cooling over the scorch.
+        float crater = 1.0 - smoothstep(0.85, 1.1, d);
+        vScorch = max(vScorch, crater * (1.0 - smoothstep(0.0, BLAST_SCORCH, s)));
+    }
+
+    gl_PointSize = pointSize * (1.0 + motion * swell);
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(displaced, 1.0);
 }

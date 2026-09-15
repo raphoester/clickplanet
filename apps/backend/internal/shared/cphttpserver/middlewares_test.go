@@ -1,6 +1,7 @@
 package cphttpserver_test
 
 import (
+	"bytes"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -20,9 +21,44 @@ func TestLoggingMiddlewareKeepsTheWriterFlushable(t *testing.T) {
 		_, flushable = w.(http.Flusher)
 	}))
 
-	handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodPost, "/", nil))
+	handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/", nil))
 
 	require.True(t, flushable)
+}
+
+func TestLoggingMiddlewareLogsOnlyServerErrors(t *testing.T) {
+	for _, tc := range []struct {
+		status int
+		logged bool
+	}{
+		{http.StatusOK, false},
+		{http.StatusTooManyRequests, false},
+		{http.StatusUnauthorized, false},
+		{http.StatusInternalServerError, true},
+		{http.StatusBadGateway, true},
+	} {
+		var out bytes.Buffer
+		middleware := cphttpserver.NewLoggingMiddleware(slog.New(slog.NewTextHandler(&out, nil)))
+		handler := middleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(tc.status)
+		}))
+
+		handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/x", nil))
+
+		require.Equal(t, tc.logged, out.Len() > 0, "status %d", tc.status)
+	}
+}
+
+func TestLoggingMiddlewareSaysNothingForAnImplicitOK(t *testing.T) {
+	var out bytes.Buffer
+	middleware := cphttpserver.NewLoggingMiddleware(slog.New(slog.NewTextHandler(&out, nil)))
+	handler := middleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("ok"))
+	}))
+
+	handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/x", nil))
+
+	require.Zero(t, out.Len())
 }
 
 func TestIPReaderMiddleware(t *testing.T) {
@@ -36,7 +72,7 @@ func TestIPReaderMiddleware(t *testing.T) {
 	}
 
 	t.Run("prefers the address the reverse proxy resolved", func(t *testing.T) {
-		r := httptest.NewRequest(http.MethodPost, "/planet.v1.ClickService/Click", nil)
+		r := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/planet.v1.ClickService/Click", nil)
 		r.RemoteAddr = "10.0.0.1:4242"
 		r.Header.Set("X-Real-IP", "1.2.3.4")
 
@@ -44,14 +80,14 @@ func TestIPReaderMiddleware(t *testing.T) {
 	})
 
 	t.Run("falls back to the peer address, without its port", func(t *testing.T) {
-		r := httptest.NewRequest(http.MethodPost, "/planet.v1.ClickService/Click", nil)
+		r := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/planet.v1.ClickService/Click", nil)
 		r.RemoteAddr = "192.168.1.7:51234"
 
 		require.Equal(t, "192.168.1.7", readIP(r))
 	})
 
 	t.Run("keeps a peer address that carries no port", func(t *testing.T) {
-		r := httptest.NewRequest(http.MethodPost, "/planet.v1.ClickService/Click", nil)
+		r := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/planet.v1.ClickService/Click", nil)
 		r.RemoteAddr = "@"
 
 		require.Equal(t, "@", readIP(r))
@@ -65,7 +101,7 @@ func TestCorsMiddlewareAllowsTheSessionHeader(t *testing.T) {
 	handler := cphttpserver.CorsMiddleware(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
 
 	recorder := httptest.NewRecorder()
-	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodOptions, "/planet.v1.ClickService/Click", nil))
+	handler.ServeHTTP(recorder, httptest.NewRequestWithContext(t.Context(), http.MethodOptions, "/planet.v1.ClickService/Click", nil))
 
 	allowed := recorder.Header().Get("Access-Control-Allow-Headers")
 	require.Contains(t, allowed, cpconnect.SessionHeader)

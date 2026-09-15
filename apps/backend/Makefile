@@ -1,4 +1,4 @@
-.PHONY: proto test deadcode dBuild dRun dRm vpn-lists metrics
+.PHONY: proto map test lint lint-ci tidy check-format setup-tools deadcode dBuild dRun dRm vpn-lists metrics
 
 # Test helpers that more than one package needs cannot live in a _test.go file,
 # so they live in an ordinary .go file carrying this tag. The tag is what keeps
@@ -10,6 +10,21 @@ TEST_TAG := testing
 proto:
 	@cd ../../proto && buf lint
 	@cd proto && buf generate
+
+# The tile coordinates and borders blobs, the same way `proto` works: the monorepo-shared /map is the
+# source and generated/ holds this app's copy, because its Docker build context is its own directory.
+# The copy is embedded, so run this and commit. The name is the content hash, so the previous one has
+# to go or the embed glob matches two files and refuses to pick.
+MAP_DIR := ../../map
+MAP_ASSET_DIR := generated/map
+
+map:
+	@for asset in coordinates borders; do \
+		test -n "$$(ls $(MAP_DIR)/$$asset-*.bin 2>/dev/null)" || { echo "map: no $(MAP_DIR)/$$asset-<hash>.bin" >&2; exit 1; }; \
+		rm -f $(MAP_ASSET_DIR)/$$asset-*.bin; \
+		cp $(MAP_DIR)/$$asset-*.bin $(MAP_ASSET_DIR)/; \
+		ls $(MAP_ASSET_DIR)/$$asset-*.bin; \
+	done
 
 dBuild:
 	@docker build -t clickplanet-back:local .
@@ -65,18 +80,92 @@ deadcode:
 		exit 1; \
 	fi
 
+# golangci-lint is pinned: an unpinned linter turns a green branch red on
+# somebody else's release schedule, and the CI job reads the same version from
+# here. Install it with `make setup-tools`.
+GOLANGCI_LINT_VERSION := v2.13.1
+
+lint:
+	@golangci-lint run --timeout=10m
+
+# --allow-parallel-runners so the pre-push hook can run this beside the other
+# checks without the two fighting over the lint cache.
+lint-ci:
+	@golangci-lint run --timeout=10m --allow-parallel-runners
+
+# gofumpt runs through golangci-lint's formatters block rather than as its own
+# binary: one pinned version to install instead of two that can disagree, and it
+# already knows which files are generated.
+#
+# Mutates the tree — `go mod tidy` rewrites go.mod/go.sum in place.
+tidy:
+	@go mod tidy
+	@golangci-lint fmt
+
+# `golangci-lint fmt --diff` prints the diff but exits 0 either way, so the
+# output is what has to be tested rather than the status.
+check-format:
+	@out=$$(golangci-lint fmt --diff 2>&1); \
+	if [ -n "$$out" ]; then \
+		echo "These files are not formatted. Run 'make tidy':"; \
+		printf '%s\n' "$$out" | grep '^diff ' | awk '{print "  " $$3}'; \
+		exit 1; \
+	fi
+	@go mod tidy
+	@git diff --quiet -- go.mod go.sum || { \
+		echo "go.mod or go.sum is not tidy. Run 'make tidy' and commit the result."; \
+		git --no-pager diff --stat -- go.mod go.sum; \
+		exit 1; }
+
+setup-tools: ## Install the pinned linter into $(go env GOPATH)/bin
+	@curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh \
+		| sh -s -- -b $$(go env GOPATH)/bin $(GOLANGCI_LINT_VERSION)
+
 # Refreshes the vendored VPN and datacenter ranges from X4BNet/lists_vpn, which
 # rebuilds them daily from ASN ownership. They are checked in and embedded
 # rather than fetched at boot, so refreshing them is a commit: run this, run the
 # tests (they assert the lists still parse and are not truncated), and commit.
+#
+# X4BNet works from ASN ownership, so it misses VPN servers rented inside other
+# networks. Four more sources fill that in, all folded into the vpn list:
+#   - Joe12387/open-source-vpn-ip-lists (CC0): each provider's own server list
+#   - az0/vpn_ip (GPL-3): VPN hostnames resolved, from apps and extensions
+#   - the Tor Project's exit list
+#   - every range registered under a netname in VPN_NETNAMES, from the RIPE and
+#     ARIN RDAP servers. Firefox's built-in VPN is announced by Fastly, so no
+#     ASN list catches it; its registration name does.
+# Needs jq. Bare addresses become /32 and /128, since the parser takes prefixes.
 VPN_LISTS_URL := https://raw.githubusercontent.com/X4BNet/lists_vpn/main/output
 VPN_LISTS_DIR := internal/shared/cpipblock/cpdata
+VPN_PROVIDERS_API := https://api.github.com/repos/Joe12387/open-source-vpn-ip-lists/contents/
+VPN_AZ0_URL := https://az0-vpnip-public.oooninja.com/ip.txt
+TOR_EXITS_URL := https://check.torproject.org/torbulkexitlist
+VPN_NETNAMES := MOZILLA-FIREFOX-VPN
+VPN_RDAP_SERVERS := https://rdap.db.ripe.net https://rdap.arin.net/registry
+TO_PREFIX := awk '$$1 ~ /^[0-9a-fA-F:.]+$$/ { print $$1 (index($$1, ":") ? "/128" : "/32") }'
 
 vpn-lists:
+	@command -v jq >/dev/null || { echo "vpn-lists needs jq" >&2; exit 1; }
 	@curl -sSf $(VPN_LISTS_URL)/vpn/ipv4.txt        -o $(VPN_LISTS_DIR)/vpn_ipv4.txt
 	@curl -sSf $(VPN_LISTS_URL)/vpn/ipv6.txt        -o $(VPN_LISTS_DIR)/vpn_ipv6.txt
 	@curl -sSf $(VPN_LISTS_URL)/datacenter/ipv4.txt -o $(VPN_LISTS_DIR)/datacenter_ipv4.txt
 	@curl -sSf $(VPN_LISTS_URL)/datacenter/ipv6.txt -o $(VPN_LISTS_DIR)/datacenter_ipv6.txt
+	@set -e; tmp=$$(mktemp -d); trap 'rm -rf "$$tmp"' EXIT; \
+		curl -sSf $(VPN_PROVIDERS_API) -o "$$tmp/index.json"; \
+		for u in $$(jq -r '.[] | select(.name | endswith(".txt")) | .download_url' "$$tmp/index.json"); do \
+			curl -sSf "$$u" >> "$$tmp/providers"; \
+		done; \
+		$(TO_PREFIX) "$$tmp/providers" > $(VPN_LISTS_DIR)/vpn_providers.txt; \
+		curl -sSf $(VPN_AZ0_URL) -o "$$tmp/az0"; \
+		$(TO_PREFIX) "$$tmp/az0" > $(VPN_LISTS_DIR)/vpn_az0.txt; \
+		curl -sSf $(TOR_EXITS_URL) -o "$$tmp/tor"; \
+		$(TO_PREFIX) "$$tmp/tor" > $(VPN_LISTS_DIR)/tor_exits.txt; \
+		: > "$$tmp/netnames"; \
+		for name in $(VPN_NETNAMES); do for server in $(VPN_RDAP_SERVERS); do \
+			curl -sSf "$$server/ips?name=$$name" -o "$$tmp/rdap.json"; \
+			jq -r '.ipSearchResults[]?.cidr0_cidrs[]? | "\(.v4prefix // .v6prefix)/\(.length)"' "$$tmp/rdap.json" >> "$$tmp/netnames"; \
+		done; done; \
+		mv "$$tmp/netnames" $(VPN_LISTS_DIR)/vpn_netnames.txt
 	@wc -l $(VPN_LISTS_DIR)/*.txt
 
 # Reads the metrics endpoint on the droplet. It is not routed through Caddy (see

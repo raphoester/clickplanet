@@ -34,8 +34,8 @@ Caddyfile; it moves to any provider that rents a Linux box.
   laptop with `--host`; it copies itself over and re-runs there as root.
 - `docker-compose.yaml` — Caddy + backend, plus a small metrics poller that
   keeps a history the API's in-process counters cannot (see
-  [Evidence has to outlive a deploy](#evidence-has-to-outlive-a-deploy-and-by-default-it-does-not)).
-  There is no database.
+  [Evidence has to outlive a deploy](#evidence-has-to-outlive-a-deploy-and-by-default-it-does-not)),
+  and the postgres that holds the tile map (see [9. Postgres](#9-postgres)).
 - `Caddyfile` — TLS via DNS-01, reverse proxy, CORS
 - `caddy/Dockerfile` — Caddy built with `caddy-dns/cloudflare`. The stock image
   has no DNS provider module and cannot solve the DNS-01 challenge.
@@ -157,7 +157,7 @@ Everything else is one command from your laptop:
 ```
 
 It copies itself to the box over SSH and re-runs there as root, then: installs
-Docker, creates the `deploy` user, generates and installs a CI keypair
+Docker and turns off its userland proxy (see below), creates the `deploy` user, generates and installs a CI keypair
 (`~/.ssh/clickplanet_ci`, private half never leaves your laptop), restricts ufw
 to SSH plus Cloudflare's ranges on 80/443, clones the repo to
 `/opt/clickplanet`, writes `.env`, installs the nightly backup cron, builds
@@ -169,8 +169,8 @@ and it stops with a specific message rather than a confusing one when something
 is not ready: the wrong CPU architecture, a token you did not pass, a
 grey-clouded DNS record, or a backend image that is not pullable yet.
 
-On first boot the API finds no snapshot and starts from an empty map, logging
-`no tile snapshot found`. Check it:
+On first boot the API finds no tiles in postgres and starts from an empty map,
+logging `no stored tiles, starting from an empty map`. Check it:
 
 ```bash
 curl -sS 'https://api.clickplanet.lol/planet.v1.ClickService/MapDensity?connect=v1&encoding=json&message=%7B%7D'
@@ -185,6 +185,29 @@ ssh deploy@YOUR_IP 'cd /opt/clickplanet/deploy/vps && docker compose logs caddy 
 
 An `unauthorized` or zone-lookup error there almost always means the token is
 missing one of the two permissions in step 1.
+
+### Docker's userland proxy is off, and must stay off
+
+With it on, every request on some Cloudflare connections reaches the API as the
+same caller, `172.18.0.1`. `docker-proxy` starts listening on 80/443 slightly
+before the NAT rule that forwards to Caddy exists. A connection that lands in
+that gap stays on `docker-proxy` for its whole life, and Caddy sees the bridge
+gateway as its peer. That is not a Cloudflare range, so Caddy ignores
+`Cf-Connecting-Ip`. Cloudflare keeps origin connections open for hours and
+shares them between visitors. On 2026-09-14 one connection, opened 1.8 s after a
+Caddy restart, carried 78% of all clicks. It merged a bot into a crowd, so no
+watchdog could see it, and it put the crowd one metronome flag away from a
+persistent ban. Every deploy restarts Caddy.
+
+`bootstrap.sh` sets `"userland-proxy": false` in `/etc/docker/daemon.json` and
+restarts Docker once when it changes. Re-running it on an existing box applies
+the fix, with a few seconds of downtime. To check a running box:
+
+```bash
+ssh root@YOUR_IP 'docker info | grep EnableUserlandProxy; ss -tn src 172.18.0.1 dport = :443'
+```
+
+`false` and an empty socket list means every request keeps its real address.
 
 ## 4. Frontend on Cloudflare Pages
 
@@ -340,13 +363,17 @@ Sessions raise the floor to "drive a real browser". What gets through that is a
 userscript in a real browser, holding a genuine session — and the only thing
 left that separates it from a player is behaviour.
 
-`antiBot` watches three behaviours, one per watchdog:
+`antiBot` watches five behaviours, one per watchdog:
 
 - **`retaker`** — takes a tile back moments after losing it, over and over, in a
   band no hand holds.
 - **`sequencer`** — walks the tile ids rather than the map: 1, 2, 3, 4, on and on
   until a continent is painted.
-- **`metronome`** — never varies and never stops.
+- **`metronome`** — never varies and never stops. Timed between clicks *tried*,
+  429s included, so the throttle cannot hide a steady loop.
+- **`defender`** — nearly every take wins back a tile its country just lost.
+  **Measuring only**: it sets no verdict until `minShare`/`certainShare` are set.
+- **`catcher`** — catches every bonus box, at once.
 
 Each returns `certain` or `suspect`. **`certain` bans on its own; `suspect` is a
 reading that would ban real players if it were trusted alone**, and counts only
@@ -384,6 +411,19 @@ and everyone else, so it tells you *that* there is a band and roughly where —
 never which caller owns it. It also only sees `retaker`; the other two watchdogs
 have no histogram, because a sweep has no delay to time. Per-caller numbers come
 from the log below.
+
+### Setting the defender's shares
+
+```bash
+docker compose exec backend wget -qO- localhost:8080/metrics | grep click_retake_share
+```
+
+Once a minute, every caller with `minClicks` takes in the last `trackWindow` adds
+its retake share to `click_retake_share`. The poller keeps it. A defence loop sits
+at the top bucket for as long as it runs; a painter sits low. **Two people fighting
+over one tile also sit at the top**, for as long as the fight lasts — so read how
+long callers stay there, not only that they get there, and set `certainClicks`
+past what a fight lasts.
 
 ### The log says who
 
@@ -489,8 +529,49 @@ different picture from forty callers caught once. The labels also tell you which
 watchdog is earning its keep before you enforce. All of them are readable with
 the `wget` line above.
 
-To undo one, set `enforce` back to false and redeploy — bans live in memory
-only, so a restart clears every one of them.
+**A ban is the only thing those two count, so a day with no ban reads as
+nothing.** On 2026-09-14 a bot attack produced zero bans and no sign of how
+close the watchdogs came. Two series fill that gap, both labelled
+`{watchdog, level}` with `level` `suspect` or `certain`:
+
+```bash
+docker compose exec backend wget -qO- localhost:8080/metrics | grep antibot_opinions
+```
+
+- `antibot_opinions_total` counts **rises**: a watchdog's reading of a caller
+  reaching a level it has not held within `jury.suspicionWindow` (10m). A
+  reading flapping across a bound counts once a window, not once a click; one
+  that lapses and comes back counts again.
+- `antibot_opinions_standing` is how many callers each watchdog reads at that
+  level right now, set once a minute by the jury's sweep.
+
+**Levels are cumulative**: `suspect` includes every `certain`, so
+`suspect − certain` is the near misses. `antibot_opinions_total{watchdog="sequencer",level="suspect"} 30`
+with `shadowban_flags` still at 0 is thirty suspicions nobody corroborated — look
+at what the other watchdogs were reading on the same callers before loosening
+`jury.minSuspects`. The poller keeps both.
+
+Bans escalate: 24h for a first offence, 7 days for a second, 3 years from the
+third. A caller that keeps going while banned only extends the ban it has. Bans
+are saved to `bans.jsonl` on the `tile_state` volume, so a deploy keeps them.
+What the watchdogs are tracking is saved beside them, in `antibot-evidence.bin`,
+so a restart does not start their windows again; it keeps three days at most.
+
+See every ban:
+
+```bash
+docker compose exec backend cat /home/app/state/bans.jsonl
+```
+
+Unban one scope (stop first, or the running backend writes it back):
+
+```bash
+docker compose stop backend
+docker run --rm -v vps_tile_state:/s alpine sh -c "grep -v '\"scope\":\"1.2.3.4\"' /s/bans.jsonl > /s/b && mv /s/b /s/bans.jsonl"
+docker compose start backend
+```
+
+Set `enforce` back to false to stop dropping clicks for everyone at once.
 ### Evidence has to outlive a deploy, and by default it does not
 
 Everything above is in-process. A deploy pulls a new image and **recreates** the
@@ -539,6 +620,66 @@ It is not a Prometheus, deliberately: a real one is 80–150 MB resident beside 
 samples a day apart. If this ever needs `histogram_quantile` and proper
 reset-aware `rate()`, that is the moment to spend the memory — the poller is
 then deleted, not extended.
+
+### Reading the access log
+
+On 2026-09-14 a bot attack came through Cloudflare VPN addresses. Then `cp-caddy`
+was recreated, and `docker logs` kept 16 lines. There was no record of who sent
+what. So Caddy now writes every request as one JSON line to
+`/var/log/caddy/access.log` on the `caddy_logs` volume. A recreated container
+keeps it.
+
+- Caddy rolls the file at 100 MiB and gzips the old one. It deletes rolls older
+  than **14 days**, or past 150 rolls (about 1.5 GB) if an attack writes more.
+- The same lines still go to `docker logs cp-caddy`. That copy is lost on
+  recreate.
+- **The access log holds personal data**: client IPs, user agents, countries.
+  Like `chat.log`, 14 days is a policy decision. Shorten `roll_keep_for` in the
+  `Caddyfile` to hold less. The nightly backup does not copy this volume.
+- `X-Session-Token` is written as `REDACTED`. It is a bearer token. You can see
+  if a request had one, not what it was.
+
+Useful fields:
+
+| Field | What |
+|---|---|
+| `ts` | Unix seconds |
+| `request.client_ip` | The visitor, from `Cf-Connecting-Ip` (trusted only from Cloudflare ranges) |
+| `request.uri` | `/planet.v1.ClickService/Click`, etc. |
+| `status`, `duration` | HTTP status, seconds |
+| `request.headers["User-Agent"][0]` | User agent |
+| `request.headers["Cf-Ray"][0]` | Cloudflare request id |
+| `request.headers["Cf-Ipcountry"][0]` | Country Cloudflare placed the visitor in |
+
+Run these on the box, in the stack directory (`bootstrap.sh` installs `jq`).
+Every command starts with the same line, which reads the old rolls then the
+current file:
+
+```bash
+docker compose exec -T caddy sh -c 'zcat /var/log/caddy/*.gz 2>/dev/null; cat /var/log/caddy/access.log' > /tmp/access.jsonl
+```
+
+Top callers by `Click` count:
+
+```bash
+jq -r 'select(.request.uri == "/planet.v1.ClickService/Click") | .request.client_ip' /tmp/access.jsonl | sort | uniq -c | sort -rn | head -20
+```
+
+Status by path (query string cut off):
+
+```bash
+jq -r '"\(.status) \(.request.uri | sub("\\?.*"; ""))"' /tmp/access.jsonl | sort | uniq -c | sort -rn
+```
+
+Every request of one scope in a time range (UTC). For an IPv6 /64, change
+`.request.client_ip == $ip` to `(.request.client_ip | startswith($ip))` and give
+the prefix, `2001:db8:1:2:`:
+
+```bash
+jq -c --arg ip 203.0.113.7 --arg from 2026-09-14T06:00:00Z --arg to 2026-09-14T09:00:00Z 'select(.request.client_ip == $ip and .ts >= ($from | fromdate) and .ts < ($to | fromdate)) | {time: (.ts | todate), status, uri: .request.uri, ua: .request.headers["User-Agent"][0], ray: .request.headers["Cf-Ray"][0], country: .request.headers["Cf-Ipcountry"][0]}' /tmp/access.jsonl
+```
+
+`/tmp/access.jsonl` is a copy of the personal data. Delete it when you are done.
 
 ## 7. CI and the image registry
 
@@ -621,7 +762,7 @@ generates a fresh salt at every boot, logs `no chat.service.tagSalt configured`,
 and every tag changes on each restart.
 
 **`chat.log` holds personal data.** One JSONL line per message with the sender's
-IP beside their text, in the same `tile_state` volume as the snapshot — so the
+IP beside their text, in the `tile_state` volume — so the
 nightly backup below now copies personal data too, and its own retention is
 whatever you keep those tarballs for. `chat.storage.retention` (30 days) is a
 policy decision, not a cache size; shorten it if you would rather hold less.
@@ -633,22 +774,201 @@ that file can also be overridden from the `environment:` block instead —
 config path verbatim (`chat.enabled: "false"`), which is how `CHAT_TAG_SALT`
 reaches `chat.service.tagSalt`.
 
-## 9. Backups
+## 9. Postgres
 
-The whole game state is one snapshot file in the `tile_state` volume, written
-every 30s and on every clean shutdown. A nightly cron on the box is enough:
+The tile map is kept in the `postgres` service, on the `pg_data` volume. The API
+loads it at boot and writes the tiles that changed every second, and once more
+on a clean shutdown. It is not published on any port: only the backend reaches
+it. Each backend module keeps its tables in a schema of its own (`planet` for the
+tile map) and migrates it at boot. The API refuses to start without postgres.
+
+**The password is `POSTGRES_PASSWORD` in `.env`.** `bootstrap.sh` generates it.
+A box set up before postgres needs it added once, **before** the deploy that
+brings postgres, or `docker compose up` refuses to start:
 
 ```bash
-0 4 * * * docker run --rm -v vps_tile_state:/state -v /home/deploy/backups:/out alpine \
-  tar czf /out/tiles-$(date +\%F).tar.gz -C /state .
+echo "POSTGRES_PASSWORD=$(openssl rand -hex 32)" >> .env
+```
+
+Never change it afterwards: postgres reads it only when `pg_data` is empty, so a
+new value locks the API out of the existing data.
+
+**The first boot on postgres imports the old snapshot.** The tiles table is
+empty and `/home/app/state/tiles.snapshot` exists, so the API loads it, writes
+it to postgres in one transaction, and renames it `tiles.snapshot.imported`.
+Check it:
+
+```bash
+journalctl CONTAINER_NAME=cp-backend | grep "legacy tile snapshot"
+docker compose exec postgres psql -U clickplanet -c "select count(*) from planet.tiles"
+```
+
+Then remove `tilesStorage.legacySnapshotPath` from `backend.yaml`.
+
+A psql shell: `docker compose exec postgres psql -U clickplanet`.
+
+### Backups
+
+The nightly cron `bootstrap.sh` installs tars the `tile_state` volume, which
+holds the ledger, bans, antibot evidence and chat log. **The tile map in postgres is not backed up
+yet.** For a copy by hand:
+
+```bash
+docker compose exec postgres pg_dump -U clickplanet -n planet clickplanet > planet-$(date +%F).sql
 ```
 
 DigitalOcean's droplet backups (+20% of the droplet price, so ~$1.20/mo) cover
 the whole disk if you would rather not think about it.
 
+## 10. Operator tools
+
+`httpServer.adminBindAddress` serves the backend's operator services
+(`planet.v1.AdminService`) on `127.0.0.1:8081`, inside the container. They are
+not behind Caddy and have **no authentication**: loopback is their whole
+protection, so a non-loopback address refuses the boot. Reach them from the box
+with `docker compose exec`. They are ordinary Connect RPCs, so a request is a
+JSON POST to `/<package>.<Service>/<Method>`.
+
+### Give one country's tiles to another
+
+Dry run first. It changes nothing and says how many tiles each side holds:
+
+```bash
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"fromCountryId":"dz","toCountryId":"fr","dryRun":true}' http://127.0.0.1:8081/planet.v1.AdminService/ReassignCountry
+```
+
+Then the same without `"dryRun":true`. There is no restart:
+
+- It moves every tile `from` holds, 256 at a time every 50ms — about 4.5s for
+  22,000 tiles.
+- Each tile goes out on the live stream as an ordinary update, so open tabs
+  repaint, the toll sees the new counts, and the next flush writes it to postgres.
+- A tile `from` takes back while it runs stays theirs. `fromAfter` in the answer
+  says how many; run it again.
+- **A count of zero is left out of the answer** — that is how protobuf JSON
+  writes it. `{"fromBefore":22040,"moved":22040,"toAfter":22040}` means `fromAfter` is 0.
+- A refusal (unknown or identical country) shows as `server returned error: HTTP/1.1 400`.
+- Every call is logged: `journalctl CONTAINER_NAME=cp-backend | grep "admin country reassignment"`.
+
+**Reassigning back does not undo it**: it would also move the tiles `to` held
+before. Copy the table first if you may want to return:
+
+```bash
+docker compose exec postgres psql -U clickplanet -c "create table planet.tiles_before_reassign as table planet.tiles"
+```
+
+To go back: stop the backend (its last flush runs on the way down), then
+`truncate planet.tiles; insert into planet.tiles select * from planet.tiles_before_reassign;` in psql,
+then start it.
+
+### Paint random tiles of a country with a flag
+
+Paints `count` tiles with `flagCountryId`, starting on `areaCountryId`'s ground.
+Leave out `areaCountryId` to start anywhere on the map.
+Dry run first; it says how many tiles of the area do not wear the flag yet:
+
+```bash
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"flagCountryId":"dz","areaCountryId":"fr","count":500,"proximity":0.8,"dryRun":true}' http://127.0.0.1:8081/planet.v1.AdminService/PaintRandomTiles
+```
+
+- `proximity` goes from 0 to 1. 0 scatters the tiles over the whole country;
+  1 grows one patch. Between the two you get a few patches.
+- A patch can grow past the country's border. `outsideArea` says how many
+  tiles it took there.
+- A tile somebody takes while it runs stays theirs: `painted` can be below `picked`.
+- It is not undone by anything. Copy the table first, as for a reassign.
+- Every call is logged: `journalctl CONTAINER_NAME=cp-backend | grep "admin random paint"`.
+
+### Find, ban and revert one player
+
+For a pattern you see on the map and no watchdog catches. A player is a
+**scope**: the address over IPv4, the /64 over IPv6.
+
+Who painted the `ps` flag on Israel's ground, held or painted over since,
+latest take first (`limit` is 20 when left out; leave out `areaCountryId` for
+the whole map):
+
+```bash
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"flagCountryId":"ps","areaCountryId":"il"}' http://127.0.0.1:8081/planet.v1.AdminService/FindPlayers
+```
+
+Who took the most tiles, over every flag and the whole map: most takes first,
+then most tiles held (`limit` is 20 when left out):
+
+```bash
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{}' http://127.0.0.1:8081/planet.v1.AdminService/TopPlayers
+```
+
+Each player has:
+
+- `scope`, `firstAt`, `lastAt`, `activeFor` (`lastAt` minus `firstAt`)
+- `tiles`: tiles it still holds — its take is the tile's latest and the paint is
+  still there
+- `takes`: every take it made, held or painted over since; a tile taken twice
+  counts twice
+- `tilesPerMinute` and `takesPerMinute`: each over `activeFor`, 0 for a single take
+- `banned`/`bannedUntil`/`offence` when a ban is running
+
+**High `takes` and `tiles` near zero is a bot being painted over as fast as it
+paints.** The ledger keeps takes for 72h (`ledger.retention`) and survives a
+restart. It keeps at most 4M takes (`ledgerStorage.maxTakes`); a busier stretch
+drops the oldest first and logs `the ledger is full`.
+
+Ban first, or the player repaints behind the revert. Leave out `duration` to
+take the ladder's step (24h, 7 days, 3 years); it counts as an offence either
+way. An address is banned as its scope:
+
+```bash
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"scope":"203.0.113.7"}' http://127.0.0.1:8081/planet.v1.AdminService/BanPlayer
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"scope":"2001:db8:1:2::/64","duration":"3600s"}' http://127.0.0.1:8081/planet.v1.AdminService/BanPlayer
+```
+
+`"enforced":false` in the answer means `antiBot.shadowBan.enforce` is off: the
+ban is kept but drops nothing. There is no unban call yet.
+
+Then revert, dry run first:
+
+```bash
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"scope":"203.0.113.7","dryRun":true}' http://127.0.0.1:8081/planet.v1.AdminService/RevertPlayer
+```
+
+- `touched` is every tile the player took; `held` is those it still holds. Only
+  `held` tiles change. A tile somebody took since stays theirs.
+- Each goes back to what it held before the player's current run on it, or to
+  nobody. When another player retook the tile in between, it goes back to that
+  player's paint, not further: player il→ps, other ps→de, player de→ps gives
+  `de`.
+- Paced like the reassign, each tile an ordinary update on the live stream.
+- A second run answers zeros: a reverted player has nothing left to revert.
+- Every ban and revert is logged: `journalctl CONTAINER_NAME=cp-backend | grep "admin ban\|admin player revert"`.
+
+### See how close the antibot is to one player
+
+The `antibot ban` log line is only written when a ban fires. To see where a
+player stands before that, inspect its scope (an address is read as its scope).
+It changes nothing and is not logged:
+
+```bash
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"scope":"203.0.113.7"}' http://127.0.0.1:8081/planet.v1.AdminService/InspectPlayer
+```
+
+- `readings` has one entry per watchdog: `level` is `clear`, `suspect` or
+  `certain`, and `evidence` is the rule and its numbers, as the ban line writes
+  them. A `clear` watchdog has no evidence. A verdict older than
+  `antiBot.jury.suspicionWindow` reads `clear`.
+- `suspects` against `minSuspects`, and `guilty`: what the jury would decide if
+  the player clicked now. One `certain` is enough alone.
+- `clicks`, `activeFor`, `longestGap`, `lastClickAt`, `topCountry`: the same
+  summary the ban line carries.
+- `banned`, `bannedUntil`, `offence`, `flags` when a ban is running, enforced or not.
+- `"tracked":false` means the jury has not seen the scope in
+  `antiBot.jury.trackWindow`: it is not clicking now, or not from this scope.
+- With `antiBot.enabled` off it is refused: `server returned error: HTTP/1.1 400`. A bad scope is refused the same way.
+
 ## Rollback
 
 - **Bad backend build:** `BACKEND_IMAGE=ghcr.io/raphoester/clickplanet-backend:<sha>` in `.env`, then `docker compose up -d backend`.
-- **Lost or corrupt tile state:** stop the backend, drop the newest backup's `tiles.snapshot` into the `tile_state` volume, start it again. A snapshot the API cannot parse is not fatal — it logs and starts from an empty map, so a bad file degrades to a reset rather than a crash loop.
+- **Lost or corrupt tile state:** stop the backend, restore the `planet` schema from a dump (`drop schema planet cascade`, then `psql -U clickplanet clickplanet < planet-DATE.sql`), start it again.
+- **Back to a pre-postgres build:** that image reads `tiles.snapshot`, which the import renamed. Rename `tiles.snapshot.imported` back first — it holds the map as of the import, so every click since is lost.
 - **In-process storage misbehaving:** there is no config switch back to Redis — that code is gone. Roll the backend image back to a pre-migration `<sha>` and restore the matching Redis stack from git history.
 - **Frontend:** roll back the deployment in the Pages dashboard.

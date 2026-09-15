@@ -8,7 +8,7 @@ import (
 
 func Write(path string, data []byte) error {
 	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
 
@@ -49,6 +49,8 @@ func Write(path string, data []byte) error {
 }
 
 func syncDir(dir string) error {
+	//nolint:gosec // G304: the directory is the one we just wrote into, derived from
+	// the configured snapshot path and never from a request.
 	d, err := os.Open(dir)
 	if err != nil {
 		return fmt.Errorf("failed to open directory: %w", err)
@@ -64,7 +66,7 @@ func syncDir(dir string) error {
 
 func CheckWritable(path string) error {
 	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
 

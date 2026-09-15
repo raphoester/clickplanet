@@ -75,21 +75,21 @@ func (c Config) withDefaults() Config {
 	return c
 }
 
-func New(config Config, timeProvider cptime.Provider) *Watchdog {
-	if timeProvider == nil {
-		timeProvider = cptime.ActualProvider{}
+func New(config Config, clock cptime.Clock) *Watchdog {
+	if clock == nil {
+		clock = cptime.SystemClock{}
 	}
 
 	return &Watchdog{
-		config:       config.withDefaults(),
-		timeProvider: timeProvider,
-		callers:      make(map[string]*caller),
+		config:  config.withDefaults(),
+		clock:   clock,
+		callers: make(map[string]*caller),
 	}
 }
 
 type Watchdog struct {
-	config       Config
-	timeProvider cptime.Provider
+	config Config
+	clock  cptime.Clock
 
 	mu      sync.Mutex
 	callers map[string]*caller
@@ -110,6 +110,9 @@ type step struct {
 }
 
 func (w *Watchdog) Name() string { return Name }
+
+// Attempted is nothing to this watchdog: the stride is read off accepted clicks.
+func (w *Watchdog) Attempted(detect.Click) {}
 
 // Committed is nothing to this watchdog. A bot sweeping ids walks over tiles it
 // already owns and over ids the handler refuses, and both are part of the walk.
@@ -228,7 +231,7 @@ func (w *Watchdog) Run(ctx context.Context) {
 }
 
 func (w *Watchdog) sweep() {
-	now := w.timeProvider.Now()
+	now := w.clock.Now()
 
 	w.mu.Lock()
 	defer w.mu.Unlock()

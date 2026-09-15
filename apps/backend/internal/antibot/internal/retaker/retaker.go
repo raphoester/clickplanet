@@ -1,7 +1,8 @@
 // Package retaker watches for the caller that takes a tile back moments after
-// losing it, over and over. Speed is not the signal — two humans fighting over a
-// tile are fast, and the player clicking back at a bot is the fastest of all.
-// Regularity is: a band no hand holds.
+// losing it, over and over. Speed on one tile is not the signal — two humans
+// fighting over a tile are fast, and the player clicking back at a bot is the
+// fastest of all. Regularity is: a band no hand holds. So is speed on many
+// tiles: a hand is fast where it already points, and a bot is fast everywhere.
 package retaker
 
 import (
@@ -35,6 +36,16 @@ type Config struct {
 	// than a person can decide is the whole signal, and either bound alone bans
 	// real players.
 	MaxMedian time.Duration
+
+	// MinTiles and RoamMedian read Suspect whatever the spread: reactions on at
+	// least MinTiles different tiles, with a median at or under RoamMedian. A
+	// player at war is fast on the tile it watches; answering that fast across
+	// the map means something else watches the stream. Zero turns the rule off.
+	MinTiles   int
+	RoamMedian time.Duration
+
+	// CertainTiles turns that reading into Certain. Zero never reads Certain.
+	CertainTiles int
 
 	// TrackWindow is how far back reactions count.
 	TrackWindow time.Duration
@@ -75,24 +86,24 @@ func (c Config) withDefaults() Config {
 	return c
 }
 
-func New(config Config, timeProvider cptime.Provider, onReaction func(time.Duration)) *Watchdog {
-	if timeProvider == nil {
-		timeProvider = cptime.ActualProvider{}
+func New(config Config, clock cptime.Clock, onReaction func(time.Duration)) *Watchdog {
+	if clock == nil {
+		clock = cptime.SystemClock{}
 	}
 
 	return &Watchdog{
-		config:       config.withDefaults(),
-		timeProvider: timeProvider,
-		onReaction:   onReaction,
-		tiles:        make(map[uint32]take),
-		callers:      make(map[string]*caller),
+		config:     config.withDefaults(),
+		clock:      clock,
+		onReaction: onReaction,
+		tiles:      make(map[uint32]take),
+		callers:    make(map[string]*caller),
 	}
 }
 
 type Watchdog struct {
-	config       Config
-	timeProvider cptime.Provider
-	onReaction   func(time.Duration)
+	config     Config
+	clock      cptime.Clock
+	onReaction func(time.Duration)
 
 	mu      sync.Mutex
 	tiles   map[uint32]take
@@ -115,9 +126,13 @@ type caller struct {
 type reaction struct {
 	at    time.Time
 	delay time.Duration
+	tile  uint32
 }
 
 func (w *Watchdog) Name() string { return Name }
+
+// Attempted is nothing to this watchdog. A refused click took nothing back.
+func (w *Watchdog) Attempted(detect.Click) {}
 
 func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
 	// A click onto a tile the caller's own country already holds changes
@@ -189,19 +204,38 @@ func (w *Watchdog) verdict(click detect.Click) (detect.Verdict, detect.Evidence)
 
 	median, spread := detect.Spread(delays)
 
-	if spread > w.config.MaxSpread {
+	band := detect.Clear
+	if spread <= w.config.MaxSpread {
+		band = detect.Suspect
+		if median <= w.config.MaxMedian {
+			band = detect.Certain
+		}
+	}
+
+	tiles := c.distinctTiles()
+	roam := detect.Clear
+	if w.config.MinTiles > 0 && tiles >= w.config.MinTiles && median <= w.config.RoamMedian {
+		roam = detect.Suspect
+		if w.config.CertainTiles > 0 && tiles >= w.config.CertainTiles {
+			roam = detect.Certain
+		}
+	}
+
+	if band == detect.Clear && roam == detect.Clear {
 		return detect.Clear, detect.Evidence{}
 	}
 
-	verdict := detect.Suspect
-	if median <= w.config.MaxMedian {
-		verdict = detect.Certain
+	// The stronger reading words the line; the band wins a tie, being the older rule.
+	verdict, rule := band, "reflex"
+	if roam > band {
+		verdict, rule = roam, "roam"
 	}
 
 	return verdict, detect.Evidence{
-		Rule: "reflex",
+		Rule: rule,
 		Fields: []detect.Field{
 			{Key: "reactions", Value: len(c.reactions)},
+			{Key: "tiles", Value: tiles},
 			{Key: "median", Value: median},
 			{Key: "spread", Value: spread},
 			{Key: "reactedOn", Value: append([]uint32(nil), c.tiles...)},
@@ -220,12 +254,20 @@ func (w *Watchdog) callerLocked(scope string) *caller {
 
 func (c *caller) addReaction(click detect.Click, delay time.Duration, window time.Duration) {
 	c.prune(click.At.Add(-window))
-	c.reactions = append(c.reactions, reaction{at: click.At, delay: delay})
+	c.reactions = append(c.reactions, reaction{at: click.At, delay: delay, tile: click.Tile})
 
 	c.tiles = append(c.tiles, click.Tile)
 	if len(c.tiles) > keptTiles {
 		c.tiles = append(c.tiles[:0], c.tiles[len(c.tiles)-keptTiles:]...)
 	}
+}
+
+func (c *caller) distinctTiles() int {
+	seen := make(map[uint32]struct{}, len(c.reactions))
+	for _, r := range c.reactions {
+		seen[r.tile] = struct{}{}
+	}
+	return len(seen)
 }
 
 func (c *caller) prune(cutoff time.Time) {
@@ -253,7 +295,7 @@ func (w *Watchdog) Run(ctx context.Context) {
 }
 
 func (w *Watchdog) sweep() {
-	now := w.timeProvider.Now()
+	now := w.clock.Now()
 
 	w.mu.Lock()
 	defer w.mu.Unlock()

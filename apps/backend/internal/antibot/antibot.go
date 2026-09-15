@@ -15,7 +15,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/catcher"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/cohort"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/defender"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/evidence"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/jury"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/metronome"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/retaker"
@@ -24,104 +28,142 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-// The vocabulary a caller reads. It is defined under internal/detect because the
-// watchdogs share it and cannot import this package without a cycle, so these
-// aliases are what publish it and there is still one definition of each.
+// The two types a caller writes down, because they appear in the signatures it
+// implements: it builds a Click and it is handed a Report. They are defined
+// under internal/detect because the watchdogs share them and cannot import this
+// package without a cycle, so these aliases are what publish them and there is
+// still one definition of each.
+//
+// Nothing else is aliased, because nothing else has to be named. A caller ranges
+// a Report's opinions and asks each one whether it Fired and what it says for
+// itself, and an Examination's Readings are already strings; the verdict ladder,
+// the rule that tripped and the numbers behind it never leave this package as
+// vocabulary the edge has to speak.
 type (
-	Click    = detect.Click    // one Click RPC, as the guard sees it
-	Report   = detect.Report   // one ban, with every watchdog's opinion behind it
-	Opinion  = detect.Opinion  // one watchdog's standing verdict on a caller
-	Verdict  = detect.Verdict  // how sure one watchdog is
-	Evidence = detect.Evidence // why a watchdog returned the verdict it did
-	Field    = detect.Field    // one number a watchdog wanted in the log line
+	Click    = detect.Click       // one Click RPC, as the guard sees it
+	Report   = detect.Report      // one ban, with every watchdog's opinion behind it
+	Sentence = shadowban.Sentence // a scope's ban, as the operator tools read it
 
-	// Settings are published even though what reads them is not: they are in the file.
-	JuryConfig      = jury.Config
-	ShadowBanConfig = shadowban.Config
-)
-
-const (
-	Clear   = detect.Clear   // looks like anybody else
-	Suspect = detect.Suspect // counts only alongside another watchdog
-	Certain = detect.Certain // a reading no hand produces; bans on its own
+	Examination = detect.Examination // what the jury holds on one scope, as InspectPlayer reads it
+	Reading     = detect.Reading     // one watchdog's opinion, already worded
 )
 
 // Config is the `antiBot:` block. A watchdog left out of the file is off, and the
-// nested types are this package's, so a new bound lands with the watchdog that
-// reads it rather than here.
+// nested types are this package's or its interior's, so a new bound lands with
+// the watchdog that reads it rather than here. None of them is named outside:
+// koanf fills them by reflection and a caller still sets their fields, it just
+// cannot write the type — the settings are published because they are in the
+// file, the code that reads them is not.
 type Config struct {
 	Enabled bool
 
-	ShadowBan ShadowBanConfig
-	Jury      JuryConfig
+	ShadowBan shadowban.Config
+	Jury      jury.Config
+	Evidence  evidence.Config
 
-	Retaker   RetakerConfig
-	Sequencer SequencerConfig
-	Metronome MetronomeConfig
+	Retaker   retakerConfig
+	Sequencer sequencerConfig
+	Metronome metronomeConfig
+	Defender  defenderConfig
+	Catcher   catcherConfig
+	Cohort    cohortConfig
 }
 
-type RetakerConfig struct {
+// Validate refuses a bound that cannot mean what it says. Only the cohort has
+// any yet: the other watchdogs clamp what they are given.
+func (c Config) Validate() error {
+	if !c.Enabled || !c.Cohort.Enabled {
+		return nil
+	}
+
+	if err := c.Cohort.Detector.Validate(); err != nil {
+		return fmt.Errorf("antiBot.cohort.detector: %w", err)
+	}
+
+	return nil
+}
+
+type retakerConfig struct {
 	Enabled  bool
 	Detector retaker.Config
 }
 
-type SequencerConfig struct {
+type sequencerConfig struct {
 	Enabled  bool
 	Detector sequencer.Config
 }
 
-type MetronomeConfig struct {
+type metronomeConfig struct {
 	Enabled  bool
 	Detector metronome.Config
 }
 
+type defenderConfig struct {
+	Enabled  bool
+	Detector defender.Config
+}
+
+type catcherConfig struct {
+	Enabled  bool
+	Detector catcher.Config
+}
+
+type cohortConfig struct {
+	Enabled  bool
+	Detector cohort.Config
+}
+
 // Observer is how a finding leaves this package, which measures and judges but
-// logs and counts nothing itself. Both hooks are optional.
+// logs and counts nothing itself. Every hook is optional.
 type Observer struct {
 	// Every reaction, not only the ones arguing for a ban: the shape of the whole
 	// distribution is what shows the bot band.
 	OnReaction func(delay time.Duration)
 
+	// Each caller's retake share, once a sweep, whether or not a bound is set to judge it.
+	OnRetakeShare func(share float64)
+
+	// How many callers are clicking in step with another, once a sweep, whether or not it reads as more than clear.
+	OnCohortScopes func(scopes int)
+
 	OnFlag func(report Report)
-}
 
-// Guard is the whole surface the click edge gates on.
-type Guard interface {
-	// Called before the handler runs, because the map stops remembering who held
-	// the tile the moment it does.
-	Inspect(click Click) (drop bool)
+	// OnRise is a watchdog's reading of a caller reaching level, "suspect" or
+	// "certain", when it has not held that level inside jury.suspicionWindow: a
+	// rise, not a click. Levels are cumulative, so going straight to certain rises
+	// to suspect too. It is the near miss a ban never reports.
+	OnRise func(watchdog, level string)
 
-	// Only for a click the handler accepted: a refused one recorded as a take is
-	// how the next honest clicker of that tile comes to look like it is reacting.
-	Committed(click Click)
+	// OnStanding is, once a jury sweep, how many callers a watchdog reads at level
+	// or above right now, zero included — what the jury would count if it
+	// deliberated at that moment.
+	OnStanding func(watchdog, level string, callers int)
 
-	// Flagged is how many callers are currently banned, for the gauge.
-	Flagged() int
+	// Bans or evidence that could not be restored at boot or saved since.
+	OnStateError func(err error)
 
-	// One runner whatever the config turned on: how many sweepers there are is
-	// this package's business.
-	Run(ctx context.Context)
-
-	Describe() Description
+	// What was turned on, once, when the guard starts running. Never called when the block is off.
+	OnStart func(description Description)
 }
 
 // New assembles the watchdogs the config asks for, the jury that crosses them and
-// the one ban they all pass. A nil Guard means the block is off, which leaves the
-// click chain exactly as it was; enabling it with every watchdog off is an error,
-// because that measures nothing while looking like a defence.
-func New(config Config, clock cptime.Provider, observer Observer) (Guard, error) {
+// the one ban they all pass. With the block off it hands back a guard that drops
+// and bans nothing, so a caller wires it the same way either way; enabling it with
+// every watchdog off is an error, because that measures nothing while looking like a defence.
+func New(config Config, clock cptime.Clock, observer Observer) (*Guard, error) {
 	if !config.Enabled {
-		return nil, nil
+		return &Guard{}, nil
 	}
 
 	if clock == nil {
-		clock = cptime.ActualProvider{}
+		clock = cptime.SystemClock{}
 	}
 
-	g := &guard{}
+	g := &Guard{onStart: observer.OnStart}
 
 	var (
 		watchdogs []detect.Watchdog
+		sections  []evidence.Section
 		names     []string
 	)
 
@@ -129,6 +171,7 @@ func New(config Config, clock cptime.Provider, observer Observer) (Guard, error)
 		watchdog := retaker.New(config.Retaker.Detector, clock, observer.OnReaction)
 		g.runners = append(g.runners, watchdog.Run)
 		watchdogs = append(watchdogs, watchdog)
+		sections = append(sections, watchdog)
 		names = append(names, retaker.Name)
 	}
 
@@ -136,6 +179,7 @@ func New(config Config, clock cptime.Provider, observer Observer) (Guard, error)
 		watchdog := sequencer.New(config.Sequencer.Detector, clock)
 		g.runners = append(g.runners, watchdog.Run)
 		watchdogs = append(watchdogs, watchdog)
+		sections = append(sections, watchdog)
 		names = append(names, sequencer.Name)
 	}
 
@@ -143,7 +187,33 @@ func New(config Config, clock cptime.Provider, observer Observer) (Guard, error)
 		watchdog := metronome.New(config.Metronome.Detector, clock)
 		g.runners = append(g.runners, watchdog.Run)
 		watchdogs = append(watchdogs, watchdog)
+		sections = append(sections, watchdog)
 		names = append(names, metronome.Name)
+	}
+
+	if config.Defender.Enabled {
+		watchdog := defender.New(config.Defender.Detector, clock, observer.OnRetakeShare)
+		g.runners = append(g.runners, watchdog.Run)
+		watchdogs = append(watchdogs, watchdog)
+		sections = append(sections, watchdog)
+		names = append(names, defender.Name)
+	}
+
+	if config.Catcher.Enabled {
+		watchdog := catcher.New(config.Catcher.Detector, clock)
+		g.runners = append(g.runners, watchdog.Run)
+		watchdogs = append(watchdogs, watchdog)
+		sections = append(sections, watchdog)
+		names = append(names, catcher.Name)
+		g.catcher = watchdog
+	}
+
+	if config.Cohort.Enabled {
+		watchdog := cohort.New(config.Cohort.Detector, clock, observer.OnCohortScopes)
+		g.runners = append(g.runners, watchdog.Run)
+		watchdogs = append(watchdogs, watchdog)
+		sections = append(sections, watchdog)
+		names = append(names, cohort.Name)
 	}
 
 	if len(watchdogs) == 0 {
@@ -153,11 +223,15 @@ func New(config Config, clock cptime.Provider, observer Observer) (Guard, error)
 	// Defaulted here so the description carries the bounds actually enforced.
 	juryConfig := config.Jury.WithDefaults()
 
-	banner := shadowban.New(config.ShadowBan, clock)
+	banner := shadowban.New(config.ShadowBan, clock, observer.OnStateError)
 	g.runners = append(g.runners, banner.Run)
 
-	g.jury = jury.New(juryConfig, banner, clock, observer.OnFlag, watchdogs...)
+	g.banner = banner
+	g.jury = jury.New(juryConfig, banner, clock, juryHooks(observer), watchdogs...)
 	g.runners = append(g.runners, g.jury.Run)
+
+	g.evidence = evidence.New(config.Evidence, clock, observer.OnStateError, append(sections, g.jury)...)
+	g.runners = append(g.runners, g.evidence.Run)
 
 	g.description = Description{
 		Watchdogs:   names,
@@ -168,7 +242,26 @@ func New(config Config, clock cptime.Provider, observer Observer) (Guard, error)
 	return g, nil
 }
 
-// Description is what a guard says about itself for the caller's boot line. Not
+// juryHooks words the jury's levels for the observer, so the ladder never leaves this package as a type.
+func juryHooks(observer Observer) jury.Hooks {
+	hooks := jury.Hooks{OnFlag: observer.OnFlag}
+
+	if observer.OnRise != nil {
+		hooks.OnRise = func(watchdog string, level detect.Verdict) {
+			observer.OnRise(watchdog, level.String())
+		}
+	}
+
+	if observer.OnStanding != nil {
+		hooks.OnStanding = func(watchdog string, level detect.Verdict, callers int) {
+			observer.OnStanding(watchdog, level.String(), callers)
+		}
+	}
+
+	return hooks
+}
+
+// Description is what a guard says about itself, through OnStart, for the caller's boot line. Not
 // the config back: this is what was turned on, after the defaults were applied.
 type Description struct {
 	Watchdogs   []string
@@ -176,22 +269,134 @@ type Description struct {
 	Enforcing   bool
 }
 
-type guard struct {
-	jury        *jury.Jury
+// Guard is what the click edge gates on. It is a struct, not an interface: each
+// caller declares the one or two methods it uses, so the zero Guard New hands
+// back when the block is off is enough. That one drops nothing, bans nothing and
+// its Run returns at once.
+type Guard struct {
+	jury        *jury.Jury        // nil when the block is off
+	banner      *shadowban.Banner // nil when the block is off
+	evidence    *evidence.Store   // nil when the block is off
+	catcher     *catcher.Watchdog // nil when the catcher is off
 	runners     []func(context.Context)
 	description Description
+	onStart     func(Description)
 }
 
-func (g *guard) Inspect(click Click) bool { return g.jury.Inspect(click) }
+// Attempted is every click tried, before the throttle: a loop's timing survives only here.
+func (g *Guard) Attempted(click Click) {
+	if g.Enabled() {
+		g.jury.Attempted(click)
+	}
+}
 
-func (g *guard) Committed(click Click) { g.jury.Committed(click) }
+// Inspect is called before the handler runs, because the map stops remembering
+// who held the tile the moment it does.
+func (g *Guard) Inspect(click Click) (drop bool) {
+	return g.Enabled() && g.jury.Inspect(click)
+}
 
-func (g *guard) Flagged() int { return g.jury.Flagged() }
+// Committed is only for a click the handler accepted: a refused one recorded as a
+// take is how the next honest clicker of that tile comes to look like it is reacting.
+func (g *Guard) Committed(click Click) {
+	if g.Enabled() {
+		g.jury.Committed(click)
+	}
+}
 
-func (g *guard) Describe() Description { return g.description }
+// Caught and Missed tell the guard what a caller did with a bonus box offered to
+// them: claimed after a delay, or let lapse. They say nothing about the click
+// that follows until the jury next asks.
+func (g *Guard) Caught(scope string, after time.Duration) {
+	if g.catcher != nil {
+		g.catcher.Caught(scope, after)
+	}
+}
 
-// Run fans out to every sweeper enabled and blocks until they all return.
-func (g *guard) Run(ctx context.Context) {
+func (g *Guard) Missed(scope string) {
+	if g.catcher != nil {
+		g.catcher.Missed(scope)
+	}
+}
+
+// LoadState reads the bans and the evidence saved by the last process, reporting a bad file through OnStateError.
+func (g *Guard) LoadState() {
+	if g.Enabled() {
+		g.banner.LoadState()
+		g.evidence.LoadState()
+	}
+}
+
+// Flagged is how many callers are currently banned, for the gauge.
+func (g *Guard) Flagged() int {
+	if !g.Enabled() {
+		return 0
+	}
+
+	return g.jury.Flagged()
+}
+
+// Ban is an operator's ban on a scope; a zero duration takes the ladder's.
+func (g *Guard) Ban(scope string, duration time.Duration) Sentence {
+	if !g.Enabled() {
+		return Sentence{}
+	}
+
+	return g.banner.Ban(scope, duration)
+}
+
+func (g *Guard) Sentence(scope string) (Sentence, bool) {
+	if !g.Enabled() {
+		return Sentence{}, false
+	}
+
+	return g.banner.Sentence(scope)
+}
+
+// Examine reads every watchdog's opinion, the jury's decision and any ban on a scope, and changes nothing.
+func (g *Guard) Examine(scope string) Examination {
+	if !g.Enabled() {
+		return Examination{Scope: scope}
+	}
+
+	examination := g.jury.Examine(scope)
+
+	if sentence, banned := g.banner.Sentence(scope); banned {
+		examination.Banned = true
+		examination.Flags = sentence.Flags
+		examination.Offence = sentence.Offence
+		examination.BannedUntil = sentence.Until
+	}
+
+	return examination
+}
+
+// Enforcing says whether a ban drops anything.
+func (g *Guard) Enforcing() bool { return g.Enabled() && g.banner.Enforcing() }
+
+// Banned says whether a scope's actions should be dropped: false while enforce is off.
+func (g *Guard) Banned(scope string) bool { return g.Enabled() && g.banner.Banned(scope) }
+
+// Enabled is false for the guard New hands back when the block is off.
+func (g *Guard) Enabled() bool { return g.jury != nil }
+
+func (g *Guard) Name() string { return "antibot" }
+
+// Run fans out to every sweeper enabled and blocks until they all return. One
+// runner whatever the config turned on: how many sweepers there are is this
+// package's business.
+func (g *Guard) Run(ctx context.Context) {
+	if !g.Enabled() {
+		return
+	}
+
+	// Before any runner, and before the server listens: the outage ends when this process starts watching.
+	g.evidence.Resume()
+
+	if g.onStart != nil {
+		g.onStart(g.description)
+	}
+
 	var wg sync.WaitGroup
 
 	for _, run := range g.runners {

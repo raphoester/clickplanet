@@ -25,8 +25,9 @@ const (
 )
 
 type Blocklist struct {
-	allow *Set
-	sets  []namedSet
+	config Config
+	allow  *Set
+	sets   []namedSet
 }
 
 type namedSet struct {
@@ -34,33 +35,52 @@ type namedSet struct {
 	set  *Set
 }
 
-func New(config Config) (*Blocklist, error) {
+// New returns nil when the config is off: a nil Blocklist loads nothing and blocks nothing.
+func New(config Config) *Blocklist {
 	if !config.Enabled {
-		return nil, nil
+		return nil
 	}
 
-	allow, err := Parse(readerOf(config.Allow))
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse allowlist: %w", err)
+	return &Blocklist{config: config}
+}
+
+// Load parses the allowlist and the vendored lists the config asks for.
+func (b *Blocklist) Load() error {
+	if b == nil {
+		return nil
 	}
 
-	vpn, err := Parse(bytes.NewReader(cpdata.VPNv4), bytes.NewReader(cpdata.VPNv6))
+	allow, err := Parse(readerOf(b.config.Allow))
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse vpn list: %w", err)
+		return fmt.Errorf("failed to parse allowlist: %w", err)
+	}
+
+	vpn, err := Parse(
+		bytes.NewReader(cpdata.VPNv4),
+		bytes.NewReader(cpdata.VPNv6),
+		bytes.NewReader(cpdata.VPNProviders),
+		bytes.NewReader(cpdata.VPNAz0),
+		bytes.NewReader(cpdata.TorExits),
+		bytes.NewReader(cpdata.VPNNetnames),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to parse vpn list: %w", err)
 	}
 
 	sets := []namedSet{{name: ListVPN, set: vpn}}
 
-	if config.IncludeDatacenters {
+	if b.config.IncludeDatacenters {
 		datacenter, err := Parse(bytes.NewReader(cpdata.DatacenterV4), bytes.NewReader(cpdata.DatacenterV6))
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse datacenter list: %w", err)
+			return fmt.Errorf("failed to parse datacenter list: %w", err)
 		}
 
 		sets = append(sets, namedSet{name: ListDatacenter, set: datacenter})
 	}
 
-	return &Blocklist{allow: allow, sets: sets}, nil
+	b.allow, b.sets = allow, sets
+
+	return nil
 }
 
 func (b *Blocklist) Blocked(ip string) (List, bool) {
@@ -95,6 +115,7 @@ func (b *Blocklist) Sizes() map[List]int {
 
 func NewDenyList(prefixes []string) (*Blocklist, error) {
 	if len(prefixes) == 0 {
+		//nolint:nilnil // no prefixes is "no blocking configured", not a failure.
 		return nil, nil
 	}
 
@@ -104,6 +125,7 @@ func NewDenyList(prefixes []string) (*Blocklist, error) {
 	}
 
 	if deny.Len() == 0 {
+		//nolint:nilnil // an empty deny list is "no blocking configured".
 		return nil, nil
 	}
 

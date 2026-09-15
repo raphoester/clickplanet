@@ -1,0 +1,158 @@
+/*
+ * Bottom centre, in the room the camera (bottom-left) and the chat
+ * (bottom-right, 360px) leave between them. `left` and `right` fence it into
+ * that room and the margins centre it there, so on a narrow desktop it shrinks
+ * instead of sliding under either of them.
+ */
+.anthem-bar {
+    position: absolute;
+    bottom: 16px;
+    left: 212px;
+    right: 392px;
+    z-index: 128;
+    max-width: 440px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 18px 8px 8px;
+    overflow: hidden;
+    border: 1px solid #FFFFFF33;
+    border-radius: 30px;
+    background: #00000075;
+    backdrop-filter: blur(8px);
+    color: #FFFFFF;
+    text-shadow: -1px 1px 0 #000000;
+    --anthem-progress: 0;
+}
+
+.anthem-bar-play {
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: #FFFFFF;
+    color: #000000;
+    cursor: pointer;
+    transition: transform 0.125s ease, opacity 0.125s ease;
+}
+
+.anthem-bar-play:hover {
+    transform: scale(1.06);
+}
+
+.anthem-bar-play:disabled {
+    cursor: default;
+    opacity: 0.4;
+    transform: none;
+}
+
+.anthem-bar-play:focus-visible,
+.anthem-bar-volume:focus-visible {
+    outline: 2px solid white;
+    outline-offset: 2px;
+}
+
+.anthem-bar-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.anthem-bar-title {
+    font-family: "Luckiest Guy", sans-serif;
+    font-size: 18px;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.anthem-bar-subtitle {
+    font-family: Oswald, sans-serif;
+    font-size: 13px;
+    opacity: 0.75;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.anthem-bar-volume {
+    flex: none;
+    width: 84px;
+    accent-color: #FFFFFF;
+    cursor: pointer;
+}
+
+.anthem-bar-volume:disabled {
+    cursor: default;
+    opacity: 0.4;
+}
+
+/* A sliver along the bottom edge. Clipped to the pill's corners by its overflow. */
+.anthem-bar-progress {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    height: 2px;
+    width: 100%;
+    background: #FFFFFFB3;
+    transform-origin: left;
+    transform: scaleX(var(--anthem-progress));
+    transition: transform 0.25s linear;
+    opacity: 0;
+}
+
+.anthem-bar--playing .anthem-bar-progress {
+    opacity: 1;
+}
+
+/* Too narrow for the slider beside the name: the settings panel still has it. */
+@media only screen and (max-width: 1100px) {
+    .anthem-bar-volume {
+        display: none;
+    }
+}
+
+@media only screen and (max-width: 768px) {
+    /*
+     * The chat is a full-width sheet across the bottom of a phone, so this sits
+     * on the row just above it, beside the camera — and like the camera, the
+     * open chat covers it.
+     */
+    .anthem-bar {
+        bottom: 72px;
+        left: 68px;
+        right: 16px;
+        max-width: 300px;
+        margin: 0;
+        height: 40px;
+        box-sizing: border-box;
+        gap: 8px;
+        padding: 3px 14px 3px 3px;
+    }
+
+    .anthem-bar-play {
+        width: 32px;
+        height: 32px;
+    }
+
+    .anthem-bar-title {
+        font-size: 15px;
+    }
+
+    .anthem-bar-subtitle {
+        display: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .anthem-bar-play,
+    .anthem-bar-progress {
+        transition: none;
+    }
+}

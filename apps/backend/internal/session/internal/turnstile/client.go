@@ -115,13 +115,13 @@ func (c *Client) Verify(ctx context.Context, token string, remoteIP string) erro
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.endpoint, strings.NewReader(form.Encode()))
 	if err != nil {
-		return fmt.Errorf("%w: failed to build the siteverify request: %s", ErrRefused, err)
+		return fmt.Errorf("%w: failed to build the siteverify request: %w", ErrRefused, err)
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
 	res, err := c.http.Do(req)
 	if err != nil {
-		return fmt.Errorf("%w: siteverify unreachable: %s", ErrRefused, err)
+		return fmt.Errorf("%w: siteverify unreachable: %w", ErrRefused, err)
 	}
 	defer func() { _ = res.Body.Close() }()
 
@@ -131,7 +131,7 @@ func (c *Client) Verify(ctx context.Context, token string, remoteIP string) erro
 
 	var body siteverifyResponse
 	if err := json.NewDecoder(io.LimitReader(res.Body, maxBodyBytes)).Decode(&body); err != nil {
-		return fmt.Errorf("%w: siteverify answered a body that is not JSON: %s", ErrRefused, err)
+		return fmt.Errorf("%w: siteverify answered a body that is not JSON: %w", ErrRefused, err)
 	}
 
 	if !body.Success {

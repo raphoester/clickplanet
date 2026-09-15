@@ -9,19 +9,16 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/sequencer"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
-
-type fakeClock struct{ now time.Time }
-
-func (c *fakeClock) Now() time.Time { return c.now }
 
 type harness struct {
 	watchdog *sequencer.Watchdog
-	clock    *fakeClock
+	clock    *cptime.FixedClock
 }
 
 func newHarness(config sequencer.Config) *harness {
-	h := &harness{clock: &fakeClock{now: time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC)}}
+	h := &harness{clock: cptime.NewFixedClock(time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC))}
 	h.watchdog = sequencer.New(config, h.clock)
 	return h
 }
@@ -31,10 +28,10 @@ func (h *harness) click(tile uint32) (detect.Verdict, detect.Evidence) {
 		Scope:   "caller",
 		Tile:    tile,
 		Country: "FR",
-		At:      h.clock.now,
+		At:      h.clock.Now(),
 	})
 
-	h.clock.now = h.clock.now.Add(time.Second)
+	h.clock.Advance(time.Second)
 
 	return verdict, evidence
 }
@@ -165,7 +162,7 @@ func TestStepsAgeOutOfTheWindow(t *testing.T) {
 
 	require.Equal(t, detect.Certain, func() detect.Verdict { v, _ := h.walk(8000, 1, 60); return v }())
 
-	h.clock.now = h.clock.now.Add(10 * time.Minute)
+	h.clock.Advance(10 * time.Minute)
 
 	verdict, _ := h.click(8100)
 	assert.Equal(t, detect.Clear, verdict, "a walk from an hour ago is not a walk now")

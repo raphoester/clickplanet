@@ -78,6 +78,15 @@
     flex: 1 1 0;
 }
 
+/* An icon, not a word: square, and it leaves the width to the two that are. */
+.menu-actions > .menu-sound {
+    flex: 0 0 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
 @media only screen and (max-width: 768px) {
     .menu {
         top: 0;
@@ -105,5 +114,10 @@
 
     .menu-actions {
         margin-top: 8px;
+    }
+
+    .menu-actions > .menu-sound {
+        flex-basis: 40px;
+        padding: 0;
     }
 }

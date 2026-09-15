@@ -56,3 +56,14 @@
     width: 100vw;
     height: 100vh;
 }
+
+/*
+ * A bomb is held: a press held on the planet drops it. A long press on a phone
+ * would otherwise open the callout menu or start a text selection halfway.
+ */
+.viewer-canvas--armed {
+    cursor: crosshair;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+}

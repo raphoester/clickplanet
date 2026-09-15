@@ -53,3 +53,20 @@ func TestAValueThatIsNotAnAddressIsReturnedUnchanged(t *testing.T) {
 func TestAZonedAddressDoesNotPanic(t *testing.T) {
 	assert.Equal(t, "fe80::/64", cpipscope.Of("fe80::1%eth0"))
 }
+
+func TestParseTakesAnAddressOrAScope(t *testing.T) {
+	for text, want := range map[string]string{
+		"203.0.113.7":       "203.0.113.7",
+		"2001:db8:1:2::1":   "2001:db8:1:2::/64",
+		"2001:db8:1:2::/64": "2001:db8:1:2::/64",
+	} {
+		scope, ok := cpipscope.Parse(text)
+		assert.True(t, ok, text)
+		assert.Equal(t, want, scope, text)
+	}
+
+	for _, text := range []string{"", "bot", "203.0.113.7/32", "2001:db8:1:2::1/64", "2001:db8::/48"} {
+		_, ok := cpipscope.Parse(text)
+		assert.False(t, ok, text)
+	}
+}

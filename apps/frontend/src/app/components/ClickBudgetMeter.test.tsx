@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import {afterEach, describe, expect, it, vi} from 'vitest'
-import {cleanup, render, screen} from '@testing-library/react'
+import {cleanup, fireEvent, render, screen} from '@testing-library/react'
 import ClickBudgetMeter from './ClickBudgetMeter.tsx'
 import {ClickBudget} from "../../backends/clickBudget.ts"
 
@@ -90,5 +90,81 @@ describe("ClickBudgetMeter", () => {
         await vi.waitFor(() => expect(screen.getByText("5")).toBeTruthy())
 
         vi.restoreAllMocks()
+    })
+})
+
+describe("ClickBudgetMeter while a bonus runs", () => {
+    const running = (seconds = 60) => ({
+        reward: {kind: "tripleClicks", seconds} as const,
+        endsAt: performance.now() + seconds * 1000,
+    })
+
+    it("says nothing about a bonus when none is running", () => {
+        render(<ClickBudgetMeter budget={reading()}/>)
+
+        expect(document.querySelector(".click-budget-bonus")).toBeNull()
+        expect(meter().classList.contains("click-budget-boosted")).toBe(false)
+    })
+
+    it("shows the multiplier that was won", () => {
+        render(<ClickBudgetMeter budget={reading()} bonus={running()}/>)
+
+        expect(screen.getByText("3×")).toBeTruthy()
+    })
+
+    it("counts down how long is left", () => {
+        render(<ClickBudgetMeter budget={reading()} bonus={running(45)}/>)
+
+        expect(screen.getByText("45s")).toBeTruthy()
+    })
+
+    it("marks the whole meter, so the boost reads at a glance", () => {
+        render(<ClickBudgetMeter budget={reading()} bonus={running()}/>)
+
+        expect(meter().classList.contains("click-budget-boosted")).toBe(true)
+    })
+
+    it("still reports the server's own allowance, never a multiplied guess", () => {
+        // The boost is the server's to grant: when it does, capacity and rate
+        // arrive in the reading and the pips widen on their own. Nothing here
+        // may invent them in the meantime.
+        render(<ClickBudgetMeter budget={reading({capacity: 10})} bonus={running()}/>)
+
+        expect(pips()).toHaveLength(10)
+        expect(meter().getAttribute("aria-valuemax")).toBe("10")
+    })
+
+    it("leaves the count itself alone", () => {
+        render(<ClickBudgetMeter budget={reading({tokens: 4})} bonus={running()}/>)
+
+        expect(meter().getAttribute("aria-valuenow")).toBe("4")
+    })
+
+    it("says why the meter is narrow for a country that holds much of the map", () => {
+        render(<ClickBudgetMeter countryName="Bulgaria"
+                                 budget={reading({capacity: 1, price: {cost: 8, share: 0.8, next: {share: 0.9, cost: 10}}})}/>)
+
+        expect(screen.getByText("Bulgaria holds 80% of the map")).toBeTruthy()
+        expect(screen.getByText("Clicks 8× slower · 10× at 90%")).toBeTruthy()
+    })
+
+    it("says nothing about price at the plain rate", () => {
+        render(<ClickBudgetMeter countryName="Chad" budget={reading({price: {cost: 1, share: 0.01, next: {share: 0.1, cost: 2}}})}/>)
+
+        expect(document.querySelector(".click-budget-toll")).toBeNull()
+    })
+
+    it("shakes on each refused click, and not before", () => {
+        const {rerender} = render(<ClickBudgetMeter budget={reading({tokens: 0})}/>)
+        expect(meter().classList.contains("click-budget-refused")).toBe(false)
+
+        rerender(<ClickBudgetMeter budget={reading({tokens: 0})} refusals={1}/>)
+        expect(meter().classList.contains("click-budget-refused")).toBe(true)
+
+        fireEvent.animationEnd(meter())
+        expect(meter().classList.contains("click-budget-refused")).toBe(false)
+
+        rerender(<ClickBudgetMeter budget={reading({tokens: 0})} refusals={2}/>)
+        expect(meter().classList.contains("click-budget-refused")).toBe(true)
     })
 })

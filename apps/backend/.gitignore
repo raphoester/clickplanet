@@ -5,5 +5,6 @@
 cmd/api/config.yaml
 
 tools/monitoring/prometheus.yaml
-# Written by cmd/api/example.yaml — the tile snapshot and the chat log.
-data/
+# Written by cmd/api/example.yaml — the tile snapshot and the chat log. Anchored, or it also
+# swallows any nested data/ — internal/shared/cpipblock/cpdata, where embedded assets live.
+/data/

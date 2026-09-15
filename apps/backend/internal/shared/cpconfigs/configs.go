@@ -66,7 +66,7 @@ func Load(config any, opts ...LoadOption) error {
 	}
 
 	// Last loaded wins, so the environment overrides the file. The delimiter is
-	// the nesting one, which is why tilesStorage.snapshotPath works as a name.
+	// the nesting one, which is why tilesStorage.flushInterval works as a name.
 	if err := k.Load(env.Provider("", delimiter, nil), nil); err != nil {
 		return fmt.Errorf("failed loading env variables: %w", err)
 	}

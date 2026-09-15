@@ -125,10 +125,9 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          # Both files, and only these two. Caddy loads .env, the backend loads
-          # .env.backend, and neither sees the other's — which is the whole
-          # reason there are two.
-          source: deploy/vps/rendered/.env,deploy/vps/rendered/.env.backend
+          # Compose reads .env, Caddy loads .env.caddy, the backend loads
+          # .env.backend, and no container sees another's secrets.
+          source: deploy/vps/rendered/.env,deploy/vps/rendered/.env.caddy,deploy/vps/rendered/.env.backend
           target: /tmp/cp-env
           strip_components: 3
 
@@ -148,7 +147,7 @@ jobs:
             # been replaced — and CHAT_TAG_SALT and SESSION_SECRET are the two
             # where that is visible to every player. The .previous copies are
             # what get them back.
-            for f in .env .env.backend; do
+            for f in .env .env.caddy .env.backend; do
               if [ -f "$f" ]; then
                 cp -p "$f" "$f.previous"   # gitignored by .env.*
                 chown --reference="$f" "/tmp/cp-env/$f"

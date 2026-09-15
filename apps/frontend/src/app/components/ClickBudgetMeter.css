@@ -115,6 +115,29 @@
     width: calc(var(--click-budget-tokens) / var(--click-budget-capacity) * 100%);
 }
 
+/*
+ * Why the meter is narrow: a second row under the count and the pips, so the
+ * pill grows down rather than sideways into the menu.
+ */
+.click-budget-priced {
+    flex-wrap: wrap;
+    row-gap: 6px;
+    border-radius: 20px;
+}
+
+.click-budget-toll {
+    display: flex;
+    flex-basis: 100%;
+    flex-direction: column;
+    font-size: 12px;
+    line-height: 1.3;
+    color: #FFFFFFB3;
+}
+
+.click-budget-toll-detail {
+    color: var(--click-budget-ink);
+}
+
 @media only screen and (max-width: 768px) {
     /*
      * Both ends of a phone screen are taken: the menu is a header sheet and the
@@ -161,5 +184,114 @@
     .click-budget-bar {
         width: 96px;
         border-radius: 7px;
+    }
+
+    .click-budget-priced {
+        row-gap: 4px;
+        border-radius: 16px;
+    }
+
+    .click-budget-toll {
+        font-size: 11px;
+    }
+}
+
+/*
+ * A bonus running, said on the meter rather than beside it — this is where the
+ * allowance is read, so this is where "and it is tripled right now" belongs.
+ * The gold is the bonus box's own, so the badge is recognisably what was caught.
+ */
+.click-budget-boosted {
+    border-color: #FFB13Faa;
+    box-shadow: 0 0 18px #FFB13F44;
+}
+
+.click-budget-bonus {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding-right: 12px;
+    margin-right: 2px;
+    border-right: 1px solid #FFFFFF26;
+    animation: click-budget-bonus-in 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.click-budget-bonus-badge {
+    padding: 2px 7px;
+    border-radius: 6px;
+    background: #F2A91C;
+    color: #3A2201;
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.2;
+    text-shadow: none;
+}
+
+.click-budget-bonus-left {
+    min-width: 3.2ch;
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+    color: #FFC061;
+}
+
+/* It arrives as the announcement shrinks into this corner, and lands with it. */
+@keyframes click-budget-bonus-in {
+    from {
+        opacity: 0;
+        transform: scale(0.4);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/*
+ * The server refused a click: a short shake and a red flash, instead of a
+ * dialog. The class is put back on for every refusal, so a burst keeps it
+ * moving and it stops as soon as the clicks do.
+ */
+.click-budget-refused {
+    animation: click-budget-refused 0.45s ease-out;
+}
+
+@keyframes click-budget-refused {
+    0% {
+        transform: translateX(0);
+        border-color: #FF5C5C;
+        box-shadow: 0 0 22px #FF5C5CAA;
+    }
+    20% {
+        transform: translateX(-6px);
+    }
+    40% {
+        transform: translateX(5px);
+    }
+    60% {
+        transform: translateX(-3px);
+    }
+    80% {
+        transform: translateX(2px);
+    }
+    100% {
+        transform: translateX(0);
+    }
+}
+
+/* No movement, the flash stays. */
+@keyframes click-budget-refused-still {
+    from {
+        border-color: #FF5C5C;
+        box-shadow: 0 0 22px #FF5C5CAA;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .click-budget-bonus {
+        animation: none;
+    }
+
+    .click-budget-refused {
+        animation-name: click-budget-refused-still;
     }
 }

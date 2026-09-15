@@ -1,20 +1,52 @@
 # Production backend config for the VPS stack.
 #
-# There is no database: the API holds the whole tile map in process and
-# snapshots it to /home/app/state, which is the tile_state volume in
-# docker-compose.yaml. That file is the only thing worth backing up.
+# The API holds the whole tile map in process and keeps it in the postgres
+# service of docker-compose.yaml. The ledger, bans, antibot evidence and the chat log are still files on the
+# tile_state volume.
 
 httpServer:
   bindAddress: 0.0.0.0:8080
+  # Operator services, loopback only. See "Operator tools" in the README.
+  adminBindAddress: 127.0.0.1:8081
 gameMap:
   maxIndex: 257948 # must match the tile count baked into the frontend coordinates
 
+# The planet module's database.
+database:
+  host: postgres
+  password: env://POSTGRES_PASSWORD
+  port: "5432"
+  user: clickplanet
+  dbName: clickplanet
+  sslMode: disable # the compose network, never the internet
+  schema: planet
+  pool:
+    maxOpenConns: 4
+
 tilesStorage:
-  snapshotPath: /home/app/state/tiles.snapshot
   # Upper bound on what a hard kill (OOM, power loss) can lose. A clean
-  # `docker compose down` or a rolling redeploy loses nothing: the API writes a
-  # final snapshot on SIGTERM.
-  snapshotInterval: 30s
+  # `docker compose down` or a rolling redeploy loses nothing: the API flushes
+  # once more on SIGTERM.
+  flushInterval: 1s
+  # The pre-postgres snapshot. The first boot imports it into an empty tiles
+  # table and renames it tiles.snapshot.imported. Remove this key once that has
+  # happened.
+  legacySnapshotPath: /home/app/state/tiles.snapshot
+
+# Every take of every tile, for the operator tools. Kept three days, so a ban
+# can be decided on more than the last few hours.
+ledger:
+  retention: 72h
+
+# Saved on the tile_state volume beside the snapshot, so a deploy keeps it.
+# 4M takes is ~85 MiB in memory and a ~75 MiB file, which grows to at most
+# twice that before it is written again whole: three days at ~15 takes a
+# second. A busier stretch drops the oldest takes first and logs "the ledger is
+# full".
+ledgerStorage:
+  statePath: /home/app/state/ledger.bin
+  saveInterval: 1m
+  maxTakes: 4000000
 
 # Per-caller throttle on the Click RPC. Keyed on the address Caddy puts in
 # X-Real-IP, which is Cloudflare's Cf-Connecting-Ip — the real visitor — over
@@ -23,6 +55,17 @@ tilesStorage:
 rateLimiter:
   perSecond: 1
   burst: 10
+
+# A click costs more tokens the more of the map its country holds: from each
+# share below (a fraction of every tile on the map), a click for that country
+# costs that many tokens. The meter shows the budget already divided, in clicks.
+# No steps means every click costs one. A cost above rateLimiter.burst refuses
+# the boot, since no bucket could ever pay it.
+toll:
+  steps:
+    - {share: 0.25, cost: 1.5}
+    - {share: 0.50, cost: 2}
+    - {share: 0.70, cost: 3}
 
 # Refuses clicks from known VPN and proxy ranges: the throttle above is keyed on
 # an address, and a VPN is the cheap way to get a fresh one. Reads and the
@@ -37,7 +80,7 @@ vpnBlocklist:
   allow: []
 
 # Accepts a bot's clicks and drops them, rather than refusing them and naming the
-# check it tripped. Three watchdogs read three different behaviours, the jury
+# check it tripped. Four watchdogs read four different behaviours, the jury
 # crosses what they say, and the shadow ban is the one sentence they all pass.
 # Enforcing: a flagged caller's clicks are answered OK and dropped.
 antiBot:
@@ -50,12 +93,18 @@ antiBot:
     # a hand choosing freely holds that for a few clicks, not a hundred and
     # fifty. See "Watching for bots" in the README before widening anything here.
     enforce: true
-    banDuration: 1h
+    # 1st offence 24h, 2nd 7 days, 3rd and later 3 years. A caller that keeps
+    # going while banned only extends its ban; a new offence is a ban that starts
+    # fresh. Offences are never forgotten.
+    banDurations: [24h, 168h, 26280h]
+    # On the tile_state volume, so a deploy does not free every banned caller.
+    # Unban one scope: stop the backend, delete its line, start it again.
+    statePath: /home/app/state/bans.jsonl
     # Matches the widest watchdog trackWindow, so each repeat flag rests on
     # evidence the previous one never saw. Watch the flags= count climb on a
     # caller: one flag is a window, six is a pattern.
     reflagInterval: 5m
-    sweepInterval: 1m
+    saveInterval: 1m
 
   jury:
     # Two watchdogs at "suspect" ban; one at "certain" bans alone. Raising this
@@ -66,6 +115,15 @@ antiBot:
     suspicionWindow: 10m
     trackWindow: 15m
     sweepInterval: 1m
+
+  # On the tile_state volume too. On 2026-09-14 the API restarted 23 times,
+  # every 5-10 minutes, and with this in memory no 10m, 15m or 30m window ever
+  # filled, so nothing was banned. Delete the file with the backend stopped to
+  # start every watchdog from nothing.
+  evidence:
+    statePath: /home/app/state/antibot-evidence.bin
+    saveInterval: 1m
+    retention: 72h
 
   retaker:
     enabled: true
@@ -84,7 +142,16 @@ antiBot:
       minReactions: 20
       maxSpread: 300ms
       maxMedian: 250ms
-      trackWindow: 5m
+      # The band above missed the Bulgaria recapture bot of 2026-09-14: 62
+      # retakes on 61 different tiles, median ~280ms, but a p90-p10 of ~750ms
+      # because its retakes queue behind the throttle. A hand is that fast only on
+      # the tile it already points at, so speed across many tiles reads on its
+      # own. 600ms is half the fastest human median measured on 2026-09-11.
+      minTiles: 15
+      roamMedian: 600ms
+      certainTiles: 30
+      # 15m, not 5m: a bot that only answers attacks gathers reactions slowly.
+      trackWindow: 15m
       sweepInterval: 1m
 
   sequencer:
@@ -105,19 +172,130 @@ antiBot:
     detector:
       maxGap: 3s
       # Left wide deliberately, unlike the retaker's. The caller measured on
-      # 2026-09-11 read 248ms here, and a player spam-clicking into the 1/s
-      # throttle gets its surviving clicks handed back at the refill rate, so
-      # this number partly measures the limiter rather than the caller. That is
-      # safe at "suspect", which needs a second watchdog to mean anything, and
-      # the retaker no longer supplies one cheaply. Watch certainFor/certainClicks
-      # below instead: those ban alone, and 30m with no pause past maxGap is the
-      # claim doing the work, not the spread.
+      # 2026-09-11 read 248ms here. Gaps are timed between clicks *tried*, 429s
+      # included, since 2026-09-14: before that the throttle's refusals turned a
+      # bot firing every 950ms (+-60ms) into gaps of 0.95/1.9/2.85s and it read
+      # clear. That is safe at "suspect", which needs a second watchdog to mean
+      # anything. Watch certainFor/certainClicks below instead: those ban alone,
+      # and 30m with no pause past maxGap is the claim doing the work, not the spread.
       maxSpread: 400ms
       minClicks: 120
       certainFor: 30m
       certainClicks: 900
       trackWindow: 15m
       sweepInterval: 1m
+
+  defender:
+    enabled: true
+    detector:
+      # Suspect only. On 2026-09-14 click_retake_share held 26 callers under
+      # 0.1 and the Bulgaria recapture bot at 0.7-0.8. certainShare stays unset:
+      # two players fighting over one tile also read as all retakes, so this
+      # must never ban alone. The bot only clicks when attacked, ~4 takes a
+      # minute on average, so minClicks 60 in 5m never judged it.
+      retakeWindow: 2m
+      minClicks: 40
+      minShare: 0.6
+      certainClicks: 200
+      trackWindow: 10m
+      sweepInterval: 1m
+
+  # Catches every one of its last five boxes, at once. See cmd/api/example.yaml.
+  catcher:
+    enabled: true
+    detector:
+      minCatches: 5
+      maxMedian: 3s
+      certainMedian: 1500ms
+      trackWindow: 30m
+      sweepInterval: 1m
+
+  # Scopes that act together. See cmd/api/example.yaml. On 2026-09-14 pairs of
+  # /64s out of Firefox's built-in VPN (2a00:8c40:f000::/36) painted bg for
+  # ~8 minutes each, started milliseconds apart, and were followed at once by
+  # the next pair: zero "antibot ban" lines all day. Suspect is one group in
+  # step, which two friends are too; certain is the third group in a /44 inside
+  # 30 minutes, which a person keeping their address never produces. Watch
+  # click_cohort_scopes and the cohort= field of the ban lines after deploying.
+  cohort:
+    enabled: true
+    detector:
+      startWindow: 5s
+      minClicks: 20
+      minFlagShare: 0.9
+      rateRatio: 1.5
+      lengthRatio: 1.2
+      quietAfter: 1m
+      minMembers: 2
+      v4Bits: 24
+      v6Bits: 44
+      certainCohorts: 3
+      certainMembers: 6
+      chainWindow: 30m
+      trackWindow: 30m
+      sweepInterval: 1m
+
+# A question-mark box flies past the planet every so often, and whoever catches
+# it clicks at three times their allowance for 20 seconds.
+bonus:
+  # Per caller, not per server. A single ticker made the rate each player saw
+  # 1/(interval x players), so the feature got rarer the busier the game was.
+  minInterval: 15s
+  maxInterval: 35s
+
+  # One miss is retried sooner; a second in a row waits the ordinary window.
+  missRetry: 7s
+
+  # A weight per kind: a kind's chance is its weight over the sum, so one box in
+  # ten is a bomb, and one in five each a spread or an enclose. A frontend too old
+  # to know a kind skips that box, which the schedule reads as a miss - so this
+  # can ship first.
+  kinds:
+    triple_clicks: 5
+    spread_clicks: 2
+    bomb: 1
+    enclose_clicks: 2
+
+  # Has to outlast the flight the client draws, or a box caught on its last
+  # frame is refused.
+  offerTTL: 15s
+
+  # Multiplies the burst and the refill rate together, and the client reads both
+  # off the answer - so changing these changes the meter with no frontend
+  # release, exactly as rateLimiter does.
+  triple:
+    duration: 20s
+    multiplier: 3
+
+  # spread_clicks' own duration. It takes seven tiles a click, so it is short.
+  spread:
+    duration: 10s
+
+  # How long a bomb may be held, counted towards maxBoostPerHour, and the radius
+  # of the circle it clears, in tile spacings (10.4 is ~390 tiles inland).
+  bomb:
+    duration: 30s
+    rings: 10.4
+
+  # enclose_clicks: close a shape of your tiles and take the tiles inside it.
+  # A few shapes, a short time: it rewards spotting a shape that is nearly done.
+  enclose:
+    duration: 30s
+    shapes: 3
+    maxTiles: 15
+
+  # A tab left open overnight is not playing, and a box sent to it is one nobody
+  # catches. Until the frontend ships, this is every caller.
+  activeWithin: 2m
+
+  # Survives a reconnect, or a player could reload until they drew a short wait.
+  forgetAfter: 5m
+
+  # Nothing here is a race, but a script catches every box it is offered where a
+  # person catches some. This bounds what that is worth.
+  maxBoostPerHour: 15m
+
+  sweepInterval: 1s
 
 # Gates the Click RPC on a token this server minted, which is the one thing an
 # address-based defence cannot do: refuse a caller that never proved anything,
@@ -155,8 +333,8 @@ session:
     # for another surface on the same sitekey is not accepted here.
     action: session
 
-# Live chat. Every message is appended to a JSONL log on the same tile_state
-# volume as the snapshot, so the droplet's weekly disk backup covers it — with
+# Live chat. Every message is appended to a JSONL log on the tile_state
+# volume, so the droplet's weekly disk backup covers it — with
 # a recovery point up to a week old.
 #
 # The log holds sender IPs alongside message text. Retention is therefore a

@@ -24,7 +24,6 @@ type testConfig struct {
 }
 
 type validatedConfig struct {
-	testConfig
 	err error
 }
 

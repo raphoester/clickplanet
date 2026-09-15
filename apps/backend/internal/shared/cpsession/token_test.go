@@ -28,7 +28,7 @@ func newSigner(t *testing.T) *cpsession.Signer {
 
 func TestNewSignerRejectsAnEmptySecretAndANegativeTTL(t *testing.T) {
 	_, err := cpsession.NewSigner(cpsession.Config{Secret: "", TTL: ttl})
-	assert.Error(t, err)
+	require.Error(t, err)
 
 	_, err = cpsession.NewSigner(cpsession.Config{Secret: secret, TTL: -1})
 	assert.Error(t, err)
@@ -84,7 +84,7 @@ func TestATokenIsRefusedOnceItHasExpired(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = signer.Verify(token.Value, "203.0.113.7", now.Add(ttl-time.Second))
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	_, err = signer.Verify(token.Value, "203.0.113.7", now.Add(ttl))
 	assert.ErrorIs(t, err, cpsession.ErrExpired)

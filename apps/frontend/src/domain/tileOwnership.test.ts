@@ -329,6 +329,36 @@ describe("a rolled-back click and the initial load", () => {
     })
 })
 
+describe("applyClears", () => {
+    it("empties the tiles and takes them off their holders' counts", () => {
+        const store = new TileOwnership(4)
+        store.applyBatch(batch({1: "fr", 2: "fr", 3: "jp"}))
+
+        const changes = store.applyClears([1, 3, 4])
+
+        expect(changes).toEqual([{tile: 1, country: undefined}, {tile: 3, country: undefined}])
+        expect(counts(store)).toEqual({fr: 1})
+    })
+
+    it("is not undone by a batch that was already in flight", () => {
+        const store = new TileOwnership(2)
+        store.applyClears([1])
+
+        expect(store.applyBatch(batch({1: "fr"}))).toEqual([])
+        expect(store.ownerOf(1)).toBeUndefined()
+    })
+
+    it("settles a click in flight, so its refusal changes nothing", () => {
+        const store = new TileOwnership(2)
+        const {claim} = store.applyOptimistic(1, "fr")
+
+        store.applyClears([1])
+
+        expect(store.rollback(claim)).toEqual([])
+        expect(store.ownerOf(1)).toBeUndefined()
+    })
+})
+
 describe("counts after rollbacks", () => {
     it("stays consistent with the map across a long mixed run", () => {
         const store = new TileOwnership(50)

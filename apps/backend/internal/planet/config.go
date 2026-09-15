@@ -2,10 +2,16 @@ package planet
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/adapters/secondary/memory_tile_storage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
@@ -14,14 +20,22 @@ import (
 // level of the file where they have always been.
 type Config struct {
 	GameMap      GameMapConfig
-	TilesStorage memory_tile_storage.Config
+	TilesStorage inmemory_tile_storage.Config
 	RateLimiter  cpratelimit.Config
+	Toll         clicks.TollConfig
 	VPNBlocklist cpipblock.Config
 	AntiBot      antibot.Config
+	Bonus        bonuses.Config
+
+	// Who last took each tile, for the operator tools.
+	Ledger        ledger.Config
+	LedgerStorage inmemory_ledger_storage.Config
 
 	// The same `session:` keys the session context mints with. Declared here
 	// rather than handed over, so this module needs nothing but its config.
 	Session cpsession.Config
+
+	Database cppg.Config
 }
 
 type GameMapConfig struct {
@@ -36,5 +50,13 @@ func (c Config) Validate() error {
 		return errors.New("gameMap.maxIndex is zero: the map has no tiles")
 	}
 
-	return nil
+	if err := c.Database.Validate(); err != nil {
+		return fmt.Errorf("database: %w", err)
+	}
+
+	if err := c.Toll.Validate(c.RateLimiter.Capacity()); err != nil {
+		return err
+	}
+
+	return errors.Join(c.Bonus.Validate(), c.AntiBot.Validate())
 }

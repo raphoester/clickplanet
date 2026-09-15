@@ -11,7 +11,8 @@ import CountryFlag from "./components/CountryFlag.tsx";
 import Modal from "./components/Modal.tsx";
 import DiscordButton from "./components/DiscordButton.tsx";
 import BuyMeACoffee from "./components/BuyMeACoffee.tsx";
-import {SwapIcon} from "./components/icons.tsx";
+import {SpeakerIcon, SpeakerOffIcon, SwapIcon} from "./components/icons.tsx";
+import SoundSettingsPanel, {SoundSettingsPanelProps} from "./sound/SoundSettingsPanel.tsx";
 import {opensFolded} from "./compact.ts";
 import "./Menu.css"
 
@@ -21,12 +22,15 @@ export type MenuProps = {
     leaderboard: LeaderboardEntry[],
     tileDeltas?: TileDeltas,
     tilesCount: number,
+    /** Absent, the menu offers no sound settings. */
+    sound?: SoundSettingsPanelProps,
 }
 
 export default function Menu(props: MenuProps) {
     const [isOpen, setIsOpen] = useState(() => !opensFolded())
     const [pickingCountry, setPickingCountry] = useState(false)
     const [aboutOpen, setAboutOpen] = useState(false)
+    const [soundOpen, setSoundOpen] = useState(false)
     const bodyId = useId()
 
     const cameFromChange = useRef(false)
@@ -42,6 +46,21 @@ export default function Menu(props: MenuProps) {
         cameFromChange.current = false
         changeButton.current?.focus()
     }, [pickingCountry])
+
+    // Back from the sound panel lands on the button that opened it.
+    const soundButton = useRef<HTMLButtonElement>(null)
+    const cameFromSound = useRef(false)
+
+    useEffect(() => {
+        if (soundOpen || !cameFromSound.current) return
+        cameFromSound.current = false
+        soundButton.current?.focus()
+    }, [soundOpen])
+
+    const openSound = () => {
+        cameFromSound.current = true
+        setSoundOpen(true)
+    }
 
     const pickCountry = (country: Country) => {
         props.setCountry(country)
@@ -60,6 +79,10 @@ export default function Menu(props: MenuProps) {
                 {pickingCountry
                     ? <MenuPanel title="Change country" onClose={() => setPickingCountry(false)}>
                         <CountryPicker country={props.country} setCountry={pickCountry}/>
+                    </MenuPanel>
+                    : soundOpen && props.sound
+                    ? <MenuPanel title="Sound" onClose={() => setSoundOpen(false)}>
+                        <SoundSettingsPanel {...props.sound}/>
                     </MenuPanel>
                     : <>
                         <div className="menu-playing">
@@ -91,6 +114,13 @@ export default function Menu(props: MenuProps) {
                                 About
                             </button>
                             <DiscordButton message="Discord"/>
+                            {props.sound && <button ref={soundButton}
+                                                    type="button"
+                                                    className="button button-ghost menu-sound"
+                                                    aria-label="Sound settings"
+                                                    onClick={openSound}>
+                                {props.sound.settings.enabled ? <SpeakerIcon size={26}/> : <SpeakerOffIcon size={26}/>}
+                            </button>}
                         </div>
                     </>}
             </div>}

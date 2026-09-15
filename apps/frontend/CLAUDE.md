@@ -12,6 +12,7 @@ npm run test:watch # Re-run affected tests on change
 npm run lint       # ESLint check
 npm run proto      # Regenerate protobuf types from the shared ../../proto/ using buf CLI
 npm run atlas      # Repack the flag sprite atlas from static/countries/png100px
+npm run map        # Copy the shared /map coordinates blob into static/ (see "Static assets")
 npm run borders    # Resolve every tile to a landmass (see "The zoomed-out view")
 npm run flagFit    # Work out which flags stretch, and where each one is cropped
 npm run mobile     # Screenshot/inspect a URL as a phone (see "Debugging mobile layout")
@@ -23,9 +24,18 @@ touching this app.
 **`npm run dev` cannot reach the production API.** `api.clickplanet.lol` sends
 `access-control-allow-origin: https://clickplanet.lol` and nothing else, so the
 browser blocks every request from `localhost`. Point `VITE_API_BASE_URL` at a
-local backend, or swap `PlanetBackend` for `FakeBackend` in `src/main.tsx` — the
-fake serves a full map and simulates live updates. `FakeChatBackend` is the same
-swap for `ChatServiceBackend`, and reproduces every refusal the chat can show.
+local backend, or run `VITE_FAKE_BACKEND=1 npm run dev` to play against
+`FakeBackend` and `FakeChatBackend` — the fake serves a full map, simulates other
+players at a few clicks a second, and reproduces every refusal the chat can show.
+The switch is gated on `import.meta.env.DEV` as well, because an unset `VITE_*`
+variable is **not** folded away in a build: without the `DEV` check both fakes
+ship in the production bundle.
+
+In fake mode the console has a few commands: `giveBomb()` arms a bomb as if a box
+holding one had just been caught, `giveBonus("spreadClicks")` does the same for
+any other bonus, and `fakeBackend.botBomb(tile, "fr")`, `fakeBackend.botSpread(tile, "fr")`
+and `fakeBackend.botBoost(tile, "fr")` play somebody else's bomb, spread click or
+boosted click.
 
 A local backend is the quickest way to exercise the real chat: `cmd/api`'s
 `example.yaml` has `chat.enabled: true`, and the Go server answers
@@ -182,12 +192,12 @@ Connect code is:
 - `unauthenticated` → `SessionUnavailableError`, **and only after a retry** —
   see [Sessions](#sessions).
 
-They are separate classes rather than one with a field because the dialogs give
-different advice: ease off for a second, turn the VPN off, or reload and unblock
-the challenge. Everything else is a transport fault and still reaches the
+They are separate classes rather than one with a field because each one says
+something different: ease off for a second (the click meter shakes — no dialog),
+turn the VPN off, or reload and unblock the challenge. Everything else is a transport fault and still reaches the
 console.
 
-`FakeBackend` reproduces all three, so every dialog is reachable in dev: it
+`FakeBackend` reproduces all three, so every refusal is reachable in dev: it
 enforces the same bucket with the backend's defaults, and takes `vpnBlocked` and
 `sessionUnavailable` options that refuse every click (there is no address and no
 widget there to judge). Its own simulated traffic bypasses all of them, standing
@@ -214,6 +224,14 @@ one, which is the reading that matters most. It also subtracts its own clicks in
 flight, so the counter only ever *under*-promises: a counter that says 1 and is
 refused is a bug the player sees, and one that says 0 and works is a click they
 still get.
+
+**The reading is priced for one country.** The server charges more tokens per
+click the more of the map a country holds, and sends the budget already divided
+into clicks, with the price beside it (`ClickBudget.price`). `useClickBudget`
+calls `priceFor(country)` whenever the selected country changes, and
+`PlanetBackend` drops any reading priced for a country other than that one. The
+meter only explains the price (`domain/clickPrice.ts`): it says nothing at the
+plain rate unless the country is within 80% of the first step.
 
 A server that reports nothing — no throttle, or one too old for the call —
 leaves the counter hidden rather than showing a made-up allowance, so this ships
@@ -436,7 +454,23 @@ curl -s "https://clickplanet.lol$B" | grep -c 'challenges.cloudflare.com/turnsti
   them to a tube around the globe, and `camera.zoom` would fan them out across
   the screen on the way in. Its scene is not the one `disposeScene` walks, so
   `startAnimation`'s `stop()` disposes it by hand.
-- `shaders/` — GLSL for the display, picking and star passes.
+- `enclosureEffect.ts` — what every screen shows when somebody closes a shape
+  with the enclose bonus (`tilesEnclosed` on the stream): the outline lights up
+  and meets at the closing tile, the inside pours in, and a gold ring runs out
+  over the ground. **The curves are TypeScript, written into attributes per
+  frame**, not GLSL: a shape is a few dozen points, and that is what lets
+  `enclosureEffect.test.ts` pin the timing. Marks and the ring have a minimum
+  size in pixels, so a shape closed while zoomed out is still seen. A shape that
+  arrives while the tab is hidden is not played — it would all start at once on
+  return.
+- `bonusClickEffects.ts` — the same, for every click made under a spread bonus
+  (`tilesSpread`: a green burst, a spark popping onto each tile around it in
+  turn, two rings) or a triple clicks bonus (`Update.boosted` on a live tile
+  update, played from the update batch: a cyan flash, three streaks, three quick
+  rings). It reuses the enclosure's shaders, with normal
+  rather than additive rings, which vanished on the white of a flag. Boosted
+  players click fast, so an effect is short and at most `MAX_PLAYING` run at once.
+- `shaders/` — GLSL for the display, picking, star and enclosure passes.
 
 ### The zoomed-out view
 
@@ -499,10 +533,13 @@ player's territory, so it has not been done.
    re-ranked from its counts — then handed to `useLeaderboardFeed`, which
    publishes it to React twice a second rather than ten times.
 5. A click paints optimistically and POSTs; the server's echo confirms it later.
-   A refused click is taken back off the map and raises a flag in `useGlobe` that
-   `Viewer` renders as `RateLimitModal`, `VPNBlockedModal` or
-   `SessionUnavailableModal`. The globe reports every refused click,
-   so each flag is a boolean and not a queue — a burst is one thing to say, once.
+   A refused click is taken back off the map. A throttled one bumps `refusals` in
+   `useGlobe`, and `ClickBudgetMeter` shakes and flashes red once per bump — a
+   dialog here was annoying, since a player hits the wall mid-burst and the meter
+   already says why. The other two raise a flag that `Viewer` renders as
+   `VPNBlockedModal` or `SessionUnavailableModal`. The globe reports every refused
+   click, so those flags are booleans and not a queue — a burst is one thing to
+   say, once.
    `reportClickFailure` in `globe.ts` is the four-way branch that picks which,
    split out of the click handler because it is the one piece of that handler
    worth testing: sending a refusal to the wrong dialog leaves a working page
@@ -512,9 +549,8 @@ player's territory, so it has not been done.
    refusal does not clear on its own — the player has to change network — so the
    next click raises it again.
 
-6. `ClickBudgetMeter` shows what is left of the bucket, top-right. It is the
-   warning `RateLimitModal` cannot be — the modal only ever arrives after the
-   click that was refused. **Its shape is read off the server's policy**: one
+6. `ClickBudgetMeter` shows what is left of the bucket, top-right. It warns
+   before the wall, and shakes when a click hits it. **Its shape is read off the server's policy**: one
    pip per click in the burst (one bar past 12 of them), and the partly-filled
    pip is the click being granted back, at the server's own rate. Change
    `rateLimiter.burst` on the backend and this follows with no release here.
@@ -599,6 +635,63 @@ what the fragment shader already draws as an unclaimed tile.
 Rolling back on *any* failure, including a transport fault, is deliberate: if
 the click did land and only the response was lost, the stream's echo repaints
 it, and if the echo arrives first the rollback is already a no-op.
+
+## Bombs
+
+A bonus box can hold a bomb (`BonusReward` kind `bomb`). The player has
+`seconds` to drop it anywhere on the planet, and it clears every tile within
+`radius` of where it lands — the server's call, not this client's. The pieces:
+`backends/backend.ts` declares `Bomber` and `BombDrop`, `domain/blast.ts` the
+timeline every screen agrees on, `domain/holdToDrop.ts` the gesture,
+`viewer/blasts.ts` the drawing, and `components/BombNews.tsx` the line at the top.
+
+**It drops on a press held still for 0.7s, never on a click.** A bomb is precious
+and a click is also what ends every drag of the globe — releasing a drag over the
+planet used to drop it. `HoldToDrop` is the whole rule: a press that moves more
+than 6px is a drag, a press let go early is a change of mind, and only a press
+held to the end drops. The aiming ring fills in clockwise while it is held. Mouse
+and touch go through the same pointer events, so there is one flow and no
+two-tap variant for phones. While armed, a click claims no tile, and the
+`viewer-canvas--armed` class blocks the long-press callout on iOS.
+
+**The client sends where it aimed, not a tile.** The sea has no tiles, and whether
+an aim is land is decided by the server: past one tile spacing from the nearest
+tile it is the sea, the bomb is spent, and everyone sees a splash (`BombDrop.tile`
+undefined, nothing cleared). The aiming ring follows the sphere under the cursor
+(a ray against the unit sphere), not the tile picker, which finds nothing between
+tiles or over water and made a ring that followed it blink.
+
+**Rings are meshes, not tiles.** The aiming ring and the closing "incoming" ring
+are a flat quad laid on the globe with a per-pixel ring shader
+(`shaders/ring/`). Drawn out of tile discs they broke up over the sea and crawled
+as they moved.
+
+**The ground effects are in the tile shader.** The shock wave that throws tiles
+outward, the flash and the scorch are computed per vertex from a few uniforms per
+blast (`blasts`, `blastRadii`, up to `MAX_BLASTS` at once), so a blast costs a
+uniform write per frame and nothing per tile. Each blast slot also owns a flash
+sprite and 140 GPU-animated debris points, allocated once and reused.
+
+**The clear waits for the explosion.** `BombDrop.cleared` arrives in one event,
+and the globe holds it for `IMPACT_DELAY` so the ground goes when the bomb hits,
+not when the message lands. Two things keep that honest:
+
+- A tile update that arrives while a clear is waiting **wins its tile**: it came
+  after the blast on the wire, so the tile is taken out of the waiting clear and
+  the rest of the crater still goes on impact. (Flushing the whole clear early
+  instead is what made craters appear before the explosion on a busy map.)
+- `PlanetBackend` batches tile updates every 100ms but delivers a blast at once,
+  so it **flushes the pending batch first** — otherwise a tile taken just before
+  the blast would be applied after it and repaint the crater.
+
+A hidden tab draws no frames, so there the clear is applied immediately.
+
+The dropper's own screen shakes on impact; nobody else's does. Under
+`prefers-reduced-motion` nothing moves — no shake, no debris, no displaced tiles —
+and the colours stay. A blast off screen gets a red edge pointer with a drawn burst on it
+(`blastMark.ts`) — the same component as the bonus box's, which carries a drawn
+question mark (`questionMark.ts`). Neither is a character: a glyph is a
+different picture on every platform.
 
 ## Sharing the globe
 
@@ -728,6 +821,67 @@ and fits the picture to the room between the header and the buttons rather than
 capping it in `vh`, which left a hand's width of empty panel under a portrait
 card on a phone.
 
+## Sound
+
+`src/app/sound/` holds it. **There is no audio file**: every sound is built
+from oscillators and noise with the Web Audio API at the moment it plays, in
+`synths.ts`. Tuning a sound is changing numbers there.
+
+- `soundPlayer.ts` — `createSoundPlayer`: settings check, a per-sound
+  `MIN_GAP_MS` (fast clicks and a busy chat would otherwise be one long buzz),
+  nothing in a hidden tab. Its context, synths and clock are injectable, so it is
+  tested without audio.
+- `useSound.ts` — the settings in `clickplanet-sound-settings`
+  (`domain/soundSettings.ts` parses them; a sound added later starts on) and
+  the one player. **`play` never changes identity** and reads the settings
+  through a ref: `useGlobe` rebuilds the globe when an option changes, and a
+  toggle must not do that.
+- `SoundSettingsPanel.tsx` — the switches, behind the speaker button in the
+  menu. Turning a sound on previews it.
+
+**Audio is locked until a gesture.** The `AudioContext` is only created by the
+first `pointerdown`/`keydown` on the window, so a bonus box or a chat message
+before the player has touched the page is silent, by design of the browser.
+
+Where each one fires: the click and the refusal in `globe.ts`'s click handler
+(`reportClickFailure` returns whether the server refused — a transport fault is
+not a "nope"); the box appearing and being caught at the same places the box
+itself does; the bomb when its broadcast arrives, with the boom scheduled
+`IMPACT_DELAY` later so it lands with the tiles, quieter for someone else's,
+and a splash instead of a blast when the drop has no tile under it (the ocean);
+your own spread click, boosted click and closed shape when their broadcast comes
+back, so each lands with its effect on screen. **Only the player who made one
+hears it.** An enclosure carries `yours`; a spread or a boost says nothing of
+whose it is, so `domain/ownClicks.ts` remembers the tiles this client clicked in
+the last 3s and a broadcast on one of them, for the same country, is taken as
+ours. They have no switch of their own: `switchOf` puts them under the tile
+click's;
+the chat in `ChatPanel` for a message that is not yours. **Your own message is
+filtered on your name as well as on `mine`**: its broadcast can arrive before
+the send answer that fills `mine` in.
+
+### The leader's anthem
+
+The one sound that **is** a file. `src/app/anthem/` plays the national anthem of
+the country leading the map, on a loop, with a player at the bottom of the screen.
+The recordings are the US Navy Band's (public domain); `npm run anthems` downloads
+them, normalises loudness, trims the silence so the loop has no gap, and writes
+`static/anthems/<code>-<hash>.m4a` plus `anthemsAsset.ts`, which pairs each file
+with the anthem's title (`TITLES` in the script, written by hand: Wikidata's
+labels mix titles with "National Anthem of X"). It needs ffmpeg.
+Territories share their country's file (`SHARES` in the script); a country with
+no recording shows the player with its play button off.
+
+- `domain/anthemLeader.ts` — `followLeader`: a new leader must hold first place
+  for `HOLD_MS` (15s) before the music follows it. The first leader plays at once.
+- `anthemPlayer.ts` — two `<audio>` elements crossfade through Web Audio gain
+  nodes. **Not `audio.volume`: iOS ignores it.** A muted or hidden tab fades out
+  and pauses rather than streaming silence.
+- `useAnthem.ts` — ties the board and the settings to the player, which is built
+  once, so a tick or a toggle never restarts the music.
+- `AnthemBar.tsx` — the player: the anthem's title, then the country. Play and volume write `SoundSettings.anthem`, so
+  it and the settings panel never disagree. Pressing play lifts the master switch.
+
 ## Protocol Buffers
 
 Types are defined in the monorepo-shared [`/proto`](../../proto), one package per
@@ -758,11 +912,19 @@ cache entirely:
 - `/static/borders-<hash>.bin` — tile → landmass and a frame per landmass,
   fetched at runtime by `borderField.ts`. URL in `bordersAsset.ts`. Regenerate
   with `npm run borders`, which needs the coordinates blob to already be in
-  place — it resolves *those* tiles.
+  place — it resolves *those* tiles. It writes `/map` too, because the backend's
+  admin tools read it: **run the backend's `make map` after it, and commit all
+  three copies.**
 - `/static/coordinates-<hash>.bin` — tile positions, fetched at runtime by
   `points.ts`. Format in `coordinatesBinary.ts`; URL in `coordinatesAsset.ts`.
-  Regenerate with `npm run coordinates <detail> <mapFilePath> [threshold]`, or
-  rebuild the binary from the existing JSON with `npm run coordinates:convert`.
+  **This one is not ours alone.** The source of truth is the monorepo-shared
+  [`/map`](../../map/README.md), which the backend also builds its tile adjacency
+  from; `static/` holds a generated copy, exactly as `src/gen/grpc/` holds a copy
+  of the proto contract. `npm run map` re-copies it, and the generators —
+  `npm run coordinates <detail> <mapFilePath> [threshold]`, or
+  `npm run coordinates:convert` to rebuild from the existing JSON — write to
+  `/map` first and then sync. **Run the backend's `make map` after either, and
+  commit all three copies**, or the two apps disagree about what a tile id means.
 - `/static/countries/atlas-<hash>.png` — the flag sprite atlas. URL and pixel
   size in `atlasAsset.ts`. Regenerate with `npm run atlas`.
 

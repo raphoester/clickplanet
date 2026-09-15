@@ -5,20 +5,60 @@ httpServer:
   # response at ~125s with a 524, so this must stay well under that. Empty or
   # zero means 30s.
   streamHeartbeat: 30s
+  # A second listener for operator services (planet.v1.AdminService). They have
+  # no authentication, so anything but a loopback address refuses the boot.
+  # Empty serves no admin listener at all.
+  adminBindAddress: 127.0.0.1:8081
 gameMap:
   maxIndex: 257948
 
-# The whole tile map lives in this process and is snapshotted to a local file.
-# There is no database and no second service to run.
+# The planet module's database: its own connection, and the schema its tables
+# live in. It creates and migrates the schema while it builds. Another module
+# that stores something gets a block of its own. There is no fallback: without
+# a database the process refuses to start.
+#
+#   docker run -d --name cp-postgres -p 5432:5432 -e POSTGRES_PASSWORD=postgres postgres:16-alpine
+database:
+  host: localhost
+  port: "5432"
+  user: postgres
+  # Belongs in the environment in production (database.password), not in a file in git.
+  password: postgres
+  dbName: postgres
+  sslMode: disable
+  schema: planet
+  pool:
+    maxOpenConns: 4
+
+# The whole tile map lives in this process. Postgres is where it is kept between
+# boots: it is loaded once at boot, and only the tiles that changed are written
+# back, on a timer. A click never waits on the database.
 tilesStorage:
-  # Where the tile state is persisted. Leave empty to disable durability
-  # entirely (state is then lost on restart).
-  snapshotPath: ./data/tiles.snapshot
-  # How often a modified state is flushed to disk.
-  snapshotInterval: 30s
-  # Per-websocket-subscriber channel capacity. Updates for a subscriber that
+  # The most a hard kill can lose. A clean stop loses nothing: the last flush
+  # runs on SIGTERM.
+  flushInterval: 1s
+  # The tile snapshot file from before postgres. Imported once, if the tiles
+  # table is empty, then renamed with an .imported suffix. Empty imports nothing.
+  legacySnapshotPath: ./data/tiles.snapshot
+  # Per-stream subscriber channel capacity. Updates for a subscriber that
   # cannot keep up are dropped rather than blocking clicks.
   subscriberBuffer: 1024
+
+# Every take of every tile, for the operator tools (FindPlayers, TopPlayers, RevertPlayer).
+ledger:
+  # How long a take can still be traced or reverted.
+  retention: 72h
+  sweepInterval: 5m
+
+ledgerStorage:
+  # Where the ledger is saved, so a restart keeps it. Empty keeps it in memory
+  # only, where a restart empties it.
+  statePath: ./data/ledger.bin
+  # How often new takes are appended to the file. It is also written on shutdown.
+  saveInterval: 1m
+  # The most takes kept, 16 bytes each plus strings (~85 MiB). Past it the oldest go before
+  # the retention, and the log says so once.
+  maxTakes: 4000000
 
 # Per-IP throttle on the Click RPC. Reads and the websocket are untouched.
 # The defaults below are also what applies when this block is absent.
@@ -32,6 +72,17 @@ rateLimiter:
   # How often the buckets that have refilled completely are forgotten. Only
   # affects memory, never what a caller is allowed.
   sweepInterval: 1m
+
+# A click costs more tokens the more of the map its country holds: from each
+# share below (a fraction of every tile on the map), a click for that country
+# costs that many tokens. The meter shows the budget already divided, in clicks.
+# No steps means every click costs one. A cost above rateLimiter.burst refuses
+# the boot, since no bucket could ever pay it.
+toll:
+  steps:
+    - {share: 0.25, cost: 1.5}
+    - {share: 0.50, cost: 2}
+    - {share: 0.70, cost: 3}
 
 # Refuses the Click RPC from known VPN and proxy egress ranges, so a player has
 # to come from an address the throttle above can actually hold onto: a bucket
@@ -54,8 +105,100 @@ vpnBlocklist:
   # address. Put your own address here.
   allow: []
 
+# Bonus boxes: a question-mark box flies past the planet, and whoever catches it
+# clicks at a multiple of their allowance for a minute.
+#
+# The server picks who is offered one and sends it down that one stream. It is
+# deliberately not a race: broadcast to everyone, a box is always caught by
+# whichever client reacts fastest, and that is a script every time.
+#
+# Each caller is on a schedule of their own. A single server-wide ticker made
+# the rate each player saw 1/(interval x players), so the feature got rarer the
+# busier the game was.
+bonus:
+  # A caller's next box is due this long after the last one, drawn uniformly.
+  # The spread is for feel: a script does not predict the schedule, it watches
+  # the stream, so nothing here is hidden from one.
+  minInterval: 90s
+  maxInterval: 210s
+
+  # How soon to try again after a box was not caught. It applies to one miss;
+  # a second in a row waits the ordinary window, so a player who is not
+  # catching them does not collect a box every 45s all session.
+  missRetry: 45s
+
+  # What a box can be worth, as a weight per kind. A kind's chance is its weight
+  # over the sum of the weights: 3 and 1 make one box in four a spread. A kind
+  # left out, or at 0, is never offered. Empty offers every kind equally.
+  #   triple_clicks - the allowance is multiplied by `triple.multiplier`
+  #   spread_clicks - every click also takes the tiles touching the one clicked
+  #   bomb          - one bomb, dropped anywhere to clear a circle of tiles
+  #   enclose_clicks - a click that closes a shape of your tiles takes the inside
+  kinds:
+    triple_clicks: 5
+    spread_clicks: 2
+    bomb: 1
+    enclose_clicks: 2
+
+  # How long the token stays good. It has to outlast the flight the client
+  # draws, or a box caught on its last frame is refused.
+  offerTTL: 15s
+
+  # triple_clicks: how long a caught one runs, and what it multiplies the click
+  # allowance by. Both the burst and the refill rate are multiplied, and the
+  # client reads them off the answer - so changing these changes the meter with
+  # no frontend release, exactly as rateLimiter does. The next box is due a
+  # window after the bonus ends, so two can never overlap.
+  triple:
+    duration: 20s
+    multiplier: 3
+
+  # spread_clicks: how long a caught one runs. Far shorter than triple's: a
+  # click that takes seven tiles is worth much more than three clicks.
+  spread:
+    duration: 10s
+
+  bomb:
+    # How long a caught bomb may be held before it is lost. It counts towards
+    # maxBoostPerHour like any bonus, and the next box is due a window after it
+    # is dropped.
+    duration: 30s
+
+    # The radius of the circle a bomb clears, whoever holds the tiles, in tile
+    # spacings: 10.4 is ~390 tiles inland. The radius in radians is this times
+    # the map's own tile spacing, so the client's ring and the clear always agree.
+    rings: 10.4
+
+  # enclose_clicks: how long it runs, how many shapes it may close in that time,
+  # and the most tiles one shape may hold. A click that takes the last tile of a
+  # wall around a pocket of other tiles takes the pocket too. Clicking a tile you
+  # already hold closes nothing, so a shape finished before the bonus does not
+  # count. A pocket bigger than maxTiles, or open to the coast, takes nothing and
+  # costs no shape - so a triangle of three tiles, which has no inside, is free.
+  enclose:
+    duration: 30s
+    shapes: 3
+    maxTiles: 15
+
+  # How recently a caller must have clicked to be offered a box. A tab left open
+  # overnight is not playing, and a box sent to it is one nobody catches.
+  activeWithin: 2m
+
+  # How long a caller's schedule outlives its last stream. Without it, closing
+  # the tab and reopening it draws a fresh wait, so a player could reload until
+  # they got a short one.
+  forgetAfter: 5m
+
+  # The most bonus time one caller may be granted per hour. Nothing here is a
+  # race any more, but a script still catches every box it is offered where a
+  # person catches some - this bounds what that is worth.
+  maxBoostPerHour: 15m
+
+  # One sweep for everybody, rather than a timer per caller.
+  sweepInterval: 1s
+
 # Accepts a bot's clicks and drops them, rather than refusing them and naming the
-# check it tripped. Three watchdogs read three different behaviours, the jury
+# check it tripped. Four watchdogs read four different behaviours, the jury
 # crosses what they say, and the shadow ban is the one sentence they all pass.
 antiBot:
   # Off registers nothing and measures nothing.
@@ -68,14 +211,21 @@ antiBot:
     # read the "antibot ban" lines, check none of them is naming you, set the
     # bounds below from the numbers those lines carry, then turn this on.
     enforce: false
-    banDuration: 1h
+    # The Nth offence bans for the Nth step; past the end the last one repeats.
+    # A flag on a running ban only extends it: an offence is a ban that starts
+    # while none is running. Offences are never forgotten.
+    banDurations: [24h, 168h, 26280h]
+    # One JSON line per banned scope, so bans survive a restart. Empty keeps
+    # them in memory, where a deploy clears every one.
+    statePath: ./data/bans.jsonl
     # How soon a caller already serving a ban can be judged again. At or above a
     # watchdog's trackWindow each flag rests on evidence the previous one never
     # saw, so flags=6 on a line is six separate judgements agreeing rather than
     # one verdict repeated. Without this a caller goes quiet behind its first
     # ban and you cannot tell whether it stopped or kept going.
     reflagInterval: 5m
-    sweepInterval: 1m
+    # How often a changed ban list is written to statePath.
+    saveInterval: 1m
 
   # How the watchdogs are crossed.
   jury:
@@ -97,6 +247,20 @@ antiBot:
     # shadowBan above, on its own clock.
     trackWindow: 15m
     sweepInterval: 1m
+
+  # What every watchdog and the jury are tracking, saved so a restart does not
+  # reset their windows: a process restarted every 10 minutes never fills a
+  # window of 15 or 30. Bans are saved on their own, in shadowBan above.
+  evidence:
+    # Empty keeps it in memory, where a restart starts every window again. A
+    # missing or corrupt file is logged and starts empty; it never stops a boot.
+    statePath: ./data/antibot-evidence.bin
+    # How often it is written, and it is written once more on shutdown. A hard
+    # kill loses at most this much.
+    saveInterval: 1m
+    # The oldest evidence kept, on load and by a sweep before each save,
+    # whatever a trackWindow says. A run still going is kept whole.
+    retention: 72h
 
   # Takes a tile back moments after losing it, over and over. Speed is not the
   # signal — the player clicking back at a bot is the fastest caller on the map.
@@ -122,6 +286,14 @@ antiBot:
       # A band this tight that is also faster than a person decides is
       # "certain", and bans on its own. Either bound alone bans real players.
       maxMedian: 250ms
+      # Reactions on this many different tiles, with a median at or under
+      # roamMedian, read "suspect" whatever the spread; certainTiles reads
+      # "certain". A player at war is fast on the tile it watches, and a bot
+      # reading the stream is fast everywhere — including when its retakes
+      # queue behind the throttle and the band above goes wide. 0 is off.
+      minTiles: 15
+      roamMedian: 600ms
+      certainTiles: 30
       trackWindow: 5m
       sweepInterval: 1m
 
@@ -155,9 +327,8 @@ antiBot:
       maxGap: 3s
       # The p90-p10 of the gaps inside a run, and the bound that does all the
       # work here. The median is deliberately not bounded at all: the claim is
-      # not that the caller is fast — a caller pushing past the throttle gets
-      # its surviving clicks handed back at exactly the refill rate — it is that
-      # the caller is a clock.
+      # not that the caller is fast, it is that the caller is a clock. Gaps are
+      # timed between clicks tried, 429s included, so the throttle cannot hide one.
       maxSpread: 120ms
       # How long an unbroken run must be to read as "suspect", and what turns it
       # into "certain". Half an hour without once pausing longer than maxGap is
@@ -166,6 +337,89 @@ antiBot:
       certainFor: 30m
       certainClicks: 900
       trackWindow: 15m
+      sweepInterval: 1m
+
+  # The caller whose takes are nearly all retakes: a tile its country lost a
+  # moment ago, taken back. It is not timed, so a bot draining a queue behind
+  # the throttle cannot hide in slowness.
+  defender:
+    enabled: true
+    detector:
+      # How long after a country loses a tile a take for it counts as a retake.
+      retakeWindow: 2m
+      # No share set means no verdict: the watchdog only feeds the
+      # click_retake_share histogram. Two players fighting over one tile retake
+      # every click, so set these from what that histogram shows, never before.
+      minClicks: 60
+      # minShare: 0.9
+      certainClicks: 200
+      # certainShare: 0.98
+      trackWindow: 5m
+      sweepInterval: 1m
+
+  # Catches every bonus box, at once. A box flies a slow orbit that is rarely in
+  # view: a person zooms out to orbit height, often drags the globe round, and
+  # lets some go by. A script reads the offer off the stream and claims it
+  # before the box has left its spawn. Only callers who catch every one of
+  # their last minCatches boxes are judged at all: one miss clears them.
+  catcher:
+    enabled: true
+    detector:
+      # Boxes in a row, all caught, before anything is said.
+      minCatches: 5
+      # The median delay from offer to claim over those boxes. It includes the
+      # round trip, which only makes a person look slower.
+      maxMedian: 3s
+      # The same median at a speed no hand holds box after box, which bans
+      # on its own.
+      certainMedian: 1500ms
+      # Must hold minCatches boxes at bonus.maxInterval plus bonus.offerTTL, or
+      # the rule can never fire.
+      trackWindow: 30m
+      sweepInterval: 1m
+
+  # Scopes that act together. Every other watchdog judges one scope, so a pool
+  # that rotates its address every few minutes starts each identity clean: on
+  # 2026-09-14 pairs of /64s out of Firefox's built-in VPN painted bg for eight
+  # minutes each, started in the same millisecond, and no watchdog said a word
+  # all day. What the pool cannot hide is that its identities come in groups,
+  # and that the groups follow one another.
+  #
+  # The flag is an input here, unlike topCountry in the ban line: a pool that
+  # paints another flag to dodge this has stopped painting the one it came for.
+  cohort:
+    enabled: true
+    detector:
+      # How close two scopes' first clicks must be to have started together.
+      # The pool's pairs were milliseconds apart; a group of three took four seconds.
+      startWindow: 5s
+      # Clicks a scope needs before it is compared, and how much of them must
+      # be for one flag.
+      minClicks: 20
+      minFlagShare: 0.9
+      # How far apart two scopes' paces may be (faster over slower), and how
+      # long they stayed (longer over shorter). The length is only compared once
+      # the shorter one has been quiet for quietAfter: a pool's identities stop
+      # together, and people who started together do not.
+      rateRatio: 1.5
+      lengthRatio: 1.2
+      quietAfter: 1m
+      # Scopes in step that read "suspect". Two friends joining a flag war in
+      # the same second are exactly this, which is why it never bans alone.
+      minMembers: 2
+      # The wider prefix "certain" needs every scope to share: a crowd answering
+      # one link starts together from all over, a pool from one range. The
+      # Firefox VPN pairs all sat in 2a00:8c40:f0c0::/44.
+      v4Bits: 24
+      v6Bits: 44
+      # "certain": this many separate groups inside chainWindow, on the same
+      # flag and prefix — a person keeps their address when they come back, a
+      # pool does not — or this many scopes in step in one group.
+      certainCohorts: 3
+      certainMembers: 6
+      chainWindow: 30m
+      # Never shorter than chainWindow, or a chain's first links are forgotten.
+      trackWindow: 30m
       sweepInterval: 1m
 
 # Gates the Click RPC on a token this server minted. Off by default: with it

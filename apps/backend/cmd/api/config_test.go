@@ -22,12 +22,27 @@ func TestTheExampleConfigStillReachesTheStructs(t *testing.T) {
 
 	require.True(t, config.Planet.AntiBot.Enabled)
 
+	assert.Equal(t, 30*time.Second, config.Planet.Bonus.Enclose.Duration)
+	assert.Equal(t, 3, config.Planet.Bonus.Enclose.Shapes)
+	assert.Equal(t, 15, config.Planet.Bonus.Enclose.MaxTiles)
+
+	assert.Equal(t, 72*time.Hour, config.Planet.Ledger.Retention)
+	assert.Equal(t, 5*time.Minute, config.Planet.Ledger.SweepInterval)
+	assert.Equal(t, "./data/ledger.bin", config.Planet.LedgerStorage.StatePath)
+	assert.Equal(t, time.Minute, config.Planet.LedgerStorage.SaveInterval)
+
 	assert.False(t, config.Planet.AntiBot.ShadowBan.Enforce, "the example must ship observing only")
-	assert.Equal(t, time.Hour, config.Planet.AntiBot.ShadowBan.BanDuration)
+	assert.Equal(t, []time.Duration{24 * time.Hour, 7 * 24 * time.Hour, 3 * 365 * 24 * time.Hour}, config.Planet.AntiBot.ShadowBan.BanDurations)
+	assert.Equal(t, time.Minute, config.Planet.AntiBot.ShadowBan.SaveInterval)
+	assert.Equal(t, "./data/bans.jsonl", config.Planet.AntiBot.ShadowBan.StatePath)
 	assert.Equal(t, 5*time.Minute, config.Planet.AntiBot.ShadowBan.ReflagInterval)
 
 	assert.Equal(t, 2, config.Planet.AntiBot.Jury.MinSuspects)
 	assert.Equal(t, 10*time.Minute, config.Planet.AntiBot.Jury.SuspicionWindow)
+
+	assert.Equal(t, "./data/antibot-evidence.bin", config.Planet.AntiBot.Evidence.StatePath)
+	assert.Equal(t, time.Minute, config.Planet.AntiBot.Evidence.SaveInterval)
+	assert.Equal(t, 72*time.Hour, config.Planet.AntiBot.Evidence.Retention)
 
 	require.True(t, config.Planet.AntiBot.Retaker.Enabled)
 	assert.Equal(t, 5*time.Second, config.Planet.AntiBot.Retaker.Detector.ReactionWindow)
@@ -37,9 +52,9 @@ func TestTheExampleConfigStillReachesTheStructs(t *testing.T) {
 
 	require.True(t, config.Planet.AntiBot.Sequencer.Enabled)
 	assert.Equal(t, 40, config.Planet.AntiBot.Sequencer.Detector.MinSteps)
-	assert.Equal(t, 0.75, config.Planet.AntiBot.Sequencer.Detector.MinShare)
+	assert.InDelta(t, 0.75, config.Planet.AntiBot.Sequencer.Detector.MinShare, 1e-9)
 	assert.Equal(t, 200, config.Planet.AntiBot.Sequencer.Detector.CertainSteps)
-	assert.Equal(t, 0.95, config.Planet.AntiBot.Sequencer.Detector.CertainShare)
+	assert.InDelta(t, 0.95, config.Planet.AntiBot.Sequencer.Detector.CertainShare, 1e-9)
 
 	require.True(t, config.Planet.AntiBot.Metronome.Enabled)
 	assert.Equal(t, 3*time.Second, config.Planet.AntiBot.Metronome.Detector.MaxGap)
@@ -57,10 +72,26 @@ func TestTheExampleConfigStillCarriesTheRestOfTheFile(t *testing.T) {
 
 	assert.Equal(t, "0.0.0.0:8080", config.HTTPServer.BindAddress)
 	assert.NotZero(t, config.Planet.GameMap.MaxIndex)
-	assert.Equal(t, float64(1), config.Planet.RateLimiter.PerSecond)
+	assert.InDelta(t, float64(1), config.Planet.RateLimiter.PerSecond, 1e-9)
 	assert.Equal(t, 10, config.Planet.RateLimiter.Burst)
-	assert.Equal(t, 30*time.Second, config.Planet.TilesStorage.SnapshotInterval)
+	require.Len(t, config.Planet.Toll.Steps, 3)
+	assert.InDelta(t, 0.70, config.Planet.Toll.Steps[2].Share, 1e-9)
+	assert.InDelta(t, 3, config.Planet.Toll.Steps[2].Cost, 1e-9)
+	require.NoError(t, config.Planet.Validate())
+	assert.Equal(t, time.Second, config.Planet.TilesStorage.FlushInterval)
+	assert.Equal(t, "./data/tiles.snapshot", config.Planet.TilesStorage.LegacySnapshotPath)
+	assert.Equal(t, "127.0.0.1:8081", config.HTTPServer.AdminBindAddress)
 	assert.Equal(t, time.Hour, config.Session.TTL)
+}
+
+func TestTheExampleConfigReachesTheBombSettings(t *testing.T) {
+	var config Config
+	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
+
+	assert.Equal(t, 30*time.Second, config.Planet.Bonus.Bomb.Duration)
+	assert.InDelta(t, 10.4, config.Planet.Bonus.Bomb.Rings, 1e-9)
+	assert.InDelta(t, 1.0, config.Planet.Bonus.Kinds["bomb"], 1e-9)
+	require.NoError(t, config.Planet.Bonus.Validate())
 }
 
 func TestBothContextsReadTheSameSessionBlock(t *testing.T) {
@@ -70,6 +101,7 @@ httpServer:
   bindAddress: 0.0.0.0:8080
 gameMap:
   maxIndex: 100
+database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: planet}
 session:
   enabled: true
   enforce: true
@@ -85,6 +117,27 @@ session:
 	assert.Equal(t, "a-shared-secret", config.Planet.Session.Secret)
 	assert.Equal(t, 2*time.Hour, config.Planet.Session.TTL)
 	assert.True(t, config.Planet.Session.Enforce)
+}
+
+func TestTheExampleConfigReachesTheDatabaseBlock(t *testing.T) {
+	var config Config
+	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
+
+	assert.Equal(t, "localhost", config.Planet.Database.Host)
+	assert.Equal(t, "5432", config.Planet.Database.Port)
+	assert.Equal(t, "postgres", config.Planet.Database.DBName)
+	assert.Equal(t, "disable", config.Planet.Database.SSLMode)
+	assert.Equal(t, "planet", config.Planet.Database.Schema)
+	require.NotNil(t, config.Planet.Database.Pool.MaxOpenConns)
+	assert.Equal(t, 4, *config.Planet.Database.Pool.MaxOpenConns)
+}
+
+func TestTheProcessRefusesToStartWithoutADatabase(t *testing.T) {
+	config := Config{}
+	config.HTTPServer.BindAddress = "0.0.0.0:8080"
+	config.Planet.GameMap.MaxIndex = 100
+
+	require.ErrorContains(t, config.Validate(), "database: [host port user dbName sslMode schema] is empty")
 }
 
 func TestSessionsWithoutASecretAreRefused(t *testing.T) {

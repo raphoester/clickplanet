@@ -1,6 +1,4 @@
-// Package shadowban is the consequence, and nothing else. It knows about
-// scopes, a clock and a ban duration; it knows nothing about bots, tiles or
-// what earned the ban. Whoever decides passes a scope in.
+// Package shadowban is the consequence, and nothing else: scopes, a clock and how long to ban for.
 package shadowban
 
 import (
@@ -12,79 +10,90 @@ import (
 )
 
 type Config struct {
-	// Enforce off records and counts bans without dropping anything. It is the
-	// mode to deploy in: what would have been dropped is visible in the log and
-	// in shadowban_flagged, and no player pays for a bound that is still wrong.
 	Enforce bool
 
-	// BanDuration is how long one flag silences a caller.
-	BanDuration time.Duration
+	// The Nth offence bans for the Nth entry; past the end the last one repeats.
+	BanDurations []time.Duration
 
-	// ReflagInterval is how soon a caller already serving a ban can be flagged
-	// again. Without it a caller that keeps going is flagged on every click and
-	// the log says nothing; with it, flags=6 on a line means six separate times
-	// the caller was judged and read the same way.
 	ReflagInterval time.Duration
+	SaveInterval   time.Duration
 
-	SweepInterval time.Duration
+	StatePath string
 }
 
 const (
-	defaultBanDuration = time.Hour
-	// Sized to match a watchdog's track window, so consecutive flags rest on
-	// evidence the previous one never saw.
 	defaultReflagInterval = 5 * time.Minute
-	defaultSweepInterval  = time.Minute
+	defaultSaveInterval   = time.Minute
 )
 
 func (c Config) withDefaults() Config {
-	if c.BanDuration <= 0 {
-		c.BanDuration = defaultBanDuration
+	if len(c.BanDurations) == 0 {
+		c.BanDurations = []time.Duration{24 * time.Hour, 7 * 24 * time.Hour, 3 * 365 * 24 * time.Hour}
 	}
 	if c.ReflagInterval <= 0 {
 		c.ReflagInterval = defaultReflagInterval
 	}
-	if c.SweepInterval <= 0 {
-		c.SweepInterval = defaultSweepInterval
+	if c.SaveInterval <= 0 {
+		c.SaveInterval = defaultSaveInterval
 	}
 	return c
 }
 
-func New(config Config, timeProvider cptime.Provider) *Banner {
-	if timeProvider == nil {
-		timeProvider = cptime.ActualProvider{}
+type Sentence struct {
+	Flags   int
+	Offence int
+	Until   time.Time
+}
+
+func New(config Config, clock cptime.Clock, onStateError func(error)) *Banner {
+	if clock == nil {
+		clock = cptime.SystemClock{}
+	}
+	if onStateError == nil {
+		onStateError = func(error) {}
 	}
 
-	return &Banner{
+	b := &Banner{
 		config:       config.withDefaults(),
-		timeProvider: timeProvider,
+		clock:        clock,
+		onStateError: onStateError,
 		bans:         make(map[string]*ban),
 	}
+
+	return b
 }
 
 type Banner struct {
 	config       Config
-	timeProvider cptime.Provider
+	clock        cptime.Clock
+	onStateError func(error)
 
-	mu   sync.Mutex
-	bans map[string]*ban
+	mu    sync.Mutex
+	bans  map[string]*ban
+	dirty bool
 }
 
 type ban struct {
 	flags      int
+	offences   int
 	until      time.Time
 	nextFlagAt time.Time
 }
 
-// Flag bans a scope. It returns how many times this scope has been flagged, and
-// false when the previous flag is still inside ReflagInterval — the ban is
-// already running and there is nothing new to say about it.
-func (b *Banner) Flag(scope string) (flags int, accepted bool) {
+func (r *ban) running(now time.Time) bool {
+	return now.Before(r.until)
+}
+
+func (r *ban) sentence() Sentence {
+	return Sentence{Flags: r.flags, Offence: r.offences, Until: r.until}
+}
+
+func (b *Banner) Flag(scope string) (Sentence, bool) {
 	if scope == "" {
-		return 0, false
+		return Sentence{}, false
 	}
 
-	now := b.timeProvider.Now()
+	now := b.clock.Now()
 
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -96,43 +105,99 @@ func (b *Banner) Flag(scope string) (flags int, accepted bool) {
 	}
 
 	if ok && now.Before(record.nextFlagAt) {
-		return record.flags, false
+		return record.sentence(), false
 	}
 
+	// A flag on a running ban extends it; only a ban starting fresh is a new offence.
+	if !record.running(now) {
+		record.offences++
+	}
 	record.flags++
-	record.until = now.Add(b.config.BanDuration)
 	record.nextFlagAt = now.Add(b.config.ReflagInterval)
 
-	return record.flags, true
-}
-
-// Banned is whether this scope's clicks should be dropped. It is false while
-// Enforce is off, however many flags the scope has.
-func (b *Banner) Banned(scope string) bool {
-	if !b.config.Enforce {
-		return false
+	if until := now.Add(b.duration(record.offences)); until.After(record.until) {
+		record.until = until
 	}
 
-	now := b.timeProvider.Now()
+	b.dirty = true
+
+	return record.sentence(), true
+}
+
+// Ban is a ban an operator decided on. It counts as an offence like a flag does; a zero duration takes the ladder's.
+func (b *Banner) Ban(scope string, duration time.Duration) Sentence {
+	now := b.clock.Now()
 
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
 	record, ok := b.bans[scope]
-	return ok && now.Before(record.until)
+	if !ok {
+		record = &ban{}
+		b.bans[scope] = record
+	}
+
+	if !record.running(now) {
+		record.offences++
+	}
+	if duration <= 0 {
+		duration = b.duration(record.offences)
+	}
+	if until := now.Add(duration); until.After(record.until) {
+		record.until = until
+	}
+
+	b.dirty = true
+
+	return record.sentence()
 }
 
-// Flagged counts the bans currently running, whether or not Enforce is on, so
-// the gauge answers "what would this drop" before anything is dropped.
+// Sentence is the scope's ban, if one is running.
+func (b *Banner) Sentence(scope string) (Sentence, bool) {
+	now := b.clock.Now()
+
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	record, ok := b.bans[scope]
+	if !ok || !record.running(now) {
+		return Sentence{}, false
+	}
+
+	return record.sentence(), true
+}
+
+func (b *Banner) duration(offence int) time.Duration {
+	ladder := b.config.BanDurations
+	if offence > len(ladder) {
+		return ladder[len(ladder)-1]
+	}
+	return ladder[offence-1]
+}
+
+func (b *Banner) Banned(scope string) bool {
+	if !b.config.Enforce {
+		return false
+	}
+
+	now := b.clock.Now()
+
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	record, ok := b.bans[scope]
+	return ok && record.running(now)
+}
+
 func (b *Banner) Flagged() int {
-	now := b.timeProvider.Now()
+	now := b.clock.Now()
 
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
 	var count int
 	for _, record := range b.bans {
-		if now.Before(record.until) {
+		if record.running(now) {
 			count++
 		}
 	}
@@ -143,32 +208,16 @@ func (b *Banner) Flagged() int {
 func (b *Banner) Enforcing() bool { return b.config.Enforce }
 
 func (b *Banner) Run(ctx context.Context) {
-	ticker := time.NewTicker(b.config.SweepInterval)
+	ticker := time.NewTicker(b.config.SaveInterval)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ticker.C:
-			b.sweep()
+			b.saveIfDirty()
 		case <-ctx.Done():
+			b.saveIfDirty()
 			return
 		}
-	}
-}
-
-func (b *Banner) sweep() {
-	now := b.timeProvider.Now()
-
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	for scope, record := range b.bans {
-		// The flag count is the point of keeping a lapsed ban around, so a
-		// scope is only forgotten once it could be flagged from scratch without
-		// losing anything a log line would have shown.
-		if now.Before(record.until) || now.Before(record.nextFlagAt) {
-			continue
-		}
-		delete(b.bans, scope)
 	}
 }

@@ -16,12 +16,16 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"slices"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 
+	"connectrpc.com/connect"
+
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconnect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cphttpserver"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpprom"
 )
@@ -52,17 +56,44 @@ type Props struct {
 	RPC     RPCRegistrar
 	Runners RunnerRegistrar
 	Closers CloserRegistrar
+
+	// AdminRPC mounts on the loopback admin listener, which has no authentication and no CORS.
+	AdminRPC RPCRegistrar
 }
 
-// RPCRegistrar mounts a Connect handler. Both return values of a generated
-// New<Service>Handler go straight into it.
+// RPCRegistrar mounts a Connect service.
+//
+// A module hands over what builds the handler rather than the handler itself,
+// because a Connect interceptor is baked in at construction: there is no way to
+// wrap one afterwards, and an HTTP middleware is too late — by then the error is
+// already a serialized response body. Building here is therefore the only way
+// the server can guarantee something around every procedure in the process.
+//
+// What it guarantees is the error net: no handler's raw error reaches the wire,
+// whether or not the module that wrote it remembered to ask.
 type RPCRegistrar interface {
-	Mount(path string, handler http.Handler) error
+	Mount(build ServiceBuilder, interceptors ...connect.Interceptor) error
 }
+
+// ServiceBuilder is a generated New<Service>Handler with its service bound. A
+// module writes the closure, because the generated constructor takes the
+// service interface while the module holds the concrete type — which is a
+// conversion no type parameter can infer:
+//
+//	return props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
+//		return planetv1connect.NewClickServiceHandler(service, options...)
+//	}, interceptors...)
+type ServiceBuilder func(options ...connect.HandlerOption) (string, http.Handler)
 
 // RunnerRegistrar takes a goroutine that runs until its context is cancelled.
 type RunnerRegistrar interface {
-	Add(name string, run func(ctx context.Context))
+	Add(runner Runner)
+}
+
+// Runner is a loop that lives as long as the process, and names itself.
+type Runner interface {
+	Name() string
+	Run(ctx context.Context)
 }
 
 // CloserRegistrar takes a cleanup, run in reverse registration order before the
@@ -77,6 +108,9 @@ type ServerConfig struct {
 
 	// Must stay well under the proxy's idle cut: Cloudflare answers 524 at ~125s.
 	StreamHeartbeat time.Duration
+
+	// Empty serves no admin listener; anything but a loopback address refuses the boot.
+	AdminBindAddress string
 }
 
 // Validate refuses the address that has no usable zero value: empty listens on port 80.
@@ -85,7 +119,27 @@ func (c ServerConfig) Validate() error {
 		return errors.New("httpServer.bindAddress is empty")
 	}
 
+	if c.AdminBindAddress != "" && !isLoopback(c.AdminBindAddress) {
+		return fmt.Errorf(
+			"httpServer.adminBindAddress %q is not a loopback host:port: the admin services have no authentication",
+			c.AdminBindAddress,
+		)
+	}
+
 	return nil
+}
+
+func isLoopback(address string) bool {
+	host, _, err := net.SplitHostPort(address)
+	if err != nil {
+		return false
+	}
+	if host == "localhost" {
+		return true
+	}
+
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
 }
 
 type Options struct {
@@ -119,11 +173,19 @@ func Run(ctx context.Context, options Options) error {
 	}
 
 	metrics := cpprom.NewRegistry()
-	routes := newRPCRoutes()
+	errorNet := cpconnect.NewErrorInterceptor(options.Logger, nil)
+
+	// Cancelled when shutdown starts, and it ends every open stream.
+	draining, drain := context.WithCancel(context.Background())
+	defer drain()
+
+	drainNet := newDrainInterceptor(draining)
+	routes := newRPCRoutes(errorNet, drainNet)
+	adminRoutes := newRPCRoutes(errorNet, drainNet)
 	runners := newRunnerRegistry()
 	closers := newCloserRegistry()
 
-	if err := buildModules(ctx, options, metrics, routes, runners, closers); err != nil {
+	if err := buildModules(ctx, options, metrics, routes, adminRoutes, runners, closers); err != nil {
 		return err
 	}
 
@@ -135,7 +197,12 @@ func Run(ctx context.Context, options Options) error {
 	))
 	mountMetrics(router, metrics, options.Logger)
 
-	return serve(ctx, options, router, runners, closers)
+	admin, err := listenAdmin(options, adminRoutes)
+	if err != nil {
+		return err
+	}
+
+	return serve(ctx, options, router, admin, drain, runners, closers)
 }
 
 // buildModules runs every module's DI sequence under one startup deadline.
@@ -144,6 +211,7 @@ func buildModules(
 	options Options,
 	metrics *prometheus.Registry,
 	routes *rpcRoutes,
+	adminRoutes *rpcRoutes,
 	runners *runnerRegistry,
 	closers *closerRegistry,
 ) error {
@@ -159,12 +227,13 @@ func buildModules(
 		before := runners.count()
 
 		err := module.DiSequence(ctx, Props{
-			Logger:  options.Logger,
-			Metrics: metrics,
-			Server:  options.Server,
-			RPC:     routes.forModule(module.Name),
-			Runners: runners,
-			Closers: closers,
+			Logger:   options.Logger,
+			Metrics:  metrics,
+			Server:   options.Server,
+			RPC:      routes.forModule(module.Name),
+			AdminRPC: adminRoutes.forModule(module.Name),
+			Runners:  runners,
+			Closers:  closers,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to build the %s module: %w", module.Name, err)

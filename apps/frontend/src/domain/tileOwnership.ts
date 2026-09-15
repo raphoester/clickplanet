@@ -81,6 +81,20 @@ export class TileOwnership {
         return changes
     }
 
+    // The server cleared these tiles, a bomb. Settles them exactly as a live
+    // update would, with nobody as the new owner.
+    public applyClears(tiles: number[]): OwnerChange[] {
+        const changes: OwnerChange[] = []
+        for (const tile of tiles) {
+            if (!this.inRange(tile)) continue
+
+            this.pending.delete(tile)
+            this.claimedLive[tile] = 1
+            if (this.assign(tile, undefined)) changes.push({tile, country: undefined})
+        }
+        return changes
+    }
+
     // Paints a click before the server has agreed to it, remembering enough to
     // take it back.
     public applyOptimistic(tile: number, country: string): OptimisticPaint {

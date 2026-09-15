@@ -12,6 +12,8 @@ export default function App(props: AppProps) {
             ownershipsGetter={props.ownershipsGetter}
             updatesListener={props.updatesListener}
             clickBudgetSource={props.clickBudgetSource}
+            bonusListener={props.bonusListener}
+            bomber={props.bomber}
             chatBackend={props.chatBackend}
         />
     </>
