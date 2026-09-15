@@ -621,6 +621,66 @@ samples a day apart. If this ever needs `histogram_quantile` and proper
 reset-aware `rate()`, that is the moment to spend the memory — the poller is
 then deleted, not extended.
 
+### Reading the access log
+
+On 2026-09-14 a bot attack came through Cloudflare VPN addresses. Then `cp-caddy`
+was recreated, and `docker logs` kept 16 lines. There was no record of who sent
+what. So Caddy now writes every request as one JSON line to
+`/var/log/caddy/access.log` on the `caddy_logs` volume. A recreated container
+keeps it.
+
+- Caddy rolls the file at 100 MiB and gzips the old one. It deletes rolls older
+  than **14 days**, or past 150 rolls (about 1.5 GB) if an attack writes more.
+- The same lines still go to `docker logs cp-caddy`. That copy is lost on
+  recreate.
+- **The access log holds personal data**: client IPs, user agents, countries.
+  Like `chat.log`, 14 days is a policy decision. Shorten `roll_keep_for` in the
+  `Caddyfile` to hold less. The nightly backup does not copy this volume.
+- `X-Session-Token` is written as `REDACTED`. It is a bearer token. You can see
+  if a request had one, not what it was.
+
+Useful fields:
+
+| Field | What |
+|---|---|
+| `ts` | Unix seconds |
+| `request.client_ip` | The visitor, from `Cf-Connecting-Ip` (trusted only from Cloudflare ranges) |
+| `request.uri` | `/planet.v1.ClickService/Click`, etc. |
+| `status`, `duration` | HTTP status, seconds |
+| `request.headers["User-Agent"][0]` | User agent |
+| `request.headers["Cf-Ray"][0]` | Cloudflare request id |
+| `request.headers["Cf-Ipcountry"][0]` | Country Cloudflare placed the visitor in |
+
+Run these on the box, in the stack directory (`bootstrap.sh` installs `jq`).
+Every command starts with the same line, which reads the old rolls then the
+current file:
+
+```bash
+docker compose exec -T caddy sh -c 'zcat /var/log/caddy/*.gz 2>/dev/null; cat /var/log/caddy/access.log' > /tmp/access.jsonl
+```
+
+Top callers by `Click` count:
+
+```bash
+jq -r 'select(.request.uri == "/planet.v1.ClickService/Click") | .request.client_ip' /tmp/access.jsonl | sort | uniq -c | sort -rn | head -20
+```
+
+Status by path (query string cut off):
+
+```bash
+jq -r '"\(.status) \(.request.uri | sub("\\?.*"; ""))"' /tmp/access.jsonl | sort | uniq -c | sort -rn
+```
+
+Every request of one scope in a time range (UTC). For an IPv6 /64, change
+`.request.client_ip == $ip` to `(.request.client_ip | startswith($ip))` and give
+the prefix, `2001:db8:1:2:`:
+
+```bash
+jq -c --arg ip 203.0.113.7 --arg from 2026-09-14T06:00:00Z --arg to 2026-09-14T09:00:00Z 'select(.request.client_ip == $ip and .ts >= ($from | fromdate) and .ts < ($to | fromdate)) | {time: (.ts | todate), status, uri: .request.uri, ua: .request.headers["User-Agent"][0], ray: .request.headers["Cf-Ray"][0], country: .request.headers["Cf-Ipcountry"][0]}' /tmp/access.jsonl
+```
+
+`/tmp/access.jsonl` is a copy of the personal data. Delete it when you are done.
+
 ## 7. CI and the image registry
 
 `.github/workflows/deploy-backend.yml` builds the image to GHCR and rolls the
@@ -768,6 +828,7 @@ docker compose exec backend cp /home/app/state/tiles.snapshot /home/app/state/ti
 ### Paint random tiles of a country with a flag
 
 Paints `count` tiles with `flagCountryId`, starting on `areaCountryId`'s ground.
+Leave out `areaCountryId` to start anywhere on the map.
 Dry run first; it says how many tiles of the area do not wear the flag yet:
 
 ```bash

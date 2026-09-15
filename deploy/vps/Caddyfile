@@ -24,6 +24,17 @@
 			2400:cb00::/32 2606:4700::/32 2803:f800::/32 2405:b500::/32 \
 			2405:8100::/32 2a06:98c0::/29 2c0f:f248::/32
 	}
+
+	# Errors (a 502 when the backend is down, say) go to this logger, not to the
+	# access loggers below, and they carry the full request headers too. Same
+	# redaction as the access log; see there.
+	log default {
+		output stderr
+		format filter {
+			wrap json
+			request>headers>X-Session-Token replace REDACTED
+		}
+	}
 }
 
 {$API_DOMAIN} {
@@ -112,8 +123,40 @@
 		respond "not found" 404
 	}
 
-	log {
+	# The access log is evidence, so it goes to a file on the caddy_logs volume
+	# first. On 2026-09-14 a bot attack left no request history behind: the
+	# container was recreated and `docker logs` lost every line but 16.
+	#
+	# JSON, so jq can read it (see "Reading the access log" in README.md). A roll
+	# is gzipped. JSON access lines compress about 10x, so 150 rolls of 100 MiB
+	# is roughly 1.5 GB at the worst, well inside the free disk. 14d is the
+	# retention; roll_keep only ends it early when an attack writes GBs a day.
+	#
+	# The file holds personal data (client IPs, user agents): 14 days is a policy
+	# decision, like chat.storage.retention.
+	log access_file {
+		output file /var/log/caddy/access.log {
+			roll_size 100MiB
+			roll_keep 150
+			roll_keep_for 14d
+		}
+		format filter {
+			wrap json
+			# A session token is a bearer credential: anyone holding one can
+			# click as that caller until it expires. Replaced rather than deleted,
+			# so the log still shows whether the request carried one.
+			request>headers>X-Session-Token replace REDACTED
+		}
+	}
+
+	# The same lines on stdout, so `docker logs cp-caddy` still shows live
+	# traffic. That copy is lost when the container is recreated; the file above
+	# is the one to read after an incident.
+	log access_stdout {
 		output stdout
-		format console
+		format filter {
+			wrap console
+			request>headers>X-Session-Token replace REDACTED
+		}
 	}
 }
