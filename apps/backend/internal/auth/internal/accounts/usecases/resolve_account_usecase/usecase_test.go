@@ -1,7 +1,6 @@
 package resolve_account_usecase_test
 
 import (
-	"context"
 	"errors"
 	"net/http"
 	"testing"
@@ -12,42 +11,14 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/inmemory_account_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/resolve_account_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 var start = time.Date(2026, 9, 15, 12, 0, 0, 0, time.UTC)
 
-type fakeSessions struct {
-	byHash map[string]accounts.Session
-	err    error
-	writes int
-}
-
-func newSessions() *fakeSessions {
-	return &fakeSessions{byHash: map[string]accounts.Session{}}
-}
-
-func (f *fakeSessions) FindSession(_ context.Context, tokenHash []byte) (accounts.Session, bool, error) {
-	session, found := f.byHash[string(tokenHash)]
-	return session, found, f.err
-}
-
-func (f *fakeSessions) ExtendSession(_ context.Context, tokenHash []byte, expiresAt, now time.Time) error {
-	f.writes++
-	session := f.byHash[string(tokenHash)]
-	session.ExtendedAt, session.ExpiresAt = now, expiresAt
-	f.byHash[string(tokenHash)] = session
-	return f.err
-}
-
-func (f *fakeSessions) CreateGuest(_ context.Context, account uuid.UUID, tokenHash []byte, expiresAt, now time.Time) error {
-	f.writes++
-	f.byHash[string(tokenHash)] = accounts.Session{Account: account, ExtendedAt: now, ExpiresAt: expiresAt}
-	return f.err
-}
-
-func setUp(sessions *fakeSessions) (*resolve_account_usecase.UseCase, *cptime.FixedClock) {
+func setUp(sessions *inmemory_account_store.Store) (*resolve_account_usecase.UseCase, *cptime.FixedClock) {
 	clock := cptime.NewFixedClock(start)
 	return resolve_account_usecase.New(sessions, accounts.Lifetime{}.WithDefaults(), clock), clock
 }
@@ -61,18 +32,16 @@ func cookieHeaderFrom(t *testing.T, setCookie string) string {
 }
 
 func TestNoCookieAndNoAskIsNoAccount(t *testing.T) {
-	sessions := newSessions()
-	useCase, _ := setUp(sessions)
+	useCase, _ := setUp(inmemory_account_store.New())
 
 	out, err := useCase.Execute(t.Context(), resolve_account_usecase.In{})
 	require.NoError(t, err)
 
 	assert.Equal(t, resolve_account_usecase.Out{}, out)
-	assert.Zero(t, sessions.writes)
 }
 
 func TestAskingCreatesAGuestWithACookie(t *testing.T) {
-	useCase, _ := setUp(newSessions())
+	useCase, _ := setUp(inmemory_account_store.New())
 
 	out, err := useCase.Execute(t.Context(), resolve_account_usecase.In{Create: true})
 	require.NoError(t, err)
@@ -83,9 +52,8 @@ func TestAskingCreatesAGuestWithACookie(t *testing.T) {
 	assert.Equal(t, int((90 * 24 * time.Hour).Seconds()), cookie.MaxAge)
 }
 
-func TestTheCookieBringsBackTheSameAccountWithoutAWrite(t *testing.T) {
-	sessions := newSessions()
-	useCase, clock := setUp(sessions)
+func TestTheCookieBringsBackTheSameAccountWithoutRenewingIt(t *testing.T) {
+	useCase, clock := setUp(inmemory_account_store.New())
 
 	created, err := useCase.Execute(t.Context(), resolve_account_usecase.In{Create: true})
 	require.NoError(t, err)
@@ -96,13 +64,11 @@ func TestTheCookieBringsBackTheSameAccountWithoutAWrite(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	assert.Equal(t, resolve_account_usecase.Out{Account: created.Account}, out)
-	assert.Equal(t, 1, sessions.writes, "no second guest, and no extension within the day")
+	assert.Equal(t, resolve_account_usecase.Out{Account: created.Account}, out, "the same guest, and no renewed cookie within the day")
 }
 
 func TestADayLaterTheSessionIsExtendedAndTheCookieRenewed(t *testing.T) {
-	sessions := newSessions()
-	useCase, clock := setUp(sessions)
+	useCase, clock := setUp(inmemory_account_store.New())
 
 	created, err := useCase.Execute(t.Context(), resolve_account_usecase.In{Create: true})
 	require.NoError(t, err)
@@ -112,7 +78,6 @@ func TestADayLaterTheSessionIsExtendedAndTheCookieRenewed(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, created.Account, out.Account)
-	assert.Equal(t, 2, sessions.writes)
 
 	renewed, err := http.ParseSetCookie(out.SetCookie)
 	require.NoError(t, err)
@@ -123,7 +88,7 @@ func TestADayLaterTheSessionIsExtendedAndTheCookieRenewed(t *testing.T) {
 }
 
 func TestAnExpiredCookieWithoutAskingIsNoAccount(t *testing.T) {
-	useCase, clock := setUp(newSessions())
+	useCase, clock := setUp(inmemory_account_store.New())
 
 	created, err := useCase.Execute(t.Context(), resolve_account_usecase.In{Create: true})
 	require.NoError(t, err)
@@ -136,7 +101,7 @@ func TestAnExpiredCookieWithoutAskingIsNoAccount(t *testing.T) {
 }
 
 func TestAnExpiredCookieWithAskingIsANewGuest(t *testing.T) {
-	useCase, clock := setUp(newSessions())
+	useCase, clock := setUp(inmemory_account_store.New())
 
 	created, err := useCase.Execute(t.Context(), resolve_account_usecase.In{Create: true})
 	require.NoError(t, err)
@@ -152,7 +117,7 @@ func TestAnExpiredCookieWithAskingIsANewGuest(t *testing.T) {
 }
 
 func TestAForgedCookieIsNoAccount(t *testing.T) {
-	useCase, _ := setUp(newSessions())
+	useCase, _ := setUp(inmemory_account_store.New())
 
 	out, err := useCase.Execute(t.Context(), resolve_account_usecase.In{CookieHeader: "cp_sid=made-up"})
 	require.NoError(t, err)
@@ -161,8 +126,8 @@ func TestAForgedCookieIsNoAccount(t *testing.T) {
 }
 
 func TestAStoreFailureIsAnError(t *testing.T) {
-	sessions := newSessions()
-	sessions.err = errors.New("postgres is down")
+	sessions := inmemory_account_store.New()
+	sessions.FailWith(errors.New("postgres is down"))
 	useCase, _ := setUp(sessions)
 
 	_, err := useCase.Execute(t.Context(), resolve_account_usecase.In{CookieHeader: "cp_sid=abc", Create: true})

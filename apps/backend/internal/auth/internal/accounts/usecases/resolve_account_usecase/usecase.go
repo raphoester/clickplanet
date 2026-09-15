@@ -12,12 +12,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-type Sessions interface {
-	FindSession(ctx context.Context, tokenHash []byte) (accounts.Session, bool, error)
-	ExtendSession(ctx context.Context, tokenHash []byte, expiresAt, now time.Time) error
-	CreateGuest(ctx context.Context, account uuid.UUID, tokenHash []byte, expiresAt, now time.Time) error
-}
-
 type In struct {
 	CookieHeader string
 	Create       bool
@@ -29,12 +23,12 @@ type Out struct {
 	SetCookie string
 }
 
-func New(sessions Sessions, lifetime accounts.Lifetime, clock cptime.Clock) *UseCase {
+func New(sessions accounts.Sessions, lifetime accounts.Lifetime, clock cptime.Clock) *UseCase {
 	return &UseCase{sessions: sessions, lifetime: lifetime.WithDefaults(), clock: clock}
 }
 
 type UseCase struct {
-	sessions Sessions
+	sessions accounts.Sessions
 	lifetime accounts.Lifetime
 	clock    cptime.Clock
 }
