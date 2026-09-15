@@ -201,6 +201,21 @@ antiBot:
   # Off registers nothing and measures nothing.
   enabled: true
 
+  # Where the bans and the evidence are kept between boots: the same postgres
+  # as the planet, in a schema of its own. The guard migrates it at boot, and a
+  # failed connection or load refuses the boot.
+  database:
+    host: localhost
+    port: "5432"
+    user: postgres
+    # Belongs in the environment in production (antiBot.database.password), not in a file in git.
+    password: postgres
+    dbName: postgres
+    sslMode: disable
+    schema: antibot
+    pool:
+      maxOpenConns: 2
+
   # The sentence, and nothing else: it takes a scope and a clock and runs the
   # ban. It knows nothing about bots, tiles or what earned it.
   shadowBan:
@@ -212,16 +227,17 @@ antiBot:
     # A flag on a running ban only extends it: an offence is a ban that starts
     # while none is running. Offences are never forgotten.
     banDurations: [24h, 168h, 26280h]
-    # One JSON line per banned scope, so bans survive a restart. Empty keeps
-    # them in memory, where a deploy clears every one.
-    statePath: ./data/bans.jsonl
+    # The bans file from before postgres. Imported once, if the bans table is
+    # empty, then renamed with an .imported suffix. Empty imports nothing.
+    legacyStatePath: ./data/bans.jsonl
     # How soon a caller already serving a ban can be judged again. At or above a
     # watchdog's trackWindow each flag rests on evidence the previous one never
     # saw, so flags=6 on a line is six separate judgements agreeing rather than
     # one verdict repeated. Without this a caller goes quiet behind its first
     # ban and you cannot tell whether it stopped or kept going.
     reflagInterval: 5m
-    # How often a changed ban list is written to statePath.
+    # How often the bans changed since the last write are written to postgres,
+    # and once more on shutdown.
     saveInterval: 1m
 
   # How the watchdogs are crossed.
@@ -249,11 +265,12 @@ antiBot:
   # reset their windows: a process restarted every 10 minutes never fills a
   # window of 15 or 30. Bans are saved on their own, in shadowBan above.
   evidence:
-    # Empty keeps it in memory, where a restart starts every window again. A
-    # missing or corrupt file is logged and starts empty; it never stops a boot.
-    statePath: ./data/antibot-evidence.bin
-    # How often it is written, and it is written once more on shutdown. A hard
-    # kill loses at most this much.
+    # The evidence file from before postgres. Imported once, if the evidence
+    # table is empty, then renamed with an .imported suffix. A file it cannot
+    # decode refuses the boot. Empty imports nothing.
+    legacyStatePath: ./data/antibot-evidence.bin
+    # How often it is written to postgres, and it is written once more on
+    # shutdown. A hard kill loses at most this much.
     saveInterval: 1m
     # The oldest evidence kept, on load and by a sweep before each save,
     # whatever a trackWindow says. A run still going is kept whole.

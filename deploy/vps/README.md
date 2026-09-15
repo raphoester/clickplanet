@@ -553,23 +553,41 @@ at what the other watchdogs were reading on the same callers before loosening
 
 Bans escalate: 24h for a first offence, 7 days for a second, 3 years from the
 third. A caller that keeps going while banned only extends the ban it has. Bans
-are saved to `bans.jsonl` on the `tile_state` volume, so a deploy keeps them.
-What the watchdogs are tracking is saved beside them, in `antibot-evidence.bin`,
-so a restart does not start their windows again; it keeps three days at most.
+are kept in postgres, in `antibot.bans`, so a deploy keeps them. What the
+watchdogs are tracking is kept beside them, in `antibot.evidence`, so a restart
+does not start their windows again; it keeps three days at most. Both are
+written every minute and once more on a clean shutdown.
 
-See every ban:
+See every running ban:
 
 ```bash
-docker compose exec backend cat /home/app/state/bans.jsonl
+docker compose exec postgres psql -U clickplanet -c "select * from antibot.bans where banned_until > now() order by banned_until"
 ```
 
-Unban one scope (stop first, or the running backend writes it back):
+Unban one scope. Stop the backend first: the running one holds its bans in
+memory, keeps the ban running and writes it back.
 
 ```bash
 docker compose stop backend
-docker run --rm -v vps_tile_state:/s alpine sh -c "grep -v '\"scope\":\"1.2.3.4\"' /s/bans.jsonl > /s/b && mv /s/b /s/bans.jsonl"
+docker compose exec postgres psql -U clickplanet -c "delete from antibot.bans where scope = '1.2.3.4'"
 docker compose start backend
 ```
+
+That forgets its offences too. To end the ban and keep them, so its next ban
+climbs the ladder: `update antibot.bans set banned_until = now() where scope = '1.2.3.4'`.
+
+**The first boot on postgres imports the old files.** The bans table is empty
+and `/home/app/state/bans.jsonl` exists, so the API loads it and renames it
+`bans.jsonl.imported` once postgres holds it. `antibot-evidence.bin` goes the
+same way. A file it cannot decode refuses the boot: move it away to start
+without it. Check it:
+
+```bash
+docker compose exec postgres psql -U clickplanet -c "select count(*) from antibot.bans"
+docker compose exec backend ls /home/app/state
+```
+
+Then remove both `legacyStatePath` keys from `backend.yaml`.
 
 Set `enforce` back to false to stop dropping clicks for everyone at once.
 ### Evidence has to outlive a deploy, and by default it does not
@@ -780,7 +798,7 @@ The tile map is kept in the `postgres` service, on the `pg_data` volume. The API
 loads it at boot and writes the tiles that changed every second, and once more
 on a clean shutdown. It is not published on any port: only the backend reaches
 it. Each backend module keeps its tables in a schema of its own (`planet` for the
-tile map) and migrates it at boot. The API refuses to start without postgres.
+tile map, `antibot` for bans and evidence) and migrates it at boot. The API refuses to start without postgres.
 
 **The password is `POSTGRES_PASSWORD` in `.env`.** `bootstrap.sh` generates it.
 Without it, `docker compose up` refuses to start. Never change it: postgres reads it only when `pg_data` is empty, so a
@@ -797,11 +815,12 @@ A psql shell: `docker compose exec postgres psql -U clickplanet`.
 ### Backups
 
 The nightly cron `bootstrap.sh` installs tars the `tile_state` volume, which
-holds the ledger, bans, antibot evidence and chat log. **The tile map in postgres is not backed up
+holds the ledger and chat log. **The tile map, bans and evidence in postgres are not backed up
 yet.** For a copy by hand:
 
 ```bash
 docker compose exec postgres pg_dump -U clickplanet -n planet clickplanet > planet-$(date +%F).sql
+docker compose exec postgres pg_dump -U clickplanet -n antibot clickplanet > antibot-$(date +%F).sql
 ```
 
 DigitalOcean's droplet backups (+20% of the droplet price, so ~$1.20/mo) cover
@@ -911,7 +930,8 @@ docker compose exec backend wget -qO- --header 'Content-Type: application/json' 
 ```
 
 `"enforced":false` in the answer means `antiBot.shadowBan.enforce` is off: the
-ban is kept but drops nothing. There is no unban call yet.
+ban is kept but drops nothing. There is no unban call yet: see "Unban one scope"
+in [Watching for bots](#6-watching-for-bots).
 
 Then revert, dry run first:
 
@@ -956,5 +976,6 @@ docker compose exec backend wget -qO- --header 'Content-Type: application/json' 
 
 - **Bad backend build:** `BACKEND_IMAGE=ghcr.io/raphoester/clickplanet-backend:<sha>` in `.env`, then `docker compose up -d backend`.
 - **Lost or corrupt tile state:** stop the backend, restore the `planet` schema from a dump (`drop schema planet cascade`, then `psql -U clickplanet clickplanet < planet-DATE.sql`), start it again.
+- **Back to a build before the antibot moved to postgres:** that image reads `bans.jsonl` and `antibot-evidence.bin`, which the import renamed. Rename both `.imported` files back first — they hold the bans as of the import, so every ban since is lost.
 - **In-process storage misbehaving:** there is no config switch back to Redis — that code is gone. Roll the backend image back to a pre-migration `<sha>` and restore the matching Redis stack from git history.
 - **Frontend:** roll back the deployment in the Pages dashboard.

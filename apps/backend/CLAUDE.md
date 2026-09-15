@@ -108,11 +108,11 @@ Each context wires **itself**, in a `module.go` at its root (`internal/planet/mo
 - `props.Logger`, `props.Metrics`
 - `props.Server` — the bind address and the stream heartbeat, **the only config a module reads that is not its own**. It is the transport every module answers over, so it belongs to the layer that owns the server rather than to any context.
 
-**A constructor builds and a `Load…` method reads.** Nothing that reads a file or parses a blob happens inside `New`: the DI sequence calls `New`, then the load, one line each — `embedded_geodesic_map.New` then `LoadGeography`/`LoadBorders`, `inmemory_tile_storage.New` then `LoadSnapshot`, `inmemory_message_storage.New` then `LoadLog`, `cpipblock.New` then `Load`, `antibot.New` then `LoadState`, `inmemory_ledger_storage.New` then `LoadState`.
+**A constructor builds and a `Load…` method reads.** Nothing that reads a file or parses a blob happens inside `New`: the DI sequence calls `New`, then the load, one line each — `embedded_geodesic_map.New` then `LoadGeography`/`LoadBorders`, `inmemory_tile_storage.New` then `LoadSnapshot`, `inmemory_message_storage.New` then `LoadLog`, `cpipblock.New` then `Load`, `antibot.New` then `LoadState` (which connects to its schema too), `inmemory_ledger_storage.New` then `LoadState`.
 
 A module never sees the router, the signal handler or another module's objects. **There is no mutable app object and nothing to leave a half-built dependency on**: `internal/shared/cpbootstrap` builds every module in order, then serves.
 
-**Shutdown goes in this order**: end every open stream, `http.Server.Shutdown` (the public server, then the admin one), the closers in reverse order, then cancel and wait on the runners. The first step is the drain interceptor — see [Ending the streams on shutdown](#ending-the-streams-on-shutdown). The closers (snapshot, ledger, bans, evidence) therefore still run only once the server has stopped taking writes.
+**Shutdown goes in this order**: end every open stream, `http.Server.Shutdown` (the public server, then the admin one), the closers in reverse order, then cancel and wait on the runners. The first step is the drain interceptor — see [Ending the streams on shutdown](#ending-the-streams-on-shutdown). The closers (ledger, chat log) therefore still run only once the server has stopped taking writes. The tile map, bans and evidence flush from their runners instead, after the closers.
 
 **`cmd/api/main.go` is the composition root, and it is the only one** — there is no `internal/app`, because a package whose whole job is to be called once by `main` was a level of indirection and nothing else. It does two things: load the config, and list the modules.
 
@@ -860,28 +860,55 @@ the caller takes no tiles so `retaker` starves, but ids and timing still flow, s
 
 #### What survives a restart
 
-**Bans and evidence both, in two files.** Bans are `shadowBan.statePath`. What
+**Bans and evidence both, in postgres, in the `antibot` schema.** Bans are
+`antibot.bans`, one row per scope ever banned, written by `antibot/internal/shadowban`. What
 each watchdog is tracking and the jury's record of each caller — its tally and
-the last opinion of every watchdog — are `antiBot.evidence.statePath`, written by
+the last opinion of every watchdog — are `antibot.evidence`, one row per section, written by
 `antibot/internal/evidence`. This exists because of 2026-09-14: production
 restarted 23 times, every 5-10 minutes, during a bot attack, and with the evidence
 in memory no window of 10m (`suspicionWindow`), 15m (`trackWindow`) or 30m
 (`certainFor`, the catcher's `trackWindow`) ever filled. Nothing was banned.
 `TestALoopRestartedEveryFewMinutesIsStillCaught` replays that, both ways.
 
-- **The file is the ledger's envelope**: magic, version, CRC32, then gob. Inside
-  is one section per watchdog and one for the jury, each encoded by its own
-  package (`state.go` beside it), so a watchdog's fields stay unexported. Written
-  atomically through `cpatomicfile` every `saveInterval` and on shutdown.
-- **`Guard.LoadState` reads both files** at boot. A missing file starts empty and
-  says nothing; a corrupt one (bad magic, version, checksum or gob) is reported
-  through `OnStateError` and starts empty. A section that does not decode starts
-  that one watchdog empty and loads the others. Never a failed boot.
+- **The antibot owns its schema, its migrations and its pool**, like a module:
+  `antiBot.database` (a `cppg.Config`, `schema: antibot`) and
+  `antibot/internal/migrations`. It is a library, not a module, but the planet's
+  migrations sit behind `planet/internal/` where it cannot reach them, and its
+  tables are its own business. `antibot.New` builds the pool and connects nothing;
+  `Guard.LoadState(ctx)` connects, migrates and loads, and **an error refuses the
+  boot**: a boot that forgets the bans unbans every bot. The guard's `Run` closes the
+  pool after the last flush, the way `cppg.CloseAfter` does for the tile map.
+- **The tile map's pattern.** `shadowban.Persistence` and `evidence.Persistence`
+  are the ports, `postgres_ban_store` and `postgres_evidence_store` the adapters,
+  `MemoryPersistence` (behind the `testing` tag) the fakes. State lives in memory
+  and is flushed every `saveInterval` (1m), with a 10s timeout, and once more on
+  shutdown. `antibot.NewInMemory` (behind the tag) builds a guard over the fakes.
+- **Bans are flushed by scope.** A flag or a ban marks the scope dirty; a flush
+  upserts the dirty scopes, as they are then, in one statement. A failed flush
+  marks them again for the next tick. A row is never deleted: offences are never
+  forgotten. `nextFlagAt` is not kept, as it never was.
+- **Evidence is flushed whole.** One section per watchdog and one for the jury,
+  each encoded by its own package (`state.go` beside it), so a watchdog's fields
+  stay unexported. A flush replaces every row in one transaction, so a section
+  left out (a watchdog turned off, or one that fails to encode) is deleted, and
+  a failed flush is simply retried whole on the next tick. A section that does
+  not decode at load is reported through `OnStateError` and starts that one
+  watchdog empty; the others load. That is not a failed boot: a changed section
+  shape after a deploy should cost one watchdog's windows, not the start.
 - **`antiBot.evidence.retention` (72h) is a ceiling on top of every window**:
-  evidence older than it is dropped on load and by a sweep before each save. The
+  evidence older than it is dropped on load and by a sweep before each flush. The
   watchdogs' own sweeps still forget at their `trackWindow`, which is far
-  shorter; retention is what bounds the file after a long outage or a
-  `trackWindow` set in days. An entry goes when its last event does: a metronome
+  shorter; retention is what bounds the rows after a long outage or a
+  `trackWindow` set in days. Since each flush rewrites the rows from memory,
+  nothing older than retention outlives one flush.
+- **The pre-postgres files are imported once.** When a table is empty and its
+  `legacyStatePath` exists (`antiBot.shadowBan.legacyStatePath`,
+  `antiBot.evidence.legacyStatePath`), `LoadState` decodes it into memory (the
+  bans marked dirty), and the first successful flush writes it and renames the
+  file `.imported`. A crash before that flush imports it again. A file it cannot
+  decode **refuses the boot**. When the table already holds rows the file is
+  reported and ignored. `shadowban/legacy_state.go` and
+  `evidence/legacy_state.go` go once production has booted on postgres. An entry goes when its last event does: a metronome
   run or a jury tally still being added to is kept whole, however old its start.
 - **Timestamps are wall clock, and the windows stay wall clock.** A restart of
   20 seconds costs every window 20 seconds, and a caller away for an hour is away
@@ -898,7 +925,8 @@ in memory no window of 10m (`suspicionWindow`), 15m (`trackWindow`) or 30m
   as soon as it came back — the run goes on. That gap is **not a sample**: it is
   stitched from two pieces, and a stitched 0.4s inside a 950ms loop would widen
   the spread like a burst. The outage is not counted in `sustained` either. A
-  crash is the same, with the outage starting at the last periodic save.
+  crash is the same, with the outage starting at the last periodic flush (the
+  latest `saved_at`).
 - The jury does the same for `longestGap` and `activeFor`, which only feed the
   log line: a restart is not the caller pausing, nor time it was active.
 - The jury also keeps when each watchdog last reached each level, so a reading
@@ -1209,7 +1237,9 @@ Both chains order them the same way: error mapping outermost, then the blocklist
 
 **`shared/cppg` is the client**, ported from on-core-platform's `onpg`: `Config` (one module's database block, schema included), `New`, `ConnectCtx`, `Migrate`, and the `Querier`/`Beginner` interfaces a store depends on. Cut from the original: gorm (`make deadcode` rejects what nothing calls, and plain SQL is enough), the SSM tunnel, tracing and lazy config. **Every module that stores something has its own database block and its own pool.** The planet's is `database:` at the top of the file, because `planet.Config` is squashed there; another module's would sit inside its own section (`chat.database:`). Nothing is handed between modules. `Config.String` leaves the password out of the boot's config log line.
 
-The rest is still files on the `tile_state` volume, and moves to postgres next: the ledger (`ledgerStorage.statePath`), bans (`antiBot.shadowBan.statePath`), antibot evidence (`antiBot.evidence.statePath`) and the chat log (`chat.storage.logPath`).
+The antibot's bans and evidence are in postgres too, in the `antibot` schema, the same way — see [What survives a restart](#what-survives-a-restart).
+
+The rest is still files on the `tile_state` volume, and moves to postgres next: the ledger (`ledgerStorage.statePath`) and the chat log (`chat.storage.logPath`).
 
 ### Operator tools (`AdminService`)
 
@@ -1244,7 +1274,7 @@ For the patterns no watchdog catches but a person sees on the map. A player is a
 - **The file is version 2**, appended every `ledgerStorage.saveInterval`: a header, then frames, each with its own CRC32 — the takes since the last save with their own string table, and a marks frame (the oldest position kept, each forgotten scope) when those moved. A minute is ~25 KB. A crash mid-append costs the last frame and nothing before it. A file grown past twice what it keeps, or one loaded damaged, is written again whole through `cpatomicfile`. **A version 1 file** (last take per tile) is read as one take per tile and written over as version 2; an unknown version or a bad header starts empty. None of these prevents a start.
 - **`FindPlayers(flag, area, limit)`** lists every scope that took a tile for `flag` on `area`'s ground (empty is the whole map), latest take first, with any running ban. The ground comes from `clicks.Borders`, built by `embedded_geodesic_map.Loader.LoadBorders` from the borders blob the frontend paints flags from — see [Map geography](#map-geography). A blob for another map refuses the boot.
 - **`TopPlayers(limit)`** is the same over every flag and the whole map, **most takes first, then most tiles held**, then latest take. Takes lead because they are what a painted-over bot cannot hide. Every player, in both answers, carries `tiles` (held) and `takes` (every take, a tile taken twice counting twice), `active_for` (last take minus first take), and `tiles_per_minute` and `takes_per_minute` over that. A player with `takes` high and `tiles` near zero is painting and being painted over.
-- **`BanPlayer(scope, duration)`** is `shadowban.Banner.Ban`, and drops the scope's clicks and bombs alike: the same record, ladder and state file as a watchdog's ban, and it counts as an offence. It skips `reflagInterval`, and an empty duration takes the ladder's step. Any address is accepted and banned as its scope (`cpipscope.Parse`). **It follows `antiBot.shadowBan.enforce`**, and says so in `enforced`. With `antiBot.enabled` false it answers `FailedPrecondition`.
+- **`BanPlayer(scope, duration)`** is `shadowban.Banner.Ban`, and drops the scope's clicks and bombs alike: the same record, ladder and table as a watchdog's ban, and it counts as an offence. It skips `reflagInterval`, and an empty duration takes the ladder's step. Any address is accepted and banned as its scope (`cpipscope.Parse`). **It follows `antiBot.shadowBan.enforce`**, and says so in `enforced`. With `antiBot.enabled` false it answers `FailedPrecondition`.
 - **`RevertPlayer(scope, dry_run)`** gives each tile the scope holds back to what it held before the scope's run, by the rule above. `touched` is the tiles it took, `held` those it still holds. **Only a tile still wearing the scope's paint changes** — `inmemory_tile_storage.Restore` is a compare-and-set under the lock, so a tile retaken mid-revert stays retaken. Paced like the reassign (`clicks.Pacing`), each tile an ordinary `TileUpdate`. A tile that was nobody's goes back to nobody, as an update with an empty country. It then forgets the scope's takes, so a second run does nothing; an interrupted one forgets nothing and can be run again.
 - **Ban before reverting**: an unbanned player repaints behind the revert.
 - **`InspectPlayer(scope)`** answers how close the antibot is to a caller, which the `antibot ban` log line cannot: it is only written when a ban fires, so on 2026-09-14 a day of bots and no bans left nothing to read. It is `Guard.Examine`, and it changes nothing — no caller record is created, no watchdog is asked again, no ban is passed. It answers any running ban (`banned`, `bannedUntil`, `offence`, `flags`); per watchdog its `level` and `evidence`, aged the way the jury ages them (past `suspicionWindow` a verdict reads `clear` but keeps its evidence); `suspects` against `minSuspects` and `guilty`, what the jury would decide on a click now (the ban itself would still wait for `reflagInterval`); and the click summary the ban line carries. `tracked` false is a scope the jury has not seen inside its `trackWindow`. Parsed with `cpipscope.Parse` and refused with `FailedPrecondition` when `antiBot.enabled` is false, as `BanPlayer` is. **A watchdog that reads `clear` has no evidence**: watchdogs only word the rule that tripped, so it says how close a caller is only once some rule has.
@@ -1472,11 +1502,14 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `antiBot.enabled` — off registers nothing and measures nothing
 - `antiBot.shadowBan.enforce` — off judges, logs and counts without dropping; the mode to deploy in
 - `antiBot.shadowBan.banDurations` — the ban for each offence (the last step repeats). An offence is a ban that starts while none is running; a flag on a running ban only extends it. **Offences are never forgotten**
-- `antiBot.shadowBan.statePath`, `saveInterval` — one JSON line per banned scope, restored at boot and saved every `saveInterval` and on shutdown; **empty keeps bans in memory**, where a deploy clears every one. An unreadable file is logged and starts empty, it never prevents a start
+- `antiBot.database` — the antibot's own `cppg.Config`, `schema: antibot`; required when `antiBot.enabled`. A failed connection, migration or load refuses the boot
+- `antiBot.shadowBan.saveInterval` — how often changed bans are written to `antibot.bans` (1m, and on shutdown)
+- `antiBot.shadowBan.legacyStatePath` — the pre-postgres `bans.jsonl`, imported once into an empty table (see [What survives a restart](#what-survives-a-restart))
 - `antiBot.shadowBan.reflagInterval` — how soon a banned caller can be judged again
 - `antiBot.jury.minSuspects` — how many watchdogs at `suspect` make a ban; one at `certain` bans alone
 - `antiBot.jury.suspicionWindow`, `trackWindow`, `sweepInterval` — how long a verdict stands while another watchdog catches up, and how long a silent caller is remembered
-- `antiBot.evidence.statePath`, `saveInterval`, `retention` — where every watchdog's evidence and the jury's record are saved (1m, and on shutdown), and the oldest kept (72h) on load and in memory; **empty keeps them in memory**, where a restart starts every window again. See [What survives a restart](#what-survives-a-restart)
+- `antiBot.evidence.saveInterval`, `retention` — how often every watchdog's evidence and the jury's record are written to `antibot.evidence` (1m, and on shutdown), and the oldest kept (72h) on load and in memory. See [What survives a restart](#what-survives-a-restart)
+- `antiBot.evidence.legacyStatePath` — the pre-postgres evidence file, imported once into an empty table
 - `antiBot.retaker.enabled`, `detector.reactionWindow`, `minReactions`, `maxSpread`, `maxMedian` — what counts as a reaction, how many are needed, and the band that reads `suspect` then `certain`
 - `antiBot.sequencer.enabled`, `detector.minSteps`, `minShare`, `certainSteps`, `certainShare` — how long a run of constant-stride clicks must be, and how much of it must sit at that stride
 - `antiBot.metronome.enabled`, `detector.maxGap`, `maxSpread`, `minClicks`, `certainFor`, `certainClicks` — what ends a run, how tight its gaps must be, and how long it must hold

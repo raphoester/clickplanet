@@ -13,6 +13,19 @@ database:
   sslMode: disable
   schema: planet
 
+# Off here, as it is by default. Turned on, it keeps its bans and evidence in
+# the same postgres, in its own schema.
+antiBot:
+  enabled: false
+  database:
+    host: postgres
+    port: "5432"
+    user: postgres
+    password: postgres
+    dbName: postgres
+    sslMode: disable
+    schema: antibot
+
 # Off in the local stack: docker-compose has no Caddy in front to set X-Real-IP,
 # so every click would key on the compose network's gateway address.
 vpnBlocklist:

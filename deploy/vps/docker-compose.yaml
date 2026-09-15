@@ -115,9 +115,12 @@ services:
       session.turnstile.secret: ${TURNSTILE_SECRET:-}
       # Hard like the session secret: the API cannot start without postgres.
       database.password: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env (openssl rand -hex 32)}
+      # The antibot's own pool: same postgres, same user, its own schema.
+      antiBot.database.password: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env (openssl rand -hex 32)}
     volumes:
       - ./backend.yaml:/home/app/config/config.yaml:ro
-      # The ledger, bans, antibot evidence and chat log still live here.
+      # The ledger and chat log still live here. The old bans and evidence files are
+      # imported into postgres on the first boot and left beside them with an .imported suffix.
       - tile_state:/home/app/state
     command: [ "./api", "-config", "/home/app/config/config.yaml" ]
     # journald, not the default json-file. json-file is stored per container id,
