@@ -16,8 +16,8 @@ export class PaintRandomTilesRequest extends Message<PaintRandomTilesRequest> {
   flagCountryId = "";
 
   /**
-   * The country a fresh draw lands in. A patch grows from there into any
-   * tile not wearing the flag, across the border too.
+   * The country a fresh draw lands in; empty is the whole map. A patch grows
+   * from there into any tile not wearing the flag, across the border too.
    *
    * @generated from field: string area_country_id = 2;
    */
@@ -77,7 +77,7 @@ export class PaintRandomTilesRequest extends Message<PaintRandomTilesRequest> {
  */
 export class PaintRandomTilesResponse extends Message<PaintRandomTilesResponse> {
   /**
-   * Tiles of the area that do not wear the flag yet.
+   * Tiles of the area, or of the map, that do not wear the flag yet.
    *
    * @generated from field: uint32 eligible = 1;
    */
@@ -98,7 +98,7 @@ export class PaintRandomTilesResponse extends Message<PaintRandomTilesResponse> 
   painted = 0;
 
   /**
-   * Picked tiles past the area's border.
+   * Picked tiles past the area's border. Always 0 with no area.
    *
    * @generated from field: uint32 outside_area = 4;
    */

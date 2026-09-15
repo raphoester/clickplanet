@@ -1,4 +1,4 @@
-// Package paint_random_tiles_usecase paints random tiles with a flag, seeded on one country's ground, while the game runs.
+// Package paint_random_tiles_usecase paints random tiles with a flag, seeded on one country's ground or the whole map, while the game runs.
 package paint_random_tiles_usecase
 
 import (
@@ -33,7 +33,8 @@ type CountryChecker interface {
 }
 
 type In struct {
-	Flag      string
+	Flag string
+	// Area is the country a seed lands in; empty seeds anywhere on the map.
 	Area      string
 	Count     int
 	Proximity float64
@@ -41,7 +42,7 @@ type In struct {
 }
 
 type Out struct {
-	// Eligible is every tile of the area not wearing the flag yet.
+	// Eligible is every tile of the area, or of the map, not wearing the flag yet.
 	Eligible    int
 	Picked      int
 	OutsideArea int
@@ -79,7 +80,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	if !u.countries.CheckCountry(in.Flag) {
 		return Out{}, fmt.Errorf("%w: flag %q", clicks.ErrUnknownCountry, in.Flag)
 	}
-	if !u.countries.CheckCountry(in.Area) {
+	if in.Area != "" && !u.countries.CheckCountry(in.Area) {
 		return Out{}, fmt.Errorf("%w: area %q", clicks.ErrUnknownCountry, in.Area)
 	}
 	if in.Count <= 0 {
@@ -105,7 +106,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 
 	var seeds []uint32
 	for tile := uint32(1); tile <= u.borders.Tiles(); tile++ {
-		if u.borders.CountryOf(tile) == in.Area && eligible(tile) {
+		if u.inArea(tile, in.Area) && eligible(tile) {
 			seeds = append(seeds, tile)
 		}
 	}
@@ -114,7 +115,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 
 	out := Out{Eligible: len(seeds), Picked: len(picked)}
 	for _, tile := range picked {
-		if u.borders.CountryOf(tile) != in.Area {
+		if !u.inArea(tile, in.Area) {
 			out.OutsideArea++
 		}
 	}
@@ -145,4 +146,9 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	}
 
 	return out, nil
+}
+
+// inArea says whether a tile sits on the area's ground; every tile is in an empty area.
+func (u *UseCase) inArea(tile uint32, area string) bool {
+	return area == "" || u.borders.CountryOf(tile) == area
 }

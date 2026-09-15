@@ -26,8 +26,8 @@ const (
 type PaintRandomTilesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	FlagCountryId string                 `protobuf:"bytes,1,opt,name=flag_country_id,json=flagCountryId,proto3" json:"flag_country_id,omitempty"`
-	// The country a fresh draw lands in. A patch grows from there into any
-	// tile not wearing the flag, across the border too.
+	// The country a fresh draw lands in; empty is the whole map. A patch grows
+	// from there into any tile not wearing the flag, across the border too.
 	AreaCountryId string `protobuf:"bytes,2,opt,name=area_country_id,json=areaCountryId,proto3" json:"area_country_id,omitempty"`
 	Count         uint32 `protobuf:"varint,3,opt,name=count,proto3" json:"count,omitempty"`
 	// From 0 to 1. 0 picks anywhere in the area; 1 grows one patch while it can.
@@ -104,13 +104,13 @@ func (x *PaintRandomTilesRequest) GetDryRun() bool {
 
 type PaintRandomTilesResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Tiles of the area that do not wear the flag yet.
+	// Tiles of the area, or of the map, that do not wear the flag yet.
 	Eligible uint32 `protobuf:"varint,1,opt,name=eligible,proto3" json:"eligible,omitempty"`
 	// Below count only when nothing is left to pick.
 	Picked uint32 `protobuf:"varint,2,opt,name=picked,proto3" json:"picked,omitempty"`
 	// Picked tiles that nobody took between the pick and the paint.
 	Painted uint32 `protobuf:"varint,3,opt,name=painted,proto3" json:"painted,omitempty"`
-	// Picked tiles past the area's border.
+	// Picked tiles past the area's border. Always 0 with no area.
 	OutsideArea   uint32 `protobuf:"varint,4,opt,name=outside_area,json=outsideArea,proto3" json:"outside_area,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
