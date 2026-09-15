@@ -15,6 +15,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/session/v1/sessionv1connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/session/internal/adapters/primary/http/sessionv1controller"
+	"github.com/raphoester/clickplanet.lol-backend/internal/session/internal/adapters/secondary/auth_accounts"
+	"github.com/raphoester/clickplanet.lol-backend/internal/session/internal/adapters/secondary/fail_open_accounts"
+	"github.com/raphoester/clickplanet.lol-backend/internal/session/internal/adapters/secondary/no_accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/session/internal/adapters/secondary/open_attester"
 	"github.com/raphoester/clickplanet.lol-backend/internal/session/internal/adapters/secondary/turnstile_attester"
 	"github.com/raphoester/clickplanet.lol-backend/internal/session/internal/domain"
@@ -49,11 +52,16 @@ func build(config Config, props cpbootstrap.Props) error {
 		return err
 	}
 
+	accounts, err := newAccounts(config, props)
+	if err != nil {
+		return err
+	}
+
 	mintLimiter := cpratelimit.New("mint-limiter", config.RateLimiter, cptime.SystemClock{})
 	props.Runners.Add(mintLimiter)
 
 	sessionService := sessionv1controller.NewSessionService(
-		session_service.New(attester, signer, cptime.SystemClock{}),
+		session_service.New(attester, accounts, signer, cptime.SystemClock{}),
 		props.Logger,
 	)
 
@@ -70,9 +78,27 @@ func build(config Config, props cpbootstrap.Props) error {
 		slog.Duration("ttl", config.TTL),
 		slog.Bool("enforce", config.Enforce),
 		slog.Bool("turnstile", config.Turnstile.Enabled),
+		slog.Bool("accounts", config.Accounts.Enabled),
 	)
 
 	return nil
+}
+
+func newAccounts(config Config, props cpbootstrap.Props) (domain.Accounts, error) {
+	if !config.Accounts.Enabled {
+		return no_accounts.Accounts{}, nil
+	}
+
+	httpClient, baseURL, err := props.Internal.Dial()
+	if err != nil {
+		return nil, fmt.Errorf("session.accounts is enabled: %w", err)
+	}
+
+	return fail_open_accounts.New(
+		auth_accounts.New(httpClient, baseURL, config.Accounts),
+		props.Logger,
+		props.Metrics,
+	), nil
 }
 
 func newAttester(config Config, logger *slog.Logger) (domain.Attester, error) {
@@ -99,6 +125,9 @@ type Config struct {
 	RateLimiter cpratelimit.Config
 
 	Turnstile turnstile.Config
+
+	// Signs the caller's account into the token, as the auth module resolves it from the cookie.
+	Accounts auth_accounts.Config
 }
 
 const defaultTurnstileAction = "session"

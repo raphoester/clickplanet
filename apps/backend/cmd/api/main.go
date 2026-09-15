@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet"
 	"github.com/raphoester/clickplanet.lol-backend/internal/session"
@@ -23,6 +24,7 @@ type Config struct {
 
 	Session session.Config
 	Chat    chat.Config
+	Auth    auth.Config
 }
 
 func main() {
@@ -54,6 +56,7 @@ func run(ctx context.Context) error {
 // and builds everything else itself.
 func describeModules(config Config) []cpbootstrap.Module {
 	return []cpbootstrap.Module{
+		auth.NewModule(config.Auth),
 		session.NewModule(config.Session),
 		planet.NewModule(config.Planet),
 		chat.NewModule(config.Chat),
@@ -76,5 +79,6 @@ func (c Config) Validate() error {
 		c.Planet.Validate(),
 		c.Session.Validate(),
 		c.Chat.Validate(),
+		c.Auth.Validate(),
 	)
 }

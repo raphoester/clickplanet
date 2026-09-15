@@ -43,6 +43,13 @@ func StartTestServer(t testing.TB) *TestServer {
 	return &TestServer{config: config}
 }
 
+// ConfigFor is a module's database block pointing at this server, for a test that boots the module itself.
+func (s *TestServer) ConfigFor(schema string) Config {
+	config := s.config
+	config.Schema = schema
+	return config
+}
+
 // OpenSchema connects inside schema and migrates it. The client closes when t ends.
 func (s *TestServer) OpenSchema(t testing.TB, schema string, migrations fs.FS) *Postgres {
 	t.Helper()

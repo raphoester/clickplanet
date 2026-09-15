@@ -120,6 +120,8 @@ services:
       antiBot.database.password: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env (openssl rand -hex 32)}
       # The chat module has its own database block: same postgres, same user, same password.
       chat.database.password: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env (openssl rand -hex 32)}
+      # The auth module's block, the same way.
+      auth.database.password: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env (openssl rand -hex 32)}
     volumes:
       - ./backend.yaml:/home/app/config/config.yaml:ro
     command: [ "./api", "-config", "/home/app/config/config.yaml" ]

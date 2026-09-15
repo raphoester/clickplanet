@@ -15,6 +15,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipscope"
 )
 
@@ -25,17 +27,25 @@ var (
 )
 
 const (
-	expiryLen = 8
-	idLen     = 8
-	macLen    = sha256.Size
+	expiryLen  = 8
+	idLen      = 8
+	accountLen = len(uuid.UUID{})
+	macLen     = sha256.Size
 
-	tokenLen = expiryLen + idLen + macLen
+	payloadLen = expiryLen + idLen + accountLen
+	tokenLen   = payloadLen + macLen
 )
 
 // ID identifies one minted session. It is not a secret and not an identity —
 // it exists so a refusal can be correlated in the logs with the mint that
 // preceded it.
 type ID string
+
+// Claims is what a verified token says: which mint, and which account it was minted for (uuid.Nil for none).
+type Claims struct {
+	ID      ID
+	Account uuid.UUID
+}
 
 type Token struct {
 	Value     string
@@ -79,7 +89,7 @@ func (s *Signer) TTL() time.Duration {
 // re-minting on the next address in a prefix it already owns. It also stops an
 // IPv6 privacy address rotating under a player mid-session, which on an exact
 // binding would have logged them out on their own connection's schedule.
-func (s *Signer) Mint(ip string, now time.Time) (Token, error) {
+func (s *Signer) Mint(ip string, account uuid.UUID, now time.Time) (Token, error) {
 	id := make([]byte, idLen)
 	if _, err := rand.Read(id); err != nil {
 		return Token{}, fmt.Errorf("failed to read random bytes: %w", err)
@@ -87,9 +97,10 @@ func (s *Signer) Mint(ip string, now time.Time) (Token, error) {
 
 	expiresAt := now.Add(s.ttl)
 
-	payload := make([]byte, expiryLen+idLen)
+	payload := make([]byte, payloadLen)
 	binary.BigEndian.PutUint64(payload[:expiryLen], uint64(expiresAt.UnixMilli()))
-	copy(payload[expiryLen:], id)
+	copy(payload[expiryLen:expiryLen+idLen], id)
+	copy(payload[expiryLen+idLen:], account[:])
 
 	// Built into its own slice rather than appended onto payload: append would
 	// alias payload the moment it had spare capacity, and the MAC is computed
@@ -105,30 +116,33 @@ func (s *Signer) Mint(ip string, now time.Time) (Token, error) {
 	}, nil
 }
 
-func (s *Signer) Verify(value string, ip string, now time.Time) (ID, error) {
+func (s *Signer) Verify(value string, ip string, now time.Time) (Claims, error) {
 	raw, err := base64.RawURLEncoding.DecodeString(value)
 	if err != nil {
-		return "", fmt.Errorf("%w: %w", ErrMalformed, err)
+		return Claims{}, fmt.Errorf("%w: %w", ErrMalformed, err)
 	}
 
 	if len(raw) != tokenLen {
-		return "", fmt.Errorf("%w: got %d bytes, want %d", ErrMalformed, len(raw), tokenLen)
+		return Claims{}, fmt.Errorf("%w: got %d bytes, want %d", ErrMalformed, len(raw), tokenLen)
 	}
 
-	payload, mac := raw[:expiryLen+idLen], raw[expiryLen+idLen:]
+	payload, mac := raw[:payloadLen], raw[payloadLen:]
 
 	// Constant time, and before the expiry check: an attacker must not learn
 	// whether a forged token would have been in date.
 	if !hmac.Equal(mac, s.mac(payload, ip)) {
-		return "", ErrBadSignature
+		return Claims{}, ErrBadSignature
 	}
 
 	expiresAt := time.UnixMilli(int64(binary.BigEndian.Uint64(payload[:expiryLen])))
 	if !now.Before(expiresAt) {
-		return "", fmt.Errorf("%w at %s", ErrExpired, expiresAt.UTC().Format(time.RFC3339))
+		return Claims{}, fmt.Errorf("%w at %s", ErrExpired, expiresAt.UTC().Format(time.RFC3339))
 	}
 
-	return ID(hex.EncodeToString(payload[expiryLen:])), nil
+	return Claims{
+		ID:      ID(hex.EncodeToString(payload[expiryLen : expiryLen+idLen])),
+		Account: uuid.UUID(payload[expiryLen+idLen:]),
+	}, nil
 }
 
 // mac binds the token to the caller's scope rather than its exact address.

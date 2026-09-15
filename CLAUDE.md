@@ -18,6 +18,7 @@ Read the relevant app's `CLAUDE.md` before working inside `apps/frontend/` or `a
 - `proto/planet/v1/planet.proto` — the tile game (`ClickService`)
 - `proto/chat/v1/chat.proto` — the live chat (`ChatService`)
 - `proto/session/v1/session.proto` — the session mint (`SessionService`), which gates `Click`
+- `proto/auth/v1/auth.proto` — who a caller is (`AuthService`), and `internal.proto` beside it, what other backend modules ask it (`InternalService`, never on the public router)
 
 Connect derives each service's route from its proto package, so a new context gets its own path with no prefix to allocate. Both `buf.gen.yaml` inputs point at the whole `proto` directory, so a new package is picked up by either generator with no config change.
 

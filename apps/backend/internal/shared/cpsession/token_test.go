@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -48,7 +49,7 @@ func TestTwoSignersOverOneConfigAgree(t *testing.T) {
 	verifier, err := cpsession.NewSigner(config)
 	require.NoError(t, err)
 
-	token, err := minter.Mint("1.2.3.4", now)
+	token, err := minter.Mint("1.2.3.4", uuid.Nil, now)
 	require.NoError(t, err)
 
 	_, err = verifier.Verify(token.Value, "1.2.3.4", now)
@@ -58,19 +59,45 @@ func TestTwoSignersOverOneConfigAgree(t *testing.T) {
 func TestAMintedTokenVerifiesForTheAddressItWasMintedFor(t *testing.T) {
 	signer := newSigner(t)
 
-	token, err := signer.Mint("203.0.113.7", now)
+	token, err := signer.Mint("203.0.113.7", uuid.Nil, now)
 	require.NoError(t, err)
 	assert.Equal(t, now.Add(ttl), token.ExpiresAt)
 
-	id, err := signer.Verify(token.Value, "203.0.113.7", now)
+	claims, err := signer.Verify(token.Value, "203.0.113.7", now)
 	require.NoError(t, err)
-	assert.Equal(t, token.ID, id)
+	assert.Equal(t, token.ID, claims.ID)
+	assert.Equal(t, uuid.Nil, claims.Account)
+}
+
+func TestATokenCarriesTheAccountItWasMintedFor(t *testing.T) {
+	signer := newSigner(t)
+	account := uuid.MustParse("01926c6e-7a4b-7c3d-8e9f-0a1b2c3d4e5f")
+
+	token, err := signer.Mint("203.0.113.7", account, now)
+	require.NoError(t, err)
+
+	claims, err := signer.Verify(token.Value, "203.0.113.7", now)
+	require.NoError(t, err)
+	assert.Equal(t, account, claims.Account)
+}
+
+func TestASwappedAccountDoesNotVerify(t *testing.T) {
+	signer := newSigner(t)
+
+	token, err := signer.Mint("203.0.113.7", uuid.MustParse("01926c6e-7a4b-7c3d-8e9f-0a1b2c3d4e5f"), now)
+	require.NoError(t, err)
+
+	raw := decode(t, token.Value)
+	raw[20] ^= 0xff
+
+	_, err = signer.Verify(encode(raw), "203.0.113.7", now)
+	assert.ErrorIs(t, err, cpsession.ErrBadSignature)
 }
 
 func TestATokenIsRefusedForAnotherAddress(t *testing.T) {
 	signer := newSigner(t)
 
-	token, err := signer.Mint("203.0.113.7", now)
+	token, err := signer.Mint("203.0.113.7", uuid.Nil, now)
 	require.NoError(t, err)
 
 	_, err = signer.Verify(token.Value, "203.0.113.8", now)
@@ -80,7 +107,7 @@ func TestATokenIsRefusedForAnotherAddress(t *testing.T) {
 func TestATokenIsRefusedOnceItHasExpired(t *testing.T) {
 	signer := newSigner(t)
 
-	token, err := signer.Mint("203.0.113.7", now)
+	token, err := signer.Mint("203.0.113.7", uuid.Nil, now)
 	require.NoError(t, err)
 
 	_, err = signer.Verify(token.Value, "203.0.113.7", now.Add(ttl-time.Second))
@@ -93,7 +120,7 @@ func TestATokenIsRefusedOnceItHasExpired(t *testing.T) {
 func TestATokenIsRefusedByASignerHoldingAnotherSecret(t *testing.T) {
 	signer := newSigner(t)
 
-	token, err := signer.Mint("203.0.113.7", now)
+	token, err := signer.Mint("203.0.113.7", uuid.Nil, now)
 	require.NoError(t, err)
 
 	other, err := cpsession.NewSigner(cpsession.Config{Secret: "another-secret", TTL: ttl})
@@ -108,7 +135,7 @@ func TestATokenIsRefusedByASignerHoldingAnotherSecret(t *testing.T) {
 func TestAnExtendedExpiryDoesNotVerify(t *testing.T) {
 	signer := newSigner(t)
 
-	token, err := signer.Mint("203.0.113.7", now)
+	token, err := signer.Mint("203.0.113.7", uuid.Nil, now)
 	require.NoError(t, err)
 
 	forged := extendExpiry(t, token.Value)
@@ -120,7 +147,7 @@ func TestAnExtendedExpiryDoesNotVerify(t *testing.T) {
 func TestMalformedTokensAreRefusedRatherThanPanicking(t *testing.T) {
 	signer := newSigner(t)
 
-	valid, err := signer.Mint("203.0.113.7", now)
+	valid, err := signer.Mint("203.0.113.7", uuid.Nil, now)
 	require.NoError(t, err)
 
 	for name, value := range map[string]string{
@@ -129,7 +156,7 @@ func TestMalformedTokensAreRefusedRatherThanPanicking(t *testing.T) {
 		"too short":     "AAAA",
 		"truncated":     valid.Value[:len(valid.Value)-4],
 		"padded longer": valid.Value + "AAAA",
-		"whitespace":    strings.Repeat(" ", 64),
+		"whitespace":    strings.Repeat(" ", 86),
 	} {
 		t.Run(name, func(t *testing.T) {
 			_, err := signer.Verify(value, "203.0.113.7", now)
@@ -141,10 +168,10 @@ func TestMalformedTokensAreRefusedRatherThanPanicking(t *testing.T) {
 func TestTwoMintsProduceDifferentTokensAndIDs(t *testing.T) {
 	signer := newSigner(t)
 
-	first, err := signer.Mint("203.0.113.7", now)
+	first, err := signer.Mint("203.0.113.7", uuid.Nil, now)
 	require.NoError(t, err)
 
-	second, err := signer.Mint("203.0.113.7", now)
+	second, err := signer.Mint("203.0.113.7", uuid.Nil, now)
 	require.NoError(t, err)
 
 	assert.NotEqual(t, first.Value, second.Value)
@@ -177,12 +204,12 @@ func TestAV6TokenVerifiesAcrossItsOwnPrefix(t *testing.T) {
 
 	// A privacy address rotating under a player must not log them out: the
 	// binding is to the /64, which the caller has not left.
-	token, err := signer.Mint("2001:db8:1:2::1", now)
+	token, err := signer.Mint("2001:db8:1:2::1", uuid.Nil, now)
 	require.NoError(t, err)
 
-	id, err := signer.Verify(token.Value, "2001:db8:1:2:aaaa:bbbb:cccc:dddd", now)
+	claims, err := signer.Verify(token.Value, "2001:db8:1:2:aaaa:bbbb:cccc:dddd", now)
 	require.NoError(t, err)
-	assert.Equal(t, token.ID, id)
+	assert.Equal(t, token.ID, claims.ID)
 }
 
 func TestAV6TokenIsRefusedOutsideItsPrefix(t *testing.T) {
@@ -190,7 +217,7 @@ func TestAV6TokenIsRefusedOutsideItsPrefix(t *testing.T) {
 
 	// The other half of the same rule: leaving the /64 is leaving the scope the
 	// token was minted for, so it buys nothing there.
-	token, err := signer.Mint("2001:db8:1:2::1", now)
+	token, err := signer.Mint("2001:db8:1:2::1", uuid.Nil, now)
 	require.NoError(t, err)
 
 	_, err = signer.Verify(token.Value, "2001:db8:1:3::1", now)
