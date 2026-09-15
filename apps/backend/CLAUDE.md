@@ -69,7 +69,7 @@ while `shared` is for things that would read the same in any other program.
 #### A module publishes its root package and hides the rest
 
 Every module's interior lives behind **its own `internal/`** — `internal/planet/internal/clicks`,
-`internal/chat/internal/adapters/…`, `internal/antibot/internal/jury`. Go's own
+`internal/chat/internal/messages`, `internal/antibot/internal/jury`. Go's own
 rule does the enforcing: such a package is importable only from the tree rooted
 at the parent of that `internal`, so `chat` importing `planet/internal/clicks`
 **does not compile**. There is no linter to run, no allowlist to maintain and
@@ -108,7 +108,7 @@ Each context wires **itself**, in a `module.go` at its root (`internal/planet/mo
 - `props.Logger`, `props.Metrics`
 - `props.Server` — the bind address and the stream heartbeat, **the only config a module reads that is not its own**. It is the transport every module answers over, so it belongs to the layer that owns the server rather than to any context.
 
-**A constructor builds and a `Load…` method reads.** Nothing that reads a file or parses a blob happens inside `New`: the DI sequence calls `New`, then the load, one line each — `embedded_geodesic_map.New` then `LoadGeography`/`LoadBorders`, `inmemory_tile_storage.New` then `LoadSnapshot`, `memory_chat_storage.New` then `LoadLog`, `cpipblock.New` then `Load`, `antibot.New` then `LoadState`, `inmemory_ledger_storage.New` then `LoadState`.
+**A constructor builds and a `Load…` method reads.** Nothing that reads a file or parses a blob happens inside `New`: the DI sequence calls `New`, then the load, one line each — `embedded_geodesic_map.New` then `LoadGeography`/`LoadBorders`, `inmemory_tile_storage.New` then `LoadSnapshot`, `inmemory_message_storage.New` then `LoadLog`, `cpipblock.New` then `Load`, `antibot.New` then `LoadState`, `inmemory_ledger_storage.New` then `LoadState`.
 
 A module never sees the router, the signal handler or another module's objects. **There is no mutable app object and nothing to leave a half-built dependency on**: `internal/shared/cpbootstrap` builds every module in order, then serves.
 
@@ -233,6 +233,26 @@ a process that does not want it leaves it out and the rule does not change.
 
 `Geography` is in the `clicks` root, beside the sentinels and `TileUpdate`: the shape of the map, in `geography.go`. It is a model rather than a port — `embedded_geodesic_map` builds one and hands it over. See [Map geography](#map-geography).
 
+### Inside the chat module: the same shape
+
+Chat follows the same rules as planet: no `domain`, no `adapters`, one directory per concept. It has one concept.
+
+```
+internal/chat/internal/
+  messages/                             Message, Record, ErrInvalidMessage, Limits, Tag
+    inmemory_message_storage/           the adapter: history, fanout, the JSONL log
+    usecases/send_message_usecase/      cleans, tags, appends          — Appender, CountryChecker
+    usecases/get_history_usecase/       the recent messages            — HistoryReader
+    usecases/listen_for_events_usecase/ one client's feed, heartbeat   — MessagesSubscriber
+  chatv1controller/                     ChatService (a bag), the interceptors
+    send_message_handler/  get_history_handler/  listen_for_events_handler/
+    chatmessage/                        Encode, shared by the three handlers
+```
+
+- **The rules that need no port are in the `messages` root**: `Limits` (runes, UTF-8, control characters), `Tag` (the salted IP hash) and `NewRecord` (truncates the author id and user agent). They are tested there, not through the use case.
+- **`send_message_usecase.Config` stays under `chat.Config.Service`**, so the `chat.service.*` keys do not change.
+- **`chatv1controller`'s root tests are about the chain** (error net, blocklist, throttle). Each handler package tests its own mapping.
+
 ### Adapters
 
 **Primary (input):**
@@ -316,9 +336,9 @@ POST /planet.v1.ClickService/Click   [X-Session-Token: <the minted token>]
 ```
 POST /chat.v1.ChatService/SendMessage
   → [cpbootstrap: error net], BlocklistInterceptor, then RateLimitInterceptor (both shared/cpconnect)
-  → ChatService
-  → chat_service (sanitizes, stamps id/time/tag)
-  → MemoryChatStorage.Append() [appends to the JSONL log, then fans out]
+  → ChatService → send_message_handler
+  → messages/usecases/send_message_usecase (cleans with messages.Limits, stamps id/time/messages.Tag)
+  → inmemory_message_storage.Append() [appends to the JSONL log, then fans out]
   → every subscriber: one per open ListenForEvents stream
 ```
 
@@ -1154,7 +1174,7 @@ infer that conversion.
 **What each module still owns is its own mapping.** A caller error is named by
 the part that found it and turned into a code by the handler that knows which
 procedure was asked — `click_handler` and `get_map_handler` in planet,
-`chatv1controller.toConnect` for `ErrInvalidMessage`, `sessionv1controller.toConnect`
+`send_message_handler` for `messages.ErrInvalidMessage`, `sessionv1controller.toConnect`
 for `ErrAttestationFailed`. The net never sees those, because a `*connect.Error`
 is passed through untouched.
 
