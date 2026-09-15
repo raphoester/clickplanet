@@ -69,6 +69,7 @@ func serve(
 	options Options,
 	router http.Handler,
 	admin *adminServer,
+	drain context.CancelFunc,
 	runners *runnerRegistry,
 	closers *closerRegistry,
 ) error {
@@ -139,6 +140,11 @@ func serve(
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), options.ShutdownTimeout)
 	defer cancel()
+
+	// Before Shutdown, which waits for every connection to go idle and would
+	// otherwise wait out its deadline on the first stream still open. Unary
+	// calls in flight are left to finish: only the streams read this.
+	drain()
 
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		options.Logger.Error("failed to shut down the http server", slog.Any("error", err))

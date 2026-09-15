@@ -174,8 +174,14 @@ func Run(ctx context.Context, options Options) error {
 
 	metrics := cpprom.NewRegistry()
 	errorNet := cpconnect.NewErrorInterceptor(options.Logger, nil)
-	routes := newRPCRoutes(errorNet)
-	adminRoutes := newRPCRoutes(errorNet)
+
+	// Cancelled when shutdown starts, and it ends every open stream.
+	draining, drain := context.WithCancel(context.Background())
+	defer drain()
+
+	drainNet := newDrainInterceptor(draining)
+	routes := newRPCRoutes(errorNet, drainNet)
+	adminRoutes := newRPCRoutes(errorNet, drainNet)
 	runners := newRunnerRegistry()
 	closers := newCloserRegistry()
 
@@ -196,7 +202,7 @@ func Run(ctx context.Context, options Options) error {
 		return err
 	}
 
-	return serve(ctx, options, router, admin, runners, closers)
+	return serve(ctx, options, router, admin, drain, runners, closers)
 }
 
 // buildModules runs every module's DI sequence under one startup deadline.
