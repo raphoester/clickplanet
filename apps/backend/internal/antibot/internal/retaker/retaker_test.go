@@ -237,3 +237,79 @@ func TestReactionsAgeOutOfTheWindow(t *testing.T) {
 	assert.Equal(t, detect.Clear, h.click("bot", 1100, "PS"),
 		"stale reactions must not keep a verdict alive")
 }
+
+// productionConfig is deploy/vps/backend.yaml's retaker block.
+func productionConfig() retaker.Config {
+	return retaker.Config{
+		ReactionWindow: 5 * time.Second,
+		MinReactions:   20,
+		MaxSpread:      300 * time.Millisecond,
+		MaxMedian:      250 * time.Millisecond,
+		MinTiles:       15,
+		RoamMedian:     600 * time.Millisecond,
+		CertainTiles:   30,
+		TrackWindow:    15 * time.Minute,
+	}
+}
+
+// recaptureBot is the Bulgaria bot of 2026-09-14, from click_reaction_seconds between
+// 21:38 and 21:48: a median near 280ms and a p90-p10 near 750ms, far past maxSpread.
+func recaptureBot(n int) []time.Duration {
+	cycle := ms(150, 200, 250, 280, 300, 350, 400, 600, 900, 120)
+
+	delays := make([]time.Duration, 0, n)
+	for i := range n {
+		delays = append(delays, cycle[i%len(cycle)])
+	}
+	return delays
+}
+
+func TestTheRecaptureBotOfSeptember14IsCaught(t *testing.T) {
+	h := newHarness(productionConfig())
+
+	assert.Equal(t, detect.Suspect, h.war("bot", 2000, recaptureBot(20)),
+		"too loose a band for the reflex rule, too fast across twenty tiles for a hand")
+
+	assert.Equal(t, detect.Certain, h.war("bot", 3000, recaptureBot(10)))
+}
+
+func TestTheSameSpeedOnAFewTilesIsATileWar(t *testing.T) {
+	h := newHarness(productionConfig())
+
+	// The player clicking back at a bot is the fastest caller on the map, on
+	// the handful of tiles it is looking at.
+	var verdict detect.Verdict
+	for i, delay := range recaptureBot(60) {
+		tile := 4000 + uint32(i%3)
+
+		h.click("bot", tile, "BG")
+		h.clock.Advance(delay)
+		verdict = h.click("player", tile, "FR")
+
+		h.clock.Advance(time.Second)
+	}
+
+	assert.Equal(t, detect.Clear, verdict)
+}
+
+func TestHumanReactionsAcrossManyTilesAreClear(t *testing.T) {
+	h := newHarness(productionConfig())
+
+	// Medians of 1.08-1.50s and spreads of 689-879ms: the humans measured in a
+	// tile war on 2026-09-11.
+	delays := make([]time.Duration, 0, 60)
+	for range 6 {
+		delays = append(delays, ms(700, 900, 1000, 1100, 1200, 1300, 1400, 1500, 1600, 800)...)
+	}
+
+	assert.Equal(t, detect.Clear, h.war("player", 5000, delays))
+}
+
+func TestRoamIsOffWithoutMinTiles(t *testing.T) {
+	config := productionConfig()
+	config.MinTiles = 0
+
+	h := newHarness(config)
+
+	assert.Equal(t, detect.Clear, h.war("bot", 6000, recaptureBot(40)))
+}

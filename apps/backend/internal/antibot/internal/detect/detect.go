@@ -74,6 +74,9 @@ type Evidence struct {
 type Watchdog interface {
 	Name() string
 
+	// Attempted sees every click tried, throttled ones included; Held and NoOp are unset.
+	Attempted(click Click)
+
 	// Watch records the click and says how the caller reads now. It is called
 	// for every click, including the ones an existing ban is already dropping:
 	// a watchdog that stops being fed while its caller is banned cannot say
@@ -108,12 +111,21 @@ func (o Opinion) String() string {
 		return o.Verdict.String()
 	}
 
-	parts := make([]string, 0, len(o.Evidence.Fields)+1)
-	parts = append(parts, fmt.Sprintf("%s %s", o.Verdict, o.Evidence.Rule))
+	return o.Verdict.String() + " " + o.Evidence.String()
+}
+
+// String renders the rule and its numbers, ordered by key; Evidence{} renders empty.
+func (e Evidence) String() string {
+	if e.Rule == "" && len(e.Fields) == 0 {
+		return ""
+	}
+
+	parts := make([]string, 0, len(e.Fields)+1)
+	parts = append(parts, e.Rule)
 
 	// Copied before sorting: the report holds this slice and rendering it must
 	// not reorder what the caller is still holding.
-	fields := append([]Field(nil), o.Evidence.Fields...)
+	fields := append([]Field(nil), e.Fields...)
 	sort.SliceStable(fields, func(i, j int) bool { return fields[i].Key < fields[j].Key })
 
 	for _, field := range fields {
@@ -121,6 +133,44 @@ func (o Opinion) String() string {
 	}
 
 	return strings.Join(parts, " ")
+}
+
+// Reading is an opinion already worded as strings, so nothing outside this tree compares against the ladder.
+type Reading struct {
+	Watchdog string
+	Level    string // clear, suspect or certain
+	Evidence string // empty when the watchdog had nothing to say
+	At       time.Time
+}
+
+func (o Opinion) Reading() Reading {
+	return Reading{Watchdog: o.Watchdog, Level: o.Verdict.String(), Evidence: o.Evidence.String(), At: o.At}
+}
+
+// Examination is what the jury and the ban hold on one scope, read without changing either.
+type Examination struct {
+	Scope   string
+	Tracked bool // false for a caller not seen inside trackWindow
+
+	Banned      bool // a sentence is running, enforced or not
+	Flags       int
+	Offence     int
+	BannedUntil time.Time
+
+	// Every watchdog, aged as the jury ages them: past the suspicion window a verdict reads clear.
+	Readings []Reading
+
+	// What the jury would decide if the caller clicked now.
+	Suspects    int
+	MinSuspects int
+	Guilty      bool
+
+	Clicks           int
+	ActiveFor        time.Duration
+	LongestGap       time.Duration
+	LastClickAt      time.Time
+	TopCountry       string
+	TopCountryClicks int
 }
 
 // Report is one ban, with everything that argued for it. Every watchdog is in
@@ -151,6 +201,32 @@ type Report struct {
 
 	// A few of the tiles involved, most recent last.
 	Tiles []uint32
+}
+
+// Outage is from the last save of the evidence to the start of the process that loaded it: nobody was watching.
+type Outage struct {
+	From time.Time
+	To   time.Time
+}
+
+func (o Outage) Across(last, next time.Time) bool {
+	return o.To.After(o.From) && !last.After(o.From) && !next.Before(o.To)
+}
+
+func (o Outage) Length() time.Duration {
+	if !o.To.After(o.From) {
+		return 0
+	}
+	return o.To.Sub(o.From)
+}
+
+// Gap is next minus last, less the outage when the gap spans it.
+func (o Outage) Gap(last, next time.Time) time.Duration {
+	gap := next.Sub(last)
+	if o.Across(last, next) {
+		gap -= o.Length()
+	}
+	return gap
 }
 
 // Quantile reads a sorted slice. It rounds to the nearest sample rather than

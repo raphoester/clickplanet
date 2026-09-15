@@ -95,6 +95,9 @@ linters:
         - .Mint(
         - .StateBatchDense(
         - .Mount(
+        # A section's own share of the antibot evidence file; the store names the section.
+        - evidence.Encode(
+        - evidence.Decode(
         - .Send(
         - cpbootstrap.Run(
 

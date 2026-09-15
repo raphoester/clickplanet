@@ -1,7 +1,6 @@
 package cpbootstrap
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 
@@ -18,14 +17,19 @@ type rpcRoutes struct {
 	// Wrapped outside every interceptor a module names, so a module's own
 	// mapping runs first and only what none of them recognised is redacted.
 	errorNet connect.Interceptor
+
+	// Inside the net and outside the module's own, so a module's stream
+	// interceptors see the context shutdown cancels.
+	drain connect.Interceptor
 }
 
-func newRPCRoutes(errorNet connect.Interceptor) *rpcRoutes {
+func newRPCRoutes(errorNet, drain connect.Interceptor) *rpcRoutes {
 	return &rpcRoutes{
 		owners:   map[string]string{},
 		paths:    nil,
 		byPath:   map[string]http.Handler{},
 		errorNet: errorNet,
+		drain:    drain,
 	}
 }
 
@@ -52,7 +56,7 @@ func (m moduleRoutes) Mount(build ServiceBuilder, interceptors ...connect.Interc
 		return fmt.Errorf("module %s mounted a nil service", m.module)
 	}
 
-	chain := append([]connect.Interceptor{m.routes.errorNet}, interceptors...)
+	chain := append([]connect.Interceptor{m.routes.errorNet, m.routes.drain}, interceptors...)
 
 	path, handler := build(connect.WithInterceptors(chain...))
 
@@ -76,21 +80,16 @@ func (m moduleRoutes) Mount(build ServiceBuilder, interceptors ...connect.Interc
 	return nil
 }
 
-type namedRunner struct {
-	name string
-	run  func(ctx context.Context)
-}
-
 type runnerRegistry struct {
-	runners []namedRunner
+	runners []Runner
 }
 
 func newRunnerRegistry() *runnerRegistry {
 	return &runnerRegistry{runners: nil}
 }
 
-func (r *runnerRegistry) Add(name string, run func(ctx context.Context)) {
-	r.runners = append(r.runners, namedRunner{name: name, run: run})
+func (r *runnerRegistry) Add(runner Runner) {
+	r.runners = append(r.runners, runner)
 }
 
 func (r *runnerRegistry) count() int {

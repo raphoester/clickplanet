@@ -1,9 +1,8 @@
 // Package metronome watches for the caller that never varies and never stops.
 // A script tuned to sit just under the throttle spends hours at one tempo with
-// no pauses in it. Tempo alone says nothing — a player can click fast, and a
-// caller pushing past the throttle gets its surviving clicks handed back at
-// exactly the refill rate. What no hand produces is the same gap, again and
-// again, for hours, without once looking away.
+// no pauses in it. Tempo alone says nothing — a player can click fast. What no
+// hand produces is the same gap, again and again, for hours, without once
+// looking away. The gaps are between clicks tried, not clicks accepted.
 package metronome
 
 import (
@@ -101,6 +100,7 @@ type Watchdog struct {
 
 	mu      sync.Mutex
 	callers map[string]*caller
+	outage  detect.Outage
 }
 
 var _ detect.Watchdog = (*Watchdog)(nil)
@@ -123,7 +123,8 @@ func (w *Watchdog) Name() string { return Name }
 // bearing on when the next one arrived.
 func (w *Watchdog) Committed(detect.Click) {}
 
-func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
+// Attempted times the run: the throttle's survivors no longer carry the loop's gaps.
+func (w *Watchdog) Attempted(click detect.Click) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
@@ -132,24 +133,39 @@ func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
 		c = &caller{}
 		w.callers[click.Scope] = c
 		c.restart(click.At)
-		return detect.Clear, detect.Evidence{}
+		return
 	}
 
-	gap := click.At.Sub(c.lastSeen)
+	across := w.outage.Across(c.lastSeen, click.At)
+	gap := w.outage.Gap(c.lastSeen, click.At)
 	c.lastSeen = click.At
 
 	if gap < 0 || gap > w.config.MaxGap {
 		c.restart(click.At)
-		return detect.Clear, detect.Evidence{}
+		return
 	}
 
 	c.runClicks++
+
+	// Stitched across a restart, not measured: neither a break nor a sample, and the outage is not time sustained.
+	if across {
+		c.runStart = c.runStart.Add(w.outage.Length())
+		return
+	}
+
 	c.gaps = append(c.gaps, gap)
 	if capacity := w.capacity(); len(c.gaps) > capacity {
 		c.gaps = append(c.gaps[:0], c.gaps[len(c.gaps)-capacity:]...)
 	}
+}
 
-	if c.runClicks < w.config.MinClicks {
+// Watch judges the run Attempted has timed so far; it records nothing itself.
+func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	c, ok := w.callers[click.Scope]
+	if !ok || c.runClicks < w.config.MinClicks {
 		return detect.Clear, detect.Evidence{}
 	}
 
@@ -158,7 +174,7 @@ func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
 		return detect.Clear, detect.Evidence{}
 	}
 
-	sustained := click.At.Sub(c.runStart)
+	sustained := c.lastSeen.Sub(c.runStart)
 
 	verdict := detect.Suspect
 	if sustained >= w.config.CertainFor && c.runClicks >= w.config.CertainClicks {

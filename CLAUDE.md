@@ -65,7 +65,7 @@ It is a script rather than a root `Makefile` target on purpose — see
 
 `deploy/docker-compose.yaml` runs backend + frontend together using locally built Docker images. Build each app's image first (`apps/frontend`'s `npm run dBuild`, `apps/backend`'s `make dBuild`), then `cd deploy && docker compose up`.
 
-The stack includes a **postgres**: the backend keeps the whole tile map in process and writes what changed to postgres every second. Bans and the chat log are still files on the `tile_state` volume, until they move too. See [`apps/backend/CLAUDE.md`](apps/backend/CLAUDE.md) for the durability tradeoff and the full config schema.
+The stack includes a **postgres**: the backend keeps the whole tile map in process and writes what changed to postgres every second. The ledger, bans, antibot evidence and chat log are still files on the `tile_state` volume, until they move too. See [`apps/backend/CLAUDE.md`](apps/backend/CLAUDE.md) for the durability tradeoff and the full config schema.
 
 ## Independence of the two apps
 

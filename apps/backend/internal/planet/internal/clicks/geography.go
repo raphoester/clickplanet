@@ -7,7 +7,7 @@ import (
 
 // Geography is the map's shape: where every tile is, and which tiles touch it. Read-only once
 // built and safe for concurrent use. Where the adjacency was derived from is the adapter's
-// business — see clicks/adapters/secondary/geodesic_map.
+// business — see clicks/adapters/secondary/embedded_geodesic_map.
 type Geography struct {
 	// Three floats per tile, indexed by (id-1)*3. Kept for later distance and lat/lon bonuses.
 	positions []float32

@@ -39,11 +39,19 @@ const (
 	// AdminServiceFindPlayersProcedure is the fully-qualified name of the AdminService's FindPlayers
 	// RPC.
 	AdminServiceFindPlayersProcedure = "/planet.v1.AdminService/FindPlayers"
+	// AdminServiceTopPlayersProcedure is the fully-qualified name of the AdminService's TopPlayers RPC.
+	AdminServiceTopPlayersProcedure = "/planet.v1.AdminService/TopPlayers"
 	// AdminServiceBanPlayerProcedure is the fully-qualified name of the AdminService's BanPlayer RPC.
 	AdminServiceBanPlayerProcedure = "/planet.v1.AdminService/BanPlayer"
 	// AdminServiceRevertPlayerProcedure is the fully-qualified name of the AdminService's RevertPlayer
 	// RPC.
 	AdminServiceRevertPlayerProcedure = "/planet.v1.AdminService/RevertPlayer"
+	// AdminServicePaintRandomTilesProcedure is the fully-qualified name of the AdminService's
+	// PaintRandomTiles RPC.
+	AdminServicePaintRandomTilesProcedure = "/planet.v1.AdminService/PaintRandomTiles"
+	// AdminServiceInspectPlayerProcedure is the fully-qualified name of the AdminService's
+	// InspectPlayer RPC.
+	AdminServiceInspectPlayerProcedure = "/planet.v1.AdminService/InspectPlayer"
 )
 
 // AdminServiceClient is a client for the planet.v1.AdminService service.
@@ -52,14 +60,25 @@ type AdminServiceClient interface {
 	// tile goes out on the stream as an ordinary TileUpdate. dry_run counts and
 	// moves nothing.
 	ReassignCountry(context.Context, *connect.Request[v1.ReassignCountryRequest]) (*connect.Response[v1.ReassignCountryResponse], error)
-	// Who painted the flag's tiles in the area that still wear it, latest first.
-	// Read from an in-memory ledger that a restart empties.
+	// Who took tiles for the flag on the area's ground, held or painted over
+	// since, latest take first. Read from the ledger (ledger.retention).
 	FindPlayers(context.Context, *connect.Request[v1.FindPlayersRequest]) (*connect.Response[v1.FindPlayersResponse], error)
+	// Who took the most tiles, over every flag and the whole map: most takes
+	// first, then most tiles held. Read from the same ledger as FindPlayers.
+	TopPlayers(context.Context, *connect.Request[v1.TopPlayersRequest]) (*connect.Response[v1.TopPlayersResponse], error)
 	// The antibot's shadow ban, on a scope a person picked. It counts as an offence.
 	BanPlayer(context.Context, *connect.Request[v1.BanPlayerRequest]) (*connect.Response[v1.BanPlayerResponse], error)
-	// Gives back every tile the scope took that nobody has taken since, to
-	// whoever held it before. dry_run counts and restores nothing.
+	// Gives back every tile the scope still holds to what it held before the
+	// scope's current run on it. dry_run counts and restores nothing.
 	RevertPlayer(context.Context, *connect.Request[v1.RevertPlayerRequest]) (*connect.Response[v1.RevertPlayerResponse], error)
+	// Paints count random tiles with a flag, starting on one country's ground,
+	// or anywhere on the map when no country is given. proximity favours tiles
+	// that touch the ones already picked, and a patch may grow past the
+	// country's border. dry_run picks and paints nothing.
+	PaintRandomTiles(context.Context, *connect.Request[v1.PaintRandomTilesRequest]) (*connect.Response[v1.PaintRandomTilesResponse], error)
+	// What the antibot holds on a scope: every watchdog's reading, what the jury
+	// would decide now, and any running ban. Reads only.
+	InspectPlayer(context.Context, *connect.Request[v1.InspectPlayerRequest]) (*connect.Response[v1.InspectPlayerResponse], error)
 }
 
 // NewAdminServiceClient constructs a client for the planet.v1.AdminService service. By default, it
@@ -85,6 +104,12 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(adminServiceMethods.ByName("FindPlayers")),
 			connect.WithClientOptions(opts...),
 		),
+		topPlayers: connect.NewClient[v1.TopPlayersRequest, v1.TopPlayersResponse](
+			httpClient,
+			baseURL+AdminServiceTopPlayersProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("TopPlayers")),
+			connect.WithClientOptions(opts...),
+		),
 		banPlayer: connect.NewClient[v1.BanPlayerRequest, v1.BanPlayerResponse](
 			httpClient,
 			baseURL+AdminServiceBanPlayerProcedure,
@@ -97,15 +122,30 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(adminServiceMethods.ByName("RevertPlayer")),
 			connect.WithClientOptions(opts...),
 		),
+		paintRandomTiles: connect.NewClient[v1.PaintRandomTilesRequest, v1.PaintRandomTilesResponse](
+			httpClient,
+			baseURL+AdminServicePaintRandomTilesProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("PaintRandomTiles")),
+			connect.WithClientOptions(opts...),
+		),
+		inspectPlayer: connect.NewClient[v1.InspectPlayerRequest, v1.InspectPlayerResponse](
+			httpClient,
+			baseURL+AdminServiceInspectPlayerProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("InspectPlayer")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // adminServiceClient implements AdminServiceClient.
 type adminServiceClient struct {
-	reassignCountry *connect.Client[v1.ReassignCountryRequest, v1.ReassignCountryResponse]
-	findPlayers     *connect.Client[v1.FindPlayersRequest, v1.FindPlayersResponse]
-	banPlayer       *connect.Client[v1.BanPlayerRequest, v1.BanPlayerResponse]
-	revertPlayer    *connect.Client[v1.RevertPlayerRequest, v1.RevertPlayerResponse]
+	reassignCountry  *connect.Client[v1.ReassignCountryRequest, v1.ReassignCountryResponse]
+	findPlayers      *connect.Client[v1.FindPlayersRequest, v1.FindPlayersResponse]
+	topPlayers       *connect.Client[v1.TopPlayersRequest, v1.TopPlayersResponse]
+	banPlayer        *connect.Client[v1.BanPlayerRequest, v1.BanPlayerResponse]
+	revertPlayer     *connect.Client[v1.RevertPlayerRequest, v1.RevertPlayerResponse]
+	paintRandomTiles *connect.Client[v1.PaintRandomTilesRequest, v1.PaintRandomTilesResponse]
+	inspectPlayer    *connect.Client[v1.InspectPlayerRequest, v1.InspectPlayerResponse]
 }
 
 // ReassignCountry calls planet.v1.AdminService.ReassignCountry.
@@ -118,6 +158,11 @@ func (c *adminServiceClient) FindPlayers(ctx context.Context, req *connect.Reque
 	return c.findPlayers.CallUnary(ctx, req)
 }
 
+// TopPlayers calls planet.v1.AdminService.TopPlayers.
+func (c *adminServiceClient) TopPlayers(ctx context.Context, req *connect.Request[v1.TopPlayersRequest]) (*connect.Response[v1.TopPlayersResponse], error) {
+	return c.topPlayers.CallUnary(ctx, req)
+}
+
 // BanPlayer calls planet.v1.AdminService.BanPlayer.
 func (c *adminServiceClient) BanPlayer(ctx context.Context, req *connect.Request[v1.BanPlayerRequest]) (*connect.Response[v1.BanPlayerResponse], error) {
 	return c.banPlayer.CallUnary(ctx, req)
@@ -128,20 +173,41 @@ func (c *adminServiceClient) RevertPlayer(ctx context.Context, req *connect.Requ
 	return c.revertPlayer.CallUnary(ctx, req)
 }
 
+// PaintRandomTiles calls planet.v1.AdminService.PaintRandomTiles.
+func (c *adminServiceClient) PaintRandomTiles(ctx context.Context, req *connect.Request[v1.PaintRandomTilesRequest]) (*connect.Response[v1.PaintRandomTilesResponse], error) {
+	return c.paintRandomTiles.CallUnary(ctx, req)
+}
+
+// InspectPlayer calls planet.v1.AdminService.InspectPlayer.
+func (c *adminServiceClient) InspectPlayer(ctx context.Context, req *connect.Request[v1.InspectPlayerRequest]) (*connect.Response[v1.InspectPlayerResponse], error) {
+	return c.inspectPlayer.CallUnary(ctx, req)
+}
+
 // AdminServiceHandler is an implementation of the planet.v1.AdminService service.
 type AdminServiceHandler interface {
 	// Gives every tile one country holds to another, while the game runs. Each
 	// tile goes out on the stream as an ordinary TileUpdate. dry_run counts and
 	// moves nothing.
 	ReassignCountry(context.Context, *connect.Request[v1.ReassignCountryRequest]) (*connect.Response[v1.ReassignCountryResponse], error)
-	// Who painted the flag's tiles in the area that still wear it, latest first.
-	// Read from an in-memory ledger that a restart empties.
+	// Who took tiles for the flag on the area's ground, held or painted over
+	// since, latest take first. Read from the ledger (ledger.retention).
 	FindPlayers(context.Context, *connect.Request[v1.FindPlayersRequest]) (*connect.Response[v1.FindPlayersResponse], error)
+	// Who took the most tiles, over every flag and the whole map: most takes
+	// first, then most tiles held. Read from the same ledger as FindPlayers.
+	TopPlayers(context.Context, *connect.Request[v1.TopPlayersRequest]) (*connect.Response[v1.TopPlayersResponse], error)
 	// The antibot's shadow ban, on a scope a person picked. It counts as an offence.
 	BanPlayer(context.Context, *connect.Request[v1.BanPlayerRequest]) (*connect.Response[v1.BanPlayerResponse], error)
-	// Gives back every tile the scope took that nobody has taken since, to
-	// whoever held it before. dry_run counts and restores nothing.
+	// Gives back every tile the scope still holds to what it held before the
+	// scope's current run on it. dry_run counts and restores nothing.
 	RevertPlayer(context.Context, *connect.Request[v1.RevertPlayerRequest]) (*connect.Response[v1.RevertPlayerResponse], error)
+	// Paints count random tiles with a flag, starting on one country's ground,
+	// or anywhere on the map when no country is given. proximity favours tiles
+	// that touch the ones already picked, and a patch may grow past the
+	// country's border. dry_run picks and paints nothing.
+	PaintRandomTiles(context.Context, *connect.Request[v1.PaintRandomTilesRequest]) (*connect.Response[v1.PaintRandomTilesResponse], error)
+	// What the antibot holds on a scope: every watchdog's reading, what the jury
+	// would decide now, and any running ban. Reads only.
+	InspectPlayer(context.Context, *connect.Request[v1.InspectPlayerRequest]) (*connect.Response[v1.InspectPlayerResponse], error)
 }
 
 // NewAdminServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -163,6 +229,12 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(adminServiceMethods.ByName("FindPlayers")),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminServiceTopPlayersHandler := connect.NewUnaryHandler(
+		AdminServiceTopPlayersProcedure,
+		svc.TopPlayers,
+		connect.WithSchema(adminServiceMethods.ByName("TopPlayers")),
+		connect.WithHandlerOptions(opts...),
+	)
 	adminServiceBanPlayerHandler := connect.NewUnaryHandler(
 		AdminServiceBanPlayerProcedure,
 		svc.BanPlayer,
@@ -175,16 +247,34 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(adminServiceMethods.ByName("RevertPlayer")),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminServicePaintRandomTilesHandler := connect.NewUnaryHandler(
+		AdminServicePaintRandomTilesProcedure,
+		svc.PaintRandomTiles,
+		connect.WithSchema(adminServiceMethods.ByName("PaintRandomTiles")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminServiceInspectPlayerHandler := connect.NewUnaryHandler(
+		AdminServiceInspectPlayerProcedure,
+		svc.InspectPlayer,
+		connect.WithSchema(adminServiceMethods.ByName("InspectPlayer")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/planet.v1.AdminService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AdminServiceReassignCountryProcedure:
 			adminServiceReassignCountryHandler.ServeHTTP(w, r)
 		case AdminServiceFindPlayersProcedure:
 			adminServiceFindPlayersHandler.ServeHTTP(w, r)
+		case AdminServiceTopPlayersProcedure:
+			adminServiceTopPlayersHandler.ServeHTTP(w, r)
 		case AdminServiceBanPlayerProcedure:
 			adminServiceBanPlayerHandler.ServeHTTP(w, r)
 		case AdminServiceRevertPlayerProcedure:
 			adminServiceRevertPlayerHandler.ServeHTTP(w, r)
+		case AdminServicePaintRandomTilesProcedure:
+			adminServicePaintRandomTilesHandler.ServeHTTP(w, r)
+		case AdminServiceInspectPlayerProcedure:
+			adminServiceInspectPlayerHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -202,10 +292,22 @@ func (UnimplementedAdminServiceHandler) FindPlayers(context.Context, *connect.Re
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.FindPlayers is not implemented"))
 }
 
+func (UnimplementedAdminServiceHandler) TopPlayers(context.Context, *connect.Request[v1.TopPlayersRequest]) (*connect.Response[v1.TopPlayersResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.TopPlayers is not implemented"))
+}
+
 func (UnimplementedAdminServiceHandler) BanPlayer(context.Context, *connect.Request[v1.BanPlayerRequest]) (*connect.Response[v1.BanPlayerResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.BanPlayer is not implemented"))
 }
 
 func (UnimplementedAdminServiceHandler) RevertPlayer(context.Context, *connect.Request[v1.RevertPlayerRequest]) (*connect.Response[v1.RevertPlayerResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.RevertPlayer is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) PaintRandomTiles(context.Context, *connect.Request[v1.PaintRandomTilesRequest]) (*connect.Response[v1.PaintRandomTilesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.PaintRandomTiles is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) InspectPlayer(context.Context, *connect.Request[v1.InspectPlayerRequest]) (*connect.Response[v1.InspectPlayerResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.InspectPlayer is not implemented"))
 }

@@ -314,6 +314,12 @@ if ! command -v git >/dev/null 2>&1; then
 	apt-get update -qq && apt-get install -y -qq git
 fi
 
+# Reads Caddy's JSON access log; see "Reading the access log" in README.md.
+if ! command -v jq >/dev/null 2>&1; then
+	log "installing jq"
+	apt-get update -qq && apt-get install -y -qq jq
+fi
+
 # --------------------------------------------------------------- deploy user
 
 if ! id -u "$DEPLOY_USER" >/dev/null 2>&1; then
@@ -466,7 +472,7 @@ fi
 
 # ----------------------------------------------------------------- backups
 
-# The bans and the chat log in the tile_state volume. The tile map is in postgres,
+# The ledger, bans, antibot evidence and chat log in the tile_state volume. The tile map is in postgres,
 # which this does not back up yet.
 if ! crontab -u "$DEPLOY_USER" -l 2>/dev/null | grep -q 'vps_tile_state'; then
 	log "installing nightly tile-state backup cron"

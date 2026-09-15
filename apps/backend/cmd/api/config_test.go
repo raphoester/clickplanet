@@ -22,12 +22,14 @@ func TestTheExampleConfigStillReachesTheStructs(t *testing.T) {
 
 	require.True(t, config.Planet.AntiBot.Enabled)
 
-	assert.Equal(t, 30*time.Second, config.Planet.Bonus.EncloseDuration)
-	assert.Equal(t, 3, config.Planet.Bonus.EncloseShapes)
-	assert.Equal(t, 15, config.Planet.Bonus.EncloseMaxTiles)
+	assert.Equal(t, 30*time.Second, config.Planet.Bonus.Enclose.Duration)
+	assert.Equal(t, 3, config.Planet.Bonus.Enclose.Shapes)
+	assert.Equal(t, 15, config.Planet.Bonus.Enclose.MaxTiles)
 
-	assert.Equal(t, 24*time.Hour, config.Planet.Ledger.Retention)
+	assert.Equal(t, 72*time.Hour, config.Planet.Ledger.Retention)
 	assert.Equal(t, 5*time.Minute, config.Planet.Ledger.SweepInterval)
+	assert.Equal(t, "./data/ledger.bin", config.Planet.LedgerStorage.StatePath)
+	assert.Equal(t, time.Minute, config.Planet.LedgerStorage.SaveInterval)
 
 	assert.False(t, config.Planet.AntiBot.ShadowBan.Enforce, "the example must ship observing only")
 	assert.Equal(t, []time.Duration{24 * time.Hour, 7 * 24 * time.Hour, 3 * 365 * 24 * time.Hour}, config.Planet.AntiBot.ShadowBan.BanDurations)
@@ -37,6 +39,10 @@ func TestTheExampleConfigStillReachesTheStructs(t *testing.T) {
 
 	assert.Equal(t, 2, config.Planet.AntiBot.Jury.MinSuspects)
 	assert.Equal(t, 10*time.Minute, config.Planet.AntiBot.Jury.SuspicionWindow)
+
+	assert.Equal(t, "./data/antibot-evidence.bin", config.Planet.AntiBot.Evidence.StatePath)
+	assert.Equal(t, time.Minute, config.Planet.AntiBot.Evidence.SaveInterval)
+	assert.Equal(t, 72*time.Hour, config.Planet.AntiBot.Evidence.Retention)
 
 	require.True(t, config.Planet.AntiBot.Retaker.Enabled)
 	assert.Equal(t, 5*time.Second, config.Planet.AntiBot.Retaker.Detector.ReactionWindow)
@@ -70,7 +76,7 @@ func TestTheExampleConfigStillCarriesTheRestOfTheFile(t *testing.T) {
 	assert.Equal(t, 10, config.Planet.RateLimiter.Burst)
 	require.Len(t, config.Planet.Toll.Steps, 3)
 	assert.InDelta(t, 0.70, config.Planet.Toll.Steps[2].Share, 1e-9)
-	assert.InDelta(t, 2, config.Planet.Toll.Steps[2].Cost, 1e-9)
+	assert.InDelta(t, 3, config.Planet.Toll.Steps[2].Cost, 1e-9)
 	require.NoError(t, config.Planet.Validate())
 	assert.Equal(t, time.Second, config.Planet.TilesStorage.FlushInterval)
 	assert.Equal(t, "./data/tiles.snapshot", config.Planet.TilesStorage.LegacySnapshotPath)
@@ -82,8 +88,8 @@ func TestTheExampleConfigReachesTheBombSettings(t *testing.T) {
 	var config Config
 	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
 
-	assert.Equal(t, 30*time.Second, config.Planet.Bonus.BombDuration)
-	assert.InDelta(t, 10.4, config.Planet.Bonus.BombRings, 1e-9)
+	assert.Equal(t, 30*time.Second, config.Planet.Bonus.Bomb.Duration)
+	assert.InDelta(t, 10.4, config.Planet.Bonus.Bomb.Rings, 1e-9)
 	assert.InDelta(t, 1.0, config.Planet.Bonus.Kinds["bomb"], 1e-9)
 	require.NoError(t, config.Planet.Bonus.Validate())
 }

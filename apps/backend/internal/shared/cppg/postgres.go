@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"net/url"
 	"regexp"
 	"time"
@@ -17,6 +18,8 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/database/postgres" // registers the postgres driver for migrate
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 	"github.com/lib/pq"
+
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 )
 
 type Querier interface {
@@ -227,4 +230,23 @@ func (p *Postgres) Migrate(ctx context.Context, migrations fs.FS) error {
 	}
 
 	return nil
+}
+
+// CloseAfter runs runner, then closes the pool: a runner's last write happens when it stops, after the closers have run.
+func CloseAfter(runner cpbootstrap.Runner, db *Postgres, logger *slog.Logger) cpbootstrap.Runner {
+	return closeAfter{Runner: runner, db: db, logger: logger}
+}
+
+type closeAfter struct {
+	cpbootstrap.Runner
+	db     *Postgres
+	logger *slog.Logger
+}
+
+func (c closeAfter) Run(ctx context.Context) {
+	c.Runner.Run(ctx)
+
+	if err := c.db.Close(); err != nil {
+		c.logger.Error("failed to close a postgres pool", slog.String("runner", c.Name()), slog.Any("error", err))
+	}
 }

@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BanPlayerRequest, BanPlayerResponse, FindPlayersRequest, FindPlayersResponse, ReassignCountryRequest, ReassignCountryResponse, RevertPlayerRequest, RevertPlayerResponse } from "./admin_pb.js";
+import { BanPlayerRequest, BanPlayerResponse, FindPlayersRequest, FindPlayersResponse, InspectPlayerRequest, InspectPlayerResponse, PaintRandomTilesRequest, PaintRandomTilesResponse, ReassignCountryRequest, ReassignCountryResponse, RevertPlayerRequest, RevertPlayerResponse, TopPlayersRequest, TopPlayersResponse } from "./admin_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -30,8 +30,8 @@ export const AdminService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Who painted the flag's tiles in the area that still wear it, latest first.
-     * Read from an in-memory ledger that a restart empties.
+     * Who took tiles for the flag on the area's ground, held or painted over
+     * since, latest take first. Read from the ledger (ledger.retention).
      *
      * @generated from rpc planet.v1.AdminService.FindPlayers
      */
@@ -39,6 +39,18 @@ export const AdminService = {
       name: "FindPlayers",
       I: FindPlayersRequest,
       O: FindPlayersResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Who took the most tiles, over every flag and the whole map: most takes
+     * first, then most tiles held. Read from the same ledger as FindPlayers.
+     *
+     * @generated from rpc planet.v1.AdminService.TopPlayers
+     */
+    topPlayers: {
+      name: "TopPlayers",
+      I: TopPlayersRequest,
+      O: TopPlayersResponse,
       kind: MethodKind.Unary,
     },
     /**
@@ -53,8 +65,8 @@ export const AdminService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Gives back every tile the scope took that nobody has taken since, to
-     * whoever held it before. dry_run counts and restores nothing.
+     * Gives back every tile the scope still holds to what it held before the
+     * scope's current run on it. dry_run counts and restores nothing.
      *
      * @generated from rpc planet.v1.AdminService.RevertPlayer
      */
@@ -62,6 +74,32 @@ export const AdminService = {
       name: "RevertPlayer",
       I: RevertPlayerRequest,
       O: RevertPlayerResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Paints count random tiles with a flag, starting on one country's ground,
+     * or anywhere on the map when no country is given. proximity favours tiles
+     * that touch the ones already picked, and a patch may grow past the
+     * country's border. dry_run picks and paints nothing.
+     *
+     * @generated from rpc planet.v1.AdminService.PaintRandomTiles
+     */
+    paintRandomTiles: {
+      name: "PaintRandomTiles",
+      I: PaintRandomTilesRequest,
+      O: PaintRandomTilesResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * What the antibot holds on a scope: every watchdog's reading, what the jury
+     * would decide now, and any running ban. Reads only.
+     *
+     * @generated from rpc planet.v1.AdminService.InspectPlayer
+     */
+    inspectPlayer: {
+      name: "InspectPlayer",
+      I: InspectPlayerRequest,
+      O: InspectPlayerResponse,
       kind: MethodKind.Unary,
     },
   }

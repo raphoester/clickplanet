@@ -363,13 +363,17 @@ Sessions raise the floor to "drive a real browser". What gets through that is a
 userscript in a real browser, holding a genuine session — and the only thing
 left that separates it from a player is behaviour.
 
-`antiBot` watches three behaviours, one per watchdog:
+`antiBot` watches five behaviours, one per watchdog:
 
 - **`retaker`** — takes a tile back moments after losing it, over and over, in a
   band no hand holds.
 - **`sequencer`** — walks the tile ids rather than the map: 1, 2, 3, 4, on and on
   until a continent is painted.
-- **`metronome`** — never varies and never stops.
+- **`metronome`** — never varies and never stops. Timed between clicks *tried*,
+  429s included, so the throttle cannot hide a steady loop.
+- **`defender`** — nearly every take wins back a tile its country just lost.
+  **Measuring only**: it sets no verdict until `minShare`/`certainShare` are set.
+- **`catcher`** — catches every bonus box, at once.
 
 Each returns `certain` or `suspect`. **`certain` bans on its own; `suspect` is a
 reading that would ban real players if it were trusted alone**, and counts only
@@ -407,6 +411,19 @@ and everyone else, so it tells you *that* there is a band and roughly where —
 never which caller owns it. It also only sees `retaker`; the other two watchdogs
 have no histogram, because a sweep has no delay to time. Per-caller numbers come
 from the log below.
+
+### Setting the defender's shares
+
+```bash
+docker compose exec backend wget -qO- localhost:8080/metrics | grep click_retake_share
+```
+
+Once a minute, every caller with `minClicks` takes in the last `trackWindow` adds
+its retake share to `click_retake_share`. The poller keeps it. A defence loop sits
+at the top bucket for as long as it runs; a painter sits low. **Two people fighting
+over one tile also sit at the top**, for as long as the fight lasts — so read how
+long callers stay there, not only that they get there, and set `certainClicks`
+past what a fight lasts.
 
 ### The log says who
 
@@ -512,9 +529,33 @@ different picture from forty callers caught once. The labels also tell you which
 watchdog is earning its keep before you enforce. All of them are readable with
 the `wget` line above.
 
+**A ban is the only thing those two count, so a day with no ban reads as
+nothing.** On 2026-09-14 a bot attack produced zero bans and no sign of how
+close the watchdogs came. Two series fill that gap, both labelled
+`{watchdog, level}` with `level` `suspect` or `certain`:
+
+```bash
+docker compose exec backend wget -qO- localhost:8080/metrics | grep antibot_opinions
+```
+
+- `antibot_opinions_total` counts **rises**: a watchdog's reading of a caller
+  reaching a level it has not held within `jury.suspicionWindow` (10m). A
+  reading flapping across a bound counts once a window, not once a click; one
+  that lapses and comes back counts again.
+- `antibot_opinions_standing` is how many callers each watchdog reads at that
+  level right now, set once a minute by the jury's sweep.
+
+**Levels are cumulative**: `suspect` includes every `certain`, so
+`suspect − certain` is the near misses. `antibot_opinions_total{watchdog="sequencer",level="suspect"} 30`
+with `shadowban_flags` still at 0 is thirty suspicions nobody corroborated — look
+at what the other watchdogs were reading on the same callers before loosening
+`jury.minSuspects`. The poller keeps both.
+
 Bans escalate: 24h for a first offence, 7 days for a second, 3 years from the
 third. A caller that keeps going while banned only extends the ban it has. Bans
 are saved to `bans.jsonl` on the `tile_state` volume, so a deploy keeps them.
+What the watchdogs are tracking is saved beside them, in `antibot-evidence.bin`,
+so a restart does not start their windows again; it keeps three days at most.
 
 See every ban:
 
@@ -579,6 +620,66 @@ It is not a Prometheus, deliberately: a real one is 80–150 MB resident beside 
 samples a day apart. If this ever needs `histogram_quantile` and proper
 reset-aware `rate()`, that is the moment to spend the memory — the poller is
 then deleted, not extended.
+
+### Reading the access log
+
+On 2026-09-14 a bot attack came through Cloudflare VPN addresses. Then `cp-caddy`
+was recreated, and `docker logs` kept 16 lines. There was no record of who sent
+what. So Caddy now writes every request as one JSON line to
+`/var/log/caddy/access.log` on the `caddy_logs` volume. A recreated container
+keeps it.
+
+- Caddy rolls the file at 100 MiB and gzips the old one. It deletes rolls older
+  than **14 days**, or past 150 rolls (about 1.5 GB) if an attack writes more.
+- The same lines still go to `docker logs cp-caddy`. That copy is lost on
+  recreate.
+- **The access log holds personal data**: client IPs, user agents, countries.
+  Like `chat.log`, 14 days is a policy decision. Shorten `roll_keep_for` in the
+  `Caddyfile` to hold less. The nightly backup does not copy this volume.
+- `X-Session-Token` is written as `REDACTED`. It is a bearer token. You can see
+  if a request had one, not what it was.
+
+Useful fields:
+
+| Field | What |
+|---|---|
+| `ts` | Unix seconds |
+| `request.client_ip` | The visitor, from `Cf-Connecting-Ip` (trusted only from Cloudflare ranges) |
+| `request.uri` | `/planet.v1.ClickService/Click`, etc. |
+| `status`, `duration` | HTTP status, seconds |
+| `request.headers["User-Agent"][0]` | User agent |
+| `request.headers["Cf-Ray"][0]` | Cloudflare request id |
+| `request.headers["Cf-Ipcountry"][0]` | Country Cloudflare placed the visitor in |
+
+Run these on the box, in the stack directory (`bootstrap.sh` installs `jq`).
+Every command starts with the same line, which reads the old rolls then the
+current file:
+
+```bash
+docker compose exec -T caddy sh -c 'zcat /var/log/caddy/*.gz 2>/dev/null; cat /var/log/caddy/access.log' > /tmp/access.jsonl
+```
+
+Top callers by `Click` count:
+
+```bash
+jq -r 'select(.request.uri == "/planet.v1.ClickService/Click") | .request.client_ip' /tmp/access.jsonl | sort | uniq -c | sort -rn | head -20
+```
+
+Status by path (query string cut off):
+
+```bash
+jq -r '"\(.status) \(.request.uri | sub("\\?.*"; ""))"' /tmp/access.jsonl | sort | uniq -c | sort -rn
+```
+
+Every request of one scope in a time range (UTC). For an IPv6 /64, change
+`.request.client_ip == $ip` to `(.request.client_ip | startswith($ip))` and give
+the prefix, `2001:db8:1:2:`:
+
+```bash
+jq -c --arg ip 203.0.113.7 --arg from 2026-09-14T06:00:00Z --arg to 2026-09-14T09:00:00Z 'select(.request.client_ip == $ip and .ts >= ($from | fromdate) and .ts < ($to | fromdate)) | {time: (.ts | todate), status, uri: .request.uri, ua: .request.headers["User-Agent"][0], ray: .request.headers["Cf-Ray"][0], country: .request.headers["Cf-Ipcountry"][0]}' /tmp/access.jsonl
+```
+
+`/tmp/access.jsonl` is a copy of the personal data. Delete it when you are done.
 
 ## 7. CI and the image registry
 
@@ -709,7 +810,7 @@ A psql shell: `docker compose exec postgres psql -U clickplanet`.
 ### Backups
 
 The nightly cron `bootstrap.sh` installs tars the `tile_state` volume, which
-holds the bans and the chat log. **The tile map in postgres is not backed up
+holds the ledger, bans, antibot evidence and chat log. **The tile map in postgres is not backed up
 yet.** For a copy by hand:
 
 ```bash
@@ -760,22 +861,58 @@ To go back: stop the backend (its last flush runs on the way down), then
 `truncate planet.tiles; insert into planet.tiles select * from planet.tiles_before_reassign;` in psql,
 then start it.
 
+### Paint random tiles of a country with a flag
+
+Paints `count` tiles with `flagCountryId`, starting on `areaCountryId`'s ground.
+Leave out `areaCountryId` to start anywhere on the map.
+Dry run first; it says how many tiles of the area do not wear the flag yet:
+
+```bash
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"flagCountryId":"dz","areaCountryId":"fr","count":500,"proximity":0.8,"dryRun":true}' http://127.0.0.1:8081/planet.v1.AdminService/PaintRandomTiles
+```
+
+- `proximity` goes from 0 to 1. 0 scatters the tiles over the whole country;
+  1 grows one patch. Between the two you get a few patches.
+- A patch can grow past the country's border. `outsideArea` says how many
+  tiles it took there.
+- A tile somebody takes while it runs stays theirs: `painted` can be below `picked`.
+- It is not undone by anything. Copy the table first, as for a reassign.
+- Every call is logged: `journalctl CONTAINER_NAME=cp-backend | grep "admin random paint"`.
+
 ### Find, ban and revert one player
 
 For a pattern you see on the map and no watchdog catches. A player is a
 **scope**: the address over IPv4, the /64 over IPv6.
 
-Who is painting the `ps` flag on Israel's ground, latest first (`limit` is 20
-when left out; leave out `areaCountryId` for the whole map):
+Who painted the `ps` flag on Israel's ground, held or painted over since,
+latest take first (`limit` is 20 when left out; leave out `areaCountryId` for
+the whole map):
 
 ```bash
 docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"flagCountryId":"ps","areaCountryId":"il"}' http://127.0.0.1:8081/planet.v1.AdminService/FindPlayers
 ```
 
-Each player has `scope`, `tiles` (how many of those tiles still wear its
-paint), `firstAt`, `lastAt`, and `banned`/`bannedUntil`/`offence` when a ban is
-running. It only knows takes since the last restart, and for 24h
-(`ledger.retention`).
+Who took the most tiles, over every flag and the whole map: most takes first,
+then most tiles held (`limit` is 20 when left out):
+
+```bash
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{}' http://127.0.0.1:8081/planet.v1.AdminService/TopPlayers
+```
+
+Each player has:
+
+- `scope`, `firstAt`, `lastAt`, `activeFor` (`lastAt` minus `firstAt`)
+- `tiles`: tiles it still holds — its take is the tile's latest and the paint is
+  still there
+- `takes`: every take it made, held or painted over since; a tile taken twice
+  counts twice
+- `tilesPerMinute` and `takesPerMinute`: each over `activeFor`, 0 for a single take
+- `banned`/`bannedUntil`/`offence` when a ban is running
+
+**High `takes` and `tiles` near zero is a bot being painted over as fast as it
+paints.** The ledger keeps takes for 72h (`ledger.retention`) and survives a
+restart. It keeps at most 4M takes (`ledgerStorage.maxTakes`); a busier stretch
+drops the oldest first and logs `the ledger is full`.
 
 Ban first, or the player repaints behind the revert. Leave out `duration` to
 take the ladder's step (24h, 7 days, 3 years); it counts as an offence either
@@ -795,12 +932,38 @@ Then revert, dry run first:
 docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"scope":"203.0.113.7","dryRun":true}' http://127.0.0.1:8081/planet.v1.AdminService/RevertPlayer
 ```
 
-- `touched` is every tile the player was last to take; `held` is those still
-  wearing its paint. Only `held` tiles change: each goes back to whoever held it
-  before the player, or to nobody. A tile somebody took since stays theirs.
+- `touched` is every tile the player took; `held` is those it still holds. Only
+  `held` tiles change. A tile somebody took since stays theirs.
+- Each goes back to what it held before the player's current run on it, or to
+  nobody. When another player retook the tile in between, it goes back to that
+  player's paint, not further: player il→ps, other ps→de, player de→ps gives
+  `de`.
 - Paced like the reassign, each tile an ordinary update on the live stream.
 - A second run answers zeros: a reverted player has nothing left to revert.
 - Every ban and revert is logged: `journalctl CONTAINER_NAME=cp-backend | grep "admin ban\|admin player revert"`.
+
+### See how close the antibot is to one player
+
+The `antibot ban` log line is only written when a ban fires. To see where a
+player stands before that, inspect its scope (an address is read as its scope).
+It changes nothing and is not logged:
+
+```bash
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"scope":"203.0.113.7"}' http://127.0.0.1:8081/planet.v1.AdminService/InspectPlayer
+```
+
+- `readings` has one entry per watchdog: `level` is `clear`, `suspect` or
+  `certain`, and `evidence` is the rule and its numbers, as the ban line writes
+  them. A `clear` watchdog has no evidence. A verdict older than
+  `antiBot.jury.suspicionWindow` reads `clear`.
+- `suspects` against `minSuspects`, and `guilty`: what the jury would decide if
+  the player clicked now. One `certain` is enough alone.
+- `clicks`, `activeFor`, `longestGap`, `lastClickAt`, `topCountry`: the same
+  summary the ban line carries.
+- `banned`, `bannedUntil`, `offence`, `flags` when a ban is running, enforced or not.
+- `"tracked":false` means the jury has not seen the scope in
+  `antiBot.jury.trackWindow`: it is not clicking now, or not from this scope.
+- With `antiBot.enabled` off it is refused: `server returned error: HTTP/1.1 400`. A bad scope is refused the same way.
 
 ## Rollback
 

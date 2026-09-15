@@ -51,12 +51,13 @@ func build(config Config, props cpbootstrap.Props) error {
 	}
 
 	storage := memory_chat_storage.New(config.Storage, cptime.SystemClock{}, props.Logger)
-	props.Runners.Add("chat-storage", storage.Run)
+	storage.LoadLog()
+	props.Runners.Add(storage)
 
 	service := chat_service.New(storage, cpcountries.New(), cptime.SystemClock{}, serviceConfig)
 
-	messageLimiter := cpratelimit.New(config.RateLimiter, cptime.SystemClock{})
-	props.Runners.Add("message-limiter", messageLimiter.Run)
+	messageLimiter := cpratelimit.New("message-limiter", config.RateLimiter, cptime.SystemClock{})
+	props.Runners.Add(messageLimiter)
 
 	blocklist, err := cpipblock.NewDenyList(config.BlockedIPs)
 	if err != nil {
