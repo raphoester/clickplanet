@@ -3,7 +3,6 @@ package antibot_test
 import (
 	"context"
 	"math/rand/v2"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -12,17 +11,25 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/evidence"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/shadowban"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-// The whole thing built the way internal/planet builds it — through the one
-// published constructor, with the bounds cmd/api ships — and driven by callers
-// that behave the way the real ones do.
+// The whole thing built the way internal/planet builds it — with the bounds
+// cmd/api ships, its bans and evidence kept in memory rather than postgres —
+// and driven by callers that behave the way the real ones do.
 type stack struct {
 	guard  *antibot.Guard
 	clock  *cptime.FixedClock
 	config antibot.Config
 	stop   func()
+
+	bans     *shadowban.MemoryPersistence
+	evidence *evidence.MemoryPersistence
+	// forgetEvidence starts every boot with nothing stored, as a process without persistence would.
+	forgetEvidence bool
 
 	owner   map[uint32]string
 	reports []antibot.Report
@@ -32,8 +39,10 @@ type stack struct {
 
 func newStack(options ...func(*antibot.Config)) *stack {
 	s := &stack{
-		clock: cptime.NewFixedClock(time.Date(2026, 9, 11, 2, 0, 0, 0, time.UTC)),
-		owner: map[uint32]string{},
+		clock:    cptime.NewFixedClock(time.Date(2026, 9, 11, 2, 0, 0, 0, time.UTC)),
+		owner:    map[uint32]string{},
+		bans:     shadowban.NewMemoryPersistence(),
+		evidence: evidence.NewMemoryPersistence(),
 	}
 
 	config := antibot.Config{Enabled: true}
@@ -102,17 +111,23 @@ func newStack(options ...func(*antibot.Config)) *stack {
 func (s *stack) boot() {
 	started := make(chan struct{})
 
-	guard, err := antibot.New(s.config, s.clock, antibot.Observer{
+	if s.forgetEvidence {
+		s.evidence = evidence.NewMemoryPersistence()
+	}
+
+	guard, err := antibot.NewInMemory(s.config, s.clock, antibot.Observer{
 		OnFlag:       func(report antibot.Report) { s.reports = append(s.reports, report) },
 		OnRise:       func(watchdog, level string) { s.rises = append(s.rises, watchdog+" "+level) },
 		OnStateError: func(err error) { s.errors = append(s.errors, err) },
 		OnStart:      func(antibot.Description) { close(started) },
-	})
+	}, s.bans, s.evidence)
 	if err != nil {
 		panic(err)
 	}
 
-	guard.LoadState()
+	if err := guard.LoadState(context.Background()); err != nil {
+		panic(err)
+	}
 	s.guard = guard
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -534,7 +549,7 @@ func TestTwoFriendsJoiningAFlagWarAreNotBanned(t *testing.T) {
 }
 
 func TestWithTheBlockOffTheGuardPassesEveryClick(t *testing.T) {
-	guard, err := antibot.New(antibot.Config{}, nil, antibot.Observer{})
+	guard, err := antibot.New(antibot.Config{}, cptime.SystemClock{}, antibot.Observer{})
 	require.NoError(t, err)
 
 	assert.False(t, guard.Enabled())
@@ -546,12 +561,8 @@ func TestWithTheBlockOffTheGuardPassesEveryClick(t *testing.T) {
 func TestALoopRestartedEveryFewMinutesIsStillCaught(t *testing.T) {
 	for name, persisted := range map[string]bool{"with the evidence saved": true, "in memory": false} {
 		t.Run(name, func(t *testing.T) {
-			dir := t.TempDir()
-			s := newStack(func(config *antibot.Config) {
-				if persisted {
-					config.Evidence.StatePath = filepath.Join(dir, "evidence.bin")
-				}
-			})
+			s := newStack()
+			s.forgetEvidence = !persisted
 			defer func() { s.stop() }()
 
 			//nolint:gosec // G404: deterministic PRNG, seeded per test so the click
@@ -603,14 +614,14 @@ func TestExaminingABannedScopeCarriesItsSentence(t *testing.T) {
 }
 
 func TestAGuardThatIsOffExaminesNothing(t *testing.T) {
-	guard, err := antibot.New(antibot.Config{}, nil, antibot.Observer{})
+	guard, err := antibot.New(antibot.Config{}, cptime.SystemClock{}, antibot.Observer{})
 	require.NoError(t, err)
 
 	assert.Equal(t, antibot.Examination{Scope: "player"}, guard.Examine("player"))
 }
 
 func TestValidateNamesTheCohortBoundItRefuses(t *testing.T) {
-	config := antibot.Config{Enabled: true}
+	config := antibot.Config{Enabled: true, Database: database()}
 	config.Cohort.Enabled = true
 	config.Cohort.Detector.MinMembers = 1
 
@@ -621,4 +632,27 @@ func TestValidateNamesTheCohortBoundItRefuses(t *testing.T) {
 
 	config.Cohort.Enabled = false
 	assert.NoError(t, config.Validate(), "a watchdog that is off has no bounds to get wrong")
+}
+
+func database() cppg.Config {
+	return cppg.Config{Host: "postgres", Port: "5432", User: "clickplanet", DBName: "clickplanet", SSLMode: "disable", Schema: "antibot"}
+}
+
+func TestValidateRefusesAnEnabledGuardWithNoDatabase(t *testing.T) {
+	err := antibot.Config{Enabled: true}.Validate()
+
+	require.ErrorContains(t, err, "antiBot.database")
+	assert.NoError(t, antibot.Config{}.Validate(), "a guard that is off stores nothing")
+}
+
+func TestBansSurviveARestart(t *testing.T) {
+	s := newStack()
+
+	s.clock.Advance(time.Second)
+	s.guard.Ban("1.2.3.4", time.Hour)
+	s.restart(20 * time.Second)
+	defer func() { s.stop() }()
+
+	require.Empty(t, s.errors)
+	assert.True(t, s.guard.Banned("1.2.3.4"))
 }

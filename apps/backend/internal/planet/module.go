@@ -189,7 +189,10 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			// With the antibot off the guard drops nothing: the click passes, BanPlayer
 			// refuses, FindPlayers says nothing of bans and a bomb is never a dud.
-			guard.LoadState()
+			// On, it connects to its own schema here, and its runner closes that pool after the last flush.
+			if err := guard.LoadState(ctx); err != nil {
+				return fmt.Errorf("failed to load the antibot state: %w", err)
+			}
 			props.Runners.Add(guard)
 
 			clickUseCase = antibot_click.New(clickUseCase, guard, tilesStorage, clock, props.Metrics)

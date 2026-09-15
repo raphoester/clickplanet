@@ -1,8 +1,8 @@
 # Production backend config for the VPS stack.
 #
 # The API holds the whole tile map in process and keeps it in the postgres
-# service of docker-compose.yaml, with the ledger and the chat. Bans and antibot evidence are still files on the
-# tile_state volume.
+# service of docker-compose.yaml, with the ledger and the chat, and so does the antibot keep its bans and
+# evidence. The tile_state volume only holds the pre-postgres files the first boot imports.
 
 httpServer:
   bindAddress: 0.0.0.0:8080
@@ -83,6 +83,19 @@ vpnBlocklist:
 antiBot:
   enabled: true
 
+  # The same postgres and user as the planet, in the antibot schema. The
+  # password comes from the environment (antiBot.database.password in
+  # docker-compose.yaml), never from this file.
+  database:
+    host: postgres
+    port: "5432"
+    user: clickplanet
+    dbName: clickplanet
+    sslMode: disable # the compose network, never the internet
+    schema: antibot
+    pool:
+      maxOpenConns: 2
+
   shadowBan:
     # On since the measuring pass: the sequencer earned it. A caller tracking
     # tile id N+1 for 150 of 200 steps is following a geodesic across the map —
@@ -94,9 +107,11 @@ antiBot:
     # going while banned only extends its ban; a new offence is a ban that starts
     # fresh. Offences are never forgotten.
     banDurations: [24h, 168h, 26280h]
-    # On the tile_state volume, so a deploy does not free every banned caller.
-    # Unban one scope: stop the backend, delete its line, start it again.
-    statePath: /home/app/state/bans.jsonl
+    # In postgres (antibot.bans), so a deploy does not free every banned caller.
+    # Unban one scope: see "Unban one scope" in the README.
+    # The pre-postgres file. The first boot imports it into an empty bans table
+    # and renames it bans.jsonl.imported. Remove this key once that has happened.
+    legacyStatePath: /home/app/state/bans.jsonl
     # Matches the widest watchdog trackWindow, so each repeat flag rests on
     # evidence the previous one never saw. Watch the flags= count climb on a
     # caller: one flag is a window, six is a pattern.
@@ -113,12 +128,14 @@ antiBot:
     trackWindow: 15m
     sweepInterval: 1m
 
-  # On the tile_state volume too. On 2026-09-14 the API restarted 23 times,
+  # In postgres too (antibot.evidence). On 2026-09-14 the API restarted 23 times,
   # every 5-10 minutes, and with this in memory no 10m, 15m or 30m window ever
-  # filled, so nothing was banned. Delete the file with the backend stopped to
+  # filled, so nothing was banned. Delete its rows with the backend stopped to
   # start every watchdog from nothing.
   evidence:
-    statePath: /home/app/state/antibot-evidence.bin
+    # The pre-postgres file, imported once like the bans. Remove this key once
+    # it is renamed antibot-evidence.bin.imported.
+    legacyStatePath: /home/app/state/antibot-evidence.bin
     saveInterval: 1m
     retention: 72h
 
