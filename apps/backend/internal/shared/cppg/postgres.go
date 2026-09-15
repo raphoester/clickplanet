@@ -12,6 +12,8 @@ import (
 	"log/slog"
 	"net/url"
 	"regexp"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/golang-migrate/migrate/v4"
@@ -232,19 +234,31 @@ func (p *Postgres) Migrate(ctx context.Context, migrations fs.FS) error {
 	return nil
 }
 
-// CloseAfter runs runner, then closes the pool: a runner's last write happens when it stops, after the closers have run.
-func CloseAfter(runner cpbootstrap.Runner, db *Postgres, logger *slog.Logger) cpbootstrap.Runner {
-	return closeAfter{Runner: runner, db: db, logger: logger}
+// CloseAfter runs the runners, then closes the pool: a runner's last write happens when it stops, after the closers have run.
+func CloseAfter(db *Postgres, logger *slog.Logger, runners ...cpbootstrap.Runner) cpbootstrap.Runner {
+	return closeAfter{runners: runners, db: db, logger: logger}
 }
 
 type closeAfter struct {
-	cpbootstrap.Runner
-	db     *Postgres
-	logger *slog.Logger
+	runners []cpbootstrap.Runner
+	db      *Postgres
+	logger  *slog.Logger
+}
+
+func (c closeAfter) Name() string {
+	names := make([]string, len(c.runners))
+	for i, runner := range c.runners {
+		names[i] = runner.Name()
+	}
+	return strings.Join(names, "+")
 }
 
 func (c closeAfter) Run(ctx context.Context) {
-	c.Runner.Run(ctx)
+	var wg sync.WaitGroup
+	for _, runner := range c.runners {
+		wg.Go(func() { runner.Run(ctx) })
+	}
+	wg.Wait()
 
 	if err := c.db.Close(); err != nil {
 		c.logger.Error("failed to close a postgres pool", slog.String("runner", c.Name()), slog.Any("error", err))

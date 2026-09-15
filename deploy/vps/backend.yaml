@@ -1,7 +1,7 @@
 # Production backend config for the VPS stack.
 #
 # The API holds the whole tile map in process and keeps it in the postgres
-# service of docker-compose.yaml. The ledger, bans, antibot evidence and the chat log are still files on the
+# service of docker-compose.yaml, with the ledger. Bans, antibot evidence and the chat log are still files on the
 # tile_state volume.
 
 httpServer:
@@ -34,15 +34,16 @@ tilesStorage:
 ledger:
   retention: 72h
 
-# Saved on the tile_state volume beside the snapshot, so a deploy keeps it.
-# 4M takes is ~85 MiB in memory and a ~75 MiB file, which grows to at most
-# twice that before it is written again whole: three days at ~15 takes a
-# second. A busier stretch drops the oldest takes first and logs "the ledger is
-# full".
+# Kept in postgres beside the tile map; new takes are written every second.
+# 4M takes is ~85 MiB in memory: three days at ~15 takes a second. A busier
+# stretch drops the oldest takes first and logs "the ledger is full".
 ledgerStorage:
-  statePath: /home/app/state/ledger.bin
-  saveInterval: 1m
+  flushInterval: 1s
   maxTakes: 4000000
+  # The ledger file from before postgres. The first boot imports it into empty
+  # ledger tables and renames it ledger.bin.imported. Remove this key once that
+  # has happened.
+  legacyStatePath: /home/app/state/ledger.bin
 
 # Per-caller throttle on the Click RPC. Keyed on the address Caddy puts in
 # X-Real-IP, which is Cloudflare's Cf-Connecting-Ip — the real visitor — over
