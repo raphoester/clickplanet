@@ -5,8 +5,6 @@ import "time"
 type Config struct {
 	FlushInterval time.Duration
 
-	LegacySnapshotPath string
-
 	SubscriberBuffer int
 }
 

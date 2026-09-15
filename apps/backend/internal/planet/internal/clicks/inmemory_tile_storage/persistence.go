@@ -50,15 +50,6 @@ func (s *Storage) Load(ctx context.Context) error {
 		s.logger.Warn("stored tiles past the end of the map were ignored", slog.Int("tiles", outside))
 	}
 
-	if owned == 0 {
-		return s.importLegacySnapshotLocked()
-	}
-
-	if s.config.LegacySnapshotPath != "" && fileExists(s.config.LegacySnapshotPath) {
-		s.logger.Warn("a legacy tile snapshot is still on disk but postgres already holds the map, ignoring it",
-			slog.String("path", s.config.LegacySnapshotPath))
-	}
-
 	s.logger.Info("loaded the tile map", slog.Int("ownedTiles", owned), slog.Int("countryCodes", len(s.codes)-1))
 
 	return nil
@@ -106,8 +97,6 @@ func (s *Storage) Flush(ctx context.Context) error {
 
 		return fmt.Errorf("failed to save %d tiles: %w", len(tiles), err)
 	}
-
-	s.retireLegacySnapshot()
 
 	return nil
 }
