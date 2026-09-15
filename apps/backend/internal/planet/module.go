@@ -47,6 +47,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/reassign_country_usecase/audit_reassign"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/postgres_ledger_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/ban_player_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/ban_player_usecase/audit_ban"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/find_players_usecase"
@@ -130,12 +131,15 @@ func NewModule(config Config) cpbootstrap.Module {
 				_ = db.Close()
 				return fmt.Errorf("failed to load the tile map: %w", err)
 			}
-			// The pool closes after the runner's last flush, not as a closer: closers run first.
-			props.Runners.Add(cppg.CloseAfter(tilesStorage, db, props.Logger))
 
-			takings := inmemory_ledger_storage.New(config.LedgerStorage, props.Logger)
-			takings.LoadState()
-			props.Runners.Add(takings)
+			takings := inmemory_ledger_storage.New(config.LedgerStorage, postgres_ledger_store.New(db), props.Logger)
+			if err := takings.Load(ctx); err != nil {
+				_ = db.Close()
+				return fmt.Errorf("failed to load the ledger: %w", err)
+			}
+
+			// The pool closes after both runners' last flush, not as a closer: closers run first.
+			props.Runners.Add(cppg.CloseAfter(db, props.Logger, tilesStorage, takings))
 			props.Runners.Add(ledger.NewRetention(config.Ledger, takings, clock))
 
 			limiter := cpratelimit.New("click-limiter", config.RateLimiter, clock)

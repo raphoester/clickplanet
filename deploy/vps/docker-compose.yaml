@@ -119,8 +119,8 @@ services:
       antiBot.database.password: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env (openssl rand -hex 32)}
     volumes:
       - ./backend.yaml:/home/app/config/config.yaml:ro
-      # The ledger and chat log still live here. The old bans and evidence files are
-      # imported into postgres on the first boot and left beside them with an .imported suffix.
+      # The chat log still lives here. The old ledger, bans and evidence files are
+      # imported into postgres on the first boot and left beside it with an .imported suffix.
       - tile_state:/home/app/state
     command: [ "./api", "-config", "/home/app/config/config.yaml" ]
     # journald, not the default json-file. json-file is stored per container id,
