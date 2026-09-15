@@ -44,8 +44,9 @@ func TestEachSchemaHoldsItsOwnTablesAndMigrationHistory(t *testing.T) {
 	}
 	ctx := t.Context()
 
-	first := cppg.ForTests(t, "first", migrations)
-	second := cppg.ForTests(t, "second", migrations)
+	server := cppg.StartTestServer(t)
+	first := server.OpenSchema(t, "first", migrations)
+	second := server.OpenSchema(t, "second", migrations)
 
 	_, err := first.ExecContext(ctx, `INSERT INTO things VALUES (1)`)
 	require.NoError(t, err)

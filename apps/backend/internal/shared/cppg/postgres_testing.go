@@ -8,7 +8,6 @@ import (
 	"io/fs"
 	"net"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -19,61 +18,43 @@ import (
 
 const testImage = "postgres:16-alpine"
 
-// One container per test binary; the testcontainers reaper removes it on exit.
-var shared struct {
-	once    sync.Once
-	config  Config
-	err     error
-	mu      sync.Mutex
-	schemas map[string]*Postgres
+// TestServer is a postgres in a container, for the tests of one suite.
+type TestServer struct {
+	config Config
 }
 
-// ForTests hands back a client inside schema, migrated once per binary, with every table emptied. Call it from SetupTest; it needs Docker.
-func ForTests(t testing.TB, schema string, migrations fs.FS) *Postgres {
+// StartTestServer starts a container and stops it when t ends. Call it from SetupSuite; it needs Docker.
+func StartTestServer(t testing.TB) *TestServer {
 	t.Helper()
 
-	shared.once.Do(startShared)
-	require.NoError(t, shared.err, "failed to start the test postgres")
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Minute)
+	defer cancel()
+
+	container, err := startContainer(ctx)
+	testcontainers.CleanupContainer(t, container)
+	require.NoError(t, err, "failed to start the test postgres")
+
+	endpoint, err := container.PortEndpoint(ctx, "5432", "")
+	require.NoError(t, err, "failed to get the test postgres endpoint")
+
+	config, err := configFor(endpoint)
+	require.NoError(t, err, "failed to read the test postgres endpoint")
+
+	return &TestServer{config: config}
+}
+
+// OpenSchema connects inside schema and migrates it. The client closes when t ends.
+func (s *TestServer) OpenSchema(t testing.TB, schema string, migrations fs.FS) *Postgres {
+	t.Helper()
 
 	ctx, cancel := context.WithTimeout(t.Context(), time.Minute)
 	defer cancel()
 
-	shared.mu.Lock()
-	defer shared.mu.Unlock()
-
-	client, ok := shared.schemas[schema]
-	if !ok {
-		var err error
-		client, err = openSchema(ctx, shared.config, schema, migrations)
-		require.NoError(t, err, "failed to open the test schema")
-		shared.schemas[schema] = client
-	}
-
-	require.NoError(t, client.purge(ctx), "failed to purge the test postgres")
+	client, err := openSchema(ctx, s.config, schema, migrations)
+	require.NoError(t, err, "failed to open the test schema")
+	t.Cleanup(func() { _ = client.Close() })
 
 	return client
-}
-
-// startShared starts the container and records how to reach it, once per binary.
-func startShared() {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-	defer cancel()
-
-	shared.schemas = map[string]*Postgres{}
-
-	container, err := startContainer(ctx)
-	if err != nil {
-		shared.err = err
-		return
-	}
-
-	endpoint, err := container.PortEndpoint(ctx, "5432", "")
-	if err != nil {
-		shared.err = fmt.Errorf("failed to get container endpoint: %w", err)
-		return
-	}
-
-	shared.config, shared.err = configFor(endpoint)
 }
 
 func startContainer(ctx context.Context) (testcontainers.Container, error) {
@@ -134,8 +115,8 @@ func openSchema(ctx context.Context, config Config, schema string, migrations fs
 	return client, nil
 }
 
-// purge empties every table in the client's schema but migrate's own.
-func (p *Postgres) purge(ctx context.Context) error {
+// Purge empties every table in the client's schema but migrate's own. Call it from SetupTest.
+func (p *Postgres) Purge(ctx context.Context) error {
 	rows, err := p.QueryContext(ctx, `
 		SELECT quote_ident(table_schema) || '.' || quote_ident(table_name)
 		FROM information_schema.tables

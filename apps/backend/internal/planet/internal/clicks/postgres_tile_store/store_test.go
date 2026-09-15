@@ -21,9 +21,13 @@ type testSuite struct {
 	store *postgres_tile_store.Store
 }
 
-func (s *testSuite) SetupTest() {
-	s.db = cppg.ForTests(s.T(), "planet", migrations.FS)
+func (s *testSuite) SetupSuite() {
+	s.db = cppg.StartTestServer(s.T()).OpenSchema(s.T(), "planet", migrations.FS)
 	s.store = postgres_tile_store.New(s.db)
+}
+
+func (s *testSuite) SetupTest() {
+	s.Require().NoError(s.db.Purge(s.T().Context()))
 }
 
 func (s *testSuite) load() map[uint32]string {
