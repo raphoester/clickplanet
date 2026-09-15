@@ -1,6 +1,7 @@
 package inmemory_tile_storage_test
 
 import (
+	"bytes"
 	"context"
 	"encoding/binary"
 	"hash/crc32"
@@ -50,7 +51,7 @@ func (s *testSuite) writeLegacySnapshot(raw []byte) string {
 func (s *testSuite) TestALegacySnapshotIsImportedIntoAnEmptyTable() {
 	ctx := context.Background()
 	path := s.writeLegacySnapshot(legacySnapshot(maxIndex, map[uint32]string{1: "fr", 2: "us", maxIndex: "fr"}))
-	persistence := newFakePersistence()
+	persistence := inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{})
 	storage := s.newStorageOn(inmemory_tile_storage.Config{LegacySnapshotPath: path}, persistence)
 
 	s.Require().NoError(storage.Load(ctx))
@@ -63,7 +64,7 @@ func (s *testSuite) TestALegacySnapshotIsImportedIntoAnEmptyTable() {
 
 	s.Require().NoError(storage.Flush(ctx))
 
-	s.Equal(map[uint32]string{1: "fr", 2: "us", maxIndex: "fr"}, persistence.stored())
+	s.Equal(map[uint32]string{1: "fr", 2: "us", maxIndex: "fr"}, persistence.Stored())
 	s.NoFileExists(path)
 	s.FileExists(path + ".imported")
 }
@@ -71,11 +72,11 @@ func (s *testSuite) TestALegacySnapshotIsImportedIntoAnEmptyTable() {
 func (s *testSuite) TestALegacySnapshotIsKeptWhileTheImportCannotBeWritten() {
 	ctx := context.Background()
 	path := s.writeLegacySnapshot(legacySnapshot(maxIndex, map[uint32]string{1: "fr"}))
-	persistence := newFakePersistence()
+	persistence := inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{})
 	storage := s.newStorageOn(inmemory_tile_storage.Config{LegacySnapshotPath: path}, persistence)
 	s.Require().NoError(storage.Load(ctx))
 
-	persistence.fail(os.ErrDeadlineExceeded)
+	persistence.FailWith(os.ErrDeadlineExceeded)
 	s.Require().Error(storage.Flush(ctx))
 
 	s.FileExists(path, "a crash now must be able to import it again")
@@ -83,8 +84,7 @@ func (s *testSuite) TestALegacySnapshotIsKeptWhileTheImportCannotBeWritten() {
 
 func (s *testSuite) TestALegacySnapshotIsIgnoredOncePostgresHoldsTiles() {
 	path := s.writeLegacySnapshot(legacySnapshot(maxIndex, map[uint32]string{1: "fr"}))
-	persistence := newFakePersistence()
-	persistence.rows = map[uint32]string{5: "de"}
+	persistence := inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{5: "de"})
 	storage := s.newStorageOn(inmemory_tile_storage.Config{LegacySnapshotPath: path}, persistence)
 
 	s.Require().NoError(storage.Load(context.Background()))
@@ -97,7 +97,7 @@ func (s *testSuite) TestALegacySnapshotIsIgnoredOncePostgresHoldsTiles() {
 
 func (s *testSuite) TestNoLegacySnapshotStartsEmpty() {
 	path := filepath.Join(s.T().TempDir(), "does-not-exist.snapshot")
-	storage := s.newStorageOn(inmemory_tile_storage.Config{LegacySnapshotPath: path}, newFakePersistence())
+	storage := s.newStorageOn(inmemory_tile_storage.Config{LegacySnapshotPath: path}, inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{}))
 
 	s.Require().NoError(storage.Load(context.Background()))
 
@@ -107,8 +107,8 @@ func (s *testSuite) TestNoLegacySnapshotStartsEmpty() {
 }
 
 func (s *testSuite) TestALegacySnapshotOfAnEmptyMapIsRetiredAtOnce() {
-	path := s.writeLegacySnapshot(legacySnapshot(maxIndex, nil))
-	storage := s.newStorageOn(inmemory_tile_storage.Config{LegacySnapshotPath: path}, newFakePersistence())
+	path := s.writeLegacySnapshot(legacySnapshot(maxIndex, map[uint32]string{}))
+	storage := s.newStorageOn(inmemory_tile_storage.Config{LegacySnapshotPath: path}, inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{}))
 
 	s.Require().NoError(storage.Load(context.Background()))
 
@@ -119,7 +119,7 @@ func (s *testSuite) TestALegacySnapshotOfAnEmptyMapIsRetiredAtOnce() {
 func (s *testSuite) TestALegacySnapshotOfABiggerMapImportsTheOverlap() {
 	path := s.writeLegacySnapshot(legacySnapshot(1_000, map[uint32]string{10: "fr", 900: "us"}))
 	storage := inmemory_tile_storage.New(100, inmemory_tile_storage.Config{LegacySnapshotPath: path},
-		newFakePersistence(), slog.New(slog.DiscardHandler))
+		inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{}), slog.New(slog.DiscardHandler))
 
 	s.Require().NoError(storage.Load(context.Background()))
 
@@ -137,12 +137,12 @@ func (s *testSuite) TestACorruptLegacySnapshotRefusesTheBoot() {
 		"bad magic":           append([]byte("NOTATILE"), valid[8:]...),
 		"truncated body":      valid[:len(valid)-10],
 		"flipped byte": func() []byte {
-			raw := append([]byte(nil), valid...)
+			raw := bytes.Clone(valid)
 			raw[len(raw)-1] ^= 0xff
 			return raw
 		}(),
 		"unknown version": func() []byte {
-			raw := append([]byte(nil), valid...)
+			raw := bytes.Clone(valid)
 			raw[8] = 99
 			return raw
 		}(),
@@ -151,7 +151,7 @@ func (s *testSuite) TestACorruptLegacySnapshotRefusesTheBoot() {
 	for name, raw := range corruptions {
 		s.Run(name, func() {
 			path := s.writeLegacySnapshot(raw)
-			storage := s.newStorageOn(inmemory_tile_storage.Config{LegacySnapshotPath: path}, newFakePersistence())
+			storage := s.newStorageOn(inmemory_tile_storage.Config{LegacySnapshotPath: path}, inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{}))
 
 			s.Require().ErrorContains(storage.Load(context.Background()), "corrupt snapshot")
 			s.FileExists(path)

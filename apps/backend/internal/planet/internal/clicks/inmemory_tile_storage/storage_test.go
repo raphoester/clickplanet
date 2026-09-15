@@ -26,12 +26,12 @@ const maxIndex = 100_000
 
 func (s *testSuite) SetupSuite() {
 	s.NewStorage = func(maxIndex uint32) clicks.TileStorage {
-		return inmemory_tile_storage.New(maxIndex, inmemory_tile_storage.Config{}, newFakePersistence(), slog.New(slog.DiscardHandler))
+		return inmemory_tile_storage.New(maxIndex, inmemory_tile_storage.Config{}, inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{}), slog.New(slog.DiscardHandler))
 	}
 }
 
 func (s *testSuite) newStorage(cfg inmemory_tile_storage.Config) *inmemory_tile_storage.Storage {
-	return s.newStorageOn(cfg, newFakePersistence())
+	return s.newStorageOn(cfg, inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{}))
 }
 
 func (s *testSuite) newStorageOn(cfg inmemory_tile_storage.Config, persistence inmemory_tile_storage.Persistence) *inmemory_tile_storage.Storage {

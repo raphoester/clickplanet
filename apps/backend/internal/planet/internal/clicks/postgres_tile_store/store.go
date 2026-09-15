@@ -3,6 +3,7 @@ package postgres_tile_store
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 
 	"github.com/lib/pq"
@@ -66,7 +67,7 @@ func (s *Store) Save(ctx context.Context, tiles []uint32, owners []string) error
 		takenBy = append(takenBy, owners[i])
 	}
 
-	tx, err := s.db.BeginTx(ctx, nil)
+	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to save tiles: %w", err)
 	}

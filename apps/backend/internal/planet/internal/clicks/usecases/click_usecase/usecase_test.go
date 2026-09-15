@@ -29,7 +29,7 @@ func (s *testSuite) SetupSuite() {
 	s.storage = inmemory_tile_storage.New(
 		maxIndex,
 		inmemory_tile_storage.Config{},
-		nil,
+		inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{}),
 		slog.New(slog.DiscardHandler),
 	)
 	tileChecker := clicks.NewBoard(maxIndex)
