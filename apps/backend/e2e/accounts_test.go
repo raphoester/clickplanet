@@ -1,4 +1,5 @@
-package main
+// Package e2e_test boots several modules together, the way cmd/api does, and checks a path across them.
+package e2e_test
 
 import (
 	"context"
@@ -43,22 +44,21 @@ type accountsStack struct {
 func startAccountsStack(t *testing.T) accountsStack {
 	t.Helper()
 
-	var config Config
-	config.HTTPServer = cpbootstrap.ServerConfig{BindAddress: freeAddress(t), InternalBindAddress: freeAddress(t)}
-	config.Auth = auth.Config{Enabled: true, Database: cppg.StartTestServer(t).ConfigFor("auth")}
-	config.Session = session.Config{Config: cpsession.Config{Enabled: true, Secret: "a-test-secret", TTL: time.Hour}}
-	config.Session.RateLimiter.PerSecond = 100
-	config.Session.RateLimiter.Burst = 100
-	config.Session.Accounts.Enabled = true
+	server := cpbootstrap.ServerConfig{BindAddress: freeAddress(t), InternalBindAddress: freeAddress(t)}
+	authConfig := auth.Config{Enabled: true, Database: cppg.StartTestServer(t).ConfigFor("auth")}
+	sessionConfig := session.Config{Config: cpsession.Config{Enabled: true, Secret: "a-test-secret", TTL: time.Hour}}
+	sessionConfig.RateLimiter.PerSecond = 100
+	sessionConfig.RateLimiter.Burst = 100
+	sessionConfig.Accounts.Enabled = true
 
 	ctx, cancel := context.WithCancel(t.Context())
 	done := make(chan error, 1)
 	go func() {
 		done <- cpbootstrap.Run(ctx, cpbootstrap.Options{
-			Server:         config.HTTPServer,
+			Server:         server,
 			Logger:         slog.New(slog.DiscardHandler),
 			StartupTimeout: time.Minute,
-			Modules:        []cpbootstrap.Module{auth.NewModule(config.Auth), session.NewModule(config.Session)},
+			Modules:        []cpbootstrap.Module{auth.NewModule(authConfig), session.NewModule(sessionConfig)},
 		})
 	}()
 	t.Cleanup(func() {
@@ -67,7 +67,7 @@ func startAccountsStack(t *testing.T) accountsStack {
 	})
 
 	require.Eventually(t, func() bool {
-		conn, err := (&net.Dialer{}).DialContext(ctx, "tcp", config.HTTPServer.BindAddress)
+		conn, err := (&net.Dialer{}).DialContext(ctx, "tcp", server.BindAddress)
 		if err != nil {
 			return false
 		}
@@ -75,10 +75,10 @@ func startAccountsStack(t *testing.T) accountsStack {
 		return true
 	}, time.Minute, 50*time.Millisecond, "the server never came up")
 
-	signer, err := cpsession.NewSigner(config.Session.Config)
+	signer, err := cpsession.NewSigner(sessionConfig.Config)
 	require.NoError(t, err)
 
-	return accountsStack{address: "http://" + config.HTTPServer.BindAddress, signer: signer}
+	return accountsStack{address: "http://" + server.BindAddress, signer: signer}
 }
 
 func (s accountsStack) mint(t *testing.T, cookie string, createAccount bool) (uuid.UUID, *http.Cookie) {
