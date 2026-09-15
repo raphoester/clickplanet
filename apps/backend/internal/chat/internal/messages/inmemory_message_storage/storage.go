@@ -1,4 +1,4 @@
-package memory_chat_storage
+package inmemory_message_storage
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/domain"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -29,7 +29,7 @@ func New(
 		config:      config,
 		logger:      logger,
 		clock:       clock,
-		history:     make([]domain.ChatMessage, 0, config.HistorySize),
+		history:     make([]messages.Message, 0, config.HistorySize),
 		subscribers: make(map[*subscriber]struct{}),
 	}
 
@@ -42,7 +42,7 @@ type Storage struct {
 	clock  cptime.Clock
 
 	historyMu sync.RWMutex
-	history   []domain.ChatMessage
+	history   []messages.Message
 
 	subscribersMu sync.Mutex
 	subscribers   map[*subscriber]struct{}
@@ -52,11 +52,11 @@ type Storage struct {
 }
 
 type subscriber struct {
-	ch      chan domain.ChatMessage
+	ch      chan messages.Message
 	dropped atomic.Uint64
 }
 
-func (s *Storage) Append(_ context.Context, record domain.ChatRecord) error {
+func (s *Storage) Append(_ context.Context, record messages.Record) error {
 	if err := s.appendToLog(record); err != nil {
 		return fmt.Errorf("failed to write to the chat log: %w", err)
 	}
@@ -67,14 +67,14 @@ func (s *Storage) Append(_ context.Context, record domain.ChatRecord) error {
 	return nil
 }
 
-func (s *Storage) History(_ context.Context) []domain.ChatMessage {
+func (s *Storage) History(_ context.Context) []messages.Message {
 	s.historyMu.RLock()
 	defer s.historyMu.RUnlock()
 
-	return append(make([]domain.ChatMessage, 0, len(s.history)), s.history...)
+	return append(make([]messages.Message, 0, len(s.history)), s.history...)
 }
 
-func (s *Storage) remember(message domain.ChatMessage) {
+func (s *Storage) remember(message messages.Message) {
 	s.historyMu.Lock()
 	defer s.historyMu.Unlock()
 
@@ -85,8 +85,8 @@ func (s *Storage) remember(message domain.ChatMessage) {
 	s.history = append(s.history, message)
 }
 
-func (s *Storage) Subscribe(ctx context.Context) (<-chan domain.ChatMessage, error) {
-	sub := &subscriber{ch: make(chan domain.ChatMessage, s.config.SubscriberBuffer)}
+func (s *Storage) Subscribe(ctx context.Context) (<-chan messages.Message, error) {
+	sub := &subscriber{ch: make(chan messages.Message, s.config.SubscriberBuffer)}
 
 	s.subscribersMu.Lock()
 	s.subscribers[sub] = struct{}{}
@@ -107,7 +107,7 @@ func (s *Storage) Subscribe(ctx context.Context) (<-chan domain.ChatMessage, err
 
 const dropLogInterval = 100
 
-func (s *Storage) publish(message domain.ChatMessage) {
+func (s *Storage) publish(message messages.Message) {
 	s.subscribersMu.Lock()
 	defer s.subscribersMu.Unlock()
 

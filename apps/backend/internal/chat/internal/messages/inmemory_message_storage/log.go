@@ -1,4 +1,4 @@
-package memory_chat_storage
+package inmemory_message_storage
 
 import (
 	"bufio"
@@ -12,7 +12,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/domain"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomicfile"
 )
 
@@ -28,7 +28,7 @@ type logRecord struct {
 	Text      string    `json:"text"`
 }
 
-func toLogRecord(record domain.ChatRecord) logRecord {
+func toLogRecord(record messages.Record) logRecord {
 	return logRecord{
 		At:        record.Message.SentAt.UTC(),
 		ID:        record.Message.ID,
@@ -42,8 +42,8 @@ func toLogRecord(record domain.ChatRecord) logRecord {
 	}
 }
 
-func (r logRecord) toMessage() domain.ChatMessage {
-	return domain.ChatMessage{
+func (r logRecord) toMessage() messages.Message {
+	return messages.Message{
 		ID:         r.ID,
 		SentAt:     r.At,
 		AuthorName: r.Name,
@@ -142,7 +142,7 @@ func (s *Storage) LoadLog() {
 	s.log = &appendLog{file: file}
 }
 
-func (s *Storage) appendToLog(record domain.ChatRecord) error {
+func (s *Storage) appendToLog(record messages.Record) error {
 	s.logMu.Lock()
 	defer s.logMu.Unlock()
 

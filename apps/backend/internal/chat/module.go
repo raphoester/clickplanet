@@ -16,9 +16,14 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1/chatv1connect"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/adapters/primary/chatv1controller"
-	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/adapters/secondary/memory_chat_storage"
-	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/domain/chat_service"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/get_history_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/listen_for_events_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/send_message_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/inmemory_message_storage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/get_history_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/listen_for_events_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/send_message_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
@@ -50,11 +55,9 @@ func build(config Config, props cpbootstrap.Props) error {
 		props.Logger.Warn("no chat.service.tagSalt configured, generated a random one: sender tags will change on every restart")
 	}
 
-	storage := memory_chat_storage.New(config.Storage, cptime.SystemClock{}, props.Logger)
+	storage := inmemory_message_storage.New(config.Storage, cptime.SystemClock{}, props.Logger)
 	storage.LoadLog()
 	props.Runners.Add(storage)
-
-	service := chat_service.New(storage, cpcountries.New(), cptime.SystemClock{}, serviceConfig)
 
 	messageLimiter := cpratelimit.New("message-limiter", config.RateLimiter, cptime.SystemClock{})
 	props.Runners.Add(messageLimiter)
@@ -64,7 +67,13 @@ func build(config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to build the chat blocklist: %w", err)
 	}
 
-	chatService := chatv1controller.NewChatService(service, storage, props.Server.StreamHeartbeat)
+	chatService := chatv1controller.ChatService{
+		SendMessageHandler: send_message_handler.New(
+			send_message_usecase.New(storage, cpcountries.New(), cptime.SystemClock{}, serviceConfig)),
+		GetHistoryHandler: get_history_handler.New(get_history_usecase.New(storage)),
+		ListenForEventsHandler: listen_for_events_handler.New(
+			listen_for_events_usecase.New(storage, props.Server.StreamHeartbeat)),
+	}
 
 	err = props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return chatv1connect.NewChatServiceHandler(chatService, options...)
@@ -87,8 +96,9 @@ type Config struct {
 	// existing and erroring.
 	Enabled bool
 
-	Storage memory_chat_storage.Config
-	Service chat_service.Config
+	Storage inmemory_message_storage.Config
+	// Named Service, not SendMessage, so the chat.service.* keys stay the same.
+	Service send_message_usecase.Config
 
 	RateLimiter cpratelimit.Config
 

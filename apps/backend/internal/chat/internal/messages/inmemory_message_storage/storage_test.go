@@ -1,4 +1,4 @@
-package memory_chat_storage_test
+package inmemory_message_storage_test
 
 import (
 	"context"
@@ -12,8 +12,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/adapters/secondary/memory_chat_storage"
-	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/domain"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/inmemory_message_storage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/get_history_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/listen_for_events_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/send_message_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 	"github.com/stretchr/testify/suite"
 )
@@ -34,16 +37,16 @@ func (s *testSuite) SetupTest() {
 	s.logPath = filepath.Join(s.T().TempDir(), "chat.log")
 }
 
-func (s *testSuite) newStorage(config memory_chat_storage.Config) *memory_chat_storage.Storage {
+func (s *testSuite) newStorage(config inmemory_message_storage.Config) *inmemory_message_storage.Storage {
 	config.LogPath = s.logPath
-	storage := memory_chat_storage.New(config, s.clock, slog.New(slog.DiscardHandler))
+	storage := inmemory_message_storage.New(config, s.clock, slog.New(slog.DiscardHandler))
 	storage.LoadLog()
 	return storage
 }
 
-func (s *testSuite) record(text string) domain.ChatRecord {
-	return domain.ChatRecord{
-		Message: domain.ChatMessage{
+func (s *testSuite) record(text string) messages.Record {
+	return messages.Record{
+		Message: messages.Message{
 			ID:         text,
 			SentAt:     s.clock.Now(),
 			AuthorName: "Bob",
@@ -64,7 +67,7 @@ func (s *testSuite) readLog() string {
 }
 
 func (s *testSuite) TestAppendedMessagesShowUpInHistory() {
-	storage := s.newStorage(memory_chat_storage.Config{})
+	storage := s.newStorage(inmemory_message_storage.Config{})
 
 	s.Require().NoError(storage.Append(context.Background(), s.record("hello")))
 	s.Require().NoError(storage.Append(context.Background(), s.record("planet")))
@@ -76,7 +79,7 @@ func (s *testSuite) TestAppendedMessagesShowUpInHistory() {
 }
 
 func (s *testSuite) TestHistoryIsCapped() {
-	storage := s.newStorage(memory_chat_storage.Config{HistorySize: 3})
+	storage := s.newStorage(inmemory_message_storage.Config{HistorySize: 3})
 
 	for i := range 10 {
 		s.Require().NoError(storage.Append(context.Background(), s.record(fmt.Sprintf("msg-%d", i))))
@@ -89,7 +92,7 @@ func (s *testSuite) TestHistoryIsCapped() {
 }
 
 func (s *testSuite) TestHistoryIsACopy() {
-	storage := s.newStorage(memory_chat_storage.Config{})
+	storage := s.newStorage(inmemory_message_storage.Config{})
 	s.Require().NoError(storage.Append(context.Background(), s.record("hello")))
 
 	history := storage.History(context.Background())
@@ -99,18 +102,18 @@ func (s *testSuite) TestHistoryIsACopy() {
 }
 
 func (s *testSuite) TestSubscribersReceiveMessages() {
-	storage := s.newStorage(memory_chat_storage.Config{})
+	storage := s.newStorage(inmemory_message_storage.Config{})
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	messages, err := storage.Subscribe(ctx)
+	feed, err := storage.Subscribe(ctx)
 	s.Require().NoError(err)
 
 	s.Require().NoError(storage.Append(context.Background(), s.record("hello")))
 
 	select {
-	case message := <-messages:
+	case message := <-feed:
 		s.Equal("hello", message.Text)
 	case <-time.After(2 * time.Second):
 		s.T().Fatal("the subscriber never received the message")
@@ -118,16 +121,16 @@ func (s *testSuite) TestSubscribersReceiveMessages() {
 }
 
 func (s *testSuite) TestSubscriberChannelClosesWithItsContext() {
-	storage := s.newStorage(memory_chat_storage.Config{})
+	storage := s.newStorage(inmemory_message_storage.Config{})
 
 	ctx, cancel := context.WithCancel(context.Background())
-	messages, err := storage.Subscribe(ctx)
+	feed, err := storage.Subscribe(ctx)
 	s.Require().NoError(err)
 
 	cancel()
 
 	select {
-	case _, open := <-messages:
+	case _, open := <-feed:
 		s.False(open)
 	case <-time.After(2 * time.Second):
 		s.T().Fatal("the subscriber channel was never closed")
@@ -135,7 +138,7 @@ func (s *testSuite) TestSubscriberChannelClosesWithItsContext() {
 }
 
 func (s *testSuite) TestSlowSubscribersHaveMessagesDropped() {
-	storage := s.newStorage(memory_chat_storage.Config{SubscriberBuffer: 1})
+	storage := s.newStorage(inmemory_message_storage.Config{SubscriberBuffer: 1})
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -152,7 +155,7 @@ func (s *testSuite) TestSlowSubscribersHaveMessagesDropped() {
 }
 
 func (s *testSuite) TestTheSenderIPReachesTheLogButNotTheHistory() {
-	storage := s.newStorage(memory_chat_storage.Config{})
+	storage := s.newStorage(inmemory_message_storage.Config{})
 	s.Require().NoError(storage.Append(context.Background(), s.record("hello")))
 
 	s.Contains(s.readLog(), "203.0.113.7")
@@ -164,7 +167,7 @@ func (s *testSuite) TestTheSenderIPReachesTheLogButNotTheHistory() {
 }
 
 func (s *testSuite) TestOneLinePerMessage() {
-	storage := s.newStorage(memory_chat_storage.Config{})
+	storage := s.newStorage(inmemory_message_storage.Config{})
 
 	for i := range 3 {
 		s.Require().NoError(storage.Append(context.Background(), s.record(fmt.Sprintf("msg-%d", i))))
@@ -174,11 +177,11 @@ func (s *testSuite) TestOneLinePerMessage() {
 }
 
 func (s *testSuite) TestHistorySurvivesARestart() {
-	storage := s.newStorage(memory_chat_storage.Config{})
+	storage := s.newStorage(inmemory_message_storage.Config{})
 	s.Require().NoError(storage.Append(context.Background(), s.record("hello")))
 	storage.Run(cancelledContext())
 
-	restarted := s.newStorage(memory_chat_storage.Config{})
+	restarted := s.newStorage(inmemory_message_storage.Config{})
 
 	history := restarted.History(context.Background())
 	s.Require().Len(history, 1)
@@ -187,13 +190,13 @@ func (s *testSuite) TestHistorySurvivesARestart() {
 }
 
 func (s *testSuite) TestRestoreKeepsOnlyTheMostRecentHistory() {
-	storage := s.newStorage(memory_chat_storage.Config{})
+	storage := s.newStorage(inmemory_message_storage.Config{})
 	for i := range 10 {
 		s.Require().NoError(storage.Append(context.Background(), s.record(fmt.Sprintf("msg-%d", i))))
 	}
 	storage.Run(cancelledContext())
 
-	restarted := s.newStorage(memory_chat_storage.Config{HistorySize: 3})
+	restarted := s.newStorage(inmemory_message_storage.Config{HistorySize: 3})
 
 	history := restarted.History(context.Background())
 	s.Require().Len(history, 3)
@@ -201,14 +204,14 @@ func (s *testSuite) TestRestoreKeepsOnlyTheMostRecentHistory() {
 }
 
 func (s *testSuite) TestRestoreIgnoresMessagesPastRetention() {
-	storage := s.newStorage(memory_chat_storage.Config{})
+	storage := s.newStorage(inmemory_message_storage.Config{})
 	s.Require().NoError(storage.Append(context.Background(), s.record("ancient")))
 
 	s.clock.Advance(48 * time.Hour)
 	s.Require().NoError(storage.Append(context.Background(), s.record("recent")))
 	storage.Run(cancelledContext())
 
-	restarted := s.newStorage(memory_chat_storage.Config{Retention: 24 * time.Hour})
+	restarted := s.newStorage(inmemory_message_storage.Config{Retention: 24 * time.Hour})
 
 	history := restarted.History(context.Background())
 	s.Require().Len(history, 1)
@@ -218,7 +221,7 @@ func (s *testSuite) TestRestoreIgnoresMessagesPastRetention() {
 func (s *testSuite) TestACorruptLineCostsHistoryNotTheStart() {
 	s.Require().NoError(os.WriteFile(s.logPath, []byte("{not json\n"), 0o600))
 
-	storage := s.newStorage(memory_chat_storage.Config{})
+	storage := s.newStorage(inmemory_message_storage.Config{})
 
 	s.Empty(storage.History(context.Background()))
 	s.Require().NoError(storage.Append(context.Background(), s.record("hello")))
@@ -226,11 +229,11 @@ func (s *testSuite) TestACorruptLineCostsHistoryNotTheStart() {
 }
 
 func (s *testSuite) TestAppendingIsAppendingNotOverwriting() {
-	first := s.newStorage(memory_chat_storage.Config{})
+	first := s.newStorage(inmemory_message_storage.Config{})
 	s.Require().NoError(first.Append(context.Background(), s.record("hello")))
 	first.Run(cancelledContext())
 
-	second := s.newStorage(memory_chat_storage.Config{})
+	second := s.newStorage(inmemory_message_storage.Config{})
 	s.Require().NoError(second.Append(context.Background(), s.record("planet")))
 	second.Run(cancelledContext())
 
@@ -240,7 +243,7 @@ func (s *testSuite) TestAppendingIsAppendingNotOverwriting() {
 }
 
 func (s *testSuite) TestPruningDropsExpiredRecords() {
-	storage := s.newStorage(memory_chat_storage.Config{
+	storage := s.newStorage(inmemory_message_storage.Config{
 		Retention:     24 * time.Hour,
 		PruneInterval: time.Millisecond,
 		FlushInterval: time.Hour,
@@ -260,7 +263,7 @@ func (s *testSuite) TestPruningDropsExpiredRecords() {
 }
 
 func (s *testSuite) TestAppendingStillWorksAfterAPrune() {
-	storage := s.newStorage(memory_chat_storage.Config{
+	storage := s.newStorage(inmemory_message_storage.Config{
 		Retention:     24 * time.Hour,
 		PruneInterval: time.Millisecond,
 		FlushInterval: time.Millisecond,
@@ -275,13 +278,13 @@ func (s *testSuite) TestAppendingStillWorksAfterAPrune() {
 	s.Require().NoError(storage.Append(context.Background(), s.record("after-prune")))
 	stop()
 
-	restarted := s.newStorage(memory_chat_storage.Config{Retention: 24 * time.Hour})
+	restarted := s.newStorage(inmemory_message_storage.Config{Retention: 24 * time.Hour})
 	history := restarted.History(context.Background())
 	s.Require().Len(history, 1)
 	s.Equal("after-prune", history[0].Text)
 }
 
-func (s *testSuite) startRunning(storage *memory_chat_storage.Storage) func() {
+func (s *testSuite) startRunning(storage *inmemory_message_storage.Storage) func() {
 	s.T().Helper()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -307,7 +310,7 @@ func (s *testSuite) waitUntilGone(text string) {
 }
 
 func (s *testSuite) TestNoLogPathKeepsChatInMemory() {
-	storage := memory_chat_storage.New(memory_chat_storage.Config{}, s.clock, slog.New(slog.DiscardHandler))
+	storage := inmemory_message_storage.New(inmemory_message_storage.Config{}, s.clock, slog.New(slog.DiscardHandler))
 
 	s.Require().NoError(storage.Append(context.Background(), s.record("hello")))
 	s.Len(storage.History(context.Background()), 1)
@@ -317,7 +320,7 @@ func (s *testSuite) TestNoLogPathKeepsChatInMemory() {
 }
 
 func (s *testSuite) TestConcurrentUseIsSafe() {
-	storage := s.newStorage(memory_chat_storage.Config{HistorySize: 50})
+	storage := s.newStorage(inmemory_message_storage.Config{HistorySize: 50})
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -371,4 +374,8 @@ func cancelledContext() context.Context {
 	return ctx
 }
 
-var _ domain.Storage = (*memory_chat_storage.Storage)(nil)
+var (
+	_ send_message_usecase.Appender                = (*inmemory_message_storage.Storage)(nil)
+	_ get_history_usecase.HistoryReader            = (*inmemory_message_storage.Storage)(nil)
+	_ listen_for_events_usecase.MessagesSubscriber = (*inmemory_message_storage.Storage)(nil)
+)

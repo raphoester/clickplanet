@@ -1,4 +1,4 @@
-package memory_chat_storage
+package inmemory_message_storage
 
 import "time"
 
