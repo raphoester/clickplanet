@@ -119,11 +119,14 @@ func (s *testSuite) TestRunFlushesOnShutdown() {
 	s.Require().NoError(storage.Set(context.Background(), 7, "fr"))
 	cancel()
 
-	select {
-	case <-done:
-	case <-time.After(5 * time.Second):
-		s.T().Fatal("Run did not return after the context was cancelled")
-	}
+	s.Require().Eventually(func() bool {
+		select {
+		case <-done:
+			return true
+		default:
+			return false
+		}
+	}, 5*time.Second, 10*time.Millisecond, "Run did not return after the context was cancelled")
 
 	s.Equal(map[uint32]string{7: "fr"}, persistence.Stored())
 }

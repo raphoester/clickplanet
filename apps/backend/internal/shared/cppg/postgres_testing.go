@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
@@ -35,9 +36,7 @@ func ForTests(t testing.TB, schema string, migrations fs.FS) *Postgres {
 		shared.config, shared.err = startContainer()
 		shared.schemas = map[string]*Postgres{}
 	})
-	if shared.err != nil {
-		t.Fatalf("failed to start the test postgres: %v", shared.err)
-	}
+	require.NoError(t, shared.err, "failed to start the test postgres")
 
 	ctx, cancel := context.WithTimeout(t.Context(), time.Minute)
 	defer cancel()
@@ -50,18 +49,12 @@ func ForTests(t testing.TB, schema string, migrations fs.FS) *Postgres {
 		config := shared.config
 		config.Schema = schema
 		client = New(config)
-		if err := client.ConnectCtx(ctx); err != nil {
-			t.Fatalf("failed to connect the test postgres: %v", err)
-		}
-		if err := client.Migrate(ctx, migrations); err != nil {
-			t.Fatalf("failed to migrate the test postgres: %v", err)
-		}
+		require.NoError(t, client.ConnectCtx(ctx), "failed to connect the test postgres")
+		require.NoError(t, client.Migrate(ctx, migrations), "failed to migrate the test postgres")
 		shared.schemas[schema] = client
 	}
 
-	if err := client.purge(ctx); err != nil {
-		t.Fatalf("failed to purge the test postgres: %v", err)
-	}
+	require.NoError(t, client.purge(ctx), "failed to purge the test postgres")
 
 	return client
 }
