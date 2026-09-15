@@ -47,13 +47,16 @@ make dBuild
 
 This is a Go backend for a collaborative map-clicking game. It follows **hexagonal architecture (ports & adapters)**.
 
-### Three bounded contexts, one process
+### Four bounded contexts, one process
 
 - **`internal/planet/`** — the tile game: clicks, ownership, the map, the update stream.
 - **`internal/chat/`** — the live chat: messages, identity, retention.
 - **`internal/session/`** — the mint: what a caller has to prove before it may click.
+- **`internal/auth/`** — who a caller is: accounts, and the sessions their cookies hold. See [Auth](#auth-internalauth).
 
 They share the process, the transport and the country list, and **nothing else**. None imports another; each owns its own domain types, its own proto package, its own storage adapter (where it has one) and its own edge.
+
+**A module never calls another module's code or reads its data in its own stack trace.** When one needs something from another, it asks over the internal listener — see [Calling another module](#calling-another-module).
 
 Bonus boxes live inside `internal/planet/` rather than beside it: what they grant
 is click allowance, and what carries them is the planet stream. A context of
@@ -83,6 +86,7 @@ root package**:
 | `planet` | `Config`, `NewModule` |
 | `chat` | `Config`, `NewModule` |
 | `session` | `Config`, `NewModule` |
+| `auth` | `Config`, `NewModule` |
 | `antibot` | `Config`, `Observer`, `Guard`, `New`, `Description`, `Click`, `Report`, `Sentence`, `Examination`, `Reading` |
 
 That holds for `cmd/api` too: the composition root lists modules and cannot
@@ -103,6 +107,8 @@ Each context wires **itself**, in a `module.go` at its root (`internal/planet/mo
 
 - `props.RPC.Mount(build, interceptors...)` — the module hands over what *builds* the handler, plus the interceptors it wants. `cpbootstrap` builds it, so it can put its own interceptor outside every module's — see [The error net](#the-error-net)
 - `props.AdminRPC.Mount(build, interceptors...)` — the same, for an operator service: served only on the loopback admin listener — see [Operator tools](#operator-tools-adminservice)
+- `props.InternalRPC.Mount(build, interceptors...)` — the same, for what other modules call: served only on the loopback internal listener
+- `props.Internal.Dial()` — the HTTP client and base URL a generated `New<Service>Client` takes, to call another module — see [Calling another module](#calling-another-module)
 - `props.Runners.Add(runner)` — a `Runner` (`Name()` and `Run(ctx)`), run as a goroutine with the process-lifetime context
 - `props.Closers.Add(name, close)` — a cleanup, run in reverse registration order
 - `props.Logger`, `props.Metrics`
@@ -112,7 +118,7 @@ Each context wires **itself**, in a `module.go` at its root (`internal/planet/mo
 
 A module never sees the router, the signal handler or another module's objects. **There is no mutable app object and nothing to leave a half-built dependency on**: `internal/shared/cpbootstrap` builds every module in order, then serves.
 
-**Shutdown goes in this order**: end every open stream, `http.Server.Shutdown` (the public server, then the admin one), the closers in reverse order, then cancel and wait on the runners. The first step is the drain interceptor — see [Ending the streams on shutdown](#ending-the-streams-on-shutdown). There are no storage closers left: the tile map, the ledger, bans and evidence all flush from their runners, after the closers, once the server has stopped taking writes.
+**Shutdown goes in this order**: end every open stream, `http.Server.Shutdown` (the public server, then the admin and internal ones — a public call in flight may still be waiting on an internal one), the closers in reverse order, then cancel and wait on the runners. The first step is the drain interceptor — see [Ending the streams on shutdown](#ending-the-streams-on-shutdown). There are no storage closers left: the tile map, the ledger, bans and evidence all flush from their runners, after the closers, once the server has stopped taking writes.
 
 **`cmd/api/main.go` is the composition root, and it is the only one** — there is no `internal/app`, because a package whose whole job is to be called once by `main` was a level of indirection and nothing else. It does two things: load the config, and list the modules.
 
@@ -120,6 +126,7 @@ A module never sees the router, the signal handler or another module's objects. 
 
 ```go
 return []bootstrap.Module{
+	auth.NewModule(config.Auth),
 	session.NewModule(config.Session),
 	planet.NewModule(config.Planet),
 	chat.NewModule(config.Chat),
@@ -136,6 +143,18 @@ return []bootstrap.Module{
 - **`shared/cpcountries`** is the ISO list. It is stateless and hardcoded, so each module just calls `cpcountries.New()`, the way it calls `cptime.SystemClock{}`. It sits in `shared` and not under `planet/internal/clicks/` for exactly the reason that layer exists: neither context may depend on the other — and now could not, since that directory is unreachable from chat.
 
 **This is why `session.secret` is now required** rather than invented at boot — see [Sessions](#sessions-internalsession).
+
+#### Calling another module
+
+**Over Connect, on a loopback listener, never in the caller's stack trace.** A module that other modules call mounts an internal service with `props.InternalRPC.Mount`; `cpbootstrap` serves it on `httpServer.internalBindAddress` alone, which must be loopback. The caller builds a generated client over `props.Internal.Dial()`. The first one is `auth.v1.InternalService/ResolveAccount`, called by `session` at mint.
+
+- **Each module's data stays in one place.** The caller holds an address, never the other module's database block, pool, objects or root package. The auth tables are read by the auth module and nothing else.
+- **`Dial` is the one place that knows the transport is loopback HTTP.** Moving to unix sockets changes the listener and `internalDialer`, and no module.
+- **`Dial` fails with no internal listener**, and the module that called it refuses the boot. An internal service with no listener is not served, and logged, like an admin one.
+- **The error net and the drain wrap internal services too.** A caller should still decide what a failure costs: `session` mints without an account rather than refusing the click (`fail_open_accounts`).
+- `TestAModuleCallsAnotherOverTheInternalListener` pins the path, `TestAnInternalServiceIsNotOnThePublicRouter` pins that Caddy cannot reach it.
+
+The proto sits beside the public one in the module's package (`proto/auth/v1/internal.proto`), as `admin.proto` does, and the frontend generates it too without using it.
 
 Adding a context that callers talk to means a `proto/<name>/v1`, an `internal/<name>/` with a `module.go`, and one line in the slice. Connect derives the route from the proto package, so there is no prefix to allocate and no router to edit.
 
@@ -323,11 +342,12 @@ The response never repeats a tile id. `GetMapResponse` carries `start_tile_id`, 
 ### Key Flow
 
 ```
-POST /session.v1.SessionService/CreateSession
+POST /session.v1.SessionService/CreateSession   [Cookie: cp_sid=… when the client sends credentials]
   → SessionService
   → session_service (attests, then mints)
   → turnstile_attester → Cloudflare siteverify
-  → shared/cpsession.Signer.Mint [HMAC over expiry+id+IP; nothing stored]
+  → fail_open_accounts → auth_accounts → internal listener → auth.v1.InternalService/ResolveAccount [skipped with no cookie and no create_account]
+  → shared/cpsession.Signer.Mint [HMAC over expiry+id+account+IP; nothing stored]
 
 POST /planet.v1.ClickService/Click   [X-Session-Token: <the minted token>]
   → [cpbootstrap: error net], CacheInterceptor, VPNBlockInterceptor, SessionInterceptor
@@ -469,7 +489,7 @@ The answer to the one thing an address-based defence cannot do. The rate limiter
 
 `Click` requires a token this server minted, in the `X-Session-Token` header. The only way to get one is `session.v1.SessionService/CreateSession`, which verifies a **Cloudflare Turnstile** token against siteverify before minting. A script that reads the proto and POSTs `Click` no longer has a complete client: it has to solve Turnstile first.
 
-**The token is stateless.** `shared/cpsession` mints `base64url(expiry ‖ random id ‖ HMAC-SHA256(expiry ‖ id ‖ ip))` — 48 bytes, 64 characters. Nothing is stored, swept or replicated; verification is one HMAC. That is what keeps this compatible with a process that holds the whole game in memory and has no database to put a session table in.
+**The token is stateless.** `shared/cpsession` mints `base64url(expiry ‖ random id ‖ account ‖ HMAC-SHA256(expiry ‖ id ‖ account ‖ ip))` — 64 bytes, 86 characters. The account is 16 bytes, all zero (`uuid.Nil`) for a caller with none, and `Verify` answers it in `Claims`. A token of the old 48-byte length is malformed, so a deploy costs every open tab one silent mint. Nothing is stored, swept or replicated; verification is one HMAC. That is what keeps this compatible with a process that holds the whole game in memory and has no database to put a session table in.
 
 **It is bound to the address that minted it**, so a token lifted off the wire is worth nothing anywhere else. The MAC covers the address without carrying it, so the token leaks nothing. A player whose address changes mid-session — a phone moving from wifi to cellular — fails verification, and the client mints again and retries: self-healing, and invisible.
 
@@ -491,6 +511,36 @@ The signature is checked **before** the expiry, in constant time, so a forger le
 
 **What it does not stop:** a person who solves Turnstile in a real browser and then runs a userscript. They hold a genuine session, and nothing here distinguishes them from a player. This raises the floor from "twenty lines of Python" to "drive a real browser"; the signal that survives that is behavioural — timing regularity and tile-id structure over a session — which is what the session id on the context exists to be keyed on. Nothing in production reads it yet, so `cpctx.GetSessionID` sits behind the `testing` tag (see [Testing](#testing)) until something does.
 
+
+#### The account in the token
+
+**`session.accounts.enabled` signs the caller's account into the token.** At mint, after attestation, `session_service` asks `domain.Accounts` with the raw `Cookie` header and the request's `create_account`, and mints with the account it answers. The `Set-Cookie` it answers goes back on the response as is: this context knows no cookie name.
+
+- **A mint with no cookie that asks for nothing asks nobody.** A client that predates accounts sends neither, so it costs no internal call and gets no guest.
+- **Only a caller that passed attestation can create an account**, so bots that fail Turnstile make no rows. The mint throttle bounds how many guests one address makes.
+- **A failing auth module never stops the clicks.** `fail_open_accounts` answers no account on any error or past `session.accounts.timeout` (2s), and counts `session_account_resolutions_total{outcome=account|none|failed}`. Such a caller plays as a caller with no account did before, until its next mint.
+- **Off wires `no_accounts`**, and the token carries `uuid.Nil`. `planet` reads nothing of the account yet.
+
+### Auth (`internal/auth/`)
+
+**An account per clicking browser, a guest one until it signs in.** Signing in with Google or Discord comes later and links to the same row, so a guest's history needs no merge. Off by default (`auth.enabled`); off, `auth.v1` 404s, which is how a client knows not to offer sign-in.
+
+```
+internal/auth/internal/
+  accounts/                                cookie, token, Session, Lifetime
+    postgres_account_store/                accounts and sessions in the auth schema
+    usecases/resolve_account_usecase/      find, extend, or create a guest   — Sessions
+  authv1controller/                        AuthService and InternalService (bags)
+    get_me_handler/  resolve_account_handler/
+  migrations/
+```
+
+- **The cookie is `cp_sid`**: a random 32-byte token, `HttpOnly; Secure; SameSite=Lax; Path=/`, host-only on the API's domain. The API and the frontend are the same site, so it is not a third-party cookie. **Only its SHA-256 is stored** (`sessions.token_hash`), so a copy of the table signs nobody in.
+- **`ResolveAccount`** (internal only): a live session gives its account; a session last extended `auth.sessions.extendEvery` (24h) ago or more is extended to `guestTTL` (90 days) from now, with `accounts.last_seen_at`, and the same token is sent back with the new expiry. No live session and `create` makes a guest: an account (a UUIDv7) and its session in one transaction. An expired or unknown cookie without `create` is no account.
+- **`GetMe`** (public) resolves without `create`: only a mint, after Turnstile, gives a browser an account. No account answers `Unauthenticated`. It answers `no-store`.
+- **No cache.** Mints are one per 30s per address, so one indexed read each is cheap, and there is nothing to invalidate on sign-out later.
+- The pool closes as a closer: the module has no runner.
+- Not yet: providers, sign-out, deletion and the guest prune. An expired session row stays until the prune.
 
 ### Bonus boxes (`internal/planet/internal/bonuses/`)
 
@@ -1525,6 +1575,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `httpServer.bindAddress` — the encoding is negotiated per request, so there is no format setting.
 - `httpServer.streamHeartbeat` — how often a silent live stream sends a heartbeat (default 30s). **Must stay well under the proxy's idle cut**: Cloudflare answers 524 at ~125s, and a stream that never speaks is one it kills.
 - `httpServer.adminBindAddress` — where the operator services listen (see [Operator tools](#operator-tools-adminservice)); empty serves none, and a non-loopback address refuses the boot
+- `httpServer.internalBindAddress` — where the services other modules call listen (see [Calling another module](#calling-another-module)); empty serves none and refuses the boot of a module that calls one, and a non-loopback address refuses the boot
 - `gameMap.maxIndex` — total number of tiles
 - `database.host`, `port`, `user`, `password`, `dbName`, `sslMode`, `schema`, `pool.*` — the planet module's postgres and the schema its tables live in; any of them but `password` and `pool` empty refuses the boot. `database.password` belongs in the environment
 - `tilesStorage.flushInterval` — how often the tiles changed since the last flush are written to postgres (1s)
@@ -1566,6 +1617,10 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `session.turnstile.secret` — the widget's secret half, from the environment
 - `session.turnstile.hostnames` — the frontend origins siteverify must report; **empty refuses every token** rather than accepting any, and a production value must not include `localhost`
 - `session.turnstile.action` — must match the widget's `data-action` (default `session`)
+- `session.accounts.enabled`, `session.accounts.timeout` — sign the caller's account into the token, asking the auth module; past the timeout (2s) or on failure the token carries none. Needs `auth.enabled` (see [The account in the token](#the-account-in-the-token))
+- `auth.enabled` — off registers nothing, and `auth.v1` 404s
+- `auth.database.*` — the auth module's postgres, same shape as `database`, schema `auth`; required when `auth.enabled`. `auth.database.password` belongs in the environment
+- `auth.sessions.guestTTL`, `auth.sessions.extendEvery` — how long an idle guest keeps its cookie (90 days), and how often using a session extends it (24h)
 - `chat.database.host`, `port`, `user`, `password`, `dbName`, `sslMode`, `schema`, `pool.*` — the chat module's postgres, same shape as `database`; any of them but `password` and `pool` empty refuses the boot. `chat.database.password` belongs in the environment
 - `chat.storage.historySize`, `chat.storage.retention`, `chat.storage.pruneInterval`, `chat.storage.subscriberBuffer`
 - `chat.service.tagSalt` — salts the per-sender tag; **empty regenerates one at boot**, changing every tag on restart

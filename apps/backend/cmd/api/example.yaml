@@ -9,6 +9,10 @@ httpServer:
   # no authentication, so anything but a loopback address refuses the boot.
   # Empty serves no admin listener at all.
   adminBindAddress: 127.0.0.1:8081
+  # A third listener, for what one module asks another (auth.v1.InternalService).
+  # Its callers are trusted, so anything but a loopback address refuses the boot.
+  # Empty serves none, and a module that calls another then refuses the boot.
+  internalBindAddress: 127.0.0.1:8082
 gameMap:
   maxIndex: 257948
 
@@ -471,6 +475,14 @@ session:
     hostnames: []
     # Must match the widget's data-action.
     action: session
+  # Signs the caller's account into the token, asking the auth module over the
+  # internal listener. Off mints every token with no account. Needs auth on.
+  accounts:
+    enabled: false
+    # How long a mint waits on the auth module. Past it, or on any failure, the
+    # token is minted with no account and session_account_resolutions_total
+    # counts it: a broken auth module never stops the clicks.
+    timeout: 2s
 
 # Live chat. Its own bounded context and its own Connect service, sharing this
 # process and the transport with the tile game and nothing else. Always on.
@@ -517,3 +529,25 @@ chat:
   # CIDRs — a single address needs /32, and a whole range is one line. A
   # malformed entry fails the start rather than silently refusing nobody.
   blockedIPs: []
+
+# Who a caller is: an account per clicking browser, a guest one until it signs
+# in, held in an HttpOnly cookie. Off registers nothing and auth.v1 404s.
+auth:
+  enabled: false
+  # Same shape as the other database blocks, its own schema. Required when on.
+  database:
+    host: localhost
+    port: "5432"
+    user: postgres
+    # Belongs in the environment in production (auth.database.password).
+    password: postgres
+    dbName: postgres
+    sslMode: disable
+    schema: auth
+    pool:
+      maxOpenConns: 2
+  sessions:
+    # A guest idle this long loses its cookie; the next mint makes a new guest.
+    guestTTL: 2160h # 90 days
+    # A session is extended at most this often, so a player is not a write per mint.
+    extendEvery: 24h

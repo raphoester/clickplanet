@@ -166,3 +166,23 @@ func TestSessionsWithoutASecretAreRefused(t *testing.T) {
 
 	require.ErrorContains(t, config.Validate(), "session.secret is empty")
 }
+
+func TestTheExampleConfigReachesTheAuthAndAccountsBlocks(t *testing.T) {
+	var config Config
+	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
+
+	assert.Equal(t, "127.0.0.1:8082", config.HTTPServer.InternalBindAddress)
+	assert.False(t, config.Auth.Enabled, "the example must ship without accounts")
+	assert.Equal(t, "auth", config.Auth.Database.Schema)
+	assert.Equal(t, 90*24*time.Hour, config.Auth.Sessions.GuestTTL)
+	assert.Equal(t, 24*time.Hour, config.Auth.Sessions.ExtendEvery)
+	assert.False(t, config.Session.Accounts.Enabled)
+	assert.Equal(t, 2*time.Second, config.Session.Accounts.Timeout)
+}
+
+func TestAuthWithoutADatabaseIsRefused(t *testing.T) {
+	config := Config{}
+	config.Auth.Enabled = true
+
+	require.ErrorContains(t, config.Validate(), "auth.database: [host port user dbName sslMode schema] is empty")
+}

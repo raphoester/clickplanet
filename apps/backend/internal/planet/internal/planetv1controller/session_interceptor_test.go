@@ -25,14 +25,14 @@ type fakeVerifier struct {
 	asked []string
 }
 
-func (v *fakeVerifier) Verify(token string, _ string, _ time.Time) (cpsession.ID, error) {
+func (v *fakeVerifier) Verify(token string, _ string, _ time.Time) (cpsession.Claims, error) {
 	v.asked = append(v.asked, token)
 
 	id, ok := v.valid[token]
 	if !ok {
-		return "", errors.New("no")
+		return cpsession.Claims{}, errors.New("no")
 	}
-	return id, nil
+	return cpsession.Claims{ID: id}, nil
 }
 
 type sessionResult struct {
