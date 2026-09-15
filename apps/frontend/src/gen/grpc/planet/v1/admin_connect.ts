@@ -77,9 +77,10 @@ export const AdminService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Paints count random tiles with a flag, starting on one country's ground.
-     * proximity favours tiles that touch the ones already picked, and a patch
-     * may grow past the country's border. dry_run picks and paints nothing.
+     * Paints count random tiles with a flag, starting on one country's ground,
+     * or anywhere on the map when no country is given. proximity favours tiles
+     * that touch the ones already picked, and a patch may grow past the
+     * country's border. dry_run picks and paints nothing.
      *
      * @generated from rpc planet.v1.AdminService.PaintRandomTiles
      */

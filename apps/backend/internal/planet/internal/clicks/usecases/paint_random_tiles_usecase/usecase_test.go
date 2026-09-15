@@ -100,6 +100,25 @@ func TestNoProximityStaysInTheAreaWhileItHasTiles(t *testing.T) {
 	assert.Equal(t, paint_random_tiles_usecase.Out{Eligible: 4, Picked: 4, Painted: 4}, out)
 }
 
+func TestNoAreaSeedsAnywhereOnTheMap(t *testing.T) {
+	tiles := newMap()
+
+	out, err := newUseCase(tiles, clicks.Pacing{Batch: 10}).Execute(t.Context(),
+		paint_random_tiles_usecase.In{Flag: "dz", Count: 10})
+	require.NoError(t, err)
+
+	assert.Equal(t, paint_random_tiles_usecase.Out{Eligible: 5, Picked: 5, Painted: 5}, out)
+	assert.Equal(t, []string{"", "dz", "dz", "dz", "dz", "dz", "dz", "dz", "dz"}, tiles.tiles, "tile 7 is bg ground")
+}
+
+func TestNoAreaStillGrowsPatches(t *testing.T) {
+	out, err := newUseCase(newMap(), clicks.Pacing{Batch: 10}).Execute(t.Context(),
+		paint_random_tiles_usecase.In{Flag: "dz", Count: 3, Proximity: 1, DryRun: true})
+	require.NoError(t, err)
+
+	assert.Equal(t, paint_random_tiles_usecase.Out{Eligible: 5, Picked: 3}, out)
+}
+
 func TestItPicksNoMoreThanAsked(t *testing.T) {
 	tiles := newMap()
 
@@ -141,7 +160,7 @@ func TestItRefusesABadRequest(t *testing.T) {
 		want error
 	}{
 		"unknown flag":       {paint_random_tiles_usecase.In{Flag: "xx", Area: "fr", Count: 1}, clicks.ErrUnknownCountry},
-		"no area":            {paint_random_tiles_usecase.In{Flag: "dz", Count: 1}, clicks.ErrUnknownCountry},
+		"unknown area":       {paint_random_tiles_usecase.In{Flag: "dz", Area: "xx", Count: 1}, clicks.ErrUnknownCountry},
 		"no count":           {paint_random_tiles_usecase.In{Flag: "dz", Area: "fr"}, paint_random_tiles_usecase.ErrInvalidCount},
 		"proximity above 1":  {paint_random_tiles_usecase.In{Flag: "dz", Area: "fr", Count: 1, Proximity: 1.5}, paint_random_tiles_usecase.ErrInvalidProximity},
 		"negative proximity": {paint_random_tiles_usecase.In{Flag: "dz", Area: "fr", Count: 1, Proximity: -0.1}, paint_random_tiles_usecase.ErrInvalidProximity},

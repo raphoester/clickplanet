@@ -29,9 +29,10 @@ service AdminService {
   // scope's current run on it. dry_run counts and restores nothing.
   rpc RevertPlayer(RevertPlayerRequest) returns (RevertPlayerResponse);
 
-  // Paints count random tiles with a flag, starting on one country's ground.
-  // proximity favours tiles that touch the ones already picked, and a patch
-  // may grow past the country's border. dry_run picks and paints nothing.
+  // Paints count random tiles with a flag, starting on one country's ground,
+  // or anywhere on the map when no country is given. proximity favours tiles
+  // that touch the ones already picked, and a patch may grow past the
+  // country's border. dry_run picks and paints nothing.
   rpc PaintRandomTiles(PaintRandomTilesRequest) returns (PaintRandomTilesResponse);
 
   // What the antibot holds on a scope: every watchdog's reading, what the jury
@@ -41,8 +42,8 @@ service AdminService {
 
 message PaintRandomTilesRequest {
   string flag_country_id = 1;
-  // The country a fresh draw lands in. A patch grows from there into any
-  // tile not wearing the flag, across the border too.
+  // The country a fresh draw lands in; empty is the whole map. A patch grows
+  // from there into any tile not wearing the flag, across the border too.
   string area_country_id = 2;
   uint32 count = 3;
   // From 0 to 1. 0 picks anywhere in the area; 1 grows one patch while it can.
@@ -51,13 +52,13 @@ message PaintRandomTilesRequest {
 }
 
 message PaintRandomTilesResponse {
-  // Tiles of the area that do not wear the flag yet.
+  // Tiles of the area, or of the map, that do not wear the flag yet.
   uint32 eligible = 1;
   // Below count only when nothing is left to pick.
   uint32 picked = 2;
   // Picked tiles that nobody took between the pick and the paint.
   uint32 painted = 3;
-  // Picked tiles past the area's border.
+  // Picked tiles past the area's border. Always 0 with no area.
   uint32 outside_area = 4;
 }
 

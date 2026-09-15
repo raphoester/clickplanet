@@ -768,6 +768,7 @@ docker compose exec backend cp /home/app/state/tiles.snapshot /home/app/state/ti
 ### Paint random tiles of a country with a flag
 
 Paints `count` tiles with `flagCountryId`, starting on `areaCountryId`'s ground.
+Leave out `areaCountryId` to start anywhere on the map.
 Dry run first; it says how many tiles of the area do not wear the flag yet:
 
 ```bash
