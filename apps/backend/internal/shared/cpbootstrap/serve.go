@@ -31,34 +31,35 @@ func mountMetrics(router *http.ServeMux, metrics *prometheus.Registry, logger *s
 	)(metricsRouter))
 }
 
-type adminServer struct {
+type loopbackServer struct {
+	name     string
 	server   *http.Server
 	listener net.Listener
 }
 
-// listenAdmin binds before anything is served, so a taken address refuses the boot.
-func listenAdmin(options Options, routes *rpcRoutes) (*adminServer, error) {
-	address := options.Server.AdminBindAddress
+// listenLoopback binds before anything is served, so a taken address refuses the boot. Empty serves nothing.
+func listenLoopback(options Options, name, key, address string, routes *rpcRoutes) (*loopbackServer, error) {
 	if address == "" {
 		if len(routes.paths) > 0 {
-			options.Logger.Info("admin listener off, admin services not served", slog.Int("services", len(routes.paths)))
+			options.Logger.Info(name+" listener off, its services not served", slog.Int("services", len(routes.paths)))
 		}
-		return nil, nil //nolint:nilnil // nil means "no admin listener"; serve skips it.
+		return nil, nil //nolint:nilnil // nil means "no such listener"; serve skips it.
 	}
 
 	if !isLoopback(address) {
-		return nil, fmt.Errorf("httpServer.adminBindAddress %q is not a loopback host:port", address)
+		return nil, fmt.Errorf("httpServer.%s %q is not a loopback host:port", key, address)
 	}
 
 	listener, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp", address)
 	if err != nil {
-		return nil, fmt.Errorf("failed to listen on httpServer.adminBindAddress %q: %w", address, err)
+		return nil, fmt.Errorf("failed to listen on httpServer.%s %q: %w", key, address, err)
 	}
 
 	router := http.NewServeMux()
 	routes.mountOn(router, cphttpserver.MiddlewareStack(cphttpserver.NewLoggingMiddleware(options.Logger)))
 
-	return &adminServer{
+	return &loopbackServer{
+		name:     name,
 		server:   &http.Server{Handler: router, ReadHeaderTimeout: readHeaderTimeout},
 		listener: listener,
 	}, nil
@@ -68,7 +69,7 @@ func serve(
 	ctx context.Context,
 	options Options,
 	router http.Handler,
-	admin *adminServer,
+	loopbacks []*loopbackServer,
 	drain context.CancelFunc,
 	runners *runnerRegistry,
 	closers *closerRegistry,
@@ -107,11 +108,11 @@ func serve(
 		serveErr <- err
 	}()
 
-	if admin != nil {
-		options.Logger.Info("Listening for admin", slog.String("address", admin.listener.Addr().String()))
+	for _, loopback := range loopbacks {
+		options.Logger.Info("Listening for "+loopback.name, slog.String("address", loopback.listener.Addr().String()))
 		go func() {
-			if err := admin.server.Serve(admin.listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
-				options.Logger.Error("admin server stopped", slog.Any("error", err))
+			if err := loopback.server.Serve(loopback.listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				options.Logger.Error(loopback.name+" server stopped", slog.Any("error", err))
 			}
 		}()
 	}
@@ -122,8 +123,8 @@ func serve(
 
 	select {
 	case err := <-serveErr:
-		if admin != nil {
-			_ = admin.server.Close()
+		for _, loopback := range loopbacks {
+			_ = loopback.server.Close()
 		}
 		stop(options, closers, stopRunning, started)
 		if err != nil {
@@ -149,9 +150,10 @@ func serve(
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		options.Logger.Error("failed to shut down the http server", slog.Any("error", err))
 	}
-	if admin != nil {
-		if err := admin.server.Shutdown(shutdownCtx); err != nil {
-			options.Logger.Error("failed to shut down the admin server", slog.Any("error", err))
+	// After the public server: a public call still in flight may be waiting on an internal one.
+	for _, loopback := range loopbacks {
+		if err := loopback.server.Shutdown(shutdownCtx); err != nil {
+			options.Logger.Error("failed to shut down the "+loopback.name+" server", slog.Any("error", err))
 		}
 	}
 

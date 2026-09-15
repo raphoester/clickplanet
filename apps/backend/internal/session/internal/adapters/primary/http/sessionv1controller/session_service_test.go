@@ -3,6 +3,7 @@ package sessionv1controller_test
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -10,19 +11,22 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	sessionv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/session/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/session/v1/sessionv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/session/internal/adapters/primary/http/sessionv1controller"
+	"github.com/raphoester/clickplanet.lol-backend/internal/session/internal/adapters/secondary/no_accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/session/internal/adapters/secondary/open_attester"
 	"github.com/raphoester/clickplanet.lol-backend/internal/session/internal/domain"
 	"github.com/raphoester/clickplanet.lol-backend/internal/session/internal/domain/session_service"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconnect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cphttpserver"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 type refusingAttester struct{}
@@ -39,6 +43,14 @@ type refuseAll struct{}
 
 func (refuseAll) Take(string) (bool, cpratelimit.State) { return false, cpratelimit.State{} }
 
+type cookieAccounts struct {
+	account uuid.UUID
+}
+
+func (a cookieAccounts) Resolve(_ context.Context, cookieHeader string, _ bool) (domain.Resolution, error) {
+	return domain.Resolution{Account: a.account, SetCookie: "cp_sid=for-" + cookieHeader}, nil
+}
+
 func sessionServer(
 	t *testing.T,
 	attester domain.Attester,
@@ -46,16 +58,28 @@ func sessionServer(
 	limiter sessionv1controller.MintLimiter,
 ) *httptest.Server {
 	t.Helper()
+	return sessionServerWithAccounts(t, attester, no_accounts.Accounts{}, signer, limiter)
+}
 
+func sessionServerWithAccounts(
+	t *testing.T,
+	attester domain.Attester,
+	accounts domain.Accounts,
+	signer *cpsession.Signer,
+	limiter sessionv1controller.MintLimiter,
+) *httptest.Server {
+	t.Helper()
+
+	logger := slog.New(slog.DiscardHandler)
 	mux := http.NewServeMux()
 	mux.Handle(sessionv1connect.NewSessionServiceHandler(
 		sessionv1controller.NewSessionService(
-			session_service.New(attester, signer, nil),
-			nil,
+			session_service.New(attester, accounts, signer, cptime.SystemClock{}),
+			logger,
 		),
 		connect.WithInterceptors(
 			// What cpbootstrap wraps every mounted service in.
-			cpconnect.NewErrorInterceptor(nil, nil),
+			cpconnect.NewErrorInterceptor(logger, nil),
 			sessionv1controller.NewRateLimitInterceptor(limiter),
 		),
 	))
@@ -152,4 +176,22 @@ func TestARefusalIsA403OverHTTPAndAMintIsNeverCached(t *testing.T) {
 	//nolint:bodyclose // post() closes the body via t.Cleanup.
 	refused := post(sessionServer(t, refusingAttester{}, signer, allowAll{}))
 	assert.Equal(t, http.StatusForbidden, refused.StatusCode)
+}
+
+func TestTheCookieGoesToTheAccountsAndItsSetCookieComesBack(t *testing.T) {
+	signer := newSigner(t)
+	account := uuid.MustParse("01926c6e-7a4b-7c3d-8e9f-0a1b2c3d4e5f")
+	server := sessionServerWithAccounts(t, open_attester.New(), cookieAccounts{account: account}, signer, allowAll{})
+
+	req := connect.NewRequest(&sessionv1.CreateSessionRequest{AttestationToken: "a-widget-token", CreateAccount: true})
+	req.Header().Set("X-Real-IP", "203.0.113.7")
+	req.Header().Set("Cookie", "theme=dark")
+
+	res, err := sessionv1connect.NewSessionServiceClient(server.Client(), server.URL).CreateSession(t.Context(), req)
+	require.NoError(t, err)
+
+	assert.Equal(t, "cp_sid=for-theme=dark", res.Header().Get("Set-Cookie"))
+	claims, err := signer.Verify(res.Msg.GetToken(), "203.0.113.7", time.Now())
+	require.NoError(t, err)
+	assert.Equal(t, account, claims.Account)
 }

@@ -19,6 +19,15 @@ export class CreateSessionRequest extends Message<CreateSessionRequest> {
    */
   attestationToken = "";
 
+  /**
+   * Asks for a guest account when the caller's cookie gives none. The account
+   * is signed into the token, and its cookie is set on the response. Ignored
+   * when the server runs without accounts.
+   *
+   * @generated from field: bool create_account = 2;
+   */
+  createAccount = false;
+
   constructor(data?: PartialMessage<CreateSessionRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -28,6 +37,7 @@ export class CreateSessionRequest extends Message<CreateSessionRequest> {
   static readonly typeName = "session.v1.CreateSessionRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "attestation_token", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "create_account", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CreateSessionRequest {
@@ -52,7 +62,8 @@ export class CreateSessionRequest extends Message<CreateSessionRequest> {
  */
 export class CreateSessionResponse extends Message<CreateSessionResponse> {
   /**
-   * Opaque. Sent back on every Click in the X-Session-Token header.
+   * Opaque. Sent back on every Click in the X-Session-Token header. Mint again
+   * after signing in or out, so the token carries the right account.
    *
    * @generated from field: string token = 1;
    */

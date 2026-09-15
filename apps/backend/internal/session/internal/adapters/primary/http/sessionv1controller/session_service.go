@@ -23,10 +23,6 @@ type SessionService struct {
 var _ sessionv1connect.SessionServiceHandler = (*SessionService)(nil)
 
 func NewSessionService(service session_service.IService, logger *slog.Logger) *SessionService {
-	if logger == nil {
-		logger = slog.New(slog.DiscardHandler)
-	}
-
 	return &SessionService{service: service, logger: logger}
 }
 
@@ -34,15 +30,24 @@ func (s *SessionService) CreateSession(
 	ctx context.Context,
 	req *connect.Request[sessionv1.CreateSessionRequest],
 ) (*connect.Response[sessionv1.CreateSessionResponse], error) {
-	token, err := s.service.Create(ctx, req.Msg.GetAttestationToken(), cpctx.GetSourceIP(ctx))
+	minted, err := s.service.Create(ctx, session_service.Request{
+		AttestationToken: req.Msg.GetAttestationToken(),
+		IP:               cpctx.GetSourceIP(ctx),
+		CookieHeader:     req.Header().Get("Cookie"),
+		CreateAccount:    req.Msg.GetCreateAccount(),
+	})
 	if err != nil {
 		return nil, toConnect(s.logger, req.Spec().Procedure, err)
 	}
 
 	res := connect.NewResponse(&sessionv1.CreateSessionResponse{
-		Token:           token.Value,
-		ExpiresAtUnixMs: token.ExpiresAt.UnixMilli(),
+		Token:           minted.Token.Value,
+		ExpiresAtUnixMs: minted.Token.ExpiresAt.UnixMilli(),
 	})
+
+	if minted.SetCookie != "" {
+		res.Header().Add("Set-Cookie", minted.SetCookie)
+	}
 
 	// A minted token belongs to one caller and one address. Nothing in front of
 	// this may hold onto it, whatever it does with the other routes.

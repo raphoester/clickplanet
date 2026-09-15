@@ -14,10 +14,16 @@ message CreateSessionRequest {
   // Cloudflare's siteverify. Ignored when the server runs with attestation
   // disabled, which is how a local backend works without a widget.
   string attestation_token = 1;
+
+  // Asks for a guest account when the caller's cookie gives none. The account
+  // is signed into the token, and its cookie is set on the response. Ignored
+  // when the server runs without accounts.
+  bool create_account = 2;
 }
 
 message CreateSessionResponse {
-  // Opaque. Sent back on every Click in the X-Session-Token header.
+  // Opaque. Sent back on every Click in the X-Session-Token header. Mint again
+  // after signing in or out, so the token carries the right account.
   string token = 1;
 
   // When the token stops being accepted. The client mints a new one before

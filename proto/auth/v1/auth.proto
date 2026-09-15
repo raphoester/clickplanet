@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package auth.v1;
+
+// Who a caller is. Every caller that clicks gets an account, a guest one until
+// it signs in, kept in an HttpOnly cookie this service sets.
+service AuthService {
+  // The account the caller's cookie belongs to. Unauthenticated when it carries
+  // none. Absent (404) when the server runs without accounts, which is how a
+  // client knows not to offer sign-in.
+  rpc GetMe(GetMeRequest) returns (GetMeResponse);
+}
+
+message GetMeRequest {}
+
+message GetMeResponse {
+  string account_id = 1;
+}
