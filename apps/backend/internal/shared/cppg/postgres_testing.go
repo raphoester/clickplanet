@@ -32,10 +32,7 @@ var shared struct {
 func ForTests(t testing.TB, schema string, migrations fs.FS) *Postgres {
 	t.Helper()
 
-	shared.once.Do(func() {
-		shared.config, shared.err = startContainer()
-		shared.schemas = map[string]*Postgres{}
-	})
+	shared.once.Do(startShared)
 	require.NoError(t, shared.err, "failed to start the test postgres")
 
 	ctx, cancel := context.WithTimeout(t.Context(), time.Minute)
@@ -46,11 +43,9 @@ func ForTests(t testing.TB, schema string, migrations fs.FS) *Postgres {
 
 	client, ok := shared.schemas[schema]
 	if !ok {
-		config := shared.config
-		config.Schema = schema
-		client = New(config)
-		require.NoError(t, client.ConnectCtx(ctx), "failed to connect the test postgres")
-		require.NoError(t, client.Migrate(ctx, migrations), "failed to migrate the test postgres")
+		var err error
+		client, err = openSchema(ctx, shared.config, schema, migrations)
+		require.NoError(t, err, "failed to open the test schema")
 		shared.schemas[schema] = client
 	}
 
@@ -59,16 +54,35 @@ func ForTests(t testing.TB, schema string, migrations fs.FS) *Postgres {
 	return client
 }
 
-func startContainer() (Config, error) {
+// startShared starts the container and records how to reach it, once per binary.
+func startShared() {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
+	shared.schemas = map[string]*Postgres{}
+
+	container, err := startContainer(ctx)
+	if err != nil {
+		shared.err = err
+		return
+	}
+
+	endpoint, err := container.PortEndpoint(ctx, "5432", "")
+	if err != nil {
+		shared.err = fmt.Errorf("failed to get container endpoint: %w", err)
+		return
+	}
+
+	shared.config, shared.err = configFor(endpoint)
+}
+
+func startContainer(ctx context.Context) (testcontainers.Container, error) {
 	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
 			Image:        testImage,
 			ExposedPorts: []string{"5432/tcp"},
 			Env: map[string]string{
-				"POSTGRES_PASSWORD": "postgres",
+				"POSTGRES_PASSWORD": testPassword,
 			},
 			// The image starts postgres twice: once to run its init scripts, then for real.
 			WaitingFor: wait.ForLog("database system is ready to accept connections").
@@ -78,14 +92,16 @@ func startContainer() (Config, error) {
 		Started: true,
 	})
 	if err != nil {
-		return Config{}, fmt.Errorf("failed to start postgres container: %w", err)
+		return nil, fmt.Errorf("failed to start postgres container: %w", err)
 	}
 
-	endpoint, err := container.PortEndpoint(ctx, "5432", "")
-	if err != nil {
-		return Config{}, fmt.Errorf("failed to get container endpoint: %w", err)
-	}
+	return container, nil
+}
 
+const testPassword = "postgres"
+
+// configFor is the connection to the container listening on endpoint, a host:port.
+func configFor(endpoint string) (Config, error) {
 	host, port, err := net.SplitHostPort(endpoint)
 	if err != nil {
 		return Config{}, fmt.Errorf("failed to split host and port: %w", err)
@@ -95,10 +111,27 @@ func startContainer() (Config, error) {
 		Host:     host,
 		Port:     port,
 		User:     "postgres",
-		Password: "postgres",
+		Password: testPassword,
 		DBName:   "postgres",
 		SSLMode:  "disable",
 	}, nil
+}
+
+// openSchema connects inside schema and migrates it.
+func openSchema(ctx context.Context, config Config, schema string, migrations fs.FS) (*Postgres, error) {
+	config.Schema = schema
+	client := New(config)
+
+	if err := client.ConnectCtx(ctx); err != nil {
+		return nil, err
+	}
+
+	if err := client.Migrate(ctx, migrations); err != nil {
+		_ = client.Close()
+		return nil, err
+	}
+
+	return client, nil
 }
 
 // purge empties every table in the client's schema but migrate's own.
