@@ -1,7 +1,10 @@
 package cppg_test
 
 import (
+	"context"
 	"fmt"
+	"log/slog"
+	"sync/atomic"
 	"testing"
 	"testing/fstest"
 
@@ -62,4 +65,35 @@ func TestEachSchemaHoldsItsOwnTablesAndMigrationHistory(t *testing.T) {
 	var version int
 	require.NoError(t, second.QueryRowContext(ctx, `SELECT version FROM second.schema_migrations`).Scan(&version))
 	assert.Equal(t, 1, version)
+}
+
+type countingRunner struct {
+	name    string
+	stopped *atomic.Int32
+}
+
+func (r countingRunner) Name() string { return r.name }
+
+func (r countingRunner) Run(ctx context.Context) {
+	<-ctx.Done()
+	r.stopped.Add(1)
+}
+
+func TestCloseAfterClosesThePoolOnceEveryRunnerStopped(t *testing.T) {
+	db := cppg.StartTestServer(t).OpenSchema(t, "closing", fstest.MapFS{
+		"1_create_things.up.sql":   {Data: []byte(`CREATE TABLE things (id integer PRIMARY KEY)`)},
+		"1_create_things.down.sql": {Data: []byte(`DROP TABLE things`)},
+	})
+	stopped := &atomic.Int32{}
+	runner := cppg.CloseAfter(db, slog.New(slog.DiscardHandler),
+		countingRunner{name: "tiles", stopped: stopped}, countingRunner{name: "ledger", stopped: stopped})
+
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	runner.Run(ctx)
+
+	assert.Equal(t, int32(2), stopped.Load())
+	assert.Equal(t, "tiles+ledger", runner.Name())
+	_, err := db.ExecContext(t.Context(), `SELECT 1`)
+	require.ErrorContains(t, err, "database is closed")
 }

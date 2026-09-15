@@ -3,6 +3,7 @@ package ledger_test
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"testing"
 	"time"
 
@@ -240,7 +241,7 @@ func replay(storage ledger.Storage) []ledger.Taking {
 
 func TestRetentionForgetsTakesPastIt(t *testing.T) {
 	clock := cptime.NewFixedClock(start)
-	takings := inmemory_ledger_storage.New(inmemory_ledger_storage.Config{}, nil)
+	takings := inmemory_ledger_storage.New(inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence(), slog.New(slog.DiscardHandler))
 	takings.Append(ledger.Taking{Tile: 1, Scope: "1.2.3.4", At: start})
 	takings.Append(ledger.Taking{Tile: 1, Scope: "1.2.3.4", At: start.Add(30 * time.Minute)})
 
@@ -273,7 +274,7 @@ func (s *stubTiles) SetBoosted(ctx context.Context, tile uint32, value string) e
 
 func TestRecordingNotesTheCallersScopeAndOnlyAChange(t *testing.T) {
 	tiles := &stubTiles{owners: map[uint32]string{1: "de", 2: "fr"}}
-	takings := inmemory_ledger_storage.New(inmemory_ledger_storage.Config{}, nil)
+	takings := inmemory_ledger_storage.New(inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence(), slog.New(slog.DiscardHandler))
 	recording := ledger.NewRecording(tiles, takings, cptime.NewFixedClock(start))
 
 	ctx := cpctx.AddIPToContext(t.Context(), "2001:db8::1")
@@ -287,7 +288,7 @@ func TestRecordingNotesTheCallersScopeAndOnlyAChange(t *testing.T) {
 
 func TestRecordingKeepsEveryTake(t *testing.T) {
 	tiles := &stubTiles{owners: map[uint32]string{7: "de"}}
-	takings := inmemory_ledger_storage.New(inmemory_ledger_storage.Config{}, nil)
+	takings := inmemory_ledger_storage.New(inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence(), slog.New(slog.DiscardHandler))
 	recording := ledger.NewRecording(tiles, takings, cptime.NewFixedClock(start))
 
 	require.NoError(t, recording.Set(cpctx.AddIPToContext(t.Context(), "1.2.3.4"), 7, "fr"))
@@ -303,7 +304,7 @@ func TestRecordingKeepsEveryTake(t *testing.T) {
 
 func TestRecordingNotesNothingForAFailedWrite(t *testing.T) {
 	tiles := &stubTiles{owners: map[uint32]string{}, err: errors.New("out of range")}
-	takings := inmemory_ledger_storage.New(inmemory_ledger_storage.Config{}, nil)
+	takings := inmemory_ledger_storage.New(inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence(), slog.New(slog.DiscardHandler))
 
 	err := ledger.NewRecording(tiles, takings, cptime.NewFixedClock(start)).Set(cpctx.AddIPToContext(t.Context(), "1.2.3.4"), 1, "fr")
 	require.ErrorIs(t, err, tiles.err)

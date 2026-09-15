@@ -776,29 +776,44 @@ reaches `chat.service.tagSalt`.
 
 ## 9. Postgres
 
-The tile map is kept in the `postgres` service, on the `pg_data` volume. The API
-loads it at boot and writes the tiles that changed every second, and once more
-on a clean shutdown. It is not published on any port: only the backend reaches
-it. Each backend module keeps its tables in a schema of its own (`planet` for the
-tile map) and migrates it at boot. The API refuses to start without postgres.
+The tile map and the ledger are kept in the `postgres` service, on the `pg_data`
+volume. The API loads both at boot, writes what changed every second, and once
+more on a clean shutdown. It is not published on any port: only the backend
+reaches it. Each backend module keeps its tables in a schema of its own (`planet`
+for the tile map and the ledger) and migrates it at boot. The API refuses to
+start without postgres.
 
 **The password is `POSTGRES_PASSWORD` in `.env`.** `bootstrap.sh` generates it.
 Without it, `docker compose up` refuses to start. Never change it: postgres reads it only when `pg_data` is empty, so a
 new value locks the API out of the existing data.
 
-How many tiles it holds:
+How many tiles and takes it holds:
 
 ```bash
 docker compose exec postgres psql -U clickplanet -c "select count(*) from planet.tiles"
+docker compose exec postgres psql -U clickplanet -c "select count(*) from planet.ledger_takes"
 ```
+
+**The first boot on the ledger tables imports the old ledger file.** The tables
+are empty and `/home/app/state/ledger.bin` exists, so the API loads it, writes it
+to postgres in one transaction, and renames it `ledger.bin.imported`. A crash
+before that write imports it again on the next boot. A file it cannot read
+refuses the boot; move it away to start with an empty ledger. Check it:
+
+```bash
+journalctl CONTAINER_NAME=cp-backend | grep "legacy ledger file"
+docker compose exec postgres psql -U clickplanet -c "select count(*) from planet.ledger_takes"
+```
+
+Then remove `ledgerStorage.legacyStatePath` from `backend.yaml`.
 
 A psql shell: `docker compose exec postgres psql -U clickplanet`.
 
 ### Backups
 
 The nightly cron `bootstrap.sh` installs tars the `tile_state` volume, which
-holds the ledger, bans, antibot evidence and chat log. **The tile map in postgres is not backed up
-yet.** For a copy by hand:
+holds bans, antibot evidence and chat log. **The tile map and the ledger in
+postgres are not backed up yet.** For a copy by hand:
 
 ```bash
 docker compose exec postgres pg_dump -U clickplanet -n planet clickplanet > planet-$(date +%F).sql
@@ -956,5 +971,6 @@ docker compose exec backend wget -qO- --header 'Content-Type: application/json' 
 
 - **Bad backend build:** `BACKEND_IMAGE=ghcr.io/raphoester/clickplanet-backend:<sha>` in `.env`, then `docker compose up -d backend`.
 - **Lost or corrupt tile state:** stop the backend, restore the `planet` schema from a dump (`drop schema planet cascade`, then `psql -U clickplanet clickplanet < planet-DATE.sql`), start it again.
+- **Back to a build before the ledger tables:** that image reads `ledger.bin`, which the import renamed. Rename `ledger.bin.imported` back first — it holds the ledger as of the import, so every take since is lost.
 - **In-process storage misbehaving:** there is no config switch back to Redis — that code is gone. Roll the backend image back to a pre-migration `<sha>` and restore the matching Redis stack from git history.
 - **Frontend:** roll back the deployment in the Pages dashboard.

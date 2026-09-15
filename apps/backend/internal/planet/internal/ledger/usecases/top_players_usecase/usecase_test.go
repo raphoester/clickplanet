@@ -1,6 +1,7 @@
 package top_players_usecase_test
 
 import (
+	"log/slog"
 	"testing"
 	"time"
 
@@ -31,7 +32,7 @@ func setup(t *testing.T) (*inmemory_ledger_storage.Storage, owners) {
 	t.Helper()
 
 	clock := cptime.NewFixedClock(start)
-	book := inmemory_ledger_storage.New(inmemory_ledger_storage.Config{}, nil)
+	book := inmemory_ledger_storage.New(inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence(), slog.New(slog.DiscardHandler))
 	current := owners{}
 
 	take := func(tile uint32, scope, country string) {

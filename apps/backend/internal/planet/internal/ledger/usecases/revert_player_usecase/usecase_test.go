@@ -3,6 +3,7 @@ package revert_player_usecase_test
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"testing"
 	"time"
 
@@ -53,7 +54,7 @@ func takenBy(book *inmemory_ledger_storage.Storage, scope string) int {
 func setup(t *testing.T) (*inmemory_ledger_storage.Storage, *stubMap) {
 	t.Helper()
 
-	book := inmemory_ledger_storage.New(inmemory_ledger_storage.Config{}, nil)
+	book := inmemory_ledger_storage.New(inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence(), slog.New(slog.DiscardHandler))
 	tiles := &stubMap{owners: map[uint32]string{1: "il", 2: "", 3: "il", 4: "il", 5: "il"}}
 
 	for tile := uint32(1); tile <= 5; tile++ {
@@ -98,7 +99,7 @@ func TestADryRunCountsAndRestoresNothing(t *testing.T) {
 }
 
 func TestItGivesBackOnlyTheScopesLatestRunWhenTakesInterleave(t *testing.T) {
-	book := inmemory_ledger_storage.New(inmemory_ledger_storage.Config{}, nil)
+	book := inmemory_ledger_storage.New(inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence(), slog.New(slog.DiscardHandler))
 	tiles := &stubMap{owners: map[uint32]string{7: "il", 8: "il"}}
 
 	take := func(tile uint32, scope, country string) {
