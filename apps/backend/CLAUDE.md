@@ -112,6 +112,8 @@ Each context wires **itself**, in a `module.go` at its root (`internal/planet/mo
 
 A module never sees the router, the signal handler or another module's objects. **There is no mutable app object and nothing to leave a half-built dependency on**: `internal/shared/cpbootstrap` builds every module in order, then serves.
 
+**Shutdown goes in this order**: end every open stream, `http.Server.Shutdown` (the public server, then the admin one), the closers in reverse order, then cancel and wait on the runners. The first step is the drain interceptor — see [Ending the streams on shutdown](#ending-the-streams-on-shutdown). The closers (snapshot, ledger, bans, evidence) therefore still run only once the server has stopped taking writes.
+
 **`cmd/api/main.go` is the composition root, and it is the only one** — there is no `internal/app`, because a package whose whole job is to be called once by `main` was a level of indirection and nothing else. It does two things: load the config, and list the modules.
 
 **The aggregation is the whole of it — a flat slice, no branches, no dependencies threaded through:**
@@ -258,7 +260,20 @@ These replaced a pair of websockets on `/ws/listen` and `/ws/chat`, broadcast by
 
 Each handler calls the storage's `Subscribe(ctx)` **per call**, and the request context is what unsubscribes — it is cancelled however the stream ends, so a disconnect needs no `CloseRead` equivalent. Both storages already handed every subscriber its own buffered channel and dropped rather than blocked for a slow one, so one subscription per connected client is what they were built for; `subscriberBuffer` now bounds a client rather than the single fanout.
 
-**The streaming RPCs are not wrapped by any interceptor except error mapping**, because every other one is a `connect.UnaryInterceptorFunc` and streams skip those by construction. Reads and the live feeds are therefore untouched by the throttle, the VPN blocklist and the session check, exactly as they were when they were websockets. A policy that ever has to reach a stream must be written as a full `connect.Interceptor`.
+#### Ending the streams on shutdown
+
+**`http.Server.Shutdown` waits for every connection to go idle, and a stream never does.** Until 2026-09-15 every deploy waited out the whole `ShutdownTimeout`, logged `failed to shut down the http server error="context deadline exceeded"` (23 times on 2026-09-14), and then cut the streams hard — Caddy answered 502 on both `ListenForEvents` routes.
+
+So `cpbootstrap` owns a **draining context**, cancelled just before `Shutdown`, and wraps every service it mounts in `drainInterceptor` (`cpbootstrap/drain.go`), between the error net and the module's own interceptors. For a streaming handler it gives the handler a context that is also cancelled when draining starts. Both handlers already return `nil` on `ctx.Done()`, so the stream ends **cleanly**, with an end-of-stream message, and the connection goes idle. No module changes anything to get it: a new stream handler only has to return when its context is done, which it must do anyway to unsubscribe.
+
+- **Unary calls are untouched.** `WrapUnary` passes through, so a click in flight finishes and `Shutdown` waits for it as before. This is why it is not `http.Server.BaseContext`: that context is the parent of every request, and cancelling it would cancel the unary calls too.
+- **A stream opened after draining started ends at once**, since `context.AfterFunc` runs straight away on a done context.
+- **The frontend reopens a stream that ends cleanly** exactly as one that fails — `openStream` schedules the same reconnect either way, at 500ms after a stream that received anything — but without logging `stream failed`.
+- `TestAnOpenStreamEndsCleanlyAndDoesNotHoldTheShutdown` opens a stream, shuts down, and asserts `Run` returns in under a second with no error logged, the client sees a clean end, and the closers ran after the stream ended. Without the drain it takes the full 5s and logs the production line. `TestAUnaryCallInFlightFinishesDuringTheShutdown` pins the other half.
+
+A stream blocked inside a `Send` to a client that reads nothing is not woken by its context; `ShutdownTimeout` is still the backstop for that one.
+
+**The streaming RPCs are not wrapped by any interceptor except error mapping and the drain**, because every other one is a `connect.UnaryInterceptorFunc` and streams skip those by construction. Reads and the live feeds are therefore untouched by the throttle, the VPN blocklist and the session check, exactly as they were when they were websockets. A policy that ever has to reach a stream must be written as a full `connect.Interceptor`.
 
 ### The map load
 
