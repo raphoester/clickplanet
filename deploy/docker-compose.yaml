@@ -1,6 +1,5 @@
-# Local full stack: frontend + backend. That is the whole stack — there is no
-# database. The backend keeps the tile map in process and snapshots it to the
-# tile_state volume.
+# Local full stack: frontend, backend and postgres. The backend keeps the tile
+# map in process and writes what changed to postgres.
 #
 #   cd apps/frontend && npm run dBuild
 #   cd apps/backend  && make dBuild
@@ -13,14 +12,30 @@ services:
     ports:
       - "80:80"
 
+  postgres:
+    image: postgres:16-alpine
+    container_name: cp-postgres
+    environment:
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
   backend:
     image: clickplanet-back:local
     container_name: cp-backend
+    depends_on:
+      postgres:
+        condition: service_healthy
     volumes:
       - type: bind
         source: ./backend.yaml
         target: /home/app/config/config.yaml
-      # Snapshot file lives here, so tile state survives a container restart.
+      # The chat log lives here, so it survives a container restart.
       # The image creates /home/app/state owned by the app user, which is what
       # makes a fresh named volume writable — a bind mount from the host needs
       # to be chowned to uid 1000 instead.
@@ -28,4 +43,5 @@ services:
     command: [ "./api", "-config", "/home/app/config/config.yaml" ]
 
 volumes:
+  pg_data:
   tile_state:

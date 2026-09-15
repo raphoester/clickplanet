@@ -18,6 +18,7 @@ const unownedCode = uint16(0)
 func New(
 	maxIndex uint32,
 	config Config,
+	persistence Persistence,
 	logger *slog.Logger,
 ) *Storage {
 	if logger == nil {
@@ -29,8 +30,10 @@ func New(
 	s := &Storage{
 		config:      config,
 		logger:      logger,
+		persistence: persistence,
 		maxIndex:    maxIndex,
 		tiles:       make([]uint16, int(maxIndex)+1),
+		dirty:       make([]uint64, (int(maxIndex)+64)/64),
 		counts:      []uint32{0},
 		codes:       []string{""},
 		codeIDs:     map[string]uint16{"": unownedCode},
@@ -41,16 +44,20 @@ func New(
 }
 
 type Storage struct {
-	config   Config
-	logger   *slog.Logger
-	maxIndex uint32
+	config      Config
+	logger      *slog.Logger
+	persistence Persistence
+	maxIndex    uint32
 
 	tilesMu sync.RWMutex
 	tiles   []uint16
 	counts  []uint32
 	codes   []string
 	codeIDs map[string]uint16
-	dirty   bool
+	// One bit per tile changed since the last flush.
+	dirty []uint64
+
+	imported string
 
 	subscribersMu sync.Mutex
 	subscribers   map[*subscriber]struct{}
@@ -103,11 +110,9 @@ func (s *Storage) Clear(_ context.Context, blast clicks.Blast) (clicks.Blast, er
 		if s.tiles[tile] != unownedCode {
 			s.counts[s.tiles[tile]]--
 			s.tiles[tile] = unownedCode
+			s.markDirtyLocked(tile)
 			cleared = append(cleared, tile)
 		}
-	}
-	if len(cleared) > 0 {
-		s.dirty = true
 	}
 	s.tilesMu.Unlock()
 
@@ -163,7 +168,7 @@ func (s *Storage) set(tile uint32, value string) (previous string, changed bool,
 		s.counts[id]++
 	}
 	s.tiles[tile] = id
-	s.dirty = true
+	s.markDirtyLocked(tile)
 
 	return previous, true, nil
 }

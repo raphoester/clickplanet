@@ -1,0 +1,16 @@
+# What run.sh changes in the production compose file to run it on a laptop. Nothing else differs.
+services:
+  backend:
+    # Production is reached through Caddy, which needs Cloudflare. The traffic goes straight to the
+    # backend instead and sets X-Real-IP itself, the header Caddy would set.
+    ports:
+      - "127.0.0.1:${E2E_PORT:-18080}:8080"
+    environment:
+      # No Turnstile widget here: sessions are minted for anyone, and still gate every click.
+      session.turnstile.enabled: "false"
+      # The traffic is a script, so the watchdogs flag it. Enforcing would drop its clicks and
+      # read as lost data.
+      antiBot.shadowBan.enforce: "false"
+    # Docker Desktop has no journald.
+    logging: !override
+      driver: json-file

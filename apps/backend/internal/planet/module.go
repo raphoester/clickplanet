@@ -27,6 +27,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/embedded_geodesic_map"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/postgres_tile_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/antibot_attempt_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/antibot_click"
@@ -53,6 +54,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/revert_player_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/revert_player_usecase/audit_revert"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/top_players_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/ban_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/claim_bonus_handler"
@@ -71,6 +73,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -86,7 +89,7 @@ func NewModule(config Config) cpbootstrap.Module {
 	return cpbootstrap.Module{
 		Name:    moduleName,
 		Enabled: true,
-		DiSequence: func(_ context.Context, props cpbootstrap.Props) error {
+		DiSequence: func(ctx context.Context, props cpbootstrap.Props) error {
 			clock := cptime.SystemClock{}
 			countries := cpcountries.New()
 
@@ -94,7 +97,7 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			// First: nothing else here is worth starting if the map is not the one the frontend draws.
 			// Unconditional, and fatal: a blob that disagrees with the frontend renumbers every tile, and the
-			// snapshot on disk is numbered the old way. See CLAUDE.md, "Map geography".
+			// tiles in postgres are numbered the old way. See CLAUDE.md, "Map geography".
 			gameMap := embedded_geodesic_map.New(config.GameMap.MaxIndex, props.Logger)
 
 			geography, err := gameMap.LoadGeography()
@@ -112,9 +115,23 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			tilesChecker := clicks.NewBoard(config.GameMap.MaxIndex)
 
-			tilesStorage := inmemory_tile_storage.New(config.GameMap.MaxIndex, config.TilesStorage, props.Logger)
-			tilesStorage.LoadSnapshot()
-			props.Runners.Add(tilesStorage)
+			db := cppg.New(config.Database)
+			if err := db.ConnectCtx(ctx); err != nil {
+				return fmt.Errorf("failed to connect the planet to postgres: %w", err)
+			}
+			if err := db.Migrate(ctx, migrations.FS); err != nil {
+				_ = db.Close()
+				return fmt.Errorf("failed to migrate the %s schema: %w", config.Database.Schema, err)
+			}
+
+			tilesStorage := inmemory_tile_storage.New(
+				config.GameMap.MaxIndex, config.TilesStorage, postgres_tile_store.New(db), props.Logger)
+			if err := tilesStorage.Load(ctx); err != nil {
+				_ = db.Close()
+				return fmt.Errorf("failed to load the tile map: %w", err)
+			}
+			// The pool closes after the runner's last flush, not as a closer: closers run first.
+			props.Runners.Add(cppg.CloseAfter(tilesStorage, db, props.Logger))
 
 			takings := inmemory_ledger_storage.New(config.LedgerStorage, props.Logger)
 			takings.LoadState()

@@ -1,0 +1,5 @@
+# Added by run.sh only once the stack has a postgres service.
+services:
+  postgres:
+    logging: !override
+      driver: json-file
