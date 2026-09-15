@@ -472,7 +472,7 @@ fi
 
 # ----------------------------------------------------------------- backups
 
-# The ledger, bans, antibot evidence and chat log in the tile_state volume. The tile map is in postgres,
+# The chat log in the tile_state volume. The tile map, the ledger, bans and evidence are in postgres,
 # which this does not back up yet.
 if ! crontab -u "$DEPLOY_USER" -l 2>/dev/null | grep -q 'vps_tile_state'; then
 	log "installing nightly tile-state backup cron"

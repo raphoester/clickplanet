@@ -2,7 +2,6 @@
 package shadowban
 
 import (
-	"context"
 	"sync"
 	"time"
 
@@ -18,7 +17,8 @@ type Config struct {
 	ReflagInterval time.Duration
 	SaveInterval   time.Duration
 
-	StatePath string
+	// LegacyStatePath is the bans file from before postgres, imported once into an empty table.
+	LegacyStatePath string
 }
 
 const (
@@ -45,32 +45,27 @@ type Sentence struct {
 	Until   time.Time
 }
 
-func New(config Config, clock cptime.Clock, onStateError func(error)) *Banner {
-	if clock == nil {
-		clock = cptime.SystemClock{}
-	}
-	if onStateError == nil {
-		onStateError = func(error) {}
-	}
-
-	b := &Banner{
+func New(config Config, clock cptime.Clock, persistence Persistence, onStateError func(error)) *Banner {
+	return &Banner{
 		config:       config.withDefaults(),
 		clock:        clock,
+		persistence:  persistence,
 		onStateError: onStateError,
 		bans:         make(map[string]*ban),
+		dirty:        make(map[string]struct{}),
 	}
-
-	return b
 }
 
 type Banner struct {
 	config       Config
 	clock        cptime.Clock
+	persistence  Persistence
 	onStateError func(error)
 
-	mu    sync.Mutex
-	bans  map[string]*ban
-	dirty bool
+	mu       sync.Mutex
+	bans     map[string]*ban
+	dirty    map[string]struct{}
+	imported string // the legacy file loaded, renamed after the first flush
 }
 
 type ban struct {
@@ -119,13 +114,17 @@ func (b *Banner) Flag(scope string) (Sentence, bool) {
 		record.until = until
 	}
 
-	b.dirty = true
+	b.dirty[scope] = struct{}{}
 
 	return record.sentence(), true
 }
 
 // Ban is a ban an operator decided on. It counts as an offence like a flag does; a zero duration takes the ladder's.
 func (b *Banner) Ban(scope string, duration time.Duration) Sentence {
+	if scope == "" {
+		return Sentence{}
+	}
+
 	now := b.clock.Now()
 
 	b.mu.Lock()
@@ -147,7 +146,7 @@ func (b *Banner) Ban(scope string, duration time.Duration) Sentence {
 		record.until = until
 	}
 
-	b.dirty = true
+	b.dirty[scope] = struct{}{}
 
 	return record.sentence()
 }
@@ -206,18 +205,3 @@ func (b *Banner) Flagged() int {
 }
 
 func (b *Banner) Enforcing() bool { return b.config.Enforce }
-
-func (b *Banner) Run(ctx context.Context) {
-	ticker := time.NewTicker(b.config.SaveInterval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ticker.C:
-			b.saveIfDirty()
-		case <-ctx.Done():
-			b.saveIfDirty()
-			return
-		}
-	}
-}

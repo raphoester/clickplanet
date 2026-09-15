@@ -4,28 +4,23 @@ package evidence
 import (
 	"bytes"
 	"context"
-	"encoding/binary"
 	"encoding/gob"
-	"errors"
 	"fmt"
-	"hash/crc32"
-	"io/fs"
-	"os"
 	"sync"
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomicfile"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 type Config struct {
-	// StatePath empty keeps the evidence in memory, where a restart empties it.
-	StatePath    string
 	SaveInterval time.Duration
 
 	// Retention is the oldest evidence kept, on load and in memory, whatever a watchdog's own window says.
 	Retention time.Duration
+
+	// LegacyStatePath is the evidence file from before postgres, imported once into an empty table.
+	LegacyStatePath string
 }
 
 const (
@@ -43,7 +38,7 @@ func (c Config) withDefaults() Config {
 	return c
 }
 
-// Section is one watchdog's share of the file, or the jury's. Each encodes its own.
+// Section is one watchdog's share of the evidence, or the jury's. Each encodes its own.
 type Section interface {
 	Name() string
 	Save() ([]byte, error)
@@ -57,31 +52,27 @@ type Resumer interface {
 	Resume(outage detect.Outage)
 }
 
-// Magic, version and a CRC32 of the payload, then the payload as gob.
-const (
-	stateMagic   = "CPEVIDN\n"
-	stateVersion = uint8(1)
-	headerSize   = len(stateMagic) + 1 + 4
-)
-
-var errCorruptState = errors.New("corrupt antibot evidence file")
-
-type file struct {
-	SavedAt  int64
+// Snapshot is every section's evidence as one flush wrote it.
+type Snapshot struct {
+	SavedAt  time.Time
 	Sections map[string][]byte
 }
 
-func New(config Config, clock cptime.Clock, onStateError func(error), sections ...Section) *Store {
-	if clock == nil {
-		clock = cptime.SystemClock{}
-	}
-	if onStateError == nil {
-		onStateError = func(error) {}
-	}
+// Persistence is where the evidence is kept between boots. It is never read after Load.
+type Persistence interface {
+	// Load answers an empty snapshot when nothing is stored.
+	Load(ctx context.Context) (Snapshot, error)
+	// Save replaces every stored section with the snapshot's.
+	Save(ctx context.Context, snapshot Snapshot) error
+}
 
+const flushTimeout = 10 * time.Second
+
+func New(config Config, clock cptime.Clock, persistence Persistence, onStateError func(error), sections ...Section) *Store {
 	return &Store{
 		config:       config.withDefaults(),
 		clock:        clock,
+		persistence:  persistence,
 		onStateError: onStateError,
 		sections:     sections,
 	}
@@ -90,39 +81,38 @@ func New(config Config, clock cptime.Clock, onStateError func(error), sections .
 type Store struct {
 	config       Config
 	clock        cptime.Clock
+	persistence  Persistence
 	onStateError func(error)
 	sections     []Section
 
-	mu      sync.Mutex
-	savedAt time.Time // of the file loaded; zero when none was
+	mu       sync.Mutex
+	savedAt  time.Time // of the snapshot loaded; zero when none was
+	imported string    // the legacy file loaded, renamed after the first flush
 }
 
-// LoadState reads the evidence saved by the last process; a missing file starts empty, a bad one is reported and starts empty.
-func (s *Store) LoadState() {
-	if s.config.StatePath == "" {
-		return
+// Load refuses the boot when postgres cannot be read. A section that does not decode is reported and starts empty alone.
+func (s *Store) Load(ctx context.Context) error {
+	snapshot, err := s.persistence.Load(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to read stored antibot evidence: %w", err)
 	}
 
-	//nolint:gosec // G304: the path comes from config, never from a request.
-	raw, err := os.ReadFile(s.config.StatePath)
-	if errors.Is(err, fs.ErrNotExist) {
-		return
-	}
-	if err != nil {
-		s.onStateError(fmt.Errorf("failed to read antibot evidence from %s: %w", s.config.StatePath, err))
-		return
-	}
-
-	saved, err := decode(raw)
-	if err != nil {
-		s.onStateError(fmt.Errorf("failed to decode antibot evidence from %s, starting empty: %w", s.config.StatePath, err))
-		return
+	if len(snapshot.Sections) > 0 {
+		if legacyFileExists(s.config.LegacyStatePath) {
+			s.onStateError(fmt.Errorf("the legacy evidence file %s is still on disk but postgres already holds evidence, ignoring it",
+				s.config.LegacyStatePath))
+		}
+	} else {
+		snapshot, err = s.importLegacyState()
+		if err != nil {
+			return err
+		}
 	}
 
 	before := s.clock.Now().Add(-s.config.Retention)
 
 	for _, section := range s.sections {
-		data, ok := saved.Sections[section.Name()]
+		data, ok := snapshot.Sections[section.Name()]
 		if !ok {
 			continue
 		}
@@ -134,8 +124,10 @@ func (s *Store) LoadState() {
 	}
 
 	s.mu.Lock()
-	s.savedAt = time.Unix(0, saved.SavedAt)
+	s.savedAt = snapshot.SavedAt
 	s.mu.Unlock()
+
+	return nil
 }
 
 // Resume tells the sections the process is now watching: the outage ends here, not at load, since the boot is not over then.
@@ -164,9 +156,9 @@ func (s *Store) Run(ctx context.Context) {
 		select {
 		case <-ticker.C:
 			s.forget()
-			s.save()
+			s.flushOrReport(ctx)
 		case <-ctx.Done():
-			s.save()
+			s.flushOrReport(context.WithoutCancel(ctx))
 			return
 		}
 	}
@@ -179,13 +171,19 @@ func (s *Store) forget() {
 	}
 }
 
-func (s *Store) save() {
-	if s.config.StatePath == "" {
-		return
-	}
+func (s *Store) flushOrReport(ctx context.Context) {
+	ctx, cancel := context.WithTimeout(ctx, flushTimeout)
+	defer cancel()
 
-	saved := file{
-		SavedAt:  s.clock.Now().UnixNano(),
+	if err := s.Flush(ctx); err != nil {
+		s.onStateError(fmt.Errorf("failed to flush antibot evidence, retrying next tick: %w", err))
+	}
+}
+
+// Flush writes every section as it is now, in one transaction. A section that fails to encode is reported and left out.
+func (s *Store) Flush(ctx context.Context) error {
+	snapshot := Snapshot{
+		SavedAt:  s.clock.Now(),
 		Sections: make(map[string][]byte, len(s.sections)),
 	}
 
@@ -195,57 +193,16 @@ func (s *Store) save() {
 			s.onStateError(fmt.Errorf("failed to encode %s evidence: %w", section.Name(), err))
 			continue
 		}
-		saved.Sections[section.Name()] = data
+		snapshot.Sections[section.Name()] = data
 	}
 
-	raw, err := encode(saved)
-	if err != nil {
-		s.onStateError(fmt.Errorf("failed to encode antibot evidence: %w", err))
-		return
+	if err := s.persistence.Save(ctx, snapshot); err != nil {
+		return fmt.Errorf("failed to save %d sections: %w", len(snapshot.Sections), err)
 	}
 
-	if err := cpatomicfile.Write(s.config.StatePath, raw); err != nil {
-		s.onStateError(fmt.Errorf("failed to save antibot evidence to %s: %w", s.config.StatePath, err))
-	}
-}
+	s.retireLegacyState()
 
-func encode(saved file) ([]byte, error) {
-	buf := bytes.NewBuffer(make([]byte, headerSize))
-	if err := gob.NewEncoder(buf).Encode(saved); err != nil {
-		return nil, fmt.Errorf("failed to encode: %w", err)
-	}
-
-	raw := buf.Bytes()
-	copy(raw, stateMagic)
-	raw[len(stateMagic)] = stateVersion
-	binary.LittleEndian.PutUint32(raw[len(stateMagic)+1:], crc32.ChecksumIEEE(raw[headerSize:]))
-
-	return raw, nil
-}
-
-func decode(raw []byte) (file, error) {
-	if len(raw) < headerSize {
-		return file{}, fmt.Errorf("%w: file is %d bytes, shorter than the header", errCorruptState, len(raw))
-	}
-	if string(raw[:len(stateMagic)]) != stateMagic {
-		return file{}, fmt.Errorf("%w: bad magic", errCorruptState)
-	}
-	if version := raw[len(stateMagic)]; version != stateVersion {
-		return file{}, fmt.Errorf("%w: unsupported version %d", errCorruptState, version)
-	}
-
-	payload := raw[headerSize:]
-	want := binary.LittleEndian.Uint32(raw[len(stateMagic)+1:])
-	if got := crc32.ChecksumIEEE(payload); got != want {
-		return file{}, fmt.Errorf("%w: checksum mismatch (want %08x, got %08x)", errCorruptState, want, got)
-	}
-
-	var saved file
-	if err := gob.NewDecoder(bytes.NewReader(payload)).Decode(&saved); err != nil {
-		return file{}, fmt.Errorf("%w: %w", errCorruptState, err)
-	}
-
-	return saved, nil
+	return nil
 }
 
 // Encode and Decode are the gob every section writes its own share with.
