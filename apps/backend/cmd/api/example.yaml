@@ -48,11 +48,11 @@ ledger:
   sweepInterval: 5m
 
 ledgerStorage:
-  # Where the ledger is saved, so a restart keeps it. Empty keeps it in memory
-  # only, where a restart empties it.
-  statePath: ./data/ledger.bin
-  # How often new takes are appended to the file. It is also written on shutdown.
-  saveInterval: 1m
+  # How often the new takes are written to postgres. Also flushed on shutdown.
+  flushInterval: 1s
+  # The ledger file from before postgres. Imported once, if the ledger tables
+  # are empty, then renamed with an .imported suffix. Empty imports nothing.
+  legacyStatePath: ./data/ledger.bin
   # The most takes kept, 16 bytes each plus strings (~85 MiB). Past it the oldest go before
   # the retention, and the log says so once.
   maxTakes: 4000000

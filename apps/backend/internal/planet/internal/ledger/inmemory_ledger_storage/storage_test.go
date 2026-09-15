@@ -1,10 +1,7 @@
 package inmemory_ledger_storage_test
 
 import (
-	"encoding/binary"
-	"hash/crc32"
-	"os"
-	"path/filepath"
+	"log/slog"
 	"sync"
 	"testing"
 	"time"
@@ -24,12 +21,16 @@ func replay(storage *inmemory_ledger_storage.Storage) []ledger.Taking {
 	return takings
 }
 
+func newStorage(config inmemory_ledger_storage.Config, persistence inmemory_ledger_storage.Persistence) *inmemory_ledger_storage.Storage {
+	return inmemory_ledger_storage.New(config, persistence, slog.New(slog.DiscardHandler))
+}
+
 func take(tile uint32, scope, country, previous string, at time.Time) ledger.Taking {
 	return ledger.Taking{Tile: tile, Scope: scope, Country: country, Previous: previous, At: at}
 }
 
 func TestEveryTakeIsKeptInOrder(t *testing.T) {
-	storage := inmemory_ledger_storage.New(inmemory_ledger_storage.Config{}, nil)
+	storage := newStorage(inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence())
 
 	want := []ledger.Taking{
 		take(7, "1.2.3.4", "fr", "de", start),
@@ -45,14 +46,14 @@ func TestEveryTakeIsKeptInOrder(t *testing.T) {
 }
 
 func TestATimeIsKeptToTheSecond(t *testing.T) {
-	storage := inmemory_ledger_storage.New(inmemory_ledger_storage.Config{}, nil)
+	storage := newStorage(inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence())
 	storage.Append(take(1, "1.2.3.4", "fr", "", start.Add(900*time.Millisecond)))
 
 	assert.Equal(t, start, replay(storage)[0].At)
 }
 
 func TestTakesSpanChunks(t *testing.T) {
-	storage := inmemory_ledger_storage.New(inmemory_ledger_storage.Config{}, nil)
+	storage := newStorage(inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence())
 
 	const n = 1<<16 + 10
 	for i := range n {
@@ -70,7 +71,7 @@ func TestTakesSpanChunks(t *testing.T) {
 }
 
 func TestForgetHidesTheScopesTakesBeforeThePositionOnly(t *testing.T) {
-	storage := inmemory_ledger_storage.New(inmemory_ledger_storage.Config{}, nil)
+	storage := newStorage(inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence())
 
 	storage.Append(take(1, "bot", "ps", "il", start))
 	storage.Append(take(2, "player", "il", "", start))
@@ -86,7 +87,7 @@ func TestForgetHidesTheScopesTakesBeforeThePositionOnly(t *testing.T) {
 }
 
 func TestForgetBeforeDropsOnlyOlderTakes(t *testing.T) {
-	storage := inmemory_ledger_storage.New(inmemory_ledger_storage.Config{}, nil)
+	storage := newStorage(inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence())
 
 	storage.Append(take(1, "1.2.3.4", "fr", "", start))
 	storage.Append(take(2, "1.2.3.4", "fr", "", start.Add(time.Hour)))
@@ -97,7 +98,7 @@ func TestForgetBeforeDropsOnlyOlderTakes(t *testing.T) {
 }
 
 func TestTheCapDropsTheOldestTakes(t *testing.T) {
-	storage := inmemory_ledger_storage.New(inmemory_ledger_storage.Config{MaxTakes: 2}, nil)
+	storage := newStorage(inmemory_ledger_storage.Config{MaxTakes: 2}, inmemory_ledger_storage.NewMemoryPersistence())
 
 	storage.Append(take(1, "a", "fr", "", start))
 	storage.Append(take(2, "b", "fr", "", start))
@@ -109,7 +110,7 @@ func TestTheCapDropsTheOldestTakes(t *testing.T) {
 }
 
 func TestAReplayRacingAppendsSeesAConsistentPrefix(t *testing.T) {
-	storage := inmemory_ledger_storage.New(inmemory_ledger_storage.Config{MaxTakes: 1 << 17}, nil)
+	storage := newStorage(inmemory_ledger_storage.Config{MaxTakes: 1 << 17}, inmemory_ledger_storage.NewMemoryPersistence())
 
 	var wg sync.WaitGroup
 	wg.Go(func() {
@@ -128,207 +129,4 @@ func TestAReplayRacingAppendsSeesAConsistentPrefix(t *testing.T) {
 	}
 
 	wg.Wait()
-}
-
-func statePath(t *testing.T) inmemory_ledger_storage.Config {
-	t.Helper()
-	return inmemory_ledger_storage.Config{StatePath: filepath.Join(t.TempDir(), "ledger.bin")}
-}
-
-func reload(config inmemory_ledger_storage.Config) *inmemory_ledger_storage.Storage {
-	storage := inmemory_ledger_storage.New(config, nil)
-	storage.LoadState()
-	return storage
-}
-
-func TestALedgerSurvivesARestartAcrossSeveralSaves(t *testing.T) {
-	config := statePath(t)
-
-	before := inmemory_ledger_storage.New(config, nil)
-	before.Append(take(1, "1.2.3.4", "fr", "de", start))
-	before.Append(take(2, "2001:db8::/64", "fr", "", start.Add(time.Second)))
-	require.NoError(t, before.Save())
-	size := fileSize(t, config)
-
-	before.Append(take(1, "5.6.7.8", "ps", "fr", start.Add(time.Minute)))
-	require.NoError(t, before.Save())
-	assert.Greater(t, fileSize(t, config), size, "the second save appends")
-
-	require.NoError(t, before.Save())
-
-	assert.Equal(t, replay(before), replay(reload(config)))
-}
-
-func TestAReloadedLedgerKeepsItsPositionsAndForgets(t *testing.T) {
-	config := statePath(t)
-
-	before := inmemory_ledger_storage.New(config, nil)
-	before.Append(take(1, "bot", "ps", "", start))
-	before.Append(take(2, "bot", "ps", "", start.Add(time.Second)))
-	require.NoError(t, before.Save())
-
-	before.Forget("bot", before.Replay(func(ledger.Taking) {}))
-	require.NoError(t, before.Save())
-
-	after := reload(config)
-	assert.Empty(t, replay(after))
-
-	after.Append(take(3, "bot", "ps", "", start.Add(time.Minute)))
-	assert.Len(t, replay(after), 1, "positions carry on past the forgotten takes")
-}
-
-func TestADroppedTakeStaysDroppedAfterARestart(t *testing.T) {
-	config := statePath(t)
-
-	storage := inmemory_ledger_storage.New(config, nil)
-	storage.Append(take(1, "1.2.3.4", "fr", "", start))
-	storage.Append(take(2, "1.2.3.4", "fr", "", start.Add(time.Hour)))
-	require.NoError(t, storage.Save())
-
-	storage.ForgetBefore(start.Add(time.Minute))
-	require.NoError(t, storage.Save())
-
-	assert.Equal(t, []ledger.Taking{take(2, "1.2.3.4", "fr", "", start.Add(time.Hour))}, replay(reload(config)))
-
-	storage.ForgetBefore(start.Add(2 * time.Hour))
-	require.NoError(t, storage.Save())
-	assert.Empty(t, replay(reload(config)))
-}
-
-func TestAFileGrownPastWhatItKeepsIsWrittenAgainWhole(t *testing.T) {
-	config := statePath(t)
-
-	storage := inmemory_ledger_storage.New(config, nil)
-	for i := range 1 << 17 {
-		storage.Append(take(uint32(i), "1.2.3.4", "fr", "", start))
-	}
-	require.NoError(t, storage.Save())
-	full := fileSize(t, config)
-
-	storage.ForgetBefore(start.Add(time.Second))
-	storage.Append(take(1, "1.2.3.4", "de", "fr", start.Add(time.Hour)))
-	require.NoError(t, storage.Save())
-
-	assert.Less(t, fileSize(t, config), full/10)
-	assert.Len(t, replay(reload(config)), 1)
-}
-
-func TestADamagedTailKeepsTheFramesBeforeIt(t *testing.T) {
-	config := statePath(t)
-
-	storage := inmemory_ledger_storage.New(config, nil)
-	storage.Append(take(1, "1.2.3.4", "fr", "", start))
-	require.NoError(t, storage.Save())
-	storage.Append(take(2, "1.2.3.4", "fr", "", start))
-	require.NoError(t, storage.Save())
-
-	raw := readFile(t, config)
-	writeFile(t, config, raw[:len(raw)-3])
-
-	damaged := reload(config)
-	assert.Equal(t, []ledger.Taking{take(1, "1.2.3.4", "fr", "", start)}, replay(damaged))
-
-	damaged.Append(take(3, "1.2.3.4", "fr", "", start))
-	require.NoError(t, damaged.Save())
-	assert.Len(t, replay(reload(config)), 2, "the next save writes the damage away rather than appending after it")
-}
-
-func TestACorruptHeaderStartsEmpty(t *testing.T) {
-	config := statePath(t)
-
-	storage := inmemory_ledger_storage.New(config, nil)
-	storage.Append(take(1, "1.2.3.4", "fr", "", start))
-	require.NoError(t, storage.Save())
-
-	raw := readFile(t, config)
-	raw[0] ^= 0xff
-	writeFile(t, config, raw)
-
-	assert.Empty(t, replay(reload(config)))
-}
-
-func TestAnUnknownVersionStartsEmpty(t *testing.T) {
-	config := statePath(t)
-	writeFile(t, config, []byte("CPLEDGR\n\x09"))
-
-	assert.Empty(t, replay(reload(config)))
-}
-
-func TestAMissingLedgerFileStartsEmpty(t *testing.T) {
-	assert.Empty(t, replay(reload(statePath(t))))
-}
-
-func TestAVersionOneFileIsReadAsOneTakePerTileAndWrittenOver(t *testing.T) {
-	config := statePath(t)
-	writeFile(t, config, versionOne([]ledger.Taking{
-		take(2, "2001:db8::/64", "ps", "il", start.Add(time.Minute)),
-		take(1, "1.2.3.4", "fr", "de", start),
-	}))
-
-	storage := reload(config)
-	want := []ledger.Taking{
-		take(1, "1.2.3.4", "fr", "de", start),
-		take(2, "2001:db8::/64", "ps", "il", start.Add(time.Minute)),
-	}
-	assert.Equal(t, want, replay(storage), "oldest first")
-
-	require.NoError(t, storage.Save())
-	assert.Equal(t, byte(2), readFile(t, config)[8])
-	assert.Equal(t, want, replay(reload(config)))
-}
-
-// versionOne writes the old format: magic, version, CRC32, string table, then 24 bytes per tile.
-func versionOne(takings []ledger.Taking) []byte {
-	var strs []string
-	ids := map[string]uint32{}
-	intern := func(value string) uint32 {
-		if id, ok := ids[value]; ok {
-			return id
-		}
-		ids[value] = uint32(len(strs))
-		strs = append(strs, value)
-		return ids[value]
-	}
-
-	var records []byte
-	for _, taking := range takings {
-		records = binary.LittleEndian.AppendUint32(records, taking.Tile)
-		records = binary.LittleEndian.AppendUint32(records, intern(taking.Scope))
-		records = binary.LittleEndian.AppendUint32(records, intern(taking.Country))
-		records = binary.LittleEndian.AppendUint32(records, intern(taking.Previous))
-		records = binary.LittleEndian.AppendUint64(records, uint64(taking.At.UnixNano()))
-	}
-
-	payload := binary.LittleEndian.AppendUint32(nil, uint32(len(strs)))
-	for _, value := range strs {
-		payload = binary.LittleEndian.AppendUint16(payload, uint16(len(value)))
-		payload = append(payload, value...)
-	}
-	payload = binary.LittleEndian.AppendUint32(payload, uint32(len(takings)))
-	payload = append(payload, records...)
-
-	raw := append([]byte("CPLEDGR\n"), 1)
-	raw = binary.LittleEndian.AppendUint32(raw, crc32.ChecksumIEEE(payload))
-
-	return append(raw, payload...)
-}
-
-func fileSize(t *testing.T, config inmemory_ledger_storage.Config) int64 {
-	t.Helper()
-	info, err := os.Stat(config.StatePath)
-	require.NoError(t, err)
-	return info.Size()
-}
-
-func readFile(t *testing.T, config inmemory_ledger_storage.Config) []byte {
-	t.Helper()
-	raw, err := os.ReadFile(config.StatePath)
-	require.NoError(t, err)
-	return raw
-}
-
-func writeFile(t *testing.T, config inmemory_ledger_storage.Config, raw []byte) {
-	t.Helper()
-	//nolint:gosec // G703: path is this test's own t.TempDir() file.
-	require.NoError(t, os.WriteFile(config.StatePath, raw, 0o600))
 }

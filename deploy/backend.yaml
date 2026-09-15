@@ -3,7 +3,7 @@ httpServer:
 gameMap:
   maxIndex: 1004892
 
-# The postgres service in docker-compose.yaml.
+# The postgres service in docker-compose.yaml: the tile map and the ledger.
 database:
   host: postgres
   port: "5432"

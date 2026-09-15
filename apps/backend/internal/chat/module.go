@@ -74,7 +74,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to load the chat: %w", err)
 	}
 	// The pool closes after the runner stops, not as a closer: closers run first.
-	props.Runners.Add(cppg.CloseAfter(storage, db, props.Logger))
+	props.Runners.Add(cppg.CloseAfter(db, props.Logger, storage))
 
 	messageLimiter := cpratelimit.New("message-limiter", config.RateLimiter, cptime.SystemClock{})
 	props.Runners.Add(messageLimiter)

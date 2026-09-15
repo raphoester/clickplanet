@@ -63,25 +63,3 @@ func syncDir(dir string) error {
 
 	return nil
 }
-
-func CheckWritable(path string) error {
-	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0o750); err != nil {
-		return fmt.Errorf("failed to create directory: %w", err)
-	}
-
-	probe, err := os.CreateTemp(dir, filepath.Base(path)+".probe-*")
-	if err != nil {
-		return fmt.Errorf("failed to create a file in the directory: %w", err)
-	}
-
-	if err := probe.Close(); err != nil {
-		return fmt.Errorf("failed to close the probe file: %w", err)
-	}
-
-	if err := os.Remove(probe.Name()); err != nil {
-		return fmt.Errorf("failed to remove the probe file: %w", err)
-	}
-
-	return nil
-}

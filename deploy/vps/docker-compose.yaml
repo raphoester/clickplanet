@@ -120,8 +120,8 @@ services:
       chat.database.password: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env (openssl rand -hex 32)}
     volumes:
       - ./backend.yaml:/home/app/config/config.yaml:ro
-      # The ledger, bans and antibot evidence still live here. The old chat log is imported into postgres on
-      # the first boot and left beside them as chat.log.imported.
+      # Bans and antibot evidence still live here. The old chat log is imported into postgres on the first
+      # boot and left beside them as chat.log.imported.
       - tile_state:/home/app/state
     command: [ "./api", "-config", "/home/app/config/config.yaml" ]
     # journald, not the default json-file. json-file is stored per container id,
