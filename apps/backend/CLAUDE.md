@@ -527,8 +527,9 @@ The signature is checked **before** the expiry, in constant time, so a forger le
 
 ```
 internal/auth/internal/
-  accounts/                                cookie, token, Session, Lifetime
+  accounts/                                cookie, token, Session, Lifetime, the Sessions port
     postgres_account_store/                accounts and sessions in the auth schema
+    inmemory_account_store/                the same port in a map, behind the testing tag
     usecases/resolve_account_usecase/      find, extend, or create a guest   — Sessions
   authv1controller/                        AuthService and InternalService (bags)
     get_me_handler/  resolve_account_handler/
@@ -538,6 +539,7 @@ internal/auth/internal/
 - **The cookie is `cp_sid`**: a random 32-byte token, `HttpOnly; Secure; SameSite=Lax; Path=/`, host-only on the API's domain. The API and the frontend are the same site, so it is not a third-party cookie. **Only its SHA-256 is stored** (`sessions.token_hash`), so a copy of the table signs nobody in.
 - **`ResolveAccount`** (internal only): a live session gives its account; a session last extended `auth.sessions.extendEvery` (24h) ago or more is extended to `guestTTL` (90 days) from now, with `accounts.last_seen_at`, and the same token is sent back with the new expiry. No live session and `create` makes a guest: an account (a UUIDv7) and its session in one transaction. An expired or unknown cookie without `create` is no account.
 - **`GetMe`** (public) resolves without `create`: only a mint, after Turnstile, gives a browser an account. No account answers `Unauthenticated`. It answers `no-store`.
+- **`accounts.SessionsContractSuite` is the port's behaviour**, like `clicks.TileStorageContractSuite`. Both stores embed it: postgres adds only what the port cannot show (the token is never stored, `last_seen_at`, a failed insert leaves no account), and the use case is tested over the in-memory one, which can `FailWith` an error.
 - **No cache.** Mints are one per 30s per address, so one indexed read each is cheap, and there is nothing to invalidate on sign-out later.
 - The pool closes as a closer: the module has no runner.
 - Not yet: providers, sign-out, deletion and the guest prune. An expired session row stays until the prune.
