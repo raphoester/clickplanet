@@ -38,7 +38,7 @@ and `fakeBackend.botBoost(tile, "fr")` play somebody else's bomb, spread click o
 boosted click.
 
 A local backend is the quickest way to exercise the real chat: `cmd/api`'s
-`example.yaml` has `chat.enabled: true`, and the Go server answers
+`example.yaml` runs chat (it is always on), and the Go server answers
 `Access-Control-Allow-Origin: *` itself, so `VITE_API_BASE_URL=http://localhost:8080
 npm run dev` works with no proxy in between.
 
@@ -271,7 +271,7 @@ after a connection dropped mid-request would post the message twice, visibly, to
 everyone; a message the player can retype is the cheaper failure. `getHistory`
 is retried like every other read.
 
-The four refusals map to their own error classes and are reported **inline in the
+The three refusals map to their own error classes and are reported **inline in the
 composer, not as a modal** — unlike a refused click, the text is still in the box
 and the advice is one line:
 
@@ -279,14 +279,11 @@ and the advice is one line:
   every 3s), unrelated to the click bucket
 - `permission_denied` → `ChatBlockedError`, the address is in `chat.blockedIPs`
 - `invalid_argument` → `ChatRejectedError`, the server refused the content
-- `unimplemented` → `ChatUnavailableError`, i.e. `chat.enabled` is false and the
-  route 404s
 
-**`ChatUnavailableError` hides the panel entirely** rather than showing a broken
-box: `useChat` goes to `unavailable` and `ChatPanel` renders nothing. That is
-what lets this ship against a server with chat switched off, and it is also why
-the composer keeps its text when a send fails — the panel may be gone next
-frame.
+The server always runs chat, so there is no "chat is off" error. **A history that
+cannot be loaded hides the panel entirely** rather than showing a broken box:
+`useChat` goes to `unavailable` and `ChatPanel` renders nothing. So does a build
+with no chat backend wired.
 
 The composer **clears the box when the send starts, not when it lands**, and puts
 the text back only if the box is still empty when a refusal comes in. Clearing on

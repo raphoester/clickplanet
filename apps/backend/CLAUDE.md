@@ -126,7 +126,7 @@ return []bootstrap.Module{
 }
 ```
 
-**Every module is always listed; each reads its own switch.** `NewModule` sets `Enabled` from the module's own config and `cpbootstrap` skips the ones that are off, so turning chat off is a config change and never an edit here. A disabled module is never built, so its routes are **absent** rather than present and refusing — `/chat.v1.ChatService/` 404s, which is the contract chat and sessions already had.
+**Every module is always listed; a module with a switch reads its own.** `NewModule` sets `Enabled` and `cpbootstrap` skips the ones that are off, so turning sessions off is a config change and never an edit here. `planet` and `chat` have no switch and are always on. A disabled module is never built, so its routes are **absent** rather than present and refusing — `/session.v1.SessionService/` 404s.
 
 #### What two contexts need, without either handing it to the other
 
@@ -351,7 +351,7 @@ A failed insert fails the whole post: the table is the audit trail, so a message
 
 Chat is a separate bounded context, not a feature of the tile game: it shares the process, the transport and the country list, and has its own proto package, domain, storage and edge. Nothing under `internal/chat/` imports `internal/planet/`, and the reverse holds too — and since each module's interior sits behind its own `internal/`, neither now can.
 
-**Off by default.** With `chat.enabled` false nothing is registered, so `/chat.v1.ChatService/` answers 404 — the unauthenticated public write endpoint does not exist at all rather than existing and erroring.
+**Always on.** There is no `chat.enabled`: the module is built on every boot, and its database block is required.
 
 **Identity without accounts.** A client picks its own display name and sends a UUID it persists locally. **Neither is trusted for anything** — anyone can post with any name. What a sender cannot forge is `author_tag`: a salted hash of their IP, 6 hex characters, so two people using the same name still look different and a mute has a key that means something. The salt is `chat.service.tagSalt`; left empty it is regenerated at boot, which changes everyone's tag on restart, and the server warns about it.
 
@@ -1215,7 +1215,7 @@ Both chains order them the same way: error mapping outermost, then the blocklist
 
 **`shared/cppg` is the client**, ported from on-core-platform's `onpg`: `Config` (one module's database block, schema included), `New`, `ConnectCtx`, `Migrate`, and the `Querier`/`Beginner` interfaces a store depends on. Cut from the original: gorm (`make deadcode` rejects what nothing calls, and plain SQL is enough), the SSM tunnel, tracing and lazy config. **Every module that stores something has its own database block and its own pool.** The planet's is `database:` at the top of the file, because `planet.Config` is squashed there; another module's would sit inside its own section (`chat.database:`). Nothing is handed between modules. `Config.String` leaves the password out of the boot's config log line.
 
-**The chat has its own block, `chat.database` (schema `chat`), its own pool and its own migrations** (`internal/chat/internal/migrations`). It connects and migrates inside chat's DI sequence, so with `chat.enabled` false it never connects, and `chat.Config.Validate` checks the block only when chat is on. Its pool is closed by `cppg.CloseAfter` around the storage runner, like the planet's. In production both blocks point at the same postgres and user. See [Chat](#chat-internalchat).
+**The chat has its own block, `chat.database` (schema `chat`), its own pool and its own migrations** (`internal/chat/internal/migrations`). It connects and migrates inside chat's DI sequence, and `chat.Config.Validate` refuses an incomplete block. Its pool is closed by `cppg.CloseAfter` around the storage runner, like the planet's. In production both blocks point at the same postgres and user. See [Chat](#chat-internalchat).
 
 The rest is still files on the `tile_state` volume, and moves to postgres next: the ledger (`ledgerStorage.statePath`), bans (`antiBot.shadowBan.statePath`) and antibot evidence (`antiBot.evidence.statePath`).
 
@@ -1454,7 +1454,7 @@ The binary never reads inside a block to check it, so a new bound is added in th
 - `shared/cppg.Config` — a connection setting or the schema left empty, or a schema that is not a plain lowercase identifier. Each module checks its own block, starting with `planet.Config`
 - `planet.Config` — `gameMap.maxIndex` zero is a map that refuses every click, plus whatever `bonus` and `antiBot` refuse of their own
 - `shared/cpsession.Config` — `secret` empty while `enabled`, and a negative `ttl`. It sits with the block rather than with either context, because both read it and it must be checked exactly once
-- `chat.Config` — with `chat.enabled` true, an incomplete `chat.database` block. Every other chat setting has a usable default
+- `chat.Config` — an incomplete `chat.database` block. Every other chat setting has a usable default
 
 There is no struct-tag validation and therefore no validator dependency — a hook the config implements covers this app's needs.
 
@@ -1502,8 +1502,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `session.turnstile.secret` — the widget's secret half, from the environment
 - `session.turnstile.hostnames` — the frontend origins siteverify must report; **empty refuses every token** rather than accepting any, and a production value must not include `localhost`
 - `session.turnstile.action` — must match the widget's `data-action` (default `session`)
-- `chat.enabled` — the kill switch; off means the routes are never registered
-- `chat.database.host`, `port`, `user`, `password`, `dbName`, `sslMode`, `schema`, `pool.*` — the chat module's postgres, same shape as `database`; checked, and connected, only when `chat.enabled` is true. `chat.database.password` belongs in the environment
+- `chat.database.host`, `port`, `user`, `password`, `dbName`, `sslMode`, `schema`, `pool.*` — the chat module's postgres, same shape as `database`; any of them but `password` and `pool` empty refuses the boot. `chat.database.password` belongs in the environment
 - `chat.storage.legacyLogPath` — the pre-postgres JSONL log, imported once into an empty `chat.messages` table (see [Chat](#chat-internalchat))
 - `chat.storage.historySize`, `chat.storage.retention`, `chat.storage.pruneInterval`, `chat.storage.subscriberBuffer`
 - `chat.service.tagSalt` — salts the per-sender tag; **empty regenerates one at boot**, changing every tag on restart

@@ -453,15 +453,11 @@ session:
     action: session
 
 # Live chat. Its own bounded context and its own Connect service, sharing this
-# process and the transport with the tile game and nothing else. Off by
-# default: when disabled nothing is registered, so /chat.v1.ChatService/ and
-# /ws/chat both 404 rather than erroring.
+# process and the transport with the tile game and nothing else. Always on.
 chat:
-  enabled: true
   # The chat module's own database block: every message, sender IP included, in
   # the chat schema. Same shape as the planet's database above, and it may point
   # at the same postgres. A message that cannot be written is not broadcast.
-  # Not read when chat is disabled.
   database:
     host: localhost
     port: "5432"

@@ -40,7 +40,7 @@ const moduleName = "chat"
 func NewModule(config Config) cpbootstrap.Module {
 	return cpbootstrap.Module{
 		Name:    moduleName,
-		Enabled: config.Enabled,
+		Enabled: true,
 		DiSequence: func(ctx context.Context, props cpbootstrap.Props) error {
 			return build(ctx, config, props)
 		},
@@ -102,17 +102,12 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return err
 	}
 
-	props.Logger.Info("chat enabled", slog.String("schema", config.Database.Schema))
+	props.Logger.Info("chat built", slog.String("schema", config.Database.Schema))
 
 	return nil
 }
 
 type Config struct {
-	// Off registers nothing, so /chat.v1.ChatService/ answers 404: the
-	// unauthenticated public write endpoint does not exist rather than
-	// existing and erroring.
-	Enabled bool
-
 	Database cppg.Config
 
 	Storage inmemory_message_storage.Config
@@ -124,11 +119,8 @@ type Config struct {
 	BlockedIPs []string
 }
 
-// Validate refuses only a missing database: every other chat setting has a usable default. Chat off needs none.
+// Validate refuses only a missing database: every other chat setting has a usable default.
 func (c Config) Validate() error {
-	if !c.Enabled {
-		return nil
-	}
 	if err := c.Database.Validate(); err != nil {
 		return fmt.Errorf("chat.database: %w", err)
 	}

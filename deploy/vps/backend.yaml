@@ -333,7 +333,6 @@ session:
 # policy, not a cache size: 30 days, applied by an hourly prune.
 #
 chat:
-  enabled: true
   # Same postgres and user as the planet's database block, its own schema and
   # pool. The password comes from the environment (chat.database.password in
   # docker-compose.yaml).

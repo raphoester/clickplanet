@@ -131,7 +131,7 @@ func TestADisabledModuleIsNeverBuilt(t *testing.T) {
 
 	require.NoError(t, run(t, []cpbootstrap.Module{
 		newModule("planet", func(cpbootstrap.Props) error { return nil }),
-		disabled(newModule("chat", func(cpbootstrap.Props) error {
+		disabled(newModule("session", func(cpbootstrap.Props) error {
 			built = true
 			return nil
 		})),

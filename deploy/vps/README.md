@@ -728,14 +728,13 @@ Pages deploys itself on push; no workflow needed.
 
 ## 8. Live chat
 
-`chat.enabled: true` in `backend.yaml` publishes two routes Caddy already
-forwards, `ListenForEvents` included: `/chat.v1.ChatService/`. `SendMessage` is an
+Chat is always on. The API serves `/chat.v1.ChatService/`, `ListenForEvents`
+included, and Caddy already forwards it. `SendMessage` is an
 **unauthenticated public write endpoint** — anyone who can reach the API can
 post, under any name — so the things that keep it usable are all config:
 
 | Knob | Where | Default here |
 |---|---|---|
-| Kill switch | `chat.enabled` | on — flip it off and the routes 404 again |
 | Per-IP throttle | `chat.rateLimiter` | one message per 3s, 5 in hand |
 | Cutting someone off | `chat.blockedIPs` | CIDRs, `203.0.113.7/32` for one address |
 | Message log retention | `chat.storage.retention` | 30 days |
@@ -785,12 +784,10 @@ Then remove `chat.storage.legacyLogPath` from `backend.yaml`, and delete
 docker compose exec backend rm /home/app/state/chat.log.imported
 ```
 
-Turning chat off needs no rebuild and no image change: `chat.enabled: false` in
-`backend.yaml` then `docker compose --env-file .env up -d backend`. Anything in
-that file can also be overridden from the `environment:` block instead —
-`cfgutil` reads env vars with `.` as the nesting delimiter, so the key is the
-config path verbatim (`chat.enabled: "false"`), which is how `CHAT_TAG_SALT`
-reaches `chat.service.tagSalt`.
+Anything in `backend.yaml` can also be overridden from the `environment:` block
+instead — `cfgutil` reads env vars with `.` as the nesting delimiter, so the key
+is the config path verbatim, which is how `CHAT_TAG_SALT` reaches
+`chat.service.tagSalt`.
 
 ## 9. Postgres
 

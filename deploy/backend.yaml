@@ -22,7 +22,6 @@ vpnBlocklist:
 # deploy/vps has the production settings, including the retention window and a
 # real tag salt.
 chat:
-  enabled: true
   # The same postgres service as the planet, in a schema of its own.
   database:
     host: postgres

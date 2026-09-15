@@ -55,10 +55,3 @@ export class ChatRejectedError extends Error {
         this.name = "ChatRejectedError"
     }
 }
-
-export class ChatUnavailableError extends Error {
-    constructor(options?: {cause?: unknown}) {
-        super("chat is not enabled on this server", options)
-        this.name = "ChatUnavailableError"
-    }
-}

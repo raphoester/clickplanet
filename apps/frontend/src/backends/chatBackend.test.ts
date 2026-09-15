@@ -7,7 +7,6 @@ import {
     ChatBlockedError,
     ChatRateLimitedError,
     ChatRejectedError,
-    ChatUnavailableError,
 } from "./chat.ts"
 
 const outgoing = {authorName: "Ana", authorId: "author-1", countryCode: "fr", text: "hello"}
@@ -90,7 +89,6 @@ describe("ChatServiceBackend.sendMessage", () => {
         {code: Code.ResourceExhausted, error: ChatRateLimitedError},
         {code: Code.PermissionDenied, error: ChatBlockedError},
         {code: Code.InvalidArgument, error: ChatRejectedError},
-        {code: Code.Unimplemented, error: ChatUnavailableError},
     ]
 
     it.each(refusals)("translates $code into its own error", async ({code, error}) => {
@@ -125,12 +123,5 @@ describe("ChatServiceBackend.getHistory", () => {
 
         expect(await new ChatServiceBackend(client).getHistory()).toHaveLength(1)
         expect(getHistory).toHaveBeenCalledTimes(2)
-    })
-
-    it("reports a server with chat switched off as unavailable", async () => {
-        const backend = new ChatServiceBackend(clientThatFails(new ConnectError("no such handler", Code.Unimplemented)),
-        )
-
-        await expect(backend.getHistory()).rejects.toBeInstanceOf(ChatUnavailableError)
     })
 })
