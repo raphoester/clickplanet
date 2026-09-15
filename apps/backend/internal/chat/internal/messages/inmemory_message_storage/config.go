@@ -3,8 +3,6 @@ package inmemory_message_storage
 import "time"
 
 type Config struct {
-	LegacyLogPath string
-
 	HistorySize int
 
 	Retention time.Duration

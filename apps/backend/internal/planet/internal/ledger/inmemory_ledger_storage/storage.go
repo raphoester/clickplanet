@@ -15,8 +15,6 @@ type Config struct {
 	FlushInterval time.Duration
 	// The most takes kept, oldest dropped first even inside the retention. 16 bytes each.
 	MaxTakes int
-	// The ledger file from before postgres. Imported once, into empty tables, then renamed. Empty imports nothing.
-	LegacyStatePath string
 }
 
 const (
@@ -72,8 +70,6 @@ type Storage struct {
 	saved       ledger.Position
 	savedHead   ledger.Position
 	dirtyScopes map[string]struct{}
-	// imported is the legacy file loaded at boot, renamed once a flush commits it.
-	imported string
 }
 
 var _ ledger.Storage = (*Storage)(nil)

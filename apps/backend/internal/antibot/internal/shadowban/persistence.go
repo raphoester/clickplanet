@@ -36,15 +36,7 @@ func (b *Banner) Load(ctx context.Context) error {
 
 	b.bans = bans
 
-	if len(bans) > 0 {
-		if legacyFileExists(b.config.LegacyStatePath) {
-			b.onStateError(fmt.Errorf("the legacy bans file %s is still on disk but postgres already holds bans, ignoring it",
-				b.config.LegacyStatePath))
-		}
-		return nil
-	}
-
-	return b.importLegacyStateLocked()
+	return nil
 }
 
 func (r Record) ban() *ban {
@@ -91,8 +83,6 @@ func (b *Banner) Flush(ctx context.Context) error {
 
 		return fmt.Errorf("failed to save %d bans: %w", len(records), err)
 	}
-
-	b.retireLegacyState()
 
 	return nil
 }

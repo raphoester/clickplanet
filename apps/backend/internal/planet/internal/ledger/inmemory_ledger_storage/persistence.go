@@ -7,7 +7,6 @@ import (
 	"iter"
 	"log/slog"
 	"maps"
-	"os"
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
@@ -41,28 +40,21 @@ type Changes struct {
 	Marks Marks
 }
 
-const (
-	flushTimeout = 10 * time.Second
-	// The flush that carries an import writes the whole ledger in one transaction.
-	importFlushTimeout = 10 * time.Minute
-	importedSuffix     = ".imported"
-)
+const flushTimeout = 10 * time.Second
+
+var errCorruptState = errors.New("corrupt stored ledger")
 
 // Load refuses rather than start empty: an empty ledger that then flushes would lose every take on record.
 func (s *Storage) Load(ctx context.Context) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	var (
-		stored     int
-		restoreErr error
-	)
+	var restoreErr error
 	marks, err := s.persistence.Load(ctx, func(take Stored) {
 		if restoreErr != nil {
 			return
 		}
 		restoreErr = s.restoreLocked(take.Position, take.Taking)
-		stored++
 	})
 	if err != nil {
 		return fmt.Errorf("failed to read the stored ledger: %w", err)
@@ -71,18 +63,9 @@ func (s *Storage) Load(ctx context.Context) error {
 		return fmt.Errorf("failed to restore the stored ledger: %w", restoreErr)
 	}
 
-	if stored == 0 && marks.Head == 0 && len(marks.Forgotten) == 0 {
-		return s.importLegacyStateLocked()
-	}
-
 	s.applyMarksLocked(marks.Head, maps.Clone(marks.Forgotten))
 	s.saved = s.next
 	s.savedHead = marks.Head
-
-	if s.config.LegacyStatePath != "" && fileExists(s.config.LegacyStatePath) {
-		s.logger.Warn("a legacy ledger file is still on disk but postgres already holds the ledger, ignoring it",
-			slog.String("path", s.config.LegacyStatePath))
-	}
 
 	s.logger.Info("loaded the ledger", slog.Int("takings", s.liveLocked()))
 
@@ -137,14 +120,7 @@ func (s *Storage) Run(ctx context.Context) {
 }
 
 func (s *Storage) flushOrLog(ctx context.Context) {
-	s.mu.Lock()
-	timeout := flushTimeout
-	if s.imported != "" {
-		timeout = importFlushTimeout
-	}
-	s.mu.Unlock()
-
-	ctx, cancel := context.WithTimeout(ctx, timeout)
+	ctx, cancel := context.WithTimeout(ctx, flushTimeout)
 	defer cancel()
 
 	if err := s.Flush(ctx); err != nil {
@@ -161,8 +137,7 @@ func (s *Storage) Flush(ctx context.Context) error {
 	head := s.headPositionLocked()
 	end := s.next
 	from := max(s.saved, head)
-	imported := s.imported
-	if from == end && head == s.savedHead && len(s.dirtyScopes) == 0 && imported == "" {
+	if from == end && head == s.savedHead && len(s.dirtyScopes) == 0 {
 		s.mu.Unlock()
 		return nil
 	}
@@ -192,12 +167,7 @@ func (s *Storage) Flush(ctx context.Context) error {
 	}
 	s.saved = end
 	s.savedHead = head
-	s.imported = ""
 	s.mu.Unlock()
-
-	if imported != "" {
-		s.retireLegacyState(imported)
-	}
 
 	return nil
 }
@@ -212,19 +182,4 @@ func storedOf(views []view) iter.Seq[Stored] {
 			}
 		}
 	}
-}
-
-// retireLegacyState renames the imported file, so a later boot on emptied tables cannot import it again.
-func (s *Storage) retireLegacyState(path string) {
-	if err := os.Rename(path, path+importedSuffix); err != nil {
-		s.logger.Error("failed to rename the imported ledger file", slog.String("path", path), slog.Any("error", err))
-		return
-	}
-
-	s.logger.Info("the imported ledger file is in postgres, renamed it", slog.String("path", path+importedSuffix))
-}
-
-func fileExists(path string) bool {
-	_, err := os.Stat(path)
-	return !errors.Is(err, os.ErrNotExist)
 }

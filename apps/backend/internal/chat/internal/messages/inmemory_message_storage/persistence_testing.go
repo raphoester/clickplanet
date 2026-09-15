@@ -33,27 +33,6 @@ func (m *MemoryPersistence) Insert(_ context.Context, record messages.Record) er
 	return nil
 }
 
-func (m *MemoryPersistence) InsertAll(_ context.Context, records []messages.Record) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if m.failing != nil {
-		return m.failing
-	}
-	m.rows = append(m.rows, records...)
-	return nil
-}
-
-func (m *MemoryPersistence) IsEmpty(_ context.Context) (bool, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if m.failing != nil {
-		return false, m.failing
-	}
-	return len(m.rows) == 0, nil
-}
-
 func (m *MemoryPersistence) Recent(_ context.Context, since time.Time, limit int) ([]messages.Message, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

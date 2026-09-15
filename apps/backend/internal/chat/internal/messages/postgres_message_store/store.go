@@ -3,12 +3,9 @@ package postgres_message_store
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"slices"
 	"time"
-
-	"github.com/lib/pq"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
@@ -30,44 +27,6 @@ func (s *Store) Insert(ctx context.Context, record messages.Record) error {
 		return fmt.Errorf("failed to insert a message: %w", err)
 	}
 	return nil
-}
-
-// InsertAll writes records in one transaction, in order: all of them or none.
-func (s *Store) InsertAll(ctx context.Context, records []messages.Record) error {
-	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to insert messages: %w", err)
-	}
-	defer func() { _ = tx.Rollback() }()
-
-	stmt, err := tx.PrepareContext(ctx,
-		pq.CopyIn("messages", "id", "sent_at", "name", "tag", "author_id", "country", "ip", "user_agent", "text"))
-	if err != nil {
-		return fmt.Errorf("failed to start copying messages: %w", err)
-	}
-	defer func() { _ = stmt.Close() }()
-
-	for _, record := range records {
-		if _, err := stmt.ExecContext(ctx, row(record)...); err != nil {
-			return fmt.Errorf("failed to copy a message: %w", err)
-		}
-	}
-	if _, err := stmt.ExecContext(ctx); err != nil {
-		return fmt.Errorf("failed to copy messages: %w", err)
-	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit messages: %w", err)
-	}
-	return nil
-}
-
-func (s *Store) IsEmpty(ctx context.Context) (bool, error) {
-	var empty bool
-	if err := s.db.QueryRowContext(ctx, `SELECT NOT EXISTS (SELECT 1 FROM messages)`).Scan(&empty); err != nil {
-		return false, fmt.Errorf("failed to count messages: %w", err)
-	}
-	return empty, nil
 }
 
 // Recent is the newest limit messages sent at or after since, oldest first.

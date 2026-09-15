@@ -6,8 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"os"
-	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -32,13 +30,11 @@ type testSuite struct {
 
 	clock       *cptime.FixedClock
 	persistence *inmemory_message_storage.MemoryPersistence
-	logPath     string
 }
 
 func (s *testSuite) SetupTest() {
 	s.clock = cptime.NewFixedClock(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC))
 	s.persistence = inmemory_message_storage.NewMemoryPersistence()
-	s.logPath = filepath.Join(s.T().TempDir(), "chat.log")
 }
 
 func (s *testSuite) newStorage(config inmemory_message_storage.Config) *inmemory_message_storage.Storage {
@@ -210,68 +206,6 @@ func (s *testSuite) TestRunDeletesMessagesPastRetention() {
 	<-done
 
 	s.Equal("recent", s.persistence.Stored()[0].Message.Text)
-}
-
-func (s *testSuite) writeLegacyLog(lines ...string) {
-	var content []byte
-	for _, line := range lines {
-		content = append(content, line+"\n"...)
-	}
-	s.Require().NoError(os.WriteFile(s.logPath, content, 0o600))
-}
-
-func (s *testSuite) legacyLine(text string, at time.Time) string {
-	return fmt.Sprintf(`{"at":%q,"id":%q,"name":"Bob","tag":"a1b2c3","authorId":"some-uuid","country":"fr","ip":"203.0.113.7","userAgent":"test-agent","text":%q}`,
-		at.Format(time.RFC3339Nano), text, text)
-}
-
-func (s *testSuite) TestTheLegacyLogIsImportedIntoAnEmptyStore() {
-	ancient := s.clock.Now()
-	s.clock.Advance(48 * time.Hour)
-	s.writeLegacyLog(
-		s.legacyLine("ancient", ancient),
-		"{not json",
-		s.legacyLine("hello", s.clock.Now()),
-		"",
-		s.legacyLine("planet", s.clock.Now()),
-	)
-
-	storage := s.newStorage(inmemory_message_storage.Config{LegacyLogPath: s.logPath, Retention: 24 * time.Hour})
-
-	s.Equal([]messages.Record{s.record("hello"), s.record("planet")}, s.persistence.Stored(),
-		"the unreadable line is skipped and the one past retention is not imported")
-	s.Equal([]string{"hello", "planet"}, s.texts(storage.History(context.Background())))
-	s.NoFileExists(s.logPath)
-	s.FileExists(s.logPath + ".imported")
-}
-
-func (s *testSuite) TestTheLegacyLogIsIgnoredWhenTheStoreHoldsMessages() {
-	s.persistence = inmemory_message_storage.NewMemoryPersistence(s.record("stored"))
-	s.writeLegacyLog(s.legacyLine("legacy", s.clock.Now()))
-
-	s.newStorage(inmemory_message_storage.Config{LegacyLogPath: s.logPath})
-
-	s.Equal([]messages.Record{s.record("stored")}, s.persistence.Stored())
-	s.FileExists(s.logPath)
-}
-
-func (s *testSuite) TestAFailedImportKeepsTheLegacyLogAndRefusesTheLoad() {
-	s.writeLegacyLog(s.legacyLine("legacy", s.clock.Now()))
-	s.persistence.FailWith(errors.New("postgres is down"))
-	storage := inmemory_message_storage.New(
-		inmemory_message_storage.Config{LegacyLogPath: s.logPath}, s.persistence, s.clock, slog.New(slog.DiscardHandler))
-
-	s.Require().Error(storage.Load(context.Background()))
-
-	s.FileExists(s.logPath)
-	s.NoFileExists(s.logPath + ".imported")
-}
-
-func (s *testSuite) TestAMissingLegacyLogImportsNothing() {
-	storage := s.newStorage(inmemory_message_storage.Config{LegacyLogPath: s.logPath})
-
-	s.Empty(s.persistence.Stored())
-	s.Empty(storage.History(context.Background()))
 }
 
 func (s *testSuite) TestConcurrentUseIsSafe() {

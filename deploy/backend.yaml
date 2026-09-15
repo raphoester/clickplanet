@@ -44,10 +44,6 @@ chat:
     dbName: postgres
     sslMode: disable
     schema: chat
-  storage:
-    # A chat log from before postgres, on the tile_state volume. Imported once
-    # into an empty messages table, then renamed chat.log.imported.
-    legacyLogPath: /home/app/state/chat.log
   service:
     tagSalt: "local-development-salt"
   rateLimiter:

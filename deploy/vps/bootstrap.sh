@@ -31,7 +31,6 @@ REPO_URL="https://github.com/raphoester/clickplanet.git"
 CHECKOUT="/opt/clickplanet"
 STACK_DIR="${CHECKOUT}/deploy/vps"
 DEPLOY_USER="deploy"
-BACKUP_DIR="/home/${DEPLOY_USER}/backups"
 
 API_DOMAIN=""
 FRONTEND_ORIGIN=""
@@ -470,23 +469,6 @@ ENV
 	chmod 600 "$env_file"
 fi
 
-# ----------------------------------------------------------------- backups
-
-# The tile_state volume: only the pre-postgres files the first boot imports. The tile map, the ledger, bans,
-# evidence and the chat are in postgres,
-# which this does not back up yet.
-if ! crontab -u "$DEPLOY_USER" -l 2>/dev/null | grep -q 'vps_tile_state'; then
-	log "installing nightly tile-state backup cron"
-	install -d -m 755 -o "$DEPLOY_USER" -g "$DEPLOY_USER" "$BACKUP_DIR"
-	{
-		crontab -u "$DEPLOY_USER" -l 2>/dev/null || true
-		echo "0 4 * * * docker run --rm -v vps_tile_state:/state -v ${BACKUP_DIR}:/out alpine tar czf /out/tiles-\$(date +\\%F).tar.gz -C /state ."
-		echo "30 4 * * * find ${BACKUP_DIR} -name 'tiles-*.tar.gz' -mtime +14 -delete"
-	} | crontab -u "$DEPLOY_USER" -
-else
-	log "backup cron already installed"
-fi
-
 if [[ $SKIP_START -eq 1 ]]; then
 	log "provisioning done (--skip-start), stack not started"
 	exit 0
@@ -670,8 +652,6 @@ $(log "bootstrap complete")
 
   stack     ${STACK_DIR}
   logs      sudo -u ${DEPLOY_USER} docker compose --project-directory ${STACK_DIR} logs -f
-  state     docker volume inspect vps_tile_state
-  backups   ${BACKUP_DIR} (nightly 04:00 UTC, pruned after 14 days)
 
 Next: point Cloudflare Pages at apps/frontend with
 VITE_API_BASE_URL=https://${API_DOMAIN} (no trailing slash).

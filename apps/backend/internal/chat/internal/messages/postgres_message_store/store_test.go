@@ -57,11 +57,7 @@ func (s *testSuite) recent(since time.Time, limit int) []messages.Message {
 	return recent
 }
 
-func (s *testSuite) TestAnEmptyTableIsEmpty() {
-	empty, err := s.store.IsEmpty(context.Background())
-	s.Require().NoError(err)
-
-	s.True(empty)
+func (s *testSuite) TestAnEmptyTableHasNoRecentMessages() {
 	s.Empty(s.recent(start, 10))
 }
 
@@ -69,10 +65,6 @@ func (s *testSuite) TestInsertThenRecent() {
 	ctx := context.Background()
 	s.Require().NoError(s.store.Insert(ctx, record("hello", start)))
 	s.Require().NoError(s.store.Insert(ctx, record("planet", start.Add(time.Second))))
-
-	empty, err := s.store.IsEmpty(ctx)
-	s.Require().NoError(err)
-	s.False(empty)
 
 	s.Equal([]messages.Message{record("hello", start).Message, record("planet", start.Add(time.Second)).Message},
 		s.recent(start, 10))
@@ -104,37 +96,6 @@ func (s *testSuite) TestRecentKeepsTheOrderMessagesWereRecordedIn() {
 	s.Require().NoError(s.store.Insert(ctx, record("second", start)))
 
 	s.Equal([]string{"first", "second"}, texts(s.recent(start, 10)))
-}
-
-func (s *testSuite) TestInsertAllKeepsOrder() {
-	records := make([]messages.Record, 0, 1000)
-	for i := range 1000 {
-		records = append(records, record(fmt.Sprintf("msg-%d", i), start))
-	}
-
-	s.Require().NoError(s.store.InsertAll(context.Background(), records))
-
-	recent := s.recent(start, 1000)
-	s.Require().Len(recent, 1000)
-	s.Equal("msg-0", recent[0].Text)
-	s.Equal("msg-999", recent[999].Text)
-}
-
-func (s *testSuite) TestAFailedInsertAllWritesNothing() {
-	ctx := context.Background()
-
-	_, err := s.db.ExecContext(ctx, `ALTER TABLE messages ADD CONSTRAINT no_forbidden_text CHECK (text <> 'forbidden')`)
-	s.Require().NoError(err)
-	defer func() {
-		_, err := s.db.ExecContext(ctx, `ALTER TABLE messages DROP CONSTRAINT no_forbidden_text`)
-		s.Require().NoError(err)
-	}()
-
-	s.Require().Error(s.store.InsertAll(ctx, []messages.Record{record("hello", start), record("forbidden", start)}))
-
-	empty, err := s.store.IsEmpty(ctx)
-	s.Require().NoError(err)
-	s.True(empty)
 }
 
 func (s *testSuite) TestDeleteBeforeRemovesOnlyOlderMessages() {

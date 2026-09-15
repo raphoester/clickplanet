@@ -21,12 +21,6 @@ ARG SYSTEM_USER=clickplanet
 
 RUN addgroup --gid 1000 -S ${SYSTEM_USER} && adduser --uid 1000 -S ${SYSTEM_USER} -G ${SYSTEM_USER}
 
-# The file stores that are not in postgres yet write here. Creating the directory with the app
-# user's ownership is what makes a named volume mounted at this path writable:
-# Docker copies the image path's ownership onto a fresh volume, and a path that
-# does not exist in the image would be created root-owned instead.
-RUN mkdir -p /home/app/state && chown ${SYSTEM_USER}:${SYSTEM_USER} /home/app/state
-
 USER ${SYSTEM_USER}
 
 WORKDIR /home/app

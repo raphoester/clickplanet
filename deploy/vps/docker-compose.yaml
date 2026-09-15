@@ -122,9 +122,6 @@ services:
       chat.database.password: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env (openssl rand -hex 32)}
     volumes:
       - ./backend.yaml:/home/app/config/config.yaml:ro
-      # Only the pre-postgres files now: the old ledger, bans, evidence and chat log are imported into
-      # postgres on the first boot and left here with an .imported suffix.
-      - tile_state:/home/app/state
     command: [ "./api", "-config", "/home/app/config/config.yaml" ]
     # journald, not the default json-file. json-file is stored per container id,
     # and a deploy pulls a new image and *recreates* the container — so every
@@ -207,5 +204,4 @@ volumes:
   caddy_config:
   caddy_logs:
   pg_data:
-  tile_state:
   metrics_history:

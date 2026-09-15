@@ -11,18 +11,12 @@ import (
 
 type Persistence interface {
 	Insert(ctx context.Context, record messages.Record) error
-	InsertAll(ctx context.Context, records []messages.Record) error
-	IsEmpty(ctx context.Context) (bool, error)
 	Recent(ctx context.Context, since time.Time, limit int) ([]messages.Message, error)
 	DeleteBefore(ctx context.Context, cutoff time.Time) (int64, error)
 }
 
-// Load imports the legacy log into an empty table, then fills the history with the newest messages still within retention.
+// Load fills the history with the newest messages still within retention.
 func (s *Storage) Load(ctx context.Context) error {
-	if err := s.importLegacyLog(ctx); err != nil {
-		return err
-	}
-
 	recent, err := s.persistence.Recent(ctx, s.cutoff(), s.config.HistorySize)
 	if err != nil {
 		return fmt.Errorf("failed to load the chat history: %w", err)
