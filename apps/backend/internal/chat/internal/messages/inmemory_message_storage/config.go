@@ -3,13 +3,11 @@ package inmemory_message_storage
 import "time"
 
 type Config struct {
-	LogPath string
+	LegacyLogPath string
 
 	HistorySize int
 
 	Retention time.Duration
-
-	FlushInterval time.Duration
 
 	PruneInterval time.Duration
 
@@ -19,7 +17,6 @@ type Config struct {
 const (
 	defaultHistorySize      = 200
 	defaultRetention        = 30 * 24 * time.Hour
-	defaultFlushInterval    = 5 * time.Second
 	defaultPruneInterval    = time.Hour
 	defaultSubscriberBuffer = 256
 )
@@ -30,9 +27,6 @@ func (c Config) withDefaults() Config {
 	}
 	if c.Retention <= 0 {
 		c.Retention = defaultRetention
-	}
-	if c.FlushInterval <= 0 {
-		c.FlushInterval = defaultFlushInterval
 	}
 	if c.PruneInterval <= 0 {
 		c.PruneInterval = defaultPruneInterval

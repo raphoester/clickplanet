@@ -23,9 +23,19 @@ vpnBlocklist:
 # real tag salt.
 chat:
   enabled: true
+  # The same postgres service as the planet, in a schema of its own.
+  database:
+    host: postgres
+    port: "5432"
+    user: postgres
+    password: postgres
+    dbName: postgres
+    sslMode: disable
+    schema: chat
   storage:
-    # On the tile_state volume.
-    logPath: /home/app/state/chat.log
+    # A chat log from before postgres, on the tile_state volume. Imported once
+    # into an empty messages table, then renamed chat.log.imported.
+    legacyLogPath: /home/app/state/chat.log
   service:
     tagSalt: "local-development-salt"
   rateLimiter:

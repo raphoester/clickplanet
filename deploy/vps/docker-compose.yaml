@@ -9,6 +9,7 @@
 #
 # Postgres runs beside the API, reachable only on the compose network. The API
 # keeps the tile map in process and writes what changed to postgres every second.
+# Chat messages are written there too, one row per message.
 
 services:
   caddy:
@@ -37,7 +38,7 @@ services:
       # The JSON access log, rolled and pruned by Caddy itself (14 days; see the
       # Caddyfile). A volume because the container is recreated on every deploy,
       # and on 2026-09-14 that deleted the only record of a bot attack. It holds
-      # client IPs, so it is personal data like chat.log.
+      # client IPs, so it is personal data like the chat messages.
       - caddy_logs:/var/log/caddy
     depends_on:
       - backend
@@ -115,9 +116,12 @@ services:
       session.turnstile.secret: ${TURNSTILE_SECRET:-}
       # Hard like the session secret: the API cannot start without postgres.
       database.password: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env (openssl rand -hex 32)}
+      # The chat module has its own database block: same postgres, same user, same password.
+      chat.database.password: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env (openssl rand -hex 32)}
     volumes:
       - ./backend.yaml:/home/app/config/config.yaml:ro
-      # The ledger, bans, antibot evidence and chat log still live here.
+      # The ledger, bans and antibot evidence still live here. The old chat log is imported into postgres on
+      # the first boot and left beside them as chat.log.imported.
       - tile_state:/home/app/state
     command: [ "./api", "-config", "/home/app/config/config.yaml" ]
     # journald, not the default json-file. json-file is stored per container id,

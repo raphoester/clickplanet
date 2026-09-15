@@ -139,6 +139,30 @@ func TestTheProcessRefusesToStartWithoutADatabase(t *testing.T) {
 	require.ErrorContains(t, config.Validate(), "database: [host port user dbName sslMode schema] is empty")
 }
 
+func TestTheExampleConfigReachesTheChatDatabaseBlock(t *testing.T) {
+	var config Config
+	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
+
+	assert.Equal(t, "chat", config.Chat.Database.Schema)
+	assert.Equal(t, "localhost", config.Chat.Database.Host)
+	assert.Equal(t, "./data/chat.log", config.Chat.Storage.LegacyLogPath)
+	assert.Equal(t, 720*time.Hour, config.Chat.Storage.Retention)
+	require.NoError(t, config.Chat.Validate())
+}
+
+func TestChatOnWithoutADatabaseIsRefused(t *testing.T) {
+	config := Config{}
+	config.HTTPServer.BindAddress = "0.0.0.0:8080"
+	config.Planet.GameMap.MaxIndex = 100
+	config.Chat.Enabled = true
+
+	require.ErrorContains(t, config.Validate(), "chat.database: [host port user dbName sslMode schema] is empty")
+}
+
+func TestChatOffNeedsNoDatabase(t *testing.T) {
+	require.NoError(t, Config{}.Chat.Validate())
+}
+
 func TestSessionsWithoutASecretAreRefused(t *testing.T) {
 	config := Config{}
 	config.HTTPServer.BindAddress = "0.0.0.0:8080"

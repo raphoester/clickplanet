@@ -1,8 +1,8 @@
 # Production backend config for the VPS stack.
 #
 # The API holds the whole tile map in process and keeps it in the postgres
-# service of docker-compose.yaml. The ledger, bans, antibot evidence and the chat log are still files on the
-# tile_state volume.
+# service of docker-compose.yaml, and so does the chat. The ledger, bans and antibot evidence are still files
+# on the tile_state volume.
 
 httpServer:
   bindAddress: 0.0.0.0:8080
@@ -326,17 +326,31 @@ session:
     # for another surface on the same sitekey is not accepted here.
     action: session
 
-# Live chat. Every message is appended to a JSONL log on the tile_state
-# volume, so the droplet's weekly disk backup covers it — with
-# a recovery point up to a week old.
+# Live chat. Every message is written to the chat schema in postgres before it
+# is broadcast; a message that cannot be written is refused.
 #
-# The log holds sender IPs alongside message text. Retention is therefore a
+# The table holds sender IPs alongside message text. Retention is therefore a
 # policy, not a cache size: 30 days, applied by an hourly prune.
 #
 chat:
   enabled: true
+  # Same postgres and user as the planet's database block, its own schema and
+  # pool. The password comes from the environment (chat.database.password in
+  # docker-compose.yaml).
+  database:
+    host: postgres
+    port: "5432"
+    user: clickplanet
+    dbName: clickplanet
+    sslMode: disable
+    schema: chat
+    pool:
+      maxOpenConns: 2
   storage:
-    logPath: /home/app/state/chat.log
+    # The pre-postgres JSONL log. The first boot imports it into an empty
+    # messages table and renames it chat.log.imported. Remove this key once
+    # that has happened.
+    legacyLogPath: /home/app/state/chat.log
     historySize: 200
     retention: 720h
   service:

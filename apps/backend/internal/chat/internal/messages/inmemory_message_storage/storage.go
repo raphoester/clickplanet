@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -13,42 +14,35 @@ import (
 
 func New(
 	config Config,
+	persistence Persistence,
 	clock cptime.Clock,
 	logger *slog.Logger,
 ) *Storage {
-	if logger == nil {
-		logger = slog.New(slog.DiscardHandler)
-	}
-	if clock == nil {
-		clock = cptime.SystemClock{}
-	}
-
 	config = config.withDefaults()
 
-	s := &Storage{
+	return &Storage{
 		config:      config,
+		persistence: persistence,
 		logger:      logger,
 		clock:       clock,
 		history:     make([]messages.Message, 0, config.HistorySize),
 		subscribers: make(map[*subscriber]struct{}),
 	}
-
-	return s
 }
 
 type Storage struct {
-	config Config
-	logger *slog.Logger
-	clock  cptime.Clock
+	config      Config
+	persistence Persistence
+	logger      *slog.Logger
+	clock       cptime.Clock
+
+	appendMu sync.Mutex
 
 	historyMu sync.RWMutex
 	history   []messages.Message
 
 	subscribersMu sync.Mutex
 	subscribers   map[*subscriber]struct{}
-
-	logMu sync.Mutex
-	log   *appendLog
 }
 
 type subscriber struct {
@@ -56,9 +50,18 @@ type subscriber struct {
 	dropped atomic.Uint64
 }
 
-func (s *Storage) Append(_ context.Context, record messages.Record) error {
-	if err := s.appendToLog(record); err != nil {
-		return fmt.Errorf("failed to write to the chat log: %w", err)
+const writeTimeout = 5 * time.Second
+
+// Append records the message before anyone sees it: a message that cannot be recorded is not broadcast.
+func (s *Storage) Append(ctx context.Context, record messages.Record) error {
+	s.appendMu.Lock()
+	defer s.appendMu.Unlock()
+
+	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
+	defer cancel()
+
+	if err := s.persistence.Insert(ctx, record); err != nil {
+		return fmt.Errorf("failed to record the chat message: %w", err)
 	}
 
 	s.remember(record.Message)

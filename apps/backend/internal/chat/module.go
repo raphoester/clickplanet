@@ -21,12 +21,15 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/send_message_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/inmemory_message_storage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/postgres_message_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/get_history_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/listen_for_events_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/send_message_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsecrets"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -38,13 +41,13 @@ func NewModule(config Config) cpbootstrap.Module {
 	return cpbootstrap.Module{
 		Name:    moduleName,
 		Enabled: config.Enabled,
-		DiSequence: func(_ context.Context, props cpbootstrap.Props) error {
-			return build(config, props)
+		DiSequence: func(ctx context.Context, props cpbootstrap.Props) error {
+			return build(ctx, config, props)
 		},
 	}
 }
 
-func build(config Config, props cpbootstrap.Props) error {
+func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	serviceConfig := config.Service
 	if serviceConfig.TagSalt == "" {
 		salt, err := cpsecrets.RandomHex()
@@ -55,9 +58,23 @@ func build(config Config, props cpbootstrap.Props) error {
 		props.Logger.Warn("no chat.service.tagSalt configured, generated a random one: sender tags will change on every restart")
 	}
 
-	storage := inmemory_message_storage.New(config.Storage, cptime.SystemClock{}, props.Logger)
-	storage.LoadLog()
-	props.Runners.Add(storage)
+	db := cppg.New(config.Database)
+	if err := db.ConnectCtx(ctx); err != nil {
+		return fmt.Errorf("failed to connect the chat to postgres: %w", err)
+	}
+	if err := db.Migrate(ctx, migrations.FS); err != nil {
+		_ = db.Close()
+		return fmt.Errorf("failed to migrate the %s schema: %w", config.Database.Schema, err)
+	}
+
+	storage := inmemory_message_storage.New(
+		config.Storage, postgres_message_store.New(db), cptime.SystemClock{}, props.Logger)
+	if err := storage.Load(ctx); err != nil {
+		_ = db.Close()
+		return fmt.Errorf("failed to load the chat: %w", err)
+	}
+	// The pool closes after the runner stops, not as a closer: closers run first.
+	props.Runners.Add(cppg.CloseAfter(storage, db, props.Logger))
 
 	messageLimiter := cpratelimit.New("message-limiter", config.RateLimiter, cptime.SystemClock{})
 	props.Runners.Add(messageLimiter)
@@ -85,7 +102,7 @@ func build(config Config, props cpbootstrap.Props) error {
 		return err
 	}
 
-	props.Logger.Info("chat enabled", slog.String("logPath", config.Storage.LogPath))
+	props.Logger.Info("chat enabled", slog.String("schema", config.Database.Schema))
 
 	return nil
 }
@@ -96,6 +113,8 @@ type Config struct {
 	// existing and erroring.
 	Enabled bool
 
+	Database cppg.Config
+
 	Storage inmemory_message_storage.Config
 	// Named Service, not SendMessage, so the chat.service.* keys stay the same.
 	Service send_message_usecase.Config
@@ -105,9 +124,13 @@ type Config struct {
 	BlockedIPs []string
 }
 
-// Validate has nothing to refuse: every chat setting has a usable default, so
-// an unset one is a default rather than a misconfiguration. It exists so a
-// check added later lands here and not in the binary's config.
-func (Config) Validate() error {
+// Validate refuses only a missing database: every other chat setting has a usable default. Chat off needs none.
+func (c Config) Validate() error {
+	if !c.Enabled {
+		return nil
+	}
+	if err := c.Database.Validate(); err != nil {
+		return fmt.Errorf("chat.database: %w", err)
+	}
 	return nil
 }
