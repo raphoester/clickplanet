@@ -34,10 +34,16 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data      # certificates — losing this means re-issuing certs
       - caddy_config:/config
+      # The JSON access log, rolled and pruned by Caddy itself (14 days; see the
+      # Caddyfile). A volume because the container is recreated on every deploy,
+      # and on 2026-09-14 that deleted the only record of a bot attack. It holds
+      # client IPs, so it is personal data like chat.log.
+      - caddy_logs:/var/log/caddy
     depends_on:
       - backend
     # Caddy writes a ~2 KB access line per request. Unbounded, that filled the
-    # disk at ~1 GB a day, so keep 3 × 50 MB and drop the oldest.
+    # disk at ~1 GB a day, so keep 3 × 50 MB and drop the oldest. This is only
+    # the live copy for `docker logs`; the caddy_logs volume is the record.
     logging:
       driver: json-file
       options:
@@ -161,5 +167,6 @@ services:
 volumes:
   caddy_data:
   caddy_config:
+  caddy_logs:
   tile_state:
   metrics_history:

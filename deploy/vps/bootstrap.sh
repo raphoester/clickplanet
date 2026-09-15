@@ -314,6 +314,12 @@ if ! command -v git >/dev/null 2>&1; then
 	apt-get update -qq && apt-get install -y -qq git
 fi
 
+# Reads Caddy's JSON access log; see "Reading the access log" in README.md.
+if ! command -v jq >/dev/null 2>&1; then
+	log "installing jq"
+	apt-get update -qq && apt-get install -y -qq jq
+fi
+
 # --------------------------------------------------------------- deploy user
 
 if ! id -u "$DEPLOY_USER" >/dev/null 2>&1; then
