@@ -472,7 +472,8 @@ fi
 
 # ----------------------------------------------------------------- backups
 
-# The chat log in the tile_state volume. The tile map, the ledger, bans and evidence are in postgres,
+# The tile_state volume: only the pre-postgres files the first boot imports. The tile map, the ledger, bans,
+# evidence and the chat are in postgres,
 # which this does not back up yet.
 if ! crontab -u "$DEPLOY_USER" -l 2>/dev/null | grep -q 'vps_tile_state'; then
 	log "installing nightly tile-state backup cron"

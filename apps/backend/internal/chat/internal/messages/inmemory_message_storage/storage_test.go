@@ -3,22 +3,24 @@ package inmemory_message_storage_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/suite"
+
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/inmemory_message_storage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/postgres_message_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/get_history_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/listen_for_events_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/send_message_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
-	"github.com/stretchr/testify/suite"
 )
 
 func TestRunSuite(t *testing.T) {
@@ -28,19 +30,20 @@ func TestRunSuite(t *testing.T) {
 type testSuite struct {
 	suite.Suite
 
-	clock   *cptime.FixedClock
-	logPath string
+	clock       *cptime.FixedClock
+	persistence *inmemory_message_storage.MemoryPersistence
+	logPath     string
 }
 
 func (s *testSuite) SetupTest() {
 	s.clock = cptime.NewFixedClock(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC))
+	s.persistence = inmemory_message_storage.NewMemoryPersistence()
 	s.logPath = filepath.Join(s.T().TempDir(), "chat.log")
 }
 
 func (s *testSuite) newStorage(config inmemory_message_storage.Config) *inmemory_message_storage.Storage {
-	config.LogPath = s.logPath
-	storage := inmemory_message_storage.New(config, s.clock, slog.New(slog.DiscardHandler))
-	storage.LoadLog()
+	storage := inmemory_message_storage.New(config, s.persistence, s.clock, slog.New(slog.DiscardHandler))
+	s.Require().NoError(storage.Load(context.Background()))
 	return storage
 }
 
@@ -60,10 +63,12 @@ func (s *testSuite) record(text string) messages.Record {
 	}
 }
 
-func (s *testSuite) readLog() string {
-	content, err := os.ReadFile(s.logPath)
-	s.Require().NoError(err)
-	return string(content)
+func (s *testSuite) texts(history []messages.Message) []string {
+	texts := make([]string, 0, len(history))
+	for _, message := range history {
+		texts = append(texts, message.Text)
+	}
+	return texts
 }
 
 func (s *testSuite) TestAppendedMessagesShowUpInHistory() {
@@ -72,10 +77,7 @@ func (s *testSuite) TestAppendedMessagesShowUpInHistory() {
 	s.Require().NoError(storage.Append(context.Background(), s.record("hello")))
 	s.Require().NoError(storage.Append(context.Background(), s.record("planet")))
 
-	history := storage.History(context.Background())
-	s.Require().Len(history, 2)
-	s.Equal("hello", history[0].Text)
-	s.Equal("planet", history[1].Text)
+	s.Equal([]string{"hello", "planet"}, s.texts(storage.History(context.Background())))
 }
 
 func (s *testSuite) TestHistoryIsCapped() {
@@ -85,10 +87,8 @@ func (s *testSuite) TestHistoryIsCapped() {
 		s.Require().NoError(storage.Append(context.Background(), s.record(fmt.Sprintf("msg-%d", i))))
 	}
 
-	history := storage.History(context.Background())
-	s.Require().Len(history, 3)
-	s.Equal("msg-7", history[0].Text)
-	s.Equal("msg-9", history[2].Text)
+	s.Equal([]string{"msg-7", "msg-8", "msg-9"}, s.texts(storage.History(context.Background())))
+	s.Len(s.persistence.Stored(), 10)
 }
 
 func (s *testSuite) TestHistoryIsACopy() {
@@ -104,20 +104,13 @@ func (s *testSuite) TestHistoryIsACopy() {
 func (s *testSuite) TestSubscribersReceiveMessages() {
 	storage := s.newStorage(inmemory_message_storage.Config{})
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	feed, err := storage.Subscribe(ctx)
+	feed, err := storage.Subscribe(s.T().Context())
 	s.Require().NoError(err)
 
 	s.Require().NoError(storage.Append(context.Background(), s.record("hello")))
 
-	select {
-	case message := <-feed:
-		s.Equal("hello", message.Text)
-	case <-time.After(2 * time.Second):
-		s.T().Fatal("the subscriber never received the message")
-	}
+	s.Require().Eventually(func() bool { return len(feed) == 1 }, 2*time.Second, time.Millisecond)
+	s.Equal("hello", (<-feed).Text)
 }
 
 func (s *testSuite) TestSubscriberChannelClosesWithItsContext() {
@@ -129,21 +122,20 @@ func (s *testSuite) TestSubscriberChannelClosesWithItsContext() {
 
 	cancel()
 
-	select {
-	case _, open := <-feed:
-		s.False(open)
-	case <-time.After(2 * time.Second):
-		s.T().Fatal("the subscriber channel was never closed")
-	}
+	s.Require().Eventually(func() bool {
+		select {
+		case _, open := <-feed:
+			return !open
+		default:
+			return false
+		}
+	}, 2*time.Second, time.Millisecond)
 }
 
 func (s *testSuite) TestSlowSubscribersHaveMessagesDropped() {
 	storage := s.newStorage(inmemory_message_storage.Config{SubscriberBuffer: 1})
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	_, err := storage.Subscribe(ctx)
+	_, err := storage.Subscribe(s.T().Context())
 	s.Require().NoError(err)
 
 	for i := range 10 {
@@ -154,11 +146,11 @@ func (s *testSuite) TestSlowSubscribersHaveMessagesDropped() {
 	s.Len(storage.History(context.Background()), 10)
 }
 
-func (s *testSuite) TestTheSenderIPReachesTheLogButNotTheHistory() {
+func (s *testSuite) TestTheSenderIsStoredButNotInTheHistory() {
 	storage := s.newStorage(inmemory_message_storage.Config{})
 	s.Require().NoError(storage.Append(context.Background(), s.record("hello")))
 
-	s.Contains(s.readLog(), "203.0.113.7")
+	s.Equal([]messages.Record{s.record("hello")}, s.persistence.Stored())
 
 	encoded, err := json.Marshal(storage.History(context.Background()))
 	s.Require().NoError(err)
@@ -166,126 +158,45 @@ func (s *testSuite) TestTheSenderIPReachesTheLogButNotTheHistory() {
 	s.NotContains(string(encoded), "test-agent")
 }
 
-func (s *testSuite) TestOneLinePerMessage() {
+func (s *testSuite) TestAMessageThatCannotBeStoredIsNotBroadcast() {
 	storage := s.newStorage(inmemory_message_storage.Config{})
+	feed, err := storage.Subscribe(s.T().Context())
+	s.Require().NoError(err)
 
-	for i := range 3 {
-		s.Require().NoError(storage.Append(context.Background(), s.record(fmt.Sprintf("msg-%d", i))))
-	}
-
-	s.Len(strings.Split(strings.TrimSpace(s.readLog()), "\n"), 3)
-}
-
-func (s *testSuite) TestHistorySurvivesARestart() {
-	storage := s.newStorage(inmemory_message_storage.Config{})
-	s.Require().NoError(storage.Append(context.Background(), s.record("hello")))
-	storage.Run(cancelledContext())
-
-	restarted := s.newStorage(inmemory_message_storage.Config{})
-
-	history := restarted.History(context.Background())
-	s.Require().Len(history, 1)
-	s.Equal("hello", history[0].Text)
-	s.Equal("a1b2c3", history[0].AuthorTag)
-}
-
-func (s *testSuite) TestRestoreKeepsOnlyTheMostRecentHistory() {
-	storage := s.newStorage(inmemory_message_storage.Config{})
-	for i := range 10 {
-		s.Require().NoError(storage.Append(context.Background(), s.record(fmt.Sprintf("msg-%d", i))))
-	}
-	storage.Run(cancelledContext())
-
-	restarted := s.newStorage(inmemory_message_storage.Config{HistorySize: 3})
-
-	history := restarted.History(context.Background())
-	s.Require().Len(history, 3)
-	s.Equal("msg-9", history[2].Text)
-}
-
-func (s *testSuite) TestRestoreIgnoresMessagesPastRetention() {
-	storage := s.newStorage(inmemory_message_storage.Config{})
-	s.Require().NoError(storage.Append(context.Background(), s.record("ancient")))
-
-	s.clock.Advance(48 * time.Hour)
-	s.Require().NoError(storage.Append(context.Background(), s.record("recent")))
-	storage.Run(cancelledContext())
-
-	restarted := s.newStorage(inmemory_message_storage.Config{Retention: 24 * time.Hour})
-
-	history := restarted.History(context.Background())
-	s.Require().Len(history, 1)
-	s.Equal("recent", history[0].Text)
-}
-
-func (s *testSuite) TestACorruptLineCostsHistoryNotTheStart() {
-	s.Require().NoError(os.WriteFile(s.logPath, []byte("{not json\n"), 0o600))
-
-	storage := s.newStorage(inmemory_message_storage.Config{})
+	s.persistence.FailWith(errors.New("postgres is down"))
+	s.Require().Error(storage.Append(context.Background(), s.record("lost")))
 
 	s.Empty(storage.History(context.Background()))
+	s.Empty(feed)
+
+	s.persistence.Heal()
 	s.Require().NoError(storage.Append(context.Background(), s.record("hello")))
-	s.Len(storage.History(context.Background()), 1)
+	s.Equal([]string{"hello"}, s.texts(storage.History(context.Background())))
 }
 
-func (s *testSuite) TestAppendingIsAppendingNotOverwriting() {
-	first := s.newStorage(inmemory_message_storage.Config{})
-	s.Require().NoError(first.Append(context.Background(), s.record("hello")))
-	first.Run(cancelledContext())
+func (s *testSuite) TestLoadKeepsTheNewestMessagesWithinRetention() {
+	ancient := s.record("ancient")
+	s.clock.Advance(48 * time.Hour)
+	s.persistence = inmemory_message_storage.NewMemoryPersistence(
+		ancient, s.record("msg-1"), s.record("msg-2"), s.record("msg-3"))
 
-	second := s.newStorage(inmemory_message_storage.Config{})
-	s.Require().NoError(second.Append(context.Background(), s.record("planet")))
-	second.Run(cancelledContext())
+	storage := s.newStorage(inmemory_message_storage.Config{HistorySize: 2, Retention: 24 * time.Hour})
 
-	log := s.readLog()
-	s.Contains(log, "hello")
-	s.Contains(log, "planet")
+	s.Equal([]string{"msg-2", "msg-3"}, s.texts(storage.History(context.Background())))
 }
 
-func (s *testSuite) TestPruningDropsExpiredRecords() {
-	storage := s.newStorage(inmemory_message_storage.Config{
-		Retention:     24 * time.Hour,
-		PruneInterval: time.Millisecond,
-		FlushInterval: time.Hour,
-	})
+func (s *testSuite) TestAStoreThatCannotBeReadRefusesTheLoad() {
+	s.persistence.FailWith(errors.New("postgres is down"))
+	storage := inmemory_message_storage.New(inmemory_message_storage.Config{}, s.persistence, s.clock, slog.New(slog.DiscardHandler))
 
+	s.Require().Error(storage.Load(context.Background()))
+}
+
+func (s *testSuite) TestRunDeletesMessagesPastRetention() {
+	storage := s.newStorage(inmemory_message_storage.Config{Retention: 24 * time.Hour, PruneInterval: time.Millisecond})
 	s.Require().NoError(storage.Append(context.Background(), s.record("ancient")))
 	s.clock.Advance(48 * time.Hour)
 	s.Require().NoError(storage.Append(context.Background(), s.record("recent")))
-
-	stop := s.startRunning(storage)
-	s.waitUntilGone("ancient")
-	stop()
-
-	log := s.readLog()
-	s.NotContains(log, "ancient")
-	s.Contains(log, "recent")
-}
-
-func (s *testSuite) TestAppendingStillWorksAfterAPrune() {
-	storage := s.newStorage(inmemory_message_storage.Config{
-		Retention:     24 * time.Hour,
-		PruneInterval: time.Millisecond,
-		FlushInterval: time.Millisecond,
-	})
-
-	s.Require().NoError(storage.Append(context.Background(), s.record("ancient")))
-	s.clock.Advance(48 * time.Hour)
-
-	stop := s.startRunning(storage)
-	s.waitUntilGone("ancient")
-
-	s.Require().NoError(storage.Append(context.Background(), s.record("after-prune")))
-	stop()
-
-	restarted := s.newStorage(inmemory_message_storage.Config{Retention: 24 * time.Hour})
-	history := restarted.History(context.Background())
-	s.Require().Len(history, 1)
-	s.Equal("after-prune", history[0].Text)
-}
-
-func (s *testSuite) startRunning(storage *inmemory_message_storage.Storage) func() {
-	s.T().Helper()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
@@ -294,67 +205,98 @@ func (s *testSuite) startRunning(storage *inmemory_message_storage.Storage) func
 		storage.Run(ctx)
 	}()
 
-	return func() {
-		cancel()
-		<-done
+	s.Require().Eventually(func() bool { return len(s.persistence.Stored()) == 1 }, 5*time.Second, time.Millisecond)
+	cancel()
+	<-done
+
+	s.Equal("recent", s.persistence.Stored()[0].Message.Text)
+}
+
+func (s *testSuite) writeLegacyLog(lines ...string) {
+	var content []byte
+	for _, line := range lines {
+		content = append(content, line+"\n"...)
 	}
+	s.Require().NoError(os.WriteFile(s.logPath, content, 0o600))
 }
 
-func (s *testSuite) waitUntilGone(text string) {
-	s.T().Helper()
-
-	s.Require().Eventually(func() bool {
-		content, err := os.ReadFile(s.logPath)
-		return err == nil && !strings.Contains(string(content), text)
-	}, 5*time.Second, 5*time.Millisecond)
+func (s *testSuite) legacyLine(text string, at time.Time) string {
+	return fmt.Sprintf(`{"at":%q,"id":%q,"name":"Bob","tag":"a1b2c3","authorId":"some-uuid","country":"fr","ip":"203.0.113.7","userAgent":"test-agent","text":%q}`,
+		at.Format(time.RFC3339Nano), text, text)
 }
 
-func (s *testSuite) TestNoLogPathKeepsChatInMemory() {
-	storage := inmemory_message_storage.New(inmemory_message_storage.Config{}, s.clock, slog.New(slog.DiscardHandler))
+func (s *testSuite) TestTheLegacyLogIsImportedIntoAnEmptyStore() {
+	ancient := s.clock.Now()
+	s.clock.Advance(48 * time.Hour)
+	s.writeLegacyLog(
+		s.legacyLine("ancient", ancient),
+		"{not json",
+		s.legacyLine("hello", s.clock.Now()),
+		"",
+		s.legacyLine("planet", s.clock.Now()),
+	)
 
-	s.Require().NoError(storage.Append(context.Background(), s.record("hello")))
-	s.Len(storage.History(context.Background()), 1)
+	storage := s.newStorage(inmemory_message_storage.Config{LegacyLogPath: s.logPath, Retention: 24 * time.Hour})
 
-	storage.Run(cancelledContext())
+	s.Equal([]messages.Record{s.record("hello"), s.record("planet")}, s.persistence.Stored(),
+		"the unreadable line is skipped and the one past retention is not imported")
+	s.Equal([]string{"hello", "planet"}, s.texts(storage.History(context.Background())))
 	s.NoFileExists(s.logPath)
+	s.FileExists(s.logPath + ".imported")
+}
+
+func (s *testSuite) TestTheLegacyLogIsIgnoredWhenTheStoreHoldsMessages() {
+	s.persistence = inmemory_message_storage.NewMemoryPersistence(s.record("stored"))
+	s.writeLegacyLog(s.legacyLine("legacy", s.clock.Now()))
+
+	s.newStorage(inmemory_message_storage.Config{LegacyLogPath: s.logPath})
+
+	s.Equal([]messages.Record{s.record("stored")}, s.persistence.Stored())
+	s.FileExists(s.logPath)
+}
+
+func (s *testSuite) TestAFailedImportKeepsTheLegacyLogAndRefusesTheLoad() {
+	s.writeLegacyLog(s.legacyLine("legacy", s.clock.Now()))
+	s.persistence.FailWith(errors.New("postgres is down"))
+	storage := inmemory_message_storage.New(
+		inmemory_message_storage.Config{LegacyLogPath: s.logPath}, s.persistence, s.clock, slog.New(slog.DiscardHandler))
+
+	s.Require().Error(storage.Load(context.Background()))
+
+	s.FileExists(s.logPath)
+	s.NoFileExists(s.logPath + ".imported")
+}
+
+func (s *testSuite) TestAMissingLegacyLogImportsNothing() {
+	storage := s.newStorage(inmemory_message_storage.Config{LegacyLogPath: s.logPath})
+
+	s.Empty(s.persistence.Stored())
+	s.Empty(storage.History(context.Background()))
 }
 
 func (s *testSuite) TestConcurrentUseIsSafe() {
 	storage := s.newStorage(inmemory_message_storage.Config{HistorySize: 50})
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	_, err := storage.Subscribe(ctx)
+	_, err := storage.Subscribe(s.T().Context())
 	s.Require().NoError(err)
 
-	// Append errors are collected rather than asserted in the goroutine: a failed
-	// require there calls runtime.Goexit on that goroutine, which would strand the
-	// WaitGroup and let the suite report a pass.
+	// Errors are collected, not asserted in the goroutine: a failed require there would strand the WaitGroup.
 	appendErrs := make(chan error, 10*20)
 
 	var wg sync.WaitGroup
 	for writer := range 10 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			for i := range 20 {
-				if err := storage.Append(context.Background(), s.record(fmt.Sprintf("w%d-%d", writer, i))); err != nil {
-					appendErrs <- err
-					return
-				}
+				appendErrs <- storage.Append(context.Background(), s.record(fmt.Sprintf("w%d-%d", writer, i)))
 			}
-		}()
+		})
 	}
-
 	for range 5 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			for range 50 {
 				storage.History(context.Background())
 			}
-		}()
+		})
 	}
 
 	wg.Wait()
@@ -365,17 +307,13 @@ func (s *testSuite) TestConcurrentUseIsSafe() {
 	}
 
 	s.Len(storage.History(context.Background()), 50)
-	s.Len(strings.Split(strings.TrimSpace(s.readLog()), "\n"), 200)
-}
-
-func cancelledContext() context.Context {
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-	return ctx
+	s.Len(s.persistence.Stored(), 200)
 }
 
 var (
 	_ send_message_usecase.Appender                = (*inmemory_message_storage.Storage)(nil)
 	_ get_history_usecase.HistoryReader            = (*inmemory_message_storage.Storage)(nil)
 	_ listen_for_events_usecase.MessagesSubscriber = (*inmemory_message_storage.Storage)(nil)
+	_ inmemory_message_storage.Persistence         = (*postgres_message_store.Store)(nil)
+	_ inmemory_message_storage.Persistence         = (*inmemory_message_storage.MemoryPersistence)(nil)
 )

@@ -102,6 +102,8 @@ httpServer:
 gameMap:
   maxIndex: 100
 database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: planet}
+chat:
+  database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: chat}
 session:
   enabled: true
   enforce: true
@@ -138,6 +140,21 @@ func TestTheProcessRefusesToStartWithoutADatabase(t *testing.T) {
 	config.Planet.GameMap.MaxIndex = 100
 
 	require.ErrorContains(t, config.Validate(), "database: [host port user dbName sslMode schema] is empty")
+}
+
+func TestTheExampleConfigReachesTheChatDatabaseBlock(t *testing.T) {
+	var config Config
+	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
+
+	assert.Equal(t, "chat", config.Chat.Database.Schema)
+	assert.Equal(t, "localhost", config.Chat.Database.Host)
+	assert.Equal(t, "./data/chat.log", config.Chat.Storage.LegacyLogPath)
+	assert.Equal(t, 720*time.Hour, config.Chat.Storage.Retention)
+	require.NoError(t, config.Chat.Validate())
+}
+
+func TestChatWithoutADatabaseIsRefused(t *testing.T) {
+	require.ErrorContains(t, Config{}.Validate(), "chat.database: [host port user dbName sslMode schema] is empty")
 }
 
 func TestSessionsWithoutASecretAreRefused(t *testing.T) {

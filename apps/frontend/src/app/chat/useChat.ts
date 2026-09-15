@@ -5,7 +5,6 @@ import {
     ChatMessage,
     ChatRateLimitedError,
     ChatRejectedError,
-    ChatUnavailableError,
     OutgoingMessage,
 } from '../../backends/chat.ts';
 import {addMessages} from '../../domain/chatLog.ts';
@@ -73,7 +72,6 @@ export function useChat({backend}: UseChatOptions) {
             return true
         } catch (e) {
             console.error("The message could not be sent", e)
-            if (e instanceof ChatUnavailableError) setStatus('unavailable')
             setFailure(failureOf(e))
             return false
         }

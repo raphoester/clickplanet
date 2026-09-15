@@ -35,7 +35,7 @@ Caddyfile; it moves to any provider that rents a Linux box.
 - `docker-compose.yaml` — Caddy + backend, plus a small metrics poller that
   keeps a history the API's in-process counters cannot (see
   [Evidence has to outlive a deploy](#evidence-has-to-outlive-a-deploy-and-by-default-it-does-not)),
-  and the postgres that holds the tile map (see [9. Postgres](#9-postgres)).
+  and the postgres that holds the tile map and the chat (see [9. Postgres](#9-postgres)).
 - `Caddyfile` — TLS via DNS-01, reverse proxy, CORS
 - `caddy/Dockerfile` — Caddy built with `caddy-dns/cloudflare`. The stock image
   has no DNS provider module and cannot solve the DNS-01 challenge.
@@ -652,7 +652,7 @@ keeps it.
 - The same lines still go to `docker logs cp-caddy`. That copy is lost on
   recreate.
 - **The access log holds personal data**: client IPs, user agents, countries.
-  Like `chat.log`, 14 days is a policy decision. Shorten `roll_keep_for` in the
+  Like the chat messages, 14 days is a policy decision. Shorten `roll_keep_for` in the
   `Caddyfile` to hold less. The nightly backup does not copy this volume.
 - `X-Session-Token` is written as `REDACTED`. It is a bearer token. You can see
   if a request had one, not what it was.
@@ -746,14 +746,13 @@ Pages deploys itself on push; no workflow needed.
 
 ## 8. Live chat
 
-`chat.enabled: true` in `backend.yaml` publishes two routes Caddy already
-forwards, `ListenForEvents` included: `/chat.v1.ChatService/`. `SendMessage` is an
+Chat is always on. The API serves `/chat.v1.ChatService/`, `ListenForEvents`
+included, and Caddy already forwards it. `SendMessage` is an
 **unauthenticated public write endpoint** — anyone who can reach the API can
 post, under any name — so the things that keep it usable are all config:
 
 | Knob | Where | Default here |
 |---|---|---|
-| Kill switch | `chat.enabled` | on — flip it off and the routes 404 again |
 | Per-IP throttle | `chat.rateLimiter` | one message per 3s, 5 in hand |
 | Cutting someone off | `chat.blockedIPs` | CIDRs, `203.0.113.7/32` for one address |
 | Message log retention | `chat.storage.retention` | 30 days |
@@ -779,28 +778,45 @@ Leaving it empty is not fatal but is worse than any fixed value: the API
 generates a fresh salt at every boot, logs `no chat.service.tagSalt configured`,
 and every tag changes on each restart.
 
-**`chat.log` holds personal data.** One JSONL line per message with the sender's
-IP beside their text, in the `tile_state` volume — so the
-nightly backup below now copies personal data too, and its own retention is
-whatever you keep those tarballs for. `chat.storage.retention` (30 days) is a
-policy decision, not a cache size; shorten it if you would rather hold less.
+**The chat messages hold personal data.** One row per message in `chat.messages`,
+with the sender's IP beside their text. `chat.storage.retention` (30 days) is a
+policy decision, not a cache size: an hourly prune deletes older rows. Shorten
+it if you would rather hold less. A message that cannot be written to postgres
+is refused, not broadcast: the table is the audit trail.
 
-Turning chat off needs no rebuild and no image change: `chat.enabled: false` in
-`backend.yaml` then `docker compose --env-file .env up -d backend`. Anything in
-that file can also be overridden from the `environment:` block instead —
-`cfgutil` reads env vars with `.` as the nesting delimiter, so the key is the
-config path verbatim (`chat.enabled: "false"`), which is how `CHAT_TAG_SALT`
-reaches `chat.service.tagSalt`.
+**The first boot on postgres imports the old `chat.log`.** The messages table
+is empty and `/home/app/state/chat.log` exists, so the API reads it, skips the
+lines it cannot read and the messages past retention, writes the rest in one
+transaction, and renames the file `chat.log.imported`. A log it cannot read at
+all refuses the boot. Check it:
+
+```bash
+journalctl CONTAINER_NAME=cp-backend | grep "legacy chat log"
+docker compose exec postgres psql -U clickplanet -c "select count(*) from chat.messages"
+```
+
+Then remove `chat.storage.legacyLogPath` from `backend.yaml`, and delete
+`chat.log.imported`: it holds the same personal data, and nothing prunes it.
+
+```bash
+docker compose exec backend rm /home/app/state/chat.log.imported
+```
+
+Anything in `backend.yaml` can also be overridden from the `environment:` block
+instead — `cfgutil` reads env vars with `.` as the nesting delimiter, so the key
+is the config path verbatim, which is how `CHAT_TAG_SALT` reaches
+`chat.service.tagSalt`.
 
 ## 9. Postgres
 
-The tile map and the ledger are kept in the `postgres` service, on the `pg_data`
-volume, and so are the antibot's bans and evidence. The API loads them at boot,
-writes what changed every second (bans and evidence every minute), and once
-more on a clean shutdown. It is not published on any port: only the backend
+The tile map, the ledger and the chat are kept in the `postgres` service, on the
+`pg_data` volume, and so are the antibot's bans and evidence. The API loads them
+at boot, writes what changed every second (bans and evidence every minute), and
+once more on a clean shutdown; each chat message is written before it is
+broadcast. It is not published on any port: only the backend
 reaches it. Each backend module keeps its tables in a schema of its own (`planet`
-for the tile map and the ledger, `antibot` for bans and evidence) and migrates it
-at boot. The API refuses to start without postgres.
+for the tile map and the ledger, `antibot` for bans and evidence, `chat` for the
+messages) and migrates it at boot. The API refuses to start without postgres.
 
 **The password is `POSTGRES_PASSWORD` in `.env`.** `bootstrap.sh` generates it.
 Without it, `docker compose up` refuses to start. Never change it: postgres reads it only when `pg_data` is empty, so a
@@ -831,12 +847,13 @@ A psql shell: `docker compose exec postgres psql -U clickplanet`.
 ### Backups
 
 The nightly cron `bootstrap.sh` installs tars the `tile_state` volume, which
-holds the chat log. **The tile map, the ledger, bans and evidence in postgres are
-not backed up yet.** For a copy by hand:
+holds only the pre-postgres files the first boot imports. **Nothing in postgres
+is backed up yet.** For a copy by hand:
 
 ```bash
 docker compose exec postgres pg_dump -U clickplanet -n planet clickplanet > planet-$(date +%F).sql
 docker compose exec postgres pg_dump -U clickplanet -n antibot clickplanet > antibot-$(date +%F).sql
+docker compose exec postgres pg_dump -U clickplanet -n chat clickplanet > chat-$(date +%F).sql
 ```
 
 DigitalOcean's droplet backups (+20% of the droplet price, so ~$1.20/mo) cover
@@ -992,6 +1009,8 @@ docker compose exec backend wget -qO- --header 'Content-Type: application/json' 
 
 - **Bad backend build:** `BACKEND_IMAGE=ghcr.io/raphoester/clickplanet-backend:<sha>` in `.env`, then `docker compose up -d backend`.
 - **Lost or corrupt tile state:** stop the backend, restore the `planet` schema from a dump (`drop schema planet cascade`, then `psql -U clickplanet clickplanet < planet-DATE.sql`), start it again.
+- **Lost or corrupt chat messages:** the same, with the `chat` schema and `chat-DATE.sql`.
+- **Back to a pre-postgres chat build:** that image writes `chat.log`, which the import renamed. Rename `chat.log.imported` back first — every message since the import is missing from it.
 - **Back to a build before the ledger tables:** that image reads `ledger.bin`, which the import renamed. Rename `ledger.bin.imported` back first — it holds the ledger as of the import, so every take since is lost.
 - **Back to a build before the antibot moved to postgres:** that image reads `bans.jsonl` and `antibot-evidence.bin`, which the import renamed. Rename both `.imported` files back first — they hold the bans as of the import, so every ban since is lost.
 - **In-process storage misbehaving:** there is no config switch back to Redis — that code is gone. Roll the backend image back to a pre-migration `<sha>` and restore the matching Redis stack from git history.

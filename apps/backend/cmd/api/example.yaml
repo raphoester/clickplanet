@@ -470,22 +470,31 @@ session:
     action: session
 
 # Live chat. Its own bounded context and its own Connect service, sharing this
-# process and the transport with the tile game and nothing else. Off by
-# default: when disabled nothing is registered, so /chat.v1.ChatService/ and
-# /ws/chat both 404 rather than erroring.
+# process and the transport with the tile game and nothing else. Always on.
 chat:
-  enabled: true
+  # The chat module's own database block: every message, sender IP included, in
+  # the chat schema. Same shape as the planet's database above, and it may point
+  # at the same postgres. A message that cannot be written is not broadcast.
+  database:
+    host: localhost
+    port: "5432"
+    user: postgres
+    # Belongs in the environment in production (chat.database.password).
+    password: postgres
+    dbName: postgres
+    sslMode: disable
+    schema: chat
+    pool:
+      maxOpenConns: 2
   storage:
-    # Append-only JSONL log of every message, sender IP included. Leave empty
-    # to keep chat entirely in memory.
-    logPath: ./data/chat.log
+    # The JSONL log from before postgres. Imported once, if the messages table
+    # is empty, then renamed with an .imported suffix. Empty imports nothing.
+    legacyLogPath: ./data/chat.log
     # How many recent messages a joining client is served by GetHistory.
     historySize: 200
-    # Messages older than this are dropped on the next prune. This is personal
+    # Messages older than this are deleted on the next prune. This is personal
     # data (IP + text), so the window is a retention policy, not a cache size.
     retention: 720h # 30 days
-    # Upper bound on what a hard kill can lose, as with the tile snapshot.
-    flushInterval: 5s
     pruneInterval: 1h
     # Per-websocket-subscriber channel capacity. Messages for a subscriber that
     # cannot keep up are dropped rather than blocking senders.
