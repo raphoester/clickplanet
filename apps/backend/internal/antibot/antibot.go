@@ -154,7 +154,7 @@ type Observer struct {
 	// deliberated at that moment.
 	OnStanding func(watchdog, level string, callers int)
 
-	// Bans or evidence that could not be saved, a legacy file left behind, or a section that did not decode.
+	// Bans or evidence that could not be saved, or a section that did not decode.
 	OnStateError func(err error)
 
 	// What was turned on, once, when the guard starts running. Never called when the block is off.

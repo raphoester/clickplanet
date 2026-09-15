@@ -1,14 +1,8 @@
 package evidence
 
 import (
-	"bytes"
 	"context"
-	"encoding/binary"
-	"encoding/gob"
 	"errors"
-	"hash/crc32"
-	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -204,106 +198,6 @@ func TestTheSweepDropsEvidenceOlderThanTheRetentionAndTheTableFollows(t *testing
 	loaded := &fake{name: "jury", events: []time.Time{h.clock.Now()}}
 	require.NoError(t, h.store(loaded).Load(t.Context()))
 	assert.Empty(t, loaded.events)
-}
-
-// legacyFileWith writes the pre-postgres file format by hand, so the test pins the format rather than the decoder.
-func legacyFileWith(t *testing.T, savedAt time.Time, sections map[string][]byte) []byte {
-	t.Helper()
-
-	buf := bytes.NewBuffer(make([]byte, headerSize))
-	require.NoError(t, gob.NewEncoder(buf).Encode(legacyFile{SavedAt: savedAt.UnixNano(), Sections: sections}))
-
-	raw := buf.Bytes()
-	copy(raw, "CPEVIDN\n")
-	raw[8] = 1
-	binary.LittleEndian.PutUint32(raw[9:], crc32.ChecksumIEEE(raw[headerSize:]))
-
-	return raw
-}
-
-func (h *harness) legacyFile(t *testing.T, raw []byte) Config {
-	t.Helper()
-	config := Config{Retention: 72 * time.Hour, LegacyStatePath: filepath.Join(t.TempDir(), "antibot-evidence.bin")}
-	require.NoError(t, os.WriteFile(config.LegacyStatePath, raw, 0o600))
-	return config
-}
-
-func TestTheLegacyFileIsImportedIntoAnEmptyTableAndRenamedAfterTheFirstFlush(t *testing.T) {
-	h := newHarness()
-	savedAt := h.clock.Now()
-	events, err := (&fake{events: []time.Time{savedAt}}).Save()
-	require.NoError(t, err)
-	config := h.legacyFile(t, legacyFileWith(t, savedAt, map[string][]byte{"metronome": events}))
-
-	h.clock.Advance(20 * time.Second)
-	section := &fake{name: "metronome"}
-	store := h.storeWith(config, section)
-	require.NoError(t, store.Load(t.Context()))
-
-	require.Empty(t, h.errors)
-	require.Len(t, section.events, 1)
-	store.Resume()
-	assert.Equal(t, 20*time.Second, section.outage.Length(), "the outage starts at the file's save")
-	assert.FileExists(t, config.LegacyStatePath, "kept until postgres holds it")
-
-	require.NoError(t, store.Flush(t.Context()))
-
-	assert.NoFileExists(t, config.LegacyStatePath)
-	assert.FileExists(t, config.LegacyStatePath+importedSuffix)
-}
-
-func TestACrashBeforeTheFirstFlushImportsTheLegacyFileAgain(t *testing.T) {
-	h := newHarness()
-	events, err := (&fake{events: []time.Time{h.clock.Now()}}).Save()
-	require.NoError(t, err)
-	config := h.legacyFile(t, legacyFileWith(t, h.clock.Now(), map[string][]byte{"jury": events}))
-
-	require.NoError(t, h.storeWith(config, &fake{name: "jury"}).Load(t.Context()))
-
-	rebooted := &fake{name: "jury"}
-	require.NoError(t, h.storeWith(config, rebooted).Load(t.Context()))
-
-	assert.Len(t, rebooted.events, 1)
-}
-
-func TestTheLegacyFileIsIgnoredOnceTheTableHoldsEvidence(t *testing.T) {
-	h := newHarness()
-	h.shutdown(h.store(&fake{name: "jury"}))
-	events, err := (&fake{events: []time.Time{h.clock.Now()}}).Save()
-	require.NoError(t, err)
-	config := h.legacyFile(t, legacyFileWith(t, h.clock.Now(), map[string][]byte{"jury": events}))
-
-	section := &fake{name: "jury"}
-	require.NoError(t, h.storeWith(config, section).Load(t.Context()))
-
-	assert.Empty(t, section.events)
-	require.Len(t, h.errors, 1)
-	assert.ErrorContains(t, h.errors[0], "ignoring it")
-}
-
-func TestACorruptLegacyFileRefusesTheBoot(t *testing.T) {
-	for name, damage := range map[string]func([]byte) []byte{
-		"flipped byte":            func(raw []byte) []byte { raw[len(raw)-1] ^= 0xff; return raw },
-		"truncated":               func(raw []byte) []byte { return raw[:len(raw)/2] },
-		"bad magic":               func(raw []byte) []byte { raw[0] = 'X'; return raw },
-		"shorter than the header": func([]byte) []byte { return []byte("CP") },
-		"newer version": func(raw []byte) []byte {
-			raw[len(stateMagic)] = stateVersion + 1
-			return raw
-		},
-	} {
-		t.Run(name, func(t *testing.T) {
-			h := newHarness()
-			events, err := (&fake{events: []time.Time{h.clock.Now()}}).Save()
-			require.NoError(t, err)
-			config := h.legacyFile(t, damage(legacyFileWith(t, h.clock.Now(), map[string][]byte{"catcher": events})))
-
-			err = h.storeWith(config, &fake{name: "catcher"}).Load(t.Context())
-
-			require.ErrorIs(t, err, errCorruptState)
-			assert.FileExists(t, config.LegacyStatePath)
-		})
-	}
 }
 
 type shapeless struct{ name string }

@@ -160,7 +160,7 @@ It copies itself to the box over SSH and re-runs there as root, then: installs
 Docker and turns off its userland proxy (see below), creates the `deploy` user, generates and installs a CI keypair
 (`~/.ssh/clickplanet_ci`, private half never leaves your laptop), restricts ufw
 to SSH plus Cloudflare's ranges on 80/443, clones the repo to
-`/opt/clickplanet`, writes `.env`, installs the nightly backup cron, builds
+`/opt/clickplanet`, writes `.env`, builds
 Caddy with the Cloudflare DNS plugin, and starts the stack. It finishes by
 printing the `gh secret set` commands for step 5.
 
@@ -576,19 +576,6 @@ docker compose start backend
 That forgets its offences too. To end the ban and keep them, so its next ban
 climbs the ladder: `update antibot.bans set banned_until = now() where scope = '1.2.3.4'`.
 
-**The first boot on postgres imports the old files.** The bans table is empty
-and `/home/app/state/bans.jsonl` exists, so the API loads it and renames it
-`bans.jsonl.imported` once postgres holds it. `antibot-evidence.bin` goes the
-same way. A file it cannot decode refuses the boot: move it away to start
-without it. Check it:
-
-```bash
-docker compose exec postgres psql -U clickplanet -c "select count(*) from antibot.bans"
-docker compose exec backend ls /home/app/state
-```
-
-Then remove both `legacyStatePath` keys from `backend.yaml`.
-
 Set `enforce` back to false to stop dropping clicks for everyone at once.
 ### Evidence has to outlive a deploy, and by default it does not
 
@@ -653,7 +640,7 @@ keeps it.
   recreate.
 - **The access log holds personal data**: client IPs, user agents, countries.
   Like the chat messages, 14 days is a policy decision. Shorten `roll_keep_for` in the
-  `Caddyfile` to hold less. The nightly backup does not copy this volume.
+  `Caddyfile` to hold less. Nothing backs up this volume.
 - `X-Session-Token` is written as `REDACTED`. It is a bearer token. You can see
   if a request had one, not what it was.
 
@@ -784,24 +771,6 @@ policy decision, not a cache size: an hourly prune deletes older rows. Shorten
 it if you would rather hold less. A message that cannot be written to postgres
 is refused, not broadcast: the table is the audit trail.
 
-**The first boot on postgres imports the old `chat.log`.** The messages table
-is empty and `/home/app/state/chat.log` exists, so the API reads it, skips the
-lines it cannot read and the messages past retention, writes the rest in one
-transaction, and renames the file `chat.log.imported`. A log it cannot read at
-all refuses the boot. Check it:
-
-```bash
-journalctl CONTAINER_NAME=cp-backend | grep "legacy chat log"
-docker compose exec postgres psql -U clickplanet -c "select count(*) from chat.messages"
-```
-
-Then remove `chat.storage.legacyLogPath` from `backend.yaml`, and delete
-`chat.log.imported`: it holds the same personal data, and nothing prunes it.
-
-```bash
-docker compose exec backend rm /home/app/state/chat.log.imported
-```
-
 Anything in `backend.yaml` can also be overridden from the `environment:` block
 instead — `cfgutil` reads env vars with `.` as the nesting delimiter, so the key
 is the config path verbatim, which is how `CHAT_TAG_SALT` reaches
@@ -829,26 +798,11 @@ docker compose exec postgres psql -U clickplanet -c "select count(*) from planet
 docker compose exec postgres psql -U clickplanet -c "select count(*) from planet.ledger_takes"
 ```
 
-**The first boot on the ledger tables imports the old ledger file.** The tables
-are empty and `/home/app/state/ledger.bin` exists, so the API loads it, writes it
-to postgres in one transaction, and renames it `ledger.bin.imported`. A crash
-before that write imports it again on the next boot. A file it cannot read
-refuses the boot; move it away to start with an empty ledger. Check it:
-
-```bash
-journalctl CONTAINER_NAME=cp-backend | grep "legacy ledger file"
-docker compose exec postgres psql -U clickplanet -c "select count(*) from planet.ledger_takes"
-```
-
-Then remove `ledgerStorage.legacyStatePath` from `backend.yaml`.
-
 A psql shell: `docker compose exec postgres psql -U clickplanet`.
 
 ### Backups
 
-The nightly cron `bootstrap.sh` installs tars the `tile_state` volume, which
-holds only the pre-postgres files the first boot imports. **Nothing in postgres
-is backed up yet.** For a copy by hand:
+**Nothing is backed up yet.** All state is in postgres. For a copy by hand:
 
 ```bash
 docker compose exec postgres pg_dump -U clickplanet -n planet clickplanet > planet-$(date +%F).sql
@@ -858,6 +812,17 @@ docker compose exec postgres pg_dump -U clickplanet -n chat clickplanet > chat-$
 
 DigitalOcean's droplet backups (+20% of the droplet price, so ~$1.20/mo) cover
 the whole disk if you would rather not think about it.
+
+A droplet set up before 2026-09-15 still has the `vps_tile_state` volume, with
+the `.imported` files of the first postgres boot, and a nightly cron that tars
+it. Nothing reads them. `chat.log.imported` holds personal data. To remove both,
+as `deploy`, once the backend runs without the mount:
+
+```bash
+crontab -l | grep -v 'vps_tile_state\|tiles-\*' | crontab -
+docker volume rm vps_tile_state
+rm -f ~/backups/tiles-*.tar.gz
+```
 
 ## 10. Operator tools
 
@@ -1010,8 +975,5 @@ docker compose exec backend wget -qO- --header 'Content-Type: application/json' 
 - **Bad backend build:** `BACKEND_IMAGE=ghcr.io/raphoester/clickplanet-backend:<sha>` in `.env`, then `docker compose up -d backend`.
 - **Lost or corrupt tile state:** stop the backend, restore the `planet` schema from a dump (`drop schema planet cascade`, then `psql -U clickplanet clickplanet < planet-DATE.sql`), start it again.
 - **Lost or corrupt chat messages:** the same, with the `chat` schema and `chat-DATE.sql`.
-- **Back to a pre-postgres chat build:** that image writes `chat.log`, which the import renamed. Rename `chat.log.imported` back first — every message since the import is missing from it.
-- **Back to a build before the ledger tables:** that image reads `ledger.bin`, which the import renamed. Rename `ledger.bin.imported` back first — it holds the ledger as of the import, so every take since is lost.
-- **Back to a build before the antibot moved to postgres:** that image reads `bans.jsonl` and `antibot-evidence.bin`, which the import renamed. Rename both `.imported` files back first — they hold the bans as of the import, so every ban since is lost.
 - **In-process storage misbehaving:** there is no config switch back to Redis — that code is gone. Roll the backend image back to a pre-migration `<sha>` and restore the matching Redis stack from git history.
 - **Frontend:** roll back the deployment in the Pages dashboard.

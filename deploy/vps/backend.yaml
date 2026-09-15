@@ -2,7 +2,7 @@
 #
 # The API holds the whole tile map in process and keeps it in the postgres
 # service of docker-compose.yaml, with the ledger and the chat, and so does the antibot keep its bans and
-# evidence. The tile_state volume only holds the pre-postgres files the first boot imports.
+# evidence.
 
 httpServer:
   bindAddress: 0.0.0.0:8080
@@ -40,10 +40,6 @@ ledger:
 ledgerStorage:
   flushInterval: 1s
   maxTakes: 4000000
-  # The ledger file from before postgres. The first boot imports it into empty
-  # ledger tables and renames it ledger.bin.imported. Remove this key once that
-  # has happened.
-  legacyStatePath: /home/app/state/ledger.bin
 
 # Per-caller throttle on the Click RPC. Keyed on the address Caddy puts in
 # X-Real-IP, which is Cloudflare's Cf-Connecting-Ip — the real visitor — over
@@ -109,9 +105,6 @@ antiBot:
     banDurations: [24h, 168h, 26280h]
     # In postgres (antibot.bans), so a deploy does not free every banned caller.
     # Unban one scope: see "Unban one scope" in the README.
-    # The pre-postgres file. The first boot imports it into an empty bans table
-    # and renames it bans.jsonl.imported. Remove this key once that has happened.
-    legacyStatePath: /home/app/state/bans.jsonl
     # Matches the widest watchdog trackWindow, so each repeat flag rests on
     # evidence the previous one never saw. Watch the flags= count climb on a
     # caller: one flag is a window, six is a pattern.
@@ -133,9 +126,6 @@ antiBot:
   # filled, so nothing was banned. Delete its rows with the backend stopped to
   # start every watchdog from nothing.
   evidence:
-    # The pre-postgres file, imported once like the bans. Remove this key once
-    # it is renamed antibot-evidence.bin.imported.
-    legacyStatePath: /home/app/state/antibot-evidence.bin
     saveInterval: 1m
     retention: 72h
 
@@ -364,10 +354,6 @@ chat:
     pool:
       maxOpenConns: 2
   storage:
-    # The pre-postgres JSONL log. The first boot imports it into an empty
-    # messages table and renames it chat.log.imported. Remove this key once
-    # that has happened.
-    legacyLogPath: /home/app/state/chat.log
     historySize: 200
     retention: 720h
   service:

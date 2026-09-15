@@ -16,9 +16,6 @@ type Config struct {
 
 	ReflagInterval time.Duration
 	SaveInterval   time.Duration
-
-	// LegacyStatePath is the bans file from before postgres, imported once into an empty table.
-	LegacyStatePath string
 }
 
 const (
@@ -62,10 +59,9 @@ type Banner struct {
 	persistence  Persistence
 	onStateError func(error)
 
-	mu       sync.Mutex
-	bans     map[string]*ban
-	dirty    map[string]struct{}
-	imported string // the legacy file loaded, renamed after the first flush
+	mu    sync.Mutex
+	bans  map[string]*ban
+	dirty map[string]struct{}
 }
 
 type ban struct {

@@ -18,9 +18,6 @@ type Config struct {
 
 	// Retention is the oldest evidence kept, on load and in memory, whatever a watchdog's own window says.
 	Retention time.Duration
-
-	// LegacyStatePath is the evidence file from before postgres, imported once into an empty table.
-	LegacyStatePath string
 }
 
 const (
@@ -85,9 +82,8 @@ type Store struct {
 	onStateError func(error)
 	sections     []Section
 
-	mu       sync.Mutex
-	savedAt  time.Time // of the snapshot loaded; zero when none was
-	imported string    // the legacy file loaded, renamed after the first flush
+	mu      sync.Mutex
+	savedAt time.Time // of the snapshot loaded; zero when none was
 }
 
 // Load refuses the boot when postgres cannot be read. A section that does not decode is reported and starts empty alone.
@@ -95,18 +91,6 @@ func (s *Store) Load(ctx context.Context) error {
 	snapshot, err := s.persistence.Load(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to read stored antibot evidence: %w", err)
-	}
-
-	if len(snapshot.Sections) > 0 {
-		if legacyFileExists(s.config.LegacyStatePath) {
-			s.onStateError(fmt.Errorf("the legacy evidence file %s is still on disk but postgres already holds evidence, ignoring it",
-				s.config.LegacyStatePath))
-		}
-	} else {
-		snapshot, err = s.importLegacyState()
-		if err != nil {
-			return err
-		}
 	}
 
 	before := s.clock.Now().Add(-s.config.Retention)
@@ -199,8 +183,6 @@ func (s *Store) Flush(ctx context.Context) error {
 	if err := s.persistence.Save(ctx, snapshot); err != nil {
 		return fmt.Errorf("failed to save %d sections: %w", len(snapshot.Sections), err)
 	}
-
-	s.retireLegacyState()
 
 	return nil
 }

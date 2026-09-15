@@ -358,7 +358,7 @@ Chat is a separate bounded context, not a feature of the tile game: it shares th
 
 **Identity without accounts.** A client picks its own display name and sends a UUID it persists locally. **Neither is trusted for anything** — anyone can post with any name. What a sender cannot forge is `author_tag`: a salted hash of their IP, 6 hex characters, so two people using the same name still look different and a mute has a key that means something. The salt is `chat.service.tagSalt`; left empty it is regenerated at boot, which changes everyone's tag on restart, and the server warns about it.
 
-**Abuse controls live at the edge**, in two interceptors — ahead of decoding the message and well ahead of validating it, so a flood of malformed messages costs a sender exactly what a flood of well-formed ones does. `chat.blockedIPs` cuts an address off from every chat RPC; `chat.rateLimiter` throttles `SendMessage` alone (`GetHistory` is one read on join, and limiting it would punish a page load). **Both are `shared/cpconnect`'s**, the same ones the click chain uses — see [Shared interceptors](#shared-interceptors). The domain then bounds the message in **runes** (280) and the name (24), validates UTF-8, and **strips control characters** — a newline once let a sender forge a line in the JSONL log, and a NUL is not valid in a postgres `text`.
+**Abuse controls live at the edge**, in two interceptors — ahead of decoding the message and well ahead of validating it, so a flood of malformed messages costs a sender exactly what a flood of well-formed ones does. `chat.blockedIPs` cuts an address off from every chat RPC; `chat.rateLimiter` throttles `SendMessage` alone (`GetHistory` is one read on join, and limiting it would punish a page load). **Both are `shared/cpconnect`'s**, the same ones the click chain uses — see [Shared interceptors](#shared-interceptors). The domain then bounds the message in **runes** (280) and the name (24), validates UTF-8, and **strips control characters** — a newline once let a sender forge a line in the old log file, and a NUL is not valid in a postgres `text`.
 
 Refusal reasons are logged, never returned: a sender learns *that* they were refused, not which check tripped. **The stored text is raw — the frontend must escape it.**
 
@@ -369,8 +369,6 @@ The **vendored VPN lists** do not cover chat: `NewVPNBlockInterceptor` wraps `Cl
 `inmemory_message_storage` depends on its `Persistence` port, not on postgres. Its tests use `MemoryPersistence` (behind the `testing` tag), which can fail on demand; `postgres_message_store` has its own suite against a real postgres.
 
 The table holds **personal data** — IPs next to user-authored text — so the retention window is a policy decision rather than a cache size.
-
-**The pre-postgres JSONL log is imported once.** When `chat.messages` is empty and `chat.storage.legacyLogPath` exists, `Load` reads it, skips and reports the lines it cannot parse, drops the messages past `retention`, writes the rest with one `COPY` in one transaction, and only then renames the file `.imported`. A crash before the commit imports it again on the next boot; a failed rename is logged, and the next boot ignores the file because the table is no longer empty. A file it cannot read at all **refuses the boot**, since the first message posted afterwards would make the import impossible. When the table already holds rows, the file is logged and ignored. `legacy_log.go` goes once production has booted on postgres.
 
 **Chat has its own stream**, `ChatService.ListenForEvents` — see [The live streams](#the-live-streams). It replaced a `/ws/chat` websocket that had to be kept apart from the tile one because frames carried a bare protobuf message with no type tag: a second payload on either socket would have been indistinguishable from the first. The `oneof` envelope is exactly what removes that constraint.
 
@@ -910,14 +908,7 @@ in memory no window of 10m (`suspicionWindow`), 15m (`trackWindow`) or 30m
   shorter; retention is what bounds the rows after a long outage or a
   `trackWindow` set in days. Since each flush rewrites the rows from memory,
   nothing older than retention outlives one flush.
-- **The pre-postgres files are imported once.** When a table is empty and its
-  `legacyStatePath` exists (`antiBot.shadowBan.legacyStatePath`,
-  `antiBot.evidence.legacyStatePath`), `LoadState` decodes it into memory (the
-  bans marked dirty), and the first successful flush writes it and renames the
-  file `.imported`. A crash before that flush imports it again. A file it cannot
-  decode **refuses the boot**. When the table already holds rows the file is
-  reported and ignored. `shadowban/legacy_state.go` and
-  `evidence/legacy_state.go` go once production has booted on postgres. An entry goes when its last event does: a metronome
+- An entry goes when its last event does: a metronome
   run or a jury tally still being added to is kept whole, however old its start.
 - **Timestamps are wall clock, and the windows stay wall clock.** A restart of
   20 seconds costs every window 20 seconds, and a caller away for an hour is away
@@ -927,7 +918,7 @@ in memory no window of 10m (`suspicionWindow`), 15m (`trackWindow`) or 30m
   `maxGap` (3s), and no restart is that short — so a gap spanning the outage
   would read as a break every time, and the half hour of `certainFor` could never
   be reached across restarts. So the outage is taken out of that one gap
-  (`detect.Outage`): it runs from the save the file was written at to the moment
+  (`detect.Outage`): it runs from the last flush (`saved_at`) to the moment
   the new guard's `Run` starts — not to the load, because the boot is not over
   then, and runners start before the server listens. If what is left is still
   under `maxGap` — the caller was clicking when the process went down and again
@@ -1255,11 +1246,9 @@ Both chains order them the same way: error mapping outermost, then the blocklist
 - **A flush appends, it never rewrites.** Every `ledgerStorage.flushInterval` (1s), `Flush` hands the takes past the last flush to `Save`: one transaction that `COPY`s them in, deletes the takes before the head (what the retention or the cap dropped), moves the head, and upserts the marks set since. It first deletes any row at or past the first new position, so a flush whose commit answer was lost writes again without a conflict. A take dropped before it was flushed is never written. A failed save keeps it all for the next tick; each flush has a 10s timeout, and shutdown flushes once more.
 - **One pool for both runners.** `cppg.CloseAfter(db, logger, tilesStorage, takings)` runs them together and closes the pool after both last flushes.
 
-**The pre-postgres ledger file is imported once.** When the three tables are empty and `ledgerStorage.legacyStatePath` exists, `Load` reads the old file (version 1 or 2) into memory with its positions and marks. The first successful flush writes it in one transaction, with a 10 minute timeout, and renames the file `.imported`. A crash before that flush imports it again on the next boot. A file it cannot decode **refuses the boot**; a damaged tail imports the frames before it. When the tables already hold a ledger, the file is logged and ignored. `legacy_state.go` goes once production has booted on the ledger tables.
-
 The antibot's bans and evidence are in postgres too, in the `antibot` schema, the same way — see [What survives a restart](#what-survives-a-restart).
 
-Nothing lives in files on the `tile_state` volume any more but the pre-postgres files the first boot imports.
+Nothing lives in files any more: the container mounts no state volume.
 
 ### Operator tools (`AdminService`)
 
@@ -1508,7 +1497,6 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `tilesStorage.flushInterval` — how often the tiles changed since the last flush are written to postgres (1s)
 - `ledger.retention`, `ledger.sweepInterval` — how long the operator tools can trace and revert a take (72h)
 - `ledgerStorage.flushInterval` — how often new takes are written to postgres (1s, and on shutdown)
-- `ledgerStorage.legacyStatePath` — the pre-postgres ledger file, imported once into empty ledger tables (see [Durability](#durability))
 - `ledgerStorage.maxTakes` — the most takes kept (4M, ~85 MiB); past it the oldest go before the retention
 - `tilesStorage.subscriberBuffer` — per-subscriber channel capacity, which is now per connected client rather than per fanout; updates for a subscriber that cannot keep up are dropped, not blocked on
 - `rateLimiter.perSecond`, `rateLimiter.burst`, `rateLimiter.sweepInterval` — the per-IP click throttle (defaults 1/s, burst 10, swept every minute)
@@ -1523,12 +1511,10 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `antiBot.shadowBan.banDurations` — the ban for each offence (the last step repeats). An offence is a ban that starts while none is running; a flag on a running ban only extends it. **Offences are never forgotten**
 - `antiBot.database` — the antibot's own `cppg.Config`, `schema: antibot`; required when `antiBot.enabled`. A failed connection, migration or load refuses the boot
 - `antiBot.shadowBan.saveInterval` — how often changed bans are written to `antibot.bans` (1m, and on shutdown)
-- `antiBot.shadowBan.legacyStatePath` — the pre-postgres `bans.jsonl`, imported once into an empty table (see [What survives a restart](#what-survives-a-restart))
 - `antiBot.shadowBan.reflagInterval` — how soon a banned caller can be judged again
 - `antiBot.jury.minSuspects` — how many watchdogs at `suspect` make a ban; one at `certain` bans alone
 - `antiBot.jury.suspicionWindow`, `trackWindow`, `sweepInterval` — how long a verdict stands while another watchdog catches up, and how long a silent caller is remembered
 - `antiBot.evidence.saveInterval`, `retention` — how often every watchdog's evidence and the jury's record are written to `antibot.evidence` (1m, and on shutdown), and the oldest kept (72h) on load and in memory. See [What survives a restart](#what-survives-a-restart)
-- `antiBot.evidence.legacyStatePath` — the pre-postgres evidence file, imported once into an empty table
 - `antiBot.retaker.enabled`, `detector.reactionWindow`, `minReactions`, `maxSpread`, `maxMedian` — what counts as a reaction, how many are needed, and the band that reads `suspect` then `certain`
 - `antiBot.sequencer.enabled`, `detector.minSteps`, `minShare`, `certainSteps`, `certainShare` — how long a run of constant-stride clicks must be, and how much of it must sit at that stride
 - `antiBot.metronome.enabled`, `detector.maxGap`, `maxSpread`, `minClicks`, `certainFor`, `certainClicks` — what ends a run, how tight its gaps must be, and how long it must hold
@@ -1547,7 +1533,6 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `session.turnstile.hostnames` — the frontend origins siteverify must report; **empty refuses every token** rather than accepting any, and a production value must not include `localhost`
 - `session.turnstile.action` — must match the widget's `data-action` (default `session`)
 - `chat.database.host`, `port`, `user`, `password`, `dbName`, `sslMode`, `schema`, `pool.*` — the chat module's postgres, same shape as `database`; any of them but `password` and `pool` empty refuses the boot. `chat.database.password` belongs in the environment
-- `chat.storage.legacyLogPath` — the pre-postgres JSONL log, imported once into an empty `chat.messages` table (see [Chat](#chat-internalchat))
 - `chat.storage.historySize`, `chat.storage.retention`, `chat.storage.pruneInterval`, `chat.storage.subscriberBuffer`
 - `chat.service.tagSalt` — salts the per-sender tag; **empty regenerates one at boot**, changing every tag on restart
 - `chat.service.maxTextLength`, `chat.service.maxNameLength` — bounds in runes (280, 24)
@@ -1601,7 +1586,6 @@ keeps the rule live everywhere else:
 - `nilnil` — three constructors return `(nil, nil)` for **"this feature is off"**,
   and the caller checks for nil and mounts nothing. A sentinel would make every
   caller unwrap one. Annotated per site so an *accidental* `nil, nil` is still caught.
-- `gosec` G304 — file paths that come from config, never from a request.
 - `gosec` G404 — `math/rand` in the antibot tests is deterministic on purpose:
   a fixed seed replays the exact click stream a watchdog is asserted against.
 - `bodyclose` — it cannot see a body closed by a helper's `t.Cleanup`.
