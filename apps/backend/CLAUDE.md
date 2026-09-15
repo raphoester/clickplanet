@@ -1209,8 +1209,6 @@ Both chains order them the same way: error mapping outermost, then the blocklist
 
 **`shared/cppg` is the client**, ported from on-core-platform's `onpg`: `Config` (one module's database block, schema included), `New`, `ConnectCtx`, `Migrate`, and the `Querier`/`Beginner` interfaces a store depends on. Cut from the original: gorm (`make deadcode` rejects what nothing calls, and plain SQL is enough), the SSM tunnel, tracing and lazy config. **Every module that stores something has its own database block and its own pool.** The planet's is `database:` at the top of the file, because `planet.Config` is squashed there; another module's would sit inside its own section (`chat.database:`). Nothing is handed between modules. `Config.String` leaves the password out of the boot's config log line.
 
-**The pre-postgres snapshot is imported once.** When `tiles` is empty and `tilesStorage.legacySnapshotPath` exists, `Load` decodes the old binary snapshot into memory and marks every owned tile dirty; the first successful flush writes it in one transaction and renames the file `.imported`. A crash before that flush imports it again on the next boot. A snapshot it cannot decode **refuses the boot** rather than starting empty. When `tiles` already holds rows, the file is logged and ignored. `legacy_snapshot.go` goes once production has booted on postgres.
-
 The rest is still files on the `tile_state` volume, and moves to postgres next: the ledger (`ledgerStorage.statePath`), bans (`antiBot.shadowBan.statePath`), antibot evidence (`antiBot.evidence.statePath`) and the chat log (`chat.storage.logPath`).
 
 ### Operator tools (`AdminService`)
@@ -1460,7 +1458,6 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `gameMap.maxIndex` — total number of tiles
 - `database.host`, `port`, `user`, `password`, `dbName`, `sslMode`, `schema`, `pool.*` — the planet module's postgres and the schema its tables live in; any of them but `password` and `pool` empty refuses the boot. `database.password` belongs in the environment
 - `tilesStorage.flushInterval` — how often the tiles changed since the last flush are written to postgres (1s)
-- `tilesStorage.legacySnapshotPath` — the pre-postgres snapshot, imported once into an empty `tiles` table (see [Durability](#durability))
 - `ledger.retention`, `ledger.sweepInterval` — how long the operator tools can trace and revert a take (72h)
 - `ledgerStorage.statePath`, `ledgerStorage.saveInterval` — where the ledger is saved and how often new takes are appended (1m, and on shutdown); **empty keeps it in memory**, where a restart empties it
 - `ledgerStorage.maxTakes` — the most takes kept (4M, ~85 MiB); past it the oldest go before the retention

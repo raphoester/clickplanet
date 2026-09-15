@@ -57,8 +57,6 @@ type Storage struct {
 	// One bit per tile changed since the last flush.
 	dirty []uint64
 
-	imported string
-
 	subscribersMu sync.Mutex
 	subscribers   map[*subscriber]struct{}
 }

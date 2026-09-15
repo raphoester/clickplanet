@@ -28,10 +28,6 @@ tilesStorage:
   # `docker compose down` or a rolling redeploy loses nothing: the API flushes
   # once more on SIGTERM.
   flushInterval: 1s
-  # The pre-postgres snapshot. The first boot imports it into an empty tiles
-  # table and renames it tiles.snapshot.imported. Remove this key once that has
-  # happened.
-  legacySnapshotPath: /home/app/state/tiles.snapshot
 
 # Every take of every tile, for the operator tools. Kept three days, so a ban
 # can be decided on more than the last few hours.

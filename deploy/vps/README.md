@@ -170,7 +170,7 @@ is not ready: the wrong CPU architecture, a token you did not pass, a
 grey-clouded DNS record, or a backend image that is not pullable yet.
 
 On first boot the API finds no tiles in postgres and starts from an empty map,
-logging `no stored tiles, starting from an empty map`. Check it:
+logging `loaded the tile map` with `ownedTiles=0`. Check it:
 
 ```bash
 curl -sS 'https://api.clickplanet.lol/planet.v1.ClickService/MapDensity?connect=v1&encoding=json&message=%7B%7D'
@@ -783,27 +783,14 @@ it. Each backend module keeps its tables in a schema of its own (`planet` for th
 tile map) and migrates it at boot. The API refuses to start without postgres.
 
 **The password is `POSTGRES_PASSWORD` in `.env`.** `bootstrap.sh` generates it.
-A box set up before postgres needs it added once, **before** the deploy that
-brings postgres, or `docker compose up` refuses to start:
-
-```bash
-echo "POSTGRES_PASSWORD=$(openssl rand -hex 32)" >> .env
-```
-
-Never change it afterwards: postgres reads it only when `pg_data` is empty, so a
+Without it, `docker compose up` refuses to start. Never change it: postgres reads it only when `pg_data` is empty, so a
 new value locks the API out of the existing data.
 
-**The first boot on postgres imports the old snapshot.** The tiles table is
-empty and `/home/app/state/tiles.snapshot` exists, so the API loads it, writes
-it to postgres in one transaction, and renames it `tiles.snapshot.imported`.
-Check it:
+How many tiles it holds:
 
 ```bash
-journalctl CONTAINER_NAME=cp-backend | grep "legacy tile snapshot"
 docker compose exec postgres psql -U clickplanet -c "select count(*) from planet.tiles"
 ```
-
-Then remove `tilesStorage.legacySnapshotPath` from `backend.yaml`.
 
 A psql shell: `docker compose exec postgres psql -U clickplanet`.
 
@@ -969,6 +956,5 @@ docker compose exec backend wget -qO- --header 'Content-Type: application/json' 
 
 - **Bad backend build:** `BACKEND_IMAGE=ghcr.io/raphoester/clickplanet-backend:<sha>` in `.env`, then `docker compose up -d backend`.
 - **Lost or corrupt tile state:** stop the backend, restore the `planet` schema from a dump (`drop schema planet cascade`, then `psql -U clickplanet clickplanet < planet-DATE.sql`), start it again.
-- **Back to a pre-postgres build:** that image reads `tiles.snapshot`, which the import renamed. Rename `tiles.snapshot.imported` back first — it holds the map as of the import, so every click since is lost.
 - **In-process storage misbehaving:** there is no config switch back to Redis — that code is gone. Roll the backend image back to a pre-migration `<sha>` and restore the matching Redis stack from git history.
 - **Frontend:** roll back the deployment in the Pages dashboard.

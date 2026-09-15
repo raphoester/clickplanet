@@ -37,9 +37,6 @@ tilesStorage:
   # The most a hard kill can lose. A clean stop loses nothing: the last flush
   # runs on SIGTERM.
   flushInterval: 1s
-  # The tile snapshot file from before postgres. Imported once, if the tiles
-  # table is empty, then renamed with an .imported suffix. Empty imports nothing.
-  legacySnapshotPath: ./data/tiles.snapshot
   # Per-stream subscriber channel capacity. Updates for a subscriber that
   # cannot keep up are dropped rather than blocking clicks.
   subscriberBuffer: 1024
