@@ -45,11 +45,13 @@
 .leaderboard-footer {
     margin: 12px 0 0;
     padding-bottom: 36px;
-    text-align: center;
     font-family: Oswald, sans-serif;
     font-size: 12px;
     letter-spacing: 1px;
     text-transform: uppercase;
+    display: flex;
+    justify-content: center;
+    gap: 16px;
 }
 
 .leaderboard-footer a {
