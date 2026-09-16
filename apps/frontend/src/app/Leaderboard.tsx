@@ -61,6 +61,10 @@ export default function Leaderboard(props: LeaderboardProps) {
                 })}
                 </tbody>
             </table>
+
+            <p className="leaderboard-footer">
+                <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy policy</a>
+            </p>
         </div>
     </section>
 }
