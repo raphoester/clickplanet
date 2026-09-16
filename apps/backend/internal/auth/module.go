@@ -53,7 +53,7 @@ func NewModule(config Config) cpbootstrap.Module {
 }
 
 func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
-	signer, err := cpsession.NewSigner(config.Config)
+	signer, err := cpsession.NewSigner(config.SignerConfig)
 	if err != nil {
 		return fmt.Errorf("failed to build the click token signer: %w", err)
 	}
@@ -105,7 +105,6 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	props.Logger.Info("auth built",
 		slog.String("schema", config.Database.Schema),
 		slog.Duration("ttl", config.TTL),
-		slog.Bool("enforce", config.Enforce),
 		slog.Bool("turnstile", config.Turnstile.Enabled),
 		slog.Duration("guestTTL", config.Sessions.GuestTTL),
 	)
@@ -126,10 +125,10 @@ func newAttester(config Config, logger *slog.Logger) (attestation.Attester, erro
 	return attester, nil
 }
 
-// Config is the `auth:` block. The token half is the shared layer's, because the
-// planet context declares the same type to verify what this one mints.
+// Config is the `auth:` block. The minting half is the shared layer's; planet
+// declares the verifying half of the same block and never sees the seed.
 type Config struct {
-	cpsession.Config `koanf:",squash"`
+	cpsession.SignerConfig `koanf:",squash"`
 
 	// Per-IP throttle on minting, for both CreateSession paths together.
 	RateLimiter cpratelimit.Config
@@ -152,7 +151,7 @@ func (c Config) withDefaults() Config {
 	return c
 }
 
-// Validate checks the whole block, the token half included: planet reads it but does not check it.
+// Validate checks the whole block, the key pair included: planet reads the public half but does not check it.
 func (c Config) Validate() error {
 	if !c.Enabled {
 		return nil
@@ -162,5 +161,5 @@ func (c Config) Validate() error {
 	if err := c.Database.Validate(); err != nil {
 		databaseErr = fmt.Errorf("auth.database: %w", err)
 	}
-	return errors.Join(c.Config.Validate(), databaseErr)
+	return errors.Join(c.SignerConfig.Validate(), databaseErr)
 }

@@ -1,16 +1,21 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconfigs"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
+
+var now = time.Date(2026, 9, 9, 12, 0, 0, 0, time.UTC)
 
 // The shipped file is the schema. Nothing else checks that a key in it still
 // reaches the struct it is named after: koanf drops what it cannot match in
@@ -96,9 +101,11 @@ func TestTheExampleConfigReachesTheBombSettings(t *testing.T) {
 	require.NoError(t, config.Planet.Bonus.Validate())
 }
 
-func TestBothContextsReadTheSameAuthBlock(t *testing.T) {
+func authBlock(t *testing.T, secret string) string {
+	t.Helper()
+
 	path := filepath.Join(t.TempDir(), "config.yaml")
-	require.NoError(t, os.WriteFile(path, []byte(`
+	require.NoError(t, os.WriteFile(path, fmt.Appendf(nil, `
 httpServer:
   bindAddress: 0.0.0.0:8080
 gameMap:
@@ -109,19 +116,40 @@ chat:
 auth:
   enabled: true
   enforce: true
-  secret: a-shared-secret
+  secret: "%s"
   ttl: 2h
   database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: auth}
-`), 0o600))
+`, secret), 0o600))
 
-	var config Config
-	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile(path)))
+	return path
+}
 
-	assert.Equal(t, config.Auth.Config, config.Planet.Auth,
-		"the mint and the click check derive their signer from one block, so these cannot diverge")
-	assert.Equal(t, "a-shared-secret", config.Planet.Auth.Secret)
-	assert.Equal(t, 2*time.Hour, config.Planet.Auth.TTL)
+func TestPlanetVerifiesWhatAuthMintsFromOneKey(t *testing.T) {
+	secret, public := cpsession.TestKeyPair()
+
+	config, err := loadConfig(cpconfigs.FromFile(authBlock(t, secret)))
+	require.NoError(t, err)
+
+	// The file names one key. Planet's half is derived from it, never written.
+	assert.Equal(t, public, config.Planet.Auth.PublicKey)
 	assert.True(t, config.Planet.Auth.Enforce)
+	assert.Equal(t, 2*time.Hour, config.Auth.TTL)
+
+	signer, err := cpsession.NewSigner(config.Auth.SignerConfig)
+	require.NoError(t, err)
+	verifier, err := cpsession.NewVerifier(config.Planet.Auth)
+	require.NoError(t, err)
+
+	token, err := signer.Mint("203.0.113.7", uuid.Nil, now)
+	require.NoError(t, err)
+
+	_, err = verifier.Verify(token.Value, "203.0.113.7", now)
+	assert.NoError(t, err, "planet verifies with the half derived from the seed auth mints with")
+}
+
+func TestASecretThatIsNotASeedIsRefused(t *testing.T) {
+	_, err := loadConfig(cpconfigs.FromFile(authBlock(t, "not-a-seed")))
+	require.ErrorContains(t, err, "auth.secret")
 }
 
 func TestTheExampleConfigReachesTheDatabaseBlock(t *testing.T) {

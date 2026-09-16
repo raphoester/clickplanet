@@ -494,8 +494,14 @@ auth:
   # deploy in, so a client that predates sessions keeps working while
   # click_session_checks shows what turning it on would cost.
   enforce: false
-  # Signs the click tokens. Required when enabled; it belongs in the environment
-  # in production, not in a file that is in git.
+  # The Ed25519 seed the click tokens are signed with: 32 bytes as 64 hex
+  # characters, from `openssl rand -hex 32`. Required when enabled, and it
+  # belongs in the environment in production rather than in a file that is in git.
+  #
+  # It is the only key here. Only the auth module is handed it; the planet
+  # module verifies clicks with the public half, which cmd/api derives from this
+  # at boot and hands to that block. So planet holds a Verifier, which has no
+  # Mint on it, and there is no second value to keep in step with this one.
   secret: ""
   ttl: 1h
   # Per-IP throttle on minting, for both CreateSession paths together: a mint

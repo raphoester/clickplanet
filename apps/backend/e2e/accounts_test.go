@@ -38,17 +38,18 @@ func freeAddress(t *testing.T) string {
 }
 
 type authStack struct {
-	baseURL string
-	signer  *cpsession.Signer
+	baseURL  string
+	verifier *cpsession.Verifier
 }
 
 func startAuth(t *testing.T) authStack {
 	t.Helper()
 
+	secret, public := cpsession.TestKeyPair()
 	server := cpbootstrap.ServerConfig{BindAddress: freeAddress(t)}
 	config := auth.Config{
-		Config:   cpsession.Config{Enabled: true, Secret: "a-test-secret", TTL: time.Hour},
-		Database: cppg.StartTestServer(t).ConfigFor("auth"),
+		SignerConfig: cpsession.SignerConfig{Enabled: true, Secret: secret, TTL: time.Hour},
+		Database:     cppg.StartTestServer(t).ConfigFor("auth"),
 	}
 	config.RateLimiter.PerSecond = 100
 	config.RateLimiter.Burst = 100
@@ -77,16 +78,16 @@ func startAuth(t *testing.T) authStack {
 		return true
 	}, time.Minute, 50*time.Millisecond, "the server never came up")
 
-	signer, err := cpsession.NewSigner(config.Config)
+	verifier, err := cpsession.NewVerifier(cpsession.VerifierConfig{Enabled: true, PublicKey: public})
 	require.NoError(t, err)
 
-	return authStack{baseURL: "http://" + server.BindAddress, signer: signer}
+	return authStack{baseURL: "http://" + server.BindAddress, verifier: verifier}
 }
 
 func (s authStack) accountIn(t *testing.T, token string) uuid.UUID {
 	t.Helper()
 
-	claims, err := s.signer.Verify(token, callerIP, time.Now())
+	claims, err := s.verifier.Verify(token, callerIP, time.Now())
 	require.NoError(t, err)
 	return claims.Account
 }

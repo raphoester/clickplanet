@@ -31,9 +31,8 @@ type Config struct {
 	Ledger        ledger.Config
 	LedgerStorage inmemory_ledger_storage.Config
 
-	// The same `auth:` keys the auth context mints with. Declared here
-	// rather than handed over, so this module needs nothing but its config.
-	Auth cpsession.Config
+	// The verifying half of the `auth:` block: a public key, never the seed.
+	Auth cpsession.VerifierConfig
 
 	Database cppg.Config
 }

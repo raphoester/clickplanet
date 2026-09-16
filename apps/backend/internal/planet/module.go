@@ -264,11 +264,11 @@ func NewModule(config Config) cpbootstrap.Module {
 				planetv1controller.NewVPNBlockInterceptor(blocklist, props.Metrics),
 			}
 
-			// This context builds its own verifier from the same `auth:` block the
-			// auth context mints with — same secret, same MAC — so neither module
-			// has to hand the other an object. Skipped when auth is off.
+			// This context builds its own verifier from the public half of the same
+			// `auth:` block, so neither module hands the other an object and this one
+			// cannot mint. Skipped when auth is off.
 			if config.Auth.Enabled {
-				verifier, err := cpsession.NewSigner(config.Auth)
+				verifier, err := cpsession.NewVerifier(config.Auth)
 				if err != nil {
 					return fmt.Errorf("failed to build the click session verifier: %w", err)
 				}

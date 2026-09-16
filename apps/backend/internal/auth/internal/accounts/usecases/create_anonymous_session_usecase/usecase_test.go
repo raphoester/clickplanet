@@ -25,27 +25,30 @@ func (refusingAttester) Attest(context.Context, string, string) error {
 	return errors.New("siteverify said no")
 }
 
-func setUp(t *testing.T, attester attestation.Attester) (*create_anonymous_session_usecase.UseCase, *cpsession.Signer) {
+func setUp(t *testing.T, attester attestation.Attester) (*create_anonymous_session_usecase.UseCase, *cpsession.Verifier) {
 	t.Helper()
 
-	signer, err := cpsession.NewSigner(cpsession.Config{Secret: "a-test-secret", TTL: time.Hour})
+	secret, public := cpsession.TestKeyPair()
+	signer, err := cpsession.NewSigner(cpsession.SignerConfig{Secret: secret, TTL: time.Hour})
+	require.NoError(t, err)
+	verifier, err := cpsession.NewVerifier(cpsession.VerifierConfig{PublicKey: public})
 	require.NoError(t, err)
 
-	return create_anonymous_session_usecase.New(attester, signer, cptime.NewFixedClock(now)), signer
+	return create_anonymous_session_usecase.New(attester, signer, cptime.NewFixedClock(now)), verifier
 }
 
 func TestAnAttestedCallerIsMintedATokenWithNoAccountBoundToItsAddress(t *testing.T) {
-	useCase, signer := setUp(t, open_attester.New())
+	useCase, verifier := setUp(t, open_attester.New())
 
 	token, err := useCase.Execute(t.Context(), create_anonymous_session_usecase.In{AttestationToken: "widget", IP: "203.0.113.7"})
 	require.NoError(t, err)
 
 	assert.Equal(t, now.Add(time.Hour), token.ExpiresAt)
-	claims, err := signer.Verify(token.Value, "203.0.113.7", now)
+	claims, err := verifier.Verify(token.Value, "203.0.113.7", now)
 	require.NoError(t, err)
 	assert.Equal(t, uuid.Nil, claims.Account)
 
-	_, err = signer.Verify(token.Value, "203.0.113.8", now)
+	_, err = verifier.Verify(token.Value, "203.0.113.8", now)
 	assert.Error(t, err, "the token is worth nothing from another address")
 }
 

@@ -33,16 +33,25 @@ func (refusingAttester) Attest(context.Context, string, string) error {
 type fixture struct {
 	sessions *inmemory_account_store.Store
 	signer   *cpsession.Signer
+	verifier *cpsession.Verifier
 	clock    *cptime.FixedClock
 }
 
 func setUp(t *testing.T) fixture {
 	t.Helper()
 
-	signer, err := cpsession.NewSigner(cpsession.Config{Secret: "a-test-secret", TTL: time.Hour})
+	secret, public := cpsession.TestKeyPair()
+	signer, err := cpsession.NewSigner(cpsession.SignerConfig{Secret: secret, TTL: time.Hour})
+	require.NoError(t, err)
+	verifier, err := cpsession.NewVerifier(cpsession.VerifierConfig{PublicKey: public})
 	require.NoError(t, err)
 
-	return fixture{sessions: inmemory_account_store.New(), signer: signer, clock: cptime.NewFixedClock(start)}
+	return fixture{
+		sessions: inmemory_account_store.New(),
+		signer:   signer,
+		verifier: verifier,
+		clock:    cptime.NewFixedClock(start),
+	}
 }
 
 func (f fixture) useCase(attester attestation.Attester) *create_session_usecase.UseCase {
@@ -61,7 +70,7 @@ func (f fixture) create(t *testing.T, useCase *create_session_usecase.UseCase, c
 func (f fixture) accountIn(t *testing.T, out *create_session_usecase.Out) uuid.UUID {
 	t.Helper()
 
-	claims, err := f.signer.Verify(out.Token.Value, ip, f.clock.Now())
+	claims, err := f.verifier.Verify(out.Token.Value, ip, f.clock.Now())
 	require.NoError(t, err)
 	return claims.Account
 }
