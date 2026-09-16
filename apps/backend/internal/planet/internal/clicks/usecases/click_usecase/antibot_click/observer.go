@@ -69,6 +69,20 @@ func NewObserver(logger *slog.Logger, registerer prometheus.Registerer) antibot.
 		Help: "Callers a watchdog reads at a level or above at the last jury sweep; suspect includes certain",
 	}, []string{"watchdog", "level"})
 
+	// Issued against passed is the pair to read together: a challenge a real
+	// player met is answered within seconds, and the gap between the two is
+	// what a script costs itself by ignoring one. Labelled by nothing — the
+	// address is what would be worth labelling and never can be.
+	challenges := factory.NewCounter(prometheus.CounterOpts{
+		Name: "antibot_challenges_issued",
+		Help: "Callers asked to prove they are a person again, whether or not challenge.enforce is on",
+	})
+
+	passed := factory.NewCounter(prometheus.CounterOpts{
+		Name: "antibot_challenges_passed",
+		Help: "Challenges answered by a caller coming back with a session it was not challenged on",
+	})
+
 	return antibot.Observer{
 		OnReaction: func(delay time.Duration) { reactions.Observe(delay.Seconds()) },
 
@@ -81,18 +95,10 @@ func NewObserver(logger *slog.Logger, registerer prometheus.Registerer) antibot.
 		// The address goes in the log and never on a label: per-IP labels are
 		// unbounded cardinality, and they would put personal data in every scrape.
 		OnFlag: func(report antibot.Report) {
-			fields := make([]any, 0, 10+len(report.Opinions))
-			fields = append(fields,
-				slog.String("scope", report.Scope),
+			fields := append(caller(report),
 				slog.Int("flags", report.Flags),
 				slog.Int("offence", report.Offence),
 				slog.Time("bannedUntil", report.BannedUntil),
-				slog.Int("clicks", report.Clicks),
-				slog.Duration("activeFor", report.ActiveFor),
-				slog.Duration("longestGap", report.LongestGap),
-				slog.String("topCountry", report.TopCountry),
-				slog.Int("topCountryClicks", report.TopCountryClicks),
-				slog.Any("tiles", report.Tiles),
 			)
 
 			// Every watchdog, not only the ones that argued for the ban: what did not
@@ -108,6 +114,21 @@ func NewObserver(logger *slog.Logger, registerer prometheus.Registerer) antibot.
 
 			logger.Warn("antibot ban", fields...)
 		},
+
+		// Info rather than Warn: a challenge is a question, not a sentence, and
+		// on a busy day there are more of them than there are bans.
+		OnChallenge: func(report antibot.Report) {
+			challenges.Inc()
+
+			fields := caller(report)
+			for _, opinion := range report.Opinions {
+				fields = append(fields, slog.String(opinion.Watchdog, opinion.String()))
+			}
+
+			logger.Info("antibot challenge", fields...)
+		},
+
+		OnChallengePassed: passed.Inc,
 
 		OnRise: func(watchdog, level string) {
 			opinions.WithLabelValues(watchdog, level).Inc()
@@ -126,7 +147,25 @@ func NewObserver(logger *slog.Logger, registerer prometheus.Registerer) antibot.
 				slog.Any("watchdogs", described.Watchdogs),
 				slog.Int("minSuspects", described.MinSuspects),
 				slog.Bool("enforce", described.Enforcing),
+				slog.Int("challengeAt", described.ChallengeAt),
+				slog.Bool("challenge", described.Challenging),
+				slog.Duration("challengeFor", described.ChallengeFor),
 			)
 		},
+	}
+}
+
+// caller is what a ban line and a challenge line say the same way: who, how
+// much, and whether the finding changed anything or was only counted.
+func caller(report antibot.Report) []any {
+	return []any{
+		slog.String("scope", report.Scope),
+		slog.Bool("enforced", report.Enforced),
+		slog.Int("clicks", report.Clicks),
+		slog.Duration("activeFor", report.ActiveFor),
+		slog.Duration("longestGap", report.LongestGap),
+		slog.String("topCountry", report.TopCountry),
+		slog.Int("topCountryClicks", report.TopCountryClicks),
+		slog.Any("tiles", report.Tiles),
 	}
 }

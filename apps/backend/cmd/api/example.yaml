@@ -234,6 +234,40 @@ antiBot:
     # and once more on shutdown.
     saveInterval: 1m
 
+  # The lesser consequence, for the band of evidence that never reaches the ban
+  # bar. A ban has to be nearly certain before it fires — a wrong one is
+  # invisible to the player and unrecoverable — so most of what the watchdogs
+  # collect is a suspicion that was simply thrown away. A challenge can be wrong
+  # and cost a real player about two seconds, so it fires where the evidence is.
+  #
+  # Answering one means minting a session again, which cannot be done without
+  # Turnstile. It therefore does nothing at all while nothing mints: a caller
+  # the edge accepted no session from is never challenged, because it would have
+  # no way to answer.
+  challenge:
+    # Off raises, logs and counts challenges without refusing anyone. Ship in
+    # this mode: read the "antibot challenge" lines, check none of them is
+    # naming you, then turn this on.
+    enforce: false
+    # Watchdogs at "suspect" that are enough to ask. Must be below
+    # jury.minSuspects, or the caller is banned before it is ever asked and a
+    # number above it would never fire — the boot refuses one that is.
+    # Unset takes one below the ban bar, which is where the thrown-away
+    # evidence actually is.
+    minSuspects: 1
+    # Two jobs, because both are the same question: how long one challenge's
+    # worth of evidence is good for. It is how long a challenge stands
+    # unanswered, so a client that cannot answer one is refused for this long
+    # and not forever; and it is the soonest a caller that did answer one is
+    # asked again, so answering does not put the player back in front of the
+    # widget on the next click.
+    #
+    # It also has to stay well above session.rateLimiter's refill, or a player
+    # answering every challenge would be throttled out of doing it: at ten
+    # minutes against one mint per 30s with ten in hand, the mint bucket refills
+    # twenty times over between two challenges.
+    interval: 10m
+
   # How the watchdogs are crossed.
   jury:
     # A watchdog that says "certain" bans on its own. This is how many must say

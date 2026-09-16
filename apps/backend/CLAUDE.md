@@ -489,7 +489,9 @@ The signature is checked **before** the expiry, in constant time, so a forger le
 
 **Two secrets, neither in git.** `session.secret` signs the tokens; anyone holding it can mint one the API accepts. `session.turnstile.secret` is the widget's secret half. Both come from the environment via `deploy/vps/docker-compose.yaml`, as `chat.service.tagSalt` does. **An empty `session.secret` with `session.enabled` true refuses the boot**, naming the variable to set. It used to generate one and warn; that stopped being possible when the two contexts started deriving their own signer from the block instead of sharing one object — a server that invented a secret would invent a different one per context and could not verify what it had just minted. Failing at boot is also the better trade on its own: the generated key invalidated every session in flight on each restart.
 
-**What it does not stop:** a person who solves Turnstile in a real browser and then runs a userscript. They hold a genuine session, and nothing here distinguishes them from a player. This raises the floor from "twenty lines of Python" to "drive a real browser"; the signal that survives that is behavioural — timing regularity and tile-id structure over a session — which is what the session id on the context exists to be keyed on. Nothing in production reads it yet, so `cpctx.GetSessionID` sits behind the `testing` tag (see [Testing](#testing)) until something does.
+**What it does not stop:** a person who solves Turnstile in a real browser and then runs a userscript. They hold a genuine session, and nothing here distinguishes them from a player. This raises the floor from "twenty lines of Python" to "drive a real browser"; the signal that survives that is behavioural — timing regularity and tile-id structure over a session — which is what [Anti-bot](#anti-bot-internalantibot) reads.
+
+**The mint is also what answers a re-challenge.** `CreateSession` already cannot be passed without Turnstile, so the antibot's third outcome needs no endpoint of its own: it asks the caller to come back with a session this server has not seen it hold, and `cpctx.GetSessionID` — its first production reader, which is why that moved out from behind the `testing` tag — is how it knows whether they did. See [Three outcomes, not two](#three-outcomes-not-two). A challenged player is not throttled out of answering: minting is one every 30s with ten in hand, and a challenge is raised at most once per `antiBot.challenge.interval` (10m), so the mint bucket refills twenty times over between two of them.
 
 
 ### Bonus boxes (`internal/planet/internal/bonuses/`)
@@ -774,12 +776,12 @@ What is left after sessions. A player who solves Turnstile in a real browser and
 then runs a userscript holds a genuine session, and no address- or token-based
 check can tell them from a player. The signal that survives is **behavioural**.
 
-**The whole of its API is ten names**, and `internal/antibot/antibot.go` is all
+**The whole of its API is eleven names**, and `internal/antibot/antibot.go` is all
 of it: `Config`, `Observer`, `Guard`, `New` and `Description` to wire it, plus
-`Click`, `Report`, `Sentence`, `Examination` and `Reading` — the types a caller writes down, because it builds one
+`Click`, `Report`, `Outcome`, `Sentence`, `Examination` and `Reading` — the types a caller writes down, because it builds one
 and is handed the others. A caller hands over the block and the two hooks it wants
-findings reported through, and gets back a `Guard` — one that drops and bans nothing when the block is off, so
-the DI sequence wires it the same way either way — that answers `Attempted`, `Inspect`, `Committed`, `Caught`, `Missed`, `Fetched`, `Listened`, `Flagged`, `Banned`, `LoadState`, `Run` and `Enabled`, plus `Ban`,
+findings reported through, and gets back a `Guard` — one that drops, challenges and bans nothing when the block is off, so
+the DI sequence wires it the same way either way — that answers `Attempted`, `Inspect`, `Committed`, `Challenged`, `Challenges`, `Caught`, `Missed`, `Fetched`, `Listened`, `Flagged`, `Banned`, `LoadState`, `Run` and `Enabled`, plus `Ban`,
 `Sentence`, `Enforcing` and `Examine` for the operator tools (see [Operator tools](#operator-tools-adminservice)). It is
 **one** `Run` whatever the file turned on: how many sweepers there are is this
 package's business, which is why `planet` registers one runner rather than one per sweeper.
@@ -788,7 +790,9 @@ package's business, which is why `planet` registers one runner rather than one p
 with a watchdog's opinion — count it if it argued for the ban, and put it in the
 log line — so an `Opinion` answers `Fired()` and renders itself with `String()`,
 and `Verdict`, `Evidence`, `Field` and the `clear`/`suspect`/`certain` ladder stay
-inside. `Examine` follows the same rule: an `Examination` carries `Reading`s whose
+inside. `Inspect`'s `Outcome` is the same shape one step up: it answers `Dropped()`
+and `Challenged()`, so the edge acts on a decision rather than comparing a level
+against a bar it would then have to hold a copy of. `Examine` follows the same rule: an `Examination` carries `Reading`s whose
 level and evidence are already strings, so the edge copies them onto the wire and
 never compares against the ladder. The alternative shipped briefly and is what this rule is written against:
 the edge held a `formatOpinion` that compared against `antibot.Clear`, reached
@@ -812,12 +816,108 @@ in the chain it sits.
 half.** `antibot/internal/shadowban` takes a scope and a clock and runs a ban. It knows
 nothing about tiles, reactions or what earned it, which is why the same sentence
 serves three different findings and would serve a fourth.
+`antibot/internal/challenge` is the second one, built the same way — see
+[Three outcomes, not two](#three-outcomes-not-two).
 
 **A flagged caller's clicks are answered `OK` and dropped.** That is the whole
 point — a refusal names the check that tripped, and the author fixes it in an
 afternoon; a silent no-op names nothing. It is not permanent (the caller reads
 the map back over the same stream and will notice), but it moves the cost of
 the next round onto them.
+
+#### Three outcomes, not two
+
+`Inspect` answers an `Outcome`: let the click through, drop it, or **send the
+caller back to prove it is a person**. The third exists because the first two
+wasted most of the signal. A ban needs one watchdog at `certain` or
+`jury.minSuspects` at `suspect`; a caller that sits at `suspect` without ever
+crossing that bar cost nothing and was never acted on, and that is where most
+of what the seven watchdogs collect lives.
+
+**The asymmetry is the whole argument.** A ban has to be nearly certain before
+it fires: it is invisible to the player, it is not appealable, and a wrong one
+loses a real person their game with no way to find out why. A challenge can be
+wrong and cost a real player about two seconds. So it can fire at `suspect`,
+where the evidence already is, and the bound it fires on — `challenge.minSuspects`
+— is **necessarily below `jury.minSuspects`**; a number at or above it would
+never fire, and `Validate` refuses the boot rather than letting it sit there
+looking like a defence. Unset takes one below the ban bar.
+
+**Answering one is minting a session again**, and nothing narrower. The client
+calls `CreateSession`, which already cannot be passed without Turnstile, so
+there is no second challenge endpoint and no second thing to get wrong.
+`challenge.Challenges` records the session id a caller held when it was
+challenged and clears the challenge when it comes back holding another: a person
+pays one Turnstile solve, and a script that wants to keep clicking pays one per
+challenge — throttled by `session.rateLimiter` to one every 30 seconds.
+
+- **It does nothing while nothing mints.** A caller the edge accepted no session
+  from is never challenged, because it would have no way to answer. That makes
+  this a session-context feature by construction, and it is also why it is safe:
+  the population it is aimed at — somebody who solved Turnstile in a real browser
+  and then pointed a userscript at the API — is exactly the population that holds
+  a session. It works with `session.enforce` still false, because the interceptor
+  puts the id on the context whenever the token verifies, enforced or not. That
+  reader is why `cpctx.GetSessionID` came out from behind the `testing` tag.
+- **The session id is never a rule's input.** It identifies a mint, not a person;
+  two page loads by one player are two ids. Only the challenge reads it, and only
+  to tell a caller that went back through the mint from one that did not.
+- **An unanswered challenge lapses** at `challenge.interval`, so a client that
+  cannot answer one is refused for ten minutes rather than for good. The same
+  interval is the soonest a caller that *did* answer is asked again, because both
+  are the same question — how long one challenge's worth of evidence is good for.
+  Without the second half, answering would put the player straight back in front
+  of the widget on the next click, since the readings that raised it still stand.
+- **A ban takes over and goes quiet.** Crossing the ban bar clears any standing
+  challenge: a caller still being told to re-authenticate while its clicks are
+  silently dropped has been told, which is the one thing a shadow ban must not
+  do. A caller on its way up *is* challenged first, and that is the point — most
+  callers that reach the band stop there. `TestTheBanTakesOverFromTheChallengeAndGoesQuiet` pins both halves.
+- **The ban wins whether or not it is being served.** With `shadowBan.enforce`
+  false a guilty caller is allowed, not challenged — otherwise turning that
+  rollout switch off would quietly promote every ban into a different defence
+  rather than into none.
+- **Nothing here survives a restart**, unlike the bans and the evidence. A
+  challenge is minutes long and clears itself, so a boot costs a real player
+  nothing — they are simply not asked — and costs a bot one interval of a
+  suspicion the watchdogs re-earn from evidence that *does* survive. A section in
+  `antibot.evidence` would be state with a shorter life than the flush writing it.
+
+**`antiBot.challenge.enforce` is the rollout switch**, the same shape as
+`session.enforce` and `antiBot.shadowBan.enforce`, and it ships off: a challenge
+is still raised, logged and counted, and nobody is refused.
+`antibot_challenges_issued` against `antibot_challenges_standing` then says
+exactly what enforcing would refuse. Both defences before this one found
+surprises in that phase.
+
+**Where it sits, and why it is two decorators.** `Inspect` has to stay next to
+the write, inside the throttle — but a refusal must not sit there, for the rule
+the blocklist and the session check are outside the limiter for: *a click refused
+for its session must not also spend a token*, or the retry that follows the mint
+comes back 429 and the web app shows the throttle dialog instead. So the decision
+is made inside (`antibot_click`, which refuses the one click that earns the
+challenge — one token, once per interval) and every refusal after it is made
+outside (`antibot_challenge_click`, between `antibot_attempt_click` and the
+throttle). Asking is also what *answers* a challenge, so that decorator runs on
+every click and not only the refused ones.
+`TestTheChallengeRunsBeforeTheThrottle` pins that no token is spent.
+
+**The wire answer is `CodeUnauthenticated` (401), carrying no detail.** Not a new
+code and not a new message: a client already answers 401 by invalidating its
+session, minting and retrying once, and *the mint is the challenge* — so a client
+built before any of this existed passes one without knowing there was one. The
+throttle attaches a `ClickBudget` because a budget is a number the caller has to
+be told; a challenge is an instruction the client already has. The planet context
+says `clicks.ErrChallenged` — "this caller must start a new session" — and never
+says Turnstile, which it cannot reach and must not learn. Nothing was added to
+the proto, so this deploys against every client already out there.
+
+**Known gap: it refuses `Click` only.** `ClaimBonus` and `DropBomb` are other
+procedures and reach neither decorator, so a challenged caller can still spend a
+bomb it had already won — bounded, since it cannot earn another while its clicks
+are refused. The ban covers that path through `antibot_drop_bomb`, which makes a
+banned caller's drop a dud; the equivalent here would have to refuse out loud
+rather than silently, which is a second decorator and not this change.
 
 #### Seven watchdogs, one jury
 
@@ -1161,15 +1261,17 @@ afterwards the map no longer remembers who held the tile.
 
 **It sits innermost, inside the throttle** — the opposite of the blocklist and the
 session check. A shadow-banned caller has to keep hitting the same 429s everyone
-else does; a caller that is never throttled again has been told. `TestAntiBotRunsAfterTheThrottle`
-pins it.
+else does; a caller that is never throttled again has been told.
 
-**Only the watching is outside it.** `antibot_attempt_click` wraps the throttle and
-reports each try through `Attempted`, which judges and drops nothing. Moving the
-whole guard out instead would let a banned caller skip its 429s.
+**Two things are outside it, and neither judges.** `antibot_attempt_click` wraps
+the throttle and reports each try through `Attempted`, which judges and drops
+nothing; moving the whole guard out instead would let a banned caller skip its
+429s. `antibot_challenge_click` sits just inside that and refuses a caller with a
+standing challenge, because that refusal is one the client retries — see
+[Three outcomes, not two](#three-outcomes-not-two).
 
 **`antiBot.shadowBan.enforce` is the rollout switch,** the same shape as
-`session.enforce`: false judges, logs and counts without dropping anything. The
+`session.enforce` and `antiBot.challenge.enforce`: false judges, logs and counts without dropping anything. The
 two surfaces are built for a box with no dashboard — `click_reaction_seconds` is
 a histogram whose raw bucket counts show the bot band by eye, and each flag
 writes one `antibot ban` log line carrying the scope, every watchdog's verdict
@@ -1561,6 +1663,9 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `antiBot.database` — the antibot's own `cppg.Config`, `schema: antibot`; required when `antiBot.enabled`. A failed connection, migration or load refuses the boot
 - `antiBot.shadowBan.saveInterval` — how often changed bans are written to `antibot.bans` (1m, and on shutdown)
 - `antiBot.shadowBan.reflagInterval` — how soon a banned caller can be judged again
+- `antiBot.challenge.enforce` — off raises, logs and counts challenges without refusing anyone; the mode to deploy in
+- `antiBot.challenge.minSuspects` — how many watchdogs at `suspect` make a re-challenge. **Must be below `jury.minSuspects` or the boot is refused**: a caller reaching the ban bar is banned, so a challenge there would never fire. Unset takes one below it. See [Three outcomes, not two](#three-outcomes-not-two)
+- `antiBot.challenge.interval` — how long one challenge stands unanswered, and the soonest a caller that answered one is asked again (10m). It must stay well above `session.rateLimiter`'s refill, or a player answering every challenge would be throttled out of doing it
 - `antiBot.jury.minSuspects` — how many watchdogs at `suspect` make a ban; one at `certain` bans alone
 - `antiBot.jury.suspicionWindow`, `trackWindow`, `sweepInterval` — how long a verdict stands while another watchdog catches up, and how long a silent caller is remembered
 - `antiBot.evidence.saveInterval`, `retention` — how often every watchdog's evidence and the jury's record are written to `antibot.evidence` (1m, and on shutdown), and the oldest kept (72h) on load and in memory. See [What survives a restart](#what-survives-a-restart)
@@ -1603,7 +1708,7 @@ Tests use `testify`. **A postgres store's own tests need Docker**, and nothing e
 
 On macOS, testcontainers asks the Docker credential helper before it pulls an image, and that can hang with no prompt in a non-interactive shell. `docker pull postgres:16-alpine` once from a terminal avoids it.
 
-**Tests build with `-tags testing`, so use `make test` rather than a bare `go test ./...`.** Anything else that loads test files needs the tag too: `go vet -tags testing ./...`, and an editor's language server (`gopls` `buildFlags: ["-tags=testing"]`, or `go.buildTags` in VS Code), which otherwise reports the helpers as undefined. A helper that more than one package needs cannot live in a `_test.go` file, so it lives in an ordinary `.go` file carrying `//go:build testing`. The tag, not a filename convention, is what keeps such a helper out of the production binary — and what lets `make deadcode` tell a helper apart from production code. `cpctx.GetSessionID`, `cpconfigs.FromFile`, `cppg.StartTestServer` and `cptime.FixedClock` — the stand-still clock a dozen test packages drive time with — are the four that exist today.
+**Tests build with `-tags testing`, so use `make test` rather than a bare `go test ./...`.** Anything else that loads test files needs the tag too: `go vet -tags testing ./...`, and an editor's language server (`gopls` `buildFlags: ["-tags=testing"]`, or `go.buildTags` in VS Code), which otherwise reports the helpers as undefined. A helper that more than one package needs cannot live in a `_test.go` file, so it lives in an ordinary `.go` file carrying `//go:build testing`. The tag, not a filename convention, is what keeps such a helper out of the production binary — and what lets `make deadcode` tell a helper apart from production code. `cpconfigs.FromFile`, `cppg.StartTestServer`, `cptime.FixedClock` — the stand-still clock a dozen test packages drive time with — and `antibot.NewInMemory` with the two `Outcome` constructors beside it are what exist today. `cpctx.GetSessionID` was one until the antibot's re-challenge started reading it; a helper leaves the tag when production calls it, which is what the tag is for.
 
 ### Linting
 

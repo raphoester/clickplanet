@@ -21,6 +21,11 @@ type Click struct {
 	Country string
 	At      time.Time
 
+	// Session is the mint this click carries, empty when the server accepted
+	// none. Never a rule's input: only a challenge reads it, to tell a caller
+	// that went back through the mint from one that did not.
+	Session string
+
 	// Held is the country owning the tile as the click arrives, empty when
 	// nobody does, and NoOp says the caller's own country already holds it. Both
 	// are read before the handler runs, because by the time it has run the map
@@ -55,6 +60,26 @@ func (v Verdict) String() string {
 		return "clear"
 	}
 }
+
+// Outcome is what the guard decides about one click: let it through, drop it,
+// or send the caller back to prove it is a person. Two questions rather than a
+// level, for the reason Opinion.Fired is a method — the edge acts on the answer
+// and never compares it against the ladder. The zero Outcome lets the click
+// through, so a guard with the block off answers one for free.
+type Outcome struct {
+	drop      bool
+	challenge bool
+}
+
+// Dropped is the shadow ban: answer OK and write nothing.
+func (o Outcome) Dropped() bool { return o.drop }
+
+// Challenged is the caller told to re-authenticate. Never set alongside
+// Dropped: a ban that announced itself would not be a shadow ban.
+func (o Outcome) Challenged() bool { return o.challenge }
+
+func Drop() Outcome      { return Outcome{drop: true} }
+func Challenge() Outcome { return Outcome{challenge: true} }
 
 // Field is one number a watchdog wants in the log line. Watchdogs measure
 // different things, so the shape of the evidence is theirs and not the jury's.
@@ -173,15 +198,20 @@ type Examination struct {
 	TopCountryClicks int
 }
 
-// Report is one ban, with everything that argued for it. Every watchdog is in
-// Opinions, including the ones that said Clear, because what did not fire is
-// half of reading a line that did.
+// Report is one finding — a ban, or a challenge — with everything that argued
+// for it. Every watchdog is in Opinions, including the ones that said Clear,
+// because what did not fire is half of reading a line that did.
 type Report struct {
 	Scope string
 	Flags int
 
 	Offence     int
 	BannedUntil time.Time
+
+	// Enforced says whether this finding changed what the caller got, or was
+	// only counted: shadowBan.enforce for a ban, challenge.enforce for a
+	// challenge. Both ship counting, so a line without it is the common one.
+	Enforced bool
 
 	Opinions []Opinion
 

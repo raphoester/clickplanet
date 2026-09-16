@@ -14,6 +14,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipscope"
@@ -22,9 +23,10 @@ import (
 
 // ClickGuard is the part of antibot.Guard this decorator uses.
 type ClickGuard interface {
-	Inspect(click antibot.Click) (drop bool)
+	Inspect(click antibot.Click) antibot.Outcome
 	Committed(click antibot.Click)
 	Flagged() int
+	Challenges() int
 }
 
 // TileOwner reads who holds a tile. The jury is handed that answer from before
@@ -51,10 +53,23 @@ func New(
 		Help: "Clicks answered OK and dropped without touching the map",
 	})
 
+	// The click that earns a challenge is refused here, which costs it the
+	// token the throttle already spent. Every later one is refused outside the
+	// throttle and costs nothing, so this counts at most one per challenge.
+	challenged := factory.NewCounter(prometheus.CounterOpts{
+		Name: "challenged_clicks",
+		Help: "Clicks refused on the spot by a challenge the caller had just earned",
+	})
+
 	factory.NewGaugeFunc(prometheus.GaugeOpts{
 		Name: "shadowban_flagged",
 		Help: "Callers currently banned, whether or not shadowBan.enforce is on",
 	}, func() float64 { return float64(guard.Flagged()) })
+
+	factory.NewGaugeFunc(prometheus.GaugeOpts{
+		Name: "antibot_challenges_standing",
+		Help: "Callers with an unanswered challenge, whether or not challenge.enforce is on",
+	}, func() float64 { return float64(guard.Challenges()) })
 
 	return &UseCase{
 		implementation: implementation,
@@ -62,6 +77,7 @@ func New(
 		owner:          owner,
 		clock:          clock,
 		dropped:        dropped,
+		challenged:     challenged,
 	}
 }
 
@@ -71,11 +87,15 @@ type UseCase struct {
 	owner          TileOwner
 	clock          cptime.Clock
 	dropped        prometheus.Counter
+	challenged     prometheus.Counter
 }
 
 // Execute answers a flagged caller exactly as it answers an accepted one: nil.
 // That is the whole point — a refusal names the check that tripped and the
 // author fixes it in an afternoon, while a silent no-op names nothing.
+//
+// A challenged caller is the opposite and is told outright, because the answer
+// to a challenge is something only the caller can do.
 func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_usecase.Out, error) {
 	// Scoped to the same unit the throttle is charged to, so a caller cannot
 	// serve a ban on one address and click from the next one in its own /64.
@@ -84,6 +104,7 @@ func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_useca
 		Tile:    in.TileID,
 		Country: in.CountryID,
 		At:      u.clock.Now(),
+		Session: cpctx.GetSessionID(ctx),
 	}
 
 	if held, known := u.owner.Owner(observed.Tile); known {
@@ -91,9 +112,16 @@ func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_useca
 		observed.NoOp = held == observed.Country
 	}
 
-	if u.guard.Inspect(observed) {
+	outcome := u.guard.Inspect(observed)
+
+	if outcome.Dropped() {
 		u.dropped.Inc()
 		return click_usecase.Out{}, nil
+	}
+
+	if outcome.Challenged() {
+		u.challenged.Inc()
+		return click_usecase.Out{}, clicks.ErrChallenged
 	}
 
 	out, err := u.implementation.Execute(ctx, in)

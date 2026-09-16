@@ -30,6 +30,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/postgres_tile_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/antibot_attempt_click"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/antibot_challenge_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/antibot_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/bonus_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/enclose_click"
@@ -204,6 +205,11 @@ func NewModule(config Config) cpbootstrap.Module {
 			clickUseCase = bonus_click.New(clickUseCase, registry)
 
 			clickUseCase = throttle_click.New(clickUseCase, limiter, pricer)
+
+			// Outside the throttle, for the reason the session check is: a click
+			// refused because the caller has to prove itself again must not also
+			// spend a token, or the retry that follows the mint comes back 429.
+			clickUseCase = antibot_challenge_click.New(clickUseCase, guard)
 
 			// Outside the throttle: a loop's timing is only whole before it drops clicks.
 			clickUseCase = antibot_attempt_click.New(clickUseCase, guard, clock)

@@ -70,9 +70,37 @@ type Banner interface {
 	Flagged() int
 }
 
+// Challenger is the lesser sentence, for the band of evidence that never
+// reaches the ban bar. challenge.Challenges implements it.
+type Challenger interface {
+	// MinSuspects is the lesser bar, always below Config.MinSuspects, so the
+	// two name one band each and no caller is both banned and told about it.
+	// Zero challenges nobody.
+	MinSuspects() int
+
+	// Raise records a challenge on the scope and says whether it is a new one.
+	// It records whatever enforce is: counting what would be refused is the
+	// whole of the rollout mode.
+	Raise(scope, session string) bool
+
+	// Standing says whether this click must be refused, and clears a challenge
+	// the caller has just answered with a session it was not challenged on.
+	Standing(scope, session string) bool
+
+	// Clear drops any challenge on the scope, for a caller that has since
+	// crossed the ban bar.
+	Clear(scope string)
+
+	Enforcing() bool
+}
+
 // Hooks is how the jury reports what it sees short of a ban. Every hook is optional.
 type Hooks struct {
 	OnFlag func(detect.Report)
+
+	// OnChallenge is a caller sent back to prove it is a person: past the
+	// challenge bar, short of the ban one. Once per caller per challenge.
+	OnChallenge func(detect.Report)
 
 	// OnRise is a watchdog's reading of a caller reaching a level it has not held
 	// inside SuspicionWindow. Levels are cumulative, so a caller going straight to
@@ -89,6 +117,7 @@ type Hooks struct {
 func New(
 	config Config,
 	banner Banner,
+	challenger Challenger,
 	clock cptime.Clock,
 	hooks Hooks,
 	watchdogs ...detect.Watchdog,
@@ -98,18 +127,23 @@ func New(
 	}
 
 	return &Jury{
-		config:    config.WithDefaults(),
-		banner:    banner,
-		clock:     clock,
-		hooks:     hooks,
-		watchdogs: watchdogs,
-		callers:   make(map[string]*caller),
+		config:      config.WithDefaults(),
+		banner:      banner,
+		challenger:  challenger,
+		challengeAt: challenger.MinSuspects(),
+		clock:       clock,
+		hooks:       hooks,
+		watchdogs:   watchdogs,
+		callers:     make(map[string]*caller),
 	}
 }
 
 type Jury struct {
-	config    Config
-	banner    Banner
+	config      Config
+	banner      Banner
+	challenger  Challenger
+	challengeAt int
+
 	clock     cptime.Clock
 	hooks     Hooks
 	watchdogs []detect.Watchdog
@@ -135,11 +169,11 @@ type caller struct {
 	reached map[string]*[detect.Certain + 1]time.Time
 }
 
-// Inspect runs every watchdog over the click and says whether it should be
-// dropped.
-func (j *Jury) Inspect(click detect.Click) bool {
+// Inspect runs every watchdog over the click and answers what should happen to
+// it: nothing, a silent drop, or the caller being sent back to prove itself.
+func (j *Jury) Inspect(click detect.Click) detect.Outcome {
 	if click.Scope == "" {
-		return false
+		return detect.Outcome{}
 	}
 
 	j.record(click)
@@ -158,18 +192,46 @@ func (j *Jury) Inspect(click detect.Click) bool {
 
 	// Outside the lock from here: onFlag writes a log line, and holding the
 	// caller map through that would queue every other clicker behind the I/O.
-	if report, guilty := j.deliberate(click); guilty {
+	report, suspects, guilty := j.deliberate(click)
+
+	if guilty {
 		if sentence, accepted := j.banner.Flag(click.Scope); accepted {
 			report.Flags = sentence.Flags
 			report.Offence = sentence.Offence
 			report.BannedUntil = sentence.Until
+			report.Enforced = j.banner.Banned(click.Scope)
 			if j.hooks.OnFlag != nil {
 				j.hooks.OnFlag(report)
 			}
 		}
 	}
 
-	return j.banner.Banned(click.Scope)
+	// A ban is silent and wins, and it wins whether or not it is being served:
+	// with shadowBan.enforce off, promoting every ban into a challenge would
+	// turn that switch into a different defence rather than none. A challenge
+	// raised on the way up goes with it, or the caller is still being told
+	// while its clicks are quietly dropped.
+	if guilty {
+		j.challenger.Clear(click.Scope)
+
+		if j.banner.Banned(click.Scope) {
+			return detect.Drop()
+		}
+		return detect.Outcome{}
+	}
+
+	if j.challengeAt > 0 && suspects >= j.challengeAt && j.challenger.Raise(click.Scope, click.Session) {
+		report.Enforced = j.challenger.Enforcing()
+		if j.hooks.OnChallenge != nil {
+			j.hooks.OnChallenge(report)
+		}
+	}
+
+	if j.challenger.Standing(click.Scope, click.Session) {
+		return detect.Challenge()
+	}
+
+	return detect.Outcome{}
 }
 
 // Attempted hands the watchdogs a click before the throttle judges it.
@@ -251,15 +313,18 @@ func (j *Jury) opine(click detect.Click, watchdog string, verdict detect.Verdict
 	return rises
 }
 
-func (j *Jury) deliberate(click detect.Click) (detect.Report, bool) {
+// deliberate weighs the standing readings. The report is built only when
+// something may be reported on it — a ban, or a challenge — because it copies
+// the tiles and every opinion, and most clicks are nobody's business.
+func (j *Jury) deliberate(click detect.Click) (detect.Report, int, bool) {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 
 	c := j.callerLocked(click)
 
-	opinions, _, guilty := j.weighLocked(c, click.At)
-	if !guilty {
-		return detect.Report{}, false
+	opinions, suspects, guilty := j.weighLocked(c, click.At)
+	if !guilty && (j.challengeAt <= 0 || suspects < j.challengeAt) {
+		return detect.Report{}, suspects, false
 	}
 
 	country, countryClicks := c.topCountry()
@@ -273,7 +338,7 @@ func (j *Jury) deliberate(click detect.Click) (detect.Report, bool) {
 		TopCountry:       country,
 		TopCountryClicks: countryClicks,
 		Tiles:            append([]uint32(nil), c.tiles...),
-	}, true
+	}, suspects, guilty
 }
 
 // weighLocked is the decision, shared by a click that may ban and an operator who only asks.
