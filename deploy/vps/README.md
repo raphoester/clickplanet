@@ -309,12 +309,14 @@ openssl rand -hex 32
 The click token is an **Ed25519 signature**, not a MAC, so the key that mints and
 the key that checks are different halves. `SESSION_SECRET` is the **seed**, 32
 bytes as 64 hex characters — which is what that command already gives you — and
-only the auth module is handed it. The planet module gets the public half, which
-the process derives from the seed at boot, and builds a `Verifier` that has no
-`Mint` on it: the part of the server that checks a click cannot issue one.
+only the auth module is handed it. The planet module asks auth for the public
+half over the loopback internal listener, once per boot, and builds a `Verifier`
+that has no `Mint` on it: the part of the server that checks a click cannot
+issue one.
 
-**There is one key to set.** The public half is never configured, so there is no
-second value to keep in step with this one and nothing to rotate twice.
+**There is one key to set.** The public half is never configured and never
+travels outside the box, so there is no second value to keep in step with this
+one and nothing to rotate twice.
 
 It **cannot be left empty** while `auth.enabled` is true, and it cannot be a
 passphrase: a value that is not 32 bytes of hex fails the start, naming the

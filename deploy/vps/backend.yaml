@@ -8,6 +8,9 @@ httpServer:
   bindAddress: 0.0.0.0:8080
   # Operator services, loopback only. See "Operator tools" in the README.
   adminBindAddress: 127.0.0.1:8081
+  # What one module asks another, loopback only. Not reachable from Caddy.
+  # The planet module takes the click token's verifying key from auth over this.
+  internalBindAddress: 127.0.0.1:8082
 gameMap:
   maxIndex: 257948 # must match the tile count baked into the frontend coordinates
 

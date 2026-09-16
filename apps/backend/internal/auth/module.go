@@ -31,6 +31,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/create_session_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_me_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_verifying_key_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/sessionv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
@@ -92,6 +93,18 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return authv1connect.NewAuthServiceHandler(authService, options...)
 	}, authv1controller.NewRateLimitInterceptor(mintLimiter)); err != nil {
 		return fmt.Errorf("failed to mount auth.v1: %w", err)
+	}
+
+	// The planet context verifies clicks with the public half of this signer, and
+	// asks for it here rather than reading a key of its own. The seed never leaves
+	// this module, and there is no second setting to keep in step with it.
+	internalService := authv1controller.InternalService{
+		GetVerifyingKeyHandler: get_verifying_key_handler.New(signer),
+	}
+	if err := props.InternalRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
+		return authv1connect.NewInternalServiceHandler(internalService, options...)
+	}); err != nil {
+		return fmt.Errorf("failed to mount auth.v1.InternalService: %w", err)
 	}
 
 	sessionService := sessionv1controller.NewSessionService(

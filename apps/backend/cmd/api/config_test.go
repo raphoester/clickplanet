@@ -4,18 +4,17 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
+	"strings"
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconfigs"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
-
-var now = time.Date(2026, 9, 9, 12, 0, 0, 0, time.UTC)
 
 // The shipped file is the schema. Nothing else checks that a key in it still
 // reaches the struct it is named after: koanf drops what it cannot match in
@@ -88,6 +87,7 @@ func TestTheExampleConfigStillCarriesTheRestOfTheFile(t *testing.T) {
 	require.NoError(t, config.Planet.Validate())
 	assert.Equal(t, time.Second, config.Planet.TilesStorage.FlushInterval)
 	assert.Equal(t, "127.0.0.1:8081", config.HTTPServer.AdminBindAddress)
+	assert.Equal(t, "127.0.0.1:8082", config.HTTPServer.InternalBindAddress)
 	assert.Equal(t, time.Hour, config.Auth.TTL)
 }
 
@@ -108,6 +108,7 @@ func authBlock(t *testing.T, secret string) string {
 	require.NoError(t, os.WriteFile(path, fmt.Appendf(nil, `
 httpServer:
   bindAddress: 0.0.0.0:8080
+  internalBindAddress: 127.0.0.1:8082
 gameMap:
   maxIndex: 100
 database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: planet}
@@ -124,31 +125,30 @@ auth:
 	return path
 }
 
-func TestPlanetVerifiesWhatAuthMintsFromOneKey(t *testing.T) {
-	secret, public := cpsession.TestKeyPair()
+func TestOnlyAuthReadsTheSeedOutOfTheAuthBlock(t *testing.T) {
+	secret, _ := cpsession.TestKeyPair()
 
-	config, err := loadConfig(cpconfigs.FromFile(authBlock(t, secret)))
-	require.NoError(t, err)
+	var config Config
+	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile(authBlock(t, secret))))
 
-	// The file names one key. Planet's half is derived from it, never written.
-	assert.Equal(t, public, config.Planet.Auth.PublicKey)
-	assert.True(t, config.Planet.Auth.Enforce)
+	// One key in the file, and it reaches one module. Planet reads the same block
+	// for its two switches and gets no key at all: it asks auth for the public half
+	// over the internal listener, so there is nothing here to keep in step.
+	assert.Equal(t, secret, config.Auth.Secret)
 	assert.Equal(t, 2*time.Hour, config.Auth.TTL)
+	assert.True(t, config.Planet.Auth.Enabled)
+	assert.True(t, config.Planet.Auth.Enforce)
 
-	signer, err := cpsession.NewSigner(config.Auth.SignerConfig)
-	require.NoError(t, err)
-	verifier, err := cpsession.NewVerifier(config.Planet.Auth)
-	require.NoError(t, err)
-
-	token, err := signer.Mint("203.0.113.7", uuid.Nil, now)
-	require.NoError(t, err)
-
-	_, err = verifier.Verify(token.Value, "203.0.113.7", now)
-	assert.NoError(t, err, "planet verifies with the half derived from the seed auth mints with")
+	planetBlock := reflect.TypeOf(config.Planet.Auth)
+	for i := range planetBlock.NumField() {
+		assert.NotContains(t, strings.ToLower(planetBlock.Field(i).Name), "secret",
+			"the planet block must carry nothing that could hold a signing key")
+	}
 }
 
 func TestASecretThatIsNotASeedIsRefused(t *testing.T) {
-	_, err := loadConfig(cpconfigs.FromFile(authBlock(t, "not-a-seed")))
+	var config Config
+	err := cpconfigs.Load(&config, cpconfigs.FromFile(authBlock(t, "not-a-seed")))
 	require.ErrorContains(t, err, "auth.secret")
 }
 

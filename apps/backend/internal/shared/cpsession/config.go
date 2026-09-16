@@ -19,16 +19,13 @@ type SignerConfig struct {
 	TTL time.Duration
 }
 
-// VerifierConfig is the checking half, and all the planet context gets: no seed, so it cannot mint.
+// VerifierConfig is the checking half of the block, and all the planet context
+// declares: two switches and no key. The key arrives over the internal RPC.
 type VerifierConfig struct {
 	Enabled bool
 
 	// Off counts what enforcing would refuse without refusing it. Ship in this mode.
 	Enforce bool
-
-	// Not a key in the file: the composition root derives it from the seed, so
-	// there is one key to set and no second one to drift from it.
-	PublicKey string
 }
 
 const defaultTTL = time.Hour
@@ -56,22 +53,6 @@ func (c SignerConfig) Validate() error {
 	return err
 }
 
-// PublicKeyOf is the half a verifier needs, from the half that mints. The
-// composition root calls it: planet's block is wired from auth's, never written twice.
-func PublicKeyOf(secret string) (string, error) {
-	key, err := parseSeed(secret)
-	if err != nil {
-		return "", err
-	}
-
-	public, ok := key.Public().(ed25519.PublicKey)
-	if !ok {
-		return "", errors.New("auth.secret did not yield an ed25519 public key")
-	}
-
-	return hex.EncodeToString(public), nil
-}
-
 // parseSeed names the variable an operator sets, not the field, since that is what they are reading.
 func parseSeed(value string) (ed25519.PrivateKey, error) {
 	if value == "" {
@@ -92,7 +73,7 @@ func parseSeed(value string) (ed25519.PrivateKey, error) {
 
 func parsePublicKey(value string) (ed25519.PublicKey, error) {
 	if value == "" {
-		return nil, errors.New("the verifying key is empty: the composition root derives it from auth.secret")
+		return nil, errors.New("the verifying key is empty: auth.v1.InternalService answered nothing")
 	}
 
 	key, err := hex.DecodeString(value)

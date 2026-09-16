@@ -78,7 +78,7 @@ func startAuth(t *testing.T) authStack {
 		return true
 	}, time.Minute, 50*time.Millisecond, "the server never came up")
 
-	verifier, err := cpsession.NewVerifier(cpsession.VerifierConfig{Enabled: true, PublicKey: public})
+	verifier, err := cpsession.NewVerifier(public)
 	require.NoError(t, err)
 
 	return authStack{baseURL: "http://" + server.BindAddress, verifier: verifier}

@@ -55,7 +55,7 @@ This is a Go backend for a collaborative map-clicking game. It follows **hexagon
 
 They share the process, the transport and the country list, and **nothing else**. None imports another; each owns its own domain types, its own proto package, its own storage adapter (where it has one) and its own edge.
 
-**A module never calls another module's code or reads its data in its own stack trace.** None needs to today. When one does, it asks over an RPC façade on a loopback listener, never through the other's root package or tables.
+**A module never calls another module's code or reads its data in its own stack trace.** When one needs something from another it asks over Connect, on a loopback listener — see [Calling another module](#calling-another-module). One does: `planet` takes the click token's verifying key from `auth`.
 
 Bonus boxes live inside `internal/planet/` rather than beside it: what they grant
 is click allowance, and what carries them is the planet stream. A context of
@@ -105,6 +105,8 @@ Each context wires **itself**, in a `module.go` at its root (`internal/planet/mo
 
 - `props.RPC.Mount(build, interceptors...)` — the module hands over what *builds* the handler, plus the interceptors it wants. `cpbootstrap` builds it, so it can put its own interceptor outside every module's — see [The error net](#the-error-net)
 - `props.AdminRPC.Mount(build, interceptors...)` — the same, for an operator service: served only on the loopback admin listener — see [Operator tools](#operator-tools-adminservice)
+- `props.InternalRPC.Mount(build, interceptors...)` — the same again, for what other modules call: served only on the loopback internal listener
+- `props.Internal.Dial()` — the HTTP client and base URL a generated `New<Service>Client` takes, to call another module — see [Calling another module](#calling-another-module)
 - `props.Runners.Add(runner)` — a `Runner` (`Name()` and `Run(ctx)`), run as a goroutine with the process-lifetime context
 - `props.Closers.Add(name, close)` — a cleanup, run in reverse registration order
 - `props.Logger`, `props.Metrics`
@@ -114,15 +116,9 @@ Each context wires **itself**, in a `module.go` at its root (`internal/planet/mo
 
 A module never sees the router, the signal handler or another module's objects. **There is no mutable app object and nothing to leave a half-built dependency on**: `internal/shared/cpbootstrap` builds every module in order, then serves.
 
-**Shutdown goes in this order**: end every open stream, `http.Server.Shutdown` (the public server, then the admin one), the closers in reverse order, then cancel and wait on the runners. The first step is the drain interceptor — see [Ending the streams on shutdown](#ending-the-streams-on-shutdown). There are no storage closers left: the tile map, the ledger, bans and evidence all flush from their runners, after the closers, once the server has stopped taking writes.
+**Shutdown goes in this order**: end every open stream, `http.Server.Shutdown` (the public server, then the admin and internal ones — a public call in flight may still be waiting on an internal one), the closers in reverse order, then cancel and wait on the runners. The first step is the drain interceptor — see [Ending the streams on shutdown](#ending-the-streams-on-shutdown). There are no storage closers left: the tile map, the ledger, bans and evidence all flush from their runners, after the closers, once the server has stopped taking writes.
 
-**`cmd/api/main.go` is the composition root, and it is the only one** — there is no `internal/app`, because a package whose whole job is to be called once by `main` was a level of indirection and nothing else. It does three things: load the config, derive the one value neither module can derive for itself, and list the modules.
-
-#### The composition root derives one thing
-
-`planet` verifies clicks with the public half of the seed only `auth` is given, and neither module can reach the other to ask for it. `loadConfig` is the one place that sees both blocks, so it fills `config.Planet.Auth.PublicKey` from `cpsession.PublicKeyOf(config.Auth.Secret)` after the load.
-
-That is the whole of it, and it is deliberately not a second config key. A public key in the file would be a derived value a human has to paste in, kept in step with the seed by hand — and wrong by one rotation it would answer every click 401 with nothing to say why. Here there is nothing to keep in step. The seed still reaches exactly one module: `main` holds the whole config because it loaded the file, and `planet.Config` has no field that could carry a seed.
+**`cmd/api/main.go` is the composition root, and it is the only one** — there is no `internal/app`, because a package whose whole job is to be called once by `main` was a level of indirection and nothing else. It does two things: load the config, and list the modules. It builds no objects, derives nothing, and reads inside no block.
 
 **The aggregation is the whole of it — a flat slice, no branches, no dependencies threaded through:**
 
@@ -140,14 +136,29 @@ return []bootstrap.Module{
 
 `main` builds no objects at all, so a thing two contexts need is **a config block they both declare**, and each builds its own instance from it.
 
-- **`shared/cpsession`** is the click token, and the `auth:` block is read by two contexts: `auth` mints from it, `planet` verifies from it. They do **not** share a type. `cpsession.SignerConfig` carries the Ed25519 seed and only `auth.Config` declares it; `cpsession.VerifierConfig` carries a public key and is what `planet.Config` declares. So `auth` builds a `*Signer` and `planet` a `*Verifier`, **which has no `Mint` on it** — the context that checks a click cannot issue one, and that is a fact about the types rather than a rule anybody has to keep. Under the old shared `Config` both built a `*Signer` off one HMAC secret, so `planet` held a live minting object and nothing but discipline stopped it using it.
+- **`shared/cpsession`** is the click token. The `auth:` block is read by two contexts, but they share no key and no type: `cpsession.SignerConfig` carries the Ed25519 seed and only `auth.Config` declares it, while `planet.Config` declares `cpsession.VerifierConfig`, which is two switches and **no key at all**. `auth` builds a `*Signer`, `planet` a `*Verifier`, **which has no `Mint` on it**. Under the old shared `Config` both built a `*Signer` off one HMAC secret, so `planet` held a live minting object and nothing but discipline stopped it using it.
 
-  **The public half is never configured.** There is one key in the file, `auth.secret`, and `cmd/api` derives the verifying half from it with `cpsession.PublicKeyOf` — see [The composition root derives one thing](#the-composition-root-derives-one-thing). `TestPlanetVerifiesWhatAuthMintsFromOneKey` mints with auth's half and verifies with planet's to pin that they agree.
+  **`planet` asks `auth` for the key** over the internal listener, rather than reading one — see [Calling another module](#calling-another-module) and [Sessions](#sessions-internalauth). So there is one key in the whole file, `auth.secret`, nothing derived for a human to paste, and nothing to keep in step with it.
 
-  Neither module imports the other, and **the planet context knows nothing about Turnstile** — the siteverify client lives at `auth/internal/attestation/turnstile`, so it *cannot* reach it.
+  Neither module imports the other's packages, and **the planet context knows nothing about Turnstile** — the siteverify client lives at `auth/internal/attestation/turnstile`, so it *cannot* reach it.
 - **`shared/cpcountries`** is the ISO list. It is stateless and hardcoded, so each module just calls `cpcountries.New()`, the way it calls `cptime.SystemClock{}`. It sits in `shared` and not under `planet/internal/clicks/` for exactly the reason that layer exists: neither context may depend on the other — and now could not, since that directory is unreachable from chat.
 
 **This is why `auth.secret` is now required** rather than invented at boot — see [Sessions](#sessions-internalauth).
+
+#### Calling another module
+
+**Over Connect, on a loopback listener, never in the caller's stack trace.** A module that other modules call mounts an internal service with `props.InternalRPC.Mount`; `cpbootstrap` serves it on `httpServer.internalBindAddress` alone, which must be loopback. The caller builds a generated client over `props.Internal.Dial()`.
+
+The one caller today is `planet`, asking `auth.v1.InternalService/GetVerifyingKey` for the public half of the click token key.
+
+- **Each module's data stays in one place.** The caller holds an address, never the other module's config block, pool, objects or root package. The seed is read by `auth` and nothing else.
+- **`Dial` is the one place that knows the transport is loopback HTTP.** Moving to unix sockets changes the listener and `internalDialer`, and no module.
+- **`Dial` fails with no internal listener**, and the caller reports it. An internal service with no listener is not served, and logged, like an admin one.
+- **The error net and the drain wrap internal services too.**
+- **What travels is a public key**, which is the point: a holder can check a token and cannot mint one, so the hop carries nothing worth stealing. Under the HMAC this replaced there was no such thing to send.
+- `TestAModuleCallsAnotherOverTheInternalListener` pins the path, `TestAnInternalServiceIsNotOnThePublicRouter` pins that Caddy cannot reach it.
+
+The proto sits beside the public one in the module's package (`proto/auth/v1/internal.proto`), as `admin.proto` does, and the frontend generates it too without using it.
 
 Adding a context that callers talk to means a `proto/<name>/v1`, an `internal/<name>/` with a `module.go`, and one line in the slice. Connect derives the route from the proto package, so there is no prefix to allocate and no router to edit.
 
@@ -348,7 +359,8 @@ POST /session.v1.SessionService/CreateSession   [deprecated]
 
 POST /planet.v1.ClickService/Click   [X-Session-Token: <the minted token>]
   → [cpbootstrap: error net], CacheInterceptor, VPNBlockInterceptor, SessionInterceptor
-      [cpsession.Verifier: one signature check, public key only — this context cannot mint]
+      [rpc_session_verifier: the key from auth.v1.InternalService, asked once per boot
+       then cpsession.Verifier: one signature check — this context holds no seed]
   → ClickService → click_handler
   → antibot_attempt_click (times every try for the metronome; drops nothing)
   → throttle_click  (spends a token, or refuses)
@@ -490,6 +502,10 @@ The answer to the one thing an address-based defence cannot do. The rate limiter
 **The token is stateless.** `shared/cpsession` mints `base64url(version ‖ expiry ‖ random id ‖ account ‖ Ed25519(version ‖ expiry ‖ id ‖ account ‖ scope))` — 97 bytes, 130 characters. The account is 16 bytes, all zero (`uuid.Nil`) for a caller with none, and `Verify` answers it in `Claims`. Nothing is stored, swept or replicated; verification is one signature check. That is what keeps this compatible with a process that holds the whole game in memory and has no database to put a session table in.
 
 **It is signed, not MACed, and that is the point.** An HMAC key verifies and mints with the same bytes, so every context that could check a click could also issue one. Ed25519 splits that: the seed is `auth.secret` and only the auth module is handed it. Verification costs tens of microseconds against a MAC's one, which is nothing at this traffic — production is thousands of clicks per five minutes — and buys a boundary the compiler holds.
+
+**`planet` asks for the key, it does not hold one.** `planetv1controller/rpc_session_verifier` calls `auth.v1.InternalService/GetVerifyingKey` over the internal listener **once**, on the first click after a boot, and keeps the answer: the key does not change while the process runs, so every click after that is one signature check and no I/O, exactly as it was when this module read a key of its own.
+
+It cannot ask at boot instead — `cpbootstrap` builds every module before it listens, so the internal listener is not up while `planet` is being built. By the time a click arrives the server is serving, so in practice it is never late. A failed fetch is not remembered, so the next click tries again; with `auth.enforce` false the click passes and is counted either way. The cost of the laziness is that a misconfigured `auth` shows up on the first click rather than at boot.
 
 **The first byte is a version.** Before it, the length *was* the discriminator, so every format change made every token in flight malformed at once. Now `planet` can accept two versions across a rollout instead, and key rotation is the same move: mint under the new version while both verify. This deploy still costs every open tab one silent mint, because the format it replaces carries no version to recognise.
 
@@ -1572,7 +1588,7 @@ The binary never reads inside a block to check it, so a new bound is added in th
 - `cpbootstrap.ServerConfig` — `bindAddress` empty listens on port 80; `adminBindAddress` set to anything but loopback
 - `shared/cppg.Config` — a connection setting or the schema left empty, or a schema that is not a plain lowercase identifier. Each module checks its own block, starting with `planet.Config`
 - `planet.Config` — `gameMap.maxIndex` zero is a map that refuses every click, plus whatever `bonus` and `antiBot` refuse of their own
-- `shared/cpsession.SignerConfig` — `secret` empty, not hex or not 32 bytes while `enabled`, and a negative `ttl`. Checked by `auth.Config`, which is the only block that declares it
+- `shared/cpsession.SignerConfig` — `secret` empty, not hex or not 32 bytes while `enabled`, and a negative `ttl`. Checked by `auth.Config`, which is the only block that declares it. `cpsession.VerifierConfig`, which planet declares, has nothing to check: two switches and no key
 - `chat.Config` — an incomplete `chat.database` block. Every other chat setting has a usable default
 
 There is no struct-tag validation and therefore no validator dependency — a hook the config implements covers this app's needs.
@@ -1582,6 +1598,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `httpServer.bindAddress` — the encoding is negotiated per request, so there is no format setting.
 - `httpServer.streamHeartbeat` — how often a silent live stream sends a heartbeat (default 30s). **Must stay well under the proxy's idle cut**: Cloudflare answers 524 at ~125s, and a stream that never speaks is one it kills.
 - `httpServer.adminBindAddress` — where the operator services listen (see [Operator tools](#operator-tools-adminservice)); empty serves none, and a non-loopback address refuses the boot
+- `httpServer.internalBindAddress` — where the services other modules call listen (see [Calling another module](#calling-another-module)); empty serves none, a caller that dials it then fails, and a non-loopback address refuses the boot
 - `gameMap.maxIndex` — total number of tiles
 - `database.host`, `port`, `user`, `password`, `dbName`, `sslMode`, `schema`, `pool.*` — the planet module's postgres and the schema its tables live in; any of them but `password` and `pool` empty refuses the boot. `database.password` belongs in the environment
 - `tilesStorage.flushInterval` — how often the tiles changed since the last flush are written to postgres (1s)
@@ -1616,7 +1633,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - every watchdog also takes `detector.trackWindow` and `detector.sweepInterval` — how far back its evidence counts, and how often what can no longer matter is forgotten
 - `auth.enabled` — off registers nothing, so `auth.v1` and `session.v1` 404 and clicks are judged on address alone
 - `auth.enforce` — off counts what enforcing would refuse without refusing it; the mode to deploy in
-- `auth.secret` — the Ed25519 seed the tokens are signed with, 32 bytes as 64 hex characters (`openssl rand -hex 32`); **required once `auth.enabled` is true**, and an empty or malformed one refuses the boot rather than being invented. The verifying half is derived from it at boot and is not a setting
+- `auth.secret` — the Ed25519 seed the tokens are signed with, 32 bytes as 64 hex characters (`openssl rand -hex 32`); **required once `auth.enabled` is true**, and an empty or malformed one refuses the boot rather than being invented. It is the only key in the file: `planet` asks `auth` for the verifying half over the internal listener
 - `auth.ttl` — how long a minted token is accepted (default 1h)
 - `auth.rateLimiter.*` — the per-IP throttle on both `CreateSession` paths together, same shape as `rateLimiter`
 - `auth.turnstile.enabled` — off mints for anyone who asks, which is how a local backend runs without a widget

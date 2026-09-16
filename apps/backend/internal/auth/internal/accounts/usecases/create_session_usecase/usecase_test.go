@@ -43,7 +43,7 @@ func setUp(t *testing.T) fixture {
 	secret, public := cpsession.TestKeyPair()
 	signer, err := cpsession.NewSigner(cpsession.SignerConfig{Secret: secret, TTL: time.Hour})
 	require.NoError(t, err)
-	verifier, err := cpsession.NewVerifier(cpsession.VerifierConfig{PublicKey: public})
+	verifier, err := cpsession.NewVerifier(public)
 	require.NoError(t, err)
 
 	return fixture{

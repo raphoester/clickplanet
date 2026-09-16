@@ -118,14 +118,22 @@ func (s *Signer) Mint(ip string, account uuid.UUID, now time.Time) (*Token, erro
 	}, nil
 }
 
+// PublicKey is what verifies what this signer mints. It is not a secret, which is
+// why it is the thing that travels between modules.
+func (s *Signer) PublicKey() string {
+	return hex.EncodeToString(s.key.Public().(ed25519.PublicKey))
+}
+
 // Verifier checks, and that is the whole of it: it holds a public key, so the
 // context that has one cannot mint whatever it does with it.
 type Verifier struct {
 	key ed25519.PublicKey
 }
 
-func NewVerifier(config VerifierConfig) (*Verifier, error) {
-	key, err := parsePublicKey(config.PublicKey)
+// NewVerifier takes the key rather than a config block: the context that checks
+// a click is handed it by the one that mints, over the internal listener.
+func NewVerifier(publicKey string) (*Verifier, error) {
+	key, err := parsePublicKey(publicKey)
 	if err != nil {
 		return nil, err
 	}

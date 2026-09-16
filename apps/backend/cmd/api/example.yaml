@@ -9,6 +9,10 @@ httpServer:
   # no authentication, so anything but a loopback address refuses the boot.
   # Empty serves no admin listener at all.
   adminBindAddress: 127.0.0.1:8081
+  # A third listener, for what one module asks another (auth.v1.InternalService).
+  # Its callers are trusted, so anything but a loopback address refuses the boot.
+  # Empty serves none, and a module that calls another then refuses the boot.
+  internalBindAddress: 127.0.0.1:8082
 gameMap:
   maxIndex: 257948
 

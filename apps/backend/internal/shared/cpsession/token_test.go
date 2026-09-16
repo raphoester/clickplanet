@@ -23,23 +23,22 @@ const (
 	accountAt = 17
 )
 
-func keys(t *testing.T) (cpsession.SignerConfig, cpsession.VerifierConfig) {
+func keys(t *testing.T) (cpsession.SignerConfig, string) {
 	t.Helper()
 
 	secret, public := cpsession.TestKeyPair()
 
-	return cpsession.SignerConfig{Enabled: true, Secret: secret, TTL: ttl},
-		cpsession.VerifierConfig{Enabled: true, PublicKey: public}
+	return cpsession.SignerConfig{Enabled: true, Secret: secret, TTL: ttl}, public
 }
 
 func newPair(t *testing.T) (*cpsession.Signer, *cpsession.Verifier) {
 	t.Helper()
 
-	signing, verifying := keys(t)
+	signing, public := keys(t)
 
 	signer, err := cpsession.NewSigner(signing)
 	require.NoError(t, err)
-	verifier, err := cpsession.NewVerifier(verifying)
+	verifier, err := cpsession.NewVerifier(public)
 	require.NoError(t, err)
 
 	return signer, verifier
@@ -78,7 +77,7 @@ func TestNewVerifierRejectsAPublicKeyItCannotUse(t *testing.T) {
 		"too short": strings.Repeat("ab", 8),
 	} {
 		t.Run(name, func(t *testing.T) {
-			_, err := cpsession.NewVerifier(cpsession.VerifierConfig{Enabled: true, PublicKey: public})
+			_, err := cpsession.NewVerifier(public)
 			assert.Error(t, err)
 		})
 	}
@@ -174,10 +173,7 @@ func TestATokenIsRefusedByAVerifierHoldingAnotherKey(t *testing.T) {
 	require.NoError(t, err)
 
 	// A second pair, from a seed that is not the test one.
-	other, err := cpsession.NewVerifier(cpsession.VerifierConfig{
-		Enabled:   true,
-		PublicKey: "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a",
-	})
+	other, err := cpsession.NewVerifier("d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a")
 	require.NoError(t, err)
 
 	_, err = other.Verify(token.Value, "203.0.113.7", now)
@@ -249,15 +245,14 @@ func TestTwoMintsProduceDifferentTokensAndIDs(t *testing.T) {
 	assert.NotEqual(t, first.ID, second.ID)
 }
 
-func TestPublicKeyOfIsTheHalfThatVerifiesWhatTheSeedMints(t *testing.T) {
-	secret, public := cpsession.TestKeyPair()
+func TestASignerSaysWhatVerifiesIt(t *testing.T) {
+	signing, public := keys(t)
 
-	derived, err := cpsession.PublicKeyOf(secret)
+	signer, err := cpsession.NewSigner(signing)
 	require.NoError(t, err)
-	assert.Equal(t, public, derived, "one key in the file; the other half is computed from it")
 
-	_, err = cpsession.PublicKeyOf("not-a-seed")
-	assert.Error(t, err)
+	// What auth answers over the internal listener: the half that is not a secret.
+	assert.Equal(t, public, signer.PublicKey())
 }
 
 func TestADisabledBlockNeedsNoSeed(t *testing.T) {
