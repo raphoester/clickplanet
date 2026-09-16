@@ -1,4 +1,5 @@
-// Package scraper watches for the caller that reads the whole map again and again, beyond one read per stream opened.
+// Package scraper watches for the caller that reads the whole map again and again, beyond one read
+// per stream opened, and for the one that reads it off the lattice the web app walks.
 package scraper
 
 import (
@@ -20,6 +21,9 @@ type Config struct {
 	// CertainMaps is the same count at a pace no page load produces.
 	CertainMaps float64
 
+	// CertainOffMap is the reads off the map, inside TrackWindow, that read Certain however little was read.
+	CertainOffMap int
+
 	TrackWindow   time.Duration
 	SweepInterval time.Duration
 }
@@ -27,6 +31,7 @@ type Config struct {
 const (
 	defaultMinMaps       = 5
 	defaultCertainMaps   = 15
+	defaultCertainOffMap = 2
 	defaultTrackWindow   = 15 * time.Minute
 	defaultSweepInterval = time.Minute
 
@@ -43,6 +48,9 @@ func (c Config) withDefaults() Config {
 	}
 	if c.CertainMaps < c.MinMaps {
 		c.CertainMaps = c.MinMaps
+	}
+	if c.CertainOffMap <= 0 {
+		c.CertainOffMap = defaultCertainOffMap
 	}
 	if c.TrackWindow <= 0 {
 		c.TrackWindow = defaultTrackWindow
@@ -146,8 +154,10 @@ func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
 	maps, streams, offMap := c.count(click.At.Add(-w.config.TrackWindow))
 	unexplained := beyond(maps, streams, offMap)
 
-	verdict := detect.Clear
+	verdict, rule := detect.Clear, "poll"
 	switch {
+	case offMap >= w.config.CertainOffMap:
+		verdict, rule = detect.Certain, "offMap"
 	case unexplained >= w.config.CertainMaps:
 		verdict = detect.Certain
 	case unexplained >= w.config.MinMaps:
@@ -159,7 +169,7 @@ func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
 	}
 
 	return verdict, detect.Evidence{
-		Rule: "poll",
+		Rule: rule,
 		Fields: []detect.Field{
 			{Key: "maps", Value: math.Round(maps*10) / 10},
 			{Key: "streams", Value: streams},
@@ -213,7 +223,8 @@ func (c *caller) count(cutoff time.Time) (maps float64, streams, offMap int) {
 
 // beyond is never negative: a stream reopened after a dropped connection reads nothing.
 // A caller that asked for tiles off the map gets no credit at all, however many streams
-// it opened — which is what a script buys by opening one before each read.
+// it opened — which is what a script buys by opening one before each read. Past
+// CertainOffMap such reads the count no longer decides anything: see Watch.
 func beyond(maps float64, streams, offMap int) float64 {
 	if offMap > 0 {
 		return maps

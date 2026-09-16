@@ -441,6 +441,12 @@ antiBot:
       # one of 2026-09-16, paying for its reads with streams, read 7.
       minMaps: 5
       certainMaps: 15
+      # Reads off the map, inside trackWindow, that are "certain" however little
+      # was read. A walk overruns the end on every pass, so a caller reaching for
+      # the whole map trips this on its first one; one stray read is forgiven.
+      # The bot of 2026-09-16 cached the map and stopped reading, which put it
+      # under minMaps for the rest of its run.
+      certainOffMap: 2
       trackWindow: 15m
       sweepInterval: 1m
 

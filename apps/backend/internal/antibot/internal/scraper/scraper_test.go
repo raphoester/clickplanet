@@ -23,9 +23,10 @@ type harness struct {
 func newHarness() *harness {
 	h := &harness{clock: cptime.NewFixedClock(time.Date(2026, 9, 15, 21, 11, 0, 0, time.UTC))}
 	h.watchdog = scraper.New(scraper.Config{
-		MinMaps:     5,
-		CertainMaps: 15,
-		TrackWindow: 15 * time.Minute,
+		MinMaps:       5,
+		CertainMaps:   15,
+		CertainOffMap: 2,
+		TrackWindow:   15 * time.Minute,
 	}, h.clock, func(float64) {})
 	return h
 }
@@ -167,7 +168,8 @@ func TestAStreamBeforeEveryReadBuysNothingOffTheLattice(t *testing.T) {
 	}
 
 	verdict, evidence := h.click("bot")
-	assert.Equal(t, detect.Suspect, verdict, "a stream per read is no page load when the read is off the map")
+	assert.Equal(t, detect.Certain, verdict, "a stream per read is no page load when the read is off the map")
+	assert.Equal(t, "offMap", evidence.Rule)
 	assert.Contains(t, evidence.Fields, detect.Field{Key: "offMap", Value: 7})
 }
 
@@ -179,4 +181,48 @@ func TestOneReadOffTheMapIsNotEnoughOnItsOwn(t *testing.T) {
 
 	verdict, _ := h.click("curious")
 	assert.Equal(t, detect.Clear, verdict, "losing the credit still leaves a page load under the bound")
+}
+
+// cachedWalk is the bot of 2026-09-16: it reads the map from tile 0 and past the end, then
+// keeps the copy and clicks off it, so the reads stop long before the ban would have to fire.
+func (h *harness) cachedWalk(scope string) {
+	for i := range 26 {
+		h.clock.Advance(80 * time.Millisecond)
+		h.watchdog.Fetched(scope, 1.0/26, i == 0 || i == 25)
+	}
+}
+
+func TestTheWalkOffTheLatticeIsCaughtBeforeItPaints(t *testing.T) {
+	h := newHarness()
+
+	h.watchdog.Listened("bot")
+	h.cachedWalk("bot")
+
+	verdict, evidence := h.click("bot")
+	require.Equal(t, detect.Certain, verdict, "two maps is far under minMaps, and the walk is still proof")
+	assert.Equal(t, "offMap", evidence.Rule)
+}
+
+func TestACallerThatStopsReadingKeepsItsVerdictForTheWindow(t *testing.T) {
+	h := newHarness()
+
+	h.watchdog.Listened("bot")
+	h.cachedWalk("bot")
+
+	for range 10 {
+		h.clock.Advance(80 * time.Second)
+		verdict, _ := h.click("bot")
+		require.Equal(t, detect.Certain, verdict, "it reads nothing more; the reads it made still stand")
+	}
+}
+
+func TestTheOffMapReadsMustBeInsideTheWindow(t *testing.T) {
+	h := newHarness()
+
+	h.watchdog.Fetched("curious", chunk, true)
+	h.clock.Advance(16 * time.Minute)
+	h.watchdog.Fetched("curious", chunk, true)
+
+	verdict, _ := h.click("curious")
+	assert.Equal(t, detect.Clear, verdict, "one stray read a quarter of an hour apart is no walk")
 }
