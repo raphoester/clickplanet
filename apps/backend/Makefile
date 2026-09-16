@@ -169,7 +169,7 @@ vpn-lists:
 	@wc -l $(VPN_LISTS_DIR)/*.txt
 
 # Reads the metrics endpoint on the droplet. It is not routed through Caddy (see
-# the commented handle in deploy/vps/Caddyfile), so this goes through compose.
+# the commented handle in deploy/vps/caddy/Caddyfile), so this goes through compose.
 # METRIC filters: `make metrics METRIC=click_reaction`.
 METRIC ?= .
 
