@@ -39,6 +39,9 @@ func (m *MemoryPersistence) Upsert(_ context.Context, ban bans.Ban) error {
 		return m.failing
 	}
 
+	// As a timestamptz does it, so a test against this one cannot pass where postgres would not.
+	ban.BannedAt = ban.BannedAt.UTC()
+
 	at := slices.IndexFunc(m.rows, func(row bans.Ban) bool { return row.AuthorTag == ban.AuthorTag })
 	if at == -1 {
 		m.rows = append(m.rows, ban)

@@ -194,6 +194,16 @@ what is its own — `inmemory_tile_storage` adds the snapshot and the slow-subsc
 tests. A second tile storage runs the same suite by embedding it the same way.
 A port with one adapter and no second one coming (`ledger.Storage`) has no suite.
 
+**A write-through port counts as two adapters, and the second one is the fake.**
+`inmemory_ban_storage.Persistence` is implemented by `postgres_ban_store` in
+production and by `MemoryPersistence` in every storage test, so
+`PersistenceContractSuite` (`persistence_contract_testing.go`, beside the port it
+pins) runs against both. Without it the fake is free to drift, and a test on the
+storage then passes against behaviour postgres does not have — the suite caught
+exactly that, over a `timestamptz` normalising to UTC where the fake kept the
+zone it was handed. `postgres_ban_store` adds only what is its own, that a ban
+time keeps its microseconds through the column.
+
 **The controller is the one exception**, at `internal/planet/internal/planetv1controller/`,
 because it serves every concept over one Connect service. It only maps.
 
@@ -251,7 +261,7 @@ internal/chat/internal/
     usecases/get_history_usecase/       the recent messages, redacted  — HistoryReader, BanChecker
     usecases/listen_for_events_usecase/ one client's feed, heartbeat   — MessagesSubscriber
   bans/                                 Ban, ErrNotBanned: who a person silenced
-    inmemory_ban_storage/               the set in memory; writes through its Persistence port
+    inmemory_ban_storage/               the set in memory; its Persistence port and that port's contract suite
     postgres_ban_store/                 that port, over chat.bans
     usecases/ban_member_usecase/        records, then blanks           — Banner, Log
     usecases/unban_member_usecase/      lifts one                      — Unbanner
