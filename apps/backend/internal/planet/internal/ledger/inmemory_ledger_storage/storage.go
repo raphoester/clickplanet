@@ -13,7 +13,7 @@ import (
 type Config struct {
 	// How often the takes appended since the last flush are written to postgres.
 	FlushInterval time.Duration
-	// The most takes kept, oldest dropped first even inside the retention. 16 bytes each.
+	// The most takes kept, oldest dropped first even inside the retention. 20 bytes each.
 	MaxTakes int
 }
 
@@ -21,7 +21,7 @@ const (
 	defaultFlushInterval = time.Second
 	defaultMaxTakes      = 4_000_000
 
-	// A chunk is 1 MiB of records. Takes are dropped from the front, so a whole chunk goes at once.
+	// A chunk is 1.25 MiB of records. Takes are dropped from the front, so a whole chunk goes at once.
 	chunkSize = 1 << 16
 )
 
@@ -44,8 +44,8 @@ func New(config Config, persistence Persistence, logger *slog.Logger) *Storage {
 		config:      config.withDefaults(),
 		persistence: persistence,
 		logger:      logger,
-		forgotten:   make(map[string]ledger.Position),
-		dirtyScopes: make(map[string]struct{}),
+		forgotten:   make(map[ledger.Caller]ledger.Position),
+		dirtyMarks:  make(map[ledger.Caller]struct{}),
 	}
 }
 
@@ -61,36 +61,38 @@ type Storage struct {
 	// head is how many records of chunks[0] are dropped.
 	head      int
 	next      ledger.Position
-	forgotten map[string]ledger.Position
+	forgotten map[ledger.Caller]ledger.Position
 	// full is set while the cap drops takes, so it is reported once rather than per take.
 	full bool
 
-	// Postgres holds every take before saved, the head savedHead, and every forgotten mark not in dirtyScopes.
-	flushMu     sync.Mutex
-	saved       ledger.Position
-	savedHead   ledger.Position
-	dirtyScopes map[string]struct{}
+	// Postgres holds every take before saved, the head savedHead, and every forgotten mark not in dirtyMarks.
+	flushMu    sync.Mutex
+	saved      ledger.Position
+	savedHead  ledger.Position
+	dirtyMarks map[ledger.Caller]struct{}
 }
 
 var _ ledger.Storage = (*Storage)(nil)
 
-// record is 16 bytes. Strings are interned per chunk, so a dropped chunk takes its strings with it.
+// record is 20 bytes. Strings are interned per chunk, so a dropped chunk takes its strings with it.
 type record struct {
 	at       uint32
 	tile     uint32
 	scope    uint32
+	account  uint32
 	country  uint16
 	previous uint16
 }
 
 type chunk struct {
-	first     ledger.Position
-	records   []record
-	scopes    []string
+	first   ledger.Position
+	records []record
+	// Scopes and accounts share one table.
+	callers   []string
 	countries []string
 
 	// Only the open chunk interns; a sealed one drops its maps.
-	scopeIDs   map[string]uint32
+	callerIDs  map[string]uint32
 	countryIDs map[string]uint16
 }
 
@@ -98,7 +100,7 @@ func newChunk(first ledger.Position) *chunk {
 	return &chunk{
 		first:      first,
 		records:    make([]record, 0, chunkSize),
-		scopeIDs:   make(map[string]uint32),
+		callerIDs:  make(map[string]uint32),
 		countryIDs: make(map[string]uint16),
 	}
 }
@@ -118,12 +120,12 @@ func (c *chunk) internCountry(value string) (uint16, bool) {
 	return id, true
 }
 
-func (c *chunk) internScope(value string) uint32 {
-	id, ok := c.scopeIDs[value]
+func (c *chunk) internCaller(value string) uint32 {
+	id, ok := c.callerIDs[value]
 	if !ok {
-		id = uint32(len(c.scopes)) //nolint:gosec // at most chunkSize scopes.
-		c.scopeIDs[value] = id
-		c.scopes = append(c.scopes, value)
+		id = uint32(len(c.callers)) //nolint:gosec // at most two per record.
+		c.callerIDs[value] = id
+		c.callers = append(c.callers, value)
 	}
 
 	return id
@@ -151,7 +153,8 @@ func (s *Storage) appendLocked(taking ledger.Taking) {
 	open.records = append(open.records, record{
 		at:       seconds(taking.At),
 		tile:     taking.Tile,
-		scope:    open.internScope(taking.Scope),
+		scope:    open.internCaller(taking.Scope),
+		account:  open.internCaller(taking.Account),
 		country:  country,
 		previous: previous,
 	})
@@ -169,7 +172,7 @@ func (s *Storage) appendLocked(taking ledger.Taking) {
 
 func (s *Storage) openChunkLocked() *chunk {
 	if n := len(s.chunks); n > 0 {
-		if last := s.chunks[n-1]; last.scopeIDs != nil && len(last.records) < chunkSize {
+		if last := s.chunks[n-1]; last.callerIDs != nil && len(last.records) < chunkSize {
 			return last
 		}
 		s.sealLocked(s.chunks[n-1])
@@ -182,7 +185,7 @@ func (s *Storage) openChunkLocked() *chunk {
 }
 
 func (s *Storage) sealLocked(c *chunk) {
-	c.scopeIDs = nil
+	c.callerIDs = nil
 	c.countryIDs = nil
 }
 
@@ -219,9 +222,9 @@ func (s *Storage) dropLocked(n int) {
 
 func (s *Storage) forgetMarksLocked() {
 	head := s.headPositionLocked()
-	for scope, before := range s.forgotten {
+	for caller, before := range s.forgotten {
 		if before <= head {
-			delete(s.forgotten, scope)
+			delete(s.forgotten, caller)
 		}
 	}
 }
@@ -252,13 +255,13 @@ func (s *Storage) ForgetBefore(cutoff time.Time) {
 	s.dropLocked(n)
 }
 
-func (s *Storage) Forget(scope string, before ledger.Position) {
+func (s *Storage) Forget(caller ledger.Caller, before ledger.Position) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if before > s.forgotten[scope] && before > s.headPositionLocked() {
-		s.forgotten[scope] = before
-		s.dirtyScopes[scope] = struct{}{}
+	if before > s.forgotten[caller] && before > s.headPositionLocked() {
+		s.forgotten[caller] = before
+		s.dirtyMarks[caller] = struct{}{}
 	}
 }
 
@@ -266,7 +269,7 @@ func (s *Storage) Forget(scope string, before ledger.Position) {
 type view struct {
 	first     ledger.Position
 	records   []record
-	scopes    []string
+	callers   []string
 	countries []string
 }
 
@@ -287,7 +290,7 @@ func (s *Storage) viewsLocked(from ledger.Position) []view {
 		views = append(views, view{
 			first:     c.first + ledger.Position(start), //nolint:gosec // at most chunkSize.
 			records:   c.records[start:len(c.records):len(c.records)],
-			scopes:    c.scopes[:len(c.scopes):len(c.scopes)],
+			callers:   c.callers[:len(c.callers):len(c.callers)],
 			countries: c.countries[:len(c.countries):len(c.countries)],
 		})
 	}
@@ -305,7 +308,7 @@ func (s *Storage) Replay(see func(ledger.Taking)) ledger.Position {
 	for _, v := range views {
 		for i, r := range v.records {
 			taking := v.taking(r)
-			if before, ok := forgotten[taking.Scope]; ok && v.first+ledger.Position(i) < before { //nolint:gosec // i < chunkSize.
+			if forgottenAt(forgotten, taking, v.first+ledger.Position(i)) { //nolint:gosec // i < chunkSize.
 				continue
 			}
 			see(taking)
@@ -315,10 +318,24 @@ func (s *Storage) Replay(see func(ledger.Taking)) ledger.Position {
 	return end
 }
 
+// forgottenAt says whether a mark on the take's scope or on its account covers the position.
+func forgottenAt(forgotten map[ledger.Caller]ledger.Position, taking ledger.Taking, position ledger.Position) bool {
+	if before, ok := forgotten[ledger.Caller{Scope: taking.Scope}]; ok && position < before {
+		return true
+	}
+	if taking.Account == "" {
+		return false
+	}
+	before, ok := forgotten[ledger.Caller{Account: taking.Account}]
+
+	return ok && position < before
+}
+
 func (v view) taking(r record) ledger.Taking {
 	return ledger.Taking{
 		Tile:     r.tile,
-		Scope:    v.scopes[r.scope],
+		Scope:    v.callers[r.scope],
+		Account:  v.callers[r.account],
 		Country:  v.countries[r.country],
 		Previous: v.countries[r.previous],
 		At:       time.Unix(int64(r.at), 0).UTC(),

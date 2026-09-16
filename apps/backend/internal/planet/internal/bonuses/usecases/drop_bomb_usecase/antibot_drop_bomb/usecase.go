@@ -6,7 +6,6 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/drop_bomb_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
 type UseCase interface {
@@ -14,7 +13,7 @@ type UseCase interface {
 }
 
 type Bans interface {
-	Banned(scope string) bool
+	Banned(scope, account string) bool
 }
 
 func New(implementation UseCase, bans Bans) *Decorator {
@@ -27,8 +26,10 @@ type Decorator struct {
 }
 
 // Execute still runs the drop, so the bomb is spent: a bomb that stayed in hand would tell the caller it was refused.
+// A ban on the scope or on the account makes it a dud.
 func (d *Decorator) Execute(ctx context.Context, in drop_bomb_usecase.In) (clicks.Blast, error) {
-	in.Dud = d.bans.Banned(cpctx.RateLimitKey(ctx))
+	payer := clicks.PayerOf(ctx)
+	in.Dud = d.bans.Banned(payer.Scope, payer.Account)
 
 	return d.implementation.Execute(ctx, in) //nolint:wrapcheck // a decorator adds a flag, not a sentence.
 }

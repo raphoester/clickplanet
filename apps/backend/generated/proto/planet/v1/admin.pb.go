@@ -177,7 +177,9 @@ func (x *PaintRandomTilesResponse) GetOutsideArea() uint32 {
 type InspectPlayerRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// A scope, or any address, which is read as its scope.
-	Scope         string `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
+	Scope string `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
+	// Or an account id, instead of a scope.
+	AccountId     string `protobuf:"bytes,2,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -219,9 +221,18 @@ func (x *InspectPlayerRequest) GetScope() string {
 	return ""
 }
 
+func (x *InspectPlayerRequest) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
 type InspectPlayerResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	Scope string                 `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
+	// Empty for an account with no take inside ledger.retention.
+	Scope     string `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
+	AccountId string `protobuf:"bytes,17,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
 	// False when the jury has not seen the scope inside antiBot.jury.trackWindow:
 	// the readings are then all clear and the click summary is empty.
 	Tracked *bool `protobuf:"varint,2,opt,name=tracked,proto3,oneof" json:"tracked,omitempty"`
@@ -283,6 +294,13 @@ func (*InspectPlayerResponse) Descriptor() ([]byte, []int) {
 func (x *InspectPlayerResponse) GetScope() string {
 	if x != nil {
 		return x.Scope
+	}
+	return ""
+}
+
+func (x *InspectPlayerResponse) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
 	}
 	return ""
 }
@@ -529,7 +547,7 @@ func (x *FindPlayersRequest) GetLimit() uint32 {
 type FindPlayersResponse struct {
 	state   protoimpl.MessageState `protogen:"open.v1"`
 	Players []*Player              `protobuf:"bytes,1,rep,name=players,proto3" json:"players,omitempty"`
-	// How many scopes matched, before the limit.
+	// How many players matched, before the limit.
 	Total         uint32 `protobuf:"varint,2,opt,name=total,proto3" json:"total,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -627,7 +645,7 @@ func (x *TopPlayersRequest) GetLimit() uint32 {
 type TopPlayersResponse struct {
 	state   protoimpl.MessageState `protogen:"open.v1"`
 	Players []*Player              `protobuf:"bytes,1,rep,name=players,proto3" json:"players,omitempty"`
-	// How many scopes took any tile, before the limit.
+	// How many players took any tile, before the limit.
 	Total         uint32 `protobuf:"varint,2,opt,name=total,proto3" json:"total,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -681,6 +699,9 @@ type Player struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The address for IPv4, the /64 for IPv6: what the throttle and the ban key on.
 	Scope string `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
+	// The account the click token named. Each account on a scope is a player of
+	// its own; empty is the takes made with no account.
+	AccountId string `protobuf:"bytes,12,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
 	// Tiles it still holds: its take is the tile's latest and the paint is still there.
 	Tiles   uint32                 `protobuf:"varint,2,opt,name=tiles,proto3" json:"tiles,omitempty"`
 	FirstAt *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=first_at,json=firstAt,proto3" json:"first_at,omitempty"`
@@ -734,6 +755,13 @@ func (*Player) Descriptor() ([]byte, []int) {
 func (x *Player) GetScope() string {
 	if x != nil {
 		return x.Scope
+	}
+	return ""
+}
+
+func (x *Player) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
 	}
 	return ""
 }
@@ -812,6 +840,8 @@ type BanPlayerRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// A scope, or any address, which is banned as its scope.
 	Scope string `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
+	// Or an account id, instead of a scope. The account alone is banned.
+	AccountId string `protobuf:"bytes,3,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
 	// Unset takes the ladder's step for the offence (antiBot.shadowBan.banDurations).
 	Duration      *durationpb.Duration `protobuf:"bytes,2,opt,name=duration,proto3" json:"duration,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -855,6 +885,13 @@ func (x *BanPlayerRequest) GetScope() string {
 	return ""
 }
 
+func (x *BanPlayerRequest) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
 func (x *BanPlayerRequest) GetDuration() *durationpb.Duration {
 	if x != nil {
 		return x.Duration
@@ -865,6 +902,7 @@ func (x *BanPlayerRequest) GetDuration() *durationpb.Duration {
 type BanPlayerResponse struct {
 	state       protoimpl.MessageState `protogen:"open.v1"`
 	Scope       string                 `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
+	AccountId   string                 `protobuf:"bytes,5,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
 	Offence     uint32                 `protobuf:"varint,2,opt,name=offence,proto3" json:"offence,omitempty"`
 	BannedUntil *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=banned_until,json=bannedUntil,proto3" json:"banned_until,omitempty"`
 	// False when antiBot.shadowBan.enforce is off: the ban is kept but drops nothing.
@@ -910,6 +948,13 @@ func (x *BanPlayerResponse) GetScope() string {
 	return ""
 }
 
+func (x *BanPlayerResponse) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
 func (x *BanPlayerResponse) GetOffence() uint32 {
 	if x != nil {
 		return x.Offence
@@ -932,9 +977,11 @@ func (x *BanPlayerResponse) GetEnforced() bool {
 }
 
 type RevertPlayerRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Scope         string                 `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
-	DryRun        bool                   `protobuf:"varint,2,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Scope string                 `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
+	// Or an account id, instead of a scope: its takes from every scope.
+	AccountId     string `protobuf:"bytes,3,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	DryRun        bool   `protobuf:"varint,2,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -976,6 +1023,13 @@ func (x *RevertPlayerRequest) GetScope() string {
 	return ""
 }
 
+func (x *RevertPlayerRequest) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
 func (x *RevertPlayerRequest) GetDryRun() bool {
 	if x != nil {
 		return x.DryRun
@@ -984,9 +1038,10 @@ func (x *RevertPlayerRequest) GetDryRun() bool {
 }
 
 type RevertPlayerResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	Scope string                 `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
-	// Tiles the scope took, and those it still holds.
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	Scope     string                 `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
+	AccountId string                 `protobuf:"bytes,5,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	// Tiles it took, and those it still holds.
 	Touched       uint32 `protobuf:"varint,2,opt,name=touched,proto3" json:"touched,omitempty"`
 	Held          uint32 `protobuf:"varint,3,opt,name=held,proto3" json:"held,omitempty"`
 	Restored      uint32 `protobuf:"varint,4,opt,name=restored,proto3" json:"restored,omitempty"`
@@ -1027,6 +1082,13 @@ func (*RevertPlayerResponse) Descriptor() ([]byte, []int) {
 func (x *RevertPlayerResponse) GetScope() string {
 	if x != nil {
 		return x.Scope
+	}
+	return ""
+}
+
+func (x *RevertPlayerResponse) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
 	}
 	return ""
 }
@@ -1204,11 +1266,15 @@ const file_planet_v1_admin_proto_rawDesc = "" +
 	"\beligible\x18\x01 \x01(\rR\beligible\x12\x16\n" +
 	"\x06picked\x18\x02 \x01(\rR\x06picked\x12\x18\n" +
 	"\apainted\x18\x03 \x01(\rR\apainted\x12!\n" +
-	"\foutside_area\x18\x04 \x01(\rR\voutsideArea\",\n" +
+	"\foutside_area\x18\x04 \x01(\rR\voutsideArea\"K\n" +
 	"\x14InspectPlayerRequest\x12\x14\n" +
-	"\x05scope\x18\x01 \x01(\tR\x05scope\"\xab\x05\n" +
+	"\x05scope\x18\x01 \x01(\tR\x05scope\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x02 \x01(\tR\taccountId\"\xca\x05\n" +
 	"\x15InspectPlayerResponse\x12\x14\n" +
 	"\x05scope\x18\x01 \x01(\tR\x05scope\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x11 \x01(\tR\taccountId\x12\x1d\n" +
 	"\atracked\x18\x02 \x01(\bH\x00R\atracked\x88\x01\x01\x12\x1b\n" +
 	"\x06banned\x18\x03 \x01(\bH\x01R\x06banned\x88\x01\x01\x12=\n" +
 	"\fbanned_until\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\vbannedUntil\x12\x18\n" +
@@ -1248,9 +1314,11 @@ const file_planet_v1_admin_proto_rawDesc = "" +
 	"\x05limit\x18\x01 \x01(\rR\x05limit\"W\n" +
 	"\x12TopPlayersResponse\x12+\n" +
 	"\aplayers\x18\x01 \x03(\v2\x11.planet.v1.PlayerR\aplayers\x12\x14\n" +
-	"\x05total\x18\x02 \x01(\rR\x05total\"\xc5\x03\n" +
+	"\x05total\x18\x02 \x01(\rR\x05total\"\xe4\x03\n" +
 	"\x06Player\x12\x14\n" +
-	"\x05scope\x18\x01 \x01(\tR\x05scope\x12\x14\n" +
+	"\x05scope\x18\x01 \x01(\tR\x05scope\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\f \x01(\tR\taccountId\x12\x14\n" +
 	"\x05tiles\x18\x02 \x01(\rR\x05tiles\x125\n" +
 	"\bfirst_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\afirstAt\x123\n" +
 	"\alast_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x06lastAt\x12\x1b\n" +
@@ -1263,20 +1331,28 @@ const file_planet_v1_admin_proto_rawDesc = "" +
 	"\x05takes\x18\n" +
 	" \x01(\rR\x05takes\x12(\n" +
 	"\x10takes_per_minute\x18\v \x01(\x01R\x0etakesPerMinuteB\t\n" +
-	"\a_banned\"_\n" +
+	"\a_banned\"~\n" +
 	"\x10BanPlayerRequest\x12\x14\n" +
-	"\x05scope\x18\x01 \x01(\tR\x05scope\x125\n" +
-	"\bduration\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\bduration\"\x9e\x01\n" +
+	"\x05scope\x18\x01 \x01(\tR\x05scope\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x03 \x01(\tR\taccountId\x125\n" +
+	"\bduration\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\bduration\"\xbd\x01\n" +
 	"\x11BanPlayerResponse\x12\x14\n" +
-	"\x05scope\x18\x01 \x01(\tR\x05scope\x12\x18\n" +
+	"\x05scope\x18\x01 \x01(\tR\x05scope\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x05 \x01(\tR\taccountId\x12\x18\n" +
 	"\aoffence\x18\x02 \x01(\rR\aoffence\x12=\n" +
 	"\fbanned_until\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\vbannedUntil\x12\x1a\n" +
-	"\benforced\x18\x04 \x01(\bR\benforced\"D\n" +
+	"\benforced\x18\x04 \x01(\bR\benforced\"c\n" +
 	"\x13RevertPlayerRequest\x12\x14\n" +
-	"\x05scope\x18\x01 \x01(\tR\x05scope\x12\x17\n" +
-	"\adry_run\x18\x02 \x01(\bR\x06dryRun\"v\n" +
+	"\x05scope\x18\x01 \x01(\tR\x05scope\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x03 \x01(\tR\taccountId\x12\x17\n" +
+	"\adry_run\x18\x02 \x01(\bR\x06dryRun\"\x95\x01\n" +
 	"\x14RevertPlayerResponse\x12\x14\n" +
-	"\x05scope\x18\x01 \x01(\tR\x05scope\x12\x18\n" +
+	"\x05scope\x18\x01 \x01(\tR\x05scope\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x05 \x01(\tR\taccountId\x12\x18\n" +
 	"\atouched\x18\x02 \x01(\rR\atouched\x12\x12\n" +
 	"\x04held\x18\x03 \x01(\rR\x04held\x12\x1a\n" +
 	"\brestored\x18\x04 \x01(\rR\brestored\"}\n" +

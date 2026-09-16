@@ -40,7 +40,7 @@ func (b *board) take(tile uint32, scope, country string) {
 }
 
 func (b *board) restorations(scope string) []clicks.Restoration {
-	runs := ledger.NewRuns(scope)
+	runs := ledger.NewRuns(ledger.Caller{Scope: scope})
 	for _, taking := range b.takings {
 		runs.See(taking)
 	}
@@ -119,7 +119,7 @@ func TestRunsCountEveryTileTheScopeTookHeldOrNot(t *testing.T) {
 	b.take(2, "B", "il")
 	b.take(1, "A", "fr")
 
-	runs := ledger.NewRuns("A")
+	runs := ledger.NewRuns(ledger.Caller{Scope: "A"})
 	for _, taking := range b.takings {
 		runs.See(taking)
 	}
@@ -310,4 +310,67 @@ func TestRecordingNotesNothingForAFailedWrite(t *testing.T) {
 	require.ErrorIs(t, err, tiles.err)
 
 	assert.Empty(t, replay(takings))
+}
+
+func TestRecordingNotesTheAccountTheTokenNamed(t *testing.T) {
+	tiles := &stubTiles{owners: map[uint32]string{1: "de"}}
+	takings := inmemory_ledger_storage.New(inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence(), slog.New(slog.DiscardHandler))
+	recording := ledger.NewRecording(tiles, takings, cptime.NewFixedClock(start))
+
+	ctx := cpctx.AddAccountToContext(cpctx.AddIPToContext(t.Context(), "1.2.3.4"), "a-guest")
+	require.NoError(t, recording.Set(ctx, 1, "fr"))
+
+	assert.Equal(t, []ledger.Taking{{Tile: 1, Scope: "1.2.3.4", Account: "a-guest", Country: "fr", Previous: "de", At: start}},
+		replay(takings))
+}
+
+func TestEachAccountOnOneScopeIsAPlayerOfItsOwn(t *testing.T) {
+	players := tally([]ledger.Taking{
+		{Tile: 1, Scope: "campus", Account: "alice", Country: "ps", At: start},
+		{Tile: 2, Scope: "campus", Account: "bob", Country: "ps", At: start},
+		{Tile: 3, Scope: "campus", Account: "bob", Country: "ps", At: start.Add(time.Second)},
+		{Tile: 4, Scope: "campus", Country: "ps", At: start.Add(time.Second)},
+	}, owners{1: "ps", 2: "ps", 3: "ps", 4: "ps"}, every)
+
+	assert.Equal(t, []ledger.Player{
+		{Scope: "campus", Tiles: 1, Takes: 1, FirstAt: start.Add(time.Second), LastAt: start.Add(time.Second)},
+		{Scope: "campus", Account: "bob", Tiles: 2, Takes: 2, FirstAt: start, LastAt: start.Add(time.Second)},
+		{Scope: "campus", Account: "alice", Tiles: 1, Takes: 1, FirstAt: start, LastAt: start},
+	}, players)
+}
+
+func TestARevertOfAnAccountFollowsItAcrossScopes(t *testing.T) {
+	b := newBoard(owners{7: "il", 8: "il"})
+	b.takings = append(b.takings,
+		ledger.Taking{Tile: 7, Scope: "campus", Account: "guest", Country: "ps", Previous: "il"},
+		ledger.Taking{Tile: 7, Scope: "home", Account: "guest", Country: "fr", Previous: "ps"},
+		ledger.Taking{Tile: 8, Scope: "home", Account: "other", Country: "ps", Previous: "il"},
+	)
+	b.owners[7], b.owners[8] = "fr", "ps"
+
+	runs := ledger.NewRuns(ledger.Caller{Account: "guest"})
+	for _, taking := range b.takings {
+		runs.See(taking)
+	}
+
+	assert.Equal(t, []clicks.Restoration{{Tile: 7, From: "fr", To: "il"}}, runs.Restorations(b.owners))
+}
+
+func TestParseCallerTakesAScopeOrAnAccount(t *testing.T) {
+	caller, err := ledger.ParseCaller("2001:db8::9", "")
+	require.NoError(t, err)
+	assert.Equal(t, ledger.Caller{Scope: "2001:db8::/64"}, caller)
+
+	caller, err = ledger.ParseCaller("", "0B7E5B6C-8F3A-4D2E-9C1A-2F6D8E4B7A10")
+	require.NoError(t, err)
+	assert.Equal(t, ledger.Caller{Account: "0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10"}, caller)
+
+	_, err = ledger.ParseCaller("", "")
+	require.ErrorIs(t, err, ledger.ErrNoCaller)
+	_, err = ledger.ParseCaller("1.2.3.4", "0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10")
+	require.ErrorIs(t, err, ledger.ErrNoCaller)
+	_, err = ledger.ParseCaller("bot", "")
+	require.ErrorIs(t, err, ledger.ErrInvalidScope)
+	_, err = ledger.ParseCaller("", "guest")
+	require.ErrorIs(t, err, ledger.ErrInvalidAccount)
 }

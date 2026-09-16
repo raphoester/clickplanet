@@ -28,19 +28,21 @@ func (h RevertPlayerHandler) RevertPlayer(
 	req *connect.Request[planetv1.RevertPlayerRequest],
 ) (*connect.Response[planetv1.RevertPlayerResponse], error) {
 	out, err := h.useCase.Execute(ctx, revert_player_usecase.In{
-		Scope:  req.Msg.GetScope(),
-		DryRun: req.Msg.GetDryRun(),
+		Scope:   req.Msg.GetScope(),
+		Account: req.Msg.GetAccountId(),
+		DryRun:  req.Msg.GetDryRun(),
 	})
 
 	switch {
 	case err == nil:
 		return connect.NewResponse(&planetv1.RevertPlayerResponse{
-			Scope:    out.Scope,
-			Touched:  uint32(out.Touched),  //nolint:gosec // a tile count, bounded by the map.
-			Held:     uint32(out.Held),     //nolint:gosec // a tile count, bounded by the map.
-			Restored: uint32(out.Restored), //nolint:gosec // a tile count, bounded by the map.
+			Scope:     out.Scope,
+			AccountId: out.Account,
+			Touched:   uint32(out.Touched),  //nolint:gosec // a tile count, bounded by the map.
+			Held:      uint32(out.Held),     //nolint:gosec // a tile count, bounded by the map.
+			Restored:  uint32(out.Restored), //nolint:gosec // a tile count, bounded by the map.
 		}), nil
-	case errors.Is(err, ledger.ErrInvalidScope):
+	case errors.Is(err, ledger.ErrInvalidScope), errors.Is(err, ledger.ErrInvalidAccount), errors.Is(err, ledger.ErrNoCaller):
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	default:
 		return nil, err

@@ -10,13 +10,13 @@ type Owners interface {
 	Owner(tile uint32) (string, bool)
 }
 
-func NewRuns(scope string) *Runs {
-	return &Runs{scope: scope, touched: make(map[uint32]struct{}), runs: make(map[uint32]run)}
+func NewRuns(caller Caller) *Runs {
+	return &Runs{caller: caller, touched: make(map[uint32]struct{}), runs: make(map[uint32]run)}
 }
 
-// Runs is what a revert of one scope gives back, by the rule in the package doc.
+// Runs is what a revert of one caller gives back, by the rule in the package doc.
 type Runs struct {
-	scope   string
+	caller  Caller
 	touched map[uint32]struct{}
 	runs    map[uint32]run
 }
@@ -29,7 +29,7 @@ type run struct {
 func (r *Runs) See(taking Taking) {
 	current, ours := r.runs[taking.Tile]
 
-	if taking.Scope != r.scope {
+	if !r.caller.Made(taking) {
 		if ours {
 			delete(r.runs, taking.Tile)
 		}
@@ -46,12 +46,12 @@ func (r *Runs) See(taking Taking) {
 	r.runs[taking.Tile] = run{country: taking.Country, before: before}
 }
 
-// Touched is how many tiles the scope took, held or not.
+// Touched is how many tiles the caller took, held or not.
 func (r *Runs) Touched() int {
 	return len(r.touched)
 }
 
-// Restorations gives back every tile the scope still holds, in tile order.
+// Restorations gives back every tile the caller still holds, in tile order.
 func (r *Runs) Restorations(owners Owners) []clicks.Restoration {
 	restorations := make([]clicks.Restoration, 0, len(r.runs))
 	for tile, run := range r.runs {

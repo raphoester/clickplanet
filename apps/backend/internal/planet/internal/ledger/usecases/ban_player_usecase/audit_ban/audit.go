@@ -26,8 +26,8 @@ func (a *Audited) Execute(ctx context.Context, in ban_player_usecase.In) (ban_pl
 	out, err := a.inner.Execute(ctx, in)
 
 	attrs := []any{
-		slog.String("asked", in.Scope), slog.Duration("duration", in.Duration),
-		slog.String("scope", out.Scope), slog.Int("offence", out.Offence),
+		slog.String("asked", in.Scope), slog.String("askedAccount", in.Account), slog.Duration("duration", in.Duration),
+		slog.String("scope", out.Scope), slog.String("account", out.Account), slog.Int("offence", out.Offence),
 		slog.Time("bannedUntil", out.Until), slog.Bool("enforced", out.Enforced),
 	}
 

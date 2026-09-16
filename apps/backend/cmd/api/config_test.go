@@ -167,6 +167,14 @@ func TestTheExampleConfigReachesTheDatabaseBlock(t *testing.T) {
 	assert.Equal(t, 4, *config.Planet.Database.Pool.MaxOpenConns)
 }
 
+func TestTheExampleConfigReachesTheScopeMultiplier(t *testing.T) {
+	var config Config
+	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
+
+	assert.InDelta(t, 10.0, config.Planet.RateLimiter.ScopeMultiplier, 1e-9)
+	assert.Equal(t, 10, config.Planet.RateLimiter.Burst, "the squashed policy still reads rateLimiter.burst")
+}
+
 func TestTheProcessRefusesToStartWithoutADatabase(t *testing.T) {
 	config := Config{}
 	config.HTTPServer.BindAddress = "0.0.0.0:8080"

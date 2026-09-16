@@ -12,7 +12,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
@@ -21,7 +20,7 @@ import (
 type Config struct {
 	GameMap      GameMapConfig
 	TilesStorage inmemory_tile_storage.Config
-	RateLimiter  cpratelimit.Config
+	RateLimiter  clicks.ThrottleConfig
 	Toll         clicks.TollConfig
 	VPNBlocklist cpipblock.Config
 	AntiBot      antibot.Config
@@ -56,5 +55,5 @@ func (c Config) Validate() error {
 		return err
 	}
 
-	return errors.Join(c.Bonus.Validate(), c.AntiBot.Validate())
+	return errors.Join(c.RateLimiter.Validate(), c.Bonus.Validate(), c.AntiBot.Validate())
 }

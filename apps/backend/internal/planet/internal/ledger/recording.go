@@ -57,7 +57,9 @@ func (r Recording) write(
 		return nil
 	}
 
-	r.takings.Append(Taking{Tile: tile, Scope: scope, Country: value, Previous: previous, At: r.clock.Now()})
+	r.takings.Append(Taking{
+		Tile: tile, Scope: scope, Account: cpctx.GetAccount(ctx), Country: value, Previous: previous, At: r.clock.Now(),
+	})
 
 	return nil
 }

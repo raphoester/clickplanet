@@ -41,19 +41,22 @@ ledger:
   retention: 72h
 
 # Kept in postgres beside the tile map; new takes are written every second.
-# 4M takes is ~85 MiB in memory: three days at ~15 takes a second. A busier
+# 4M takes is ~100 MiB in memory: three days at ~15 takes a second. A busier
 # stretch drops the oldest takes first and logs "the ledger is full".
 ledgerStorage:
   flushInterval: 1s
   maxTakes: 4000000
 
-# Per-caller throttle on the Click RPC. Keyed on the address Caddy puts in
-# X-Real-IP, which is Cloudflare's Cf-Connecting-Ip — the real visitor — over
-# IPv4, and on that address's /64 over IPv6. A v6 subscriber owns every address
-# in its own /64, so charging one address would be charging nothing.
+# Throttle on the Click RPC. perSecond and burst are one account's allowance. A
+# click also spends from its scope's bucket, at scopeMultiplier times that, which
+# every account behind the address shares. The scope is the address Caddy puts
+# in X-Real-IP, which is Cloudflare's Cf-Connecting-Ip — the real visitor — over
+# IPv4, and that address's /64 over IPv6. A token with no account spends one
+# scope bucket at perSecond and burst, as before accounts.
 rateLimiter:
   perSecond: 1
   burst: 10
+  scopeMultiplier: 10
 
 # A click costs more tokens the more of the map its country holds: from each
 # share below (a fraction of every tile on the map), a click for that country

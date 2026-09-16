@@ -54,7 +54,7 @@ export const AdminService = {
       kind: MethodKind.Unary,
     },
     /**
-     * The antibot's shadow ban, on a scope a person picked. It counts as an offence.
+     * The antibot's shadow ban, on a scope or an account a person picked. It counts as an offence.
      *
      * @generated from rpc planet.v1.AdminService.BanPlayer
      */
@@ -65,8 +65,8 @@ export const AdminService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Gives back every tile the scope still holds to what it held before the
-     * scope's current run on it. dry_run counts and restores nothing.
+     * Gives back every tile the scope or the account still holds to what it held
+     * before its current run on it. dry_run counts and restores nothing.
      *
      * @generated from rpc planet.v1.AdminService.RevertPlayer
      */
@@ -92,7 +92,8 @@ export const AdminService = {
     },
     /**
      * What the antibot holds on a scope: every watchdog's reading, what the jury
-     * would decide now, and any running ban. Reads only.
+     * would decide now, and any running ban. An account is read on the scope of
+     * its latest take, with the bans on both. Reads only.
      *
      * @generated from rpc planet.v1.AdminService.InspectPlayer
      */

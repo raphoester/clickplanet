@@ -8,7 +8,6 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -28,7 +27,7 @@ type Registry interface {
 // spends: a bonus that did not move that bucket would not be a bonus.
 type Booster interface {
 	Boost(key string, multiplier float64, until time.Time) cpratelimit.State
-	Peek(key string) cpratelimit.State
+	Peek(key cpratelimit.Key) cpratelimit.State
 }
 
 type Pricer interface {
@@ -75,6 +74,7 @@ func New(
 	bomber Bomber,
 	blastRadius float64,
 	encloser Encloser,
+	buckets clicks.Buckets,
 	clock cptime.Clock,
 ) *UseCase {
 	if clock == nil {
@@ -89,6 +89,7 @@ func New(
 		bomber:      bomber,
 		blastRadius: blastRadius,
 		encloser:    encloser,
+		buckets:     buckets,
 		clock:       clock,
 	}
 }
@@ -101,21 +102,21 @@ type UseCase struct {
 	bomber      Bomber
 	blastRadius float64
 	encloser    Encloser
+	buckets     clicks.Buckets
 	clock       cptime.Clock
 }
 
-// Execute derives the scope the way the throttle derives its bucket key, which
-// is what ties the offer, the claim and the boosted bucket to one caller by
-// construction rather than by agreement.
+// Execute derives the payer the way the throttle does, which ties the offer and the claim to one scope,
+// and the boost to the bucket that scope's click spends first, by construction rather than by agreement.
 func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
-	scope := cpctx.RateLimitKey(ctx)
+	payer := clicks.PayerOf(ctx)
 
-	reward, ok := u.registry.Claim(in.Token, scope)
+	reward, ok := u.registry.Claim(in.Token, payer.Scope)
 	if !ok {
 		return Out{}, ErrNoSuchBonus
 	}
 
-	state := u.apply(scope, reward)
+	state := u.apply(payer, reward)
 
 	// Only once the boost has landed: a catch announced to the planet that then
 	// failed to apply is the one lie this could tell.
@@ -136,23 +137,27 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 }
 
 // apply starts what the reward is worth, and answers the allowance as it stands
-// afterwards. A spread or an enclose does not widen the allowance, so it answers
-// it unchanged.
-func (u *UseCase) apply(scope string, reward bonuses.Reward) cpratelimit.State {
+// afterwards: the tighter bucket, as a click reports it. A triple widens the account's bucket and never
+// the scope's, which the scope's other players share.
+func (u *UseCase) apply(payer clicks.Payer, reward bonuses.Reward) cpratelimit.State {
 	until := u.clock.Now().Add(reward.Duration)
 
 	switch reward.Kind {
 	case bonuses.KindSpreadClicks:
-		u.spreader.Grant(scope, until)
-		return u.booster.Peek(scope)
+		u.spreader.Grant(payer.Scope, until)
 	case bonuses.KindBomb:
-		u.bomber.Grant(scope, until)
-		return u.booster.Peek(scope)
+		u.bomber.Grant(payer.Scope, until)
 	case bonuses.KindEncloseClicks:
-		u.encloser.Grant(scope, until, reward.Enclosures, reward.EnclosureMaxTiles)
-		return u.booster.Peek(scope)
+		u.encloser.Grant(payer.Scope, until, reward.Enclosures, reward.EnclosureMaxTiles)
 	case bonuses.KindTripleClicks:
+		u.booster.Boost(u.buckets.Boosted(payer), u.registry.Multiplier(), until)
 	}
 
-	return u.booster.Boost(scope, u.registry.Multiplier(), until)
+	keys := u.buckets.Keys(payer)
+	states := make([]cpratelimit.State, len(keys))
+	for i, key := range keys {
+		states[i] = u.booster.Peek(key)
+	}
+
+	return clicks.Tightest(states)
 }

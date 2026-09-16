@@ -195,7 +195,7 @@ func TestPeekSpendsNothing(t *testing.T) {
 	require.True(t, allow(limiter, "1.2.3.4"))
 
 	for i := 0; i < 5; i++ {
-		require.InDelta(t, float64(9), limiter.Peek("1.2.3.4").Tokens, 1e-9)
+		require.InDelta(t, float64(9), limiter.Peek(Key{Name: "1.2.3.4"}).Tokens, 1e-9)
 	}
 
 	for i := 0; i < 9; i++ {
@@ -207,7 +207,7 @@ func TestPeekSpendsNothing(t *testing.T) {
 func TestPeekingAtAnUnknownKeyRemembersNothing(t *testing.T) {
 	limiter, _ := newTestLimiter()
 
-	require.InDelta(t, float64(10), limiter.Peek("1.2.3.4").Tokens, 1e-9)
+	require.InDelta(t, float64(10), limiter.Peek(Key{Name: "1.2.3.4"}).Tokens, 1e-9)
 
 	require.Empty(t, limiter.buckets, "reading an allowance must not create one")
 }
@@ -221,5 +221,50 @@ func TestPeekRefillsBeforeReporting(t *testing.T) {
 
 	clock.Advance(3 * time.Second)
 
-	require.InDelta(t, float64(3), limiter.Peek("1.2.3.4").Tokens, 1e-9)
+	require.InDelta(t, float64(3), limiter.Peek(Key{Name: "1.2.3.4"}).Tokens, 1e-9)
+}
+
+func TestAScaledBucketHoldsAndRefillsItsScale(t *testing.T) {
+	limiter, clock := newTestLimiter()
+	campus := Key{Name: "campus", Scale: 10}
+
+	allowed, states := limiter.TakeAll(100, campus)
+	require.True(t, allowed, "a scale of ten starts with ten bursts")
+	require.Equal(t, 100, states[0].Capacity)
+	require.InDelta(t, 10.0, states[0].PerSecond, 1e-9)
+
+	clock.Advance(time.Second)
+	require.InDelta(t, 10.0, limiter.Peek(campus).Tokens, 1e-9, "and refills ten a second")
+}
+
+func TestTakeAllSpendsFromEveryBucketOrFromNone(t *testing.T) {
+	limiter, _ := newTestLimiter()
+	account, scope := Key{Name: "account"}, Key{Name: "scope", Scale: 10}
+
+	for range 10 {
+		allowed, _ := limiter.TakeAll(1, account, scope)
+		require.True(t, allowed)
+	}
+
+	allowed, states := limiter.TakeAll(1, account, scope)
+	require.False(t, allowed, "the account bucket is empty")
+	require.InDelta(t, 0.0, states[0].Tokens, 1e-9)
+	require.InDelta(t, 90.0, states[1].Tokens, 1e-9, "the refusal spent nothing from the scope bucket")
+
+	allowed, _ = limiter.TakeAll(1, Key{Name: "another account"}, scope)
+	require.True(t, allowed, "another account on the scope still has its own allowance")
+}
+
+func TestTheSweepForgetsAScaledBucketOnlyOnceItIsFull(t *testing.T) {
+	limiter, clock := newTestLimiter()
+	campus := Key{Name: "campus", Scale: 10}
+
+	limiter.TakeAll(20, campus)
+	clock.Advance(time.Second)
+	limiter.sweep()
+	require.Contains(t, limiter.buckets, "campus", "90 tokens under a burst of 100 is not full")
+
+	clock.Advance(time.Second)
+	limiter.sweep()
+	require.NotContains(t, limiter.buckets, "campus")
 }

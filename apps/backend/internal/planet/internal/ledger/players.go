@@ -9,9 +9,11 @@ import (
 
 const defaultLimit = 20
 
+// Player is one account on one scope, or a scope alone for takes made with no account.
 type Player struct {
-	Scope string
-	// Tiles is what the scope still holds; Takes counts every take, so a painted-over bot still shows.
+	Scope   string
+	Account string
+	// Tiles is what the player still holds; Takes counts every take, so a painted-over bot still shows.
 	Tiles   int
 	Takes   int
 	FirstAt time.Time
@@ -23,12 +25,12 @@ type Player struct {
 }
 
 func NewTally(counts func(Taking) bool) *Tally {
-	return &Tally{counts: counts, scopes: make(map[string]int), tiles: make(map[uint32]hold)}
+	return &Tally{counts: counts, callers: make(map[Caller]int), tiles: make(map[uint32]hold)}
 }
 
 type Tally struct {
 	counts  func(Taking) bool
-	scopes  map[string]int
+	callers map[Caller]int
 	players []Player
 	tiles   map[uint32]hold
 }
@@ -44,11 +46,15 @@ func (t *Tally) See(taking Taking) {
 		return
 	}
 
-	index, ok := t.scopes[taking.Scope]
+	key := Caller{Scope: taking.Scope, Account: taking.Account}
+
+	index, ok := t.callers[key]
 	if !ok {
 		index = len(t.players)
-		t.scopes[taking.Scope] = index
-		t.players = append(t.players, Player{Scope: taking.Scope, FirstAt: taking.At, LastAt: taking.At})
+		t.callers[key] = index
+		t.players = append(t.players, Player{
+			Scope: taking.Scope, Account: taking.Account, FirstAt: taking.At, LastAt: taking.At,
+		})
 	}
 
 	player := &t.players[index]
@@ -63,7 +69,7 @@ func (t *Tally) See(taking Taking) {
 	t.tiles[taking.Tile] = hold{player: index, country: taking.Country}
 }
 
-// Players is every scope with a take that counts, latest take first, then scope order.
+// Players is every player with a take that counts, latest take first, then scope and account order.
 func (t *Tally) Players(owners Owners) []Player {
 	for tile, hold := range t.tiles {
 		if owner, _ := owners.Owner(tile); owner == hold.country {
@@ -76,7 +82,10 @@ func (t *Tally) Players(owners Owners) []Player {
 		if !players[i].LastAt.Equal(players[j].LastAt) {
 			return players[i].LastAt.After(players[j].LastAt)
 		}
-		return players[i].Scope < players[j].Scope
+		if players[i].Scope != players[j].Scope {
+			return players[i].Scope < players[j].Scope
+		}
+		return players[i].Account < players[j].Account
 	})
 
 	return players

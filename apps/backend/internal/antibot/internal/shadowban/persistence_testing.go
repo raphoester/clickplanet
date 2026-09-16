@@ -20,7 +20,7 @@ type MemoryPersistence struct {
 func NewMemoryPersistence(records ...Record) *MemoryPersistence {
 	rows := make(map[string]Record, len(records))
 	for _, record := range records {
-		rows[record.Scope] = record
+		rows[record.Key] = record
 	}
 
 	return &MemoryPersistence{rows: rows}
@@ -48,7 +48,7 @@ func (m *MemoryPersistence) Save(_ context.Context, records []Record) error {
 	}
 	m.saves = append(m.saves, slices.Clone(records))
 	for _, record := range records {
-		m.rows[record.Scope] = record
+		m.rows[record.Key] = record
 	}
 	return nil
 }

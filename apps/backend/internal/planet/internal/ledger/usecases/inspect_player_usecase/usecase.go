@@ -7,37 +7,55 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipscope"
 )
 
 var ErrAntiBotOff = errors.New("antiBot is off, so there is nothing to inspect")
 
 type Examiner interface {
-	Examine(scope string) antibot.Examination
+	Examine(scope, account string) antibot.Examination
 	Enabled() bool
 }
 
-type In struct {
-	Scope string
+// Ledger says which scope an account played from last: the watchdogs judge scopes.
+type Ledger interface {
+	Replay(see func(ledger.Taking)) ledger.Position
 }
 
-func New(examiner Examiner) *UseCase {
-	return &UseCase{examiner: examiner}
+type In struct {
+	// Scope is any address, read as its scope, or Account an account id: one of the two.
+	Scope   string
+	Account string
+}
+
+func New(examiner Examiner, ledger Ledger) *UseCase {
+	return &UseCase{examiner: examiner, ledger: ledger}
 }
 
 type UseCase struct {
 	examiner Examiner
+	ledger   Ledger
 }
 
+// Execute reads an account on the scope of its latest take, with the bans on both. An account with no
+// take inside the retention is read on its bans alone.
 func (u *UseCase) Execute(_ context.Context, in In) (antibot.Examination, error) {
 	if !u.examiner.Enabled() {
 		return antibot.Examination{}, ErrAntiBotOff
 	}
 
-	scope, ok := cpipscope.Parse(in.Scope)
-	if !ok {
-		return antibot.Examination{}, fmt.Errorf("%w: %q", ledger.ErrInvalidScope, in.Scope)
+	caller, err := ledger.ParseCaller(in.Scope, in.Account)
+	if err != nil {
+		return antibot.Examination{}, fmt.Errorf("cannot inspect: %w", err)
 	}
 
-	return u.examiner.Examine(scope), nil
+	scope := caller.Scope
+	if caller.Account != "" {
+		u.ledger.Replay(func(taking ledger.Taking) {
+			if caller.Made(taking) {
+				scope = taking.Scope
+			}
+		})
+	}
+
+	return u.examiner.Examine(scope, caller.Account), nil
 }

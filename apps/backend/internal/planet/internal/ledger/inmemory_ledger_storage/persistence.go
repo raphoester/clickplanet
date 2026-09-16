@@ -26,10 +26,10 @@ type Stored struct {
 	Taking   ledger.Taking
 }
 
-// Marks bound a replay: every take before Head is gone, and a scope's takes before its mark are forgotten.
+// Marks bound a replay: every take before Head is gone, and a caller's takes before its mark are forgotten.
 type Marks struct {
 	Head      ledger.Position
-	Forgotten map[string]ledger.Position
+	Forgotten map[ledger.Caller]ledger.Position
 }
 
 // Changes is one flush. Takes start at From or later, and a stored take at or past From is written again.
@@ -89,14 +89,14 @@ func (s *Storage) restoreLocked(position ledger.Position, taking ledger.Taking) 
 	return nil
 }
 
-func (s *Storage) applyMarksLocked(head ledger.Position, forgotten map[string]ledger.Position) {
+func (s *Storage) applyMarksLocked(head ledger.Position, forgotten map[ledger.Caller]ledger.Position) {
 	if s.headPositionLocked() < head {
 		s.next = max(s.next, head)
 		s.dropLocked(int(head - s.headPositionLocked())) //nolint:gosec // bounded by what was loaded.
 	}
 
 	if forgotten == nil {
-		forgotten = make(map[string]ledger.Position)
+		forgotten = make(map[ledger.Caller]ledger.Position)
 	}
 	s.forgotten = forgotten
 	s.forgetMarksLocked()
@@ -137,18 +137,18 @@ func (s *Storage) Flush(ctx context.Context) error {
 	head := s.headPositionLocked()
 	end := s.next
 	from := max(s.saved, head)
-	if from == end && head == s.savedHead && len(s.dirtyScopes) == 0 {
+	if from == end && head == s.savedHead && len(s.dirtyMarks) == 0 {
 		s.mu.Unlock()
 		return nil
 	}
 
 	views := s.viewsLocked(from)
-	dirty := s.dirtyScopes
-	s.dirtyScopes = make(map[string]struct{})
-	forgotten := make(map[string]ledger.Position, len(dirty))
-	for scope := range dirty {
-		if before, ok := s.forgotten[scope]; ok {
-			forgotten[scope] = before
+	dirty := s.dirtyMarks
+	s.dirtyMarks = make(map[ledger.Caller]struct{})
+	forgotten := make(map[ledger.Caller]ledger.Position, len(dirty))
+	for caller := range dirty {
+		if before, ok := s.forgotten[caller]; ok {
+			forgotten[caller] = before
 		}
 	}
 	s.mu.Unlock()
@@ -161,7 +161,7 @@ func (s *Storage) Flush(ctx context.Context) error {
 
 	s.mu.Lock()
 	if err != nil {
-		maps.Copy(s.dirtyScopes, dirty)
+		maps.Copy(s.dirtyMarks, dirty)
 		s.mu.Unlock()
 		return fmt.Errorf("failed to save %d takes: %w", end-from, err)
 	}

@@ -15,6 +15,7 @@ func Encode(players []ledger.Player) []*planetv1.Player {
 	for _, player := range players {
 		encoded = append(encoded, &planetv1.Player{
 			Scope:          player.Scope,
+			AccountId:      player.Account,
 			Tiles:          uint32(player.Tiles), //nolint:gosec // a tile count, bounded by the map.
 			FirstAt:        timestamppb.New(player.FirstAt),
 			LastAt:         timestamppb.New(player.LastAt),

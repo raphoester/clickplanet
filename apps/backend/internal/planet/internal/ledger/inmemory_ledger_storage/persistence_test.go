@@ -35,7 +35,7 @@ func TestALedgerSurvivesARestartWithItsPositionsAndMarks(t *testing.T) {
 	before.Append(take(1, "bot", "ps", "il", start))
 	before.Append(take(2, "player", "fr", "", start.Add(time.Second)))
 	require.NoError(t, before.Flush(ctx))
-	before.Forget("bot", before.Replay(func(ledger.Taking) {}))
+	before.Forget(ledger.Caller{Scope: "bot"}, before.Replay(func(ledger.Taking) {}))
 	before.Append(take(3, "bot", "ps", "", start.Add(time.Minute)))
 	require.NoError(t, before.Flush(ctx))
 
@@ -80,7 +80,7 @@ func TestAFailedFlushKeepsTheChangesForTheNextOne(t *testing.T) {
 	storage := loaded(t, inmemory_ledger_storage.Config{}, persistence)
 
 	storage.Append(take(1, "bot", "ps", "", start))
-	storage.Forget("bot", storage.Replay(func(ledger.Taking) {}))
+	storage.Forget(ledger.Caller{Scope: "bot"}, storage.Replay(func(ledger.Taking) {}))
 	persistence.FailWith(errors.New("connection reset"))
 	require.Error(t, storage.Flush(ctx))
 
@@ -89,7 +89,7 @@ func TestAFailedFlushKeepsTheChangesForTheNextOne(t *testing.T) {
 	require.NoError(t, storage.Flush(ctx))
 
 	assert.Len(t, persistence.Stored(), 2)
-	assert.Equal(t, map[string]ledger.Position{"bot": 1}, persistence.Marks().Forgotten)
+	assert.Equal(t, map[ledger.Caller]ledger.Position{{Scope: "bot"}: 1}, persistence.Marks().Forgotten)
 }
 
 func TestFlushDeletesWhatTheRetentionDropped(t *testing.T) {

@@ -1,4 +1,4 @@
-// Package ban_player_usecase is the operator's shadow ban: the same sentence the antibot passes, on a scope a person picked.
+// Package ban_player_usecase is the operator's shadow ban: the same sentence the antibot passes, on a scope or an account a person picked.
 package ban_player_usecase
 
 import (
@@ -9,7 +9,6 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipscope"
 )
 
 var (
@@ -18,7 +17,7 @@ var (
 )
 
 type Banner interface {
-	Ban(scope string, duration time.Duration) antibot.Sentence
+	Ban(scope, account string, duration time.Duration) antibot.Sentence
 	Enforcing() bool
 	Enabled() bool
 }
@@ -26,12 +25,15 @@ type Banner interface {
 type In struct {
 	// Scope is a scope as FindPlayers lists it, or any address, which is banned as its scope.
 	Scope string
+	// Account is an account id, banned alone. Name a scope or an account, not both.
+	Account string
 	// Zero takes the ladder's step for the offence.
 	Duration time.Duration
 }
 
 type Out struct {
 	Scope    string
+	Account  string
 	Offence  int
 	Until    time.Time
 	Enforced bool
@@ -50,15 +52,21 @@ func (u *UseCase) Execute(_ context.Context, in In) (Out, error) {
 		return Out{}, ErrAntiBotOff
 	}
 
-	scope, ok := cpipscope.Parse(in.Scope)
-	if !ok {
-		return Out{}, fmt.Errorf("%w: %q", ledger.ErrInvalidScope, in.Scope)
+	caller, err := ledger.ParseCaller(in.Scope, in.Account)
+	if err != nil {
+		return Out{}, fmt.Errorf("cannot ban: %w", err)
 	}
 	if in.Duration < 0 {
 		return Out{}, fmt.Errorf("%w: %s", ErrNegativeDuration, in.Duration)
 	}
 
-	sentence := u.banner.Ban(scope, in.Duration)
+	sentence := u.banner.Ban(caller.Scope, caller.Account, in.Duration)
 
-	return Out{Scope: scope, Offence: sentence.Offence, Until: sentence.Until, Enforced: u.banner.Enforcing()}, nil
+	return Out{
+		Scope:    caller.Scope,
+		Account:  caller.Account,
+		Offence:  sentence.Offence,
+		Until:    sentence.Until,
+		Enforced: u.banner.Enforcing(),
+	}, nil
 }

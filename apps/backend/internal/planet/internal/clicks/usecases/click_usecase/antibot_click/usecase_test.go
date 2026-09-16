@@ -108,6 +108,16 @@ func TestAntiBotClick(t *testing.T) {
 		assert.Equal(t, "2001:db8::/64", guard.seen[0].Scope)
 	})
 
+	t.Run("tells the guard the account the token names, so a ban falls on it", func(t *testing.T) {
+		guard := &fakeGuard{}
+		ctx := cpctx.AddAccountToContext(cpctx.AddIPToContext(t.Context(), "1.2.3.4"), "a-guest")
+
+		require.NoError(t, execute(t, ctx, guard, fakeOwner{}, &fakeClick{}))
+		require.Len(t, guard.seen, 1)
+		assert.Equal(t, "a-guest", guard.seen[0].Account)
+		assert.False(t, guard.seen[0].SignedIn, "every account is a guest's until sign-in lands")
+	})
+
 	t.Run("reads who held the tile before the write could change it", func(t *testing.T) {
 		guard := &fakeGuard{}
 

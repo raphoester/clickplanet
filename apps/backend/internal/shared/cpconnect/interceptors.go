@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/google/uuid"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
@@ -153,7 +154,41 @@ func NewSessionInterceptor(
 
 			record(SessionValid)
 
-			return next(cpctx.AddSessionIDToContext(ctx, string(claims.ID)), req)
+			return next(withClaims(ctx, claims), req)
 		}
 	})
+}
+
+// NewSessionReaderInterceptor reads a token on the given procedures when one is sent, and refuses nothing.
+// It is for a read that answers better for an account, such as the click budget.
+func NewSessionReaderInterceptor(verifier SessionVerifier, clock cptime.Clock, procedures ...string) connect.Interceptor {
+	if clock == nil {
+		clock = cptime.SystemClock{}
+	}
+
+	return connect.UnaryInterceptorFunc(func(next connect.UnaryFunc) connect.UnaryFunc {
+		return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
+			token := req.Header().Get(SessionHeader)
+			if token == "" || !slices.Contains(procedures, req.Spec().Procedure) {
+				return next(ctx, req)
+			}
+
+			claims, err := verifier.Verify(token, cpctx.GetSourceIP(ctx), clock.Now())
+			if err != nil {
+				return next(ctx, req)
+			}
+
+			return next(withClaims(ctx, claims), req)
+		}
+	})
+}
+
+// withClaims puts the session id on the context, and the account when the token names one.
+func withClaims(ctx context.Context, claims *cpsession.Claims) context.Context {
+	ctx = cpctx.AddSessionIDToContext(ctx, string(claims.ID))
+	if claims.Account == uuid.Nil {
+		return ctx
+	}
+
+	return cpctx.AddAccountToContext(ctx, claims.Account.String())
 }

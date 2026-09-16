@@ -1,16 +1,26 @@
 package planetv1controller
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/google/uuid"
+	"github.com/prometheus/client_golang/prometheus"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/throttle_click"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_budget_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/click_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_budget_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconnect"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cphttpserver"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 	"github.com/stretchr/testify/require"
 )
@@ -29,7 +39,7 @@ func pricedServer(t *testing.T, config cpratelimit.Config, pricer stubPricer) (*
 	clock := cptime.NewFixedClock(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC))
 	limiter := cpratelimit.New("test", config, clock)
 
-	server := clickServerWith(t, throttle_click.New(stubService{}, limiter, pricer), limiter,
+	server := clickServerWith(t, throttle_click.New(stubService{}, limiter, pricer, buckets), limiter,
 		connect.WithInterceptors(errorNet()))
 
 	return server, clock
@@ -154,4 +164,139 @@ func TestTheBudgetIsAbsentWithoutAThrottle(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Nil(t, res.Msg.GetBudget(), "a server that does not throttle promises no allowance")
+}
+
+// accountVerifier accepts a token that is an account id, and names that account.
+type accountVerifier struct{}
+
+func (accountVerifier) Verify(token string, _ string, _ time.Time) (*cpsession.Claims, error) {
+	account, err := uuid.Parse(token)
+	if err != nil {
+		return nil, fmt.Errorf("not an account: %w", err)
+	}
+	return &cpsession.Claims{ID: "a-mint", Account: account}, nil
+}
+
+func accountServer(t *testing.T, config clicks.ThrottleConfig) (*httptest.Server, *cpratelimit.Limiter, *cptime.FixedClock) {
+	t.Helper()
+
+	clock := cptime.NewFixedClock(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC))
+	limiter := cpratelimit.New("test", config.Config, clock)
+
+	mux := http.NewServeMux()
+	mux.Handle(planetv1connect.NewClickServiceHandler(
+		ClickService{
+			ClickHandler:     click_handler.New(throttle_click.New(stubService{}, limiter, onePrice, config.Buckets())),
+			GetBudgetHandler: get_budget_handler.New(get_budget_usecase.New(limiter, onePrice, config.Buckets())),
+		},
+		connect.WithInterceptors(
+			errorNet(),
+			NewSessionInterceptor(accountVerifier{}, clock, true, prometheus.NewRegistry()),
+			NewBudgetSessionInterceptor(accountVerifier{}, clock),
+		),
+	))
+
+	server := httptest.NewServer(cphttpserver.IPReaderMiddleware(mux))
+	t.Cleanup(server.Close)
+
+	return server, limiter, clock
+}
+
+func clickAsAccount(t *testing.T, server *httptest.Server, ip string, account uuid.UUID) error {
+	t.Helper()
+
+	req := connect.NewRequest(&planetv1.ClickRequest{TileId: 1, CountryId: "fr"})
+	req.Header().Set("X-Real-IP", ip)
+	req.Header().Set(cpconnect.SessionHeader, account.String())
+
+	_, err := planetv1connect.NewClickServiceClient(server.Client(), server.URL).Click(t.Context(), req)
+	return err
+}
+
+func accountNumber(i int) uuid.UUID {
+	return uuid.NewSHA1(uuid.NameSpaceOID, []byte{byte(i)})
+}
+
+func TestManyAccountsOnOneScopeShareTheScopesBucket(t *testing.T) {
+	server, _, _ := accountServer(t, clicks.ThrottleConfig{
+		Config: cpratelimit.Config{PerSecond: 1, Burst: 10}, ScopeMultiplier: 3,
+	})
+
+	for i := range 3 {
+		for click := range 10 {
+			require.NoErrorf(t, clickAsAccount(t, server, "1.2.3.4", accountNumber(i)), "account %d click %d", i, click)
+		}
+	}
+
+	err := clickAsAccount(t, server, "1.2.3.4", accountNumber(3))
+	require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(err), "a fresh account behind a spent scope is refused")
+	require.InDelta(t, 0.0, budgetDetail(t, err).GetTokens(), 1e-9, "and is told the scope's reading, not its own full bucket")
+	require.Equal(t, uint32(30), budgetDetail(t, err).GetCapacity())
+
+	require.NoError(t, clickAsAccount(t, server, "5.6.7.8", accountNumber(3)), "the same account elsewhere may click")
+}
+
+func TestOneAccountOnManyScopesSpendsOneAllowance(t *testing.T) {
+	server, _, _ := accountServer(t, clicks.ThrottleConfig{Config: cpratelimit.Config{PerSecond: 1, Burst: 10}})
+
+	for click := range 10 {
+		require.NoErrorf(t, clickAsAccount(t, server, fmt.Sprintf("10.0.0.%d", click), accountNumber(0)), "click %d", click)
+	}
+
+	err := clickAsAccount(t, server, "10.0.0.99", accountNumber(0))
+	require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(err), "a new address is not a new allowance")
+}
+
+func TestABoostDoesNotWidenTheScopesBucket(t *testing.T) {
+	server, limiter, clock := accountServer(t, clicks.ThrottleConfig{
+		Config: cpratelimit.Config{PerSecond: 1, Burst: 10}, ScopeMultiplier: 2,
+	})
+
+	boosted := accountNumber(0)
+	limiter.Boost("account:"+boosted.String(), 3, clock.Now().Add(time.Minute))
+	for click := range 10 {
+		require.NoErrorf(t, clickAsAccount(t, server, "1.2.3.4", boosted), "click %d", click)
+	}
+	clock.Advance(10 * time.Second)
+
+	for click := range 20 {
+		require.NoErrorf(t, clickAsAccount(t, server, "1.2.3.4", boosted), "click %d", click)
+	}
+
+	err := clickAsAccount(t, server, "1.2.3.4", boosted)
+	require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(err),
+		"thirty in the boosted account's hand, but its scope holds twenty")
+}
+
+func TestTheBudgetIsTheTighterBucket(t *testing.T) {
+	server, _, _ := accountServer(t, clicks.ThrottleConfig{
+		Config: cpratelimit.Config{PerSecond: 1, Burst: 10}, ScopeMultiplier: 2,
+	})
+
+	for click := range 15 {
+		require.NoErrorf(t, clickAsAccount(t, server, "1.2.3.4", accountNumber(click%2)), "click %d", click)
+	}
+
+	read := func(token string) *planetv1.ClickBudget {
+		t.Helper()
+
+		req := connect.NewRequest(&planetv1.GetBudgetRequest{})
+		req.Header().Set("X-Real-IP", "1.2.3.4")
+		if token != "" {
+			req.Header().Set(cpconnect.SessionHeader, token)
+		}
+
+		res, err := planetv1connect.NewClickServiceClient(server.Client(), server.URL).GetBudget(t.Context(), req)
+		require.NoError(t, err)
+
+		return res.Msg.GetBudget()
+	}
+
+	budget := read(accountNumber(2).String())
+	require.InDelta(t, 5.0, budget.GetTokens(), 1e-9, "a fresh account holds ten, its scope five")
+	require.Equal(t, uint32(20), budget.GetCapacity())
+	require.InDelta(t, 2.0, budget.GetRefillPerSecond(), 1e-9)
+
+	require.InDelta(t, 10.0, read("").GetTokens(), 1e-9, "no token reads the scope's bucket from before accounts")
+	require.InDelta(t, 10.0, read("forged").GetTokens(), 1e-9, "a bad token is not refused on a read")
 }

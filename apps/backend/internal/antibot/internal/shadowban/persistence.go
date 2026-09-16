@@ -6,9 +6,9 @@ import (
 	"time"
 )
 
-// Record is one scope's ban as it is kept between boots. When a scope may be flagged again is not kept.
+// Record is one scope's or one account's ban as it is kept between boots. When it may be flagged again is not kept.
 type Record struct {
-	Scope    string
+	Key      string
 	Flags    int
 	Offences int
 	Until    time.Time
@@ -26,7 +26,7 @@ const flushTimeout = 10 * time.Second
 func (b *Banner) Load(ctx context.Context) error {
 	bans := make(map[string]*ban)
 	if err := b.persistence.Load(ctx, func(record Record) {
-		bans[record.Scope] = record.ban()
+		bans[record.Key] = record.ban()
 	}); err != nil {
 		return fmt.Errorf("failed to read stored bans: %w", err)
 	}
@@ -77,7 +77,7 @@ func (b *Banner) Flush(ctx context.Context) error {
 	if err := b.persistence.Save(ctx, records); err != nil {
 		b.mu.Lock()
 		for _, record := range records {
-			b.dirty[record.Scope] = struct{}{}
+			b.dirty[record.Key] = struct{}{}
 		}
 		b.mu.Unlock()
 
@@ -95,7 +95,7 @@ func (b *Banner) takeDirty() []Record {
 	for scope := range b.dirty {
 		record := b.bans[scope]
 		records = append(records, Record{
-			Scope:    scope,
+			Key:      scope,
 			Flags:    record.flags,
 			Offences: record.offences,
 			Until:    record.until,

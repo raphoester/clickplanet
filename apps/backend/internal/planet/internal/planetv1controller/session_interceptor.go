@@ -48,3 +48,9 @@ func NewSessionInterceptor(
 		planetv1connect.ClickServiceDropBombProcedure,
 	)
 }
+
+// NewBudgetSessionInterceptor reads a token on GetBudget when the client sends one, so the budget is the
+// account's. It refuses nothing: a client that has not minted yet reads its scope's allowance.
+func NewBudgetSessionInterceptor(verifier ClickSessionVerifier, clock cptime.Clock) connect.Interceptor {
+	return cpconnect.NewSessionReaderInterceptor(verifier, clock, planetv1connect.ClickServiceGetBudgetProcedure)
+}

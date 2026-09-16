@@ -22,7 +22,7 @@ func (s *stubUseCase) Execute(_ context.Context, in drop_bomb_usecase.In) (click
 
 type bans map[string]bool
 
-func (b bans) Banned(scope string) bool { return b[scope] }
+func (b bans) Banned(scope, account string) bool { return b[scope] || b[account] }
 
 func TestABannedCallersBombIsADud(t *testing.T) {
 	inner := &stubUseCase{}
@@ -42,4 +42,15 @@ func TestAnyoneElsesBombIsReal(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.False(t, inner.in.Dud)
+}
+
+func TestABannedAccountsBombIsADudFromAnyScope(t *testing.T) {
+	inner := &stubUseCase{}
+	decorator := antibot_drop_bomb.New(inner, bans{"a-guest": true})
+
+	ctx := cpctx.AddAccountToContext(cpctx.AddIPToContext(t.Context(), "203.0.113.7"), "a-guest")
+	_, err := decorator.Execute(ctx, drop_bomb_usecase.In{CountryID: "fr"})
+	require.NoError(t, err)
+
+	assert.True(t, inner.in.Dud)
 }
