@@ -48,6 +48,9 @@ linters:
     - gocritic
     - noctx
 
+    # Struct size. A module plugin: only ./custom-gcl can run it (see .custom-gcl.yml).
+    - overstuffed
+
   settings:
     unused:
       exported-fields-are-used: false
@@ -150,6 +153,14 @@ linters:
     gosec:
       excludes:
         - G115 # integer overflow conversion — tile ids are uint32 by contract and bounded by maxIndex
+
+    custom:
+      overstuffed:
+        type: module
+        description: Reports structs with too many fields.
+        original-url: github.com/raphoester/overstuffed
+        settings:
+          max-fields: 7
 
   exclusions:
     generated: lax

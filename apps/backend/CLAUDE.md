@@ -1562,6 +1562,14 @@ The version is pinned in the `Makefile` and matched by the CI job, because an
 unpinned linter turns a green branch red on somebody else's release schedule.
 `make setup-tools` installs that version.
 
+**The linters run through `./custom-gcl`, not the stock binary.** `overstuffed`
+(no struct with more than `max-fields` fields) is a
+[module plugin](https://golangci-lint.run/docs/plugins/module-plugins/), which a
+stock golangci-lint cannot load. [`.custom-gcl.yml`](.custom-gcl.yml) lists the
+plugins and repeats the pinned version: `make lint` rebuilds `./custom-gcl` whenever
+that file changes, and the CI job's golangci-lint-action finds the file and does
+the same. The formatters still run through the stock binary.
+
 **Formatting is gofumpt**, enabled in the `formatters` block of the same file
 and run by `make tidy`. It goes through golangci-lint rather than a `gofumpt`
 binary of its own: one pinned version to install instead of two that can
