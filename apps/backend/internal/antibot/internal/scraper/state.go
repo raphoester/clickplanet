@@ -18,6 +18,7 @@ type savedSlice struct {
 	At      int64
 	Maps    float64
 	Streams int
+	OffMap  int
 }
 
 func (w *Watchdog) Save() ([]byte, error) {
@@ -27,7 +28,7 @@ func (w *Watchdog) Save() ([]byte, error) {
 	for scope, c := range w.callers {
 		slices := make([]savedSlice, 0, len(c.slices))
 		for _, s := range c.slices {
-			slices = append(slices, savedSlice{At: evidence.Nanos(s.at), Maps: s.maps, Streams: s.streams})
+			slices = append(slices, savedSlice{At: evidence.Nanos(s.at), Maps: s.maps, Streams: s.streams, OffMap: s.offMap})
 		}
 		saved = append(saved, savedCaller{Scope: scope, Slices: slices, Clicked: evidence.Nanos(c.clicked)})
 	}
@@ -47,7 +48,7 @@ func (w *Watchdog) Load(data []byte) error {
 	for _, c := range saved {
 		loaded := &caller{clicked: evidence.Time(c.Clicked)}
 		for _, s := range c.Slices {
-			loaded.slices = append(loaded.slices, slice{at: evidence.Time(s.At), maps: s.Maps, streams: s.Streams})
+			loaded.slices = append(loaded.slices, slice{at: evidence.Time(s.At), maps: s.Maps, streams: s.Streams, offMap: s.OffMap})
 		}
 		if len(loaded.slices) > 0 {
 			callers[c.Scope] = loaded

@@ -35,7 +35,15 @@ func (h *harness) pageLoad(scope string) {
 	h.watchdog.Listened(scope)
 	for range 26 {
 		h.clock.Advance(80 * time.Millisecond)
-		h.watchdog.Fetched(scope, 1.0/26)
+		h.watchdog.Fetched(scope, 1.0/26, false)
+	}
+}
+
+// walk is the same volume read off the map's own lattice: one chunk of it starts at tile 0.
+func (h *harness) walk(scope string) {
+	for i := range 26 {
+		h.clock.Advance(80 * time.Millisecond)
+		h.watchdog.Fetched(scope, 1.0/26, i == 0)
 	}
 }
 
@@ -57,7 +65,7 @@ func (h *harness) poll(scope string, d time.Duration) (detect.Verdict, map[detec
 		if _, seen := first[verdict]; !seen {
 			first[verdict] = h.clock.Now().Sub(start)
 		}
-		h.watchdog.Fetched(scope, chunk)
+		h.watchdog.Fetched(scope, chunk, false)
 	}
 
 	return verdict, first
@@ -76,6 +84,7 @@ func TestTheMapScraperIsCaught(t *testing.T) {
 	_, evidence := h.click("bot")
 	assert.Equal(t, "poll", evidence.Rule)
 	assert.Contains(t, evidence.Fields, detect.Field{Key: "streams", Value: 1})
+	assert.Contains(t, evidence.Fields, detect.Field{Key: "offMap", Value: 0}, "this one stayed on the lattice")
 }
 
 func TestAPageLoadIsClear(t *testing.T) {
@@ -146,4 +155,28 @@ func TestAnotherCallersReadsAreNotTheirs(t *testing.T) {
 
 	verdict, _ = h.click("someone else")
 	assert.Equal(t, detect.Clear, verdict)
+}
+
+func TestAStreamBeforeEveryReadBuysNothingOffTheLattice(t *testing.T) {
+	h := newHarness()
+
+	for range 7 {
+		h.watchdog.Listened("bot")
+		h.walk("bot")
+		h.clock.Advance(30 * time.Second)
+	}
+
+	verdict, evidence := h.click("bot")
+	assert.Equal(t, detect.Suspect, verdict, "a stream per read is no page load when the read is off the map")
+	assert.Contains(t, evidence.Fields, detect.Field{Key: "offMap", Value: 7})
+}
+
+func TestOneReadOffTheMapIsNotEnoughOnItsOwn(t *testing.T) {
+	h := newHarness()
+
+	h.watchdog.Fetched("curious", chunk, true)
+	h.pageLoad("curious")
+
+	verdict, _ := h.click("curious")
+	assert.Equal(t, detect.Clear, verdict, "losing the credit still leaves a page load under the bound")
 }

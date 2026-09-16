@@ -87,20 +87,28 @@ type slice struct {
 	at      time.Time
 	maps    float64
 	streams int
+	offMap  int
 }
 
 func (w *Watchdog) Name() string { return Name }
 
 // Fetched records a read of maps whole maps: a GetMap of a tenth of the map is 0.1.
-func (w *Watchdog) Fetched(scope string, maps float64) {
-	if scope == "" || maps <= 0 {
+// offMap says the read asked for tiles the map does not have — see beyond.
+func (w *Watchdog) Fetched(scope string, maps float64, offMap bool) {
+	if scope == "" || (maps <= 0 && !offMap) {
 		return
 	}
 
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
-	w.sliceLocked(scope).maps += maps
+	s := w.sliceLocked(scope)
+	if maps > 0 {
+		s.maps += maps
+	}
+	if offMap {
+		s.offMap++
+	}
 }
 
 // Listened records a live stream opened, which explains one map read.
@@ -135,8 +143,8 @@ func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
 		return detect.Clear, detect.Evidence{}
 	}
 
-	maps, streams := c.count(click.At.Add(-w.config.TrackWindow))
-	unexplained := beyond(maps, streams)
+	maps, streams, offMap := c.count(click.At.Add(-w.config.TrackWindow))
+	unexplained := beyond(maps, streams, offMap)
 
 	verdict := detect.Clear
 	switch {
@@ -155,6 +163,7 @@ func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
 		Fields: []detect.Field{
 			{Key: "maps", Value: math.Round(maps*10) / 10},
 			{Key: "streams", Value: streams},
+			{Key: "offMap", Value: offMap},
 		},
 	}
 }
@@ -189,19 +198,26 @@ func (c *caller) prune(cutoff time.Time) {
 	c.slices = kept
 }
 
-func (c *caller) count(cutoff time.Time) (maps float64, streams int) {
+func (c *caller) count(cutoff time.Time) (maps float64, streams, offMap int) {
+	var read float64
 	for _, s := range c.slices {
 		if s.at.Before(cutoff) {
 			continue
 		}
-		maps += s.maps
+		read += s.maps
 		streams += s.streams
+		offMap += s.offMap
 	}
-	return maps, streams
+	return read, streams, offMap
 }
 
 // beyond is never negative: a stream reopened after a dropped connection reads nothing.
-func beyond(maps float64, streams int) float64 {
+// A caller that asked for tiles off the map gets no credit at all, however many streams
+// it opened — which is what a script buys by opening one before each read.
+func beyond(maps float64, streams, offMap int) float64 {
+	if offMap > 0 {
+		return maps
+	}
 	return math.Max(0, maps-float64(streams))
 }
 

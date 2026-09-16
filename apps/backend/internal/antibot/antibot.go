@@ -405,9 +405,9 @@ func (g *Guard) Missed(scope string) {
 }
 
 // Fetched and Listened tell the guard what a caller read: a share of the map, or the live stream opened.
-func (g *Guard) Fetched(scope string, maps float64) {
+func (g *Guard) Fetched(scope string, maps float64, offMap bool) {
 	if g.scraper != nil {
-		g.scraper.Fetched(scope, maps)
+		g.scraper.Fetched(scope, maps, offMap)
 	}
 }
 

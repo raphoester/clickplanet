@@ -243,6 +243,12 @@ antiBot:
   # 2026-09-15 and 16 a script in a real page read a map chunk after each click
   # and painted dz and bg for twenty hours: 23 to 31 maps in 15 minutes, against
   # at most 6 page loads for any human scope. Watch click_map_reads after deploying.
+  #
+  # Within 1.5h of this shipping, one scope answered it by opening a stream before
+  # every read, which buys back a map each time: 7 maps against 6 streams, under the
+  # bound, while it took 4,829 tiles. A read outside the map now forfeits that credit
+  # — its walk started at tile 0 and ran past the end, and no page load does either.
+  # Watch the offMap field of the ban lines.
   scraper:
     enabled: true
     detector:

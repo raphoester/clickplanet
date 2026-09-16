@@ -1102,6 +1102,12 @@ read `clear`, and the catcher's lone `suspect` banned nothing.
   load is one of each, so sixty players behind one carrier NAT read `clear` —
   the raw read count would not. A stream reopened after a drop reads nothing,
   and the count never goes below zero.
+- **A read outside the map forfeits that credit entirely.** Tile ids start at 1
+  and the web app clamps its last batch, so neither bound of a real client's read
+  can land outside the map — whatever batch size it picks, which is why this needs
+  no agreement with the frontend's `TILES_PER_BATCH` and cannot drift from it.
+  `antibot_get_map.offMap` decides it, because the planet module owns the map and
+  its bounds; the watchdog only counts. It is reported in the ban line as `offMap`.
 - `minMaps` (5) reads `Suspect` and `certainMaps` (15) reads `Certain`. Measured
   over 27 hours of the access log: the bots read 23 to 31 maps in their busiest
   15 minutes, and no human scope read more than 6 — six page loads, in the web
@@ -1111,10 +1117,20 @@ read `clear`, and the catcher's lone `suspect` banned nothing.
   however fast it reads: `GetMap` is not throttled.
 - **It only observes.** Reads and the streams are refused by nothing here; a
   banned caller still loads the planet and watches it.
-- The counter-move is to open a stream before each map read, which looks like a
-  page load every time — or to follow the stream the way the web app does.
-  `TestReloadingOverAndOverIsClear` pins the first. `click_map_reads` is each
-  clicking caller's count once a sweep, through `Observer.OnMapReads`.
+- **The counter-move landed on 2026-09-16, ~1.5h after this shipped**: one scope
+  began opening a `ListenForEvents` in the seconds before each 26-chunk read, so
+  the credit netted to nothing — 7 maps against 6 streams in its worst 15 minutes,
+  against a bound of 5. It jittered its clicks past the metronome too and sat one
+  suspect short of a ban while it took 4,829 tiles. What it did not change was the
+  walk: every one of its reads started at tile 0 and ran six tiles past the end,
+  which no page load does. Measured over the same log, all 22 human scopes read
+  from 1 and stopped at the last tile, and all 6 bots did neither.
+  `TestAStreamBeforeEveryReadBuysNothingOffTheLattice` pins it, and
+  `TestReloadingOverAndOverIsClear` pins that a real reload still costs nothing.
+- The counter-move left is to walk the map exactly as the web app does — from 1,
+  in its steps, clamped — which is also to stop reading it faster than a reload.
+  `click_map_reads` is each clicking caller's count once a sweep, through
+  `Observer.OnMapReads`.
 
 #### The parts that are easy to get wrong
 

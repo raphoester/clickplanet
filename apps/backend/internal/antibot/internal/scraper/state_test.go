@@ -17,9 +17,9 @@ func TestReadsSurviveASaveAndLoad(t *testing.T) {
 
 	w := New(config, clock, func(float64) {})
 	w.Listened("bot")
-	for range 500 {
+	for i := range 500 {
 		clock.Advance(time.Second)
-		w.Fetched("bot", 0.04)
+		w.Fetched("bot", 0.04, i%26 == 0)
 	}
 	w.Attempted(detect.Click{Scope: "bot", Tile: 1, Country: "dz", At: clock.Now()})
 
@@ -43,9 +43,9 @@ func TestForgetDropsSlicesBeforeTheCutoff(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 15, 21, 0, 0, 0, time.UTC))
 
 	w := New(Config{TrackWindow: 24 * time.Hour}, clock, func(float64) {})
-	w.Fetched("player", 1)
+	w.Fetched("player", 1, false)
 	clock.Advance(time.Hour)
-	w.Fetched("player", 1)
+	w.Fetched("player", 1, false)
 
 	w.Forget(clock.Now().Add(-time.Second))
 	require.Len(t, w.callers["player"].slices, 1)
