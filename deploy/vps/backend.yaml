@@ -239,6 +239,18 @@ antiBot:
       trackWindow: 30m
       sweepInterval: 1m
 
+  # Reads the whole map again and again. See cmd/api/example.yaml. On
+  # 2026-09-15 and 16 a script in a real page read a map chunk after each click
+  # and painted dz and bg for twenty hours: 23 to 31 maps in 15 minutes, against
+  # at most 6 page loads for any human scope. Watch click_map_reads after deploying.
+  scraper:
+    enabled: true
+    detector:
+      minMaps: 5
+      certainMaps: 15
+      trackWindow: 15m
+      sweepInterval: 1m
+
 # A question-mark box flies past the planet every so often, and whoever catches
 # it clicks at three times their allowance for 20 seconds.
 bonus:

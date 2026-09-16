@@ -97,6 +97,11 @@ func newStack(options ...func(*antibot.Config)) *stack {
 	config.Cohort.Detector.CertainMembers = 6
 	config.Cohort.Detector.ChainWindow = 30 * time.Minute
 
+	config.Scraper.Enabled = true
+	config.Scraper.Detector.MinMaps = 5
+	config.Scraper.Detector.CertainMaps = 15
+	config.Scraper.Detector.TrackWindow = 15 * time.Minute
+
 	for _, option := range options {
 		option(&config)
 	}
@@ -548,6 +553,58 @@ func TestTwoFriendsJoiningAFlagWarAreNotBanned(t *testing.T) {
 	assert.Empty(t, s.reports)
 }
 
+func (s *stack) pageLoad(scope string) {
+	s.guard.Listened(scope)
+	for range 26 {
+		s.clock.Advance(80 * time.Millisecond)
+		s.guard.Fetched(scope, 1.0/26)
+	}
+}
+
+func TestTheMapScraperIsCaught(t *testing.T) {
+	s := newStack()
+
+	//nolint:gosec // G404: deterministic PRNG, seeded so the click stream replays exactly.
+	random := rand.New(rand.NewPCG(15, 9))
+
+	s.pageLoad("2001:db8:e487::/64")
+	start := s.clock.Now()
+
+	var dropped bool
+	for !dropped && s.clock.Now().Sub(start) < 30*time.Minute {
+		s.clock.Advance(time.Duration(600+random.IntN(1300)) * time.Millisecond)
+		dropped = s.click("2001:db8:e487::/64", 100000+uint32(random.IntN(60000)), "dz")
+		s.guard.Fetched("2001:db8:e487::/64", 10000.0/257948)
+	}
+
+	require.True(t, dropped)
+	assert.Less(t, s.clock.Now().Sub(start), 10*time.Minute, "a map every half minute, no stream to explain it")
+
+	verdicts := s.verdicts("2001:db8:e487::/64")
+	assert.Equal(t, detect.Certain, verdicts["scraper"])
+	for _, watchdog := range []string{"retaker", "sequencer", "metronome", "catcher", "cohort"} {
+		assert.Equal(t, detect.Clear, verdicts[watchdog], "%s: it painted like a person", watchdog)
+	}
+}
+
+func TestPlayersBehindOneAddressAreNotBanned(t *testing.T) {
+	s := newStack()
+
+	//nolint:gosec // G404: deterministic PRNG, seeded so the click stream replays exactly.
+	random := rand.New(rand.NewPCG(16, 9))
+
+	for range 40 {
+		s.pageLoad("203.0.113.7")
+
+		for range 5 + random.IntN(10) {
+			s.clock.Advance(time.Duration(400+random.IntN(3000)) * time.Millisecond)
+			require.False(t, s.click("203.0.113.7", 100000+uint32(random.IntN(60000)), "fr"), "every map read came with its stream")
+		}
+	}
+
+	assert.Empty(t, s.reports)
+}
+
 func TestWithTheBlockOffTheGuardPassesEveryClick(t *testing.T) {
 	guard, err := antibot.New(antibot.Config{}, cptime.SystemClock{}, antibot.Observer{})
 	require.NoError(t, err)
@@ -609,7 +666,7 @@ func TestExaminingABannedScopeCarriesItsSentence(t *testing.T) {
 	for _, reading := range examination.Readings {
 		watchdogs = append(watchdogs, reading.Watchdog)
 	}
-	assert.Equal(t, []string{"retaker", "sequencer", "metronome", "catcher", "cohort"}, watchdogs)
+	assert.Equal(t, []string{"retaker", "sequencer", "metronome", "catcher", "cohort", "scraper"}, watchdogs)
 	assert.False(t, examination.Guilty)
 }
 
