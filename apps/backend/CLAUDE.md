@@ -1108,6 +1108,14 @@ read `clear`, and the catcher's lone `suspect` banned nothing.
   no agreement with the frontend's `TILES_PER_BATCH` and cannot drift from it.
   `antibot_get_map.offMap` decides it, because the planet module owns the map and
   its bounds; the watchdog only counts. It is reported in the ban line as `offMap`.
+- **`certainOffMap` (2) such reads are `Certain` on their own**, however little was
+  read, under the rule name `offMap` rather than `poll`. Forfeiting the credit was
+  not enough: it only ever lowers a count, so a caller that reads the map twice and
+  stops sits under `minMaps` and reads `clear`. One stray read is still forgiven —
+  `TestOneReadOffTheMapIsNotEnoughOnItsOwn` — but a walk overruns the end on every
+  pass, so two is already a walk. Measured over the access log of 2026-09-16: the
+  7 scopes with any off-map read are exactly the 7 known bots, the lowest of them
+  at 4 in its worst 15 minutes, and every other scope sits at 0.
 - `minMaps` (5) reads `Suspect` and `certainMaps` (15) reads `Certain`. Measured
   over 27 hours of the access log: the bots read 23 to 31 maps in their busiest
   15 minutes, and no human scope read more than 6 — six page loads, in the web
@@ -1127,6 +1135,16 @@ read `clear`, and the catcher's lone `suspect` banned nothing.
   from 1 and stopped at the last tile, and all 6 bots did neither.
   `TestAStreamBeforeEveryReadBuysNothingOffTheLattice` pins it, and
   `TestReloadingOverAndOverIsClear` pins that a real reload still costs nothing.
+- **The second counter-move landed on 2026-09-16, the same day**: a scope from the
+  same carrier range walked the map four times in its first half hour, then
+  **stopped reading it altogether** and clicked from the copy — 349 clicks in the
+  last window against zero reads. That put it at 5.00 maps in its busiest 15
+  minutes, exactly `minMaps`, so the scraper read `suspect`; every other watchdog
+  read `clear` and `minSuspects: 2` was never met. It took 1,651 `ps` tiles and 640
+  `dz` ones, all of them painted over other flags, and was banned by hand. Caching
+  the map is what `certainOffMap` answers: the reads stop, but the walk that made
+  the copy is already proof. `TestTheWalkOffTheLatticeIsCaughtBeforeItPaints` and
+  `TestACallerThatStopsReadingKeepsItsVerdictForTheWindow` pin it.
 - The counter-move left is to walk the map exactly as the web app does — from 1,
   in its steps, clamped — which is also to stop reading it faster than a reload.
   `click_map_reads` is each clicking caller's count once a sweep, through
@@ -1572,6 +1590,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `antiBot.cohort.detector.v4Bits`, `v6Bits`, `certainCohorts`, `certainMembers`, `chainWindow` — the prefix a chain must share, and how many groups, or scopes in one group, read `certain`. Its `trackWindow` is raised to `chainWindow` if shorter; bad bounds refuse the boot
 - `antiBot.catcher.enabled`, `detector.minCatches`, `maxMedian`, `certainMedian` — how many boxes in a row must all be caught, and the median offer-to-claim delay that reads `suspect` then `certain`. Its `trackWindow` must hold `minCatches` boxes at `bonus.maxInterval` plus `bonus.offerTTL`
 - `antiBot.scraper.enabled`, `detector.minMaps`, `certainMaps` — the whole maps read beyond one per stream opened, inside `trackWindow`, that read `suspect` then `certain`
+- `antiBot.scraper.detector.certainOffMap` — the reads off the map, inside `trackWindow`, that read `certain` however little was read; one stray read is forgiven
 - every watchdog also takes `detector.trackWindow` and `detector.sweepInterval` — how far back its evidence counts, and how often what can no longer matter is forgotten
 - `session.enabled` — off registers nothing, so `session.v1.SessionService/` 404s and clicks are judged on address alone
 - `session.enforce` — off counts what enforcing would refuse without refusing it; the mode to deploy in
