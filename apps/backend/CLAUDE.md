@@ -55,7 +55,7 @@ This is a Go backend for a collaborative map-clicking game. It follows **hexagon
 
 They share the process, the transport and the country list, and **nothing else**. None imports another; each owns its own domain types, its own proto package, its own storage adapter (where it has one) and its own edge.
 
-**A module never calls another module's code or reads its data in its own stack trace.** When one needs something from another it asks over Connect, on a loopback listener — see [Calling another module](#calling-another-module). One does: `planet` takes the click token's verifying key from `auth`.
+**A module never calls another module's code or reads its data in its own stack trace.** When one needs an answer from another it asks over Connect, on a loopback listener — see [Calling another module](#calling-another-module). One does: `planet` takes the click token's verifying key from `auth`. When one only has to say that something happened, it publishes an event in process and never learns who listens — see [Telling other modules what happened](#telling-other-modules-what-happened).
 
 Bonus boxes live inside `internal/planet/` rather than beside it: what they grant
 is click allowance, and what carries them is the planet stream. A context of
@@ -159,6 +159,20 @@ The one caller today is `planet`, asking `auth.v1.InternalService/GetVerifyingKe
 - `TestAModuleCallsAnotherOverTheInternalListener` pins the path, `TestAnInternalServiceIsNotOnThePublicRouter` pins that Caddy cannot reach it.
 
 The proto sits beside the public one in the module's package (`proto/auth/v1/internal.proto`), as `admin.proto` does, and the frontend generates it too without using it.
+
+**The loopback rule is for synchronous calls, and it exists to stop one module loading another's config.** A caller that needs an answer has to reach the module that holds the data. Done in process, that is how `planet` once built a signer off `auth`'s secret and how a key ends up duplicated across blocks in the file. The listener makes the caller hold an address and nothing else.
+
+#### Telling other modules what happened
+
+**Over Go channels, in process.** There is no broker, and a modular monolith still needs messaging. An emitter publishes an event and never knows who listens, so it has no reason to load a listener's config, and the problem the loopback rule solves does not arise. A loopback stream would buy nothing here: it adds encoding, reconnects and an address the subscriber must hold, and it loses events on a crash exactly as a channel does.
+
+- **The payload is a proto-generated message**, declared in the emitter's proto package (`proto/<name>/v1/events.proto`). A subscriber imports `generated/proto`, never the emitter's root package, which would also hand it the emitter's `Config`. The proto is also the schema, if AsyncAPI or a real broker ever comes.
+- **Each subscriber gets its own copy.** A proto message is a pointer: the emitter builds a fresh one per event and never touches it again, and nothing shared is mutated.
+- **Each subscriber reads its own buffered channel, in its own goroutine.** No subscriber code runs in the emitter's stack trace, so a click never waits on a listener.
+- **A full buffer drops the event and counts it.** Delivery is at most once and not durable: a crash or a restart loses what was in flight. A flow that cannot lose an event (money, rewards) needs a durable path of its own, not this.
+- **Subscribers register while modules are built**, before any runner starts, so no event is published to nobody at boot.
+
+No event exists yet. The first arrives with the `player` module, which counts takes from `planet`.
 
 Adding a context that callers talk to means a `proto/<name>/v1`, an `internal/<name>/` with a `module.go`, and one line in the slice. Connect derives the route from the proto package, so there is no prefix to allocate and no router to edit.
 
