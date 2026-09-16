@@ -60,6 +60,11 @@ func TestTheExampleConfigStillReachesTheStructs(t *testing.T) {
 	assert.Equal(t, 120, config.Planet.AntiBot.Metronome.Detector.MinClicks)
 	assert.Equal(t, 30*time.Minute, config.Planet.AntiBot.Metronome.Detector.CertainFor)
 	assert.Equal(t, 900, config.Planet.AntiBot.Metronome.Detector.CertainClicks)
+
+	require.True(t, config.Planet.AntiBot.Scraper.Enabled)
+	assert.InDelta(t, 5, config.Planet.AntiBot.Scraper.Detector.MinMaps, 1e-9)
+	assert.InDelta(t, 15, config.Planet.AntiBot.Scraper.Detector.CertainMaps, 1e-9)
+	assert.Equal(t, 15*time.Minute, config.Planet.AntiBot.Scraper.Detector.TrackWindow)
 }
 
 // The blocks the antibot rewrite did not touch, so that moving one of them is a

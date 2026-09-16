@@ -40,6 +40,12 @@ func NewObserver(logger *slog.Logger, registerer prometheus.Registerer) antibot.
 		Help: "Callers clicking in step with another caller: same flag, same start, same pace",
 	})
 
+	mapReads := factory.NewHistogram(prometheus.HistogramOpts{
+		Name:    "click_map_reads",
+		Help:    "Whole maps a clicking caller read beyond one per stream it opened, over the scraper's trackWindow, per caller per sweep",
+		Buckets: []float64{0, 0.5, 1, 2, 3, 5, 8, 12, 15, 20, 30, 50},
+	})
+
 	// Counts flags, not callers, and once per watchdog that argued for each one:
 	// a caller flagged six times is six here and one on shadowban_flagged, and
 	// the gap between the two is the thing to look at.
@@ -69,6 +75,8 @@ func NewObserver(logger *slog.Logger, registerer prometheus.Registerer) antibot.
 		OnRetakeShare: retakeShares.Observe,
 
 		OnCohortScopes: func(scopes int) { cohortScopes.Set(float64(scopes)) },
+
+		OnMapReads: mapReads.Observe,
 
 		// The address goes in the log and never on a label: per-IP labels are
 		// unbounded cardinality, and they would put personal data in every scrape.

@@ -39,7 +39,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/throttle_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_budget_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_map_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_map_usecase/antibot_get_map"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/listen_for_events_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/listen_for_events_usecase/antibot_listen_for_events"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/map_density_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/paint_random_tiles_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/paint_random_tiles_usecase/audit_paint_random"
@@ -316,9 +318,10 @@ func NewModule(config Config) cpbootstrap.Module {
 				ClickHandler:      click_handler.New(clickUseCase),
 				GetBudgetHandler:  get_budget_handler.New(get_budget_usecase.New(limiter, pricer)),
 				MapDensityHandler: map_density_handler.New(map_density_usecase.New(tilesChecker)),
-				GetMapHandler:     get_map_handler.New(get_map_usecase.New(tilesChecker, tilesStorage)),
-				ListenForEventsHandler: listen_for_events_handler.New(
-					listen_for_events_usecase.New(tilesStorage, props.Server.StreamHeartbeat, registry)),
+				GetMapHandler: get_map_handler.New(
+					antibot_get_map.New(get_map_usecase.New(tilesChecker, tilesStorage), guard, tilesChecker)),
+				ListenForEventsHandler: listen_for_events_handler.New(antibot_listen_for_events.New(
+					listen_for_events_usecase.New(tilesStorage, props.Server.StreamHeartbeat, registry), guard)),
 				ClaimBonusHandler: claim_bonus_handler.New(claimBonus),
 				DropBombHandler:   drop_bomb_handler.New(dropBomb),
 			}

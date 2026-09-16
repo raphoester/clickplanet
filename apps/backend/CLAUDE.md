@@ -232,6 +232,10 @@ because the click chain decorates it — `prom_click`, `throttle_click`,
 `bonus_click`. The counting is a wrapper rather than a line inside the rule, so
 a process that does not want it leaves it out and the rule does not change.
 
+`get_map_usecase` and `listen_for_events_usecase` are decorated too, by
+`antibot_get_map` and `antibot_listen_for_events`, through the port their
+handler declares: they tell the guard what a caller reads, for the `scraper`.
+
 `Geography` is in the `clicks` root, beside the sentinels and `TileUpdate`: the shape of the map, in `geography.go`. It is a model rather than a port — `embedded_geodesic_map` builds one and hands it over. See [Map geography](#map-geography).
 
 ### Inside the chat module: the same shape
@@ -775,7 +779,7 @@ of it: `Config`, `Observer`, `Guard`, `New` and `Description` to wire it, plus
 `Click`, `Report`, `Sentence`, `Examination` and `Reading` — the types a caller writes down, because it builds one
 and is handed the others. A caller hands over the block and the two hooks it wants
 findings reported through, and gets back a `Guard` — one that drops and bans nothing when the block is off, so
-the DI sequence wires it the same way either way — that answers `Attempted`, `Inspect`, `Committed`, `Caught`, `Missed`, `Flagged`, `Banned`, `LoadState`, `Run` and `Enabled`, plus `Ban`,
+the DI sequence wires it the same way either way — that answers `Attempted`, `Inspect`, `Committed`, `Caught`, `Missed`, `Fetched`, `Listened`, `Flagged`, `Banned`, `LoadState`, `Run` and `Enabled`, plus `Ban`,
 `Sentence`, `Enforcing` and `Examine` for the operator tools (see [Operator tools](#operator-tools-adminservice)). It is
 **one** `Run` whatever the file turned on: how many sweepers there are is this
 package's business, which is why `planet` registers one runner rather than one per sweeper.
@@ -815,7 +819,7 @@ afternoon; a silent no-op names nothing. It is not permanent (the caller reads
 the map back over the same stream and will notice), but it moves the cost of
 the next round onto them.
 
-#### Six watchdogs, one jury
+#### Seven watchdogs, one jury
 
 A `Watchdog` measures one behaviour over one caller and returns a `Verdict`:
 
@@ -825,6 +829,7 @@ A `Watchdog` measures one behaviour over one caller and returns a `Verdict`:
 - **`defender`** — nearly every take is a retake, however slowly it comes.
 - **`catcher`** — catches every bonus box, at once.
 - **`cohort`** — starts, paces and stops in step with other scopes, group after group.
+- **`scraper`** — reads the whole map again and again, which the web app never does.
 
 **Every watchdog has two levels, and that is the design.** `Certain` is a reading
 no hand produces and bans on its own. `Suspect` is a reading that would ban real
@@ -1082,6 +1087,34 @@ not its groups have chained yet.
 The chain bounds are the only ones in the antibot that `Validate` refuses at
 boot (`antiBot.cohort.detector`), because a `minMembers` or `certainCohorts` of 1
 would read one scope, or one group, as a pattern.
+
+**`scraper`: what a caller reads, not what it clicks.** The web app reads the map
+once per page load, in 26 `GetMap` batches, and follows `ListenForEvents` after
+that; the same page load opens that stream. On 2026-09-15 and 16 a script in a
+real page read one map chunk after every click, a whole map every half minute,
+and painted dz and bg for twenty hours. It jittered its delay, stayed under the
+throttle, picked tiles off the map and never retook one: every other watchdog
+read `clear`, and the catcher's lone `suspect` banned nothing.
+
+- **The count is maps read beyond one per stream opened**, over `trackWindow`.
+  `antibot_get_map` reports each read as a share of the map (two bytes per tile
+  in the batch), and `antibot_listen_for_events` each stream as it opens. A page
+  load is one of each, so sixty players behind one carrier NAT read `clear` —
+  the raw read count would not. A stream reopened after a drop reads nothing,
+  and the count never goes below zero.
+- `minMaps` (5) reads `Suspect` and `certainMaps` (15) reads `Certain`. Measured
+  over 27 hours of the access log: the bots read 23 to 31 maps in their busiest
+  15 minutes, and no human scope read more than 6 — six page loads, in the web
+  app's own batches. The log cannot show stream opens (Caddy writes a stream's
+  line when it closes), so that 6 is before any credit.
+- It is counted in 30 slices of `trackWindow`, so a caller costs the same
+  however fast it reads: `GetMap` is not throttled.
+- **It only observes.** Reads and the streams are refused by nothing here; a
+  banned caller still loads the planet and watches it.
+- The counter-move is to open a stream before each map read, which looks like a
+  page load every time — or to follow the stream the way the web app does.
+  `TestReloadingOverAndOverIsClear` pins the first. `click_map_reads` is each
+  clicking caller's count once a sweep, through `Observer.OnMapReads`.
 
 #### The parts that are easy to get wrong
 
@@ -1522,6 +1555,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `antiBot.cohort.enabled`, `detector.startWindow`, `minClicks`, `minFlagShare`, `rateRatio`, `lengthRatio`, `quietAfter`, `minMembers` — what makes two scopes in step, and how many of them read `suspect`
 - `antiBot.cohort.detector.v4Bits`, `v6Bits`, `certainCohorts`, `certainMembers`, `chainWindow` — the prefix a chain must share, and how many groups, or scopes in one group, read `certain`. Its `trackWindow` is raised to `chainWindow` if shorter; bad bounds refuse the boot
 - `antiBot.catcher.enabled`, `detector.minCatches`, `maxMedian`, `certainMedian` — how many boxes in a row must all be caught, and the median offer-to-claim delay that reads `suspect` then `certain`. Its `trackWindow` must hold `minCatches` boxes at `bonus.maxInterval` plus `bonus.offerTTL`
+- `antiBot.scraper.enabled`, `detector.minMaps`, `certainMaps` — the whole maps read beyond one per stream opened, inside `trackWindow`, that read `suspect` then `certain`
 - every watchdog also takes `detector.trackWindow` and `detector.sweepInterval` — how far back its evidence counts, and how often what can no longer matter is forgotten
 - `session.enabled` — off registers nothing, so `session.v1.SessionService/` 404s and clicks are judged on address alone
 - `session.enforce` — off counts what enforcing would refuse without refusing it; the mode to deploy in

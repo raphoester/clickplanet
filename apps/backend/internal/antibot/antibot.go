@@ -26,6 +26,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/postgres_ban_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/postgres_evidence_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/retaker"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/scraper"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/sequencer"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/shadowban"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
@@ -74,6 +75,7 @@ type Config struct {
 	Defender  defenderConfig
 	Catcher   catcherConfig
 	Cohort    cohortConfig
+	Scraper   scraperConfig
 }
 
 // Validate refuses a bound that cannot mean what it says. Only the cohort has
@@ -128,6 +130,11 @@ type cohortConfig struct {
 	Detector cohort.Config
 }
 
+type scraperConfig struct {
+	Enabled  bool
+	Detector scraper.Config
+}
+
 // Observer is how a finding leaves this package, which measures and judges but
 // logs and counts nothing itself. Every hook is optional.
 type Observer struct {
@@ -140,6 +147,9 @@ type Observer struct {
 
 	// How many callers are clicking in step with another, once a sweep, whether or not it reads as more than clear.
 	OnCohortScopes func(scopes int)
+
+	// Each clicking caller's whole maps read beyond one per stream opened, once a sweep, whether or not it reads as more than clear.
+	OnMapReads func(maps float64)
 
 	OnFlag func(report Report)
 
@@ -273,6 +283,20 @@ func build(
 		names = append(names, cohort.Name)
 	}
 
+	if config.Scraper.Enabled {
+		onMapReads := observer.OnMapReads
+		if onMapReads == nil {
+			onMapReads = func(float64) {}
+		}
+
+		watchdog := scraper.New(config.Scraper.Detector, clock, onMapReads)
+		g.runners = append(g.runners, watchdog.Run)
+		watchdogs = append(watchdogs, watchdog)
+		sections = append(sections, watchdog)
+		names = append(names, scraper.Name)
+		g.scraper = watchdog
+	}
+
 	if len(watchdogs) == 0 {
 		return nil, fmt.Errorf("antiBot is enabled with no watchdog turned on")
 	}
@@ -336,6 +360,7 @@ type Guard struct {
 	evidence    *evidence.Store   // nil when the block is off
 	database    database          // nil when the block is off
 	catcher     *catcher.Watchdog // nil when the catcher is off
+	scraper     *scraper.Watchdog // nil when the scraper is off
 	runners     []func(context.Context)
 	description Description
 	onStart     func(Description)
@@ -376,6 +401,19 @@ func (g *Guard) Caught(scope string, after time.Duration) {
 func (g *Guard) Missed(scope string) {
 	if g.catcher != nil {
 		g.catcher.Missed(scope)
+	}
+}
+
+// Fetched and Listened tell the guard what a caller read: a share of the map, or the live stream opened.
+func (g *Guard) Fetched(scope string, maps float64) {
+	if g.scraper != nil {
+		g.scraper.Fetched(scope, maps)
+	}
+}
+
+func (g *Guard) Listened(scope string) {
+	if g.scraper != nil {
+		g.scraper.Listened(scope)
 	}
 }
 

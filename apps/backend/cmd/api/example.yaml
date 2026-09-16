@@ -426,6 +426,19 @@ antiBot:
       trackWindow: 30m
       sweepInterval: 1m
 
+  # Reads the whole map again and again. The web app reads it once per page
+  # load and opens one stream with it, so a map read beyond one per stream is
+  # a client that is not the web app.
+  scraper:
+    enabled: true
+    detector:
+      # Maps read beyond one per stream opened, inside trackWindow: "suspect",
+      # then "certain". The bot of 2026-09-15 read 23 to 31 in 15 minutes.
+      minMaps: 5
+      certainMaps: 15
+      trackWindow: 15m
+      sweepInterval: 1m
+
 # Gates the Click RPC on a token this server minted. Off by default: with it
 # disabled session.v1.SessionService/ 404s and clicks are judged on address
 # alone, exactly as they were before this existed.
