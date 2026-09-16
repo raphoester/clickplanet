@@ -33,6 +33,8 @@
 		format filter {
 			wrap json
 			request>headers>X-Session-Token replace REDACTED
+			request>headers>Cookie replace REDACTED
+			resp_headers>Set-Cookie replace REDACTED
 		}
 	}
 }
@@ -101,6 +103,15 @@
 		}
 	}
 
+	# The auth module's own path: CreateSession, which also sets the account
+	# cookie, and GetMe. Keyed on X-Real-IP like the deprecated session.v1 path
+	# above, which the same module still serves.
+	handle /auth.v1.AuthService/* {
+		reverse_proxy backend:8080 {
+			header_up X-Real-IP {client_ip}
+		}
+	}
+
 	# Chat is its own proto package, so Connect gives it a path of its own.
 	# Both of its RPCs key on X-Real-IP: SendMessage is throttled and block
 	# listed per address, and the sender's tag is derived from it.
@@ -146,6 +157,8 @@
 			# click as that caller until it expires. Replaced rather than deleted,
 			# so the log still shows whether the request carried one.
 			request>headers>X-Session-Token replace REDACTED
+			request>headers>Cookie replace REDACTED
+			resp_headers>Set-Cookie replace REDACTED
 		}
 	}
 
@@ -157,6 +170,8 @@
 		format filter {
 			wrap console
 			request>headers>X-Session-Token replace REDACTED
+			request>headers>Cookie replace REDACTED
+			resp_headers>Set-Cookie replace REDACTED
 		}
 	}
 }

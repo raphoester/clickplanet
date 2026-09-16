@@ -40,6 +40,7 @@ const (
 
 // SessionServiceClient is a client for the session.v1.SessionService service.
 type SessionServiceClient interface {
+	// Deprecated: do not use.
 	CreateSession(context.Context, *connect.Request[v1.CreateSessionRequest]) (*connect.Response[v1.CreateSessionResponse], error)
 }
 
@@ -69,12 +70,15 @@ type sessionServiceClient struct {
 }
 
 // CreateSession calls session.v1.SessionService.CreateSession.
+//
+// Deprecated: do not use.
 func (c *sessionServiceClient) CreateSession(ctx context.Context, req *connect.Request[v1.CreateSessionRequest]) (*connect.Response[v1.CreateSessionResponse], error) {
 	return c.createSession.CallUnary(ctx, req)
 }
 
 // SessionServiceHandler is an implementation of the session.v1.SessionService service.
 type SessionServiceHandler interface {
+	// Deprecated: do not use.
 	CreateSession(context.Context, *connect.Request[v1.CreateSessionRequest]) (*connect.Response[v1.CreateSessionResponse], error)
 }
 

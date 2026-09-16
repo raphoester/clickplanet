@@ -33,15 +33,21 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// AuthServiceCreateSessionProcedure is the fully-qualified name of the AuthService's CreateSession
+	// RPC.
+	AuthServiceCreateSessionProcedure = "/auth.v1.AuthService/CreateSession"
 	// AuthServiceGetMeProcedure is the fully-qualified name of the AuthService's GetMe RPC.
 	AuthServiceGetMeProcedure = "/auth.v1.AuthService/GetMe"
 )
 
 // AuthServiceClient is a client for the auth.v1.AuthService service.
 type AuthServiceClient interface {
+	// Checks a Cloudflare Turnstile token, then mints the click token. The
+	// caller's cookie brings its account back; a caller with no live session is
+	// given a guest account and its cookie. The account is signed into the token.
+	CreateSession(context.Context, *connect.Request[v1.CreateSessionRequest]) (*connect.Response[v1.CreateSessionResponse], error)
 	// The account the caller's cookie belongs to. Unauthenticated when it carries
-	// none. Absent (404) when the server runs without accounts, which is how a
-	// client knows not to offer sign-in.
+	// none. Creates nothing.
 	GetMe(context.Context, *connect.Request[v1.GetMeRequest]) (*connect.Response[v1.GetMeResponse], error)
 }
 
@@ -56,6 +62,12 @@ func NewAuthServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 	baseURL = strings.TrimRight(baseURL, "/")
 	authServiceMethods := v1.File_auth_v1_auth_proto.Services().ByName("AuthService").Methods()
 	return &authServiceClient{
+		createSession: connect.NewClient[v1.CreateSessionRequest, v1.CreateSessionResponse](
+			httpClient,
+			baseURL+AuthServiceCreateSessionProcedure,
+			connect.WithSchema(authServiceMethods.ByName("CreateSession")),
+			connect.WithClientOptions(opts...),
+		),
 		getMe: connect.NewClient[v1.GetMeRequest, v1.GetMeResponse](
 			httpClient,
 			baseURL+AuthServiceGetMeProcedure,
@@ -67,7 +79,13 @@ func NewAuthServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 
 // authServiceClient implements AuthServiceClient.
 type authServiceClient struct {
-	getMe *connect.Client[v1.GetMeRequest, v1.GetMeResponse]
+	createSession *connect.Client[v1.CreateSessionRequest, v1.CreateSessionResponse]
+	getMe         *connect.Client[v1.GetMeRequest, v1.GetMeResponse]
+}
+
+// CreateSession calls auth.v1.AuthService.CreateSession.
+func (c *authServiceClient) CreateSession(ctx context.Context, req *connect.Request[v1.CreateSessionRequest]) (*connect.Response[v1.CreateSessionResponse], error) {
+	return c.createSession.CallUnary(ctx, req)
 }
 
 // GetMe calls auth.v1.AuthService.GetMe.
@@ -77,9 +95,12 @@ func (c *authServiceClient) GetMe(ctx context.Context, req *connect.Request[v1.G
 
 // AuthServiceHandler is an implementation of the auth.v1.AuthService service.
 type AuthServiceHandler interface {
+	// Checks a Cloudflare Turnstile token, then mints the click token. The
+	// caller's cookie brings its account back; a caller with no live session is
+	// given a guest account and its cookie. The account is signed into the token.
+	CreateSession(context.Context, *connect.Request[v1.CreateSessionRequest]) (*connect.Response[v1.CreateSessionResponse], error)
 	// The account the caller's cookie belongs to. Unauthenticated when it carries
-	// none. Absent (404) when the server runs without accounts, which is how a
-	// client knows not to offer sign-in.
+	// none. Creates nothing.
 	GetMe(context.Context, *connect.Request[v1.GetMeRequest]) (*connect.Response[v1.GetMeResponse], error)
 }
 
@@ -90,6 +111,12 @@ type AuthServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewAuthServiceHandler(svc AuthServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	authServiceMethods := v1.File_auth_v1_auth_proto.Services().ByName("AuthService").Methods()
+	authServiceCreateSessionHandler := connect.NewUnaryHandler(
+		AuthServiceCreateSessionProcedure,
+		svc.CreateSession,
+		connect.WithSchema(authServiceMethods.ByName("CreateSession")),
+		connect.WithHandlerOptions(opts...),
+	)
 	authServiceGetMeHandler := connect.NewUnaryHandler(
 		AuthServiceGetMeProcedure,
 		svc.GetMe,
@@ -98,6 +125,8 @@ func NewAuthServiceHandler(svc AuthServiceHandler, opts ...connect.HandlerOption
 	)
 	return "/auth.v1.AuthService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case AuthServiceCreateSessionProcedure:
+			authServiceCreateSessionHandler.ServeHTTP(w, r)
 		case AuthServiceGetMeProcedure:
 			authServiceGetMeHandler.ServeHTTP(w, r)
 		default:
@@ -108,6 +137,10 @@ func NewAuthServiceHandler(svc AuthServiceHandler, opts ...connect.HandlerOption
 
 // UnimplementedAuthServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedAuthServiceHandler struct{}
+
+func (UnimplementedAuthServiceHandler) CreateSession(context.Context, *connect.Request[v1.CreateSessionRequest]) (*connect.Response[v1.CreateSessionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.AuthService.CreateSession is not implemented"))
+}
 
 func (UnimplementedAuthServiceHandler) GetMe(context.Context, *connect.Request[v1.GetMeRequest]) (*connect.Response[v1.GetMeResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.AuthService.GetMe is not implemented"))

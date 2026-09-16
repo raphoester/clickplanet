@@ -240,7 +240,7 @@ stale blob can never be served. If you regenerate it, `gameMap.maxIndex` in
 
 The API refuses a `Click` that carries no session token it minted, and the only
 way to get one is to pass Turnstile. Without this configured on both sides the
-game still runs — `session.enabled: false` keeps the old address-only
+game still runs — `auth.enabled: false` keeps the old address-only
 behaviour — but the anti-bot floor is back to what a blocklist can do.
 
 ### The widget
@@ -266,7 +266,7 @@ repo already has):
 | Widget mode | Managed |
 
 **Do not add `localhost`.** The widget's domain list and the backend's
-`session.turnstile.hostnames` are checked against the hostname siteverify
+`auth.turnstile.hostnames` are checked against the hostname siteverify
 reports, and a production allowlist that admits localhost admits a token minted
 from a page an attacker controls locally. Use a second, separate widget for
 development if you want one.
@@ -307,7 +307,7 @@ openssl rand -hex 32
 ```
 
 `SESSION_SECRET` signs the tokens; anyone holding it can mint one the API will
-accept. **It cannot be left empty** while `session.enabled` is true: the mint and
+accept. **It cannot be left empty** while `auth.enabled` is true: the mint and
 the click check each derive their signer from it, so a server that invented one
 would invent a different one per context and could not verify what it had just
 minted. The stack refuses to start instead, naming the variable. Rotating it
@@ -317,12 +317,12 @@ deliberately is cheap — every client mints again on its next click.
 
 ### Roll it out in three steps
 
-`backend.yaml` ships `session.enabled: false`, and `session.enforce: false`
+`backend.yaml` ships `auth.enabled: false`, and `auth.enforce: false`
 under it. Nothing below breaks a running site at any point: the API starts
 minting before anything requires a session, and starts requiring one only once
 the clients that can mint are the overwhelming majority.
 
-1. Set `session.enabled: true` in `backend.yaml` (leave `enforce` false) and
+1. Set `auth.enabled: true` in `backend.yaml` (leave `enforce` false) and
    deploy the backend. Then watch:
 
    ```bash
@@ -335,7 +335,7 @@ the clients that can mint are the overwhelming majority.
 2. Deploy the frontend with `VITE_TURNSTILE_SITEKEY` set. `verdict="valid"`
    should climb and `missing` should fall away as caches expire.
 
-3. Once `valid` is the overwhelming majority, set `session.enforce: true` in
+3. Once `valid` is the overwhelming majority, set `auth.enforce: true` in
    `backend.yaml` and redeploy.
 
 Flipping `enforce` before step 2 has settled refuses real players with a 401.

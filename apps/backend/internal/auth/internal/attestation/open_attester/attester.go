@@ -10,12 +10,12 @@ package open_attester
 import (
 	"context"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/session/internal/domain"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/attestation"
 )
 
 type Attester struct{}
 
-var _ domain.Attester = (*Attester)(nil)
+var _ attestation.Attester = (*Attester)(nil)
 
 func New() *Attester {
 	return &Attester{}

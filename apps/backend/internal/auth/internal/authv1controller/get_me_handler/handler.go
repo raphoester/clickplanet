@@ -7,14 +7,14 @@ import (
 	"fmt"
 
 	"connectrpc.com/connect"
+	"github.com/google/uuid"
 
 	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
-	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/resolve_account_usecase"
 )
 
 type UseCase interface {
-	Execute(ctx context.Context, in resolve_account_usecase.In) (*resolve_account_usecase.Out, error)
+	Execute(ctx context.Context, cookieHeader string) (uuid.UUID, error)
 }
 
 func New(useCase UseCase) GetMeHandler {
@@ -25,24 +25,19 @@ type GetMeHandler struct {
 	useCase UseCase
 }
 
-// GetMe creates nothing: only a mint, after Turnstile, gives a browser an account.
 func (h GetMeHandler) GetMe(
 	ctx context.Context,
 	req *connect.Request[authv1.GetMeRequest],
 ) (*connect.Response[authv1.GetMeResponse], error) {
-	out, err := h.useCase.Execute(ctx, resolve_account_usecase.In{CookieHeader: req.Header().Get("Cookie")})
+	account, err := h.useCase.Execute(ctx, req.Header().Get("Cookie"))
 	if errors.Is(err, accounts.ErrNoAccount) {
 		return nil, connect.NewError(connect.CodeUnauthenticated, accounts.ErrNoAccount)
 	}
 	if err != nil {
-		return nil, fmt.Errorf("failed to resolve the account: %w", err)
+		return nil, fmt.Errorf("failed to read the account: %w", err)
 	}
 
-	res := connect.NewResponse(&authv1.GetMeResponse{AccountId: out.Account.String()})
+	res := connect.NewResponse(&authv1.GetMeResponse{AccountId: account.String()})
 	res.Header().Set("Cache-Control", "no-store")
-	if out.SetCookie != "" {
-		res.Header().Add("Set-Cookie", out.SetCookie)
-	}
-
 	return res, nil
 }

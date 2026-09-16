@@ -1,5 +1,5 @@
-// Package resolve_account_usecase finds the account a browser's cookie belongs to, and gives it a guest one when asked.
-package resolve_account_usecase
+// Package create_session_usecase admits a caller: it checks Turnstile, brings back the account its cookie holds or starts a guest, and mints the click token for that account.
+package create_session_usecase
 
 import (
 	"context"
@@ -10,59 +10,85 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/attestation"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-type In struct {
-	CookieHeader string
-	Create       bool
+type Minter interface {
+	Mint(ip string, account uuid.UUID, now time.Time) (*cpsession.Token, error)
 }
 
-// Out is the account and the Set-Cookie to send back (empty for none).
+type In struct {
+	AttestationToken string
+	IP               string
+	CookieHeader     string
+}
+
+// Out is the click token and the Set-Cookie to send back (empty when the cookie needs no change).
 type Out struct {
+	Token     *cpsession.Token
 	Account   uuid.UUID
 	SetCookie string
 }
 
 type UseCase struct {
+	attester attestation.Attester
 	sessions accounts.Sessions
 	ids      accounts.IDProvider
 	tokens   accounts.TokenGenerator
+	minter   Minter
 	lifetime accounts.Lifetime
 	clock    cptime.Clock
 }
 
 func New(
+	attester attestation.Attester,
 	sessions accounts.Sessions,
 	ids accounts.IDProvider,
 	tokens accounts.TokenGenerator,
+	minter Minter,
 	lifetime accounts.Lifetime,
 	clock cptime.Clock,
 ) *UseCase {
-	return &UseCase{sessions: sessions, ids: ids, tokens: tokens, lifetime: lifetime.WithDefaults(), clock: clock}
+	return &UseCase{
+		attester: attester,
+		sessions: sessions,
+		ids:      ids,
+		tokens:   tokens,
+		minter:   minter,
+		lifetime: lifetime.WithDefaults(),
+		clock:    clock,
+	}
 }
 
-// Execute answers accounts.ErrNoAccount when the browser has no live session and none was asked for.
+// Execute answers attestation.ErrAttestationFailed for a caller that proved nothing.
 func (u *UseCase) Execute(ctx context.Context, in In) (*Out, error) {
+	// Without an address the token binds to the empty string, which every other caller would verify against too.
+	if in.IP == "" {
+		return nil, fmt.Errorf("%w: the request carries no source address", attestation.ErrAttestationFailed)
+	}
+	if err := u.attester.Attest(ctx, in.AttestationToken, in.IP); err != nil {
+		return nil, fmt.Errorf("%w: %w", attestation.ErrAttestationFailed, err)
+	}
+
 	now := u.clock.Now()
 
-	out, err := u.resume(ctx, in.CookieHeader, now)
-	if err == nil {
-		return out, nil
+	admitted, err := u.resume(ctx, in.CookieHeader, now)
+	if ended(err) {
+		admitted, err = u.startGuest(ctx, now)
 	}
-	if !ended(err) {
-		return nil, fmt.Errorf("failed to resume the session: %w", err)
-	}
-
-	if !in.Create {
-		return nil, fmt.Errorf("%w: %w", accounts.ErrNoAccount, err)
-	}
-
-	out, err = u.startGuest(ctx, now)
 	if err != nil {
-		return nil, fmt.Errorf("failed to start a guest: %w", err)
+		return nil, fmt.Errorf("failed to find the caller's account: %w", err)
 	}
-	return out, nil
+
+	token, err := u.minter.Mint(in.IP, admitted.Account, now)
+	if err != nil {
+		return nil, fmt.Errorf("failed to mint the click token: %w", err)
+	}
+
+	admitted.Token = token
+	return admitted, nil
 }
 
 func (u *UseCase) resume(ctx context.Context, cookieHeader string, now time.Time) (*Out, error) {
@@ -107,7 +133,7 @@ func (u *UseCase) startGuest(ctx context.Context, now time.Time) (*Out, error) {
 	return &Out{Account: session.Account, SetCookie: session.Cookie(token, now)}, nil
 }
 
-// ended is a browser with no session to resume: no cookie, an unknown token, or an expired session.
+// ended is a caller with no session to resume: no cookie, an unknown token, or an expired session.
 func ended(err error) bool {
 	return errors.Is(err, accounts.ErrNoSessionCookie) ||
 		errors.Is(err, accounts.ErrSessionNotFound) ||

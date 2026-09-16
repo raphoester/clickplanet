@@ -264,11 +264,11 @@ func NewModule(config Config) cpbootstrap.Module {
 				planetv1controller.NewVPNBlockInterceptor(blocklist, props.Metrics),
 			}
 
-			// This context builds its own verifier from the same `session:` block the
-			// session context mints with — same secret, same MAC — so neither module
-			// has to hand the other an object. Skipped when sessions are off.
-			if config.Session.Enabled {
-				verifier, err := cpsession.NewSigner(config.Session)
+			// This context builds its own verifier from the same `auth:` block the
+			// auth context mints with — same secret, same MAC — so neither module
+			// has to hand the other an object. Skipped when auth is off.
+			if config.Auth.Enabled {
+				verifier, err := cpsession.NewSigner(config.Auth)
 				if err != nil {
 					return fmt.Errorf("failed to build the click session verifier: %w", err)
 				}
@@ -276,7 +276,7 @@ func NewModule(config Config) cpbootstrap.Module {
 				interceptors = append(interceptors, planetv1controller.NewSessionInterceptor(
 					verifier,
 					clock,
-					config.Session.Enforce,
+					config.Auth.Enforce,
 					props.Metrics))
 			}
 

@@ -83,7 +83,7 @@ func TestTheExampleConfigStillCarriesTheRestOfTheFile(t *testing.T) {
 	require.NoError(t, config.Planet.Validate())
 	assert.Equal(t, time.Second, config.Planet.TilesStorage.FlushInterval)
 	assert.Equal(t, "127.0.0.1:8081", config.HTTPServer.AdminBindAddress)
-	assert.Equal(t, time.Hour, config.Session.TTL)
+	assert.Equal(t, time.Hour, config.Auth.TTL)
 }
 
 func TestTheExampleConfigReachesTheBombSettings(t *testing.T) {
@@ -96,7 +96,7 @@ func TestTheExampleConfigReachesTheBombSettings(t *testing.T) {
 	require.NoError(t, config.Planet.Bonus.Validate())
 }
 
-func TestBothContextsReadTheSameSessionBlock(t *testing.T) {
+func TestBothContextsReadTheSameAuthBlock(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.yaml")
 	require.NoError(t, os.WriteFile(path, []byte(`
 httpServer:
@@ -106,21 +106,22 @@ gameMap:
 database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: planet}
 chat:
   database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: chat}
-session:
+auth:
   enabled: true
   enforce: true
   secret: a-shared-secret
   ttl: 2h
+  database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: auth}
 `), 0o600))
 
 	var config Config
 	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile(path)))
 
-	assert.Equal(t, config.Session.Config, config.Planet.Session,
+	assert.Equal(t, config.Auth.Config, config.Planet.Auth,
 		"the mint and the click check derive their signer from one block, so these cannot diverge")
-	assert.Equal(t, "a-shared-secret", config.Planet.Session.Secret)
-	assert.Equal(t, 2*time.Hour, config.Planet.Session.TTL)
-	assert.True(t, config.Planet.Session.Enforce)
+	assert.Equal(t, "a-shared-secret", config.Planet.Auth.Secret)
+	assert.Equal(t, 2*time.Hour, config.Planet.Auth.TTL)
+	assert.True(t, config.Planet.Auth.Enforce)
 }
 
 func TestTheExampleConfigReachesTheDatabaseBlock(t *testing.T) {
@@ -158,31 +159,31 @@ func TestChatWithoutADatabaseIsRefused(t *testing.T) {
 	require.ErrorContains(t, Config{}.Validate(), "chat.database: [host port user dbName sslMode schema] is empty")
 }
 
-func TestSessionsWithoutASecretAreRefused(t *testing.T) {
+func TestAuthWithoutASecretIsRefused(t *testing.T) {
 	config := Config{}
 	config.HTTPServer.BindAddress = "0.0.0.0:8080"
 	config.Planet.GameMap.MaxIndex = 100
-	config.Session.Enabled = true
+	config.Auth.Enabled = true
 
-	require.ErrorContains(t, config.Validate(), "session.secret is empty")
+	require.ErrorContains(t, config.Validate(), "auth.secret is empty")
 }
 
-func TestTheExampleConfigReachesTheAuthAndAccountsBlocks(t *testing.T) {
+func TestTheExampleConfigReachesTheAuthBlock(t *testing.T) {
 	var config Config
 	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
 
-	assert.Equal(t, "127.0.0.1:8082", config.HTTPServer.InternalBindAddress)
-	assert.False(t, config.Auth.Enabled, "the example must ship without accounts")
+	assert.False(t, config.Auth.Enabled, "the example must ship without auth")
 	assert.Equal(t, "auth", config.Auth.Database.Schema)
 	assert.Equal(t, 90*24*time.Hour, config.Auth.Sessions.GuestTTL)
 	assert.Equal(t, 24*time.Hour, config.Auth.Sessions.ExtendEvery)
-	assert.False(t, config.Session.Accounts.Enabled)
-	assert.Equal(t, 2*time.Second, config.Session.Accounts.Timeout)
+	assert.Equal(t, "session", config.Auth.Turnstile.Action)
+	assert.Equal(t, 10, config.Auth.RateLimiter.Burst)
 }
 
 func TestAuthWithoutADatabaseIsRefused(t *testing.T) {
 	config := Config{}
 	config.Auth.Enabled = true
+	config.Auth.Secret = "a-secret"
 
 	require.ErrorContains(t, config.Validate(), "auth.database: [host port user dbName sslMode schema] is empty")
 }

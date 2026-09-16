@@ -3,12 +3,13 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetMeRequest, GetMeResponse } from "./auth_pb.js";
+import { CreateSessionRequest, CreateSessionResponse, GetMeRequest, GetMeResponse } from "./auth_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
- * Who a caller is. Every caller that clicks gets an account, a guest one until
- * it signs in, kept in an HttpOnly cookie this service sets.
+ * Who a caller is, and what it has to prove before it may click. Every caller
+ * that mints a session gets an account, a guest one until it signs in, kept in
+ * an HttpOnly cookie this service sets.
  *
  * @generated from service auth.v1.AuthService
  */
@@ -16,9 +17,21 @@ export const AuthService = {
   typeName: "auth.v1.AuthService",
   methods: {
     /**
+     * Checks a Cloudflare Turnstile token, then mints the click token. The
+     * caller's cookie brings its account back; a caller with no live session is
+     * given a guest account and its cookie. The account is signed into the token.
+     *
+     * @generated from rpc auth.v1.AuthService.CreateSession
+     */
+    createSession: {
+      name: "CreateSession",
+      I: CreateSessionRequest,
+      O: CreateSessionResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
      * The account the caller's cookie belongs to. Unauthenticated when it carries
-     * none. Absent (404) when the server runs without accounts, which is how a
-     * client knows not to offer sign-in.
+     * none. Creates nothing.
      *
      * @generated from rpc auth.v1.AuthService.GetMe
      */

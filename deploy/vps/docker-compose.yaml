@@ -101,26 +101,26 @@ services:
       # anyone holding this can mint a token the API will accept. Changing it
       # invalidates every session in flight, which costs each player one extra
       # round trip and nothing else.
-      # Hard, like the two above, because backend.yaml has session.enabled true
+      # Hard, like the two above, because backend.yaml has auth.enabled true
       # and the API now refuses to start without it: the mint and the click
       # check each derive a signer from this string, so one the server invented
       # would differ between them. The box this runs on already needs
       # TURNSTILE_SECRET to start, so it has been set up either way.
-      session.secret: ${SESSION_SECRET:?set SESSION_SECRET in .env (openssl rand -hex 32)}
+      auth.secret: ${SESSION_SECRET:?set SESSION_SECRET in .env (openssl rand -hex 32)}
       # The Turnstile widget's secret key, from the same dashboard page as the
       # sitekey. The sitekey is public and lives in the frontend build; this one
       # never leaves the box.
-      # Also soft, and unused while session.turnstile.enabled is false. Once it
+      # Also soft, and unused while auth.turnstile.enabled is false. Once it
       # is true, an empty value fails the boot loudly rather than quietly
       # admitting everyone.
-      session.turnstile.secret: ${TURNSTILE_SECRET:-}
+      auth.turnstile.secret: ${TURNSTILE_SECRET:-}
       # Hard like the session secret: the API cannot start without postgres.
       database.password: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env (openssl rand -hex 32)}
       # The antibot's own pool: same postgres, same user, its own schema.
       antiBot.database.password: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env (openssl rand -hex 32)}
       # The chat module has its own database block: same postgres, same user, same password.
       chat.database.password: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env (openssl rand -hex 32)}
-      # The auth module's block, the same way.
+      # The auth module's accounts, the same way.
       auth.database.password: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env (openssl rand -hex 32)}
     volumes:
       - ./backend.yaml:/home/app/config/config.yaml:ro

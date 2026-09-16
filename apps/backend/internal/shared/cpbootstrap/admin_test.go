@@ -3,7 +3,6 @@ package cpbootstrap_test
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
@@ -49,13 +48,11 @@ func adminModule(result error) cpbootstrap.Module {
 
 func call(ctx context.Context, address string) error {
 	client := connect.NewClient[emptypb.Empty, emptypb.Empty](http.DefaultClient, "http://"+address+adminProcedure)
-	if _, err := client.CallUnary(ctx, connect.NewRequest(&emptypb.Empty{})); err != nil {
-		return fmt.Errorf("the admin call failed: %w", err)
-	}
-	return nil
+	_, err := client.CallUnary(ctx, connect.NewRequest(&emptypb.Empty{}))
+	return err //nolint:wrapcheck // the test reads the connect code.
 }
 
-func serveUntil(t *testing.T, server cpbootstrap.ServerConfig, probe func(), modules ...cpbootstrap.Module) {
+func serveUntil(t *testing.T, server cpbootstrap.ServerConfig, module cpbootstrap.Module, probe func()) {
 	t.Helper()
 
 	ctx, cancel := context.WithCancel(t.Context())
@@ -64,7 +61,7 @@ func serveUntil(t *testing.T, server cpbootstrap.ServerConfig, probe func(), mod
 		done <- cpbootstrap.Run(ctx, cpbootstrap.Options{
 			Server:  server,
 			Logger:  slog.New(slog.DiscardHandler),
-			Modules: modules,
+			Modules: []cpbootstrap.Module{module},
 		})
 	}()
 
@@ -86,30 +83,30 @@ func serveUntil(t *testing.T, server cpbootstrap.ServerConfig, probe func(), mod
 func TestAnAdminServiceIsServedOnTheAdminListenerAndNowhereElse(t *testing.T) {
 	server := cpbootstrap.ServerConfig{BindAddress: freeAddress(t), AdminBindAddress: freeAddress(t)}
 
-	serveUntil(t, server, func() {
+	serveUntil(t, server, adminModule(nil), func() {
 		require.NoError(t, call(t.Context(), server.AdminBindAddress))
 		assert.Equal(t, connect.CodeUnimplemented, connect.CodeOf(call(t.Context(), server.BindAddress)),
 			"an admin service on the public router is one proxy edit away from the internet")
-	}, adminModule(nil))
+	})
 }
 
 func TestAnAdminServiceGetsTheErrorNet(t *testing.T) {
 	server := cpbootstrap.ServerConfig{BindAddress: freeAddress(t), AdminBindAddress: freeAddress(t)}
 
-	serveUntil(t, server, func() {
+	serveUntil(t, server, adminModule(errors.New("disk on fire")), func() {
 		err := call(t.Context(), server.AdminBindAddress)
 		assert.Equal(t, connect.CodeInternal, connect.CodeOf(err))
 		assert.NotContains(t, err.Error(), "disk on fire")
-	}, adminModule(errors.New("disk on fire")))
+	})
 }
 
 func TestNoAdminAddressServesNoAdminListener(t *testing.T) {
 	admin := freeAddress(t)
 	server := cpbootstrap.ServerConfig{BindAddress: freeAddress(t)}
 
-	serveUntil(t, server, func() {
+	serveUntil(t, server, adminModule(nil), func() {
 		assert.Equal(t, connect.CodeUnavailable, connect.CodeOf(call(t.Context(), admin)))
-	}, adminModule(nil))
+	})
 }
 
 func TestOnlyALoopbackAdminAddressIsAccepted(t *testing.T) {

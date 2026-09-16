@@ -27,12 +27,8 @@ type CreateSessionRequest struct {
 	// Cloudflare's siteverify. Ignored when the server runs with attestation
 	// disabled, which is how a local backend works without a widget.
 	AttestationToken string `protobuf:"bytes,1,opt,name=attestation_token,json=attestationToken,proto3" json:"attestation_token,omitempty"`
-	// Asks for a guest account when the caller's cookie gives none. The account
-	// is signed into the token, and its cookie is set on the response. Ignored
-	// when the server runs without accounts.
-	CreateAccount bool `protobuf:"varint,2,opt,name=create_account,json=createAccount,proto3" json:"create_account,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *CreateSessionRequest) Reset() {
@@ -72,17 +68,9 @@ func (x *CreateSessionRequest) GetAttestationToken() string {
 	return ""
 }
 
-func (x *CreateSessionRequest) GetCreateAccount() bool {
-	if x != nil {
-		return x.CreateAccount
-	}
-	return false
-}
-
 type CreateSessionResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Opaque. Sent back on every Click in the X-Session-Token header. Mint again
-	// after signing in or out, so the token carries the right account.
+	// Opaque. Sent back on every Click in the X-Session-Token header.
 	Token string `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
 	// When the token stops being accepted. The client mints a new one before
 	// this, rather than waiting for the first refusal.
@@ -140,15 +128,14 @@ var File_session_v1_session_proto protoreflect.FileDescriptor
 const file_session_v1_session_proto_rawDesc = "" +
 	"\n" +
 	"\x18session/v1/session.proto\x12\n" +
-	"session.v1\"j\n" +
+	"session.v1\"C\n" +
 	"\x14CreateSessionRequest\x12+\n" +
-	"\x11attestation_token\x18\x01 \x01(\tR\x10attestationToken\x12%\n" +
-	"\x0ecreate_account\x18\x02 \x01(\bR\rcreateAccount\"Z\n" +
+	"\x11attestation_token\x18\x01 \x01(\tR\x10attestationToken\"Z\n" +
 	"\x15CreateSessionResponse\x12\x14\n" +
 	"\x05token\x18\x01 \x01(\tR\x05token\x12+\n" +
-	"\x12expires_at_unix_ms\x18\x02 \x01(\x03R\x0fexpiresAtUnixMs2f\n" +
-	"\x0eSessionService\x12T\n" +
-	"\rCreateSession\x12 .session.v1.CreateSessionRequest\x1a!.session.v1.CreateSessionResponseB\xbb\x01\n" +
+	"\x12expires_at_unix_ms\x18\x02 \x01(\x03R\x0fexpiresAtUnixMs2k\n" +
+	"\x0eSessionService\x12Y\n" +
+	"\rCreateSession\x12 .session.v1.CreateSessionRequest\x1a!.session.v1.CreateSessionResponse\"\x03\x88\x02\x01B\xbb\x01\n" +
 	"\x0ecom.session.v1B\fSessionProtoP\x01ZRgithub.com/raphoester/clickplanet.lol-backend/generated/proto/session/v1;sessionv1\xa2\x02\x03SXX\xaa\x02\n" +
 	"Session.V1\xca\x02\n" +
 	"Session\\V1\xe2\x02\x16Session\\V1\\GPBMetadata\xea\x02\vSession::V1b\x06proto3"

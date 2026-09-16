@@ -6,14 +6,14 @@ import (
 	"time"
 )
 
-// Config is the `session:` block, and it is shared because two bounded
-// contexts read it: the session context mints with it, the planet context
+// Config is the token half of the `auth:` block, and it is shared because two
+// bounded contexts read it: the auth context mints with it, the planet context
 // verifies with it. Each builds its own Signer from the same settings, so the
 // two never share an object and cannot drift — the same secret and TTL produce
 // the same MAC.
 type Config struct {
-	// Off registers nothing: session.v1.SessionService/ 404s and clicks are
-	// judged on address alone, as they were before this existed.
+	// Off registers nothing: auth.v1 and session.v1 404, and clicks are judged
+	// on address alone, as they were before this existed.
 	Enabled bool
 
 	// Off counts what enforcing would refuse without refusing it. Ship in this
@@ -47,10 +47,10 @@ func (c Config) Validate() error {
 	}
 
 	if c.Secret == "" {
-		return errors.New("session.secret is empty while session.enabled is true: set SESSION_SECRET")
+		return errors.New("auth.secret is empty while auth.enabled is true: set SESSION_SECRET")
 	}
 	if c.TTL < 0 {
-		return fmt.Errorf("session.ttl must be positive, got %s", c.TTL)
+		return fmt.Errorf("auth.ttl must be positive, got %s", c.TTL)
 	}
 
 	return nil

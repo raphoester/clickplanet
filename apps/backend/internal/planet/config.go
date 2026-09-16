@@ -31,9 +31,9 @@ type Config struct {
 	Ledger        ledger.Config
 	LedgerStorage inmemory_ledger_storage.Config
 
-	// The same `session:` keys the session context mints with. Declared here
+	// The same `auth:` keys the auth context mints with. Declared here
 	// rather than handed over, so this module needs nothing but its config.
-	Session cpsession.Config
+	Auth cpsession.Config
 
 	Database cppg.Config
 }
@@ -43,8 +43,7 @@ type GameMapConfig struct {
 }
 
 // Validate refuses a map of no tiles, which would refuse every click. The
-// `session:` block it reads is the session context's to check, and does not
-// exist without it.
+// `auth:` block it reads is the auth context's to check.
 func (c Config) Validate() error {
 	if c.GameMap.MaxIndex == 0 {
 		return errors.New("gameMap.maxIndex is zero: the map has no tiles")

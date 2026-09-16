@@ -2,6 +2,7 @@ package get_me_handler_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 
@@ -12,26 +13,24 @@ import (
 
 	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
-	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/resolve_account_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_me_handler"
 )
 
 type stubUseCase struct {
-	out   *resolve_account_usecase.Out
-	err   error
-	asked []resolve_account_usecase.In
+	account uuid.UUID
+	err     error
+	asked   []string
 }
 
-func (s *stubUseCase) Execute(_ context.Context, in resolve_account_usecase.In) (*resolve_account_usecase.Out, error) {
-	s.asked = append(s.asked, in)
-	return s.out, s.err
+func (s *stubUseCase) Execute(_ context.Context, cookieHeader string) (uuid.UUID, error) {
+	s.asked = append(s.asked, cookieHeader)
+	return s.account, s.err
 }
-
-var account = uuid.MustParse("01926c6e-7a4b-7c3d-8e9f-0a1b2c3d4e5f")
 
 func getMe(useCase *stubUseCase) (*connect.Response[authv1.GetMeResponse], error) {
 	req := connect.NewRequest(&authv1.GetMeRequest{})
 	req.Header().Set("Cookie", "cp_sid=abc")
+
 	res, err := get_me_handler.New(useCase).GetMe(context.Background(), req)
 	if err != nil {
 		return nil, fmt.Errorf("GetMe failed: %w", err)
@@ -39,22 +38,26 @@ func getMe(useCase *stubUseCase) (*connect.Response[authv1.GetMeResponse], error
 	return res, nil
 }
 
-func TestGetMeAnswersTheAccountAndPassesTheCookieOn(t *testing.T) {
-	useCase := &stubUseCase{out: &resolve_account_usecase.Out{Account: account, SetCookie: "cp_sid=renewed"}}
+func TestGetMeAnswersTheAccountOfTheCookieAndIsNeverCached(t *testing.T) {
+	useCase := &stubUseCase{account: uuid.UUID{15: 1}}
 
 	res, err := getMe(useCase)
 	require.NoError(t, err)
 
-	assert.Equal(t, account.String(), res.Msg.GetAccountId())
-	assert.Equal(t, "cp_sid=renewed", res.Header().Get("Set-Cookie"))
+	assert.Equal(t, []string{"cp_sid=abc"}, useCase.asked)
+	assert.Equal(t, uuid.UUID{15: 1}.String(), res.Msg.GetAccountId())
 	assert.Equal(t, "no-store", res.Header().Get("Cache-Control"))
 }
 
-func TestGetMeNeverCreatesAnAccount(t *testing.T) {
-	useCase := &stubUseCase{err: accounts.ErrNoAccount}
-
-	_, err := getMe(useCase)
+func TestNoAccountIsUnauthenticated(t *testing.T) {
+	_, err := getMe(&stubUseCase{err: accounts.ErrNoAccount})
 
 	assert.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
-	assert.Equal(t, []resolve_account_usecase.In{{CookieHeader: "cp_sid=abc", Create: false}}, useCase.asked)
+}
+
+func TestAFailureIsNotUnauthenticated(t *testing.T) {
+	_, err := getMe(&stubUseCase{err: errors.New("postgres is down")})
+
+	require.Error(t, err)
+	assert.NotEqual(t, connect.CodeUnauthenticated, connect.CodeOf(err))
 }

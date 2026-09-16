@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/session/internal/domain"
-	"github.com/raphoester/clickplanet.lol-backend/internal/session/internal/turnstile"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/attestation"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/attestation/turnstile"
 )
 
 type Verifier interface {
@@ -16,7 +16,7 @@ type Attester struct {
 	verifier Verifier
 }
 
-var _ domain.Attester = (*Attester)(nil)
+var _ attestation.Attester = (*Attester)(nil)
 
 func New(config turnstile.Config) (*Attester, error) {
 	client, err := turnstile.New(config)
@@ -28,5 +28,8 @@ func New(config turnstile.Config) (*Attester, error) {
 }
 
 func (a *Attester) Attest(ctx context.Context, token string, ip string) error {
-	return a.verifier.Verify(ctx, token, ip)
+	if err := a.verifier.Verify(ctx, token, ip); err != nil {
+		return fmt.Errorf("turnstile refused the token: %w", err)
+	}
+	return nil
 }

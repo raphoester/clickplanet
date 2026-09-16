@@ -11,7 +11,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet"
-	"github.com/raphoester/clickplanet.lol-backend/internal/session"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconfigs"
 )
@@ -22,9 +21,8 @@ type Config struct {
 	// Squashed: the planet keys sit at the top level of the file.
 	Planet planet.Config `koanf:",squash"`
 
-	Session session.Config
-	Chat    chat.Config
-	Auth    auth.Config
+	Auth auth.Config
+	Chat chat.Config
 }
 
 func main() {
@@ -57,7 +55,6 @@ func run(ctx context.Context) error {
 func describeModules(config Config) []cpbootstrap.Module {
 	return []cpbootstrap.Module{
 		auth.NewModule(config.Auth),
-		session.NewModule(config.Session),
 		planet.NewModule(config.Planet),
 		chat.NewModule(config.Chat),
 	}
@@ -77,7 +74,6 @@ func (c Config) Validate() error {
 	return errors.Join(
 		c.HTTPServer.Validate(),
 		c.Planet.Validate(),
-		c.Session.Validate(),
 		c.Chat.Validate(),
 		c.Auth.Validate(),
 	)

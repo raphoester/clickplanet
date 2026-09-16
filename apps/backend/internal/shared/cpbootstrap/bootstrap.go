@@ -59,15 +59,6 @@ type Props struct {
 
 	// AdminRPC mounts on the loopback admin listener, which has no authentication and no CORS.
 	AdminRPC RPCRegistrar
-
-	// InternalRPC mounts what other modules call, on the loopback internal listener; Internal reaches it.
-	InternalRPC RPCRegistrar
-	Internal    InternalDialer
-}
-
-// InternalDialer is how a module calls another: over the internal listener, never in its own stack trace.
-type InternalDialer interface {
-	Dial() (connect.HTTPClient, string, error)
 }
 
 // RPCRegistrar mounts a Connect service.
@@ -120,9 +111,6 @@ type ServerConfig struct {
 
 	// Empty serves no admin listener; anything but a loopback address refuses the boot.
 	AdminBindAddress string
-
-	// Empty serves no internal listener, and a module that dials it refuses the boot; anything but loopback refuses it too.
-	InternalBindAddress string
 }
 
 // Validate refuses the address that has no usable zero value: empty listens on port 80.
@@ -135,13 +123,6 @@ func (c ServerConfig) Validate() error {
 		return fmt.Errorf(
 			"httpServer.adminBindAddress %q is not a loopback host:port: the admin services have no authentication",
 			c.AdminBindAddress,
-		)
-	}
-
-	if c.InternalBindAddress != "" && !isLoopback(c.InternalBindAddress) {
-		return fmt.Errorf(
-			"httpServer.internalBindAddress %q is not a loopback host:port: its callers are trusted",
-			c.InternalBindAddress,
 		)
 	}
 
@@ -201,12 +182,10 @@ func Run(ctx context.Context, options Options) error {
 	drainNet := newDrainInterceptor(draining)
 	routes := newRPCRoutes(errorNet, drainNet)
 	adminRoutes := newRPCRoutes(errorNet, drainNet)
-	internalRoutes := newRPCRoutes(errorNet, drainNet)
 	runners := newRunnerRegistry()
 	closers := newCloserRegistry()
 
-	registrars := registrars{routes: routes, admin: adminRoutes, internal: internalRoutes}
-	if err := buildModules(ctx, options, metrics, registrars, runners, closers); err != nil {
+	if err := buildModules(ctx, options, metrics, routes, adminRoutes, runners, closers); err != nil {
 		return err
 	}
 
@@ -218,48 +197,12 @@ func Run(ctx context.Context, options Options) error {
 	))
 	mountMetrics(router, metrics, options.Logger)
 
-	loopbacks, err := listenLoopbacks(options, adminRoutes, internalRoutes)
+	admin, err := listenAdmin(options, adminRoutes)
 	if err != nil {
 		return err
 	}
 
-	return serve(ctx, options, router, loopbacks, drain, runners, closers)
-}
-
-func listenLoopbacks(options Options, adminRoutes, internalRoutes *rpcRoutes) ([]*loopbackServer, error) {
-	var loopbacks []*loopbackServer
-
-	for _, listener := range []struct {
-		name, key, address string
-		routes             *rpcRoutes
-	}{
-		{"admin", "adminBindAddress", options.Server.AdminBindAddress, adminRoutes},
-		{"internal", "internalBindAddress", options.Server.InternalBindAddress, internalRoutes},
-	} {
-		loopback, err := listenLoopback(options, listener.name, listener.key, listener.address, listener.routes)
-		switch {
-		case err == nil:
-			loopbacks = append(loopbacks, loopback)
-		case errors.Is(err, errNoLoopbackAddress):
-			if len(listener.routes.paths) > 0 {
-				options.Logger.Info(listener.name+" listener off, its services not served",
-					slog.Int("services", len(listener.routes.paths)))
-			}
-		default:
-			for _, opened := range loopbacks {
-				_ = opened.listener.Close()
-			}
-			return nil, fmt.Errorf("failed to listen for %s: %w", listener.name, err)
-		}
-	}
-
-	return loopbacks, nil
-}
-
-type registrars struct {
-	routes   *rpcRoutes
-	admin    *rpcRoutes
-	internal *rpcRoutes
+	return serve(ctx, options, router, admin, drain, runners, closers)
 }
 
 // buildModules runs every module's DI sequence under one startup deadline.
@@ -267,7 +210,8 @@ func buildModules(
 	ctx context.Context,
 	options Options,
 	metrics *prometheus.Registry,
-	registrars registrars,
+	routes *rpcRoutes,
+	adminRoutes *rpcRoutes,
 	runners *runnerRegistry,
 	closers *closerRegistry,
 ) error {
@@ -283,15 +227,13 @@ func buildModules(
 		before := runners.count()
 
 		err := module.DiSequence(ctx, Props{
-			Logger:      options.Logger,
-			Metrics:     metrics,
-			Server:      options.Server,
-			RPC:         registrars.routes.forModule(module.Name),
-			AdminRPC:    registrars.admin.forModule(module.Name),
-			InternalRPC: registrars.internal.forModule(module.Name),
-			Internal:    internalDialer{address: options.Server.InternalBindAddress},
-			Runners:     runners,
-			Closers:     closers,
+			Logger:   options.Logger,
+			Metrics:  metrics,
+			Server:   options.Server,
+			RPC:      routes.forModule(module.Name),
+			AdminRPC: adminRoutes.forModule(module.Name),
+			Runners:  runners,
+			Closers:  closers,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to build the %s module: %w", module.Name, err)

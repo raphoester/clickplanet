@@ -2,13 +2,32 @@ syntax = "proto3";
 
 package auth.v1;
 
-// Who a caller is. Every caller that clicks gets an account, a guest one until
-// it signs in, kept in an HttpOnly cookie this service sets.
+// Who a caller is, and what it has to prove before it may click. Every caller
+// that mints a session gets an account, a guest one until it signs in, kept in
+// an HttpOnly cookie this service sets.
 service AuthService {
+  // Checks a Cloudflare Turnstile token, then mints the click token. The
+  // caller's cookie brings its account back; a caller with no live session is
+  // given a guest account and its cookie. The account is signed into the token.
+  rpc CreateSession(CreateSessionRequest) returns (CreateSessionResponse);
+
   // The account the caller's cookie belongs to. Unauthenticated when it carries
-  // none. Absent (404) when the server runs without accounts, which is how a
-  // client knows not to offer sign-in.
+  // none. Creates nothing.
   rpc GetMe(GetMeRequest) returns (GetMeResponse);
+}
+
+message CreateSessionRequest {
+  // The Turnstile widget's cf-turnstile-response. Ignored when the server runs
+  // with attestation disabled.
+  string attestation_token = 1;
+}
+
+message CreateSessionResponse {
+  // Opaque. Sent back on every Click in the X-Session-Token header.
+  string token = 1;
+
+  // When the token stops being accepted. The client mints a new one before this.
+  int64 expires_at_unix_ms = 2;
 }
 
 message GetMeRequest {}
