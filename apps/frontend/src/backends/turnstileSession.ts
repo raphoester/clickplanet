@@ -1,6 +1,29 @@
-import {PromiseClient} from "@connectrpc/connect"
-import {SessionService} from "../gen/grpc/session/v1/session_connect.ts"
+import {createPromiseClient, PromiseClient} from "@connectrpc/connect"
+import {createConnectTransport} from "@connectrpc/connect-web"
+import {AuthService} from "../gen/grpc/auth/v1/auth_connect.ts"
 import {SessionProvider, SessionUnavailableError} from "./session.ts"
+import {Config} from "./transport.ts"
+
+/**
+ * The one client that sends cookies. The server keeps the caller's account in
+ * an HttpOnly cookie on the API's host, and a cross-origin fetch only carries
+ * it, or stores the one the answer sets, with `credentials: "include"`.
+ *
+ * Only this transport sends them. Clicks, the map and the chat stay
+ * credential-free: a read that carries a cookie is a read no shared cache
+ * serves, and none of them needs to know who is asking.
+ *
+ * Minting is a POST that must not be cached and is not on the click path's
+ * critical timing, so it takes neither of the click transport's two options.
+ */
+export function newAuthServiceClient(config: Config): PromiseClient<typeof AuthService> {
+    return createPromiseClient(AuthService, createConnectTransport({
+        baseUrl: config.baseUrl,
+        useBinaryFormat: true,
+        defaultTimeoutMs: config.timeoutMs ?? 5000,
+        fetch: (input, init) => globalThis.fetch(input, {...init, credentials: "include"}),
+    }))
+}
 
 /**
  * Produces a Turnstile token. Split out of the session client so the caching
@@ -31,7 +54,7 @@ export class SessionClient implements SessionProvider {
     private readonly now: () => number
 
     constructor(
-        private readonly client: PromiseClient<typeof SessionService>,
+        private readonly client: PromiseClient<typeof AuthService>,
         private readonly attest: Attester,
         options: SessionClientOptions = {},
     ) {

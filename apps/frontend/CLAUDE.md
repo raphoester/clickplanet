@@ -334,6 +334,23 @@ apart:
   `challenges.cloudflare.com/turnstile/v0/api.js` on first use, renders a widget,
   resolves with its token and removes it again.
 
+**It mints through `auth.v1.AuthService/CreateSession`**, which also gives the
+browser an account: a guest one, kept in the `cp_sid` cookie the answer sets
+(HttpOnly, on the API's host). The next mint sends the cookie back and gets the
+same account. Nothing on the page reads or shows it. `session.v1` is deprecated
+on the backend and this build no longer calls it.
+
+**`newAuthServiceClient` is the only transport that sends credentials.** Its
+`fetch` wrapper adds `credentials: "include"`; without it connect-web sends
+`same-origin`, and a cross-origin mint neither sends the cookie nor keeps the
+one it is given — every mint would start a new guest. The click, map and chat
+clients stay without it: nothing there needs to know who is asking, and a read
+that carries a cookie is one no shared cache serves. Both halves are pinned in
+`turnstileSession.test.ts`. A credentialed call needs the API to name the exact
+origin and send `Access-Control-Allow-Credentials: true` — Caddy does in
+production, and a local backend does from `httpServer.allowedOrigin`, which
+must be the dev server's origin (`http://localhost:5173`).
+
 **A fresh widget per attestation**, not one reset between uses. Turnstile tokens
 are redeemed exactly once, and a widget that is created and destroyed has no
 lifecycle left to get wrong.

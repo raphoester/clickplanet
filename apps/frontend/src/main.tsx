@@ -2,9 +2,9 @@ import {createRoot} from 'react-dom/client'
 import {StrictMode} from "react"
 import './index.css'
 
-import {newClickServiceClient, newSessionServiceClient, PlanetBackend} from "./backends/planetBackend.ts"
+import {newClickServiceClient, PlanetBackend} from "./backends/planetBackend.ts"
 import {NoSession, SessionProvider} from "./backends/session.ts"
-import {SessionClient, turnstileAttester} from "./backends/turnstileSession.ts"
+import {newAuthServiceClient, SessionClient, turnstileAttester} from "./backends/turnstileSession.ts"
 import {ChatServiceBackend, newChatServiceClient} from "./backends/chatBackend.ts"
 import {FakeBackend} from "./backends/fakeBackend.ts"
 import {FakeChatBackend} from "./backends/fakeChatBackend.ts"
@@ -22,7 +22,7 @@ const config = {
 // from such a build, deliberately: the two are configured together.
 const sitekey = import.meta.env.VITE_TURNSTILE_SITEKEY
 const session: SessionProvider = sitekey
-    ? new SessionClient(newSessionServiceClient(config), turnstileAttester(sitekey, "session"))
+    ? new SessionClient(newAuthServiceClient(config), turnstileAttester(sitekey, "session"))
     : new NoSession()
 
 // `VITE_FAKE_BACKEND=1 npm run dev` plays against the in-browser fakes, bombs
