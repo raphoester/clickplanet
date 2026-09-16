@@ -23,7 +23,7 @@ func newHarness(config metronome.Config) *harness {
 		clock: cptime.NewFixedClock(time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC)),
 		tile:  1,
 	}
-	h.watchdog = metronome.New(config, h.clock)
+	h.watchdog = metronome.New(config, h.clock, func(float64) {})
 	return h
 }
 

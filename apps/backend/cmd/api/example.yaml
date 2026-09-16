@@ -344,6 +344,18 @@ antiBot:
       minClicks: 120
       certainFor: 30m
       certainClicks: 900
+      # The second rule: a random sleep is a clock too. It reads the skew
+      # (p90 + p10 - 2*p50) / (p90 - p10) of the last `clicks` gaps, over a
+      # window a pause does not end: a gap past maxGap is skipped. A hand leans
+      # long and reads towards 1; a sleep drawn evenly from a range reads near 0.
+      shape:
+        maxGap: 10s
+        clicks: 500
+        certainClicks: 1000
+        # Unset, a level never reads and click_gap_skew only measures. 0 is a
+        # skew, so leaving a bound out is the only way to turn it off.
+        # maxSkew: 0.25
+        # certainSkew: 0.15
       trackWindow: 15m
       sweepInterval: 1m
 
