@@ -17,7 +17,7 @@ func TestSweepForgetsIdleCallers(t *testing.T) {
 	w := New(Config{TrackWindow: time.Minute}, clock, func(float64) {})
 
 	w.Listened("player")
-	w.Fetched("player", 1)
+	w.Fetched("player", 1, false)
 	require.Len(t, w.callers, 1)
 
 	clock.Advance(2 * time.Minute)
@@ -33,7 +33,7 @@ func TestAFloodOfReadsKeepsOneSliceAStep(t *testing.T) {
 
 	for range 100_000 {
 		clock.Advance(20 * time.Millisecond)
-		w.Fetched("flooder", 0.001)
+		w.Fetched("flooder", 0.001, false)
 	}
 
 	assert.LessOrEqual(t, len(w.callers["flooder"].slices), steps+1, "GetMap is not throttled: memory must not follow the pace")
@@ -45,15 +45,15 @@ func TestSweepReportsTheCallersThatClick(t *testing.T) {
 	var reported []float64
 	w := New(Config{TrackWindow: 15 * time.Minute}, clock, func(maps float64) { reported = append(reported, maps) })
 
-	w.Fetched("viewer", 3)
+	w.Fetched("viewer", 3, false)
 
 	w.Listened("clicker")
-	w.Fetched("clicker", 8)
+	w.Fetched("clicker", 8, false)
 	w.Attempted(detect.Click{Scope: "clicker", Tile: 1, Country: "dz", At: clock.Now()})
 
 	w.Listened("reconnecting")
 	w.Listened("reconnecting")
-	w.Fetched("reconnecting", 1)
+	w.Fetched("reconnecting", 1, false)
 	w.Attempted(detect.Click{Scope: "reconnecting", Tile: 2, Country: "fr", At: clock.Now()})
 
 	w.sweep()

@@ -26,11 +26,13 @@ func (s stubUseCase) Execute(context.Context, get_map_usecase.In) (clicks.DenseB
 type fakeGuard struct {
 	scopes []string
 	maps   []float64
+	offMap []bool
 }
 
-func (g *fakeGuard) Fetched(scope string, maps float64) {
+func (g *fakeGuard) Fetched(scope string, maps float64, offMap bool) {
 	g.scopes = append(g.scopes, scope)
 	g.maps = append(g.maps, maps)
+	g.offMap = append(g.offMap, offMap)
 }
 
 type board uint32
@@ -48,6 +50,33 @@ func TestAReadIsReportedAsAShareOfTheMap(t *testing.T) {
 	assert.Equal(t, batch, got, "the batch is the inner one, untouched")
 	assert.Equal(t, []string{"2001:db8::/64"}, guard.scopes, "the reader is its scope, as a click is")
 	assert.Equal(t, []float64{0.25}, guard.maps)
+	assert.Equal(t, []bool{false}, guard.offMap, "1..251 is a span the web app asks for")
+}
+
+func TestAReadOutsideTheMapIsReportedAsSuch(t *testing.T) {
+	batch := clicks.DenseBatch{Codes: []string{"", "fr"}, Tiles: make([]byte, 2*250)}
+
+	for _, tc := range []struct {
+		name   string
+		in     get_map_usecase.In
+		offMap bool
+	}{
+		{"the web app's first batch", get_map_usecase.In{Start: 1, End: 10001}, false},
+		{"the web app's last batch, clamped", get_map_usecase.In{Start: 250001, End: 257948}, false},
+		{"an unset end is the end of the map", get_map_usecase.In{Start: 1}, false},
+		{"the bot's walk starts at tile 0", get_map_usecase.In{Start: 0, End: 10000}, true},
+		{"the bot's last batch runs past the end", get_map_usecase.In{Start: 250000, End: 257954}, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			guard := &fakeGuard{}
+
+			_, err := antibot_get_map.New(stubUseCase{batch: batch}, guard, board(257948)).
+				Execute(cpctx.AddIPToContext(t.Context(), "203.0.113.7"), tc.in)
+
+			require.NoError(t, err)
+			assert.Equal(t, []bool{tc.offMap}, guard.offMap)
+		})
+	}
 }
 
 func TestARefusedReadReportsNothing(t *testing.T) {

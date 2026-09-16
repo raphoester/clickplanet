@@ -428,12 +428,17 @@ antiBot:
 
   # Reads the whole map again and again. The web app reads it once per page
   # load and opens one stream with it, so a map read beyond one per stream is
-  # a client that is not the web app.
+  # a client that is not the web app. A caller that asked for tiles outside the
+  # map gets no credit for its streams at all: tile ids start at 1 and the web
+  # app clamps its last batch, so neither bound can land outside it, whatever
+  # batch size a future client picks. That is what the bot of 2026-09-16 could
+  # not hide once it started opening a stream before every read.
   scraper:
     enabled: true
     detector:
       # Maps read beyond one per stream opened, inside trackWindow: "suspect",
-      # then "certain". The bot of 2026-09-15 read 23 to 31 in 15 minutes.
+      # then "certain". The bot of 2026-09-15 read 23 to 31 in 15 minutes; the
+      # one of 2026-09-16, paying for its reads with streams, read 7.
       minMaps: 5
       certainMaps: 15
       trackWindow: 15m
