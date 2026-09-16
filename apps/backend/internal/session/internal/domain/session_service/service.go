@@ -5,6 +5,7 @@ package session_service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -16,11 +17,11 @@ import (
 )
 
 type Minter interface {
-	Mint(ip string, account uuid.UUID, now time.Time) (cpsession.Token, error)
+	Mint(ip string, account uuid.UUID, now time.Time) (*cpsession.Token, error)
 }
 
 type IService interface {
-	Create(ctx context.Context, request Request) (Minted, error)
+	Create(ctx context.Context, request Request) (*Minted, error)
 }
 
 type Request struct {
@@ -31,7 +32,7 @@ type Request struct {
 }
 
 type Minted struct {
-	Token     cpsession.Token
+	Token     *cpsession.Token
 	SetCookie string
 }
 
@@ -48,41 +49,44 @@ func New(attester domain.Attester, accounts domain.Accounts, minter Minter, cloc
 	return &Service{attester: attester, accounts: accounts, minter: minter, clock: clock}
 }
 
-func (s *Service) Create(ctx context.Context, request Request) (Minted, error) {
+func (s *Service) Create(ctx context.Context, request Request) (*Minted, error) {
 	// A session is an address that proved something. Minting one against no
 	// address at all would produce a token every caller could use, since
 	// verification would bind to the same empty string.
 	if request.IP == "" {
-		return Minted{}, fmt.Errorf("%w: the request carries no source address", domain.ErrAttestationFailed)
+		return nil, fmt.Errorf("%w: the request carries no source address", domain.ErrAttestationFailed)
 	}
 
 	if err := s.attester.Attest(ctx, request.AttestationToken, request.IP); err != nil {
-		return Minted{}, fmt.Errorf("%w: %w", domain.ErrAttestationFailed, err)
+		return nil, fmt.Errorf("%w: %w", domain.ErrAttestationFailed, err)
 	}
 
 	// After attestation, so a caller that proved nothing never creates an account.
+	account, setCookie := uuid.Nil, ""
 	resolution, err := s.resolve(ctx, request)
-	if err != nil {
-		return Minted{}, err
+	switch {
+	case err == nil:
+		account, setCookie = resolution.Account, resolution.SetCookie
+	case !errors.Is(err, domain.ErrNoAccount):
+		return nil, fmt.Errorf("failed to resolve the caller's account: %w", err)
 	}
 
-	token, err := s.minter.Mint(request.IP, resolution.Account, s.clock.Now())
+	token, err := s.minter.Mint(request.IP, account, s.clock.Now())
 	if err != nil {
-		return Minted{}, fmt.Errorf("failed to mint a session token: %w", err)
+		return nil, fmt.Errorf("failed to mint a session token: %w", err)
 	}
 
-	return Minted{Token: token, SetCookie: resolution.SetCookie}, nil
+	return &Minted{Token: token, SetCookie: setCookie}, nil
 }
 
-func (s *Service) resolve(ctx context.Context, request Request) (domain.Resolution, error) {
+func (s *Service) resolve(ctx context.Context, request Request) (*domain.Resolution, error) {
 	if request.CookieHeader == "" && !request.CreateAccount {
-		return domain.Resolution{}, nil
+		return nil, fmt.Errorf("%w: no cookie, and none asked for", domain.ErrNoAccount)
 	}
 
 	resolution, err := s.accounts.Resolve(ctx, request.CookieHeader, request.CreateAccount)
 	if err != nil {
-		return domain.Resolution{}, fmt.Errorf("failed to resolve the caller's account: %w", err)
+		return nil, fmt.Errorf("failed to ask for the account: %w", err)
 	}
-
 	return resolution, nil
 }

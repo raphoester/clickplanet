@@ -227,23 +227,29 @@ func Run(ctx context.Context, options Options) error {
 }
 
 func listenLoopbacks(options Options, adminRoutes, internalRoutes *rpcRoutes) ([]*loopbackServer, error) {
-	admin, err := listenLoopback(options, "admin", "adminBindAddress", options.Server.AdminBindAddress, adminRoutes)
-	if err != nil {
-		return nil, err
-	}
-
-	internal, err := listenLoopback(options, "internal", "internalBindAddress", options.Server.InternalBindAddress, internalRoutes)
-	if err != nil {
-		if admin != nil {
-			_ = admin.listener.Close()
-		}
-		return nil, err
-	}
-
 	var loopbacks []*loopbackServer
-	for _, loopback := range []*loopbackServer{admin, internal} {
-		if loopback != nil {
+
+	for _, listener := range []struct {
+		name, key, address string
+		routes             *rpcRoutes
+	}{
+		{"admin", "adminBindAddress", options.Server.AdminBindAddress, adminRoutes},
+		{"internal", "internalBindAddress", options.Server.InternalBindAddress, internalRoutes},
+	} {
+		loopback, err := listenLoopback(options, listener.name, listener.key, listener.address, listener.routes)
+		switch {
+		case err == nil:
 			loopbacks = append(loopbacks, loopback)
+		case errors.Is(err, errNoLoopbackAddress):
+			if len(listener.routes.paths) > 0 {
+				options.Logger.Info(listener.name+" listener off, its services not served",
+					slog.Int("services", len(listener.routes.paths)))
+			}
+		default:
+			for _, opened := range loopbacks {
+				_ = opened.listener.Close()
+			}
+			return nil, fmt.Errorf("failed to listen for %s: %w", listener.name, err)
 		}
 	}
 

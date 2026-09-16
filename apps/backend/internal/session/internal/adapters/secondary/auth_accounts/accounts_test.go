@@ -15,6 +15,7 @@ import (
 	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1/authv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/session/internal/adapters/secondary/auth_accounts"
+	"github.com/raphoester/clickplanet.lol-backend/internal/session/internal/domain"
 )
 
 type fakeInternal struct {
@@ -65,13 +66,13 @@ func TestTheCookieAndTheAskReachTheAuthModule(t *testing.T) {
 	assert.True(t, fake.asked[0].GetCreate())
 }
 
-func TestNoAccountIsTheNilUUID(t *testing.T) {
+func TestAnEmptyAccountIDIsNoAccount(t *testing.T) {
 	fake := &fakeInternal{response: &authv1.ResolveAccountResponse{}}
 
 	resolution, err := accountsOver(t, fake, time.Second).Resolve(t.Context(), "", false)
-	require.NoError(t, err)
 
-	assert.Equal(t, uuid.Nil, resolution.Account)
+	require.ErrorIs(t, err, domain.ErrNoAccount)
+	assert.Nil(t, resolution)
 }
 
 func TestAnAccountIDThatIsNotAUUIDIsAnError(t *testing.T) {
@@ -79,7 +80,8 @@ func TestAnAccountIDThatIsNotAUUIDIsAnError(t *testing.T) {
 
 	_, err := accountsOver(t, fake, time.Second).Resolve(t.Context(), "", true)
 
-	assert.Error(t, err)
+	require.Error(t, err)
+	assert.NotErrorIs(t, err, domain.ErrNoAccount)
 }
 
 func TestASlowAuthModuleIsGivenUpOn(t *testing.T) {

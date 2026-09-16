@@ -13,11 +13,12 @@ type Attester interface {
 	Attest(ctx context.Context, token string, ip string) error
 }
 
+// Accounts answers ErrNoAccount for a caller that has none.
 type Accounts interface {
-	Resolve(ctx context.Context, cookieHeader string, create bool) (Resolution, error)
+	Resolve(ctx context.Context, cookieHeader string, create bool) (*Resolution, error)
 }
 
-// Resolution is an account (uuid.Nil for none) and the Set-Cookie to pass back as is (empty for none).
+// Resolution is an account and the Set-Cookie to pass back as is (empty for none).
 type Resolution struct {
 	Account   uuid.UUID
 	SetCookie string

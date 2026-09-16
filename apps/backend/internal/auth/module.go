@@ -16,7 +16,9 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/postgres_account_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/random_token_generator"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/resolve_account_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/uuid_id_provider"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_me_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/resolve_account_handler"
@@ -50,20 +52,25 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	props.Closers.Add("auth-postgres", db.Close)
 
 	resolveAccount := resolve_account_usecase.New(
-		postgres_account_store.New(db), config.Sessions, cptime.SystemClock{})
+		postgres_account_store.New(db),
+		uuid_id_provider.Provider{},
+		random_token_generator.Generator{},
+		config.Sessions,
+		cptime.SystemClock{},
+	)
 
 	authService := authv1controller.AuthService{GetMeHandler: get_me_handler.New(resolveAccount)}
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return authv1connect.NewAuthServiceHandler(authService, options...)
 	}); err != nil {
-		return err //nolint:wrapcheck // cpbootstrap names the module.
+		return fmt.Errorf("failed to mount the auth service: %w", err)
 	}
 
 	internalService := authv1controller.InternalService{ResolveAccountHandler: resolve_account_handler.New(resolveAccount)}
 	if err := props.InternalRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return authv1connect.NewInternalServiceHandler(internalService, options...)
 	}); err != nil {
-		return err //nolint:wrapcheck // cpbootstrap names the module.
+		return fmt.Errorf("failed to mount the auth internal service: %w", err)
 	}
 
 	props.Logger.Info("auth built",

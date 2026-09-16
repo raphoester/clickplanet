@@ -3,6 +3,7 @@ package fail_open_accounts_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"strings"
 	"testing"
@@ -18,24 +19,21 @@ import (
 )
 
 type fixedAccounts struct {
-	resolution domain.Resolution
+	resolution *domain.Resolution
 	err        error
 }
 
-func (a fixedAccounts) Resolve(context.Context, string, bool) (domain.Resolution, error) {
+func (a fixedAccounts) Resolve(context.Context, string, bool) (*domain.Resolution, error) {
 	return a.resolution, a.err
 }
 
-func resolve(t *testing.T, next domain.Accounts) (domain.Resolution, *prometheus.Registry) {
-	t.Helper()
-
-	registry := prometheus.NewRegistry()
-	accounts := fail_open_accounts.New(next, slog.New(slog.DiscardHandler), registry)
-
-	resolution, err := accounts.Resolve(t.Context(), "cp_sid=abc", true)
-	require.NoError(t, err)
-
-	return resolution, registry
+func resolve(registry *prometheus.Registry, next domain.Accounts) (*domain.Resolution, error) {
+	resolution, err := fail_open_accounts.New(next, slog.New(slog.DiscardHandler), registry).
+		Resolve(context.Background(), "cp_sid=abc", true)
+	if err != nil {
+		return nil, fmt.Errorf("resolve failed: %w", err)
+	}
+	return resolution, nil
 }
 
 func assertCounted(t *testing.T, registry *prometheus.Registry, outcome string) {
@@ -49,24 +47,31 @@ session_account_resolutions_total{outcome="` + outcome + `"} 1
 	assert.NoError(t, testutil.GatherAndCompare(registry, strings.NewReader(expected)))
 }
 
-func TestAFailureMintsWithNoAccountAndIsCounted(t *testing.T) {
-	resolution, registry := resolve(t, fixedAccounts{err: errors.New("auth is down")})
+func TestAFailureIsNoAccountAndIsCounted(t *testing.T) {
+	registry := prometheus.NewRegistry()
+	resolution, err := resolve(registry, fixedAccounts{err: errors.New("auth is down")})
 
-	assert.Equal(t, domain.Resolution{}, resolution)
+	require.ErrorIs(t, err, domain.ErrNoAccount)
+	assert.Nil(t, resolution)
 	assertCounted(t, registry, "failed")
 }
 
 func TestAnAccountIsPassedOnAndCounted(t *testing.T) {
-	account := domain.Resolution{Account: uuid.MustParse("01926c6e-7a4b-7c3d-8e9f-0a1b2c3d4e5f"), SetCookie: "cp_sid=x"}
+	account := &domain.Resolution{Account: uuid.UUID{15: 1}, SetCookie: "cp_sid=x"}
 
-	resolution, registry := resolve(t, fixedAccounts{resolution: account})
+	registry := prometheus.NewRegistry()
+	resolution, err := resolve(registry, fixedAccounts{resolution: account})
 
+	require.NoError(t, err)
 	assert.Equal(t, account, resolution)
 	assertCounted(t, registry, "account")
 }
 
-func TestNoAccountIsCountedAsNone(t *testing.T) {
-	_, registry := resolve(t, fixedAccounts{})
+func TestNoAccountIsPassedOnAndCountedAsNone(t *testing.T) {
+	registry := prometheus.NewRegistry()
+	resolution, err := resolve(registry, fixedAccounts{err: domain.ErrNoAccount})
 
+	require.ErrorIs(t, err, domain.ErrNoAccount)
+	assert.Nil(t, resolution)
 	assertCounted(t, registry, "none")
 }

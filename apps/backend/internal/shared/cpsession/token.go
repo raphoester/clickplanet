@@ -89,10 +89,10 @@ func (s *Signer) TTL() time.Duration {
 // re-minting on the next address in a prefix it already owns. It also stops an
 // IPv6 privacy address rotating under a player mid-session, which on an exact
 // binding would have logged them out on their own connection's schedule.
-func (s *Signer) Mint(ip string, account uuid.UUID, now time.Time) (Token, error) {
+func (s *Signer) Mint(ip string, account uuid.UUID, now time.Time) (*Token, error) {
 	id := make([]byte, idLen)
 	if _, err := rand.Read(id); err != nil {
-		return Token{}, fmt.Errorf("failed to read random bytes: %w", err)
+		return nil, fmt.Errorf("failed to read random bytes: %w", err)
 	}
 
 	expiresAt := now.Add(s.ttl)
@@ -109,21 +109,21 @@ func (s *Signer) Mint(ip string, account uuid.UUID, now time.Time) (Token, error
 	token = append(token, payload...)
 	token = append(token, s.mac(payload, ip)...)
 
-	return Token{
+	return &Token{
 		Value:     base64.RawURLEncoding.EncodeToString(token),
 		ID:        ID(hex.EncodeToString(id)),
 		ExpiresAt: expiresAt,
 	}, nil
 }
 
-func (s *Signer) Verify(value string, ip string, now time.Time) (Claims, error) {
+func (s *Signer) Verify(value string, ip string, now time.Time) (*Claims, error) {
 	raw, err := base64.RawURLEncoding.DecodeString(value)
 	if err != nil {
-		return Claims{}, fmt.Errorf("%w: %w", ErrMalformed, err)
+		return nil, fmt.Errorf("%w: %w", ErrMalformed, err)
 	}
 
 	if len(raw) != tokenLen {
-		return Claims{}, fmt.Errorf("%w: got %d bytes, want %d", ErrMalformed, len(raw), tokenLen)
+		return nil, fmt.Errorf("%w: got %d bytes, want %d", ErrMalformed, len(raw), tokenLen)
 	}
 
 	payload, mac := raw[:payloadLen], raw[payloadLen:]
@@ -131,15 +131,15 @@ func (s *Signer) Verify(value string, ip string, now time.Time) (Claims, error) 
 	// Constant time, and before the expiry check: an attacker must not learn
 	// whether a forged token would have been in date.
 	if !hmac.Equal(mac, s.mac(payload, ip)) {
-		return Claims{}, ErrBadSignature
+		return nil, ErrBadSignature
 	}
 
 	expiresAt := time.UnixMilli(int64(binary.BigEndian.Uint64(payload[:expiryLen])))
 	if !now.Before(expiresAt) {
-		return Claims{}, fmt.Errorf("%w at %s", ErrExpired, expiresAt.UTC().Format(time.RFC3339))
+		return nil, fmt.Errorf("%w at %s", ErrExpired, expiresAt.UTC().Format(time.RFC3339))
 	}
 
-	return Claims{
+	return &Claims{
 		ID:      ID(hex.EncodeToString(payload[expiryLen : expiryLen+idLen])),
 		Account: uuid.UUID(payload[expiryLen+idLen:]),
 	}, nil

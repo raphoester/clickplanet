@@ -34,13 +34,13 @@ func (s *testSuite) SetupSuite() {
 }
 
 var (
-	start   = time.Date(2026, 9, 15, 12, 0, 0, 123_456_000, time.UTC)
-	account = uuid.MustParse("01926c6e-7a4b-7c3d-8e9f-0a1b2c3d4e5f")
-	hash    = accounts.HashOf("a-token")
+	start    = time.Date(2026, 9, 15, 12, 0, 0, 123_456_000, time.UTC)
+	lifetime = accounts.Lifetime{GuestTTL: time.Hour, ExtendEvery: time.Minute}
 )
 
 func (s *testSuite) TestTheTokenItselfIsNeverStored() {
-	s.Require().NoError(s.store.CreateGuest(s.T().Context(), account, hash, start.Add(time.Hour), start))
+	s.Require().NoError(s.store.CreateGuest(s.T().Context(),
+		accounts.StartGuest(uuid.UUID{15: 1}, accounts.TokenOf("a-token"), lifetime, start)))
 
 	var count int
 	s.Require().NoError(s.db.QueryRowContext(s.T().Context(),
@@ -48,26 +48,28 @@ func (s *testSuite) TestTheTokenItselfIsNeverStored() {
 	s.Zero(count)
 }
 
-func (s *testSuite) TestExtendingMarksTheAccountSeen() {
+func (s *testSuite) TestSavingMarksTheAccountSeen() {
 	ctx := s.T().Context()
-	s.Require().NoError(s.store.CreateGuest(ctx, account, hash, start.Add(time.Hour), start))
+	guest := accounts.StartGuest(uuid.UUID{15: 1}, accounts.TokenOf("a-token"), lifetime, start)
+	s.Require().NoError(s.store.CreateGuest(ctx, guest))
 
 	later := start.Add(30 * time.Minute)
-	s.Require().NoError(s.store.ExtendSession(ctx, hash, later.Add(time.Hour), later))
+	s.Require().True(guest.ExtendIfDue(later, lifetime))
+	s.Require().NoError(s.store.SaveSession(ctx, guest))
 
 	var lastSeen time.Time
-	s.Require().NoError(s.db.QueryRowContext(ctx, `SELECT last_seen_at FROM accounts WHERE id = $1`, account).Scan(&lastSeen))
+	s.Require().NoError(s.db.QueryRowContext(ctx, `SELECT last_seen_at FROM accounts WHERE id = $1`, guest.Account).Scan(&lastSeen))
 	s.Equal(later, lastSeen.UTC())
 }
 
 func (s *testSuite) TestAGuestWhoseSessionFailsToInsertLeavesNoAccount() {
 	ctx := s.T().Context()
-	s.Require().NoError(s.store.CreateGuest(ctx, account, hash, start.Add(time.Hour), start))
+	s.Require().NoError(s.store.CreateGuest(ctx, accounts.StartGuest(uuid.UUID{15: 1}, accounts.TokenOf("a-token"), lifetime, start)))
 
-	other := uuid.MustParse("01926c6e-0000-7000-8000-000000000001")
-	s.Require().Error(s.store.CreateGuest(ctx, other, hash, start.Add(time.Hour), start))
+	other := accounts.StartGuest(uuid.UUID{15: 2}, accounts.TokenOf("a-token"), lifetime, start)
+	s.Require().Error(s.store.CreateGuest(ctx, other))
 
 	var count int
-	s.Require().NoError(s.db.QueryRowContext(ctx, `SELECT count(*) FROM accounts WHERE id = $1`, other).Scan(&count))
+	s.Require().NoError(s.db.QueryRowContext(ctx, `SELECT count(*) FROM accounts WHERE id = $1`, other.Account).Scan(&count))
 	s.Zero(count)
 }

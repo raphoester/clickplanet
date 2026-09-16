@@ -527,19 +527,22 @@ The signature is checked **before** the expiry, in constant time, so a forger le
 
 ```
 internal/auth/internal/
-  accounts/                                cookie, token, Session, Lifetime, the Sessions port
+  accounts/                                Session, Token, Lifetime, the cookie; the Sessions, IDProvider and TokenGenerator ports
     postgres_account_store/                accounts and sessions in the auth schema
     inmemory_account_store/                the same port in a map, behind the testing tag
-    usecases/resolve_account_usecase/      find, extend, or create a guest   — Sessions
+    uuid_id_provider/  random_token_generator/
+    usecases/resolve_account_usecase/      loads, asks the Session, saves
   authv1controller/                        AuthService and InternalService (bags)
     get_me_handler/  resolve_account_handler/
   migrations/
 ```
 
-- **The cookie is `cp_sid`**: a random 32-byte token, `HttpOnly; Secure; SameSite=Lax; Path=/`, host-only on the API's domain. The API and the frontend are the same site, so it is not a third-party cookie. **Only its SHA-256 is stored** (`sessions.token_hash`), so a copy of the table signs nobody in.
-- **`ResolveAccount`** (internal only): a live session gives its account; a session last extended `auth.sessions.extendEvery` (24h) ago or more is extended to `guestTTL` (90 days) from now, with `accounts.last_seen_at`, and the same token is sent back with the new expiry. No live session and `create` makes a guest: an account (a UUIDv7) and its session in one transaction. An expired or unknown cookie without `create` is no account.
-- **`GetMe`** (public) resolves without `create`: only a mint, after Turnstile, gives a browser an account. No account answers `Unauthenticated`. It answers `no-store`.
+- **The cookie is `cp_sid`**: a 32-byte token from `random_token_generator`, `HttpOnly; Secure; SameSite=Lax; Path=/`, host-only on the API's domain. The API and the frontend are the same site, so it is not a third-party cookie. **Only its SHA-256 is stored** (`sessions.token_hash`), so a copy of the table signs nobody in.
+- **The rules are on `accounts.Session`**: `StartGuest` opens one with a full `guestTTL` (90 days), `CheckLive` answers `ErrSessionExpired` past it, `ExtendIfDue` moves the expiry when `extendEvery` (24h) has passed since the last extension, and `Cookie` is its `Set-Cookie`. `resolve_account_usecase` only orders them: read the cookie, find the session, check it, extend and save it when due, or start and store a guest.
+- **Absence is a sentinel, never `nil, nil`**: `ErrNoSessionCookie`, `ErrSessionNotFound` (the port's, for an unknown token hash), `ErrSessionExpired`, and `ErrNoAccount` when no session is left and none was asked for. `ResolveAccount` answers that as an empty account id; `GetMe` as `Unauthenticated`.
+- **Ids and tokens are injected** (`IDProvider`, `TokenGenerator`), like the clock. Tests use `accounts.SequentialIDs` and `SequentialTokens` (behind the tag), so they assert exact ids.
 - **`accounts.SessionsContractSuite` is the port's behaviour**, like `clicks.TileStorageContractSuite`. Both stores embed it: postgres adds only what the port cannot show (the token is never stored, `last_seen_at`, a failed insert leaves no account), and the use case is tested over the in-memory one, which can `FailWith` an error.
+- **`ResolveAccount`** is internal only; **`GetMe`** is public, never creates (only a mint, after Turnstile, gives a browser an account) and answers `no-store`.
 - **No cache.** Mints are one per 30s per address, so one indexed read each is cheap, and there is nothing to invalidate on sign-out later.
 - The pool closes as a closer: the module has no runner.
 - Not yet: providers, sign-out, deletion and the guest prune. An expired session row stays until the prune.

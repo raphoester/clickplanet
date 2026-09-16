@@ -2,20 +2,51 @@
 package accounts
 
 import (
-	"crypto/rand"
-	"crypto/sha256"
-	"encoding/base64"
 	"fmt"
 	"time"
 
 	"github.com/google/uuid"
 )
 
-// Session is one signed-in browser, found by the hash of its cookie's token.
+// Session is one browser's hold on an account, found by the hash of its cookie's token.
 type Session struct {
+	TokenHash  []byte
 	Account    uuid.UUID
 	ExtendedAt time.Time
 	ExpiresAt  time.Time
+}
+
+// StartGuest opens a new account's first session.
+func StartGuest(account uuid.UUID, token *Token, lifetime Lifetime, now time.Time) *Session {
+	return &Session{
+		TokenHash:  token.Hash,
+		Account:    account,
+		ExtendedAt: now,
+		ExpiresAt:  now.Add(lifetime.GuestTTL),
+	}
+}
+
+func (s *Session) CheckLive(now time.Time) error {
+	if !now.Before(s.ExpiresAt) {
+		return fmt.Errorf("%w at %s", ErrSessionExpired, s.ExpiresAt.Format(time.RFC3339))
+	}
+	return nil
+}
+
+// ExtendIfDue moves the expiry out when the last extension is old enough, so a busy player is not a write per visit.
+func (s *Session) ExtendIfDue(now time.Time, lifetime Lifetime) bool {
+	if now.Sub(s.ExtendedAt) < lifetime.ExtendEvery {
+		return false
+	}
+
+	s.ExtendedAt = now
+	s.ExpiresAt = now.Add(lifetime.GuestTTL)
+	return true
+}
+
+// Cookie keeps token in the browser for as long as the session lives.
+func (s *Session) Cookie(token *Token, now time.Time) string {
+	return setCookie(token.Value, s.ExpiresAt, now)
 }
 
 // Lifetime is how long a session lasts, and how often using it pushes that out.
@@ -23,7 +54,7 @@ type Lifetime struct {
 	// A guest idle this long loses its cookie (default 90 days, the guest prune window).
 	GuestTTL time.Duration
 
-	// A session is extended at most this often, so a busy player is not a write per mint (default 24h).
+	// A session is extended at most this often (default 24h).
 	ExtendEvery time.Duration
 }
 
@@ -40,39 +71,4 @@ func (l Lifetime) WithDefaults() Lifetime {
 		l.ExtendEvery = defaultExtendEvery
 	}
 	return l
-}
-
-func (s Session) Live(now time.Time) bool {
-	return now.Before(s.ExpiresAt)
-}
-
-func (l Lifetime) ExtensionDue(session Session, now time.Time) bool {
-	return now.Sub(session.ExtendedAt) >= l.ExtendEvery
-}
-
-func (l Lifetime) ExpiryFrom(now time.Time) time.Time {
-	return now.Add(l.GuestTTL)
-}
-
-// Token is a session's secret: the value goes in the cookie, the hash in the table.
-type Token struct {
-	Value string
-	Hash  []byte
-}
-
-const tokenBytes = 32
-
-func NewToken() (Token, error) {
-	raw := make([]byte, tokenBytes)
-	if _, err := rand.Read(raw); err != nil {
-		return Token{}, fmt.Errorf("failed to read random bytes: %w", err)
-	}
-
-	value := base64.RawURLEncoding.EncodeToString(raw)
-	return Token{Value: value, Hash: HashOf(value)}, nil
-}
-
-func HashOf(value string) []byte {
-	sum := sha256.Sum256([]byte(value))
-	return sum[:]
 }

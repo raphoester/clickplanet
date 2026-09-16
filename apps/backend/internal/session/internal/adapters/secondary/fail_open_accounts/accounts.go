@@ -5,9 +5,10 @@ package fail_open_accounts
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log/slog"
 
-	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 
@@ -33,19 +34,18 @@ func New(next domain.Accounts, logger *slog.Logger, registerer prometheus.Regist
 	}
 }
 
-func (a *Accounts) Resolve(ctx context.Context, cookieHeader string, create bool) (domain.Resolution, error) {
+func (a *Accounts) Resolve(ctx context.Context, cookieHeader string, create bool) (*domain.Resolution, error) {
 	resolution, err := a.next.Resolve(ctx, cookieHeader, create)
-	if err != nil {
+	switch {
+	case err == nil:
+		a.outcomes.WithLabelValues("account").Inc()
+		return resolution, nil
+	case errors.Is(err, domain.ErrNoAccount):
+		a.outcomes.WithLabelValues("none").Inc()
+		return nil, fmt.Errorf("failed to resolve the account: %w", err)
+	default:
 		a.outcomes.WithLabelValues("failed").Inc()
 		a.logger.Warn("minted a session with no account", slog.Any("error", err))
-		return domain.Resolution{}, nil
+		return nil, fmt.Errorf("%w: the auth module failed: %w", domain.ErrNoAccount, err)
 	}
-
-	if resolution.Account == uuid.Nil {
-		a.outcomes.WithLabelValues("none").Inc()
-	} else {
-		a.outcomes.WithLabelValues("account").Inc()
-	}
-
-	return resolution, nil
 }

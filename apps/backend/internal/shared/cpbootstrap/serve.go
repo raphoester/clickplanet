@@ -37,13 +37,12 @@ type loopbackServer struct {
 	listener net.Listener
 }
 
-// listenLoopback binds before anything is served, so a taken address refuses the boot. Empty serves nothing.
+var errNoLoopbackAddress = errors.New("no address configured")
+
+// listenLoopback binds before anything is served, so a taken address refuses the boot. Empty is errNoLoopbackAddress.
 func listenLoopback(options Options, name, key, address string, routes *rpcRoutes) (*loopbackServer, error) {
 	if address == "" {
-		if len(routes.paths) > 0 {
-			options.Logger.Info(name+" listener off, its services not served", slog.Int("services", len(routes.paths)))
-		}
-		return nil, nil //nolint:nilnil // nil means "no such listener"; serve skips it.
+		return nil, fmt.Errorf("httpServer.%s: %w", key, errNoLoopbackAddress)
 	}
 
 	if !isLoopback(address) {

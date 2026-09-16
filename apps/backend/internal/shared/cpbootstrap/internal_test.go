@@ -2,6 +2,7 @@ package cpbootstrap_test
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
@@ -38,7 +39,7 @@ func callerModule() cpbootstrap.Module {
 	return newModule("caller", func(props cpbootstrap.Props) error {
 		httpClient, baseURL, err := props.Internal.Dial()
 		if err != nil {
-			return err //nolint:wrapcheck // the test reads the message.
+			return fmt.Errorf("failed to dial the callee: %w", err)
 		}
 		callee := connect.NewClient[emptypb.Empty, wrapperspb.StringValue](httpClient, baseURL+internalProcedure)
 
@@ -47,7 +48,7 @@ func callerModule() cpbootstrap.Module {
 				func(ctx context.Context, _ *connect.Request[emptypb.Empty]) (*connect.Response[wrapperspb.StringValue], error) {
 					answer, err := callee.CallUnary(ctx, connect.NewRequest(&emptypb.Empty{}))
 					if err != nil {
-						return nil, err //nolint:wrapcheck // passed on as is.
+						return nil, fmt.Errorf("the callee failed: %w", err)
 					}
 					return connect.NewResponse(answer.Msg), nil
 				},
@@ -61,7 +62,7 @@ func ask(ctx context.Context, address, procedure string) (string, error) {
 	client := connect.NewClient[emptypb.Empty, wrapperspb.StringValue](http.DefaultClient, "http://"+address+procedure)
 	res, err := client.CallUnary(ctx, connect.NewRequest(&emptypb.Empty{}))
 	if err != nil {
-		return "", err //nolint:wrapcheck // the test reads the connect code.
+		return "", fmt.Errorf("%s failed: %w", procedure, err)
 	}
 	return res.Msg.GetValue(), nil
 }

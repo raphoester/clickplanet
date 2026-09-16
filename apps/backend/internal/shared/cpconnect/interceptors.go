@@ -89,7 +89,7 @@ func NewIPBlockInterceptor(
 const SessionHeader = "X-Session-Token"
 
 type SessionVerifier interface {
-	Verify(token string, ip string, now time.Time) (cpsession.Claims, error)
+	Verify(token string, ip string, now time.Time) (*cpsession.Claims, error)
 }
 
 // SessionVerdict labels what happened, so the counter can show what enforcing

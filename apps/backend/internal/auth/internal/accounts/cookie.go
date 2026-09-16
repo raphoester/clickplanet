@@ -1,6 +1,7 @@
 package accounts
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 )
@@ -8,24 +9,24 @@ import (
 // CookieName is the one cookie this backend sets. No other module reads it.
 const CookieName = "cp_sid"
 
-// TokenFrom reads the session token out of a browser's Cookie header.
-func TokenFrom(cookieHeader string) (string, bool) {
+// TokenFromCookies reads the session token out of a browser's Cookie header.
+func TokenFromCookies(cookieHeader string) (*Token, error) {
 	cookies, err := http.ParseCookie(cookieHeader)
 	if err != nil {
-		return "", false
+		return nil, fmt.Errorf("%w: %w", ErrNoSessionCookie, err)
 	}
 
 	for _, cookie := range cookies {
 		if cookie.Name == CookieName && cookie.Value != "" {
-			return cookie.Value, true
+			return TokenOf(cookie.Value), nil
 		}
 	}
 
-	return "", false
+	return nil, ErrNoSessionCookie
 }
 
-// SetCookie is the header that stores token until expiresAt: HttpOnly so no script reads it, Lax so no other site's form sends it.
-func SetCookie(token string, expiresAt, now time.Time) string {
+// setCookie stores token until expiresAt: HttpOnly so no script reads it, Lax so no other site's form sends it.
+func setCookie(token string, expiresAt, now time.Time) string {
 	cookie := &http.Cookie{
 		Name:     CookieName,
 		Value:    token,

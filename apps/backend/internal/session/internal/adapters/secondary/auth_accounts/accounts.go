@@ -45,7 +45,7 @@ func New(httpClient connect.HTTPClient, baseURL string, config Config) *Accounts
 	}
 }
 
-func (a *Accounts) Resolve(ctx context.Context, cookieHeader string, create bool) (domain.Resolution, error) {
+func (a *Accounts) Resolve(ctx context.Context, cookieHeader string, create bool) (*domain.Resolution, error) {
 	ctx, cancel := context.WithTimeout(ctx, a.timeout)
 	defer cancel()
 
@@ -54,15 +54,17 @@ func (a *Accounts) Resolve(ctx context.Context, cookieHeader string, create bool
 		Create:       create,
 	}))
 	if err != nil {
-		return domain.Resolution{}, fmt.Errorf("the auth module did not resolve the account: %w", err)
+		return nil, fmt.Errorf("the auth module did not resolve the account: %w", err)
 	}
 
-	account := uuid.Nil
-	if id := res.Msg.GetAccountId(); id != "" {
-		if account, err = uuid.Parse(id); err != nil {
-			return domain.Resolution{}, fmt.Errorf("the auth module answered an account id that is not a uuid: %w", err)
-		}
+	if res.Msg.GetAccountId() == "" {
+		return nil, fmt.Errorf("%w: the auth module knows none for this cookie", domain.ErrNoAccount)
 	}
 
-	return domain.Resolution{Account: account, SetCookie: res.Msg.GetSetCookie()}, nil
+	account, err := uuid.Parse(res.Msg.GetAccountId())
+	if err != nil {
+		return nil, fmt.Errorf("the auth module answered an account id that is not a uuid: %w", err)
+	}
+
+	return &domain.Resolution{Account: account, SetCookie: res.Msg.GetSetCookie()}, nil
 }

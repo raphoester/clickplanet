@@ -3,6 +3,7 @@ package cpbootstrap_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
@@ -48,8 +49,10 @@ func adminModule(result error) cpbootstrap.Module {
 
 func call(ctx context.Context, address string) error {
 	client := connect.NewClient[emptypb.Empty, emptypb.Empty](http.DefaultClient, "http://"+address+adminProcedure)
-	_, err := client.CallUnary(ctx, connect.NewRequest(&emptypb.Empty{}))
-	return err //nolint:wrapcheck // the test reads the connect code.
+	if _, err := client.CallUnary(ctx, connect.NewRequest(&emptypb.Empty{})); err != nil {
+		return fmt.Errorf("the admin call failed: %w", err)
+	}
+	return nil
 }
 
 func serveUntil(t *testing.T, server cpbootstrap.ServerConfig, probe func(), modules ...cpbootstrap.Module) {

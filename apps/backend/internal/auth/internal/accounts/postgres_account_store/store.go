@@ -6,9 +6,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"time"
-
-	"github.com/google/uuid"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
@@ -22,54 +19,64 @@ type Store struct {
 	db cppg.QuerierBeginner
 }
 
-func (s *Store) FindSession(ctx context.Context, tokenHash []byte) (accounts.Session, bool, error) {
-	var session accounts.Session
+var _ accounts.Sessions = (*Store)(nil)
+
+func (s *Store) FindSession(ctx context.Context, tokenHash []byte) (*accounts.Session, error) {
+	session := accounts.Session{TokenHash: tokenHash}
 	err := s.db.QueryRowContext(ctx, `
 		SELECT account_id, extended_at, expires_at FROM sessions WHERE token_hash = $1
 	`, tokenHash).Scan(&session.Account, &session.ExtendedAt, &session.ExpiresAt)
 	if errors.Is(err, sql.ErrNoRows) {
-		return accounts.Session{}, false, nil
+		return nil, accounts.ErrSessionNotFound
 	}
 	if err != nil {
-		return accounts.Session{}, false, fmt.Errorf("failed to find a session: %w", err)
+		return nil, fmt.Errorf("failed to select the session: %w", err)
 	}
 
 	session.ExtendedAt = session.ExtendedAt.UTC()
 	session.ExpiresAt = session.ExpiresAt.UTC()
-	return session, true, nil
+	return &session, nil
 }
 
-// ExtendSession moves the session's expiry and marks its account seen, in one transaction.
-func (s *Store) ExtendSession(ctx context.Context, tokenHash []byte, expiresAt, now time.Time) error {
+// CreateGuest writes the account and its first session in one transaction.
+func (s *Store) CreateGuest(ctx context.Context, session *accounts.Session) error {
 	return s.inTx(ctx, func(tx *sql.Tx) error {
-		var account uuid.UUID
-		err := tx.QueryRowContext(ctx, `
-			UPDATE sessions SET extended_at = $2, expires_at = $3 WHERE token_hash = $1 RETURNING account_id
-		`, tokenHash, now.UTC(), expiresAt.UTC()).Scan(&account)
-		if err != nil {
-			return fmt.Errorf("failed to extend a session: %w", err)
+		if _, err := tx.ExecContext(ctx, `
+			INSERT INTO accounts (id, created_at, last_seen_at) VALUES ($1, $2, $2)
+		`, session.Account, session.ExtendedAt.UTC()); err != nil {
+			return fmt.Errorf("failed to insert the account: %w", err)
 		}
 
-		if _, err := tx.ExecContext(ctx, `UPDATE accounts SET last_seen_at = $2 WHERE id = $1`, account, now.UTC()); err != nil {
-			return fmt.Errorf("failed to mark an account seen: %w", err)
+		if _, err := tx.ExecContext(ctx, `
+			INSERT INTO sessions (token_hash, account_id, created_at, extended_at, expires_at) VALUES ($1, $2, $3, $3, $4)
+		`, session.TokenHash, session.Account, session.ExtendedAt.UTC(), session.ExpiresAt.UTC()); err != nil {
+			return fmt.Errorf("failed to insert the session: %w", err)
 		}
 		return nil
 	})
 }
 
-// CreateGuest writes a new account and its first session, in one transaction.
-func (s *Store) CreateGuest(ctx context.Context, account uuid.UUID, tokenHash []byte, expiresAt, now time.Time) error {
+// SaveSession writes the session's expiry and marks its account seen at its last extension, in one transaction.
+func (s *Store) SaveSession(ctx context.Context, session *accounts.Session) error {
 	return s.inTx(ctx, func(tx *sql.Tx) error {
-		if _, err := tx.ExecContext(ctx, `
-			INSERT INTO accounts (id, created_at, last_seen_at) VALUES ($1, $2, $2)
-		`, account, now.UTC()); err != nil {
-			return fmt.Errorf("failed to insert an account: %w", err)
+		result, err := tx.ExecContext(ctx, `
+			UPDATE sessions SET extended_at = $2, expires_at = $3 WHERE token_hash = $1
+		`, session.TokenHash, session.ExtendedAt.UTC(), session.ExpiresAt.UTC())
+		if err != nil {
+			return fmt.Errorf("failed to update the session: %w", err)
+		}
+		updated, err := result.RowsAffected()
+		if err != nil {
+			return fmt.Errorf("failed to count the updated sessions: %w", err)
+		}
+		if updated == 0 {
+			return accounts.ErrSessionNotFound
 		}
 
 		if _, err := tx.ExecContext(ctx, `
-			INSERT INTO sessions (token_hash, account_id, created_at, extended_at, expires_at) VALUES ($1, $2, $3, $3, $4)
-		`, tokenHash, account, now.UTC(), expiresAt.UTC()); err != nil {
-			return fmt.Errorf("failed to insert a session: %w", err)
+			UPDATE accounts SET last_seen_at = $2 WHERE id = $1
+		`, session.Account, session.ExtendedAt.UTC()); err != nil {
+			return fmt.Errorf("failed to mark the account seen: %w", err)
 		}
 		return nil
 	})
@@ -78,7 +85,7 @@ func (s *Store) CreateGuest(ctx context.Context, account uuid.UUID, tokenHash []
 func (s *Store) inTx(ctx context.Context, do func(tx *sql.Tx) error) error {
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{})
 	if err != nil {
-		return err //nolint:wrapcheck // cppg already names what failed.
+		return fmt.Errorf("failed to begin a transaction: %w", err)
 	}
 
 	if err := do(tx); err != nil {

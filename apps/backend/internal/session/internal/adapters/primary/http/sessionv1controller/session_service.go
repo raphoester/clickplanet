@@ -2,6 +2,7 @@ package sessionv1controller
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 
 	"connectrpc.com/connect"
@@ -37,7 +38,7 @@ func (s *SessionService) CreateSession(
 		CreateAccount:    req.Msg.GetCreateAccount(),
 	})
 	if err != nil {
-		return nil, toConnect(s.logger, req.Spec().Procedure, err)
+		return nil, toConnect(s.logger, req.Spec().Procedure, fmt.Errorf("failed to create a session: %w", err))
 	}
 
 	res := connect.NewResponse(&sessionv1.CreateSessionResponse{

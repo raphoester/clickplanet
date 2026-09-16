@@ -35,7 +35,7 @@ type countingMinter struct {
 	mints  int
 }
 
-func (m *countingMinter) Mint(ip string, account uuid.UUID, at time.Time) (cpsession.Token, error) {
+func (m *countingMinter) Mint(ip string, account uuid.UUID, at time.Time) (*cpsession.Token, error) {
 	m.mints++
 	return m.signer.Mint(ip, account, at)
 }
@@ -46,12 +46,12 @@ type askedAccount struct {
 }
 
 type fakeAccounts struct {
-	resolution domain.Resolution
+	resolution *domain.Resolution
 	err        error
 	asked      []askedAccount
 }
 
-func (a *fakeAccounts) Resolve(_ context.Context, cookieHeader string, create bool) (domain.Resolution, error) {
+func (a *fakeAccounts) Resolve(_ context.Context, cookieHeader string, create bool) (*domain.Resolution, error) {
 	a.asked = append(a.asked, askedAccount{cookieHeader: cookieHeader, create: create})
 	return a.resolution, a.err
 }
@@ -75,7 +75,7 @@ func request(ip string) session_service.Request {
 
 func TestAnAttestedCallerIsMintedATokenBoundToItsAddress(t *testing.T) {
 	attester := &fakeAttester{}
-	service, minter := newService(t, attester, &fakeAccounts{})
+	service, minter := newService(t, attester, &fakeAccounts{err: domain.ErrNoAccount})
 
 	minted, err := service.Create(t.Context(), request("203.0.113.7"))
 	require.NoError(t, err)
@@ -119,7 +119,7 @@ func TestARefusedAttestationMintsNothing(t *testing.T) {
 }
 
 func TestACallerWithNoCookieThatAsksForNoAccountIsMintedNone(t *testing.T) {
-	accounts := &fakeAccounts{resolution: domain.Resolution{Account: guest}}
+	accounts := &fakeAccounts{resolution: &domain.Resolution{Account: guest}}
 	service, minter := newService(t, &fakeAttester{}, accounts)
 
 	minted, err := service.Create(t.Context(), request("203.0.113.7"))
@@ -133,7 +133,7 @@ func TestACallerWithNoCookieThatAsksForNoAccountIsMintedNone(t *testing.T) {
 }
 
 func TestTheResolvedAccountIsSignedIntoTheTokenAndItsCookieIsPassedOn(t *testing.T) {
-	accounts := &fakeAccounts{resolution: domain.Resolution{Account: guest, SetCookie: "cp_sid=new"}}
+	accounts := &fakeAccounts{resolution: &domain.Resolution{Account: guest, SetCookie: "cp_sid=new"}}
 	service, minter := newService(t, &fakeAttester{}, accounts)
 
 	minted, err := service.Create(t.Context(), session_service.Request{
@@ -149,7 +149,7 @@ func TestTheResolvedAccountIsSignedIntoTheTokenAndItsCookieIsPassedOn(t *testing
 }
 
 func TestACookieIsResolvedEvenWithoutAskingForAnAccount(t *testing.T) {
-	accounts := &fakeAccounts{resolution: domain.Resolution{Account: guest}}
+	accounts := &fakeAccounts{resolution: &domain.Resolution{Account: guest}}
 	service, _ := newService(t, &fakeAttester{}, accounts)
 
 	_, err := service.Create(t.Context(), session_service.Request{
@@ -158,6 +158,20 @@ func TestACookieIsResolvedEvenWithoutAskingForAnAccount(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, []askedAccount{{cookieHeader: "cp_sid=abc", create: false}}, accounts.asked)
+}
+
+func TestNoAccountMintsATokenWithNone(t *testing.T) {
+	service, minter := newService(t, &fakeAttester{}, &fakeAccounts{err: domain.ErrNoAccount})
+
+	minted, err := service.Create(t.Context(), session_service.Request{
+		AttestationToken: "a-widget-token", IP: "203.0.113.7", CookieHeader: "cp_sid=unknown",
+	})
+	require.NoError(t, err)
+
+	assert.Empty(t, minted.SetCookie)
+	claims, err := minter.signer.Verify(minted.Token.Value, "203.0.113.7", now)
+	require.NoError(t, err)
+	assert.Equal(t, uuid.Nil, claims.Account)
 }
 
 func TestAFailedResolutionMintsNothing(t *testing.T) {

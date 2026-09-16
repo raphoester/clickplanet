@@ -7,17 +7,11 @@ import (
 	"context"
 	"errors"
 	"sync"
-	"time"
-
-	"github.com/google/uuid"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
 )
 
-var (
-	errTaken   = errors.New("the token hash is taken")
-	errUnknown = errors.New("no session for this token hash")
-)
+var errTaken = errors.New("the token hash is taken")
 
 type Store struct {
 	mu       sync.Mutex
@@ -38,48 +32,47 @@ func (s *Store) FailWith(err error) {
 	s.failWith = err
 }
 
-func (s *Store) FindSession(_ context.Context, tokenHash []byte) (accounts.Session, bool, error) {
+func (s *Store) FindSession(_ context.Context, tokenHash []byte) (*accounts.Session, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if s.failWith != nil {
-		return accounts.Session{}, false, s.failWith
-	}
-
-	session, found := s.sessions[string(tokenHash)]
-	return session, found, nil
-}
-
-func (s *Store) ExtendSession(_ context.Context, tokenHash []byte, expiresAt, now time.Time) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if s.failWith != nil {
-		return s.failWith
+		return nil, s.failWith
 	}
 
 	session, found := s.sessions[string(tokenHash)]
 	if !found {
-		return errUnknown
+		return nil, accounts.ErrSessionNotFound
 	}
-
-	session.ExtendedAt, session.ExpiresAt = now, expiresAt
-	s.sessions[string(tokenHash)] = session
-	return nil
+	return &session, nil
 }
 
-func (s *Store) CreateGuest(_ context.Context, account uuid.UUID, tokenHash []byte, expiresAt, now time.Time) error {
+func (s *Store) CreateGuest(_ context.Context, session *accounts.Session) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if s.failWith != nil {
 		return s.failWith
 	}
-
-	if _, taken := s.sessions[string(tokenHash)]; taken {
+	if _, taken := s.sessions[string(session.TokenHash)]; taken {
 		return errTaken
 	}
 
-	s.sessions[string(tokenHash)] = accounts.Session{Account: account, ExtendedAt: now, ExpiresAt: expiresAt}
+	s.sessions[string(session.TokenHash)] = *session
+	return nil
+}
+
+func (s *Store) SaveSession(_ context.Context, session *accounts.Session) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.failWith != nil {
+		return s.failWith
+	}
+	if _, found := s.sessions[string(session.TokenHash)]; !found {
+		return accounts.ErrSessionNotFound
+	}
+
+	s.sessions[string(session.TokenHash)] = *session
 	return nil
 }

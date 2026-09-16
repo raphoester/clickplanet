@@ -1,15 +1,10 @@
 package accounts
 
-import (
-	"context"
-	"time"
+import "context"
 
-	"github.com/google/uuid"
-)
-
-// Sessions is where accounts and their sessions are kept. SessionsContractSuite is its behaviour.
+// Sessions keeps accounts and their sessions; an unknown token hash is ErrSessionNotFound. SessionsContractSuite is its behaviour.
 type Sessions interface {
-	FindSession(ctx context.Context, tokenHash []byte) (Session, bool, error)
-	ExtendSession(ctx context.Context, tokenHash []byte, expiresAt, now time.Time) error
-	CreateGuest(ctx context.Context, account uuid.UUID, tokenHash []byte, expiresAt, now time.Time) error
+	FindSession(ctx context.Context, tokenHash []byte) (*Session, error)
+	CreateGuest(ctx context.Context, session *Session) error
+	SaveSession(ctx context.Context, session *Session) error
 }

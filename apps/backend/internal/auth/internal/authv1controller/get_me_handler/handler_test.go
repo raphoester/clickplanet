@@ -2,6 +2,7 @@ package get_me_handler_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -10,18 +11,20 @@ import (
 	"github.com/stretchr/testify/require"
 
 	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/resolve_account_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_me_handler"
 )
 
 type stubUseCase struct {
-	out   resolve_account_usecase.Out
+	out   *resolve_account_usecase.Out
+	err   error
 	asked []resolve_account_usecase.In
 }
 
-func (s *stubUseCase) Execute(_ context.Context, in resolve_account_usecase.In) (resolve_account_usecase.Out, error) {
+func (s *stubUseCase) Execute(_ context.Context, in resolve_account_usecase.In) (*resolve_account_usecase.Out, error) {
 	s.asked = append(s.asked, in)
-	return s.out, nil
+	return s.out, s.err
 }
 
 var account = uuid.MustParse("01926c6e-7a4b-7c3d-8e9f-0a1b2c3d4e5f")
@@ -29,11 +32,15 @@ var account = uuid.MustParse("01926c6e-7a4b-7c3d-8e9f-0a1b2c3d4e5f")
 func getMe(useCase *stubUseCase) (*connect.Response[authv1.GetMeResponse], error) {
 	req := connect.NewRequest(&authv1.GetMeRequest{})
 	req.Header().Set("Cookie", "cp_sid=abc")
-	return get_me_handler.New(useCase).GetMe(context.Background(), req) //nolint:wrapcheck // the test reads the connect code.
+	res, err := get_me_handler.New(useCase).GetMe(context.Background(), req)
+	if err != nil {
+		return nil, fmt.Errorf("GetMe failed: %w", err)
+	}
+	return res, nil
 }
 
 func TestGetMeAnswersTheAccountAndPassesTheCookieOn(t *testing.T) {
-	useCase := &stubUseCase{out: resolve_account_usecase.Out{Account: account, SetCookie: "cp_sid=renewed"}}
+	useCase := &stubUseCase{out: &resolve_account_usecase.Out{Account: account, SetCookie: "cp_sid=renewed"}}
 
 	res, err := getMe(useCase)
 	require.NoError(t, err)
@@ -44,7 +51,7 @@ func TestGetMeAnswersTheAccountAndPassesTheCookieOn(t *testing.T) {
 }
 
 func TestGetMeNeverCreatesAnAccount(t *testing.T) {
-	useCase := &stubUseCase{}
+	useCase := &stubUseCase{err: accounts.ErrNoAccount}
 
 	_, err := getMe(useCase)
 

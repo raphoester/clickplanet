@@ -18,119 +18,118 @@ import (
 
 var start = time.Date(2026, 9, 15, 12, 0, 0, 0, time.UTC)
 
-func setUp(sessions *inmemory_account_store.Store) (*resolve_account_usecase.UseCase, *cptime.FixedClock) {
-	clock := cptime.NewFixedClock(start)
-	return resolve_account_usecase.New(sessions, accounts.Lifetime{}.WithDefaults(), clock), clock
+type fixture struct {
+	useCase  *resolve_account_usecase.UseCase
+	sessions *inmemory_account_store.Store
+	clock    *cptime.FixedClock
 }
 
-func cookieHeaderFrom(t *testing.T, setCookie string) string {
-	t.Helper()
+func setUp() fixture {
+	sessions := inmemory_account_store.New()
+	clock := cptime.NewFixedClock(start)
+	useCase := resolve_account_usecase.New(
+		sessions, &accounts.SequentialIDs{}, &accounts.SequentialTokens{}, accounts.Lifetime{}.WithDefaults(), clock)
+	return fixture{useCase: useCase, sessions: sessions, clock: clock}
+}
 
+func (f fixture) execute(t *testing.T, in resolve_account_usecase.In) *resolve_account_usecase.Out {
+	t.Helper()
+	out, err := f.useCase.Execute(t.Context(), in)
+	require.NoError(t, err)
+	return out
+}
+
+func cookieOf(t *testing.T, setCookie string) *http.Cookie {
+	t.Helper()
 	cookie, err := http.ParseSetCookie(setCookie)
 	require.NoError(t, err)
-	return "theme=dark; " + cookie.Name + "=" + cookie.Value
+	return cookie
 }
 
 func TestNoCookieAndNoAskIsNoAccount(t *testing.T) {
-	useCase, _ := setUp(inmemory_account_store.New())
+	out, err := setUp().useCase.Execute(t.Context(), resolve_account_usecase.In{})
 
-	out, err := useCase.Execute(t.Context(), resolve_account_usecase.In{})
-	require.NoError(t, err)
-
-	assert.Equal(t, resolve_account_usecase.Out{}, out)
+	require.ErrorIs(t, err, accounts.ErrNoAccount)
+	assert.Nil(t, out)
 }
 
-func TestAskingCreatesAGuestWithACookie(t *testing.T) {
-	useCase, _ := setUp(inmemory_account_store.New())
+func TestAskingStartsAGuestAndStoresIt(t *testing.T) {
+	f := setUp()
 
-	out, err := useCase.Execute(t.Context(), resolve_account_usecase.In{Create: true})
-	require.NoError(t, err)
+	out := f.execute(t, resolve_account_usecase.In{Create: true})
 
-	assert.NotEqual(t, uuid.Nil, out.Account)
-	cookie, err := http.ParseSetCookie(out.SetCookie)
+	assert.Equal(t, uuid.UUID{15: 1}, out.Account)
+	assert.Equal(t, "token-1", cookieOf(t, out.SetCookie).Value)
+	stored, err := f.sessions.FindSession(t.Context(), accounts.TokenOf("token-1").Hash)
 	require.NoError(t, err)
-	assert.Equal(t, int((90 * 24 * time.Hour).Seconds()), cookie.MaxAge)
+	assert.Equal(t, accounts.StartGuest(uuid.UUID{15: 1}, accounts.TokenOf("token-1"), accounts.Lifetime{}.WithDefaults(), start), stored)
 }
 
 func TestTheCookieBringsBackTheSameAccountWithoutRenewingIt(t *testing.T) {
-	useCase, clock := setUp(inmemory_account_store.New())
+	f := setUp()
+	f.execute(t, resolve_account_usecase.In{Create: true})
 
-	created, err := useCase.Execute(t.Context(), resolve_account_usecase.In{Create: true})
-	require.NoError(t, err)
+	f.clock.Advance(time.Hour)
+	out := f.execute(t, resolve_account_usecase.In{CookieHeader: "theme=dark; cp_sid=token-1", Create: true})
 
-	clock.Advance(time.Hour)
-	out, err := useCase.Execute(t.Context(), resolve_account_usecase.In{
-		CookieHeader: cookieHeaderFrom(t, created.SetCookie), Create: true,
-	})
-	require.NoError(t, err)
-
-	assert.Equal(t, resolve_account_usecase.Out{Account: created.Account}, out, "the same guest, and no renewed cookie within the day")
+	assert.Equal(t, &resolve_account_usecase.Out{Account: uuid.UUID{15: 1}}, out)
 }
 
-func TestADayLaterTheSessionIsExtendedAndTheCookieRenewed(t *testing.T) {
-	useCase, clock := setUp(inmemory_account_store.New())
+func TestADayLaterTheExtendedSessionIsSavedAndItsCookieRenewed(t *testing.T) {
+	f := setUp()
+	f.execute(t, resolve_account_usecase.In{Create: true})
 
-	created, err := useCase.Execute(t.Context(), resolve_account_usecase.In{Create: true})
-	require.NoError(t, err)
+	f.clock.Advance(25 * time.Hour)
+	out := f.execute(t, resolve_account_usecase.In{CookieHeader: "cp_sid=token-1"})
 
-	clock.Advance(25 * time.Hour)
-	out, err := useCase.Execute(t.Context(), resolve_account_usecase.In{CookieHeader: cookieHeaderFrom(t, created.SetCookie)})
-	require.NoError(t, err)
-
-	assert.Equal(t, created.Account, out.Account)
-
-	renewed, err := http.ParseSetCookie(out.SetCookie)
-	require.NoError(t, err)
-	original, err := http.ParseSetCookie(created.SetCookie)
-	require.NoError(t, err)
-	assert.Equal(t, original.Value, renewed.Value, "the token stays; only its expiry moves")
+	assert.Equal(t, uuid.UUID{15: 1}, out.Account)
+	renewed := cookieOf(t, out.SetCookie)
+	assert.Equal(t, "token-1", renewed.Value)
 	assert.Equal(t, start.Add(25*time.Hour).Add(90*24*time.Hour), renewed.Expires)
+
+	stored, err := f.sessions.FindSession(t.Context(), accounts.TokenOf("token-1").Hash)
+	require.NoError(t, err)
+	assert.Equal(t, start.Add(25*time.Hour), stored.ExtendedAt)
 }
 
 func TestAnExpiredCookieWithoutAskingIsNoAccount(t *testing.T) {
-	useCase, clock := setUp(inmemory_account_store.New())
+	f := setUp()
+	f.execute(t, resolve_account_usecase.In{Create: true})
 
-	created, err := useCase.Execute(t.Context(), resolve_account_usecase.In{Create: true})
-	require.NoError(t, err)
+	f.clock.Advance(91 * 24 * time.Hour)
+	out, err := f.useCase.Execute(t.Context(), resolve_account_usecase.In{CookieHeader: "cp_sid=token-1"})
 
-	clock.Advance(91 * 24 * time.Hour)
-	out, err := useCase.Execute(t.Context(), resolve_account_usecase.In{CookieHeader: cookieHeaderFrom(t, created.SetCookie)})
-	require.NoError(t, err)
-
-	assert.Equal(t, resolve_account_usecase.Out{}, out)
+	require.ErrorIs(t, err, accounts.ErrNoAccount)
+	assert.ErrorIs(t, err, accounts.ErrSessionExpired)
+	assert.Nil(t, out)
 }
 
 func TestAnExpiredCookieWithAskingIsANewGuest(t *testing.T) {
-	useCase, clock := setUp(inmemory_account_store.New())
+	f := setUp()
+	f.execute(t, resolve_account_usecase.In{Create: true})
 
-	created, err := useCase.Execute(t.Context(), resolve_account_usecase.In{Create: true})
-	require.NoError(t, err)
+	f.clock.Advance(91 * 24 * time.Hour)
+	out := f.execute(t, resolve_account_usecase.In{CookieHeader: "cp_sid=token-1", Create: true})
 
-	clock.Advance(91 * 24 * time.Hour)
-	out, err := useCase.Execute(t.Context(), resolve_account_usecase.In{
-		CookieHeader: cookieHeaderFrom(t, created.SetCookie), Create: true,
-	})
-	require.NoError(t, err)
-
-	assert.NotEqual(t, created.Account, out.Account)
-	assert.NotEmpty(t, out.SetCookie)
+	assert.Equal(t, uuid.UUID{15: 2}, out.Account)
+	assert.Equal(t, "token-2", cookieOf(t, out.SetCookie).Value)
 }
 
-func TestAForgedCookieIsNoAccount(t *testing.T) {
-	useCase, _ := setUp(inmemory_account_store.New())
+func TestAnUnknownCookieIsNoAccount(t *testing.T) {
+	out, err := setUp().useCase.Execute(t.Context(), resolve_account_usecase.In{CookieHeader: "cp_sid=made-up"})
 
-	out, err := useCase.Execute(t.Context(), resolve_account_usecase.In{CookieHeader: "cp_sid=made-up"})
-	require.NoError(t, err)
-
-	assert.Equal(t, resolve_account_usecase.Out{}, out)
+	require.ErrorIs(t, err, accounts.ErrNoAccount)
+	assert.ErrorIs(t, err, accounts.ErrSessionNotFound)
+	assert.Nil(t, out)
 }
 
-func TestAStoreFailureIsAnError(t *testing.T) {
-	sessions := inmemory_account_store.New()
-	sessions.FailWith(errors.New("postgres is down"))
-	useCase, _ := setUp(sessions)
+func TestAStoreFailureIsAnErrorThatIsNotNoAccount(t *testing.T) {
+	f := setUp()
+	f.sessions.FailWith(errors.New("postgres is down"))
 
-	_, err := useCase.Execute(t.Context(), resolve_account_usecase.In{CookieHeader: "cp_sid=abc", Create: true})
+	out, err := f.useCase.Execute(t.Context(), resolve_account_usecase.In{CookieHeader: "cp_sid=abc", Create: true})
 
-	assert.Error(t, err)
+	require.Error(t, err)
+	assert.NotErrorIs(t, err, accounts.ErrNoAccount)
+	assert.Nil(t, out)
 }

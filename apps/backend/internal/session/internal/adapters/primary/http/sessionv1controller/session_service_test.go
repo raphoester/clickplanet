@@ -47,8 +47,8 @@ type cookieAccounts struct {
 	account uuid.UUID
 }
 
-func (a cookieAccounts) Resolve(_ context.Context, cookieHeader string, _ bool) (domain.Resolution, error) {
-	return domain.Resolution{Account: a.account, SetCookie: "cp_sid=for-" + cookieHeader}, nil
+func (a cookieAccounts) Resolve(_ context.Context, cookieHeader string, _ bool) (*domain.Resolution, error) {
+	return &domain.Resolution{Account: a.account, SetCookie: "cp_sid=for-" + cookieHeader}, nil
 }
 
 func sessionServer(
