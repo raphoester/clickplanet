@@ -5,6 +5,7 @@ package antibot
 import (
 	"context"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/evidence"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/shadowban"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -30,3 +31,11 @@ type memoryDatabase struct{}
 func (memoryDatabase) open(context.Context) error { return nil }
 
 func (memoryDatabase) close() error { return nil }
+
+// Drop and Challenge build the two Outcomes that are not the zero one. They are
+// behind the tag because nothing in production builds an Outcome — the guard
+// answers one and the edge asks it two questions — but a fake guard standing in
+// for this one has to be able to say both.
+func Drop() Outcome { return detect.Drop() }
+
+func Challenge() Outcome { return detect.Challenge() }

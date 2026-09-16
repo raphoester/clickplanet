@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/challenge"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/jury"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/shadowban"
@@ -39,19 +40,42 @@ func (w *stubWatchdog) Committed(detect.Click) { w.committed++ }
 func (w *stubWatchdog) Attempted(detect.Click) { w.attempted++ }
 
 type harness struct {
-	jury    *jury.Jury
-	clock   *cptime.FixedClock
-	reports []detect.Report
-	rises   []string
+	jury       *jury.Jury
+	clock      *cptime.FixedClock
+	reports    []detect.Report
+	challenges []detect.Report
+	passed     int
+	rises      []string
+
+	// session is what the next click carries. A test answers a challenge by
+	// changing it, which is what a client does by minting again.
+	session string
 }
 
 func newHarness(config jury.Config, ban shadowban.Config, watchdogs ...detect.Watchdog) *harness {
-	h := &harness{clock: cptime.NewFixedClock(time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC))}
+	return newChallengingHarness(config, ban, challenge.Config{}, watchdogs...)
+}
+
+func newChallengingHarness(
+	config jury.Config,
+	ban shadowban.Config,
+	ask challenge.Config,
+	watchdogs ...detect.Watchdog,
+) *harness {
+	h := &harness{
+		clock:   cptime.NewFixedClock(time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC)),
+		session: "mint-1",
+	}
 
 	banner := shadowban.New(ban, h.clock, shadowban.NewMemoryPersistence(), func(error) {})
-	h.jury = jury.New(config, banner, h.clock, jury.Hooks{
+	challenges := challenge.New(ask, h.clock, challenge.Hooks{OnAnswered: func(string) { h.passed++ }})
+
+	h.jury = jury.New(config, banner, challenges, h.clock, jury.Hooks{
 		OnFlag: func(report detect.Report) {
 			h.reports = append(h.reports, report)
+		},
+		OnChallenge: func(report detect.Report) {
+			h.challenges = append(h.challenges, report)
 		},
 		OnRise: func(watchdog string, level detect.Verdict) {
 			h.rises = append(h.rises, watchdog+" "+level.String())
@@ -61,17 +85,20 @@ func newHarness(config jury.Config, ban shadowban.Config, watchdogs ...detect.Wa
 	return h
 }
 
-func (h *harness) click() bool {
-	drop := h.jury.Inspect(detect.Click{
+func (h *harness) click() bool { return h.inspect().Dropped() }
+
+func (h *harness) inspect() detect.Outcome {
+	outcome := h.jury.Inspect(detect.Click{
 		Scope:   "caller",
 		Tile:    1,
 		Country: "FR",
 		At:      h.clock.Now(),
+		Session: h.session,
 	})
 
 	h.clock.Advance(time.Second)
 
-	return drop
+	return outcome
 }
 
 func juryConfig() jury.Config {
@@ -259,7 +286,7 @@ func TestACallerWithNoScopeIsNotJudged(t *testing.T) {
 
 	h := newHarness(juryConfig(), banConfig(), watchdog)
 
-	assert.False(t, h.jury.Inspect(detect.Click{Tile: 1, Country: "FR", At: h.clock.Now()}))
+	assert.False(t, h.jury.Inspect(detect.Click{Tile: 1, Country: "FR", At: h.clock.Now()}).Dropped())
 	assert.Equal(t, 0, watchdog.seen)
 }
 

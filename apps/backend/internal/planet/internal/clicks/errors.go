@@ -31,4 +31,10 @@ var (
 	// why the throttle is a decorator over the click use case and not an
 	// interceptor over the procedure.
 	ErrThrottled = errors.New("too many clicks")
+
+	// ErrChallenged is a caller that has to prove it is a person again before
+	// it may click. It says nothing about how — this context knows about
+	// sessions and deliberately nothing about Turnstile — only that the
+	// session this caller holds is no longer enough for it.
+	ErrChallenged = errors.New("this caller must start a new session before clicking again")
 )

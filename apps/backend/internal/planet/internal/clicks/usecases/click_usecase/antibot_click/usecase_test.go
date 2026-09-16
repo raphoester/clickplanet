@@ -18,15 +18,24 @@ import (
 )
 
 type fakeGuard struct {
-	drop bool
+	drop      bool
+	challenge bool
 
 	seen      []antibot.Click
 	committed []antibot.Click
 }
 
-func (g *fakeGuard) Inspect(click antibot.Click) bool {
+func (g *fakeGuard) Inspect(click antibot.Click) antibot.Outcome {
 	g.seen = append(g.seen, click)
-	return g.drop
+
+	switch {
+	case g.drop:
+		return antibot.Drop()
+	case g.challenge:
+		return antibot.Challenge()
+	default:
+		return antibot.Outcome{}
+	}
 }
 
 func (g *fakeGuard) Committed(click antibot.Click) {
@@ -34,6 +43,8 @@ func (g *fakeGuard) Committed(click antibot.Click) {
 }
 
 func (g *fakeGuard) Flagged() int { return len(g.seen) }
+
+func (g *fakeGuard) Challenges() int { return 0 }
 
 type fakeOwner map[uint32]string
 

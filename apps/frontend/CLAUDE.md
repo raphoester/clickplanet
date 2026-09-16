@@ -371,6 +371,17 @@ phone moved onto cellular, is not worth a dialog. The retry is not a loop: a
 second `unauthenticated` is reported as `SessionUnavailableError` and raises
 `SessionUnavailableModal`.
 
+**That same path is the whole of the client's answer to the backend's anti-bot
+re-challenge**, and no code here was added for it. The backend can now refuse a
+click because the caller has to prove it is a person again, and it says so with
+`unauthenticated` precisely because minting *is* the proof: `invalidate()` then
+`token()` runs a fresh Turnstile attestation, which draws the checkbox if
+Cloudflare decides this visitor has to tick one, and the retried click lands.
+A bundle built before any of it existed therefore answers a challenge without
+knowing there was one. Pinned by "answers an anti-bot re-challenge the same way"
+in `planetBackend.test.ts`; the backend half is
+[Three outcomes, not two](../backend/CLAUDE.md#three-outcomes-not-two).
+
 **Every failure inside the session client leaves as `SessionUnavailableError`.**
 A refused mint answers `permission_denied`, which is also what a VPN-blocked
 click answers — left bare it would reach the dialog telling the player to turn

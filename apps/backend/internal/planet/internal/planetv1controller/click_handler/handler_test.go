@@ -110,6 +110,19 @@ func TestClickMapsTheErrors(t *testing.T) {
 		assert.InDelta(t, 0.4, budget.GetTokens(), 1e-6)
 	})
 
+	t.Run("a challenged click is unauthenticated and carries nothing", func(t *testing.T) {
+		useCase := &stubUseCase{err: clicks.ErrChallenged}
+
+		_, err := clickOn(t, useCase, &planetv1.ClickRequest{})
+
+		require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err),
+			"the code a client already answers by minting and retrying, which is what answers a challenge")
+
+		var connectErr *connect.Error
+		require.ErrorAs(t, err, &connectErr)
+		assert.Empty(t, connectErr.Details(), "a budget is a number to be told; a challenge is an instruction")
+	})
+
 	t.Run("anything else is left for the error interceptor", func(t *testing.T) {
 		cause := errors.New("disk on fire")
 

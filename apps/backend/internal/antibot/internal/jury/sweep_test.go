@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/challenge"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/shadowban"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -35,10 +36,16 @@ func (stubBanner) Banned(string) bool { return false }
 
 func (stubBanner) Flagged() int { return 0 }
 
+// noChallenges is the real register with its bar at zero: it challenges nobody,
+// which is what a test about the ban path wants, and it is not a nil dependency.
+func noChallenges(clock cptime.Clock) *challenge.Challenges {
+	return challenge.New(challenge.Config{Interval: time.Minute}, clock, challenge.Hooks{})
+}
+
 func TestSweepForgetsIdleCallers(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC))
 
-	j := New(Config{TrackWindow: time.Minute}, stubBanner{}, clock, Hooks{})
+	j := New(Config{TrackWindow: time.Minute}, stubBanner{}, noChallenges(clock), clock, Hooks{})
 
 	j.Inspect(detect.Click{Scope: "caller", Tile: 1, Country: "FR", At: clock.Now()})
 	require.Len(t, j.callers, 1)
@@ -52,7 +59,7 @@ func TestSweepForgetsIdleCallers(t *testing.T) {
 func TestTheCountryTallyIsCapped(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC))
 
-	j := New(Config{}, stubBanner{}, clock, Hooks{})
+	j := New(Config{}, stubBanner{}, noChallenges(clock), clock, Hooks{})
 
 	for i := range 100 {
 		j.Inspect(detect.Click{
@@ -70,7 +77,7 @@ func TestTheCountryTallyIsCapped(t *testing.T) {
 func TestOnlyTheLastFewTilesAreKept(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC))
 
-	j := New(Config{}, stubBanner{}, clock, Hooks{})
+	j := New(Config{}, stubBanner{}, noChallenges(clock), clock, Hooks{})
 
 	for i := range uint32(100) {
 		j.Inspect(detect.Click{Scope: "caller", Tile: i, Country: "FR", At: clock.Now()})
@@ -87,7 +94,7 @@ func TestTheSweepReportsWhoIsStanding(t *testing.T) {
 	unsure := &fixedWatchdog{name: "unsure", verdict: detect.Suspect}
 	sure := &fixedWatchdog{name: "sure", verdict: detect.Clear}
 
-	j := New(Config{SuspicionWindow: 10 * time.Minute, TrackWindow: time.Hour}, stubBanner{}, clock, Hooks{
+	j := New(Config{SuspicionWindow: 10 * time.Minute, TrackWindow: time.Hour}, stubBanner{}, noChallenges(clock), clock, Hooks{
 		OnStanding: func(watchdog string, level detect.Verdict, callers int) {
 			standing[watchdog+" "+level.String()] = callers
 		},

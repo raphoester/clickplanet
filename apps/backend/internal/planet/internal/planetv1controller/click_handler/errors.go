@@ -24,6 +24,17 @@ func toConnect(err error, out click_usecase.Out) error {
 		return throttled(err, out)
 	}
 
+	// The same code the session interceptor answers a missing or lapsed token
+	// with, and deliberately so: a client already answers that by minting and
+	// retrying once, and the mint is the challenge. A client built before this
+	// existed therefore passes a challenge without knowing there was one.
+	//
+	// It carries no detail, unlike the throttle's: a budget is a number the
+	// client has to be told, and a challenge is an instruction it already has.
+	if errors.Is(err, clicks.ErrChallenged) {
+		return connect.NewError(connect.CodeUnauthenticated, err)
+	}
+
 	for _, callerError := range callerErrors {
 		if errors.Is(err, callerError) {
 			return connect.NewError(connect.CodeInvalidArgument, err)

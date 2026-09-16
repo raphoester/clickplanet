@@ -31,10 +31,16 @@ type stack struct {
 	// forgetEvidence starts every boot with nothing stored, as a process without persistence would.
 	forgetEvidence bool
 
-	owner   map[uint32]string
-	reports []antibot.Report
-	rises   []string
-	errors  []error
+	owner      map[uint32]string
+	reports    []antibot.Report
+	challenges []antibot.Report
+	passed     int
+	rises      []string
+	errors     []error
+
+	// session is what the next click carries. A test answers a challenge by
+	// changing it, the way a client does by minting again.
+	session string
 }
 
 func newStack(options ...func(*antibot.Config)) *stack {
@@ -43,6 +49,7 @@ func newStack(options ...func(*antibot.Config)) *stack {
 		owner:    map[uint32]string{},
 		bans:     shadowban.NewMemoryPersistence(),
 		evidence: evidence.NewMemoryPersistence(),
+		session:  "mint-1",
 	}
 
 	config := antibot.Config{Enabled: true}
@@ -121,10 +128,12 @@ func (s *stack) boot() {
 	}
 
 	guard, err := antibot.NewInMemory(s.config, s.clock, antibot.Observer{
-		OnFlag:       func(report antibot.Report) { s.reports = append(s.reports, report) },
-		OnRise:       func(watchdog, level string) { s.rises = append(s.rises, watchdog+" "+level) },
-		OnStateError: func(err error) { s.errors = append(s.errors, err) },
-		OnStart:      func(antibot.Description) { close(started) },
+		OnFlag:            func(report antibot.Report) { s.reports = append(s.reports, report) },
+		OnChallenge:       func(report antibot.Report) { s.challenges = append(s.challenges, report) },
+		OnChallengePassed: func() { s.passed++ },
+		OnRise:            func(watchdog, level string) { s.rises = append(s.rises, watchdog+" "+level) },
+		OnStateError:      func(err error) { s.errors = append(s.errors, err) },
+		OnStart:           func(antibot.Description) { close(started) },
 	}, s.bans, s.evidence)
 	if err != nil {
 		panic(err)
@@ -157,6 +166,12 @@ func (s *stack) restart(outage time.Duration) {
 }
 
 func (s *stack) click(scope string, tile uint32, country string) bool {
+	return s.inspect(scope, tile, country).Dropped()
+}
+
+// inspect drives one click the way internal/planet does: every try is shown to
+// the watchdogs, and only a click nothing refused reaches the map.
+func (s *stack) inspect(scope string, tile uint32, country string) antibot.Outcome {
 	held := s.owner[tile]
 
 	click := antibot.Click{
@@ -166,19 +181,20 @@ func (s *stack) click(scope string, tile uint32, country string) bool {
 		At:      s.clock.Now(),
 		Held:    held,
 		NoOp:    held == country,
+		Session: s.session,
 	}
 
 	s.guard.Attempted(click)
 
-	drop := s.guard.Inspect(click)
-	if !drop {
+	outcome := s.guard.Inspect(click)
+	if !outcome.Dropped() && !outcome.Challenged() {
 		s.guard.Committed(click)
 		if !click.NoOp {
 			s.owner[tile] = country
 		}
 	}
 
-	return drop
+	return outcome
 }
 
 func (s *stack) verdicts(scope string) map[string]detect.Verdict {
@@ -609,9 +625,13 @@ func TestWithTheBlockOffTheGuardPassesEveryClick(t *testing.T) {
 	guard, err := antibot.New(antibot.Config{}, cptime.SystemClock{}, antibot.Observer{})
 	require.NoError(t, err)
 
+	outcome := guard.Inspect(antibot.Click{Scope: "1.2.3.4", Tile: 1, Country: "fr"})
+
 	assert.False(t, guard.Enabled())
-	assert.False(t, guard.Inspect(antibot.Click{Scope: "1.2.3.4", Tile: 1, Country: "fr"}))
+	assert.False(t, outcome.Dropped())
+	assert.False(t, outcome.Challenged())
 	assert.False(t, guard.Banned("1.2.3.4"))
+	assert.False(t, guard.Challenged("1.2.3.4", "mint-1"))
 }
 
 // Production on 2026-09-14: restarted every few minutes during the attack, so no window of 10m or more ever filled.
@@ -712,4 +732,155 @@ func TestBansSurviveARestart(t *testing.T) {
 
 	require.Empty(t, s.errors)
 	assert.True(t, s.guard.Banned("1.2.3.4"))
+}
+
+// challenging is the stack with the lesser consequence turned on: one watchdog
+// at suspect asks the caller to prove itself, two still ban it.
+func challenging(config *antibot.Config) {
+	config.Challenge.Enforce = true
+	config.Challenge.MinSuspects = 1
+	config.Challenge.Interval = 10 * time.Minute
+}
+
+// jitter replays the bot of 2026-09-14: a delay randomised wide enough that the
+// metronome reads clear, so the sequencer's suspicion stands alone and the ban
+// bar is never reached. Before the challenge existed that bought it the night.
+func (s *stack) jitter(scope string, clicks int) []antibot.Outcome {
+	//nolint:gosec // G404: deterministic PRNG, seeded so the delays are the same every run.
+	rng := rand.New(rand.NewPCG(14, 9))
+
+	tile := uint32(180000)
+	outcomes := make([]antibot.Outcome, 0, clicks)
+
+	for range clicks {
+		s.clock.Advance(500*time.Millisecond + time.Duration(rng.Int64N(int64(1500*time.Millisecond))))
+		outcomes = append(outcomes, s.inspect(scope, tile, "FR"))
+		tile++
+	}
+
+	return outcomes
+}
+
+func challenged(outcomes []antibot.Outcome) int {
+	var count int
+	for _, outcome := range outcomes {
+		if outcome.Challenged() {
+			count++
+		}
+	}
+	return count
+}
+
+func TestALoneSuspicionIsChallengedRatherThanBanned(t *testing.T) {
+	s := newStack(challenging)
+
+	outcomes := s.jitter("jitterer", 100)
+
+	assert.Empty(t, s.reports, "one watchdog at suspect is not a ban, and making it one bans real players")
+	require.Len(t, s.challenges, 1, "it is a challenge, and one per interval however many clicks it makes")
+	assert.Positive(t, challenged(outcomes), "which the caller is actually told about")
+
+	for _, outcome := range outcomes {
+		assert.False(t, outcome.Dropped(), "a challenge is the opposite of a shadow ban: it is said out loud")
+	}
+
+	report := s.challenges[0]
+	assert.Equal(t, "jitterer", report.Scope)
+	assert.True(t, report.Enforced)
+	assert.Equal(t, []string{"sequencer suspect"}, s.rises, "the reading the ban bar threw away")
+}
+
+func TestWithTheChallengeSwitchOffNothingChanges(t *testing.T) {
+	counted := newStack(func(config *antibot.Config) {
+		challenging(config)
+		config.Challenge.Enforce = false
+	})
+
+	outcomes := counted.jitter("jitterer", 100)
+
+	require.Len(t, counted.challenges, 1, "still judged, still logged, still counted")
+	assert.False(t, counted.challenges[0].Enforced, "and the line says so")
+	assert.Zero(t, challenged(outcomes), "nobody is asked anything: the mode to deploy in")
+
+	// Against the same run with the block left as it ships, so "nothing
+	// changes" is measured rather than asserted.
+	shipped := newStack()
+	assert.Equal(t, shipped.jitter("jitterer", 100), outcomes)
+	assert.Empty(t, shipped.reports)
+	assert.Equal(t, counted.rises, shipped.rises)
+}
+
+func TestAnsweringTheChallengeLetsTheCallerClickAgain(t *testing.T) {
+	s := newStack(challenging)
+
+	require.Positive(t, challenged(s.jitter("jitterer", 100)))
+	require.True(t, s.guard.Challenged("jitterer", s.session), "and it is refused before a token is spent")
+
+	// What a client does on a 401: mint again, which cannot be done without
+	// Turnstile, and retry.
+	s.session = "mint-2"
+
+	assert.False(t, s.guard.Challenged("jitterer", s.session))
+	assert.Equal(t, 1, s.passed)
+
+	s.clock.Advance(time.Second)
+	assert.False(t, s.inspect("jitterer", 1, "FR").Challenged(), "and the click that follows lands")
+	assert.Len(t, s.challenges, 1, "answering does not put the player straight back in front of the widget")
+}
+
+// A caller on its way to a ban passes through the challenge band and is asked
+// to prove itself first, which is the point — most callers that reach the band
+// stop there. What must not happen is the ban arriving and the caller still
+// being told: a shadow ban that announces itself is not one.
+func TestTheBanTakesOverFromTheChallengeAndGoesQuiet(t *testing.T) {
+	s := newStack(challenging)
+
+	var (
+		tile    = uint32(180000)
+		dropped bool
+	)
+
+	for range 400 {
+		s.clock.Advance(time.Second)
+		outcome := s.inspect("sweeper", tile, "FR")
+		if outcome.Dropped() {
+			dropped = true
+			break
+		}
+		tile++
+	}
+
+	require.True(t, dropped, "two watchdogs at suspect is still a ban")
+	require.NotEmpty(t, s.reports)
+	require.Len(t, s.challenges, 1, "asked once on the way up")
+
+	assert.False(t, s.guard.Challenged("sweeper", s.session), "and never told again once the ban lands")
+
+	for range 20 {
+		s.clock.Advance(time.Second)
+		tile++
+
+		outcome := s.inspect("sweeper", tile, "FR")
+		assert.True(t, outcome.Dropped())
+		assert.False(t, outcome.Challenged())
+	}
+
+	assert.Len(t, s.challenges, 1)
+}
+
+func TestValidateRefusesAChallengeBarAtOrAboveTheBanBar(t *testing.T) {
+	config := antibot.Config{Enabled: true, Database: database()}
+	config.Jury.MinSuspects = 2
+	config.Challenge.MinSuspects = 2
+
+	err := config.Validate()
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "antiBot.challenge.minSuspects")
+
+	config.Challenge.MinSuspects = 1
+	assert.NoError(t, config.Validate())
+
+	config.Challenge.MinSuspects = 0
+	assert.NoError(t, config.Validate(), "unset takes one below the ban bar rather than being a number to check")
 }

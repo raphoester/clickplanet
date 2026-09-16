@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/catcher"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/challenge"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/cohort"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/defender"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
@@ -46,7 +47,8 @@ import (
 // vocabulary the edge has to speak.
 type (
 	Click    = detect.Click       // one Click RPC, as the guard sees it
-	Report   = detect.Report      // one ban, with every watchdog's opinion behind it
+	Report   = detect.Report      // one finding, with every watchdog's opinion behind it
+	Outcome  = detect.Outcome     // what to do with one click: nothing, drop it, or challenge the caller
 	Sentence = shadowban.Sentence // a scope's ban, as the operator tools read it
 
 	Examination = detect.Examination // what the jury holds on one scope, as InspectPlayer reads it
@@ -66,6 +68,7 @@ type Config struct {
 	Database cppg.Config
 
 	ShadowBan shadowban.Config
+	Challenge challenge.Config
 	Jury      jury.Config
 	Evidence  evidence.Config
 
@@ -78,8 +81,9 @@ type Config struct {
 	Scraper   scraperConfig
 }
 
-// Validate refuses a bound that cannot mean what it says. Only the cohort has
-// any yet: the other watchdogs clamp what they are given.
+// Validate refuses a bound that cannot mean what it says. The cohort's are its
+// own; the challenge bar is checked here because it only means anything against
+// the jury's, and the other watchdogs clamp what they are given.
 func (c Config) Validate() error {
 	if !c.Enabled {
 		return nil
@@ -89,12 +93,39 @@ func (c Config) Validate() error {
 		return fmt.Errorf("antiBot.database: %w", err)
 	}
 
+	if err := c.validateChallenge(); err != nil {
+		return err
+	}
+
 	if !c.Cohort.Enabled {
 		return nil
 	}
 
 	if err := c.Cohort.Detector.Validate(); err != nil {
 		return fmt.Errorf("antiBot.cohort.detector: %w", err)
+	}
+
+	return nil
+}
+
+// validateChallenge refuses a bar the challenge could never fire on. Zero is
+// unset and takes one below the ban bar, so only a number an operator wrote
+// down is refused.
+func (c Config) validateChallenge() error {
+	if c.Challenge.MinSuspects == 0 {
+		return nil
+	}
+
+	if c.Challenge.MinSuspects < 0 {
+		return fmt.Errorf("antiBot.challenge.minSuspects must be positive, got %d", c.Challenge.MinSuspects)
+	}
+
+	banAt := c.Jury.WithDefaults().MinSuspects
+	if c.Challenge.MinSuspects >= banAt {
+		return fmt.Errorf(
+			"antiBot.challenge.minSuspects is %d and antiBot.jury.minSuspects is %d: "+
+				"a caller reaching the ban bar is banned, so a challenge at or above it would never fire",
+			c.Challenge.MinSuspects, banAt)
 	}
 
 	return nil
@@ -152,6 +183,17 @@ type Observer struct {
 	OnMapReads func(maps float64)
 
 	OnFlag func(report Report)
+
+	// OnChallenge is a caller sent back to prove it is a person, once per
+	// caller per challenge: past the challenge bar, short of the ban one.
+	// report.Enforced is false while challenge.enforce is off, which is what
+	// makes the counted-but-not-refused mode readable.
+	OnChallenge func(report Report)
+
+	// OnChallengePassed is a challenged caller clicking with a session it was
+	// not challenged on: it went back through the mint, and the only way
+	// through the mint is Turnstile.
+	OnChallengePassed func()
 
 	// OnRise is a watchdog's reading of a caller reaching level, "suspect" or
 	// "certain", when it has not held that level inside jury.suspicionWindow: a
@@ -303,29 +345,47 @@ func build(
 
 	// Defaulted here so the description carries the bounds actually enforced.
 	juryConfig := config.Jury.WithDefaults()
+	challengeConfig := config.Challenge.WithDefaults(juryConfig.MinSuspects)
 
 	banner := shadowban.New(config.ShadowBan, clock, bans, onStateError)
 	g.runners = append(g.runners, banner.Run)
 
+	challenges := challenge.New(challengeConfig, clock, challengeHooks(observer))
+	g.runners = append(g.runners, challenges.Run)
+
 	g.banner = banner
-	g.jury = jury.New(juryConfig, banner, clock, juryHooks(observer), watchdogs...)
+	g.challenges = challenges
+	g.jury = jury.New(juryConfig, banner, challenges, clock, juryHooks(observer), watchdogs...)
 	g.runners = append(g.runners, g.jury.Run)
 
 	g.evidence = evidence.New(config.Evidence, clock, evidences, onStateError, append(sections, g.jury)...)
 	g.runners = append(g.runners, g.evidence.Run)
 
 	g.description = Description{
-		Watchdogs:   names,
-		MinSuspects: juryConfig.MinSuspects,
-		Enforcing:   banner.Enforcing(),
+		Watchdogs:    names,
+		MinSuspects:  juryConfig.MinSuspects,
+		Enforcing:    banner.Enforcing(),
+		ChallengeAt:  challengeConfig.MinSuspects,
+		Challenging:  challenges.Enforcing(),
+		ChallengeFor: challengeConfig.Interval,
 	}
 
 	return g, nil
 }
 
+func challengeHooks(observer Observer) challenge.Hooks {
+	if observer.OnChallengePassed == nil {
+		return challenge.Hooks{}
+	}
+
+	// The scope is dropped on the way out: a pass is a count, and the address
+	// belongs in a log line rather than in anything that is scraped.
+	return challenge.Hooks{OnAnswered: func(string) { observer.OnChallengePassed() }}
+}
+
 // juryHooks words the jury's levels for the observer, so the ladder never leaves this package as a type.
 func juryHooks(observer Observer) jury.Hooks {
-	hooks := jury.Hooks{OnFlag: observer.OnFlag}
+	hooks := jury.Hooks{OnFlag: observer.OnFlag, OnChallenge: observer.OnChallenge}
 
 	if observer.OnRise != nil {
 		hooks.OnRise = func(watchdog string, level detect.Verdict) {
@@ -348,6 +408,12 @@ type Description struct {
 	Watchdogs   []string
 	MinSuspects int
 	Enforcing   bool
+
+	// ChallengeAt is the lesser bar, Challenging whether reaching it refuses
+	// anything, and ChallengeFor how long one challenge stands.
+	ChallengeAt  int
+	Challenging  bool
+	ChallengeFor time.Duration
 }
 
 // Guard is what the click edge gates on. It is a struct, not an interface: each
@@ -355,12 +421,13 @@ type Description struct {
 // back when the block is off is enough. That one drops nothing, bans nothing and
 // its Run returns at once.
 type Guard struct {
-	jury        *jury.Jury        // nil when the block is off
-	banner      *shadowban.Banner // nil when the block is off
-	evidence    *evidence.Store   // nil when the block is off
-	database    database          // nil when the block is off
-	catcher     *catcher.Watchdog // nil when the catcher is off
-	scraper     *scraper.Watchdog // nil when the scraper is off
+	jury        *jury.Jury            // nil when the block is off
+	banner      *shadowban.Banner     // nil when the block is off
+	challenges  *challenge.Challenges // nil when the block is off
+	evidence    *evidence.Store       // nil when the block is off
+	database    database              // nil when the block is off
+	catcher     *catcher.Watchdog     // nil when the catcher is off
+	scraper     *scraper.Watchdog     // nil when the scraper is off
 	runners     []func(context.Context)
 	description Description
 	onStart     func(Description)
@@ -376,9 +443,35 @@ func (g *Guard) Attempted(click Click) {
 }
 
 // Inspect is called before the handler runs, because the map stops remembering
-// who held the tile the moment it does.
-func (g *Guard) Inspect(click Click) (drop bool) {
-	return g.Enabled() && g.jury.Inspect(click)
+// who held the tile the moment it does. The Outcome it answers has two
+// questions on it and no level: the edge acts, and never reads the ladder.
+func (g *Guard) Inspect(click Click) Outcome {
+	if !g.Enabled() {
+		return Outcome{}
+	}
+
+	return g.jury.Inspect(click)
+}
+
+// Challenged says whether this caller must re-authenticate before its click is
+// worth spending an allowance on, and clears a challenge it has just answered
+// by coming back with a session it was not challenged on.
+//
+// It is separate from Inspect because it is asked in a different place: Inspect
+// has to sit next to the write, and a refusal must not sit inside the throttle
+// or the retry that follows would come back throttled. False while
+// challenge.enforce is off, the way Banned is while shadowBan.enforce is.
+func (g *Guard) Challenged(scope, session string) bool {
+	return g.Enabled() && g.challenges.Standing(scope, session)
+}
+
+// Challenges is how many callers are being asked to prove themselves, for the gauge.
+func (g *Guard) Challenges() int {
+	if !g.Enabled() {
+		return 0
+	}
+
+	return g.challenges.Count()
 }
 
 // Committed is only for a click the handler accepted: a refused one recorded as a

@@ -24,7 +24,7 @@ func (s *saying) Watch(detect.Click) (detect.Verdict, detect.Evidence) { return 
 
 func newJury(clock cptime.Clock, hooks Hooks, watchdog detect.Watchdog) *Jury {
 	banner := shadowban.New(shadowban.Config{Enforce: true}, clock, shadowban.NewMemoryPersistence(), func(error) {})
-	return New(Config{TrackWindow: time.Hour}, banner, clock, hooks, watchdog)
+	return New(Config{TrackWindow: time.Hour}, banner, noChallenges(clock), clock, hooks, watchdog)
 }
 
 func TestTheCallerAndItsOpinionsSurviveASaveAndLoad(t *testing.T) {
@@ -68,7 +68,7 @@ func TestTheCallerAndItsOpinionsSurviveASaveAndLoad(t *testing.T) {
 
 	clock.Advance(time.Second)
 	watchdog.verdict = detect.Certain
-	require.True(t, restarted.Inspect(detect.Click{Scope: "caller", Tile: 20, Country: "FR", At: clock.Now()}))
+	require.True(t, restarted.Inspect(detect.Click{Scope: "caller", Tile: 20, Country: "FR", At: clock.Now()}).Dropped())
 	require.Len(t, reports, 1)
 	assert.Equal(t, []detect.Verdict{detect.Certain}, rises, "suspect was already standing before the restart")
 

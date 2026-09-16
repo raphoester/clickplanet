@@ -254,6 +254,28 @@ describe("PlanetBackend.clickTile", () => {
         backend.close()
     })
 
+    // The backend's antibot answers a re-challenge with the same code, on
+    // purpose: minting is what clears one, and the mint is the Turnstile solve.
+    // So a caller told to prove itself again is carried by the path above with
+    // nothing added here — the widget appears if Cloudflare decides it should,
+    // and the player's click lands.
+    it("answers an anti-bot re-challenge the same way, because the mint is the challenge", async () => {
+        const click = vi.fn()
+            .mockRejectedValueOnce(new ConnectError(
+                "this caller must start a new session before clicking again", Code.Unauthenticated))
+            .mockResolvedValueOnce({})
+
+        const session = rotatingSession(["challenged", "proved"])
+        const backend = backendWith(click, session)
+
+        await backend.clickTile(42, "fr")
+
+        expect(click).toHaveBeenCalledTimes(2)
+        expect(headersOf(click, 1).get(SESSION_HEADER)).toBe("proved")
+        expect(session.invalidated).toBe(1)
+        backend.close()
+    })
+
     it("gives up after the retry rather than looping", async () => {
         const click = vi.fn().mockRejectedValue(new ConnectError("no session", Code.Unauthenticated))
         const backend = backendWith(click, rotatingSession(["stale", "fresh"]))
