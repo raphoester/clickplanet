@@ -2,11 +2,14 @@
 // A script tuned to sit just under the throttle spends hours at one tempo with
 // no pauses in it. Tempo alone says nothing — a player can click fast. What no
 // hand produces is the same gap, again and again, for hours, without once
-// looking away. The gaps are between clicks tried, not clicks accepted.
+// looking away. A random sleep is a clock too: its gaps sit evenly where a hand's
+// lean long. The gaps are between clicks tried, not clicks accepted.
 package metronome
 
 import (
 	"context"
+	"math"
+	"sort"
 	"sync"
 	"time"
 
@@ -36,10 +39,24 @@ type Config struct {
 	CertainFor    time.Duration
 	CertainClicks int
 
+	Shape ShapeConfig
+
 	// TrackWindow is how long a silent caller is remembered.
 	TrackWindow time.Duration
 
 	SweepInterval time.Duration
+}
+
+// ShapeConfig bounds the skew of the gaps, (p90 + p10 - 2*p50) / (p90 - p10): near 0 for a random sleep, towards 1 for a hand.
+type ShapeConfig struct {
+	// MaxGap is the longest gap kept as a sample; a longer one is skipped and ends nothing.
+	MaxGap time.Duration
+
+	// A nil skew never reads its level; a pointer because 0 is a skew.
+	Clicks        int
+	MaxSkew       *float64
+	CertainClicks int
+	CertainSkew   *float64
 }
 
 const (
@@ -51,7 +68,12 @@ const (
 	defaultTrackWindow   = 15 * time.Minute
 	defaultSweepInterval = time.Minute
 
-	maxSamples = 1024
+	defaultShapeMaxGap        = 10 * time.Second
+	defaultShapeClicks        = 500
+	defaultShapeCertainClicks = 1000
+
+	maxSamples      = 1024
+	maxShapeSamples = 2048
 )
 
 func (c Config) withDefaults() Config {
@@ -79,10 +101,33 @@ func (c Config) withDefaults() Config {
 	if c.SweepInterval <= 0 {
 		c.SweepInterval = defaultSweepInterval
 	}
+	c.Shape = c.Shape.withDefaults()
 	return c
 }
 
-func New(config Config, clock cptime.Clock) *Watchdog {
+func (c ShapeConfig) withDefaults() ShapeConfig {
+	if c.MaxGap <= 0 {
+		c.MaxGap = defaultShapeMaxGap
+	}
+	if c.Clicks <= 0 {
+		c.Clicks = defaultShapeClicks
+	}
+	if c.Clicks > maxShapeSamples {
+		c.Clicks = maxShapeSamples
+	}
+	if c.CertainClicks <= 0 {
+		c.CertainClicks = defaultShapeCertainClicks
+	}
+	if c.CertainClicks < c.Clicks {
+		c.CertainClicks = c.Clicks
+	}
+	if c.CertainClicks > maxShapeSamples {
+		c.CertainClicks = maxShapeSamples
+	}
+	return c
+}
+
+func New(config Config, clock cptime.Clock, onSkew func(skew float64)) *Watchdog {
 	if clock == nil {
 		clock = cptime.SystemClock{}
 	}
@@ -90,6 +135,7 @@ func New(config Config, clock cptime.Clock) *Watchdog {
 	return &Watchdog{
 		config:  config.withDefaults(),
 		clock:   clock,
+		onSkew:  onSkew,
 		callers: make(map[string]*caller),
 	}
 }
@@ -97,6 +143,7 @@ func New(config Config, clock cptime.Clock) *Watchdog {
 type Watchdog struct {
 	config Config
 	clock  cptime.Clock
+	onSkew func(float64)
 
 	mu      sync.Mutex
 	callers map[string]*caller
@@ -115,6 +162,9 @@ type caller struct {
 	runClicks int
 
 	gaps []time.Duration
+
+	// shape is not cleared by a break: the bot it exists for pauses between bursts.
+	shape []time.Duration
 }
 
 func (w *Watchdog) Name() string { return Name }
@@ -139,6 +189,13 @@ func (w *Watchdog) Attempted(click detect.Click) {
 	across := w.outage.Across(c.lastSeen, click.At)
 	gap := w.outage.Gap(c.lastSeen, click.At)
 	c.lastSeen = click.At
+
+	if !across && gap >= 0 && gap <= w.config.Shape.MaxGap {
+		c.shape = append(c.shape, gap)
+		if capacity := w.config.Shape.CertainClicks; len(c.shape) > capacity {
+			c.shape = append(c.shape[:0], c.shape[len(c.shape)-capacity:]...)
+		}
+	}
 
 	if gap < 0 || gap > w.config.MaxGap {
 		c.restart(click.At)
@@ -165,7 +222,21 @@ func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
 	defer w.mu.Unlock()
 
 	c, ok := w.callers[click.Scope]
-	if !ok || c.runClicks < w.config.MinClicks {
+	if !ok {
+		return detect.Clear, detect.Evidence{}
+	}
+
+	cadence, cadenceEvidence := w.cadence(c)
+	shape, shapeEvidence := w.shape(c)
+
+	if shape > cadence {
+		return shape, shapeEvidence
+	}
+	return cadence, cadenceEvidence
+}
+
+func (w *Watchdog) cadence(c *caller) (detect.Verdict, detect.Evidence) {
+	if c.runClicks < w.config.MinClicks {
 		return detect.Clear, detect.Evidence{}
 	}
 
@@ -188,6 +259,66 @@ func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
 			{Key: "median", Value: median},
 			{Key: "clicks", Value: c.runClicks},
 			{Key: "sustained", Value: sustained},
+		},
+	}
+}
+
+func (w *Watchdog) shape(c *caller) (detect.Verdict, detect.Evidence) {
+	config := w.config.Shape
+
+	if config.CertainSkew != nil {
+		if s, ok := skewOf(c.shape, config.CertainClicks); ok && s.skew <= *config.CertainSkew {
+			return detect.Certain, s.evidence()
+		}
+	}
+
+	if config.MaxSkew != nil {
+		if s, ok := skewOf(c.shape, config.Clicks); ok && s.skew <= *config.MaxSkew {
+			return detect.Suspect, s.evidence()
+		}
+	}
+
+	return detect.Clear, detect.Evidence{}
+}
+
+type skewed struct {
+	skew          float64
+	p10, p50, p90 time.Duration
+	clicks        int
+}
+
+// skewOf reads nothing from gaps that do not spread: a gap that never varies is cadence's.
+func skewOf(gaps []time.Duration, n int) (skewed, bool) {
+	if len(gaps) < n {
+		return skewed{}, false
+	}
+
+	sorted := append([]time.Duration(nil), gaps[len(gaps)-n:]...)
+	sort.Slice(sorted, func(i, j int) bool { return sorted[i] < sorted[j] })
+
+	s := skewed{
+		p10:    detect.Quantile(sorted, 0.1),
+		p50:    detect.Quantile(sorted, 0.5),
+		p90:    detect.Quantile(sorted, 0.9),
+		clicks: n,
+	}
+	if s.p90 <= s.p10 {
+		return skewed{}, false
+	}
+
+	s.skew = float64(s.p90+s.p10-2*s.p50) / float64(s.p90-s.p10)
+	return s, true
+}
+
+func (s skewed) evidence() detect.Evidence {
+	return detect.Evidence{
+		Rule: "shape",
+		Fields: []detect.Field{
+			{Key: "skew", Value: math.Round(s.skew*100) / 100},
+			{Key: "p10", Value: s.p10},
+			{Key: "median", Value: s.p50},
+			{Key: "p90", Value: s.p90},
+			{Key: "clicks", Value: s.clicks},
 		},
 	}
 }
@@ -223,13 +354,24 @@ func (w *Watchdog) Run(ctx context.Context) {
 func (w *Watchdog) sweep() {
 	now := w.clock.Now()
 
+	var skews []float64
+
 	w.mu.Lock()
-	defer w.mu.Unlock()
 
 	cutoff := now.Add(-w.config.TrackWindow)
 	for scope, c := range w.callers {
 		if c.lastSeen.Before(cutoff) {
 			delete(w.callers, scope)
+			continue
 		}
+		if s, ok := skewOf(c.shape, w.config.Shape.Clicks); ok {
+			skews = append(skews, s.skew)
+		}
+	}
+
+	w.mu.Unlock()
+
+	for _, skew := range skews {
+		w.onSkew(skew)
 	}
 }

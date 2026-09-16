@@ -33,6 +33,13 @@ func NewObserver(logger *slog.Logger, registerer prometheus.Registerer) antibot.
 		Buckets: []float64{0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99, 1.0},
 	})
 
+	// Sampled once a sweep per caller with a full window: players lean towards 1, a random sleep sits near 0.
+	gapSkews := factory.NewHistogram(prometheus.HistogramOpts{
+		Name:    "click_gap_skew",
+		Help:    "Skew (p90 + p10 - 2*p50) / (p90 - p10) of a caller's gaps between clicks tried, per caller per sweep",
+		Buckets: []float64{-0.5, -0.3, -0.2, -0.1, 0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0},
+	})
+
 	// Set once a sweep. A pool that rotates addresses shows here as a floor that
 	// never drops to zero, long before its cohorts chain into a ban.
 	cohortScopes := factory.NewGauge(prometheus.GaugeOpts{
@@ -73,6 +80,8 @@ func NewObserver(logger *slog.Logger, registerer prometheus.Registerer) antibot.
 		OnReaction: func(delay time.Duration) { reactions.Observe(delay.Seconds()) },
 
 		OnRetakeShare: retakeShares.Observe,
+
+		OnGapSkew: gapSkews.Observe,
 
 		OnCohortScopes: func(scopes int) { cohortScopes.Set(float64(scopes)) },
 

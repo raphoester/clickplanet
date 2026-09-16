@@ -912,7 +912,7 @@ A `Watchdog` measures one behaviour over one caller and returns a `Verdict`:
 
 - **`retaker`** — takes a tile back moments after losing it, over and over.
 - **`sequencer`** — walks the tile ids rather than the map: 1, 2, 3, 4, on and on.
-- **`metronome`** — never varies and never stops.
+- **`metronome`** — never varies and never stops (`cadence`), or sleeps a random time between clicks (`shape`).
 - **`defender`** — nearly every take is a retake, however slowly it comes.
 - **`catcher`** — catches every bonus box, at once.
 - **`cohort`** — starts, paces and stops in step with other scopes, group after group.
@@ -1083,6 +1083,33 @@ construction — randomise and the band widens to look human. What is not cheap 
 fake is *stopping*: a person's session has breaks in it. `activeFor` and
 `longestGap` still feed no rule, because deciding on them alone would ban the
 genuinely obsessed; they go in the log, beside a rule that did fire.
+
+**Stopping was cheap to fake after all, and `shape` is the answer.** The bot of
+2026-09-16 slept a random 0.6-2.1s between tries and paused up to 38s every so
+often: no run lasted, its spread was ~1.2s, and every watchdog read `clear` for
+hours while it rotated Free Mobile /64s. What it did not fake is the *shape* of
+its gaps. A sleep drawn evenly from a range sits evenly around its median; a
+hand's gaps are mostly short with a long tail. The rule is the quantile skew
+`(p90 + p10 - 2·p50) / (p90 - p10)` over the last `shape.clicks` gaps.
+
+- **Its window is not the run.** A gap over `shape.maxGap` (10s) is skipped and
+  ends nothing, so a pause does not reset it; a gap over `maxGap` still ends the
+  `cadence` run. A gap stitched across a restart is not a sample here either.
+- **Measured before it was written.** Over two days of access log, every player
+  with 500 gaps read 0.34 or more over any 500-gap window, and the bot's 12
+  scopes read under 0.25 in nearly all of them. Replayed through the watchdog,
+  `maxSkew` 0.25 and `certainSkew` 0.15 caught all 12 in ~12 minutes and no player.
+- **It ships measuring.** `maxSkew` and `certainSkew` are pointers, unset in
+  production: 0 is a skew, so leaving a bound out is the only off. The sweep
+  reports every caller with a full window through `Observer.OnGapSkew`, into
+  `click_gap_skew`. Set the bounds from that histogram.
+- **One watchdog, one opinion.** It is a rule of `metronome` and not a watchdog of
+  its own because it reads the same gaps: two timing rules in two watchdogs
+  could reach `Suspect` together and ban on one behaviour. The stronger level is
+  reported, `cadence` on a tie, and the evidence names the rule.
+- **It is beatable too**: sleep a lopsided random time and it reads like a hand.
+  It buys time, like every rule here.
+- A gap that never varies (p90 = p10) has no skew and is `cadence`'s.
 
 **`defender`: what is clicked, not when.** The bots of 2026-09-14 retook from a
 queue behind the throttle: tiles came back 0.4s, 1.5s, 2.5s … 40s after they were
@@ -1673,7 +1700,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `antiBot.evidence.saveInterval`, `retention` — how often every watchdog's evidence and the jury's record are written to `antibot.evidence` (1m, and on shutdown), and the oldest kept (72h) on load and in memory. See [What survives a restart](#what-survives-a-restart)
 - `antiBot.retaker.enabled`, `detector.reactionWindow`, `minReactions`, `maxSpread`, `maxMedian` — what counts as a reaction, how many are needed, and the band that reads `suspect` then `certain`
 - `antiBot.sequencer.enabled`, `detector.minSteps`, `minShare`, `certainSteps`, `certainShare` — how long a run of constant-stride clicks must be, and how much of it must sit at that stride
-- `antiBot.metronome.enabled`, `detector.maxGap`, `maxSpread`, `minClicks`, `certainFor`, `certainClicks` — what ends a run, how tight its gaps must be, and how long it must hold
+- `antiBot.metronome.enabled`, `detector.maxGap`, `maxSpread`, `minClicks`, `certainFor`, `certainClicks` — what ends a run, how tight its gaps must be, and how long it must hold; `detector.shape.maxGap`, `clicks`, `maxSkew`, `certainClicks`, `certainSkew` — the longest gap sampled, and the skew of the last gaps that reads each level (unset, it only measures)
 - `antiBot.defender.enabled`, `detector.retakeWindow`, `minClicks`, `minShare`, `certainClicks`, `certainShare` — what counts as a retake, and the share of takes that reads `suspect` then `certain`; a zero share never reads
 - `antiBot.cohort.enabled`, `detector.startWindow`, `minClicks`, `minFlagShare`, `rateRatio`, `lengthRatio`, `quietAfter`, `minMembers` — what makes two scopes in step, and how many of them read `suspect`
 - `antiBot.cohort.detector.v4Bits`, `v6Bits`, `certainCohorts`, `certainMembers`, `chainWindow` — the prefix a chain must share, and how many groups, or scopes in one group, read `certain`. Its `trackWindow` is raised to `chainWindow` if shorter; bad bounds refuse the boot

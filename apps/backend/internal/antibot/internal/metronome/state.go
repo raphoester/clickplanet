@@ -18,6 +18,7 @@ type savedCaller struct {
 	RunStart  int64
 	RunClicks int
 	Gaps      []int64
+	Shape     []int64
 }
 
 func (w *Watchdog) Save() ([]byte, error) {
@@ -25,16 +26,13 @@ func (w *Watchdog) Save() ([]byte, error) {
 
 	saved := make([]savedCaller, 0, len(w.callers))
 	for scope, c := range w.callers {
-		gaps := make([]int64, 0, len(c.gaps))
-		for _, gap := range c.gaps {
-			gaps = append(gaps, int64(gap))
-		}
 		saved = append(saved, savedCaller{
 			Scope:     scope,
 			LastSeen:  evidence.Nanos(c.lastSeen),
 			RunStart:  evidence.Nanos(c.runStart),
 			RunClicks: c.runClicks,
-			Gaps:      gaps,
+			Gaps:      nanos(c.gaps),
+			Shape:     nanos(c.shape),
 		})
 	}
 
@@ -51,18 +49,13 @@ func (w *Watchdog) Load(data []byte) error {
 
 	callers := make(map[string]*caller, len(saved))
 	for _, c := range saved {
-		loaded := &caller{
+		callers[c.Scope] = &caller{
 			lastSeen:  evidence.Time(c.LastSeen),
 			runStart:  evidence.Time(c.RunStart),
 			runClicks: c.RunClicks,
+			gaps:      durations(c.Gaps, w.capacity()),
+			shape:     durations(c.Shape, w.config.Shape.CertainClicks),
 		}
-		for _, gap := range c.Gaps {
-			loaded.gaps = append(loaded.gaps, time.Duration(gap))
-		}
-		if capacity := w.capacity(); len(loaded.gaps) > capacity {
-			loaded.gaps = loaded.gaps[len(loaded.gaps)-capacity:]
-		}
-		callers[c.Scope] = loaded
 	}
 
 	w.mu.Lock()
@@ -73,6 +66,26 @@ func (w *Watchdog) Load(data []byte) error {
 }
 
 // Forget drops a caller silent since before; a run still going is kept whole, however long ago it started.
+func nanos(gaps []time.Duration) []int64 {
+	saved := make([]int64, 0, len(gaps))
+	for _, gap := range gaps {
+		saved = append(saved, int64(gap))
+	}
+	return saved
+}
+
+// durations keeps the newest capacity gaps: a section saved under a larger window loads into this one.
+func durations(saved []int64, capacity int) []time.Duration {
+	if len(saved) > capacity {
+		saved = saved[len(saved)-capacity:]
+	}
+	gaps := make([]time.Duration, 0, len(saved))
+	for _, gap := range saved {
+		gaps = append(gaps, time.Duration(gap))
+	}
+	return gaps
+}
+
 func (w *Watchdog) Forget(before time.Time) {
 	w.mu.Lock()
 	defer w.mu.Unlock()

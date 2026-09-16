@@ -145,6 +145,9 @@ type Observer struct {
 	// Each caller's retake share, once a sweep, whether or not a bound is set to judge it.
 	OnRetakeShare func(share float64)
 
+	// Each caller's click gap skew, once a sweep, whether or not a bound is set to judge it.
+	OnGapSkew func(skew float64)
+
 	// How many callers are clicking in step with another, once a sweep, whether or not it reads as more than clear.
 	OnCohortScopes func(scopes int)
 
@@ -251,7 +254,12 @@ func build(
 	}
 
 	if config.Metronome.Enabled {
-		watchdog := metronome.New(config.Metronome.Detector, clock)
+		onGapSkew := observer.OnGapSkew
+		if onGapSkew == nil {
+			onGapSkew = func(float64) {}
+		}
+
+		watchdog := metronome.New(config.Metronome.Detector, clock, onGapSkew)
 		g.runners = append(g.runners, watchdog.Run)
 		watchdogs = append(watchdogs, watchdog)
 		sections = append(sections, watchdog)
