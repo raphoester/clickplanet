@@ -367,6 +367,28 @@ The number to watch is `missing`, not the clock.
   origin the widget is actually embedded on.
 
 
+### Sign-in with Google and Discord
+
+Off in `backend.yaml` (`auth.signIn.enabled: false`). Keep it off until the
+frontend has the button and the privacy policy page is live: we store email.
+
+1. Create an OAuth client in each provider. Google: Cloud console > APIs &
+   Services > Credentials, type "Web application", scopes `openid email`.
+   Discord: developer portal > your application > OAuth2, scopes
+   `identify email`. In both, register the redirect URI
+   `https://clickplanet.lol/auth/callback` exactly.
+2. Put each client id in `backend.yaml` (`auth.google.clientId`,
+   `auth.discord.clientId`). A provider with no client id is not offered.
+3. Put each client secret in `.env`, the same way as the Turnstile one:
+
+   ```bash
+   read -rsp 'Google client secret: ' s && echo && sed -i '/^GOOGLE_CLIENT_SECRET=/d' .env && printf 'GOOGLE_CLIENT_SECRET=%s\n' "$s" >> .env && unset s
+   read -rsp 'Discord client secret: ' s && echo && sed -i '/^DISCORD_CLIENT_SECRET=/d' .env && printf 'DISCORD_CLIENT_SECRET=%s\n' "$s" >> .env && unset s
+   ```
+
+4. Set `auth.signIn.enabled: true` and deploy. A client id with no secret
+   refuses the boot.
+
 ## 6. Watching for bots
 
 Sessions raise the floor to "drive a real browser". What gets through that is a

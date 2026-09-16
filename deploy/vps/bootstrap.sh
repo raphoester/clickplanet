@@ -450,6 +450,14 @@ if [[ -f "$env_file" && $FORCE_ENV -eq 0 ]]; then
 		log "adding an empty TURNSTILE_SECRET to .env — set it from dash.cloudflare.com > Turnstile"
 		printf 'TURNSTILE_SECRET=\n' >> "$env_file"
 	fi
+	# Same as the Turnstile secret: issued by the provider, so it cannot be generated.
+	# Empty is fine while auth.signIn.enabled is false.
+	for provider_secret in GOOGLE_CLIENT_SECRET DISCORD_CLIENT_SECRET; do
+		if ! grep -q "^${provider_secret}=" "$env_file"; then
+			log "adding an empty ${provider_secret} to .env — set it before turning sign-in on"
+			printf '%s=\n' "$provider_secret" >> "$env_file"
+		fi
+	done
 else
 	log "writing .env"
 	cat > "$env_file" <<ENV
@@ -463,6 +471,9 @@ POSTGRES_PASSWORD=$(random_secret)
 # Secret half of the Turnstile widget, from dash.cloudflare.com > Turnstile.
 # Cannot be generated here. The stack will not start until it is set.
 TURNSTILE_SECRET=
+# OAuth client secrets of the sign-in providers. Empty while sign-in is off.
+GOOGLE_CLIENT_SECRET=
+DISCORD_CLIENT_SECRET=
 BACKEND_IMAGE=${BACKEND_IMAGE:-ghcr.io/raphoester/clickplanet-backend:latest}
 ENV
 	chown "$DEPLOY_USER:$DEPLOY_USER" "$env_file"
