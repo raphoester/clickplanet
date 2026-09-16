@@ -32,7 +32,12 @@ services:
       # write the ACME TXT record. This is the one real secret on the box.
       CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:?set CLOUDFLARE_API_TOKEN in .env}
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # The directory, not the file. `git pull` writes a new Caddyfile (a new
+      # inode), and a single-file bind mount keeps showing the old one until the
+      # container is recreated — which `up -d` does not do for a Caddyfile edit.
+      # So on 2026-09-16 a CORS fix sat in the checkout and never went live. A
+      # directory mount sees the new file, and the deploy reloads Caddy into it.
+      - ./caddy:/etc/caddy:ro
       - caddy_data:/data      # certificates — losing this means re-issuing certs
       - caddy_config:/config
       # The JSON access log, rolled and pruned by Caddy itself (14 days; see the

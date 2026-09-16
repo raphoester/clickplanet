@@ -21,7 +21,7 @@ func MiddlewareStack(middlewares ...func(http.Handler) http.Handler) func(http.H
 
 // The session header has to be named here or the browser never sends it: a
 // custom header makes a cross-origin POST preflighted, and a preflight that
-// does not list it fails the actual request. deploy/vps/Caddyfile answers
+// does not list it fails the actual request. deploy/vps/caddy/Caddyfile answers
 // OPTIONS itself in production and carries the same list.
 var allowedHeaders = strings.Join([]string{
 	"Content-Type",
@@ -32,7 +32,7 @@ var allowedHeaders = strings.Join([]string{
 
 // NewCorsMiddleware allows one origin, never "*": the frontend mints with
 // credentials, so the auth module's cookie reaches it, and a browser refuses a
-// credentialed answer that allows every origin. deploy/vps/Caddyfile sets the
+// credentialed answer that allows every origin. deploy/vps/caddy/Caddyfile sets the
 // same headers in production.
 func NewCorsMiddleware(allowedOrigin string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
