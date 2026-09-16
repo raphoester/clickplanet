@@ -36,7 +36,9 @@ Caddyfile; it moves to any provider that rents a Linux box.
   keeps a history the API's in-process counters cannot (see
   [Evidence has to outlive a deploy](#evidence-has-to-outlive-a-deploy-and-by-default-it-does-not)),
   and the postgres that holds the tile map and the chat (see [9. Postgres](#9-postgres)).
-- `Caddyfile` — TLS via DNS-01, reverse proxy, CORS
+- `caddy/Caddyfile` — TLS via DNS-01, reverse proxy, CORS. Compose mounts the
+  whole `caddy/` directory, so a deploy can reload it (see
+  [7. CI and the image registry](#7-ci-and-the-image-registry))
 - `caddy/Dockerfile` — Caddy built with `caddy-dns/cloudflare`. The stock image
   has no DNS provider module and cannot solve the DNS-01 challenge.
 - `backend.yaml` — API config; secrets come from env, not this file
@@ -355,7 +357,7 @@ The number to watch is `missing`, not the clock.
 
 - **Every click, right after enabling** — the frontend build has no sitekey, or
   Pages was not rebuilt after the env var was added.
-- **Every click, in the browser only** — check the preflight. `Caddyfile` must
+- **Every click, in the browser only** — check the preflight. `caddy/Caddyfile` must
   list `X-Session-Token` in `Access-Control-Allow-Headers`; a custom header on a
   cross-origin POST is what makes it preflighted, and a preflight that omits it
   fails the click before the API ever sees it.
@@ -658,7 +660,7 @@ keeps it.
   recreate.
 - **The access log holds personal data**: client IPs, user agents, countries.
   Like the chat messages, 14 days is a policy decision. Shorten `roll_keep_for` in the
-  `Caddyfile` to hold less. Nothing backs up this volume.
+  `caddy/Caddyfile` to hold less. Nothing backs up this volume.
 - `X-Session-Token` is written as `REDACTED`. It is a bearer token. You can see
   if a request had one, not what it was.
 
@@ -735,8 +737,28 @@ memory to OOM a 1 GB box mid-deploy.
 Both GHCR packages must be set to **Public** after their first build, not just
 the backend one.
 
-The `Caddyfile` is read from the checkout at container start, so editing it
-needs only `docker compose up -d caddy` (or a `bootstrap.sh` run), no rebuild.
+`caddy/Caddyfile` is read from the checkout, so editing it needs no rebuild.
+The deploy does this after `git pull`:
+
+1. `caddy validate` on the new file, in a throwaway container. A bad file fails
+   the deploy here, and the live Caddy keeps its old config.
+2. `docker compose up -d`.
+3. `caddy reload` in `cp-caddy`. This keeps open connections. It does nothing
+   if the config did not change.
+
+The reload is needed because `up -d` does not recreate Caddy when only the
+Caddyfile changed. Compose mounts the `caddy/` directory, not the file: `git
+pull` writes the file as a new inode, and a single-file mount keeps the old one
+until the container is recreated. On 2026-09-16 that kept a CORS fix out of
+production until someone ran `--force-recreate` by hand.
+
+To apply a Caddyfile edit by hand on the box:
+
+```bash
+docker compose exec caddy caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+docker compose exec caddy caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile
+```
+
 Changing `caddy/Dockerfile` means waiting for CI to publish a new image.
 
 **One-time after the first successful build:** a new GHCR package is created

@@ -620,6 +620,17 @@ cd "$STACK_DIR"
 log "starting the stack"
 runuser -u "$DEPLOY_USER" -- docker compose up -d
 
+# On a re-run the pull above may have changed the Caddyfile, and `up -d` does not
+# recreate Caddy for that. Load it in place, as the deploy workflow does. The
+# retry covers a Caddy that has just started and is not listening yet.
+log "reloading the Caddyfile"
+for i in $(seq 1 15); do
+	runuser -u "$DEPLOY_USER" -- docker compose exec -T caddy \
+		caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null 2>&1 && break
+	[[ $i -eq 15 ]] && die "caddy reload failed — check: docker compose exec caddy caddy validate --config /etc/caddy/Caddyfile"
+	sleep 2
+done
+
 # ------------------------------------------------------------------- verify
 
 log "waiting for the certificate (up to 3 min; DNS-01 waits on TXT propagation)"
