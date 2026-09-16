@@ -34,14 +34,17 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     const fake = new FakeBackend(100, {
         tilePositions: () => loadPointGeometryData().then((data) => data.positions),
     })
+    const fakeChat = new FakeChatBackend()
     // Console commands:
     // - `giveBomb()`: as if you had just caught a box and it held a bomb.
     // - `giveBonus("tripleClicks")`: the same for any other bonus.
     // - `fakeBackend.botBomb(tile, "fr")`: someone else's bomb lands on `tile`.
     // - `fakeBackend.botSpread(tile, "fr")`, `fakeBackend.botBoost(tile, "fr")`:
     //   someone else's spread or boosted click on `tile`.
+    // - `fakeChatBackend.banMember("4f2ca1")`: an operator bans Ana from the chat.
     Object.assign(window, {
         fakeBackend: fake,
+        fakeChatBackend: fakeChat,
         giveBomb: () => {
             const globe = (window as {clickplanetGlobe?: Globe}).clickplanetGlobe
             if (!globe) return "the globe is not loaded yet"
@@ -65,7 +68,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                 bonusListener={fake}
                 bomber={fake}
                 clickBudgetSource={fake}
-                chatBackend={new FakeChatBackend()}
+                chatBackend={fakeChat}
             />
         </StrictMode>,
     )

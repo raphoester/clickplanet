@@ -22,13 +22,17 @@ const (
 )
 
 type ChatMessage struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	SentAtUnixMs  int64                  `protobuf:"varint,2,opt,name=sent_at_unix_ms,json=sentAtUnixMs,proto3" json:"sent_at_unix_ms,omitempty"`
-	AuthorName    string                 `protobuf:"bytes,3,opt,name=author_name,json=authorName,proto3" json:"author_name,omitempty"`
-	AuthorTag     string                 `protobuf:"bytes,4,opt,name=author_tag,json=authorTag,proto3" json:"author_tag,omitempty"`
-	CountryId     string                 `protobuf:"bytes,5,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
-	Text          string                 `protobuf:"bytes,6,opt,name=text,proto3" json:"text,omitempty"`
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	Id           string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	SentAtUnixMs int64                  `protobuf:"varint,2,opt,name=sent_at_unix_ms,json=sentAtUnixMs,proto3" json:"sent_at_unix_ms,omitempty"`
+	AuthorName   string                 `protobuf:"bytes,3,opt,name=author_name,json=authorName,proto3" json:"author_name,omitempty"`
+	AuthorTag    string                 `protobuf:"bytes,4,opt,name=author_tag,json=authorTag,proto3" json:"author_tag,omitempty"`
+	CountryId    string                 `protobuf:"bytes,5,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
+	Text         string                 `protobuf:"bytes,6,opt,name=text,proto3" json:"text,omitempty"`
+	// Set when the author is banned from the chat: text is then empty and no
+	// reader ever gets it back. Everything else about the line stays, so the chat
+	// still reads as a conversation rather than losing turns out of it.
+	Redacted      bool `protobuf:"varint,7,opt,name=redacted,proto3" json:"redacted,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -103,6 +107,13 @@ func (x *ChatMessage) GetText() string {
 		return x.Text
 	}
 	return ""
+}
+
+func (x *ChatMessage) GetRedacted() bool {
+	if x != nil {
+		return x.Redacted
+	}
+	return false
 }
 
 type SendMessageRequest struct {
@@ -344,6 +355,7 @@ type ChatEvent struct {
 	//
 	//	*ChatEvent_Message
 	//	*ChatEvent_Heartbeat
+	//	*ChatEvent_MemberRedacted
 	Event         isChatEvent_Event `protobuf_oneof:"event"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -404,6 +416,15 @@ func (x *ChatEvent) GetHeartbeat() *Heartbeat {
 	return nil
 }
 
+func (x *ChatEvent) GetMemberRedacted() *MemberRedacted {
+	if x != nil {
+		if x, ok := x.Event.(*ChatEvent_MemberRedacted); ok {
+			return x.MemberRedacted
+		}
+	}
+	return nil
+}
+
 type isChatEvent_Event interface {
 	isChatEvent_Event()
 }
@@ -416,9 +437,15 @@ type ChatEvent_Heartbeat struct {
 	Heartbeat *Heartbeat `protobuf:"bytes,2,opt,name=heartbeat,proto3,oneof"`
 }
 
+type ChatEvent_MemberRedacted struct {
+	MemberRedacted *MemberRedacted `protobuf:"bytes,3,opt,name=member_redacted,json=memberRedacted,proto3,oneof"`
+}
+
 func (*ChatEvent_Message) isChatEvent_Event() {}
 
 func (*ChatEvent_Heartbeat) isChatEvent_Event() {}
+
+func (*ChatEvent_MemberRedacted) isChatEvent_Event() {}
 
 type Heartbeat struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -456,11 +483,59 @@ func (*Heartbeat) Descriptor() ([]byte, []int) {
 	return file_chat_v1_chat_proto_rawDescGZIP(), []int{7}
 }
 
+// MemberRedacted blanks everything one author said, on the screens already
+// showing it. An operator's ban stops the member posting and blanks their
+// history; without this the text they were banned for sits on every open tab
+// until each reader happens to reload.
+type MemberRedacted struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AuthorTag     string                 `protobuf:"bytes,1,opt,name=author_tag,json=authorTag,proto3" json:"author_tag,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MemberRedacted) Reset() {
+	*x = MemberRedacted{}
+	mi := &file_chat_v1_chat_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MemberRedacted) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MemberRedacted) ProtoMessage() {}
+
+func (x *MemberRedacted) ProtoReflect() protoreflect.Message {
+	mi := &file_chat_v1_chat_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MemberRedacted.ProtoReflect.Descriptor instead.
+func (*MemberRedacted) Descriptor() ([]byte, []int) {
+	return file_chat_v1_chat_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *MemberRedacted) GetAuthorTag() string {
+	if x != nil {
+		return x.AuthorTag
+	}
+	return ""
+}
+
 var File_chat_v1_chat_proto protoreflect.FileDescriptor
 
 const file_chat_v1_chat_proto_rawDesc = "" +
 	"\n" +
-	"\x12chat/v1/chat.proto\x12\achat.v1\"\xb7\x01\n" +
+	"\x12chat/v1/chat.proto\x12\achat.v1\"\xd3\x01\n" +
 	"\vChatMessage\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12%\n" +
 	"\x0fsent_at_unix_ms\x18\x02 \x01(\x03R\fsentAtUnixMs\x12\x1f\n" +
@@ -470,7 +545,8 @@ const file_chat_v1_chat_proto_rawDesc = "" +
 	"author_tag\x18\x04 \x01(\tR\tauthorTag\x12\x1d\n" +
 	"\n" +
 	"country_id\x18\x05 \x01(\tR\tcountryId\x12\x12\n" +
-	"\x04text\x18\x06 \x01(\tR\x04text\"\x85\x01\n" +
+	"\x04text\x18\x06 \x01(\tR\x04text\x12\x1a\n" +
+	"\bredacted\x18\a \x01(\bR\bredacted\"\x85\x01\n" +
 	"\x12SendMessageRequest\x12\x1f\n" +
 	"\vauthor_name\x18\x01 \x01(\tR\n" +
 	"authorName\x12\x1b\n" +
@@ -483,12 +559,16 @@ const file_chat_v1_chat_proto_rawDesc = "" +
 	"\x11GetHistoryRequest\"F\n" +
 	"\x12GetHistoryResponse\x120\n" +
 	"\bmessages\x18\x01 \x03(\v2\x14.chat.v1.ChatMessageR\bmessages\"\x18\n" +
-	"\x16ListenForEventsRequest\"z\n" +
+	"\x16ListenForEventsRequest\"\xbe\x01\n" +
 	"\tChatEvent\x120\n" +
 	"\amessage\x18\x01 \x01(\v2\x14.chat.v1.ChatMessageH\x00R\amessage\x122\n" +
-	"\theartbeat\x18\x02 \x01(\v2\x12.chat.v1.HeartbeatH\x00R\theartbeatB\a\n" +
+	"\theartbeat\x18\x02 \x01(\v2\x12.chat.v1.HeartbeatH\x00R\theartbeat\x12B\n" +
+	"\x0fmember_redacted\x18\x03 \x01(\v2\x17.chat.v1.MemberRedactedH\x00R\x0ememberRedactedB\a\n" +
 	"\x05event\"\v\n" +
-	"\tHeartbeat2\xed\x01\n" +
+	"\tHeartbeat\"/\n" +
+	"\x0eMemberRedacted\x12\x1d\n" +
+	"\n" +
+	"author_tag\x18\x01 \x01(\tR\tauthorTag2\xed\x01\n" +
 	"\vChatService\x12H\n" +
 	"\vSendMessage\x12\x1b.chat.v1.SendMessageRequest\x1a\x1c.chat.v1.SendMessageResponse\x12J\n" +
 	"\n" +
@@ -508,7 +588,7 @@ func file_chat_v1_chat_proto_rawDescGZIP() []byte {
 	return file_chat_v1_chat_proto_rawDescData
 }
 
-var file_chat_v1_chat_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_chat_v1_chat_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_chat_v1_chat_proto_goTypes = []any{
 	(*ChatMessage)(nil),            // 0: chat.v1.ChatMessage
 	(*SendMessageRequest)(nil),     // 1: chat.v1.SendMessageRequest
@@ -518,23 +598,25 @@ var file_chat_v1_chat_proto_goTypes = []any{
 	(*ListenForEventsRequest)(nil), // 5: chat.v1.ListenForEventsRequest
 	(*ChatEvent)(nil),              // 6: chat.v1.ChatEvent
 	(*Heartbeat)(nil),              // 7: chat.v1.Heartbeat
+	(*MemberRedacted)(nil),         // 8: chat.v1.MemberRedacted
 }
 var file_chat_v1_chat_proto_depIdxs = []int32{
 	0, // 0: chat.v1.SendMessageResponse.message:type_name -> chat.v1.ChatMessage
 	0, // 1: chat.v1.GetHistoryResponse.messages:type_name -> chat.v1.ChatMessage
 	0, // 2: chat.v1.ChatEvent.message:type_name -> chat.v1.ChatMessage
 	7, // 3: chat.v1.ChatEvent.heartbeat:type_name -> chat.v1.Heartbeat
-	1, // 4: chat.v1.ChatService.SendMessage:input_type -> chat.v1.SendMessageRequest
-	3, // 5: chat.v1.ChatService.GetHistory:input_type -> chat.v1.GetHistoryRequest
-	5, // 6: chat.v1.ChatService.ListenForEvents:input_type -> chat.v1.ListenForEventsRequest
-	2, // 7: chat.v1.ChatService.SendMessage:output_type -> chat.v1.SendMessageResponse
-	4, // 8: chat.v1.ChatService.GetHistory:output_type -> chat.v1.GetHistoryResponse
-	6, // 9: chat.v1.ChatService.ListenForEvents:output_type -> chat.v1.ChatEvent
-	7, // [7:10] is the sub-list for method output_type
-	4, // [4:7] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	8, // 4: chat.v1.ChatEvent.member_redacted:type_name -> chat.v1.MemberRedacted
+	1, // 5: chat.v1.ChatService.SendMessage:input_type -> chat.v1.SendMessageRequest
+	3, // 6: chat.v1.ChatService.GetHistory:input_type -> chat.v1.GetHistoryRequest
+	5, // 7: chat.v1.ChatService.ListenForEvents:input_type -> chat.v1.ListenForEventsRequest
+	2, // 8: chat.v1.ChatService.SendMessage:output_type -> chat.v1.SendMessageResponse
+	4, // 9: chat.v1.ChatService.GetHistory:output_type -> chat.v1.GetHistoryResponse
+	6, // 10: chat.v1.ChatService.ListenForEvents:output_type -> chat.v1.ChatEvent
+	8, // [8:11] is the sub-list for method output_type
+	5, // [5:8] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_chat_v1_chat_proto_init() }
@@ -545,6 +627,7 @@ func file_chat_v1_chat_proto_init() {
 	file_chat_v1_chat_proto_msgTypes[6].OneofWrappers = []any{
 		(*ChatEvent_Message)(nil),
 		(*ChatEvent_Heartbeat)(nil),
+		(*ChatEvent_MemberRedacted)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -552,7 +635,7 @@ func file_chat_v1_chat_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chat_v1_chat_proto_rawDesc), len(file_chat_v1_chat_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   8,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

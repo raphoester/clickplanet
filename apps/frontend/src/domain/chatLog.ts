@@ -20,6 +20,23 @@ export function addMessages(
     return merged.length > limit ? merged.slice(merged.length - limit) : merged
 }
 
+/**
+ * Blanks everything one author said, keeping the rest of each line. It is what a
+ * ban sends down the stream, so the text leaves an open tab without a reload.
+ *
+ * Like `addMessages`, it hands back the array it was given when nothing matched,
+ * so a redaction for an author this log never saw costs no render.
+ */
+export function redactAuthor(log: readonly ChatMessage[], authorTag: string): ChatMessage[] {
+    if (!log.some(message => message.authorTag === authorTag && !message.redacted)) {
+        return log as ChatMessage[]
+    }
+
+    return log.map(message => message.authorTag === authorTag
+        ? {...message, text: "", redacted: true}
+        : message)
+}
+
 export function unreadSince(log: readonly ChatMessage[], lastSeenId: string | undefined): number {
     if (lastSeenId === undefined) return log.length
 

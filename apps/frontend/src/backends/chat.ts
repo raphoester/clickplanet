@@ -12,7 +12,23 @@ export type ChatMessage = {
     authorTag: string
     countryCode: string
     text: string
+    /**
+     * The author was banned from the chat, so `text` is empty and the server
+     * will never send it again. Everything else about the line is still here,
+     * which is the point: the chat reads as a conversation with one turn
+     * blanked rather than losing turns out of it.
+     */
+    redacted: boolean
 }
+
+/**
+ * One frame of the live feed, mirroring the `ChatEvent` oneof on the wire. A
+ * redaction is what an operator's ban sends, so a banned member's text leaves
+ * every open tab without anyone reloading.
+ */
+export type ChatFeedEvent =
+    | {kind: "message", message: ChatMessage}
+    | {kind: "redacted", authorTag: string}
 
 export type OutgoingMessage = {
     authorName: string
@@ -30,7 +46,7 @@ export interface ChatHistoryGetter {
 }
 
 export interface ChatListener {
-    listenForMessages(callback: (message: ChatMessage) => void): () => void
+    listenForEvents(callback: (event: ChatFeedEvent) => void): () => void
 }
 
 export type ChatBackend = ChatSender & ChatHistoryGetter & ChatListener

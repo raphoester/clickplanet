@@ -31,9 +31,13 @@ func freeAddress(t *testing.T) string {
 }
 
 func adminModule(result error) cpbootstrap.Module {
-	return newModule("planet", func(props cpbootstrap.Props) error {
+	return adminModuleNamed("planet", adminProcedure, result)
+}
+
+func adminModuleNamed(name string, procedure string, result error) cpbootstrap.Module {
+	return newModule(name, func(props cpbootstrap.Props) error {
 		return props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
-			return adminProcedure, connect.NewUnaryHandler(adminProcedure,
+			return procedure, connect.NewUnaryHandler(procedure,
 				func(context.Context, *connect.Request[emptypb.Empty]) (*connect.Response[emptypb.Empty], error) {
 					if result != nil {
 						return nil, result
@@ -47,12 +51,27 @@ func adminModule(result error) cpbootstrap.Module {
 }
 
 func call(ctx context.Context, address string) error {
-	client := connect.NewClient[emptypb.Empty, emptypb.Empty](http.DefaultClient, "http://"+address+adminProcedure)
+	return callProcedure(ctx, address, adminProcedure)
+}
+
+func callProcedure(ctx context.Context, address string, procedure string) error {
+	client := connect.NewClient[emptypb.Empty, emptypb.Empty](http.DefaultClient, "http://"+address+procedure)
 	_, err := client.CallUnary(ctx, connect.NewRequest(&emptypb.Empty{}))
 	return err //nolint:wrapcheck // the test reads the connect code.
 }
 
 func serveUntil(t *testing.T, server cpbootstrap.ServerConfig, module cpbootstrap.Module, probe func()) {
+	t.Helper()
+
+	serveModulesUntil(t, server, []cpbootstrap.Module{module}, probe)
+}
+
+func serveModulesUntil(
+	t *testing.T,
+	server cpbootstrap.ServerConfig,
+	modules []cpbootstrap.Module,
+	probe func(),
+) {
 	t.Helper()
 
 	ctx, cancel := context.WithCancel(t.Context())
@@ -61,7 +80,7 @@ func serveUntil(t *testing.T, server cpbootstrap.ServerConfig, module cpbootstra
 		done <- cpbootstrap.Run(ctx, cpbootstrap.Options{
 			Server:  server,
 			Logger:  slog.New(slog.DiscardHandler),
-			Modules: []cpbootstrap.Module{module},
+			Modules: modules,
 		})
 	}()
 
@@ -153,4 +172,23 @@ func TestRunRefusesANonLoopbackAdminAddressEvenUnvalidated(t *testing.T) {
 	})
 
 	require.Error(t, err)
+}
+
+func TestEveryModuleWithOperatorToolsGetsThemOnTheOneAdminListener(t *testing.T) {
+	const chatProcedure = "/chat.v1.AdminService/Do"
+	server := cpbootstrap.ServerConfig{BindAddress: freeAddress(t), AdminBindAddress: freeAddress(t)}
+
+	modules := []cpbootstrap.Module{
+		adminModule(nil),
+		adminModuleNamed("chat", chatProcedure, nil),
+	}
+
+	serveModulesUntil(t, server, modules, func() {
+		require.NoError(t, callProcedure(t.Context(), server.AdminBindAddress, adminProcedure))
+		require.NoError(t, callProcedure(t.Context(), server.AdminBindAddress, chatProcedure))
+
+		assert.Equal(t, connect.CodeUnimplemented,
+			connect.CodeOf(callProcedure(t.Context(), server.BindAddress, chatProcedure)),
+			"a second module's operator tools are no more public than the first's")
+	})
 }

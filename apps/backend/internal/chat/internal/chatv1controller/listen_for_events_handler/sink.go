@@ -29,7 +29,15 @@ func (s Sink) Send(event listen_for_events_usecase.Event) error {
 		})
 	}
 
+	if event.Redaction != nil {
+		return s.stream.Send(&chatv1.ChatEvent{
+			Event: &chatv1.ChatEvent_MemberRedacted{
+				MemberRedacted: &chatv1.MemberRedacted{AuthorTag: event.Redaction.AuthorTag},
+			},
+		})
+	}
+
 	return s.stream.Send(&chatv1.ChatEvent{
-		Event: &chatv1.ChatEvent_Message{Message: chatmessage.Encode(event.Message)},
+		Event: &chatv1.ChatEvent_Message{Message: chatmessage.Encode(*event.Message)},
 	})
 }

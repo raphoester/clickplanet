@@ -30,24 +30,25 @@ type In struct {
 func New(
 	appender Appender,
 	countryChecker CountryChecker,
+	tagger messages.Tagger,
 	clock cptime.Clock,
 	config Config,
 ) *UseCase {
 	return &UseCase{
 		appender:       appender,
 		countryChecker: countryChecker,
+		tagger:         tagger,
 		clock:          clock,
 		limits:         messages.NewLimits(config.MaxTextLength, config.MaxNameLength),
-		tagSalt:        config.TagSalt,
 	}
 }
 
 type UseCase struct {
 	appender       Appender
 	countryChecker CountryChecker
+	tagger         messages.Tagger
 	clock          cptime.Clock
 	limits         messages.Limits
-	tagSalt        string
 }
 
 func (u *UseCase) Execute(ctx context.Context, in In) (messages.Message, error) {
@@ -71,7 +72,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) (messages.Message, error) 
 		ID:         uuid.NewString(),
 		SentAt:     u.clock.Now(),
 		AuthorName: name,
-		AuthorTag:  messages.Tag(u.tagSalt, ip),
+		AuthorTag:  u.tagger.Of(ip),
 		CountryID:  in.CountryID,
 		Text:       text,
 	}

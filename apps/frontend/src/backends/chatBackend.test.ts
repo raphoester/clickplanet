@@ -1,7 +1,12 @@
 import {afterEach, describe, expect, it, vi} from "vitest"
-import {ChatServiceBackend, decodedMessage, messageOf} from "./chatBackend.ts"
+import {ChatServiceBackend, decodedMessage, feedEventOf} from "./chatBackend.ts"
 import {Code, ConnectError, PromiseClient} from "@connectrpc/connect"
-import {ChatEvent, ChatMessage as ChatMessagePb, Heartbeat} from "../gen/grpc/chat/v1/chat_pb.ts"
+import {
+    ChatEvent,
+    ChatMessage as ChatMessagePb,
+    Heartbeat,
+    MemberRedacted,
+} from "../gen/grpc/chat/v1/chat_pb.ts"
 import {ChatService} from "../gen/grpc/chat/v1/chat_connect.ts"
 import {
     ChatBlockedError,
@@ -38,24 +43,47 @@ describe("decodedMessage", () => {
             authorTag: "4f2ca1",
             countryCode: "fr",
             text: "hello",
+            redacted: false,
+        })
+    })
+
+    it("carries a redacted message with its metadata and no text", () => {
+        const banned = new ChatMessagePb({...proto(), text: "", redacted: true})
+
+        expect(decodedMessage(banned)).toMatchObject({
+            id: "message-1",
+            authorName: "Ana",
+            authorTag: "4f2ca1",
+            countryCode: "fr",
+            text: "",
+            redacted: true,
         })
     })
 })
 
-describe("messageOf", () => {
+describe("feedEventOf", () => {
     it("unwraps a message event", () => {
         const event = new ChatEvent({event: {case: "message", value: proto()}})
-        expect(messageOf(event)?.text).toBe("hello")
+
+        expect(feedEventOf(event)).toEqual({kind: "message", message: decodedMessage(proto())})
+    })
+
+    it("unwraps a ban's redaction", () => {
+        const event = new ChatEvent({
+            event: {case: "memberRedacted", value: new MemberRedacted({authorTag: "4f2ca1"})},
+        })
+
+        expect(feedEventOf(event)).toEqual({kind: "redacted", authorTag: "4f2ca1"})
     })
 
     it("drops a heartbeat", () => {
         const heartbeat = new ChatEvent({event: {case: "heartbeat", value: new Heartbeat()}})
-        expect(messageOf(heartbeat)).toBeUndefined()
+        expect(feedEventOf(heartbeat)).toBeUndefined()
     })
 
     it("drops an event case this build does not know", () => {
         // What a client sees when the backend adds a case: an unset oneof, not a crash.
-        expect(messageOf(new ChatEvent())).toBeUndefined()
+        expect(feedEventOf(new ChatEvent())).toBeUndefined()
     })
 })
 

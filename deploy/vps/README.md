@@ -767,13 +767,20 @@ docker compose --env-file .env up -d backend
 
 Leaving it empty is not fatal but is worse than any fixed value: the API
 generates a fresh salt at every boot, logs `no chat.service.tagSalt configured`,
-and every tag changes on each restart.
+and every tag changes on each restart. **A chat ban is written on the tag**, so
+that also lets every banned member back in — see [Ban somebody from the
+chat](#ban-somebody-from-the-chat). Rotating it by hand has the same cost, which
+is the other reason not to.
 
 **The chat messages hold personal data.** One row per message in `chat.messages`,
 with the sender's IP beside their text. `chat.storage.retention` (30 days) is a
 policy decision, not a cache size: an hourly prune deletes older rows. Shorten
 it if you would rather hold less. A message that cannot be written to postgres
 is refused, not broadcast: the table is the audit trail.
+
+`chat.bans` is the other table in that schema — one row per member a person
+silenced: the tag, the time and the reason, and no address. It is never pruned,
+and a banned member's messages age out of `chat.messages` like anyone else's.
 
 Anything in `backend.yaml` can also be overridden from the `environment:` block
 instead — `cfgutil` reads env vars with `.` as the nesting delimiter, so the key
@@ -831,11 +838,11 @@ rm -f ~/backups/tiles-*.tar.gz
 ## 10. Operator tools
 
 `httpServer.adminBindAddress` serves the backend's operator services
-(`planet.v1.AdminService`) on `127.0.0.1:8081`, inside the container. They are
-not behind Caddy and have **no authentication**: loopback is their whole
-protection, so a non-loopback address refuses the boot. Reach them from the box
-with `docker compose exec`. They are ordinary Connect RPCs, so a request is a
-JSON POST to `/<package>.<Service>/<Method>`.
+(`planet.v1.AdminService` and `chat.v1.AdminService`) on `127.0.0.1:8081`, inside
+the container. They are not behind Caddy and have **no authentication**: loopback
+is their whole protection, so a non-loopback address refuses the boot. Reach them
+from the box with `docker compose exec`. They are ordinary Connect RPCs, so a
+request is a JSON POST to `/<package>.<Service>/<Method>`.
 
 ### Give one country's tiles to another
 
@@ -973,6 +980,54 @@ docker compose exec backend wget -qO- --header 'Content-Type: application/json' 
 - `"tracked":false` means the jury has not seen the scope in
   `antiBot.jury.trackWindow`: it is not clicking now, or not from this scope.
 - With `antiBot.enabled` off it is refused: `server returned error: HTTP/1.1 400`. A bad scope is refused the same way.
+
+### Ban somebody from the chat
+
+Different from the shadow ban above, and it does not touch the game: it stops one
+member posting and blanks what they already said. Nothing automatic passes one.
+
+**The key is the tag the chat shows** — the `#a1b2c3` beside the name. The name
+is not a key: anybody can take anybody's name, while the tag is the server's own
+hash of the sender's address. The `#` is optional and the case is not:
+
+```bash
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"authorTag":"a1b2c3","reason":"slurs"}' http://127.0.0.1:8081/chat.v1.AdminService/BanMember
+```
+
+- Their next message is refused with a 403, and they are told **nothing** — not
+  the reason, not that they were banned. It is the same refusal `chat.blockedIPs`
+  gives, on purpose.
+- Every message they sent comes back with no text and `"redacted":true`, keeping
+  its name, tag, flag and time. Open tabs blank it within the second; nobody has
+  to reload.
+- `redacted` in the answer is how many messages in the served history it blanked.
+- **Nothing is deleted.** `chat.messages` keeps the text, which is what lets
+  somebody check the call afterwards — and what makes an unban free.
+- They can still read the chat, and they can still play the game. For the game,
+  use `planet.v1.AdminService/BanPlayer`.
+- Banning somebody already banned rewrites the reason and keeps the original time.
+- Every call is logged: `journalctl CONTAINER_NAME=cp-backend | grep "chat ban"`.
+
+See who is banned, newest first, and lift one:
+
+```bash
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{}' http://127.0.0.1:8081/chat.v1.AdminService/ListBans
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"authorTag":"a1b2c3"}' http://127.0.0.1:8081/chat.v1.AdminService/UnbanMember
+```
+
+An unban puts the text back on the next history read, so an open tab sees it
+again after a reload. Lifting a ban nobody passed answers
+`server returned error: HTTP/1.1 404`; something that is not a tag answers 400.
+
+**A ban is only as stable as `CHAT_TAG_SALT`.** The tag is a hash under that
+salt, so rotating it renames every sender and lets every banned member back in —
+see [Live chat](#8-live-chat). `docker-compose.yaml` already refuses to start
+without it. To find a member's IP for a wider ban, read it out of the table the
+tag was stamped for:
+
+```bash
+docker compose exec postgres psql -U clickplanet -c "select distinct ip from chat.messages where tag = 'a1b2c3'"
+```
 
 ## Rollback
 

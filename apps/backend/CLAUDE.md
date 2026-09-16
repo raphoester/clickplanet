@@ -194,6 +194,16 @@ what is its own — `inmemory_tile_storage` adds the snapshot and the slow-subsc
 tests. A second tile storage runs the same suite by embedding it the same way.
 A port with one adapter and no second one coming (`ledger.Storage`) has no suite.
 
+**A write-through port counts as two adapters, and the second one is the fake.**
+`inmemory_ban_storage.Persistence` is implemented by `postgres_ban_store` in
+production and by `MemoryPersistence` in every storage test, so
+`PersistenceContractSuite` (`persistence_contract_testing.go`, beside the port it
+pins) runs against both. Without it the fake is free to drift, and a test on the
+storage then passes against behaviour postgres does not have — the suite caught
+exactly that, over a `timestamptz` normalising to UTC where the fake kept the
+zone it was handed. `postgres_ban_store` adds only what is its own, that a ban
+time keeps its microseconds through the column.
+
 **The controller is the one exception**, at `internal/planet/internal/planetv1controller/`,
 because it serves every concept over one Connect service. It only maps.
 
@@ -240,25 +250,32 @@ handler declares: they tell the guard what a caller reads, for the `scraper`.
 
 ### Inside the chat module: the same shape
 
-Chat follows the same rules as planet: no `domain`, no `adapters`, one directory per concept. It has one concept.
+Chat follows the same rules as planet: no `domain`, no `adapters`, one directory per concept. It has two.
 
 ```
 internal/chat/internal/
-  messages/                             Message, Record, ErrInvalidMessage, Limits, Tag
+  messages/                             Message, Event, Record, ErrInvalidMessage, Limits, Tagger
     inmemory_message_storage/           history and fanout in memory; writes through its Persistence port
     postgres_message_store/             that port, over chat.messages
     usecases/send_message_usecase/      cleans, tags, appends          — Appender, CountryChecker
-    usecases/get_history_usecase/       the recent messages            — HistoryReader
+    usecases/get_history_usecase/       the recent messages, redacted  — HistoryReader, BanChecker
     usecases/listen_for_events_usecase/ one client's feed, heartbeat   — MessagesSubscriber
-  chatv1controller/                     ChatService (a bag), the interceptors
+  bans/                                 Ban, ErrNotBanned: who a person silenced
+    inmemory_ban_storage/               the set in memory; its Persistence port and that port's contract suite
+    postgres_ban_store/                 that port, over chat.bans
+    usecases/ban_member_usecase/        records, then blanks           — Banner, Log
+    usecases/unban_member_usecase/      lifts one                      — Unbanner
+    usecases/list_bans_usecase/         every running ban              — Reader
+  chatv1controller/                     ChatService and AdminService (bags), the interceptors
     send_message_handler/  get_history_handler/  listen_for_events_handler/
-    chatmessage/                        Encode, shared by the three handlers
+    ban_member_handler/  unban_member_handler/  list_bans_handler/
+    chatmessage/  chatban/              Encode, each shared by the handlers that send one
   migrations/                           the chat schema
 ```
 
-- **The rules that need no port are in the `messages` root**: `Limits` (runes, UTF-8, control characters), `Tag` (the salted IP hash) and `NewRecord` (truncates the author id and user agent). They are tested there, not through the use case.
-- **`send_message_usecase.Config` stays under `chat.Config.Service`**, so the `chat.service.*` keys do not change.
-- **`chatv1controller`'s root tests are about the chain** (error net, blocklist, throttle). Each handler package tests its own mapping.
+- **The rules that need no port are in the `messages` root**: `Limits` (runes, UTF-8, control characters), `Tagger` (the salted scope hash) and `NewRecord` (truncates the author id and user agent). They are tested there, not through the use case.
+- **`send_message_usecase.Config` stays under `chat.Config.Service`**, so the `chat.service.*` keys do not change. The salt is still read from it; `module.go` builds the one `messages.Tagger` and hands it to the use case and to the ban interceptor, rather than each hashing for itself.
+- **`chatv1controller`'s root tests are about the chain** (error net, blocklist, ban, throttle). Each handler package tests its own mapping.
 
 ### Adapters
 
@@ -360,9 +377,13 @@ Chat is a separate bounded context, not a feature of the tile game: it shares th
 
 **Always on.** There is no `chat.enabled`: the module is built on every boot, and its database block is required.
 
-**Identity without accounts.** A client picks its own display name and sends a UUID it persists locally. **Neither is trusted for anything** — anyone can post with any name. What a sender cannot forge is `author_tag`: a salted hash of their IP, 6 hex characters, so two people using the same name still look different and a mute has a key that means something. The salt is `chat.service.tagSalt`; left empty it is regenerated at boot, which changes everyone's tag on restart, and the server warns about it.
+**Identity without accounts.** A client picks its own display name and sends a UUID it persists locally. **Neither is trusted for anything** — anyone can post with any name. What a sender cannot forge is `author_tag`: a salted hash of their address, 6 hex characters, so two people using the same name still look different and a mute has a key that means something. The salt is `chat.service.tagSalt`; left empty it is regenerated at boot, which changes everyone's tag on restart, and the server warns about it — **and a chat ban is written on the tag, so a regenerated salt also lets every banned member back in.** Configure it in production.
 
-**Abuse controls live at the edge**, in two interceptors — ahead of decoding the message and well ahead of validating it, so a flood of malformed messages costs a sender exactly what a flood of well-formed ones does. `chat.blockedIPs` cuts an address off from every chat RPC; `chat.rateLimiter` throttles `SendMessage` alone (`GetHistory` is one read on join, and limiting it would punish a page load). **Both are `shared/cpconnect`'s**, the same ones the click chain uses — see [Shared interceptors](#shared-interceptors). The domain then bounds the message in **runes** (280) and the name (24), validates UTF-8, and **strips control characters** — a newline once let a sender forge a line in the old log file, and a NUL is not valid in a postgres `text`.
+**`messages.Tagger` hashes `cpipscope.Of(ip)`, not the address.** An IPv6 line renumbers its own host part — privacy addressing does it unasked — so a tag over the full address renames a sender mid-conversation and lifts their ban for them by doing nothing. Over IPv4 nothing changes; over IPv6 a household now shares one tag, exactly as a NAT'd IPv4 household already did, and as the throttle and the session token already key them.
+
+**Abuse controls live at the edge**, in three interceptors — ahead of decoding the message and well ahead of validating it, so a flood of malformed messages costs a sender exactly what a flood of well-formed ones does. `chat.blockedIPs` cuts an address off from every chat RPC; the ban set refuses a silenced member's `SendMessage`; `chat.rateLimiter` throttles `SendMessage` alone (`GetHistory` is one read on join, and limiting it would punish a page load). **The first and third are `shared/cpconnect`'s**, the same ones the click chain uses — see [Shared interceptors](#shared-interceptors); `NewBanInterceptor` is chat's own, because no other context has a ban keyed on what it shows its readers. The domain then bounds the message in **runes** (280) and the name (24), validates UTF-8, and **strips control characters** — a newline once let a sender forge a line in the old log file, and a NUL is not valid in a postgres `text`.
+
+**The ban sits between the blocklist and the throttle**, outside the limiter for the reason the blocklist is: a member refused for their ban must not also spend a token, or their next attempt comes back 429 and the composer reports the wrong thing. `TestABannedMemberIsRefusedAndNeverSpendsAToken` sends five where the burst is three and pins that every one is a 403.
 
 Refusal reasons are logged, never returned: a sender learns *that* they were refused, not which check tripped. **The stored text is raw — the frontend must escape it.**
 
@@ -379,6 +400,24 @@ The table holds **personal data** — IPs next to user-authored text — so the 
 **Sending is an RPC, not a read on the socket**: both publishers lean on `CloseRead` for instant disconnect detection, and the RPC path already has the middleware stack and the interceptors.
 
 `GetHistory` is marked `NO_SIDE_EFFECTS`, so Connect sends it as a GET — but it answers `Cache-Control: no-store`, the opposite of `GetMap`. A client fetches it once on join to seed what the stream then keeps up to date, so a cached answer would show a joiner a chat missing the last few minutes.
+
+#### Banning a member (`internal/chat/internal/bans/`)
+
+**Nothing automatic bans anybody here.** A chat ban is a person's call, passed over `chat.v1.AdminService` on the loopback listener — see [Chat bans](#chat-bans-banmember-unbanmember-listbans). It is **not the antibot's shadow ban**: that one is passed by a watchdog, keys on a click scope and drops clicks, while this one stops one member posting and reaches nothing else. A member banned here still plays the game.
+
+**It keys on `author_tag`, because that is the only identity anybody can see.** An operator reading the chat has a name anyone can take and a tag nobody can forge, so the tag is what they name and what the table holds. That also keeps the ban table free of personal data — a salted hash and a reason — while `chat.messages` next door is the row that has the address in it.
+
+**The ban blanks what the member already said, and deletes nothing.** `messages.Message.Redact` empties the text and sets `Redacted`; `get_history_usecase` applies it per message on the way out, against the ban set. Three things follow, and they are the reason it is a read-time view rather than an `UPDATE`:
+
+- **The table stays the audit trail.** A ban a person passed is one another person has to be able to check afterwards, and a moderator who deleted the evidence leaves nobody able to.
+- **Lifting a ban restores nothing**, because nothing was destroyed: the next `GetHistory` simply stops redacting.
+- **A boot needs no repair pass.** `Load` fills the history from postgres as it always did, and the bans loaded beside it do the blanking again.
+
+**The reader still sees the line.** Name, tag, flag and time all travel; only `text` is empty, with `redacted` set beside it. A conversation with a turn blanked still reads as a conversation, where a deleted row reads as a gap and invites the question of what was taken out.
+
+**`MemberRedacted` is a third case on `ChatEvent`, not a second stream** — see [The live streams](#the-live-streams). Without it, the text a member was banned for sits on every open tab until each reader happens to reload, which is most of what the ban was for. It carries the tag alone: the client already holds the messages and blanks them itself. **`UnbanMember` broadcasts nothing** — un-blanking an open screen would mean re-sending what it blanked, and the text comes back on the next history read anyway.
+
+**`chat.bans` is one row per silenced member** — `tag`, `banned_at`, `reason` — read at boot into `inmemory_ban_storage` and written through on every change, because the set is read on every message sent and every history served. A failed load **refuses the boot**: an empty set would serve every banned member's history back and take their next message. A ban that postgres refuses is not enforced either, for the same reason — it would not survive a restart. Banning a member already banned rewrites the reason and keeps when they were **first** silenced.
 
 ### Rate limiting
 
@@ -1304,7 +1343,7 @@ Both chains order them the same way: error mapping outermost, then the blocklist
 
 **`shared/cppg` is the client**, ported from on-core-platform's `onpg`: `Config` (one module's database block, schema included), `New`, `ConnectCtx`, `Migrate`, and the `Querier`/`Beginner` interfaces a store depends on. Cut from the original: gorm (`make deadcode` rejects what nothing calls, and plain SQL is enough), the SSM tunnel, tracing and lazy config. **Every module that stores something has its own database block and its own pool.** The planet's is `database:` at the top of the file, because `planet.Config` is squashed there; another module's would sit inside its own section (`chat.database:`). Nothing is handed between modules. `Config.String` leaves the password out of the boot's config log line.
 
-**The chat has its own block, `chat.database` (schema `chat`), its own pool and its own migrations** (`internal/chat/internal/migrations`). It connects and migrates inside chat's DI sequence, and `chat.Config.Validate` refuses an incomplete block. Its pool is closed by `cppg.CloseAfter` around the storage runner, like the planet's. In production both blocks point at the same postgres and user. See [Chat](#chat-internalchat).
+**The chat has its own block, `chat.database` (schema `chat`), its own pool and its own migrations** (`internal/chat/internal/migrations`). It connects and migrates inside chat's DI sequence, and `chat.Config.Validate` refuses an incomplete block. Its pool is closed by `cppg.CloseAfter` around the storage runner, like the planet's. In production both blocks point at the same postgres and user. Two tables: `messages`, and `bans` — one row per member a person silenced, on the same pool. See [Chat](#chat-internalchat).
 
 **The ledger follows the same pattern**, through `inmemory_ledger_storage.Persistence` and `ledger/postgres_ledger_store`, on the tile map's pool.
 
@@ -1321,7 +1360,9 @@ Nothing lives in files any more: the container mounts no state volume.
 
 **A second router, on a loopback listener.** `props.AdminRPC.Mount` is `props.RPC.Mount` for services an operator calls: same builder, same error net, but `cpbootstrap` serves them on `httpServer.adminBindAddress` instead of the public router — logging middleware only, no CORS. Empty serves no admin listener; anything but a loopback `host:port` refuses the boot, both in `ServerConfig.Validate` and again in `Run`, and a port already taken refuses it too. They have no authentication, so loopback is their whole protection, and they are off the router Caddy forwards to on purpose: one Caddyfile edit would otherwise let anybody repaint the map. In production they are reached with `docker compose exec backend wget`; see `deploy/vps/README.md`, "Operator tools".
 
-`planet.v1.AdminService` is the one there today, in `proto/planet/v1/admin.proto`. `planetv1controller.AdminService` is its bag of handlers, the way `ClickService` is. `ReassignCountry` runs `clicks/usecases/reassign_country_usecase`, wrapped in `audit_reassign`: every tile `from_country_id` holds goes to `to_country_id`, while the game runs.
+**Two services are there, one per module that has operator work**: `planet.v1.AdminService` (`proto/planet/v1/admin.proto`) and `chat.v1.AdminService` (`proto/chat/v1/admin.proto`). Each module mounts its own on `props.AdminRPC` in its own DI sequence, so a context's operator tools sit beside the context rather than in one service that would have to import both — and Connect names the route from the proto package, so the second one needed no prefix and no router edit. `planetv1controller.AdminService` and `chatv1controller.AdminService` are bags of handlers, the way `ClickService` is.
+
+`ReassignCountry` runs `clicks/usecases/reassign_country_usecase`, wrapped in `audit_reassign`: every tile `from_country_id` holds goes to `to_country_id`, while the game runs.
 
 - **The move is paced.** `inmemory_tile_storage.Reassign` moves one batch under the lock and returns where to resume; the use case sleeps 50ms between batches. A batch is a quarter of `tilesStorage.subscriberBuffer`, because each tile is one update on every open stream and the clicks still arriving need the rest of the buffer.
 - **Each tile is an ordinary `TileUpdate`** with `Previous` set, not a new event kind: open clients repaint with no frontend release, `counts` move so the toll prices the next click right, and `dirty` puts it in the next flush.
@@ -1354,6 +1395,17 @@ For the patterns no watchdog catches but a person sees on the map. A player is a
 - **Ban before reverting**: an unbanned player repaints behind the revert.
 - **`InspectPlayer(scope)`** answers how close the antibot is to a caller, which the `antibot ban` log line cannot: it is only written when a ban fires, so on 2026-09-14 a day of bots and no bans left nothing to read. It is `Guard.Examine`, and it changes nothing — no caller record is created, no watchdog is asked again, no ban is passed. It answers any running ban (`banned`, `bannedUntil`, `offence`, `flags`); per watchdog its `level` and `evidence`, aged the way the jury ages them (past `suspicionWindow` a verdict reads `clear` but keeps its evidence); `suspects` against `minSuspects` and `guilty`, what the jury would decide on a click now (the ban itself would still wait for `reflagInterval`); and the click summary the ban line carries. `tracked` false is a scope the jury has not seen inside its `trackWindow`. Parsed with `cpipscope.Parse` and refused with `FailedPrecondition` when `antiBot.enabled` is false, as `BanPlayer` is. **A watchdog that reads `clear` has no evidence**: watchdogs only word the rule that tripped, so it says how close a caller is only once some rule has.
 - `audit_ban` and `audit_revert` log every call at Warn, as `audit_reassign` does. `FindPlayers`, `TopPlayers` and `InspectPlayer` are reads and log nothing.
+
+#### Chat bans: `BanMember`, `UnbanMember`, `ListBans`
+
+`chat.v1.AdminService`, and the **only** way a chat ban is ever passed — nothing automatic bans anybody from the chat. See [Banning a member](#banning-a-member-internalchatinternalbans) for what a ban does; this is the operator's half.
+
+- **The key is `author_tag`, not a scope.** It is what an operator can see — the `#a1b2c3` beside every line — and what the sender cannot forge. `messages.ParseTag` reads it as the chat shows it: the `#` is optional and the case is not.
+- **`BanMember(author_tag, reason)`** records the ban, blanks the member's history and broadcasts the redaction, in that order — a redaction every screen obeyed but no table remembers is one a restart undoes. It answers the stored `Ban` and `redacted`, how many messages in the served history it blanked. Banning a member already banned rewrites the reason and keeps when they were first silenced. `reason` is for this log and `ListBans`; **the member is never told it, or that they were banned at all** — their `SendMessage` gets the same opaque refusal every other check gives.
+- **`UnbanMember(author_tag)`** lifts one and answers `NotFound` for a member nobody banned. Nothing was deleted, so nothing is restored: the next `GetHistory` stops redacting. It broadcasts nothing, so an open tab catches up on reload.
+- **`ListBans()`** is every running ban, newest first. A read: it logs nothing.
+- **An operator is told what they got wrong** — `InvalidArgument` for something that is not a tag, `NotFound` for a member nobody banned — unlike a sender, who only ever learns that they were refused. The loopback listener is a person at a terminal.
+- `audit_ban` and `audit_unban` log every call at Warn, refusals included, as the planet's do: the log is the only record that a person silenced this member and why.
 
 ### Shared (`internal/shared/`)
 

@@ -4,7 +4,7 @@ import {act, cleanup, render, screen, waitFor} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import ChatPanel from "./ChatPanel.tsx"
 import {CHAT_IDENTITY_STORAGE_KEY} from "./chatIdentity.ts"
-import {ChatBackend, ChatMessage, ChatRateLimitedError} from "../../backends/chat.ts"
+import {ChatBackend, ChatFeedEvent, ChatMessage, ChatRateLimitedError} from "../../backends/chat.ts"
 import {Countries} from "../../domain/countries.ts"
 
 const france = Countries.get("fr")!
@@ -16,14 +16,15 @@ const message = (id: string, text: string, sentAt = 1_700_000_000_000): ChatMess
     authorTag: "4f2ca1",
     countryCode: "fr",
     text,
+    redacted: false,
 })
 
 function stubBackend(history: ChatMessage[] = []) {
-    const listeners: ((message: ChatMessage) => void)[] = []
+    const listeners: ((event: ChatFeedEvent) => void)[] = []
 
     const backend = {
         getHistory: vi.fn().mockResolvedValue(history),
-        listenForMessages: vi.fn((callback: (message: ChatMessage) => void) => {
+        listenForEvents: vi.fn((callback: (event: ChatFeedEvent) => void) => {
             listeners.push(callback)
             return () => {
             }
@@ -35,12 +36,16 @@ function stubBackend(history: ChatMessage[] = []) {
             authorTag: "c0ffee",
             countryCode: outgoing.countryCode,
             text: outgoing.text,
+            redacted: false,
         })),
     }
 
+    const publish = (event: ChatFeedEvent) => listeners.forEach(listener => listener(event))
+
     return {
         backend: backend as unknown as ChatBackend & typeof backend,
-        broadcast: (m: ChatMessage) => listeners.forEach(listener => listener(m)),
+        broadcast: (m: ChatMessage) => publish({kind: "message", message: m}),
+        banMember: (authorTag: string) => publish({kind: "redacted", authorTag}),
     }
 }
 
@@ -454,6 +459,59 @@ describe("ChatPanel", () => {
             broadcast(message("b", "and one more", 1_700_000_200_000))
 
             expect(await screen.findByLabelText("1 new message")).toBeDefined()
+        })
+    })
+
+    describe("a banned member", () => {
+        const byBo = (id: string, text: string): ChatMessage => ({
+            ...message(id, text),
+            authorName: "Bo",
+            authorTag: "91aa3d",
+        })
+
+        it("keeps every line, saying the message was removed instead of the text", async () => {
+            const {backend, banMember} = stubBackend([message("a", "hello"), byBo("b", "slurs")])
+            setup(backend)
+            await screen.findByText("slurs")
+
+            act(() => banMember("91aa3d"))
+
+            expect(await screen.findByText("Message removed")).toBeDefined()
+            expect(screen.queryByText("slurs")).toBeNull()
+            expect(screen.getByText("hello")).toBeDefined()
+            expect(screen.getByText("#91aa3d")).toBeDefined()
+            expect(screen.getByText("Bo")).toBeDefined()
+        })
+
+        it("leaves everybody else's messages alone", async () => {
+            const {backend, banMember} = stubBackend([message("a", "hello"), byBo("b", "slurs")])
+            setup(backend)
+            await screen.findByText("hello")
+
+            act(() => banMember("91aa3d"))
+
+            await screen.findByText("Message removed")
+            expect(screen.getByText("hello")).toBeDefined()
+        })
+
+        describe("under a folded header", () => {
+            beforeEach(() => vi.stubGlobal("matchMedia", () => ({matches: true})))
+            afterEach(() => vi.unstubAllGlobals())
+
+            it("says the message was removed rather than quoting it", async () => {
+                const {backend, broadcast, banMember} = stubBackend([message("a", "seen already")])
+                setup(backend)
+                await waitFor(() => expect(backend.getHistory).toHaveBeenCalled())
+
+                act(() => broadcast(byBo("b", "slurs")))
+                const header = await screen.findByRole("button", {name: /Chat/})
+                await waitFor(() => expect(header.textContent).toContain("slurs"))
+
+                act(() => banMember("91aa3d"))
+
+                await waitFor(() => expect(header.textContent).toContain("Message removed"))
+                expect(header.textContent).not.toContain("slurs")
+            })
         })
     })
 })

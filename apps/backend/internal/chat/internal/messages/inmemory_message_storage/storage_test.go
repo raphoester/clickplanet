@@ -106,7 +106,7 @@ func (s *testSuite) TestSubscribersReceiveMessages() {
 	s.Require().NoError(storage.Append(context.Background(), s.record("hello")))
 
 	s.Require().Eventually(func() bool { return len(feed) == 1 }, 2*time.Second, time.Millisecond)
-	s.Equal("hello", (<-feed).Text)
+	s.Equal("hello", (<-feed).Message.Text)
 }
 
 func (s *testSuite) TestSubscriberChannelClosesWithItsContext() {
@@ -251,3 +251,45 @@ var (
 	_ inmemory_message_storage.Persistence         = (*postgres_message_store.Store)(nil)
 	_ inmemory_message_storage.Persistence         = (*inmemory_message_storage.MemoryPersistence)(nil)
 )
+
+func (s *testSuite) TestRedactingReachesEveryOpenSubscriber() {
+	storage := s.newStorage(inmemory_message_storage.Config{})
+
+	first, err := storage.Subscribe(s.T().Context())
+	s.Require().NoError(err)
+	second, err := storage.Subscribe(s.T().Context())
+	s.Require().NoError(err)
+
+	s.Zero(storage.Redact("a1b2c3"), "an empty history hides nothing")
+
+	for _, feed := range []<-chan messages.Event{first, second} {
+		s.Require().Eventually(func() bool { return len(feed) == 1 }, 2*time.Second, time.Millisecond)
+		event := <-feed
+		s.Require().NotNil(event.Redaction)
+		s.Nil(event.Message)
+		s.Equal("a1b2c3", event.Redaction.AuthorTag)
+	}
+}
+
+func (s *testSuite) TestRedactingCountsOnlyTheAuthorsOwnMessages() {
+	storage := s.newStorage(inmemory_message_storage.Config{})
+
+	s.Require().NoError(storage.Append(context.Background(), s.record("first")))
+	s.Require().NoError(storage.Append(context.Background(), s.record("second")))
+
+	somebodyElse := s.record("third")
+	somebodyElse.Message.AuthorTag = "d4e5f6"
+	s.Require().NoError(storage.Append(context.Background(), somebodyElse))
+
+	s.Equal(2, storage.Redact("a1b2c3"))
+}
+
+func (s *testSuite) TestTheHistoryKeepsWhatWasSaidThroughARedaction() {
+	storage := s.newStorage(inmemory_message_storage.Config{})
+	s.Require().NoError(storage.Append(context.Background(), s.record("hello")))
+
+	storage.Redact("a1b2c3")
+
+	s.Equal("hello", storage.History(context.Background())[0].Text)
+	s.False(storage.History(context.Background())[0].Redacted)
+}

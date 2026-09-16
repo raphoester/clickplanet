@@ -1,5 +1,6 @@
 import {
     ChatBlockedError,
+    ChatFeedEvent,
     ChatHistoryGetter,
     ChatListener,
     ChatMessage,
@@ -8,7 +9,7 @@ import {
     ChatSender,
     OutgoingMessage,
 } from "./chat.ts";
-import {ChatEvent, ChatMessage as ChatMessagePb} from "../gen/grpc/chat/v1/chat_pb.ts";
+import {ChatEvent as ChatEventPb, ChatMessage as ChatMessagePb} from "../gen/grpc/chat/v1/chat_pb.ts";
 import {ChatService} from "../gen/grpc/chat/v1/chat_connect.ts";
 import {Code, ConnectError, createPromiseClient, PromiseClient} from "@connectrpc/connect";
 import {createConnectTransport} from "@connectrpc/connect-web";
@@ -58,12 +59,12 @@ export class ChatServiceBackend implements ChatSender, ChatHistoryGetter, ChatLi
         }
     }
 
-    public listenForMessages(callback: (message: ChatMessage) => void): () => void {
+    public listenForEvents(callback: (event: ChatFeedEvent) => void): () => void {
         return openStream(
             (signal) => this.client.listenForEvents({}, {signal, timeoutMs: NO_TIMEOUT}),
             (event) => {
-                const message = messageOf(event)
-                if (message) callback(message)
+                const decoded = feedEventOf(event)
+                if (decoded) callback(decoded)
             },
             "chat",
         )
@@ -86,13 +87,18 @@ function translate(e: unknown): unknown {
 }
 
 /**
- * Anything that is not a message is dropped, heartbeats included — as is an
- * event case this build does not know, which reads as an unset `oneof`.
+ * Heartbeats are dropped, as is an event case this build does not know, which
+ * reads as an unset `oneof`.
  */
-export function messageOf(event: ChatEvent): ChatMessage | undefined {
-    if (event.event.case !== "message") return undefined
-
-    return decodedMessage(event.event.value)
+export function feedEventOf(event: ChatEventPb): ChatFeedEvent | undefined {
+    switch (event.event.case) {
+        case "message":
+            return {kind: "message", message: decodedMessage(event.event.value)}
+        case "memberRedacted":
+            return {kind: "redacted", authorTag: event.event.value.authorTag}
+        default:
+            return undefined
+    }
 }
 
 export function decodedMessage(message: ChatMessagePb): ChatMessage {
@@ -103,5 +109,6 @@ export function decodedMessage(message: ChatMessagePb): ChatMessage {
         authorTag: message.authorTag,
         countryCode: message.countryId,
         text: message.text,
+        redacted: message.redacted,
     }
 }

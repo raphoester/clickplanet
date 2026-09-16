@@ -1,5 +1,6 @@
 import {
     ChatBlockedError,
+    ChatFeedEvent,
     ChatHistoryGetter,
     ChatListener,
     ChatMessage,
@@ -30,7 +31,7 @@ const CHATTERS = [
 
 export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListener {
     private readonly messages: ChatMessage[] = []
-    private readonly listeners = new Map<string, (message: ChatMessage) => void>()
+    private readonly listeners = new Map<string, (event: ChatFeedEvent) => void>()
     private readonly timers: ReturnType<typeof setInterval>[] = []
     private readonly blocked: boolean
     private tokens = MESSAGE_BURST
@@ -48,6 +49,7 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
                 authorTag: chatter.tag,
                 countryCode: chatter.country,
                 text: chatter.text,
+                redacted: false,
             })
         })
 
@@ -61,6 +63,7 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
                 authorTag: chatter.tag,
                 countryCode: chatter.country,
                 text: `${chatter.text} (${this.nextChatter})`,
+                redacted: false,
             })
         }, options.chatterIntervalMs ?? 8000))
     }
@@ -88,6 +91,7 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
             authorTag: "c0ffee",
             countryCode: message.countryCode,
             text,
+            redacted: false,
         }
 
         this.publish(sent)
@@ -99,7 +103,7 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
         return [...this.messages]
     }
 
-    public listenForMessages(callback: (message: ChatMessage) => void): () => void {
+    public listenForEvents(callback: (event: ChatFeedEvent) => void): () => void {
         const id = UUIDv4()
         this.listeners.set(id, callback)
         return () => {
@@ -107,9 +111,22 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
         }
     }
 
+    /** Stands in for an operator's `chat.v1.AdminService/BanMember`. */
+    public banMember(authorTag: string): string {
+        this.messages.forEach((message, index) => {
+            if (message.authorTag === authorTag) {
+                this.messages[index] = {...message, text: "", redacted: true}
+            }
+        })
+
+        this.listeners.forEach(listener => listener({kind: "redacted", authorTag}))
+
+        return `#${authorTag} is banned from the chat`
+    }
+
     private publish(message: ChatMessage) {
         this.messages.push(message)
-        this.listeners.forEach(listener => listener(message))
+        this.listeners.forEach(listener => listener({kind: "message", message}))
     }
 
     private allow(): boolean {

@@ -1,0 +1,60 @@
+syntax = "proto3";
+
+package chat.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// Operator tools for the chat. Served only on the backend's loopback admin
+// listener (httpServer.adminBindAddress), never on the public router: nothing
+// here is authenticated.
+//
+// This is not the antibot's shadow ban. That one is passed by a watchdog, keys
+// on a click scope and drops clicks; this one is only ever passed by a person,
+// keys on the tag the chat shows, and reaches the chat and nothing else. A
+// member banned here still plays.
+service AdminService {
+  // Stops the member posting and blanks every message they sent: the text goes,
+  // the rest of the line stays. Banning a banned member only rewrites the reason.
+  rpc BanMember(BanMemberRequest) returns (BanMemberResponse);
+
+  // Lifts a ban. What they said is readable again — nothing was ever deleted.
+  rpc UnbanMember(UnbanMemberRequest) returns (UnbanMemberResponse);
+
+  // Every ban, newest first.
+  rpc ListBans(ListBansRequest) returns (ListBansResponse);
+}
+
+message BanMemberRequest {
+  // The author_tag as the chat shows it, with or without the leading '#'.
+  string author_tag = 1;
+  // For this log and for ListBans. The member is never told it, or that they
+  // were banned at all.
+  string reason = 2;
+}
+
+message BanMemberResponse {
+  Ban ban = 1;
+  // Messages the ban blanked in the history a joiner is served. Older ones are
+  // blanked too, when the retention still holds them.
+  uint32 redacted = 2;
+}
+
+message UnbanMemberRequest {
+  string author_tag = 1;
+}
+
+message UnbanMemberResponse {
+  string author_tag = 1;
+}
+
+message ListBansRequest {}
+
+message ListBansResponse {
+  repeated Ban bans = 1;
+}
+
+message Ban {
+  string author_tag = 1;
+  google.protobuf.Timestamp banned_at = 2;
+  string reason = 3;
+}

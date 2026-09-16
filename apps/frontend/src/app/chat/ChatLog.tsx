@@ -15,6 +15,13 @@ export type ChatLogProps = {
 
 const AUTHOR_MAX_LENGTH = 16
 
+/**
+ * What stands in for a banned member's text. The line keeps its author, flag and
+ * time, so a reader sees a turn was taken out rather than a gap in the
+ * conversation — and the same words go in the folded panel's peek.
+ */
+export const REMOVED_TEXT = "Message removed"
+
 const clock = new Intl.DateTimeFormat(undefined, {hour: "2-digit", minute: "2-digit"})
 
 const PINNED_SLACK_PX = 40
@@ -92,7 +99,11 @@ export default function ChatLog(props: ChatLogProps) {
                             </time>
                         </div>}
 
-                        <p className="chat-message-text">{message.text}</p>
+                        {message.redacted
+                            ? <p className="chat-message-text chat-message-removed">
+                                {REMOVED_TEXT}
+                            </p>
+                            : <p className="chat-message-text">{message.text}</p>}
                     </li>
                 })}
             </ul>

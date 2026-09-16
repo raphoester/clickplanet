@@ -14,5 +14,6 @@ func Encode(message messages.Message) *chatv1.ChatMessage {
 		AuthorTag:    message.AuthorTag,
 		CountryId:    message.CountryID,
 		Text:         message.Text,
+		Redacted:     message.Redacted,
 	}
 }
