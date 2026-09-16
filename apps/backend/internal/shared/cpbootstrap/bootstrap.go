@@ -18,6 +18,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/url"
 	"slices"
 	"time"
 
@@ -123,12 +124,20 @@ type ServerConfig struct {
 
 	// Empty serves no internal listener, and a module that dials it refuses the boot; anything but loopback refuses it too.
 	InternalBindAddress string
+
+	// The frontend's origin, exactly: scheme, host and port. The only origin a
+	// browser may call from, with credentials. Empty or "*" refuses the boot.
+	AllowedOrigin string
 }
 
 // Validate refuses the address that has no usable zero value: empty listens on port 80.
 func (c ServerConfig) Validate() error {
 	if c.BindAddress == "" {
 		return errors.New("httpServer.bindAddress is empty")
+	}
+
+	if err := validateOrigin(c.AllowedOrigin); err != nil {
+		return err
 	}
 
 	if c.AdminBindAddress != "" && !isLoopback(c.AdminBindAddress) {
@@ -142,6 +151,25 @@ func (c ServerConfig) Validate() error {
 		return fmt.Errorf(
 			"httpServer.internalBindAddress %q is not a loopback host:port: its callers are trusted",
 			c.InternalBindAddress,
+		)
+	}
+
+	return nil
+}
+
+// validateOrigin refuses what a browser would refuse later, one request at a
+// time: a credentialed answer must name one origin, and an origin has no path.
+func validateOrigin(origin string) error {
+	if origin == "" {
+		return errors.New("httpServer.allowedOrigin is empty: set it to the frontend's origin")
+	}
+
+	parsed, err := url.Parse(origin)
+	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" ||
+		parsed.String() != parsed.Scheme+"://"+parsed.Host {
+		return fmt.Errorf(
+			"httpServer.allowedOrigin %q is not an origin: want scheme://host[:port], with no path and not \"*\"",
+			origin,
 		)
 	}
 
@@ -214,7 +242,7 @@ func Run(ctx context.Context, options Options) error {
 	routes.mountOn(router, cphttpserver.MiddlewareStack(
 		cphttpserver.NewLoggingMiddleware(options.Logger),
 		cphttpserver.IPReaderMiddleware,
-		cphttpserver.CorsMiddleware,
+		cphttpserver.NewCorsMiddleware(options.Server.AllowedOrigin),
 	))
 	mountMetrics(router, metrics, options.Logger)
 

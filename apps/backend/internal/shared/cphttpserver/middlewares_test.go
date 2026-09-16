@@ -10,6 +10,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconnect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cphttpserver"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -98,7 +99,7 @@ func TestIPReaderMiddleware(t *testing.T) {
 // does not list it fails the request before the handler ever sees it — so
 // omitting this would refuse every click from the deployed frontend.
 func TestCorsMiddlewareAllowsTheSessionHeader(t *testing.T) {
-	handler := cphttpserver.CorsMiddleware(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	handler := cphttpserver.NewCorsMiddleware("https://clickplanet.lol")(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
 
 	recorder := httptest.NewRecorder()
 	handler.ServeHTTP(recorder, httptest.NewRequestWithContext(t.Context(), http.MethodOptions, "/planet.v1.ClickService/Click", nil))
@@ -107,4 +108,20 @@ func TestCorsMiddlewareAllowsTheSessionHeader(t *testing.T) {
 	require.Contains(t, allowed, cpconnect.SessionHeader)
 	require.Contains(t, allowed, "Content-Type")
 	require.Contains(t, allowed, "Connect-Protocol-Version")
+}
+
+// The frontend mints with credentials so the account cookie travels, and a
+// browser drops a credentialed answer that allows "*" or omits the credentials
+// header. Both the preflight and the call itself must carry them.
+func TestCorsMiddlewareAllowsCredentialsFromTheConfiguredOrigin(t *testing.T) {
+	handler := cphttpserver.NewCorsMiddleware("https://clickplanet.lol")(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+
+	for _, method := range []string{http.MethodOptions, http.MethodPost} {
+		recorder := httptest.NewRecorder()
+		handler.ServeHTTP(recorder, httptest.NewRequestWithContext(t.Context(), method, "/auth.v1.AuthService/CreateSession", nil))
+
+		assert.Equal(t, "https://clickplanet.lol", recorder.Header().Get("Access-Control-Allow-Origin"), method)
+		assert.Equal(t, "true", recorder.Header().Get("Access-Control-Allow-Credentials"), method)
+		assert.Equal(t, "Origin", recorder.Header().Get("Vary"), method)
+	}
 }

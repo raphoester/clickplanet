@@ -107,7 +107,7 @@ func TestOnlyALoopbackInternalAddressIsAccepted(t *testing.T) {
 		":8082":          false,
 		"0.0.0.0:8082":   false,
 	} {
-		err := cpbootstrap.ServerConfig{BindAddress: "0.0.0.0:8080", InternalBindAddress: address}.Validate()
+		err := cpbootstrap.ServerConfig{BindAddress: "0.0.0.0:8080", AllowedOrigin: "https://clickplanet.lol", InternalBindAddress: address}.Validate()
 		if ok {
 			require.NoError(t, err, address)
 		} else {

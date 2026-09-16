@@ -13,6 +13,11 @@ httpServer:
   # Its callers are trusted, so anything but a loopback address refuses the boot.
   # Empty serves none, and a module that calls another then refuses the boot.
   internalBindAddress: 127.0.0.1:8082
+  # The frontend's origin, exactly: scheme, host and port, no trailing slash.
+  # The API allows browser calls from it alone, with credentials, which is how
+  # the auth module's account cookie reaches the frontend. Never "*": a browser
+  # refuses a credentialed answer that allows every origin. Empty refuses the boot.
+  allowedOrigin: http://localhost:5173
 gameMap:
   maxIndex: 257948
 

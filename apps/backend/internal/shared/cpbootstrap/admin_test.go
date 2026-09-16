@@ -121,11 +121,33 @@ func TestOnlyALoopbackAdminAddressIsAccepted(t *testing.T) {
 		"[::]:8081":      false,
 		"127.0.0.1":      false,
 	} {
-		err := cpbootstrap.ServerConfig{BindAddress: "0.0.0.0:8080", AdminBindAddress: address}.Validate()
+		err := cpbootstrap.ServerConfig{BindAddress: "0.0.0.0:8080", AllowedOrigin: "https://clickplanet.lol", AdminBindAddress: address}.Validate()
 		if ok {
 			require.NoError(t, err, address)
 		} else {
 			require.Error(t, err, address)
+		}
+	}
+}
+
+// A browser refuses a credentialed answer that allows "*", and matches the
+// origin byte for byte, so a trailing slash is as wrong as a missing value.
+func TestOnlyAnExactOriginIsAccepted(t *testing.T) {
+	for origin, ok := range map[string]bool{
+		"https://clickplanet.lol":      true,
+		"http://localhost:5173":        true,
+		"":                             false,
+		"*":                            false,
+		"https://clickplanet.lol/":     false,
+		"https://clickplanet.lol/play": false,
+		"clickplanet.lol":              false,
+		"ftp://clickplanet.lol":        false,
+	} {
+		err := cpbootstrap.ServerConfig{BindAddress: "0.0.0.0:8080", AllowedOrigin: origin}.Validate()
+		if ok {
+			require.NoError(t, err, origin)
+		} else {
+			require.ErrorContains(t, err, "httpServer.allowedOrigin", origin)
 		}
 	}
 }

@@ -90,6 +90,9 @@ services:
     # `tilesStorage.flushInterval` can be overridden here without editing
     # backend.yaml.
     environment:
+      # The one origin the API allows credentialed calls from. The same value
+      # Caddy puts in Access-Control-Allow-Origin, so the two cannot drift.
+      httpServer.allowedOrigin: ${FRONTEND_ORIGIN:?set FRONTEND_ORIGIN in .env}
       # Salts the per-sender chat tag. It lives here rather than in backend.yaml
       # because that file is in git: anyone holding the salt can recompute a
       # sender's tag from a guessed address, which is the one thing the tag is

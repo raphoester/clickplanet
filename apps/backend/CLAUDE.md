@@ -360,7 +360,7 @@ The response never repeats a tile id. `GetMapResponse` carries `start_tile_id`, 
 ### Key Flow
 
 ```
-POST /auth.v1.AuthService/CreateSession   [Cookie: cp_sid=… once the client sends credentials]
+POST /auth.v1.AuthService/CreateSession   [Cookie: cp_sid=…, sent by the web client with credentials]
   → [cpbootstrap: error net], RateLimitInterceptor (the mint budget)
   → AuthService → create_session_handler
   → create_session_usecase: attest (turnstile_attester → Cloudflare siteverify)
@@ -1647,6 +1647,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `httpServer.streamHeartbeat` — how often a silent live stream sends a heartbeat (default 30s). **Must stay well under the proxy's idle cut**: Cloudflare answers 524 at ~125s, and a stream that never speaks is one it kills.
 - `httpServer.adminBindAddress` — where the operator services listen (see [Operator tools](#operator-tools-adminservice)); empty serves none, and a non-loopback address refuses the boot
 - `httpServer.internalBindAddress` — where the services other modules call listen (see [Calling another module](#calling-another-module)); empty serves none, a caller that dials it then fails, and a non-loopback address refuses the boot
+- `httpServer.allowedOrigin` — the frontend's exact origin (`scheme://host[:port]`, no path). The public router answers CORS for it alone, with `Access-Control-Allow-Credentials: true`, so the `cp_sid` cookie travels on the web client's mint. **Empty, `*` or anything that is not an origin refuses the boot**: a browser drops a credentialed answer that allows every origin, so a wrong value would only show up as every mint starting a new guest. In production it comes from `FRONTEND_ORIGIN`, the value the Caddyfile allows, which sets the same headers and overwrites these.
 - `gameMap.maxIndex` — total number of tiles
 - `database.host`, `port`, `user`, `password`, `dbName`, `sslMode`, `schema`, `pool.*` — the planet module's postgres and the schema its tables live in; any of them but `password` and `pool` empty refuses the boot. `database.password` belongs in the environment
 - `tilesStorage.flushInterval` — how often the tiles changed since the last flush are written to postgres (1s)
