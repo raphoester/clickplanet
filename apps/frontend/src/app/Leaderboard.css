@@ -39,6 +39,30 @@
     border-bottom: 1px solid #FFFFFF1F;
 }
 
+/* Inside the scrolling list, after the last row, so it costs the rows no room.
+   The bottom padding is the fade's height: scrolled to the end, the link rests
+   above the gradient instead of under it. */
+.leaderboard-footer {
+    margin: 12px 0 0;
+    padding-bottom: 36px;
+    font-family: Oswald, sans-serif;
+    font-size: 12px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+}
+
+.leaderboard-footer a {
+    font-family: inherit;
+    color: #FFFFFF80;
+}
+
+.leaderboard-footer a:hover {
+    color: #FFFFFF;
+}
+
 .leaderboard-table {
     width: 100%;
     table-layout: fixed;

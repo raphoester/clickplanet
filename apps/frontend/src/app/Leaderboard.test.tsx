@@ -136,4 +136,11 @@ describe("Leaderboard tile deltas", () => {
         render(<Leaderboard tilesCount={1000} data={[entry("fr", 503)]} deltas={deltas({fr: 3})}/>)
         expect(cells()).toEqual([["1", "France", "503+3", "50.30"]])
     })
+
+    it("links to the privacy policy and the terms below the last row", () => {
+        render(<Leaderboard tilesCount={1000} data={[entry("fr", 503)]}/>)
+
+        expect(screen.getByRole("link", {name: "Privacy policy"}).getAttribute("href")).toBe("/privacy")
+        expect(screen.getByRole("link", {name: "Terms of service"}).getAttribute("href")).toBe("/terms")
+    })
 })
