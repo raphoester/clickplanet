@@ -8,7 +8,7 @@ import {truncate} from "../truncate.ts";
 import {PlaySound} from "../sound/soundPlayer.ts";
 import {authorStyle} from "./authorStyle.ts";
 import ChatComposer from "./ChatComposer.tsx";
-import ChatLog from "./ChatLog.tsx";
+import ChatLog, {REMOVED_TEXT} from "./ChatLog.tsx";
 import {useChat} from "./useChat.ts";
 import {useChatIdentity} from "./useChatIdentity.ts";
 import "./ChatPanel.css"
@@ -143,7 +143,9 @@ export default function ChatPanel(props: ChatPanelProps) {
                     <span className="chat-peek-author">
                         {truncate(latest.authorName, PEEK_AUTHOR_MAX_LENGTH)}
                     </span>
-                    <span className="chat-peek-text">{latest.text}</span>
+                    <span className={latest.redacted ? "chat-peek-text chat-peek-removed" : "chat-peek-text"}>
+                        {latest.redacted ? REMOVED_TEXT : latest.text}
+                    </span>
                 </span>}
         </button>
 

@@ -15,11 +15,11 @@ import (
 )
 
 type stubSubscriber struct {
-	feed chan messages.Message
+	feed chan messages.Event
 	err  error
 }
 
-func (s stubSubscriber) Subscribe(context.Context) (<-chan messages.Message, error) {
+func (s stubSubscriber) Subscribe(context.Context) (<-chan messages.Event, error) {
 	return s.feed, s.err
 }
 
@@ -59,8 +59,8 @@ func TestAFailedSubscriptionEndsTheFeed(t *testing.T) {
 }
 
 func TestAMessageIsCarriedToTheSink(t *testing.T) {
-	feed := make(chan messages.Message, 1)
-	feed <- messages.Message{ID: "message-1", Text: "hello"}
+	feed := make(chan messages.Event, 1)
+	feed <- messages.Event{Message: &messages.Message{ID: "message-1", Text: "hello"}}
 
 	sink := &recorder{fed: make(chan struct{})}
 
@@ -75,7 +75,7 @@ func TestAMessageIsCarriedToTheSink(t *testing.T) {
 	require.NoError(t, <-done)
 
 	require.Equal(t, []listen_for_events_usecase.Event{
-		{Message: messages.Message{ID: "message-1", Text: "hello"}},
+		{Message: &messages.Message{ID: "message-1", Text: "hello"}},
 	}, sink.seen())
 }
 
@@ -86,7 +86,7 @@ func TestASilentFeedKeepsSendingHeartbeats(t *testing.T) {
 	done := make(chan error, 1)
 	go func() {
 		done <- listen_for_events_usecase.New(
-			stubSubscriber{feed: make(chan messages.Message)}, time.Millisecond).Execute(ctx, sink)
+			stubSubscriber{feed: make(chan messages.Event)}, time.Millisecond).Execute(ctx, sink)
 	}()
 
 	for range 3 {
@@ -101,7 +101,7 @@ func TestASilentFeedKeepsSendingHeartbeats(t *testing.T) {
 }
 
 func TestTheFeedEndsWhenTheSubscriptionCloses(t *testing.T) {
-	feed := make(chan messages.Message)
+	feed := make(chan messages.Event)
 	close(feed)
 
 	err := listen_for_events_usecase.New(stubSubscriber{feed: feed}, time.Hour).
@@ -111,11 +111,32 @@ func TestTheFeedEndsWhenTheSubscriptionCloses(t *testing.T) {
 }
 
 func TestAFailedSendEndsTheFeed(t *testing.T) {
-	feed := make(chan messages.Message, 1)
-	feed <- messages.Message{ID: "message-1"}
+	feed := make(chan messages.Event, 1)
+	feed <- messages.Event{Message: &messages.Message{ID: "message-1"}}
 
 	err := listen_for_events_usecase.New(stubSubscriber{feed: feed}, time.Hour).
 		Execute(t.Context(), &recorder{err: assert.AnError})
 
 	require.ErrorIs(t, err, assert.AnError)
+}
+
+func TestARedactionIsCarriedToTheSink(t *testing.T) {
+	feed := make(chan messages.Event, 1)
+	feed <- messages.Event{Redaction: &messages.Redaction{AuthorTag: "a1b2c3"}}
+
+	sink := &recorder{fed: make(chan struct{})}
+
+	ctx, cancel := context.WithCancel(t.Context())
+	done := make(chan error, 1)
+	go func() {
+		done <- listen_for_events_usecase.New(stubSubscriber{feed: feed}, time.Hour).Execute(ctx, sink)
+	}()
+
+	<-sink.fed
+	cancel()
+	require.NoError(t, <-done)
+
+	require.Equal(t, []listen_for_events_usecase.Event{
+		{Redaction: &messages.Redaction{AuthorTag: "a1b2c3"}},
+	}, sink.seen())
 }

@@ -133,6 +133,11 @@
     white-space: nowrap;
 }
 
+.chat-peek-removed {
+    font-style: italic;
+    opacity: 0.6;
+}
+
 @keyframes chat-peek-in {
     from {
         opacity: 0;
@@ -278,6 +283,28 @@
     bottom: -6px;
     border-width: 7px 9px 0 0;
     border-top-color: var(--balloon);
+}
+
+/*
+ * A banned member's balloon: the line keeps its author, flag and time, and the
+ * balloon says a turn was taken out of the conversation rather than leaving a
+ * gap in it. Dimmed and italic, with none of the author's own colour, because it
+ * is the server talking and no longer them.
+ */
+.chat-message-removed {
+    background: transparent;
+    border-style: dashed;
+    border-color: var(--balloon-edge);
+    box-shadow: none;
+    color: var(--balloon-ink);
+    opacity: 0.55;
+    font-style: italic;
+}
+
+/* No tail either: the balloon is not quoting anyone any more. */
+.chat-message-removed::before,
+.chat-message-removed::after {
+    display: none;
 }
 
 /* Mid-run balloons square up towards their neighbours, so a group is one shape. */

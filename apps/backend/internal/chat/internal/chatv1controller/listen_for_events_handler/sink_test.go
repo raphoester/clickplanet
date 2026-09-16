@@ -26,7 +26,7 @@ func TestSinkFramesAMessage(t *testing.T) {
 	stream := &recorder{}
 
 	err := listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{
-		Message: messages.Message{ID: "message-1", AuthorName: "Bob", Text: "hello"},
+		Message: &messages.Message{ID: "message-1", AuthorName: "Bob", Text: "hello"},
 	})
 
 	require.NoError(t, err)
@@ -56,4 +56,20 @@ func TestSinkReportsAFailedSend(t *testing.T) {
 		Send(listen_for_events_usecase.Event{Heartbeat: true})
 
 	require.ErrorIs(t, err, assert.AnError)
+}
+
+func TestSinkFramesARedaction(t *testing.T) {
+	stream := &recorder{}
+
+	err := listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{
+		Redaction: &messages.Redaction{AuthorTag: "a1b2c3"},
+	})
+
+	require.NoError(t, err)
+	require.Len(t, stream.sent, 1)
+
+	redacted := stream.sent[0].GetMemberRedacted()
+	require.NotNil(t, redacted, "a redaction travels as its own case")
+	assert.Nil(t, stream.sent[0].GetMessage())
+	assert.Equal(t, "a1b2c3", redacted.GetAuthorTag())
 }

@@ -46,7 +46,7 @@ type Storage struct {
 }
 
 type subscriber struct {
-	ch      chan messages.Message
+	ch      chan messages.Event
 	dropped atomic.Uint64
 }
 
@@ -65,9 +65,27 @@ func (s *Storage) Append(ctx context.Context, record messages.Record) error {
 	}
 
 	s.remember(record.Message)
-	s.publish(record.Message)
+	s.publish(messages.Event{Message: &record.Message})
 
 	return nil
+}
+
+// Redact blanks one author on every open screen and counts what it hid. The
+// history keeps its text: the ban is read over it on the way out instead.
+func (s *Storage) Redact(tag string) int {
+	s.publish(messages.Event{Redaction: &messages.Redaction{AuthorTag: tag}})
+
+	s.historyMu.RLock()
+	defer s.historyMu.RUnlock()
+
+	redacted := 0
+	for _, message := range s.history {
+		if message.AuthorTag == tag {
+			redacted++
+		}
+	}
+
+	return redacted
 }
 
 func (s *Storage) History(_ context.Context) []messages.Message {
@@ -88,8 +106,8 @@ func (s *Storage) remember(message messages.Message) {
 	s.history = append(s.history, message)
 }
 
-func (s *Storage) Subscribe(ctx context.Context) (<-chan messages.Message, error) {
-	sub := &subscriber{ch: make(chan messages.Message, s.config.SubscriberBuffer)}
+func (s *Storage) Subscribe(ctx context.Context) (<-chan messages.Event, error) {
+	sub := &subscriber{ch: make(chan messages.Event, s.config.SubscriberBuffer)}
 
 	s.subscribersMu.Lock()
 	s.subscribers[sub] = struct{}{}
@@ -110,23 +128,31 @@ func (s *Storage) Subscribe(ctx context.Context) (<-chan messages.Message, error
 
 const dropLogInterval = 100
 
-func (s *Storage) publish(message messages.Message) {
+func (s *Storage) publish(event messages.Event) {
 	s.subscribersMu.Lock()
 	defer s.subscribersMu.Unlock()
 
 	for sub := range s.subscribers {
 		select {
-		case sub.ch <- message:
+		case sub.ch <- event:
 		default:
 			dropped := sub.dropped.Add(1)
 			if dropped == 1 || dropped%dropLogInterval == 0 {
-				s.logger.Warn("dropped a chat message for a slow subscriber",
-					slog.String("messageId", message.ID),
+				s.logger.Warn("dropped a chat event for a slow subscriber",
+					slog.String("event", describe(event)),
 					slog.Uint64("droppedTotal", dropped),
 				)
 			}
 		}
 	}
+}
+
+// describe names the dropped event, so a redaction a client never got is not read as a lost message.
+func describe(event messages.Event) string {
+	if event.Redaction != nil {
+		return "redaction of #" + event.Redaction.AuthorTag
+	}
+	return "message " + event.Message.ID
 }
 
 func (s *Storage) DroppedMessages() uint64 {

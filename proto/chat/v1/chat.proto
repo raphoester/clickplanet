@@ -19,6 +19,11 @@ message ChatMessage {
   string author_tag = 4;
   string country_id = 5;
   string text = 6;
+
+  // Set when the author is banned from the chat: text is then empty and no
+  // reader ever gets it back. Everything else about the line stays, so the chat
+  // still reads as a conversation rather than losing turns out of it.
+  bool redacted = 7;
 }
 
 message SendMessageRequest {
@@ -49,7 +54,16 @@ message ChatEvent {
   oneof event {
     ChatMessage message = 1;
     Heartbeat heartbeat = 2;
+    MemberRedacted member_redacted = 3;
   }
 }
 
 message Heartbeat {}
+
+// MemberRedacted blanks everything one author said, on the screens already
+// showing it. An operator's ban stops the member posting and blanks their
+// history; without this the text they were banned for sits on every open tab
+// until each reader happens to reload.
+message MemberRedacted {
+  string author_tag = 1;
+}

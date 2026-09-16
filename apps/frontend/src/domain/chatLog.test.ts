@@ -1,5 +1,13 @@
 import {describe, expect, it} from "vitest"
-import {addMessages, CHAT_LOG_LIMIT, GROUP_WINDOW_MS, idsSince, startsGroup, unreadSince} from "./chatLog.ts"
+import {
+    addMessages,
+    CHAT_LOG_LIMIT,
+    GROUP_WINDOW_MS,
+    idsSince,
+    redactAuthor,
+    startsGroup,
+    unreadSince,
+} from "./chatLog.ts"
 import type {ChatMessage} from "../backends/chat.ts"
 
 const message = (id: string, sentAt: number): ChatMessage => ({
@@ -9,6 +17,7 @@ const message = (id: string, sentAt: number): ChatMessage => ({
     authorTag: "4f2ca1",
     countryCode: "fr",
     text: `message ${id}`,
+    redacted: false,
 })
 
 const ids = (messages: readonly ChatMessage[]) => messages.map(m => m.id)
@@ -137,5 +146,42 @@ describe("startsGroup", () => {
 
         expect(startsGroup(first, from("Ana", "4f2ca1", GROUP_WINDOW_MS))).toBe(false)
         expect(startsGroup(first, from("Ana", "4f2ca1", GROUP_WINDOW_MS + 1))).toBe(true)
+    })
+})
+
+describe("redactAuthor", () => {
+    const by = (id: string, authorTag: string): ChatMessage => ({...message(id, 1), authorTag})
+
+    it("blanks the text of every message one author sent", () => {
+        const log = [by("a", "4f2ca1"), by("b", "91aa3d"), by("c", "4f2ca1")]
+
+        const redacted = redactAuthor(log, "4f2ca1")
+
+        expect(redacted.map(m => m.text)).toEqual(["", "message b", ""])
+        expect(redacted.map(m => m.redacted)).toEqual([true, false, true])
+    })
+
+    it("keeps everything else about the line, so the chat still reads as a conversation", () => {
+        const [redacted] = redactAuthor([by("a", "4f2ca1")], "4f2ca1")
+
+        expect(redacted).toMatchObject({
+            id: "a",
+            sentAt: 1,
+            authorName: "Ana",
+            authorTag: "4f2ca1",
+            countryCode: "fr",
+        })
+    })
+
+    it("hands back the array it was given when the author never spoke here", () => {
+        const log = [by("a", "4f2ca1")]
+
+        expect(redactAuthor(log, "91aa3d")).toBe(log)
+    })
+
+    it("hands back the array it was given when everything is already blanked", () => {
+        const log = redactAuthor([by("a", "4f2ca1")], "4f2ca1")
+
+        expect(redactAuthor(log, "4f2ca1")).toBe(log)
     })
 })

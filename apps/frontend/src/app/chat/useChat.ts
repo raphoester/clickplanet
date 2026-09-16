@@ -7,7 +7,7 @@ import {
     ChatRejectedError,
     OutgoingMessage,
 } from '../../backends/chat.ts';
-import {addMessages} from '../../domain/chatLog.ts';
+import {addMessages, redactAuthor} from '../../domain/chatLog.ts';
 
 export type ChatStatus = 'loading' | 'ready' | 'unavailable'
 
@@ -40,7 +40,16 @@ export function useChat({backend}: UseChatOptions) {
         setMine(NOTHING_SENT)
 
         const abort = new AbortController()
-        const stopListening = backend.listenForMessages(message => receive([message]))
+        const stopListening = backend.listenForEvents(event => {
+            if (event.kind === "message") {
+                receive([event.message])
+                return
+            }
+
+            // A ban blanks what the author said on every screen already showing
+            // it, rather than waiting for each reader to reload.
+            setMessages(current => redactAuthor(current, event.authorTag))
+        })
 
         backend.getHistory(abort.signal)
             .then(history => {

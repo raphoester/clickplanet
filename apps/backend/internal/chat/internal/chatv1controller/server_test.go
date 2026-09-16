@@ -45,8 +45,14 @@ type stubSubscriber struct {
 	err error
 }
 
-func (s stubSubscriber) Subscribe(context.Context) (<-chan messages.Message, error) {
-	return make(chan messages.Message), s.err
+type stubBans map[string]bool
+
+func (s stubBans) Banned(tag string) bool { return s[tag] }
+
+const testSalt = "pepper"
+
+func (s stubSubscriber) Subscribe(context.Context) (<-chan messages.Event, error) {
+	return make(chan messages.Event), s.err
 }
 
 func startChatServer(
@@ -54,6 +60,7 @@ func startChatServer(
 	sender *stubSender,
 	subscriber stubSubscriber,
 	blockedIPs []string,
+	bannedTags ...string,
 ) (*httptest.Server, *cptime.FixedClock) {
 	t.Helper()
 
@@ -62,6 +69,11 @@ func startChatServer(
 
 	blocklist, err := cpipblock.NewDenyList(blockedIPs)
 	require.NoError(t, err)
+
+	banned := stubBans{}
+	for _, tag := range bannedTags {
+		banned[tag] = true
+	}
 
 	mux := http.NewServeMux()
 	mux.Handle(chatv1connect.NewChatServiceHandler(
@@ -74,6 +86,7 @@ func startChatServer(
 		connect.WithInterceptors(
 			cpconnect.NewErrorInterceptor(nil, nil),
 			NewBlocklistInterceptor(blocklist),
+			NewBanInterceptor(banned, messages.NewTagger(testSalt)),
 			NewRateLimitInterceptor(limiter),
 		),
 	))
@@ -152,4 +165,41 @@ func TestABlockedSenderIsRefused(t *testing.T) {
 	require.Zero(t, sender.sent)
 
 	require.NoError(t, sendOnce(server, "1.2.3.4"), "everyone else is unaffected")
+}
+
+func TestABannedMemberIsRefusedAndNeverSpendsAToken(t *testing.T) {
+	sender := &stubSender{}
+	banned := messages.NewTagger(testSalt).Of("9.9.9.9")
+	server, _ := startChatServer(t, sender, stubSubscriber{}, nil, banned)
+
+	for i := range 5 {
+		err := sendOnce(server, "9.9.9.9")
+		require.Equalf(t, connect.CodePermissionDenied, connect.CodeOf(err),
+			"message %d: a ban outside the limiter never turns into a throttle", i)
+	}
+
+	require.Zero(t, sender.sent)
+	require.NoError(t, sendOnce(server, "1.2.3.4"), "everyone else is unaffected")
+}
+
+func TestABannedMemberCannotRenumberOutOfItsBan(t *testing.T) {
+	banned := messages.NewTagger(testSalt).Of("2001:db8:1:2::1")
+	server, _ := startChatServer(t, &stubSender{}, stubSubscriber{}, nil, banned)
+
+	err := sendOnce(server, "2001:db8:1:2:dead:beef:0:9")
+
+	require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
+}
+
+func TestABannedMemberCanStillReadTheChat(t *testing.T) {
+	banned := messages.NewTagger(testSalt).Of("9.9.9.9")
+	server, _ := startChatServer(t, &stubSender{}, stubSubscriber{}, nil, banned)
+
+	req := connect.NewRequest(&chatv1.GetHistoryRequest{})
+	req.Header().Set("X-Real-IP", "9.9.9.9")
+
+	_, err := chatv1connect.NewChatServiceClient(server.Client(), server.URL).
+		GetHistory(t.Context(), req)
+
+	require.NoError(t, err)
 }

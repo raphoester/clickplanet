@@ -40,6 +40,15 @@ export class ChatMessage extends Message<ChatMessage> {
    */
   text = "";
 
+  /**
+   * Set when the author is banned from the chat: text is then empty and no
+   * reader ever gets it back. Everything else about the line stays, so the chat
+   * still reads as a conversation rather than losing turns out of it.
+   *
+   * @generated from field: bool redacted = 7;
+   */
+  redacted = false;
+
   constructor(data?: PartialMessage<ChatMessage>) {
     super();
     proto3.util.initPartial(data, this);
@@ -54,6 +63,7 @@ export class ChatMessage extends Message<ChatMessage> {
     { no: 4, name: "author_tag", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 5, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 6, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 7, name: "redacted", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ChatMessage {
@@ -289,6 +299,12 @@ export class ChatEvent extends Message<ChatEvent> {
      */
     value: Heartbeat;
     case: "heartbeat";
+  } | {
+    /**
+     * @generated from field: chat.v1.MemberRedacted member_redacted = 3;
+     */
+    value: MemberRedacted;
+    case: "memberRedacted";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<ChatEvent>) {
@@ -301,6 +317,7 @@ export class ChatEvent extends Message<ChatEvent> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "message", kind: "message", T: ChatMessage, oneof: "event" },
     { no: 2, name: "heartbeat", kind: "message", T: Heartbeat, oneof: "event" },
+    { no: 3, name: "member_redacted", kind: "message", T: MemberRedacted, oneof: "event" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ChatEvent {
@@ -348,6 +365,48 @@ export class Heartbeat extends Message<Heartbeat> {
 
   static equals(a: Heartbeat | PlainMessage<Heartbeat> | undefined, b: Heartbeat | PlainMessage<Heartbeat> | undefined): boolean {
     return proto3.util.equals(Heartbeat, a, b);
+  }
+}
+
+/**
+ * MemberRedacted blanks everything one author said, on the screens already
+ * showing it. An operator's ban stops the member posting and blanks their
+ * history; without this the text they were banned for sits on every open tab
+ * until each reader happens to reload.
+ *
+ * @generated from message chat.v1.MemberRedacted
+ */
+export class MemberRedacted extends Message<MemberRedacted> {
+  /**
+   * @generated from field: string author_tag = 1;
+   */
+  authorTag = "";
+
+  constructor(data?: PartialMessage<MemberRedacted>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chat.v1.MemberRedacted";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "author_tag", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MemberRedacted {
+    return new MemberRedacted().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): MemberRedacted {
+    return new MemberRedacted().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): MemberRedacted {
+    return new MemberRedacted().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: MemberRedacted | PlainMessage<MemberRedacted> | undefined, b: MemberRedacted | PlainMessage<MemberRedacted> | undefined): boolean {
+    return proto3.util.equals(MemberRedacted, a, b);
   }
 }
 

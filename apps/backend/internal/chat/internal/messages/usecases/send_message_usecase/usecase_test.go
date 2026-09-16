@@ -32,6 +32,7 @@ func (s *testSuite) SetupTest() {
 	s.useCase = send_message_usecase.New(
 		s.appender,
 		fakeCountryChecker{known: map[string]bool{"fr": true, "de": true}},
+		messages.NewTagger("pepper"),
 		s.clock,
 		send_message_usecase.Config{TagSalt: "pepper"},
 	)
@@ -60,7 +61,7 @@ func (s *testSuite) TestNominalCase() {
 	s.Equal("fr", message.CountryID)
 	s.Equal("hello planet", message.Text)
 	s.Equal(s.clock.Now(), message.SentAt)
-	s.Equal(messages.Tag("pepper", "1.2.3.4"), message.AuthorTag)
+	s.Equal(messages.NewTagger("pepper").Of("1.2.3.4"), message.AuthorTag)
 
 	s.Require().Len(s.appender.records, 1)
 	s.Equal(message, s.appender.records[0].Message)

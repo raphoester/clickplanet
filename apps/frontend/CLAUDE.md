@@ -98,7 +98,10 @@ app/       components
   returns the array it was given when nothing was added, so an echo of something
   already shown costs no render. `unreadSince` counts what arrived after a given
   id, for the badge on the folded panel, and `idsSince` names those same
-  messages, for highlighting them once they are on screen.
+  messages, for highlighting them once they are on screen. `redactAuthor` is
+  what a ban does to the log — see [A banned
+  member](#a-banned-member) — and it hands back the array it was given the same
+  way, so a redaction for an author this log never saw costs no render.
 - `authorColor.ts` — `authorHue`, a stable hue per chat author. It hashes the
   identity the log actually displays, the name *and* the `author_tag`, so two
   people typing one name get two colours. **Only the hue is derived**: the
@@ -127,16 +130,19 @@ is worth keeping on this side too.
 `NO_TIMEOUT`, and `openStream`, which follows a server-streaming RPC and reopens
 it with a capped exponential backoff. It is generic over the message type and
 knows nothing about what it carries, so each context keeps its own mapping —
-`PlanetBackend.listenForUpdates` and `ChatServiceBackend.listenForMessages` are
+`PlanetBackend.listenForUpdates` and `ChatServiceBackend.listenForEvents` are
 both a few lines over it.
 
 **One stream per API, carrying an envelope.** `ClickService.ListenForEvents`
 sends `PlanetEvent` and `ChatService.ListenForEvents` sends `ChatEvent`, each a
-`oneof`. `updateOf` and `messageOf` unwrap the case each context cares about and
-**return undefined for everything else** — heartbeats, and any case this build
-does not know, which reads as an unset `oneof`. That is what lets the backend
-add an event type without a second stream and without breaking a deployed
-client, so a new live feature is a new case rather than a new connection.
+`oneof`. `updateOf` and `feedEventOf` unwrap the cases each context cares about
+and **return undefined for everything else** — heartbeats, and any case this
+build does not know, which reads as an unset `oneof`. That is what lets the
+backend add an event type without a second stream and without breaking a
+deployed client, so a new live feature is a new case rather than a new
+connection — and `member_redacted` is the one that took that route, so
+`feedEventOf` now maps two cases into a `ChatFeedEvent` union rather than one
+into a message.
 
 **Heartbeats are why a quiet stream survives.** Cloudflare cuts a silent
 response after ~125s with a 524 — measured, not guessed — so the server sends an
@@ -251,6 +257,10 @@ alone — `SendMessage`, `GetHistory` and the `ListenForEvents` stream — and
 `fakeChatBackend.ts` is the dev stand-in. `ChatPanel` docks
 bottom-right, opposite the menu, and starts folded under 768px.
 
+`ChatListener` hands up a `ChatFeedEvent`, not a message: the stream carries a
+broadcast message and a ban's redaction, so the union mirrors the wire envelope
+rather than flattening it — see [A banned member](#a-banned-member).
+
 **`MAX_TEXT_LENGTH` and `MAX_NAME_LENGTH` in `chat.ts` mirror
 `chat.service.max*Length` on the backend**, counted in code points as the server
 counts runes. They are the composer's bounds, not a defence — the server
@@ -265,6 +275,38 @@ and says so; React escaping is what makes that safe, so never reach for
 distinguishes two senders with one name is `author_tag`, the salted hash of their
 address that it stamps itself. The composer asks for a name before the first
 message rather than at page load — nothing else on the page requires one.
+
+#### A banned member
+
+An operator can ban somebody from the chat, through the backend's loopback admin
+API. Nothing here passes a ban and nothing here shows one being passed; what
+this app has to do is **render a message whose text is gone**.
+
+**The line stays, only its text goes.** A redacted `ChatMessage` still carries
+its id, time, author, `author_tag` and country, with `text` empty and `redacted`
+set. `ChatLog` renders `REMOVED_TEXT` in a dimmed, dashed, tail-less balloon in
+place of the bubble. A conversation with a turn blanked still reads as a
+conversation; dropping the message instead would leave a gap and a reader
+wondering what came out of it. It is also what keeps the author's colour, the
+grouping rule and the unread count working unchanged — `startsGroup` reads the
+name and the tag, neither of which a ban touches.
+
+**Two paths carry it, and the second one is why the ban is worth anything.**
+`GetHistory` answers already redacted, which covers a reload and a fresh joiner.
+The `member_redacted` case on the stream covers everybody already looking:
+`useChat` folds it through `redactAuthor`, so the text leaves every open tab the
+moment the ban lands rather than when each reader next reloads.
+
+**The folded panel's peek says the same words**, from the same constant, instead
+of quoting text that was just taken off the screen behind it.
+
+**An unban is not broadcast** — the backend does not send one, because
+un-blanking would mean re-sending what was blanked. The text comes back on the
+next `getHistory`, which is a reload.
+
+`FakeChatBackend.banMember(tag)` stands in for the whole thing in dev, wired to
+the console as `fakeChatBackend.banMember("4f2ca1")` — it blanks its own history
+and publishes the redaction, so both paths are reachable without a backend.
 
 **`sendMessage` is the one call that is not wrapped in `retrying`.** A retry
 after a connection dropped mid-request would post the message twice, visibly, to
