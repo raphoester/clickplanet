@@ -9,6 +9,10 @@ httpServer:
   # no authentication, so anything but a loopback address refuses the boot.
   # Empty serves no admin listener at all.
   adminBindAddress: 127.0.0.1:8081
+  # A third listener, for what one module asks another (auth.v1.InternalService).
+  # Its callers are trusted, so anything but a loopback address refuses the boot.
+  # Empty serves none, and a module that calls another then refuses the boot.
+  internalBindAddress: 127.0.0.1:8082
 gameMap:
   maxIndex: 257948
 
@@ -450,39 +454,6 @@ antiBot:
       trackWindow: 15m
       sweepInterval: 1m
 
-# Gates the Click RPC on a token this server minted. Off by default: with it
-# disabled session.v1.SessionService/ 404s and clicks are judged on address
-# alone, exactly as they were before this existed.
-session:
-  enabled: false
-  # Off counts what enforcing would refuse without refusing it — the mode to
-  # deploy in, so a client that predates sessions keeps working while
-  # click_session_checks shows what turning it on would cost.
-  enforce: false
-  # Signs the tokens. Empty generates one at boot, which invalidates every
-  # session in flight on each restart: fine locally, not in production, where it
-  # belongs in the environment rather than in a file that is in git.
-  secret: ""
-  ttl: 1h
-  # Per-IP throttle on minting, separate from the click one: a mint costs a
-  # siteverify round trip, a click costs a map write.
-  rateLimiter:
-    perSecond: 0.033
-    burst: 10
-    sweepInterval: 1m
-  turnstile:
-    # Off mints a session for anyone who asks, which is how a local backend
-    # works without a widget and a secret. The click path is still exercised —
-    # the token is bound and expires — but nothing had to be proved to get one.
-    # Never the production choice.
-    enabled: false
-    secret: ""
-    # The frontend origins siteverify must report. Empty refuses every token
-    # rather than accepting any, so this cannot be left unset by accident.
-    hostnames: []
-    # Must match the widget's data-action.
-    action: session
-
 # Live chat. Its own bounded context and its own Connect service, sharing this
 # process and the transport with the tile game and nothing else. Always on.
 chat:
@@ -528,3 +499,57 @@ chat:
   # CIDRs — a single address needs /32, and a whole range is one line. A
   # malformed entry fails the start rather than silently refusing nobody.
   blockedIPs: []
+
+# Who a caller is and what it has to prove before it may click. Off by default:
+# with it disabled auth.v1 and session.v1 404, and clicks are judged on address
+# alone, exactly as they were before this existed.
+auth:
+  enabled: false
+  # Off counts what enforcing would refuse without refusing it — the mode to
+  # deploy in, so a client that predates sessions keeps working while
+  # click_session_checks shows what turning it on would cost.
+  enforce: false
+  # The Ed25519 seed the click tokens are signed with: 32 bytes as 64 hex
+  # characters, from `openssl rand -hex 32`. Required when enabled, and it
+  # belongs in the environment in production rather than in a file that is in git.
+  #
+  # It is the only key here. Only the auth module is handed it; the planet
+  # module verifies clicks with the public half, which cmd/api derives from this
+  # at boot and hands to that block. So planet holds a Verifier, which has no
+  # Mint on it, and there is no second value to keep in step with this one.
+  secret: ""
+  ttl: 1h
+  # Per-IP throttle on minting, for both CreateSession paths together: a mint
+  # costs a siteverify round trip and may create a guest account.
+  rateLimiter:
+    perSecond: 0.033
+    burst: 10
+    sweepInterval: 1m
+  turnstile:
+    # Off mints a session for anyone who asks, which is how a local backend
+    # works without a widget and a secret. Never the production choice.
+    enabled: false
+    secret: ""
+    # The frontend origins siteverify must report. Empty refuses every token
+    # rather than accepting any, so this cannot be left unset by accident.
+    hostnames: []
+    # Must match the widget's data-action.
+    action: session
+  # Accounts and their sessions, in the auth schema. Required when enabled; a
+  # mint whose database fails is refused.
+  database:
+    host: localhost
+    port: "5432"
+    user: postgres
+    # Belongs in the environment in production (auth.database.password).
+    password: postgres
+    dbName: postgres
+    sslMode: disable
+    schema: auth
+    pool:
+      maxOpenConns: 2
+  sessions:
+    # A guest idle this long loses its cookie; its next mint starts a new guest.
+    guestTTL: 2160h # 90 days
+    # A session is extended at most this often, so a player is not a write per mint.
+    extendEvery: 24h

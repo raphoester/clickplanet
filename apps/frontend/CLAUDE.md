@@ -378,7 +378,7 @@ off a VPN they may not be using.
 
 **`VITE_TURNSTILE_SITEKEY` is what switches this on.** Unset, `main.tsx` wires
 `NoSession` and the client sends no header, which is what a local backend with
-`session.enabled: false` expects. The sitekey is public — it is read off the
+`auth.enabled: false` expects. The sitekey is public — it is read off the
 page — and useless without the secret, which only the backend holds. A server
 that *enforces* sessions refuses every click from a build with no sitekey:
 the two are configured together.

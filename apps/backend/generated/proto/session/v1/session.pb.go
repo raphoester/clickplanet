@@ -133,9 +133,9 @@ const file_session_v1_session_proto_rawDesc = "" +
 	"\x11attestation_token\x18\x01 \x01(\tR\x10attestationToken\"Z\n" +
 	"\x15CreateSessionResponse\x12\x14\n" +
 	"\x05token\x18\x01 \x01(\tR\x05token\x12+\n" +
-	"\x12expires_at_unix_ms\x18\x02 \x01(\x03R\x0fexpiresAtUnixMs2f\n" +
-	"\x0eSessionService\x12T\n" +
-	"\rCreateSession\x12 .session.v1.CreateSessionRequest\x1a!.session.v1.CreateSessionResponseB\xbb\x01\n" +
+	"\x12expires_at_unix_ms\x18\x02 \x01(\x03R\x0fexpiresAtUnixMs2k\n" +
+	"\x0eSessionService\x12Y\n" +
+	"\rCreateSession\x12 .session.v1.CreateSessionRequest\x1a!.session.v1.CreateSessionResponse\"\x03\x88\x02\x01B\xbb\x01\n" +
 	"\x0ecom.session.v1B\fSessionProtoP\x01ZRgithub.com/raphoester/clickplanet.lol-backend/generated/proto/session/v1;sessionv1\xa2\x02\x03SXX\xaa\x02\n" +
 	"Session.V1\xca\x02\n" +
 	"Session\\V1\xe2\x02\x16Session\\V1\\GPBMetadata\xea\x02\vSession::V1b\x06proto3"

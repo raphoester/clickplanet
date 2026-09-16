@@ -72,13 +72,13 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/paint_random_tiles_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/reassign_country_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/revert_player_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/rpc_session_verifier"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/top_players_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -264,19 +264,15 @@ func NewModule(config Config) cpbootstrap.Module {
 				planetv1controller.NewVPNBlockInterceptor(blocklist, props.Metrics),
 			}
 
-			// This context builds its own verifier from the same `session:` block the
-			// session context mints with — same secret, same MAC — so neither module
-			// has to hand the other an object. Skipped when sessions are off.
-			if config.Session.Enabled {
-				verifier, err := cpsession.NewSigner(config.Session)
-				if err != nil {
-					return fmt.Errorf("failed to build the click session verifier: %w", err)
-				}
-
+			// This context holds no key of its own: it asks the auth module for the
+			// public half over the internal listener, on the first click after a boot,
+			// and keeps it. So it can check a token and cannot mint one, and there is
+			// no second setting to keep in step with auth.secret. Skipped when auth is off.
+			if config.Auth.Enabled {
 				interceptors = append(interceptors, planetv1controller.NewSessionInterceptor(
-					verifier,
+					rpc_session_verifier.New(props.Internal, props.Logger),
 					clock,
-					config.Session.Enforce,
+					config.Auth.Enforce,
 					props.Metrics))
 			}
 

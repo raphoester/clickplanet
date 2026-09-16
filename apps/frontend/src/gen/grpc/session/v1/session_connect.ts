@@ -11,6 +11,10 @@ import { MethodKind } from "@bufbuild/protobuf";
  * proved something once". CreateSession is the only way to get one, and the
  * Click RPC will not accept a caller without it.
  *
+ * Deprecated: use auth.v1.AuthService/CreateSession, which also gives the caller
+ * an account. This one mints a token with no account, for clients that predate
+ * accounts, and goes once they are gone.
+ *
  * @generated from service session.v1.SessionService
  */
 export const SessionService = {
@@ -18,6 +22,7 @@ export const SessionService = {
   methods: {
     /**
      * @generated from rpc session.v1.SessionService.CreateSession
+     * @deprecated
      */
     createSession: {
       name: "CreateSession",

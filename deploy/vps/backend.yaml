@@ -8,6 +8,9 @@ httpServer:
   bindAddress: 0.0.0.0:8080
   # Operator services, loopback only. See "Operator tools" in the README.
   adminBindAddress: 127.0.0.1:8081
+  # What one module asks another, loopback only. Not reachable from Caddy.
+  # The planet module takes the click token's verifying key from auth over this.
+  internalBindAddress: 127.0.0.1:8082
 gameMap:
   maxIndex: 257948 # must match the tile count baked into the frontend coordinates
 
@@ -323,7 +326,7 @@ bonus:
 # address-based defence cannot do: refuse a caller that never proved anything,
 # however many addresses it can reach the game from. The blocklist above raises
 # the floor; this is what makes clicking cost something to start.
-session:
+auth:
   # On. The widget exists and .env holds SESSION_SECRET and TURNSTILE_SECRET;
   # without that last one the API does not start at all, it does not degrade.
   enabled: true
@@ -331,7 +334,7 @@ session:
   # reaches the map. click_session_checks{verdict="valid"} carried the traffic
   # before this was flipped; "missing" is now a refusal rather than a count.
   enforce: true
-  # session.secret and session.turnstile.secret come from the environment —
+  # auth.secret and auth.turnstile.secret come from the environment —
   # docker-compose.yaml passes them in from .env. Deliberately absent here:
   # this file is in git.
   ttl: 1h
@@ -351,6 +354,19 @@ session:
     # Must match the data-action the widget is rendered with, so a token minted
     # for another surface on the same sitekey is not accepted here.
     action: session
+  # Accounts and their sessions: same postgres and user as the other blocks, its
+  # own schema and pool. The password comes from the environment
+  # (auth.database.password in docker-compose.yaml). Only auth.v1 CreateSession
+  # uses it; the deprecated session.v1 path mints with no account.
+  database:
+    host: postgres
+    port: "5432"
+    user: clickplanet
+    dbName: clickplanet
+    sslMode: disable
+    schema: auth
+    pool:
+      maxOpenConns: 2
 
 # Live chat. Every message is written to the chat schema in postgres before it
 # is broadcast; a message that cannot be written is refused.

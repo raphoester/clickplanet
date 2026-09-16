@@ -51,9 +51,11 @@ This is a Go backend for a collaborative map-clicking game. It follows **hexagon
 
 - **`internal/planet/`** — the tile game: clicks, ownership, the map, the update stream.
 - **`internal/chat/`** — the live chat: messages, identity, retention.
-- **`internal/session/`** — the mint: what a caller has to prove before it may click.
+- **`internal/auth/`** — who a caller is and what it has to prove before it may click: Turnstile, accounts, the click token. See [Auth](#auth-internalauth).
 
 They share the process, the transport and the country list, and **nothing else**. None imports another; each owns its own domain types, its own proto package, its own storage adapter (where it has one) and its own edge.
+
+**A module never calls another module's code or reads its data in its own stack trace.** When one needs something from another it asks over Connect, on a loopback listener — see [Calling another module](#calling-another-module). One does: `planet` takes the click token's verifying key from `auth`.
 
 Bonus boxes live inside `internal/planet/` rather than beside it: what they grant
 is click allowance, and what carries them is the planet stream. A context of
@@ -61,7 +63,7 @@ their own would have to import both.
 
 **`internal/antibot/` is a domain library, not a fourth context.** It has no proto
 package, no adapters and no `module.go`, and it cannot be wired without a caller
-composing it — the clicks edge does, the way it gates on `session`. It is not a
+composing it — the clicks edge does, the way it gates on `auth`. It is not a
 shared package because "is this caller a bot" is the business this game is in,
 while `shared` is for things that would read the same in any other program.
 `planet` → `antibot` is the only module-to-module import in the backend.
@@ -82,7 +84,7 @@ root package**:
 |---|---|
 | `planet` | `Config`, `NewModule` |
 | `chat` | `Config`, `NewModule` |
-| `session` | `Config`, `NewModule` |
+| `auth` | `Config`, `NewModule` |
 | `antibot` | `Config`, `Observer`, `Guard`, `New`, `Description`, `Click`, `Report`, `Sentence`, `Examination`, `Reading` |
 
 That holds for `cmd/api` too: the composition root lists modules and cannot
@@ -99,10 +101,12 @@ directory.
 
 ### The composite layer
 
-Each context wires **itself**, in a `module.go` at its root (`internal/planet/module.go`, `internal/chat/module.go`, `internal/session/module.go`). That file is the context's manifest: its `Config`, whether it is on, and its DI sequence. **A module takes its config and nothing else, and builds every object it needs itself** — there is no `Deps` struct and nothing is handed down from `main`. A module is a `cpbootstrap.Module` — a name, an `Enabled` flag and a DI sequence — and the sequence is handed a `cpbootstrap.Props` carrying registrars and nothing else:
+Each context wires **itself**, in a `module.go` at its root (`internal/planet/module.go`, `internal/chat/module.go`, `internal/auth/module.go`). That file is the context's manifest: its `Config`, whether it is on, and its DI sequence. **A module takes its config and nothing else, and builds every object it needs itself** — there is no `Deps` struct and nothing is handed down from `main`. A module is a `cpbootstrap.Module` — a name, an `Enabled` flag and a DI sequence — and the sequence is handed a `cpbootstrap.Props` carrying registrars and nothing else:
 
 - `props.RPC.Mount(build, interceptors...)` — the module hands over what *builds* the handler, plus the interceptors it wants. `cpbootstrap` builds it, so it can put its own interceptor outside every module's — see [The error net](#the-error-net)
 - `props.AdminRPC.Mount(build, interceptors...)` — the same, for an operator service: served only on the loopback admin listener — see [Operator tools](#operator-tools-adminservice)
+- `props.InternalRPC.Mount(build, interceptors...)` — the same again, for what other modules call: served only on the loopback internal listener
+- `props.Internal.Dial()` — the HTTP client and base URL a generated `New<Service>Client` takes, to call another module — see [Calling another module](#calling-another-module)
 - `props.Runners.Add(runner)` — a `Runner` (`Name()` and `Run(ctx)`), run as a goroutine with the process-lifetime context
 - `props.Closers.Add(name, close)` — a cleanup, run in reverse registration order
 - `props.Logger`, `props.Metrics`
@@ -112,30 +116,49 @@ Each context wires **itself**, in a `module.go` at its root (`internal/planet/mo
 
 A module never sees the router, the signal handler or another module's objects. **There is no mutable app object and nothing to leave a half-built dependency on**: `internal/shared/cpbootstrap` builds every module in order, then serves.
 
-**Shutdown goes in this order**: end every open stream, `http.Server.Shutdown` (the public server, then the admin one), the closers in reverse order, then cancel and wait on the runners. The first step is the drain interceptor — see [Ending the streams on shutdown](#ending-the-streams-on-shutdown). There are no storage closers left: the tile map, the ledger, bans and evidence all flush from their runners, after the closers, once the server has stopped taking writes.
+**Shutdown goes in this order**: end every open stream, `http.Server.Shutdown` (the public server, then the admin and internal ones — a public call in flight may still be waiting on an internal one), the closers in reverse order, then cancel and wait on the runners. The first step is the drain interceptor — see [Ending the streams on shutdown](#ending-the-streams-on-shutdown). There are no storage closers left: the tile map, the ledger, bans and evidence all flush from their runners, after the closers, once the server has stopped taking writes.
 
-**`cmd/api/main.go` is the composition root, and it is the only one** — there is no `internal/app`, because a package whose whole job is to be called once by `main` was a level of indirection and nothing else. It does two things: load the config, and list the modules.
+**`cmd/api/main.go` is the composition root, and it is the only one** — there is no `internal/app`, because a package whose whole job is to be called once by `main` was a level of indirection and nothing else. It does two things: load the config, and list the modules. It builds no objects, derives nothing, and reads inside no block.
 
 **The aggregation is the whole of it — a flat slice, no branches, no dependencies threaded through:**
 
 ```go
 return []bootstrap.Module{
-	session.NewModule(config.Session),
+	auth.NewModule(config.Auth),
 	planet.NewModule(config.Planet),
 	chat.NewModule(config.Chat),
 }
 ```
 
-**Every module is always listed; a module with a switch reads its own.** `NewModule` sets `Enabled` and `cpbootstrap` skips the ones that are off, so turning sessions off is a config change and never an edit here. `planet` and `chat` have no switch and are always on. A disabled module is never built, so its routes are **absent** rather than present and refusing — `/session.v1.SessionService/` 404s.
+**Every module is always listed; a module with a switch reads its own.** `NewModule` sets `Enabled` and `cpbootstrap` skips the ones that are off, so turning auth off is a config change and never an edit here. `planet` and `chat` have no switch and are always on. A disabled module is never built, so its routes are **absent** rather than present and refusing — `/auth.v1.AuthService/` 404s.
 
 #### What two contexts need, without either handing it to the other
 
 `main` builds no objects at all, so a thing two contexts need is **a config block they both declare**, and each builds its own instance from it.
 
-- **`shared/cpsession.Config`** is the `session:` block, and it is shared because two contexts read it: `session` mints with it, `planet` verifies with it. Each calls `cpsession.NewSigner(config)` itself. The same secret and TTL produce the same MAC, so the two signers agree by construction and there is no object to pass — `TestBothContextsReadTheSameSessionBlock` pins that they read one block, and `TestTwoSignersOverOneConfigAgree` pins that one block means one key. Neither module imports the other, and **the planet context knows nothing about Turnstile** — the siteverify client lives at `session/internal/turnstile`, so it *cannot* reach it, and swapping the attester changes one line in `internal/session/module.go`.
+- **`shared/cpsession`** is the click token. The `auth:` block is read by two contexts, but they share no key and no type: `cpsession.SignerConfig` carries the Ed25519 seed and only `auth.Config` declares it, while `planet.Config` declares `cpsession.VerifierConfig`, which is two switches and **no key at all**. `auth` builds a `*Signer`, `planet` a `*Verifier`, **which has no `Mint` on it**. Under the old shared `Config` both built a `*Signer` off one HMAC secret, so `planet` held a live minting object and nothing but discipline stopped it using it.
+
+  **`planet` asks `auth` for the key** over the internal listener, rather than reading one — see [Calling another module](#calling-another-module) and [Sessions](#sessions-internalauth). So there is one key in the whole file, `auth.secret`, nothing derived for a human to paste, and nothing to keep in step with it.
+
+  Neither module imports the other's packages, and **the planet context knows nothing about Turnstile** — the siteverify client lives at `auth/internal/attestation/turnstile`, so it *cannot* reach it.
 - **`shared/cpcountries`** is the ISO list. It is stateless and hardcoded, so each module just calls `cpcountries.New()`, the way it calls `cptime.SystemClock{}`. It sits in `shared` and not under `planet/internal/clicks/` for exactly the reason that layer exists: neither context may depend on the other — and now could not, since that directory is unreachable from chat.
 
-**This is why `session.secret` is now required** rather than invented at boot — see [Sessions](#sessions-internalsession).
+**This is why `auth.secret` is now required** rather than invented at boot — see [Sessions](#sessions-internalauth).
+
+#### Calling another module
+
+**Over Connect, on a loopback listener, never in the caller's stack trace.** A module that other modules call mounts an internal service with `props.InternalRPC.Mount`; `cpbootstrap` serves it on `httpServer.internalBindAddress` alone, which must be loopback. The caller builds a generated client over `props.Internal.Dial()`.
+
+The one caller today is `planet`, asking `auth.v1.InternalService/GetVerifyingKey` for the public half of the click token key.
+
+- **Each module's data stays in one place.** The caller holds an address, never the other module's config block, pool, objects or root package. The seed is read by `auth` and nothing else.
+- **`Dial` is the one place that knows the transport is loopback HTTP.** Moving to unix sockets changes the listener and `internalDialer`, and no module.
+- **`Dial` fails with no internal listener**, and the caller reports it. An internal service with no listener is not served, and logged, like an admin one.
+- **The error net and the drain wrap internal services too.**
+- **What travels is a public key**, which is the point: a holder can check a token and cannot mint one, so the hop carries nothing worth stealing. Under the HMAC this replaced there was no such thing to send.
+- `TestAModuleCallsAnotherOverTheInternalListener` pins the path, `TestAnInternalServiceIsNotOnThePublicRouter` pins that Caddy cannot reach it.
+
+The proto sits beside the public one in the module's package (`proto/auth/v1/internal.proto`), as `admin.proto` does, and the frontend generates it too without using it.
 
 Adding a context that callers talk to means a `proto/<name>/v1`, an `internal/<name>/` with a `module.go`, and one line in the slice. Connect derives the route from the proto package, so there is no prefix to allocate and no router to edit.
 
@@ -323,14 +346,21 @@ The response never repeats a tile id. `GetMapResponse` carries `start_tile_id`, 
 ### Key Flow
 
 ```
-POST /session.v1.SessionService/CreateSession
-  → SessionService
-  → session_service (attests, then mints)
-  → turnstile_attester → Cloudflare siteverify
-  → shared/cpsession.Signer.Mint [HMAC over expiry+id+IP; nothing stored]
+POST /auth.v1.AuthService/CreateSession   [Cookie: cp_sid=… once the client sends credentials]
+  → [cpbootstrap: error net], RateLimitInterceptor (the mint budget)
+  → AuthService → create_session_handler
+  → create_session_usecase: attest (turnstile_attester → Cloudflare siteverify)
+  → accounts: the cookie's live Session (extended and saved when due), or StartGuest and store it
+  → shared/cpsession.Signer.Mint [Ed25519 over version+expiry+id+account+scope; nothing stored]
+  ← token, and Set-Cookie when the session is new or renewed
+
+POST /session.v1.SessionService/CreateSession   [deprecated]
+  → create_anonymous_session_usecase: attest, then mint with no account
 
 POST /planet.v1.ClickService/Click   [X-Session-Token: <the minted token>]
   → [cpbootstrap: error net], CacheInterceptor, VPNBlockInterceptor, SessionInterceptor
+      [rpc_session_verifier: the key from auth.v1.InternalService, asked once per boot
+       then cpsession.Verifier: one signature check — this context holds no seed]
   → ClickService → click_handler
   → antibot_attempt_click (times every try for the metronome; drops nothing)
   → throttle_click  (spends a token, or refuses)
@@ -436,13 +466,13 @@ handled yet: a country sitting on a step can cross it back and forth click to cl
 Chat and sessions each have **their own limiter instance** with their own budget, because what each call costs has nothing to do with what a click costs:
 
 - `chat.rateLimiter` — one message every 3s, five in hand. A message fans out to every connected client and lands in a log everyone will read.
-- `session.rateLimiter` — one mint every 30s, ten in hand. A mint costs a siteverify round trip to a third party, so an unthrottled `CreateSession` is a free way to spend this server's Turnstile quota.
+- `auth.rateLimiter` — one mint every 30s, ten in hand, across both `CreateSession` paths. A mint costs a siteverify round trip to a third party, so an unthrottled `CreateSession` is a free way to spend this server's Turnstile quota.
 
 ### VPN blocklist
 
 `NewVPNBlockInterceptor` refuses **`Click` only**, with `CodePermissionDenied` (HTTP 403), when the source address falls in a vendored VPN range. It sits **outside the rate limiter** in the interceptor chain, deliberately: a refused address must not also spend a token, or the next click would come back 429 and the web app would show the throttle dialog instead of the VPN one.
 
-**It exists because of the rate limiter, not instead of it.** The bucket is keyed on an address, and a commercial VPN is the cheapest way to get a fresh one; refusing those addresses is what makes the bucket hold. It raises the floor rather than closing the door — residential proxies appear in no public list, and nothing here stops one. **That gap is what [Sessions](#sessions-internalsession) closes**, by requiring something an address cannot buy; chasing list completeness instead is a treadmill.
+**It exists because of the rate limiter, not instead of it.** The bucket is keyed on an address, and a commercial VPN is the cheapest way to get a fresh one; refusing those addresses is what makes the bucket hold. It raises the floor rather than closing the door — residential proxies appear in no public list, and nothing here stops one. **That gap is what [Sessions](#sessions-internalauth) closes**, by requiring something an address cannot buy; chasing list completeness instead is a treadmill.
 
 Reads and the streams are untouched. A VPN user still loads the planet and follows it live; they cannot paint. That is also what keeps a false positive readable: the page works and says why, instead of failing to load.
 
@@ -463,34 +493,77 @@ Measured on 2026-09-14 against the X4BNet vpn and datacenter lists together: the
 
 **The `X-Real-IP` caveat applies here too, and matters more.** Anything that reaches `backend:8080` directly bypasses the blocklist by sending its own header, exactly as it bypasses the throttle. Caddy replaces the header on every backend route, so this is only reachable if the backend port is exposed — but the bypass is now security-relevant rather than merely an abuse nuisance.
 
-### Sessions (`internal/session/`)
+### Sessions (`internal/auth/`)
 
 The answer to the one thing an address-based defence cannot do. The rate limiter and the VPN blocklist both key on an address, so the whole defence reduces to "can the attacker get addresses" — and against residential proxy pools, which appear in no public list, it can. **A session is what makes clicking cost something to start.**
 
-`Click` requires a token this server minted, in the `X-Session-Token` header. The only way to get one is `session.v1.SessionService/CreateSession`, which verifies a **Cloudflare Turnstile** token against siteverify before minting. A script that reads the proto and POSTs `Click` no longer has a complete client: it has to solve Turnstile first.
+`Click` requires a token this server minted, in the `X-Session-Token` header. The only way to get one is `auth.v1.AuthService/CreateSession` (or the deprecated `session.v1.SessionService/CreateSession`), which verifies a **Cloudflare Turnstile** token against siteverify before minting. A script that reads the proto and POSTs `Click` no longer has a complete client: it has to solve Turnstile first.
 
-**The token is stateless.** `shared/cpsession` mints `base64url(expiry ‖ random id ‖ HMAC-SHA256(expiry ‖ id ‖ ip))` — 48 bytes, 64 characters. Nothing is stored, swept or replicated; verification is one HMAC. That is what keeps this compatible with a process that holds the whole game in memory and has no database to put a session table in.
+**The token is stateless.** `shared/cpsession` mints `base64url(version ‖ expiry ‖ random id ‖ account ‖ Ed25519(version ‖ expiry ‖ id ‖ account ‖ scope))` — 97 bytes, 130 characters. The account is 16 bytes, all zero (`uuid.Nil`) for a caller with none, and `Verify` answers it in `Claims`. Nothing is stored, swept or replicated; verification is one signature check. That is what keeps this compatible with a process that holds the whole game in memory and has no database to put a session table in.
 
-**It is bound to the address that minted it**, so a token lifted off the wire is worth nothing anywhere else. The MAC covers the address without carrying it, so the token leaks nothing. A player whose address changes mid-session — a phone moving from wifi to cellular — fails verification, and the client mints again and retries: self-healing, and invisible.
+**It is signed, not MACed, and that is the point.** An HMAC key verifies and mints with the same bytes, so every context that could check a click could also issue one. Ed25519 splits that: the seed is `auth.secret` and only the auth module is handed it. Verification costs tens of microseconds against a MAC's one, which is nothing at this traffic — production is thousands of clicks per five minutes — and buys a boundary the compiler holds.
 
-The signature is checked **before** the expiry, in constant time, so a forger learns nothing about whether their token would otherwise have been in date.
+**`planet` asks for the key, it does not hold one.** `planetv1controller/rpc_session_verifier` calls `auth.v1.InternalService/GetVerifyingKey` over the internal listener **once**, on the first click after a boot, and keeps the answer: the key does not change while the process runs, so every click after that is one signature check and no I/O, exactly as it was when this module read a key of its own.
 
-**`session.enforce` is the rollout switch.** False — the shipping default — makes the interceptor decide nothing: every click passes and its verdict is counted. `click_session_checks{verdict}` then says exactly what enforcing would refuse (`missing` and `invalid`) before it refuses it, which is what lets the backend deploy ahead of the frontend. True answers `CodeUnauthenticated` (HTTP 401), and the client is expected to mint and retry rather than show the player anything.
+It cannot ask at boot instead — `cpbootstrap` builds every module before it listens, so the internal listener is not up while `planet` is being built. By the time a click arrives the server is serving, so in practice it is never late. A failed fetch is not remembered, so the next click tries again; with `auth.enforce` false the click passes and is counted either way. The cost of the laziness is that a misconfigured `auth` shows up on the first click rather than at boot.
+
+**The first byte is a version.** Before it, the length *was* the discriminator, so every format change made every token in flight malformed at once. Now `planet` can accept two versions across a rollout instead, and key rotation is the same move: mint under the new version while both verify. This deploy still costs every open tab one silent mint, because the format it replaces carries no version to recognise.
+
+**It is bound to the address that minted it**, so a token lifted off the wire is worth nothing anywhere else. The scope is signed over but never travels — the verifier rebuilds the message with the scope it observes — so the token leaks nothing. A player whose address changes mid-session — a phone moving from wifi to cellular — fails verification, and the client mints again and retries: self-healing, and invisible.
+
+The signature is checked **before** the expiry, so a forger learns nothing about whether their token would otherwise have been in date.
+
+**`auth.enforce` is the rollout switch.** False — the shipping default — makes the interceptor decide nothing: every click passes and its verdict is counted. `click_session_checks{verdict}` then says exactly what enforcing would refuse (`missing` and `invalid`) before it refuses it, which is what lets the backend deploy ahead of the frontend. True answers `CodeUnauthenticated` (HTTP 401), and the client is expected to mint and retry rather than show the player anything.
 
 **Where it sits in the chain:** error mapping, VPN blocklist, **session**, throttle. Outside the limiter for the same reason the blocklist is — a click refused for its session must not also spend a token, or the retry that follows the mint would come back 429 and the web app would show the throttle dialog instead. `TestSessionCheckRunsBeforeTheThrottle` pins it.
 
 **Reads and the streams are untouched.** A visitor loads the planet, watches it live and reads the chat without ever minting anything; a session is only ever needed to paint. `GetMap` is a cacheable GET and a per-session header on it would defeat that cache.
 
-**Minting has its own throttle** (`session.rateLimiter`, one every 30s with 10 in hand). A mint costs a siteverify round trip to a third party, so it cannot share the click budget: unthrottled, the endpoint is a free way to spend this server's siteverify quota.
+**Minting has its own throttle** (`auth.rateLimiter`, one every 30s with 10 in hand, shared by both `CreateSession` paths). A mint costs a siteverify round trip to a third party, so it cannot share the click budget: unthrottled, the endpoint is a free way to spend this server's siteverify quota.
 
-**`session/internal/turnstile` fails closed on everything.** A network error, a non-2xx, a body that is not JSON, a token for another action or another hostname are all refused exactly as a forged one is. Failing open would make the check decorative — an attacker who can reach the backend can also make siteverify unreachable from it. It validates `action` and `hostname` as well as `success`, because **the sitekey is public**: without those two checks a token minted by the same widget embedded on any other page would be accepted here.
+**`auth/internal/attestation/turnstile` fails closed on everything.** A network error, a non-2xx, a body that is not JSON, a token for another action or another hostname are all refused exactly as a forged one is. Failing open would make the check decorative — an attacker who can reach the backend can also make siteverify unreachable from it. It validates `action` and `hostname` as well as `success`, because **the sitekey is public**: without those two checks a token minted by the same widget embedded on any other page would be accepted here.
 
-**`session.turnstile.enabled: false` mints for anyone who asks** (`open_attester`). That is how a local backend runs without a widget and a secret, and it still exercises the whole click path — the token is bound and expires. It is never the production choice, and the server warns at boot when it is on.
+**`auth.turnstile.enabled: false` mints for anyone who asks** (`open_attester`). That is how a local backend runs without a widget and a secret, and it still exercises the whole click path — the token is bound and expires. It is never the production choice, and the server warns at boot when it is on.
 
-**Two secrets, neither in git.** `session.secret` signs the tokens; anyone holding it can mint one the API accepts. `session.turnstile.secret` is the widget's secret half. Both come from the environment via `deploy/vps/docker-compose.yaml`, as `chat.service.tagSalt` does. **An empty `session.secret` with `session.enabled` true refuses the boot**, naming the variable to set. It used to generate one and warn; that stopped being possible when the two contexts started deriving their own signer from the block instead of sharing one object — a server that invented a secret would invent a different one per context and could not verify what it had just minted. Failing at boot is also the better trade on its own: the generated key invalidated every session in flight on each restart.
+**Two secrets, neither in git.** `auth.secret` is the Ed25519 **seed**, 32 bytes as 64 hex characters — what `openssl rand -hex 32` already produced for the key it replaces. Anyone holding it can mint a token the API accepts. `auth.turnstile.secret` is the widget's secret half. Both come from the environment via `deploy/vps/docker-compose.yaml`, as `chat.service.tagSalt` does. **An empty or malformed `auth.secret` with `auth.enabled` true refuses the boot**, naming the variable to set. It used to generate one and warn; a server that invented a key would invent a different one per restart and could not verify what it had just minted.
+
+**There is still only one key to set.** The public half is derived at boot, so nothing has to be pasted into a second setting and nothing can drift out of step with the seed.
 
 **What it does not stop:** a person who solves Turnstile in a real browser and then runs a userscript. They hold a genuine session, and nothing here distinguishes them from a player. This raises the floor from "twenty lines of Python" to "drive a real browser"; the signal that survives that is behavioural — timing regularity and tile-id structure over a session — which is what the session id on the context exists to be keyed on. Nothing in production reads it yet, so `cpctx.GetSessionID` sits behind the `testing` tag (see [Testing](#testing)) until something does.
 
+
+### Auth (`internal/auth/`)
+
+**One module admits a caller: Turnstile, then the account its cookie holds, then the click token.** Every clicking browser gets an account, a guest one until it signs in; signing in with Google or Discord comes later and links to the same row, so a guest's history needs no merge. Off by default (`auth.enabled`); off, `auth.v1` and `session.v1` 404.
+
+It was two modules, `session` and `auth`, for one PR. The mint was auth's only caller, and "not a bot" and "who" are decided on the same request for the same purpose, so the line between them cut through one piece of work.
+
+```
+internal/auth/internal/
+  accounts/                                Session, Token, Lifetime, the cookie; the Sessions, IDProvider and TokenGenerator ports
+    postgres_account_store/                accounts and sessions in the auth schema
+    inmemory_account_store/                the same port in a map, behind the testing tag
+    uuid_id_provider/  random_token_generator/
+    usecases/create_session_usecase/       attest, resume or start a guest, mint
+    usecases/create_anonymous_session_usecase/   deprecated: attest, mint with no account
+    usecases/get_me_usecase/               reads only
+  attestation/                             Attester, ErrAttestationFailed
+    turnstile/  turnstile_attester/  open_attester/
+  authv1controller/                        AuthService: create_session_handler, get_me_handler
+  sessionv1controller/                     deprecated SessionService
+  migrations/
+```
+
+- **`session.v1.SessionService/CreateSession` is deprecated**, in the proto and in the code. It mints a token with no account for clients that predate accounts, and goes once none calls it. Both paths spend one mint budget, so the old one is not a second allowance.
+- **The cookie is `cp_sid`**: a 32-byte token from `random_token_generator`, `HttpOnly; Secure; SameSite=Lax; Path=/`, host-only on the API's domain. The API and the frontend are the same site, so it is not a third-party cookie. **Only its SHA-256 is stored** (`sessions.token_hash`), so a copy of the table signs nobody in. Caddy redacts `Cookie` and `Set-Cookie` in its logs.
+- **The rules are on `accounts.Session`**: `StartGuest` opens one with a full `guestTTL` (90 days), `CheckLive` answers `ErrSessionExpired` past it, `ExtendIfDue` moves the expiry when `extendEvery` (24h) has passed since the last extension, and `Cookie` is its `Set-Cookie`. `create_session_usecase` only orders them: attest, read the cookie, find the session, check it, extend and save it when due — or, when there is no cookie, no such session or an expired one, start and store a guest — then mint.
+- **Only a caller that passed attestation gets an account**, so bots that fail Turnstile make no rows. The mint throttle bounds how many guests one address makes.
+- **A failing database fails the mint.** No fallback to a token with no account: the error net answers `internal`.
+- **Absence is a sentinel, never `nil, nil`**: `ErrNoSessionCookie`, `ErrSessionNotFound` (the port's, for an unknown token hash), `ErrSessionExpired`, and `ErrNoAccount`, which `GetMe` answers as `Unauthenticated`. `GetMe` creates, extends and saves nothing, and answers `no-store`.
+- **Ids and tokens are injected** (`IDProvider`, `TokenGenerator`), like the clock. Tests use `accounts.SequentialIDs` and `SequentialTokens` (behind the tag), so they assert exact ids.
+- **`accounts.SessionsContractSuite` is the port's behaviour**, like `clicks.TileStorageContractSuite`. Both stores embed it: postgres adds only what the port cannot show (the token is never stored, `last_seen_at`, a failed insert leaves no account), and the use cases are tested over the in-memory one, which can `FailWith` an error.
+- **No cache.** Mints are one per 30s per address, so one indexed read each is cheap, and there is nothing to invalidate on sign-out later.
+- `planet` reads nothing of the account yet. Not yet either: providers, sign-out, deletion and the guest prune.
 
 ### Bonus boxes (`internal/planet/internal/bonuses/`)
 
@@ -1187,7 +1260,7 @@ reports each try through `Attempted`, which judges and drops nothing. Moving the
 whole guard out instead would let a banned caller skip its 429s.
 
 **`antiBot.shadowBan.enforce` is the rollout switch,** the same shape as
-`session.enforce`: false judges, logs and counts without dropping anything. The
+`auth.enforce`: false judges, logs and counts without dropping anything. The
 two surfaces are built for a box with no dashboard — `click_reaction_seconds` is
 a histogram whose raw bucket counts show the bot band by eye, and each flag
 writes one `antibot ban` log line carrying the scope, every watchdog's verdict
@@ -1270,8 +1343,8 @@ infer that conversion.
 **What each module still owns is its own mapping.** A caller error is named by
 the part that found it and turned into a code by the handler that knows which
 procedure was asked — `click_handler` and `get_map_handler` in planet,
-`send_message_handler` for `messages.ErrInvalidMessage`, `sessionv1controller.toConnect`
-for `ErrAttestationFailed`. The net never sees those, because a `*connect.Error`
+`send_message_handler` for `messages.ErrInvalidMessage`, `create_session_handler` and `sessionv1controller`
+for `attestation.ErrAttestationFailed`. The net never sees those, because a `*connect.Error`
 is passed through untouched.
 
 The session one keeps a log line of its own: a refused mint is logged at **Info**
@@ -1365,7 +1438,7 @@ dependency is this layer's without the reader going to the import block — and 
 unprefixed name in a module is a module's own package by construction. It also
 settles the collisions a shared layer attracts: `cptime` beside stdlib `time`,
 `cpsession` beside the session *module*, `cpconnect` beside `connectrpc.com/connect`.
-`cpsession` is what let `internal/session/module.go` drop the `sharedsession`
+`cpsession` is what let the old `internal/session/module.go` drop the `sharedsession`
 import alias it needed while the two were both called `session`.
 
 **There is no logging package here, deliberately.** Every constructor that logs
@@ -1384,9 +1457,9 @@ never saying anything the prefix does not.
 
 Two of these are here because both bounded contexts need them and neither should depend on the other:
 
-- `cpsecrets` — the random hex a config may leave it to the server to invent. Chat's tag salt and the session signing key are the two, and both pay the same price for an empty setting: what the old one covered stops being recognised on restart.
+- `cpsecrets` — the random hex a config may leave it to the server to invent. Chat's tag salt is the only one left: an empty setting costs every sender their tag on restart. The click token's key is not invented, because a key the server made up could not verify what another restart had minted — see [Sessions](#sessions-internalauth).
 
-`cpsession` mints and verifies the click token — see [Sessions](#sessions-internalsession). It is here because **both** contexts read it: the session context mints with it, the planet context verifies with it, and neither may depend on the other.
+`cpsession` mints and verifies the click token — see [Sessions](#sessions-internalauth). It is here because **both** contexts read it: `auth` mints with its `Signer`, `planet` verifies with its `Verifier`, and neither may depend on the other. The two halves are separate types over separate config, so what each context can do with it is decided at compile time.
 
 The siteverify client it is fed by is **not** here. `turnstile` sat here on the same "both contexts need it" rule, but only one ever did, so it now lives at `session/internal/turnstile` where the compiler keeps it. **The bar is not that a package is shareable, it is that it would read the same in any other program and that two modules actually import it** — "shared" names the symptom, and a directory admitted on the weaker reading becomes a dumping ground. `cpsecrets` passes narrowly — chat is its only caller today, but it is twenty lines of `crypto/rand` with no domain in it at all.
 
@@ -1538,7 +1611,7 @@ func (c Config) Validate() error {
 	return errors.Join(
 		c.HTTPServer.Validate(),
 		c.Clicks.Validate(),
-		c.Session.Validate(),
+		c.Auth.Validate(),
 		c.Chat.Validate(),
 	)
 }
@@ -1549,16 +1622,17 @@ The binary never reads inside a block to check it, so a new bound is added in th
 - `cpbootstrap.ServerConfig` — `bindAddress` empty listens on port 80; `adminBindAddress` set to anything but loopback
 - `shared/cppg.Config` — a connection setting or the schema left empty, or a schema that is not a plain lowercase identifier. Each module checks its own block, starting with `planet.Config`
 - `planet.Config` — `gameMap.maxIndex` zero is a map that refuses every click, plus whatever `bonus` and `antiBot` refuse of their own
-- `shared/cpsession.Config` — `secret` empty while `enabled`, and a negative `ttl`. It sits with the block rather than with either context, because both read it and it must be checked exactly once
+- `shared/cpsession.SignerConfig` — `secret` empty, not hex or not 32 bytes while `enabled`, and a negative `ttl`. Checked by `auth.Config`, which is the only block that declares it. `cpsession.VerifierConfig`, which planet declares, has nothing to check: two switches and no key
 - `chat.Config` — an incomplete `chat.database` block. Every other chat setting has a usable default
 
 There is no struct-tag validation and therefore no validator dependency — a hook the config implements covers this app's needs.
 
-**Each module owns its own config struct** — `planet.Config`, `chat.Config`, `session.Config` — and `app.Config` is the three of them plus `httpServer`. The planet keys stayed at the top level of the file rather than moving under a `planet:` section: `app.Config` squashes that struct (`koanf:",squash"`), so the file and every `deploy/` environment variable are unchanged.
+**Each module owns its own config struct** — `planet.Config`, `chat.Config`, `auth.Config` — and `app.Config` is the three of them plus `httpServer`. The planet keys stayed at the top level of the file rather than moving under a `planet:` section: `app.Config` squashes that struct (`koanf:",squash"`), so the file and every `deploy/` environment variable are unchanged.
 
 - `httpServer.bindAddress` — the encoding is negotiated per request, so there is no format setting.
 - `httpServer.streamHeartbeat` — how often a silent live stream sends a heartbeat (default 30s). **Must stay well under the proxy's idle cut**: Cloudflare answers 524 at ~125s, and a stream that never speaks is one it kills.
 - `httpServer.adminBindAddress` — where the operator services listen (see [Operator tools](#operator-tools-adminservice)); empty serves none, and a non-loopback address refuses the boot
+- `httpServer.internalBindAddress` — where the services other modules call listen (see [Calling another module](#calling-another-module)); empty serves none, a caller that dials it then fails, and a non-loopback address refuses the boot
 - `gameMap.maxIndex` — total number of tiles
 - `database.host`, `port`, `user`, `password`, `dbName`, `sslMode`, `schema`, `pool.*` — the planet module's postgres and the schema its tables live in; any of them but `password` and `pool` empty refuses the boot. `database.password` belongs in the environment
 - `tilesStorage.flushInterval` — how often the tiles changed since the last flush are written to postgres (1s)
@@ -1592,15 +1666,17 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `antiBot.scraper.enabled`, `detector.minMaps`, `certainMaps` — the whole maps read beyond one per stream opened, inside `trackWindow`, that read `suspect` then `certain`
 - `antiBot.scraper.detector.certainOffMap` — the reads off the map, inside `trackWindow`, that read `certain` however little was read; one stray read is forgiven
 - every watchdog also takes `detector.trackWindow` and `detector.sweepInterval` — how far back its evidence counts, and how often what can no longer matter is forgotten
-- `session.enabled` — off registers nothing, so `session.v1.SessionService/` 404s and clicks are judged on address alone
-- `session.enforce` — off counts what enforcing would refuse without refusing it; the mode to deploy in
-- `session.secret` — signs the tokens; **required once `session.enabled` is true**, and an empty one refuses the boot rather than being invented
-- `session.ttl` — how long a minted token is accepted (default 1h)
-- `session.rateLimiter.*` — the per-IP `CreateSession` throttle, same shape as `rateLimiter`
-- `session.turnstile.enabled` — off mints for anyone who asks, which is how a local backend runs without a widget
-- `session.turnstile.secret` — the widget's secret half, from the environment
-- `session.turnstile.hostnames` — the frontend origins siteverify must report; **empty refuses every token** rather than accepting any, and a production value must not include `localhost`
-- `session.turnstile.action` — must match the widget's `data-action` (default `session`)
+- `auth.enabled` — off registers nothing, so `auth.v1` and `session.v1` 404 and clicks are judged on address alone
+- `auth.enforce` — off counts what enforcing would refuse without refusing it; the mode to deploy in
+- `auth.secret` — the Ed25519 seed the tokens are signed with, 32 bytes as 64 hex characters (`openssl rand -hex 32`); **required once `auth.enabled` is true**, and an empty or malformed one refuses the boot rather than being invented. It is the only key in the file: `planet` asks `auth` for the verifying half over the internal listener
+- `auth.ttl` — how long a minted token is accepted (default 1h)
+- `auth.rateLimiter.*` — the per-IP throttle on both `CreateSession` paths together, same shape as `rateLimiter`
+- `auth.turnstile.enabled` — off mints for anyone who asks, which is how a local backend runs without a widget
+- `auth.turnstile.secret` — the widget's secret half, from the environment
+- `auth.turnstile.hostnames` — the frontend origins siteverify must report; **empty refuses every token** rather than accepting any, and a production value must not include `localhost`
+- `auth.turnstile.action` — must match the widget's `data-action` (default `session`)
+- `auth.database.*` — accounts and their sessions, same shape as `database`, schema `auth`; required when `auth.enabled`. `auth.database.password` belongs in the environment
+- `auth.sessions.guestTTL`, `auth.sessions.extendEvery` — how long an idle guest keeps its cookie (90 days), and how often using a session extends it (24h)
 - `chat.database.host`, `port`, `user`, `password`, `dbName`, `sslMode`, `schema`, `pool.*` — the chat module's postgres, same shape as `database`; any of them but `password` and `pool` empty refuses the boot. `chat.database.password` belongs in the environment
 - `chat.storage.historySize`, `chat.storage.retention`, `chat.storage.pruneInterval`, `chat.storage.subscriberBuffer`
 - `chat.service.tagSalt` — salts the per-sender tag; **empty regenerates one at boot**, changing every tag on restart
@@ -1620,9 +1696,11 @@ The proto package is the **only** version number: Connect derives each route fro
 
 Tests use `testify`. **A postgres store's own tests need Docker**, and nothing else does: a suite starts one `postgres:16-alpine` container in `SetupSuite` with `cppg.StartTestServer(t)` (behind the `testing` tag), opens and migrates its schema with `OpenSchema(t, schema, migrations.FS)`, and empties it in `SetupTest` with `Purge`. The container stops when the suite ends. There is no container shared across packages: `go test` runs each package as its own process, up to `-p` (GOMAXPROCS) at once. Everything above a store is tested against a fake of its port (`inmemory_tile_storage.MemoryPersistence`), so it runs without Docker.
 
+**A path through a booted module is tested in `e2e/`**, never in `cmd/api`, which only holds the config and the module list. A test there boots the modules it needs with `cpbootstrap.Run` on a test postgres (`TestServer.ConfigFor(schema)`) and calls them over the wire: `accounts_test.go` mints a guest account, brings it back with its cookie, and checks the deprecated `session.v1` path still mints with none.
+
 On macOS, testcontainers asks the Docker credential helper before it pulls an image, and that can hang with no prompt in a non-interactive shell. `docker pull postgres:16-alpine` once from a terminal avoids it.
 
-**Tests build with `-tags testing`, so use `make test` rather than a bare `go test ./...`.** Anything else that loads test files needs the tag too: `go vet -tags testing ./...`, and an editor's language server (`gopls` `buildFlags: ["-tags=testing"]`, or `go.buildTags` in VS Code), which otherwise reports the helpers as undefined. A helper that more than one package needs cannot live in a `_test.go` file, so it lives in an ordinary `.go` file carrying `//go:build testing`. The tag, not a filename convention, is what keeps such a helper out of the production binary — and what lets `make deadcode` tell a helper apart from production code. `cpctx.GetSessionID`, `cpconfigs.FromFile`, `cppg.StartTestServer` and `cptime.FixedClock` — the stand-still clock a dozen test packages drive time with — are the four that exist today.
+**Tests build with `-tags testing`, so use `make test` rather than a bare `go test ./...`.** Anything else that loads test files needs the tag too: `go vet -tags testing ./...`, and an editor's language server (`gopls` `buildFlags: ["-tags=testing"]`, or `go.buildTags` in VS Code), which otherwise reports the helpers as undefined. A helper that more than one package needs cannot live in a `_test.go` file, so it lives in an ordinary `.go` file carrying `//go:build testing`. The tag, not a filename convention, is what keeps such a helper out of the production binary — and what lets `make deadcode` tell a helper apart from production code. `cpctx.GetSessionID`, `cpconfigs.FromFile`, `cppg.StartTestServer`, `cpsession.TestKeyPair` (one fixed Ed25519 pair, so a test names both halves without carrying two magic strings) and `cptime.FixedClock` — the stand-still clock a dozen test packages drive time with — are the five that exist today.
 
 ### Linting
 
