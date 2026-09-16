@@ -1,5 +1,7 @@
 httpServer:
   bindAddress: 0.0.0.0:8080
+  # The frontend service, served on port 80.
+  allowedOrigin: http://localhost
 gameMap:
   maxIndex: 1004892
 

@@ -56,6 +56,13 @@
 	# so both preflight and actual requests need these.
 	header {
 		Access-Control-Allow-Origin "{$FRONTEND_ORIGIN}"
+		# The frontend mints with credentials, so the auth module's cp_sid cookie
+		# is sent and kept. A browser drops a credentialed answer without this,
+		# or one whose origin is "*" — the origin above is always the exact one.
+		# This block sets it on the preflight 204 below too: deleting -Server
+		# defers every operation here to when the response is written, and that
+		# includes a `respond`.
+		Access-Control-Allow-Credentials "true"
 		Access-Control-Allow-Methods "GET, POST, OPTIONS"
 		# X-Session-Token is what a click carries to prove it came from a caller
 		# that passed Turnstile. A custom header makes the cross-origin POST

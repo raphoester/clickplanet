@@ -88,6 +88,7 @@ func TestTheExampleConfigStillCarriesTheRestOfTheFile(t *testing.T) {
 	assert.Equal(t, time.Second, config.Planet.TilesStorage.FlushInterval)
 	assert.Equal(t, "127.0.0.1:8081", config.HTTPServer.AdminBindAddress)
 	assert.Equal(t, "127.0.0.1:8082", config.HTTPServer.InternalBindAddress)
+	assert.Equal(t, "http://localhost:5173", config.HTTPServer.AllowedOrigin)
 	assert.Equal(t, time.Hour, config.Auth.TTL)
 }
 
@@ -109,6 +110,7 @@ func authBlock(t *testing.T, secret string) string {
 httpServer:
   bindAddress: 0.0.0.0:8080
   internalBindAddress: 127.0.0.1:8082
+  allowedOrigin: https://clickplanet.lol
 gameMap:
   maxIndex: 100
 database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: planet}
