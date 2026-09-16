@@ -6,43 +6,37 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/google/uuid"
-
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-type SessionFinder interface {
-	FindSession(ctx context.Context, tokenHash []byte) (*accounts.Session, error)
+type Store interface {
+	accounts.SessionFinder
+	accounts.AccountFinder
 }
 
 type UseCase struct {
-	sessions SessionFinder
-	clock    cptime.Clock
+	store Store
+	clock cptime.Clock
 }
 
-func New(sessions SessionFinder, clock cptime.Clock) *UseCase {
-	return &UseCase{sessions: sessions, clock: clock}
+func New(store Store, clock cptime.Clock) *UseCase {
+	return &UseCase{store: store, clock: clock}
 }
 
 // Execute answers accounts.ErrNoAccount when the cookie holds no live session.
-func (u *UseCase) Execute(ctx context.Context, cookieHeader string) (uuid.UUID, error) {
-	token, err := accounts.TokenFromCookies(cookieHeader)
+func (u *UseCase) Execute(ctx context.Context, cookieHeader string) (*accounts.Account, error) {
+	session, err := accounts.Caller(ctx, u.store, cookieHeader, u.clock.Now())
 	if err != nil {
-		return uuid.Nil, fmt.Errorf("%w: %w", accounts.ErrNoAccount, err)
+		return nil, fmt.Errorf("failed to find the caller: %w", err)
 	}
 
-	session, err := u.sessions.FindSession(ctx, token.Hash)
-	if errors.Is(err, accounts.ErrSessionNotFound) {
-		return uuid.Nil, fmt.Errorf("%w: %w", accounts.ErrNoAccount, err)
+	account, err := u.store.FindAccount(ctx, session.Account)
+	if errors.Is(err, accounts.ErrAccountNotFound) {
+		return nil, fmt.Errorf("%w: %w", accounts.ErrNoAccount, err)
 	}
 	if err != nil {
-		return uuid.Nil, fmt.Errorf("failed to find the session: %w", err)
+		return nil, fmt.Errorf("failed to find the account: %w", err)
 	}
-
-	if err := session.CheckLive(u.clock.Now()); err != nil {
-		return uuid.Nil, fmt.Errorf("%w: %w", accounts.ErrNoAccount, err)
-	}
-
-	return session.Account, nil
+	return account, nil
 }

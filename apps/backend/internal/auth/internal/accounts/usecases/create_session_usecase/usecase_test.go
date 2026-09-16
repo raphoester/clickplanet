@@ -174,3 +174,18 @@ func TestAStoreFailureFailsTheMint(t *testing.T) {
 	assert.NotErrorIs(t, err, attestation.ErrAttestationFailed)
 	assert.Nil(t, out)
 }
+
+func TestALinkedSessionIsExtendedByTheLinkedLifetime(t *testing.T) {
+	f := setUp(t)
+	identity := accounts.NewIdentity("google", accounts.Claim{Subject: "user"}, uuid.UUID{15: 9}, start)
+	require.NoError(t, f.sessions.SaveSignIn(t.Context(), accounts.SignIn{
+		NewAccount: true, Identity: identity,
+		Session: accounts.StartLinked(identity.Account, accounts.TokenOf("linked"), accounts.Lifetime{}.WithDefaults(), start),
+	}))
+
+	f.clock.Advance(25 * time.Hour)
+	out := f.create(t, f.useCase(open_attester.New()), "cp_sid=linked")
+
+	assert.Equal(t, identity.Account, f.accountIn(t, out))
+	assert.Equal(t, start.Add(25*time.Hour).Add(30*24*time.Hour), cookieOf(t, out.SetCookie).Expires)
+}

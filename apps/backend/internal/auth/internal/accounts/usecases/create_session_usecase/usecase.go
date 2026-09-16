@@ -15,6 +15,12 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
+type Sessions interface {
+	FindSession(ctx context.Context, tokenHash []byte) (*accounts.Session, error)
+	CreateGuest(ctx context.Context, session *accounts.Session) error
+	SaveSession(ctx context.Context, session *accounts.Session) error
+}
+
 type Minter interface {
 	Mint(ip string, account uuid.UUID, now time.Time) (*cpsession.Token, error)
 }
@@ -34,7 +40,7 @@ type Out struct {
 
 type UseCase struct {
 	attester attestation.Attester
-	sessions accounts.Sessions
+	sessions Sessions
 	ids      accounts.IDProvider
 	tokens   accounts.TokenGenerator
 	minter   Minter
@@ -44,7 +50,7 @@ type UseCase struct {
 
 func New(
 	attester attestation.Attester,
-	sessions accounts.Sessions,
+	sessions Sessions,
 	ids accounts.IDProvider,
 	tokens accounts.TokenGenerator,
 	minter Minter,

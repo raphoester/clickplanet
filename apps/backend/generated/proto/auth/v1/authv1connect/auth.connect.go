@@ -38,6 +38,19 @@ const (
 	AuthServiceCreateSessionProcedure = "/auth.v1.AuthService/CreateSession"
 	// AuthServiceGetMeProcedure is the fully-qualified name of the AuthService's GetMe RPC.
 	AuthServiceGetMeProcedure = "/auth.v1.AuthService/GetMe"
+	// AuthServiceStartSignInProcedure is the fully-qualified name of the AuthService's StartSignIn RPC.
+	AuthServiceStartSignInProcedure = "/auth.v1.AuthService/StartSignIn"
+	// AuthServiceCompleteSignInProcedure is the fully-qualified name of the AuthService's
+	// CompleteSignIn RPC.
+	AuthServiceCompleteSignInProcedure = "/auth.v1.AuthService/CompleteSignIn"
+	// AuthServiceSignOutProcedure is the fully-qualified name of the AuthService's SignOut RPC.
+	AuthServiceSignOutProcedure = "/auth.v1.AuthService/SignOut"
+	// AuthServiceSignOutEverywhereProcedure is the fully-qualified name of the AuthService's
+	// SignOutEverywhere RPC.
+	AuthServiceSignOutEverywhereProcedure = "/auth.v1.AuthService/SignOutEverywhere"
+	// AuthServiceDeleteAccountProcedure is the fully-qualified name of the AuthService's DeleteAccount
+	// RPC.
+	AuthServiceDeleteAccountProcedure = "/auth.v1.AuthService/DeleteAccount"
 )
 
 // AuthServiceClient is a client for the auth.v1.AuthService service.
@@ -49,6 +62,25 @@ type AuthServiceClient interface {
 	// The account the caller's cookie belongs to. Unauthenticated when it carries
 	// none. Creates nothing.
 	GetMe(context.Context, *connect.Request[v1.GetMeRequest]) (*connect.Response[v1.GetMeResponse], error)
+	// Starts signing in with a provider: answers the provider's authorization URL
+	// to send the browser to, and sets a short-lived cookie that CompleteSignIn
+	// reads back. Unimplemented (HTTP 404) when sign-in is off on this server.
+	StartSignIn(context.Context, *connect.Request[v1.StartSignInRequest]) (*connect.Response[v1.StartSignInResponse], error)
+	// Finishes what StartSignIn started, from the code and state the provider sent
+	// to the callback page. An identity already known signs in to its account; a
+	// new one is linked to the caller's current account, or to a new account when
+	// there is none. Sets a new session cookie either way: the client mints its
+	// click token again afterwards, so the token carries the account.
+	// Unimplemented (HTTP 404) when sign-in is off on this server.
+	CompleteSignIn(context.Context, *connect.Request[v1.CompleteSignInRequest]) (*connect.Response[v1.CompleteSignInResponse], error)
+	// Ends this browser's session and clears its cookie. Succeeds with no session.
+	SignOut(context.Context, *connect.Request[v1.SignOutRequest]) (*connect.Response[v1.SignOutResponse], error)
+	// Ends every session of the caller's account, this one included.
+	// Unauthenticated when the caller has no account.
+	SignOutEverywhere(context.Context, *connect.Request[v1.SignOutEverywhereRequest]) (*connect.Response[v1.SignOutEverywhereResponse], error)
+	// Deletes the caller's account, its linked identities and its sessions, and
+	// clears the cookie. Unauthenticated when the caller has no account.
+	DeleteAccount(context.Context, *connect.Request[v1.DeleteAccountRequest]) (*connect.Response[v1.DeleteAccountResponse], error)
 }
 
 // NewAuthServiceClient constructs a client for the auth.v1.AuthService service. By default, it uses
@@ -74,13 +106,48 @@ func NewAuthServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(authServiceMethods.ByName("GetMe")),
 			connect.WithClientOptions(opts...),
 		),
+		startSignIn: connect.NewClient[v1.StartSignInRequest, v1.StartSignInResponse](
+			httpClient,
+			baseURL+AuthServiceStartSignInProcedure,
+			connect.WithSchema(authServiceMethods.ByName("StartSignIn")),
+			connect.WithClientOptions(opts...),
+		),
+		completeSignIn: connect.NewClient[v1.CompleteSignInRequest, v1.CompleteSignInResponse](
+			httpClient,
+			baseURL+AuthServiceCompleteSignInProcedure,
+			connect.WithSchema(authServiceMethods.ByName("CompleteSignIn")),
+			connect.WithClientOptions(opts...),
+		),
+		signOut: connect.NewClient[v1.SignOutRequest, v1.SignOutResponse](
+			httpClient,
+			baseURL+AuthServiceSignOutProcedure,
+			connect.WithSchema(authServiceMethods.ByName("SignOut")),
+			connect.WithClientOptions(opts...),
+		),
+		signOutEverywhere: connect.NewClient[v1.SignOutEverywhereRequest, v1.SignOutEverywhereResponse](
+			httpClient,
+			baseURL+AuthServiceSignOutEverywhereProcedure,
+			connect.WithSchema(authServiceMethods.ByName("SignOutEverywhere")),
+			connect.WithClientOptions(opts...),
+		),
+		deleteAccount: connect.NewClient[v1.DeleteAccountRequest, v1.DeleteAccountResponse](
+			httpClient,
+			baseURL+AuthServiceDeleteAccountProcedure,
+			connect.WithSchema(authServiceMethods.ByName("DeleteAccount")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // authServiceClient implements AuthServiceClient.
 type authServiceClient struct {
-	createSession *connect.Client[v1.CreateSessionRequest, v1.CreateSessionResponse]
-	getMe         *connect.Client[v1.GetMeRequest, v1.GetMeResponse]
+	createSession     *connect.Client[v1.CreateSessionRequest, v1.CreateSessionResponse]
+	getMe             *connect.Client[v1.GetMeRequest, v1.GetMeResponse]
+	startSignIn       *connect.Client[v1.StartSignInRequest, v1.StartSignInResponse]
+	completeSignIn    *connect.Client[v1.CompleteSignInRequest, v1.CompleteSignInResponse]
+	signOut           *connect.Client[v1.SignOutRequest, v1.SignOutResponse]
+	signOutEverywhere *connect.Client[v1.SignOutEverywhereRequest, v1.SignOutEverywhereResponse]
+	deleteAccount     *connect.Client[v1.DeleteAccountRequest, v1.DeleteAccountResponse]
 }
 
 // CreateSession calls auth.v1.AuthService.CreateSession.
@@ -93,6 +160,31 @@ func (c *authServiceClient) GetMe(ctx context.Context, req *connect.Request[v1.G
 	return c.getMe.CallUnary(ctx, req)
 }
 
+// StartSignIn calls auth.v1.AuthService.StartSignIn.
+func (c *authServiceClient) StartSignIn(ctx context.Context, req *connect.Request[v1.StartSignInRequest]) (*connect.Response[v1.StartSignInResponse], error) {
+	return c.startSignIn.CallUnary(ctx, req)
+}
+
+// CompleteSignIn calls auth.v1.AuthService.CompleteSignIn.
+func (c *authServiceClient) CompleteSignIn(ctx context.Context, req *connect.Request[v1.CompleteSignInRequest]) (*connect.Response[v1.CompleteSignInResponse], error) {
+	return c.completeSignIn.CallUnary(ctx, req)
+}
+
+// SignOut calls auth.v1.AuthService.SignOut.
+func (c *authServiceClient) SignOut(ctx context.Context, req *connect.Request[v1.SignOutRequest]) (*connect.Response[v1.SignOutResponse], error) {
+	return c.signOut.CallUnary(ctx, req)
+}
+
+// SignOutEverywhere calls auth.v1.AuthService.SignOutEverywhere.
+func (c *authServiceClient) SignOutEverywhere(ctx context.Context, req *connect.Request[v1.SignOutEverywhereRequest]) (*connect.Response[v1.SignOutEverywhereResponse], error) {
+	return c.signOutEverywhere.CallUnary(ctx, req)
+}
+
+// DeleteAccount calls auth.v1.AuthService.DeleteAccount.
+func (c *authServiceClient) DeleteAccount(ctx context.Context, req *connect.Request[v1.DeleteAccountRequest]) (*connect.Response[v1.DeleteAccountResponse], error) {
+	return c.deleteAccount.CallUnary(ctx, req)
+}
+
 // AuthServiceHandler is an implementation of the auth.v1.AuthService service.
 type AuthServiceHandler interface {
 	// Checks a Cloudflare Turnstile token, then mints the click token. The
@@ -102,6 +194,25 @@ type AuthServiceHandler interface {
 	// The account the caller's cookie belongs to. Unauthenticated when it carries
 	// none. Creates nothing.
 	GetMe(context.Context, *connect.Request[v1.GetMeRequest]) (*connect.Response[v1.GetMeResponse], error)
+	// Starts signing in with a provider: answers the provider's authorization URL
+	// to send the browser to, and sets a short-lived cookie that CompleteSignIn
+	// reads back. Unimplemented (HTTP 404) when sign-in is off on this server.
+	StartSignIn(context.Context, *connect.Request[v1.StartSignInRequest]) (*connect.Response[v1.StartSignInResponse], error)
+	// Finishes what StartSignIn started, from the code and state the provider sent
+	// to the callback page. An identity already known signs in to its account; a
+	// new one is linked to the caller's current account, or to a new account when
+	// there is none. Sets a new session cookie either way: the client mints its
+	// click token again afterwards, so the token carries the account.
+	// Unimplemented (HTTP 404) when sign-in is off on this server.
+	CompleteSignIn(context.Context, *connect.Request[v1.CompleteSignInRequest]) (*connect.Response[v1.CompleteSignInResponse], error)
+	// Ends this browser's session and clears its cookie. Succeeds with no session.
+	SignOut(context.Context, *connect.Request[v1.SignOutRequest]) (*connect.Response[v1.SignOutResponse], error)
+	// Ends every session of the caller's account, this one included.
+	// Unauthenticated when the caller has no account.
+	SignOutEverywhere(context.Context, *connect.Request[v1.SignOutEverywhereRequest]) (*connect.Response[v1.SignOutEverywhereResponse], error)
+	// Deletes the caller's account, its linked identities and its sessions, and
+	// clears the cookie. Unauthenticated when the caller has no account.
+	DeleteAccount(context.Context, *connect.Request[v1.DeleteAccountRequest]) (*connect.Response[v1.DeleteAccountResponse], error)
 }
 
 // NewAuthServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -123,12 +234,52 @@ func NewAuthServiceHandler(svc AuthServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(authServiceMethods.ByName("GetMe")),
 		connect.WithHandlerOptions(opts...),
 	)
+	authServiceStartSignInHandler := connect.NewUnaryHandler(
+		AuthServiceStartSignInProcedure,
+		svc.StartSignIn,
+		connect.WithSchema(authServiceMethods.ByName("StartSignIn")),
+		connect.WithHandlerOptions(opts...),
+	)
+	authServiceCompleteSignInHandler := connect.NewUnaryHandler(
+		AuthServiceCompleteSignInProcedure,
+		svc.CompleteSignIn,
+		connect.WithSchema(authServiceMethods.ByName("CompleteSignIn")),
+		connect.WithHandlerOptions(opts...),
+	)
+	authServiceSignOutHandler := connect.NewUnaryHandler(
+		AuthServiceSignOutProcedure,
+		svc.SignOut,
+		connect.WithSchema(authServiceMethods.ByName("SignOut")),
+		connect.WithHandlerOptions(opts...),
+	)
+	authServiceSignOutEverywhereHandler := connect.NewUnaryHandler(
+		AuthServiceSignOutEverywhereProcedure,
+		svc.SignOutEverywhere,
+		connect.WithSchema(authServiceMethods.ByName("SignOutEverywhere")),
+		connect.WithHandlerOptions(opts...),
+	)
+	authServiceDeleteAccountHandler := connect.NewUnaryHandler(
+		AuthServiceDeleteAccountProcedure,
+		svc.DeleteAccount,
+		connect.WithSchema(authServiceMethods.ByName("DeleteAccount")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/auth.v1.AuthService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AuthServiceCreateSessionProcedure:
 			authServiceCreateSessionHandler.ServeHTTP(w, r)
 		case AuthServiceGetMeProcedure:
 			authServiceGetMeHandler.ServeHTTP(w, r)
+		case AuthServiceStartSignInProcedure:
+			authServiceStartSignInHandler.ServeHTTP(w, r)
+		case AuthServiceCompleteSignInProcedure:
+			authServiceCompleteSignInHandler.ServeHTTP(w, r)
+		case AuthServiceSignOutProcedure:
+			authServiceSignOutHandler.ServeHTTP(w, r)
+		case AuthServiceSignOutEverywhereProcedure:
+			authServiceSignOutEverywhereHandler.ServeHTTP(w, r)
+		case AuthServiceDeleteAccountProcedure:
+			authServiceDeleteAccountHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -144,4 +295,24 @@ func (UnimplementedAuthServiceHandler) CreateSession(context.Context, *connect.R
 
 func (UnimplementedAuthServiceHandler) GetMe(context.Context, *connect.Request[v1.GetMeRequest]) (*connect.Response[v1.GetMeResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.AuthService.GetMe is not implemented"))
+}
+
+func (UnimplementedAuthServiceHandler) StartSignIn(context.Context, *connect.Request[v1.StartSignInRequest]) (*connect.Response[v1.StartSignInResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.AuthService.StartSignIn is not implemented"))
+}
+
+func (UnimplementedAuthServiceHandler) CompleteSignIn(context.Context, *connect.Request[v1.CompleteSignInRequest]) (*connect.Response[v1.CompleteSignInResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.AuthService.CompleteSignIn is not implemented"))
+}
+
+func (UnimplementedAuthServiceHandler) SignOut(context.Context, *connect.Request[v1.SignOutRequest]) (*connect.Response[v1.SignOutResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.AuthService.SignOut is not implemented"))
+}
+
+func (UnimplementedAuthServiceHandler) SignOutEverywhere(context.Context, *connect.Request[v1.SignOutEverywhereRequest]) (*connect.Response[v1.SignOutEverywhereResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.AuthService.SignOutEverywhere is not implemented"))
+}
+
+func (UnimplementedAuthServiceHandler) DeleteAccount(context.Context, *connect.Request[v1.DeleteAccountRequest]) (*connect.Response[v1.DeleteAccountResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.AuthService.DeleteAccount is not implemented"))
 }

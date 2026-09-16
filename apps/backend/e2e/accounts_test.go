@@ -45,6 +45,13 @@ type authStack struct {
 func startAuth(t *testing.T) authStack {
 	t.Helper()
 
+	return startAuthModule(t, auth.NewModule)
+}
+
+// startAuthModule boots the module newModule builds from a config for the test postgres.
+func startAuthModule(t *testing.T, newModule func(auth.Config) cpbootstrap.Module) authStack {
+	t.Helper()
+
 	secret, public := cpsession.TestKeyPair()
 	server := cpbootstrap.ServerConfig{BindAddress: freeAddress(t)}
 	config := auth.Config{
@@ -61,7 +68,7 @@ func startAuth(t *testing.T) authStack {
 			Server:         server,
 			Logger:         slog.New(slog.DiscardHandler),
 			StartupTimeout: time.Minute,
-			Modules:        []cpbootstrap.Module{auth.NewModule(config)},
+			Modules:        []cpbootstrap.Module{newModule(config)},
 		})
 	}()
 	t.Cleanup(func() {

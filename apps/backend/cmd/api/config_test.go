@@ -208,6 +208,22 @@ func TestTheExampleConfigReachesTheAuthBlock(t *testing.T) {
 	assert.Equal(t, 24*time.Hour, config.Auth.Sessions.ExtendEvery)
 	assert.Equal(t, "session", config.Auth.Turnstile.Action)
 	assert.Equal(t, 10, config.Auth.RateLimiter.Burst)
+	assert.Equal(t, 30*24*time.Hour, config.Auth.Sessions.LinkedTTL)
+	assert.False(t, config.Auth.SignIn.Enabled, "the example must ship without sign-in")
+	assert.Equal(t, "http://localhost:5173/auth/callback", config.Auth.SignIn.RedirectURL)
+	assert.Equal(t, 90*24*time.Hour, config.Auth.Prune.IdleFor)
+	assert.Equal(t, time.Hour, config.Auth.Prune.Interval)
+}
+
+func TestTheProviderSecretsComeFromTheEnvironment(t *testing.T) {
+	t.Setenv("auth.google.clientSecret", "google-secret")
+	t.Setenv("auth.discord.clientSecret", "discord-secret")
+
+	var config Config
+	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
+
+	assert.Equal(t, "google-secret", config.Auth.Google.ClientSecret)
+	assert.Equal(t, "discord-secret", config.Auth.Discord.ClientSecret)
 }
 
 func TestAuthWithoutADatabaseIsRefused(t *testing.T) {

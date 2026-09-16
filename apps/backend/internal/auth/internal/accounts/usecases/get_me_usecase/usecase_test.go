@@ -28,13 +28,17 @@ func setUp(t *testing.T) (*get_me_usecase.UseCase, *inmemory_account_store.Store
 	return get_me_usecase.New(sessions, clock), sessions, clock
 }
 
-func TestTheCookieGivesItsAccount(t *testing.T) {
-	useCase, _, _ := setUp(t)
+func TestTheCookieGivesItsAccountAndItsProviders(t *testing.T) {
+	useCase, sessions, _ := setUp(t)
+	identity := accounts.NewIdentity("google", accounts.Claim{Subject: "google-user"}, uuid.UUID{15: 1}, start)
+	require.NoError(t, sessions.SaveSignIn(t.Context(), accounts.SignIn{
+		Identity: identity, Session: accounts.StartLinked(identity.Account, accounts.TokenOf("token-2"), accounts.Lifetime{}.WithDefaults(), start),
+	}))
 
 	account, err := useCase.Execute(t.Context(), "theme=dark; cp_sid=token-1")
 
 	require.NoError(t, err)
-	assert.Equal(t, uuid.UUID{15: 1}, account)
+	assert.Equal(t, &accounts.Account{ID: uuid.UUID{15: 1}, Identities: []accounts.Identity{*identity}}, account)
 }
 
 func TestNoLiveSessionIsNoAccount(t *testing.T) {

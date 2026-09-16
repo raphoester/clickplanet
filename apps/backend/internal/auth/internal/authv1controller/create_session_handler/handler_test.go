@@ -21,7 +21,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/attestation"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/create_session_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_me_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconnect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cphttpserver"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
@@ -39,10 +38,14 @@ func (s *stubUseCase) Execute(_ context.Context, in create_session_usecase.In) (
 	return s.out, s.err
 }
 
-type unusedGetMe struct{}
+// onlyCreateSession serves CreateSession, and Unimplemented for every other procedure.
+type onlyCreateSession struct {
+	unimplemented
+	create_session_handler.CreateSessionHandler
+}
 
-func (unusedGetMe) Execute(context.Context, string) (uuid.UUID, error) {
-	return uuid.Nil, errors.New("not called by these tests")
+type unimplemented struct {
+	authv1connect.UnimplementedAuthServiceHandler
 }
 
 type allowAll struct{}
@@ -63,10 +66,7 @@ func server(t *testing.T, useCase *stubUseCase, limiter authv1controller.MintLim
 	t.Helper()
 
 	logger := slog.New(slog.DiscardHandler)
-	service := authv1controller.AuthService{
-		CreateSessionHandler: create_session_handler.New(useCase, logger),
-		GetMeHandler:         get_me_handler.New(unusedGetMe{}),
-	}
+	service := onlyCreateSession{CreateSessionHandler: create_session_handler.New(useCase, logger)}
 
 	mux := http.NewServeMux()
 	mux.Handle(authv1connect.NewAuthServiceHandler(service, connect.WithInterceptors(
