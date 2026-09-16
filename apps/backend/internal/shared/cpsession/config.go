@@ -78,10 +78,10 @@ func parsePublicKey(value string) (ed25519.PublicKey, error) {
 
 	key, err := hex.DecodeString(value)
 	if err != nil {
-		return nil, fmt.Errorf("auth.publicKey is not hex: %w", err)
+		return nil, fmt.Errorf("the verifying key auth answered is not hex: %w", err)
 	}
 	if len(key) != ed25519.PublicKeySize {
-		return nil, fmt.Errorf("auth.publicKey must be %d bytes as %d hex characters, got %d",
+		return nil, fmt.Errorf("the verifying key auth answered must be %d bytes as %d hex characters, got %d",
 			ed25519.PublicKeySize, ed25519.PublicKeySize*2, len(key))
 	}
 
