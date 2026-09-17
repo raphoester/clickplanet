@@ -8,6 +8,8 @@
       referrer. public/_headers says the same for the document itself.
     -->
     <script>
+        // Before the first paint, so a player never sees the plain intro in #root.
+        document.documentElement.classList.add("js")
         if (location.pathname.replace(/\/+$/, "") === "/auth/callback") {
             var referrer = document.createElement("meta")
             referrer.name = "referrer"
@@ -86,6 +88,10 @@
             margin: 0 0 8px;
         }
 
+        .js .intro {
+            display: none;
+        }
+
         .intro a {
             color: #FF813F;
         }
@@ -94,7 +100,8 @@
 <body>
 <!--
   What the page is, in plain HTML, for a reader with no JavaScript: Google checks
-  it before it lets sign-in out of testing. React replaces it when it mounts.
+  it before it lets sign-in out of testing. Hidden as soon as JavaScript runs, and
+  React replaces it when it mounts.
 -->
 <div id="root">
     <main class="intro">

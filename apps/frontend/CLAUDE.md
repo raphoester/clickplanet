@@ -1090,8 +1090,10 @@ sentence. A new Google scope changes that section.
 **`index.html` says what the game is in plain HTML**, inside `#root`: a title,
 a short pitch, "no account needed", and links to both pages and the contact
 address. Google refuses to verify a home page that a reader with no JavaScript
-sees as empty. React replaces it on mount, so a player only sees it while the
-bundle loads.
+sees as empty. **A player never sees it**: the first script in `<head>` adds a
+`js` class to `<html>` before the first paint, and `.js .intro` is hidden.
+Shown while the bundle loaded, it flashed and vanished when the planet came in.
+The cost: a checker that runs JavaScript does not see it either.
 
 **`terms.html` is the terms of service**, linked beside it and built
 the same way, at `/terms`. Discord asks for its URL to allow OAuth sign-in. The
