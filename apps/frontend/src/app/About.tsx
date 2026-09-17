@@ -23,6 +23,7 @@ export default function About() {
             </div>
         </div>
         <p className="about-legal">
+            <a href="/#home">Home page</a>
             <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy policy</a>
             <a href="/terms" target="_blank" rel="noopener noreferrer">Terms of service</a>
         </p>

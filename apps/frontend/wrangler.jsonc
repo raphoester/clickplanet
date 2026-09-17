@@ -21,6 +21,11 @@
     //
     // public/_headers is still honoured; Workers supports it natively, so the
     // caching rules continue to apply.
+    //
+    // The fallback is index.html, which is the home page, not the game. The
+    // game is a real file at each of its paths — play.html at /play and
+    // auth/callback.html at /auth/callback (see vite.config.ts) — so it never
+    // depends on this fallback.
     "not_found_handling": "single-page-application"
   }
 }

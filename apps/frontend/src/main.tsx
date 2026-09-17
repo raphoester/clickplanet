@@ -19,7 +19,7 @@ import {callbackOf, CALLBACK_PATH} from "./domain/signInCallback.ts"
 
 // The provider's code and state leave the address bar before anything else
 // runs: nothing may bookmark, log, share or send them on as a referrer. The
-// page they came in on already set `no-referrer` (see index.html).
+// page they came in on already set `no-referrer` (see play.html).
 const callback = callbackOf(new URL(window.location.href))
 if (callback) window.history.replaceState(null, "", CALLBACK_PATH)
 

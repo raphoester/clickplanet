@@ -73,7 +73,7 @@ geometry, avoiding per-message re-renders under high traffic.
 
 ```bash
 npm install
-npm run dev       # dev server at http://localhost:5173
+npm run dev       # dev server: home page at http://localhost:5173, game at /play
 npm run build     # production build
 npm run proto     # regenerate types from proto/planet/v1/planet.proto
 ```

@@ -12,4 +12,10 @@ describe("About", () => {
         expect(screen.getByRole("link", {name: "Privacy policy"}).getAttribute("href")).toBe("/privacy")
         expect(screen.getByRole("link", {name: "Terms of service"}).getAttribute("href")).toBe("/terms")
     })
+
+    it("links back to the home page, past the redirect to the game", () => {
+        render(<About/>)
+
+        expect(screen.getByRole("link", {name: "Home page"}).getAttribute("href")).toBe("/#home")
+    })
 })
