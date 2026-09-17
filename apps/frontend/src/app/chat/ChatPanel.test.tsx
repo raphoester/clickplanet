@@ -75,8 +75,8 @@ describe("ChatPanel sound", () => {
         expect(playSound).not.toHaveBeenCalled()
 
         broadcast(message("live", "gm everyone", 1_700_000_050_000))
-        await screen.findByText("gm everyone")
-        expect(playSound).toHaveBeenCalledWith("chat")
+        // The text is committed before the effect that plays the sound runs.
+        await waitFor(() => expect(playSound).toHaveBeenCalledWith("chat"))
     })
 
     it("stays quiet for your own message, even when its broadcast comes first", async () => {
