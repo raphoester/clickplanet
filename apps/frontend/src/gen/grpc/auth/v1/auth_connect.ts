@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CompleteSignInRequest, CompleteSignInResponse, CreateSessionRequest, CreateSessionResponse, DeleteAccountRequest, DeleteAccountResponse, GetMeRequest, GetMeResponse, SignOutEverywhereRequest, SignOutEverywhereResponse, SignOutRequest, SignOutResponse, StartSignInRequest, StartSignInResponse } from "./auth_pb.js";
+import { CompleteSignInRequest, CompleteSignInResponse, CreateSessionRequest, CreateSessionResponse, DeleteAccountRequest, DeleteAccountResponse, GetMeRequest, GetMeResponse, GetSignInOptionsRequest, GetSignInOptionsResponse, SignOutEverywhereRequest, SignOutEverywhereResponse, SignOutRequest, SignOutResponse, StartSignInRequest, StartSignInResponse } from "./auth_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -39,6 +39,19 @@ export const AuthService = {
       name: "GetMe",
       I: GetMeRequest,
       O: GetMeResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * The providers a player may sign in with on this server, so a client shows
+     * only the buttons that work. Empty while sign-in is off. Not throttled, and
+     * sets nothing: a client asks on every page load.
+     *
+     * @generated from rpc auth.v1.AuthService.GetSignInOptions
+     */
+    getSignInOptions: {
+      name: "GetSignInOptions",
+      I: GetSignInOptionsRequest,
+      O: GetSignInOptionsResponse,
       kind: MethodKind.Unary,
     },
     /**

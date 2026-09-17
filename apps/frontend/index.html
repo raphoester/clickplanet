@@ -2,6 +2,19 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8"/>
+    <!--
+      The sign-in callback carries a one-time code in its address until main.tsx
+      removes it. First in <head>, so no request this page makes sends it on as a
+      referrer. public/_headers says the same for the document itself.
+    -->
+    <script>
+        if (location.pathname.replace(/\/+$/, "") === "/auth/callback") {
+            var referrer = document.createElement("meta")
+            referrer.name = "referrer"
+            referrer.content = "no-referrer"
+            document.head.appendChild(referrer)
+        }
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <meta name="description" content="Conquer the world with your flag, one click at a time"/>
     <meta name="author" content="Raphaël Oester"/>

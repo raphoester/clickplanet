@@ -19,6 +19,7 @@ import {GlobeStatus, useGlobe} from './useGlobe.ts';
 import {useSound} from '../sound/useSound.ts';
 import AnthemBar from "../anthem/AnthemBar.tsx";
 import {useAnthem} from "../anthem/useAnthem.ts";
+import {AccountStore} from "../account/accountStore.ts";
 import "./Viewer.css"
 
 export type ViewerProps = {
@@ -29,6 +30,7 @@ export type ViewerProps = {
     bonusListener?: BonusListener
     bomber?: Bomber
     chatBackend?: ChatBackend
+    account?: AccountStore
 }
 
 export default function Viewer(props: ViewerProps) {
@@ -83,6 +85,7 @@ export default function Viewer(props: ViewerProps) {
             tileDeltas={tileDeltas}
             tilesCount={tilesCount}
             sound={{settings: sound.settings, onChange: sound.setSettings, preview: sound.preview}}
+            account={props.account}
         />}
 
         {status.state === 'ready' && <AnthemBar anthem={anthem}

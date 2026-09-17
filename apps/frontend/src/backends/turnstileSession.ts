@@ -49,6 +49,8 @@ export type SessionClientOptions = {
 export class SessionClient implements SessionProvider {
     private current?: {value: string, expiresAt: number}
     private pending?: Promise<string>
+    /** Moves on every invalidation, so a mint that started before one is not kept. */
+    private generation = 0
 
     private readonly refreshMarginMs: number
     private readonly now: () => number
@@ -71,18 +73,26 @@ export class SessionClient implements SessionProvider {
         return this.mint()
     }
 
+    /**
+     * Also drops a mint in flight. After a sign-in or a sign-out the cookie names
+     * another account, and a token minted before that would name the old one for
+     * its whole hour.
+     */
     public invalidate(): void {
         this.current = undefined
+        this.pending = undefined
+        this.generation++
     }
 
     private mint(): Promise<string> {
         if (this.pending) return this.pending
 
-        this.pending = this.createSession().finally(() => {
-            this.pending = undefined
+        const pending = this.createSession(this.generation).finally(() => {
+            if (this.pending === pending) this.pending = undefined
         })
+        this.pending = pending
 
-        return this.pending
+        return pending
     }
 
     /**
@@ -91,19 +101,21 @@ export class SessionClient implements SessionProvider {
      * bare it would send the player to the dialog telling them to turn off a
      * VPN they may not be using.
      */
-    private async createSession(): Promise<string> {
+    private async createSession(generation: number): Promise<string> {
         try {
             const attestationToken = await this.attest()
             const res = await this.client.createSession({attestationToken})
 
-            this.current = {
-                value: res.token,
-                expiresAt: Number(res.expiresAtUnixMs),
+            if (generation === this.generation) {
+                this.current = {
+                    value: res.token,
+                    expiresAt: Number(res.expiresAtUnixMs),
+                }
             }
 
             return res.token
         } catch (e) {
-            this.current = undefined
+            if (generation === this.generation) this.current = undefined
             throw new SessionUnavailableError({cause: e})
         }
     }
