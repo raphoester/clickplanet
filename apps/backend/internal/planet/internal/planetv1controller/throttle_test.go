@@ -197,7 +197,7 @@ func accountServer(t *testing.T, config clicks.ThrottleConfig) (*httptest.Server
 		connect.WithInterceptors(
 			errorNet(),
 			NewSessionInterceptor(accountVerifier{}, clock, true, prometheus.NewRegistry()),
-			NewBudgetSessionInterceptor(accountVerifier{}, clock),
+			NewSessionReaderInterceptor(accountVerifier{}, clock),
 		),
 	))
 

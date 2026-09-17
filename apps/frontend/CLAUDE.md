@@ -293,6 +293,18 @@ bucket, so the counter is live in dev.
 exponential backoff. It is the only source of live changes, so a drop that is not
 retried freezes the globe until a reload.
 
+**The planet stream carries the click token it can have without a mint.** Each
+(re)connect puts `SessionProvider.held()` in `X-Session-Token`, so the server
+knows which account the stream serves; with none held it opens without one and
+the server follows the address. It never calls `token()`: watching the planet is
+not worth a Turnstile check. The server reads the token only when the stream
+opens, so `followSession` **reopens the stream** when a click, a claim or a bomb
+the server accepted went out under a token the stream was not opened with — the
+first click of a page load, and the first one after a sign-in or a sign-out. The
+hourly re-mint for the same account reopens it too: telling the two apart would
+mean reading the token, which is the server's business. A refused call reopens
+nothing.
+
 ### Live chat
 
 The client for the backend's second bounded context: `chat.ts` declares

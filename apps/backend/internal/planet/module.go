@@ -276,8 +276,8 @@ func NewModule(config Config) cpbootstrap.Module {
 				verifier := rpc_session_verifier.New(props.Internal, props.Logger)
 				interceptors = append(interceptors,
 					planetv1controller.NewSessionInterceptor(verifier, clock, config.Auth.Enforce, props.Metrics),
-					// A budget read with a token is the account's; without one it refuses nothing.
-					planetv1controller.NewBudgetSessionInterceptor(verifier, clock))
+					// A budget read or a stream opened with a token is the account's; without one it refuses nothing.
+					planetv1controller.NewSessionReaderInterceptor(verifier, clock))
 			}
 
 			// ---- Bonus use cases ----

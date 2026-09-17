@@ -159,27 +159,51 @@ func NewSessionInterceptor(
 }
 
 // NewSessionReaderInterceptor reads a token on the given procedures when one is sent, and refuses nothing.
-// It is for a read that answers better for an account, such as the click budget.
+// It is for a call that answers better for an account: the click budget, or a live feed that says what is the
+// caller's. It is a full connect.Interceptor, because a stream skips a unary one: the token is read once, from
+// the headers that open the stream, and the account stays on the context for as long as the stream is open.
 func NewSessionReaderInterceptor(verifier SessionVerifier, clock cptime.Clock, procedures ...string) connect.Interceptor {
 	if clock == nil {
 		clock = cptime.SystemClock{}
 	}
 
-	return connect.UnaryInterceptorFunc(func(next connect.UnaryFunc) connect.UnaryFunc {
-		return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
-			token := req.Header().Get(SessionHeader)
-			if token == "" || !slices.Contains(procedures, req.Spec().Procedure) {
-				return next(ctx, req)
-			}
+	return sessionReader{verifier: verifier, clock: clock, procedures: procedures}
+}
 
-			claims, err := verifier.Verify(token, cpctx.GetSourceIP(ctx), clock.Now())
-			if err != nil {
-				return next(ctx, req)
-			}
+type sessionReader struct {
+	verifier   SessionVerifier
+	clock      cptime.Clock
+	procedures []string
+}
 
-			return next(withClaims(ctx, claims), req)
-		}
-	})
+func (r sessionReader) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
+	return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
+		return next(r.context(ctx, req.Spec().Procedure, req.Header().Get(SessionHeader)), req)
+	}
+}
+
+func (r sessionReader) WrapStreamingClient(next connect.StreamingClientFunc) connect.StreamingClientFunc {
+	return next
+}
+
+func (r sessionReader) WrapStreamingHandler(next connect.StreamingHandlerFunc) connect.StreamingHandlerFunc {
+	return func(ctx context.Context, conn connect.StreamingHandlerConn) error {
+		return next(r.context(ctx, conn.Spec().Procedure, conn.RequestHeader().Get(SessionHeader)), conn)
+	}
+}
+
+// context is ctx with the token's claims when the procedure is one of ours and the token verifies, else ctx.
+func (r sessionReader) context(ctx context.Context, procedure string, token string) context.Context {
+	if token == "" || !slices.Contains(r.procedures, procedure) {
+		return ctx
+	}
+
+	claims, err := r.verifier.Verify(token, cpctx.GetSourceIP(ctx), r.clock.Now())
+	if err != nil {
+		return ctx
+	}
+
+	return withClaims(ctx, claims)
 }
 
 // withClaims puts the session id on the context, the account when the token names one, and whether it is linked.
