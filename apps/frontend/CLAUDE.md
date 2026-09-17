@@ -1075,6 +1075,16 @@ retention periods, so it goes stale when the backend's do**: `ledger.retention`,
 `auth.sessions.guestTTL` in `deploy/vps/backend.yaml`, and `roll_keep_for` in
 the Caddyfile. Change one, change the page and its date.
 
+**Its "Google user data" section is what Google's brand verification reads**:
+what we ask Google for, why, that nobody else gets it, and the Limited Use
+sentence. A new Google scope changes that section.
+
+**`index.html` says what the game is in plain HTML**, inside `#root`: a title,
+a short pitch, "no account needed", and links to both pages and the contact
+address. Google refuses to verify a home page that a reader with no JavaScript
+sees as empty. React replaces it on mount, so a player only sees it while the
+bundle loads.
+
 **`terms.html` is the terms of service**, linked beside it and built
 the same way, at `/terms`. Discord asks for its URL to allow OAuth sign-in. The
 privacy policy says what Google and Discord send us; a new provider, or a new
