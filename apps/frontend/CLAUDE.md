@@ -337,8 +337,13 @@ apart:
 **It mints through `auth.v1.AuthService/CreateSession`**, which also gives the
 browser an account: a guest one, kept in the `cp_sid` cookie the answer sets
 (HttpOnly, on the API's host). The next mint sends the cookie back and gets the
-same account. Nothing on the page reads or shows it. `session.v1` is deprecated
-on the backend and this build no longer calls it.
+same account. The page never reads the cookie; the menu learns what it holds
+from `GetMe` — see [Sign-in](#sign-in). `session.v1` is deprecated on the
+backend and this build no longer calls it.
+
+**`invalidate` also drops a mint in flight.** A sign-in or a sign-out changes
+the account the cookie names, and a token minted before that would name the old
+one for its hour. A generation counter keeps such a mint from being stored.
 
 **`newAuthServiceClient` is the only transport that sends credentials.** Its
 `fetch` wrapper adds `credentials: "include"`; without it connect-web sends
@@ -418,6 +423,94 @@ deployed bundle rather than trusting the dashboard:
 B=$(curl -s https://clickplanet.lol | grep -oE '/assets/index-[A-Za-z0-9_-]+\.js' | head -1)
 curl -s "https://clickplanet.lol$B" | grep -c 'challenges.cloudflare.com/turnstile'
 ```
+
+### Sign-in
+
+Optional from end to end: a player who never signs in plays exactly as before,
+on the guest account the mint gives every browser. Signing in with Google or
+Discord keeps that account on every device.
+
+- `backends/account.ts` — the contract: `AccountBackend`, `Provider`, and
+  `AuthError`, whose `failure` says why the server said no. **One class and not
+  one per reason**, unlike a refused click: every one is shown the same way, as
+  one line beside the button that was pressed.
+- `backends/accountBackend.ts` — `ConnectAccountBackend`, over the client
+  `newAuthServiceClient` builds, so every call carries the cookie. It maps
+  Connect codes: `unimplemented` → `off`, `invalid_argument` → `notOffered`,
+  `resource_exhausted` → `tooManyTries`, `failed_precondition` → `startAgain`,
+  `permission_denied` → `refused`, `unauthenticated` → `notSignedIn`, anything
+  else → `failed`. **Only the two reads are retried**: a retried
+  `CompleteSignIn` would spend a code that is good once.
+- `domain/signInCallback.ts` — `callbackOf`, what the provider sent to
+  `/auth/callback`: a code and a state, a refusal (`error`, which wins), or a
+  link with a part missing.
+- `app/account/accountStore.ts` — `AccountStore`, the section's state machine:
+  `loading`, `hidden`, or `ready` with the offered providers, the linked ones,
+  the action in flight and the last failure. No DOM and no network of its own,
+  like `SessionClient`, so every transition is under test.
+- `app/account/` — the rest is React: `AccountRow` (one line in the menu),
+  `AccountPanel` (a `MenuPanel`, like the sound settings), `DeleteAccountModal`,
+  `SignInCallback` and `SignInGate`.
+
+**The buttons come from `GetSignInOptions`**, which answers the providers the
+server offers and is not throttled. Production runs with `auth.signIn.enabled`
+off, so the list is empty and the menu looks as it did. **Never probe with
+`StartSignIn` instead**: it spends the mint budget, which `CreateSession` needs.
+A server without the RPC, or with the whole auth module off, answers 404, which
+reads as no provider. So does any other failure of that read: a sign-in that
+cannot say what it offers is better absent. A linked account still shows when
+nothing is offered, so a player can sign out after sign-in is turned off.
+
+**Sign-in shares the mint budget** (one every 30s, ten in hand): `StartSignIn`
+and `CompleteSignIn` each spend one. `tooManyTries` says to wait a minute.
+
+**The flow:**
+
+1. "Sign in with Google" calls `StartSignIn`, keeps the provider in session
+   storage (`rememberedProvider.ts`) and sends the browser to the URL it answers.
+   "Link Discord" is the same call from a signed-in account: the server links a
+   new identity to the account the browser is on.
+2. The provider sends the browser to `/auth/callback?code=…&state=…`. The
+   Workers asset handler serves `index.html` there through
+   `not_found_handling` (`nginx.conf` has a route of its own), and the project's
+   build watch path, `apps/frontend/`, covers every file involved.
+3. **The code must not leak.** An inline script at the top of `index.html` adds
+   `<meta name="referrer" content="no-referrer">` on that path before any other
+   request is made, `public/_headers` sends the same `Referrer-Policy`, and
+   `main.tsx` takes the query out of the address bar with `history.replaceState`
+   before it renders anything.
+4. `SignInGate` renders `SignInCallback` instead of the game. It calls
+   `CompleteSignIn` **once** — a ref guards it, since StrictMode runs the effect
+   twice and a second trade would fail and hide the first one's success.
+5. On success, `AccountStore.completeSignIn` **invalidates the click token** and
+   reads the account again, and the gate swaps in the game in place, at `/`,
+   with no reload. The next click mints a token that carries the new account.
+6. On failure the page says why in one line. `retryOf` picks what "Try again"
+   does: send the same code again when the server did not use it
+   (`tooManyTries`, `failed` — a spent budget is refused before the code is
+   read), or go back to the remembered provider when the code is spent
+   (`startAgain`, `refused`). With no remembered provider there is only "Back to
+   the game".
+
+**Every way out of an account invalidates the click token too**: sign out, sign
+out everywhere, and delete. The player plays on, and the next click mints a new
+guest. `unauthenticated` on one of these means the account was already gone, and
+is treated as done. Delete sits behind a dialog that lists what goes.
+
+**There is no fake.** `VITE_FAKE_BACKEND` wires no `AccountStore`, so the menu
+offers no sign-in there. To try it locally, run the backend with `auth.enabled`,
+`auth.turnstile.enabled: false`, `auth.signIn.enabled` and any Google
+`clientId`, and the dev server with Turnstile's always-passing test sitekey:
+
+```bash
+VITE_API_BASE_URL=http://localhost:8080 VITE_TURNSTILE_SITEKEY=1x00000000000000000000AA npm run dev
+```
+
+The start leg is real — the button goes to Google, which refuses a made-up
+client — and `/auth/callback?code=x&state=y` exercises the callback page's
+refusal. A whole sign-in needs a real client registered with
+`http://localhost:5173/auth/callback`. To see the signed-in panel without one,
+mint a guest and insert a row into `auth.identities` for its account.
 
 ### `src/app/viewer/` — the GPU layer
 
@@ -908,8 +1001,10 @@ the whole `proto` directory, so a new package needs no config change; run
   `ClickBudget`, `GetMapResponse`, `TileUpdate`
 - [`chat/v1/chat.proto`](../../proto/chat/v1/chat.proto) — `ChatMessage`,
   `SendMessageRequest`, `GetHistoryResponse`
-- [`session/v1/session.proto`](../../proto/session/v1/session.proto) —
-  `CreateSessionRequest`, `CreateSessionResponse`
+- [`auth/v1/auth.proto`](../../proto/auth/v1/auth.proto) — the mint, the
+  account and sign-in (`AuthService`)
+- [`session/v1/session.proto`](../../proto/session/v1/session.proto) — the
+  deprecated mint, no longer called
 
 `ChatMessage.sentAtUnixMs` is an `int64`, which `protoc-gen-es` gives you as a
 `bigint` — `chatBackend.ts` converts it at the edge so nothing above it deals in
@@ -973,8 +1068,9 @@ retention periods, so it goes stale when the backend's do**: `ledger.retention`,
 the Caddyfile. Change one, change the page and its date.
 
 **`terms.html` is the terms of service**, linked beside it and built
-the same way, at `/terms`. Discord asks for its URL to allow OAuth sign-in. When
-a sign-in provider ships, the privacy policy must say what it sends us.
+the same way, at `/terms`. Discord asks for its URL to allow OAuth sign-in. The
+privacy policy says what Google and Discord send us; a new provider, or a new
+field kept from one, changes that page and its date.
 
 The blob still carries a uv per tile that neither shader reads any more;
 dropping it would take ~2 MB off a 4.9 MB download. It is not a breaking change

@@ -6,6 +6,8 @@ import Menu from "./Menu.tsx"
 import {Countries} from "../domain/countries.ts"
 import type {LeaderboardEntry} from "../domain/leaderboard.ts"
 import {DEFAULT_SOUND_SETTINGS} from "../domain/soundSettings.ts"
+import {AccountBackend, Me, Provider} from "../backends/account.ts"
+import {AccountStore} from "./account/accountStore.ts"
 
 const france = Countries.get("fr")!
 const entry = (code: string, tiles: number) => ({country: Countries.get(code)!, tiles})
@@ -262,6 +264,98 @@ describe("Menu", () => {
             await user.click(button("Back"))
 
             expect(document.activeElement).toBe(button("Sound settings"))
+        })
+    })
+
+    describe("the account", () => {
+        const withAccount = (offered: Provider[], me: Me) => {
+            const backend = {
+                signInOptions: vi.fn(async () => offered),
+                me: vi.fn(async () => me),
+                startSignIn: vi.fn(async () => "https://google.example/authorize"),
+                completeSignIn: vi.fn(async () => undefined),
+                signOut: vi.fn(async () => undefined),
+                signOutEverywhere: vi.fn(async () => undefined),
+                deleteAccount: vi.fn(async () => undefined),
+            } satisfies AccountBackend
+            const navigate = vi.fn()
+            const store = new AccountStore(backend, {token: vi.fn(), invalidate: vi.fn()}, {navigate, remember: vi.fn()})
+            const view = render(<Menu country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000}
+                                      account={store}/>)
+            return {...view, backend, navigate, user: userEvent.setup()}
+        }
+
+        it("offers no sign-in without an account store", () => {
+            setup()
+            expect(screen.queryByRole("button", {name: "Sign in"})).toBeNull()
+        })
+
+        // Production runs with sign-in off: the menu must look as it did.
+        it("offers no sign-in while no provider is offered", async () => {
+            const {backend} = withAccount([], {linked: []})
+
+            await vi.waitFor(() => expect(backend.me).toHaveBeenCalled())
+
+            expect(screen.queryByRole("button", {name: "Sign in"})).toBeNull()
+        })
+
+        it("offers only the providers the server offers, with the privacy policy", async () => {
+            const {user} = withAccount(["google"], {linked: []})
+
+            await user.click(await screen.findByRole("button", {name: "Sign in"}))
+
+            expect(screen.getByRole("button", {name: "Sign in with Google"})).toBeDefined()
+            expect(screen.queryByRole("button", {name: "Sign in with Discord"})).toBeNull()
+            expect(screen.getByRole("link", {name: "Privacy policy"}).getAttribute("href")).toBe("/privacy")
+        })
+
+        it("leaves for the provider", async () => {
+            const {user, navigate} = withAccount(["google"], {linked: []})
+
+            await user.click(await screen.findByRole("button", {name: "Sign in"}))
+            await user.click(button("Sign in with Google"))
+
+            expect(navigate).toHaveBeenCalledWith("https://google.example/authorize")
+        })
+
+        it("shows who is signed in, and links the missing provider", async () => {
+            const {user} = withAccount(["google", "discord"], {linked: ["google"]})
+
+            expect(await screen.findByText("Signed in with Google")).toBeDefined()
+            await user.click(button("Account"))
+
+            expect(button("Link Discord")).toBeDefined()
+            expect(screen.queryByRole("button", {name: "Link Google"})).toBeNull()
+            expect(button("Sign out")).toBeDefined()
+            expect(button("Sign out everywhere")).toBeDefined()
+        })
+
+        it("deletes the account only after the dialog says what goes", async () => {
+            const {user, backend} = withAccount(["google"], {linked: ["google"]})
+
+            await user.click(await screen.findByRole("button", {name: "Account"}))
+            await user.click(button("Delete account"))
+
+            const dialog = screen.getByRole("dialog", {name: "Delete your account?"})
+            expect(within(dialog).getByText(/cannot undo/)).toBeDefined()
+            expect(backend.deleteAccount).not.toHaveBeenCalled()
+
+            await user.click(within(dialog).getByRole("button", {name: "Delete"}))
+
+            await vi.waitFor(() => expect(screen.queryByRole("dialog")).toBeNull())
+            expect(backend.deleteAccount).toHaveBeenCalledTimes(1)
+            expect(button("Sign in with Google")).toBeDefined()
+        })
+
+        it("keeps the account when the dialog is cancelled", async () => {
+            const {user, backend} = withAccount(["google"], {linked: ["google"]})
+
+            await user.click(await screen.findByRole("button", {name: "Account"}))
+            await user.click(button("Delete account"))
+            await user.click(button("Cancel"))
+
+            expect(screen.queryByRole("dialog")).toBeNull()
+            expect(backend.deleteAccount).not.toHaveBeenCalled()
         })
     })
 })

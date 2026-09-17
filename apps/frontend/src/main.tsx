@@ -11,6 +11,17 @@ import {FakeChatBackend} from "./backends/fakeChatBackend.ts"
 import {loadPointGeometryData} from "./app/viewer/points.ts"
 import type {Globe} from "./app/viewer/globe.ts"
 import App from "./app/App.tsx"
+import {ConnectAccountBackend} from "./backends/accountBackend.ts"
+import {AccountStore} from "./app/account/accountStore.ts"
+import {rememberProvider} from "./app/account/rememberedProvider.ts"
+import SignInGate from "./app/account/SignInGate.tsx"
+import {callbackOf, CALLBACK_PATH} from "./domain/signInCallback.ts"
+
+// The provider's code and state leave the address bar before anything else
+// runs: nothing may bookmark, log, share or send them on as a referrer. The
+// page they came in on already set `no-referrer` (see index.html).
+const callback = callbackOf(new URL(window.location.href))
+if (callback) window.history.replaceState(null, "", CALLBACK_PATH)
 
 const config = {
     baseUrl: import.meta.env.VITE_API_BASE_URL ?? "https://api.clickplanet.lol",
@@ -21,8 +32,9 @@ const config = {
 // with sessions off expects. A server that enforces them refuses every click
 // from such a build, deliberately: the two are configured together.
 const sitekey = import.meta.env.VITE_TURNSTILE_SITEKEY
+const authClient = newAuthServiceClient(config)
 const session: SessionProvider = sitekey
-    ? new SessionClient(newAuthServiceClient(config), turnstileAttester(sitekey, "session"))
+    ? new SessionClient(authClient, turnstileAttester(sitekey, "session"))
     : new NoSession()
 
 // `VITE_FAKE_BACKEND=1 npm run dev` plays against the in-browser fakes, bombs
@@ -58,32 +70,41 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
 
     root.render(
         <StrictMode>
-            <App
-                ownershipsGetter={fake}
-                tileClicker={fake}
-                updatesListener={fake}
-                bonusListener={fake}
-                bomber={fake}
-                clickBudgetSource={fake}
-                chatBackend={new FakeChatBackend()}
-            />
+            <SignInGate callback={callback}>
+                <App
+                    ownershipsGetter={fake}
+                    tileClicker={fake}
+                    updatesListener={fake}
+                    bonusListener={fake}
+                    bomber={fake}
+                    clickBudgetSource={fake}
+                    chatBackend={new FakeChatBackend()}
+                />
+            </SignInGate>
         </StrictMode>,
     )
 } else {
     const backend = new PlanetBackend(newClickServiceClient(config), 100, session)
     const chatBackend = new ChatServiceBackend(newChatServiceClient(config))
+    const account = new AccountStore(new ConnectAccountBackend(authClient), session, {
+        navigate: (url) => window.location.assign(url),
+        remember: rememberProvider,
+    })
 
     root.render(
         <StrictMode>
-            <App
-                ownershipsGetter={backend}
-                tileClicker={backend}
-                updatesListener={backend}
-                bonusListener={backend}
-                bomber={backend}
-                clickBudgetSource={backend}
-                chatBackend={chatBackend}
-            />
+            <SignInGate callback={callback} account={account}>
+                <App
+                    ownershipsGetter={backend}
+                    tileClicker={backend}
+                    updatesListener={backend}
+                    bonusListener={backend}
+                    bomber={backend}
+                    clickBudgetSource={backend}
+                    chatBackend={chatBackend}
+                    account={account}
+                />
+            </SignInGate>
         </StrictMode>,
     )
 }
