@@ -442,13 +442,14 @@ chat:
   # 203.0.113.0/24 for the range someone is cycling through.
   blockedIPs: []
 
-# A player's name and stats (player.v1.PlayerService). Shipped off: the
-# frontend does not call it yet. To turn it on, set enabled to true and
-# `docker compose up -d backend`. It needs auth on (it reads the account from
-# the click token) and creates its own schema at boot. Stats count from the
-# moment it is on: takes made before are not replayed.
+# A player's name and stats (player.v1.PlayerService). On: it hears every
+# planet.v1.TileTaken and auth.v1.AccountDeleted, even while the frontend does
+# not call it yet. It needs auth on (it reads the account from the click token)
+# and creates its own schema at boot. Stats count from the deploy that turned
+# it on: takes made before are not replayed. Watch events_dropped_total and
+# events_failed_total after a deploy.
 player:
-  enabled: false
+  enabled: true
   # Same postgres and user as the planet's database block, its own schema and
   # pool. The password comes from the environment (player.database.password in
   # docker-compose.yaml).
