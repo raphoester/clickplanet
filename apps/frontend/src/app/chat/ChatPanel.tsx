@@ -1,5 +1,6 @@
 import {useCallback, useEffect, useId, useRef, useState} from "react";
 import {ChatBackend, guestName, OutgoingMessage} from "../../backends/chat.ts";
+import {RosterEntry} from "../../backends/player.ts";
 import {Country} from "../../domain/countries.ts";
 import {idsSince, unreadSince} from "../../domain/chatLog.ts";
 import {ChevronIcon} from "../components/icons.tsx";
@@ -29,6 +30,8 @@ export type ChatPanelProps = {
      */
     identity: ChatIdentity
     setName: (name: string) => void
+    /** Absent, an author's name opens nothing. */
+    onOpenPlayer?: (player: RosterEntry) => void
 }
 
 const UNREAD_CAP = 99
@@ -165,7 +168,10 @@ export default function ChatPanel(props: ChatPanelProps) {
         </button>
 
         {isOpen && <div className="chat-body" id={bodyId}>
-            <ChatLog messages={messages} loading={status === 'loading'} flashing={flashing}/>
+            <ChatLog messages={messages}
+                     loading={status === 'loading'}
+                     flashing={flashing}
+                     onOpenPlayer={props.onOpenPlayer}/>
 
             <ChatComposer identity={identity}
                           username={username}

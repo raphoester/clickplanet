@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/assert"
@@ -50,6 +51,15 @@ func TestALinkedAccountIsLinked(t *testing.T) {
 	assert.Equal(t, []accounts.AccountID{want}, useCase.asked)
 }
 
+func TestTheAccountSaysWhenItWasMade(t *testing.T) {
+	createdAt := time.Date(2026, 9, 1, 8, 30, 0, 0, time.UTC)
+
+	res, err := getAccount(t, &stubUseCase{account: &accounts.Account{CreatedAt: createdAt}}, accountID)
+
+	require.NoError(t, err)
+	assert.Equal(t, createdAt.UnixMilli(), res.GetCreatedAtUnixMs())
+}
+
 func TestAGuestIsNotLinked(t *testing.T) {
 	res, err := getAccount(t, &stubUseCase{account: &accounts.Account{}}, accountID)
 
@@ -62,6 +72,7 @@ func TestAnUnknownAccountIsNotLinkedAndNotAnError(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.False(t, res.GetLinked())
+	assert.Zero(t, res.GetCreatedAtUnixMs())
 }
 
 func TestAnIDThatIsNotAnAccountIsNotLinkedAndNobodyIsAsked(t *testing.T) {

@@ -1,6 +1,11 @@
 import {afterEach, describe, expect, it, vi} from "vitest"
 import {Code, ConnectError} from "@connectrpc/connect"
-import {Profile as ProfilePb, RosterEntry as RosterEntryPb} from "../gen/grpc/player/v1/player_pb.ts"
+import {
+    Player as PlayerPb,
+    Profile as ProfilePb,
+    RosterEntry as RosterEntryPb,
+    Stats as StatsPb,
+} from "../gen/grpc/player/v1/player_pb.ts"
 import {isValidUsername, PlayerError, RosterUnavailableError} from "./player.ts"
 import {ConnectPlayerBackend} from "./playerBackend.ts"
 import {SESSION_HEADER, SessionProvider, SessionUnavailableError} from "./session.ts"
@@ -260,5 +265,40 @@ describe("ConnectPlayerBackend presence", () => {
         const failing = backendWith({getRoster: refusing(Code.Internal)})
         const error = await failing.roster().catch((e) => e)
         expect(error).not.toBeInstanceOf(RosterUnavailableError)
+    })
+})
+
+describe("ConnectPlayerBackend player info", () => {
+    it("reads a player by name without a token, and maps it", async () => {
+        const session = sessionOf("token-1")
+        const getPlayer = vi.fn(async () => ({
+            player: new PlayerPb({
+                name: "Ana",
+                stats: new StatsPb({tilesTaken: 1234n, streakCurrent: 3, streakBest: 7, streakLastDay: "2026-09-17"}),
+                createdAtUnixMs: 1_788_000_000_000n,
+            }),
+        }))
+
+        expect(await backendWith({getPlayer}, session).playerInfo("ana")).toEqual({
+            name: "Ana", tilesTaken: 1234, streakCurrent: 3, streakBest: 7, createdAt: 1_788_000_000_000,
+        })
+        expect(getPlayer).toHaveBeenCalledWith({name: "ana"})
+        expect(session.token).not.toHaveBeenCalled()
+    })
+
+    it("leaves out a creation date the server does not know", async () => {
+        const getPlayer = vi.fn(async () => ({player: new PlayerPb({name: "Ana", stats: new StatsPb()})}))
+
+        expect((await backendWith({getPlayer}).playerInfo("Ana"))?.createdAt).toBeUndefined()
+    })
+
+    it("answers undefined for a name no player holds", async () => {
+        expect(await backendWith({getPlayer: refusing(Code.NotFound)}).playerInfo("Bob")).toBeUndefined()
+    })
+
+    it("reports any other failure as it is", async () => {
+        const error = await backendWith({getPlayer: refusing(Code.Internal)}).playerInfo("Ana").catch((e) => e)
+
+        expect(error).toBeInstanceOf(ConnectError)
     })
 })

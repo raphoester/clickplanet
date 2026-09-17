@@ -639,6 +639,158 @@ func (x *RosterEntry) GetGuest() bool {
 	return false
 }
 
+type GetPlayerRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// A username, in any case.
+	Name          string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetPlayerRequest) Reset() {
+	*x = GetPlayerRequest{}
+	mi := &file_player_v1_player_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetPlayerRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetPlayerRequest) ProtoMessage() {}
+
+func (x *GetPlayerRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_player_v1_player_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetPlayerRequest.ProtoReflect.Descriptor instead.
+func (*GetPlayerRequest) Descriptor() ([]byte, []int) {
+	return file_player_v1_player_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *GetPlayerRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+type GetPlayerResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Player        *Player                `protobuf:"bytes,1,opt,name=player,proto3" json:"player,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetPlayerResponse) Reset() {
+	*x = GetPlayerResponse{}
+	mi := &file_player_v1_player_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetPlayerResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetPlayerResponse) ProtoMessage() {}
+
+func (x *GetPlayerResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_player_v1_player_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetPlayerResponse.ProtoReflect.Descriptor instead.
+func (*GetPlayerResponse) Descriptor() ([]byte, []int) {
+	return file_player_v1_player_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *GetPlayerResponse) GetPlayer() *Player {
+	if x != nil {
+		return x.Player
+	}
+	return nil
+}
+
+type Player struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The username as its player typed it.
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// As of today: a streak that ended before yesterday reads 0.
+	Stats *Stats `protobuf:"bytes,2,opt,name=stats,proto3" json:"stats,omitempty"`
+	// When the account was made, as a guest or by a first sign-in.
+	CreatedAtUnixMs int64 `protobuf:"varint,3,opt,name=created_at_unix_ms,json=createdAtUnixMs,proto3" json:"created_at_unix_ms,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *Player) Reset() {
+	*x = Player{}
+	mi := &file_player_v1_player_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Player) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Player) ProtoMessage() {}
+
+func (x *Player) ProtoReflect() protoreflect.Message {
+	mi := &file_player_v1_player_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Player.ProtoReflect.Descriptor instead.
+func (*Player) Descriptor() ([]byte, []int) {
+	return file_player_v1_player_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *Player) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *Player) GetStats() *Stats {
+	if x != nil {
+		return x.Stats
+	}
+	return nil
+}
+
+func (x *Player) GetCreatedAtUnixMs() int64 {
+	if x != nil {
+		return x.CreatedAtUnixMs
+	}
+	return 0
+}
+
 var File_player_v1_player_proto protoreflect.FileDescriptor
 
 const file_player_v1_player_proto_rawDesc = "" +
@@ -679,14 +831,23 @@ const file_player_v1_player_proto_rawDesc = "" +
 	"\x03tag\x18\x02 \x01(\tR\x03tag\x12\x1d\n" +
 	"\n" +
 	"country_id\x18\x03 \x01(\tR\tcountryId\x12\x14\n" +
-	"\x05guest\x18\x04 \x01(\bR\x05guest2\xf3\x02\n" +
+	"\x05guest\x18\x04 \x01(\bR\x05guest\"&\n" +
+	"\x10GetPlayerRequest\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\">\n" +
+	"\x11GetPlayerResponse\x12)\n" +
+	"\x06player\x18\x01 \x01(\v2\x11.player.v1.PlayerR\x06player\"q\n" +
+	"\x06Player\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12&\n" +
+	"\x05stats\x18\x02 \x01(\v2\x10.player.v1.StatsR\x05stats\x12+\n" +
+	"\x12created_at_unix_ms\x18\x03 \x01(\x03R\x0fcreatedAtUnixMs2\xc0\x03\n" +
 	"\rPlayerService\x12I\n" +
 	"\n" +
 	"GetProfile\x12\x1c.player.v1.GetProfileRequest\x1a\x1d.player.v1.GetProfileResponse\x12@\n" +
 	"\aSetName\x12\x19.player.v1.SetNameRequest\x1a\x1a.player.v1.SetNameResponse\x12C\n" +
 	"\bGetStats\x12\x1a.player.v1.GetStatsRequest\x1a\x1b.player.v1.GetStatsResponse\x12C\n" +
 	"\bAnnounce\x12\x1a.player.v1.AnnounceRequest\x1a\x1b.player.v1.AnnounceResponse\x12K\n" +
-	"\tGetRoster\x12\x1b.player.v1.GetRosterRequest\x1a\x1c.player.v1.GetRosterResponse\"\x03\x90\x02\x01B\xb3\x01\n" +
+	"\tGetRoster\x12\x1b.player.v1.GetRosterRequest\x1a\x1c.player.v1.GetRosterResponse\"\x03\x90\x02\x01\x12K\n" +
+	"\tGetPlayer\x12\x1b.player.v1.GetPlayerRequest\x1a\x1c.player.v1.GetPlayerResponse\"\x03\x90\x02\x01B\xb3\x01\n" +
 	"\rcom.player.v1B\vPlayerProtoP\x01ZPgithub.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1;playerv1\xa2\x02\x03PXX\xaa\x02\tPlayer.V1\xca\x02\tPlayer\\V1\xe2\x02\x15Player\\V1\\GPBMetadata\xea\x02\n" +
 	"Player::V1b\x06proto3"
 
@@ -702,7 +863,7 @@ func file_player_v1_player_proto_rawDescGZIP() []byte {
 	return file_player_v1_player_proto_rawDescData
 }
 
-var file_player_v1_player_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_player_v1_player_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_player_v1_player_proto_goTypes = []any{
 	(*Profile)(nil),            // 0: player.v1.Profile
 	(*GetProfileRequest)(nil),  // 1: player.v1.GetProfileRequest
@@ -717,27 +878,34 @@ var file_player_v1_player_proto_goTypes = []any{
 	(*GetRosterRequest)(nil),   // 10: player.v1.GetRosterRequest
 	(*GetRosterResponse)(nil),  // 11: player.v1.GetRosterResponse
 	(*RosterEntry)(nil),        // 12: player.v1.RosterEntry
+	(*GetPlayerRequest)(nil),   // 13: player.v1.GetPlayerRequest
+	(*GetPlayerResponse)(nil),  // 14: player.v1.GetPlayerResponse
+	(*Player)(nil),             // 15: player.v1.Player
 }
 var file_player_v1_player_proto_depIdxs = []int32{
 	0,  // 0: player.v1.GetProfileResponse.profile:type_name -> player.v1.Profile
 	0,  // 1: player.v1.SetNameResponse.profile:type_name -> player.v1.Profile
 	5,  // 2: player.v1.GetStatsResponse.stats:type_name -> player.v1.Stats
 	12, // 3: player.v1.GetRosterResponse.entries:type_name -> player.v1.RosterEntry
-	1,  // 4: player.v1.PlayerService.GetProfile:input_type -> player.v1.GetProfileRequest
-	3,  // 5: player.v1.PlayerService.SetName:input_type -> player.v1.SetNameRequest
-	6,  // 6: player.v1.PlayerService.GetStats:input_type -> player.v1.GetStatsRequest
-	8,  // 7: player.v1.PlayerService.Announce:input_type -> player.v1.AnnounceRequest
-	10, // 8: player.v1.PlayerService.GetRoster:input_type -> player.v1.GetRosterRequest
-	2,  // 9: player.v1.PlayerService.GetProfile:output_type -> player.v1.GetProfileResponse
-	4,  // 10: player.v1.PlayerService.SetName:output_type -> player.v1.SetNameResponse
-	7,  // 11: player.v1.PlayerService.GetStats:output_type -> player.v1.GetStatsResponse
-	9,  // 12: player.v1.PlayerService.Announce:output_type -> player.v1.AnnounceResponse
-	11, // 13: player.v1.PlayerService.GetRoster:output_type -> player.v1.GetRosterResponse
-	9,  // [9:14] is the sub-list for method output_type
-	4,  // [4:9] is the sub-list for method input_type
-	4,  // [4:4] is the sub-list for extension type_name
-	4,  // [4:4] is the sub-list for extension extendee
-	0,  // [0:4] is the sub-list for field type_name
+	15, // 4: player.v1.GetPlayerResponse.player:type_name -> player.v1.Player
+	5,  // 5: player.v1.Player.stats:type_name -> player.v1.Stats
+	1,  // 6: player.v1.PlayerService.GetProfile:input_type -> player.v1.GetProfileRequest
+	3,  // 7: player.v1.PlayerService.SetName:input_type -> player.v1.SetNameRequest
+	6,  // 8: player.v1.PlayerService.GetStats:input_type -> player.v1.GetStatsRequest
+	8,  // 9: player.v1.PlayerService.Announce:input_type -> player.v1.AnnounceRequest
+	10, // 10: player.v1.PlayerService.GetRoster:input_type -> player.v1.GetRosterRequest
+	13, // 11: player.v1.PlayerService.GetPlayer:input_type -> player.v1.GetPlayerRequest
+	2,  // 12: player.v1.PlayerService.GetProfile:output_type -> player.v1.GetProfileResponse
+	4,  // 13: player.v1.PlayerService.SetName:output_type -> player.v1.SetNameResponse
+	7,  // 14: player.v1.PlayerService.GetStats:output_type -> player.v1.GetStatsResponse
+	9,  // 15: player.v1.PlayerService.Announce:output_type -> player.v1.AnnounceResponse
+	11, // 16: player.v1.PlayerService.GetRoster:output_type -> player.v1.GetRosterResponse
+	14, // 17: player.v1.PlayerService.GetPlayer:output_type -> player.v1.GetPlayerResponse
+	12, // [12:18] is the sub-list for method output_type
+	6,  // [6:12] is the sub-list for method input_type
+	6,  // [6:6] is the sub-list for extension type_name
+	6,  // [6:6] is the sub-list for extension extendee
+	0,  // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_player_v1_player_proto_init() }
@@ -751,7 +919,7 @@ func file_player_v1_player_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_player_v1_player_proto_rawDesc), len(file_player_v1_player_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   13,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

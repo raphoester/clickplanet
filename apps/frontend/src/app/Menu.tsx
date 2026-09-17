@@ -33,6 +33,8 @@ export type MenuProps = {
     account?: AccountStore,
     /** Who is playing. Absent — no roster, or not read yet — the menu offers no list. */
     players?: readonly RosterEntry[],
+    /** Absent, a name in the list opens nothing. */
+    onOpenPlayer?: (player: RosterEntry) => void,
     /** What signing in multiplies the click allowance by, as the server said. Absent, the panel does not mention it. */
     linkedMultiplier?: number,
 }
@@ -145,7 +147,7 @@ export default function Menu(props: MenuProps) {
                     </MenuPanel>
                     : playersOpen && props.players
                     ? <MenuPanel title="Players online" onClose={() => setPlayersOpen(false)}>
-                        <PlayersPanel entries={props.players}/>
+                        <PlayersPanel entries={props.players} onOpenPlayer={props.onOpenPlayer}/>
                     </MenuPanel>
                     : <>
                         <div className="menu-playing">

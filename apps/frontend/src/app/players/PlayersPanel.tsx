@@ -7,6 +7,7 @@ import CountryFlag from "../components/CountryFlag.tsx"
 import {UsersIcon} from "../components/icons.tsx"
 import {truncate} from "../truncate.ts"
 import "./Players.css"
+import "./PlayerCard.css"
 
 /** As long as the chat lets a name run, so a name is cut at the same letter in both. */
 const NAME_MAX_LENGTH = 16
@@ -33,21 +34,29 @@ export function PlayersButton({entries, onOpen, buttonRef}: PlayersButtonProps) 
 
 export type PlayersPanelProps = {
     entries: readonly RosterEntry[]
+    /** Absent, the names are plain text. */
+    onOpenPlayer?: (player: RosterEntry) => void
 }
 
-export default function PlayersPanel({entries}: PlayersPanelProps) {
+export default function PlayersPanel({entries, onOpenPlayer}: PlayersPanelProps) {
     if (entries.length === 0) {
         return <p className="players-empty">Nobody is playing right now.</p>
     }
 
     const {players, guests} = rosterGroups(entries)
     return <div className="players-panel">
-        {players.length > 0 && <PlayersGroup title="Players" entries={players}/>}
-        {guests.length > 0 && <PlayersGroup title="Guests" entries={guests}/>}
+        {players.length > 0 && <PlayersGroup title="Players" entries={players} onOpenPlayer={onOpenPlayer}/>}
+        {guests.length > 0 && <PlayersGroup title="Guests" entries={guests} onOpenPlayer={onOpenPlayer}/>}
     </div>
 }
 
-function PlayersGroup({title, entries}: {title: string, entries: RosterEntry[]}) {
+type PlayersGroupProps = {
+    title: string
+    entries: RosterEntry[]
+    onOpenPlayer?: (player: RosterEntry) => void
+}
+
+function PlayersGroup({title, entries, onOpenPlayer}: PlayersGroupProps) {
     const titleId = useId()
     return <section className="players-group" aria-labelledby={titleId}>
         <h3 className="menu-section-title players-group-title" id={titleId}>
@@ -66,9 +75,16 @@ function PlayersGroup({title, entries}: {title: string, entries: RosterEntry[]})
                       title={countryName(entry.countryCode)}>
                     <CountryFlag code={entry.countryCode}/>
                 </span>
-                <span className="players-entry-name" title={entry.name}>
-                    {truncate(entry.name, NAME_MAX_LENGTH)}
-                </span>
+                {onOpenPlayer
+                    ? <button type="button"
+                              className="players-entry-name player-name-button"
+                              title={entry.name}
+                              onClick={() => onOpenPlayer(entry)}>
+                        {truncate(entry.name, NAME_MAX_LENGTH)}
+                    </button>
+                    : <span className="players-entry-name" title={entry.name}>
+                        {truncate(entry.name, NAME_MAX_LENGTH)}
+                    </span>}
                 <span className="players-entry-tag">#{entry.tag}</span>
             </li>)}
         </ul>

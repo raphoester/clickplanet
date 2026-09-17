@@ -1,5 +1,6 @@
 import {useEffect, useRef, useState} from "react";
-import {ChatMessage} from "../../backends/chat.ts";
+import {ChatMessage, GUEST_PREFIX} from "../../backends/chat.ts";
+import {RosterEntry} from "../../backends/player.ts";
 import {Countries} from "../../domain/countries.ts";
 import CountryFlag from "../components/CountryFlag.tsx";
 import {ChevronIcon} from "../components/icons.tsx";
@@ -11,6 +12,8 @@ export type ChatLogProps = {
     messages: ChatMessage[]
     loading: boolean
     flashing?: ReadonlySet<string>
+    /** Absent, an author's name is plain text. */
+    onOpenPlayer?: (player: RosterEntry) => void
 }
 
 const AUTHOR_MAX_LENGTH = 16
@@ -82,9 +85,16 @@ export default function ChatLog(props: ChatLogProps) {
                                   title={countryName(message.countryCode)}>
                                 <CountryFlag code={message.countryCode}/>
                             </span>
-                            <span className="chat-message-author">
-                                {truncate(message.authorName, AUTHOR_MAX_LENGTH)}
-                            </span>
+                            {props.onOpenPlayer
+                                ? <button type="button"
+                                          className="chat-message-author player-name-button"
+                                          title={message.authorName}
+                                          onClick={() => props.onOpenPlayer?.(authorOf(message))}>
+                                    {truncate(message.authorName, AUTHOR_MAX_LENGTH)}
+                                </button>
+                                : <span className="chat-message-author">
+                                    {truncate(message.authorName, AUTHOR_MAX_LENGTH)}
+                                </span>}
                             <span className="chat-message-tag">#{message.authorTag}</span>
                             <time className="chat-message-time"
                                   dateTime={new Date(message.sentAt).toISOString()}>
@@ -103,6 +113,16 @@ export default function ChatLog(props: ChatLogProps) {
             <ChevronIcon size={14}/>
         </button>}
     </div>
+}
+
+// No username starts with the prefix, so the name alone says who is a guest.
+function authorOf(message: ChatMessage): RosterEntry {
+    return {
+        name: message.authorName,
+        tag: message.authorTag,
+        countryCode: message.countryCode,
+        guest: message.authorName.startsWith(GUEST_PREFIX),
+    }
 }
 
 function messageClass(

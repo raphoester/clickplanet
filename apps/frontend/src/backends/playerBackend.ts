@@ -1,11 +1,13 @@
 import {Code, ConnectError, createPromiseClient, PromiseClient} from "@connectrpc/connect"
 import {createConnectTransport} from "@connectrpc/connect-web"
 import {PlayerService} from "../gen/grpc/player/v1/player_connect.ts"
-import {Profile as ProfilePb, RosterEntry as RosterEntryPb} from "../gen/grpc/player/v1/player_pb.ts"
+import {Player as PlayerPb, Profile as ProfilePb, RosterEntry as RosterEntryPb} from "../gen/grpc/player/v1/player_pb.ts"
 import {
     PlayerBackend,
     PlayerError,
     PlayerFailure,
+    PlayerInfo,
+    PlayerInfoBackend,
     Presence,
     PresenceBackend,
     Profile,
@@ -17,8 +19,8 @@ import {Config, retrying} from "./transport.ts"
 
 /**
  * No cookie: the account is named by the click token in a header, not by
- * `cp_sid`. `useHttpGet` sends `GetRoster`, the one call marked side-effect
- * free, as a GET a proxy can cache; every other call stays a POST.
+ * `cp_sid`. `useHttpGet` sends `GetRoster` and `GetPlayer`, the calls marked
+ * side-effect free, as GETs a proxy can cache; every other call stays a POST.
  */
 export function newPlayerServiceClient(config: Config): PromiseClient<typeof PlayerService> {
     return createPromiseClient(PlayerService, createConnectTransport({
@@ -44,7 +46,7 @@ const FAILURES: Partial<Record<Code, PlayerFailure>> = {
  * was on before a sign-in. Only the read is retried while the server cannot be
  * reached — `SetName` is a write, like every other one here.
  */
-export class ConnectPlayerBackend implements PlayerBackend, PresenceBackend {
+export class ConnectPlayerBackend implements PlayerBackend, PresenceBackend, PlayerInfoBackend {
     constructor(
         private readonly client: PromiseClient<typeof PlayerService>,
         private readonly session: SessionProvider,
@@ -106,6 +108,20 @@ export class ConnectPlayerBackend implements PlayerBackend, PresenceBackend {
         }
     }
 
+    /**
+     * No token, like the roster: anybody may read a player, and a proxy may
+     * serve one answer to everyone who opens it.
+     */
+    public async playerInfo(name: string): Promise<PlayerInfo | undefined> {
+        try {
+            const res = await retrying(() => this.client.getPlayer({name}), "GetPlayer")
+            return playerInfoOf(res.player)
+        } catch (e) {
+            if (e instanceof ConnectError && e.code === Code.NotFound) return undefined
+            throw e
+        }
+    }
+
     private async authenticated<T>(call: (headers: Headers) => Promise<T>): Promise<T> {
         try {
             try {
@@ -137,4 +153,15 @@ function profileOf(profile: ProfilePb | undefined): Profile {
 
 function rosterEntryOf(entry: RosterEntryPb): RosterEntry {
     return {name: entry.name, tag: entry.tag, countryCode: entry.countryId, guest: entry.guest}
+}
+
+function playerInfoOf(player: PlayerPb | undefined): PlayerInfo {
+    const createdAt = Number(player?.createdAtUnixMs ?? 0)
+    return {
+        name: player?.name ?? "",
+        tilesTaken: Number(player?.stats?.tilesTaken ?? 0),
+        streakCurrent: player?.stats?.streakCurrent ?? 0,
+        streakBest: player?.stats?.streakBest ?? 0,
+        createdAt: createdAt > 0 ? createdAt : undefined,
+    }
 }

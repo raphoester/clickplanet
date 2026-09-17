@@ -18,3 +18,12 @@ func Stats(stats players.Stats) *playerv1.Stats {
 		StreakLastDay: stats.StreakLastDay.String(),
 	}
 }
+
+// Player leaves out the account id: anybody may read it.
+func Player(player players.Player) *playerv1.Player {
+	message := &playerv1.Player{Name: string(player.Name), Stats: Stats(player.Stats)}
+	if !player.CreatedAt.IsZero() {
+		message.CreatedAtUnixMs = player.CreatedAt.UnixMilli()
+	}
+	return message
+}

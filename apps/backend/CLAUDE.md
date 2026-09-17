@@ -192,7 +192,7 @@ return []bootstrap.Module{
 | caller | asks | for | through |
 |---|---|---|---|
 | `planet`, `player`, `chat` | `auth.v1.InternalService/GetVerifyingKey` | the public half of the click token key, once per boot | each its own `rpc_session_verifier` |
-| `player` | `auth.v1.InternalService/GetAccount` | whether an account is linked, on each `SetName` | `players/rpc_account_reader` |
+| `player` | `auth.v1.InternalService/GetAccount` | whether an account is linked, on each `SetName`; when it was made, on each `GetPlayer` | `players/rpc_account_reader` |
 | `chat` | `player.v1.InternalService/GetAuthor` | a sender's username and tag, on each `SendMessage` | `messages/rpc_player_authors` |
 
 A module cannot import another's interior, so `player`'s and `chat`'s `rpc_session_verifier` are copies of `planet`'s.
@@ -716,23 +716,23 @@ internal/player/internal/
     postgres_player_store/          the Store over player.profiles and player.stats
     inmemory_player_store/          the same port in maps, behind the testing tag
     rpc_account_reader/             whether an account is linked, from auth.v1.InternalService/GetAccount
-    usecases/get_profile_usecase/  set_name_usecase/  get_stats_usecase/  get_author_usecase/
+    usecases/get_profile_usecase/  set_name_usecase/  get_stats_usecase/  get_author_usecase/  get_player_usecase/
     usecases/record_take_usecase/  forget_account_usecase/
   presence/                         Visit, Entry, RosterOf, GuestNameOf, TTL: who is playing
     inmemory_visit_storage/         the last visit of each account, capped, pruned every minute (a Runner)
     usecases/announce_usecase/  get_roster_usecase/
   playerv1controller/               PlayerService and InternalService (bags), the session interceptor
-    get_profile_handler/  set_name_handler/  get_stats_handler/  get_author_handler/
+    get_profile_handler/  set_name_handler/  get_stats_handler/  get_author_handler/  get_player_handler/
     announce_handler/  get_roster_handler/
     caller/                         the account on the context, or Unauthenticated
-    playermessage/                  Profile and Stats as player.v1 messages
+    playermessage/                  Profile, Stats and Player as player.v1 messages
     rpc_session_verifier/           the key from auth.v1.InternalService, asked once (planet's, copied)
   subscribers/                      the edge for events, as the controller is for the wire
     tile_taken_subscriber/  account_deleted_subscriber/  log_subscriber/
   migrations/
 ```
 
-- **The caller is the account in the click token.** `PlayerService` sits behind `cpconnect.NewSessionInterceptor`, always enforcing, on the key `auth` hands over the internal listener, as `planet` does. No token, a bad one, or a token with no account (the deprecated mint) is `Unauthenticated`. `player_session_checks{verdict}` counts the verdicts.
+- **The caller is the account in the click token.** Every call but `GetRoster` and `GetPlayer` sits behind `cpconnect.NewSessionInterceptor`, always enforcing, on the key `auth` hands over the internal listener, as `planet` does. No token, a bad one, or a token with no account (the deprecated mint) is `Unauthenticated`. `player_session_checks{verdict}` counts the verdicts.
 - **`GetProfile`** answers the account id and its name, empty when none was chosen. **`GetStats`** answers `tiles_taken`, `streak_current`, `streak_best` and `streak_last_day` (YYYY-MM-DD).
 - **`SetName` chooses a username.** `players.NameOf` is the rule: 3 to 20 characters, each an ASCII letter, a digit or an underscore, and not starting with `guest_` in any case, which the chat puts before every guest's name. Nothing is cleaned or trimmed: a name that breaks a rule is `InvalidArgument` (`ErrInvalidName`). The name keeps the case it was typed in.
 - **Usernames are unique ignoring case** (`Name.Folded`). A name another account holds is `AlreadyExists` (`ErrNameTaken`); an account setting its own name again, in any case, is not refused, and a rename or a deleted account frees the old one. Postgres holds the rule, not a read before the write: a unique index on `lower(name)`, whose violation (`23505` on `profiles_name_key`) `postgres_player_store.SaveProfile` answers as `ErrNameTaken`, so two players asking for one name at once cannot both get it. The in-memory store checks the same under its lock, and `StoreContractSuite` pins both.
@@ -746,6 +746,7 @@ internal/player/internal/
   - **Caps, against a script minting accounts** (`inmemory_visit_storage`): at most 10 accounts per tag, where a new account pushes out the tag's oldest visit, and 10,000 in all, where a new account is not recorded. The mint throttle already bounds how fast one address makes accounts.
   - An unknown country is `InvalidArgument`; a failed profile read is the error net's `internal`, and nothing is recorded.
 - **Stats come from `planet.v1.TileTaken`**, one event per tile, so a spread of seven is seven tiles. **The streak day is UTC**: a take on the day after `streak_last_day` extends the streak, a take on the same day changes nothing, a gap starts it again at 1, and a late event older than the last day counts a tile and leaves the streak alone (`Stats.WithTake`). `GetStats` reads it as of today (`Stats.AsOf`): a streak whose last day is before yesterday reads 0, and `streak_best` keeps it. `stats_test.go` pins the rules across UTC midnight.
+- **`GetPlayer(name)` is what anybody may know about a player with a username**: the name as typed, the stats as of today, and `created_at_unix_ms`, when auth made the account (as a guest or by a first sign-in, so a guest who signs in keeps its first day). It needs no token (the session interceptor does not list it), is `NO_SIDE_EFFECTS`, and answers `public, max-age=10`. **It never answers the account id.** The name is found ignoring case (`Store.ProfileNamed`, on the unique index on `lower(name)`). A name no account holds is `NotFound` (`ErrNoProfile`), and so is one no account may hold, a guest's included, which reads nothing. A guest has no username, so it has no answer here: the client shows its name, tag and flag only. `rpc_account_reader.CreatedAt` asks `auth.v1.InternalService/GetAccount` on each call, which now also answers `created_at_unix_ms` (zero for an account auth does not know, and the answer then carries zero). **A failure to ask auth is a real error**, the error net's `internal`, as for `SetName`.
 - **`auth.v1.AccountDeleted` deletes both rows.** A take that arrives after, on a token minted before the delete, makes a new stats row; the token lives an hour at most.
 - **Events are at most once.** A take dropped by a full buffer (`events_dropped_total`) or lost in a crash is a tile the stats never count. Stats start the day the module is turned on: takes before are not replayed.
 - **No memory copy: every call reads or writes postgres.** This is not the tile map's pattern on purpose. The map is in memory so a click never waits on the database; a take reaches this module over the event bus, so a click already never waits on it, and the calls are few (production is ~15 takes a second at peak). A memory copy would load every account that ever took a tile at boot, and cost a dirty set, a flush loop and a window a hard kill loses.

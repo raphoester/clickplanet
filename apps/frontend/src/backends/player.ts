@@ -115,3 +115,21 @@ export class RosterUnavailableError extends Error {
         this.name = "RosterUnavailableError"
     }
 }
+
+/** What anybody may know about a player with a username. A guest has none of it. */
+export type PlayerInfo = {
+    /** The username, as its player typed it. */
+    name: string
+    tilesTaken: number
+    /** Days in a row, UTC, with a tile taken. 0 once a whole day went by without one. */
+    streakCurrent: number
+    streakBest: number
+    /** When the account was made, in ms. Undefined when the server does not know. */
+    createdAt?: number
+}
+
+/** `player.v1.PlayerService/GetPlayer`. Needs no session. */
+export interface PlayerInfoBackend {
+    /** Undefined when no player holds the name, in any case. */
+    playerInfo(name: string): Promise<PlayerInfo | undefined>
+}

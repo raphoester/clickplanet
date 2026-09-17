@@ -20,6 +20,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/rpc_account_reader"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/forget_account_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_author_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_player_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_profile_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_stats_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/record_take_usecase"
@@ -27,6 +28,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/announce_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_author_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_profile_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_roster_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_stats_handler"
@@ -120,15 +122,18 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	// The key comes from auth over the internal listener, on the first call: this module holds no seed.
 	verifier := rpc_session_verifier.New(props.Internal, props.Logger)
+	accounts := rpc_account_reader.New(props.Internal)
 
 	playerService := playerv1controller.PlayerService{
 		GetProfileHandler: get_profile_handler.New(get_profile_usecase.New(store)),
 		// Only a linked account may hold a username, and auth is asked on each SetName.
-		SetNameHandler:  set_name_handler.New(set_name_usecase.New(store, rpc_account_reader.New(props.Internal), clock)),
+		SetNameHandler:  set_name_handler.New(set_name_usecase.New(store, accounts, clock)),
 		GetStatsHandler: get_stats_handler.New(get_stats_usecase.New(store, clock)),
 		AnnounceHandler: announce_handler.New(
 			announce_usecase.New(store, visits, cpcountries.New(), clock, tagSalt)),
 		GetRosterHandler: get_roster_handler.New(get_roster_usecase.New(visits, clock)),
+		// Anybody may open a player: auth is asked when its account was made, on each call.
+		GetPlayerHandler: get_player_handler.New(get_player_usecase.New(store, store, accounts, clock)),
 	}
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return playerv1connect.NewPlayerServiceHandler(playerService, options...)

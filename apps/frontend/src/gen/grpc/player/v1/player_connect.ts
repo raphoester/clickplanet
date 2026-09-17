@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AnnounceRequest, AnnounceResponse, GetProfileRequest, GetProfileResponse, GetRosterRequest, GetRosterResponse, GetStatsRequest, GetStatsResponse, SetNameRequest, SetNameResponse } from "./player_pb.js";
+import { AnnounceRequest, AnnounceResponse, GetPlayerRequest, GetPlayerResponse, GetProfileRequest, GetProfileResponse, GetRosterRequest, GetRosterResponse, GetStatsRequest, GetStatsResponse, SetNameRequest, SetNameResponse } from "./player_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -74,6 +74,19 @@ export const PlayerService = {
       name: "GetRoster",
       I: GetRosterRequest,
       O: GetRosterResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * What anybody may know about a player with a username. Needs no token.
+     * A name no account holds is not_found, and so is a guest: it has no name.
+     *
+     * @generated from rpc player.v1.PlayerService.GetPlayer
+     */
+    getPlayer: {
+      name: "GetPlayer",
+      I: GetPlayerRequest,
+      O: GetPlayerResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
     },

@@ -18,6 +18,9 @@ export function useEscape(onClose: () => void) {
     useEffect(() => {
         const onKeyDown = (event: KeyboardEvent) => {
             if (event.key !== "Escape") return
+            // A dialog over the panel takes the key: a player card opened from
+            // the roster closes alone, and the roster stays.
+            if (document.querySelector('[role="dialog"][aria-modal="true"]')) return
             event.preventDefault()
             latest.current()
         }

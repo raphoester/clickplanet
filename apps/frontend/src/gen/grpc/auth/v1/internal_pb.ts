@@ -4,7 +4,7 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3 } from "@bufbuild/protobuf";
+import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
 
 /**
  * @generated from message auth.v1.GetVerifyingKeyRequest
@@ -122,6 +122,14 @@ export class GetAccountResponse extends Message<GetAccountResponse> {
    */
   linked = false;
 
+  /**
+   * When the account was made, as a guest or by a first sign-in. Zero for an
+   * account that does not exist.
+   *
+   * @generated from field: int64 created_at_unix_ms = 2;
+   */
+  createdAtUnixMs = protoInt64.zero;
+
   constructor(data?: PartialMessage<GetAccountResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -131,6 +139,7 @@ export class GetAccountResponse extends Message<GetAccountResponse> {
   static readonly typeName = "auth.v1.GetAccountResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "linked", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 2, name: "created_at_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetAccountResponse {
