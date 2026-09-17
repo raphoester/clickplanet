@@ -25,15 +25,21 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/record_take_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/set_name_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/announce_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_author_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_profile_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_roster_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_stats_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/rpc_session_verifier"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/set_name_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/inmemory_visit_storage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/usecases/announce_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/usecases/get_roster_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/account_deleted_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/tile_taken_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsecrets"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -104,6 +110,12 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	// The pool closes once both subscribers have drained what is buffered: closers run before the runners stop.
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger, takes, deletions))
 
+	// ---- Presence ----
+
+	// Who is playing, in memory only: a restart empties it and the clients fill it again within 30s.
+	visits := inmemory_visit_storage.New(clock)
+	props.Runners.Add(visits)
+
 	// ---- Player service ----
 
 	// The key comes from auth over the internal listener, on the first call: this module holds no seed.
@@ -114,6 +126,9 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		// Only a linked account may hold a username, and auth is asked on each SetName.
 		SetNameHandler:  set_name_handler.New(set_name_usecase.New(store, rpc_account_reader.New(props.Internal), clock)),
 		GetStatsHandler: get_stats_handler.New(get_stats_usecase.New(store, clock)),
+		AnnounceHandler: announce_handler.New(
+			announce_usecase.New(store, visits, cpcountries.New(), clock, tagSalt)),
+		GetRosterHandler: get_roster_handler.New(get_roster_usecase.New(visits, clock)),
 	}
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return playerv1connect.NewPlayerServiceHandler(playerService, options...)

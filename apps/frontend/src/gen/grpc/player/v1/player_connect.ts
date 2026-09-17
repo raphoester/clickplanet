@@ -3,13 +3,14 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetProfileRequest, GetProfileResponse, GetStatsRequest, GetStatsResponse, SetNameRequest, SetNameResponse } from "./player_pb.js";
-import { MethodKind } from "@bufbuild/protobuf";
+import { AnnounceRequest, AnnounceResponse, GetProfileRequest, GetProfileResponse, GetRosterRequest, GetRosterResponse, GetStatsRequest, GetStatsResponse, SetNameRequest, SetNameResponse } from "./player_pb.js";
+import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
- * A player's profile and stats. Every procedure answers for the caller: the
- * account named by the click token in the X-Session-Token header. A call with
- * no valid token, or a token with no account, is Unauthenticated.
+ * A player's profile and stats, and who is playing. Every procedure but
+ * GetRoster answers for the caller: the account named by the click token in the
+ * X-Session-Token header. A call with no valid token, or a token with no
+ * account, is Unauthenticated.
  *
  * @generated from service player.v1.PlayerService
  */
@@ -49,6 +50,32 @@ export const PlayerService = {
       I: GetStatsRequest,
       O: GetStatsResponse,
       kind: MethodKind.Unary,
+    },
+    /**
+     * Says the caller is playing, under which flag. A client sends it when it
+     * gets a click token, when its flag or name changes, and every 30s after. A
+     * player that stops sending leaves the roster 90s after its last call. A
+     * country that is not one is InvalidArgument.
+     *
+     * @generated from rpc player.v1.PlayerService.Announce
+     */
+    announce: {
+      name: "Announce",
+      I: AnnounceRequest,
+      O: AnnounceResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Everyone playing. It needs no token, and a proxy may serve it for 5s.
+     *
+     * @generated from rpc player.v1.PlayerService.GetRoster
+     */
+    getRoster: {
+      name: "GetRoster",
+      I: GetRosterRequest,
+      O: GetRosterResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
     },
   }
 } as const;
