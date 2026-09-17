@@ -168,3 +168,32 @@ describe("ClickBudgetMeter while a bonus runs", () => {
         expect(meter().classList.contains("click-budget-refused")).toBe(true)
     })
 })
+
+describe("ClickBudgetMeter for a guest", () => {
+    it("offers to click faster by signing in, at the server's multiplier", () => {
+        const onSignIn = vi.fn()
+        render(<ClickBudgetMeter budget={reading({linkedMultiplier: 2})} onSignIn={onSignIn}/>)
+
+        fireEvent.click(screen.getByRole("button", {name: "Sign in: clicks 2× faster"}))
+
+        expect(onSignIn).toHaveBeenCalledTimes(1)
+    })
+
+    it("keeps the offer out of the meter itself, which is a reading", () => {
+        render(<ClickBudgetMeter budget={reading({linkedMultiplier: 2})} onSignIn={vi.fn()}/>)
+
+        expect(meter().querySelector("button")).toBeNull()
+    })
+
+    it("offers nothing to a player who is not a guest", () => {
+        render(<ClickBudgetMeter budget={reading({linkedMultiplier: 2})}/>)
+
+        expect(screen.queryByRole("button")).toBeNull()
+    })
+
+    it("offers nothing when the server grants nothing for signing in", () => {
+        render(<ClickBudgetMeter budget={reading()} onSignIn={vi.fn()}/>)
+
+        expect(screen.queryByRole("button")).toBeNull()
+    })
+})

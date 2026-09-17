@@ -1,4 +1,4 @@
-import {useRef} from 'react';
+import {useRef, useState} from 'react';
 import {Bomber, BonusListener, OwnershipsGetter, TileClicker, UpdatesListener} from "../../backends/backend.ts";
 import BombNews from "../components/BombNews.tsx";
 import {ChatBackend} from "../../backends/chat.ts";
@@ -21,6 +21,7 @@ import AnthemBar from "../anthem/AnthemBar.tsx";
 import {useAnthem} from "../anthem/useAnthem.ts";
 import {AccountStore} from "../account/accountStore.ts";
 import {useAccount} from "../account/useAccount.ts";
+import SignInPitchModal from "../account/SignInPitchModal.tsx";
 import "./Viewer.css"
 
 export type ViewerProps = {
@@ -41,6 +42,9 @@ export default function Viewer(props: ViewerProps) {
     const sound = useSound()
     // The chat posts under the username, so it follows the account the menu shows.
     const account = useAccount(props.account)
+    const [pitchOpen, setPitchOpen] = useState(false)
+    // A guest the server offers sign-in to. With sign-in off there is nothing to point at, so nothing is offered.
+    const guest = account.kind === 'ready' && account.offered.length > 0 && account.me.linked.length === 0
 
     const {
         status,
@@ -89,6 +93,7 @@ export default function Viewer(props: ViewerProps) {
             tilesCount={tilesCount}
             sound={{settings: sound.settings, onChange: sound.setSettings, preview: sound.preview}}
             account={props.account}
+            linkedMultiplier={clickBudget?.linkedMultiplier}
         />}
 
         {status.state === 'ready' && <AnthemBar anthem={anthem}
@@ -101,7 +106,17 @@ export default function Viewer(props: ViewerProps) {
                                stats={shareStats(leaderboard, countryState)}
                                onClose={discard}/>}
 
-        {status.state === 'ready' && <ClickBudgetMeter budget={clickBudget} bonus={bonus} countryName={countryState.name} refusals={refusals}/>}
+        {status.state === 'ready' && <ClickBudgetMeter budget={clickBudget}
+                                                       bonus={bonus}
+                                                       countryName={countryState.name}
+                                                       refusals={refusals}
+                                                       onSignIn={guest ? () => setPitchOpen(true) : undefined}/>}
+
+        {pitchOpen && guest && props.account && clickBudget?.linkedMultiplier && <SignInPitchModal
+            state={account}
+            store={props.account}
+            multiplier={clickBudget.linkedMultiplier}
+            onClose={() => setPitchOpen(false)}/>}
 
         {status.state === 'ready' && <ChatPanel
             backend={props.chatBackend}

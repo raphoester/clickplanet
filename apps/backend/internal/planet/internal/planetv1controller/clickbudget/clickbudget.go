@@ -17,12 +17,13 @@ import (
 func Encode(budget clicks.Budget) *planetv1.ClickBudget {
 	return &planetv1.ClickBudget{
 		// A refused caller is at or below zero; the meter shows empty, not negative.
-		Tokens:          max(budget.Tokens, 0),
-		Capacity:        uint32(budget.Capacity),
-		RefillPerSecond: budget.PerSecond,
-		Cost:            budget.Price.Cost,
-		Share:           budget.Price.Share,
-		NextShare:       budget.Price.NextShare,
-		NextCost:        budget.Price.NextCost,
+		Tokens:           max(budget.Tokens, 0),
+		Capacity:         uint32(budget.Capacity),
+		RefillPerSecond:  budget.PerSecond,
+		Cost:             budget.Price.Cost,
+		Share:            budget.Price.Share,
+		NextShare:        budget.Price.NextShare,
+		NextCost:         budget.Price.NextCost,
+		LinkedMultiplier: budget.LinkedMultiplier,
 	}
 }

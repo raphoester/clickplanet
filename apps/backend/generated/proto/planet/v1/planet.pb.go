@@ -112,10 +112,15 @@ type ClickBudget struct {
 	// The fraction of the whole map the country holds, 0 to 1.
 	Share float64 `protobuf:"fixed64,5,opt,name=share,proto3" json:"share,omitempty"`
 	// The share at which a click starts to cost next_cost. Zero at the top step.
-	NextShare     float64 `protobuf:"fixed64,6,opt,name=next_share,json=nextShare,proto3" json:"next_share,omitempty"`
-	NextCost      float64 `protobuf:"fixed64,9,opt,name=next_cost,json=nextCost,proto3" json:"next_cost,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	NextShare float64 `protobuf:"fixed64,6,opt,name=next_share,json=nextShare,proto3" json:"next_share,omitempty"`
+	NextCost  float64 `protobuf:"fixed64,9,opt,name=next_cost,json=nextCost,proto3" json:"next_cost,omitempty"`
+	// How many times a guest's allowance an account that signed in with a
+	// provider holds: 2 is twice the burst and twice the refill. It is the same
+	// for every caller, so a guest can be told what signing in is worth. Zero
+	// from a server too old to grant one, which means signing in changes nothing.
+	LinkedMultiplier float64 `protobuf:"fixed64,10,opt,name=linked_multiplier,json=linkedMultiplier,proto3" json:"linked_multiplier,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *ClickBudget) Reset() {
@@ -193,6 +198,13 @@ func (x *ClickBudget) GetNextShare() float64 {
 func (x *ClickBudget) GetNextCost() float64 {
 	if x != nil {
 		return x.NextCost
+	}
+	return 0
+}
+
+func (x *ClickBudget) GetLinkedMultiplier() float64 {
+	if x != nil {
+		return x.LinkedMultiplier
 	}
 	return 0
 }
@@ -1568,7 +1580,7 @@ var File_planet_v1_planet_proto protoreflect.FileDescriptor
 
 const file_planet_v1_planet_proto_rawDesc = "" +
 	"\n" +
-	"\x16planet/v1/planet.proto\x12\tplanet.v1\"\xdf\x01\n" +
+	"\x16planet/v1/planet.proto\x12\tplanet.v1\"\x8c\x02\n" +
 	"\vClickBudget\x12\x16\n" +
 	"\x06tokens\x18\x01 \x01(\x01R\x06tokens\x12\x1a\n" +
 	"\bcapacity\x18\x02 \x01(\rR\bcapacity\x12*\n" +
@@ -1577,7 +1589,9 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"\x05share\x18\x05 \x01(\x01R\x05share\x12\x1d\n" +
 	"\n" +
 	"next_share\x18\x06 \x01(\x01R\tnextShare\x12\x1b\n" +
-	"\tnext_cost\x18\t \x01(\x01R\bnextCostJ\x04\b\x04\x10\x05J\x04\b\a\x10\b\"F\n" +
+	"\tnext_cost\x18\t \x01(\x01R\bnextCost\x12+\n" +
+	"\x11linked_multiplier\x18\n" +
+	" \x01(\x01R\x10linkedMultiplierJ\x04\b\x04\x10\x05J\x04\b\a\x10\b\"F\n" +
 	"\fClickRequest\x12\x17\n" +
 	"\atile_id\x18\x01 \x01(\rR\x06tileId\x12\x1d\n" +
 	"\n" +

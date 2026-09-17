@@ -51,9 +51,11 @@ type Price struct {
 }
 
 // Budget is an allowance counted in clicks at a price, rather than in tokens.
+// LinkedMultiplier is what signing in multiplies it by, the same for every caller.
 type Budget struct {
 	cpratelimit.State
-	Price Price
+	Price            Price
+	LinkedMultiplier float64
 }
 
 // BudgetOf reads a bucket in clicks: at a cost of 2, ten tokens refilling at 1/s are

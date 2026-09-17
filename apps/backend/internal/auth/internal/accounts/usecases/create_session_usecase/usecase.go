@@ -20,7 +20,7 @@ type Sessions interface {
 }
 
 type Minter interface {
-	Mint(ip string, account accounts.AccountID, now time.Time) (*cpsession.Token, error)
+	Mint(ip string, holder cpsession.Holder, now time.Time) (*cpsession.Token, error)
 }
 
 type In struct {
@@ -30,9 +30,11 @@ type In struct {
 }
 
 // Out is the click token and the Set-Cookie to send back (empty when the cookie needs no change).
+// Linked is whether the account signed in with a provider, which the token carries: a linked account clicks faster.
 type Out struct {
 	Token     *cpsession.Token
 	Account   accounts.AccountID
+	Linked    bool
 	SetCookie string
 }
 
@@ -86,7 +88,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) (*Out, error) {
 		return nil, fmt.Errorf("failed to find the caller's account: %w", err)
 	}
 
-	token, err := u.minter.Mint(in.IP, admitted.Account, now)
+	token, err := u.minter.Mint(in.IP, cpsession.Holder{Account: admitted.Account, Linked: admitted.Linked}, now)
 	if err != nil {
 		return nil, fmt.Errorf("failed to mint the click token: %w", err)
 	}
@@ -110,7 +112,7 @@ func (u *UseCase) resume(ctx context.Context, cookieHeader string, now time.Time
 	}
 
 	if !session.Extendable(now, u.lifetime) {
-		return &Out{Account: session.Account}, nil
+		return &Out{Account: session.Account, Linked: session.Linked}, nil
 	}
 
 	extended := session.Extended(now, u.lifetime)
@@ -118,7 +120,7 @@ func (u *UseCase) resume(ctx context.Context, cookieHeader string, now time.Time
 		return nil, fmt.Errorf("failed to save the extended session: %w", err)
 	}
 
-	return &Out{Account: extended.Account, SetCookie: extended.Cookie(token, now)}, nil
+	return &Out{Account: extended.Account, Linked: extended.Linked, SetCookie: extended.Cookie(token, now)}, nil
 }
 
 func (u *UseCase) startGuest(ctx context.Context, now time.Time) (*Out, error) {
