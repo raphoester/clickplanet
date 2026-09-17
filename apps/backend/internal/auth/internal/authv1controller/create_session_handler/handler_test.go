@@ -11,17 +11,16 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1/authv1connect"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/create_session_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/attestation"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/create_session_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_me_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconnect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cphttpserver"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
@@ -39,10 +38,14 @@ func (s *stubUseCase) Execute(_ context.Context, in create_session_usecase.In) (
 	return s.out, s.err
 }
 
-type unusedGetMe struct{}
+// onlyCreateSession serves CreateSession, and Unimplemented for every other procedure.
+type onlyCreateSession struct {
+	unimplemented
+	create_session_handler.CreateSessionHandler
+}
 
-func (unusedGetMe) Execute(context.Context, string) (uuid.UUID, error) {
-	return uuid.Nil, errors.New("not called by these tests")
+type unimplemented struct {
+	authv1connect.UnimplementedAuthServiceHandler
 }
 
 type allowAll struct{}
@@ -55,7 +58,7 @@ func (refuseAll) Take(string) (bool, cpratelimit.State) { return false, cprateli
 
 var minted = &create_session_usecase.Out{
 	Token:     &cpsession.Token{Value: "the-token", ExpiresAt: time.UnixMilli(1_800_000_000_000)},
-	Account:   uuid.UUID{15: 1},
+	Account:   accounts.AccountID{15: 1},
 	SetCookie: "cp_sid=token-1; Path=/; HttpOnly",
 }
 
@@ -63,10 +66,7 @@ func server(t *testing.T, useCase *stubUseCase, limiter authv1controller.MintLim
 	t.Helper()
 
 	logger := slog.New(slog.DiscardHandler)
-	service := authv1controller.AuthService{
-		CreateSessionHandler: create_session_handler.New(useCase, logger),
-		GetMeHandler:         get_me_handler.New(unusedGetMe{}),
-	}
+	service := onlyCreateSession{CreateSessionHandler: create_session_handler.New(useCase, logger)}
 
 	mux := http.NewServeMux()
 	mux.Handle(authv1connect.NewAuthServiceHandler(service, connect.WithInterceptors(

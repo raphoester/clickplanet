@@ -7,10 +7,13 @@ package auth
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
+	"time"
 
 	"connectrpc.com/connect"
 
@@ -22,18 +25,35 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/random_token_generator"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/create_anonymous_session_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/create_session_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/delete_account_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/get_me_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/prune_guests_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/prune_guests_usecase/log_prune_guests"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/sign_out_everywhere_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/sign_out_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/uuid_id_provider"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/attestation"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/attestation/open_attester"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/attestation/turnstile"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/attestation/turnstile_attester"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/complete_sign_in_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/create_session_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/delete_account_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_me_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_verifying_key_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/sign_out_everywhere_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/sign_out_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/start_sign_in_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/sessionv1controller"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/aes_flow_sealer"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/discord_identity_provider"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/google_identity_provider"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/random_secret_generator"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/usecases/complete_sign_in_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/usecases/start_sign_in_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
@@ -48,12 +68,35 @@ func NewModule(config Config) cpbootstrap.Module {
 		Name:    moduleName,
 		Enabled: config.Enabled,
 		DiSequence: func(ctx context.Context, props cpbootstrap.Props) error {
-			return build(ctx, config.withDefaults(), props)
+			config := config.withDefaults()
+			return build(ctx, config, props, newProviders(config))
 		},
 	}
 }
 
-func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
+// providerTimeout bounds each call to a provider, so a slow one cannot hold a sign-in open.
+const providerTimeout = 10 * time.Second
+
+// newProviders is every provider with a client id, or none while sign-in is off.
+func newProviders(config Config) signin.Providers {
+	providers := signin.Providers{}
+	if !config.SignIn.Enabled {
+		return providers
+	}
+
+	httpClient := &http.Client{Timeout: providerTimeout}
+	if config.Google.Configured() {
+		providers[signin.Google] = google_identity_provider.New(config.Google, config.SignIn.RedirectURL,
+			google_identity_provider.Production, httpClient, cptime.SystemClock{})
+	}
+	if config.Discord.Configured() {
+		providers[signin.Discord] = discord_identity_provider.New(config.Discord, config.SignIn.RedirectURL,
+			discord_identity_provider.Production, httpClient)
+	}
+	return providers
+}
+
+func build(ctx context.Context, config Config, props cpbootstrap.Props, providers signin.Providers) error {
 	signer, err := cpsession.NewSigner(config.SignerConfig)
 	if err != nil {
 		return fmt.Errorf("failed to build the click token signer: %w", err)
@@ -81,6 +124,15 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	mintLimiter := cpratelimit.New("mint-limiter", config.RateLimiter, clock)
 	props.Runners.Add(mintLimiter)
 
+	seed, err := hex.DecodeString(config.Secret)
+	if err != nil {
+		return fmt.Errorf("failed to read auth.secret: %w", err)
+	}
+	sealer, err := aes_flow_sealer.New(seed)
+	if err != nil {
+		return fmt.Errorf("failed to build the sign-in cookie sealer: %w", err)
+	}
+
 	authService := authv1controller.AuthService{
 		CreateSessionHandler: create_session_handler.New(
 			create_session_usecase.New(attester, store, uuid_id_provider.Provider{}, random_token_generator.Generator{},
@@ -88,7 +140,20 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 			props.Logger,
 		),
 		GetMeHandler: get_me_handler.New(get_me_usecase.New(store, clock)),
+		StartSignInHandler: start_sign_in_handler.New(
+			start_sign_in_usecase.New(providers, random_secret_generator.Generator{}, sealer, clock)),
+		CompleteSignInHandler: complete_sign_in_handler.New(
+			complete_sign_in_usecase.New(providers, sealer, store, uuid_id_provider.Provider{}, random_token_generator.Generator{},
+				config.Sessions, clock),
+			props.Logger,
+		),
+		SignOutHandler:           sign_out_handler.New(sign_out_usecase.New(store)),
+		SignOutEverywhereHandler: sign_out_everywhere_handler.New(sign_out_everywhere_usecase.New(store, clock)),
+		// When the event bus comes, the account's deletion is published from this use case.
+		DeleteAccountHandler: delete_account_handler.New(delete_account_usecase.New(store, clock)),
 	}
+	props.Runners.Add(prune_guests_usecase.NewRunner(config.Prune,
+		log_prune_guests.New(prune_guests_usecase.New(config.Prune, store, clock), props.Logger)))
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return authv1connect.NewAuthServiceHandler(authService, options...)
 	}, authv1controller.NewRateLimitInterceptor(mintLimiter)); err != nil {
@@ -120,6 +185,9 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		slog.Duration("ttl", config.TTL),
 		slog.Bool("turnstile", config.Turnstile.Enabled),
 		slog.Duration("guestTTL", config.Sessions.GuestTTL),
+		slog.Duration("linkedTTL", config.Sessions.LinkedTTL),
+		slog.Any("signIn", providers.Names()),
+		slog.Duration("pruneIdleFor", config.Prune.IdleFor),
 	)
 
 	return nil
@@ -152,6 +220,15 @@ type Config struct {
 	Database cppg.Config
 
 	Sessions accounts.Lifetime
+
+	SignIn signin.Config
+
+	// Each provider is offered while sign-in is on and its clientId is set. The secrets come from the environment.
+	Google  signin.Client
+	Discord signin.Client
+
+	// Deletes the guests nobody has used for a long time.
+	Prune prune_guests_usecase.Config
 }
 
 const defaultTurnstileAction = "session"
@@ -161,6 +238,11 @@ func (c Config) withDefaults() Config {
 		c.Turnstile.Action = defaultTurnstileAction
 	}
 	c.Sessions = c.Sessions.WithDefaults()
+	// A guest is pruned no sooner than its cookie lapses.
+	if c.Prune.IdleFor <= 0 {
+		c.Prune.IdleFor = c.Sessions.GuestTTL
+	}
+	c.Prune = c.Prune.WithDefaults()
 	return c
 }
 
@@ -174,5 +256,41 @@ func (c Config) Validate() error {
 	if err := c.Database.Validate(); err != nil {
 		databaseErr = fmt.Errorf("auth.database: %w", err)
 	}
-	return errors.Join(c.SignerConfig.Validate(), databaseErr)
+	return errors.Join(c.SignerConfig.Validate(), databaseErr, c.pruneError(), c.signInError())
+}
+
+func (c Config) pruneError() error {
+	config := c.withDefaults()
+	if config.Prune.IdleFor < config.Sessions.GuestTTL {
+		return fmt.Errorf("auth.prune.idleFor %s is shorter than auth.sessions.guestTTL %s: a live cookie would lose its account",
+			config.Prune.IdleFor, config.Sessions.GuestTTL)
+	}
+	return nil
+}
+
+func (c Config) signInError() error {
+	if !c.SignIn.Enabled {
+		return nil
+	}
+
+	var errs []error
+	redirect, err := url.Parse(c.SignIn.RedirectURL)
+	if err != nil || !redirect.IsAbs() || redirect.Host == "" || redirect.RawQuery != "" || redirect.Fragment != "" {
+		errs = append(errs, fmt.Errorf("auth.signIn.redirectUrl %q is not an absolute URL without a query", c.SignIn.RedirectURL))
+	}
+
+	offered := 0
+	for name, client := range map[string]signin.Client{"google": c.Google, "discord": c.Discord} {
+		if !client.Configured() {
+			continue
+		}
+		offered++
+		if client.ClientSecret == "" {
+			errs = append(errs, fmt.Errorf("auth.%s.clientSecret is empty while auth.%s.clientId is set", name, name))
+		}
+	}
+	if offered == 0 {
+		errs = append(errs, errors.New("auth.signIn.enabled is true and no provider has a clientId"))
+	}
+	return errors.Join(errs...)
 }

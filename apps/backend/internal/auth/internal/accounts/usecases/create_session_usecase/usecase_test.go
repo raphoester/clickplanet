@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -67,7 +66,7 @@ func (f fixture) create(t *testing.T, useCase *create_session_usecase.UseCase, c
 	return out
 }
 
-func (f fixture) accountIn(t *testing.T, out *create_session_usecase.Out) uuid.UUID {
+func (f fixture) accountIn(t *testing.T, out *create_session_usecase.Out) accounts.AccountID {
 	t.Helper()
 
 	claims, err := f.verifier.Verify(out.Token.Value, ip, f.clock.Now())
@@ -88,11 +87,11 @@ func TestANewCallerIsGivenAGuestSignedIntoItsToken(t *testing.T) {
 
 	out := f.create(t, f.useCase(open_attester.New()), "")
 
-	assert.Equal(t, uuid.UUID{15: 1}, f.accountIn(t, out))
+	assert.Equal(t, accounts.AccountID{15: 1}, f.accountIn(t, out))
 	assert.Equal(t, "token-1", cookieOf(t, out.SetCookie).Value)
-	stored, err := f.sessions.FindSession(t.Context(), accounts.TokenOf("token-1").Hash)
+	stored, err := f.sessions.Session(t.Context(), accounts.TokenOf("token-1").Hash)
 	require.NoError(t, err)
-	assert.Equal(t, uuid.UUID{15: 1}, stored.Account)
+	assert.Equal(t, accounts.AccountID{15: 1}, stored.Account)
 }
 
 func TestAReturningCallerKeepsItsAccountAndItsCookie(t *testing.T) {
@@ -103,7 +102,7 @@ func TestAReturningCallerKeepsItsAccountAndItsCookie(t *testing.T) {
 	f.clock.Advance(time.Hour)
 	out := f.create(t, useCase, "theme=dark; cp_sid=token-1")
 
-	assert.Equal(t, uuid.UUID{15: 1}, f.accountIn(t, out))
+	assert.Equal(t, accounts.AccountID{15: 1}, f.accountIn(t, out))
 	assert.Empty(t, out.SetCookie, "within the day the cookie needs no change")
 }
 
@@ -118,7 +117,7 @@ func TestADayLaterTheSessionIsExtendedAndTheCookieRenewed(t *testing.T) {
 	renewed := cookieOf(t, out.SetCookie)
 	assert.Equal(t, "token-1", renewed.Value)
 	assert.Equal(t, start.Add(25*time.Hour).Add(90*24*time.Hour), renewed.Expires)
-	stored, err := f.sessions.FindSession(t.Context(), accounts.TokenOf("token-1").Hash)
+	stored, err := f.sessions.Session(t.Context(), accounts.TokenOf("token-1").Hash)
 	require.NoError(t, err)
 	assert.Equal(t, start.Add(25*time.Hour), stored.ExtendedAt)
 }
@@ -136,7 +135,7 @@ func TestAnExpiredOrUnknownCookieStartsANewGuest(t *testing.T) {
 			f.clock.Advance(91 * 24 * time.Hour)
 			out := f.create(t, useCase, cookie)
 
-			assert.Equal(t, uuid.UUID{15: 2}, f.accountIn(t, out))
+			assert.Equal(t, accounts.AccountID{15: 2}, f.accountIn(t, out))
 			assert.Equal(t, "token-2", cookieOf(t, out.SetCookie).Value)
 		})
 	}
@@ -149,7 +148,7 @@ func TestARefusedAttestationCreatesNothing(t *testing.T) {
 
 	require.ErrorIs(t, err, attestation.ErrAttestationFailed)
 	assert.Nil(t, out)
-	_, err = f.sessions.FindSession(t.Context(), accounts.TokenOf("token-1").Hash)
+	_, err = f.sessions.Session(t.Context(), accounts.TokenOf("token-1").Hash)
 	assert.ErrorIs(t, err, accounts.ErrSessionNotFound, "a caller that proved nothing never gets an account")
 }
 
@@ -173,4 +172,19 @@ func TestAStoreFailureFailsTheMint(t *testing.T) {
 	require.Error(t, err)
 	assert.NotErrorIs(t, err, attestation.ErrAttestationFailed)
 	assert.Nil(t, out)
+}
+
+func TestALinkedSessionIsExtendedByTheLinkedLifetime(t *testing.T) {
+	f := setUp(t)
+	identity := accounts.NewIdentity("google", accounts.Claim{Subject: "user"}, accounts.AccountID{15: 9}, start)
+	require.NoError(t, f.sessions.SaveSignIn(t.Context(), accounts.SignIn{
+		NewAccount: true, Identity: identity,
+		Session: accounts.LinkedSession(identity.Account, accounts.TokenOf("linked"), accounts.Lifetime{}.WithDefaults(), start),
+	}))
+
+	f.clock.Advance(25 * time.Hour)
+	out := f.create(t, f.useCase(open_attester.New()), "cp_sid=linked")
+
+	assert.Equal(t, identity.Account, f.accountIn(t, out))
+	assert.Equal(t, start.Add(25*time.Hour).Add(30*24*time.Hour), cookieOf(t, out.SetCookie).Expires)
 }

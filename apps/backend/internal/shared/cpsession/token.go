@@ -18,8 +18,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/uuid"
-
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipscope"
 )
 
@@ -37,7 +35,7 @@ const (
 	versionLen = 1
 	expiryLen  = 8
 	idLen      = 8
-	accountLen = len(uuid.UUID{})
+	accountLen = len(AccountID{})
 
 	expiryAt  = versionLen
 	idAt      = expiryAt + expiryLen
@@ -52,10 +50,10 @@ const (
 // preceded it.
 type ID string
 
-// Claims is what a verified token says: which mint, and which account it was minted for (uuid.Nil for none).
+// Claims is what a verified token says: which mint, and which account it was minted for (NoAccount for none).
 type Claims struct {
 	ID      ID
-	Account uuid.UUID
+	Account AccountID
 }
 
 type Token struct {
@@ -93,7 +91,7 @@ func NewSigner(config SignerConfig) (*Signer, error) {
 // The scope rather than the address, for the same reason the throttle uses it:
 // the two must cover the same ground, or a v6 caller sheds a spent bucket by
 // re-minting on the next address in a prefix it already owns.
-func (s *Signer) Mint(ip string, account uuid.UUID, now time.Time) (*Token, error) {
+func (s *Signer) Mint(ip string, account AccountID, now time.Time) (*Token, error) {
 	id := make([]byte, idLen)
 	if _, err := rand.Read(id); err != nil {
 		return nil, fmt.Errorf("failed to read random bytes: %w", err)
@@ -168,7 +166,7 @@ func (v *Verifier) Verify(value string, ip string, now time.Time) (*Claims, erro
 
 	return &Claims{
 		ID:      ID(hex.EncodeToString(payload[idAt:accountAt])),
-		Account: uuid.UUID(payload[accountAt:]),
+		Account: AccountID(payload[accountAt:]),
 	}, nil
 }
 

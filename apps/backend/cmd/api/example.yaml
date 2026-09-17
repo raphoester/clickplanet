@@ -574,5 +574,28 @@ auth:
   sessions:
     # A guest idle this long loses its cookie; its next mint starts a new guest.
     guestTTL: 2160h # 90 days
+    # A signed-in account idle this long loses its cookie.
+    linkedTTL: 720h # 30 days
     # A session is extended at most this often, so a player is not a write per mint.
     extendEvery: 24h
+  # Sign-in with Google or Discord. Off, StartSignIn and CompleteSignIn answer
+  # Unimplemented (HTTP 404) and the web client hides the button.
+  signIn:
+    enabled: false
+    # The frontend page each provider sends the browser back to. It must match
+    # the redirect URI registered with every provider exactly.
+    redirectUrl: http://localhost:5173/auth/callback
+  # A provider is offered while signIn is on and its clientId is set. The
+  # secrets belong in the environment (auth.google.clientSecret,
+  # auth.discord.clientSecret).
+  google:
+    clientId: ""
+    clientSecret: ""
+  discord:
+    clientId: ""
+    clientSecret: ""
+  # Deletes the accounts with no provider that nobody has used for idleFor.
+  prune:
+    # Never below sessions.guestTTL, or a live cookie loses its account.
+    idleFor: 2160h # 90 days
+    interval: 1h

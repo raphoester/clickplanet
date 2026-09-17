@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"connectrpc.com/connect"
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -17,12 +16,12 @@ import (
 )
 
 type stubUseCase struct {
-	account uuid.UUID
+	account *accounts.Account
 	err     error
 	asked   []string
 }
 
-func (s *stubUseCase) Execute(_ context.Context, cookieHeader string) (uuid.UUID, error) {
+func (s *stubUseCase) Execute(_ context.Context, cookieHeader string) (*accounts.Account, error) {
 	s.asked = append(s.asked, cookieHeader)
 	return s.account, s.err
 }
@@ -38,15 +37,29 @@ func getMe(useCase *stubUseCase) (*connect.Response[authv1.GetMeResponse], error
 	return res, nil
 }
 
-func TestGetMeAnswersTheAccountOfTheCookieAndIsNeverCached(t *testing.T) {
-	useCase := &stubUseCase{account: uuid.UUID{15: 1}}
+func TestGetMeAnswersAGuestOfTheCookieAndIsNeverCached(t *testing.T) {
+	useCase := &stubUseCase{account: &accounts.Account{ID: accounts.AccountID{15: 1}}}
 
 	res, err := getMe(useCase)
 	require.NoError(t, err)
 
 	assert.Equal(t, []string{"cp_sid=abc"}, useCase.asked)
-	assert.Equal(t, uuid.UUID{15: 1}.String(), res.Msg.GetAccountId())
+	assert.Equal(t, accounts.AccountID{15: 1}.String(), res.Msg.GetAccountId())
+	assert.Equal(t, authv1.AccountKind_ACCOUNT_KIND_GUEST, res.Msg.GetKind())
+	assert.Empty(t, res.Msg.GetProviders())
 	assert.Equal(t, "no-store", res.Header().Get("Cache-Control"))
+}
+
+func TestGetMeAnswersALinkedAccountWithItsProvidersInOrder(t *testing.T) {
+	useCase := &stubUseCase{account: &accounts.Account{ID: accounts.AccountID{15: 1}, Identities: []accounts.Identity{
+		{Provider: "discord"}, {Provider: "google"},
+	}}}
+
+	res, err := getMe(useCase)
+	require.NoError(t, err)
+
+	assert.Equal(t, authv1.AccountKind_ACCOUNT_KIND_LINKED, res.Msg.GetKind())
+	assert.Equal(t, []authv1.Provider{authv1.Provider_PROVIDER_DISCORD, authv1.Provider_PROVIDER_GOOGLE}, res.Msg.GetProviders())
 }
 
 func TestNoAccountIsUnauthenticated(t *testing.T) {

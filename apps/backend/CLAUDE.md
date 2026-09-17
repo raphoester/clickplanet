@@ -84,7 +84,7 @@ root package**:
 |---|---|
 | `planet` | `Config`, `NewModule` |
 | `chat` | `Config`, `NewModule` |
-| `auth` | `Config`, `NewModule` |
+| `auth` | `Config`, `NewModule`; behind the `testing` tag, `NewModuleWithFakeProviders` and the fake's types |
 | `antibot` | `Config`, `Observer`, `Guard`, `New`, `Description`, `Click`, `Report`, `Sentence`, `Examination`, `Reading` |
 
 That holds for `cmd/api` too: the composition root lists modules and cannot
@@ -98,6 +98,42 @@ that reads them is not.
 **Adding a package inside a module is therefore free, and taking one out of
 `internal/` is a deliberate act** that shows up in review as exactly one moved
 directory.
+
+### Every id is a type of its own
+
+**An id is never a bare `uuid.UUID`, `string` or `[]byte` in a signature.** Each kind of id is its own named type, declared beside the entity it names: `accounts.AccountID` (`type AccountID uuid.UUID`) and `accounts.TokenHash` (`type TokenHash []byte`, which names a session). A function that asks for an account then says so, and passing a session's hash or any other uuid where an account is asked for **does not compile**. With bare types, `DeleteSessions(ctx, account)` and `DeleteSession(ctx, tokenHash)` differ by one letter and nothing checks which one a caller meant.
+
+- **The only conversions are at the edge of the process.** A storage adapter converts to the driver's type on the way out and back on the way in (`uuid.UUID(account)` in `postgres_account_store`; lib/pq cannot take a named array), a handler to the wire's type (`account.ID.String()`), and the token codec to bytes. The id type has no `Scan` or `Value` of its own.
+- **An id is never unwrapped to hand it on.** `uuid.UUID(account)` in a use case, to call a port or a shared package, throws away what the type was for. The id that crosses modules is declared where it crosses: `cpsession.AccountID` sits with the click token, which `auth` mints and `planet` reads, and `accounts.AccountID` is an alias of it, so an account reaches `Mint` and comes back in `Claims.Account` as the same type. `cpsession.NoAccount` is a token minted for nobody.
+- **A new id starts as a type.** Adding one later means touching every signature it already flows through.
+
+### Manipulators are verbs, builders are nouns
+
+**A name says whether calling it changes anything.** From Elegant Objects:
+
+```
+class Document {
+    OutputPipe output();          // builder: a noun, reads, changes nothing
+}
+
+class OutputPipe {
+    void write(InputStream stream); // manipulator: a verb, does the work
+    int bytes();
+    long time();
+}
+```
+
+- **A manipulator performs an action and changes state**: it writes a row, sends a request, spends a token, mutates its receiver or an argument. It is named from a verb — `SaveSignIn`, `DeleteSessions`, `Session.Extend`, `Grant`, `Execute`.
+- **A builder only reads or computes, and changes nothing** — not its receiver, not an argument, not the world. It is named from a noun, with `With`, `As` or `Of` where that reads better — `accounts.Cookie`, `accounts.ExpiredSessionCookie`, `store.Session(ctx, hash)`, `accounts.OutcomeOf`, `Flow.Challenge`, `Config.WithDefaults`, `oauth_http.Resource[T]`.
+- **A verb on a pure function is a bug in the name.** `ClearCookie()` that only returns a `Set-Cookie` string reads as if it cleared something; it is `ExpiredSessionCookie()`, and the caller is what sends it. Likewise a read port is `Session(ctx, hash)`, not `FindSession`.
+- **A builder that returns a boolean is an adjective** — `empty`, `readable`, `negative`: `Account.Linked()`, `Providers.Off()`, `Client.Configured()`, `Account.linkedTo(provider)`. Not `IsLinked`, `HasProvider` or `holds`. And the comma-ok second result of a builder (`CookieValue(…) (string, bool)`) is Go's idiom, not a name.
+- **A manipulator returns no answer about what it did.** Ask first with an adjective, then act: `if session.Extendable(now, lifetime)`, then save `session.Extended(now, lifetime)`. Not `ExtendIfDue(...) bool`, which both acts and answers.
+- **Prefer immutable values: a builder returns a changed copy, it does not change its receiver.** `session.Extended(now, lifetime)` is a new `*Session` with the new expiry, and `session` is left as it was; the only manipulator left is the store's `SaveSession`, which writes the copy. A method that sets a field on a domain value is the last resort, not the default.
+- **A builder that returns an error is still a noun**: `Session.ExpiryError(now)`, `Flow.CallbackError(state, now)`, `Config.pruneError()`.
+- **Two exceptions, both imposed from outside:** `Validate() error` is the hook `cpconfigs` calls by name, and a generated Connect handler method carries its RPC's name (`GetMe`).
+- **Go's `New…` constructors stay** — building an object is what they say.
+
+The auth module follows this. Code outside it has not been checked against the rule yet: fix a name when you touch the code, not in a sweep.
 
 ### The composite layer
 
@@ -364,9 +400,15 @@ POST /auth.v1.AuthService/CreateSession   [Cookie: cp_sid=…, sent by the web c
   → [cpbootstrap: error net], RateLimitInterceptor (the mint budget)
   → AuthService → create_session_handler
   → create_session_usecase: attest (turnstile_attester → Cloudflare siteverify)
-  → accounts: the cookie's live Session (extended and saved when due), or StartGuest and store it
+  → accounts: the cookie's live Session (extended and saved when due), or a GuestSession, stored
   → shared/cpsession.Signer.Mint [Ed25519 over version+expiry+id+account+scope; nothing stored]
   ← token, and Set-Cookie when the session is new or renewed
+
+POST /auth.v1.AuthService/StartSignIn → authorization URL, Set-Cookie: cp_oauth (sealed flow)
+  … the provider … → https://clickplanet.lol/auth/callback?code&state
+POST /auth.v1.AuthService/CompleteSignIn   [Cookie: cp_oauth, cp_sid]
+  → complete_sign_in_usecase: open and check the flow, provider.Exchange, accounts.OutcomeOf, SaveSignIn
+  ← Set-Cookie: cp_sid (new session), cp_oauth cleared; the client mints again
 
 POST /session.v1.SessionService/CreateSession   [deprecated]
   → create_anonymous_session_usecase: attest, then mint with no account
@@ -561,36 +603,64 @@ The signature is checked **before** the expiry, so a forger learns nothing about
 
 ### Auth (`internal/auth/`)
 
-**One module admits a caller: Turnstile, then the account its cookie holds, then the click token.** Every clicking browser gets an account, a guest one until it signs in; signing in with Google or Discord comes later and links to the same row, so a guest's history needs no merge. Off by default (`auth.enabled`); off, `auth.v1` and `session.v1` 404.
+**One module admits a caller: Turnstile, then the account its cookie holds, then the click token.** Every clicking browser gets an account, a guest one until it signs in; signing in with Google or Discord links to the same row, so a guest's history needs no merge. Off by default (`auth.enabled`); off, `auth.v1` and `session.v1` 404.
 
 It was two modules, `session` and `auth`, for one PR. The mint was auth's only caller, and "not a bot" and "who" are decided on the same request for the same purpose, so the line between them cut through one piece of work.
 
 ```
 internal/auth/internal/
-  accounts/                                Session, Token, Lifetime, the cookie; the Sessions, IDProvider and TokenGenerator ports
-    postgres_account_store/                accounts and sessions in the auth schema
-    inmemory_account_store/                the same port in a map, behind the testing tag
+  accounts/                                AccountID, TokenHash, Account, Identity, Session, Token, Lifetime, OutcomeOf, the cookie; the Store, IDProvider and TokenGenerator ports
+    postgres_account_store/                accounts, identities and sessions in the auth schema
+    inmemory_account_store/                the same port in maps, behind the testing tag
     uuid_id_provider/  random_token_generator/
     usecases/create_session_usecase/       attest, resume or start a guest, mint
     usecases/create_anonymous_session_usecase/   deprecated: attest, mint with no account
     usecases/get_me_usecase/               reads only
+    usecases/sign_out_usecase/  sign_out_everywhere_usecase/  delete_account_usecase/
+    usecases/prune_guests_usecase/         deletes idle guests: Executor, Runner, and log_prune_guests
+  signin/                                  Flow (state, PKCE verifier, nonce), Provider, Providers, Sealer, the cp_oauth cookie
+    google_identity_provider/  discord_identity_provider/  oauth_http/
+    aes_flow_sealer/  random_secret_generator/
+    usecases/start_sign_in_usecase/  complete_sign_in_usecase/
   attestation/                             Attester, ErrAttestationFailed
     turnstile/  turnstile_attester/  open_attester/
-  authv1controller/                        AuthService: create_session_handler, get_me_handler
+  authv1controller/                        AuthService: one handler package per procedure, authprovider for the enum
   sessionv1controller/                     deprecated SessionService
   migrations/
 ```
 
 - **`session.v1.SessionService/CreateSession` is deprecated**, in the proto and in the code. It mints a token with no account for clients that predate accounts, and goes once none calls it. Both paths spend one mint budget, so the old one is not a second allowance.
 - **The cookie is `cp_sid`**: a 32-byte token from `random_token_generator`, `HttpOnly; Secure; SameSite=Lax; Path=/`, host-only on the API's domain. The API and the frontend are the same site, so it is not a third-party cookie. **Only its SHA-256 is stored** (`sessions.token_hash`), so a copy of the table signs nobody in. Caddy redacts `Cookie` and `Set-Cookie` in its logs.
-- **The rules are on `accounts.Session`**: `StartGuest` opens one with a full `guestTTL` (90 days), `CheckLive` answers `ErrSessionExpired` past it, `ExtendIfDue` moves the expiry when `extendEvery` (24h) has passed since the last extension, and `Cookie` is its `Set-Cookie`. `create_session_usecase` only orders them: attest, read the cookie, find the session, check it, extend and save it when due — or, when there is no cookie, no such session or an expired one, start and store a guest — then mint.
+- **The rules are on `accounts.Session`**: `GuestSession` builds one with a full `guestTTL` (90 days) and `LinkedSession` with a full `linkedTTL` (30 days), `ExpiryError` is `ErrSessionExpired` past it, `Extendable(now, lifetime)` is whether `extendEvery` (24h) has passed since the last extension, `Extended(now, lifetime)` is a copy whose expiry moved by the TTL of its kind, and `Cookie` is its `Set-Cookie`. `Session.Linked` is read by the store (does the account have an identity), never written, so every session of an account extends as a linked one once any browser links it. `create_session_usecase` only orders them: attest, read the cookie, find the session, check it, extend and save it when due — or, when there is no cookie, no such session or an expired one, start and store a guest — then mint.
 - **Only a caller that passed attestation gets an account**, so bots that fail Turnstile make no rows. The mint throttle bounds how many guests one address makes.
 - **A failing database fails the mint.** No fallback to a token with no account: the error net answers `internal`.
 - **Absence is a sentinel, never `nil, nil`**: `ErrNoSessionCookie`, `ErrSessionNotFound` (the port's, for an unknown token hash), `ErrSessionExpired`, and `ErrNoAccount`, which `GetMe` answers as `Unauthenticated`. `GetMe` creates, extends and saves nothing, and answers `no-store`.
 - **Ids and tokens are injected** (`IDProvider`, `TokenGenerator`), like the clock. Tests use `accounts.SequentialIDs` and `SequentialTokens` (behind the tag), so they assert exact ids.
-- **`accounts.SessionsContractSuite` is the port's behaviour**, like `clicks.TileStorageContractSuite`. Both stores embed it: postgres adds only what the port cannot show (the token is never stored, `last_seen_at`, a failed insert leaves no account), and the use cases are tested over the in-memory one, which can `FailWith` an error.
-- **No cache.** Mints are one per 30s per address, so one indexed read each is cheap, and there is nothing to invalidate on sign-out later.
-- **`planet` reads the account off the token**: the session interceptor puts it on the context (`cpctx.GetAccount`), and the throttle, the bans and the ledger key on it beside the scope — see [Two buckets per click](#two-buckets-per-click), [Anti-bot](#anti-bot-internalantibot) and [Manual bans](#manual-bans-findplayers-topplayers-banplayer-revertplayer-inspectplayer). Not yet: providers, sign-out, deletion and the guest prune.
+- **`accounts.StoreContractSuite` is the port's behaviour**, like `clicks.TileStorageContractSuite`. Both stores embed it: postgres adds only what the port cannot show (the token is never stored, `last_seen_at`, an unverified email is `NULL`), and the use cases are tested over the in-memory one, which can `FailWith` an error.
+- **No cache.** Mints are one per 30s per address, so one indexed read each is cheap, and a sign-out has nothing to invalidate.
+- **`planet` reads the account off the token**: the session interceptor puts it on the context (`cpctx.GetAccount`), and the throttle, the bans and the ledger key on it beside the scope — see [Two buckets per click](#two-buckets-per-click), [Anti-bot](#anti-bot-internalantibot) and [Manual bans](#manual-bans-findplayers-topplayers-banplayer-revertplayer-inspectplayer).
+
+#### Signing in (`internal/auth/internal/signin/`)
+
+**OAuth 2.0 authorization code with PKCE, run by this server, over two RPCs.** No raw HTTP route and no Caddy change: the provider sends the browser to the frontend's callback page, and that page calls the API.
+
+- **`StartSignIn(provider)`** draws a `signin.Flow` — state, PKCE verifier and nonce, 32 random bytes each — seals it into the `cp_oauth` cookie (10 minutes, same attributes as `cp_sid`) and answers the provider's authorization URL. Nothing is stored on the server.
+- **`CompleteSignIn(code, state)`** opens the cookie, checks the state (constant time) and the expiry, trades the code with the verifier, and clears `cp_oauth` on every answer it maps, success or refusal. A browser that did not start the sign-in has no cookie that matches, which is the whole CSRF defence: a code carried to a victim's browser is refused before the provider is asked.
+- **The cookie is AES-256-GCM** (`aes_flow_sealer`), under a key derived with HKDF from `auth.secret` and a label of its own, so there is no second secret to set and the browser can neither read the verifier nor change the flow.
+- **Google** (`openid email`) reads the user from the ID token in the token endpoint's answer. Its signature is not checked: it comes straight from Google over TLS, which OpenID Connect Core 3.1.3.7 accepts instead; issuer, audience, expiry and nonce are. **Discord** (`identify email`) reads `/users/@me`. Both go through `oauth_http`, which answers `ErrProviderRefused` for a 4xx or an answer that does not decode, and a plain error (the error net's `internal`) when the provider could not be asked.
+- **`accounts.OutcomeOf` decides, and emails are never compared**: an identity already linked signs in to its account; a new one links to the account the browser is on; no account, or one that already holds a user of that provider, gets a new account. The guest a browser leaves for a known identity is left as it was — nothing is merged, and the prune deletes it later.
+- **`accounts.SignIn` is written in one transaction**: the new account if any, the identity if new, the new session, and the deletion of the browser's previous session. The session token changes on every sign-in. Two browsers linking the same new identity at once: the second insert finds it taken (`ErrIdentityTaken`), and the use case runs once more, now as a sign-in.
+- **An email is kept only when the provider says it is verified** (`accounts.NewIdentity`), and it is `NULL` otherwise. It is for contact, never for finding an account.
+- **Off by default** (`auth.signIn.enabled`). Off, `signin.Providers` is empty and both RPCs answer `Unimplemented`, which Connect sends as HTTP 404 — the frontend hides the button on it. A provider is offered once its `clientId` is set. `StartSignIn` and `CompleteSignIn` spend the mint budget: each can cost a round trip to a third party or make an account.
+- **The client mints again after `CompleteSignIn`**, so its click token carries the account. The old token names the old account until it expires (1h).
+- `auth.NewModuleWithFakeProviders` (behind the tag) boots the module with `signin.FakeProvider` for every provider: `Grant(code, claim)`, and the fake checks the verifier against the challenge it was shown. `e2e/sign_in_test.go` drives it.
+
+#### Signing out, deleting, pruning
+
+- **`SignOut`** deletes this browser's session and clears the cookie; a browser with no session succeeds too. **`SignOutEverywhere`** deletes every session of the account and answers `Unauthenticated` with none. Neither touches the account.
+- **`DeleteAccount`** deletes the account row, and its identities and sessions go with it by cascade. Planet and chat keep nothing keyed on the account yet; the ledger and the chat log age out. **The `player` module will listen for `auth.v1.AccountDeleted`**: the seam is `delete_account_usecase.Execute`, after the delete, which already answers the account id. The event is not published yet, because an event with no subscriber is dead code.
+- **No unlink RPC.** When one comes, a linked account must keep its last provider: without one it is a guest holding an email.
+- **`prune_guests_usecase`** is an `Executor` and a `Runner` that calls it; `log_prune_guests` is the decorator that logs, so the loop holds no log line. Every `auth.prune.interval` (1h) it deletes, 1000 rows a statement, the accounts with no identity whose `last_seen_at` is older than `auth.prune.idleFor`. That defaults to `guestTTL`, and less refuses the boot: `last_seen_at` moves when a session is extended, so a guest idle that long has no live cookie left.
 
 ### Bonus boxes (`internal/planet/internal/bonuses/`)
 
@@ -1760,7 +1830,12 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `auth.turnstile.hostnames` — the frontend origins siteverify must report; **empty refuses every token** rather than accepting any, and a production value must not include `localhost`
 - `auth.turnstile.action` — must match the widget's `data-action` (default `session`)
 - `auth.database.*` — accounts and their sessions, same shape as `database`, schema `auth`; required when `auth.enabled`. `auth.database.password` belongs in the environment
-- `auth.sessions.guestTTL`, `auth.sessions.extendEvery` — how long an idle guest keeps its cookie (90 days), and how often using a session extends it (24h)
+- `auth.sessions.guestTTL`, `auth.sessions.linkedTTL`, `auth.sessions.extendEvery` — how long an idle guest keeps its cookie (90 days), how long an idle signed-in account does (30 days), and how often using a session extends it (24h)
+- `auth.signIn.enabled` — off, `StartSignIn` and `CompleteSignIn` answer `Unimplemented` (404). On, at least one provider needs a `clientId`
+- `auth.signIn.redirectUrl` — the frontend callback page, registered with every provider exactly (production `https://clickplanet.lol/auth/callback`); not an absolute URL, or one with a query, refuses the boot
+- `auth.google.clientId`, `auth.discord.clientId` — a provider is offered once its id is set
+- `auth.google.clientSecret`, `auth.discord.clientSecret` — from the environment; empty beside a set `clientId` refuses the boot
+- `auth.prune.idleFor`, `auth.prune.interval` — how long a guest goes unused before it is deleted (default `guestTTL`, never less), and how often the prune runs (1h)
 - `chat.database.host`, `port`, `user`, `password`, `dbName`, `sslMode`, `schema`, `pool.*` — the chat module's postgres, same shape as `database`; any of them but `password` and `pool` empty refuses the boot. `chat.database.password` belongs in the environment
 - `chat.storage.historySize`, `chat.storage.retention`, `chat.storage.pruneInterval`, `chat.storage.subscriberBuffer`
 - `chat.service.tagSalt` — salts the per-sender tag; **empty regenerates one at boot**, changing every tag on restart
@@ -1780,7 +1855,7 @@ The proto package is the **only** version number: Connect derives each route fro
 
 Tests use `testify`. **A postgres store's own tests need Docker**, and nothing else does: a suite starts one `postgres:16-alpine` container in `SetupSuite` with `cppg.StartTestServer(t)` (behind the `testing` tag), opens and migrates its schema with `OpenSchema(t, schema, migrations.FS)`, and empties it in `SetupTest` with `Purge`. The container stops when the suite ends. There is no container shared across packages: `go test` runs each package as its own process, up to `-p` (GOMAXPROCS) at once. Everything above a store is tested against a fake of its port (`inmemory_tile_storage.MemoryPersistence`), so it runs without Docker.
 
-**A path through a booted module is tested in `e2e/`**, never in `cmd/api`, which only holds the config and the module list. A test there boots the modules it needs with `cpbootstrap.Run` on a test postgres (`TestServer.ConfigFor(schema)`) and calls them over the wire: `accounts_test.go` mints a guest account, brings it back with its cookie, and checks the deprecated `session.v1` path still mints with none.
+**A path through a booted module is tested in `e2e/`**, never in `cmd/api`, which only holds the config and the module list. A test there boots the modules it needs with `cpbootstrap.Run` on a test postgres (`TestServer.ConfigFor(schema)`) and calls them over the wire: `accounts_test.go` mints a guest account, brings it back with its cookie, and checks the deprecated `session.v1` path still mints with none; `sign_in_test.go` links a provider, signs in to a known identity, signs out and deletes, over fake providers.
 
 On macOS, testcontainers asks the Docker credential helper before it pulls an image, and that can hang with no prompt in a non-interactive shell. `docker pull postgres:16-alpine` once from a terminal avoids it.
 

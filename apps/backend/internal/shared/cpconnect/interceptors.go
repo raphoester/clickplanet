@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/google/uuid"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
@@ -186,7 +185,7 @@ func NewSessionReaderInterceptor(verifier SessionVerifier, clock cptime.Clock, p
 // withClaims puts the session id on the context, and the account when the token names one.
 func withClaims(ctx context.Context, claims *cpsession.Claims) context.Context {
 	ctx = cpctx.AddSessionIDToContext(ctx, string(claims.ID))
-	if claims.Account == uuid.Nil {
+	if claims.Account == cpsession.NoAccount {
 		return ctx
 	}
 

@@ -4,49 +4,64 @@ package accounts
 import (
 	"fmt"
 	"time"
-
-	"github.com/google/uuid"
 )
 
 // Session is one browser's hold on an account, found by the hash of its cookie's token.
 type Session struct {
-	TokenHash  []byte
-	Account    uuid.UUID
+	TokenHash TokenHash
+	Account   AccountID
+	// Linked is whether the account has a provider, which sets how long the session lasts. The store reads it, never writes it.
+	Linked     bool
 	ExtendedAt time.Time
 	ExpiresAt  time.Time
 }
 
-// StartGuest opens a new account's first session.
-func StartGuest(account uuid.UUID, token *Token, lifetime Lifetime, now time.Time) *Session {
-	return &Session{
-		TokenHash:  token.Hash,
-		Account:    account,
-		ExtendedAt: now,
-		ExpiresAt:  now.Add(lifetime.GuestTTL),
-	}
+// GuestSession opens a new account's first session.
+func GuestSession(account AccountID, token *Token, lifetime Lifetime, now time.Time) *Session {
+	return newSession(account, token, false, lifetime, now)
 }
 
-func (s *Session) CheckLive(now time.Time) error {
+// LinkedSession opens a session on an account that has a provider, as a sign-in does.
+func LinkedSession(account AccountID, token *Token, lifetime Lifetime, now time.Time) *Session {
+	return newSession(account, token, true, lifetime, now)
+}
+
+func newSession(account AccountID, token *Token, linked bool, lifetime Lifetime, now time.Time) *Session {
+	session := &Session{TokenHash: token.Hash, Account: account, Linked: linked, ExtendedAt: now}
+	session.ExpiresAt = now.Add(session.ttl(lifetime))
+	return session
+}
+
+func (s *Session) ExpiryError(now time.Time) error {
 	if !now.Before(s.ExpiresAt) {
 		return fmt.Errorf("%w at %s", ErrSessionExpired, s.ExpiresAt.Format(time.RFC3339))
 	}
 	return nil
 }
 
-// ExtendIfDue moves the expiry out when the last extension is old enough, so a busy player is not a write per visit.
-func (s *Session) ExtendIfDue(now time.Time, lifetime Lifetime) bool {
-	if now.Sub(s.ExtendedAt) < lifetime.ExtendEvery {
-		return false
-	}
+// Extendable is whether the last extension is old enough to extend again, so a busy player is not a write per visit.
+func (s *Session) Extendable(now time.Time, lifetime Lifetime) bool {
+	return now.Sub(s.ExtendedAt) >= lifetime.ExtendEvery
+}
 
-	s.ExtendedAt = now
-	s.ExpiresAt = now.Add(lifetime.GuestTTL)
-	return true
+// Extended is a copy of the session extended at now, by the lifetime of its kind. The session itself does not change.
+func (s *Session) Extended(now time.Time, lifetime Lifetime) *Session {
+	extended := *s
+	extended.ExtendedAt = now
+	extended.ExpiresAt = now.Add(s.ttl(lifetime))
+	return &extended
+}
+
+func (s *Session) ttl(lifetime Lifetime) time.Duration {
+	if s.Linked {
+		return lifetime.LinkedTTL
+	}
+	return lifetime.GuestTTL
 }
 
 // Cookie keeps token in the browser for as long as the session lives.
 func (s *Session) Cookie(token *Token, now time.Time) string {
-	return setCookie(token.Value, s.ExpiresAt, now)
+	return Cookie(CookieName, token.Value, s.ExpiresAt, now)
 }
 
 // Lifetime is how long a session lasts, and how often using it pushes that out.
@@ -54,18 +69,25 @@ type Lifetime struct {
 	// A guest idle this long loses its cookie (default 90 days, the guest prune window).
 	GuestTTL time.Duration
 
+	// A signed-in account idle this long loses its cookie (default 30 days).
+	LinkedTTL time.Duration
+
 	// A session is extended at most this often (default 24h).
 	ExtendEvery time.Duration
 }
 
 const (
 	defaultGuestTTL    = 90 * 24 * time.Hour
+	defaultLinkedTTL   = 30 * 24 * time.Hour
 	defaultExtendEvery = 24 * time.Hour
 )
 
 func (l Lifetime) WithDefaults() Lifetime {
 	if l.GuestTTL <= 0 {
 		l.GuestTTL = defaultGuestTTL
+	}
+	if l.LinkedTTL <= 0 {
+		l.LinkedTTL = defaultLinkedTTL
 	}
 	if l.ExtendEvery <= 0 {
 		l.ExtendEvery = defaultExtendEvery

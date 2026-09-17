@@ -174,7 +174,7 @@ func (accountVerifier) Verify(token string, _ string, _ time.Time) (*cpsession.C
 	if err != nil {
 		return nil, fmt.Errorf("not an account: %w", err)
 	}
-	return &cpsession.Claims{ID: "a-mint", Account: account}, nil
+	return &cpsession.Claims{ID: "a-mint", Account: cpsession.AccountID(account)}, nil
 }
 
 func accountServer(t *testing.T, config clicks.ThrottleConfig) (*httptest.Server, *cpratelimit.Limiter, *cptime.FixedClock) {
