@@ -67,7 +67,9 @@ func (s *testSuite) TestSavingMarksTheAccountSeen() {
 	s.Require().NoError(s.store.CreateGuest(ctx, guest))
 
 	later := start.Add(30 * time.Minute)
-	s.Require().True(guest.ExtendIfDue(later, lifetime))
+	extension := guest.Extension(later, lifetime)
+	s.Require().True(extension.Due())
+	guest.Extend(extension)
 	s.Require().NoError(s.store.SaveSession(ctx, guest))
 
 	var lastSeen time.Time

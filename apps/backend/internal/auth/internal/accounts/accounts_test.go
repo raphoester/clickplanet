@@ -64,14 +64,21 @@ func TestASessionEndsAtItsExpiry(t *testing.T) {
 	assert.ErrorIs(t, session.ExpiryError(now.Add(90*24*time.Hour)), accounts.ErrSessionExpired)
 }
 
-func TestASessionIsExtendedAtMostOnceAnInterval(t *testing.T) {
+func TestASessionIsDueForExtensionAtMostOnceAnInterval(t *testing.T) {
 	session := accounts.GuestSession(account, accounts.TokenOf("abc123"), lifetime, now)
 
-	assert.False(t, session.ExtendIfDue(now.Add(23*time.Hour), lifetime))
+	assert.False(t, session.Extension(now.Add(23*time.Hour), lifetime).Due())
+	assert.True(t, session.Extension(now.Add(24*time.Hour), lifetime).Due())
+}
+
+func TestAnExtensionChangesNothingUntilTheSessionIsExtended(t *testing.T) {
+	session := accounts.GuestSession(account, accounts.TokenOf("abc123"), lifetime, now)
+	later := now.Add(24 * time.Hour)
+
+	extension := session.Extension(later, lifetime)
 	assert.Equal(t, now.Add(90*24*time.Hour), session.ExpiresAt)
 
-	later := now.Add(24 * time.Hour)
-	assert.True(t, session.ExtendIfDue(later, lifetime))
+	session.Extend(extension)
 	assert.Equal(t, later, session.ExtendedAt)
 	assert.Equal(t, later.Add(90*24*time.Hour), session.ExpiresAt)
 }
@@ -97,7 +104,9 @@ func TestALinkedSessionLastsTheLinkedLifetimeAndExtendsByIt(t *testing.T) {
 	assert.Equal(t, now.Add(30*24*time.Hour), session.ExpiresAt)
 
 	later := now.Add(24 * time.Hour)
-	require.True(t, session.ExtendIfDue(later, lifetime))
+	extension := session.Extension(later, lifetime)
+	require.True(t, extension.Due())
+	session.Extend(extension)
 	assert.Equal(t, later.Add(30*24*time.Hour), session.ExpiresAt)
 }
 
@@ -106,7 +115,9 @@ func TestAGuestSessionExtendsByTheLinkedLifetimeOnceItsAccountIsLinked(t *testin
 	session.Linked = true
 
 	later := now.Add(24 * time.Hour)
-	require.True(t, session.ExtendIfDue(later, lifetime))
+	extension := session.Extension(later, lifetime)
+	require.True(t, extension.Due())
+	session.Extend(extension)
 	assert.Equal(t, later.Add(30*24*time.Hour), session.ExpiresAt)
 }
 

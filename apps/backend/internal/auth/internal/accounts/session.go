@@ -39,15 +39,30 @@ func (s *Session) ExpiryError(now time.Time) error {
 	return nil
 }
 
-// ExtendIfDue moves the expiry out when the last extension is old enough, so a busy player is not a write per visit.
-func (s *Session) ExtendIfDue(now time.Time, lifetime Lifetime) bool {
-	if now.Sub(s.ExtendedAt) < lifetime.ExtendEvery {
-		return false
-	}
+// Extension is the session's expiry as using it at now would move it. Nothing changes until Extend is given it.
+type Extension struct {
+	extendedAt time.Time
+	expiresAt  time.Time
+	due        bool
+}
 
-	s.ExtendedAt = now
-	s.ExpiresAt = now.Add(s.ttl(lifetime))
-	return true
+// Due is whether the last extension is old enough to extend again, so a busy player is not a write per visit.
+func (e Extension) Due() bool {
+	return e.due
+}
+
+func (s *Session) Extension(now time.Time, lifetime Lifetime) Extension {
+	return Extension{
+		extendedAt: now,
+		expiresAt:  now.Add(s.ttl(lifetime)),
+		due:        now.Sub(s.ExtendedAt) >= lifetime.ExtendEvery,
+	}
+}
+
+// Extend moves the expiry to the extension's, whether or not it was due: the caller decides that from Due.
+func (s *Session) Extend(extension Extension) {
+	s.ExtendedAt = extension.extendedAt
+	s.ExpiresAt = extension.expiresAt
 }
 
 func (s *Session) ttl(lifetime Lifetime) time.Duration {

@@ -111,9 +111,11 @@ func (u *UseCase) resume(ctx context.Context, cookieHeader string, now time.Time
 		return nil, fmt.Errorf("failed to resume the session: %w", err)
 	}
 
-	if !session.ExtendIfDue(now, u.lifetime) {
+	extension := session.Extension(now, u.lifetime)
+	if !extension.Due() {
 		return &Out{Account: session.Account}, nil
 	}
+	session.Extend(extension)
 	if err := u.sessions.SaveSession(ctx, session); err != nil {
 		return nil, fmt.Errorf("failed to save the extended session: %w", err)
 	}
