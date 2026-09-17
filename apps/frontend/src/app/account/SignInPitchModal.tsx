@@ -3,6 +3,7 @@ import {factor} from "../../domain/clickPrice.ts"
 import Modal from "../components/Modal.tsx"
 import {AccountState, AccountStore} from "./accountStore.ts"
 import {messageOf} from "./authMessages.ts"
+import ProviderButton from "./ProviderButton.tsx"
 import "./Account.css"
 
 type Ready = Extract<AccountState, {kind: "ready"}>
@@ -31,13 +32,11 @@ export default function SignInPitchModal({state, store, multiplier, onClose}: Si
             </p>
             <p className="account-text sign-in-pitch-small">You do not need an account to play.</p>
 
-            {state.offered.map((provider) => <button key={provider}
-                                                     type="button"
-                                                     className="button button-ghost account-button"
-                                                     disabled={busy}
-                                                     onClick={() => void store.signIn(provider)}>
-                Sign in with {PROVIDER_NAMES[provider]}
-            </button>)}
+            {state.offered.map((provider) => <ProviderButton key={provider}
+                                                             provider={provider}
+                                                             label={`Sign in with ${PROVIDER_NAMES[provider]}`}
+                                                             disabled={busy}
+                                                             onClick={() => void store.signIn(provider)}/>)}
 
             {state.failure && <p className="account-failure" role="alert">{messageOf(state.failure)}</p>}
 
