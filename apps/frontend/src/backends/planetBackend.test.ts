@@ -360,6 +360,25 @@ describe("PlanetBackend click budget", () => {
         backend.close()
     })
 
+    it("says what signing in multiplies the allowance by, and nothing from a server that grants nothing", async () => {
+        const click = vi.fn()
+            .mockResolvedValueOnce({budget: new ClickBudgetMessage({tokens: 6, capacity: 10, refillPerSecond: 1, linkedMultiplier: 2})})
+            .mockResolvedValueOnce({budget: new ClickBudgetMessage({tokens: 5, capacity: 10, refillPerSecond: 1, linkedMultiplier: 1})})
+            .mockResolvedValueOnce({budget: budget(4)})
+        const backend = new PlanetBackend(budgetClient(click), 1_000)
+
+        const seen: (number | undefined)[] = []
+        backend.watchClickBudget(b => seen.push(b.linkedMultiplier))
+        await backend.clickTile(1, "fr")
+        expect(seen.at(-1)).toBe(2)
+        await backend.clickTile(2, "fr")
+        expect(seen.at(-1)).toBeUndefined()
+        await backend.clickTile(3, "fr")
+        expect(seen.at(-1)).toBeUndefined()
+
+        backend.close()
+    })
+
     it("re-anchors on what every click answers", async () => {
         const click = vi.fn()
             .mockResolvedValueOnce({budget: budget(6)})

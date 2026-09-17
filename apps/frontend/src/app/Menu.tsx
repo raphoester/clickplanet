@@ -33,6 +33,8 @@ export type MenuProps = {
     account?: AccountStore,
     /** Who is playing. Absent — no roster, or not read yet — the menu offers no list. */
     players?: readonly RosterEntry[],
+    /** What signing in multiplies the click allowance by, as the server said. Absent, the panel does not mention it. */
+    linkedMultiplier?: number,
 }
 
 export default function Menu(props: MenuProps) {
@@ -138,6 +140,7 @@ export default function Menu(props: MenuProps) {
                     ? <MenuPanel title="Account" onClose={() => setAccountOpen(false)}>
                         <AccountPanel state={account}
                                       store={props.account}
+                                      linkedMultiplier={props.linkedMultiplier}
                                       onDelete={() => setConfirmingDelete(true)}/>
                     </MenuPanel>
                     : playersOpen && props.players

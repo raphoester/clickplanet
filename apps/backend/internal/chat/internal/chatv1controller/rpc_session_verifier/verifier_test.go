@@ -94,7 +94,7 @@ func setUp(t *testing.T) (*rpc_session_verifier.Verifier, *stubAuth, *cpsession.
 func TestItAsksAuthOnceAndKeepsTheKey(t *testing.T) {
 	verifier, auth, signer := setUp(t)
 
-	token, err := signer.Mint(ip, cpsession.NoAccount, now)
+	token, err := signer.Mint(ip, cpsession.Nobody, now)
 	require.NoError(t, err)
 
 	for range 5 {
@@ -108,7 +108,7 @@ func TestItAsksAuthOnceAndKeepsTheKey(t *testing.T) {
 func TestConcurrentFirstClicksAskOnce(t *testing.T) {
 	verifier, auth, signer := setUp(t)
 
-	token, err := signer.Mint(ip, cpsession.NoAccount, now)
+	token, err := signer.Mint(ip, cpsession.Nobody, now)
 	require.NoError(t, err)
 
 	var wg sync.WaitGroup
@@ -132,7 +132,7 @@ func TestAFailedFetchIsNotRememberedAndTheNextClickTriesAgain(t *testing.T) {
 
 	auth.answerWith("", errors.New("auth is not up yet"))
 
-	token, err := signer.Mint(ip, cpsession.NoAccount, now)
+	token, err := signer.Mint(ip, cpsession.Nobody, now)
 	require.NoError(t, err)
 
 	_, err = verifier.Verify(token.Value, ip, now)
@@ -150,7 +150,7 @@ func TestAKeyThisServerCannotUseIsAnError(t *testing.T) {
 	verifier, auth, signer := setUp(t)
 	auth.answerWith("not-a-key", nil)
 
-	token, err := signer.Mint(ip, cpsession.NoAccount, now)
+	token, err := signer.Mint(ip, cpsession.Nobody, now)
 	require.NoError(t, err)
 
 	_, err = verifier.Verify(token.Value, ip, now)

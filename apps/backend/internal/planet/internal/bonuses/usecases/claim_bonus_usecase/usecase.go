@@ -123,7 +123,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	u.registry.Publish(bonuses.Taken{CountryID: in.CountryID, Kind: reward.Kind})
 
 	out := Out{
-		Budget:            clicks.BudgetOf(state, u.pricer.Price(in.CountryID)),
+		Budget:            u.buckets.BudgetOf(state, u.pricer.Price(in.CountryID)),
 		Kind:              reward.Kind,
 		Duration:          reward.Duration,
 		Enclosures:        reward.Enclosures,

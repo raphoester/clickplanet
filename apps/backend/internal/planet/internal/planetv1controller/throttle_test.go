@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -166,15 +167,19 @@ func TestTheBudgetIsAbsentWithoutAThrottle(t *testing.T) {
 	require.Nil(t, res.Msg.GetBudget(), "a server that does not throttle promises no allowance")
 }
 
-// accountVerifier accepts a token that is an account id, and names that account.
+// accountVerifier accepts a token that is an account id, and names that account. Prefixed with
+// linkedPrefix, the account signed in with a provider.
 type accountVerifier struct{}
 
+const linkedPrefix = "linked "
+
 func (accountVerifier) Verify(token string, _ string, _ time.Time) (*cpsession.Claims, error) {
-	account, err := uuid.Parse(token)
+	linked := strings.HasPrefix(token, linkedPrefix)
+	account, err := uuid.Parse(strings.TrimPrefix(token, linkedPrefix))
 	if err != nil {
 		return nil, fmt.Errorf("not an account: %w", err)
 	}
-	return &cpsession.Claims{ID: "a-mint", Account: cpsession.AccountID(account)}, nil
+	return &cpsession.Claims{ID: "a-mint", Account: cpsession.AccountID(account), Linked: linked}, nil
 }
 
 func accountServer(t *testing.T, config clicks.ThrottleConfig) (*httptest.Server, *cpratelimit.Limiter, *cptime.FixedClock) {
@@ -205,12 +210,18 @@ func accountServer(t *testing.T, config clicks.ThrottleConfig) (*httptest.Server
 func clickAsAccount(t *testing.T, server *httptest.Server, ip string, account uuid.UUID) error {
 	t.Helper()
 
+	_, err := clickWithToken(t, server, ip, account.String())
+	return err
+}
+
+func clickWithToken(t *testing.T, server *httptest.Server, ip string, token string) (*connect.Response[planetv1.ClickResponse], error) {
+	t.Helper()
+
 	req := connect.NewRequest(&planetv1.ClickRequest{TileId: 1, CountryId: "fr"})
 	req.Header().Set("X-Real-IP", ip)
-	req.Header().Set(cpconnect.SessionHeader, account.String())
+	req.Header().Set(cpconnect.SessionHeader, token)
 
-	_, err := planetv1connect.NewClickServiceClient(server.Client(), server.URL).Click(t.Context(), req)
-	return err
+	return planetv1connect.NewClickServiceClient(server.Client(), server.URL).Click(t.Context(), req)
 }
 
 func accountNumber(i int) uuid.UUID {
@@ -299,4 +310,49 @@ func TestTheBudgetIsTheTighterBucket(t *testing.T) {
 
 	require.InDelta(t, 10.0, read("").GetTokens(), 1e-9, "no token reads the scope's bucket from before accounts")
 	require.InDelta(t, 10.0, read("forged").GetTokens(), 1e-9, "a bad token is not refused on a read")
+}
+
+func TestALinkedAccountClicksTwiceAsFastAsAGuest(t *testing.T) {
+	server, _, clock := accountServer(t, clicks.ThrottleConfig{Config: cpratelimit.Config{PerSecond: 1, Burst: 10}})
+	guest, linked := accountNumber(0).String(), linkedPrefix+accountNumber(1).String()
+
+	for click := range 10 {
+		_, err := clickWithToken(t, server, "1.2.3.4", guest)
+		require.NoErrorf(t, err, "guest click %d", click)
+	}
+	_, err := clickWithToken(t, server, "1.2.3.4", guest)
+	require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(err), "a guest holds ten")
+	require.InDelta(t, 2.0, budgetDetail(t, err).GetLinkedMultiplier(), 1e-9, "and is told what signing in is worth")
+
+	for click := range 20 {
+		_, err := clickWithToken(t, server, "5.6.7.8", linked)
+		require.NoErrorf(t, err, "linked click %d", click)
+	}
+	_, err = clickWithToken(t, server, "5.6.7.8", linked)
+	require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(err), "a linked account holds twenty")
+
+	clock.Advance(time.Second)
+	res, err := clickWithToken(t, server, "5.6.7.8", linked)
+	require.NoError(t, err, "and refills two a second")
+	require.Equal(t, uint32(20), res.Msg.GetBudget().GetCapacity())
+	require.InDelta(t, 2.0, res.Msg.GetBudget().GetRefillPerSecond(), 1e-9)
+	require.InDelta(t, 2.0, res.Msg.GetBudget().GetLinkedMultiplier(), 1e-9)
+}
+
+func TestSigningInDoesNotRefillTheGuestsBucket(t *testing.T) {
+	server, _, _ := accountServer(t, clicks.ThrottleConfig{Config: cpratelimit.Config{PerSecond: 1, Burst: 10}})
+	account := accountNumber(0).String()
+
+	for click := range 10 {
+		_, err := clickWithToken(t, server, "1.2.3.4", account)
+		require.NoErrorf(t, err, "click %d", click)
+	}
+
+	// The linked bucket is another key, so it starts full: signing in is a one-time top-up, not a way to refill.
+	res, err := clickWithToken(t, server, "1.2.3.4", linkedPrefix+account)
+	require.NoError(t, err)
+	require.InDelta(t, 19.0, res.Msg.GetBudget().GetTokens(), 1e-9)
+
+	_, err = clickWithToken(t, server, "1.2.3.4", account)
+	require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(err), "the guest's bucket is still spent")
 }

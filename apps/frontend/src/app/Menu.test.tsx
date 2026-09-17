@@ -328,7 +328,7 @@ describe("Menu", () => {
     })
 
     describe("the account", () => {
-        const withAccount = (offered: Provider[], me: Me, username = "", players?: RosterEntry[]) => {
+        const withAccount = (offered: Provider[], me: Me, username = "", linkedMultiplier?: number, players?: RosterEntry[]) => {
             const backend = {
                 signInOptions: vi.fn(async () => offered),
                 me: vi.fn(async () => me),
@@ -345,12 +345,12 @@ describe("Menu", () => {
             } satisfies PlayerBackend
             const store = new AccountStore(backend, player, {token: vi.fn(), held: vi.fn(), invalidate: vi.fn()}, {navigate, remember: vi.fn()})
             const view = render(<Menu country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000}
-                                      account={store} players={players}/>)
+                                      account={store} linkedMultiplier={linkedMultiplier} players={players}/>)
             return {...view, backend, player, navigate, user: userEvent.setup()}
         }
 
         it("keeps the account button beside the players button", async () => {
-            withAccount(["google"], {linked: ["google"]}, "ana",
+            withAccount(["google"], {linked: ["google"]}, "ana", undefined,
                 [{name: "ana", tag: "4f2ca1", countryCode: "fr", guest: false}])
 
             expect(await screen.findByRole("button", {name: "Account"})).toBeDefined()
@@ -379,6 +379,23 @@ describe("Menu", () => {
             expect(screen.getByRole("button", {name: "Sign in with Google"})).toBeDefined()
             expect(screen.queryByRole("button", {name: "Sign in with Discord"})).toBeNull()
             expect(screen.getByRole("link", {name: "Privacy policy"}).getAttribute("href")).toBe("/privacy")
+        })
+
+        it("tells a guest how much faster a signed-in player clicks, as the server said", async () => {
+            const {user} = withAccount(["google"], {linked: []}, "", 2)
+
+            await user.click(await screen.findByRole("button", {name: "Sign in"}))
+
+            expect(screen.getByText(/Sign in to click 2× faster/)).toBeDefined()
+            expect(screen.getByText(/You do not need an account to play/)).toBeDefined()
+        })
+
+        it("promises no speed a server did not report", async () => {
+            const {user} = withAccount(["google"], {linked: []})
+
+            await user.click(await screen.findByRole("button", {name: "Sign in"}))
+
+            expect(screen.queryByText(/faster/)).toBeNull()
         })
 
         it("leaves for the provider", async () => {

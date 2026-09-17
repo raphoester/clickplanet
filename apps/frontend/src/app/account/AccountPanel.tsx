@@ -3,7 +3,9 @@ import {PROVIDER_NAMES} from "../../backends/account.ts"
 import {isValidUsername, MAX_USERNAME_LENGTH, MIN_USERNAME_LENGTH} from "../../backends/player.ts"
 import {AccountState, AccountStore} from "./accountStore.ts"
 import {messageOf, providerList, usernameMessageOf} from "./authMessages.ts"
+import {factor} from "../../domain/clickPrice.ts"
 import {UserIcon} from "../components/icons.tsx"
+import ProviderButton from "./ProviderButton.tsx"
 import "./Account.css"
 
 type Ready = Extract<AccountState, {kind: "ready"}>
@@ -31,9 +33,11 @@ export type AccountPanelProps = {
     state: Ready
     store: AccountStore
     onDelete: () => void
+    /** What signing in multiplies the click allowance by, as the server said. */
+    linkedMultiplier?: number
 }
 
-export default function AccountPanel({state, store, onDelete}: AccountPanelProps) {
+export default function AccountPanel({state, store, onDelete, linkedMultiplier}: AccountPanelProps) {
     const busy = state.busy !== undefined
     const linked = state.me.linked
     const toLink = state.offered.filter((p) => !linked.includes(p))
@@ -41,20 +45,20 @@ export default function AccountPanel({state, store, onDelete}: AccountPanelProps
     return <div className="account-panel" aria-busy={busy}>
         {linked.length === 0
             ? <p className="account-text">
-                Sign in to keep your stats on every device. You do not need an account to play.
+                {linkedMultiplier
+                    ? `Sign in to click ${factor(linkedMultiplier)}× faster and keep your stats on every device.`
+                    : "Sign in to keep your stats on every device."} You do not need an account to play.
             </p>
             : <p className="account-text">Signed in with {providerList(linked)}.</p>}
 
         {/* Keyed on the name, so a read or a save that lands resets what is typed. */}
         {linked.length > 0 && <UsernameForm key={state.username ?? ""} state={state} store={store}/>}
 
-        {toLink.map((provider) => <button key={provider}
-                                          type="button"
-                                          className="button button-ghost account-button"
-                                          disabled={busy}
-                                          onClick={() => void (linked.length === 0 ? store.signIn(provider) : store.link(provider))}>
-            {linked.length === 0 ? "Sign in with" : "Link"} {PROVIDER_NAMES[provider]}
-        </button>)}
+        {toLink.map((provider) => <ProviderButton key={provider}
+                                                  provider={provider}
+                                                  label={`${linked.length === 0 ? "Sign in with" : "Link"} ${PROVIDER_NAMES[provider]}`}
+                                                  disabled={busy}
+                                                  onClick={() => void (linked.length === 0 ? store.signIn(provider) : store.link(provider))}/>)}
 
         {linked.length > 0 && <>
             <button type="button"

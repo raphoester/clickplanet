@@ -190,6 +190,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
             capacity: budget.capacity,
             perSecond: budget.refillPerSecond,
             price: priceOf(budget),
+            linkedMultiplier: budget.linkedMultiplier > 1 ? budget.linkedMultiplier : undefined,
             readAt: budgetNow(),
         }
 

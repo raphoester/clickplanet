@@ -353,6 +353,52 @@
             color: var(--muted);
         }
 
+        /*
+         * Signing in is worth clicking faster. The number is the backend's
+         * rateLimiter.linkedMultiplier in deploy/vps/backend.yaml: this page is
+         * plain HTML and cannot read it, so change both together.
+         */
+        .boost {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px 20px;
+            border: 1px solid #FF813F66;
+            border-radius: 18px;
+            background: #FF813F1A;
+        }
+
+        .boost-icon {
+            width: 44px;
+            height: 44px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 12px;
+            background: var(--orange);
+            color: #000000;
+        }
+
+        .boost-text {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .boost-text strong {
+            font-family: var(--title);
+            font-size: 24px;
+            font-weight: normal;
+            line-height: 1.1;
+            color: var(--orange);
+        }
+
+        .boost-text span {
+            font-size: 15px;
+            color: #FFFFFFCC;
+        }
+
         .hero-shot {
             position: relative;
         }
@@ -856,6 +902,26 @@
                 font-size: 14px;
             }
 
+            .boost {
+                align-items: flex-start;
+                gap: 12px;
+                padding: 14px 16px;
+            }
+
+            .boost-icon {
+                width: 36px;
+                height: 36px;
+                border-radius: 10px;
+            }
+
+            .boost-text strong {
+                font-size: 20px;
+            }
+
+            .boost-text span {
+                font-size: 14px;
+            }
+
             .hero-shot::before {
                 display: none;
             }
@@ -1143,8 +1209,18 @@
                     <a class="button button-discord button-large" href="https://discord.gg/Nwekj6ndbn" target="_blank"
                        rel="noopener noreferrer">Discord</a>
                 </div>
-                <p class="note">No account needed. Sign in with Google or Discord to keep your account on every
-                    device.</p>
+                <div class="boost">
+                    <div class="boost-icon" aria-hidden="true">
+                        <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M13 2 4 14h7l-1 8 9-12h-7z"/>
+                        </svg>
+                    </div>
+                    <p class="boost-text">
+                        <strong>Sign in, click 2× faster</strong>
+                        <span>No account needed to play. Sign in with Google or Discord to get twice as many clicks,
+                            refilling twice as fast, and keep your account on every device.</span>
+                    </p>
+                </div>
                 <noscript><p class="note">The game needs JavaScript and WebGL.</p></noscript>
             </div>
             <div class="hero-shot">
