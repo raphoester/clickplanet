@@ -32,11 +32,12 @@ type UseCase struct {
 
 func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_usecase.Out, error) {
 	u.guard.Attempted(antibot.Click{
-		Scope:   cpipscope.Of(cpctx.GetSourceIP(ctx)),
-		Account: cpctx.GetAccount(ctx),
-		Tile:    in.TileID,
-		Country: in.CountryID,
-		At:      u.clock.Now(),
+		Scope:    cpipscope.Of(cpctx.GetSourceIP(ctx)),
+		Account:  cpctx.GetAccount(ctx),
+		SignedIn: cpctx.GetLinked(ctx),
+		Tile:     in.TileID,
+		Country:  in.CountryID,
+		At:       u.clock.Now(),
 	})
 
 	return u.implementation.Execute(ctx, in)
