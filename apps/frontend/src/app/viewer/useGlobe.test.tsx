@@ -68,6 +68,29 @@ describe("useGlobe", () => {
         expect(latest.tilesCount).toBe(257_948)
     })
 
+    it("reports how much of the territories has loaded while it waits", async () => {
+        createGlobe.mockReturnValue(new Promise<Globe>(() => {}))
+
+        renderHook()
+        const {onLoadProgress} = createGlobe.mock.calls[0][0]
+
+        await act(async () => onLoadProgress(0.25))
+        expect(latest.status).toEqual({state: 'loading', territories: 0.25})
+    })
+
+    it("shows the loaded board with the map, not a sample later", async () => {
+        let resolve: (globe: Globe) => void = () => {}
+        createGlobe.mockReturnValue(new Promise<Globe>(r => {resolve = r}))
+
+        renderHook()
+        const entries = [{country: FRANCE, tiles: 12}]
+        createGlobe.mock.calls[0][0].onLeaderboardChange(entries, false)
+
+        await act(async () => resolve(fakeGlobe()))
+        expect(latest.status.state).toBe('ready')
+        expect(latest.leaderboard).toEqual(entries)
+    })
+
     it("reports the failure when the globe cannot be built", async () => {
         createGlobe.mockRejectedValue(new Error("WebGL unavailable"))
 

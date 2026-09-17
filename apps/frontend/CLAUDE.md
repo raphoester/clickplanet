@@ -633,7 +633,15 @@ player's territory, so it has not been done.
 1. `useGlobe` calls `createGlobe`, which fetches the coordinates and borders
    blobs — in parallel, and before allocating any GPU resource, so an abandoned
    load never opens a context.
-2. Ownerships are fetched in batches and fed to `TileOwnership`.
+2. Ownerships are fetched in batches and fed to `TileOwnership`. **`createGlobe`
+   resolves only once the last batch is in**, so `useGlobe` stays `loading` —
+   with `territories`, the share fetched, for the progress bar — and the menu,
+   the leaderboard and every other control stay hidden until then. The scene
+   already turns and fills in behind the loader, but a click claims nothing
+   before the map is complete: an empty map with an empty board is not a game.
+   A fetch that fails after its retries fails the whole globe, and an abandoned
+   one disposes it. On ready, `publishLeaderboard` shows the full board at once
+   rather than up to a sample later.
 3. Live updates arrive over the `ListenForEvents` stream, batched every 100 ms, into the same
    store.
 4. Whatever the store reports as changed is painted, and the leaderboard is
