@@ -31,9 +31,29 @@ func New(dial Dialer) *Reader {
 
 // Linked asks auth on every call: a player chooses a name rarely, and an account links at any time.
 func (r *Reader) Linked(ctx context.Context, account players.AccountID) (bool, error) {
+	res, err := r.account(ctx, account)
+	if err != nil {
+		return false, fmt.Errorf("failed to ask auth whether the account is linked: %w", err)
+	}
+	return res.GetLinked(), nil
+}
+
+// CreatedAt is when auth made the account, and zero for an account it does not know.
+func (r *Reader) CreatedAt(ctx context.Context, account players.AccountID) (time.Time, error) {
+	res, err := r.account(ctx, account)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("failed to ask auth when the account was made: %w", err)
+	}
+	if res.GetCreatedAtUnixMs() == 0 {
+		return time.Time{}, nil
+	}
+	return time.UnixMilli(res.GetCreatedAtUnixMs()).UTC(), nil
+}
+
+func (r *Reader) account(ctx context.Context, account players.AccountID) (*authv1.GetAccountResponse, error) {
 	client, baseURL, err := r.dial.Dial()
 	if err != nil {
-		return false, fmt.Errorf("failed to reach the auth module: %w", err)
+		return nil, fmt.Errorf("failed to reach the auth module: %w", err)
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, askTimeout)
@@ -42,8 +62,7 @@ func (r *Reader) Linked(ctx context.Context, account players.AccountID) (bool, e
 	res, err := authv1connect.NewInternalServiceClient(client, baseURL).
 		GetAccount(ctx, connect.NewRequest(&authv1.GetAccountRequest{AccountId: account.String()}))
 	if err != nil {
-		return false, fmt.Errorf("failed to ask auth whether the account is linked: %w", err)
+		return nil, fmt.Errorf("failed to call auth.v1.InternalService/GetAccount: %w", err)
 	}
-
-	return res.Msg.GetLinked(), nil
+	return res.Msg, nil
 }

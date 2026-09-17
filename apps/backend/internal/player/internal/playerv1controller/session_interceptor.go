@@ -15,9 +15,9 @@ import (
 // ErrNoSession is the answer to a call with no valid click token: the client mints one and retries.
 var ErrNoSession = errors.New("the player service requires a session; call auth.v1.AuthService/CreateSession first")
 
-// NewSessionInterceptor refuses every PlayerService call but GetRoster without a valid click token. It always
-// enforces: a profile is an account's, and there is no caller to answer for without one. GetRoster answers the
-// same to anybody, and a proxy may cache it.
+// NewSessionInterceptor refuses every PlayerService call but GetRoster and GetPlayer without a valid click
+// token. It always enforces: a profile is an account's, and there is no caller to answer for without one.
+// GetRoster and GetPlayer answer the same to anybody, and a proxy may cache them.
 func NewSessionInterceptor(verifier cpconnect.SessionVerifier, clock cptime.Clock, registerer prometheus.Registerer) connect.Interceptor {
 	checks := promauto.With(registerer).NewCounterVec(prometheus.CounterOpts{
 		Name: "player_session_checks",

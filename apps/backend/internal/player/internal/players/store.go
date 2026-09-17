@@ -19,6 +19,8 @@ var (
 type Store interface {
 	// Profile answers ErrNoProfile when the account never chose a name.
 	Profile(ctx context.Context, account AccountID) (Profile, error)
+	// ProfileNamed is the profile holding name, ignoring case. ErrNoProfile when no account holds it.
+	ProfileNamed(ctx context.Context, name Name) (Profile, error)
 	// SaveProfile writes the profile over the account's last one. ErrNameTaken when another account holds the
 	// name ignoring case; the account's own name, in any case, is not taken.
 	SaveProfile(ctx context.Context, profile Profile) error

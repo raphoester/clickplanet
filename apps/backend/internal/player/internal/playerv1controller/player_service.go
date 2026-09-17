@@ -6,19 +6,21 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1/playerv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/announce_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_author_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_profile_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_roster_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_stats_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/set_name_handler"
 )
 
-// PlayerService is the five handlers in a bag, for the generated handler.
+// PlayerService is the six handlers in a bag, for the generated handler.
 type PlayerService struct {
 	get_profile_handler.GetProfileHandler
 	set_name_handler.SetNameHandler
 	get_stats_handler.GetStatsHandler
 	announce_handler.AnnounceHandler
 	get_roster_handler.GetRosterHandler
+	get_player_handler.GetPlayerHandler
 }
 
 var _ playerv1connect.PlayerServiceHandler = PlayerService{}

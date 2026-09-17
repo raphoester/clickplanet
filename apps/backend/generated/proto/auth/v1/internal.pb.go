@@ -148,9 +148,12 @@ func (x *GetAccountRequest) GetAccountId() string {
 type GetAccountResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Signed in with at least one provider. False for a guest.
-	Linked        bool `protobuf:"varint,1,opt,name=linked,proto3" json:"linked,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Linked bool `protobuf:"varint,1,opt,name=linked,proto3" json:"linked,omitempty"`
+	// When the account was made, as a guest or by a first sign-in. Zero for an
+	// account that does not exist.
+	CreatedAtUnixMs int64 `protobuf:"varint,2,opt,name=created_at_unix_ms,json=createdAtUnixMs,proto3" json:"created_at_unix_ms,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *GetAccountResponse) Reset() {
@@ -190,6 +193,13 @@ func (x *GetAccountResponse) GetLinked() bool {
 	return false
 }
 
+func (x *GetAccountResponse) GetCreatedAtUnixMs() int64 {
+	if x != nil {
+		return x.CreatedAtUnixMs
+	}
+	return 0
+}
+
 var File_auth_v1_internal_proto protoreflect.FileDescriptor
 
 const file_auth_v1_internal_proto_rawDesc = "" +
@@ -201,9 +211,10 @@ const file_auth_v1_internal_proto_rawDesc = "" +
 	"public_key\x18\x01 \x01(\tR\tpublicKey\"2\n" +
 	"\x11GetAccountRequest\x12\x1d\n" +
 	"\n" +
-	"account_id\x18\x01 \x01(\tR\taccountId\",\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId\"Y\n" +
 	"\x12GetAccountResponse\x12\x16\n" +
-	"\x06linked\x18\x01 \x01(\bR\x06linked2\xae\x01\n" +
+	"\x06linked\x18\x01 \x01(\bR\x06linked\x12+\n" +
+	"\x12created_at_unix_ms\x18\x02 \x01(\x03R\x0fcreatedAtUnixMs2\xae\x01\n" +
 	"\x0fInternalService\x12T\n" +
 	"\x0fGetVerifyingKey\x12\x1f.auth.v1.GetVerifyingKeyRequest\x1a .auth.v1.GetVerifyingKeyResponse\x12E\n" +
 	"\n" +

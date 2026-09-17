@@ -27,6 +27,12 @@ service PlayerService {
   rpc GetRoster(GetRosterRequest) returns (GetRosterResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+
+  // What anybody may know about a player with a username. Needs no token.
+  // A name no account holds is not_found, and so is a guest: it has no name.
+  rpc GetPlayer(GetPlayerRequest) returns (GetPlayerResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 }
 
 message Profile {
@@ -93,4 +99,22 @@ message RosterEntry {
   // The flag the player last announced.
   string country_id = 3;
   bool guest = 4;
+}
+
+message GetPlayerRequest {
+  // A username, in any case.
+  string name = 1;
+}
+
+message GetPlayerResponse {
+  Player player = 1;
+}
+
+message Player {
+  // The username as its player typed it.
+  string name = 1;
+  // As of today: a streak that ended before yesterday reads 0.
+  Stats stats = 2;
+  // When the account was made, as a guest or by a first sign-in.
+  int64 created_at_unix_ms = 3;
 }

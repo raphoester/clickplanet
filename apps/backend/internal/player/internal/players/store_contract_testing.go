@@ -60,6 +60,25 @@ func (s *StoreContractSuite) TestASavedProfileReadsBackAndASecondReplacesIt() {
 	s.Equal(renamed, profile)
 }
 
+func (s *StoreContractSuite) TestAProfileIsFoundByItsNameIgnoringCase() {
+	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(1, "Ada_L")))
+	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(2, "Bob")))
+
+	profile, err := s.store.ProfileNamed(s.T().Context(), "aDA_l")
+
+	s.Require().NoError(err)
+	s.Equal(contractProfile(1, "Ada_L"), profile)
+}
+
+func (s *StoreContractSuite) TestANameNobodyHoldsHasNoProfile() {
+	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(1, "Ada")))
+	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(1, "Bob")))
+
+	_, err := s.store.ProfileNamed(s.T().Context(), "Ada")
+
+	s.Require().ErrorIs(err, ErrNoProfile, "a rename frees the old name")
+}
+
 func (s *StoreContractSuite) TestEachTakeIsCountedByTheDomainsRule() {
 	s.recordTake(1, contractAt)
 	s.recordTake(1, contractAt.Add(time.Minute))

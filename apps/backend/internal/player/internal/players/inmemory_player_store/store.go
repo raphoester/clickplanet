@@ -46,6 +46,21 @@ func (s *Store) Profile(_ context.Context, account players.AccountID) (players.P
 	return profile, nil
 }
 
+func (s *Store) ProfileNamed(_ context.Context, name players.Name) (players.Profile, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.failWith != nil {
+		return players.Profile{}, s.failWith
+	}
+	for _, profile := range s.profiles {
+		if profile.Name.Folded() == name.Folded() {
+			return profile, nil
+		}
+	}
+	return players.Profile{}, players.ErrNoProfile
+}
+
 func (s *Store) SaveProfile(_ context.Context, profile players.Profile) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

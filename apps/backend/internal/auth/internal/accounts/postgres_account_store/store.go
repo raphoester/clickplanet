@@ -90,12 +90,13 @@ func (s *Store) DeleteSessions(ctx context.Context, account accounts.AccountID) 
 }
 
 func (s *Store) Account(ctx context.Context, account accounts.AccountID) (*accounts.Account, error) {
-	var exists bool
-	if err := s.db.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM accounts WHERE id = $1)`, uuid.UUID(account)).Scan(&exists); err != nil {
-		return nil, fmt.Errorf("failed to select the account: %w", err)
-	}
-	if !exists {
+	var createdAt time.Time
+	err := s.db.QueryRowContext(ctx, `SELECT created_at FROM accounts WHERE id = $1`, uuid.UUID(account)).Scan(&createdAt)
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, accounts.ErrAccountNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to select the account: %w", err)
 	}
 
 	rows, err := s.db.QueryContext(ctx, `
@@ -107,7 +108,7 @@ func (s *Store) Account(ctx context.Context, account accounts.AccountID) (*accou
 	}
 	defer func() { _ = rows.Close() }()
 
-	found := &accounts.Account{ID: account, Identities: []accounts.Identity{}}
+	found := &accounts.Account{ID: account, CreatedAt: createdAt.UTC(), Identities: []accounts.Identity{}}
 	for rows.Next() {
 		identity, err := scanIdentity(rows)
 		if err != nil {

@@ -1,5 +1,5 @@
 import {guestName} from "./chat.ts"
-import {Presence, PresenceBackend, RosterEntry} from "./player.ts"
+import {PlayerInfo, PlayerInfoBackend, Presence, PresenceBackend, RosterEntry} from "./player.ts"
 
 /** How long one of the fake players stays on, or off, before it may flip. */
 const SHIFT_MS = 25_000
@@ -25,7 +25,7 @@ const PLAYERS: RosterEntry[] = [
  * This browser joins once it announces — with no session here, at once, where
  * the real one waits for a click to mint a token.
  */
-export class FakePresenceBackend implements PresenceBackend {
+export class FakePresenceBackend implements PresenceBackend, PlayerInfoBackend {
     private own?: {presence: Presence, at: number}
 
     constructor(private readonly now: () => number = () => Date.now()) {
@@ -52,6 +52,22 @@ export class FakePresenceBackend implements PresenceBackend {
 
         return entries.sort((a, b) =>
             Number(a.guest) - Number(b.guest) || a.name.toLowerCase().localeCompare(b.name.toLowerCase()))
+    }
+
+    /** Stats made up from the name, so one player reads the same every time. */
+    public async playerInfo(name: string): Promise<PlayerInfo | undefined> {
+        const player = PLAYERS.find((p) => !p.guest && p.name.toLowerCase() === name.toLowerCase())
+        if (!player) return undefined
+
+        const seed = [...player.name].reduce((sum, c) => sum * 31 + c.charCodeAt(0), 7) >>> 0
+        const streakBest = 1 + seed % 40
+        return {
+            name: player.name,
+            tilesTaken: seed % 25_000,
+            streakCurrent: seed % 3 === 0 ? 0 : 1 + seed % streakBest,
+            streakBest,
+            createdAt: this.now() - (1 + seed % 200) * 86_400_000,
+        }
     }
 }
 

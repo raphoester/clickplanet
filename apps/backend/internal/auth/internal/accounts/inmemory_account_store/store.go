@@ -23,6 +23,7 @@ type identityKey struct {
 
 type Store struct {
 	mu         sync.Mutex
+	created    map[accounts.AccountID]time.Time
 	lastSeen   map[accounts.AccountID]time.Time
 	identities map[identityKey]accounts.Identity
 	sessions   map[string]accounts.Session
@@ -33,6 +34,7 @@ var _ accounts.Store = (*Store)(nil)
 
 func New() *Store {
 	return &Store{
+		created:    map[accounts.AccountID]time.Time{},
 		lastSeen:   map[accounts.AccountID]time.Time{},
 		identities: map[identityKey]accounts.Identity{},
 		sessions:   map[string]accounts.Session{},
@@ -73,6 +75,7 @@ func (s *Store) CreateGuest(_ context.Context, session *accounts.Session) error 
 		return errTaken
 	}
 
+	s.created[session.Account] = session.ExtendedAt
 	s.lastSeen[session.Account] = session.ExtendedAt
 	s.sessions[string(session.TokenHash)] = *session
 	return nil
@@ -129,7 +132,7 @@ func (s *Store) Account(_ context.Context, account accounts.AccountID) (*account
 		return nil, accounts.ErrAccountNotFound
 	}
 
-	return &accounts.Account{ID: account, Identities: s.identitiesOf(account)}, nil
+	return &accounts.Account{ID: account, CreatedAt: s.created[account], Identities: s.identitiesOf(account)}, nil
 }
 
 func (s *Store) Identity(_ context.Context, provider string, subject string) (*accounts.Identity, error) {
@@ -164,6 +167,9 @@ func (s *Store) SaveSignIn(_ context.Context, signIn accounts.SignIn) error {
 		}
 	}
 
+	if signIn.NewAccount {
+		s.created[account] = signIn.Session.ExtendedAt
+	}
 	if signIn.Identity != nil {
 		s.identities[keyOf(signIn.Identity)] = *signIn.Identity
 	}
@@ -209,6 +215,7 @@ func (s *Store) PruneGuests(_ context.Context, idleSince time.Time, limit int) (
 }
 
 func (s *Store) deleteAccount(account accounts.AccountID) {
+	delete(s.created, account)
 	delete(s.lastSeen, account)
 	for key, identity := range s.identities {
 		if identity.Account == account {

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
-import {afterEach, describe, expect, it} from "vitest"
+import {afterEach, describe, expect, it, vi} from "vitest"
 import {cleanup, render, screen, within} from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 import {RosterEntry} from "../../backends/player.ts"
 import {authorHue} from "../../domain/authorColor.ts"
 import PlayersPanel from "./PlayersPanel.tsx"
@@ -63,5 +64,21 @@ describe("PlayersPanel", () => {
 
         const row = screen.getByRole("listitem") as HTMLElement
         expect(row.style.getPropertyValue("--author-hue")).toBe(String(authorHue("ana", "4f2ca1")))
+    })
+
+    it("opens a player, guest or not, from its name", async () => {
+        const onOpenPlayer = vi.fn()
+        const bo = entry("guest_Bo", true, "de", "91aa3d")
+        render(<PlayersPanel entries={[entry("ana", false), bo]} onOpenPlayer={onOpenPlayer}/>)
+
+        await userEvent.click(screen.getByRole("button", {name: "guest_Bo"}))
+
+        expect(onOpenPlayer).toHaveBeenCalledWith(bo)
+    })
+
+    it("offers no button with nothing to open", () => {
+        render(<PlayersPanel entries={[entry("ana", false)]}/>)
+
+        expect(screen.queryByRole("button")).toBeNull()
     })
 })

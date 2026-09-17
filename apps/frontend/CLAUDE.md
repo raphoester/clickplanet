@@ -391,15 +391,30 @@ The "players online" button in the menu's action row opens a `MenuPanel` listing
 everyone playing: players with a username, then guests, each with a flag, a name
 in its chat colour (`authorStyle`, the same hue as in the chat) and `#tag`.
 
-- `backends/player.ts` — `PresenceBackend`, `Presence`, `RosterEntry` and
-  `RosterUnavailableError`. `ConnectPlayerBackend` implements it over
+- `backends/player.ts` — `PresenceBackend`, `Presence`, `RosterEntry`,
+  `RosterUnavailableError`, and `PlayerInfoBackend` with `PlayerInfo`. `ConnectPlayerBackend` implements it over
   `player.v1.PlayerService/Announce` and `GetRoster`; `fakePresenceBackend.ts`
   is the dev stand-in, with players coming and going on their own shifts.
 - `domain/presence.ts` — `PresenceSchedule`, when to announce. No clock and no
   network, so every rule is under test. `domain/roster.ts` splits the roster
   into the two groups, keeping the server's order.
-- `app/players/` — `usePresence` and `useRoster`, thin hooks over the above,
-  and `PlayersPanel`.
+- `app/players/` — `usePresence`, `useRoster` and `usePlayerInfo`, thin hooks
+  over the above, `PlayersPanel` and `PlayerCard`.
+
+**A name opens a player card**, in the roster and on a chat message
+(`app/players/PlayerCard.tsx`, a `Modal`). `Viewer` holds the one card open and
+hands `onOpenPlayer` to `Menu` → `PlayersPanel` and to `ChatPanel` → `ChatLog`;
+without a `PlayerInfoBackend` wired the names are plain text. The card shows the
+flag, the country and the tag, then, for a player with a username, what
+`player.v1.PlayerService/GetPlayer` answers: tiles taken, the current and best
+streak, and "Playing since", the day the account was made (left out when the
+server does not know it). **A guest's card asks nothing**: a guest has no
+username, so there is nothing to look up, and the card says so. The chat tells
+a guest by `GUEST_PREFIX`, which no username starts with. `GetPlayer` needs no
+token and goes out as a GET, like `GetRoster`; `NotFound` (renamed, or the
+account is gone) reads as `undefined`. `usePlayerInfo` reads it once per card.
+Escape closes the card and leaves the roster open: `useEscape` does nothing
+while a modal dialog is on the page.
 
 **It announces only with a token it already holds.** `SessionProvider.held()`
 answers the click token in hand and never mints: a mint is a Turnstile check,

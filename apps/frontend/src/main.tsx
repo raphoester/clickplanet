@@ -70,6 +70,8 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         },
     })
 
+    const fakePresence = new FakePresenceBackend()
+
     root.render(
         <StrictMode>
             <SignInGate callback={callback}>
@@ -81,7 +83,8 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     bomber={fake}
                     clickBudgetSource={fake}
                     chatBackend={new FakeChatBackend()}
-                    presence={new FakePresenceBackend()}
+                    presence={fakePresence}
+                    playerInfo={fakePresence}
                 />
             </SignInGate>
         </StrictMode>,
@@ -108,6 +111,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     chatBackend={chatBackend}
                     account={account}
                     presence={player}
+                    playerInfo={player}
                 />
             </SignInGate>
         </StrictMode>,

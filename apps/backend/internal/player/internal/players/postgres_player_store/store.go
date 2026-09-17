@@ -41,6 +41,24 @@ func (s *Store) Profile(ctx context.Context, account players.AccountID) (players
 	return players.Profile{Account: account, Name: players.Name(name), UpdatedAt: updatedAt.UTC()}, nil
 }
 
+// ProfileNamed reads through the unique index on lower(name).
+func (s *Store) ProfileNamed(ctx context.Context, name players.Name) (players.Profile, error) {
+	var (
+		account   uuid.UUID
+		held      string
+		updatedAt time.Time
+	)
+	err := s.db.QueryRowContext(ctx, `SELECT account_id, name, updated_at FROM profiles WHERE lower(name) = $1`, name.Folded()).
+		Scan(&account, &held, &updatedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return players.Profile{}, players.ErrNoProfile
+	}
+	if err != nil {
+		return players.Profile{}, fmt.Errorf("failed to read the profile by name: %w", err)
+	}
+	return players.Profile{Account: players.AccountID(account), Name: players.Name(held), UpdatedAt: updatedAt.UTC()}, nil
+}
+
 // uniqueNameIndex is the unique index on lower(name), which a name another account holds violates.
 const uniqueNameIndex = "profiles_name_key"
 

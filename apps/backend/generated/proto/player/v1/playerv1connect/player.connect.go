@@ -44,6 +44,8 @@ const (
 	PlayerServiceAnnounceProcedure = "/player.v1.PlayerService/Announce"
 	// PlayerServiceGetRosterProcedure is the fully-qualified name of the PlayerService's GetRoster RPC.
 	PlayerServiceGetRosterProcedure = "/player.v1.PlayerService/GetRoster"
+	// PlayerServiceGetPlayerProcedure is the fully-qualified name of the PlayerService's GetPlayer RPC.
+	PlayerServiceGetPlayerProcedure = "/player.v1.PlayerService/GetPlayer"
 )
 
 // PlayerServiceClient is a client for the player.v1.PlayerService service.
@@ -64,6 +66,9 @@ type PlayerServiceClient interface {
 	Announce(context.Context, *connect.Request[v1.AnnounceRequest]) (*connect.Response[v1.AnnounceResponse], error)
 	// Everyone playing. It needs no token, and a proxy may serve it for 5s.
 	GetRoster(context.Context, *connect.Request[v1.GetRosterRequest]) (*connect.Response[v1.GetRosterResponse], error)
+	// What anybody may know about a player with a username. Needs no token.
+	// A name no account holds is not_found, and so is a guest: it has no name.
+	GetPlayer(context.Context, *connect.Request[v1.GetPlayerRequest]) (*connect.Response[v1.GetPlayerResponse], error)
 }
 
 // NewPlayerServiceClient constructs a client for the player.v1.PlayerService service. By default,
@@ -108,6 +113,13 @@ func NewPlayerServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
+		getPlayer: connect.NewClient[v1.GetPlayerRequest, v1.GetPlayerResponse](
+			httpClient,
+			baseURL+PlayerServiceGetPlayerProcedure,
+			connect.WithSchema(playerServiceMethods.ByName("GetPlayer")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -118,6 +130,7 @@ type playerServiceClient struct {
 	getStats   *connect.Client[v1.GetStatsRequest, v1.GetStatsResponse]
 	announce   *connect.Client[v1.AnnounceRequest, v1.AnnounceResponse]
 	getRoster  *connect.Client[v1.GetRosterRequest, v1.GetRosterResponse]
+	getPlayer  *connect.Client[v1.GetPlayerRequest, v1.GetPlayerResponse]
 }
 
 // GetProfile calls player.v1.PlayerService.GetProfile.
@@ -145,6 +158,11 @@ func (c *playerServiceClient) GetRoster(ctx context.Context, req *connect.Reques
 	return c.getRoster.CallUnary(ctx, req)
 }
 
+// GetPlayer calls player.v1.PlayerService.GetPlayer.
+func (c *playerServiceClient) GetPlayer(ctx context.Context, req *connect.Request[v1.GetPlayerRequest]) (*connect.Response[v1.GetPlayerResponse], error) {
+	return c.getPlayer.CallUnary(ctx, req)
+}
+
 // PlayerServiceHandler is an implementation of the player.v1.PlayerService service.
 type PlayerServiceHandler interface {
 	GetProfile(context.Context, *connect.Request[v1.GetProfileRequest]) (*connect.Response[v1.GetProfileResponse], error)
@@ -163,6 +181,9 @@ type PlayerServiceHandler interface {
 	Announce(context.Context, *connect.Request[v1.AnnounceRequest]) (*connect.Response[v1.AnnounceResponse], error)
 	// Everyone playing. It needs no token, and a proxy may serve it for 5s.
 	GetRoster(context.Context, *connect.Request[v1.GetRosterRequest]) (*connect.Response[v1.GetRosterResponse], error)
+	// What anybody may know about a player with a username. Needs no token.
+	// A name no account holds is not_found, and so is a guest: it has no name.
+	GetPlayer(context.Context, *connect.Request[v1.GetPlayerRequest]) (*connect.Response[v1.GetPlayerResponse], error)
 }
 
 // NewPlayerServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -203,6 +224,13 @@ func NewPlayerServiceHandler(svc PlayerServiceHandler, opts ...connect.HandlerOp
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
+	playerServiceGetPlayerHandler := connect.NewUnaryHandler(
+		PlayerServiceGetPlayerProcedure,
+		svc.GetPlayer,
+		connect.WithSchema(playerServiceMethods.ByName("GetPlayer")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/player.v1.PlayerService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case PlayerServiceGetProfileProcedure:
@@ -215,6 +243,8 @@ func NewPlayerServiceHandler(svc PlayerServiceHandler, opts ...connect.HandlerOp
 			playerServiceAnnounceHandler.ServeHTTP(w, r)
 		case PlayerServiceGetRosterProcedure:
 			playerServiceGetRosterHandler.ServeHTTP(w, r)
+		case PlayerServiceGetPlayerProcedure:
+			playerServiceGetPlayerHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -242,4 +272,8 @@ func (UnimplementedPlayerServiceHandler) Announce(context.Context, *connect.Requ
 
 func (UnimplementedPlayerServiceHandler) GetRoster(context.Context, *connect.Request[v1.GetRosterRequest]) (*connect.Response[v1.GetRosterResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.PlayerService.GetRoster is not implemented"))
+}
+
+func (UnimplementedPlayerServiceHandler) GetPlayer(context.Context, *connect.Request[v1.GetPlayerRequest]) (*connect.Response[v1.GetPlayerResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.PlayerService.GetPlayer is not implemented"))
 }

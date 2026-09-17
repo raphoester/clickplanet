@@ -17,6 +17,7 @@ export default function App(props: AppProps) {
             chatBackend={props.chatBackend}
             account={props.account}
             presence={props.presence}
+            playerInfo={props.playerInfo}
         />
     </>
 }

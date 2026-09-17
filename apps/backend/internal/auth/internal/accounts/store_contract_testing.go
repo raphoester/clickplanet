@@ -73,7 +73,7 @@ func (s *StoreContractSuite) TestACreatedGuestIsFoundByItsTokenHash() {
 	guest := s.createGuest(1, "a-token")
 
 	s.Equal(guest, s.stored(guest.TokenHash))
-	s.Equal(&Account{ID: guest.Account, Identities: []Identity{}}, s.account(1))
+	s.Equal(&Account{ID: guest.Account, CreatedAt: contractStart, Identities: []Identity{}}, s.account(1))
 }
 
 func (s *StoreContractSuite) TestTwoGuestsAreFoundApart() {
@@ -126,7 +126,7 @@ func (s *StoreContractSuite) TestASignInToANewAccountCreatesItLinked() {
 
 	s.Require().NoError(s.store.SaveSignIn(s.T().Context(), SignIn{NewAccount: true, Identity: identity, Session: session}))
 
-	s.Equal(&Account{ID: identity.Account, Identities: []Identity{*identity}}, s.account(1))
+	s.Equal(&Account{ID: identity.Account, CreatedAt: contractStart, Identities: []Identity{*identity}}, s.account(1))
 	s.Equal(session, s.stored(session.TokenHash))
 	found, err := s.store.Identity(s.T().Context(), "google", "google-user")
 	s.Require().NoError(err)
@@ -144,6 +144,7 @@ func (s *StoreContractSuite) TestLinkingAGuestReplacesItsSession() {
 	s.Require().ErrorIs(err, ErrSessionNotFound)
 	s.Equal(session, s.stored(session.TokenHash))
 	s.Equal([]string{"discord"}, s.account(1).Providers())
+	s.Equal(contractStart, s.account(1).CreatedAt, "a linked guest keeps the day it was made")
 }
 
 func (s *StoreContractSuite) TestProvidersAreListedOldestLinkFirst() {
@@ -173,7 +174,7 @@ func (s *StoreContractSuite) TestASignInToAKnownIdentityOnlyStartsASession() {
 
 	s.Equal(session, s.stored(session.TokenHash))
 	s.Equal([]string{"google"}, s.account(1).Providers())
-	s.Equal(&Account{ID: guest.Account, Identities: []Identity{}}, s.account(2), "the guest is left as it was")
+	s.Equal(&Account{ID: guest.Account, CreatedAt: contractStart, Identities: []Identity{}}, s.account(2), "the guest is left as it was")
 }
 
 func (s *StoreContractSuite) TestAnIdentityLinkedTwiceIsTakenAndWritesNothing() {

@@ -534,3 +534,134 @@ export class RosterEntry extends Message<RosterEntry> {
   }
 }
 
+/**
+ * @generated from message player.v1.GetPlayerRequest
+ */
+export class GetPlayerRequest extends Message<GetPlayerRequest> {
+  /**
+   * A username, in any case.
+   *
+   * @generated from field: string name = 1;
+   */
+  name = "";
+
+  constructor(data?: PartialMessage<GetPlayerRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.GetPlayerRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetPlayerRequest {
+    return new GetPlayerRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetPlayerRequest {
+    return new GetPlayerRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetPlayerRequest {
+    return new GetPlayerRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetPlayerRequest | PlainMessage<GetPlayerRequest> | undefined, b: GetPlayerRequest | PlainMessage<GetPlayerRequest> | undefined): boolean {
+    return proto3.util.equals(GetPlayerRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message player.v1.GetPlayerResponse
+ */
+export class GetPlayerResponse extends Message<GetPlayerResponse> {
+  /**
+   * @generated from field: player.v1.Player player = 1;
+   */
+  player?: Player;
+
+  constructor(data?: PartialMessage<GetPlayerResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.GetPlayerResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "player", kind: "message", T: Player },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetPlayerResponse {
+    return new GetPlayerResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetPlayerResponse {
+    return new GetPlayerResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetPlayerResponse {
+    return new GetPlayerResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetPlayerResponse | PlainMessage<GetPlayerResponse> | undefined, b: GetPlayerResponse | PlainMessage<GetPlayerResponse> | undefined): boolean {
+    return proto3.util.equals(GetPlayerResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message player.v1.Player
+ */
+export class Player extends Message<Player> {
+  /**
+   * The username as its player typed it.
+   *
+   * @generated from field: string name = 1;
+   */
+  name = "";
+
+  /**
+   * As of today: a streak that ended before yesterday reads 0.
+   *
+   * @generated from field: player.v1.Stats stats = 2;
+   */
+  stats?: Stats;
+
+  /**
+   * When the account was made, as a guest or by a first sign-in.
+   *
+   * @generated from field: int64 created_at_unix_ms = 3;
+   */
+  createdAtUnixMs = protoInt64.zero;
+
+  constructor(data?: PartialMessage<Player>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.Player";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "stats", kind: "message", T: Stats },
+    { no: 3, name: "created_at_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Player {
+    return new Player().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Player {
+    return new Player().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Player {
+    return new Player().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Player | PlainMessage<Player> | undefined, b: Player | PlainMessage<Player> | undefined): boolean {
+    return proto3.util.equals(Player, a, b);
+  }
+}
+
