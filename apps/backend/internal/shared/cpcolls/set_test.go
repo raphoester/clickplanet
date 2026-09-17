@@ -40,7 +40,9 @@ func TestClearEmptiesASetThatStaysUsable(t *testing.T) {
 	set.Add("a")
 
 	set.Clear()
+	assert.True(t, set.Empty())
 	set.Add("b")
+	assert.False(t, set.Empty())
 
 	assert.False(t, set.Contains("a"))
 	assert.True(t, set.Contains("b"))
@@ -52,6 +54,7 @@ func TestANilSetReadsAsEmpty(t *testing.T) {
 
 	assert.False(t, set.Contains("a"))
 	assert.Zero(t, set.Len())
+	assert.True(t, set.Empty())
 	assert.Empty(t, collect(set))
 }
 

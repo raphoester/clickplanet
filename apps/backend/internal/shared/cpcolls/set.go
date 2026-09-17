@@ -53,6 +53,10 @@ func (s *Set[T]) Len() int {
 	return len(s.items)
 }
 
+func (s *Set[T]) Empty() bool {
+	return s.Len() == 0
+}
+
 // Clear deletes every item and keeps the memory for the next ones.
 func (s *Set[T]) Clear() {
 	clear(s.items)

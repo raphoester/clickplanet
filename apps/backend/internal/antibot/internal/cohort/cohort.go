@@ -566,7 +566,7 @@ func unindex[K comparable](buckets map[K]*cpcolls.Set[string], key K, scope stri
 		return
 	}
 	bucket.Delete(scope)
-	if bucket.Len() == 0 {
+	if bucket.Empty() {
 		delete(buckets, key)
 	}
 }

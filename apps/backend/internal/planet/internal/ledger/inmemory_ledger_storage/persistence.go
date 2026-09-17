@@ -138,7 +138,7 @@ func (s *Storage) Flush(ctx context.Context) error {
 	head := s.headPositionLocked()
 	end := s.next
 	from := max(s.saved, head)
-	if from == end && head == s.savedHead && s.dirtyScopes.Len() == 0 {
+	if from == end && head == s.savedHead && s.dirtyScopes.Empty() {
 		s.mu.Unlock()
 		return nil
 	}
