@@ -8,6 +8,7 @@ import type {LeaderboardEntry} from "../domain/leaderboard.ts"
 import {DEFAULT_SOUND_SETTINGS} from "../domain/soundSettings.ts"
 import {AccountBackend, Me, Provider} from "../backends/account.ts"
 import {AccountStore} from "./account/accountStore.ts"
+import {RosterEntry} from "../backends/player.ts"
 import {PlayerBackend, PlayerError} from "../backends/player.ts"
 
 const france = Countries.get("fr")!
@@ -327,7 +328,7 @@ describe("Menu", () => {
     })
 
     describe("the account", () => {
-        const withAccount = (offered: Provider[], me: Me, username = "") => {
+        const withAccount = (offered: Provider[], me: Me, username = "", players?: RosterEntry[]) => {
             const backend = {
                 signInOptions: vi.fn(async () => offered),
                 me: vi.fn(async () => me),
@@ -344,9 +345,17 @@ describe("Menu", () => {
             } satisfies PlayerBackend
             const store = new AccountStore(backend, player, {token: vi.fn(), held: vi.fn(), invalidate: vi.fn()}, {navigate, remember: vi.fn()})
             const view = render(<Menu country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000}
-                                      account={store}/>)
+                                      account={store} players={players}/>)
             return {...view, backend, player, navigate, user: userEvent.setup()}
         }
+
+        it("keeps the account button beside the players button", async () => {
+            withAccount(["google"], {linked: ["google"]}, "ana",
+                [{name: "ana", tag: "4f2ca1", countryCode: "fr", guest: false}])
+
+            expect(await screen.findByRole("button", {name: "Account"})).toBeDefined()
+            expect(screen.getByRole("button", {name: "1 player online"})).toBeDefined()
+        })
 
         it("offers no sign-in without an account store", () => {
             setup()
