@@ -4,6 +4,4 @@ type Config struct {
 	MaxTextLength int
 
 	MaxNameLength int
-
-	TagSalt string
 }

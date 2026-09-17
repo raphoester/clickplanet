@@ -46,8 +46,19 @@ chat:
     dbName: postgres
     sslMode: disable
     schema: chat
-  service:
-    tagSalt: "local-development-salt"
   rateLimiter:
     perSecond: 0.33
     burst: 5
+
+# A player's name, tag and stats. Always on: the chat asks it who posts.
+player:
+  # The same postgres service as the planet, in a schema of its own.
+  database:
+    host: postgres
+    port: "5432"
+    user: postgres
+    password: postgres
+    dbName: postgres
+    sslMode: disable
+    schema: player
+  tagSalt: "local-development-salt"
