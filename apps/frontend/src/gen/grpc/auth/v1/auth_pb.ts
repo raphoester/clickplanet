@@ -65,6 +65,37 @@ proto3.util.setEnumType(AccountKind, "auth.v1.AccountKind", [
 ]);
 
 /**
+ * @generated from enum auth.v1.SignInIntent
+ */
+export enum SignInIntent {
+  /**
+   * @generated from enum value: SIGN_IN_INTENT_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * A known identity moves the browser to its account.
+   *
+   * @generated from enum value: SIGN_IN_INTENT_SIGN_IN = 1;
+   */
+  SIGN_IN = 1,
+
+  /**
+   * Adds the identity to the account the browser is on, or refuses. Never
+   * moves the browser to another account.
+   *
+   * @generated from enum value: SIGN_IN_INTENT_LINK = 2;
+   */
+  LINK = 2,
+}
+// Retrieve enum metadata with: proto3.getEnumType(SignInIntent)
+proto3.util.setEnumType(SignInIntent, "auth.v1.SignInIntent", [
+  { no: 0, name: "SIGN_IN_INTENT_UNSPECIFIED" },
+  { no: 1, name: "SIGN_IN_INTENT_SIGN_IN" },
+  { no: 2, name: "SIGN_IN_INTENT_LINK" },
+]);
+
+/**
  * What CompleteSignIn did with the identity.
  *
  * @generated from enum auth.v1.SignInOutcome
@@ -104,6 +135,36 @@ proto3.util.setEnumType(SignInOutcome, "auth.v1.SignInOutcome", [
   { no: 1, name: "SIGN_IN_OUTCOME_SIGNED_IN" },
   { no: 2, name: "SIGN_IN_OUTCOME_LINKED" },
   { no: 3, name: "SIGN_IN_OUTCOME_CREATED" },
+]);
+
+/**
+ * @generated from enum auth.v1.LinkRefusalReason
+ */
+export enum LinkRefusalReason {
+  /**
+   * @generated from enum value: LINK_REFUSAL_REASON_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * Another account already uses this identity.
+   *
+   * @generated from enum value: LINK_REFUSAL_REASON_IDENTITY_LINKED_ELSEWHERE = 1;
+   */
+  IDENTITY_LINKED_ELSEWHERE = 1,
+
+  /**
+   * The account already has another user of this provider.
+   *
+   * @generated from enum value: LINK_REFUSAL_REASON_PROVIDER_ALREADY_LINKED = 2;
+   */
+  PROVIDER_ALREADY_LINKED = 2,
+}
+// Retrieve enum metadata with: proto3.getEnumType(LinkRefusalReason)
+proto3.util.setEnumType(LinkRefusalReason, "auth.v1.LinkRefusalReason", [
+  { no: 0, name: "LINK_REFUSAL_REASON_UNSPECIFIED" },
+  { no: 1, name: "LINK_REFUSAL_REASON_IDENTITY_LINKED_ELSEWHERE" },
+  { no: 2, name: "LINK_REFUSAL_REASON_PROVIDER_ALREADY_LINKED" },
 ]);
 
 /**
@@ -356,6 +417,14 @@ export class StartSignInRequest extends Message<StartSignInRequest> {
    */
   provider = Provider.UNSPECIFIED;
 
+  /**
+   * Unset signs in, as every client did before intents existed. A link from a
+   * browser with no account is Unauthenticated.
+   *
+   * @generated from field: auth.v1.SignInIntent intent = 2;
+   */
+  intent = SignInIntent.UNSPECIFIED;
+
   constructor(data?: PartialMessage<StartSignInRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -365,6 +434,7 @@ export class StartSignInRequest extends Message<StartSignInRequest> {
   static readonly typeName = "auth.v1.StartSignInRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "provider", kind: "enum", T: proto3.getEnumType(Provider) },
+    { no: 2, name: "intent", kind: "enum", T: proto3.getEnumType(SignInIntent) },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): StartSignInRequest {
@@ -430,7 +500,9 @@ export class StartSignInResponse extends Message<StartSignInResponse> {
 export class CompleteSignInRequest extends Message<CompleteSignInRequest> {
   /**
    * Both from the callback page's query string. FailedPrecondition when the
-   * state does not match the sign-in this browser started, or it has lapsed.
+   * state does not match the sign-in this browser started, or it has lapsed, or
+   * a link's browser is no longer on the account the link started on.
+   * AlreadyExists, with a LinkRefusal detail, when a link is refused.
    *
    * @generated from field: string code = 1;
    */
@@ -510,6 +582,45 @@ export class CompleteSignInResponse extends Message<CompleteSignInResponse> {
 
   static equals(a: CompleteSignInResponse | PlainMessage<CompleteSignInResponse> | undefined, b: CompleteSignInResponse | PlainMessage<CompleteSignInResponse> | undefined): boolean {
     return proto3.util.equals(CompleteSignInResponse, a, b);
+  }
+}
+
+/**
+ * The detail of a CompleteSignIn refused with ALREADY_EXISTS: why a link was not made.
+ *
+ * @generated from message auth.v1.LinkRefusal
+ */
+export class LinkRefusal extends Message<LinkRefusal> {
+  /**
+   * @generated from field: auth.v1.LinkRefusalReason reason = 1;
+   */
+  reason = LinkRefusalReason.UNSPECIFIED;
+
+  constructor(data?: PartialMessage<LinkRefusal>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "auth.v1.LinkRefusal";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "reason", kind: "enum", T: proto3.getEnumType(LinkRefusalReason) },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): LinkRefusal {
+    return new LinkRefusal().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): LinkRefusal {
+    return new LinkRefusal().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): LinkRefusal {
+    return new LinkRefusal().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: LinkRefusal | PlainMessage<LinkRefusal> | undefined, b: LinkRefusal | PlainMessage<LinkRefusal> | undefined): boolean {
+    return proto3.util.equals(LinkRefusal, a, b);
   }
 }
 

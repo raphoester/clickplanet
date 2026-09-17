@@ -49,7 +49,7 @@ export default function AccountPanel({state, store, onDelete}: AccountPanelProps
                                           type="button"
                                           className="button button-ghost account-button"
                                           disabled={busy}
-                                          onClick={() => void store.signIn(provider)}>
+                                          onClick={() => void (linked.length === 0 ? store.signIn(provider) : store.link(provider))}>
             {linked.length === 0 ? "Sign in with" : "Link"} {PROVIDER_NAMES[provider]}
         </button>)}
 

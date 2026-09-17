@@ -1,6 +1,11 @@
 import {afterEach, describe, expect, it, vi} from "vitest"
 import {Code, ConnectError} from "@connectrpc/connect"
-import {Provider as WireProvider} from "../gen/grpc/auth/v1/auth_pb.ts"
+import {
+    LinkRefusal,
+    LinkRefusalReason,
+    Provider as WireProvider,
+    SignInIntent,
+} from "../gen/grpc/auth/v1/auth_pb.ts"
 import {AuthError} from "./account.ts"
 import {ConnectAccountBackend} from "./accountBackend.ts"
 import {newAuthServiceClient} from "./turnstileSession.ts"
@@ -45,8 +50,33 @@ describe("ConnectAccountBackend", () => {
         const startSignIn = vi.fn(async () => ({authorizationUrl: "https://discord.example/authorize"}))
         const backend = backendWith({startSignIn})
 
-        expect(await backend.startSignIn("discord")).toBe("https://discord.example/authorize")
-        expect(startSignIn).toHaveBeenCalledWith({provider: WireProvider.DISCORD})
+        expect(await backend.startSignIn("discord", "signIn")).toBe("https://discord.example/authorize")
+        expect(startSignIn).toHaveBeenCalledWith({provider: WireProvider.DISCORD, intent: SignInIntent.SIGN_IN})
+    })
+
+    it("says on the wire when the trip is a link", async () => {
+        const startSignIn = vi.fn(async () => ({authorizationUrl: "https://google.example/authorize"}))
+        const backend = backendWith({startSignIn})
+
+        await backend.startSignIn("google", "link")
+
+        expect(startSignIn).toHaveBeenCalledWith({provider: WireProvider.GOOGLE, intent: SignInIntent.LINK})
+    })
+
+    it("reads a refused link from its detail", async () => {
+        const cases: [LinkRefusalReason, string][] = [
+            [LinkRefusalReason.IDENTITY_LINKED_ELSEWHERE, "linkedElsewhere"],
+            [LinkRefusalReason.PROVIDER_ALREADY_LINKED, "alreadyLinked"],
+        ]
+        for (const [reason, failure] of cases) {
+            const backend = backendWith({
+                completeSignIn: vi.fn(async () => {
+                    throw new ConnectError("no", Code.AlreadyExists, undefined, [new LinkRefusal({reason})])
+                }),
+            })
+
+            await expect(backend.completeSignIn("code", "state")).rejects.toMatchObject({failure})
+        }
     })
 
     it("maps each refusal to its failure", async () => {

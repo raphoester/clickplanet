@@ -58,6 +58,23 @@ describe("SignInCallback", () => {
         expect(screen.getByRole("button", {name: "Back to the game"})).toBeDefined()
     })
 
+    // Nothing changed on the server: the player goes back on the account they were on.
+    it("explains a refused link and goes back to the game", async () => {
+        const onDone = vi.fn()
+        render(<SignInCallback callback={code} provider="google" complete={refusing("linkedElsewhere")}
+                               startAgain={vi.fn(async () => undefined)} onDone={onDone}/>)
+
+        expect((await screen.findByRole("alert")).textContent).toBe(
+            "This Google account is already used by another ClickPlanet account. "
+            + "To move it here: sign in with it, delete that account, then link it here.",
+        )
+        expect(screen.getByRole("heading", {name: "Not linked"})).toBeDefined()
+        expect(screen.queryByRole("button", {name: "Try again"})).toBeNull()
+
+        await userEvent.setup().click(screen.getByRole("button", {name: "Back to the game"}))
+        expect(onDone).toHaveBeenCalledTimes(1)
+    })
+
     it("trades nothing when the player said no", async () => {
         const complete = vi.fn(async () => undefined)
         const onDone = vi.fn()

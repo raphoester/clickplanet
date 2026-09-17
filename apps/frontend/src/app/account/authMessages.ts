@@ -15,6 +15,13 @@ export function messageOf(failure: AuthFailure, provider?: Provider): string {
             return `${provider ? PROVIDER_NAMES[provider] : "The service"} did not accept the sign-in. Try again.`
         case "notSignedIn":
             return "You are not signed in."
+        case "linkedElsewhere": {
+            const name = provider ? PROVIDER_NAMES[provider] : "This"
+            return `This ${name} account is already used by another ClickPlanet account. `
+                + "To move it here: sign in with it, delete that account, then link it here."
+        }
+        case "alreadyLinked":
+            return `Your account already has a ${provider ? PROVIDER_NAMES[provider] : "different"} account. You can link only one of each.`
         case "failed":
             return "Something went wrong. Try again."
     }
@@ -42,6 +49,8 @@ export function retryOf(failure: AuthFailure): Retry {
         case "off":
         case "notOffered":
         case "notSignedIn":
+        case "linkedElsewhere":
+        case "alreadyLinked":
             return "none"
     }
 }
