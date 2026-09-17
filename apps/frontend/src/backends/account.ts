@@ -14,6 +14,13 @@ export const PROVIDER_NAMES: Record<Provider, string> = {
     discord: "Discord",
 }
 
+/**
+ * What a trip to the provider is for. `signIn` moves the browser to the
+ * identity's account when the identity is known. `link` adds it to the account
+ * the browser is on, and the server refuses rather than move the browser.
+ */
+export type Intent = "signIn" | "link"
+
 /** The account the browser's cookie holds. `linked` is empty for a guest and for a browser with no account yet. */
 export type Me = {
     linked: Provider[]
@@ -26,7 +33,7 @@ export interface AccountBackend {
     me(): Promise<Me>
 
     /** The provider's URL to send the browser to. */
-    startSignIn(provider: Provider): Promise<string>
+    startSignIn(provider: Provider, intent: Intent): Promise<string>
 
     completeSignIn(code: string, state: string): Promise<void>
 
@@ -55,6 +62,10 @@ export type AuthFailure =
     | "refused"
     /** The action needs an account and the browser has none. */
     | "notSignedIn"
+    /** A link refused: another account already uses this identity. */
+    | "linkedElsewhere"
+    /** A link refused: the account already has another user of this provider. */
+    | "alreadyLinked"
     /** Anything else: the network, the server. */
     | "failed"
 

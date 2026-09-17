@@ -7,6 +7,13 @@ describe("messageOf", () => {
         expect(messageOf("tooManyTries")).toMatch(/wait/i)
     })
 
+    it("tells how to move an identity another account uses", () => {
+        expect(messageOf("linkedElsewhere", "google")).toBe(
+            "This Google account is already used by another ClickPlanet account. "
+            + "To move it here: sign in with it, delete that account, then link it here.",
+        )
+    })
+
     it("names the service that refused", () => {
         expect(messageOf("refused", "discord")).toMatch(/^Discord /)
         expect(messageOf("refused")).toMatch(/^The service /)
@@ -28,5 +35,11 @@ describe("retryOf", () => {
     it("offers nothing when sign-in cannot work", () => {
         expect(retryOf("off")).toBe("none")
         expect(retryOf("notOffered")).toBe("none")
+    })
+
+    // The same identity would be refused again: only the player can change that.
+    it("offers nothing after a refused link", () => {
+        expect(retryOf("linkedElsewhere")).toBe("none")
+        expect(retryOf("alreadyLinked")).toBe("none")
     })
 })

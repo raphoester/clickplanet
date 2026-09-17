@@ -57,6 +57,16 @@ func NewIdentity(provider string, claim Claim, account AccountID, now time.Time)
 	return identity
 }
 
+// Intent is what the player asked for when the sign-in started.
+type Intent int
+
+const (
+	// The zero value, so a flow sealed before intents existed still signs in.
+	IntentSignIn Intent = iota
+	// Adds the identity to the account the browser is on, and never moves the browser to another one.
+	IntentLink
+)
+
 // Outcome is what a sign-in does with an identity.
 type Outcome int
 
@@ -70,14 +80,34 @@ const (
 )
 
 // OutcomeOf decides a sign-in. Emails are never compared: two identities are one player only when the player links them.
-func OutcomeOf(current *Account, known *Identity, provider string) Outcome {
+func OutcomeOf(intent Intent, current *Account, known *Identity, provider string) (Outcome, error) {
+	if intent == IntentLink {
+		return linkOutcomeOf(current, known, provider)
+	}
 	switch {
 	case known != nil:
-		return SignedIn
+		return SignedIn, nil
 	case current == nil || current.linkedTo(provider):
-		return Created
+		return Created, nil
 	default:
-		return Linked
+		return Linked, nil
+	}
+}
+
+// linkOutcomeOf refuses what a sign-in would do elsewhere: a link never leaves the account the player is on.
+func linkOutcomeOf(current *Account, known *Identity, provider string) (Outcome, error) {
+	switch {
+	case current == nil:
+		return 0, ErrNoAccount
+	case known != nil && known.Account == current.ID:
+		// Already linked here: nothing to link, and the browser stays.
+		return SignedIn, nil
+	case known != nil:
+		return 0, ErrIdentityLinkedElsewhere
+	case current.linkedTo(provider):
+		return 0, ErrProviderAlreadyLinked
+	default:
+		return Linked, nil
 	}
 }
 

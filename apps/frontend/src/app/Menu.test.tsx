@@ -310,12 +310,23 @@ describe("Menu", () => {
         })
 
         it("leaves for the provider", async () => {
-            const {user, navigate} = withAccount(["google"], {linked: []})
+            const {user, navigate, backend} = withAccount(["google"], {linked: []})
 
             await user.click(await screen.findByRole("button", {name: "Sign in"}))
             await user.click(button("Sign in with Google"))
 
+            expect(backend.startSignIn).toHaveBeenCalledWith("google", "signIn")
             expect(navigate).toHaveBeenCalledWith("https://google.example/authorize")
+        })
+
+        // The production bug: a link sent as a sign-in moved the player to the other account.
+        it("sends a link, not a sign-in, from a linked account", async () => {
+            const {user, backend} = withAccount(["google", "discord"], {linked: ["discord"]})
+
+            await user.click(await screen.findByRole("button", {name: "Account"}))
+            await user.click(button("Link Google"))
+
+            expect(backend.startSignIn).toHaveBeenCalledWith("google", "link")
         })
 
         it("shows who is signed in, and links the missing provider", async () => {

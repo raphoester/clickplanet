@@ -1,7 +1,7 @@
 import {ReactNode, useState} from "react"
 import {SignInCallback as Callback} from "../../domain/signInCallback.ts"
 import {AccountStore} from "./accountStore.ts"
-import {rememberedProvider} from "./rememberedProvider.ts"
+import {rememberedSignIn} from "./rememberedSignIn.ts"
 import SignInCallback from "./SignInCallback.tsx"
 
 export type SignInGateProps = {
@@ -23,11 +23,12 @@ export default function SignInGate(props: SignInGateProps) {
     if (done || !props.callback || !props.account) return props.children
 
     const account = props.account
-    const provider = rememberedProvider()
+    const remembered = rememberedSignIn()
     return <SignInCallback
         callback={props.callback}
+        provider={remembered?.provider}
         complete={(code, state) => account.completeSignIn(code, state)}
-        startAgain={provider && (() => account.leaveFor(provider))}
+        startAgain={remembered && (() => account.leaveFor(remembered.provider, remembered.intent))}
         onDone={() => {
             window.history.replaceState(null, "", "/")
             setDone(true)

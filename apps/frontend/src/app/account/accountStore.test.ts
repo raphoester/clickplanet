@@ -101,24 +101,53 @@ describe("AccountStore", () => {
 
     describe("signing in", () => {
         it("remembers the provider and leaves for its page", async () => {
-            const {store, navigate, remember} = setup(fakeBackend())
+            const backend = fakeBackend()
+            const {store, navigate, remember} = setup(backend)
             await store.load()
 
             await store.signIn("discord")
 
-            expect(remember).toHaveBeenCalledWith("discord")
+            expect(backend.startSignIn).toHaveBeenCalledWith("discord", "signIn")
+            expect(remember).toHaveBeenCalledWith("discord", "signIn")
             expect(navigate).toHaveBeenCalledWith("https://discord.example/authorize")
+        })
+
+        // A link never moves the browser to another account: the server refuses instead.
+        it("links from a linked account, and remembers it is a link", async () => {
+            const backend = fakeBackend(["google", "discord"], {linked: ["discord"]})
+            const {store, navigate, remember} = setup(backend)
+            await store.load()
+
+            await store.link("google")
+
+            expect(backend.startSignIn).toHaveBeenCalledWith("google", "link")
+            expect(remember).toHaveBeenCalledWith("google", "link")
+            expect(navigate).toHaveBeenCalledWith("https://google.example/authorize")
+        })
+
+        it("shows a guest when a link finds the account gone", async () => {
+            const backend = fakeBackend(["google", "discord"], {linked: ["discord"]})
+            backend.startSignIn.mockImplementation(refusing("notSignedIn"))
+            const {store} = setup(backend)
+            await store.load()
+
+            await store.link("google")
+
+            expect(store.state()).toEqual({
+                kind: "ready", offered: ["google", "discord"], me: {linked: []}, failure: "notSignedIn",
+            })
         })
 
         it("leaves from the callback page without a load, and throws there", async () => {
             const backend = fakeBackend()
             const {store, navigate} = setup(backend)
 
-            await store.leaveFor("google")
+            await store.leaveFor("google", "link")
+            expect(backend.startSignIn).toHaveBeenCalledWith("google", "link")
             expect(navigate).toHaveBeenCalledWith("https://google.example/authorize")
 
             backend.startSignIn.mockImplementation(refusing("tooManyTries"))
-            await expect(store.leaveFor("google")).rejects.toMatchObject({failure: "tooManyTries"})
+            await expect(store.leaveFor("google", "signIn")).rejects.toMatchObject({failure: "tooManyTries"})
         })
 
         it("is busy while the server answers, and starts nothing else meanwhile", async () => {

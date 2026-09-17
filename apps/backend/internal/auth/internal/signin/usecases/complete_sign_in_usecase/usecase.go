@@ -62,7 +62,8 @@ func New(
 	}
 }
 
-// Execute answers signin.ErrSignInOff, signin.ErrFlowInvalid or signin.ErrProviderRefused for a sign-in it cannot finish.
+// Execute answers signin.ErrSignInOff, signin.ErrFlowInvalid or signin.ErrProviderRefused for a sign-in it cannot finish,
+// and accounts.ErrIdentityLinkedElsewhere or accounts.ErrProviderAlreadyLinked for a link it refuses, having written nothing.
 func (u *UseCase) Execute(ctx context.Context, in In) (*Out, error) {
 	if u.providers.Off() {
 		return nil, signin.ErrSignInOff
@@ -74,20 +75,23 @@ func (u *UseCase) Execute(ctx context.Context, in In) (*Out, error) {
 		return nil, err
 	}
 
+	current, replaces, err := u.current(ctx, in.CookieHeader, now)
+	if err != nil {
+		return nil, err
+	}
+	if err := flow.AccountError(current); err != nil {
+		return nil, fmt.Errorf("failed to check the account: %w", err)
+	}
+
 	claim, err := provider.Exchange(ctx, in.Code, flow)
 	if err != nil {
 		return nil, fmt.Errorf("failed to ask %s who signed in: %w", flow.Provider, err)
 	}
 
-	current, replaces, err := u.current(ctx, in.CookieHeader, now)
-	if err != nil {
-		return nil, err
-	}
-
-	out, err := u.signIn(ctx, flow.Provider, claim, current, replaces, now)
+	out, err := u.signIn(ctx, flow, claim, current, replaces, now)
 	if errors.Is(err, accounts.ErrIdentityTaken) {
 		// Another browser linked the same identity a moment ago: it is known now.
-		out, err = u.signIn(ctx, flow.Provider, claim, current, replaces, now)
+		out, err = u.signIn(ctx, flow, claim, current, replaces, now)
 	}
 	return out, err
 }
@@ -133,8 +137,9 @@ func (u *UseCase) current(ctx context.Context, cookieHeader string, now time.Tim
 }
 
 func (u *UseCase) signIn(
-	ctx context.Context, provider string, claim *accounts.Claim, current *accounts.Account, replaces accounts.TokenHash, now time.Time,
+	ctx context.Context, flow *signin.Flow, claim *accounts.Claim, current *accounts.Account, replaces accounts.TokenHash, now time.Time,
 ) (*Out, error) {
+	provider := flow.Provider
 	known, err := u.store.Identity(ctx, provider, claim.Subject)
 	if errors.Is(err, accounts.ErrIdentityNotFound) {
 		known = nil
@@ -142,7 +147,10 @@ func (u *UseCase) signIn(
 		return nil, fmt.Errorf("failed to find the identity: %w", err)
 	}
 
-	outcome := accounts.OutcomeOf(current, known, provider)
+	outcome, err := accounts.OutcomeOf(flow.Intent, current, known, provider)
+	if err != nil {
+		return nil, fmt.Errorf("failed to link %s: %w", provider, err)
+	}
 	signIn := accounts.SignIn{Replaces: replaces}
 	var account accounts.AccountID
 	switch outcome {

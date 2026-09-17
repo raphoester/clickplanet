@@ -122,6 +122,58 @@ func (AccountKind) EnumDescriptor() ([]byte, []int) {
 	return file_auth_v1_auth_proto_rawDescGZIP(), []int{1}
 }
 
+type SignInIntent int32
+
+const (
+	SignInIntent_SIGN_IN_INTENT_UNSPECIFIED SignInIntent = 0
+	// A known identity moves the browser to its account.
+	SignInIntent_SIGN_IN_INTENT_SIGN_IN SignInIntent = 1
+	// Adds the identity to the account the browser is on, or refuses. Never
+	// moves the browser to another account.
+	SignInIntent_SIGN_IN_INTENT_LINK SignInIntent = 2
+)
+
+// Enum value maps for SignInIntent.
+var (
+	SignInIntent_name = map[int32]string{
+		0: "SIGN_IN_INTENT_UNSPECIFIED",
+		1: "SIGN_IN_INTENT_SIGN_IN",
+		2: "SIGN_IN_INTENT_LINK",
+	}
+	SignInIntent_value = map[string]int32{
+		"SIGN_IN_INTENT_UNSPECIFIED": 0,
+		"SIGN_IN_INTENT_SIGN_IN":     1,
+		"SIGN_IN_INTENT_LINK":        2,
+	}
+)
+
+func (x SignInIntent) Enum() *SignInIntent {
+	p := new(SignInIntent)
+	*p = x
+	return p
+}
+
+func (x SignInIntent) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (SignInIntent) Descriptor() protoreflect.EnumDescriptor {
+	return file_auth_v1_auth_proto_enumTypes[2].Descriptor()
+}
+
+func (SignInIntent) Type() protoreflect.EnumType {
+	return &file_auth_v1_auth_proto_enumTypes[2]
+}
+
+func (x SignInIntent) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use SignInIntent.Descriptor instead.
+func (SignInIntent) EnumDescriptor() ([]byte, []int) {
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{2}
+}
+
 // What CompleteSignIn did with the identity.
 type SignInOutcome int32
 
@@ -164,11 +216,11 @@ func (x SignInOutcome) String() string {
 }
 
 func (SignInOutcome) Descriptor() protoreflect.EnumDescriptor {
-	return file_auth_v1_auth_proto_enumTypes[2].Descriptor()
+	return file_auth_v1_auth_proto_enumTypes[3].Descriptor()
 }
 
 func (SignInOutcome) Type() protoreflect.EnumType {
-	return &file_auth_v1_auth_proto_enumTypes[2]
+	return &file_auth_v1_auth_proto_enumTypes[3]
 }
 
 func (x SignInOutcome) Number() protoreflect.EnumNumber {
@@ -177,7 +229,58 @@ func (x SignInOutcome) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use SignInOutcome.Descriptor instead.
 func (SignInOutcome) EnumDescriptor() ([]byte, []int) {
-	return file_auth_v1_auth_proto_rawDescGZIP(), []int{2}
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{3}
+}
+
+type LinkRefusalReason int32
+
+const (
+	LinkRefusalReason_LINK_REFUSAL_REASON_UNSPECIFIED LinkRefusalReason = 0
+	// Another account already uses this identity.
+	LinkRefusalReason_LINK_REFUSAL_REASON_IDENTITY_LINKED_ELSEWHERE LinkRefusalReason = 1
+	// The account already has another user of this provider.
+	LinkRefusalReason_LINK_REFUSAL_REASON_PROVIDER_ALREADY_LINKED LinkRefusalReason = 2
+)
+
+// Enum value maps for LinkRefusalReason.
+var (
+	LinkRefusalReason_name = map[int32]string{
+		0: "LINK_REFUSAL_REASON_UNSPECIFIED",
+		1: "LINK_REFUSAL_REASON_IDENTITY_LINKED_ELSEWHERE",
+		2: "LINK_REFUSAL_REASON_PROVIDER_ALREADY_LINKED",
+	}
+	LinkRefusalReason_value = map[string]int32{
+		"LINK_REFUSAL_REASON_UNSPECIFIED":               0,
+		"LINK_REFUSAL_REASON_IDENTITY_LINKED_ELSEWHERE": 1,
+		"LINK_REFUSAL_REASON_PROVIDER_ALREADY_LINKED":   2,
+	}
+)
+
+func (x LinkRefusalReason) Enum() *LinkRefusalReason {
+	p := new(LinkRefusalReason)
+	*p = x
+	return p
+}
+
+func (x LinkRefusalReason) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (LinkRefusalReason) Descriptor() protoreflect.EnumDescriptor {
+	return file_auth_v1_auth_proto_enumTypes[4].Descriptor()
+}
+
+func (LinkRefusalReason) Type() protoreflect.EnumType {
+	return &file_auth_v1_auth_proto_enumTypes[4]
+}
+
+func (x LinkRefusalReason) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use LinkRefusalReason.Descriptor instead.
+func (LinkRefusalReason) EnumDescriptor() ([]byte, []int) {
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{4}
 }
 
 type CreateSessionRequest struct {
@@ -461,7 +564,10 @@ func (x *GetSignInOptionsResponse) GetProviders() []Provider {
 type StartSignInRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// InvalidArgument when the provider is not offered on this server.
-	Provider      Provider `protobuf:"varint,1,opt,name=provider,proto3,enum=auth.v1.Provider" json:"provider,omitempty"`
+	Provider Provider `protobuf:"varint,1,opt,name=provider,proto3,enum=auth.v1.Provider" json:"provider,omitempty"`
+	// Unset signs in, as every client did before intents existed. A link from a
+	// browser with no account is Unauthenticated.
+	Intent        SignInIntent `protobuf:"varint,2,opt,name=intent,proto3,enum=auth.v1.SignInIntent" json:"intent,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -501,6 +607,13 @@ func (x *StartSignInRequest) GetProvider() Provider {
 		return x.Provider
 	}
 	return Provider_PROVIDER_UNSPECIFIED
+}
+
+func (x *StartSignInRequest) GetIntent() SignInIntent {
+	if x != nil {
+		return x.Intent
+	}
+	return SignInIntent_SIGN_IN_INTENT_UNSPECIFIED
 }
 
 type StartSignInResponse struct {
@@ -552,7 +665,9 @@ func (x *StartSignInResponse) GetAuthorizationUrl() string {
 type CompleteSignInRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Both from the callback page's query string. FailedPrecondition when the
-	// state does not match the sign-in this browser started, or it has lapsed.
+	// state does not match the sign-in this browser started, or it has lapsed, or
+	// a link's browser is no longer on the account the link started on.
+	// AlreadyExists, with a LinkRefusal detail, when a link is refused.
 	Code          string `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
 	State         string `protobuf:"bytes,2,opt,name=state,proto3" json:"state,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -655,6 +770,51 @@ func (x *CompleteSignInResponse) GetOutcome() SignInOutcome {
 	return SignInOutcome_SIGN_IN_OUTCOME_UNSPECIFIED
 }
 
+// The detail of a CompleteSignIn refused with ALREADY_EXISTS: why a link was not made.
+type LinkRefusal struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Reason        LinkRefusalReason      `protobuf:"varint,1,opt,name=reason,proto3,enum=auth.v1.LinkRefusalReason" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LinkRefusal) Reset() {
+	*x = LinkRefusal{}
+	mi := &file_auth_v1_auth_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LinkRefusal) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LinkRefusal) ProtoMessage() {}
+
+func (x *LinkRefusal) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_auth_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LinkRefusal.ProtoReflect.Descriptor instead.
+func (*LinkRefusal) Descriptor() ([]byte, []int) {
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *LinkRefusal) GetReason() LinkRefusalReason {
+	if x != nil {
+		return x.Reason
+	}
+	return LinkRefusalReason_LINK_REFUSAL_REASON_UNSPECIFIED
+}
+
 type SignOutRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -663,7 +823,7 @@ type SignOutRequest struct {
 
 func (x *SignOutRequest) Reset() {
 	*x = SignOutRequest{}
-	mi := &file_auth_v1_auth_proto_msgTypes[10]
+	mi := &file_auth_v1_auth_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -675,7 +835,7 @@ func (x *SignOutRequest) String() string {
 func (*SignOutRequest) ProtoMessage() {}
 
 func (x *SignOutRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_auth_proto_msgTypes[10]
+	mi := &file_auth_v1_auth_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -688,7 +848,7 @@ func (x *SignOutRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SignOutRequest.ProtoReflect.Descriptor instead.
 func (*SignOutRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_auth_proto_rawDescGZIP(), []int{10}
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{11}
 }
 
 type SignOutResponse struct {
@@ -699,7 +859,7 @@ type SignOutResponse struct {
 
 func (x *SignOutResponse) Reset() {
 	*x = SignOutResponse{}
-	mi := &file_auth_v1_auth_proto_msgTypes[11]
+	mi := &file_auth_v1_auth_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -711,7 +871,7 @@ func (x *SignOutResponse) String() string {
 func (*SignOutResponse) ProtoMessage() {}
 
 func (x *SignOutResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_auth_proto_msgTypes[11]
+	mi := &file_auth_v1_auth_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -724,7 +884,7 @@ func (x *SignOutResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SignOutResponse.ProtoReflect.Descriptor instead.
 func (*SignOutResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_auth_proto_rawDescGZIP(), []int{11}
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{12}
 }
 
 type SignOutEverywhereRequest struct {
@@ -735,7 +895,7 @@ type SignOutEverywhereRequest struct {
 
 func (x *SignOutEverywhereRequest) Reset() {
 	*x = SignOutEverywhereRequest{}
-	mi := &file_auth_v1_auth_proto_msgTypes[12]
+	mi := &file_auth_v1_auth_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -747,7 +907,7 @@ func (x *SignOutEverywhereRequest) String() string {
 func (*SignOutEverywhereRequest) ProtoMessage() {}
 
 func (x *SignOutEverywhereRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_auth_proto_msgTypes[12]
+	mi := &file_auth_v1_auth_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -760,7 +920,7 @@ func (x *SignOutEverywhereRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SignOutEverywhereRequest.ProtoReflect.Descriptor instead.
 func (*SignOutEverywhereRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_auth_proto_rawDescGZIP(), []int{12}
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{13}
 }
 
 type SignOutEverywhereResponse struct {
@@ -771,7 +931,7 @@ type SignOutEverywhereResponse struct {
 
 func (x *SignOutEverywhereResponse) Reset() {
 	*x = SignOutEverywhereResponse{}
-	mi := &file_auth_v1_auth_proto_msgTypes[13]
+	mi := &file_auth_v1_auth_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -783,7 +943,7 @@ func (x *SignOutEverywhereResponse) String() string {
 func (*SignOutEverywhereResponse) ProtoMessage() {}
 
 func (x *SignOutEverywhereResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_auth_proto_msgTypes[13]
+	mi := &file_auth_v1_auth_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -796,7 +956,7 @@ func (x *SignOutEverywhereResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SignOutEverywhereResponse.ProtoReflect.Descriptor instead.
 func (*SignOutEverywhereResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_auth_proto_rawDescGZIP(), []int{13}
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{14}
 }
 
 type DeleteAccountRequest struct {
@@ -807,7 +967,7 @@ type DeleteAccountRequest struct {
 
 func (x *DeleteAccountRequest) Reset() {
 	*x = DeleteAccountRequest{}
-	mi := &file_auth_v1_auth_proto_msgTypes[14]
+	mi := &file_auth_v1_auth_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -819,7 +979,7 @@ func (x *DeleteAccountRequest) String() string {
 func (*DeleteAccountRequest) ProtoMessage() {}
 
 func (x *DeleteAccountRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_auth_proto_msgTypes[14]
+	mi := &file_auth_v1_auth_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -832,7 +992,7 @@ func (x *DeleteAccountRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteAccountRequest.ProtoReflect.Descriptor instead.
 func (*DeleteAccountRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_auth_proto_rawDescGZIP(), []int{14}
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{15}
 }
 
 type DeleteAccountResponse struct {
@@ -843,7 +1003,7 @@ type DeleteAccountResponse struct {
 
 func (x *DeleteAccountResponse) Reset() {
 	*x = DeleteAccountResponse{}
-	mi := &file_auth_v1_auth_proto_msgTypes[15]
+	mi := &file_auth_v1_auth_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -855,7 +1015,7 @@ func (x *DeleteAccountResponse) String() string {
 func (*DeleteAccountResponse) ProtoMessage() {}
 
 func (x *DeleteAccountResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_auth_proto_msgTypes[15]
+	mi := &file_auth_v1_auth_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -868,7 +1028,7 @@ func (x *DeleteAccountResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteAccountResponse.ProtoReflect.Descriptor instead.
 func (*DeleteAccountResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_auth_proto_rawDescGZIP(), []int{15}
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{16}
 }
 
 var File_auth_v1_auth_proto protoreflect.FileDescriptor
@@ -889,9 +1049,10 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\tproviders\x18\x03 \x03(\x0e2\x11.auth.v1.ProviderR\tproviders\"\x19\n" +
 	"\x17GetSignInOptionsRequest\"K\n" +
 	"\x18GetSignInOptionsResponse\x12/\n" +
-	"\tproviders\x18\x01 \x03(\x0e2\x11.auth.v1.ProviderR\tproviders\"C\n" +
+	"\tproviders\x18\x01 \x03(\x0e2\x11.auth.v1.ProviderR\tproviders\"r\n" +
 	"\x12StartSignInRequest\x12-\n" +
-	"\bprovider\x18\x01 \x01(\x0e2\x11.auth.v1.ProviderR\bprovider\"B\n" +
+	"\bprovider\x18\x01 \x01(\x0e2\x11.auth.v1.ProviderR\bprovider\x12-\n" +
+	"\x06intent\x18\x02 \x01(\x0e2\x15.auth.v1.SignInIntentR\x06intent\"B\n" +
 	"\x13StartSignInResponse\x12+\n" +
 	"\x11authorization_url\x18\x01 \x01(\tR\x10authorizationUrl\"A\n" +
 	"\x15CompleteSignInRequest\x12\x12\n" +
@@ -900,7 +1061,9 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\x16CompleteSignInResponse\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x120\n" +
-	"\aoutcome\x18\x02 \x01(\x0e2\x16.auth.v1.SignInOutcomeR\aoutcome\"\x10\n" +
+	"\aoutcome\x18\x02 \x01(\x0e2\x16.auth.v1.SignInOutcomeR\aoutcome\"A\n" +
+	"\vLinkRefusal\x122\n" +
+	"\x06reason\x18\x01 \x01(\x0e2\x1a.auth.v1.LinkRefusalReasonR\x06reason\"\x10\n" +
 	"\x0eSignOutRequest\"\x11\n" +
 	"\x0fSignOutResponse\"\x1a\n" +
 	"\x18SignOutEverywhereRequest\"\x1b\n" +
@@ -914,12 +1077,20 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\vAccountKind\x12\x1c\n" +
 	"\x18ACCOUNT_KIND_UNSPECIFIED\x10\x00\x12\x16\n" +
 	"\x12ACCOUNT_KIND_GUEST\x10\x01\x12\x17\n" +
-	"\x13ACCOUNT_KIND_LINKED\x10\x02*\x88\x01\n" +
+	"\x13ACCOUNT_KIND_LINKED\x10\x02*c\n" +
+	"\fSignInIntent\x12\x1e\n" +
+	"\x1aSIGN_IN_INTENT_UNSPECIFIED\x10\x00\x12\x1a\n" +
+	"\x16SIGN_IN_INTENT_SIGN_IN\x10\x01\x12\x17\n" +
+	"\x13SIGN_IN_INTENT_LINK\x10\x02*\x88\x01\n" +
 	"\rSignInOutcome\x12\x1f\n" +
 	"\x1bSIGN_IN_OUTCOME_UNSPECIFIED\x10\x00\x12\x1d\n" +
 	"\x19SIGN_IN_OUTCOME_SIGNED_IN\x10\x01\x12\x1a\n" +
 	"\x16SIGN_IN_OUTCOME_LINKED\x10\x02\x12\x1b\n" +
-	"\x17SIGN_IN_OUTCOME_CREATED\x10\x032\xf5\x04\n" +
+	"\x17SIGN_IN_OUTCOME_CREATED\x10\x03*\x9c\x01\n" +
+	"\x11LinkRefusalReason\x12#\n" +
+	"\x1fLINK_REFUSAL_REASON_UNSPECIFIED\x10\x00\x121\n" +
+	"-LINK_REFUSAL_REASON_IDENTITY_LINKED_ELSEWHERE\x10\x01\x12/\n" +
+	"+LINK_REFUSAL_REASON_PROVIDER_ALREADY_LINKED\x10\x022\xf5\x04\n" +
 	"\vAuthService\x12N\n" +
 	"\rCreateSession\x12\x1d.auth.v1.CreateSessionRequest\x1a\x1e.auth.v1.CreateSessionResponse\x126\n" +
 	"\x05GetMe\x12\x15.auth.v1.GetMeRequest\x1a\x16.auth.v1.GetMeResponse\x12W\n" +
@@ -943,56 +1114,61 @@ func file_auth_v1_auth_proto_rawDescGZIP() []byte {
 	return file_auth_v1_auth_proto_rawDescData
 }
 
-var file_auth_v1_auth_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_auth_v1_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_auth_v1_auth_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
+var file_auth_v1_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_auth_v1_auth_proto_goTypes = []any{
 	(Provider)(0),                     // 0: auth.v1.Provider
 	(AccountKind)(0),                  // 1: auth.v1.AccountKind
-	(SignInOutcome)(0),                // 2: auth.v1.SignInOutcome
-	(*CreateSessionRequest)(nil),      // 3: auth.v1.CreateSessionRequest
-	(*CreateSessionResponse)(nil),     // 4: auth.v1.CreateSessionResponse
-	(*GetMeRequest)(nil),              // 5: auth.v1.GetMeRequest
-	(*GetMeResponse)(nil),             // 6: auth.v1.GetMeResponse
-	(*GetSignInOptionsRequest)(nil),   // 7: auth.v1.GetSignInOptionsRequest
-	(*GetSignInOptionsResponse)(nil),  // 8: auth.v1.GetSignInOptionsResponse
-	(*StartSignInRequest)(nil),        // 9: auth.v1.StartSignInRequest
-	(*StartSignInResponse)(nil),       // 10: auth.v1.StartSignInResponse
-	(*CompleteSignInRequest)(nil),     // 11: auth.v1.CompleteSignInRequest
-	(*CompleteSignInResponse)(nil),    // 12: auth.v1.CompleteSignInResponse
-	(*SignOutRequest)(nil),            // 13: auth.v1.SignOutRequest
-	(*SignOutResponse)(nil),           // 14: auth.v1.SignOutResponse
-	(*SignOutEverywhereRequest)(nil),  // 15: auth.v1.SignOutEverywhereRequest
-	(*SignOutEverywhereResponse)(nil), // 16: auth.v1.SignOutEverywhereResponse
-	(*DeleteAccountRequest)(nil),      // 17: auth.v1.DeleteAccountRequest
-	(*DeleteAccountResponse)(nil),     // 18: auth.v1.DeleteAccountResponse
+	(SignInIntent)(0),                 // 2: auth.v1.SignInIntent
+	(SignInOutcome)(0),                // 3: auth.v1.SignInOutcome
+	(LinkRefusalReason)(0),            // 4: auth.v1.LinkRefusalReason
+	(*CreateSessionRequest)(nil),      // 5: auth.v1.CreateSessionRequest
+	(*CreateSessionResponse)(nil),     // 6: auth.v1.CreateSessionResponse
+	(*GetMeRequest)(nil),              // 7: auth.v1.GetMeRequest
+	(*GetMeResponse)(nil),             // 8: auth.v1.GetMeResponse
+	(*GetSignInOptionsRequest)(nil),   // 9: auth.v1.GetSignInOptionsRequest
+	(*GetSignInOptionsResponse)(nil),  // 10: auth.v1.GetSignInOptionsResponse
+	(*StartSignInRequest)(nil),        // 11: auth.v1.StartSignInRequest
+	(*StartSignInResponse)(nil),       // 12: auth.v1.StartSignInResponse
+	(*CompleteSignInRequest)(nil),     // 13: auth.v1.CompleteSignInRequest
+	(*CompleteSignInResponse)(nil),    // 14: auth.v1.CompleteSignInResponse
+	(*LinkRefusal)(nil),               // 15: auth.v1.LinkRefusal
+	(*SignOutRequest)(nil),            // 16: auth.v1.SignOutRequest
+	(*SignOutResponse)(nil),           // 17: auth.v1.SignOutResponse
+	(*SignOutEverywhereRequest)(nil),  // 18: auth.v1.SignOutEverywhereRequest
+	(*SignOutEverywhereResponse)(nil), // 19: auth.v1.SignOutEverywhereResponse
+	(*DeleteAccountRequest)(nil),      // 20: auth.v1.DeleteAccountRequest
+	(*DeleteAccountResponse)(nil),     // 21: auth.v1.DeleteAccountResponse
 }
 var file_auth_v1_auth_proto_depIdxs = []int32{
 	1,  // 0: auth.v1.GetMeResponse.kind:type_name -> auth.v1.AccountKind
 	0,  // 1: auth.v1.GetMeResponse.providers:type_name -> auth.v1.Provider
 	0,  // 2: auth.v1.GetSignInOptionsResponse.providers:type_name -> auth.v1.Provider
 	0,  // 3: auth.v1.StartSignInRequest.provider:type_name -> auth.v1.Provider
-	2,  // 4: auth.v1.CompleteSignInResponse.outcome:type_name -> auth.v1.SignInOutcome
-	3,  // 5: auth.v1.AuthService.CreateSession:input_type -> auth.v1.CreateSessionRequest
-	5,  // 6: auth.v1.AuthService.GetMe:input_type -> auth.v1.GetMeRequest
-	7,  // 7: auth.v1.AuthService.GetSignInOptions:input_type -> auth.v1.GetSignInOptionsRequest
-	9,  // 8: auth.v1.AuthService.StartSignIn:input_type -> auth.v1.StartSignInRequest
-	11, // 9: auth.v1.AuthService.CompleteSignIn:input_type -> auth.v1.CompleteSignInRequest
-	13, // 10: auth.v1.AuthService.SignOut:input_type -> auth.v1.SignOutRequest
-	15, // 11: auth.v1.AuthService.SignOutEverywhere:input_type -> auth.v1.SignOutEverywhereRequest
-	17, // 12: auth.v1.AuthService.DeleteAccount:input_type -> auth.v1.DeleteAccountRequest
-	4,  // 13: auth.v1.AuthService.CreateSession:output_type -> auth.v1.CreateSessionResponse
-	6,  // 14: auth.v1.AuthService.GetMe:output_type -> auth.v1.GetMeResponse
-	8,  // 15: auth.v1.AuthService.GetSignInOptions:output_type -> auth.v1.GetSignInOptionsResponse
-	10, // 16: auth.v1.AuthService.StartSignIn:output_type -> auth.v1.StartSignInResponse
-	12, // 17: auth.v1.AuthService.CompleteSignIn:output_type -> auth.v1.CompleteSignInResponse
-	14, // 18: auth.v1.AuthService.SignOut:output_type -> auth.v1.SignOutResponse
-	16, // 19: auth.v1.AuthService.SignOutEverywhere:output_type -> auth.v1.SignOutEverywhereResponse
-	18, // 20: auth.v1.AuthService.DeleteAccount:output_type -> auth.v1.DeleteAccountResponse
-	13, // [13:21] is the sub-list for method output_type
-	5,  // [5:13] is the sub-list for method input_type
-	5,  // [5:5] is the sub-list for extension type_name
-	5,  // [5:5] is the sub-list for extension extendee
-	0,  // [0:5] is the sub-list for field type_name
+	2,  // 4: auth.v1.StartSignInRequest.intent:type_name -> auth.v1.SignInIntent
+	3,  // 5: auth.v1.CompleteSignInResponse.outcome:type_name -> auth.v1.SignInOutcome
+	4,  // 6: auth.v1.LinkRefusal.reason:type_name -> auth.v1.LinkRefusalReason
+	5,  // 7: auth.v1.AuthService.CreateSession:input_type -> auth.v1.CreateSessionRequest
+	7,  // 8: auth.v1.AuthService.GetMe:input_type -> auth.v1.GetMeRequest
+	9,  // 9: auth.v1.AuthService.GetSignInOptions:input_type -> auth.v1.GetSignInOptionsRequest
+	11, // 10: auth.v1.AuthService.StartSignIn:input_type -> auth.v1.StartSignInRequest
+	13, // 11: auth.v1.AuthService.CompleteSignIn:input_type -> auth.v1.CompleteSignInRequest
+	16, // 12: auth.v1.AuthService.SignOut:input_type -> auth.v1.SignOutRequest
+	18, // 13: auth.v1.AuthService.SignOutEverywhere:input_type -> auth.v1.SignOutEverywhereRequest
+	20, // 14: auth.v1.AuthService.DeleteAccount:input_type -> auth.v1.DeleteAccountRequest
+	6,  // 15: auth.v1.AuthService.CreateSession:output_type -> auth.v1.CreateSessionResponse
+	8,  // 16: auth.v1.AuthService.GetMe:output_type -> auth.v1.GetMeResponse
+	10, // 17: auth.v1.AuthService.GetSignInOptions:output_type -> auth.v1.GetSignInOptionsResponse
+	12, // 18: auth.v1.AuthService.StartSignIn:output_type -> auth.v1.StartSignInResponse
+	14, // 19: auth.v1.AuthService.CompleteSignIn:output_type -> auth.v1.CompleteSignInResponse
+	17, // 20: auth.v1.AuthService.SignOut:output_type -> auth.v1.SignOutResponse
+	19, // 21: auth.v1.AuthService.SignOutEverywhere:output_type -> auth.v1.SignOutEverywhereResponse
+	21, // 22: auth.v1.AuthService.DeleteAccount:output_type -> auth.v1.DeleteAccountResponse
+	15, // [15:23] is the sub-list for method output_type
+	7,  // [7:15] is the sub-list for method input_type
+	7,  // [7:7] is the sub-list for extension type_name
+	7,  // [7:7] is the sub-list for extension extendee
+	0,  // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_auth_v1_auth_proto_init() }
@@ -1005,8 +1181,8 @@ func file_auth_v1_auth_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_auth_v1_auth_proto_rawDesc), len(file_auth_v1_auth_proto_rawDesc)),
-			NumEnums:      3,
-			NumMessages:   16,
+			NumEnums:      5,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

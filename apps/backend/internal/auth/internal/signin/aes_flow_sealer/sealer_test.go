@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/aes_flow_sealer"
 )
@@ -16,6 +17,7 @@ import (
 var flow = &signin.Flow{
 	Provider: "google", State: "state", Verifier: "verifier", Nonce: "nonce",
 	ExpiresAt: time.Date(2026, 9, 16, 12, 10, 0, 0, time.UTC),
+	Intent:    accounts.IntentLink, Account: accounts.AccountID{15: 7},
 }
 
 func sealer(t *testing.T, seed byte) *aes_flow_sealer.Sealer {

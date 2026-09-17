@@ -27,6 +27,9 @@ type Flow struct {
 	// Signed into Google's ID token, so a token from another sign-in is refused.
 	Nonce     string
 	ExpiresAt time.Time
+	Intent    accounts.Intent
+	// The account a link started on, which must still be the browser's at the callback. Zero for a sign-in.
+	Account accounts.AccountID
 }
 
 // Secrets draws the random strings a flow is made of.
@@ -34,8 +37,8 @@ type Secrets interface {
 	NewSecret() (string, error)
 }
 
-func NewFlow(provider string, secrets Secrets, now time.Time) (*Flow, error) {
-	flow := &Flow{Provider: provider, ExpiresAt: now.Add(FlowTTL)}
+func NewFlow(provider string, intent accounts.Intent, account accounts.AccountID, secrets Secrets, now time.Time) (*Flow, error) {
+	flow := &Flow{Provider: provider, ExpiresAt: now.Add(FlowTTL), Intent: intent, Account: account}
 	for _, field := range []*string{&flow.State, &flow.Verifier, &flow.Nonce} {
 		secret, err := secrets.NewSecret()
 		if err != nil {
@@ -59,6 +62,17 @@ func (f *Flow) CallbackError(state string, now time.Time) error {
 	}
 	if subtle.ConstantTimeCompare([]byte(f.State), []byte(state)) != 1 {
 		return fmt.Errorf("%w: the state does not match", ErrFlowInvalid)
+	}
+	return nil
+}
+
+// AccountError refuses a link whose browser is no longer on the account it started on: signed out, or signed in elsewhere since.
+func (f *Flow) AccountError(current *accounts.Account) error {
+	if f.Intent != accounts.IntentLink {
+		return nil
+	}
+	if current == nil || current.ID != f.Account {
+		return fmt.Errorf("%w: the browser left the account the link started on", ErrFlowInvalid)
 	}
 	return nil
 }

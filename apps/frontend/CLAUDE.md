@@ -439,7 +439,8 @@ Discord keeps that account on every device.
   Connect codes: `unimplemented` → `off`, `invalid_argument` → `notOffered`,
   `resource_exhausted` → `tooManyTries`, `failed_precondition` → `startAgain`,
   `permission_denied` → `refused`, `unauthenticated` → `notSignedIn`, anything
-  else → `failed`. **Only the two reads are retried**: a retried
+  else → `failed`. A refused link is matched on its `LinkRefusal` detail, not
+  its code: `linkedElsewhere` or `alreadyLinked`. **Only the two reads are retried**: a retried
   `CompleteSignIn` would spend a code that is good once.
 - `domain/signInCallback.ts` — `callbackOf`, what the provider sent to
   `/auth/callback`: a code and a state, a refusal (`error`, which wins), or a
@@ -466,10 +467,12 @@ and `CompleteSignIn` each spend one. `tooManyTries` says to wait a minute.
 
 **The flow:**
 
-1. "Sign in with Google" calls `StartSignIn`, keeps the provider in session
-   storage (`rememberedProvider.ts`) and sends the browser to the URL it answers.
-   "Link Discord" is the same call from a signed-in account: the server links a
-   new identity to the account the browser is on.
+1. "Sign in with Google" calls `StartSignIn` with the intent `signIn`, keeps
+   the provider and the intent in session storage (`rememberedSignIn.ts`) and
+   sends the browser to the URL it answers. "Link Discord" (`AccountStore.link`)
+   sends the intent `link`. **The intent matters**: a sign-in with an identity
+   another account uses moves the browser to that account, and a link is
+   refused instead, so the player stays on the account they linked from.
 2. The provider sends the browser to `/auth/callback?code=…&state=…`. The
    Workers asset handler serves `index.html` there through
    `not_found_handling` (`nginx.conf` has a route of its own), and the project's
@@ -491,6 +494,11 @@ and `CompleteSignIn` each spend one. `tooManyTries` says to wait a minute.
    read), or go back to the remembered provider when the code is spent
    (`startAgain`, `refused`). With no remembered provider there is only "Back to
    the game".
+7. A refused link (`linkedElsewhere`, `alreadyLinked`) is titled "Not linked"
+   and offers only "Back to the game": the same identity would be refused
+   again. The server changed nothing, so the player is still on their account.
+   `linkedElsewhere` tells them how to move the identity: sign in with it,
+   delete that account, then link it here.
 
 **Every way out of an account invalidates the click token too**: sign out, sign
 out everywhere, and delete. The player plays on, and the next click mints a new

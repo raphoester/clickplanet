@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin"
 )
 
@@ -23,7 +24,7 @@ func (failingSecrets) NewSecret() (string, error) { return "", errors.New("no en
 func flow(t *testing.T) *signin.Flow {
 	t.Helper()
 
-	flow, err := signin.NewFlow(signin.Google, &signin.SequentialSecrets{}, now)
+	flow, err := signin.NewFlow(signin.Google, accounts.IntentSignIn, accounts.AccountID{}, &signin.SequentialSecrets{}, now)
 	require.NoError(t, err)
 	return flow
 }
@@ -35,7 +36,7 @@ func TestAFlowDrawsEachSecretApartAndLastsTenMinutes(t *testing.T) {
 }
 
 func TestAFlowWithoutEntropyIsNotStarted(t *testing.T) {
-	flow, err := signin.NewFlow(signin.Google, failingSecrets{}, now)
+	flow, err := signin.NewFlow(signin.Google, accounts.IntentSignIn, accounts.AccountID{}, failingSecrets{}, now)
 
 	require.Error(t, err)
 	assert.Nil(t, flow)
@@ -53,6 +54,23 @@ func TestAFlowAcceptsItsOwnStateUntilItLapses(t *testing.T) {
 	require.NoError(t, flow.CallbackError("secret-1", now.Add(10*time.Minute-time.Second)))
 	require.ErrorIs(t, flow.CallbackError("secret-1", now.Add(10*time.Minute)), signin.ErrFlowInvalid)
 	assert.ErrorIs(t, flow.CallbackError("another-state", now), signin.ErrFlowInvalid)
+}
+
+func TestASignInGoesWhereverTheBrowserIsNow(t *testing.T) {
+	flow := flow(t)
+
+	require.NoError(t, flow.AccountError(nil))
+	assert.NoError(t, flow.AccountError(&accounts.Account{ID: accounts.AccountID{15: 9}}))
+}
+
+func TestALinkMustEndOnTheAccountItStartedOn(t *testing.T) {
+	started := accounts.AccountID{15: 7}
+	flow, err := signin.NewFlow(signin.Google, accounts.IntentLink, started, &signin.SequentialSecrets{}, now)
+	require.NoError(t, err)
+
+	require.NoError(t, flow.AccountError(&accounts.Account{ID: started}))
+	require.ErrorIs(t, flow.AccountError(&accounts.Account{ID: accounts.AccountID{15: 8}}), signin.ErrFlowInvalid, "signed in elsewhere since")
+	assert.ErrorIs(t, flow.AccountError(nil), signin.ErrFlowInvalid, "signed out since")
 }
 
 func TestTheFlowCookieLivesAsLongAsTheFlowOnThisSiteOnly(t *testing.T) {

@@ -404,10 +404,12 @@ POST /auth.v1.AuthService/CreateSession   [Cookie: cp_sid=…, sent by the web c
   → shared/cpsession.Signer.Mint [Ed25519 over version+expiry+id+account+scope; nothing stored]
   ← token, and Set-Cookie when the session is new or renewed
 
-POST /auth.v1.AuthService/StartSignIn → authorization URL, Set-Cookie: cp_oauth (sealed flow)
+POST /auth.v1.AuthService/StartSignIn   [Cookie: cp_sid, read for a link only]
+  → start_sign_in_usecase: a link needs the cookie's account; seal the flow with the intent
+  ← authorization URL, Set-Cookie: cp_oauth (sealed flow)
   … the provider … → https://clickplanet.lol/auth/callback?code&state
 POST /auth.v1.AuthService/CompleteSignIn   [Cookie: cp_oauth, cp_sid]
-  → complete_sign_in_usecase: open and check the flow, provider.Exchange, accounts.OutcomeOf, SaveSignIn
+  → complete_sign_in_usecase: open and check the flow, a link's account, provider.Exchange, accounts.OutcomeOf, SaveSignIn
   ← Set-Cookie: cp_sid (new session), cp_oauth cleared; the client mints again
 
 POST /session.v1.SessionService/CreateSession   [deprecated]
@@ -618,7 +620,7 @@ internal/auth/internal/
     usecases/get_me_usecase/               reads only
     usecases/sign_out_usecase/  sign_out_everywhere_usecase/  delete_account_usecase/
     usecases/prune_guests_usecase/         deletes idle guests: Executor, Runner, and log_prune_guests
-  signin/                                  Flow (state, PKCE verifier, nonce), Provider, Providers, Sealer, the cp_oauth cookie
+  signin/                                  Flow (state, PKCE verifier, nonce, intent), Provider, Providers, Sealer, the cp_oauth cookie
     google_identity_provider/  discord_identity_provider/  oauth_http/
     aes_flow_sealer/  random_secret_generator/
     usecases/start_sign_in_usecase/  complete_sign_in_usecase/
@@ -644,12 +646,15 @@ internal/auth/internal/
 
 **OAuth 2.0 authorization code with PKCE, run by this server, over two RPCs.** No raw HTTP route and no Caddy change: the provider sends the browser to the frontend's callback page, and that page calls the API.
 
-- **`StartSignIn(provider)`** draws a `signin.Flow` — state, PKCE verifier and nonce, 32 random bytes each — seals it into the `cp_oauth` cookie (10 minutes, same attributes as `cp_sid`) and answers the provider's authorization URL. Nothing is stored on the server.
+- **`StartSignIn(provider, intent)`** draws a `signin.Flow` — state, PKCE verifier and nonce, 32 random bytes each, and the intent — seals it into the `cp_oauth` cookie (10 minutes, same attributes as `cp_sid`) and answers the provider's authorization URL. Nothing is stored on the server.
+- **The intent is sign in or link** (`accounts.Intent`). Unset on the wire is sign in, and so is a flow sealed before intents existed: `IntentSignIn` is the zero value. The menu's "Sign in with" buttons send sign in, and "Link" sends link.
+- **A link needs an account when it starts.** With no live `cp_sid`, `StartSignIn` answers `Unauthenticated` and sets no cookie. The flow keeps the account id, and `CompleteSignIn` refuses a link whose browser is on another account or none by then (`Flow.AccountError`, `ErrFlowInvalid`), before the provider is asked.
 - **`CompleteSignIn(code, state)`** opens the cookie, checks the state (constant time) and the expiry, trades the code with the verifier, and clears `cp_oauth` on every answer it maps, success or refusal. A browser that did not start the sign-in has no cookie that matches, which is the whole CSRF defence: a code carried to a victim's browser is refused before the provider is asked.
 - **The cookie is AES-256-GCM** (`aes_flow_sealer`), under a key derived with HKDF from `auth.secret` and a label of its own, so there is no second secret to set and the browser can neither read the verifier nor change the flow.
 - **Google** (`openid email`) reads the user from the ID token in the token endpoint's answer. Its signature is not checked: it comes straight from Google over TLS, which OpenID Connect Core 3.1.3.7 accepts instead; issuer, audience, expiry and nonce are. **Discord** (`identify email`) reads `/users/@me`. Both go through `oauth_http`, which answers `ErrProviderRefused` for a 4xx or an answer that does not decode, and a plain error (the error net's `internal`) when the provider could not be asked.
-- **`accounts.OutcomeOf` decides, and emails are never compared**: an identity already linked signs in to its account; a new one links to the account the browser is on; no account, or one that already holds a user of that provider, gets a new account. The guest a browser leaves for a known identity is left as it was — nothing is merged, and the prune deletes it later.
-- **`accounts.SignIn` is written in one transaction**: the new account if any, the identity if new, the new session, and the deletion of the browser's previous session. The session token changes on every sign-in. Two browsers linking the same new identity at once: the second insert finds it taken (`ErrIdentityTaken`), and the use case runs once more, now as a sign-in.
+- **`accounts.OutcomeOf` decides, and emails are never compared.** To sign in: an identity already linked signs in to its account; a new one links to the account the browser is on; no account, or one that already holds a user of that provider, gets a new account. The guest a browser leaves for a known identity is left as it was — nothing is merged, and the prune deletes it later.
+- **A link never moves the browser.** A new identity links to the account; one already on this account is `SignedIn` and changes nothing but the session token; one on **another** account is `ErrIdentityLinkedElsewhere`; an account that already has a user of that provider is `ErrProviderAlreadyLinked`. A refusal writes nothing and keeps `cp_sid`: only `cp_oauth` is cleared. The handler answers `AlreadyExists` with a `LinkRefusal` detail, which is what the client matches. Before this, a link to an identity another account used moved the browser to that account, and the two accounts could never be joined. To move an identity, the player signs in with it, deletes that account, then links it — there is no merge.
+- **`accounts.SignIn` is written in one transaction**: the new account if any, the identity if new, the new session, and the deletion of the browser's previous session. The session token changes on every sign-in. Two browsers linking the same new identity at once: the second insert finds it taken (`ErrIdentityTaken`), and the use case runs once more with the identity known — a sign-in moves, a link is refused.
 - **An email is kept only when the provider says it is verified** (`accounts.NewIdentity`), and it is `NULL` otherwise. It is for contact, never for finding an account.
 - **Off by default** (`auth.signIn.enabled`). Off, `signin.Providers` is empty and both RPCs answer `Unimplemented`, which Connect sends as HTTP 404. A provider is offered once its `clientId` is set. `StartSignIn` and `CompleteSignIn` spend the mint budget: each can cost a round trip to a third party or make an account.
 - **`GetSignInOptions` is how the client knows which buttons to show**: every provider offered, and an empty list while sign-in is off — never `Unimplemented`, since the question has an answer either way. **It is not throttled and sets no cookie.** A client asks on every page load, and probing with `StartSignIn` instead would spend the mint budget a real sign-in needs and start a flow for nothing. `TestAskingIsNotThrottled` pins it. A server with the whole `auth` module off still 404s it, which the client reads as no provider.

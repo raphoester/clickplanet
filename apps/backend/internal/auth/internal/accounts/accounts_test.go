@@ -151,21 +151,73 @@ func TestAVerifiedEmailIsKept(t *testing.T) {
 func TestAKnownIdentitySignsInWhateverTheBrowserIsOn(t *testing.T) {
 	known := &accounts.Identity{Provider: "google", Subject: "user", Account: accounts.AccountID{15: 2}}
 
-	assert.Equal(t, accounts.SignedIn, accounts.OutcomeOf(nil, known, "google"))
-	assert.Equal(t, accounts.SignedIn, accounts.OutcomeOf(&accounts.Account{ID: account}, known, "google"))
+	for name, current := range map[string]*accounts.Account{"no account": nil, "another account": {ID: account}} {
+		t.Run(name, func(t *testing.T) {
+			outcome, err := accounts.OutcomeOf(accounts.IntentSignIn, current, known, "google")
+
+			require.NoError(t, err)
+			assert.Equal(t, accounts.SignedIn, outcome)
+		})
+	}
 }
 
 func TestANewIdentityLinksToTheAccountTheBrowserIsOn(t *testing.T) {
-	guest := &accounts.Account{ID: account}
-	linkedElsewhere := &accounts.Account{ID: account, Identities: []accounts.Identity{{Provider: "discord"}}}
+	for _, intent := range []accounts.Intent{accounts.IntentSignIn, accounts.IntentLink} {
+		for name, current := range map[string]*accounts.Account{
+			"guest":                   {ID: account},
+			"linked to another place": {ID: account, Identities: []accounts.Identity{{Provider: "discord"}}},
+		} {
+			t.Run(name, func(t *testing.T) {
+				outcome, err := accounts.OutcomeOf(intent, current, nil, "google")
 
-	assert.Equal(t, accounts.Linked, accounts.OutcomeOf(guest, nil, "google"))
-	assert.Equal(t, accounts.Linked, accounts.OutcomeOf(linkedElsewhere, nil, "google"))
+				require.NoError(t, err)
+				assert.Equal(t, accounts.Linked, outcome)
+			})
+		}
+	}
 }
 
 func TestANewIdentityWithNowhereToGoCreatesAnAccount(t *testing.T) {
-	sameProvider := &accounts.Account{ID: account, Identities: []accounts.Identity{{Provider: "google", Subject: "someone else"}}}
+	for name, current := range map[string]*accounts.Account{
+		"no account":    nil,
+		"same provider": {ID: account, Identities: []accounts.Identity{{Provider: "google", Subject: "someone else"}}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			outcome, err := accounts.OutcomeOf(accounts.IntentSignIn, current, nil, "google")
 
-	assert.Equal(t, accounts.Created, accounts.OutcomeOf(nil, nil, "google"))
-	assert.Equal(t, accounts.Created, accounts.OutcomeOf(sameProvider, nil, "google"), "one account holds one user per provider")
+			require.NoError(t, err)
+			assert.Equal(t, accounts.Created, outcome)
+		})
+	}
+}
+
+func TestLinkingAnIdentityTheAccountAlreadyHasChangesNothing(t *testing.T) {
+	current := &accounts.Account{ID: account, Identities: []accounts.Identity{{Provider: "google", Subject: "user", Account: account}}}
+
+	outcome, err := accounts.OutcomeOf(accounts.IntentLink, current, &current.Identities[0], "google")
+
+	require.NoError(t, err)
+	assert.Equal(t, accounts.SignedIn, outcome, "the browser stays on its account")
+}
+
+func TestALinkIsRefusedRatherThanLeaveTheAccount(t *testing.T) {
+	onDiscord := &accounts.Account{ID: account, Identities: []accounts.Identity{{Provider: "discord", Subject: "d", Account: account}}}
+	elsewhere := &accounts.Identity{Provider: "google", Subject: "user", Account: accounts.AccountID{15: 2}}
+	sameProvider := &accounts.Account{ID: account, Identities: []accounts.Identity{{Provider: "google", Subject: "someone else", Account: account}}}
+
+	for name, tc := range map[string]struct {
+		current *accounts.Account
+		known   *accounts.Identity
+		want    error
+	}{
+		"identity on another account": {current: onDiscord, known: elsewhere, want: accounts.ErrIdentityLinkedElsewhere},
+		"provider already linked":     {current: sameProvider, want: accounts.ErrProviderAlreadyLinked},
+		"no account to link to":       {want: accounts.ErrNoAccount},
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, err := accounts.OutcomeOf(accounts.IntentLink, tc.current, tc.known, "google")
+
+			assert.ErrorIs(t, err, tc.want)
+		})
+	}
 }
