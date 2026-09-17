@@ -1,0 +1,51 @@
+syntax = "proto3";
+
+package player.v1;
+
+// A player's profile and stats. Every procedure answers for the caller: the
+// account named by the click token in the X-Session-Token header. A call with
+// no valid token, or a token with no account, is Unauthenticated.
+service PlayerService {
+  rpc GetProfile(GetProfileRequest) returns (GetProfileResponse);
+  // Unicode, at most 24 characters; control characters are removed and the
+  // ends trimmed. An empty name, or a longer one, is InvalidArgument.
+  rpc SetName(SetNameRequest) returns (SetNameResponse);
+  rpc GetStats(GetStatsRequest) returns (GetStatsResponse);
+}
+
+message Profile {
+  string account_id = 1;
+  // Empty while the player has not chosen one.
+  string name = 2;
+}
+
+message GetProfileRequest {}
+
+message GetProfileResponse {
+  Profile profile = 1;
+}
+
+message SetNameRequest {
+  string name = 1;
+}
+
+message SetNameResponse {
+  Profile profile = 1;
+}
+
+message Stats {
+  // Every tile the account took: clicks, spreads and encloses.
+  uint64 tiles_taken = 1;
+  // Days in a row, UTC, with at least one take, the last of them today or
+  // yesterday. Zero once a whole day went by with no take.
+  uint32 streak_current = 2;
+  uint32 streak_best = 3;
+  // The last UTC day with a take, as YYYY-MM-DD. Empty with no take.
+  string streak_last_day = 4;
+}
+
+message GetStatsRequest {}
+
+message GetStatsResponse {
+  Stats stats = 1;
+}
