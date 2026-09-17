@@ -95,6 +95,20 @@ export function SpeakerOffIcon({size = 22}: IconProps) {
     </svg>
 }
 
+export function HomeIcon({size = 22}: IconProps) {
+    return <svg {...base(size)} strokeWidth={2}>
+        <path d="M3.5 11 12 4l8.5 7"/>
+        <path d="M6 9.5V20h4.5v-5.5h3V20H18V9.5"/>
+    </svg>
+}
+
+export function UserIcon({size = 22}: IconProps) {
+    return <svg {...base(size)} strokeWidth={2}>
+        <circle cx="12" cy="8" r="4"/>
+        <path d="M4.5 20.5a7.5 7.5 0 0 1 15 0"/>
+    </svg>
+}
+
 export function PlayIcon({size = 18}: IconProps) {
     return <svg {...base(size)} fill="currentColor" strokeWidth={1.6}>
         <path d="M7.5 5.2v13.6L18.5 12z"/>

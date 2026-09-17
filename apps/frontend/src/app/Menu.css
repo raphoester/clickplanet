@@ -78,13 +78,15 @@
     flex: 1 1 0;
 }
 
-/* An icon, not a word: square, and it leaves the width to the two that are. */
-.menu-actions > .menu-sound {
+/* An icon, not a word: square, and it leaves the width to the one that is. */
+.menu-actions > .menu-sound,
+.menu-actions > .menu-icon {
     flex: 0 0 56px;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 0;
+    text-decoration: none;
 }
 
 @media only screen and (max-width: 768px) {
@@ -116,7 +118,8 @@
         margin-top: 8px;
     }
 
-    .menu-actions > .menu-sound {
+    .menu-actions > .menu-sound,
+    .menu-actions > .menu-icon {
         flex-basis: 40px;
         padding: 0;
     }
