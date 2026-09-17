@@ -10,6 +10,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/drop_bomb_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/drop_bomb_usecase/antibot_drop_bomb"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
@@ -20,13 +21,15 @@ func (s *stubUseCase) Execute(_ context.Context, in drop_bomb_usecase.In) (click
 	return clicks.Blast{}, nil
 }
 
-type bans map[string]bool
+type bans struct{ scopes, accounts *cpcolls.Set[string] }
 
-func (b bans) Banned(scope, account string) bool { return b[scope] || b[account] }
+func (b bans) Banned(scope, account string) bool {
+	return b.scopes.Contains(scope) || b.accounts.Contains(account)
+}
 
 func TestABannedCallersBombIsADud(t *testing.T) {
 	inner := &stubUseCase{}
-	decorator := antibot_drop_bomb.New(inner, bans{"2001:db8::/64": true})
+	decorator := antibot_drop_bomb.New(inner, bans{scopes: cpcolls.NewSet("2001:db8::/64")})
 
 	_, err := decorator.Execute(cpctx.AddIPToContext(t.Context(), "2001:db8::9"), drop_bomb_usecase.In{CountryID: "fr"})
 	require.NoError(t, err)
@@ -36,7 +39,7 @@ func TestABannedCallersBombIsADud(t *testing.T) {
 
 func TestAnyoneElsesBombIsReal(t *testing.T) {
 	inner := &stubUseCase{}
-	decorator := antibot_drop_bomb.New(inner, bans{"2001:db8::/64": true})
+	decorator := antibot_drop_bomb.New(inner, bans{scopes: cpcolls.NewSet("2001:db8::/64")})
 
 	_, err := decorator.Execute(cpctx.AddIPToContext(t.Context(), "203.0.113.7"), drop_bomb_usecase.In{CountryID: "fr"})
 	require.NoError(t, err)
@@ -46,7 +49,7 @@ func TestAnyoneElsesBombIsReal(t *testing.T) {
 
 func TestABannedAccountsBombIsADudFromAnyScope(t *testing.T) {
 	inner := &stubUseCase{}
-	decorator := antibot_drop_bomb.New(inner, bans{"a-guest": true})
+	decorator := antibot_drop_bomb.New(inner, bans{accounts: cpcolls.NewSet("a-guest")})
 
 	ctx := cpctx.AddAccountToContext(cpctx.AddIPToContext(t.Context(), "203.0.113.7"), "a-guest")
 	_, err := decorator.Execute(ctx, drop_bomb_usecase.In{CountryID: "fr"})

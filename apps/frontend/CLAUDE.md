@@ -953,7 +953,7 @@ the buttons against the other. If you regenerate it at a different size, update
 `og:image:width` / `og:image:height` in `index.html` to match.
 
 `public/` holds the files that must be served as themselves rather than as the
-app: `_headers`, `robots.txt` and `sitemap.xml`. Vite copies them to the root of
+app: `_headers`, `robots.txt`, `sitemap.xml`, `privacy.html` and `terms.html`. Vite copies them to the root of
 `dist/`, and the Workers asset handler serves a real file before
 `not_found_handling` applies — **without them, every unmatched path including
 `/robots.txt` answers 200 with `index.html`**, so a crawler asking for the rules
@@ -961,6 +961,20 @@ got an HTML document. That was the leading suspect for LinkedIn refusing to
 fetch the preview image, though it was never proven to be the only cause.
 Nothing under `/static/` may be disallowed in robots.txt; that is where scrapers
 fetch the preview from.
+
+**`privacy.html` is the privacy policy**, linked from the bottom of the About modal.
+It is a plain page, not a component: it loads with no WebGL and no bundle, and a
+crawler reads it as it is. The Workers asset handler serves it at `/privacy`
+(`html_handling` drops the extension) and `nginx.conf` does the same with
+`$uri.html`; `npm run dev` only serves it at `/privacy.html`. **It states
+retention periods, so it goes stale when the backend's do**: `ledger.retention`,
+`antiBot.evidence.retention`, `chat.storage.retention` and
+`auth.sessions.guestTTL` in `deploy/vps/backend.yaml`, and `roll_keep_for` in
+the Caddyfile. Change one, change the page and its date.
+
+**`terms.html` is the terms of service**, linked beside it and built
+the same way, at `/terms`. Discord asks for its URL to allow OAuth sign-in. When
+a sign-in provider ships, the privacy policy must say what it sends us.
 
 The blob still carries a uv per tile that neither shader reads any more;
 dropping it would take ~2 MB off a 4.9 MB download. It is not a breaking change

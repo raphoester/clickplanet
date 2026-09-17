@@ -1,5 +1,7 @@
 package bonuses
 
+import "github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
+
 // Pocket is a closed shape: the tiles inside it, and the owner's tiles around them.
 type Pocket struct {
 	inside []uint32
@@ -24,26 +26,26 @@ func (p Pocket) Announcement(country string, closingTile uint32, left int) Enclo
 // pocketBuilder grows one pocket, breadth first from the tile next to the click.
 type pocketBuilder struct {
 	pocket   Pocket
-	inside   map[uint32]bool
-	wall     map[uint32]bool
+	inside   *cpcolls.Set[uint32]
+	wall     *cpcolls.Set[uint32]
 	maxTiles int
 }
 
 func newPocketBuilder(start uint32, maxTiles int) *pocketBuilder {
 	return &pocketBuilder{
 		pocket:   Pocket{inside: []uint32{start}},
-		inside:   map[uint32]bool{start: true},
-		wall:     map[uint32]bool{},
+		inside:   cpcolls.NewSet(start),
+		wall:     cpcolls.NewSet[uint32](),
 		maxTiles: maxTiles,
 	}
 }
 
 func (b *pocketBuilder) knows(tile uint32) bool {
-	return b.inside[tile] || b.wall[tile]
+	return b.inside.Contains(tile) || b.wall.Contains(tile)
 }
 
 func (b *pocketBuilder) addWall(tile uint32) {
-	b.wall[tile] = true
+	b.wall.Add(tile)
 	b.pocket.wall = append(b.pocket.wall, tile)
 }
 
@@ -53,7 +55,7 @@ func (b *pocketBuilder) addInside(tile uint32) bool {
 		return false
 	}
 
-	b.inside[tile] = true
+	b.inside.Add(tile)
 	b.pocket.inside = append(b.pocket.inside, tile)
 
 	return true

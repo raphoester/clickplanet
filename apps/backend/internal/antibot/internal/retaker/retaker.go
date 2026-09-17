@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -263,11 +264,11 @@ func (c *caller) addReaction(click detect.Click, delay time.Duration, window tim
 }
 
 func (c *caller) distinctTiles() int {
-	seen := make(map[uint32]struct{}, len(c.reactions))
+	seen := cpcolls.NewSetWithCapacity[uint32](len(c.reactions))
 	for _, r := range c.reactions {
-		seen[r.tile] = struct{}{}
+		seen.Add(r.tile)
 	}
-	return len(seen)
+	return seen.Len()
 }
 
 func (c *caller) prune(cutoff time.Time) {

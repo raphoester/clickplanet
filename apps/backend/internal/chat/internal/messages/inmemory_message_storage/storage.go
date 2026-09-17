@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -26,7 +27,7 @@ func New(
 		logger:      logger,
 		clock:       clock,
 		history:     make([]messages.Message, 0, config.HistorySize),
-		subscribers: make(map[*subscriber]struct{}),
+		subscribers: cpcolls.NewSet[*subscriber](),
 	}
 }
 
@@ -42,7 +43,7 @@ type Storage struct {
 	history   []messages.Message
 
 	subscribersMu sync.Mutex
-	subscribers   map[*subscriber]struct{}
+	subscribers   *cpcolls.Set[*subscriber]
 }
 
 type subscriber struct {
@@ -92,7 +93,7 @@ func (s *Storage) Subscribe(ctx context.Context) (<-chan messages.Message, error
 	sub := &subscriber{ch: make(chan messages.Message, s.config.SubscriberBuffer)}
 
 	s.subscribersMu.Lock()
-	s.subscribers[sub] = struct{}{}
+	s.subscribers.Add(sub)
 	s.subscribersMu.Unlock()
 
 	go func() {
@@ -101,7 +102,7 @@ func (s *Storage) Subscribe(ctx context.Context) (<-chan messages.Message, error
 		s.subscribersMu.Lock()
 		defer s.subscribersMu.Unlock()
 
-		delete(s.subscribers, sub)
+		s.subscribers.Delete(sub)
 		close(sub.ch)
 	}()
 
@@ -114,7 +115,7 @@ func (s *Storage) publish(message messages.Message) {
 	s.subscribersMu.Lock()
 	defer s.subscribersMu.Unlock()
 
-	for sub := range s.subscribers {
+	s.subscribers.ForEach(func(sub *subscriber) {
 		select {
 		case sub.ch <- message:
 		default:
@@ -126,7 +127,7 @@ func (s *Storage) publish(message messages.Message) {
 				)
 			}
 		}
-	}
+	})
 }
 
 func (s *Storage) DroppedMessages() uint64 {
@@ -134,8 +135,8 @@ func (s *Storage) DroppedMessages() uint64 {
 	defer s.subscribersMu.Unlock()
 
 	var total uint64
-	for sub := range s.subscribers {
+	s.subscribers.ForEach(func(sub *subscriber) {
 		total += sub.dropped.Load()
-	}
+	})
 	return total
 }

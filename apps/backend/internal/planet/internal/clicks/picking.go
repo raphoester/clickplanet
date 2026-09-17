@@ -1,6 +1,10 @@
 package clicks
 
-import "math/rand/v2"
+import (
+	"math/rand/v2"
+
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
+)
 
 // Random is the draw a pick makes; SystemRandom and a seeded *rand.Rand both satisfy it.
 type Random interface {
@@ -26,7 +30,7 @@ func Pick(
 ) []uint32 {
 	pool := newDrawSet(seeds)
 	frontier := newDrawSet(nil)
-	taken := make(map[uint32]struct{}, min(count, len(seeds)))
+	taken := cpcolls.NewSetWithCapacity[uint32](min(count, len(seeds)))
 	picked := make([]uint32, 0, min(count, len(seeds)))
 
 	for len(picked) < count && (pool.len() > 0 || frontier.len() > 0) {
@@ -39,11 +43,11 @@ func Pick(
 
 		pool.remove(tile)
 		frontier.remove(tile)
-		taken[tile] = struct{}{}
+		taken.Add(tile)
 		picked = append(picked, tile)
 
 		for _, next := range neighbours(tile) {
-			if _, done := taken[next]; !done && !frontier.has(next) && eligible(next) {
+			if !taken.Contains(next) && !frontier.has(next) && eligible(next) {
 				frontier.add(next)
 			}
 		}

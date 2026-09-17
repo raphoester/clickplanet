@@ -2,6 +2,7 @@ package bonuses
 
 import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 )
 
 // Neighbours is the part of clicks.Geography this reads.
@@ -31,7 +32,7 @@ func (t Terrain) Holds(tile uint32, country string) bool {
 // PocketsClosedBy looks for a small inside rather than an outline: on a sphere,
 // every loop has two insides.
 func (t Terrain) PocketsClosedBy(tile uint32, country string, maxTiles int) []Pocket {
-	search := pocketSearch{terrain: t, country: country, maxTiles: maxTiles, seen: map[uint32]bool{}}
+	search := pocketSearch{terrain: t, country: country, maxTiles: maxTiles, seen: cpcolls.NewSet[uint32]()}
 	return search.around(tile)
 }
 
@@ -48,14 +49,14 @@ type pocketSearch struct {
 
 	// A flood that passed the limit saw only part of its region, but any other
 	// start in that part would pass it too.
-	seen map[uint32]bool
+	seen *cpcolls.Set[uint32]
 }
 
 func (s *pocketSearch) around(tile uint32) []Pocket {
 	var pockets []Pocket
 
 	for _, start := range s.terrain.neighbours.Neighbours(tile) {
-		if s.seen[start] || s.terrain.Holds(start, s.country) {
+		if s.seen.Contains(start) || s.terrain.Holds(start, s.country) {
 			continue
 		}
 
@@ -69,7 +70,7 @@ func (s *pocketSearch) around(tile uint32) []Pocket {
 
 func (s *pocketSearch) flood(start uint32) (Pocket, bool) {
 	builder := newPocketBuilder(start, s.maxTiles)
-	s.seen[start] = true
+	s.seen.Add(start)
 
 	for index := 0; ; index++ {
 		tile, more := builder.tile(index)
@@ -90,7 +91,7 @@ func (s *pocketSearch) flood(start uint32) (Pocket, bool) {
 				if !builder.addInside(next) {
 					return Pocket{}, false
 				}
-				s.seen[next] = true
+				s.seen.Add(next)
 			}
 		}
 	}

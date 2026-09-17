@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 )
 
 const (
@@ -113,10 +114,10 @@ func TestADiscNeverRepeatsATileHoweverManyWaysItIsReached(t *testing.T) {
 
 	disc := geography.Disc(centreTile, 2)
 
-	seen := map[uint32]bool{}
+	seen := cpcolls.NewSet[uint32]()
 	for _, tile := range disc {
-		require.False(t, seen[tile], "tile %d appears twice", tile)
-		seen[tile] = true
+		require.False(t, seen.Contains(tile), "tile %d appears twice", tile)
+		seen.Add(tile)
 	}
 	assert.True(t, sortedAscending(disc))
 }
