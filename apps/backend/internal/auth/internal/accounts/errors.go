@@ -8,6 +8,7 @@ var (
 	ErrSessionExpired   = errors.New("the session has expired")
 	ErrNoAccount        = errors.New("this browser has no account")
 	ErrAccountNotFound  = errors.New("no such account")
+	ErrInvalidAccount   = errors.New("not an account id")
 	ErrIdentityNotFound = errors.New("no account has this identity")
 	ErrIdentityTaken    = errors.New("another account has this identity")
 	// A link refused: the identity is another account's. Nothing is written.

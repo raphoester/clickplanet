@@ -29,20 +29,29 @@ var (
 
 // Version is the first byte of every token, so a later format change can be
 // accepted alongside this one instead of making every token in flight malformed.
-const Version = 1
+// Version 2 adds the linked byte; a version 1 token still verifies, as a holder that is not linked.
+const Version = 2
+
+// versionWithoutLinked is the format before the linked byte, verified until the last one minted expires.
+const versionWithoutLinked = 1
 
 const (
 	versionLen = 1
 	expiryLen  = 8
 	idLen      = 8
 	accountLen = len(AccountID{})
+	linkedLen  = 1
 
 	expiryAt  = versionLen
 	idAt      = expiryAt + expiryLen
 	accountAt = idAt + idLen
+	linkedAt  = accountAt + accountLen
 
-	payloadLen = versionLen + expiryLen + idLen + accountLen
+	payloadLen = versionLen + expiryLen + idLen + accountLen + linkedLen
 	tokenLen   = payloadLen + ed25519.SignatureSize
+
+	payloadWithoutLinkedLen = payloadLen - linkedLen
+	tokenWithoutLinkedLen   = payloadWithoutLinkedLen + ed25519.SignatureSize
 )
 
 // ID identifies one minted session. It is not a secret and not an identity —
@@ -50,10 +59,20 @@ const (
 // preceded it.
 type ID string
 
-// Claims is what a verified token says: which mint, and which account it was minted for (NoAccount for none).
+// Holder is who a token is minted for: an account (NoAccount for none), and whether it signed in with a provider.
+type Holder struct {
+	Account AccountID
+	Linked  bool
+}
+
+// Nobody is the holder of a token minted for no account.
+var Nobody = Holder{Account: NoAccount}
+
+// Claims is what a verified token says: which mint, and who it was minted for.
 type Claims struct {
 	ID      ID
 	Account AccountID
+	Linked  bool
 }
 
 type Token struct {
@@ -91,7 +110,7 @@ func NewSigner(config SignerConfig) (*Signer, error) {
 // The scope rather than the address, for the same reason the throttle uses it:
 // the two must cover the same ground, or a v6 caller sheds a spent bucket by
 // re-minting on the next address in a prefix it already owns.
-func (s *Signer) Mint(ip string, account AccountID, now time.Time) (*Token, error) {
+func (s *Signer) Mint(ip string, holder Holder, now time.Time) (*Token, error) {
 	id := make([]byte, idLen)
 	if _, err := rand.Read(id); err != nil {
 		return nil, fmt.Errorf("failed to read random bytes: %w", err)
@@ -103,7 +122,10 @@ func (s *Signer) Mint(ip string, account AccountID, now time.Time) (*Token, erro
 	payload[0] = Version
 	binary.BigEndian.PutUint64(payload[expiryAt:idAt], uint64(expiresAt.UnixMilli()))
 	copy(payload[idAt:accountAt], id)
-	copy(payload[accountAt:], account[:])
+	copy(payload[accountAt:linkedAt], holder.Account[:])
+	if holder.Linked {
+		payload[linkedAt] = 1
+	}
 
 	token := make([]byte, 0, tokenLen)
 	token = append(token, payload...)
@@ -145,14 +167,23 @@ func (v *Verifier) Verify(value string, ip string, now time.Time) (*Claims, erro
 		return nil, fmt.Errorf("%w: %w", ErrMalformed, err)
 	}
 
-	if len(raw) != tokenLen {
-		return nil, fmt.Errorf("%w: got %d bytes, want %d", ErrMalformed, len(raw), tokenLen)
-	}
-	if raw[0] != Version {
-		return nil, fmt.Errorf("%w: token version %d, this server mints %d", ErrMalformed, raw[0], Version)
+	if len(raw) == 0 {
+		return nil, fmt.Errorf("%w: the token is empty", ErrMalformed)
 	}
 
-	payload, signature := raw[:payloadLen], raw[payloadLen:]
+	length := tokenLen
+	switch raw[0] {
+	case Version:
+	case versionWithoutLinked:
+		length = tokenWithoutLinkedLen
+	default:
+		return nil, fmt.Errorf("%w: token version %d, this server mints %d", ErrMalformed, raw[0], Version)
+	}
+	if len(raw) != length {
+		return nil, fmt.Errorf("%w: got %d bytes, want %d", ErrMalformed, len(raw), length)
+	}
+
+	payload, signature := raw[:length-ed25519.SignatureSize], raw[length-ed25519.SignatureSize:]
 
 	// Before the expiry check: a forger must not learn whether their token would otherwise have been in date.
 	if !ed25519.Verify(v.key, signed(payload, ip), signature) {
@@ -166,7 +197,8 @@ func (v *Verifier) Verify(value string, ip string, now time.Time) (*Claims, erro
 
 	return &Claims{
 		ID:      ID(hex.EncodeToString(payload[idAt:accountAt])),
-		Account: AccountID(payload[accountAt:]),
+		Account: AccountID(payload[accountAt:linkedAt]),
+		Linked:  len(payload) > linkedAt && payload[linkedAt] == 1,
 	}, nil
 }
 

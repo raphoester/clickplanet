@@ -56,7 +56,7 @@ This is a Go backend for a collaborative map-clicking game. It follows **hexagon
 
 They share the process, the transport and the country list, and **nothing else**. None imports another; each owns its own domain types, its own proto package, its own storage adapter (where it has one) and its own edge.
 
-**A module never calls another module's code or reads its data in its own stack trace.** When one needs an answer from another it asks over Connect, on a loopback listener — see [Calling another module](#calling-another-module). Two do: `planet` and `player` take the click token's verifying key from `auth`. When one only has to say that something happened, it publishes an event in process and never learns who listens — see [Telling other modules what happened](#telling-other-modules-what-happened). `planet` publishes `TileTaken` and `auth` publishes `AccountDeleted`; `player` hears both.
+**A module never calls another module's code or reads its data in its own stack trace.** When one needs an answer from another it asks over Connect, on a loopback listener — see [Calling another module](#calling-another-module). Three do: `planet`, `player` and `chat` take the click token's verifying key from `auth`, `player` asks `auth` whether an account is linked, and `chat` asks `player` who posts: the username and the tag. When one only has to say that something happened, it publishes an event in process and never learns who listens — see [Telling other modules what happened](#telling-other-modules-what-happened). `planet` publishes `TileTaken` and `auth` publishes `AccountDeleted`; `player` hears both.
 
 Bonus boxes live inside `internal/planet/` rather than beside it: what they grant
 is click allowance, and what carries them is the planet stream. A context of
@@ -170,7 +170,7 @@ return []bootstrap.Module{
 }
 ```
 
-**Every module is always listed; a module with a switch reads its own.** `NewModule` sets `Enabled` and `cpbootstrap` skips the ones that are off, so turning auth off is a config change and never an edit here. `planet` and `chat` have no switch and are always on; `auth` and `player` have one each. A disabled module is never built, so its routes are **absent** rather than present and refusing — `/auth.v1.AuthService/` 404s.
+**Every module is always listed; a module with a switch reads its own.** `NewModule` sets `Enabled` and `cpbootstrap` skips the ones that are off, so turning auth off is a config change and never an edit here. `planet`, `chat` and `player` have no switch and are always on; `auth` has one. A disabled module is never built, so its routes are **absent** rather than present and refusing — `/auth.v1.AuthService/` 404s.
 
 #### What two contexts need, without either handing it to the other
 
@@ -189,7 +189,13 @@ return []bootstrap.Module{
 
 **Over Connect, on a loopback listener, never in the caller's stack trace.** A module that other modules call mounts an internal service with `props.InternalRPC.Mount`; `cpbootstrap` serves it on `httpServer.internalBindAddress` alone, which must be loopback. The caller builds a generated client over `props.Internal.Dial()`.
 
-`planet` and `player` ask `auth.v1.InternalService/GetVerifyingKey` for the public half of the click token key. Each holds its own `rpc_session_verifier`: a module cannot import another's interior, so `player`'s is a copy of `planet`'s. `player` serves `player.v1.InternalService/GetNames`, for the chat to show account names.
+| caller | asks | for | through |
+|---|---|---|---|
+| `planet`, `player`, `chat` | `auth.v1.InternalService/GetVerifyingKey` | the public half of the click token key, once per boot | each its own `rpc_session_verifier` |
+| `player` | `auth.v1.InternalService/GetAccount` | whether an account is linked, on each `SetName` | `players/rpc_account_reader` |
+| `chat` | `player.v1.InternalService/GetAuthor` | a sender's username and tag, on each `SendMessage` | `messages/rpc_player_authors` |
+
+A module cannot import another's interior, so `player`'s and `chat`'s `rpc_session_verifier` are copies of `planet`'s.
 
 - **Each module's data stays in one place.** The caller holds an address, never the other module's config block, pool, objects or root package. The seed is read by `auth` and nothing else.
 - **`Dial` is the one place that knows the transport is loopback HTTP.** Moving to unix sockets changes the listener and `internalDialer`, and no module.
@@ -335,19 +341,22 @@ Chat follows the same rules as planet: no `domain`, no `adapters`, one directory
 
 ```
 internal/chat/internal/
-  messages/                             Message, Record, ErrInvalidMessage, Limits, Tag
+  messages/                             Message, Record, ErrInvalidMessage, Limits, GuestPrefix, AccountID, Author
     inmemory_message_storage/           history and fanout in memory; writes through its Persistence port
     postgres_message_store/             that port, over chat.messages
-    usecases/send_message_usecase/      cleans, tags, appends          — Appender, CountryChecker
+    rpc_player_authors/                 a sender's username and tag, from player.v1.InternalService/GetAuthor
+    usecases/send_message_usecase/      names, cleans, tags, appends   — Appender, CountryChecker, Authors
+      log_authors/                      logs a sender it could not name
     usecases/get_history_usecase/       the recent messages            — HistoryReader
     usecases/listen_for_events_usecase/ one client's feed, heartbeat   — MessagesSubscriber
   chatv1controller/                     ChatService (a bag), the interceptors
     send_message_handler/  get_history_handler/  listen_for_events_handler/
     chatmessage/                        Encode, shared by the three handlers
+    rpc_session_verifier/               the key from auth.v1.InternalService, asked once (planet's, copied)
   migrations/                           the chat schema
 ```
 
-- **The rules that need no port are in the `messages` root**: `Limits` (runes, UTF-8, control characters), `Tag` (the salted IP hash) and `NewRecord` (truncates the author id and user agent). They are tested there, not through the use case.
+- **The rules that need no port are in the `messages` root**: `Limits` (runes, UTF-8, control characters), `Limits.GuestName` (`GuestPrefix` and the cleaned name), `AccountIDOf` (the context's account, or `cpsession.NoAccount`) and `NewRecord` (truncates the author id and user agent). They are tested there, not through the use case.
 - **`send_message_usecase.Config` stays under `chat.Config.Service`**, so the `chat.service.*` keys do not change.
 - **`chatv1controller`'s root tests are about the chain** (error net, blocklist, throttle). Each handler package tests its own mapping.
 
@@ -450,10 +459,13 @@ POST /planet.v1.ClickService/Click   [X-Session-Token: <the minted token>]
 `Set` is a no-op when the tile already holds that value — no write, no update published.
 
 ```
-POST /chat.v1.ChatService/SendMessage
-  → [cpbootstrap: error net], BlocklistInterceptor, then RateLimitInterceptor (both shared/cpconnect)
-  → ChatService → send_message_handler
-  → messages/usecases/send_message_usecase (cleans with messages.Limits, stamps id/time/messages.Tag)
+POST /chat.v1.ChatService/SendMessage   [X-Session-Token: optional]
+  → [cpbootstrap: error net], BlocklistInterceptor, RateLimitInterceptor, then SessionInterceptor (a reader: refuses nothing)
+      [rpc_session_verifier: the key from auth.v1.InternalService, asked once per boot]
+  → ChatService → send_message_handler (the account off the context, or none)
+  → messages/usecases/send_message_usecase
+      who posts (log_authors → rpc_player_authors → player.v1.InternalService/GetAuthor): the tag, and
+      the account's username or else "guest_" and the typed name cleaned with messages.Limits; stamps id/time
   → inmemory_message_storage.Append() [inserts into chat.messages, then fans out]
   → every subscriber: one per open ListenForEvents stream
 ```
@@ -466,7 +478,9 @@ Chat is a separate bounded context, not a feature of the tile game: it shares th
 
 **Always on.** There is no `chat.enabled`: the module is built on every boot, and its database block is required.
 
-**Identity without accounts.** A client picks its own display name and sends a UUID it persists locally. **Neither is trusted for anything** — anyone can post with any name. What a sender cannot forge is `author_tag`: a salted hash of their IP, 6 hex characters, so two people using the same name still look different and a mute has a key that means something. The salt is `chat.service.tagSalt`; left empty it is regenerated at boot, which changes everyone's tag on restart, and the server warns about it.
+**Identity: a username, or a guest.** `SendMessage` reads an optional click token (`chatv1controller.NewSessionInterceptor`, over `cpconnect.NewSessionReaderInterceptor`, on the key `auth` hands over the internal listener). **When the token names an account with a username, the message is sent under that username**, asked of `player.v1.InternalService/GetAuthor` on every post, and the `author_name` in the request is not read, not even checked. **Otherwise the sender is a guest**: the name it typed is cleaned by `messages.Limits.Name` (at most 24 runes, before the prefix) and sent as `guest_` and that name (`messages.Limits.GuestName`). No username starts with `guest_`, so a guest cannot pass for a player. No token, a bad one, a token with no account and an account with no username all post as a guest. **A post the player module could not answer for is refused** with `Unavailable` (`messages.ErrAuthorUnavailable`): no answer within a second, or an error. `log_authors`, a decorator around the adapter, logs it at Error. A guest's post is refused too, since the tag comes from the same call, and a post with no tag would let one guest pass for another. Messages sent before usernames existed got the prefix from migration `20260917200000_guest_prefix_backfill`: every sender was a guest then.
+
+The client also sends a UUID it persists locally, kept in the log and **trusted for nothing**. What no sender can forge, player or guest, is `author_tag`: a salted hash of their IP, 6 hex characters, so two guests using the same name still look different and a mute has a key that means something. **The player module owns it** (`players.TagOf`, salted by `player.tagSalt`), so every place the game shows a tag shows the same one; left empty the salt is regenerated at boot, which changes everyone's tag on restart, and the server warns about it.
 
 **Abuse controls live at the edge**, in two interceptors — ahead of decoding the message and well ahead of validating it, so a flood of malformed messages costs a sender exactly what a flood of well-formed ones does. `chat.blockedIPs` cuts an address off from every chat RPC; `chat.rateLimiter` throttles `SendMessage` alone (`GetHistory` is one read on join, and limiting it would punish a page load). **Both are `shared/cpconnect`'s**, the same ones the click chain uses — see [Shared interceptors](#shared-interceptors). The domain then bounds the message in **runes** (280) and the name (24), validates UTF-8, and **strips control characters** — a newline once let a sender forge a line in the old log file, and a NUL is not valid in a postgres `text`.
 
@@ -494,9 +508,10 @@ The table holds **personal data** — IPs next to user-authored text — so the 
 
 **A click spends from two buckets at once: its account's and its scope's.** The account is the one the click token names; the scope is the address, or its /64 over IPv6 (`cpipscope`). The account's bucket is `rateLimiter.*`, 1 click/s with a burst of 10 by default. The scope's is `rateLimiter.scopeMultiplier` (10) times that, because many players can share one address — a campus, a school, a carrier NAT.
 
+- **A linked account clicks faster.** An account that signed in with Google or Discord spends `linked:<id>` at `rateLimiter.linkedMultiplier` (2) instead of `account:<id>` at 1, to make signing in worth it. It is another key, not a new scale on the same one: a guest who signs in keeps its account id, and a key never changes its scale. So the linked bucket starts full — a one-time top-up per sign-in, not a way to refill. The scope's bucket still bounds it. **Planet learns it from the token**, which carries a linked byte (see [Sessions](#sessions-internalauth)), so a click costs no call to `auth`. A player who links mid-session clicks at 1× until the client mints again. `TestALinkedAccountClicksTwiceAsFastAsAGuest` pins it.
 - **A click is refused when either bucket is empty, and a refusal spends from neither.** `Limiter.TakeAll` checks every bucket and spends from all or none under one lock, so a player refused for a busy scope keeps its own tokens.
 - **A token with no account spends one bucket, the scope's at 1×** — exactly the throttle from before accounts. The deprecated `session.v1` mint, an invalid token while `auth.enforce` is off, and `auth.enabled` false all land here. It is a separate bucket from the scope's shared one, because a key never changes its scale.
-- **One limiter holds both.** A bucket's `Scale` is set when it is made and multiplies its burst and rate for good; `clicks.Buckets` names the keys (`account:<id>` at 1, `scope:<scope>` at the multiplier, or the bare scope at 1 with no account). `clicks.PayerOf(ctx)` reads the scope and the account off the context, so the throttle, `GetBudget` and a bonus claim cannot disagree on who pays.
+- **One limiter holds both.** A bucket's `Scale` is set when it is made and multiplies its burst and rate for good; `clicks.Buckets` names the keys (`account:<id>` at 1 or `linked:<id>` at the linked multiplier, `scope:<scope>` at the scope multiplier, or the bare scope at 1 with no account). `clicks.PayerOf(ctx)` reads the scope and the account off the context, so the throttle, `GetBudget` and a bonus claim cannot disagree on who pays.
 - **What this buys.** Before accounts, one address was one allowance, so a campus played as one player and a bot farm with many cookies on one address was no worse off than one tab. Now each player behind an address has its own allowance, bounded together by the scope's, and a bot moving across addresses keeps spending one account's.
 - `TestManyAccountsOnOneScopeShareTheScopesBucket` and `TestOneAccountOnManyScopesSpendsOneAllowance` pin both halves over HTTP.
 
@@ -514,6 +529,8 @@ That reading travels two ways, because a refused call has no response message to
 - a refused one carries it on the same `click_usecase.Out`, beside `clicks.ErrThrottled`, and `click_handler` attaches it as a **connect error detail** — a refusal has no response message to put it in.
 
 Either way the decorator decides the policy and the handler decides how to say it. `clickbudget.Encode` is the one place that shape is agreed, because two procedures answer with a `ClickBudget`: the click that just spent a token, and `GetBudget`.
+
+**Every reading also carries `linked_multiplier`**, what signing in multiplies the allowance by (`Buckets.BudgetOf`). It is the same for every caller, so the client can tell a guest what signing in is worth with no number of its own.
 
 **The reading is the tighter bucket** (`clicks.Tightest`): the one with fewer tokens, and on a tie the smaller one. A player behind a busy campus sees the scope's limit rather than a full meter that refuses. The reading is still one bucket's `Capacity`, `PerSecond` and `Tokens`, so the client arithmetic does not change. `Boosted` is always the account's bucket's, the one a bonus widens. `TestTheBudgetIsTheTighterBucket` pins it.
 
@@ -588,7 +605,7 @@ The answer to the one thing an address-based defence cannot do. The rate limiter
 
 `Click` requires a token this server minted, in the `X-Session-Token` header. The only way to get one is `auth.v1.AuthService/CreateSession` (or the deprecated `session.v1.SessionService/CreateSession`), which verifies a **Cloudflare Turnstile** token against siteverify before minting. A script that reads the proto and POSTs `Click` no longer has a complete client: it has to solve Turnstile first.
 
-**The token is stateless.** `shared/cpsession` mints `base64url(version ‖ expiry ‖ random id ‖ account ‖ Ed25519(version ‖ expiry ‖ id ‖ account ‖ scope))` — 97 bytes, 130 characters. The account is 16 bytes, all zero (`uuid.Nil`) for a caller with none, and `Verify` answers it in `Claims`. Nothing is stored, swept or replicated; verification is one signature check. That is what keeps this compatible with a process that holds the whole game in memory and has no database to put a session table in.
+**The token is stateless.** `shared/cpsession` mints `base64url(version ‖ expiry ‖ random id ‖ account ‖ linked ‖ Ed25519(version ‖ expiry ‖ id ‖ account ‖ linked ‖ scope))` — 98 bytes, 131 characters. The account is 16 bytes, all zero (`uuid.Nil`) for a caller with none; `linked` is one byte, 1 when the account signed in with a provider. `Mint` takes a `cpsession.Holder` (`cpsession.Nobody` for no account), and `Verify` answers both in `Claims`. The linked byte is signed, so a guest cannot claim the linked allowance. Nothing is stored, swept or replicated; verification is one signature check. That is what keeps this compatible with a process that holds the whole game in memory and has no database to put a session table in.
 
 **It is signed, not MACed, and that is the point.** An HMAC key verifies and mints with the same bytes, so every context that could check a click could also issue one. Ed25519 splits that: the seed is `auth.secret` and only the auth module is handed it. Verification costs tens of microseconds against a MAC's one, which is nothing at this traffic — production is thousands of clicks per five minutes — and buys a boundary the compiler holds.
 
@@ -596,7 +613,7 @@ The answer to the one thing an address-based defence cannot do. The rate limiter
 
 It cannot ask at boot instead — `cpbootstrap` builds every module before it listens, so the internal listener is not up while `planet` is being built. By the time a click arrives the server is serving, so in practice it is never late. A failed fetch is not remembered, so the next click tries again; with `auth.enforce` false the click passes and is counted either way. The cost of the laziness is that a misconfigured `auth` shows up on the first click rather than at boot.
 
-**The first byte is a version.** Before it, the length *was* the discriminator, so every format change made every token in flight malformed at once. Now `planet` can accept two versions across a rollout instead, and key rotation is the same move: mint under the new version while both verify. This deploy still costs every open tab one silent mint, because the format it replaces carries no version to recognise.
+**The first byte is a version.** Before it, the length *was* the discriminator, so every format change made every token in flight malformed at once. Now `planet` can accept two versions across a rollout instead, and key rotation is the same move: mint under the new version while both verify. Version 2 added the linked byte; a version 1 token (97 bytes) still verifies, as not linked, and its support can go once the last one has expired (1h after the deploy).
 
 **It is bound to the address that minted it**, so a token lifted off the wire is worth nothing anywhere else. The scope is signed over but never travels — the verifier rebuilds the message with the scope it observes — so the token leaks nothing. A player whose address changes mid-session — a phone moving from wifi to cellular — fails verification, and the client mints again and retries: self-healing, and invisible.
 
@@ -614,7 +631,7 @@ The signature is checked **before** the expiry, so a forger learns nothing about
 
 **`auth.turnstile.enabled: false` mints for anyone who asks** (`open_attester`). That is how a local backend runs without a widget and a secret, and it still exercises the whole click path — the token is bound and expires. It is never the production choice, and the server warns at boot when it is on.
 
-**Two secrets, neither in git.** `auth.secret` is the Ed25519 **seed**, 32 bytes as 64 hex characters — what `openssl rand -hex 32` already produced for the key it replaces. Anyone holding it can mint a token the API accepts. `auth.turnstile.secret` is the widget's secret half. Both are `env://` anchors in `deploy/vps/backend.yaml`, as `chat.service.tagSalt` is — the file names the variable at the point the value is used, and holds no value itself. **An empty or malformed `auth.secret` with `auth.enabled` true refuses the boot**, naming the variable to set. It used to generate one and warn; a server that invented a key would invent a different one per restart and could not verify what it had just minted.
+**Two secrets, neither in git.** `auth.secret` is the Ed25519 **seed**, 32 bytes as 64 hex characters — what `openssl rand -hex 32` already produced for the key it replaces. Anyone holding it can mint a token the API accepts. `auth.turnstile.secret` is the widget's secret half. Both are `env://` anchors in `deploy/vps/backend.yaml`, as `player.tagSalt` is — the file names the variable at the point the value is used, and holds no value itself. **An empty or malformed `auth.secret` with `auth.enabled` true refuses the boot**, naming the variable to set. It used to generate one and warn; a server that invented a key would invent a different one per restart and could not verify what it had just minted.
 
 **There is still only one key to set.** The public half is derived at boot, so nothing has to be pasted into a second setting and nothing can drift out of step with the seed.
 
@@ -636,6 +653,7 @@ internal/auth/internal/
     usecases/create_session_usecase/       attest, resume or start a guest, mint
     usecases/create_anonymous_session_usecase/   deprecated: attest, mint with no account
     usecases/get_me_usecase/               reads only
+    usecases/get_account_usecase/          reads one account, for another module
     usecases/sign_out_usecase/  sign_out_everywhere_usecase/  delete_account_usecase/
     usecases/prune_guests_usecase/         deletes idle guests: Executor, Runner, and log_prune_guests
   signin/                                  Flow (state, PKCE verifier, nonce, intent), Provider, Providers, Sealer, the cp_oauth cookie
@@ -644,7 +662,7 @@ internal/auth/internal/
     usecases/start_sign_in_usecase/  complete_sign_in_usecase/
   attestation/                             Attester, ErrAttestationFailed
     turnstile/  turnstile_attester/  open_attester/
-  authv1controller/                        AuthService: one handler package per procedure, authprovider for the enum
+  authv1controller/                        AuthService and InternalService: one handler package per procedure, authprovider for the enum
   sessionv1controller/                     deprecated SessionService
   migrations/
 ```
@@ -658,7 +676,9 @@ internal/auth/internal/
 - **Ids and tokens are injected** (`IDProvider`, `TokenGenerator`), like the clock. Tests use `accounts.SequentialIDs` and `SequentialTokens` (behind the tag), so they assert exact ids.
 - **`accounts.StoreContractSuite` is the port's behaviour**, like `clicks.TileStorageContractSuite`. Both stores embed it: postgres adds only what the port cannot show (the token is never stored, `last_seen_at`, an unverified email is `NULL`), and the use cases are tested over the in-memory one, which can `FailWith` an error.
 - **No cache.** Mints are one per 30s per address, so one indexed read each is cheap, and a sign-out has nothing to invalidate.
-- **`planet` reads the account off the token**: the session interceptor puts it on the context (`cpctx.GetAccount`), and the throttle, the bans and the ledger key on it beside the scope — see [Two buckets per click](#two-buckets-per-click), [Anti-bot](#anti-bot-internalantibot) and [Manual bans](#manual-bans-findplayers-topplayers-banplayer-revertplayer-inspectplayer).
+- **`InternalService/GetAccount(account_id)`** answers `linked`: whether the account signed in with a provider (`Account.Linked`). An unknown account, or an id that is not one (`accounts.AccountIDOf`), is `linked` false and not an error; a store failure is. `player` asks it before it gives an account a username.
+- **`create_session_usecase` mints whether the account is linked** (`Session.Linked`, read by the store), so the token says it and `planet` gives a linked account its faster bucket.
+- **`planet` reads the account off the token**: the session interceptor puts it on the context (`cpctx.GetAccount`, and `cpctx.GetLinked`), and the throttle, the bans and the ledger key on it beside the scope — see [Two buckets per click](#two-buckets-per-click), [Anti-bot](#anti-bot-internalantibot) and [Manual bans](#manual-bans-findplayers-topplayers-banplayer-revertplayer-inspectplayer).
 
 #### Signing in (`internal/auth/internal/signin/`)
 
@@ -688,17 +708,22 @@ internal/auth/internal/
 
 ### Player (`internal/player/`)
 
-**What the game keeps about one account: the name it chose, the tiles it took and its daily streak.** It makes no account and mints nothing. Off by default (`player.enabled`); off, `player.v1` 404s and nobody hears the events.
+**What the game keeps about one account: the name it chose, the tiles it took and its daily streak; the tag of an address; and who is playing now.** It makes no account and mints nothing. Always on: the chat asks it who posts.
 
 ```
 internal/player/internal/
-  players/                          AccountID, Name (NameOf), Profile, Stats, Day; the Store port and its contract suite
+  players/                          AccountID, Name (NameOf), Tag (TagOf), Author, Profile, Stats, Day; the Store port and its contract suite
     postgres_player_store/          the Store over player.profiles and player.stats
     inmemory_player_store/          the same port in maps, behind the testing tag
-    usecases/get_profile_usecase/  set_name_usecase/  get_stats_usecase/  get_names_usecase/
+    rpc_account_reader/             whether an account is linked, from auth.v1.InternalService/GetAccount
+    usecases/get_profile_usecase/  set_name_usecase/  get_stats_usecase/  get_author_usecase/
     usecases/record_take_usecase/  forget_account_usecase/
+  presence/                         Visit, Entry, RosterOf, GuestNameOf, TTL: who is playing
+    inmemory_visit_storage/         the last visit of each account, capped, pruned every minute (a Runner)
+    usecases/announce_usecase/  get_roster_usecase/
   playerv1controller/               PlayerService and InternalService (bags), the session interceptor
-    get_profile_handler/  set_name_handler/  get_stats_handler/  get_names_handler/
+    get_profile_handler/  set_name_handler/  get_stats_handler/  get_author_handler/
+    announce_handler/  get_roster_handler/
     caller/                         the account on the context, or Unauthenticated
     playermessage/                  Profile and Stats as player.v1 messages
     rpc_session_verifier/           the key from auth.v1.InternalService, asked once (planet's, copied)
@@ -708,8 +733,18 @@ internal/player/internal/
 ```
 
 - **The caller is the account in the click token.** `PlayerService` sits behind `cpconnect.NewSessionInterceptor`, always enforcing, on the key `auth` hands over the internal listener, as `planet` does. No token, a bad one, or a token with no account (the deprecated mint) is `Unauthenticated`. `player_session_checks{verdict}` counts the verdicts.
-- **`GetProfile`** answers the account id and its name, empty when none was chosen. **`SetName`** cleans the name with the chat's rules (`players.NameOf`: valid UTF-8, a tab is a space, control characters removed, ends trimmed, 1 to 24 runes) and answers `InvalidArgument` otherwise. The rule is a copy of `messages.Limits.Name`: chat's interior is not reachable. **`GetStats`** answers `tiles_taken`, `streak_current`, `streak_best` and `streak_last_day` (YYYY-MM-DD).
-- **`InternalService/GetNames(account_ids)`** is for the chat: the names by id, leaving out an id with no name or one that is not a UUID.
+- **`GetProfile`** answers the account id and its name, empty when none was chosen. **`GetStats`** answers `tiles_taken`, `streak_current`, `streak_best` and `streak_last_day` (YYYY-MM-DD).
+- **`SetName` chooses a username.** `players.NameOf` is the rule: 3 to 20 characters, each an ASCII letter, a digit or an underscore, and not starting with `guest_` in any case, which the chat puts before every guest's name. Nothing is cleaned or trimmed: a name that breaks a rule is `InvalidArgument` (`ErrInvalidName`). The name keeps the case it was typed in.
+- **Usernames are unique ignoring case** (`Name.Folded`). A name another account holds is `AlreadyExists` (`ErrNameTaken`); an account setting its own name again, in any case, is not refused, and a rename or a deleted account frees the old one. Postgres holds the rule, not a read before the write: a unique index on `lower(name)`, whose violation (`23505` on `profiles_name_key`) `postgres_player_store.SaveProfile` answers as `ErrNameTaken`, so two players asking for one name at once cannot both get it. The in-memory store checks the same under its lock, and `StoreContractSuite` pins both.
+- **Only a linked account may hold one.** `set_name_usecase` checks the name first, so a name no account may hold costs no call, then asks its `Accounts` port whether the caller signed in with a provider: `rpc_account_reader` calls `auth.v1.InternalService/GetAccount` over the internal listener on every `SetName` (2s timeout), since an account links at any time and a name is chosen rarely. A guest is `PermissionDenied` (`ErrNotLinked`). Auth answers `linked` false for an unknown account or an id that is not one; **a failure to ask is a real error**, the error net's `internal`, never a guest. With `auth` off that call 404s, so no name can be set.
+- **Migration `20260917180000_usernames`** deletes the profiles whose name breaks the new rule, then, of names that differ only in case, every one but the oldest (`updated_at`, then `account_id`), replaces the name `CHECK` with the new pattern and adds the unique index. No client called `SetName` before usernames existed, so nothing a player chose is lost. The down migration drops the index and puts the old `CHECK` back; the deleted rows stay deleted.
+- **`InternalService/GetAuthor(account_id, ip)`** is for the chat: the account's username, empty for none, and the tag of the address. An empty id, or one that is not an account, is no account and still gets a tag. The store is not read for no account. **The tag is `players.TagOf`**: SHA-256 of `player.tagSalt`, a NUL and the address, cut to 6 hex characters. It moved here from the chat unchanged, so a tag computed before the move is the same.
+- **Who is playing is `presence`, in memory only.** A client calls **`Announce(country_id, guest_name)`** with its click token when it gets one, when its flag or name changes, and every 30s. A visit counts for `presence.TTL` (90s), so a hidden tab whose timers fire once a minute stays on. A restart empties it, and clients fill it again within one interval. **`GetRoster`** needs no token (the session interceptor does not list it), is `NO_SIDE_EFFECTS`, and answers `public, max-age=5`. Every client polls it, so a proxy can serve one answer to all of them.
+  - **One entry per account**, so the tabs of one browser and the devices of one signed-in player are one line. A visitor who never got a click token is not listed: announcing must not cost a Turnstile mint.
+  - **Named as the chat names a sender** (`presence.RosterOf`): the username, or `guest_` and the name the guest typed in the chat (`GuestNameOf`, cleaned like the chat's and at most 24 runes), or `guest_` and the tag when it typed none or one the chat would refuse. The username is read on every announce, so a new name shows within 30s. The tag is `players.TagOf` of the announcing address, the one the chat shows for it.
+  - **Sorted**: players with a username first, then guests; each group by name ignoring case, then by tag.
+  - **Caps, against a script minting accounts** (`inmemory_visit_storage`): at most 10 accounts per tag, where a new account pushes out the tag's oldest visit, and 10,000 in all, where a new account is not recorded. The mint throttle already bounds how fast one address makes accounts.
+  - An unknown country is `InvalidArgument`; a failed profile read is the error net's `internal`, and nothing is recorded.
 - **Stats come from `planet.v1.TileTaken`**, one event per tile, so a spread of seven is seven tiles. **The streak day is UTC**: a take on the day after `streak_last_day` extends the streak, a take on the same day changes nothing, a gap starts it again at 1, and a late event older than the last day counts a tile and leaves the streak alone (`Stats.WithTake`). `GetStats` reads it as of today (`Stats.AsOf`): a streak whose last day is before yesterday reads 0, and `streak_best` keeps it. `stats_test.go` pins the rules across UTC midnight.
 - **`auth.v1.AccountDeleted` deletes both rows.** A take that arrives after, on a token minted before the delete, makes a new stats row; the token lives an hour at most.
 - **Events are at most once.** A take dropped by a full buffer (`events_dropped_total`) or lost in a crash is a tile the stats never count. Stats start the day the module is turned on: takes before are not replayed.
@@ -1567,10 +1602,10 @@ rather than a fault of this server — on a public endpoint it is the common cas
 - `NewRateLimitInterceptor(limiter, refusal, procedures...)` — a `shared/cpratelimit` bucket keyed on `cpctx.RateLimitKey`, answering `CodeResourceExhausted` (429). It reports nothing about what is left: a context that shows a player their allowance throttles inside its own use case instead, where the reading is a return value. This is for the procedures where a refusal is the whole story — chat and sessions
 - `NewIPBlockInterceptor(blocklist, refusal, onBlocked, procedures...)` — a `cpipblock.Blocklist` lookup answering `CodePermissionDenied` (403), with an optional hook the click counter hangs on
 - `NewSessionInterceptor(verifier, clock, refusal, enforce, onVerdict, procedures...)` — a `shared/cpsession` signature check answering `CodeUnauthenticated` (401), which puts the session id and the account (when the token names one) on the context and, with `enforce` false, counts without refusing
-- `NewSessionReaderInterceptor(verifier, clock, procedures...)` — the same check where a token is optional: a valid one puts the same values on the context, and nothing is refused or counted. `GetBudget` uses it
+- `NewSessionReaderInterceptor(verifier, clock, procedures...)` — the same check where a token is optional: a valid one puts the same values on the context, and nothing is refused or counted. `GetBudget` and the chat's `SendMessage` use it
 - `NewErrorInterceptor(logger, mapper)` — the net, applied by `cpbootstrap` rather than by any module (see [The error net](#the-error-net)). It is a full `connect.Interceptor` rather than a `UnaryInterceptorFunc`, so it covers the streaming handlers too; without that, a stream would be the one procedure whose raw error the caller sees. The `Mapper` is optional and nothing passes one any more.
 
-Each context keeps a thin named constructor over these — `planetv1controller.NewVPNBlockInterceptor`, `chatv1controller.NewRateLimitInterceptor` and `NewBlocklistInterceptor` — which is where the procedure list, the refusal wording and the metric live. **A context names its own policy; neither reimplements the mechanism.**
+Each context keeps a thin named constructor over these — `planetv1controller.NewVPNBlockInterceptor`, `chatv1controller.NewRateLimitInterceptor`, `NewBlocklistInterceptor` and `NewSessionInterceptor` — which is where the procedure list, the refusal wording and the metric live. **A context names its own policy; neither reimplements the mechanism.**
 
 Both chains order them the same way: error mapping outermost, then the blocklist, then the limiter. **The blocklist has to sit outside the limiter** — a refused address must not also spend a token, or its next call would come back 429 and the client would report the wrong reason. `TestVPNBlockRunsBeforeTheThrottle` pins that for clicks.
 
@@ -1902,12 +1937,11 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `auth.prune.idleFor`, `auth.prune.interval` — how long a guest goes unused before it is deleted (default `guestTTL`, never less), and how often the prune runs (1h)
 - `chat.database.host`, `port`, `user`, `password`, `dbName`, `sslMode`, `schema`, `pool.*` — the chat module's postgres, same shape as `database`; any of them but `password` and `pool` empty refuses the boot. `chat.database.password` belongs in the environment
 - `chat.storage.historySize`, `chat.storage.retention`, `chat.storage.pruneInterval`, `chat.storage.subscriberBuffer`
-- `chat.service.tagSalt` — salts the per-sender tag; **empty regenerates one at boot**, changing every tag on restart
 - `chat.service.maxTextLength`, `chat.service.maxNameLength` — bounds in runes (280, 24)
 - `chat.rateLimiter.*` — the per-IP `SendMessage` throttle, same shape as `rateLimiter`
 - `chat.blockedIPs` — prefixes refused every chat RPC, parsed by `shared/cpipblock` exactly as `vpnBlocklist.allow` is
-- `player.enabled` — off registers nothing: `player.v1` 404s and nobody hears the events. It needs `auth` on to answer anybody
-- `player.database.*` — profiles and stats, same shape as `database`, schema `player`; required when `player.enabled`. `player.database.password` belongs in the environment
+- `player.tagSalt` — salts the tag shown beside every name; **empty regenerates one at boot**, changing every tag on restart. Production reads it from `CHAT_TAG_SALT`, the chat's old variable
+- `player.database.*` — profiles and stats, same shape as `database`, schema `player`; required. `player.database.password` belongs in the environment
 
 ### Protobuf
 
@@ -1921,7 +1955,7 @@ The proto package is the **only** version number: Connect derives each route fro
 
 Tests use `testify`. **A postgres store's own tests need Docker**, and nothing else does: a suite starts one `postgres:16-alpine` container in `SetupSuite` with `cppg.StartTestServer(t)` (behind the `testing` tag), opens and migrates its schema with `OpenSchema(t, schema, migrations.FS)`, and empties it in `SetupTest` with `Purge`. The container stops when the suite ends. There is no container shared across packages: `go test` runs each package as its own process, up to `-p` (GOMAXPROCS) at once. Everything above a store is tested against a fake of its port (`inmemory_tile_storage.MemoryPersistence`), so it runs without Docker.
 
-**A path through a booted module is tested in `e2e/`**, never in `cmd/api`, which only holds the config and the module list. A test there boots the modules it needs with `cpbootstrap.Run` on a test postgres (`TestServer.ConfigFor(schema)`) and calls them over the wire: `accounts_test.go` mints a guest account, brings it back with its cookie, and checks the deprecated `session.v1` path still mints with none; `sign_in_test.go` links a provider, signs in to a known identity, signs out and deletes, over fake providers; `player_test.go` boots auth, planet and player, clicks with a guest's token and reads `GetStats`, sets a name, and deletes the account to see both go.
+**A path through a booted module is tested in `e2e/`**, never in `cmd/api`, which only holds the config and the module list. A test there boots the modules it needs with `cpbootstrap.Run` on a test postgres (`TestServer.ConfigFor(schema)`) and calls them over the wire: `accounts_test.go` mints a guest account, brings it back with its cookie, and checks the deprecated `session.v1` path still mints with none; `sign_in_test.go` links a provider, signs in to a known identity, signs out and deletes, over fake providers; `player_test.go` boots auth (with fake providers), planet, player and chat, clicks with a guest's token and reads `GetStats`, links an account to set a username (and sees a guest refused and a taken name refused), and deletes the account to see both go; `chat_test.go` posts on the same stack as a player with a username, a guest with a token, and a sender with none.
 
 On macOS, testcontainers asks the Docker credential helper before it pulls an image, and that can hang with no prompt in a non-interactive shell. `docker pull postgres:16-alpine` once from a terminal avoids it.
 

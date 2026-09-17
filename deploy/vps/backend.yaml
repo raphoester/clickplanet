@@ -52,11 +52,13 @@ ledgerStorage:
 # every account behind the address shares. The scope is the address Caddy puts
 # in X-Real-IP, which is Cloudflare's Cf-Connecting-Ip — the real visitor — over
 # IPv4, and that address's /64 over IPv6. A token with no account spends one
-# scope bucket at perSecond and burst, as before accounts.
+# scope bucket at perSecond and burst, as before accounts. An account signed in
+# with Google or Discord holds linkedMultiplier times a guest's allowance.
 rateLimiter:
   perSecond: 1
   burst: 10
   scopeMultiplier: 10
+  linkedMultiplier: 2
 
 # A click costs more tokens the more of the map its country holds: from each
 # share below (a fraction of every tile on the map), a click for that country
@@ -429,10 +431,6 @@ chat:
   storage:
     historySize: 200
     retention: 720h
-  service:
-    # Salts the per-sender tag, and stops a reader of this file recomputing a
-    # sender's tag from a guessed address — so the anchor, never the value.
-    tagSalt: env://CHAT_TAG_SALT
   # One message every three seconds, five in hand. Keyed the same way the click
   # limiter is: the X-Real-IP address over IPv4, its /64 over IPv6.
   rateLimiter:
@@ -443,14 +441,12 @@ chat:
   # 203.0.113.0/24 for the range someone is cycling through.
   blockedIPs: []
 
-# A player's name and stats (player.v1.PlayerService). On: it hears every
-# planet.v1.TileTaken and auth.v1.AccountDeleted, even while the frontend does
-# not call it yet. It needs auth on (it reads the account from the click token)
-# and creates its own schema at boot. Stats count from the deploy that turned
-# it on: takes made before are not replayed. Watch events_dropped_total and
+# A player's name, tag and stats (player.v1.PlayerService). Always on: the chat
+# asks it who posts. It hears every planet.v1.TileTaken and
+# auth.v1.AccountDeleted. It needs auth on (it reads the account from the click
+# token) and creates its own schema at boot. Watch events_dropped_total and
 # events_failed_total after a deploy.
 player:
-  enabled: true
   # Same postgres, user and password as the planet's database block, its own
   # schema and pool.
   database:
@@ -464,3 +460,8 @@ player:
     # Each take is one short transaction, beside the calls from the web app.
     pool:
       maxOpenConns: 4
+  # Salts the tag shown beside every name, and stops a reader of this file
+  # recomputing a tag from a guessed address — so the anchor, never the value.
+  # The variable keeps its chat name: the tag moved from chat to player, and the
+  # value did not change.
+  tagSalt: env://CHAT_TAG_SALT

@@ -140,6 +140,7 @@ jobs:
           script: |
             set -euo pipefail
             cd /opt/clickplanet/deploy/vps
+            before=$(git -C /opt/clickplanet rev-parse HEAD)
             git -C /opt/clickplanet pull --ff-only
 
             # Keep the outgoing files. If a secret is ever dropped from the
@@ -165,6 +166,13 @@ jobs:
             docker compose run --rm --no-deps -T caddy \
               caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
             docker compose up -d
+            # The backend reads backend.yaml once, at boot, and `up -d` only
+            # recreates a container whose image or compose settings changed. So a
+            # merge that only edits the file would be pulled and never read:
+            # recreate the backend when the file moved.
+            if ! git -C /opt/clickplanet diff --quiet "$before" HEAD -- deploy/vps/backend.yaml; then
+              docker compose up -d --force-recreate --no-deps backend
+            fi
             # `up -d` does not recreate Caddy for a Caddyfile edit, so load it
             # in place. A reload keeps open connections, and is a no-op when the
             # config did not change. The retry covers a Caddy that `up` has just

@@ -63,6 +63,12 @@ message ClickBudget {
   // The share at which a click starts to cost next_cost. Zero at the top step.
   double next_share = 6;
   double next_cost = 9;
+
+  // How many times a guest's allowance an account that signed in with a
+  // provider holds: 2 is twice the burst and twice the refill. It is the same
+  // for every caller, so a guest can be told what signing in is worth. Zero
+  // from a server too old to grant one, which means signing in changes nothing.
+  double linked_multiplier = 10;
 }
 
 message ClickRequest {

@@ -1,4 +1,5 @@
 import {AuthFailure, Provider, PROVIDER_NAMES} from "../../backends/account.ts"
+import {PlayerFailure} from "../../backends/player.ts"
 
 /** One short line per failure. Plain words: the player did nothing wrong in most of these. */
 export function messageOf(failure: AuthFailure, provider?: Provider): string {
@@ -22,6 +23,22 @@ export function messageOf(failure: AuthFailure, provider?: Provider): string {
         }
         case "alreadyLinked":
             return `Your account already has a ${provider ? PROVIDER_NAMES[provider] : "different"} account. You can link only one of each.`
+        case "failed":
+            return "Something went wrong. Try again."
+    }
+}
+
+/** One short line per refused username, shown under the name form. */
+export function usernameMessageOf(failure: PlayerFailure): string {
+    switch (failure) {
+        case "invalid":
+            return "This username is not allowed."
+        case "taken":
+            return "Another player has this username."
+        case "notSignedIn":
+            return "We could not check who you are. Try again."
+        case "guest":
+            return "Sign in to choose a username."
         case "failed":
             return "Something went wrong. Try again."
     }

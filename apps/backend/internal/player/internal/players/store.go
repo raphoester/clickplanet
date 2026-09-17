@@ -11,13 +11,16 @@ var (
 	ErrNoProfile = errors.New("the account has no profile")
 	// ErrNoStats is an account that never took a tile.
 	ErrNoStats = errors.New("the account has no stats")
+	// ErrNameTaken is a name another account holds, ignoring case.
+	ErrNameTaken = errors.New("another player has this name")
 )
 
 // Store is where profiles and stats are kept. Every call reads or writes the database.
 type Store interface {
 	// Profile answers ErrNoProfile when the account never chose a name.
 	Profile(ctx context.Context, account AccountID) (Profile, error)
-	// SaveProfile writes the profile over the account's last one.
+	// SaveProfile writes the profile over the account's last one. ErrNameTaken when another account holds the
+	// name ignoring case; the account's own name, in any case, is not taken.
 	SaveProfile(ctx context.Context, profile Profile) error
 	// Stats answers ErrNoStats when the account never took a tile.
 	Stats(ctx context.Context, account AccountID) (Stats, error)

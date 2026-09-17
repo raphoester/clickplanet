@@ -58,9 +58,8 @@ func (*GetVerifyingKeyRequest) Descriptor() ([]byte, []int) {
 }
 
 type GetVerifyingKeyResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Ed25519 public key, 32 bytes as 64 hex characters.
-	PublicKey     string `protobuf:"bytes,1,opt,name=public_key,json=publicKey,proto3" json:"public_key,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PublicKey     string                 `protobuf:"bytes,1,opt,name=public_key,json=publicKey,proto3" json:"public_key,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -102,6 +101,95 @@ func (x *GetVerifyingKeyResponse) GetPublicKey() string {
 	return ""
 }
 
+type GetAccountRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAccountRequest) Reset() {
+	*x = GetAccountRequest{}
+	mi := &file_auth_v1_internal_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAccountRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAccountRequest) ProtoMessage() {}
+
+func (x *GetAccountRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_internal_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAccountRequest.ProtoReflect.Descriptor instead.
+func (*GetAccountRequest) Descriptor() ([]byte, []int) {
+	return file_auth_v1_internal_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *GetAccountRequest) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
+type GetAccountResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Signed in with at least one provider. False for a guest.
+	Linked        bool `protobuf:"varint,1,opt,name=linked,proto3" json:"linked,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAccountResponse) Reset() {
+	*x = GetAccountResponse{}
+	mi := &file_auth_v1_internal_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAccountResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAccountResponse) ProtoMessage() {}
+
+func (x *GetAccountResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_internal_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAccountResponse.ProtoReflect.Descriptor instead.
+func (*GetAccountResponse) Descriptor() ([]byte, []int) {
+	return file_auth_v1_internal_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *GetAccountResponse) GetLinked() bool {
+	if x != nil {
+		return x.Linked
+	}
+	return false
+}
+
 var File_auth_v1_internal_proto protoreflect.FileDescriptor
 
 const file_auth_v1_internal_proto_rawDesc = "" +
@@ -110,9 +198,16 @@ const file_auth_v1_internal_proto_rawDesc = "" +
 	"\x16GetVerifyingKeyRequest\"8\n" +
 	"\x17GetVerifyingKeyResponse\x12\x1d\n" +
 	"\n" +
-	"public_key\x18\x01 \x01(\tR\tpublicKey2g\n" +
+	"public_key\x18\x01 \x01(\tR\tpublicKey\"2\n" +
+	"\x11GetAccountRequest\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId\",\n" +
+	"\x12GetAccountResponse\x12\x16\n" +
+	"\x06linked\x18\x01 \x01(\bR\x06linked2\xae\x01\n" +
 	"\x0fInternalService\x12T\n" +
-	"\x0fGetVerifyingKey\x12\x1f.auth.v1.GetVerifyingKeyRequest\x1a .auth.v1.GetVerifyingKeyResponseB\xa7\x01\n" +
+	"\x0fGetVerifyingKey\x12\x1f.auth.v1.GetVerifyingKeyRequest\x1a .auth.v1.GetVerifyingKeyResponse\x12E\n" +
+	"\n" +
+	"GetAccount\x12\x1a.auth.v1.GetAccountRequest\x1a\x1b.auth.v1.GetAccountResponseB\xa7\x01\n" +
 	"\vcom.auth.v1B\rInternalProtoP\x01ZLgithub.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1;authv1\xa2\x02\x03AXX\xaa\x02\aAuth.V1\xca\x02\aAuth\\V1\xe2\x02\x13Auth\\V1\\GPBMetadata\xea\x02\bAuth::V1b\x06proto3"
 
 var (
@@ -127,16 +222,20 @@ func file_auth_v1_internal_proto_rawDescGZIP() []byte {
 	return file_auth_v1_internal_proto_rawDescData
 }
 
-var file_auth_v1_internal_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_auth_v1_internal_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_auth_v1_internal_proto_goTypes = []any{
 	(*GetVerifyingKeyRequest)(nil),  // 0: auth.v1.GetVerifyingKeyRequest
 	(*GetVerifyingKeyResponse)(nil), // 1: auth.v1.GetVerifyingKeyResponse
+	(*GetAccountRequest)(nil),       // 2: auth.v1.GetAccountRequest
+	(*GetAccountResponse)(nil),      // 3: auth.v1.GetAccountResponse
 }
 var file_auth_v1_internal_proto_depIdxs = []int32{
 	0, // 0: auth.v1.InternalService.GetVerifyingKey:input_type -> auth.v1.GetVerifyingKeyRequest
-	1, // 1: auth.v1.InternalService.GetVerifyingKey:output_type -> auth.v1.GetVerifyingKeyResponse
-	1, // [1:2] is the sub-list for method output_type
-	0, // [0:1] is the sub-list for method input_type
+	2, // 1: auth.v1.InternalService.GetAccount:input_type -> auth.v1.GetAccountRequest
+	1, // 2: auth.v1.InternalService.GetVerifyingKey:output_type -> auth.v1.GetVerifyingKeyResponse
+	3, // 3: auth.v1.InternalService.GetAccount:output_type -> auth.v1.GetAccountResponse
+	2, // [2:4] is the sub-list for method output_type
+	0, // [0:2] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
 	0, // [0:0] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name
@@ -153,7 +252,7 @@ func file_auth_v1_internal_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_auth_v1_internal_proto_rawDesc), len(file_auth_v1_internal_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

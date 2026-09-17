@@ -13,6 +13,7 @@ import {ChatService} from "../gen/grpc/chat/v1/chat_connect.ts";
 import {Code, ConnectError, createPromiseClient, PromiseClient} from "@connectrpc/connect";
 import {createConnectTransport} from "@connectrpc/connect-web";
 import {Config, NO_TIMEOUT, openStream, retrying} from "./transport.ts";
+import {SESSION_HEADER, SessionProvider} from "./session.ts";
 
 export function newChatServiceClient(config: Config): PromiseClient<typeof ChatService> {
     return createPromiseClient(ChatService, createConnectTransport({
@@ -24,17 +25,22 @@ export function newChatServiceClient(config: Config): PromiseClient<typeof ChatS
 }
 
 export class ChatServiceBackend implements ChatSender, ChatHistoryGetter, ChatListener {
-    constructor(private client: PromiseClient<typeof ChatService>) {
+    constructor(
+        private client: PromiseClient<typeof ChatService>,
+        private readonly session: SessionProvider,
+    ) {
     }
 
     public async sendMessage(message: OutgoingMessage): Promise<ChatMessage> {
+        const headers = await this.headersFor(message)
+
         try {
             const res = await this.client.sendMessage({
                 authorName: message.authorName,
                 authorId: message.authorId,
                 countryId: message.countryCode,
                 text: message.text,
-            })
+            }, {headers})
 
             if (!res.message) throw new ChatRejectedError()
 
@@ -42,6 +48,23 @@ export class ChatServiceBackend implements ChatSender, ChatHistoryGetter, ChatLi
         } catch (e) {
             throw translate(e)
         }
+    }
+
+    /**
+     * The click token, only for a player with a username: a guest sends none,
+     * so chatting never mints a session. A token that cannot be had is not a
+     * failure — the server reads a message without one as a guest's.
+     */
+    private async headersFor(message: OutgoingMessage): Promise<Headers> {
+        const headers = new Headers()
+        if (!message.asAccount) return headers
+
+        const token = await this.session.token().catch((e) => {
+            console.error("No session for the chat: sending as a guest", e)
+            return undefined
+        })
+        if (token) headers.set(SESSION_HEADER, token)
+        return headers
     }
 
     public async getHistory(signal?: AbortSignal): Promise<ChatMessage[]> {

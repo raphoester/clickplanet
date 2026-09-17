@@ -2,20 +2,36 @@ syntax = "proto3";
 
 package player.v1;
 
-// A player's profile and stats. Every procedure answers for the caller: the
-// account named by the click token in the X-Session-Token header. A call with
-// no valid token, or a token with no account, is Unauthenticated.
+// A player's profile and stats, and who is playing. Every procedure but
+// GetRoster answers for the caller: the account named by the click token in the
+// X-Session-Token header. A call with no valid token, or a token with no
+// account, is Unauthenticated.
 service PlayerService {
   rpc GetProfile(GetProfileRequest) returns (GetProfileResponse);
-  // Unicode, at most 24 characters; control characters are removed and the
-  // ends trimmed. An empty name, or a longer one, is InvalidArgument.
+  // Chooses the caller's username: 3 to 20 characters, each an ASCII letter, a
+  // digit or an underscore, and not starting with "guest_" in any case — the
+  // chat puts that before every guest's name. A name that breaks a rule is
+  // InvalidArgument. Usernames are unique ignoring case: one another account
+  // holds is AlreadyExists. Only an account signed in with a provider may
+  // choose one; a guest is PermissionDenied.
   rpc SetName(SetNameRequest) returns (SetNameResponse);
   rpc GetStats(GetStatsRequest) returns (GetStatsResponse);
+
+  // Says the caller is playing, under which flag. A client sends it when it
+  // gets a click token, when its flag or name changes, and every 30s after. A
+  // player that stops sending leaves the roster 90s after its last call. A
+  // country that is not one is InvalidArgument.
+  rpc Announce(AnnounceRequest) returns (AnnounceResponse);
+
+  // Everyone playing. It needs no token, and a proxy may serve it for 5s.
+  rpc GetRoster(GetRosterRequest) returns (GetRosterResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 }
 
 message Profile {
   string account_id = 1;
-  // Empty while the player has not chosen one.
+  // The username, as it was typed. Empty while the player has not chosen one.
   string name = 2;
 }
 
@@ -48,4 +64,33 @@ message GetStatsRequest {}
 
 message GetStatsResponse {
   Stats stats = 1;
+}
+
+message AnnounceRequest {
+  string country_id = 1;
+  // The name a guest typed in the chat. Not read for an account with a
+  // username. Empty, or one the server refuses, shows the guest as "guest_" and
+  // its tag.
+  string guest_name = 2;
+}
+
+message AnnounceResponse {}
+
+message GetRosterRequest {}
+
+message GetRosterResponse {
+  // Players with a username first, then guests; each group by name, ignoring
+  // case.
+  repeated RosterEntry entries = 1;
+}
+
+message RosterEntry {
+  // A username, or "guest_" and the name a guest typed or its tag.
+  string name = 1;
+  // As on a chat message: a salted hash of the address the player last
+  // announced from.
+  string tag = 2;
+  // The flag the player last announced.
+  string country_id = 3;
+  bool guest = 4;
 }

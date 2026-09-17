@@ -182,12 +182,17 @@ func NewSessionReaderInterceptor(verifier SessionVerifier, clock cptime.Clock, p
 	})
 }
 
-// withClaims puts the session id on the context, and the account when the token names one.
+// withClaims puts the session id on the context, the account when the token names one, and whether it is linked.
 func withClaims(ctx context.Context, claims *cpsession.Claims) context.Context {
 	ctx = cpctx.AddSessionIDToContext(ctx, string(claims.ID))
 	if claims.Account == cpsession.NoAccount {
 		return ctx
 	}
 
-	return cpctx.AddAccountToContext(ctx, claims.Account.String())
+	ctx = cpctx.AddAccountToContext(ctx, claims.Account.String())
+	if !claims.Linked {
+		return ctx
+	}
+
+	return cpctx.AddLinkedToContext(ctx)
 }

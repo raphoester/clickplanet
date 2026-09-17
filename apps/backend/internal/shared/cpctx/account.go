@@ -14,3 +14,16 @@ func GetAccount(ctx context.Context) string {
 	account, _ := ctx.Value(accountKey{}).(string)
 	return account
 }
+
+type linkedKey struct{}
+
+// AddLinkedToContext keeps that the account a verified click token names signed in with a provider.
+func AddLinkedToContext(ctx context.Context) context.Context {
+	return context.WithValue(ctx, linkedKey{}, true)
+}
+
+// GetLinked is false for a guest, a caller whose token names no account, or one that sent no valid token.
+func GetLinked(ctx context.Context) bool {
+	linked, _ := ctx.Value(linkedKey{}).(bool)
+	return linked
+}

@@ -12,4 +12,10 @@ describe("the home page", () => {
         expect(home).toContain(`location.hash !== "#home"`)
         expect(home).toContain(`id="home"`)
     })
+
+    // Google's brand verification reads this page, so the pitch to sign in must not say an account is needed.
+    it("tells a visitor that signing in clicks faster, and that playing needs no account", () => {
+        expect(home).toContain("Sign in, click 2× faster")
+        expect(home).toContain("No account needed")
+    })
 })

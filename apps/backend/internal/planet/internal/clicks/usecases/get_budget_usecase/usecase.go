@@ -49,5 +49,5 @@ func (u *UseCase) Execute(ctx context.Context, country string) (clicks.Budget, b
 		states[i] = u.budgets.Peek(key)
 	}
 
-	return clicks.BudgetOf(clicks.Tightest(states), u.pricer.Price(country)), true
+	return u.buckets.BudgetOf(clicks.Tightest(states), u.pricer.Price(country)), true
 }

@@ -66,142 +66,1361 @@
       verification reads it. The game is play.html, at /play.
     -->
     <style>
+        :root {
+            --ground: #04090F;
+            --ground-deep: #020509;
+            --panel: #FFFFFF0A;
+            --line: #FFFFFF1F;
+            --rule: #FFFFFF14;
+            --text: #FFFFFFDD;
+            --muted: #FFFFFF99;
+            --orange: #FF813F;
+            --orange-hover: #FF9A63;
+            --discord: #5865F2;
+            --discord-hover: #7289DA;
+            --title: "Luckiest Guy", sans-serif;
+            --label: Oswald, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
         body {
             margin: 0;
-            min-height: 100vh;
-            background: #04090F;
-            color: #FFFFFFDD;
+            background: var(--ground);
+            color: var(--text);
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            font-size: 16px;
+            font-size: 17px;
             line-height: 1.6;
         }
 
-        .backdrop {
-            position: fixed;
-            inset: 0;
-            z-index: -1;
-            background: linear-gradient(#04090FCC, #04090FF2 70%),
-            url("/static/og-image.jpg") center / cover no-repeat;
+        a {
+            color: var(--orange);
         }
 
-        main {
-            min-height: 100vh;
-            box-sizing: border-box;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            max-width: 600px;
+        img {
+            display: block;
+        }
+
+        h1, h2, h3 {
+            margin: 0;
+            font-family: var(--title);
+            font-weight: normal;
+            letter-spacing: 1px;
+            line-height: 1;
+            color: #FFFFFF;
+        }
+
+        h1, h2 {
+            text-shadow: -2px 2px 0 #000000;
+        }
+
+        p {
+            margin: 0;
+        }
+
+        .wrap {
+            max-width: 1440px;
             margin: 0 auto;
-            padding: 48px 16px;
+            padding: 0 64px;
+        }
+
+        section {
+            padding: 96px 0;
+            border-top: 1px solid var(--rule);
+            scroll-margin-top: 88px;
+        }
+
+        .eyebrow {
+            font-family: var(--label);
+            font-size: 15px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--orange);
+        }
+
+        .panel {
+            border-radius: 24px;
+            background: var(--panel);
+            border: 1px solid var(--line);
+        }
+
+        /* Every button is the game's: the title face, white on a colour, a hard shadow. */
+        .button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            /* Luckiest Guy rides high in its box; this puts the capitals in the middle. */
+            padding-top: 0.2em;
+            border-radius: 16px;
+            color: #FFFFFF;
+            font-family: var(--title);
+            letter-spacing: 1px;
+            text-decoration: none;
+            text-shadow: -2px 2px 0 #000000;
+            transition: background-color 0.125s ease, transform 0.125s ease;
+        }
+
+        .button:hover, .button:focus-visible {
+            color: #FFFFFF;
+            transform: translateY(-2px);
+        }
+
+        .button-play {
+            background: var(--orange);
+        }
+
+        .button-play:hover, .button-play:focus-visible {
+            background: var(--orange-hover);
+        }
+
+        .button-discord {
+            background: var(--discord);
+        }
+
+        .button-discord:hover, .button-discord:focus-visible {
+            background: var(--discord-hover);
+        }
+
+        .button-ghost {
+            height: 44px;
+            padding-left: 18px;
+            padding-right: 18px;
+            border-radius: 12px;
+            border: 1px solid #FFFFFF33;
+            font-size: 18px;
+            text-shadow: none;
+        }
+
+        .button-ghost:hover, .button-ghost:focus-visible {
+            background: var(--line);
+        }
+
+        .button-large {
+            height: 72px;
+            font-size: 32px;
+        }
+
+        /* Header */
+
+        .header {
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            border-bottom: 1px solid var(--rule);
+            background: #04090FE6;
+            backdrop-filter: blur(8px);
+        }
+
+        .header .wrap {
+            height: 88px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 24px;
         }
 
         .brand {
             display: flex;
             align-items: center;
-            gap: 16px;
+            gap: 12px;
+            color: #FFFFFF;
+            text-decoration: none;
+            font-family: var(--title);
+            font-size: 30px;
+            line-height: 1;
+            letter-spacing: 1px;
+            text-shadow: -1px 1px 0 #000000;
+        }
+
+        .brand span {
+            padding-top: 0.2em;
         }
 
         .brand img {
-            width: 64px;
-            height: 64px;
+            width: 44px;
+            height: 44px;
         }
 
-        h1 {
-            font-family: "Luckiest Guy", sans-serif;
-            font-weight: normal;
-            letter-spacing: 1px;
+        .nav {
+            display: flex;
+            gap: 40px;
+            font-family: var(--label);
+            font-size: 16px;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+        }
+
+        .nav a {
+            color: #FFFFFFCC;
+            text-decoration: none;
+        }
+
+        .nav a:hover, .nav a:focus-visible {
             color: #FFFFFF;
-            font-size: 48px;
-            line-height: 1;
-            /* Luckiest Guy rides high in its box; this puts the capitals level with the logo. */
-            margin: 12px 0 0;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .header-actions .button {
+            height: 48px;
+            padding-left: 24px;
+            padding-right: 24px;
+            border-radius: 12px;
+            font-size: 20px;
+            text-shadow: -1px 1px 0 #000000;
+        }
+
+        /* Hero */
+
+        .hero {
+            padding: 88px 0 96px;
+            border-top: none;
+        }
+
+        .hero .wrap {
+            display: grid;
+            grid-template-columns: 520px minmax(0, 1fr);
+            gap: 56px;
+            align-items: center;
+        }
+
+        .hero-text {
+            display: flex;
+            flex-direction: column;
+            gap: 28px;
+        }
+
+        .chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+            font-family: var(--label);
+            font-size: 14px;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: #FFFFFFCC;
+        }
+
+        .chips li {
+            padding: 4px 12px;
+            border: 1px solid #FFFFFF26;
+            border-radius: 999px;
+            background: #FFFFFF0D;
+        }
+
+        .hero h1 {
+            font-size: 84px;
+            line-height: 0.95;
+            text-shadow: -3px 3px 0 #000000;
+        }
+
+        .hero h1 em {
+            font-style: normal;
+            color: var(--orange);
         }
 
         .pitch {
             font-size: 20px;
-            color: #FFFFFF;
         }
 
-        .play {
-            display: inline-block;
-            align-self: flex-start;
-            margin: 16px 0 8px;
-            padding: 16px 48px 12px;
-            border-radius: 16px;
-            background: #FF813F;
-            color: #FFFFFF;
-            font-family: "Luckiest Guy", sans-serif;
-            font-size: 32px;
-            letter-spacing: 1px;
-            text-decoration: none;
-            text-shadow: -1px 1px 0 #000000;
-            transition: background-color 0.125s ease;
-        }
-
-        .play:hover, .play:focus-visible {
-            background: #FF9A63;
-        }
-
-        a {
-            color: #FF813F;
-        }
-
-        footer {
-            margin-top: 32px;
-            padding-top: 16px;
-            border-top: 1px solid #FFFFFF1F;
-            font-family: Oswald, sans-serif;
-            font-size: 14px;
-            letter-spacing: 1px;
-        }
-
-        @media only screen and (max-width: 480px) {
-            .brand img {
-                width: 48px;
-                height: 48px;
-            }
-
-            h1 {
-                font-size: 36px;
-                margin-top: 8px;
-            }
-        }
-
-        footer ul {
+        .hero-actions {
             display: flex;
-            flex-wrap: wrap;
-            gap: 8px 24px;
+            gap: 16px;
+        }
+
+        .hero-actions .button {
+            flex: 1;
+        }
+
+        .hero-actions .button-play {
+            box-shadow: 0 12px 32px #FF813F40;
+        }
+
+        .note {
+            font-size: 15px;
+            color: var(--muted);
+        }
+
+        /*
+         * Signing in is worth clicking faster. The number is the backend's
+         * rateLimiter.linkedMultiplier in deploy/vps/backend.yaml: this page is
+         * plain HTML and cannot read it, so change both together.
+         */
+        .boost {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px 20px;
+            border: 1px solid #FF813F66;
+            border-radius: 18px;
+            background: #FF813F1A;
+        }
+
+        .boost-icon {
+            width: 44px;
+            height: 44px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 12px;
+            background: var(--orange);
+            color: #000000;
+        }
+
+        .boost-text {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .boost-text strong {
+            font-family: var(--title);
+            font-size: 24px;
+            font-weight: normal;
+            line-height: 1.1;
+            color: var(--orange);
+        }
+
+        .boost-text span {
+            font-size: 15px;
+            color: #FFFFFFCC;
+        }
+
+        .hero-shot {
+            position: relative;
+        }
+
+        .hero-shot::before {
+            content: "";
+            position: absolute;
+            inset: 40px -40px -40px 40px;
+            border-radius: 32px;
+            background: #FF813F1F;
+        }
+
+        .hero-shot img {
+            position: relative;
+            width: 100%;
+            height: 640px;
+            object-fit: cover;
+            object-position: 30% center;
+            border-radius: 24px;
+            border: 1px solid #FFFFFF26;
+            box-shadow: 0 40px 80px #00000099;
+        }
+
+        /* How it works */
+
+        .section-head {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 56px;
+            text-align: center;
+        }
+
+        .section-head h2 {
+            font-size: 56px;
+        }
+
+        .steps {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 24px;
             margin: 0;
             padding: 0;
             list-style: none;
         }
+
+        .step {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            padding: 36px;
+        }
+
+        .step-number {
+            font-family: var(--title);
+            font-size: 72px;
+            line-height: 0.9;
+            color: var(--orange);
+            text-shadow: -2px 2px 0 #000000;
+        }
+
+        .step h3 {
+            font-size: 30px;
+        }
+
+        /* Features */
+
+        .showcase {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 32px;
+            margin-bottom: 32px;
+        }
+
+        .showcase .panel {
+            border-radius: 28px;
+            overflow: hidden;
+        }
+
+        .showcase h2 {
+            font-size: 44px;
+        }
+
+        .showcase-text {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .leaderboard {
+            display: flex;
+            align-items: center;
+            gap: 32px;
+            padding: 48px 40px 48px 48px;
+        }
+
+        .leaderboard .showcase-text {
+            flex: 1;
+        }
+
+        .leaderboard img {
+            width: 220px;
+            height: 390px;
+            object-fit: cover;
+            object-position: top;
+            border-radius: 16px;
+            border: 1px solid #FFFFFF26;
+            box-shadow: 0 24px 48px #00000080;
+        }
+
+        .map {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .map .showcase-text {
+            padding: 48px 48px 32px;
+        }
+
+        .map img {
+            flex: 1;
+            width: 100%;
+            min-height: 240px;
+            object-fit: cover;
+            object-position: 70% 60%;
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 24px;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .feature {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            padding: 32px;
+        }
+
+        .feature-icon {
+            width: 56px;
+            height: 56px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 16px;
+            background: #FF813F26;
+            color: var(--orange);
+        }
+
+        .feature-text {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .feature h3 {
+            font-size: 26px;
+        }
+
+        .feature p {
+            font-size: 16px;
+        }
+
+        /* Anywhere */
+
+        .anywhere {
+            padding-bottom: 0;
+            overflow: hidden;
+        }
+
+        .anywhere .wrap {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 64px;
+            align-items: center;
+        }
+
+        .anywhere .showcase-text {
+            gap: 20px;
+            padding-bottom: 96px;
+        }
+
+        .anywhere h2 {
+            font-size: 56px;
+        }
+
+        .anywhere .button {
+            width: 220px;
+            height: 64px;
+            margin-top: 8px;
+            font-size: 28px;
+        }
+
+        .phone {
+            align-self: end;
+            width: 340px;
+            height: 600px;
+            margin: 0 auto;
+            padding: 12px 12px 0;
+            border-radius: 48px 48px 0 0;
+            background: #1A2330;
+            border: 1px solid #FFFFFF26;
+            border-bottom: none;
+            box-shadow: 0 -20px 80px #FF813F26;
+        }
+
+        .phone img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: top;
+            border-radius: 38px 38px 0 0;
+        }
+
+        /* Creator */
+
+        .creator {
+            display: flex;
+            align-items: center;
+            gap: 48px;
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 56px;
+            border-radius: 32px;
+        }
+
+        .creator img {
+            width: 200px;
+            height: 200px;
+            flex-shrink: 0;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 4px solid var(--orange);
+        }
+
+        .creator-text {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .creator h2 {
+            font-size: 48px;
+        }
+
+        .socials {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            padding-top: 6px;
+        }
+
+        /* Discord */
+
+        .discord {
+            padding-top: 0;
+            border-top: none;
+        }
+
+        .discord-band {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 48px;
+            padding: 64px 72px;
+            border-radius: 32px;
+            background: var(--discord);
+            color: #FFFFFF;
+        }
+
+        .discord-band div {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .discord-band h2 {
+            font-size: 56px;
+        }
+
+        .discord-band p {
+            font-size: 19px;
+        }
+
+        .discord-band .button {
+            flex-shrink: 0;
+            width: 280px;
+            font-size: 30px;
+            background: #FFFFFF;
+            color: #3C45C4;
+            text-shadow: none;
+        }
+
+        .discord-band .button:hover, .discord-band .button:focus-visible {
+            color: #3C45C4;
+            background: #E8EAFF;
+        }
+
+        /* Footer */
+
+        footer {
+            padding: 64px 0 48px;
+            border-top: 1px solid var(--rule);
+            background: var(--ground-deep);
+        }
+
+        .footer-columns {
+            display: grid;
+            grid-template-columns: 2fr repeat(3, minmax(0, 1fr));
+            gap: 48px;
+        }
+
+        .footer-brand {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .footer-brand .brand {
+            font-size: 28px;
+        }
+
+        .footer-brand .brand img {
+            width: 40px;
+            height: 40px;
+        }
+
+        .footer-brand p {
+            max-width: 340px;
+            font-size: 15px;
+            color: var(--muted);
+        }
+
+        .footer-column {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+            font-family: var(--label);
+            font-size: 16px;
+            letter-spacing: 1px;
+        }
+
+        .footer-column h3 {
+            font-family: var(--label);
+            font-size: 13px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: #FFFFFF66;
+        }
+
+        .footer-column a {
+            color: #FFFFFFB3;
+            text-decoration: none;
+        }
+
+        .footer-column a:hover, .footer-column a:focus-visible {
+            color: var(--orange);
+        }
+
+        .copyright {
+            margin-top: 48px;
+            padding-top: 24px;
+            border-top: 1px solid var(--rule);
+            font-family: var(--label);
+            font-size: 14px;
+            letter-spacing: 1px;
+            color: #FFFFFF66;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            html {
+                scroll-behavior: auto;
+            }
+
+            .button:hover, .button:focus-visible {
+                transform: none;
+            }
+        }
+
+        /* Tablet: one column for the hero and the showcase, two for the cards. */
+        @media only screen and (max-width: 1100px) {
+            .hero .wrap {
+                grid-template-columns: minmax(0, 1fr);
+            }
+
+            .hero-text {
+                max-width: 640px;
+            }
+
+            .hero-shot img {
+                height: auto;
+                aspect-ratio: 1210 / 1000;
+            }
+
+            .showcase {
+                grid-template-columns: minmax(0, 1fr);
+            }
+
+            .features {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media only screen and (max-width: 768px) {
+            body {
+                font-size: 16px;
+            }
+
+            .wrap {
+                padding: 0 16px;
+            }
+
+            section {
+                padding: 56px 0;
+                scroll-margin-top: 64px;
+            }
+
+            .eyebrow {
+                font-size: 13px;
+            }
+
+            .panel {
+                border-radius: 20px;
+            }
+
+            .button-large {
+                height: 60px;
+                font-size: 26px;
+            }
+
+            .header .wrap {
+                height: 64px;
+            }
+
+            .brand {
+                gap: 8px;
+                font-size: 22px;
+            }
+
+            .brand img {
+                width: 34px;
+                height: 34px;
+            }
+
+            .nav, .header-actions .button-discord {
+                display: none;
+            }
+
+            .header-actions .button {
+                height: 44px;
+                padding-left: 20px;
+                padding-right: 20px;
+                font-size: 18px;
+            }
+
+            .hero {
+                padding: 40px 0 48px;
+            }
+
+            .hero .wrap {
+                gap: 32px;
+            }
+
+            .hero-text {
+                gap: 22px;
+            }
+
+            .chips {
+                gap: 6px;
+                font-size: 12px;
+            }
+
+            .chips li {
+                padding: 3px 10px;
+            }
+
+            .hero h1 {
+                font-size: 52px;
+                text-shadow: -2px 2px 0 #000000;
+            }
+
+            .pitch {
+                font-size: 17px;
+            }
+
+            .hero-actions {
+                gap: 12px;
+            }
+
+            .note {
+                font-size: 14px;
+            }
+
+            .boost {
+                align-items: flex-start;
+                gap: 12px;
+                padding: 14px 16px;
+            }
+
+            .boost-icon {
+                width: 36px;
+                height: 36px;
+                border-radius: 10px;
+            }
+
+            .boost-text strong {
+                font-size: 20px;
+            }
+
+            .boost-text span {
+                font-size: 14px;
+            }
+
+            .hero-shot::before {
+                display: none;
+            }
+
+            .hero-shot img {
+                height: 300px;
+                aspect-ratio: auto;
+                object-position: 20% center;
+                border-radius: 20px;
+                box-shadow: 0 24px 48px #00000099;
+            }
+
+            .section-head {
+                align-items: flex-start;
+                gap: 10px;
+                margin-bottom: 28px;
+                text-align: left;
+            }
+
+            .section-head h2, .anywhere h2 {
+                font-size: 38px;
+            }
+
+            .steps {
+                grid-template-columns: minmax(0, 1fr);
+                gap: 12px;
+            }
+
+            .step {
+                display: grid;
+                grid-template-columns: 36px minmax(0, 1fr);
+                gap: 6px 18px;
+                padding: 22px;
+            }
+
+            .step-number {
+                grid-row: span 2;
+                font-size: 48px;
+            }
+
+            .step h3 {
+                font-size: 24px;
+            }
+
+            .step p {
+                font-size: 15px;
+            }
+
+            .showcase {
+                gap: 16px;
+                margin-bottom: 16px;
+            }
+
+            .showcase .panel {
+                border-radius: 24px;
+            }
+
+            .showcase h2 {
+                font-size: 32px;
+            }
+
+            .showcase-text {
+                gap: 12px;
+            }
+
+            .showcase-text p {
+                font-size: 15px;
+            }
+
+            .leaderboard {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 24px;
+                padding: 28px 24px 0;
+            }
+
+            .leaderboard img {
+                align-self: center;
+                height: 280px;
+                border-radius: 14px 14px 0 0;
+                border-bottom: none;
+                box-shadow: none;
+            }
+
+            .map .showcase-text {
+                padding: 28px 24px 20px;
+            }
+
+            .map img {
+                flex: none;
+                height: 240px;
+                object-position: 80% 70%;
+            }
+
+            .features {
+                grid-template-columns: minmax(0, 1fr);
+                gap: 16px;
+            }
+
+            .feature {
+                flex-direction: row;
+                align-items: flex-start;
+                gap: 16px;
+                padding: 24px;
+            }
+
+            .feature-icon {
+                width: 48px;
+                height: 48px;
+                border-radius: 14px;
+            }
+
+            .feature-icon svg {
+                width: 26px;
+                height: 26px;
+            }
+
+            .feature-text {
+                gap: 6px;
+            }
+
+            .feature h3 {
+                font-size: 22px;
+            }
+
+            .feature p {
+                font-size: 15px;
+            }
+
+            .anywhere {
+                padding-bottom: 0;
+            }
+
+            .anywhere .wrap {
+                grid-template-columns: minmax(0, 1fr);
+                gap: 32px;
+            }
+
+            .anywhere .showcase-text {
+                gap: 16px;
+                padding-bottom: 0;
+            }
+
+            .anywhere .button {
+                display: none;
+            }
+
+            .phone {
+                width: 260px;
+                height: 420px;
+                padding: 10px 10px 0;
+                border-radius: 40px 40px 0 0;
+                box-shadow: 0 -20px 60px #FF813F26;
+            }
+
+            .phone img {
+                border-radius: 31px 31px 0 0;
+            }
+
+            .creator {
+                flex-direction: column;
+                gap: 14px;
+                padding: 32px 24px;
+                border-radius: 24px;
+                text-align: center;
+            }
+
+            .creator img {
+                width: 128px;
+                height: 128px;
+            }
+
+            .creator h2 {
+                font-size: 36px;
+            }
+
+            .socials {
+                justify-content: center;
+                gap: 8px;
+            }
+
+            .socials .button {
+                padding-left: 14px;
+                padding-right: 14px;
+                font-size: 16px;
+            }
+
+            .discord {
+                padding-top: 0;
+            }
+
+            .discord-band {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 20px;
+                padding: 32px 24px;
+                border-radius: 24px;
+            }
+
+            .discord-band h2 {
+                font-size: 36px;
+            }
+
+            .discord-band p {
+                font-size: 16px;
+            }
+
+            .discord-band .button {
+                width: auto;
+            }
+
+            footer {
+                padding: 40px 0 32px;
+            }
+
+            .footer-columns {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 28px 16px;
+            }
+
+            .footer-brand {
+                grid-column: 1 / -1;
+                gap: 12px;
+            }
+
+            .footer-brand .brand {
+                font-size: 24px;
+            }
+
+            .footer-brand .brand img {
+                width: 34px;
+                height: 34px;
+            }
+
+            .footer-brand p {
+                font-size: 14px;
+            }
+
+            .footer-column {
+                gap: 10px;
+            }
+
+            .copyright {
+                margin-top: 32px;
+                padding-top: 20px;
+                font-size: 13px;
+            }
+        }
     </style>
 </head>
-<body>
-<div class="backdrop" aria-hidden="true"></div>
-<main id="home">
-    <div class="brand">
-        <img src="/static/logo.svg" alt="" width="64" height="64"/>
-        <h1>ClickPlanet</h1>
+<body id="home">
+<header class="header">
+    <div class="wrap">
+        <a class="brand" href="#home">
+            <img src="/static/logo.svg" alt="" width="44" height="44"/>
+            <span>ClickPlanet</span>
+        </a>
+        <nav class="nav" aria-label="Sections">
+            <a href="#how">How it works</a>
+            <a href="#features">Features</a>
+            <a href="#creator">Who made it</a>
+        </nav>
+        <div class="header-actions">
+            <a class="button button-discord" href="https://discord.gg/Nwekj6ndbn" target="_blank"
+               rel="noopener noreferrer">Discord</a>
+            <a class="button button-play" href="/play">Play</a>
+        </div>
     </div>
+</header>
 
-    <p class="pitch">A free multiplayer game in your browser. Pick a country, then click tiles on a 3D globe to paint
-        them with its flag.</p>
-    <p>Everyone plays on the same planet, live. Each country fights for the most ground, and a tile stays yours until
-        someone takes it.</p>
-    <p>No account needed. Sign in with Google or Discord to keep your account on every device.</p>
+<main>
+    <section class="hero">
+        <div class="wrap">
+            <div class="hero-text">
+                <ul class="chips">
+                    <li>Free</li>
+                    <li>In your browser</li>
+                    <li>No account needed</li>
+                </ul>
+                <h1>Paint the planet with <em>your flag</em></h1>
+                <p class="pitch">A free multiplayer game in your browser. Pick a country, then click tiles on a 3D
+                    globe to paint them with its flag. Everyone plays on the same planet, live.</p>
+                <div class="hero-actions">
+                    <a class="button button-play button-large" href="/play">Play now</a>
+                    <a class="button button-discord button-large" href="https://discord.gg/Nwekj6ndbn" target="_blank"
+                       rel="noopener noreferrer">Discord</a>
+                </div>
+                <div class="boost">
+                    <div class="boost-icon" aria-hidden="true">
+                        <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M13 2 4 14h7l-1 8 9-12h-7z"/>
+                        </svg>
+                    </div>
+                    <p class="boost-text">
+                        <strong>Sign in, click 2× faster</strong>
+                        <span>No account needed to play. Sign in with Google or Discord to get twice as many clicks,
+                            refilling twice as fast, and keep your account on every device.</span>
+                    </p>
+                </div>
+                <noscript><p class="note">The game needs JavaScript and WebGL.</p></noscript>
+            </div>
+            <div class="hero-shot">
+                <img src="/static/home/game.jpg" width="1210" height="1000"
+                     alt="The ClickPlanet game: a 3D globe painted with flags, the leaderboard beside it"/>
+            </div>
+        </div>
+    </section>
 
-    <a class="play" href="/play">Play</a>
-    <noscript><p>The game needs JavaScript and WebGL.</p></noscript>
+    <section id="how">
+        <div class="wrap">
+            <div class="section-head">
+                <span class="eyebrow">How it works</span>
+                <h2>Three steps to world domination</h2>
+            </div>
+            <ol class="steps">
+                <li class="step panel">
+                    <span class="step-number" aria-hidden="true">1</span>
+                    <h3>Pick a country</h3>
+                    <p>Play for your own country, or any other. You can change sides whenever you like.</p>
+                </li>
+                <li class="step panel">
+                    <span class="step-number" aria-hidden="true">2</span>
+                    <h3>Click the globe</h3>
+                    <p>Every click paints a tile with your flag. Drag to turn the planet, zoom in to aim.</p>
+                </li>
+                <li class="step panel">
+                    <span class="step-number" aria-hidden="true">3</span>
+                    <h3>Hold the ground</h3>
+                    <p>A tile stays yours until someone takes it. Countries fight for the most ground, live.</p>
+                </li>
+            </ol>
+        </div>
+    </section>
 
-    <footer>
-        <ul>
-            <li><a href="/privacy">Privacy policy</a></li>
-            <li><a href="/terms">Terms of service</a></li>
-            <li><a href="mailto:privacy@clickplanet.lol">privacy@clickplanet.lol</a></li>
-            <li><a href="https://discord.gg/Nwekj6ndbn" target="_blank" rel="noopener noreferrer">Discord</a></li>
-        </ul>
-    </footer>
+    <section id="features">
+        <div class="wrap">
+            <div class="showcase">
+                <div class="panel leaderboard">
+                    <div class="showcase-text">
+                        <span class="eyebrow">Leaderboard</span>
+                        <h2>Watch the ranks move</h2>
+                        <p>Every country, its tiles and its share of the map, updated as players click around the
+                            world.</p>
+                    </div>
+                    <img src="/static/home/leaderboard.jpg" width="362" height="642" loading="lazy"
+                         alt="The leaderboard, with countries ranked by tiles held"/>
+                </div>
+                <div class="panel map">
+                    <div class="showcase-text">
+                        <span class="eyebrow">The map</span>
+                        <h2>Whole continents, flag by flag</h2>
+                    </div>
+                    <img src="/static/home/globe.jpg" width="660" height="520" loading="lazy"
+                         alt="A close view of the globe: Australia painted with the Bulgarian flag"/>
+                </div>
+            </div>
+
+            <ul class="features">
+                <li class="feature panel">
+                    <div class="feature-icon" aria-hidden="true">
+                        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="11" cy="14" r="7"/>
+                            <path d="M15.5 8.5 18 6M19 3v2M21 5h-2M8 13a3 3 0 0 1 3-3"/>
+                        </svg>
+                    </div>
+                    <div class="feature-text">
+                        <h3>Bonus boxes</h3>
+                        <p>Catch one to get a bomb, spread clicks, triple clicks, or the power to close a shape and
+                            take what is inside.</p>
+                    </div>
+                </li>
+                <li class="feature panel">
+                    <div class="feature-icon" aria-hidden="true">
+                        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12zM9 11h6M9 14h4"/>
+                        </svg>
+                    </div>
+                    <div class="feature-text">
+                        <h3>Live chat</h3>
+                        <p>Talk with everyone on the planet while you play. Make alliances, or argue about
+                            borders.</p>
+                    </div>
+                </li>
+                <li class="feature panel">
+                    <div class="feature-icon" aria-hidden="true">
+                        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M9 18V5l12-2v13"/>
+                            <circle cx="6" cy="18" r="3"/>
+                            <circle cx="18" cy="16" r="3"/>
+                        </svg>
+                    </div>
+                    <div class="feature-text">
+                        <h3>The leader's anthem</h3>
+                        <p>The national anthem of the country in first place plays while you click. Take the lead
+                            to change the music.</p>
+                    </div>
+                </li>
+                <li class="feature panel">
+                    <div class="feature-icon" aria-hidden="true">
+                        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M4 8h3l2-3h6l2 3h3v11H4z"/>
+                            <circle cx="12" cy="13" r="3.5"/>
+                        </svg>
+                    </div>
+                    <div class="feature-text">
+                        <h3>Take a picture</h3>
+                        <p>Photograph the globe with your country's badge on it, and share it with the link to join
+                            you.</p>
+                    </div>
+                </li>
+            </ul>
+        </div>
+    </section>
+
+    <section class="anywhere">
+        <div class="wrap">
+            <div class="showcase-text">
+                <span class="eyebrow">Anywhere</span>
+                <h2>On your phone, on your computer</h2>
+                <p>Nothing to install. Open the page and play. Sign in with Google or Discord when you want your
+                    account on every device.</p>
+                <a class="button button-play" href="/play">Play now</a>
+            </div>
+            <div class="phone">
+                <img src="/static/home/phone.jpg" width="520" height="1125" loading="lazy"
+                     alt="ClickPlanet on a phone"/>
+            </div>
+        </div>
+    </section>
+
+    <section id="creator">
+        <div class="wrap">
+            <div class="panel creator">
+                <img src="/static/raphael.jpeg" width="200" height="200" loading="lazy" alt="Raphaël Oester"/>
+                <div class="creator-text">
+                    <span class="eyebrow">Created by</span>
+                    <h2>Raphaël Oester</h2>
+                    <p>Freelance developer, open to new opportunities.</p>
+                    <div class="socials">
+                        <a class="button button-ghost" href="https://www.linkedin.com/in/raphael-oester/"
+                           target="_blank" rel="noopener noreferrer">LinkedIn</a>
+                        <a class="button button-ghost" href="https://x.com/raphael_oester" target="_blank"
+                           rel="noopener noreferrer">X</a>
+                        <a class="button button-ghost" href="https://github.com/raphoester" target="_blank"
+                           rel="noopener noreferrer">GitHub</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="discord">
+        <div class="wrap">
+            <div class="discord-band">
+                <div>
+                    <h2>Join us on Discord</h2>
+                    <p>Plan your next attack with your country, report a bug, or ask for a feature.</p>
+                </div>
+                <a class="button button-large" href="https://discord.gg/Nwekj6ndbn" target="_blank"
+                   rel="noopener noreferrer">Join Discord</a>
+            </div>
+        </div>
+    </section>
 </main>
+
+<footer>
+    <div class="wrap">
+        <div class="footer-columns">
+            <div class="footer-brand">
+                <a class="brand" href="#home">
+                    <img src="/static/logo.svg" alt="" width="40" height="40"/>
+                    <span>ClickPlanet</span>
+                </a>
+                <p>A free multiplayer game in your browser. Paint the planet with your flag, one click at a time.</p>
+            </div>
+            <ul class="footer-column">
+                <li><h3>Game</h3></li>
+                <li><a href="/play">Play</a></li>
+                <li><a href="#how">How it works</a></li>
+                <li><a href="https://discord.gg/Nwekj6ndbn" target="_blank" rel="noopener noreferrer">Discord</a></li>
+            </ul>
+            <ul class="footer-column">
+                <li><h3>Legal</h3></li>
+                <li><a href="/privacy">Privacy policy</a></li>
+                <li><a href="/terms">Terms of service</a></li>
+            </ul>
+            <ul class="footer-column">
+                <li><h3>Contact</h3></li>
+                <li><a href="mailto:privacy@clickplanet.lol">privacy@clickplanet.lol</a></li>
+                <li><a href="https://x.com/raphael_oester" target="_blank" rel="noopener noreferrer">@raphael_oester</a>
+                </li>
+            </ul>
+        </div>
+        <p class="copyright">© ClickPlanet · Made by Raphaël Oester</p>
+    </div>
+</footer>
 </body>
 </html>

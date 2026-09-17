@@ -19,7 +19,7 @@ Read the relevant app's `CLAUDE.md` before working inside `apps/frontend/` or `a
 - `proto/chat/v1/chat.proto` — the live chat (`ChatService`)
 - `proto/auth/v1/auth.proto` — who a caller is (`AuthService`): the mint that gates `Click`, the caller's account, sign-in with Google or Discord, sign-out and deletion
 - `proto/session/v1/session.proto` — the deprecated mint (`SessionService`), served by the same auth module until no client calls it
-- `proto/player/v1/player.proto` — a player's name and stats (`PlayerService`)
+- `proto/player/v1/player.proto` — a player's name and stats, and who is playing (`PlayerService`)
 
 Beside them, `internal.proto` is what one backend module asks another (`auth.v1`, `player.v1`), and `events.proto` is what one tells the others in process (`planet.v1.TileTaken`, `auth.v1.AccountDeleted`). Neither is on the public router; the frontend generates both without using them.
 

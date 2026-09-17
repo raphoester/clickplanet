@@ -155,6 +155,15 @@ func (s *StoreContractSuite) TestProvidersAreListedOldestLinkFirst() {
 	s.Equal([]string{"google", "discord"}, s.account(1).Providers())
 }
 
+func (s *StoreContractSuite) TestProvidersLinkedAtTheSameTimeAreListedByName() {
+	s.signIn(1, "google", "google-user", "first-token")
+	same := NewIdentity("discord", Claim{Subject: "discord-user"}, AccountID{15: 1}, contractStart)
+	session := LinkedSession(same.Account, TokenOf("second-token"), contractLifetime, contractStart)
+	s.Require().NoError(s.store.SaveSignIn(s.T().Context(), SignIn{Identity: same, Session: session}))
+
+	s.Equal([]string{"discord", "google"}, s.account(1).Providers())
+}
+
 func (s *StoreContractSuite) TestASignInToAKnownIdentityOnlyStartsASession() {
 	s.signIn(1, "google", "google-user", "first-token")
 	guest := s.createGuest(2, "guest-token")

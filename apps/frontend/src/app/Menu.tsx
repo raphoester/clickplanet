@@ -9,14 +9,13 @@ import CountryPicker from "./CountryPicker.tsx";
 import MenuPanel from "./components/MenuPanel.tsx";
 import CountryFlag from "./components/CountryFlag.tsx";
 import Modal from "./components/Modal.tsx";
-import DiscordButton from "./components/DiscordButton.tsx";
 import BuyMeACoffee from "./components/BuyMeACoffee.tsx";
-import {SpeakerIcon, SpeakerOffIcon, SwapIcon} from "./components/icons.tsx";
+import {HomeIcon, SpeakerIcon, SpeakerOffIcon, SwapIcon} from "./components/icons.tsx";
 import SoundSettingsPanel, {SoundSettingsPanelProps} from "./sound/SoundSettingsPanel.tsx";
 import {opensFolded} from "./compact.ts";
 import {AccountStore} from "./account/accountStore.ts";
 import {useAccount} from "./account/useAccount.ts";
-import AccountPanel, {AccountRow} from "./account/AccountPanel.tsx";
+import AccountPanel, {AccountButton} from "./account/AccountPanel.tsx";
 import DeleteAccountModal from "./account/DeleteAccountModal.tsx";
 import "./Menu.css"
 
@@ -30,6 +29,8 @@ export type MenuProps = {
     sound?: SoundSettingsPanelProps,
     /** Absent, or with no provider offered, the menu offers no sign-in. */
     account?: AccountStore,
+    /** What signing in multiplies the click allowance by, as the server said. Absent, the panel does not mention it. */
+    linkedMultiplier?: number,
 }
 
 export default function Menu(props: MenuProps) {
@@ -118,6 +119,7 @@ export default function Menu(props: MenuProps) {
                     ? <MenuPanel title="Account" onClose={() => setAccountOpen(false)}>
                         <AccountPanel state={account}
                                       store={props.account}
+                                      linkedMultiplier={props.linkedMultiplier}
                                       onDelete={() => setConfirmingDelete(true)}/>
                     </MenuPanel>
                     : <>
@@ -144,12 +146,20 @@ export default function Menu(props: MenuProps) {
                                      highlight={props.country}/>
 
                         <div className="menu-actions">
+                            <a href="/#home"
+                               className="button button-ghost menu-icon"
+                               aria-label="Home"
+                               title="Home">
+                                <HomeIcon size={26}/>
+                            </a>
+                            {account.kind === "ready" && <AccountButton state={account}
+                                                                        buttonRef={accountButton}
+                                                                        onOpen={openAccount}/>}
                             <button type="button"
                                     className="button button-ghost"
                                     onClick={() => setAboutOpen(true)}>
                                 About
                             </button>
-                            <DiscordButton message="Discord"/>
                             {props.sound && <button ref={soundButton}
                                                     type="button"
                                                     className="button button-ghost menu-sound"
@@ -158,10 +168,6 @@ export default function Menu(props: MenuProps) {
                                 {props.sound.settings.enabled ? <SpeakerIcon size={26}/> : <SpeakerOffIcon size={26}/>}
                             </button>}
                         </div>
-
-                        {account.kind === "ready" && <AccountRow state={account}
-                                                                 buttonRef={accountButton}
-                                                                 onOpen={openAccount}/>}
                     </>}
             </div>}
         </div>

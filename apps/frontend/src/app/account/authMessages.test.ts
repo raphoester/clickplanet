@@ -1,5 +1,5 @@
 import {describe, expect, it} from "vitest"
-import {messageOf, retryOf} from "./authMessages.ts"
+import {messageOf, retryOf, usernameMessageOf} from "./authMessages.ts"
 
 describe("messageOf", () => {
     // Sign-in spends the same budget as the click token's mint.
@@ -41,5 +41,11 @@ describe("retryOf", () => {
     it("offers nothing after a refused link", () => {
         expect(retryOf("linkedElsewhere")).toBe("none")
         expect(retryOf("alreadyLinked")).toBe("none")
+    })
+})
+
+describe("usernameMessageOf", () => {
+    it("says when another player holds the name", () => {
+        expect(usernameMessageOf("taken")).toBe("Another player has this username.")
     })
 })

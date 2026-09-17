@@ -824,7 +824,7 @@ docker compose --env-file .env up -d backend
 ```
 
 Leaving it empty is not fatal but is worse than any fixed value: the API
-generates a fresh salt at every boot, logs `no chat.service.tagSalt configured`,
+generates a fresh salt at every boot, logs `no player.tagSalt configured`,
 and every tag changes on each restart.
 
 **The chat messages hold personal data.** One row per message in `chat.messages`,
@@ -836,7 +836,8 @@ is refused, not broadcast: the table is the audit trail.
 Anything in `backend.yaml` can also be overridden from the `environment:` block
 instead — `cfgutil` reads env vars with `.` as the nesting delimiter, so the key
 is the config path verbatim, which is how `CHAT_TAG_SALT` reaches
-`chat.service.tagSalt`.
+`player.tagSalt`. The variable kept the chat's name when the tag moved to the
+player module, so the value and every tag stayed the same.
 
 ## 9. Postgres
 

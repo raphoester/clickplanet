@@ -42,8 +42,6 @@ export class GetVerifyingKeyRequest extends Message<GetVerifyingKeyRequest> {
  */
 export class GetVerifyingKeyResponse extends Message<GetVerifyingKeyResponse> {
   /**
-   * Ed25519 public key, 32 bytes as 64 hex characters.
-   *
    * @generated from field: string public_key = 1;
    */
   publicKey = "";
@@ -73,6 +71,82 @@ export class GetVerifyingKeyResponse extends Message<GetVerifyingKeyResponse> {
 
   static equals(a: GetVerifyingKeyResponse | PlainMessage<GetVerifyingKeyResponse> | undefined, b: GetVerifyingKeyResponse | PlainMessage<GetVerifyingKeyResponse> | undefined): boolean {
     return proto3.util.equals(GetVerifyingKeyResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message auth.v1.GetAccountRequest
+ */
+export class GetAccountRequest extends Message<GetAccountRequest> {
+  /**
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  constructor(data?: PartialMessage<GetAccountRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "auth.v1.GetAccountRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetAccountRequest {
+    return new GetAccountRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetAccountRequest {
+    return new GetAccountRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetAccountRequest {
+    return new GetAccountRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetAccountRequest | PlainMessage<GetAccountRequest> | undefined, b: GetAccountRequest | PlainMessage<GetAccountRequest> | undefined): boolean {
+    return proto3.util.equals(GetAccountRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message auth.v1.GetAccountResponse
+ */
+export class GetAccountResponse extends Message<GetAccountResponse> {
+  /**
+   * Signed in with at least one provider. False for a guest.
+   *
+   * @generated from field: bool linked = 1;
+   */
+  linked = false;
+
+  constructor(data?: PartialMessage<GetAccountResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "auth.v1.GetAccountResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "linked", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetAccountResponse {
+    return new GetAccountResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetAccountResponse {
+    return new GetAccountResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetAccountResponse {
+    return new GetAccountResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetAccountResponse | PlainMessage<GetAccountResponse> | undefined, b: GetAccountResponse | PlainMessage<GetAccountResponse> | undefined): boolean {
+    return proto3.util.equals(GetAccountResponse, a, b);
   }
 }
 

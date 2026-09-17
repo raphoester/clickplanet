@@ -3,30 +3,34 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetVerifyingKeyRequest, GetVerifyingKeyResponse } from "./internal_pb.js";
+import { GetAccountRequest, GetAccountResponse, GetVerifyingKeyRequest, GetVerifyingKeyResponse } from "./internal_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
- * What other modules of the backend ask the auth module. Served only on the
- * backend's loopback internal listener (httpServer.internalBindAddress), never
- * on the public router.
- *
  * @generated from service auth.v1.InternalService
  */
 export const InternalService = {
   typeName: "auth.v1.InternalService",
   methods: {
     /**
-     * The public half of the key this server signs click tokens with. A holder can
-     * check a token and cannot mint one, which is why it travels at all: the seed
-     * never leaves this module.
-     *
      * @generated from rpc auth.v1.InternalService.GetVerifyingKey
      */
     getVerifyingKey: {
       name: "GetVerifyingKey",
       I: GetVerifyingKeyRequest,
       O: GetVerifyingKeyResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * What another module may know about one account. An account that does not
+     * exist, or an id that is not one, answers linked false.
+     *
+     * @generated from rpc auth.v1.InternalService.GetAccount
+     */
+    getAccount: {
+      name: "GetAccount",
+      I: GetAccountRequest,
+      O: GetAccountResponse,
       kind: MethodKind.Unary,
     },
   }

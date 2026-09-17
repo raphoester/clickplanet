@@ -4,11 +4,24 @@
  * works out its share of it, so the fill costs one property write rather than
  * one per pip.
  */
-.click-budget {
+
+/*
+ * Where the meter sits, and the offer to sign in under it. The dock takes the
+ * corner so the offer follows the meter however tall a price makes it.
+ */
+.click-budget-dock {
     position: absolute;
     right: 16px;
     top: 16px;
     z-index: 128;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+    pointer-events: none;
+}
+
+.click-budget {
     display: flex;
     align-items: center;
     gap: 14px;
@@ -138,6 +151,47 @@
     color: var(--click-budget-ink);
 }
 
+/*
+ * The offer to a guest. It stays at full strength when the meter fades on a
+ * full bucket: it is not a reading, and it is the thing to act on.
+ */
+.click-budget-sign-in {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border: 1px solid #FFB13F88;
+    border-radius: 999px;
+    background: #2A1A04D9;
+    backdrop-filter: blur(8px);
+    color: #FFC061;
+    font-family: Oswald, sans-serif;
+    font-size: 14px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    text-shadow: -1px 1px 0 #000000;
+    cursor: pointer;
+    pointer-events: auto;
+    transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.click-budget-sign-in:hover,
+.click-budget-sign-in:focus-visible {
+    border-color: #FFB13F;
+    background: #3A2401E6;
+}
+
+.click-budget-sign-in-icon {
+    flex-shrink: 0;
+}
+
+/* At the wall, the offer is what answers it: it glows with the refusal. */
+.click-budget-dock:has(.click-budget-empty) .click-budget-sign-in,
+.click-budget-dock:has(.click-budget-refused) .click-budget-sign-in {
+    border-color: #FFB13F;
+    box-shadow: 0 0 16px #FFB13F66;
+}
+
 @media only screen and (max-width: 768px) {
     /*
      * Both ends of a phone screen are taken: the menu is a header sheet and the
@@ -149,11 +203,16 @@
      * top and strike through the leading leaderboard rows. One below hands the
      * sheet the front, where its blurred back leaves only a soft patch.
      */
-    .click-budget {
+    .click-budget-dock {
         top: 66px;
         left: 16px;
         right: auto;
         z-index: 127;
+        align-items: flex-start;
+        gap: 6px;
+    }
+
+    .click-budget {
         padding: 6px 10px;
         gap: 8px;
         border-radius: 24px;
@@ -193,6 +252,11 @@
 
     .click-budget-toll {
         font-size: 11px;
+    }
+
+    .click-budget-sign-in {
+        padding: 4px 10px;
+        font-size: 12px;
     }
 }
 
