@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -15,8 +16,11 @@ import (
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/throttle_click"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/listen_for_events_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconnect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cphttpserver"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
@@ -221,4 +225,50 @@ func sessionChecks(t *testing.T, gatherer prometheus.Gatherer, verdict string) f
 	}
 
 	return testutil.ToFloat64(found)
+}
+
+// accountRecorder is a live feed that ends at once, after writing down the account its context names.
+type accountRecorder struct {
+	accounts chan string
+}
+
+func (r accountRecorder) Execute(ctx context.Context, _ listen_for_events_usecase.Sink) error {
+	r.accounts <- cpctx.GetAccount(ctx)
+	return nil
+}
+
+// A stream skips a unary interceptor, so this pins that the reader is a full one: the account the token names
+// reaches the live feed, from the headers that open it.
+func TestAStreamOpenedWithATokenKnowsItsAccount(t *testing.T) {
+	recorder := accountRecorder{accounts: make(chan string, 1)}
+
+	mux := http.NewServeMux()
+	mux.Handle(planetv1connect.NewClickServiceHandler(
+		ClickService{ListenForEventsHandler: listen_for_events_handler.New(recorder)},
+		connect.WithInterceptors(errorNet(), NewSessionReaderInterceptor(accountVerifier{}, nil)),
+	))
+	server := httptest.NewServer(cphttpserver.IPReaderMiddleware(mux))
+	t.Cleanup(server.Close)
+
+	listen := func(token string) string {
+		req := connect.NewRequest(&planetv1.ListenForEventsRequest{})
+		req.Header().Set("X-Real-IP", "1.2.3.4")
+		if token != "" {
+			req.Header().Set(cpconnect.SessionHeader, token)
+		}
+
+		stream, err := planetv1connect.NewClickServiceClient(server.Client(), server.URL).ListenForEvents(t.Context(), req)
+		require.NoError(t, err)
+		for stream.Receive() {
+		}
+		require.NoError(t, stream.Err(), "a stream opened with no token or a bad one is refused nothing")
+		require.NoError(t, stream.Close())
+
+		return <-recorder.accounts
+	}
+
+	account := accountNumber(1)
+	require.Equal(t, account.String(), listen(account.String()))
+	require.Empty(t, listen(""))
+	require.Empty(t, listen("forged"))
 }
