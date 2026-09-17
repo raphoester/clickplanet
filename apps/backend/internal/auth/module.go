@@ -143,7 +143,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, provider
 		GetMeHandler:            get_me_handler.New(get_me_usecase.New(store, clock)),
 		GetSignInOptionsHandler: get_sign_in_options_handler.New(providers),
 		StartSignInHandler: start_sign_in_handler.New(
-			start_sign_in_usecase.New(providers, random_secret_generator.Generator{}, sealer, clock)),
+			start_sign_in_usecase.New(providers, store, random_secret_generator.Generator{}, sealer, clock),
+		),
 		CompleteSignInHandler: complete_sign_in_handler.New(
 			complete_sign_in_usecase.New(providers, sealer, store, uuid_id_provider.Provider{}, random_token_generator.Generator{},
 				config.Sessions, clock),
@@ -175,14 +176,16 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, provider
 	}
 
 	sessionService := sessionv1controller.NewSessionService(
-		create_anonymous_session_usecase.New(attester, signer, clock), props.Logger)
+		create_anonymous_session_usecase.New(attester, signer, clock), props.Logger,
+	)
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return sessionv1connect.NewSessionServiceHandler(sessionService, options...)
 	}, sessionv1controller.NewRateLimitInterceptor(mintLimiter)); err != nil {
 		return fmt.Errorf("failed to mount the deprecated session.v1: %w", err)
 	}
 
-	props.Logger.Info("auth built",
+	props.Logger.Info(
+		"auth built",
 		slog.String("schema", config.Database.Schema),
 		slog.Duration("ttl", config.TTL),
 		slog.Bool("turnstile", config.Turnstile.Enabled),

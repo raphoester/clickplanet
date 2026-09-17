@@ -95,6 +95,19 @@ message GetSignInOptionsResponse {
 message StartSignInRequest {
   // InvalidArgument when the provider is not offered on this server.
   Provider provider = 1;
+
+  // Unset signs in, as every client did before intents existed. A link from a
+  // browser with no account is Unauthenticated.
+  SignInIntent intent = 2;
+}
+
+enum SignInIntent {
+  SIGN_IN_INTENT_UNSPECIFIED = 0;
+  // A known identity moves the browser to its account.
+  SIGN_IN_INTENT_SIGN_IN = 1;
+  // Adds the identity to the account the browser is on, or refuses. Never
+  // moves the browser to another account.
+  SIGN_IN_INTENT_LINK = 2;
 }
 
 message StartSignInResponse {
@@ -105,7 +118,9 @@ message StartSignInResponse {
 
 message CompleteSignInRequest {
   // Both from the callback page's query string. FailedPrecondition when the
-  // state does not match the sign-in this browser started, or it has lapsed.
+  // state does not match the sign-in this browser started, or it has lapsed, or
+  // a link's browser is no longer on the account the link started on.
+  // AlreadyExists, with a LinkRefusal detail, when a link is refused.
   string code = 1;
   string state = 2;
 }
@@ -127,6 +142,19 @@ message CompleteSignInResponse {
   string account_id = 1;
 
   SignInOutcome outcome = 2;
+}
+
+// The detail of a CompleteSignIn refused with ALREADY_EXISTS: why a link was not made.
+message LinkRefusal {
+  LinkRefusalReason reason = 1;
+}
+
+enum LinkRefusalReason {
+  LINK_REFUSAL_REASON_UNSPECIFIED = 0;
+  // Another account already uses this identity.
+  LINK_REFUSAL_REASON_IDENTITY_LINKED_ELSEWHERE = 1;
+  // The account already has another user of this provider.
+  LINK_REFUSAL_REASON_PROVIDER_ALREADY_LINKED = 2;
 }
 
 message SignOutRequest {}
