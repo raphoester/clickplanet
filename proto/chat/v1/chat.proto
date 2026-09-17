@@ -17,7 +17,7 @@ message ChatMessage {
   int64 sent_at_unix_ms = 2;
   // A username, or "guest_" and the name a guest typed. The server adds the
   // prefix, and no username starts with it, so a guest cannot pass for a
-  // player. Messages sent before usernames existed carry the bare name.
+  // player.
   string author_name = 3;
   string author_tag = 4;
   string country_id = 5;

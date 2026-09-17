@@ -27,7 +27,7 @@ type ChatMessage struct {
 	SentAtUnixMs int64                  `protobuf:"varint,2,opt,name=sent_at_unix_ms,json=sentAtUnixMs,proto3" json:"sent_at_unix_ms,omitempty"`
 	// A username, or "guest_" and the name a guest typed. The server adds the
 	// prefix, and no username starts with it, so a guest cannot pass for a
-	// player. Messages sent before usernames existed carry the bare name.
+	// player.
 	AuthorName    string `protobuf:"bytes,3,opt,name=author_name,json=authorName,proto3" json:"author_name,omitempty"`
 	AuthorTag     string `protobuf:"bytes,4,opt,name=author_tag,json=authorTag,proto3" json:"author_tag,omitempty"`
 	CountryId     string `protobuf:"bytes,5,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`

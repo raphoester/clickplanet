@@ -23,7 +23,7 @@ export class ChatMessage extends Message<ChatMessage> {
   /**
    * A username, or "guest_" and the name a guest typed. The server adds the
    * prefix, and no username starts with it, so a guest cannot pass for a
-   * player. Messages sent before usernames existed carry the bare name.
+   * player.
    *
    * @generated from field: string author_name = 3;
    */
