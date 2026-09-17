@@ -22,5 +22,9 @@ export default function About() {
                 <a target="_blank" rel="noopener noreferrer" href="https://github.com/raphoester"><b>GitHub</b></a>
             </div>
         </div>
+        <p className="about-legal">
+            <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy policy</a>
+            <a href="/terms" target="_blank" rel="noopener noreferrer">Terms of service</a>
+        </p>
     </>
 }
