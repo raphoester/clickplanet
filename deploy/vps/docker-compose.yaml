@@ -98,12 +98,14 @@ services:
       # The one origin the API allows credentialed calls from. The same value
       # Caddy puts in Access-Control-Allow-Origin, so the two cannot drift.
       httpServer.allowedOrigin: ${FRONTEND_ORIGIN:?set FRONTEND_ORIGIN in .env}
-      # Salts the per-sender chat tag. It lives here rather than in backend.yaml
-      # because that file is in git: anyone holding the salt can recompute a
-      # sender's tag from a guessed address, which is the one thing the tag is
-      # supposed to prevent. Changing it renames every sender, so treat it as
-      # permanent — bootstrap.sh generates one and never overwrites it.
-      chat.service.tagSalt: ${CHAT_TAG_SALT:?set CHAT_TAG_SALT in .env (openssl rand -hex 16)}
+      # Salts the tag shown beside every name. It lives here rather than in
+      # backend.yaml because that file is in git: anyone holding the salt can
+      # recompute a tag from a guessed address, which is the one thing the tag
+      # is supposed to prevent. Changing it renames every sender, so treat it as
+      # permanent — bootstrap.sh generates one and never overwrites it. The
+      # variable keeps its chat name: the tag moved from chat to player, and the
+      # value did not change.
+      player.tagSalt: ${CHAT_TAG_SALT:?set CHAT_TAG_SALT in .env (openssl rand -hex 16)}
       # Signs the session tokens that gate the Click RPC. Here rather than in
       # backend.yaml for the same reason as the salt: that file is in git, and
       # anyone holding this can mint a token the API will accept. Changing it

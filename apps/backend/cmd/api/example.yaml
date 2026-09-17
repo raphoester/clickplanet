@@ -507,9 +507,6 @@ chat:
   service:
     maxTextLength: 280
     maxNameLength: 24
-    # Salts the per-sender tag so it cannot be reversed into an IP. Generated
-    # randomly at boot when empty, which makes tags change on every restart.
-    tagSalt: ""
   # Per-IP throttle on SendMessage. Separate from the click limiter above: a
   # message fans out to every client and lands in a log, so it costs far more
   # than a click. One message every three seconds, five in hand.
@@ -600,12 +597,11 @@ auth:
     idleFor: 2160h # 90 days
     interval: 1h
 
-# A player's name and stats: tiles taken and the daily streak. Off by default:
-# with it disabled player.v1 404s and nobody hears planet.v1.TileTaken. It
-# answers for the account in the click token, so it needs auth on, and it asks
-# auth for the verifying key over httpServer.internalBindAddress.
+# A player's name, tag and stats: tiles taken and the daily streak. Always on:
+# the chat asks it who posts. It answers for the account in the click token, so
+# player.v1.PlayerService needs auth on, and it asks auth for the verifying key
+# over httpServer.internalBindAddress.
 player:
-  enabled: false
   # The player module's own database block, schema player. Same shape as the
   # planet's database above, and it may point at the same postgres.
   database:
@@ -619,3 +615,7 @@ player:
     schema: player
     pool:
       maxOpenConns: 2
+  # Salts the tag shown beside every name, so it cannot be reversed into an IP.
+  # Generated randomly at boot when empty, which makes tags change on every
+  # restart.
+  tagSalt: ""

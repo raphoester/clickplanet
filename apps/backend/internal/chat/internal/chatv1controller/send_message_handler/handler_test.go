@@ -102,6 +102,16 @@ func TestARefusedMessageDoesNotLeakWhyItWasRefused(t *testing.T) {
 	assert.NotContains(t, err.Error(), "text:")
 }
 
+func TestASenderThePlayerModuleCouldNotNameIsUnavailable(t *testing.T) {
+	_, err := send(stubUseCase{
+		in:  &send_message_usecase.In{},
+		err: fmt.Errorf("%w: postgres is down", messages.ErrAuthorUnavailable),
+	})
+
+	require.Equal(t, connect.CodeUnavailable, connect.CodeOf(err))
+	assert.NotContains(t, err.Error(), "postgres")
+}
+
 func TestAnUnexpectedFailureIsLeftForTheErrorNet(t *testing.T) {
 	_, err := send(stubUseCase{in: &send_message_usecase.In{}, err: assert.AnError})
 

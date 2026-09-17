@@ -7,78 +7,98 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3 } from "@bufbuild/protobuf";
 
 /**
- * @generated from message player.v1.GetNamesRequest
+ * @generated from message player.v1.GetAuthorRequest
  */
-export class GetNamesRequest extends Message<GetNamesRequest> {
+export class GetAuthorRequest extends Message<GetAuthorRequest> {
   /**
-   * @generated from field: repeated string account_ids = 1;
+   * Empty, or not an account id, for a caller with no account: the answer then
+   * has no username.
+   *
+   * @generated from field: string account_id = 1;
    */
-  accountIds: string[] = [];
+  accountId = "";
 
-  constructor(data?: PartialMessage<GetNamesRequest>) {
+  /**
+   * The caller's address, as the module that asks observed it.
+   *
+   * @generated from field: string ip = 2;
+   */
+  ip = "";
+
+  constructor(data?: PartialMessage<GetAuthorRequest>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "player.v1.GetNamesRequest";
+  static readonly typeName = "player.v1.GetAuthorRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "account_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "ip", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetNamesRequest {
-    return new GetNamesRequest().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetAuthorRequest {
+    return new GetAuthorRequest().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetNamesRequest {
-    return new GetNamesRequest().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetAuthorRequest {
+    return new GetAuthorRequest().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetNamesRequest {
-    return new GetNamesRequest().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetAuthorRequest {
+    return new GetAuthorRequest().fromJsonString(jsonString, options);
   }
 
-  static equals(a: GetNamesRequest | PlainMessage<GetNamesRequest> | undefined, b: GetNamesRequest | PlainMessage<GetNamesRequest> | undefined): boolean {
-    return proto3.util.equals(GetNamesRequest, a, b);
+  static equals(a: GetAuthorRequest | PlainMessage<GetAuthorRequest> | undefined, b: GetAuthorRequest | PlainMessage<GetAuthorRequest> | undefined): boolean {
+    return proto3.util.equals(GetAuthorRequest, a, b);
   }
 }
 
 /**
- * @generated from message player.v1.GetNamesResponse
+ * @generated from message player.v1.GetAuthorResponse
  */
-export class GetNamesResponse extends Message<GetNamesResponse> {
+export class GetAuthorResponse extends Message<GetAuthorResponse> {
   /**
-   * By account id.
+   * Empty when the account chose none.
    *
-   * @generated from field: map<string, string> names = 1;
+   * @generated from field: string username = 1;
    */
-  names: { [key: string]: string } = {};
+  username = "";
 
-  constructor(data?: PartialMessage<GetNamesResponse>) {
+  /**
+   * A salted hash of the address, 6 hex characters: the same address has the
+   * same tag everywhere the game shows one.
+   *
+   * @generated from field: string tag = 2;
+   */
+  tag = "";
+
+  constructor(data?: PartialMessage<GetAuthorResponse>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "player.v1.GetNamesResponse";
+  static readonly typeName = "player.v1.GetAuthorResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "names", kind: "map", K: 9 /* ScalarType.STRING */, V: {kind: "scalar", T: 9 /* ScalarType.STRING */} },
+    { no: 1, name: "username", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "tag", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetNamesResponse {
-    return new GetNamesResponse().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetAuthorResponse {
+    return new GetAuthorResponse().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetNamesResponse {
-    return new GetNamesResponse().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetAuthorResponse {
+    return new GetAuthorResponse().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetNamesResponse {
-    return new GetNamesResponse().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetAuthorResponse {
+    return new GetAuthorResponse().fromJsonString(jsonString, options);
   }
 
-  static equals(a: GetNamesResponse | PlainMessage<GetNamesResponse> | undefined, b: GetNamesResponse | PlainMessage<GetNamesResponse> | undefined): boolean {
-    return proto3.util.equals(GetNamesResponse, a, b);
+  static equals(a: GetAuthorResponse | PlainMessage<GetAuthorResponse> | undefined, b: GetAuthorResponse | PlainMessage<GetAuthorResponse> | undefined): boolean {
+    return proto3.util.equals(GetAuthorResponse, a, b);
   }
 }
 

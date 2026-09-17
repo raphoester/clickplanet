@@ -1,4 +1,4 @@
-// Package player wires what the game keeps about one player: the name it chose and its stats.
+// Package player wires what the game keeps about one player: the name it chose, its tag and its stats.
 //
 // It makes no account and verifies no token of its own. The account is the one the click token names,
 // checked with the key auth hands over the internal listener, and auth is asked there too whether it may hold
@@ -19,13 +19,13 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/postgres_player_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/rpc_account_reader"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/forget_account_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_names_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_author_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_profile_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_stats_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/record_take_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/set_name_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_names_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_author_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_profile_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_stats_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/rpc_session_verifier"
@@ -35,6 +35,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/tile_taken_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsecrets"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -49,7 +50,7 @@ const (
 func NewModule(config Config) cpbootstrap.Module {
 	return cpbootstrap.Module{
 		Name:    moduleName,
-		Enabled: config.Enabled,
+		Enabled: true,
 		DiSequence: func(ctx context.Context, props cpbootstrap.Props) error {
 			return build(ctx, config, props)
 		},
@@ -58,6 +59,16 @@ func NewModule(config Config) cpbootstrap.Module {
 
 func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	clock := cptime.SystemClock{}
+
+	tagSalt := config.TagSalt
+	if tagSalt == "" {
+		salt, err := cpsecrets.RandomHex()
+		if err != nil {
+			return fmt.Errorf("failed to generate a tag salt: %w", err)
+		}
+		tagSalt = salt
+		props.Logger.Warn("no player.tagSalt configured, generated a random one: every tag will change on every restart")
+	}
 
 	// ---- Storage ----
 
@@ -113,7 +124,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	// ---- Internal service ----
 
 	internalService := playerv1controller.InternalService{
-		GetNamesHandler: get_names_handler.New(get_names_usecase.New(store)),
+		GetAuthorHandler: get_author_handler.New(get_author_usecase.New(store, tagSalt)),
 	}
 	if err := props.InternalRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return playerv1connect.NewInternalServiceHandler(internalService, options...)
@@ -128,17 +139,16 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 // Config is the `player:` block.
 type Config struct {
-	// Off registers nothing: player.v1 404s and nobody hears the events.
-	Enabled bool
-
-	// Profiles and stats, in their own schema. Required when the module is on.
+	// Profiles and stats, in their own schema. Required: the module is always on, since the chat asks it who
+	// posts.
 	Database cppg.Config
+
+	// TagSalt salts the hash of an address that the game shows beside every name. Left empty, one is generated
+	// at boot, and every tag changes on each restart.
+	TagSalt string
 }
 
 func (c Config) Validate() error {
-	if !c.Enabled {
-		return nil
-	}
 	if err := c.Database.Validate(); err != nil {
 		return fmt.Errorf("player.database: %w", err)
 	}

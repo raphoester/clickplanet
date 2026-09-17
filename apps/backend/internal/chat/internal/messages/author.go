@@ -1,6 +1,8 @@
 package messages
 
 import (
+	"errors"
+
 	"github.com/google/uuid"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
@@ -33,3 +35,14 @@ func (l Limits) GuestName(value string) (string, error) {
 	}
 	return GuestPrefix + name, nil
 }
+
+// Author is who posts, as the player module answers it: the username the account chose, empty when none, and
+// the tag of the address the message comes from.
+type Author struct {
+	Username string
+	Tag      string
+}
+
+// ErrAuthorUnavailable is a sender the player module could not name. The message is refused: without a tag, a
+// guest could pass for another guest of the same name.
+var ErrAuthorUnavailable = errors.New("the sender could not be identified")

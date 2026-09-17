@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetNamesRequest, GetNamesResponse } from "./internal_pb.js";
+import { GetAuthorRequest, GetAuthorResponse } from "./internal_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -17,15 +17,15 @@ export const InternalService = {
   typeName: "player.v1.InternalService",
   methods: {
     /**
-     * The names the accounts chose. An account with no name, or an id that is
-     * not a UUID, is left out of the answer.
+     * Who a caller is to the others: the username its account chose, and the tag
+     * of the address it calls from.
      *
-     * @generated from rpc player.v1.InternalService.GetNames
+     * @generated from rpc player.v1.InternalService.GetAuthor
      */
-    getNames: {
-      name: "GetNames",
-      I: GetNamesRequest,
-      O: GetNamesResponse,
+    getAuthor: {
+      name: "GetAuthor",
+      I: GetAuthorRequest,
+      O: GetAuthorResponse,
       kind: MethodKind.Unary,
     },
   }
