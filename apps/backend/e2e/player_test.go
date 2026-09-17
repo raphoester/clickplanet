@@ -61,10 +61,9 @@ func startGame(t *testing.T) gameStack {
 	planetConfig.RateLimiter.Burst = 100
 	planetConfig.RateLimiter.ScopeMultiplier = 1
 
-	playerConfig := player.Config{Enabled: true, Database: postgres.ConfigFor("player")}
+	playerConfig := player.Config{Database: postgres.ConfigFor("player"), TagSalt: "pepper"}
 
 	chatConfig := chat.Config{Database: postgres.ConfigFor("chat")}
-	chatConfig.Service.TagSalt = "pepper"
 	chatConfig.RateLimiter.PerSecond = 100
 	chatConfig.RateLimiter.Burst = 100
 

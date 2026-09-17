@@ -21,10 +21,9 @@ type CountryChecker interface {
 	CheckCountry(country string) bool
 }
 
-// Usernames is the player module, asked for the username an account chose. found is false for an account
-// with none.
-type Usernames interface {
-	Username(ctx context.Context, account messages.AccountID) (username string, found bool, err error)
+// Authors is the player module, asked who posts: the username of the account, and the tag of the address.
+type Authors interface {
+	Author(ctx context.Context, account messages.AccountID, ip string) (messages.Author, error)
 }
 
 type In struct {
@@ -40,35 +39,28 @@ type In struct {
 func New(
 	appender Appender,
 	countryChecker CountryChecker,
-	usernames Usernames,
+	authors Authors,
 	clock cptime.Clock,
 	config Config,
 ) *UseCase {
 	return &UseCase{
 		appender:       appender,
 		countryChecker: countryChecker,
-		usernames:      usernames,
+		authors:        authors,
 		clock:          clock,
 		limits:         messages.NewLimits(config.MaxTextLength, config.MaxNameLength),
-		tagSalt:        config.TagSalt,
 	}
 }
 
 type UseCase struct {
 	appender       Appender
 	countryChecker CountryChecker
-	usernames      Usernames
+	authors        Authors
 	clock          cptime.Clock
 	limits         messages.Limits
-	tagSalt        string
 }
 
 func (u *UseCase) Execute(ctx context.Context, in In) (messages.Message, error) {
-	name, err := u.authorName(ctx, in)
-	if err != nil {
-		return messages.Message{}, fmt.Errorf("failed to check the message: %w", err)
-	}
-
 	text, err := u.limits.Text(in.Text)
 	if err != nil {
 		return messages.Message{}, fmt.Errorf("failed to check the message: %w", err)
@@ -80,11 +72,21 @@ func (u *UseCase) Execute(ctx context.Context, in In) (messages.Message, error) 
 
 	ip := cpctx.GetSourceIP(ctx)
 
+	author, err := u.authors.Author(ctx, in.Account, ip)
+	if err != nil {
+		return messages.Message{}, fmt.Errorf("%w: %w", messages.ErrAuthorUnavailable, err)
+	}
+
+	name, err := u.authorName(in, author)
+	if err != nil {
+		return messages.Message{}, fmt.Errorf("failed to check the message: %w", err)
+	}
+
 	message := messages.Message{
 		ID:         uuid.NewString(),
 		SentAt:     u.clock.Now(),
 		AuthorName: name,
-		AuthorTag:  messages.Tag(u.tagSalt, ip),
+		AuthorTag:  author.Tag,
 		CountryID:  in.CountryID,
 		Text:       text,
 	}
@@ -97,14 +99,10 @@ func (u *UseCase) Execute(ctx context.Context, in In) (messages.Message, error) 
 }
 
 // authorName is the account's username, and the name the sender typed is then not read. Without one it is a
-// guest's name. A username that could not be read is a guest's name too: a post never fails because the
-// player module did not answer, and the decorator around the port says it did not.
-func (u *UseCase) authorName(ctx context.Context, in In) (string, error) {
-	if in.Account != cpsession.NoAccount {
-		username, found, err := u.usernames.Username(ctx, in.Account)
-		if err == nil && found {
-			return username, nil
-		}
+// guest's name.
+func (u *UseCase) authorName(in In, author messages.Author) (string, error) {
+	if in.Account != cpsession.NoAccount && author.Username != "" {
+		return author.Username, nil
 	}
 
 	return u.limits.GuestName(in.AuthorName) //nolint:wrapcheck // Execute says what failed.

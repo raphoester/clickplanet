@@ -33,16 +33,16 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// InternalServiceGetNamesProcedure is the fully-qualified name of the InternalService's GetNames
+	// InternalServiceGetAuthorProcedure is the fully-qualified name of the InternalService's GetAuthor
 	// RPC.
-	InternalServiceGetNamesProcedure = "/player.v1.InternalService/GetNames"
+	InternalServiceGetAuthorProcedure = "/player.v1.InternalService/GetAuthor"
 )
 
 // InternalServiceClient is a client for the player.v1.InternalService service.
 type InternalServiceClient interface {
-	// The names the accounts chose. An account with no name, or an id that is
-	// not a UUID, is left out of the answer.
-	GetNames(context.Context, *connect.Request[v1.GetNamesRequest]) (*connect.Response[v1.GetNamesResponse], error)
+	// Who a caller is to the others: the username its account chose, and the tag
+	// of the address it calls from.
+	GetAuthor(context.Context, *connect.Request[v1.GetAuthorRequest]) (*connect.Response[v1.GetAuthorResponse], error)
 }
 
 // NewInternalServiceClient constructs a client for the player.v1.InternalService service. By
@@ -56,10 +56,10 @@ func NewInternalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 	baseURL = strings.TrimRight(baseURL, "/")
 	internalServiceMethods := v1.File_player_v1_internal_proto.Services().ByName("InternalService").Methods()
 	return &internalServiceClient{
-		getNames: connect.NewClient[v1.GetNamesRequest, v1.GetNamesResponse](
+		getAuthor: connect.NewClient[v1.GetAuthorRequest, v1.GetAuthorResponse](
 			httpClient,
-			baseURL+InternalServiceGetNamesProcedure,
-			connect.WithSchema(internalServiceMethods.ByName("GetNames")),
+			baseURL+InternalServiceGetAuthorProcedure,
+			connect.WithSchema(internalServiceMethods.ByName("GetAuthor")),
 			connect.WithClientOptions(opts...),
 		),
 	}
@@ -67,19 +67,19 @@ func NewInternalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 
 // internalServiceClient implements InternalServiceClient.
 type internalServiceClient struct {
-	getNames *connect.Client[v1.GetNamesRequest, v1.GetNamesResponse]
+	getAuthor *connect.Client[v1.GetAuthorRequest, v1.GetAuthorResponse]
 }
 
-// GetNames calls player.v1.InternalService.GetNames.
-func (c *internalServiceClient) GetNames(ctx context.Context, req *connect.Request[v1.GetNamesRequest]) (*connect.Response[v1.GetNamesResponse], error) {
-	return c.getNames.CallUnary(ctx, req)
+// GetAuthor calls player.v1.InternalService.GetAuthor.
+func (c *internalServiceClient) GetAuthor(ctx context.Context, req *connect.Request[v1.GetAuthorRequest]) (*connect.Response[v1.GetAuthorResponse], error) {
+	return c.getAuthor.CallUnary(ctx, req)
 }
 
 // InternalServiceHandler is an implementation of the player.v1.InternalService service.
 type InternalServiceHandler interface {
-	// The names the accounts chose. An account with no name, or an id that is
-	// not a UUID, is left out of the answer.
-	GetNames(context.Context, *connect.Request[v1.GetNamesRequest]) (*connect.Response[v1.GetNamesResponse], error)
+	// Who a caller is to the others: the username its account chose, and the tag
+	// of the address it calls from.
+	GetAuthor(context.Context, *connect.Request[v1.GetAuthorRequest]) (*connect.Response[v1.GetAuthorResponse], error)
 }
 
 // NewInternalServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -89,16 +89,16 @@ type InternalServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	internalServiceMethods := v1.File_player_v1_internal_proto.Services().ByName("InternalService").Methods()
-	internalServiceGetNamesHandler := connect.NewUnaryHandler(
-		InternalServiceGetNamesProcedure,
-		svc.GetNames,
-		connect.WithSchema(internalServiceMethods.ByName("GetNames")),
+	internalServiceGetAuthorHandler := connect.NewUnaryHandler(
+		InternalServiceGetAuthorProcedure,
+		svc.GetAuthor,
+		connect.WithSchema(internalServiceMethods.ByName("GetAuthor")),
 		connect.WithHandlerOptions(opts...),
 	)
 	return "/player.v1.InternalService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case InternalServiceGetNamesProcedure:
-			internalServiceGetNamesHandler.ServeHTTP(w, r)
+		case InternalServiceGetAuthorProcedure:
+			internalServiceGetAuthorHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -108,6 +108,6 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 // UnimplementedInternalServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedInternalServiceHandler struct{}
 
-func (UnimplementedInternalServiceHandler) GetNames(context.Context, *connect.Request[v1.GetNamesRequest]) (*connect.Response[v1.GetNamesResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.InternalService.GetNames is not implemented"))
+func (UnimplementedInternalServiceHandler) GetAuthor(context.Context, *connect.Request[v1.GetAuthorRequest]) (*connect.Response[v1.GetAuthorResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.InternalService.GetAuthor is not implemented"))
 }

@@ -57,4 +57,5 @@ func TestASenderWithNoTokenPostsAsAGuest(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, "guest_Bob", message.GetAuthorName())
+	assert.Len(t, message.GetAuthorTag(), 6, "the player module tags a sender with no account too")
 }
