@@ -140,9 +140,14 @@ linters:
       settings:
         rangeValCopy:
           sizeThreshold: 512
+        # The project's own rules, such as no hand-rolled sets.
+        ruleguard:
+          rules: ${base-path}/tools/ruleguard/*.go
+          failOn: all
       enabled-checks:
         - boolExprSimplify
         - deferInLoop
+        - ruleguard
         - emptyStringTest
         - rangeValCopy
         - stringXbytes

@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -203,8 +204,8 @@ func New(config Config, clock cptime.Clock, onInStep func(scopes int)) *Watchdog
 		clock:    clock,
 		onInStep: onInStep,
 		members:  make(map[string]*member),
-		starts:   make(map[int64]map[string]struct{}),
-		prefixes: make(map[string]map[string]struct{}),
+		starts:   make(map[int64]*cpcolls.Set[string]),
+		prefixes: make(map[string]*cpcolls.Set[string]),
 	}
 }
 
@@ -223,8 +224,8 @@ type Watchdog struct {
 
 	// starts buckets members by the second of their first click, and prefixes by
 	// their wider prefix, so a judgement reads its neighbours and not the table.
-	starts   map[int64]map[string]struct{}
-	prefixes map[string]map[string]struct{}
+	starts   map[int64]*cpcolls.Set[string]
+	prefixes map[string]*cpcolls.Set[string]
 }
 
 var _ detect.Watchdog = (*Watchdog)(nil)
@@ -370,12 +371,12 @@ func (w *Watchdog) partnersLocked(m *member, flag string, now time.Time) []*memb
 	to := m.first.Add(w.config.StartWindow).Unix()
 
 	for second := from; second <= to; second++ {
-		for scope := range w.starts[second] {
+		w.starts[second].ForEach(func(scope string) {
 			other := w.members[scope]
 			if other != m && w.inStep(m, other, flag, now) {
 				cohort = append(cohort, other)
 			}
-		}
+		})
 	}
 
 	return cohort
@@ -386,16 +387,16 @@ func (w *Watchdog) partnersLocked(m *member, flag string, now time.Time) []*memb
 func (w *Watchdog) chainLocked(m *member, flag string, now time.Time) int {
 	var group []*member
 
-	for scope := range w.prefixes[m.prefix] {
+	w.prefixes[m.prefix].ForEach(func(scope string) {
 		other := w.members[scope]
 		if f, ok := w.painting(other); !ok || f != flag {
-			continue
+			return
 		}
 		if absDuration(other.first.Sub(m.first)) > w.config.ChainWindow {
-			continue
+			return
 		}
 		group = append(group, other)
-	}
+	})
 
 	sort.Slice(group, func(i, j int) bool {
 		if group[i].first.Equal(group[j].first) {
@@ -550,18 +551,22 @@ func widen(scope string, v4Bits, v6Bits int) string {
 	return wide.String()
 }
 
-func index[K comparable](buckets map[K]map[string]struct{}, key K, scope string) {
+func index[K comparable](buckets map[K]*cpcolls.Set[string], key K, scope string) {
 	bucket, ok := buckets[key]
 	if !ok {
-		bucket = make(map[string]struct{})
+		bucket = cpcolls.NewSet[string]()
 		buckets[key] = bucket
 	}
-	bucket[scope] = struct{}{}
+	bucket.Add(scope)
 }
 
-func unindex[K comparable](buckets map[K]map[string]struct{}, key K, scope string) {
-	delete(buckets[key], scope)
-	if len(buckets[key]) == 0 {
+func unindex[K comparable](buckets map[K]*cpcolls.Set[string], key K, scope string) {
+	bucket, ok := buckets[key]
+	if !ok {
+		return
+	}
+	bucket.Delete(scope)
+	if bucket.Empty() {
 		delete(buckets, key)
 	}
 }

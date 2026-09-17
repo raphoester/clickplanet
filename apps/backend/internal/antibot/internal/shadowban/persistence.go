@@ -77,7 +77,7 @@ func (b *Banner) Flush(ctx context.Context) error {
 	if err := b.persistence.Save(ctx, records); err != nil {
 		b.mu.Lock()
 		for _, record := range records {
-			b.dirty[record.Scope] = struct{}{}
+			b.dirty.Add(record.Scope)
 		}
 		b.mu.Unlock()
 
@@ -91,8 +91,8 @@ func (b *Banner) takeDirty() []Record {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	records := make([]Record, 0, len(b.dirty))
-	for scope := range b.dirty {
+	records := make([]Record, 0, b.dirty.Len())
+	b.dirty.ForEach(func(scope string) {
 		record := b.bans[scope]
 		records = append(records, Record{
 			Scope:    scope,
@@ -100,8 +100,8 @@ func (b *Banner) takeDirty() []Record {
 			Offences: record.offences,
 			Until:    record.until,
 		})
-	}
-	clear(b.dirty)
+	})
+	b.dirty.Clear()
 
 	return records
 }

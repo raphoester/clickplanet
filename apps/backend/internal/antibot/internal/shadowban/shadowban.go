@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -49,7 +50,7 @@ func New(config Config, clock cptime.Clock, persistence Persistence, onStateErro
 		persistence:  persistence,
 		onStateError: onStateError,
 		bans:         make(map[string]*ban),
-		dirty:        make(map[string]struct{}),
+		dirty:        cpcolls.NewSet[string](),
 	}
 }
 
@@ -61,7 +62,7 @@ type Banner struct {
 
 	mu    sync.Mutex
 	bans  map[string]*ban
-	dirty map[string]struct{}
+	dirty *cpcolls.Set[string]
 }
 
 type ban struct {
@@ -110,7 +111,7 @@ func (b *Banner) Flag(scope string) (Sentence, bool) {
 		record.until = until
 	}
 
-	b.dirty[scope] = struct{}{}
+	b.dirty.Add(scope)
 
 	return record.sentence(), true
 }
@@ -142,7 +143,7 @@ func (b *Banner) Ban(scope string, duration time.Duration) Sentence {
 		record.until = until
 	}
 
-	b.dirty[scope] = struct{}{}
+	b.dirty.Add(scope)
 
 	return record.sentence()
 }

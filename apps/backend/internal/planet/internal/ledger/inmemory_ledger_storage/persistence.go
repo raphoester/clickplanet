@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 )
 
 // Persistence is where the ledger is kept between boots. It is never read after Load.
@@ -137,20 +138,20 @@ func (s *Storage) Flush(ctx context.Context) error {
 	head := s.headPositionLocked()
 	end := s.next
 	from := max(s.saved, head)
-	if from == end && head == s.savedHead && len(s.dirtyScopes) == 0 {
+	if from == end && head == s.savedHead && s.dirtyScopes.Empty() {
 		s.mu.Unlock()
 		return nil
 	}
 
 	views := s.viewsLocked(from)
 	dirty := s.dirtyScopes
-	s.dirtyScopes = make(map[string]struct{})
-	forgotten := make(map[string]ledger.Position, len(dirty))
-	for scope := range dirty {
+	s.dirtyScopes = cpcolls.NewSet[string]()
+	forgotten := make(map[string]ledger.Position, dirty.Len())
+	dirty.ForEach(func(scope string) {
 		if before, ok := s.forgotten[scope]; ok {
 			forgotten[scope] = before
 		}
-	}
+	})
 	s.mu.Unlock()
 
 	err := s.persistence.Save(ctx, Changes{
@@ -161,7 +162,7 @@ func (s *Storage) Flush(ctx context.Context) error {
 
 	s.mu.Lock()
 	if err != nil {
-		maps.Copy(s.dirtyScopes, dirty)
+		s.dirtyScopes.AddSet(dirty)
 		s.mu.Unlock()
 		return fmt.Errorf("failed to save %d takes: %w", end-from, err)
 	}
