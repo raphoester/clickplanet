@@ -38,6 +38,9 @@ const (
 	AuthServiceCreateSessionProcedure = "/auth.v1.AuthService/CreateSession"
 	// AuthServiceGetMeProcedure is the fully-qualified name of the AuthService's GetMe RPC.
 	AuthServiceGetMeProcedure = "/auth.v1.AuthService/GetMe"
+	// AuthServiceGetSignInOptionsProcedure is the fully-qualified name of the AuthService's
+	// GetSignInOptions RPC.
+	AuthServiceGetSignInOptionsProcedure = "/auth.v1.AuthService/GetSignInOptions"
 	// AuthServiceStartSignInProcedure is the fully-qualified name of the AuthService's StartSignIn RPC.
 	AuthServiceStartSignInProcedure = "/auth.v1.AuthService/StartSignIn"
 	// AuthServiceCompleteSignInProcedure is the fully-qualified name of the AuthService's
@@ -62,6 +65,10 @@ type AuthServiceClient interface {
 	// The account the caller's cookie belongs to. Unauthenticated when it carries
 	// none. Creates nothing.
 	GetMe(context.Context, *connect.Request[v1.GetMeRequest]) (*connect.Response[v1.GetMeResponse], error)
+	// The providers a player may sign in with on this server, so a client shows
+	// only the buttons that work. Empty while sign-in is off. Not throttled, and
+	// sets nothing: a client asks on every page load.
+	GetSignInOptions(context.Context, *connect.Request[v1.GetSignInOptionsRequest]) (*connect.Response[v1.GetSignInOptionsResponse], error)
 	// Starts signing in with a provider: answers the provider's authorization URL
 	// to send the browser to, and sets a short-lived cookie that CompleteSignIn
 	// reads back. Unimplemented (HTTP 404) when sign-in is off on this server.
@@ -106,6 +113,12 @@ func NewAuthServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(authServiceMethods.ByName("GetMe")),
 			connect.WithClientOptions(opts...),
 		),
+		getSignInOptions: connect.NewClient[v1.GetSignInOptionsRequest, v1.GetSignInOptionsResponse](
+			httpClient,
+			baseURL+AuthServiceGetSignInOptionsProcedure,
+			connect.WithSchema(authServiceMethods.ByName("GetSignInOptions")),
+			connect.WithClientOptions(opts...),
+		),
 		startSignIn: connect.NewClient[v1.StartSignInRequest, v1.StartSignInResponse](
 			httpClient,
 			baseURL+AuthServiceStartSignInProcedure,
@@ -143,6 +156,7 @@ func NewAuthServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 type authServiceClient struct {
 	createSession     *connect.Client[v1.CreateSessionRequest, v1.CreateSessionResponse]
 	getMe             *connect.Client[v1.GetMeRequest, v1.GetMeResponse]
+	getSignInOptions  *connect.Client[v1.GetSignInOptionsRequest, v1.GetSignInOptionsResponse]
 	startSignIn       *connect.Client[v1.StartSignInRequest, v1.StartSignInResponse]
 	completeSignIn    *connect.Client[v1.CompleteSignInRequest, v1.CompleteSignInResponse]
 	signOut           *connect.Client[v1.SignOutRequest, v1.SignOutResponse]
@@ -158,6 +172,11 @@ func (c *authServiceClient) CreateSession(ctx context.Context, req *connect.Requ
 // GetMe calls auth.v1.AuthService.GetMe.
 func (c *authServiceClient) GetMe(ctx context.Context, req *connect.Request[v1.GetMeRequest]) (*connect.Response[v1.GetMeResponse], error) {
 	return c.getMe.CallUnary(ctx, req)
+}
+
+// GetSignInOptions calls auth.v1.AuthService.GetSignInOptions.
+func (c *authServiceClient) GetSignInOptions(ctx context.Context, req *connect.Request[v1.GetSignInOptionsRequest]) (*connect.Response[v1.GetSignInOptionsResponse], error) {
+	return c.getSignInOptions.CallUnary(ctx, req)
 }
 
 // StartSignIn calls auth.v1.AuthService.StartSignIn.
@@ -194,6 +213,10 @@ type AuthServiceHandler interface {
 	// The account the caller's cookie belongs to. Unauthenticated when it carries
 	// none. Creates nothing.
 	GetMe(context.Context, *connect.Request[v1.GetMeRequest]) (*connect.Response[v1.GetMeResponse], error)
+	// The providers a player may sign in with on this server, so a client shows
+	// only the buttons that work. Empty while sign-in is off. Not throttled, and
+	// sets nothing: a client asks on every page load.
+	GetSignInOptions(context.Context, *connect.Request[v1.GetSignInOptionsRequest]) (*connect.Response[v1.GetSignInOptionsResponse], error)
 	// Starts signing in with a provider: answers the provider's authorization URL
 	// to send the browser to, and sets a short-lived cookie that CompleteSignIn
 	// reads back. Unimplemented (HTTP 404) when sign-in is off on this server.
@@ -234,6 +257,12 @@ func NewAuthServiceHandler(svc AuthServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(authServiceMethods.ByName("GetMe")),
 		connect.WithHandlerOptions(opts...),
 	)
+	authServiceGetSignInOptionsHandler := connect.NewUnaryHandler(
+		AuthServiceGetSignInOptionsProcedure,
+		svc.GetSignInOptions,
+		connect.WithSchema(authServiceMethods.ByName("GetSignInOptions")),
+		connect.WithHandlerOptions(opts...),
+	)
 	authServiceStartSignInHandler := connect.NewUnaryHandler(
 		AuthServiceStartSignInProcedure,
 		svc.StartSignIn,
@@ -270,6 +299,8 @@ func NewAuthServiceHandler(svc AuthServiceHandler, opts ...connect.HandlerOption
 			authServiceCreateSessionHandler.ServeHTTP(w, r)
 		case AuthServiceGetMeProcedure:
 			authServiceGetMeHandler.ServeHTTP(w, r)
+		case AuthServiceGetSignInOptionsProcedure:
+			authServiceGetSignInOptionsHandler.ServeHTTP(w, r)
 		case AuthServiceStartSignInProcedure:
 			authServiceStartSignInHandler.ServeHTTP(w, r)
 		case AuthServiceCompleteSignInProcedure:
@@ -295,6 +326,10 @@ func (UnimplementedAuthServiceHandler) CreateSession(context.Context, *connect.R
 
 func (UnimplementedAuthServiceHandler) GetMe(context.Context, *connect.Request[v1.GetMeRequest]) (*connect.Response[v1.GetMeResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.AuthService.GetMe is not implemented"))
+}
+
+func (UnimplementedAuthServiceHandler) GetSignInOptions(context.Context, *connect.Request[v1.GetSignInOptionsRequest]) (*connect.Response[v1.GetSignInOptionsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.AuthService.GetSignInOptions is not implemented"))
 }
 
 func (UnimplementedAuthServiceHandler) StartSignIn(context.Context, *connect.Request[v1.StartSignInRequest]) (*connect.Response[v1.StartSignInResponse], error) {

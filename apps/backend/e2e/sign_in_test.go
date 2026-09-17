@@ -233,3 +233,25 @@ func TestSignInIsAbsentWhileItIsOff(t *testing.T) {
 
 	assert.Equal(t, connect.CodeUnimplemented, connect.CodeOf(err))
 }
+
+func TestTheOfferedProvidersAreAnsweredAndNoCookieIsSet(t *testing.T) {
+	stack, _ := startSignIn(t)
+	b := stack.browser(t)
+
+	req := connect.NewRequest(&authv1.GetSignInOptionsRequest{})
+	b.send(req.Header())
+	res, err := b.client.GetSignInOptions(t.Context(), req)
+	require.NoError(t, err)
+
+	assert.Equal(t, []authv1.Provider{authv1.Provider_PROVIDER_DISCORD, authv1.Provider_PROVIDER_GOOGLE}, res.Msg.GetProviders())
+	assert.Empty(t, res.Header().Values("Set-Cookie"))
+}
+
+func TestNoProviderIsOfferedWhileSignInIsOff(t *testing.T) {
+	stack := startAuth(t)
+
+	res, err := stack.browser(t).client.GetSignInOptions(t.Context(), connect.NewRequest(&authv1.GetSignInOptionsRequest{}))
+	require.NoError(t, err)
+
+	assert.Empty(t, res.Msg.GetProviders())
+}

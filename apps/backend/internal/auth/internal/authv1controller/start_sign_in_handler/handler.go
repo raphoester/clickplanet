@@ -26,7 +26,7 @@ type StartSignInHandler struct {
 	useCase UseCase
 }
 
-// StartSignIn answers Unimplemented, which is HTTP 404, while sign-in is off: the client hides the button on it.
+// StartSignIn answers Unimplemented, which is HTTP 404, while sign-in is off. A client learns that first from GetSignInOptions.
 func (h StartSignInHandler) StartSignIn(
 	ctx context.Context,
 	req *connect.Request[authv1.StartSignInRequest],

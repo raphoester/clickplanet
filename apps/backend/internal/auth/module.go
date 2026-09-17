@@ -41,6 +41,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/create_session_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/delete_account_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_me_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_sign_in_options_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_verifying_key_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/sign_out_everywhere_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/sign_out_handler"
@@ -139,7 +140,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, provider
 				signer, config.Sessions, clock),
 			props.Logger,
 		),
-		GetMeHandler: get_me_handler.New(get_me_usecase.New(store, clock)),
+		GetMeHandler:            get_me_handler.New(get_me_usecase.New(store, clock)),
+		GetSignInOptionsHandler: get_sign_in_options_handler.New(providers),
 		StartSignInHandler: start_sign_in_handler.New(
 			start_sign_in_usecase.New(providers, random_secret_generator.Generator{}, sealer, clock)),
 		CompleteSignInHandler: complete_sign_in_handler.New(

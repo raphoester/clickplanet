@@ -15,6 +15,11 @@ service AuthService {
   // none. Creates nothing.
   rpc GetMe(GetMeRequest) returns (GetMeResponse);
 
+  // The providers a player may sign in with on this server, so a client shows
+  // only the buttons that work. Empty while sign-in is off. Not throttled, and
+  // sets nothing: a client asks on every page load.
+  rpc GetSignInOptions(GetSignInOptionsRequest) returns (GetSignInOptionsResponse);
+
   // Starts signing in with a provider: answers the provider's authorization URL
   // to send the browser to, and sets a short-lived cookie that CompleteSignIn
   // reads back. Unimplemented (HTTP 404) when sign-in is off on this server.
@@ -78,6 +83,13 @@ enum AccountKind {
   ACCOUNT_KIND_GUEST = 1;
   // At least one provider is linked.
   ACCOUNT_KIND_LINKED = 2;
+}
+
+message GetSignInOptionsRequest {}
+
+message GetSignInOptionsResponse {
+  // Every provider offered, in a stable order. Empty while sign-in is off.
+  repeated Provider providers = 1;
 }
 
 message StartSignInRequest {
