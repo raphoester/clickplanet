@@ -25,7 +25,7 @@ func (a *Account) Providers() []string {
 	return providers
 }
 
-func (a *Account) holds(provider string) bool {
+func (a *Account) linkedTo(provider string) bool {
 	return slices.Contains(a.Providers(), provider)
 }
 
@@ -74,7 +74,7 @@ func OutcomeOf(current *Account, known *Identity, provider string) Outcome {
 	switch {
 	case known != nil:
 		return SignedIn
-	case current == nil || current.holds(provider):
+	case current == nil || current.linkedTo(provider):
 		return Created
 	default:
 		return Linked
