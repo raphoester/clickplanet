@@ -7,11 +7,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/suite"
+
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/send_message_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
-	"github.com/stretchr/testify/suite"
 )
 
 func TestRunSuite(t *testing.T) {
@@ -31,7 +33,7 @@ func (s *testSuite) SetupTest() {
 	s.clock = cptime.NewFixedClock(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC))
 	s.useCase = send_message_usecase.New(
 		s.appender,
-		fakeCountryChecker{known: map[string]bool{"fr": true, "de": true}},
+		fakeCountryChecker{known: cpcolls.NewSet("fr", "de")},
 		s.clock,
 		send_message_usecase.Config{TagSalt: "pepper"},
 	)
@@ -144,9 +146,9 @@ func (f *fakeAppender) Append(_ context.Context, record messages.Record) error {
 }
 
 type fakeCountryChecker struct {
-	known map[string]bool
+	known *cpcolls.Set[string]
 }
 
 func (f fakeCountryChecker) CheckCountry(country string) bool {
-	return f.known[country]
+	return f.known.Contains(country)
 }

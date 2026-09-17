@@ -4,6 +4,7 @@ import (
 	"sort"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 )
 
 type Owners interface {
@@ -11,13 +12,13 @@ type Owners interface {
 }
 
 func NewRuns(scope string) *Runs {
-	return &Runs{scope: scope, touched: make(map[uint32]struct{}), runs: make(map[uint32]run)}
+	return &Runs{scope: scope, touched: cpcolls.NewSet[uint32](), runs: make(map[uint32]run)}
 }
 
 // Runs is what a revert of one scope gives back, by the rule in the package doc.
 type Runs struct {
 	scope   string
-	touched map[uint32]struct{}
+	touched *cpcolls.Set[uint32]
 	runs    map[uint32]run
 }
 
@@ -36,7 +37,7 @@ func (r *Runs) See(taking Taking) {
 		return
 	}
 
-	r.touched[taking.Tile] = struct{}{}
+	r.touched.Add(taking.Tile)
 
 	before := taking.Previous
 	if ours && current.country == taking.Previous {
@@ -48,7 +49,7 @@ func (r *Runs) See(taking Taking) {
 
 // Touched is how many tiles the scope took, held or not.
 func (r *Runs) Touched() int {
-	return len(r.touched)
+	return r.touched.Len()
 }
 
 // Restorations gives back every tile the scope still holds, in tile order.

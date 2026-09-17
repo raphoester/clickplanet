@@ -11,6 +11,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/spread_click"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
@@ -28,9 +29,9 @@ func (s stubClick) Execute(ctx context.Context, in click_usecase.In) (click_usec
 	return click_usecase.Out{}, s.storage.Set(ctx, in.TileID, in.CountryID)
 }
 
-type stubSpreads struct{ scopes map[string]bool }
+type stubSpreads struct{ scopes *cpcolls.Set[string] }
 
-func (s stubSpreads) Spreading(scope string) bool { return s.scopes[scope] }
+func (s stubSpreads) Spreading(scope string) bool { return s.scopes.Contains(scope) }
 
 type stubNeighbours map[uint32][]uint32
 
@@ -62,9 +63,9 @@ func setup(spreading bool, err error) (*spread_click.UseCase, *recordingStorage)
 
 func setupWithPublisher(spreading bool, err error) (*spread_click.UseCase, *recordingStorage, *recordingPublisher) {
 	storage := &recordingStorage{tiles: map[uint32]string{}}
-	spreads := stubSpreads{scopes: map[string]bool{}}
+	spreads := stubSpreads{scopes: cpcolls.NewSet[string]()}
 	if spreading {
-		spreads.scopes[cpctx.RateLimitKey(context.Background())] = true
+		spreads.scopes.Add(cpctx.RateLimitKey(context.Background()))
 	}
 
 	publisher := &recordingPublisher{}

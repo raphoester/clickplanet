@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -331,27 +332,27 @@ func TestTheWaitIsDrawnFromTheConfiguredWindow(t *testing.T) {
 		MinInterval: time.Minute, MaxInterval: 3 * time.Minute,
 	}, clock)
 
-	seen := map[time.Duration]bool{}
+	seen := cpcolls.NewSet[time.Duration]()
 	for range 200 {
 		drawn := registry.window()
 
 		require.GreaterOrEqual(t, drawn, time.Minute)
 		require.Less(t, drawn, 3*time.Minute)
-		seen[drawn] = true
+		seen.Add(drawn)
 	}
 
-	assert.Greater(t, len(seen), 100, "the wait should be spread, not fixed")
+	assert.Greater(t, seen.Len(), 100, "the wait should be spread, not fixed")
 }
 
 func TestEveryKindConfiguredIsOffered(t *testing.T) {
 	registry, _ := newTestRegistry()
 
-	seen := map[Kind]bool{}
+	seen := cpcolls.NewSet[Kind]()
 	for range 200 {
-		seen[registry.drawKind()] = true
+		seen.Add(registry.drawKind())
 	}
 
-	assert.Len(t, seen, len(Kinds), "an empty bonus.kinds offers every kind")
+	assert.Equal(t, len(Kinds), seen.Len(), "an empty bonus.kinds offers every kind")
 }
 
 func TestASpreadBoxRunsForItsOwnShorterDuration(t *testing.T) {
@@ -608,7 +609,7 @@ func TestEveryTokenIsDifferent(t *testing.T) {
 	registry, clock := newTestRegistry()
 	events := playing(t, registry, "scope-a")
 
-	seen := map[string]bool{}
+	seen := cpcolls.NewSet[string]()
 	for range 20 {
 		clock.Advance(window + time.Second)
 		registry.Clicked("scope-a")
@@ -616,8 +617,8 @@ func TestEveryTokenIsDifferent(t *testing.T) {
 
 		offer := offered(t, events)
 		require.NotNil(t, offer)
-		require.False(t, seen[offer.Token], "a token was handed out twice")
-		seen[offer.Token] = true
+		require.False(t, seen.Contains(offer.Token), "a token was handed out twice")
+		seen.Add(offer.Token)
 
 		clock.Advance(16 * time.Second)
 		registry.sweep()

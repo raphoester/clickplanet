@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/evidence"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 )
 
 var _ evidence.Section = (*Watchdog)(nil)
@@ -47,8 +48,8 @@ func (w *Watchdog) Load(data []byte) error {
 	}
 
 	members := make(map[string]*member, len(saved))
-	starts := make(map[int64]map[string]struct{})
-	prefixes := make(map[string]map[string]struct{})
+	starts := make(map[int64]*cpcolls.Set[string])
+	prefixes := make(map[string]*cpcolls.Set[string])
 
 	for _, s := range saved {
 		m := &member{

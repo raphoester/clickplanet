@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 )
 
 type Config struct {
@@ -45,7 +46,7 @@ func New(config Config, persistence Persistence, logger *slog.Logger) *Storage {
 		persistence: persistence,
 		logger:      logger,
 		forgotten:   make(map[string]ledger.Position),
-		dirtyScopes: make(map[string]struct{}),
+		dirtyScopes: cpcolls.NewSet[string](),
 	}
 }
 
@@ -69,7 +70,7 @@ type Storage struct {
 	flushMu     sync.Mutex
 	saved       ledger.Position
 	savedHead   ledger.Position
-	dirtyScopes map[string]struct{}
+	dirtyScopes *cpcolls.Set[string]
 }
 
 var _ ledger.Storage = (*Storage)(nil)
@@ -258,7 +259,7 @@ func (s *Storage) Forget(scope string, before ledger.Position) {
 
 	if before > s.forgotten[scope] && before > s.headPositionLocked() {
 		s.forgotten[scope] = before
-		s.dirtyScopes[scope] = struct{}{}
+		s.dirtyScopes.Add(scope)
 	}
 }
 

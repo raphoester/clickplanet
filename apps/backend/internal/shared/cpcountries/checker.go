@@ -1,7 +1,9 @@
 package cpcountries
 
+import "github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
+
 type Checker struct {
-	countries map[string]struct{}
+	countries *cpcolls.Set[string]
 }
 
 func New() *Checker {
@@ -11,6 +13,5 @@ func New() *Checker {
 }
 
 func (c *Checker) CheckCountry(s string) bool {
-	_, ok := c.countries[s]
-	return ok
+	return c.countries.Contains(s)
 }
