@@ -56,9 +56,59 @@
     <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Oswald:wght@200..700&display=swap"
           rel="stylesheet">
     <link rel="icon" href="/static/favicon.png" type="image/x-icon">
+    <style>
+        body {
+            margin: 0;
+            background: #04090F;
+        }
+
+        .intro {
+            min-height: 100vh;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            max-width: 560px;
+            margin: 0 auto;
+            padding: 32px 16px;
+            background: #04090F;
+            color: #FFFFFFDD;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+        }
+
+        .intro h1 {
+            font-family: "Luckiest Guy", sans-serif;
+            font-weight: normal;
+            letter-spacing: 1px;
+            color: #FFFFFF;
+            font-size: 40px;
+            margin: 0 0 8px;
+        }
+
+        .intro a {
+            color: #FF813F;
+        }
+    </style>
 </head>
 <body>
-<div id="root"></div>
+<!--
+  What the page is, in plain HTML, for a reader with no JavaScript: Google checks
+  it before it lets sign-in out of testing. React replaces it when it mounts.
+-->
+<div id="root">
+    <main class="intro">
+        <h1>ClickPlanet</h1>
+        <p>ClickPlanet is a free multiplayer game in your browser. Pick a country, then click tiles on a 3D globe
+            to paint them with its flag. Everyone plays on the same planet, live, and each country fights for the
+            most ground.</p>
+        <p>You do not need an account to play. You can sign in with Google or Discord to keep your account on
+            every device.</p>
+        <p><a href="/privacy">Privacy policy</a> · <a href="/terms">Terms of service</a> ·
+            <a href="mailto:privacy@clickplanet.lol">privacy@clickplanet.lol</a></p>
+        <noscript><p>The game needs JavaScript and WebGL.</p></noscript>
+    </main>
+</div>
 <script type="module" src="/src/main.tsx"></script>
 </body>
 </html>
