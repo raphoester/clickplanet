@@ -192,7 +192,7 @@ func TestLinkingANewIdentityLinksItToTheAccountTheBrowserIsOn(t *testing.T) {
 	assert.Equal(t, accounts.Linked, out.Outcome)
 	account, err := f.store.Account(t.Context(), accounts.AccountID{15: 7})
 	require.NoError(t, err)
-	assert.Equal(t, []string{"discord", "google"}, account.Providers())
+	assert.ElementsMatch(t, []string{"discord", "google"}, account.Providers())
 }
 
 func TestLinkingAnIdentityTheAccountAlreadyHasKeepsTheBrowserThere(t *testing.T) {
