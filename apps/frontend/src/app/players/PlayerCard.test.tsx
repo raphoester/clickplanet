@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import {afterEach, describe, expect, it, vi} from "vitest"
 import {cleanup, render, screen, within} from "@testing-library/react"
-import {PlayerInfo, PlayerInfoBackend, RosterEntry} from "../../backends/player.ts"
+import {PlayerInfo, PlayerInfoBackend, PlayerLine} from "../../backends/player.ts"
 import PlayerCard from "./PlayerCard.tsx"
 
 afterEach(() => {
@@ -9,8 +9,8 @@ afterEach(() => {
     vi.restoreAllMocks()
 })
 
-const ana: RosterEntry = {name: "Ana", tag: "4f2ca1", countryCode: "fr", guest: false, admin: false}
-const bo: RosterEntry = {name: "guest_Bo", tag: "91aa3d", countryCode: "de", guest: true, admin: false}
+const ana: PlayerLine = {name: "Ana", tag: "4f2ca1", countryCode: "fr", guest: false, admin: false}
+const bo: PlayerLine = {name: "guest_Bo", tag: "91aa3d", countryCode: "de", guest: true, admin: false}
 
 const backendAnswering = (answer: () => Promise<PlayerInfo | undefined>) =>
     ({playerInfo: vi.fn(answer)}) satisfies PlayerInfoBackend

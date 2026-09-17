@@ -22,6 +22,14 @@ var (
 	guest = players.AccountID{15: 2}
 )
 
+// keyless is the visits as announced, before the storage keyed them.
+func keyless(visits []presence.Visit) []presence.Visit {
+	for i := range visits {
+		visits[i].Key = ""
+	}
+	return visits
+}
+
 func guestVisit() presence.Visit {
 	return presence.Visit{Account: guest, GuestName: "Bob", Tag: "aaaaaa", Country: "fr", At: now}
 }
@@ -35,7 +43,7 @@ func TestSigningInToAKnownAccountShowsItsUsernameInPlaceOfTheGuest(t *testing.T)
 	err := move_visit_usecase.New(store, visits).Execute(t.Context(), guest, ada)
 
 	require.NoError(t, err)
-	assert.Equal(t, []presence.Visit{guestVisit().For(ada, "Ada_L")}, visits.Visits())
+	assert.Equal(t, []presence.Visit{guestVisit().For(ada, "Ada_L")}, keyless(visits.Visits()))
 }
 
 func TestASignInThatKeepsTheAccountChangesNothingAndReadsNothing(t *testing.T) {
@@ -47,7 +55,7 @@ func TestASignInThatKeepsTheAccountChangesNothingAndReadsNothing(t *testing.T) {
 	err := move_visit_usecase.New(store, visits).Execute(t.Context(), guest, guest)
 
 	require.NoError(t, err)
-	assert.Equal(t, []presence.Visit{guestVisit()}, visits.Visits(), "no username yet: SetName shows it")
+	assert.Equal(t, []presence.Visit{guestVisit()}, keyless(visits.Visits()), "no username yet: SetName shows it")
 }
 
 func TestAStoreFailureIsAnErrorAndMovesNothing(t *testing.T) {
@@ -59,5 +67,19 @@ func TestAStoreFailureIsAnErrorAndMovesNothing(t *testing.T) {
 	err := move_visit_usecase.New(store, visits).Execute(t.Context(), guest, ada)
 
 	require.Error(t, err)
-	assert.Equal(t, []presence.Visit{guestVisit()}, visits.Visits())
+	assert.Equal(t, []presence.Visit{guestVisit()}, keyless(visits.Visits()))
+}
+
+func TestSigningInToAnAdminShowsItsCrown(t *testing.T) {
+	store := inmemory_player_store.New()
+	require.NoError(t, store.SaveProfile(t.Context(), players.Profile{Account: ada, Name: "Ada_L", UpdatedAt: now}))
+	store.MakeAdmin(ada)
+	visits := inmemory_visit_storage.New(cptime.NewFixedClock(now))
+	visits.Record(guestVisit())
+
+	err := move_visit_usecase.New(store, visits).Execute(t.Context(), guest, ada)
+
+	require.NoError(t, err)
+	require.Len(t, visits.Visits(), 1)
+	assert.True(t, visits.Visits()[0].Admin)
 }

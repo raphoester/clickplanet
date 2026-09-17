@@ -1,6 +1,6 @@
 import {useEffect, useRef, useState} from "react";
 import {ChatMessage, GUEST_PREFIX} from "../../backends/chat.ts";
-import {RosterEntry} from "../../backends/player.ts";
+import {PlayerLine} from "../../backends/player.ts";
 import {Countries} from "../../domain/countries.ts";
 import AdminCrown from "../components/AdminCrown.tsx";
 import CountryFlag from "../components/CountryFlag.tsx";
@@ -14,7 +14,7 @@ export type ChatLogProps = {
     loading: boolean
     flashing?: ReadonlySet<string>
     /** Absent, an author's name is plain text. */
-    onOpenPlayer?: (player: RosterEntry) => void
+    onOpenPlayer?: (player: PlayerLine) => void
 }
 
 const AUTHOR_MAX_LENGTH = 16
@@ -118,7 +118,7 @@ export default function ChatLog(props: ChatLogProps) {
 }
 
 // No username starts with the prefix, so the name alone says who is a guest.
-function authorOf(message: ChatMessage): RosterEntry {
+function authorOf(message: ChatMessage): PlayerLine {
     return {
         name: message.authorName,
         tag: message.authorTag,

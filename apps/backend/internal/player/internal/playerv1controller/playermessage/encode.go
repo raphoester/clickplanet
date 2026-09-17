@@ -4,6 +4,7 @@ package playermessage
 import (
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence"
 )
 
 func Profile(profile players.Profile) *playerv1.Profile {
@@ -26,4 +27,23 @@ func Player(player players.Player) *playerv1.Player {
 		message.CreatedAtUnixMs = player.CreatedAt.UnixMilli()
 	}
 	return message
+}
+
+func RosterEntry(entry presence.Entry) *playerv1.RosterEntry {
+	return &playerv1.RosterEntry{
+		Key:       string(entry.Key),
+		Name:      entry.Name,
+		Tag:       string(entry.Tag),
+		CountryId: entry.Country,
+		Guest:     entry.Guest,
+		Admin:     entry.Admin,
+	}
+}
+
+func RosterEntries(roster []presence.Entry) []*playerv1.RosterEntry {
+	entries := make([]*playerv1.RosterEntry, 0, len(roster))
+	for _, entry := range roster {
+		entries = append(entries, RosterEntry(entry))
+	}
+	return entries
 }

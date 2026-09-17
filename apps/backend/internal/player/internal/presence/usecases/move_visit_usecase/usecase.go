@@ -15,7 +15,7 @@ type Profiles interface {
 }
 
 type Visits interface {
-	Move(from, to players.AccountID, username players.Name)
+	Move(from, to players.AccountID, username players.Name, admin bool)
 }
 
 type UseCase struct {
@@ -40,6 +40,6 @@ func (u *UseCase) Execute(ctx context.Context, from, to players.AccountID) error
 		return fmt.Errorf("failed to read the profile: %w", err)
 	}
 
-	u.visits.Move(from, to, profile.Name)
+	u.visits.Move(from, to, profile.Name, profile.Admin)
 	return nil
 }

@@ -17,7 +17,7 @@ import {AccountStore} from "./account/accountStore.ts";
 import {useAccount} from "./account/useAccount.ts";
 import AccountPanel, {AccountButton} from "./account/AccountPanel.tsx";
 import DeleteAccountModal from "./account/DeleteAccountModal.tsx";
-import {RosterEntry} from "../backends/player.ts";
+import {PlayerLine, RosterEntry} from "../backends/player.ts";
 import PlayersPanel, {PlayersButton} from "./players/PlayersPanel.tsx";
 import "./Menu.css"
 
@@ -34,7 +34,7 @@ export type MenuProps = {
     /** Who is playing. Absent — no roster, or not read yet — the menu offers no list. */
     players?: readonly RosterEntry[],
     /** Absent, a name in the list opens nothing. */
-    onOpenPlayer?: (player: RosterEntry) => void,
+    onOpenPlayer?: (player: PlayerLine) => void,
     /** What signing in multiplies the click allowance by, as the server said. Absent, the panel does not mention it. */
     linkedMultiplier?: number,
 }

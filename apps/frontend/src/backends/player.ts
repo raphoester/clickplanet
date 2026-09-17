@@ -70,8 +70,8 @@ export type Presence = {
     guestName: string
 }
 
-/** One player on the roster, as the server names it. */
-export type RosterEntry = {
+/** One player as the roster and the chat show it: enough to open its card. */
+export type PlayerLine = {
     /** A username, or `GUEST_PREFIX` and the typed name or the tag: ready to show. */
     name: string
     /** As on a chat message: the salted hash of the address it announced from. */
@@ -82,8 +82,22 @@ export type RosterEntry = {
     admin: boolean
 }
 
+/** One player on the roster, as the server names it. */
+export type RosterEntry = PlayerLine & {
+    /** Names the line while the player stays on: through a new flag, a sign-in and a new name. */
+    key: string
+}
+
+/** One event of the live roster. */
+export type RosterEvent =
+    /** The whole roster, in the server's order. The first event of every connection. */
+    | {kind: "roster", entries: RosterEntry[]}
+    /** A player joined, or its line changed: it replaces the line with the same key. */
+    | {kind: "entry", entry: RosterEntry}
+    | {kind: "left", key: string}
+
 /**
- * Who is playing: `player.v1.PlayerService/Announce` and `GetRoster`. Kept
+ * Who is playing: `player.v1.PlayerService/Announce`, `Leave` and `ListenForEvents`. Kept
  * apart from `PlayerBackend`, which is the account panel's: the two are used by
  * different parts of the page, and a fake of one need not fake the other.
  */
@@ -103,19 +117,17 @@ export interface PresenceBackend {
     announce(presence: Presence): Promise<boolean>
 
     /**
-     * Everyone playing, in the server's order: players with a username, then
-     * guests, each by name ignoring case. Throws `RosterUnavailableError` when
-     * the server has no roster at all.
+     * Says the page is closing, with the token held, if any. Sent with
+     * `keepalive` so it outlives the page, and nothing waits on it.
      */
-    roster(): Promise<RosterEntry[]>
-}
+    leave(): void
 
-/** The server does not serve a roster: one from before it, or with no player module. */
-export class RosterUnavailableError extends Error {
-    constructor(options?: {cause?: unknown}) {
-        super("the server has no roster", options)
-        this.name = "RosterUnavailableError"
-    }
+    /**
+     * Follows the live roster until the answer is called, reconnecting on its
+     * own; every connection starts with a `roster` event. `onUnavailable` is
+     * called once, and nothing after, when the server has no live roster.
+     */
+    listenForRoster(onEvent: (event: RosterEvent) => void, onUnavailable: () => void): () => void
 }
 
 /** What anybody may know about a player with a username. A guest has none of it. */

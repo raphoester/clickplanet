@@ -52,6 +52,7 @@ func TestAnAccountWithAUsernameIsRecordedUnderIt(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []presence.Visit{{
 		Account:   ada,
+		Key:       "1",
 		Username:  "Ada_L",
 		GuestName: "Bob",
 		Tag:       players.TagOf("pepper", "1.2.3.4"),

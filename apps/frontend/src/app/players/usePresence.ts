@@ -12,7 +12,8 @@ const CHECK_MS = SETTLE_MS
 
 /**
  * Tells the server this player is playing, under its flag and name, while the
- * page is open. The rules are `PresenceSchedule`'s; this only runs its clock.
+ * page is open, and that it left when the page closes. The rules are
+ * `PresenceSchedule`'s; this only runs its clock.
  */
 export function usePresence(backend: PresenceBackend | undefined, announcing: Announcing): void {
     const schedule = useRef<PresenceSchedule>()
@@ -39,5 +40,16 @@ export function usePresence(backend: PresenceBackend | undefined, announcing: An
         check()
         const timer = window.setInterval(check, CHECK_MS)
         return () => window.clearInterval(timer)
+    }, [backend])
+
+    // A page kept in the back-forward cache may come back, and announces again when it does.
+    useEffect(() => {
+        if (!backend) return
+
+        const onPageHide = (event: PageTransitionEvent) => {
+            if (!event.persisted) backend.leave()
+        }
+        window.addEventListener("pagehide", onPageHide)
+        return () => window.removeEventListener("pagehide", onPageHide)
     }, [backend])
 }
