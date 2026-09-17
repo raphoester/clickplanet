@@ -2,12 +2,19 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {act, cleanup, render, screen, waitFor} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import ChatPanel from "./ChatPanel.tsx"
+import ChatPanel, {ChatPanelProps} from "./ChatPanel.tsx"
+import {useChatIdentity} from "./useChatIdentity.ts"
 import {CHAT_IDENTITY_STORAGE_KEY} from "./chatIdentity.ts"
 import {ChatBackend, ChatMessage, ChatRateLimitedError} from "../../backends/chat.ts"
 import {Countries} from "../../domain/countries.ts"
 
 const france = Countries.get("fr")!
+
+/** The panel as `Viewer` renders it, with the identity held one level up. */
+function IdentifiedChatPanel(props: Omit<ChatPanelProps, "identity" | "setName">) {
+    const {identity, setName} = useChatIdentity()
+    return <ChatPanel {...props} identity={identity} setName={setName}/>
+}
 
 const message = (id: string, text: string, sentAt = 1_700_000_000_000): ChatMessage => ({
     id,
@@ -45,7 +52,7 @@ function stubBackend(history: ChatMessage[] = []) {
 }
 
 const setup = (backend?: ChatBackend, username?: string) => ({
-    ...render(<ChatPanel backend={backend} country={france} username={username}/>),
+    ...render(<IdentifiedChatPanel backend={backend} country={france} username={username}/>),
     user: userEvent.setup(),
 })
 
@@ -67,7 +74,7 @@ describe("ChatPanel sound", () => {
         return {
             playSound,
             user: userEvent.setup(),
-            ...render(<ChatPanel backend={backend} country={france} playSound={playSound} username={username}/>),
+            ...render(<IdentifiedChatPanel backend={backend} country={france} playSound={playSound} username={username}/>),
         }
     }
 
@@ -221,7 +228,7 @@ describe("ChatPanel", () => {
             vi.useFakeTimers()
             try {
                 const {backend, broadcast} = stubBackend([message("a", "old news")])
-                render(<ChatPanel backend={backend} country={france}/>)
+                render(<IdentifiedChatPanel backend={backend} country={france}/>)
                 await vi.waitFor(() => item("old news"))
 
                 broadcast(message("live", "gm everyone", 1_700_000_200_000))

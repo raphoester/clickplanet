@@ -20,7 +20,7 @@ import {SESSION_HEADER, type SessionProvider, SessionUnavailableError} from "./s
 import type {ClickBudget} from "./clickBudget.ts"
 
 function fixedSession(token: string): SessionProvider {
-    return {token: async () => token, invalidate: () => {}}
+    return {token: async () => token, held: () => token, invalidate: () => {}}
 }
 
 function rotatingSession(tokens: string[]) {
@@ -28,6 +28,9 @@ function rotatingSession(tokens: string[]) {
     return {
         invalidated: 0,
         async token() {
+            return tokens[Math.min(index, tokens.length - 1)]
+        },
+        held() {
             return tokens[Math.min(index, tokens.length - 1)]
         },
         invalidate() {
@@ -42,6 +45,7 @@ function failingSession(): SessionProvider {
         token: async () => {
             throw new SessionUnavailableError()
         },
+        held: () => undefined,
         invalidate: () => {},
     }
 }

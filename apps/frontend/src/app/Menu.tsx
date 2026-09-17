@@ -17,6 +17,8 @@ import {AccountStore} from "./account/accountStore.ts";
 import {useAccount} from "./account/useAccount.ts";
 import AccountPanel, {AccountButton} from "./account/AccountPanel.tsx";
 import DeleteAccountModal from "./account/DeleteAccountModal.tsx";
+import {RosterEntry} from "../backends/player.ts";
+import PlayersPanel, {PlayersButton} from "./players/PlayersPanel.tsx";
 import "./Menu.css"
 
 export type MenuProps = {
@@ -29,6 +31,8 @@ export type MenuProps = {
     sound?: SoundSettingsPanelProps,
     /** Absent, or with no provider offered, the menu offers no sign-in. */
     account?: AccountStore,
+    /** Who is playing. Absent — no roster, or not read yet — the menu offers no list. */
+    players?: readonly RosterEntry[],
 }
 
 export default function Menu(props: MenuProps) {
@@ -86,6 +90,23 @@ export default function Menu(props: MenuProps) {
         setAccountOpen(true)
     }
 
+    const [playersOpen, setPlayersOpen] = useState(false)
+
+    // Back from the players panel lands on the button that opened it.
+    const playersButton = useRef<HTMLButtonElement>(null)
+    const cameFromPlayers = useRef(false)
+
+    useEffect(() => {
+        if (playersOpen || !cameFromPlayers.current) return
+        cameFromPlayers.current = false
+        playersButton.current?.focus()
+    }, [playersOpen])
+
+    const openPlayers = () => {
+        cameFromPlayers.current = true
+        setPlayersOpen(true)
+    }
+
     const deleteAccount = async () => {
         await props.account?.deleteAccount()
         setConfirmingDelete(false)
@@ -118,6 +139,10 @@ export default function Menu(props: MenuProps) {
                         <AccountPanel state={account}
                                       store={props.account}
                                       onDelete={() => setConfirmingDelete(true)}/>
+                    </MenuPanel>
+                    : playersOpen && props.players
+                    ? <MenuPanel title="Players online" onClose={() => setPlayersOpen(false)}>
+                        <PlayersPanel entries={props.players}/>
                     </MenuPanel>
                     : <>
                         <div className="menu-playing">
@@ -152,6 +177,9 @@ export default function Menu(props: MenuProps) {
                             {account.kind === "ready" && <AccountButton state={account}
                                                                         buttonRef={accountButton}
                                                                         onOpen={openAccount}/>}
+                            {props.players && <PlayersButton entries={props.players}
+                                                             buttonRef={playersButton}
+                                                             onOpen={openPlayers}/>}
                             <button type="button"
                                     className="button button-ghost"
                                     onClick={() => setAboutOpen(true)}>

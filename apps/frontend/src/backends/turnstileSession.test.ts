@@ -169,6 +169,50 @@ describe("SessionClient", () => {
         await expect(client.token()).rejects.toBeInstanceOf(SessionUnavailableError)
         expect(createSession).not.toHaveBeenCalled()
     })
+
+    describe("held", () => {
+        // Presence asks this on a timer: a mint here would put a Turnstile
+        // check behind every visitor who never clicked.
+        it("holds nothing before the first mint, and does not start one", () => {
+            const createSession = vi.fn(minting("session-1"))
+            const attest = vi.fn(async () => "widget-token")
+
+            const client = new SessionClient(fakeClient(createSession), attest, {now: clock})
+
+            expect(client.held()).toBeUndefined()
+            expect(attest).not.toHaveBeenCalled()
+            expect(createSession).not.toHaveBeenCalled()
+        })
+
+        it("holds the token a click minted", async () => {
+            const client = new SessionClient(fakeClient(minting("session-1")), async () => "widget-token", {now: clock})
+
+            await client.token()
+
+            expect(client.held()).toBe("session-1")
+        })
+
+        it("lets go of it inside the refresh margin, as token does", async () => {
+            const client = new SessionClient(fakeClient(minting("session-1")), async () => "widget-token", {
+                now: clock,
+                refreshMarginMs: 60_000,
+            })
+            await client.token()
+
+            now += HOUR_MS - 59_000
+
+            expect(client.held()).toBeUndefined()
+        })
+
+        it("lets go of it on an invalidation", async () => {
+            const client = new SessionClient(fakeClient(minting("session-1")), async () => "widget-token", {now: clock})
+            await client.token()
+
+            client.invalidate()
+
+            expect(client.held()).toBeUndefined()
+        })
+    })
 })
 
 /** A fetch that records what it was asked and answers nothing a client can read. */
