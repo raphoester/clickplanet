@@ -1,6 +1,9 @@
 /** Where every provider sends the browser back. Registered with each provider exactly. */
 export const CALLBACK_PATH = "/auth/callback"
 
+/** Where the game is: the callback hands over to it there. `/` is the home page. */
+export const GAME_PATH = "/play"
+
 export type SignInCallback =
     /** The provider sent a code to trade. */
     | {kind: "code", code: string, state: string}

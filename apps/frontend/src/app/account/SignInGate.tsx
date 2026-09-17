@@ -1,5 +1,5 @@
 import {ReactNode, useState} from "react"
-import {SignInCallback as Callback} from "../../domain/signInCallback.ts"
+import {GAME_PATH, SignInCallback as Callback} from "../../domain/signInCallback.ts"
 import {AccountStore} from "./accountStore.ts"
 import {rememberedSignIn} from "./rememberedSignIn.ts"
 import SignInCallback from "./SignInCallback.tsx"
@@ -30,7 +30,7 @@ export default function SignInGate(props: SignInGateProps) {
         complete={(code, state) => account.completeSignIn(code, state)}
         startAgain={remembered && (() => account.leaveFor(remembered.provider, remembered.intent))}
         onDone={() => {
-            window.history.replaceState(null, "", "/")
+            window.history.replaceState(null, "", GAME_PATH)
             setDone(true)
         }}/>
 }
