@@ -47,21 +47,22 @@ make dBuild
 
 This is a Go backend for a collaborative map-clicking game. It follows **hexagonal architecture (ports & adapters)**.
 
-### Three bounded contexts, one process
+### Four bounded contexts, one process
 
 - **`internal/planet/`** — the tile game: clicks, ownership, the map, the update stream.
 - **`internal/chat/`** — the live chat: messages, identity, retention.
 - **`internal/auth/`** — who a caller is and what it has to prove before it may click: Turnstile, accounts, the click token. See [Auth](#auth-internalauth).
+- **`internal/player/`** — what the game keeps about one account: the name it chose, the tiles it took, its daily streak. See [Player](#player-internalplayer).
 
 They share the process, the transport and the country list, and **nothing else**. None imports another; each owns its own domain types, its own proto package, its own storage adapter (where it has one) and its own edge.
 
-**A module never calls another module's code or reads its data in its own stack trace.** When one needs an answer from another it asks over Connect, on a loopback listener — see [Calling another module](#calling-another-module). One does: `planet` takes the click token's verifying key from `auth`. When one only has to say that something happened, it publishes an event in process and never learns who listens — see [Telling other modules what happened](#telling-other-modules-what-happened).
+**A module never calls another module's code or reads its data in its own stack trace.** When one needs an answer from another it asks over Connect, on a loopback listener — see [Calling another module](#calling-another-module). Two do: `planet` and `player` take the click token's verifying key from `auth`. When one only has to say that something happened, it publishes an event in process and never learns who listens — see [Telling other modules what happened](#telling-other-modules-what-happened). `planet` publishes `TileTaken` and `auth` publishes `AccountDeleted`; `player` hears both.
 
 Bonus boxes live inside `internal/planet/` rather than beside it: what they grant
 is click allowance, and what carries them is the planet stream. A context of
 their own would have to import both.
 
-**`internal/antibot/` is a domain library, not a fourth context.** It has no proto
+**`internal/antibot/` is a domain library, not a fifth context.** It has no proto
 package, no adapters and no `module.go`, and it cannot be wired without a caller
 composing it — the clicks edge does, the way it gates on `auth`. It is not a
 shared package because "is this caller a bot" is the business this game is in,
@@ -85,6 +86,7 @@ root package**:
 | `planet` | `Config`, `NewModule` |
 | `chat` | `Config`, `NewModule` |
 | `auth` | `Config`, `NewModule`; behind the `testing` tag, `NewModuleWithFakeProviders` and the fake's types |
+| `player` | `Config`, `NewModule` |
 | `antibot` | `Config`, `Observer`, `Guard`, `New`, `Description`, `Click`, `Report`, `Sentence`, `Examination`, `Reading` |
 
 That holds for `cmd/api` too: the composition root lists modules and cannot
@@ -137,12 +139,13 @@ The auth module follows this. Code outside it has not been checked against the r
 
 ### The composite layer
 
-Each context wires **itself**, in a `module.go` at its root (`internal/planet/module.go`, `internal/chat/module.go`, `internal/auth/module.go`). That file is the context's manifest: its `Config`, whether it is on, and its DI sequence. **A module takes its config and nothing else, and builds every object it needs itself** — there is no `Deps` struct and nothing is handed down from `main`. A module is a `cpbootstrap.Module` — a name, an `Enabled` flag and a DI sequence — and the sequence is handed a `cpbootstrap.Props` carrying registrars and nothing else:
+Each context wires **itself**, in a `module.go` at its root (`internal/planet/module.go`, `internal/chat/module.go`, `internal/auth/module.go`, `internal/player/module.go`). That file is the context's manifest: its `Config`, whether it is on, and its DI sequence. **A module takes its config and nothing else, and builds every object it needs itself** — there is no `Deps` struct and nothing is handed down from `main`. A module is a `cpbootstrap.Module` — a name, an `Enabled` flag and a DI sequence — and the sequence is handed a `cpbootstrap.Props` carrying registrars and nothing else:
 
 - `props.RPC.Mount(build, interceptors...)` — the module hands over what *builds* the handler, plus the interceptors it wants. `cpbootstrap` builds it, so it can put its own interceptor outside every module's — see [The error net](#the-error-net)
 - `props.AdminRPC.Mount(build, interceptors...)` — the same, for an operator service: served only on the loopback admin listener — see [Operator tools](#operator-tools-adminservice)
 - `props.InternalRPC.Mount(build, interceptors...)` — the same again, for what other modules call: served only on the loopback internal listener
 - `props.Internal.Dial()` — the HTTP client and base URL a generated `New<Service>Client` takes, to call another module — see [Calling another module](#calling-another-module)
+- `props.Events` — the in-process event bus: `props.Events.Publish(message)`, and `cpbootstrap.Subscribe(props.Events, name, buffer, handler)` for the runner that delivers one type — see [Telling other modules what happened](#telling-other-modules-what-happened)
 - `props.Runners.Add(runner)` — a `Runner` (`Name()` and `Run(ctx)`), run as a goroutine with the process-lifetime context
 - `props.Closers.Add(name, close)` — a cleanup, run in reverse registration order
 - `props.Logger`, `props.Metrics`
@@ -163,10 +166,11 @@ return []bootstrap.Module{
 	auth.NewModule(config.Auth),
 	planet.NewModule(config.Planet),
 	chat.NewModule(config.Chat),
+	player.NewModule(config.Player),
 }
 ```
 
-**Every module is always listed; a module with a switch reads its own.** `NewModule` sets `Enabled` and `cpbootstrap` skips the ones that are off, so turning auth off is a config change and never an edit here. `planet` and `chat` have no switch and are always on. A disabled module is never built, so its routes are **absent** rather than present and refusing — `/auth.v1.AuthService/` 404s.
+**Every module is always listed; a module with a switch reads its own.** `NewModule` sets `Enabled` and `cpbootstrap` skips the ones that are off, so turning auth off is a config change and never an edit here. `planet` and `chat` have no switch and are always on; `auth` and `player` have one each. A disabled module is never built, so its routes are **absent** rather than present and refusing — `/auth.v1.AuthService/` 404s.
 
 #### What two contexts need, without either handing it to the other
 
@@ -185,7 +189,7 @@ return []bootstrap.Module{
 
 **Over Connect, on a loopback listener, never in the caller's stack trace.** A module that other modules call mounts an internal service with `props.InternalRPC.Mount`; `cpbootstrap` serves it on `httpServer.internalBindAddress` alone, which must be loopback. The caller builds a generated client over `props.Internal.Dial()`.
 
-The one caller today is `planet`, asking `auth.v1.InternalService/GetVerifyingKey` for the public half of the click token key.
+`planet` and `player` ask `auth.v1.InternalService/GetVerifyingKey` for the public half of the click token key. Each holds its own `rpc_session_verifier`: a module cannot import another's interior, so `player`'s is a copy of `planet`'s. `player` serves `player.v1.InternalService/GetNames`, for the chat to show account names.
 
 - **Each module's data stays in one place.** The caller holds an address, never the other module's config block, pool, objects or root package. The seed is read by `auth` and nothing else.
 - **`Dial` is the one place that knows the transport is loopback HTTP.** Moving to unix sockets changes the listener and `internalDialer`, and no module.
@@ -208,7 +212,21 @@ The proto sits beside the public one in the module's package (`proto/auth/v1/int
 - **A full buffer drops the event and counts it.** Delivery is at most once and not durable: a crash or a restart loses what was in flight. A flow that cannot lose an event (money, rewards) needs a durable path of its own, not this.
 - **Subscribers register while modules are built**, before any runner starts, so no event is published to nobody at boot.
 
-No event exists yet. The first arrives with the `player` module, which counts takes from `planet`.
+**`cpbootstrap` holds the bus** (`events.go`), and a module reaches it as `props.Events`:
+
+- **Publish** takes any proto message and never blocks: a non-blocking send to each subscriber of that message's type. The first subscriber gets the message, each other one a `proto.Clone`.
+- **`cpbootstrap.Subscribe[T](props.Events, name, buffer, handler)`** registers a channel of `buffer` events for type `T` and answers the `Runner` that reads it and calls `handler.Handle(ctx, event)`. The module adds that runner. A second subscriber of one type with the same name refuses the boot, and so does a zero buffer.
+- **Registering after the runners start is refused.** `Run` seals the bus once every module is built. An event published while modules are built (or before the runner starts) waits in the buffer, so the order of modules in `cmd/api` does not matter.
+- **`events_dropped_total{event, subscriber}`** counts what a full buffer dropped, and **`events_failed_total{event, subscriber}`** what a handler answered with an error. The bus logs nothing: a subscriber that wants a log line wraps its handler in a decorator (`player`'s `log_subscriber`).
+- **A subscriber's runner drains its buffer when it stops**, so what was published before the server stopped is still handled. A store it writes to must outlive it: `cppg.CloseAfter` closes the pool once the runners returned.
+- **Tests:** `events_test.go` pins order per subscriber, a copy each, drop and count, no subscriber code in the publisher's stack trace, register-before-run, and the drain at shutdown. `cpbootstrap.RecordedEvents` (behind the tag) stands in for the bus where a use case only publishes.
+
+The events today:
+
+| event | published by | when | heard by |
+|---|---|---|---|
+| `planet.v1.TileTaken{account_id, tile_id, country, taken_at}` | `planet`, `ledger/publishing_ledger_storage` | each take the ledger records with an account: a click, a spread or an enclose, one event per tile | `player`, for the stats |
+| `auth.v1.AccountDeleted{account_id}` | `auth`, `delete_account_usecase` and `prune_guests_usecase` | after the account row is deleted; a pruned guest is a deleted account | `player`, which forgets the profile and the stats |
 
 Adding a context that callers talk to means a `proto/<name>/v1`, an `internal/<name>/` with a `module.go`, and one line in the slice. Connect derives the route from the proto package, so there is no prefix to allocate and no router to edit.
 
@@ -404,10 +422,12 @@ POST /auth.v1.AuthService/CreateSession   [Cookie: cp_sid=…, sent by the web c
   → shared/cpsession.Signer.Mint [Ed25519 over version+expiry+id+account+scope; nothing stored]
   ← token, and Set-Cookie when the session is new or renewed
 
-POST /auth.v1.AuthService/StartSignIn → authorization URL, Set-Cookie: cp_oauth (sealed flow)
+POST /auth.v1.AuthService/StartSignIn   [Cookie: cp_sid, read for a link only]
+  → start_sign_in_usecase: a link needs the cookie's account; seal the flow with the intent
+  ← authorization URL, Set-Cookie: cp_oauth (sealed flow)
   … the provider … → https://clickplanet.lol/auth/callback?code&state
 POST /auth.v1.AuthService/CompleteSignIn   [Cookie: cp_oauth, cp_sid]
-  → complete_sign_in_usecase: open and check the flow, provider.Exchange, accounts.OutcomeOf, SaveSignIn
+  → complete_sign_in_usecase: open and check the flow, a link's account, provider.Exchange, accounts.OutcomeOf, SaveSignIn
   ← Set-Cookie: cp_sid (new session), cp_oauth cleared; the client mints again
 
 POST /session.v1.SessionService/CreateSession   [deprecated]
@@ -419,7 +439,7 @@ POST /planet.v1.ClickService/Click   [X-Session-Token: <the minted token>]
        then cpsession.Verifier: one signature check — this context holds no seed]
   → ClickService → click_handler
   → antibot_attempt_click (times every try for the metronome; drops nothing)
-  → throttle_click  (spends a token, or refuses)
+  → throttle_click  (spends from the account's bucket and its scope's together, or refuses)
   → antibot_click   (judges; a flagged caller is answered OK and dropped)
   → prom_click      (counts)
   → clicks/usecases/click_usecase (validates tile ID + country)
@@ -468,7 +488,17 @@ The table holds **personal data** — IPs next to user-authored text — so the 
 
 ### Rate limiting
 
-`throttle_click` throttles clicks, per source IP, from a `shared/cpratelimit` token bucket — 1 click/s with a burst of 10 by default (`rateLimiter.*`). `MapDensity` and `GetMap` are cacheable reads a proxy in front absorbs; limiting them would punish a page load rather than a bot. A refused click answers `CodeResourceExhausted`, i.e. HTTP 429, and never reaches the map.
+`throttle_click` throttles clicks from `shared/cpratelimit` token buckets. `MapDensity` and `GetMap` are cacheable reads a proxy in front absorbs; limiting them would punish a page load rather than a bot. A refused click answers `CodeResourceExhausted`, i.e. HTTP 429, and never reaches the map.
+
+#### Two buckets per click
+
+**A click spends from two buckets at once: its account's and its scope's.** The account is the one the click token names; the scope is the address, or its /64 over IPv6 (`cpipscope`). The account's bucket is `rateLimiter.*`, 1 click/s with a burst of 10 by default. The scope's is `rateLimiter.scopeMultiplier` (10) times that, because many players can share one address — a campus, a school, a carrier NAT.
+
+- **A click is refused when either bucket is empty, and a refusal spends from neither.** `Limiter.TakeAll` checks every bucket and spends from all or none under one lock, so a player refused for a busy scope keeps its own tokens.
+- **A token with no account spends one bucket, the scope's at 1×** — exactly the throttle from before accounts. The deprecated `session.v1` mint, an invalid token while `auth.enforce` is off, and `auth.enabled` false all land here. It is a separate bucket from the scope's shared one, because a key never changes its scale.
+- **One limiter holds both.** A bucket's `Scale` is set when it is made and multiplies its burst and rate for good; `clicks.Buckets` names the keys (`account:<id>` at 1, `scope:<scope>` at the multiplier, or the bare scope at 1 with no account). `clicks.PayerOf(ctx)` reads the scope and the account off the context, so the throttle, `GetBudget` and a bonus claim cannot disagree on who pays.
+- **What this buys.** Before accounts, one address was one allowance, so a campus played as one player and a bot farm with many cookies on one address was no worse off than one tab. Now each player behind an address has its own allowance, bounded together by the scope's, and a bot moving across addresses keeps spending one account's.
+- `TestManyAccountsOnOneScopeShareTheScopesBucket` and `TestOneAccountOnManyScopesSpendsOneAllowance` pin both halves over HTTP.
 
 **It is a decorator over the click use case, not an interceptor over the procedure.** Two things fall out of that. The allowance comes back as a return value (`click_usecase.Out`) instead of being left on the context for a handler to find, which is what `cpctx.AddRateBudgetToContext` existed for and why it is gone. And "a click refused for its address or its session must not also spend a token" stops being a rule about the order of a list and becomes a property of the shape: every interceptor is outside the whole click chain by construction. `MapDensity` and `GetMap` are untouched for free, being other procedures entirely — under an interceptor that took a procedure list.
 
@@ -476,7 +506,7 @@ The table holds **personal data** — IPs next to user-authored text — so the 
 
 The web app shows the player how many clicks they have in hand, and **the server is the only thing that knows**. A client running its own copy of the bucket would drift within seconds — it cannot see the clicks the same address makes from another tab, and its idea of when a click was spent is a round trip out of date.
 
-Polling for it would be worse, so nothing polls. `Limiter.Take` returns the bucket's state alongside its verdict, and the state carries the **policy** (`Capacity`, `PerSecond`) as well as the reading: given both, a client replays the same refill arithmetic between two answers and is exact without asking. The pip count and the fill rate on screen are therefore the server's burst and refill rate — **changing `rateLimiter.*` changes the display with no frontend release.**
+Polling for it would be worse, so nothing polls. `Limiter.TakeAll` returns each bucket's state alongside its verdict, and the state carries the **policy** (`Capacity`, `PerSecond`) as well as the reading: given both, a client replays the same refill arithmetic between two answers and is exact without asking. The pip count and the fill rate on screen are therefore the server's burst and refill rate — **changing `rateLimiter.*` changes the display with no frontend release.**
 
 That reading travels two ways, because a refused call has no response message to put it in:
 
@@ -485,11 +515,13 @@ That reading travels two ways, because a refused call has no response message to
 
 Either way the decorator decides the policy and the handler decides how to say it. `clickbudget.Encode` is the one place that shape is agreed, because two procedures answer with a `ClickBudget`: the click that just spent a token, and `GetBudget`.
 
-`ClickService.GetBudget` covers the cold start — a client that has just loaded and has no click to learn from. It reads through `Limiter.Peek`, which spends nothing and, for an address that never clicked, **creates no bucket**: reading an allowance must not be a way to make the limiter remember a caller. It is deliberately not `NO_SIDE_EFFECTS`, so it is a POST no cache will serve a stale answer to; every click re-anchors the client afterwards, so it is asked once per page load.
+**The reading is the tighter bucket** (`clicks.Tightest`): the one with fewer tokens, and on a tie the smaller one. A player behind a busy campus sees the scope's limit rather than a full meter that refuses. The reading is still one bucket's `Capacity`, `PerSecond` and `Tokens`, so the client arithmetic does not change. `Boosted` is always the account's bucket's, the one a bonus widens. `TestTheBudgetIsTheTighterBucket` pins it.
+
+`ClickService.GetBudget` covers the cold start — a client that has just loaded and has no click to learn from. It reads through `Limiter.Peek`, which spends nothing and, for an address that never clicked, **creates no bucket**: reading an allowance must not be a way to make the limiter remember a caller. `NewBudgetSessionInterceptor` reads a token on it when the client sends one, so the reading is the account's, and **refuses nothing**: with no token or a bad one it reads the scope's bucket from before accounts. The web client does not send a token on it yet, so its cold start reads that bucket until the first click re-anchors it. It is deliberately not `NO_SIDE_EFFECTS`, so it is a POST no cache will serve a stale answer to; every click re-anchors the client afterwards, so it is asked once per page load.
 
 **This tells a scripted clicker exactly when to fire**, which is a real cost against [Anti-bot](#anti-bot-internalantibot). It is a small one — a script can already infer the same schedule by counting its own 429s — and it is paid to stop honest players being refused with no warning.
 
-The bucket key is whatever `IPReaderMiddleware` put on the context: `X-Real-IP` if present, otherwise the peer address. **The reverse proxy must set that header itself** — `deploy/vps/caddy/Caddyfile` does, with `header_up X-Real-IP {client_ip}` on every backend route. Merely forwarding it would let a client send its own and buy a fresh bucket per request. The fallback is the peer address rather than a constant precisely so a missing header degrades to per-connection buckets instead of rate limiting the whole game as one player.
+The scope is whatever `IPReaderMiddleware` put on the context: `X-Real-IP` if present, otherwise the peer address. **The reverse proxy must set that header itself** — `deploy/vps/caddy/Caddyfile` does, with `header_up X-Real-IP {client_ip}` on every backend route. Merely forwarding it would let a client send its own and buy a fresh bucket per request. The fallback is the peer address rather than a constant precisely so a missing header degrades to per-connection buckets instead of rate limiting the whole game as one player.
 
 #### A big country pays more per click (`clicks.Toll`)
 
@@ -511,8 +543,9 @@ field numbers rather than changing type in place: a client built against the old
   cost of 2 are five clicks refilling at 0.5/s. The meter narrows off the server's
   numbers the way a bonus widens it, and `ClickBudget` also carries `cost`,
   `share` and the next step so the client can say why.
-- **Bonuses compose with it.** A triple bonus multiplies the bucket and the price
-  divides it, so it is still worth three times the clicks. A spread is one click at
+- **It is charged to both buckets**, the account's and the scope's, at the same price.
+- **Bonuses compose with it.** A triple bonus multiplies the account's bucket and the price
+  divides it, so it is still worth three times the clicks — up to what the scope's bucket holds. A spread is one click at
   the country's price. A bomb is not throttled, and lowers the share of whoever it hits.
 - **A cost above `rateLimiter.burst` refuses the boot**: no bucket could ever pay it.
 
@@ -528,7 +561,7 @@ Chat and sessions each have **their own limiter instance** with their own budget
 
 `NewVPNBlockInterceptor` refuses **`Click` only**, with `CodePermissionDenied` (HTTP 403), when the source address falls in a vendored VPN range. It sits **outside the rate limiter** in the interceptor chain, deliberately: a refused address must not also spend a token, or the next click would come back 429 and the web app would show the throttle dialog instead of the VPN one.
 
-**It exists because of the rate limiter, not instead of it.** The bucket is keyed on an address, and a commercial VPN is the cheapest way to get a fresh one; refusing those addresses is what makes the bucket hold. It raises the floor rather than closing the door — residential proxies appear in no public list, and nothing here stops one. **That gap is what [Sessions](#sessions-internalauth) closes**, by requiring something an address cannot buy; chasing list completeness instead is a treadmill.
+**It exists because of the rate limiter, not instead of it.** The scope's bucket is keyed on an address, and a commercial VPN is the cheapest way to get a fresh one; refusing those addresses is what makes the bucket hold. It raises the floor rather than closing the door — residential proxies appear in no public list, and nothing here stops one. **That gap is what [Sessions](#sessions-internalauth) closes**, by requiring something an address cannot buy; chasing list completeness instead is a treadmill.
 
 Reads and the streams are untouched. A VPN user still loads the planet and follows it live; they cannot paint. That is also what keeps a false positive readable: the page works and says why, instead of failing to load.
 
@@ -605,7 +638,7 @@ internal/auth/internal/
     usecases/get_me_usecase/               reads only
     usecases/sign_out_usecase/  sign_out_everywhere_usecase/  delete_account_usecase/
     usecases/prune_guests_usecase/         deletes idle guests: Executor, Runner, and log_prune_guests
-  signin/                                  Flow (state, PKCE verifier, nonce), Provider, Providers, Sealer, the cp_oauth cookie
+  signin/                                  Flow (state, PKCE verifier, nonce, intent), Provider, Providers, Sealer, the cp_oauth cookie
     google_identity_provider/  discord_identity_provider/  oauth_http/
     aes_flow_sealer/  random_secret_generator/
     usecases/start_sign_in_usecase/  complete_sign_in_usecase/
@@ -625,18 +658,21 @@ internal/auth/internal/
 - **Ids and tokens are injected** (`IDProvider`, `TokenGenerator`), like the clock. Tests use `accounts.SequentialIDs` and `SequentialTokens` (behind the tag), so they assert exact ids.
 - **`accounts.StoreContractSuite` is the port's behaviour**, like `clicks.TileStorageContractSuite`. Both stores embed it: postgres adds only what the port cannot show (the token is never stored, `last_seen_at`, an unverified email is `NULL`), and the use cases are tested over the in-memory one, which can `FailWith` an error.
 - **No cache.** Mints are one per 30s per address, so one indexed read each is cheap, and a sign-out has nothing to invalidate.
-- `planet` reads nothing of the account yet.
+- **`planet` reads the account off the token**: the session interceptor puts it on the context (`cpctx.GetAccount`), and the throttle, the bans and the ledger key on it beside the scope — see [Two buckets per click](#two-buckets-per-click), [Anti-bot](#anti-bot-internalantibot) and [Manual bans](#manual-bans-findplayers-topplayers-banplayer-revertplayer-inspectplayer).
 
 #### Signing in (`internal/auth/internal/signin/`)
 
 **OAuth 2.0 authorization code with PKCE, run by this server, over two RPCs.** No raw HTTP route and no Caddy change: the provider sends the browser to the frontend's callback page, and that page calls the API.
 
-- **`StartSignIn(provider)`** draws a `signin.Flow` — state, PKCE verifier and nonce, 32 random bytes each — seals it into the `cp_oauth` cookie (10 minutes, same attributes as `cp_sid`) and answers the provider's authorization URL. Nothing is stored on the server.
+- **`StartSignIn(provider, intent)`** draws a `signin.Flow` — state, PKCE verifier and nonce, 32 random bytes each, and the intent — seals it into the `cp_oauth` cookie (10 minutes, same attributes as `cp_sid`) and answers the provider's authorization URL. Nothing is stored on the server.
+- **The intent is sign in or link** (`accounts.Intent`). Unset on the wire is sign in, and so is a flow sealed before intents existed: `IntentSignIn` is the zero value. The menu's "Sign in with" buttons send sign in, and "Link" sends link.
+- **A link needs an account when it starts.** With no live `cp_sid`, `StartSignIn` answers `Unauthenticated` and sets no cookie. The flow keeps the account id, and `CompleteSignIn` refuses a link whose browser is on another account or none by then (`Flow.AccountError`, `ErrFlowInvalid`), before the provider is asked.
 - **`CompleteSignIn(code, state)`** opens the cookie, checks the state (constant time) and the expiry, trades the code with the verifier, and clears `cp_oauth` on every answer it maps, success or refusal. A browser that did not start the sign-in has no cookie that matches, which is the whole CSRF defence: a code carried to a victim's browser is refused before the provider is asked.
 - **The cookie is AES-256-GCM** (`aes_flow_sealer`), under a key derived with HKDF from `auth.secret` and a label of its own, so there is no second secret to set and the browser can neither read the verifier nor change the flow.
 - **Google** (`openid email`) reads the user from the ID token in the token endpoint's answer. Its signature is not checked: it comes straight from Google over TLS, which OpenID Connect Core 3.1.3.7 accepts instead; issuer, audience, expiry and nonce are. **Discord** (`identify email`) reads `/users/@me`. Both go through `oauth_http`, which answers `ErrProviderRefused` for a 4xx or an answer that does not decode, and a plain error (the error net's `internal`) when the provider could not be asked.
-- **`accounts.OutcomeOf` decides, and emails are never compared**: an identity already linked signs in to its account; a new one links to the account the browser is on; no account, or one that already holds a user of that provider, gets a new account. The guest a browser leaves for a known identity is left as it was — nothing is merged, and the prune deletes it later.
-- **`accounts.SignIn` is written in one transaction**: the new account if any, the identity if new, the new session, and the deletion of the browser's previous session. The session token changes on every sign-in. Two browsers linking the same new identity at once: the second insert finds it taken (`ErrIdentityTaken`), and the use case runs once more, now as a sign-in.
+- **`accounts.OutcomeOf` decides, and emails are never compared.** To sign in: an identity already linked signs in to its account; a new one links to the account the browser is on; no account, or one that already holds a user of that provider, gets a new account. The guest a browser leaves for a known identity is left as it was — nothing is merged, and the prune deletes it later.
+- **A link never moves the browser.** A new identity links to the account; one already on this account is `SignedIn` and changes nothing but the session token; one on **another** account is `ErrIdentityLinkedElsewhere`; an account that already has a user of that provider is `ErrProviderAlreadyLinked`. A refusal writes nothing and keeps `cp_sid`: only `cp_oauth` is cleared. The handler answers `AlreadyExists` with a `LinkRefusal` detail, which is what the client matches. Before this, a link to an identity another account used moved the browser to that account, and the two accounts could never be joined. To move an identity, the player signs in with it, deletes that account, then links it — there is no merge.
+- **`accounts.SignIn` is written in one transaction**: the new account if any, the identity if new, the new session, and the deletion of the browser's previous session. The session token changes on every sign-in. Two browsers linking the same new identity at once: the second insert finds it taken (`ErrIdentityTaken`), and the use case runs once more with the identity known — a sign-in moves, a link is refused.
 - **An email is kept only when the provider says it is verified** (`accounts.NewIdentity`), and it is `NULL` otherwise. It is for contact, never for finding an account.
 - **Off by default** (`auth.signIn.enabled`). Off, `signin.Providers` is empty and both RPCs answer `Unimplemented`, which Connect sends as HTTP 404. A provider is offered once its `clientId` is set. `StartSignIn` and `CompleteSignIn` spend the mint budget: each can cost a round trip to a third party or make an account.
 - **`GetSignInOptions` is how the client knows which buttons to show**: every provider offered, and an empty list while sign-in is off — never `Unimplemented`, since the question has an answer either way. **It is not throttled and sets no cookie.** A client asks on every page load, and probing with `StartSignIn` instead would spend the mint budget a real sign-in needs and start a flow for nothing. `TestAskingIsNotThrottled` pins it. A server with the whole `auth` module off still 404s it, which the client reads as no provider.
@@ -646,9 +682,44 @@ internal/auth/internal/
 #### Signing out, deleting, pruning
 
 - **`SignOut`** deletes this browser's session and clears the cookie; a browser with no session succeeds too. **`SignOutEverywhere`** deletes every session of the account and answers `Unauthenticated` with none. Neither touches the account.
-- **`DeleteAccount`** deletes the account row, and its identities and sessions go with it by cascade. Planet and chat keep nothing keyed on the account yet; the ledger and the chat log age out. **The `player` module will listen for `auth.v1.AccountDeleted`**: the seam is `delete_account_usecase.Execute`, after the delete, which already answers the account id. The event is not published yet, because an event with no subscriber is dead code.
+- **`DeleteAccount`** deletes the account row, and its identities and sessions go with it by cascade, then publishes **`auth.v1.AccountDeleted`**. `player` hears it and deletes the profile and the stats. Planet and chat keep nothing else keyed on the account; the ledger and the chat log age out.
 - **No unlink RPC.** When one comes, a linked account must keep its last provider: without one it is a guest holding an email.
-- **`prune_guests_usecase`** is an `Executor` and a `Runner` that calls it; `log_prune_guests` is the decorator that logs, so the loop holds no log line. Every `auth.prune.interval` (1h) it deletes, 1000 rows a statement, the accounts with no identity whose `last_seen_at` is older than `auth.prune.idleFor`. That defaults to `guestTTL`, and less refuses the boot: `last_seen_at` moves when a session is extended, so a guest idle that long has no live cookie left.
+- **`prune_guests_usecase`** is an `Executor` and a `Runner` that calls it; `log_prune_guests` is the decorator that logs, so the loop holds no log line. Every `auth.prune.interval` (1h) it deletes, 1000 rows a statement, the accounts with no identity whose `last_seen_at` is older than `auth.prune.idleFor`, and publishes `auth.v1.AccountDeleted` for each (`PruneGuests` answers the ids it deleted). That defaults to `guestTTL`, and less refuses the boot: `last_seen_at` moves when a session is extended, so a guest idle that long has no live cookie left.
+
+### Player (`internal/player/`)
+
+**What the game keeps about one account: the name it chose, the tiles it took and its daily streak.** It makes no account and mints nothing. Off by default (`player.enabled`); off, `player.v1` 404s and nobody hears the events.
+
+```
+internal/player/internal/
+  players/                          AccountID, Name (NameOf), Profile, Stats, Day; the Store port and its contract suite
+    postgres_player_store/          the Store over player.profiles and player.stats
+    inmemory_player_store/          the same port in maps, behind the testing tag
+    usecases/get_profile_usecase/  set_name_usecase/  get_stats_usecase/  get_names_usecase/
+    usecases/record_take_usecase/  forget_account_usecase/
+  playerv1controller/               PlayerService and InternalService (bags), the session interceptor
+    get_profile_handler/  set_name_handler/  get_stats_handler/  get_names_handler/
+    caller/                         the account on the context, or Unauthenticated
+    playermessage/                  Profile and Stats as player.v1 messages
+    rpc_session_verifier/           the key from auth.v1.InternalService, asked once (planet's, copied)
+  subscribers/                      the edge for events, as the controller is for the wire
+    tile_taken_subscriber/  account_deleted_subscriber/  log_subscriber/
+  migrations/
+```
+
+- **The caller is the account in the click token.** `PlayerService` sits behind `cpconnect.NewSessionInterceptor`, always enforcing, on the key `auth` hands over the internal listener, as `planet` does. No token, a bad one, or a token with no account (the deprecated mint) is `Unauthenticated`. `player_session_checks{verdict}` counts the verdicts.
+- **`GetProfile`** answers the account id and its name, empty when none was chosen. **`SetName`** cleans the name with the chat's rules (`players.NameOf`: valid UTF-8, a tab is a space, control characters removed, ends trimmed, 1 to 24 runes) and answers `InvalidArgument` otherwise. The rule is a copy of `messages.Limits.Name`: chat's interior is not reachable. **`GetStats`** answers `tiles_taken`, `streak_current`, `streak_best` and `streak_last_day` (YYYY-MM-DD).
+- **`InternalService/GetNames(account_ids)`** is for the chat: the names by id, leaving out an id with no name or one that is not a UUID.
+- **Stats come from `planet.v1.TileTaken`**, one event per tile, so a spread of seven is seven tiles. **The streak day is UTC**: a take on the day after `streak_last_day` extends the streak, a take on the same day changes nothing, a gap starts it again at 1, and a late event older than the last day counts a tile and leaves the streak alone (`Stats.WithTake`). `GetStats` reads it as of today (`Stats.AsOf`): a streak whose last day is before yesterday reads 0, and `streak_best` keeps it. `stats_test.go` pins the rules across UTC midnight.
+- **`auth.v1.AccountDeleted` deletes both rows.** A take that arrives after, on a token minted before the delete, makes a new stats row; the token lives an hour at most.
+- **Events are at most once.** A take dropped by a full buffer (`events_dropped_total`) or lost in a crash is a tile the stats never count. Stats start the day the module is turned on: takes before are not replayed.
+- **No memory copy: every call reads or writes postgres.** This is not the tile map's pattern on purpose. The map is in memory so a click never waits on the database; a take reaches this module over the event bus, so a click already never waits on it, and the calls are few (production is ~15 takes a second at peak). A memory copy would load every account that ever took a tile at boot, and cost a dirty set, a flush loop and a window a hard kill loses.
+- **`RecordTake` is one transaction** under `pg_advisory_xact_lock` on the account: read the stats, apply `Stats.WithTake`, upsert. The rule stays in Go, and two takes never read the same stats. An advisory lock rather than `FOR UPDATE`, because a first take has no row to lock; `TestConcurrentFirstTakesAreAllCounted` fails without it.
+- **Errors are real errors.** Every `Store` method returns one; absence is `ErrNoProfile` or `ErrNoStats`, which the use cases answer as an empty profile or empty stats. On a request a database error is the error net's `internal`. On an event it is counted in `events_failed_total`, logged by `log_subscriber`, and the take is lost. Each event's write has a 5s timeout (`subscribers.Timeout`), so a stuck database cannot hold a subscriber.
+- **`players.StoreContractSuite`** is the port's behaviour, run on `inmemory_player_store` and on postgres. The use cases are tested over the in-memory one, which can `FailWith` an error.
+- **The pool closes after the subscribers stop** (`cppg.CloseAfter`), so what they drain from their buffers at shutdown is still written.
+- **No foreign key to `auth.accounts`**: the schemas are each module's own, and the event is how a deletion crosses.
+- **If takes ever outgrow one transaction each**, the subscriber can batch them; nothing else changes.
 
 ### Bonus boxes (`internal/planet/internal/bonuses/`)
 
@@ -722,9 +793,10 @@ box it is offered where a person catches some. This makes the worst case a
 number you choose rather than a function of reflexes.
 
 **A caller is a scope, not a connection.** `Attend` is keyed on `cpipscope.Of`,
-the same unit the throttle and the session token use, and holds every stream
+the same unit the session token binds to, and holds every stream
 sharing it — so twenty tabs are one entrant on one schedule, and all of them are
-sent the box. The handler's `defer` is what removes it; there is no
+sent the box. The streams carry no token, so offers stay on the scope; the boost a
+triple grants lands on the claiming account's bucket. The handler's `defer` is what removes it; there is no
 context goroutine per connected client, because the fanout deliberately does not
 pay that cost.
 
@@ -903,7 +975,12 @@ closed: `bonus_enclosures_total` and `bonus_enclosed_tiles_total`.
 #### What a bonus does to the bucket
 
 `cpratelimit.Limiter.Boost(key, multiplier, until)` multiplies both the ceiling and
-the refill rate until it lapses. It is **opt-in and additive**: a bucket nobody
+the refill rate until it lapses. **It boosts the account's bucket, never the scope's**
+(`Buckets.Boosted`): the scope's is shared with every other player behind the
+address, so a bonus that widened it would be a bonus for all of them. With no
+account it boosts the scope's own 1× bucket, as before accounts. A boosted player
+still spends from the scope's bucket, so it is bounded by it —
+`TestABoostDoesNotWidenTheScopesBucket`. It is **opt-in and additive**: a bucket nobody
 boosts holds `multiplier: 1` and behaves exactly as it did before boosting
 existed, which matters because the same limiter type throttles chat and session
 mints and neither has any business being boosted.
@@ -967,7 +1044,7 @@ the metric names, the message and attribute names of the ban line, and where
 in the chain it sits.
 
 **Detection and consequence are separate, and the consequence is the boring
-half.** `antibot/internal/shadowban` takes a scope and a clock and runs a ban. It knows
+half.** `antibot/internal/shadowban` takes a scope or an account and a clock and runs a ban. It knows
 nothing about tiles, reactions or what earned it, which is why the same sentence
 serves three different findings and would serve a fourth.
 
@@ -1031,7 +1108,8 @@ the caller takes no tiles so `retaker` starves, but ids and timing still flow, s
 #### What survives a restart
 
 **Bans and evidence both, in postgres, in the `antibot` schema.** Bans are
-`antibot.bans`, one row per scope ever banned, written by `antibot/internal/shadowban`. What
+`antibot.bans`, one row per scope ever banned, and `antibot.account_bans`, one row per
+account, written by `antibot/internal/shadowban`. What
 each watchdog is tracking and the jury's record of each caller — its tally and
 the last opinion of every watchdog — are `antibot.evidence`, one row per section, written by
 `antibot/internal/evidence`. This exists because of 2026-09-14: production
@@ -1053,8 +1131,9 @@ in memory no window of 10m (`suspicionWindow`), 15m (`trackWindow`) or 30m
   `MemoryPersistence` (behind the `testing` tag) the fakes. State lives in memory
   and is flushed every `saveInterval` (1m), with a 10s timeout, and once more on
   shutdown. `antibot.NewInMemory` (behind the tag) builds a guard over the fakes.
-- **Bans are flushed by scope.** A flag or a ban marks the scope dirty; a flush
-  upserts the dirty scopes, as they are then, in one statement. A failed flush
+- **Bans are flushed by key.** Scopes and accounts are two `Banner`s over two
+  tables, each with its own ladder. A flag or a ban marks the key dirty; a flush
+  upserts the dirty keys, as they are then, in one statement per table. A failed flush
   marks them again for the next tick. A row is never deleted: offences are never
   forgotten. `nextFlagAt` is not kept, as it never was.
 - **Evidence is flushed whole.** One section per watchdog and one for the jury,
@@ -1419,11 +1498,29 @@ same rule as `Opinion`: the edge puts it on a label and never compares it.
 `jury.Hooks` carries the typed verdict inside the package, and `antibot.New`
 words it on the way out.
 
-Keyed on `cpipscope.Of`, the same unit as the throttle, so a v6 caller cannot serve
-a ban on one address and click from the next in its own /64. It only bites a bot
-with a stable address — against a residential proxy pool it evaporates for
-exactly the reason the rate limiter does. `cohort` is the one watchdog that reads
-across scopes, and it is the answer to a pool that rotates inside one range.
+**The watchdogs judge a scope; a ban falls on the scope and the account.** The
+evidence stays keyed on `cpipscope.Of`, so a v6 caller cannot serve a ban on one
+address and click from the next in its own /64. A click carries the account its
+token names (`Click.Account`), and `shadowban.Bans` passes a ban on:
+
+- **the account**, when the token names one, so it is dropped from any scope;
+- **the scope too, when there is no account or the account is a guest's**
+  (`Click.SignedIn` false, which is every account until sign-in lands). A guest can
+  shed its account with a new cookie, and must not shed the ban with it. A
+  signed-in account's ban leaves its scope alone, so a campus is not banned for one
+  player on it.
+
+**A click, and a bomb, are dropped when the scope or the account is banned**
+(`Guard.Banned(scope, account)`). `TestAGuestBannedByTheJuryCannotShedItWithAFreshCookie`
+and `TestABannedGuestWithAFreshCookieIsStillDropped` pin it. The `antibot ban` line
+carries `account`, and `shadowban_flagged` counts running bans on scopes and on
+accounts, so a guest banned on both counts twice.
+
+A scope ban only bites a bot with a stable address — against a residential proxy
+pool it evaporates for exactly the reason the scope's bucket does; the account ban
+is what follows a guest across addresses until it drops its cookie. `cohort` is the
+one watchdog that reads across scopes, and it is the answer to a pool that rotates
+inside one range.
 
 `inmemory_tile_storage.Owner` exists for this: one indexed read under the existing
 lock, declared as a local port in the controller the way each use case declares
@@ -1469,7 +1566,8 @@ rather than a fault of this server — on a public endpoint it is the common cas
 
 - `NewRateLimitInterceptor(limiter, refusal, procedures...)` — a `shared/cpratelimit` bucket keyed on `cpctx.RateLimitKey`, answering `CodeResourceExhausted` (429). It reports nothing about what is left: a context that shows a player their allowance throttles inside its own use case instead, where the reading is a return value. This is for the procedures where a refusal is the whole story — chat and sessions
 - `NewIPBlockInterceptor(blocklist, refusal, onBlocked, procedures...)` — a `cpipblock.Blocklist` lookup answering `CodePermissionDenied` (403), with an optional hook the click counter hangs on
-- `NewSessionInterceptor(verifier, clock, refusal, enforce, onVerdict, procedures...)` — a `shared/cpsession` signature check answering `CodeUnauthenticated` (401), which puts the session id on the context and, with `enforce` false, counts without refusing
+- `NewSessionInterceptor(verifier, clock, refusal, enforce, onVerdict, procedures...)` — a `shared/cpsession` signature check answering `CodeUnauthenticated` (401), which puts the session id and the account (when the token names one) on the context and, with `enforce` false, counts without refusing
+- `NewSessionReaderInterceptor(verifier, clock, procedures...)` — the same check where a token is optional: a valid one puts the same values on the context, and nothing is refused or counted. `GetBudget` uses it
 - `NewErrorInterceptor(logger, mapper)` — the net, applied by `cpbootstrap` rather than by any module (see [The error net](#the-error-net)). It is a full `connect.Interceptor` rather than a `UnaryInterceptorFunc`, so it covers the streaming handlers too; without that, a stream would be the one procedure whose raw error the caller sees. The `Mapper` is optional and nothing passes one any more.
 
 Each context keeps a thin named constructor over these — `planetv1controller.NewVPNBlockInterceptor`, `chatv1controller.NewRateLimitInterceptor` and `NewBlocklistInterceptor` — which is where the procedure list, the refusal wording and the metric live. **A context names its own policy; neither reimplements the mechanism.**
@@ -1493,12 +1591,12 @@ Both chains order them the same way: error mapping outermost, then the blocklist
 
 **The ledger follows the same pattern**, through `inmemory_ledger_storage.Persistence` and `ledger/postgres_ledger_store`, on the tile map's pool.
 
-- **Three tables.** `ledger_takes` is one row per take, keyed by its position. `ledger_head` is one row: the oldest position kept, so positions carry on past a ledger the retention emptied. `ledger_forgotten` is a reverted scope's mark.
+- **Four tables.** `ledger_takes` is one row per take, keyed by its position, with the take's `account` (NULL for none, and for every take made before accounts). `ledger_head` is one row: the oldest position kept, so positions carry on past a ledger the retention emptied. `ledger_forgotten` is a reverted scope's mark, and `ledger_forgotten_accounts` a reverted account's.
 - **Boot loads it**, takes in position order, then the marks. **A failed load refuses the boot.** Measured at 1M takes on a laptop: 95 MiB of table, 0.8s to load, 1.3s to copy in — so ~380 MiB, ~3s and ~5s at the 4M cap.
 - **A flush appends, it never rewrites.** Every `ledgerStorage.flushInterval` (1s), `Flush` hands the takes past the last flush to `Save`: one transaction that `COPY`s them in, deletes the takes before the head (what the retention or the cap dropped), moves the head, and upserts the marks set since. It first deletes any row at or past the first new position, so a flush whose commit answer was lost writes again without a conflict. A take dropped before it was flushed is never written. A failed save keeps it all for the next tick; each flush has a 10s timeout, and shutdown flushes once more.
 - **One pool for both runners.** `cppg.CloseAfter(db, logger, tilesStorage, takings)` runs them together and closes the pool after both last flushes.
 
-The antibot's bans and evidence are in postgres too, in the `antibot` schema, the same way — see [What survives a restart](#what-survives-a-restart).
+The antibot's bans and evidence are in postgres too, in the `antibot` schema, the same way — see [What survives a restart](#what-survives-a-restart). The player module's profiles and stats are in postgres too, in the `player` schema, but with no memory copy: each call reads or writes the table — see [Player](#player-internalplayer).
 
 Nothing lives in files any more: the container mounts no state volume.
 
@@ -1526,18 +1624,18 @@ Measured on a copy of production's map, before postgres: 22,040 tiles in 4.4s, a
 
 #### Manual bans: `FindPlayers`, `TopPlayers`, `BanPlayer`, `RevertPlayer`, `InspectPlayer`
 
-For the patterns no watchdog catches but a person sees on the map. A player is a **scope** (`cpipscope`): the address over IPv4, the /64 over IPv6 — what the throttle and the ban already key on.
+For the patterns no watchdog catches but a person sees on the map. A player is an **account on a scope** (`cpipscope`: the address over IPv4, the /64 over IPv6), or a scope alone for takes made with no account. `BanPlayer`, `RevertPlayer` and `InspectPlayer` take a `scope` (any address) **or** an `account_id`, never both (`ledger.ParseCaller`; both, neither or a malformed id is `InvalidArgument`).
 
-- **`ledger` remembers every take**: tile, scope, country, previous owner and time, oldest first. `ledger.Recording` wraps the storage the click chain writes through — the rule, `spread_click` and the enclose annexer — so every tile a click takes is recorded, a no-op is not, and a click the shadow ban drops never reaches it. A take by somebody else is one more take, not a replacement: a bot painted over as fast as it paints is still in the ledger. Bombs and reassigns write nothing; they show as a change the ledger never saw.
-- **The rules are in the `ledger` root, and its package doc states them**. A scope **holds** a tile when the tile's latest take is the scope's and the tile still wears that paint. A revert gives a held tile back to what it held before the scope's **current run** on it: its own latest takes, walking back while each took the tile from the paint of the one before. Another scope's take breaks the run (A il→ps, B ps→de, A de→ps goes back to `de`), and so does a change the ledger never saw (A il→ps, bomb, A ""→ps goes back to nobody). `Tally` gathers players for `FindPlayers` and `TopPlayers`, `Runs` computes the revert, `ByTakes` and `Top` rank and cut. The use cases only replay the ledger into these, filter through their ports, and call them. The tests for each interleaving are in `ledger_test.go`.
-- **Kept in memory and flushed to postgres** (`inmemory_ledger_storage`, behind `ledger.Storage`; see [Durability](#durability)). In memory it is an append-only log of 16-byte records in 1 MiB chunks, strings interned per chunk so an old chunk takes its strings when it goes. A record is never changed once written, so `Replay` copies the chunk headers under the lock and reads without it: a `TopPlayers` over 4M takes takes ~1s and never blocks a click. `Forget(scope, position)` hides a reverted scope's takes up to the replay it was computed from, so a take made mid-revert still counts.
-- **Bounded twice.** `ledger.retention` (72h) drops takes by age, each `ledger.sweepInterval`; `ledgerStorage.maxTakes` (4M) drops the oldest first when a busy stretch fills it, and logs "the ledger is full" once. Production is thousands of clicks per 5 minutes (`clicks_total`), and a spread click takes up to 7 tiles: 15 takes a second fill 4M in three days. Measured at 4M: ~85 MiB heap.
-- **`FindPlayers(flag, area, limit)`** lists every scope that took a tile for `flag` on `area`'s ground (empty is the whole map), latest take first, with any running ban. The ground comes from `clicks.Borders`, built by `embedded_geodesic_map.Loader.LoadBorders` from the borders blob the frontend paints flags from — see [Map geography](#map-geography). A blob for another map refuses the boot.
+- **`ledger` remembers every take**: tile, scope, account, country, previous owner and time, oldest first. `ledger.Recording` wraps the storage the click chain writes through — the rule, `spread_click` and the enclose annexer — so every tile a click takes is recorded, a no-op is not, and a click the shadow ban drops never reaches it. Recording appends through `publishing_ledger_storage`, which publishes `planet.v1.TileTaken` for each take with an account, after it is recorded. A take by somebody else is one more take, not a replacement: a bot painted over as fast as it paints is still in the ledger. Bombs and reassigns write nothing; they show as a change the ledger never saw.
+- **The rules are in the `ledger` root, and its package doc states them**. A caller (`ledger.Caller`, a scope or an account) **holds** a tile when the tile's latest take is its own and the tile still wears that paint. A revert gives a held tile back to what it held before the caller's **current run** on it: its own latest takes, walking back while each took the tile from the paint of the one before. An account's run follows it across scopes. Another scope's take breaks the run (A il→ps, B ps→de, A de→ps goes back to `de`), and so does a change the ledger never saw (A il→ps, bomb, A ""→ps goes back to nobody). `Tally` gathers players for `FindPlayers` and `TopPlayers`, `Runs` computes the revert, `ByTakes` and `Top` rank and cut. The use cases only replay the ledger into these, filter through their ports, and call them. The tests for each interleaving are in `ledger_test.go`.
+- **Kept in memory and flushed to postgres** (`inmemory_ledger_storage`, behind `ledger.Storage`; see [Durability](#durability)). In memory it is an append-only log of 20-byte records in 1.25 MiB chunks, scopes and accounts interned in one table per chunk and countries in another, so an old chunk takes its strings when it goes. A record is never changed once written, so `Replay` copies the chunk headers under the lock and reads without it: a `TopPlayers` over 4M takes takes ~1s and never blocks a click. `Forget(caller, position)` hides a reverted scope's or account's takes up to the replay it was computed from, so a take made mid-revert still counts.
+- **Bounded twice.** `ledger.retention` (72h) drops takes by age, each `ledger.sweepInterval`; `ledgerStorage.maxTakes` (4M) drops the oldest first when a busy stretch fills it, and logs "the ledger is full" once. Production is thousands of clicks per 5 minutes (`clicks_total`), and a spread click takes up to 7 tiles: 15 takes a second fill 4M in three days. Measured at 4M before the account: ~85 MiB heap. The account adds 4 bytes a take, about 15 MiB more at the cap (not measured).
+- **`FindPlayers(flag, area, limit)`** lists every player that took a tile for `flag` on `area`'s ground (empty is the whole map), latest take first, with any running ban on its scope or its account — whichever ends last. Each account on a scope is its own row, with `account_id`. The ground comes from `clicks.Borders`, built by `embedded_geodesic_map.Loader.LoadBorders` from the borders blob the frontend paints flags from — see [Map geography](#map-geography). A blob for another map refuses the boot.
 - **`TopPlayers(limit)`** is the same over every flag and the whole map, **most takes first, then most tiles held**, then latest take. Takes lead because they are what a painted-over bot cannot hide. Every player, in both answers, carries `tiles` (held) and `takes` (every take, a tile taken twice counting twice), `active_for` (last take minus first take), and `tiles_per_minute` and `takes_per_minute` over that. A player with `takes` high and `tiles` near zero is painting and being painted over.
-- **`BanPlayer(scope, duration)`** is `shadowban.Banner.Ban`, and drops the scope's clicks and bombs alike: the same record, ladder and table as a watchdog's ban, and it counts as an offence. It skips `reflagInterval`, and an empty duration takes the ladder's step. Any address is accepted and banned as its scope (`cpipscope.Parse`). **It follows `antiBot.shadowBan.enforce`**, and says so in `enforced`. With `antiBot.enabled` false it answers `FailedPrecondition`.
-- **`RevertPlayer(scope, dry_run)`** gives each tile the scope holds back to what it held before the scope's run, by the rule above. `touched` is the tiles it took, `held` those it still holds. **Only a tile still wearing the scope's paint changes** — `inmemory_tile_storage.Restore` is a compare-and-set under the lock, so a tile retaken mid-revert stays retaken. Paced like the reassign (`clicks.Pacing`), each tile an ordinary `TileUpdate`. A tile that was nobody's goes back to nobody, as an update with an empty country. It then forgets the scope's takes, so a second run does nothing; an interrupted one forgets nothing and can be run again.
+- **`BanPlayer(scope | account_id, duration)`** is `shadowban.Bans.Ban`, and drops the caller's clicks and bombs alike: the same record, ladder and table as a watchdog's ban, and it counts as an offence. It skips `reflagInterval`, and an empty duration takes the ladder's step. Any address is accepted and banned as its scope (`cpipscope.Parse`). **An account is banned alone**: the operator named no scope, and a guest that sheds it with a new cookie is a second ban on its scope away. **It follows `antiBot.shadowBan.enforce`**, and says so in `enforced`. With `antiBot.enabled` false it answers `FailedPrecondition`.
+- **`RevertPlayer(scope | account_id, dry_run)`** gives each tile the caller holds back to what it held before its run, by the rule above. A scope reverts every account's takes on it; an account reverts its takes from every scope. `touched` is the tiles it took, `held` those it still holds. **Only a tile still wearing the scope's paint changes** — `inmemory_tile_storage.Restore` is a compare-and-set under the lock, so a tile retaken mid-revert stays retaken. Paced like the reassign (`clicks.Pacing`), each tile an ordinary `TileUpdate`. A tile that was nobody's goes back to nobody, as an update with an empty country. It then forgets the caller's takes, so a second run does nothing; an interrupted one forgets nothing and can be run again.
 - **Ban before reverting**: an unbanned player repaints behind the revert.
-- **`InspectPlayer(scope)`** answers how close the antibot is to a caller, which the `antibot ban` log line cannot: it is only written when a ban fires, so on 2026-09-14 a day of bots and no bans left nothing to read. It is `Guard.Examine`, and it changes nothing — no caller record is created, no watchdog is asked again, no ban is passed. It answers any running ban (`banned`, `bannedUntil`, `offence`, `flags`); per watchdog its `level` and `evidence`, aged the way the jury ages them (past `suspicionWindow` a verdict reads `clear` but keeps its evidence); `suspects` against `minSuspects` and `guilty`, what the jury would decide on a click now (the ban itself would still wait for `reflagInterval`); and the click summary the ban line carries. `tracked` false is a scope the jury has not seen inside its `trackWindow`. Parsed with `cpipscope.Parse` and refused with `FailedPrecondition` when `antiBot.enabled` is false, as `BanPlayer` is. **A watchdog that reads `clear` has no evidence**: watchdogs only word the rule that tripped, so it says how close a caller is only once some rule has.
+- **`InspectPlayer(scope | account_id)`** answers how close the antibot is to a caller, which the `antibot ban` log line cannot: it is only written when a ban fires, so on 2026-09-14 a day of bots and no bans left nothing to read. It is `Guard.Examine`. **An account is read on the scope of its latest take** in the ledger, because the watchdogs judge scopes, with the bans on both; an account with no take inside the retention answers its bans alone and an empty `scope`. It changes nothing — no caller record is created, no watchdog is asked again, no ban is passed. It answers any running ban (`banned`, `bannedUntil`, `offence`, `flags`); per watchdog its `level` and `evidence`, aged the way the jury ages them (past `suspicionWindow` a verdict reads `clear` but keeps its evidence); `suspects` against `minSuspects` and `guilty`, what the jury would decide on a click now (the ban itself would still wait for `reflagInterval`); and the click summary the ban line carries. `tracked` false is a scope the jury has not seen inside its `trackWindow`. Parsed with `ledger.ParseCaller` and refused with `FailedPrecondition` when `antiBot.enabled` is false, as `BanPlayer` is. **A watchdog that reads `clear` has no evidence**: watchdogs only word the rule that tripped, so it says how close a caller is only once some rule has.
 - `audit_ban` and `audit_revert` log every call at Warn, as `audit_reassign` does. `FindPlayers`, `TopPlayers` and `InspectPlayer` are reads and log nothing.
 
 ### Shared (`internal/shared/`)
@@ -1577,7 +1675,7 @@ The siteverify client it is fed by is **not** here. `turnstile` sat here on the 
 
 `cpcountries` is the ISO country list both the tile game and the chat validate against. `cpipblock` is the VPN prefix set — see [VPN blocklist](#vpn-blocklist). `cpratelimit` is a keyed token bucket held in this process, like the tile map it protects — with one API instance, a shared counter would buy nothing. Its `Run` loop periodically forgets the buckets that have refilled to capacity, which is free: such a bucket holds exactly what a freshly created one would, and without it the map would keep an entry per address that ever clicked.
 
-`cpipscope` decides what a bucket is keyed on, and every throttle goes through it. Over IPv4 that is the address; over IPv6 it is the surrounding **/64**, because the smallest allocation a subscriber receives is a /64 and most receive far more — a bucket per v6 address is one the same line walks out of by picking its next address, turning one home connection into thousands of callers with a throttle each. The session token binds to the same unit, so the address a token is valid for and the address that spends a budget cannot diverge. Blocking deliberately does **not** use it: the VPN and datacenter lists are precise prefixes already, and widening a hit to the surrounding /64 would refuse neighbours who are not on them.
+`cpipscope` decides what a scope's bucket is keyed on, and every throttle goes through it. Over IPv4 that is the address; over IPv6 it is the surrounding **/64**, because the smallest allocation a subscriber receives is a /64 and most receive far more — a bucket per v6 address is one the same line walks out of by picking its next address, turning one home connection into thousands of callers with a throttle each. The session token binds to the same unit, so the address a token is valid for and the address that spends a budget cannot diverge. Blocking deliberately does **not** use it: the VPN and datacenter lists are precise prefixes already, and widening a hit to the surrounding /64 would refuse neighbours who are not on them.
 `cpcolls` holds the collections the standard library does not — today `Set[T]`. **A set is a `*cpcolls.Set`, never a map.** A `map[T]struct{}` or a `map[T]bool` written `m[k] = true` fails `make lint`: a ruleguard rule in `tools/ruleguard/rules.go`, run by gocritic, reports both everywhere but in `cpcolls` itself. A nil `*Set` reads as empty, like a nil map, so a lookup in a map of sets needs no `ok` check.
 
 ### Map geography
@@ -1730,6 +1828,7 @@ func (c Config) Validate() error {
 		c.Clicks.Validate(),
 		c.Auth.Validate(),
 		c.Chat.Validate(),
+		c.Player.Validate(),
 	)
 }
 ```
@@ -1744,7 +1843,7 @@ The binary never reads inside a block to check it, so a new bound is added in th
 
 There is no struct-tag validation and therefore no validator dependency — a hook the config implements covers this app's needs.
 
-**Each module owns its own config struct** — `planet.Config`, `chat.Config`, `auth.Config` — and `app.Config` is the three of them plus `httpServer`. The planet keys stayed at the top level of the file rather than moving under a `planet:` section: `app.Config` squashes that struct (`koanf:",squash"`), so the file and every `deploy/` environment variable are unchanged.
+**Each module owns its own config struct** — `planet.Config`, `chat.Config`, `auth.Config`, `player.Config` — and `app.Config` is the four of them plus `httpServer`. The planet keys stayed at the top level of the file rather than moving under a `planet:` section: `app.Config` squashes that struct (`koanf:",squash"`), so the file and every `deploy/` environment variable are unchanged.
 
 - `httpServer.bindAddress` — the encoding is negotiated per request, so there is no format setting.
 - `httpServer.streamHeartbeat` — how often a silent live stream sends a heartbeat (default 30s). **Must stay well under the proxy's idle cut**: Cloudflare answers 524 at ~125s, and a stream that never speaks is one it kills.
@@ -1756,9 +1855,10 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `tilesStorage.flushInterval` — how often the tiles changed since the last flush are written to postgres (1s)
 - `ledger.retention`, `ledger.sweepInterval` — how long the operator tools can trace and revert a take (72h)
 - `ledgerStorage.flushInterval` — how often new takes are written to postgres (1s, and on shutdown)
-- `ledgerStorage.maxTakes` — the most takes kept (4M, ~85 MiB); past it the oldest go before the retention
+- `ledgerStorage.maxTakes` — the most takes kept (4M, ~100 MiB); past it the oldest go before the retention
 - `tilesStorage.subscriberBuffer` — per-subscriber channel capacity, which is now per connected client rather than per fanout; updates for a subscriber that cannot keep up are dropped, not blocked on
-- `rateLimiter.perSecond`, `rateLimiter.burst`, `rateLimiter.sweepInterval` — the per-IP click throttle (defaults 1/s, burst 10, swept every minute)
+- `rateLimiter.perSecond`, `rateLimiter.burst`, `rateLimiter.sweepInterval` — one account's click allowance, and a token with no account's scope bucket (defaults 1/s, burst 10, swept every minute)
+- `rateLimiter.scopeMultiplier` — the scope's bucket over one account's, shared by every account behind the address (default 10). Below 1 refuses the boot. See [Two buckets per click](#two-buckets-per-click)
 - `vpnBlocklist.enabled`, `vpnBlocklist.includeDatacenters`, `vpnBlocklist.allow` — the VPN refusal (see [VPN blocklist](#vpn-blocklist)); disabled parses nothing and allocates nothing
 - `bonus.interval` — how often a box is put in front of somebody; a ceiling, since nothing is offered while nobody is watching
 - `bonus.offerTTL` — how long the token stays good; **must outlast the flight the client draws**, or a box caught on its last frame is refused
@@ -1769,7 +1869,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `antiBot.shadowBan.enforce` — off judges, logs and counts without dropping; the mode to deploy in
 - `antiBot.shadowBan.banDurations` — the ban for each offence (the last step repeats). An offence is a ban that starts while none is running; a flag on a running ban only extends it. **Offences are never forgotten**
 - `antiBot.database` — the antibot's own `cppg.Config`, `schema: antibot`; required when `antiBot.enabled`. A failed connection, migration or load refuses the boot
-- `antiBot.shadowBan.saveInterval` — how often changed bans are written to `antibot.bans` (1m, and on shutdown)
+- `antiBot.shadowBan.saveInterval` — how often changed bans are written to `antibot.bans` and `antibot.account_bans` (1m, and on shutdown)
 - `antiBot.shadowBan.reflagInterval` — how soon a banned caller can be judged again
 - `antiBot.jury.minSuspects` — how many watchdogs at `suspect` make a ban; one at `certain` bans alone
 - `antiBot.jury.suspicionWindow`, `trackWindow`, `sweepInterval` — how long a verdict stands while another watchdog catches up, and how long a silent caller is remembered
@@ -1806,10 +1906,12 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `chat.service.maxTextLength`, `chat.service.maxNameLength` — bounds in runes (280, 24)
 - `chat.rateLimiter.*` — the per-IP `SendMessage` throttle, same shape as `rateLimiter`
 - `chat.blockedIPs` — prefixes refused every chat RPC, parsed by `shared/cpipblock` exactly as `vpnBlocklist.allow` is
+- `player.enabled` — off registers nothing: `player.v1` 404s and nobody hears the events. It needs `auth` on to answer anybody
+- `player.database.*` — profiles and stats, same shape as `database`, schema `player`; required when `player.enabled`. `player.database.password` belongs in the environment
 
 ### Protobuf
 
-API contracts live in the monorepo-shared [`/proto`](../../proto) (also used by the frontend), one package per bounded context: [`planet/v1/planet.proto`](../../proto/planet/v1/planet.proto) and [`chat/v1/chat.proto`](../../proto/chat/v1/chat.proto). Generated code goes to `generated/proto/`. Use `make proto` to regenerate after editing `.proto` files (requires the `buf` CLI, plus `protoc-gen-go` and `protoc-gen-connect-go` on `PATH`).
+API contracts live in the monorepo-shared [`/proto`](../../proto) (also used by the frontend), one package per bounded context: [`planet/v1/planet.proto`](../../proto/planet/v1/planet.proto), [`chat/v1/chat.proto`](../../proto/chat/v1/chat.proto), [`auth/v1/auth.proto`](../../proto/auth/v1/auth.proto) and [`player/v1/player.proto`](../../proto/player/v1/player.proto). A module's in-process events sit beside them in `events.proto` (`planet/v1`, `auth/v1`), and what other modules call in `internal.proto`. Generated code goes to `generated/proto/`. Use `make proto` to regenerate after editing `.proto` files (requires the `buf` CLI, plus `protoc-gen-go` and `protoc-gen-connect-go` on `PATH`).
 
 `generated/` is for everything the root owns and this app carries a committed copy of, because the Docker build context is this directory: `generated/proto` from [`/proto`](../../proto) via `make proto`, and `generated/map` from [`/map`](../../map) via `make map` — see [Map geography](#map-geography). Nothing in there is edited by hand; run the target.
 
@@ -1819,11 +1921,11 @@ The proto package is the **only** version number: Connect derives each route fro
 
 Tests use `testify`. **A postgres store's own tests need Docker**, and nothing else does: a suite starts one `postgres:16-alpine` container in `SetupSuite` with `cppg.StartTestServer(t)` (behind the `testing` tag), opens and migrates its schema with `OpenSchema(t, schema, migrations.FS)`, and empties it in `SetupTest` with `Purge`. The container stops when the suite ends. There is no container shared across packages: `go test` runs each package as its own process, up to `-p` (GOMAXPROCS) at once. Everything above a store is tested against a fake of its port (`inmemory_tile_storage.MemoryPersistence`), so it runs without Docker.
 
-**A path through a booted module is tested in `e2e/`**, never in `cmd/api`, which only holds the config and the module list. A test there boots the modules it needs with `cpbootstrap.Run` on a test postgres (`TestServer.ConfigFor(schema)`) and calls them over the wire: `accounts_test.go` mints a guest account, brings it back with its cookie, and checks the deprecated `session.v1` path still mints with none; `sign_in_test.go` links a provider, signs in to a known identity, signs out and deletes, over fake providers.
+**A path through a booted module is tested in `e2e/`**, never in `cmd/api`, which only holds the config and the module list. A test there boots the modules it needs with `cpbootstrap.Run` on a test postgres (`TestServer.ConfigFor(schema)`) and calls them over the wire: `accounts_test.go` mints a guest account, brings it back with its cookie, and checks the deprecated `session.v1` path still mints with none; `sign_in_test.go` links a provider, signs in to a known identity, signs out and deletes, over fake providers; `player_test.go` boots auth, planet and player, clicks with a guest's token and reads `GetStats`, sets a name, and deletes the account to see both go.
 
 On macOS, testcontainers asks the Docker credential helper before it pulls an image, and that can hang with no prompt in a non-interactive shell. `docker pull postgres:16-alpine` once from a terminal avoids it.
 
-**Tests build with `-tags testing`, so use `make test` rather than a bare `go test ./...`.** Anything else that loads test files needs the tag too: `go vet -tags testing ./...`, and an editor's language server (`gopls` `buildFlags: ["-tags=testing"]`, or `go.buildTags` in VS Code), which otherwise reports the helpers as undefined. A helper that more than one package needs cannot live in a `_test.go` file, so it lives in an ordinary `.go` file carrying `//go:build testing`. The tag, not a filename convention, is what keeps such a helper out of the production binary — and what lets `make deadcode` tell a helper apart from production code. `cpctx.GetSessionID`, `cpconfigs.FromFile`, `cppg.StartTestServer`, `cpsession.TestKeyPair` (one fixed Ed25519 pair, so a test names both halves without carrying two magic strings) and `cptime.FixedClock` — the stand-still clock a dozen test packages drive time with — are the five that exist today.
+**Tests build with `-tags testing`, so use `make test` rather than a bare `go test ./...`.** Anything else that loads test files needs the tag too: `go vet -tags testing ./...`, and an editor's language server (`gopls` `buildFlags: ["-tags=testing"]`, or `go.buildTags` in VS Code), which otherwise reports the helpers as undefined. A helper that more than one package needs cannot live in a `_test.go` file, so it lives in an ordinary `.go` file carrying `//go:build testing`. The tag, not a filename convention, is what keeps such a helper out of the production binary — and what lets `make deadcode` tell a helper apart from production code. `cpctx.GetSessionID`, `cpconfigs.FromFile`, `cppg.StartTestServer`, `cpsession.TestKeyPair` (one fixed Ed25519 pair, so a test names both halves without carrying two magic strings), `cpbootstrap.RecordedEvents` (the bus, for a use case that only publishes) and `cptime.FixedClock` — the stand-still clock a dozen test packages drive time with — are the shared ones.
 
 ### Linting
 

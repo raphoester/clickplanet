@@ -8,12 +8,11 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipscope"
 )
 
 type Ledger interface {
 	Replay(see func(ledger.Taking)) ledger.Position
-	Forget(scope string, before ledger.Position)
+	Forget(caller ledger.Caller, before ledger.Position)
 }
 
 type Map interface {
@@ -22,13 +21,16 @@ type Map interface {
 }
 
 type In struct {
-	Scope  string
-	DryRun bool
+	// Scope is any address, read as its scope, or Account an account id: one of the two.
+	Scope   string
+	Account string
+	DryRun  bool
 }
 
 type Out struct {
-	Scope string
-	// Touched is every tile this scope took inside the retention; Held is those it still holds.
+	Scope   string
+	Account string
+	// Touched is every tile this caller took inside the retention; Held is those it still holds.
 	Touched  int
 	Held     int
 	Restored int
@@ -45,19 +47,19 @@ type UseCase struct {
 }
 
 func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
-	scope, ok := cpipscope.Parse(in.Scope)
-	if !ok {
-		return Out{}, fmt.Errorf("%w: %q", ledger.ErrInvalidScope, in.Scope)
+	caller, err := ledger.ParseCaller(in.Scope, in.Account)
+	if err != nil {
+		return Out{}, fmt.Errorf("cannot revert: %w", err)
 	}
 	if u.pacing.Batch <= 0 {
 		return Out{}, errors.New("revert batch must be positive")
 	}
 
-	runs := ledger.NewRuns(scope)
+	runs := ledger.NewRuns(caller)
 	end := u.ledger.Replay(runs.See)
 
 	restorations := runs.Restorations(u.tiles)
-	out := Out{Scope: scope, Touched: runs.Touched(), Held: len(restorations)}
+	out := Out{Scope: caller.Scope, Account: caller.Account, Touched: runs.Touched(), Held: len(restorations)}
 
 	if in.DryRun {
 		return out, nil
@@ -80,8 +82,8 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 		}
 	}
 
-	// Every take up to the replay, covered ones included: none of them is this scope's to undo any more.
-	u.ledger.Forget(scope, end)
+	// Every take up to the replay, covered ones included: none of them is this caller's to undo any more.
+	u.ledger.Forget(caller, end)
 
 	return out, nil
 }

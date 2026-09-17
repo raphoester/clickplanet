@@ -24,7 +24,7 @@ type Borders interface {
 
 // Bans is nil when the antibot is off.
 type Bans interface {
-	Sentence(scope string) (antibot.Sentence, bool)
+	Sentence(scope, account string) (antibot.Sentence, bool)
 }
 
 type CountryChecker interface {
@@ -40,7 +40,7 @@ type In struct {
 
 type Out struct {
 	Players []ledger.Player
-	// Total is how many scopes matched, before the limit.
+	// Total is how many players matched, before the limit.
 	Total int
 }
 
@@ -77,7 +77,7 @@ func (u *UseCase) Execute(_ context.Context, in In) (Out, error) {
 	}
 
 	for i := range out.Players {
-		if sentence, running := u.bans.Sentence(out.Players[i].Scope); running {
+		if sentence, running := u.bans.Sentence(out.Players[i].Scope, out.Players[i].Account); running {
 			out.Players[i].Serving(sentence)
 		}
 	}

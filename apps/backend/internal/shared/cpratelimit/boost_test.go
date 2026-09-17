@@ -45,7 +45,7 @@ func TestABoostedBucketRefillsAtTheMultipliedRate(t *testing.T) {
 	clock.Advance(2 * time.Second)
 
 	// Two seconds at 3/s rather than at 1/s.
-	assert.InDelta(t, 6.0, limiter.Peek(boostKey).Tokens, 1e-9)
+	assert.InDelta(t, 6.0, limiter.Peek(Key{Name: boostKey}).Tokens, 1e-9)
 }
 
 func TestTheRefillIsSplitAtTheMomentTheBoostLapses(t *testing.T) {
@@ -61,7 +61,7 @@ func TestTheRefillIsSplitAtTheMomentTheBoostLapses(t *testing.T) {
 	// Paid entirely at either rate this would be 12 or 4, and both are wrong.
 	clock.Advance(4 * time.Second)
 
-	assert.InDelta(t, 8.0, limiter.Peek(boostKey).Tokens, 1e-9)
+	assert.InDelta(t, 8.0, limiter.Peek(Key{Name: boostKey}).Tokens, 1e-9)
 }
 
 func TestTheAllowanceComesBackDownWhenTheBoostEnds(t *testing.T) {
@@ -70,7 +70,7 @@ func TestTheAllowanceComesBackDownWhenTheBoostEnds(t *testing.T) {
 	limiter.Boost(boostKey, 3, clock.Now().Add(time.Second))
 	clock.Advance(10 * time.Second)
 
-	state := limiter.Peek(boostKey)
+	state := limiter.Peek(Key{Name: boostKey})
 
 	// Both the ceiling and the rate are the plain ones again, and the tokens
 	// banked above the burst are gone with it — a bucket still holding thirty
@@ -104,7 +104,7 @@ func TestTheSweepDoesNotForgetABoostStillRunning(t *testing.T) {
 	// sweep treats as "same as a fresh one". Forgetting it would end the boost.
 	limiter.sweep()
 
-	assert.Equal(t, 30, limiter.Peek(boostKey).Capacity)
+	assert.Equal(t, 30, limiter.Peek(Key{Name: boostKey}).Capacity)
 }
 
 func TestTheSweepStillForgetsABucketWhoseBoostIsOver(t *testing.T) {
@@ -123,7 +123,7 @@ func TestBoostingOneCallerLeavesEveryOtherAlone(t *testing.T) {
 
 	limiter.Boost(boostKey, 3, clock.Now().Add(time.Minute))
 
-	assert.Equal(t, 10, limiter.Peek("5.6.7.8").Capacity)
+	assert.Equal(t, 10, limiter.Peek(Key{Name: "5.6.7.8"}).Capacity)
 }
 
 func TestAnExpiredOrAbsentBoostChangesNothing(t *testing.T) {
@@ -132,8 +132,8 @@ func TestAnExpiredOrAbsentBoostChangesNothing(t *testing.T) {
 	limiter.Boost(boostKey, 3, clock.Now().Add(-time.Second))
 	limiter.Boost("5.6.7.8", 1, clock.Now().Add(time.Hour))
 
-	assert.Equal(t, 10, limiter.Peek(boostKey).Capacity)
-	assert.Equal(t, 10, limiter.Peek("5.6.7.8").Capacity)
+	assert.Equal(t, 10, limiter.Peek(Key{Name: boostKey}).Capacity)
+	assert.Equal(t, 10, limiter.Peek(Key{Name: "5.6.7.8"}).Capacity)
 }
 
 func TestASecondBoostReplacesTheFirst(t *testing.T) {
@@ -151,10 +151,10 @@ func TestTheBoostIsOverAtItsDeadlineRatherThanAfterIt(t *testing.T) {
 	limiter.Boost(boostKey, 3, clock.Now().Add(time.Minute))
 
 	clock.Advance(time.Minute - time.Millisecond)
-	require.Equal(t, 30, limiter.Peek(boostKey).Capacity, "still running a millisecond short of the deadline")
+	require.Equal(t, 30, limiter.Peek(Key{Name: boostKey}).Capacity, "still running a millisecond short of the deadline")
 
 	clock.Advance(time.Millisecond)
-	require.Equal(t, 10, limiter.Peek(boostKey).Capacity, "over on the deadline itself")
+	require.Equal(t, 10, limiter.Peek(Key{Name: boostKey}).Capacity, "over on the deadline itself")
 }
 
 func TestTheReadingSaysWhetherABoostRuns(t *testing.T) {
@@ -166,9 +166,22 @@ func TestTheReadingSaysWhetherABoostRuns(t *testing.T) {
 	assert.True(t, limiter.Boost(boostKey, 3, clock.Now().Add(time.Minute)).Boosted)
 	_, boosted := limiter.Take(boostKey)
 	assert.True(t, boosted.Boosted)
-	assert.False(t, limiter.Peek("5.6.7.8").Boosted)
+	assert.False(t, limiter.Peek(Key{Name: "5.6.7.8"}).Boosted)
 
 	clock.Advance(time.Minute)
 	_, over := limiter.Take(boostKey)
 	assert.False(t, over.Boosted, "over on the deadline itself")
+}
+
+func TestABoostOnOneBucketDoesNotWidenAnotherSpentWithIt(t *testing.T) {
+	limiter, _ := newTestLimiter()
+	account, scope := Key{Name: "account"}, Key{Name: "scope", Scale: 10}
+
+	limiter.Boost(account.Name, 3, epoch.Add(time.Minute))
+
+	_, states := limiter.TakeAll(1, account, scope)
+	assert.True(t, states[0].Boosted)
+	assert.Equal(t, 30, states[0].Capacity)
+	assert.False(t, states[1].Boosted)
+	assert.Equal(t, 100, states[1].Capacity)
 }

@@ -26,7 +26,8 @@ func (a *Audited) Execute(ctx context.Context, in revert_player_usecase.In) (rev
 	out, err := a.inner.Execute(ctx, in)
 
 	attrs := []any{
-		slog.String("asked", in.Scope), slog.String("scope", out.Scope), slog.Bool("dryRun", in.DryRun),
+		slog.String("asked", in.Scope), slog.String("askedAccount", in.Account),
+		slog.String("scope", out.Scope), slog.String("account", out.Account), slog.Bool("dryRun", in.DryRun),
 		slog.Int("touched", out.Touched), slog.Int("held", out.Held), slog.Int("restored", out.Restored),
 	}
 

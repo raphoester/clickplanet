@@ -60,6 +60,12 @@ func (h CompleteSignInHandler) CompleteSignIn(
 	case errors.Is(err, signin.ErrProviderRefused):
 		h.logRefusal(req, err)
 		return nil, refusal(connect.CodePermissionDenied, ErrRefused)
+	case errors.Is(err, accounts.ErrIdentityLinkedElsewhere):
+		h.logRefusal(req, err)
+		return nil, linkRefusal(accounts.ErrIdentityLinkedElsewhere, authv1.LinkRefusalReason_LINK_REFUSAL_REASON_IDENTITY_LINKED_ELSEWHERE)
+	case errors.Is(err, accounts.ErrProviderAlreadyLinked):
+		h.logRefusal(req, err)
+		return nil, linkRefusal(accounts.ErrProviderAlreadyLinked, authv1.LinkRefusalReason_LINK_REFUSAL_REASON_PROVIDER_ALREADY_LINKED)
 	case err != nil:
 		return nil, fmt.Errorf("failed to complete the sign-in: %w", err)
 	}
@@ -74,6 +80,15 @@ func (h CompleteSignInHandler) CompleteSignIn(
 // logRefusal is Info, not the error net's Error: a stale tab or a cancelled consent is the common case.
 func (h CompleteSignInHandler) logRefusal(req *connect.Request[authv1.CompleteSignInRequest], err error) {
 	h.logger.Info("refused a sign-in", slog.String("procedure", req.Spec().Procedure), slog.Any("error", err))
+}
+
+// linkRefusal says why a link was not made in a detail the client matches, not in the message. The browser keeps its session.
+func linkRefusal(sentinel error, reason authv1.LinkRefusalReason) *connect.Error {
+	refused := refusal(connect.CodeAlreadyExists, sentinel)
+	if detail, err := connect.NewErrorDetail(&authv1.LinkRefusal{Reason: reason}); err == nil {
+		refused.AddDetail(detail)
+	}
+	return refused
 }
 
 // refusal is the error answered to a sign-in that cannot complete, with the Set-Cookie that ends its flow.

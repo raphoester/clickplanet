@@ -186,22 +186,22 @@ func (s *Store) DeleteAccount(_ context.Context, account accounts.AccountID) err
 	return nil
 }
 
-func (s *Store) PruneGuests(_ context.Context, idleSince time.Time, limit int) (int, error) {
+func (s *Store) PruneGuests(_ context.Context, idleSince time.Time, limit int) ([]accounts.AccountID, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if s.failWith != nil {
-		return 0, s.failWith
+		return nil, s.failWith
 	}
 
-	pruned := 0
+	var pruned []accounts.AccountID
 	for account, seen := range s.lastSeen {
-		if pruned == limit {
+		if len(pruned) == limit {
 			break
 		}
 		if seen.Before(idleSince) && len(s.identitiesOf(account)) == 0 {
 			s.deleteAccount(account)
-			pruned++
+			pruned = append(pruned, account)
 		}
 	}
 	return pruned, nil

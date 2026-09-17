@@ -22,11 +22,11 @@ service AdminService {
   // first, then most tiles held. Read from the same ledger as FindPlayers.
   rpc TopPlayers(TopPlayersRequest) returns (TopPlayersResponse);
 
-  // The antibot's shadow ban, on a scope a person picked. It counts as an offence.
+  // The antibot's shadow ban, on a scope or an account a person picked. It counts as an offence.
   rpc BanPlayer(BanPlayerRequest) returns (BanPlayerResponse);
 
-  // Gives back every tile the scope still holds to what it held before the
-  // scope's current run on it. dry_run counts and restores nothing.
+  // Gives back every tile the scope or the account still holds to what it held
+  // before its current run on it. dry_run counts and restores nothing.
   rpc RevertPlayer(RevertPlayerRequest) returns (RevertPlayerResponse);
 
   // Paints count random tiles with a flag, starting on one country's ground,
@@ -36,7 +36,8 @@ service AdminService {
   rpc PaintRandomTiles(PaintRandomTilesRequest) returns (PaintRandomTilesResponse);
 
   // What the antibot holds on a scope: every watchdog's reading, what the jury
-  // would decide now, and any running ban. Reads only.
+  // would decide now, and any running ban. An account is read on the scope of
+  // its latest take, with the bans on both. Reads only.
   rpc InspectPlayer(InspectPlayerRequest) returns (InspectPlayerResponse);
 }
 
@@ -65,10 +66,14 @@ message PaintRandomTilesResponse {
 message InspectPlayerRequest {
   // A scope, or any address, which is read as its scope.
   string scope = 1;
+  // Or an account id, instead of a scope.
+  string account_id = 2;
 }
 
 message InspectPlayerResponse {
+  // Empty for an account with no take inside ledger.retention.
   string scope = 1;
+  string account_id = 17;
 
   // False when the jury has not seen the scope inside antiBot.jury.trackWindow:
   // the readings are then all clear and the click summary is empty.
@@ -121,7 +126,7 @@ message FindPlayersRequest {
 
 message FindPlayersResponse {
   repeated Player players = 1;
-  // How many scopes matched, before the limit.
+  // How many players matched, before the limit.
   uint32 total = 2;
 }
 
@@ -132,13 +137,16 @@ message TopPlayersRequest {
 
 message TopPlayersResponse {
   repeated Player players = 1;
-  // How many scopes took any tile, before the limit.
+  // How many players took any tile, before the limit.
   uint32 total = 2;
 }
 
 message Player {
   // The address for IPv4, the /64 for IPv6: what the throttle and the ban key on.
   string scope = 1;
+  // The account the click token named. Each account on a scope is a player of
+  // its own; empty is the takes made with no account.
+  string account_id = 12;
   // Tiles it still holds: its take is the tile's latest and the paint is still there.
   uint32 tiles = 2;
   google.protobuf.Timestamp first_at = 3;
@@ -160,12 +168,15 @@ message Player {
 message BanPlayerRequest {
   // A scope, or any address, which is banned as its scope.
   string scope = 1;
+  // Or an account id, instead of a scope. The account alone is banned.
+  string account_id = 3;
   // Unset takes the ladder's step for the offence (antiBot.shadowBan.banDurations).
   google.protobuf.Duration duration = 2;
 }
 
 message BanPlayerResponse {
   string scope = 1;
+  string account_id = 5;
   uint32 offence = 2;
   google.protobuf.Timestamp banned_until = 3;
   // False when antiBot.shadowBan.enforce is off: the ban is kept but drops nothing.
@@ -174,12 +185,15 @@ message BanPlayerResponse {
 
 message RevertPlayerRequest {
   string scope = 1;
+  // Or an account id, instead of a scope: its takes from every scope.
+  string account_id = 3;
   bool dry_run = 2;
 }
 
 message RevertPlayerResponse {
   string scope = 1;
-  // Tiles the scope took, and those it still holds.
+  string account_id = 5;
+  // Tiles it took, and those it still holds.
   uint32 touched = 2;
   uint32 held = 3;
   uint32 restored = 4;

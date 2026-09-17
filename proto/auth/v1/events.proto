@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package auth.v1;
+
+// What the auth module tells other modules, in process. Never on the wire.
+
+// AccountDeleted is an account that is gone: deleted by its owner, or a guest
+// the prune removed. A subscriber forgets what it keeps for it.
+message AccountDeleted {
+  // As a UUID.
+  string account_id = 1;
+}

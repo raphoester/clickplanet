@@ -1,7 +1,7 @@
-import {AccountBackend, AuthFailure, failureOf, Me, Provider, PROVIDERS} from "../../backends/account.ts"
+import {AccountBackend, AuthFailure, failureOf, Intent, Me, Provider, PROVIDERS} from "../../backends/account.ts"
 import {SessionProvider} from "../../backends/session.ts"
 
-export type AccountAction = "signIn" | "signOut" | "signOutEverywhere" | "deleteAccount"
+export type AccountAction = "signIn" | "link" | "signOut" | "signOutEverywhere" | "deleteAccount"
 
 export type AccountState =
     | {kind: "loading"}
@@ -21,8 +21,8 @@ export type AccountState =
 export type AccountStoreOptions = {
     /** Leaves the page for the provider. */
     navigate: (url: string) => void
-    /** Keeps the provider across that trip, so the callback page can start again with it. */
-    remember: (provider: Provider) => void
+    /** Keeps the provider and the intent across that trip, so the callback page can start again with them. */
+    remember: (provider: Provider, intent: Intent) => void
 }
 
 /**
@@ -74,12 +74,22 @@ export class AccountStore {
         return this.loading
     }
 
-    public async signIn(provider: Provider): Promise<void> {
-        const ready = this.begin("signIn")
+    /** From a browser with no linked provider: a known identity moves it to that identity's account. */
+    public signIn(provider: Provider): Promise<void> {
+        return this.go("signIn", provider, "signIn")
+    }
+
+    /** From a linked account: adds the provider to it, and never moves the browser to another account. */
+    public link(provider: Provider): Promise<void> {
+        return this.go("link", provider, "link")
+    }
+
+    private async go(action: AccountAction, provider: Provider, intent: Intent): Promise<void> {
+        const ready = this.begin(action)
         if (!ready) return
 
         try {
-            await this.leaveFor(provider)
+            await this.leaveFor(provider, intent)
         } catch (e) {
             const failure = failureOf(e)
             // The server knows better than the list read at load: take the
@@ -87,7 +97,9 @@ export class AccountStore {
             const offered = failure === "off" ? []
                 : failure === "notOffered" ? ready.offered.filter((p) => p !== provider)
                 : ready.offered
-            this.settle(offered, ready.me, failure)
+            // A link with no account left: the account was gone since the load.
+            const me = failure === "notSignedIn" ? {linked: []} : ready.me
+            this.settle(offered, me, failure)
         }
     }
 
@@ -96,9 +108,9 @@ export class AccountStore {
      * calls it directly for "Try again": the store is not loaded there, and
      * that page shows its own failure.
      */
-    public async leaveFor(provider: Provider): Promise<void> {
-        const url = await this.backend.startSignIn(provider)
-        this.options.remember(provider)
+    public async leaveFor(provider: Provider, intent: Intent): Promise<void> {
+        const url = await this.backend.startSignIn(provider, intent)
+        this.options.remember(provider, intent)
         this.options.navigate(url)
     }
 

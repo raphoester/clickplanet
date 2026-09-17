@@ -31,12 +31,12 @@ func (h InspectPlayerHandler) InspectPlayer(
 	ctx context.Context,
 	req *connect.Request[planetv1.InspectPlayerRequest],
 ) (*connect.Response[planetv1.InspectPlayerResponse], error) {
-	out, err := h.useCase.Execute(ctx, inspect_player_usecase.In{Scope: req.Msg.GetScope()})
+	out, err := h.useCase.Execute(ctx, inspect_player_usecase.In{Scope: req.Msg.GetScope(), Account: req.Msg.GetAccountId()})
 
 	switch {
 	case err == nil:
 		return connect.NewResponse(encode(out)), nil
-	case errors.Is(err, ledger.ErrInvalidScope):
+	case errors.Is(err, ledger.ErrInvalidScope), errors.Is(err, ledger.ErrInvalidAccount), errors.Is(err, ledger.ErrNoCaller):
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	case errors.Is(err, inspect_player_usecase.ErrAntiBotOff):
 		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
@@ -58,6 +58,7 @@ func encode(out antibot.Examination) *planetv1.InspectPlayerResponse {
 
 	res := &planetv1.InspectPlayerResponse{
 		Scope:            out.Scope,
+		AccountId:        out.Account,
 		Tracked:          &out.Tracked,
 		Banned:           &out.Banned,
 		BannedUntil:      timestampOrNil(out.BannedUntil),

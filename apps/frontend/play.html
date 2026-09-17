@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <!--
+      The game. The home page is index.html; this page is served at /play and at
+      /auth/callback (see vite.config.ts).
+
+      The sign-in callback carries a one-time code in its address until main.tsx
+      removes it. First in <head>, so no request this page makes sends it on as a
+      referrer. public/_headers says the same for the document itself.
+    -->
+    <script>
+        if (location.pathname.replace(/\/+$/, "") === "/auth/callback") {
+            var referrer = document.createElement("meta")
+            referrer.name = "referrer"
+            referrer.content = "no-referrer"
+            document.head.appendChild(referrer)
+        }
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta name="description" content="Conquer the world with your flag, one click at a time"/>
+    <meta name="author" content="Raphaël Oester"/>
+    <meta name="keywords" content="clickplanet, click, planet, multiplayer, online, game, conquer, world, map"/>
+    <link rel="canonical" href="https://clickplanet.lol/play"/>
+
+    <meta property="og:title" content="ClickPlanet"/>
+    <meta property="og:description" content="Conquer the world with your flag, one click at a time"/>
+    <meta property="og:type" content="website"/>
+    <meta property="og:url" content="https://clickplanet.lol/play"/>
+    <meta property="og:site_name" content="ClickPlanet"/>
+    <meta property="og:locale" content="en_US"/>
+
+    <!--
+      Scrapers lay the card out before the image finishes downloading, and some
+      of them fall back to a small text-only card without the dimensions. The
+      size here must match what `npm run og-image` produces.
+    -->
+    <meta property="og:image" content="https://clickplanet.lol/static/og-image.jpg"/>
+    <meta property="og:image:secure_url" content="https://clickplanet.lol/static/og-image.jpg"/>
+    <meta property="og:image:type" content="image/jpeg"/>
+    <meta property="og:image:width" content="1200"/>
+    <meta property="og:image:height" content="627"/>
+    <meta property="og:image:alt" content="The ClickPlanet globe, covered in tiles claimed by players, beside the country leaderboard"/>
+
+    <meta name="twitter:card" content="summary_large_image"/>
+    <meta name="twitter:title" content="ClickPlanet"/>
+    <meta name="twitter:description" content="Conquer the world with your flag, one click at a time"/>
+    <meta name="twitter:image" content="https://clickplanet.lol/static/og-image.jpg"/>
+    <meta name="twitter:image:alt" content="The ClickPlanet globe, covered in tiles claimed by players, beside the country leaderboard"/>
+    <meta name="twitter:site" content="@raphael_oester"/>
+
+    <meta name="google-adsense-account" content="ca-pub-3182218128474835">
+    
+    <title>ClickPlanet</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Oswald:wght@200..700&display=swap"
+          rel="stylesheet">
+    <link rel="icon" href="/static/favicon.png" type="image/x-icon">
+    <style>
+        body {
+            margin: 0;
+            background: #04090F;
+        }
+    </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="module" src="/src/main.tsx"></script>
+</body>
+</html>

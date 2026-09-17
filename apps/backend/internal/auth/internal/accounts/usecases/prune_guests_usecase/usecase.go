@@ -6,11 +6,20 @@ import (
 	"fmt"
 	"time"
 
+	"google.golang.org/protobuf/proto"
+
+	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 type Pruner interface {
-	PruneGuests(ctx context.Context, idleSince time.Time, limit int) (int, error)
+	PruneGuests(ctx context.Context, idleSince time.Time, limit int) ([]accounts.AccountID, error)
+}
+
+// Publisher is the event bus: a pruned guest is a deleted account.
+type Publisher interface {
+	Publish(event proto.Message)
 }
 
 // Executor is the prune, as the runner calls it and a decorator wraps it.
@@ -47,16 +56,17 @@ func (c Config) WithDefaults() Config {
 type UseCase struct {
 	config Config
 	guests Pruner
+	events Publisher
 	clock  cptime.Clock
 }
 
 var _ Executor = (*UseCase)(nil)
 
-func New(config Config, guests Pruner, clock cptime.Clock) *UseCase {
-	return &UseCase{config: config.WithDefaults(), guests: guests, clock: clock}
+func New(config Config, guests Pruner, events Publisher, clock cptime.Clock) *UseCase {
+	return &UseCase{config: config.WithDefaults(), guests: guests, events: events, clock: clock}
 }
 
-// Execute deletes every guest idle past IdleFor, a batch at a time, and says how many.
+// Execute deletes every guest idle past IdleFor, a batch at a time, publishes auth.v1.AccountDeleted for each, and says how many.
 func (u *UseCase) Execute(ctx context.Context) (int, error) {
 	idleSince := u.clock.Now().Add(-u.config.IdleFor)
 
@@ -81,5 +91,8 @@ func (u *UseCase) pruneBatch(ctx context.Context, idleSince time.Time) (int, err
 	if err != nil {
 		return 0, fmt.Errorf("failed to prune a batch: %w", err)
 	}
-	return pruned, nil
+	for _, account := range pruned {
+		u.events.Publish(&authv1.AccountDeleted{AccountId: account.String()})
+	}
+	return len(pruned), nil
 }

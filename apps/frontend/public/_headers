@@ -35,8 +35,14 @@
 /index.html
   Cache-Control: public, max-age=0, must-revalidate
 
+# The game. Its bundles are content-hashed, so the page must not outlive them.
+/play
+  Cache-Control: public, max-age=0, must-revalidate
+
 # The sign-in callback: its address carries a one-time code until the page
-# removes it. The SPA fallback serves it, so this matches on the request path.
-# index.html sets the same policy from a script, which does not depend on it.
+# removes it. The build writes the game there as auth/callback.html (see
+# vite.config.ts); this matches on the request path. play.html sets the same
+# policy from a script, which does not depend on it.
 /auth/callback
+  Cache-Control: public, max-age=0, must-revalidate
   Referrer-Policy: no-referrer

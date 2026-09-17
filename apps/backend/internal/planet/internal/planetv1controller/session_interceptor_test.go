@@ -165,7 +165,7 @@ func TestSessionCheckRunsBeforeTheThrottle(t *testing.T) {
 	interceptor := NewSessionInterceptor(validVerifier(), nil, true, prometheus.NewRegistry())
 
 	limiter := &fakeLimiter{allow: true}
-	server := clickServerWith(t, throttle_click.New(stubService{}, limiter, onePrice), nil,
+	server := clickServerWith(t, throttle_click.New(stubService{}, limiter, onePrice, buckets), nil,
 		connect.WithInterceptors(
 			errorNet(),
 			interceptor,

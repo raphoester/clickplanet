@@ -68,6 +68,9 @@ type bucket struct {
 	tokens float64
 	last   time.Time
 
+	// Scale multiplies the burst and the rate for good, set when the bucket is made.
+	scale float64
+
 	// A boost multiplies both the refill rate and the ceiling, until it lapses.
 	// One means no boost, which is what every bucket that nothing ever boosted
 	// holds — so a limiter nobody calls Boost on behaves exactly as it did
@@ -103,39 +106,63 @@ func (l *Limiter) Take(key string) (bool, State) {
 
 // TakeN spends n tokens at once, or none: a click that costs 1.5 is refused on 1.4.
 func (l *Limiter) TakeN(key string, n float64) (bool, State) {
+	allowed, states := l.TakeAll(n, Key{Name: key})
+	return allowed, states[0]
+}
+
+// Key names a bucket, and the scale its burst and rate are multiplied by. A scale under one is one.
+type Key struct {
+	Name  string
+	Scale float64
+}
+
+// TakeAll spends n tokens from every bucket, or from none: one bucket refusing
+// spends nothing from the others. The states come back in the order of the keys.
+func (l *Limiter) TakeAll(n float64, keys ...Key) (bool, []State) {
 	now := l.clock.Now()
 
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
-	b, ok := l.buckets[key]
-	if !ok {
-		b = newBucket(float64(l.config.Burst), now)
-		l.buckets[key] = b
+	buckets := make([]*bucket, len(keys))
+	allowed := true
+
+	for i, key := range keys {
+		b, ok := l.buckets[key.Name]
+		if !ok {
+			b = l.newBucket(key.Scale, now)
+			l.buckets[key.Name] = b
+		}
+
+		l.refill(b, now)
+
+		buckets[i] = b
+		allowed = allowed && b.tokens >= n
 	}
 
-	l.refill(b, now)
-
-	if b.tokens < n {
-		return false, l.state(b)
+	states := make([]State, len(buckets))
+	for i, b := range buckets {
+		if allowed {
+			b.tokens -= n
+		}
+		states[i] = l.state(b)
 	}
 
-	b.tokens -= n
-	return true, l.state(b)
+	return allowed, states
 }
 
 // Peek reports the state without spending anything. An unknown key is a full
 // bucket and stays unknown: reading an allowance must not be a way to make the
 // limiter remember an address that never clicked.
-func (l *Limiter) Peek(key string) State {
+func (l *Limiter) Peek(key Key) State {
 	now := l.clock.Now()
 
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
-	b, ok := l.buckets[key]
+	b, ok := l.buckets[key.Name]
 	if !ok {
-		return l.state(newBucket(float64(l.config.Burst), now))
+		return l.state(l.newBucket(key.Scale, now))
 	}
 
 	l.refill(b, now)
@@ -159,7 +186,7 @@ func (l *Limiter) Boost(key string, multiplier float64, until time.Time) State {
 
 	b, ok := l.buckets[key]
 	if !ok {
-		b = newBucket(float64(l.config.Burst), now)
+		b = l.newBucket(1, now)
 		l.buckets[key] = b
 	}
 
@@ -173,8 +200,9 @@ func (l *Limiter) Boost(key string, multiplier float64, until time.Time) State {
 	return l.state(b)
 }
 
-func newBucket(tokens float64, now time.Time) *bucket {
-	return &bucket{tokens: tokens, last: now, multiplier: 1}
+func (l *Limiter) newBucket(scale float64, now time.Time) *bucket {
+	scale = max(scale, 1)
+	return &bucket{tokens: float64(l.config.Burst) * scale, last: now, scale: scale, multiplier: 1}
 }
 
 // state reports the reading together with the policy it refills under — which,
@@ -185,13 +213,22 @@ func (l *Limiter) state(b *bucket) State {
 	return State{
 		Tokens:    b.tokens,
 		Capacity:  int(l.capacity(b)),
-		PerSecond: l.config.PerSecond * b.multiplier,
+		PerSecond: l.rate(b),
 		Boosted:   b.multiplier > 1,
 	}
 }
 
 func (l *Limiter) capacity(b *bucket) float64 {
-	return float64(l.config.Burst) * b.multiplier
+	return l.plainCapacity(b) * b.multiplier
+}
+
+// plainCapacity is the burst with no boost running.
+func (l *Limiter) plainCapacity(b *bucket) float64 {
+	return float64(l.config.Burst) * b.scale
+}
+
+func (l *Limiter) rate(b *bucket) float64 {
+	return l.config.PerSecond * b.scale * b.multiplier
 }
 
 func (l *Limiter) Name() string { return l.name }
@@ -227,7 +264,7 @@ func (l *Limiter) sweep() {
 			continue
 		}
 
-		if b.tokens >= float64(l.config.Burst) {
+		if b.tokens >= l.plainCapacity(b) {
 			delete(l.buckets, key)
 		}
 	}
@@ -253,20 +290,20 @@ func (l *Limiter) refill(b *bucket, now time.Time) {
 			until = now
 		}
 
-		b.tokens = math.Min(b.tokens+until.Sub(b.last).Seconds()*l.config.PerSecond*b.multiplier, l.capacity(b))
+		b.tokens = math.Min(b.tokens+until.Sub(b.last).Seconds()*l.rate(b), l.capacity(b))
 		b.last = until
 	}
 
 	if b.multiplier > 1 && !b.boostUntil.After(b.last) {
 		b.multiplier = 1
 		b.boostUntil = time.Time{}
-		b.tokens = math.Min(b.tokens, float64(l.config.Burst))
+		b.tokens = math.Min(b.tokens, l.plainCapacity(b))
 	}
 
 	if !now.After(b.last) {
 		return
 	}
 
-	b.tokens = math.Min(b.tokens+now.Sub(b.last).Seconds()*l.config.PerSecond*b.multiplier, l.capacity(b))
+	b.tokens = math.Min(b.tokens+now.Sub(b.last).Seconds()*l.rate(b), l.capacity(b))
 	b.last = now
 }

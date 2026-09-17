@@ -1,5 +1,10 @@
 /// <reference types="vite/client" />
 
+declare module '*.html?raw' {
+    const html: string
+    export default html
+}
+
 declare module '*.glsl' {
     const shader: string
     export default shader

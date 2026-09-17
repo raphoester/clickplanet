@@ -71,6 +71,26 @@ func TestARefusalClearsTheFlowAndSaysNothingAboutWhy(t *testing.T) {
 	}
 }
 
+func TestARefusedLinkSaysWhyInADetailAndKeepsTheSession(t *testing.T) {
+	for want, err := range map[authv1.LinkRefusalReason]error{
+		authv1.LinkRefusalReason_LINK_REFUSAL_REASON_IDENTITY_LINKED_ELSEWHERE: fmt.Errorf("failed to link google: %w", accounts.ErrIdentityLinkedElsewhere),
+		authv1.LinkRefusalReason_LINK_REFUSAL_REASON_PROVIDER_ALREADY_LINKED:   fmt.Errorf("failed to link google: %w", accounts.ErrProviderAlreadyLinked),
+	} {
+		t.Run(want.String(), func(t *testing.T) {
+			_, got := completeSignIn(&stubUseCase{err: err})
+
+			var connectErr *connect.Error
+			require.ErrorAs(t, got, &connectErr)
+			assert.Equal(t, connect.CodeAlreadyExists, connectErr.Code())
+			assert.Equal(t, []string{signin.ExpiredFlowCookie()}, connectErr.Meta().Values("Set-Cookie"), "cp_sid is not touched")
+			require.Len(t, connectErr.Details(), 1)
+			detail, err := connectErr.Details()[0].Value()
+			require.NoError(t, err)
+			assert.Equal(t, want, detail.(*authv1.LinkRefusal).GetReason())
+		})
+	}
+}
+
 func TestSignInOffIsUnimplemented(t *testing.T) {
 	_, err := completeSignIn(&stubUseCase{err: signin.ErrSignInOff})
 

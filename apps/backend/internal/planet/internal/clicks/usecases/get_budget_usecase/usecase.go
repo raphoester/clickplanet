@@ -7,15 +7,14 @@ import (
 	"context"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 )
 
-// ClickBudgetReader reports an allowance under the same key the rate limiter
+// ClickBudgetReader reports an allowance under the same keys the rate limiter
 // spends it under. Peek creates no bucket: reading an allowance must not be a
 // way to make the limiter remember a caller.
 type ClickBudgetReader interface {
-	Peek(key string) cpratelimit.State
+	Peek(key cpratelimit.Key) cpratelimit.State
 }
 
 type Pricer interface {
@@ -24,16 +23,17 @@ type Pricer interface {
 
 // New takes a nil reader for a server that does not rate limit clicks; Execute
 // then reports no allowance and a client shows none.
-func New(budgets ClickBudgetReader, pricer Pricer) *UseCase {
-	return &UseCase{budgets: budgets, pricer: pricer}
+func New(budgets ClickBudgetReader, pricer Pricer, buckets clicks.Buckets) *UseCase {
+	return &UseCase{budgets: budgets, pricer: pricer, buckets: buckets}
 }
 
 type UseCase struct {
 	budgets ClickBudgetReader
 	pricer  Pricer
+	buckets clicks.Buckets
 }
 
-// Execute derives the key the same way the throttle charges it. Deriving it
+// Execute derives the keys the same way the throttle charges them, and reports the tighter bucket. Deriving it
 // anywhere else is how a caller is told about somebody else's bucket.
 //
 // It reports false when nothing is limiting clicks, which is not the same answer
@@ -43,5 +43,11 @@ func (u *UseCase) Execute(ctx context.Context, country string) (clicks.Budget, b
 		return clicks.Budget{}, false
 	}
 
-	return clicks.BudgetOf(u.budgets.Peek(cpctx.RateLimitKey(ctx)), u.pricer.Price(country)), true
+	keys := u.buckets.Keys(clicks.PayerOf(ctx))
+	states := make([]cpratelimit.State, len(keys))
+	for i, key := range keys {
+		states[i] = u.budgets.Peek(key)
+	}
+
+	return clicks.BudgetOf(clicks.Tightest(states), u.pricer.Price(country)), true
 }

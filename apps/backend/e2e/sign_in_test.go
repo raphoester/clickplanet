@@ -1,6 +1,7 @@
 package e2e_test
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -72,10 +73,29 @@ func (b *browser) mint() cpsession.AccountID {
 func (b *browser) signIn(provider authv1.Provider, fake *auth.FakeProvider, code string, claim auth.Claim) *authv1.CompleteSignInResponse {
 	b.t.Helper()
 
-	start := connect.NewRequest(&authv1.StartSignInRequest{Provider: provider})
+	completed, err := b.authorize(provider, authv1.SignInIntent_SIGN_IN_INTENT_SIGN_IN, fake, code, claim)
+	require.NoError(b.t, err)
+	return completed
+}
+
+func (b *browser) link(provider authv1.Provider, fake *auth.FakeProvider, code string, claim auth.Claim) (*authv1.CompleteSignInResponse, error) {
+	b.t.Helper()
+
+	return b.authorize(provider, authv1.SignInIntent_SIGN_IN_INTENT_LINK, fake, code, claim)
+}
+
+// authorize goes to the provider and back, and keeps the cookies of a refusal as of a success.
+func (b *browser) authorize(
+	provider authv1.Provider, intent authv1.SignInIntent, fake *auth.FakeProvider, code string, claim auth.Claim,
+) (*authv1.CompleteSignInResponse, error) {
+	b.t.Helper()
+
+	start := connect.NewRequest(&authv1.StartSignInRequest{Provider: provider, Intent: intent})
 	b.send(start.Header())
 	started, err := b.client.StartSignIn(b.t.Context(), start)
-	require.NoError(b.t, err)
+	if err != nil {
+		return nil, fmt.Errorf("StartSignIn failed: %w", err)
+	}
 	b.keep(started.Header())
 
 	authorization, err := url.Parse(started.Msg.GetAuthorizationUrl())
@@ -85,10 +105,15 @@ func (b *browser) signIn(provider authv1.Provider, fake *auth.FakeProvider, code
 	complete := connect.NewRequest(&authv1.CompleteSignInRequest{Code: code, State: authorization.Query().Get("state")})
 	b.send(complete.Header())
 	completed, err := b.client.CompleteSignIn(b.t.Context(), complete)
-	require.NoError(b.t, err)
+	var refused *connect.Error
+	if errors.As(err, &refused) {
+		b.keep(refused.Meta())
+	}
+	if err != nil {
+		return nil, fmt.Errorf("CompleteSignIn failed: %w", err)
+	}
 	b.keep(completed.Header())
-
-	return completed.Msg
+	return completed.Msg, nil
 }
 
 func (b *browser) me() (*authv1.GetMeResponse, error) {
@@ -157,6 +182,59 @@ func TestABrowserWithNoAccountSignsInToANewOne(t *testing.T) {
 
 	assert.Equal(t, authv1.SignInOutcome_SIGN_IN_OUTCOME_CREATED, created.GetOutcome())
 	assert.Equal(t, created.GetAccountId(), player.mint().String())
+}
+
+// The production bug: the link moved the browser to the Google account, which had no Discord, and the two could never be joined.
+func TestLinkingAnIdentityAnotherAccountUsesIsRefusedAndTheBrowserStays(t *testing.T) {
+	stack, fakes := startSignIn(t)
+	google := auth.Claim{Subject: "google-1"}
+	elsewhere := stack.browser(t).signIn(authv1.Provider_PROVIDER_GOOGLE, fakes.Google, "code-1", google)
+
+	player := stack.browser(t)
+	guest := player.mint()
+	discord := player.signIn(authv1.Provider_PROVIDER_DISCORD, fakes.Discord, "code-2", auth.Claim{Subject: "discord-1"})
+	require.Equal(t, authv1.SignInOutcome_SIGN_IN_OUTCOME_LINKED, discord.GetOutcome())
+
+	_, err := player.link(authv1.Provider_PROVIDER_GOOGLE, fakes.Google, "code-3", google)
+
+	var refused *connect.Error
+	require.ErrorAs(t, err, &refused)
+	assert.Equal(t, connect.CodeAlreadyExists, refused.Code())
+	require.Len(t, refused.Details(), 1)
+	detail, err := refused.Details()[0].Value()
+	require.NoError(t, err)
+	assert.Equal(t, authv1.LinkRefusalReason_LINK_REFUSAL_REASON_IDENTITY_LINKED_ELSEWHERE, detail.(*authv1.LinkRefusal).GetReason())
+	assert.NotContains(t, player.cookies, "cp_oauth", "the flow cookie is cleared")
+	assert.Equal(t, guest, player.mint(), "the browser is still on its own account")
+	assert.NotEqual(t, elsewhere.GetAccountId(), guest.String())
+	me, err := player.me()
+	require.NoError(t, err)
+	assert.Equal(t, []authv1.Provider{authv1.Provider_PROVIDER_DISCORD}, me.GetProviders())
+}
+
+func TestLinkingANewIdentityAddsItToTheAccount(t *testing.T) {
+	stack, fakes := startSignIn(t)
+	player := stack.browser(t)
+	account := player.signIn(authv1.Provider_PROVIDER_DISCORD, fakes.Discord, "code-1", auth.Claim{Subject: "discord-1"})
+
+	linked, err := player.link(authv1.Provider_PROVIDER_GOOGLE, fakes.Google, "code-2", auth.Claim{Subject: "google-1"})
+	require.NoError(t, err)
+
+	assert.Equal(t, authv1.SignInOutcome_SIGN_IN_OUTCOME_LINKED, linked.GetOutcome())
+	assert.Equal(t, account.GetAccountId(), linked.GetAccountId())
+	me, err := player.me()
+	require.NoError(t, err)
+	assert.Equal(t, []authv1.Provider{authv1.Provider_PROVIDER_DISCORD, authv1.Provider_PROVIDER_GOOGLE}, me.GetProviders())
+}
+
+func TestALinkFromABrowserWithNoAccountIsNotStarted(t *testing.T) {
+	stack, fakes := startSignIn(t)
+	player := stack.browser(t)
+
+	_, err := player.link(authv1.Provider_PROVIDER_GOOGLE, fakes.Google, "code-1", auth.Claim{Subject: "google-1"})
+
+	assert.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
+	assert.NotContains(t, player.cookies, "cp_oauth")
 }
 
 func TestACallbackFromAnotherBrowserIsRefused(t *testing.T) {

@@ -59,19 +59,25 @@ ledger:
 ledgerStorage:
   # How often the new takes are written to postgres. Also flushed on shutdown.
   flushInterval: 1s
-  # The most takes kept, 16 bytes each plus strings (~85 MiB). Past it the oldest go before
+  # The most takes kept, 20 bytes each plus strings (~100 MiB). Past it the oldest go before
   # the retention, and the log says so once.
   maxTakes: 4000000
 
-# Per-IP throttle on the Click RPC. Reads and the websocket are untouched.
+# Throttle on the Click RPC. Reads and the streams are untouched.
 # The defaults below are also what applies when this block is absent.
+# A click spends from two buckets at once: its account's, at the policy below,
+# and its scope's — one address over IPv4, one /64 over IPv6 — at
+# scopeMultiplier times it. A token with no account spends one scope bucket at
+# the policy below, as before accounts.
 rateLimiter:
-  # Sustained clicks per second allowed from one caller — one address over
-  # IPv4, one /64 over IPv6, since a v6 subscriber owns its whole prefix.
+  # Sustained clicks per second allowed from one account.
   perSecond: 1
-  # Clicks a caller arriving after a quiet spell may spend at once, so that a
+  # Clicks an account arriving after a quiet spell may spend at once, so that a
   # normal flurry is not refused.
   burst: 10
+  # The scope's burst and rate over one account's: players behind one address,
+  # such as a campus, share it. 1 or more.
+  scopeMultiplier: 10
   # How often the buckets that have refilled completely are forgotten. Only
   # affects memory, never what a caller is allowed.
   sweepInterval: 1m
@@ -593,3 +599,23 @@ auth:
     # Never below sessions.guestTTL, or a live cookie loses its account.
     idleFor: 2160h # 90 days
     interval: 1h
+
+# A player's name and stats: tiles taken and the daily streak. Off by default:
+# with it disabled player.v1 404s and nobody hears planet.v1.TileTaken. It
+# answers for the account in the click token, so it needs auth on, and it asks
+# auth for the verifying key over httpServer.internalBindAddress.
+player:
+  enabled: false
+  # The player module's own database block, schema player. Same shape as the
+  # planet's database above, and it may point at the same postgres.
+  database:
+    host: localhost
+    port: "5432"
+    user: postgres
+    # Belongs in the environment in production (player.database.password).
+    password: postgres
+    dbName: postgres
+    sslMode: disable
+    schema: player
+    pool:
+      maxOpenConns: 2

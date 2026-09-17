@@ -1,11 +1,13 @@
 import {useEffect, useRef, useState} from "react"
-import {AuthFailure, failureOf} from "../../backends/account.ts"
+import {AuthFailure, failureOf, Provider} from "../../backends/account.ts"
 import {SignInCallback as Callback} from "../../domain/signInCallback.ts"
 import {messageOf, retryOf} from "./authMessages.ts"
 import "./Account.css"
 
 export type SignInCallbackProps = {
     callback: Callback
+    /** The provider the sign-in went to, to name it. Absent when none is remembered. */
+    provider?: Provider
     /** Trades the code, and invalidates the click token on success. */
     complete: (code: string, state: string) => Promise<void>
     /** Goes back to the provider the sign-in started with. Absent when none is remembered. */
@@ -85,8 +87,10 @@ export default function SignInCallback(props: SignInCallbackProps) {
     }
 
     const retry = retryOf(step.failure)
-    return <Card title="Sign-in did not work">
-        <p role="alert">{messageOf(step.failure)}</p>
+    // A refused link changed nothing: the player goes back on the account they were on.
+    const notLinked = step.failure === "linkedElsewhere" || step.failure === "alreadyLinked"
+    return <Card title={notLinked ? "Not linked" : "Sign-in did not work"}>
+        <p role="alert">{messageOf(step.failure, props.provider)}</p>
         <div className="sign-in-callback-actions">
             {retry === "complete" && <button type="button" className="button sign-in-callback-primary" onClick={() => void complete()}>
                 Try again

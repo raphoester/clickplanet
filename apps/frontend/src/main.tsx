@@ -13,13 +13,13 @@ import type {Globe} from "./app/viewer/globe.ts"
 import App from "./app/App.tsx"
 import {ConnectAccountBackend} from "./backends/accountBackend.ts"
 import {AccountStore} from "./app/account/accountStore.ts"
-import {rememberProvider} from "./app/account/rememberedProvider.ts"
+import {rememberSignIn} from "./app/account/rememberedSignIn.ts"
 import SignInGate from "./app/account/SignInGate.tsx"
 import {callbackOf, CALLBACK_PATH} from "./domain/signInCallback.ts"
 
 // The provider's code and state leave the address bar before anything else
 // runs: nothing may bookmark, log, share or send them on as a referrer. The
-// page they came in on already set `no-referrer` (see index.html).
+// page they came in on already set `no-referrer` (see play.html).
 const callback = callbackOf(new URL(window.location.href))
 if (callback) window.history.replaceState(null, "", CALLBACK_PATH)
 
@@ -88,7 +88,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     const chatBackend = new ChatServiceBackend(newChatServiceClient(config))
     const account = new AccountStore(new ConnectAccountBackend(authClient), session, {
         navigate: (url) => window.location.assign(url),
-        remember: rememberProvider,
+        remember: rememberSignIn,
     })
 
     root.render(

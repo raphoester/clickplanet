@@ -48,8 +48,52 @@ npm run dBuild   # Build the image as clickplanet-front:local
 ```
 
 The image is self-contained — `nginx.conf` is baked in and mirrors what the
-deployed site does: the caching rules from `public/_headers`, and the SPA
-fallback that `wrangler.jsonc` sets with `not_found_handling`.
+deployed site does: the caching rules from `public/_headers`, the game at
+`/play` and `/auth/callback`, and the fallback to the home page that
+`wrangler.jsonc` sets with `not_found_handling`.
+
+## Pages and routes
+
+Two pages, built by Vite as a multi-page app (`build.rollupOptions.input` in
+`vite.config.ts`):
+
+| Path | File | What |
+|---|---|---|
+| `/` | `index.html` | The home page. Plain HTML, no bundle. |
+| `/play` | `play.html` | The game. |
+| `/auth/callback` | `auth/callback.html` | The game again, for the sign-in callback. |
+| `/privacy`, `/terms` | `public/*.html` | Plain pages. |
+| anything else | `index.html` | `not_found_handling` fallback. |
+
+**Why `/` is not the game.** Google's brand verification, which lets anyone
+sign in with Google, was refused twice: the checker runs JavaScript, saw only
+the globe, and found no text that says what the app is and no visible link to
+the privacy policy. A plain intro inside `#root` did not help: hidden as soon as
+JavaScript ran (it flashed), the checker never saw it. So `/` is a plain page
+built like `privacy.html`: what the game is, "no account needed", a Play button,
+and links to both pages, the contact address and Discord. **Keep that text and
+those links on it**; they are what the verification reads.
+
+**Only a first visit sees it.** An inline script, first in the home page's
+`<head>`, sends a browser that holds `COUNTRY_STORAGE_KEY` in local storage to
+`/play` with `location.replace`, before anything is painted. The game writes
+that key on its first render, so a browser that opened the game once never
+sees the home page again. `location.search` and `location.hash` go along, so
+an old link such as `/?c=de` still reaches the game with its query. Crawlers
+have no storage and read the home page. `homePage.test.ts` pins the key in the
+script to the constant. **`/#home` does not redirect**: it is the "Home page"
+link at the bottom of the About modal.
+
+**The game is a real file at each path**, not a fallback. The Workers fallback
+is `index.html`, the home page, so a `/auth/callback` that relied on it would
+land on the home page and lose the code. The `gameRoutes` plugin in
+`vite.config.ts` writes `play.html` a second time as `auth/callback.html`, and
+in `npm run dev` rewrites both paths to `play.html`. The registered redirect URI
+is unchanged. Paths under `/play/` have no file and get the home page: the game
+has no routes of its own.
+
+**The bundle is named `play-*.js`** now, not `index-*.js`, and it is linked from
+`/play`, not from `/`.
 
 ## Architecture
 
@@ -420,7 +464,7 @@ on server-side will therefore *not* ship a frontend that can mint one. Grep the
 deployed bundle rather than trusting the dashboard:
 
 ```bash
-B=$(curl -s https://clickplanet.lol | grep -oE '/assets/index-[A-Za-z0-9_-]+\.js' | head -1)
+B=$(curl -s https://clickplanet.lol/play | grep -oE '/assets/play-[A-Za-z0-9_-]+\.js' | head -1)
 curl -s "https://clickplanet.lol$B" | grep -c 'challenges.cloudflare.com/turnstile'
 ```
 
@@ -439,7 +483,8 @@ Discord keeps that account on every device.
   Connect codes: `unimplemented` → `off`, `invalid_argument` → `notOffered`,
   `resource_exhausted` → `tooManyTries`, `failed_precondition` → `startAgain`,
   `permission_denied` → `refused`, `unauthenticated` → `notSignedIn`, anything
-  else → `failed`. **Only the two reads are retried**: a retried
+  else → `failed`. A refused link is matched on its `LinkRefusal` detail, not
+  its code: `linkedElsewhere` or `alreadyLinked`. **Only the two reads are retried**: a retried
   `CompleteSignIn` would spend a code that is good once.
 - `domain/signInCallback.ts` — `callbackOf`, what the provider sent to
   `/auth/callback`: a code and a state, a refusal (`error`, which wins), or a
@@ -466,15 +511,18 @@ and `CompleteSignIn` each spend one. `tooManyTries` says to wait a minute.
 
 **The flow:**
 
-1. "Sign in with Google" calls `StartSignIn`, keeps the provider in session
-   storage (`rememberedProvider.ts`) and sends the browser to the URL it answers.
-   "Link Discord" is the same call from a signed-in account: the server links a
-   new identity to the account the browser is on.
+1. "Sign in with Google" calls `StartSignIn` with the intent `signIn`, keeps
+   the provider and the intent in session storage (`rememberedSignIn.ts`) and
+   sends the browser to the URL it answers. "Link Discord" (`AccountStore.link`)
+   sends the intent `link`. **The intent matters**: a sign-in with an identity
+   another account uses moves the browser to that account, and a link is
+   refused instead, so the player stays on the account they linked from.
 2. The provider sends the browser to `/auth/callback?code=…&state=…`. The
-   Workers asset handler serves `index.html` there through
-   `not_found_handling` (`nginx.conf` has a route of its own), and the project's
-   build watch path, `apps/frontend/`, covers every file involved.
-3. **The code must not leak.** An inline script at the top of `index.html` adds
+   Workers asset handler serves `auth/callback.html` there, a copy of the game
+   the build writes (see [Pages and routes](#pages-and-routes); `nginx.conf` has
+   a route of its own), and the project's build watch path, `apps/frontend/`,
+   covers every file involved.
+3. **The code must not leak.** An inline script at the top of `play.html` adds
    `<meta name="referrer" content="no-referrer">` on that path before any other
    request is made, `public/_headers` sends the same `Referrer-Policy`, and
    `main.tsx` takes the query out of the address bar with `history.replaceState`
@@ -483,7 +531,7 @@ and `CompleteSignIn` each spend one. `tooManyTries` says to wait a minute.
    `CompleteSignIn` **once** — a ref guards it, since StrictMode runs the effect
    twice and a second trade would fail and hide the first one's success.
 5. On success, `AccountStore.completeSignIn` **invalidates the click token** and
-   reads the account again, and the gate swaps in the game in place, at `/`,
+   reads the account again, and the gate swaps in the game in place, at `/play`,
    with no reload. The next click mints a token that carries the new account.
 6. On failure the page says why in one line. `retryOf` picks what "Try again"
    does: send the same code again when the server did not use it
@@ -491,6 +539,11 @@ and `CompleteSignIn` each spend one. `tooManyTries` says to wait a minute.
    read), or go back to the remembered provider when the code is spent
    (`startAgain`, `refused`). With no remembered provider there is only "Back to
    the game".
+7. A refused link (`linkedElsewhere`, `alreadyLinked`) is titled "Not linked"
+   and offers only "Back to the game": the same identity would be refused
+   again. The server changed nothing, so the player is still on their account.
+   `linkedElsewhere` tells them how to move the identity: sign in with it,
+   delete that account, then link it here.
 
 **Every way out of an account invalidates the click token too**: sign out, sign
 out everywhere, and delete. The player plays on, and the next click mints a new
@@ -1053,7 +1106,7 @@ repo but **not deployed** (`copy:static` deletes it from `dist/static/`). So is
 1200×627 scrapers ask for. It is letterboxed onto black rather than cropped —
 the screenshot is wider than 1.91:1 with the leaderboard against one edge and
 the buttons against the other. If you regenerate it at a different size, update
-`og:image:width` / `og:image:height` in `index.html` to match.
+`og:image:width` / `og:image:height` in `index.html` and `play.html` to match.
 
 `public/` holds the files that must be served as themselves rather than as the
 app: `_headers`, `robots.txt`, `sitemap.xml`, `privacy.html` and `terms.html`. Vite copies them to the root of
@@ -1065,7 +1118,7 @@ fetch the preview image, though it was never proven to be the only cause.
 Nothing under `/static/` may be disallowed in robots.txt; that is where scrapers
 fetch the preview from.
 
-**`privacy.html` is the privacy policy**, linked from the bottom of the About modal.
+**`privacy.html` is the privacy policy**, linked from the home page and from the bottom of the About modal.
 It is a plain page, not a component: it loads with no WebGL and no bundle, and a
 crawler reads it as it is. The Workers asset handler serves it at `/privacy`
 (`html_handling` drops the extension) and `nginx.conf` does the same with
@@ -1079,11 +1132,8 @@ the Caddyfile. Change one, change the page and its date.
 what we ask Google for, why, that nobody else gets it, and the Limited Use
 sentence. A new Google scope changes that section.
 
-**`index.html` says what the game is in plain HTML**, inside `#root`: a title,
-a short pitch, "no account needed", and links to both pages and the contact
-address. Google refuses to verify a home page that a reader with no JavaScript
-sees as empty. React replaces it on mount, so a player only sees it while the
-bundle loads.
+**`index.html` is the home page** and says what the game is in plain HTML — see
+[Pages and routes](#pages-and-routes). Its background is `static/og-image.jpg`.
 
 **`terms.html` is the terms of service**, linked beside it and built
 the same way, at `/terms`. Discord asks for its URL to allow OAuth sign-in. The
@@ -1149,7 +1199,7 @@ makes, so viewport, DPR, touch and the iOS user agent all resolve like a phone:
 
 ```bash
 npm run dev
-npm run mobile -- http://localhost:5173/ --open-menu --out /tmp/shot.png \
+npm run mobile -- http://localhost:5173/play --open-menu --out /tmp/shot.png \
   --eval 'JSON.stringify(getComputedStyle(document.querySelector(".button-discord")).height)'
 ```
 

@@ -28,7 +28,7 @@ func (h BanPlayerHandler) BanPlayer(
 	ctx context.Context,
 	req *connect.Request[planetv1.BanPlayerRequest],
 ) (*connect.Response[planetv1.BanPlayerResponse], error) {
-	in := ban_player_usecase.In{Scope: req.Msg.GetScope()}
+	in := ban_player_usecase.In{Scope: req.Msg.GetScope(), Account: req.Msg.GetAccountId()}
 	if duration := req.Msg.GetDuration(); duration != nil {
 		in.Duration = duration.AsDuration()
 	}
@@ -39,11 +39,13 @@ func (h BanPlayerHandler) BanPlayer(
 	case err == nil:
 		return connect.NewResponse(&planetv1.BanPlayerResponse{
 			Scope:       out.Scope,
+			AccountId:   out.Account,
 			Offence:     uint32(out.Offence), //nolint:gosec // an offence count, never negative.
 			BannedUntil: timestamppb.New(out.Until),
 			Enforced:    out.Enforced,
 		}), nil
-	case errors.Is(err, ledger.ErrInvalidScope), errors.Is(err, ban_player_usecase.ErrNegativeDuration):
+	case errors.Is(err, ledger.ErrInvalidScope), errors.Is(err, ledger.ErrInvalidAccount), errors.Is(err, ledger.ErrNoCaller),
+		errors.Is(err, ban_player_usecase.ErrNegativeDuration):
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	case errors.Is(err, ban_player_usecase.ErrAntiBotOff):
 		return nil, connect.NewError(connect.CodeFailedPrecondition, err)

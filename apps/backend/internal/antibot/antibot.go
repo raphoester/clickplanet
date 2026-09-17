@@ -47,9 +47,9 @@ import (
 type (
 	Click    = detect.Click       // one Click RPC, as the guard sees it
 	Report   = detect.Report      // one ban, with every watchdog's opinion behind it
-	Sentence = shadowban.Sentence // a scope's ban, as the operator tools read it
+	Sentence = shadowban.Sentence // a scope's or an account's ban, as the operator tools read it
 
-	Examination = detect.Examination // what the jury holds on one scope, as InspectPlayer reads it
+	Examination = detect.Examination // what the jury holds on one scope and the bans on it, as InspectPlayer reads it
 	Reading     = detect.Reading     // one watchdog's opinion, already worded
 )
 
@@ -186,7 +186,8 @@ func New(config Config, clock cptime.Clock, observer Observer) (*Guard, error) {
 
 	db := cppg.New(config.Database)
 
-	return build(config, clock, observer, postgres{db: db}, postgres_ban_store.New(db), postgres_evidence_store.New(db))
+	return build(config, clock, observer, postgres{db: db},
+		postgres_ban_store.NewScopes(db), postgres_ban_store.NewAccounts(db), postgres_evidence_store.New(db))
 }
 
 // database is the pool behind the persistences: opened by LoadState, closed when Run returns.
@@ -217,7 +218,8 @@ func build(
 	clock cptime.Clock,
 	observer Observer,
 	db database,
-	bans shadowban.Persistence,
+	scopeBans shadowban.Persistence,
+	accountBans shadowban.Persistence,
 	evidences evidence.Persistence,
 ) (*Guard, error) {
 	if clock == nil {
@@ -312,7 +314,7 @@ func build(
 	// Defaulted here so the description carries the bounds actually enforced.
 	juryConfig := config.Jury.WithDefaults()
 
-	banner := shadowban.New(config.ShadowBan, clock, bans, onStateError)
+	banner := shadowban.NewBans(config.ShadowBan, clock, scopeBans, accountBans, onStateError)
 	g.runners = append(g.runners, banner.Run)
 
 	g.banner = banner
@@ -364,7 +366,7 @@ type Description struct {
 // its Run returns at once.
 type Guard struct {
 	jury        *jury.Jury        // nil when the block is off
-	banner      *shadowban.Banner // nil when the block is off
+	banner      *shadowban.Bans   // nil when the block is off
 	evidence    *evidence.Store   // nil when the block is off
 	database    database          // nil when the block is off
 	catcher     *catcher.Watchdog // nil when the catcher is off
@@ -457,32 +459,36 @@ func (g *Guard) Flagged() int {
 	return g.jury.Flagged()
 }
 
-// Ban is an operator's ban on a scope; a zero duration takes the ladder's.
-func (g *Guard) Ban(scope string, duration time.Duration) Sentence {
+// Ban is an operator's ban on a scope or on an account, whichever is named; a zero duration takes the
+// ladder's. An account named alone is banned alone: which scope it plays from is not known here.
+func (g *Guard) Ban(scope, account string, duration time.Duration) Sentence {
 	if !g.Enabled() {
 		return Sentence{}
 	}
 
-	return g.banner.Ban(scope, duration)
+	return g.banner.Ban(shadowban.Caller{Scope: scope, Account: account}, duration)
 }
 
-func (g *Guard) Sentence(scope string) (Sentence, bool) {
+// Sentence is the running ban on the scope or the account that ends last.
+func (g *Guard) Sentence(scope, account string) (Sentence, bool) {
 	if !g.Enabled() {
 		return Sentence{}, false
 	}
 
-	return g.banner.Sentence(scope)
+	return g.banner.Sentence(shadowban.Caller{Scope: scope, Account: account})
 }
 
-// Examine reads every watchdog's opinion, the jury's decision and any ban on a scope, and changes nothing.
-func (g *Guard) Examine(scope string) Examination {
+// Examine reads every watchdog's opinion and the jury's decision on a scope, and any ban on the scope or
+// the account, and changes nothing.
+func (g *Guard) Examine(scope, account string) Examination {
 	if !g.Enabled() {
-		return Examination{Scope: scope}
+		return Examination{Scope: scope, Account: account}
 	}
 
 	examination := g.jury.Examine(scope)
+	examination.Account = account
 
-	if sentence, banned := g.banner.Sentence(scope); banned {
+	if sentence, banned := g.banner.Sentence(shadowban.Caller{Scope: scope, Account: account}); banned {
 		examination.Banned = true
 		examination.Flags = sentence.Flags
 		examination.Offence = sentence.Offence
@@ -495,8 +501,10 @@ func (g *Guard) Examine(scope string) Examination {
 // Enforcing says whether a ban drops anything.
 func (g *Guard) Enforcing() bool { return g.Enabled() && g.banner.Enforcing() }
 
-// Banned says whether a scope's actions should be dropped: false while enforce is off.
-func (g *Guard) Banned(scope string) bool { return g.Enabled() && g.banner.Banned(scope) }
+// Banned says whether a caller's actions should be dropped, for its scope or its account: false while enforce is off.
+func (g *Guard) Banned(scope, account string) bool {
+	return g.Enabled() && g.banner.Banned(shadowban.Caller{Scope: scope, Account: account})
+}
 
 // Enabled is false for the guard New hands back when the block is off.
 func (g *Guard) Enabled() bool { return g.jury != nil }

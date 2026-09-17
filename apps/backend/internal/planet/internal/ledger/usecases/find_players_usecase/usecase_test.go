@@ -28,7 +28,10 @@ func (b borders) CountryOf(tile uint32) string { return b[tile] }
 
 type bans map[string]antibot.Sentence
 
-func (b bans) Sentence(scope string) (antibot.Sentence, bool) {
+func (b bans) Sentence(scope, account string) (antibot.Sentence, bool) {
+	if sentence, ok := b[account]; ok {
+		return sentence, true
+	}
 	sentence, ok := b[scope]
 	return sentence, ok
 }

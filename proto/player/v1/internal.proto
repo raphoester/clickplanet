@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package player.v1;
+
+// What other modules of the backend ask the player module. Served only on the
+// backend's loopback internal listener (httpServer.internalBindAddress), never
+// on the public router.
+service InternalService {
+  // The names the accounts chose. An account with no name, or an id that is
+  // not a UUID, is left out of the answer.
+  rpc GetNames(GetNamesRequest) returns (GetNamesResponse);
+}
+
+message GetNamesRequest {
+  repeated string account_ids = 1;
+}
+
+message GetNamesResponse {
+  // By account id.
+  map<string, string> names = 1;
+}

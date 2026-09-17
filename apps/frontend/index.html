@@ -3,20 +3,24 @@
 <head>
     <meta charset="UTF-8"/>
     <!--
-      The sign-in callback carries a one-time code in its address until main.tsx
-      removes it. First in <head>, so no request this page makes sends it on as a
-      referrer. public/_headers says the same for the document itself.
+      A browser that has played before goes straight to the game. The game keeps
+      the chosen country under this key (COUNTRY_STORAGE_KEY in
+      src/app/countryPreference.ts, pinned by homePage.test.ts). First in <head>,
+      so nothing of this page is painted before it leaves. /#home is the menu's
+      link back here, and stays.
     -->
     <script>
-        if (location.pathname.replace(/\/+$/, "") === "/auth/callback") {
-            var referrer = document.createElement("meta")
-            referrer.name = "referrer"
-            referrer.content = "no-referrer"
-            document.head.appendChild(referrer)
+        try {
+            if (location.hash !== "#home" && localStorage.getItem("clickplanet-country") !== null) {
+                location.replace("/play" + location.search + location.hash)
+            }
+        } catch (e) {
+            // No storage: show the home page.
         }
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <meta name="description" content="Conquer the world with your flag, one click at a time"/>
+    <meta name="description"
+          content="A free multiplayer game in your browser. Pick a country and paint a live 3D globe with its flag, one click at a time."/>
     <meta name="author" content="Raphaël Oester"/>
     <meta name="keywords" content="clickplanet, click, planet, multiplayer, online, game, conquer, world, map"/>
     <link rel="canonical" href="https://clickplanet.lol/"/>
@@ -48,67 +52,156 @@
     <meta name="twitter:site" content="@raphael_oester"/>
 
     <meta name="google-adsense-account" content="ca-pub-3182218128474835">
-    
-    <title>ClickPlanet</title>
 
+    <title>ClickPlanet · Paint the planet with your flag</title>
+
+    <link rel="icon" href="/static/favicon.png" type="image/x-icon">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Oswald:wght@200..700&display=swap"
+    <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Oswald:wght@400;500&display=swap"
           rel="stylesheet">
-    <link rel="icon" href="/static/favicon.png" type="image/x-icon">
+    <!--
+      The home page. A plain page, like privacy.html: no bundle, no WebGL, and
+      everything a reader needs is in the HTML, because Google's brand
+      verification reads it. The game is play.html, at /play.
+    -->
     <style>
         body {
             margin: 0;
+            min-height: 100vh;
             background: #04090F;
+            color: #FFFFFFDD;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: 16px;
+            line-height: 1.6;
         }
 
-        .intro {
+        .backdrop {
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            background: linear-gradient(#04090FCC, #04090FF2 70%),
+            url("/static/og-image.jpg") center / cover no-repeat;
+        }
+
+        main {
             min-height: 100vh;
             box-sizing: border-box;
             display: flex;
             flex-direction: column;
             justify-content: center;
-            max-width: 560px;
+            max-width: 600px;
             margin: 0 auto;
-            padding: 32px 16px;
-            background: #04090F;
-            color: #FFFFFFDD;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            line-height: 1.6;
+            padding: 48px 16px;
         }
 
-        .intro h1 {
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .brand img {
+            width: 64px;
+            height: 64px;
+        }
+
+        h1 {
             font-family: "Luckiest Guy", sans-serif;
             font-weight: normal;
             letter-spacing: 1px;
             color: #FFFFFF;
-            font-size: 40px;
-            margin: 0 0 8px;
+            font-size: 48px;
+            line-height: 1;
+            /* Luckiest Guy rides high in its box; this puts the capitals level with the logo. */
+            margin: 12px 0 0;
         }
 
-        .intro a {
+        .pitch {
+            font-size: 20px;
+            color: #FFFFFF;
+        }
+
+        .play {
+            display: inline-block;
+            align-self: flex-start;
+            margin: 16px 0 8px;
+            padding: 16px 48px 12px;
+            border-radius: 16px;
+            background: #FF813F;
+            color: #FFFFFF;
+            font-family: "Luckiest Guy", sans-serif;
+            font-size: 32px;
+            letter-spacing: 1px;
+            text-decoration: none;
+            text-shadow: -1px 1px 0 #000000;
+            transition: background-color 0.125s ease;
+        }
+
+        .play:hover, .play:focus-visible {
+            background: #FF9A63;
+        }
+
+        a {
             color: #FF813F;
+        }
+
+        footer {
+            margin-top: 32px;
+            padding-top: 16px;
+            border-top: 1px solid #FFFFFF1F;
+            font-family: Oswald, sans-serif;
+            font-size: 14px;
+            letter-spacing: 1px;
+        }
+
+        @media only screen and (max-width: 480px) {
+            .brand img {
+                width: 48px;
+                height: 48px;
+            }
+
+            h1 {
+                font-size: 36px;
+                margin-top: 8px;
+            }
+        }
+
+        footer ul {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px 24px;
+            margin: 0;
+            padding: 0;
+            list-style: none;
         }
     </style>
 </head>
 <body>
-<!--
-  What the page is, in plain HTML, for a reader with no JavaScript: Google checks
-  it before it lets sign-in out of testing. React replaces it when it mounts.
--->
-<div id="root">
-    <main class="intro">
+<div class="backdrop" aria-hidden="true"></div>
+<main id="home">
+    <div class="brand">
+        <img src="/static/logo.svg" alt="" width="64" height="64"/>
         <h1>ClickPlanet</h1>
-        <p>ClickPlanet is a free multiplayer game in your browser. Pick a country, then click tiles on a 3D globe
-            to paint them with its flag. Everyone plays on the same planet, live, and each country fights for the
-            most ground.</p>
-        <p>You do not need an account to play. You can sign in with Google or Discord to keep your account on
-            every device.</p>
-        <p><a href="/privacy">Privacy policy</a> · <a href="/terms">Terms of service</a> ·
-            <a href="mailto:privacy@clickplanet.lol">privacy@clickplanet.lol</a></p>
-        <noscript><p>The game needs JavaScript and WebGL.</p></noscript>
-    </main>
-</div>
-<script type="module" src="/src/main.tsx"></script>
+    </div>
+
+    <p class="pitch">A free multiplayer game in your browser. Pick a country, then click tiles on a 3D globe to paint
+        them with its flag.</p>
+    <p>Everyone plays on the same planet, live. Each country fights for the most ground, and a tile stays yours until
+        someone takes it.</p>
+    <p>No account needed. Sign in with Google or Discord to keep your account on every device.</p>
+
+    <a class="play" href="/play">Play</a>
+    <noscript><p>The game needs JavaScript and WebGL.</p></noscript>
+
+    <footer>
+        <ul>
+            <li><a href="/privacy">Privacy policy</a></li>
+            <li><a href="/terms">Terms of service</a></li>
+            <li><a href="mailto:privacy@clickplanet.lol">privacy@clickplanet.lol</a></li>
+            <li><a href="https://discord.gg/Nwekj6ndbn" target="_blank" rel="noopener noreferrer">Discord</a></li>
+        </ul>
+    </footer>
+</main>
 </body>
 </html>

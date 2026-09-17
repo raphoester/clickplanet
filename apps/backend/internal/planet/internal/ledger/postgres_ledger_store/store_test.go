@@ -43,7 +43,7 @@ func stored(position ledger.Position, tile uint32, scope, country, previous stri
 	}
 }
 
-func changes(from, head ledger.Position, forgotten map[string]ledger.Position, takes ...inmemory_ledger_storage.Stored) inmemory_ledger_storage.Changes {
+func changes(from, head ledger.Position, forgotten map[ledger.Caller]ledger.Position, takes ...inmemory_ledger_storage.Stored) inmemory_ledger_storage.Changes {
 	return inmemory_ledger_storage.Changes{
 		From:  from,
 		Takes: slices.Values(takes),
@@ -64,7 +64,7 @@ func (s *testSuite) TestAnEmptyStoreLoadsNothing() {
 	takes, marks := s.load()
 
 	s.Empty(takes)
-	s.Equal(inmemory_ledger_storage.Marks{Forgotten: map[string]ledger.Position{}}, marks)
+	s.Equal(inmemory_ledger_storage.Marks{Forgotten: map[ledger.Caller]ledger.Position{}}, marks)
 }
 
 func (s *testSuite) TestSaveThenLoadInPositionOrder() {
@@ -75,17 +75,17 @@ func (s *testSuite) TestSaveThenLoadInPositionOrder() {
 	}
 	second := stored(5, 8, "1.2.3.4", "fr", "", start.Add(time.Minute))
 
-	s.Require().NoError(s.store.Save(ctx, changes(0, 0, map[string]ledger.Position{}, first...)))
-	s.Require().NoError(s.store.Save(ctx, changes(5, 0, map[string]ledger.Position{"bot": 2}, second)))
+	s.Require().NoError(s.store.Save(ctx, changes(0, 0, map[ledger.Caller]ledger.Position{}, first...)))
+	s.Require().NoError(s.store.Save(ctx, changes(5, 0, map[ledger.Caller]ledger.Position{{Scope: "bot"}: 2}, second)))
 
 	takes, marks := s.load()
 	s.Equal(slices.Concat(first, []inmemory_ledger_storage.Stored{second}), takes)
-	s.Equal(inmemory_ledger_storage.Marks{Forgotten: map[string]ledger.Position{"bot": 2}}, marks)
+	s.Equal(inmemory_ledger_storage.Marks{Forgotten: map[ledger.Caller]ledger.Position{{Scope: "bot"}: 2}}, marks)
 }
 
 func (s *testSuite) TestATimeComesBackInUTC() {
 	paris := time.FixedZone("CEST", 2*60*60)
-	s.Require().NoError(s.store.Save(context.Background(), changes(0, 0, map[string]ledger.Position{}, stored(0, 1, "a", "fr", "", start.In(paris)))))
+	s.Require().NoError(s.store.Save(context.Background(), changes(0, 0, map[ledger.Caller]ledger.Position{}, stored(0, 1, "a", "fr", "", start.In(paris)))))
 
 	takes, _ := s.load()
 	s.Require().Len(takes, 1)
@@ -96,8 +96,8 @@ func (s *testSuite) TestASaveWhoseCommitWasLostIsWrittenAgainWithoutConflict() {
 	ctx := context.Background()
 	take := stored(3, 1, "a", "fr", "", start)
 
-	s.Require().NoError(s.store.Save(ctx, changes(3, 0, map[string]ledger.Position{}, take)))
-	s.Require().NoError(s.store.Save(ctx, changes(3, 0, map[string]ledger.Position{}, take)))
+	s.Require().NoError(s.store.Save(ctx, changes(3, 0, map[ledger.Caller]ledger.Position{}, take)))
+	s.Require().NoError(s.store.Save(ctx, changes(3, 0, map[ledger.Caller]ledger.Position{}, take)))
 
 	takes, _ := s.load()
 	s.Equal([]inmemory_ledger_storage.Stored{take}, takes)
@@ -105,26 +105,26 @@ func (s *testSuite) TestASaveWhoseCommitWasLostIsWrittenAgainWithoutConflict() {
 
 func (s *testSuite) TestTheHeadDeletesOlderTakesAndMarks() {
 	ctx := context.Background()
-	s.Require().NoError(s.store.Save(ctx, changes(0, 0, map[string]ledger.Position{"old": 1, "new": 3},
+	s.Require().NoError(s.store.Save(ctx, changes(0, 0, map[ledger.Caller]ledger.Position{{Scope: "old"}: 1, {Scope: "new"}: 3},
 		stored(0, 1, "old", "fr", "", start),
 		stored(1, 2, "new", "fr", "", start),
 		stored(2, 3, "new", "fr", "", start),
 	)))
 
-	s.Require().NoError(s.store.Save(ctx, changes(3, 2, map[string]ledger.Position{})))
+	s.Require().NoError(s.store.Save(ctx, changes(3, 2, map[ledger.Caller]ledger.Position{})))
 
 	takes, marks := s.load()
 	s.Equal([]inmemory_ledger_storage.Stored{stored(2, 3, "new", "fr", "", start)}, takes)
-	s.Equal(inmemory_ledger_storage.Marks{Head: 2, Forgotten: map[string]ledger.Position{"new": 3}}, marks)
+	s.Equal(inmemory_ledger_storage.Marks{Head: 2, Forgotten: map[ledger.Caller]ledger.Position{{Scope: "new"}: 3}}, marks)
 }
 
 func (s *testSuite) TestAMarkOnlyMovesForward() {
 	ctx := context.Background()
-	s.Require().NoError(s.store.Save(ctx, changes(0, 0, map[string]ledger.Position{"bot": 5})))
-	s.Require().NoError(s.store.Save(ctx, changes(0, 0, map[string]ledger.Position{"bot": 4})))
+	s.Require().NoError(s.store.Save(ctx, changes(0, 0, map[ledger.Caller]ledger.Position{{Scope: "bot"}: 5})))
+	s.Require().NoError(s.store.Save(ctx, changes(0, 0, map[ledger.Caller]ledger.Position{{Scope: "bot"}: 4})))
 
 	_, marks := s.load()
-	s.Equal(map[string]ledger.Position{"bot": 5}, marks.Forgotten)
+	s.Equal(map[ledger.Caller]ledger.Position{{Scope: "bot"}: 5}, marks.Forgotten)
 }
 
 func (s *testSuite) TestSaveCopiesManyTakes() {
@@ -134,7 +134,7 @@ func (s *testSuite) TestSaveCopiesManyTakes() {
 		takes[i] = stored(ledger.Position(i), uint32(i), "1.2.3.4", "fr", "", start)
 	}
 
-	s.Require().NoError(s.store.Save(context.Background(), changes(0, 0, map[string]ledger.Position{}, takes...)))
+	s.Require().NoError(s.store.Save(context.Background(), changes(0, 0, map[ledger.Caller]ledger.Position{}, takes...)))
 
 	loaded, _ := s.load()
 	s.Len(loaded, count)
@@ -142,10 +142,10 @@ func (s *testSuite) TestSaveCopiesManyTakes() {
 
 func (s *testSuite) TestAFailedSaveWritesNothing() {
 	ctx := context.Background()
-	s.Require().NoError(s.store.Save(ctx, changes(0, 0, map[string]ledger.Position{}, stored(0, 1, "a", "fr", "", start))))
+	s.Require().NoError(s.store.Save(ctx, changes(0, 0, map[ledger.Caller]ledger.Position{}, stored(0, 1, "a", "fr", "", start))))
 
 	// The second tile overflows its integer column; the first take and the marks must not land either.
-	err := s.store.Save(ctx, changes(1, 1, map[string]ledger.Position{"bot": 2},
+	err := s.store.Save(ctx, changes(1, 1, map[ledger.Caller]ledger.Position{{Scope: "bot"}: 2},
 		stored(1, 2, "a", "fr", "", start),
 		stored(2, 1<<31, "a", "fr", "", start),
 	))
@@ -153,5 +153,36 @@ func (s *testSuite) TestAFailedSaveWritesNothing() {
 
 	takes, marks := s.load()
 	s.Equal([]inmemory_ledger_storage.Stored{stored(0, 1, "a", "fr", "", start)}, takes)
-	s.Equal(inmemory_ledger_storage.Marks{Forgotten: map[string]ledger.Position{}}, marks)
+	s.Equal(inmemory_ledger_storage.Marks{Forgotten: map[ledger.Caller]ledger.Position{}}, marks)
+}
+
+func (s *testSuite) TestATakesAccountComesBackAndNoneIsNull() {
+	ctx := context.Background()
+	const guest = "0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10"
+	withAccount := stored(0, 1, "1.2.3.4", "fr", "", start)
+	withAccount.Taking.Account = guest
+	without := stored(1, 2, "1.2.3.4", "fr", "", start)
+
+	s.Require().NoError(s.store.Save(ctx, changes(0, 0, map[ledger.Caller]ledger.Position{}, withAccount, without)))
+
+	var nulls int
+	s.Require().NoError(s.db.QueryRowContext(ctx, `SELECT count(*) FROM ledger_takes WHERE account IS NULL`).Scan(&nulls))
+	s.Equal(1, nulls)
+
+	takes, _ := s.load()
+	s.Equal([]inmemory_ledger_storage.Stored{withAccount, without}, takes)
+}
+
+func (s *testSuite) TestAccountMarksAreKeptApartFromScopeMarks() {
+	ctx := context.Background()
+	const guest = "0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10"
+	marks := map[ledger.Caller]ledger.Position{{Scope: "bot"}: 2, {Account: guest}: 4}
+
+	s.Require().NoError(s.store.Save(ctx, changes(0, 0, marks)))
+	_, loaded := s.load()
+	s.Equal(marks, loaded.Forgotten)
+
+	s.Require().NoError(s.store.Save(ctx, changes(0, 3, map[ledger.Caller]ledger.Position{})))
+	_, loaded = s.load()
+	s.Equal(map[ledger.Caller]ledger.Position{{Account: guest}: 4}, loaded.Forgotten, "the head drops account marks too")
 }

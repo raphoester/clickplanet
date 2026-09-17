@@ -67,7 +67,9 @@ func TestErrorsMapToTheirCodes(t *testing.T) {
 	cause := errors.New("boom")
 
 	for err, code := range map[error]connect.Code{
-		fmt.Errorf("%w: %q", ledger.ErrInvalidScope, "bot"):           connect.CodeInvalidArgument,
+		fmt.Errorf("%w: %q", ledger.ErrInvalidScope, "bot"):     connect.CodeInvalidArgument,
+		fmt.Errorf("%w: %q", ledger.ErrInvalidAccount, "guest"): connect.CodeInvalidArgument,
+		ledger.ErrNoCaller: connect.CodeInvalidArgument,
 		fmt.Errorf("%w: -1h", ban_player_usecase.ErrNegativeDuration): connect.CodeInvalidArgument,
 		ban_player_usecase.ErrAntiBotOff:                              connect.CodeFailedPrecondition,
 		cause:                                                         connect.CodeUnknown,
@@ -75,4 +77,16 @@ func TestErrorsMapToTheirCodes(t *testing.T) {
 		_, got := ban(t, &stubUseCase{err: err}, &planetv1.BanPlayerRequest{Scope: "bot"})
 		assert.Equal(t, code, connect.CodeOf(got), err.Error())
 	}
+}
+
+func TestAnAccountReachesTheUseCaseAndComesBack(t *testing.T) {
+	const guest = "0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10"
+	useCase := &stubUseCase{out: ban_player_usecase.Out{Account: guest, Offence: 1}}
+
+	res, err := ban(t, useCase, &planetv1.BanPlayerRequest{AccountId: guest})
+	require.NoError(t, err)
+
+	assert.Equal(t, ban_player_usecase.In{Account: guest}, useCase.in)
+	assert.Equal(t, guest, res.GetAccountId())
+	assert.Empty(t, res.GetScope())
 }
