@@ -962,7 +962,7 @@ fetch the preview image, though it was never proven to be the only cause.
 Nothing under `/static/` may be disallowed in robots.txt; that is where scrapers
 fetch the preview from.
 
-**`privacy.html` is the privacy policy**, linked from the foot of the leaderboard.
+**`privacy.html` is the privacy policy**, linked from the bottom of the About modal.
 It is a plain page, not a component: it loads with no WebGL and no bundle, and a
 crawler reads it as it is. The Workers asset handler serves it at `/privacy`
 (`html_handling` drops the extension) and `nginx.conf` does the same with
@@ -972,7 +972,7 @@ retention periods, so it goes stale when the backend's do**: `ledger.retention`,
 `auth.sessions.guestTTL` in `deploy/vps/backend.yaml`, and `roll_keep_for` in
 the Caddyfile. Change one, change the page and its date.
 
-**`terms.html` is the terms of service**, beside it in the same footer and built
+**`terms.html` is the terms of service**, linked beside it and built
 the same way, at `/terms`. Discord asks for its URL to allow OAuth sign-in. When
 a sign-in provider ships, the privacy policy must say what it sends us.
 
