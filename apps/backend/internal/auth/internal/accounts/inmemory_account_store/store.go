@@ -4,6 +4,7 @@
 package inmemory_account_store
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"slices"
@@ -232,7 +233,9 @@ func (s *Store) identitiesOf(account accounts.AccountID) []accounts.Identity {
 			identities = append(identities, identity)
 		}
 	}
-	slices.SortFunc(identities, func(a, b accounts.Identity) int { return a.LinkedAt.Compare(b.LinkedAt) })
+	slices.SortFunc(identities, func(a, b accounts.Identity) int {
+		return cmp.Or(a.LinkedAt.Compare(b.LinkedAt), cmp.Compare(a.Provider, b.Provider))
+	})
 	return identities
 }
 
