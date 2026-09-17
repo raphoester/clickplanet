@@ -276,6 +276,76 @@ export class GetMeResponse extends Message<GetMeResponse> {
 }
 
 /**
+ * @generated from message auth.v1.GetSignInOptionsRequest
+ */
+export class GetSignInOptionsRequest extends Message<GetSignInOptionsRequest> {
+  constructor(data?: PartialMessage<GetSignInOptionsRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "auth.v1.GetSignInOptionsRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetSignInOptionsRequest {
+    return new GetSignInOptionsRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetSignInOptionsRequest {
+    return new GetSignInOptionsRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetSignInOptionsRequest {
+    return new GetSignInOptionsRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetSignInOptionsRequest | PlainMessage<GetSignInOptionsRequest> | undefined, b: GetSignInOptionsRequest | PlainMessage<GetSignInOptionsRequest> | undefined): boolean {
+    return proto3.util.equals(GetSignInOptionsRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message auth.v1.GetSignInOptionsResponse
+ */
+export class GetSignInOptionsResponse extends Message<GetSignInOptionsResponse> {
+  /**
+   * Every provider offered, in a stable order. Empty while sign-in is off.
+   *
+   * @generated from field: repeated auth.v1.Provider providers = 1;
+   */
+  providers: Provider[] = [];
+
+  constructor(data?: PartialMessage<GetSignInOptionsResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "auth.v1.GetSignInOptionsResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "providers", kind: "enum", T: proto3.getEnumType(Provider), repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetSignInOptionsResponse {
+    return new GetSignInOptionsResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetSignInOptionsResponse {
+    return new GetSignInOptionsResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetSignInOptionsResponse {
+    return new GetSignInOptionsResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetSignInOptionsResponse | PlainMessage<GetSignInOptionsResponse> | undefined, b: GetSignInOptionsResponse | PlainMessage<GetSignInOptionsResponse> | undefined): boolean {
+    return proto3.util.equals(GetSignInOptionsResponse, a, b);
+  }
+}
+
+/**
  * @generated from message auth.v1.StartSignInRequest
  */
 export class StartSignInRequest extends Message<StartSignInRequest> {

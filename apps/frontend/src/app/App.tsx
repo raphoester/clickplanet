@@ -15,6 +15,7 @@ export default function App(props: AppProps) {
             bonusListener={props.bonusListener}
             bomber={props.bomber}
             chatBackend={props.chatBackend}
+            account={props.account}
         />
     </>
 }

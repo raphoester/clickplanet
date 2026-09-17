@@ -27,6 +27,8 @@ export type LeaderboardFeed = {
     leaderboard: LeaderboardEntry[]
     tileDeltas: TileDeltas
     recordLeaderboard: (entries: LeaderboardEntry[], live: boolean) => void
+    /** Publishes what has been recorded now, instead of on the next sample. */
+    publishLeaderboard: () => void
 }
 
 type Board = {
@@ -57,25 +59,27 @@ export function useLeaderboardFeed(): LeaderboardFeed {
         latest.current = entries
     }, [])
 
-    useEffect(() => {
-        const timer = setInterval(() => {
-            const entries = latest.current
-            latest.current = null
+    const publish = useCallback(() => {
+        const entries = latest.current
+        latest.current = null
 
-            const deltas = expireBadges(badges.current, Date.now())
+        const deltas = expireBadges(badges.current, Date.now())
 
-            // A still board with nothing left to retire is left alone entirely:
-            // a tick that hands React the state it already holds still costs a
-            // render before it bails out.
-            if (entries === null && deltas === badges.current) return
-            badges.current = deltas
+        // A still board with nothing left to retire is left alone entirely:
+        // a tick that hands React the state it already holds still costs a
+        // render before it bails out.
+        if (entries === null && deltas === badges.current) return
+        badges.current = deltas
 
-            setBoard((standing) =>
-                ({entries: entries ?? standing.entries, deltas}))
-        }, SAMPLE_MS)
-
-        return () => clearInterval(timer)
+        setBoard((standing) =>
+            ({entries: entries ?? standing.entries, deltas}))
     }, [])
 
-    return {leaderboard: board.entries, tileDeltas: board.deltas, recordLeaderboard}
+    useEffect(() => {
+        const timer = setInterval(publish, SAMPLE_MS)
+
+        return () => clearInterval(timer)
+    }, [publish])
+
+    return {leaderboard: board.entries, tileDeltas: board.deltas, recordLeaderboard, publishLeaderboard: publish}
 }

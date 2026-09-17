@@ -87,6 +87,30 @@ describe("SessionClient", () => {
         expect(await client.token()).toBe("session-2")
     })
 
+    // A sign-in or a sign-out changes the account the cookie names while a
+    // mint may be in flight. That mint names the old account, so it must not
+    // be kept for the clicks after it.
+    it("does not keep a mint that started before an invalidation", async () => {
+        let release: (value: {token: string, expiresAtUnixMs: bigint}) => void = () => {}
+        const createSession = vi.fn()
+            .mockImplementationOnce(() => new Promise((resolve) => {
+                release = resolve
+            }))
+            .mockImplementationOnce(minting("session-2"))
+
+        const client = new SessionClient(fakeClient(createSession), async () => "widget-token", {now: clock})
+
+        const old = client.token()
+        await vi.waitFor(() => expect(createSession).toHaveBeenCalledTimes(1))
+        client.invalidate()
+        release({token: "session-1", expiresAtUnixMs: BigInt(now + HOUR_MS)})
+        await old
+
+        expect(await client.token()).toBe("session-2")
+        expect(await client.token()).toBe("session-2")
+        expect(createSession).toHaveBeenCalledTimes(2)
+    })
+
     // A page load fires a flurry of clicks. One mint has to serve all of them,
     // or the first second of play spends the whole per-IP mint budget.
     it("serves concurrent callers from a single mint", async () => {

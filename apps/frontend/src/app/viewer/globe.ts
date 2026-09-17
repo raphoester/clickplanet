@@ -89,6 +89,8 @@ export type GlobeOptions = {
     container: HTMLElement
     country: Country
     onLeaderboardChange: (entries: LeaderboardEntry[], live: boolean) => void
+    /** The share of the map's owners fetched so far, from 0 to 1. */
+    onLoadProgress: (share: number) => void
     onRateLimited: () => void
     onVPNBlocked: () => void
     onSessionUnavailable: () => void
@@ -137,6 +139,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         container: eventTarget,
         country: initialCountry,
         onLeaderboardChange: updateLeaderboard,
+        onLoadProgress,
         onRateLimited,
         onVPNBlocked,
         onSessionUnavailable,
@@ -161,6 +164,10 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     const lifetime = new AbortController();
     const listenerOptions = {signal: lifetime.signal};
+
+    // Until the owners are in, the map is empty and its board is wrong, so
+    // nothing on it can be claimed yet.
+    let loaded = false
 
     const {scene, camera, cameraSize, renderer, cleanup} = setupScene(eventTarget);
     const uniforms: Uniforms = {
@@ -426,7 +433,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     }, listenerOptions);
 
     eventTarget.addEventListener('pointerdown', (event: PointerEvent) => {
-        if (!armed || !event.isTrusted || !event.isPrimary || event.button !== 0) return
+        if (!loaded || !armed || !event.isTrusted || !event.isPrimary || event.button !== 0) return
 
         const {x, y} = canvasPosition(event)
         const point = surfacePoint(x, y)
@@ -446,7 +453,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     }
 
     eventTarget.addEventListener('click', (event: MouseEvent) => {
-        if (!event.isTrusted) return;
+        if (!loaded || !event.isTrusted) return;
 
         if (swallowClick) {
             swallowClick = false
@@ -517,16 +524,6 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     };
     window.addEventListener('resize', resizeListener, listenerOptions);
 
-    ownershipsGetter.getCurrentOwnershipsByBatch(
-        TILES_PER_BATCH,
-        field.size,
-        (ownerships) => applyChanges(ownership.applyBatch(ownerships), false),
-        lifetime.signal,
-    ).catch((e) => {
-        if (lifetime.signal.aborted) return
-        console.error("Failed to fetch initial ownerships", e)
-    })
-
     const cleanUpdatesListener = updatesListener.listenForUpdatesBatch((updates: Update[]) => {
         // An update reaches this client after the blast it follows, so it wins
         // its tile: that tile is taken out of the waiting clear, and the rest of
@@ -579,7 +576,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         for (const request of takeCaptureRequests()) request.resolve(frame)
     });
 
-    return {
+    const globe: Globe = {
         tilesCount: field.size,
         setCountry: (newCountry: Country) => {
             country = newCountry
@@ -617,6 +614,35 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             cleanup()
         }
     }
+
+    // The scene already turns behind the loader, and fills in batch by batch.
+    // An abandoned load aborts the fetch through `lifetime`, and a failed one
+    // takes the whole globe down: a map without its owners is not playable.
+    const batches = Math.ceil(field.size / TILES_PER_BATCH)
+    let fetched = 0
+    const stopFollowingLoad = new AbortController()
+    signal.addEventListener("abort", () => lifetime.abort(), {signal: stopFollowingLoad.signal})
+    onLoadProgress(0)
+    try {
+        await ownershipsGetter.getCurrentOwnershipsByBatch(
+            TILES_PER_BATCH,
+            field.size,
+            (ownerships) => {
+                applyChanges(ownership.applyBatch(ownerships), false)
+                onLoadProgress(Math.min(1, ++fetched / batches))
+            },
+            lifetime.signal,
+        )
+        lifetime.signal.throwIfAborted()
+    } catch (e) {
+        globe.dispose()
+        throw e
+    } finally {
+        stopFollowingLoad.abort()
+    }
+
+    loaded = true
+    return globe
 }
 
 function startAnimation(

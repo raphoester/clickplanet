@@ -1,0 +1,205 @@
+.account-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+    padding: 0 4px 0 12px;
+    flex-shrink: 0;
+}
+
+.account-row-text {
+    flex-grow: 1;
+    min-width: 0;
+    font-family: Oswald, sans-serif;
+    font-size: 13px;
+    color: #FFFFFFB3;
+    text-shadow: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.account-row-button {
+    flex-shrink: 0;
+    margin-top: 0;
+    padding: 4px 12px 0 12px;
+    border-radius: 10px;
+    border-color: #FFFFFFAA;
+    font-size: 16px;
+}
+
+.account-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    /* Clears the fade .menu-panel lays over its bottom edge. */
+    padding-bottom: 36px;
+}
+
+.account-text {
+    margin: 0 0 4px 0;
+}
+
+/* A column, not the menu's row of actions: "Sign out everywhere" at the shared
+   28px wraps onto two lines in the card's width. Desktop only — under 768px the
+   shared mobile size already fits. */
+.account-button {
+    width: 100%;
+    white-space: nowrap;
+}
+
+@media only screen and (min-width: 769px) {
+    .account-button {
+        height: 48px;
+        padding: 8px 12px 0 12px;
+        font-size: 22px;
+    }
+}
+
+.account-button:disabled,
+.account-confirm .button:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.account-delete {
+    color: #FF8A80;
+    border-color: #FF8A8066;
+}
+
+.account-failure {
+    margin: 4px 0 0 0;
+    color: #FFB4A9;
+}
+
+.account-legal {
+    margin: 8px 0 0 0;
+    font-family: Oswald, sans-serif;
+    font-size: 12px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+.account-legal a {
+    font-family: inherit;
+    color: #FFFFFF80;
+}
+
+.account-legal a:hover {
+    color: #FFFFFF;
+}
+
+.account-confirm {
+    display: flex;
+    gap: 8px;
+}
+
+.account-confirm > * {
+    flex: 1 1 0;
+}
+
+.account-confirm .account-delete {
+    border: 1px solid #FF8A8066;
+}
+
+.account-confirm-text {
+    text-align: left;
+}
+
+.account-confirm-text ul {
+    margin: 0;
+    padding-left: 20px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 14px;
+    color: #DBDBDB;
+}
+
+.account-confirm-text a {
+    text-decoration: underline;
+}
+
+/* Sized on the viewport, like .viewer-canvas: body is position: fixed with no
+   width, so a box sized on its parent shrinks to its own text. */
+.sign-in-callback {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+
+.sign-in-callback-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    max-width: 360px;
+    padding: 24px;
+    border: 1px solid #FFFFFF33;
+    border-radius: 24px;
+    background: #101010;
+    text-align: center;
+}
+
+.sign-in-callback-card h1 {
+    margin: 0;
+    font-size: 28px;
+}
+
+.sign-in-callback-card p {
+    margin: 0;
+}
+
+.sign-in-callback-actions {
+    display: flex;
+    flex-direction: column;
+    align-self: stretch;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.sign-in-callback-actions .button {
+    width: 100%;
+}
+
+.sign-in-callback-primary {
+    background: #FFFFFF1F;
+}
+
+.sign-in-callback-spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid #FFFFFF33;
+    border-top-color: #FFFFFF;
+    border-radius: 50%;
+    animation: sign-in-callback-spin 0.9s linear infinite;
+}
+
+@keyframes sign-in-callback-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sign-in-callback-spinner {
+        animation-duration: 3s;
+    }
+}
+
+@media only screen and (max-width: 768px) {
+    .account-row {
+        margin-top: 8px;
+    }
+
+    .account-row-button {
+        font-size: 13px;
+        padding: 2px 10px 0 10px;
+        height: 32px;
+    }
+}

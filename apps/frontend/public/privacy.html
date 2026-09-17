@@ -100,11 +100,11 @@
     <a class="back" href="/">← Back to the planet</a>
 
     <h1>Privacy policy</h1>
-    <p class="updated">Last updated: 16 September 2026</p>
+    <p class="updated">Last updated: 17 September 2026</p>
 
     <p>ClickPlanet is a game made by Raphaël Oester. You can play without an account, and we never ask for
-        your name, email or any other contact detail. This page says what we still collect, why, and how long
-        we keep it.</p>
+        your name, email or any other contact detail. You can choose to sign in with Google or Discord. This
+        page says what we collect, why, and how long we keep it.</p>
 
     <h2>What we collect</h2>
     <table>
@@ -144,6 +144,13 @@
             <td>90 days after your last visit</td>
         </tr>
         <tr>
+            <td>Only if you sign in with Google or Discord: the id that service gives you, your email address if
+                the service says it is verified, and when you signed in with it. It is linked to your account.
+            </td>
+            <td>Keeping your account on every device where you sign in</td>
+            <td>Until you delete your account</td>
+        </tr>
+        <tr>
             <td>Chat messages: the name you chose, the text, your flag, a random id your browser keeps, your IP
                 address and user agent
             </td>
@@ -165,8 +172,10 @@
         Clearing your site data removes them.</p>
 
     <h2>Cookies</h2>
-    <p>We set one cookie, <code>cp_sid</code>, which holds your guest account. It is strictly necessary to play:
-        we do not use it for advertising or analytics. We use no tracking or analytics cookies.</p>
+    <p>We set one cookie, <code>cp_sid</code>, which holds your account. It is strictly necessary to play:
+        we do not use it for advertising or analytics. When you sign in, it lasts 30 days after your last visit.
+        While you sign in, we also set <code>cp_oauth</code> for 10 minutes, to check that the sign-in you finish
+        is the one you started. We use no tracking or analytics cookies.</p>
 
     <h2>Who else sees your data</h2>
     <ul>
@@ -179,6 +188,13 @@
             <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">Google's privacy
                 policy</a>.
         </li>
+        <li><strong>Google and Discord</strong>, only if you sign in with them. That service sees that you sign
+            in to ClickPlanet, and sends us the data in the table above. See
+            <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">Google's privacy
+                policy</a> and
+            <a href="https://discord.com/privacy" target="_blank" rel="noopener noreferrer">Discord's privacy
+                policy</a>.
+        </li>
         <li><strong>Everyone playing</strong> sees chat messages: the name, the text, the flag, and a short tag
             made from a salted hash of your IP address. The tag does not reveal your address.
         </li>
@@ -186,10 +202,28 @@
     <p>The Discord and Buy Me a Coffee buttons are plain links. Nothing is sent to those services until you
         click them. We do not sell your data.</p>
 
+    <h2>Google user data</h2>
+    <p>If you sign in with Google, we ask Google for two things only: the id Google gives your account, and your
+        email address with whether Google has verified it. We do not ask for your name, photo, contacts or any other
+        Google data.</p>
+    <ul>
+        <li><strong>How we use it:</strong> the id finds your ClickPlanet account when you sign in again. The email
+            is kept only if Google says it is verified, to contact you about your account if we need to.</li>
+        <li><strong>Who we share it with:</strong> nobody. We do not sell it, we do not use it for advertising, and
+            we do not use it to train AI models.</li>
+        <li><strong>How long we keep it:</strong> until you delete your account. Deleting it removes the id and the
+            email at once.</li>
+    </ul>
+    <p>ClickPlanet's use and transfer of information received from Google APIs adheres to the
+        <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank"
+           rel="noopener noreferrer">Google API Services User Data Policy</a>, including the Limited Use
+        requirements.</p>
+
     <h2>Your rights</h2>
     <p>If you are in the EU, the UK or a place with similar laws, you can ask to see, correct or delete the data
-        we hold about you, or object to how we use it. Because we do not know who you are, tell us your IP address
-        and roughly when you played so we can find it. You can also complain to your data protection authority.</p>
+        we hold about you, or object to how we use it. If you signed in, you can delete your account yourself: open
+        the menu, then Account, then Delete account. For everything else we do not know who you are, so email us
+        your IP address and roughly when you played so we can find it. You can also complain to your data protection authority.</p>
 
     <h2>Children</h2>
     <p>ClickPlanet is not aimed at children under 13, and we do not knowingly collect their data.</p>
@@ -198,7 +232,8 @@
     <p>If we change what we collect, we update this page and the date at the top.</p>
 
     <h2>Contact</h2>
-    <p>Ask on our <a href="https://discord.gg/Nwekj6ndbn" target="_blank" rel="noopener noreferrer">Discord</a>,
+    <p>Email <a href="mailto:privacy@clickplanet.lol">privacy@clickplanet.lol</a>.
+        You can also ask on our <a href="https://discord.gg/Nwekj6ndbn" target="_blank" rel="noopener noreferrer">Discord</a>,
         or message <a href="https://x.com/raphael_oester" target="_blank" rel="noopener noreferrer">@raphael_oester</a>
         on X.</p>
 </main>

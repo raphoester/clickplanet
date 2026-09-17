@@ -14,6 +14,10 @@ import BuyMeACoffee from "./components/BuyMeACoffee.tsx";
 import {SpeakerIcon, SpeakerOffIcon, SwapIcon} from "./components/icons.tsx";
 import SoundSettingsPanel, {SoundSettingsPanelProps} from "./sound/SoundSettingsPanel.tsx";
 import {opensFolded} from "./compact.ts";
+import {AccountStore} from "./account/accountStore.ts";
+import {useAccount} from "./account/useAccount.ts";
+import AccountPanel, {AccountRow} from "./account/AccountPanel.tsx";
+import DeleteAccountModal from "./account/DeleteAccountModal.tsx";
 import "./Menu.css"
 
 export type MenuProps = {
@@ -24,6 +28,8 @@ export type MenuProps = {
     tilesCount: number,
     /** Absent, the menu offers no sound settings. */
     sound?: SoundSettingsPanelProps,
+    /** Absent, or with no provider offered, the menu offers no sign-in. */
+    account?: AccountStore,
 }
 
 export default function Menu(props: MenuProps) {
@@ -62,6 +68,30 @@ export default function Menu(props: MenuProps) {
         setSoundOpen(true)
     }
 
+    const account = useAccount(props.account)
+    const [accountOpen, setAccountOpen] = useState(false)
+    const [confirmingDelete, setConfirmingDelete] = useState(false)
+
+    // Back from the account panel lands on the button that opened it.
+    const accountButton = useRef<HTMLButtonElement>(null)
+    const cameFromAccount = useRef(false)
+
+    useEffect(() => {
+        if (accountOpen || !cameFromAccount.current) return
+        cameFromAccount.current = false
+        accountButton.current?.focus()
+    }, [accountOpen])
+
+    const openAccount = () => {
+        cameFromAccount.current = true
+        setAccountOpen(true)
+    }
+
+    const deleteAccount = async () => {
+        await props.account?.deleteAccount()
+        setConfirmingDelete(false)
+    }
+
     const pickCountry = (country: Country) => {
         props.setCountry(country)
         setPickingCountry(false)
@@ -83,6 +113,12 @@ export default function Menu(props: MenuProps) {
                     : soundOpen && props.sound
                     ? <MenuPanel title="Sound" onClose={() => setSoundOpen(false)}>
                         <SoundSettingsPanel {...props.sound}/>
+                    </MenuPanel>
+                    : accountOpen && props.account && account.kind === "ready"
+                    ? <MenuPanel title="Account" onClose={() => setAccountOpen(false)}>
+                        <AccountPanel state={account}
+                                      store={props.account}
+                                      onDelete={() => setConfirmingDelete(true)}/>
                     </MenuPanel>
                     : <>
                         <div className="menu-playing">
@@ -122,9 +158,19 @@ export default function Menu(props: MenuProps) {
                                 {props.sound.settings.enabled ? <SpeakerIcon size={26}/> : <SpeakerOffIcon size={26}/>}
                             </button>}
                         </div>
+
+                        {account.kind === "ready" && <AccountRow state={account}
+                                                                 buttonRef={accountButton}
+                                                                 onOpen={openAccount}/>}
                     </>}
             </div>}
         </div>
+
+        {confirmingDelete && account.kind === "ready" && <DeleteAccountModal
+            linked={account.me.linked}
+            busy={account.busy === "deleteAccount"}
+            onConfirm={() => void deleteAccount()}
+            onClose={() => setConfirmingDelete(false)}/>}
 
         {aboutOpen && <Modal title="About ClickPlanet"
                              footer={<BuyMeACoffee/>}

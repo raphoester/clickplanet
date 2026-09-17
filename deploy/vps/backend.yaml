@@ -382,20 +382,20 @@ auth:
     schema: auth
     pool:
       maxOpenConns: 2
-  # Sign-in with Google or Discord. Off until the frontend ships the button and
-  # the privacy policy page: StartSignIn and CompleteSignIn answer 404 meanwhile.
-  # To turn it on, set the client ids below, GOOGLE_CLIENT_SECRET and
-  # DISCORD_CLIENT_SECRET in the Actions secrets, and register the redirect URL with each
-  # provider exactly as written here.
+  # Sign-in with Google or Discord. On, with Google only. A provider needs its
+  # client id below, its secret in the Actions secrets (GOOGLE_CLIENT_SECRET,
+  # DISCORD_CLIENT_SECRET), and the redirect URL registered with the provider
+  # exactly as written here. A client id with no secret refuses the boot.
   signIn:
-    enabled: false
+    enabled: true
     redirectUrl: https://clickplanet.lol/auth/callback
   # A provider is offered once its clientId is set. The ids are public; the
   # secrets are anchors. Not set in the Actions secrets, render-env.sh writes
   # them empty, which is allowed while the provider has no clientId.
   google:
-    clientId: ""
+    clientId: 865499711308-guuo7rdvol1ocjeanar1kbo3bulc4pb6.apps.googleusercontent.com
     clientSecret: env://GOOGLE_CLIENT_SECRET
+  # Not offered yet: Google goes first.
   discord:
     clientId: ""
     clientSecret: env://DISCORD_CLIENT_SECRET

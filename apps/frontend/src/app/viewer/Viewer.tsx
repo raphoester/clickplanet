@@ -19,6 +19,7 @@ import {GlobeStatus, useGlobe} from './useGlobe.ts';
 import {useSound} from '../sound/useSound.ts';
 import AnthemBar from "../anthem/AnthemBar.tsx";
 import {useAnthem} from "../anthem/useAnthem.ts";
+import {AccountStore} from "../account/accountStore.ts";
 import "./Viewer.css"
 
 export type ViewerProps = {
@@ -29,6 +30,7 @@ export type ViewerProps = {
     bonusListener?: BonusListener
     bomber?: Bomber
     chatBackend?: ChatBackend
+    account?: AccountStore
 }
 
 export default function Viewer(props: ViewerProps) {
@@ -83,6 +85,7 @@ export default function Viewer(props: ViewerProps) {
             tileDeltas={tileDeltas}
             tilesCount={tilesCount}
             sound={{settings: sound.settings, onChange: sound.setSettings, preview: sound.preview}}
+            account={props.account}
         />}
 
         {status.state === 'ready' && <AnthemBar anthem={anthem}
@@ -115,16 +118,29 @@ export default function Viewer(props: ViewerProps) {
 
 function StatusCard({status}: {status: GlobeStatus}) {
     return <div className="viewer-status">
-        <div className="viewer-status-card">
-            {status.state === 'failed'
-                ? <>
+        <div className="viewer-status-card" role="status">
+            {status.state === 'loading'
+                ? <LoadingCard territories={status.territories}/>
+                : status.state === 'failed' && <>
                     <h3>The globe could not be loaded</h3>
                     <p>{status.message}</p>
-                </>
-                : <>
-                    <div className="viewer-status-spinner"/>
-                    <h3>Loading the planet…</h3>
                 </>}
         </div>
     </div>
+}
+
+function LoadingCard({territories}: {territories: number | undefined}) {
+    const percent = Math.round((territories ?? 0) * 100)
+    return <>
+        <div className="viewer-status-spinner"/>
+        <h3>{territories === undefined ? "Loading the planet…" : "Loading territories…"}</h3>
+        <div className="viewer-status-progress"
+             role="progressbar"
+             aria-label="Territories loaded"
+             aria-valuemin={0}
+             aria-valuemax={100}
+             aria-valuenow={percent}>
+            <div className="viewer-status-progress-fill" style={{width: `${percent}%`}}/>
+        </div>
+    </>
 }
