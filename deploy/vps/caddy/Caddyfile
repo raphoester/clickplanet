@@ -130,6 +130,15 @@
 		}
 	}
 
+	# The player module: a player's name and stats. Every procedure checks the
+	# click token, which is bound to the address that minted it, so it keys on
+	# X-Real-IP like a click. 404 while player.enabled is false.
+	handle /player.v1.PlayerService/* {
+		reverse_proxy backend:8080 {
+			header_up X-Real-IP {client_ip}
+		}
+	}
+
 	# Prometheus metrics — closed by default. Uncomment and restrict by source
 	# IP if you attach a scraper.
 	# handle /metrics {

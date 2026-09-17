@@ -599,3 +599,23 @@ auth:
     # Never below sessions.guestTTL, or a live cookie loses its account.
     idleFor: 2160h # 90 days
     interval: 1h
+
+# A player's name and stats: tiles taken and the daily streak. Off by default:
+# with it disabled player.v1 404s and nobody hears planet.v1.TileTaken. It
+# answers for the account in the click token, so it needs auth on, and it asks
+# auth for the verifying key over httpServer.internalBindAddress.
+player:
+  enabled: false
+  # The player module's own database block, schema player. Same shape as the
+  # planet's database above, and it may point at the same postgres.
+  database:
+    host: localhost
+    port: "5432"
+    user: postgres
+    # Belongs in the environment in production (player.database.password).
+    password: postgres
+    dbName: postgres
+    sslMode: disable
+    schema: player
+    pool:
+      maxOpenConns: 2

@@ -166,23 +166,33 @@ func (s *Store) DeleteAccount(ctx context.Context, account accounts.AccountID) e
 	return nil
 }
 
-func (s *Store) PruneGuests(ctx context.Context, idleSince time.Time, limit int) (int, error) {
-	result, err := s.db.ExecContext(ctx, `
+func (s *Store) PruneGuests(ctx context.Context, idleSince time.Time, limit int) ([]accounts.AccountID, error) {
+	rows, err := s.db.QueryContext(ctx, `
 		DELETE FROM accounts WHERE id IN (
 			SELECT id FROM accounts
 			WHERE last_seen_at < $1
 			  AND NOT EXISTS (SELECT 1 FROM identities WHERE identities.account_id = accounts.id)
 			LIMIT $2
 		)
+		RETURNING id
 	`, idleSince.UTC(), limit)
 	if err != nil {
-		return 0, fmt.Errorf("failed to prune the idle guests: %w", err)
+		return nil, fmt.Errorf("failed to prune the idle guests: %w", err)
 	}
-	pruned, err := result.RowsAffected()
-	if err != nil {
-		return 0, fmt.Errorf("failed to count the pruned guests: %w", err)
+	defer func() { _ = rows.Close() }()
+
+	var pruned []accounts.AccountID
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("failed to read a pruned guest: %w", err)
+		}
+		pruned = append(pruned, accounts.AccountID(id))
 	}
-	return int(pruned), nil
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to read the pruned guests: %w", err)
+	}
+	return pruned, nil
 }
 
 func insertAccount(ctx context.Context, tx *sql.Tx, account accounts.AccountID, at time.Time) error {

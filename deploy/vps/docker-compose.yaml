@@ -137,6 +137,8 @@ services:
       chat.database.password: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env (openssl rand -hex 32)}
       # The auth module's accounts, the same way.
       auth.database.password: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env (openssl rand -hex 32)}
+      # The player module's profiles and stats, the same way. Read only while player.enabled is true.
+      player.database.password: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env (openssl rand -hex 32)}
     volumes:
       - ./backend.yaml:/home/app/config/config.yaml:ro
     command: [ "./api", "-config", "/home/app/config/config.yaml" ]

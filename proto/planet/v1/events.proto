@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package planet.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// What the planet module tells other modules, in process. Never on the wire:
+// the proto is the payload's type and its schema. See "Telling other modules
+// what happened" in apps/backend/CLAUDE.md.
+
+// TileTaken is one tile an account took: by a click, a spread or an enclose,
+// one event per tile. A take with no account publishes nothing.
+message TileTaken {
+  // The account the click token named, as a UUID.
+  string account_id = 1;
+  uint32 tile_id = 2;
+  // The country the tile now wears.
+  string country = 3;
+  google.protobuf.Timestamp taken_at = 4;
+}

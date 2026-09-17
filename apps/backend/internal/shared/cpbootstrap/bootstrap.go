@@ -64,6 +64,9 @@ type Props struct {
 	// InternalRPC mounts what other modules call, on the loopback internal listener; Internal reaches it.
 	InternalRPC RPCRegistrar
 	Internal    InternalDialer
+
+	// Events is what a module publishes for others to hear, and subscribes to with Subscribe.
+	Events EventBus
 }
 
 // InternalDialer is how a module calls another: over the internal listener, never in its own stack trace.
@@ -232,11 +235,14 @@ func Run(ctx context.Context, options Options) error {
 	internalRoutes := newRPCRoutes(errorNet, drainNet)
 	runners := newRunnerRegistry()
 	closers := newCloserRegistry()
+	events := newEventBus(metrics)
 
-	registrars := registrars{routes: routes, admin: adminRoutes, internal: internalRoutes}
+	registrars := registrars{routes: routes, admin: adminRoutes, internal: internalRoutes, events: events}
 	if err := buildModules(ctx, options, metrics, registrars, runners, closers); err != nil {
 		return err
 	}
+	// Before any runner starts: a subscriber registered later could miss what was published at boot.
+	events.seal()
 
 	router := http.NewServeMux()
 	routes.mountOn(router, cphttpserver.MiddlewareStack(
@@ -282,6 +288,7 @@ type registrars struct {
 	routes   *rpcRoutes
 	admin    *rpcRoutes
 	internal *rpcRoutes
+	events   *eventBus
 }
 
 // buildModules runs every module's DI sequence under one startup deadline.
@@ -312,6 +319,7 @@ func buildModules(
 			AdminRPC:    registrars.admin.forModule(module.Name),
 			InternalRPC: registrars.internal.forModule(module.Name),
 			Internal:    internalDialer{address: options.Server.InternalBindAddress},
+			Events:      registrars.events,
 			Runners:     runners,
 			Closers:     closers,
 		})
