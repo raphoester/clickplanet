@@ -45,5 +45,6 @@ func (u *UseCase) Execute(ctx context.Context, in In) (players.Author, error) {
 	}
 
 	author.Name = profile.Name
+	author.Admin = profile.Admin
 	return author, nil
 }

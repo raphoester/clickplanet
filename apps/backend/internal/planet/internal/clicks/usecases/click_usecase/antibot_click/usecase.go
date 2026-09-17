@@ -79,13 +79,14 @@ type UseCase struct {
 func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_usecase.Out, error) {
 	// Scoped to the same unit the throttle is charged to, so a caller cannot
 	// serve a ban on one address and click from the next one in its own /64.
-	// The account rides along so a ban falls on it too; every account is a guest's until sign-in lands.
+	// The account rides along so a ban falls on it too, and a linked one is signed in, so its ban leaves the scope alone.
 	observed := antibot.Click{
-		Scope:   cpipscope.Of(cpctx.GetSourceIP(ctx)),
-		Account: cpctx.GetAccount(ctx),
-		Tile:    in.TileID,
-		Country: in.CountryID,
-		At:      u.clock.Now(),
+		Scope:    cpipscope.Of(cpctx.GetSourceIP(ctx)),
+		Account:  cpctx.GetAccount(ctx),
+		SignedIn: cpctx.GetLinked(ctx),
+		Tile:     in.TileID,
+		Country:  in.CountryID,
+		At:       u.clock.Now(),
 	}
 
 	if held, known := u.owner.Owner(observed.Tile); known {

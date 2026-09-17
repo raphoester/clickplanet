@@ -7,6 +7,7 @@ const message = (id: string, sentAt: number): ChatMessage => ({
     sentAt,
     authorName: "Ana",
     authorTag: "4f2ca1",
+    authorAdmin: false,
     countryCode: "fr",
     text: `message ${id}`,
 })

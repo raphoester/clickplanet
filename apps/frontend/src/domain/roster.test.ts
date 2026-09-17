@@ -3,7 +3,7 @@ import type {RosterEntry} from "../backends/player.ts"
 import {applyRosterEvent, rosterGroups} from "./roster.ts"
 
 const entry = (name: string, guest: boolean, key = name, tag = "4f2ca1"): RosterEntry =>
-    ({key, name, tag, countryCode: "fr", guest})
+    ({key, name, tag, countryCode: "fr", guest, admin: false})
 
 describe("rosterGroups", () => {
     it("puts players with a username in one group and guests in the other", () => {

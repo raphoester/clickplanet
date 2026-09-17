@@ -402,7 +402,9 @@ So `cpbootstrap` owns a **draining context**, cancelled just before `Shutdown`, 
 
 A stream blocked inside a `Send` to a client that reads nothing is not woken by its context; `ShutdownTimeout` is still the backstop for that one.
 
-**The streaming RPCs are not wrapped by any interceptor except error mapping and the drain**, because every other one is a `connect.UnaryInterceptorFunc` and streams skip those by construction. Reads and the live feeds are therefore untouched by the throttle, the VPN blocklist and the session check, exactly as they were when they were websockets. A policy that ever has to reach a stream must be written as a full `connect.Interceptor`.
+**The streaming RPCs are wrapped by error mapping, the drain and the session reader, and nothing else**, because every other interceptor is a `connect.UnaryInterceptorFunc` and streams skip those by construction. Reads and the live feeds are therefore untouched by the throttle, the VPN blocklist and the session check, exactly as they were when they were websockets. A policy that ever has to reach a stream must be written as a full `connect.Interceptor`, as `cpconnect.NewSessionReaderInterceptor` is.
+
+**The planet stream reads a token when the client sends one.** `planetv1controller.NewSessionReaderInterceptor` covers `ListenForEvents`: the token is verified once, from the headers that open the stream, and the account stays on the context for as long as the stream is open. It refuses nothing, so a stream with no token or a bad one opens as before. The web client sends the token it holds and never mints for it, and reopens the stream when a click goes out under a new token (see the frontend's CLAUDE.md). Nothing on the stream reads the account yet: bonuses and the `yours` flag are still keyed by scope. `TestAStreamOpenedWithATokenKnowsItsAccount` pins it over HTTP.
 
 ### The map load
 
@@ -536,7 +538,7 @@ Either way the decorator decides the policy and the handler decides how to say i
 
 **The reading is the tighter bucket** (`clicks.Tightest`): the one with fewer tokens, and on a tie the smaller one. A player behind a busy campus sees the scope's limit rather than a full meter that refuses. The reading is still one bucket's `Capacity`, `PerSecond` and `Tokens`, so the client arithmetic does not change. `Boosted` is always the account's bucket's, the one a bonus widens. `TestTheBudgetIsTheTighterBucket` pins it.
 
-`ClickService.GetBudget` covers the cold start — a client that has just loaded and has no click to learn from. It reads through `Limiter.Peek`, which spends nothing and, for an address that never clicked, **creates no bucket**: reading an allowance must not be a way to make the limiter remember a caller. `NewBudgetSessionInterceptor` reads a token on it when the client sends one, so the reading is the account's, and **refuses nothing**: with no token or a bad one it reads the scope's bucket from before accounts. The web client does not send a token on it yet, so its cold start reads that bucket until the first click re-anchors it. It is deliberately not `NO_SIDE_EFFECTS`, so it is a POST no cache will serve a stale answer to; every click re-anchors the client afterwards, so it is asked once per page load.
+`ClickService.GetBudget` covers the cold start — a client that has just loaded and has no click to learn from. It reads through `Limiter.Peek`, which spends nothing and, for an address that never clicked, **creates no bucket**: reading an allowance must not be a way to make the limiter remember a caller. `NewSessionReaderInterceptor` reads a token on it when the client sends one, so the reading is the account's, and **refuses nothing**: with no token or a bad one it reads the scope's bucket from before accounts. The web client does not send a token on it yet, so its cold start reads that bucket until the first click re-anchors it. It is deliberately not `NO_SIDE_EFFECTS`, so it is a POST no cache will serve a stale answer to; every click re-anchors the client afterwards, so it is asked once per page load.
 
 **This tells a scripted clicker exactly when to fire**, which is a real cost against [Anti-bot](#anti-bot-internalantibot). It is a small one — a script can already infer the same schedule by counting its own 429s — and it is paid to stop honest players being refused with no warning.
 
@@ -752,6 +754,16 @@ internal/player/internal/
   - An unknown country is `InvalidArgument`; a failed profile read is the error net's `internal`, and nothing is recorded.
   - **A sign-in, a new name, a sign-out and a deletion change the roster at once, with no announce.** The client drops its click token on each of these, and a new one waits for a click, so waiting for its next announce left a guest line on the roster, or two lines, for up to 90s. So: `auth.v1.SignedIn` moves the browser's visit to the account it is on now, under that account's username, over any visit the account held (`move_visit_usecase`, `Storage.Move`; one account before and after changes nothing, and reads nothing). `SetName` renames the caller's visit once the name is kept (`renaming_set_name`, `Storage.Rename`). `auth.v1.SignedOut` and `auth.v1.AccountDeleted` take the account off (`forget_visit_usecase`, `Storage.Forget`); another device still signed in announces again within 30s. An account with no visit is left off by all of them: its browser never announced.
 - **Stats come from `planet.v1.TileTaken`**, one event per tile, so a spread of seven is seven tiles. **The streak day is UTC**: a take on the day after `streak_last_day` extends the streak, a take on the same day changes nothing, a gap starts it again at 1, and a late event older than the last day counts a tile and leaves the streak alone (`Stats.WithTake`). `GetStats` reads it as of today (`Stats.AsOf`): a streak whose last day is before yesterday reads 0, and `streak_best` keeps it. `stats_test.go` pins the rules across UTC midnight.
+- **An admin of the game is `player.profiles.admin`**, false by default. **The game never sets it**: an operator flips it in the database (below), and `SaveProfile` never writes it, so a rename keeps it. It only means something beside a username: `GetAuthor` answers `admin` for the chat, which stamps `author_admin` on a message sent under the username (never a guest's post) and stores it in `chat.messages`, so the history keeps the crown the message was sent with; `presence.RosterOf` sets `Admin` on a roster entry only when it is not a guest; `GetPlayer` answers it too. The frontend draws a crown on all three. An announce reads the profile, so a new admin shows on the roster within 30s, and in the chat from the next message.
+
+  ```bash
+  ssh deploy@YOUR_IP
+  cd /opt/clickplanet/deploy/vps
+  docker compose exec postgres psql -U clickplanet -c \
+    "UPDATE player.profiles SET admin = true WHERE name = 'TheUsername'"
+  ```
+
+  An account with no username has no profile row, so it cannot be one: pick the name first.
 - **`GetPlayer(name)` is what anybody may know about a player with a username**: the name as typed, the stats as of today, and `created_at_unix_ms`, when auth made the account (as a guest or by a first sign-in, so a guest who signs in keeps its first day). It needs no token (the session interceptor does not list it), is `NO_SIDE_EFFECTS`, and answers `public, max-age=10`. **It never answers the account id.** The name is found ignoring case (`Store.ProfileNamed`, on the unique index on `lower(name)`). A name no account holds is `NotFound` (`ErrNoProfile`), and so is one no account may hold, a guest's included, which reads nothing. A guest has no username, so it has no answer here: the client shows its name, tag and flag only. `rpc_account_reader.CreatedAt` asks `auth.v1.InternalService/GetAccount` on each call, which now also answers `created_at_unix_ms` (zero for an account auth does not know, and the answer then carries zero). **A failure to ask auth is a real error**, the error net's `internal`, as for `SetName`.
 - **`auth.v1.AccountDeleted` deletes both rows.** A take that arrives after, on a token minted before the delete, makes a new stats row; the token lives an hour at most.
 - **Events are at most once.** A take dropped by a full buffer (`events_dropped_total`) or lost in a crash is a tile the stats never count. Stats start the day the module is turned on: takes before are not replayed.
@@ -1547,7 +1559,7 @@ token names (`Click.Account`), and `shadowban.Bans` passes a ban on:
 
 - **the account**, when the token names one, so it is dropped from any scope;
 - **the scope too, when there is no account or the account is a guest's**
-  (`Click.SignedIn` false, which is every account until sign-in lands). A guest can
+  (`Click.SignedIn` false: the token is not linked). A guest can
   shed its account with a new cookie, and must not shed the ban with it. A
   signed-in account's ban leaves its scope alone, so a campus is not banned for one
   player on it.

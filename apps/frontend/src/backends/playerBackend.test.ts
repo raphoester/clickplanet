@@ -250,8 +250,8 @@ const failingWith = (error: ConnectError) => (): AsyncIterable<PlayerEventPb> =>
 })
 
 describe("ConnectPlayerBackend live roster", () => {
-    const entryPb = new RosterEntryPb({key: "k1", name: "ana", tag: "4f2ca1", countryId: "fr", guest: false})
-    const ana = {key: "k1", name: "ana", tag: "4f2ca1", countryCode: "fr", guest: false}
+    const entryPb = new RosterEntryPb({key: "k1", name: "ana", tag: "4f2ca1", countryId: "fr", guest: false, admin: true})
+    const ana = {key: "k1", name: "ana", tag: "4f2ca1", countryCode: "fr", guest: false, admin: true}
 
     afterEach(() => vi.useRealTimers())
 
@@ -319,11 +319,12 @@ describe("ConnectPlayerBackend player info", () => {
                 name: "Ana",
                 stats: new StatsPb({tilesTaken: 1234n, streakCurrent: 3, streakBest: 7, streakLastDay: "2026-09-17"}),
                 createdAtUnixMs: 1_788_000_000_000n,
+                admin: true,
             }),
         }))
 
         expect(await backendWith({getPlayer}, session).playerInfo("ana")).toEqual({
-            name: "Ana", tilesTaken: 1234, streakCurrent: 3, streakBest: 7, createdAt: 1_788_000_000_000,
+            name: "Ana", tilesTaken: 1234, streakCurrent: 3, streakBest: 7, createdAt: 1_788_000_000_000, admin: true,
         })
         expect(getPlayer).toHaveBeenCalledWith({name: "ana"})
         expect(session.token).not.toHaveBeenCalled()

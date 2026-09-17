@@ -114,9 +114,11 @@ message RosterEntry {
   // The flag the player last announced.
   string country_id = 3;
   bool guest = 4;
+  // An admin of the game. Never a guest.
+  bool admin = 5;
   // Names this line for as long as the player stays on the roster, a sign-in
   // and a new name included. Opaque: it says nothing about the account.
-  string key = 5;
+  string key = 6;
 }
 
 message ListenForEventsRequest {}
@@ -169,4 +171,6 @@ message Player {
   Stats stats = 2;
   // When the account was made, as a guest or by a first sign-in.
   int64 created_at_unix_ms = 3;
+  // An admin of the game.
+  bool admin = 4;
 }

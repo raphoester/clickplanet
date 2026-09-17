@@ -43,4 +43,18 @@ func TestAntiBotAttemptClick(t *testing.T) {
 		require.Len(t, guard.attempted, 1)
 		assert.Equal(t, antibot.Click{Scope: "2001:db8::/64", Tile: 42, Country: "BG", At: clock.Now()}, guard.attempted[0])
 	})
+
+	t.Run("shows the guard a linked account as signed in", func(t *testing.T) {
+		guard := &fakeGuard{}
+		clock := cptime.NewFixedClock(time.Date(2026, 9, 14, 18, 0, 0, 0, time.UTC))
+		ctx := cpctx.AddLinkedToContext(cpctx.AddAccountToContext(cpctx.AddIPToContext(t.Context(), "1.2.3.4"), "a-player"))
+
+		useCase := antibot_attempt_click.New(throttled{}, guard, clock)
+
+		_, err := useCase.Execute(ctx, click_usecase.In{TileID: 42, CountryID: "BG"})
+
+		require.ErrorIs(t, err, clicks.ErrThrottled)
+		require.Len(t, guard.attempted, 1)
+		assert.Equal(t, antibot.Click{Scope: "1.2.3.4", Account: "a-player", SignedIn: true, Tile: 42, Country: "BG", At: clock.Now()}, guard.attempted[0])
+	})
 }

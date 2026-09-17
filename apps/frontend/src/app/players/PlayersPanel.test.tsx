@@ -8,8 +8,8 @@ import PlayersPanel from "./PlayersPanel.tsx"
 
 afterEach(cleanup)
 
-const entry = (name: string, guest: boolean, countryCode = "fr", tag = "4f2ca1"): RosterEntry =>
-    ({key: `${name}#${tag}`, name, tag, countryCode, guest})
+const entry = (name: string, guest: boolean, countryCode = "fr", tag = "4f2ca1", admin = false): RosterEntry =>
+    ({key: `${name}#${tag}`, name, tag, countryCode, guest, admin})
 
 const group = (name: string) => screen.queryByRole("region", {name: new RegExp(`^${name}`)})
 const names = (region: HTMLElement) =>
@@ -80,5 +80,13 @@ describe("PlayersPanel", () => {
         render(<PlayersPanel entries={[entry("ana", false)]}/>)
 
         expect(screen.queryByRole("button")).toBeNull()
+    })
+
+    it("crowns an admin, and nobody else", () => {
+        render(<PlayersPanel entries={[entry("ana", false, "fr", "4f2ca1", true), entry("kiran_07", false)]}/>)
+
+        const [ana, kiran] = screen.getAllByRole("listitem")
+        expect(within(ana).getByRole("img", {name: "Admin"})).toBeDefined()
+        expect(within(kiran).queryByRole("img", {name: "Admin"})).toBeNull()
     })
 })

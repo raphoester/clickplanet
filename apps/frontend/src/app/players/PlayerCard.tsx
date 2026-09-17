@@ -1,6 +1,7 @@
 import {PlayerInfo, PlayerInfoBackend, PlayerLine} from "../../backends/player.ts"
 import {Countries} from "../../domain/countries.ts"
 import {authorStyle} from "../chat/authorStyle.ts"
+import AdminCrown from "../components/AdminCrown.tsx"
 import CountryFlag from "../components/CountryFlag.tsx"
 import Modal from "../components/Modal.tsx"
 import {truncate} from "../truncate.ts"
@@ -24,7 +25,14 @@ export default function PlayerCard({player, backend, onClose}: PlayerCardProps) 
     const state = usePlayerInfo(backend, player)
     const country = Countries.get(player.countryCode)?.name ?? player.countryCode
 
-    return <Modal title={truncate(player.name, NAME_MAX_LENGTH)} className="player-card" onClose={onClose}>
+    // What was clicked says so at once; the read can only confirm it, or say so for a name opened elsewhere.
+    const admin = player.admin || (state.kind === "ready" && state.info.admin)
+    const title = <span className="player-card-title">
+        {truncate(player.name, NAME_MAX_LENGTH)}
+        {admin && <AdminCrown size={20}/>}
+    </span>
+
+    return <Modal title={title} className="player-card" onClose={onClose}>
         <div className="player-card-who" style={authorStyle(player.name, player.tag)}>
             <span className="player-card-country" role="img" aria-label={country} title={country}>
                 <CountryFlag code={player.countryCode}/>

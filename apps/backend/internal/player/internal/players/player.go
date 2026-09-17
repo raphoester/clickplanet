@@ -9,4 +9,5 @@ type Player struct {
 	Stats Stats
 	// CreatedAt is zero when auth no longer knows the account.
 	CreatedAt time.Time
+	Admin     bool
 }

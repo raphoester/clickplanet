@@ -128,7 +128,7 @@ func TestAMoveCarriesTheVisitToTheNewAccountUnderItsName(t *testing.T) {
 	storage := inmemory_visit_storage.New(cptime.NewFixedClock(start))
 	storage.Record(visit(1, "aaaaaa", start))
 
-	storage.Move(account(1), account(2), "Ada_L")
+	storage.Move(account(1), account(2), "Ada_L", false)
 
 	moved := visit(2, "aaaaaa", start)
 	moved.Username = "Ada_L"
@@ -139,7 +139,7 @@ func TestAMoveToTheSameAccountRenamesIt(t *testing.T) {
 	storage := inmemory_visit_storage.New(cptime.NewFixedClock(start))
 	storage.Record(visit(1, "aaaaaa", start))
 
-	storage.Move(account(1), account(1), "Ada_L")
+	storage.Move(account(1), account(1), "Ada_L", false)
 
 	require.Len(t, storage.Visits(), 1)
 	assert.Equal(t, players.Name("Ada_L"), storage.Visits()[0].Username)
@@ -150,7 +150,7 @@ func TestAMoveReplacesTheVisitTheAccountHeld(t *testing.T) {
 	storage.Record(visit(1, "aaaaaa", start.Add(time.Second)))
 	storage.Record(visit(2, "bbbbbb", start))
 
-	storage.Move(account(1), account(2), "Ada_L")
+	storage.Move(account(1), account(2), "Ada_L", false)
 
 	moved := visit(2, "aaaaaa", start.Add(time.Second))
 	moved.Username = "Ada_L"
@@ -160,7 +160,7 @@ func TestAMoveReplacesTheVisitTheAccountHeld(t *testing.T) {
 func TestAnAccountThatNeverAnnouncedMovesNothing(t *testing.T) {
 	storage := inmemory_visit_storage.New(cptime.NewFixedClock(start))
 
-	storage.Move(account(1), account(2), "Ada_L")
+	storage.Move(account(1), account(2), "Ada_L", false)
 	storage.Rename(account(3), "Grace")
 
 	assert.Empty(t, storage.Visits())
@@ -195,7 +195,7 @@ func TestEachNewAccountGetsAKeyThatItsLaterVisitsKeep(t *testing.T) {
 	first := storage.Visits()
 
 	storage.Record(visit(1, "bbbbbb", start.Add(time.Second)))
-	storage.Move(account(1), account(3), "Ada_L")
+	storage.Move(account(1), account(3), "Ada_L", false)
 
 	keys := map[players.AccountID]presence.Key{}
 	for _, v := range first {
@@ -253,7 +253,7 @@ func TestAMoveOverAnotherVisitSaysThatOneLeft(t *testing.T) {
 	roster, changes := storage.Subscribe(t.Context())
 	require.Len(t, roster, 2)
 
-	storage.Move(account(1), account(2), "Ada_L")
+	storage.Move(account(1), account(2), "Ada_L", false)
 
 	read := changesOf(t, changes)
 	require.Len(t, read, 2)

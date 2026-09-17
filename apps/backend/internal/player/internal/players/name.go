@@ -57,4 +57,7 @@ type Profile struct {
 	Account   AccountID
 	Name      Name
 	UpdatedAt time.Time
+	// Admin is an admin of the game. The game only reads it: an operator sets it in the database, and saving a
+	// profile never changes it.
+	Admin bool
 }

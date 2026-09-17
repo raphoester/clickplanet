@@ -61,6 +61,17 @@ func TestAnAccountWithAUsernameIsRecordedUnderIt(t *testing.T) {
 	}}, f.visits.Visits())
 }
 
+func TestAnAdminIsRecordedAsOne(t *testing.T) {
+	f := setup(t)
+	f.store.MakeAdmin(ada)
+
+	err := f.useCase.Execute(t.Context(), announce_usecase.In{Account: ada, Country: "fr", IP: "1.2.3.4"})
+
+	require.NoError(t, err)
+	require.Len(t, f.visits.Visits(), 1)
+	assert.True(t, f.visits.Visits()[0].Admin)
+}
+
 func TestAnAccountWithNoUsernameIsRecordedAsAGuestWithItsCleanedName(t *testing.T) {
 	f := setup(t)
 

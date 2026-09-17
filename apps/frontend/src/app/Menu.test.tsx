@@ -276,8 +276,8 @@ describe("Menu", () => {
 
     describe("the players", () => {
         const players = [
-            {key: "k1", name: "ana", tag: "4f2ca1", countryCode: "fr", guest: false},
-            {key: "k2", name: "guest_Bo", tag: "91aa3d", countryCode: "de", guest: true},
+            {key: "k1", name: "ana", tag: "4f2ca1", countryCode: "fr", guest: false, admin: false},
+            {key: "k2", name: "guest_Bo", tag: "91aa3d", countryCode: "de", guest: true, admin: false},
         ]
         const withPlayers = (entries = players) => ({
             ...render(<Menu country={france} setCountry={vi.fn()} leaderboard={[entry("fr", 500)]} tilesCount={1000}
@@ -351,7 +351,7 @@ describe("Menu", () => {
 
         it("keeps the account button beside the players button", async () => {
             withAccount(["google"], {linked: ["google"]}, "ana", undefined,
-                [{key: "k1", name: "ana", tag: "4f2ca1", countryCode: "fr", guest: false}])
+                [{key: "k1", name: "ana", tag: "4f2ca1", countryCode: "fr", guest: false, admin: false}])
 
             expect(await screen.findByRole("button", {name: "Account"})).toBeDefined()
             expect(screen.getByRole("button", {name: "1 player online"})).toBeDefined()

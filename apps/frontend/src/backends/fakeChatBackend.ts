@@ -22,12 +22,12 @@ export type FakeChatBackendOptions = {
     chatterIntervalMs?: number
 }
 
-// Players with a username and guests, as the server names them.
+// Players with a username and guests, as the server names them. Ana is an admin.
 const CHATTERS = [
-    {name: "Ana", tag: "4f2ca1", country: "fr", text: "who keeps taking Brittany"},
-    {name: guestName("Bo"), tag: "91aa3d", country: "de", text: "we hold the north 💪"},
-    {name: "kiran_07", tag: "0c77e2", country: "in", text: "gm everyone"},
-    {name: guestName("Yuki"), tag: "aa1290", country: "jp", text: "the pacific is ours"},
+    {name: "Ana", tag: "4f2ca1", country: "fr", admin: true, text: "who keeps taking Brittany"},
+    {name: guestName("Bo"), tag: "91aa3d", country: "de", admin: false, text: "we hold the north 💪"},
+    {name: "kiran_07", tag: "0c77e2", country: "in", admin: false, text: "gm everyone"},
+    {name: guestName("Yuki"), tag: "aa1290", country: "jp", admin: false, text: "the pacific is ours"},
 ]
 
 export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListener {
@@ -48,6 +48,7 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
                 sentAt: Date.now() - (CHATTERS.length - index) * 60_000,
                 authorName: chatter.name,
                 authorTag: chatter.tag,
+                authorAdmin: chatter.admin,
                 countryCode: chatter.country,
                 text: chatter.text,
             })
@@ -61,6 +62,7 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
                 sentAt: Date.now(),
                 authorName: chatter.name,
                 authorTag: chatter.tag,
+                authorAdmin: chatter.admin,
                 countryCode: chatter.country,
                 text: `${chatter.text} (${this.nextChatter})`,
             })
@@ -90,6 +92,7 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
             sentAt: Date.now(),
             authorName: guestName(name),
             authorTag: "c0ffee",
+            authorAdmin: false,
             countryCode: message.countryCode,
             text,
         }

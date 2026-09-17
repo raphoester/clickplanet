@@ -138,3 +138,9 @@ export function PauseIcon({size = 18}: IconProps) {
         <rect x="13.9" y="5.5" width="3.6" height="13" rx="0.8"/>
     </svg>
 }
+
+export function CrownIcon({size = 14}: IconProps) {
+    return <svg {...base(size)} fill="currentColor" strokeWidth={1.6}>
+        <path d="M3.5 8.5 8 12l4-6.5 4 6.5 4.5-3.5-2 10h-13z"/>
+    </svg>
+}

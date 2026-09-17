@@ -13,14 +13,14 @@ const OWN_TAG = "c0ffee"
 
 /** The chat's fake chatters and a few who only play. */
 const PLAYERS: RosterEntry[] = [
-    {key: "4f2ca1", name: "Ana", tag: "4f2ca1", countryCode: "fr", guest: false},
-    {key: "0c77e2", name: "kiran_07", tag: "0c77e2", countryCode: "in", guest: false},
-    {key: "5d0b19", name: "Mateus", tag: "5d0b19", countryCode: "br", guest: false},
-    {key: "e3a441", name: "zoe_nz", tag: "e3a441", countryCode: "nz", guest: false},
-    {key: "91aa3d", name: guestName("Bo"), tag: "91aa3d", countryCode: "de", guest: true},
-    {key: "aa1290", name: guestName("Yuki"), tag: "aa1290", countryCode: "jp", guest: true},
-    {key: "3b7f02", name: guestName("3b7f02"), tag: "3b7f02", countryCode: "us", guest: true},
-    {key: "7e21c9", name: guestName("Olu"), tag: "7e21c9", countryCode: "ng", guest: true},
+    {key: "4f2ca1", name: "Ana", tag: "4f2ca1", countryCode: "fr", guest: false, admin: true},
+    {key: "0c77e2", name: "kiran_07", tag: "0c77e2", countryCode: "in", guest: false, admin: false},
+    {key: "5d0b19", name: "Mateus", tag: "5d0b19", countryCode: "br", guest: false, admin: false},
+    {key: "e3a441", name: "zoe_nz", tag: "e3a441", countryCode: "nz", guest: false, admin: false},
+    {key: "91aa3d", name: guestName("Bo"), tag: "91aa3d", countryCode: "de", guest: true, admin: false},
+    {key: "aa1290", name: guestName("Yuki"), tag: "aa1290", countryCode: "jp", guest: true, admin: false},
+    {key: "3b7f02", name: guestName("3b7f02"), tag: "3b7f02", countryCode: "us", guest: true, admin: false},
+    {key: "7e21c9", name: guestName("Olu"), tag: "7e21c9", countryCode: "ng", guest: true, admin: false},
 ]
 
 /**
@@ -74,7 +74,7 @@ export class FakePresenceBackend implements PresenceBackend, PlayerInfoBackend {
         // Gone 90s after its last announce, as on the server.
         if (this.own && now - this.own.at < 90_000) {
             const {countryCode, guestName: typed} = this.own.presence
-            entries.push({key: OWN_TAG, name: guestName(typed || OWN_TAG), tag: OWN_TAG, countryCode, guest: true})
+            entries.push({key: OWN_TAG, name: guestName(typed || OWN_TAG), tag: OWN_TAG, countryCode, guest: true, admin: false})
         }
 
         return entries.sort(compareRosterEntries)
@@ -93,6 +93,7 @@ export class FakePresenceBackend implements PresenceBackend, PlayerInfoBackend {
             streakCurrent: seed % 3 === 0 ? 0 : 1 + seed % streakBest,
             streakBest,
             createdAt: this.now() - (1 + seed % 200) * 86_400_000,
+            admin: player.admin,
         }
     }
 }

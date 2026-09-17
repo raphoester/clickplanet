@@ -152,6 +152,30 @@ func (s *testSuite) TestAPlayerWithAUsernamePostsUnderItAndTheTypedNameIsNotRead
 	s.Equal([]messages.AccountID{ada}, s.authors.asked)
 }
 
+func (s *testSuite) TestAnAdminPostsAsOneAndIsStoredAsOne() {
+	s.authors.admins = map[messages.AccountID]bool{ada: true}
+	in := validIn()
+	in.Account = ada
+
+	message, err := s.send(in)
+
+	s.Require().NoError(err)
+	s.True(message.AuthorAdmin)
+	s.True(s.appender.records[0].Message.AuthorAdmin)
+}
+
+func (s *testSuite) TestAnAdminWithNoUsernamePostsAsAGuestAndNotAsAnAdmin() {
+	s.authors.admins = map[messages.AccountID]bool{guest: true}
+	in := validIn()
+	in.Account = guest
+
+	message, err := s.send(in)
+
+	s.Require().NoError(err)
+	s.Equal("guest_Bob", message.AuthorName)
+	s.False(message.AuthorAdmin)
+}
+
 func (s *testSuite) TestAnAccountWithNoUsernamePostsAsAGuest() {
 	in := validIn()
 	in.Account = guest
@@ -205,11 +229,12 @@ func (s *testSuite) TestAnInvalidGuestNameIsRefusedForAnAccountWithNoUsername() 
 }
 
 type fakeAuthors struct {
-	mu    sync.Mutex
-	names map[messages.AccountID]string
-	err   error
-	asked []messages.AccountID
-	ips   []string
+	mu     sync.Mutex
+	names  map[messages.AccountID]string
+	admins map[messages.AccountID]bool
+	err    error
+	asked  []messages.AccountID
+	ips    []string
 }
 
 func (f *fakeAuthors) Author(_ context.Context, account messages.AccountID, ip string) (messages.Author, error) {
@@ -221,7 +246,7 @@ func (f *fakeAuthors) Author(_ context.Context, account messages.AccountID, ip s
 		return messages.Author{}, f.err
 	}
 	f.ips = append(f.ips, ip)
-	return messages.Author{Username: f.names[account], Tag: "a1b2c3"}, nil
+	return messages.Author{Username: f.names[account], Tag: "a1b2c3", Admin: f.admins[account]}, nil
 }
 
 type fakeAppender struct {

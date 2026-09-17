@@ -293,6 +293,18 @@ bucket, so the counter is live in dev.
 exponential backoff. It is the only source of live changes, so a drop that is not
 retried freezes the globe until a reload.
 
+**The planet stream carries the click token it can have without a mint.** Each
+(re)connect puts `SessionProvider.held()` in `X-Session-Token`, so the server
+knows which account the stream serves; with none held it opens without one and
+the server follows the address. It never calls `token()`: watching the planet is
+not worth a Turnstile check. The server reads the token only when the stream
+opens, so `followSession` **reopens the stream** when a click, a claim or a bomb
+the server accepted went out under a token the stream was not opened with — the
+first click of a page load, and the first one after a sign-in or a sign-out. The
+hourly re-mint for the same account reopens it too: telling the two apart would
+mean reading the token, which is the server's business. A refused call reopens
+nothing.
+
 ### Live chat
 
 The client for the backend's second bounded context: `chat.ts` declares
@@ -402,6 +414,12 @@ in its chat colour (`authorStyle`, the same hue as in the chat) and `#tag`.
   (`applyRosterEvent`) and splits the roster into the two groups.
 - `app/players/` — `usePresence`, `useRoster` and `usePlayerInfo`, thin hooks
   over the above, `PlayersPanel` and `PlayerCard`.
+
+**An admin of the game wears a crown** (`AdminCrown`, gold, `role="img"` named
+"Admin") beside its name in the chat log, the roster and the card's title.
+The server says so: `ChatMessage.authorAdmin`, `RosterEntry.admin` and
+`PlayerInfo.admin`. The card crowns from what was clicked, and from the read
+once it lands. In fake mode, Ana is the admin.
 
 **A name opens a player card**, in the roster and on a chat message
 (`app/players/PlayerCard.tsx`, a `Modal`). `Viewer` holds the one card open and

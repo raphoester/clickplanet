@@ -69,3 +69,17 @@ func TestAStoreFailureIsAnErrorAndMovesNothing(t *testing.T) {
 	require.Error(t, err)
 	assert.Equal(t, []presence.Visit{guestVisit()}, keyless(visits.Visits()))
 }
+
+func TestSigningInToAnAdminShowsItsCrown(t *testing.T) {
+	store := inmemory_player_store.New()
+	require.NoError(t, store.SaveProfile(t.Context(), players.Profile{Account: ada, Name: "Ada_L", UpdatedAt: now}))
+	store.MakeAdmin(ada)
+	visits := inmemory_visit_storage.New(cptime.NewFixedClock(now))
+	visits.Record(guestVisit())
+
+	err := move_visit_usecase.New(store, visits).Execute(t.Context(), guest, ada)
+
+	require.NoError(t, err)
+	require.Len(t, visits.Visits(), 1)
+	assert.True(t, visits.Visits()[0].Admin)
+}

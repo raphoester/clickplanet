@@ -823,6 +823,90 @@ describe("PlanetBackend bombs", () => {
     })
 })
 
+describe("PlanetBackend event stream session", () => {
+    /** A stream that stays open until the client lets go of it. */
+    const openForever = () => vi.fn<(req: object, options: {signal: AbortSignal, headers: Headers}) => AsyncIterable<PlanetEvent>>(
+        () => (async function* () {
+            await new Promise(() => {})
+            yield* []
+        })(),
+    )
+
+    const clientWith = (fields: Record<string, unknown>) =>
+        ({click: vi.fn().mockResolvedValue({}), getMap: vi.fn(), getBudget: noBudget(), mapDensity: vi.fn(), ...fields}) as never
+
+    const tokensOpenedWith = (listenForEvents: ReturnType<typeof openForever>) =>
+        listenForEvents.mock.calls.map(call => call[1].headers.get(SESSION_HEADER))
+
+    it("opens the stream with the token in hand, so the server knows whose account it serves", async () => {
+        const listenForEvents = openForever()
+        const backend = new PlanetBackend(clientWith({listenForEvents}), 1_000, fixedSession("session-1"))
+
+        await vi.waitFor(() => expect(tokensOpenedWith(listenForEvents)).toEqual(["session-1"]))
+        backend.close()
+    })
+
+    it("opens it with no token when none is held, and never mints one for it", async () => {
+        const listenForEvents = openForever()
+        const token = vi.fn(async () => "minted")
+        const session: SessionProvider = {token, held: () => undefined, invalidate: () => {}}
+        const backend = new PlanetBackend(clientWith({listenForEvents}), 1_000, session)
+
+        await vi.waitFor(() => expect(tokensOpenedWith(listenForEvents)).toEqual([null]))
+        expect(token).not.toHaveBeenCalled()
+        backend.close()
+    })
+
+    it("reopens the stream once a click goes out under a token the stream does not have", async () => {
+        const listenForEvents = openForever()
+        let held: string | undefined
+        const session: SessionProvider = {
+            token: async () => {
+                held = "session-1"
+                return held
+            },
+            held: () => held,
+            invalidate: () => {
+                held = undefined
+            },
+        }
+        const backend = new PlanetBackend(clientWith({listenForEvents}), 1_000, session)
+        await vi.waitFor(() => expect(tokensOpenedWith(listenForEvents)).toEqual([null]))
+        const first = listenForEvents.mock.calls[0][1].signal
+
+        await backend.clickTile(1, "fr")
+
+        await vi.waitFor(() => expect(tokensOpenedWith(listenForEvents)).toEqual([null, "session-1"]))
+        expect(first.aborted).toBe(true)
+
+        await backend.clickTile(2, "fr")
+        expect(tokensOpenedWith(listenForEvents)).toEqual([null, "session-1"])
+        backend.close()
+    })
+
+    it("keeps the stream when the click was refused", async () => {
+        vi.spyOn(console, "error").mockImplementation(() => {})
+        const listenForEvents = openForever()
+        const click = vi.fn().mockRejectedValue(new ConnectError("slow down", Code.ResourceExhausted))
+        let held: string | undefined
+        const session: SessionProvider = {
+            token: async () => {
+                held = "session-1"
+                return held
+            },
+            held: () => held,
+            invalidate: () => {},
+        }
+        const backend = new PlanetBackend(clientWith({listenForEvents, click}), 1_000, session)
+        await vi.waitFor(() => expect(tokensOpenedWith(listenForEvents)).toEqual([null]))
+
+        await expect(backend.clickTile(1, "fr")).rejects.toBeInstanceOf(RateLimitedError)
+
+        expect(tokensOpenedWith(listenForEvents)).toEqual([null])
+        backend.close()
+    })
+})
+
 describe("asBonusError", () => {
     it("reports a box that is gone as lost, whichever way the server said so", () => {
         expect(asBonusError(new ConnectError("gone", Code.NotFound))).toBeInstanceOf(BonusLostError)

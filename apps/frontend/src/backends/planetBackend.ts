@@ -51,7 +51,10 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
     private readonly bombCallbacks = new Map<string, (drop: BombDrop) => void>()
     private readonly budgetCallbacks = new Map<string, (budget: ClickBudget) => void>()
     private readonly flushTimer: ReturnType<typeof setInterval>
-    private readonly stopListening: () => void
+    private stopListening: () => void
+
+    /** The token the event stream was last opened with — see followSession. */
+    private streamToken: string | undefined
 
     /** The last reading the server sent, before this client's own clicks. */
     private budgetAnchor: ClickBudget | undefined
@@ -147,6 +150,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                 `click ${tileId}`,
             )
             this.anchorBudget(res.budget, countryId)
+            this.followSession(token)
         } catch (e) {
             // A refusal carries the reading on the error, because there is no
             // answer to put it in — and it is the refusal the counter most has
@@ -261,7 +265,18 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
      */
     private openEventStream(): () => void {
         return openStream(
-            (signal) => this.client.listenForEvents({}, {signal, timeoutMs: NO_TIMEOUT}),
+            (signal) => {
+                // Only a token already in hand: a mint is a Turnstile check, and
+                // watching the planet is not worth one. Without a token the server
+                // follows this client by its address, as it did before accounts.
+                const token = this.session.held()
+                this.streamToken = token
+
+                const headers = new Headers()
+                if (token) headers.set(SESSION_HEADER, token)
+
+                return this.client.listenForEvents({}, {signal, headers, timeoutMs: NO_TIMEOUT})
+            },
             (event) => {
                 const update = updateOf(event)
                 if (update) {
@@ -302,6 +317,25 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
             },
             "planet events",
         )
+    }
+
+    /**
+     * Reopens the event stream when a call the server accepted went out under
+     * another token than the stream: the first click of a page load, a sign-in
+     * or a sign-out. The server reads the token once, when the stream opens, so
+     * without this the stream would keep following the address, or the account
+     * from before, until it happened to drop.
+     *
+     * The token rotates about once an hour for the same account, and that
+     * reopens it too. Telling the two apart would mean reading the token, which
+     * is the server's business; a reopen an hour is cheap.
+     */
+    private followSession(token: string | undefined): void {
+        if (!token || token === this.streamToken) return
+
+        this.streamToken = token
+        this.stopListening()
+        this.stopListening = this.openEventStream()
     }
 
     public listenForUpdates(callback: (update: Update) => void): () => void {
@@ -349,6 +383,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         // request whose answer was lost reports the box as lost when it was in
         // fact won.
         const res = await this.client.claimBonus({token, countryId}, {headers})
+        this.followSession(sessionToken)
 
         // The allowance arrives widened on the answer, so the meter follows the
         // server's own policy rather than a multiplication done here.
@@ -401,6 +436,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         // Not wrapped in `retrying`, for the reason a claim is not: the bomb is
         // spent by the first request that lands.
         await this.client.dropBomb({target, countryId}, {headers})
+        this.followSession(sessionToken)
     }
 
     public listenForUpdatesBatch(

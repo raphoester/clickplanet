@@ -9,8 +9,8 @@ afterEach(() => {
     vi.restoreAllMocks()
 })
 
-const ana: PlayerLine = {name: "Ana", tag: "4f2ca1", countryCode: "fr", guest: false}
-const bo: PlayerLine = {name: "guest_Bo", tag: "91aa3d", countryCode: "de", guest: true}
+const ana: PlayerLine = {name: "Ana", tag: "4f2ca1", countryCode: "fr", guest: false, admin: false}
+const bo: PlayerLine = {name: "guest_Bo", tag: "91aa3d", countryCode: "de", guest: true, admin: false}
 
 const backendAnswering = (answer: () => Promise<PlayerInfo | undefined>) =>
     ({playerInfo: vi.fn(answer)}) satisfies PlayerInfoBackend
@@ -20,7 +20,7 @@ const stat = (label: string) => screen.getByText(label).nextElementSibling?.text
 describe("PlayerCard", () => {
     it("shows who was clicked, and the player's stats once read", async () => {
         const backend = backendAnswering(async () => ({
-            name: "Ana", tilesTaken: 1234, streakCurrent: 1, streakBest: 7, createdAt: Date.UTC(2026, 8, 1, 12),
+            name: "Ana", tilesTaken: 1234, streakCurrent: 1, streakBest: 7, createdAt: Date.UTC(2026, 8, 1, 12), admin: false,
         }))
         render(<PlayerCard player={ana} backend={backend} onClose={() => {}}/>)
 
@@ -39,7 +39,7 @@ describe("PlayerCard", () => {
 
     it("leaves out a creation date the server does not know", async () => {
         render(<PlayerCard player={ana}
-                           backend={backendAnswering(async () => ({name: "Ana", tilesTaken: 0, streakCurrent: 0, streakBest: 0}))}
+                           backend={backendAnswering(async () => ({name: "Ana", tilesTaken: 0, streakCurrent: 0, streakBest: 0, admin: false}))}
                            onClose={() => {}}/>)
 
         await screen.findByText("Tiles taken")
@@ -67,5 +67,19 @@ describe("PlayerCard", () => {
                            onClose={() => {}}/>)
 
         expect(await screen.findByText("The stats could not be loaded.")).toBeDefined()
+    })
+
+    it("crowns an admin in its title, as clicked or as read", async () => {
+        render(<PlayerCard player={{...ana, admin: true}}
+                           backend={backendAnswering(async () => undefined)}
+                           onClose={() => {}}/>)
+        expect(within(screen.getByRole("dialog")).getByRole("img", {name: "Admin"})).toBeDefined()
+        cleanup()
+
+        render(<PlayerCard player={ana}
+                           backend={backendAnswering(async () => ({name: "Ana", tilesTaken: 0, streakCurrent: 0, streakBest: 0, admin: true}))}
+                           onClose={() => {}}/>)
+        expect(screen.queryByRole("img", {name: "Admin"})).toBeNull()
+        expect(await screen.findByRole("img", {name: "Admin"})).toBeDefined()
     })
 })

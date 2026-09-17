@@ -14,6 +14,8 @@ type StoreContractSuite struct {
 
 	// NewStore answers an empty store.
 	NewStore func() Store
+	// MakeAdmin does what an operator does in the database: the port has no way to.
+	MakeAdmin func(store Store, account AccountID)
 
 	store Store
 }
@@ -58,6 +60,30 @@ func (s *StoreContractSuite) TestASavedProfileReadsBackAndASecondReplacesIt() {
 	profile, err = s.store.Profile(s.T().Context(), AccountID{15: 1})
 	s.Require().NoError(err)
 	s.Equal(renamed, profile)
+}
+
+func (s *StoreContractSuite) TestANewProfileIsNotAnAdmin() {
+	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(1, "Ada")))
+
+	profile, err := s.store.Profile(s.T().Context(), AccountID{15: 1})
+	s.Require().NoError(err)
+	s.False(profile.Admin)
+}
+
+func (s *StoreContractSuite) TestAnAdminIsReadAndARenameKeepsIt() {
+	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(1, "Ada")))
+	s.MakeAdmin(s.store, AccountID{15: 1})
+
+	notAdmin := contractProfile(1, "Ada_L")
+	s.Require().NoError(s.store.SaveProfile(s.T().Context(), notAdmin), "a saved profile says nothing of admin")
+
+	profile, err := s.store.Profile(s.T().Context(), AccountID{15: 1})
+	s.Require().NoError(err)
+	s.True(profile.Admin)
+	s.Equal(Name("Ada_L"), profile.Name)
+	named, err := s.store.ProfileNamed(s.T().Context(), "ada_l")
+	s.Require().NoError(err)
+	s.True(named.Admin)
 }
 
 func (s *StoreContractSuite) TestAProfileIsFoundByItsNameIgnoringCase() {

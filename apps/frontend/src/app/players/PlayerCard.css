@@ -2,6 +2,13 @@
     text-align: left;
 }
 
+.player-card-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    max-width: 100%;
+}
+
 /* The author colour, as on .players-entry-name. */
 .player-card-who {
     display: flex;

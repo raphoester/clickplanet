@@ -69,7 +69,7 @@ func (s *Storage) Record(visit presence.Visit) {
 }
 
 // Move carries a signed-in browser's visit, and its key, to its account's name, over any visit the account held.
-func (s *Storage) Move(from, to players.AccountID, username players.Name) {
+func (s *Storage) Move(from, to players.AccountID, username players.Name, admin bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -84,6 +84,7 @@ func (s *Storage) Move(from, to players.AccountID, username players.Name) {
 
 	delete(s.visits, from)
 	moved := visit.For(to, username)
+	moved.Admin = admin
 	s.visits[to] = moved
 
 	if presence.EntryOf(visit) != presence.EntryOf(moved) {

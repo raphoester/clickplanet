@@ -34,6 +34,17 @@ func TestAnAccountWithAUsernameIsAnsweredWithItAndItsTag(t *testing.T) {
 	assert.Equal(t, players.Author{Name: "Ada_L", Tag: players.TagOf("pepper", "1.2.3.4")}, author)
 }
 
+func TestAnAdminIsSaidToBeOne(t *testing.T) {
+	admins := store(t)
+	admins.MakeAdmin(ada)
+
+	author, err := get_author_usecase.New(admins, "pepper").Execute(t.Context(),
+		get_author_usecase.In{Account: ada, IP: "1.2.3.4"})
+
+	require.NoError(t, err)
+	assert.Equal(t, players.Author{Name: "Ada_L", Tag: players.TagOf("pepper", "1.2.3.4"), Admin: true}, author)
+}
+
 func TestAnAccountWithNoUsernameHasATagAndNoName(t *testing.T) {
 	author, err := get_author_usecase.New(store(t), "pepper").Execute(t.Context(),
 		get_author_usecase.In{Account: guest, IP: "1.2.3.4"})

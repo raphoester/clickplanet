@@ -566,10 +566,17 @@ export class RosterEntry extends Message<RosterEntry> {
   guest = false;
 
   /**
+   * An admin of the game. Never a guest.
+   *
+   * @generated from field: bool admin = 5;
+   */
+  admin = false;
+
+  /**
    * Names this line for as long as the player stays on the roster, a sign-in
    * and a new name included. Opaque: it says nothing about the account.
    *
-   * @generated from field: string key = 5;
+   * @generated from field: string key = 6;
    */
   key = "";
 
@@ -585,7 +592,8 @@ export class RosterEntry extends Message<RosterEntry> {
     { no: 2, name: "tag", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 4, name: "guest", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 5, name: "key", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "admin", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 6, name: "key", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RosterEntry {
@@ -924,6 +932,13 @@ export class Player extends Message<Player> {
    */
   createdAtUnixMs = protoInt64.zero;
 
+  /**
+   * An admin of the game.
+   *
+   * @generated from field: bool admin = 4;
+   */
+  admin = false;
+
   constructor(data?: PartialMessage<Player>) {
     super();
     proto3.util.initPartial(data, this);
@@ -935,6 +950,7 @@ export class Player extends Message<Player> {
     { no: 1, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "stats", kind: "message", T: Stats },
     { no: 3, name: "created_at_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 4, name: "admin", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Player {

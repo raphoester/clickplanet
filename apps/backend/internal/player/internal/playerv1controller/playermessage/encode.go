@@ -22,7 +22,7 @@ func Stats(stats players.Stats) *playerv1.Stats {
 
 // Player leaves out the account id: anybody may read it.
 func Player(player players.Player) *playerv1.Player {
-	message := &playerv1.Player{Name: string(player.Name), Stats: Stats(player.Stats)}
+	message := &playerv1.Player{Name: string(player.Name), Stats: Stats(player.Stats), Admin: player.Admin}
 	if !player.CreatedAt.IsZero() {
 		message.CreatedAtUnixMs = player.CreatedAt.UnixMilli()
 	}
@@ -36,6 +36,7 @@ func RosterEntry(entry presence.Entry) *playerv1.RosterEntry {
 		Tag:       string(entry.Tag),
 		CountryId: entry.Country,
 		Guest:     entry.Guest,
+		Admin:     entry.Admin,
 	}
 }
 

@@ -70,6 +70,15 @@ func (s *testSuite) TestInsertThenRecent() {
 		s.recent(start, 10))
 }
 
+func (s *testSuite) TestAnAdminsMessageReadsBackAsOne() {
+	admin := record("hello", start)
+	admin.Message.AuthorAdmin = true
+	s.Require().NoError(s.store.Insert(context.Background(), admin))
+	s.Require().NoError(s.store.Insert(context.Background(), record("planet", start.Add(time.Second))))
+
+	s.Equal([]messages.Message{admin.Message, record("planet", start.Add(time.Second)).Message}, s.recent(start, 10))
+}
+
 func (s *testSuite) TestTheSenderIsStored() {
 	s.Require().NoError(s.store.Insert(context.Background(), record("hello", start)))
 

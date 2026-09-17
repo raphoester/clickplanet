@@ -39,6 +39,7 @@ type Visit struct {
 	Key Key
 	// Username is empty for an account that chose none: a guest.
 	Username  players.Name
+	Admin     bool
 	GuestName string
 	Tag       players.Tag
 	Country   string
@@ -105,6 +106,8 @@ type Entry struct {
 	Tag     players.Tag
 	Country string
 	Guest   bool
+	// Admin is never a guest: a profile with no name does not show as one.
+	Admin bool
 }
 
 // EntryOf is the line the visit shows on the roster.
@@ -115,6 +118,7 @@ func EntryOf(visit Visit) Entry {
 		Tag:     visit.Tag,
 		Country: visit.Country,
 		Guest:   visit.guest(),
+		Admin:   visit.Admin && !visit.guest(),
 	}
 }
 

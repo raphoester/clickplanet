@@ -42,5 +42,6 @@ func (h GetAuthorHandler) GetAuthor(
 	return connect.NewResponse(&playerv1.GetAuthorResponse{
 		Username: string(author.Name),
 		Tag:      string(author.Tag),
+		Admin:    author.Admin,
 	}), nil
 }

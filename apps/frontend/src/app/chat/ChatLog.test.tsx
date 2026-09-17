@@ -8,7 +8,7 @@ import ChatLog from "./ChatLog.tsx"
 afterEach(cleanup)
 
 const message = (id: string, authorName: string, authorTag: string, countryCode: string): ChatMessage =>
-    ({id, sentAt: Date.UTC(2026, 8, 17, 12), authorName, authorTag, countryCode, text: "hello"})
+    ({id, sentAt: Date.UTC(2026, 8, 17, 12), authorName, authorTag, authorAdmin: false, countryCode, text: "hello"})
 
 describe("ChatLog", () => {
     // jsdom lays nothing out, so the log's scroll position is never read.
@@ -22,8 +22,8 @@ describe("ChatLog", () => {
         await userEvent.click(screen.getByRole("button", {name: "guest_Bo"}))
 
         expect(onOpenPlayer.mock.calls).toEqual([
-            [{name: "Ana", tag: "4f2ca1", countryCode: "fr", guest: false}],
-            [{name: "guest_Bo", tag: "91aa3d", countryCode: "de", guest: true}],
+            [{name: "Ana", tag: "4f2ca1", countryCode: "fr", guest: false, admin: false}],
+            [{name: "guest_Bo", tag: "91aa3d", countryCode: "de", guest: true, admin: false}],
         ])
     })
 
@@ -32,5 +32,15 @@ describe("ChatLog", () => {
 
         expect(screen.queryByRole("button", {name: "Ana"})).toBeNull()
         expect(screen.getByText("Ana")).toBeDefined()
+    })
+
+    it("crowns an admin's message, and keeps it on the player it opens", async () => {
+        const onOpenPlayer = vi.fn()
+        const admin = {...message("1", "Ana", "4f2ca1", "fr"), authorAdmin: true}
+        render(<ChatLog loading={false} onOpenPlayer={onOpenPlayer} messages={[admin, message("2", "kiran_07", "0c77e2", "in")]}/>)
+
+        expect(screen.getAllByRole("img", {name: "Admin"})).toHaveLength(1)
+        await userEvent.click(screen.getByRole("button", {name: "Ana"}))
+        expect(onOpenPlayer).toHaveBeenCalledWith({name: "Ana", tag: "4f2ca1", countryCode: "fr", guest: false, admin: true})
     })
 })
