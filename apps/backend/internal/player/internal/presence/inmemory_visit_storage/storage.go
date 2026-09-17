@@ -48,6 +48,43 @@ func (s *Storage) Record(visit presence.Visit) {
 	s.visits[visit.Account] = visit
 }
 
+// Move carries the visit of a browser that signed in to the account it is on now, under that account's
+// username, over any visit the account held. An account with no visit moves nothing: its browser never
+// announced, and is not listed until it does.
+func (s *Storage) Move(from, to players.AccountID, username players.Name) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	visit, held := s.visits[from]
+	if !held {
+		return
+	}
+
+	// The move frees the slot it takes, on the roster and on the tag, so no cap is checked.
+	delete(s.visits, from)
+	s.visits[to] = visit.For(to, username)
+}
+
+// Rename shows the account under its new username. An account with no visit is left off.
+func (s *Storage) Rename(account players.AccountID, username players.Name) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	visit, held := s.visits[account]
+	if !held {
+		return
+	}
+	s.visits[account] = visit.For(account, username)
+}
+
+// Forget takes the account off the roster at once, rather than when its last visit goes stale.
+func (s *Storage) Forget(account players.AccountID) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	delete(s.visits, account)
+}
+
 func (s *Storage) makeRoomOnTag(tag players.Tag) {
 	var (
 		count  int

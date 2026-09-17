@@ -7,6 +7,9 @@ import (
 	"fmt"
 	"time"
 
+	"google.golang.org/protobuf/proto"
+
+	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -17,6 +20,11 @@ type Store interface {
 	accounts.AccountFinder
 	Identity(ctx context.Context, provider string, subject string) (*accounts.Identity, error)
 	SaveSignIn(ctx context.Context, signIn accounts.SignIn) error
+}
+
+// Publisher is the event bus.
+type Publisher interface {
+	Publish(event proto.Message)
 }
 
 type In struct {
@@ -39,6 +47,7 @@ type UseCase struct {
 	ids       accounts.IDProvider
 	tokens    accounts.TokenGenerator
 	lifetime  accounts.Lifetime
+	events    Publisher
 	clock     cptime.Clock
 }
 
@@ -49,6 +58,7 @@ func New(
 	ids accounts.IDProvider,
 	tokens accounts.TokenGenerator,
 	lifetime accounts.Lifetime,
+	events Publisher,
 	clock cptime.Clock,
 ) *UseCase {
 	return &UseCase{
@@ -58,6 +68,7 @@ func New(
 		ids:       ids,
 		tokens:    tokens,
 		lifetime:  lifetime.WithDefaults(),
+		events:    events,
 		clock:     clock,
 	}
 }
@@ -177,5 +188,13 @@ func (u *UseCase) signIn(
 	if err := u.store.SaveSignIn(ctx, signIn); err != nil {
 		return nil, fmt.Errorf("failed to save the sign-in: %w", err)
 	}
+
+	// After the sign-in is saved: a subscriber moves what it keeps for the browser's old account.
+	signedIn := &authv1.SignedIn{AccountId: account.String()}
+	if current != nil {
+		signedIn.PreviousAccountId = current.ID.String()
+	}
+	u.events.Publish(signedIn)
+
 	return &Out{Account: account, Outcome: outcome, SetCookie: signIn.Session.Cookie(token, now)}, nil
 }

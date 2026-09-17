@@ -10,3 +10,23 @@ message AccountDeleted {
   // As a UUID.
   string account_id = 1;
 }
+
+// SignedIn is a browser that finished a sign-in. It is on account_id now, and it
+// was on previous_account_id before: the same account when a guest linked its
+// first identity, another one when the identity was already known or a new
+// account was made. previous_account_id is empty when the browser had no live
+// session. A subscriber moves what it keeps for the browser's old account.
+message SignedIn {
+  // As a UUID, or empty.
+  string previous_account_id = 1;
+  // As a UUID.
+  string account_id = 2;
+}
+
+// SignedOut is an account that ended a session: one browser's, or every one of
+// them. The account still exists. A subscriber forgets what it shows about the
+// account as playing now.
+message SignedOut {
+  // As a UUID.
+  string account_id = 1;
+}

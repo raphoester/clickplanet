@@ -6,10 +6,13 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 
+	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/inmemory_account_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/sign_out_everywhere_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -28,7 +31,9 @@ func TestEverySessionOfTheAccountEndsAndNoOther(t *testing.T) {
 	require.NoError(t, store.SaveSignIn(t.Context(), accounts.SignIn{Session: phone}))
 	require.NoError(t, store.CreateGuest(t.Context(), other))
 
-	setCookie, err := sign_out_everywhere_usecase.New(store, cptime.NewFixedClock(start)).Execute(t.Context(), "cp_sid=laptop")
+	events := cpbootstrap.NewRecordedEvents()
+
+	setCookie, err := sign_out_everywhere_usecase.New(store, events, cptime.NewFixedClock(start)).Execute(t.Context(), "cp_sid=laptop")
 
 	require.NoError(t, err)
 	assert.Equal(t, accounts.ExpiredSessionCookie(), setCookie)
@@ -37,15 +42,19 @@ func TestEverySessionOfTheAccountEndsAndNoOther(t *testing.T) {
 		require.ErrorIs(t, err, accounts.ErrSessionNotFound)
 	}
 	_, err = store.Session(t.Context(), other.TokenHash)
-	assert.NoError(t, err)
+	require.NoError(t, err)
+	require.Len(t, events.Published(), 1)
+	assert.True(t, proto.Equal(&authv1.SignedOut{AccountId: identity.Account.String()}, events.Published()[0]))
 }
 
 func TestNoLiveSessionIsNoAccount(t *testing.T) {
 	store := inmemory_account_store.New()
 	require.NoError(t, store.CreateGuest(t.Context(), accounts.GuestSession(accounts.AccountID{15: 1}, accounts.TokenOf("token-1"), lifetime, start)))
-	useCase := sign_out_everywhere_usecase.New(store, cptime.NewFixedClock(start.Add(91*24*time.Hour)))
+	events := cpbootstrap.NewRecordedEvents()
+	useCase := sign_out_everywhere_usecase.New(store, events, cptime.NewFixedClock(start.Add(91*24*time.Hour)))
 
 	_, err := useCase.Execute(t.Context(), "cp_sid=token-1")
 
-	assert.ErrorIs(t, err, accounts.ErrNoAccount)
+	require.ErrorIs(t, err, accounts.ErrNoAccount)
+	assert.Empty(t, events.Published())
 }

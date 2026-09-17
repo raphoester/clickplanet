@@ -149,11 +149,12 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, provider
 		),
 		CompleteSignInHandler: complete_sign_in_handler.New(
 			complete_sign_in_usecase.New(providers, sealer, store, uuid_id_provider.Provider{}, random_token_generator.Generator{},
-				config.Sessions, clock),
+				config.Sessions, props.Events, clock),
 			props.Logger,
 		),
-		SignOutHandler:           sign_out_handler.New(sign_out_usecase.New(store)),
-		SignOutEverywhereHandler: sign_out_everywhere_handler.New(sign_out_everywhere_usecase.New(store, clock)),
+		SignOutHandler: sign_out_handler.New(sign_out_usecase.New(store, props.Events)),
+		// Both publish auth.v1.SignedOut, so the account stops showing as playing.
+		SignOutEverywhereHandler: sign_out_everywhere_handler.New(sign_out_everywhere_usecase.New(store, props.Events, clock)),
 		// Publishes auth.v1.AccountDeleted, as the prune does for each guest it deletes.
 		DeleteAccountHandler: delete_account_handler.New(delete_account_usecase.New(store, props.Events, clock)),
 	}

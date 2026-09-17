@@ -4,11 +4,14 @@ import (
 	"fmt"
 	"net/http"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
+	"github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1/authv1connect"
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1/playerv1connect"
 )
@@ -31,6 +34,70 @@ func (s gameStack) roster(t *testing.T) *connect.Response[playerv1.GetRosterResp
 		GetRoster(t.Context(), connect.NewRequest(&playerv1.GetRosterRequest{}))
 	require.NoError(t, err)
 	return res
+}
+
+// names is the roster as its names.
+func (s gameStack) names(t *testing.T) []string {
+	t.Helper()
+
+	entries := s.roster(t).Msg.GetEntries()
+	names := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		names = append(names, entry.GetName())
+	}
+	return names
+}
+
+func (p *gamer) signOut() {
+	p.t.Helper()
+
+	req := connect.NewRequest(&authv1.SignOutRequest{})
+	p.send(req.Header())
+	_, err := authv1connect.NewAuthServiceClient(http.DefaultClient, p.stack.baseURL).SignOut(p.t.Context(), req)
+	require.NoError(p.t, err)
+}
+
+func TestAGuestWhoSignsInAndPicksANameIsOneLineUnderItWithNoAnnounce(t *testing.T) {
+	game := startGame(t)
+	ada := game.newPlayer(t)
+	require.NoError(t, ada.announce("fr", "Bob"))
+	require.Equal(t, []string{"guest_Bob"}, game.names(t))
+
+	ada.link("google-ada")
+	_, err := ada.setName("Ada_L")
+	require.NoError(t, err)
+
+	assert.Equal(t, []string{"Ada_L"}, game.names(t), "the rename is on the roster as soon as SetName answers")
+}
+
+func TestAGuestWhoSignsInToAKnownAccountTakesItsNameAndLeavesNoGuestBehind(t *testing.T) {
+	game := startGame(t)
+	laptop := game.newPlayer(t)
+	laptop.link("google-ada")
+	_, err := laptop.setName("Ada_L")
+	require.NoError(t, err)
+	phone := game.newPlayer(t)
+	require.NoError(t, phone.announce("fr", "Bob"))
+	require.Equal(t, []string{"guest_Bob"}, game.names(t))
+
+	phone.signIn("google-ada", authv1.SignInIntent_SIGN_IN_INTENT_SIGN_IN, authv1.SignInOutcome_SIGN_IN_OUTCOME_SIGNED_IN)
+
+	assert.Eventually(t, func() bool {
+		names := game.names(t)
+		return len(names) == 1 && names[0] == "Ada_L"
+	}, 5*time.Second, 20*time.Millisecond, "the event reaches the roster")
+}
+
+func TestASignedOutPlayerLeavesTheRosterAtOnce(t *testing.T) {
+	game := startGame(t)
+	ada := game.newPlayer(t)
+	require.NoError(t, ada.announce("fr", "Bob"))
+	require.Equal(t, []string{"guest_Bob"}, game.names(t))
+
+	ada.signOut()
+
+	assert.Eventually(t, func() bool { return len(game.names(t)) == 0 }, 5*time.Second, 20*time.Millisecond,
+		"the event reaches the roster")
 }
 
 func TestTheRosterListsPlayersThenGuestsWithTheChatsTag(t *testing.T) {
