@@ -52,11 +52,13 @@ ledgerStorage:
 # every account behind the address shares. The scope is the address Caddy puts
 # in X-Real-IP, which is Cloudflare's Cf-Connecting-Ip — the real visitor — over
 # IPv4, and that address's /64 over IPv6. A token with no account spends one
-# scope bucket at perSecond and burst, as before accounts.
+# scope bucket at perSecond and burst, as before accounts. An account signed in
+# with Google or Discord holds linkedMultiplier times a guest's allowance.
 rateLimiter:
   perSecond: 1
   burst: 10
   scopeMultiplier: 10
+  linkedMultiplier: 2
 
 # A click costs more tokens the more of the map its country holds: from each
 # share below (a fraction of every tile on the map), a click for that country

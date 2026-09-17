@@ -37,6 +37,14 @@ export type ClickBudget = {
     price?: ClickPrice
 
     /**
+     * How many times a guest's allowance an account signed in with a provider
+     * holds: 2 is twice the clicks in hand, refilling twice as fast. The same
+     * for every caller, so a guest can be told what signing in is worth.
+     * Absent from a server that grants nothing for it.
+     */
+    linkedMultiplier?: number
+
+    /**
      * When `tokens` was true, on the monotonic clock. Not a server timestamp:
      * the two clocks are unrelated, and what matters is how long *this* machine
      * has watched the bucket refill since.

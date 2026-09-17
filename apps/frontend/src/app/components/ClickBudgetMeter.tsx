@@ -1,7 +1,7 @@
 import {useEffect, useRef} from 'react'
 import {ClickBudget, now, tokensAt} from "../../backends/clickBudget.ts"
 import {ActiveBonus, describeReward, secondsLeft} from "../../domain/bonus.ts"
-import {describePrice} from "../../domain/clickPrice.ts"
+import {describePrice, factor} from "../../domain/clickPrice.ts"
 import "./ClickBudgetMeter.css"
 
 export type ClickBudgetMeterProps = {
@@ -21,6 +21,12 @@ export type ClickBudgetMeterProps = {
      * click, since this is where the player already looks for the allowance.
      */
     refusals?: number
+    /**
+     * Present for a guest the server offers sign-in to: the meter then says
+     * what signing in is worth, under the pips, and this opens the way to it.
+     * The meter is where a guest meets the wall, so it is where the offer is.
+     */
+    onSignIn?: () => void
 }
 
 /** Above this many, a row of pips is unreadable and it becomes one bar. */
@@ -44,7 +50,7 @@ const STEP_MS = 250
  * pips *is* the burst, and the fill rate *is* the refill rate, so changing
  * either in the backend's config changes this with no frontend release.
  */
-export default function ClickBudgetMeter({budget, bonus, countryName = "", refusals = 0}: ClickBudgetMeterProps) {
+export default function ClickBudgetMeter({budget, bonus, countryName = "", refusals = 0, onSignIn}: ClickBudgetMeterProps) {
     const root = useRef<HTMLDivElement>(null)
     const count = useRef<HTMLSpanElement>(null)
     const countdown = useRef<HTMLSpanElement>(null)
@@ -132,7 +138,10 @@ export default function ClickBudgetMeter({budget, bonus, countryName = "", refus
     const className = ["click-budget", bonus && "click-budget-boosted", price && "click-budget-priced"]
         .filter(Boolean).join(" ")
 
-    return <div
+    // Said only when the server says what it is worth: a number made up here could promise what it does not grant.
+    const speedUp = onSignIn && budget.linkedMultiplier
+
+    return <div className="click-budget-dock"><div
         ref={root}
         className={className}
         role="meter"
@@ -168,4 +177,17 @@ export default function ClickBudgetMeter({budget, bonus, countryName = "", refus
             <span className="click-budget-toll-detail">{price.detail}</span>
         </div>}
     </div>
+
+        {speedUp && <button type="button" className="click-budget-sign-in" onClick={onSignIn}>
+            <BoltIcon/>
+            <span>Sign in: clicks {factor(speedUp)}× faster</span>
+        </button>}
+    </div>
+}
+
+function BoltIcon() {
+    return <svg className="click-budget-sign-in-icon" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"
+                aria-hidden="true">
+        <path d="M13 2 4 14h7l-1 8 9-12h-7z"/>
+    </svg>
 }

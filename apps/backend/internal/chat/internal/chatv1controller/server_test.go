@@ -176,7 +176,7 @@ func TestAValidTokenNamesTheSendersAccountAndABadOneIsAGuest(t *testing.T) {
 	signer, err := cpsession.NewSigner(cpsession.SignerConfig{Enabled: true, Secret: secret, TTL: time.Hour})
 	require.NoError(t, err)
 	ada := cpsession.AccountID{15: 1}
-	token, err := signer.Mint("1.2.3.4", ada, clock.Now())
+	token, err := signer.Mint("1.2.3.4", cpsession.Holder{Account: ada}, clock.Now())
 	require.NoError(t, err)
 
 	require.NoError(t, sendWithToken(server, "1.2.3.4", token.Value))

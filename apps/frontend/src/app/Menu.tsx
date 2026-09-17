@@ -29,6 +29,8 @@ export type MenuProps = {
     sound?: SoundSettingsPanelProps,
     /** Absent, or with no provider offered, the menu offers no sign-in. */
     account?: AccountStore,
+    /** What signing in multiplies the click allowance by, as the server said. Absent, the panel does not mention it. */
+    linkedMultiplier?: number,
 }
 
 export default function Menu(props: MenuProps) {
@@ -117,6 +119,7 @@ export default function Menu(props: MenuProps) {
                     ? <MenuPanel title="Account" onClose={() => setAccountOpen(false)}>
                         <AccountPanel state={account}
                                       store={props.account}
+                                      linkedMultiplier={props.linkedMultiplier}
                                       onDelete={() => setConfirmingDelete(true)}/>
                     </MenuPanel>
                     : <>

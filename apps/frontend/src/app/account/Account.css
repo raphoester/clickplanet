@@ -10,6 +10,17 @@
     margin: 0 0 4px 0;
 }
 
+/* In a dialog there is no menu fade to clear. */
+.sign-in-pitch {
+    padding-bottom: 0;
+    text-align: left;
+}
+
+.sign-in-pitch-small {
+    font-size: 14px;
+    color: #FFFFFFB3;
+}
+
 /* A column, not the menu's row of actions: "Sign out everywhere" at the shared
    28px wraps onto two lines in the card's width. Desktop only — under 768px the
    shared mobile size already fits. */

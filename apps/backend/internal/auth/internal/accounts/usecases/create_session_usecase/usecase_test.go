@@ -188,3 +188,34 @@ func TestALinkedSessionIsExtendedByTheLinkedLifetime(t *testing.T) {
 	assert.Equal(t, identity.Account, f.accountIn(t, out))
 	assert.Equal(t, start.Add(25*time.Hour).Add(30*24*time.Hour), cookieOf(t, out.SetCookie).Expires)
 }
+
+func TestTheTokenSaysWhetherTheAccountSignedInWithAProvider(t *testing.T) {
+	f := setUp(t)
+	identity := accounts.NewIdentity("discord", accounts.Claim{Subject: "user"}, accounts.AccountID{15: 9}, start)
+	require.NoError(t, f.sessions.SaveSignIn(t.Context(), accounts.SignIn{
+		NewAccount: true, Identity: identity,
+		Session: accounts.LinkedSession(identity.Account, accounts.TokenOf("linked"), accounts.Lifetime{}.WithDefaults(), start),
+	}))
+	useCase := f.useCase(open_attester.New())
+
+	for name, tc := range map[string]struct {
+		cookie   string
+		extended bool
+		linked   bool
+	}{
+		"a guest":             {cookie: "", linked: false},
+		"a linked account":    {cookie: "cp_sid=linked", linked: true},
+		"one extended as due": {cookie: "cp_sid=linked", extended: true, linked: true},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if tc.extended {
+				f.clock.Advance(25 * time.Hour)
+			}
+			out := f.create(t, useCase, tc.cookie)
+
+			claims, err := f.verifier.Verify(out.Token.Value, ip, f.clock.Now())
+			require.NoError(t, err)
+			assert.Equal(t, tc.linked, claims.Linked, "a linked account clicks faster, and the token is what planet reads")
+		})
+	}
+}

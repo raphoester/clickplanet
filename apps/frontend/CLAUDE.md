@@ -774,6 +774,17 @@ player's territory, so it has not been done.
    On a phone it moves to under the folded menu: both ends of the screen are
    full-width sheets there, the menu above and the chat below.
 
+   **A guest is offered to click faster.** A signed-in account clicks
+   `ClickBudget.linkedMultiplier` times faster (2 in production). For a guest the
+   server offers sign-in to, `Viewer` passes `onSignIn` and the meter shows
+   "Sign in: clicks 2× faster" under the pips — a button beside the meter, not in
+   it, since the meter is a reading. It glows when the bucket is empty or a click
+   is refused, the moment a guest meets the wall. It opens `SignInPitchModal`,
+   which has the account panel's sign-in buttons. The account panel's guest text
+   says the same. **Nothing is offered without the server's number**, nor with
+   sign-in off. The meter and the dialog sit in `.click-budget-dock`, which takes
+   the corner.
+
 ### Sampling the leaderboard
 
 The globe re-ranks on every batch it takes in — ten times a second, over every
@@ -1177,7 +1188,9 @@ sentence. A new Google scope changes that section.
 **`index.html` is the home page** and says what the game is in plain HTML — see
 [Pages and routes](#pages-and-routes). It is a full landing page (header,
 hero, how it works, features, creator, Discord, footer) in the game's look, with
-one stylesheet inline and no script but the redirect. Its screenshots are
+one stylesheet inline and no script but the redirect. The hero's `.boost` callout
+says signing in clicks 2× faster: plain HTML cannot read the server's number, so
+**change it with `rateLimiter.linkedMultiplier` in `deploy/vps/backend.yaml`**. Its screenshots are
 `static/home/*.jpg`, taken from the live game; a new one must not show the chat,
 which carries players' own words. The section links (`#how`, `#features`,
 `#creator`) work in the page, but a returning player who opens one directly is

@@ -123,6 +123,16 @@ export class ClickBudget extends Message<ClickBudget> {
    */
   nextCost = 0;
 
+  /**
+   * How many times a guest's allowance an account that signed in with a
+   * provider holds: 2 is twice the burst and twice the refill. It is the same
+   * for every caller, so a guest can be told what signing in is worth. Zero
+   * from a server too old to grant one, which means signing in changes nothing.
+   *
+   * @generated from field: double linked_multiplier = 10;
+   */
+  linkedMultiplier = 0;
+
   constructor(data?: PartialMessage<ClickBudget>) {
     super();
     proto3.util.initPartial(data, this);
@@ -138,6 +148,7 @@ export class ClickBudget extends Message<ClickBudget> {
     { no: 5, name: "share", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
     { no: 6, name: "next_share", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
     { no: 9, name: "next_cost", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 10, name: "linked_multiplier", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ClickBudget {
