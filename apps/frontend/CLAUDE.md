@@ -1220,10 +1220,10 @@ on the count below it.
 `.menu-label` — **including their `max-width: 768px` sizes**. A component's own
 CSS file says what makes that component itself (its colour, its icon spacing),
 and must not restate height, padding, radius or font-size. Restating them is how
-the Discord button ended up a 56px slab next to a 40px About button on mobile:
-`DiscordButton.css` set its own `height`, and the mobile rule it also carried
-overrode the shared mobile size. Anchors styled as buttons (`BuyMeACoffee`,
-`DiscordButton`) legitimately need `display: flex` with both axes centred and
+the old Discord button ended up a 56px slab next to a 40px About button on
+mobile: its CSS set its own `height`, and the mobile rule it also carried
+overrode the shared mobile size. Anchors styled as buttons (`BuyMeACoffee`, the
+menu's Home link) legitimately need `display: flex` with both axes centred and
 `text-decoration: none` — a `<button>` gets those for free — and nothing more.
 
 ### Debugging mobile layout

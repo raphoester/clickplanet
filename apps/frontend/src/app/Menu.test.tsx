@@ -46,6 +46,11 @@ describe("Menu", () => {
         expect(playing.textContent).toBe("France")
     })
 
+    it("links Home to the home page, which does not send the player back", () => {
+        setup()
+        expect(screen.getByRole("link", {name: "Home"}).getAttribute("href")).toBe("/#home")
+    })
+
     describe("the collapse", () => {
         it("folds the card away, keeping the country and its rank on screen", async () => {
             const {user} = setup([entry("jp", 500), entry("fr", 250)])
@@ -337,9 +342,9 @@ describe("Menu", () => {
         it("shows who is signed in, and links the missing provider", async () => {
             const {user} = withAccount(["google", "discord"], {linked: ["google"]})
 
-            expect(await screen.findByText("Signed in with Google")).toBeDefined()
-            await user.click(button("Account"))
+            await user.click(await screen.findByRole("button", {name: "Account"}))
 
+            expect(screen.getByText("Signed in with Google.")).toBeDefined()
             expect(button("Link Discord")).toBeDefined()
             expect(screen.queryByRole("button", {name: "Link Google"})).toBeNull()
             expect(button("Sign out")).toBeDefined()

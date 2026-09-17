@@ -3,30 +3,28 @@ import {PROVIDER_NAMES} from "../../backends/account.ts"
 import {isValidUsername, MAX_USERNAME_LENGTH, MIN_USERNAME_LENGTH} from "../../backends/player.ts"
 import {AccountState, AccountStore} from "./accountStore.ts"
 import {messageOf, providerList, usernameMessageOf} from "./authMessages.ts"
+import {UserIcon} from "../components/icons.tsx"
 import "./Account.css"
 
 type Ready = Extract<AccountState, {kind: "ready"}>
 
-export type AccountRowProps = {
+export type AccountButtonProps = {
     state: Ready
     onOpen: () => void
     buttonRef?: React.Ref<HTMLButtonElement>
 }
 
-/** One line in the menu. Login is optional, so it asks for nothing more than this. */
-export function AccountRow({state, onOpen, buttonRef}: AccountRowProps) {
-    const linked = state.me.linked.length > 0
-    return <div className="account-row">
-        <span className="account-row-text">
-            {linked ? `Signed in with ${providerList(state.me.linked)}` : "Keep your stats on every device"}
-        </span>
-        <button ref={buttonRef}
-                type="button"
-                className="button button-mini account-row-button"
-                onClick={onOpen}>
-            {linked ? "Account" : "Sign in"}
-        </button>
-    </div>
+/** One icon in the menu's actions. Login is optional, so it asks for nothing more than this. */
+export function AccountButton({state, onOpen, buttonRef}: AccountButtonProps) {
+    const label = state.me.linked.length > 0 ? "Account" : "Sign in"
+    return <button ref={buttonRef}
+                   type="button"
+                   className="button button-ghost menu-icon"
+                   aria-label={label}
+                   title={label}
+                   onClick={onOpen}>
+        <UserIcon size={26}/>
+    </button>
 }
 
 export type AccountPanelProps = {
