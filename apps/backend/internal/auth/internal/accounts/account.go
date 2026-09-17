@@ -3,13 +3,11 @@ package accounts
 import (
 	"slices"
 	"time"
-
-	"github.com/google/uuid"
 )
 
 // Account is a player, and the providers it signs in with. A guest has none.
 type Account struct {
-	ID uuid.UUID
+	ID AccountID
 	// Oldest link first.
 	Identities []Identity
 }
@@ -35,7 +33,7 @@ func (a *Account) holds(provider string) bool {
 type Identity struct {
 	Provider string
 	Subject  string
-	Account  uuid.UUID
+	Account  AccountID
 	// Empty unless the provider said the address is verified.
 	Email         string
 	EmailVerified bool
@@ -50,7 +48,7 @@ type Claim struct {
 }
 
 // NewIdentity links claim to account. An unverified email is dropped: nobody may be reached, or matched, on an address they may not own.
-func NewIdentity(provider string, claim Claim, account uuid.UUID, now time.Time) *Identity {
+func NewIdentity(provider string, claim Claim, account AccountID, now time.Time) *Identity {
 	identity := &Identity{Provider: provider, Subject: claim.Subject, Account: account, LinkedAt: now}
 	if claim.EmailVerified && claim.Email != "" {
 		identity.Email = claim.Email
@@ -91,5 +89,5 @@ type SignIn struct {
 	Identity *Identity
 	Session  *Session
 	// The browser's previous session, deleted, or nil when it had none.
-	Replaces []byte
+	Replaces TokenHash
 }

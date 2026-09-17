@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"connectrpc.com/connect"
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -39,20 +38,20 @@ func getMe(useCase *stubUseCase) (*connect.Response[authv1.GetMeResponse], error
 }
 
 func TestGetMeAnswersAGuestOfTheCookieAndIsNeverCached(t *testing.T) {
-	useCase := &stubUseCase{account: &accounts.Account{ID: uuid.UUID{15: 1}}}
+	useCase := &stubUseCase{account: &accounts.Account{ID: accounts.AccountID{15: 1}}}
 
 	res, err := getMe(useCase)
 	require.NoError(t, err)
 
 	assert.Equal(t, []string{"cp_sid=abc"}, useCase.asked)
-	assert.Equal(t, uuid.UUID{15: 1}.String(), res.Msg.GetAccountId())
+	assert.Equal(t, accounts.AccountID{15: 1}.String(), res.Msg.GetAccountId())
 	assert.Equal(t, authv1.AccountKind_ACCOUNT_KIND_GUEST, res.Msg.GetKind())
 	assert.Empty(t, res.Msg.GetProviders())
 	assert.Equal(t, "no-store", res.Header().Get("Cache-Control"))
 }
 
 func TestGetMeAnswersALinkedAccountWithItsProvidersInOrder(t *testing.T) {
-	useCase := &stubUseCase{account: &accounts.Account{ID: uuid.UUID{15: 1}, Identities: []accounts.Identity{
+	useCase := &stubUseCase{account: &accounts.Account{ID: accounts.AccountID{15: 1}, Identities: []accounts.Identity{
 		{Provider: "discord"}, {Provider: "google"},
 	}}}
 

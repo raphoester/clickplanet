@@ -28,6 +28,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/delete_account_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/get_me_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/prune_guests_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/prune_guests_usecase/log_prune_guests"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/sign_out_everywhere_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/sign_out_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/uuid_id_provider"
@@ -151,7 +152,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, provider
 		// When the event bus comes, the account's deletion is published from this use case.
 		DeleteAccountHandler: delete_account_handler.New(delete_account_usecase.New(store, clock)),
 	}
-	props.Runners.Add(prune_guests_usecase.New(config.Prune, store, clock, props.Logger))
+	props.Runners.Add(prune_guests_usecase.NewRunner(config.Prune,
+		log_prune_guests.New(prune_guests_usecase.New(config.Prune, store, clock), props.Logger)))
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return authv1connect.NewAuthServiceHandler(authService, options...)
 	}, authv1controller.NewRateLimitInterceptor(mintLimiter)); err != nil {

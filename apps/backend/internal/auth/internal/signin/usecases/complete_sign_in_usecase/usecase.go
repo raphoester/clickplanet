@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/uuid"
-
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -29,7 +27,7 @@ type In struct {
 
 // Out is the account the browser is now on, and its new session cookie.
 type Out struct {
-	Account   uuid.UUID
+	Account   accounts.AccountID
 	Outcome   accounts.Outcome
 	SetCookie string
 }
@@ -115,7 +113,7 @@ func (u *UseCase) flow(in In, now time.Time) (*signin.Flow, signin.Provider, err
 }
 
 // current is the account the browser is on and its session to replace, or nothing when it has no live session.
-func (u *UseCase) current(ctx context.Context, cookieHeader string, now time.Time) (*accounts.Account, []byte, error) {
+func (u *UseCase) current(ctx context.Context, cookieHeader string, now time.Time) (*accounts.Account, accounts.TokenHash, error) {
 	session, err := accounts.Caller(ctx, u.store, cookieHeader, now)
 	if errors.Is(err, accounts.ErrNoAccount) {
 		return nil, nil, nil
@@ -135,7 +133,7 @@ func (u *UseCase) current(ctx context.Context, cookieHeader string, now time.Tim
 }
 
 func (u *UseCase) signIn(
-	ctx context.Context, provider string, claim *accounts.Claim, current *accounts.Account, replaces []byte, now time.Time,
+	ctx context.Context, provider string, claim *accounts.Claim, current *accounts.Account, replaces accounts.TokenHash, now time.Time,
 ) (*Out, error) {
 	known, err := u.store.FindIdentity(ctx, provider, claim.Subject)
 	if errors.Is(err, accounts.ErrIdentityNotFound) {
@@ -146,7 +144,7 @@ func (u *UseCase) signIn(
 
 	outcome := accounts.Choose(current, known, provider)
 	signIn := accounts.SignIn{Replaces: replaces}
-	var account uuid.UUID
+	var account accounts.AccountID
 	switch outcome {
 	case accounts.SignedIn:
 		account = known.Account

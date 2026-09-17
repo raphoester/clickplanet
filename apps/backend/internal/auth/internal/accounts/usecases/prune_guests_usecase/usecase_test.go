@@ -2,11 +2,9 @@ package prune_guests_usecase_test
 
 import (
 	"errors"
-	"log/slog"
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -22,12 +20,12 @@ var (
 )
 
 func useCase(store *inmemory_account_store.Store, clock cptime.Clock) *prune_guests_usecase.UseCase {
-	return prune_guests_usecase.New(prune_guests_usecase.Config{IdleFor: 90 * 24 * time.Hour}, store, clock, slog.New(slog.DiscardHandler))
+	return prune_guests_usecase.New(prune_guests_usecase.Config{IdleFor: 90 * 24 * time.Hour}, store, clock)
 }
 
 func TestAGuestIsPrunedOnlyOnceItHasBeenIdleTheWholeWindow(t *testing.T) {
 	store := inmemory_account_store.New()
-	guest := accounts.StartGuest(uuid.UUID{15: 1}, accounts.TokenOf("token-1"), lifetime, start)
+	guest := accounts.StartGuest(accounts.AccountID{15: 1}, accounts.TokenOf("token-1"), lifetime, start)
 	require.NoError(t, store.CreateGuest(t.Context(), guest))
 	clock := cptime.NewFixedClock(start.Add(90*24*time.Hour - time.Second))
 
@@ -45,7 +43,7 @@ func TestAGuestIsPrunedOnlyOnceItHasBeenIdleTheWholeWindow(t *testing.T) {
 
 func TestALinkedAccountIsNeverPruned(t *testing.T) {
 	store := inmemory_account_store.New()
-	identity := accounts.NewIdentity("google", accounts.Claim{Subject: "user"}, uuid.UUID{15: 1}, start)
+	identity := accounts.NewIdentity("google", accounts.Claim{Subject: "user"}, accounts.AccountID{15: 1}, start)
 	require.NoError(t, store.SaveSignIn(t.Context(), accounts.SignIn{
 		NewAccount: true, Identity: identity, Session: accounts.StartLinked(identity.Account, accounts.TokenOf("token-1"), lifetime, start),
 	}))

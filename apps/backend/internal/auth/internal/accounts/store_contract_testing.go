@@ -6,7 +6,6 @@ import (
 	"errors"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -31,7 +30,7 @@ var (
 )
 
 func (s *StoreContractSuite) guest(account byte, token string) *Session {
-	return StartGuest(uuid.UUID{15: account}, TokenOf(token), contractLifetime, contractStart)
+	return StartGuest(AccountID{15: account}, TokenOf(token), contractLifetime, contractStart)
 }
 
 func (s *StoreContractSuite) createGuest(account byte, token string) *Session {
@@ -42,8 +41,8 @@ func (s *StoreContractSuite) createGuest(account byte, token string) *Session {
 
 // signIn links provider's subject to account, a new one unless a guest already holds it.
 func (s *StoreContractSuite) signIn(account byte, provider string, subject string, token string) (*Identity, *Session) {
-	_, err := s.store.FindAccount(s.T().Context(), uuid.UUID{15: account})
-	identity := NewIdentity(provider, Claim{Subject: subject}, uuid.UUID{15: account}, contractStart)
+	_, err := s.store.FindAccount(s.T().Context(), AccountID{15: account})
+	identity := NewIdentity(provider, Claim{Subject: subject}, AccountID{15: account}, contractStart)
 	session := StartLinked(identity.Account, TokenOf(token), contractLifetime, contractStart)
 	s.Require().NoError(s.store.SaveSignIn(s.T().Context(), SignIn{
 		NewAccount: errors.Is(err, ErrAccountNotFound), Identity: identity, Session: session,
@@ -51,14 +50,14 @@ func (s *StoreContractSuite) signIn(account byte, provider string, subject strin
 	return identity, session
 }
 
-func (s *StoreContractSuite) find(tokenHash []byte) *Session {
+func (s *StoreContractSuite) find(tokenHash TokenHash) *Session {
 	session, err := s.store.FindSession(s.T().Context(), tokenHash)
 	s.Require().NoError(err)
 	return session
 }
 
 func (s *StoreContractSuite) account(account byte) *Account {
-	found, err := s.store.FindAccount(s.T().Context(), uuid.UUID{15: account})
+	found, err := s.store.FindAccount(s.T().Context(), AccountID{15: account})
 	s.Require().NoError(err)
 	return found
 }
@@ -103,12 +102,12 @@ func (s *StoreContractSuite) TestATakenTokenHashCreatesNoSecondGuest() {
 	s.Require().Error(s.store.CreateGuest(s.T().Context(), s.guest(2, "a-token")))
 
 	s.Equal(first, s.find(first.TokenHash), "the first guest keeps its session")
-	_, err := s.store.FindAccount(s.T().Context(), uuid.UUID{15: 2})
+	_, err := s.store.FindAccount(s.T().Context(), AccountID{15: 2})
 	s.ErrorIs(err, ErrAccountNotFound, "a guest whose session fails to insert leaves no account")
 }
 
 func (s *StoreContractSuite) TestAnUnknownAccountIsNotFound() {
-	account, err := s.store.FindAccount(s.T().Context(), uuid.UUID{15: 9})
+	account, err := s.store.FindAccount(s.T().Context(), AccountID{15: 9})
 
 	s.Require().ErrorIs(err, ErrAccountNotFound)
 	s.Nil(account)
@@ -122,7 +121,7 @@ func (s *StoreContractSuite) TestAnUnknownIdentityIsNotFound() {
 }
 
 func (s *StoreContractSuite) TestASignInToANewAccountCreatesItLinked() {
-	identity := NewIdentity("google", contractClaim, uuid.UUID{15: 1}, contractStart)
+	identity := NewIdentity("google", contractClaim, AccountID{15: 1}, contractStart)
 	session := StartLinked(identity.Account, TokenOf("a-token"), contractLifetime, contractStart)
 
 	s.Require().NoError(s.store.SaveSignIn(s.T().Context(), SignIn{NewAccount: true, Identity: identity, Session: session}))
@@ -149,7 +148,7 @@ func (s *StoreContractSuite) TestLinkingAGuestReplacesItsSession() {
 
 func (s *StoreContractSuite) TestProvidersAreListedOldestLinkFirst() {
 	s.signIn(1, "google", "google-user", "first-token")
-	later := NewIdentity("discord", Claim{Subject: "discord-user"}, uuid.UUID{15: 1}, contractStart.Add(time.Hour))
+	later := NewIdentity("discord", Claim{Subject: "discord-user"}, AccountID{15: 1}, contractStart.Add(time.Hour))
 	session := StartLinked(later.Account, TokenOf("second-token"), contractLifetime, contractStart.Add(time.Hour))
 	s.Require().NoError(s.store.SaveSignIn(s.T().Context(), SignIn{Identity: later, Session: session}))
 
@@ -159,7 +158,7 @@ func (s *StoreContractSuite) TestProvidersAreListedOldestLinkFirst() {
 func (s *StoreContractSuite) TestASignInToAKnownIdentityOnlyStartsASession() {
 	s.signIn(1, "google", "google-user", "first-token")
 	guest := s.createGuest(2, "guest-token")
-	session := StartLinked(uuid.UUID{15: 1}, TokenOf("second-token"), contractLifetime, contractStart)
+	session := StartLinked(AccountID{15: 1}, TokenOf("second-token"), contractLifetime, contractStart)
 
 	s.Require().NoError(s.store.SaveSignIn(s.T().Context(), SignIn{Session: session, Replaces: guest.TokenHash}))
 
@@ -170,7 +169,7 @@ func (s *StoreContractSuite) TestASignInToAKnownIdentityOnlyStartsASession() {
 
 func (s *StoreContractSuite) TestAnIdentityLinkedTwiceIsTakenAndWritesNothing() {
 	s.signIn(1, "google", "google-user", "first-token")
-	identity := NewIdentity("google", Claim{Subject: "google-user"}, uuid.UUID{15: 2}, contractStart)
+	identity := NewIdentity("google", Claim{Subject: "google-user"}, AccountID{15: 2}, contractStart)
 	session := StartLinked(identity.Account, TokenOf("second-token"), contractLifetime, contractStart)
 
 	err := s.store.SaveSignIn(s.T().Context(), SignIn{NewAccount: true, Identity: identity, Session: session})
@@ -193,7 +192,7 @@ func (s *StoreContractSuite) TestASessionOfALinkedAccountIsLinked() {
 
 func (s *StoreContractSuite) TestSigningOutDeletesOnlyThatSession() {
 	_, first := s.signIn(1, "google", "google-user", "first-token")
-	second := StartLinked(uuid.UUID{15: 1}, TokenOf("second-token"), contractLifetime, contractStart)
+	second := StartLinked(AccountID{15: 1}, TokenOf("second-token"), contractLifetime, contractStart)
 	s.Require().NoError(s.store.SaveSignIn(s.T().Context(), SignIn{Session: second}))
 
 	s.Require().NoError(s.store.DeleteSession(s.T().Context(), first.TokenHash))
@@ -206,13 +205,13 @@ func (s *StoreContractSuite) TestSigningOutDeletesOnlyThatSession() {
 
 func (s *StoreContractSuite) TestSigningOutEverywhereDeletesEverySessionOfTheAccountAndNoOther() {
 	_, first := s.signIn(1, "google", "google-user", "first-token")
-	second := StartLinked(uuid.UUID{15: 1}, TokenOf("second-token"), contractLifetime, contractStart)
+	second := StartLinked(AccountID{15: 1}, TokenOf("second-token"), contractLifetime, contractStart)
 	s.Require().NoError(s.store.SaveSignIn(s.T().Context(), SignIn{Session: second}))
 	other := s.createGuest(2, "other-token")
 
-	s.Require().NoError(s.store.DeleteSessions(s.T().Context(), uuid.UUID{15: 1}))
+	s.Require().NoError(s.store.DeleteSessions(s.T().Context(), AccountID{15: 1}))
 
-	for _, gone := range [][]byte{first.TokenHash, second.TokenHash} {
+	for _, gone := range []TokenHash{first.TokenHash, second.TokenHash} {
 		_, err := s.store.FindSession(s.T().Context(), gone)
 		s.Require().ErrorIs(err, ErrSessionNotFound)
 	}
@@ -224,10 +223,10 @@ func (s *StoreContractSuite) TestADeletedAccountTakesItsIdentitiesAndSessions() 
 	_, session := s.signIn(1, "google", "google-user", "a-token")
 	other := s.createGuest(2, "other-token")
 
-	s.Require().NoError(s.store.DeleteAccount(s.T().Context(), uuid.UUID{15: 1}))
-	s.Require().NoError(s.store.DeleteAccount(s.T().Context(), uuid.UUID{15: 1}), "twice is not an error")
+	s.Require().NoError(s.store.DeleteAccount(s.T().Context(), AccountID{15: 1}))
+	s.Require().NoError(s.store.DeleteAccount(s.T().Context(), AccountID{15: 1}), "twice is not an error")
 
-	_, err := s.store.FindAccount(s.T().Context(), uuid.UUID{15: 1})
+	_, err := s.store.FindAccount(s.T().Context(), AccountID{15: 1})
 	s.Require().ErrorIs(err, ErrAccountNotFound)
 	_, err = s.store.FindSession(s.T().Context(), session.TokenHash)
 	s.Require().ErrorIs(err, ErrSessionNotFound)

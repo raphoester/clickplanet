@@ -5,15 +5,13 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/google/uuid"
-
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 type Store interface {
 	accounts.SessionFinder
-	DeleteAccount(ctx context.Context, account uuid.UUID) error
+	DeleteAccount(ctx context.Context, account accounts.AccountID) error
 }
 
 type UseCase struct {
@@ -27,7 +25,7 @@ func New(store Store, clock cptime.Clock) *UseCase {
 
 // Out is the account that is gone, and the Set-Cookie that clears the session.
 type Out struct {
-	Account   uuid.UUID
+	Account   accounts.AccountID
 	SetCookie string
 }
 

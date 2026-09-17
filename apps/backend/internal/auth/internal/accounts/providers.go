@@ -1,10 +1,8 @@
 package accounts
 
-import "github.com/google/uuid"
-
 // IDProvider gives each new account its id.
 type IDProvider interface {
-	NewID() (uuid.UUID, error)
+	NewID() (AccountID, error)
 }
 
 // TokenGenerator gives each new session its secret.

@@ -99,6 +99,14 @@ that reads them is not.
 `internal/` is a deliberate act** that shows up in review as exactly one moved
 directory.
 
+### Every id is a type of its own
+
+**An id is never a bare `uuid.UUID`, `string` or `[]byte` in a signature.** Each kind of id is its own named type, declared beside the entity it names: `accounts.AccountID` (`type AccountID uuid.UUID`) and `accounts.TokenHash` (`type TokenHash []byte`, which names a session). A function that asks for an account then says so, and passing a session's hash or any other uuid where an account is asked for **does not compile**. With bare types, `DeleteSessions(ctx, account)` and `DeleteSession(ctx, tokenHash)` differ by one letter and nothing checks which one a caller meant.
+
+- **Convert at the edge, never inside.** An adapter converts to the driver's type on the way out and back on the way in (`uuid.UUID(account)` in `postgres_account_store`; lib/pq cannot take a named array), and a handler converts to the wire's type (`account.ID.String()`). The domain type has no `Scan` or `Value` of its own.
+- **A shared package keeps its own type.** `cpsession.Claims.Account` is still a `uuid.UUID`: it is the token format both `auth` and `planet` read, and a module's id type cannot cross into another module. `create_session_usecase` converts when it mints.
+- **A new id starts as a type.** Adding one later means touching every signature it already flows through.
+
 ### The composite layer
 
 Each context wires **itself**, in a `module.go` at its root (`internal/planet/module.go`, `internal/chat/module.go`, `internal/auth/module.go`). That file is the context's manifest: its `Config`, whether it is on, and its DI sequence. **A module takes its config and nothing else, and builds every object it needs itself** — there is no `Deps` struct and nothing is handed down from `main`. A module is a `cpbootstrap.Module` — a name, an `Enabled` flag and a DI sequence — and the sequence is handed a `cpbootstrap.Props` carrying registrars and nothing else:
@@ -560,7 +568,7 @@ It was two modules, `session` and `auth`, for one PR. The mint was auth's only c
 
 ```
 internal/auth/internal/
-  accounts/                                Account, Identity, Session, Token, Lifetime, Choose, the cookie; the Store, IDProvider and TokenGenerator ports
+  accounts/                                AccountID, TokenHash, Account, Identity, Session, Token, Lifetime, Choose, the cookie; the Store, IDProvider and TokenGenerator ports
     postgres_account_store/                accounts, identities and sessions in the auth schema
     inmemory_account_store/                the same port in maps, behind the testing tag
     uuid_id_provider/  random_token_generator/
@@ -568,7 +576,7 @@ internal/auth/internal/
     usecases/create_anonymous_session_usecase/   deprecated: attest, mint with no account
     usecases/get_me_usecase/               reads only
     usecases/sign_out_usecase/  sign_out_everywhere_usecase/  delete_account_usecase/
-    usecases/prune_guests_usecase/         a runner: deletes idle guests
+    usecases/prune_guests_usecase/         deletes idle guests: Executor, Runner, and log_prune_guests
   signin/                                  Flow (state, PKCE verifier, nonce), Provider, Providers, Sealer, the cp_oauth cookie
     google_identity_provider/  discord_identity_provider/  oauth_http/
     aes_flow_sealer/  random_secret_generator/
@@ -611,7 +619,7 @@ internal/auth/internal/
 - **`SignOut`** deletes this browser's session and clears the cookie; a browser with no session succeeds too. **`SignOutEverywhere`** deletes every session of the account and answers `Unauthenticated` with none. Neither touches the account.
 - **`DeleteAccount`** deletes the account row, and its identities and sessions go with it by cascade. Planet and chat keep nothing keyed on the account yet; the ledger and the chat log age out. **The `player` module will listen for `auth.v1.AccountDeleted`**: the seam is `delete_account_usecase.Execute`, after the delete, which already answers the account id. The event is not published yet, because an event with no subscriber is dead code.
 - **No unlink RPC.** When one comes, a linked account must keep its last provider: without one it is a guest holding an email.
-- **`prune_guests_usecase`** is a runner. Every `auth.prune.interval` (1h) it deletes, 1000 rows a statement, the accounts with no identity whose `last_seen_at` is older than `auth.prune.idleFor`. That defaults to `guestTTL`, and less refuses the boot: `last_seen_at` moves when a session is extended, so a guest idle that long has no live cookie left.
+- **`prune_guests_usecase`** is an `Executor` and a `Runner` that calls it; `log_prune_guests` is the decorator that logs, so the loop holds no log line. Every `auth.prune.interval` (1h) it deletes, 1000 rows a statement, the accounts with no identity whose `last_seen_at` is older than `auth.prune.idleFor`. That defaults to `guestTTL`, and less refuses the boot: `last_seen_at` moves when a session is extended, so a guest idle that long has no live cookie left.
 
 ### Bonus boxes (`internal/planet/internal/bonuses/`)
 

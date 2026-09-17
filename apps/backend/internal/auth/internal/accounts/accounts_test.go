@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -16,7 +15,7 @@ import (
 var (
 	now      = time.Date(2026, 9, 15, 12, 0, 0, 0, time.UTC)
 	lifetime = accounts.Lifetime{}.WithDefaults()
-	account  = uuid.UUID{15: 1}
+	account  = accounts.AccountID{15: 1}
 )
 
 func TestTheTokenIsFoundAmongOtherCookies(t *testing.T) {
@@ -145,7 +144,7 @@ func TestAVerifiedEmailIsKept(t *testing.T) {
 }
 
 func TestAKnownIdentitySignsInWhateverTheBrowserIsOn(t *testing.T) {
-	known := &accounts.Identity{Provider: "google", Subject: "user", Account: uuid.UUID{15: 2}}
+	known := &accounts.Identity{Provider: "google", Subject: "user", Account: accounts.AccountID{15: 2}}
 
 	assert.Equal(t, accounts.SignedIn, accounts.Choose(nil, known, "google"))
 	assert.Equal(t, accounts.SignedIn, accounts.Choose(&accounts.Account{ID: account}, known, "google"))

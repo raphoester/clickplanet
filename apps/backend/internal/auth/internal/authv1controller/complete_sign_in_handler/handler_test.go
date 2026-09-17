@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"connectrpc.com/connect"
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -42,13 +41,13 @@ func completeSignIn(useCase *stubUseCase) (*connect.Response[authv1.CompleteSign
 }
 
 func TestTheAccountAndOutcomeAreAnsweredWithTheSessionCookieAndTheFlowCleared(t *testing.T) {
-	useCase := &stubUseCase{out: &complete_sign_in_usecase.Out{Account: uuid.UUID{15: 1}, Outcome: accounts.Linked, SetCookie: "cp_sid=token-1"}}
+	useCase := &stubUseCase{out: &complete_sign_in_usecase.Out{Account: accounts.AccountID{15: 1}, Outcome: accounts.Linked, SetCookie: "cp_sid=token-1"}}
 
 	res, err := completeSignIn(useCase)
 	require.NoError(t, err)
 
 	assert.Equal(t, []complete_sign_in_usecase.In{{Code: "the-code", State: "the-state", CookieHeader: "cp_oauth=sealed"}}, useCase.asked)
-	assert.Equal(t, uuid.UUID{15: 1}.String(), res.Msg.GetAccountId())
+	assert.Equal(t, accounts.AccountID{15: 1}.String(), res.Msg.GetAccountId())
 	assert.Equal(t, authv1.SignInOutcome_SIGN_IN_OUTCOME_LINKED, res.Msg.GetOutcome())
 	assert.Equal(t, []string{"cp_sid=token-1", signin.ClearFlowCookie()}, res.Header().Values("Set-Cookie"))
 	assert.Equal(t, "no-store", res.Header().Get("Cache-Control"))

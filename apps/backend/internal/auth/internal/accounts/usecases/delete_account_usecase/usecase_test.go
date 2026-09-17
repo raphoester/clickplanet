@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -22,7 +21,7 @@ var (
 
 func TestTheCallersAccountIsDeletedWithEverythingItHolds(t *testing.T) {
 	store := inmemory_account_store.New()
-	identity := accounts.NewIdentity("google", accounts.Claim{Subject: "user"}, uuid.UUID{15: 1}, start)
+	identity := accounts.NewIdentity("google", accounts.Claim{Subject: "user"}, accounts.AccountID{15: 1}, start)
 	session := accounts.StartLinked(identity.Account, accounts.TokenOf("token-1"), lifetime, start)
 	require.NoError(t, store.SaveSignIn(t.Context(), accounts.SignIn{NewAccount: true, Identity: identity, Session: session}))
 

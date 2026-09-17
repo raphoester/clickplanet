@@ -13,10 +13,10 @@ type Provider struct{}
 
 var _ accounts.IDProvider = Provider{}
 
-func (Provider) NewID() (uuid.UUID, error) {
+func (Provider) NewID() (accounts.AccountID, error) {
 	id, err := uuid.NewV7()
 	if err != nil {
-		return uuid.Nil, fmt.Errorf("failed to generate a uuidv7: %w", err)
+		return accounts.AccountID{}, fmt.Errorf("failed to generate a uuidv7: %w", err)
 	}
-	return id, nil
+	return accounts.AccountID(id), nil
 }

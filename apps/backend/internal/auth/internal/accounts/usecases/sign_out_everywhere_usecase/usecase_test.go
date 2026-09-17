@@ -4,7 +4,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -21,10 +20,10 @@ var (
 
 func TestEverySessionOfTheAccountEndsAndNoOther(t *testing.T) {
 	store := inmemory_account_store.New()
-	identity := accounts.NewIdentity("google", accounts.Claim{Subject: "user"}, uuid.UUID{15: 1}, start)
+	identity := accounts.NewIdentity("google", accounts.Claim{Subject: "user"}, accounts.AccountID{15: 1}, start)
 	laptop := accounts.StartLinked(identity.Account, accounts.TokenOf("laptop"), lifetime, start)
 	phone := accounts.StartLinked(identity.Account, accounts.TokenOf("phone"), lifetime, start)
-	other := accounts.StartGuest(uuid.UUID{15: 2}, accounts.TokenOf("other"), lifetime, start)
+	other := accounts.StartGuest(accounts.AccountID{15: 2}, accounts.TokenOf("other"), lifetime, start)
 	require.NoError(t, store.SaveSignIn(t.Context(), accounts.SignIn{NewAccount: true, Identity: identity, Session: laptop}))
 	require.NoError(t, store.SaveSignIn(t.Context(), accounts.SignIn{Session: phone}))
 	require.NoError(t, store.CreateGuest(t.Context(), other))
@@ -43,7 +42,7 @@ func TestEverySessionOfTheAccountEndsAndNoOther(t *testing.T) {
 
 func TestNoLiveSessionIsNoAccount(t *testing.T) {
 	store := inmemory_account_store.New()
-	require.NoError(t, store.CreateGuest(t.Context(), accounts.StartGuest(uuid.UUID{15: 1}, accounts.TokenOf("token-1"), lifetime, start)))
+	require.NoError(t, store.CreateGuest(t.Context(), accounts.StartGuest(accounts.AccountID{15: 1}, accounts.TokenOf("token-1"), lifetime, start)))
 	useCase := sign_out_everywhere_usecase.New(store, cptime.NewFixedClock(start.Add(91*24*time.Hour)))
 
 	_, err := useCase.Execute(t.Context(), "cp_sid=token-1")

@@ -5,22 +5,20 @@ package accounts
 import (
 	"fmt"
 	"sync"
-
-	"github.com/google/uuid"
 )
 
-// SequentialIDs answers uuid.UUID{15: 1}, then {15: 2}, and so on.
+// SequentialIDs answers AccountID{15: 1}, then {15: 2}, and so on.
 type SequentialIDs struct {
 	mu   sync.Mutex
 	next byte
 }
 
-func (s *SequentialIDs) NewID() (uuid.UUID, error) {
+func (s *SequentialIDs) NewID() (AccountID, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	s.next++
-	return uuid.UUID{15: s.next}, nil
+	return AccountID{15: s.next}, nil
 }
 
 // SequentialTokens answers token-1, then token-2, and so on.

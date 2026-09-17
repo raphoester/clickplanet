@@ -11,12 +11,12 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1/authv1connect"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/create_session_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/attestation"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller"
@@ -58,7 +58,7 @@ func (refuseAll) Take(string) (bool, cpratelimit.State) { return false, cprateli
 
 var minted = &create_session_usecase.Out{
 	Token:     &cpsession.Token{Value: "the-token", ExpiresAt: time.UnixMilli(1_800_000_000_000)},
-	Account:   uuid.UUID{15: 1},
+	Account:   accounts.AccountID{15: 1},
 	SetCookie: "cp_sid=token-1; Path=/; HttpOnly",
 }
 

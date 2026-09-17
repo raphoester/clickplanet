@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -21,7 +20,7 @@ func setUp(t *testing.T) (*get_me_usecase.UseCase, *inmemory_account_store.Store
 	t.Helper()
 
 	sessions := inmemory_account_store.New()
-	guest := accounts.StartGuest(uuid.UUID{15: 1}, accounts.TokenOf("token-1"), accounts.Lifetime{}.WithDefaults(), start)
+	guest := accounts.StartGuest(accounts.AccountID{15: 1}, accounts.TokenOf("token-1"), accounts.Lifetime{}.WithDefaults(), start)
 	require.NoError(t, sessions.CreateGuest(t.Context(), guest))
 
 	clock := cptime.NewFixedClock(start)
@@ -30,7 +29,7 @@ func setUp(t *testing.T) (*get_me_usecase.UseCase, *inmemory_account_store.Store
 
 func TestTheCookieGivesItsAccountAndItsProviders(t *testing.T) {
 	useCase, sessions, _ := setUp(t)
-	identity := accounts.NewIdentity("google", accounts.Claim{Subject: "google-user"}, uuid.UUID{15: 1}, start)
+	identity := accounts.NewIdentity("google", accounts.Claim{Subject: "google-user"}, accounts.AccountID{15: 1}, start)
 	require.NoError(t, sessions.SaveSignIn(t.Context(), accounts.SignIn{
 		Identity: identity, Session: accounts.StartLinked(identity.Account, accounts.TokenOf("token-2"), accounts.Lifetime{}.WithDefaults(), start),
 	}))
@@ -38,7 +37,7 @@ func TestTheCookieGivesItsAccountAndItsProviders(t *testing.T) {
 	account, err := useCase.Execute(t.Context(), "theme=dark; cp_sid=token-1")
 
 	require.NoError(t, err)
-	assert.Equal(t, &accounts.Account{ID: uuid.UUID{15: 1}, Identities: []accounts.Identity{*identity}}, account)
+	assert.Equal(t, &accounts.Account{ID: accounts.AccountID{15: 1}, Identities: []accounts.Identity{*identity}}, account)
 }
 
 func TestNoLiveSessionIsNoAccount(t *testing.T) {

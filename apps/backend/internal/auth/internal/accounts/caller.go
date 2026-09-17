@@ -5,12 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"time"
-
-	"github.com/google/uuid"
 )
 
 type SessionFinder interface {
-	FindSession(ctx context.Context, tokenHash []byte) (*Session, error)
+	FindSession(ctx context.Context, tokenHash TokenHash) (*Session, error)
 }
 
 // Caller is the live session a browser's cookie holds. Absent is ErrNoAccount; a store failure is not.
@@ -35,5 +33,5 @@ func Caller(ctx context.Context, sessions SessionFinder, cookieHeader string, no
 }
 
 type AccountFinder interface {
-	FindAccount(ctx context.Context, account uuid.UUID) (*Account, error)
+	FindAccount(ctx context.Context, account AccountID) (*Account, error)
 }

@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -18,7 +17,7 @@ var start = time.Date(2026, 9, 16, 12, 0, 0, 0, time.UTC)
 
 func TestSigningOutDeletesTheSessionAndClearsTheCookie(t *testing.T) {
 	store := inmemory_account_store.New()
-	guest := accounts.StartGuest(uuid.UUID{15: 1}, accounts.TokenOf("token-1"), accounts.Lifetime{}.WithDefaults(), start)
+	guest := accounts.StartGuest(accounts.AccountID{15: 1}, accounts.TokenOf("token-1"), accounts.Lifetime{}.WithDefaults(), start)
 	require.NoError(t, store.CreateGuest(t.Context(), guest))
 
 	setCookie, err := sign_out_usecase.New(store).Execute(t.Context(), "cp_sid=token-1")

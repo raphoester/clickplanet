@@ -41,7 +41,7 @@ var (
 
 func (s *testSuite) TestAnUnverifiedEmailIsStoredAsNull() {
 	ctx := s.T().Context()
-	identity := accounts.NewIdentity("discord", accounts.Claim{Subject: "discord-user", Email: "maybe@example.com"}, uuid.UUID{15: 1}, start)
+	identity := accounts.NewIdentity("discord", accounts.Claim{Subject: "discord-user", Email: "maybe@example.com"}, accounts.AccountID{15: 1}, start)
 	s.Require().NoError(s.store.SaveSignIn(ctx, accounts.SignIn{
 		NewAccount: true, Identity: identity, Session: accounts.StartLinked(identity.Account, accounts.TokenOf("a-token"), lifetime, start),
 	}))
@@ -53,7 +53,7 @@ func (s *testSuite) TestAnUnverifiedEmailIsStoredAsNull() {
 
 func (s *testSuite) TestTheTokenItselfIsNeverStored() {
 	s.Require().NoError(s.store.CreateGuest(s.T().Context(),
-		accounts.StartGuest(uuid.UUID{15: 1}, accounts.TokenOf("a-token"), lifetime, start)))
+		accounts.StartGuest(accounts.AccountID{15: 1}, accounts.TokenOf("a-token"), lifetime, start)))
 
 	var count int
 	s.Require().NoError(s.db.QueryRowContext(s.T().Context(),
@@ -63,7 +63,7 @@ func (s *testSuite) TestTheTokenItselfIsNeverStored() {
 
 func (s *testSuite) TestSavingMarksTheAccountSeen() {
 	ctx := s.T().Context()
-	guest := accounts.StartGuest(uuid.UUID{15: 1}, accounts.TokenOf("a-token"), lifetime, start)
+	guest := accounts.StartGuest(accounts.AccountID{15: 1}, accounts.TokenOf("a-token"), lifetime, start)
 	s.Require().NoError(s.store.CreateGuest(ctx, guest))
 
 	later := start.Add(30 * time.Minute)
@@ -71,6 +71,6 @@ func (s *testSuite) TestSavingMarksTheAccountSeen() {
 	s.Require().NoError(s.store.SaveSession(ctx, guest))
 
 	var lastSeen time.Time
-	s.Require().NoError(s.db.QueryRowContext(ctx, `SELECT last_seen_at FROM accounts WHERE id = $1`, guest.Account).Scan(&lastSeen))
+	s.Require().NoError(s.db.QueryRowContext(ctx, `SELECT last_seen_at FROM accounts WHERE id = $1`, uuid.UUID(guest.Account)).Scan(&lastSeen))
 	s.Equal(later, lastSeen.UTC())
 }

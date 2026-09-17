@@ -10,7 +10,7 @@ import (
 )
 
 type SessionDeleter interface {
-	DeleteSession(ctx context.Context, tokenHash []byte) error
+	DeleteSession(ctx context.Context, tokenHash accounts.TokenHash) error
 }
 
 type UseCase struct {

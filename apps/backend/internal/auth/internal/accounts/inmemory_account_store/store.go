@@ -10,8 +10,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/google/uuid"
-
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
 )
 
@@ -24,7 +22,7 @@ type identityKey struct {
 
 type Store struct {
 	mu         sync.Mutex
-	lastSeen   map[uuid.UUID]time.Time
+	lastSeen   map[accounts.AccountID]time.Time
 	identities map[identityKey]accounts.Identity
 	sessions   map[string]accounts.Session
 	failWith   error
@@ -34,7 +32,7 @@ var _ accounts.Store = (*Store)(nil)
 
 func New() *Store {
 	return &Store{
-		lastSeen:   map[uuid.UUID]time.Time{},
+		lastSeen:   map[accounts.AccountID]time.Time{},
 		identities: map[identityKey]accounts.Identity{},
 		sessions:   map[string]accounts.Session{},
 	}
@@ -47,7 +45,7 @@ func (s *Store) FailWith(err error) {
 	s.failWith = err
 }
 
-func (s *Store) FindSession(_ context.Context, tokenHash []byte) (*accounts.Session, error) {
+func (s *Store) FindSession(_ context.Context, tokenHash accounts.TokenHash) (*accounts.Session, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -95,7 +93,7 @@ func (s *Store) SaveSession(_ context.Context, session *accounts.Session) error 
 	return nil
 }
 
-func (s *Store) DeleteSession(_ context.Context, tokenHash []byte) error {
+func (s *Store) DeleteSession(_ context.Context, tokenHash accounts.TokenHash) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -107,7 +105,7 @@ func (s *Store) DeleteSession(_ context.Context, tokenHash []byte) error {
 	return nil
 }
 
-func (s *Store) DeleteSessions(_ context.Context, account uuid.UUID) error {
+func (s *Store) DeleteSessions(_ context.Context, account accounts.AccountID) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -119,7 +117,7 @@ func (s *Store) DeleteSessions(_ context.Context, account uuid.UUID) error {
 	return nil
 }
 
-func (s *Store) FindAccount(_ context.Context, account uuid.UUID) (*accounts.Account, error) {
+func (s *Store) FindAccount(_ context.Context, account accounts.AccountID) (*accounts.Account, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -176,7 +174,7 @@ func (s *Store) SaveSignIn(_ context.Context, signIn accounts.SignIn) error {
 	return nil
 }
 
-func (s *Store) DeleteAccount(_ context.Context, account uuid.UUID) error {
+func (s *Store) DeleteAccount(_ context.Context, account accounts.AccountID) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -209,7 +207,7 @@ func (s *Store) PruneGuests(_ context.Context, idleSince time.Time, limit int) (
 	return pruned, nil
 }
 
-func (s *Store) deleteAccount(account uuid.UUID) {
+func (s *Store) deleteAccount(account accounts.AccountID) {
 	delete(s.lastSeen, account)
 	for key, identity := range s.identities {
 		if identity.Account == account {
@@ -219,7 +217,7 @@ func (s *Store) deleteAccount(account uuid.UUID) {
 	s.deleteSessionsOf(account)
 }
 
-func (s *Store) deleteSessionsOf(account uuid.UUID) {
+func (s *Store) deleteSessionsOf(account accounts.AccountID) {
 	for hash, session := range s.sessions {
 		if session.Account == account {
 			delete(s.sessions, hash)
@@ -227,7 +225,7 @@ func (s *Store) deleteSessionsOf(account uuid.UUID) {
 	}
 }
 
-func (s *Store) identitiesOf(account uuid.UUID) []accounts.Identity {
+func (s *Store) identitiesOf(account accounts.AccountID) []accounts.Identity {
 	identities := []accounts.Identity{}
 	for _, identity := range s.identities {
 		if identity.Account == account {

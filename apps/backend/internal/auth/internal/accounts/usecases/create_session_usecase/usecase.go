@@ -16,7 +16,7 @@ import (
 )
 
 type Sessions interface {
-	FindSession(ctx context.Context, tokenHash []byte) (*accounts.Session, error)
+	FindSession(ctx context.Context, tokenHash accounts.TokenHash) (*accounts.Session, error)
 	CreateGuest(ctx context.Context, session *accounts.Session) error
 	SaveSession(ctx context.Context, session *accounts.Session) error
 }
@@ -34,7 +34,7 @@ type In struct {
 // Out is the click token and the Set-Cookie to send back (empty when the cookie needs no change).
 type Out struct {
 	Token     *cpsession.Token
-	Account   uuid.UUID
+	Account   accounts.AccountID
 	SetCookie string
 }
 
@@ -88,7 +88,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) (*Out, error) {
 		return nil, fmt.Errorf("failed to find the caller's account: %w", err)
 	}
 
-	token, err := u.minter.Mint(in.IP, admitted.Account, now)
+	token, err := u.minter.Mint(in.IP, uuid.UUID(admitted.Account), now)
 	if err != nil {
 		return nil, fmt.Errorf("failed to mint the click token: %w", err)
 	}

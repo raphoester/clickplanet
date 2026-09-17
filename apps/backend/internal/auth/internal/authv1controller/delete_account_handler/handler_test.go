@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"connectrpc.com/connect"
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -35,7 +34,7 @@ func deleteAccount(useCase stubUseCase) (*connect.Response[authv1.DeleteAccountR
 }
 
 func TestADeletedAccountAnswersTheClearedCookie(t *testing.T) {
-	res, err := deleteAccount(stubUseCase{out: &delete_account_usecase.Out{Account: uuid.UUID{15: 1}, SetCookie: "cp_sid=; Max-Age=0"}})
+	res, err := deleteAccount(stubUseCase{out: &delete_account_usecase.Out{Account: accounts.AccountID{15: 1}, SetCookie: "cp_sid=; Max-Age=0"}})
 	require.NoError(t, err)
 
 	assert.Equal(t, "cp_sid=; Max-Age=0", res.Header().Get("Set-Cookie"))

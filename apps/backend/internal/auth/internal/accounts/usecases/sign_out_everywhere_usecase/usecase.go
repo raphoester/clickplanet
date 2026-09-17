@@ -5,15 +5,13 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/google/uuid"
-
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 type Store interface {
 	accounts.SessionFinder
-	DeleteSessions(ctx context.Context, account uuid.UUID) error
+	DeleteSessions(ctx context.Context, account accounts.AccountID) error
 }
 
 type UseCase struct {

@@ -4,14 +4,12 @@ package accounts
 import (
 	"fmt"
 	"time"
-
-	"github.com/google/uuid"
 )
 
 // Session is one browser's hold on an account, found by the hash of its cookie's token.
 type Session struct {
-	TokenHash []byte
-	Account   uuid.UUID
+	TokenHash TokenHash
+	Account   AccountID
 	// Linked is whether the account has a provider, which sets how long the session lasts. The store reads it, never writes it.
 	Linked     bool
 	ExtendedAt time.Time
@@ -19,16 +17,16 @@ type Session struct {
 }
 
 // StartGuest opens a new account's first session.
-func StartGuest(account uuid.UUID, token *Token, lifetime Lifetime, now time.Time) *Session {
+func StartGuest(account AccountID, token *Token, lifetime Lifetime, now time.Time) *Session {
 	return start(account, token, false, lifetime, now)
 }
 
 // StartLinked opens a session on an account that has a provider, as a sign-in does.
-func StartLinked(account uuid.UUID, token *Token, lifetime Lifetime, now time.Time) *Session {
+func StartLinked(account AccountID, token *Token, lifetime Lifetime, now time.Time) *Session {
 	return start(account, token, true, lifetime, now)
 }
 
-func start(account uuid.UUID, token *Token, linked bool, lifetime Lifetime, now time.Time) *Session {
+func start(account AccountID, token *Token, linked bool, lifetime Lifetime, now time.Time) *Session {
 	session := &Session{TokenHash: token.Hash, Account: account, Linked: linked, ExtendedAt: now}
 	session.ExpiresAt = now.Add(session.ttl(lifetime))
 	return session

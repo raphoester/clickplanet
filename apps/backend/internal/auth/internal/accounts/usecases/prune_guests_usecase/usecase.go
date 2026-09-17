@@ -4,7 +4,6 @@ package prune_guests_usecase
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -12,6 +11,11 @@ import (
 
 type Pruner interface {
 	PruneGuests(ctx context.Context, idleSince time.Time, limit int) (int, error)
+}
+
+// Executor is the prune, as the runner calls it and a decorator wraps it.
+type Executor interface {
+	Execute(ctx context.Context) (int, error)
 }
 
 type Config struct {
@@ -44,34 +48,12 @@ type UseCase struct {
 	config Config
 	guests Pruner
 	clock  cptime.Clock
-	logger *slog.Logger
 }
 
-func New(config Config, guests Pruner, clock cptime.Clock, logger *slog.Logger) *UseCase {
-	return &UseCase{config: config.WithDefaults(), guests: guests, clock: clock, logger: logger}
-}
+var _ Executor = (*UseCase)(nil)
 
-func (u *UseCase) Name() string { return "auth-guest-prune" }
-
-// Run prunes once at start, then every interval, and logs what a failed prune left.
-func (u *UseCase) Run(ctx context.Context) {
-	ticker := time.NewTicker(u.config.Interval)
-	defer ticker.Stop()
-
-	for {
-		pruned, err := u.Execute(ctx)
-		if err != nil && ctx.Err() == nil {
-			u.logger.Error("failed to prune the idle guests", slog.Int("pruned", pruned), slog.Any("error", err))
-		} else if pruned > 0 {
-			u.logger.Info("pruned idle guests", slog.Int("pruned", pruned))
-		}
-
-		select {
-		case <-ticker.C:
-		case <-ctx.Done():
-			return
-		}
-	}
+func New(config Config, guests Pruner, clock cptime.Clock) *UseCase {
+	return &UseCase{config: config.WithDefaults(), guests: guests, clock: clock}
 }
 
 // Execute deletes every guest idle past IdleFor, a batch at a time, and says how many.

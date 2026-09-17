@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -51,7 +50,7 @@ func setUp(t *testing.T) *fixture {
 func (f *fixture) guest(t *testing.T, account byte, token string) {
 	t.Helper()
 
-	require.NoError(t, f.store.CreateGuest(t.Context(), accounts.StartGuest(uuid.UUID{15: account}, accounts.TokenOf(token), lifetime, start)))
+	require.NoError(t, f.store.CreateGuest(t.Context(), accounts.StartGuest(accounts.AccountID{15: account}, accounts.TokenOf(token), lifetime, start)))
 }
 
 // began starts a sign-in and answers the flow cookie and the state the provider would send back.
@@ -94,7 +93,7 @@ func TestANewIdentityLinksToTheGuestAndReplacesItsSession(t *testing.T) {
 	out, err := f.complete(t, "cp_sid=guest-token")
 	require.NoError(t, err)
 
-	assert.Equal(t, uuid.UUID{15: 7}, out.Account)
+	assert.Equal(t, accounts.AccountID{15: 7}, out.Account)
 	assert.Equal(t, accounts.Linked, out.Outcome)
 	assert.Equal(t, "token-1", cookieValue(t, out.SetCookie))
 	session, err := f.store.FindSession(t.Context(), accounts.TokenOf("token-1").Hash)
@@ -105,7 +104,7 @@ func TestANewIdentityLinksToTheGuestAndReplacesItsSession(t *testing.T) {
 	identity, err := f.store.FindIdentity(t.Context(), signin.Google, "google-user")
 	require.NoError(t, err)
 	assert.Equal(t, &accounts.Identity{
-		Provider: "google", Subject: "google-user", Account: uuid.UUID{15: 7}, Email: "a@example.com", EmailVerified: true, LinkedAt: start,
+		Provider: "google", Subject: "google-user", Account: accounts.AccountID{15: 7}, Email: "a@example.com", EmailVerified: true, LinkedAt: start,
 	}, identity)
 }
 
@@ -118,9 +117,9 @@ func TestAKnownIdentitySignsInToItsAccountAndLeavesTheGuestAsItWas(t *testing.T)
 	out, err := f.complete(t, "cp_sid=guest-token")
 	require.NoError(t, err)
 
-	assert.Equal(t, uuid.UUID{15: 1}, out.Account)
+	assert.Equal(t, accounts.AccountID{15: 1}, out.Account)
 	assert.Equal(t, accounts.SignedIn, out.Outcome)
-	guest, err := f.store.FindAccount(t.Context(), uuid.UUID{15: 7})
+	guest, err := f.store.FindAccount(t.Context(), accounts.AccountID{15: 7})
 	require.NoError(t, err)
 	assert.False(t, guest.Linked(), "nothing is merged, and the guest gains no identity")
 }
@@ -131,13 +130,13 @@ func TestABrowserWithNoAccountGetsANewOne(t *testing.T) {
 	out, err := f.complete(t, "cp_sid=made-up")
 	require.NoError(t, err)
 
-	assert.Equal(t, uuid.UUID{15: 1}, out.Account)
+	assert.Equal(t, accounts.AccountID{15: 1}, out.Account)
 	assert.Equal(t, accounts.Created, out.Outcome)
 }
 
 func TestAnAccountHoldingTheProviderAlreadyIsNotGivenASecondUserOfIt(t *testing.T) {
 	f := setUp(t)
-	identity := accounts.NewIdentity(signin.Google, accounts.Claim{Subject: "someone-else"}, uuid.UUID{15: 7}, start)
+	identity := accounts.NewIdentity(signin.Google, accounts.Claim{Subject: "someone-else"}, accounts.AccountID{15: 7}, start)
 	require.NoError(t, f.store.SaveSignIn(t.Context(), accounts.SignIn{
 		NewAccount: true, Identity: identity, Session: accounts.StartLinked(identity.Account, accounts.TokenOf("linked"), lifetime, start),
 	}))
@@ -146,12 +145,12 @@ func TestAnAccountHoldingTheProviderAlreadyIsNotGivenASecondUserOfIt(t *testing.
 	require.NoError(t, err)
 
 	assert.Equal(t, accounts.Created, out.Outcome)
-	assert.NotEqual(t, uuid.UUID{15: 7}, out.Account)
+	assert.NotEqual(t, accounts.AccountID{15: 7}, out.Account)
 }
 
 func TestAMatchingEmailLinksNothing(t *testing.T) {
 	f := setUp(t)
-	identity := accounts.NewIdentity("discord", accounts.Claim{Subject: "discord-user", Email: claim.Email, EmailVerified: true}, uuid.UUID{15: 7}, start)
+	identity := accounts.NewIdentity("discord", accounts.Claim{Subject: "discord-user", Email: claim.Email, EmailVerified: true}, accounts.AccountID{15: 7}, start)
 	require.NoError(t, f.store.SaveSignIn(t.Context(), accounts.SignIn{
 		NewAccount: true, Identity: identity, Session: accounts.StartLinked(identity.Account, accounts.TokenOf("discord"), lifetime, start),
 	}))
@@ -160,7 +159,7 @@ func TestAMatchingEmailLinksNothing(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, accounts.Created, out.Outcome)
-	assert.NotEqual(t, uuid.UUID{15: 7}, out.Account)
+	assert.NotEqual(t, accounts.AccountID{15: 7}, out.Account)
 }
 
 func TestACallbackThatDoesNotMatchTheFlowIsRefusedBeforeTheProviderIsAsked(t *testing.T) {
