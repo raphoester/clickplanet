@@ -2,12 +2,16 @@
 package get_stats_usecase
 
 import (
+	"context"
+	"errors"
+	"fmt"
+
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 type Stats interface {
-	Stats(account players.AccountID) (players.Stats, bool)
+	Stats(ctx context.Context, account players.AccountID) (players.Stats, error)
 }
 
 type UseCase struct {
@@ -20,10 +24,13 @@ func New(stats Stats, clock cptime.Clock) *UseCase {
 }
 
 // Execute answers empty stats for an account that never took a tile, and a streak over once a whole UTC day went by.
-func (u *UseCase) Execute(account players.AccountID) players.Stats {
-	stats, ok := u.stats.Stats(account)
-	if !ok {
-		return players.Stats{Account: account}
+func (u *UseCase) Execute(ctx context.Context, account players.AccountID) (players.Stats, error) {
+	stats, err := u.stats.Stats(ctx, account)
+	if errors.Is(err, players.ErrNoStats) {
+		return players.Stats{Account: account}, nil
 	}
-	return stats.AsOf(players.DayOf(u.clock.Now()))
+	if err != nil {
+		return players.Stats{}, fmt.Errorf("failed to read the stats: %w", err)
+	}
+	return stats.AsOf(players.DayOf(u.clock.Now())), nil
 }

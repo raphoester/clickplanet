@@ -2,6 +2,7 @@ package postgres_player_store_test
 
 import (
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -18,7 +19,7 @@ func TestRunSuite(t *testing.T) {
 }
 
 type testSuite struct {
-	players.PersistenceContractSuite
+	players.StoreContractSuite
 
 	db    *cppg.Postgres
 	store *postgres_player_store.Store
@@ -27,37 +28,44 @@ type testSuite struct {
 func (s *testSuite) SetupSuite() {
 	s.db = cppg.StartTestServer(s.T()).OpenSchema(s.T(), "player", migrations.FS)
 	s.store = postgres_player_store.New(s.db)
-	s.NewPersistence = func() players.Persistence { return s.store }
+	s.NewStore = func() players.Store { return s.store }
 }
 
 func (s *testSuite) SetupTest() {
 	s.Require().NoError(s.db.Purge(s.T().Context()))
-	s.PersistenceContractSuite.SetupTest()
+	s.StoreContractSuite.SetupTest()
 }
 
 var at = time.Date(2026, 9, 17, 12, 0, 0, 0, time.UTC)
 
-func (s *testSuite) TestAFailedSaveWritesNothing() {
-	ctx := s.T().Context()
-	stats := players.Stats{Account: players.AccountID{15: 1}, TilesTaken: 1, StreakCurrent: 1, StreakBest: 1, StreakLastDay: players.DayOf(at)}
+func (s *testSuite) TestTheTableRefusesANameLongerThan24() {
+	err := s.store.SaveProfile(s.T().Context(),
+		players.Profile{Account: players.AccountID{15: 1}, Name: players.Name(strings.Repeat("a", 25)), UpdatedAt: at})
 
-	err := s.store.Save(ctx, players.Changes{
-		Stats:    []players.Stats{stats},
-		Profiles: []players.Profile{{Account: players.AccountID{15: 1}, Name: players.Name(strings.Repeat("a", 25)), UpdatedAt: at}},
-	})
-
-	s.Require().Error(err, "the table refuses a name longer than 24")
-	snapshot, err := s.store.Load(ctx)
-	s.Require().NoError(err)
-	s.Empty(snapshot.Stats, "the stats written in the same transaction are rolled back")
+	s.Error(err)
 }
 
 func (s *testSuite) TestTheStreakDayIsStoredAsADate() {
-	ctx := s.T().Context()
-	stats := players.Stats{Account: players.AccountID{15: 1}, TilesTaken: 1, StreakCurrent: 1, StreakBest: 1, StreakLastDay: players.DayOf(at)}
-	s.Require().NoError(s.store.Save(ctx, players.Changes{Stats: []players.Stats{stats}}))
+	s.Require().NoError(s.store.RecordTake(s.T().Context(), players.AccountID{15: 1}, at))
 
 	var day string
-	s.Require().NoError(s.db.QueryRowContext(ctx, `SELECT streak_last_day::text FROM stats`).Scan(&day))
+	s.Require().NoError(s.db.QueryRowContext(s.T().Context(), `SELECT streak_last_day::text FROM stats`).Scan(&day))
 	s.Equal("2026-09-17", day)
+}
+
+func (s *testSuite) TestConcurrentFirstTakesAreAllCounted() {
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	for range 20 {
+		wg.Go(func() {
+			<-start
+			s.NoError(s.store.RecordTake(s.T().Context(), players.AccountID{15: 1}, at))
+		})
+	}
+	close(start)
+	wg.Wait()
+
+	stats, err := s.store.Stats(s.T().Context(), players.AccountID{15: 1})
+	s.Require().NoError(err)
+	s.Equal(uint64(20), stats.TilesTaken, "no take overwrites another, the first ones included")
 }

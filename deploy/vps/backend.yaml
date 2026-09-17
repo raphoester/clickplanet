@@ -459,5 +459,6 @@ player:
     dbName: clickplanet
     sslMode: disable
     schema: player
+    # Each take is one short transaction, beside the calls from the web app.
     pool:
-      maxOpenConns: 2
+      maxOpenConns: 4

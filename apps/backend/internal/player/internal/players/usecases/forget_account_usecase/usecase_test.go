@@ -1,30 +1,39 @@
 package forget_account_usecase_test
 
 import (
+	"errors"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/inmemory_player_storage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/inmemory_player_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/forget_account_usecase"
 )
 
 func TestTheProfileAndTheStatsAreBothForgotten(t *testing.T) {
-	storage := inmemory_player_storage.New(inmemory_player_storage.NewMemoryPersistence())
+	store := inmemory_player_store.New()
 	gone, kept := players.AccountID{15: 1}, players.AccountID{15: 2}
 	for _, account := range []players.AccountID{gone, kept} {
-		storage.SaveProfile(players.Profile{Account: account, Name: "named", UpdatedAt: time.Now()})
-		storage.RecordTake(account, time.Now())
+		require.NoError(t, store.SaveProfile(t.Context(), players.Profile{Account: account, Name: "named", UpdatedAt: time.Now()}))
+		require.NoError(t, store.RecordTake(t.Context(), account, time.Now()))
 	}
 
-	forget_account_usecase.New(storage).Execute(gone)
+	require.NoError(t, forget_account_usecase.New(store).Execute(t.Context(), gone))
 
-	_, named := storage.Profile(gone)
-	assert.False(t, named)
-	_, played := storage.Stats(gone)
-	assert.False(t, played)
-	_, played = storage.Stats(kept)
-	assert.True(t, played)
+	_, err := store.Profile(t.Context(), gone)
+	require.ErrorIs(t, err, players.ErrNoProfile)
+	_, err = store.Stats(t.Context(), gone)
+	require.ErrorIs(t, err, players.ErrNoStats)
+	_, err = store.Stats(t.Context(), kept)
+	assert.NoError(t, err)
+}
+
+func TestAStoreFailureIsAnError(t *testing.T) {
+	store := inmemory_player_store.New()
+	store.FailWith(errors.New("postgres is down"))
+
+	assert.Error(t, forget_account_usecase.New(store).Execute(t.Context(), players.AccountID{15: 1}))
 }

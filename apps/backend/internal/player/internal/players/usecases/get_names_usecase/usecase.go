@@ -2,11 +2,14 @@
 package get_names_usecase
 
 import (
+	"context"
+	"fmt"
+
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 )
 
 type Names interface {
-	Names(accounts []players.AccountID) map[players.AccountID]players.Name
+	Names(ctx context.Context, accounts []players.AccountID) (map[players.AccountID]players.Name, error)
 }
 
 type UseCase struct {
@@ -18,6 +21,10 @@ func New(names Names) *UseCase {
 }
 
 // Execute leaves out every account with no name.
-func (u *UseCase) Execute(accounts []players.AccountID) map[players.AccountID]players.Name {
-	return u.names.Names(accounts)
+func (u *UseCase) Execute(ctx context.Context, accounts []players.AccountID) (map[players.AccountID]players.Name, error) {
+	names, err := u.names.Names(ctx, accounts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read the names: %w", err)
+	}
+	return names, nil
 }

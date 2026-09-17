@@ -13,7 +13,7 @@ import (
 )
 
 type UseCase interface {
-	Execute(account players.AccountID) players.Profile
+	Execute(ctx context.Context, account players.AccountID) (players.Profile, error)
 }
 
 func New(useCase UseCase) GetProfileHandler {
@@ -33,5 +33,10 @@ func (h GetProfileHandler) GetProfile(
 		return nil, err //nolint:wrapcheck // already the connect error the caller reads.
 	}
 
-	return connect.NewResponse(&playerv1.GetProfileResponse{Profile: playermessage.Profile(h.useCase.Execute(account))}), nil
+	profile, err := h.useCase.Execute(ctx, account)
+	if err != nil {
+		return nil, err //nolint:wrapcheck // the error net answers what is not the caller's fault.
+	}
+
+	return connect.NewResponse(&playerv1.GetProfileResponse{Profile: playermessage.Profile(profile)}), nil
 }

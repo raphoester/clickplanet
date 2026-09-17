@@ -2,11 +2,15 @@
 package get_profile_usecase
 
 import (
+	"context"
+	"errors"
+	"fmt"
+
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 )
 
 type Profiles interface {
-	Profile(account players.AccountID) (players.Profile, bool)
+	Profile(ctx context.Context, account players.AccountID) (players.Profile, error)
 }
 
 type UseCase struct {
@@ -18,10 +22,13 @@ func New(profiles Profiles) *UseCase {
 }
 
 // Execute answers a profile with no name for an account that never chose one.
-func (u *UseCase) Execute(account players.AccountID) players.Profile {
-	profile, ok := u.profiles.Profile(account)
-	if !ok {
-		return players.Profile{Account: account}
+func (u *UseCase) Execute(ctx context.Context, account players.AccountID) (players.Profile, error) {
+	profile, err := u.profiles.Profile(ctx, account)
+	if errors.Is(err, players.ErrNoProfile) {
+		return players.Profile{Account: account}, nil
 	}
-	return profile
+	if err != nil {
+		return players.Profile{}, fmt.Errorf("failed to read the profile: %w", err)
+	}
+	return profile, nil
 }

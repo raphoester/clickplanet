@@ -2,12 +2,15 @@
 package set_name_usecase
 
 import (
+	"context"
+	"fmt"
+
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 type Profiles interface {
-	SaveProfile(profile players.Profile)
+	SaveProfile(ctx context.Context, profile players.Profile) error
 }
 
 type UseCase struct {
@@ -25,14 +28,16 @@ type In struct {
 }
 
 // Execute answers players.ErrInvalidName for a name that is empty or too long once cleaned.
-func (u *UseCase) Execute(in In) (players.Profile, error) {
+func (u *UseCase) Execute(ctx context.Context, in In) (players.Profile, error) {
 	name, err := players.NameOf(in.Name)
 	if err != nil {
 		return players.Profile{}, err //nolint:wrapcheck // the handler maps the domain's sentinel.
 	}
 
 	profile := players.Profile{Account: in.Account, Name: name, UpdatedAt: u.clock.Now()}
-	u.profiles.SaveProfile(profile)
+	if err := u.profiles.SaveProfile(ctx, profile); err != nil {
+		return players.Profile{}, fmt.Errorf("failed to save the name: %w", err)
+	}
 
 	return profile, nil
 }

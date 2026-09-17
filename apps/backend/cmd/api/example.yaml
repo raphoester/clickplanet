@@ -619,7 +619,3 @@ player:
     schema: player
     pool:
       maxOpenConns: 2
-  storage:
-    # How often changed profiles and stats are written to postgres, and once
-    # more on shutdown. A hard kill loses at most this much.
-    flushInterval: 1s

@@ -1,9 +1,10 @@
-// Package postgres_player_store keeps the in-memory players between boots, in player.profiles and player.stats.
+// Package postgres_player_store is players.Store over player.profiles and player.stats.
 package postgres_player_store
 
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -22,85 +23,50 @@ type Store struct {
 	db cppg.QuerierBeginner
 }
 
-var _ players.Persistence = (*Store)(nil)
+var _ players.Store = (*Store)(nil)
 
-func (s *Store) Load(ctx context.Context) (players.Snapshot, error) {
-	profiles, err := s.loadProfiles(ctx)
-	if err != nil {
-		return players.Snapshot{}, err
+func (s *Store) Profile(ctx context.Context, account players.AccountID) (players.Profile, error) {
+	var (
+		name      string
+		updatedAt time.Time
+	)
+	err := s.db.QueryRowContext(ctx, `SELECT name, updated_at FROM profiles WHERE account_id = $1`, uuid.UUID(account)).
+		Scan(&name, &updatedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return players.Profile{}, players.ErrNoProfile
 	}
-	stats, err := s.loadStats(ctx)
 	if err != nil {
-		return players.Snapshot{}, err
+		return players.Profile{}, fmt.Errorf("failed to read the profile: %w", err)
 	}
-	return players.Snapshot{Profiles: profiles, Stats: stats}, nil
+	return players.Profile{Account: account, Name: players.Name(name), UpdatedAt: updatedAt.UTC()}, nil
 }
 
-func (s *Store) loadProfiles(ctx context.Context) ([]players.Profile, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT account_id, name, updated_at FROM profiles`)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read the profiles: %w", err)
+func (s *Store) SaveProfile(ctx context.Context, profile players.Profile) error {
+	if _, err := s.db.ExecContext(ctx, `
+		INSERT INTO profiles (account_id, name, updated_at) VALUES ($1, $2, $3)
+		ON CONFLICT (account_id) DO UPDATE SET name = excluded.name, updated_at = excluded.updated_at
+	`, uuid.UUID(profile.Account), string(profile.Name), profile.UpdatedAt.UTC()); err != nil {
+		return fmt.Errorf("failed to save the profile: %w", err)
 	}
-	defer func() { _ = rows.Close() }()
-
-	var profiles []players.Profile
-	for rows.Next() {
-		var (
-			account   uuid.UUID
-			name      string
-			updatedAt time.Time
-		)
-		if err := rows.Scan(&account, &name, &updatedAt); err != nil {
-			return nil, fmt.Errorf("failed to read a profile: %w", err)
-		}
-		profiles = append(profiles, players.Profile{
-			Account: players.AccountID(account), Name: players.Name(name), UpdatedAt: updatedAt.UTC(),
-		})
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("failed to read the profiles: %w", err)
-	}
-	return profiles, nil
+	return nil
 }
 
-func (s *Store) loadStats(ctx context.Context) ([]players.Stats, error) {
-	rows, err := s.db.QueryContext(ctx, `
-		SELECT account_id, tiles_taken, streak_current, streak_best, streak_last_day FROM stats
-	`)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read the stats: %w", err)
-	}
-	defer func() { _ = rows.Close() }()
-
-	var all []players.Stats
-	for rows.Next() {
-		var (
-			account              uuid.UUID
-			tiles, current, best int64
-			lastDay              time.Time
-		)
-		if err := rows.Scan(&account, &tiles, &current, &best, &lastDay); err != nil {
-			return nil, fmt.Errorf("failed to read a stats row: %w", err)
-		}
-		all = append(all, players.Stats{
-			Account:       players.AccountID(account),
-			TilesTaken:    uint64(tiles),   //nolint:gosec // CHECK (tiles_taken >= 0).
-			StreakCurrent: uint32(current), //nolint:gosec // CHECK (streak_current >= 0), and one a day.
-			StreakBest:    uint32(best),    //nolint:gosec // as above.
-			StreakLastDay: players.DayOf(lastDay),
-		})
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("failed to read the stats: %w", err)
-	}
-	return all, nil
+func (s *Store) Stats(ctx context.Context, account players.AccountID) (players.Stats, error) {
+	return statsOf(s.db.QueryRowContext(ctx, `
+		SELECT tiles_taken, streak_current, streak_best, streak_last_day FROM stats WHERE account_id = $1
+	`, uuid.UUID(account)), account)
 }
 
-// Save upserts the rows and deletes the others, a statement per kind, in one transaction.
-func (s *Store) Save(ctx context.Context, changes players.Changes) (err error) {
+// takesLock is the advisory lock space of RecordTake, so its keys meet no other lock in the database.
+const takesLock = 0x706c6179 // "play"
+
+// RecordTake holds a lock on the account for the transaction while the domain's rule computes the next
+// stats, so two takes never read the same stats. An advisory lock rather than FOR UPDATE: a first take has
+// no row to lock yet.
+func (s *Store) RecordTake(ctx context.Context, account players.AccountID, at time.Time) (err error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("failed to begin saving the players: %w", err)
+		return fmt.Errorf("failed to begin recording a take: %w", err)
 	}
 	defer func() {
 		if err != nil {
@@ -108,90 +74,119 @@ func (s *Store) Save(ctx context.Context, changes players.Changes) (err error) {
 		}
 	}()
 
-	for _, write := range []func(context.Context, *sql.Tx, players.Changes) error{
-		saveProfiles, saveStats, deleteProfiles, deleteStats,
-	} {
-		if err := write(ctx, tx, changes); err != nil {
-			return err
-		}
+	if _, err := tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock($1, hashtext($2))`, takesLock, account.String()); err != nil {
+		return fmt.Errorf("failed to lock the account's stats: %w", err)
 	}
 
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit the players: %w", err)
+	current, err := statsOf(tx.QueryRowContext(ctx, `
+		SELECT tiles_taken, streak_current, streak_best, streak_last_day FROM stats WHERE account_id = $1
+	`, uuid.UUID(account)), account)
+	if errors.Is(err, players.ErrNoStats) {
+		current, err = players.Stats{Account: account}, nil
 	}
-	return nil
-}
-
-func saveProfiles(ctx context.Context, tx *sql.Tx, changes players.Changes) error {
-	if len(changes.Profiles) == 0 {
-		return nil
-	}
-
-	accounts := make([]string, len(changes.Profiles))
-	names := make([]string, len(changes.Profiles))
-	updatedAt := make([]time.Time, len(changes.Profiles))
-	for i, profile := range changes.Profiles {
-		accounts[i], names[i], updatedAt[i] = profile.Account.String(), string(profile.Name), profile.UpdatedAt.UTC()
+	if err != nil {
+		return err
 	}
 
-	if _, err := tx.ExecContext(ctx, `
-		INSERT INTO profiles (account_id, name, updated_at)
-		SELECT * FROM unnest($1::uuid[], $2::text[], $3::timestamptz[])
-		ON CONFLICT (account_id) DO UPDATE SET name = excluded.name, updated_at = excluded.updated_at
-	`, pq.Array(accounts), pq.Array(names), pq.Array(updatedAt)); err != nil {
-		return fmt.Errorf("failed to save the profiles: %w", err)
-	}
-	return nil
-}
-
-func saveStats(ctx context.Context, tx *sql.Tx, changes players.Changes) error {
-	if len(changes.Stats) == 0 {
-		return nil
-	}
-
-	n := len(changes.Stats)
-	accounts, lastDays := make([]string, n), make([]string, n)
-	tiles, current, best := make([]int64, n), make([]int64, n), make([]int64, n)
-	for i, stats := range changes.Stats {
-		accounts[i], lastDays[i] = stats.Account.String(), stats.StreakLastDay.String()
-		tiles[i] = int64(stats.TilesTaken) //nolint:gosec // one a tile taken: never past int64.
-		current[i], best[i] = int64(stats.StreakCurrent), int64(stats.StreakBest)
-	}
-
+	next := current.WithTake(at)
 	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO stats (account_id, tiles_taken, streak_current, streak_best, streak_last_day)
-		SELECT * FROM unnest($1::uuid[], $2::bigint[], $3::bigint[], $4::bigint[], $5::date[])
+		VALUES ($1, $2, $3, $4, $5)
 		ON CONFLICT (account_id) DO UPDATE SET
 			tiles_taken = excluded.tiles_taken,
 			streak_current = excluded.streak_current,
 			streak_best = excluded.streak_best,
 			streak_last_day = excluded.streak_last_day
-	`, pq.Array(accounts), pq.Array(tiles), pq.Array(current), pq.Array(best), pq.Array(lastDays)); err != nil {
+	`, uuid.UUID(account), int64(next.TilesTaken), //nolint:gosec // one a tile taken: never past int64.
+		int64(next.StreakCurrent), int64(next.StreakBest), next.StreakLastDay.String()); err != nil {
 		return fmt.Errorf("failed to save the stats: %w", err)
 	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit the take: %w", err)
+	}
+	return nil
+}
+
+func (s *Store) DeleteAccount(ctx context.Context, account players.AccountID) (err error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin deleting the account: %w", err)
+	}
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback()
+		}
+	}()
+
+	for _, statement := range []string{
+		`DELETE FROM profiles WHERE account_id = $1`,
+		`DELETE FROM stats WHERE account_id = $1`,
+	} {
+		if _, err := tx.ExecContext(ctx, statement, uuid.UUID(account)); err != nil {
+			return fmt.Errorf("failed to delete the account's rows: %w", err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit the deletion: %w", err)
+	}
 	return nil
 }
 
-func deleteProfiles(ctx context.Context, tx *sql.Tx, changes players.Changes) error {
-	return deleteRows(ctx, tx, `DELETE FROM profiles WHERE account_id = ANY($1::uuid[])`, changes.DeletedProfiles)
+func (s *Store) Names(ctx context.Context, accounts []players.AccountID) (map[players.AccountID]players.Name, error) {
+	names := make(map[players.AccountID]players.Name, len(accounts))
+	if len(accounts) == 0 {
+		return names, nil
+	}
+
+	// lib/pq cannot take a named array, so the ids go as text.
+	ids := make([]string, len(accounts))
+	for i, account := range accounts {
+		ids[i] = account.String()
+	}
+
+	rows, err := s.db.QueryContext(ctx, `SELECT account_id, name FROM profiles WHERE account_id = ANY($1::uuid[])`, pq.Array(ids))
+	if err != nil {
+		return nil, fmt.Errorf("failed to read the names: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	for rows.Next() {
+		var (
+			account uuid.UUID
+			name    string
+		)
+		if err := rows.Scan(&account, &name); err != nil {
+			return nil, fmt.Errorf("failed to read a name: %w", err)
+		}
+		names[players.AccountID(account)] = players.Name(name)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to read the names: %w", err)
+	}
+	return names, nil
 }
 
-func deleteStats(ctx context.Context, tx *sql.Tx, changes players.Changes) error {
-	return deleteRows(ctx, tx, `DELETE FROM stats WHERE account_id = ANY($1::uuid[])`, changes.DeletedStats)
-}
-
-func deleteRows(ctx context.Context, tx *sql.Tx, statement string, deleted []players.AccountID) error {
-	if len(deleted) == 0 {
-		return nil
+// statsOf reads one stats row, or ErrNoStats.
+func statsOf(row *sql.Row, account players.AccountID) (players.Stats, error) {
+	var (
+		tiles, current, best int64
+		lastDay              time.Time
+	)
+	err := row.Scan(&tiles, &current, &best, &lastDay)
+	if errors.Is(err, sql.ErrNoRows) {
+		return players.Stats{}, players.ErrNoStats
+	}
+	if err != nil {
+		return players.Stats{}, fmt.Errorf("failed to read the stats: %w", err)
 	}
 
-	accounts := make([]string, len(deleted))
-	for i, account := range deleted {
-		accounts[i] = account.String()
-	}
-
-	if _, err := tx.ExecContext(ctx, statement, pq.Array(accounts)); err != nil {
-		return fmt.Errorf("failed to delete the players' rows: %w", err)
-	}
-	return nil
+	return players.Stats{
+		Account:       account,
+		TilesTaken:    uint64(tiles),   //nolint:gosec // CHECK (tiles_taken >= 0).
+		StreakCurrent: uint32(current), //nolint:gosec // CHECK (streak_current >= 0), and one a day.
+		StreakBest:    uint32(best),    //nolint:gosec // as above.
+		StreakLastDay: players.DayOf(lastDay),
+	}, nil
 }

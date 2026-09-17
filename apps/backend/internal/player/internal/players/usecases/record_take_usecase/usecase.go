@@ -2,13 +2,15 @@
 package record_take_usecase
 
 import (
+	"context"
+	"fmt"
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 )
 
 type Stats interface {
-	RecordTake(account players.AccountID, at time.Time)
+	RecordTake(ctx context.Context, account players.AccountID, at time.Time) error
 }
 
 type UseCase struct {
@@ -24,6 +26,9 @@ type In struct {
 	At      time.Time
 }
 
-func (u *UseCase) Execute(in In) {
-	u.stats.RecordTake(in.Account, in.At)
+func (u *UseCase) Execute(ctx context.Context, in In) error {
+	if err := u.stats.RecordTake(ctx, in.Account, in.At); err != nil {
+		return fmt.Errorf("failed to record the take: %w", err)
+	}
+	return nil
 }

@@ -8,14 +8,14 @@ import (
 	"github.com/stretchr/testify/require"
 
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/inmemory_player_storage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/inmemory_player_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_profile_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_profile_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
 func handler() get_profile_handler.GetProfileHandler {
-	return get_profile_handler.New(get_profile_usecase.New(inmemory_player_storage.New(inmemory_player_storage.NewMemoryPersistence())))
+	return get_profile_handler.New(get_profile_usecase.New(inmemory_player_store.New()))
 }
 
 func TestAnUnnamedCallerGetsItsAccountAndNoName(t *testing.T) {

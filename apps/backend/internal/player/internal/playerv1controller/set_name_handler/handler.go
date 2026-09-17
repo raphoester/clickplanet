@@ -15,7 +15,7 @@ import (
 )
 
 type UseCase interface {
-	Execute(in set_name_usecase.In) (players.Profile, error)
+	Execute(ctx context.Context, in set_name_usecase.In) (players.Profile, error)
 }
 
 func New(useCase UseCase) SetNameHandler {
@@ -35,7 +35,7 @@ func (h SetNameHandler) SetName(
 		return nil, err //nolint:wrapcheck // already the connect error the caller reads.
 	}
 
-	profile, err := h.useCase.Execute(set_name_usecase.In{Account: account, Name: req.Msg.GetName()})
+	profile, err := h.useCase.Execute(ctx, set_name_usecase.In{Account: account, Name: req.Msg.GetName()})
 	if errors.Is(err, players.ErrInvalidName) {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}

@@ -146,7 +146,7 @@ Each context wires **itself**, in a `module.go` at its root (`internal/planet/mo
 - `props.InternalRPC.Mount(build, interceptors...)` — the same again, for what other modules call: served only on the loopback internal listener
 - `props.Internal.Dial()` — the HTTP client and base URL a generated `New<Service>Client` takes, to call another module — see [Calling another module](#calling-another-module)
 - `props.Events` — the in-process event bus: `props.Events.Publish(message)`, and `cpbootstrap.Subscribe(props.Events, name, buffer, handler)` for the runner that delivers one type — see [Telling other modules what happened](#telling-other-modules-what-happened)
-- `props.Runners.Add(runner)` — a `Runner` (`Name()` and `Run(ctx)`), run as a goroutine with the process-lifetime context. `cpbootstrap.Pipeline(runners...)` runs several as one and stops them in order, each after the one before returned
+- `props.Runners.Add(runner)` — a `Runner` (`Name()` and `Run(ctx)`), run as a goroutine with the process-lifetime context
 - `props.Closers.Add(name, close)` — a cleanup, run in reverse registration order
 - `props.Logger`, `props.Metrics`
 - `props.Server` — the bind address and the stream heartbeat, **the only config a module reads that is not its own**. It is the transport every module answers over, so it belongs to the layer that owns the server rather than to any context.
@@ -218,7 +218,7 @@ The proto sits beside the public one in the module's package (`proto/auth/v1/int
 - **`cpbootstrap.Subscribe[T](props.Events, name, buffer, handler)`** registers a channel of `buffer` events for type `T` and answers the `Runner` that reads it and calls `handler.Handle(ctx, event)`. The module adds that runner. A second subscriber of one type with the same name refuses the boot, and so does a zero buffer.
 - **Registering after the runners start is refused.** `Run` seals the bus once every module is built. An event published while modules are built (or before the runner starts) waits in the buffer, so the order of modules in `cmd/api` does not matter.
 - **`events_dropped_total{event, subscriber}`** counts what a full buffer dropped, and **`events_failed_total{event, subscriber}`** what a handler answered with an error. The bus logs nothing: a subscriber that wants a log line wraps its handler in a decorator (`player`'s `log_subscriber`).
-- **A subscriber's runner drains its buffer when it stops.** Put it before the store it feeds in a `cpbootstrap.Pipeline`, so the store's last flush holds every event the subscriber drained.
+- **A subscriber's runner drains its buffer when it stops**, so what was published before the server stopped is still handled. A store it writes to must outlive it: `cppg.CloseAfter` closes the pool once the runners returned.
 - **Tests:** `events_test.go` pins order per subscriber, a copy each, drop and count, no subscriber code in the publisher's stack trace, register-before-run, and the drain at shutdown. `cpbootstrap.RecordedEvents` (behind the tag) stands in for the bus where a use case only publishes.
 
 The events today:
@@ -692,10 +692,9 @@ internal/auth/internal/
 
 ```
 internal/player/internal/
-  players/                          AccountID, Name (NameOf), Profile, Stats, Day; the Persistence port and its contract suite
-    inmemory_player_storage/        every profile and stats in memory, a dirty set, Flush and its Runner; MemoryPersistence behind the tag
-      log_flush/                    logs a failed flush
-    postgres_player_store/          Persistence over player.profiles and player.stats
+  players/                          AccountID, Name (NameOf), Profile, Stats, Day; the Store port and its contract suite
+    postgres_player_store/          the Store over player.profiles and player.stats
+    inmemory_player_store/          the same port in maps, behind the testing tag
     usecases/get_profile_usecase/  set_name_usecase/  get_stats_usecase/  get_names_usecase/
     usecases/record_take_usecase/  forget_account_usecase/
   playerv1controller/               PlayerService and InternalService (bags), the session interceptor
@@ -714,9 +713,13 @@ internal/player/internal/
 - **Stats come from `planet.v1.TileTaken`**, one event per tile, so a spread of seven is seven tiles. **The streak day is UTC**: a take on the day after `streak_last_day` extends the streak, a take on the same day changes nothing, a gap starts it again at 1, and a late event older than the last day counts a tile and leaves the streak alone (`Stats.WithTake`). `GetStats` reads it as of today (`Stats.AsOf`): a streak whose last day is before yesterday reads 0, and `streak_best` keeps it. `stats_test.go` pins the rules across UTC midnight.
 - **`auth.v1.AccountDeleted` deletes both rows.** A take that arrives after, on a token minted before the delete, makes a new stats row; the token lives an hour at most.
 - **Events are at most once.** A take dropped by a full buffer (`events_dropped_total`) or lost in a crash is a tile the stats never count. Stats start the day the module is turned on: takes before are not replayed.
-- **Kept in memory, flushed to postgres like the ledger.** `Load` reads every row at boot, and a failed load refuses the boot. A write marks the account dirty; every `player.storage.flushInterval` (1s) `Flush` reads each dirty account as it is now and hands `postgres_player_store.Save` the rows to upsert and delete, in one transaction. A failed save marks them dirty again for the next tick; each flush has a 10s timeout. The subscribers, then the flush runner, then the pool stop in that order (`cpbootstrap.Pipeline` inside `cppg.CloseAfter`), so the last flush holds what the subscribers drained.
-- **`players.PersistenceContractSuite`** is the port's behaviour, run on `MemoryPersistence` and on postgres. The use cases are tested over the in-memory storage.
+- **No memory copy: every call reads or writes postgres.** This is not the tile map's pattern on purpose. The map is in memory so a click never waits on the database; a take reaches this module over the event bus, so a click already never waits on it, and the calls are few (production is ~15 takes a second at peak). A memory copy would load every account that ever took a tile at boot, and cost a dirty set, a flush loop and a window a hard kill loses.
+- **`RecordTake` is one transaction** under `pg_advisory_xact_lock` on the account: read the stats, apply `Stats.WithTake`, upsert. The rule stays in Go, and two takes never read the same stats. An advisory lock rather than `FOR UPDATE`, because a first take has no row to lock; `TestConcurrentFirstTakesAreAllCounted` fails without it.
+- **Errors are real errors.** Every `Store` method returns one; absence is `ErrNoProfile` or `ErrNoStats`, which the use cases answer as an empty profile or empty stats. On a request a database error is the error net's `internal`. On an event it is counted in `events_failed_total`, logged by `log_subscriber`, and the take is lost. Each event's write has a 5s timeout (`subscribers.Timeout`), so a stuck database cannot hold a subscriber.
+- **`players.StoreContractSuite`** is the port's behaviour, run on `inmemory_player_store` and on postgres. The use cases are tested over the in-memory one, which can `FailWith` an error.
+- **The pool closes after the subscribers stop** (`cppg.CloseAfter`), so what they drain from their buffers at shutdown is still written.
 - **No foreign key to `auth.accounts`**: the schemas are each module's own, and the event is how a deletion crosses.
+- **If takes ever outgrow one transaction each**, the subscriber can batch them; nothing else changes.
 
 ### Bonus boxes (`internal/planet/internal/bonuses/`)
 
@@ -1593,7 +1596,7 @@ Both chains order them the same way: error mapping outermost, then the blocklist
 - **A flush appends, it never rewrites.** Every `ledgerStorage.flushInterval` (1s), `Flush` hands the takes past the last flush to `Save`: one transaction that `COPY`s them in, deletes the takes before the head (what the retention or the cap dropped), moves the head, and upserts the marks set since. It first deletes any row at or past the first new position, so a flush whose commit answer was lost writes again without a conflict. A take dropped before it was flushed is never written. A failed save keeps it all for the next tick; each flush has a 10s timeout, and shutdown flushes once more.
 - **One pool for both runners.** `cppg.CloseAfter(db, logger, tilesStorage, takings)` runs them together and closes the pool after both last flushes.
 
-The antibot's bans and evidence are in postgres too, in the `antibot` schema, the same way — see [What survives a restart](#what-survives-a-restart). So are the player module's profiles and stats, in the `player` schema — see [Player](#player-internalplayer).
+The antibot's bans and evidence are in postgres too, in the `antibot` schema, the same way — see [What survives a restart](#what-survives-a-restart). The player module's profiles and stats are in postgres too, in the `player` schema, but with no memory copy: each call reads or writes the table — see [Player](#player-internalplayer).
 
 Nothing lives in files any more: the container mounts no state volume.
 
@@ -1901,7 +1904,6 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `chat.blockedIPs` — prefixes refused every chat RPC, parsed by `shared/cpipblock` exactly as `vpnBlocklist.allow` is
 - `player.enabled` — off registers nothing: `player.v1` 404s and nobody hears the events. It needs `auth` on to answer anybody
 - `player.database.*` — profiles and stats, same shape as `database`, schema `player`; required when `player.enabled`. `player.database.password` belongs in the environment
-- `player.storage.flushInterval` — how often changed profiles and stats are written to postgres (1s, and on shutdown)
 
 ### Protobuf
 

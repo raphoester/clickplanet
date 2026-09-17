@@ -11,7 +11,7 @@ import (
 
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/inmemory_player_storage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/inmemory_player_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_stats_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_stats_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
@@ -19,14 +19,14 @@ import (
 )
 
 func TestTheCallersStatsAreAnswered(t *testing.T) {
-	storage := inmemory_player_storage.New(inmemory_player_storage.NewMemoryPersistence())
+	store := inmemory_player_store.New()
 	at := time.Date(2026, 9, 17, 10, 0, 0, 0, time.UTC)
 	ada, err := players.AccountIDOf("0b6d4f7e-5d7c-4a36-9a51-3f1f8f0c2a11")
 	require.NoError(t, err)
-	storage.RecordTake(ada, at)
-	storage.RecordTake(ada, at)
+	require.NoError(t, store.RecordTake(t.Context(), ada, at))
+	require.NoError(t, store.RecordTake(t.Context(), ada, at))
 
-	res, err := get_stats_handler.New(get_stats_usecase.New(storage, cptime.NewFixedClock(at))).
+	res, err := get_stats_handler.New(get_stats_usecase.New(store, cptime.NewFixedClock(at))).
 		GetStats(cpctx.AddAccountToContext(t.Context(), ada.String()), connect.NewRequest(&playerv1.GetStatsRequest{}))
 
 	require.NoError(t, err)

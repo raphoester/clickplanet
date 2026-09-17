@@ -11,7 +11,7 @@ import (
 )
 
 type UseCase interface {
-	Execute(accounts []players.AccountID) map[players.AccountID]players.Name
+	Execute(ctx context.Context, accounts []players.AccountID) (map[players.AccountID]players.Name, error)
 }
 
 func New(useCase UseCase) GetNamesHandler {
@@ -24,7 +24,7 @@ type GetNamesHandler struct {
 
 // GetNames leaves out an id that is not an account, as it leaves out an account with no name.
 func (h GetNamesHandler) GetNames(
-	_ context.Context,
+	ctx context.Context,
 	req *connect.Request[playerv1.GetNamesRequest],
 ) (*connect.Response[playerv1.GetNamesResponse], error) {
 	accounts := make([]players.AccountID, 0, len(req.Msg.GetAccountIds()))
@@ -34,7 +34,11 @@ func (h GetNamesHandler) GetNames(
 		}
 	}
 
-	names := h.useCase.Execute(accounts)
+	names, err := h.useCase.Execute(ctx, accounts)
+	if err != nil {
+		return nil, err //nolint:wrapcheck // the error net answers it.
+	}
+
 	answer := make(map[string]string, len(names))
 	for account, name := range names {
 		answer[account.String()] = string(name)

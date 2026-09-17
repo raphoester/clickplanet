@@ -173,7 +173,6 @@ func TestTheExampleConfigReachesThePlayerBlock(t *testing.T) {
 
 	assert.False(t, config.Player.Enabled, "the example ships the player module off")
 	assert.Equal(t, "player", config.Player.Database.Schema)
-	assert.Equal(t, time.Second, config.Player.Storage.FlushInterval)
 	require.NoError(t, config.Player.Database.Validate())
 }
 

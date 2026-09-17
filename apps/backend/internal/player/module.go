@@ -16,8 +16,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1/playerv1connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/migrations"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/inmemory_player_storage"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/inmemory_player_storage/log_flush"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/postgres_player_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/forget_account_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_names_usecase"
@@ -71,31 +69,28 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to migrate the %s schema: %w", config.Database.Schema, err)
 	}
 
-	storage := inmemory_player_storage.New(postgres_player_store.New(db))
-	if err := storage.Load(ctx); err != nil {
-		_ = db.Close()
-		return fmt.Errorf("failed to load the players: %w", err)
-	}
+	// Every call reads or writes postgres: a click never waits on it, since takes arrive over the event bus.
+	store := postgres_player_store.New(db)
 
 	// ---- Events ----
 
 	// Subscribed here, before any runner starts, so a take published at boot waits in the buffer.
+	// A full buffer drops a take and counts it; a slow database fills it, never a click.
 	takes, err := cpbootstrap.Subscribe(props.Events, "player-stats", tileTakenBuffer,
-		log_subscriber.New(tile_taken_subscriber.New(record_take_usecase.New(storage)), props.Logger))
+		log_subscriber.New(tile_taken_subscriber.New(record_take_usecase.New(store)), props.Logger))
 	if err != nil {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe to planet.v1.TileTaken: %w", err)
 	}
 	deletions, err := cpbootstrap.Subscribe(props.Events, "player-accounts", accountDeletedBuffer,
-		log_subscriber.New(account_deleted_subscriber.New(forget_account_usecase.New(storage)), props.Logger))
+		log_subscriber.New(account_deleted_subscriber.New(forget_account_usecase.New(store)), props.Logger))
 	if err != nil {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe to auth.v1.AccountDeleted: %w", err)
 	}
 
-	// Stopped in order: the subscribers drain what is buffered, then the last flush writes it, then the pool closes.
-	flusher := inmemory_player_storage.NewRunner(config.Storage, log_flush.New(storage, props.Logger))
-	props.Runners.Add(cppg.CloseAfter(db, props.Logger, cpbootstrap.Pipeline(takes, deletions, flusher)))
+	// The pool closes once both subscribers have drained what is buffered: closers run before the runners stop.
+	props.Runners.Add(cppg.CloseAfter(db, props.Logger, takes, deletions))
 
 	// ---- Player service ----
 
@@ -103,9 +98,9 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	verifier := rpc_session_verifier.New(props.Internal, props.Logger)
 
 	playerService := playerv1controller.PlayerService{
-		GetProfileHandler: get_profile_handler.New(get_profile_usecase.New(storage)),
-		SetNameHandler:    set_name_handler.New(set_name_usecase.New(storage, clock)),
-		GetStatsHandler:   get_stats_handler.New(get_stats_usecase.New(storage, clock)),
+		GetProfileHandler: get_profile_handler.New(get_profile_usecase.New(store)),
+		SetNameHandler:    set_name_handler.New(set_name_usecase.New(store, clock)),
+		GetStatsHandler:   get_stats_handler.New(get_stats_usecase.New(store, clock)),
 	}
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return playerv1connect.NewPlayerServiceHandler(playerService, options...)
@@ -116,7 +111,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	// ---- Internal service ----
 
 	internalService := playerv1controller.InternalService{
-		GetNamesHandler: get_names_handler.New(get_names_usecase.New(storage)),
+		GetNamesHandler: get_names_handler.New(get_names_usecase.New(store)),
 	}
 	if err := props.InternalRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return playerv1connect.NewInternalServiceHandler(internalService, options...)
@@ -136,8 +131,6 @@ type Config struct {
 
 	// Profiles and stats, in their own schema. Required when the module is on.
 	Database cppg.Config
-
-	Storage inmemory_player_storage.Config
 }
 
 func (c Config) Validate() error {

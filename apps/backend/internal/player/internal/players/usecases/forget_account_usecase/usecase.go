@@ -2,11 +2,14 @@
 package forget_account_usecase
 
 import (
+	"context"
+	"fmt"
+
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 )
 
 type Accounts interface {
-	DeleteAccount(account players.AccountID)
+	DeleteAccount(ctx context.Context, account players.AccountID) error
 }
 
 type UseCase struct {
@@ -17,6 +20,9 @@ func New(accounts Accounts) *UseCase {
 	return &UseCase{accounts: accounts}
 }
 
-func (u *UseCase) Execute(account players.AccountID) {
-	u.accounts.DeleteAccount(account)
+func (u *UseCase) Execute(ctx context.Context, account players.AccountID) error {
+	if err := u.accounts.DeleteAccount(ctx, account); err != nil {
+		return fmt.Errorf("failed to forget the account: %w", err)
+	}
+	return nil
 }
