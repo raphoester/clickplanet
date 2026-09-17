@@ -1,4 +1,4 @@
-import {PlayerInfo, PlayerInfoBackend, RosterEntry} from "../../backends/player.ts"
+import {PlayerInfo, PlayerInfoBackend, PlayerLine} from "../../backends/player.ts"
 import {Countries} from "../../domain/countries.ts"
 import {authorStyle} from "../chat/authorStyle.ts"
 import CountryFlag from "../components/CountryFlag.tsx"
@@ -15,7 +15,7 @@ const count = new Intl.NumberFormat()
 
 export type PlayerCardProps = {
     /** Who was clicked: a line of the roster, or the author of a chat message. */
-    player: RosterEntry
+    player: PlayerLine
     backend: PlayerInfoBackend
     onClose: () => void
 }

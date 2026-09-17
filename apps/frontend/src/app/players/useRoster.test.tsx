@@ -1,48 +1,41 @@
 // @vitest-environment jsdom
-import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
+import {afterEach, describe, expect, it, vi} from "vitest"
 import {act, cleanup, render} from "@testing-library/react"
-import {PresenceBackend, RosterEntry, RosterUnavailableError} from "../../backends/player.ts"
-import {ROSTER_EVERY_MS, RosterState, useRoster} from "./useRoster.ts"
+import {PresenceBackend, RosterEntry, RosterEvent} from "../../backends/player.ts"
+import {RosterState, useRoster} from "./useRoster.ts"
 
-const ana: RosterEntry = {name: "ana", tag: "4f2ca1", countryCode: "fr", guest: false}
-const bo: RosterEntry = {name: "guest_Bo", tag: "91aa3d", countryCode: "de", guest: true}
+const ana: RosterEntry = {key: "k1", name: "ana", tag: "4f2ca1", countryCode: "fr", guest: false}
+const bo: RosterEntry = {key: "k2", name: "guest_Bo", tag: "91aa3d", countryCode: "de", guest: true}
 
 let latest: RosterState
-let visibility: DocumentVisibilityState = "visible"
 
 function Harness({backend}: {backend?: PresenceBackend}) {
     latest = useRoster(backend)
     return null
 }
 
-function backendAnswering(roster: PresenceBackend["roster"]) {
-    return {heldSession: vi.fn(), announce: vi.fn(), roster: vi.fn(roster)}
+/** A backend whose stream the test drives by hand. */
+function streaming() {
+    const stream = {
+        emit: (event: RosterEvent): void => void event,
+        unavailable: () => {},
+        stop: vi.fn(),
+    }
+    const backend = {
+        heldSession: vi.fn(),
+        announce: vi.fn(),
+        leave: vi.fn(),
+        listenForRoster: vi.fn((onEvent: (event: RosterEvent) => void, onUnavailable: () => void) => {
+            stream.emit = (event) => act(() => onEvent(event))
+            stream.unavailable = () => act(() => onUnavailable())
+            return stream.stop
+        }),
+    }
+    return {backend, stream}
 }
-
-/** Lets the promises a tick started settle, under fake timers. */
-const settle = () => act(async () => {
-    await vi.advanceTimersByTimeAsync(0)
-})
-
-const advance = (ms: number) => act(async () => {
-    await vi.advanceTimersByTimeAsync(ms)
-})
-
-function setVisibility(next: DocumentVisibilityState) {
-    visibility = next
-    document.dispatchEvent(new Event("visibilitychange"))
-}
-
-beforeEach(() => {
-    vi.useFakeTimers()
-    visibility = "visible"
-    vi.spyOn(document, "visibilityState", "get").mockImplementation(() => visibility)
-    vi.spyOn(console, "error").mockImplementation(() => {})
-})
 
 afterEach(() => {
     cleanup()
-    vi.useRealTimers()
     vi.restoreAllMocks()
 })
 
@@ -52,59 +45,53 @@ describe("useRoster", () => {
         expect(latest).toEqual({kind: "unavailable"})
     })
 
-    it("reads at once, then every ten seconds", async () => {
-        const backend = backendAnswering(async () => [ana])
+    it("is loading until the whole roster arrives, then follows each change", () => {
+        const {backend, stream} = streaming()
         render(<Harness backend={backend}/>)
         expect(latest).toEqual({kind: "loading"})
 
-        await settle()
+        stream.emit({kind: "entry", entry: bo})
+        expect(latest).toEqual({kind: "loading"})
+
+        stream.emit({kind: "roster", entries: [ana]})
         expect(latest).toEqual({kind: "ready", entries: [ana]})
-        expect(backend.roster).toHaveBeenCalledTimes(1)
 
-        backend.roster.mockResolvedValue([ana, bo])
-        await advance(ROSTER_EVERY_MS)
-
-        expect(backend.roster).toHaveBeenCalledTimes(2)
+        stream.emit({kind: "entry", entry: bo})
         expect(latest).toEqual({kind: "ready", entries: [ana, bo]})
+
+        stream.emit({kind: "entry", entry: {...bo, name: "Zed", guest: false}})
+        expect(latest).toEqual({kind: "ready", entries: [ana, {...bo, name: "Zed", guest: false}]})
+
+        stream.emit({kind: "left", key: "k1"})
+        expect(latest).toEqual({kind: "ready", entries: [{...bo, name: "Zed", guest: false}]})
     })
 
-    it("asks nothing while the tab is hidden, and asks at once when it is back", async () => {
-        const backend = backendAnswering(async () => [ana])
+    it("starts over from the roster a reconnect sends", () => {
+        const {backend, stream} = streaming()
         render(<Harness backend={backend}/>)
-        await settle()
+        stream.emit({kind: "roster", entries: [ana, bo]})
 
-        act(() => setVisibility("hidden"))
-        await advance(3 * ROSTER_EVERY_MS)
-        expect(backend.roster).toHaveBeenCalledTimes(1)
+        stream.emit({kind: "roster", entries: [bo]})
 
-        act(() => setVisibility("visible"))
-        await settle()
-        expect(backend.roster).toHaveBeenCalledTimes(2)
+        expect(latest).toEqual({kind: "ready", entries: [bo]})
     })
 
-    it("keeps the last list when a read fails", async () => {
-        const backend = backendAnswering(async () => [ana])
+    it("hides the list for good on a server without the live roster", () => {
+        const {backend, stream} = streaming()
         render(<Harness backend={backend}/>)
-        await settle()
+        stream.emit({kind: "roster", entries: [ana]})
 
-        backend.roster.mockRejectedValue(new Error("offline"))
-        await advance(ROSTER_EVERY_MS)
-
-        expect(latest).toEqual({kind: "ready", entries: [ana]})
-    })
-
-    it("hides the list for good on a server without a roster", async () => {
-        const backend = backendAnswering(async () => {
-            throw new RosterUnavailableError()
-        })
-        render(<Harness backend={backend}/>)
-        await settle()
+        stream.unavailable()
 
         expect(latest).toEqual({kind: "unavailable"})
+    })
 
-        await advance(3 * ROSTER_EVERY_MS)
-        act(() => setVisibility("visible"))
-        await settle()
-        expect(backend.roster).toHaveBeenCalledTimes(1)
+    it("stops following the stream when it unmounts", () => {
+        const {backend, stream} = streaming()
+        const view = render(<Harness backend={backend}/>)
+
+        view.unmount()
+
+        expect(stream.stop).toHaveBeenCalledTimes(1)
     })
 })

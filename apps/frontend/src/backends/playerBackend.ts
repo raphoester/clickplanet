@@ -1,7 +1,12 @@
 import {Code, ConnectError, createPromiseClient, PromiseClient} from "@connectrpc/connect"
 import {createConnectTransport} from "@connectrpc/connect-web"
 import {PlayerService} from "../gen/grpc/player/v1/player_connect.ts"
-import {Player as PlayerPb, Profile as ProfilePb, RosterEntry as RosterEntryPb} from "../gen/grpc/player/v1/player_pb.ts"
+import {
+    Player as PlayerPb,
+    PlayerEvent as PlayerEventPb,
+    Profile as ProfilePb,
+    RosterEntry as RosterEntryPb,
+} from "../gen/grpc/player/v1/player_pb.ts"
 import {
     PlayerBackend,
     PlayerError,
@@ -12,10 +17,10 @@ import {
     PresenceBackend,
     Profile,
     RosterEntry,
-    RosterUnavailableError,
+    RosterEvent,
 } from "./player.ts"
 import {SESSION_HEADER, SessionProvider} from "./session.ts"
-import {Config, retrying} from "./transport.ts"
+import {Config, NO_TIMEOUT, openStream, retrying} from "./transport.ts"
 
 /**
  * No cookie: the account is named by the click token in a header, not by
@@ -28,6 +33,19 @@ export function newPlayerServiceClient(config: Config): PromiseClient<typeof Pla
         useBinaryFormat: true,
         useHttpGet: true,
         defaultTimeoutMs: config.timeoutMs ?? 5000,
+    }))
+}
+
+/**
+ * For `Leave` alone: every request it sends is `keepalive`, so it is still sent
+ * after the page is gone. Kept apart because a keepalive request cannot carry a
+ * stream, and the browser bounds how much of them may be in flight.
+ */
+export function newKeepalivePlayerServiceClient(config: Config): PromiseClient<typeof PlayerService> {
+    return createPromiseClient(PlayerService, createConnectTransport({
+        baseUrl: config.baseUrl,
+        useBinaryFormat: true,
+        fetch: (input, init) => fetch(input, {...init, keepalive: true}),
     }))
 }
 
@@ -50,6 +68,7 @@ export class ConnectPlayerBackend implements PlayerBackend, PresenceBackend, Pla
     constructor(
         private readonly client: PromiseClient<typeof PlayerService>,
         private readonly session: SessionProvider,
+        private readonly keepalive: PromiseClient<typeof PlayerService>,
     ) {
     }
 
@@ -91,21 +110,45 @@ export class ConnectPlayerBackend implements PlayerBackend, PresenceBackend, Pla
         }
     }
 
+    /** With the token already held, like `announce`, and never a fresh one. */
+    public leave(): void {
+        const token = this.session.held()
+        if (!token) return
+
+        this.keepalive.leave({}, {headers: new Headers({[SESSION_HEADER]: token})})
+            .catch((e) => console.error("Leave failed", e))
+    }
+
     /**
-     * No token and no header: a custom header would cost a preflight, and a
-     * read that names its caller is one no proxy shares. A 404 is a server
-     * without the call — connect-web reads it as `unimplemented`.
+     * No token and no header: anybody may follow the roster. A 404 is a server
+     * without the stream — connect-web reads it as `unimplemented` — and it
+     * ends the stream for good rather than reconnecting to it forever.
      */
-    public async roster(): Promise<RosterEntry[]> {
-        try {
-            const res = await retrying(() => this.client.getRoster({}), "GetRoster")
-            return res.entries.map(rosterEntryOf)
-        } catch (e) {
-            if (e instanceof ConnectError && (e.code === Code.Unimplemented || e.code === Code.NotFound)) {
-                throw new RosterUnavailableError({cause: e})
-            }
-            throw e
-        }
+    public listenForRoster(onEvent: (event: RosterEvent) => void, onUnavailable: () => void): () => void {
+        const client = this.client
+        let unavailable = false
+        let stop = () => {}
+        stop = openStream(
+            async function* (signal) {
+                try {
+                    yield* client.listenForEvents({}, {signal, timeoutMs: NO_TIMEOUT})
+                } catch (e) {
+                    if (e instanceof ConnectError && (e.code === Code.Unimplemented || e.code === Code.NotFound)) {
+                        unavailable = true
+                        onUnavailable()
+                        stop()
+                        return
+                    }
+                    throw e
+                }
+            },
+            (event) => {
+                const rosterEvent = rosterEventOf(event)
+                if (rosterEvent && !unavailable) onEvent(rosterEvent)
+            },
+            "roster",
+        )
+        return () => stop()
     }
 
     /**
@@ -152,7 +195,21 @@ function profileOf(profile: ProfilePb | undefined): Profile {
 }
 
 function rosterEntryOf(entry: RosterEntryPb): RosterEntry {
-    return {name: entry.name, tag: entry.tag, countryCode: entry.countryId, guest: entry.guest}
+    return {key: entry.key, name: entry.name, tag: entry.tag, countryCode: entry.countryId, guest: entry.guest}
+}
+
+/** Undefined for a heartbeat, and for any case this build does not know. */
+function rosterEventOf(event: PlayerEventPb): RosterEvent | undefined {
+    switch (event.event.case) {
+        case "roster":
+            return {kind: "roster", entries: event.event.value.entries.map(rosterEntryOf)}
+        case "entry":
+            return {kind: "entry", entry: rosterEntryOf(event.event.value)}
+        case "left":
+            return {kind: "left", key: event.event.value.key}
+        default:
+            return undefined
+    }
 }
 
 function playerInfoOf(player: PlayerPb | undefined): PlayerInfo {

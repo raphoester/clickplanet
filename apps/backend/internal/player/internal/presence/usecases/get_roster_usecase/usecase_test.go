@@ -22,6 +22,6 @@ func TestTheRosterIsTheFreshVisitsAsOfTheClock(t *testing.T) {
 
 	clock.Advance(presence.TTL)
 
-	assert.Equal(t, []presence.Entry{{Name: "Bob", Tag: "bbbbbb", Country: "de"}},
+	assert.Equal(t, []presence.Entry{{Key: "2", Name: "Bob", Tag: "bbbbbb", Country: "de"}},
 		get_roster_usecase.New(visits, clock).Execute())
 }

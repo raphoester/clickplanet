@@ -28,9 +28,15 @@ const (
 
 var ErrUnknownCountry = errors.New("unknown country")
 
+// Key names a line of the roster for as long as its player stays on it, a sign-in and a new name included.
+// It is handed to anybody, so it says nothing about the account.
+type Key string
+
 // Visit is a player's last announce.
 type Visit struct {
 	Account players.AccountID
+	// Key is the storage's, kept from the account's first announce until the visit is gone.
+	Key Key
 	// Username is empty for an account that chose none: a guest.
 	Username  players.Name
 	GuestName string
@@ -94,10 +100,29 @@ func GuestNameOf(value string) string {
 
 // Entry is one line of the roster.
 type Entry struct {
+	Key     Key
 	Name    string
 	Tag     players.Tag
 	Country string
 	Guest   bool
+}
+
+// EntryOf is the line the visit shows on the roster.
+func EntryOf(visit Visit) Entry {
+	return Entry{
+		Key:     visit.Key,
+		Name:    visit.displayName(),
+		Tag:     visit.Tag,
+		Country: visit.Country,
+		Guest:   visit.guest(),
+	}
+}
+
+// Change is one line of the roster that changed: an entry that joined or changed, or, when Left, the entry
+// whose key is gone.
+type Change struct {
+	Entry Entry
+	Left  bool
 }
 
 // RosterOf is every fresh visit at now: players with a username first, then guests, each group by name
@@ -108,12 +133,7 @@ func RosterOf(visits []Visit, now time.Time) []Entry {
 		if !visit.Fresh(now) {
 			continue
 		}
-		roster = append(roster, Entry{
-			Name:    visit.displayName(),
-			Tag:     visit.Tag,
-			Country: visit.Country,
-			Guest:   visit.guest(),
-		})
+		roster = append(roster, EntryOf(visit))
 	}
 
 	slices.SortFunc(roster, func(a, b Entry) int {

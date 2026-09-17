@@ -391,13 +391,15 @@ The "players online" button in the menu's action row opens a `MenuPanel` listing
 everyone playing: players with a username, then guests, each with a flag, a name
 in its chat colour (`authorStyle`, the same hue as in the chat) and `#tag`.
 
-- `backends/player.ts` — `PresenceBackend`, `Presence`, `RosterEntry`,
-  `RosterUnavailableError`, and `PlayerInfoBackend` with `PlayerInfo`. `ConnectPlayerBackend` implements it over
-  `player.v1.PlayerService/Announce` and `GetRoster`; `fakePresenceBackend.ts`
-  is the dev stand-in, with players coming and going on their own shifts.
+- `backends/player.ts` — `PresenceBackend`, `Presence`, `PlayerLine` (what a
+  card needs), `RosterEntry` (a `PlayerLine` with its `key`), `RosterEvent`, and
+  `PlayerInfoBackend` with `PlayerInfo`. `ConnectPlayerBackend` implements it over
+  `player.v1.PlayerService/Announce`, `Leave` and `ListenForEvents`;
+  `fakePresenceBackend.ts` is the dev stand-in, with players coming and going on
+  their own shifts, diffed into live events every second.
 - `domain/presence.ts` — `PresenceSchedule`, when to announce. No clock and no
-  network, so every rule is under test. `domain/roster.ts` splits the roster
-  into the two groups, keeping the server's order.
+  network, so every rule is under test. `domain/roster.ts` applies one live event
+  (`applyRosterEvent`) and splits the roster into the two groups.
 - `app/players/` — `usePresence`, `useRoster` and `usePlayerInfo`, thin hooks
   over the above, `PlayersPanel` and `PlayerCard`.
 
@@ -427,13 +429,25 @@ the flag, the guest name or the username has held still for a second, and every
 would mint; the next click brings one. `NoSession` holds nothing, so a build
 without a sitekey never announces.
 
-**The roster is polled, not streamed**: at once, every 10s while
-`document.visibilityState` is `visible`, and at once when the tab comes back.
-A hidden tab asks nothing. `GetRoster` is side-effect free, so it goes out as a
-GET with no token and no header (the player client has `useHttpGet`), which a
-proxy may cache for 5s. A failed read keeps the last list; a 404 (read as
-`unimplemented`) hides the button for good, as does a build with no presence
-backend wired.
+**The roster is streamed**, over `ListenForEvents` through `openStream`, with
+no token and no header. Every connection starts with the whole roster, then
+sends one line that joined or changed (`entry`) or one key that left (`left`).
+A line is named by its `key`, which the server keeps through a new flag, a
+sign-in and a new name, so a guest who signs in is one row renamed in place;
+rows are keyed by it in React too. `applyRosterEvent` puts a changed line where
+the server's sort would (`compareRosterEntries`); a rare disagreement about
+case in a non-ASCII name lasts until the next reconnect's whole roster. While
+the stream is down the last list stays. A 404 (read as `unimplemented`) calls
+`onUnavailable` once and stops the stream for good, which hides the button, as
+does a build with no presence backend wired. `GetRoster` is no longer called.
+
+**A closing page says it left.** `usePresence` calls `leave` on `pagehide`,
+unless the page is only kept in the back-forward cache (`persisted`). `Leave`
+carries the held token, never a fresh one, and goes out on a second player
+client whose `fetch` sets `keepalive` (`newKeepalivePlayerServiceClient`), so it
+is still sent after the page is gone. The server takes the account off at once.
+Two tabs of one browser are one account: closing one takes the line off until
+the other's next announce, at most 30s later.
 
 **The chat identity lives in `Viewer`, not in `ChatPanel`.** The guest name the
 announce carries is the one typed in the chat, and `useChatIdentity` is plain

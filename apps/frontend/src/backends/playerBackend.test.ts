@@ -2,11 +2,14 @@ import {afterEach, describe, expect, it, vi} from "vitest"
 import {Code, ConnectError} from "@connectrpc/connect"
 import {
     Player as PlayerPb,
+    PlayerEvent as PlayerEventPb,
+    PlayerLeft as PlayerLeftPb,
     Profile as ProfilePb,
+    Roster as RosterPb,
     RosterEntry as RosterEntryPb,
     Stats as StatsPb,
 } from "../gen/grpc/player/v1/player_pb.ts"
-import {isValidUsername, PlayerError, RosterUnavailableError} from "./player.ts"
+import {isValidUsername, PlayerError, RosterEvent} from "./player.ts"
 import {ConnectPlayerBackend} from "./playerBackend.ts"
 import {SESSION_HEADER, SessionProvider, SessionUnavailableError} from "./session.ts"
 
@@ -28,7 +31,7 @@ function sessionOf(...tokens: string[]): SessionProvider & {invalidate: ReturnTy
 }
 
 function backendWith(methods: Record<string, unknown>, session: SessionProvider = sessionOf("token-1")) {
-    return new ConnectPlayerBackend(methods as never, session)
+    return new ConnectPlayerBackend(methods as never, session, methods as never)
 }
 
 const headersOf = (call: ReturnType<typeof vi.fn>, n = 0) =>
@@ -226,45 +229,85 @@ describe("ConnectPlayerBackend presence", () => {
         expect(announce).toHaveBeenCalledTimes(1)
     })
 
-    it("reads the roster without a token, and maps each entry", async () => {
-        const session = holding("token-1")
-        const getRoster = vi.fn(async () => ({
-            entries: [
-                new RosterEntryPb({name: "ana", tag: "4f2ca1", countryId: "fr", guest: false}),
-                new RosterEntryPb({name: "guest_Bo", tag: "91aa3d", countryId: "de", guest: true}),
-            ],
-        }))
-        const backend = backendWith({getRoster}, session)
+    it("leaves with the token it holds, and sends nothing without one", async () => {
+        const leave = vi.fn(async () => ({}))
 
-        expect(await backend.roster()).toEqual([
-            {name: "ana", tag: "4f2ca1", countryCode: "fr", guest: false},
-            {name: "guest_Bo", tag: "91aa3d", countryCode: "de", guest: true},
+        backendWith({leave}, holding("token-1")).leave()
+        backendWith({leave}, holding(undefined)).leave()
+
+        expect(leave).toHaveBeenCalledTimes(1)
+        expect(headersOf(leave).headers.get(SESSION_HEADER)).toBe("token-1")
+    })
+})
+
+/** A stream that fails before its first event. */
+const failingWith = (error: ConnectError) => (): AsyncIterable<PlayerEventPb> => ({
+    [Symbol.asyncIterator]: () => ({
+        next: async () => {
+            throw error
+        },
+    }),
+})
+
+describe("ConnectPlayerBackend live roster", () => {
+    const entryPb = new RosterEntryPb({key: "k1", name: "ana", tag: "4f2ca1", countryId: "fr", guest: false})
+    const ana = {key: "k1", name: "ana", tag: "4f2ca1", countryCode: "fr", guest: false}
+
+    afterEach(() => vi.useRealTimers())
+
+    it("follows the stream without a token, maps each event and skips the heartbeats", async () => {
+        const listenForEvents = vi.fn(async function* () {
+            yield new PlayerEventPb({event: {case: "roster", value: new RosterPb({entries: [entryPb]})}})
+            yield new PlayerEventPb({event: {case: "heartbeat", value: {}}})
+            yield new PlayerEventPb({event: {case: "entry", value: entryPb}})
+            yield new PlayerEventPb({event: {case: "left", value: new PlayerLeftPb({key: "k1"})}})
+            await new Promise(() => {})
+        })
+        const events: RosterEvent[] = []
+        const onUnavailable = vi.fn()
+
+        const stop = backendWith({listenForEvents}).listenForRoster((event) => events.push(event), onUnavailable)
+        await vi.waitFor(() => expect(events).toHaveLength(3))
+        stop()
+
+        expect(events).toEqual([
+            {kind: "roster", entries: [ana]},
+            {kind: "entry", entry: ana},
+            {kind: "left", key: "k1"},
         ])
-        expect(getRoster).toHaveBeenCalledWith({})
-        expect(session.held).not.toHaveBeenCalled()
-        expect(session.token).not.toHaveBeenCalled()
+        expect(onUnavailable).not.toHaveBeenCalled()
+        const options = (listenForEvents.mock.calls[0] as unknown[])[1] as {headers?: Headers, timeoutMs: number}
+        expect(options.headers).toBeUndefined()
+        expect(options.timeoutMs).toBe(0)
     })
 
-    // Connect reads a 404 as unimplemented: a server from before the roster.
-    it("reports a server without the roster as unavailable", async () => {
+    // Connect reads a 404 as unimplemented: a server from before the live roster.
+    it("reports a server without the stream once, and does not reconnect to it", async () => {
+        vi.useFakeTimers()
         for (const code of [Code.Unimplemented, Code.NotFound]) {
-            const backend = backendWith({getRoster: refusing(code)})
+            const listenForEvents = vi.fn(failingWith(new ConnectError("no", code)))
+            const onUnavailable = vi.fn()
 
-            await expect(backend.roster()).rejects.toBeInstanceOf(RosterUnavailableError)
+            backendWith({listenForEvents}).listenForRoster(() => {}, onUnavailable)
+            await vi.advanceTimersByTimeAsync(60_000)
+
+            expect(onUnavailable).toHaveBeenCalledTimes(1)
+            expect(listenForEvents).toHaveBeenCalledTimes(1)
         }
     })
 
-    it("retries the roster while the server cannot be reached, and reports any other failure as it is", async () => {
+    it("reconnects after any other failure", async () => {
+        vi.useFakeTimers()
         vi.spyOn(console, "error").mockImplementation(() => {})
-        const getRoster = vi.fn()
-            .mockRejectedValueOnce(new ConnectError("down", Code.Unavailable))
-            .mockResolvedValue({entries: []})
-        expect(await backendWith({getRoster}).roster()).toEqual([])
-        expect(getRoster).toHaveBeenCalledTimes(2)
+        const listenForEvents = vi.fn(failingWith(new ConnectError("down", Code.Unavailable)))
+        const onUnavailable = vi.fn()
 
-        const failing = backendWith({getRoster: refusing(Code.Internal)})
-        const error = await failing.roster().catch((e) => e)
-        expect(error).not.toBeInstanceOf(RosterUnavailableError)
+        const stop = backendWith({listenForEvents}).listenForRoster(() => {}, onUnavailable)
+        await vi.advanceTimersByTimeAsync(1_000)
+        stop()
+
+        expect(listenForEvents.mock.calls.length).toBeGreaterThan(1)
+        expect(onUnavailable).not.toHaveBeenCalled()
     })
 })
 

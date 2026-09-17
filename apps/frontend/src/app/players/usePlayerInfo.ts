@@ -1,5 +1,5 @@
 import {useEffect, useState} from "react"
-import {PlayerInfo, PlayerInfoBackend, RosterEntry} from "../../backends/player.ts"
+import {PlayerInfo, PlayerInfoBackend, PlayerLine} from "../../backends/player.ts"
 
 export type PlayerInfoState =
     | {kind: "loading"}
@@ -11,7 +11,7 @@ export type PlayerInfoState =
     | {kind: "ready", info: PlayerInfo}
 
 /** What the server knows about `player`, read once when it is opened. A guest asks nothing. */
-export function usePlayerInfo(backend: PlayerInfoBackend, player: RosterEntry): PlayerInfoState {
+export function usePlayerInfo(backend: PlayerInfoBackend, player: PlayerLine): PlayerInfoState {
     const [state, setState] = useState<PlayerInfoState>(() => player.guest ? {kind: "guest"} : {kind: "loading"})
 
     useEffect(() => {

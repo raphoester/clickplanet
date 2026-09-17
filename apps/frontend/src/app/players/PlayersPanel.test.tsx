@@ -9,7 +9,7 @@ import PlayersPanel from "./PlayersPanel.tsx"
 afterEach(cleanup)
 
 const entry = (name: string, guest: boolean, countryCode = "fr", tag = "4f2ca1"): RosterEntry =>
-    ({name, tag, countryCode, guest})
+    ({key: `${name}#${tag}`, name, tag, countryCode, guest})
 
 const group = (name: string) => screen.queryByRole("region", {name: new RegExp(`^${name}`)})
 const names = (region: HTMLElement) =>

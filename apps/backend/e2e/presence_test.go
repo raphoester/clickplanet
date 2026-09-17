@@ -147,3 +147,69 @@ func TestAnAnnounceForACountryThatIsNotOneIsInvalidArgument(t *testing.T) {
 
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 }
+
+// rosterStream reads player.v1.PlayerService/ListenForEvents on a goroutine, until the test ends.
+func (s gameStack) rosterStream(t *testing.T) <-chan *playerv1.PlayerEvent {
+	t.Helper()
+
+	stream, err := playerv1connect.NewPlayerServiceClient(http.DefaultClient, s.baseURL).
+		ListenForEvents(t.Context(), connect.NewRequest(&playerv1.ListenForEventsRequest{}))
+	require.NoError(t, err)
+
+	events := make(chan *playerv1.PlayerEvent, 16)
+	go func() {
+		defer close(events)
+		for stream.Receive() {
+			events <- stream.Msg()
+		}
+	}()
+	return events
+}
+
+func next(t *testing.T, events <-chan *playerv1.PlayerEvent) *playerv1.PlayerEvent {
+	t.Helper()
+
+	select {
+	case event, open := <-events:
+		require.True(t, open, "the stream ended")
+		return event
+	case <-time.After(5 * time.Second):
+		require.FailNow(t, "no event")
+		return nil
+	}
+}
+
+func TestTheStreamSendsTheRosterThenEachJoinRenameAndLeave(t *testing.T) {
+	game := startGame(t)
+	bob := game.newPlayer(t)
+	require.NoError(t, bob.announce("de", "Bob"))
+	events := game.rosterStream(t)
+
+	roster := next(t, events).GetRoster()
+	require.NotNil(t, roster)
+	require.Len(t, roster.GetEntries(), 1)
+	assert.Equal(t, "guest_Bob", roster.GetEntries()[0].GetName())
+	bobKey := roster.GetEntries()[0].GetKey()
+	assert.NotEmpty(t, bobKey)
+
+	ada := game.newPlayer(t)
+	require.NoError(t, ada.announce("fr", "Ada"))
+	joined := next(t, events).GetEntry()
+	require.NotNil(t, joined)
+	assert.Equal(t, "guest_Ada", joined.GetName())
+
+	ada.link("google-ada")
+	_, err := ada.setName("Ada_L")
+	require.NoError(t, err)
+	renamed := next(t, events).GetEntry()
+	require.NotNil(t, renamed)
+	assert.Equal(t, "Ada_L", renamed.GetName())
+	assert.Equal(t, joined.GetKey(), renamed.GetKey(), "the same line, renamed")
+
+	leave := connect.NewRequest(&playerv1.LeaveRequest{})
+	bob.send(leave.Header())
+	_, err = bob.players().Leave(t.Context(), leave)
+	require.NoError(t, err)
+	assert.Equal(t, bobKey, next(t, events).GetLeft().GetKey())
+	assert.Equal(t, []string{"Ada_L"}, game.names(t))
+}

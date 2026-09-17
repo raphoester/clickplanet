@@ -14,7 +14,8 @@ function backendHolding(session: {current: string | undefined}) {
     return {
         heldSession: vi.fn(() => session.current),
         announce: vi.fn(async () => true),
-        roster: vi.fn(async () => []),
+        leave: vi.fn(),
+        listenForRoster: vi.fn(() => () => {}),
     }
 }
 
@@ -57,6 +58,17 @@ describe("usePresence", () => {
 
         expect(backend.announce).toHaveBeenCalledTimes(2)
         expect(backend.announce).toHaveBeenLastCalledWith({countryCode: "jp", guestName: "Bo"})
+    })
+
+    it("leaves when the page closes, and not when it is only kept for the back button", () => {
+        const backend = backendHolding({current: "token-1"})
+        render(<Harness backend={backend} announcing={france}/>)
+
+        window.dispatchEvent(new PageTransitionEvent("pagehide", {persisted: true}))
+        expect(backend.leave).not.toHaveBeenCalled()
+
+        window.dispatchEvent(new PageTransitionEvent("pagehide", {persisted: false}))
+        expect(backend.leave).toHaveBeenCalledTimes(1)
     })
 
     it("keeps going after an announce that failed", async () => {

@@ -1,22 +1,26 @@
 import {guestName} from "./chat.ts"
-import {PlayerInfo, PlayerInfoBackend, Presence, PresenceBackend, RosterEntry} from "./player.ts"
+import {compareRosterEntries} from "../domain/roster.ts"
+import {PlayerInfo, PlayerInfoBackend, Presence, PresenceBackend, RosterEntry, RosterEvent} from "./player.ts"
 
 /** How long one of the fake players stays on, or off, before it may flip. */
 const SHIFT_MS = 25_000
+
+/** How often the fake looks for a player who came or went. */
+const TICK_MS = 1_000
 
 /** The tag this browser gets, as in `FakeChatBackend`. */
 const OWN_TAG = "c0ffee"
 
 /** The chat's fake chatters and a few who only play. */
 const PLAYERS: RosterEntry[] = [
-    {name: "Ana", tag: "4f2ca1", countryCode: "fr", guest: false},
-    {name: "kiran_07", tag: "0c77e2", countryCode: "in", guest: false},
-    {name: "Mateus", tag: "5d0b19", countryCode: "br", guest: false},
-    {name: "zoe_nz", tag: "e3a441", countryCode: "nz", guest: false},
-    {name: guestName("Bo"), tag: "91aa3d", countryCode: "de", guest: true},
-    {name: guestName("Yuki"), tag: "aa1290", countryCode: "jp", guest: true},
-    {name: guestName("3b7f02"), tag: "3b7f02", countryCode: "us", guest: true},
-    {name: guestName("Olu"), tag: "7e21c9", countryCode: "ng", guest: true},
+    {key: "4f2ca1", name: "Ana", tag: "4f2ca1", countryCode: "fr", guest: false},
+    {key: "0c77e2", name: "kiran_07", tag: "0c77e2", countryCode: "in", guest: false},
+    {key: "5d0b19", name: "Mateus", tag: "5d0b19", countryCode: "br", guest: false},
+    {key: "e3a441", name: "zoe_nz", tag: "e3a441", countryCode: "nz", guest: false},
+    {key: "91aa3d", name: guestName("Bo"), tag: "91aa3d", countryCode: "de", guest: true},
+    {key: "aa1290", name: guestName("Yuki"), tag: "aa1290", countryCode: "jp", guest: true},
+    {key: "3b7f02", name: guestName("3b7f02"), tag: "3b7f02", countryCode: "us", guest: true},
+    {key: "7e21c9", name: guestName("Olu"), tag: "7e21c9", countryCode: "ng", guest: true},
 ]
 
 /**
@@ -40,18 +44,40 @@ export class FakePresenceBackend implements PresenceBackend, PlayerInfoBackend {
         return true
     }
 
-    public async roster(): Promise<RosterEntry[]> {
+    public leave(): void {
+        this.own = undefined
+    }
+
+    /** The whole roster at once, then a change each time a shift turns or this browser comes or goes. */
+    public listenForRoster(onEvent: (event: RosterEvent) => void): () => void {
+        let shown = this.roster()
+        onEvent({kind: "roster", entries: shown})
+
+        const timer = setInterval(() => {
+            const next = this.roster()
+            for (const entry of shown) {
+                if (!next.some((e) => e.key === entry.key)) onEvent({kind: "left", key: entry.key})
+            }
+            for (const entry of next) {
+                const was = shown.find((e) => e.key === entry.key)
+                if (!was || JSON.stringify(was) !== JSON.stringify(entry)) onEvent({kind: "entry", entry})
+            }
+            shown = next
+        }, TICK_MS)
+        return () => clearInterval(timer)
+    }
+
+    private roster(): RosterEntry[] {
         const now = this.now()
         const entries = PLAYERS.filter((_, index) => onShift(index, now))
 
         // Gone 90s after its last announce, as on the server.
         if (this.own && now - this.own.at < 90_000) {
             const {countryCode, guestName: typed} = this.own.presence
-            entries.push({name: guestName(typed || OWN_TAG), tag: OWN_TAG, countryCode, guest: true})
+            entries.push({key: OWN_TAG, name: guestName(typed || OWN_TAG), tag: OWN_TAG, countryCode, guest: true})
         }
 
-        return entries.sort((a, b) =>
-            Number(a.guest) - Number(b.guest) || a.name.toLowerCase().localeCompare(b.name.toLowerCase()))
+        return entries.sort(compareRosterEntries)
     }
 
     /** Stats made up from the name, so one player reads the same every time. */

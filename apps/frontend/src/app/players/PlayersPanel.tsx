@@ -1,5 +1,5 @@
 import {useId} from "react"
-import {RosterEntry} from "../../backends/player.ts"
+import {PlayerLine, RosterEntry} from "../../backends/player.ts"
 import {Countries} from "../../domain/countries.ts"
 import {rosterGroups} from "../../domain/roster.ts"
 import {authorStyle} from "../chat/authorStyle.ts"
@@ -35,7 +35,7 @@ export function PlayersButton({entries, onOpen, buttonRef}: PlayersButtonProps) 
 export type PlayersPanelProps = {
     entries: readonly RosterEntry[]
     /** Absent, the names are plain text. */
-    onOpenPlayer?: (player: RosterEntry) => void
+    onOpenPlayer?: (player: PlayerLine) => void
 }
 
 export default function PlayersPanel({entries, onOpenPlayer}: PlayersPanelProps) {
@@ -53,7 +53,7 @@ export default function PlayersPanel({entries, onOpenPlayer}: PlayersPanelProps)
 type PlayersGroupProps = {
     title: string
     entries: RosterEntry[]
-    onOpenPlayer?: (player: RosterEntry) => void
+    onOpenPlayer?: (player: PlayerLine) => void
 }
 
 function PlayersGroup({title, entries, onOpenPlayer}: PlayersGroupProps) {
@@ -64,9 +64,7 @@ function PlayersGroup({title, entries, onOpenPlayer}: PlayersGroupProps) {
             <span className="players-group-count">{entries.length}</span>
         </h3>
         <ul className="players-list">
-            {/* Two guests can type one name, and one address can carry two
-                browsers: only the three together say which row is which. */}
-            {entries.map((entry, index) => <li key={`${entry.name}#${entry.tag}#${index}`}
+            {entries.map((entry) => <li key={entry.key}
                                                className="players-entry"
                                                style={authorStyle(entry.name, entry.tag)}>
                 <span className="players-entry-country"
