@@ -575,8 +575,10 @@ type RosterEntry struct {
 	// announced from.
 	Tag string `protobuf:"bytes,2,opt,name=tag,proto3" json:"tag,omitempty"`
 	// The flag the player last announced.
-	CountryId     string `protobuf:"bytes,3,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
-	Guest         bool   `protobuf:"varint,4,opt,name=guest,proto3" json:"guest,omitempty"`
+	CountryId string `protobuf:"bytes,3,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
+	Guest     bool   `protobuf:"varint,4,opt,name=guest,proto3" json:"guest,omitempty"`
+	// An admin of the game. Never a guest.
+	Admin         bool `protobuf:"varint,5,opt,name=admin,proto3" json:"admin,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -635,6 +637,13 @@ func (x *RosterEntry) GetCountryId() string {
 func (x *RosterEntry) GetGuest() bool {
 	if x != nil {
 		return x.Guest
+	}
+	return false
+}
+
+func (x *RosterEntry) GetAdmin() bool {
+	if x != nil {
+		return x.Admin
 	}
 	return false
 }
@@ -736,8 +745,10 @@ type Player struct {
 	Stats *Stats `protobuf:"bytes,2,opt,name=stats,proto3" json:"stats,omitempty"`
 	// When the account was made, as a guest or by a first sign-in.
 	CreatedAtUnixMs int64 `protobuf:"varint,3,opt,name=created_at_unix_ms,json=createdAtUnixMs,proto3" json:"created_at_unix_ms,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// An admin of the game.
+	Admin         bool `protobuf:"varint,4,opt,name=admin,proto3" json:"admin,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Player) Reset() {
@@ -791,6 +802,13 @@ func (x *Player) GetCreatedAtUnixMs() int64 {
 	return 0
 }
 
+func (x *Player) GetAdmin() bool {
+	if x != nil {
+		return x.Admin
+	}
+	return false
+}
+
 var File_player_v1_player_proto protoreflect.FileDescriptor
 
 const file_player_v1_player_proto_rawDesc = "" +
@@ -825,21 +843,23 @@ const file_player_v1_player_proto_rawDesc = "" +
 	"\x10AnnounceResponse\"\x12\n" +
 	"\x10GetRosterRequest\"E\n" +
 	"\x11GetRosterResponse\x120\n" +
-	"\aentries\x18\x01 \x03(\v2\x16.player.v1.RosterEntryR\aentries\"h\n" +
+	"\aentries\x18\x01 \x03(\v2\x16.player.v1.RosterEntryR\aentries\"~\n" +
 	"\vRosterEntry\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x10\n" +
 	"\x03tag\x18\x02 \x01(\tR\x03tag\x12\x1d\n" +
 	"\n" +
 	"country_id\x18\x03 \x01(\tR\tcountryId\x12\x14\n" +
-	"\x05guest\x18\x04 \x01(\bR\x05guest\"&\n" +
+	"\x05guest\x18\x04 \x01(\bR\x05guest\x12\x14\n" +
+	"\x05admin\x18\x05 \x01(\bR\x05admin\"&\n" +
 	"\x10GetPlayerRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\">\n" +
 	"\x11GetPlayerResponse\x12)\n" +
-	"\x06player\x18\x01 \x01(\v2\x11.player.v1.PlayerR\x06player\"q\n" +
+	"\x06player\x18\x01 \x01(\v2\x11.player.v1.PlayerR\x06player\"\x87\x01\n" +
 	"\x06Player\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12&\n" +
 	"\x05stats\x18\x02 \x01(\v2\x10.player.v1.StatsR\x05stats\x12+\n" +
-	"\x12created_at_unix_ms\x18\x03 \x01(\x03R\x0fcreatedAtUnixMs2\xc0\x03\n" +
+	"\x12created_at_unix_ms\x18\x03 \x01(\x03R\x0fcreatedAtUnixMs\x12\x14\n" +
+	"\x05admin\x18\x04 \x01(\bR\x05admin2\xc0\x03\n" +
 	"\rPlayerService\x12I\n" +
 	"\n" +
 	"GetProfile\x12\x1c.player.v1.GetProfileRequest\x1a\x1d.player.v1.GetProfileResponse\x12@\n" +

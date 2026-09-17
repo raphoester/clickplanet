@@ -44,6 +44,14 @@ export class ChatMessage extends Message<ChatMessage> {
    */
   text = "";
 
+  /**
+   * Posted under the username of an admin of the game, as it was when the
+   * message was sent. Never a guest.
+   *
+   * @generated from field: bool author_admin = 7;
+   */
+  authorAdmin = false;
+
   constructor(data?: PartialMessage<ChatMessage>) {
     super();
     proto3.util.initPartial(data, this);
@@ -58,6 +66,7 @@ export class ChatMessage extends Message<ChatMessage> {
     { no: 4, name: "author_tag", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 5, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 6, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 7, name: "author_admin", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ChatMessage {

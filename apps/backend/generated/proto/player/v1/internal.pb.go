@@ -82,7 +82,9 @@ type GetAuthorResponse struct {
 	Username string `protobuf:"bytes,1,opt,name=username,proto3" json:"username,omitempty"`
 	// A salted hash of the address, 6 hex characters: the same address has the
 	// same tag everywhere the game shows one.
-	Tag           string `protobuf:"bytes,2,opt,name=tag,proto3" json:"tag,omitempty"`
+	Tag string `protobuf:"bytes,2,opt,name=tag,proto3" json:"tag,omitempty"`
+	// The account is an admin of the game. False with no username.
+	Admin         bool `protobuf:"varint,3,opt,name=admin,proto3" json:"admin,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -131,6 +133,13 @@ func (x *GetAuthorResponse) GetTag() string {
 	return ""
 }
 
+func (x *GetAuthorResponse) GetAdmin() bool {
+	if x != nil {
+		return x.Admin
+	}
+	return false
+}
+
 var File_player_v1_internal_proto protoreflect.FileDescriptor
 
 const file_player_v1_internal_proto_rawDesc = "" +
@@ -139,10 +148,11 @@ const file_player_v1_internal_proto_rawDesc = "" +
 	"\x10GetAuthorRequest\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x12\x0e\n" +
-	"\x02ip\x18\x02 \x01(\tR\x02ip\"A\n" +
+	"\x02ip\x18\x02 \x01(\tR\x02ip\"W\n" +
 	"\x11GetAuthorResponse\x12\x1a\n" +
 	"\busername\x18\x01 \x01(\tR\busername\x12\x10\n" +
-	"\x03tag\x18\x02 \x01(\tR\x03tag2Y\n" +
+	"\x03tag\x18\x02 \x01(\tR\x03tag\x12\x14\n" +
+	"\x05admin\x18\x03 \x01(\bR\x05admin2Y\n" +
 	"\x0fInternalService\x12F\n" +
 	"\tGetAuthor\x12\x1b.player.v1.GetAuthorRequest\x1a\x1c.player.v1.GetAuthorResponseB\xb5\x01\n" +
 	"\rcom.player.v1B\rInternalProtoP\x01ZPgithub.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1;playerv1\xa2\x02\x03PXX\xaa\x02\tPlayer.V1\xca\x02\tPlayer\\V1\xe2\x02\x15Player\\V1\\GPBMetadata\xea\x02\n" +

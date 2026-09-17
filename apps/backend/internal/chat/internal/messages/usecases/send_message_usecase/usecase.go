@@ -83,12 +83,13 @@ func (u *UseCase) Execute(ctx context.Context, in In) (messages.Message, error) 
 	}
 
 	message := messages.Message{
-		ID:         uuid.NewString(),
-		SentAt:     u.clock.Now(),
-		AuthorName: name,
-		AuthorTag:  author.Tag,
-		CountryID:  in.CountryID,
-		Text:       text,
+		ID:          uuid.NewString(),
+		SentAt:      u.clock.Now(),
+		AuthorName:  name,
+		AuthorTag:   author.Tag,
+		AuthorAdmin: postsAsPlayer(in, author) && author.Admin,
+		CountryID:   in.CountryID,
+		Text:        text,
 	}
 
 	if err := u.appender.Append(ctx, messages.NewRecord(message, in.AuthorID, ip, in.UserAgent)); err != nil {
@@ -101,9 +102,14 @@ func (u *UseCase) Execute(ctx context.Context, in In) (messages.Message, error) 
 // authorName is the account's username, and the name the sender typed is then not read. Without one it is a
 // guest's name.
 func (u *UseCase) authorName(in In, author messages.Author) (string, error) {
-	if in.Account != cpsession.NoAccount && author.Username != "" {
+	if postsAsPlayer(in, author) {
 		return author.Username, nil
 	}
 
 	return u.limits.GuestName(in.AuthorName) //nolint:wrapcheck // Execute says what failed.
+}
+
+// postsAsPlayer is a sender with an account and a username. Anyone else posts as a guest.
+func postsAsPlayer(in In, author messages.Author) bool {
+	return in.Account != cpsession.NoAccount && author.Username != ""
 }

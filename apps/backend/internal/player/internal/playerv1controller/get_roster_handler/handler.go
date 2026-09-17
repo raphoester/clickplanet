@@ -41,6 +41,7 @@ func (h GetRosterHandler) GetRoster(
 			Tag:       string(entry.Tag),
 			CountryId: entry.Country,
 			Guest:     entry.Guest,
+			Admin:     entry.Admin,
 		})
 	}
 

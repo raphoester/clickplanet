@@ -99,6 +99,8 @@ message RosterEntry {
   // The flag the player last announced.
   string country_id = 3;
   bool guest = 4;
+  // An admin of the game. Never a guest.
+  bool admin = 5;
 }
 
 message GetPlayerRequest {
@@ -117,4 +119,6 @@ message Player {
   Stats stats = 2;
   // When the account was made, as a guest or by a first sign-in.
   int64 created_at_unix_ms = 3;
+  // An admin of the game.
+  bool admin = 4;
 }

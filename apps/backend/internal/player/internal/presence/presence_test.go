@@ -45,6 +45,18 @@ func TestTheRosterNamesEachVisitAsTheChatDoes(t *testing.T) {
 	}, roster)
 }
 
+func TestOnlyAPlayerWithAUsernameShowsAsAnAdmin(t *testing.T) {
+	roster := presence.RosterOf([]presence.Visit{
+		{Username: "Ada_L", Admin: true, Tag: "aaaaaa", At: now},
+		{GuestName: "Bob", Admin: true, Tag: "bbbbbb", At: now},
+	}, now)
+
+	assert.Equal(t, []presence.Entry{
+		{Name: "Ada_L", Tag: "aaaaaa", Admin: true},
+		{Name: "guest_Bob", Tag: "bbbbbb", Guest: true},
+	}, roster)
+}
+
 func TestPlayersComeFirstThenGuestsEachByNameIgnoringCase(t *testing.T) {
 	roster := presence.RosterOf([]presence.Visit{
 		{GuestName: "zed", Tag: "000001", At: now},

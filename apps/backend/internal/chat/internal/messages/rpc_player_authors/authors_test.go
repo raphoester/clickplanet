@@ -22,9 +22,10 @@ import (
 type stubPlayer struct {
 	playerv1connect.UnimplementedInternalServiceHandler
 
-	names map[string]string
-	err   error
-	asked *string
+	names  map[string]string
+	admins map[string]bool
+	err    error
+	asked  *string
 }
 
 func (s stubPlayer) GetAuthor(
@@ -38,6 +39,7 @@ func (s stubPlayer) GetAuthor(
 	return connect.NewResponse(&playerv1.GetAuthorResponse{
 		Username: s.names[req.Msg.GetAccountId()],
 		Tag:      "tag-of-" + req.Msg.GetIp(),
+		Admin:    s.admins[req.Msg.GetAccountId()],
 	}), nil
 }
 
@@ -66,12 +68,12 @@ func authors(t *testing.T, player stubPlayer) *rpc_player_authors.Authors {
 
 func TestItAnswersTheUsernameAndTheTag(t *testing.T) {
 	asked := new(string)
-	player := stubPlayer{names: map[string]string{ada.String(): "Ada_L"}, asked: asked}
+	player := stubPlayer{names: map[string]string{ada.String(): "Ada_L"}, admins: map[string]bool{ada.String(): true}, asked: asked}
 
 	author, err := authors(t, player).Author(t.Context(), ada, "1.2.3.4")
 
 	require.NoError(t, err)
-	assert.Equal(t, messages.Author{Username: "Ada_L", Tag: "tag-of-1.2.3.4"}, author)
+	assert.Equal(t, messages.Author{Username: "Ada_L", Tag: "tag-of-1.2.3.4", Admin: true}, author)
 	assert.Equal(t, ada.String(), *asked)
 }
 

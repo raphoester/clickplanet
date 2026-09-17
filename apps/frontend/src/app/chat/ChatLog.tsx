@@ -2,6 +2,7 @@ import {useEffect, useRef, useState} from "react";
 import {ChatMessage, GUEST_PREFIX} from "../../backends/chat.ts";
 import {RosterEntry} from "../../backends/player.ts";
 import {Countries} from "../../domain/countries.ts";
+import AdminCrown from "../components/AdminCrown.tsx";
 import CountryFlag from "../components/CountryFlag.tsx";
 import {ChevronIcon} from "../components/icons.tsx";
 import {startsGroup} from "../../domain/chatLog.ts";
@@ -95,6 +96,7 @@ export default function ChatLog(props: ChatLogProps) {
                                 : <span className="chat-message-author">
                                     {truncate(message.authorName, AUTHOR_MAX_LENGTH)}
                                 </span>}
+                            {message.authorAdmin && <AdminCrown size={13}/>}
                             <span className="chat-message-tag">#{message.authorTag}</span>
                             <time className="chat-message-time"
                                   dateTime={new Date(message.sentAt).toISOString()}>
@@ -122,6 +124,7 @@ function authorOf(message: ChatMessage): RosterEntry {
         tag: message.authorTag,
         countryCode: message.countryCode,
         guest: message.authorName.startsWith(GUEST_PREFIX),
+        admin: message.authorAdmin,
     }
 }
 

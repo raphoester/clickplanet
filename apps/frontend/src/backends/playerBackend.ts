@@ -152,7 +152,7 @@ function profileOf(profile: ProfilePb | undefined): Profile {
 }
 
 function rosterEntryOf(entry: RosterEntryPb): RosterEntry {
-    return {name: entry.name, tag: entry.tag, countryCode: entry.countryId, guest: entry.guest}
+    return {name: entry.name, tag: entry.tag, countryCode: entry.countryId, guest: entry.guest, admin: entry.admin}
 }
 
 function playerInfoOf(player: PlayerPb | undefined): PlayerInfo {
@@ -163,5 +163,6 @@ function playerInfoOf(player: PlayerPb | undefined): PlayerInfo {
         streakCurrent: player?.stats?.streakCurrent ?? 0,
         streakBest: player?.stats?.streakBest ?? 0,
         createdAt: createdAt > 0 ? createdAt : undefined,
+        admin: player?.admin ?? false,
     }
 }

@@ -4,8 +4,8 @@ import {act, cleanup, render} from "@testing-library/react"
 import {PresenceBackend, RosterEntry, RosterUnavailableError} from "../../backends/player.ts"
 import {ROSTER_EVERY_MS, RosterState, useRoster} from "./useRoster.ts"
 
-const ana: RosterEntry = {name: "ana", tag: "4f2ca1", countryCode: "fr", guest: false}
-const bo: RosterEntry = {name: "guest_Bo", tag: "91aa3d", countryCode: "de", guest: true}
+const ana: RosterEntry = {name: "ana", tag: "4f2ca1", countryCode: "fr", guest: false, admin: false}
+const bo: RosterEntry = {name: "guest_Bo", tag: "91aa3d", countryCode: "de", guest: true, admin: false}
 
 let latest: RosterState
 let visibility: DocumentVisibilityState = "visible"

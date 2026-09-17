@@ -56,6 +56,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) error {
 	u.visits.Record(presence.Visit{
 		Account:   in.Account,
 		Username:  profile.Name,
+		Admin:     profile.Admin,
 		GuestName: presence.GuestNameOf(in.GuestName),
 		Tag:       players.TagOf(u.tagSalt, in.IP),
 		Country:   in.Country,

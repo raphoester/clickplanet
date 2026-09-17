@@ -25,4 +25,6 @@ message GetAuthorResponse {
   // A salted hash of the address, 6 hex characters: the same address has the
   // same tag everywhere the game shows one.
   string tag = 2;
+  // The account is an admin of the game. False with no username.
+  bool admin = 3;
 }

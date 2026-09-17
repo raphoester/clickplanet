@@ -3,6 +3,7 @@ import {RosterEntry} from "../../backends/player.ts"
 import {Countries} from "../../domain/countries.ts"
 import {rosterGroups} from "../../domain/roster.ts"
 import {authorStyle} from "../chat/authorStyle.ts"
+import AdminCrown from "../components/AdminCrown.tsx"
 import CountryFlag from "../components/CountryFlag.tsx"
 import {UsersIcon} from "../components/icons.tsx"
 import {truncate} from "../truncate.ts"
@@ -85,6 +86,7 @@ function PlayersGroup({title, entries, onOpenPlayer}: PlayersGroupProps) {
                     : <span className="players-entry-name" title={entry.name}>
                         {truncate(entry.name, NAME_MAX_LENGTH)}
                     </span>}
+                {entry.admin && <AdminCrown/>}
                 <span className="players-entry-tag">#{entry.tag}</span>
             </li>)}
         </ul>

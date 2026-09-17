@@ -73,8 +73,19 @@ func (s *Store) SaveProfile(_ context.Context, profile players.Profile) error {
 			return players.ErrNameTaken
 		}
 	}
+	profile.Admin = s.profiles[profile.Account].Admin
 	s.profiles[profile.Account] = profile
 	return nil
+}
+
+// MakeAdmin is what an operator does in the database: the game has no way to.
+func (s *Store) MakeAdmin(account players.AccountID) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	profile := s.profiles[account]
+	profile.Admin = true
+	s.profiles[account] = profile
 }
 
 func (s *Store) Stats(_ context.Context, account players.AccountID) (players.Stats, error) {

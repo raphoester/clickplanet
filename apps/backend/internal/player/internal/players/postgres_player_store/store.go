@@ -29,16 +29,17 @@ func (s *Store) Profile(ctx context.Context, account players.AccountID) (players
 	var (
 		name      string
 		updatedAt time.Time
+		admin     bool
 	)
-	err := s.db.QueryRowContext(ctx, `SELECT name, updated_at FROM profiles WHERE account_id = $1`, uuid.UUID(account)).
-		Scan(&name, &updatedAt)
+	err := s.db.QueryRowContext(ctx, `SELECT name, updated_at, admin FROM profiles WHERE account_id = $1`, uuid.UUID(account)).
+		Scan(&name, &updatedAt, &admin)
 	if errors.Is(err, sql.ErrNoRows) {
 		return players.Profile{}, players.ErrNoProfile
 	}
 	if err != nil {
 		return players.Profile{}, fmt.Errorf("failed to read the profile: %w", err)
 	}
-	return players.Profile{Account: account, Name: players.Name(name), UpdatedAt: updatedAt.UTC()}, nil
+	return players.Profile{Account: account, Name: players.Name(name), UpdatedAt: updatedAt.UTC(), Admin: admin}, nil
 }
 
 // ProfileNamed reads through the unique index on lower(name).
@@ -47,16 +48,19 @@ func (s *Store) ProfileNamed(ctx context.Context, name players.Name) (players.Pr
 		account   uuid.UUID
 		held      string
 		updatedAt time.Time
+		admin     bool
 	)
-	err := s.db.QueryRowContext(ctx, `SELECT account_id, name, updated_at FROM profiles WHERE lower(name) = $1`, name.Folded()).
-		Scan(&account, &held, &updatedAt)
+	err := s.db.QueryRowContext(ctx, `SELECT account_id, name, updated_at, admin FROM profiles WHERE lower(name) = $1`, name.Folded()).
+		Scan(&account, &held, &updatedAt, &admin)
 	if errors.Is(err, sql.ErrNoRows) {
 		return players.Profile{}, players.ErrNoProfile
 	}
 	if err != nil {
 		return players.Profile{}, fmt.Errorf("failed to read the profile by name: %w", err)
 	}
-	return players.Profile{Account: players.AccountID(account), Name: players.Name(held), UpdatedAt: updatedAt.UTC()}, nil
+	return players.Profile{
+		Account: players.AccountID(account), Name: players.Name(held), UpdatedAt: updatedAt.UTC(), Admin: admin,
+	}, nil
 }
 
 // uniqueNameIndex is the unique index on lower(name), which a name another account holds violates.

@@ -19,4 +19,7 @@ type testSuite struct {
 
 func (s *testSuite) SetupSuite() {
 	s.NewStore = func() players.Store { return inmemory_player_store.New() }
+	s.MakeAdmin = func(store players.Store, account players.AccountID) {
+		store.(*inmemory_player_store.Store).MakeAdmin(account)
+	}
 }

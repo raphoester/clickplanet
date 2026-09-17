@@ -124,6 +124,7 @@ export function decodedMessage(message: ChatMessagePb): ChatMessage {
         sentAt: Number(message.sentAtUnixMs),
         authorName: message.authorName,
         authorTag: message.authorTag,
+        authorAdmin: message.authorAdmin,
         countryCode: message.countryId,
         text: message.text,
     }
