@@ -24,6 +24,6 @@ type Store interface {
 	SaveSignIn(ctx context.Context, signIn SignIn) error
 	// DeleteAccount deletes the account, its identities and its sessions. An unknown id is not an error.
 	DeleteAccount(ctx context.Context, account AccountID) error
-	// PruneGuests deletes at most limit accounts with no identity, last seen before idleSince, and says how many.
-	PruneGuests(ctx context.Context, idleSince time.Time, limit int) (int, error)
+	// PruneGuests deletes at most limit accounts with no identity, last seen before idleSince, and answers which.
+	PruneGuests(ctx context.Context, idleSince time.Time, limit int) ([]AccountID, error)
 }

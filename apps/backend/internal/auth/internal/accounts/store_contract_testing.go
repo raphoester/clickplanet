@@ -244,7 +244,7 @@ func (s *StoreContractSuite) TestThePruneDeletesIdleGuestsOnly() {
 	pruned, err := s.store.PruneGuests(s.T().Context(), contractStart.Add(time.Minute), 100)
 
 	s.Require().NoError(err)
-	s.Equal(1, pruned)
+	s.Equal([]AccountID{idle.Account}, pruned)
 	_, err = s.store.Account(s.T().Context(), idle.Account)
 	s.Require().ErrorIs(err, ErrAccountNotFound)
 	_, err = s.store.Session(s.T().Context(), idle.TokenHash)
@@ -260,9 +260,9 @@ func (s *StoreContractSuite) TestThePruneStopsAtItsLimit() {
 
 	pruned, err := s.store.PruneGuests(s.T().Context(), contractStart.Add(time.Minute), 2)
 	s.Require().NoError(err)
-	s.Equal(2, pruned)
+	s.Len(pruned, 2)
 
 	pruned, err = s.store.PruneGuests(s.T().Context(), contractStart.Add(time.Minute), 2)
 	s.Require().NoError(err)
-	s.Equal(1, pruned)
+	s.Len(pruned, 1)
 }

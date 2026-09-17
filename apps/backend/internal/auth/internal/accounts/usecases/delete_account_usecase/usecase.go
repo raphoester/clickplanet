@@ -5,6 +5,9 @@ import (
 	"context"
 	"fmt"
 
+	"google.golang.org/protobuf/proto"
+
+	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -14,13 +17,19 @@ type Store interface {
 	DeleteAccount(ctx context.Context, account accounts.AccountID) error
 }
 
-type UseCase struct {
-	store Store
-	clock cptime.Clock
+// Publisher is the event bus.
+type Publisher interface {
+	Publish(event proto.Message)
 }
 
-func New(store Store, clock cptime.Clock) *UseCase {
-	return &UseCase{store: store, clock: clock}
+type UseCase struct {
+	store  Store
+	events Publisher
+	clock  cptime.Clock
+}
+
+func New(store Store, events Publisher, clock cptime.Clock) *UseCase {
+	return &UseCase{store: store, events: events, clock: clock}
 }
 
 // Out is the account that is gone, and the Set-Cookie that clears the session.
@@ -40,6 +49,8 @@ func (u *UseCase) Execute(ctx context.Context, cookieHeader string) (*Out, error
 		return nil, fmt.Errorf("failed to delete the account: %w", err)
 	}
 
-	// The seam for auth.v1.AccountDeleted: once the event bus exists, publish it here, after the rows are gone.
+	// After the rows are gone: a subscriber that hears it forgets what it keeps for the account.
+	u.events.Publish(&authv1.AccountDeleted{AccountId: session.Account.String()})
+
 	return &Out{Account: session.Account, SetCookie: accounts.ExpiredSessionCookie()}, nil
 }
