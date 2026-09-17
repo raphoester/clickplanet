@@ -109,16 +109,16 @@ func (u *UseCase) resume(ctx context.Context, cookieHeader string, now time.Time
 		return nil, fmt.Errorf("failed to resume the session: %w", err)
 	}
 
-	extension := session.Extension(now, u.lifetime)
-	if !extension.Due() {
+	if !session.Extendable(now, u.lifetime) {
 		return &Out{Account: session.Account}, nil
 	}
-	session.Extend(extension)
-	if err := u.sessions.SaveSession(ctx, session); err != nil {
+
+	extended := session.Extended(now, u.lifetime)
+	if err := u.sessions.SaveSession(ctx, extended); err != nil {
 		return nil, fmt.Errorf("failed to save the extended session: %w", err)
 	}
 
-	return &Out{Account: session.Account, SetCookie: session.Cookie(token, now)}, nil
+	return &Out{Account: extended.Account, SetCookie: extended.Cookie(token, now)}, nil
 }
 
 func (u *UseCase) startGuest(ctx context.Context, now time.Time) (*Out, error) {

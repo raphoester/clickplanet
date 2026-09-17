@@ -67,10 +67,7 @@ func (s *testSuite) TestSavingMarksTheAccountSeen() {
 	s.Require().NoError(s.store.CreateGuest(ctx, guest))
 
 	later := start.Add(30 * time.Minute)
-	extension := guest.Extension(later, lifetime)
-	s.Require().True(extension.Due())
-	guest.Extend(extension)
-	s.Require().NoError(s.store.SaveSession(ctx, guest))
+	s.Require().NoError(s.store.SaveSession(ctx, guest.Extended(later, lifetime)))
 
 	var lastSeen time.Time
 	s.Require().NoError(s.db.QueryRowContext(ctx, `SELECT last_seen_at FROM accounts WHERE id = $1`, uuid.UUID(guest.Account)).Scan(&lastSeen))

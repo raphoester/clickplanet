@@ -86,12 +86,10 @@ func (s *StoreContractSuite) TestTwoGuestsAreFoundApart() {
 func (s *StoreContractSuite) TestASavedSessionKeepsItsNewExpiry() {
 	guest := s.createGuest(1, "a-token")
 
-	extension := guest.Extension(contractStart.Add(30*time.Minute), contractLifetime)
-	s.Require().True(extension.Due())
-	guest.Extend(extension)
-	s.Require().NoError(s.store.SaveSession(s.T().Context(), guest))
+	extended := guest.Extended(contractStart.Add(30*time.Minute), contractLifetime)
+	s.Require().NoError(s.store.SaveSession(s.T().Context(), extended))
 
-	s.Equal(guest, s.stored(guest.TokenHash))
+	s.Equal(extended, s.stored(guest.TokenHash))
 }
 
 func (s *StoreContractSuite) TestSavingAnUnknownSessionIsNotFound() {
@@ -241,10 +239,7 @@ func (s *StoreContractSuite) TestThePruneDeletesIdleGuestsOnly() {
 	idle := s.createGuest(1, "idle-token")
 	s.signIn(2, "google", "google-user", "linked-token")
 	recent := s.createGuest(3, "recent-token")
-	extension := recent.Extension(contractStart.Add(time.Hour), contractLifetime)
-	s.Require().True(extension.Due())
-	recent.Extend(extension)
-	s.Require().NoError(s.store.SaveSession(s.T().Context(), recent))
+	s.Require().NoError(s.store.SaveSession(s.T().Context(), recent.Extended(contractStart.Add(time.Hour), contractLifetime)))
 
 	pruned, err := s.store.PruneGuests(s.T().Context(), contractStart.Add(time.Minute), 100)
 
