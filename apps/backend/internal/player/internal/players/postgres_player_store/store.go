@@ -41,11 +41,24 @@ func (s *Store) Profile(ctx context.Context, account players.AccountID) (players
 	return players.Profile{Account: account, Name: players.Name(name), UpdatedAt: updatedAt.UTC()}, nil
 }
 
+// uniqueNameIndex is the unique index on lower(name), which a name another account holds violates.
+const uniqueNameIndex = "profiles_name_key"
+
+// uniqueViolation is postgres' unique_violation.
+const uniqueViolation = "23505"
+
+// SaveProfile leaves uniqueness to the index, so two players asking for one name at once cannot both get it.
 func (s *Store) SaveProfile(ctx context.Context, profile players.Profile) error {
-	if _, err := s.db.ExecContext(ctx, `
+	_, err := s.db.ExecContext(ctx, `
 		INSERT INTO profiles (account_id, name, updated_at) VALUES ($1, $2, $3)
 		ON CONFLICT (account_id) DO UPDATE SET name = excluded.name, updated_at = excluded.updated_at
-	`, uuid.UUID(profile.Account), string(profile.Name), profile.UpdatedAt.UTC()); err != nil {
+	`, uuid.UUID(profile.Account), string(profile.Name), profile.UpdatedAt.UTC())
+
+	var pqErr *pq.Error
+	if errors.As(err, &pqErr) && pqErr.Code == uniqueViolation && pqErr.Constraint == uniqueNameIndex {
+		return players.ErrNameTaken
+	}
+	if err != nil {
 		return fmt.Errorf("failed to save the profile: %w", err)
 	}
 	return nil

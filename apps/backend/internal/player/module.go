@@ -1,8 +1,8 @@
 // Package player wires what the game keeps about one player: the name it chose and its stats.
 //
 // It makes no account and verifies no token of its own. The account is the one the click token names,
-// checked with the key auth hands over the internal listener; the stats come from planet.v1.TileTaken, and
-// auth.v1.AccountDeleted forgets both. It imports neither module: only their proto packages.
+// checked with the key auth hands over the internal listener, and auth is asked there too whether it may hold
+// a username; the stats come from planet.v1.TileTaken, and auth.v1.AccountDeleted forgets both. It imports neither module: only their proto packages.
 package player
 
 import (
@@ -17,6 +17,7 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/postgres_player_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/rpc_account_reader"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/forget_account_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_names_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_profile_usecase"
@@ -99,8 +100,9 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	playerService := playerv1controller.PlayerService{
 		GetProfileHandler: get_profile_handler.New(get_profile_usecase.New(store)),
-		SetNameHandler:    set_name_handler.New(set_name_usecase.New(store, clock)),
-		GetStatsHandler:   get_stats_handler.New(get_stats_usecase.New(store, clock)),
+		// Only a linked account may hold a username, and auth is asked on each SetName.
+		SetNameHandler:  set_name_handler.New(set_name_usecase.New(store, rpc_account_reader.New(props.Internal), clock)),
+		GetStatsHandler: get_stats_handler.New(get_stats_usecase.New(store, clock)),
 	}
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return playerv1connect.NewPlayerServiceHandler(playerService, options...)

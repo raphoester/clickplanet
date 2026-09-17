@@ -14,6 +14,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/send_message_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/send_message_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
 type stubUseCase struct {
@@ -38,6 +40,10 @@ func (s stubUseCase) Execute(_ context.Context, in send_message_usecase.In) (mes
 }
 
 func send(useCase stubUseCase) (*connect.Response[chatv1.SendMessageResponse], error) {
+	return sendAs(context.Background(), useCase)
+}
+
+func sendAs(ctx context.Context, useCase stubUseCase) (*connect.Response[chatv1.SendMessageResponse], error) {
 	req := connect.NewRequest(&chatv1.SendMessageRequest{
 		AuthorName: "Bob",
 		AuthorId:   "some-uuid",
@@ -46,7 +52,7 @@ func send(useCase stubUseCase) (*connect.Response[chatv1.SendMessageResponse], e
 	})
 	req.Header().Set("User-Agent", "curl/8")
 
-	return send_message_handler.New(useCase).SendMessage(context.Background(), req)
+	return send_message_handler.New(useCase).SendMessage(ctx, req)
 }
 
 func TestSendMessageMapsTheRequest(t *testing.T) {
@@ -55,12 +61,21 @@ func TestSendMessageMapsTheRequest(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, send_message_usecase.In{
+		Account:    cpsession.NoAccount,
 		AuthorName: "Bob",
 		AuthorID:   "some-uuid",
 		CountryID:  "fr",
 		Text:       "hello planet",
 		UserAgent:  "curl/8",
 	}, in)
+}
+
+func TestTheAccountOnTheContextIsTheSenders(t *testing.T) {
+	var in send_message_usecase.In
+	_, err := sendAs(cpctx.AddAccountToContext(t.Context(), "0b6d4f7e-5d7c-4a36-9a51-3f1f8f0c2a11"), stubUseCase{in: &in})
+	require.NoError(t, err)
+
+	assert.Equal(t, "0b6d4f7e-5d7c-4a36-9a51-3f1f8f0c2a11", in.Account.String())
 }
 
 func TestSendMessageReturnsTheStoredMessage(t *testing.T) {

@@ -8,6 +8,7 @@ import type {LeaderboardEntry} from "../domain/leaderboard.ts"
 import {DEFAULT_SOUND_SETTINGS} from "../domain/soundSettings.ts"
 import {AccountBackend, Me, Provider} from "../backends/account.ts"
 import {AccountStore} from "./account/accountStore.ts"
+import {PlayerBackend, PlayerError} from "../backends/player.ts"
 
 const france = Countries.get("fr")!
 const entry = (code: string, tiles: number) => ({country: Countries.get(code)!, tiles})
@@ -268,7 +269,7 @@ describe("Menu", () => {
     })
 
     describe("the account", () => {
-        const withAccount = (offered: Provider[], me: Me) => {
+        const withAccount = (offered: Provider[], me: Me, username = "") => {
             const backend = {
                 signInOptions: vi.fn(async () => offered),
                 me: vi.fn(async () => me),
@@ -279,10 +280,14 @@ describe("Menu", () => {
                 deleteAccount: vi.fn(async () => undefined),
             } satisfies AccountBackend
             const navigate = vi.fn()
-            const store = new AccountStore(backend, {token: vi.fn(), invalidate: vi.fn()}, {navigate, remember: vi.fn()})
+            const player = {
+                profile: vi.fn(async () => ({accountId: "account-1", name: username})),
+                setName: vi.fn(async (name: string) => ({accountId: "account-1", name})),
+            } satisfies PlayerBackend
+            const store = new AccountStore(backend, player, {token: vi.fn(), invalidate: vi.fn()}, {navigate, remember: vi.fn()})
             const view = render(<Menu country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000}
                                       account={store}/>)
-            return {...view, backend, navigate, user: userEvent.setup()}
+            return {...view, backend, player, navigate, user: userEvent.setup()}
         }
 
         it("offers no sign-in without an account store", () => {
@@ -339,6 +344,43 @@ describe("Menu", () => {
             expect(screen.queryByRole("button", {name: "Link Google"})).toBeNull()
             expect(button("Sign out")).toBeDefined()
             expect(button("Sign out everywhere")).toBeDefined()
+        })
+
+        it("shows the username, and saves a new one", async () => {
+            const {user, player} = withAccount(["google"], {linked: ["google"]}, "ana")
+
+            await user.click(await screen.findByRole("button", {name: "Account"}))
+            const input = await screen.findByDisplayValue("ana")
+            expect(button("Save")).toHaveProperty("disabled", true)
+
+            await user.clear(input)
+            await user.type(input, "bo")
+            expect(button("Save")).toHaveProperty("disabled", true)
+
+            await user.type(input, "b")
+            await user.click(button("Save"))
+
+            expect(player.setName).toHaveBeenCalledWith("bob")
+            expect(await screen.findByText("bob")).toBeDefined()
+        })
+
+        it("says why a username was refused", async () => {
+            const {user, player} = withAccount(["google"], {linked: ["google"]})
+            player.setName.mockRejectedValue(new PlayerError("taken"))
+
+            await user.click(await screen.findByRole("button", {name: "Account"}))
+            await user.type(screen.getByLabelText("Username"), "ana")
+            await user.click(button("Save"))
+
+            expect((await screen.findByRole("alert")).textContent).toBe("Another player has this username.")
+        })
+
+        it("offers no username to a guest", async () => {
+            const {user} = withAccount(["google"], {linked: []})
+
+            await user.click(await screen.findByRole("button", {name: "Sign in"}))
+
+            expect(screen.queryByLabelText("Username")).toBeNull()
         })
 
         it("deletes the account only after the dialog says what goes", async () => {

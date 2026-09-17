@@ -47,10 +47,10 @@ func (s *StoreContractSuite) TestAnUnknownAccountHasNoProfileAndNoStats() {
 }
 
 func (s *StoreContractSuite) TestASavedProfileReadsBackAndASecondReplacesIt() {
-	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(1, "Émile 🌍")))
+	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(1, "Emile_1858")))
 	profile, err := s.store.Profile(s.T().Context(), AccountID{15: 1})
 	s.Require().NoError(err)
-	s.Equal(contractProfile(1, "Émile 🌍"), profile)
+	s.Equal(contractProfile(1, "Emile_1858"), profile)
 
 	renamed := contractProfile(1, "Ada")
 	renamed.UpdatedAt = contractAt.Add(time.Hour)
@@ -81,7 +81,7 @@ func (s *StoreContractSuite) TestTakesOfOneAccountDoNotCountOnAnother() {
 
 func (s *StoreContractSuite) TestADeletedAccountLosesBothAndTheOthersKeepTheirs() {
 	for account := range byte(2) {
-		s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(account+1, "named")))
+		s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(account+1, []Name{"Ada", "Bob"}[account])))
 		s.recordTake(account+1, contractAt)
 	}
 
@@ -121,4 +121,38 @@ func (s *StoreContractSuite) TestNoAccountsAskedIsNoNames() {
 
 	s.Require().NoError(err)
 	s.Empty(names)
+}
+
+func (s *StoreContractSuite) TestANameAnotherAccountHoldsIsTakenIgnoringCase() {
+	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(1, "Ada_L")))
+
+	err := s.store.SaveProfile(s.T().Context(), contractProfile(2, "aDA_l"))
+
+	s.Require().ErrorIs(err, ErrNameTaken)
+	_, err = s.store.Profile(s.T().Context(), AccountID{15: 2})
+	s.Require().ErrorIs(err, ErrNoProfile, "a refused name writes nothing")
+}
+
+func (s *StoreContractSuite) TestAnAccountSavesItsOwnNameInAnotherCase() {
+	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(1, "Ada_L")))
+
+	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(1, "ADA_L")))
+
+	profile, err := s.store.Profile(s.T().Context(), AccountID{15: 1})
+	s.Require().NoError(err)
+	s.Equal(Name("ADA_L"), profile.Name)
+}
+
+func (s *StoreContractSuite) TestARenameFreesTheOldName() {
+	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(1, "Ada")))
+	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(1, "Bob")))
+
+	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(2, "ada")))
+}
+
+func (s *StoreContractSuite) TestADeletedAccountFreesItsName() {
+	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(1, "Ada")))
+	s.Require().NoError(s.store.DeleteAccount(s.T().Context(), AccountID{15: 1}))
+
+	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(2, "Ada")))
 }

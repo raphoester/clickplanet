@@ -10,39 +10,46 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 )
 
-func TestANameIsTrimmedAndStrippedOfControlCharacters(t *testing.T) {
-	name, err := players.NameOf("  Ada\tLovelace\n\x00\r ")
+func TestANameKeepsTheCaseItWasTypedIn(t *testing.T) {
+	name, err := players.NameOf("Ada_Lovelace_1815")
 
 	require.NoError(t, err)
-	assert.Equal(t, players.Name("Ada Lovelace"), name)
+	assert.Equal(t, players.Name("Ada_Lovelace_1815"), name)
 }
 
-func TestAnEmptyNameIsRefused(t *testing.T) {
-	for _, value := range []string{"", "   ", "\n\x00"} {
+func TestANameIsThreeToTwentyCharacters(t *testing.T) {
+	for _, value := range []string{"abc", strings.Repeat("a", players.MaxNameLength)} {
+		_, err := players.NameOf(value)
+		require.NoError(t, err, "%q", value)
+	}
+
+	for _, value := range []string{"", "ab", strings.Repeat("a", players.MaxNameLength+1)} {
 		_, err := players.NameOf(value)
 		require.ErrorIs(t, err, players.ErrInvalidName, "%q", value)
 	}
 }
 
-func TestANameIsCountedInRunesNotBytes(t *testing.T) {
-	name, err := players.NameOf(strings.Repeat("🌍", players.MaxNameLength))
-	require.NoError(t, err)
-	assert.Equal(t, players.Name(strings.Repeat("🌍", 24)), name)
-
-	_, err = players.NameOf(strings.Repeat("a", players.MaxNameLength+1))
-	assert.ErrorIs(t, err, players.ErrInvalidName)
+func TestANameIsOnlyASCIILettersDigitsAndUnderscores(t *testing.T) {
+	for _, value := range []string{"Ada Lovelace", " Ada", "Ada\n", "Ada-L", "Émile", "🌍🌍🌍", "Ada.L", string([]byte{0xff, 0xfe, 0xfd})} {
+		_, err := players.NameOf(value)
+		require.ErrorIs(t, err, players.ErrInvalidName, "%q", value)
+	}
 }
 
-func TestTheLengthIsCountedAfterCleaning(t *testing.T) {
-	_, err := players.NameOf("  " + strings.Repeat("a", players.MaxNameLength) + "\n\n")
+func TestANameNeverStartsWithTheGuestPrefixInAnyCase(t *testing.T) {
+	for _, value := range []string{"guest_ada", "GUEST_ada", "Guest_", "gUeSt_1"} {
+		_, err := players.NameOf(value)
+		require.ErrorIs(t, err, players.ErrInvalidName, "%q", value)
+	}
 
-	assert.NoError(t, err)
+	for _, value := range []string{"guest", "guestada", "ada_guest_"} {
+		_, err := players.NameOf(value)
+		require.NoError(t, err, "%q", value)
+	}
 }
 
-func TestInvalidUTF8IsRefused(t *testing.T) {
-	_, err := players.NameOf(string([]byte{0xff, 0xfe}))
-
-	assert.ErrorIs(t, err, players.ErrInvalidName)
+func TestTwoNamesThatDifferOnlyInCaseFoldTheSame(t *testing.T) {
+	assert.Equal(t, players.Name("ada_L").Folded(), players.Name("ADA_l").Folded())
 }
 
 func TestAnAccountIDIsAUUIDAndNeverTheNilOne(t *testing.T) {

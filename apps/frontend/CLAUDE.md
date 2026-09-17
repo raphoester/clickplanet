@@ -167,6 +167,12 @@ The chat's three are in `chat.ts` — see [Live chat](#live-chat). The two files
 share no types: they are separate bounded contexts on the backend and the split
 is worth keeping on this side too.
 
+Beside them: `session.ts` (the click token, see [Sessions](#sessions)),
+`account.ts` (who the cookie belongs to, see [Sign-in](#sign-in)) and
+`player.ts` — `PlayerBackend`, the player's `Profile`, `PlayerError` and
+`isValidUsername`, the username rule. `playerBackend.ts` implements it against
+`player.v1.PlayerService`.
+
 `transport.ts` holds what both contexts need and neither owns: `retrying`,
 `NO_TIMEOUT`, and `openStream`, which follows a server-streaming RPC and reopens
 it with a capped exponential backoff. It is generic over the message type and
@@ -304,11 +310,26 @@ sanitizes and rejects on its own.
 and says so; React escaping is what makes that safe, so never reach for
 `dangerouslySetInnerHTML` here.
 
-**Identity is a name and a UUID the client keeps** in `clickplanet-chat-identity`
-(`chatIdentity.ts`, `useChatIdentity.ts`). The server trusts neither: what
-distinguishes two senders with one name is `author_tag`, the salted hash of their
-address that it stamps itself. The composer asks for a name before the first
-message rather than at page load — nothing else on the page requires one.
+**A player with a username posts under it; everyone else is a guest.** A guest's
+identity is a name and a UUID the client keeps in `clickplanet-chat-identity`
+(`chatIdentity.ts`, `useChatIdentity.ts`), and the server shows the name as
+`guest_<name>` (`GUEST_PREFIX`, `guestName`) — no username starts with it, so a
+guest cannot pass for a player. The composer asks a guest for a name before the
+first message rather than at page load, and its foot reads "as guest_<name>",
+what the others see. `MAX_NAME_LENGTH` bounds the typed part, before the prefix.
+What distinguishes two guests with one name is `author_tag`, the salted hash of
+their address that the server stamps itself. History from before usernames
+carries bare names.
+
+`Viewer` reads the username off the `AccountStore` and hands it to `ChatPanel`.
+With one, the composer asks for no name and has no "Change": the name is changed
+in the account panel. The message goes out with `asAccount`, and
+`ChatServiceBackend` then puts the click token in `X-Session-Token` — **only
+then**, so a guest who never clicked does not mint a session just to chat. A
+token that cannot be had sends the message without one, as a guest's, rather
+than failing; the server reads a missing or bad token the same way. "Your own
+message never pings" compares against the displayed name: the username, or
+`guest_` and the typed name.
 
 **`sendMessage` is the one call that is not wrapped in `retrying`.** A retry
 after a connection dropped mid-request would post the message twice, visibly, to
@@ -489,10 +510,17 @@ Discord keeps that account on every device.
 - `domain/signInCallback.ts` — `callbackOf`, what the provider sent to
   `/auth/callback`: a code and a state, a refusal (`error`, which wins), or a
   link with a part missing.
+- `backends/player.ts` / `playerBackend.ts` — the username. `ConnectPlayerBackend`
+  sends the click token with every call, and a call refused `unauthenticated` is
+  sent once more with a fresh session, as a click is. `invalid_argument` →
+  `invalid`, `already_exists` → `taken`, `permission_denied` → `guest`, a second
+  `unauthenticated` → `notSignedIn`, anything else (a mint that failed included)
+  → `failed`. Only `GetProfile` is retried.
 - `app/account/accountStore.ts` — `AccountStore`, the section's state machine:
   `loading`, `hidden`, or `ready` with the offered providers, the linked ones,
-  the action in flight and the last failure. No DOM and no network of its own,
-  like `SessionClient`, so every transition is under test.
+  the action in flight and the last failure, and the username with its own save
+  in flight and its own failure. No DOM and no network of its own, like
+  `SessionClient`, so every transition is under test.
 - `app/account/` — the rest is React: `AccountRow` (one line in the menu),
   `AccountPanel` (a `MenuPanel`, like the sound settings), `DeleteAccountModal`,
   `SignInCallback` and `SignInGate`.
@@ -544,6 +572,18 @@ and `CompleteSignIn` each spend one. `tooManyTries` says to wait a minute.
    again. The server changed nothing, so the player is still on their account.
    `linkedElsewhere` tells them how to move the identity: sign in with it,
    delete that account, then link it here.
+
+**A signed-in player picks a unique username** in `AccountPanel`: 3 to 20 ASCII
+letters, digits or `_`, not starting with `guest_` in any case, unique ignoring
+case. `isValidUsername` mirrors the rule for the Save button; the server is the
+authority and alone knows what is taken. The chat shows it (see [Live
+chat](#live-chat)). **It is read after the account, not with it**: `GetProfile`
+needs a click token, which can mean a mint, so the section shows as soon as
+`GetMe` answers and the name follows. Only a linked account reads it — a guest
+has none and should not mint to learn that — and a failed read leaves the name
+unknown with the form still there. A save and the other actions never run at
+once. A sign-in reads it again; a sign-out or a delete forgets it, and a read or
+a save that lands after the account changed is dropped.
 
 **Every way out of an account invalidates the click token too**: sign out, sign
 out everywhere, and delete. The player plays on, and the next click mints a new
@@ -1066,6 +1106,8 @@ the whole `proto` directory, so a new package needs no config change; run
   account and sign-in (`AuthService`)
 - [`session/v1/session.proto`](../../proto/session/v1/session.proto) — the
   deprecated mint, no longer called
+- [`player/v1/player.proto`](../../proto/player/v1/player.proto) — the
+  username (`PlayerService`)
 
 `ChatMessage.sentAtUnixMs` is an `int64`, which `protoc-gen-es` gives you as a
 `bigint` — `chatBackend.ts` converts it at the edge so nothing above it deals in

@@ -36,10 +36,14 @@ func (h SetNameHandler) SetName(
 	}
 
 	profile, err := h.useCase.Execute(ctx, set_name_usecase.In{Account: account, Name: req.Msg.GetName()})
-	if errors.Is(err, players.ErrInvalidName) {
+	switch {
+	case errors.Is(err, players.ErrInvalidName):
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
-	}
-	if err != nil {
+	case errors.Is(err, players.ErrNameTaken):
+		return nil, connect.NewError(connect.CodeAlreadyExists, players.ErrNameTaken)
+	case errors.Is(err, players.ErrNotLinked):
+		return nil, connect.NewError(connect.CodePermissionDenied, players.ErrNotLinked)
+	case err != nil:
 		return nil, err //nolint:wrapcheck // the error net answers what is not the caller's fault.
 	}
 

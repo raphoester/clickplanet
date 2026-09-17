@@ -9,6 +9,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/chatmessage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/send_message_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
 type UseCase interface {
@@ -28,6 +29,7 @@ func (h SendMessageHandler) SendMessage(
 	req *connect.Request[chatv1.SendMessageRequest],
 ) (*connect.Response[chatv1.SendMessageResponse], error) {
 	message, err := h.useCase.Execute(ctx, send_message_usecase.In{
+		Account:    messages.AccountIDOf(cpctx.GetAccount(ctx)),
 		AuthorName: req.Msg.GetAuthorName(),
 		AuthorID:   req.Msg.GetAuthorId(),
 		CountryID:  req.Msg.GetCountryId(),

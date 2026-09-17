@@ -1,5 +1,6 @@
 import {describe, expect, it, vi} from "vitest"
 import {AccountBackend, AuthError, AuthFailure, Me, Provider} from "../../backends/account.ts"
+import {PlayerBackend, PlayerError, PlayerFailure, Profile} from "../../backends/player.ts"
 import {SessionProvider} from "../../backends/session.ts"
 import {AccountStore} from "./accountStore.ts"
 
@@ -17,16 +18,39 @@ function fakeBackend(offered: Provider[] = ["google", "discord"], me: Me = {link
     }
 }
 
+type FakePlayer = {[K in keyof PlayerBackend]: ReturnType<typeof vi.fn>}
+
+function fakePlayer(name = ""): FakePlayer {
+    return {
+        profile: vi.fn(async (): Promise<Profile> => ({accountId: "account-1", name})),
+        setName: vi.fn(async (name: string): Promise<Profile> => ({accountId: "account-1", name})),
+    }
+}
+
 const refusing = (failure: AuthFailure) => async () => {
     throw new AuthError(failure)
 }
 
-function setup(backend: Fake) {
+const refusingName = (failure: PlayerFailure) => async () => {
+    throw new PlayerError(failure)
+}
+
+function setup(backend: Fake, player: FakePlayer = fakePlayer()) {
     const session: SessionProvider = {token: vi.fn(async () => "token"), invalidate: vi.fn()}
     const navigate = vi.fn()
     const remember = vi.fn()
-    const store = new AccountStore(backend as unknown as AccountBackend, session, {navigate, remember})
-    return {store, session, navigate, remember}
+    const store = new AccountStore(
+        backend as unknown as AccountBackend, player as unknown as PlayerBackend, session, {navigate, remember})
+    return {store, session, navigate, remember, player}
+}
+
+/** Resolves a promise the test holds back until it calls `release`. */
+function held<T>() {
+    let release: (value: T) => void = () => {}
+    const promise = new Promise<T>((resolve) => {
+        release = resolve
+    })
+    return {promise, release}
 }
 
 describe("AccountStore", () => {
@@ -266,6 +290,16 @@ describe("AccountStore", () => {
                 expect(session.invalidate).toHaveBeenCalledTimes(1)
                 expect(store.state()).toEqual({kind: "ready", offered: ["google", "discord"], me: {linked: []}})
             })
+
+            it(`${action} forgets the username`, async () => {
+                const {store} = setup(fakeBackend(["google"], {linked: ["google"]}), fakePlayer("ana"))
+                await store.load()
+                await vi.waitFor(() => expect(store.state()).toMatchObject({username: "ana"}))
+
+                await store[action]()
+
+                expect(store.state()).not.toHaveProperty("username", "ana")
+            })
         }
 
         it("treats an account already gone as done", async () => {
@@ -299,6 +333,212 @@ describe("AccountStore", () => {
             await store.signOut()
 
             expect(store.state()).toEqual({kind: "hidden"})
+        })
+    })
+    describe("the username", () => {
+        const linked = () => fakeBackend(["google"], {linked: ["google"]})
+
+        it("is read once the account shows a linked provider", async () => {
+            const {store, player} = setup(linked(), fakePlayer("ana"))
+
+            await store.load()
+
+            await vi.waitFor(() => expect(store.state()).toEqual({
+                kind: "ready", offered: ["google"], me: {linked: ["google"]}, username: "ana",
+            }))
+            expect(player.profile).toHaveBeenCalledTimes(1)
+        })
+
+        // Reading it needs a click token: a guest must not mint just to learn it has none.
+        it("is not read for a guest", async () => {
+            const {store, player} = setup(fakeBackend(), fakePlayer("ana"))
+
+            await store.load()
+
+            expect(player.profile).not.toHaveBeenCalled()
+            expect(store.state()).not.toHaveProperty("username", "ana")
+        })
+
+        it("shows the section before the read answers", async () => {
+            const player = fakePlayer()
+            const profile = held<Profile>()
+            player.profile.mockReturnValue(profile.promise)
+            const {store} = setup(linked(), player)
+
+            await store.load()
+            expect(store.state()).toMatchObject({kind: "ready", me: {linked: ["google"]}})
+
+            profile.release({accountId: "account-1", name: "ana"})
+            await vi.waitFor(() => expect(store.state()).toMatchObject({username: "ana"}))
+        })
+
+        it("is left unknown when the read fails, and the section still shows", async () => {
+            const player = fakePlayer()
+            player.profile.mockImplementation(refusingName("failed"))
+            const {store} = setup(linked(), player)
+
+            await store.load()
+            await vi.waitFor(() => expect(player.profile).toHaveBeenCalled())
+
+            expect(store.state()).toEqual({kind: "ready", offered: ["google"], me: {linked: ["google"]}})
+        })
+
+        it("is none while the player has not chosen one", async () => {
+            const {store, player} = setup(linked(), fakePlayer(""))
+
+            await store.load()
+            await vi.waitFor(() => expect(player.profile).toHaveBeenCalled())
+
+            expect(store.state()).toEqual({kind: "ready", offered: ["google"], me: {linked: ["google"]}})
+        })
+
+        it("drops a read that lands after the player signed out", async () => {
+            const player = fakePlayer()
+            const profile = held<Profile>()
+            player.profile.mockReturnValue(profile.promise)
+            const {store} = setup(linked(), player)
+            await store.load()
+
+            await store.signOut()
+            profile.release({accountId: "account-1", name: "ana"})
+            await profile.promise
+
+            expect(store.state()).toEqual({kind: "ready", offered: ["google"], me: {linked: []}})
+        })
+
+        it("is read again after a sign-in completes", async () => {
+            const backend = fakeBackend()
+            backend.me.mockImplementation(async () => ({linked: ["google"]}))
+            const {store, player} = setup(backend, fakePlayer("ana"))
+
+            await store.completeSignIn("code", "state")
+
+            await vi.waitFor(() => expect(store.state()).toMatchObject({username: "ana"}))
+            expect(player.profile).toHaveBeenCalledTimes(1)
+        })
+
+        it("is kept when another action fails", async () => {
+            const backend = linked()
+            backend.signOut.mockImplementation(refusing("failed"))
+            const {store} = setup(backend, fakePlayer("ana"))
+            await store.load()
+            await vi.waitFor(() => expect(store.state()).toMatchObject({username: "ana"}))
+
+            await store.signOut()
+
+            expect(store.state()).toMatchObject({username: "ana", failure: "failed"})
+        })
+
+        describe("saving it", () => {
+            it("is busy while the server answers, then shows the name it stored", async () => {
+                const player = fakePlayer()
+                const saved = held<Profile>()
+                player.setName.mockReturnValue(saved.promise)
+                const {store} = setup(linked(), player)
+                await store.load()
+
+                const saving = store.setUsername("Ana")
+                expect(player.setName).toHaveBeenCalledWith("Ana")
+                expect(store.state()).toMatchObject({naming: true})
+
+                saved.release({accountId: "account-1", name: "Ana"})
+                await saving
+
+                expect(store.state()).toEqual({
+                    kind: "ready", offered: ["google"], me: {linked: ["google"]}, username: "Ana",
+                })
+            })
+
+            it("reports why it was refused and keeps the name it had", async () => {
+                const player = fakePlayer("ana")
+                player.setName.mockImplementation(refusingName("taken"))
+                const {store} = setup(linked(), player)
+                await store.load()
+                await vi.waitFor(() => expect(store.state()).toMatchObject({username: "ana"}))
+
+                await store.setUsername("bo")
+
+                expect(store.state()).toEqual({
+                    kind: "ready", offered: ["google"], me: {linked: ["google"]}, username: "ana", nameFailure: "taken",
+                })
+            })
+
+            it("clears the last refusal when the next save starts", async () => {
+                const player = fakePlayer()
+                player.setName.mockImplementationOnce(refusingName("invalid"))
+                const {store} = setup(linked(), player)
+                await store.load()
+                await store.setUsername("bo")
+
+                const saving = store.setUsername("bob")
+                expect(store.state()).not.toHaveProperty("nameFailure")
+                await saving
+            })
+
+            it("does nothing for a guest", async () => {
+                const {store, player} = setup(fakeBackend())
+                await store.load()
+
+                await store.setUsername("ana")
+
+                expect(player.setName).not.toHaveBeenCalled()
+            })
+
+            it("does nothing before the load", async () => {
+                const {store, player} = setup(linked())
+
+                await store.setUsername("ana")
+
+                expect(player.setName).not.toHaveBeenCalled()
+            })
+
+            it("does not start while another action runs", async () => {
+                const backend = linked()
+                const signingOut = held<undefined>()
+                backend.signOut.mockReturnValue(signingOut.promise)
+                const {store, player} = setup(backend)
+                await store.load()
+
+                const out = store.signOut()
+                await store.setUsername("ana")
+
+                expect(player.setName).not.toHaveBeenCalled()
+                signingOut.release(undefined)
+                await out
+            })
+
+            it("holds every other action back while it runs", async () => {
+                const backend = linked()
+                const player = fakePlayer()
+                const saved = held<Profile>()
+                player.setName.mockReturnValue(saved.promise)
+                const {store} = setup(backend, player)
+                await store.load()
+
+                const saving = store.setUsername("ana")
+                await store.signOut()
+
+                expect(backend.signOut).not.toHaveBeenCalled()
+                saved.release({accountId: "account-1", name: "ana"})
+                await saving
+            })
+
+            it("drops an answer that lands after the account was read again", async () => {
+                const backend = linked()
+                const player = fakePlayer()
+                const saved = held<Profile>()
+                player.setName.mockReturnValue(saved.promise)
+                const {store} = setup(backend, player)
+                await store.load()
+
+                const saving = store.setUsername("ana")
+                backend.me.mockImplementation(async () => ({linked: []}))
+                await store.completeSignIn("code", "state")
+                saved.release({accountId: "account-1", name: "ana"})
+                await saving
+
+                expect(store.state()).toEqual({kind: "ready", offered: ["google"], me: {linked: []}})
+            })
         })
     })
 })

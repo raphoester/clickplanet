@@ -26,8 +26,12 @@ export const PlayerService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Unicode, at most 24 characters; control characters are removed and the
-     * ends trimmed. An empty name, or a longer one, is InvalidArgument.
+     * Chooses the caller's username: 3 to 20 characters, each an ASCII letter, a
+     * digit or an underscore, and not starting with "guest_" in any case — the
+     * chat puts that before every guest's name. A name that breaks a rule is
+     * InvalidArgument. Usernames are unique ignoring case: one another account
+     * holds is AlreadyExists. Only an account signed in with a provider may
+     * choose one; a guest is PermissionDenied.
      *
      * @generated from rpc player.v1.PlayerService.SetName
      */

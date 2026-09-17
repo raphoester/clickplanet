@@ -19,12 +19,15 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/get_history_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/listen_for_events_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/rpc_session_verifier"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/send_message_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/inmemory_message_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/postgres_message_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/rpc_player_usernames"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/get_history_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/listen_for_events_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/send_message_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/send_message_usecase/log_usernames"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
@@ -84,9 +87,13 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to build the chat blocklist: %w", err)
 	}
 
+	// A sender's username comes from the player module, over the internal listener. A failure to read it is
+	// logged, and the message goes out under the guest's name.
+	usernames := log_usernames.New(rpc_player_usernames.New(props.Internal), props.Logger)
+
 	chatService := chatv1controller.ChatService{
 		SendMessageHandler: send_message_handler.New(
-			send_message_usecase.New(storage, cpcountries.New(), cptime.SystemClock{}, serviceConfig)),
+			send_message_usecase.New(storage, cpcountries.New(), usernames, cptime.SystemClock{}, serviceConfig)),
 		GetHistoryHandler: get_history_handler.New(get_history_usecase.New(storage)),
 		ListenForEventsHandler: listen_for_events_handler.New(
 			listen_for_events_usecase.New(storage, props.Server.StreamHeartbeat)),
@@ -97,6 +104,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	},
 		chatv1controller.NewBlocklistInterceptor(blocklist),
 		chatv1controller.NewRateLimitInterceptor(messageLimiter),
+		// The key comes from auth over the internal listener, on the first token: this module holds no seed.
+		chatv1controller.NewSessionInterceptor(rpc_session_verifier.New(props.Internal, props.Logger), cptime.SystemClock{}),
 	)
 	if err != nil {
 		return err
