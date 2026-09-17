@@ -441,3 +441,23 @@ chat:
   # CIDRs, as in vpnBlocklist.allow above: 203.0.113.7/32 for one address,
   # 203.0.113.0/24 for the range someone is cycling through.
   blockedIPs: []
+
+# A player's name and stats (player.v1.PlayerService). Shipped off: the
+# frontend does not call it yet. To turn it on, set enabled to true and
+# `docker compose up -d backend`. It needs auth on (it reads the account from
+# the click token) and creates its own schema at boot. Stats count from the
+# moment it is on: takes made before are not replayed.
+player:
+  enabled: false
+  # Same postgres and user as the planet's database block, its own schema and
+  # pool. The password comes from the environment (player.database.password in
+  # docker-compose.yaml).
+  database:
+    host: postgres
+    port: "5432"
+    user: clickplanet
+    dbName: clickplanet
+    sslMode: disable
+    schema: player
+    pool:
+      maxOpenConns: 2

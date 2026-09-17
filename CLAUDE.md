@@ -19,6 +19,9 @@ Read the relevant app's `CLAUDE.md` before working inside `apps/frontend/` or `a
 - `proto/chat/v1/chat.proto` — the live chat (`ChatService`)
 - `proto/auth/v1/auth.proto` — who a caller is (`AuthService`): the mint that gates `Click`, the caller's account, sign-in with Google or Discord, sign-out and deletion
 - `proto/session/v1/session.proto` — the deprecated mint (`SessionService`), served by the same auth module until no client calls it
+- `proto/player/v1/player.proto` — a player's name and stats (`PlayerService`)
+
+Beside them, `internal.proto` is what one backend module asks another (`auth.v1`, `player.v1`), and `events.proto` is what one tells the others in process (`planet.v1.TileTaken`, `auth.v1.AccountDeleted`). Neither is on the public router; the frontend generates both without using them.
 
 Connect derives each service's route from its proto package, so a new context gets its own path with no prefix to allocate. Both `buf.gen.yaml` inputs point at the whole `proto` directory, so a new package is picked up by either generator with no config change.
 
@@ -66,7 +69,7 @@ It is a script rather than a root `Makefile` target on purpose — see
 
 `deploy/docker-compose.yaml` runs backend + frontend together using locally built Docker images. Build each app's image first (`apps/frontend`'s `npm run dBuild`, `apps/backend`'s `make dBuild`), then `cd deploy && docker compose up`.
 
-The stack includes a **postgres**: the backend keeps the whole tile map in process and writes what changed to postgres every second. The ledger goes there too, the antibot keeps its bans and evidence there in its own schema, and the chat writes each message there before broadcasting it. See [`apps/backend/CLAUDE.md`](apps/backend/CLAUDE.md) for the durability tradeoff and the full config schema.
+The stack includes a **postgres**: the backend keeps the whole tile map in process and writes what changed to postgres every second. The ledger goes there too, the antibot keeps its bans and evidence there in its own schema, the chat writes each message there before broadcasting it, and the player module flushes profiles and stats there every second. See [`apps/backend/CLAUDE.md`](apps/backend/CLAUDE.md) for the durability tradeoff and the full config schema.
 
 ## Independence of the two apps
 
