@@ -1133,7 +1133,13 @@ what we ask Google for, why, that nobody else gets it, and the Limited Use
 sentence. A new Google scope changes that section.
 
 **`index.html` is the home page** and says what the game is in plain HTML — see
-[Pages and routes](#pages-and-routes). Its background is `static/og-image.jpg`.
+[Pages and routes](#pages-and-routes). It is a full landing page (header,
+hero, how it works, features, creator, Discord, footer) in the game's look, with
+one stylesheet inline and no script but the redirect. Its screenshots are
+`static/home/*.jpg`, taken from the live game; a new one must not show the chat,
+which carries players' own words. The section links (`#how`, `#features`,
+`#creator`) work in the page, but a returning player who opens one directly is
+sent to the game like any other hash but `#home`.
 
 **`terms.html` is the terms of service**, linked beside it and built
 the same way, at `/terms`. Discord asks for its URL to allow OAuth sign-in. The
