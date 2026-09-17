@@ -8,15 +8,13 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/uuid"
-
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/attestation"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 type Minter interface {
-	Mint(ip string, account uuid.UUID, now time.Time) (*cpsession.Token, error)
+	Mint(ip string, account cpsession.AccountID, now time.Time) (*cpsession.Token, error)
 }
 
 type In struct {
@@ -43,7 +41,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) (*cpsession.Token, error) 
 		return nil, fmt.Errorf("%w: %w", attestation.ErrAttestationFailed, err)
 	}
 
-	token, err := u.minter.Mint(in.IP, uuid.Nil, u.clock.Now())
+	token, err := u.minter.Mint(in.IP, cpsession.NoAccount, u.clock.Now())
 	if err != nil {
 		return nil, fmt.Errorf("failed to mint the click token: %w", err)
 	}

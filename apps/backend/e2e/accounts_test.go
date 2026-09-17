@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -91,7 +90,7 @@ func startAuthModule(t *testing.T, newModule func(auth.Config) cpbootstrap.Modul
 	return authStack{baseURL: "http://" + server.BindAddress, verifier: verifier}
 }
 
-func (s authStack) accountIn(t *testing.T, token string) uuid.UUID {
+func (s authStack) accountIn(t *testing.T, token string) cpsession.AccountID {
 	t.Helper()
 
 	claims, err := s.verifier.Verify(token, callerIP, time.Now())
@@ -99,7 +98,7 @@ func (s authStack) accountIn(t *testing.T, token string) uuid.UUID {
 	return claims.Account
 }
 
-func (s authStack) createSession(t *testing.T, cookie string) (uuid.UUID, *http.Cookie) {
+func (s authStack) createSession(t *testing.T, cookie string) (cpsession.AccountID, *http.Cookie) {
 	t.Helper()
 
 	req := connect.NewRequest(&authv1.CreateSessionRequest{AttestationToken: "unused"})
@@ -124,7 +123,7 @@ func TestANewPlayerGetsAGuestAndItsCookieBringsItBack(t *testing.T) {
 	stack := startAuth(t)
 
 	guest, cookie := stack.createSession(t, "")
-	require.NotEqual(t, uuid.Nil, guest)
+	require.NotEqual(t, cpsession.NoAccount, guest)
 	require.NotNil(t, cookie)
 	assert.True(t, cookie.HttpOnly)
 
@@ -147,6 +146,6 @@ func TestTheDeprecatedPathStillMintsATokenWithNoAccount(t *testing.T) {
 	res, err := sessionv1connect.NewSessionServiceClient(http.DefaultClient, stack.baseURL).CreateSession(t.Context(), req)
 	require.NoError(t, err)
 
-	assert.Equal(t, uuid.Nil, stack.accountIn(t, res.Msg.GetToken()))
+	assert.Equal(t, cpsession.NoAccount, stack.accountIn(t, res.Msg.GetToken()))
 	assert.Empty(t, res.Header().Get("Set-Cookie"))
 }

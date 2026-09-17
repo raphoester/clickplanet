@@ -103,8 +103,8 @@ directory.
 
 **An id is never a bare `uuid.UUID`, `string` or `[]byte` in a signature.** Each kind of id is its own named type, declared beside the entity it names: `accounts.AccountID` (`type AccountID uuid.UUID`) and `accounts.TokenHash` (`type TokenHash []byte`, which names a session). A function that asks for an account then says so, and passing a session's hash or any other uuid where an account is asked for **does not compile**. With bare types, `DeleteSessions(ctx, account)` and `DeleteSession(ctx, tokenHash)` differ by one letter and nothing checks which one a caller meant.
 
-- **Convert at the edge, never inside.** An adapter converts to the driver's type on the way out and back on the way in (`uuid.UUID(account)` in `postgres_account_store`; lib/pq cannot take a named array), and a handler converts to the wire's type (`account.ID.String()`). The domain type has no `Scan` or `Value` of its own.
-- **A shared package keeps its own type.** `cpsession.Claims.Account` is still a `uuid.UUID`: it is the token format both `auth` and `planet` read, and a module's id type cannot cross into another module. `create_session_usecase` converts when it mints.
+- **The only conversions are at the edge of the process.** A storage adapter converts to the driver's type on the way out and back on the way in (`uuid.UUID(account)` in `postgres_account_store`; lib/pq cannot take a named array), a handler to the wire's type (`account.ID.String()`), and the token codec to bytes. The id type has no `Scan` or `Value` of its own.
+- **An id is never unwrapped to hand it on.** `uuid.UUID(account)` in a use case, to call a port or a shared package, throws away what the type was for. The id that crosses modules is declared where it crosses: `cpsession.AccountID` sits with the click token, which `auth` mints and `planet` reads, and `accounts.AccountID` is an alias of it, so an account reaches `Mint` and comes back in `Claims.Account` as the same type. `cpsession.NoAccount` is a token minted for nobody.
 - **A new id starts as a type.** Adding one later means touching every signature it already flows through.
 
 ### Manipulators are verbs, builders are nouns

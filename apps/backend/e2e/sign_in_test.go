@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"connectrpc.com/connect"
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -16,6 +15,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1/authv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
 // browser keeps the cookies the API sets, as a web client with credentials does.
@@ -57,7 +57,7 @@ func (b *browser) keep(header http.Header) {
 	}
 }
 
-func (b *browser) mint() uuid.UUID {
+func (b *browser) mint() cpsession.AccountID {
 	b.t.Helper()
 
 	req := connect.NewRequest(&authv1.CreateSessionRequest{AttestationToken: "unused"})

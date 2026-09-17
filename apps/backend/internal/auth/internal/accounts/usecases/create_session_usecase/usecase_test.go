@@ -71,7 +71,7 @@ func (f fixture) accountIn(t *testing.T, out *create_session_usecase.Out) accoun
 
 	claims, err := f.verifier.Verify(out.Token.Value, ip, f.clock.Now())
 	require.NoError(t, err)
-	return accounts.AccountID(claims.Account)
+	return claims.Account
 }
 
 func cookieOf(t *testing.T, setCookie string) *http.Cookie {

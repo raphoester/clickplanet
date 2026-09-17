@@ -90,7 +90,7 @@ func TestAnUnsetTTLTakesTheDefault(t *testing.T) {
 	signer, err := cpsession.NewSigner(signing)
 	require.NoError(t, err)
 
-	token, err := signer.Mint("203.0.113.7", uuid.Nil, now)
+	token, err := signer.Mint("203.0.113.7", cpsession.NoAccount, now)
 	require.NoError(t, err)
 	assert.Equal(t, now.Add(time.Hour), token.ExpiresAt)
 }
@@ -98,7 +98,7 @@ func TestAnUnsetTTLTakesTheDefault(t *testing.T) {
 func TestTheTwoHalvesOfOneBlockAgree(t *testing.T) {
 	signer, verifier := newPair(t)
 
-	token, err := signer.Mint("1.2.3.4", uuid.Nil, now)
+	token, err := signer.Mint("1.2.3.4", cpsession.NoAccount, now)
 	require.NoError(t, err)
 
 	_, err = verifier.Verify(token.Value, "1.2.3.4", now)
@@ -108,19 +108,19 @@ func TestTheTwoHalvesOfOneBlockAgree(t *testing.T) {
 func TestAMintedTokenVerifiesForTheAddressItWasMintedFor(t *testing.T) {
 	signer, verifier := newPair(t)
 
-	token, err := signer.Mint("203.0.113.7", uuid.Nil, now)
+	token, err := signer.Mint("203.0.113.7", cpsession.NoAccount, now)
 	require.NoError(t, err)
 	assert.Equal(t, now.Add(ttl), token.ExpiresAt)
 
 	claims, err := verifier.Verify(token.Value, "203.0.113.7", now)
 	require.NoError(t, err)
 	assert.Equal(t, token.ID, claims.ID)
-	assert.Equal(t, uuid.Nil, claims.Account)
+	assert.Equal(t, cpsession.NoAccount, claims.Account)
 }
 
 func TestATokenCarriesTheAccountItWasMintedFor(t *testing.T) {
 	signer, verifier := newPair(t)
-	account := uuid.MustParse("01926c6e-7a4b-7c3d-8e9f-0a1b2c3d4e5f")
+	account := cpsession.AccountID(uuid.MustParse("01926c6e-7a4b-7c3d-8e9f-0a1b2c3d4e5f"))
 
 	token, err := signer.Mint("203.0.113.7", account, now)
 	require.NoError(t, err)
@@ -133,7 +133,7 @@ func TestATokenCarriesTheAccountItWasMintedFor(t *testing.T) {
 func TestASwappedAccountDoesNotVerify(t *testing.T) {
 	signer, verifier := newPair(t)
 
-	token, err := signer.Mint("203.0.113.7", uuid.MustParse("01926c6e-7a4b-7c3d-8e9f-0a1b2c3d4e5f"), now)
+	token, err := signer.Mint("203.0.113.7", cpsession.AccountID(uuid.MustParse("01926c6e-7a4b-7c3d-8e9f-0a1b2c3d4e5f")), now)
 	require.NoError(t, err)
 
 	raw := decode(t, token.Value)
@@ -146,7 +146,7 @@ func TestASwappedAccountDoesNotVerify(t *testing.T) {
 func TestATokenIsRefusedForAnotherAddress(t *testing.T) {
 	signer, verifier := newPair(t)
 
-	token, err := signer.Mint("203.0.113.7", uuid.Nil, now)
+	token, err := signer.Mint("203.0.113.7", cpsession.NoAccount, now)
 	require.NoError(t, err)
 
 	_, err = verifier.Verify(token.Value, "203.0.113.8", now)
@@ -156,7 +156,7 @@ func TestATokenIsRefusedForAnotherAddress(t *testing.T) {
 func TestATokenIsRefusedOnceItHasExpired(t *testing.T) {
 	signer, verifier := newPair(t)
 
-	token, err := signer.Mint("203.0.113.7", uuid.Nil, now)
+	token, err := signer.Mint("203.0.113.7", cpsession.NoAccount, now)
 	require.NoError(t, err)
 
 	_, err = verifier.Verify(token.Value, "203.0.113.7", now.Add(ttl-time.Second))
@@ -169,7 +169,7 @@ func TestATokenIsRefusedOnceItHasExpired(t *testing.T) {
 func TestATokenIsRefusedByAVerifierHoldingAnotherKey(t *testing.T) {
 	signer, _ := newPair(t)
 
-	token, err := signer.Mint("203.0.113.7", uuid.Nil, now)
+	token, err := signer.Mint("203.0.113.7", cpsession.NoAccount, now)
 	require.NoError(t, err)
 
 	// A second pair, from a seed that is not the test one.
@@ -183,7 +183,7 @@ func TestATokenIsRefusedByAVerifierHoldingAnotherKey(t *testing.T) {
 func TestAnExtendedExpiryDoesNotVerify(t *testing.T) {
 	signer, verifier := newPair(t)
 
-	token, err := signer.Mint("203.0.113.7", uuid.Nil, now)
+	token, err := signer.Mint("203.0.113.7", cpsession.NoAccount, now)
 	require.NoError(t, err)
 
 	// The expiry travels in the clear, so a caller reads it; what it must not do is push it out.
@@ -199,7 +199,7 @@ func TestAnExtendedExpiryDoesNotVerify(t *testing.T) {
 func TestATokenOfAnotherVersionIsMalformed(t *testing.T) {
 	signer, verifier := newPair(t)
 
-	token, err := signer.Mint("203.0.113.7", uuid.Nil, now)
+	token, err := signer.Mint("203.0.113.7", cpsession.NoAccount, now)
 	require.NoError(t, err)
 
 	// The byte that lets a later format be accepted beside this one instead of
@@ -214,7 +214,7 @@ func TestATokenOfAnotherVersionIsMalformed(t *testing.T) {
 func TestMalformedTokensAreRefusedRatherThanPanicking(t *testing.T) {
 	signer, verifier := newPair(t)
 
-	valid, err := signer.Mint("203.0.113.7", uuid.Nil, now)
+	valid, err := signer.Mint("203.0.113.7", cpsession.NoAccount, now)
 	require.NoError(t, err)
 
 	for name, value := range map[string]string{
@@ -235,10 +235,10 @@ func TestMalformedTokensAreRefusedRatherThanPanicking(t *testing.T) {
 func TestTwoMintsProduceDifferentTokensAndIDs(t *testing.T) {
 	signer, _ := newPair(t)
 
-	first, err := signer.Mint("203.0.113.7", uuid.Nil, now)
+	first, err := signer.Mint("203.0.113.7", cpsession.NoAccount, now)
 	require.NoError(t, err)
 
-	second, err := signer.Mint("203.0.113.7", uuid.Nil, now)
+	second, err := signer.Mint("203.0.113.7", cpsession.NoAccount, now)
 	require.NoError(t, err)
 
 	assert.NotEqual(t, first.Value, second.Value)
@@ -265,7 +265,7 @@ func TestAV6TokenVerifiesAcrossItsOwnPrefix(t *testing.T) {
 
 	// A privacy address rotating under a player must not log them out: the
 	// binding is to the /64, which the caller has not left.
-	token, err := signer.Mint("2001:db8:1:2::1", uuid.Nil, now)
+	token, err := signer.Mint("2001:db8:1:2::1", cpsession.NoAccount, now)
 	require.NoError(t, err)
 
 	claims, err := verifier.Verify(token.Value, "2001:db8:1:2:aaaa:bbbb:cccc:dddd", now)
@@ -278,7 +278,7 @@ func TestAV6TokenIsRefusedOutsideItsPrefix(t *testing.T) {
 
 	// The other half of the same rule: leaving the /64 is leaving the scope the
 	// token was minted for, so it buys nothing there.
-	token, err := signer.Mint("2001:db8:1:2::1", uuid.Nil, now)
+	token, err := signer.Mint("2001:db8:1:2::1", cpsession.NoAccount, now)
 	require.NoError(t, err)
 
 	_, err = verifier.Verify(token.Value, "2001:db8:1:3::1", now)

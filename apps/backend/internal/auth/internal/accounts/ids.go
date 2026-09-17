@@ -1,13 +1,9 @@
 package accounts
 
-import "github.com/google/uuid"
+import "github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 
-// AccountID names an account. A type of its own, so no other id compiles where an account is asked for.
-type AccountID uuid.UUID
-
-func (id AccountID) String() string {
-	return uuid.UUID(id).String()
-}
+// AccountID names an account. It is the click token's own type, so an account reaches the token with no conversion.
+type AccountID = cpsession.AccountID
 
 // TokenHash names a session: the SHA-256 of its cookie's token, the only form of it that is stored.
 type TokenHash []byte
