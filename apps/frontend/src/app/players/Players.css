@@ -3,7 +3,7 @@
    unless the text is padded down and the icon lifted back — the same correction
    .menu-change makes. */
 .menu-actions > .menu-players {
-    flex: 0 0 auto;
+    flex: 1 0 auto;
     min-width: 56px;
     display: flex;
     align-items: center;

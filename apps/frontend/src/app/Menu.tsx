@@ -10,7 +10,7 @@ import MenuPanel from "./components/MenuPanel.tsx";
 import CountryFlag from "./components/CountryFlag.tsx";
 import Modal from "./components/Modal.tsx";
 import BuyMeACoffee from "./components/BuyMeACoffee.tsx";
-import {HomeIcon, SpeakerIcon, SpeakerOffIcon, SwapIcon} from "./components/icons.tsx";
+import {HomeIcon, InfoIcon, SpeakerIcon, SpeakerOffIcon, SwapIcon} from "./components/icons.tsx";
 import SoundSettingsPanel, {SoundSettingsPanelProps} from "./sound/SoundSettingsPanel.tsx";
 import {opensFolded} from "./compact.ts";
 import {AccountStore} from "./account/accountStore.ts";
@@ -184,9 +184,11 @@ export default function Menu(props: MenuProps) {
                                                              buttonRef={playersButton}
                                                              onOpen={openPlayers}/>}
                             <button type="button"
-                                    className="button button-ghost"
+                                    className="button button-ghost menu-icon"
+                                    aria-label="About"
+                                    title="About"
                                     onClick={() => setAboutOpen(true)}>
-                                About
+                                <InfoIcon size={26}/>
                             </button>
                             {props.sound && <button ref={soundButton}
                                                     type="button"
