@@ -708,7 +708,7 @@ internal/auth/internal/
 
 ### Player (`internal/player/`)
 
-**What the game keeps about one account: the name it chose, the tiles it took and its daily streak; and the tag of an address.** It makes no account and mints nothing. Always on: the chat asks it who posts.
+**What the game keeps about one account: the name it chose, the tiles it took and its daily streak; the tag of an address; and who is playing now.** It makes no account and mints nothing. Always on: the chat asks it who posts.
 
 ```
 internal/player/internal/
@@ -718,8 +718,12 @@ internal/player/internal/
     rpc_account_reader/             whether an account is linked, from auth.v1.InternalService/GetAccount
     usecases/get_profile_usecase/  set_name_usecase/  get_stats_usecase/  get_author_usecase/
     usecases/record_take_usecase/  forget_account_usecase/
+  presence/                         Visit, Entry, RosterOf, GuestNameOf, TTL: who is playing
+    inmemory_visit_storage/         the last visit of each account, capped, pruned every minute (a Runner)
+    usecases/announce_usecase/  get_roster_usecase/
   playerv1controller/               PlayerService and InternalService (bags), the session interceptor
     get_profile_handler/  set_name_handler/  get_stats_handler/  get_author_handler/
+    announce_handler/  get_roster_handler/
     caller/                         the account on the context, or Unauthenticated
     playermessage/                  Profile and Stats as player.v1 messages
     rpc_session_verifier/           the key from auth.v1.InternalService, asked once (planet's, copied)
@@ -735,6 +739,12 @@ internal/player/internal/
 - **Only a linked account may hold one.** `set_name_usecase` checks the name first, so a name no account may hold costs no call, then asks its `Accounts` port whether the caller signed in with a provider: `rpc_account_reader` calls `auth.v1.InternalService/GetAccount` over the internal listener on every `SetName` (2s timeout), since an account links at any time and a name is chosen rarely. A guest is `PermissionDenied` (`ErrNotLinked`). Auth answers `linked` false for an unknown account or an id that is not one; **a failure to ask is a real error**, the error net's `internal`, never a guest. With `auth` off that call 404s, so no name can be set.
 - **Migration `20260917180000_usernames`** deletes the profiles whose name breaks the new rule, then, of names that differ only in case, every one but the oldest (`updated_at`, then `account_id`), replaces the name `CHECK` with the new pattern and adds the unique index. No client called `SetName` before usernames existed, so nothing a player chose is lost. The down migration drops the index and puts the old `CHECK` back; the deleted rows stay deleted.
 - **`InternalService/GetAuthor(account_id, ip)`** is for the chat: the account's username, empty for none, and the tag of the address. An empty id, or one that is not an account, is no account and still gets a tag. The store is not read for no account. **The tag is `players.TagOf`**: SHA-256 of `player.tagSalt`, a NUL and the address, cut to 6 hex characters. It moved here from the chat unchanged, so a tag computed before the move is the same.
+- **Who is playing is `presence`, in memory only.** A client calls **`Announce(country_id, guest_name)`** with its click token when it gets one, when its flag or name changes, and every 30s. A visit counts for `presence.TTL` (90s), so a hidden tab whose timers fire once a minute stays on. A restart empties it, and clients fill it again within one interval. **`GetRoster`** needs no token (the session interceptor does not list it), is `NO_SIDE_EFFECTS`, and answers `public, max-age=5`. Every client polls it, so a proxy can serve one answer to all of them.
+  - **One entry per account**, so the tabs of one browser and the devices of one signed-in player are one line. A visitor who never got a click token is not listed: announcing must not cost a Turnstile mint.
+  - **Named as the chat names a sender** (`presence.RosterOf`): the username, or `guest_` and the name the guest typed in the chat (`GuestNameOf`, cleaned like the chat's and at most 24 runes), or `guest_` and the tag when it typed none or one the chat would refuse. The username is read on every announce, so a new name shows within 30s. The tag is `players.TagOf` of the announcing address, the one the chat shows for it.
+  - **Sorted**: players with a username first, then guests; each group by name ignoring case, then by tag.
+  - **Caps, against a script minting accounts** (`inmemory_visit_storage`): at most 10 accounts per tag, where a new account pushes out the tag's oldest visit, and 10,000 in all, where a new account is not recorded. The mint throttle already bounds how fast one address makes accounts.
+  - An unknown country is `InvalidArgument`; a failed profile read is the error net's `internal`, and nothing is recorded.
 - **Stats come from `planet.v1.TileTaken`**, one event per tile, so a spread of seven is seven tiles. **The streak day is UTC**: a take on the day after `streak_last_day` extends the streak, a take on the same day changes nothing, a gap starts it again at 1, and a late event older than the last day counts a tile and leaves the streak alone (`Stats.WithTake`). `GetStats` reads it as of today (`Stats.AsOf`): a streak whose last day is before yesterday reads 0, and `streak_best` keeps it. `stats_test.go` pins the rules across UTC midnight.
 - **`auth.v1.AccountDeleted` deletes both rows.** A take that arrives after, on a token minted before the delete, makes a new stats row; the token lives an hour at most.
 - **Events are at most once.** A take dropped by a full buffer (`events_dropped_total`) or lost in a crash is a tile the stats never count. Stats start the day the module is turned on: takes before are not replayed.
