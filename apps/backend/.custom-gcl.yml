@@ -1,0 +1,11 @@
+# Builds ./custom-gcl: the pinned golangci-lint with the module plugins below
+# compiled in, because the stock binary cannot load a plugin. `make lint` builds
+# and runs it, and so does the CI lint job — golangci-lint-action picks this file
+# up on its own. The version must match GOLANGCI_LINT_VERSION in the Makefile.
+version: v2.13.1
+
+plugins:
+  # Reports structs with more fields than linters.settings.custom.overstuffed allows.
+  - module: github.com/raphoester/overstuffed
+    import: github.com/raphoester/overstuffed/gclplugin
+    version: v0.1.0

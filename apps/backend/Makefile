@@ -82,16 +82,23 @@ deadcode:
 
 # golangci-lint is pinned: an unpinned linter turns a green branch red on
 # somebody else's release schedule, and the CI job reads the same version from
-# here. Install it with `make setup-tools`.
+# here, as .custom-gcl.yml must. Install it with `make setup-tools`.
 GOLANGCI_LINT_VERSION := v2.13.1
 
-lint:
-	@golangci-lint run --timeout=10m
+# The linters run through ./custom-gcl: the pinned golangci-lint rebuilt with the
+# module plugins of .custom-gcl.yml compiled in, because the stock binary cannot
+# load them. Rebuilt whenever that file changes. The stock binary still builds it
+# and runs the formatters.
+custom-gcl: .custom-gcl.yml
+	@golangci-lint custom
+
+lint: custom-gcl
+	@./custom-gcl run --timeout=10m
 
 # --allow-parallel-runners so the pre-push hook can run this beside the other
 # checks without the two fighting over the lint cache.
-lint-ci:
-	@golangci-lint run --timeout=10m --allow-parallel-runners
+lint-ci: custom-gcl
+	@./custom-gcl run --timeout=10m --allow-parallel-runners
 
 # gofumpt runs through golangci-lint's formatters block rather than as its own
 # binary: one pinned version to install instead of two that can disagree, and it

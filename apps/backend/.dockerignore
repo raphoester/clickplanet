@@ -1,0 +1,3 @@
+# The build stage copies this whole directory: keep the local lint binary built
+# by `make lint` (tens of MB, see .custom-gcl.yml) out of the build context.
+custom-gcl
