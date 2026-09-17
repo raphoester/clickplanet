@@ -55,7 +55,7 @@ log()  { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m warn\033[0m %s\n' "$*" >&2; }
 die()  { printf '\033[1;31m fail\033[0m %s\n' "$*" >&2; exit 1; }
 
-# 16 bytes of hex for the chat tag salt. openssl is on the Ubuntu image, but the
+# 16 bytes of hex for the tag salt (player.tagSalt). openssl is on the Ubuntu image, but the
 # fallback keeps this from being the one thing that fails a bootstrap.
 random_salt() {
 	openssl rand -hex 16 2>/dev/null \

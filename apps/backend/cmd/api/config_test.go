@@ -116,6 +116,8 @@ gameMap:
 database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: planet}
 chat:
   database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: chat}
+player:
+  database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: player}
 auth:
   enabled: true
   enforce: true
@@ -171,16 +173,12 @@ func TestTheExampleConfigReachesThePlayerBlock(t *testing.T) {
 	var config Config
 	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
 
-	assert.False(t, config.Player.Enabled, "the example ships the player module off")
 	assert.Equal(t, "player", config.Player.Database.Schema)
 	require.NoError(t, config.Player.Database.Validate())
 }
 
-func TestAnEnabledPlayerModuleWithNoDatabaseIsRefused(t *testing.T) {
-	config := Config{}
-	config.Player.Enabled = true
-
-	assert.ErrorContains(t, config.Player.Validate(), "player.database")
+func TestThePlayerModuleWithNoDatabaseIsRefused(t *testing.T) {
+	assert.ErrorContains(t, Config{}.Validate(), "player.database")
 }
 
 func TestTheExampleConfigReachesTheScopeMultiplier(t *testing.T) {

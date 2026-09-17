@@ -23,18 +23,17 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/send_message_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/inmemory_message_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/postgres_message_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/rpc_player_usernames"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/rpc_player_authors"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/get_history_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/listen_for_events_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/send_message_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/send_message_usecase/log_usernames"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/send_message_usecase/log_authors"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsecrets"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -51,16 +50,6 @@ func NewModule(config Config) cpbootstrap.Module {
 }
 
 func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
-	serviceConfig := config.Service
-	if serviceConfig.TagSalt == "" {
-		salt, err := cpsecrets.RandomHex()
-		if err != nil {
-			return fmt.Errorf("failed to generate a chat tag salt: %w", err)
-		}
-		serviceConfig.TagSalt = salt
-		props.Logger.Warn("no chat.service.tagSalt configured, generated a random one: sender tags will change on every restart")
-	}
-
 	db := cppg.New(config.Database)
 	if err := db.ConnectCtx(ctx); err != nil {
 		return fmt.Errorf("failed to connect the chat to postgres: %w", err)
@@ -87,13 +76,13 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to build the chat blocklist: %w", err)
 	}
 
-	// A sender's username comes from the player module, over the internal listener. A failure to read it is
-	// logged, and the message goes out under the guest's name.
-	usernames := log_usernames.New(rpc_player_usernames.New(props.Internal), props.Logger)
+	// Who posts, username and tag, comes from the player module over the internal listener. A failure to ask is
+	// logged, and the message is refused.
+	authors := log_authors.New(rpc_player_authors.New(props.Internal), props.Logger)
 
 	chatService := chatv1controller.ChatService{
 		SendMessageHandler: send_message_handler.New(
-			send_message_usecase.New(storage, cpcountries.New(), usernames, cptime.SystemClock{}, serviceConfig)),
+			send_message_usecase.New(storage, cpcountries.New(), authors, cptime.SystemClock{}, config.Service)),
 		GetHistoryHandler: get_history_handler.New(get_history_usecase.New(storage)),
 		ListenForEventsHandler: listen_for_events_handler.New(
 			listen_for_events_usecase.New(storage, props.Server.StreamHeartbeat)),

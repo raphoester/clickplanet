@@ -8,10 +8,15 @@ import (
 )
 
 // toConnect sends the bare sentinel: a sender learns they were refused, not which
-// check tripped. Anything else is left for the error net.
+// check tripped, nor why the player module did not answer. Anything else is left
+// for the error net.
 func toConnect(err error) error {
 	if errors.Is(err, messages.ErrInvalidMessage) {
 		return connect.NewError(connect.CodeInvalidArgument, messages.ErrInvalidMessage)
+	}
+
+	if errors.Is(err, messages.ErrAuthorUnavailable) {
+		return connect.NewError(connect.CodeUnavailable, messages.ErrAuthorUnavailable)
 	}
 
 	return err
