@@ -14,6 +14,30 @@ service AuthService {
   // The account the caller's cookie belongs to. Unauthenticated when it carries
   // none. Creates nothing.
   rpc GetMe(GetMeRequest) returns (GetMeResponse);
+
+  // Starts signing in with a provider: answers the provider's authorization URL
+  // to send the browser to, and sets a short-lived cookie that CompleteSignIn
+  // reads back. Unimplemented (HTTP 404) when sign-in is off on this server.
+  rpc StartSignIn(StartSignInRequest) returns (StartSignInResponse);
+
+  // Finishes what StartSignIn started, from the code and state the provider sent
+  // to the callback page. An identity already known signs in to its account; a
+  // new one is linked to the caller's current account, or to a new account when
+  // there is none. Sets a new session cookie either way: the client mints its
+  // click token again afterwards, so the token carries the account.
+  // Unimplemented (HTTP 404) when sign-in is off on this server.
+  rpc CompleteSignIn(CompleteSignInRequest) returns (CompleteSignInResponse);
+
+  // Ends this browser's session and clears its cookie. Succeeds with no session.
+  rpc SignOut(SignOutRequest) returns (SignOutResponse);
+
+  // Ends every session of the caller's account, this one included.
+  // Unauthenticated when the caller has no account.
+  rpc SignOutEverywhere(SignOutEverywhereRequest) returns (SignOutEverywhereResponse);
+
+  // Deletes the caller's account, its linked identities and its sessions, and
+  // clears the cookie. Unauthenticated when the caller has no account.
+  rpc DeleteAccount(DeleteAccountRequest) returns (DeleteAccountResponse);
 }
 
 message CreateSessionRequest {
@@ -34,4 +58,73 @@ message GetMeRequest {}
 
 message GetMeResponse {
   string account_id = 1;
+
+  AccountKind kind = 2;
+
+  // The providers linked to the account, oldest link first. Empty for a guest.
+  repeated Provider providers = 3;
 }
+
+// Where a player signs in.
+enum Provider {
+  PROVIDER_UNSPECIFIED = 0;
+  PROVIDER_GOOGLE = 1;
+  PROVIDER_DISCORD = 2;
+}
+
+enum AccountKind {
+  ACCOUNT_KIND_UNSPECIFIED = 0;
+  // No provider is linked. Pruned after a long time without use.
+  ACCOUNT_KIND_GUEST = 1;
+  // At least one provider is linked.
+  ACCOUNT_KIND_LINKED = 2;
+}
+
+message StartSignInRequest {
+  // InvalidArgument when the provider is not offered on this server.
+  Provider provider = 1;
+}
+
+message StartSignInResponse {
+  // Send the browser here. The provider sends it back to the callback page with
+  // a code and a state.
+  string authorization_url = 1;
+}
+
+message CompleteSignInRequest {
+  // Both from the callback page's query string. FailedPrecondition when the
+  // state does not match the sign-in this browser started, or it has lapsed.
+  string code = 1;
+  string state = 2;
+}
+
+// What CompleteSignIn did with the identity.
+enum SignInOutcome {
+  SIGN_IN_OUTCOME_UNSPECIFIED = 0;
+  // The identity was already linked: the browser is now on that account. The
+  // guest it was on before is left as it was, and nothing is merged.
+  SIGN_IN_OUTCOME_SIGNED_IN = 1;
+  // The identity was new and is now linked to the account the browser was on.
+  SIGN_IN_OUTCOME_LINKED = 2;
+  // The identity was new and the browser had no account to link it to, or its
+  // account already holds this provider: a new account was made for it.
+  SIGN_IN_OUTCOME_CREATED = 3;
+}
+
+message CompleteSignInResponse {
+  string account_id = 1;
+
+  SignInOutcome outcome = 2;
+}
+
+message SignOutRequest {}
+
+message SignOutResponse {}
+
+message SignOutEverywhereRequest {}
+
+message SignOutEverywhereResponse {}
+
+message DeleteAccountRequest {}
+
+message DeleteAccountResponse {}

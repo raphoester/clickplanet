@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -45,6 +44,13 @@ type authStack struct {
 func startAuth(t *testing.T) authStack {
 	t.Helper()
 
+	return startAuthModule(t, auth.NewModule)
+}
+
+// startAuthModule boots the module newModule builds from a config for the test postgres.
+func startAuthModule(t *testing.T, newModule func(auth.Config) cpbootstrap.Module) authStack {
+	t.Helper()
+
 	secret, public := cpsession.TestKeyPair()
 	server := cpbootstrap.ServerConfig{BindAddress: freeAddress(t)}
 	config := auth.Config{
@@ -61,7 +67,7 @@ func startAuth(t *testing.T) authStack {
 			Server:         server,
 			Logger:         slog.New(slog.DiscardHandler),
 			StartupTimeout: time.Minute,
-			Modules:        []cpbootstrap.Module{auth.NewModule(config)},
+			Modules:        []cpbootstrap.Module{newModule(config)},
 		})
 	}()
 	t.Cleanup(func() {
@@ -84,7 +90,7 @@ func startAuth(t *testing.T) authStack {
 	return authStack{baseURL: "http://" + server.BindAddress, verifier: verifier}
 }
 
-func (s authStack) accountIn(t *testing.T, token string) uuid.UUID {
+func (s authStack) accountIn(t *testing.T, token string) cpsession.AccountID {
 	t.Helper()
 
 	claims, err := s.verifier.Verify(token, callerIP, time.Now())
@@ -92,7 +98,7 @@ func (s authStack) accountIn(t *testing.T, token string) uuid.UUID {
 	return claims.Account
 }
 
-func (s authStack) createSession(t *testing.T, cookie string) (uuid.UUID, *http.Cookie) {
+func (s authStack) createSession(t *testing.T, cookie string) (cpsession.AccountID, *http.Cookie) {
 	t.Helper()
 
 	req := connect.NewRequest(&authv1.CreateSessionRequest{AttestationToken: "unused"})
@@ -117,7 +123,7 @@ func TestANewPlayerGetsAGuestAndItsCookieBringsItBack(t *testing.T) {
 	stack := startAuth(t)
 
 	guest, cookie := stack.createSession(t, "")
-	require.NotEqual(t, uuid.Nil, guest)
+	require.NotEqual(t, cpsession.NoAccount, guest)
 	require.NotNil(t, cookie)
 	assert.True(t, cookie.HttpOnly)
 
@@ -140,6 +146,6 @@ func TestTheDeprecatedPathStillMintsATokenWithNoAccount(t *testing.T) {
 	res, err := sessionv1connect.NewSessionServiceClient(http.DefaultClient, stack.baseURL).CreateSession(t.Context(), req)
 	require.NoError(t, err)
 
-	assert.Equal(t, uuid.Nil, stack.accountIn(t, res.Msg.GetToken()))
+	assert.Equal(t, cpsession.NoAccount, stack.accountIn(t, res.Msg.GetToken()))
 	assert.Empty(t, res.Header().Get("Set-Cookie"))
 }

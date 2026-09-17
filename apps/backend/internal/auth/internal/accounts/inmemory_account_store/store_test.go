@@ -14,9 +14,9 @@ func TestRunSuite(t *testing.T) {
 }
 
 type testSuite struct {
-	accounts.SessionsContractSuite
+	accounts.StoreContractSuite
 }
 
 func (s *testSuite) SetupSuite() {
-	s.NewSessions = func() accounts.Sessions { return inmemory_account_store.New() }
+	s.NewStore = func() accounts.Store { return inmemory_account_store.New() }
 }

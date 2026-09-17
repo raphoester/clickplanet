@@ -123,6 +123,12 @@ services:
       # is true, an empty value fails the boot loudly rather than quietly
       # admitting everyone.
       auth.turnstile.secret: ${TURNSTILE_SECRET:-}
+      # The OAuth client secrets of the sign-in providers, from the Google Cloud
+      # console and the Discord developer portal. Soft: unused while
+      # auth.signIn.enabled is false or the provider has no clientId. Once both
+      # are set, an empty secret refuses the boot.
+      auth.google.clientSecret: ${GOOGLE_CLIENT_SECRET:-}
+      auth.discord.clientSecret: ${DISCORD_CLIENT_SECRET:-}
       # Hard like the session secret: the API cannot start without postgres.
       database.password: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env (openssl rand -hex 32)}
       # The antibot's own pool: same postgres, same user, its own schema.

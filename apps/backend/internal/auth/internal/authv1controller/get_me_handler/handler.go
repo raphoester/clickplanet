@@ -7,14 +7,14 @@ import (
 	"fmt"
 
 	"connectrpc.com/connect"
-	"github.com/google/uuid"
 
 	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/authprovider"
 )
 
 type UseCase interface {
-	Execute(ctx context.Context, cookieHeader string) (uuid.UUID, error)
+	Execute(ctx context.Context, cookieHeader string) (*accounts.Account, error)
 }
 
 func New(useCase UseCase) GetMeHandler {
@@ -37,7 +37,15 @@ func (h GetMeHandler) GetMe(
 		return nil, fmt.Errorf("failed to read the account: %w", err)
 	}
 
-	res := connect.NewResponse(&authv1.GetMeResponse{AccountId: account.String()})
+	me := &authv1.GetMeResponse{AccountId: account.ID.String(), Kind: authv1.AccountKind_ACCOUNT_KIND_GUEST}
+	if account.Linked() {
+		me.Kind = authv1.AccountKind_ACCOUNT_KIND_LINKED
+	}
+	for _, provider := range account.Providers() {
+		me.Providers = append(me.Providers, authprovider.ProtoOf(provider))
+	}
+
+	res := connect.NewResponse(me)
 	res.Header().Set("Cache-Control", "no-store")
 	return res, nil
 }

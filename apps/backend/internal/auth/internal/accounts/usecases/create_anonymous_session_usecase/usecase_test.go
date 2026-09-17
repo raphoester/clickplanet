@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -46,7 +45,7 @@ func TestAnAttestedCallerIsMintedATokenWithNoAccountBoundToItsAddress(t *testing
 	assert.Equal(t, now.Add(time.Hour), token.ExpiresAt)
 	claims, err := verifier.Verify(token.Value, "203.0.113.7", now)
 	require.NoError(t, err)
-	assert.Equal(t, uuid.Nil, claims.Account)
+	assert.Equal(t, cpsession.NoAccount, claims.Account)
 
 	_, err = verifier.Verify(token.Value, "203.0.113.8", now)
 	assert.Error(t, err, "the token is worth nothing from another address")

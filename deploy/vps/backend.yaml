@@ -380,6 +380,25 @@ auth:
     schema: auth
     pool:
       maxOpenConns: 2
+  # Sign-in with Google or Discord. Off until the frontend ships the button and
+  # the privacy policy page: StartSignIn and CompleteSignIn answer 404 meanwhile.
+  # To turn it on, set the client ids below, GOOGLE_CLIENT_SECRET and
+  # DISCORD_CLIENT_SECRET in .env, and register the redirect URL with each
+  # provider exactly as written here.
+  signIn:
+    enabled: false
+    redirectUrl: https://clickplanet.lol/auth/callback
+  # A provider is offered once its clientId is set. The ids are public; the
+  # secrets come from the environment (docker-compose.yaml).
+  google:
+    clientId: ""
+  discord:
+    clientId: ""
+  # Accounts with no provider, unused for 90 days, are deleted every hour.
+  # Never below the guest cookie's 90 days.
+  prune:
+    idleFor: 2160h
+    interval: 1h
 
 # Live chat. Every message is written to the chat schema in postgres before it
 # is broadcast; a message that cannot be written is refused.

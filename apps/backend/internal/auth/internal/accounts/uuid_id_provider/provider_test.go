@@ -16,6 +16,6 @@ func TestIDsAreDistinctVersion7UUIDs(t *testing.T) {
 	second, err := uuid_id_provider.Provider{}.NewID()
 	require.NoError(t, err)
 
-	assert.Equal(t, uuid.Version(7), first.Version())
+	assert.Equal(t, uuid.Version(7), uuid.UUID(first).Version())
 	assert.NotEqual(t, first, second)
 }

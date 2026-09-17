@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CreateSessionRequest, CreateSessionResponse, GetMeRequest, GetMeResponse } from "./auth_pb.js";
+import { CompleteSignInRequest, CompleteSignInResponse, CreateSessionRequest, CreateSessionResponse, DeleteAccountRequest, DeleteAccountResponse, GetMeRequest, GetMeResponse, SignOutEverywhereRequest, SignOutEverywhereResponse, SignOutRequest, SignOutResponse, StartSignInRequest, StartSignInResponse } from "./auth_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -39,6 +39,70 @@ export const AuthService = {
       name: "GetMe",
       I: GetMeRequest,
       O: GetMeResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Starts signing in with a provider: answers the provider's authorization URL
+     * to send the browser to, and sets a short-lived cookie that CompleteSignIn
+     * reads back. Unimplemented (HTTP 404) when sign-in is off on this server.
+     *
+     * @generated from rpc auth.v1.AuthService.StartSignIn
+     */
+    startSignIn: {
+      name: "StartSignIn",
+      I: StartSignInRequest,
+      O: StartSignInResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Finishes what StartSignIn started, from the code and state the provider sent
+     * to the callback page. An identity already known signs in to its account; a
+     * new one is linked to the caller's current account, or to a new account when
+     * there is none. Sets a new session cookie either way: the client mints its
+     * click token again afterwards, so the token carries the account.
+     * Unimplemented (HTTP 404) when sign-in is off on this server.
+     *
+     * @generated from rpc auth.v1.AuthService.CompleteSignIn
+     */
+    completeSignIn: {
+      name: "CompleteSignIn",
+      I: CompleteSignInRequest,
+      O: CompleteSignInResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Ends this browser's session and clears its cookie. Succeeds with no session.
+     *
+     * @generated from rpc auth.v1.AuthService.SignOut
+     */
+    signOut: {
+      name: "SignOut",
+      I: SignOutRequest,
+      O: SignOutResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Ends every session of the caller's account, this one included.
+     * Unauthenticated when the caller has no account.
+     *
+     * @generated from rpc auth.v1.AuthService.SignOutEverywhere
+     */
+    signOutEverywhere: {
+      name: "SignOutEverywhere",
+      I: SignOutEverywhereRequest,
+      O: SignOutEverywhereResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Deletes the caller's account, its linked identities and its sessions, and
+     * clears the cookie. Unauthenticated when the caller has no account.
+     *
+     * @generated from rpc auth.v1.AuthService.DeleteAccount
+     */
+    deleteAccount: {
+      name: "DeleteAccount",
+      I: DeleteAccountRequest,
+      O: DeleteAccountResponse,
       kind: MethodKind.Unary,
     },
   }

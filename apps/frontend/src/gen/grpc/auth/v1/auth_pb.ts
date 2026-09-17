@@ -7,6 +7,106 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
 
 /**
+ * Where a player signs in.
+ *
+ * @generated from enum auth.v1.Provider
+ */
+export enum Provider {
+  /**
+   * @generated from enum value: PROVIDER_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: PROVIDER_GOOGLE = 1;
+   */
+  GOOGLE = 1,
+
+  /**
+   * @generated from enum value: PROVIDER_DISCORD = 2;
+   */
+  DISCORD = 2,
+}
+// Retrieve enum metadata with: proto3.getEnumType(Provider)
+proto3.util.setEnumType(Provider, "auth.v1.Provider", [
+  { no: 0, name: "PROVIDER_UNSPECIFIED" },
+  { no: 1, name: "PROVIDER_GOOGLE" },
+  { no: 2, name: "PROVIDER_DISCORD" },
+]);
+
+/**
+ * @generated from enum auth.v1.AccountKind
+ */
+export enum AccountKind {
+  /**
+   * @generated from enum value: ACCOUNT_KIND_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * No provider is linked. Pruned after a long time without use.
+   *
+   * @generated from enum value: ACCOUNT_KIND_GUEST = 1;
+   */
+  GUEST = 1,
+
+  /**
+   * At least one provider is linked.
+   *
+   * @generated from enum value: ACCOUNT_KIND_LINKED = 2;
+   */
+  LINKED = 2,
+}
+// Retrieve enum metadata with: proto3.getEnumType(AccountKind)
+proto3.util.setEnumType(AccountKind, "auth.v1.AccountKind", [
+  { no: 0, name: "ACCOUNT_KIND_UNSPECIFIED" },
+  { no: 1, name: "ACCOUNT_KIND_GUEST" },
+  { no: 2, name: "ACCOUNT_KIND_LINKED" },
+]);
+
+/**
+ * What CompleteSignIn did with the identity.
+ *
+ * @generated from enum auth.v1.SignInOutcome
+ */
+export enum SignInOutcome {
+  /**
+   * @generated from enum value: SIGN_IN_OUTCOME_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * The identity was already linked: the browser is now on that account. The
+   * guest it was on before is left as it was, and nothing is merged.
+   *
+   * @generated from enum value: SIGN_IN_OUTCOME_SIGNED_IN = 1;
+   */
+  SIGNED_IN = 1,
+
+  /**
+   * The identity was new and is now linked to the account the browser was on.
+   *
+   * @generated from enum value: SIGN_IN_OUTCOME_LINKED = 2;
+   */
+  LINKED = 2,
+
+  /**
+   * The identity was new and the browser had no account to link it to, or its
+   * account already holds this provider: a new account was made for it.
+   *
+   * @generated from enum value: SIGN_IN_OUTCOME_CREATED = 3;
+   */
+  CREATED = 3,
+}
+// Retrieve enum metadata with: proto3.getEnumType(SignInOutcome)
+proto3.util.setEnumType(SignInOutcome, "auth.v1.SignInOutcome", [
+  { no: 0, name: "SIGN_IN_OUTCOME_UNSPECIFIED" },
+  { no: 1, name: "SIGN_IN_OUTCOME_SIGNED_IN" },
+  { no: 2, name: "SIGN_IN_OUTCOME_LINKED" },
+  { no: 3, name: "SIGN_IN_OUTCOME_CREATED" },
+]);
+
+/**
  * @generated from message auth.v1.CreateSessionRequest
  */
 export class CreateSessionRequest extends Message<CreateSessionRequest> {
@@ -133,6 +233,18 @@ export class GetMeResponse extends Message<GetMeResponse> {
    */
   accountId = "";
 
+  /**
+   * @generated from field: auth.v1.AccountKind kind = 2;
+   */
+  kind = AccountKind.UNSPECIFIED;
+
+  /**
+   * The providers linked to the account, oldest link first. Empty for a guest.
+   *
+   * @generated from field: repeated auth.v1.Provider providers = 3;
+   */
+  providers: Provider[] = [];
+
   constructor(data?: PartialMessage<GetMeResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -142,6 +254,8 @@ export class GetMeResponse extends Message<GetMeResponse> {
   static readonly typeName = "auth.v1.GetMeResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "kind", kind: "enum", T: proto3.getEnumType(AccountKind) },
+    { no: 3, name: "providers", kind: "enum", T: proto3.getEnumType(Provider), repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetMeResponse {
@@ -158,6 +272,360 @@ export class GetMeResponse extends Message<GetMeResponse> {
 
   static equals(a: GetMeResponse | PlainMessage<GetMeResponse> | undefined, b: GetMeResponse | PlainMessage<GetMeResponse> | undefined): boolean {
     return proto3.util.equals(GetMeResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message auth.v1.StartSignInRequest
+ */
+export class StartSignInRequest extends Message<StartSignInRequest> {
+  /**
+   * InvalidArgument when the provider is not offered on this server.
+   *
+   * @generated from field: auth.v1.Provider provider = 1;
+   */
+  provider = Provider.UNSPECIFIED;
+
+  constructor(data?: PartialMessage<StartSignInRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "auth.v1.StartSignInRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "provider", kind: "enum", T: proto3.getEnumType(Provider) },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): StartSignInRequest {
+    return new StartSignInRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): StartSignInRequest {
+    return new StartSignInRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): StartSignInRequest {
+    return new StartSignInRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: StartSignInRequest | PlainMessage<StartSignInRequest> | undefined, b: StartSignInRequest | PlainMessage<StartSignInRequest> | undefined): boolean {
+    return proto3.util.equals(StartSignInRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message auth.v1.StartSignInResponse
+ */
+export class StartSignInResponse extends Message<StartSignInResponse> {
+  /**
+   * Send the browser here. The provider sends it back to the callback page with
+   * a code and a state.
+   *
+   * @generated from field: string authorization_url = 1;
+   */
+  authorizationUrl = "";
+
+  constructor(data?: PartialMessage<StartSignInResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "auth.v1.StartSignInResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "authorization_url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): StartSignInResponse {
+    return new StartSignInResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): StartSignInResponse {
+    return new StartSignInResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): StartSignInResponse {
+    return new StartSignInResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: StartSignInResponse | PlainMessage<StartSignInResponse> | undefined, b: StartSignInResponse | PlainMessage<StartSignInResponse> | undefined): boolean {
+    return proto3.util.equals(StartSignInResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message auth.v1.CompleteSignInRequest
+ */
+export class CompleteSignInRequest extends Message<CompleteSignInRequest> {
+  /**
+   * Both from the callback page's query string. FailedPrecondition when the
+   * state does not match the sign-in this browser started, or it has lapsed.
+   *
+   * @generated from field: string code = 1;
+   */
+  code = "";
+
+  /**
+   * @generated from field: string state = 2;
+   */
+  state = "";
+
+  constructor(data?: PartialMessage<CompleteSignInRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "auth.v1.CompleteSignInRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "code", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "state", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CompleteSignInRequest {
+    return new CompleteSignInRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CompleteSignInRequest {
+    return new CompleteSignInRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CompleteSignInRequest {
+    return new CompleteSignInRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: CompleteSignInRequest | PlainMessage<CompleteSignInRequest> | undefined, b: CompleteSignInRequest | PlainMessage<CompleteSignInRequest> | undefined): boolean {
+    return proto3.util.equals(CompleteSignInRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message auth.v1.CompleteSignInResponse
+ */
+export class CompleteSignInResponse extends Message<CompleteSignInResponse> {
+  /**
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  /**
+   * @generated from field: auth.v1.SignInOutcome outcome = 2;
+   */
+  outcome = SignInOutcome.UNSPECIFIED;
+
+  constructor(data?: PartialMessage<CompleteSignInResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "auth.v1.CompleteSignInResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "outcome", kind: "enum", T: proto3.getEnumType(SignInOutcome) },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CompleteSignInResponse {
+    return new CompleteSignInResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CompleteSignInResponse {
+    return new CompleteSignInResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CompleteSignInResponse {
+    return new CompleteSignInResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: CompleteSignInResponse | PlainMessage<CompleteSignInResponse> | undefined, b: CompleteSignInResponse | PlainMessage<CompleteSignInResponse> | undefined): boolean {
+    return proto3.util.equals(CompleteSignInResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message auth.v1.SignOutRequest
+ */
+export class SignOutRequest extends Message<SignOutRequest> {
+  constructor(data?: PartialMessage<SignOutRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "auth.v1.SignOutRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SignOutRequest {
+    return new SignOutRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SignOutRequest {
+    return new SignOutRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SignOutRequest {
+    return new SignOutRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SignOutRequest | PlainMessage<SignOutRequest> | undefined, b: SignOutRequest | PlainMessage<SignOutRequest> | undefined): boolean {
+    return proto3.util.equals(SignOutRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message auth.v1.SignOutResponse
+ */
+export class SignOutResponse extends Message<SignOutResponse> {
+  constructor(data?: PartialMessage<SignOutResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "auth.v1.SignOutResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SignOutResponse {
+    return new SignOutResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SignOutResponse {
+    return new SignOutResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SignOutResponse {
+    return new SignOutResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SignOutResponse | PlainMessage<SignOutResponse> | undefined, b: SignOutResponse | PlainMessage<SignOutResponse> | undefined): boolean {
+    return proto3.util.equals(SignOutResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message auth.v1.SignOutEverywhereRequest
+ */
+export class SignOutEverywhereRequest extends Message<SignOutEverywhereRequest> {
+  constructor(data?: PartialMessage<SignOutEverywhereRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "auth.v1.SignOutEverywhereRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SignOutEverywhereRequest {
+    return new SignOutEverywhereRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SignOutEverywhereRequest {
+    return new SignOutEverywhereRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SignOutEverywhereRequest {
+    return new SignOutEverywhereRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SignOutEverywhereRequest | PlainMessage<SignOutEverywhereRequest> | undefined, b: SignOutEverywhereRequest | PlainMessage<SignOutEverywhereRequest> | undefined): boolean {
+    return proto3.util.equals(SignOutEverywhereRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message auth.v1.SignOutEverywhereResponse
+ */
+export class SignOutEverywhereResponse extends Message<SignOutEverywhereResponse> {
+  constructor(data?: PartialMessage<SignOutEverywhereResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "auth.v1.SignOutEverywhereResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SignOutEverywhereResponse {
+    return new SignOutEverywhereResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SignOutEverywhereResponse {
+    return new SignOutEverywhereResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SignOutEverywhereResponse {
+    return new SignOutEverywhereResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SignOutEverywhereResponse | PlainMessage<SignOutEverywhereResponse> | undefined, b: SignOutEverywhereResponse | PlainMessage<SignOutEverywhereResponse> | undefined): boolean {
+    return proto3.util.equals(SignOutEverywhereResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message auth.v1.DeleteAccountRequest
+ */
+export class DeleteAccountRequest extends Message<DeleteAccountRequest> {
+  constructor(data?: PartialMessage<DeleteAccountRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "auth.v1.DeleteAccountRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DeleteAccountRequest {
+    return new DeleteAccountRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DeleteAccountRequest {
+    return new DeleteAccountRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DeleteAccountRequest {
+    return new DeleteAccountRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: DeleteAccountRequest | PlainMessage<DeleteAccountRequest> | undefined, b: DeleteAccountRequest | PlainMessage<DeleteAccountRequest> | undefined): boolean {
+    return proto3.util.equals(DeleteAccountRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message auth.v1.DeleteAccountResponse
+ */
+export class DeleteAccountResponse extends Message<DeleteAccountResponse> {
+  constructor(data?: PartialMessage<DeleteAccountResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "auth.v1.DeleteAccountResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DeleteAccountResponse {
+    return new DeleteAccountResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DeleteAccountResponse {
+    return new DeleteAccountResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DeleteAccountResponse {
+    return new DeleteAccountResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: DeleteAccountResponse | PlainMessage<DeleteAccountResponse> | undefined, b: DeleteAccountResponse | PlainMessage<DeleteAccountResponse> | undefined): boolean {
+    return proto3.util.equals(DeleteAccountResponse, a, b);
   }
 }
 

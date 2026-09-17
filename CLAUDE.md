@@ -17,7 +17,7 @@ Read the relevant app's `CLAUDE.md` before working inside `apps/frontend/` or `a
 
 - `proto/planet/v1/planet.proto` — the tile game (`ClickService`)
 - `proto/chat/v1/chat.proto` — the live chat (`ChatService`)
-- `proto/auth/v1/auth.proto` — who a caller is (`AuthService`): the mint that gates `Click`, and the caller's account
+- `proto/auth/v1/auth.proto` — who a caller is (`AuthService`): the mint that gates `Click`, the caller's account, sign-in with Google or Discord, sign-out and deletion
 - `proto/session/v1/session.proto` — the deprecated mint (`SessionService`), served by the same auth module until no client calls it
 
 Connect derives each service's route from its proto package, so a new context gets its own path with no prefix to allocate. Both `buf.gen.yaml` inputs point at the whole `proto` directory, so a new package is picked up by either generator with no config change.

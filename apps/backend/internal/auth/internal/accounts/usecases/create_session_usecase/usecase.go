@@ -7,16 +7,20 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/uuid"
-
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/attestation"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
+type Sessions interface {
+	Session(ctx context.Context, tokenHash accounts.TokenHash) (*accounts.Session, error)
+	CreateGuest(ctx context.Context, session *accounts.Session) error
+	SaveSession(ctx context.Context, session *accounts.Session) error
+}
+
 type Minter interface {
-	Mint(ip string, account uuid.UUID, now time.Time) (*cpsession.Token, error)
+	Mint(ip string, account accounts.AccountID, now time.Time) (*cpsession.Token, error)
 }
 
 type In struct {
@@ -28,13 +32,13 @@ type In struct {
 // Out is the click token and the Set-Cookie to send back (empty when the cookie needs no change).
 type Out struct {
 	Token     *cpsession.Token
-	Account   uuid.UUID
+	Account   accounts.AccountID
 	SetCookie string
 }
 
 type UseCase struct {
 	attester attestation.Attester
-	sessions accounts.Sessions
+	sessions Sessions
 	ids      accounts.IDProvider
 	tokens   accounts.TokenGenerator
 	minter   Minter
@@ -44,7 +48,7 @@ type UseCase struct {
 
 func New(
 	attester attestation.Attester,
-	sessions accounts.Sessions,
+	sessions Sessions,
 	ids accounts.IDProvider,
 	tokens accounts.TokenGenerator,
 	minter Minter,
@@ -97,22 +101,24 @@ func (u *UseCase) resume(ctx context.Context, cookieHeader string, now time.Time
 		return nil, fmt.Errorf("failed to read the cookie: %w", err)
 	}
 
-	session, err := u.sessions.FindSession(ctx, token.Hash)
+	session, err := u.sessions.Session(ctx, token.Hash)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find the session: %w", err)
 	}
-	if err := session.CheckLive(now); err != nil {
+	if err := session.ExpiryError(now); err != nil {
 		return nil, fmt.Errorf("failed to resume the session: %w", err)
 	}
 
-	if !session.ExtendIfDue(now, u.lifetime) {
+	if !session.Extendable(now, u.lifetime) {
 		return &Out{Account: session.Account}, nil
 	}
-	if err := u.sessions.SaveSession(ctx, session); err != nil {
+
+	extended := session.Extended(now, u.lifetime)
+	if err := u.sessions.SaveSession(ctx, extended); err != nil {
 		return nil, fmt.Errorf("failed to save the extended session: %w", err)
 	}
 
-	return &Out{Account: session.Account, SetCookie: session.Cookie(token, now)}, nil
+	return &Out{Account: extended.Account, SetCookie: extended.Cookie(token, now)}, nil
 }
 
 func (u *UseCase) startGuest(ctx context.Context, now time.Time) (*Out, error) {
@@ -125,7 +131,7 @@ func (u *UseCase) startGuest(ctx context.Context, now time.Time) (*Out, error) {
 		return nil, fmt.Errorf("failed to get a session token: %w", err)
 	}
 
-	session := accounts.StartGuest(account, token, u.lifetime, now)
+	session := accounts.GuestSession(account, token, u.lifetime, now)
 	if err := u.sessions.CreateGuest(ctx, session); err != nil {
 		return nil, fmt.Errorf("failed to store the guest: %w", err)
 	}
