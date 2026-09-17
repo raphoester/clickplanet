@@ -40,6 +40,21 @@
     animation: viewer-status-spin 0.9s linear infinite;
 }
 
+.viewer-status-progress {
+    width: 200px;
+    height: 4px;
+    margin-top: 4px;
+    overflow: hidden;
+    border-radius: 2px;
+    background: #FFFFFF33;
+}
+
+.viewer-status-progress-fill {
+    height: 100%;
+    background: #FFFFFF;
+    transition: width 0.2s ease-out;
+}
+
 @keyframes viewer-status-spin {
     to {
         transform: rotate(360deg);
@@ -49,6 +64,10 @@
 @media (prefers-reduced-motion: reduce) {
     .viewer-status-spinner {
         animation-duration: 3s;
+    }
+
+    .viewer-status-progress-fill {
+        transition: none;
     }
 }
 

@@ -115,16 +115,29 @@ export default function Viewer(props: ViewerProps) {
 
 function StatusCard({status}: {status: GlobeStatus}) {
     return <div className="viewer-status">
-        <div className="viewer-status-card">
-            {status.state === 'failed'
-                ? <>
+        <div className="viewer-status-card" role="status">
+            {status.state === 'loading'
+                ? <LoadingCard territories={status.territories}/>
+                : status.state === 'failed' && <>
                     <h3>The globe could not be loaded</h3>
                     <p>{status.message}</p>
-                </>
-                : <>
-                    <div className="viewer-status-spinner"/>
-                    <h3>Loading the planet…</h3>
                 </>}
         </div>
     </div>
+}
+
+function LoadingCard({territories}: {territories: number | undefined}) {
+    const percent = Math.round((territories ?? 0) * 100)
+    return <>
+        <div className="viewer-status-spinner"/>
+        <h3>{territories === undefined ? "Loading the planet…" : "Loading territories…"}</h3>
+        <div className="viewer-status-progress"
+             role="progressbar"
+             aria-label="Territories loaded"
+             aria-valuemin={0}
+             aria-valuemax={100}
+             aria-valuenow={percent}>
+            <div className="viewer-status-progress-fill" style={{width: `${percent}%`}}/>
+        </div>
+    </>
 }

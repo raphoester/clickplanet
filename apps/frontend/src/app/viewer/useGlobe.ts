@@ -10,7 +10,8 @@ import {now} from '../../backends/clickBudget.ts';
 import {PlaySound} from '../sound/soundPlayer.ts';
 
 export type GlobeStatus =
-    | {state: 'loading'}
+    /** `territories` is the share of the owners fetched, once the map itself is in. */
+    | {state: 'loading', territories?: number}
     | {state: 'ready'}
     | {state: 'failed', message: string}
 
@@ -33,7 +34,7 @@ export function useGlobe(options: UseGlobeOptions) {
     const [status, setStatus] = useState<GlobeStatus>({state: 'loading'})
     const [tilesCount, setTilesCount] = useState(0)
 
-    const {leaderboard, tileDeltas, recordLeaderboard} = useLeaderboardFeed()
+    const {leaderboard, tileDeltas, recordLeaderboard, publishLeaderboard} = useLeaderboardFeed()
 
     // A count, not a flag: every refusal bumps it, so the meter can shake once
     // per refused click instead of raising a dialog.
@@ -113,6 +114,9 @@ export function useGlobe(options: UseGlobeOptions) {
             container: element,
             country: initialCountry.current,
             onLeaderboardChange: recordLeaderboard,
+            onLoadProgress: (territories) => {
+                if (!cancelled) setStatus({state: 'loading', territories})
+            },
             onRateLimited: () => setRefusals(n => n + 1),
             onVPNBlocked: () => setVPNBlocked(true),
             onSessionUnavailable: () => setSessionUnavailable(true),
@@ -135,6 +139,8 @@ export function useGlobe(options: UseGlobeOptions) {
             // For console tooling in dev, e.g. `giveBomb()` in main.tsx.
             if (import.meta.env.DEV) Object.assign(window, {clickplanetGlobe: globe})
             setTilesCount(globe.tilesCount)
+            // The board appears with the map, not up to a sample later.
+            publishLeaderboard()
             setStatus({state: 'ready'})
         }).catch((error) => {
             if (cancelled) return
@@ -148,7 +154,7 @@ export function useGlobe(options: UseGlobeOptions) {
             globeRef.current?.dispose()
             globeRef.current = null
         }
-    }, [container, tileClicker, ownershipsGetter, updatesListener, bonusListener, bomber, playSound, recordLeaderboard, takeBonus, recordCatch, recordBomb, spendBomb, closeShape])
+    }, [container, tileClicker, ownershipsGetter, updatesListener, bonusListener, bomber, playSound, recordLeaderboard, publishLeaderboard, takeBonus, recordCatch, recordBomb, spendBomb, closeShape])
 
     useEffect(() => {
         initialCountry.current = country
