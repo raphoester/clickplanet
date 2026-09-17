@@ -319,7 +319,7 @@ first message rather than at page load, and its foot reads "as guest_<name>",
 what the others see. `MAX_NAME_LENGTH` bounds the typed part, before the prefix.
 What distinguishes two guests with one name is `author_tag`, the salted hash of
 their address that the server stamps itself. History from before usernames
-carries bare names.
+was given the prefix on the server, since every sender was a guest then.
 
 `Viewer` reads the username off the `AccountStore` and hands it to `ChatPanel`.
 With one, the composer asks for no name and has no "Change": the name is changed

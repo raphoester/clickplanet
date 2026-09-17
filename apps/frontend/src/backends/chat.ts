@@ -20,7 +20,7 @@ export function guestName(name: string): string {
 export type ChatMessage = {
     id: string
     sentAt: number
-    /** A username, or `GUEST_PREFIX` and a guest's name. Old history carries bare names. */
+    /** A username, or `GUEST_PREFIX` and a guest's name. */
     authorName: string
     authorTag: string
     countryCode: string

@@ -110,6 +110,38 @@ func (s *testSuite) TestDeleteBeforeRemovesOnlyOlderMessages() {
 	s.Equal([]string{"recent"}, texts(s.recent(start, 10)))
 }
 
+func (s *testSuite) TestTheBackfillPrefixesOnlyTheMessagesFromBeforeUsernames() {
+	ctx := context.Background()
+	usernames := time.Date(2026, 9, 17, 14, 31, 30, 0, time.UTC)
+
+	guest := record("guest", usernames.Add(-time.Minute))
+	player := record("player", usernames.Add(time.Minute))
+	player.Message.AuthorName = "Bob_the_player"
+	s.Require().NoError(s.store.Insert(ctx, guest))
+	s.Require().NoError(s.store.Insert(ctx, player))
+
+	s.runMigration("20260917200000_guest_prefix_backfill.up.sql")
+	s.Equal([]string{"guest_Bob", "Bob_the_player"}, names(s.recent(start, 10)))
+
+	s.runMigration("20260917200000_guest_prefix_backfill.down.sql")
+	s.Equal([]string{"Bob", "Bob_the_player"}, names(s.recent(start, 10)))
+}
+
+func (s *testSuite) runMigration(name string) {
+	query, err := migrations.FS.ReadFile(name)
+	s.Require().NoError(err)
+	_, err = s.db.ExecContext(context.Background(), string(query))
+	s.Require().NoError(err)
+}
+
+func names(recent []messages.Message) []string {
+	names := make([]string, 0, len(recent))
+	for _, message := range recent {
+		names = append(names, message.AuthorName)
+	}
+	return names
+}
+
 func texts(recent []messages.Message) []string {
 	texts := make([]string, 0, len(recent))
 	for _, message := range recent {
