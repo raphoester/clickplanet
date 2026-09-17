@@ -33,7 +33,7 @@ func TestARevertIsLoggedWithItsCounts(t *testing.T) {
 
 	assert.Equal(t, want, out)
 	assert.Contains(t, logs.String(),
-		`level=WARN msg="admin player revert" asked=9.9.9.9 scope=9.9.9.9 dryRun=true touched=40 held=31 restored=31`)
+		`level=WARN msg="admin player revert" asked=9.9.9.9 askedAccount="" scope=9.9.9.9 account="" dryRun=true touched=40 held=31 restored=31`)
 }
 
 func TestAFailureIsLoggedWithHowFarItGot(t *testing.T) {

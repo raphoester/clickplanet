@@ -48,7 +48,7 @@ type harness struct {
 func newHarness(config jury.Config, ban shadowban.Config, watchdogs ...detect.Watchdog) *harness {
 	h := &harness{clock: cptime.NewFixedClock(time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC))}
 
-	banner := shadowban.New(ban, h.clock, shadowban.NewMemoryPersistence(), func(error) {})
+	banner := shadowban.NewBans(ban, h.clock, shadowban.NewMemoryPersistence(), shadowban.NewMemoryPersistence(), func(error) {})
 	h.jury = jury.New(config, banner, h.clock, jury.Hooks{
 		OnFlag: func(report detect.Report) {
 			h.reports = append(h.reports, report)
@@ -412,4 +412,33 @@ func TestGoingStraightToCertainRisesThroughSuspect(t *testing.T) {
 	h.click()
 
 	assert.Len(t, h.rises, 2, "falling back to suspect is not a rise")
+}
+
+func TestAGuestBannedByTheJuryCannotShedItWithAFreshCookie(t *testing.T) {
+	sure := &stubWatchdog{name: "sure", verdict: detect.Certain}
+	h := newHarness(juryConfig(), banConfig(), sure)
+
+	require.True(t, h.jury.Inspect(detect.Click{Scope: "caller", Account: "guest", Tile: 1, Country: "FR", At: h.clock.Now()}))
+	require.Len(t, h.reports, 1)
+	assert.Equal(t, "guest", h.reports[0].Account)
+
+	sure.verdict = detect.Clear
+	h.clock.Advance(time.Second)
+
+	assert.True(t, h.jury.Inspect(detect.Click{Scope: "caller", Account: "fresh-cookie", Tile: 1, Country: "FR", At: h.clock.Now()}),
+		"the ban fell on the guest's scope too")
+	assert.True(t, h.jury.Inspect(detect.Click{Scope: "elsewhere", Account: "guest", Tile: 1, Country: "FR", At: h.clock.Now()}),
+		"and on the account, wherever it clicks from")
+}
+
+func TestASignedInAccountBannedByTheJuryLeavesItsScopeAlone(t *testing.T) {
+	sure := &stubWatchdog{name: "sure", verdict: detect.Certain}
+	h := newHarness(juryConfig(), banConfig(), sure)
+
+	require.True(t, h.jury.Inspect(detect.Click{Scope: "campus", Account: "bot", SignedIn: true, Tile: 1, Country: "FR", At: h.clock.Now()}))
+
+	sure.verdict = detect.Clear
+	h.clock.Advance(time.Second)
+
+	assert.False(t, h.jury.Inspect(detect.Click{Scope: "campus", Account: "student", SignedIn: true, Tile: 1, Country: "FR", At: h.clock.Now()}))
 }

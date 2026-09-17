@@ -78,7 +78,7 @@ func TestForgetHidesTheScopesTakesBeforeThePositionOnly(t *testing.T) {
 	end := storage.Replay(func(ledger.Taking) {})
 	storage.Append(take(3, "bot", "ps", "", start.Add(time.Second)))
 
-	storage.Forget("bot", end)
+	storage.Forget(ledger.Caller{Scope: "bot"}, end)
 
 	assert.Equal(t, []ledger.Taking{
 		take(2, "player", "il", "", start),
@@ -129,4 +129,23 @@ func TestAReplayRacingAppendsSeesAConsistentPrefix(t *testing.T) {
 	}
 
 	wg.Wait()
+}
+
+func TestForgetOnAnAccountHidesItsTakesFromEveryScope(t *testing.T) {
+	storage := newStorage(inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence())
+
+	guest := take(1, "campus", "ps", "il", start)
+	guest.Account = "a-guest"
+	elsewhere := take(2, "home", "ps", "il", start)
+	elsewhere.Account = "a-guest"
+	classmate := take(3, "campus", "ps", "il", start)
+	classmate.Account = "a-classmate"
+	noAccount := take(4, "campus", "ps", "il", start)
+
+	for _, taking := range []ledger.Taking{guest, elsewhere, classmate, noAccount} {
+		storage.Append(taking)
+	}
+	storage.Forget(ledger.Caller{Account: "a-guest"}, storage.Replay(func(ledger.Taking) {}))
+
+	assert.Equal(t, []ledger.Taking{classmate, noAccount}, replay(storage))
 }

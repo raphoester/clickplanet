@@ -29,9 +29,11 @@ func (w *fixedWatchdog) Watch(detect.Click) (detect.Verdict, detect.Evidence) {
 
 func (w *fixedWatchdog) Committed(detect.Click) {}
 
-func (stubBanner) Flag(string) (shadowban.Sentence, bool) { return shadowban.Sentence{Flags: 1}, true }
+func (stubBanner) Flag(shadowban.Caller) (shadowban.Sentence, bool) {
+	return shadowban.Sentence{Flags: 1}, true
+}
 
-func (stubBanner) Banned(string) bool { return false }
+func (stubBanner) Banned(shadowban.Caller) bool { return false }
 
 func (stubBanner) Flagged() int { return 0 }
 

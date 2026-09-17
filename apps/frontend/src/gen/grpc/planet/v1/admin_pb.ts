@@ -146,6 +146,13 @@ export class InspectPlayerRequest extends Message<InspectPlayerRequest> {
    */
   scope = "";
 
+  /**
+   * Or an account id, instead of a scope.
+   *
+   * @generated from field: string account_id = 2;
+   */
+  accountId = "";
+
   constructor(data?: PartialMessage<InspectPlayerRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -155,6 +162,7 @@ export class InspectPlayerRequest extends Message<InspectPlayerRequest> {
   static readonly typeName = "planet.v1.InspectPlayerRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "scope", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): InspectPlayerRequest {
@@ -179,9 +187,16 @@ export class InspectPlayerRequest extends Message<InspectPlayerRequest> {
  */
 export class InspectPlayerResponse extends Message<InspectPlayerResponse> {
   /**
+   * Empty for an account with no take inside ledger.retention.
+   *
    * @generated from field: string scope = 1;
    */
   scope = "";
+
+  /**
+   * @generated from field: string account_id = 17;
+   */
+  accountId = "";
 
   /**
    * False when the jury has not seen the scope inside antiBot.jury.trackWindow:
@@ -283,6 +298,7 @@ export class InspectPlayerResponse extends Message<InspectPlayerResponse> {
   static readonly typeName = "planet.v1.InspectPlayerResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "scope", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 17, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "tracked", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
     { no: 3, name: "banned", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
     { no: 4, name: "banned_until", kind: "message", T: Timestamp },
@@ -442,7 +458,7 @@ export class FindPlayersResponse extends Message<FindPlayersResponse> {
   players: Player[] = [];
 
   /**
-   * How many scopes matched, before the limit.
+   * How many players matched, before the limit.
    *
    * @generated from field: uint32 total = 2;
    */
@@ -526,7 +542,7 @@ export class TopPlayersResponse extends Message<TopPlayersResponse> {
   players: Player[] = [];
 
   /**
-   * How many scopes took any tile, before the limit.
+   * How many players took any tile, before the limit.
    *
    * @generated from field: uint32 total = 2;
    */
@@ -571,6 +587,14 @@ export class Player extends Message<Player> {
    * @generated from field: string scope = 1;
    */
   scope = "";
+
+  /**
+   * The account the click token named. Each account on a scope is a player of
+   * its own; empty is the takes made with no account.
+   *
+   * @generated from field: string account_id = 12;
+   */
+  accountId = "";
 
   /**
    * Tiles it still holds: its take is the tile's latest and the paint is still there.
@@ -643,6 +667,7 @@ export class Player extends Message<Player> {
   static readonly typeName = "planet.v1.Player";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "scope", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 12, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "tiles", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 3, name: "first_at", kind: "message", T: Timestamp },
     { no: 4, name: "last_at", kind: "message", T: Timestamp },
@@ -684,6 +709,13 @@ export class BanPlayerRequest extends Message<BanPlayerRequest> {
   scope = "";
 
   /**
+   * Or an account id, instead of a scope. The account alone is banned.
+   *
+   * @generated from field: string account_id = 3;
+   */
+  accountId = "";
+
+  /**
    * Unset takes the ladder's step for the offence (antiBot.shadowBan.banDurations).
    *
    * @generated from field: google.protobuf.Duration duration = 2;
@@ -699,6 +731,7 @@ export class BanPlayerRequest extends Message<BanPlayerRequest> {
   static readonly typeName = "planet.v1.BanPlayerRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "scope", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "duration", kind: "message", T: Duration },
   ]);
 
@@ -729,6 +762,11 @@ export class BanPlayerResponse extends Message<BanPlayerResponse> {
   scope = "";
 
   /**
+   * @generated from field: string account_id = 5;
+   */
+  accountId = "";
+
+  /**
    * @generated from field: uint32 offence = 2;
    */
   offence = 0;
@@ -754,6 +792,7 @@ export class BanPlayerResponse extends Message<BanPlayerResponse> {
   static readonly typeName = "planet.v1.BanPlayerResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "scope", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "offence", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 3, name: "banned_until", kind: "message", T: Timestamp },
     { no: 4, name: "enforced", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
@@ -786,6 +825,13 @@ export class RevertPlayerRequest extends Message<RevertPlayerRequest> {
   scope = "";
 
   /**
+   * Or an account id, instead of a scope: its takes from every scope.
+   *
+   * @generated from field: string account_id = 3;
+   */
+  accountId = "";
+
+  /**
    * @generated from field: bool dry_run = 2;
    */
   dryRun = false;
@@ -799,6 +845,7 @@ export class RevertPlayerRequest extends Message<RevertPlayerRequest> {
   static readonly typeName = "planet.v1.RevertPlayerRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "scope", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "dry_run", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
@@ -829,7 +876,12 @@ export class RevertPlayerResponse extends Message<RevertPlayerResponse> {
   scope = "";
 
   /**
-   * Tiles the scope took, and those it still holds.
+   * @generated from field: string account_id = 5;
+   */
+  accountId = "";
+
+  /**
+   * Tiles it took, and those it still holds.
    *
    * @generated from field: uint32 touched = 2;
    */
@@ -854,6 +906,7 @@ export class RevertPlayerResponse extends Message<RevertPlayerResponse> {
   static readonly typeName = "planet.v1.RevertPlayerResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "scope", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "touched", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 3, name: "held", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 4, name: "restored", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },

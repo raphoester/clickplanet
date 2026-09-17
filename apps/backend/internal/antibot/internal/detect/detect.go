@@ -16,7 +16,12 @@ import (
 
 // Click is one Click RPC as the jury sees it, before the handler runs.
 type Click struct {
-	Scope   string
+	Scope string
+	// Account is the account the click token names, empty for none. Watchdogs judge the scope; a ban falls on both.
+	Account string
+	// SignedIn is an account a provider vouches for. Every other account is a guest's.
+	SignedIn bool
+
 	Tile    uint32
 	Country string
 	At      time.Time
@@ -150,7 +155,8 @@ func (o Opinion) Reading() Reading {
 // Examination is what the jury and the ban hold on one scope, read without changing either.
 type Examination struct {
 	Scope   string
-	Tracked bool // false for a caller not seen inside trackWindow
+	Account string // empty when the operator named a scope alone
+	Tracked bool   // false for a caller not seen inside trackWindow
 
 	Banned      bool // a sentence is running, enforced or not
 	Flags       int
@@ -177,8 +183,9 @@ type Examination struct {
 // Opinions, including the ones that said Clear, because what did not fire is
 // half of reading a line that did.
 type Report struct {
-	Scope string
-	Flags int
+	Scope   string
+	Account string
+	Flags   int
 
 	Offence     int
 	BannedUntil time.Time

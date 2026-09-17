@@ -18,13 +18,15 @@ func TestRunSuite(t *testing.T) {
 
 type testSuite struct {
 	suite.Suite
-	db    *cppg.Postgres
-	store *postgres_ban_store.Store
+	db       *cppg.Postgres
+	store    *postgres_ban_store.Store
+	accounts *postgres_ban_store.Store
 }
 
 func (s *testSuite) SetupSuite() {
 	s.db = cppg.StartTestServer(s.T()).OpenSchema(s.T(), "antibot", migrations.FS)
-	s.store = postgres_ban_store.New(s.db)
+	s.store = postgres_ban_store.NewScopes(s.db)
+	s.accounts = postgres_ban_store.NewAccounts(s.db)
 }
 
 func (s *testSuite) SetupTest() {
@@ -32,9 +34,13 @@ func (s *testSuite) SetupTest() {
 }
 
 func (s *testSuite) load() map[string]shadowban.Record {
+	return s.loadFrom(s.store)
+}
+
+func (s *testSuite) loadFrom(store *postgres_ban_store.Store) map[string]shadowban.Record {
 	loaded := map[string]shadowban.Record{}
-	s.Require().NoError(s.store.Load(s.T().Context(), func(record shadowban.Record) {
-		loaded[record.Scope] = record
+	s.Require().NoError(store.Load(s.T().Context(), func(record shadowban.Record) {
+		loaded[record.Key] = record
 	}))
 	return loaded
 }
@@ -48,8 +54,8 @@ func (s *testSuite) TestAnEmptyTableLoadsNothing() {
 
 func (s *testSuite) TestSaveThenLoad() {
 	s.Require().NoError(s.store.Save(s.T().Context(), []shadowban.Record{
-		{Scope: "1.2.3.4", Flags: 3, Offences: 2, Until: until},
-		{Scope: "2a00:8c40:f0c5:6713::/64", Flags: 1, Offences: 1, Until: until.Add(time.Hour)},
+		{Key: "1.2.3.4", Flags: 3, Offences: 2, Until: until},
+		{Key: "2a00:8c40:f0c5:6713::/64", Flags: 1, Offences: 1, Until: until.Add(time.Hour)},
 	}))
 
 	loaded := s.load()
@@ -63,11 +69,11 @@ func (s *testSuite) TestSaveThenLoad() {
 func (s *testSuite) TestSaveOverwritesAScopeAndKeepsTheOthers() {
 	ctx := s.T().Context()
 	s.Require().NoError(s.store.Save(ctx, []shadowban.Record{
-		{Scope: "kept", Flags: 1, Offences: 1, Until: until},
-		{Scope: "changed", Flags: 1, Offences: 1, Until: until},
+		{Key: "kept", Flags: 1, Offences: 1, Until: until},
+		{Key: "changed", Flags: 1, Offences: 1, Until: until},
 	}))
 
-	s.Require().NoError(s.store.Save(ctx, []shadowban.Record{{Scope: "changed", Flags: 2, Offences: 2, Until: until.Add(24 * time.Hour)}}))
+	s.Require().NoError(s.store.Save(ctx, []shadowban.Record{{Key: "changed", Flags: 2, Offences: 2, Until: until.Add(24 * time.Hour)}}))
 
 	loaded := s.load()
 	s.Require().Len(loaded, 2)
@@ -78,9 +84,32 @@ func (s *testSuite) TestSaveOverwritesAScopeAndKeepsTheOthers() {
 
 func (s *testSuite) TestAFailedSaveWritesNothing() {
 	s.Require().Error(s.store.Save(s.T().Context(), []shadowban.Record{
-		{Scope: "fine", Flags: 1, Offences: 1, Until: until},
-		{Scope: "", Flags: 1, Offences: 1, Until: until},
+		{Key: "fine", Flags: 1, Offences: 1, Until: until},
+		{Key: "", Flags: 1, Offences: 1, Until: until},
 	}))
 
 	s.Empty(s.load())
+}
+
+func (s *testSuite) TestAccountsAreKeptApartFromScopes() {
+	ctx := s.T().Context()
+	const account = "0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10"
+
+	s.Require().NoError(s.accounts.Save(ctx, []shadowban.Record{{Key: account, Flags: 2, Offences: 1, Until: until}}))
+	s.Require().NoError(s.store.Save(ctx, []shadowban.Record{{Key: "1.2.3.4", Flags: 1, Offences: 1, Until: until}}))
+
+	loaded := s.loadFrom(s.accounts)
+	s.Require().Len(loaded, 1)
+	s.Equal(2, loaded[account].Flags)
+	s.True(loaded[account].Until.Equal(until))
+	s.NotContains(s.load(), account)
+}
+
+func (s *testSuite) TestAKeyThatIsNotAnAccountWritesNothing() {
+	s.Require().Error(s.accounts.Save(s.T().Context(), []shadowban.Record{
+		{Key: "0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10", Flags: 1, Offences: 1, Until: until},
+		{Key: "1.2.3.4", Flags: 1, Offences: 1, Until: until},
+	}))
+
+	s.Empty(s.loadFrom(s.accounts))
 }

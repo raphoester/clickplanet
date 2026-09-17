@@ -64,7 +64,7 @@ func TestAFlushWritesOnlyTheScopesThatChanged(t *testing.T) {
 
 	saves := persistence.Saves()
 	require.Len(t, saves, 2, "a flush with nothing changed writes nothing")
-	assert.Equal(t, []shadowban.Record{{Scope: "second", Offences: 1, Until: clock.Now().Add(time.Hour)}}, saves[1])
+	assert.Equal(t, []shadowban.Record{{Key: "second", Offences: 1, Until: clock.Now().Add(time.Hour)}}, saves[1])
 }
 
 func TestAFailedFlushKeepsTheBansForTheNextOne(t *testing.T) {
@@ -94,7 +94,7 @@ func TestAFailedLoadRefusesTheBoot(t *testing.T) {
 func TestOneScopeIsUnbannedByDeletingItsRow(t *testing.T) {
 	clock := newClock()
 	until := clock.Now().Add(time.Hour)
-	persistence := shadowban.NewMemoryPersistence(shadowban.Record{Scope: "keep", Flags: 1, Offences: 1, Until: until})
+	persistence := shadowban.NewMemoryPersistence(shadowban.Record{Key: "keep", Flags: 1, Offences: 1, Until: until})
 
 	banner := shadowban.New(config(), clock, persistence, failOnStateError(t))
 	require.NoError(t, banner.Load(t.Context()))

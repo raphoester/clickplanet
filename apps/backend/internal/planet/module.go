@@ -144,8 +144,10 @@ func NewModule(config Config) cpbootstrap.Module {
 			props.Runners.Add(cppg.CloseAfter(db, props.Logger, tilesStorage, takings))
 			props.Runners.Add(ledger.NewRetention(config.Ledger, takings, clock))
 
-			limiter := cpratelimit.New("click-limiter", config.RateLimiter, clock)
+			// One limiter holds both buckets a click spends: the account's, and its scope's at scopeMultiplier.
+			limiter := cpratelimit.New("click-limiter", config.RateLimiter.Config, clock)
 			props.Runners.Add(limiter)
+			buckets := config.RateLimiter.Buckets()
 
 			pricer := clicks.NewToll(config.Toll, tilesStorage)
 
@@ -203,7 +205,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			// not what they attempted.
 			clickUseCase = bonus_click.New(clickUseCase, registry)
 
-			clickUseCase = throttle_click.New(clickUseCase, limiter, pricer)
+			clickUseCase = throttle_click.New(clickUseCase, limiter, pricer, buckets)
 
 			// Outside the throttle: a loop's timing is only whole before it drops clicks.
 			clickUseCase = antibot_attempt_click.New(clickUseCase, guard, clock)
@@ -226,7 +228,7 @@ func NewModule(config Config) cpbootstrap.Module {
 				BanPlayerHandler:  ban_player_handler.New(audit_ban.New(ban_player_usecase.New(guard), props.Logger)),
 				RevertPlayerHandler: revert_player_handler.New(
 					audit_revert.New(revert_player_usecase.New(takings, tilesStorage, pace), props.Logger)),
-				InspectPlayerHandler: inspect_player_handler.New(inspect_player_usecase.New(guard)),
+				InspectPlayerHandler: inspect_player_handler.New(inspect_player_usecase.New(guard, takings)),
 				PaintRandomTilesHandler: paint_random_tiles_handler.New(audit_paint_random.New(
 					paint_random_tiles_usecase.New(borders, geography, tilesStorage, countries, clicks.SystemRandom{}, pace),
 					props.Logger)),
@@ -269,11 +271,11 @@ func NewModule(config Config) cpbootstrap.Module {
 			// and keeps it. So it can check a token and cannot mint one, and there is
 			// no second setting to keep in step with auth.secret. Skipped when auth is off.
 			if config.Auth.Enabled {
-				interceptors = append(interceptors, planetv1controller.NewSessionInterceptor(
-					rpc_session_verifier.New(props.Internal, props.Logger),
-					clock,
-					config.Auth.Enforce,
-					props.Metrics))
+				verifier := rpc_session_verifier.New(props.Internal, props.Logger)
+				interceptors = append(interceptors,
+					planetv1controller.NewSessionInterceptor(verifier, clock, config.Auth.Enforce, props.Metrics),
+					// A budget read with a token is the account's; without one it refuses nothing.
+					planetv1controller.NewBudgetSessionInterceptor(verifier, clock))
 			}
 
 			// ---- Bonus use cases ----
@@ -283,7 +285,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			// anywhere near right. What each caller did with their box goes to the
 			// guard as well, for the catcher watchdog.
 			claimBonus, counters := prom_claim_bonus.New(
-				claim_bonus_usecase.New(registry, limiter, pricer, spreads, bombs, bombRules.Radius, enclosures, clock),
+				claim_bonus_usecase.New(registry, limiter, pricer, spreads, bombs, bombRules.Radius, enclosures, buckets, clock),
 				props.Metrics)
 
 			registry.Observe(bonuses.Report{
@@ -312,7 +314,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			// three ports that happen to be served by one adapter.
 			service := planetv1controller.ClickService{
 				ClickHandler:      click_handler.New(clickUseCase),
-				GetBudgetHandler:  get_budget_handler.New(get_budget_usecase.New(limiter, pricer)),
+				GetBudgetHandler:  get_budget_handler.New(get_budget_usecase.New(limiter, pricer, buckets)),
 				MapDensityHandler: map_density_handler.New(map_density_usecase.New(tilesChecker)),
 				GetMapHandler: get_map_handler.New(
 					antibot_get_map.New(get_map_usecase.New(tilesChecker, tilesStorage), guard, tilesChecker)),

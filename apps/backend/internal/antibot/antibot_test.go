@@ -26,8 +26,9 @@ type stack struct {
 	config antibot.Config
 	stop   func()
 
-	bans     *shadowban.MemoryPersistence
-	evidence *evidence.MemoryPersistence
+	bans        *shadowban.MemoryPersistence
+	accountBans *shadowban.MemoryPersistence
+	evidence    *evidence.MemoryPersistence
 	// forgetEvidence starts every boot with nothing stored, as a process without persistence would.
 	forgetEvidence bool
 
@@ -39,10 +40,11 @@ type stack struct {
 
 func newStack(options ...func(*antibot.Config)) *stack {
 	s := &stack{
-		clock:    cptime.NewFixedClock(time.Date(2026, 9, 11, 2, 0, 0, 0, time.UTC)),
-		owner:    map[uint32]string{},
-		bans:     shadowban.NewMemoryPersistence(),
-		evidence: evidence.NewMemoryPersistence(),
+		clock:       cptime.NewFixedClock(time.Date(2026, 9, 11, 2, 0, 0, 0, time.UTC)),
+		owner:       map[uint32]string{},
+		bans:        shadowban.NewMemoryPersistence(),
+		accountBans: shadowban.NewMemoryPersistence(),
+		evidence:    evidence.NewMemoryPersistence(),
 	}
 
 	config := antibot.Config{Enabled: true}
@@ -125,7 +127,7 @@ func (s *stack) boot() {
 		OnRise:       func(watchdog, level string) { s.rises = append(s.rises, watchdog+" "+level) },
 		OnStateError: func(err error) { s.errors = append(s.errors, err) },
 		OnStart:      func(antibot.Description) { close(started) },
-	}, s.bans, s.evidence)
+	}, s.bans, s.accountBans, s.evidence)
 	if err != nil {
 		panic(err)
 	}
@@ -611,7 +613,7 @@ func TestWithTheBlockOffTheGuardPassesEveryClick(t *testing.T) {
 
 	assert.False(t, guard.Enabled())
 	assert.False(t, guard.Inspect(antibot.Click{Scope: "1.2.3.4", Tile: 1, Country: "fr"}))
-	assert.False(t, guard.Banned("1.2.3.4"))
+	assert.False(t, guard.Banned("1.2.3.4", "a-guest"))
 }
 
 // Production on 2026-09-14: restarted every few minutes during the attack, so no window of 10m or more ever filled.
@@ -654,9 +656,9 @@ func TestExaminingABannedScopeCarriesItsSentence(t *testing.T) {
 
 	s.clock.Advance(time.Second)
 	s.click("player", 1, "FR")
-	s.guard.Ban("player", 2*time.Hour)
+	s.guard.Ban("player", "", 2*time.Hour)
 
-	examination := s.guard.Examine("player")
+	examination := s.guard.Examine("player", "")
 
 	assert.True(t, examination.Tracked)
 	assert.True(t, examination.Banned)
@@ -674,7 +676,7 @@ func TestAGuardThatIsOffExaminesNothing(t *testing.T) {
 	guard, err := antibot.New(antibot.Config{}, cptime.SystemClock{}, antibot.Observer{})
 	require.NoError(t, err)
 
-	assert.Equal(t, antibot.Examination{Scope: "player"}, guard.Examine("player"))
+	assert.Equal(t, antibot.Examination{Scope: "player", Account: "a-guest"}, guard.Examine("player", "a-guest"))
 }
 
 func TestValidateNamesTheCohortBoundItRefuses(t *testing.T) {
@@ -706,10 +708,28 @@ func TestBansSurviveARestart(t *testing.T) {
 	s := newStack()
 
 	s.clock.Advance(time.Second)
-	s.guard.Ban("1.2.3.4", time.Hour)
+	s.guard.Ban("1.2.3.4", "", time.Hour)
+	s.guard.Ban("", "a-guest", time.Hour)
 	s.restart(20 * time.Second)
 	defer func() { s.stop() }()
 
 	require.Empty(t, s.errors)
-	assert.True(t, s.guard.Banned("1.2.3.4"))
+	assert.True(t, s.guard.Banned("1.2.3.4", ""))
+	assert.True(t, s.guard.Banned("5.6.7.8", "a-guest"))
+	assert.Contains(t, s.accountBans.Stored(), "a-guest")
+}
+
+func TestABannedGuestWithAFreshCookieIsStillDropped(t *testing.T) {
+	s := newStack()
+
+	s.clock.Advance(time.Second)
+	s.guard.Ban("", "a-guest", time.Hour)
+	assert.False(t, s.guard.Inspect(antibot.Click{Scope: "1.2.3.4", Account: "another-guest", Tile: 1, Country: "fr", At: s.clock.Now()}),
+		"an operator's ban on an account alone leaves its scope alone")
+
+	s.guard.Ban("1.2.3.4", "", time.Hour)
+	assert.True(t, s.guard.Inspect(antibot.Click{Scope: "1.2.3.4", Account: "a-third-guest", Tile: 1, Country: "fr", At: s.clock.Now()}),
+		"a banned scope drops every account behind it")
+	assert.True(t, s.guard.Inspect(antibot.Click{Scope: "9.9.9.9", Account: "a-guest", Tile: 1, Country: "fr", At: s.clock.Now()}),
+		"a banned account is dropped from any scope")
 }

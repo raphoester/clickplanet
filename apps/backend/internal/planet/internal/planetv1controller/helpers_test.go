@@ -85,7 +85,7 @@ func clickServerWith(
 	mux.Handle(planetv1connect.NewClickServiceHandler(
 		ClickService{
 			ClickHandler:      click_handler.New(clickUseCase),
-			GetBudgetHandler:  get_budget_handler.New(get_budget_usecase.New(budgets, onePrice)),
+			GetBudgetHandler:  get_budget_handler.New(get_budget_usecase.New(budgets, onePrice, buckets)),
 			MapDensityHandler: map_density_handler.New(map_density_usecase.New(stubChecker{})),
 			GetMapHandler:     get_map_handler.New(get_map_usecase.New(stubChecker{}, stubMapReader{})),
 			ListenForEventsHandler: listen_for_events_handler.New(
@@ -103,12 +103,17 @@ func clickServerWith(
 type fakeLimiter struct {
 	allow bool
 	state cpratelimit.State
-	keys  []string
+	keys  []cpratelimit.Key
 }
 
-func (l *fakeLimiter) TakeN(key string, _ float64) (bool, cpratelimit.State) {
-	l.keys = append(l.keys, key)
-	return l.allow, l.state
+func (l *fakeLimiter) TakeAll(_ float64, keys ...cpratelimit.Key) (bool, []cpratelimit.State) {
+	l.keys = append(l.keys, keys...)
+
+	states := make([]cpratelimit.State, len(keys))
+	for i := range states {
+		states[i] = l.state
+	}
+	return l.allow, states
 }
 
 type stubPricer clicks.Price
@@ -116,6 +121,8 @@ type stubPricer clicks.Price
 func (p stubPricer) Price(string) clicks.Price { return clicks.Price(p) }
 
 var onePrice = stubPricer{Cost: 1}
+
+var buckets = clicks.ThrottleConfig{}.Buckets()
 
 type fakeRequest struct {
 	connect.AnyRequest

@@ -16,13 +16,14 @@ func NewInMemory(
 	clock cptime.Clock,
 	observer Observer,
 	bans *shadowban.MemoryPersistence,
+	accountBans *shadowban.MemoryPersistence,
 	evidences *evidence.MemoryPersistence,
 ) (*Guard, error) {
 	if !config.Enabled {
 		return &Guard{}, nil
 	}
 
-	return build(config, clock, observer, memoryDatabase{}, bans, evidences)
+	return build(config, clock, observer, memoryDatabase{}, bans, accountBans, evidences)
 }
 
 type memoryDatabase struct{}

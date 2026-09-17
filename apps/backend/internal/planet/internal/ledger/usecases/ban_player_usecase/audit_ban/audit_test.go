@@ -32,7 +32,7 @@ func TestABanIsLoggedWithTheScopeItLandedOn(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, want, out)
-	assert.Contains(t, logs.String(), `level=WARN msg="admin ban" asked=2001:db8::1 duration=0s scope=2001:db8::/64 offence=2`)
+	assert.Contains(t, logs.String(), `level=WARN msg="admin ban" asked=2001:db8::1 askedAccount="" duration=0s scope=2001:db8::/64 account="" offence=2`)
 	assert.Contains(t, logs.String(), "enforced=true")
 }
 

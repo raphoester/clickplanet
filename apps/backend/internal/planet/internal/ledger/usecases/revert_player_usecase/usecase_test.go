@@ -150,3 +150,29 @@ func TestAStorageErrorIsReturned(t *testing.T) {
 	_, err := revert_player_usecase.New(book, tiles, clicks.Pacing{Batch: 2}).Execute(t.Context(), revert_player_usecase.In{Scope: "9.9.9.9"})
 	require.ErrorIs(t, err, tiles.err)
 }
+
+func TestAnAccountIsRevertedWhateverScopeItTookFrom(t *testing.T) {
+	const guest = "0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10"
+	book := inmemory_ledger_storage.New(inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence(), slog.New(slog.DiscardHandler))
+	tiles := &stubMap{owners: map[uint32]string{1: "il", 2: "il", 3: "il"}}
+
+	book.Append(ledger.Taking{Tile: 1, Scope: "campus", Account: guest, Country: "ps", Previous: "il"})
+	book.Append(ledger.Taking{Tile: 2, Scope: "home", Account: guest, Country: "ps", Previous: "il"})
+	book.Append(ledger.Taking{Tile: 3, Scope: "campus", Account: "a-classmate", Country: "ps", Previous: "il"})
+	for tile := uint32(1); tile <= 3; tile++ {
+		tiles.owners[tile] = "ps"
+	}
+
+	out, err := revert_player_usecase.New(book, tiles, clicks.Pacing{Batch: 10}).
+		Execute(t.Context(), revert_player_usecase.In{Account: guest})
+	require.NoError(t, err)
+
+	assert.Equal(t, revert_player_usecase.Out{Account: guest, Touched: 2, Held: 2, Restored: 2}, out)
+	assert.Equal(t, map[uint32]string{1: "il", 2: "il", 3: "ps"}, tiles.owners, "the classmate on the same scope keeps its tile")
+
+	again, err := revert_player_usecase.New(book, tiles, clicks.Pacing{Batch: 10}).
+		Execute(t.Context(), revert_player_usecase.In{Account: guest})
+	require.NoError(t, err)
+	assert.Zero(t, again.Touched, "the account's takes are forgotten")
+	assert.Equal(t, 1, takenBy(book, "campus"), "and only the account's")
+}

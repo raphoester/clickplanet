@@ -128,7 +128,7 @@ func TestVPNBlockRunsBeforeTheThrottle(t *testing.T) {
 	blockInterceptor := NewVPNBlockInterceptor(blocklist, prometheus.NewRegistry())
 
 	limiter := &fakeLimiter{allow: true}
-	server := clickServerWith(t, throttle_click.New(stubService{}, limiter, onePrice), nil, connect.WithInterceptors(
+	server := clickServerWith(t, throttle_click.New(stubService{}, limiter, onePrice, buckets), nil, connect.WithInterceptors(
 		errorNet(),
 		blockInterceptor,
 	))

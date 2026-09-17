@@ -16,7 +16,7 @@ type MemoryPersistence struct {
 	mu        sync.Mutex
 	takes     map[ledger.Position]ledger.Taking
 	head      ledger.Position
-	forgotten map[string]ledger.Position
+	forgotten map[ledger.Caller]ledger.Position
 	saves     int
 	failing   error
 }
@@ -24,7 +24,7 @@ type MemoryPersistence struct {
 func NewMemoryPersistence() *MemoryPersistence {
 	return &MemoryPersistence{
 		takes:     map[ledger.Position]ledger.Taking{},
-		forgotten: map[string]ledger.Position{},
+		forgotten: map[ledger.Caller]ledger.Position{},
 	}
 }
 
@@ -58,7 +58,7 @@ func (m *MemoryPersistence) Save(_ context.Context, changes Changes) error {
 	}
 
 	m.head = changes.Marks.Head
-	maps.DeleteFunc(m.forgotten, func(_ string, before ledger.Position) bool { return before <= m.head })
+	maps.DeleteFunc(m.forgotten, func(_ ledger.Caller, before ledger.Position) bool { return before <= m.head })
 	maps.Copy(m.forgotten, changes.Marks.Forgotten)
 	return nil
 }

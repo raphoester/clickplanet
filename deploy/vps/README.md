@@ -614,6 +614,10 @@ docker compose start backend
 That forgets its offences too. To end the ban and keep them, so its next ban
 climbs the ladder: `update antibot.bans set banned_until = now() where scope = '1.2.3.4'`.
 
+A ban on a guest falls on its account too. Unban the account the same way, in
+`antibot.account_bans` (`where account = '<account id>'`), or it is still dropped
+from any address.
+
 Set `enforce` back to false to stop dropping clicks for everyone at once.
 ### Evidence has to outlive a deploy, and by default it does not
 
@@ -964,6 +968,8 @@ docker compose exec backend wget -qO- --header 'Content-Type: application/json' 
 Each player has:
 
 - `scope`, `firstAt`, `lastAt`, `activeFor` (`lastAt` minus `firstAt`)
+- `accountId`: the account its click token named. Each account behind one address
+  is a row of its own; a row with no `accountId` is the takes made with no account
 - `tiles`: tiles it still holds — its take is the tile's latest and the paint is
   still there
 - `takes`: every take it made, held or painted over since; a tile taken twice
@@ -978,12 +984,18 @@ drops the oldest first and logs `the ledger is full`.
 
 Ban first, or the player repaints behind the revert. Leave out `duration` to
 take the ladder's step (24h, 7 days, 3 years); it counts as an offence either
-way. An address is banned as its scope:
+way. An address is banned as its scope, which drops every account behind it. An
+`accountId` is banned alone, from any address; send `scope` or `accountId`, not
+both:
 
 ```bash
 docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"scope":"203.0.113.7"}' http://127.0.0.1:8081/planet.v1.AdminService/BanPlayer
 docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"scope":"2001:db8:1:2::/64","duration":"3600s"}' http://127.0.0.1:8081/planet.v1.AdminService/BanPlayer
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"accountId":"0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10"}' http://127.0.0.1:8081/planet.v1.AdminService/BanPlayer
 ```
+
+Ban the scope when the player is on a guest account: a guest drops its account
+with a new cookie.
 
 `"enforced":false` in the answer means `antiBot.shadowBan.enforce` is off: the
 ban is kept but drops nothing. There is no unban call yet: see "Unban one scope"
@@ -995,6 +1007,8 @@ Then revert, dry run first:
 docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"scope":"203.0.113.7","dryRun":true}' http://127.0.0.1:8081/planet.v1.AdminService/RevertPlayer
 ```
 
+- `accountId` instead of `scope` reverts that account's takes from every address,
+  and leaves the other accounts on its address alone.
 - `touched` is every tile the player took; `held` is those it still holds. Only
   `held` tiles change. A tile somebody took since stays theirs.
 - Each goes back to what it held before the player's current run on it, or to
@@ -1008,8 +1022,9 @@ docker compose exec backend wget -qO- --header 'Content-Type: application/json' 
 ### See how close the antibot is to one player
 
 The `antibot ban` log line is only written when a ban fires. To see where a
-player stands before that, inspect its scope (an address is read as its scope).
-It changes nothing and is not logged:
+player stands before that, inspect its scope (an address is read as its scope),
+or its `accountId`, which is read on the address of its latest take. It changes
+nothing and is not logged:
 
 ```bash
 docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"scope":"203.0.113.7"}' http://127.0.0.1:8081/planet.v1.AdminService/InspectPlayer

@@ -18,14 +18,20 @@ import (
 type fakeLimiter struct {
 	allow bool
 	state cpratelimit.State
-	keys  []string
+	keys  [][]cpratelimit.Key
 	spent []float64
 }
 
-func (l *fakeLimiter) TakeN(key string, n float64) (bool, cpratelimit.State) {
-	l.keys = append(l.keys, key)
+// TakeAll answers state for every key.
+func (l *fakeLimiter) TakeAll(n float64, keys ...cpratelimit.Key) (bool, []cpratelimit.State) {
+	l.keys = append(l.keys, keys)
 	l.spent = append(l.spent, n)
-	return l.allow, l.state
+
+	states := make([]cpratelimit.State, len(keys))
+	for i := range states {
+		states[i] = l.state
+	}
+	return l.allow, states
 }
 
 type fakePricer struct {
@@ -39,6 +45,8 @@ func (p *fakePricer) Price(country string) clicks.Price {
 }
 
 func onePrice() *fakePricer { return &fakePricer{price: clicks.Price{Cost: 1}} }
+
+var buckets = clicks.ThrottleConfig{}.Buckets()
 
 type fakeClick struct {
 	err error
@@ -57,7 +65,7 @@ func TestThrottleClick(t *testing.T) {
 	t.Run("lets an allowed click through and says what is left", func(t *testing.T) {
 		inner := &fakeClick{}
 
-		out, err := throttle_click.New(inner, &fakeLimiter{allow: true, state: state}, onePrice()).
+		out, err := throttle_click.New(inner, &fakeLimiter{allow: true, state: state}, onePrice(), buckets).
 			Execute(t.Context(), click_usecase.In{TileID: 1, CountryID: "fr"})
 
 		require.NoError(t, err)
@@ -69,13 +77,13 @@ func TestThrottleClick(t *testing.T) {
 	t.Run("marks a click boosted while the bucket says a boost runs", func(t *testing.T) {
 		plain, boosted := &fakeClick{}, &fakeClick{}
 
-		_, err := throttle_click.New(plain, &fakeLimiter{allow: true, state: state}, onePrice()).
+		_, err := throttle_click.New(plain, &fakeLimiter{allow: true, state: state}, onePrice(), buckets).
 			Execute(t.Context(), click_usecase.In{TileID: 1, CountryID: "fr"})
 		require.NoError(t, err)
 
 		boostedState := state
 		boostedState.Boosted = true
-		_, err = throttle_click.New(boosted, &fakeLimiter{allow: true, state: boostedState}, onePrice()).
+		_, err = throttle_click.New(boosted, &fakeLimiter{allow: true, state: boostedState}, onePrice(), buckets).
 			Execute(t.Context(), click_usecase.In{TileID: 1, CountryID: "fr"})
 		require.NoError(t, err)
 
@@ -86,7 +94,7 @@ func TestThrottleClick(t *testing.T) {
 	t.Run("refuses a click over the limit without touching the map", func(t *testing.T) {
 		inner := &fakeClick{}
 
-		out, err := throttle_click.New(inner, &fakeLimiter{allow: false, state: state}, onePrice()).
+		out, err := throttle_click.New(inner, &fakeLimiter{allow: false, state: state}, onePrice(), buckets).
 			Execute(t.Context(), click_usecase.In{TileID: 1, CountryID: "fr"})
 
 		require.ErrorIs(t, err, clicks.ErrThrottled)
@@ -99,16 +107,30 @@ func TestThrottleClick(t *testing.T) {
 		limiter := &fakeLimiter{allow: true}
 		ctx := cpctx.AddIPToContext(t.Context(), "2001:db8::dead:beef")
 
-		_, err := throttle_click.New(&fakeClick{}, limiter, onePrice()).Execute(ctx, click_usecase.In{})
+		_, err := throttle_click.New(&fakeClick{}, limiter, onePrice(), buckets).Execute(ctx, click_usecase.In{})
 
 		require.NoError(t, err)
-		assert.Equal(t, []string{"2001:db8::/64"}, limiter.keys)
+		assert.Equal(t, [][]cpratelimit.Key{{{Name: "2001:db8::/64", Scale: 1}}}, limiter.keys,
+			"a token with no account spends the scope's bucket alone, as before accounts")
+	})
+
+	t.Run("charges the account and its scope at ten times the account's allowance", func(t *testing.T) {
+		limiter := &fakeLimiter{allow: true}
+		ctx := cpctx.AddAccountToContext(cpctx.AddIPToContext(t.Context(), "1.2.3.4"), "a-guest")
+
+		_, err := throttle_click.New(&fakeClick{}, limiter, onePrice(), buckets).Execute(ctx, click_usecase.In{})
+
+		require.NoError(t, err)
+		assert.Equal(t, [][]cpratelimit.Key{{
+			{Name: "account:a-guest", Scale: 1},
+			{Name: "scope:1.2.3.4", Scale: 10},
+		}}, limiter.keys)
 	})
 
 	t.Run("still reports the allowance when the click itself failed", func(t *testing.T) {
 		inner := &fakeClick{err: errors.New("disk on fire")}
 
-		out, err := throttle_click.New(inner, &fakeLimiter{allow: true, state: state}, onePrice()).
+		out, err := throttle_click.New(inner, &fakeLimiter{allow: true, state: state}, onePrice(), buckets).
 			Execute(t.Context(), click_usecase.In{})
 
 		require.Error(t, err)
@@ -120,7 +142,7 @@ func TestThrottleClick(t *testing.T) {
 		limiter := &fakeLimiter{allow: true, state: cpratelimit.State{Tokens: 6, Capacity: 10, PerSecond: 1}}
 		pricer := &fakePricer{price: clicks.Price{Cost: 1.5, Share: 0.4}}
 
-		out, err := throttle_click.New(&fakeClick{}, limiter, pricer).
+		out, err := throttle_click.New(&fakeClick{}, limiter, pricer, buckets).
 			Execute(t.Context(), click_usecase.In{TileID: 1, CountryID: "bg"})
 
 		require.NoError(t, err)

@@ -90,9 +90,10 @@ func NewObserver(logger *slog.Logger, registerer prometheus.Registerer) antibot.
 		// The address goes in the log and never on a label: per-IP labels are
 		// unbounded cardinality, and they would put personal data in every scrape.
 		OnFlag: func(report antibot.Report) {
-			fields := make([]any, 0, 10+len(report.Opinions))
+			fields := make([]any, 0, 11+len(report.Opinions))
 			fields = append(fields,
 				slog.String("scope", report.Scope),
+				slog.String("account", report.Account),
 				slog.Int("flags", report.Flags),
 				slog.Int("offence", report.Offence),
 				slog.Time("bannedUntil", report.BannedUntil),

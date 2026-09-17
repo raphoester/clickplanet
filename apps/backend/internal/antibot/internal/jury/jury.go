@@ -63,10 +63,10 @@ func (c Config) WithDefaults() Config {
 	return c
 }
 
-// Banner is the sentence the jury passes. shadowban.Banner implements it.
+// Banner is the sentence the jury passes, on a scope and the account behind it. shadowban.Bans implements it.
 type Banner interface {
-	Flag(scope string) (shadowban.Sentence, bool)
-	Banned(scope string) bool
+	Flag(caller shadowban.Caller) (shadowban.Sentence, bool)
+	Banned(caller shadowban.Caller) bool
 	Flagged() int
 }
 
@@ -159,7 +159,7 @@ func (j *Jury) Inspect(click detect.Click) bool {
 	// Outside the lock from here: onFlag writes a log line, and holding the
 	// caller map through that would queue every other clicker behind the I/O.
 	if report, guilty := j.deliberate(click); guilty {
-		if sentence, accepted := j.banner.Flag(click.Scope); accepted {
+		if sentence, accepted := j.banner.Flag(callerOf(click)); accepted {
 			report.Flags = sentence.Flags
 			report.Offence = sentence.Offence
 			report.BannedUntil = sentence.Until
@@ -169,7 +169,12 @@ func (j *Jury) Inspect(click detect.Click) bool {
 		}
 	}
 
-	return j.banner.Banned(click.Scope)
+	return j.banner.Banned(callerOf(click))
+}
+
+// callerOf is who a ban on the click falls on. The evidence is the scope's, whichever account clicked.
+func callerOf(click detect.Click) shadowban.Caller {
+	return shadowban.Caller{Scope: click.Scope, Account: click.Account, SignedIn: click.SignedIn}
 }
 
 // Attempted hands the watchdogs a click before the throttle judges it.
@@ -266,6 +271,7 @@ func (j *Jury) deliberate(click detect.Click) (detect.Report, bool) {
 
 	return detect.Report{
 		Scope:            click.Scope,
+		Account:          click.Account,
 		Opinions:         opinions,
 		Clicks:           c.clicks,
 		ActiveFor:        click.At.Sub(c.firstSeen),
