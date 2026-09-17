@@ -22,6 +22,9 @@ message ChatMessage {
   string author_tag = 4;
   string country_id = 5;
   string text = 6;
+  // Posted under the username of an admin of the game, as it was when the
+  // message was sent. Never a guest.
+  bool author_admin = 7;
 }
 
 // The X-Session-Token header is optional. When it names an account with a

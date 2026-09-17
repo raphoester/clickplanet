@@ -4,7 +4,7 @@ import {useModalDialog} from "./useDialog.ts";
 import "./Modal.css"
 
 export type ModalProps = {
-    title: string;
+    title: ReactNode;
     children: ReactNode;
     footer?: ReactNode;
     stayOnBackdropClick?: boolean;

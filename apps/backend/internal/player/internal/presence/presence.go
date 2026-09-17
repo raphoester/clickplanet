@@ -33,6 +33,7 @@ type Visit struct {
 	Account players.AccountID
 	// Username is empty for an account that chose none: a guest.
 	Username  players.Name
+	Admin     bool
 	GuestName string
 	Tag       players.Tag
 	Country   string
@@ -91,6 +92,8 @@ type Entry struct {
 	Tag     players.Tag
 	Country string
 	Guest   bool
+	// Admin is never a guest: a profile with no name does not show as one.
+	Admin bool
 }
 
 // RosterOf is every fresh visit at now: players with a username first, then guests, each group by name
@@ -106,6 +109,7 @@ func RosterOf(visits []Visit, now time.Time) []Entry {
 			Tag:     visit.Tag,
 			Country: visit.Country,
 			Guest:   visit.guest(),
+			Admin:   visit.Admin && !visit.guest(),
 		})
 	}
 

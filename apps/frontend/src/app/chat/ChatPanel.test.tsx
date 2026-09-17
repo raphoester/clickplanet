@@ -21,6 +21,7 @@ const message = (id: string, text: string, sentAt = 1_700_000_000_000): ChatMess
     sentAt,
     authorName: "Ana",
     authorTag: "4f2ca1",
+    authorAdmin: false,
     countryCode: "fr",
     text,
 })

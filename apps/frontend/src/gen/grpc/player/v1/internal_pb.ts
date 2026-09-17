@@ -73,6 +73,13 @@ export class GetAuthorResponse extends Message<GetAuthorResponse> {
    */
   tag = "";
 
+  /**
+   * The account is an admin of the game. False with no username.
+   *
+   * @generated from field: bool admin = 3;
+   */
+  admin = false;
+
   constructor(data?: PartialMessage<GetAuthorResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -83,6 +90,7 @@ export class GetAuthorResponse extends Message<GetAuthorResponse> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "username", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "tag", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "admin", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetAuthorResponse {

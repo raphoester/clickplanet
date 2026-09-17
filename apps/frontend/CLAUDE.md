@@ -413,6 +413,12 @@ in its chat colour (`authorStyle`, the same hue as in the chat) and `#tag`.
 - `app/players/` — `usePresence`, `useRoster` and `usePlayerInfo`, thin hooks
   over the above, `PlayersPanel` and `PlayerCard`.
 
+**An admin of the game wears a crown** (`AdminCrown`, gold, `role="img"` named
+"Admin") beside its name in the chat log, the roster and the card's title.
+The server says so: `ChatMessage.authorAdmin`, `RosterEntry.admin` and
+`PlayerInfo.admin`. The card crowns from what was clicked, and from the read
+once it lands. In fake mode, Ana is the admin.
+
 **A name opens a player card**, in the roster and on a chat message
 (`app/players/PlayerCard.tsx`, a `Modal`). `Viewer` holds the one card open and
 hands `onOpenPlayer` to `Menu` → `PlayersPanel` and to `ChatPanel` → `ChatLog`;

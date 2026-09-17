@@ -28,10 +28,13 @@ type ChatMessage struct {
 	// A username, or "guest_" and the name a guest typed. The server adds the
 	// prefix, and no username starts with it, so a guest cannot pass for a
 	// player.
-	AuthorName    string `protobuf:"bytes,3,opt,name=author_name,json=authorName,proto3" json:"author_name,omitempty"`
-	AuthorTag     string `protobuf:"bytes,4,opt,name=author_tag,json=authorTag,proto3" json:"author_tag,omitempty"`
-	CountryId     string `protobuf:"bytes,5,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
-	Text          string `protobuf:"bytes,6,opt,name=text,proto3" json:"text,omitempty"`
+	AuthorName string `protobuf:"bytes,3,opt,name=author_name,json=authorName,proto3" json:"author_name,omitempty"`
+	AuthorTag  string `protobuf:"bytes,4,opt,name=author_tag,json=authorTag,proto3" json:"author_tag,omitempty"`
+	CountryId  string `protobuf:"bytes,5,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
+	Text       string `protobuf:"bytes,6,opt,name=text,proto3" json:"text,omitempty"`
+	// Posted under the username of an admin of the game, as it was when the
+	// message was sent. Never a guest.
+	AuthorAdmin   bool `protobuf:"varint,7,opt,name=author_admin,json=authorAdmin,proto3" json:"author_admin,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -106,6 +109,13 @@ func (x *ChatMessage) GetText() string {
 		return x.Text
 	}
 	return ""
+}
+
+func (x *ChatMessage) GetAuthorAdmin() bool {
+	if x != nil {
+		return x.AuthorAdmin
+	}
+	return false
 }
 
 // The X-Session-Token header is optional. When it names an account with a
@@ -468,7 +478,7 @@ var File_chat_v1_chat_proto protoreflect.FileDescriptor
 
 const file_chat_v1_chat_proto_rawDesc = "" +
 	"\n" +
-	"\x12chat/v1/chat.proto\x12\achat.v1\"\xb7\x01\n" +
+	"\x12chat/v1/chat.proto\x12\achat.v1\"\xda\x01\n" +
 	"\vChatMessage\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12%\n" +
 	"\x0fsent_at_unix_ms\x18\x02 \x01(\x03R\fsentAtUnixMs\x12\x1f\n" +
@@ -478,7 +488,8 @@ const file_chat_v1_chat_proto_rawDesc = "" +
 	"author_tag\x18\x04 \x01(\tR\tauthorTag\x12\x1d\n" +
 	"\n" +
 	"country_id\x18\x05 \x01(\tR\tcountryId\x12\x12\n" +
-	"\x04text\x18\x06 \x01(\tR\x04text\"\x85\x01\n" +
+	"\x04text\x18\x06 \x01(\tR\x04text\x12!\n" +
+	"\fauthor_admin\x18\a \x01(\bR\vauthorAdmin\"\x85\x01\n" +
 	"\x12SendMessageRequest\x12\x1f\n" +
 	"\vauthor_name\x18\x01 \x01(\tR\n" +
 	"authorName\x12\x1b\n" +

@@ -23,6 +23,8 @@ export type ChatMessage = {
     /** A username, or `GUEST_PREFIX` and a guest's name. */
     authorName: string
     authorTag: string
+    /** Sent under the username of an admin of the game. Never a guest. */
+    authorAdmin: boolean
     countryCode: string
     text: string
 }

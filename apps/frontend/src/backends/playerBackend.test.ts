@@ -230,15 +230,15 @@ describe("ConnectPlayerBackend presence", () => {
         const session = holding("token-1")
         const getRoster = vi.fn(async () => ({
             entries: [
-                new RosterEntryPb({name: "ana", tag: "4f2ca1", countryId: "fr", guest: false}),
+                new RosterEntryPb({name: "ana", tag: "4f2ca1", countryId: "fr", guest: false, admin: true}),
                 new RosterEntryPb({name: "guest_Bo", tag: "91aa3d", countryId: "de", guest: true}),
             ],
         }))
         const backend = backendWith({getRoster}, session)
 
         expect(await backend.roster()).toEqual([
-            {name: "ana", tag: "4f2ca1", countryCode: "fr", guest: false},
-            {name: "guest_Bo", tag: "91aa3d", countryCode: "de", guest: true},
+            {name: "ana", tag: "4f2ca1", countryCode: "fr", guest: false, admin: true},
+            {name: "guest_Bo", tag: "91aa3d", countryCode: "de", guest: true, admin: false},
         ])
         expect(getRoster).toHaveBeenCalledWith({})
         expect(session.held).not.toHaveBeenCalled()
@@ -276,11 +276,12 @@ describe("ConnectPlayerBackend player info", () => {
                 name: "Ana",
                 stats: new StatsPb({tilesTaken: 1234n, streakCurrent: 3, streakBest: 7, streakLastDay: "2026-09-17"}),
                 createdAtUnixMs: 1_788_000_000_000n,
+                admin: true,
             }),
         }))
 
         expect(await backendWith({getPlayer}, session).playerInfo("ana")).toEqual({
-            name: "Ana", tilesTaken: 1234, streakCurrent: 3, streakBest: 7, createdAt: 1_788_000_000_000,
+            name: "Ana", tilesTaken: 1234, streakCurrent: 3, streakBest: 7, createdAt: 1_788_000_000_000, admin: true,
         })
         expect(getPlayer).toHaveBeenCalledWith({name: "ana"})
         expect(session.token).not.toHaveBeenCalled()

@@ -1,0 +1,8 @@
+/* Gold whatever the author's hue, with the same drop shadow as the names. */
+.admin-crown {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-self: center;
+    color: #FFC53D;
+    filter: drop-shadow(-1px 1px 0 #000000);
+}

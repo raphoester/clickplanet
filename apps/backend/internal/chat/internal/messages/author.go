@@ -41,6 +41,8 @@ func (l Limits) GuestName(value string) (string, error) {
 type Author struct {
 	Username string
 	Tag      string
+	// Admin is the account's, and means nothing without a username.
+	Admin bool
 }
 
 // ErrAuthorUnavailable is a sender the player module could not name. The message is refused: without a tag, a

@@ -34,6 +34,7 @@ func TestTheUsernameAndTheTagAreAnswered(t *testing.T) {
 
 	assert.Equal(t, "Ada_L", res.GetUsername())
 	assert.Equal(t, string(players.TagOf("pepper", "1.2.3.4")), res.GetTag())
+	assert.False(t, res.GetAdmin())
 }
 
 func TestAnIdThatIsNotAnAccountHasOnlyATag(t *testing.T) {

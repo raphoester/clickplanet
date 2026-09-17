@@ -12,6 +12,7 @@ func Encode(message messages.Message) *chatv1.ChatMessage {
 		SentAtUnixMs: message.SentAt.UnixMilli(),
 		AuthorName:   message.AuthorName,
 		AuthorTag:    message.AuthorTag,
+		AuthorAdmin:  message.AuthorAdmin,
 		CountryId:    message.CountryID,
 		Text:         message.Text,
 	}

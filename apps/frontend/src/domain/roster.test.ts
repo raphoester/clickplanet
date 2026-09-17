@@ -2,7 +2,7 @@ import {describe, expect, it} from "vitest"
 import type {RosterEntry} from "../backends/player.ts"
 import {rosterGroups} from "./roster.ts"
 
-const entry = (name: string, guest: boolean): RosterEntry => ({name, tag: "4f2ca1", countryCode: "fr", guest})
+const entry = (name: string, guest: boolean): RosterEntry => ({name, tag: "4f2ca1", countryCode: "fr", guest, admin: false})
 
 describe("rosterGroups", () => {
     it("puts players with a username in one group and guests in the other", () => {

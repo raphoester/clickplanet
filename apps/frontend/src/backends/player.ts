@@ -78,6 +78,8 @@ export type RosterEntry = {
     tag: string
     countryCode: string
     guest: boolean
+    /** An admin of the game. Never a guest. */
+    admin: boolean
 }
 
 /**
@@ -126,6 +128,7 @@ export type PlayerInfo = {
     streakBest: number
     /** When the account was made, in ms. Undefined when the server does not know. */
     createdAt?: number
+    admin: boolean
 }
 
 /** `player.v1.PlayerService/GetPlayer`. Needs no session. */

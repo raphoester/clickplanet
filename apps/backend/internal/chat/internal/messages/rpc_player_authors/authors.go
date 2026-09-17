@@ -51,5 +51,5 @@ func (a *Authors) Author(ctx context.Context, account messages.AccountID, ip str
 		return messages.Author{}, fmt.Errorf("failed to ask the player module who posts: %w", err)
 	}
 
-	return messages.Author{Username: res.Msg.GetUsername(), Tag: res.Msg.GetTag()}, nil
+	return messages.Author{Username: res.Msg.GetUsername(), Tag: res.Msg.GetTag(), Admin: res.Msg.GetAdmin()}, nil
 }

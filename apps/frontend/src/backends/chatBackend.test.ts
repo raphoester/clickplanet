@@ -22,6 +22,7 @@ const proto = () => new ChatMessagePb({
     sentAtUnixMs: BigInt(1_700_000_000_000),
     authorName: "Ana",
     authorTag: "4f2ca1",
+    authorAdmin: true,
     countryId: "fr",
     text: "hello",
 })
@@ -42,6 +43,7 @@ describe("decodedMessage", () => {
             sentAt: 1_700_000_000_000,
             authorName: "Ana",
             authorTag: "4f2ca1",
+            authorAdmin: true,
             countryCode: "fr",
             text: "hello",
         })

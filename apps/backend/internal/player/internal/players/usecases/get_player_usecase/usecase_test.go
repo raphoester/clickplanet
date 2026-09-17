@@ -56,6 +56,16 @@ func TestAPlayerIsFoundByItsNameInAnyCase(t *testing.T) {
 	}, player)
 }
 
+func TestAnAdminIsSaidToBeOne(t *testing.T) {
+	f := setUp(t)
+	f.store.MakeAdmin(ada)
+
+	player, err := f.useCase.Execute(t.Context(), "Ada_L")
+
+	require.NoError(t, err)
+	assert.True(t, player.Admin)
+}
+
 func TestAPlayerThatNeverTookATileHasEmptyStats(t *testing.T) {
 	player, err := setUp(t).useCase.Execute(t.Context(), "Ada_L")
 
