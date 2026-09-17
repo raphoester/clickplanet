@@ -5,6 +5,7 @@ import {AccountState, AccountStore} from "./accountStore.ts"
 import {messageOf, providerList, usernameMessageOf} from "./authMessages.ts"
 import {factor} from "../../domain/clickPrice.ts"
 import {UserIcon} from "../components/icons.tsx"
+import ProviderButton from "./ProviderButton.tsx"
 import "./Account.css"
 
 type Ready = Extract<AccountState, {kind: "ready"}>
@@ -53,13 +54,11 @@ export default function AccountPanel({state, store, onDelete, linkedMultiplier}:
         {/* Keyed on the name, so a read or a save that lands resets what is typed. */}
         {linked.length > 0 && <UsernameForm key={state.username ?? ""} state={state} store={store}/>}
 
-        {toLink.map((provider) => <button key={provider}
-                                          type="button"
-                                          className="button button-ghost account-button"
-                                          disabled={busy}
-                                          onClick={() => void (linked.length === 0 ? store.signIn(provider) : store.link(provider))}>
-            {linked.length === 0 ? "Sign in with" : "Link"} {PROVIDER_NAMES[provider]}
-        </button>)}
+        {toLink.map((provider) => <ProviderButton key={provider}
+                                                  provider={provider}
+                                                  label={`${linked.length === 0 ? "Sign in with" : "Link"} ${PROVIDER_NAMES[provider]}`}
+                                                  disabled={busy}
+                                                  onClick={() => void (linked.length === 0 ? store.signIn(provider) : store.link(provider))}/>)}
 
         {linked.length > 0 && <>
             <button type="button"

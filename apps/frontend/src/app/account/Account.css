@@ -244,3 +244,68 @@
         animation-duration: 3s;
     }
 }
+
+/* The providers' own colours and logos, in the game's font: Google's dark
+   theme (#131314, #8E918F border) and Discord's blurple. */
+.provider-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    height: 44px;
+    padding: 0 16px;
+    border-radius: 22px;
+    font-family: "Luckiest Guy", sans-serif;
+    font-size: 18px;
+    text-shadow: -1px 1px 0 #000000;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background-color 0.15s;
+}
+
+/* Luckiest Guy sits high in its line box, as .button's padding-top accounts for. */
+.provider-button-label {
+    padding-top: 4px;
+}
+
+.provider-button-logo {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+}
+
+.provider-button-google {
+    border: 1px solid #8E918F;
+    background: #131314;
+    color: #E3E3E3;
+}
+
+.provider-button-google:hover:not(:disabled) {
+    background: #1F1F20;
+}
+
+.provider-button-discord {
+    border: 1px solid #5865F2;
+    background: #5865F2;
+    color: #FFFFFF;
+}
+
+.provider-button-discord .provider-button-logo {
+    width: 22px;
+}
+
+.provider-button-discord:hover:not(:disabled) {
+    border-color: #4752C4;
+    background: #4752C4;
+}
+
+.provider-button:focus-visible {
+    outline: 2px solid #FFFFFF;
+    outline-offset: 2px;
+}
+
+.provider-button:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
