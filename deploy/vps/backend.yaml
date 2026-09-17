@@ -382,7 +382,7 @@ auth:
     schema: auth
     pool:
       maxOpenConns: 2
-  # Sign-in with Google or Discord. On, with Google only. A provider needs its
+  # Sign-in with Google or Discord. On, with both. A provider needs its
   # client id below, its secret in the Actions secrets (GOOGLE_CLIENT_SECRET,
   # DISCORD_CLIENT_SECRET), and the redirect URL registered with the provider
   # exactly as written here. A client id with no secret refuses the boot.
@@ -395,9 +395,8 @@ auth:
   google:
     clientId: 865499711308-guuo7rdvol1ocjeanar1kbo3bulc4pb6.apps.googleusercontent.com
     clientSecret: env://GOOGLE_CLIENT_SECRET
-  # Not offered yet: Google goes first.
   discord:
-    clientId: ""
+    clientId: "1549822806420885616"
     clientSecret: env://DISCORD_CLIENT_SECRET
   # Accounts with no provider, unused for 90 days, are deleted every hour.
   # Never below the guest cookie's 90 days.
