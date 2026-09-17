@@ -44,6 +44,13 @@ func (v Visit) Fresh(now time.Time) bool {
 	return now.Sub(v.At) < TTL
 }
 
+// For is the same visit, as the account a browser is on now and under that account's username.
+func (v Visit) For(account players.AccountID, username players.Name) Visit {
+	v.Account = account
+	v.Username = username
+	return v
+}
+
 func (v Visit) guest() bool {
 	return v.Username == ""
 }

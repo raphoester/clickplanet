@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence"
@@ -92,6 +93,70 @@ func TestPruneForgetsOnlyTheStaleVisits(t *testing.T) {
 
 	clock.Advance(presence.TTL)
 	storage.Prune()
+
+	assert.Equal(t, []players.AccountID{account(2)}, accounts(storage.Visits()))
+}
+
+func TestAMoveCarriesTheVisitToTheNewAccountUnderItsName(t *testing.T) {
+	storage := inmemory_visit_storage.New(cptime.NewFixedClock(start))
+	storage.Record(visit(1, "aaaaaa", start))
+
+	storage.Move(account(1), account(2), "Ada_L")
+
+	moved := visit(2, "aaaaaa", start)
+	moved.Username = "Ada_L"
+	assert.Equal(t, []presence.Visit{moved}, storage.Visits(), "one line, never the guest beside the player")
+}
+
+func TestAMoveToTheSameAccountRenamesIt(t *testing.T) {
+	storage := inmemory_visit_storage.New(cptime.NewFixedClock(start))
+	storage.Record(visit(1, "aaaaaa", start))
+
+	storage.Move(account(1), account(1), "Ada_L")
+
+	require.Len(t, storage.Visits(), 1)
+	assert.Equal(t, players.Name("Ada_L"), storage.Visits()[0].Username)
+}
+
+func TestAMoveReplacesTheVisitTheAccountHeld(t *testing.T) {
+	storage := inmemory_visit_storage.New(cptime.NewFixedClock(start))
+	storage.Record(visit(1, "aaaaaa", start.Add(time.Second)))
+	storage.Record(visit(2, "bbbbbb", start))
+
+	storage.Move(account(1), account(2), "Ada_L")
+
+	moved := visit(2, "aaaaaa", start.Add(time.Second))
+	moved.Username = "Ada_L"
+	assert.Equal(t, []presence.Visit{moved}, storage.Visits())
+}
+
+func TestAnAccountThatNeverAnnouncedMovesNothing(t *testing.T) {
+	storage := inmemory_visit_storage.New(cptime.NewFixedClock(start))
+
+	storage.Move(account(1), account(2), "Ada_L")
+	storage.Rename(account(3), "Grace")
+
+	assert.Empty(t, storage.Visits())
+}
+
+func TestARenameKeepsEverythingButTheName(t *testing.T) {
+	storage := inmemory_visit_storage.New(cptime.NewFixedClock(start))
+	storage.Record(visit(1, "aaaaaa", start))
+
+	storage.Rename(account(1), "Ada_L")
+
+	renamed := visit(1, "aaaaaa", start)
+	renamed.Username = "Ada_L"
+	assert.Equal(t, []presence.Visit{renamed}, storage.Visits())
+}
+
+func TestForgetTakesOnlyThatAccountOff(t *testing.T) {
+	storage := inmemory_visit_storage.New(cptime.NewFixedClock(start))
+	storage.Record(visit(1, "aaaaaa", start))
+	storage.Record(visit(2, "aaaaaa", start))
+
+	storage.Forget(account(1))
+	storage.Forget(account(3))
 
 	assert.Equal(t, []players.AccountID{account(2)}, accounts(storage.Visits()))
 }
