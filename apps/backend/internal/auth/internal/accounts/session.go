@@ -16,23 +16,23 @@ type Session struct {
 	ExpiresAt  time.Time
 }
 
-// StartGuest opens a new account's first session.
-func StartGuest(account AccountID, token *Token, lifetime Lifetime, now time.Time) *Session {
-	return start(account, token, false, lifetime, now)
+// GuestSession opens a new account's first session.
+func GuestSession(account AccountID, token *Token, lifetime Lifetime, now time.Time) *Session {
+	return newSession(account, token, false, lifetime, now)
 }
 
-// StartLinked opens a session on an account that has a provider, as a sign-in does.
-func StartLinked(account AccountID, token *Token, lifetime Lifetime, now time.Time) *Session {
-	return start(account, token, true, lifetime, now)
+// LinkedSession opens a session on an account that has a provider, as a sign-in does.
+func LinkedSession(account AccountID, token *Token, lifetime Lifetime, now time.Time) *Session {
+	return newSession(account, token, true, lifetime, now)
 }
 
-func start(account AccountID, token *Token, linked bool, lifetime Lifetime, now time.Time) *Session {
+func newSession(account AccountID, token *Token, linked bool, lifetime Lifetime, now time.Time) *Session {
 	session := &Session{TokenHash: token.Hash, Account: account, Linked: linked, ExtendedAt: now}
 	session.ExpiresAt = now.Add(session.ttl(lifetime))
 	return session
 }
 
-func (s *Session) CheckLive(now time.Time) error {
+func (s *Session) ExpiryError(now time.Time) error {
 	if !now.Before(s.ExpiresAt) {
 		return fmt.Errorf("%w at %s", ErrSessionExpired, s.ExpiresAt.Format(time.RFC3339))
 	}
@@ -59,7 +59,7 @@ func (s *Session) ttl(lifetime Lifetime) time.Duration {
 
 // Cookie keeps token in the browser for as long as the session lives.
 func (s *Session) Cookie(token *Token, now time.Time) string {
-	return SetCookie(CookieName, token.Value, s.ExpiresAt, now)
+	return Cookie(CookieName, token.Value, s.ExpiresAt, now)
 }
 
 // Lifetime is how long a session lasts, and how often using it pushes that out.

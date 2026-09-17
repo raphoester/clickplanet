@@ -50,7 +50,7 @@ func setUp(t *testing.T) *fixture {
 func (f *fixture) guest(t *testing.T, account byte, token string) {
 	t.Helper()
 
-	require.NoError(t, f.store.CreateGuest(t.Context(), accounts.StartGuest(accounts.AccountID{15: account}, accounts.TokenOf(token), lifetime, start)))
+	require.NoError(t, f.store.CreateGuest(t.Context(), accounts.GuestSession(accounts.AccountID{15: account}, accounts.TokenOf(token), lifetime, start)))
 }
 
 // began starts a sign-in and answers the flow cookie and the state the provider would send back.
@@ -96,12 +96,12 @@ func TestANewIdentityLinksToTheGuestAndReplacesItsSession(t *testing.T) {
 	assert.Equal(t, accounts.AccountID{15: 7}, out.Account)
 	assert.Equal(t, accounts.Linked, out.Outcome)
 	assert.Equal(t, "token-1", cookieValue(t, out.SetCookie))
-	session, err := f.store.FindSession(t.Context(), accounts.TokenOf("token-1").Hash)
+	session, err := f.store.Session(t.Context(), accounts.TokenOf("token-1").Hash)
 	require.NoError(t, err)
 	assert.Equal(t, start.Add(30*24*time.Hour), session.ExpiresAt, "a linked session lasts the linked lifetime")
-	_, err = f.store.FindSession(t.Context(), accounts.TokenOf("guest-token").Hash)
+	_, err = f.store.Session(t.Context(), accounts.TokenOf("guest-token").Hash)
 	require.ErrorIs(t, err, accounts.ErrSessionNotFound)
-	identity, err := f.store.FindIdentity(t.Context(), signin.Google, "google-user")
+	identity, err := f.store.Identity(t.Context(), signin.Google, "google-user")
 	require.NoError(t, err)
 	assert.Equal(t, &accounts.Identity{
 		Provider: "google", Subject: "google-user", Account: accounts.AccountID{15: 7}, Email: "a@example.com", EmailVerified: true, LinkedAt: start,
@@ -119,7 +119,7 @@ func TestAKnownIdentitySignsInToItsAccountAndLeavesTheGuestAsItWas(t *testing.T)
 
 	assert.Equal(t, accounts.AccountID{15: 1}, out.Account)
 	assert.Equal(t, accounts.SignedIn, out.Outcome)
-	guest, err := f.store.FindAccount(t.Context(), accounts.AccountID{15: 7})
+	guest, err := f.store.Account(t.Context(), accounts.AccountID{15: 7})
 	require.NoError(t, err)
 	assert.False(t, guest.Linked(), "nothing is merged, and the guest gains no identity")
 }
@@ -138,7 +138,7 @@ func TestAnAccountHoldingTheProviderAlreadyIsNotGivenASecondUserOfIt(t *testing.
 	f := setUp(t)
 	identity := accounts.NewIdentity(signin.Google, accounts.Claim{Subject: "someone-else"}, accounts.AccountID{15: 7}, start)
 	require.NoError(t, f.store.SaveSignIn(t.Context(), accounts.SignIn{
-		NewAccount: true, Identity: identity, Session: accounts.StartLinked(identity.Account, accounts.TokenOf("linked"), lifetime, start),
+		NewAccount: true, Identity: identity, Session: accounts.LinkedSession(identity.Account, accounts.TokenOf("linked"), lifetime, start),
 	}))
 
 	out, err := f.complete(t, "cp_sid=linked")
@@ -152,7 +152,7 @@ func TestAMatchingEmailLinksNothing(t *testing.T) {
 	f := setUp(t)
 	identity := accounts.NewIdentity("discord", accounts.Claim{Subject: "discord-user", Email: claim.Email, EmailVerified: true}, accounts.AccountID{15: 7}, start)
 	require.NoError(t, f.store.SaveSignIn(t.Context(), accounts.SignIn{
-		NewAccount: true, Identity: identity, Session: accounts.StartLinked(identity.Account, accounts.TokenOf("discord"), lifetime, start),
+		NewAccount: true, Identity: identity, Session: accounts.LinkedSession(identity.Account, accounts.TokenOf("discord"), lifetime, start),
 	}))
 
 	out, err := f.complete(t, "")

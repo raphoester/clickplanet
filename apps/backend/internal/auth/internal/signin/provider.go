@@ -41,7 +41,7 @@ func (p Providers) Off() bool {
 	return len(p) == 0
 }
 
-func (p Providers) Get(name string) (Provider, error) {
+func (p Providers) Provider(name string) (Provider, error) {
 	if p.Off() {
 		return nil, ErrSignInOff
 	}

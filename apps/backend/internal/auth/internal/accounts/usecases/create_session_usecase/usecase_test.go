@@ -89,7 +89,7 @@ func TestANewCallerIsGivenAGuestSignedIntoItsToken(t *testing.T) {
 
 	assert.Equal(t, accounts.AccountID{15: 1}, f.accountIn(t, out))
 	assert.Equal(t, "token-1", cookieOf(t, out.SetCookie).Value)
-	stored, err := f.sessions.FindSession(t.Context(), accounts.TokenOf("token-1").Hash)
+	stored, err := f.sessions.Session(t.Context(), accounts.TokenOf("token-1").Hash)
 	require.NoError(t, err)
 	assert.Equal(t, accounts.AccountID{15: 1}, stored.Account)
 }
@@ -117,7 +117,7 @@ func TestADayLaterTheSessionIsExtendedAndTheCookieRenewed(t *testing.T) {
 	renewed := cookieOf(t, out.SetCookie)
 	assert.Equal(t, "token-1", renewed.Value)
 	assert.Equal(t, start.Add(25*time.Hour).Add(90*24*time.Hour), renewed.Expires)
-	stored, err := f.sessions.FindSession(t.Context(), accounts.TokenOf("token-1").Hash)
+	stored, err := f.sessions.Session(t.Context(), accounts.TokenOf("token-1").Hash)
 	require.NoError(t, err)
 	assert.Equal(t, start.Add(25*time.Hour), stored.ExtendedAt)
 }
@@ -148,7 +148,7 @@ func TestARefusedAttestationCreatesNothing(t *testing.T) {
 
 	require.ErrorIs(t, err, attestation.ErrAttestationFailed)
 	assert.Nil(t, out)
-	_, err = f.sessions.FindSession(t.Context(), accounts.TokenOf("token-1").Hash)
+	_, err = f.sessions.Session(t.Context(), accounts.TokenOf("token-1").Hash)
 	assert.ErrorIs(t, err, accounts.ErrSessionNotFound, "a caller that proved nothing never gets an account")
 }
 
@@ -179,7 +179,7 @@ func TestALinkedSessionIsExtendedByTheLinkedLifetime(t *testing.T) {
 	identity := accounts.NewIdentity("google", accounts.Claim{Subject: "user"}, accounts.AccountID{15: 9}, start)
 	require.NoError(t, f.sessions.SaveSignIn(t.Context(), accounts.SignIn{
 		NewAccount: true, Identity: identity,
-		Session: accounts.StartLinked(identity.Account, accounts.TokenOf("linked"), accounts.Lifetime{}.WithDefaults(), start),
+		Session: accounts.LinkedSession(identity.Account, accounts.TokenOf("linked"), accounts.Lifetime{}.WithDefaults(), start),
 	}))
 
 	f.clock.Advance(25 * time.Hour)

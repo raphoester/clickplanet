@@ -15,7 +15,7 @@ import (
 type Store interface {
 	accounts.SessionFinder
 	accounts.AccountFinder
-	FindIdentity(ctx context.Context, provider string, subject string) (*accounts.Identity, error)
+	Identity(ctx context.Context, provider string, subject string) (*accounts.Identity, error)
 	SaveSignIn(ctx context.Context, signIn accounts.SignIn) error
 }
 
@@ -97,15 +97,15 @@ func (u *UseCase) flow(in In, now time.Time) (*signin.Flow, signin.Provider, err
 	if !found {
 		return nil, nil, fmt.Errorf("%w: the browser sent no %s cookie", signin.ErrFlowInvalid, signin.FlowCookieName)
 	}
-	flow, err := u.sealer.Open(sealed)
+	flow, err := u.sealer.Opened(sealed)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to open the flow: %w", err)
 	}
-	if err := flow.Check(in.State, now); err != nil {
+	if err := flow.CallbackError(in.State, now); err != nil {
 		return nil, nil, fmt.Errorf("failed to check the flow: %w", err)
 	}
 
-	provider, err := u.providers.Get(flow.Provider)
+	provider, err := u.providers.Provider(flow.Provider)
 	if err != nil {
 		return nil, nil, fmt.Errorf("%w: %w", signin.ErrFlowInvalid, err)
 	}
@@ -122,7 +122,7 @@ func (u *UseCase) current(ctx context.Context, cookieHeader string, now time.Tim
 		return nil, nil, fmt.Errorf("failed to find the caller: %w", err)
 	}
 
-	account, err := u.store.FindAccount(ctx, session.Account)
+	account, err := u.store.Account(ctx, session.Account)
 	if errors.Is(err, accounts.ErrAccountNotFound) {
 		return nil, session.TokenHash, nil
 	}
@@ -135,14 +135,14 @@ func (u *UseCase) current(ctx context.Context, cookieHeader string, now time.Tim
 func (u *UseCase) signIn(
 	ctx context.Context, provider string, claim *accounts.Claim, current *accounts.Account, replaces accounts.TokenHash, now time.Time,
 ) (*Out, error) {
-	known, err := u.store.FindIdentity(ctx, provider, claim.Subject)
+	known, err := u.store.Identity(ctx, provider, claim.Subject)
 	if errors.Is(err, accounts.ErrIdentityNotFound) {
 		known = nil
 	} else if err != nil {
 		return nil, fmt.Errorf("failed to find the identity: %w", err)
 	}
 
-	outcome := accounts.Choose(current, known, provider)
+	outcome := accounts.OutcomeOf(current, known, provider)
 	signIn := accounts.SignIn{Replaces: replaces}
 	var account accounts.AccountID
 	switch outcome {
@@ -164,7 +164,7 @@ func (u *UseCase) signIn(
 	if err != nil {
 		return nil, fmt.Errorf("failed to get a session token: %w", err)
 	}
-	signIn.Session = accounts.StartLinked(account, token, u.lifetime, now)
+	signIn.Session = accounts.LinkedSession(account, token, u.lifetime, now)
 
 	if err := u.store.SaveSignIn(ctx, signIn); err != nil {
 		return nil, fmt.Errorf("failed to save the sign-in: %w", err)

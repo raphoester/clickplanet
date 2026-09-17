@@ -52,8 +52,8 @@ func (f *Flow) Challenge() string {
 	return base64.RawURLEncoding.EncodeToString(sum[:])
 }
 
-// Check refuses a flow that has lapsed, or a callback that carries another state.
-func (f *Flow) Check(state string, now time.Time) error {
+// CallbackError refuses a flow that has lapsed, or a callback that carries another state.
+func (f *Flow) CallbackError(state string, now time.Time) error {
 	if !now.Before(f.ExpiresAt) {
 		return fmt.Errorf("%w: it lapsed at %s", ErrFlowInvalid, f.ExpiresAt.Format(time.RFC3339))
 	}
@@ -65,10 +65,10 @@ func (f *Flow) Check(state string, now time.Time) error {
 
 // Cookie keeps the sealed flow in the browser until it lapses.
 func (f *Flow) Cookie(sealed string, now time.Time) string {
-	return accounts.SetCookie(FlowCookieName, sealed, f.ExpiresAt, now)
+	return accounts.Cookie(FlowCookieName, sealed, f.ExpiresAt, now)
 }
 
 // ClearFlowCookie is the Set-Cookie that ends a sign-in, whatever became of it.
-func ClearFlowCookie() string {
-	return accounts.ExpireCookie(FlowCookieName)
+func ExpiredFlowCookie() string {
+	return accounts.ExpiredCookie(FlowCookieName)
 }

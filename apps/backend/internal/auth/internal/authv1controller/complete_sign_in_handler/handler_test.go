@@ -49,7 +49,7 @@ func TestTheAccountAndOutcomeAreAnsweredWithTheSessionCookieAndTheFlowCleared(t 
 	assert.Equal(t, []complete_sign_in_usecase.In{{Code: "the-code", State: "the-state", CookieHeader: "cp_oauth=sealed"}}, useCase.asked)
 	assert.Equal(t, accounts.AccountID{15: 1}.String(), res.Msg.GetAccountId())
 	assert.Equal(t, authv1.SignInOutcome_SIGN_IN_OUTCOME_LINKED, res.Msg.GetOutcome())
-	assert.Equal(t, []string{"cp_sid=token-1", signin.ClearFlowCookie()}, res.Header().Values("Set-Cookie"))
+	assert.Equal(t, []string{"cp_sid=token-1", signin.ExpiredFlowCookie()}, res.Header().Values("Set-Cookie"))
 	assert.Equal(t, "no-store", res.Header().Get("Cache-Control"))
 }
 
@@ -64,7 +64,7 @@ func TestARefusalClearsTheFlowAndSaysNothingAboutWhy(t *testing.T) {
 			var connectErr *connect.Error
 			require.ErrorAs(t, got, &connectErr)
 			assert.Equal(t, want, connectErr.Code())
-			assert.Equal(t, []string{signin.ClearFlowCookie()}, connectErr.Meta().Values("Set-Cookie"))
+			assert.Equal(t, []string{signin.ExpiredFlowCookie()}, connectErr.Meta().Values("Set-Cookie"))
 			assert.NotContains(t, got.Error(), "state")
 			assert.NotContains(t, got.Error(), "invalid_grant")
 		})

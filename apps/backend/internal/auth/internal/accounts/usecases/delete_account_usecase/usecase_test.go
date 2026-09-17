@@ -22,16 +22,16 @@ var (
 func TestTheCallersAccountIsDeletedWithEverythingItHolds(t *testing.T) {
 	store := inmemory_account_store.New()
 	identity := accounts.NewIdentity("google", accounts.Claim{Subject: "user"}, accounts.AccountID{15: 1}, start)
-	session := accounts.StartLinked(identity.Account, accounts.TokenOf("token-1"), lifetime, start)
+	session := accounts.LinkedSession(identity.Account, accounts.TokenOf("token-1"), lifetime, start)
 	require.NoError(t, store.SaveSignIn(t.Context(), accounts.SignIn{NewAccount: true, Identity: identity, Session: session}))
 
 	out, err := delete_account_usecase.New(store, cptime.NewFixedClock(start)).Execute(t.Context(), "cp_sid=token-1")
 
 	require.NoError(t, err)
-	assert.Equal(t, &delete_account_usecase.Out{Account: identity.Account, SetCookie: accounts.ClearCookie()}, out)
-	_, err = store.FindAccount(t.Context(), identity.Account)
+	assert.Equal(t, &delete_account_usecase.Out{Account: identity.Account, SetCookie: accounts.ExpiredSessionCookie()}, out)
+	_, err = store.Account(t.Context(), identity.Account)
 	require.ErrorIs(t, err, accounts.ErrAccountNotFound)
-	_, err = store.FindIdentity(t.Context(), "google", "user")
+	_, err = store.Identity(t.Context(), "google", "user")
 	assert.ErrorIs(t, err, accounts.ErrIdentityNotFound)
 }
 

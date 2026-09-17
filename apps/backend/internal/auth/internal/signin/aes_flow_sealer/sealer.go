@@ -44,7 +44,7 @@ func New(seed []byte) (*Sealer, error) {
 	return &Sealer{aead: aead}, nil
 }
 
-func (s *Sealer) Seal(flow *signin.Flow) (string, error) {
+func (s *Sealer) Sealed(flow *signin.Flow) (string, error) {
 	plain, err := json.Marshal(flow)
 	if err != nil {
 		return "", fmt.Errorf("failed to encode the flow: %w", err)
@@ -52,7 +52,7 @@ func (s *Sealer) Seal(flow *signin.Flow) (string, error) {
 	return base64.RawURLEncoding.EncodeToString(s.aead.Seal(nil, nil, plain, []byte(signin.FlowCookieName))), nil
 }
 
-func (s *Sealer) Open(sealed string) (*signin.Flow, error) {
+func (s *Sealer) Opened(sealed string) (*signin.Flow, error) {
 	raw, err := base64.RawURLEncoding.DecodeString(sealed)
 	if err != nil {
 		return nil, fmt.Errorf("%w: the cookie is not base64url", signin.ErrFlowInvalid)

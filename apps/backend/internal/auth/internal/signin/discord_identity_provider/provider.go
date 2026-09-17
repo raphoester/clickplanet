@@ -69,8 +69,8 @@ func (p *Provider) Exchange(ctx context.Context, code string, flow *signin.Flow)
 		return nil, fmt.Errorf("discord: %w", err)
 	}
 
-	var me user
-	if err := oauth_http.GetJSON(ctx, p.http, p.endpoints.Me, token.AccessToken, &me); err != nil {
+	me, err := oauth_http.Resource[user](ctx, p.http, p.endpoints.Me, token.AccessToken)
+	if err != nil {
 		return nil, fmt.Errorf("discord: failed to read the user: %w", err)
 	}
 	if me.ID == "" {

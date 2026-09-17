@@ -31,7 +31,7 @@ func (h StartSignInHandler) StartSignIn(
 	ctx context.Context,
 	req *connect.Request[authv1.StartSignInRequest],
 ) (*connect.Response[authv1.StartSignInResponse], error) {
-	out, err := h.useCase.Execute(ctx, authprovider.Decode(req.Msg.GetProvider()))
+	out, err := h.useCase.Execute(ctx, authprovider.NameOf(req.Msg.GetProvider()))
 	switch {
 	case errors.Is(err, signin.ErrSignInOff):
 		return nil, connect.NewError(connect.CodeUnimplemented, signin.ErrSignInOff)

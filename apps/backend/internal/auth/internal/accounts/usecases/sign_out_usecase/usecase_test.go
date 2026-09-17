@@ -17,14 +17,14 @@ var start = time.Date(2026, 9, 16, 12, 0, 0, 0, time.UTC)
 
 func TestSigningOutDeletesTheSessionAndClearsTheCookie(t *testing.T) {
 	store := inmemory_account_store.New()
-	guest := accounts.StartGuest(accounts.AccountID{15: 1}, accounts.TokenOf("token-1"), accounts.Lifetime{}.WithDefaults(), start)
+	guest := accounts.GuestSession(accounts.AccountID{15: 1}, accounts.TokenOf("token-1"), accounts.Lifetime{}.WithDefaults(), start)
 	require.NoError(t, store.CreateGuest(t.Context(), guest))
 
 	setCookie, err := sign_out_usecase.New(store).Execute(t.Context(), "cp_sid=token-1")
 
 	require.NoError(t, err)
-	assert.Equal(t, accounts.ClearCookie(), setCookie)
-	_, err = store.FindSession(t.Context(), guest.TokenHash)
+	assert.Equal(t, accounts.ExpiredSessionCookie(), setCookie)
+	_, err = store.Session(t.Context(), guest.TokenHash)
 	assert.ErrorIs(t, err, accounts.ErrSessionNotFound)
 }
 
@@ -35,7 +35,7 @@ func TestABrowserWithNoSessionIsSignedOutAlready(t *testing.T) {
 	setCookie, err := sign_out_usecase.New(store).Execute(t.Context(), "theme=dark")
 
 	require.NoError(t, err, "nothing to delete, so the store is not asked")
-	assert.Equal(t, accounts.ClearCookie(), setCookie)
+	assert.Equal(t, accounts.ExpiredSessionCookie(), setCookie)
 }
 
 func TestAStoreFailureFailsTheSignOut(t *testing.T) {

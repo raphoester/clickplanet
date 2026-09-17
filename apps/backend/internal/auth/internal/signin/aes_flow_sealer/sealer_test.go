@@ -29,16 +29,16 @@ func sealer(t *testing.T, seed byte) *aes_flow_sealer.Sealer {
 func TestASealedFlowOpensAsItWas(t *testing.T) {
 	s := sealer(t, 1)
 
-	sealed, err := s.Seal(flow)
+	sealed, err := s.Sealed(flow)
 	require.NoError(t, err)
-	opened, err := s.Open(sealed)
+	opened, err := s.Opened(sealed)
 
 	require.NoError(t, err)
 	assert.Equal(t, flow, opened)
 }
 
 func TestTheBrowserCannotReadTheVerifier(t *testing.T) {
-	sealed, err := sealer(t, 1).Seal(flow)
+	sealed, err := sealer(t, 1).Sealed(flow)
 	require.NoError(t, err)
 
 	raw, err := base64.RawURLEncoding.DecodeString(sealed)
@@ -47,7 +47,7 @@ func TestTheBrowserCannotReadTheVerifier(t *testing.T) {
 }
 
 func TestAChangedOrForeignCookieDoesNotOpen(t *testing.T) {
-	sealed, err := sealer(t, 1).Seal(flow)
+	sealed, err := sealer(t, 1).Sealed(flow)
 	require.NoError(t, err)
 	raw, err := base64.RawURLEncoding.DecodeString(sealed)
 	require.NoError(t, err)
@@ -57,10 +57,10 @@ func TestAChangedOrForeignCookieDoesNotOpen(t *testing.T) {
 		"changed":        base64.RawURLEncoding.EncodeToString(raw),
 		"not base64":     "!!!",
 		"empty":          "",
-		"another seed's": func() string { other, _ := sealer(t, 2).Seal(flow); return other }(),
+		"another seed's": func() string { other, _ := sealer(t, 2).Sealed(flow); return other }(),
 	} {
 		t.Run(name, func(t *testing.T) {
-			opened, err := sealer(t, 1).Open(cookie)
+			opened, err := sealer(t, 1).Opened(cookie)
 
 			require.ErrorIs(t, err, signin.ErrFlowInvalid)
 			assert.Nil(t, opened)

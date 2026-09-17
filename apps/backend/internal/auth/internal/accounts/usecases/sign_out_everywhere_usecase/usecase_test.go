@@ -21,9 +21,9 @@ var (
 func TestEverySessionOfTheAccountEndsAndNoOther(t *testing.T) {
 	store := inmemory_account_store.New()
 	identity := accounts.NewIdentity("google", accounts.Claim{Subject: "user"}, accounts.AccountID{15: 1}, start)
-	laptop := accounts.StartLinked(identity.Account, accounts.TokenOf("laptop"), lifetime, start)
-	phone := accounts.StartLinked(identity.Account, accounts.TokenOf("phone"), lifetime, start)
-	other := accounts.StartGuest(accounts.AccountID{15: 2}, accounts.TokenOf("other"), lifetime, start)
+	laptop := accounts.LinkedSession(identity.Account, accounts.TokenOf("laptop"), lifetime, start)
+	phone := accounts.LinkedSession(identity.Account, accounts.TokenOf("phone"), lifetime, start)
+	other := accounts.GuestSession(accounts.AccountID{15: 2}, accounts.TokenOf("other"), lifetime, start)
 	require.NoError(t, store.SaveSignIn(t.Context(), accounts.SignIn{NewAccount: true, Identity: identity, Session: laptop}))
 	require.NoError(t, store.SaveSignIn(t.Context(), accounts.SignIn{Session: phone}))
 	require.NoError(t, store.CreateGuest(t.Context(), other))
@@ -31,18 +31,18 @@ func TestEverySessionOfTheAccountEndsAndNoOther(t *testing.T) {
 	setCookie, err := sign_out_everywhere_usecase.New(store, cptime.NewFixedClock(start)).Execute(t.Context(), "cp_sid=laptop")
 
 	require.NoError(t, err)
-	assert.Equal(t, accounts.ClearCookie(), setCookie)
+	assert.Equal(t, accounts.ExpiredSessionCookie(), setCookie)
 	for _, gone := range []*accounts.Session{laptop, phone} {
-		_, err := store.FindSession(t.Context(), gone.TokenHash)
+		_, err := store.Session(t.Context(), gone.TokenHash)
 		require.ErrorIs(t, err, accounts.ErrSessionNotFound)
 	}
-	_, err = store.FindSession(t.Context(), other.TokenHash)
+	_, err = store.Session(t.Context(), other.TokenHash)
 	assert.NoError(t, err)
 }
 
 func TestNoLiveSessionIsNoAccount(t *testing.T) {
 	store := inmemory_account_store.New()
-	require.NoError(t, store.CreateGuest(t.Context(), accounts.StartGuest(accounts.AccountID{15: 1}, accounts.TokenOf("token-1"), lifetime, start)))
+	require.NoError(t, store.CreateGuest(t.Context(), accounts.GuestSession(accounts.AccountID{15: 1}, accounts.TokenOf("token-1"), lifetime, start)))
 	useCase := sign_out_everywhere_usecase.New(store, cptime.NewFixedClock(start.Add(91*24*time.Hour)))
 
 	_, err := useCase.Execute(t.Context(), "cp_sid=token-1")

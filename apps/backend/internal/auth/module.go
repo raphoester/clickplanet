@@ -256,10 +256,10 @@ func (c Config) Validate() error {
 	if err := c.Database.Validate(); err != nil {
 		databaseErr = fmt.Errorf("auth.database: %w", err)
 	}
-	return errors.Join(c.SignerConfig.Validate(), databaseErr, c.validatePrune(), c.validateSignIn())
+	return errors.Join(c.SignerConfig.Validate(), databaseErr, c.pruneError(), c.signInError())
 }
 
-func (c Config) validatePrune() error {
+func (c Config) pruneError() error {
 	config := c.withDefaults()
 	if config.Prune.IdleFor < config.Sessions.GuestTTL {
 		return fmt.Errorf("auth.prune.idleFor %s is shorter than auth.sessions.guestTTL %s: a live cookie would lose its account",
@@ -268,7 +268,7 @@ func (c Config) validatePrune() error {
 	return nil
 }
 
-func (c Config) validateSignIn() error {
+func (c Config) signInError() error {
 	if !c.SignIn.Enabled {
 		return nil
 	}

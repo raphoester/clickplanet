@@ -45,7 +45,7 @@ func (s *Store) FailWith(err error) {
 	s.failWith = err
 }
 
-func (s *Store) FindSession(_ context.Context, tokenHash accounts.TokenHash) (*accounts.Session, error) {
+func (s *Store) Session(_ context.Context, tokenHash accounts.TokenHash) (*accounts.Session, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -117,7 +117,7 @@ func (s *Store) DeleteSessions(_ context.Context, account accounts.AccountID) er
 	return nil
 }
 
-func (s *Store) FindAccount(_ context.Context, account accounts.AccountID) (*accounts.Account, error) {
+func (s *Store) Account(_ context.Context, account accounts.AccountID) (*accounts.Account, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -131,7 +131,7 @@ func (s *Store) FindAccount(_ context.Context, account accounts.AccountID) (*acc
 	return &accounts.Account{ID: account, Identities: s.identitiesOf(account)}, nil
 }
 
-func (s *Store) FindIdentity(_ context.Context, provider string, subject string) (*accounts.Identity, error) {
+func (s *Store) Identity(_ context.Context, provider string, subject string) (*accounts.Identity, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 

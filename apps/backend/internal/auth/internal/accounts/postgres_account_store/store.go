@@ -23,7 +23,7 @@ type Store struct {
 
 var _ accounts.Store = (*Store)(nil)
 
-func (s *Store) FindSession(ctx context.Context, tokenHash accounts.TokenHash) (*accounts.Session, error) {
+func (s *Store) Session(ctx context.Context, tokenHash accounts.TokenHash) (*accounts.Session, error) {
 	session := accounts.Session{TokenHash: tokenHash}
 	var account uuid.UUID
 	err := s.db.QueryRowContext(ctx, `
@@ -89,7 +89,7 @@ func (s *Store) DeleteSessions(ctx context.Context, account accounts.AccountID) 
 	return nil
 }
 
-func (s *Store) FindAccount(ctx context.Context, account accounts.AccountID) (*accounts.Account, error) {
+func (s *Store) Account(ctx context.Context, account accounts.AccountID) (*accounts.Account, error) {
 	var exists bool
 	if err := s.db.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM accounts WHERE id = $1)`, uuid.UUID(account)).Scan(&exists); err != nil {
 		return nil, fmt.Errorf("failed to select the account: %w", err)
@@ -121,7 +121,7 @@ func (s *Store) FindAccount(ctx context.Context, account accounts.AccountID) (*a
 	return found, nil
 }
 
-func (s *Store) FindIdentity(ctx context.Context, provider string, subject string) (*accounts.Identity, error) {
+func (s *Store) Identity(ctx context.Context, provider string, subject string) (*accounts.Identity, error) {
 	identity, err := scanIdentity(s.db.QueryRowContext(ctx, `
 		SELECT provider, subject, account_id, COALESCE(email, ''), email_verified, linked_at
 		FROM identities WHERE provider = $1 AND subject = $2

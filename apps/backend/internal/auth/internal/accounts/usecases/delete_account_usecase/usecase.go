@@ -41,5 +41,5 @@ func (u *UseCase) Execute(ctx context.Context, cookieHeader string) (*Out, error
 	}
 
 	// The seam for auth.v1.AccountDeleted: once the event bus exists, publish it here, after the rows are gone.
-	return &Out{Account: session.Account, SetCookie: accounts.ClearCookie()}, nil
+	return &Out{Account: session.Account, SetCookie: accounts.ExpiredSessionCookie()}, nil
 }

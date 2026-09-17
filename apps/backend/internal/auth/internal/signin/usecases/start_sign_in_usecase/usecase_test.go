@@ -34,7 +34,7 @@ func TestAStartedSignInSendsTheBrowserToTheProviderAndSealsTheFlowInItsCookie(t 
 	assert.Equal(t, "https://google.example/authorize?state=secret-1", out.AuthorizationURL)
 	cookie, err := http.ParseSetCookie(out.SetCookie)
 	require.NoError(t, err)
-	flow, err := sealer.Open(cookie.Value)
+	flow, err := sealer.Opened(cookie.Value)
 	require.NoError(t, err)
 	assert.Equal(t, &signin.Flow{Provider: "google", State: "secret-1", Verifier: "secret-2", Nonce: "secret-3", ExpiresAt: now.Add(signin.FlowTTL)}, flow)
 }

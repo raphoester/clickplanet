@@ -107,6 +107,31 @@ directory.
 - **A shared package keeps its own type.** `cpsession.Claims.Account` is still a `uuid.UUID`: it is the token format both `auth` and `planet` read, and a module's id type cannot cross into another module. `create_session_usecase` converts when it mints.
 - **A new id starts as a type.** Adding one later means touching every signature it already flows through.
 
+### Manipulators are verbs, builders are nouns
+
+**A name says whether calling it changes anything.** From Elegant Objects:
+
+```
+class Document {
+    OutputPipe output();          // builder: a noun, reads, changes nothing
+}
+
+class OutputPipe {
+    void write(InputStream stream); // manipulator: a verb, does the work
+    int bytes();
+    long time();
+}
+```
+
+- **A manipulator performs an action and changes state**: it writes a row, sends a request, spends a token, mutates its receiver or an argument. It is named from a verb — `SaveSignIn`, `DeleteSessions`, `ExtendIfDue`, `Grant`, `Execute`.
+- **A builder only reads or computes, and changes nothing** — not its receiver, not an argument, not the world. It is named from a noun, with `With`, `As` or `Of` where that reads better — `accounts.Cookie`, `accounts.ExpiredSessionCookie`, `store.Session(ctx, hash)`, `accounts.OutcomeOf`, `Flow.Challenge`, `Config.WithDefaults`, `oauth_http.Resource[T]`.
+- **A verb on a pure function is a bug in the name.** `ClearCookie()` that only returns a `Set-Cookie` string reads as if it cleared something; it is `ExpiredSessionCookie()`, and the caller is what sends it. Likewise a read port is `Session(ctx, hash)`, not `FindSession`.
+- **A builder that returns an error is still a noun**: `Session.ExpiryError(now)`, `Flow.CallbackError(state, now)`, `Config.pruneError()`.
+- **Two exceptions, both imposed from outside:** `Validate() error` is the hook `cpconfigs` calls by name, and a generated Connect handler method carries its RPC's name (`GetMe`).
+- **Go's `New…` constructors stay** — building an object is what they say.
+
+The auth module follows this. Code outside it has not been checked against the rule yet: fix a name when you touch the code, not in a sweep.
+
 ### The composite layer
 
 Each context wires **itself**, in a `module.go` at its root (`internal/planet/module.go`, `internal/chat/module.go`, `internal/auth/module.go`). That file is the context's manifest: its `Config`, whether it is on, and its DI sequence. **A module takes its config and nothing else, and builds every object it needs itself** — there is no `Deps` struct and nothing is handed down from `main`. A module is a `cpbootstrap.Module` — a name, an `Enabled` flag and a DI sequence — and the sequence is handed a `cpbootstrap.Props` carrying registrars and nothing else:
@@ -372,14 +397,14 @@ POST /auth.v1.AuthService/CreateSession   [Cookie: cp_sid=…, sent by the web c
   → [cpbootstrap: error net], RateLimitInterceptor (the mint budget)
   → AuthService → create_session_handler
   → create_session_usecase: attest (turnstile_attester → Cloudflare siteverify)
-  → accounts: the cookie's live Session (extended and saved when due), or StartGuest and store it
+  → accounts: the cookie's live Session (extended and saved when due), or a GuestSession, stored
   → shared/cpsession.Signer.Mint [Ed25519 over version+expiry+id+account+scope; nothing stored]
   ← token, and Set-Cookie when the session is new or renewed
 
 POST /auth.v1.AuthService/StartSignIn → authorization URL, Set-Cookie: cp_oauth (sealed flow)
   … the provider … → https://clickplanet.lol/auth/callback?code&state
 POST /auth.v1.AuthService/CompleteSignIn   [Cookie: cp_oauth, cp_sid]
-  → complete_sign_in_usecase: open and check the flow, provider.Exchange, accounts.Choose, SaveSignIn
+  → complete_sign_in_usecase: open and check the flow, provider.Exchange, accounts.OutcomeOf, SaveSignIn
   ← Set-Cookie: cp_sid (new session), cp_oauth cleared; the client mints again
 
 POST /session.v1.SessionService/CreateSession   [deprecated]
@@ -568,7 +593,7 @@ It was two modules, `session` and `auth`, for one PR. The mint was auth's only c
 
 ```
 internal/auth/internal/
-  accounts/                                AccountID, TokenHash, Account, Identity, Session, Token, Lifetime, Choose, the cookie; the Store, IDProvider and TokenGenerator ports
+  accounts/                                AccountID, TokenHash, Account, Identity, Session, Token, Lifetime, OutcomeOf, the cookie; the Store, IDProvider and TokenGenerator ports
     postgres_account_store/                accounts, identities and sessions in the auth schema
     inmemory_account_store/                the same port in maps, behind the testing tag
     uuid_id_provider/  random_token_generator/
@@ -590,7 +615,7 @@ internal/auth/internal/
 
 - **`session.v1.SessionService/CreateSession` is deprecated**, in the proto and in the code. It mints a token with no account for clients that predate accounts, and goes once none calls it. Both paths spend one mint budget, so the old one is not a second allowance.
 - **The cookie is `cp_sid`**: a 32-byte token from `random_token_generator`, `HttpOnly; Secure; SameSite=Lax; Path=/`, host-only on the API's domain. The API and the frontend are the same site, so it is not a third-party cookie. **Only its SHA-256 is stored** (`sessions.token_hash`), so a copy of the table signs nobody in. Caddy redacts `Cookie` and `Set-Cookie` in its logs.
-- **The rules are on `accounts.Session`**: `StartGuest` opens one with a full `guestTTL` (90 days) and `StartLinked` with a full `linkedTTL` (30 days), `CheckLive` answers `ErrSessionExpired` past it, `ExtendIfDue` moves the expiry by the TTL of its kind when `extendEvery` (24h) has passed since the last extension, and `Cookie` is its `Set-Cookie`. `Session.Linked` is read by the store (does the account have an identity), never written, so every session of an account extends as a linked one once any browser links it. `create_session_usecase` only orders them: attest, read the cookie, find the session, check it, extend and save it when due — or, when there is no cookie, no such session or an expired one, start and store a guest — then mint.
+- **The rules are on `accounts.Session`**: `GuestSession` builds one with a full `guestTTL` (90 days) and `LinkedSession` with a full `linkedTTL` (30 days), `ExpiryError` is `ErrSessionExpired` past it, `ExtendIfDue` moves the expiry by the TTL of its kind when `extendEvery` (24h) has passed since the last extension, and `Cookie` is its `Set-Cookie`. `Session.Linked` is read by the store (does the account have an identity), never written, so every session of an account extends as a linked one once any browser links it. `create_session_usecase` only orders them: attest, read the cookie, find the session, check it, extend and save it when due — or, when there is no cookie, no such session or an expired one, start and store a guest — then mint.
 - **Only a caller that passed attestation gets an account**, so bots that fail Turnstile make no rows. The mint throttle bounds how many guests one address makes.
 - **A failing database fails the mint.** No fallback to a token with no account: the error net answers `internal`.
 - **Absence is a sentinel, never `nil, nil`**: `ErrNoSessionCookie`, `ErrSessionNotFound` (the port's, for an unknown token hash), `ErrSessionExpired`, and `ErrNoAccount`, which `GetMe` answers as `Unauthenticated`. `GetMe` creates, extends and saves nothing, and answers `no-store`.
@@ -607,7 +632,7 @@ internal/auth/internal/
 - **`CompleteSignIn(code, state)`** opens the cookie, checks the state (constant time) and the expiry, trades the code with the verifier, and clears `cp_oauth` on every answer it maps, success or refusal. A browser that did not start the sign-in has no cookie that matches, which is the whole CSRF defence: a code carried to a victim's browser is refused before the provider is asked.
 - **The cookie is AES-256-GCM** (`aes_flow_sealer`), under a key derived with HKDF from `auth.secret` and a label of its own, so there is no second secret to set and the browser can neither read the verifier nor change the flow.
 - **Google** (`openid email`) reads the user from the ID token in the token endpoint's answer. Its signature is not checked: it comes straight from Google over TLS, which OpenID Connect Core 3.1.3.7 accepts instead; issuer, audience, expiry and nonce are. **Discord** (`identify email`) reads `/users/@me`. Both go through `oauth_http`, which answers `ErrProviderRefused` for a 4xx or an answer that does not decode, and a plain error (the error net's `internal`) when the provider could not be asked.
-- **`accounts.Choose` decides, and emails are never compared**: an identity already linked signs in to its account; a new one links to the account the browser is on; no account, or one that already holds a user of that provider, gets a new account. The guest a browser leaves for a known identity is left as it was — nothing is merged, and the prune deletes it later.
+- **`accounts.OutcomeOf` decides, and emails are never compared**: an identity already linked signs in to its account; a new one links to the account the browser is on; no account, or one that already holds a user of that provider, gets a new account. The guest a browser leaves for a known identity is left as it was — nothing is merged, and the prune deletes it later.
 - **`accounts.SignIn` is written in one transaction**: the new account if any, the identity if new, the new session, and the deletion of the browser's previous session. The session token changes on every sign-in. Two browsers linking the same new identity at once: the second insert finds it taken (`ErrIdentityTaken`), and the use case runs once more, now as a sign-in.
 - **An email is kept only when the provider says it is verified** (`accounts.NewIdentity`), and it is `NULL` otherwise. It is for contact, never for finding an account.
 - **Off by default** (`auth.signIn.enabled`). Off, `signin.Providers` is empty and both RPCs answer `Unimplemented`, which Connect sends as HTTP 404 — the frontend hides the button on it. A provider is offered once its `clientId` is set. `StartSignIn` and `CompleteSignIn` spend the mint budget: each can cost a round trip to a third party or make an account.

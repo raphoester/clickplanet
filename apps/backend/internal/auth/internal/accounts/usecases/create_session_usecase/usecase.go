@@ -16,7 +16,7 @@ import (
 )
 
 type Sessions interface {
-	FindSession(ctx context.Context, tokenHash accounts.TokenHash) (*accounts.Session, error)
+	Session(ctx context.Context, tokenHash accounts.TokenHash) (*accounts.Session, error)
 	CreateGuest(ctx context.Context, session *accounts.Session) error
 	SaveSession(ctx context.Context, session *accounts.Session) error
 }
@@ -103,11 +103,11 @@ func (u *UseCase) resume(ctx context.Context, cookieHeader string, now time.Time
 		return nil, fmt.Errorf("failed to read the cookie: %w", err)
 	}
 
-	session, err := u.sessions.FindSession(ctx, token.Hash)
+	session, err := u.sessions.Session(ctx, token.Hash)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find the session: %w", err)
 	}
-	if err := session.CheckLive(now); err != nil {
+	if err := session.ExpiryError(now); err != nil {
 		return nil, fmt.Errorf("failed to resume the session: %w", err)
 	}
 
@@ -131,7 +131,7 @@ func (u *UseCase) startGuest(ctx context.Context, now time.Time) (*Out, error) {
 		return nil, fmt.Errorf("failed to get a session token: %w", err)
 	}
 
-	session := accounts.StartGuest(account, token, u.lifetime, now)
+	session := accounts.GuestSession(account, token, u.lifetime, now)
 	if err := u.sessions.CreateGuest(ctx, session); err != nil {
 		return nil, fmt.Errorf("failed to store the guest: %w", err)
 	}

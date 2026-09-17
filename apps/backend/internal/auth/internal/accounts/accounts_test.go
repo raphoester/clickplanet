@@ -50,7 +50,7 @@ func TestATokensHashIsTheSHA256OfItsValue(t *testing.T) {
 func TestAGuestStartsWithAFullLifetime(t *testing.T) {
 	token := accounts.TokenOf("abc123")
 
-	session := accounts.StartGuest(account, token, lifetime, now)
+	session := accounts.GuestSession(account, token, lifetime, now)
 
 	assert.Equal(t, &accounts.Session{
 		TokenHash: token.Hash, Account: account, ExtendedAt: now, ExpiresAt: now.Add(90 * 24 * time.Hour),
@@ -58,14 +58,14 @@ func TestAGuestStartsWithAFullLifetime(t *testing.T) {
 }
 
 func TestASessionEndsAtItsExpiry(t *testing.T) {
-	session := accounts.StartGuest(account, accounts.TokenOf("abc123"), lifetime, now)
+	session := accounts.GuestSession(account, accounts.TokenOf("abc123"), lifetime, now)
 
-	require.NoError(t, session.CheckLive(now.Add(90*24*time.Hour-time.Second)))
-	assert.ErrorIs(t, session.CheckLive(now.Add(90*24*time.Hour)), accounts.ErrSessionExpired)
+	require.NoError(t, session.ExpiryError(now.Add(90*24*time.Hour-time.Second)))
+	assert.ErrorIs(t, session.ExpiryError(now.Add(90*24*time.Hour)), accounts.ErrSessionExpired)
 }
 
 func TestASessionIsExtendedAtMostOnceAnInterval(t *testing.T) {
-	session := accounts.StartGuest(account, accounts.TokenOf("abc123"), lifetime, now)
+	session := accounts.GuestSession(account, accounts.TokenOf("abc123"), lifetime, now)
 
 	assert.False(t, session.ExtendIfDue(now.Add(23*time.Hour), lifetime))
 	assert.Equal(t, now.Add(90*24*time.Hour), session.ExpiresAt)
@@ -77,7 +77,7 @@ func TestASessionIsExtendedAtMostOnceAnInterval(t *testing.T) {
 }
 
 func TestTheCookieLivesAsLongAsTheSessionAndStaysOnThisSite(t *testing.T) {
-	session := accounts.StartGuest(account, accounts.TokenOf("abc123"), accounts.Lifetime{GuestTTL: time.Hour}.WithDefaults(), now)
+	session := accounts.GuestSession(account, accounts.TokenOf("abc123"), accounts.Lifetime{GuestTTL: time.Hour}.WithDefaults(), now)
 
 	cookie, err := http.ParseSetCookie(session.Cookie(accounts.TokenOf("abc123"), now))
 	require.NoError(t, err)
@@ -93,7 +93,7 @@ func TestTheCookieLivesAsLongAsTheSessionAndStaysOnThisSite(t *testing.T) {
 }
 
 func TestALinkedSessionLastsTheLinkedLifetimeAndExtendsByIt(t *testing.T) {
-	session := accounts.StartLinked(account, accounts.TokenOf("abc123"), lifetime, now)
+	session := accounts.LinkedSession(account, accounts.TokenOf("abc123"), lifetime, now)
 	assert.Equal(t, now.Add(30*24*time.Hour), session.ExpiresAt)
 
 	later := now.Add(24 * time.Hour)
@@ -102,7 +102,7 @@ func TestALinkedSessionLastsTheLinkedLifetimeAndExtendsByIt(t *testing.T) {
 }
 
 func TestAGuestSessionExtendsByTheLinkedLifetimeOnceItsAccountIsLinked(t *testing.T) {
-	session := accounts.StartGuest(account, accounts.TokenOf("abc123"), lifetime, now)
+	session := accounts.GuestSession(account, accounts.TokenOf("abc123"), lifetime, now)
 	session.Linked = true
 
 	later := now.Add(24 * time.Hour)
@@ -111,7 +111,7 @@ func TestAGuestSessionExtendsByTheLinkedLifetimeOnceItsAccountIsLinked(t *testin
 }
 
 func TestClearingTheCookieExpiresItWithTheSameAttributes(t *testing.T) {
-	cookie, err := http.ParseSetCookie(accounts.ClearCookie())
+	cookie, err := http.ParseSetCookie(accounts.ExpiredSessionCookie())
 	require.NoError(t, err)
 
 	assert.Equal(t, "cp_sid", cookie.Name)
@@ -146,21 +146,21 @@ func TestAVerifiedEmailIsKept(t *testing.T) {
 func TestAKnownIdentitySignsInWhateverTheBrowserIsOn(t *testing.T) {
 	known := &accounts.Identity{Provider: "google", Subject: "user", Account: accounts.AccountID{15: 2}}
 
-	assert.Equal(t, accounts.SignedIn, accounts.Choose(nil, known, "google"))
-	assert.Equal(t, accounts.SignedIn, accounts.Choose(&accounts.Account{ID: account}, known, "google"))
+	assert.Equal(t, accounts.SignedIn, accounts.OutcomeOf(nil, known, "google"))
+	assert.Equal(t, accounts.SignedIn, accounts.OutcomeOf(&accounts.Account{ID: account}, known, "google"))
 }
 
 func TestANewIdentityLinksToTheAccountTheBrowserIsOn(t *testing.T) {
 	guest := &accounts.Account{ID: account}
 	linkedElsewhere := &accounts.Account{ID: account, Identities: []accounts.Identity{{Provider: "discord"}}}
 
-	assert.Equal(t, accounts.Linked, accounts.Choose(guest, nil, "google"))
-	assert.Equal(t, accounts.Linked, accounts.Choose(linkedElsewhere, nil, "google"))
+	assert.Equal(t, accounts.Linked, accounts.OutcomeOf(guest, nil, "google"))
+	assert.Equal(t, accounts.Linked, accounts.OutcomeOf(linkedElsewhere, nil, "google"))
 }
 
 func TestANewIdentityWithNowhereToGoCreatesAnAccount(t *testing.T) {
 	sameProvider := &accounts.Account{ID: account, Identities: []accounts.Identity{{Provider: "google", Subject: "someone else"}}}
 
-	assert.Equal(t, accounts.Created, accounts.Choose(nil, nil, "google"))
-	assert.Equal(t, accounts.Created, accounts.Choose(sameProvider, nil, "google"), "one account holds one user per provider")
+	assert.Equal(t, accounts.Created, accounts.OutcomeOf(nil, nil, "google"))
+	assert.Equal(t, accounts.Created, accounts.OutcomeOf(sameProvider, nil, "google"), "one account holds one user per provider")
 }

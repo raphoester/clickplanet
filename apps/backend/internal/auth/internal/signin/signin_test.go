@@ -50,9 +50,9 @@ func TestTheChallengeIsTheS256OfTheVerifier(t *testing.T) {
 func TestAFlowAcceptsItsOwnStateUntilItLapses(t *testing.T) {
 	flow := flow(t)
 
-	require.NoError(t, flow.Check("secret-1", now.Add(10*time.Minute-time.Second)))
-	require.ErrorIs(t, flow.Check("secret-1", now.Add(10*time.Minute)), signin.ErrFlowInvalid)
-	assert.ErrorIs(t, flow.Check("another-state", now), signin.ErrFlowInvalid)
+	require.NoError(t, flow.CallbackError("secret-1", now.Add(10*time.Minute-time.Second)))
+	require.ErrorIs(t, flow.CallbackError("secret-1", now.Add(10*time.Minute)), signin.ErrFlowInvalid)
+	assert.ErrorIs(t, flow.CallbackError("another-state", now), signin.ErrFlowInvalid)
 }
 
 func TestTheFlowCookieLivesAsLongAsTheFlowOnThisSiteOnly(t *testing.T) {
@@ -67,14 +67,14 @@ func TestTheFlowCookieLivesAsLongAsTheFlowOnThisSiteOnly(t *testing.T) {
 	assert.Equal(t, http.SameSiteLaxMode, cookie.SameSite)
 	assert.Empty(t, cookie.Domain)
 
-	cleared, err := http.ParseSetCookie(signin.ClearFlowCookie())
+	cleared, err := http.ParseSetCookie(signin.ExpiredFlowCookie())
 	require.NoError(t, err)
 	assert.Equal(t, "cp_oauth", cleared.Name)
 	assert.Negative(t, cleared.MaxAge)
 }
 
 func TestNoProviderIsSignInOff(t *testing.T) {
-	_, err := signin.Providers{}.Get(signin.Google)
+	_, err := signin.Providers{}.Provider(signin.Google)
 
 	assert.ErrorIs(t, err, signin.ErrSignInOff)
 }
@@ -82,7 +82,7 @@ func TestNoProviderIsSignInOff(t *testing.T) {
 func TestAProviderNotOfferedIsUnknown(t *testing.T) {
 	providers := signin.Providers{signin.Discord: signin.NewFakeProvider(signin.Discord)}
 
-	_, err := providers.Get(signin.Google)
+	_, err := providers.Provider(signin.Google)
 
 	require.ErrorIs(t, err, signin.ErrUnknownProvider)
 	assert.Equal(t, []string{"discord"}, providers.Names())

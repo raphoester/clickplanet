@@ -31,7 +31,7 @@ func (u *UseCase) Execute(ctx context.Context, cookieHeader string) (*accounts.A
 		return nil, fmt.Errorf("failed to find the caller: %w", err)
 	}
 
-	account, err := u.store.FindAccount(ctx, session.Account)
+	account, err := u.store.Account(ctx, session.Account)
 	if errors.Is(err, accounts.ErrAccountNotFound) {
 		return nil, fmt.Errorf("%w: %w", accounts.ErrNoAccount, err)
 	}

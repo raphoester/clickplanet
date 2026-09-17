@@ -33,5 +33,5 @@ func (u *UseCase) Execute(ctx context.Context, cookieHeader string) (string, err
 	if err := u.store.DeleteSessions(ctx, session.Account); err != nil {
 		return "", fmt.Errorf("failed to delete the account's sessions: %w", err)
 	}
-	return accounts.ClearCookie(), nil
+	return accounts.ExpiredSessionCookie(), nil
 }

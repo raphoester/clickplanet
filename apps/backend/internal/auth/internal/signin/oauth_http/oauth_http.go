@@ -30,52 +30,53 @@ func ExchangeCode(ctx context.Context, client *http.Client, endpoint string, for
 		return nil, fmt.Errorf("failed to build the token request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Accept", "application/json")
 
-	var token Token
-	if err := do(client, req, &token); err != nil {
+	token, err := answer[Token](client, req)
+	if err != nil {
 		return nil, fmt.Errorf("failed to exchange the code: %w", err)
 	}
 	if token.AccessToken == "" {
 		return nil, fmt.Errorf("%w: the token endpoint answered no access token", signin.ErrProviderRefused)
 	}
-	return &token, nil
+	return token, nil
 }
 
-// GetJSON reads a resource with the access token.
-func GetJSON(ctx context.Context, client *http.Client, endpoint string, accessToken string, into any) error {
+// Resource is the JSON resource at endpoint, read with the access token.
+func Resource[T any](ctx context.Context, client *http.Client, endpoint string, accessToken string) (*T, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
-		return fmt.Errorf("failed to build the request: %w", err)
+		return nil, fmt.Errorf("failed to build the request: %w", err)
 	}
 	req.Header.Set("Authorization", "Bearer "+accessToken)
-
-	return do(client, req, into)
-}
-
-// do answers ErrProviderRefused for a 4xx or a body that does not decode, and a plain error when the provider could not be asked.
-func do(client *http.Client, req *http.Request, into any) error {
 	req.Header.Set("Accept", "application/json")
 
+	return answer[T](client, req)
+}
+
+// answer is the provider's decoded answer to req: ErrProviderRefused for a 4xx or a body that does not decode, a plain error when the provider could not be asked.
+func answer[T any](client *http.Client, req *http.Request) (*T, error) {
 	res, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("the provider is unreachable: %w", err)
+		return nil, fmt.Errorf("the provider is unreachable: %w", err)
 	}
 	defer func() { _ = res.Body.Close() }()
 
 	body := io.LimitReader(res.Body, maxBodyBytes)
 	if res.StatusCode >= http.StatusInternalServerError {
-		return fmt.Errorf("the provider answered %d", res.StatusCode)
+		return nil, fmt.Errorf("the provider answered %d", res.StatusCode)
 	}
 	if res.StatusCode != http.StatusOK {
 		var reason struct {
 			Error string `json:"error"`
 		}
 		_ = json.NewDecoder(body).Decode(&reason)
-		return fmt.Errorf("%w: it answered %d (%s)", signin.ErrProviderRefused, res.StatusCode, reason.Error)
+		return nil, fmt.Errorf("%w: it answered %d (%s)", signin.ErrProviderRefused, res.StatusCode, reason.Error)
 	}
 
-	if err := json.NewDecoder(body).Decode(into); err != nil {
-		return fmt.Errorf("%w: its answer is not JSON: %w", signin.ErrProviderRefused, err)
+	var decoded T
+	if err := json.NewDecoder(body).Decode(&decoded); err != nil {
+		return nil, fmt.Errorf("%w: its answer is not JSON: %w", signin.ErrProviderRefused, err)
 	}
-	return nil
+	return &decoded, nil
 }

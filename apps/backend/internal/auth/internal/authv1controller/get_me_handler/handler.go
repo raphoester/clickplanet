@@ -42,7 +42,7 @@ func (h GetMeHandler) GetMe(
 		me.Kind = authv1.AccountKind_ACCOUNT_KIND_LINKED
 	}
 	for _, provider := range account.Providers() {
-		me.Providers = append(me.Providers, authprovider.Encode(provider))
+		me.Providers = append(me.Providers, authprovider.ProtoOf(provider))
 	}
 
 	res := connect.NewResponse(me)

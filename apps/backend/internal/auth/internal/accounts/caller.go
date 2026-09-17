@@ -8,7 +8,7 @@ import (
 )
 
 type SessionFinder interface {
-	FindSession(ctx context.Context, tokenHash TokenHash) (*Session, error)
+	Session(ctx context.Context, tokenHash TokenHash) (*Session, error)
 }
 
 // Caller is the live session a browser's cookie holds. Absent is ErrNoAccount; a store failure is not.
@@ -18,7 +18,7 @@ func Caller(ctx context.Context, sessions SessionFinder, cookieHeader string, no
 		return nil, fmt.Errorf("%w: %w", ErrNoAccount, err)
 	}
 
-	session, err := sessions.FindSession(ctx, token.Hash)
+	session, err := sessions.Session(ctx, token.Hash)
 	if errors.Is(err, ErrSessionNotFound) {
 		return nil, fmt.Errorf("%w: %w", ErrNoAccount, err)
 	}
@@ -26,12 +26,12 @@ func Caller(ctx context.Context, sessions SessionFinder, cookieHeader string, no
 		return nil, fmt.Errorf("failed to find the session: %w", err)
 	}
 
-	if err := session.CheckLive(now); err != nil {
+	if err := session.ExpiryError(now); err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrNoAccount, err)
 	}
 	return session, nil
 }
 
 type AccountFinder interface {
-	FindAccount(ctx context.Context, account AccountID) (*Account, error)
+	Account(ctx context.Context, account AccountID) (*Account, error)
 }

@@ -11,12 +11,12 @@ var names = map[authv1.Provider]string{
 	authv1.Provider_PROVIDER_DISCORD: signin.Discord,
 }
 
-// Decode is the provider's name, or empty for one this server has no name for.
-func Decode(provider authv1.Provider) string {
+// NameOf is the provider's name, or empty for one this server has no name for.
+func NameOf(provider authv1.Provider) string {
 	return names[provider]
 }
 
-func Encode(name string) authv1.Provider {
+func ProtoOf(name string) authv1.Provider {
 	for provider, known := range names {
 		if known == name {
 			return provider

@@ -102,14 +102,14 @@ func (p *Provider) Exchange(ctx context.Context, code string, flow *signin.Flow)
 		return nil, fmt.Errorf("google: %w", err)
 	}
 
-	claims, err := p.read(token.IDToken, flow)
+	claims, err := p.claimsOf(token.IDToken, flow)
 	if err != nil {
 		return nil, fmt.Errorf("%w: google: %w", signin.ErrProviderRefused, err)
 	}
 	return &accounts.Claim{Subject: claims.Subject, Email: claims.Email, EmailVerified: claims.EmailVerified}, nil
 }
 
-func (p *Provider) read(raw string, flow *signin.Flow) (*idToken, error) {
+func (p *Provider) claimsOf(raw string, flow *signin.Flow) (*idToken, error) {
 	parts := strings.Split(raw, ".")
 	if len(parts) != 3 {
 		return nil, fmt.Errorf("the ID token has %d parts, want 3", len(parts))

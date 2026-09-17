@@ -69,8 +69,8 @@ const (
 	Created
 )
 
-// Choose decides a sign-in. Emails are never compared: two identities are one player only when the player links them.
-func Choose(current *Account, known *Identity, provider string) Outcome {
+// OutcomeOf decides a sign-in. Emails are never compared: two identities are one player only when the player links them.
+func OutcomeOf(current *Account, known *Identity, provider string) Outcome {
 	switch {
 	case known != nil:
 		return SignedIn

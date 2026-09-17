@@ -27,7 +27,7 @@ func New(providers signin.Providers, secrets signin.Secrets, sealer signin.Seale
 
 // Execute answers signin.ErrSignInOff or signin.ErrUnknownProvider for a provider it does not offer.
 func (u *UseCase) Execute(_ context.Context, providerName string) (*Out, error) {
-	provider, err := u.providers.Get(providerName)
+	provider, err := u.providers.Provider(providerName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find the provider: %w", err)
 	}
@@ -37,7 +37,7 @@ func (u *UseCase) Execute(_ context.Context, providerName string) (*Out, error) 
 	if err != nil {
 		return nil, fmt.Errorf("failed to start the flow: %w", err)
 	}
-	sealed, err := u.sealer.Seal(flow)
+	sealed, err := u.sealer.Sealed(flow)
 	if err != nil {
 		return nil, fmt.Errorf("failed to seal the flow: %w", err)
 	}

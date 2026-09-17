@@ -20,7 +20,7 @@ func setUp(t *testing.T) (*get_me_usecase.UseCase, *inmemory_account_store.Store
 	t.Helper()
 
 	sessions := inmemory_account_store.New()
-	guest := accounts.StartGuest(accounts.AccountID{15: 1}, accounts.TokenOf("token-1"), accounts.Lifetime{}.WithDefaults(), start)
+	guest := accounts.GuestSession(accounts.AccountID{15: 1}, accounts.TokenOf("token-1"), accounts.Lifetime{}.WithDefaults(), start)
 	require.NoError(t, sessions.CreateGuest(t.Context(), guest))
 
 	clock := cptime.NewFixedClock(start)
@@ -31,7 +31,7 @@ func TestTheCookieGivesItsAccountAndItsProviders(t *testing.T) {
 	useCase, sessions, _ := setUp(t)
 	identity := accounts.NewIdentity("google", accounts.Claim{Subject: "google-user"}, accounts.AccountID{15: 1}, start)
 	require.NoError(t, sessions.SaveSignIn(t.Context(), accounts.SignIn{
-		Identity: identity, Session: accounts.StartLinked(identity.Account, accounts.TokenOf("token-2"), accounts.Lifetime{}.WithDefaults(), start),
+		Identity: identity, Session: accounts.LinkedSession(identity.Account, accounts.TokenOf("token-2"), accounts.Lifetime{}.WithDefaults(), start),
 	}))
 
 	account, err := useCase.Execute(t.Context(), "theme=dark; cp_sid=token-1")

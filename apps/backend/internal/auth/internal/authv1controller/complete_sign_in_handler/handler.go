@@ -56,10 +56,10 @@ func (h CompleteSignInHandler) CompleteSignIn(
 		return nil, connect.NewError(connect.CodeUnimplemented, signin.ErrSignInOff)
 	case errors.Is(err, signin.ErrFlowInvalid):
 		h.logRefusal(req, err)
-		return nil, clearingFlow(connect.NewError(connect.CodeFailedPrecondition, ErrStartAgain))
+		return nil, refusal(connect.CodeFailedPrecondition, ErrStartAgain)
 	case errors.Is(err, signin.ErrProviderRefused):
 		h.logRefusal(req, err)
-		return nil, clearingFlow(connect.NewError(connect.CodePermissionDenied, ErrRefused))
+		return nil, refusal(connect.CodePermissionDenied, ErrRefused)
 	case err != nil:
 		return nil, fmt.Errorf("failed to complete the sign-in: %w", err)
 	}
@@ -67,7 +67,7 @@ func (h CompleteSignInHandler) CompleteSignIn(
 	res := connect.NewResponse(&authv1.CompleteSignInResponse{AccountId: out.Account.String(), Outcome: outcomes[out.Outcome]})
 	res.Header().Set("Cache-Control", "no-store")
 	res.Header().Add("Set-Cookie", out.SetCookie)
-	res.Header().Add("Set-Cookie", signin.ClearFlowCookie())
+	res.Header().Add("Set-Cookie", signin.ExpiredFlowCookie())
 	return res, nil
 }
 
@@ -76,7 +76,9 @@ func (h CompleteSignInHandler) logRefusal(req *connect.Request[authv1.CompleteSi
 	h.logger.Info("refused a sign-in", slog.String("procedure", req.Spec().Procedure), slog.Any("error", err))
 }
 
-func clearingFlow(err *connect.Error) *connect.Error {
-	err.Meta().Add("Set-Cookie", signin.ClearFlowCookie())
-	return err
+// refusal is the error answered to a sign-in that cannot complete, with the Set-Cookie that ends its flow.
+func refusal(code connect.Code, reason error) *connect.Error {
+	refused := connect.NewError(code, reason)
+	refused.Meta().Add("Set-Cookie", signin.ExpiredFlowCookie())
+	return refused
 }

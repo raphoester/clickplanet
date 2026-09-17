@@ -25,7 +25,7 @@ func New(sessions SessionDeleter) *UseCase {
 func (u *UseCase) Execute(ctx context.Context, cookieHeader string) (string, error) {
 	token, err := accounts.TokenFromCookies(cookieHeader)
 	if errors.Is(err, accounts.ErrNoSessionCookie) {
-		return accounts.ClearCookie(), nil
+		return accounts.ExpiredSessionCookie(), nil
 	}
 	if err != nil {
 		return "", fmt.Errorf("failed to read the cookie: %w", err)
@@ -34,5 +34,5 @@ func (u *UseCase) Execute(ctx context.Context, cookieHeader string) (string, err
 	if err := u.sessions.DeleteSession(ctx, token.Hash); err != nil {
 		return "", fmt.Errorf("failed to delete the session: %w", err)
 	}
-	return accounts.ClearCookie(), nil
+	return accounts.ExpiredSessionCookie(), nil
 }

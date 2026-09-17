@@ -32,12 +32,12 @@ func CookieValue(cookieHeader string, name string) (string, bool) {
 	return "", false
 }
 
-func ClearCookie() string {
-	return ExpireCookie(CookieName)
+func ExpiredSessionCookie() string {
+	return ExpiredCookie(CookieName)
 }
 
-// SetCookie stores value until expiresAt: HttpOnly so no script reads it, Lax so no other site's form sends it.
-func SetCookie(name string, value string, expiresAt, now time.Time) string {
+// Cookie stores value until expiresAt: HttpOnly so no script reads it, Lax so no other site's form sends it.
+func Cookie(name string, value string, expiresAt, now time.Time) string {
 	return fmt.Sprint(&http.Cookie{
 		Name:     name,
 		Value:    value,
@@ -50,7 +50,7 @@ func SetCookie(name string, value string, expiresAt, now time.Time) string {
 	})
 }
 
-func ExpireCookie(name string) string {
+func ExpiredCookie(name string) string {
 	return fmt.Sprint(&http.Cookie{
 		Name:     name,
 		Path:     "/",
