@@ -102,6 +102,14 @@ export function HomeIcon({size = 22}: IconProps) {
     </svg>
 }
 
+export function InfoIcon({size = 22}: IconProps) {
+    return <svg {...base(size)} strokeWidth={2}>
+        <circle cx="12" cy="12" r="8.5"/>
+        <path d="M12 11v5.5"/>
+        <path d="M12 7.5h.01"/>
+    </svg>
+}
+
 export function UserIcon({size = 22}: IconProps) {
     return <svg {...base(size)} strokeWidth={2}>
         <circle cx="12" cy="8" r="4"/>
