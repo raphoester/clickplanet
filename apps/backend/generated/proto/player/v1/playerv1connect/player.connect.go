@@ -45,8 +45,12 @@ const (
 // PlayerServiceClient is a client for the player.v1.PlayerService service.
 type PlayerServiceClient interface {
 	GetProfile(context.Context, *connect.Request[v1.GetProfileRequest]) (*connect.Response[v1.GetProfileResponse], error)
-	// Unicode, at most 24 characters; control characters are removed and the
-	// ends trimmed. An empty name, or a longer one, is InvalidArgument.
+	// Chooses the caller's username: 3 to 20 characters, each an ASCII letter, a
+	// digit or an underscore, and not starting with "guest_" in any case — the
+	// chat puts that before every guest's name. A name that breaks a rule is
+	// InvalidArgument. Usernames are unique ignoring case: one another account
+	// holds is AlreadyExists. Only an account signed in with a provider may
+	// choose one; a guest is PermissionDenied.
 	SetName(context.Context, *connect.Request[v1.SetNameRequest]) (*connect.Response[v1.SetNameResponse], error)
 	GetStats(context.Context, *connect.Request[v1.GetStatsRequest]) (*connect.Response[v1.GetStatsResponse], error)
 }
@@ -108,8 +112,12 @@ func (c *playerServiceClient) GetStats(ctx context.Context, req *connect.Request
 // PlayerServiceHandler is an implementation of the player.v1.PlayerService service.
 type PlayerServiceHandler interface {
 	GetProfile(context.Context, *connect.Request[v1.GetProfileRequest]) (*connect.Response[v1.GetProfileResponse], error)
-	// Unicode, at most 24 characters; control characters are removed and the
-	// ends trimmed. An empty name, or a longer one, is InvalidArgument.
+	// Chooses the caller's username: 3 to 20 characters, each an ASCII letter, a
+	// digit or an underscore, and not starting with "guest_" in any case — the
+	// chat puts that before every guest's name. A name that breaks a rule is
+	// InvalidArgument. Usernames are unique ignoring case: one another account
+	// holds is AlreadyExists. Only an account signed in with a provider may
+	// choose one; a guest is PermissionDenied.
 	SetName(context.Context, *connect.Request[v1.SetNameRequest]) (*connect.Response[v1.SetNameResponse], error)
 	GetStats(context.Context, *connect.Request[v1.GetStatsRequest]) (*connect.Response[v1.GetStatsResponse], error)
 }

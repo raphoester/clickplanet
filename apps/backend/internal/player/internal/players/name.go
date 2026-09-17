@@ -5,45 +5,51 @@ import (
 	"fmt"
 	"strings"
 	"time"
-	"unicode"
-	"unicode/utf8"
 )
 
-// MaxNameLength is in runes, as the chat counts a name.
-const MaxNameLength = 24
+const (
+	MinNameLength = 3
+	MaxNameLength = 20
+	// ReservedPrefix starts no username, in any case: the chat puts it before every guest's name, so a guest
+	// cannot pass for a player.
+	ReservedPrefix = "guest_"
+)
 
-var ErrInvalidName = errors.New("invalid name")
+var (
+	ErrInvalidName = errors.New("invalid name")
+	// ErrNotLinked is a guest asking for a username: only an account signed in with a provider may hold one.
+	ErrNotLinked = errors.New("only an account signed in with a provider may choose a username")
+)
 
-// Name is a name a player chose, already cleaned.
+// Name is a username, as the player typed it. Two names that differ only in case are the same username.
 type Name string
 
-// NameOf cleans a name the way the chat does: valid UTF-8, a tab is a space, control characters are removed,
-// the ends are trimmed, and what is left is not empty and at most MaxNameLength runes.
+// NameOf checks a username: MinNameLength to MaxNameLength characters, each an ASCII letter, a digit or an
+// underscore, and not starting with ReservedPrefix in any case. Nothing is cleaned: a name that breaks a rule
+// is refused, never changed into one the player did not type.
 func NameOf(value string) (Name, error) {
-	if !utf8.ValidString(value) {
-		return "", fmt.Errorf("%w: not valid UTF-8", ErrInvalidName)
+	if len(value) < MinNameLength || len(value) > MaxNameLength {
+		return "", fmt.Errorf("%w: not %d to %d characters", ErrInvalidName, MinNameLength, MaxNameLength)
 	}
-
-	var b strings.Builder
 	for _, r := range value {
-		if r == '\t' {
-			r = ' '
+		if !usernameRune(r) {
+			return "", fmt.Errorf("%w: %q is not a letter, a digit or an underscore", ErrInvalidName, r)
 		}
-		if unicode.IsControl(r) {
-			continue
-		}
-		b.WriteRune(r)
+	}
+	if strings.HasPrefix(strings.ToLower(value), ReservedPrefix) {
+		return "", fmt.Errorf("%w: starts with %q", ErrInvalidName, ReservedPrefix)
 	}
 
-	cleaned := strings.TrimSpace(b.String())
-	if cleaned == "" {
-		return "", fmt.Errorf("%w: empty", ErrInvalidName)
-	}
-	if utf8.RuneCountInString(cleaned) > MaxNameLength {
-		return "", fmt.Errorf("%w: longer than %d characters", ErrInvalidName, MaxNameLength)
-	}
+	return Name(value), nil
+}
 
-	return Name(cleaned), nil
+func usernameRune(r rune) bool {
+	return r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '_'
+}
+
+// Folded is the name in lower case: what two names are compared on.
+func (n Name) Folded() string {
+	return strings.ToLower(string(n))
 }
 
 // Profile is what a player chose to be called. A player with no profile has no name.

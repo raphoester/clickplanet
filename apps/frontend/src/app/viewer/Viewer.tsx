@@ -20,6 +20,7 @@ import {useSound} from '../sound/useSound.ts';
 import AnthemBar from "../anthem/AnthemBar.tsx";
 import {useAnthem} from "../anthem/useAnthem.ts";
 import {AccountStore} from "../account/accountStore.ts";
+import {useAccount} from "../account/useAccount.ts";
 import "./Viewer.css"
 
 export type ViewerProps = {
@@ -38,6 +39,8 @@ export default function Viewer(props: ViewerProps) {
     const {countryState, handleSetCountry} = useCountryStorage()
     const clickBudget = useClickBudget(props.clickBudgetSource, countryState.code)
     const sound = useSound()
+    // The chat posts under the username, so it follows the account the menu shows.
+    const account = useAccount(props.account)
 
     const {
         status,
@@ -104,6 +107,7 @@ export default function Viewer(props: ViewerProps) {
             backend={props.chatBackend}
             country={countryState}
             playSound={sound.play}
+            username={account.kind === 'ready' ? account.username : undefined}
         />}
 
         {award && <BonusAward reward={award} onDone={dismissAward}/>}

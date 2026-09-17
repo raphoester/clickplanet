@@ -16,7 +16,7 @@ export class Profile extends Message<Profile> {
   accountId = "";
 
   /**
-   * Empty while the player has not chosen one.
+   * The username, as it was typed. Empty while the player has not chosen one.
    *
    * @generated from field: string name = 2;
    */

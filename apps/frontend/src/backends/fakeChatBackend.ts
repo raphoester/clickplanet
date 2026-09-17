@@ -7,6 +7,7 @@ import {
     ChatRejectedError,
     ChatSender,
     countRunes,
+    guestName,
     MAX_NAME_LENGTH,
     MAX_TEXT_LENGTH,
     OutgoingMessage,
@@ -21,11 +22,12 @@ export type FakeChatBackendOptions = {
     chatterIntervalMs?: number
 }
 
+// Players with a username and guests, as the server names them.
 const CHATTERS = [
     {name: "Ana", tag: "4f2ca1", country: "fr", text: "who keeps taking Brittany"},
-    {name: "Bo", tag: "91aa3d", country: "de", text: "we hold the north 💪"},
-    {name: "Kiran", tag: "0c77e2", country: "in", text: "gm everyone"},
-    {name: "Yuki", tag: "aa1290", country: "jp", text: "the pacific is ours"},
+    {name: guestName("Bo"), tag: "91aa3d", country: "de", text: "we hold the north 💪"},
+    {name: "kiran_07", tag: "0c77e2", country: "in", text: "gm everyone"},
+    {name: guestName("Yuki"), tag: "aa1290", country: "jp", text: "the pacific is ours"},
 ]
 
 export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListener {
@@ -81,10 +83,12 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
 
         if (!this.allow()) throw new ChatRateLimitedError()
 
+        // There is no account here, so no token names a username: like the
+        // server, every message from this browser is a guest's.
         const sent: ChatMessage = {
             id: UUIDv4(),
             sentAt: Date.now(),
-            authorName: name,
+            authorName: guestName(name),
             authorTag: "c0ffee",
             countryCode: message.countryCode,
             text,

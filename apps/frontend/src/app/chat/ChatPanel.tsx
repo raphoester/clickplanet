@@ -1,5 +1,5 @@
 import {useCallback, useEffect, useId, useRef, useState} from "react";
-import {ChatBackend, OutgoingMessage} from "../../backends/chat.ts";
+import {ChatBackend, guestName, OutgoingMessage} from "../../backends/chat.ts";
 import {Country} from "../../domain/countries.ts";
 import {idsSince, unreadSince} from "../../domain/chatLog.ts";
 import {ChevronIcon} from "../components/icons.tsx";
@@ -17,6 +17,11 @@ export type ChatPanelProps = {
     backend?: ChatBackend
     country: Country
     playSound?: PlaySound
+    /**
+     * The signed-in player's username. With one, the server posts under it and
+     * the composer asks for no name; without, the player is a guest.
+     */
+    username?: string
 }
 
 const UNREAD_CAP = 99
@@ -36,6 +41,9 @@ export default function ChatPanel(props: ChatPanelProps) {
 
     const {messages, mine, status, failure, send} = useChat({backend: props.backend})
     const {identity, setName} = useChatIdentity()
+    const {username} = props
+    // What everyone else sees on this player's messages.
+    const displayName = username ?? (identity.name === "" ? "" : guestName(identity.name))
 
     const lastSeen = useRef<string | undefined>(undefined)
     const seenAnything = useRef(false)
@@ -96,19 +104,22 @@ export default function ChatPanel(props: ChatPanelProps) {
 
         // Your own message never pings. `mine` alone is not enough: the
         // broadcast of it can arrive before the answer that fills `mine` in.
-        if (fresh.some(message => !mine.has(message.id) && message.authorName !== identity.name)) {
+        if (fresh.some(message => !mine.has(message.id) && message.authorName !== displayName)) {
             playSound?.('chat')
         }
-    }, [messages, mine, identity.name, playSound])
+    }, [messages, mine, displayName, playSound])
 
     if (status === 'unavailable') return null
 
     const onSend = (text: string) => {
         const message: OutgoingMessage = {
-            authorName: identity.name,
+            // Not read for a username; it is what posts, as a guest, when the
+            // token cannot be had.
+            authorName: identity.name || (username ?? ""),
             authorId: identity.authorId,
             countryCode: props.country.code,
             text,
+            asAccount: username !== undefined,
         }
         return send(message)
     }
@@ -151,6 +162,7 @@ export default function ChatPanel(props: ChatPanelProps) {
             <ChatLog messages={messages} loading={status === 'loading'} flashing={flashing}/>
 
             <ChatComposer identity={identity}
+                          username={username}
                           setName={setName}
                           failure={failure}
                           onSend={onSend}/>

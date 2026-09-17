@@ -7,15 +7,19 @@ package player.v1;
 // no valid token, or a token with no account, is Unauthenticated.
 service PlayerService {
   rpc GetProfile(GetProfileRequest) returns (GetProfileResponse);
-  // Unicode, at most 24 characters; control characters are removed and the
-  // ends trimmed. An empty name, or a longer one, is InvalidArgument.
+  // Chooses the caller's username: 3 to 20 characters, each an ASCII letter, a
+  // digit or an underscore, and not starting with "guest_" in any case — the
+  // chat puts that before every guest's name. A name that breaks a rule is
+  // InvalidArgument. Usernames are unique ignoring case: one another account
+  // holds is AlreadyExists. Only an account signed in with a provider may
+  // choose one; a guest is PermissionDenied.
   rpc SetName(SetNameRequest) returns (SetNameResponse);
   rpc GetStats(GetStatsRequest) returns (GetStatsResponse);
 }
 
 message Profile {
   string account_id = 1;
-  // Empty while the player has not chosen one.
+  // The username, as it was typed. Empty while the player has not chosen one.
   string name = 2;
 }
 

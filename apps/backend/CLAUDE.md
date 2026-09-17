@@ -56,7 +56,7 @@ This is a Go backend for a collaborative map-clicking game. It follows **hexagon
 
 They share the process, the transport and the country list, and **nothing else**. None imports another; each owns its own domain types, its own proto package, its own storage adapter (where it has one) and its own edge.
 
-**A module never calls another module's code or reads its data in its own stack trace.** When one needs an answer from another it asks over Connect, on a loopback listener — see [Calling another module](#calling-another-module). Two do: `planet` and `player` take the click token's verifying key from `auth`. When one only has to say that something happened, it publishes an event in process and never learns who listens — see [Telling other modules what happened](#telling-other-modules-what-happened). `planet` publishes `TileTaken` and `auth` publishes `AccountDeleted`; `player` hears both.
+**A module never calls another module's code or reads its data in its own stack trace.** When one needs an answer from another it asks over Connect, on a loopback listener — see [Calling another module](#calling-another-module). Three do: `planet`, `player` and `chat` take the click token's verifying key from `auth`, `player` asks `auth` whether an account is linked, and `chat` asks `player` for a sender's username. When one only has to say that something happened, it publishes an event in process and never learns who listens — see [Telling other modules what happened](#telling-other-modules-what-happened). `planet` publishes `TileTaken` and `auth` publishes `AccountDeleted`; `player` hears both.
 
 Bonus boxes live inside `internal/planet/` rather than beside it: what they grant
 is click allowance, and what carries them is the planet stream. A context of
@@ -189,7 +189,13 @@ return []bootstrap.Module{
 
 **Over Connect, on a loopback listener, never in the caller's stack trace.** A module that other modules call mounts an internal service with `props.InternalRPC.Mount`; `cpbootstrap` serves it on `httpServer.internalBindAddress` alone, which must be loopback. The caller builds a generated client over `props.Internal.Dial()`.
 
-`planet` and `player` ask `auth.v1.InternalService/GetVerifyingKey` for the public half of the click token key. Each holds its own `rpc_session_verifier`: a module cannot import another's interior, so `player`'s is a copy of `planet`'s. `player` serves `player.v1.InternalService/GetNames`, for the chat to show account names.
+| caller | asks | for | through |
+|---|---|---|---|
+| `planet`, `player`, `chat` | `auth.v1.InternalService/GetVerifyingKey` | the public half of the click token key, once per boot | each its own `rpc_session_verifier` |
+| `player` | `auth.v1.InternalService/GetAccount` | whether an account is linked, on each `SetName` | `players/rpc_account_reader` |
+| `chat` | `player.v1.InternalService/GetNames` | a sender's username, on each `SendMessage` with a token naming an account | `messages/rpc_player_usernames` |
+
+A module cannot import another's interior, so `player`'s and `chat`'s `rpc_session_verifier` are copies of `planet`'s.
 
 - **Each module's data stays in one place.** The caller holds an address, never the other module's config block, pool, objects or root package. The seed is read by `auth` and nothing else.
 - **`Dial` is the one place that knows the transport is loopback HTTP.** Moving to unix sockets changes the listener and `internalDialer`, and no module.
@@ -335,19 +341,22 @@ Chat follows the same rules as planet: no `domain`, no `adapters`, one directory
 
 ```
 internal/chat/internal/
-  messages/                             Message, Record, ErrInvalidMessage, Limits, Tag
+  messages/                             Message, Record, ErrInvalidMessage, Limits, GuestPrefix, AccountID, Tag
     inmemory_message_storage/           history and fanout in memory; writes through its Persistence port
     postgres_message_store/             that port, over chat.messages
-    usecases/send_message_usecase/      cleans, tags, appends          — Appender, CountryChecker
+    rpc_player_usernames/               a sender's username, from player.v1.InternalService/GetNames
+    usecases/send_message_usecase/      names, cleans, tags, appends   — Appender, CountryChecker, Usernames
+      log_usernames/                    logs a username it could not read
     usecases/get_history_usecase/       the recent messages            — HistoryReader
     usecases/listen_for_events_usecase/ one client's feed, heartbeat   — MessagesSubscriber
   chatv1controller/                     ChatService (a bag), the interceptors
     send_message_handler/  get_history_handler/  listen_for_events_handler/
     chatmessage/                        Encode, shared by the three handlers
+    rpc_session_verifier/               the key from auth.v1.InternalService, asked once (planet's, copied)
   migrations/                           the chat schema
 ```
 
-- **The rules that need no port are in the `messages` root**: `Limits` (runes, UTF-8, control characters), `Tag` (the salted IP hash) and `NewRecord` (truncates the author id and user agent). They are tested there, not through the use case.
+- **The rules that need no port are in the `messages` root**: `Limits` (runes, UTF-8, control characters), `Limits.GuestName` (`GuestPrefix` and the cleaned name), `AccountIDOf` (the context's account, or `cpsession.NoAccount`), `Tag` (the salted IP hash) and `NewRecord` (truncates the author id and user agent). They are tested there, not through the use case.
 - **`send_message_usecase.Config` stays under `chat.Config.Service`**, so the `chat.service.*` keys do not change.
 - **`chatv1controller`'s root tests are about the chain** (error net, blocklist, throttle). Each handler package tests its own mapping.
 
@@ -450,10 +459,13 @@ POST /planet.v1.ClickService/Click   [X-Session-Token: <the minted token>]
 `Set` is a no-op when the tile already holds that value — no write, no update published.
 
 ```
-POST /chat.v1.ChatService/SendMessage
-  → [cpbootstrap: error net], BlocklistInterceptor, then RateLimitInterceptor (both shared/cpconnect)
-  → ChatService → send_message_handler
-  → messages/usecases/send_message_usecase (cleans with messages.Limits, stamps id/time/messages.Tag)
+POST /chat.v1.ChatService/SendMessage   [X-Session-Token: optional]
+  → [cpbootstrap: error net], BlocklistInterceptor, RateLimitInterceptor, then SessionInterceptor (a reader: refuses nothing)
+      [rpc_session_verifier: the key from auth.v1.InternalService, asked once per boot]
+  → ChatService → send_message_handler (the account off the context, or none)
+  → messages/usecases/send_message_usecase
+      the account's username (log_usernames → rpc_player_usernames → player.v1.InternalService/GetNames),
+      or else "guest_" and the typed name cleaned with messages.Limits; stamps id/time/messages.Tag
   → inmemory_message_storage.Append() [inserts into chat.messages, then fans out]
   → every subscriber: one per open ListenForEvents stream
 ```
@@ -466,7 +478,9 @@ Chat is a separate bounded context, not a feature of the tile game: it shares th
 
 **Always on.** There is no `chat.enabled`: the module is built on every boot, and its database block is required.
 
-**Identity without accounts.** A client picks its own display name and sends a UUID it persists locally. **Neither is trusted for anything** — anyone can post with any name. What a sender cannot forge is `author_tag`: a salted hash of their IP, 6 hex characters, so two people using the same name still look different and a mute has a key that means something. The salt is `chat.service.tagSalt`; left empty it is regenerated at boot, which changes everyone's tag on restart, and the server warns about it.
+**Identity: a username, or a guest.** `SendMessage` reads an optional click token (`chatv1controller.NewSessionInterceptor`, over `cpconnect.NewSessionReaderInterceptor`, on the key `auth` hands over the internal listener). **When the token names an account with a username, the message is sent under that username**, asked of `player.v1.InternalService/GetNames` on every post, and the `author_name` in the request is not read, not even checked. **Otherwise the sender is a guest**: the name it typed is cleaned by `messages.Limits.Name` (at most 24 runes, before the prefix) and sent as `guest_` and that name (`messages.Limits.GuestName`). No username starts with `guest_`, so a guest cannot pass for a player. No token, a bad one, a token with no account, an account with no username, and a username that could not be read all post as a guest — **never a refusal**. A failed read (player off, which is a 404, or no answer within a second) is logged at Warn by `log_usernames`, a decorator around the adapter, and the use case falls back without a word. Messages sent before usernames existed carry the bare name.
+
+The client also sends a UUID it persists locally, kept in the log and **trusted for nothing**. What no sender can forge, player or guest, is `author_tag`: a salted hash of their IP, 6 hex characters, so two guests using the same name still look different and a mute has a key that means something. The salt is `chat.service.tagSalt`; left empty it is regenerated at boot, which changes everyone's tag on restart, and the server warns about it.
 
 **Abuse controls live at the edge**, in two interceptors — ahead of decoding the message and well ahead of validating it, so a flood of malformed messages costs a sender exactly what a flood of well-formed ones does. `chat.blockedIPs` cuts an address off from every chat RPC; `chat.rateLimiter` throttles `SendMessage` alone (`GetHistory` is one read on join, and limiting it would punish a page load). **Both are `shared/cpconnect`'s**, the same ones the click chain uses — see [Shared interceptors](#shared-interceptors). The domain then bounds the message in **runes** (280) and the name (24), validates UTF-8, and **strips control characters** — a newline once let a sender forge a line in the old log file, and a NUL is not valid in a postgres `text`.
 
@@ -636,6 +650,7 @@ internal/auth/internal/
     usecases/create_session_usecase/       attest, resume or start a guest, mint
     usecases/create_anonymous_session_usecase/   deprecated: attest, mint with no account
     usecases/get_me_usecase/               reads only
+    usecases/get_account_usecase/          reads one account, for another module
     usecases/sign_out_usecase/  sign_out_everywhere_usecase/  delete_account_usecase/
     usecases/prune_guests_usecase/         deletes idle guests: Executor, Runner, and log_prune_guests
   signin/                                  Flow (state, PKCE verifier, nonce, intent), Provider, Providers, Sealer, the cp_oauth cookie
@@ -644,7 +659,7 @@ internal/auth/internal/
     usecases/start_sign_in_usecase/  complete_sign_in_usecase/
   attestation/                             Attester, ErrAttestationFailed
     turnstile/  turnstile_attester/  open_attester/
-  authv1controller/                        AuthService: one handler package per procedure, authprovider for the enum
+  authv1controller/                        AuthService and InternalService: one handler package per procedure, authprovider for the enum
   sessionv1controller/                     deprecated SessionService
   migrations/
 ```
@@ -658,6 +673,7 @@ internal/auth/internal/
 - **Ids and tokens are injected** (`IDProvider`, `TokenGenerator`), like the clock. Tests use `accounts.SequentialIDs` and `SequentialTokens` (behind the tag), so they assert exact ids.
 - **`accounts.StoreContractSuite` is the port's behaviour**, like `clicks.TileStorageContractSuite`. Both stores embed it: postgres adds only what the port cannot show (the token is never stored, `last_seen_at`, an unverified email is `NULL`), and the use cases are tested over the in-memory one, which can `FailWith` an error.
 - **No cache.** Mints are one per 30s per address, so one indexed read each is cheap, and a sign-out has nothing to invalidate.
+- **`InternalService/GetAccount(account_id)`** answers `linked`: whether the account signed in with a provider (`Account.Linked`). An unknown account, or an id that is not one (`accounts.AccountIDOf`), is `linked` false and not an error; a store failure is. `player` asks it before it gives an account a username.
 - **`planet` reads the account off the token**: the session interceptor puts it on the context (`cpctx.GetAccount`), and the throttle, the bans and the ledger key on it beside the scope — see [Two buckets per click](#two-buckets-per-click), [Anti-bot](#anti-bot-internalantibot) and [Manual bans](#manual-bans-findplayers-topplayers-banplayer-revertplayer-inspectplayer).
 
 #### Signing in (`internal/auth/internal/signin/`)
@@ -695,6 +711,7 @@ internal/player/internal/
   players/                          AccountID, Name (NameOf), Profile, Stats, Day; the Store port and its contract suite
     postgres_player_store/          the Store over player.profiles and player.stats
     inmemory_player_store/          the same port in maps, behind the testing tag
+    rpc_account_reader/             whether an account is linked, from auth.v1.InternalService/GetAccount
     usecases/get_profile_usecase/  set_name_usecase/  get_stats_usecase/  get_names_usecase/
     usecases/record_take_usecase/  forget_account_usecase/
   playerv1controller/               PlayerService and InternalService (bags), the session interceptor
@@ -708,8 +725,12 @@ internal/player/internal/
 ```
 
 - **The caller is the account in the click token.** `PlayerService` sits behind `cpconnect.NewSessionInterceptor`, always enforcing, on the key `auth` hands over the internal listener, as `planet` does. No token, a bad one, or a token with no account (the deprecated mint) is `Unauthenticated`. `player_session_checks{verdict}` counts the verdicts.
-- **`GetProfile`** answers the account id and its name, empty when none was chosen. **`SetName`** cleans the name with the chat's rules (`players.NameOf`: valid UTF-8, a tab is a space, control characters removed, ends trimmed, 1 to 24 runes) and answers `InvalidArgument` otherwise. The rule is a copy of `messages.Limits.Name`: chat's interior is not reachable. **`GetStats`** answers `tiles_taken`, `streak_current`, `streak_best` and `streak_last_day` (YYYY-MM-DD).
-- **`InternalService/GetNames(account_ids)`** is for the chat: the names by id, leaving out an id with no name or one that is not a UUID.
+- **`GetProfile`** answers the account id and its name, empty when none was chosen. **`GetStats`** answers `tiles_taken`, `streak_current`, `streak_best` and `streak_last_day` (YYYY-MM-DD).
+- **`SetName` chooses a username.** `players.NameOf` is the rule: 3 to 20 characters, each an ASCII letter, a digit or an underscore, and not starting with `guest_` in any case, which the chat puts before every guest's name. Nothing is cleaned or trimmed: a name that breaks a rule is `InvalidArgument` (`ErrInvalidName`). The name keeps the case it was typed in.
+- **Usernames are unique ignoring case** (`Name.Folded`). A name another account holds is `AlreadyExists` (`ErrNameTaken`); an account setting its own name again, in any case, is not refused, and a rename or a deleted account frees the old one. Postgres holds the rule, not a read before the write: a unique index on `lower(name)`, whose violation (`23505` on `profiles_name_key`) `postgres_player_store.SaveProfile` answers as `ErrNameTaken`, so two players asking for one name at once cannot both get it. The in-memory store checks the same under its lock, and `StoreContractSuite` pins both.
+- **Only a linked account may hold one.** `set_name_usecase` checks the name first, so a name no account may hold costs no call, then asks its `Accounts` port whether the caller signed in with a provider: `rpc_account_reader` calls `auth.v1.InternalService/GetAccount` over the internal listener on every `SetName` (2s timeout), since an account links at any time and a name is chosen rarely. A guest is `PermissionDenied` (`ErrNotLinked`). Auth answers `linked` false for an unknown account or an id that is not one; **a failure to ask is a real error**, the error net's `internal`, never a guest. With `auth` off that call 404s, so no name can be set.
+- **Migration `20260917180000_usernames`** deletes the profiles whose name breaks the new rule, then, of names that differ only in case, every one but the oldest (`updated_at`, then `account_id`), replaces the name `CHECK` with the new pattern and adds the unique index. No client called `SetName` before usernames existed, so nothing a player chose is lost. The down migration drops the index and puts the old `CHECK` back; the deleted rows stay deleted.
+- **`InternalService/GetNames(account_ids)`** is for the chat: the usernames by id, leaving out an id with no name or one that is not a UUID.
 - **Stats come from `planet.v1.TileTaken`**, one event per tile, so a spread of seven is seven tiles. **The streak day is UTC**: a take on the day after `streak_last_day` extends the streak, a take on the same day changes nothing, a gap starts it again at 1, and a late event older than the last day counts a tile and leaves the streak alone (`Stats.WithTake`). `GetStats` reads it as of today (`Stats.AsOf`): a streak whose last day is before yesterday reads 0, and `streak_best` keeps it. `stats_test.go` pins the rules across UTC midnight.
 - **`auth.v1.AccountDeleted` deletes both rows.** A take that arrives after, on a token minted before the delete, makes a new stats row; the token lives an hour at most.
 - **Events are at most once.** A take dropped by a full buffer (`events_dropped_total`) or lost in a crash is a tile the stats never count. Stats start the day the module is turned on: takes before are not replayed.
@@ -1567,10 +1588,10 @@ rather than a fault of this server — on a public endpoint it is the common cas
 - `NewRateLimitInterceptor(limiter, refusal, procedures...)` — a `shared/cpratelimit` bucket keyed on `cpctx.RateLimitKey`, answering `CodeResourceExhausted` (429). It reports nothing about what is left: a context that shows a player their allowance throttles inside its own use case instead, where the reading is a return value. This is for the procedures where a refusal is the whole story — chat and sessions
 - `NewIPBlockInterceptor(blocklist, refusal, onBlocked, procedures...)` — a `cpipblock.Blocklist` lookup answering `CodePermissionDenied` (403), with an optional hook the click counter hangs on
 - `NewSessionInterceptor(verifier, clock, refusal, enforce, onVerdict, procedures...)` — a `shared/cpsession` signature check answering `CodeUnauthenticated` (401), which puts the session id and the account (when the token names one) on the context and, with `enforce` false, counts without refusing
-- `NewSessionReaderInterceptor(verifier, clock, procedures...)` — the same check where a token is optional: a valid one puts the same values on the context, and nothing is refused or counted. `GetBudget` uses it
+- `NewSessionReaderInterceptor(verifier, clock, procedures...)` — the same check where a token is optional: a valid one puts the same values on the context, and nothing is refused or counted. `GetBudget` and the chat's `SendMessage` use it
 - `NewErrorInterceptor(logger, mapper)` — the net, applied by `cpbootstrap` rather than by any module (see [The error net](#the-error-net)). It is a full `connect.Interceptor` rather than a `UnaryInterceptorFunc`, so it covers the streaming handlers too; without that, a stream would be the one procedure whose raw error the caller sees. The `Mapper` is optional and nothing passes one any more.
 
-Each context keeps a thin named constructor over these — `planetv1controller.NewVPNBlockInterceptor`, `chatv1controller.NewRateLimitInterceptor` and `NewBlocklistInterceptor` — which is where the procedure list, the refusal wording and the metric live. **A context names its own policy; neither reimplements the mechanism.**
+Each context keeps a thin named constructor over these — `planetv1controller.NewVPNBlockInterceptor`, `chatv1controller.NewRateLimitInterceptor`, `NewBlocklistInterceptor` and `NewSessionInterceptor` — which is where the procedure list, the refusal wording and the metric live. **A context names its own policy; neither reimplements the mechanism.**
 
 Both chains order them the same way: error mapping outermost, then the blocklist, then the limiter. **The blocklist has to sit outside the limiter** — a refused address must not also spend a token, or its next call would come back 429 and the client would report the wrong reason. `TestVPNBlockRunsBeforeTheThrottle` pins that for clicks.
 
@@ -1917,7 +1938,7 @@ The proto package is the **only** version number: Connect derives each route fro
 
 Tests use `testify`. **A postgres store's own tests need Docker**, and nothing else does: a suite starts one `postgres:16-alpine` container in `SetupSuite` with `cppg.StartTestServer(t)` (behind the `testing` tag), opens and migrates its schema with `OpenSchema(t, schema, migrations.FS)`, and empties it in `SetupTest` with `Purge`. The container stops when the suite ends. There is no container shared across packages: `go test` runs each package as its own process, up to `-p` (GOMAXPROCS) at once. Everything above a store is tested against a fake of its port (`inmemory_tile_storage.MemoryPersistence`), so it runs without Docker.
 
-**A path through a booted module is tested in `e2e/`**, never in `cmd/api`, which only holds the config and the module list. A test there boots the modules it needs with `cpbootstrap.Run` on a test postgres (`TestServer.ConfigFor(schema)`) and calls them over the wire: `accounts_test.go` mints a guest account, brings it back with its cookie, and checks the deprecated `session.v1` path still mints with none; `sign_in_test.go` links a provider, signs in to a known identity, signs out and deletes, over fake providers; `player_test.go` boots auth, planet and player, clicks with a guest's token and reads `GetStats`, sets a name, and deletes the account to see both go.
+**A path through a booted module is tested in `e2e/`**, never in `cmd/api`, which only holds the config and the module list. A test there boots the modules it needs with `cpbootstrap.Run` on a test postgres (`TestServer.ConfigFor(schema)`) and calls them over the wire: `accounts_test.go` mints a guest account, brings it back with its cookie, and checks the deprecated `session.v1` path still mints with none; `sign_in_test.go` links a provider, signs in to a known identity, signs out and deletes, over fake providers; `player_test.go` boots auth (with fake providers), planet, player and chat, clicks with a guest's token and reads `GetStats`, links an account to set a username (and sees a guest refused and a taken name refused), and deletes the account to see both go; `chat_test.go` posts on the same stack as a player with a username, a guest with a token, and a sender with none.
 
 On macOS, testcontainers asks the Docker credential helper before it pulls an image, and that can hang with no prompt in a non-interactive shell. `docker pull postgres:16-alpine` once from a terminal avoids it.
 

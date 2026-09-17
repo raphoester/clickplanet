@@ -1,6 +1,8 @@
+import {FormEvent, useId, useState} from "react"
 import {PROVIDER_NAMES} from "../../backends/account.ts"
+import {isValidUsername, MAX_USERNAME_LENGTH, MIN_USERNAME_LENGTH} from "../../backends/player.ts"
 import {AccountState, AccountStore} from "./accountStore.ts"
-import {messageOf, providerList} from "./authMessages.ts"
+import {messageOf, providerList, usernameMessageOf} from "./authMessages.ts"
 import {UserIcon} from "../components/icons.tsx"
 import "./Account.css"
 
@@ -43,6 +45,9 @@ export default function AccountPanel({state, store, onDelete}: AccountPanelProps
             </p>
             : <p className="account-text">Signed in with {providerList(linked)}.</p>}
 
+        {/* Keyed on the name, so a read or a save that lands resets what is typed. */}
+        {linked.length > 0 && <UsernameForm key={state.username ?? ""} state={state} store={store}/>}
+
         {toLink.map((provider) => <button key={provider}
                                           type="button"
                                           className="button button-ghost account-button"
@@ -78,4 +83,49 @@ export default function AccountPanel({state, store, onDelete}: AccountPanelProps
             <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy policy</a>
         </p>
     </div>
+}
+
+/** The username the chat shows. Only a linked account has one. */
+function UsernameForm({state, store}: {state: Ready, store: AccountStore}) {
+    const current = state.username ?? ""
+    const [draft, setDraft] = useState(current)
+    const inputId = useId()
+    const hintId = useId()
+
+    const name = draft.trim()
+    const blocked = state.busy !== undefined || state.naming === true
+    const canSave = !blocked && name !== current && isValidUsername(name)
+
+    const submit = (event: FormEvent) => {
+        event.preventDefault()
+        if (canSave) void store.setUsername(name)
+    }
+
+    return <form className="account-name" onSubmit={submit} aria-busy={state.naming === true}>
+        <div className="account-name-head">
+            <label className="menu-label" htmlFor={inputId}>Username</label>
+            <span className="menu-label account-name-current">{current || "none yet"}</span>
+        </div>
+        <div className="account-name-row">
+            <input id={inputId}
+                   className="account-name-input"
+                   value={draft}
+                   autoComplete="off"
+                   autoCapitalize="off"
+                   spellCheck={false}
+                   maxLength={MAX_USERNAME_LENGTH}
+                   placeholder="Pick a username"
+                   aria-describedby={hintId}
+                   onChange={(e) => setDraft(e.target.value)}/>
+            <button type="submit"
+                    className="button button-mini account-name-save"
+                    disabled={!canSave}>
+                Save
+            </button>
+        </div>
+        <p className="account-name-hint" id={hintId}>
+            {MIN_USERNAME_LENGTH}–{MAX_USERNAME_LENGTH} letters, digits or _. Shown in the chat.
+        </p>
+        {state.nameFailure && <p className="account-failure" role="alert">{usernameMessageOf(state.nameFailure)}</p>}
+    </form>
 }

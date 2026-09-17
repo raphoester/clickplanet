@@ -221,3 +221,14 @@ func TestALinkIsRefusedRatherThanLeaveTheAccount(t *testing.T) {
 		})
 	}
 }
+
+func TestAnAccountIDIsAUUIDAndNeverTheNilOne(t *testing.T) {
+	id, err := accounts.AccountIDOf("0b6d4f7e-5d7c-4a36-9a51-3f1f8f0c2a11")
+	require.NoError(t, err)
+	assert.Equal(t, "0b6d4f7e-5d7c-4a36-9a51-3f1f8f0c2a11", id.String())
+
+	for _, value := range []string{"", "not-a-uuid", "00000000-0000-0000-0000-000000000000"} {
+		_, err := accounts.AccountIDOf(value)
+		require.ErrorIs(t, err, accounts.ErrInvalidAccount, "%q", value)
+	}
+}

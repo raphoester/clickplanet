@@ -38,11 +38,14 @@ func (s *testSuite) SetupTest() {
 
 var at = time.Date(2026, 9, 17, 12, 0, 0, 0, time.UTC)
 
-func (s *testSuite) TestTheTableRefusesANameLongerThan24() {
-	err := s.store.SaveProfile(s.T().Context(),
-		players.Profile{Account: players.AccountID{15: 1}, Name: players.Name(strings.Repeat("a", 25)), UpdatedAt: at})
+func (s *testSuite) TestTheTableRefusesANameThatBreaksTheRule() {
+	for _, name := range []string{strings.Repeat("a", 21), "ab", "Ada Lovelace", "Émile", "GUEST_ada"} {
+		err := s.store.SaveProfile(s.T().Context(),
+			players.Profile{Account: players.AccountID{15: 1}, Name: players.Name(name), UpdatedAt: at})
 
-	s.Error(err)
+		s.Require().Error(err, "%q", name)
+		s.NotErrorIs(err, players.ErrNameTaken, "%q", name)
+	}
 }
 
 func (s *testSuite) TestTheStreakDayIsStoredAsADate() {

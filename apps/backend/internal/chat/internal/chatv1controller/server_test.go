@@ -21,6 +21,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cphttpserver"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 	"github.com/stretchr/testify/require"
 )
@@ -28,12 +29,14 @@ import (
 // These tests are about the interceptor chain; each procedure's mapping is tested in its handler package.
 
 type stubSender struct {
-	sent int
-	err  error
+	sent     int
+	accounts []messages.AccountID
+	err      error
 }
 
-func (s *stubSender) Execute(context.Context, send_message_usecase.In) (messages.Message, error) {
+func (s *stubSender) Execute(_ context.Context, in send_message_usecase.In) (messages.Message, error) {
 	s.sent++
+	s.accounts = append(s.accounts, in.Account)
 	return messages.Message{}, s.err
 }
 
@@ -63,6 +66,10 @@ func startChatServer(
 	blocklist, err := cpipblock.NewDenyList(blockedIPs)
 	require.NoError(t, err)
 
+	_, public := cpsession.TestKeyPair()
+	verifier, err := cpsession.NewVerifier(public)
+	require.NoError(t, err)
+
 	mux := http.NewServeMux()
 	mux.Handle(chatv1connect.NewChatServiceHandler(
 		ChatService{
@@ -75,6 +82,7 @@ func startChatServer(
 			cpconnect.NewErrorInterceptor(nil, nil),
 			NewBlocklistInterceptor(blocklist),
 			NewRateLimitInterceptor(limiter),
+			NewSessionInterceptor(verifier, clock),
 		),
 	))
 
@@ -85,6 +93,10 @@ func startChatServer(
 }
 
 func sendOnce(server *httptest.Server, ip string) error {
+	return sendWithToken(server, ip, "")
+}
+
+func sendWithToken(server *httptest.Server, ip string, token string) error {
 	req := connect.NewRequest(&chatv1.SendMessageRequest{
 		AuthorName: "Bob",
 		AuthorId:   "some-uuid",
@@ -92,6 +104,9 @@ func sendOnce(server *httptest.Server, ip string) error {
 		Text:       "hello",
 	})
 	req.Header().Set("X-Real-IP", ip)
+	if token != "" {
+		req.Header().Set(cpconnect.SessionHeader, token)
+	}
 
 	_, err := chatv1connect.NewChatServiceClient(server.Client(), server.URL).
 		SendMessage(context.Background(), req)
@@ -152,4 +167,22 @@ func TestABlockedSenderIsRefused(t *testing.T) {
 	require.Zero(t, sender.sent)
 
 	require.NoError(t, sendOnce(server, "1.2.3.4"), "everyone else is unaffected")
+}
+
+func TestAValidTokenNamesTheSendersAccountAndABadOneIsAGuest(t *testing.T) {
+	sender := &stubSender{}
+	server, clock := startChatServer(t, sender, stubSubscriber{}, nil)
+	secret, _ := cpsession.TestKeyPair()
+	signer, err := cpsession.NewSigner(cpsession.SignerConfig{Enabled: true, Secret: secret, TTL: time.Hour})
+	require.NoError(t, err)
+	ada := cpsession.AccountID{15: 1}
+	token, err := signer.Mint("1.2.3.4", ada, clock.Now())
+	require.NoError(t, err)
+
+	require.NoError(t, sendWithToken(server, "1.2.3.4", token.Value))
+	require.NoError(t, sendWithToken(server, "1.2.3.4", "forged"), "a bad token is a guest, never a refusal")
+	require.NoError(t, sendWithToken(server, "5.6.7.8", token.Value), "a token from another address is a guest")
+	require.NoError(t, sendOnce(server, "1.2.3.4"))
+
+	require.Equal(t, []messages.AccountID{ada, cpsession.NoAccount, cpsession.NoAccount, cpsession.NoAccount}, sender.accounts)
 }

@@ -1,4 +1,4 @@
-// Package send_message_usecase checks a message, stamps it and appends it to the log.
+// Package send_message_usecase checks a message, names and stamps it, and appends it to the log.
 package send_message_usecase
 
 import (
@@ -6,8 +6,10 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -19,7 +21,15 @@ type CountryChecker interface {
 	CheckCountry(country string) bool
 }
 
+// Usernames is the player module, asked for the username an account chose. found is false for an account
+// with none.
+type Usernames interface {
+	Username(ctx context.Context, account messages.AccountID) (username string, found bool, err error)
+}
+
 type In struct {
+	// Account is the one the sender's click token names, or cpsession.NoAccount for a guest.
+	Account    messages.AccountID
 	AuthorName string
 	AuthorID   string
 	CountryID  string
@@ -30,12 +40,14 @@ type In struct {
 func New(
 	appender Appender,
 	countryChecker CountryChecker,
+	usernames Usernames,
 	clock cptime.Clock,
 	config Config,
 ) *UseCase {
 	return &UseCase{
 		appender:       appender,
 		countryChecker: countryChecker,
+		usernames:      usernames,
 		clock:          clock,
 		limits:         messages.NewLimits(config.MaxTextLength, config.MaxNameLength),
 		tagSalt:        config.TagSalt,
@@ -45,13 +57,14 @@ func New(
 type UseCase struct {
 	appender       Appender
 	countryChecker CountryChecker
+	usernames      Usernames
 	clock          cptime.Clock
 	limits         messages.Limits
 	tagSalt        string
 }
 
 func (u *UseCase) Execute(ctx context.Context, in In) (messages.Message, error) {
-	name, err := u.limits.Name(in.AuthorName)
+	name, err := u.authorName(ctx, in)
 	if err != nil {
 		return messages.Message{}, fmt.Errorf("failed to check the message: %w", err)
 	}
@@ -81,4 +94,18 @@ func (u *UseCase) Execute(ctx context.Context, in In) (messages.Message, error) 
 	}
 
 	return message, nil
+}
+
+// authorName is the account's username, and the name the sender typed is then not read. Without one it is a
+// guest's name. A username that could not be read is a guest's name too: a post never fails because the
+// player module did not answer, and the decorator around the port says it did not.
+func (u *UseCase) authorName(ctx context.Context, in In) (string, error) {
+	if in.Account != cpsession.NoAccount {
+		username, found, err := u.usernames.Username(ctx, in.Account)
+		if err == nil && found {
+			return username, nil
+		}
+	}
+
+	return u.limits.GuestName(in.AuthorName) //nolint:wrapcheck // Execute says what failed.
 }

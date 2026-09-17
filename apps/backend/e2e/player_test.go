@@ -2,9 +2,11 @@ package e2e_test
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
+	"net/url"
 	"testing"
 	"time"
 
@@ -19,6 +21,7 @@ import (
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1/playerv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
@@ -32,9 +35,11 @@ const mapTiles = 257948
 
 type gameStack struct {
 	baseURL string
+	fakes   auth.FakeProviders
 }
 
-// startGame boots auth, planet and player on one test postgres, with the internal listener the two last ones dial.
+// startGame boots auth, planet, player and chat on one test postgres, with the internal listener the last three
+// dial. Auth signs in with fake providers.
 func startGame(t *testing.T) gameStack {
 	t.Helper()
 
@@ -58,6 +63,13 @@ func startGame(t *testing.T) gameStack {
 
 	playerConfig := player.Config{Enabled: true, Database: postgres.ConfigFor("player")}
 
+	chatConfig := chat.Config{Database: postgres.ConfigFor("chat")}
+	chatConfig.Service.TagSalt = "pepper"
+	chatConfig.RateLimiter.PerSecond = 100
+	chatConfig.RateLimiter.Burst = 100
+
+	authModule, fakes := auth.NewModuleWithFakeProviders(authConfig)
+
 	ctx, cancel := context.WithCancel(t.Context())
 	done := make(chan error, 1)
 	go func() {
@@ -66,7 +78,7 @@ func startGame(t *testing.T) gameStack {
 			Logger:         slog.New(slog.DiscardHandler),
 			StartupTimeout: time.Minute,
 			Modules: []cpbootstrap.Module{
-				auth.NewModule(authConfig), planet.NewModule(planetConfig), player.NewModule(playerConfig),
+				authModule, planet.NewModule(planetConfig), player.NewModule(playerConfig), chat.NewModule(chatConfig),
 			},
 		})
 	}()
@@ -84,7 +96,7 @@ func startGame(t *testing.T) gameStack {
 		return true
 	}, time.Minute, 50*time.Millisecond, "the server never came up")
 
-	return gameStack{baseURL: "http://" + server.BindAddress}
+	return gameStack{baseURL: "http://" + server.BindAddress, fakes: fakes}
 }
 
 // gamer is one browser: the cookie auth set, and the click token minted with it.
@@ -112,6 +124,59 @@ func (p *gamer) send(header http.Header) {
 	header.Set("X-Real-IP", callerIP)
 	header.Set(cpconnect.SessionHeader, p.token)
 	header.Set("Cookie", p.cookie)
+}
+
+// link signs the guest in with a provider, which links the identity to its account, and mints again so the
+// token is the linked account's.
+func (p *gamer) link(subject string) {
+	p.t.Helper()
+
+	client := authv1connect.NewAuthServiceClient(http.DefaultClient, p.stack.baseURL)
+
+	start := connect.NewRequest(&authv1.StartSignInRequest{
+		Provider: authv1.Provider_PROVIDER_GOOGLE, Intent: authv1.SignInIntent_SIGN_IN_INTENT_LINK,
+	})
+	p.send(start.Header())
+	started, err := client.StartSignIn(p.t.Context(), start)
+	require.NoError(p.t, err)
+	flow, err := http.ParseSetCookie(started.Header().Get("Set-Cookie"))
+	require.NoError(p.t, err)
+	authorization, err := url.Parse(started.Msg.GetAuthorizationUrl())
+	require.NoError(p.t, err)
+
+	p.stack.fakes.Google.Grant(subject, auth.Claim{Subject: subject})
+	complete := connect.NewRequest(&authv1.CompleteSignInRequest{Code: subject, State: authorization.Query().Get("state")})
+	p.send(complete.Header())
+	complete.Header().Set("Cookie", p.cookie+"; "+flow.Name+"="+flow.Value)
+	completed, err := client.CompleteSignIn(p.t.Context(), complete)
+	require.NoError(p.t, err)
+	require.Equal(p.t, authv1.SignInOutcome_SIGN_IN_OUTCOME_LINKED, completed.Msg.GetOutcome())
+
+	for _, line := range completed.Header().Values("Set-Cookie") {
+		cookie, err := http.ParseSetCookie(line)
+		require.NoError(p.t, err)
+		if cookie.MaxAge >= 0 {
+			p.cookie = cookie.Name + "=" + cookie.Value
+		}
+	}
+
+	mint := connect.NewRequest(&authv1.CreateSessionRequest{AttestationToken: "unused"})
+	p.send(mint.Header())
+	minted, err := client.CreateSession(p.t.Context(), mint)
+	require.NoError(p.t, err)
+	p.token = minted.Msg.GetToken()
+}
+
+func (p *gamer) setName(name string) (*playerv1.Profile, error) {
+	p.t.Helper()
+
+	req := connect.NewRequest(&playerv1.SetNameRequest{Name: name})
+	p.send(req.Header())
+	res, err := p.players().SetName(p.t.Context(), req)
+	if err != nil {
+		return nil, fmt.Errorf("SetName failed: %w", err)
+	}
+	return res.Msg.GetProfile(), nil
 }
 
 func (p *gamer) click(tile uint32, country string) {
@@ -155,20 +220,43 @@ func TestATileTakenWithAnAccountCountsOnItsStats(t *testing.T) {
 	assert.Zero(t, bob.stats().GetTilesTaken(), "another account's takes are not its own")
 }
 
-func TestANameIsSetAndReadBack(t *testing.T) {
+func TestALinkedPlayerSetsAUsernameAndReadsItBack(t *testing.T) {
 	game := startGame(t)
 	ada := game.newPlayer(t)
+	ada.link("google-ada")
 
-	set := connect.NewRequest(&playerv1.SetNameRequest{Name: "  Ada\n"})
-	ada.send(set.Header())
-	_, err := ada.players().SetName(t.Context(), set)
+	_, err := ada.setName("Ada_L")
 	require.NoError(t, err)
 
 	get := connect.NewRequest(&playerv1.GetProfileRequest{})
 	ada.send(get.Header())
 	res, err := ada.players().GetProfile(t.Context(), get)
 	require.NoError(t, err)
-	assert.Equal(t, "Ada", res.Msg.GetProfile().GetName())
+	assert.Equal(t, "Ada_L", res.Msg.GetProfile().GetName())
+}
+
+func TestAGuestMayNotChooseAUsername(t *testing.T) {
+	game := startGame(t)
+
+	_, err := game.newPlayer(t).setName("Ada_L")
+
+	assert.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
+}
+
+func TestAUsernameAnotherPlayerHoldsIsAlreadyExists(t *testing.T) {
+	game := startGame(t)
+	ada := game.newPlayer(t)
+	ada.link("google-ada")
+	_, err := ada.setName("Ada_L")
+	require.NoError(t, err)
+
+	bob := game.newPlayer(t)
+	bob.link("google-bob")
+	_, err = bob.setName("ada_l")
+
+	assert.Equal(t, connect.CodeAlreadyExists, connect.CodeOf(err))
+	_, err = ada.setName("ADA_L")
+	assert.NoError(t, err, "a player sets its own name again in another case")
 }
 
 func TestAPlayerCallWithNoTokenIsUnauthenticated(t *testing.T) {
@@ -183,10 +271,9 @@ func TestAPlayerCallWithNoTokenIsUnauthenticated(t *testing.T) {
 func TestADeletedAccountLosesItsStatsAndItsName(t *testing.T) {
 	game := startGame(t)
 	ada := game.newPlayer(t)
+	ada.link("google-ada")
 	ada.click(1, "fr")
-	set := connect.NewRequest(&playerv1.SetNameRequest{Name: "Ada"})
-	ada.send(set.Header())
-	_, err := ada.players().SetName(t.Context(), set)
+	_, err := ada.setName("Ada")
 	require.NoError(t, err)
 	require.Eventually(t, func() bool { return ada.stats().GetTilesTaken() == 1 }, 5*time.Second, 20*time.Millisecond)
 

@@ -1,4 +1,5 @@
 import {AccountBackend, AuthFailure, failureOf, Intent, Me, Provider, PROVIDERS} from "../../backends/account.ts"
+import {PlayerBackend, PlayerFailure, playerFailureOf} from "../../backends/player.ts"
 import {SessionProvider} from "../../backends/session.ts"
 
 export type AccountAction = "signIn" | "link" | "signOut" | "signOutEverywhere" | "deleteAccount"
@@ -16,6 +17,15 @@ export type AccountState =
         busy?: AccountAction
         /** Why the last action failed, until the next one starts. */
         failure?: AuthFailure
+        /**
+         * The username, once a linked account has one and it has been read.
+         * Undefined for a guest, while the read is out, and when it failed.
+         */
+        username?: string
+        /** A username being saved. Kept apart from `busy`, but neither starts while the other runs. */
+        naming?: true
+        /** Why the last save of a username failed, until the next one starts. */
+        nameFailure?: PlayerFailure
     }
 
 export type AccountStoreOptions = {
@@ -34,14 +44,22 @@ export type AccountStoreOptions = {
  * without this a player who signed in would paint as the guest they were.
  * Invalidating makes the next click mint again with the new cookie — or with no
  * cookie after a sign-out, which gives the browser a new guest.
+ *
+ * **The username is read after the account, not with it.** `GetProfile` needs a
+ * click token, which may mean a mint, so the section shows as soon as the
+ * account is known and the name follows. Only a linked account reads it: a
+ * guest has none, and should not mint just to learn that.
  */
 export class AccountStore {
     private current: AccountState = {kind: "loading"}
     private loading?: Promise<void>
+    /** Bumped on every change of account, so a profile read for the old one is dropped. */
+    private generation = 0
     private readonly listeners = new Set<() => void>()
 
     constructor(
         private readonly backend: AccountBackend,
+        private readonly player: PlayerBackend,
         private readonly session: SessionProvider,
         private readonly options: AccountStoreOptions,
     ) {
@@ -58,7 +76,8 @@ export class AccountStore {
      * Asks which providers are offered and who the cookie belongs to. A failed
      * read of the options hides the section — login is optional, so a broken one
      * is better absent than shown. A failed read of the account shows it as a
-     * guest: the buttons still work.
+     * guest: the buttons still work. A linked account then reads its username,
+     * which this does not wait for.
      */
     public load(): Promise<void> {
         // Two callers at once share one read: StrictMode mounts twice.
@@ -67,8 +86,11 @@ export class AccountStore {
         this.loading = Promise.all([
             this.backend.signInOptions().catch(() => [] as Provider[]),
             this.backend.me().catch((): Me => ({linked: []})),
-        ]).then(([offered, me]) => this.settle(offered, me))
-            .finally(() => {
+        ]).then(([offered, me]) => {
+            this.generation++
+            this.settle(offered, me)
+            if (me.linked.length > 0) void this.readUsername(this.generation)
+        }).finally(() => {
                 this.loading = undefined
             })
         return this.loading
@@ -98,8 +120,12 @@ export class AccountStore {
                 : failure === "notOffered" ? ready.offered.filter((p) => p !== provider)
                 : ready.offered
             // A link with no account left: the account was gone since the load.
-            const me = failure === "notSignedIn" ? {linked: []} : ready.me
-            this.settle(offered, me, failure)
+            if (failure === "notSignedIn") {
+                this.generation++
+                this.settle(offered, {linked: []}, {failure})
+                return
+            }
+            this.settle(offered, ready.me, {failure, username: ready.username})
         }
     }
 
@@ -151,31 +177,76 @@ export class AccountStore {
         } catch (e) {
             const failure = failureOf(e)
             if (failure !== "notSignedIn") {
-                this.settle(ready.offered, ready.me, failure)
+                this.settle(ready.offered, ready.me, {failure, username: ready.username})
                 return
             }
         }
 
+        this.generation++
         this.session.invalidate()
         this.settle(ready.offered, {linked: []})
     }
 
-    /** The ready state with the action marked busy, or undefined when nothing may start. */
-    private begin(action: AccountAction) {
-        if (this.current.kind !== "ready" || this.current.busy) return undefined
+    /**
+     * Saves a username for a linked account. The failure is kept apart from
+     * the account's own, since it is shown under the name form and not under
+     * the buttons.
+     */
+    public async setUsername(name: string): Promise<void> {
+        const ready = this.current
+        if (ready.kind !== "ready" || ready.busy || ready.naming || ready.me.linked.length === 0) return
+
+        this.set({kind: "ready", offered: ready.offered, me: ready.me, username: ready.username, naming: true})
+        const generation = this.generation
+
+        try {
+            const profile = await this.player.setName(name)
+            // Read again meanwhile (a sign-in landed): that state is newer.
+            if (generation !== this.generation) return
+            this.set({kind: "ready", offered: ready.offered, me: ready.me, username: profile.name || undefined})
+        } catch (e) {
+            if (generation !== this.generation) return
+            this.set({
+                kind: "ready", offered: ready.offered, me: ready.me, username: ready.username,
+                nameFailure: playerFailureOf(e),
+            })
+        }
+    }
+
+    /** A failed read leaves the name unknown: the form still shows, and saving still works. */
+    private async readUsername(generation: number): Promise<void> {
+        let name: string
+        try {
+            name = (await this.player.profile()).name
+        } catch {
+            return
+        }
 
         const ready = this.current
-        this.set({kind: "ready", offered: ready.offered, me: ready.me, busy: action})
+        if (generation !== this.generation || ready.kind !== "ready" || !name) return
+        // A save that landed meanwhile knows better than a read sent before it.
+        if (ready.naming || ready.username !== undefined) return
+        this.set({...ready, username: name})
+    }
+
+    /** The ready state with the action marked busy, or undefined when nothing may start. */
+    private begin(action: AccountAction) {
+        if (this.current.kind !== "ready" || this.current.busy || this.current.naming) return undefined
+
+        const ready = this.current
+        this.set({kind: "ready", offered: ready.offered, me: ready.me, username: ready.username, busy: action})
         return ready
     }
 
-    private settle(offered: Provider[], me: Me, failure?: AuthFailure) {
+    /** A username only ever survives on a linked account. */
+    private settle(offered: Provider[], me: Me, extra: {failure?: AuthFailure, username?: string} = {}) {
         const ordered = PROVIDERS.filter((p) => offered.includes(p))
         if (ordered.length === 0 && me.linked.length === 0) {
             this.set({kind: "hidden"})
             return
         }
-        this.set({kind: "ready", offered: ordered, me, failure})
+        const username = me.linked.length > 0 ? extra.username : undefined
+        this.set({kind: "ready", offered: ordered, me, failure: extra.failure, username})
     }
 
     private set(state: AccountState) {

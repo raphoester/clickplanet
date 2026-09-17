@@ -53,6 +53,11 @@ func (s *Store) SaveProfile(_ context.Context, profile players.Profile) error {
 	if s.failWith != nil {
 		return s.failWith
 	}
+	for account, held := range s.profiles {
+		if account != profile.Account && held.Name.Folded() == profile.Name.Folded() {
+			return players.ErrNameTaken
+		}
+	}
 	s.profiles[profile.Account] = profile
 	return nil
 }

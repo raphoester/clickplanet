@@ -1,11 +1,13 @@
 import {FormEvent, useId, useState} from "react";
-import {countRunes, MAX_NAME_LENGTH, MAX_TEXT_LENGTH} from "../../backends/chat.ts";
+import {countRunes, guestName, MAX_NAME_LENGTH, MAX_TEXT_LENGTH} from "../../backends/chat.ts";
 import {ChatIdentity, isValidName} from "./chatIdentity.ts";
 import {ChatSendFailure} from "./useChat.ts";
 import {truncate} from "../truncate.ts";
 
 export type ChatComposerProps = {
     identity: ChatIdentity
+    /** A signed-in player's username, which replaces the typed name. */
+    username?: string
     setName: (name: string) => void
     failure?: ChatSendFailure
     onSend: (text: string) => Promise<boolean>
@@ -28,7 +30,7 @@ export default function ChatComposer(props: ChatComposerProps) {
     const [naming, setNaming] = useState(false)
     const nameId = useId()
 
-    const needsName = props.identity.name === "" || naming
+    const needsName = props.username === undefined && (props.identity.name === "" || naming)
 
     const submitName = (event: FormEvent) => {
         event.preventDefault()
@@ -87,17 +89,22 @@ export default function ChatComposer(props: ChatComposerProps) {
         </div>
 
         <div className="chat-composer-foot">
-            <span className="menu-label chat-identity">
-                as {truncate(props.identity.name, NAME_MAX_LENGTH)}
-                <button type="button"
-                        className="chat-rename"
-                        onClick={() => {
-                            setDraftName(props.identity.name)
-                            setNaming(true)
-                        }}>
-                    Change
-                </button>
-            </span>
+            {props.username !== undefined
+                ? <span className="menu-label chat-identity" title="Change it in the account menu">
+                    as {props.username}
+                </span>
+                // The prefix is what everyone else sees, so the guest sees it too.
+                : <span className="menu-label chat-identity">
+                    as {guestName(truncate(props.identity.name, NAME_MAX_LENGTH))}
+                    <button type="button"
+                            className="chat-rename"
+                            onClick={() => {
+                                setDraftName(props.identity.name)
+                                setNaming(true)
+                            }}>
+                        Change
+                    </button>
+                </span>}
             {length >= COUNTER_SHOWS_FROM &&
                 <span className={length > MAX_TEXT_LENGTH ? "menu-label chat-counter-over" : "menu-label"}>
                     {MAX_TEXT_LENGTH - length}

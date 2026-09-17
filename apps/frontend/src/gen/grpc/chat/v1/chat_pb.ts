@@ -21,6 +21,10 @@ export class ChatMessage extends Message<ChatMessage> {
   sentAtUnixMs = protoInt64.zero;
 
   /**
+   * A username, or "guest_" and the name a guest typed. The server adds the
+   * prefix, and no username starts with it, so a guest cannot pass for a
+   * player. Messages sent before usernames existed carry the bare name.
+   *
    * @generated from field: string author_name = 3;
    */
   authorName = "";
@@ -74,10 +78,17 @@ export class ChatMessage extends Message<ChatMessage> {
 }
 
 /**
+ * The X-Session-Token header is optional. When it names an account with a
+ * username, the message is sent under that username and author_name is not
+ * read. Otherwise author_name is a guest's name, which the server sends as
+ * "guest_" and the name. A missing or invalid token is a guest, never a refusal.
+ *
  * @generated from message chat.v1.SendMessageRequest
  */
 export class SendMessageRequest extends Message<SendMessageRequest> {
   /**
+   * At most 24 characters once cleaned, before the prefix.
+   *
    * @generated from field: string author_name = 1;
    */
   authorName = "";

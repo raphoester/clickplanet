@@ -42,6 +42,78 @@
     color: #FFB4A9;
 }
 
+.account-name {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 8px;
+}
+
+.account-name-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.account-name-current {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    /* A username is shown as it was typed, not shouted. */
+    text-transform: none;
+    color: #FFFFFFCC;
+}
+
+.account-name-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* 16px, like .chat-input: iOS zooms the page in on a smaller field. */
+.account-name-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 40px;
+    padding: 0 12px;
+    border: 1px solid #FFFFFF4D;
+    border-radius: 8px;
+    background: #FFFFFF14;
+    color: white;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 16px;
+    user-select: text;
+    -webkit-user-select: text;
+}
+
+.account-name-input::placeholder {
+    color: #FFFFFF59;
+}
+
+.account-name-input:focus-visible {
+    outline: none;
+    border-color: #FFFFFFAA;
+}
+
+.account-name-save {
+    flex-shrink: 0;
+    margin-top: 0;
+}
+
+.account-name-save:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.account-name-hint {
+    margin: 0;
+    font-family: Oswald, sans-serif;
+    font-size: 12px;
+    color: #FFFFFF80;
+}
+
 .account-legal {
     margin: 8px 0 0 0;
     font-family: Oswald, sans-serif;

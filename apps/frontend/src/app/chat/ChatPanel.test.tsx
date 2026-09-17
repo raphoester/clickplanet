@@ -44,8 +44,8 @@ function stubBackend(history: ChatMessage[] = []) {
     }
 }
 
-const setup = (backend?: ChatBackend) => ({
-    ...render(<ChatPanel backend={backend} country={france}/>),
+const setup = (backend?: ChatBackend, username?: string) => ({
+    ...render(<ChatPanel backend={backend} country={france} username={username}/>),
     user: userEvent.setup(),
 })
 
@@ -62,9 +62,13 @@ beforeEach(() => window.localStorage.clear())
 afterEach(cleanup)
 
 describe("ChatPanel sound", () => {
-    const withSound = (backend: ChatBackend) => {
+    const withSound = (backend: ChatBackend, username?: string) => {
         const playSound = vi.fn()
-        return {playSound, user: userEvent.setup(), ...render(<ChatPanel backend={backend} country={france} playSound={playSound}/>)}
+        return {
+            playSound,
+            user: userEvent.setup(),
+            ...render(<ChatPanel backend={backend} country={france} playSound={playSound} username={username}/>),
+        }
     }
 
     it("pings for someone else's message, not for the history it opens on", async () => {
@@ -85,12 +89,34 @@ describe("ChatPanel sound", () => {
         await screen.findByText("Nobody has said anything yet. Go on.")
         await named(user, "Bo")
 
-        broadcast({...message("sent-hello", "hello"), authorName: "Bo"})
+        // The server names a guest with the prefix: that is what is compared.
+        broadcast({...message("sent-hello", "hello"), authorName: "guest_Bo"})
         await screen.findByText("hello")
         await user.type(messageBox(), "hello")
         await user.click(screen.getByRole("button", {name: "Send"}))
 
         expect(playSound).not.toHaveBeenCalled()
+    })
+
+    it("stays quiet for your own message under your username", async () => {
+        const {backend, broadcast} = stubBackend([message("old", "from before")])
+        const {playSound} = withSound(backend, "ana_1")
+        await screen.findByText("from before")
+
+        broadcast({...message("live", "hello", 1_700_000_050_000), authorName: "ana_1"})
+        await screen.findByText("hello")
+
+        expect(playSound).not.toHaveBeenCalled()
+    })
+
+    it("pings for a guest who typed your username", async () => {
+        const {backend, broadcast} = stubBackend([message("old", "from before")])
+        const {playSound} = withSound(backend, "ana_1")
+        await screen.findByText("from before")
+
+        broadcast({...message("live", "hello", 1_700_000_050_000), authorName: "guest_ana_1"})
+
+        await waitFor(() => expect(playSound).toHaveBeenCalledWith("chat"))
     })
 })
 
@@ -286,6 +312,18 @@ describe("ChatPanel", () => {
             expect(await screen.findByRole("textbox", {name: "Message"})).toBeDefined()
         })
 
+        it("shows the guest prefix everyone else sees", async () => {
+            window.localStorage.setItem(
+                CHAT_IDENTITY_STORAGE_KEY,
+                JSON.stringify({authorId: "author-1", name: "Ana"}),
+            )
+            const {backend} = stubBackend()
+            const {container} = setup(backend)
+            await screen.findByRole("textbox", {name: "Message"})
+
+            expect(container.querySelector(".chat-identity")?.textContent).toContain("as guest_Ana")
+        })
+
         it("can be changed", async () => {
             window.localStorage.setItem(
                 CHAT_IDENTITY_STORAGE_KEY,
@@ -297,6 +335,28 @@ describe("ChatPanel", () => {
 
             await user.click(screen.getByRole("button", {name: "Change"}))
             expect(nameBox()).toBeDefined()
+        })
+    })
+
+    describe("with a username", () => {
+        it("asks for no name, and says the username it posts as", async () => {
+            const {backend} = stubBackend()
+            const {container} = setup(backend, "ana_1")
+
+            expect(await screen.findByRole("textbox", {name: "Message"})).toBeDefined()
+            expect(screen.queryByLabelText("Pick a name to chat")).toBeNull()
+            expect(container.querySelector(".chat-identity")?.textContent).toBe("as ana_1")
+            expect(screen.queryByRole("button", {name: "Change"})).toBeNull()
+        })
+
+        it("posts as the account", async () => {
+            const {backend} = stubBackend()
+            const {user} = setup(backend, "ana_1")
+            await screen.findByRole("textbox", {name: "Message"})
+
+            await user.type(messageBox(), "hello{Enter}")
+
+            expect(backend.sendMessage).toHaveBeenCalledWith(expect.objectContaining({asAccount: true, text: "hello"}))
         })
     })
 
@@ -318,6 +378,7 @@ describe("ChatPanel", () => {
                 authorId: "author-1",
                 countryCode: "fr",
                 text: "hello",
+                asAccount: false,
             })
         })
 
