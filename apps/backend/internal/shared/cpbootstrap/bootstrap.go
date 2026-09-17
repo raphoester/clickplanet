@@ -18,6 +18,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/url"
 	"slices"
 	"time"
 
@@ -59,6 +60,15 @@ type Props struct {
 
 	// AdminRPC mounts on the loopback admin listener, which has no authentication and no CORS.
 	AdminRPC RPCRegistrar
+
+	// InternalRPC mounts what other modules call, on the loopback internal listener; Internal reaches it.
+	InternalRPC RPCRegistrar
+	Internal    InternalDialer
+}
+
+// InternalDialer is how a module calls another: over the internal listener, never in its own stack trace.
+type InternalDialer interface {
+	Dial() (connect.HTTPClient, string, error)
 }
 
 // RPCRegistrar mounts a Connect service.
@@ -111,6 +121,13 @@ type ServerConfig struct {
 
 	// Empty serves no admin listener; anything but a loopback address refuses the boot.
 	AdminBindAddress string
+
+	// Empty serves no internal listener, and a module that dials it refuses the boot; anything but loopback refuses it too.
+	InternalBindAddress string
+
+	// The frontend's origin, exactly: scheme, host and port. The only origin a
+	// browser may call from, with credentials. Empty or "*" refuses the boot.
+	AllowedOrigin string
 }
 
 // Validate refuses the address that has no usable zero value: empty listens on port 80.
@@ -119,10 +136,40 @@ func (c ServerConfig) Validate() error {
 		return errors.New("httpServer.bindAddress is empty")
 	}
 
+	if err := validateOrigin(c.AllowedOrigin); err != nil {
+		return err
+	}
+
 	if c.AdminBindAddress != "" && !isLoopback(c.AdminBindAddress) {
 		return fmt.Errorf(
 			"httpServer.adminBindAddress %q is not a loopback host:port: the admin services have no authentication",
 			c.AdminBindAddress,
+		)
+	}
+
+	if c.InternalBindAddress != "" && !isLoopback(c.InternalBindAddress) {
+		return fmt.Errorf(
+			"httpServer.internalBindAddress %q is not a loopback host:port: its callers are trusted",
+			c.InternalBindAddress,
+		)
+	}
+
+	return nil
+}
+
+// validateOrigin refuses what a browser would refuse later, one request at a
+// time: a credentialed answer must name one origin, and an origin has no path.
+func validateOrigin(origin string) error {
+	if origin == "" {
+		return errors.New("httpServer.allowedOrigin is empty: set it to the frontend's origin")
+	}
+
+	parsed, err := url.Parse(origin)
+	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" ||
+		parsed.String() != parsed.Scheme+"://"+parsed.Host {
+		return fmt.Errorf(
+			"httpServer.allowedOrigin %q is not an origin: want scheme://host[:port], with no path and not \"*\"",
+			origin,
 		)
 	}
 
@@ -182,10 +229,12 @@ func Run(ctx context.Context, options Options) error {
 	drainNet := newDrainInterceptor(draining)
 	routes := newRPCRoutes(errorNet, drainNet)
 	adminRoutes := newRPCRoutes(errorNet, drainNet)
+	internalRoutes := newRPCRoutes(errorNet, drainNet)
 	runners := newRunnerRegistry()
 	closers := newCloserRegistry()
 
-	if err := buildModules(ctx, options, metrics, routes, adminRoutes, runners, closers); err != nil {
+	registrars := registrars{routes: routes, admin: adminRoutes, internal: internalRoutes}
+	if err := buildModules(ctx, options, metrics, registrars, runners, closers); err != nil {
 		return err
 	}
 
@@ -193,16 +242,46 @@ func Run(ctx context.Context, options Options) error {
 	routes.mountOn(router, cphttpserver.MiddlewareStack(
 		cphttpserver.NewLoggingMiddleware(options.Logger),
 		cphttpserver.IPReaderMiddleware,
-		cphttpserver.CorsMiddleware,
+		cphttpserver.NewCorsMiddleware(options.Server.AllowedOrigin),
 	))
 	mountMetrics(router, metrics, options.Logger)
 
-	admin, err := listenAdmin(options, adminRoutes)
+	loopbacks, err := listenLoopbacks(options, adminRoutes, internalRoutes)
 	if err != nil {
 		return err
 	}
 
-	return serve(ctx, options, router, admin, drain, runners, closers)
+	return serve(ctx, options, router, loopbacks, drain, runners, closers)
+}
+
+func listenLoopbacks(options Options, adminRoutes, internalRoutes *rpcRoutes) ([]*loopbackServer, error) {
+	admin, err := listenLoopback(options, "admin", "adminBindAddress", options.Server.AdminBindAddress, adminRoutes)
+	if err != nil {
+		return nil, err
+	}
+
+	internal, err := listenLoopback(options, "internal", "internalBindAddress", options.Server.InternalBindAddress, internalRoutes)
+	if err != nil {
+		if admin != nil {
+			_ = admin.listener.Close()
+		}
+		return nil, err
+	}
+
+	var loopbacks []*loopbackServer
+	for _, loopback := range []*loopbackServer{admin, internal} {
+		if loopback != nil {
+			loopbacks = append(loopbacks, loopback)
+		}
+	}
+
+	return loopbacks, nil
+}
+
+type registrars struct {
+	routes   *rpcRoutes
+	admin    *rpcRoutes
+	internal *rpcRoutes
 }
 
 // buildModules runs every module's DI sequence under one startup deadline.
@@ -210,8 +289,7 @@ func buildModules(
 	ctx context.Context,
 	options Options,
 	metrics *prometheus.Registry,
-	routes *rpcRoutes,
-	adminRoutes *rpcRoutes,
+	registrars registrars,
 	runners *runnerRegistry,
 	closers *closerRegistry,
 ) error {
@@ -227,13 +305,15 @@ func buildModules(
 		before := runners.count()
 
 		err := module.DiSequence(ctx, Props{
-			Logger:   options.Logger,
-			Metrics:  metrics,
-			Server:   options.Server,
-			RPC:      routes.forModule(module.Name),
-			AdminRPC: adminRoutes.forModule(module.Name),
-			Runners:  runners,
-			Closers:  closers,
+			Logger:      options.Logger,
+			Metrics:     metrics,
+			Server:      options.Server,
+			RPC:         registrars.routes.forModule(module.Name),
+			AdminRPC:    registrars.admin.forModule(module.Name),
+			InternalRPC: registrars.internal.forModule(module.Name),
+			Internal:    internalDialer{address: options.Server.InternalBindAddress},
+			Runners:     runners,
+			Closers:     closers,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to build the %s module: %w", module.Name, err)

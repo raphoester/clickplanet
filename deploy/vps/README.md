@@ -35,8 +35,10 @@ Caddyfile; it moves to any provider that rents a Linux box.
 - `docker-compose.yaml` — Caddy + backend, plus a small metrics poller that
   keeps a history the API's in-process counters cannot (see
   [Evidence has to outlive a deploy](#evidence-has-to-outlive-a-deploy-and-by-default-it-does-not)),
-  and the postgres that holds the tile map (see [9. Postgres](#9-postgres)).
-- `Caddyfile` — TLS via DNS-01, reverse proxy, CORS
+  and the postgres that holds the tile map and the chat (see [9. Postgres](#9-postgres)).
+- `caddy/Caddyfile` — TLS via DNS-01, reverse proxy, CORS. Compose mounts the
+  whole `caddy/` directory, so a deploy can reload it (see
+  [7. CI and the image registry](#7-ci-and-the-image-registry))
 - `caddy/Dockerfile` — Caddy built with `caddy-dns/cloudflare`. The stock image
   has no DNS provider module and cannot solve the DNS-01 challenge.
 - `backend.yaml` — API config; secrets come from env, not this file
@@ -160,7 +162,7 @@ It copies itself to the box over SSH and re-runs there as root, then: installs
 Docker and turns off its userland proxy (see below), creates the `deploy` user, generates and installs a CI keypair
 (`~/.ssh/clickplanet_ci`, private half never leaves your laptop), restricts ufw
 to SSH plus Cloudflare's ranges on 80/443, clones the repo to
-`/opt/clickplanet`, writes `.env`, installs the nightly backup cron, builds
+`/opt/clickplanet`, writes `.env`, builds
 Caddy with the Cloudflare DNS plugin, and starts the stack. It finishes by
 printing the `gh secret set` commands for step 5.
 
@@ -170,7 +172,7 @@ is not ready: the wrong CPU architecture, a token you did not pass, a
 grey-clouded DNS record, or a backend image that is not pullable yet.
 
 On first boot the API finds no tiles in postgres and starts from an empty map,
-logging `no stored tiles, starting from an empty map`. Check it:
+logging `loaded the tile map` with `ownedTiles=0`. Check it:
 
 ```bash
 curl -sS 'https://api.clickplanet.lol/planet.v1.ClickService/MapDensity?connect=v1&encoding=json&message=%7B%7D'
@@ -240,7 +242,7 @@ stale blob can never be served. If you regenerate it, `gameMap.maxIndex` in
 
 The API refuses a `Click` that carries no session token it minted, and the only
 way to get one is to pass Turnstile. Without this configured on both sides the
-game still runs — `session.enabled: false` keeps the old address-only
+game still runs — `auth.enabled: false` keeps the old address-only
 behaviour — but the anti-bot floor is back to what a blocklist can do.
 
 ### The widget
@@ -266,7 +268,7 @@ repo already has):
 | Widget mode | Managed |
 
 **Do not add `localhost`.** The widget's domain list and the backend's
-`session.turnstile.hostnames` are checked against the hostname siteverify
+`auth.turnstile.hostnames` are checked against the hostname siteverify
 reports, and a production allowlist that admits localhost admits a token minted
 from a page an attacker controls locally. Use a second, separate widget for
 development if you want one.
@@ -306,23 +308,33 @@ If you ever need to regenerate `SESSION_SECRET`:
 openssl rand -hex 32
 ```
 
-`SESSION_SECRET` signs the tokens; anyone holding it can mint one the API will
-accept. **It cannot be left empty** while `session.enabled` is true: the mint and
-the click check each derive their signer from it, so a server that invented one
-would invent a different one per context and could not verify what it had just
-minted. The stack refuses to start instead, naming the variable. Rotating it
-deliberately is cheap — every client mints again on its next click.
+The click token is an **Ed25519 signature**, not a MAC, so the key that mints and
+the key that checks are different halves. `SESSION_SECRET` is the **seed**, 32
+bytes as 64 hex characters — which is what that command already gives you — and
+only the auth module is handed it. The planet module asks auth for the public
+half over the loopback internal listener, once per boot, and builds a `Verifier`
+that has no `Mint` on it: the part of the server that checks a click cannot
+issue one.
+
+**There is one key to set.** The public half is never configured and never
+travels outside the box, so there is no second value to keep in step with this
+one and nothing to rotate twice.
+
+It **cannot be left empty** while `auth.enabled` is true, and it cannot be a
+passphrase: a value that is not 32 bytes of hex fails the start, naming the
+variable. Rotating it deliberately is cheap — every client mints again on its
+next click.
 
 `.env` is gitignored. `.env.example` beside it is the template and is committed.
 
 ### Roll it out in three steps
 
-`backend.yaml` ships `session.enabled: false`, and `session.enforce: false`
+`backend.yaml` ships `auth.enabled: false`, and `auth.enforce: false`
 under it. Nothing below breaks a running site at any point: the API starts
 minting before anything requires a session, and starts requiring one only once
 the clients that can mint are the overwhelming majority.
 
-1. Set `session.enabled: true` in `backend.yaml` (leave `enforce` false) and
+1. Set `auth.enabled: true` in `backend.yaml` (leave `enforce` false) and
    deploy the backend. Then watch:
 
    ```bash
@@ -335,7 +347,7 @@ the clients that can mint are the overwhelming majority.
 2. Deploy the frontend with `VITE_TURNSTILE_SITEKEY` set. `verdict="valid"`
    should climb and `missing` should fall away as caches expire.
 
-3. Once `valid` is the overwhelming majority, set `session.enforce: true` in
+3. Once `valid` is the overwhelming majority, set `auth.enforce: true` in
    `backend.yaml` and redeploy.
 
 Flipping `enforce` before step 2 has settled refuses real players with a 401.
@@ -345,7 +357,7 @@ The number to watch is `missing`, not the clock.
 
 - **Every click, right after enabling** — the frontend build has no sitekey, or
   Pages was not rebuilt after the env var was added.
-- **Every click, in the browser only** — check the preflight. `Caddyfile` must
+- **Every click, in the browser only** — check the preflight. `caddy/Caddyfile` must
   list `X-Session-Token` in `Access-Control-Allow-Headers`; a custom header on a
   cross-origin POST is what makes it preflighted, and a preflight that omits it
   fails the click before the API ever sees it.
@@ -357,13 +369,35 @@ The number to watch is `missing`, not the clock.
   origin the widget is actually embedded on.
 
 
+### Sign-in with Google and Discord
+
+Off in `backend.yaml` (`auth.signIn.enabled: false`). Keep it off until the
+frontend has the button and the privacy policy page is live: we store email.
+
+1. Create an OAuth client in each provider. Google: Cloud console > APIs &
+   Services > Credentials, type "Web application", scopes `openid email`.
+   Discord: developer portal > your application > OAuth2, scopes
+   `identify email`. In both, register the redirect URI
+   `https://clickplanet.lol/auth/callback` exactly.
+2. Put each client id in `backend.yaml` (`auth.google.clientId`,
+   `auth.discord.clientId`). A provider with no client id is not offered.
+3. Put each client secret in `.env`, the same way as the Turnstile one:
+
+   ```bash
+   read -rsp 'Google client secret: ' s && echo && sed -i '/^GOOGLE_CLIENT_SECRET=/d' .env && printf 'GOOGLE_CLIENT_SECRET=%s\n' "$s" >> .env && unset s
+   read -rsp 'Discord client secret: ' s && echo && sed -i '/^DISCORD_CLIENT_SECRET=/d' .env && printf 'DISCORD_CLIENT_SECRET=%s\n' "$s" >> .env && unset s
+   ```
+
+4. Set `auth.signIn.enabled: true` and deploy. A client id with no secret
+   refuses the boot.
+
 ## 6. Watching for bots
 
 Sessions raise the floor to "drive a real browser". What gets through that is a
 userscript in a real browser, holding a genuine session — and the only thing
 left that separates it from a player is behaviour.
 
-`antiBot` watches five behaviours, one per watchdog:
+`antiBot` watches seven behaviours, one per watchdog:
 
 - **`retaker`** — takes a tile back moments after losing it, over and over, in a
   band no hand holds.
@@ -374,6 +408,10 @@ left that separates it from a player is behaviour.
 - **`defender`** — nearly every take wins back a tile its country just lost.
   **Measuring only**: it sets no verdict until `minShare`/`certainShare` are set.
 - **`catcher`** — catches every bonus box, at once.
+- **`cohort`** — starts, paces and stops in step with other scopes, group after group.
+- **`scraper`** — reads the whole map again and again. The web app reads it once
+  per page load and opens one stream with it; a map read beyond one per stream
+  is a client that is not the web app.
 
 Each returns `certain` or `suspect`. **`certain` bans on its own; `suspect` is a
 reading that would ban real players if it were trusted alone**, and counts only
@@ -553,23 +591,28 @@ at what the other watchdogs were reading on the same callers before loosening
 
 Bans escalate: 24h for a first offence, 7 days for a second, 3 years from the
 third. A caller that keeps going while banned only extends the ban it has. Bans
-are saved to `bans.jsonl` on the `tile_state` volume, so a deploy keeps them.
-What the watchdogs are tracking is saved beside them, in `antibot-evidence.bin`,
-so a restart does not start their windows again; it keeps three days at most.
+are kept in postgres, in `antibot.bans`, so a deploy keeps them. What the
+watchdogs are tracking is kept beside them, in `antibot.evidence`, so a restart
+does not start their windows again; it keeps three days at most. Both are
+written every minute and once more on a clean shutdown.
 
-See every ban:
+See every running ban:
 
 ```bash
-docker compose exec backend cat /home/app/state/bans.jsonl
+docker compose exec postgres psql -U clickplanet -c "select * from antibot.bans where banned_until > now() order by banned_until"
 ```
 
-Unban one scope (stop first, or the running backend writes it back):
+Unban one scope. Stop the backend first: the running one holds its bans in
+memory, keeps the ban running and writes it back.
 
 ```bash
 docker compose stop backend
-docker run --rm -v vps_tile_state:/s alpine sh -c "grep -v '\"scope\":\"1.2.3.4\"' /s/bans.jsonl > /s/b && mv /s/b /s/bans.jsonl"
+docker compose exec postgres psql -U clickplanet -c "delete from antibot.bans where scope = '1.2.3.4'"
 docker compose start backend
 ```
+
+That forgets its offences too. To end the ban and keep them, so its next ban
+climbs the ladder: `update antibot.bans set banned_until = now() where scope = '1.2.3.4'`.
 
 Set `enforce` back to false to stop dropping clicks for everyone at once.
 ### Evidence has to outlive a deploy, and by default it does not
@@ -634,8 +677,8 @@ keeps it.
 - The same lines still go to `docker logs cp-caddy`. That copy is lost on
   recreate.
 - **The access log holds personal data**: client IPs, user agents, countries.
-  Like `chat.log`, 14 days is a policy decision. Shorten `roll_keep_for` in the
-  `Caddyfile` to hold less. The nightly backup does not copy this volume.
+  Like the chat messages, 14 days is a policy decision. Shorten `roll_keep_for` in the
+  `caddy/Caddyfile` to hold less. Nothing backs up this volume.
 - `X-Session-Token` is written as `REDACTED`. It is a bearer token. You can see
   if a request had one, not what it was.
 
@@ -712,8 +755,28 @@ memory to OOM a 1 GB box mid-deploy.
 Both GHCR packages must be set to **Public** after their first build, not just
 the backend one.
 
-The `Caddyfile` is read from the checkout at container start, so editing it
-needs only `docker compose up -d caddy` (or a `bootstrap.sh` run), no rebuild.
+`caddy/Caddyfile` is read from the checkout, so editing it needs no rebuild.
+The deploy does this after `git pull`:
+
+1. `caddy validate` on the new file, in a throwaway container. A bad file fails
+   the deploy here, and the live Caddy keeps its old config.
+2. `docker compose up -d`.
+3. `caddy reload` in `cp-caddy`. This keeps open connections. It does nothing
+   if the config did not change.
+
+The reload is needed because `up -d` does not recreate Caddy when only the
+Caddyfile changed. Compose mounts the `caddy/` directory, not the file: `git
+pull` writes the file as a new inode, and a single-file mount keeps the old one
+until the container is recreated. On 2026-09-16 that kept a CORS fix out of
+production until someone ran `--force-recreate` by hand.
+
+To apply a Caddyfile edit by hand on the box:
+
+```bash
+docker compose exec caddy caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+docker compose exec caddy caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile
+```
+
 Changing `caddy/Dockerfile` means waiting for CI to publish a new image.
 
 **One-time after the first successful build:** a new GHCR package is created
@@ -728,14 +791,13 @@ Pages deploys itself on push; no workflow needed.
 
 ## 8. Live chat
 
-`chat.enabled: true` in `backend.yaml` publishes two routes Caddy already
-forwards, `ListenForEvents` included: `/chat.v1.ChatService/`. `SendMessage` is an
+Chat is always on. The API serves `/chat.v1.ChatService/`, `ListenForEvents`
+included, and Caddy already forwards it. `SendMessage` is an
 **unauthenticated public write endpoint** — anyone who can reach the API can
 post, under any name — so the things that keep it usable are all config:
 
 | Knob | Where | Default here |
 |---|---|---|
-| Kill switch | `chat.enabled` | on — flip it off and the routes 404 again |
 | Per-IP throttle | `chat.rateLimiter` | one message per 3s, 5 in hand |
 | Cutting someone off | `chat.blockedIPs` | CIDRs, `203.0.113.7/32` for one address |
 | Message log retention | `chat.storage.retention` | 30 days |
@@ -761,64 +823,64 @@ Leaving it empty is not fatal but is worse than any fixed value: the API
 generates a fresh salt at every boot, logs `no chat.service.tagSalt configured`,
 and every tag changes on each restart.
 
-**`chat.log` holds personal data.** One JSONL line per message with the sender's
-IP beside their text, in the `tile_state` volume — so the
-nightly backup below now copies personal data too, and its own retention is
-whatever you keep those tarballs for. `chat.storage.retention` (30 days) is a
-policy decision, not a cache size; shorten it if you would rather hold less.
+**The chat messages hold personal data.** One row per message in `chat.messages`,
+with the sender's IP beside their text. `chat.storage.retention` (30 days) is a
+policy decision, not a cache size: an hourly prune deletes older rows. Shorten
+it if you would rather hold less. A message that cannot be written to postgres
+is refused, not broadcast: the table is the audit trail.
 
-Turning chat off needs no rebuild and no image change: `chat.enabled: false` in
-`backend.yaml` then `docker compose --env-file .env up -d backend`. Anything in
-that file can also be overridden from the `environment:` block instead —
-`cfgutil` reads env vars with `.` as the nesting delimiter, so the key is the
-config path verbatim (`chat.enabled: "false"`), which is how `CHAT_TAG_SALT`
-reaches `chat.service.tagSalt`.
+Anything in `backend.yaml` can also be overridden from the `environment:` block
+instead — `cfgutil` reads env vars with `.` as the nesting delimiter, so the key
+is the config path verbatim, which is how `CHAT_TAG_SALT` reaches
+`chat.service.tagSalt`.
 
 ## 9. Postgres
 
-The tile map is kept in the `postgres` service, on the `pg_data` volume. The API
-loads it at boot and writes the tiles that changed every second, and once more
-on a clean shutdown. It is not published on any port: only the backend reaches
-it. Each backend module keeps its tables in a schema of its own (`planet` for the
-tile map) and migrates it at boot. The API refuses to start without postgres.
+The tile map, the ledger and the chat are kept in the `postgres` service, on the
+`pg_data` volume, and so are the antibot's bans and evidence. The API loads them
+at boot, writes what changed every second (bans and evidence every minute), and
+once more on a clean shutdown; each chat message is written before it is
+broadcast. It is not published on any port: only the backend
+reaches it. Each backend module keeps its tables in a schema of its own (`planet`
+for the tile map and the ledger, `antibot` for bans and evidence, `chat` for the
+messages) and migrates it at boot. The API refuses to start without postgres.
 
 **The password is `POSTGRES_PASSWORD` in `.env`.** `bootstrap.sh` generates it.
-A box set up before postgres needs it added once, **before** the deploy that
-brings postgres, or `docker compose up` refuses to start:
-
-```bash
-echo "POSTGRES_PASSWORD=$(openssl rand -hex 32)" >> .env
-```
-
-Never change it afterwards: postgres reads it only when `pg_data` is empty, so a
+Without it, `docker compose up` refuses to start. Never change it: postgres reads it only when `pg_data` is empty, so a
 new value locks the API out of the existing data.
 
-**The first boot on postgres imports the old snapshot.** The tiles table is
-empty and `/home/app/state/tiles.snapshot` exists, so the API loads it, writes
-it to postgres in one transaction, and renames it `tiles.snapshot.imported`.
-Check it:
+How many tiles and takes it holds:
 
 ```bash
-journalctl CONTAINER_NAME=cp-backend | grep "legacy tile snapshot"
 docker compose exec postgres psql -U clickplanet -c "select count(*) from planet.tiles"
+docker compose exec postgres psql -U clickplanet -c "select count(*) from planet.ledger_takes"
 ```
-
-Then remove `tilesStorage.legacySnapshotPath` from `backend.yaml`.
 
 A psql shell: `docker compose exec postgres psql -U clickplanet`.
 
 ### Backups
 
-The nightly cron `bootstrap.sh` installs tars the `tile_state` volume, which
-holds the ledger, bans, antibot evidence and chat log. **The tile map in postgres is not backed up
-yet.** For a copy by hand:
+**Nothing is backed up yet.** All state is in postgres. For a copy by hand:
 
 ```bash
 docker compose exec postgres pg_dump -U clickplanet -n planet clickplanet > planet-$(date +%F).sql
+docker compose exec postgres pg_dump -U clickplanet -n antibot clickplanet > antibot-$(date +%F).sql
+docker compose exec postgres pg_dump -U clickplanet -n chat clickplanet > chat-$(date +%F).sql
 ```
 
 DigitalOcean's droplet backups (+20% of the droplet price, so ~$1.20/mo) cover
 the whole disk if you would rather not think about it.
+
+A droplet set up before 2026-09-15 still has the `vps_tile_state` volume, with
+the `.imported` files of the first postgres boot, and a nightly cron that tars
+it. Nothing reads them. `chat.log.imported` holds personal data. To remove both,
+as `deploy`, once the backend runs without the mount:
+
+```bash
+crontab -l | grep -v 'vps_tile_state\|tiles-\*' | crontab -
+docker volume rm vps_tile_state
+rm -f ~/backups/tiles-*.tar.gz
+```
 
 ## 10. Operator tools
 
@@ -924,7 +986,8 @@ docker compose exec backend wget -qO- --header 'Content-Type: application/json' 
 ```
 
 `"enforced":false` in the answer means `antiBot.shadowBan.enforce` is off: the
-ban is kept but drops nothing. There is no unban call yet.
+ban is kept but drops nothing. There is no unban call yet: see "Unban one scope"
+in [Watching for bots](#6-watching-for-bots).
 
 Then revert, dry run first:
 
@@ -969,6 +1032,6 @@ docker compose exec backend wget -qO- --header 'Content-Type: application/json' 
 
 - **Bad backend build:** `BACKEND_IMAGE=ghcr.io/raphoester/clickplanet-backend:<sha>` in `.env`, then `docker compose up -d backend`.
 - **Lost or corrupt tile state:** stop the backend, restore the `planet` schema from a dump (`drop schema planet cascade`, then `psql -U clickplanet clickplanet < planet-DATE.sql`), start it again.
-- **Back to a pre-postgres build:** that image reads `tiles.snapshot`, which the import renamed. Rename `tiles.snapshot.imported` back first — it holds the map as of the import, so every click since is lost.
+- **Lost or corrupt chat messages:** the same, with the `chat` schema and `chat-DATE.sql`.
 - **In-process storage misbehaving:** there is no config switch back to Redis — that code is gone. Roll the backend image back to a pre-migration `<sha>` and restore the matching Redis stack from git history.
 - **Frontend:** roll back the deployment in the Pages dashboard.

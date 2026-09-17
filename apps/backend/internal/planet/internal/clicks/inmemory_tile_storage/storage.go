@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 )
 
 const maxCodes = math.MaxUint16 + 1
@@ -37,7 +38,7 @@ func New(
 		counts:      []uint32{0},
 		codes:       []string{""},
 		codeIDs:     map[string]uint16{"": unownedCode},
-		subscribers: make(map[*subscriber]struct{}),
+		subscribers: cpcolls.NewSet[*subscriber](),
 	}
 
 	return s
@@ -57,10 +58,8 @@ type Storage struct {
 	// One bit per tile changed since the last flush.
 	dirty []uint64
 
-	imported string
-
 	subscribersMu sync.Mutex
-	subscribers   map[*subscriber]struct{}
+	subscribers   *cpcolls.Set[*subscriber]
 }
 
 type subscriber struct {
@@ -194,7 +193,7 @@ func (s *Storage) Subscribe(ctx context.Context) (<-chan clicks.Change, error) {
 	sub := &subscriber{ch: make(chan clicks.Change, s.config.SubscriberBuffer)}
 
 	s.subscribersMu.Lock()
-	s.subscribers[sub] = struct{}{}
+	s.subscribers.Add(sub)
 	s.subscribersMu.Unlock()
 
 	go func() {
@@ -203,7 +202,7 @@ func (s *Storage) Subscribe(ctx context.Context) (<-chan clicks.Change, error) {
 		s.subscribersMu.Lock()
 		defer s.subscribersMu.Unlock()
 
-		delete(s.subscribers, sub)
+		s.subscribers.Delete(sub)
 		close(sub.ch)
 	}()
 
@@ -216,7 +215,7 @@ func (s *Storage) publish(change clicks.Change) {
 	s.subscribersMu.Lock()
 	defer s.subscribersMu.Unlock()
 
-	for sub := range s.subscribers {
+	s.subscribers.ForEach(func(sub *subscriber) {
 		select {
 		case sub.ch <- change:
 		default:
@@ -228,7 +227,7 @@ func (s *Storage) publish(change clicks.Change) {
 				)
 			}
 		}
-	}
+	})
 }
 
 func tileOf(change clicks.Change) uint32 {
@@ -244,9 +243,9 @@ func (s *Storage) DroppedUpdates() uint64 {
 	defer s.subscribersMu.Unlock()
 
 	var total uint64
-	for sub := range s.subscribers {
+	s.subscribers.ForEach(func(sub *subscriber) {
 		total += sub.dropped.Load()
-	}
+	})
 
 	return total
 }

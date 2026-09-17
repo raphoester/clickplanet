@@ -39,7 +39,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/throttle_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_budget_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_map_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_map_usecase/antibot_get_map"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/listen_for_events_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/listen_for_events_usecase/antibot_listen_for_events"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/map_density_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/paint_random_tiles_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/paint_random_tiles_usecase/audit_paint_random"
@@ -47,6 +49,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/reassign_country_usecase/audit_reassign"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/postgres_ledger_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/ban_player_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/ban_player_usecase/audit_ban"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/find_players_usecase"
@@ -69,13 +72,13 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/paint_random_tiles_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/reassign_country_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/revert_player_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/rpc_session_verifier"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/top_players_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -130,12 +133,15 @@ func NewModule(config Config) cpbootstrap.Module {
 				_ = db.Close()
 				return fmt.Errorf("failed to load the tile map: %w", err)
 			}
-			// The pool closes after the runner's last flush, not as a closer: closers run first.
-			props.Runners.Add(cppg.CloseAfter(tilesStorage, db, props.Logger))
 
-			takings := inmemory_ledger_storage.New(config.LedgerStorage, props.Logger)
-			takings.LoadState()
-			props.Runners.Add(takings)
+			takings := inmemory_ledger_storage.New(config.LedgerStorage, postgres_ledger_store.New(db), props.Logger)
+			if err := takings.Load(ctx); err != nil {
+				_ = db.Close()
+				return fmt.Errorf("failed to load the ledger: %w", err)
+			}
+
+			// The pool closes after both runners' last flush, not as a closer: closers run first.
+			props.Runners.Add(cppg.CloseAfter(db, props.Logger, tilesStorage, takings))
 			props.Runners.Add(ledger.NewRetention(config.Ledger, takings, clock))
 
 			limiter := cpratelimit.New("click-limiter", config.RateLimiter, clock)
@@ -185,7 +191,10 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			// With the antibot off the guard drops nothing: the click passes, BanPlayer
 			// refuses, FindPlayers says nothing of bans and a bomb is never a dud.
-			guard.LoadState()
+			// On, it connects to its own schema here, and its runner closes that pool after the last flush.
+			if err := guard.LoadState(ctx); err != nil {
+				return fmt.Errorf("failed to load the antibot state: %w", err)
+			}
 			props.Runners.Add(guard)
 
 			clickUseCase = antibot_click.New(clickUseCase, guard, tilesStorage, clock, props.Metrics)
@@ -255,19 +264,15 @@ func NewModule(config Config) cpbootstrap.Module {
 				planetv1controller.NewVPNBlockInterceptor(blocklist, props.Metrics),
 			}
 
-			// This context builds its own verifier from the same `session:` block the
-			// session context mints with — same secret, same MAC — so neither module
-			// has to hand the other an object. Skipped when sessions are off.
-			if config.Session.Enabled {
-				verifier, err := cpsession.NewSigner(config.Session)
-				if err != nil {
-					return fmt.Errorf("failed to build the click session verifier: %w", err)
-				}
-
+			// This context holds no key of its own: it asks the auth module for the
+			// public half over the internal listener, on the first click after a boot,
+			// and keeps it. So it can check a token and cannot mint one, and there is
+			// no second setting to keep in step with auth.secret. Skipped when auth is off.
+			if config.Auth.Enabled {
 				interceptors = append(interceptors, planetv1controller.NewSessionInterceptor(
-					verifier,
+					rpc_session_verifier.New(props.Internal, props.Logger),
 					clock,
-					config.Session.Enforce,
+					config.Auth.Enforce,
 					props.Metrics))
 			}
 
@@ -309,9 +314,10 @@ func NewModule(config Config) cpbootstrap.Module {
 				ClickHandler:      click_handler.New(clickUseCase),
 				GetBudgetHandler:  get_budget_handler.New(get_budget_usecase.New(limiter, pricer)),
 				MapDensityHandler: map_density_handler.New(map_density_usecase.New(tilesChecker)),
-				GetMapHandler:     get_map_handler.New(get_map_usecase.New(tilesChecker, tilesStorage)),
-				ListenForEventsHandler: listen_for_events_handler.New(
-					listen_for_events_usecase.New(tilesStorage, props.Server.StreamHeartbeat, registry)),
+				GetMapHandler: get_map_handler.New(
+					antibot_get_map.New(get_map_usecase.New(tilesChecker, tilesStorage), guard, tilesChecker)),
+				ListenForEventsHandler: listen_for_events_handler.New(antibot_listen_for_events.New(
+					listen_for_events_usecase.New(tilesStorage, props.Server.StreamHeartbeat, registry), guard)),
 				ClaimBonusHandler: claim_bonus_handler.New(claimBonus),
 				DropBombHandler:   drop_bomb_handler.New(dropBomb),
 			}

@@ -158,5 +158,21 @@ jobs:
             rmdir /tmp/cp-env
 
             docker compose pull
+            # Check the new Caddyfile with the new image before anything goes
+            # live. `run` is a throwaway container with no ports, so it works
+            # whether or not cp-caddy is up. A bad file fails the deploy here
+            # and the running Caddy keeps its old config.
+            docker compose run --rm --no-deps -T caddy \
+              caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
             docker compose up -d
+            # `up -d` does not recreate Caddy for a Caddyfile edit, so load it
+            # in place. A reload keeps open connections, and is a no-op when the
+            # config did not change. The retry covers a Caddy that `up` has just
+            # recreated and whose admin API is not listening yet.
+            for i in $(seq 1 15); do
+              docker compose exec -T caddy \
+                caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile && break
+              [ "$i" -eq 15 ] && exit 1
+              sleep 2
+            done
             docker image prune -f

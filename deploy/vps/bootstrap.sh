@@ -31,7 +31,6 @@ REPO_URL="https://github.com/raphoester/clickplanet.git"
 CHECKOUT="/opt/clickplanet"
 STACK_DIR="${CHECKOUT}/deploy/vps"
 DEPLOY_USER="deploy"
-BACKUP_DIR="/home/${DEPLOY_USER}/backups"
 
 API_DOMAIN=""
 FRONTEND_ORIGIN=""
@@ -461,6 +460,14 @@ if [[ -f "$env_file" && $FORCE_ENV -eq 0 ]]; then
 		log "adding an empty TURNSTILE_SECRET to .env — set it from dash.cloudflare.com > Turnstile"
 		printf 'TURNSTILE_SECRET=\n' >> "$env_file"
 	fi
+	# Same as the Turnstile secret: issued by the provider, so it cannot be generated.
+	# Empty is fine while auth.signIn.enabled is false.
+	for provider_secret in GOOGLE_CLIENT_SECRET DISCORD_CLIENT_SECRET; do
+		if ! grep -q "^${provider_secret}=" "$env_file"; then
+			log "adding an empty ${provider_secret} to .env — set it before turning sign-in on"
+			printf '%s=\n' "$provider_secret" >> "$env_file"
+		fi
+	done
 else
 	log "writing .env"
 	cat > "$env_file" <<ENV
@@ -474,26 +481,13 @@ POSTGRES_PASSWORD=$(random_secret)
 # Secret half of the Turnstile widget, from dash.cloudflare.com > Turnstile.
 # Cannot be generated here. The stack will not start until it is set.
 TURNSTILE_SECRET=
+# OAuth client secrets of the sign-in providers. Empty while sign-in is off.
+GOOGLE_CLIENT_SECRET=
+DISCORD_CLIENT_SECRET=
 BACKEND_IMAGE=${BACKEND_IMAGE:-ghcr.io/raphoester/clickplanet-backend:latest}
 ENV
 	chown "$DEPLOY_USER:$DEPLOY_USER" "$env_file"
 	chmod 600 "$env_file"
-fi
-
-# ----------------------------------------------------------------- backups
-
-# The ledger, bans, antibot evidence and chat log in the tile_state volume. The tile map is in postgres,
-# which this does not back up yet.
-if ! crontab -u "$DEPLOY_USER" -l 2>/dev/null | grep -q 'vps_tile_state'; then
-	log "installing nightly tile-state backup cron"
-	install -d -m 755 -o "$DEPLOY_USER" -g "$DEPLOY_USER" "$BACKUP_DIR"
-	{
-		crontab -u "$DEPLOY_USER" -l 2>/dev/null || true
-		echo "0 4 * * * docker run --rm -v vps_tile_state:/state -v ${BACKUP_DIR}:/out alpine tar czf /out/tiles-\$(date +\\%F).tar.gz -C /state ."
-		echo "30 4 * * * find ${BACKUP_DIR} -name 'tiles-*.tar.gz' -mtime +14 -delete"
-	} | crontab -u "$DEPLOY_USER" -
-else
-	log "backup cron already installed"
 fi
 
 if [[ $SKIP_START -eq 1 ]]; then
@@ -647,6 +641,17 @@ cd "$STACK_DIR"
 log "starting the stack"
 runuser -u "$DEPLOY_USER" -- docker compose up -d
 
+# On a re-run the pull above may have changed the Caddyfile, and `up -d` does not
+# recreate Caddy for that. Load it in place, as the deploy workflow does. The
+# retry covers a Caddy that has just started and is not listening yet.
+log "reloading the Caddyfile"
+for i in $(seq 1 15); do
+	runuser -u "$DEPLOY_USER" -- docker compose exec -T caddy \
+		caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null 2>&1 && break
+	[[ $i -eq 15 ]] && die "caddy reload failed — check: docker compose exec caddy caddy validate --config /etc/caddy/Caddyfile"
+	sleep 2
+done
+
 # ------------------------------------------------------------------- verify
 
 log "waiting for the certificate (up to 3 min; DNS-01 waits on TXT propagation)"
@@ -679,8 +684,6 @@ $(log "bootstrap complete")
 
   stack     ${STACK_DIR}
   logs      sudo -u ${DEPLOY_USER} docker compose --project-directory ${STACK_DIR} logs -f
-  state     docker volume inspect vps_tile_state
-  backups   ${BACKUP_DIR} (nightly 04:00 UTC, pruned after 14 days)
 
 Next: point Cloudflare Pages at apps/frontend with
 VITE_API_BASE_URL=https://${API_DOMAIN} (no trailing slash).

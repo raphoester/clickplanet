@@ -26,7 +26,6 @@ import {
 } from "../gen/grpc/planet/v1/planet_pb.ts";
 import {ClickBudget, ClickBudgetSource, ClickPrice, now as budgetNow} from "./clickBudget.ts";
 import {ClickService} from "../gen/grpc/planet/v1/planet_connect.ts";
-import {SessionService} from "../gen/grpc/session/v1/session_connect.ts";
 import {Code, ConnectError, createPromiseClient, PromiseClient} from "@connectrpc/connect";
 import {createConnectTransport} from "@connectrpc/connect-web";
 import {v4 as generateUUID} from 'uuid';
@@ -40,18 +39,6 @@ export function newClickServiceClient(config: Config): PromiseClient<typeof Clic
         baseUrl: config.baseUrl,
         useBinaryFormat: true,
         useHttpGet: true,
-        defaultTimeoutMs: config.timeoutMs ?? 5000,
-    }))
-}
-
-/**
- * Minting is a POST that must not be cached and is not on the click path's
- * critical timing, so it takes neither of the click transport's two options.
- */
-export function newSessionServiceClient(config: Config): PromiseClient<typeof SessionService> {
-    return createPromiseClient(SessionService, createConnectTransport({
-        baseUrl: config.baseUrl,
-        useBinaryFormat: true,
         defaultTimeoutMs: config.timeoutMs ?? 5000,
     }))
 }

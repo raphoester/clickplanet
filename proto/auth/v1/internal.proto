@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package auth.v1;
+
+// What other modules of the backend ask the auth module. Served only on the
+// backend's loopback internal listener (httpServer.internalBindAddress), never
+// on the public router.
+service InternalService {
+  // The public half of the key this server signs click tokens with. A holder can
+  // check a token and cannot mint one, which is why it travels at all: the seed
+  // never leaves this module.
+  rpc GetVerifyingKey(GetVerifyingKeyRequest) returns (GetVerifyingKeyResponse);
+}
+
+message GetVerifyingKeyRequest {}
+
+message GetVerifyingKeyResponse {
+  // Ed25519 public key, 32 bytes as 64 hex characters.
+  string public_key = 1;
+}

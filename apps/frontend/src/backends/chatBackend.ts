@@ -6,7 +6,6 @@ import {
     ChatRateLimitedError,
     ChatRejectedError,
     ChatSender,
-    ChatUnavailableError,
     OutgoingMessage,
 } from "./chat.ts";
 import {ChatEvent, ChatMessage as ChatMessagePb} from "../gen/grpc/chat/v1/chat_pb.ts";
@@ -81,8 +80,6 @@ function translate(e: unknown): unknown {
             return new ChatBlockedError({cause: e})
         case Code.InvalidArgument:
             return new ChatRejectedError({cause: e})
-        case Code.Unimplemented:
-            return new ChatUnavailableError({cause: e})
         default:
             return e
     }

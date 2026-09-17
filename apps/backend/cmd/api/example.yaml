@@ -9,6 +9,15 @@ httpServer:
   # no authentication, so anything but a loopback address refuses the boot.
   # Empty serves no admin listener at all.
   adminBindAddress: 127.0.0.1:8081
+  # A third listener, for what one module asks another (auth.v1.InternalService).
+  # Its callers are trusted, so anything but a loopback address refuses the boot.
+  # Empty serves none, and a module that calls another then refuses the boot.
+  internalBindAddress: 127.0.0.1:8082
+  # The frontend's origin, exactly: scheme, host and port, no trailing slash.
+  # The API allows browser calls from it alone, with credentials, which is how
+  # the auth module's account cookie reaches the frontend. Never "*": a browser
+  # refuses a credentialed answer that allows every origin. Empty refuses the boot.
+  allowedOrigin: http://localhost:5173
 gameMap:
   maxIndex: 257948
 
@@ -37,9 +46,6 @@ tilesStorage:
   # The most a hard kill can lose. A clean stop loses nothing: the last flush
   # runs on SIGTERM.
   flushInterval: 1s
-  # The tile snapshot file from before postgres. Imported once, if the tiles
-  # table is empty, then renamed with an .imported suffix. Empty imports nothing.
-  legacySnapshotPath: ./data/tiles.snapshot
   # Per-stream subscriber channel capacity. Updates for a subscriber that
   # cannot keep up are dropped rather than blocking clicks.
   subscriberBuffer: 1024
@@ -51,11 +57,8 @@ ledger:
   sweepInterval: 5m
 
 ledgerStorage:
-  # Where the ledger is saved, so a restart keeps it. Empty keeps it in memory
-  # only, where a restart empties it.
-  statePath: ./data/ledger.bin
-  # How often new takes are appended to the file. It is also written on shutdown.
-  saveInterval: 1m
+  # How often the new takes are written to postgres. Also flushed on shutdown.
+  flushInterval: 1s
   # The most takes kept, 16 bytes each plus strings (~85 MiB). Past it the oldest go before
   # the retention, and the log says so once.
   maxTakes: 4000000
@@ -204,6 +207,21 @@ antiBot:
   # Off registers nothing and measures nothing.
   enabled: true
 
+  # Where the bans and the evidence are kept between boots: the same postgres
+  # as the planet, in a schema of its own. The guard migrates it at boot, and a
+  # failed connection or load refuses the boot.
+  database:
+    host: localhost
+    port: "5432"
+    user: postgres
+    # Belongs in the environment in production (antiBot.database.password), not in a file in git.
+    password: postgres
+    dbName: postgres
+    sslMode: disable
+    schema: antibot
+    pool:
+      maxOpenConns: 2
+
   # The sentence, and nothing else: it takes a scope and a clock and runs the
   # ban. It knows nothing about bots, tiles or what earned it.
   shadowBan:
@@ -215,16 +233,14 @@ antiBot:
     # A flag on a running ban only extends it: an offence is a ban that starts
     # while none is running. Offences are never forgotten.
     banDurations: [24h, 168h, 26280h]
-    # One JSON line per banned scope, so bans survive a restart. Empty keeps
-    # them in memory, where a deploy clears every one.
-    statePath: ./data/bans.jsonl
     # How soon a caller already serving a ban can be judged again. At or above a
     # watchdog's trackWindow each flag rests on evidence the previous one never
     # saw, so flags=6 on a line is six separate judgements agreeing rather than
     # one verdict repeated. Without this a caller goes quiet behind its first
     # ban and you cannot tell whether it stopped or kept going.
     reflagInterval: 5m
-    # How often a changed ban list is written to statePath.
+    # How often the bans changed since the last write are written to postgres,
+    # and once more on shutdown.
     saveInterval: 1m
 
   # How the watchdogs are crossed.
@@ -252,11 +268,8 @@ antiBot:
   # reset their windows: a process restarted every 10 minutes never fills a
   # window of 15 or 30. Bans are saved on their own, in shadowBan above.
   evidence:
-    # Empty keeps it in memory, where a restart starts every window again. A
-    # missing or corrupt file is logged and starts empty; it never stops a boot.
-    statePath: ./data/antibot-evidence.bin
-    # How often it is written, and it is written once more on shutdown. A hard
-    # kill loses at most this much.
+    # How often it is written to postgres, and it is written once more on
+    # shutdown. A hard kill loses at most this much.
     saveInterval: 1m
     # The oldest evidence kept, on load and by a sweep before each save,
     # whatever a trackWindow says. A run still going is kept whole.
@@ -336,6 +349,18 @@ antiBot:
       minClicks: 120
       certainFor: 30m
       certainClicks: 900
+      # The second rule: a random sleep is a clock too. It reads the skew
+      # (p90 + p10 - 2*p50) / (p90 - p10) of the last `clicks` gaps, over a
+      # window a pause does not end: a gap past maxGap is skipped. A hand leans
+      # long and reads towards 1; a sleep drawn evenly from a range reads near 0.
+      shape:
+        maxGap: 10s
+        clicks: 500
+        certainClicks: 1000
+        # Unset, a level never reads and click_gap_skew only measures. 0 is a
+        # skew, so leaving a bound out is the only way to turn it off.
+        # maxSkew: 0.25
+        # certainSkew: 0.15
       trackWindow: 15m
       sweepInterval: 1m
 
@@ -422,56 +447,53 @@ antiBot:
       trackWindow: 30m
       sweepInterval: 1m
 
-# Gates the Click RPC on a token this server minted. Off by default: with it
-# disabled session.v1.SessionService/ 404s and clicks are judged on address
-# alone, exactly as they were before this existed.
-session:
-  enabled: false
-  # Off counts what enforcing would refuse without refusing it — the mode to
-  # deploy in, so a client that predates sessions keeps working while
-  # click_session_checks shows what turning it on would cost.
-  enforce: false
-  # Signs the tokens. Empty generates one at boot, which invalidates every
-  # session in flight on each restart: fine locally, not in production, where it
-  # belongs in the environment rather than in a file that is in git.
-  secret: ""
-  ttl: 1h
-  # Per-IP throttle on minting, separate from the click one: a mint costs a
-  # siteverify round trip, a click costs a map write.
-  rateLimiter:
-    perSecond: 0.033
-    burst: 10
-    sweepInterval: 1m
-  turnstile:
-    # Off mints a session for anyone who asks, which is how a local backend
-    # works without a widget and a secret. The click path is still exercised —
-    # the token is bound and expires — but nothing had to be proved to get one.
-    # Never the production choice.
-    enabled: false
-    secret: ""
-    # The frontend origins siteverify must report. Empty refuses every token
-    # rather than accepting any, so this cannot be left unset by accident.
-    hostnames: []
-    # Must match the widget's data-action.
-    action: session
+  # Reads the whole map again and again. The web app reads it once per page
+  # load and opens one stream with it, so a map read beyond one per stream is
+  # a client that is not the web app. A caller that asked for tiles outside the
+  # map gets no credit for its streams at all: tile ids start at 1 and the web
+  # app clamps its last batch, so neither bound can land outside it, whatever
+  # batch size a future client picks. That is what the bot of 2026-09-16 could
+  # not hide once it started opening a stream before every read.
+  scraper:
+    enabled: true
+    detector:
+      # Maps read beyond one per stream opened, inside trackWindow: "suspect",
+      # then "certain". The bot of 2026-09-15 read 23 to 31 in 15 minutes; the
+      # one of 2026-09-16, paying for its reads with streams, read 7.
+      minMaps: 5
+      certainMaps: 15
+      # Reads off the map, inside trackWindow, that are "certain" however little
+      # was read. A walk overruns the end on every pass, so a caller reaching for
+      # the whole map trips this on its first one; one stray read is forgiven.
+      # The bot of 2026-09-16 cached the map and stopped reading, which put it
+      # under minMaps for the rest of its run.
+      certainOffMap: 2
+      trackWindow: 15m
+      sweepInterval: 1m
 
 # Live chat. Its own bounded context and its own Connect service, sharing this
-# process and the transport with the tile game and nothing else. Off by
-# default: when disabled nothing is registered, so /chat.v1.ChatService/ and
-# /ws/chat both 404 rather than erroring.
+# process and the transport with the tile game and nothing else. Always on.
 chat:
-  enabled: true
+  # The chat module's own database block: every message, sender IP included, in
+  # the chat schema. Same shape as the planet's database above, and it may point
+  # at the same postgres. A message that cannot be written is not broadcast.
+  database:
+    host: localhost
+    port: "5432"
+    user: postgres
+    # Belongs in the environment in production (chat.database.password).
+    password: postgres
+    dbName: postgres
+    sslMode: disable
+    schema: chat
+    pool:
+      maxOpenConns: 2
   storage:
-    # Append-only JSONL log of every message, sender IP included. Leave empty
-    # to keep chat entirely in memory.
-    logPath: ./data/chat.log
     # How many recent messages a joining client is served by GetHistory.
     historySize: 200
-    # Messages older than this are dropped on the next prune. This is personal
+    # Messages older than this are deleted on the next prune. This is personal
     # data (IP + text), so the window is a retention policy, not a cache size.
     retention: 720h # 30 days
-    # Upper bound on what a hard kill can lose, as with the tile snapshot.
-    flushInterval: 5s
     pruneInterval: 1h
     # Per-websocket-subscriber channel capacity. Messages for a subscriber that
     # cannot keep up are dropped rather than blocking senders.
@@ -494,3 +516,80 @@ chat:
   # CIDRs — a single address needs /32, and a whole range is one line. A
   # malformed entry fails the start rather than silently refusing nobody.
   blockedIPs: []
+
+# Who a caller is and what it has to prove before it may click. Off by default:
+# with it disabled auth.v1 and session.v1 404, and clicks are judged on address
+# alone, exactly as they were before this existed.
+auth:
+  enabled: false
+  # Off counts what enforcing would refuse without refusing it — the mode to
+  # deploy in, so a client that predates sessions keeps working while
+  # click_session_checks shows what turning it on would cost.
+  enforce: false
+  # The Ed25519 seed the click tokens are signed with: 32 bytes as 64 hex
+  # characters, from `openssl rand -hex 32`. Required when enabled, and it
+  # belongs in the environment in production rather than in a file that is in git.
+  #
+  # It is the only key here. Only the auth module is handed it; the planet
+  # module verifies clicks with the public half, which cmd/api derives from this
+  # at boot and hands to that block. So planet holds a Verifier, which has no
+  # Mint on it, and there is no second value to keep in step with this one.
+  secret: ""
+  ttl: 1h
+  # Per-IP throttle on minting, for both CreateSession paths together: a mint
+  # costs a siteverify round trip and may create a guest account.
+  rateLimiter:
+    perSecond: 0.033
+    burst: 10
+    sweepInterval: 1m
+  turnstile:
+    # Off mints a session for anyone who asks, which is how a local backend
+    # works without a widget and a secret. Never the production choice.
+    enabled: false
+    secret: ""
+    # The frontend origins siteverify must report. Empty refuses every token
+    # rather than accepting any, so this cannot be left unset by accident.
+    hostnames: []
+    # Must match the widget's data-action.
+    action: session
+  # Accounts and their sessions, in the auth schema. Required when enabled; a
+  # mint whose database fails is refused.
+  database:
+    host: localhost
+    port: "5432"
+    user: postgres
+    # Belongs in the environment in production (auth.database.password).
+    password: postgres
+    dbName: postgres
+    sslMode: disable
+    schema: auth
+    pool:
+      maxOpenConns: 2
+  sessions:
+    # A guest idle this long loses its cookie; its next mint starts a new guest.
+    guestTTL: 2160h # 90 days
+    # A signed-in account idle this long loses its cookie.
+    linkedTTL: 720h # 30 days
+    # A session is extended at most this often, so a player is not a write per mint.
+    extendEvery: 24h
+  # Sign-in with Google or Discord. Off, StartSignIn and CompleteSignIn answer
+  # Unimplemented (HTTP 404) and the web client hides the button.
+  signIn:
+    enabled: false
+    # The frontend page each provider sends the browser back to. It must match
+    # the redirect URI registered with every provider exactly.
+    redirectUrl: http://localhost:5173/auth/callback
+  # A provider is offered while signIn is on and its clientId is set. The
+  # secrets belong in the environment (auth.google.clientSecret,
+  # auth.discord.clientSecret).
+  google:
+    clientId: ""
+    clientSecret: ""
+  discord:
+    clientId: ""
+    clientSecret: ""
+  # Deletes the accounts with no provider that nobody has used for idleFor.
+  prune:
+    # Never below sessions.guestTTL, or a live cookie loses its account.
+    idleFor: 2160h # 90 days
+    interval: 1h

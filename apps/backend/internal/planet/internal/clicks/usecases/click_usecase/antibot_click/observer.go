@@ -33,11 +33,24 @@ func NewObserver(logger *slog.Logger, registerer prometheus.Registerer) antibot.
 		Buckets: []float64{0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99, 1.0},
 	})
 
+	// Sampled once a sweep per caller with a full window: players lean towards 1, a random sleep sits near 0.
+	gapSkews := factory.NewHistogram(prometheus.HistogramOpts{
+		Name:    "click_gap_skew",
+		Help:    "Skew (p90 + p10 - 2*p50) / (p90 - p10) of a caller's gaps between clicks tried, per caller per sweep",
+		Buckets: []float64{-0.5, -0.3, -0.2, -0.1, 0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0},
+	})
+
 	// Set once a sweep. A pool that rotates addresses shows here as a floor that
 	// never drops to zero, long before its cohorts chain into a ban.
 	cohortScopes := factory.NewGauge(prometheus.GaugeOpts{
 		Name: "click_cohort_scopes",
 		Help: "Callers clicking in step with another caller: same flag, same start, same pace",
+	})
+
+	mapReads := factory.NewHistogram(prometheus.HistogramOpts{
+		Name:    "click_map_reads",
+		Help:    "Whole maps a clicking caller read beyond one per stream it opened, over the scraper's trackWindow, per caller per sweep",
+		Buckets: []float64{0, 0.5, 1, 2, 3, 5, 8, 12, 15, 20, 30, 50},
 	})
 
 	// Counts flags, not callers, and once per watchdog that argued for each one:
@@ -68,7 +81,11 @@ func NewObserver(logger *slog.Logger, registerer prometheus.Registerer) antibot.
 
 		OnRetakeShare: retakeShares.Observe,
 
+		OnGapSkew: gapSkews.Observe,
+
 		OnCohortScopes: func(scopes int) { cohortScopes.Set(float64(scopes)) },
+
+		OnMapReads: mapReads.Observe,
 
 		// The address goes in the log and never on a label: per-IP labels are
 		// unbounded cardinality, and they would put personal data in every scrape.

@@ -38,7 +38,7 @@ and `fakeBackend.botBoost(tile, "fr")` play somebody else's bomb, spread click o
 boosted click.
 
 A local backend is the quickest way to exercise the real chat: `cmd/api`'s
-`example.yaml` has `chat.enabled: true`, and the Go server answers
+`example.yaml` runs chat (it is always on), and the Go server answers
 `Access-Control-Allow-Origin: *` itself, so `VITE_API_BASE_URL=http://localhost:8080
 npm run dev` works with no proxy in between.
 
@@ -271,7 +271,7 @@ after a connection dropped mid-request would post the message twice, visibly, to
 everyone; a message the player can retype is the cheaper failure. `getHistory`
 is retried like every other read.
 
-The four refusals map to their own error classes and are reported **inline in the
+The three refusals map to their own error classes and are reported **inline in the
 composer, not as a modal** — unlike a refused click, the text is still in the box
 and the advice is one line:
 
@@ -279,14 +279,11 @@ and the advice is one line:
   every 3s), unrelated to the click bucket
 - `permission_denied` → `ChatBlockedError`, the address is in `chat.blockedIPs`
 - `invalid_argument` → `ChatRejectedError`, the server refused the content
-- `unimplemented` → `ChatUnavailableError`, i.e. `chat.enabled` is false and the
-  route 404s
 
-**`ChatUnavailableError` hides the panel entirely** rather than showing a broken
-box: `useChat` goes to `unavailable` and `ChatPanel` renders nothing. That is
-what lets this ship against a server with chat switched off, and it is also why
-the composer keeps its text when a send fails — the panel may be gone next
-frame.
+The server always runs chat, so there is no "chat is off" error. **A history that
+cannot be loaded hides the panel entirely** rather than showing a broken box:
+`useChat` goes to `unavailable` and `ChatPanel` renders nothing. So does a build
+with no chat backend wired.
 
 The composer **clears the box when the send starts, not when it lands**, and puts
 the text back only if the box is still empty when a refusal comes in. Clearing on
@@ -337,6 +334,23 @@ apart:
   `challenges.cloudflare.com/turnstile/v0/api.js` on first use, renders a widget,
   resolves with its token and removes it again.
 
+**It mints through `auth.v1.AuthService/CreateSession`**, which also gives the
+browser an account: a guest one, kept in the `cp_sid` cookie the answer sets
+(HttpOnly, on the API's host). The next mint sends the cookie back and gets the
+same account. Nothing on the page reads or shows it. `session.v1` is deprecated
+on the backend and this build no longer calls it.
+
+**`newAuthServiceClient` is the only transport that sends credentials.** Its
+`fetch` wrapper adds `credentials: "include"`; without it connect-web sends
+`same-origin`, and a cross-origin mint neither sends the cookie nor keeps the
+one it is given — every mint would start a new guest. The click, map and chat
+clients stay without it: nothing there needs to know who is asking, and a read
+that carries a cookie is one no shared cache serves. Both halves are pinned in
+`turnstileSession.test.ts`. A credentialed call needs the API to name the exact
+origin and send `Access-Control-Allow-Credentials: true` — Caddy does in
+production, and a local backend does from `httpServer.allowedOrigin`, which
+must be the dev server's origin (`http://localhost:5173`).
+
 **A fresh widget per attestation**, not one reset between uses. Turnstile tokens
 are redeemed exactly once, and a widget that is created and destroyed has no
 lifecycle left to get wrong.
@@ -381,7 +395,7 @@ off a VPN they may not be using.
 
 **`VITE_TURNSTILE_SITEKEY` is what switches this on.** Unset, `main.tsx` wires
 `NoSession` and the client sends no header, which is what a local backend with
-`session.enabled: false` expects. The sitekey is public — it is read off the
+`auth.enabled: false` expects. The sitekey is public — it is read off the
 page — and useless without the secret, which only the backend holds. A server
 that *enforces* sessions refuses every click from a build with no sitekey:
 the two are configured together.
@@ -939,7 +953,7 @@ the buttons against the other. If you regenerate it at a different size, update
 `og:image:width` / `og:image:height` in `index.html` to match.
 
 `public/` holds the files that must be served as themselves rather than as the
-app: `_headers`, `robots.txt` and `sitemap.xml`. Vite copies them to the root of
+app: `_headers`, `robots.txt`, `sitemap.xml`, `privacy.html` and `terms.html`. Vite copies them to the root of
 `dist/`, and the Workers asset handler serves a real file before
 `not_found_handling` applies — **without them, every unmatched path including
 `/robots.txt` answers 200 with `index.html`**, so a crawler asking for the rules
@@ -947,6 +961,20 @@ got an HTML document. That was the leading suspect for LinkedIn refusing to
 fetch the preview image, though it was never proven to be the only cause.
 Nothing under `/static/` may be disallowed in robots.txt; that is where scrapers
 fetch the preview from.
+
+**`privacy.html` is the privacy policy**, linked from the bottom of the About modal.
+It is a plain page, not a component: it loads with no WebGL and no bundle, and a
+crawler reads it as it is. The Workers asset handler serves it at `/privacy`
+(`html_handling` drops the extension) and `nginx.conf` does the same with
+`$uri.html`; `npm run dev` only serves it at `/privacy.html`. **It states
+retention periods, so it goes stale when the backend's do**: `ledger.retention`,
+`antiBot.evidence.retention`, `chat.storage.retention` and
+`auth.sessions.guestTTL` in `deploy/vps/backend.yaml`, and `roll_keep_for` in
+the Caddyfile. Change one, change the page and its date.
+
+**`terms.html` is the terms of service**, linked beside it and built
+the same way, at `/terms`. Discord asks for its URL to allow OAuth sign-in. When
+a sign-in provider ships, the privacy policy must say what it sends us.
 
 The blob still carries a uv per tile that neither shader reads any more;
 dropping it would take ~2 MB off a 4.9 MB download. It is not a breaking change

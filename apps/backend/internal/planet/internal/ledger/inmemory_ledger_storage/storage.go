@@ -8,27 +8,27 @@ import (
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 )
 
 type Config struct {
-	// Where the ledger is saved. Empty keeps it in memory, where a restart empties it.
-	StatePath    string
-	SaveInterval time.Duration
+	// How often the takes appended since the last flush are written to postgres.
+	FlushInterval time.Duration
 	// The most takes kept, oldest dropped first even inside the retention. 16 bytes each.
 	MaxTakes int
 }
 
 const (
-	defaultSaveInterval = time.Minute
-	defaultMaxTakes     = 4_000_000
+	defaultFlushInterval = time.Second
+	defaultMaxTakes      = 4_000_000
 
 	// A chunk is 1 MiB of records. Takes are dropped from the front, so a whole chunk goes at once.
 	chunkSize = 1 << 16
 )
 
 func (c Config) withDefaults() Config {
-	if c.SaveInterval <= 0 {
-		c.SaveInterval = defaultSaveInterval
+	if c.FlushInterval <= 0 {
+		c.FlushInterval = defaultFlushInterval
 	}
 	if c.MaxTakes <= 0 {
 		c.MaxTakes = defaultMaxTakes
@@ -36,23 +36,26 @@ func (c Config) withDefaults() Config {
 	return c
 }
 
-func New(config Config, logger *slog.Logger) *Storage {
+func New(config Config, persistence Persistence, logger *slog.Logger) *Storage {
 	if logger == nil {
 		logger = slog.New(slog.DiscardHandler)
 	}
 
 	return &Storage{
-		config:    config.withDefaults(),
-		logger:    logger,
-		forgotten: make(map[string]ledger.Position),
+		config:      config.withDefaults(),
+		persistence: persistence,
+		logger:      logger,
+		forgotten:   make(map[string]ledger.Position),
+		dirtyScopes: cpcolls.NewSet[string](),
 	}
 }
 
 // Storage is an append-only log of takes in chunks. A record is never changed once written, so a
 // replay copies the chunk headers under the lock and reads the records without it.
 type Storage struct {
-	config Config
-	logger *slog.Logger
+	config      Config
+	persistence Persistence
+	logger      *slog.Logger
 
 	mu     sync.Mutex
 	chunks []*chunk
@@ -63,8 +66,11 @@ type Storage struct {
 	// full is set while the cap drops takes, so it is reported once rather than per take.
 	full bool
 
-	saveMu sync.Mutex
-	file   file
+	// Postgres holds every take before saved, the head savedHead, and every forgotten mark not in dirtyScopes.
+	flushMu     sync.Mutex
+	saved       ledger.Position
+	savedHead   ledger.Position
+	dirtyScopes *cpcolls.Set[string]
 }
 
 var _ ledger.Storage = (*Storage)(nil)
@@ -253,7 +259,7 @@ func (s *Storage) Forget(scope string, before ledger.Position) {
 
 	if before > s.forgotten[scope] && before > s.headPositionLocked() {
 		s.forgotten[scope] = before
-		s.file.marksChanged = true
+		s.dirtyScopes.Add(scope)
 	}
 }
 

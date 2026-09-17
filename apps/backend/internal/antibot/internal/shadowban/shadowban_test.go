@@ -1,10 +1,6 @@
 package shadowban_test
 
 import (
-	"bytes"
-	"context"
-	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -21,6 +17,17 @@ func newClock() *cptime.FixedClock {
 
 const threeYears = 3 * 365 * 24 * time.Hour
 
+// newBanner keeps its bans in memory and fails the test on any state error.
+func newBanner(t *testing.T, config shadowban.Config, clock cptime.Clock) *shadowban.Banner {
+	t.Helper()
+	return shadowban.New(config, clock, shadowban.NewMemoryPersistence(), failOnStateError(t))
+}
+
+func failOnStateError(t *testing.T) func(error) {
+	t.Helper()
+	return func(err error) { assert.NoError(t, err, "unexpected state error") }
+}
+
 func config() shadowban.Config {
 	return shadowban.Config{
 		Enforce:        true,
@@ -32,7 +39,7 @@ func config() shadowban.Config {
 
 func TestAFirstOffenceBansForTheFirstStep(t *testing.T) {
 	clock := newClock()
-	banner := shadowban.New(config(), clock, nil)
+	banner := newBanner(t, config(), clock)
 
 	require.False(t, banner.Banned("bot"))
 
@@ -54,7 +61,7 @@ func TestEnforceOffBansNothingAndStillCounts(t *testing.T) {
 	c := config()
 	c.Enforce = false
 
-	banner := shadowban.New(c, newClock(), nil)
+	banner := newBanner(t, c, newClock())
 
 	_, accepted := banner.Flag("bot")
 	require.True(t, accepted)
@@ -66,7 +73,7 @@ func TestEnforceOffBansNothingAndStillCounts(t *testing.T) {
 
 func TestAFlagInsideTheReflagIntervalSaysNothingNew(t *testing.T) {
 	clock := newClock()
-	banner := shadowban.New(config(), clock, nil)
+	banner := newBanner(t, config(), clock)
 
 	_, accepted := banner.Flag("bot")
 	require.True(t, accepted)
@@ -84,7 +91,7 @@ func TestAFlagInsideTheReflagIntervalSaysNothingNew(t *testing.T) {
 
 func TestAReflagExtendsTheRunningBanWithoutANewOffence(t *testing.T) {
 	clock := newClock()
-	banner := shadowban.New(config(), clock, nil)
+	banner := newBanner(t, config(), clock)
 
 	banner.Flag("bot")
 
@@ -101,7 +108,7 @@ func TestAReflagExtendsTheRunningBanWithoutANewOffence(t *testing.T) {
 
 func TestAnOffenceAfterALapsedBanClimbsTheLadder(t *testing.T) {
 	clock := newClock()
-	banner := shadowban.New(config(), clock, nil)
+	banner := newBanner(t, config(), clock)
 
 	banner.Flag("bot")
 	clock.Advance(2 * time.Hour)
@@ -119,7 +126,7 @@ func TestAnOffenceAfterALapsedBanClimbsTheLadder(t *testing.T) {
 
 func TestTheThirdOffenceBansForThreeYears(t *testing.T) {
 	clock := newClock()
-	banner := shadowban.New(config(), clock, nil)
+	banner := newBanner(t, config(), clock)
 
 	banner.Flag("bot")
 	clock.Advance(2 * time.Hour)
@@ -143,7 +150,7 @@ func TestTheLastStepRepeats(t *testing.T) {
 	c.BanDurations = []time.Duration{time.Hour, 24 * time.Hour}
 
 	clock := newClock()
-	banner := shadowban.New(c, clock, nil)
+	banner := newBanner(t, c, clock)
 
 	var sentence shadowban.Sentence
 	for range 5 {
@@ -157,7 +164,7 @@ func TestTheLastStepRepeats(t *testing.T) {
 
 func TestAnOffenceCountsForever(t *testing.T) {
 	clock := newClock()
-	banner := shadowban.New(config(), clock, nil)
+	banner := newBanner(t, config(), clock)
 
 	banner.Flag("bot")
 	clock.Advance(10 * 365 * 24 * time.Hour)
@@ -168,109 +175,16 @@ func TestAnOffenceCountsForever(t *testing.T) {
 }
 
 func TestAnEmptyScopeIsNeverBanned(t *testing.T) {
-	banner := shadowban.New(config(), newClock(), nil)
+	banner := newBanner(t, config(), newClock())
 
 	_, accepted := banner.Flag("")
 	assert.False(t, accepted)
 	assert.Equal(t, 0, banner.Flagged())
 }
 
-func TestBansSurviveARestart(t *testing.T) {
-	c := config()
-	c.StatePath = filepath.Join(t.TempDir(), "bans.jsonl")
-
-	clock := newClock()
-	before := shadowban.New(c, clock, failOnStateError(t))
-	before.LoadState()
-
-	before.Flag("repeat")
-	clock.Advance(2 * time.Hour)
-	before.Flag("repeat")
-	clock.Advance(25 * time.Hour)
-	before.Flag("repeat")
-	before.Flag("fresh")
-	stopAndSave(before)
-
-	after := shadowban.New(c, clock, failOnStateError(t))
-	after.LoadState()
-
-	assert.True(t, after.Banned("repeat"))
-	assert.True(t, after.Banned("fresh"))
-
-	clock.Advance(2 * time.Hour)
-	assert.True(t, after.Banned("repeat"), "a three-year ban outlives the restart")
-	assert.False(t, after.Banned("fresh"), "the first offence still lapses on time")
-
-	sentence, accepted := after.Flag("fresh")
-	require.True(t, accepted)
-	assert.Equal(t, 2, sentence.Offence, "the offence count was kept")
-}
-
-func TestAnUnreadableStateIsReportedAndStartsEmpty(t *testing.T) {
-	c := config()
-	c.StatePath = filepath.Join(t.TempDir(), "bans.jsonl")
-	require.NoError(t, os.WriteFile(c.StatePath, []byte("{not json\n"), 0o600))
-
-	var reported error
-	banner := shadowban.New(c, newClock(), func(err error) { reported = err })
-	banner.LoadState()
-
-	require.Error(t, reported)
-	assert.Equal(t, 0, banner.Flagged())
-}
-
-func TestAMissingStateIsAFirstBoot(t *testing.T) {
-	c := config()
-	c.StatePath = filepath.Join(t.TempDir(), "bans.jsonl")
-
-	banner := shadowban.New(c, newClock(), failOnStateError(t))
-	banner.LoadState()
-
-	assert.Equal(t, 0, banner.Flagged())
-}
-
-func TestOneScopeIsUnbannedByRemovingItsLine(t *testing.T) {
-	c := config()
-	c.StatePath = filepath.Join(t.TempDir(), "bans.jsonl")
-
-	clock := newClock()
-	before := shadowban.New(c, clock, failOnStateError(t))
-	before.LoadState()
-	before.Flag("keep")
-	before.Flag("release")
-	stopAndSave(before)
-
-	data, err := os.ReadFile(c.StatePath)
-	require.NoError(t, err)
-
-	var kept []byte
-	for line := range bytes.Lines(data) {
-		if !bytes.Contains(line, []byte(`"scope":"release"`)) {
-			kept = append(kept, line...)
-		}
-	}
-	require.NoError(t, os.WriteFile(c.StatePath, kept, 0o600))
-
-	after := shadowban.New(c, clock, failOnStateError(t))
-	after.LoadState()
-	assert.True(t, after.Banned("keep"))
-	assert.False(t, after.Banned("release"))
-}
-
-func failOnStateError(t *testing.T) func(error) {
-	t.Helper()
-	return func(err error) { t.Errorf("unexpected state error: %v", err) }
-}
-
-func stopAndSave(banner *shadowban.Banner) {
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-	banner.Run(ctx)
-}
-
 func TestAManualBanTakesTheLadderAndCountsAsAnOffence(t *testing.T) {
 	clock := newClock()
-	banner := shadowban.New(config(), clock, nil)
+	banner := newBanner(t, config(), clock)
 
 	sentence := banner.Ban("bot", 0)
 	assert.Equal(t, shadowban.Sentence{Offence: 1, Until: clock.Now().Add(time.Hour)}, sentence)
@@ -287,7 +201,7 @@ func TestAManualBanTakesTheLadderAndCountsAsAnOffence(t *testing.T) {
 
 func TestAManualBanWithADurationNeverShortensARunningOne(t *testing.T) {
 	clock := newClock()
-	banner := shadowban.New(config(), clock, nil)
+	banner := newBanner(t, config(), clock)
 
 	banner.Ban("bot", 48*time.Hour)
 	sentence := banner.Ban("bot", time.Minute)
@@ -300,21 +214,9 @@ func TestAManualBanWithADurationNeverShortensARunningOne(t *testing.T) {
 	assert.Equal(t, sentence, running)
 }
 
-func TestAManualBanIsSaved(t *testing.T) {
-	c := config()
-	c.StatePath = filepath.Join(t.TempDir(), "bans.jsonl")
+func TestAManualBanOnAnEmptyScopeBansNothing(t *testing.T) {
+	banner := newBanner(t, config(), newClock())
 
-	ctx, cancel := context.WithCancel(t.Context())
-	banner := shadowban.New(c, newClock(), nil)
-	banner.LoadState()
-	done := make(chan struct{})
-	go func() { banner.Run(ctx); close(done) }()
-
-	banner.Ban("bot", 0)
-	cancel()
-	<-done
-
-	after := shadowban.New(c, newClock(), nil)
-	after.LoadState()
-	assert.True(t, after.Banned("bot"))
+	assert.Equal(t, shadowban.Sentence{}, banner.Ban("", time.Hour))
+	assert.Equal(t, 0, banner.Flagged())
 }

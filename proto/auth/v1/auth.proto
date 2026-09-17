@@ -1,0 +1,142 @@
+syntax = "proto3";
+
+package auth.v1;
+
+// Who a caller is, and what it has to prove before it may click. Every caller
+// that mints a session gets an account, a guest one until it signs in, kept in
+// an HttpOnly cookie this service sets.
+service AuthService {
+  // Checks a Cloudflare Turnstile token, then mints the click token. The
+  // caller's cookie brings its account back; a caller with no live session is
+  // given a guest account and its cookie. The account is signed into the token.
+  rpc CreateSession(CreateSessionRequest) returns (CreateSessionResponse);
+
+  // The account the caller's cookie belongs to. Unauthenticated when it carries
+  // none. Creates nothing.
+  rpc GetMe(GetMeRequest) returns (GetMeResponse);
+
+  // The providers a player may sign in with on this server, so a client shows
+  // only the buttons that work. Empty while sign-in is off. Not throttled, and
+  // sets nothing: a client asks on every page load.
+  rpc GetSignInOptions(GetSignInOptionsRequest) returns (GetSignInOptionsResponse);
+
+  // Starts signing in with a provider: answers the provider's authorization URL
+  // to send the browser to, and sets a short-lived cookie that CompleteSignIn
+  // reads back. Unimplemented (HTTP 404) when sign-in is off on this server.
+  rpc StartSignIn(StartSignInRequest) returns (StartSignInResponse);
+
+  // Finishes what StartSignIn started, from the code and state the provider sent
+  // to the callback page. An identity already known signs in to its account; a
+  // new one is linked to the caller's current account, or to a new account when
+  // there is none. Sets a new session cookie either way: the client mints its
+  // click token again afterwards, so the token carries the account.
+  // Unimplemented (HTTP 404) when sign-in is off on this server.
+  rpc CompleteSignIn(CompleteSignInRequest) returns (CompleteSignInResponse);
+
+  // Ends this browser's session and clears its cookie. Succeeds with no session.
+  rpc SignOut(SignOutRequest) returns (SignOutResponse);
+
+  // Ends every session of the caller's account, this one included.
+  // Unauthenticated when the caller has no account.
+  rpc SignOutEverywhere(SignOutEverywhereRequest) returns (SignOutEverywhereResponse);
+
+  // Deletes the caller's account, its linked identities and its sessions, and
+  // clears the cookie. Unauthenticated when the caller has no account.
+  rpc DeleteAccount(DeleteAccountRequest) returns (DeleteAccountResponse);
+}
+
+message CreateSessionRequest {
+  // The Turnstile widget's cf-turnstile-response. Ignored when the server runs
+  // with attestation disabled.
+  string attestation_token = 1;
+}
+
+message CreateSessionResponse {
+  // Opaque. Sent back on every Click in the X-Session-Token header.
+  string token = 1;
+
+  // When the token stops being accepted. The client mints a new one before this.
+  int64 expires_at_unix_ms = 2;
+}
+
+message GetMeRequest {}
+
+message GetMeResponse {
+  string account_id = 1;
+
+  AccountKind kind = 2;
+
+  // The providers linked to the account, oldest link first. Empty for a guest.
+  repeated Provider providers = 3;
+}
+
+// Where a player signs in.
+enum Provider {
+  PROVIDER_UNSPECIFIED = 0;
+  PROVIDER_GOOGLE = 1;
+  PROVIDER_DISCORD = 2;
+}
+
+enum AccountKind {
+  ACCOUNT_KIND_UNSPECIFIED = 0;
+  // No provider is linked. Pruned after a long time without use.
+  ACCOUNT_KIND_GUEST = 1;
+  // At least one provider is linked.
+  ACCOUNT_KIND_LINKED = 2;
+}
+
+message GetSignInOptionsRequest {}
+
+message GetSignInOptionsResponse {
+  // Every provider offered, in a stable order. Empty while sign-in is off.
+  repeated Provider providers = 1;
+}
+
+message StartSignInRequest {
+  // InvalidArgument when the provider is not offered on this server.
+  Provider provider = 1;
+}
+
+message StartSignInResponse {
+  // Send the browser here. The provider sends it back to the callback page with
+  // a code and a state.
+  string authorization_url = 1;
+}
+
+message CompleteSignInRequest {
+  // Both from the callback page's query string. FailedPrecondition when the
+  // state does not match the sign-in this browser started, or it has lapsed.
+  string code = 1;
+  string state = 2;
+}
+
+// What CompleteSignIn did with the identity.
+enum SignInOutcome {
+  SIGN_IN_OUTCOME_UNSPECIFIED = 0;
+  // The identity was already linked: the browser is now on that account. The
+  // guest it was on before is left as it was, and nothing is merged.
+  SIGN_IN_OUTCOME_SIGNED_IN = 1;
+  // The identity was new and is now linked to the account the browser was on.
+  SIGN_IN_OUTCOME_LINKED = 2;
+  // The identity was new and the browser had no account to link it to, or its
+  // account already holds this provider: a new account was made for it.
+  SIGN_IN_OUTCOME_CREATED = 3;
+}
+
+message CompleteSignInResponse {
+  string account_id = 1;
+
+  SignInOutcome outcome = 2;
+}
+
+message SignOutRequest {}
+
+message SignOutResponse {}
+
+message SignOutEverywhereRequest {}
+
+message SignOutEverywhereResponse {}
+
+message DeleteAccountRequest {}
+
+message DeleteAccountResponse {}

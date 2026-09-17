@@ -6,7 +6,6 @@ import {
     ChatRateLimitedError,
     ChatRejectedError,
     ChatSender,
-    ChatUnavailableError,
     countRunes,
     MAX_NAME_LENGTH,
     MAX_TEXT_LENGTH,
@@ -19,7 +18,6 @@ const MESSAGE_BURST = 5
 
 export type FakeChatBackendOptions = {
     blocked?: boolean
-    unavailable?: boolean
     chatterIntervalMs?: number
 }
 
@@ -35,14 +33,12 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
     private readonly listeners = new Map<string, (message: ChatMessage) => void>()
     private readonly timers: ReturnType<typeof setInterval>[] = []
     private readonly blocked: boolean
-    private readonly unavailable: boolean
     private tokens = MESSAGE_BURST
     private lastRefillMs = Date.now()
     private nextChatter = 0
 
     constructor(options: FakeChatBackendOptions = {}) {
         this.blocked = options.blocked ?? false
-        this.unavailable = options.unavailable ?? false
 
         CHATTERS.forEach((chatter, index) => {
             this.publish({
@@ -76,7 +72,6 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
     }
 
     public async sendMessage(message: OutgoingMessage): Promise<ChatMessage> {
-        if (this.unavailable) throw new ChatUnavailableError()
         if (this.blocked) throw new ChatBlockedError()
 
         const text = message.text.trim()
@@ -101,7 +96,6 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
 
     public async getHistory(signal?: AbortSignal): Promise<ChatMessage[]> {
         signal?.throwIfAborted()
-        if (this.unavailable) throw new ChatUnavailableError()
         return [...this.messages]
     }
 

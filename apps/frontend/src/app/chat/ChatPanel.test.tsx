@@ -4,7 +4,7 @@ import {act, cleanup, render, screen, waitFor} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import ChatPanel from "./ChatPanel.tsx"
 import {CHAT_IDENTITY_STORAGE_KEY} from "./chatIdentity.ts"
-import {ChatBackend, ChatMessage, ChatRateLimitedError, ChatUnavailableError} from "../../backends/chat.ts"
+import {ChatBackend, ChatMessage, ChatRateLimitedError} from "../../backends/chat.ts"
 import {Countries} from "../../domain/countries.ts"
 
 const france = Countries.get("fr")!
@@ -75,8 +75,8 @@ describe("ChatPanel sound", () => {
         expect(playSound).not.toHaveBeenCalled()
 
         broadcast(message("live", "gm everyone", 1_700_000_050_000))
-        await screen.findByText("gm everyone")
-        expect(playSound).toHaveBeenCalledWith("chat")
+        // The text is committed before the effect that plays the sound runs.
+        await waitFor(() => expect(playSound).toHaveBeenCalledWith("chat"))
     })
 
     it("stays quiet for your own message, even when its broadcast comes first", async () => {
@@ -386,10 +386,10 @@ describe("ChatPanel", () => {
         })
     })
 
-    describe("when the server has no chat", () => {
+    describe("when the chat cannot be loaded", () => {
         it("shows nothing at all rather than an empty box", async () => {
             const {backend} = stubBackend()
-            backend.getHistory.mockRejectedValue(new ChatUnavailableError())
+            backend.getHistory.mockRejectedValue(new Error("boom"))
             vi.spyOn(console, "error").mockImplementation(() => {})
             setup(backend)
 

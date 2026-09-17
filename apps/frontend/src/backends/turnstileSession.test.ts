@@ -1,6 +1,7 @@
-import {beforeEach, describe, expect, it, vi} from "vitest"
+import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {Code, ConnectError} from "@connectrpc/connect"
-import {SessionClient} from "./turnstileSession.ts"
+import {newAuthServiceClient, SessionClient} from "./turnstileSession.ts"
+import {newClickServiceClient} from "./planetBackend.ts"
 import {SessionUnavailableError} from "./session.ts"
 
 const HOUR_MS = 60 * 60 * 1000
@@ -143,5 +144,47 @@ describe("SessionClient", () => {
 
         await expect(client.token()).rejects.toBeInstanceOf(SessionUnavailableError)
         expect(createSession).not.toHaveBeenCalled()
+    })
+})
+
+/** A fetch that records what it was asked and answers nothing a client can read. */
+function recordingFetch() {
+    const fetch = vi.fn(async (...args: Parameters<typeof globalThis.fetch>): Promise<Response> => {
+        void args
+        throw new TypeError("offline")
+    })
+    vi.stubGlobal("fetch", fetch)
+    return fetch
+}
+
+describe("the API transports", () => {
+    afterEach(() => {
+        vi.unstubAllGlobals()
+    })
+
+    // The account lives in an HttpOnly cookie on the API's host. A cross-origin
+    // mint neither sends it nor keeps the one the answer sets unless it asks for
+    // credentials, and every mint would then start a new guest.
+    it("mints with credentials, so the account cookie travels", async () => {
+        const fetch = recordingFetch()
+
+        await expect(newAuthServiceClient({baseUrl: "https://api.test"}).createSession({attestationToken: "t"}))
+            .rejects.toThrow()
+
+        expect(fetch).toHaveBeenCalledTimes(1)
+        expect(String(fetch.mock.calls[0][0])).toBe("https://api.test/auth.v1.AuthService/CreateSession")
+        expect(fetch.mock.calls[0][1]?.credentials).toBe("include")
+    })
+
+    // Only the mint needs to know who is asking. A click or a map read that
+    // carries a cookie is one no shared cache serves.
+    it("clicks without credentials", async () => {
+        const fetch = recordingFetch()
+
+        await expect(newClickServiceClient({baseUrl: "https://api.test"}).click({tileId: 1, countryId: "fr"}))
+            .rejects.toThrow()
+
+        expect(fetch).toHaveBeenCalledTimes(1)
+        expect(fetch.mock.calls[0][1]?.credentials).toBe("same-origin")
     })
 })

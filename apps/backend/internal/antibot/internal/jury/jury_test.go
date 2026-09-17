@@ -48,7 +48,7 @@ type harness struct {
 func newHarness(config jury.Config, ban shadowban.Config, watchdogs ...detect.Watchdog) *harness {
 	h := &harness{clock: cptime.NewFixedClock(time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC))}
 
-	banner := shadowban.New(ban, h.clock, nil)
+	banner := shadowban.New(ban, h.clock, shadowban.NewMemoryPersistence(), func(error) {})
 	h.jury = jury.New(config, banner, h.clock, jury.Hooks{
 		OnFlag: func(report detect.Report) {
 			h.reports = append(h.reports, report)

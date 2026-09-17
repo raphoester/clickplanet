@@ -89,7 +89,7 @@ func NewIPBlockInterceptor(
 const SessionHeader = "X-Session-Token"
 
 type SessionVerifier interface {
-	Verify(token string, ip string, now time.Time) (cpsession.ID, error)
+	Verify(token string, ip string, now time.Time) (*cpsession.Claims, error)
 }
 
 // SessionVerdict labels what happened, so the counter can show what enforcing
@@ -142,7 +142,7 @@ func NewSessionInterceptor(
 				return next(ctx, req)
 			}
 
-			id, err := verifier.Verify(token, cpctx.GetSourceIP(ctx), clock.Now())
+			claims, err := verifier.Verify(token, cpctx.GetSourceIP(ctx), clock.Now())
 			if err != nil {
 				record(SessionInvalid)
 				if enforce {
@@ -153,7 +153,7 @@ func NewSessionInterceptor(
 
 			record(SessionValid)
 
-			return next(cpctx.AddSessionIDToContext(ctx, string(id)), req)
+			return next(cpctx.AddSessionIDToContext(ctx, string(claims.ID)), req)
 		}
 	})
 }

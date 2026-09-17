@@ -3,7 +3,6 @@ package antibot_test
 import (
 	"context"
 	"math/rand/v2"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -12,17 +11,25 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/evidence"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/shadowban"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-// The whole thing built the way internal/planet builds it — through the one
-// published constructor, with the bounds cmd/api ships — and driven by callers
-// that behave the way the real ones do.
+// The whole thing built the way internal/planet builds it — with the bounds
+// cmd/api ships, its bans and evidence kept in memory rather than postgres —
+// and driven by callers that behave the way the real ones do.
 type stack struct {
 	guard  *antibot.Guard
 	clock  *cptime.FixedClock
 	config antibot.Config
 	stop   func()
+
+	bans     *shadowban.MemoryPersistence
+	evidence *evidence.MemoryPersistence
+	// forgetEvidence starts every boot with nothing stored, as a process without persistence would.
+	forgetEvidence bool
 
 	owner   map[uint32]string
 	reports []antibot.Report
@@ -32,8 +39,10 @@ type stack struct {
 
 func newStack(options ...func(*antibot.Config)) *stack {
 	s := &stack{
-		clock: cptime.NewFixedClock(time.Date(2026, 9, 11, 2, 0, 0, 0, time.UTC)),
-		owner: map[uint32]string{},
+		clock:    cptime.NewFixedClock(time.Date(2026, 9, 11, 2, 0, 0, 0, time.UTC)),
+		owner:    map[uint32]string{},
+		bans:     shadowban.NewMemoryPersistence(),
+		evidence: evidence.NewMemoryPersistence(),
 	}
 
 	config := antibot.Config{Enabled: true}
@@ -88,6 +97,11 @@ func newStack(options ...func(*antibot.Config)) *stack {
 	config.Cohort.Detector.CertainMembers = 6
 	config.Cohort.Detector.ChainWindow = 30 * time.Minute
 
+	config.Scraper.Enabled = true
+	config.Scraper.Detector.MinMaps = 5
+	config.Scraper.Detector.CertainMaps = 15
+	config.Scraper.Detector.TrackWindow = 15 * time.Minute
+
 	for _, option := range options {
 		option(&config)
 	}
@@ -102,17 +116,23 @@ func newStack(options ...func(*antibot.Config)) *stack {
 func (s *stack) boot() {
 	started := make(chan struct{})
 
-	guard, err := antibot.New(s.config, s.clock, antibot.Observer{
+	if s.forgetEvidence {
+		s.evidence = evidence.NewMemoryPersistence()
+	}
+
+	guard, err := antibot.NewInMemory(s.config, s.clock, antibot.Observer{
 		OnFlag:       func(report antibot.Report) { s.reports = append(s.reports, report) },
 		OnRise:       func(watchdog, level string) { s.rises = append(s.rises, watchdog+" "+level) },
 		OnStateError: func(err error) { s.errors = append(s.errors, err) },
 		OnStart:      func(antibot.Description) { close(started) },
-	})
+	}, s.bans, s.evidence)
 	if err != nil {
 		panic(err)
 	}
 
-	guard.LoadState()
+	if err := guard.LoadState(context.Background()); err != nil {
+		panic(err)
+	}
 	s.guard = guard
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -533,8 +553,60 @@ func TestTwoFriendsJoiningAFlagWarAreNotBanned(t *testing.T) {
 	assert.Empty(t, s.reports)
 }
 
+func (s *stack) pageLoad(scope string) {
+	s.guard.Listened(scope)
+	for range 26 {
+		s.clock.Advance(80 * time.Millisecond)
+		s.guard.Fetched(scope, 1.0/26, false)
+	}
+}
+
+func TestTheMapScraperIsCaught(t *testing.T) {
+	s := newStack()
+
+	//nolint:gosec // G404: deterministic PRNG, seeded so the click stream replays exactly.
+	random := rand.New(rand.NewPCG(15, 9))
+
+	s.pageLoad("2001:db8:e487::/64")
+	start := s.clock.Now()
+
+	var dropped bool
+	for !dropped && s.clock.Now().Sub(start) < 30*time.Minute {
+		s.clock.Advance(time.Duration(600+random.IntN(1300)) * time.Millisecond)
+		dropped = s.click("2001:db8:e487::/64", 100000+uint32(random.IntN(60000)), "dz")
+		s.guard.Fetched("2001:db8:e487::/64", 10000.0/257948, false)
+	}
+
+	require.True(t, dropped)
+	assert.Less(t, s.clock.Now().Sub(start), 10*time.Minute, "a map every half minute, no stream to explain it")
+
+	verdicts := s.verdicts("2001:db8:e487::/64")
+	assert.Equal(t, detect.Certain, verdicts["scraper"])
+	for _, watchdog := range []string{"retaker", "sequencer", "metronome", "catcher", "cohort"} {
+		assert.Equal(t, detect.Clear, verdicts[watchdog], "%s: it painted like a person", watchdog)
+	}
+}
+
+func TestPlayersBehindOneAddressAreNotBanned(t *testing.T) {
+	s := newStack()
+
+	//nolint:gosec // G404: deterministic PRNG, seeded so the click stream replays exactly.
+	random := rand.New(rand.NewPCG(16, 9))
+
+	for range 40 {
+		s.pageLoad("203.0.113.7")
+
+		for range 5 + random.IntN(10) {
+			s.clock.Advance(time.Duration(400+random.IntN(3000)) * time.Millisecond)
+			require.False(t, s.click("203.0.113.7", 100000+uint32(random.IntN(60000)), "fr"), "every map read came with its stream")
+		}
+	}
+
+	assert.Empty(t, s.reports)
+}
+
 func TestWithTheBlockOffTheGuardPassesEveryClick(t *testing.T) {
-	guard, err := antibot.New(antibot.Config{}, nil, antibot.Observer{})
+	guard, err := antibot.New(antibot.Config{}, cptime.SystemClock{}, antibot.Observer{})
 	require.NoError(t, err)
 
 	assert.False(t, guard.Enabled())
@@ -546,12 +618,8 @@ func TestWithTheBlockOffTheGuardPassesEveryClick(t *testing.T) {
 func TestALoopRestartedEveryFewMinutesIsStillCaught(t *testing.T) {
 	for name, persisted := range map[string]bool{"with the evidence saved": true, "in memory": false} {
 		t.Run(name, func(t *testing.T) {
-			dir := t.TempDir()
-			s := newStack(func(config *antibot.Config) {
-				if persisted {
-					config.Evidence.StatePath = filepath.Join(dir, "evidence.bin")
-				}
-			})
+			s := newStack()
+			s.forgetEvidence = !persisted
 			defer func() { s.stop() }()
 
 			//nolint:gosec // G404: deterministic PRNG, seeded per test so the click
@@ -598,19 +666,19 @@ func TestExaminingABannedScopeCarriesItsSentence(t *testing.T) {
 	for _, reading := range examination.Readings {
 		watchdogs = append(watchdogs, reading.Watchdog)
 	}
-	assert.Equal(t, []string{"retaker", "sequencer", "metronome", "catcher", "cohort"}, watchdogs)
+	assert.Equal(t, []string{"retaker", "sequencer", "metronome", "catcher", "cohort", "scraper"}, watchdogs)
 	assert.False(t, examination.Guilty)
 }
 
 func TestAGuardThatIsOffExaminesNothing(t *testing.T) {
-	guard, err := antibot.New(antibot.Config{}, nil, antibot.Observer{})
+	guard, err := antibot.New(antibot.Config{}, cptime.SystemClock{}, antibot.Observer{})
 	require.NoError(t, err)
 
 	assert.Equal(t, antibot.Examination{Scope: "player"}, guard.Examine("player"))
 }
 
 func TestValidateNamesTheCohortBoundItRefuses(t *testing.T) {
-	config := antibot.Config{Enabled: true}
+	config := antibot.Config{Enabled: true, Database: database()}
 	config.Cohort.Enabled = true
 	config.Cohort.Detector.MinMembers = 1
 
@@ -621,4 +689,27 @@ func TestValidateNamesTheCohortBoundItRefuses(t *testing.T) {
 
 	config.Cohort.Enabled = false
 	assert.NoError(t, config.Validate(), "a watchdog that is off has no bounds to get wrong")
+}
+
+func database() cppg.Config {
+	return cppg.Config{Host: "postgres", Port: "5432", User: "clickplanet", DBName: "clickplanet", SSLMode: "disable", Schema: "antibot"}
+}
+
+func TestValidateRefusesAnEnabledGuardWithNoDatabase(t *testing.T) {
+	err := antibot.Config{Enabled: true}.Validate()
+
+	require.ErrorContains(t, err, "antiBot.database")
+	assert.NoError(t, antibot.Config{}.Validate(), "a guard that is off stores nothing")
+}
+
+func TestBansSurviveARestart(t *testing.T) {
+	s := newStack()
+
+	s.clock.Advance(time.Second)
+	s.guard.Ban("1.2.3.4", time.Hour)
+	s.restart(20 * time.Second)
+	defer func() { s.stop() }()
+
+	require.Empty(t, s.errors)
+	assert.True(t, s.guard.Banned("1.2.3.4"))
 }

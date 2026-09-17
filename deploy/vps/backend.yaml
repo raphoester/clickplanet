@@ -1,13 +1,19 @@
 # Production backend config for the VPS stack.
 #
 # The API holds the whole tile map in process and keeps it in the postgres
-# service of docker-compose.yaml. The ledger, bans, antibot evidence and the chat log are still files on the
-# tile_state volume.
+# service of docker-compose.yaml, with the ledger and the chat, and so does the antibot keep its bans and
+# evidence.
 
 httpServer:
   bindAddress: 0.0.0.0:8080
   # Operator services, loopback only. See "Operator tools" in the README.
   adminBindAddress: 127.0.0.1:8081
+  # What one module asks another, loopback only. Not reachable from Caddy.
+  # The planet module takes the click token's verifying key from auth over this.
+  internalBindAddress: 127.0.0.1:8082
+  # allowedOrigin comes from FRONTEND_ORIGIN in docker-compose.yaml, the value
+  # the Caddyfile allows, so the two cannot drift. Caddy overwrites these
+  # headers anyway; the backend refuses to boot without one.
 gameMap:
   maxIndex: 257948 # must match the tile count baked into the frontend coordinates
 
@@ -28,24 +34,17 @@ tilesStorage:
   # `docker compose down` or a rolling redeploy loses nothing: the API flushes
   # once more on SIGTERM.
   flushInterval: 1s
-  # The pre-postgres snapshot. The first boot imports it into an empty tiles
-  # table and renames it tiles.snapshot.imported. Remove this key once that has
-  # happened.
-  legacySnapshotPath: /home/app/state/tiles.snapshot
 
 # Every take of every tile, for the operator tools. Kept three days, so a ban
 # can be decided on more than the last few hours.
 ledger:
   retention: 72h
 
-# Saved on the tile_state volume beside the snapshot, so a deploy keeps it.
-# 4M takes is ~85 MiB in memory and a ~75 MiB file, which grows to at most
-# twice that before it is written again whole: three days at ~15 takes a
-# second. A busier stretch drops the oldest takes first and logs "the ledger is
-# full".
+# Kept in postgres beside the tile map; new takes are written every second.
+# 4M takes is ~85 MiB in memory: three days at ~15 takes a second. A busier
+# stretch drops the oldest takes first and logs "the ledger is full".
 ledgerStorage:
-  statePath: /home/app/state/ledger.bin
-  saveInterval: 1m
+  flushInterval: 1s
   maxTakes: 4000000
 
 # Per-caller throttle on the Click RPC. Keyed on the address Caddy puts in
@@ -86,6 +85,18 @@ vpnBlocklist:
 antiBot:
   enabled: true
 
+  # The same postgres, user and password as the planet, in the antibot schema.
+  database:
+    host: postgres
+    password: env://POSTGRES_PASSWORD
+    port: "5432"
+    user: clickplanet
+    dbName: clickplanet
+    sslMode: disable # the compose network, never the internet
+    schema: antibot
+    pool:
+      maxOpenConns: 2
+
   shadowBan:
     # On since the measuring pass: the sequencer earned it. A caller tracking
     # tile id N+1 for 150 of 200 steps is following a geodesic across the map —
@@ -97,9 +108,8 @@ antiBot:
     # going while banned only extends its ban; a new offence is a ban that starts
     # fresh. Offences are never forgotten.
     banDurations: [24h, 168h, 26280h]
-    # On the tile_state volume, so a deploy does not free every banned caller.
-    # Unban one scope: stop the backend, delete its line, start it again.
-    statePath: /home/app/state/bans.jsonl
+    # In postgres (antibot.bans), so a deploy does not free every banned caller.
+    # Unban one scope: see "Unban one scope" in the README.
     # Matches the widest watchdog trackWindow, so each repeat flag rests on
     # evidence the previous one never saw. Watch the flags= count climb on a
     # caller: one flag is a window, six is a pattern.
@@ -116,12 +126,11 @@ antiBot:
     trackWindow: 15m
     sweepInterval: 1m
 
-  # On the tile_state volume too. On 2026-09-14 the API restarted 23 times,
+  # In postgres too (antibot.evidence). On 2026-09-14 the API restarted 23 times,
   # every 5-10 minutes, and with this in memory no 10m, 15m or 30m window ever
-  # filled, so nothing was banned. Delete the file with the backend stopped to
+  # filled, so nothing was banned. Delete its rows with the backend stopped to
   # start every watchdog from nothing.
   evidence:
-    statePath: /home/app/state/antibot-evidence.bin
     saveInterval: 1m
     retention: 72h
 
@@ -182,6 +191,16 @@ antiBot:
       minClicks: 120
       certainFor: 30m
       certainClicks: 900
+      # Measuring only, from 2026-09-16: the bot rotating Free Mobile /64s
+      # slept 0.6-2.1s at random, paused up to 38s and read clear everywhere.
+      # Replayed over two days of access log, 0.25/0.15 caught its 12 scopes
+      # in ~12 minutes and no player. Set them from click_gap_skew.
+      shape:
+        maxGap: 10s
+        clicks: 500
+        certainClicks: 1000
+        # maxSkew: 0.25
+        # certainSkew: 0.15
       trackWindow: 15m
       sweepInterval: 1m
 
@@ -233,6 +252,24 @@ antiBot:
       certainMembers: 6
       chainWindow: 30m
       trackWindow: 30m
+      sweepInterval: 1m
+
+  # Reads the whole map again and again. See cmd/api/example.yaml. On
+  # 2026-09-15 and 16 a script in a real page read a map chunk after each click
+  # and painted dz and bg for twenty hours: 23 to 31 maps in 15 minutes, against
+  # at most 6 page loads for any human scope. Watch click_map_reads after deploying.
+  #
+  # Within 1.5h of this shipping, one scope answered it by opening a stream before
+  # every read, which buys back a map each time: 7 maps against 6 streams, under the
+  # bound, while it took 4,829 tiles. A read outside the map now forfeits that credit
+  # — its walk started at tile 0 and ran past the end, and no page load does either.
+  # Watch the offMap field of the ban lines.
+  scraper:
+    enabled: true
+    detector:
+      minMaps: 5
+      certainMaps: 15
+      trackWindow: 15m
       sweepInterval: 1m
 
 # A question-mark box flies past the planet every so often, and whoever catches
@@ -301,8 +338,8 @@ bonus:
 # address-based defence cannot do: refuse a caller that never proved anything,
 # however many addresses it can reach the game from. The blocklist above raises
 # the floor; this is what makes clicking cost something to start.
-session:
-  # On. The widget exists and .env holds SESSION_SECRET and TURNSTILE_SECRET;
+auth:
+  # On. The widget exists and .env.backend holds SESSION_SECRET and TURNSTILE_SECRET;
   # without that last one the API does not start at all, it does not degrade.
   enabled: true
   # On: a click without a session this server minted is answered 401 and never
@@ -332,18 +369,62 @@ session:
     # Must match the data-action the widget is rendered with, so a token minted
     # for another surface on the same sitekey is not accepted here.
     action: session
+  # Accounts and their sessions: same postgres, user and password as the other
+  # blocks, its own schema and pool. Only auth.v1 CreateSession uses it; the
+  # deprecated session.v1 path mints with no account.
+  database:
+    host: postgres
+    password: env://POSTGRES_PASSWORD
+    port: "5432"
+    user: clickplanet
+    dbName: clickplanet
+    sslMode: disable
+    schema: auth
+    pool:
+      maxOpenConns: 2
+  # Sign-in with Google or Discord. Off until the frontend ships the button and
+  # the privacy policy page: StartSignIn and CompleteSignIn answer 404 meanwhile.
+  # To turn it on, set the client ids below, GOOGLE_CLIENT_SECRET and
+  # DISCORD_CLIENT_SECRET in the Actions secrets, and register the redirect URL with each
+  # provider exactly as written here.
+  signIn:
+    enabled: false
+    redirectUrl: https://clickplanet.lol/auth/callback
+  # A provider is offered once its clientId is set. The ids are public; the
+  # secrets are anchors. Not set in the Actions secrets, render-env.sh writes
+  # them empty, which is allowed while the provider has no clientId.
+  google:
+    clientId: ""
+    clientSecret: env://GOOGLE_CLIENT_SECRET
+  discord:
+    clientId: ""
+    clientSecret: env://DISCORD_CLIENT_SECRET
+  # Accounts with no provider, unused for 90 days, are deleted every hour.
+  # Never below the guest cookie's 90 days.
+  prune:
+    idleFor: 2160h
+    interval: 1h
 
-# Live chat. Every message is appended to a JSONL log on the tile_state
-# volume, so the droplet's weekly disk backup covers it — with
-# a recovery point up to a week old.
+# Live chat. Every message is written to the chat schema in postgres before it
+# is broadcast; a message that cannot be written is refused.
 #
-# The log holds sender IPs alongside message text. Retention is therefore a
+# The table holds sender IPs alongside message text. Retention is therefore a
 # policy, not a cache size: 30 days, applied by an hourly prune.
 #
 chat:
-  enabled: true
+  # Same postgres, user and password as the planet's database block, its own
+  # schema and pool.
+  database:
+    host: postgres
+    password: env://POSTGRES_PASSWORD
+    port: "5432"
+    user: clickplanet
+    dbName: clickplanet
+    sslMode: disable
+    schema: chat
+    pool:
+      maxOpenConns: 2
   storage:
-    logPath: /home/app/state/chat.log
     historySize: 200
     retention: 720h
   service:

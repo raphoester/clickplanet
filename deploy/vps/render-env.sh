@@ -35,7 +35,7 @@ EXCLUDE='VPS_HOST VPS_USER VPS_SSH_KEY github_token'
 : "${SECRETS_JSON:?SECRETS_JSON is unset — the workflow fills it from toJSON(secrets)}"
 
 backend_yaml="$here/backend.yaml"
-caddyfile="$here/Caddyfile"
+caddyfile="$here/caddy/Caddyfile"
 compose="$here/docker-compose.yaml"
 for f in "$backend_yaml" "$caddyfile" "$compose"; do
 	[ -f "$f" ] || { echo "render-env.sh: $f is missing" >&2; exit 1; }
@@ -65,6 +65,8 @@ for name in $multiline; do
 done
 
 umask 077
+# The deploy renders into a directory nothing in git creates.
+mkdir -p "$outdir"
 env_tmp="$outdir/.env.tmp.$$"
 caddy_tmp="$outdir/.env.caddy.tmp.$$"
 backend_tmp="$outdir/.env.backend.tmp.$$"
