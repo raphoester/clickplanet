@@ -10,7 +10,7 @@ import {authorStyle} from "./authorStyle.ts";
 import ChatComposer from "./ChatComposer.tsx";
 import ChatLog from "./ChatLog.tsx";
 import {useChat} from "./useChat.ts";
-import {useChatIdentity} from "./useChatIdentity.ts";
+import {ChatIdentity} from "./chatIdentity.ts";
 import "./ChatPanel.css"
 
 export type ChatPanelProps = {
@@ -22,6 +22,13 @@ export type ChatPanelProps = {
      * the composer asks for no name; without, the player is a guest.
      */
     username?: string
+    /**
+     * The guest's name and id, from `useChatIdentity`. Held by `Viewer`, not
+     * here: presence announces the same name, and two copies of the hook would
+     * each keep their own and never hear of the other's change.
+     */
+    identity: ChatIdentity
+    setName: (name: string) => void
 }
 
 const UNREAD_CAP = 99
@@ -40,8 +47,7 @@ export default function ChatPanel(props: ChatPanelProps) {
     const bodyId = useId()
 
     const {messages, mine, status, failure, send} = useChat({backend: props.backend})
-    const {identity, setName} = useChatIdentity()
-    const {username} = props
+    const {identity, setName, username} = props
     // What everyone else sees on this player's messages.
     const displayName = username ?? (identity.name === "" ? "" : guestName(identity.name))
 

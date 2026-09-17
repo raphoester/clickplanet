@@ -21,6 +21,10 @@ import AnthemBar from "../anthem/AnthemBar.tsx";
 import {useAnthem} from "../anthem/useAnthem.ts";
 import {AccountStore} from "../account/accountStore.ts";
 import {useAccount} from "../account/useAccount.ts";
+import {PresenceBackend} from "../../backends/player.ts";
+import {useChatIdentity} from "../chat/useChatIdentity.ts";
+import {usePresence} from "../players/usePresence.ts";
+import {useRoster} from "../players/useRoster.ts";
 import SignInPitchModal from "../account/SignInPitchModal.tsx";
 import "./Viewer.css"
 
@@ -33,6 +37,8 @@ export type ViewerProps = {
     bomber?: Bomber
     chatBackend?: ChatBackend
     account?: AccountStore
+    /** Absent — the fake backend without one — the menu lists no players. */
+    presence?: PresenceBackend
 }
 
 export default function Viewer(props: ViewerProps) {
@@ -42,6 +48,17 @@ export default function Viewer(props: ViewerProps) {
     const sound = useSound()
     // The chat posts under the username, so it follows the account the menu shows.
     const account = useAccount(props.account)
+    const username = account.kind === 'ready' ? account.username : undefined
+
+    // Held here rather than in the chat: presence announces the same name, and
+    // two copies of the hook would not hear of each other's change.
+    const chatIdentity = useChatIdentity()
+    usePresence(props.presence, {
+        countryCode: countryState.code,
+        guestName: chatIdentity.identity.name,
+        username,
+    })
+    const roster = useRoster(props.presence)
     const [pitchOpen, setPitchOpen] = useState(false)
     // A guest the server offers sign-in to. With sign-in off there is nothing to point at, so nothing is offered.
     const guest = account.kind === 'ready' && account.offered.length > 0 && account.me.linked.length === 0
@@ -93,6 +110,7 @@ export default function Viewer(props: ViewerProps) {
             tilesCount={tilesCount}
             sound={{settings: sound.settings, onChange: sound.setSettings, preview: sound.preview}}
             account={props.account}
+            players={roster.kind === 'ready' ? roster.entries : undefined}
             linkedMultiplier={clickBudget?.linkedMultiplier}
         />}
 
@@ -122,7 +140,9 @@ export default function Viewer(props: ViewerProps) {
             backend={props.chatBackend}
             country={countryState}
             playSound={sound.play}
-            username={account.kind === 'ready' ? account.username : undefined}
+            username={username}
+            identity={chatIdentity.identity}
+            setName={chatIdentity.setName}
         />}
 
         {award && <BonusAward reward={award} onDone={dismissAward}/>}

@@ -1,7 +1,7 @@
 import {afterEach, describe, expect, it, vi} from "vitest"
 import {Code, ConnectError} from "@connectrpc/connect"
-import {Profile as ProfilePb} from "../gen/grpc/player/v1/player_pb.ts"
-import {isValidUsername, PlayerError} from "./player.ts"
+import {Profile as ProfilePb, RosterEntry as RosterEntryPb} from "../gen/grpc/player/v1/player_pb.ts"
+import {isValidUsername, PlayerError, RosterUnavailableError} from "./player.ts"
 import {ConnectPlayerBackend} from "./playerBackend.ts"
 import {SESSION_HEADER, SessionProvider, SessionUnavailableError} from "./session.ts"
 
@@ -15,6 +15,7 @@ function sessionOf(...tokens: string[]): SessionProvider & {invalidate: ReturnTy
     let minted = 0
     return {
         token: vi.fn(async () => tokens[Math.min(minted, tokens.length - 1)]),
+        held: vi.fn(() => undefined),
         invalidate: vi.fn(() => {
             minted++
         }),
@@ -124,6 +125,7 @@ describe("ConnectPlayerBackend", () => {
             token: vi.fn(async () => {
                 throw new SessionUnavailableError()
             }),
+            held: vi.fn(() => undefined),
             invalidate: vi.fn(),
         }
         const setName = answering("ana")
@@ -150,5 +152,113 @@ describe("ConnectPlayerBackend", () => {
 
         await expect(backend.setName("ana")).rejects.toMatchObject({failure: "failed"})
         expect(setName).toHaveBeenCalledTimes(1)
+    })
+})
+
+describe("ConnectPlayerBackend presence", () => {
+    /** A session holding `held`, whose `token` would mint: a test fails if it is called. */
+    function holding(held: string | undefined) {
+        let current = held
+        return {
+            token: vi.fn(async () => "minted"),
+            held: vi.fn(() => current),
+            invalidate: vi.fn(() => {
+                current = undefined
+            }),
+        }
+    }
+
+    const presence = {countryCode: "fr", guestName: "Bo"}
+
+    it("announces with the token it holds", async () => {
+        const session = holding("token-1")
+        const announce = vi.fn(async () => ({}))
+        const backend = backendWith({announce}, session)
+
+        expect(await backend.announce(presence)).toBe(true)
+
+        expect(announce).toHaveBeenCalledWith({countryId: "fr", guestName: "Bo"}, expect.anything())
+        expect(headersOf(announce).headers.get(SESSION_HEADER)).toBe("token-1")
+        expect(session.token).not.toHaveBeenCalled()
+    })
+
+    // A mint is a Turnstile check: a visitor who never clicked is not listed.
+    it("sends nothing, and mints nothing, while no token is held", async () => {
+        const session = holding(undefined)
+        const announce = vi.fn(async () => ({}))
+        const backend = backendWith({announce}, session)
+
+        expect(await backend.announce(presence)).toBe(false)
+
+        expect(announce).not.toHaveBeenCalled()
+        expect(session.token).not.toHaveBeenCalled()
+    })
+
+    it("drops a refused token rather than minting a fresh one to retry", async () => {
+        const session = holding("stale")
+        const announce = refusing(Code.Unauthenticated)
+        const backend = backendWith({announce}, session)
+
+        await expect(backend.announce(presence)).rejects.toMatchObject({failure: "notSignedIn"})
+
+        expect(announce).toHaveBeenCalledTimes(1)
+        expect(session.invalidate).toHaveBeenCalledTimes(1)
+        expect(session.token).not.toHaveBeenCalled()
+        expect(backend.heldSession()).toBeUndefined()
+    })
+
+    it("reports an unknown country as invalid", async () => {
+        const backend = backendWith({announce: refusing(Code.InvalidArgument)}, holding("token-1"))
+
+        await expect(backend.announce(presence)).rejects.toMatchObject({failure: "invalid"})
+    })
+
+    it("sends an announce once, even when the server cannot be reached", async () => {
+        const announce = refusing(Code.Unavailable)
+        const backend = backendWith({announce}, holding("token-1"))
+
+        await expect(backend.announce(presence)).rejects.toBeInstanceOf(PlayerError)
+        expect(announce).toHaveBeenCalledTimes(1)
+    })
+
+    it("reads the roster without a token, and maps each entry", async () => {
+        const session = holding("token-1")
+        const getRoster = vi.fn(async () => ({
+            entries: [
+                new RosterEntryPb({name: "ana", tag: "4f2ca1", countryId: "fr", guest: false}),
+                new RosterEntryPb({name: "guest_Bo", tag: "91aa3d", countryId: "de", guest: true}),
+            ],
+        }))
+        const backend = backendWith({getRoster}, session)
+
+        expect(await backend.roster()).toEqual([
+            {name: "ana", tag: "4f2ca1", countryCode: "fr", guest: false},
+            {name: "guest_Bo", tag: "91aa3d", countryCode: "de", guest: true},
+        ])
+        expect(getRoster).toHaveBeenCalledWith({})
+        expect(session.held).not.toHaveBeenCalled()
+        expect(session.token).not.toHaveBeenCalled()
+    })
+
+    // Connect reads a 404 as unimplemented: a server from before the roster.
+    it("reports a server without the roster as unavailable", async () => {
+        for (const code of [Code.Unimplemented, Code.NotFound]) {
+            const backend = backendWith({getRoster: refusing(code)})
+
+            await expect(backend.roster()).rejects.toBeInstanceOf(RosterUnavailableError)
+        }
+    })
+
+    it("retries the roster while the server cannot be reached, and reports any other failure as it is", async () => {
+        vi.spyOn(console, "error").mockImplementation(() => {})
+        const getRoster = vi.fn()
+            .mockRejectedValueOnce(new ConnectError("down", Code.Unavailable))
+            .mockResolvedValue({entries: []})
+        expect(await backendWith({getRoster}).roster()).toEqual([])
+        expect(getRoster).toHaveBeenCalledTimes(2)
+
+        const failing = backendWith({getRoster: refusing(Code.Internal)})
+        const error = await failing.roster().catch((e) => e)
+        expect(error).not.toBeInstanceOf(RosterUnavailableError)
     })
 })

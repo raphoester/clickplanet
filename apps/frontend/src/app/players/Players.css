@@ -1,0 +1,109 @@
+/* The count beside the icon, in the button's own face. Luckiest Guy carries far
+   more ascent than its capitals use, so the digits ride high against the icon
+   unless the text is padded down and the icon lifted back — the same correction
+   .menu-change makes. */
+.menu-actions > .menu-players {
+    flex: 0 0 auto;
+    min-width: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 4px 14px 0 12px;
+}
+
+.menu-players svg {
+    flex-shrink: 0;
+    margin-top: -4px;
+}
+
+.menu-players-count {
+    font-size: 22px;
+    font-variant-numeric: tabular-nums;
+}
+
+.players-panel {
+    display: flex;
+    flex-direction: column;
+    /* Clears the fade .menu-panel lays over its bottom edge. */
+    padding-bottom: 36px;
+}
+
+.players-group-title {
+    margin-top: 0;
+}
+
+.players-group + .players-group .players-group-title {
+    margin-top: 12px;
+}
+
+.players-group-count {
+    order: 1;
+    color: #FFFFFF80;
+}
+
+.players-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.players-entry {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+    padding: 6px 4px;
+}
+
+.players-entry-country {
+    flex-shrink: 0;
+    font-size: 18px;
+}
+
+.players-entry-country .country-flag {
+    margin-right: 0;
+}
+
+/* The chat's author colour: --author on .chat-message in ChatPanel.css. Only
+   the hue comes from the TS; keep these two numbers equal to the chat's, or one
+   player is two colours. */
+.players-entry-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 17px;
+    letter-spacing: 0.4px;
+    color: hsl(var(--author-hue, 0), 80%, 78%);
+    text-shadow: -1px 1px 0 #000000;
+}
+
+/* As .chat-message-tag. */
+.players-entry-tag {
+    flex-shrink: 0;
+    font-family: Oswald, sans-serif;
+    font-weight: 500;
+    font-size: 11px;
+    letter-spacing: 0.8px;
+    color: #FFFFFF59;
+}
+
+.players-empty {
+    margin: 8px 4px;
+}
+
+@media only screen and (max-width: 768px) {
+    .menu-actions > .menu-players {
+        min-width: 40px;
+        padding: 3px 10px 0 8px;
+    }
+
+    .menu-players-count {
+        font-size: 18px;
+    }
+
+    .players-entry {
+        padding: 5px 4px;
+    }
+}

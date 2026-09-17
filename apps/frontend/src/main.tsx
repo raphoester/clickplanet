@@ -8,6 +8,7 @@ import {newAuthServiceClient, SessionClient, turnstileAttester} from "./backends
 import {ChatServiceBackend, newChatServiceClient} from "./backends/chatBackend.ts"
 import {FakeBackend} from "./backends/fakeBackend.ts"
 import {FakeChatBackend} from "./backends/fakeChatBackend.ts"
+import {FakePresenceBackend} from "./backends/fakePresenceBackend.ts"
 import {loadPointGeometryData} from "./app/viewer/points.ts"
 import type {Globe} from "./app/viewer/globe.ts"
 import App from "./app/App.tsx"
@@ -80,6 +81,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     bomber={fake}
                     clickBudgetSource={fake}
                     chatBackend={new FakeChatBackend()}
+                    presence={new FakePresenceBackend()}
                 />
             </SignInGate>
         </StrictMode>,
@@ -105,6 +107,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     clickBudgetSource={backend}
                     chatBackend={chatBackend}
                     account={account}
+                    presence={player}
                 />
             </SignInGate>
         </StrictMode>,

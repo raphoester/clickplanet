@@ -24,7 +24,7 @@ async function guest() {
         setName: vi.fn(async (name: string) => ({accountId: "account-1", name})),
     } satisfies PlayerBackend
     const navigate = vi.fn()
-    const store = new AccountStore(backend, player, {token: vi.fn(), invalidate: vi.fn()}, {navigate, remember: vi.fn()})
+    const store = new AccountStore(backend, player, {token: vi.fn(), held: vi.fn(), invalidate: vi.fn()}, {navigate, remember: vi.fn()})
 
     await store.load()
     const state = store.state()

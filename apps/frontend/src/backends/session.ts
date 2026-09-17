@@ -10,6 +10,13 @@ export interface SessionProvider {
      */
     token(): Promise<string | undefined>
 
+    /**
+     * The token already in hand and still good, or undefined. It never mints:
+     * a mint costs a Turnstile check, which only a click is worth. Presence is
+     * announced with this, so a visitor who never clicked is never listed.
+     */
+    held(): string | undefined
+
     /** Called when the server refused the token we last supplied. */
     invalidate(): void
 }
@@ -31,6 +38,10 @@ export class SessionUnavailableError extends Error {
 /** For a backend that does not use sessions, and for the fake one. */
 export class NoSession implements SessionProvider {
     public async token(): Promise<string | undefined> {
+        return undefined
+    }
+
+    public held(): string | undefined {
         return undefined
     }
 

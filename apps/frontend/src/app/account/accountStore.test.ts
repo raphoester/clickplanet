@@ -36,7 +36,7 @@ const refusingName = (failure: PlayerFailure) => async () => {
 }
 
 function setup(backend: Fake, player: FakePlayer = fakePlayer()) {
-    const session: SessionProvider = {token: vi.fn(async () => "token"), invalidate: vi.fn()}
+    const session: SessionProvider = {token: vi.fn(async () => "token"), held: vi.fn(() => "token"), invalidate: vi.fn()}
     const navigate = vi.fn()
     const remember = vi.fn()
     const store = new AccountStore(

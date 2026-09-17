@@ -12,7 +12,7 @@ import {SESSION_HEADER, SessionProvider} from "./session.ts"
 
 const outgoing = {authorName: "Ana", authorId: "author-1", countryCode: "fr", text: "hello", asAccount: false}
 
-const session = (): SessionProvider => ({token: vi.fn(async () => "token-1"), invalidate: vi.fn()})
+const session = (): SessionProvider => ({token: vi.fn(async () => "token-1"), held: vi.fn(() => "token-1"), invalidate: vi.fn()})
 
 const headersOf = (call: unknown) =>
     ((call as ReturnType<typeof vi.fn>).mock.calls[0][1] as {headers: Headers}).headers
@@ -111,6 +111,7 @@ describe("ChatServiceBackend.sendMessage", () => {
             token: vi.fn(async () => {
                 throw new Error("no mint")
             }),
+            held: vi.fn(() => undefined),
             invalidate: vi.fn(),
         }
 

@@ -109,6 +109,15 @@ export function UserIcon({size = 22}: IconProps) {
     </svg>
 }
 
+export function UsersIcon({size = 22}: IconProps) {
+    return <svg {...base(size)} strokeWidth={2}>
+        <circle cx="9" cy="8.5" r="3.5"/>
+        <path d="M2.5 19.5a6.5 6.5 0 0 1 13 0"/>
+        <path d="M15.5 5.2a3.5 3.5 0 0 1 0 6.6"/>
+        <path d="M18 14.2a6.5 6.5 0 0 1 3.5 5.3"/>
+    </svg>
+}
+
 export function PlayIcon({size = 18}: IconProps) {
     return <svg {...base(size)} fill="currentColor" strokeWidth={1.6}>
         <path d="M7.5 5.2v13.6L18.5 12z"/>

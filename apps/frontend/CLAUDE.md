@@ -170,7 +170,8 @@ is worth keeping on this side too.
 Beside them: `session.ts` (the click token, see [Sessions](#sessions)),
 `account.ts` (who the cookie belongs to, see [Sign-in](#sign-in)) and
 `player.ts` — `PlayerBackend`, the player's `Profile`, `PlayerError` and
-`isValidUsername`, the username rule. `playerBackend.ts` implements it against
+`isValidUsername`, the username rule, plus `PresenceBackend` (see [Who is
+playing](#who-is-playing)). `playerBackend.ts` implements both against
 `player.v1.PlayerService`.
 
 `transport.ts` holds what both contexts need and neither owns: `retrying`,
@@ -383,6 +384,48 @@ by hand, dismisses it.
 
 Every one of these animations is dropped or reduced under
 `prefers-reduced-motion: reduce`, keeping the colour and losing the movement.
+
+### Who is playing
+
+The "players online" button in the menu's action row opens a `MenuPanel` listing
+everyone playing: players with a username, then guests, each with a flag, a name
+in its chat colour (`authorStyle`, the same hue as in the chat) and `#tag`.
+
+- `backends/player.ts` — `PresenceBackend`, `Presence`, `RosterEntry` and
+  `RosterUnavailableError`. `ConnectPlayerBackend` implements it over
+  `player.v1.PlayerService/Announce` and `GetRoster`; `fakePresenceBackend.ts`
+  is the dev stand-in, with players coming and going on their own shifts.
+- `domain/presence.ts` — `PresenceSchedule`, when to announce. No clock and no
+  network, so every rule is under test. `domain/roster.ts` splits the roster
+  into the two groups, keeping the server's order.
+- `app/players/` — `usePresence` and `useRoster`, thin hooks over the above,
+  and `PlayersPanel`.
+
+**It announces only with a token it already holds.** `SessionProvider.held()`
+answers the click token in hand and never mints: a mint is a Turnstile check,
+and presence is not worth one. So a visitor who never clicked is not listed, by
+design. The schedule announces as soon as a token is held that the last
+announce did not go out under (the first click, a re-mint, a sign-in), once
+the flag, the guest name or the username has held still for a second, and every
+30s — the server drops a player 90s after its last one. An announce refused
+`unauthenticated` drops the token and is **not** retried with a fresh one, which
+would mint; the next click brings one. `NoSession` holds nothing, so a build
+without a sitekey never announces.
+
+**The roster is polled, not streamed**: at once, every 10s while
+`document.visibilityState` is `visible`, and at once when the tab comes back.
+A hidden tab asks nothing. `GetRoster` is side-effect free, so it goes out as a
+GET with no token and no header (the player client has `useHttpGet`), which a
+proxy may cache for 5s. A failed read keeps the last list; a 404 (read as
+`unimplemented`) hides the button for good, as does a build with no presence
+backend wired.
+
+**The chat identity lives in `Viewer`, not in `ChatPanel`.** The guest name the
+announce carries is the one typed in the chat, and `useChatIdentity` is plain
+component state over local storage: two copies of the hook would each hold their
+own and never hear of the other's change, so a name set in the chat would not
+reach the roster until a reload. `Viewer` holds the one copy and passes it to
+both.
 
 ### Sessions
 
@@ -1118,7 +1161,7 @@ the whole `proto` directory, so a new package needs no config change; run
 - [`session/v1/session.proto`](../../proto/session/v1/session.proto) — the
   deprecated mint, no longer called
 - [`player/v1/player.proto`](../../proto/player/v1/player.proto) — the
-  username (`PlayerService`)
+  username and who is playing (`PlayerService`)
 
 `ChatMessage.sentAtUnixMs` is an `int64`, which `protoc-gen-es` gives you as a
 `bigint` — `chatBackend.ts` converts it at the edge so nothing above it deals in
