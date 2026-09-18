@@ -102,10 +102,27 @@ export function HomeIcon({size = 22}: IconProps) {
     </svg>
 }
 
+export function InfoIcon({size = 22}: IconProps) {
+    return <svg {...base(size)} strokeWidth={2}>
+        <circle cx="12" cy="12" r="8.5"/>
+        <path d="M12 11v5.5"/>
+        <path d="M12 7.5h.01"/>
+    </svg>
+}
+
 export function UserIcon({size = 22}: IconProps) {
     return <svg {...base(size)} strokeWidth={2}>
         <circle cx="12" cy="8" r="4"/>
         <path d="M4.5 20.5a7.5 7.5 0 0 1 15 0"/>
+    </svg>
+}
+
+export function UsersIcon({size = 22}: IconProps) {
+    return <svg {...base(size)} strokeWidth={2}>
+        <circle cx="9" cy="8.5" r="3.5"/>
+        <path d="M2.5 19.5a6.5 6.5 0 0 1 13 0"/>
+        <path d="M15.5 5.2a3.5 3.5 0 0 1 0 6.6"/>
+        <path d="M18 14.2a6.5 6.5 0 0 1 3.5 5.3"/>
     </svg>
 }
 
@@ -119,5 +136,20 @@ export function PauseIcon({size = 18}: IconProps) {
     return <svg {...base(size)} fill="currentColor" strokeWidth={1.6}>
         <rect x="6.5" y="5.5" width="3.6" height="13" rx="0.8"/>
         <rect x="13.9" y="5.5" width="3.6" height="13" rx="0.8"/>
+    </svg>
+}
+
+export function CrownIcon({size = 14}: IconProps) {
+    return <svg {...base(size)} fill="currentColor" strokeWidth={1.6}>
+        <path d="M3.5 8.5 8 12l4-6.5 4 6.5 4.5-3.5-2 10h-13z"/>
+    </svg>
+}
+
+export function AddReactionIcon({size = 16}: IconProps) {
+    return <svg {...base(size)} strokeWidth={2.2}>
+        <path d="M20.5 12.5A8.5 8.5 0 1 1 11.5 3.5"/>
+        <path d="M8.5 14.5c.9 1.2 2.1 1.8 3.5 1.8s2.6-.6 3.5-1.8"/>
+        <path d="M9 9.8h.01M15 9.8h.01"/>
+        <path d="M18.5 2.5v6M15.5 5.5h6"/>
     </svg>
 }

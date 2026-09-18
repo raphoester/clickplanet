@@ -395,12 +395,8 @@ func (x *GetStatsResponse) GetStats() *Stats {
 }
 
 type AnnounceRequest struct {
-	state     protoimpl.MessageState `protogen:"open.v1"`
-	CountryId string                 `protobuf:"bytes,1,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
-	// The name a guest typed in the chat. Not read for an account with a
-	// username. Empty, or one the server refuses, shows the guest as "guest_" and
-	// its tag.
-	GuestName     string `protobuf:"bytes,2,opt,name=guest_name,json=guestName,proto3" json:"guest_name,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CountryId     string                 `protobuf:"bytes,1,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -442,13 +438,6 @@ func (x *AnnounceRequest) GetCountryId() string {
 	return ""
 }
 
-func (x *AnnounceRequest) GetGuestName() string {
-	if x != nil {
-		return x.GuestName
-	}
-	return ""
-}
-
 type AnnounceResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -485,6 +474,78 @@ func (*AnnounceResponse) Descriptor() ([]byte, []int) {
 	return file_player_v1_player_proto_rawDescGZIP(), []int{9}
 }
 
+type LeaveRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LeaveRequest) Reset() {
+	*x = LeaveRequest{}
+	mi := &file_player_v1_player_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LeaveRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LeaveRequest) ProtoMessage() {}
+
+func (x *LeaveRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_player_v1_player_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LeaveRequest.ProtoReflect.Descriptor instead.
+func (*LeaveRequest) Descriptor() ([]byte, []int) {
+	return file_player_v1_player_proto_rawDescGZIP(), []int{10}
+}
+
+type LeaveResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LeaveResponse) Reset() {
+	*x = LeaveResponse{}
+	mi := &file_player_v1_player_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LeaveResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LeaveResponse) ProtoMessage() {}
+
+func (x *LeaveResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_player_v1_player_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LeaveResponse.ProtoReflect.Descriptor instead.
+func (*LeaveResponse) Descriptor() ([]byte, []int) {
+	return file_player_v1_player_proto_rawDescGZIP(), []int{11}
+}
+
 type GetRosterRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -493,7 +554,7 @@ type GetRosterRequest struct {
 
 func (x *GetRosterRequest) Reset() {
 	*x = GetRosterRequest{}
-	mi := &file_player_v1_player_proto_msgTypes[10]
+	mi := &file_player_v1_player_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -505,7 +566,7 @@ func (x *GetRosterRequest) String() string {
 func (*GetRosterRequest) ProtoMessage() {}
 
 func (x *GetRosterRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_player_v1_player_proto_msgTypes[10]
+	mi := &file_player_v1_player_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -518,7 +579,7 @@ func (x *GetRosterRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRosterRequest.ProtoReflect.Descriptor instead.
 func (*GetRosterRequest) Descriptor() ([]byte, []int) {
-	return file_player_v1_player_proto_rawDescGZIP(), []int{10}
+	return file_player_v1_player_proto_rawDescGZIP(), []int{12}
 }
 
 type GetRosterResponse struct {
@@ -532,7 +593,7 @@ type GetRosterResponse struct {
 
 func (x *GetRosterResponse) Reset() {
 	*x = GetRosterResponse{}
-	mi := &file_player_v1_player_proto_msgTypes[11]
+	mi := &file_player_v1_player_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -544,7 +605,7 @@ func (x *GetRosterResponse) String() string {
 func (*GetRosterResponse) ProtoMessage() {}
 
 func (x *GetRosterResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_player_v1_player_proto_msgTypes[11]
+	mi := &file_player_v1_player_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -557,7 +618,7 @@ func (x *GetRosterResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRosterResponse.ProtoReflect.Descriptor instead.
 func (*GetRosterResponse) Descriptor() ([]byte, []int) {
-	return file_player_v1_player_proto_rawDescGZIP(), []int{11}
+	return file_player_v1_player_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *GetRosterResponse) GetEntries() []*RosterEntry {
@@ -569,21 +630,24 @@ func (x *GetRosterResponse) GetEntries() []*RosterEntry {
 
 type RosterEntry struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// A username, or "guest_" and the name a guest typed or its tag.
+	// A username, or "guest_" and the account's guest code, as on a chat
+	// message.
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	// As on a chat message: a salted hash of the address the player last
-	// announced from.
-	Tag string `protobuf:"bytes,2,opt,name=tag,proto3" json:"tag,omitempty"`
 	// The flag the player last announced.
-	CountryId     string `protobuf:"bytes,3,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
-	Guest         bool   `protobuf:"varint,4,opt,name=guest,proto3" json:"guest,omitempty"`
+	CountryId string `protobuf:"bytes,3,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
+	Guest     bool   `protobuf:"varint,4,opt,name=guest,proto3" json:"guest,omitempty"`
+	// An admin of the game. Never a guest.
+	Admin bool `protobuf:"varint,5,opt,name=admin,proto3" json:"admin,omitempty"`
+	// Names this line for as long as the player stays on the roster, a sign-in
+	// and a new name included. Opaque: it says nothing about the account.
+	Key           string `protobuf:"bytes,6,opt,name=key,proto3" json:"key,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RosterEntry) Reset() {
 	*x = RosterEntry{}
-	mi := &file_player_v1_player_proto_msgTypes[12]
+	mi := &file_player_v1_player_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -595,7 +659,7 @@ func (x *RosterEntry) String() string {
 func (*RosterEntry) ProtoMessage() {}
 
 func (x *RosterEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_player_v1_player_proto_msgTypes[12]
+	mi := &file_player_v1_player_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -608,19 +672,12 @@ func (x *RosterEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RosterEntry.ProtoReflect.Descriptor instead.
 func (*RosterEntry) Descriptor() ([]byte, []int) {
-	return file_player_v1_player_proto_rawDescGZIP(), []int{12}
+	return file_player_v1_player_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *RosterEntry) GetName() string {
 	if x != nil {
 		return x.Name
-	}
-	return ""
-}
-
-func (x *RosterEntry) GetTag() string {
-	if x != nil {
-		return x.Tag
 	}
 	return ""
 }
@@ -635,6 +692,468 @@ func (x *RosterEntry) GetCountryId() string {
 func (x *RosterEntry) GetGuest() bool {
 	if x != nil {
 		return x.Guest
+	}
+	return false
+}
+
+func (x *RosterEntry) GetAdmin() bool {
+	if x != nil {
+		return x.Admin
+	}
+	return false
+}
+
+func (x *RosterEntry) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+type ListenForEventsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListenForEventsRequest) Reset() {
+	*x = ListenForEventsRequest{}
+	mi := &file_player_v1_player_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListenForEventsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListenForEventsRequest) ProtoMessage() {}
+
+func (x *ListenForEventsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_player_v1_player_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListenForEventsRequest.ProtoReflect.Descriptor instead.
+func (*ListenForEventsRequest) Descriptor() ([]byte, []int) {
+	return file_player_v1_player_proto_rawDescGZIP(), []int{15}
+}
+
+// The one live stream of this API — see the note on planet.v1.PlanetEvent. A
+// new kind of event is a new case below, not a second stream.
+//
+// Heartbeat is what keeps a quiet stream alive: Cloudflare cuts a silent
+// response at ~125s with a 524.
+type PlayerEvent struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Event:
+	//
+	//	*PlayerEvent_Roster
+	//	*PlayerEvent_Entry
+	//	*PlayerEvent_Left
+	//	*PlayerEvent_Heartbeat
+	Event         isPlayerEvent_Event `protobuf_oneof:"event"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PlayerEvent) Reset() {
+	*x = PlayerEvent{}
+	mi := &file_player_v1_player_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PlayerEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PlayerEvent) ProtoMessage() {}
+
+func (x *PlayerEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_player_v1_player_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PlayerEvent.ProtoReflect.Descriptor instead.
+func (*PlayerEvent) Descriptor() ([]byte, []int) {
+	return file_player_v1_player_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *PlayerEvent) GetEvent() isPlayerEvent_Event {
+	if x != nil {
+		return x.Event
+	}
+	return nil
+}
+
+func (x *PlayerEvent) GetRoster() *Roster {
+	if x != nil {
+		if x, ok := x.Event.(*PlayerEvent_Roster); ok {
+			return x.Roster
+		}
+	}
+	return nil
+}
+
+func (x *PlayerEvent) GetEntry() *RosterEntry {
+	if x != nil {
+		if x, ok := x.Event.(*PlayerEvent_Entry); ok {
+			return x.Entry
+		}
+	}
+	return nil
+}
+
+func (x *PlayerEvent) GetLeft() *PlayerLeft {
+	if x != nil {
+		if x, ok := x.Event.(*PlayerEvent_Left); ok {
+			return x.Left
+		}
+	}
+	return nil
+}
+
+func (x *PlayerEvent) GetHeartbeat() *Heartbeat {
+	if x != nil {
+		if x, ok := x.Event.(*PlayerEvent_Heartbeat); ok {
+			return x.Heartbeat
+		}
+	}
+	return nil
+}
+
+type isPlayerEvent_Event interface {
+	isPlayerEvent_Event()
+}
+
+type PlayerEvent_Roster struct {
+	// The whole roster, in GetRoster's order. Always the first event, so a
+	// client that reconnects starts over from it.
+	Roster *Roster `protobuf:"bytes,1,opt,name=roster,proto3,oneof"`
+}
+
+type PlayerEvent_Entry struct {
+	// A player joined, or a line changed: its name or its flag. It
+	// replaces the line with the same key.
+	Entry *RosterEntry `protobuf:"bytes,2,opt,name=entry,proto3,oneof"`
+}
+
+type PlayerEvent_Left struct {
+	// The line with this key is gone: the player left, signed out or stopped
+	// announcing.
+	Left *PlayerLeft `protobuf:"bytes,3,opt,name=left,proto3,oneof"`
+}
+
+type PlayerEvent_Heartbeat struct {
+	Heartbeat *Heartbeat `protobuf:"bytes,4,opt,name=heartbeat,proto3,oneof"`
+}
+
+func (*PlayerEvent_Roster) isPlayerEvent_Event() {}
+
+func (*PlayerEvent_Entry) isPlayerEvent_Event() {}
+
+func (*PlayerEvent_Left) isPlayerEvent_Event() {}
+
+func (*PlayerEvent_Heartbeat) isPlayerEvent_Event() {}
+
+type Roster struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Players with a username first, then guests; each group by name, ignoring
+	// case.
+	Entries       []*RosterEntry `protobuf:"bytes,1,rep,name=entries,proto3" json:"entries,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Roster) Reset() {
+	*x = Roster{}
+	mi := &file_player_v1_player_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Roster) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Roster) ProtoMessage() {}
+
+func (x *Roster) ProtoReflect() protoreflect.Message {
+	mi := &file_player_v1_player_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Roster.ProtoReflect.Descriptor instead.
+func (*Roster) Descriptor() ([]byte, []int) {
+	return file_player_v1_player_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *Roster) GetEntries() []*RosterEntry {
+	if x != nil {
+		return x.Entries
+	}
+	return nil
+}
+
+type PlayerLeft struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Key           string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PlayerLeft) Reset() {
+	*x = PlayerLeft{}
+	mi := &file_player_v1_player_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PlayerLeft) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PlayerLeft) ProtoMessage() {}
+
+func (x *PlayerLeft) ProtoReflect() protoreflect.Message {
+	mi := &file_player_v1_player_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PlayerLeft.ProtoReflect.Descriptor instead.
+func (*PlayerLeft) Descriptor() ([]byte, []int) {
+	return file_player_v1_player_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *PlayerLeft) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+type Heartbeat struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Heartbeat) Reset() {
+	*x = Heartbeat{}
+	mi := &file_player_v1_player_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Heartbeat) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Heartbeat) ProtoMessage() {}
+
+func (x *Heartbeat) ProtoReflect() protoreflect.Message {
+	mi := &file_player_v1_player_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Heartbeat.ProtoReflect.Descriptor instead.
+func (*Heartbeat) Descriptor() ([]byte, []int) {
+	return file_player_v1_player_proto_rawDescGZIP(), []int{19}
+}
+
+type GetPlayerRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// A username, in any case.
+	Name          string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetPlayerRequest) Reset() {
+	*x = GetPlayerRequest{}
+	mi := &file_player_v1_player_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetPlayerRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetPlayerRequest) ProtoMessage() {}
+
+func (x *GetPlayerRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_player_v1_player_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetPlayerRequest.ProtoReflect.Descriptor instead.
+func (*GetPlayerRequest) Descriptor() ([]byte, []int) {
+	return file_player_v1_player_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *GetPlayerRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+type GetPlayerResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Player        *Player                `protobuf:"bytes,1,opt,name=player,proto3" json:"player,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetPlayerResponse) Reset() {
+	*x = GetPlayerResponse{}
+	mi := &file_player_v1_player_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetPlayerResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetPlayerResponse) ProtoMessage() {}
+
+func (x *GetPlayerResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_player_v1_player_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetPlayerResponse.ProtoReflect.Descriptor instead.
+func (*GetPlayerResponse) Descriptor() ([]byte, []int) {
+	return file_player_v1_player_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *GetPlayerResponse) GetPlayer() *Player {
+	if x != nil {
+		return x.Player
+	}
+	return nil
+}
+
+type Player struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The username as its player typed it.
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// As of today: a streak that ended before yesterday reads 0.
+	Stats *Stats `protobuf:"bytes,2,opt,name=stats,proto3" json:"stats,omitempty"`
+	// When the account was made, as a guest or by a first sign-in.
+	CreatedAtUnixMs int64 `protobuf:"varint,3,opt,name=created_at_unix_ms,json=createdAtUnixMs,proto3" json:"created_at_unix_ms,omitempty"`
+	// An admin of the game.
+	Admin         bool `protobuf:"varint,4,opt,name=admin,proto3" json:"admin,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Player) Reset() {
+	*x = Player{}
+	mi := &file_player_v1_player_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Player) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Player) ProtoMessage() {}
+
+func (x *Player) ProtoReflect() protoreflect.Message {
+	mi := &file_player_v1_player_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Player.ProtoReflect.Descriptor instead.
+func (*Player) Descriptor() ([]byte, []int) {
+	return file_player_v1_player_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *Player) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *Player) GetStats() *Stats {
+	if x != nil {
+		return x.Stats
+	}
+	return nil
+}
+
+func (x *Player) GetCreatedAtUnixMs() int64 {
+	if x != nil {
+		return x.CreatedAtUnixMs
+	}
+	return 0
+}
+
+func (x *Player) GetAdmin() bool {
+	if x != nil {
+		return x.Admin
 	}
 	return false
 }
@@ -664,29 +1183,56 @@ const file_player_v1_player_proto_rawDesc = "" +
 	"\x0fstreak_last_day\x18\x04 \x01(\tR\rstreakLastDay\"\x11\n" +
 	"\x0fGetStatsRequest\":\n" +
 	"\x10GetStatsResponse\x12&\n" +
-	"\x05stats\x18\x01 \x01(\v2\x10.player.v1.StatsR\x05stats\"O\n" +
+	"\x05stats\x18\x01 \x01(\v2\x10.player.v1.StatsR\x05stats\"B\n" +
 	"\x0fAnnounceRequest\x12\x1d\n" +
 	"\n" +
-	"country_id\x18\x01 \x01(\tR\tcountryId\x12\x1d\n" +
-	"\n" +
-	"guest_name\x18\x02 \x01(\tR\tguestName\"\x12\n" +
-	"\x10AnnounceResponse\"\x12\n" +
+	"country_id\x18\x01 \x01(\tR\tcountryIdJ\x04\b\x02\x10\x03R\n" +
+	"guest_name\"\x12\n" +
+	"\x10AnnounceResponse\"\x0e\n" +
+	"\fLeaveRequest\"\x0f\n" +
+	"\rLeaveResponse\"\x12\n" +
 	"\x10GetRosterRequest\"E\n" +
 	"\x11GetRosterResponse\x120\n" +
-	"\aentries\x18\x01 \x03(\v2\x16.player.v1.RosterEntryR\aentries\"h\n" +
+	"\aentries\x18\x01 \x03(\v2\x16.player.v1.RosterEntryR\aentries\"\x89\x01\n" +
 	"\vRosterEntry\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12\x10\n" +
-	"\x03tag\x18\x02 \x01(\tR\x03tag\x12\x1d\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1d\n" +
 	"\n" +
 	"country_id\x18\x03 \x01(\tR\tcountryId\x12\x14\n" +
-	"\x05guest\x18\x04 \x01(\bR\x05guest2\xf3\x02\n" +
+	"\x05guest\x18\x04 \x01(\bR\x05guest\x12\x14\n" +
+	"\x05admin\x18\x05 \x01(\bR\x05admin\x12\x10\n" +
+	"\x03key\x18\x06 \x01(\tR\x03keyJ\x04\b\x02\x10\x03R\x03tag\"\x18\n" +
+	"\x16ListenForEventsRequest\"\xd6\x01\n" +
+	"\vPlayerEvent\x12+\n" +
+	"\x06roster\x18\x01 \x01(\v2\x11.player.v1.RosterH\x00R\x06roster\x12.\n" +
+	"\x05entry\x18\x02 \x01(\v2\x16.player.v1.RosterEntryH\x00R\x05entry\x12+\n" +
+	"\x04left\x18\x03 \x01(\v2\x15.player.v1.PlayerLeftH\x00R\x04left\x124\n" +
+	"\theartbeat\x18\x04 \x01(\v2\x14.player.v1.HeartbeatH\x00R\theartbeatB\a\n" +
+	"\x05event\":\n" +
+	"\x06Roster\x120\n" +
+	"\aentries\x18\x01 \x03(\v2\x16.player.v1.RosterEntryR\aentries\"\x1e\n" +
+	"\n" +
+	"PlayerLeft\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\"\v\n" +
+	"\tHeartbeat\"&\n" +
+	"\x10GetPlayerRequest\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\">\n" +
+	"\x11GetPlayerResponse\x12)\n" +
+	"\x06player\x18\x01 \x01(\v2\x11.player.v1.PlayerR\x06player\"\x87\x01\n" +
+	"\x06Player\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12&\n" +
+	"\x05stats\x18\x02 \x01(\v2\x10.player.v1.StatsR\x05stats\x12+\n" +
+	"\x12created_at_unix_ms\x18\x03 \x01(\x03R\x0fcreatedAtUnixMs\x12\x14\n" +
+	"\x05admin\x18\x04 \x01(\bR\x05admin2\xcc\x04\n" +
 	"\rPlayerService\x12I\n" +
 	"\n" +
 	"GetProfile\x12\x1c.player.v1.GetProfileRequest\x1a\x1d.player.v1.GetProfileResponse\x12@\n" +
 	"\aSetName\x12\x19.player.v1.SetNameRequest\x1a\x1a.player.v1.SetNameResponse\x12C\n" +
 	"\bGetStats\x12\x1a.player.v1.GetStatsRequest\x1a\x1b.player.v1.GetStatsResponse\x12C\n" +
-	"\bAnnounce\x12\x1a.player.v1.AnnounceRequest\x1a\x1b.player.v1.AnnounceResponse\x12K\n" +
-	"\tGetRoster\x12\x1b.player.v1.GetRosterRequest\x1a\x1c.player.v1.GetRosterResponse\"\x03\x90\x02\x01B\xb3\x01\n" +
+	"\bAnnounce\x12\x1a.player.v1.AnnounceRequest\x1a\x1b.player.v1.AnnounceResponse\x12:\n" +
+	"\x05Leave\x12\x17.player.v1.LeaveRequest\x1a\x18.player.v1.LeaveResponse\x12K\n" +
+	"\tGetRoster\x12\x1b.player.v1.GetRosterRequest\x1a\x1c.player.v1.GetRosterResponse\"\x03\x90\x02\x01\x12N\n" +
+	"\x0fListenForEvents\x12!.player.v1.ListenForEventsRequest\x1a\x16.player.v1.PlayerEvent0\x01\x12K\n" +
+	"\tGetPlayer\x12\x1b.player.v1.GetPlayerRequest\x1a\x1c.player.v1.GetPlayerResponse\"\x03\x90\x02\x01B\xb3\x01\n" +
 	"\rcom.player.v1B\vPlayerProtoP\x01ZPgithub.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1;playerv1\xa2\x02\x03PXX\xaa\x02\tPlayer.V1\xca\x02\tPlayer\\V1\xe2\x02\x15Player\\V1\\GPBMetadata\xea\x02\n" +
 	"Player::V1b\x06proto3"
 
@@ -702,42 +1248,65 @@ func file_player_v1_player_proto_rawDescGZIP() []byte {
 	return file_player_v1_player_proto_rawDescData
 }
 
-var file_player_v1_player_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_player_v1_player_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
 var file_player_v1_player_proto_goTypes = []any{
-	(*Profile)(nil),            // 0: player.v1.Profile
-	(*GetProfileRequest)(nil),  // 1: player.v1.GetProfileRequest
-	(*GetProfileResponse)(nil), // 2: player.v1.GetProfileResponse
-	(*SetNameRequest)(nil),     // 3: player.v1.SetNameRequest
-	(*SetNameResponse)(nil),    // 4: player.v1.SetNameResponse
-	(*Stats)(nil),              // 5: player.v1.Stats
-	(*GetStatsRequest)(nil),    // 6: player.v1.GetStatsRequest
-	(*GetStatsResponse)(nil),   // 7: player.v1.GetStatsResponse
-	(*AnnounceRequest)(nil),    // 8: player.v1.AnnounceRequest
-	(*AnnounceResponse)(nil),   // 9: player.v1.AnnounceResponse
-	(*GetRosterRequest)(nil),   // 10: player.v1.GetRosterRequest
-	(*GetRosterResponse)(nil),  // 11: player.v1.GetRosterResponse
-	(*RosterEntry)(nil),        // 12: player.v1.RosterEntry
+	(*Profile)(nil),                // 0: player.v1.Profile
+	(*GetProfileRequest)(nil),      // 1: player.v1.GetProfileRequest
+	(*GetProfileResponse)(nil),     // 2: player.v1.GetProfileResponse
+	(*SetNameRequest)(nil),         // 3: player.v1.SetNameRequest
+	(*SetNameResponse)(nil),        // 4: player.v1.SetNameResponse
+	(*Stats)(nil),                  // 5: player.v1.Stats
+	(*GetStatsRequest)(nil),        // 6: player.v1.GetStatsRequest
+	(*GetStatsResponse)(nil),       // 7: player.v1.GetStatsResponse
+	(*AnnounceRequest)(nil),        // 8: player.v1.AnnounceRequest
+	(*AnnounceResponse)(nil),       // 9: player.v1.AnnounceResponse
+	(*LeaveRequest)(nil),           // 10: player.v1.LeaveRequest
+	(*LeaveResponse)(nil),          // 11: player.v1.LeaveResponse
+	(*GetRosterRequest)(nil),       // 12: player.v1.GetRosterRequest
+	(*GetRosterResponse)(nil),      // 13: player.v1.GetRosterResponse
+	(*RosterEntry)(nil),            // 14: player.v1.RosterEntry
+	(*ListenForEventsRequest)(nil), // 15: player.v1.ListenForEventsRequest
+	(*PlayerEvent)(nil),            // 16: player.v1.PlayerEvent
+	(*Roster)(nil),                 // 17: player.v1.Roster
+	(*PlayerLeft)(nil),             // 18: player.v1.PlayerLeft
+	(*Heartbeat)(nil),              // 19: player.v1.Heartbeat
+	(*GetPlayerRequest)(nil),       // 20: player.v1.GetPlayerRequest
+	(*GetPlayerResponse)(nil),      // 21: player.v1.GetPlayerResponse
+	(*Player)(nil),                 // 22: player.v1.Player
 }
 var file_player_v1_player_proto_depIdxs = []int32{
 	0,  // 0: player.v1.GetProfileResponse.profile:type_name -> player.v1.Profile
 	0,  // 1: player.v1.SetNameResponse.profile:type_name -> player.v1.Profile
 	5,  // 2: player.v1.GetStatsResponse.stats:type_name -> player.v1.Stats
-	12, // 3: player.v1.GetRosterResponse.entries:type_name -> player.v1.RosterEntry
-	1,  // 4: player.v1.PlayerService.GetProfile:input_type -> player.v1.GetProfileRequest
-	3,  // 5: player.v1.PlayerService.SetName:input_type -> player.v1.SetNameRequest
-	6,  // 6: player.v1.PlayerService.GetStats:input_type -> player.v1.GetStatsRequest
-	8,  // 7: player.v1.PlayerService.Announce:input_type -> player.v1.AnnounceRequest
-	10, // 8: player.v1.PlayerService.GetRoster:input_type -> player.v1.GetRosterRequest
-	2,  // 9: player.v1.PlayerService.GetProfile:output_type -> player.v1.GetProfileResponse
-	4,  // 10: player.v1.PlayerService.SetName:output_type -> player.v1.SetNameResponse
-	7,  // 11: player.v1.PlayerService.GetStats:output_type -> player.v1.GetStatsResponse
-	9,  // 12: player.v1.PlayerService.Announce:output_type -> player.v1.AnnounceResponse
-	11, // 13: player.v1.PlayerService.GetRoster:output_type -> player.v1.GetRosterResponse
-	9,  // [9:14] is the sub-list for method output_type
-	4,  // [4:9] is the sub-list for method input_type
-	4,  // [4:4] is the sub-list for extension type_name
-	4,  // [4:4] is the sub-list for extension extendee
-	0,  // [0:4] is the sub-list for field type_name
+	14, // 3: player.v1.GetRosterResponse.entries:type_name -> player.v1.RosterEntry
+	17, // 4: player.v1.PlayerEvent.roster:type_name -> player.v1.Roster
+	14, // 5: player.v1.PlayerEvent.entry:type_name -> player.v1.RosterEntry
+	18, // 6: player.v1.PlayerEvent.left:type_name -> player.v1.PlayerLeft
+	19, // 7: player.v1.PlayerEvent.heartbeat:type_name -> player.v1.Heartbeat
+	14, // 8: player.v1.Roster.entries:type_name -> player.v1.RosterEntry
+	22, // 9: player.v1.GetPlayerResponse.player:type_name -> player.v1.Player
+	5,  // 10: player.v1.Player.stats:type_name -> player.v1.Stats
+	1,  // 11: player.v1.PlayerService.GetProfile:input_type -> player.v1.GetProfileRequest
+	3,  // 12: player.v1.PlayerService.SetName:input_type -> player.v1.SetNameRequest
+	6,  // 13: player.v1.PlayerService.GetStats:input_type -> player.v1.GetStatsRequest
+	8,  // 14: player.v1.PlayerService.Announce:input_type -> player.v1.AnnounceRequest
+	10, // 15: player.v1.PlayerService.Leave:input_type -> player.v1.LeaveRequest
+	12, // 16: player.v1.PlayerService.GetRoster:input_type -> player.v1.GetRosterRequest
+	15, // 17: player.v1.PlayerService.ListenForEvents:input_type -> player.v1.ListenForEventsRequest
+	20, // 18: player.v1.PlayerService.GetPlayer:input_type -> player.v1.GetPlayerRequest
+	2,  // 19: player.v1.PlayerService.GetProfile:output_type -> player.v1.GetProfileResponse
+	4,  // 20: player.v1.PlayerService.SetName:output_type -> player.v1.SetNameResponse
+	7,  // 21: player.v1.PlayerService.GetStats:output_type -> player.v1.GetStatsResponse
+	9,  // 22: player.v1.PlayerService.Announce:output_type -> player.v1.AnnounceResponse
+	11, // 23: player.v1.PlayerService.Leave:output_type -> player.v1.LeaveResponse
+	13, // 24: player.v1.PlayerService.GetRoster:output_type -> player.v1.GetRosterResponse
+	16, // 25: player.v1.PlayerService.ListenForEvents:output_type -> player.v1.PlayerEvent
+	21, // 26: player.v1.PlayerService.GetPlayer:output_type -> player.v1.GetPlayerResponse
+	19, // [19:27] is the sub-list for method output_type
+	11, // [11:19] is the sub-list for method input_type
+	11, // [11:11] is the sub-list for extension type_name
+	11, // [11:11] is the sub-list for extension extendee
+	0,  // [0:11] is the sub-list for field type_name
 }
 
 func init() { file_player_v1_player_proto_init() }
@@ -745,13 +1314,19 @@ func file_player_v1_player_proto_init() {
 	if File_player_v1_player_proto != nil {
 		return
 	}
+	file_player_v1_player_proto_msgTypes[16].OneofWrappers = []any{
+		(*PlayerEvent_Roster)(nil),
+		(*PlayerEvent_Entry)(nil),
+		(*PlayerEvent_Left)(nil),
+		(*PlayerEvent_Heartbeat)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_player_v1_player_proto_rawDesc), len(file_player_v1_player_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   13,
+			NumMessages:   23,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

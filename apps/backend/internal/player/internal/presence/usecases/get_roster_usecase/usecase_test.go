@@ -17,11 +17,11 @@ func TestTheRosterIsTheFreshVisitsAsOfTheClock(t *testing.T) {
 	start := time.Date(2026, 9, 17, 12, 0, 0, 0, time.UTC)
 	clock := cptime.NewFixedClock(start)
 	visits := inmemory_visit_storage.New(clock)
-	visits.Record(presence.Visit{Account: players.AccountID{15: 1}, Username: "Ada", Tag: "aaaaaa", Country: "fr", At: start})
-	visits.Record(presence.Visit{Account: players.AccountID{15: 2}, Username: "Bob", Tag: "bbbbbb", Country: "de", At: start.Add(time.Minute)})
+	visits.Record(presence.Visit{Account: players.AccountID{15: 1}, Author: players.Author{Name: "Ada"}, Tag: "aaaaaa", Country: "fr", At: start})
+	visits.Record(presence.Visit{Account: players.AccountID{15: 2}, Author: players.Author{Name: "Bob"}, Tag: "bbbbbb", Country: "de", At: start.Add(time.Minute)})
 
 	clock.Advance(presence.TTL)
 
-	assert.Equal(t, []presence.Entry{{Name: "Bob", Tag: "bbbbbb", Country: "de"}},
+	assert.Equal(t, []presence.Entry{{Key: "2", Name: "Bob", Country: "de"}},
 		get_roster_usecase.New(visits, clock).Execute())
 }

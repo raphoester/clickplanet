@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/migrations"
@@ -29,6 +30,11 @@ func (s *testSuite) SetupSuite() {
 	s.db = cppg.StartTestServer(s.T()).OpenSchema(s.T(), "player", migrations.FS)
 	s.store = postgres_player_store.New(s.db)
 	s.NewStore = func() players.Store { return s.store }
+	// The statement an operator runs.
+	s.MakeAdmin = func(_ players.Store, account players.AccountID) {
+		_, err := s.db.ExecContext(s.T().Context(), `UPDATE profiles SET admin = true WHERE account_id = $1`, uuid.UUID(account))
+		s.Require().NoError(err)
+	}
 }
 
 func (s *testSuite) SetupTest() {

@@ -19,7 +19,7 @@ type stubAuthors struct {
 	err    error
 }
 
-func (s stubAuthors) Author(context.Context, messages.AccountID, string) (messages.Author, error) {
+func (s stubAuthors) Author(context.Context, messages.AccountID) (messages.Author, error) {
 	return s.author, s.err
 }
 
@@ -31,21 +31,20 @@ func logged(inner stubAuthors) (*log_authors.Logged, *bytes.Buffer) {
 func TestAFailureIsLoggedAndPassedOn(t *testing.T) {
 	authors, out := logged(stubAuthors{err: errors.New("player is stuck")})
 
-	_, err := authors.Author(t.Context(), messages.AccountID{15: 1}, "1.2.3.4")
+	_, err := authors.Author(t.Context(), messages.AccountID{15: 1})
 
 	require.EqualError(t, err, "player is stuck")
 	assert.Contains(t, out.String(), "level=ERROR")
 	assert.Contains(t, out.String(), "player is stuck")
 	assert.Contains(t, out.String(), messages.AccountID{15: 1}.String())
-	assert.NotContains(t, out.String(), "1.2.3.4", "the address is not logged")
 }
 
 func TestAnAnswerIsPassedOnAndNotLogged(t *testing.T) {
-	authors, out := logged(stubAuthors{author: messages.Author{Username: "Ada", Tag: "a1b2c3"}})
+	authors, out := logged(stubAuthors{author: messages.Author{Name: "Ada"}})
 
-	author, err := authors.Author(t.Context(), messages.AccountID{15: 1}, "1.2.3.4")
+	author, err := authors.Author(t.Context(), messages.AccountID{15: 1})
 
 	require.NoError(t, err)
-	assert.Equal(t, messages.Author{Username: "Ada", Tag: "a1b2c3"}, author)
+	assert.Equal(t, messages.Author{Name: "Ada"}, author)
 	assert.Empty(t, out.String())
 }

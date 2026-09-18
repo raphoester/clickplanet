@@ -17,8 +17,7 @@ export const InternalService = {
   typeName: "player.v1.InternalService",
   methods: {
     /**
-     * Who a caller is to the others: the username its account chose, and the tag
-     * of the address it calls from.
+     * Who an account is to the others: the name the game shows for it.
      *
      * @generated from rpc player.v1.InternalService.GetAuthor
      */

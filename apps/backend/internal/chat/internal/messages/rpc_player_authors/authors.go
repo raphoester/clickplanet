@@ -11,7 +11,6 @@ import (
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1/playerv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
 // Dialer is cpbootstrap's internal listener: the only way one module reaches another.
@@ -32,7 +31,7 @@ func New(dial Dialer) *Authors {
 }
 
 // Author asks on every post, and keeps nothing: a player may choose a name at any time, and posts are few.
-func (a *Authors) Author(ctx context.Context, account messages.AccountID, ip string) (messages.Author, error) {
+func (a *Authors) Author(ctx context.Context, account messages.AccountID) (messages.Author, error) {
 	client, baseURL, err := a.dial.Dial()
 	if err != nil {
 		return messages.Author{}, fmt.Errorf("failed to reach the player module: %w", err)
@@ -41,15 +40,11 @@ func (a *Authors) Author(ctx context.Context, account messages.AccountID, ip str
 	ctx, cancel := context.WithTimeout(ctx, askTimeout)
 	defer cancel()
 
-	req := &playerv1.GetAuthorRequest{Ip: ip}
-	if account != cpsession.NoAccount {
-		req.AccountId = account.String()
-	}
-
-	res, err := playerv1connect.NewInternalServiceClient(client, baseURL).GetAuthor(ctx, connect.NewRequest(req))
+	res, err := playerv1connect.NewInternalServiceClient(client, baseURL).GetAuthor(ctx,
+		connect.NewRequest(&playerv1.GetAuthorRequest{AccountId: account.String()}))
 	if err != nil {
 		return messages.Author{}, fmt.Errorf("failed to ask the player module who posts: %w", err)
 	}
 
-	return messages.Author{Username: res.Msg.GetUsername(), Tag: res.Msg.GetTag()}, nil
+	return messages.Author{Name: res.Msg.GetName(), Admin: res.Msg.GetAdmin()}, nil
 }

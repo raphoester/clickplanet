@@ -5,7 +5,7 @@ export const NEAR_NEXT_STEP = 0.8
 
 /**
  * What the meter says about price, or nothing when there is nothing to say: a
- * country clicking at the plain rate and not close to losing it.
+ * country refilling at the plain rate and not close to losing it.
  */
 export function describePrice(price: ClickPrice | undefined, countryName: string): {headline: string, detail: string} | undefined {
     if (!price) return undefined
@@ -13,21 +13,21 @@ export function describePrice(price: ClickPrice | undefined, countryName: string
     const headline = `${countryName} holds ${percent(price.share)} of the map`
     const next = price.next
 
-    if (price.cost > 1) {
-        const then = next ? ` · ${factor(next.cost)}× at ${percent(next.share)}` : ""
-        return {headline, detail: `Clicks ${factor(price.cost)}× slower${then}`}
+    if (price.slowdown > 1) {
+        const then = next ? ` · ${factor(next.slowdown)}× at ${percent(next.share)}` : ""
+        return {headline, detail: `Refills ${factor(price.slowdown)}× slower${then}`}
     }
 
     if (next && price.share >= next.share * NEAR_NEXT_STEP) {
-        return {headline, detail: `Clicks ${factor(next.cost)}× slower at ${percent(next.share)}`}
+        return {headline, detail: `Refills ${factor(next.slowdown)}× slower at ${percent(next.share)}`}
     }
 
     return undefined
 }
 
-/** A cost as the config writes it: 2, 1.5, 1.25 — never 1.50. */
-export function factor(cost: number): string {
-    return `${Math.round(cost * 100) / 100}`
+/** A factor as the config writes it: 2, 1.5, 1.25 — never 1.50. */
+export function factor(value: number): string {
+    return `${Math.round(value * 100) / 100}`
 }
 
 /** Rounded down, so a country is never told it has reached a step it has not. */

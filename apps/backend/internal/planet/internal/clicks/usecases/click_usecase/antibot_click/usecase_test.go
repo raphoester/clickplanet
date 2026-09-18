@@ -115,7 +115,17 @@ func TestAntiBotClick(t *testing.T) {
 		require.NoError(t, execute(t, ctx, guard, fakeOwner{}, &fakeClick{}))
 		require.Len(t, guard.seen, 1)
 		assert.Equal(t, "a-guest", guard.seen[0].Account)
-		assert.False(t, guard.seen[0].SignedIn, "every account is a guest's until sign-in lands")
+		assert.False(t, guard.seen[0].SignedIn, "a token that is not linked is a guest's")
+	})
+
+	t.Run("tells the guard a linked account is signed in, so its ban leaves the scope alone", func(t *testing.T) {
+		guard := &fakeGuard{}
+		ctx := cpctx.AddLinkedToContext(cpctx.AddAccountToContext(cpctx.AddIPToContext(t.Context(), "1.2.3.4"), "a-player"))
+
+		require.NoError(t, execute(t, ctx, guard, fakeOwner{}, &fakeClick{}))
+		require.Len(t, guard.seen, 1)
+		assert.Equal(t, "a-player", guard.seen[0].Account)
+		assert.True(t, guard.seen[0].SignedIn)
 	})
 
 	t.Run("reads who held the tile before the write could change it", func(t *testing.T) {

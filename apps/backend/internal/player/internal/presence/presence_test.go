@@ -1,7 +1,6 @@
 package presence_test
 
 import (
-	"strings"
 	"testing"
 	"time"
 
@@ -13,6 +12,14 @@ import (
 
 var now = time.Date(2026, 9, 17, 12, 0, 0, 0, time.UTC)
 
+func player(name string) players.Author {
+	return players.Author{Name: name}
+}
+
+func guest(code string) players.Author {
+	return players.Author{Name: "guest_" + code, Guest: true}
+}
+
 func TestAVisitIsFreshForTheTTL(t *testing.T) {
 	visit := presence.Visit{At: now}
 
@@ -20,56 +27,60 @@ func TestAVisitIsFreshForTheTTL(t *testing.T) {
 	assert.False(t, visit.Fresh(now.Add(presence.TTL)))
 }
 
-func TestAGuestNameIsCleanedAsTheChatCleansIt(t *testing.T) {
-	assert.Equal(t, "Bob the builder", presence.GuestNameOf("  Bob\tthe\x00 builder\n"))
-	assert.Equal(t, strings.Repeat("é", 24), presence.GuestNameOf(strings.Repeat("é", 24)))
-}
-
-func TestAGuestNameTheChatWouldRefuseIsEmpty(t *testing.T) {
-	for _, value := range []string{"", " \n", strings.Repeat("a", 25), "\xff"} {
-		assert.Empty(t, presence.GuestNameOf(value), "%q", value)
-	}
-}
-
-func TestTheRosterNamesEachVisitAsTheChatDoes(t *testing.T) {
+func TestTheRosterNamesEachVisitAsTheChatDoesAndNeverShowsTheAddress(t *testing.T) {
 	roster := presence.RosterOf([]presence.Visit{
-		{Username: "Ada_L", Tag: "aaaaaa", Country: "fr", At: now},
-		{GuestName: "Bob", Tag: "bbbbbb", Country: "de", At: now},
-		{Tag: "cccccc", Country: "jp", At: now},
+		{Key: "1", Author: player("Ada_L"), Tag: "aaaaaa", Country: "fr", At: now},
+		{Key: "2", Author: guest("0b1c2d"), Tag: "bbbbbb", Country: "de", At: now},
 	}, now)
 
 	assert.Equal(t, []presence.Entry{
-		{Name: "Ada_L", Tag: "aaaaaa", Country: "fr"},
-		{Name: "guest_Bob", Tag: "bbbbbb", Country: "de", Guest: true},
-		{Name: "guest_cccccc", Tag: "cccccc", Country: "jp", Guest: true},
+		{Key: "1", Name: "Ada_L", Country: "fr"},
+		{Key: "2", Name: "guest_0b1c2d", Country: "de", Guest: true},
+	}, roster)
+}
+
+func TestOnlyAPlayerWithAUsernameShowsAsAnAdmin(t *testing.T) {
+	admin := player("Ada_L")
+	admin.Admin = true
+	guestAdmin := guest("0b1c2d")
+	guestAdmin.Admin = true
+
+	roster := presence.RosterOf([]presence.Visit{
+		{Key: "1", Author: admin, At: now},
+		{Key: "2", Author: guestAdmin, At: now},
+	}, now)
+
+	assert.Equal(t, []presence.Entry{
+		{Key: "1", Name: "Ada_L", Admin: true},
+		{Key: "2", Name: "guest_0b1c2d", Guest: true},
 	}, roster)
 }
 
 func TestPlayersComeFirstThenGuestsEachByNameIgnoringCase(t *testing.T) {
 	roster := presence.RosterOf([]presence.Visit{
-		{GuestName: "zed", Tag: "000001", At: now},
-		{Username: "bob", Tag: "000002", At: now},
-		{GuestName: "Amy", Tag: "000003", At: now},
-		{Username: "Ada", Tag: "000004", At: now},
-		{GuestName: "amy", Tag: "000000", At: now},
+		{Key: "1", Author: guest("ffffff"), At: now},
+		{Key: "2", Author: player("bob"), At: now},
+		{Key: "3", Author: guest("0a0a0a"), At: now},
+		{Key: "4", Author: player("Ada"), At: now},
+		{Key: "5", Author: player("ADA_2"), At: now},
 	}, now)
 
-	assert.Equal(t, []string{"Ada", "bob", "guest_Amy", "guest_amy", "guest_zed"}, names(roster))
+	assert.Equal(t, []string{"Ada", "ADA_2", "bob", "guest_0a0a0a", "guest_ffffff"}, names(roster))
 }
 
-func TestTwoGuestsOfOneNameAreOrderedByTag(t *testing.T) {
+func TestTwoLinesOfOneNameAreOrderedByKey(t *testing.T) {
 	roster := presence.RosterOf([]presence.Visit{
-		{GuestName: "Bob", Tag: "bbbbbb", At: now},
-		{GuestName: "Bob", Tag: "aaaaaa", At: now},
+		{Key: "b", Author: guest("0b1c2d"), At: now},
+		{Key: "a", Author: guest("0b1c2d"), At: now},
 	}, now)
 
-	assert.Equal(t, []players.Tag{"aaaaaa", "bbbbbb"}, []players.Tag{roster[0].Tag, roster[1].Tag})
+	assert.Equal(t, []presence.Key{"a", "b"}, []presence.Key{roster[0].Key, roster[1].Key})
 }
 
 func TestAStaleVisitIsNotOnTheRoster(t *testing.T) {
 	roster := presence.RosterOf([]presence.Visit{
-		{Username: "Ada", At: now.Add(-presence.TTL)},
-		{Username: "Bob", At: now.Add(-time.Second)},
+		{Author: player("Ada"), At: now.Add(-presence.TTL)},
+		{Author: player("Bob"), At: now.Add(-time.Second)},
 	}, now)
 
 	assert.Equal(t, []string{"Bob"}, names(roster))

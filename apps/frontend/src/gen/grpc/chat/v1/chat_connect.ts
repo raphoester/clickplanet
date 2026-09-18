@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ChatEvent, GetHistoryRequest, GetHistoryResponse, ListenForEventsRequest, SendMessageRequest, SendMessageResponse } from "./chat_pb.js";
+import { ChatEvent, GetHistoryRequest, GetHistoryResponse, ListenForEventsRequest, ReactRequest, ReactResponse, SendMessageRequest, SendMessageResponse } from "./chat_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -39,6 +39,18 @@ export const ChatService = {
       I: ListenForEventsRequest,
       O: ChatEvent,
       kind: MethodKind.ServerStreaming,
+    },
+    /**
+     * Puts a reaction on a message, or takes it off. Idempotent: asking for what
+     * is already there changes nothing and publishes nothing.
+     *
+     * @generated from rpc chat.v1.ChatService.React
+     */
+    react: {
+      name: "React",
+      I: ReactRequest,
+      O: ReactResponse,
+      kind: MethodKind.Unary,
     },
   }
 } as const;

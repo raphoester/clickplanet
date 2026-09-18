@@ -23,7 +23,7 @@ type Registry interface {
 	Multiplier() float64
 }
 
-// Booster widens a caller's allowance. It is the same limiter the throttle
+// Booster speeds up a caller's refill. It is the same limiter the throttle
 // spends: a bonus that did not move that bucket would not be a bonus.
 type Booster interface {
 	Boost(key string, multiplier float64, until time.Time) cpratelimit.State
@@ -116,14 +116,15 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 		return Out{}, ErrNoSuchBonus
 	}
 
-	state := u.apply(payer, reward)
+	price := u.pricer.Price(in.CountryID)
+	state := u.apply(payer, price, reward)
 
 	// Only once the boost has landed: a catch announced to the planet that then
 	// failed to apply is the one lie this could tell.
 	u.registry.Publish(bonuses.Taken{CountryID: in.CountryID, Kind: reward.Kind})
 
 	out := Out{
-		Budget:            u.buckets.BudgetOf(state, u.pricer.Price(in.CountryID)),
+		Budget:            u.buckets.BudgetOf(state, price),
 		Kind:              reward.Kind,
 		Duration:          reward.Duration,
 		Enclosures:        reward.Enclosures,
@@ -137,9 +138,9 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 }
 
 // apply starts what the reward is worth, and answers the allowance as it stands
-// afterwards: the tighter bucket, as a click reports it. A triple widens the account's bucket and never
+// afterwards: the tighter bucket, as a click reports it. A triple speeds up the account's bucket and never
 // the scope's, which the scope's other players share.
-func (u *UseCase) apply(payer clicks.Payer, reward bonuses.Reward) cpratelimit.State {
+func (u *UseCase) apply(payer clicks.Payer, price clicks.Price, reward bonuses.Reward) cpratelimit.State {
 	until := u.clock.Now().Add(reward.Duration)
 
 	switch reward.Kind {
@@ -153,7 +154,7 @@ func (u *UseCase) apply(payer clicks.Payer, reward bonuses.Reward) cpratelimit.S
 		u.booster.Boost(u.buckets.Boosted(payer), u.registry.Multiplier(), until)
 	}
 
-	keys := u.buckets.Keys(payer)
+	keys := u.buckets.Keys(payer, price)
 	states := make([]cpratelimit.State, len(keys))
 	for i, key := range keys {
 		states[i] = u.booster.Peek(key)

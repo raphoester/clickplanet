@@ -7,32 +7,29 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 )
 
-// TollStep is one row of the table: from Share of the map, a click costs Cost
-// tokens. Cost may be a fraction: 1.5 is half as slow again.
+// TollStep is one row of the table: from Share of the map, a player of that country gets its clicks back
+// Slowdown times slower. Slowdown may be a fraction: 1.5 is half as slow again.
 type TollStep struct {
-	Share float64
-	Cost  float64
+	Share    float64
+	Slowdown float64
 }
 
-// TollConfig holds the steps, lowest share first. Empty prices every click at one token.
+// TollConfig holds the steps, lowest share first. Empty refills every country at the plain rate.
 type TollConfig struct {
 	Steps []TollStep
 }
 
-// Validate refuses a table that could lock a country out: a cost above the
-// burst is one no bucket can ever pay.
-func (c TollConfig) Validate(burst int) error {
-	previous := TollStep{Cost: 1}
+// Validate refuses shares or slowdowns that do not rise: a step that made a bigger country faster would be a
+// reward for leading.
+func (c TollConfig) Validate() error {
+	previous := TollStep{Slowdown: 1}
 
 	for i, step := range c.Steps {
 		if math.IsNaN(step.Share) || step.Share <= previous.Share || step.Share > 1 {
 			return fmt.Errorf("toll.steps[%d].share is %v: shares must rise, above 0 and up to 1", i, step.Share)
 		}
-		if math.IsNaN(step.Cost) || step.Cost <= previous.Cost {
-			return fmt.Errorf("toll.steps[%d].cost is %v: costs must rise, above 1", i, step.Cost)
-		}
-		if step.Cost > float64(burst) {
-			return fmt.Errorf("toll.steps[%d].cost is %v, above rateLimiter.burst %d: nobody could ever click", i, step.Cost, burst)
+		if math.IsNaN(step.Slowdown) || math.IsInf(step.Slowdown, 0) || step.Slowdown <= previous.Slowdown {
+			return fmt.Errorf("toll.steps[%d].slowdown is %v: slowdowns must rise, above 1", i, step.Slowdown)
 		}
 		previous = step
 	}
@@ -40,39 +37,22 @@ func (c TollConfig) Validate(burst int) error {
 	return nil
 }
 
-// Price is what a click for one country costs now, and what it will cost next.
+// Price is how much slower a country's players get their clicks back now, and from which share it slows next.
 type Price struct {
-	Cost  float64
-	Share float64
+	Slowdown float64
+	Share    float64
 
-	// The share at which the next step starts, and its cost. Zero at the top step.
-	NextShare float64
-	NextCost  float64
+	// The share at which the next step starts, and its slowdown. Zero at the top step.
+	NextShare    float64
+	NextSlowdown float64
 }
 
-// Budget is an allowance counted in clicks at a price, rather than in tokens.
-// LinkedMultiplier is what signing in multiplies it by, the same for every caller.
+// Budget is an allowance: every click costs one token, so it is counted in clicks. Price is the country asked
+// about's; LinkedMultiplier is what signing in multiplies the refill by, the same for every caller.
 type Budget struct {
 	cpratelimit.State
 	Price            Price
 	LinkedMultiplier float64
-}
-
-// BudgetOf reads a bucket in clicks: at a cost of 2, ten tokens refilling at 1/s are
-// five clicks refilling at 0.5/s, so the meter on screen narrows with no client
-// arithmetic, the way a bonus widens it. The capacity rounds down, so the meter
-// never shows a click the bucket cannot hold.
-func BudgetOf(state cpratelimit.State, price Price) Budget {
-	cost := max(price.Cost, 1)
-
-	return Budget{
-		State: cpratelimit.State{
-			Tokens:    state.Tokens / cost,
-			Capacity:  int(float64(state.Capacity) / cost),
-			PerSecond: state.PerSecond / cost,
-		},
-		Price: price,
-	}
 }
 
 type ShareReader interface {
@@ -83,26 +63,26 @@ func NewToll(config TollConfig, shares ShareReader) *Toll {
 	return &Toll{steps: config.Steps, shares: shares}
 }
 
-// A toll prices a click by how much of the map its country already holds.
+// A toll slows the refill of a player by how much of the map its country already holds.
 //
-// The price is in tokens and is taken at the moment of the click, from the
-// country clicked for. A slower refill for big countries would have been read
-// off whatever country the caller played last, so a player could bank tokens
-// on a small country and spend them on a big one.
+// Every click costs one token; the price is the pace the bucket refills at afterwards, set by each click from the
+// country it was for. The time already past was refilled at the pace in force over it, so switching flags moves
+// nothing on the meter until the next click. A player can still refill on a small country and spend the bank on a
+// big one; the bank bounds what that buys.
 type Toll struct {
 	steps  []TollStep
 	shares ShareReader
 }
 
 func (t *Toll) Price(country string) Price {
-	price := Price{Cost: 1, Share: t.shares.Share(country)}
+	price := Price{Slowdown: 1, Share: t.shares.Share(country)}
 
 	for _, step := range t.steps {
 		if price.Share < step.Share {
-			price.NextShare, price.NextCost = step.Share, step.Cost
+			price.NextShare, price.NextSlowdown = step.Share, step.Slowdown
 			break
 		}
-		price.Cost = step.Cost
+		price.Slowdown = step.Slowdown
 	}
 
 	return price

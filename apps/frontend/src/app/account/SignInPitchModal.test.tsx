@@ -24,7 +24,7 @@ async function guest() {
         setName: vi.fn(async (name: string) => ({accountId: "account-1", name})),
     } satisfies PlayerBackend
     const navigate = vi.fn()
-    const store = new AccountStore(backend, player, {token: vi.fn(), invalidate: vi.fn()}, {navigate, remember: vi.fn()})
+    const store = new AccountStore(backend, player, {token: vi.fn(), held: vi.fn(), invalidate: vi.fn()}, {navigate, remember: vi.fn()})
 
     await store.load()
     const state = store.state()
@@ -39,7 +39,7 @@ describe("SignInPitchModal", () => {
         render(<SignInPitchModal state={state} store={store} multiplier={2} onClose={vi.fn()}/>)
 
         expect(screen.getByRole("dialog", {name: "Click 2× faster"})).toBeDefined()
-        expect(screen.getByText(/2× the clicks in hand, refilling 2× as fast/)).toBeDefined()
+        expect(screen.getByText(/your clicks refill 2× as fast/)).toBeDefined()
         expect(screen.getByText("You do not need an account to play.")).toBeDefined()
     })
 

@@ -29,18 +29,17 @@ func (h SendMessageHandler) SendMessage(
 	req *connect.Request[chatv1.SendMessageRequest],
 ) (*connect.Response[chatv1.SendMessageResponse], error) {
 	message, err := h.useCase.Execute(ctx, send_message_usecase.In{
-		Account:    messages.AccountIDOf(cpctx.GetAccount(ctx)),
-		AuthorName: req.Msg.GetAuthorName(),
-		AuthorID:   req.Msg.GetAuthorId(),
-		CountryID:  req.Msg.GetCountryId(),
-		Text:       req.Msg.GetText(),
-		UserAgent:  req.Header().Get("User-Agent"),
+		Account:   messages.AccountIDOf(cpctx.GetAccount(ctx)),
+		AuthorID:  req.Msg.GetAuthorId(),
+		CountryID: req.Msg.GetCountryId(),
+		Text:      req.Msg.GetText(),
+		UserAgent: req.Header().Get("User-Agent"),
 	})
 	if err != nil {
 		return nil, toConnect(err)
 	}
 
 	return connect.NewResponse(&chatv1.SendMessageResponse{
-		Message: chatmessage.Encode(message),
+		Message: chatmessage.Encode(message, nil, 0),
 	}), nil
 }

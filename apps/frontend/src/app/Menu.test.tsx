@@ -8,6 +8,7 @@ import type {LeaderboardEntry} from "../domain/leaderboard.ts"
 import {DEFAULT_SOUND_SETTINGS} from "../domain/soundSettings.ts"
 import {AccountBackend, Me, Provider} from "../backends/account.ts"
 import {AccountStore} from "./account/accountStore.ts"
+import {RosterEntry} from "../backends/player.ts"
 import {PlayerBackend, PlayerError} from "../backends/player.ts"
 
 const france = Countries.get("fr")!
@@ -273,8 +274,61 @@ describe("Menu", () => {
         })
     })
 
+    describe("the players", () => {
+        const players = [
+            {key: "k1", name: "ana", countryCode: "fr", guest: false, admin: false},
+            {key: "k2", name: "guest_Bo", countryCode: "de", guest: true, admin: false},
+        ]
+        const withPlayers = (entries = players) => ({
+            ...render(<Menu country={france} setCountry={vi.fn()} leaderboard={[entry("fr", 500)]} tilesCount={1000}
+                            players={entries}/>),
+            user: userEvent.setup(),
+        })
+
+        // No roster wired, or a server without one.
+        it("offers no list without a roster", () => {
+            setup()
+            expect(screen.queryByRole("button", {name: /online/})).toBeNull()
+        })
+
+        it("says how many are playing on the button", () => {
+            withPlayers()
+
+            const players = button("2 players online")
+            expect(players.textContent).toBe("2")
+        })
+
+        it("counts one player in the singular", () => {
+            withPlayers(players.slice(0, 1))
+            expect(button("1 player online")).toBeDefined()
+        })
+
+        it("opens the list in place of the leaderboard, and goes back to the button", async () => {
+            const {user} = withPlayers()
+
+            await user.click(button("2 players online"))
+
+            expect(screen.getByRole("region", {name: "Players online"})).toBeDefined()
+            expect(leaderboardRows()).toHaveLength(0)
+            expect(screen.getByText("ana")).toBeDefined()
+
+            await user.click(button("Back"))
+
+            expect(leaderboardRows()).toHaveLength(1)
+            expect(document.activeElement).toBe(button("2 players online"))
+        })
+
+        it("shows the button, and an empty list, when nobody is playing", async () => {
+            const {user} = withPlayers([])
+
+            await user.click(button("0 players online"))
+
+            expect(screen.getByText("Nobody is playing right now.")).toBeDefined()
+        })
+    })
+
     describe("the account", () => {
-        const withAccount = (offered: Provider[], me: Me, username = "", linkedMultiplier?: number) => {
+        const withAccount = (offered: Provider[], me: Me, username = "", linkedMultiplier?: number, players?: RosterEntry[]) => {
             const backend = {
                 signInOptions: vi.fn(async () => offered),
                 me: vi.fn(async () => me),
@@ -289,11 +343,19 @@ describe("Menu", () => {
                 profile: vi.fn(async () => ({accountId: "account-1", name: username})),
                 setName: vi.fn(async (name: string) => ({accountId: "account-1", name})),
             } satisfies PlayerBackend
-            const store = new AccountStore(backend, player, {token: vi.fn(), invalidate: vi.fn()}, {navigate, remember: vi.fn()})
+            const store = new AccountStore(backend, player, {token: vi.fn(), held: vi.fn(), invalidate: vi.fn()}, {navigate, remember: vi.fn()})
             const view = render(<Menu country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000}
-                                      account={store} linkedMultiplier={linkedMultiplier}/>)
+                                      account={store} linkedMultiplier={linkedMultiplier} players={players}/>)
             return {...view, backend, player, navigate, user: userEvent.setup()}
         }
+
+        it("keeps the account button beside the players button", async () => {
+            withAccount(["google"], {linked: ["google"]}, "ana", undefined,
+                [{key: "k1", name: "ana", countryCode: "fr", guest: false, admin: false}])
+
+            expect(await screen.findByRole("button", {name: "Account"})).toBeDefined()
+            expect(screen.getByRole("button", {name: "1 player online"})).toBeDefined()
+        })
 
         it("offers no sign-in without an account store", () => {
             setup()

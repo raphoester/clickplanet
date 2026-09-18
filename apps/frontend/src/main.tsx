@@ -8,11 +8,12 @@ import {newAuthServiceClient, SessionClient, turnstileAttester} from "./backends
 import {ChatServiceBackend, newChatServiceClient} from "./backends/chatBackend.ts"
 import {FakeBackend} from "./backends/fakeBackend.ts"
 import {FakeChatBackend} from "./backends/fakeChatBackend.ts"
+import {FakePresenceBackend} from "./backends/fakePresenceBackend.ts"
 import {loadPointGeometryData} from "./app/viewer/points.ts"
 import type {Globe} from "./app/viewer/globe.ts"
 import App from "./app/App.tsx"
 import {ConnectAccountBackend} from "./backends/accountBackend.ts"
-import {ConnectPlayerBackend, newPlayerServiceClient} from "./backends/playerBackend.ts"
+import {ConnectPlayerBackend, newKeepalivePlayerServiceClient, newPlayerServiceClient} from "./backends/playerBackend.ts"
 import {AccountStore} from "./app/account/accountStore.ts"
 import {rememberSignIn} from "./app/account/rememberedSignIn.ts"
 import SignInGate from "./app/account/SignInGate.tsx"
@@ -69,6 +70,12 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         },
     })
 
+    const fakePresence = new FakePresenceBackend()
+
+    // The server's chat hears every bomb from the planet; the fakes are told here.
+    const fakeChat = new FakeChatBackend()
+    fake.listenForBombs((drop) => fakeChat.announceBomb(drop))
+
     root.render(
         <StrictMode>
             <SignInGate callback={callback}>
@@ -79,7 +86,9 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     bonusListener={fake}
                     bomber={fake}
                     clickBudgetSource={fake}
-                    chatBackend={new FakeChatBackend()}
+                    chatBackend={fakeChat}
+                    presence={fakePresence}
+                    playerInfo={fakePresence}
                 />
             </SignInGate>
         </StrictMode>,
@@ -87,7 +96,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
 } else {
     const backend = new PlanetBackend(newClickServiceClient(config), 100, session)
     const chatBackend = new ChatServiceBackend(newChatServiceClient(config), session)
-    const player = new ConnectPlayerBackend(newPlayerServiceClient(config), session)
+    const player = new ConnectPlayerBackend(newPlayerServiceClient(config), session, newKeepalivePlayerServiceClient(config))
     const account = new AccountStore(new ConnectAccountBackend(authClient), player, session, {
         navigate: (url) => window.location.assign(url),
         remember: rememberSignIn,
@@ -105,6 +114,8 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     clickBudgetSource={backend}
                     chatBackend={chatBackend}
                     account={account}
+                    presence={player}
+                    playerInfo={player}
                 />
             </SignInGate>
         </StrictMode>,

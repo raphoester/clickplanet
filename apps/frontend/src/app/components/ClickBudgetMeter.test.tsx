@@ -79,6 +79,36 @@ describe("ClickBudgetMeter", () => {
         expect(meter().classList.contains("click-budget-low")).toBe(false)
     })
 
+    it("says when the next click comes back when it is slow to", () => {
+        render(<ClickBudgetMeter budget={reading({tokens: 0, capacity: 60, perSecond: 0.2})}/>)
+
+        expect(screen.getByText("+1 in 5s")).toBeTruthy()
+    })
+
+    it("counts down with clicks in hand too", () => {
+        render(<ClickBudgetMeter budget={reading({tokens: 20.5, capacity: 60, perSecond: 0.2})}/>)
+
+        expect(screen.getByText("+1 in 3s")).toBeTruthy()
+    })
+
+    it("says nothing about the next click at a full bucket", () => {
+        render(<ClickBudgetMeter budget={reading({tokens: 60, capacity: 60, perSecond: 0.2})}/>)
+
+        expect(document.querySelector(".click-budget-next")?.textContent).toBe("")
+    })
+
+    it("has no countdown when a click comes back every second", () => {
+        render(<ClickBudgetMeter budget={reading({tokens: 0})}/>)
+
+        expect(document.querySelector(".click-budget-next")).toBeNull()
+    })
+
+    it("fills a strip under a long bar once per click", () => {
+        render(<ClickBudgetMeter budget={reading({tokens: 20.5, capacity: 60, perSecond: 0.2})}/>)
+
+        expect(Number(meter().style.getPropertyValue("--click-budget-next"))).toBeCloseTo(0.5, 1)
+    })
+
     it("replays the refill between two readings instead of waiting for one", async () => {
         const start = performance.now()
         vi.spyOn(performance, "now").mockReturnValue(start)
@@ -140,16 +170,16 @@ describe("ClickBudgetMeter while a bonus runs", () => {
         expect(meter().getAttribute("aria-valuenow")).toBe("4")
     })
 
-    it("says why the meter is narrow for a country that holds much of the map", () => {
+    it("says why the refill is slow for a country that holds much of the map", () => {
         render(<ClickBudgetMeter countryName="Bulgaria"
-                                 budget={reading({capacity: 1, price: {cost: 8, share: 0.8, next: {share: 0.9, cost: 10}}})}/>)
+                                 budget={reading({price: {slowdown: 8, share: 0.8, next: {share: 0.9, slowdown: 10}}})}/>)
 
         expect(screen.getByText("Bulgaria holds 80% of the map")).toBeTruthy()
-        expect(screen.getByText("Clicks 8× slower · 10× at 90%")).toBeTruthy()
+        expect(screen.getByText("Refills 8× slower · 10× at 90%")).toBeTruthy()
     })
 
     it("says nothing about price at the plain rate", () => {
-        render(<ClickBudgetMeter countryName="Chad" budget={reading({price: {cost: 1, share: 0.01, next: {share: 0.1, cost: 2}}})}/>)
+        render(<ClickBudgetMeter countryName="Chad" budget={reading({price: {slowdown: 1, share: 0.01, next: {share: 0.1, slowdown: 2}}})}/>)
 
         expect(document.querySelector(".click-budget-toll")).toBeNull()
     })

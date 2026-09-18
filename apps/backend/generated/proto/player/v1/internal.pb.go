@@ -23,11 +23,8 @@ const (
 
 type GetAuthorRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Empty, or not an account id, for a caller with no account: the answer then
-	// has no username.
-	AccountId string `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
-	// The caller's address, as the module that asks observed it.
-	Ip            string `protobuf:"bytes,2,opt,name=ip,proto3" json:"ip,omitempty"`
+	// Required: an empty id, or one that is not an account, is InvalidArgument.
+	AccountId     string `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -69,20 +66,14 @@ func (x *GetAuthorRequest) GetAccountId() string {
 	return ""
 }
 
-func (x *GetAuthorRequest) GetIp() string {
-	if x != nil {
-		return x.Ip
-	}
-	return ""
-}
-
 type GetAuthorResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Empty when the account chose none.
-	Username string `protobuf:"bytes,1,opt,name=username,proto3" json:"username,omitempty"`
-	// A salted hash of the address, 6 hex characters: the same address has the
-	// same tag everywhere the game shows one.
-	Tag           string `protobuf:"bytes,2,opt,name=tag,proto3" json:"tag,omitempty"`
+	// The account's username, or "guest_" and its guest code when it chose none:
+	// 6 hex characters, drawn the first time the account is asked about and kept
+	// until it is deleted. Never empty.
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// The account is an admin of the game. False with no username.
+	Admin         bool `protobuf:"varint,3,opt,name=admin,proto3" json:"admin,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -117,32 +108,31 @@ func (*GetAuthorResponse) Descriptor() ([]byte, []int) {
 	return file_player_v1_internal_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *GetAuthorResponse) GetUsername() string {
+func (x *GetAuthorResponse) GetName() string {
 	if x != nil {
-		return x.Username
+		return x.Name
 	}
 	return ""
 }
 
-func (x *GetAuthorResponse) GetTag() string {
+func (x *GetAuthorResponse) GetAdmin() bool {
 	if x != nil {
-		return x.Tag
+		return x.Admin
 	}
-	return ""
+	return false
 }
 
 var File_player_v1_internal_proto protoreflect.FileDescriptor
 
 const file_player_v1_internal_proto_rawDesc = "" +
 	"\n" +
-	"\x18player/v1/internal.proto\x12\tplayer.v1\"A\n" +
+	"\x18player/v1/internal.proto\x12\tplayer.v1\";\n" +
 	"\x10GetAuthorRequest\x12\x1d\n" +
 	"\n" +
-	"account_id\x18\x01 \x01(\tR\taccountId\x12\x0e\n" +
-	"\x02ip\x18\x02 \x01(\tR\x02ip\"A\n" +
-	"\x11GetAuthorResponse\x12\x1a\n" +
-	"\busername\x18\x01 \x01(\tR\busername\x12\x10\n" +
-	"\x03tag\x18\x02 \x01(\tR\x03tag2Y\n" +
+	"account_id\x18\x01 \x01(\tR\taccountIdJ\x04\b\x02\x10\x03R\x02ip\"H\n" +
+	"\x11GetAuthorResponse\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
+	"\x05admin\x18\x03 \x01(\bR\x05adminJ\x04\b\x02\x10\x03R\x03tag2Y\n" +
 	"\x0fInternalService\x12F\n" +
 	"\tGetAuthor\x12\x1b.player.v1.GetAuthorRequest\x1a\x1c.player.v1.GetAuthorResponseB\xb5\x01\n" +
 	"\rcom.player.v1B\rInternalProtoP\x01ZPgithub.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1;playerv1\xa2\x02\x03PXX\xaa\x02\tPlayer.V1\xca\x02\tPlayer\\V1\xe2\x02\x15Player\\V1\\GPBMetadata\xea\x02\n" +

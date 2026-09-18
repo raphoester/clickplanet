@@ -1,21 +1,117 @@
 package get_history_usecase_test
 
 import (
-	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements/inmemory_announcement_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/inmemory_message_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/get_history_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions/inmemory_reaction_storage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-type stubReader []messages.Message
+var (
+	expired = announcements.AnnouncementID{15: 1}
+	old     = announcements.AnnouncementID{15: 2}
+	middle  = announcements.AnnouncementID{15: 3}
+	latest  = announcements.AnnouncementID{15: 4}
+)
 
-func (s stubReader) History(context.Context) []messages.Message { return s }
+var (
+	ada   = cpsession.AccountID{15: 1}
+	now   = time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC)
+	clown = reactions.Reaction(2)
+	other = cpsession.AccountID{15: 2}
+)
 
-func TestHistoryComesFromTheReader(t *testing.T) {
-	history := stubReader{{ID: "message-1"}, {ID: "message-2"}}
+type fixture struct {
+	messages      *inmemory_message_storage.Storage
+	reactions     *inmemory_reaction_storage.Storage
+	announcements *inmemory_announcement_storage.Storage
+}
 
-	assert.Equal(t, []messages.Message(history), get_history_usecase.New(history).Execute(t.Context()))
+func newFixture(t *testing.T, texts ...string) fixture {
+	t.Helper()
+
+	f := fixture{
+		messages:      inmemory_message_storage.New(),
+		reactions:     inmemory_reaction_storage.New(),
+		announcements: inmemory_announcement_storage.New(),
+	}
+	for i, text := range texts {
+		require.NoError(t, f.messages.Append(t.Context(), messages.Record{Message: messages.Message{
+			ID: messages.MessageID(text), Text: text, SentAt: now.Add(time.Duration(i-len(texts)) * time.Hour),
+		}}))
+	}
+	return f
+}
+
+func (f fixture) read(t *testing.T, account messages.AccountID) get_history_usecase.History {
+	t.Helper()
+
+	history, err := get_history_usecase.New(f.messages, f.reactions, f.announcements, cptime.NewFixedClock(now),
+		messages.Window{Size: 2, Retention: 24 * time.Hour}).Execute(t.Context(), account)
+	require.NoError(t, err)
+	return history
+}
+
+func (f fixture) history(t *testing.T, account messages.AccountID) []get_history_usecase.Entry {
+	t.Helper()
+
+	return f.read(t, account).Messages
+}
+
+func texts(history []get_history_usecase.Entry) []string {
+	texts := make([]string, 0, len(history))
+	for _, entry := range history {
+		texts = append(texts, entry.Message.Text)
+	}
+	return texts
+}
+
+func TestTheHistoryIsTheWindowOfNewestMessages(t *testing.T) {
+	f := newFixture(t, "old", "middle", "new")
+
+	assert.Equal(t, []string{"middle", "new"}, texts(f.history(t, ada)))
+}
+
+func TestEachMessageCarriesItsReactionsMarkedForTheCallersAccount(t *testing.T) {
+	f := newFixture(t, "hello")
+	require.NoError(t, f.reactions.Save(t.Context(), reactions.Change{
+		MessageID: "hello", Reaction: clown, Reactor: reactions.ReactorOf(ada), On: true, At: now,
+	}))
+
+	assert.Equal(t, []reactions.Count{{Reaction: clown, Count: 1, Mine: true}}, f.history(t, ada)[0].Reactions)
+	assert.Equal(t, uint64(1), f.history(t, ada)[0].ReactionsVersion)
+	assert.Equal(t, []reactions.Count{{Reaction: clown, Count: 1, Mine: false}},
+		f.history(t, other)[0].Reactions, "another account")
+	assert.Equal(t, []reactions.Count{{Reaction: clown, Count: 1, Mine: false}},
+		f.history(t, cpsession.NoAccount)[0].Reactions, "no token")
+}
+
+func TestTheHistoryCarriesTheWindowOfNewestAnnouncements(t *testing.T) {
+	f := newFixture(t, "hello")
+	ago := map[announcements.AnnouncementID]time.Duration{expired: 40, old: 20, middle: 10, latest: 4}
+	for _, id := range []announcements.AnnouncementID{expired, old, middle, latest} {
+		require.NoError(t, f.announcements.Append(t.Context(), announcements.Announcement{
+			ID: id, Kind: announcements.KindBomb, At: now.Add(-ago[id] * time.Hour),
+		}))
+	}
+
+	history := f.read(t, ada)
+
+	ids := make([]announcements.AnnouncementID, 0, len(history.Announcements))
+	for _, announcement := range history.Announcements {
+		ids = append(ids, announcement.ID)
+	}
+	assert.Equal(t, []announcements.AnnouncementID{middle, latest}, ids)
+	assert.Equal(t, []string{"hello"}, texts(history.Messages), "announcements do not take the messages' places")
 }

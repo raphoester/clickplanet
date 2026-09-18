@@ -14,8 +14,10 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/get_history_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/send_message_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/feed"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/feed/usecases/listen_for_events_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
-	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/listen_for_events_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/get_history_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/send_message_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconnect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cphttpserver"
@@ -42,14 +44,16 @@ func (s *stubSender) Execute(_ context.Context, in send_message_usecase.In) (mes
 
 type emptyHistory struct{}
 
-func (emptyHistory) Execute(context.Context) []messages.Message { return nil }
+func (emptyHistory) Execute(context.Context, messages.AccountID) (get_history_usecase.History, error) {
+	return get_history_usecase.History{}, nil
+}
 
 type stubSubscriber struct {
 	err error
 }
 
-func (s stubSubscriber) Subscribe(context.Context) (<-chan messages.Message, error) {
-	return make(chan messages.Message), s.err
+func (s stubSubscriber) Subscribe(context.Context) (<-chan feed.Update, error) {
+	return make(chan feed.Update), s.err
 }
 
 func startChatServer(
@@ -98,10 +102,9 @@ func sendOnce(server *httptest.Server, ip string) error {
 
 func sendWithToken(server *httptest.Server, ip string, token string) error {
 	req := connect.NewRequest(&chatv1.SendMessageRequest{
-		AuthorName: "Bob",
-		AuthorId:   "some-uuid",
-		CountryId:  "fr",
-		Text:       "hello",
+		AuthorId:  "some-uuid",
+		CountryId: "fr",
+		Text:      "hello",
 	})
 	req.Header().Set("X-Real-IP", ip)
 	if token != "" {

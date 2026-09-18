@@ -42,5 +42,8 @@ func (h GetAccountHandler) GetAccount(
 		return nil, err //nolint:wrapcheck // the error net answers it.
 	}
 
-	return connect.NewResponse(&authv1.GetAccountResponse{Linked: account.Linked()}), nil
+	return connect.NewResponse(&authv1.GetAccountResponse{
+		Linked:          account.Linked(),
+		CreatedAtUnixMs: account.CreatedAt.UnixMilli(),
+	}), nil
 }

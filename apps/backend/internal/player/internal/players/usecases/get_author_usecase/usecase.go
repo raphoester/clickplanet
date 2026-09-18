@@ -1,4 +1,4 @@
-// Package get_author_usecase says who a caller is, for another module: its username and its tag.
+// Package get_author_usecase says who an account is, for another module: the name the game shows for it.
 package get_author_usecase
 
 import (
@@ -7,43 +7,30 @@ import (
 	"fmt"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
-type Profiles interface {
-	Profile(ctx context.Context, account players.AccountID) (players.Profile, error)
-}
-
-type In struct {
-	// Account is cpsession.NoAccount for a caller with none.
-	Account players.AccountID
-	IP      string
+type Codes interface {
+	Assign(ctx context.Context, account players.AccountID) error
 }
 
 type UseCase struct {
-	profiles Profiles
-	tagSalt  string
+	authors players.AuthorStore
+	codes   Codes
 }
 
-func New(profiles Profiles, tagSalt string) *UseCase {
-	return &UseCase{profiles: profiles, tagSalt: tagSalt}
+func New(authors players.AuthorStore, codes Codes) *UseCase {
+	return &UseCase{authors: authors, codes: codes}
 }
 
-// Execute answers no name for a caller with no account, or an account that never chose one.
-func (u *UseCase) Execute(ctx context.Context, in In) (players.Author, error) {
-	author := players.Author{Tag: players.TagOf(u.tagSalt, in.IP)}
-	if in.Account == cpsession.NoAccount {
-		return author, nil
+// Execute gives a guest its code the first time it is asked about.
+func (u *UseCase) Execute(ctx context.Context, account players.AccountID) (players.Author, error) {
+	author, err := players.AuthorOf(ctx, u.authors, account)
+	if !errors.Is(err, players.ErrNoGuestCode) {
+		return author, err //nolint:wrapcheck // AuthorOf says what failed.
 	}
 
-	profile, err := u.profiles.Profile(ctx, in.Account)
-	if errors.Is(err, players.ErrNoProfile) {
-		return author, nil
+	if err := u.codes.Assign(ctx, account); err != nil {
+		return players.Author{}, fmt.Errorf("failed to give the guest a code: %w", err)
 	}
-	if err != nil {
-		return players.Author{}, fmt.Errorf("failed to read the profile: %w", err)
-	}
-
-	author.Name = profile.Name
-	return author, nil
+	return players.AuthorOf(ctx, u.authors, account) //nolint:wrapcheck // as above.
 }

@@ -20,7 +20,7 @@ import {SESSION_HEADER, type SessionProvider, SessionUnavailableError} from "./s
 import type {ClickBudget} from "./clickBudget.ts"
 
 function fixedSession(token: string): SessionProvider {
-    return {token: async () => token, invalidate: () => {}}
+    return {token: async () => token, held: () => token, invalidate: () => {}}
 }
 
 function rotatingSession(tokens: string[]) {
@@ -28,6 +28,9 @@ function rotatingSession(tokens: string[]) {
     return {
         invalidated: 0,
         async token() {
+            return tokens[Math.min(index, tokens.length - 1)]
+        },
+        held() {
             return tokens[Math.min(index, tokens.length - 1)]
         },
         invalidate() {
@@ -42,6 +45,7 @@ function failingSession(): SessionProvider {
         token: async () => {
             throw new SessionUnavailableError()
         },
+        held: () => undefined,
         invalidate: () => {},
     }
 }
@@ -469,30 +473,30 @@ describe("PlanetBackend click budget", () => {
         backend.close()
     })
 
-    it("narrows back to the plain burst when a caught bonus ends, with no click", async () => {
+    it("slows back to the plain refill when a caught bonus ends, with no click", async () => {
         vi.useFakeTimers()
         try {
             const getBudget = vi.fn()
                 .mockResolvedValueOnce({budget: budget(10)})
                 .mockResolvedValueOnce({budget: budget(10)})
             const claimBonus = vi.fn().mockResolvedValue({
-                budget: budget(30, 30, 3),
+                budget: budget(10, 10, 3),
                 kind: BonusKind.TRIPLE_CLICKS,
                 durationSeconds: 20,
             })
             const client = {...budgetClient(vi.fn(), getBudget) as object, claimBonus} as never
             const backend = new PlanetBackend(client, 1_000)
 
-            const capacities: number[] = []
-            backend.watchClickBudget(b => capacities.push(b.capacity))
+            const rates: number[] = []
+            backend.watchClickBudget(b => rates.push(b.perSecond))
 
             await backend.claimBonus("t", "fr")
-            expect(capacities.at(-1)).toBe(30)
+            expect(rates.at(-1)).toBe(3)
 
             await vi.advanceTimersByTimeAsync(20_000)
 
             expect(getBudget).toHaveBeenCalledTimes(2)
-            expect(capacities.at(-1)).toBe(10)
+            expect(rates.at(-1)).toBe(1)
             backend.close()
         } finally {
             vi.useRealTimers()
@@ -515,9 +519,9 @@ describe("PlanetBackend click budget", () => {
         backend.close()
     })
 
-    it("reads the price the server sends, already divided into clicks", async () => {
+    it("reads the price the server sends", async () => {
         const click = vi.fn().mockResolvedValue({
-            budget: new ClickBudgetMessage({tokens: 1, capacity: 1, refillPerSecond: 0.125, cost: 8, share: 0.8, nextShare: 0.9, nextCost: 10}),
+            budget: new ClickBudgetMessage({tokens: 1, capacity: 10, refillPerSecond: 0.125, slowdown: 8, share: 0.8, nextShare: 0.9, nextSlowdown: 10}),
         })
         const backend = new PlanetBackend(budgetClient(click), 1_000)
 
@@ -525,8 +529,8 @@ describe("PlanetBackend click budget", () => {
         backend.watchClickBudget(b => seen.push(b))
         await backend.clickTile(1, "bg")
 
-        expect(seen.at(-1)?.capacity).toBe(1)
-        expect(seen.at(-1)?.price).toEqual({cost: 8, share: 0.8, next: {share: 0.9, cost: 10}})
+        expect(seen.at(-1)?.capacity).toBe(10)
+        expect(seen.at(-1)?.price).toEqual({slowdown: 8, share: 0.8, next: {share: 0.9, slowdown: 10}})
         backend.close()
     })
 
@@ -542,39 +546,56 @@ describe("PlanetBackend click budget", () => {
         backend.close()
     })
 
-    it("re-reads the allowance for the country the player switches to", async () => {
+    it("re-reads the price for the country the player switches to", async () => {
         const getBudget = vi.fn().mockImplementation(({countryId}: {countryId: string}) =>
-            Promise.resolve({budget: budget(countryId === "bg" ? 1 : 10)}))
+            Promise.resolve({budget: new ClickBudgetMessage({tokens: 5, capacity: 10, refillPerSecond: 1, slowdown: countryId === "bg" ? 2 : 1})}))
         const backend = new PlanetBackend(budgetClient(vi.fn(), getBudget), 1_000)
 
-        const seen = watch(backend)
+        const seen: ClickBudget[] = []
+        backend.watchClickBudget(b => seen.push(b))
         backend.priceFor("bg")
 
-        await vi.waitFor(() => expect(getBudget).toHaveBeenCalledWith({countryId: "bg"}))
-        await vi.waitFor(() => expect(seen.at(-1)).toBe(1))
+        await vi.waitFor(() => expect(getBudget).toHaveBeenCalledWith({countryId: "bg"}, expect.anything()))
+        await vi.waitFor(() => expect(seen.at(-1)?.price?.slowdown).toBe(2))
+        expect(seen.at(-1)?.tokens).toBe(5)
 
         backend.priceFor("bg")
         expect(getBudget).toHaveBeenCalledTimes(2)
         backend.close()
     })
 
-    it("drops a reading priced for a country the player has left", async () => {
+    it("reads the allowance with the token it holds, and without one when it holds none", async () => {
+        const getBudget = vi.fn().mockResolvedValue({budget: budget(5)})
+        const held = new PlanetBackend(budgetClient(vi.fn(), getBudget), 1_000, fixedSession("session-1"))
+        await vi.waitFor(() => expect(getBudget).toHaveBeenCalledTimes(1))
+        expect((getBudget.mock.calls[0][1] as {headers: Headers}).headers.get(SESSION_HEADER)).toBe("session-1")
+        held.close()
+
+        const none = new PlanetBackend(budgetClient(vi.fn(), getBudget), 1_000, failingSession())
+        await vi.waitFor(() => expect(getBudget).toHaveBeenCalledTimes(2))
+        expect((getBudget.mock.calls[1][1] as {headers: Headers}).headers.get(SESSION_HEADER)).toBeNull()
+        none.close()
+    })
+
+    it("keeps the count of a reading for a country the player has left, and not its price", async () => {
         let land: (res: unknown) => void = () => {}
         const click = vi.fn().mockImplementation(() => new Promise(resolve => {
             land = resolve
         }))
-        const getBudget = vi.fn().mockResolvedValue({budget: budget(2)})
+        const getBudget = vi.fn().mockResolvedValue({budget: new ClickBudgetMessage({tokens: 2, capacity: 10, refillPerSecond: 1, slowdown: 2})})
         const backend = new PlanetBackend(budgetClient(click, getBudget), 1_000)
         backend.priceFor("bg")
         await vi.waitFor(() => expect(getBudget).toHaveBeenCalledTimes(2))
 
-        const seen = watch(backend)
+        const seen: ClickBudget[] = []
+        backend.watchClickBudget(b => seen.push(b))
         const inFlight = backend.clickTile(1, "fr")
         await vi.waitFor(() => expect(click).toHaveBeenCalledTimes(1))
-        land({budget: budget(9)})
+        land({budget: new ClickBudgetMessage({tokens: 9, capacity: 10, refillPerSecond: 1, slowdown: 1})})
         await inFlight
 
-        expect(seen).not.toContain(9)
+        expect(seen.at(-1)?.tokens).toBe(9)
+        expect(seen.at(-1)?.price?.slowdown).toBe(2)
         backend.close()
     })
 
@@ -815,6 +836,90 @@ describe("PlanetBackend bombs", () => {
         backend.listenForBombs(() => order.push("bomb"))
 
         await vi.waitFor(() => expect(order).toEqual(["updates", "bomb"]))
+        backend.close()
+    })
+})
+
+describe("PlanetBackend event stream session", () => {
+    /** A stream that stays open until the client lets go of it. */
+    const openForever = () => vi.fn<(req: object, options: {signal: AbortSignal, headers: Headers}) => AsyncIterable<PlanetEvent>>(
+        () => (async function* () {
+            await new Promise(() => {})
+            yield* []
+        })(),
+    )
+
+    const clientWith = (fields: Record<string, unknown>) =>
+        ({click: vi.fn().mockResolvedValue({}), getMap: vi.fn(), getBudget: noBudget(), mapDensity: vi.fn(), ...fields}) as never
+
+    const tokensOpenedWith = (listenForEvents: ReturnType<typeof openForever>) =>
+        listenForEvents.mock.calls.map(call => call[1].headers.get(SESSION_HEADER))
+
+    it("opens the stream with the token in hand, so the server knows whose account it serves", async () => {
+        const listenForEvents = openForever()
+        const backend = new PlanetBackend(clientWith({listenForEvents}), 1_000, fixedSession("session-1"))
+
+        await vi.waitFor(() => expect(tokensOpenedWith(listenForEvents)).toEqual(["session-1"]))
+        backend.close()
+    })
+
+    it("opens it with no token when none is held, and never mints one for it", async () => {
+        const listenForEvents = openForever()
+        const token = vi.fn(async () => "minted")
+        const session: SessionProvider = {token, held: () => undefined, invalidate: () => {}}
+        const backend = new PlanetBackend(clientWith({listenForEvents}), 1_000, session)
+
+        await vi.waitFor(() => expect(tokensOpenedWith(listenForEvents)).toEqual([null]))
+        expect(token).not.toHaveBeenCalled()
+        backend.close()
+    })
+
+    it("reopens the stream once a click goes out under a token the stream does not have", async () => {
+        const listenForEvents = openForever()
+        let held: string | undefined
+        const session: SessionProvider = {
+            token: async () => {
+                held = "session-1"
+                return held
+            },
+            held: () => held,
+            invalidate: () => {
+                held = undefined
+            },
+        }
+        const backend = new PlanetBackend(clientWith({listenForEvents}), 1_000, session)
+        await vi.waitFor(() => expect(tokensOpenedWith(listenForEvents)).toEqual([null]))
+        const first = listenForEvents.mock.calls[0][1].signal
+
+        await backend.clickTile(1, "fr")
+
+        await vi.waitFor(() => expect(tokensOpenedWith(listenForEvents)).toEqual([null, "session-1"]))
+        expect(first.aborted).toBe(true)
+
+        await backend.clickTile(2, "fr")
+        expect(tokensOpenedWith(listenForEvents)).toEqual([null, "session-1"])
+        backend.close()
+    })
+
+    it("keeps the stream when the click was refused", async () => {
+        vi.spyOn(console, "error").mockImplementation(() => {})
+        const listenForEvents = openForever()
+        const click = vi.fn().mockRejectedValue(new ConnectError("slow down", Code.ResourceExhausted))
+        let held: string | undefined
+        const session: SessionProvider = {
+            token: async () => {
+                held = "session-1"
+                return held
+            },
+            held: () => held,
+            invalidate: () => {},
+        }
+        const backend = new PlanetBackend(clientWith({listenForEvents, click}), 1_000, session)
+        await vi.waitFor(() => expect(tokensOpenedWith(listenForEvents)).toEqual([null]))
+
+        await expect(backend.clickTile(1, "fr")).rejects.toBeInstanceOf(RateLimitedError)
+
+        expect(tokensOpenedWith(listenForEvents)).toEqual([null])
         backend.close()
     })
 })

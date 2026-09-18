@@ -34,7 +34,8 @@ type UseCase struct {
 }
 
 // Execute derives the keys the same way the throttle charges them, and reports the tighter bucket. Deriving it
-// anywhere else is how a caller is told about somebody else's bucket.
+// anywhere else is how a caller is told about somebody else's bucket. The country only prices the answer: the
+// bucket keeps refilling at the pace of the last click until the next one.
 //
 // It reports false when nothing is limiting clicks, which is not the same answer
 // as an allowance of zero.
@@ -43,11 +44,13 @@ func (u *UseCase) Execute(ctx context.Context, country string) (clicks.Budget, b
 		return clicks.Budget{}, false
 	}
 
-	keys := u.buckets.Keys(clicks.PayerOf(ctx))
+	price := u.pricer.Price(country)
+
+	keys := u.buckets.Keys(clicks.PayerOf(ctx), price)
 	states := make([]cpratelimit.State, len(keys))
 	for i, key := range keys {
 		states[i] = u.budgets.Peek(key)
 	}
 
-	return u.buckets.BudgetOf(clicks.Tightest(states), u.pricer.Price(country)), true
+	return u.buckets.BudgetOf(clicks.Tightest(states), price), true
 }

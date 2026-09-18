@@ -10,27 +10,76 @@ service ChatService {
   }
 
   rpc ListenForEvents(ListenForEventsRequest) returns (stream ChatEvent);
+
+  // Puts a reaction on a message, or takes it off. Idempotent: asking for what
+  // is already there changes nothing and publishes nothing.
+  rpc React(ReactRequest) returns (ReactResponse);
+}
+
+// The reactions a message can carry. A fixed set, drawn by the client from its
+// own images and never from the system's emoji font: the enum is the whole
+// contract, so both apps agree on it without a list kept in each.
+//
+// A number is what is stored, so a value is never renumbered or reused. A new
+// one goes at the end.
+enum Reaction {
+  REACTION_UNSPECIFIED = 0;
+  REACTION_LAUGH = 1;
+  REACTION_CLOWN = 2;
+  REACTION_SKULL = 3;
+  REACTION_FIRE = 4;
+  REACTION_THUMBS_UP = 5;
+  REACTION_THUMBS_DOWN = 6;
+  REACTION_HEART = 7;
+  REACTION_CRY = 8;
+  REACTION_SCREAM = 9;
+  REACTION_COOL = 10;
+  REACTION_THINK = 11;
+  REACTION_POOP = 12;
+  REACTION_PARTY = 13;
+  REACTION_MIND_BLOWN = 14;
+  REACTION_NERD = 15;
+  REACTION_EARTH = 16;
+}
+
+// How many put one reaction on one message.
+message ReactionCount {
+  Reaction reaction = 1;
+  uint32 count = 2;
+  // The caller is one of them. Only a call knows who is asking: it is false on
+  // everything the stream sends, and the client keeps its own between calls.
+  bool mine = 3;
 }
 
 message ChatMessage {
   string id = 1;
   int64 sent_at_unix_ms = 2;
-  // A username, or "guest_" and the name a guest typed. The server adds the
-  // prefix, and no username starts with it, so a guest cannot pass for a
-  // player.
+  // A username, or "guest_" and the account's guest code: 6 hex characters,
+  // drawn once per account and kept. No username starts with the prefix, so a
+  // guest cannot pass for a player.
   string author_name = 3;
-  string author_tag = 4;
+  // Was a salted hash of the sender's address. The address is never public.
+  reserved 4;
+  reserved "author_tag";
   string country_id = 5;
   string text = 6;
+  // Posted under the username of an admin of the game, as it was when the
+  // message was sent. Never a guest.
+  bool author_admin = 7;
+  // In the order each reaction first appeared. Empty on a message just sent.
+  repeated ReactionCount reactions = 8;
+  // Which state of the reactions this is. See ReactionsChanged.version.
+  uint64 reactions_version = 9;
 }
 
-// The X-Session-Token header is optional. When it names an account with a
-// username, the message is sent under that username and author_name is not
-// read. Otherwise author_name is a guest's name, which the server sends as
-// "guest_" and the name. A missing or invalid token is a guest, never a refusal.
+// The X-Session-Token header is required, and must name an account: without
+// one the call is Unauthenticated. The message is sent under the account's
+// username, or as "guest_" and its guest code when it has none. Nobody chooses
+// a guest's name.
 message SendMessageRequest {
-  // At most 24 characters once cleaned, before the prefix.
-  string author_name = 1;
+  // Was the name a guest typed.
+  reserved 1;
+  reserved "author_name";
   string author_id = 2;
   string country_id = 3;
   string text = 4;
@@ -40,10 +89,49 @@ message SendMessageResponse {
   ChatMessage message = 1;
 }
 
+// The X-Session-Token header is optional here: it is what says which
+// reactions are the caller's own.
 message GetHistoryRequest {}
+
+// Something the chat says on its own, with no sender: a line between the
+// messages, not a bubble.
+message Announcement {
+  string id = 1;
+  int64 announced_at_unix_ms = 2;
+
+  // What happened, and so how to read payload. A client shows nothing for a
+  // kind it does not know.
+  //
+  // - "bomb": a bomb landed. payload is {"country", "ground", "tile",
+  //   "cleared"}: the bomber's country code; the code of the country whose
+  //   ground it hit, absent in the sea and on no country's ground; the tile it
+  //   hit, absent in the sea; and how many held tiles it cleared.
+  string kind = 3;
+
+  // The values the kind's line is written from, as a JSON object.
+  string payload = 4;
+}
 
 message GetHistoryResponse {
   repeated ChatMessage messages = 1;
+  // Oldest first, like messages. A client puts the two in one list by time.
+  repeated Announcement announcements = 2;
+}
+
+// The X-Session-Token header is required, and must name an account: without
+// one the call is Unauthenticated. Every caller reacts as its account.
+message ReactRequest {
+  string message_id = 1;
+  Reaction reaction = 2;
+  // True puts the reaction on, false takes it off.
+  bool on = 3;
+}
+
+message ReactResponse {
+  // The message's reactions once this one landed, mine included.
+  repeated ReactionCount reactions = 1;
+  // See ReactionsChanged.version.
+  uint64 version = 2;
 }
 
 message ListenForEventsRequest {}
@@ -57,7 +145,20 @@ message ChatEvent {
   oneof event {
     ChatMessage message = 1;
     Heartbeat heartbeat = 2;
+    ReactionsChanged reactions = 3;
+    Announcement announcement = 4;
   }
+}
+
+// A message's reactions changed. They are all of them, not the difference, so a
+// client that missed a frame is right again on the next one.
+message ReactionsChanged {
+  string message_id = 1;
+  repeated ReactionCount reactions = 2;
+  // Goes up by one with each change to the message's reactions. Frames can
+  // arrive out of order, so a client keeps the reactions of the highest
+  // version it has seen, and drops a lower one.
+  uint64 version = 3;
 }
 
 message Heartbeat {}

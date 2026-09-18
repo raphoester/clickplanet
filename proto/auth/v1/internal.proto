@@ -22,4 +22,7 @@ message GetAccountRequest {
 message GetAccountResponse {
   // Signed in with at least one provider. False for a guest.
   bool linked = 1;
+  // When the account was made, as a guest or by a first sign-in. Zero for an
+  // account that does not exist.
+  int64 created_at_unix_ms = 2;
 }

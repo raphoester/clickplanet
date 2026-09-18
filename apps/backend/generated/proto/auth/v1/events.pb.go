@@ -68,12 +68,126 @@ func (x *AccountDeleted) GetAccountId() string {
 	return ""
 }
 
+// SignedIn is a browser that finished a sign-in. It is on account_id now, and it
+// was on previous_account_id before: the same account when a guest linked its
+// first identity, another one when the identity was already known or a new
+// account was made. previous_account_id is empty when the browser had no live
+// session. A subscriber moves what it keeps for the browser's old account.
+type SignedIn struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// As a UUID, or empty.
+	PreviousAccountId string `protobuf:"bytes,1,opt,name=previous_account_id,json=previousAccountId,proto3" json:"previous_account_id,omitempty"`
+	// As a UUID.
+	AccountId     string `protobuf:"bytes,2,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SignedIn) Reset() {
+	*x = SignedIn{}
+	mi := &file_auth_v1_events_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SignedIn) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SignedIn) ProtoMessage() {}
+
+func (x *SignedIn) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_events_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SignedIn.ProtoReflect.Descriptor instead.
+func (*SignedIn) Descriptor() ([]byte, []int) {
+	return file_auth_v1_events_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *SignedIn) GetPreviousAccountId() string {
+	if x != nil {
+		return x.PreviousAccountId
+	}
+	return ""
+}
+
+func (x *SignedIn) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
+// SignedOut is an account that ended a session: one browser's, or every one of
+// them. The account still exists. A subscriber forgets what it shows about the
+// account as playing now.
+type SignedOut struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// As a UUID.
+	AccountId     string `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SignedOut) Reset() {
+	*x = SignedOut{}
+	mi := &file_auth_v1_events_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SignedOut) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SignedOut) ProtoMessage() {}
+
+func (x *SignedOut) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_events_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SignedOut.ProtoReflect.Descriptor instead.
+func (*SignedOut) Descriptor() ([]byte, []int) {
+	return file_auth_v1_events_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *SignedOut) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
 var File_auth_v1_events_proto protoreflect.FileDescriptor
 
 const file_auth_v1_events_proto_rawDesc = "" +
 	"\n" +
 	"\x14auth/v1/events.proto\x12\aauth.v1\"/\n" +
 	"\x0eAccountDeleted\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId\"Y\n" +
+	"\bSignedIn\x12.\n" +
+	"\x13previous_account_id\x18\x01 \x01(\tR\x11previousAccountId\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x02 \x01(\tR\taccountId\"*\n" +
+	"\tSignedOut\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountIdB\xa5\x01\n" +
 	"\vcom.auth.v1B\vEventsProtoP\x01ZLgithub.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1;authv1\xa2\x02\x03AXX\xaa\x02\aAuth.V1\xca\x02\aAuth\\V1\xe2\x02\x13Auth\\V1\\GPBMetadata\xea\x02\bAuth::V1b\x06proto3"
@@ -90,9 +204,11 @@ func file_auth_v1_events_proto_rawDescGZIP() []byte {
 	return file_auth_v1_events_proto_rawDescData
 }
 
-var file_auth_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_auth_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_auth_v1_events_proto_goTypes = []any{
 	(*AccountDeleted)(nil), // 0: auth.v1.AccountDeleted
+	(*SignedIn)(nil),       // 1: auth.v1.SignedIn
+	(*SignedOut)(nil),      // 2: auth.v1.SignedOut
 }
 var file_auth_v1_events_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type
@@ -113,7 +229,7 @@ func file_auth_v1_events_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_auth_v1_events_proto_rawDesc), len(file_auth_v1_events_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   1,
+			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

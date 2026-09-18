@@ -21,6 +21,10 @@ import AnthemBar from "../anthem/AnthemBar.tsx";
 import {useAnthem} from "../anthem/useAnthem.ts";
 import {AccountStore} from "../account/accountStore.ts";
 import {useAccount} from "../account/useAccount.ts";
+import {PlayerInfoBackend, PresenceBackend, PlayerLine} from "../../backends/player.ts";
+import PlayerCard from "../players/PlayerCard.tsx";
+import {usePresence} from "../players/usePresence.ts";
+import {useRoster} from "../players/useRoster.ts";
 import SignInPitchModal from "../account/SignInPitchModal.tsx";
 import "./Viewer.css"
 
@@ -33,6 +37,10 @@ export type ViewerProps = {
     bomber?: Bomber
     chatBackend?: ChatBackend
     account?: AccountStore
+    /** Absent — the fake backend without one — the menu lists no players. */
+    presence?: PresenceBackend
+    /** Absent, a name in the roster or the chat opens nothing. */
+    playerInfo?: PlayerInfoBackend
 }
 
 export default function Viewer(props: ViewerProps) {
@@ -42,7 +50,14 @@ export default function Viewer(props: ViewerProps) {
     const sound = useSound()
     // The chat posts under the username, so it follows the account the menu shows.
     const account = useAccount(props.account)
+    const username = account.kind === 'ready' ? account.username : undefined
+
+    usePresence(props.presence, {countryCode: countryState.code, username})
+    const roster = useRoster(props.presence)
     const [pitchOpen, setPitchOpen] = useState(false)
+    // One card at a time, over the roster or the chat, whichever the name was clicked in.
+    const [openPlayer, setOpenPlayer] = useState<PlayerLine>()
+    const onOpenPlayer = props.playerInfo ? setOpenPlayer : undefined
     // A guest the server offers sign-in to. With sign-in off there is nothing to point at, so nothing is offered.
     const guest = account.kind === 'ready' && account.offered.length > 0 && account.me.linked.length === 0
 
@@ -93,6 +108,8 @@ export default function Viewer(props: ViewerProps) {
             tilesCount={tilesCount}
             sound={{settings: sound.settings, onChange: sound.setSettings, preview: sound.preview}}
             account={props.account}
+            players={roster.kind === 'ready' ? roster.entries : undefined}
+            onOpenPlayer={onOpenPlayer}
             linkedMultiplier={clickBudget?.linkedMultiplier}
         />}
 
@@ -122,8 +139,14 @@ export default function Viewer(props: ViewerProps) {
             backend={props.chatBackend}
             country={countryState}
             playSound={sound.play}
-            username={account.kind === 'ready' ? account.username : undefined}
+            username={username}
+            onOpenPlayer={onOpenPlayer}
         />}
+
+        {openPlayer && props.playerInfo && <PlayerCard key={openPlayer.name}
+                                                       player={openPlayer}
+                                                       backend={props.playerInfo}
+                                                       onClose={() => setOpenPlayer(undefined)}/>}
 
         {award && <BonusAward reward={award} onDone={dismissAward}/>}
 

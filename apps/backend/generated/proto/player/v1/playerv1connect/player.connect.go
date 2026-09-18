@@ -42,8 +42,15 @@ const (
 	PlayerServiceGetStatsProcedure = "/player.v1.PlayerService/GetStats"
 	// PlayerServiceAnnounceProcedure is the fully-qualified name of the PlayerService's Announce RPC.
 	PlayerServiceAnnounceProcedure = "/player.v1.PlayerService/Announce"
+	// PlayerServiceLeaveProcedure is the fully-qualified name of the PlayerService's Leave RPC.
+	PlayerServiceLeaveProcedure = "/player.v1.PlayerService/Leave"
 	// PlayerServiceGetRosterProcedure is the fully-qualified name of the PlayerService's GetRoster RPC.
 	PlayerServiceGetRosterProcedure = "/player.v1.PlayerService/GetRoster"
+	// PlayerServiceListenForEventsProcedure is the fully-qualified name of the PlayerService's
+	// ListenForEvents RPC.
+	PlayerServiceListenForEventsProcedure = "/player.v1.PlayerService/ListenForEvents"
+	// PlayerServiceGetPlayerProcedure is the fully-qualified name of the PlayerService's GetPlayer RPC.
+	PlayerServiceGetPlayerProcedure = "/player.v1.PlayerService/GetPlayer"
 )
 
 // PlayerServiceClient is a client for the player.v1.PlayerService service.
@@ -62,8 +69,20 @@ type PlayerServiceClient interface {
 	// player that stops sending leaves the roster 90s after its last call. A
 	// country that is not one is InvalidArgument.
 	Announce(context.Context, *connect.Request[v1.AnnounceRequest]) (*connect.Response[v1.AnnounceResponse], error)
+	// Says the caller stopped playing: its page closed. It leaves the roster at
+	// once rather than 90s after its last announce. A client sends it with
+	// keepalive, and nothing waits on the answer.
+	Leave(context.Context, *connect.Request[v1.LeaveRequest]) (*connect.Response[v1.LeaveResponse], error)
 	// Everyone playing. It needs no token, and a proxy may serve it for 5s.
+	// ListenForEvents says the same and keeps it up to date; this stays for
+	// clients from before it.
 	GetRoster(context.Context, *connect.Request[v1.GetRosterRequest]) (*connect.Response[v1.GetRosterResponse], error)
+	// Who is playing, live. Needs no token. The first event is the whole roster;
+	// each one after says one player joined, changed or left.
+	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest]) (*connect.ServerStreamForClient[v1.PlayerEvent], error)
+	// What anybody may know about a player with a username. Needs no token.
+	// A name no account holds is not_found, and so is a guest: it has no name.
+	GetPlayer(context.Context, *connect.Request[v1.GetPlayerRequest]) (*connect.Response[v1.GetPlayerResponse], error)
 }
 
 // NewPlayerServiceClient constructs a client for the player.v1.PlayerService service. By default,
@@ -101,10 +120,29 @@ func NewPlayerServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(playerServiceMethods.ByName("Announce")),
 			connect.WithClientOptions(opts...),
 		),
+		leave: connect.NewClient[v1.LeaveRequest, v1.LeaveResponse](
+			httpClient,
+			baseURL+PlayerServiceLeaveProcedure,
+			connect.WithSchema(playerServiceMethods.ByName("Leave")),
+			connect.WithClientOptions(opts...),
+		),
 		getRoster: connect.NewClient[v1.GetRosterRequest, v1.GetRosterResponse](
 			httpClient,
 			baseURL+PlayerServiceGetRosterProcedure,
 			connect.WithSchema(playerServiceMethods.ByName("GetRoster")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
+		listenForEvents: connect.NewClient[v1.ListenForEventsRequest, v1.PlayerEvent](
+			httpClient,
+			baseURL+PlayerServiceListenForEventsProcedure,
+			connect.WithSchema(playerServiceMethods.ByName("ListenForEvents")),
+			connect.WithClientOptions(opts...),
+		),
+		getPlayer: connect.NewClient[v1.GetPlayerRequest, v1.GetPlayerResponse](
+			httpClient,
+			baseURL+PlayerServiceGetPlayerProcedure,
+			connect.WithSchema(playerServiceMethods.ByName("GetPlayer")),
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
@@ -113,11 +151,14 @@ func NewPlayerServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 
 // playerServiceClient implements PlayerServiceClient.
 type playerServiceClient struct {
-	getProfile *connect.Client[v1.GetProfileRequest, v1.GetProfileResponse]
-	setName    *connect.Client[v1.SetNameRequest, v1.SetNameResponse]
-	getStats   *connect.Client[v1.GetStatsRequest, v1.GetStatsResponse]
-	announce   *connect.Client[v1.AnnounceRequest, v1.AnnounceResponse]
-	getRoster  *connect.Client[v1.GetRosterRequest, v1.GetRosterResponse]
+	getProfile      *connect.Client[v1.GetProfileRequest, v1.GetProfileResponse]
+	setName         *connect.Client[v1.SetNameRequest, v1.SetNameResponse]
+	getStats        *connect.Client[v1.GetStatsRequest, v1.GetStatsResponse]
+	announce        *connect.Client[v1.AnnounceRequest, v1.AnnounceResponse]
+	leave           *connect.Client[v1.LeaveRequest, v1.LeaveResponse]
+	getRoster       *connect.Client[v1.GetRosterRequest, v1.GetRosterResponse]
+	listenForEvents *connect.Client[v1.ListenForEventsRequest, v1.PlayerEvent]
+	getPlayer       *connect.Client[v1.GetPlayerRequest, v1.GetPlayerResponse]
 }
 
 // GetProfile calls player.v1.PlayerService.GetProfile.
@@ -140,9 +181,24 @@ func (c *playerServiceClient) Announce(ctx context.Context, req *connect.Request
 	return c.announce.CallUnary(ctx, req)
 }
 
+// Leave calls player.v1.PlayerService.Leave.
+func (c *playerServiceClient) Leave(ctx context.Context, req *connect.Request[v1.LeaveRequest]) (*connect.Response[v1.LeaveResponse], error) {
+	return c.leave.CallUnary(ctx, req)
+}
+
 // GetRoster calls player.v1.PlayerService.GetRoster.
 func (c *playerServiceClient) GetRoster(ctx context.Context, req *connect.Request[v1.GetRosterRequest]) (*connect.Response[v1.GetRosterResponse], error) {
 	return c.getRoster.CallUnary(ctx, req)
+}
+
+// ListenForEvents calls player.v1.PlayerService.ListenForEvents.
+func (c *playerServiceClient) ListenForEvents(ctx context.Context, req *connect.Request[v1.ListenForEventsRequest]) (*connect.ServerStreamForClient[v1.PlayerEvent], error) {
+	return c.listenForEvents.CallServerStream(ctx, req)
+}
+
+// GetPlayer calls player.v1.PlayerService.GetPlayer.
+func (c *playerServiceClient) GetPlayer(ctx context.Context, req *connect.Request[v1.GetPlayerRequest]) (*connect.Response[v1.GetPlayerResponse], error) {
+	return c.getPlayer.CallUnary(ctx, req)
 }
 
 // PlayerServiceHandler is an implementation of the player.v1.PlayerService service.
@@ -161,8 +217,20 @@ type PlayerServiceHandler interface {
 	// player that stops sending leaves the roster 90s after its last call. A
 	// country that is not one is InvalidArgument.
 	Announce(context.Context, *connect.Request[v1.AnnounceRequest]) (*connect.Response[v1.AnnounceResponse], error)
+	// Says the caller stopped playing: its page closed. It leaves the roster at
+	// once rather than 90s after its last announce. A client sends it with
+	// keepalive, and nothing waits on the answer.
+	Leave(context.Context, *connect.Request[v1.LeaveRequest]) (*connect.Response[v1.LeaveResponse], error)
 	// Everyone playing. It needs no token, and a proxy may serve it for 5s.
+	// ListenForEvents says the same and keeps it up to date; this stays for
+	// clients from before it.
 	GetRoster(context.Context, *connect.Request[v1.GetRosterRequest]) (*connect.Response[v1.GetRosterResponse], error)
+	// Who is playing, live. Needs no token. The first event is the whole roster;
+	// each one after says one player joined, changed or left.
+	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest], *connect.ServerStream[v1.PlayerEvent]) error
+	// What anybody may know about a player with a username. Needs no token.
+	// A name no account holds is not_found, and so is a guest: it has no name.
+	GetPlayer(context.Context, *connect.Request[v1.GetPlayerRequest]) (*connect.Response[v1.GetPlayerResponse], error)
 }
 
 // NewPlayerServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -196,10 +264,29 @@ func NewPlayerServiceHandler(svc PlayerServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(playerServiceMethods.ByName("Announce")),
 		connect.WithHandlerOptions(opts...),
 	)
+	playerServiceLeaveHandler := connect.NewUnaryHandler(
+		PlayerServiceLeaveProcedure,
+		svc.Leave,
+		connect.WithSchema(playerServiceMethods.ByName("Leave")),
+		connect.WithHandlerOptions(opts...),
+	)
 	playerServiceGetRosterHandler := connect.NewUnaryHandler(
 		PlayerServiceGetRosterProcedure,
 		svc.GetRoster,
 		connect.WithSchema(playerServiceMethods.ByName("GetRoster")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
+	playerServiceListenForEventsHandler := connect.NewServerStreamHandler(
+		PlayerServiceListenForEventsProcedure,
+		svc.ListenForEvents,
+		connect.WithSchema(playerServiceMethods.ByName("ListenForEvents")),
+		connect.WithHandlerOptions(opts...),
+	)
+	playerServiceGetPlayerHandler := connect.NewUnaryHandler(
+		PlayerServiceGetPlayerProcedure,
+		svc.GetPlayer,
+		connect.WithSchema(playerServiceMethods.ByName("GetPlayer")),
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
@@ -213,8 +300,14 @@ func NewPlayerServiceHandler(svc PlayerServiceHandler, opts ...connect.HandlerOp
 			playerServiceGetStatsHandler.ServeHTTP(w, r)
 		case PlayerServiceAnnounceProcedure:
 			playerServiceAnnounceHandler.ServeHTTP(w, r)
+		case PlayerServiceLeaveProcedure:
+			playerServiceLeaveHandler.ServeHTTP(w, r)
 		case PlayerServiceGetRosterProcedure:
 			playerServiceGetRosterHandler.ServeHTTP(w, r)
+		case PlayerServiceListenForEventsProcedure:
+			playerServiceListenForEventsHandler.ServeHTTP(w, r)
+		case PlayerServiceGetPlayerProcedure:
+			playerServiceGetPlayerHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -240,6 +333,18 @@ func (UnimplementedPlayerServiceHandler) Announce(context.Context, *connect.Requ
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.PlayerService.Announce is not implemented"))
 }
 
+func (UnimplementedPlayerServiceHandler) Leave(context.Context, *connect.Request[v1.LeaveRequest]) (*connect.Response[v1.LeaveResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.PlayerService.Leave is not implemented"))
+}
+
 func (UnimplementedPlayerServiceHandler) GetRoster(context.Context, *connect.Request[v1.GetRosterRequest]) (*connect.Response[v1.GetRosterResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.PlayerService.GetRoster is not implemented"))
+}
+
+func (UnimplementedPlayerServiceHandler) ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest], *connect.ServerStream[v1.PlayerEvent]) error {
+	return connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.PlayerService.ListenForEvents is not implemented"))
+}
+
+func (UnimplementedPlayerServiceHandler) GetPlayer(context.Context, *connect.Request[v1.GetPlayerRequest]) (*connect.Response[v1.GetPlayerResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.PlayerService.GetPlayer is not implemented"))
 }

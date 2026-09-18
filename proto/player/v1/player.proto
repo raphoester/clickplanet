@@ -3,7 +3,7 @@ syntax = "proto3";
 package player.v1;
 
 // A player's profile and stats, and who is playing. Every procedure but
-// GetRoster answers for the caller: the account named by the click token in the
+// GetRoster, GetPlayer and ListenForEvents answers for the caller: the account named by the click token in the
 // X-Session-Token header. A call with no valid token, or a token with no
 // account, is Unauthenticated.
 service PlayerService {
@@ -23,8 +23,25 @@ service PlayerService {
   // country that is not one is InvalidArgument.
   rpc Announce(AnnounceRequest) returns (AnnounceResponse);
 
+  // Says the caller stopped playing: its page closed. It leaves the roster at
+  // once rather than 90s after its last announce. A client sends it with
+  // keepalive, and nothing waits on the answer.
+  rpc Leave(LeaveRequest) returns (LeaveResponse);
+
   // Everyone playing. It needs no token, and a proxy may serve it for 5s.
+  // ListenForEvents says the same and keeps it up to date; this stays for
+  // clients from before it.
   rpc GetRoster(GetRosterRequest) returns (GetRosterResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // Who is playing, live. Needs no token. The first event is the whole roster;
+  // each one after says one player joined, changed or left.
+  rpc ListenForEvents(ListenForEventsRequest) returns (stream PlayerEvent);
+
+  // What anybody may know about a player with a username. Needs no token.
+  // A name no account holds is not_found, and so is a guest: it has no name.
+  rpc GetPlayer(GetPlayerRequest) returns (GetPlayerResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
 }
@@ -68,13 +85,17 @@ message GetStatsResponse {
 
 message AnnounceRequest {
   string country_id = 1;
-  // The name a guest typed in the chat. Not read for an account with a
-  // username. Empty, or one the server refuses, shows the guest as "guest_" and
-  // its tag.
-  string guest_name = 2;
+  // Was the name a guest typed in the chat. A guest is now shown by its guest
+  // code, which nobody chooses.
+  reserved 2;
+  reserved "guest_name";
 }
 
 message AnnounceResponse {}
+
+message LeaveRequest {}
+
+message LeaveResponse {}
 
 message GetRosterRequest {}
 
@@ -85,12 +106,73 @@ message GetRosterResponse {
 }
 
 message RosterEntry {
-  // A username, or "guest_" and the name a guest typed or its tag.
+  // A username, or "guest_" and the account's guest code, as on a chat
+  // message.
   string name = 1;
-  // As on a chat message: a salted hash of the address the player last
-  // announced from.
-  string tag = 2;
+  // Was a salted hash of the address the player last announced from. The
+  // address is never public.
+  reserved 2;
+  reserved "tag";
   // The flag the player last announced.
   string country_id = 3;
   bool guest = 4;
+  // An admin of the game. Never a guest.
+  bool admin = 5;
+  // Names this line for as long as the player stays on the roster, a sign-in
+  // and a new name included. Opaque: it says nothing about the account.
+  string key = 6;
+}
+
+message ListenForEventsRequest {}
+
+// The one live stream of this API — see the note on planet.v1.PlanetEvent. A
+// new kind of event is a new case below, not a second stream.
+//
+// Heartbeat is what keeps a quiet stream alive: Cloudflare cuts a silent
+// response at ~125s with a 524.
+message PlayerEvent {
+  oneof event {
+    // The whole roster, in GetRoster's order. Always the first event, so a
+    // client that reconnects starts over from it.
+    Roster roster = 1;
+    // A player joined, or a line changed: its name or its flag. It
+    // replaces the line with the same key.
+    RosterEntry entry = 2;
+    // The line with this key is gone: the player left, signed out or stopped
+    // announcing.
+    PlayerLeft left = 3;
+    Heartbeat heartbeat = 4;
+  }
+}
+
+message Roster {
+  // Players with a username first, then guests; each group by name, ignoring
+  // case.
+  repeated RosterEntry entries = 1;
+}
+
+message PlayerLeft {
+  string key = 1;
+}
+
+message Heartbeat {}
+
+message GetPlayerRequest {
+  // A username, in any case.
+  string name = 1;
+}
+
+message GetPlayerResponse {
+  Player player = 1;
+}
+
+message Player {
+  // The username as its player typed it.
+  string name = 1;
+  // As of today: a streak that ended before yesterday reads 0.
+  Stats stats = 2;
+  // When the account was made, as a guest or by a first sign-in.
+  int64 created_at_unix_ms = 3;
+  // An admin of the game.
+  bool admin = 4;
 }

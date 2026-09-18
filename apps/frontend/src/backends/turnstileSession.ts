@@ -65,12 +65,21 @@ export class SessionClient implements SessionProvider {
     }
 
     public async token(): Promise<string> {
+        return this.held() ?? this.mint()
+    }
+
+    /**
+     * Live by the same rule `token` uses, so a token inside the refresh margin
+     * is not held: `token` would not hand it out either, and an announce sent
+     * with it could lapse before the server reads it.
+     */
+    public held(): string | undefined {
         const current = this.current
         if (current && this.now() < current.expiresAt - this.refreshMarginMs) {
             return current.value
         }
 
-        return this.mint()
+        return undefined
     }
 
     /**

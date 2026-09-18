@@ -7,30 +7,30 @@ describe("describePrice", () => {
     })
 
     it("says nothing for a small country far from the first step", () => {
-        expect(describePrice({cost: 1, share: 0.02, next: {share: 0.1, cost: 2}}, "Chad")).toBeUndefined()
+        expect(describePrice({slowdown: 1, share: 0.02, next: {share: 0.1, slowdown: 2}}, "Chad")).toBeUndefined()
     })
 
     it("warns a country close to the first step", () => {
-        expect(describePrice({cost: 1, share: 0.085, next: {share: 0.1, cost: 2}}, "France")).toEqual({
+        expect(describePrice({slowdown: 1, share: 0.085, next: {share: 0.1, slowdown: 2}}, "France")).toEqual({
             headline: "France holds 8.5% of the map",
-            detail: "Clicks 2× slower at 10%",
+            detail: "Refills 2× slower at 10%",
         })
     })
 
-    it("says why a big country's meter is narrow, and what comes next", () => {
-        expect(describePrice({cost: 1.5, share: 0.6, next: {share: 0.7, cost: 2}}, "Bulgaria")).toEqual({
+    it("says why a big country refills slowly, and what comes next", () => {
+        expect(describePrice({slowdown: 1.5, share: 0.6, next: {share: 0.7, slowdown: 2}}, "Bulgaria")).toEqual({
             headline: "Bulgaria holds 60% of the map",
-            detail: "Clicks 1.5× slower · 2× at 70%",
+            detail: "Refills 1.5× slower · 2× at 70%",
         })
     })
 
     it("names no next step at the top", () => {
-        expect(describePrice({cost: 2, share: 0.95}, "Bulgaria")?.detail).toBe("Clicks 2× slower")
+        expect(describePrice({slowdown: 2, share: 0.95}, "Bulgaria")?.detail).toBe("Refills 2× slower")
     })
 })
 
 describe("factor", () => {
-    it("writes a cost the way the config does", () => {
+    it("writes a factor the way the config does", () => {
         expect(factor(2)).toBe("2")
         expect(factor(1.5)).toBe("1.5")
         expect(factor(1.25)).toBe("1.25")

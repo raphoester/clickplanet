@@ -142,10 +142,12 @@ app/       components
   returns the array it was given when nothing was added, so an echo of something
   already shown costs no render. `unreadSince` counts what arrived after a given
   id, for the badge on the folded panel, and `idsSince` names those same
-  messages, for highlighting them once they are on screen.
+  messages, for highlighting them once they are on screen. `nameSentUnder` is
+  the name the server gave the latest message this client sent — the only way
+  it learns a guest's name.
 - `authorColor.ts` — `authorHue`, a stable hue per chat author. It hashes the
-  identity the log actually displays, the name *and* the `author_tag`, so two
-  people typing one name get two colours. **Only the hue is derived**: the
+  name the log displays, which the server gives one account only (a username,
+  or `guest_` and the guest's code). **Only the hue is derived**: the
   saturation and the lightness are fixed in `ChatPanel.css`, so no hash can
   produce a colour that is unreadable against the dark panel.
 - `shareCard.ts` — everything about a shared image that is decided before a
@@ -170,7 +172,8 @@ is worth keeping on this side too.
 Beside them: `session.ts` (the click token, see [Sessions](#sessions)),
 `account.ts` (who the cookie belongs to, see [Sign-in](#sign-in)) and
 `player.ts` — `PlayerBackend`, the player's `Profile`, `PlayerError` and
-`isValidUsername`, the username rule. `playerBackend.ts` implements it against
+`isValidUsername`, the username rule, plus `PresenceBackend` (see [Who is
+playing](#who-is-playing)). `playerBackend.ts` implements both against
 `player.v1.PlayerService`.
 
 `transport.ts` holds what both contexts need and neither owns: `retrying`,
@@ -248,7 +251,7 @@ turn the VPN off, or reload and unblock the challenge. Everything else is a tran
 console.
 
 `FakeBackend` reproduces all three, so every refusal is reachable in dev: it
-enforces the same bucket with the backend's defaults, and takes `vpnBlocked` and
+enforces the same bucket as production's `rateLimiter` (one click every 5s, 60 in hand), and takes `vpnBlocked` and
 `sessionUnavailable` options that refuse every click (there is no address and no
 widget there to judge). Its own simulated traffic bypasses all of them, standing
 in for other players rather than for this one.
@@ -268,20 +271,26 @@ message per click. Every click answer re-anchors it, which is why the error can
 never accumulate: it is exact again the moment the player does the thing the
 counter is about.
 
-`PlanetBackend` learns it three ways — `GetBudget` once at load, `ClickResponse
-.budget` on every accepted click, and a **connect error detail** on a refused
-one, which is the reading that matters most. It also subtracts its own clicks in
+`PlanetBackend` learns it three ways — `GetBudget` at load and on a switch of
+country, `ClickResponse.budget` on every accepted click, and a **connect error
+detail** on a refused one, which is the reading that matters most. **`GetBudget`
+carries the token already held** (`SessionProvider.held()`, never a mint):
+without it the server reads the bucket of an address with no account, which is
+never spent and always full, and the next click contradicts it. It also subtracts its own clicks in
 flight, so the counter only ever *under*-promises: a counter that says 1 and is
 refused is a bug the player sees, and one that says 0 and works is a click they
 still get.
 
-**The reading is priced for one country.** The server charges more tokens per
-click the more of the map a country holds, and sends the budget already divided
-into clicks, with the price beside it (`ClickBudget.price`). `useClickBudget`
+**One bank, one click per token.** The bank's size never moves: not with the
+country, a bonus or signing in. The more of the map a country holds, the slower
+its players refill; signing in refills faster, and so does a triple bonus. The
+server sets that pace on each click, from the country clicked for, so a switch
+of flag moves nothing on the meter until the next click. The reading carries the
+selected country's slowdown beside it (`ClickBudget.price`): `useClickBudget`
 calls `priceFor(country)` whenever the selected country changes, and
-`PlanetBackend` drops any reading priced for a country other than that one. The
-meter only explains the price (`domain/clickPrice.ts`): it says nothing at the
-plain rate unless the country is within 80% of the first step.
+`PlanetBackend` keeps the count of every reading but only the price of one for
+that country. The meter only explains the price (`domain/clickPrice.ts`): it
+says nothing at the plain rate unless the country is within 80% of the first step.
 
 A server that reports nothing — no throttle, or one too old for the call —
 leaves the counter hidden rather than showing a made-up allowance, so this ships
@@ -292,51 +301,67 @@ bucket, so the counter is live in dev.
 exponential backoff. It is the only source of live changes, so a drop that is not
 retried freezes the globe until a reload.
 
+**The planet stream carries the click token it can have without a mint.** Each
+(re)connect puts `SessionProvider.held()` in `X-Session-Token`, so the server
+knows which account the stream serves; with none held it opens without one and
+the server follows the address. It never calls `token()`: watching the planet is
+not worth a Turnstile check. The server reads the token only when the stream
+opens, so `followSession` **reopens the stream** when a click, a claim or a bomb
+the server accepted went out under a token the stream was not opened with — the
+first click of a page load, and the first one after a sign-in or a sign-out. The
+hourly re-mint for the same account reopens it too: telling the two apart would
+mean reading the token, which is the server's business. A refused call reopens
+nothing.
+
 ### Live chat
 
 The client for the backend's second bounded context: `chat.ts` declares
-`ChatSender`, `ChatHistoryGetter` and `ChatListener` (plus `ChatBackend`, the
-three together), `chatBackend.ts` implements them against `/chat.v1.ChatService/`
-alone — `SendMessage`, `GetHistory` and the `ListenForEvents` stream — and
+`ChatSender`, `ChatHistoryGetter`, `ChatListener` and `ChatReactor` (plus
+`ChatBackend`, the four together), `chatBackend.ts` implements them against
+`/chat.v1.ChatService/` alone — `SendMessage`, `GetHistory`, `React` and the
+`ListenForEvents` stream — and
 `fakeChatBackend.ts` is the dev stand-in. `ChatPanel` docks
 bottom-right, opposite the menu, and starts folded under 768px.
 
-**`MAX_TEXT_LENGTH` and `MAX_NAME_LENGTH` in `chat.ts` mirror
-`chat.service.max*Length` on the backend**, counted in code points as the server
-counts runes. They are the composer's bounds, not a defence — the server
-sanitizes and rejects on its own.
+**`MAX_TEXT_LENGTH` in `chat.ts` mirrors `chat.service.maxTextLength` on the
+backend**, counted in code points as the server counts runes. It is the
+composer's bound, not a defence — the server sanitizes and rejects on its own.
 
 **Message text is rendered as text, never as HTML.** The backend stores it raw
 and says so; React escaping is what makes that safe, so never reach for
 `dangerouslySetInnerHTML` here.
 
-**A player with a username posts under it; everyone else is a guest.** A guest's
-identity is a name and a UUID the client keeps in `clickplanet-chat-identity`
-(`chatIdentity.ts`, `useChatIdentity.ts`), and the server shows the name as
-`guest_<name>` (`GUEST_PREFIX`, `guestName`) — no username starts with it, so a
-guest cannot pass for a player. The composer asks a guest for a name before the
-first message rather than at page load, and its foot reads "as guest_<name>",
-what the others see. `MAX_NAME_LENGTH` bounds the typed part, before the prefix.
-What distinguishes two guests with one name is `author_tag`, the salted hash of
-their address that the server stamps itself. History from before usernames
-was given the prefix on the server, since every sender was a guest then.
+**The server names every sender; the client sends no name.** A player with a
+username posts under it. Every other account is a guest, shown as `guest_` and a
+6-hex code the server drew once for that account (`guest_a1b2c3`, `GUEST_PREFIX`)
+— no username starts with the prefix, so a guest cannot pass for a player, and
+no two accounts share a code, so a name is one account. **Nothing about the
+sender's address is public**: the `#tag` beside every name is gone from the wire.
+The composer asks nobody for a name; its foot reads "as <username>", or for a
+guest "as a guest" until its first message comes back, then the name the server
+gave it (`nameSentUnder`). The client still keeps a UUID in
+`clickplanet-chat-identity` (`chatIdentity.ts`, `useChatIdentity.ts`, held by
+`ChatPanel`) because `SendMessageRequest.author_id` carries it; the server
+trusts it for nothing, and a name stored there by an older build is dropped.
 
-`Viewer` reads the username off the `AccountStore` and hands it to `ChatPanel`.
-With one, the composer asks for no name and has no "Change": the name is changed
-in the account panel. The message goes out with `asAccount`, and
-`ChatServiceBackend` then puts the click token in `X-Session-Token` — **only
-then**, so a guest who never clicked does not mint a session just to chat. A
-token that cannot be had sends the message without one, as a guest's, rather
-than failing; the server reads a missing or bad token the same way. "Your own
-message never pings" compares against the displayed name: the username, or
-`guest_` and the typed name.
+**`SendMessage` and `React` always carry the click token**, guests included:
+the server refuses a caller with no account (`unauthenticated`). So
+`ChatServiceBackend` calls `token()`, which mints when none is held, as a click
+does — chatting before the first click costs a Turnstile check. A token the
+server refuses is dropped and the call made once more with a fresh one (a
+refused call posted nothing, so this cannot post twice); a second refusal, or a
+mint that failed, is `ChatNoSessionError`, and nothing is sent. `Viewer` reads
+the username off the `AccountStore` and hands it to `ChatPanel`, for the
+composer's foot and the sound. "Your own message never pings" checks the ids in
+`mine` and the name: the username, or a guest's name once `nameSentUnder` knows
+it. A guest's very first message can ping if its broadcast beats the answer.
 
 **`sendMessage` is the one call that is not wrapped in `retrying`.** A retry
 after a connection dropped mid-request would post the message twice, visibly, to
 everyone; a message the player can retype is the cheaper failure. `getHistory`
 is retried like every other read.
 
-The three refusals map to their own error classes and are reported **inline in the
+The refusals map to their own error classes and are reported **inline in the
 composer, not as a modal** — unlike a refused click, the text is still in the box
 and the advice is one line:
 
@@ -344,6 +369,7 @@ and the advice is one line:
   every 3s), unrelated to the click bucket
 - `permission_denied` → `ChatBlockedError`, the address is in `chat.blockedIPs`
 - `invalid_argument` → `ChatRejectedError`, the server refused the content
+- `unauthenticated` twice, or no token to be had → `ChatNoSessionError`
 
 The server always runs chat, so there is no "chat is off" error. **A history that
 cannot be loaded hides the panel entirely** rather than showing a broken box:
@@ -354,6 +380,66 @@ The composer **clears the box when the send starts, not when it lands**, and put
 the text back only if the box is still empty when a refusal comes in. Clearing on
 success instead wipes whatever was typed while the message was in flight, which
 is exactly what a fast typer does.
+
+#### Reactions
+
+A message carries reactions from a fixed set, `chat.v1.Reaction`: the proto enum
+is the list, and the backend refuses any other.
+
+- **Drawn from our own images, never the system's emoji font**, which looks
+  different, or broken, on every platform (Windows most of all). They are
+  Google's Noto Emoji (Apache 2.0), vendored by `npm run reactions`
+  (`scripts/generateReactions.mjs`) from a pinned commit into
+  `static/reactions/` under content-addressed names, with
+  `app/chat/reactionsAsset.ts` generated beside them. **A new reaction** is a
+  value at the end of the proto enum, a line in the script's `REACTIONS`, and a
+  run of the script. A reaction this build has no image for is not shown.
+- `ChatLog` shows the counts under each balloon (`ReactionBar`), and a button
+  beside the balloon (`AddReactionButton`) that opens the picker. The button
+  shows on hover; a touch screen has no hover, so there it stays, faint. The
+  picker closes on a pick, on Escape and on a click elsewhere.
+- **`mine` is only known from a call.** `GetHistory` sends the token already
+  held (`SessionProvider.held()`, never a mint) so the server can mark the
+  player's own; `React` answers the counts with `mine` set. The stream is
+  nobody's, so `mergedReactions` keeps what the log already knew. A player
+  whose token is not held yet when the history loads sees its own reactions
+  unmarked; the server treats a second "on" as nothing, so a click still ends
+  right.
+- `React` goes out with the click token, minted when none is held, like a
+  message: every caller reacts as its account, guests included.
+- **Each message keeps its reactions' version** (`reactionsVersion`). The
+  server publishes tallies with no lock, so two frames can arrive in the wrong
+  order: `applyReactionsChange` (a frame) and `applyReactionsAnswer` (the answer
+  to this player's own reaction) drop one older than what the log holds.
+- `useChat.react` shows the change at once (`toggledReactions`), then takes the
+  server's answer, or undoes it when refused. A message the server no longer
+  shows reads as `ChatMessageGoneError`.
+- A reaction is not a new message: `ChatLog` shows the "New messages" pill only
+  when the last message changes, and the unread count and the sound only count
+  messages.
+
+#### Announcements
+
+The chat also shows lines nobody sent: `ChatEvent.announcement` on the stream,
+and `GetHistoryResponse.announcements` beside the messages. Today the one kind
+is `bomb`, every bomb that went off.
+
+- **Decoded, not trusted**: `decodedAnnouncement` reads the `kind` and parses
+  the JSON `payload` into a typed `ChatAnnouncement`. A kind this build does not
+  know, or a payload that is not the kind's, is dropped, so the server can ship
+  a new kind first.
+- **The payload is values, the client writes the sentence**: a bomb line is
+  `describeBlast`, the same words as `BombNews`, so the chat and the news line
+  never disagree.
+- **Kept apart from the messages** (`useChat`'s `announcements`,
+  `addAnnouncements`) and put in one list only to draw (`interleave`, by time).
+  So a burst of bombs never pushes a message out of the log, and the unread
+  count, the sound and the "New messages" pill count messages alone.
+- **Not a balloon**: `ChatLog` draws a centred line (`.chat-announcement`) with
+  the bomber's flag and the time. It ends the run above it, so the next message
+  says again who is talking.
+- In fake mode `main.tsx` hands every `FakeBackend` bomb to
+  `FakeChatBackend.announceBomb`, with no ground: the fake has no borders.
 
 #### Saying that a message landed
 
@@ -383,6 +469,79 @@ by hand, dismisses it.
 
 Every one of these animations is dropped or reduced under
 `prefers-reduced-motion: reduce`, keeping the colour and losing the movement.
+
+### Who is playing
+
+The "players online" button in the menu's action row opens a `MenuPanel` listing
+everyone playing: players with a username, then guests, each with a flag, a name
+in its chat colour (`authorStyle`, the same hue as in the chat). A line's name
+is the one the chat shows for that account: the username, or `guest_` and its
+code. No address, and no hash of one, is on it.
+
+- `backends/player.ts` — `PresenceBackend`, `Presence`, `PlayerLine` (what a
+  card needs), `RosterEntry` (a `PlayerLine` with its `key`), `RosterEvent`, and
+  `PlayerInfoBackend` with `PlayerInfo`. `ConnectPlayerBackend` implements it over
+  `player.v1.PlayerService/Announce`, `Leave` and `ListenForEvents`;
+  `fakePresenceBackend.ts` is the dev stand-in, with players coming and going on
+  their own shifts, diffed into live events every second.
+- `domain/presence.ts` — `PresenceSchedule`, when to announce. No clock and no
+  network, so every rule is under test. `domain/roster.ts` applies one live event
+  (`applyRosterEvent`) and splits the roster into the two groups.
+- `app/players/` — `usePresence`, `useRoster` and `usePlayerInfo`, thin hooks
+  over the above, `PlayersPanel` and `PlayerCard`.
+
+**An admin of the game wears a crown** (`AdminCrown`, gold, `role="img"` named
+"Admin") beside its name in the chat log, the roster and the card's title.
+The server says so: `ChatMessage.authorAdmin`, `RosterEntry.admin` and
+`PlayerInfo.admin`. The card crowns from what was clicked, and from the read
+once it lands. In fake mode, Ana is the admin.
+
+**A name opens a player card**, in the roster and on a chat message
+(`app/players/PlayerCard.tsx`, a `Modal`). `Viewer` holds the one card open and
+hands `onOpenPlayer` to `Menu` → `PlayersPanel` and to `ChatPanel` → `ChatLog`;
+without a `PlayerInfoBackend` wired the names are plain text. The card shows the
+flag and the country, then, for a player with a username, what
+`player.v1.PlayerService/GetPlayer` answers: tiles taken, the current and best
+streak, and "Playing since", the day the account was made (left out when the
+server does not know it). **A guest's card asks nothing**: a guest has no
+username, so there is nothing to look up, and the card says so. The chat tells
+a guest by `GUEST_PREFIX`, which no username starts with. `GetPlayer` needs no
+token and goes out as a GET, like `GetRoster`; `NotFound` (renamed, or the
+account is gone) reads as `undefined`. `usePlayerInfo` reads it once per card.
+Escape closes the card and leaves the roster open: `useEscape` does nothing
+while a modal dialog is on the page.
+
+**It announces only with a token it already holds.** `SessionProvider.held()`
+answers the click token in hand and never mints: a mint is a Turnstile check,
+and presence is not worth one. So a visitor who never clicked is not listed, by
+design. The schedule announces as soon as a token is held that the last
+announce did not go out under (the first click, a re-mint, a sign-in), once
+the flag or the username has held still for a second, and every
+30s — the server drops a player 90s after its last one. An announce carries the
+flag alone: the server reads the name off the account. An announce refused
+`unauthenticated` drops the token and is **not** retried with a fresh one, which
+would mint; the next click brings one. `NoSession` holds nothing, so a build
+without a sitekey never announces.
+
+**The roster is streamed**, over `ListenForEvents` through `openStream`, with
+no token and no header. Every connection starts with the whole roster, then
+sends one line that joined or changed (`entry`) or one key that left (`left`).
+A line is named by its `key`, which the server keeps through a new flag, a
+sign-in and a new name, so a guest who signs in is one row renamed in place;
+rows are keyed by it in React too. `applyRosterEvent` puts a changed line where
+the server's sort would (`compareRosterEntries`); a rare disagreement about
+case in a non-ASCII name lasts until the next reconnect's whole roster. While
+the stream is down the last list stays. A 404 (read as `unimplemented`) calls
+`onUnavailable` once and stops the stream for good, which hides the button, as
+does a build with no presence backend wired. `GetRoster` is no longer called.
+
+**A closing page says it left.** `usePresence` calls `leave` on `pagehide`,
+unless the page is only kept in the back-forward cache (`persisted`). `Leave`
+carries the held token, never a fresh one, and goes out on a second player
+client whose `fetch` sets `keepalive` (`newKeepalivePlayerServiceClient`), so it
+is still sent after the page is gone. The server takes the account off at once.
+Two tabs of one browser are one account: closing one takes the line off until
+the other's next announce, at most 30s later.
 
 ### Sessions
 
@@ -763,6 +922,12 @@ player's territory, so it has not been done.
    pip is the click being granted back, at the server's own rate. Change
    `rateLimiter.burst` on the backend and this follows with no release here.
 
+   **A slow refill gets a countdown.** When a click takes 1.5s or more to come
+   back (`COUNTDOWN_FROM_S`; production is one every 5s), the meter says
+   "+1 in 4s" beside the bar, and says nothing at a full bucket. Past 12 pips
+   the bar moves a sixtieth per click, too little to see, so a blue strip under
+   it (`--click-budget-next`) fills once per click, as a pip would.
+
    The refill is animated from **one CSS custom property written per frame**,
    and each pip works out its own share of it with a `clamp()`; the count, the
    colour and the aria value are written only when the whole number changes.
@@ -774,8 +939,9 @@ player's territory, so it has not been done.
    On a phone it moves to under the folded menu: both ends of the screen are
    full-width sheets there, the menu above and the chat below.
 
-   **A guest is offered to click faster.** A signed-in account clicks
-   `ClickBudget.linkedMultiplier` times faster (2 in production). For a guest the
+   **A guest is offered to click faster.** A signed-in account refills
+   `ClickBudget.linkedMultiplier` times faster (2 in production), into a bank of
+   the same size. For a guest the
    server offers sign-in to, `Viewer` passes `onSignIn` and the meter shows
    "Sign in: clicks 2× faster" under the pips — a button beside the meter, not in
    it, since the meter is a reading. It glows when the bucket is empty or a click
@@ -1077,7 +1243,8 @@ ours. They have no switch of their own: `switchOf` puts them under the tile
 click's;
 the chat in `ChatPanel` for a message that is not yours. **Your own message is
 filtered on your name as well as on `mine`**: its broadcast can arrive before
-the send answer that fills `mine` in.
+the send answer that fills `mine` in. A guest's name is only known once a
+message of its own came back, so its first can still ping.
 
 ### The leader's anthem
 
@@ -1118,7 +1285,7 @@ the whole `proto` directory, so a new package needs no config change; run
 - [`session/v1/session.proto`](../../proto/session/v1/session.proto) — the
   deprecated mint, no longer called
 - [`player/v1/player.proto`](../../proto/player/v1/player.proto) — the
-  username (`PlayerService`)
+  username and who is playing (`PlayerService`)
 
 `ChatMessage.sentAtUnixMs` is an `int64`, which `protoc-gen-es` gives you as a
 `bigint` — `chatBackend.ts` converts it at the edge so nothing above it deals in
@@ -1126,7 +1293,7 @@ two number types.
 
 ## Static assets
 
-Three assets are **content-addressed**, because `public/_headers` caches
+These assets are **content-addressed**, because `public/_headers` caches
 `/static/*` for a week and a regenerated file under a stable name would be
 served stale. Each has a generated TS module holding its current URL — do not
 edit those by hand, and do not add a `?ts=` cache-buster, which defeats the
@@ -1150,6 +1317,9 @@ cache entirely:
   commit all three copies**, or the two apps disagree about what a tile id means.
 - `/static/countries/atlas-<hash>.png` — the flag sprite atlas. URL and pixel
   size in `atlasAsset.ts`. Regenerate with `npm run atlas`.
+- `/static/reactions/<name>-<hash>.svg` — the chat's reaction images. URLs in
+  `app/chat/reactionsAsset.ts`. Regenerate with `npm run reactions` — see
+  [Reactions](#reactions).
 
 `/static/coordinates.json` is the human-readable generator output, kept in the
 repo but **not deployed** (`copy:static` deletes it from `dist/static/`). So is

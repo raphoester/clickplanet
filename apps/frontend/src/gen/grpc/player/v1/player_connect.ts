@@ -3,12 +3,12 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AnnounceRequest, AnnounceResponse, GetProfileRequest, GetProfileResponse, GetRosterRequest, GetRosterResponse, GetStatsRequest, GetStatsResponse, SetNameRequest, SetNameResponse } from "./player_pb.js";
+import { AnnounceRequest, AnnounceResponse, GetPlayerRequest, GetPlayerResponse, GetProfileRequest, GetProfileResponse, GetRosterRequest, GetRosterResponse, GetStatsRequest, GetStatsResponse, LeaveRequest, LeaveResponse, ListenForEventsRequest, PlayerEvent, SetNameRequest, SetNameResponse } from "./player_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
  * A player's profile and stats, and who is playing. Every procedure but
- * GetRoster answers for the caller: the account named by the click token in the
+ * GetRoster, GetPlayer and ListenForEvents answers for the caller: the account named by the click token in the
  * X-Session-Token header. A call with no valid token, or a token with no
  * account, is Unauthenticated.
  *
@@ -66,7 +66,22 @@ export const PlayerService = {
       kind: MethodKind.Unary,
     },
     /**
+     * Says the caller stopped playing: its page closed. It leaves the roster at
+     * once rather than 90s after its last announce. A client sends it with
+     * keepalive, and nothing waits on the answer.
+     *
+     * @generated from rpc player.v1.PlayerService.Leave
+     */
+    leave: {
+      name: "Leave",
+      I: LeaveRequest,
+      O: LeaveResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
      * Everyone playing. It needs no token, and a proxy may serve it for 5s.
+     * ListenForEvents says the same and keeps it up to date; this stays for
+     * clients from before it.
      *
      * @generated from rpc player.v1.PlayerService.GetRoster
      */
@@ -74,6 +89,31 @@ export const PlayerService = {
       name: "GetRoster",
       I: GetRosterRequest,
       O: GetRosterResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * Who is playing, live. Needs no token. The first event is the whole roster;
+     * each one after says one player joined, changed or left.
+     *
+     * @generated from rpc player.v1.PlayerService.ListenForEvents
+     */
+    listenForEvents: {
+      name: "ListenForEvents",
+      I: ListenForEventsRequest,
+      O: PlayerEvent,
+      kind: MethodKind.ServerStreaming,
+    },
+    /**
+     * What anybody may know about a player with a username. Needs no token.
+     * A name no account holds is not_found, and so is a guest: it has no name.
+     *
+     * @generated from rpc player.v1.PlayerService.GetPlayer
+     */
+    getPlayer: {
+      name: "GetPlayer",
+      I: GetPlayerRequest,
+      O: GetPlayerResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
     },

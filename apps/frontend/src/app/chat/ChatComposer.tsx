@@ -1,19 +1,15 @@
-import {FormEvent, useId, useState} from "react";
-import {countRunes, guestName, MAX_NAME_LENGTH, MAX_TEXT_LENGTH} from "../../backends/chat.ts";
-import {ChatIdentity, isValidName} from "./chatIdentity.ts";
+import {FormEvent, useState} from "react";
+import {countRunes, MAX_TEXT_LENGTH} from "../../backends/chat.ts";
 import {ChatSendFailure} from "./useChat.ts";
-import {truncate} from "../truncate.ts";
 
 export type ChatComposerProps = {
-    identity: ChatIdentity
-    /** A signed-in player's username, which replaces the typed name. */
+    /** A signed-in player's username, which the server posts under. */
     username?: string
-    setName: (name: string) => void
+    /** The name the server gave a guest's messages, once this tab has posted one. */
+    guestName?: string
     failure?: ChatSendFailure
     onSend: (text: string) => Promise<boolean>
 }
-
-const NAME_MAX_LENGTH = 16
 
 const COUNTER_SHOWS_FROM = MAX_TEXT_LENGTH - 40
 
@@ -21,23 +17,12 @@ const FAILURES: Record<ChatSendFailure, string> = {
     'rate-limited': "You're sending messages too fast. Give it a few seconds.",
     'blocked': "This connection is not allowed to post.",
     'rejected': "That message was refused.",
+    'no-session': "Could not start a session to chat. Try again in a moment.",
     'failed': "The message could not be sent. Try again.",
 }
 
 export default function ChatComposer(props: ChatComposerProps) {
     const [text, setText] = useState("")
-    const [draftName, setDraftName] = useState(props.identity.name)
-    const [naming, setNaming] = useState(false)
-    const nameId = useId()
-
-    const needsName = props.username === undefined && (props.identity.name === "" || naming)
-
-    const submitName = (event: FormEvent) => {
-        event.preventDefault()
-        if (!isValidName(draftName)) return
-        props.setName(draftName)
-        setNaming(false)
-    }
 
     const submitMessage = async (event: FormEvent) => {
         event.preventDefault()
@@ -48,27 +33,6 @@ export default function ChatComposer(props: ChatComposerProps) {
         if (!await props.onSend(outgoing)) {
             setText(current => current === "" ? outgoing : current)
         }
-    }
-
-    if (needsName) {
-        return <form className="chat-composer" onSubmit={submitName}>
-            <label className="menu-label" htmlFor={nameId}>Pick a name to chat</label>
-            <div className="chat-composer-row">
-                <input id={nameId}
-                       className="chat-input"
-                       value={draftName}
-                       autoComplete="off"
-                       placeholder="Your name"
-                       onChange={e => setDraftName(e.target.value)}/>
-                <button type="submit"
-                        className="button button-mini chat-send"
-                        disabled={!isValidName(draftName)}>
-                    OK
-                </button>
-            </div>
-            {countRunes(draftName.trim()) > MAX_NAME_LENGTH &&
-                <p className="chat-notice">{MAX_NAME_LENGTH} characters at most.</p>}
-        </form>
     }
 
     const length = countRunes(text.trim())
@@ -93,17 +57,8 @@ export default function ChatComposer(props: ChatComposerProps) {
                 ? <span className="menu-label chat-identity" title="Change it in the account menu">
                     as {props.username}
                 </span>
-                // The prefix is what everyone else sees, so the guest sees it too.
-                : <span className="menu-label chat-identity">
-                    as {guestName(truncate(props.identity.name, NAME_MAX_LENGTH))}
-                    <button type="button"
-                            className="chat-rename"
-                            onClick={() => {
-                                setDraftName(props.identity.name)
-                                setNaming(true)
-                            }}>
-                        Change
-                    </button>
+                : <span className="menu-label chat-identity" title="Sign in to pick a username">
+                    as {props.guestName ?? "a guest"}
                 </span>}
             {length >= COUNTER_SHOWS_FROM &&
                 <span className={length > MAX_TEXT_LENGTH ? "menu-label chat-counter-over" : "menu-label"}>

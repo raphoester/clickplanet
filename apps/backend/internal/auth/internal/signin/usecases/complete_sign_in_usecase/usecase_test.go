@@ -10,13 +10,16 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 
+	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/inmemory_account_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/aes_flow_sealer"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/usecases/complete_sign_in_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/usecases/start_sign_in_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -31,6 +34,7 @@ type fixture struct {
 	google     *signin.FakeProvider
 	store      *inmemory_account_store.Store
 	clock      *cptime.FixedClock
+	events     *cpbootstrap.RecordedEvents
 	start      *start_sign_in_usecase.UseCase
 	completion *complete_sign_in_usecase.UseCase
 }
@@ -40,10 +44,10 @@ func setUp(t *testing.T) *fixture {
 
 	sealer, err := aes_flow_sealer.New(bytes.Repeat([]byte{1}, 32))
 	require.NoError(t, err)
-	f := &fixture{sealer: sealer, google: signin.NewFakeProvider(signin.Google), store: inmemory_account_store.New(), clock: cptime.NewFixedClock(start)}
+	f := &fixture{sealer: sealer, google: signin.NewFakeProvider(signin.Google), store: inmemory_account_store.New(), clock: cptime.NewFixedClock(start), events: cpbootstrap.NewRecordedEvents()}
 	providers := signin.Providers{signin.Google: f.google}
 	f.start = start_sign_in_usecase.New(providers, f.store, &signin.SequentialSecrets{}, sealer, f.clock)
-	f.completion = complete_sign_in_usecase.New(providers, sealer, f.store, &accounts.SequentialIDs{}, &accounts.SequentialTokens{}, lifetime, f.clock)
+	f.completion = complete_sign_in_usecase.New(providers, sealer, f.store, &accounts.SequentialIDs{}, &accounts.SequentialTokens{}, lifetime, f.events, f.clock)
 	return f
 }
 
@@ -100,6 +104,16 @@ func (f *fixture) linkedAccount(t *testing.T, account byte, provider string, sub
 	}))
 }
 
+func (f *fixture) assertPublished(t *testing.T, want ...proto.Message) {
+	t.Helper()
+
+	published := f.events.Published()
+	require.Len(t, published, len(want))
+	for i := range want {
+		assert.True(t, proto.Equal(want[i], published[i]), "event %d: want %v, got %v", i, want[i], published[i])
+	}
+}
+
 func cookieValue(t *testing.T, setCookie string) string {
 	t.Helper()
 
@@ -128,6 +142,7 @@ func TestANewIdentityLinksToTheGuestAndReplacesItsSession(t *testing.T) {
 	assert.Equal(t, &accounts.Identity{
 		Provider: "google", Subject: "google-user", Account: accounts.AccountID{15: 7}, Email: "a@example.com", EmailVerified: true, LinkedAt: start,
 	}, identity)
+	f.assertPublished(t, &authv1.SignedIn{PreviousAccountId: accounts.AccountID{15: 7}.String(), AccountId: accounts.AccountID{15: 7}.String()})
 }
 
 func TestAKnownIdentitySignsInToItsAccountAndLeavesTheGuestAsItWas(t *testing.T) {
@@ -144,6 +159,10 @@ func TestAKnownIdentitySignsInToItsAccountAndLeavesTheGuestAsItWas(t *testing.T)
 	guest, err := f.store.Account(t.Context(), accounts.AccountID{15: 7})
 	require.NoError(t, err)
 	assert.False(t, guest.Linked(), "nothing is merged, and the guest gains no identity")
+	f.assertPublished(t,
+		&authv1.SignedIn{AccountId: accounts.AccountID{15: 1}.String()},
+		&authv1.SignedIn{PreviousAccountId: accounts.AccountID{15: 7}.String(), AccountId: accounts.AccountID{15: 1}.String()},
+	)
 }
 
 func TestABrowserWithNoAccountGetsANewOne(t *testing.T) {
@@ -154,6 +173,7 @@ func TestABrowserWithNoAccountGetsANewOne(t *testing.T) {
 
 	assert.Equal(t, accounts.AccountID{15: 1}, out.Account)
 	assert.Equal(t, accounts.Created, out.Outcome)
+	f.assertPublished(t, &authv1.SignedIn{AccountId: accounts.AccountID{15: 1}.String()})
 }
 
 func TestAnAccountHoldingTheProviderAlreadyIsNotGivenASecondUserOfIt(t *testing.T) {
@@ -225,6 +245,7 @@ func TestLinkingAnIdentityAnotherAccountUsesIsRefusedAndWritesNothing(t *testing
 	current, err := f.store.Account(t.Context(), accounts.AccountID{15: 7})
 	require.NoError(t, err)
 	assert.Equal(t, []string{"discord"}, current.Providers())
+	assert.Empty(t, f.events.Published(), "a refusal moves no browser")
 }
 
 func TestLinkingASecondUserOfAProviderIsRefused(t *testing.T) {
@@ -311,7 +332,7 @@ func TestAStoreFailureFailsTheSignIn(t *testing.T) {
 
 func TestSignInOffCompletesNothing(t *testing.T) {
 	f := setUp(t)
-	useCase := complete_sign_in_usecase.New(signin.Providers{}, f.sealer, f.store, &accounts.SequentialIDs{}, &accounts.SequentialTokens{}, lifetime, f.clock)
+	useCase := complete_sign_in_usecase.New(signin.Providers{}, f.sealer, f.store, &accounts.SequentialIDs{}, &accounts.SequentialTokens{}, lifetime, f.events, f.clock)
 
 	_, err := useCase.Execute(t.Context(), complete_sign_in_usecase.In{Code: "the-code", State: "state"})
 

@@ -6,19 +6,19 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/feed"
 )
 
 // DefaultHeartbeat is well under Cloudflare's ~125s idle cut.
 const DefaultHeartbeat = 30 * time.Second
 
-type MessagesSubscriber interface {
-	Subscribe(ctx context.Context) (<-chan messages.Message, error)
+type UpdatesSubscriber interface {
+	Subscribe(ctx context.Context) (<-chan feed.Update, error)
 }
 
-// Event is one frame of the feed: a message, or a heartbeat.
+// Event is one frame of the feed: an update, or a heartbeat.
 type Event struct {
-	Message   messages.Message
+	Update    feed.Update
 	Heartbeat bool
 }
 
@@ -27,7 +27,7 @@ type Sink interface {
 	Send(event Event) error
 }
 
-func New(subscriber MessagesSubscriber, heartbeat time.Duration) *UseCase {
+func New(subscriber UpdatesSubscriber, heartbeat time.Duration) *UseCase {
 	if heartbeat <= 0 {
 		heartbeat = DefaultHeartbeat
 	}
@@ -36,7 +36,7 @@ func New(subscriber MessagesSubscriber, heartbeat time.Duration) *UseCase {
 }
 
 type UseCase struct {
-	subscriber MessagesSubscriber
+	subscriber UpdatesSubscriber
 	heartbeat  time.Duration
 }
 
@@ -44,7 +44,7 @@ type UseCase struct {
 func (u *UseCase) Execute(ctx context.Context, sink Sink) error {
 	feed, err := u.subscriber.Subscribe(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to subscribe to chat messages: %w", err)
+		return fmt.Errorf("failed to subscribe to the chat feed: %w", err)
 	}
 
 	heartbeat := time.NewTicker(u.heartbeat)
@@ -60,12 +60,12 @@ func (u *UseCase) Execute(ctx context.Context, sink Sink) error {
 				return err
 			}
 
-		case message, open := <-feed:
+		case update, open := <-feed:
 			if !open {
 				return nil
 			}
 
-			if err := sink.Send(Event{Message: message}); err != nil {
+			if err := sink.Send(Event{Update: update}); err != nil {
 				return err
 			}
 		}

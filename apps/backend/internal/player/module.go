@@ -16,27 +16,39 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1/playerv1connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/migrations"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/postgres_player_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/random_code_generator"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/rpc_account_reader"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/forget_account_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_author_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_player_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_profile_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_stats_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/record_take_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/set_name_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/set_name_usecase/renaming_set_name"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/announce_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_author_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_profile_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_roster_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_stats_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/leave_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/rpc_session_verifier"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/set_name_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/inmemory_visit_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/usecases/announce_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/usecases/forget_visit_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/usecases/get_roster_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/usecases/listen_for_events_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/usecases/move_visit_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/account_deleted_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/log_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/signed_in_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/signed_out_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/tile_taken_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
@@ -51,6 +63,8 @@ const (
 	// A spread takes up to 7 tiles a click; a take is one map write, so the buffer only fills if the process stalls.
 	tileTakenBuffer      = 8192
 	accountDeletedBuffer = 2048
+	// A sign-in or a sign-out is a person pressing a button: a small buffer is many seconds of them.
+	signInBuffer = 256
 )
 
 func NewModule(config Config) cpbootstrap.Module {
@@ -73,7 +87,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 			return fmt.Errorf("failed to generate a tag salt: %w", err)
 		}
 		tagSalt = salt
-		props.Logger.Warn("no player.tagSalt configured, generated a random one: every tag will change on every restart")
+		props.Logger.Info("no player.tagSalt configured, generated a random one")
 	}
 
 	// ---- Storage ----
@@ -89,6 +103,15 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	// Every call reads or writes postgres: a click never waits on it, since takes arrive over the event bus.
 	store := postgres_player_store.New(db)
+
+	// Who an account is to the others: its username, or its guest code, drawn the first time it is shown.
+	authors := get_author_usecase.New(store, players.NewGuestCodes(store, random_code_generator.Generator{}))
+
+	// ---- Presence ----
+
+	// Who is playing, in memory only: a restart empties it and the clients fill it again within 30s.
+	visits := inmemory_visit_storage.New(clock)
+	props.Runners.Add(visits)
 
 	// ---- Events ----
 
@@ -107,28 +130,55 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to subscribe to auth.v1.AccountDeleted: %w", err)
 	}
 
-	// The pool closes once both subscribers have drained what is buffered: closers run before the runners stop.
-	props.Runners.Add(cppg.CloseAfter(db, props.Logger, takes, deletions))
+	// A sign-in, a sign-out and a deletion change the roster at once. The page cannot announce them: it drops
+	// its click token, and the next one waits for a click.
+	forgetVisit := forget_visit_usecase.New(visits)
+	signIns, err := cpbootstrap.Subscribe(props.Events, "player-presence-sign-ins", signInBuffer,
+		log_subscriber.New(signed_in_subscriber.New(move_visit_usecase.New(authors, visits)), props.Logger))
+	if err != nil {
+		_ = db.Close()
+		return fmt.Errorf("failed to subscribe to auth.v1.SignedIn: %w", err)
+	}
+	signOuts, err := cpbootstrap.Subscribe(props.Events, "player-presence-sign-outs", signInBuffer,
+		log_subscriber.New(signed_out_subscriber.New(forgetVisit), props.Logger))
+	if err != nil {
+		_ = db.Close()
+		return fmt.Errorf("failed to subscribe to auth.v1.SignedOut: %w", err)
+	}
+	gone, err := cpbootstrap.Subscribe(props.Events, "player-presence-accounts", accountDeletedBuffer,
+		log_subscriber.New(account_deleted_subscriber.New(forgetVisit), props.Logger))
+	if err != nil {
+		_ = db.Close()
+		return fmt.Errorf("failed to subscribe the roster to auth.v1.AccountDeleted: %w", err)
+	}
+	props.Runners.Add(signOuts)
+	props.Runners.Add(gone)
 
-	// ---- Presence ----
-
-	// Who is playing, in memory only: a restart empties it and the clients fill it again within 30s.
-	visits := inmemory_visit_storage.New(clock)
-	props.Runners.Add(visits)
+	// The pool closes once the subscribers that read it have drained what is buffered: closers run before the
+	// runners stop.
+	props.Runners.Add(cppg.CloseAfter(db, props.Logger, takes, deletions, signIns))
 
 	// ---- Player service ----
 
 	// The key comes from auth over the internal listener, on the first call: this module holds no seed.
 	verifier := rpc_session_verifier.New(props.Internal, props.Logger)
+	accounts := rpc_account_reader.New(props.Internal)
 
 	playerService := playerv1controller.PlayerService{
 		GetProfileHandler: get_profile_handler.New(get_profile_usecase.New(store)),
 		// Only a linked account may hold a username, and auth is asked on each SetName.
-		SetNameHandler:  set_name_handler.New(set_name_usecase.New(store, rpc_account_reader.New(props.Internal), clock)),
+		// A kept name shows on the roster at once.
+		SetNameHandler: set_name_handler.New(
+			renaming_set_name.New(set_name_usecase.New(store, accounts, clock), visits)),
 		GetStatsHandler: get_stats_handler.New(get_stats_usecase.New(store, clock)),
 		AnnounceHandler: announce_handler.New(
-			announce_usecase.New(store, visits, cpcountries.New(), clock, tagSalt)),
+			announce_usecase.New(authors, visits, cpcountries.New(), clock, tagSalt)),
+		LeaveHandler:     leave_handler.New(forgetVisit),
 		GetRosterHandler: get_roster_handler.New(get_roster_usecase.New(visits, clock)),
+		ListenForEventsHandler: listen_for_events_handler.New(
+			listen_for_events_usecase.New(visits, props.Server.StreamHeartbeat)),
+		// Anybody may open a player: auth is asked when its account was made, on each call.
+		GetPlayerHandler: get_player_handler.New(get_player_usecase.New(store, store, accounts, clock)),
 	}
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return playerv1connect.NewPlayerServiceHandler(playerService, options...)
@@ -139,7 +189,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	// ---- Internal service ----
 
 	internalService := playerv1controller.InternalService{
-		GetAuthorHandler: get_author_handler.New(get_author_usecase.New(store, tagSalt)),
+		GetAuthorHandler: get_author_handler.New(authors),
 	}
 	if err := props.InternalRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return playerv1connect.NewInternalServiceHandler(internalService, options...)
@@ -158,8 +208,8 @@ type Config struct {
 	// posts.
 	Database cppg.Config
 
-	// TagSalt salts the hash of an address that the game shows beside every name. Left empty, one is generated
-	// at boot, and every tag changes on each restart.
+	// TagSalt salts the hash of an address the roster caps its visits with. The hash never leaves the server
+	// and lives in memory only, so one generated at boot when this is empty costs nothing.
 	TagSalt string
 }
 

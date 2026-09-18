@@ -4,43 +4,75 @@ import {act, cleanup, render, screen, waitFor} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import ChatPanel from "./ChatPanel.tsx"
 import {CHAT_IDENTITY_STORAGE_KEY} from "./chatIdentity.ts"
-import {ChatBackend, ChatMessage, ChatRateLimitedError} from "../../backends/chat.ts"
+import {
+    ChatAnnouncement,
+    ChatBackend,
+    ChatMessage,
+    ChatNoSessionError,
+    ChatRateLimitedError,
+    ChatRejectedError,
+    OutgoingReaction,
+    Reaction,
+    ReactionsChange,
+} from "../../backends/chat.ts"
 import {Countries} from "../../domain/countries.ts"
 
 const france = Countries.get("fr")!
+
+/** What the stub server names this browser's guest: the client never picks it. */
+const OWN_GUEST = "guest_c0ffee"
 
 const message = (id: string, text: string, sentAt = 1_700_000_000_000): ChatMessage => ({
     id,
     sentAt,
     authorName: "Ana",
-    authorTag: "4f2ca1",
+    authorAdmin: false,
     countryCode: "fr",
     text,
+    reactions: [],
+    reactionsVersion: 0,
 })
 
-function stubBackend(history: ChatMessage[] = []) {
+function stubBackend(history: ChatMessage[] = [], announcements: ChatAnnouncement[] = []) {
     const listeners: ((message: ChatMessage) => void)[] = []
+    const reactionListeners: ((change: ReactionsChange) => void)[] = []
+    const announcementListeners: ((announcement: ChatAnnouncement) => void)[] = []
 
     const backend = {
-        getHistory: vi.fn().mockResolvedValue(history),
-        listenForMessages: vi.fn((callback: (message: ChatMessage) => void) => {
+        getHistory: vi.fn().mockResolvedValue({messages: history, announcements}),
+        listenForMessages: vi.fn((
+            callback: (message: ChatMessage) => void,
+            onReactions?: (change: ReactionsChange) => void,
+            onAnnouncement?: (announcement: ChatAnnouncement) => void,
+        ) => {
             listeners.push(callback)
+            if (onReactions) reactionListeners.push(onReactions)
+            if (onAnnouncement) announcementListeners.push(onAnnouncement)
             return () => {
             }
         }),
+        react: vi.fn(async (outgoing: OutgoingReaction): Promise<ReactionsChange> => ({
+            messageId: outgoing.messageId,
+            reactions: [{reaction: outgoing.reaction, count: outgoing.on ? 1 : 0, mine: outgoing.on}]
+                .filter(count => count.count > 0),
+            version: 1,
+        })),
         sendMessage: vi.fn(async (outgoing) => ({
             id: `sent-${outgoing.text}`,
             sentAt: 1_700_000_100_000,
-            authorName: outgoing.authorName,
-            authorTag: "c0ffee",
+            authorName: OWN_GUEST,
             countryCode: outgoing.countryCode,
             text: outgoing.text,
+            reactions: [] as ChatMessage["reactions"],
+            reactionsVersion: 0,
         })),
     }
 
     return {
         backend: backend as unknown as ChatBackend & typeof backend,
         broadcast: (m: ChatMessage) => listeners.forEach(listener => listener(m)),
+        broadcastReactions: (change: ReactionsChange) => reactionListeners.forEach(listener => listener(change)),
+        announce: (announcement: ChatAnnouncement) => announcementListeners.forEach(listener => listener(announcement)),
     }
 }
 
@@ -52,10 +84,9 @@ const setup = (backend?: ChatBackend, username?: string) => ({
 const panel = () => screen.queryByRole("region", {name: "Live chat"})
 const item = (text: string) => screen.getByText(text).closest("li")!
 const messageBox = () => screen.getByRole("textbox", {name: "Message"})
-const nameBox = () => screen.getByLabelText("Pick a name to chat")
-const named = async (user: ReturnType<typeof userEvent.setup>, name: string) => {
-    await user.type(nameBox(), name)
-    await user.click(screen.getByRole("button", {name: "OK"}))
+const send = async (user: ReturnType<typeof userEvent.setup>, text: string) => {
+    await user.type(messageBox(), text)
+    await user.click(screen.getByRole("button", {name: "Send"}))
 }
 
 beforeEach(() => window.localStorage.clear())
@@ -83,17 +114,29 @@ describe("ChatPanel sound", () => {
         await waitFor(() => expect(playSound).toHaveBeenCalledWith("chat"))
     })
 
-    it("stays quiet for your own message, even when its broadcast comes first", async () => {
+    it("stays quiet for your own message, once its answer is in", async () => {
         const {backend, broadcast} = stubBackend()
         const {playSound, user} = withSound(backend)
         await screen.findByText("Nobody has said anything yet. Go on.")
-        await named(user, "Bo")
 
-        // The server names a guest with the prefix: that is what is compared.
-        broadcast({...message("sent-hello", "hello"), authorName: "guest_Bo"})
+        await send(user, "hello")
         await screen.findByText("hello")
-        await user.type(messageBox(), "hello")
-        await user.click(screen.getByRole("button", {name: "Send"}))
+        broadcast({...message("sent-hello", "hello"), authorName: OWN_GUEST})
+
+        expect(playSound).not.toHaveBeenCalled()
+    })
+
+    it("stays quiet for a guest's own message whose broadcast comes first, once its name is known", async () => {
+        const {backend, broadcast} = stubBackend()
+        const {playSound, user} = withSound(backend)
+        await screen.findByText("Nobody has said anything yet. Go on.")
+        await send(user, "first")
+        await screen.findByText("first")
+
+        // The server's name for this guest came back with the first message.
+        broadcast({...message("sent-hello", "hello", 1_700_000_200_000), authorName: OWN_GUEST})
+        await screen.findByText("hello")
+        await send(user, "hello")
 
         expect(playSound).not.toHaveBeenCalled()
     })
@@ -109,12 +152,14 @@ describe("ChatPanel sound", () => {
         expect(playSound).not.toHaveBeenCalled()
     })
 
-    it("pings for a guest who typed your username", async () => {
+    it("pings for another guest", async () => {
         const {backend, broadcast} = stubBackend([message("old", "from before")])
-        const {playSound} = withSound(backend, "ana_1")
+        const {playSound, user} = withSound(backend)
         await screen.findByText("from before")
+        await send(user, "mine")
+        await screen.findByText("mine")
 
-        broadcast({...message("live", "hello", 1_700_000_050_000), authorName: "guest_ana_1"})
+        broadcast({...message("live", "hello", 1_700_000_200_000), authorName: "guest_91aa3d"})
 
         await waitFor(() => expect(playSound).toHaveBeenCalledWith("chat"))
     })
@@ -141,15 +186,39 @@ describe("ChatPanel", () => {
     it("shows a message once when the socket echoes what the send returned", async () => {
         const {backend, broadcast} = stubBackend()
         const {user} = setup(backend)
-        await named(user, "Bo")
+        await screen.findByRole("textbox", {name: "Message"})
 
-        await user.type(messageBox(), "hello")
-        await user.click(screen.getByRole("button", {name: "Send"}))
+        await send(user, "hello")
         await screen.findByText("hello")
 
-        broadcast({...message("sent-hello", "hello"), authorName: "Bo"})
+        broadcast({...message("sent-hello", "hello"), authorName: OWN_GUEST})
 
         await waitFor(() => expect(screen.getAllByText("hello")).toHaveLength(1))
+    })
+
+    it("shows a bomb from the history as a line between the messages, not a bubble", async () => {
+        const bomb: ChatAnnouncement = {
+            kind: "bomb", id: "boom", announcedAt: 1_700_000_000_500, country: "fr", ground: "de", tile: 42, cleared: 3,
+        }
+        const {backend} = stubBackend([message("a", "before"), message("b", "after", 1_700_000_001_000)], [bomb])
+        setup(backend)
+
+        const line = (await screen.findByText("bombed Germany")).closest("li")!
+        expect(line.className).toBe("chat-announcement")
+        expect(line.textContent).toContain("France")
+        expect(line.previousElementSibling?.textContent).toContain("before")
+        expect(line.nextElementSibling?.textContent).toContain("after")
+        expect(item("after").className).toContain("chat-message-opens")
+    })
+
+    it("shows a bomb that lands while the chat is open", async () => {
+        const {backend, announce} = stubBackend()
+        setup(backend)
+
+        await screen.findByText("Nobody has said anything yet. Go on.")
+        act(() => announce({kind: "bomb", id: "splash", announcedAt: Date.now(), country: "fr", cleared: 0}))
+
+        expect(await screen.findByText("bombed the ocean")).toBeDefined()
     })
 
     it("renders message text as text, never as markup", async () => {
@@ -183,7 +252,7 @@ describe("ChatPanel", () => {
         const {backend} = stubBackend([
             message("a", "first"),
             message("b", "second", 1_700_000_060_000),
-            {...message("c", "third", 1_700_000_120_000), authorName: "Bo", authorTag: "c0ffee"},
+            {...message("c", "third", 1_700_000_120_000), authorName: "Bo"},
         ])
         const {container} = setup(backend)
         await screen.findByText("first")
@@ -237,10 +306,6 @@ describe("ChatPanel", () => {
         })
 
         it("does not highlight the message you just sent yourself", async () => {
-            window.localStorage.setItem(
-                CHAT_IDENTITY_STORAGE_KEY,
-                JSON.stringify({authorId: "author-1", name: "Ana"}),
-            )
             const {backend} = stubBackend()
             const {user} = setup(backend)
             await screen.findByRole("textbox", {name: "Message"})
@@ -253,9 +318,9 @@ describe("ChatPanel", () => {
 
         it("gives every author their own colour, and the same one every time", async () => {
             const {backend} = stubBackend([
-                {...message("a", "first"), authorName: "Ana", authorTag: "4f2ca1"},
-                {...message("b", "second", 1_700_000_100_000), authorName: "Bo", authorTag: "c0ffee"},
-                {...message("c", "third", 1_700_000_200_000), authorName: "Ana", authorTag: "4f2ca1"},
+                {...message("a", "first"), authorName: "Ana"},
+                {...message("b", "second", 1_700_000_100_000), authorName: "Bo"},
+                {...message("c", "third", 1_700_000_200_000), authorName: "Ana"},
             ])
             setup(backend)
             await screen.findByText("first")
@@ -268,73 +333,38 @@ describe("ChatPanel", () => {
         })
     })
 
-    describe("the name", () => {
-        it("is asked for before the first message", async () => {
-            const {backend} = stubBackend()
-            setup(backend)
-
-            expect(await screen.findByLabelText("Pick a name to chat")).toBeDefined()
-            expect(screen.queryByRole("textbox", {name: "Message"})).toBeNull()
-        })
-
-        it("is refused while it is blank or too long", async () => {
-            const {backend} = stubBackend()
-            const {user} = setup(backend)
-            await screen.findByLabelText("Pick a name to chat")
-
-            const ok = () => screen.getByRole("button", {name: "OK"})
-            expect(ok()).toHaveProperty("disabled", true)
-
-            await user.type(nameBox(), "x".repeat(25))
-            expect(ok()).toHaveProperty("disabled", true)
-        })
-
-        it("opens the composer once it is picked, and is kept for next time", async () => {
-            const {backend} = stubBackend()
-            const {user} = setup(backend)
-            await screen.findByLabelText("Pick a name to chat")
-
-            await named(user, "Ana")
-
-            expect(messageBox()).toBeDefined()
-            await waitFor(() => expect(window.localStorage.getItem(CHAT_IDENTITY_STORAGE_KEY))
-                .toContain("Ana"))
-        })
-
-        it("is not asked for again on a later visit", async () => {
-            window.localStorage.setItem(
-                CHAT_IDENTITY_STORAGE_KEY,
-                JSON.stringify({authorId: "author-1", name: "Ana"}),
-            )
-            const {backend} = stubBackend()
-            setup(backend)
-
-            expect(await screen.findByRole("textbox", {name: "Message"})).toBeDefined()
-        })
-
-        it("shows the guest prefix everyone else sees", async () => {
-            window.localStorage.setItem(
-                CHAT_IDENTITY_STORAGE_KEY,
-                JSON.stringify({authorId: "author-1", name: "Ana"}),
-            )
+    describe("as a guest", () => {
+        it("asks for no name: the composer is open at once", async () => {
             const {backend} = stubBackend()
             const {container} = setup(backend)
-            await screen.findByRole("textbox", {name: "Message"})
 
-            expect(container.querySelector(".chat-identity")?.textContent).toContain("as guest_Ana")
+            expect(await screen.findByRole("textbox", {name: "Message"})).toBeDefined()
+            expect(screen.queryByRole("button", {name: "Change"})).toBeNull()
+            expect(container.querySelector(".chat-identity")?.textContent).toBe("as a guest")
         })
 
-        it("can be changed", async () => {
+        it("says the name the server gave it once a message went out", async () => {
+            const {backend} = stubBackend()
+            const {container, user} = setup(backend)
+            await screen.findByRole("textbox", {name: "Message"})
+
+            await send(user, "hello")
+
+            await waitFor(() => expect(container.querySelector(".chat-identity")?.textContent)
+                .toBe(`as ${OWN_GUEST}`))
+        })
+
+        it("keeps its author id for next time, and drops a name an older build stored", async () => {
             window.localStorage.setItem(
                 CHAT_IDENTITY_STORAGE_KEY,
                 JSON.stringify({authorId: "author-1", name: "Ana"}),
             )
             const {backend} = stubBackend()
-            const {user} = setup(backend)
+            setup(backend)
             await screen.findByRole("textbox", {name: "Message"})
 
-            await user.click(screen.getByRole("button", {name: "Change"}))
-            expect(nameBox()).toBeDefined()
+            await waitFor(() => expect(JSON.parse(window.localStorage.getItem(CHAT_IDENTITY_STORAGE_KEY)!))
+                .toEqual({authorId: "author-1"}))
         })
     })
 
@@ -344,26 +374,25 @@ describe("ChatPanel", () => {
             const {container} = setup(backend, "ana_1")
 
             expect(await screen.findByRole("textbox", {name: "Message"})).toBeDefined()
-            expect(screen.queryByLabelText("Pick a name to chat")).toBeNull()
             expect(container.querySelector(".chat-identity")?.textContent).toBe("as ana_1")
             expect(screen.queryByRole("button", {name: "Change"})).toBeNull()
         })
 
-        it("posts as the account", async () => {
+        it("sends no name: the server names the sender", async () => {
             const {backend} = stubBackend()
             const {user} = setup(backend, "ana_1")
             await screen.findByRole("textbox", {name: "Message"})
 
             await user.type(messageBox(), "hello{Enter}")
 
-            expect(backend.sendMessage).toHaveBeenCalledWith(expect.objectContaining({asAccount: true, text: "hello"}))
+            expect(backend.sendMessage.mock.calls[0][0]).not.toHaveProperty("authorName")
         })
     })
 
     describe("sending", () => {
         beforeEach(() => window.localStorage.setItem(
             CHAT_IDENTITY_STORAGE_KEY,
-            JSON.stringify({authorId: "author-1", name: "Ana"}),
+            JSON.stringify({authorId: "author-1"}),
         ))
 
         it("posts the message with the identity and the country being played", async () => {
@@ -374,11 +403,9 @@ describe("ChatPanel", () => {
             await user.type(messageBox(), "hello{Enter}")
 
             expect(backend.sendMessage).toHaveBeenCalledWith({
-                authorName: "Ana",
                 authorId: "author-1",
                 countryCode: "fr",
                 text: "hello",
-                asAccount: false,
             })
         })
 
@@ -420,6 +447,22 @@ describe("ChatPanel", () => {
             expect(await screen.findByRole("alert")).toHaveProperty(
                 "textContent",
                 "You're sending messages too fast. Give it a few seconds.",
+            )
+            expect(messageBox()).toHaveProperty("value", "hello")
+        })
+
+        it("says so when no session could be had to send it", async () => {
+            const {backend} = stubBackend()
+            backend.sendMessage.mockRejectedValue(new ChatNoSessionError())
+            vi.spyOn(console, "error").mockImplementation(() => {})
+            const {user} = setup(backend)
+            await screen.findByRole("textbox", {name: "Message"})
+
+            await user.type(messageBox(), "hello{Enter}")
+
+            expect(await screen.findByRole("alert")).toHaveProperty(
+                "textContent",
+                "Could not start a session to chat. Try again in a moment.",
             )
             expect(messageBox()).toHaveProperty("value", "hello")
         })
@@ -516,5 +559,74 @@ describe("ChatPanel", () => {
 
             expect(await screen.findByLabelText("1 new message")).toBeDefined()
         })
+    })
+})
+
+describe("ChatPanel reactions", () => {
+    const clown = (count: number, mine: boolean) => ({reaction: Reaction.CLOWN, count, mine})
+
+    it("puts a reaction on from the picker", async () => {
+        const {backend} = stubBackend([message("m1", "gm")])
+        const {user} = setup(backend, "Ana")
+        await screen.findByText("gm")
+
+        await user.click(screen.getByRole("button", {name: "Add a reaction"}))
+        await user.click(screen.getByRole("button", {name: "Clown"}))
+
+        expect(backend.react).toHaveBeenCalledWith({messageId: "m1", reaction: Reaction.CLOWN, on: true})
+        expect(await screen.findByRole("button", {name: "Clown: 1", pressed: true})).toBeDefined()
+        expect(screen.queryByRole("group", {name: "Reactions"})).toBeNull()
+    })
+
+    it("takes its own reaction off from the count", async () => {
+        const {backend} = stubBackend([{...message("m1", "gm"), reactions: [clown(2, true)]}])
+        const {user} = setup(backend)
+
+        await user.click(await screen.findByRole("button", {name: "Clown: 2", pressed: true}))
+
+        expect(backend.react).toHaveBeenCalledWith({messageId: "m1", reaction: Reaction.CLOWN, on: false})
+    })
+
+    it("keeps its own mark through a count from the stream, which knows nobody", async () => {
+        const {backend, broadcastReactions} = stubBackend([{...message("m1", "gm"), reactions: [clown(1, true)]}])
+        setup(backend)
+        await screen.findByRole("button", {name: "Clown: 1", pressed: true})
+
+        act(() => broadcastReactions({messageId: "m1", reactions: [clown(3, false)], version: 2}))
+
+        expect(await screen.findByRole("button", {name: "Clown: 3", pressed: true})).toBeDefined()
+    })
+
+    it("drops a frame older than the reactions it shows", async () => {
+        const {backend, broadcastReactions} = stubBackend([{...message("m1", "gm"), reactions: [clown(4, false)], reactionsVersion: 5}])
+        setup(backend)
+        await screen.findByRole("button", {name: "Clown: 4"})
+
+        act(() => broadcastReactions({messageId: "m1", reactions: [clown(1, false)], version: 3}))
+
+        expect(screen.getByRole("button", {name: "Clown: 4"})).toBeDefined()
+    })
+
+    it("undoes a reaction the server refused", async () => {
+        const {backend} = stubBackend([message("m1", "gm")])
+        backend.react.mockRejectedValueOnce(new ChatRejectedError())
+        const {user} = setup(backend)
+        await screen.findByText("gm")
+
+        await user.click(screen.getByRole("button", {name: "Add a reaction"}))
+        await user.click(screen.getByRole("button", {name: "Clown"}))
+
+        await waitFor(() => expect(screen.queryByRole("button", {name: /^Clown: /})).toBeNull())
+    })
+
+    it("closes the picker on Escape", async () => {
+        const {backend} = stubBackend([message("m1", "gm")])
+        const {user} = setup(backend)
+        await screen.findByText("gm")
+
+        await user.click(screen.getByRole("button", {name: "Add a reaction"}))
+        await user.keyboard("{Escape}")
+
+        expect(screen.queryByRole("group", {name: "Reactions"})).toBeNull()
     })
 })

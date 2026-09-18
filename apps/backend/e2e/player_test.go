@@ -130,10 +130,18 @@ func (p *gamer) send(header http.Header) {
 func (p *gamer) link(subject string) {
 	p.t.Helper()
 
+	p.signIn(subject, authv1.SignInIntent_SIGN_IN_INTENT_LINK, authv1.SignInOutcome_SIGN_IN_OUTCOME_LINKED)
+}
+
+// signIn signs the browser in with a provider's user, checks the outcome, and mints again so the token is the
+// account's the browser is on now.
+func (p *gamer) signIn(subject string, intent authv1.SignInIntent, outcome authv1.SignInOutcome) {
+	p.t.Helper()
+
 	client := authv1connect.NewAuthServiceClient(http.DefaultClient, p.stack.baseURL)
 
 	start := connect.NewRequest(&authv1.StartSignInRequest{
-		Provider: authv1.Provider_PROVIDER_GOOGLE, Intent: authv1.SignInIntent_SIGN_IN_INTENT_LINK,
+		Provider: authv1.Provider_PROVIDER_GOOGLE, Intent: intent,
 	})
 	p.send(start.Header())
 	started, err := client.StartSignIn(p.t.Context(), start)
@@ -149,7 +157,7 @@ func (p *gamer) link(subject string) {
 	complete.Header().Set("Cookie", p.cookie+"; "+flow.Name+"="+flow.Value)
 	completed, err := client.CompleteSignIn(p.t.Context(), complete)
 	require.NoError(p.t, err)
-	require.Equal(p.t, authv1.SignInOutcome_SIGN_IN_OUTCOME_LINKED, completed.Msg.GetOutcome())
+	require.Equal(p.t, outcome, completed.Msg.GetOutcome())
 
 	for _, line := range completed.Header().Values("Set-Cookie") {
 		cookie, err := http.ParseSetCookie(line)
@@ -256,6 +264,30 @@ func TestAUsernameAnotherPlayerHoldsIsAlreadyExists(t *testing.T) {
 	assert.Equal(t, connect.CodeAlreadyExists, connect.CodeOf(err))
 	_, err = ada.setName("ADA_L")
 	assert.NoError(t, err, "a player sets its own name again in another case")
+}
+
+func TestAnybodyReadsAPlayerByItsUsernameWithNoToken(t *testing.T) {
+	game := startGame(t)
+	before := time.Now().Add(-time.Second)
+	ada := game.newPlayer(t)
+	ada.link("google-ada")
+	_, err := ada.setName("Ada_L")
+	require.NoError(t, err)
+	ada.click(1, "fr")
+	require.Eventually(t, func() bool { return ada.stats().GetTilesTaken() == 1 }, 5*time.Second, 20*time.Millisecond)
+
+	anybody := playerv1connect.NewPlayerServiceClient(http.DefaultClient, game.baseURL, connect.WithHTTPGet())
+	res, err := anybody.GetPlayer(t.Context(), connect.NewRequest(&playerv1.GetPlayerRequest{Name: "ada_l"}))
+
+	require.NoError(t, err)
+	player := res.Msg.GetPlayer()
+	assert.Equal(t, "Ada_L", player.GetName())
+	assert.Equal(t, uint64(1), player.GetStats().GetTilesTaken())
+	assert.Equal(t, uint32(1), player.GetStats().GetStreakCurrent())
+	assert.WithinRange(t, time.UnixMilli(player.GetCreatedAtUnixMs()), before, time.Now(), "auth says when the guest was made")
+
+	_, err = anybody.GetPlayer(t.Context(), connect.NewRequest(&playerv1.GetPlayerRequest{Name: "Bob"}))
+	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
 }
 
 func TestAPlayerCallWithNoTokenIsUnauthenticated(t *testing.T) {

@@ -1,4 +1,4 @@
-// Package log_authors logs a sender the chat could not name. The use case refuses the message and says nothing.
+// Package log_authors logs a sender the chat could not name. The use case refuses the post.
 package log_authors
 
 import (
@@ -20,11 +20,11 @@ type Logged struct {
 
 var _ send_message_usecase.Authors = (*Logged)(nil)
 
-// Author logs a failure at Error: the message is refused.
-func (l *Logged) Author(ctx context.Context, account messages.AccountID, ip string) (messages.Author, error) {
-	author, err := l.inner.Author(ctx, account, ip)
+// Author logs a failure at Error: the post is refused.
+func (l *Logged) Author(ctx context.Context, account messages.AccountID) (messages.Author, error) {
+	author, err := l.inner.Author(ctx, account)
 	if err != nil {
-		l.logger.Error("the chat could not ask who posts; the message is refused",
+		l.logger.Error("the chat could not ask who is calling",
 			slog.String("account", account.String()),
 			slog.Any("error", err),
 		)

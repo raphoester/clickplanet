@@ -1,142 +1,69 @@
+//go:build testing
+
+// Package inmemory_message_storage keeps messages in a slice, for tests that need a messages.Storage but not postgres.
 package inmemory_message_storage
 
 import (
 	"context"
-	"fmt"
-	"log/slog"
+	"slices"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-func New(
-	config Config,
-	persistence Persistence,
-	clock cptime.Clock,
-	logger *slog.Logger,
-) *Storage {
-	config = config.withDefaults()
-
-	return &Storage{
-		config:      config,
-		persistence: persistence,
-		logger:      logger,
-		clock:       clock,
-		history:     make([]messages.Message, 0, config.HistorySize),
-		subscribers: cpcolls.NewSet[*subscriber](),
-	}
+func New() *Storage {
+	return &Storage{}
 }
 
 type Storage struct {
-	config      Config
-	persistence Persistence
-	logger      *slog.Logger
-	clock       cptime.Clock
-
-	appendMu sync.Mutex
-
-	historyMu sync.RWMutex
-	history   []messages.Message
-
-	subscribersMu sync.Mutex
-	subscribers   *cpcolls.Set[*subscriber]
+	mu      sync.Mutex
+	records []messages.Record
 }
 
-type subscriber struct {
-	ch      chan messages.Message
-	dropped atomic.Uint64
-}
+var _ messages.Storage = (*Storage)(nil)
 
-const writeTimeout = 5 * time.Second
+func (s *Storage) Append(_ context.Context, record messages.Record) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-// Append records the message before anyone sees it: a message that cannot be recorded is not broadcast.
-func (s *Storage) Append(ctx context.Context, record messages.Record) error {
-	s.appendMu.Lock()
-	defer s.appendMu.Unlock()
-
-	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
-	defer cancel()
-
-	if err := s.persistence.Insert(ctx, record); err != nil {
-		return fmt.Errorf("failed to record the chat message: %w", err)
-	}
-
-	s.remember(record.Message)
-	s.publish(record.Message)
-
+	s.records = append(s.records, record)
 	return nil
 }
 
-func (s *Storage) History(_ context.Context) []messages.Message {
-	s.historyMu.RLock()
-	defer s.historyMu.RUnlock()
+func (s *Storage) Recent(_ context.Context, since time.Time, limit int) ([]messages.Message, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-	return append(make([]messages.Message, 0, len(s.history)), s.history...)
+	return s.recent(since, limit), nil
 }
 
-func (s *Storage) remember(message messages.Message) {
-	s.historyMu.Lock()
-	defer s.historyMu.Unlock()
+func (s *Storage) Shown(_ context.Context, id messages.MessageID, since time.Time, limit int) (bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-	if len(s.history) == s.config.HistorySize {
-		s.history = append(s.history[:0], s.history[1:]...)
-	}
-
-	s.history = append(s.history, message)
+	return slices.ContainsFunc(s.recent(since, limit), func(message messages.Message) bool {
+		return message.ID == id
+	}), nil
 }
 
-func (s *Storage) Subscribe(ctx context.Context) (<-chan messages.Message, error) {
-	sub := &subscriber{ch: make(chan messages.Message, s.config.SubscriberBuffer)}
+func (s *Storage) DeleteBefore(_ context.Context, cutoff time.Time) (int64, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-	s.subscribersMu.Lock()
-	s.subscribers.Add(sub)
-	s.subscribersMu.Unlock()
-
-	go func() {
-		<-ctx.Done()
-
-		s.subscribersMu.Lock()
-		defer s.subscribersMu.Unlock()
-
-		s.subscribers.Delete(sub)
-		close(sub.ch)
-	}()
-
-	return sub.ch, nil
+	before := len(s.records)
+	s.records = slices.DeleteFunc(s.records, func(record messages.Record) bool {
+		return record.Message.SentAt.Before(cutoff)
+	})
+	return int64(before - len(s.records)), nil
 }
 
-const dropLogInterval = 100
-
-func (s *Storage) publish(message messages.Message) {
-	s.subscribersMu.Lock()
-	defer s.subscribersMu.Unlock()
-
-	s.subscribers.ForEach(func(sub *subscriber) {
-		select {
-		case sub.ch <- message:
-		default:
-			dropped := sub.dropped.Add(1)
-			if dropped == 1 || dropped%dropLogInterval == 0 {
-				s.logger.Warn("dropped a chat message for a slow subscriber",
-					slog.String("messageId", message.ID),
-					slog.Uint64("droppedTotal", dropped),
-				)
-			}
+func (s *Storage) recent(since time.Time, limit int) []messages.Message {
+	var recent []messages.Message
+	for _, record := range s.records {
+		if !record.Message.SentAt.Before(since) {
+			recent = append(recent, record.Message)
 		}
-	})
-}
-
-func (s *Storage) DroppedMessages() uint64 {
-	s.subscribersMu.Lock()
-	defer s.subscribersMu.Unlock()
-
-	var total uint64
-	s.subscribers.ForEach(func(sub *subscriber) {
-		total += sub.dropped.Load()
-	})
-	return total
+	}
+	return recent[max(0, len(recent)-limit):]
 }

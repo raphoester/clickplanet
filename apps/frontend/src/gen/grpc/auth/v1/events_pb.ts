@@ -48,3 +48,99 @@ export class AccountDeleted extends Message<AccountDeleted> {
   }
 }
 
+/**
+ * SignedIn is a browser that finished a sign-in. It is on account_id now, and it
+ * was on previous_account_id before: the same account when a guest linked its
+ * first identity, another one when the identity was already known or a new
+ * account was made. previous_account_id is empty when the browser had no live
+ * session. A subscriber moves what it keeps for the browser's old account.
+ *
+ * @generated from message auth.v1.SignedIn
+ */
+export class SignedIn extends Message<SignedIn> {
+  /**
+   * As a UUID, or empty.
+   *
+   * @generated from field: string previous_account_id = 1;
+   */
+  previousAccountId = "";
+
+  /**
+   * As a UUID.
+   *
+   * @generated from field: string account_id = 2;
+   */
+  accountId = "";
+
+  constructor(data?: PartialMessage<SignedIn>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "auth.v1.SignedIn";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "previous_account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SignedIn {
+    return new SignedIn().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SignedIn {
+    return new SignedIn().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SignedIn {
+    return new SignedIn().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SignedIn | PlainMessage<SignedIn> | undefined, b: SignedIn | PlainMessage<SignedIn> | undefined): boolean {
+    return proto3.util.equals(SignedIn, a, b);
+  }
+}
+
+/**
+ * SignedOut is an account that ended a session: one browser's, or every one of
+ * them. The account still exists. A subscriber forgets what it shows about the
+ * account as playing now.
+ *
+ * @generated from message auth.v1.SignedOut
+ */
+export class SignedOut extends Message<SignedOut> {
+  /**
+   * As a UUID.
+   *
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  constructor(data?: PartialMessage<SignedOut>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "auth.v1.SignedOut";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SignedOut {
+    return new SignedOut().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SignedOut {
+    return new SignedOut().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SignedOut {
+    return new SignedOut().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SignedOut | PlainMessage<SignedOut> | undefined, b: SignedOut | PlainMessage<SignedOut> | undefined): boolean {
+    return proto3.util.equals(SignedOut, a, b);
+  }
+}
+

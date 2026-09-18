@@ -10,16 +10,17 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/feed"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/feed/usecases/listen_for_events_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
-	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/listen_for_events_usecase"
 )
 
 type stubSubscriber struct {
-	feed chan messages.Message
+	feed chan feed.Update
 	err  error
 }
 
-func (s stubSubscriber) Subscribe(context.Context) (<-chan messages.Message, error) {
+func (s stubSubscriber) Subscribe(context.Context) (<-chan feed.Update, error) {
 	return s.feed, s.err
 }
 
@@ -59,15 +60,15 @@ func TestAFailedSubscriptionEndsTheFeed(t *testing.T) {
 }
 
 func TestAMessageIsCarriedToTheSink(t *testing.T) {
-	feed := make(chan messages.Message, 1)
-	feed <- messages.Message{ID: "message-1", Text: "hello"}
+	updates := make(chan feed.Update, 1)
+	updates <- feed.Update{Message: &messages.Message{ID: "message-1", Text: "hello"}}
 
 	sink := &recorder{fed: make(chan struct{})}
 
 	ctx, cancel := context.WithCancel(t.Context())
 	done := make(chan error, 1)
 	go func() {
-		done <- listen_for_events_usecase.New(stubSubscriber{feed: feed}, time.Hour).Execute(ctx, sink)
+		done <- listen_for_events_usecase.New(stubSubscriber{feed: updates}, time.Hour).Execute(ctx, sink)
 	}()
 
 	<-sink.fed
@@ -75,7 +76,7 @@ func TestAMessageIsCarriedToTheSink(t *testing.T) {
 	require.NoError(t, <-done)
 
 	require.Equal(t, []listen_for_events_usecase.Event{
-		{Message: messages.Message{ID: "message-1", Text: "hello"}},
+		{Update: feed.Update{Message: &messages.Message{ID: "message-1", Text: "hello"}}},
 	}, sink.seen())
 }
 
@@ -86,7 +87,7 @@ func TestASilentFeedKeepsSendingHeartbeats(t *testing.T) {
 	done := make(chan error, 1)
 	go func() {
 		done <- listen_for_events_usecase.New(
-			stubSubscriber{feed: make(chan messages.Message)}, time.Millisecond).Execute(ctx, sink)
+			stubSubscriber{feed: make(chan feed.Update)}, time.Millisecond).Execute(ctx, sink)
 	}()
 
 	for range 3 {
@@ -101,20 +102,20 @@ func TestASilentFeedKeepsSendingHeartbeats(t *testing.T) {
 }
 
 func TestTheFeedEndsWhenTheSubscriptionCloses(t *testing.T) {
-	feed := make(chan messages.Message)
-	close(feed)
+	updates := make(chan feed.Update)
+	close(updates)
 
-	err := listen_for_events_usecase.New(stubSubscriber{feed: feed}, time.Hour).
+	err := listen_for_events_usecase.New(stubSubscriber{feed: updates}, time.Hour).
 		Execute(t.Context(), &recorder{})
 
 	require.NoError(t, err)
 }
 
 func TestAFailedSendEndsTheFeed(t *testing.T) {
-	feed := make(chan messages.Message, 1)
-	feed <- messages.Message{ID: "message-1"}
+	updates := make(chan feed.Update, 1)
+	updates <- feed.Update{Message: &messages.Message{ID: "message-1"}}
 
-	err := listen_for_events_usecase.New(stubSubscriber{feed: feed}, time.Hour).
+	err := listen_for_events_usecase.New(stubSubscriber{feed: updates}, time.Hour).
 		Execute(t.Context(), &recorder{err: assert.AnError})
 
 	require.ErrorIs(t, err, assert.AnError)

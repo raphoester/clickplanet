@@ -69,7 +69,7 @@ It is a script rather than a root `Makefile` target on purpose — see
 
 `deploy/docker-compose.yaml` runs backend + frontend together using locally built Docker images. Build each app's image first (`apps/frontend`'s `npm run dBuild`, `apps/backend`'s `make dBuild`), then `cd deploy && docker compose up`.
 
-The stack includes a **postgres**: the backend keeps the whole tile map in process and writes what changed to postgres every second. The ledger goes there too, the antibot keeps its bans and evidence there in its own schema, the chat writes each message there before broadcasting it, and the player module reads and writes profiles and stats there on every call. See [`apps/backend/CLAUDE.md`](apps/backend/CLAUDE.md) for the durability tradeoff and the full config schema.
+The stack includes a **postgres**: the backend keeps the whole tile map in process and writes what changed to postgres every second. The ledger goes there too, the antibot keeps its bans and evidence there in its own schema, the chat reads and writes its messages and reactions there directly, and broadcasts a write only once it is kept, and the player module reads and writes profiles and stats there on every call. See [`apps/backend/CLAUDE.md`](apps/backend/CLAUDE.md) for the durability tradeoff and the full config schema.
 
 ## Independence of the two apps
 

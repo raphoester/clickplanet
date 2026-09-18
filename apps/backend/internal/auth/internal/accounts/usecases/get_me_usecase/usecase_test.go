@@ -37,7 +37,7 @@ func TestTheCookieGivesItsAccountAndItsProviders(t *testing.T) {
 	account, err := useCase.Execute(t.Context(), "theme=dark; cp_sid=token-1")
 
 	require.NoError(t, err)
-	assert.Equal(t, &accounts.Account{ID: accounts.AccountID{15: 1}, Identities: []accounts.Identity{*identity}}, account)
+	assert.Equal(t, &accounts.Account{ID: accounts.AccountID{15: 1}, CreatedAt: start, Identities: []accounts.Identity{*identity}}, account)
 }
 
 func TestNoLiveSessionIsNoAccount(t *testing.T) {

@@ -1,5 +1,5 @@
 import {useEffect, useRef} from 'react'
-import {ClickBudget, now, tokensAt} from "../../backends/clickBudget.ts"
+import {ClickBudget, nextClickProgress, now, secondsToOneMore, tokensAt} from "../../backends/clickBudget.ts"
 import {ActiveBonus, describeReward, secondsLeft} from "../../domain/bonus.ts"
 import {describePrice, factor} from "../../domain/clickPrice.ts"
 import "./ClickBudgetMeter.css"
@@ -9,11 +9,11 @@ export type ClickBudgetMeterProps = {
     /**
      * The bonus currently running, if any. The meter is the one place that says
      * a bonus is live, because it is where the allowance is read — and once the
-     * backend grants the boost, the pips and the fill rate widen on their own
-     * off the server's policy, with nothing here to change.
+     * backend grants the boost, the fill rate speeds up on its own off the
+     * server's policy, with nothing here to change.
      */
     bonus?: ActiveBonus
-    /** The country clicks are priced for, to say why the meter is narrower. */
+    /** The country selected, to say why its clicks refill slower. */
     countryName?: string
     /**
      * How many clicks the server has refused for the throttle. Each new one
@@ -35,6 +35,13 @@ const MAX_PIPS = 12
 /** Below this, the player is close enough to the wall to be warned. */
 const LOW_WATER = 3
 
+/**
+ * A click that takes this long or more to come back gets a countdown. At one a
+ * second it would only ever say 1s; at one every 5s, a count stuck on 0 and a
+ * bar that barely moves look broken without it.
+ */
+const COUNTDOWN_FROM_S = 1.5
+
 /** Reduced motion steps the fill instead of gliding it. */
 const STEP_MS = 250
 
@@ -54,6 +61,7 @@ export default function ClickBudgetMeter({budget, bonus, countryName = "", refus
     const root = useRef<HTMLDivElement>(null)
     const count = useRef<HTMLSpanElement>(null)
     const countdown = useRef<HTMLSpanElement>(null)
+    const wait = useRef<HTMLSpanElement>(null)
 
     useEffect(() => {
         const box = root.current
@@ -79,6 +87,9 @@ export default function ClickBudgetMeter({budget, bonus, countryName = "", refus
 
         let shown = -1
         let shownSecond = -1
+        let shownWait = ""
+
+        const bar = budget.capacity > MAX_PIPS
 
         const draw = () => {
             const at = now()
@@ -97,6 +108,18 @@ export default function ClickBudgetMeter({budget, bonus, countryName = "", refus
 
             // One write, and every pip works out its own share of it.
             box.style.setProperty("--click-budget-tokens", tokens.toFixed(3))
+
+            // A bar of 60 moves a sixtieth per click, too little to see; the
+            // strip under it fills once per click, as a pip would.
+            if (bar) box.style.setProperty("--click-budget-next", nextClickProgress(budget, at).toFixed(3))
+
+            if (wait.current) {
+                const text = waitText(budget, at)
+                if (text !== shownWait) {
+                    shownWait = text
+                    wait.current.textContent = text
+                }
+            }
 
             // The rest changes about once a second, so it is not written per
             // frame — this sits beside a WebGL scene that wants the main thread.
@@ -172,6 +195,8 @@ export default function ClickBudgetMeter({budget, bonus, countryName = "", refus
             </div>
             : <div className="click-budget-bar"/>}
 
+        {slow(budget) && <span ref={wait} className="click-budget-next">{waitText(budget, now())}</span>}
+
         {price && <div className="click-budget-toll">
             <span className="click-budget-toll-headline">{price.headline}</span>
             <span className="click-budget-toll-detail">{price.detail}</span>
@@ -183,6 +208,16 @@ export default function ClickBudgetMeter({budget, bonus, countryName = "", refus
             <span>Sign in: clicks {factor(speedUp)}× faster</span>
         </button>}
     </div>
+}
+
+function slow(budget: ClickBudget): boolean {
+    return budget.perSecond > 0 && 1 / budget.perSecond >= COUNTDOWN_FROM_S
+}
+
+/** When the next click is in hand, or nothing at a full bucket. */
+function waitText(budget: ClickBudget, at: number): string {
+    const left = secondsToOneMore(budget, at)
+    return left === undefined ? "" : `+1 in ${Math.ceil(left)}s`
 }
 
 function BoltIcon() {

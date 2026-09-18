@@ -49,8 +49,12 @@ func NewSessionInterceptor(
 	)
 }
 
-// NewBudgetSessionInterceptor reads a token on GetBudget when the client sends one, so the budget is the
-// account's. It refuses nothing: a client that has not minted yet reads its scope's allowance.
-func NewBudgetSessionInterceptor(verifier ClickSessionVerifier, clock cptime.Clock) connect.Interceptor {
-	return cpconnect.NewSessionReaderInterceptor(verifier, clock, planetv1connect.ClickServiceGetBudgetProcedure)
+// NewSessionReaderInterceptor reads a token when the client sends one, and refuses nothing. On GetBudget the
+// budget is then the account's; on ListenForEvents the stream knows whose account it serves. Without a token, or
+// with a bad one, a client that has not minted yet reads its scope's allowance and follows the planet as before.
+func NewSessionReaderInterceptor(verifier ClickSessionVerifier, clock cptime.Clock) connect.Interceptor {
+	return cpconnect.NewSessionReaderInterceptor(verifier, clock,
+		planetv1connect.ClickServiceGetBudgetProcedure,
+		planetv1connect.ClickServiceListenForEventsProcedure,
+	)
 }

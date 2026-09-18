@@ -8,6 +8,8 @@ import (
 // Account is a player, and the providers it signs in with. A guest has none.
 type Account struct {
 	ID AccountID
+	// When the account was made: as a guest, or by a first sign-in.
+	CreatedAt time.Time
 	// Oldest link first.
 	Identities []Identity
 }

@@ -74,14 +74,13 @@
     flex-shrink: 0;
 }
 
-.menu-actions > * {
-    flex: 1 1 0;
-}
-
-/* An icon, not a word: square, and it leaves the width to the one that is. */
+/* Every action is an icon. They share the row and may shrink below their size:
+   a word here ("About") could not shrink, and pushed the last button out of the
+   card once the players button joined the row. */
 .menu-actions > .menu-sound,
 .menu-actions > .menu-icon {
-    flex: 0 0 56px;
+    flex: 1 1 56px;
+    min-width: 0;
     display: flex;
     align-items: center;
     justify-content: center;

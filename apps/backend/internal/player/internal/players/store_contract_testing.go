@@ -14,6 +14,8 @@ type StoreContractSuite struct {
 
 	// NewStore answers an empty store.
 	NewStore func() Store
+	// MakeAdmin does what an operator does in the database: the port has no way to.
+	MakeAdmin func(store Store, account AccountID)
 
 	store Store
 }
@@ -58,6 +60,49 @@ func (s *StoreContractSuite) TestASavedProfileReadsBackAndASecondReplacesIt() {
 	profile, err = s.store.Profile(s.T().Context(), AccountID{15: 1})
 	s.Require().NoError(err)
 	s.Equal(renamed, profile)
+}
+
+func (s *StoreContractSuite) TestANewProfileIsNotAnAdmin() {
+	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(1, "Ada")))
+
+	profile, err := s.store.Profile(s.T().Context(), AccountID{15: 1})
+	s.Require().NoError(err)
+	s.False(profile.Admin)
+}
+
+func (s *StoreContractSuite) TestAnAdminIsReadAndARenameKeepsIt() {
+	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(1, "Ada")))
+	s.MakeAdmin(s.store, AccountID{15: 1})
+
+	notAdmin := contractProfile(1, "Ada_L")
+	s.Require().NoError(s.store.SaveProfile(s.T().Context(), notAdmin), "a saved profile says nothing of admin")
+
+	profile, err := s.store.Profile(s.T().Context(), AccountID{15: 1})
+	s.Require().NoError(err)
+	s.True(profile.Admin)
+	s.Equal(Name("Ada_L"), profile.Name)
+	named, err := s.store.ProfileNamed(s.T().Context(), "ada_l")
+	s.Require().NoError(err)
+	s.True(named.Admin)
+}
+
+func (s *StoreContractSuite) TestAProfileIsFoundByItsNameIgnoringCase() {
+	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(1, "Ada_L")))
+	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(2, "Bob")))
+
+	profile, err := s.store.ProfileNamed(s.T().Context(), "aDA_l")
+
+	s.Require().NoError(err)
+	s.Equal(contractProfile(1, "Ada_L"), profile)
+}
+
+func (s *StoreContractSuite) TestANameNobodyHoldsHasNoProfile() {
+	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(1, "Ada")))
+	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(1, "Bob")))
+
+	_, err := s.store.ProfileNamed(s.T().Context(), "Ada")
+
+	s.Require().ErrorIs(err, ErrNoProfile, "a rename frees the old name")
 }
 
 func (s *StoreContractSuite) TestEachTakeIsCountedByTheDomainsRule() {
@@ -148,6 +193,50 @@ func (s *StoreContractSuite) TestARenameFreesTheOldName() {
 	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(1, "Bob")))
 
 	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(2, "ada")))
+}
+
+func (s *StoreContractSuite) TestAnAccountNeverGivenACodeHasNone() {
+	_, err := s.store.GuestCode(s.T().Context(), AccountID{15: 1})
+
+	s.Require().ErrorIs(err, ErrNoGuestCode)
+}
+
+func (s *StoreContractSuite) TestASavedGuestCodeReadsBack() {
+	s.Require().NoError(s.store.SaveGuestCode(s.T().Context(), AccountID{15: 1}, "a1b2c3"))
+
+	code, err := s.store.GuestCode(s.T().Context(), AccountID{15: 1})
+
+	s.Require().NoError(err)
+	s.Equal(GuestCode("a1b2c3"), code)
+}
+
+func (s *StoreContractSuite) TestAnAccountKeepsItsFirstGuestCode() {
+	s.Require().NoError(s.store.SaveGuestCode(s.T().Context(), AccountID{15: 1}, "a1b2c3"))
+
+	s.Require().NoError(s.store.SaveGuestCode(s.T().Context(), AccountID{15: 1}, "ffffff"))
+
+	code, err := s.store.GuestCode(s.T().Context(), AccountID{15: 1})
+	s.Require().NoError(err)
+	s.Equal(GuestCode("a1b2c3"), code)
+}
+
+func (s *StoreContractSuite) TestAGuestCodeAnotherAccountHoldsIsTaken() {
+	s.Require().NoError(s.store.SaveGuestCode(s.T().Context(), AccountID{15: 1}, "a1b2c3"))
+
+	err := s.store.SaveGuestCode(s.T().Context(), AccountID{15: 2}, "a1b2c3")
+
+	s.Require().ErrorIs(err, ErrGuestCodeTaken)
+	_, err = s.store.GuestCode(s.T().Context(), AccountID{15: 2})
+	s.Require().ErrorIs(err, ErrNoGuestCode, "a refused code writes nothing")
+}
+
+func (s *StoreContractSuite) TestADeletedAccountFreesItsGuestCode() {
+	s.Require().NoError(s.store.SaveGuestCode(s.T().Context(), AccountID{15: 1}, "a1b2c3"))
+	s.Require().NoError(s.store.DeleteAccount(s.T().Context(), AccountID{15: 1}))
+
+	_, err := s.store.GuestCode(s.T().Context(), AccountID{15: 1})
+	s.Require().ErrorIs(err, ErrNoGuestCode)
+	s.Require().NoError(s.store.SaveGuestCode(s.T().Context(), AccountID{15: 2}, "a1b2c3"))
 }
 
 func (s *StoreContractSuite) TestADeletedAccountFreesItsName() {

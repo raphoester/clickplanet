@@ -67,9 +67,9 @@ proto3.util.setEnumType(BonusKind, "planet.v1.BonusKind", [
  * It rides on every click answer, accepted or refused, so the client is never
  * more than one click away from the truth.
  *
- * The first three are counted in clicks for the country asked about, not in
- * tokens: a click for a country that holds much of the map costs several
- * tokens, and the server has already divided by that cost.
+ * Every click costs one token, so the first three are counted in clicks. The
+ * bank's size is the same whatever the country and whether the caller signed
+ * in: a big country and signing in only move how fast it refills.
  *
  * @generated from message planet.v1.ClickBudget
  */
@@ -90,19 +90,22 @@ export class ClickBudget extends Message<ClickBudget> {
   capacity = 0;
 
   /**
-   * Clicks granted back per second.
+   * Clicks granted back per second, at the pace set by the caller's last click:
+   * its country's slowdown, signing in, and a running bonus all move it.
    *
    * @generated from field: double refill_per_second = 3;
    */
   refillPerSecond = 0;
 
   /**
-   * Tokens one click costs, from the country's share of the map: 1.5 is half
-   * as slow again. Zero from a server too old to price clicks, which means one.
+   * How many times slower a player of the country asked about gets its clicks
+   * back, from the country's share of the map: 1.5 is half as slow again. It
+   * applies from the next click for that country on. Zero from a server too old
+   * to know, which means one.
    *
-   * @generated from field: double cost = 8;
+   * @generated from field: double slowdown = 8;
    */
-  cost = 0;
+  slowdown = 0;
 
   /**
    * The fraction of the whole map the country holds, 0 to 1.
@@ -112,22 +115,22 @@ export class ClickBudget extends Message<ClickBudget> {
   share = 0;
 
   /**
-   * The share at which a click starts to cost next_cost. Zero at the top step.
+   * The share at which the refill slows to next_slowdown. Zero at the top step.
    *
    * @generated from field: double next_share = 6;
    */
   nextShare = 0;
 
   /**
-   * @generated from field: double next_cost = 9;
+   * @generated from field: double next_slowdown = 9;
    */
-  nextCost = 0;
+  nextSlowdown = 0;
 
   /**
-   * How many times a guest's allowance an account that signed in with a
-   * provider holds: 2 is twice the burst and twice the refill. It is the same
-   * for every caller, so a guest can be told what signing in is worth. Zero
-   * from a server too old to grant one, which means signing in changes nothing.
+   * How many times a guest's refill an account that signed in with a provider
+   * gets: 2 is twice as fast, into a bank of the same size. It is the same for
+   * every caller, so a guest can be told what signing in is worth. Zero from a
+   * server too old to grant one, which means signing in changes nothing.
    *
    * @generated from field: double linked_multiplier = 10;
    */
@@ -144,10 +147,10 @@ export class ClickBudget extends Message<ClickBudget> {
     { no: 1, name: "tokens", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
     { no: 2, name: "capacity", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 3, name: "refill_per_second", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
-    { no: 8, name: "cost", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 8, name: "slowdown", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
     { no: 5, name: "share", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
     { no: 6, name: "next_share", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
-    { no: 9, name: "next_cost", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 9, name: "next_slowdown", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
     { no: 10, name: "linked_multiplier", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
   ]);
 
@@ -255,7 +258,8 @@ export class ClickResponse extends Message<ClickResponse> {
  */
 export class GetBudgetRequest extends Message<GetBudgetRequest> {
   /**
-   * The country the allowance is priced for.
+   * The country the answer's slowdown is for. The bucket itself refills at the
+   * pace of the caller's last click until the next one.
    *
    * @generated from field: string country_id = 1;
    */
@@ -793,8 +797,8 @@ export class ClaimBonusRequest extends Message<ClaimBonusRequest> {
 export class ClaimBonusResponse extends Message<ClaimBonusResponse> {
   /**
    * The allowance as it stands with the bonus applied, so the client does not
-   * have to wait for its next click to see the wider budget. A kind that does
-   * not widen it answers the allowance unchanged.
+   * have to wait for its next click to see the faster refill. A kind that does
+   * not speed it up answers the allowance unchanged.
    *
    * @generated from field: planet.v1.ClickBudget budget = 1;
    */

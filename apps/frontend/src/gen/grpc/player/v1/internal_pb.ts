@@ -11,19 +11,11 @@ import { Message, proto3 } from "@bufbuild/protobuf";
  */
 export class GetAuthorRequest extends Message<GetAuthorRequest> {
   /**
-   * Empty, or not an account id, for a caller with no account: the answer then
-   * has no username.
+   * Required: an empty id, or one that is not an account, is InvalidArgument.
    *
    * @generated from field: string account_id = 1;
    */
   accountId = "";
-
-  /**
-   * The caller's address, as the module that asks observed it.
-   *
-   * @generated from field: string ip = 2;
-   */
-  ip = "";
 
   constructor(data?: PartialMessage<GetAuthorRequest>) {
     super();
@@ -34,7 +26,6 @@ export class GetAuthorRequest extends Message<GetAuthorRequest> {
   static readonly typeName = "player.v1.GetAuthorRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "ip", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetAuthorRequest {
@@ -59,19 +50,20 @@ export class GetAuthorRequest extends Message<GetAuthorRequest> {
  */
 export class GetAuthorResponse extends Message<GetAuthorResponse> {
   /**
-   * Empty when the account chose none.
+   * The account's username, or "guest_" and its guest code when it chose none:
+   * 6 hex characters, drawn the first time the account is asked about and kept
+   * until it is deleted. Never empty.
    *
-   * @generated from field: string username = 1;
+   * @generated from field: string name = 1;
    */
-  username = "";
+  name = "";
 
   /**
-   * A salted hash of the address, 6 hex characters: the same address has the
-   * same tag everywhere the game shows one.
+   * The account is an admin of the game. False with no username.
    *
-   * @generated from field: string tag = 2;
+   * @generated from field: bool admin = 3;
    */
-  tag = "";
+  admin = false;
 
   constructor(data?: PartialMessage<GetAuthorResponse>) {
     super();
@@ -81,8 +73,8 @@ export class GetAuthorResponse extends Message<GetAuthorResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "player.v1.GetAuthorResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "username", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "tag", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 1, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "admin", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetAuthorResponse {

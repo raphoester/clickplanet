@@ -6,23 +6,26 @@ package player.v1;
 // backend's loopback internal listener (httpServer.internalBindAddress), never
 // on the public router.
 service InternalService {
-  // Who a caller is to the others: the username its account chose, and the tag
-  // of the address it calls from.
+  // Who an account is to the others: the name the game shows for it.
   rpc GetAuthor(GetAuthorRequest) returns (GetAuthorResponse);
 }
 
 message GetAuthorRequest {
-  // Empty, or not an account id, for a caller with no account: the answer then
-  // has no username.
+  // Required: an empty id, or one that is not an account, is InvalidArgument.
   string account_id = 1;
-  // The caller's address, as the module that asks observed it.
-  string ip = 2;
+  // Was the caller's address, which the tag was made from.
+  reserved 2;
+  reserved "ip";
 }
 
 message GetAuthorResponse {
-  // Empty when the account chose none.
-  string username = 1;
-  // A salted hash of the address, 6 hex characters: the same address has the
-  // same tag everywhere the game shows one.
-  string tag = 2;
+  // The account's username, or "guest_" and its guest code when it chose none:
+  // 6 hex characters, drawn the first time the account is asked about and kept
+  // until it is deleted. Never empty.
+  string name = 1;
+  // Was a salted hash of the caller's address.
+  reserved 2;
+  reserved "tag";
+  // The account is an admin of the game. False with no username.
+  bool admin = 3;
 }

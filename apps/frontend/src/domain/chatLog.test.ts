@@ -1,14 +1,27 @@
 import {describe, expect, it} from "vitest"
-import {addMessages, CHAT_LOG_LIMIT, GROUP_WINDOW_MS, idsSince, startsGroup, unreadSince} from "./chatLog.ts"
-import type {ChatMessage} from "../backends/chat.ts"
+import {
+    addAnnouncements,
+    addMessages,
+    CHAT_LOG_LIMIT,
+    ChatLogEntry,
+    GROUP_WINDOW_MS,
+    idsSince,
+    interleave,
+    nameSentUnder,
+    startsGroup,
+    unreadSince,
+} from "./chatLog.ts"
+import type {ChatAnnouncement, ChatMessage} from "../backends/chat.ts"
 
 const message = (id: string, sentAt: number): ChatMessage => ({
     id,
     sentAt,
     authorName: "Ana",
-    authorTag: "4f2ca1",
+    authorAdmin: false,
     countryCode: "fr",
     text: `message ${id}`,
+    reactions: [],
+    reactionsVersion: 0,
 })
 
 const ids = (messages: readonly ChatMessage[]) => messages.map(m => m.id)
@@ -103,39 +116,85 @@ describe("idsSince", () => {
     })
 })
 
+describe("nameSentUnder", () => {
+    const log = [
+        {...message("a", 0), authorName: "guest_91aa3d"},
+        {...message("b", 1_000), authorName: "guest_c0ffee"},
+        {...message("c", 2_000), authorName: "ana_1"},
+    ]
+
+    it("answers the name the server gave the latest message this client sent", () => {
+        expect(nameSentUnder(log, new Set(["b"]))).toBe("guest_c0ffee")
+        expect(nameSentUnder(log, new Set(["b", "c"]))).toBe("ana_1")
+    })
+
+    it("knows nothing before this client sent anything still in the log", () => {
+        expect(nameSentUnder(log, new Set())).toBeUndefined()
+        expect(nameSentUnder(log, new Set(["gone"]))).toBeUndefined()
+    })
+})
+
 describe("startsGroup", () => {
-    const from = (author: string, tag: string, sentAt: number): ChatMessage =>
-        ({...message("x", sentAt), authorName: author, authorTag: tag})
+    const from = (author: string, sentAt: number): ChatMessage =>
+        ({...message("x", sentAt), authorName: author})
 
     it("opens a group on the first message there is", () => {
-        expect(startsGroup(undefined, from("Ana", "4f2ca1", 0))).toBe(true)
+        expect(startsGroup(undefined, from("Ana", 0))).toBe(true)
     })
 
     it("keeps one author's run together", () => {
-        const first = from("Ana", "4f2ca1", 0)
-        const next = from("Ana", "4f2ca1", 1_000)
+        const first = from("Ana", 0)
+        const next = from("Ana", 1_000)
 
         expect(startsGroup(first, next)).toBe(false)
     })
 
     it("opens a group when somebody else speaks", () => {
-        const ana = from("Ana", "4f2ca1", 0)
-        const bo = from("Bo", "c0ffee", 1_000)
+        const ana = from("Ana", 0)
+        const bo = from("Bo", 1_000)
 
         expect(startsGroup(ana, bo)).toBe(true)
     })
 
-    it("opens a group for a namesake with another tag", () => {
-        const ana = from("Ana", "4f2ca1", 0)
-        const otherAna = from("Ana", "c0ffee", 1_000)
+    it("opens a group again after a long enough silence", () => {
+        const first = from("Ana", 0)
 
-        expect(startsGroup(ana, otherAna)).toBe(true)
+        expect(startsGroup(first, from("Ana", GROUP_WINDOW_MS))).toBe(false)
+        expect(startsGroup(first, from("Ana", GROUP_WINDOW_MS + 1))).toBe(true)
+    })
+})
+
+const bomb = (id: string, announcedAt: number): ChatAnnouncement =>
+    ({kind: "bomb", id, announcedAt, country: "fr", cleared: 0})
+
+const entryIds = (entries: ChatLogEntry[]) =>
+    entries.map(entry => entry.kind === "message" ? entry.message.id : entry.announcement.id)
+
+describe("addAnnouncements", () => {
+    it("keeps each one once, oldest first", () => {
+        const log = addAnnouncements([], [bomb("b", 2)])
+
+        expect(addAnnouncements(log, [bomb("a", 1), bomb("b", 2)]).map(a => a.id)).toEqual(["a", "b"])
     })
 
-    it("opens a group again after a long enough silence", () => {
-        const first = from("Ana", "4f2ca1", 0)
+    it("keeps only the newest when it is full", () => {
+        expect(addAnnouncements([], [bomb("a", 1), bomb("b", 2), bomb("c", 3)], 2).map(a => a.id)).toEqual(["b", "c"])
+    })
+})
 
-        expect(startsGroup(first, from("Ana", "4f2ca1", GROUP_WINDOW_MS))).toBe(false)
-        expect(startsGroup(first, from("Ana", "4f2ca1", GROUP_WINDOW_MS + 1))).toBe(true)
+describe("interleave", () => {
+    it("puts announcements between the messages by time", () => {
+        expect(entryIds(interleave(
+            [message("m1", 10), message("m2", 30)],
+            [bomb("b0", 5), bomb("b1", 20), bomb("b2", 40)],
+        ))).toEqual(["b0", "m1", "b1", "m2", "b2"])
+    })
+
+    it("puts the message first when both happened at once", () => {
+        expect(entryIds(interleave([message("m", 10)], [bomb("b", 10)]))).toEqual(["m", "b"])
+    })
+
+    it("shows announcements alone when nobody said anything", () => {
+        expect(entryIds(interleave([], [bomb("b", 1)]))).toEqual(["b"])
     })
 })

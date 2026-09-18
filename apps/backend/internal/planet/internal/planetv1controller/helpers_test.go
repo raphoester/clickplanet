@@ -120,7 +120,7 @@ type stubPricer clicks.Price
 
 func (p stubPricer) Price(string) clicks.Price { return clicks.Price(p) }
 
-var onePrice = stubPricer{Cost: 1}
+var onePrice = stubPricer{Slowdown: 1}
 
 var buckets = clicks.ThrottleConfig{}.Buckets()
 

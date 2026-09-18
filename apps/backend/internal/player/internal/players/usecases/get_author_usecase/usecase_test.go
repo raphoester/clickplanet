@@ -11,7 +11,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/inmemory_player_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_author_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
 var (
@@ -26,39 +25,44 @@ func store(t *testing.T) *inmemory_player_store.Store {
 	return store
 }
 
-func TestAnAccountWithAUsernameIsAnsweredWithItAndItsTag(t *testing.T) {
-	author, err := get_author_usecase.New(store(t), "pepper").Execute(t.Context(),
-		get_author_usecase.In{Account: ada, IP: "1.2.3.4"})
-
-	require.NoError(t, err)
-	assert.Equal(t, players.Author{Name: "Ada_L", Tag: players.TagOf("pepper", "1.2.3.4")}, author)
+func useCase(store *inmemory_player_store.Store) *get_author_usecase.UseCase {
+	return get_author_usecase.New(store, players.NewGuestCodes(store, &players.SequentialCodes{}))
 }
 
-func TestAnAccountWithNoUsernameHasATagAndNoName(t *testing.T) {
-	author, err := get_author_usecase.New(store(t), "pepper").Execute(t.Context(),
-		get_author_usecase.In{Account: guest, IP: "1.2.3.4"})
+func TestAnAccountWithAUsernameIsAnsweredWithIt(t *testing.T) {
+	author, err := useCase(store(t)).Execute(t.Context(), ada)
 
 	require.NoError(t, err)
-	assert.Equal(t, players.Author{Tag: players.TagOf("pepper", "1.2.3.4")}, author)
+	assert.Equal(t, players.Author{Name: "Ada_L"}, author)
 }
 
-func TestACallerWithNoAccountHasATagAndTheStoreIsNotRead(t *testing.T) {
-	failing := store(t)
-	failing.FailWith(errors.New("postgres is down"))
+func TestAnAdminIsSaidToBeOne(t *testing.T) {
+	admins := store(t)
+	admins.MakeAdmin(ada)
 
-	author, err := get_author_usecase.New(failing, "pepper").Execute(t.Context(),
-		get_author_usecase.In{Account: cpsession.NoAccount, IP: "1.2.3.4"})
+	author, err := useCase(admins).Execute(t.Context(), ada)
 
 	require.NoError(t, err)
-	assert.Equal(t, players.Author{Tag: players.TagOf("pepper", "1.2.3.4")}, author)
+	assert.Equal(t, players.Author{Name: "Ada_L", Admin: true}, author)
+}
+
+func TestAGuestIsGivenACodeOnceAndKeepsIt(t *testing.T) {
+	guests := useCase(store(t))
+
+	first, err := guests.Execute(t.Context(), guest)
+	require.NoError(t, err)
+	second, err := guests.Execute(t.Context(), guest)
+	require.NoError(t, err)
+
+	assert.Equal(t, players.Author{Name: "guest_000001", Guest: true}, first)
+	assert.Equal(t, first, second)
 }
 
 func TestAStoreFailureIsAnError(t *testing.T) {
 	failing := store(t)
 	failing.FailWith(errors.New("postgres is down"))
 
-	_, err := get_author_usecase.New(failing, "pepper").Execute(t.Context(),
-		get_author_usecase.In{Account: ada, IP: "1.2.3.4"})
+	_, err := useCase(failing).Execute(t.Context(), ada)
 
 	assert.Error(t, err)
 }

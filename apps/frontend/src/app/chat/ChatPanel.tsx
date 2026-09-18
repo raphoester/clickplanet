@@ -1,7 +1,8 @@
 import {useCallback, useEffect, useId, useRef, useState} from "react";
-import {ChatBackend, guestName, OutgoingMessage} from "../../backends/chat.ts";
+import {ChatBackend, OutgoingMessage} from "../../backends/chat.ts";
+import {PlayerLine} from "../../backends/player.ts";
 import {Country} from "../../domain/countries.ts";
-import {idsSince, unreadSince} from "../../domain/chatLog.ts";
+import {idsSince, nameSentUnder, unreadSince} from "../../domain/chatLog.ts";
 import {ChevronIcon} from "../components/icons.tsx";
 import {opensFolded} from "../compact.ts";
 import {truncate} from "../truncate.ts";
@@ -18,10 +19,13 @@ export type ChatPanelProps = {
     country: Country
     playSound?: PlaySound
     /**
-     * The signed-in player's username. With one, the server posts under it and
-     * the composer asks for no name; without, the player is a guest.
+     * The signed-in player's username, which the server posts under. Without
+     * one the player is a guest, and the server posts under `guest_` and a
+     * code it picked.
      */
     username?: string
+    /** Absent, an author's name opens nothing. */
+    onOpenPlayer?: (player: PlayerLine) => void
 }
 
 const UNREAD_CAP = 99
@@ -39,11 +43,12 @@ export default function ChatPanel(props: ChatPanelProps) {
     const [flashing, setFlashing] = useState<ReadonlySet<string>>(NOTHING)
     const bodyId = useId()
 
-    const {messages, mine, status, failure, send} = useChat({backend: props.backend})
-    const {identity, setName} = useChatIdentity()
+    const {messages, announcements, mine, status, failure, send, react} = useChat({backend: props.backend})
+    const identity = useChatIdentity()
     const {username} = props
-    // What everyone else sees on this player's messages.
-    const displayName = username ?? (identity.name === "" ? "" : guestName(identity.name))
+    // What everyone else sees on this player's messages. A guest's is the
+    // server's pick, so it is known only once this tab has posted.
+    const displayName = username ?? nameSentUnder(messages, mine)
 
     const lastSeen = useRef<string | undefined>(undefined)
     const seenAnything = useRef(false)
@@ -104,6 +109,8 @@ export default function ChatPanel(props: ChatPanelProps) {
 
         // Your own message never pings. `mine` alone is not enough: the
         // broadcast of it can arrive before the answer that fills `mine` in.
+        // A guest's first message can still slip through that way, before its
+        // name is known.
         if (fresh.some(message => !mine.has(message.id) && message.authorName !== displayName)) {
             playSound?.('chat')
         }
@@ -113,13 +120,9 @@ export default function ChatPanel(props: ChatPanelProps) {
 
     const onSend = (text: string) => {
         const message: OutgoingMessage = {
-            // Not read for a username; it is what posts, as a guest, when the
-            // token cannot be had.
-            authorName: identity.name || (username ?? ""),
             authorId: identity.authorId,
             countryCode: props.country.code,
             text,
-            asAccount: username !== undefined,
         }
         return send(message)
     }
@@ -150,7 +153,7 @@ export default function ChatPanel(props: ChatPanelProps) {
                 <span className="chat-peek"
                       key={latest.id}
                       aria-hidden="true"
-                      style={authorStyle(latest.authorName, latest.authorTag)}>
+                      style={authorStyle(latest.authorName)}>
                     <span className="chat-peek-author">
                         {truncate(latest.authorName, PEEK_AUTHOR_MAX_LENGTH)}
                     </span>
@@ -159,11 +162,16 @@ export default function ChatPanel(props: ChatPanelProps) {
         </button>
 
         {isOpen && <div className="chat-body" id={bodyId}>
-            <ChatLog messages={messages} loading={status === 'loading'} flashing={flashing}/>
+            <ChatLog messages={messages}
+                     announcements={announcements}
+                     loading={status === 'loading'}
+                     flashing={flashing}
+                     onOpenPlayer={props.onOpenPlayer}
+                     onReact={(messageId, reaction, on) =>
+                         react({messageId, reaction, on})}/>
 
-            <ChatComposer identity={identity}
-                          username={username}
-                          setName={setName}
+            <ChatComposer username={username}
+                          guestName={username === undefined ? displayName : undefined}
                           failure={failure}
                           onSend={onSend}/>
         </div>}

@@ -1,0 +1,91 @@
+.player-card {
+    text-align: left;
+}
+
+.player-card-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    max-width: 100%;
+}
+
+/* The author colour, as on .players-entry-name. */
+.player-card-who {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+    margin-bottom: 14px;
+}
+
+.player-card-country {
+    flex-shrink: 0;
+    font-size: 20px;
+}
+
+.player-card-country .country-flag {
+    margin-right: 0;
+}
+
+.player-card-country-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: hsl(var(--author-hue, 0), 80%, 78%);
+    text-shadow: -1px 1px 0 #000000;
+}
+
+.player-card-note {
+    margin: 4px 0 20px;
+}
+
+.player-card-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin: 0 0 20px;
+}
+
+.player-card-stat {
+    padding: 10px 12px;
+    border: 1px solid #FFFFFF1A;
+    border-radius: 14px;
+    background-color: #FFFFFF0D;
+}
+
+.player-card-stat dt {
+    font-family: Oswald, sans-serif;
+    font-weight: 500;
+    font-size: 12px;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: #FFFFFF80;
+}
+
+.player-card-stat dd {
+    margin: 4px 0 0;
+    font-size: 20px;
+    font-variant-numeric: tabular-nums;
+    color: white;
+}
+
+/* A name that opens the card: it keeps the look of the text it replaces. Under
+   :where(), so .chat-message-author and .players-entry-name win whatever order
+   the stylesheets load in. */
+:where(.player-name-button) {
+    padding: 0;
+    border: none;
+    background: none;
+    font: inherit;
+    letter-spacing: inherit;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+:where(.player-name-button):hover,
+:where(.player-name-button):focus-visible {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}

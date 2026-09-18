@@ -129,6 +129,33 @@
 }
 
 /*
+ * The click being granted back, under a bar too long to show it: it fills once
+ * per click. Blue, so it reads over the fill and over the empty track alike.
+ */
+.click-budget-bar::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    z-index: 1;
+    height: 3px;
+    width: calc(var(--click-budget-next, 0) * 100%);
+    background: #5CC8FF;
+}
+
+/* When the next click is in hand. Empty at a full bucket, and then not there. */
+.click-budget-next {
+    min-width: 7ch;
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+    color: #FFFFFFB3;
+}
+
+.click-budget-next:empty {
+    display: none;
+}
+
+/*
  * Why the meter is narrow: a second row under the count and the pips, so the
  * pill grows down rather than sideways into the menu.
  */
@@ -243,6 +270,14 @@
     .click-budget-bar {
         width: 96px;
         border-radius: 7px;
+    }
+
+    .click-budget-bar::before {
+        height: 2px;
+    }
+
+    .click-budget-next {
+        font-size: 11px;
     }
 
     .click-budget-priced {
