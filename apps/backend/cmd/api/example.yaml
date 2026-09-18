@@ -545,6 +545,11 @@ chat:
     perSecond: 0.33
     burst: 5
     sweepInterval: 1m
+  # Per-IP throttle on React, a bucket of its own. A reaction is one short row
+  # and one small frame, so it is cheaper than a message. One a second, ten in hand.
+  reactionLimiter:
+    perSecond: 1
+    burst: 10
   # Refused every chat RPC outright. The way to cut off an abusive sender
   # without a rebuild. Same prefix set as vpnBlocklist above, so these are
   # CIDRs — a single address needs /32, and a whole range is one line. A

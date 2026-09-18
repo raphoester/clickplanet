@@ -14,8 +14,9 @@ type MessageLimiter = cpconnect.Limiter
 type SenderBlocklist = cpconnect.Blocklist
 
 var (
-	ErrTooManyMessages = errors.New("too many messages")
-	ErrSenderBlocked   = errors.New("message refused")
+	ErrTooManyMessages  = errors.New("too many messages")
+	ErrTooManyReactions = errors.New("too many reactions")
+	ErrSenderBlocked    = errors.New("message refused")
 )
 
 func NewRateLimitInterceptor(limiter MessageLimiter) connect.Interceptor {
@@ -26,6 +27,11 @@ func NewRateLimitInterceptor(limiter MessageLimiter) connect.Interceptor {
 	)
 }
 
+// NewReactionRateLimitInterceptor throttles React on a bucket of its own: a reaction is cheaper than a message.
+func NewReactionRateLimitInterceptor(limiter MessageLimiter) connect.Interceptor {
+	return cpconnect.NewRateLimitInterceptor(limiter, ErrTooManyReactions, chatv1connect.ChatServiceReactProcedure)
+}
+
 func NewBlocklistInterceptor(blocklist SenderBlocklist) connect.Interceptor {
 	return cpconnect.NewIPBlockInterceptor(
 		blocklist,
@@ -33,13 +39,18 @@ func NewBlocklistInterceptor(blocklist SenderBlocklist) connect.Interceptor {
 		nil,
 		chatv1connect.ChatServiceSendMessageProcedure,
 		chatv1connect.ChatServiceGetHistoryProcedure,
+		chatv1connect.ChatServiceReactProcedure,
 	)
 }
 
 type SenderSessionVerifier = cpconnect.SessionVerifier
 
-// NewSessionInterceptor reads a click token on SendMessage when the sender sends one, so a player posts under
-// its username. It refuses nothing: a sender with no token, or a bad one, posts as a guest.
+// NewSessionInterceptor reads a click token when the caller sends one, so a player posts and reacts as its
+// account. It refuses nothing: a caller with no token, or a bad one, is a guest.
 func NewSessionInterceptor(verifier SenderSessionVerifier, clock cptime.Clock) connect.Interceptor {
-	return cpconnect.NewSessionReaderInterceptor(verifier, clock, chatv1connect.ChatServiceSendMessageProcedure)
+	return cpconnect.NewSessionReaderInterceptor(verifier, clock,
+		chatv1connect.ChatServiceSendMessageProcedure,
+		chatv1connect.ChatServiceGetHistoryProcedure,
+		chatv1connect.ChatServiceReactProcedure,
+	)
 }

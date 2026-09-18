@@ -1,5 +1,5 @@
 import {useEffect, useRef, useState} from "react";
-import {ChatMessage, GUEST_PREFIX} from "../../backends/chat.ts";
+import {ChatMessage, GUEST_PREFIX, Reaction} from "../../backends/chat.ts";
 import {PlayerLine} from "../../backends/player.ts";
 import {Countries} from "../../domain/countries.ts";
 import AdminCrown from "../components/AdminCrown.tsx";
@@ -8,6 +8,7 @@ import {ChevronIcon} from "../components/icons.tsx";
 import {startsGroup} from "../../domain/chatLog.ts";
 import {truncate} from "../truncate.ts";
 import {authorStyle} from "./authorStyle.ts";
+import ReactionBar, {AddReactionButton} from "./ReactionBar.tsx";
 
 export type ChatLogProps = {
     messages: ChatMessage[]
@@ -15,6 +16,8 @@ export type ChatLogProps = {
     flashing?: ReadonlySet<string>
     /** Absent, an author's name is plain text. */
     onOpenPlayer?: (player: PlayerLine) => void
+    /** Absent, reactions are shown and none can be given. */
+    onReact?: (messageId: string, reaction: Reaction, on: boolean) => void
 }
 
 const AUTHOR_MAX_LENGTH = 16
@@ -26,16 +29,22 @@ const PINNED_SLACK_PX = 40
 export default function ChatLog(props: ChatLogProps) {
     const scroll = useRef<HTMLDivElement>(null)
     const pinned = useRef(true)
+    const lastId = useRef<string | undefined>(undefined)
     const [behind, setBehind] = useState(false)
+    const [picking, setPicking] = useState<string | undefined>(undefined)
 
     useEffect(() => {
         const element = scroll.current
+        const last = props.messages[props.messages.length - 1]?.id
+        const arrived = last !== lastId.current
+        lastId.current = last
         if (!element) return
 
         // Reading a message further up is not interrupted by a new one landing:
-        // the pill says it is there instead of yanking the log down.
+        // the pill says it is there instead of yanking the log down. A reaction
+        // is not a new message, and says nothing.
         if (!pinned.current) {
-            setBehind(true)
+            if (arrived) setBehind(true)
             return
         }
 
@@ -49,6 +58,8 @@ export default function ChatLog(props: ChatLogProps) {
         pinned.current = distance <= PINNED_SLACK_PX
         if (pinned.current) setBehind(false)
     }
+
+    const pick = (id: string) => (open: boolean) => setPicking(open ? id : undefined)
 
     const jumpToLatest = () => {
         const element = scroll.current
@@ -104,7 +115,18 @@ export default function ChatLog(props: ChatLogProps) {
                             </time>
                         </div>}
 
-                        <p className="chat-message-text">{message.text}</p>
+                        <div className="chat-message-line">
+                            <p className="chat-message-text">{message.text}</p>
+                            {props.onReact && <AddReactionButton messageId={message.id}
+                                                                 picking={picking === message.id}
+                                                                 setPicking={pick(message.id)}/>}
+                        </div>
+
+                        <ReactionBar messageId={message.id}
+                                     reactions={message.reactions}
+                                     onReact={props.onReact && ((reaction, on) => props.onReact?.(message.id, reaction, on))}
+                                     picking={picking === message.id}
+                                     setPicking={pick(message.id)}/>
                     </li>
                 })}
             </ul>

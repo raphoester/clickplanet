@@ -3,12 +3,21 @@ import {
     ChatHistoryGetter,
     ChatListener,
     ChatMessage,
+    ChatMessageGoneError,
     ChatRateLimitedError,
+    ChatReactor,
     ChatRejectedError,
     ChatSender,
     OutgoingMessage,
+    OutgoingReaction,
+    ReactionCount,
+    ReactionsChange,
 } from "./chat.ts";
-import {ChatEvent, ChatMessage as ChatMessagePb} from "../gen/grpc/chat/v1/chat_pb.ts";
+import {
+    ChatEvent,
+    ChatMessage as ChatMessagePb,
+    ReactionCount as ReactionCountPb,
+} from "../gen/grpc/chat/v1/chat_pb.ts";
 import {ChatService} from "../gen/grpc/chat/v1/chat_connect.ts";
 import {Code, ConnectError, createPromiseClient, PromiseClient} from "@connectrpc/connect";
 import {createConnectTransport} from "@connectrpc/connect-web";
@@ -24,7 +33,7 @@ export function newChatServiceClient(config: Config): PromiseClient<typeof ChatS
     }))
 }
 
-export class ChatServiceBackend implements ChatSender, ChatHistoryGetter, ChatListener {
+export class ChatServiceBackend implements ChatSender, ChatHistoryGetter, ChatListener, ChatReactor {
     constructor(
         private client: PromiseClient<typeof ChatService>,
         private readonly session: SessionProvider,
@@ -32,7 +41,7 @@ export class ChatServiceBackend implements ChatSender, ChatHistoryGetter, ChatLi
     }
 
     public async sendMessage(message: OutgoingMessage): Promise<ChatMessage> {
-        const headers = await this.headersFor(message)
+        const headers = await this.headersFor(message.asAccount)
 
         try {
             const res = await this.client.sendMessage({
@@ -55,9 +64,9 @@ export class ChatServiceBackend implements ChatSender, ChatHistoryGetter, ChatLi
      * so chatting never mints a session. A token that cannot be had is not a
      * failure — the server reads a message without one as a guest's.
      */
-    private async headersFor(message: OutgoingMessage): Promise<Headers> {
+    private async headersFor(asAccount: boolean): Promise<Headers> {
         const headers = new Headers()
-        if (!message.asAccount) return headers
+        if (!asAccount) return headers
 
         const token = await this.session.token().catch((e) => {
             console.error("No session for the chat: sending as a guest", e)
@@ -67,10 +76,38 @@ export class ChatServiceBackend implements ChatSender, ChatHistoryGetter, ChatLi
         return headers
     }
 
+    public async react(reaction: OutgoingReaction): Promise<ReactionsChange> {
+        const headers = await this.headersFor(reaction.asAccount)
+
+        try {
+            const res = await this.client.react({
+                messageId: reaction.messageId,
+                reaction: reaction.reaction,
+                on: reaction.on,
+            }, {headers})
+
+            return {
+                messageId: reaction.messageId,
+                reactions: res.reactions.map(decodedCount),
+                version: Number(res.version),
+            }
+        } catch (e) {
+            throw translate(e)
+        }
+    }
+
+    /**
+     * Sends the token already held, never a fresh one, so the server can mark
+     * the caller's own reactions: loading the chat is not worth a mint.
+     */
     public async getHistory(signal?: AbortSignal): Promise<ChatMessage[]> {
+        const headers = new Headers()
+        const held = this.session.held()
+        if (held) headers.set(SESSION_HEADER, held)
+
         try {
             const res = await retrying(
-                () => this.client.getHistory({}, {signal}),
+                () => this.client.getHistory({}, {signal, headers}),
                 "chat history",
                 signal,
             )
@@ -81,12 +118,17 @@ export class ChatServiceBackend implements ChatSender, ChatHistoryGetter, ChatLi
         }
     }
 
-    public listenForMessages(callback: (message: ChatMessage) => void): () => void {
+    public listenForMessages(
+        callback: (message: ChatMessage) => void,
+        onReactions?: (change: ReactionsChange) => void,
+    ): () => void {
         return openStream(
             (signal) => this.client.listenForEvents({}, {signal, timeoutMs: NO_TIMEOUT}),
             (event) => {
                 const message = messageOf(event)
                 if (message) callback(message)
+                const change = reactionsOf(event)
+                if (change) onReactions?.(change)
             },
             "chat",
         )
@@ -103,6 +145,8 @@ function translate(e: unknown): unknown {
             return new ChatBlockedError({cause: e})
         case Code.InvalidArgument:
             return new ChatRejectedError({cause: e})
+        case Code.NotFound:
+            return new ChatMessageGoneError({cause: e})
         default:
             return e
     }
@@ -127,5 +171,21 @@ export function decodedMessage(message: ChatMessagePb): ChatMessage {
         authorAdmin: message.authorAdmin,
         countryCode: message.countryId,
         text: message.text,
+        reactions: message.reactions.map(decodedCount),
+        reactionsVersion: Number(message.reactionsVersion),
     }
+}
+
+export function reactionsOf(event: ChatEvent): ReactionsChange | undefined {
+    if (event.event.case !== "reactions") return undefined
+
+    return {
+        messageId: event.event.value.messageId,
+        reactions: event.event.value.reactions.map(decodedCount),
+        version: Number(event.event.value.version),
+    }
+}
+
+function decodedCount(count: ReactionCountPb): ReactionCount {
+    return {reaction: count.reaction, count: count.count, mine: count.mine}
 }

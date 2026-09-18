@@ -10,6 +10,8 @@ const message = (id: string, sentAt: number): ChatMessage => ({
     authorAdmin: false,
     countryCode: "fr",
     text: `message ${id}`,
+    reactions: [],
+    reactionsVersion: 0,
 })
 
 const ids = (messages: readonly ChatMessage[]) => messages.map(m => m.id)

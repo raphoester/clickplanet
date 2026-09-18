@@ -6,8 +6,15 @@ import {
     ChatRateLimitedError,
     ChatRejectedError,
     OutgoingMessage,
+    OutgoingReaction,
 } from '../../backends/chat.ts';
 import {addMessages} from '../../domain/chatLog.ts';
+import {
+    applyReactionsAnswer,
+    applyReactionsChange,
+    toggledReactions,
+    withReactions,
+} from '../../domain/reactions.ts';
 
 export type ChatStatus = 'loading' | 'ready' | 'unavailable'
 
@@ -40,7 +47,10 @@ export function useChat({backend}: UseChatOptions) {
         setMine(NOTHING_SENT)
 
         const abort = new AbortController()
-        const stopListening = backend.listenForMessages(message => receive([message]))
+        const stopListening = backend.listenForMessages(
+            message => receive([message]),
+            change => setMessages(current => applyReactionsChange(current, change)),
+        )
 
         backend.getHistory(abort.signal)
             .then(history => {
@@ -77,7 +87,24 @@ export function useChat({backend}: UseChatOptions) {
         }
     }, [backend, receive])
 
-    return {messages, mine, status, failure, send}
+    // Shown at once, then corrected by the server's answer, or undone when it refuses.
+    const react = useCallback(async (reaction: OutgoingReaction) => {
+        if (!backend) return
+
+        const toggle = (on: boolean) => setMessages(current =>
+            withReactions(current, reaction.messageId, counts => toggledReactions(counts, reaction.reaction, on)))
+
+        toggle(reaction.on)
+        try {
+            const answer = await backend.react(reaction)
+            setMessages(current => applyReactionsAnswer(current, answer))
+        } catch (e) {
+            console.error("The reaction could not be sent", e)
+            toggle(!reaction.on)
+        }
+    }, [backend])
+
+    return {messages, mine, status, failure, send, react}
 }
 
 function failureOf(e: unknown): ChatSendFailure {
