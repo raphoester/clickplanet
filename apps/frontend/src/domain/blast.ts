@@ -29,11 +29,11 @@ export const IMPACT_DELAY = BLAST_TIMELINE.fall
  * `land` is the name of the country whose ground it hit, when there is one:
  * that is the line people laugh at, so it wins over the tile count.
  */
-export function describeBlast(drop: {tile: number | undefined, cleared: readonly number[]}, land?: string): string {
+export function describeBlast(drop: {tile?: number, cleared: number}, land?: string): string {
     if (drop.tile === undefined) return "bombed the ocean"
     if (land) return `bombed ${land}`
-    if (drop.cleared.length === 0) return "bombed empty land"
-    return `bombed ${drop.cleared.length} ${drop.cleared.length === 1 ? "tile" : "tiles"}`
+    if (drop.cleared === 0) return "bombed empty land"
+    return `bombed ${drop.cleared} ${drop.cleared === 1 ? "tile" : "tiles"}`
 }
 
 /** Whether a blast started `elapsed` seconds ago has nothing left to draw. */

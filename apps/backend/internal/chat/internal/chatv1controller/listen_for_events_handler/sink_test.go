@@ -1,12 +1,14 @@
 package listen_for_events_handler_test
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	chatv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/feed"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/feed/usecases/listen_for_events_usecase"
@@ -65,6 +67,26 @@ func TestSinkFramesNewReactions(t *testing.T) {
 	assert.Equal(t, chatv1.Reaction_REACTION_SKULL, reactions.GetReactions()[0].GetReaction())
 	assert.Equal(t, uint32(2), reactions.GetReactions()[0].GetCount())
 	assert.False(t, reactions.GetReactions()[0].GetMine(), "the stream is nobody's")
+}
+
+func TestSinkFramesAnAnnouncement(t *testing.T) {
+	stream := &recorder{}
+
+	err := listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{
+		Update: feed.Update{Announcement: &announcements.Announcement{
+			ID: "announcement-1", Kind: announcements.KindBomb, Payload: json.RawMessage(`{"country":"fr"}`),
+		}},
+	})
+
+	require.NoError(t, err)
+	require.Len(t, stream.sent, 1)
+
+	announcement := stream.sent[0].GetAnnouncement()
+	require.NotNil(t, announcement, "an announcement travels as the announcement case")
+	assert.Nil(t, stream.sent[0].GetMessage())
+	assert.Equal(t, "announcement-1", announcement.GetId())
+	assert.Equal(t, "bomb", announcement.GetKind())
+	assert.JSONEq(t, `{"country":"fr"}`, announcement.GetPayload())
 }
 
 func TestSinkFramesAHeartbeat(t *testing.T) {

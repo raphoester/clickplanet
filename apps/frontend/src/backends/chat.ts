@@ -37,6 +37,33 @@ export type ChatMessage = {
     reactionsVersion: number
 }
 
+/**
+ * A line the chat says on its own, between the messages. Nobody sent it, so it
+ * has no author, no reactions and no bubble.
+ */
+export type ChatAnnouncement = BombAnnouncement
+
+/** A bomb landed somewhere on the planet. */
+export type BombAnnouncement = {
+    kind: "bomb"
+    id: string
+    announcedAt: number
+    /** The code of the country the bomber played for. */
+    country: string
+    /** The code of the country whose ground it hit. Absent in the sea, and on no country's ground. */
+    ground?: string
+    /** The tile it hit. Absent in the sea. */
+    tile?: number
+    /** How many held tiles it cleared. */
+    cleared: number
+}
+
+/** What a joining client is shown. Each list is oldest first; the log puts them in one by time. */
+export type ChatHistory = {
+    messages: ChatMessage[]
+    announcements: ChatAnnouncement[]
+}
+
 export type ReactionCount = {
     reaction: Reaction
     count: number
@@ -82,13 +109,14 @@ export interface ChatSender {
 }
 
 export interface ChatHistoryGetter {
-    getHistory(signal?: AbortSignal): Promise<ChatMessage[]>
+    getHistory(signal?: AbortSignal): Promise<ChatHistory>
 }
 
 export interface ChatListener {
     listenForMessages(
         callback: (message: ChatMessage) => void,
         onReactions?: (change: ReactionsChange) => void,
+        onAnnouncement?: (announcement: ChatAnnouncement) => void,
     ): () => void
 }
 

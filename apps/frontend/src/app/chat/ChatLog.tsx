@@ -1,17 +1,20 @@
 import {useEffect, useRef, useState} from "react";
-import {ChatMessage, GUEST_PREFIX, Reaction} from "../../backends/chat.ts";
+import {ChatAnnouncement, ChatMessage, GUEST_PREFIX, Reaction} from "../../backends/chat.ts";
 import {PlayerLine} from "../../backends/player.ts";
 import {Countries} from "../../domain/countries.ts";
 import AdminCrown from "../components/AdminCrown.tsx";
 import CountryFlag from "../components/CountryFlag.tsx";
 import {ChevronIcon} from "../components/icons.tsx";
-import {startsGroup} from "../../domain/chatLog.ts";
+import {interleave, startsGroup} from "../../domain/chatLog.ts";
+import {describeBlast} from "../../domain/blast.ts";
 import {truncate} from "../truncate.ts";
 import {authorStyle} from "./authorStyle.ts";
 import ReactionBar, {AddReactionButton} from "./ReactionBar.tsx";
 
 export type ChatLogProps = {
     messages: ChatMessage[]
+    /** Lines nobody sent, shown between the messages by time. */
+    announcements?: ChatAnnouncement[]
     loading: boolean
     flashing?: ReadonlySet<string>
     /** Absent, an author's name is plain text. */
@@ -26,12 +29,15 @@ const clock = new Intl.DateTimeFormat(undefined, {hour: "2-digit", minute: "2-di
 
 const PINNED_SLACK_PX = 40
 
+const NO_ANNOUNCEMENTS: ChatAnnouncement[] = []
+
 export default function ChatLog(props: ChatLogProps) {
     const scroll = useRef<HTMLDivElement>(null)
     const pinned = useRef(true)
     const lastId = useRef<string | undefined>(undefined)
     const [behind, setBehind] = useState(false)
     const [picking, setPicking] = useState<string | undefined>(undefined)
+    const announcements = props.announcements ?? NO_ANNOUNCEMENTS
 
     useEffect(() => {
         const element = scroll.current
@@ -49,7 +55,7 @@ export default function ChatLog(props: ChatLogProps) {
         }
 
         element.scrollTop = element.scrollHeight
-    }, [props.messages])
+    }, [props.messages, announcements])
 
     const onScroll = () => {
         const element = scroll.current
@@ -75,7 +81,7 @@ export default function ChatLog(props: ChatLogProps) {
         </div>
     }
 
-    if (props.messages.length === 0) {
+    if (props.messages.length === 0 && announcements.length === 0) {
         return <div className="chat-log chat-log-empty">
             <p>Nobody has said anything yet. Go on.</p>
         </div>
@@ -84,8 +90,15 @@ export default function ChatLog(props: ChatLogProps) {
     return <div className="chat-log-shell">
         <div className="chat-log" ref={scroll} onScroll={onScroll}>
             <ul className="chat-messages" aria-live="polite">
-                {props.messages.map((message, index) => {
-                    const opens = startsGroup(props.messages[index - 1], message)
+                {interleave(props.messages, announcements).map((entry, index, entries) => {
+                    if (entry.kind === "announcement") {
+                        return <AnnouncementLine key={entry.announcement.id} announcement={entry.announcement}/>
+                    }
+
+                    // A line between two messages ends the run above it: the next one says who is talking again.
+                    const message = entry.message
+                    const previous = entries[index - 1]
+                    const opens = startsGroup(previous?.kind === "message" ? previous.message : undefined, message)
 
                     return <li key={message.id}
                                className={messageClass(props.flashing, message.id, opens)}
@@ -137,6 +150,28 @@ export default function ChatLog(props: ChatLogProps) {
             <ChevronIcon size={14}/>
         </button>}
     </div>
+}
+
+/**
+ * A line the chat says on its own: no bubble, no author, no reactions. It reads
+ * like the news line at the top of the screen, and stays.
+ */
+function AnnouncementLine({announcement}: {announcement: ChatAnnouncement}) {
+    const bomber = countryName(announcement.country)
+    const ground = announcement.ground === undefined ? undefined : Countries.get(announcement.ground)?.name
+
+    return <li className="chat-announcement">
+        <span className="chat-announcement-icon" aria-hidden="true">
+            {announcement.tile === undefined ? "🌊" : "💥"}
+        </span>
+        <CountryFlag code={announcement.country}/>
+        <span className="chat-announcement-text">
+            <strong>{bomber}</strong> {describeBlast(announcement, ground)}
+        </span>
+        <time className="chat-announcement-time" dateTime={new Date(announcement.announcedAt).toISOString()}>
+            {clock.format(announcement.announcedAt)}
+        </time>
+    </li>
 }
 
 // No username starts with the prefix, so the name alone says who is a guest.

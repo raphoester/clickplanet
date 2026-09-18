@@ -407,6 +407,74 @@ export class GetHistoryRequest extends Message<GetHistoryRequest> {
 }
 
 /**
+ * Something the chat says on its own, with no sender: a line between the
+ * messages, not a bubble.
+ *
+ * @generated from message chat.v1.Announcement
+ */
+export class Announcement extends Message<Announcement> {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id = "";
+
+  /**
+   * @generated from field: int64 announced_at_unix_ms = 2;
+   */
+  announcedAtUnixMs = protoInt64.zero;
+
+  /**
+   * What happened, and so how to read payload. A client shows nothing for a
+   * kind it does not know.
+   *
+   * - "bomb": a bomb landed. payload is {"country", "ground", "tile",
+   *   "cleared"}: the bomber's country code; the code of the country whose
+   *   ground it hit, absent in the sea and on no country's ground; the tile it
+   *   hit, absent in the sea; and how many held tiles it cleared.
+   *
+   * @generated from field: string kind = 3;
+   */
+  kind = "";
+
+  /**
+   * The values the kind's line is written from, as a JSON object.
+   *
+   * @generated from field: string payload = 4;
+   */
+  payload = "";
+
+  constructor(data?: PartialMessage<Announcement>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chat.v1.Announcement";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "announced_at_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 3, name: "kind", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "payload", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Announcement {
+    return new Announcement().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Announcement {
+    return new Announcement().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Announcement {
+    return new Announcement().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Announcement | PlainMessage<Announcement> | undefined, b: Announcement | PlainMessage<Announcement> | undefined): boolean {
+    return proto3.util.equals(Announcement, a, b);
+  }
+}
+
+/**
  * @generated from message chat.v1.GetHistoryResponse
  */
 export class GetHistoryResponse extends Message<GetHistoryResponse> {
@@ -414,6 +482,13 @@ export class GetHistoryResponse extends Message<GetHistoryResponse> {
    * @generated from field: repeated chat.v1.ChatMessage messages = 1;
    */
   messages: ChatMessage[] = [];
+
+  /**
+   * Oldest first, like messages. A client puts the two in one list by time.
+   *
+   * @generated from field: repeated chat.v1.Announcement announcements = 2;
+   */
+  announcements: Announcement[] = [];
 
   constructor(data?: PartialMessage<GetHistoryResponse>) {
     super();
@@ -424,6 +499,7 @@ export class GetHistoryResponse extends Message<GetHistoryResponse> {
   static readonly typeName = "chat.v1.GetHistoryResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "messages", kind: "message", T: ChatMessage, repeated: true },
+    { no: 2, name: "announcements", kind: "message", T: Announcement, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetHistoryResponse {
@@ -607,6 +683,12 @@ export class ChatEvent extends Message<ChatEvent> {
      */
     value: ReactionsChanged;
     case: "reactions";
+  } | {
+    /**
+     * @generated from field: chat.v1.Announcement announcement = 4;
+     */
+    value: Announcement;
+    case: "announcement";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<ChatEvent>) {
@@ -620,6 +702,7 @@ export class ChatEvent extends Message<ChatEvent> {
     { no: 1, name: "message", kind: "message", T: ChatMessage, oneof: "event" },
     { no: 2, name: "heartbeat", kind: "message", T: Heartbeat, oneof: "event" },
     { no: 3, name: "reactions", kind: "message", T: ReactionsChanged, oneof: "event" },
+    { no: 4, name: "announcement", kind: "message", T: Announcement, oneof: "event" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ChatEvent {
