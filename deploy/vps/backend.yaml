@@ -53,11 +53,11 @@ ledgerStorage:
 # in X-Real-IP, which is Cloudflare's Cf-Connecting-Ip — the real visitor — over
 # IPv4, and that address's /64 over IPv6. A token with no account spends one
 # scope bucket at perSecond and burst, as before accounts. An account signed in
-# with Google or Discord holds linkedMultiplier times a guest's allowance.
+# with Google or Discord refills linkedMultiplier times faster, into the same bank.
 # One click every 5 seconds, and a bank of 60 that fills in five
 # minutes. Scarce clicks make a group coordinate and take most of the edge from
 # a bot or a spammer; a full bank is a burst to spend when you come back. A
-# signed-in player gets twice both (one every 2.5s, 120 in hand). perSecond is a
+# signed-in player gets one every 2.5s, still 60 in hand. perSecond is a
 # float: 0.2 is one every 5s.
 rateLimiter:
   perSecond: 0.2
@@ -65,16 +65,16 @@ rateLimiter:
   scopeMultiplier: 10
   linkedMultiplier: 2
 
-# A click costs more tokens the more of the map its country holds: from each
-# share below (a fraction of every tile on the map), a click for that country
-# costs that many tokens. The meter shows the budget already divided, in clicks.
-# No steps means every click costs one. A cost above rateLimiter.burst refuses
-# the boot, since no bucket could ever pay it.
+# Every click costs one token. The more of the map a country holds, the slower
+# its players get their clicks back: from each share below (a fraction of every
+# tile on the map), the refill after a click for that country is that many times
+# slower. The bank's size never moves. No steps refills every country at the
+# plain rate.
 toll:
   steps:
-    - {share: 0.25, cost: 1.5}
-    - {share: 0.50, cost: 2}
-    - {share: 0.70, cost: 3}
+    - {share: 0.25, slowdown: 1.5}
+    - {share: 0.50, slowdown: 2}
+    - {share: 0.70, slowdown: 3}
 
 # Refuses clicks from known VPN and proxy ranges: the throttle above is keyed on
 # an address, and a VPN is the cheap way to get a fresh one. Reads and the
@@ -318,11 +318,11 @@ bonus:
   # frame is refused.
   offerTTL: 15s
 
-  # Multiplies the burst and the refill rate together, and the client reads both
-  # off the answer - so changing these changes the meter with no frontend
-  # release, exactly as rateLimiter does. It grants no tokens at once, and the
-  # tokens come back down to the plain burst when it ends: x3 for 2m refills 72
-  # clicks where 24 come plainly, 48 more, close to one bank. 20s was worth 8.
+  # Multiplies the refill rate, and the client reads it off the answer - so
+  # changing these changes the meter with no frontend release, exactly as
+  # rateLimiter does. The bank keeps its size, and no tokens come at once: x3 for
+  # 2m refills 72 clicks where 24 come plainly, 48 more, for a player who spends
+  # them as they come.
   triple:
     duration: 2m
     multiplier: 3

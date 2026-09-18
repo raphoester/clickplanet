@@ -16,7 +16,7 @@ describe("describeReward", () => {
         const {title, detail, badge} = describeReward(REWARD)
 
         expect(title).toBe("Triple clicks")
-        expect(detail).toBe("3× your click rate")
+        expect(detail).toBe("Clicks refill 3× faster")
         expect(badge).toBe("3×")
     })
 

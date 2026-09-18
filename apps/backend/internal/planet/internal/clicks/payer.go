@@ -17,7 +17,8 @@ type ThrottleConfig struct {
 	// ScopeMultiplier is the scope's burst and rate over one account's: many players can share one address.
 	ScopeMultiplier float64
 
-	// LinkedMultiplier is a linked account's burst and rate over a guest's: signing in is worth clicking faster.
+	// LinkedMultiplier is a linked account's refill rate over a guest's: signing in is worth clicking faster.
+	// The bank is the same size.
 	LinkedMultiplier float64
 }
 
@@ -60,12 +61,10 @@ type Buckets struct {
 	linkedMultiplier float64
 }
 
-// BudgetOf is clicks.BudgetOf, carrying what signing in is worth, so a client can advertise it.
+// BudgetOf is a reading with the price of the country asked about, and what signing in is worth, so a
+// client can advertise it.
 func (b Buckets) BudgetOf(state cpratelimit.State, price Price) Budget {
-	budget := BudgetOf(state, price)
-	budget.LinkedMultiplier = b.linkedMultiplier
-
-	return budget
+	return Budget{State: state, Price: price, LinkedMultiplier: b.linkedMultiplier}
 }
 
 // Payer is who a click is charged to: the scope it comes from, the account its token names if any, and whether
@@ -80,27 +79,33 @@ func PayerOf(ctx context.Context) Payer {
 	return Payer{Scope: cpipscope.Of(cpctx.GetSourceIP(ctx)), Account: cpctx.GetAccount(ctx), Linked: cpctx.GetLinked(ctx)}
 }
 
-// Keys is the account's bucket first, then the scope's at the multiplier. With no account it is the
+// Keys is the payer's own bucket first, then the scope's at the multiplier. With no account it is the
 // scope's bucket alone at one, as it was before accounts: a separate bucket, so a scale never changes under a key.
 //
-// A linked account's bucket is at the linked multiplier, under a key of its own: a guest that signs in keeps its
-// account id, and the key it spent from as a guest must keep its scale.
-func (b Buckets) Keys(payer Payer) []cpratelimit.Key {
+// The payer's own bucket refills at its pace for a click for this price: the linked multiplier for an account
+// that signed in, divided by the country's slowdown. Its burst never moves, so the bank a player sees is the same
+// whatever it plays and whether or not it signed in. The scope's bucket is a ceiling shared by players of every
+// flag, so it refills at its plain rate.
+func (b Buckets) Keys(payer Payer, price Price) []cpratelimit.Key {
+	pace := 1 / max(price.Slowdown, 1)
+
 	if payer.Account == "" {
-		return []cpratelimit.Key{{Name: payer.Scope, Scale: 1}}
+		return []cpratelimit.Key{{Name: payer.Scope, Scale: 1, Pace: pace}}
 	}
 
-	account := cpratelimit.Key{Name: "account:" + payer.Account, Scale: 1}
 	if payer.Linked {
-		account = cpratelimit.Key{Name: "linked:" + payer.Account, Scale: b.linkedMultiplier}
+		pace *= b.linkedMultiplier
 	}
 
-	return []cpratelimit.Key{account, {Name: "scope:" + payer.Scope, Scale: b.scopeMultiplier}}
+	return []cpratelimit.Key{
+		{Name: "account:" + payer.Account, Scale: 1, Pace: pace},
+		{Name: "scope:" + payer.Scope, Scale: b.scopeMultiplier},
+	}
 }
 
-// Boosted is the bucket a bonus widens: the first key, never the scope's shared one.
+// Boosted is the bucket a bonus speeds up: the first key, never the scope's shared one.
 func (b Buckets) Boosted(payer Payer) string {
-	return b.Keys(payer)[0].Name
+	return b.Keys(payer, Price{})[0].Name
 }
 
 // Tightest is the reading that allows the fewest clicks now, so a player behind a busy scope sees the real

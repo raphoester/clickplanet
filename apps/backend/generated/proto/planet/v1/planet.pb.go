@@ -95,9 +95,9 @@ func (BonusKind) EnumDescriptor() ([]byte, []int) {
 // It rides on every click answer, accepted or refused, so the client is never
 // more than one click away from the truth.
 //
-// The first three are counted in clicks for the country asked about, not in
-// tokens: a click for a country that holds much of the map costs several
-// tokens, and the server has already divided by that cost.
+// Every click costs one token, so the first three are counted in clicks. The
+// bank's size is the same whatever the country and whether the caller signed
+// in: a big country and signing in only move how fast it refills.
 type ClickBudget struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Clicks left, fractional: 6.4 means six clicks now, and the seventh in
@@ -105,20 +105,23 @@ type ClickBudget struct {
 	Tokens float64 `protobuf:"fixed64,1,opt,name=tokens,proto3" json:"tokens,omitempty"`
 	// The most a caller can bank: the burst, in clicks.
 	Capacity uint32 `protobuf:"varint,2,opt,name=capacity,proto3" json:"capacity,omitempty"`
-	// Clicks granted back per second.
+	// Clicks granted back per second, at the pace set by the caller's last click:
+	// its country's slowdown, signing in, and a running bonus all move it.
 	RefillPerSecond float64 `protobuf:"fixed64,3,opt,name=refill_per_second,json=refillPerSecond,proto3" json:"refill_per_second,omitempty"`
-	// Tokens one click costs, from the country's share of the map: 1.5 is half
-	// as slow again. Zero from a server too old to price clicks, which means one.
-	Cost float64 `protobuf:"fixed64,8,opt,name=cost,proto3" json:"cost,omitempty"`
+	// How many times slower a player of the country asked about gets its clicks
+	// back, from the country's share of the map: 1.5 is half as slow again. It
+	// applies from the next click for that country on. Zero from a server too old
+	// to know, which means one.
+	Slowdown float64 `protobuf:"fixed64,8,opt,name=slowdown,proto3" json:"slowdown,omitempty"`
 	// The fraction of the whole map the country holds, 0 to 1.
 	Share float64 `protobuf:"fixed64,5,opt,name=share,proto3" json:"share,omitempty"`
-	// The share at which a click starts to cost next_cost. Zero at the top step.
-	NextShare float64 `protobuf:"fixed64,6,opt,name=next_share,json=nextShare,proto3" json:"next_share,omitempty"`
-	NextCost  float64 `protobuf:"fixed64,9,opt,name=next_cost,json=nextCost,proto3" json:"next_cost,omitempty"`
-	// How many times a guest's allowance an account that signed in with a
-	// provider holds: 2 is twice the burst and twice the refill. It is the same
-	// for every caller, so a guest can be told what signing in is worth. Zero
-	// from a server too old to grant one, which means signing in changes nothing.
+	// The share at which the refill slows to next_slowdown. Zero at the top step.
+	NextShare    float64 `protobuf:"fixed64,6,opt,name=next_share,json=nextShare,proto3" json:"next_share,omitempty"`
+	NextSlowdown float64 `protobuf:"fixed64,9,opt,name=next_slowdown,json=nextSlowdown,proto3" json:"next_slowdown,omitempty"`
+	// How many times a guest's refill an account that signed in with a provider
+	// gets: 2 is twice as fast, into a bank of the same size. It is the same for
+	// every caller, so a guest can be told what signing in is worth. Zero from a
+	// server too old to grant one, which means signing in changes nothing.
 	LinkedMultiplier float64 `protobuf:"fixed64,10,opt,name=linked_multiplier,json=linkedMultiplier,proto3" json:"linked_multiplier,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
@@ -175,9 +178,9 @@ func (x *ClickBudget) GetRefillPerSecond() float64 {
 	return 0
 }
 
-func (x *ClickBudget) GetCost() float64 {
+func (x *ClickBudget) GetSlowdown() float64 {
 	if x != nil {
-		return x.Cost
+		return x.Slowdown
 	}
 	return 0
 }
@@ -196,9 +199,9 @@ func (x *ClickBudget) GetNextShare() float64 {
 	return 0
 }
 
-func (x *ClickBudget) GetNextCost() float64 {
+func (x *ClickBudget) GetNextSlowdown() float64 {
 	if x != nil {
-		return x.NextCost
+		return x.NextSlowdown
 	}
 	return 0
 }
@@ -309,7 +312,8 @@ func (x *ClickResponse) GetBudget() *ClickBudget {
 
 type GetBudgetRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// The country the allowance is priced for.
+	// The country the answer's slowdown is for. The bucket itself refills at the
+	// pace of the caller's last click until the next one.
 	CountryId     string `protobuf:"bytes,1,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1247,8 +1251,8 @@ func (x *ClaimBonusRequest) GetCountryId() string {
 type ClaimBonusResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The allowance as it stands with the bonus applied, so the client does not
-	// have to wait for its next click to see the wider budget. A kind that does
-	// not widen it answers the allowance unchanged.
+	// have to wait for its next click to see the faster refill. A kind that does
+	// not speed it up answers the allowance unchanged.
 	Budget *ClickBudget `protobuf:"bytes,1,opt,name=budget,proto3" json:"budget,omitempty"`
 	Kind   BonusKind    `protobuf:"varint,2,opt,name=kind,proto3,enum=planet.v1.BonusKind" json:"kind,omitempty"`
 	// How long a timed bonus runs. Zero for a charge.
@@ -1806,16 +1810,16 @@ var File_planet_v1_planet_proto protoreflect.FileDescriptor
 
 const file_planet_v1_planet_proto_rawDesc = "" +
 	"\n" +
-	"\x16planet/v1/planet.proto\x12\tplanet.v1\"\x8c\x02\n" +
+	"\x16planet/v1/planet.proto\x12\tplanet.v1\"\x9c\x02\n" +
 	"\vClickBudget\x12\x16\n" +
 	"\x06tokens\x18\x01 \x01(\x01R\x06tokens\x12\x1a\n" +
 	"\bcapacity\x18\x02 \x01(\rR\bcapacity\x12*\n" +
-	"\x11refill_per_second\x18\x03 \x01(\x01R\x0frefillPerSecond\x12\x12\n" +
-	"\x04cost\x18\b \x01(\x01R\x04cost\x12\x14\n" +
+	"\x11refill_per_second\x18\x03 \x01(\x01R\x0frefillPerSecond\x12\x1a\n" +
+	"\bslowdown\x18\b \x01(\x01R\bslowdown\x12\x14\n" +
 	"\x05share\x18\x05 \x01(\x01R\x05share\x12\x1d\n" +
 	"\n" +
-	"next_share\x18\x06 \x01(\x01R\tnextShare\x12\x1b\n" +
-	"\tnext_cost\x18\t \x01(\x01R\bnextCost\x12+\n" +
+	"next_share\x18\x06 \x01(\x01R\tnextShare\x12#\n" +
+	"\rnext_slowdown\x18\t \x01(\x01R\fnextSlowdown\x12+\n" +
 	"\x11linked_multiplier\x18\n" +
 	" \x01(\x01R\x10linkedMultiplierJ\x04\b\x04\x10\x05J\x04\b\a\x10\b\"F\n" +
 	"\fClickRequest\x12\x17\n" +

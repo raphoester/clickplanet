@@ -23,7 +23,7 @@ export function useClickBudget(source: ClickBudgetSource | undefined, countryId:
         return source.watchClickBudget(setBudget)
     }, [source])
 
-    // The price depends on the country, so a switch asks for a reading at the new one.
+    // The price depends on the country, so a switch asks what the new one's is.
     useEffect(() => {
         source?.priceFor(countryId)
     }, [source, countryId])

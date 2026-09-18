@@ -37,7 +37,7 @@ export type BonusReward =
     maxTiles: number
 }
 
-/** The one reward that runs for a time: the click allowance is multiplied. */
+/** The one reward that runs for a time: the clicks refill faster. */
 export type TimedReward = {
     kind: "tripleClicks"
     seconds: number
@@ -104,7 +104,7 @@ export function chargeLabels(charges: Charges): {kind: "bomb" | "encloseClicks" 
     return labels
 }
 
-/** By how much a reward multiplies the click allowance. */
+/** By how much a reward multiplies how fast clicks refill. */
 export function multiplierOf(reward: BonusReward): number {
     switch (reward.kind) {
         case "tripleClicks":
@@ -136,7 +136,7 @@ export function describeReward(reward: BonusReward): {
         case "tripleClicks":
             return {
                 title: "Triple clicks",
-                detail: `${multiplierOf(reward)}× your click rate`,
+                detail: `Clicks refill ${multiplierOf(reward)}× faster`,
                 badge: `${multiplierOf(reward)}×`,
             }
         case "spreadClicks":

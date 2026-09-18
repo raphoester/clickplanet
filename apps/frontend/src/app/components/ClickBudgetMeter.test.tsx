@@ -171,16 +171,16 @@ describe("ClickBudgetMeter while a bonus runs", () => {
         expect(meter().getAttribute("aria-valuenow")).toBe("4")
     })
 
-    it("says why the meter is narrow for a country that holds much of the map", () => {
+    it("says why the refill is slow for a country that holds much of the map", () => {
         render(<ClickBudgetMeter countryName="Bulgaria"
-                                 budget={reading({capacity: 1, price: {cost: 8, share: 0.8, next: {share: 0.9, cost: 10}}})}/>)
+                                 budget={reading({price: {slowdown: 8, share: 0.8, next: {share: 0.9, slowdown: 10}}})}/>)
 
         expect(screen.getByText("Bulgaria holds 80% of the map")).toBeTruthy()
-        expect(screen.getByText("Clicks 8× slower · 10× at 90%")).toBeTruthy()
+        expect(screen.getByText("Refills 8× slower · 10× at 90%")).toBeTruthy()
     })
 
     it("says nothing about price at the plain rate", () => {
-        render(<ClickBudgetMeter countryName="Chad" budget={reading({price: {cost: 1, share: 0.01, next: {share: 0.1, cost: 2}}})}/>)
+        render(<ClickBudgetMeter countryName="Chad" budget={reading({price: {slowdown: 1, share: 0.01, next: {share: 0.1, slowdown: 2}}})}/>)
 
         expect(document.querySelector(".click-budget-toll")).toBeNull()
     })

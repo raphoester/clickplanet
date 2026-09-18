@@ -51,7 +51,7 @@ func (c Config) Validate() error {
 		return fmt.Errorf("database: %w", err)
 	}
 
-	if err := c.Toll.Validate(c.RateLimiter.Capacity()); err != nil {
+	if err := c.Toll.Validate(); err != nil {
 		return err
 	}
 

@@ -552,10 +552,10 @@ The table holds **personal data** — IPs next to user-authored text — so the 
 
 **A click spends from two buckets at once: its account's and its scope's.** The account is the one the click token names; the scope is the address, or its /64 over IPv6 (`cpipscope`). The account's bucket is `rateLimiter.*`: production runs one click every 5s (`perSecond: 0.2`) with a bank of 60, which fills in five minutes; unset, it is 1/s with a burst of 10. The scope's is `rateLimiter.scopeMultiplier` (10) times that, because many players can share one address — a campus, a school, a carrier NAT.
 
-- **A linked account clicks faster.** An account that signed in with Google or Discord spends `linked:<id>` at `rateLimiter.linkedMultiplier` (2) instead of `account:<id>` at 1, to make signing in worth it. It is another key, not a new scale on the same one: a guest who signs in keeps its account id, and a key never changes its scale. So the linked bucket starts full — a one-time top-up per sign-in, not a way to refill. The scope's bucket still bounds it. **Planet learns it from the token**, which carries a linked byte (see [Sessions](#sessions-internalauth)), so a click costs no call to `auth`. A player who links mid-session clicks at 1× until the client mints again. `TestALinkedAccountClicksTwiceAsFastAsAGuest` pins it.
+- **A linked account refills faster, into the same bank.** An account that signed in with Google or Discord refills `rateLimiter.linkedMultiplier` (2) times as fast, to make signing in worth it; its bank is the same size. It is the same `account:<id>` bucket either way — the rate is its pace, set by each click (see below) — so signing in neither tops the bank up nor empties it. The scope's bucket still bounds it. **Planet learns it from the token**, which carries a linked byte (see [Sessions](#sessions-internalauth)), so a click costs no call to `auth`. A player who links mid-session refills at 1× until the client mints again. `TestALinkedAccountClicksTwiceAsFastAsAGuest` and `TestSigningInKeepsTheBankAndSpeedsUpItsRefill` pin it.
 - **A click is refused when either bucket is empty, and a refusal spends from neither.** `Limiter.TakeAll` checks every bucket and spends from all or none under one lock, so a player refused for a busy scope keeps its own tokens.
 - **A token with no account spends one bucket, the scope's at 1×** — exactly the throttle from before accounts. The deprecated `session.v1` mint, an invalid token while `auth.enforce` is off, and `auth.enabled` false all land here. It is a separate bucket from the scope's shared one, because a key never changes its scale.
-- **One limiter holds both.** A bucket's `Scale` is set when it is made and multiplies its burst and rate for good; `clicks.Buckets` names the keys (`account:<id>` at 1 or `linked:<id>` at the linked multiplier, `scope:<scope>` at the scope multiplier, or the bare scope at 1 with no account). `clicks.PayerOf(ctx)` reads the scope and the account off the context, so the throttle, `GetBudget` and a bonus claim cannot disagree on who pays.
+- **One limiter holds both.** A bucket's `Scale` is set when it is made and multiplies its burst and rate for good; `clicks.Buckets` names the keys (`account:<id>` at 1, `scope:<scope>` at the scope multiplier, or the bare scope at 1 with no account). **A key's `Pace` multiplies the payer's own bucket's rate from that take on, and leaves its burst alone**: the linked multiplier for a signed-in account, divided by the country's slowdown (see [A big country refills slower](#a-big-country-refills-slower-clickstoll)). The scope's bucket takes no pace. `clicks.PayerOf(ctx)` reads the scope and the account off the context, so the throttle, `GetBudget` and a bonus claim cannot disagree on who pays.
 - **What this buys.** Before accounts, one address was one allowance, so a campus played as one player and a bot farm with many cookies on one address was no worse off than one tab. Now each player behind an address has its own allowance, bounded together by the scope's, and a bot moving across addresses keeps spending one account's.
 - `TestManyAccountsOnOneScopeShareTheScopesBucket` and `TestOneAccountOnManyScopesSpendsOneAllowance` pin both halves over HTTP.
 
@@ -574,43 +574,45 @@ That reading travels two ways, because a refused call has no response message to
 
 Either way the decorator decides the policy and the handler decides how to say it. `clickbudget.Encode` is the one place that shape is agreed, because two procedures answer with a `ClickBudget`: the click that just spent a token, and `GetBudget`.
 
-**Every reading also carries `linked_multiplier`**, what signing in multiplies the allowance by (`Buckets.BudgetOf`). It is the same for every caller, so the client can tell a guest what signing in is worth with no number of its own.
+**Every reading also carries `linked_multiplier`**, what signing in multiplies the refill by (`Buckets.BudgetOf`). It is the same for every caller, so the client can tell a guest what signing in is worth with no number of its own.
 
-**The reading is the tighter bucket** (`clicks.Tightest`): the one with fewer tokens, and on a tie the smaller one. A player behind a busy campus sees the scope's limit rather than a full meter that refuses. The reading is still one bucket's `Capacity`, `PerSecond` and `Tokens`, so the client arithmetic does not change. `Boosted` is always the account's bucket's, the one a bonus widens. `TestTheBudgetIsTheTighterBucket` pins it.
+**The reading is the tighter bucket** (`clicks.Tightest`): the one with fewer tokens, and on a tie the smaller one. A player behind a busy campus sees the scope's limit rather than a full meter that refuses. The reading is still one bucket's `Capacity`, `PerSecond` and `Tokens`, so the client arithmetic does not change. `Boosted` is always the account's bucket's, the one a bonus speeds up. `TestTheBudgetIsTheTighterBucket` pins it.
 
-`ClickService.GetBudget` covers the cold start — a client that has just loaded and has no click to learn from. It reads through `Limiter.Peek`, which spends nothing and, for an address that never clicked, **creates no bucket**: reading an allowance must not be a way to make the limiter remember a caller. `NewSessionReaderInterceptor` reads a token on it when the client sends one, so the reading is the account's, and **refuses nothing**: with no token or a bad one it reads the scope's bucket from before accounts. The web client does not send a token on it yet, so its cold start reads that bucket until the first click re-anchors it. It is deliberately not `NO_SIDE_EFFECTS`, so it is a POST no cache will serve a stale answer to; every click re-anchors the client afterwards, so it is asked once per page load.
+`ClickService.GetBudget` covers the cold start — a client that has just loaded and has no click to learn from. It reads through `Limiter.Peek`, which spends nothing and, for an address that never clicked, **creates no bucket**: reading an allowance must not be a way to make the limiter remember a caller. `NewSessionReaderInterceptor` reads a token on it when the client sends one, so the reading is the account's, and **refuses nothing**: with no token or a bad one it reads the scope's bucket from before accounts. The web client sends the token it already holds, never a fresh one; before its first click it holds none, and neither bucket has been spent from. Without the token the meter showed that other bucket, always full, until a click contradicted it. It is deliberately not `NO_SIDE_EFFECTS`, so it is a POST no cache will serve a stale answer to; every click re-anchors the client afterwards, so it is asked once per page load.
 
 **This tells a scripted clicker exactly when to fire**, which is a real cost against [Anti-bot](#anti-bot-internalantibot). It is a small one — a script can already infer the same schedule by counting its own 429s — and it is paid to stop honest players being refused with no warning.
 
 The scope is whatever `IPReaderMiddleware` put on the context: `X-Real-IP` if present, otherwise the peer address. **The reverse proxy must set that header itself** — `deploy/vps/caddy/Caddyfile` does, with `header_up X-Real-IP {client_ip}` on every backend route. Merely forwarding it would let a client send its own and buy a fresh bucket per request. The fallback is the peer address rather than a constant precisely so a missing header degrades to per-connection buckets instead of rate limiting the whole game as one player.
 
-#### A big country pays more per click (`clicks.Toll`)
+#### A big country refills slower (`clicks.Toll`)
 
-A click costs more tokens the more of the map its country holds. `toll.steps` is
-a table of `{share, cost}`: from `share` of **every tile on the map**, a click for
-that country costs `cost` tokens. No steps prices every click at one.
-A cost may be a fraction of a token (production runs x1.5 from 25%, x2 from
-50%, x3 from 70%), which is why `ClickBudget.cost` is a double. It moved to new
-field numbers rather than changing type in place: a client built against the old
-`uint32` reads a cost of zero and simply says nothing about price.
+**Every click costs one token.** What the map share changes is how fast the
+tokens come back. `toll.steps` is a table of `{share, slowdown}`: from `share` of
+**every tile on the map**, a player of that country refills `slowdown` times
+slower (production runs 1.5× from 25%, 2× from 50%, 3× from 70%). No steps
+refills every country at the plain rate. `ClickBudget.slowdown` took the field
+number of the old `cost`, whose meaning it replaces.
 
-- **The price is taken at the click, from the country clicked for.** A slower
-  refill for a big country would have been read off whatever country the caller
-  played last, so a player could bank tokens on a small one and spend them on a big one.
-- **The share is of the whole map, not of owned tiles**, so early in a game nobody pays more.
+- **The bank never changes size**: not with the country, a bonus or signing in.
+  Only its rate moves, so the number a player sees changes when it clicks, when
+  time passes, or when a bonus is caught — never on a switch of flag.
+- **The pace is set by each click, from the country clicked for, and applies from
+  then on.** The time already past was refilled at the pace in force over it, so
+  switching flags moves nothing until the next click. A refused click sets it too.
+  A player can refill on a small country and spend the bank on a big one; the
+  bank bounds what that buys.
+- **The share is of the whole map, not of owned tiles**, so early in a game nobody is slowed.
 - **`inmemory_tile_storage` keeps a tile count per country**, moved by `set` and
   `Clear` and rebuilt at boot from postgres, so `Share` is one read and no scan.
-- **The budget goes out already divided by the cost** (`clicks.BudgetOf`): ten tokens at a
-  cost of 2 are five clicks refilling at 0.5/s. The meter narrows off the server's
-  numbers the way a bonus widens it, and `ClickBudget` also carries `cost`,
-  `share` and the next step so the client can say why.
-- **It is charged to both buckets**, the account's and the scope's, at the same price.
-- **Bonuses compose with it.** A triple bonus multiplies the account's bucket and the price
-  divides it, so it is still worth three times the clicks — up to what the scope's bucket holds. A spread is one click at
-  the country's price. A bomb is not throttled, and lowers the share of whoever it hits.
-- **A cost above `rateLimiter.burst` refuses the boot**: no bucket could ever pay it.
+- **Only the payer's own bucket is slowed.** The scope's is a ceiling shared by
+  players of every flag, so it refills at its plain rate.
+- **The budget goes out as the bucket holds it**, in clicks, with the slowdown,
+  the share and the next step of the country asked about so the client can say why.
+- **Bonuses compose with it.** A triple multiplies the pace by three and the bank
+  keeps its size. A spread is one click. A bomb is not throttled, and lowers the
+  share of whoever it hits.
 
-`GetBudget` takes the country, because the price depends on it. Known risk, not
+`GetBudget` takes the country, for the slowdown it answers. Known risk, not
 handled yet: a country sitting on a step can cross it back and forth click to click.
 
 Chat and sessions each have **their own limiter instance** with their own budget, because what each call costs has nothing to do with what a click costs:
@@ -823,7 +825,7 @@ gets one of four bonuses. Each box draws its kind from `bonus.kinds`, a weight
 per kind — a kind's chance is its weight over the sum of the weights, so the
 strong ones can be made rare (production runs 5 : 2 : 1 : 2):
 
-- **`triple_clicks`** — the allowance is multiplied by `bonus.triple.multiplier` for
+- **`triple_clicks`** — the refill rate is multiplied by `bonus.triple.multiplier` for
   `bonus.triple.duration`. The one timed kind. See [What a bonus does to the bucket](#what-a-bonus-does-to-the-bucket).
 - **`spread_clicks`** — a charge: the next `bonus.spread.clicks` clicks (8) also
   take the tiles touching the one clicked, about 56 tiles. See [What a spread does to a click](#what-a-spread-does-to-a-click).
@@ -1124,33 +1126,31 @@ closed: `bonus_enclosures_total` and `bonus_enclosed_tiles_total`.
 
 #### What a bonus does to the bucket
 
-`cpratelimit.Limiter.Boost(key, multiplier, until)` multiplies both the ceiling and
-the refill rate until it lapses. **It boosts the account's bucket, never the scope's**
+`cpratelimit.Limiter.Boost(key, multiplier, until)` multiplies the refill rate
+until it lapses, and **leaves the ceiling where it is**: the bank never changes
+size, so a bonus fills it faster and never widens it. **It boosts the account's bucket, never the scope's**
 (`Buckets.Boosted`): the scope's is shared with every other player behind the
-address, so a bonus that widened it would be a bonus for all of them. With no
+address, so a bonus that sped it up would be a bonus for all of them. With no
 account it boosts the scope's own 1× bucket, as before accounts. A boosted player
 still spends from the scope's bucket, so it is bounded by it —
-`TestABoostDoesNotWidenTheScopesBucket`. It is **opt-in and additive**: a bucket nobody
+`TestABoostDoesNotSpeedUpTheScopesBucket`. It is **opt-in and additive**: a bucket nobody
 boosts holds `multiplier: 1` and behaves exactly as it did before boosting
 existed, which matters because the same limiter type throttles chat and session
 mints and neither has any business being boosted.
 
-Three things in there are easy to get wrong, and each has a test:
+Two things in there are easy to get wrong, and each has a test:
 
 - **The refill interval is split at the moment the boost lapses.** An interval
   that straddles the end would otherwise be paid entirely at one rate or the
   other, over-granting a caller that went quiet across it.
-- **The tokens are clamped back to the plain burst when it ends.** The ceiling
-  came down with it, and a bucket left holding thirty under a burst of ten would
-  spend the difference long after the minute was up.
 - **The sweep skips a bucket still boosted.** It forgets buckets that have
   refilled to capacity, on the grounds that such a bucket holds what a fresh one
   would — which stops being true under a boost, and forgetting it would end the
   boost early.
 
 The reward needs **no frontend release to be visible**: `State` already carries
-the policy as well as the reading, so a boosted bucket reports a capacity of 30
-and a rate of 3/s, and the meter widens off the server's own numbers. See
+the policy as well as the reading, so a boosted bucket reports a rate of 3/s,
+and the meter fills faster off the server's own numbers. See
 [Saying what is left](#saying-what-is-left).
 
 ### Anti-bot (`internal/antibot/`)

@@ -16,7 +16,7 @@ describe("BonusAward", () => {
         render(<BonusAward reward={REWARD} onDone={() => {}}/>)
 
         expect(screen.getByText("Triple clicks")).toBeTruthy()
-        expect(screen.getByText("3× your click rate")).toBeTruthy()
+        expect(screen.getByText("Clicks refill 3× faster")).toBeTruthy()
     })
 
     it("is a status, so a screen reader hears it without the focus moving", () => {

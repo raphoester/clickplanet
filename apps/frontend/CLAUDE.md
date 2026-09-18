@@ -270,20 +270,26 @@ message per click. Every click answer re-anchors it, which is why the error can
 never accumulate: it is exact again the moment the player does the thing the
 counter is about.
 
-`PlanetBackend` learns it three ways — `GetBudget` once at load, `ClickResponse
-.budget` on every accepted click, and a **connect error detail** on a refused
-one, which is the reading that matters most. It also subtracts its own clicks in
+`PlanetBackend` learns it three ways — `GetBudget` at load and on a switch of
+country, `ClickResponse.budget` on every accepted click, and a **connect error
+detail** on a refused one, which is the reading that matters most. **`GetBudget`
+carries the token already held** (`SessionProvider.held()`, never a mint):
+without it the server reads the bucket of an address with no account, which is
+never spent and always full, and the next click contradicts it. It also subtracts its own clicks in
 flight, so the counter only ever *under*-promises: a counter that says 1 and is
 refused is a bug the player sees, and one that says 0 and works is a click they
 still get.
 
-**The reading is priced for one country.** The server charges more tokens per
-click the more of the map a country holds, and sends the budget already divided
-into clicks, with the price beside it (`ClickBudget.price`). `useClickBudget`
+**One bank, one click per token.** The bank's size never moves: not with the
+country, a bonus or signing in. The more of the map a country holds, the slower
+its players refill; signing in refills faster, and so does a triple bonus. The
+server sets that pace on each click, from the country clicked for, so a switch
+of flag moves nothing on the meter until the next click. The reading carries the
+selected country's slowdown beside it (`ClickBudget.price`): `useClickBudget`
 calls `priceFor(country)` whenever the selected country changes, and
-`PlanetBackend` drops any reading priced for a country other than that one. The
-meter only explains the price (`domain/clickPrice.ts`): it says nothing at the
-plain rate unless the country is within 80% of the first step.
+`PlanetBackend` keeps the count of every reading but only the price of one for
+that country. The meter only explains the price (`domain/clickPrice.ts`): it
+says nothing at the plain rate unless the country is within 80% of the first step.
 
 A server that reports nothing — no throttle, or one too old for the call —
 leaves the counter hidden rather than showing a made-up allowance, so this ships
@@ -909,8 +915,9 @@ player's territory, so it has not been done.
    On a phone it moves to under the folded menu: both ends of the screen are
    full-width sheets there, the menu above and the chat below.
 
-   **A guest is offered to click faster.** A signed-in account clicks
-   `ClickBudget.linkedMultiplier` times faster (2 in production). For a guest the
+   **A guest is offered to click faster.** A signed-in account refills
+   `ClickBudget.linkedMultiplier` times faster (2 in production), into a bank of
+   the same size. For a guest the
    server offers sign-in to, `Viewer` passes `onSignIn` and the meter shows
    "Sign in: clicks 2× faster" under the pips — a button beside the meter, not in
    it, since the meter is a reading. It glows when the bucket is empty or a click

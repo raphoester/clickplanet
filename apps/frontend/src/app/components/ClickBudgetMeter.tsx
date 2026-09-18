@@ -9,8 +9,8 @@ export type ClickBudgetMeterProps = {
     /**
      * The triple currently running, if any. The meter is the one place that says
      * a bonus is live, because it is where the allowance is read — and once the
-     * backend grants the boost, the pips and the fill rate widen on their own
-     * off the server's policy, with nothing here to change.
+     * backend grants the boost, the fill rate speeds up on its own off the
+     * server's policy, with nothing here to change.
      */
     bonus?: ActiveBonus
     /**
@@ -23,7 +23,7 @@ export type ClickBudgetMeterProps = {
     bombArmed?: boolean
     /** Aims the bomb held, or puts it away. Absent, the bomb is only said. */
     onToggleBomb?: () => void
-    /** The country clicks are priced for, to say why the meter is narrower. */
+    /** The country selected, to say why its clicks refill slower. */
     countryName?: string
     /**
      * How many clicks the server has refused for the throttle. Each new one
