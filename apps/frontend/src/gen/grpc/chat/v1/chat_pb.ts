@@ -192,18 +192,13 @@ export class ChatMessage extends Message<ChatMessage> {
   sentAtUnixMs = protoInt64.zero;
 
   /**
-   * A username, or "guest_" and the name a guest typed. The server adds the
-   * prefix, and no username starts with it, so a guest cannot pass for a
-   * player.
+   * A username, or "guest_" and the account's guest code: 6 hex characters,
+   * drawn once per account and kept. No username starts with the prefix, so a
+   * guest cannot pass for a player.
    *
    * @generated from field: string author_name = 3;
    */
   authorName = "";
-
-  /**
-   * @generated from field: string author_tag = 4;
-   */
-  authorTag = "";
 
   /**
    * @generated from field: string country_id = 5;
@@ -248,7 +243,6 @@ export class ChatMessage extends Message<ChatMessage> {
     { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "sent_at_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
     { no: 3, name: "author_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "author_tag", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 5, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 6, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 7, name: "author_admin", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
@@ -274,21 +268,14 @@ export class ChatMessage extends Message<ChatMessage> {
 }
 
 /**
- * The X-Session-Token header is optional. When it names an account with a
- * username, the message is sent under that username and author_name is not
- * read. Otherwise author_name is a guest's name, which the server sends as
- * "guest_" and the name. A missing or invalid token is a guest, never a refusal.
+ * The X-Session-Token header is required, and must name an account: without
+ * one the call is Unauthenticated. The message is sent under the account's
+ * username, or as "guest_" and its guest code when it has none. Nobody chooses
+ * a guest's name.
  *
  * @generated from message chat.v1.SendMessageRequest
  */
 export class SendMessageRequest extends Message<SendMessageRequest> {
-  /**
-   * At most 24 characters once cleaned, before the prefix.
-   *
-   * @generated from field: string author_name = 1;
-   */
-  authorName = "";
-
   /**
    * @generated from field: string author_id = 2;
    */
@@ -312,7 +299,6 @@ export class SendMessageRequest extends Message<SendMessageRequest> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chat.v1.SendMessageRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "author_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "author_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 4, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
@@ -373,8 +359,8 @@ export class SendMessageResponse extends Message<SendMessageResponse> {
 }
 
 /**
- * The X-Session-Token header is optional, as on SendMessage: it is what says
- * which reactions are the caller's own.
+ * The X-Session-Token header is optional here: it is what says which
+ * reactions are the caller's own.
  *
  * @generated from message chat.v1.GetHistoryRequest
  */
@@ -520,9 +506,8 @@ export class GetHistoryResponse extends Message<GetHistoryResponse> {
 }
 
 /**
- * The X-Session-Token header is optional. A player with a username reacts as
- * its account, everyone else as the address it calls from: the same tag its
- * messages carry.
+ * The X-Session-Token header is required, and must name an account: without
+ * one the call is Unauthenticated. Every caller reacts as its account.
  *
  * @generated from message chat.v1.ReactRequest
  */

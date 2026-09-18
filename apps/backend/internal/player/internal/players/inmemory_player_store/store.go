@@ -14,6 +14,7 @@ import (
 type Store struct {
 	mu       sync.Mutex
 	profiles map[players.AccountID]players.Profile
+	codes    map[players.AccountID]players.GuestCode
 	stats    map[players.AccountID]players.Stats
 	failWith error
 }
@@ -21,7 +22,11 @@ type Store struct {
 var _ players.Store = (*Store)(nil)
 
 func New() *Store {
-	return &Store{profiles: map[players.AccountID]players.Profile{}, stats: map[players.AccountID]players.Stats{}}
+	return &Store{
+		profiles: map[players.AccountID]players.Profile{},
+		codes:    map[players.AccountID]players.GuestCode{},
+		stats:    map[players.AccountID]players.Stats{},
+	}
 }
 
 // FailWith makes every later call answer err.
@@ -78,6 +83,39 @@ func (s *Store) SaveProfile(_ context.Context, profile players.Profile) error {
 	return nil
 }
 
+func (s *Store) GuestCode(_ context.Context, account players.AccountID) (players.GuestCode, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.failWith != nil {
+		return "", s.failWith
+	}
+	code, ok := s.codes[account]
+	if !ok {
+		return "", players.ErrNoGuestCode
+	}
+	return code, nil
+}
+
+func (s *Store) SaveGuestCode(_ context.Context, account players.AccountID, code players.GuestCode) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.failWith != nil {
+		return s.failWith
+	}
+	if _, ok := s.codes[account]; ok {
+		return nil
+	}
+	for _, held := range s.codes {
+		if held == code {
+			return players.ErrGuestCodeTaken
+		}
+	}
+	s.codes[account] = code
+	return nil
+}
+
 // MakeAdmin is what an operator does in the database: the game has no way to.
 func (s *Store) MakeAdmin(account players.AccountID) {
 	s.mu.Lock()
@@ -125,6 +163,7 @@ func (s *Store) DeleteAccount(_ context.Context, account players.AccountID) erro
 		return s.failWith
 	}
 	delete(s.profiles, account)
+	delete(s.codes, account)
 	delete(s.stats, account)
 	return nil
 }

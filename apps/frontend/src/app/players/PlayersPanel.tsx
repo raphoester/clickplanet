@@ -67,7 +67,7 @@ function PlayersGroup({title, entries, onOpenPlayer}: PlayersGroupProps) {
         <ul className="players-list">
             {entries.map((entry) => <li key={entry.key}
                                                className="players-entry"
-                                               style={authorStyle(entry.name, entry.tag)}>
+                                               style={authorStyle(entry.name)}>
                 <span className="players-entry-country"
                       role="img"
                       aria-label={countryName(entry.countryCode)}
@@ -85,7 +85,6 @@ function PlayersGroup({title, entries, onOpenPlayer}: PlayersGroupProps) {
                         {truncate(entry.name, NAME_MAX_LENGTH)}
                     </span>}
                 {entry.admin && <AdminCrown/>}
-                <span className="players-entry-tag">#{entry.tag}</span>
             </li>)}
         </ul>
     </section>

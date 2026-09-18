@@ -85,22 +85,18 @@ export function playerFailureOf(e: unknown): PlayerFailure {
     return e instanceof PlayerError ? e.failure : "failed"
 }
 
-/** What a player says about itself when it announces that it is playing. */
+/**
+ * What a player says about itself when it announces that it is playing. The
+ * name is not in it: the server reads it off the account the token names.
+ */
 export type Presence = {
     countryCode: string
-    /**
-     * The name the guest typed in the chat, without `GUEST_PREFIX`. Sent by a
-     * player with a username too: the server ignores it then.
-     */
-    guestName: string
 }
 
 /** One player as the roster and the chat show it: enough to open its card. */
 export type PlayerLine = {
-    /** A username, or `GUEST_PREFIX` and the typed name or the tag: ready to show. */
+    /** A username, or `GUEST_PREFIX` and the guest's code: ready to show, and the chat's name for it. */
     name: string
-    /** As on a chat message: the salted hash of the address it announced from. */
-    tag: string
     countryCode: string
     guest: boolean
     /** An admin of the game. Never a guest. */

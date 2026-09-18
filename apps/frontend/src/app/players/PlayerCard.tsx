@@ -33,12 +33,11 @@ export default function PlayerCard({player, backend, onClose}: PlayerCardProps) 
     </span>
 
     return <Modal title={title} className="player-card" onClose={onClose}>
-        <div className="player-card-who" style={authorStyle(player.name, player.tag)}>
+        <div className="player-card-who" style={authorStyle(player.name)}>
             <span className="player-card-country" role="img" aria-label={country} title={country}>
                 <CountryFlag code={player.countryCode}/>
             </span>
             <span className="player-card-country-name">{country}</span>
-            <span className="player-card-tag">#{player.tag}</span>
         </div>
 
         {state.kind === "loading" && <p className="player-card-note" role="status">Loading…</p>}

@@ -1,7 +1,7 @@
 import {describe, expect, it} from "vitest"
 import {ANNOUNCE_EVERY_MS, Announcing, PresenceSchedule, SETTLE_MS} from "./presence.ts"
 
-const france: Announcing = {countryCode: "fr", guestName: "Bo"}
+const france: Announcing = {countryCode: "fr"}
 
 /** Claims and settles at once, as an announce that landed. */
 function sent(schedule: PresenceSchedule, now: number, session: string | undefined) {
@@ -22,7 +22,7 @@ describe("PresenceSchedule", () => {
     it("announces as soon as a token is held, then not again until it is due", () => {
         const schedule = new PresenceSchedule(france)
 
-        expect(sent(schedule, 1_000, "token-1")).toEqual({countryCode: "fr", guestName: "Bo"})
+        expect(sent(schedule, 1_000, "token-1")).toEqual({countryCode: "fr"})
         expect(sent(schedule, 2_000, "token-1")).toBeUndefined()
         expect(sent(schedule, 1_000 + ANNOUNCE_EVERY_MS - 1, "token-1")).toBeUndefined()
     })
@@ -59,7 +59,7 @@ describe("PresenceSchedule", () => {
         schedule.want({...france, countryCode: "jp"}, 5_000)
 
         expect(sent(schedule, 5_000 + SETTLE_MS - 1, "token-1")).toBeUndefined()
-        expect(sent(schedule, 5_000 + SETTLE_MS, "token-1")).toEqual({countryCode: "jp", guestName: "Bo"})
+        expect(sent(schedule, 5_000 + SETTLE_MS, "token-1")).toEqual({countryCode: "jp"})
     })
 
     it("waits for the last of several quick changes", () => {
@@ -73,15 +73,12 @@ describe("PresenceSchedule", () => {
         expect(sent(schedule, 5_800 + SETTLE_MS, "token-1")).toMatchObject({countryCode: "de"})
     })
 
-    it("announces a new guest name, and a new username, the same way", () => {
+    it("announces a new username, and sends no name: the server reads it off the token", () => {
         const schedule = new PresenceSchedule(france)
         sent(schedule, 0, "token-1")
 
-        schedule.want({...france, guestName: "Yuki"}, 5_000)
-        expect(sent(schedule, 5_000 + SETTLE_MS, "token-1")).toMatchObject({guestName: "Yuki"})
-
-        schedule.want({...france, guestName: "Yuki", username: "yuki_jp"}, 9_000)
-        expect(sent(schedule, 9_000 + SETTLE_MS, "token-1")).toBeDefined()
+        schedule.want({...france, username: "yuki_jp"}, 9_000)
+        expect(sent(schedule, 9_000 + SETTLE_MS, "token-1")).toEqual({countryCode: "fr"})
     })
 
     it("does not announce a change that was undone before it settled", () => {

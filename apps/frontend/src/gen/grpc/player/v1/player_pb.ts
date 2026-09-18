@@ -332,15 +332,6 @@ export class AnnounceRequest extends Message<AnnounceRequest> {
    */
   countryId = "";
 
-  /**
-   * The name a guest typed in the chat. Not read for an account with a
-   * username. Empty, or one the server refuses, shows the guest as "guest_" and
-   * its tag.
-   *
-   * @generated from field: string guest_name = 2;
-   */
-  guestName = "";
-
   constructor(data?: PartialMessage<AnnounceRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -350,7 +341,6 @@ export class AnnounceRequest extends Message<AnnounceRequest> {
   static readonly typeName = "player.v1.AnnounceRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "guest_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AnnounceRequest {
@@ -539,19 +529,12 @@ export class GetRosterResponse extends Message<GetRosterResponse> {
  */
 export class RosterEntry extends Message<RosterEntry> {
   /**
-   * A username, or "guest_" and the name a guest typed or its tag.
+   * A username, or "guest_" and the account's guest code, as on a chat
+   * message.
    *
    * @generated from field: string name = 1;
    */
   name = "";
-
-  /**
-   * As on a chat message: a salted hash of the address the player last
-   * announced from.
-   *
-   * @generated from field: string tag = 2;
-   */
-  tag = "";
 
   /**
    * The flag the player last announced.
@@ -589,7 +572,6 @@ export class RosterEntry extends Message<RosterEntry> {
   static readonly typeName = "player.v1.RosterEntry";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "tag", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 4, name: "guest", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 5, name: "admin", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
@@ -668,7 +650,7 @@ export class PlayerEvent extends Message<PlayerEvent> {
     case: "roster";
   } | {
     /**
-     * A player joined, or a line changed: its name, its tag or its flag. It
+     * A player joined, or a line changed: its name or its flag. It
      * replaces the line with the same key.
      *
      * @generated from field: player.v1.RosterEntry entry = 2;

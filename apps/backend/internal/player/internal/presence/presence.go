@@ -10,21 +10,13 @@ import (
 	"slices"
 	"strings"
 	"time"
-	"unicode"
-	"unicode/utf8"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 )
 
-const (
-	// TTL is how long a visit counts after its announce. A client announces every 30s, and a hidden tab's timers
-	// may fire once a minute, so a live player is never dropped between two announces.
-	TTL = 90 * time.Second
-	// MaxGuestNameLength bounds a guest's name in runes, before the prefix, as the chat does.
-	MaxGuestNameLength = 24
-	// GuestPrefix goes before every guest's name, as in the chat. No username starts with it.
-	GuestPrefix = players.ReservedPrefix
-)
+// TTL is how long a visit counts after its announce. A client announces every 30s, and a hidden tab's timers
+// may fire once a minute, so a live player is never dropped between two announces.
+const TTL = 90 * time.Second
 
 var ErrUnknownCountry = errors.New("unknown country")
 
@@ -37,13 +29,13 @@ type Visit struct {
 	Account players.AccountID
 	// Key is the storage's, kept from the account's first announce until the visit is gone.
 	Key Key
-	// Username is empty for an account that chose none: a guest.
-	Username  players.Name
-	Admin     bool
-	GuestName string
-	Tag       players.Tag
-	Country   string
-	At        time.Time
+	// Author is the name the roster shows: the username, or the guest code.
+	Author players.Author
+	// Tag is the address the visit was announced from. It never leaves the server: the storage caps the visits
+	// of one address with it.
+	Tag     players.Tag
+	Country string
+	At      time.Time
 }
 
 // Fresh is whether the visit still counts at now.
@@ -51,59 +43,17 @@ func (v Visit) Fresh(now time.Time) bool {
 	return now.Sub(v.At) < TTL
 }
 
-// For is the same visit, as the account a browser is on now and under that account's username.
-func (v Visit) For(account players.AccountID, username players.Name) Visit {
+// For is the same visit, as the account a browser is on now and under that account's name.
+func (v Visit) For(account players.AccountID, author players.Author) Visit {
 	v.Account = account
-	v.Username = username
+	v.Author = author
 	return v
-}
-
-func (v Visit) guest() bool {
-	return v.Username == ""
-}
-
-// displayName is the username, or the prefix and the guest's name, or the prefix and the tag.
-func (v Visit) displayName() string {
-	switch {
-	case !v.guest():
-		return string(v.Username)
-	case v.GuestName != "":
-		return GuestPrefix + v.GuestName
-	default:
-		return GuestPrefix + string(v.Tag)
-	}
-}
-
-// GuestNameOf is the name a guest typed, cleaned as the chat cleans it: tabs become spaces, control characters
-// go, and the ends are trimmed. A name that is not valid UTF-8, or longer than MaxGuestNameLength, is empty:
-// the guest is then shown by its tag.
-func GuestNameOf(value string) string {
-	if !utf8.ValidString(value) {
-		return ""
-	}
-
-	var b strings.Builder
-	for _, r := range value {
-		if r == '\t' {
-			r = ' '
-		}
-		if !unicode.IsControl(r) {
-			b.WriteRune(r)
-		}
-	}
-
-	name := strings.TrimSpace(b.String())
-	if utf8.RuneCountInString(name) > MaxGuestNameLength {
-		return ""
-	}
-	return name
 }
 
 // Entry is one line of the roster.
 type Entry struct {
 	Key     Key
 	Name    string
-	Tag     players.Tag
 	Country string
 	Guest   bool
 	// Admin is never a guest: a profile with no name does not show as one.
@@ -114,11 +64,10 @@ type Entry struct {
 func EntryOf(visit Visit) Entry {
 	return Entry{
 		Key:     visit.Key,
-		Name:    visit.displayName(),
-		Tag:     visit.Tag,
+		Name:    visit.Author.Name,
 		Country: visit.Country,
-		Guest:   visit.guest(),
-		Admin:   visit.Admin && !visit.guest(),
+		Guest:   visit.Author.Guest,
+		Admin:   visit.Author.Admin && !visit.Author.Guest,
 	}
 }
 
@@ -130,7 +79,7 @@ type Change struct {
 }
 
 // RosterOf is every fresh visit at now: players with a username first, then guests, each group by name
-// ignoring case. The tag breaks a tie, so two guests of one name keep their order between two reads.
+// ignoring case. The key breaks a tie, so the order never changes between two reads.
 func RosterOf(visits []Visit, now time.Time) []Entry {
 	roster := make([]Entry, 0, len(visits))
 	for _, visit := range visits {
@@ -150,7 +99,7 @@ func RosterOf(visits []Visit, now time.Time) []Entry {
 		return cmp.Or(
 			strings.Compare(strings.ToLower(a.Name), strings.ToLower(b.Name)),
 			strings.Compare(a.Name, b.Name),
-			strings.Compare(string(a.Tag), string(b.Tag)),
+			strings.Compare(string(a.Key), string(b.Key)),
 		)
 	})
 

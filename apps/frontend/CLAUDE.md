@@ -142,10 +142,12 @@ app/       components
   returns the array it was given when nothing was added, so an echo of something
   already shown costs no render. `unreadSince` counts what arrived after a given
   id, for the badge on the folded panel, and `idsSince` names those same
-  messages, for highlighting them once they are on screen.
+  messages, for highlighting them once they are on screen. `nameSentUnder` is
+  the name the server gave the latest message this client sent — the only way
+  it learns a guest's name.
 - `authorColor.ts` — `authorHue`, a stable hue per chat author. It hashes the
-  identity the log actually displays, the name *and* the `author_tag`, so two
-  people typing one name get two colours. **Only the hue is derived**: the
+  name the log displays, which the server gives one account only (a username,
+  or `guest_` and the guest's code). **Only the hue is derived**: the
   saturation and the lightness are fixed in `ChatPanel.css`, so no hash can
   produce a colour that is unreadable against the dark panel.
 - `shareCard.ts` — everything about a shared image that is decided before a
@@ -321,42 +323,45 @@ The client for the backend's second bounded context: `chat.ts` declares
 `fakeChatBackend.ts` is the dev stand-in. `ChatPanel` docks
 bottom-right, opposite the menu, and starts folded under 768px.
 
-**`MAX_TEXT_LENGTH` and `MAX_NAME_LENGTH` in `chat.ts` mirror
-`chat.service.max*Length` on the backend**, counted in code points as the server
-counts runes. They are the composer's bounds, not a defence — the server
-sanitizes and rejects on its own.
+**`MAX_TEXT_LENGTH` in `chat.ts` mirrors `chat.service.maxTextLength` on the
+backend**, counted in code points as the server counts runes. It is the
+composer's bound, not a defence — the server sanitizes and rejects on its own.
 
 **Message text is rendered as text, never as HTML.** The backend stores it raw
 and says so; React escaping is what makes that safe, so never reach for
 `dangerouslySetInnerHTML` here.
 
-**A player with a username posts under it; everyone else is a guest.** A guest's
-identity is a name and a UUID the client keeps in `clickplanet-chat-identity`
-(`chatIdentity.ts`, `useChatIdentity.ts`), and the server shows the name as
-`guest_<name>` (`GUEST_PREFIX`, `guestName`) — no username starts with it, so a
-guest cannot pass for a player. The composer asks a guest for a name before the
-first message rather than at page load, and its foot reads "as guest_<name>",
-what the others see. `MAX_NAME_LENGTH` bounds the typed part, before the prefix.
-What distinguishes two guests with one name is `author_tag`, the salted hash of
-their address that the server stamps itself. History from before usernames
-was given the prefix on the server, since every sender was a guest then.
+**The server names every sender; the client sends no name.** A player with a
+username posts under it. Every other account is a guest, shown as `guest_` and a
+6-hex code the server drew once for that account (`guest_a1b2c3`, `GUEST_PREFIX`)
+— no username starts with the prefix, so a guest cannot pass for a player, and
+no two accounts share a code, so a name is one account. **Nothing about the
+sender's address is public**: the `#tag` beside every name is gone from the wire.
+The composer asks nobody for a name; its foot reads "as <username>", or for a
+guest "as a guest" until its first message comes back, then the name the server
+gave it (`nameSentUnder`). The client still keeps a UUID in
+`clickplanet-chat-identity` (`chatIdentity.ts`, `useChatIdentity.ts`, held by
+`ChatPanel`) because `SendMessageRequest.author_id` carries it; the server
+trusts it for nothing, and a name stored there by an older build is dropped.
 
-`Viewer` reads the username off the `AccountStore` and hands it to `ChatPanel`.
-With one, the composer asks for no name and has no "Change": the name is changed
-in the account panel. The message goes out with `asAccount`, and
-`ChatServiceBackend` then puts the click token in `X-Session-Token` — **only
-then**, so a guest who never clicked does not mint a session just to chat. A
-token that cannot be had sends the message without one, as a guest's, rather
-than failing; the server reads a missing or bad token the same way. "Your own
-message never pings" compares against the displayed name: the username, or
-`guest_` and the typed name.
+**`SendMessage` and `React` always carry the click token**, guests included:
+the server refuses a caller with no account (`unauthenticated`). So
+`ChatServiceBackend` calls `token()`, which mints when none is held, as a click
+does — chatting before the first click costs a Turnstile check. A token the
+server refuses is dropped and the call made once more with a fresh one (a
+refused call posted nothing, so this cannot post twice); a second refusal, or a
+mint that failed, is `ChatNoSessionError`, and nothing is sent. `Viewer` reads
+the username off the `AccountStore` and hands it to `ChatPanel`, for the
+composer's foot and the sound. "Your own message never pings" checks the ids in
+`mine` and the name: the username, or a guest's name once `nameSentUnder` knows
+it. A guest's very first message can ping if its broadcast beats the answer.
 
 **`sendMessage` is the one call that is not wrapped in `retrying`.** A retry
 after a connection dropped mid-request would post the message twice, visibly, to
 everyone; a message the player can retype is the cheaper failure. `getHistory`
 is retried like every other read.
 
-The three refusals map to their own error classes and are reported **inline in the
+The refusals map to their own error classes and are reported **inline in the
 composer, not as a modal** — unlike a refused click, the text is still in the box
 and the advice is one line:
 
@@ -364,6 +369,7 @@ and the advice is one line:
   every 3s), unrelated to the click bucket
 - `permission_denied` → `ChatBlockedError`, the address is in `chat.blockedIPs`
 - `invalid_argument` → `ChatRejectedError`, the server refused the content
+- `unauthenticated` twice, or no token to be had → `ChatNoSessionError`
 
 The server always runs chat, so there is no "chat is off" error. **A history that
 cannot be loaded hides the panel entirely** rather than showing a broken box:
@@ -399,8 +405,8 @@ is the list, and the backend refuses any other.
   whose token is not held yet when the history loads sees its own reactions
   unmarked; the server treats a second "on" as nothing, so a click still ends
   right.
-- `React` goes out with the click token for a player with a username, like a
-  message, and without one for a guest, who reacts as its address.
+- `React` goes out with the click token, minted when none is held, like a
+  message: every caller reacts as its account, guests included.
 - **Each message keeps its reactions' version** (`reactionsVersion`). The
   server publishes tallies with no lock, so two frames can arrive in the wrong
   order: `applyReactionsChange` (a frame) and `applyReactionsAnswer` (the answer
@@ -468,7 +474,9 @@ Every one of these animations is dropped or reduced under
 
 The "players online" button in the menu's action row opens a `MenuPanel` listing
 everyone playing: players with a username, then guests, each with a flag, a name
-in its chat colour (`authorStyle`, the same hue as in the chat) and `#tag`.
+in its chat colour (`authorStyle`, the same hue as in the chat). A line's name
+is the one the chat shows for that account: the username, or `guest_` and its
+code. No address, and no hash of one, is on it.
 
 - `backends/player.ts` — `PresenceBackend`, `Presence`, `PlayerLine` (what a
   card needs), `RosterEntry` (a `PlayerLine` with its `key`), `RosterEvent`, and
@@ -492,7 +500,7 @@ once it lands. In fake mode, Ana is the admin.
 (`app/players/PlayerCard.tsx`, a `Modal`). `Viewer` holds the one card open and
 hands `onOpenPlayer` to `Menu` → `PlayersPanel` and to `ChatPanel` → `ChatLog`;
 without a `PlayerInfoBackend` wired the names are plain text. The card shows the
-flag, the country and the tag, then, for a player with a username, what
+flag and the country, then, for a player with a username, what
 `player.v1.PlayerService/GetPlayer` answers: tiles taken, the current and best
 streak, and "Playing since", the day the account was made (left out when the
 server does not know it). **A guest's card asks nothing**: a guest has no
@@ -508,8 +516,9 @@ answers the click token in hand and never mints: a mint is a Turnstile check,
 and presence is not worth one. So a visitor who never clicked is not listed, by
 design. The schedule announces as soon as a token is held that the last
 announce did not go out under (the first click, a re-mint, a sign-in), once
-the flag, the guest name or the username has held still for a second, and every
-30s — the server drops a player 90s after its last one. An announce refused
+the flag or the username has held still for a second, and every
+30s — the server drops a player 90s after its last one. An announce carries the
+flag alone: the server reads the name off the account. An announce refused
 `unauthenticated` drops the token and is **not** retried with a fresh one, which
 would mint; the next click brings one. `NoSession` holds nothing, so a build
 without a sitekey never announces.
@@ -533,13 +542,6 @@ client whose `fetch` sets `keepalive` (`newKeepalivePlayerServiceClient`), so it
 is still sent after the page is gone. The server takes the account off at once.
 Two tabs of one browser are one account: closing one takes the line off until
 the other's next announce, at most 30s later.
-
-**The chat identity lives in `Viewer`, not in `ChatPanel`.** The guest name the
-announce carries is the one typed in the chat, and `useChatIdentity` is plain
-component state over local storage: two copies of the hook would each hold their
-own and never hear of the other's change, so a name set in the chat would not
-reach the roster until a reload. `Viewer` holds the one copy and passes it to
-both.
 
 ### Sessions
 
@@ -1249,7 +1251,8 @@ ours. They have no switch of their own: `switchOf` puts them under the tile
 click's;
 the chat in `ChatPanel` for a message that is not yours. **Your own message is
 filtered on your name as well as on `mine`**: its broadcast can arrive before
-the send answer that fills `mine` in.
+the send answer that fills `mine` in. A guest's name is only known once a
+message of its own came back, so its first can still ping.
 
 ### The leader's anthem
 

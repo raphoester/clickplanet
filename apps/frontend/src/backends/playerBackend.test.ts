@@ -205,7 +205,7 @@ describe("ConnectPlayerBackend presence", () => {
         }
     }
 
-    const presence = {countryCode: "fr", guestName: "Bo"}
+    const presence = {countryCode: "fr"}
 
     it("announces with the token it holds", async () => {
         const session = holding("token-1")
@@ -214,7 +214,7 @@ describe("ConnectPlayerBackend presence", () => {
 
         expect(await backend.announce(presence)).toBe(true)
 
-        expect(announce).toHaveBeenCalledWith({countryId: "fr", guestName: "Bo"}, expect.anything())
+        expect(announce).toHaveBeenCalledWith({countryId: "fr"}, expect.anything())
         expect(headersOf(announce).headers.get(SESSION_HEADER)).toBe("token-1")
         expect(session.token).not.toHaveBeenCalled()
     })
@@ -279,8 +279,8 @@ const failingWith = (error: ConnectError) => (): AsyncIterable<PlayerEventPb> =>
 })
 
 describe("ConnectPlayerBackend live roster", () => {
-    const entryPb = new RosterEntryPb({key: "k1", name: "ana", tag: "4f2ca1", countryId: "fr", guest: false, admin: true})
-    const ana = {key: "k1", name: "ana", tag: "4f2ca1", countryCode: "fr", guest: false, admin: true}
+    const entryPb = new RosterEntryPb({key: "k1", name: "ana", countryId: "fr", guest: false, admin: true})
+    const ana = {key: "k1", name: "ana", countryCode: "fr", guest: false, admin: true}
 
     afterEach(() => vi.useRealTimers())
 

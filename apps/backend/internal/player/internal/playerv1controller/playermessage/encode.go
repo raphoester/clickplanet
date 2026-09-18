@@ -33,7 +33,6 @@ func RosterEntry(entry presence.Entry) *playerv1.RosterEntry {
 	return &playerv1.RosterEntry{
 		Key:       string(entry.Key),
 		Name:      entry.Name,
-		Tag:       string(entry.Tag),
 		CountryId: entry.Country,
 		Guest:     entry.Guest,
 		Admin:     entry.Admin,

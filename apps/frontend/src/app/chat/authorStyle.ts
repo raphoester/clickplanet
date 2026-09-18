@@ -6,6 +6,6 @@ import {authorHue} from "../../domain/authorColor.ts";
  * the saturation and the lightness so every author reads the same against the
  * dark panel.
  */
-export function authorStyle(authorName: string, authorTag: string): CSSProperties {
-    return {"--author-hue": authorHue(authorName, authorTag)} as CSSProperties
+export function authorStyle(authorName: string): CSSProperties {
+    return {"--author-hue": authorHue(authorName)} as CSSProperties
 }

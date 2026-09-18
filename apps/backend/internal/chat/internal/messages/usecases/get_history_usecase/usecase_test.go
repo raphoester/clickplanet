@@ -1,7 +1,6 @@
 package get_history_usecase_test
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -19,15 +18,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-type stubAuthors struct {
-	author messages.Author
-	err    error
-}
-
-func (s stubAuthors) Author(context.Context, messages.AccountID, string) (messages.Author, error) {
-	return s.author, s.err
-}
-
 var (
 	expired = announcements.AnnouncementID{15: 1}
 	old     = announcements.AnnouncementID{15: 2}
@@ -36,10 +26,10 @@ var (
 )
 
 var (
-	ada    = cpsession.AccountID{15: 1}
-	now    = time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC)
-	clown  = reactions.Reaction(2)
-	player = messages.Author{Username: "ada", Tag: "a1b2c3"}
+	ada   = cpsession.AccountID{15: 1}
+	now   = time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC)
+	clown = reactions.Reaction(2)
+	other = cpsession.AccountID{15: 2}
 )
 
 type fixture struct {
@@ -64,19 +54,19 @@ func newFixture(t *testing.T, texts ...string) fixture {
 	return f
 }
 
-func (f fixture) read(t *testing.T, authors stubAuthors, account messages.AccountID) get_history_usecase.History {
+func (f fixture) read(t *testing.T, account messages.AccountID) get_history_usecase.History {
 	t.Helper()
 
-	history, err := get_history_usecase.New(f.messages, f.reactions, f.announcements, authors, cptime.NewFixedClock(now),
+	history, err := get_history_usecase.New(f.messages, f.reactions, f.announcements, cptime.NewFixedClock(now),
 		messages.Window{Size: 2, Retention: 24 * time.Hour}).Execute(t.Context(), account)
 	require.NoError(t, err)
 	return history
 }
 
-func (f fixture) history(t *testing.T, authors stubAuthors, account messages.AccountID) []get_history_usecase.Entry {
+func (f fixture) history(t *testing.T, account messages.AccountID) []get_history_usecase.Entry {
 	t.Helper()
 
-	return f.read(t, authors, account).Messages
+	return f.read(t, account).Messages
 }
 
 func texts(history []get_history_usecase.Entry) []string {
@@ -90,31 +80,21 @@ func texts(history []get_history_usecase.Entry) []string {
 func TestTheHistoryIsTheWindowOfNewestMessages(t *testing.T) {
 	f := newFixture(t, "old", "middle", "new")
 
-	assert.Equal(t, []string{"middle", "new"}, texts(f.history(t, stubAuthors{author: player}, ada)))
+	assert.Equal(t, []string{"middle", "new"}, texts(f.history(t, ada)))
 }
 
-func TestEachMessageCarriesItsReactionsMarkedForTheCaller(t *testing.T) {
+func TestEachMessageCarriesItsReactionsMarkedForTheCallersAccount(t *testing.T) {
 	f := newFixture(t, "hello")
 	require.NoError(t, f.reactions.Save(t.Context(), reactions.Change{
-		MessageID: "hello", Reaction: clown, Reactor: reactions.ReactorOf(ada, player), On: true, At: now,
+		MessageID: "hello", Reaction: clown, Reactor: reactions.ReactorOf(ada), On: true, At: now,
 	}))
 
-	assert.Equal(t, []reactions.Count{{Reaction: clown, Count: 1, Mine: true}},
-		f.history(t, stubAuthors{author: player}, ada)[0].Reactions)
-	assert.Equal(t, uint64(1), f.history(t, stubAuthors{author: player}, ada)[0].ReactionsVersion)
+	assert.Equal(t, []reactions.Count{{Reaction: clown, Count: 1, Mine: true}}, f.history(t, ada)[0].Reactions)
+	assert.Equal(t, uint64(1), f.history(t, ada)[0].ReactionsVersion)
 	assert.Equal(t, []reactions.Count{{Reaction: clown, Count: 1, Mine: false}},
-		f.history(t, stubAuthors{author: player}, cpsession.NoAccount)[0].Reactions, "a guest is its tag, not the account")
-}
-
-func TestAHistoryIsServedWhenThePlayerModuleDoesNotAnswer(t *testing.T) {
-	f := newFixture(t, "hello")
-	require.NoError(t, f.reactions.Save(t.Context(), reactions.Change{
-		MessageID: "hello", Reaction: clown, Reactor: reactions.ReactorOf(ada, player), On: true, At: now,
-	}))
-
-	history := f.history(t, stubAuthors{err: assert.AnError}, ada)
-
-	assert.Equal(t, []reactions.Count{{Reaction: clown, Count: 1, Mine: false}}, history[0].Reactions)
+		f.history(t, other)[0].Reactions, "another account")
+	assert.Equal(t, []reactions.Count{{Reaction: clown, Count: 1, Mine: false}},
+		f.history(t, cpsession.NoAccount)[0].Reactions, "no token")
 }
 
 func TestTheHistoryCarriesTheWindowOfNewestAnnouncements(t *testing.T) {
@@ -126,7 +106,7 @@ func TestTheHistoryCarriesTheWindowOfNewestAnnouncements(t *testing.T) {
 		}))
 	}
 
-	history := f.read(t, stubAuthors{author: player}, ada)
+	history := f.read(t, ada)
 
 	ids := make([]announcements.AnnouncementID, 0, len(history.Announcements))
 	for _, announcement := range history.Announcements {

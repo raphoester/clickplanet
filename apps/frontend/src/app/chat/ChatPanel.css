@@ -353,12 +353,6 @@
     text-shadow: -1px 1px 0 #000000;
 }
 
-.chat-message-tag {
-    flex-shrink: 0;
-    color: #FFFFFF59;
-    text-transform: none;
-}
-
 /* Beside the name, not pinned to the far edge: the head belongs to the bubble
    under it, and a time pushed to the panel's other side belongs to neither. */
 .chat-message-time {
@@ -512,16 +506,6 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-}
-
-.chat-rename {
-    padding: 0 0 0 6px;
-    border: none;
-    background: none;
-    color: #FFFFFFB3;
-    font: inherit;
-    text-decoration: underline;
-    cursor: pointer;
 }
 
 .chat-counter-over {

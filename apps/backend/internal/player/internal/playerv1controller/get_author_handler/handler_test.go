@@ -15,7 +15,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_author_handler"
 )
 
-func getAuthor(t *testing.T, accountID string) *playerv1.GetAuthorResponse {
+func getAuthor(t *testing.T, accountID string) (*connect.Response[playerv1.GetAuthorResponse], error) {
 	t.Helper()
 
 	store := inmemory_player_store.New()
@@ -23,25 +23,30 @@ func getAuthor(t *testing.T, accountID string) *playerv1.GetAuthorResponse {
 	require.NoError(t, err)
 	require.NoError(t, store.SaveProfile(t.Context(), players.Profile{Account: ada, Name: "Ada_L", UpdatedAt: time.Now()}))
 
-	res, err := get_author_handler.New(get_author_usecase.New(store, "pepper")).GetAuthor(t.Context(),
-		connect.NewRequest(&playerv1.GetAuthorRequest{AccountId: accountID, Ip: "1.2.3.4"}))
+	useCase := get_author_usecase.New(store, players.NewGuestCodes(store, &players.SequentialCodes{}))
+	return get_author_handler.New(useCase).GetAuthor(t.Context(), //nolint:wrapcheck // the test reads the handler's own error.
+		connect.NewRequest(&playerv1.GetAuthorRequest{AccountId: accountID}))
+}
+
+func TestTheUsernameIsAnswered(t *testing.T) {
+	res, err := getAuthor(t, "0b6d4f7e-5d7c-4a36-9a51-3f1f8f0c2a11")
+
 	require.NoError(t, err)
-	return res.Msg
+	assert.Equal(t, "Ada_L", res.Msg.GetName())
+	assert.False(t, res.Msg.GetAdmin())
 }
 
-func TestTheUsernameAndTheTagAreAnswered(t *testing.T) {
-	res := getAuthor(t, "0b6d4f7e-5d7c-4a36-9a51-3f1f8f0c2a11")
+func TestAGuestIsAnsweredWithItsCode(t *testing.T) {
+	res, err := getAuthor(t, "5e0c1b2a-3d4e-4f60-8a71-9b2c3d4e5f60")
 
-	assert.Equal(t, "Ada_L", res.GetUsername())
-	assert.Equal(t, string(players.TagOf("pepper", "1.2.3.4")), res.GetTag())
-	assert.False(t, res.GetAdmin())
+	require.NoError(t, err)
+	assert.Equal(t, "guest_000001", res.Msg.GetName())
 }
 
-func TestAnIdThatIsNotAnAccountHasOnlyATag(t *testing.T) {
-	for _, id := range []string{"", "not-an-account"} {
-		res := getAuthor(t, id)
+func TestAnIdThatIsNotAnAccountIsRefused(t *testing.T) {
+	for _, id := range []string{"", "not-an-account", "00000000-0000-0000-0000-000000000000"} {
+		_, err := getAuthor(t, id)
 
-		assert.Empty(t, res.GetUsername(), id)
-		assert.Equal(t, string(players.TagOf("pepper", "1.2.3.4")), res.GetTag(), id)
+		assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err), id)
 	}
 }

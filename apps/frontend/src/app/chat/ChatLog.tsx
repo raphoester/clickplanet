@@ -102,7 +102,7 @@ export default function ChatLog(props: ChatLogProps) {
 
                     return <li key={message.id}
                                className={messageClass(props.flashing, message.id, opens)}
-                               style={authorStyle(message.authorName, message.authorTag)}>
+                               style={authorStyle(message.authorName)}>
                         {opens && <div className="chat-message-head">
                             <span className="chat-message-country"
                                   role="img"
@@ -121,7 +121,6 @@ export default function ChatLog(props: ChatLogProps) {
                                     {truncate(message.authorName, AUTHOR_MAX_LENGTH)}
                                 </span>}
                             {message.authorAdmin && <AdminCrown size={13}/>}
-                            <span className="chat-message-tag">#{message.authorTag}</span>
                             <time className="chat-message-time"
                                   dateTime={new Date(message.sentAt).toISOString()}>
                                 {clock.format(message.sentAt)}
@@ -178,7 +177,6 @@ function AnnouncementLine({announcement}: {announcement: ChatAnnouncement}) {
 function authorOf(message: ChatMessage): PlayerLine {
     return {
         name: message.authorName,
-        tag: message.authorTag,
         countryCode: message.countryCode,
         guest: message.authorName.startsWith(GUEST_PREFIX),
         admin: message.authorAdmin,

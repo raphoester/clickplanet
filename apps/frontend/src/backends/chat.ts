@@ -3,12 +3,11 @@ import {Reaction} from "../gen/grpc/chat/v1/chat_pb.ts";
 export {Reaction}
 
 export const MAX_TEXT_LENGTH = 280
-/** A guest's typed name, before the server puts `GUEST_PREFIX` in front of it. */
-export const MAX_NAME_LENGTH = 24
 
 /**
- * What the server puts before every guest's name. No username starts with it,
- * so a guest cannot pass for a player.
+ * What the server puts before every guest's name, the guest's code after it
+ * (`guest_a1b2c3`). No username starts with it, so a guest cannot pass for a
+ * player.
  */
 export const GUEST_PREFIX = "guest_"
 
@@ -16,17 +15,14 @@ export function countRunes(value: string): number {
     return [...value].length
 }
 
-/** The name the log shows for a guest who typed `name`. */
-export function guestName(name: string): string {
-    return GUEST_PREFIX + name
-}
-
 export type ChatMessage = {
     id: string
     sentAt: number
-    /** A username, or `GUEST_PREFIX` and a guest's name. */
+    /**
+     * A username, or `GUEST_PREFIX` and the guest's code: the server picks it,
+     * and no two accounts share one.
+     */
     authorName: string
-    authorTag: string
     /** Sent under the username of an admin of the game. Never a guest. */
     authorAdmin: boolean
     countryCode: string
@@ -86,22 +82,16 @@ export type OutgoingReaction = {
     reaction: Reaction
     /** True puts it on, false takes it off. Asking for what is there changes nothing. */
     on: boolean
-    /** As on `OutgoingMessage`: a player reacts as its account, everyone else as its address. */
-    asAccount: boolean
 }
 
+/**
+ * Carries no name: the click token goes along, and the server posts under the
+ * name of the account it names.
+ */
 export type OutgoingMessage = {
-    /** A guest's name. The server does not read it for a player with a username. */
-    authorName: string
     authorId: string
     countryCode: string
     text: string
-    /**
-     * Sent by a player with a username: the click token goes along, and the
-     * server posts under the username. A guest sends no token, so chatting
-     * never mints a session.
-     */
-    asAccount: boolean
 }
 
 export interface ChatSender {
@@ -146,6 +136,17 @@ export class ChatMessageGoneError extends Error {
     constructor(options?: {cause?: unknown}) {
         super("the message is gone", options)
         this.name = "ChatMessageGoneError"
+    }
+}
+
+/**
+ * No session could name the sender: the mint failed, or the server refused the
+ * token twice. Nothing was posted, and a later try may well work.
+ */
+export class ChatNoSessionError extends Error {
+    constructor(options?: {cause?: unknown}) {
+        super("no session to chat with", options)
+        this.name = "ChatNoSessionError"
     }
 }
 

@@ -101,7 +101,7 @@ export class ConnectPlayerBackend implements PlayerBackend, PresenceBackend, Pla
 
         const headers = new Headers({[SESSION_HEADER]: token})
         try {
-            await this.client.announce({countryId: presence.countryCode, guestName: presence.guestName}, {headers})
+            await this.client.announce({countryId: presence.countryCode}, {headers})
             return true
         } catch (e) {
             if (e instanceof ConnectError && e.code === Code.Unauthenticated) this.session.invalidate()
@@ -195,7 +195,7 @@ function profileOf(profile: ProfilePb | undefined): Profile {
 }
 
 function rosterEntryOf(entry: RosterEntryPb): RosterEntry {
-    return {key: entry.key, name: entry.name, tag: entry.tag, countryCode: entry.countryId, guest: entry.guest, admin: entry.admin}
+    return {key: entry.key, name: entry.name, countryCode: entry.countryId, guest: entry.guest, admin: entry.admin}
 }
 
 /** Undefined for a heartbeat, and for any case this build does not know. */

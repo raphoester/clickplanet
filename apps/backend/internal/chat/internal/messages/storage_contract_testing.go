@@ -31,7 +31,6 @@ func contractRecord(text string, at time.Time) Record {
 		ID:         MessageID("id-" + text),
 		SentAt:     at,
 		AuthorName: "Bob",
-		AuthorTag:  "a1b2c3",
 		CountryID:  "fr",
 		Text:       text,
 	}, "some-uuid", "203.0.113.7", "test-agent")

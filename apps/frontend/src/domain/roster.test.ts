@@ -2,8 +2,8 @@ import {describe, expect, it} from "vitest"
 import type {RosterEntry} from "../backends/player.ts"
 import {applyRosterEvent, rosterGroups} from "./roster.ts"
 
-const entry = (name: string, guest: boolean, key = name, tag = "4f2ca1"): RosterEntry =>
-    ({key, name, tag, countryCode: "fr", guest, admin: false})
+const entry = (name: string, guest: boolean, key = name): RosterEntry =>
+    ({key, name, countryCode: "fr", guest, admin: false})
 
 describe("rosterGroups", () => {
     it("puts players with a username in one group and guests in the other", () => {
@@ -35,14 +35,14 @@ describe("applyRosterEvent", () => {
         expect(applyRosterEvent([ana], {kind: "roster", entries: roster})).toBe(roster)
     })
 
-    it("puts a new line where the server would: players first, then by name ignoring case, then by tag", () => {
+    it("puts a new line where the server would: players first, then by name ignoring case, then by key", () => {
         let roster = applyRosterEvent([], {kind: "entry", entry: bo})
         roster = applyRosterEvent(roster, {kind: "entry", entry: entry("Zed", false)})
         roster = applyRosterEvent(roster, {kind: "entry", entry: ana})
-        roster = applyRosterEvent(roster, {kind: "entry", entry: entry("guest_Bo", true, "other", "000000")})
+        roster = applyRosterEvent(roster, {kind: "entry", entry: entry("guest_Bo", true, "a")})
 
-        expect(roster.map((e) => [e.name, e.tag])).toEqual([
-            ["ana", "4f2ca1"], ["Zed", "4f2ca1"], ["guest_Bo", "000000"], ["guest_Bo", "4f2ca1"],
+        expect(roster.map((e) => [e.name, e.key])).toEqual([
+            ["ana", "ana"], ["Zed", "Zed"], ["guest_Bo", "a"], ["guest_Bo", "guest_Bo"],
         ])
     })
 

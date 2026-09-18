@@ -108,19 +108,19 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to build the chat blocklist: %w", err)
 	}
 
-	// Who posts or reacts, username and tag, comes from the player module over the internal listener. A failure
-	// to ask is logged, and the post or the reaction is refused.
+	// Who posts, a username or a guest code, comes from the player module over the internal listener. A failure
+	// to ask is logged, and the post is refused. A reaction is its account's, and asks nothing.
 	authors := log_authors.New(rpc_player_authors.New(props.Internal), props.Logger)
 
 	chatService := chatv1controller.ChatService{
 		SendMessageHandler: send_message_handler.New(send_message_usecase.New(
 			messageStore, updates, cpcountries.New(), authors, cptime.SystemClock{}, config.Service)),
 		GetHistoryHandler: get_history_handler.New(get_history_usecase.New(
-			messageStore, reactionStore, announcementStore, authors, cptime.SystemClock{}, window)),
+			messageStore, reactionStore, announcementStore, cptime.SystemClock{}, window)),
 		ListenForEventsHandler: listen_for_events_handler.New(
 			listen_for_events_usecase.New(updates, props.Server.StreamHeartbeat)),
 		ReactHandler: react_handler.New(react_usecase.New(
-			messageStore, reactionStore, authors, updates, cptime.SystemClock{}, window)),
+			messageStore, reactionStore, updates, cptime.SystemClock{}, window)),
 	}
 
 	err = props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {

@@ -40,8 +40,7 @@ const (
 
 // InternalServiceClient is a client for the player.v1.InternalService service.
 type InternalServiceClient interface {
-	// Who a caller is to the others: the username its account chose, and the tag
-	// of the address it calls from.
+	// Who an account is to the others: the name the game shows for it.
 	GetAuthor(context.Context, *connect.Request[v1.GetAuthorRequest]) (*connect.Response[v1.GetAuthorResponse], error)
 }
 
@@ -77,8 +76,7 @@ func (c *internalServiceClient) GetAuthor(ctx context.Context, req *connect.Requ
 
 // InternalServiceHandler is an implementation of the player.v1.InternalService service.
 type InternalServiceHandler interface {
-	// Who a caller is to the others: the username its account chose, and the tag
-	// of the address it calls from.
+	// Who an account is to the others: the name the game shows for it.
 	GetAuthor(context.Context, *connect.Request[v1.GetAuthorRequest]) (*connect.Response[v1.GetAuthorResponse], error)
 }
 
