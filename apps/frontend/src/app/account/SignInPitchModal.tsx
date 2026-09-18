@@ -27,7 +27,7 @@ export default function SignInPitchModal({state, store, multiplier, onClose}: Si
     return <Modal title={`Click ${times} faster`} onClose={onClose}>
         <div className="account-panel sign-in-pitch" aria-busy={busy}>
             <p className="account-text">
-                Sign in and you get {times} the clicks in hand, refilling {times} as fast. It is free, and your
+                Sign in and your clicks refill {times} as fast. It is free, and your
                 stats and username follow you on every device.
             </p>
             <p className="account-text sign-in-pitch-small">You do not need an account to play.</p>

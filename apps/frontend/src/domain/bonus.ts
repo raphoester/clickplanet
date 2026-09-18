@@ -9,7 +9,7 @@
 export type BonusReward =
     | {
     /**
-     * - `tripleClicks`: the click allowance is multiplied.
+     * - `tripleClicks`: the clicks refill faster.
      * - `spreadClicks`: every click also takes the tiles touching the one
      *   clicked. The server picks those tiles and sends them down the stream,
      *   so nothing here knows which they are.
@@ -53,7 +53,7 @@ export type ActiveBonus = {
     endsAt: number
 }
 
-/** By how much a reward multiplies the click allowance. */
+/** By how much a reward multiplies how fast clicks refill. */
 export function multiplierOf(reward: BonusReward): number {
     switch (reward.kind) {
         case "tripleClicks":
@@ -84,7 +84,7 @@ export function describeReward(reward: BonusReward): {
         case "tripleClicks":
             return {
                 title: "Triple clicks",
-                detail: `${multiplierOf(reward)}× your click rate`,
+                detail: `Clicks refill ${multiplierOf(reward)}× faster`,
                 badge: `${multiplierOf(reward)}×`,
             }
         case "spreadClicks":

@@ -22,25 +22,31 @@ export type ClickBudget = {
      */
     tokens: number
 
-    /** The most that can be banked: the server's burst, in clicks. */
+    /**
+     * The most that can be banked: the server's burst, in clicks. It never
+     * moves with the country, a bonus or signing in.
+     */
     capacity: number
 
-    /** Clicks granted back per second. */
+    /**
+     * Clicks granted back per second, at the pace the last click set: its
+     * country's slowdown, signing in and a running bonus all move it.
+     */
     perSecond: number
 
     /**
-     * What a click costs for the country the reading is about. The three
-     * numbers above are already divided by it, so nothing here multiplies;
-     * this is only for saying why the meter is narrower. Absent from a server
-     * too old to price clicks.
+     * How much slower the selected country's players get their clicks back.
+     * `perSecond` already carries the slowdown of the last click's country;
+     * this is only for saying why the refill is slower. Absent from a server
+     * too old to slow a refill.
      */
     price?: ClickPrice
 
     /**
-     * How many times a guest's allowance an account signed in with a provider
-     * holds: 2 is twice the clicks in hand, refilling twice as fast. The same
-     * for every caller, so a guest can be told what signing in is worth.
-     * Absent from a server that grants nothing for it.
+     * How many times faster than a guest an account signed in with a provider
+     * refills, into a bank of the same size. The same for every caller, so a
+     * guest can be told what signing in is worth. Absent from a server that
+     * grants nothing for it.
      */
     linkedMultiplier?: number
 
@@ -52,16 +58,16 @@ export type ClickBudget = {
     readAt: number
 }
 
-/** A click costs more tokens the more of the map its country holds. */
+/** A country's players get their clicks back slower the more of the map it holds. Every click costs one. */
 export type ClickPrice = {
-    /** Tokens per click: 1 is the plain rate, 1.5 is half as slow again. */
-    cost: number
+    /** How many times slower the refill is: 1 is the plain rate, 1.5 is half as slow again. */
+    slowdown: number
 
     /** The country's fraction of the whole map, 0 to 1. */
     share: number
 
-    /** Where the next step starts, and what it costs. Undefined at the top step. */
-    next?: {share: number, cost: number}
+    /** Where the next step starts, and its slowdown. Undefined at the top step. */
+    next?: {share: number, slowdown: number}
 }
 
 /** The monotonic clock every reading is stamped against. */
@@ -131,9 +137,9 @@ export interface ClickBudgetSource {
     watchClickBudget(callback: (budget: ClickBudget) => void): () => void
 
     /**
-     * Says which country the meter is about, since that sets the price. The
-     * reading changes with it: a click for a country holding most of the map
-     * costs more than one for a country holding none.
+     * Says which country the meter is about, since that sets the price it
+     * explains. The count does not change with it: the refill slows from the
+     * next click for that country on.
      */
     priceFor(countryId: string): void
 }

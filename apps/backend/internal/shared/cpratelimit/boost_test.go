@@ -10,12 +10,12 @@ import (
 
 const boostKey = "1.2.3.4"
 
-func TestABoostWidensTheAllowanceAndTheRate(t *testing.T) {
+func TestABoostSpeedsUpTheRateAndLeavesTheBankItsSize(t *testing.T) {
 	limiter, clock := newTestLimiter()
 
 	state := limiter.Boost(boostKey, 3, clock.Now().Add(time.Minute))
 
-	assert.Equal(t, 30, state.Capacity)
+	assert.Equal(t, 10, state.Capacity)
 	assert.InDelta(t, 3.0, state.PerSecond, 1e-9)
 }
 
@@ -26,12 +26,11 @@ func TestABoostLeavesTheTokensAlreadyInHandWhereTheyAre(t *testing.T) {
 		require.True(t, allow(limiter, boostKey))
 	}
 
-	// Four left of ten. A boost widens the ceiling and the rate; it does not
-	// hand out a full bucket.
+	// Four left of ten. A boost speeds up the rate; it does not hand out a full
+	// bucket.
 	state := limiter.Boost(boostKey, 3, clock.Now().Add(time.Minute))
 
 	assert.InDelta(t, 4.0, state.Tokens, 1e-9)
-	assert.Equal(t, 30, state.Capacity)
 }
 
 func TestABoostedBucketRefillsAtTheMultipliedRate(t *testing.T) {
@@ -64,7 +63,7 @@ func TestTheRefillIsSplitAtTheMomentTheBoostLapses(t *testing.T) {
 	assert.InDelta(t, 8.0, limiter.Peek(Key{Name: boostKey}).Tokens, 1e-9)
 }
 
-func TestTheAllowanceComesBackDownWhenTheBoostEnds(t *testing.T) {
+func TestTheRateComesBackDownWhenTheBoostEnds(t *testing.T) {
 	limiter, clock := newTestLimiter()
 
 	limiter.Boost(boostKey, 3, clock.Now().Add(time.Second))
@@ -72,15 +71,12 @@ func TestTheAllowanceComesBackDownWhenTheBoostEnds(t *testing.T) {
 
 	state := limiter.Peek(Key{Name: boostKey})
 
-	// Both the ceiling and the rate are the plain ones again, and the tokens
-	// banked above the burst are gone with it — a bucket still holding thirty
-	// would spend the boost long after it was over.
 	assert.Equal(t, 10, state.Capacity)
 	assert.InDelta(t, 1.0, state.PerSecond, 1e-9)
-	assert.LessOrEqual(t, state.Tokens, 10.0)
+	assert.False(t, state.Boosted)
 }
 
-func TestABoostedCallerMaySpendPastThePlainBurst(t *testing.T) {
+func TestABoostedCallerNeverBanksPastTheBurst(t *testing.T) {
 	limiter, clock := newTestLimiter()
 
 	limiter.Boost(boostKey, 3, clock.Now().Add(time.Minute))
@@ -91,7 +87,7 @@ func TestABoostedCallerMaySpendPastThePlainBurst(t *testing.T) {
 		spent++
 	}
 
-	assert.Equal(t, 30, spent)
+	assert.Equal(t, 10, spent)
 }
 
 func TestTheSweepDoesNotForgetABoostStillRunning(t *testing.T) {
@@ -100,11 +96,11 @@ func TestTheSweepDoesNotForgetABoostStillRunning(t *testing.T) {
 	limiter.Boost(boostKey, 3, clock.Now().Add(time.Hour))
 	clock.Advance(time.Minute)
 
-	// A boosted bucket sits above the plain burst, which is exactly what the
-	// sweep treats as "same as a fresh one". Forgetting it would end the boost.
+	// A full boosted bucket is what the sweep treats as "same as a fresh one".
+	// Forgetting it would end the boost.
 	limiter.sweep()
 
-	assert.Equal(t, 30, limiter.Peek(Key{Name: boostKey}).Capacity)
+	assert.InDelta(t, 3.0, limiter.Peek(Key{Name: boostKey}).PerSecond, 1e-9)
 }
 
 func TestTheSweepStillForgetsABucketWhoseBoostIsOver(t *testing.T) {
@@ -123,7 +119,7 @@ func TestBoostingOneCallerLeavesEveryOtherAlone(t *testing.T) {
 
 	limiter.Boost(boostKey, 3, clock.Now().Add(time.Minute))
 
-	assert.Equal(t, 10, limiter.Peek(Key{Name: "5.6.7.8"}).Capacity)
+	assert.InDelta(t, 1.0, limiter.Peek(Key{Name: "5.6.7.8"}).PerSecond, 1e-9)
 }
 
 func TestAnExpiredOrAbsentBoostChangesNothing(t *testing.T) {
@@ -132,8 +128,8 @@ func TestAnExpiredOrAbsentBoostChangesNothing(t *testing.T) {
 	limiter.Boost(boostKey, 3, clock.Now().Add(-time.Second))
 	limiter.Boost("5.6.7.8", 1, clock.Now().Add(time.Hour))
 
-	assert.Equal(t, 10, limiter.Peek(Key{Name: boostKey}).Capacity)
-	assert.Equal(t, 10, limiter.Peek(Key{Name: "5.6.7.8"}).Capacity)
+	assert.InDelta(t, 1.0, limiter.Peek(Key{Name: boostKey}).PerSecond, 1e-9)
+	assert.InDelta(t, 1.0, limiter.Peek(Key{Name: "5.6.7.8"}).PerSecond, 1e-9)
 }
 
 func TestASecondBoostReplacesTheFirst(t *testing.T) {
@@ -142,7 +138,7 @@ func TestASecondBoostReplacesTheFirst(t *testing.T) {
 	limiter.Boost(boostKey, 3, clock.Now().Add(time.Second))
 	state := limiter.Boost(boostKey, 2, clock.Now().Add(time.Hour))
 
-	assert.Equal(t, 20, state.Capacity)
+	assert.InDelta(t, 2.0, state.PerSecond, 1e-9)
 }
 
 func TestTheBoostIsOverAtItsDeadlineRatherThanAfterIt(t *testing.T) {
@@ -151,10 +147,10 @@ func TestTheBoostIsOverAtItsDeadlineRatherThanAfterIt(t *testing.T) {
 	limiter.Boost(boostKey, 3, clock.Now().Add(time.Minute))
 
 	clock.Advance(time.Minute - time.Millisecond)
-	require.Equal(t, 30, limiter.Peek(Key{Name: boostKey}).Capacity, "still running a millisecond short of the deadline")
+	require.InDelta(t, 3.0, limiter.Peek(Key{Name: boostKey}).PerSecond, 1e-9, "still running a millisecond short of the deadline")
 
 	clock.Advance(time.Millisecond)
-	require.Equal(t, 10, limiter.Peek(Key{Name: boostKey}).Capacity, "over on the deadline itself")
+	require.InDelta(t, 1.0, limiter.Peek(Key{Name: boostKey}).PerSecond, 1e-9, "over on the deadline itself")
 }
 
 func TestTheReadingSaysWhetherABoostRuns(t *testing.T) {
@@ -173,7 +169,7 @@ func TestTheReadingSaysWhetherABoostRuns(t *testing.T) {
 	assert.False(t, over.Boosted, "over on the deadline itself")
 }
 
-func TestABoostOnOneBucketDoesNotWidenAnotherSpentWithIt(t *testing.T) {
+func TestABoostOnOneBucketDoesNotSpeedUpAnotherSpentWithIt(t *testing.T) {
 	limiter, _ := newTestLimiter()
 	account, scope := Key{Name: "account"}, Key{Name: "scope", Scale: 10}
 
@@ -181,7 +177,38 @@ func TestABoostOnOneBucketDoesNotWidenAnotherSpentWithIt(t *testing.T) {
 
 	_, states := limiter.TakeAll(1, account, scope)
 	assert.True(t, states[0].Boosted)
-	assert.Equal(t, 30, states[0].Capacity)
+	assert.InDelta(t, 3.0, states[0].PerSecond, 1e-9)
 	assert.False(t, states[1].Boosted)
-	assert.Equal(t, 100, states[1].Capacity)
+	assert.InDelta(t, 10.0, states[1].PerSecond, 1e-9)
+}
+
+func TestAPaceMultipliesTheRateFromTheTakeOnAndLeavesTheBurst(t *testing.T) {
+	limiter, clock := newTestLimiter()
+
+	for i := 0; i < 5; i++ {
+		require.True(t, allow(limiter, boostKey))
+	}
+	clock.Advance(2 * time.Second)
+
+	// The two seconds before this take refill at the plain rate: the pace only
+	// applies from the take that sets it.
+	_, states := limiter.TakeAll(1, Key{Name: boostKey, Pace: 0.5})
+	assert.InDelta(t, 6.0, states[0].Tokens, 1e-9)
+	assert.InDelta(t, 0.5, states[0].PerSecond, 1e-9)
+	assert.Equal(t, 10, states[0].Capacity)
+
+	clock.Advance(2 * time.Second)
+	assert.InDelta(t, 7.0, limiter.Peek(Key{Name: boostKey, Pace: 4}).Tokens, 1e-9, "a peek sets no pace")
+
+	_, states = limiter.TakeAll(1, Key{Name: boostKey})
+	assert.InDelta(t, 0.5, states[0].PerSecond, 1e-9, "a take with no pace keeps the one in force")
+}
+
+func TestAPaceAndABoostMultiply(t *testing.T) {
+	limiter, clock := newTestLimiter()
+
+	limiter.TakeAll(1, Key{Name: boostKey, Pace: 2.0 / 3})
+	state := limiter.Boost(boostKey, 3, clock.Now().Add(time.Minute))
+
+	assert.InDelta(t, 2.0, state.PerSecond, 1e-9)
 }
