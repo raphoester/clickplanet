@@ -25,8 +25,9 @@ import {nearestTile, tilesWithin} from "../domain/blast.ts";
 
 const TILE_COUNT = 257_000
 
-const CLICKS_PER_SECOND = 1
-const CLICK_BURST = 10
+/** Production's `rateLimiter`: one click every 5s, 60 in hand. */
+const CLICKS_PER_SECOND = 0.2
+const CLICK_BURST = 60
 
 /** Production's `toll.steps`: from each share of the map, a click costs that many tokens. */
 const TOLL_STEPS = [

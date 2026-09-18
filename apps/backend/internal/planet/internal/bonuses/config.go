@@ -18,7 +18,7 @@ type Config struct {
 	// What a box can be worth. Each kind is drawn with a chance of its weight over
 	// the sum of the weights, so {triple_clicks: 3, spread_clicks: 1} makes one
 	// box in four a spread. A kind left out, or at 0, is never offered. Empty
-	// offers every kind equally.
+	// takes defaultKinds.
 	Kinds map[Kind]float64
 
 	OfferTTL time.Duration
@@ -57,7 +57,7 @@ type SpreadConfig struct {
 }
 
 type BombConfig struct {
-	// How wide a circle a bomb clears, in tile spacings: 10.4 is ~390 tiles inland.
+	// How wide a circle a bomb clears, in tile spacings: 4 is ~57 tiles inland, about one bank.
 	Rings float64
 }
 
@@ -66,22 +66,29 @@ type EncloseConfig struct {
 	MaxTiles int
 }
 
+// Sized in banks: one full click allowance, 60 clicks at one every 5s. A bomb never
+// clears more than one player can take back with one bank.
 const (
-	defaultMinInterval       = 90 * time.Second
-	defaultMaxInterval       = 210 * time.Second
-	defaultMissRetry         = 45 * time.Second
-	defaultOfferTTL          = 15 * time.Second
-	defaultActiveWithin      = 2 * time.Minute
-	defaultForgetAfter       = 5 * time.Minute
+	// About ten boxes an hour, and a caught one pushes the next a window further.
+	defaultMinInterval  = 4 * time.Minute
+	defaultMaxInterval  = 8 * time.Minute
+	defaultMissRetry    = 2 * time.Minute
+	defaultOfferTTL     = 15 * time.Second
+	defaultActiveWithin = 2 * time.Minute
+	defaultForgetAfter  = 5 * time.Minute
+	// Seven 2m triples: only the cap on a script, which catches every box. It only
+	// stops the next offer, and never cuts a bonus that runs.
 	defaultMaxBoostPerHour   = 15 * time.Minute
 	defaultMaxChargesPerHour = 6
 	defaultChargeTTL         = 24 * time.Hour
 	defaultSweepInterval     = time.Second
 
-	defaultTripleDuration  = 20 * time.Second
+	// ×3 for 2m refills 48 clicks more than the plain 24: close to one bank. A boost
+	// raises the cap and the rate, it grants no tokens at once.
+	defaultTripleDuration  = 2 * time.Minute
 	defaultMultiplier      = 3
 	defaultSpreadClicks    = 8
-	defaultBombRings       = 10.4
+	defaultBombRings       = 4
 	defaultEncloseMaxTiles = 25
 )
 
@@ -93,10 +100,7 @@ func (c Config) withDefaults() Config {
 		c.MaxInterval = max(c.MinInterval, defaultMaxInterval)
 	}
 	if len(c.Kinds) == 0 {
-		c.Kinds = make(map[Kind]float64, len(Kinds))
-		for _, kind := range Kinds {
-			c.Kinds[kind] = 1
-		}
+		c.Kinds = defaultKinds()
 	}
 	if c.MissRetry <= 0 {
 		c.MissRetry = defaultMissRetry
@@ -129,6 +133,16 @@ func (c Config) withDefaults() Config {
 	c.Enclose = c.Enclose.withDefaults()
 
 	return c
+}
+
+// About one bomb an hour of active play.
+func defaultKinds() map[Kind]float64 {
+	return map[Kind]float64{
+		KindTripleClicks:  5,
+		KindSpreadClicks:  3,
+		KindEncloseClicks: 2,
+		KindBomb:          1,
+	}
 }
 
 func (c TripleConfig) withDefaults() TripleConfig {

@@ -54,9 +54,14 @@ ledgerStorage:
 # IPv4, and that address's /64 over IPv6. A token with no account spends one
 # scope bucket at perSecond and burst, as before accounts. An account signed in
 # with Google or Discord holds linkedMultiplier times a guest's allowance.
+# One click every 5 seconds, and a bank of 60 that fills in five
+# minutes. Scarce clicks make a group coordinate and take most of the edge from
+# a bot or a spammer; a full bank is a burst to spend when you come back. A
+# signed-in player gets twice both (one every 2.5s, 120 in hand). perSecond is a
+# float: 0.2 is one every 5s.
 rateLimiter:
-  perSecond: 1
-  burst: 10
+  perSecond: 0.2
+  burst: 60
   scopeMultiplier: 10
   linkedMultiplier: 2
 
@@ -185,7 +190,10 @@ antiBot:
   metronome:
     enabled: true
     detector:
-      maxGap: 3s
+      # Above the 5s refill of rateLimiter, with room for jitter. At 3s, a loop
+      # trying once per refill broke its run on every gap and never read. A
+      # hand still pauses past 7s, and maxSpread is what bans, not this.
+      maxGap: 7s
       # Left wide deliberately, unlike the retaker's. The caller measured on
       # 2026-09-11 read 248ms here. Gaps are timed between clicks *tried*, 429s
       # included, since 2026-09-14: before that the throttle's refusals turned a
@@ -232,7 +240,9 @@ antiBot:
       minCatches: 5
       maxMedian: 3s
       certainMedian: 1500ms
-      trackWindow: 30m
+      # Five boxes at bonus's slowest pace, 5 x (8m + 2m triple + 15s) ~ 51m.
+      # At 30m the rule could never fire once boxes come every 4m to 8m.
+      trackWindow: 1h
       sweepInterval: 1m
 
   # Scopes that act together. See cmd/api/example.yaml. On 2026-09-14 pairs of
@@ -278,26 +288,31 @@ antiBot:
       trackWindow: 15m
       sweepInterval: 1m
 
-# A question-mark box flies past the planet every so often, and whoever catches
-# it clicks at three times their allowance for 20 seconds.
+# A question-mark box flies past the planet every so often. Every bonus is
+# sized in banks: one bank is a full click allowance, 60 clicks at one every 5s
+# (120 signed in). A bomb never clears more than one player can take back with
+# one bank. See cmd/api/example.yaml for what each field does.
 bonus:
   # Per caller, not per server. A single ticker made the rate each player saw
   # 1/(interval x players), so the feature got rarer the busier the game was.
-  minInterval: 15s
-  maxInterval: 35s
+  # 4m to 8m is about ten boxes an hour, and a caught one pushes the next a
+  # window after the bonus ends. At 15s-35s a box came every ~25s: a triple
+  # running most of the time, and a bomb every four minutes.
+  minInterval: 4m
+  maxInterval: 8m
 
   # One miss is retried sooner; a second in a row waits the ordinary window.
-  missRetry: 7s
+  # Half the shortest window, as 7s was to 15s.
+  missRetry: 2m
 
-  # A weight per kind: a kind's chance is its weight over the sum, so one box in
-  # ten is a bomb, and one in five each a spread or an enclose. A frontend too old
-  # to know a kind skips that box, which the schedule reads as a miss - so this
-  # can ship first.
+  # A weight per kind: a kind's chance is its weight over the sum (11), so at
+  # ten boxes an hour about one is a bomb. A frontend too old to know a kind
+  # skips that box, which the schedule reads as a miss - so this can ship first.
   kinds:
     triple_clicks: 5
-    spread_clicks: 2
-    bomb: 1
+    spread_clicks: 3
     enclose_clicks: 2
+    bomb: 1
 
   # Has to outlast the flight the client draws, or a box caught on its last
   # frame is refused.
@@ -305,9 +320,11 @@ bonus:
 
   # Multiplies the burst and the refill rate together, and the client reads both
   # off the answer - so changing these changes the meter with no frontend
-  # release, exactly as rateLimiter does.
+  # release, exactly as rateLimiter does. It grants no tokens at once, and the
+  # tokens come back down to the plain burst when it ends: x3 for 2m refills 72
+  # clicks where 24 come plainly, 48 more, close to one bank. 20s was worth 8.
   triple:
-    duration: 20s
+    duration: 2m
     multiplier: 3
 
   # Spread, bomb and enclose are charges, with no timer: kept until spent, one of
@@ -317,10 +334,11 @@ bonus:
   spread:
     clicks: 8
 
-  # The radius of the circle a bomb clears, in tile spacings (10.4 is ~390 tiles
-  # inland).
+  # The radius of the circle a bomb clears, in tile spacings. 4 is ~57 tiles
+  # inland, about one bank (up to ~70 near the icosahedron corners). 10.4 was
+  # ~390, six banks.
   bomb:
-    rings: 10.4
+    rings: 4
 
   # enclose_clicks: one shape of at most 25 tiles, whose wall costs about 20
   # clicks. A click that closes nothing keeps the charge.
@@ -328,14 +346,16 @@ bonus:
     maxTiles: 25
 
   # A tab left open overnight is not playing, and a box sent to it is one nobody
-  # catches. Until the frontend ships, this is every caller.
+  # catches.
   activeWithin: 2m
 
   # Survives a reconnect, or a player could reload until they drew a short wait.
   forgetAfter: 5m
 
   # Nothing here is a race, but a script catches every box it is offered where a
-  # person catches some. This bounds what that is worth.
+  # person catches some. This bounds what that is worth. It only stops the next
+  # offer and never cuts a bonus that runs. 15m is seven 2m triples: at ten boxes
+  # an hour, half of them triples, a person does not reach it.
   maxBoostPerHour: 15m
 
   # The same for charges, which have no time to count, and how long one is kept

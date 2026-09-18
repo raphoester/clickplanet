@@ -1,12 +1,15 @@
 package bonuses_test
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/embedded_geodesic_map"
 )
 
 type ground struct {
@@ -45,4 +48,37 @@ func TestABombInTheSeaClearsNothing(t *testing.T) {
 
 	assert.Equal(t, clicks.Blast{CountryID: "fr", Point: clicks.Vec3{X: 1}, Radius: bomb.Radius}, blast,
 		"drawn where it was aimed, on the unit sphere")
+}
+
+// The design rule: a bomb never clears more than one player can take back with one bank of 60
+// clicks. Measured on the shipped map, on tiles with land all around, because the lattice
+// stretches near the icosahedron corners and one tile tells nothing.
+func TestTheDefaultBombClearsAboutOneBankInland(t *testing.T) {
+	geography, err := embedded_geodesic_map.New(257948, nil).LoadGeography()
+	require.NoError(t, err)
+
+	rules := bonuses.NewBombRules(bonuses.BombConfig{}, geography.Spacing())
+
+	var cleared []int
+	for id := uint32(1); id <= geography.Stats().Tiles; id += 499 {
+		if !inland(geography, id) {
+			continue
+		}
+		centre, _ := geography.Position(id)
+		cleared = append(cleared, len(geography.Within(centre, rules.Radius)))
+	}
+	slices.Sort(cleared)
+
+	require.Greater(t, len(cleared), 200)
+	assert.InDelta(t, 60, cleared[len(cleared)/2], 5, "the median bomb")
+}
+
+func inland(geography *clicks.Geography, id uint32) bool {
+	for _, tile := range geography.Disc(id, 8) {
+		if len(geography.Neighbours(tile)) != clicks.MaxDegree {
+			return false
+		}
+	}
+
+	return true
 }

@@ -70,11 +70,12 @@ ledgerStorage:
 # scopeMultiplier times it. A token with no account spends one scope bucket at
 # the policy below, as before accounts.
 rateLimiter:
-  # Sustained clicks per second allowed from one account.
-  perSecond: 1
-  # Clicks an account arriving after a quiet spell may spend at once, so that a
-  # normal flurry is not refused.
-  burst: 10
+  # Sustained clicks per second allowed from one account. A float: 0.2 is one
+  # click every 5s. Unset is 1.
+  perSecond: 0.2
+  # Clicks an account may bank while away and spend at once: 60 at 0.2/s is a
+  # bank that fills in five minutes. Unset is 10.
+  burst: 60
   # The scope's burst and rate over one account's: players behind one address,
   # such as a campus, share it. 1 or more.
   scopeMultiplier: 10
@@ -132,18 +133,22 @@ vpnBlocklist:
 bonus:
   # A caller's next box is due this long after the last one, drawn uniformly.
   # The spread is for feel: a script does not predict the schedule, it watches
-  # the stream, so nothing here is hidden from one.
-  minInterval: 90s
-  maxInterval: 210s
+  # the stream, so nothing here is hidden from one. 4m to 8m is about ten boxes
+  # an hour, fewer for a player who catches them: the next is due a window after
+  # the bonus ends.
+  minInterval: 4m
+  maxInterval: 8m
 
   # How soon to try again after a box was not caught. It applies to one miss;
   # a second in a row waits the ordinary window, so a player who is not
-  # catching them does not collect a box every 45s all session.
-  missRetry: 45s
+  # catching them does not collect a box every 2m all session. Half the
+  # shortest window.
+  missRetry: 2m
 
   # What a box can be worth, as a weight per kind. A kind's chance is its weight
   # over the sum of the weights: 3 and 1 make one box in four a spread. A kind
-  # left out, or at 0, is never offered. Empty offers every kind equally.
+  # left out, or at 0, is never offered. Empty takes the weights below, which are
+  # the defaults: about one bomb an hour of active play.
   #   triple_clicks - the allowance is multiplied by `triple.multiplier`, for a time
   #   spread_clicks - a charge: the next `spread.clicks` clicks also take the tiles
   #                   touching the one clicked
@@ -155,9 +160,9 @@ bonus:
   # so nobody can stockpile bombs and drop them all at once.
   kinds:
     triple_clicks: 5
-    spread_clicks: 2
-    bomb: 1
+    spread_clicks: 3
     enclose_clicks: 2
+    bomb: 1
 
   # How long the token stays good. It has to outlast the flight the client
   # draws, or a box caught on its last frame is refused.
@@ -168,8 +173,15 @@ bonus:
   # client reads them off the answer - so changing these changes the meter with
   # no frontend release, exactly as rateLimiter does. The next box is due a
   # window after the bonus ends, so two can never overlap.
+  #
+  # A boost raises the cap and the refill rate; it grants no tokens at once, and
+  # the tokens come back down to the plain burst when it ends. So a triple is
+  # worth (multiplier - 1) x rate x duration more clicks, for a player who spends
+  # them: at one click every 5s, x3 for 2m is 48 clicks more, close to one bank
+  # of 60. A signed-in player's rate and burst are both doubled, so it stays
+  # close to their bank of 120.
   triple:
-    duration: 20s
+    duration: 2m
     multiplier: 3
 
   # spread_clicks: how many of the next clicks spread. Each takes up to seven
@@ -180,9 +192,12 @@ bonus:
 
   bomb:
     # The radius of the circle a bomb clears, whoever holds the tiles, in tile
-    # spacings: 10.4 is ~390 tiles inland. The radius in radians is this times
+    # spacings: 4 is ~57 tiles inland (the median; 70 near the icosahedron
+    # corners, where the lattice stretches), about one bank of 60. A bomb never
+    # clears more than one player can take back with one bank. The area grows
+    # with the square of this: 10.4 was ~390. The radius in radians is this times
     # the map's own tile spacing, so the client's ring and the clear always agree.
-    rings: 10.4
+    rings: 4
 
   # enclose_clicks: one shape, and the most tiles it may hold. A click that takes
   # the last tile of a wall around a pocket of other tiles takes the pocket too,
@@ -205,7 +220,9 @@ bonus:
 
   # The most triple clicks time one caller may be granted per hour. Nothing here
   # is a race any more, but a script still catches every box it is offered where
-  # a person catches some - this bounds what that is worth.
+  # a person catches some - this bounds what that is worth. It only stops the next
+  # offer, and never cuts a bonus that runs. 15m is seven 2m triples: at ten
+  # boxes an hour, half of them triples, a person does not reach it.
   maxBoostPerHour: 15m
 
   # The same bound for charges, which have no time to count: past this many in
@@ -417,9 +434,10 @@ antiBot:
       # The same median at a speed no hand holds box after box, which bans
       # on its own.
       certainMedian: 1500ms
-      # Must hold minCatches boxes at bonus.maxInterval plus bonus.offerTTL, or
-      # the rule can never fire.
-      trackWindow: 30m
+      # Must hold minCatches boxes at bonus.maxInterval, plus the longest bonus
+      # (triple.duration) and bonus.offerTTL, or the rule can never fire:
+      # 5 x (8m + 2m + 15s) is ~51m.
+      trackWindow: 1h
       sweepInterval: 1m
 
   # Scopes that act together. Every other watchdog judges one scope, so a pool

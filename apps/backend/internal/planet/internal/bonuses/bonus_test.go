@@ -387,7 +387,18 @@ func TestEveryKindConfiguredIsOffered(t *testing.T) {
 		seen.Add(registry.drawKind(everyKind()))
 	}
 
-	assert.Equal(t, len(Kinds), seen.Len(), "an empty bonus.kinds offers every kind")
+	assert.Equal(t, len(Kinds), seen.Len(), "an empty bonus.kinds takes the defaults, which offer every kind")
+}
+
+func TestAnEmptyKindsTakesTheDefaultWeights(t *testing.T) {
+	registry := New(Config{}, cptime.NewFixedClock(epoch))
+
+	assert.Equal(t, map[Kind]float64{
+		KindTripleClicks:  5,
+		KindSpreadClicks:  3,
+		KindEncloseClicks: 2,
+		KindBomb:          1,
+	}, registry.config.Kinds)
 }
 
 func TestAChargeBoxHasNoTimeToRun(t *testing.T) {
