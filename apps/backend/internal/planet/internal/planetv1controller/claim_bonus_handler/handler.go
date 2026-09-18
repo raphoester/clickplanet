@@ -9,6 +9,7 @@ import (
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/claim_bonus_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/chargesheld"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/clickbudget"
 )
 
@@ -37,12 +38,10 @@ func (h ClaimBonusHandler) ClaimBonus(
 	}
 
 	return connect.NewResponse(&planetv1.ClaimBonusResponse{
-		Budget:            clickbudget.Encode(out.Budget),
-		Kind:              EncodeKind(out.Kind),
-		DurationSeconds:   uint32(out.Duration / time.Second),
-		Enclosures:        uint32(out.Enclosures),
-		EnclosureMaxTiles: uint32(out.EnclosureMaxTiles),
-		BlastRadius:       out.BlastRadius,
+		Budget:          clickbudget.Encode(out.Budget),
+		Kind:            EncodeKind(out.Kind),
+		DurationSeconds: uint32(out.Duration / time.Second),
+		Charges:         chargesheld.Encode(out.Held),
 	}), nil
 }
 

@@ -1,5 +1,5 @@
 import {describe, expect, it} from "vitest"
-import {ActiveBonus, afterShapeClosed, describeReward, hasLapsed, multiplierOf, secondsLeft} from "./bonus.ts"
+import {ActiveBonus, chargeLabels, describeReward, hasLapsed, isTimed, multiplierOf, NO_CHARGES, secondsLeft} from "./bonus.ts"
 
 const REWARD = {kind: "tripleClicks", seconds: 60} as const
 
@@ -37,70 +37,84 @@ describe("describeReward", () => {
 })
 
 describe("a spread reward", () => {
-    const SPREAD = {kind: "spreadClicks", seconds: 60} as const
+    const SPREAD = {kind: "spreadClicks", clicks: 8} as const
 
     it("multiplies nothing, so the meter keeps the server's plain allowance", () => {
         expect(multiplierOf(SPREAD)).toBe(1)
     })
 
-    it("says what it does, with a badge that fits the meter", () => {
+    it("says what it does and for how many clicks, with a badge that fits the meter", () => {
         const {title, detail, badge} = describeReward(SPREAD)
 
         expect(title).toBe("Spread clicks")
-        expect(detail).toBe("Each click also takes the tiles around it")
+        expect(detail).toBe("Your next 8 clicks also take the tiles around them")
         expect(badge.length).toBeLessThanOrEqual(3)
+    })
+
+    it("is a charge, not a timed bonus", () => {
+        expect(isTimed(SPREAD)).toBe(false)
     })
 })
 
 describe("a bomb", () => {
-    const BOMB = {kind: "bomb", seconds: 30, radius: 0.06} as const
+    const BOMB = {kind: "bomb", radius: 0.06} as const
 
     it("multiplies nothing", () => {
         expect(multiplierOf(BOMB)).toBe(1)
     })
 
-    it("says what it does, with a badge that fits the meter", () => {
+    it("says what it does and that it keeps, with a badge that fits the meter", () => {
         const {title, detail, badge} = describeReward(BOMB)
 
         expect(title).toBe("Bomb")
-        expect(detail).toBe("Resets the tiles in an area")
+        expect(detail).toBe("Resets the tiles in an area. Kept until you drop it")
         expect(badge.length).toBeLessThanOrEqual(3)
     })
 })
 
 describe("an enclose reward", () => {
-    const ENCLOSE = {kind: "encloseClicks", seconds: 30, shapes: 3, maxTiles: 10} as const
+    const ENCLOSE = {kind: "encloseClicks", maxTiles: 25} as const
 
     it("multiplies nothing, so the meter keeps the server's plain allowance", () => {
         expect(multiplierOf(ENCLOSE)).toBe(1)
     })
 
-    it("says what it does, how many shapes and how big", () => {
+    it("says what it does and how big a shape", () => {
         const {title, detail, badge} = describeReward(ENCLOSE)
 
         expect(title).toBe("Enclose")
-        expect(detail).toContain("3 shapes")
-        expect(detail).toContain("10 tiles")
-        expect(detail).not.toContain("30")
+        expect(detail).toContain("25 tiles")
         expect(badge.length).toBeLessThanOrEqual(3)
     })
+})
 
-    it("counts the shapes left down on the badge", () => {
-        const running: ActiveBonus = {reward: ENCLOSE, endsAt: 30_000}
+describe("only a triple runs for a time", () => {
+    it("tells the timed reward from the charges", () => {
+        expect(isTimed(REWARD)).toBe(true)
+        expect(isTimed({kind: "bomb", radius: 0.03})).toBe(false)
+        expect(isTimed({kind: "encloseClicks", maxTiles: 25})).toBe(false)
+    })
+})
 
-        const after = afterShapeClosed(running, 2)
-
-        expect(after?.reward).toMatchObject({shapes: 2})
-        expect(after?.endsAt).toBe(30_000)
-        expect(describeReward(after!.reward).badge).toContain("2")
+describe("chargeLabels", () => {
+    it("says nothing when nothing is held", () => {
+        expect(chargeLabels(NO_CHARGES)).toEqual([])
     })
 
-    it("is over once its last shape is closed, whatever the clock says", () => {
-        expect(afterShapeClosed({reward: ENCLOSE, endsAt: 30_000}, 0)).toBeUndefined()
+    it("says each charge held, the bomb first", () => {
+        expect(chargeLabels({
+            bomb: true,
+            enclose: true,
+            spreadClicksLeft: 5,
+        })).toEqual([
+            {kind: "bomb", label: "Bomb ready"},
+            {kind: "encloseClicks", label: "Enclose ready"},
+            {kind: "spreadClicks", label: "Spread: 5 clicks left"},
+        ])
     })
 
-    it("leaves any other bonus alone", () => {
-        expect(afterShapeClosed(RUNNING, 0)).toBe(RUNNING)
+    it("counts the last spread click as one click", () => {
+        expect(chargeLabels({...NO_CHARGES, spreadClicksLeft: 1})).toEqual([{kind: "spreadClicks", label: "Spread: 1 click left"}])
     })
 })
 

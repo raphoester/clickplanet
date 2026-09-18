@@ -121,7 +121,7 @@ func TestASinkFramesAClosedShape(t *testing.T) {
 	require.NoError(t, listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{
 		Enclosed: &bonuses.Enclosed{
 			CountryID: "jp", ClosingTile: 4, Wall: []uint32{4, 5, 6}, Filled: []uint32{9, 10},
-			Yours: true, Left: 2,
+			Yours: true,
 		},
 	}))
 
@@ -132,7 +132,6 @@ func TestASinkFramesAClosedShape(t *testing.T) {
 	assert.Equal(t, []uint32{4, 5, 6}, enclosed.GetWallTileIds())
 	assert.Equal(t, []uint32{9, 10}, enclosed.GetFilledTileIds())
 	assert.True(t, enclosed.GetYours())
-	assert.Equal(t, uint32(2), enclosed.GetEnclosuresLeft())
 }
 
 func TestASinkFramesASpreadClick(t *testing.T) {

@@ -1,4 +1,4 @@
-import {BonusReward} from "../domain/bonus.ts"
+import {BonusReward, BonusRules, Charges} from "../domain/bonus.ts"
 
 export interface TileClicker {
     clickTile(tileId: number, countryId: string): Promise<void>
@@ -81,8 +81,8 @@ export type Enclosure = {
     wall: number[]
     /** The tiles taken, nearest the closing tile first. */
     filled: number[]
-    /** Set only when this client closed it: how many shapes its bonus has left. */
-    yours?: {shapesLeft: number}
+    /** Set only when this client closed it. */
+    yours?: boolean
 }
 
 /**
@@ -102,6 +102,16 @@ export type BonusHandlers = {
     onTaken: (taken: BonusCatch) => void
     onEnclosed: (enclosure: Enclosure) => void
     onSpread: (spread: SpreadClick) => void
+    /** What this player holds now: once it is read, and after every change this client makes or learns of. */
+    onCharges: (charges: Charges) => void
+    /** How big each charge is, once it is read at load. */
+    onRules: (rules: BonusRules) => void
+}
+
+/** What a caught box was worth, and what the player holds once it is granted. */
+export type ClaimedBonus = {
+    reward: BonusReward
+    charges: Charges
 }
 
 export interface BonusListener {
@@ -109,6 +119,9 @@ export interface BonusListener {
      * Follows the bonus feed on the connection that is already open: the box
      * drawn for this client, and every catch, shape closed and spread click on
      * the planet. A boosted click is not here: it is a flag on its tile update.
+     *
+     * The charges held and the rules are not on the stream: they are read, and
+     * handed to a new listener at once when they already have been.
      */
     listenForBonuses(handlers: BonusHandlers): () => void
 
@@ -116,7 +129,7 @@ export interface BonusListener {
      * Redeems a box. Rejects with `BonusLostError` when the server will not
      * honour it — lapsed, already spent, or never this caller's.
      */
-    claimBonus(token: string, countryId: string): Promise<BonusReward>
+    claimBonus(token: string, countryId: string): Promise<ClaimedBonus>
 }
 
 /** A direction from the centre of the globe. Need not be unit length. */
@@ -151,9 +164,9 @@ export interface Bomber {
     listenForBombs(onDropped: (drop: BombDrop) => void): () => void
 
     /**
-     * Drops the bomb this client won where it was aimed. Whether that is land or
-     * sea is the server's call. Rejects with `BonusLostError` when there is none
-     * to drop — never won, already dropped, or held too long.
+     * Drops the bomb this player holds where it was aimed. Whether that is land
+     * or sea is the server's call. Rejects with `BonusLostError` when there is
+     * none to drop — never won, already dropped, or held for more than a day.
      */
     dropBomb(target: GlobePoint, countryId: string): Promise<void>
 }

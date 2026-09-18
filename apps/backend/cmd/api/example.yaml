@@ -56,6 +56,11 @@ ledger:
   retention: 72h
   sweepInterval: 5m
 
+chargeStorage:
+  # How often the charges that changed (a bomb, an enclose, a spread's clicks)
+  # are written to postgres. Also flushed on shutdown, so a deploy keeps them.
+  flushInterval: 1s
+
 ledgerStorage:
   # How often the new takes are written to postgres. Also flushed on shutdown.
   flushInterval: 1s
@@ -149,10 +154,15 @@ bonus:
   # over the sum of the weights: 3 and 1 make one box in four a spread. A kind
   # left out, or at 0, is never offered. Empty takes the weights below, which are
   # the defaults: about one bomb an hour of active play.
-  #   triple_clicks - the refill is multiplied by `triple.multiplier`
-  #   spread_clicks - every click also takes the tiles touching the one clicked
-  #   bomb          - one bomb, dropped anywhere to clear a circle of tiles
-  #   enclose_clicks - a click that closes a shape of your tiles takes the inside
+  #   triple_clicks - the refill is multiplied by `triple.multiplier`, for a time
+  #   spread_clicks - a charge: the next `spread.clicks` clicks also take the tiles
+  #                   touching the one clicked
+  #   bomb          - a charge: one bomb, dropped anywhere to clear a circle of tiles
+  #   enclose_clicks - a charge: the next click that closes a shape of your tiles
+  #                   takes the inside
+  # A charge has no timer: it is kept until it is spent, or for `chargeTTL`. A
+  # player holds at most one of each kind, and no box of a kind held is offered,
+  # so nobody can stockpile bombs and drop them all at once.
   kinds:
     triple_clicks: 5
     spread_clicks: 3
@@ -177,17 +187,13 @@ bonus:
     duration: 2m
     multiplier: 3
 
-  # spread_clicks: how long a caught one runs. Far shorter than triple's: a
-  # click that takes seven tiles is worth much more than three clicks.
+  # spread_clicks: how many of the next clicks spread. Each takes up to seven
+  # tiles, so 8 clicks is about 56 tiles, a bomb's worth. A count and not a time:
+  # a 10s spread let a player with a full bank dump it all inside the window.
   spread:
-    duration: 10s
+    clicks: 8
 
   bomb:
-    # How long a caught bomb may be held before it is lost. It counts towards
-    # maxBoostPerHour like any bonus, and the next box is due a window after it
-    # is dropped.
-    duration: 30s
-
     # The radius of the circle a bomb clears, whoever holds the tiles, in tile
     # spacings: 4 is ~57 tiles inland (the median; 70 near the icosahedron
     # corners, where the lattice stretches), about one bank of 60. A bomb never
@@ -196,16 +202,15 @@ bonus:
     # the map's own tile spacing, so the client's ring and the clear always agree.
     rings: 4
 
-  # enclose_clicks: how long it runs, how many shapes it may close in that time,
-  # and the most tiles one shape may hold. A click that takes the last tile of a
-  # wall around a pocket of other tiles takes the pocket too. Clicking a tile you
-  # already hold closes nothing, so a shape finished before the bonus does not
-  # count. A pocket bigger than maxTiles, or open to the coast, takes nothing and
-  # costs no shape - so a triangle of three tiles, which has no inside, is free.
+  # enclose_clicks: one shape, and the most tiles it may hold. A click that takes
+  # the last tile of a wall around a pocket of other tiles takes the pocket too,
+  # and spends the charge. Clicking a tile you already hold closes nothing, so a
+  # shape finished before the charge does not count. A pocket bigger than
+  # maxTiles, or open to the coast, takes nothing and keeps the charge - so a
+  # triangle of three tiles, which has no inside, is free. The wall around a
+  # 25-tile pocket costs about 20 clicks, so the reward matches the planning.
   enclose:
-    duration: 30s
-    shapes: 3
-    maxTiles: 15
+    maxTiles: 25
 
   # How recently a caller must have clicked to be offered a box. A tab left open
   # overnight is not playing, and a box sent to it is one nobody catches.
@@ -216,12 +221,21 @@ bonus:
   # they got a short one.
   forgetAfter: 5m
 
-  # The most bonus time one caller may be granted per hour. Nothing here is a
-  # race any more, but a script still catches every box it is offered where a
-  # person catches some - this bounds what that is worth. It only stops the next
+  # The most triple clicks time one caller may be granted per hour. Nothing here
+  # is a race any more, but a script still catches every box it is offered where
+  # a person catches some - this bounds what that is worth. It only stops the next
   # offer, and never cuts a bonus that runs. 15m is seven 2m triples: at ten
   # boxes an hour, half of them triples, a person does not reach it.
   maxBoostPerHour: 15m
+
+  # The same bound for charges, which have no time to count: past this many in
+  # the last hour, only triples are offered.
+  maxChargesPerHour: 6
+
+  # How long a charge is kept unspent. Long, so a held bomb is a reason to come
+  # back. Only an account holds charges, and they are kept in postgres (see
+  # chargeStorage), so a restart keeps them.
+  chargeTTL: 24h
 
   # One sweep for everybody, rather than a timer per caller.
   sweepInterval: 1s

@@ -32,8 +32,17 @@ type Config struct {
 
 	ForgetAfter time.Duration
 
+	// The most triple clicks time one caller may be granted per hour.
 	MaxBoostPerHour time.Duration
-	SweepInterval   time.Duration
+
+	// The most charges (bomb, enclose, spread) one caller may be granted per hour. A charge has no time to
+	// count, so it is counted apart: a script that catches every box gets this many, and no more.
+	MaxChargesPerHour int
+
+	// How long a charge is kept unspent before it is lost. Long, so a charge is a reason to come back.
+	ChargeTTL time.Duration
+
+	SweepInterval time.Duration
 }
 
 type TripleConfig struct {
@@ -41,23 +50,19 @@ type TripleConfig struct {
 	Multiplier float64
 }
 
-// Much shorter than a triple: a click that takes seven tiles is worth far more than three clicks.
+// A spread charge is a number of clicks, not a time: 8 clicks of 7 tiles is about a bomb's worth, and a
+// timer only rewarded whoever could dump a full bank of clicks inside it.
 type SpreadConfig struct {
-	Duration time.Duration
+	Clicks int
 }
 
 type BombConfig struct {
-	// How long a bomb may be held before it is lost; it counts towards MaxBoostPerHour like any bonus.
-	Duration time.Duration
-
 	// How wide a circle a bomb clears, in tile spacings: 4 is ~57 tiles inland, about one bank.
 	Rings float64
 }
 
-// A shape bigger than MaxTiles takes nothing, and costs nothing.
+// An enclose charge is one shape. A shape bigger than MaxTiles takes nothing, and costs nothing.
 type EncloseConfig struct {
-	Duration time.Duration
-	Shapes   int
 	MaxTiles int
 }
 
@@ -73,19 +78,18 @@ const (
 	defaultForgetAfter  = 5 * time.Minute
 	// Seven 2m triples: only the cap on a script, which catches every box. It only
 	// stops the next offer, and never cuts a bonus that runs.
-	defaultMaxBoostPerHour = 15 * time.Minute
-	defaultSweepInterval   = time.Second
+	defaultMaxBoostPerHour   = 15 * time.Minute
+	defaultMaxChargesPerHour = 6
+	defaultChargeTTL         = 24 * time.Hour
+	defaultSweepInterval     = time.Second
 
 	// ×3 for 2m refills 48 clicks more than the plain 24: close to one bank. A boost
 	// raises the cap and the rate, it grants no tokens at once.
 	defaultTripleDuration  = 2 * time.Minute
 	defaultMultiplier      = 3
-	defaultSpreadDuration  = 10 * time.Second
-	defaultBombDuration    = 30 * time.Second
+	defaultSpreadClicks    = 8
 	defaultBombRings       = 4
-	defaultEncloseDuration = 30 * time.Second
-	defaultEncloseShapes   = 3
-	defaultEncloseMaxTiles = 15
+	defaultEncloseMaxTiles = 25
 )
 
 func (c Config) withDefaults() Config {
@@ -112,6 +116,12 @@ func (c Config) withDefaults() Config {
 	}
 	if c.MaxBoostPerHour <= 0 {
 		c.MaxBoostPerHour = defaultMaxBoostPerHour
+	}
+	if c.MaxChargesPerHour <= 0 {
+		c.MaxChargesPerHour = defaultMaxChargesPerHour
+	}
+	if c.ChargeTTL <= 0 {
+		c.ChargeTTL = defaultChargeTTL
 	}
 	if c.SweepInterval <= 0 {
 		c.SweepInterval = defaultSweepInterval
@@ -147,17 +157,14 @@ func (c TripleConfig) withDefaults() TripleConfig {
 }
 
 func (c SpreadConfig) withDefaults() SpreadConfig {
-	if c.Duration <= 0 {
-		c.Duration = defaultSpreadDuration
+	if c.Clicks <= 0 {
+		c.Clicks = defaultSpreadClicks
 	}
 
 	return c
 }
 
 func (c BombConfig) withDefaults() BombConfig {
-	if c.Duration <= 0 {
-		c.Duration = defaultBombDuration
-	}
 	if c.Rings <= 0 {
 		c.Rings = defaultBombRings
 	}
@@ -166,12 +173,6 @@ func (c BombConfig) withDefaults() BombConfig {
 }
 
 func (c EncloseConfig) withDefaults() EncloseConfig {
-	if c.Duration <= 0 {
-		c.Duration = defaultEncloseDuration
-	}
-	if c.Shapes <= 0 {
-		c.Shapes = defaultEncloseShapes
-	}
 	if c.MaxTiles <= 0 {
 		c.MaxTiles = defaultEncloseMaxTiles
 	}
@@ -201,16 +202,18 @@ func (c Config) Validate() error {
 	return nil
 }
 
+// durationOf is how long a kind runs: zero for a charge, which runs until it is spent.
 func (c Config) durationOf(kind Kind) time.Duration {
-	switch kind {
-	case KindSpreadClicks:
-		return c.Spread.Duration
-	case KindBomb:
-		return c.Bomb.Duration
-	case KindEncloseClicks:
-		return c.Enclose.Duration
-	case KindTripleClicks:
+	if !kind.Timed() {
+		return 0
 	}
 
 	return c.Triple.Duration
+}
+
+// ChargesConfig is the part of the config the charges read, defaults filled in.
+func (c Config) ChargesConfig() ChargesConfig {
+	c = c.withDefaults()
+
+	return ChargesConfig{TTL: c.ChargeTTL, SpreadClicks: c.Spread.Clicks, EnclosureMaxTiles: c.Enclose.MaxTiles}
 }

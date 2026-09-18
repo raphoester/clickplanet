@@ -9,9 +9,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/spread_click"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
@@ -29,9 +29,20 @@ func (s stubClick) Execute(ctx context.Context, in click_usecase.In) (click_usec
 	return click_usecase.Out{}, s.storage.Set(ctx, in.TileID, in.CountryID)
 }
 
-type stubSpreads struct{ scopes *cpcolls.Set[string] }
+// stubSpreads holds each holder's spread clicks left.
+type stubSpreads struct{ left map[bonuses.Holder]int }
 
-func (s stubSpreads) Spreading(scope string) bool { return s.scopes.Contains(scope) }
+func (s stubSpreads) SpendSpreadClick(holder bonuses.Holder) bool {
+	if s.left[holder] <= 0 {
+		return false
+	}
+	s.left[holder]--
+
+	return true
+}
+
+// caller is the holder of a click made from the test's context: no account, and the scope that reads.
+var caller = bonuses.HolderOf(clicks.PayerOf(context.Background()))
 
 type stubNeighbours map[uint32][]uint32
 
@@ -62,15 +73,22 @@ func setup(spreading bool, err error) (*spread_click.UseCase, *recordingStorage)
 }
 
 func setupWithPublisher(spreading bool, err error) (*spread_click.UseCase, *recordingStorage, *recordingPublisher) {
-	storage := &recordingStorage{tiles: map[uint32]string{}}
-	spreads := stubSpreads{scopes: cpcolls.NewSet[string]()}
+	clicksLeft := 0
 	if spreading {
-		spreads.scopes.Add(cpctx.RateLimitKey(context.Background()))
+		clicksLeft = 8
 	}
 
+	useCase, storage, publisher, _ := setupWithClicks(clicksLeft, err)
+
+	return useCase, storage, publisher
+}
+
+func setupWithClicks(clicksLeft int, err error) (*spread_click.UseCase, *recordingStorage, *recordingPublisher, stubSpreads) {
+	storage := &recordingStorage{tiles: map[uint32]string{}}
+	spreads := stubSpreads{left: map[bonuses.Holder]int{caller: clicksLeft}}
 	publisher := &recordingPublisher{}
 
-	return spread_click.New(stubClick{storage: storage, err: err}, spreads, honeycomb, storage, publisher), storage, publisher
+	return spread_click.New(stubClick{storage: storage, err: err}, spreads, honeycomb, storage, publisher), storage, publisher, spreads
 }
 
 func TestASpreadingClickTakesTheTileAndEveryTileTouchingIt(t *testing.T) {
@@ -93,14 +111,40 @@ func TestWithoutTheBonusAClickTakesOneTile(t *testing.T) {
 	assert.Equal(t, map[uint32]string{100: "fr"}, storage.tiles)
 }
 
-func TestARefusedClickSpreadsNothing(t *testing.T) {
+func TestARefusedClickSpreadsNothingAndCostsNoSpreadClick(t *testing.T) {
 	refused := errors.New("unknown country")
-	useCase, storage := setup(true, refused)
+	useCase, storage, _, spreads := setupWithClicks(8, refused)
 
 	_, err := useCase.Execute(t.Context(), click_usecase.In{TileID: 100, CountryID: "zz"})
 
 	require.ErrorIs(t, err, refused)
 	assert.Empty(t, storage.tiles)
+	assert.Equal(t, 8, spreads.left[caller])
+}
+
+func TestTheChargeSpreadsItsClicksAndNoMore(t *testing.T) {
+	useCase, _, publisher, spreads := setupWithClicks(2, nil)
+
+	for range 3 {
+		_, err := useCase.Execute(t.Context(), click_usecase.In{TileID: 100, CountryID: "fr"})
+		require.NoError(t, err)
+	}
+
+	assert.Len(t, publisher.spreads, 2, "two clicks left spread two clicks, and the third takes one tile")
+	assert.Zero(t, spreads.left[caller])
+}
+
+func TestTheSpreadSpentIsTheAccounts(t *testing.T) {
+	storage := &recordingStorage{tiles: map[uint32]string{}}
+	account := bonuses.HolderOf(clicks.Payer{Account: "a-guest"})
+	spreads := stubSpreads{left: map[bonuses.Holder]int{account: 8}}
+	useCase := spread_click.New(stubClick{storage: storage}, spreads, honeycomb, storage, &recordingPublisher{})
+
+	_, err := useCase.Execute(cpctx.AddAccountToContext(t.Context(), "a-guest"), click_usecase.In{TileID: 100, CountryID: "fr"})
+	require.NoError(t, err)
+
+	assert.Equal(t, 7, spreads.left[account])
+	assert.Len(t, storage.tiles, 7)
 }
 
 func TestALoneIslandTakesItselfAndNothingElse(t *testing.T) {

@@ -5,6 +5,7 @@ import {
     BonusListener,
     BonusLostError,
     BonusOffer,
+    ClaimedBonus,
     GlobePoint,
     Enclosure,
     Ownerships,
@@ -15,7 +16,7 @@ import {
     UpdatesListener,
     VPNBlockedError,
 } from "./backend.ts";
-import {BonusReward, multiplierOf} from "../domain/bonus.ts";
+import {BonusReward, BonusRules, Charges, multiplierOf, NO_CHARGES, TimedReward} from "../domain/bonus.ts";
 import {ClickBudget, ClickBudgetSource, ClickPrice, now as budgetNow} from "./clickBudget.ts";
 import {SessionUnavailableError} from "./session.ts";
 import {v4 as UUIDv4} from 'uuid';
@@ -38,8 +39,9 @@ const TOLL_STEPS = [
 /** Often enough to be worth developing against, not so often it is the game. */
 const BONUS_EVERY_MS = 20_000
 const BONUS_OFFER_TTL_MS = 15_000
-/** The server's defaults: a spread is strong, so it is short and rarer. */
-const BONUS_SECONDS: Record<BonusReward["kind"], number> = {tripleClicks: 20, spreadClicks: 10, bomb: 30, encloseClicks: 30}
+/** The server's defaults: a triple runs 20s, a spread charge is 8 clicks, an enclose one shape of 25 tiles. */
+const TRIPLE_SECONDS = 20
+const SPREAD_CLICKS = 8
 /** The production weights, 5 : 2 : 1 : 2. `giveBomb()` in the console skips the wait. */
 const BONUS_KINDS: BonusReward["kind"][] = [
     "tripleClicks", "tripleClicks", "tripleClicks", "tripleClicks", "tripleClicks",
@@ -62,8 +64,10 @@ const BOT_BOMB_EVERY_MS = 25_000
 
 /** Everyone else's clicks, together. */
 const BOT_CLICKS_PER_SECOND = 4
-const ENCLOSE_SHAPES = 3
-const ENCLOSE_MAX_TILES = 15
+const ENCLOSE_MAX_TILES = 25
+
+/** What GetBonusRules answers, from the constants above. */
+const RULES: BonusRules = {blastRadius: BOMB_RADIUS, enclosureMaxTiles: ENCLOSE_MAX_TILES, spreadClicks: SPREAD_CLICKS}
 
 export type FakeBackendOptions = {
     vpnBlocked?: boolean
@@ -86,16 +90,16 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     private bonusCallbacks: Map<string, BonusHandlers> = new Map()
     private bombCallbacks: Map<string, (drop: BombDrop) => void> = new Map()
 
-    /** When the bomb this client holds stops being droppable; 0 for none. */
-    private bombHeldUntilMs = 0
+    /** What this player holds, as the server keeps it: one of each kind at most. */
+    private charges: Charges = NO_CHARGES
     private positions: Promise<Float32Array> | undefined
     private readonly tilePositions: (() => Promise<Float32Array>) | undefined
 
     /** The one box outstanding, exactly as the server keeps it. */
     private offered: BonusOffer | undefined
 
-    /** The bonus caught last, and when it runs out. */
-    private active: BonusReward | undefined
+    /** The triple caught last, and when it runs out. */
+    private active: TimedReward | undefined
     private activeUntilMs = 0
     private bonusEndTimer: ReturnType<typeof setTimeout> | undefined
     private readonly timers: ReturnType<typeof setInterval>[] = []
@@ -129,9 +133,13 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
 
         // The real server draws one connected caller and offers the box to them
         // alone. There is only one client here, so it is always this one.
-        const kinds = this.tilePositions ? BONUS_KINDS : BONUS_KINDS.filter((kind) => kind !== "bomb")
+        const offerable = this.tilePositions ? BONUS_KINDS : BONUS_KINDS.filter((kind) => kind !== "bomb")
 
         this.timers.push(setInterval(() => {
+            // Nobody holds two of a kind, so a kind held is not offered.
+            const kinds = offerable.filter((kind) => !this.holds(kind))
+            if (kinds.length === 0) return
+
             const offer: BonusOffer = {
                 token: UUIDv4(),
                 seed: Math.floor(Math.random() * 0xffffffff),
@@ -188,15 +196,60 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     }
 
     /**
-     * What the server broadcasts for a click made under a spread or a triple
-     * clicks bonus.
+     * What the server broadcasts for a click made under a spread charge or a
+     * triple clicks bonus.
      */
     private announceBonusClick(tileId: number, countryId: string) {
-        const active = this.active
-        if (!active || Date.now() >= this.activeUntilMs) return
+        if (this.active && Date.now() < this.activeUntilMs) this.botBoost(tileId, countryId)
 
-        if (active.kind === "tripleClicks") this.botBoost(tileId, countryId)
-        if (active.kind === "spreadClicks") void this.botSpread(tileId, countryId)
+        if (this.charges.spreadClicksLeft > 0) {
+            this.hold({...this.charges, spreadClicksLeft: this.charges.spreadClicksLeft - 1})
+            void this.botSpread(tileId, countryId)
+        }
+    }
+
+    private holds(kind: BonusReward["kind"]): boolean {
+        switch (kind) {
+            case "bomb":
+                return this.charges.bomb
+            case "encloseClicks":
+                return this.charges.enclose
+            case "spreadClicks":
+                return this.charges.spreadClicksLeft > 0
+            case "tripleClicks":
+                return false
+        }
+    }
+
+    /** Keeps what the player holds and tells the stream, as the server does after every change. */
+    private hold(charges: Charges) {
+        this.charges = charges
+        this.bonusCallbacks.forEach(handlers => handlers.onCharges(charges))
+    }
+
+    /** Grants what a reward is worth: a triple runs, a charge is held. */
+    private grant(reward: BonusReward): ClaimedBonus {
+        switch (reward.kind) {
+            case "tripleClicks":
+                this.active = reward
+                this.activeUntilMs = Date.now() + reward.seconds * 1000
+                this.reportBudget()
+                // The narrowing is a reading too, or the meter keeps the wide burst.
+                clearTimeout(this.bonusEndTimer)
+                this.bonusEndTimer = setTimeout(() => this.reportBudget(), reward.seconds * 1000)
+                break
+            case "bomb":
+                this.hold({...this.charges, bomb: true})
+                break
+            case "encloseClicks":
+                this.hold({...this.charges, enclose: true})
+                break
+            case "spreadClicks":
+                this.hold({...this.charges, spreadClicksLeft: reward.clicks})
+                break
+        }
+
+        return {reward, charges: this.charges}
     }
 
     /**
@@ -225,37 +278,27 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
      * Grants a bonus as if a box had just been caught, skipping the box. Only
      * the server's half, like `grantBomb`: see `giveBonus` in main.tsx.
      */
-    public grantBonus(kind: Exclude<BonusReward["kind"], "bomb">): BonusReward {
-        const reward = rewardOfKind(kind)
-        this.active = reward
-        this.activeUntilMs = Date.now() + reward.seconds * 1000
-        this.reportBudget()
-
-        clearTimeout(this.bonusEndTimer)
-        this.bonusEndTimer = setTimeout(() => this.reportBudget(), reward.seconds * 1000)
-
-        return reward
+    public grantBonus(kind: Exclude<BonusReward["kind"], "bomb">): ClaimedBonus {
+        return this.grant(rewardOfKind(kind))
     }
 
     /**
      * This fake has no map geometry, so it cannot find a shape. While an
-     * enclose bonus runs, every click pretends it closed one instead: a run of
-     * neighbouring ids as the outline, and the ids just past it as the inside.
-     * Consecutive ids mostly sit side by side on the globe, so it draws a short
-     * streak rather than a shape — enough to develop the effect against.
+     * enclose charge is held, the next click pretends it closed one instead: a
+     * run of neighbouring ids as the outline, and the ids just past it as the
+     * inside. Consecutive ids mostly sit side by side on the globe, so it draws
+     * a short streak rather than a shape — enough to develop the effect against.
      */
     private pretendToEnclose(tileId: number, countryId: string) {
-        const active = this.active
-        if (active?.kind !== "encloseClicks" || Date.now() >= this.activeUntilMs) return
+        if (!this.charges.enclose) return
 
         const wall = [0, 1, 2, 3, 4, 5].map(step => tileId + step).filter(id => id <= TILE_COUNT)
         const filled = [6, 7, 8].map(step => tileId + step).filter(id => id <= TILE_COUNT)
         filled.forEach(id => this.applyClick(id, countryId))
 
-        const shapesLeft = active.shapes - 1
-        this.active = shapesLeft > 0 ? {...active, shapes: shapesLeft} : undefined
+        this.hold({...this.charges, enclose: false})
 
-        const enclosure: Enclosure = {countryId, closingTile: tileId, wall, filled, yours: {shapesLeft}}
+        const enclosure: Enclosure = {countryId, closingTile: tileId, wall, filled, yours: true}
         this.bonusCallbacks.forEach(handlers => handlers.onEnclosed(enclosure))
     }
 
@@ -357,11 +400,14 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     public listenForBonuses(handlers: BonusHandlers): () => void {
         const identifier = UUIDv4()
         this.bonusCallbacks.set(identifier, handlers)
+        // What the real client reads at load: the rules, and what is held.
+        handlers.onRules(RULES)
+        handlers.onCharges(this.charges)
 
         return () => this.bonusCallbacks.delete(identifier)
     }
 
-    public async claimBonus(token: string, countryId: string): Promise<BonusReward> {
+    public async claimBonus(token: string, countryId: string): Promise<ClaimedBonus> {
         const offer = this.offered
 
         // The same four refusals the server has, answered as one: unknown,
@@ -371,21 +417,11 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         }
 
         this.offered = undefined
-        if (offer.reward.kind === "bomb") {
-            this.bombHeldUntilMs = Date.now() + offer.reward.seconds * 1000
-        } else {
-            this.active = offer.reward
-            this.activeUntilMs = Date.now() + offer.reward.seconds * 1000
-            this.reportBudget()
-        }
-
-        // The narrowing is a reading too, or the meter keeps the wide burst.
-        clearTimeout(this.bonusEndTimer)
-        this.bonusEndTimer = setTimeout(() => this.reportBudget(), offer.reward.seconds * 1000)
+        const claimed = this.grant(offer.reward)
 
         this.bonusCallbacks.forEach(handlers => handlers.onTaken({countryId}))
 
-        return offer.reward
+        return claimed
     }
 
     /**
@@ -393,10 +429,8 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
      * the server's half: the globe still has to be told, see `giveBomb` in
      * main.tsx.
      */
-    public grantBomb(): BonusReward {
-        const reward = rewardOfKind("bomb")
-        this.bombHeldUntilMs = Date.now() + reward.seconds * 1000
-        return reward
+    public grantBomb(): ClaimedBonus {
+        return this.grant(rewardOfKind("bomb"))
     }
 
     public listenForBombs(onDropped: (drop: BombDrop) => void): () => void {
@@ -407,9 +441,9 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
 
     public async dropBomb(target: GlobePoint, countryId: string): Promise<void> {
         if (this.sessionUnavailable) throw new SessionUnavailableError()
-        if (Date.now() >= this.bombHeldUntilMs) throw new BonusLostError()
+        if (!this.charges.bomb) throw new BonusLostError()
 
-        this.bombHeldUntilMs = 0
+        this.hold({...this.charges, bomb: false})
         await this.explode(target, countryId)
     }
 
@@ -490,10 +524,14 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
 }
 
 function rewardOfKind(kind: BonusReward["kind"]): BonusReward {
-    if (kind === "bomb") return {kind, seconds: BONUS_SECONDS.bomb, radius: BOMB_RADIUS}
-    if (kind === "encloseClicks") {
-        return {kind, seconds: BONUS_SECONDS[kind], shapes: ENCLOSE_SHAPES, maxTiles: ENCLOSE_MAX_TILES}
+    switch (kind) {
+        case "bomb":
+            return {kind, radius: BOMB_RADIUS}
+        case "encloseClicks":
+            return {kind, maxTiles: ENCLOSE_MAX_TILES}
+        case "spreadClicks":
+            return {kind, clicks: SPREAD_CLICKS}
+        case "tripleClicks":
+            return {kind, seconds: TRIPLE_SECONDS}
     }
-
-    return {kind, seconds: BONUS_SECONDS[kind]}
 }

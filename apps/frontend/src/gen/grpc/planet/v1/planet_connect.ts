@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ClaimBonusRequest, ClaimBonusResponse, ClickRequest, ClickResponse, DropBombRequest, DropBombResponse, GetBudgetRequest, GetBudgetResponse, GetMapRequest, GetMapResponse, ListenForEventsRequest, MapDensityRequest, MapDensityResponse, PlanetEvent } from "./planet_pb.js";
+import { ClaimBonusRequest, ClaimBonusResponse, ClickRequest, ClickResponse, DropBombRequest, DropBombResponse, GetBonusRulesRequest, GetBonusRulesResponse, GetBudgetRequest, GetBudgetResponse, GetChargesRequest, GetChargesResponse, GetMapRequest, GetMapResponse, ListenForEventsRequest, MapDensityRequest, MapDensityResponse, PlanetEvent } from "./planet_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -74,7 +74,8 @@ export const ClickService = {
     },
     /**
      * Drops the bomb a caught box granted. Answers NotFound when the caller holds
-     * none — never won, already dropped, or held past its time — and says no more.
+     * none — never won, already dropped, or held past the charge's expiry — and
+     * says no more.
      *
      * @generated from rpc planet.v1.ClickService.DropBomb
      */
@@ -83,6 +84,34 @@ export const ClickService = {
       I: DropBombRequest,
       O: DropBombResponse,
       kind: MethodKind.Unary,
+    },
+    /**
+     * What the caller holds: read once when the page loads, and again when the
+     * caller's account changes. Everything after is the client's own arithmetic
+     * on its own calls. Not NO_SIDE_EFFECTS, like GetBudget: the answer is about
+     * one caller at one instant, and a cached one lies.
+     *
+     * @generated from rpc planet.v1.ClickService.GetCharges
+     */
+    getCharges: {
+      name: "GetCharges",
+      I: GetChargesRequest,
+      O: GetChargesResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * The sizes of the charges, the same for every caller. Read once when the
+     * page loads; a client that loaded before they changed shows the old ones
+     * until it reloads.
+     *
+     * @generated from rpc planet.v1.ClickService.GetBonusRules
+     */
+    getBonusRules: {
+      name: "GetBonusRules",
+      I: GetBonusRulesRequest,
+      O: GetBonusRulesResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
     },
   }
 } as const;

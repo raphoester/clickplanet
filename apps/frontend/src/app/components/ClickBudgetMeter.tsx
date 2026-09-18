@@ -1,18 +1,28 @@
 import {useEffect, useRef} from 'react'
 import {ClickBudget, nextClickProgress, now, secondsToOneMore, tokensAt} from "../../backends/clickBudget.ts"
-import {ActiveBonus, describeReward, secondsLeft} from "../../domain/bonus.ts"
+import {ActiveBonus, chargeLabels, Charges, describeReward, NO_CHARGES, secondsLeft} from "../../domain/bonus.ts"
 import {describePrice, factor} from "../../domain/clickPrice.ts"
 import "./ClickBudgetMeter.css"
 
 export type ClickBudgetMeterProps = {
     budget?: ClickBudget
     /**
-     * The bonus currently running, if any. The meter is the one place that says
+     * The triple currently running, if any. The meter is the one place that says
      * a bonus is live, because it is where the allowance is read — and once the
      * backend grants the boost, the fill rate speeds up on its own off the
      * server's policy, with nothing here to change.
      */
     bonus?: ActiveBonus
+    /**
+     * The charges held: a bomb, an enclose, a spread's clicks. Said under the
+     * meter with no countdown, since none of them runs out while the player
+     * plays — each lasts until it is spent.
+     */
+    charges?: Charges
+    /** Whether the bomb held is aimed, so its button can say which way it goes. */
+    bombArmed?: boolean
+    /** Aims the bomb held, or puts it away. Absent, the bomb is only said. */
+    onToggleBomb?: () => void
     /** The country selected, to say why its clicks refill slower. */
     countryName?: string
     /**
@@ -57,7 +67,16 @@ const STEP_MS = 250
  * pips *is* the burst, and the fill rate *is* the refill rate, so changing
  * either in the backend's config changes this with no frontend release.
  */
-export default function ClickBudgetMeter({budget, bonus, countryName = "", refusals = 0, onSignIn}: ClickBudgetMeterProps) {
+export default function ClickBudgetMeter({
+    budget,
+    bonus,
+    charges = NO_CHARGES,
+    bombArmed = false,
+    onToggleBomb,
+    countryName = "",
+    refusals = 0,
+    onSignIn,
+}: ClickBudgetMeterProps) {
     const root = useRef<HTMLDivElement>(null)
     const count = useRef<HTMLSpanElement>(null)
     const countdown = useRef<HTMLSpanElement>(null)
@@ -203,6 +222,8 @@ export default function ClickBudgetMeter({budget, bonus, countryName = "", refus
         </div>}
     </div>
 
+        <ChargesHeld charges={charges} bombArmed={bombArmed} onToggleBomb={onToggleBomb}/>
+
         {speedUp && <button type="button" className="click-budget-sign-in" onClick={onSignIn}>
             <BoltIcon/>
             <span>Sign in: clicks {factor(speedUp)}× faster</span>
@@ -218,6 +239,33 @@ function slow(budget: ClickBudget): boolean {
 function waitText(budget: ClickBudget, at: number): string {
     const left = secondsToOneMore(budget, at)
     return left === undefined ? "" : `+1 in ${Math.ceil(left)}s`
+}
+
+/**
+ * One pill per charge held. The bomb's is a button: a bomb held for a day
+ * cannot stay aimed for a day, since an aimed bomb turns every click into a
+ * press that drops it, so the player takes it out and puts it away here.
+ */
+function ChargesHeld({charges, bombArmed, onToggleBomb}: {
+    charges: Charges
+    bombArmed: boolean
+    onToggleBomb?: () => void
+}) {
+    const labels = chargeLabels(charges)
+    if (labels.length === 0) return null
+
+    return <div className="click-budget-charges" role="status" aria-label="Bonuses held">
+        {labels.map(({kind, label}) => kind === "bomb" && onToggleBomb
+            ? <button key={kind}
+                      type="button"
+                      className={`click-budget-charge click-budget-charge--bomb${bombArmed ? " click-budget-charge--armed" : ""}`}
+                      aria-pressed={bombArmed}
+                      title={bombArmed ? "Put the bomb away (Esc)" : "Aim the bomb, then hold on the planet to drop it"}
+                      onClick={onToggleBomb}>
+                <span aria-hidden="true">💣</span> {bombArmed ? "Aiming: hold to drop" : label}
+            </button>
+            : <span key={kind} className={`click-budget-charge click-budget-charge--${kind}`}>{label}</span>)}
+    </div>
 }
 
 function BoltIcon() {

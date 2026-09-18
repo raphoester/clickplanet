@@ -92,12 +92,11 @@ func tilesEnclosedEvent(enclosed *bonuses.Enclosed) *planetv1.PlanetEvent {
 	return &planetv1.PlanetEvent{
 		Event: &planetv1.PlanetEvent_TilesEnclosed{
 			TilesEnclosed: &planetv1.TilesEnclosed{
-				CountryId:      enclosed.CountryID,
-				ClosingTileId:  enclosed.ClosingTile,
-				WallTileIds:    enclosed.Wall,
-				FilledTileIds:  enclosed.Filled,
-				Yours:          enclosed.Yours,
-				EnclosuresLeft: uint32(enclosed.Left),
+				CountryId:     enclosed.CountryID,
+				ClosingTileId: enclosed.ClosingTile,
+				WallTileIds:   enclosed.Wall,
+				FilledTileIds: enclosed.Filled,
+				Yours:         enclosed.Yours,
 			},
 		},
 	}

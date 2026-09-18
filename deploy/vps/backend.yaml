@@ -40,6 +40,11 @@ tilesStorage:
 ledger:
   retention: 72h
 
+# The charges each account holds, kept in postgres; the ones that changed are
+# written every second, and on shutdown.
+chargeStorage:
+  flushInterval: 1s
+
 # Kept in postgres beside the tile map; new takes are written every second.
 # 4M takes is ~100 MiB in memory: three days at ~15 takes a second. A busier
 # stretch drops the oldest takes first and logs "the ledger is full".
@@ -327,23 +332,23 @@ bonus:
     duration: 2m
     multiplier: 3
 
-  # spread_clicks' own duration. It takes seven tiles a click, so it is short.
+  # Spread, bomb and enclose are charges, with no timer: kept until spent, one of
+  # each kind at most, and no box of a kind held is offered.
+  #
+  # spread_clicks: the next 8 clicks spread, about 56 tiles, a bomb's worth.
   spread:
-    duration: 10s
+    clicks: 8
 
-  # How long a bomb may be held, counted towards maxBoostPerHour, and the radius
-  # of the circle it clears, in tile spacings. 4 is ~57 tiles inland, about one
-  # bank (up to ~70 near the icosahedron corners). 10.4 was ~390, six banks.
+  # The radius of the circle a bomb clears, in tile spacings. 4 is ~57 tiles
+  # inland, about one bank (up to ~70 near the icosahedron corners). 10.4 was
+  # ~390, six banks.
   bomb:
-    duration: 30s
     rings: 4
 
-  # enclose_clicks: close a shape of your tiles and take the tiles inside it.
-  # A few shapes, a short time: it rewards spotting a shape that is nearly done.
+  # enclose_clicks: one shape of at most 25 tiles, whose wall costs about 20
+  # clicks. A click that closes nothing keeps the charge.
   enclose:
-    duration: 30s
-    shapes: 3
-    maxTiles: 15
+    maxTiles: 25
 
   # A tab left open overnight is not playing, and a box sent to it is one nobody
   # catches.
@@ -357,6 +362,11 @@ bonus:
   # offer and never cuts a bonus that runs. 15m is seven 2m triples: at ten boxes
   # an hour, half of them triples, a person does not reach it.
   maxBoostPerHour: 15m
+
+  # The same for charges, which have no time to count, and how long one is kept
+  # unspent. They are kept in postgres, so a restart keeps them.
+  maxChargesPerHour: 6
+  chargeTTL: 24h
 
   sweepInterval: 1s
 
