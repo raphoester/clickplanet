@@ -17,10 +17,10 @@ httpServer:
 gameMap:
   maxIndex: 257948 # must match the tile count baked into the frontend coordinates
 
-# The planet module's database. The password comes from the environment
-# (database.password in docker-compose.yaml), never from this file.
+# The planet module's database.
 database:
   host: postgres
+  password: env://POSTGRES_PASSWORD
   port: "5432"
   user: clickplanet
   dbName: clickplanet
@@ -95,11 +95,10 @@ vpnBlocklist:
 antiBot:
   enabled: true
 
-  # The same postgres and user as the planet, in the antibot schema. The
-  # password comes from the environment (antiBot.database.password in
-  # docker-compose.yaml), never from this file.
+  # The same postgres, user and password as the planet, in the antibot schema.
   database:
     host: postgres
+    password: env://POSTGRES_PASSWORD
     port: "5432"
     user: clickplanet
     dbName: clickplanet
@@ -365,16 +364,17 @@ bonus:
 # however many addresses it can reach the game from. The blocklist above raises
 # the floor; this is what makes clicking cost something to start.
 auth:
-  # On. The widget exists and .env holds SESSION_SECRET and TURNSTILE_SECRET;
+  # On. The widget exists and .env.backend holds SESSION_SECRET and TURNSTILE_SECRET;
   # without that last one the API does not start at all, it does not degrade.
   enabled: true
   # On: a click without a session this server minted is answered 401 and never
   # reaches the map. click_session_checks{verdict="valid"} carried the traffic
   # before this was flipped; "missing" is now a refusal rather than a count.
   enforce: true
-  # auth.secret and auth.turnstile.secret come from the environment —
-  # docker-compose.yaml passes them in from .env. Deliberately absent here:
-  # this file is in git.
+  # The anchor names the variable; the value is never in this file, which is in
+  # git. render-env.sh puts SESSION_SECRET in .env.backend and the loader reads
+  # it here. Unset at boot is an error, not an empty secret.
+  secret: env://SESSION_SECRET
   ttl: 1h
   # Minting costs a siteverify round trip, so it gets its own budget rather than
   # sharing the click one. Ten in hand covers a reload loop; one every thirty
@@ -384,6 +384,8 @@ auth:
     burst: 10
   turnstile:
     enabled: true
+    # The widget's secret half, by anchor for the same reason as the two above.
+    secret: env://TURNSTILE_SECRET
     # Must match the frontend origin the widget is embedded on, and must not
     # include localhost: a production allowlist is not a development one.
     hostnames:
@@ -392,12 +394,12 @@ auth:
     # Must match the data-action the widget is rendered with, so a token minted
     # for another surface on the same sitekey is not accepted here.
     action: session
-  # Accounts and their sessions: same postgres and user as the other blocks, its
-  # own schema and pool. The password comes from the environment
-  # (auth.database.password in docker-compose.yaml). Only auth.v1 CreateSession
-  # uses it; the deprecated session.v1 path mints with no account.
+  # Accounts and their sessions: same postgres, user and password as the other
+  # blocks, its own schema and pool. Only auth.v1 CreateSession uses it; the
+  # deprecated session.v1 path mints with no account.
   database:
     host: postgres
+    password: env://POSTGRES_PASSWORD
     port: "5432"
     user: clickplanet
     dbName: clickplanet
@@ -406,18 +408,21 @@ auth:
     pool:
       maxOpenConns: 2
   # Sign-in with Google or Discord. On, with both. A provider needs its
-  # client id below, its secret in .env (GOOGLE_CLIENT_SECRET,
+  # client id below, its secret in the Actions secrets (GOOGLE_CLIENT_SECRET,
   # DISCORD_CLIENT_SECRET), and the redirect URL registered with the provider
   # exactly as written here. A client id with no secret refuses the boot.
   signIn:
     enabled: true
     redirectUrl: https://clickplanet.lol/auth/callback
   # A provider is offered once its clientId is set. The ids are public; the
-  # secrets come from the environment (docker-compose.yaml).
+  # secrets are anchors. Not set in the Actions secrets, render-env.sh writes
+  # them empty, which is allowed while the provider has no clientId.
   google:
     clientId: 865499711308-guuo7rdvol1ocjeanar1kbo3bulc4pb6.apps.googleusercontent.com
+    clientSecret: env://GOOGLE_CLIENT_SECRET
   discord:
     clientId: "1549822806420885616"
+    clientSecret: env://DISCORD_CLIENT_SECRET
   # Accounts with no provider, unused for 90 days, are deleted every hour.
   # Never below the guest cookie's 90 days.
   prune:
@@ -431,11 +436,11 @@ auth:
 # policy, not a cache size: 30 days, applied by an hourly prune.
 #
 chat:
-  # Same postgres and user as the planet's database block, its own schema and
-  # pool. The password comes from the environment (chat.database.password in
-  # docker-compose.yaml).
+  # Same postgres, user and password as the planet's database block, its own
+  # schema and pool.
   database:
     host: postgres
+    password: env://POSTGRES_PASSWORD
     port: "5432"
     user: clickplanet
     dbName: clickplanet
@@ -462,11 +467,11 @@ chat:
 # token) and creates its own schema at boot. Watch events_dropped_total and
 # events_failed_total after a deploy.
 player:
-  # Same postgres and user as the planet's database block, its own schema and
-  # pool. The password comes from the environment (player.database.password in
-  # docker-compose.yaml).
+  # Same postgres, user and password as the planet's database block, its own
+  # schema and pool.
   database:
     host: postgres
+    password: env://POSTGRES_PASSWORD
     port: "5432"
     user: clickplanet
     dbName: clickplanet
@@ -476,7 +481,7 @@ player:
     pool:
       maxOpenConns: 4
   # Salts the hash of an address the roster caps its visits with. It is never
-  # shown: guests are shown by their guest code. Deliberately empty here: this
-  # file is in git. docker-compose.yaml passes the real one in from
-  # CHAT_TAG_SALT in .env, which overrides this.
-  tagSalt: ""
+  # shown: guests are shown by their guest code. This file is in git, so the
+  # anchor, never the value. The variable keeps its chat name, and its value did
+  # not change.
+  tagSalt: env://CHAT_TAG_SALT

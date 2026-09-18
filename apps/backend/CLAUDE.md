@@ -715,7 +715,7 @@ The signature is checked **before** the expiry, so a forger learns nothing about
 
 **`auth.turnstile.enabled: false` mints for anyone who asks** (`open_attester`). That is how a local backend runs without a widget and a secret, and it still exercises the whole click path — the token is bound and expires. It is never the production choice, and the server warns at boot when it is on.
 
-**Two secrets, neither in git.** `auth.secret` is the Ed25519 **seed**, 32 bytes as 64 hex characters — what `openssl rand -hex 32` already produced for the key it replaces. Anyone holding it can mint a token the API accepts. `auth.turnstile.secret` is the widget's secret half. Both come from the environment via `deploy/vps/docker-compose.yaml`, as `player.tagSalt` does. **An empty or malformed `auth.secret` with `auth.enabled` true refuses the boot**, naming the variable to set. It used to generate one and warn; a server that invented a key would invent a different one per restart and could not verify what it had just minted.
+**Two secrets, neither in git.** `auth.secret` is the Ed25519 **seed**, 32 bytes as 64 hex characters — what `openssl rand -hex 32` already produced for the key it replaces. Anyone holding it can mint a token the API accepts. `auth.turnstile.secret` is the widget's secret half. Both are `env://` anchors in `deploy/vps/backend.yaml`, as `player.tagSalt` is — the file names the variable at the point the value is used, and holds no value itself. **An empty or malformed `auth.secret` with `auth.enabled` true refuses the boot**, naming the variable to set. It used to generate one and warn; a server that invented a key would invent a different one per restart and could not verify what it had just minted.
 
 **There is still only one key to set.** The public half is derived at boot, so nothing has to be pasted into a second setting and nothing can drift out of step with the seed.
 
@@ -1951,6 +1951,10 @@ err := configs.Load(&config, configs.FromFlag())
 Where the file comes from is an option — `FromFlag()` reads `-config`, which is how the container runs it; `FromFile(path)` names one outright and lives behind the `testing` tag, because two test packages need it and no production caller does (see [Testing](#testing)). **An empty path is not an error**: every field keeps its zero value and the environment alone can carry a whole config.
 
 Config is loaded from a YAML file, with environment variables overriding it — `.` is the nesting delimiter, so `database.password=...` in the environment overrides the file. See `cmd/api/example.yaml` for the full schema.
+
+**A string value may be an anchor rather than a literal.** `secret: env://SESSION_SECRET` reads that variable at load; anything carrying no known scheme is left exactly as written. This is what keeps a config file that is in git self-contained — it names where each secret comes from, at the point the secret is used, instead of a table elsewhere mapping one name onto another. `EnvResolver` is the only scheme today; a second one is another `SecretResolver` in `cpconfigs` and no change to any config struct or call site.
+
+**An anchored variable that is not set fails the load**, naming the field and the variable. That is deliberately not the same as one set to the empty string, which is a value and reaches the block's own `Validate` — so `SESSION_SECRET` missing is a fault, and `SESSION_SECRET=` is a setting the session block then refuses on its own terms.
 
 **A config that implements `Validate() error` is asked to check itself**, and the load fails with its sentence wrapped in `cpconfigs.ErrValidation`. That is where a bad setting is refused out loud rather than becoming a zero value nothing reports.
 
