@@ -935,7 +935,6 @@ a spread is the next 8 clicks.
   built in `module.go`). It is `NO_SIDE_EFFECTS`, a GET the cache interceptor marks
   for 5 minutes, and the client reads it once per page load. A page open across a
   deploy that changes them shows the old sizes until it reloads.
-  `ClaimBonusResponse` no longer carries them: fields 4 to 6 are reserved.
 
 #### What a spread does to a click
 
@@ -1078,8 +1077,7 @@ tile updates, but a patch flipping at once says nothing about why, so every
 client is sent the shape — closing tile, wall, and filled tiles nearest the
 closing tile first — to animate. `Registry.PublishEnclosed` sends it after the
 tiles are set, to every caller. The caller who closed it gets a copy of their own
-with `yours`. `enclosures_left` is deprecated and always zero: a charge is one shape,
-so a shape of your own is the charge spent.
+with `yours`: a charge is one shape, so a shape of your own is the charge spent.
 
 `prom_enclose` wraps that publisher, so it counts exactly the shapes that were
 closed: `bonus_enclosures_total` and `bonus_enclosed_tiles_total`.

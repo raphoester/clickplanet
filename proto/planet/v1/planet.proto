@@ -265,11 +265,6 @@ message ClaimBonusResponse {
   // How long a timed bonus runs. Zero for a charge.
   uint32 duration_seconds = 3;
 
-  // Were the blast radius and an enclose's shapes and size: rules, not an
-  // answer about this claim. GetBonusRules says them.
-  reserved 4, 5, 6;
-  reserved "blast_radius", "enclosures", "enclosure_max_tiles";
-
   // What the caller holds once this box is granted.
   ChargesHeld charges = 7;
 }
@@ -327,10 +322,6 @@ message TilesEnclosed {
 
   // Set only on the stream of the caller who closed it.
   bool yours = 5;
-
-  // Was how many shapes the closer's bonus could still close. A charge is one
-  // shape, so it is always zero; charges_held says what is left.
-  uint32 enclosures_left = 6 [deprecated = true];
 }
 
 // A click made under a spread bonus, and the tiles it spread onto.

@@ -1316,15 +1316,6 @@ export class TilesEnclosed extends Message<TilesEnclosed> {
    */
   yours = false;
 
-  /**
-   * Was how many shapes the closer's bonus could still close. A charge is one
-   * shape, so it is always zero; charges_held says what is left.
-   *
-   * @generated from field: uint32 enclosures_left = 6 [deprecated = true];
-   * @deprecated
-   */
-  enclosuresLeft = 0;
-
   constructor(data?: PartialMessage<TilesEnclosed>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1338,7 +1329,6 @@ export class TilesEnclosed extends Message<TilesEnclosed> {
     { no: 3, name: "wall_tile_ids", kind: "scalar", T: 13 /* ScalarType.UINT32 */, repeated: true },
     { no: 4, name: "filled_tile_ids", kind: "scalar", T: 13 /* ScalarType.UINT32 */, repeated: true },
     { no: 5, name: "yours", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 6, name: "enclosures_left", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TilesEnclosed {

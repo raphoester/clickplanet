@@ -1564,14 +1564,9 @@ type TilesEnclosed struct {
 	// The tiles taken, nearest the closing tile first.
 	FilledTileIds []uint32 `protobuf:"varint,4,rep,packed,name=filled_tile_ids,json=filledTileIds,proto3" json:"filled_tile_ids,omitempty"`
 	// Set only on the stream of the caller who closed it.
-	Yours bool `protobuf:"varint,5,opt,name=yours,proto3" json:"yours,omitempty"`
-	// Was how many shapes the closer's bonus could still close. A charge is one
-	// shape, so it is always zero; charges_held says what is left.
-	//
-	// Deprecated: Marked as deprecated in planet/v1/planet.proto.
-	EnclosuresLeft uint32 `protobuf:"varint,6,opt,name=enclosures_left,json=enclosuresLeft,proto3" json:"enclosures_left,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	Yours         bool `protobuf:"varint,5,opt,name=yours,proto3" json:"yours,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *TilesEnclosed) Reset() {
@@ -1637,14 +1632,6 @@ func (x *TilesEnclosed) GetYours() bool {
 		return x.Yours
 	}
 	return false
-}
-
-// Deprecated: Marked as deprecated in planet/v1/planet.proto.
-func (x *TilesEnclosed) GetEnclosuresLeft() uint32 {
-	if x != nil {
-		return x.EnclosuresLeft
-	}
-	return 0
 }
 
 // A click made under a spread bonus, and the tiles it spread onto.
@@ -1890,13 +1877,12 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"\x11ClaimBonusRequest\x12\x14\n" +
 	"\x05token\x18\x01 \x01(\tR\x05token\x12\x1d\n" +
 	"\n" +
-	"country_id\x18\x02 \x01(\tR\tcountryId\"\x8c\x02\n" +
+	"country_id\x18\x02 \x01(\tR\tcountryId\"\xcb\x01\n" +
 	"\x12ClaimBonusResponse\x12.\n" +
 	"\x06budget\x18\x01 \x01(\v2\x16.planet.v1.ClickBudgetR\x06budget\x12(\n" +
 	"\x04kind\x18\x02 \x01(\x0e2\x14.planet.v1.BonusKindR\x04kind\x12)\n" +
 	"\x10duration_seconds\x18\x03 \x01(\rR\x0fdurationSeconds\x120\n" +
-	"\acharges\x18\a \x01(\v2\x16.planet.v1.ChargesHeldR\achargesJ\x04\b\x04\x10\x05J\x04\b\x05\x10\x06J\x04\b\x06\x10\aR\fblast_radiusR\n" +
-	"enclosuresR\x13enclosure_max_tiles\"6\n" +
+	"\acharges\x18\a \x01(\v2\x16.planet.v1.ChargesHeldR\acharges\"6\n" +
 	"\n" +
 	"GlobePoint\x12\f\n" +
 	"\x01x\x18\x01 \x01(\x01R\x01x\x12\f\n" +
@@ -1913,15 +1899,14 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"country_id\x18\x02 \x01(\tR\tcountryId\x12\x16\n" +
 	"\x06radius\x18\x03 \x01(\x01R\x06radius\x12(\n" +
 	"\x10cleared_tile_ids\x18\x04 \x03(\rR\x0eclearedTileIds\x12+\n" +
-	"\x05point\x18\x05 \x01(\v2\x15.planet.v1.GlobePointR\x05point\"\xe5\x01\n" +
+	"\x05point\x18\x05 \x01(\v2\x15.planet.v1.GlobePointR\x05point\"\xb8\x01\n" +
 	"\rTilesEnclosed\x12\x1d\n" +
 	"\n" +
 	"country_id\x18\x01 \x01(\tR\tcountryId\x12&\n" +
 	"\x0fclosing_tile_id\x18\x02 \x01(\rR\rclosingTileId\x12\"\n" +
 	"\rwall_tile_ids\x18\x03 \x03(\rR\vwallTileIds\x12&\n" +
 	"\x0ffilled_tile_ids\x18\x04 \x03(\rR\rfilledTileIds\x12\x14\n" +
-	"\x05yours\x18\x05 \x01(\bR\x05yours\x12+\n" +
-	"\x0fenclosures_left\x18\x06 \x01(\rB\x02\x18\x01R\x0eenclosuresLeft\"m\n" +
+	"\x05yours\x18\x05 \x01(\bR\x05yours\"m\n" +
 	"\vTilesSpread\x12\x1d\n" +
 	"\n" +
 	"country_id\x18\x01 \x01(\tR\tcountryId\x12\x17\n" +
