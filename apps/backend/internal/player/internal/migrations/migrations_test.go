@@ -35,7 +35,7 @@ func before(t *testing.T, version string) fs.FS {
 
 func TestUnicodeUsernamesCutTheLongNamesAndDeleteTheOnesACutWouldTake(t *testing.T) {
 	server := cppg.StartTestServer(t)
-	db := server.OpenSchema(t, "player", before(t, "20260918180000"))
+	db := server.OpenSchema(t, "player", before(t, "20260918190000"))
 	at := time.Date(2026, 9, 17, 12, 0, 0, 0, time.UTC)
 	for i, row := range []struct {
 		name string
