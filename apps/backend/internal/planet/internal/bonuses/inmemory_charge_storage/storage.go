@@ -12,15 +12,14 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 // Persistence is where the charges are kept between boots. It is never read after Load.
 type Persistence interface {
 	// Load visits every stored hand.
-	Load(ctx context.Context, visit func(holder bonuses.Holder, hand bonuses.Hand)) error
-	// Save writes the hands that changed in one transaction. A zero Hand is one to delete.
-	Save(ctx context.Context, hands map[bonuses.Holder]bonuses.Hand) error
+	Load(ctx context.Context, visit func(holder bonuses.Holder, held bonuses.Held)) error
+	// Save writes the hands that changed in one transaction. A zero Held is one to delete.
+	Save(ctx context.Context, hands map[bonuses.Holder]bonuses.Held) error
 }
 
 type Config struct {
@@ -45,16 +44,14 @@ func New(
 	config Config,
 	rules bonuses.ChargesConfig,
 	persistence Persistence,
-	clock cptime.Clock,
 	logger *slog.Logger,
 ) *Storage {
 	return &Storage{
 		config:      config.withDefaults(),
 		rules:       rules,
 		persistence: persistence,
-		clock:       clock,
 		logger:      logger,
-		hands:       make(map[bonuses.Holder]bonuses.Hand),
+		hands:       make(map[bonuses.Holder]bonuses.Held),
 		dirty:       cpcolls.NewSet[bonuses.Holder](),
 	}
 }
@@ -63,11 +60,10 @@ type Storage struct {
 	config      Config
 	rules       bonuses.ChargesConfig
 	persistence Persistence
-	clock       cptime.Clock
 	logger      *slog.Logger
 
 	mu    sync.Mutex
-	hands map[bonuses.Holder]bonuses.Hand
+	hands map[bonuses.Holder]bonuses.Held
 	// The holders whose hand changed since the last flush.
 	dirty *cpcolls.Set[bonuses.Holder]
 
@@ -77,13 +73,11 @@ type Storage struct {
 // Load refuses the boot on a failed read rather than start empty: an empty storage would then hold nothing
 // for players who hold something, and flush nothing to say so, but it would not be the truth.
 func (s *Storage) Load(ctx context.Context) error {
-	now := s.clock.Now()
-
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	err := s.persistence.Load(ctx, func(holder bonuses.Holder, hand bonuses.Hand) {
-		if hand.Empty(now) {
+	err := s.persistence.Load(ctx, func(holder bonuses.Holder, hand bonuses.Held) {
+		if hand.Empty() {
 			s.dirty.Add(holder)
 			return
 		}
@@ -103,56 +97,58 @@ func (s *Storage) EnclosureMaxTiles() int {
 	return s.rules.EnclosureMaxTiles
 }
 
-// SpreadClicks is how many clicks one spread charge spreads.
+// SpreadClicks is how many clicks the spread pool holds.
 func (s *Storage) SpreadClicks() int {
 	return s.rules.SpreadClicks
 }
 
-// Grant hands holder one charge of kind. Nobody holds two of a kind, and NoHolder holds nothing.
-func (s *Storage) Grant(holder bonuses.Holder, kind bonuses.Kind) {
+// Enclosures is how many enclose charges a player stacks.
+func (s *Storage) Enclosures() int {
+	return s.rules.Enclosures
+}
+
+// Grant hands holder a box of kind worth amount, up to what each pool holds. NoHolder holds nothing.
+func (s *Storage) Grant(holder bonuses.Holder, kind bonuses.Kind, amount int) {
 	if holder == bonuses.NoHolder {
 		return
 	}
 
-	now := s.clock.Now()
-
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.putLocked(holder, s.hands[holder].Granted(kind, now, s.rules), now)
+	s.putLocked(holder, s.hands[holder].Granted(kind, amount, s.rules))
 }
 
 // Held is what holder has in hand right now.
 func (s *Storage) Held(holder bonuses.Holder) bonuses.Held {
-	now := s.clock.Now()
-
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	return s.hands[holder].Held(now)
+	return s.hands[holder]
+}
+
+// SpendRefill takes holder's refill, and reports whether there was one.
+func (s *Storage) SpendRefill(holder bonuses.Holder) bool {
+	return s.spend(holder, bonuses.Held.AfterRefill)
 }
 
 // SpendBomb takes holder's bomb, and reports whether there was one: two drops racing for it get one bomb.
 func (s *Storage) SpendBomb(holder bonuses.Holder) bool {
-	return s.spend(holder, func(hand bonuses.Hand, now time.Time) (bonuses.Hand, bool) { return hand.AfterBomb(now) })
+	return s.spend(holder, bonuses.Held.AfterBomb)
 }
 
-// SpendEnclose takes holder's enclose charge, one shape, and reports whether there was one.
+// SpendEnclose takes one of holder's enclose charges, one shape, and reports whether there was one.
 func (s *Storage) SpendEnclose(holder bonuses.Holder) bool {
-	return s.spend(holder, func(hand bonuses.Hand, now time.Time) (bonuses.Hand, bool) { return hand.AfterEnclose(now) })
+	return s.spend(holder, bonuses.Held.AfterEnclose)
 }
 
 // SpendSpreadClick takes one click off holder's spread charge, and reports whether there was one.
 func (s *Storage) SpendSpreadClick(holder bonuses.Holder) bool {
-	return s.spend(holder, func(hand bonuses.Hand, now time.Time) (bonuses.Hand, bool) {
-		return hand.AfterSpreadClick(now)
-	})
+	return s.spend(holder, bonuses.Held.AfterSpreadClick)
 }
 
 // spend checks and takes under one lock, so a check and a spend racing another cannot both win.
-func (s *Storage) spend(holder bonuses.Holder, after func(bonuses.Hand, time.Time) (bonuses.Hand, bool)) bool {
-	now := s.clock.Now()
-
+func (s *Storage) spend(holder bonuses.Holder, after func(bonuses.Held) (bonuses.Held, bool)) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -161,17 +157,17 @@ func (s *Storage) spend(holder bonuses.Holder, after func(bonuses.Hand, time.Tim
 		return false
 	}
 
-	spent, ok := after(hand, now)
+	spent, ok := after(hand)
 	if ok {
-		s.putLocked(holder, spent, now)
+		s.putLocked(holder, spent)
 	}
 
 	return ok
 }
 
 // putLocked keeps a hand, or forgets it when it holds nothing, and marks it for the next flush either way.
-func (s *Storage) putLocked(holder bonuses.Holder, hand bonuses.Hand, now time.Time) {
-	if hand.Empty(now) {
+func (s *Storage) putLocked(holder bonuses.Holder, hand bonuses.Held) {
+	if hand.Empty() {
 		delete(s.hands, holder)
 	} else {
 		s.hands[holder] = hand
@@ -205,27 +201,19 @@ func (s *Storage) flushOrLog(ctx context.Context) {
 	}
 }
 
-// Flush writes every hand that changed since the last flush, and forgets the hands that lapsed on the way,
-// deleting their rows. A failed write keeps them for the next one.
+// Flush writes every hand that changed since the last flush; one that holds nothing is a row deleted. A
+// failed write keeps them for the next one.
 func (s *Storage) Flush(ctx context.Context) error {
 	s.flushMu.Lock()
 	defer s.flushMu.Unlock()
 
-	now := s.clock.Now()
-
 	s.mu.Lock()
-	for holder, hand := range s.hands {
-		if hand.Empty(now) {
-			delete(s.hands, holder)
-			s.dirty.Add(holder)
-		}
-	}
 	if s.dirty.Empty() {
 		s.mu.Unlock()
 		return nil
 	}
 
-	changed := make(map[bonuses.Holder]bonuses.Hand, s.dirty.Len())
+	changed := make(map[bonuses.Holder]bonuses.Held, s.dirty.Len())
 	s.dirty.ForEach(func(holder bonuses.Holder) { changed[holder] = s.hands[holder] })
 	s.dirty = cpcolls.NewSet[bonuses.Holder]()
 	s.mu.Unlock()

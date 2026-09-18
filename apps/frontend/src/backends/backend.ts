@@ -1,7 +1,11 @@
-import {BonusReward, BonusRules, Charges} from "../domain/bonus.ts"
+import {BonusReward, BonusRules, Charges, Switches} from "../domain/bonus.ts"
 
 export interface TileClicker {
-    clickTile(tileId: number, countryId: string): Promise<void>
+    /**
+     * `switches` are the bonuses the player has switched on: the server spends
+     * a spread click or an enclosure on this click only when its switch is on.
+     */
+    clickTile(tileId: number, countryId: string, switches?: Switches): Promise<void>
 }
 
 export type Ownerships = {
@@ -22,8 +26,6 @@ export type Update = {
     previousCountry: string | undefined,
     /** Undefined when an operator gives a tile back to nobody. */
     newCountry: string | undefined
-    /** The click that made it was under a triple clicks bonus. */
-    boosted?: boolean
 }
 
 export interface UpdatesListener {
@@ -118,7 +120,7 @@ export interface BonusListener {
     /**
      * Follows the bonus feed on the connection that is already open: the box
      * drawn for this client, and every catch, shape closed and spread click on
-     * the planet. A boosted click is not here: it is a flag on its tile update.
+     * the planet.
      *
      * The charges held and the rules are not on the stream: they are read, and
      * handed to a new listener at once when they already have been.
@@ -169,6 +171,24 @@ export interface Bomber {
      * none to drop — never won, already dropped, or held for more than a day.
      */
     dropBomb(target: GlobePoint, countryId: string): Promise<void>
+}
+
+export interface Refiller {
+    /**
+     * Spends the refill this player holds: the click bank is filled to full,
+     * and the budget and the charges follow. Rejects with `BankFullError` when
+     * the bank is already full, which spends nothing, and with
+     * `BonusLostError` when there is no refill to use.
+     */
+    useRefill(countryId: string): Promise<void>
+}
+
+/** A refill used on a full bank: the server refused it and spent nothing. */
+export class BankFullError extends Error {
+    constructor(options?: ErrorOptions) {
+        super("the click bank is already full", options)
+        this.name = "BankFullError"
+    }
 }
 
 /**

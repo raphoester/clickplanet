@@ -11,8 +11,9 @@ import (
 // Encode says what is held and nothing else: how big each charge is, is GetBonusRules' to say.
 func Encode(held bonuses.Held) *planetv1.ChargesHeld {
 	return &planetv1.ChargesHeld{
+		Refill:           held.Refill,
 		Bomb:             held.Bomb,
-		Enclose:          held.Enclose,
+		Enclosures:       uint32(held.Enclosures),
 		SpreadClicksLeft: uint32(held.SpreadClicks),
 	}
 }

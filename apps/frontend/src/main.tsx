@@ -50,23 +50,22 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     })
     // Console commands:
     // - `giveBomb()`: as if you had just caught a box and it held a bomb.
-    // - `giveBonus("tripleClicks")`: the same for any other bonus.
+    // - `giveBonus("refill")`: the same for any other bonus.
     // - `fakeBackend.botBomb(tile, "fr")`: someone else's bomb lands on `tile`.
-    // - `fakeBackend.botSpread(tile, "fr")`, `fakeBackend.botBoost(tile, "fr")`:
-    //   someone else's spread or boosted click on `tile`.
+    // - `fakeBackend.botSpread(tile, "fr")`: someone else's spread click on `tile`.
     Object.assign(window, {
         fakeBackend: fake,
         giveBomb: () => {
             const globe = (window as {clickplanetGlobe?: Globe}).clickplanetGlobe
             if (!globe) return "the globe is not loaded yet"
             globe.takeReward(fake.grantBomb())
-            return "💣 armed — press and hold on the planet"
+            return "💣 in your inventory — aim it from there"
         },
         giveBonus: (kind: Parameters<typeof fake.grantBonus>[0]) => {
             const globe = (window as {clickplanetGlobe?: Globe}).clickplanetGlobe
             if (!globe) return "the globe is not loaded yet"
             globe.takeReward(fake.grantBonus(kind))
-            return `${kind} running — click the planet`
+            return `${kind} in your inventory — switch it on from there`
         },
     })
 
@@ -85,6 +84,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     updatesListener={fake}
                     bonusListener={fake}
                     bomber={fake}
+                    refiller={fake}
                     clickBudgetSource={fake}
                     chatBackend={fakeChat}
                     presence={fakePresence}
@@ -111,6 +111,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     updatesListener={backend}
                     bonusListener={backend}
                     bomber={backend}
+                    refiller={backend}
                     clickBudgetSource={backend}
                     chatBackend={chatBackend}
                     account={account}

@@ -69,16 +69,6 @@ func (s *TileStorageContractSuite) TestSetPublishesTheUpdate() {
 	s.Equal(&TileUpdate{Tile: 10, Value: "fr"}, s.next(ctx, listener).Update)
 }
 
-func (s *TileStorageContractSuite) TestSetBoostedMarksTheUpdate() {
-	listener, ctx := s.subscribe(2 * time.Second)
-
-	s.Require().NoError(s.storage.Set(ctx, 11, "fr"))
-	s.Require().NoError(s.storage.SetBoosted(ctx, 12, "fr"))
-
-	s.False(s.next(ctx, listener).Update.Boosted)
-	s.True(s.next(ctx, listener).Update.Boosted)
-}
-
 func (s *TileStorageContractSuite) TestSetOverATileCarriesThePreviousOwner() {
 	s.Require().NoError(s.storage.Set(context.Background(), 10, "us"))
 	listener, ctx := s.subscribe(2 * time.Second)

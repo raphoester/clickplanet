@@ -1,21 +1,16 @@
 package claim_bonus_usecase_test
 
 import (
+	"context"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/claim_bonus_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
-
-var epoch = time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 
 type stubRegistry struct {
 	reward    bonuses.Reward
@@ -37,38 +32,21 @@ func (s *stubRegistry) Claim(token string, scope string) (bonuses.Reward, bool) 
 
 func (s *stubRegistry) Publish(taken bonuses.Taken) { s.published = append(s.published, taken) }
 
-func (s *stubRegistry) Multiplier() float64 { return 3 }
-
-type stubBooster struct {
-	key        string
-	multiplier float64
-	until      time.Time
-	state      cpratelimit.State
-	peeked     []cpratelimit.Key
-}
-
-func (s *stubBooster) Peek(key cpratelimit.Key) cpratelimit.State {
-	s.peeked = append(s.peeked, key)
-	return s.state
-}
-
-func (s *stubBooster) Boost(key string, multiplier float64, until time.Time) cpratelimit.State {
-	s.key, s.multiplier, s.until = key, multiplier, until
-	return s.state
-}
-
-// stubCharger records the charges granted, and answers what they add up to.
+// stubCharger records the charges granted, and answers what they add up to, the spread pool capped at
+// spreadPool when it is set.
 type stubCharger struct {
-	granted []grantedCharge
+	granted    []grantedCharge
+	spreadPool int
 }
 
 type grantedCharge struct {
 	holder bonuses.Holder
 	kind   bonuses.Kind
+	amount int
 }
 
-func (s *stubCharger) Grant(holder bonuses.Holder, kind bonuses.Kind) {
-	s.granted = append(s.granted, grantedCharge{holder: holder, kind: kind})
+func (s *stubCharger) Grant(holder bonuses.Holder, kind bonuses.Kind, amount int) {
+	s.granted = append(s.granted, grantedCharge{holder: holder, kind: kind, amount: amount})
 }
 
 func (s *stubCharger) Held(holder bonuses.Holder) bonuses.Held {
@@ -78,172 +56,103 @@ func (s *stubCharger) Held(holder bonuses.Holder) bonuses.Held {
 			continue
 		}
 		switch g.kind {
+		case bonuses.KindRefill:
+			held.Refill = true
 		case bonuses.KindBomb:
 			held.Bomb = true
 		case bonuses.KindEncloseClicks:
-			held.Enclose = true
+			held.Enclosures += g.amount
 		case bonuses.KindSpreadClicks:
-			held.SpreadClicks = 8
-		case bonuses.KindTripleClicks:
+			held.SpreadClicks += g.amount
+			if s.spreadPool > 0 {
+				held.SpreadClicks = min(held.SpreadClicks, s.spreadPool)
+			}
 		}
 	}
 
 	return held
 }
 
-type stubPricer clicks.Price
-
-func (p stubPricer) Price(string) clicks.Price { return clicks.Price(p) }
-
-var onePrice = stubPricer{Slowdown: 1}
-
-var buckets = clicks.ThrottleConfig{}.Buckets()
-
-func granted() *stubRegistry {
-	return &stubRegistry{claimable: true, reward: bonuses.Reward{Kind: bonuses.KindTripleClicks, Duration: time.Minute}}
+func granting(kind bonuses.Kind) *stubRegistry {
+	return &stubRegistry{claimable: true, reward: bonuses.Reward{Kind: kind, Amount: 1}}
 }
 
-func TestAClaimStartsTheBoostForTheDurationGranted(t *testing.T) {
-	booster := &stubBooster{state: cpratelimit.State{Capacity: 10, PerSecond: 3}}
+// played is the test's context, from an address, with an account on it.
+func played(t *testing.T) context.Context {
+	t.Helper()
 
-	out, err := claim_bonus_usecase.New(granted(), booster, onePrice, &stubCharger{}, buckets, cptime.NewFixedClock(epoch)).
-		Execute(t.Context(), claim_bonus_usecase.In{Token: "a-token", CountryID: "fr"})
-	require.NoError(t, err)
-
-	assert.InDelta(t, 3.0, booster.multiplier, 1e-9)
-	assert.Equal(t, epoch.Add(time.Minute), booster.until)
-	assert.InDelta(t, 3.0, out.Budget.PerSecond, 1e-9)
-	assert.Equal(t, time.Minute, out.Duration)
+	return cpctx.AddAccountToContext(cpctx.AddIPToContext(t.Context(), "1.2.3.4"), "a-guest")
 }
 
-func TestTheBoostedAllowanceCarriesTheCatchersCountrysPrice(t *testing.T) {
-	state := cpratelimit.State{Tokens: 4, Capacity: 10, PerSecond: 1.5}
-	booster := &stubBooster{state: state}
+func TestAClaimHandsTheChargeToTheAccount(t *testing.T) {
+	registry, charger := granting(bonuses.KindRefill), &stubCharger{}
 
-	out, err := claim_bonus_usecase.New(granted(), booster, stubPricer{Slowdown: 2, Share: 0.4}, &stubCharger{}, buckets, cptime.NewFixedClock(epoch)).
-		Execute(t.Context(), claim_bonus_usecase.In{Token: "a-token", CountryID: "bg"})
+	out, err := claim_bonus_usecase.New(registry, charger).
+		Execute(played(t), claim_bonus_usecase.In{Token: "a-token", CountryID: "fr"})
 	require.NoError(t, err)
 
-	assert.Equal(t, state, out.Budget.State, "the reading is the bucket's, not divided")
-	assert.InDelta(t, 2, out.Budget.Price.Slowdown, 1e-9)
+	assert.Equal(t, "a-token", registry.token)
+	assert.Equal(t, "1.2.3.4", registry.scope, "the offer is the scope's")
+	assert.Equal(t, []grantedCharge{{holder: "a-guest", kind: bonuses.KindRefill, amount: 1}}, charger.granted)
+	assert.Equal(t, bonuses.KindRefill, out.Kind)
+	assert.Equal(t, bonuses.Held{Refill: true}, out.Held)
 }
 
-func TestTheClaimAndTheBoostUseTheSameScope(t *testing.T) {
-	registry, booster := granted(), &stubBooster{}
+func TestEveryKindIsGrantedAsACharge(t *testing.T) {
+	for _, kind := range bonuses.Kinds {
+		charger := &stubCharger{}
 
-	_, err := claim_bonus_usecase.New(registry, booster, onePrice, &stubCharger{}, buckets, cptime.NewFixedClock(epoch)).
-		Execute(t.Context(), claim_bonus_usecase.In{Token: "a-token"})
-	require.NoError(t, err)
+		_, err := claim_bonus_usecase.New(granting(kind), charger).
+			Execute(played(t), claim_bonus_usecase.In{Token: "a-token"})
+		require.NoError(t, err)
 
-	assert.Equal(t, registry.scope, booster.key)
-	assert.Equal(t, cpctx.RateLimitKey(t.Context()), booster.key)
-}
-
-func TestATripleBoostsTheAccountAndNeverTheScope(t *testing.T) {
-	registry, booster := granted(), &stubBooster{}
-	ctx := cpctx.AddAccountToContext(cpctx.AddIPToContext(t.Context(), "1.2.3.4"), "a-guest")
-
-	_, err := claim_bonus_usecase.New(registry, booster, onePrice, &stubCharger{}, buckets, cptime.NewFixedClock(epoch)).
-		Execute(ctx, claim_bonus_usecase.In{Token: "a-token"})
-	require.NoError(t, err)
-
-	assert.Equal(t, "1.2.3.4", registry.scope, "the offer is still the scope's")
-	assert.Equal(t, "account:a-guest", booster.key)
-	assert.Equal(t, buckets.Keys(clicks.Payer{Scope: "1.2.3.4", Account: "a-guest"}, clicks.Price(onePrice)), booster.peeked,
-		"the answer is read off both buckets")
+		assert.Equal(t, []grantedCharge{{holder: "a-guest", kind: kind, amount: 1}}, charger.granted)
+	}
 }
 
 func TestACatchIsAnnouncedWithTheCountryTheClaimNamed(t *testing.T) {
-	registry := granted()
+	registry := granting(bonuses.KindBomb)
 
-	_, err := claim_bonus_usecase.New(registry, &stubBooster{}, onePrice, &stubCharger{}, buckets, cptime.NewFixedClock(epoch)).
-		Execute(t.Context(), claim_bonus_usecase.In{Token: "a-token", CountryID: "jp"})
+	_, err := claim_bonus_usecase.New(registry, &stubCharger{}).
+		Execute(played(t), claim_bonus_usecase.In{Token: "a-token", CountryID: "jp"})
 	require.NoError(t, err)
 
-	require.Len(t, registry.published, 1)
-	assert.Equal(t, "jp", registry.published[0].CountryID)
+	assert.Equal(t, []bonuses.Taken{{CountryID: "jp", Kind: bonuses.KindBomb}}, registry.published)
 }
 
-func TestARefusedClaimBoostsNothingAndAnnouncesNothing(t *testing.T) {
-	registry, booster := &stubRegistry{claimable: false}, &stubBooster{}
+func TestARefusedClaimGrantsNothingAndAnnouncesNothing(t *testing.T) {
+	registry, charger := &stubRegistry{claimable: false}, &stubCharger{}
 
-	_, err := claim_bonus_usecase.New(registry, booster, onePrice, &stubCharger{}, buckets, cptime.NewFixedClock(epoch)).
-		Execute(t.Context(), claim_bonus_usecase.In{Token: "not-mine"})
+	_, err := claim_bonus_usecase.New(registry, charger).
+		Execute(played(t), claim_bonus_usecase.In{Token: "not-mine"})
 
 	require.ErrorIs(t, err, claim_bonus_usecase.ErrNoSuchBonus)
-	assert.Zero(t, booster.multiplier)
+	assert.Empty(t, charger.granted)
 	assert.Empty(t, registry.published)
 }
 
-func TestABombClaimHandsOverTheBomb(t *testing.T) {
-	registry := &stubRegistry{claimable: true, reward: bonuses.Reward{Kind: bonuses.KindBomb}}
-	booster := &stubBooster{state: cpratelimit.State{Capacity: 10, PerSecond: 1}}
+func TestTheAmountTheBoxGaveIsGrantedAndAnswered(t *testing.T) {
+	registry := &stubRegistry{claimable: true, reward: bonuses.Reward{Kind: bonuses.KindSpreadClicks, Amount: 3}}
 	charger := &stubCharger{}
 
-	out, err := claim_bonus_usecase.New(registry, booster, onePrice, charger, buckets, cptime.NewFixedClock(epoch)).
-		Execute(t.Context(), claim_bonus_usecase.In{Token: "a-token", CountryID: "fr"})
+	out, err := claim_bonus_usecase.New(registry, charger).
+		Execute(played(t), claim_bonus_usecase.In{Token: "a-token"})
 	require.NoError(t, err)
 
-	assert.Equal(t, []grantedCharge{{holder: bonuses.NoHolder, kind: bonuses.KindBomb}}, charger.granted)
-	assert.Zero(t, booster.multiplier, "a bomb is not a boost")
-	assert.Equal(t, bonuses.KindBomb, out.Kind)
-	assert.Zero(t, out.Duration, "a bomb is kept until it is dropped")
-	assert.Equal(t, bonuses.Held{Bomb: true}, out.Held)
+	assert.Equal(t, []grantedCharge{{holder: "a-guest", kind: bonuses.KindSpreadClicks, amount: 3}}, charger.granted)
+	assert.Equal(t, 3, out.Amount)
+	assert.Equal(t, bonuses.Held{SpreadClicks: 3}, out.Held)
 }
 
-func TestAChargeIsTheAccountsAndNotTheAddresss(t *testing.T) {
-	registry := &stubRegistry{claimable: true, reward: bonuses.Reward{Kind: bonuses.KindBomb}}
-	charger := &stubCharger{}
-	ctx := cpctx.AddAccountToContext(cpctx.AddIPToContext(t.Context(), "1.2.3.4"), "a-guest")
+func TestTheAnswerSaysOnlyWhatThePoolKept(t *testing.T) {
+	registry := &stubRegistry{claimable: true, reward: bonuses.Reward{Kind: bonuses.KindSpreadClicks, Amount: 4}}
+	charger := &stubCharger{spreadPool: 8}
+	charger.Grant("a-guest", bonuses.KindSpreadClicks, 7)
 
-	_, err := claim_bonus_usecase.New(registry, &stubBooster{}, onePrice, charger, buckets, cptime.NewFixedClock(epoch)).
-		Execute(ctx, claim_bonus_usecase.In{Token: "a-token"})
+	out, err := claim_bonus_usecase.New(registry, charger).
+		Execute(played(t), claim_bonus_usecase.In{Token: "a-token"})
 	require.NoError(t, err)
 
-	assert.Equal(t, "1.2.3.4", registry.scope, "the offer is still the scope's")
-	assert.Equal(t, []grantedCharge{{holder: "a-guest", kind: bonuses.KindBomb}}, charger.granted)
-}
-
-func TestATripleGrantsNoCharge(t *testing.T) {
-	charger := &stubCharger{}
-
-	out, err := claim_bonus_usecase.New(granted(), &stubBooster{}, onePrice, charger, buckets, cptime.NewFixedClock(epoch)).
-		Execute(t.Context(), claim_bonus_usecase.In{Token: "a-token"})
-	require.NoError(t, err)
-
-	assert.Empty(t, charger.granted)
-	assert.Equal(t, bonuses.Held{}, out.Held)
-}
-
-func TestASpreadClaimHandsOverTheChargeAndSpeedsUpNothing(t *testing.T) {
-	registry := &stubRegistry{claimable: true, reward: bonuses.Reward{Kind: bonuses.KindSpreadClicks}}
-	booster := &stubBooster{state: cpratelimit.State{Tokens: 4, Capacity: 10, PerSecond: 1}}
-	charger := &stubCharger{}
-
-	out, err := claim_bonus_usecase.New(registry, booster, onePrice, charger, buckets, cptime.NewFixedClock(epoch)).
-		Execute(t.Context(), claim_bonus_usecase.In{Token: "a-token", CountryID: "fr"})
-	require.NoError(t, err)
-
-	assert.Equal(t, []grantedCharge{{holder: bonuses.NoHolder, kind: bonuses.KindSpreadClicks}}, charger.granted)
-	assert.Zero(t, booster.multiplier, "a spread is not a boost")
-	assert.Equal(t, 10, out.Budget.Capacity, "the allowance is answered as it stands")
-	assert.Equal(t, bonuses.KindSpreadClicks, out.Kind)
+	assert.Equal(t, 1, out.Amount, "the pool held 7 of 8, so a box of 4 added 1")
 	assert.Equal(t, bonuses.Held{SpreadClicks: 8}, out.Held)
-	require.Len(t, registry.published, 1)
-}
-
-func TestAnEncloseClaimHandsOverTheChargeAndSpeedsUpNothing(t *testing.T) {
-	registry := &stubRegistry{claimable: true, reward: bonuses.Reward{Kind: bonuses.KindEncloseClicks}}
-	booster := &stubBooster{state: cpratelimit.State{Tokens: 4, Capacity: 10, PerSecond: 1}}
-	charger := &stubCharger{}
-
-	out, err := claim_bonus_usecase.New(registry, booster, onePrice, charger, buckets, cptime.NewFixedClock(epoch)).
-		Execute(t.Context(), claim_bonus_usecase.In{Token: "a-token", CountryID: "fr"})
-	require.NoError(t, err)
-
-	assert.Equal(t, []grantedCharge{{holder: bonuses.NoHolder, kind: bonuses.KindEncloseClicks}}, charger.granted)
-	assert.Zero(t, booster.multiplier, "an enclose is not a boost")
-	assert.Equal(t, 10, out.Budget.Capacity, "the allowance is answered as it stands")
-	assert.Equal(t, bonuses.Held{Enclose: true}, out.Held)
-	require.Len(t, registry.published, 1)
 }

@@ -4,7 +4,7 @@
  * there, and anything it does not recognise falls back to the default.
  */
 
-export const SOUNDS = ["click", "refused", "bonusSpawn", "bonusCaught", "spread", "boost", "enclose", "bomb", "chat"] as const
+export const SOUNDS = ["click", "refused", "bonusSpawn", "bonusCaught", "spread", "enclose", "bomb", "chat"] as const
 
 export type SoundName = typeof SOUNDS[number]
 
@@ -17,7 +17,6 @@ export type SwitchName = typeof SWITCHES[number]
 export function switchOf(name: SoundName): SwitchName {
     switch (name) {
         case "spread":
-        case "boost":
         case "enclose":
             return "click"
         default:

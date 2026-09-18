@@ -28,6 +28,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/drop_bomb_usecase/prom_drop_bomb"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/drop_bomb_usecase/publishing_drop_bomb"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/get_charges_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/use_refill_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/embedded_geodesic_map"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
@@ -81,6 +82,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/revert_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/rpc_session_verifier"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/top_players_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/use_refill_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
@@ -149,7 +151,7 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			// The bomb, enclose and spread charges each account holds, so a restart does not take them.
 			charges := inmemory_charge_storage.New(config.ChargeStorage, config.Bonus.ChargesConfig(),
-				postgres_charge_store.New(db), clock, props.Logger)
+				postgres_charge_store.New(db), props.Logger)
 			if err := charges.Load(ctx); err != nil {
 				_ = db.Close()
 				return fmt.Errorf("failed to load the charges: %w", err)
@@ -298,7 +300,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			// anywhere near right. What each caller did with their box goes to the
 			// guard as well, for the catcher watchdog.
 			claimBonus, counters := prom_claim_bonus.New(
-				claim_bonus_usecase.New(registry, limiter, pricer, charges, buckets, clock),
+				claim_bonus_usecase.New(registry, charges),
 				props.Metrics)
 
 			registry.Observe(bonuses.Report{
@@ -334,6 +336,7 @@ func NewModule(config Config) cpbootstrap.Module {
 				BlastRadius:       bombRules.Radius,
 				EnclosureMaxTiles: charges.EnclosureMaxTiles(),
 				SpreadClicks:      charges.SpreadClicks(),
+				Enclosures:        charges.Enclosures(),
 			}
 
 			service := planetv1controller.ClickService{
@@ -346,6 +349,7 @@ func NewModule(config Config) cpbootstrap.Module {
 					listen_for_events_usecase.New(tilesStorage, props.Server.StreamHeartbeat, registry), guard)),
 				ClaimBonusHandler:    claim_bonus_handler.New(claimBonus),
 				DropBombHandler:      drop_bomb_handler.New(dropBomb),
+				UseRefillHandler:     use_refill_handler.New(use_refill_usecase.New(charges, limiter, pricer, buckets)),
 				GetChargesHandler:    get_charges_handler.New(get_charges_usecase.New(charges)),
 				GetBonusRulesHandler: get_bonus_rules_handler.New(rules),
 			}

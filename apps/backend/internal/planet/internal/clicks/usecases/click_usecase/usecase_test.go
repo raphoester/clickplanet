@@ -4,7 +4,6 @@ import (
 	"context"
 	"log/slog"
 	"testing"
-	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
@@ -42,22 +41,22 @@ func (s *testSuite) execute(tileID uint32, countryID string) error {
 	return err
 }
 
-func (s *testSuite) TestABoostedClickPublishesABoostedUpdate() {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
+func (s *testSuite) TestSpreadAndEncloseTogetherAreRefusedAndWriteNothing() {
+	_, err := s.useCase.Execute(context.Background(),
+		click_usecase.In{TileID: 77, CountryID: "fr", Spread: true, Enclose: true})
 
-	listener, err := s.storage.Subscribe(ctx)
-	s.Require().NoError(err)
+	s.ErrorIs(err, clicks.ErrBonusesTogether)
+	owner, _ := s.storage.Owner(77)
+	s.Empty(owner)
+}
 
-	_, err = s.useCase.Execute(context.Background(), click_usecase.In{TileID: 77, CountryID: "jp", Boosted: true})
-	s.Require().NoError(err)
-
-	select {
-	case <-ctx.Done():
-		s.T().Fatal("timeout")
-	case change := <-listener:
-		s.Require().NotNil(change.Update)
-		s.True(change.Update.Boosted)
+func (s *testSuite) TestOneBonusAtATimeIsAccepted() {
+	for _, in := range []click_usecase.In{
+		{TileID: 78, CountryID: "fr", Spread: true},
+		{TileID: 79, CountryID: "fr", Enclose: true},
+	} {
+		_, err := s.useCase.Execute(context.Background(), in)
+		s.NoError(err)
 	}
 }
 

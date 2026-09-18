@@ -3,7 +3,7 @@ import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {act, cleanup, fireEvent, render, screen} from "@testing-library/react"
 import BonusAward, {AWARD_MS, DISMISS_GRACE_MS} from "./BonusAward.tsx"
 
-const REWARD = {kind: "tripleClicks", seconds: 60} as const
+const REWARD = {kind: "refill"} as const
 
 describe("BonusAward", () => {
     beforeEach(() => vi.useFakeTimers())
@@ -15,8 +15,8 @@ describe("BonusAward", () => {
     it("shouts what the player just won", () => {
         render(<BonusAward reward={REWARD} onDone={() => {}}/>)
 
-        expect(screen.getByText("Triple clicks")).toBeTruthy()
-        expect(screen.getByText("Clicks refill 3× faster")).toBeTruthy()
+        expect(screen.getByText("Refill")).toBeTruthy()
+        expect(screen.getByText("Fills your clicks to full, when you choose")).toBeTruthy()
     })
 
     it("is a status, so a screen reader hears it without the focus moving", () => {
@@ -69,7 +69,7 @@ describe("BonusAward", () => {
         const {rerender} = render(<BonusAward reward={REWARD} onDone={onDone}/>)
 
         act(() => void vi.advanceTimersByTime(AWARD_MS - 100))
-        rerender(<BonusAward reward={{kind: "tripleClicks", seconds: 30}} onDone={onDone}/>)
+        rerender(<BonusAward reward={{kind: "refill"}} onDone={onDone}/>)
 
         act(() => void vi.advanceTimersByTime(200))
         expect(onDone).not.toHaveBeenCalled()
@@ -93,7 +93,7 @@ describe("BonusAward", () => {
         render(<BonusAward reward={REWARD} onDone={onDone}/>)
 
         act(() => void vi.advanceTimersByTime(DISMISS_GRACE_MS))
-        fireEvent.pointerDown(screen.getByText("Triple clicks"))
+        fireEvent.pointerDown(screen.getByText("Refill"))
 
         expect(onDone).toHaveBeenCalledTimes(1)
     })
@@ -110,10 +110,10 @@ describe("BonusAward", () => {
 
     it("wears a different mark and colour for each kind of bonus", () => {
         const rewards = [
-            {kind: "tripleClicks", seconds: 60},
+            {kind: "refill"},
             {kind: "spreadClicks", clicks: 8},
             {kind: "bomb", radius: 0.1},
-            {kind: "encloseClicks", maxTiles: 25},
+            {kind: "encloseClicks", shapes: 2, maxTiles: 25},
         ] as const
 
         const looks = rewards.map(reward => {

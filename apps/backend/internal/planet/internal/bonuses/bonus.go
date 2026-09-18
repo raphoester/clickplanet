@@ -17,8 +17,10 @@ import (
 
 type Kind string
 
+// Every kind is a charge: held until it is spent (see Hand), one of each at most.
 const (
-	KindTripleClicks Kind = "triple_clicks"
+	// KindRefill fills the caller's click bank, when the caller chooses.
+	KindRefill Kind = "refill"
 
 	// KindSpreadClicks makes every click take the tiles touching it as well.
 	KindSpreadClicks Kind = "spread_clicks"
@@ -30,14 +32,8 @@ const (
 	KindEncloseClicks Kind = "enclose_clicks"
 )
 
-// Timed says whether a kind runs for a time. Only triple clicks does: the others are charges, held
-// until they are spent (see Hand).
-func (k Kind) Timed() bool {
-	return k == KindTripleClicks
-}
-
 // Kinds is every kind this server knows how to grant.
-var Kinds = []Kind{KindTripleClicks, KindSpreadClicks, KindBomb, KindEncloseClicks}
+var Kinds = []Kind{KindRefill, KindSpreadClicks, KindBomb, KindEncloseClicks}
 
 type Offer struct {
 	Token string
@@ -45,10 +41,7 @@ type Offer struct {
 	// Names the flight path; every client draws the same orbit from it.
 	Seed uint32
 
-	Kind Kind
-
-	// Zero for a charge, which has no time to run.
-	Duration  time.Duration
+	Kind      Kind
 	ExpiresAt time.Time
 }
 
@@ -94,8 +87,8 @@ type Event struct {
 type Reward struct {
 	Kind Kind
 
-	// Zero for a charge.
-	Duration time.Duration
+	// How much the box gives: enclosures or spread clicks, drawn at the claim. One for a refill or a bomb.
+	Amount int
 }
 
 // caller is one scope: its open streams, and the schedule that outlives them.
@@ -112,14 +105,8 @@ type caller struct {
 	outstanding string
 	misses      int
 
-	// Each bonus granted, for MaxBoostPerHour and MaxChargesPerHour.
-	grants []grant
-}
-
-type grant struct {
-	at       time.Time
-	duration time.Duration
-	charge   bool
+	// When each charge was granted, for MaxChargesPerHour.
+	grants []time.Time
 }
 
 func (c *caller) watching() bool {
@@ -155,6 +142,8 @@ type Registry struct {
 	clock    cptime.Clock
 	report   Report
 	holdings Holdings
+	// What a spread pool holds when full, so a full pool is not offered another box.
+	charges ChargesConfig
 
 	mu      sync.Mutex
 	callers map[string]*caller
@@ -165,7 +154,6 @@ type Registry struct {
 type pending struct {
 	scope     string
 	kind      Kind
-	duration  time.Duration
 	offeredAt time.Time
 	expiresAt time.Time
 }
@@ -184,8 +172,11 @@ func New(config Config, clock cptime.Clock, holdings Holdings) *Registry {
 		clock = cptime.SystemClock{}
 	}
 
+	config = config.withDefaults()
+
 	return &Registry{
-		config:   config.withDefaults(),
+		config:   config,
+		charges:  config.ChargesConfig(),
 		clock:    clock,
 		holdings: holdings,
 		callers:  make(map[string]*caller),
@@ -294,14 +285,14 @@ func (r *Registry) Claim(token string, scope string) (Reward, bool) {
 	if entry, known := r.callers[scope]; known {
 		entry.outstanding = ""
 		entry.misses = 0
-		entry.grants = append(entry.grants, grant{at: now, duration: offer.duration, charge: !offer.kind.Timed()})
+		entry.grants = append(entry.grants, now)
 
-		// A window after a triple ends, so a second can never land on a running one. A charge has no
-		// end, so it is a window after the claim: a held bomb does not hold back every other box.
-		entry.nextOfferAt = now.Add(offer.duration).Add(r.window())
+		// A charge has no end, so the next is due a window after the claim: a held bomb does not hold
+		// back every other box.
+		entry.nextOfferAt = now.Add(r.window())
 	}
 
-	return Reward{Kind: offer.kind, Duration: offer.duration}, true
+	return Reward{Kind: offer.kind, Amount: r.amountOf(offer.kind)}, true
 }
 
 func (r *Registry) Publish(taken Taken) {
@@ -342,10 +333,6 @@ func (r *Registry) broadcast(event Event) {
 	for _, entry := range r.callers {
 		entry.send(event)
 	}
-}
-
-func (r *Registry) Multiplier() float64 {
-	return r.config.Triple.Multiplier
 }
 
 func (r *Registry) Name() string { return "bonus-boxes" }
@@ -403,13 +390,13 @@ func (r *Registry) due(entry *caller, now time.Time) bool {
 	return true
 }
 
-// offerable is every kind with a weight that the caller may be given now. A kind held by any player who
-// clicked from this scope within ActiveWithin is left out, so nobody holds two of one kind. The hourly caps
-// leave out triple clicks past MaxBoostPerHour of boost time, and every charge past MaxChargesPerHour
-// charges. A scope where no account is playing is offered no charge: only an account can hold one. It
-// forgets the players who stopped clicking on the way.
+// offerable is every kind with a weight that the caller may be given now. A kind any player who clicked
+// from this scope within ActiveWithin holds is left out, so nobody holds two of one kind, and so is spread
+// when a player's pool is already full. Past
+// MaxChargesPerHour charges in the hour nothing is, and a scope where no account is playing is offered
+// nothing: only an account can hold a charge. It forgets the players who stopped clicking on the way.
 func (r *Registry) offerable(entry *caller, now time.Time) *cpcolls.Set[Kind] {
-	boosted, charged := r.grantedWithinTheHour(entry, now)
+	kinds := cpcolls.NewSetWithCapacity[Kind](len(Kinds))
 
 	held := cpcolls.NewSet[Kind]()
 	for holder, clicked := range entry.players {
@@ -417,16 +404,15 @@ func (r *Registry) offerable(entry *caller, now time.Time) *cpcolls.Set[Kind] {
 			delete(entry.players, holder)
 			continue
 		}
-		held.Add(r.holdings.Held(holder).Kinds()...)
+		held.Add(r.holdings.Held(holder).Full(r.charges)...)
 	}
 
-	kinds := cpcolls.NewSetWithCapacity[Kind](len(Kinds))
+	if len(entry.players) == 0 || r.grantedWithinTheHour(entry, now) >= r.config.MaxChargesPerHour {
+		return kinds
+	}
+
 	for _, kind := range Kinds {
-		switch {
-		case r.config.Kinds[kind] <= 0, held.Contains(kind):
-		case kind.Timed() && boosted >= r.config.MaxBoostPerHour:
-		case !kind.Timed() && (charged >= r.config.MaxChargesPerHour || len(entry.players) == 0):
-		default:
+		if r.config.Kinds[kind] > 0 && !held.Contains(kind) {
 			kinds.Add(kind)
 		}
 	}
@@ -434,27 +420,20 @@ func (r *Registry) offerable(entry *caller, now time.Time) *cpcolls.Set[Kind] {
 	return kinds
 }
 
-// grantedWithinTheHour is the boost time and the number of charges granted in the last hour. It forgets
-// the grants older than that on the way.
-func (r *Registry) grantedWithinTheHour(entry *caller, now time.Time) (time.Duration, int) {
+// grantedWithinTheHour is how many charges were granted in the last hour. It forgets the older grants on
+// the way.
+func (r *Registry) grantedWithinTheHour(entry *caller, now time.Time) int {
 	since := now.Add(-time.Hour)
 
 	kept := entry.grants[:0]
-	boosted, charged := time.Duration(0), 0
-	for _, g := range entry.grants {
-		if !g.at.After(since) {
-			continue
-		}
-		kept = append(kept, g)
-		if g.charge {
-			charged++
-		} else {
-			boosted += g.duration
+	for _, at := range entry.grants {
+		if at.After(since) {
+			kept = append(kept, at)
 		}
 	}
 	entry.grants = kept
 
-	return boosted, charged
+	return len(kept)
 }
 
 func (r *Registry) offer(scope string, entry *caller, now time.Time, kinds *cpcolls.Set[Kind]) {
@@ -468,14 +447,12 @@ func (r *Registry) offer(scope string, entry *caller, now time.Time, kinds *cpco
 		Token:     token,
 		Seed:      randomSeed(),
 		Kind:      kind,
-		Duration:  r.config.durationOf(kind),
 		ExpiresAt: now.Add(r.config.OfferTTL),
 	}
 
 	r.offers[token] = &pending{
 		scope:     scope,
 		kind:      offer.Kind,
-		duration:  offer.Duration,
 		offeredAt: now,
 		expiresAt: offer.ExpiresAt,
 	}
@@ -569,6 +546,25 @@ func (r *Registry) drawKind(kinds *cpcolls.Set[Kind]) Kind {
 
 	// Only float rounding reaches here; it belongs to the last kind with a weight.
 	return last
+}
+
+// amountOf draws how much a box of kind gives: 1 to MaxPerBox enclosures or spread clicks, uniformly.
+func (r *Registry) amountOf(kind Kind) int {
+	most := 1
+	switch kind {
+	case KindSpreadClicks:
+		most = r.config.Spread.MaxPerBox
+	case KindEncloseClicks:
+		most = r.config.Enclose.MaxPerBox
+	case KindRefill, KindBomb:
+	}
+
+	n, err := rand.Int(rand.Reader, big.NewInt(int64(most)))
+	if err != nil {
+		return 1
+	}
+
+	return 1 + int(n.Int64())
 }
 
 func newToken() (string, error) {

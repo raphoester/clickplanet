@@ -55,8 +55,6 @@ func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_useca
 		return click_usecase.Out{Budget: u.buckets.BudgetOf(state, price), Limited: true}, clicks.ErrThrottled
 	}
 
-	in.Boosted = state.Boosted
-
 	out, err := u.implementation.Execute(ctx, in)
 	out.Budget, out.Limited = u.buckets.BudgetOf(state, price), true
 

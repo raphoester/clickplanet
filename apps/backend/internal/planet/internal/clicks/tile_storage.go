@@ -12,7 +12,6 @@ type TileStorage interface {
 
 	// Set publishes an update only when the tile changes hands.
 	Set(ctx context.Context, tile uint32, value string) error
-	SetBoosted(ctx context.Context, tile uint32, value string) error
 	// Clear empties the blast's tiles and publishes it once, holding only the tiles that were owned.
 	Clear(ctx context.Context, blast Blast) (Blast, error)
 	// Reassign moves up to limit of from's tiles to to, scanning from start; next is 0 once the map is done.

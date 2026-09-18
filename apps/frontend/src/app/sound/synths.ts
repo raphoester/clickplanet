@@ -95,15 +95,6 @@ const spread: Synth = (ctx, at, {volume}) => {
     })
 }
 
-// Your boosted click: three quick zaps going up, one per streak. Short and
-// quiet, since a boosted player clicks fast.
-const boost: Synth = (ctx, at, {volume}) => {
-    const pitch = detune(0.06)
-    ;[900, 1200, 1600].forEach((from, i) => {
-        tone(ctx, at, volume, {type: "square", from: from * pitch, to: from * pitch * 1.5, start: i * 0.03, length: 0.045, gain: 0.07})
-    })
-}
-
 // Your shape closing, on the effect's own timeline: a sweep up while the
 // outline runs round, a chord when it meets, a shimmer as the inside pours in,
 // and a low bell for each ring.
@@ -338,4 +329,4 @@ const chat: Synth = (ctx, at, {volume}) => {
     tone(ctx, at, volume, {type: "sine", from: 1175, start: 0.07, length: 0.14, gain: 0.12})
 }
 
-export const SYNTHS: Record<SoundName, Synth> = {click, refused, bonusSpawn, bonusCaught, spread, boost, enclose, bomb, chat}
+export const SYNTHS: Record<SoundName, Synth> = {click, refused, bonusSpawn, bonusCaught, spread, enclose, bomb, chat}

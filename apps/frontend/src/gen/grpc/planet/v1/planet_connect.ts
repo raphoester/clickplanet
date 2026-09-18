@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ClaimBonusRequest, ClaimBonusResponse, ClickRequest, ClickResponse, DropBombRequest, DropBombResponse, GetBonusRulesRequest, GetBonusRulesResponse, GetBudgetRequest, GetBudgetResponse, GetChargesRequest, GetChargesResponse, GetMapRequest, GetMapResponse, ListenForEventsRequest, MapDensityRequest, MapDensityResponse, PlanetEvent } from "./planet_pb.js";
+import { ClaimBonusRequest, ClaimBonusResponse, ClickRequest, ClickResponse, DropBombRequest, DropBombResponse, GetBonusRulesRequest, GetBonusRulesResponse, GetBudgetRequest, GetBudgetResponse, GetChargesRequest, GetChargesResponse, GetMapRequest, GetMapResponse, ListenForEventsRequest, MapDensityRequest, MapDensityResponse, PlanetEvent, UseRefillRequest, UseRefillResponse } from "./planet_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -74,8 +74,7 @@ export const ClickService = {
     },
     /**
      * Drops the bomb a caught box granted. Answers NotFound when the caller holds
-     * none — never won, already dropped, or held past the charge's expiry — and
-     * says no more.
+     * none — never won, or already dropped — and says no more.
      *
      * @generated from rpc planet.v1.ClickService.DropBomb
      */
@@ -83,6 +82,19 @@ export const ClickService = {
       name: "DropBomb",
       I: DropBombRequest,
       O: DropBombResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Spends the refill a caught box granted: the caller's click bank is filled
+     * to its capacity. Answers NotFound when the caller holds none, and
+     * FailedPrecondition when the bank is already full, which spends nothing.
+     *
+     * @generated from rpc planet.v1.ClickService.UseRefill
+     */
+    useRefill: {
+      name: "UseRefill",
+      I: UseRefillRequest,
+      O: UseRefillResponse,
       kind: MethodKind.Unary,
     },
     /**

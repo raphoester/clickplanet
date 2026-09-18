@@ -219,53 +219,6 @@
     box-shadow: 0 0 16px #FFB13F66;
 }
 
-/*
- * The charges held, one pill each, under the meter. They are not on the meter
- * itself: nothing about them is read off the allowance, and none counts down.
- */
-.click-budget-charges {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    gap: 6px;
-    max-width: 320px;
-}
-
-.click-budget-charge {
-    padding: 4px 12px;
-    border: 1px solid #FFB13F88;
-    border-radius: 999px;
-    background: #2A1A04D9;
-    backdrop-filter: blur(8px);
-    color: #FFC061;
-    font-family: Oswald, sans-serif;
-    font-size: 13px;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-    text-shadow: -1px 1px 0 #000000;
-    white-space: nowrap;
-    animation: click-budget-bonus-in 0.45s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.click-budget-charge--bomb {
-    cursor: pointer;
-    pointer-events: auto;
-    transition: background 0.2s ease, border-color 0.2s ease;
-}
-
-.click-budget-charge--bomb:hover,
-.click-budget-charge--bomb:focus-visible {
-    border-color: #FFB13F;
-    background: #3A2401E6;
-}
-
-.click-budget-charge--armed {
-    border-color: #FF5A3C;
-    background: #3A0E04E6;
-    color: #FF9A80;
-    box-shadow: 0 0 14px #FF5A3C66;
-}
-
 @media only screen and (max-width: 768px) {
     /*
      * Both ends of a phone screen are taken: the menu is a header sheet and the
@@ -340,65 +293,6 @@
         padding: 4px 10px;
         font-size: 12px;
     }
-
-    .click-budget-charges {
-        justify-content: flex-start;
-    }
-
-    .click-budget-charge {
-        padding: 3px 9px;
-        font-size: 11px;
-    }
-}
-
-/*
- * A bonus running, said on the meter rather than beside it — this is where the
- * allowance is read, so this is where "and it is tripled right now" belongs.
- * The gold is the bonus box's own, so the badge is recognisably what was caught.
- */
-.click-budget-boosted {
-    border-color: #FFB13Faa;
-    box-shadow: 0 0 18px #FFB13F44;
-}
-
-.click-budget-bonus {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding-right: 12px;
-    margin-right: 2px;
-    border-right: 1px solid #FFFFFF26;
-    animation: click-budget-bonus-in 0.45s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.click-budget-bonus-badge {
-    padding: 2px 7px;
-    border-radius: 6px;
-    background: #F2A91C;
-    color: #3A2201;
-    font-size: 15px;
-    font-weight: 700;
-    line-height: 1.2;
-    text-shadow: none;
-}
-
-.click-budget-bonus-left {
-    min-width: 3.2ch;
-    font-size: 13px;
-    font-variant-numeric: tabular-nums;
-    color: #FFC061;
-}
-
-/* It arrives as the announcement shrinks into this corner, and lands with it. */
-@keyframes click-budget-bonus-in {
-    from {
-        opacity: 0;
-        transform: scale(0.4);
-    }
-    to {
-        opacity: 1;
-        transform: scale(1);
-    }
 }
 
 /*
@@ -442,14 +336,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .click-budget-charge {
-        animation: none;
-    }
-
-    .click-budget-bonus {
-        animation: none;
-    }
-
     .click-budget-refused {
         animation-name: click-budget-refused-still;
     }

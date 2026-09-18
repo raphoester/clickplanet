@@ -301,8 +301,8 @@ bonus:
   # Per caller, not per server. A single ticker made the rate each player saw
   # 1/(interval x players), so the feature got rarer the busier the game was.
   # 4m to 8m is about ten boxes an hour, and a caught one pushes the next a
-  # window after the bonus ends. At 15s-35s a box came every ~25s: a triple
-  # running most of the time, and a bomb every four minutes.
+  # window after the claim. At 15s-35s a box came every ~25s, and a bomb every
+  # four minutes.
   minInterval: 4m
   maxInterval: 8m
 
@@ -314,7 +314,7 @@ bonus:
   # ten boxes an hour about one is a bomb. A frontend too old to know a kind
   # skips that box, which the schedule reads as a miss - so this can ship first.
   kinds:
-    triple_clicks: 5
+    refill: 5
     spread_clicks: 3
     enclose_clicks: 2
     bomb: 1
@@ -323,21 +323,16 @@ bonus:
   # frame is refused.
   offerTTL: 15s
 
-  # Multiplies the refill rate, and the client reads it off the answer - so
-  # changing these changes the meter with no frontend release, exactly as
-  # rateLimiter does. The bank keeps its size, and no tokens come at once: x3 for
-  # 2m refills 72 clicks where 24 come plainly, 48 more, for a player who spends
-  # them as they come.
-  triple:
-    duration: 2m
-    multiplier: 3
-
-  # Spread, bomb and enclose are charges, with no timer: kept until spent, one of
-  # each kind at most, and no box of a kind held is offered.
+  # Every kind is a charge the player uses when they choose, and nothing lapses:
+  # one refill and one bomb at most, enclosures and spread clicks up to their
+  # size, and no box of a kind held (or full) is offered. A refill fills the
+  # click bank to full: up to 60 clicks.
   #
-  # spread_clicks: the next 8 clicks spread, about 56 tiles, a bomb's worth.
+  # spread_clicks: a pool of up to 8 clicks, spent while spread is switched on;
+  # a box adds 1 to 4. A full pool is about 56 tiles, a bomb's worth.
   spread:
     clicks: 8
+    maxPerBox: 4
 
   # The radius of the circle a bomb clears, in tile spacings. 4 is ~57 tiles
   # inland, about one bank (up to ~70 near the icosahedron corners). 10.4 was
@@ -345,10 +340,13 @@ bonus:
   bomb:
     rings: 4
 
-  # enclose_clicks: one shape of at most 25 tiles, whose wall costs about 20
-  # clicks. A click that closes nothing keeps the charge.
+  # enclose_clicks: each is one shape of at most 25 tiles, whose wall costs
+  # about 20 clicks; a click that closes nothing keeps it. Up to 3 held, spent
+  # while enclose is switched on; a box adds 1 to 3.
   enclose:
     maxTiles: 25
+    held: 3
+    maxPerBox: 3
 
   # A tab left open overnight is not playing, and a box sent to it is one nobody
   # catches.
@@ -358,15 +356,9 @@ bonus:
   forgetAfter: 5m
 
   # Nothing here is a race, but a script catches every box it is offered where a
-  # person catches some. This bounds what that is worth. It only stops the next
-  # offer and never cuts a bonus that runs. 15m is seven 2m triples: at ten boxes
-  # an hour, half of them triples, a person does not reach it.
-  maxBoostPerHour: 15m
-
-  # The same for charges, which have no time to count, and how long one is kept
-  # unspent. They are kept in postgres, so a restart keeps them.
-  maxChargesPerHour: 6
-  chargeTTL: 24h
+  # person catches some. This bounds what that is worth: 12 is above the ten
+  # boxes an hour a person catching every one would get.
+  maxChargesPerHour: 12
 
   sweepInterval: 1s
 

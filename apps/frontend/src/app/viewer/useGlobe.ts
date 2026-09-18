@@ -4,9 +4,8 @@ import {CapturedFrame} from './capture.ts';
 import {Country} from '../../domain/countries.ts';
 import {OwnershipsGetter, TileClicker, UpdatesListener} from '../../backends/backend.ts';
 import {useLeaderboardFeed} from './useLeaderboardFeed.ts';
-import {ActiveBonus, BonusReward, Charges, isTimed, NO_CHARGES} from '../../domain/bonus.ts';
+import {ALL_OFF, BonusReward, BonusRules, Charges, NO_CHARGES, Switches} from '../../domain/bonus.ts';
 import {BombDrop, Bomber, BonusCatch, BonusListener} from '../../backends/backend.ts';
-import {now} from '../../backends/clickBudget.ts';
 import {PlaySound} from '../sound/soundPlayer.ts';
 
 export type GlobeStatus =
@@ -44,14 +43,14 @@ export function useGlobe(options: UseGlobeOptions) {
 
     const [sessionUnavailable, setSessionUnavailable] = useState(false)
 
-    // Three pieces of state, because they have three lifetimes. `award` is the
-    // two-second announcement; `bonus` is a triple, which runs for its time;
-    // `charges` is what the player holds, which lasts until it is spent. The
-    // meter reads the last two.
+    // Two pieces of state, because they have two lifetimes. `award` is the
+    // two-second announcement; `charges` is what the player holds, which lasts
+    // until it is spent, and is what the meter reads.
     const [award, setAward] = useState<BonusReward | undefined>()
-    const [bonus, setBonus] = useState<ActiveBonus | undefined>()
     const [charges, setCharges] = useState<Charges>(NO_CHARGES)
+    const [rules, setRules] = useState<BonusRules | undefined>()
     const [bombArmed, setBombArmed] = useState(false)
+    const [switches, setSwitches] = useState<Switches>(ALL_OFF)
 
     // Somebody caught one, anywhere on the planet. Held as the latest catch so
     // the board can say so; it is never what starts this client's own bonus,
@@ -67,25 +66,8 @@ export function useGlobe(options: UseGlobeOptions) {
         setLastBomb((previous) => ({drop, land, id: (previous?.id ?? 0) + 1}))
     }, [])
 
-    const takeBonus = useCallback((reward: BonusReward) => {
-        setAward(reward)
-        // A charge is not a timer: the server's charges say it is held.
-        if (!isTimed(reward)) return
-        // Stamped on the same monotonic clock as a budget reading, so the
-        // countdown measures how long this machine has watched rather than
-        // trusting a server timestamp from an unrelated clock.
-        setBonus({reward, endsAt: now() + reward.seconds * 1000})
-    }, [])
-
-    // The triple takes itself off, so nothing has to remember to. A second box
-    // caught mid-bonus replaces the whole thing, and this effect re-runs with
-    // the new deadline rather than leaving the old timer to cut it short.
-    useEffect(() => {
-        if (!bonus) return
-
-        const timer = setTimeout(() => setBonus(undefined), Math.max(0, bonus.endsAt - now()))
-        return () => clearTimeout(timer)
-    }, [bonus])
+    // The charge itself arrives with the charges: this is only the announcement.
+    const takeBonus = useCallback((reward: BonusReward) => setAward(reward), [])
 
     const globeRef = useRef<Globe | null>(null)
 
@@ -116,6 +98,8 @@ export function useGlobe(options: UseGlobeOptions) {
             onBonusWon: takeBonus,
             onBonusTaken: recordCatch,
             onCharges: setCharges,
+            onRules: setRules,
+            onSwitchesChange: setSwitches,
             bonusListener,
             bomber,
             onBombDropped: recordBomb,
@@ -163,6 +147,7 @@ export function useGlobe(options: UseGlobeOptions) {
     const dismissAward = useCallback(() => setAward(undefined), [])
     // The meter's bomb button: aims the bomb held, or puts it away.
     const toggleBomb = useCallback(() => globeRef.current?.setArmed(!bombArmed), [bombArmed])
+    const toggleSwitch = useCallback((name: keyof Switches) => globeRef.current?.setSwitch(name, !switches[name]), [switches])
     const dismissBomb = useCallback(() => setLastBomb(undefined), [])
 
     return {
@@ -178,10 +163,12 @@ export function useGlobe(options: UseGlobeOptions) {
         dismissSessionUnavailable: () => setSessionUnavailable(false),
         award,
         dismissAward,
-        bonus,
         charges,
+        rules,
         bombArmed,
         toggleBomb,
+        switches,
+        toggleSwitch,
         lastCatch,
         lastBomb,
         dismissBomb,

@@ -26,5 +26,6 @@ func (h GetBonusRulesHandler) GetBonusRules(
 		BlastRadius:       h.rules.BlastRadius,
 		EnclosureMaxTiles: uint32(h.rules.EnclosureMaxTiles),
 		SpreadClicks:      uint32(h.rules.SpreadClicks),
+		Enclosures:        uint32(h.rules.Enclosures),
 	}), nil
 }

@@ -31,11 +31,11 @@ function around(cx: number, cy: number, distance: number, count: number): [numbe
 }
 
 const DRAWINGS: Record<BonusReward["kind"], React.ReactNode> = {
-    // A pointer clicking, with three sparks at its tip: three clicks for one.
-    tripleClicks: <>
-        <path className="bonus-icon-line" d="M20 12 L20 4 M15 14 L9.5 8.5 M13 19 L5 19"/>
-        <path className="bonus-icon-ink"
-              d="M20 19 L20 43 L26.5 37 L31 46 L36 43.5 L31.5 35 L40 34 Z"/>
+    // A battery filled to the top: the click bank, full.
+    refill: <>
+        <path className="bonus-icon-line" d="M7 14 H37 V34 H7 Z"/>
+        <path className="bonus-icon-ink" d="M37 20 H42 V28 H37 Z"/>
+        <path className="bonus-icon-ink" d="M11 18 H17 V30 H11 Z M19 18 H25 V30 H19 Z M27 18 H33 V30 H27 Z"/>
     </>,
 
     // One tile taking the six around it.

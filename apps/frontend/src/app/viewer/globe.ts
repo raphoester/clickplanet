@@ -37,7 +37,7 @@ import {createBonusBox} from "./bonusBox.ts";
 import {createBonusPointer} from "./bonusPointer.ts";
 import {createEnclosureEffects} from "./enclosureEffect.ts";
 import {createBonusClickEffects} from "./bonusClickEffects.ts";
-import {BonusReward, BonusRules, Charges, NO_CHARGES} from "../../domain/bonus.ts";
+import {ALL_OFF, BonusReward, BonusRules, Charges, NO_CHARGES, Switches, switched, switchesHeld} from "../../domain/bonus.ts";
 import {now as monotonicNow} from "../../backends/clickBudget.ts";
 import {BlastUniforms, blastUniforms, createBlasts} from "./blasts.ts";
 import {IMPACT_DELAY} from "../../domain/blast.ts";
@@ -70,7 +70,7 @@ const DISTANT_BOMB_VOLUME = 0.45
 /** How long after our own drop a blast in our colours is taken to be it. */
 const OWN_DROP_WINDOW_SECONDS = 5
 
-/** How long after our own click a spread or boost on its tile is taken to be it. */
+/** How long after our own click a spread on its tile is taken to be it. */
 const OWN_CLICK_WINDOW_SECONDS = 3
 
 const TILES_PER_BATCH = 10_000
@@ -101,6 +101,10 @@ export type GlobeOptions = {
     onBonusWon: (reward: BonusReward) => void
     /** What this player holds now, as the server last said. */
     onCharges: (charges: Charges) => void
+    /** How big each charge is and how many are held at most, once read at load. */
+    onRules: (rules: BonusRules) => void
+    /** Spread or enclose was switched on or off, by the player or by its pool running out. */
+    onSwitchesChange: (switches: Switches) => void
     /** Absent for a backend with no bonus feed, which draws no boxes at all. */
     bonusListener?: BonusListener
     /** Absent for a backend with no bombs: a bomb won is then never armed. */
@@ -123,6 +127,8 @@ export type Globe = {
     takeReward(claimed: ClaimedBonus): void
     /** Aims the bomb held, or puts it away. Aiming does nothing without one. */
     setArmed(armed: boolean): void
+    /** Switches spread or enclose on or off. On does nothing with an empty pool. */
+    setSwitch(name: keyof Switches, on: boolean): void
     /** The globe as it is framed right now, resolved on the next frame — the
      *  only tick the drawing buffer can be read from. See capture.ts. */
     capture(): Promise<CapturedFrame>
@@ -149,6 +155,8 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         onBonusTaken,
         onBonusWon,
         onCharges,
+        onRules,
+        onSwitchesChange,
         bonusListener,
         bomber,
         onBombDropped,
@@ -213,7 +221,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const enclosures = createEnclosureEffects(geometryData.positions)
     scene.add(enclosures.object)
 
-    // And every click made under a spread or a triple clicks bonus, anyone's.
+    // And every click made under a spread charge, anyone's.
     const bonusClicks = createBonusClickEffects(geometryData.positions)
     scene.add(bonusClicks.object)
 
@@ -221,7 +229,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     // caught is only worth something with the token it arrived with.
     let offered: BonusOffer | undefined
 
-    // A spread or a boost is broadcast to everyone with no word of whose it is,
+    // A spread is broadcast to everyone with no word of whose it is,
     // and only the player who made it hears it: its tile is one they just clicked.
     const ownClicks = new OwnClicks(OWN_CLICK_WINDOW_SECONDS)
 
@@ -246,12 +254,22 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     // A blast is usually on the side of the planet nobody is looking at.
     const blastPointer = createBonusPointer(eventTarget, "blast")
 
-    // What the player holds, as the server last said. A bomb is a charge, kept
-    // until it is dropped, so it is not always aimed: aimed, a press on the
-    // planet drops it and a click paints nothing, which nobody could play with
-    // for a day. It is aimed when it is caught, and the meter puts it away and
-    // takes it out again.
+    // What the player holds, as the server last said. Nothing is used until the
+    // player says so: a bomb is aimed from the inventory, and spread and enclose
+    // are switched on there. Aimed, a press on the planet drops the bomb and a
+    // click paints nothing.
     let charges: Charges = NO_CHARGES
+
+    // Spread and enclose, as the player left them. Every click carries them.
+    // One bonus at a time, the bomb included: aiming it switches both off, and
+    // switching one on puts the bomb away.
+    let switches: Switches = ALL_OFF
+
+    const switchTo = (next: Switches) => {
+        if (next === switches) return
+        switches = next
+        onSwitchesChange(next)
+    }
 
     // How wide a bomb's blast is, from the rules read at load. Without it the
     // bomb cannot be aimed: the ring would promise a size nobody knows.
@@ -289,12 +307,15 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         armed = {radius: rules.blastRadius}
         eventTarget.classList.add("viewer-canvas--armed")
         onArmedChange(true)
+        switchTo(ALL_OFF)
     }
 
-    // A bomb dropped, or found gone, is put away here too.
+    // A bomb dropped, or found gone, is put away here too, and a switch whose
+    // pool ran out goes off.
     const takeCharges = (held: Charges) => {
         charges = held
         if (!held.bomb) disarm()
+        switchTo(switchesHeld(switches, held))
         onCharges(held)
     }
 
@@ -303,12 +324,10 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         blasts.setAim(point, armed.radius)
     }
 
-    // What the server granted for a caught box. A bomb is aimed here, since
-    // catching one is when a player wants it; every reward is then announced
-    // the same way.
+    // What the server granted for a caught box. It goes into the inventory and
+    // nothing is used: the player decides when.
     const takeReward = ({reward, charges: held}: ClaimedBonus) => {
         takeCharges(held)
-        if (reward.kind === "bomb") arm()
         onBonusWon(reward)
     }
 
@@ -336,7 +355,10 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             if (ownClicks.has(spread.tile, spread.countryId, performance.now() / 1000)) playSound("spread")
         },
         onCharges: (held) => takeCharges(held),
-        onRules: (read) => rules = read,
+        onRules: (read) => {
+            rules = read
+            onRules(read)
+        },
     })
 
     // When this client last dropped one, until its broadcast comes back: the
@@ -538,7 +560,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         playSound("click")
         ownClicks.record(tile, country.code, performance.now() / 1000)
 
-        tileClicker.clickTile(tile, country.code).catch((e) => {
+        tileClicker.clickTile(tile, country.code, switches).catch((e) => {
             if (lifetime.signal.aborted) return
             applyChanges(ownership.rollback(claim))
             if (reportClickFailure(e, {onRateLimited, onVPNBlocked, onSessionUnavailable})) playSound("refused")
@@ -564,13 +586,6 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             for (const update of updates) clear.tiles.delete(update.tile)
         }
         applyChanges(ownership.applyUpdates(updates))
-
-        const seconds = performance.now() / 1000
-        for (const update of updates) {
-            if (!update.boosted || update.newCountry === undefined) continue
-            bonusClicks.playBoost(update.tile)
-            if (ownClicks.has(update.tile, update.newCountry, seconds)) playSound("boost")
-        }
     })
 
     addDisplayObjects(scene, field.displayPoints)
@@ -615,6 +630,11 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         },
         takeReward,
         setArmed: (on: boolean) => on ? arm() : disarm(),
+        setSwitch: (name: keyof Switches, on: boolean) => {
+            const next = switchesHeld(switched(switches, name, on), charges)
+            if (next[name]) disarm()
+            switchTo(next)
+        },
         capture: () => new Promise<CapturedFrame>((resolve, reject) => {
             if (lifetime.signal.aborted) {
                 reject(new Error("the globe is no longer running"))

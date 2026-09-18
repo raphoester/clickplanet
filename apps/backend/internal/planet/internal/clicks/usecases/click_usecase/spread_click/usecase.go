@@ -1,5 +1,5 @@
-// Package spread_click is the spread bonus: each click it has left also takes
-// every tile touching the one clicked.
+// Package spread_click is the spread bonus: while the player has it switched on,
+// each click spends one from the pool and also takes every tile touching it.
 //
 // The server picks those tiles off its own map. A client that named them would
 // be a client that could name any tiles it liked, which is the whole of the cheat.
@@ -51,8 +51,8 @@ type UseCase struct {
 	publisher      Publisher
 }
 
-// Execute spreads only a click the rule accepted, so a refused country or tile
-// spreads nothing and costs no spread click. The neighbours need no check of their own: the map only
+// Execute spreads only a click the rule accepted and the player asked to spread, so a refused
+// country or tile, or a click with spread switched off, spreads nothing and costs no spread click. The neighbours need no check of their own: the map only
 // holds real tiles, and the country is the one the rule just accepted.
 //
 // A tile with no neighbours — one of the lone islands — takes itself and
@@ -60,7 +60,7 @@ type UseCase struct {
 // otherwise.
 func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_usecase.Out, error) {
 	out, err := u.implementation.Execute(ctx, in)
-	if err != nil || !u.spreads.SpendSpreadClick(bonuses.HolderOf(clicks.PayerOf(ctx))) {
+	if err != nil || !in.Spread || !u.spreads.SpendSpreadClick(bonuses.HolderOf(clicks.PayerOf(ctx))) {
 		return out, err
 	}
 

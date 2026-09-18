@@ -1,4 +1,5 @@
 import {
+    BankFullError,
     BombDrop,
     Bomber,
     BonusCatch,
@@ -12,13 +13,14 @@ import {
     Ownerships,
     OwnershipsGetter,
     RateLimitedError,
+    Refiller,
     SpreadClick,
     TileClicker,
     Update,
     UpdatesListener,
     VPNBlockedError,
 } from "./backend.ts";
-import {BonusReward, BonusRules, Charges, isTimed, NO_CHARGES} from "../domain/bonus.ts";
+import {ALL_OFF, BonusReward, BonusRules, Charges, NO_CHARGES, Switches} from "../domain/bonus.ts";
 import {
     BonusKind,
     ChargesHeld,
@@ -45,7 +47,7 @@ export function newClickServiceClient(config: Config): PromiseClient<typeof Clic
     }))
 }
 
-export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, Bomber {
+export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, Bomber, Refiller {
     private pendingUpdates: Update[] = []
     private readonly updateBatchCallbacks = new Map<string, (updates: Update[]) => void>()
     private readonly updateCallbacks = new Map<string, (update: Update) => void>()
@@ -67,9 +69,6 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
     /** The country the price on a reading is for — see priceFor. */
     private budgetCountry = ""
 
-    /** Re-reads the allowance when a caught bonus runs out — see claim. */
-    private bonusEndTimer: ReturnType<typeof setTimeout> | undefined
-
     /** How big each charge is, read once — see readRules. */
     private rules: BonusRules | undefined
 
@@ -77,8 +76,8 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
      * What this player holds. Read from the server at load and when the account
      * changes; after that it follows this client's own calls, because nothing
      * pushes it: a claim answers it, a drop spends the bomb, an accepted click
-     * spends a spread click, and this client's own closed shape spends the
-     * enclose. A click answers nothing about it, which would tell a shadow-banned
+     * sent with spread on spends a spread click, and this client's own closed
+     * shape spends an enclosure. A click answers nothing about it, which would tell a shadow-banned
      * player that its clicks spend nothing.
      */
     private charges: Charges = NO_CHARGES
@@ -114,7 +113,6 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
 
     public close() {
         clearInterval(this.flushTimer)
-        clearTimeout(this.bonusEndTimer)
         this.stopListening()
         this.updateBatchCallbacks.clear()
         this.updateCallbacks.clear()
@@ -131,12 +129,12 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
      * moved onto cellular, is not something to raise a dialog about. The retry
      * is not a loop — a second refusal is reported.
      */
-    public async clickTile(tileId: number, countryId: string) {
+    public async clickTile(tileId: number, countryId: string, switches: Switches = ALL_OFF) {
         this.inFlight++
         this.reportBudget()
 
         try {
-            await this.click(tileId, countryId)
+            await this.click(tileId, countryId, switches)
         } catch (e) {
             if (!(e instanceof ConnectError) || e.code !== Code.Unauthenticated) {
                 throw asClickError(e)
@@ -145,7 +143,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
             this.session.invalidate()
 
             try {
-                await this.click(tileId, countryId)
+                await this.click(tileId, countryId, switches)
             } catch (retried) {
                 throw asClickError(retried)
             }
@@ -155,7 +153,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         }
     }
 
-    private async click(tileId: number, countryId: string): Promise<void> {
+    private async click(tileId: number, countryId: string, {spread, enclose}: Switches): Promise<void> {
         const token = await this.session.token()
 
         const headers = new Headers()
@@ -163,13 +161,14 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
 
         try {
             const res = await retrying(
-                () => this.client.click({tileId, countryId}, {headers}),
+                () => this.client.click({tileId, countryId, spread, enclose}, {headers}),
                 `click ${tileId}`,
             )
             this.anchorBudget(res.budget, countryId)
             this.followSession(token)
-            // An accepted click is what spends a spread click, on the server as here.
-            if (this.charges.spreadClicksLeft > 0) {
+            // An accepted click sent with spread on is what spends a spread
+            // click, on the server as here.
+            if (spread && this.charges.spreadClicksLeft > 0) {
                 this.holdCharges({...this.charges, spreadClicksLeft: this.charges.spreadClicksLeft - 1})
             }
         } catch (e) {
@@ -340,8 +339,10 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
 
                 const enclosure = enclosureOf(event)
                 if (enclosure) {
-                    // This player's own shape is what spent its enclose charge.
-                    if (enclosure.yours && this.charges.enclose) this.holdCharges({...this.charges, enclose: false})
+                    // This player's own shape is what spent one of its enclosures.
+                    if (enclosure.yours && this.charges.enclosures > 0) {
+                        this.holdCharges({...this.charges, enclosures: this.charges.enclosures - 1})
+                    }
                     this.bonusCallbacks.forEach(handlers => handlers.onEnclosed(enclosure))
                     return
                 }
@@ -386,6 +387,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                 blastRadius: res.blastRadius,
                 enclosureMaxTiles: res.enclosureMaxTiles,
                 spreadClicks: res.spreadClicks,
+                enclosures: res.enclosures,
             }
             this.rules = rules
             this.bonusCallbacks.forEach(handlers => handlers.onRules(rules))
@@ -471,26 +473,12 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         const res = await this.client.claimBonus({token, countryId}, {headers})
         this.followSession(sessionToken)
 
-        // The allowance arrives sped up on the answer, so the meter follows the
-        // server's own policy rather than a multiplication done here.
-        this.anchorBudget(res.budget, countryId)
-
         // Only a kind this build knows is ever drawn, so only one can be caught.
-        const reward = rewardOf(res.kind, res.durationSeconds, this.rules)
+        const reward = rewardOf(res.kind, this.rules, res.amount)
         if (!reward) throw new BonusLostError()
 
         const charges = chargesOfMessage(res.charges)
         this.holdCharges(charges)
-
-        // The boosted reading says nothing about when the boost stops, so left
-        // alone the meter keeps replaying the fast refill until the next click
-        // re-anchors it. Ask again once it is over. The server started
-        // the bonus before it answered, so this always lands after its end.
-        // A charge widens nothing, so there is nothing to ask again.
-        if (isTimed(reward)) {
-            clearTimeout(this.bonusEndTimer)
-            this.bonusEndTimer = setTimeout(() => void this.readBudget(), reward.seconds * 1000)
-        }
 
         return {reward, charges}
     }
@@ -548,6 +536,45 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         this.followSession(sessionToken)
     }
 
+    /**
+     * With the same one-shot session retry a claim gets. The full bank comes
+     * back on the answer, so the meter jumps at once rather than on the next
+     * click, and the charges follow. NotFound is a refill already gone, so it
+     * leaves the charges too; a full bank leaves them as they were.
+     */
+    public async useRefill(countryId: string): Promise<void> {
+        try {
+            await this.refill(countryId)
+        } catch (e) {
+            let error = asRefillError(e)
+            if (e instanceof ConnectError && e.code === Code.Unauthenticated) {
+                this.session.invalidate()
+                try {
+                    await this.refill(countryId)
+                    return
+                } catch (retried) {
+                    error = asRefillError(retried)
+                }
+            }
+            if (error instanceof BonusLostError) this.holdCharges({...this.charges, refill: false})
+            throw error
+        }
+    }
+
+    private async refill(countryId: string): Promise<void> {
+        const sessionToken = await this.session.token()
+
+        const headers = new Headers()
+        if (sessionToken) headers.set(SESSION_HEADER, sessionToken)
+
+        // Not wrapped in `retrying`, for the reason a claim is not: the refill is
+        // spent by the first request that lands.
+        const res = await this.client.useRefill({countryId}, {headers})
+        this.followSession(sessionToken)
+        this.anchorBudget(res.budget, countryId)
+        this.holdCharges(chargesOfMessage(res.charges))
+    }
+
     public listenForUpdatesBatch(
         callback: (updates: Update[]) => void,
     ): () => void {
@@ -572,7 +599,7 @@ export function offerOf(event: PlanetEvent, at = budgetNow(), wallClock = Date.n
 
     // A kind this build does not know is a box it cannot describe, so it is not
     // drawn at all rather than drawn as something it is not.
-    const reward = rewardOf(offered.kind, offered.durationSeconds)
+    const reward = rewardOf(offered.kind)
     if (!reward) return undefined
 
     return {
@@ -614,24 +641,30 @@ export function spreadOf(event: PlanetEvent): SpreadClick | undefined {
 export function chargesOfMessage(held: ChargesHeld | undefined): Charges {
     if (!held) return NO_CHARGES
 
-    return {bomb: held.bomb, enclose: held.enclose, spreadClicksLeft: held.spreadClicksLeft}
+    return {refill: held.refill, bomb: held.bomb, enclosures: held.enclosures, spreadClicksLeft: held.spreadClicksLeft}
 }
 
-/** The sizes come from the rules read at load; before they are, a reward reads as size zero. */
+const NO_RULES: BonusRules = {blastRadius: 0, enclosureMaxTiles: 0, spreadClicks: 0, enclosures: 0}
+
+/**
+ * `amount` is what a claim granted; an offer says only the kind, and reads as
+ * one. The sizes come from the rules read at load; before they are, a reward
+ * reads as size zero.
+ */
 function rewardOf(
     kind: BonusKind,
-    seconds: number,
-    {blastRadius, enclosureMaxTiles: maxTiles, spreadClicks}: BonusRules = {blastRadius: 0, enclosureMaxTiles: 0, spreadClicks: 0},
+    {blastRadius, enclosureMaxTiles: maxTiles}: BonusRules = NO_RULES,
+    amount = 1,
 ): BonusReward | undefined {
     switch (kind) {
-        case BonusKind.TRIPLE_CLICKS:
-            return {kind: "tripleClicks", seconds}
+        case BonusKind.REFILL:
+            return {kind: "refill"}
         case BonusKind.SPREAD_CLICKS:
-            return {kind: "spreadClicks", clicks: spreadClicks}
+            return {kind: "spreadClicks", clicks: amount}
         case BonusKind.BOMB:
             return {kind: "bomb", radius: blastRadius}
         case BonusKind.ENCLOSE_CLICKS:
-            return {kind: "encloseClicks", maxTiles}
+            return {kind: "encloseClicks", shapes: amount, maxTiles}
         default:
             return undefined
     }
@@ -662,6 +695,16 @@ export function asBonusError(e: unknown): unknown {
     }
 
     return e
+}
+
+/**
+ * A refill refused: FailedPrecondition is a full bank, which spent nothing;
+ * the rest reads as a claim or a drop does.
+ */
+export function asRefillError(e: unknown): unknown {
+    if (e instanceof ConnectError && e.code === Code.FailedPrecondition) return new BankFullError({cause: e})
+
+    return asBonusError(e)
 }
 
 /** A server too old to slow a refill sends a slowdown of zero, and the meter says nothing about price. */
@@ -719,6 +762,5 @@ export function updateOf(event: PlanetEvent): Update | undefined {
         tile: update.tileId,
         previousCountry: update.previousCountryId === "" ? undefined : update.previousCountryId,
         newCountry: update.countryId === "" ? undefined : update.countryId,
-        boosted: update.boosted,
     }
 }

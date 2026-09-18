@@ -13,16 +13,16 @@ import (
 // MemoryPersistence is a Persistence held in a map, for tests that need charges but not postgres.
 type MemoryPersistence struct {
 	mu      sync.Mutex
-	hands   map[bonuses.Holder]bonuses.Hand
+	hands   map[bonuses.Holder]bonuses.Held
 	saves   int
 	failing error
 }
 
 func NewMemoryPersistence() *MemoryPersistence {
-	return &MemoryPersistence{hands: map[bonuses.Holder]bonuses.Hand{}}
+	return &MemoryPersistence{hands: map[bonuses.Holder]bonuses.Held{}}
 }
 
-func (m *MemoryPersistence) Load(_ context.Context, visit func(bonuses.Holder, bonuses.Hand)) error {
+func (m *MemoryPersistence) Load(_ context.Context, visit func(bonuses.Holder, bonuses.Held)) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -35,7 +35,7 @@ func (m *MemoryPersistence) Load(_ context.Context, visit func(bonuses.Holder, b
 	return nil
 }
 
-func (m *MemoryPersistence) Save(_ context.Context, hands map[bonuses.Holder]bonuses.Hand) error {
+func (m *MemoryPersistence) Save(_ context.Context, hands map[bonuses.Holder]bonuses.Held) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -45,7 +45,7 @@ func (m *MemoryPersistence) Save(_ context.Context, hands map[bonuses.Holder]bon
 	m.saves++
 
 	for holder, hand := range hands {
-		if hand == (bonuses.Hand{}) {
+		if hand == (bonuses.Held{}) {
 			delete(m.hands, holder)
 			continue
 		}
@@ -55,7 +55,7 @@ func (m *MemoryPersistence) Save(_ context.Context, hands map[bonuses.Holder]bon
 }
 
 // Stored is every hand held.
-func (m *MemoryPersistence) Stored() map[bonuses.Holder]bonuses.Hand {
+func (m *MemoryPersistence) Stored() map[bonuses.Holder]bonuses.Held {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 

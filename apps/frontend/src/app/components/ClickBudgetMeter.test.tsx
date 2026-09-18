@@ -2,7 +2,6 @@
 import {afterEach, describe, expect, it, vi} from 'vitest'
 import {cleanup, fireEvent, render, screen} from '@testing-library/react'
 import ClickBudgetMeter from './ClickBudgetMeter.tsx'
-import {NO_CHARGES} from "../../domain/bonus.ts"
 import {ClickBudget} from "../../backends/clickBudget.ts"
 
 afterEach(cleanup)
@@ -124,53 +123,7 @@ describe("ClickBudgetMeter", () => {
     })
 })
 
-describe("ClickBudgetMeter while a bonus runs", () => {
-    const running = (seconds = 60) => ({
-        reward: {kind: "tripleClicks", seconds} as const,
-        endsAt: performance.now() + seconds * 1000,
-    })
-
-    it("says nothing about a bonus when none is running", () => {
-        render(<ClickBudgetMeter budget={reading()}/>)
-
-        expect(document.querySelector(".click-budget-bonus")).toBeNull()
-        expect(meter().classList.contains("click-budget-boosted")).toBe(false)
-    })
-
-    it("shows the multiplier that was won", () => {
-        render(<ClickBudgetMeter budget={reading()} bonus={running()}/>)
-
-        expect(screen.getByText("3×")).toBeTruthy()
-    })
-
-    it("counts down how long is left", () => {
-        render(<ClickBudgetMeter budget={reading()} bonus={running(45)}/>)
-
-        expect(screen.getByText("45s")).toBeTruthy()
-    })
-
-    it("marks the whole meter, so the boost reads at a glance", () => {
-        render(<ClickBudgetMeter budget={reading()} bonus={running()}/>)
-
-        expect(meter().classList.contains("click-budget-boosted")).toBe(true)
-    })
-
-    it("still reports the server's own allowance, never a multiplied guess", () => {
-        // The boost is the server's to grant: when it does, capacity and rate
-        // arrive in the reading and the pips widen on their own. Nothing here
-        // may invent them in the meantime.
-        render(<ClickBudgetMeter budget={reading({capacity: 10})} bonus={running()}/>)
-
-        expect(pips()).toHaveLength(10)
-        expect(meter().getAttribute("aria-valuemax")).toBe("10")
-    })
-
-    it("leaves the count itself alone", () => {
-        render(<ClickBudgetMeter budget={reading({tokens: 4})} bonus={running()}/>)
-
-        expect(meter().getAttribute("aria-valuenow")).toBe("4")
-    })
-
+describe("ClickBudgetMeter and the price", () => {
     it("says why the refill is slow for a country that holds much of the map", () => {
         render(<ClickBudgetMeter countryName="Bulgaria"
                                  budget={reading({price: {slowdown: 8, share: 0.8, next: {share: 0.9, slowdown: 10}}})}/>)
@@ -229,54 +182,17 @@ describe("ClickBudgetMeter for a guest", () => {
     })
 })
 
-describe("ClickBudgetMeter with charges held", () => {
-    it("says nothing when nothing is held", () => {
-        render(<ClickBudgetMeter budget={reading()} charges={NO_CHARGES}/>)
+describe("ClickBudgetMeter's dock", () => {
+    it("holds what it is given under the meter", () => {
+        render(<ClickBudgetMeter budget={reading()}><p>held</p></ClickBudgetMeter>)
 
-        expect(document.querySelector(".click-budget-charges")).toBeNull()
+        expect(document.querySelector(".click-budget-dock")?.textContent).toContain("held")
     })
 
-    it("says each charge held, with no countdown", () => {
-        render(<ClickBudgetMeter budget={reading()}
-                                 charges={{bomb: true, enclose: true, spreadClicksLeft: 5}}
-                                 onToggleBomb={() => {}}/>)
+    it("still holds it against a server that reports no allowance", () => {
+        render(<ClickBudgetMeter><p>held</p></ClickBudgetMeter>)
 
-        expect(screen.getByText("Bomb ready")).toBeTruthy()
-        expect(screen.getByText("Enclose ready")).toBeTruthy()
-        expect(screen.getByText("Spread: 5 clicks left")).toBeTruthy()
-        expect(screen.queryByText(/\ds$/)).toBeNull()
-    })
-
-    it("does not mark the meter boosted: a charge widens nothing", () => {
-        render(<ClickBudgetMeter budget={reading()} charges={{...NO_CHARGES, spreadClicksLeft: 8}}/>)
-
-        expect(meter().classList.contains("click-budget-boosted")).toBe(false)
-    })
-
-    it("aims the bomb and puts it away from its own button", () => {
-        const toggle = vi.fn()
-        const {rerender} = render(<ClickBudgetMeter budget={reading()}
-                                                    charges={{...NO_CHARGES, bomb: true}}
-                                                    onToggleBomb={toggle}/>)
-
-        const bomb = screen.getByRole("button", {name: /Bomb ready/})
-        expect(bomb.getAttribute("aria-pressed")).toBe("false")
-        fireEvent.click(bomb)
-        expect(toggle).toHaveBeenCalledTimes(1)
-
-        rerender(<ClickBudgetMeter budget={reading()}
-                                   charges={{...NO_CHARGES, bomb: true}}
-                                   bombArmed
-                                   onToggleBomb={toggle}/>)
-
-        const aimed = screen.getByRole("button", {name: /hold to drop/})
-        expect(aimed.getAttribute("aria-pressed")).toBe("true")
-    })
-
-    it("only says the bomb when there is no way to aim it", () => {
-        render(<ClickBudgetMeter budget={reading()} charges={{...NO_CHARGES, bomb: true}}/>)
-
-        expect(screen.getByText("Bomb ready")).toBeTruthy()
-        expect(screen.queryByRole("button", {name: /Bomb/})).toBeNull()
+        expect(screen.getByText("held")).toBeTruthy()
+        expect(screen.queryByRole("meter")).toBeNull()
     })
 })

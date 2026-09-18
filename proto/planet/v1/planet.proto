@@ -23,9 +23,13 @@ service ClickService {
   rpc ClaimBonus(ClaimBonusRequest) returns (ClaimBonusResponse);
 
   // Drops the bomb a caught box granted. Answers NotFound when the caller holds
-  // none — never won, already dropped, or held past the charge's expiry — and
-  // says no more.
+  // none — never won, or already dropped — and says no more.
   rpc DropBomb(DropBombRequest) returns (DropBombResponse);
+
+  // Spends the refill a caught box granted: the caller's click bank is filled
+  // to its capacity. Answers NotFound when the caller holds none, and
+  // FailedPrecondition when the bank is already full, which spends nothing.
+  rpc UseRefill(UseRefillRequest) returns (UseRefillResponse);
 
   // What the caller holds: read once when the page loads, and again when the
   // caller's account changes. Everything after is the client's own arithmetic
@@ -91,6 +95,19 @@ message ClickBudget {
 message ClickRequest {
   uint32 tile_id = 1;
   string country_id = 2;
+
+  // The player switched spread on: this click spends one spread click, when
+  // the pool has one, and also takes the tiles touching it. Off, a pool is
+  // never touched: a charge is used only when the player chooses.
+  bool spread = 3;
+
+  // The player switched enclose on: if this click closes a shape, it takes the
+  // tiles inside and spends one enclosure. Off, closing a shape takes nothing
+  // and spends nothing.
+  //
+  // One bonus per click: spread and enclose both set is refused with
+  // INVALID_ARGUMENT, and nothing is written or spent.
+  bool enclose = 4;
 }
 
 message ClickResponse {
@@ -164,20 +181,24 @@ message PlanetEvent {
   }
 }
 
-// The use-once bonuses a player holds, by the account the token names (or the
-// address without one). At most one of each kind: while one is held, no box of
-// that kind is offered. Each is kept until it is spent, or for a day after it
-// was granted.
+// The bonuses a player holds, by the account the token names: a refill and a
+// bomb at most, a stack of enclosures and a pool of spread clicks, each up to
+// its size in GetBonusRules. While one is held, or a stack or a pool is full,
+// no box of that kind is offered. Nothing lapses: each is kept until the player
+// uses it.
 message ChargesHeld {
+  // A refill, to fill the click bank with UseRefill.
+  bool refill = 4;
+
   // A bomb, to be dropped anywhere with DropBomb.
   bool bomb = 1;
 
-  // An enclose charge: the next click that closes a shape of the player's own
-  // tiles takes the tiles inside it, and spends the charge.
-  bool enclose = 2;
+  // The enclose charges stacked. With enclose switched on, a click that closes
+  // a shape of the player's own tiles takes the tiles inside it and spends one.
+  uint32 enclosures = 2;
 
-  // How many of the next clicks also take the tiles touching the one clicked.
-  // Zero is no spread charge.
+  // The spread clicks in the pool, up to GetBonusRules.spread_clicks. Zero is
+  // none.
   uint32 spread_clicks_left = 3;
 }
 
@@ -199,19 +220,24 @@ message GetBonusRulesResponse {
   // The most tiles an enclosed shape may hold.
   uint32 enclosure_max_tiles = 2;
 
-  // How many clicks a spread charge spreads.
+  // The most spread clicks the pool holds. A box adds a few, up to this.
   uint32 spread_clicks = 3;
+
+  // The most enclose charges a player stacks. A box adds a few, up to this.
+  uint32 enclosures = 4;
 }
 
 // What a bonus is worth. The client never decides this, and an unknown kind is
 // one a client skips rather than guesses at.
 enum BonusKind {
   BONUS_KIND_UNSPECIFIED = 0;
-  BONUS_KIND_TRIPLE_CLICKS = 1;
 
-  // A charge: the next few clicks also take the tiles touching the one clicked.
-  // The server picks those tiles from its own map, so a client never names what
-  // it gets.
+  // A charge: fills the player's click bank to full, when the player chooses.
+  BONUS_KIND_REFILL = 5;
+
+  // A charge: adds a few clicks to the spread pool. While the player has spread
+  // switched on, each click spends one and also takes the tiles touching it. The server picks those tiles from its own map, so a client never names
+  // what it gets.
   BONUS_KIND_SPREAD_CLICKS = 2;
 
   // A charge: one bomb, dropped with DropBomb anywhere on the planet, kept until
@@ -219,9 +245,10 @@ enum BonusKind {
   // holds them. The server picks the tiles.
   BONUS_KIND_BOMB = 3;
 
-  // A charge: the next click that closes a shape of the player's own tiles also
-  // takes the tiles inside it. The server finds the shape, so a client never
-  // names what it gets.
+  // A charge: adds a few enclosures to the stack. While the player has enclose
+  // switched on, a click that closes a shape of the player's own tiles also
+  // takes the tiles inside it, and spends one.
+  // The server finds the shape, so a client never names what it gets.
   BONUS_KIND_ENCLOSE_CLICKS = 4;
 }
 
@@ -235,9 +262,6 @@ message BonusOffered {
   uint32 seed = 2;
 
   BonusKind kind = 3;
-
-  // How long a timed bonus runs. Zero for a charge, which runs until spent.
-  uint32 duration_seconds = 4;
 
   // After this the token is refused, whatever the client is still drawing.
   int64 expires_at_unix_ms = 5;
@@ -259,18 +283,28 @@ message ClaimBonusRequest {
 }
 
 message ClaimBonusResponse {
-  // The allowance as it stands with the bonus applied, so the client does not
-  // have to wait for its next click to see the faster refill. A kind that does
-  // not speed it up answers the allowance unchanged.
-  ClickBudget budget = 1;
-
   BonusKind kind = 2;
 
-  // How long a timed bonus runs. Zero for a charge.
-  uint32 duration_seconds = 3;
+  // How much the box gave, drawn by the server: enclosures or spread clicks.
+  // One for a refill or a bomb. What is held may be less than this added, when
+  // a stack or a pool was near its size.
+  uint32 amount = 8;
 
   // What the caller holds once this box is granted.
   ChargesHeld charges = 7;
+}
+
+message UseRefillRequest {
+  // The country the allowance that comes back is priced for.
+  string country_id = 1;
+}
+
+message UseRefillResponse {
+  // The allowance once the bank is full.
+  ClickBudget budget = 1;
+
+  // What the caller holds once the refill is spent.
+  ChargesHeld charges = 2;
 }
 
 // A point on the globe, as a direction from its centre. Need not be unit length.
@@ -345,7 +379,4 @@ message TileUpdate {
   uint32 tile_id = 1;
   string country_id = 2;
   string previous_country_id = 3;
-
-  // The click that made this change was made under a triple clicks bonus.
-  bool boosted = 4;
 }

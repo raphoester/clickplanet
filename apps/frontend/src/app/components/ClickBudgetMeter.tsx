@@ -1,28 +1,12 @@
-import {useEffect, useRef} from 'react'
+import {ReactNode, useEffect, useRef} from 'react'
 import {ClickBudget, nextClickProgress, now, secondsToOneMore, tokensAt} from "../../backends/clickBudget.ts"
-import {ActiveBonus, chargeLabels, Charges, describeReward, NO_CHARGES, secondsLeft} from "../../domain/bonus.ts"
 import {describePrice, factor} from "../../domain/clickPrice.ts"
 import "./ClickBudgetMeter.css"
 
 export type ClickBudgetMeterProps = {
     budget?: ClickBudget
-    /**
-     * The triple currently running, if any. The meter is the one place that says
-     * a bonus is live, because it is where the allowance is read — and once the
-     * backend grants the boost, the fill rate speeds up on its own off the
-     * server's policy, with nothing here to change.
-     */
-    bonus?: ActiveBonus
-    /**
-     * The charges held: a bomb, an enclose, a spread's clicks. Said under the
-     * meter with no countdown, since none of them runs out while the player
-     * plays — each lasts until it is spent.
-     */
-    charges?: Charges
-    /** Whether the bomb held is aimed, so its button can say which way it goes. */
-    bombArmed?: boolean
-    /** Aims the bomb held, or puts it away. Absent, the bomb is only said. */
-    onToggleBomb?: () => void
+    /** Docked above the meter, in its corner: the inventory. Shown without a budget too. */
+    children?: ReactNode
     /** The country selected, to say why its clicks refill slower. */
     countryName?: string
     /**
@@ -69,17 +53,13 @@ const STEP_MS = 250
  */
 export default function ClickBudgetMeter({
     budget,
-    bonus,
-    charges = NO_CHARGES,
-    bombArmed = false,
-    onToggleBomb,
+    children,
     countryName = "",
     refusals = 0,
     onSignIn,
 }: ClickBudgetMeterProps) {
     const root = useRef<HTMLDivElement>(null)
     const count = useRef<HTMLSpanElement>(null)
-    const countdown = useRef<HTMLSpanElement>(null)
     const wait = useRef<HTMLSpanElement>(null)
 
     useEffect(() => {
@@ -105,7 +85,6 @@ export default function ClickBudgetMeter({
         if (!box || !label) return
 
         let shown = -1
-        let shownSecond = -1
         let shownWait = ""
 
         const bar = budget.capacity > MAX_PIPS
@@ -114,16 +93,6 @@ export default function ClickBudgetMeter({
             const at = now()
             const tokens = tokensAt(budget, at)
             const whole = Math.floor(tokens)
-
-            // Written the same way the count is — only when the displayed value
-            // changes, so a 60 second bonus costs 60 writes and not 3,600.
-            if (bonus && countdown.current) {
-                const left = secondsLeft(bonus, at)
-                if (left !== shownSecond) {
-                    shownSecond = left
-                    countdown.current.textContent = `${left}s`
-                }
-            }
 
             // One write, and every pip works out its own share of it.
             box.style.setProperty("--click-budget-tokens", tokens.toFixed(3))
@@ -165,10 +134,10 @@ export default function ClickBudgetMeter({
         })
 
         return () => cancelAnimationFrame(frame)
-    }, [budget, bonus])
+    }, [budget])
 
     // A backend that reports no allowance is one that enforces none here.
-    if (!budget) return null
+    if (!budget) return children ? <div className="click-budget-dock">{children}</div> : null
 
     const pips = budget.capacity <= MAX_PIPS ? budget.capacity : 0
 
@@ -177,52 +146,48 @@ export default function ClickBudgetMeter({
     const whole = Math.floor(tokensAt(budget, now()))
 
     const price = describePrice(budget.price, countryName)
-    const className = ["click-budget", bonus && "click-budget-boosted", price && "click-budget-priced"]
+    const className = ["click-budget", price && "click-budget-priced"]
         .filter(Boolean).join(" ")
 
     // Said only when the server says what it is worth: a number made up here could promise what it does not grant.
     const speedUp = onSignIn && budget.linkedMultiplier
 
-    return <div className="click-budget-dock"><div
-        ref={root}
-        className={className}
-        role="meter"
-        aria-valuemin={0}
-        aria-valuenow={whole}
-        aria-valuemax={budget.capacity}
-        aria-label="Clicks left before the server slows you down"
-        style={{"--click-budget-capacity": budget.capacity} as React.CSSProperties}>
+    return <div className="click-budget-dock">
+        {children}
 
-        {bonus && <span className="click-budget-bonus">
-            <span className="click-budget-bonus-badge">{describeReward(bonus.reward).badge}</span>
-            <span ref={countdown} className="click-budget-bonus-left">{secondsLeft(bonus, now())}s</span>
-        </span>}
+        <div
+            ref={root}
+            className={className}
+            role="meter"
+            aria-valuemin={0}
+            aria-valuenow={whole}
+            aria-valuemax={budget.capacity}
+            aria-label="Clicks left before the server slows you down"
+            style={{"--click-budget-capacity": budget.capacity} as React.CSSProperties}>
 
-        <div className="click-budget-count">
-            <span ref={count} className="click-budget-number">{whole}</span>
-            <span className="click-budget-unit">left</span>
-        </div>
-
-        {pips > 0
-            ? <div className="click-budget-pips">
-                {Array.from({length: pips}, (_, index) =>
-                    <span
-                        key={index}
-                        className="click-budget-pip"
-                        style={{"--click-budget-index": index} as React.CSSProperties}/>,
-                )}
+            <div className="click-budget-count">
+                <span ref={count} className="click-budget-number">{whole}</span>
+                <span className="click-budget-unit">left</span>
             </div>
-            : <div className="click-budget-bar"/>}
 
-        {slow(budget) && <span ref={wait} className="click-budget-next">{waitText(budget, now())}</span>}
+            {pips > 0
+                ? <div className="click-budget-pips">
+                    {Array.from({length: pips}, (_, index) =>
+                        <span
+                            key={index}
+                            className="click-budget-pip"
+                            style={{"--click-budget-index": index} as React.CSSProperties}/>,
+                    )}
+                </div>
+                : <div className="click-budget-bar"/>}
 
-        {price && <div className="click-budget-toll">
-            <span className="click-budget-toll-headline">{price.headline}</span>
-            <span className="click-budget-toll-detail">{price.detail}</span>
-        </div>}
-    </div>
+            {slow(budget) && <span ref={wait} className="click-budget-next">{waitText(budget, now())}</span>}
 
-        <ChargesHeld charges={charges} bombArmed={bombArmed} onToggleBomb={onToggleBomb}/>
+            {price && <div className="click-budget-toll">
+                <span className="click-budget-toll-headline">{price.headline}</span>
+                <span className="click-budget-toll-detail">{price.detail}</span>
+            </div>}
+        </div>
 
         {speedUp && <button type="button" className="click-budget-sign-in" onClick={onSignIn}>
             <BoltIcon/>
@@ -239,33 +204,6 @@ function slow(budget: ClickBudget): boolean {
 function waitText(budget: ClickBudget, at: number): string {
     const left = secondsToOneMore(budget, at)
     return left === undefined ? "" : `+1 in ${Math.ceil(left)}s`
-}
-
-/**
- * One pill per charge held. The bomb's is a button: a bomb held for a day
- * cannot stay aimed for a day, since an aimed bomb turns every click into a
- * press that drops it, so the player takes it out and puts it away here.
- */
-function ChargesHeld({charges, bombArmed, onToggleBomb}: {
-    charges: Charges
-    bombArmed: boolean
-    onToggleBomb?: () => void
-}) {
-    const labels = chargeLabels(charges)
-    if (labels.length === 0) return null
-
-    return <div className="click-budget-charges" role="status" aria-label="Bonuses held">
-        {labels.map(({kind, label}) => kind === "bomb" && onToggleBomb
-            ? <button key={kind}
-                      type="button"
-                      className={`click-budget-charge click-budget-charge--bomb${bombArmed ? " click-budget-charge--armed" : ""}`}
-                      aria-pressed={bombArmed}
-                      title={bombArmed ? "Put the bomb away (Esc)" : "Aim the bomb, then hold on the planet to drop it"}
-                      onClick={onToggleBomb}>
-                <span aria-hidden="true">💣</span> {bombArmed ? "Aiming: hold to drop" : label}
-            </button>
-            : <span key={kind} className={`click-budget-charge click-budget-charge--${kind}`}>{label}</span>)}
-    </div>
 }
 
 function BoltIcon() {

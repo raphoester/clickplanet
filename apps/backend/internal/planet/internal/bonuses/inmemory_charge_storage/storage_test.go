@@ -4,47 +4,41 @@ import (
 	"errors"
 	"log/slog"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/inmemory_charge_storage"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
-
-var epoch = time.Date(2026, 9, 18, 12, 0, 0, 0, time.UTC)
 
 const (
 	alice bonuses.Holder = "alice"
 	bob   bonuses.Holder = "bob"
 )
 
-var rules = bonuses.ChargesConfig{TTL: 24 * time.Hour, SpreadClicks: 8, EnclosureMaxTiles: 25}
+var rules = bonuses.ChargesConfig{SpreadClicks: 8, Enclosures: 3, EnclosureMaxTiles: 25}
 
-func loaded(t *testing.T, persistence inmemory_charge_storage.Persistence, clock cptime.Clock) *inmemory_charge_storage.Storage {
+func loaded(t *testing.T, persistence inmemory_charge_storage.Persistence) *inmemory_charge_storage.Storage {
 	t.Helper()
 
-	storage := inmemory_charge_storage.New(inmemory_charge_storage.Config{}, rules, persistence, clock,
-		slog.New(slog.DiscardHandler))
+	storage := inmemory_charge_storage.New(inmemory_charge_storage.Config{}, rules, persistence, slog.New(slog.DiscardHandler))
 	require.NoError(t, storage.Load(t.Context()))
 
 	return storage
 }
 
-func fresh(t *testing.T) (*inmemory_charge_storage.Storage, *inmemory_charge_storage.MemoryPersistence, *cptime.FixedClock) {
+func fresh(t *testing.T) (*inmemory_charge_storage.Storage, *inmemory_charge_storage.MemoryPersistence) {
 	t.Helper()
 
-	clock := cptime.NewFixedClock(epoch)
 	persistence := inmemory_charge_storage.NewMemoryPersistence()
 
-	return loaded(t, persistence, clock), persistence, clock
+	return loaded(t, persistence), persistence
 }
 
 func TestAChargeBelongsToItsHolder(t *testing.T) {
-	storage, _, _ := fresh(t)
-	storage.Grant(alice, bonuses.KindBomb)
+	storage, _ := fresh(t)
+	storage.Grant(alice, bonuses.KindBomb, 1)
 
 	assert.False(t, storage.SpendBomb(bob))
 	assert.Equal(t, bonuses.Held{}, storage.Held(bob))
@@ -53,9 +47,9 @@ func TestAChargeBelongsToItsHolder(t *testing.T) {
 }
 
 func TestACallerWithNoAccountHoldsNothing(t *testing.T) {
-	storage, persistence, _ := fresh(t)
+	storage, persistence := fresh(t)
 
-	storage.Grant(bonuses.NoHolder, bonuses.KindBomb)
+	storage.Grant(bonuses.NoHolder, bonuses.KindBomb, 1)
 
 	assert.Equal(t, bonuses.Held{}, storage.Held(bonuses.NoHolder))
 	require.NoError(t, storage.Flush(t.Context()))
@@ -63,35 +57,39 @@ func TestACallerWithNoAccountHoldsNothing(t *testing.T) {
 }
 
 func TestEachSpendTakesItsOwnKind(t *testing.T) {
-	storage, _, _ := fresh(t)
-	storage.Grant(alice, bonuses.KindBomb)
-	storage.Grant(alice, bonuses.KindEncloseClicks)
-	storage.Grant(alice, bonuses.KindSpreadClicks)
+	storage, _ := fresh(t)
+	storage.Grant(alice, bonuses.KindBomb, 1)
+	storage.Grant(alice, bonuses.KindEncloseClicks, 1)
+	storage.Grant(alice, bonuses.KindSpreadClicks, 4)
+	storage.Grant(alice, bonuses.KindRefill, 1)
 
 	require.True(t, storage.SpendSpreadClick(alice))
 	require.True(t, storage.SpendEnclose(alice))
+	require.True(t, storage.SpendRefill(alice))
+	require.False(t, storage.SpendRefill(alice))
 
-	assert.Equal(t, bonuses.Held{Bomb: true, SpreadClicks: 7}, storage.Held(alice))
+	assert.Equal(t, bonuses.Held{Bomb: true, SpreadClicks: 3}, storage.Held(alice))
 	assert.Equal(t, 25, storage.EnclosureMaxTiles())
 	assert.Equal(t, 8, storage.SpreadClicks())
+	assert.Equal(t, 3, storage.Enclosures())
 }
 
 func TestChargesSurviveARestart(t *testing.T) {
-	storage, persistence, clock := fresh(t)
-	storage.Grant(alice, bonuses.KindBomb)
-	storage.Grant(bob, bonuses.KindSpreadClicks)
+	storage, persistence := fresh(t)
+	storage.Grant(alice, bonuses.KindBomb, 1)
+	storage.Grant(bob, bonuses.KindSpreadClicks, 4)
 	require.True(t, storage.SpendSpreadClick(bob))
 	require.NoError(t, storage.Flush(t.Context()))
 
-	after := loaded(t, persistence, clock)
+	after := loaded(t, persistence)
 
 	assert.Equal(t, bonuses.Held{Bomb: true}, after.Held(alice))
-	assert.Equal(t, bonuses.Held{SpreadClicks: 7}, after.Held(bob))
+	assert.Equal(t, bonuses.Held{SpreadClicks: 3}, after.Held(bob))
 }
 
 func TestASpentHandIsDeletedRatherThanKept(t *testing.T) {
-	storage, persistence, _ := fresh(t)
-	storage.Grant(alice, bonuses.KindBomb)
+	storage, persistence := fresh(t)
+	storage.Grant(alice, bonuses.KindBomb, 1)
 	require.NoError(t, storage.Flush(t.Context()))
 	require.Contains(t, persistence.Stored(), alice)
 
@@ -101,20 +99,9 @@ func TestASpentHandIsDeletedRatherThanKept(t *testing.T) {
 	assert.NotContains(t, persistence.Stored(), alice)
 }
 
-func TestALapsedHandIsDeletedOnTheNextFlush(t *testing.T) {
-	storage, persistence, clock := fresh(t)
-	storage.Grant(alice, bonuses.KindBomb)
-	require.NoError(t, storage.Flush(t.Context()))
-
-	clock.Advance(24 * time.Hour)
-	require.NoError(t, storage.Flush(t.Context()))
-
-	assert.Empty(t, persistence.Stored(), "a charge nobody used in a day is not kept forever")
-}
-
 func TestAFlushWithNothingChangedWritesNothing(t *testing.T) {
-	storage, persistence, _ := fresh(t)
-	storage.Grant(alice, bonuses.KindBomb)
+	storage, persistence := fresh(t)
+	storage.Grant(alice, bonuses.KindBomb, 1)
 	require.NoError(t, storage.Flush(t.Context()))
 
 	require.NoError(t, storage.Flush(t.Context()))
@@ -123,8 +110,8 @@ func TestAFlushWithNothingChangedWritesNothing(t *testing.T) {
 }
 
 func TestAFailedFlushIsRetriedWithTheLatestHands(t *testing.T) {
-	storage, persistence, clock := fresh(t)
-	storage.Grant(alice, bonuses.KindSpreadClicks)
+	storage, persistence := fresh(t)
+	storage.Grant(alice, bonuses.KindSpreadClicks, 4)
 	persistence.FailWith(errors.New("connection refused"))
 
 	require.Error(t, storage.Flush(t.Context()))
@@ -133,28 +120,14 @@ func TestAFailedFlushIsRetriedWithTheLatestHands(t *testing.T) {
 	persistence.Heal()
 	require.NoError(t, storage.Flush(t.Context()))
 
-	assert.Equal(t, bonuses.Held{SpreadClicks: 7}, loaded(t, persistence, clock).Held(alice))
+	assert.Equal(t, bonuses.Held{SpreadClicks: 3}, loaded(t, persistence).Held(alice))
 }
 
 func TestAFailedLoadRefusesTheBoot(t *testing.T) {
 	persistence := inmemory_charge_storage.NewMemoryPersistence()
 	persistence.FailWith(errors.New("connection refused"))
 
-	storage := inmemory_charge_storage.New(inmemory_charge_storage.Config{}, rules, persistence,
-		cptime.NewFixedClock(epoch), slog.New(slog.DiscardHandler))
+	storage := inmemory_charge_storage.New(inmemory_charge_storage.Config{}, rules, persistence, slog.New(slog.DiscardHandler))
 
 	require.ErrorContains(t, storage.Load(t.Context()), "connection refused")
-}
-
-func TestAHandThatLapsedWhileTheServerWasDownIsNotLoaded(t *testing.T) {
-	storage, persistence, clock := fresh(t)
-	storage.Grant(alice, bonuses.KindBomb)
-	require.NoError(t, storage.Flush(t.Context()))
-
-	clock.Advance(25 * time.Hour)
-	after := loaded(t, persistence, clock)
-	require.NoError(t, after.Flush(t.Context()))
-
-	assert.Equal(t, bonuses.Held{}, after.Held(alice))
-	assert.Empty(t, persistence.Stored(), "and its row goes with the first flush")
 }
