@@ -79,6 +79,36 @@ describe("ClickBudgetMeter", () => {
         expect(meter().classList.contains("click-budget-low")).toBe(false)
     })
 
+    it("says when the next click comes back when it is slow to", () => {
+        render(<ClickBudgetMeter budget={reading({tokens: 0, capacity: 60, perSecond: 0.2})}/>)
+
+        expect(screen.getByText("+1 in 5s")).toBeTruthy()
+    })
+
+    it("counts down with clicks in hand too", () => {
+        render(<ClickBudgetMeter budget={reading({tokens: 20.5, capacity: 60, perSecond: 0.2})}/>)
+
+        expect(screen.getByText("+1 in 3s")).toBeTruthy()
+    })
+
+    it("says nothing about the next click at a full bucket", () => {
+        render(<ClickBudgetMeter budget={reading({tokens: 60, capacity: 60, perSecond: 0.2})}/>)
+
+        expect(document.querySelector(".click-budget-next")?.textContent).toBe("")
+    })
+
+    it("has no countdown when a click comes back every second", () => {
+        render(<ClickBudgetMeter budget={reading({tokens: 0})}/>)
+
+        expect(document.querySelector(".click-budget-next")).toBeNull()
+    })
+
+    it("fills a strip under a long bar once per click", () => {
+        render(<ClickBudgetMeter budget={reading({tokens: 20.5, capacity: 60, perSecond: 0.2})}/>)
+
+        expect(Number(meter().style.getPropertyValue("--click-budget-next"))).toBeCloseTo(0.5, 1)
+    })
+
     it("replays the refill between two readings instead of waiting for one", async () => {
         const start = performance.now()
         vi.spyOn(performance, "now").mockReturnValue(start)

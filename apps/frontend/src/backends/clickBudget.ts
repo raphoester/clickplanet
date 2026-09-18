@@ -106,6 +106,17 @@ export function secondsToNextClick(budget: ClickBudget, at: number): number {
 }
 
 /**
+ * Seconds until the count goes up by one, whatever is in hand — or undefined
+ * when nothing is being granted back: a full bucket, or no refill at all.
+ */
+export function secondsToOneMore(budget: ClickBudget, at: number): number | undefined {
+    const tokens = tokensAt(budget, at)
+    if (tokens >= budget.capacity || budget.perSecond <= 0) return undefined
+
+    return (Math.floor(tokens) + 1 - tokens) / budget.perSecond
+}
+
+/**
  * The source of those readings: the click transport, which learns the budget
  * from the answers to its own clicks.
  */

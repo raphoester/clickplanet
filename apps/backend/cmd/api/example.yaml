@@ -70,11 +70,12 @@ ledgerStorage:
 # scopeMultiplier times it. A token with no account spends one scope bucket at
 # the policy below, as before accounts.
 rateLimiter:
-  # Sustained clicks per second allowed from one account.
-  perSecond: 1
-  # Clicks an account arriving after a quiet spell may spend at once, so that a
-  # normal flurry is not refused.
-  burst: 10
+  # Sustained clicks per second allowed from one account. A float: 0.2 is one
+  # click every 5s. Unset is 1.
+  perSecond: 0.2
+  # Clicks an account may bank while away and spend at once: 60 at 0.2/s is a
+  # bank that fills in five minutes. Unset is 10.
+  burst: 60
   # The scope's burst and rate over one account's: players behind one address,
   # such as a campus, share it. 1 or more.
   scopeMultiplier: 10

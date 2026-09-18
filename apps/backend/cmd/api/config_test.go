@@ -79,8 +79,8 @@ func TestTheExampleConfigStillCarriesTheRestOfTheFile(t *testing.T) {
 
 	assert.Equal(t, "0.0.0.0:8080", config.HTTPServer.BindAddress)
 	assert.NotZero(t, config.Planet.GameMap.MaxIndex)
-	assert.InDelta(t, float64(1), config.Planet.RateLimiter.PerSecond, 1e-9)
-	assert.Equal(t, 10, config.Planet.RateLimiter.Burst)
+	assert.InDelta(t, 0.2, config.Planet.RateLimiter.PerSecond, 1e-9, "one click every 5s")
+	assert.Equal(t, 60, config.Planet.RateLimiter.Burst)
 	require.Len(t, config.Planet.Toll.Steps, 3)
 	assert.InDelta(t, 0.70, config.Planet.Toll.Steps[2].Share, 1e-9)
 	assert.InDelta(t, 3, config.Planet.Toll.Steps[2].Cost, 1e-9)
@@ -187,7 +187,7 @@ func TestTheExampleConfigReachesTheScopeMultiplier(t *testing.T) {
 
 	assert.InDelta(t, 10.0, config.Planet.RateLimiter.ScopeMultiplier, 1e-9)
 	assert.InDelta(t, 2.0, config.Planet.RateLimiter.LinkedMultiplier, 1e-9)
-	assert.Equal(t, 10, config.Planet.RateLimiter.Burst, "the squashed policy still reads rateLimiter.burst")
+	assert.Equal(t, 60, config.Planet.RateLimiter.Burst, "the squashed policy still reads rateLimiter.burst")
 }
 
 func TestTheProcessRefusesToStartWithoutADatabase(t *testing.T) {

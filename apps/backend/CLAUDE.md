@@ -510,7 +510,7 @@ The table holds **personal data** — IPs next to user-authored text — so the 
 
 #### Two buckets per click
 
-**A click spends from two buckets at once: its account's and its scope's.** The account is the one the click token names; the scope is the address, or its /64 over IPv6 (`cpipscope`). The account's bucket is `rateLimiter.*`, 1 click/s with a burst of 10 by default. The scope's is `rateLimiter.scopeMultiplier` (10) times that, because many players can share one address — a campus, a school, a carrier NAT.
+**A click spends from two buckets at once: its account's and its scope's.** The account is the one the click token names; the scope is the address, or its /64 over IPv6 (`cpipscope`). The account's bucket is `rateLimiter.*`: production runs one click every 5s (`perSecond: 0.2`) with a bank of 60, which fills in five minutes; unset, it is 1/s with a burst of 10. The scope's is `rateLimiter.scopeMultiplier` (10) times that, because many players can share one address — a campus, a school, a carrier NAT.
 
 - **A linked account clicks faster.** An account that signed in with Google or Discord spends `linked:<id>` at `rateLimiter.linkedMultiplier` (2) instead of `account:<id>` at 1, to make signing in worth it. It is another key, not a new scale on the same one: a guest who signs in keeps its account id, and a key never changes its scale. So the linked bucket starts full — a one-time top-up per sign-in, not a way to refill. The scope's bucket still bounds it. **Planet learns it from the token**, which carries a linked byte (see [Sessions](#sessions-internalauth)), so a click costs no call to `auth`. A player who links mid-session clicks at 1× until the client mints again. `TestALinkedAccountClicksTwiceAsFastAsAGuest` pins it.
 - **A click is refused when either bucket is empty, and a refusal spends from neither.** `Limiter.TakeAll` checks every bucket and spends from all or none under one lock, so a player refused for a busy scope keeps its own tokens.
@@ -1907,7 +1907,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `ledgerStorage.flushInterval` — how often new takes are written to postgres (1s, and on shutdown)
 - `ledgerStorage.maxTakes` — the most takes kept (4M, ~100 MiB); past it the oldest go before the retention
 - `tilesStorage.subscriberBuffer` — per-subscriber channel capacity, which is now per connected client rather than per fanout; updates for a subscriber that cannot keep up are dropped, not blocked on
-- `rateLimiter.perSecond`, `rateLimiter.burst`, `rateLimiter.sweepInterval` — one account's click allowance, and a token with no account's scope bucket (defaults 1/s, burst 10, swept every minute)
+- `rateLimiter.perSecond`, `rateLimiter.burst`, `rateLimiter.sweepInterval` — one account's click allowance, and a token with no account's scope bucket (defaults 1/s, burst 10, swept every minute; `perSecond` is a float, so 0.2 is one click every 5s)
 - `rateLimiter.scopeMultiplier` — the scope's bucket over one account's, shared by every account behind the address (default 10). Below 1 refuses the boot. See [Two buckets per click](#two-buckets-per-click)
 - `vpnBlocklist.enabled`, `vpnBlocklist.includeDatacenters`, `vpnBlocklist.allow` — the VPN refusal (see [VPN blocklist](#vpn-blocklist)); disabled parses nothing and allocates nothing
 - `bonus.interval` — how often a box is put in front of somebody; a ceiling, since nothing is offered while nobody is watching
