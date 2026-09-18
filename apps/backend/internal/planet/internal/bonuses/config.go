@@ -35,16 +35,15 @@ type Config struct {
 	// and no more.
 	MaxChargesPerHour int
 
-	// How long a charge is kept unspent before it is lost. Long, so a charge is a reason to come back.
-	ChargeTTL time.Duration
-
 	SweepInterval time.Duration
 }
 
-// A spread charge is a number of clicks, not a time: 8 clicks of 7 tiles is about a bomb's worth, and a
-// timer only rewarded whoever could dump a full bank of clicks inside it.
+// A spread is a pool of clicks, not a time: a timer only rewarded whoever could dump a full bank of clicks
+// inside it. A box adds 1 to MaxPerBox clicks, drawn at the claim, up to Clicks: 8 clicks of 7 tiles is
+// about a bomb's worth.
 type SpreadConfig struct {
-	Clicks int
+	Clicks    int
+	MaxPerBox int
 }
 
 type BombConfig struct {
@@ -52,9 +51,12 @@ type BombConfig struct {
 	Rings float64
 }
 
-// An enclose charge is one shape. A shape bigger than MaxTiles takes nothing, and costs nothing.
+// An enclose charge is one shape, and a player stacks up to Held of them. A box adds 1 to MaxPerBox, drawn
+// at the claim. A shape bigger than MaxTiles takes nothing, and costs nothing.
 type EncloseConfig struct {
-	MaxTiles int
+	MaxTiles  int
+	Held      int
+	MaxPerBox int
 }
 
 // Sized in banks: one full click allowance, 60 clicks at one every 5s. A bomb never
@@ -70,10 +72,12 @@ const (
 	// Above the ten boxes an hour a person who catches every one gets: only the cap on
 	// a script, which does. It only stops the next offer.
 	defaultMaxChargesPerHour = 12
-	defaultChargeTTL         = 24 * time.Hour
 	defaultSweepInterval     = time.Second
 
 	defaultSpreadClicks    = 8
+	defaultSpreadPerBox    = 4
+	defaultEnclosuresHeld  = 3
+	defaultEnclosePerBox   = 3
 	defaultBombRings       = 4
 	defaultEncloseMaxTiles = 25
 )
@@ -103,9 +107,6 @@ func (c Config) withDefaults() Config {
 	if c.MaxChargesPerHour <= 0 {
 		c.MaxChargesPerHour = defaultMaxChargesPerHour
 	}
-	if c.ChargeTTL <= 0 {
-		c.ChargeTTL = defaultChargeTTL
-	}
 	if c.SweepInterval <= 0 {
 		c.SweepInterval = defaultSweepInterval
 	}
@@ -131,6 +132,9 @@ func (c SpreadConfig) withDefaults() SpreadConfig {
 	if c.Clicks <= 0 {
 		c.Clicks = defaultSpreadClicks
 	}
+	if c.MaxPerBox <= 0 {
+		c.MaxPerBox = defaultSpreadPerBox
+	}
 
 	return c
 }
@@ -146,6 +150,12 @@ func (c BombConfig) withDefaults() BombConfig {
 func (c EncloseConfig) withDefaults() EncloseConfig {
 	if c.MaxTiles <= 0 {
 		c.MaxTiles = defaultEncloseMaxTiles
+	}
+	if c.Held <= 0 {
+		c.Held = defaultEnclosuresHeld
+	}
+	if c.MaxPerBox <= 0 {
+		c.MaxPerBox = defaultEnclosePerBox
 	}
 
 	return c
@@ -177,5 +187,5 @@ func (c Config) Validate() error {
 func (c Config) ChargesConfig() ChargesConfig {
 	c = c.withDefaults()
 
-	return ChargesConfig{TTL: c.ChargeTTL, SpreadClicks: c.Spread.Clicks, EnclosureMaxTiles: c.Enclose.MaxTiles}
+	return ChargesConfig{SpreadClicks: c.Spread.Clicks, Enclosures: c.Enclose.Held, EnclosureMaxTiles: c.Enclose.MaxTiles}
 }

@@ -69,8 +69,7 @@ type ClickServiceClient interface {
 	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest]) (*connect.ServerStreamForClient[v1.PlanetEvent], error)
 	ClaimBonus(context.Context, *connect.Request[v1.ClaimBonusRequest]) (*connect.Response[v1.ClaimBonusResponse], error)
 	// Drops the bomb a caught box granted. Answers NotFound when the caller holds
-	// none — never won, already dropped, or held past the charge's expiry — and
-	// says no more.
+	// none — never won, or already dropped — and says no more.
 	DropBomb(context.Context, *connect.Request[v1.DropBombRequest]) (*connect.Response[v1.DropBombResponse], error)
 	// Spends the refill a caught box granted: the caller's click bank is filled
 	// to its capacity. Answers NotFound when the caller holds none, and
@@ -240,8 +239,7 @@ type ClickServiceHandler interface {
 	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest], *connect.ServerStream[v1.PlanetEvent]) error
 	ClaimBonus(context.Context, *connect.Request[v1.ClaimBonusRequest]) (*connect.Response[v1.ClaimBonusResponse], error)
 	// Drops the bomb a caught box granted. Answers NotFound when the caller holds
-	// none — never won, already dropped, or held past the charge's expiry — and
-	// says no more.
+	// none — never won, or already dropped — and says no more.
 	DropBomb(context.Context, *connect.Request[v1.DropBombRequest]) (*connect.Response[v1.DropBombResponse], error)
 	// Spends the refill a caught box granted: the caller's click bank is filled
 	// to its capacity. Answers NotFound when the caller holds none, and

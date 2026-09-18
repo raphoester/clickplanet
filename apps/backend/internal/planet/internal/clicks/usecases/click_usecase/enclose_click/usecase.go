@@ -1,6 +1,6 @@
-// Package enclose_click is the enclose bonus: while a caller holds the charge, a
-// click that closes a shape of its own tiles also takes every tile inside it,
-// and spends the charge.
+// Package enclose_click is the enclose bonus: while a caller holds the charge and
+// has it switched on, a click that closes a shape of its own tiles also takes
+// every tile inside it, and spends the charge.
 package enclose_click
 
 import (
@@ -34,7 +34,7 @@ type UseCase struct {
 func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_usecase.Out, error) {
 	holder := bonuses.HolderOf(clicks.PayerOf(ctx))
 
-	if !u.enclosures.Held(holder).Enclose {
+	if !in.Enclose || u.enclosures.Held(holder).Enclosures == 0 {
 		return u.implementation.Execute(ctx, in)
 	}
 

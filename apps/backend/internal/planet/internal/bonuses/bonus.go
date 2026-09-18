@@ -86,6 +86,9 @@ type Event struct {
 
 type Reward struct {
 	Kind Kind
+
+	// How much the box gives: enclosures or spread clicks, drawn at the claim. One for a refill or a bomb.
+	Amount int
 }
 
 // caller is one scope: its open streams, and the schedule that outlives them.
@@ -139,6 +142,8 @@ type Registry struct {
 	clock    cptime.Clock
 	report   Report
 	holdings Holdings
+	// What a spread pool holds when full, so a full pool is not offered another box.
+	charges ChargesConfig
 
 	mu      sync.Mutex
 	callers map[string]*caller
@@ -167,8 +172,11 @@ func New(config Config, clock cptime.Clock, holdings Holdings) *Registry {
 		clock = cptime.SystemClock{}
 	}
 
+	config = config.withDefaults()
+
 	return &Registry{
-		config:   config.withDefaults(),
+		config:   config,
+		charges:  config.ChargesConfig(),
 		clock:    clock,
 		holdings: holdings,
 		callers:  make(map[string]*caller),
@@ -284,7 +292,7 @@ func (r *Registry) Claim(token string, scope string) (Reward, bool) {
 		entry.nextOfferAt = now.Add(r.window())
 	}
 
-	return Reward{Kind: offer.kind}, true
+	return Reward{Kind: offer.kind, Amount: r.amountOf(offer.kind)}, true
 }
 
 func (r *Registry) Publish(taken Taken) {
@@ -382,8 +390,9 @@ func (r *Registry) due(entry *caller, now time.Time) bool {
 	return true
 }
 
-// offerable is every kind with a weight that the caller may be given now. A kind held by any player who
-// clicked from this scope within ActiveWithin is left out, so nobody holds two of one kind. Past
+// offerable is every kind with a weight that the caller may be given now. A kind any player who clicked
+// from this scope within ActiveWithin holds is left out, so nobody holds two of one kind, and so is spread
+// when a player's pool is already full. Past
 // MaxChargesPerHour charges in the hour nothing is, and a scope where no account is playing is offered
 // nothing: only an account can hold a charge. It forgets the players who stopped clicking on the way.
 func (r *Registry) offerable(entry *caller, now time.Time) *cpcolls.Set[Kind] {
@@ -395,7 +404,7 @@ func (r *Registry) offerable(entry *caller, now time.Time) *cpcolls.Set[Kind] {
 			delete(entry.players, holder)
 			continue
 		}
-		held.Add(r.holdings.Held(holder).Kinds()...)
+		held.Add(r.holdings.Held(holder).Full(r.charges)...)
 	}
 
 	if len(entry.players) == 0 || r.grantedWithinTheHour(entry, now) >= r.config.MaxChargesPerHour {
@@ -537,6 +546,25 @@ func (r *Registry) drawKind(kinds *cpcolls.Set[Kind]) Kind {
 
 	// Only float rounding reaches here; it belongs to the last kind with a weight.
 	return last
+}
+
+// amountOf draws how much a box of kind gives: 1 to MaxPerBox enclosures or spread clicks, uniformly.
+func (r *Registry) amountOf(kind Kind) int {
+	most := 1
+	switch kind {
+	case KindSpreadClicks:
+		most = r.config.Spread.MaxPerBox
+	case KindEncloseClicks:
+		most = r.config.Enclose.MaxPerBox
+	case KindRefill, KindBomb:
+	}
+
+	n, err := rand.Int(rand.Reader, big.NewInt(int64(most)))
+	if err != nil {
+		return 1
+	}
+
+	return 1 + int(n.Int64())
 }
 
 func newToken() (string, error) {

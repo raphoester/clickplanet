@@ -29,17 +29,18 @@ const (
 	BonusKind_BONUS_KIND_UNSPECIFIED BonusKind = 0
 	// A charge: fills the player's click bank to full, when the player chooses.
 	BonusKind_BONUS_KIND_REFILL BonusKind = 5
-	// A charge: the next few clicks also take the tiles touching the one clicked.
-	// The server picks those tiles from its own map, so a client never names what
-	// it gets.
+	// A charge: adds a few clicks to the spread pool. While the player has spread
+	// switched on, each click spends one and also takes the tiles touching it. The server picks those tiles from its own map, so a client never names
+	// what it gets.
 	BonusKind_BONUS_KIND_SPREAD_CLICKS BonusKind = 2
 	// A charge: one bomb, dropped with DropBomb anywhere on the planet, kept until
 	// it is. It clears every tile within a few rings of where it lands, whoever
 	// holds them. The server picks the tiles.
 	BonusKind_BONUS_KIND_BOMB BonusKind = 3
-	// A charge: the next click that closes a shape of the player's own tiles also
-	// takes the tiles inside it. The server finds the shape, so a client never
-	// names what it gets.
+	// A charge: adds a few enclosures to the stack. While the player has enclose
+	// switched on, a click that closes a shape of the player's own tiles also
+	// takes the tiles inside it, and spends one.
+	// The server finds the shape, so a client never names what it gets.
 	BonusKind_BONUS_KIND_ENCLOSE_CLICKS BonusKind = 4
 )
 
@@ -215,9 +216,17 @@ func (x *ClickBudget) GetLinkedMultiplier() float64 {
 }
 
 type ClickRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	TileId        uint32                 `protobuf:"varint,1,opt,name=tile_id,json=tileId,proto3" json:"tile_id,omitempty"`
-	CountryId     string                 `protobuf:"bytes,2,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	TileId    uint32                 `protobuf:"varint,1,opt,name=tile_id,json=tileId,proto3" json:"tile_id,omitempty"`
+	CountryId string                 `protobuf:"bytes,2,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
+	// The player switched spread on: this click spends one spread click, when
+	// the pool has one, and also takes the tiles touching it. Off, a pool is
+	// never touched: a charge is used only when the player chooses.
+	Spread bool `protobuf:"varint,3,opt,name=spread,proto3" json:"spread,omitempty"`
+	// The player switched enclose on: if this click closes a shape, it takes the
+	// tiles inside and spends the enclose charge. Off, closing a shape takes
+	// nothing and spends nothing.
+	Enclose       bool `protobuf:"varint,4,opt,name=enclose,proto3" json:"enclose,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -264,6 +273,20 @@ func (x *ClickRequest) GetCountryId() string {
 		return x.CountryId
 	}
 	return ""
+}
+
+func (x *ClickRequest) GetSpread() bool {
+	if x != nil {
+		return x.Spread
+	}
+	return false
+}
+
+func (x *ClickRequest) GetEnclose() bool {
+	if x != nil {
+		return x.Enclose
+	}
+	return false
 }
 
 type ClickResponse struct {
@@ -809,21 +832,22 @@ func (*PlanetEvent_TilesEnclosed) isPlanetEvent_Event() {}
 
 func (*PlanetEvent_TilesSpread) isPlanetEvent_Event() {}
 
-// The use-once bonuses a player holds, by the account the token names (or the
-// address without one). At most one of each kind: while one is held, no box of
-// that kind is offered. Each is kept until it is spent, or for a day after it
-// was granted.
+// The bonuses a player holds, by the account the token names: a refill and a
+// bomb at most, a stack of enclosures and a pool of spread clicks, each up to
+// its size in GetBonusRules. While one is held, or a stack or a pool is full,
+// no box of that kind is offered. Nothing lapses: each is kept until the player
+// uses it.
 type ChargesHeld struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// A refill, to fill the click bank with UseRefill.
 	Refill bool `protobuf:"varint,4,opt,name=refill,proto3" json:"refill,omitempty"`
 	// A bomb, to be dropped anywhere with DropBomb.
 	Bomb bool `protobuf:"varint,1,opt,name=bomb,proto3" json:"bomb,omitempty"`
-	// An enclose charge: the next click that closes a shape of the player's own
-	// tiles takes the tiles inside it, and spends the charge.
-	Enclose bool `protobuf:"varint,2,opt,name=enclose,proto3" json:"enclose,omitempty"`
-	// How many of the next clicks also take the tiles touching the one clicked.
-	// Zero is no spread charge.
+	// The enclose charges stacked. With enclose switched on, a click that closes
+	// a shape of the player's own tiles takes the tiles inside it and spends one.
+	Enclosures uint32 `protobuf:"varint,2,opt,name=enclosures,proto3" json:"enclosures,omitempty"`
+	// The spread clicks in the pool, up to GetBonusRules.spread_clicks. Zero is
+	// none.
 	SpreadClicksLeft uint32 `protobuf:"varint,3,opt,name=spread_clicks_left,json=spreadClicksLeft,proto3" json:"spread_clicks_left,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
@@ -873,11 +897,11 @@ func (x *ChargesHeld) GetBomb() bool {
 	return false
 }
 
-func (x *ChargesHeld) GetEnclose() bool {
+func (x *ChargesHeld) GetEnclosures() uint32 {
 	if x != nil {
-		return x.Enclose
+		return x.Enclosures
 	}
-	return false
+	return 0
 }
 
 func (x *ChargesHeld) GetSpreadClicksLeft() uint32 {
@@ -1012,8 +1036,10 @@ type GetBonusRulesResponse struct {
 	BlastRadius float64 `protobuf:"fixed64,1,opt,name=blast_radius,json=blastRadius,proto3" json:"blast_radius,omitempty"`
 	// The most tiles an enclosed shape may hold.
 	EnclosureMaxTiles uint32 `protobuf:"varint,2,opt,name=enclosure_max_tiles,json=enclosureMaxTiles,proto3" json:"enclosure_max_tiles,omitempty"`
-	// How many clicks a spread charge spreads.
-	SpreadClicks  uint32 `protobuf:"varint,3,opt,name=spread_clicks,json=spreadClicks,proto3" json:"spread_clicks,omitempty"`
+	// The most spread clicks the pool holds. A box adds a few, up to this.
+	SpreadClicks uint32 `protobuf:"varint,3,opt,name=spread_clicks,json=spreadClicks,proto3" json:"spread_clicks,omitempty"`
+	// The most enclose charges a player stacks. A box adds a few, up to this.
+	Enclosures    uint32 `protobuf:"varint,4,opt,name=enclosures,proto3" json:"enclosures,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1065,6 +1091,13 @@ func (x *GetBonusRulesResponse) GetEnclosureMaxTiles() uint32 {
 func (x *GetBonusRulesResponse) GetSpreadClicks() uint32 {
 	if x != nil {
 		return x.SpreadClicks
+	}
+	return 0
+}
+
+func (x *GetBonusRulesResponse) GetEnclosures() uint32 {
+	if x != nil {
+		return x.Enclosures
 	}
 	return 0
 }
@@ -1252,6 +1285,10 @@ func (x *ClaimBonusRequest) GetCountryId() string {
 type ClaimBonusResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Kind  BonusKind              `protobuf:"varint,2,opt,name=kind,proto3,enum=planet.v1.BonusKind" json:"kind,omitempty"`
+	// How much the box gave, drawn by the server: enclosures or spread clicks.
+	// One for a refill or a bomb. What is held may be less than this added, when
+	// a stack or a pool was near its size.
+	Amount uint32 `protobuf:"varint,8,opt,name=amount,proto3" json:"amount,omitempty"`
 	// What the caller holds once this box is granted.
 	Charges       *ChargesHeld `protobuf:"bytes,7,opt,name=charges,proto3" json:"charges,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -1293,6 +1330,13 @@ func (x *ClaimBonusResponse) GetKind() BonusKind {
 		return x.Kind
 	}
 	return BonusKind_BONUS_KIND_UNSPECIFIED
+}
+
+func (x *ClaimBonusResponse) GetAmount() uint32 {
+	if x != nil {
+		return x.Amount
+	}
+	return 0
 }
 
 func (x *ClaimBonusResponse) GetCharges() *ChargesHeld {
@@ -1892,11 +1936,13 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"next_share\x18\x06 \x01(\x01R\tnextShare\x12#\n" +
 	"\rnext_slowdown\x18\t \x01(\x01R\fnextSlowdown\x12+\n" +
 	"\x11linked_multiplier\x18\n" +
-	" \x01(\x01R\x10linkedMultiplierJ\x04\b\x04\x10\x05J\x04\b\a\x10\b\"F\n" +
+	" \x01(\x01R\x10linkedMultiplierJ\x04\b\x04\x10\x05J\x04\b\a\x10\b\"x\n" +
 	"\fClickRequest\x12\x17\n" +
 	"\atile_id\x18\x01 \x01(\rR\x06tileId\x12\x1d\n" +
 	"\n" +
-	"country_id\x18\x02 \x01(\tR\tcountryId\"?\n" +
+	"country_id\x18\x02 \x01(\tR\tcountryId\x12\x16\n" +
+	"\x06spread\x18\x03 \x01(\bR\x06spread\x12\x18\n" +
+	"\aenclose\x18\x04 \x01(\bR\aenclose\"?\n" +
 	"\rClickResponse\x12.\n" +
 	"\x06budget\x18\x01 \x01(\v2\x16.planet.v1.ClickBudgetR\x06budget\"1\n" +
 	"\x10GetBudgetRequest\x12\x1d\n" +
@@ -1925,20 +1971,25 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"\fbomb_dropped\x18\x05 \x01(\v2\x16.planet.v1.BombDroppedH\x00R\vbombDropped\x12A\n" +
 	"\x0etiles_enclosed\x18\x06 \x01(\v2\x18.planet.v1.TilesEnclosedH\x00R\rtilesEnclosed\x12;\n" +
 	"\ftiles_spread\x18\a \x01(\v2\x16.planet.v1.TilesSpreadH\x00R\vtilesSpreadB\a\n" +
-	"\x05event\"\x81\x01\n" +
+	"\x05event\"\x87\x01\n" +
 	"\vChargesHeld\x12\x16\n" +
 	"\x06refill\x18\x04 \x01(\bR\x06refill\x12\x12\n" +
-	"\x04bomb\x18\x01 \x01(\bR\x04bomb\x12\x18\n" +
-	"\aenclose\x18\x02 \x01(\bR\aenclose\x12,\n" +
+	"\x04bomb\x18\x01 \x01(\bR\x04bomb\x12\x1e\n" +
+	"\n" +
+	"enclosures\x18\x02 \x01(\rR\n" +
+	"enclosures\x12,\n" +
 	"\x12spread_clicks_left\x18\x03 \x01(\rR\x10spreadClicksLeft\"\x13\n" +
 	"\x11GetChargesRequest\"F\n" +
 	"\x12GetChargesResponse\x120\n" +
 	"\acharges\x18\x01 \x01(\v2\x16.planet.v1.ChargesHeldR\acharges\"\x16\n" +
-	"\x14GetBonusRulesRequest\"\x8f\x01\n" +
+	"\x14GetBonusRulesRequest\"\xaf\x01\n" +
 	"\x15GetBonusRulesResponse\x12!\n" +
 	"\fblast_radius\x18\x01 \x01(\x01R\vblastRadius\x12.\n" +
 	"\x13enclosure_max_tiles\x18\x02 \x01(\rR\x11enclosureMaxTiles\x12#\n" +
-	"\rspread_clicks\x18\x03 \x01(\rR\fspreadClicks\"\x8f\x01\n" +
+	"\rspread_clicks\x18\x03 \x01(\rR\fspreadClicks\x12\x1e\n" +
+	"\n" +
+	"enclosures\x18\x04 \x01(\rR\n" +
+	"enclosures\"\x8f\x01\n" +
 	"\fBonusOffered\x12\x14\n" +
 	"\x05token\x18\x01 \x01(\tR\x05token\x12\x12\n" +
 	"\x04seed\x18\x02 \x01(\rR\x04seed\x12(\n" +
@@ -1952,9 +2003,10 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"\x11ClaimBonusRequest\x12\x14\n" +
 	"\x05token\x18\x01 \x01(\tR\x05token\x12\x1d\n" +
 	"\n" +
-	"country_id\x18\x02 \x01(\tR\tcountryId\"p\n" +
+	"country_id\x18\x02 \x01(\tR\tcountryId\"\x88\x01\n" +
 	"\x12ClaimBonusResponse\x12(\n" +
-	"\x04kind\x18\x02 \x01(\x0e2\x14.planet.v1.BonusKindR\x04kind\x120\n" +
+	"\x04kind\x18\x02 \x01(\x0e2\x14.planet.v1.BonusKindR\x04kind\x12\x16\n" +
+	"\x06amount\x18\b \x01(\rR\x06amount\x120\n" +
 	"\acharges\x18\a \x01(\v2\x16.planet.v1.ChargesHeldR\acharges\"1\n" +
 	"\x10UseRefillRequest\x12\x1d\n" +
 	"\n" +

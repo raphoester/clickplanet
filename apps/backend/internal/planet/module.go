@@ -151,7 +151,7 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			// The bomb, enclose and spread charges each account holds, so a restart does not take them.
 			charges := inmemory_charge_storage.New(config.ChargeStorage, config.Bonus.ChargesConfig(),
-				postgres_charge_store.New(db), clock, props.Logger)
+				postgres_charge_store.New(db), props.Logger)
 			if err := charges.Load(ctx); err != nil {
 				_ = db.Close()
 				return fmt.Errorf("failed to load the charges: %w", err)
@@ -336,6 +336,7 @@ func NewModule(config Config) cpbootstrap.Module {
 				BlastRadius:       bombRules.Radius,
 				EnclosureMaxTiles: charges.EnclosureMaxTiles(),
 				SpreadClicks:      charges.SpreadClicks(),
+				Enclosures:        charges.Enclosures(),
 			}
 
 			service := planetv1controller.ClickService{

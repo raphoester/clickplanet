@@ -37,6 +37,7 @@ func (h ClaimBonusHandler) ClaimBonus(
 
 	return connect.NewResponse(&planetv1.ClaimBonusResponse{
 		Kind:    EncodeKind(out.Kind),
+		Amount:  uint32(out.Amount),
 		Charges: chargesheld.Encode(out.Held),
 	}), nil
 }

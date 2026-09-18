@@ -7,5 +7,7 @@ type Rules struct {
 	BlastRadius float64
 
 	EnclosureMaxTiles int
-	SpreadClicks      int
+	// How much each pool holds.
+	SpreadClicks int
+	Enclosures   int
 }

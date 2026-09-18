@@ -29,6 +29,11 @@ type CountryChecker interface {
 type In struct {
 	TileID    uint32
 	CountryID string
+
+	// What the player switched on for this click. A charge is used only when the player chooses:
+	// spread_click spends a spread click only with Spread, and enclose_click the enclose only with Enclose.
+	Spread  bool
+	Enclose bool
 }
 
 // Out is what a click answers with beyond having happened. It carries no game

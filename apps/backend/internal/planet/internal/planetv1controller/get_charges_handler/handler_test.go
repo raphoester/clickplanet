@@ -23,6 +23,6 @@ func TestTheChargesHeldAreAnswered(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.True(t, res.Msg.GetCharges().GetBomb())
-	assert.False(t, res.Msg.GetCharges().GetEnclose())
+	assert.Zero(t, res.Msg.GetCharges().GetEnclosures())
 	assert.Equal(t, uint32(4), res.Msg.GetCharges().GetSpreadClicksLeft())
 }

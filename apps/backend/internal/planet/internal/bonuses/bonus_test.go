@@ -34,7 +34,6 @@ func newRegistryOffering(kinds map[Kind]float64) (*Registry, *cptime.FixedClock)
 		ActiveWithin:      5 * time.Minute,
 		ForgetAfter:       5 * time.Minute,
 		MaxChargesPerHour: 6,
-		ChargeTTL:         24 * time.Hour,
 		SweepInterval:     time.Second,
 	}, clock, newFakeHoldings()), clock
 }
@@ -61,7 +60,7 @@ func (f *fakeHoldings) grant(holder Holder, kind Kind) {
 	case KindBomb:
 		held.Bomb = true
 	case KindEncloseClicks:
-		held.Enclose = true
+		held.Enclosures = 3
 	case KindSpreadClicks:
 		held.SpreadClicks = 8
 	}
@@ -410,7 +409,8 @@ func TestEveryKindIsClaimedAsItself(t *testing.T) {
 
 		reward, claimed := registry.Claim(offer.Token, "scope-a")
 		require.True(t, claimed)
-		assert.Equal(t, Reward{Kind: kind}, reward)
+		assert.Equal(t, kind, reward.Kind)
+		assert.GreaterOrEqual(t, reward.Amount, 1)
 	}
 }
 
@@ -805,4 +805,21 @@ func TestAClosedShapeReachesEveryoneAndOnlyItsCloserIsToldItIsTheirs(t *testing.
 	assert.False(t, seen.Yours)
 	assert.Equal(t, "fr", seen.CountryID)
 	assert.Equal(t, []uint32{7, 8}, seen.Wall)
+}
+
+func TestABoxGivesAFewEnclosuresOrSpreadClicksAndOneOfTheRest(t *testing.T) {
+	registry, _ := newTestRegistry()
+
+	seen := map[Kind]*cpcolls.Set[int]{}
+	for _, kind := range Kinds {
+		seen[kind] = cpcolls.NewSet[int]()
+		for range 200 {
+			seen[kind].Add(registry.amountOf(kind))
+		}
+	}
+
+	assert.Equal(t, cpcolls.NewSet(1, 2, 3, 4), seen[KindSpreadClicks], "1 to 4 spread clicks")
+	assert.Equal(t, cpcolls.NewSet(1, 2, 3), seen[KindEncloseClicks], "1 to 3 enclosures")
+	assert.Equal(t, cpcolls.NewSet(1), seen[KindBomb])
+	assert.Equal(t, cpcolls.NewSet(1), seen[KindRefill])
 }

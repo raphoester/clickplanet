@@ -28,7 +28,9 @@ func TestTheExampleConfigStillReachesTheStructs(t *testing.T) {
 
 	assert.Equal(t, 25, config.Planet.Bonus.Enclose.MaxTiles)
 	assert.Equal(t, 8, config.Planet.Bonus.Spread.Clicks)
-	assert.Equal(t, 24*time.Hour, config.Planet.Bonus.ChargeTTL)
+	assert.Equal(t, 4, config.Planet.Bonus.Spread.MaxPerBox)
+	assert.Equal(t, 3, config.Planet.Bonus.Enclose.Held)
+	assert.Equal(t, 3, config.Planet.Bonus.Enclose.MaxPerBox)
 	assert.Equal(t, 12, config.Planet.Bonus.MaxChargesPerHour)
 
 	assert.Equal(t, 72*time.Hour, config.Planet.Ledger.Retention)

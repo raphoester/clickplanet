@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"maps"
 	"slices"
-	"time"
 
 	"github.com/lib/pq"
 
@@ -26,9 +25,8 @@ type Store struct {
 
 var _ inmemory_charge_storage.Persistence = (*Store)(nil)
 
-func (s *Store) Load(ctx context.Context, visit func(bonuses.Holder, bonuses.Hand)) error {
-	rows, err := s.db.QueryContext(ctx,
-		`SELECT account::text, refill_until, bomb_until, enclose_until, spread_until, spread_clicks FROM charges`)
+func (s *Store) Load(ctx context.Context, visit func(bonuses.Holder, bonuses.Held)) error {
+	rows, err := s.db.QueryContext(ctx, `SELECT account::text, refill, bomb, enclosures, spread_clicks FROM charges`)
 	if err != nil {
 		return fmt.Errorf("failed to read the charges: %w", err)
 	}
@@ -36,20 +34,13 @@ func (s *Store) Load(ctx context.Context, visit func(bonuses.Holder, bonuses.Han
 
 	for rows.Next() {
 		var (
-			account                       string
-			refill, bomb, enclose, spread sql.NullTime
-			spreadClicks                  int
+			account string
+			held    bonuses.Held
 		)
-		if err := rows.Scan(&account, &refill, &bomb, &enclose, &spread, &spreadClicks); err != nil {
+		if err := rows.Scan(&account, &held.Refill, &held.Bomb, &held.Enclosures, &held.SpreadClicks); err != nil {
 			return fmt.Errorf("failed to scan a hand: %w", err)
 		}
-		visit(bonuses.Holder(account), bonuses.Hand{
-			Refill:       timeOf(refill),
-			Bomb:         timeOf(bomb),
-			Enclose:      timeOf(enclose),
-			Spread:       timeOf(spread),
-			SpreadClicks: spreadClicks,
-		})
+		visit(bonuses.Holder(account), held)
 	}
 
 	if err := rows.Err(); err != nil {
@@ -60,25 +51,24 @@ func (s *Store) Load(ctx context.Context, visit func(bonuses.Holder, bonuses.Han
 }
 
 // Save deletes the hands that hold nothing and writes the others, in one transaction.
-func (s *Store) Save(ctx context.Context, hands map[bonuses.Holder]bonuses.Hand) error {
+func (s *Store) Save(ctx context.Context, hands map[bonuses.Holder]bonuses.Held) error {
 	var (
-		gone                              []string
-		accounts                          []string
-		refills, bombs, encloses, spreads []sql.NullTime
-		spreadClicks                      []int64
+		gone                     []string
+		accounts                 []string
+		refills, bombs           []bool
+		enclosures, spreadClicks []int64
 	)
 	for _, holder := range slices.Sorted(maps.Keys(hands)) {
-		hand := hands[holder]
-		if hand == (bonuses.Hand{}) {
+		held := hands[holder]
+		if held.Empty() {
 			gone = append(gone, string(holder))
 			continue
 		}
 		accounts = append(accounts, string(holder))
-		refills = append(refills, nullTime(hand.Refill))
-		bombs = append(bombs, nullTime(hand.Bomb))
-		encloses = append(encloses, nullTime(hand.Enclose))
-		spreads = append(spreads, nullTime(hand.Spread))
-		spreadClicks = append(spreadClicks, int64(hand.SpreadClicks))
+		refills = append(refills, held.Refill)
+		bombs = append(bombs, held.Bomb)
+		enclosures = append(enclosures, int64(held.Enclosures))
+		spreadClicks = append(spreadClicks, int64(held.SpreadClicks))
 	}
 
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{})
@@ -95,17 +85,14 @@ func (s *Store) Save(ctx context.Context, hands map[bonuses.Holder]bonuses.Hand)
 
 	if len(accounts) > 0 {
 		if _, err := tx.ExecContext(ctx, `
-			INSERT INTO charges (account, refill_until, bomb_until, enclose_until, spread_until, spread_clicks)
-			SELECT * FROM unnest($1::uuid[], $2::timestamptz[], $3::timestamptz[], $4::timestamptz[],
-				$5::timestamptz[], $6::integer[])
+			INSERT INTO charges (account, refill, bomb, enclosures, spread_clicks)
+			SELECT * FROM unnest($1::uuid[], $2::boolean[], $3::boolean[], $4::integer[], $5::integer[])
 			ON CONFLICT (account) DO UPDATE SET
-				refill_until = EXCLUDED.refill_until,
-				bomb_until = EXCLUDED.bomb_until,
-				enclose_until = EXCLUDED.enclose_until,
-				spread_until = EXCLUDED.spread_until,
+				refill = EXCLUDED.refill,
+				bomb = EXCLUDED.bomb,
+				enclosures = EXCLUDED.enclosures,
 				spread_clicks = EXCLUDED.spread_clicks
-		`, pq.Array(accounts), pq.Array(refills), pq.Array(bombs), pq.Array(encloses), pq.Array(spreads),
-			pq.Array(spreadClicks)); err != nil {
+		`, pq.Array(accounts), pq.Array(refills), pq.Array(bombs), pq.Array(enclosures), pq.Array(spreadClicks)); err != nil {
 			return fmt.Errorf("failed to write the hands: %w", err)
 		}
 	}
@@ -115,17 +102,4 @@ func (s *Store) Save(ctx context.Context, hands map[bonuses.Holder]bonuses.Hand)
 	}
 
 	return nil
-}
-
-// nullTime stores no charge of a kind as NULL.
-func nullTime(at time.Time) sql.NullTime {
-	return sql.NullTime{Time: at, Valid: !at.IsZero()}
-}
-
-func timeOf(at sql.NullTime) time.Time {
-	if !at.Valid {
-		return time.Time{}
-	}
-
-	return at.Time.UTC()
 }

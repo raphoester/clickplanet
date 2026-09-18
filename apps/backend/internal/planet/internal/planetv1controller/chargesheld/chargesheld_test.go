@@ -10,10 +10,10 @@ import (
 )
 
 func TestEveryChargeHeldGoesOut(t *testing.T) {
-	held := chargesheld.Encode(bonuses.Held{Bomb: true, Enclose: true, SpreadClicks: 5})
+	held := chargesheld.Encode(bonuses.Held{Bomb: true, Enclosures: 2, SpreadClicks: 5})
 
 	assert.True(t, held.GetBomb())
-	assert.True(t, held.GetEnclose())
+	assert.Equal(t, uint32(2), held.GetEnclosures())
 	assert.Equal(t, uint32(5), held.GetSpreadClicksLeft())
 }
 
@@ -21,6 +21,6 @@ func TestAnEmptyHandIsSaidToo(t *testing.T) {
 	held := chargesheld.Encode(bonuses.Held{})
 
 	assert.False(t, held.GetBomb())
-	assert.False(t, held.GetEnclose())
+	assert.Zero(t, held.GetEnclosures())
 	assert.Zero(t, held.GetSpreadClicksLeft())
 }

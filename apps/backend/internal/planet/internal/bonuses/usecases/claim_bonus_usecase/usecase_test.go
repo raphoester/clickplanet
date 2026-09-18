@@ -40,10 +40,11 @@ type stubCharger struct {
 type grantedCharge struct {
 	holder bonuses.Holder
 	kind   bonuses.Kind
+	amount int
 }
 
-func (s *stubCharger) Grant(holder bonuses.Holder, kind bonuses.Kind) {
-	s.granted = append(s.granted, grantedCharge{holder: holder, kind: kind})
+func (s *stubCharger) Grant(holder bonuses.Holder, kind bonuses.Kind, amount int) {
+	s.granted = append(s.granted, grantedCharge{holder: holder, kind: kind, amount: amount})
 }
 
 func (s *stubCharger) Held(holder bonuses.Holder) bonuses.Held {
@@ -58,9 +59,9 @@ func (s *stubCharger) Held(holder bonuses.Holder) bonuses.Held {
 		case bonuses.KindBomb:
 			held.Bomb = true
 		case bonuses.KindEncloseClicks:
-			held.Enclose = true
+			held.Enclosures += g.amount
 		case bonuses.KindSpreadClicks:
-			held.SpreadClicks = 8
+			held.SpreadClicks += g.amount
 		}
 	}
 
@@ -68,7 +69,7 @@ func (s *stubCharger) Held(holder bonuses.Holder) bonuses.Held {
 }
 
 func granting(kind bonuses.Kind) *stubRegistry {
-	return &stubRegistry{claimable: true, reward: bonuses.Reward{Kind: kind}}
+	return &stubRegistry{claimable: true, reward: bonuses.Reward{Kind: kind, Amount: 1}}
 }
 
 // played is the test's context, from an address, with an account on it.
@@ -87,7 +88,7 @@ func TestAClaimHandsTheChargeToTheAccount(t *testing.T) {
 
 	assert.Equal(t, "a-token", registry.token)
 	assert.Equal(t, "1.2.3.4", registry.scope, "the offer is the scope's")
-	assert.Equal(t, []grantedCharge{{holder: "a-guest", kind: bonuses.KindRefill}}, charger.granted)
+	assert.Equal(t, []grantedCharge{{holder: "a-guest", kind: bonuses.KindRefill, amount: 1}}, charger.granted)
 	assert.Equal(t, bonuses.KindRefill, out.Kind)
 	assert.Equal(t, bonuses.Held{Refill: true}, out.Held)
 }
@@ -100,7 +101,7 @@ func TestEveryKindIsGrantedAsACharge(t *testing.T) {
 			Execute(played(t), claim_bonus_usecase.In{Token: "a-token"})
 		require.NoError(t, err)
 
-		assert.Equal(t, []grantedCharge{{holder: "a-guest", kind: kind}}, charger.granted)
+		assert.Equal(t, []grantedCharge{{holder: "a-guest", kind: kind, amount: 1}}, charger.granted)
 	}
 }
 
@@ -123,4 +124,17 @@ func TestARefusedClaimGrantsNothingAndAnnouncesNothing(t *testing.T) {
 	require.ErrorIs(t, err, claim_bonus_usecase.ErrNoSuchBonus)
 	assert.Empty(t, charger.granted)
 	assert.Empty(t, registry.published)
+}
+
+func TestTheAmountTheBoxGaveIsGrantedAndAnswered(t *testing.T) {
+	registry := &stubRegistry{claimable: true, reward: bonuses.Reward{Kind: bonuses.KindSpreadClicks, Amount: 3}}
+	charger := &stubCharger{}
+
+	out, err := claim_bonus_usecase.New(registry, charger).
+		Execute(played(t), claim_bonus_usecase.In{Token: "a-token"})
+	require.NoError(t, err)
+
+	assert.Equal(t, []grantedCharge{{holder: "a-guest", kind: bonuses.KindSpreadClicks, amount: 3}}, charger.granted)
+	assert.Equal(t, 3, out.Amount)
+	assert.Equal(t, bonuses.Held{SpreadClicks: 3}, out.Held)
 }

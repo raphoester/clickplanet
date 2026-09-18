@@ -42,13 +42,14 @@ func claim(t *testing.T, useCase claim_bonus_handler.UseCase) (*planetv1.ClaimBo
 
 func TestAClaimSaysTheKindAndWhatIsHeld(t *testing.T) {
 	msg, err := claim(t, &stubUseCase{out: claim_bonus_usecase.Out{
-		Kind: bonuses.KindEncloseClicks, Held: bonuses.Held{Bomb: true, Enclose: true, SpreadClicks: 4},
+		Kind: bonuses.KindEncloseClicks, Amount: 2, Held: bonuses.Held{Bomb: true, Enclosures: 2, SpreadClicks: 4},
 	}})
 	require.NoError(t, err)
 
 	assert.Equal(t, planetv1.BonusKind_BONUS_KIND_ENCLOSE_CLICKS, msg.GetKind())
 	assert.True(t, msg.GetCharges().GetBomb())
-	assert.True(t, msg.GetCharges().GetEnclose())
+	assert.Equal(t, uint32(2), msg.GetAmount())
+	assert.Equal(t, uint32(2), msg.GetCharges().GetEnclosures())
 	assert.Equal(t, uint32(4), msg.GetCharges().GetSpreadClicksLeft(), "the answer says everything held")
 }
 

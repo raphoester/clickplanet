@@ -21,7 +21,7 @@ type Registry interface {
 
 // Charger hands a caller the charge a box was worth, for the click chain, drop_bomb and use_refill to spend.
 type Charger interface {
-	Grant(holder bonuses.Holder, kind bonuses.Kind)
+	Grant(holder bonuses.Holder, kind bonuses.Kind, amount int)
 	Held(holder bonuses.Holder) bonuses.Held
 }
 
@@ -32,6 +32,9 @@ type In struct {
 
 type Out struct {
 	Kind bonuses.Kind
+
+	// How much the box gave: enclosures or spread clicks. One for a refill or a bomb.
+	Amount int
 
 	// What the caller holds once the charge is granted.
 	Held bonuses.Held
@@ -57,11 +60,11 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	}
 
 	holder := bonuses.HolderOf(payer)
-	u.charger.Grant(holder, reward.Kind)
+	u.charger.Grant(holder, reward.Kind, reward.Amount)
 
 	// Only once the charge is held: a catch announced to the planet that then failed to apply is the one
 	// lie this could tell.
 	u.registry.Publish(bonuses.Taken{CountryID: in.CountryID, Kind: reward.Kind})
 
-	return Out{Kind: reward.Kind, Held: u.charger.Held(holder)}, nil
+	return Out{Kind: reward.Kind, Amount: reward.Amount, Held: u.charger.Held(holder)}, nil
 }
