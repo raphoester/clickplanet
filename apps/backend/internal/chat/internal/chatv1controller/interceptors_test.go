@@ -87,6 +87,28 @@ func TestRateLimitInterceptor(t *testing.T) {
 	})
 }
 
+func TestReactionRateLimitInterceptor(t *testing.T) {
+	t.Run("refuses a reaction over its own limit", func(t *testing.T) {
+		ran, err := run(t.Context(),
+			NewReactionRateLimitInterceptor(&fakeLimiter{allow: false}),
+			chatv1connect.ChatServiceReactProcedure)
+
+		require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(err))
+		require.False(t, ran)
+	})
+
+	t.Run("leaves messages to the message limiter", func(t *testing.T) {
+		limiter := &fakeLimiter{allow: false}
+
+		ran, err := run(t.Context(), NewReactionRateLimitInterceptor(limiter),
+			chatv1connect.ChatServiceSendMessageProcedure)
+
+		require.NoError(t, err)
+		require.True(t, ran)
+		require.Empty(t, limiter.keys)
+	})
+}
+
 func TestBlocklistInterceptor(t *testing.T) {
 	blocklistOf(t, nil)
 
@@ -97,6 +119,7 @@ func TestBlocklistInterceptor(t *testing.T) {
 		for _, procedure := range []string{
 			chatv1connect.ChatServiceSendMessageProcedure,
 			chatv1connect.ChatServiceGetHistoryProcedure,
+			chatv1connect.ChatServiceReactProcedure,
 		} {
 			ran, err := run(ctx, NewBlocklistInterceptor(blocklist), procedure)
 

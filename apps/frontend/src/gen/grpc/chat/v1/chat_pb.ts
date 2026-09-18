@@ -7,6 +7,177 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
 
 /**
+ * The reactions a message can carry. A fixed set, drawn by the client from its
+ * own images and never from the system's emoji font: the enum is the whole
+ * contract, so both apps agree on it without a list kept in each.
+ *
+ * A number is what is stored, so a value is never renumbered or reused. A new
+ * one goes at the end.
+ *
+ * @generated from enum chat.v1.Reaction
+ */
+export enum Reaction {
+  /**
+   * @generated from enum value: REACTION_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: REACTION_LAUGH = 1;
+   */
+  LAUGH = 1,
+
+  /**
+   * @generated from enum value: REACTION_CLOWN = 2;
+   */
+  CLOWN = 2,
+
+  /**
+   * @generated from enum value: REACTION_SKULL = 3;
+   */
+  SKULL = 3,
+
+  /**
+   * @generated from enum value: REACTION_FIRE = 4;
+   */
+  FIRE = 4,
+
+  /**
+   * @generated from enum value: REACTION_THUMBS_UP = 5;
+   */
+  THUMBS_UP = 5,
+
+  /**
+   * @generated from enum value: REACTION_THUMBS_DOWN = 6;
+   */
+  THUMBS_DOWN = 6,
+
+  /**
+   * @generated from enum value: REACTION_HEART = 7;
+   */
+  HEART = 7,
+
+  /**
+   * @generated from enum value: REACTION_CRY = 8;
+   */
+  CRY = 8,
+
+  /**
+   * @generated from enum value: REACTION_SCREAM = 9;
+   */
+  SCREAM = 9,
+
+  /**
+   * @generated from enum value: REACTION_COOL = 10;
+   */
+  COOL = 10,
+
+  /**
+   * @generated from enum value: REACTION_THINK = 11;
+   */
+  THINK = 11,
+
+  /**
+   * @generated from enum value: REACTION_POOP = 12;
+   */
+  POOP = 12,
+
+  /**
+   * @generated from enum value: REACTION_PARTY = 13;
+   */
+  PARTY = 13,
+
+  /**
+   * @generated from enum value: REACTION_MIND_BLOWN = 14;
+   */
+  MIND_BLOWN = 14,
+
+  /**
+   * @generated from enum value: REACTION_NERD = 15;
+   */
+  NERD = 15,
+
+  /**
+   * @generated from enum value: REACTION_EARTH = 16;
+   */
+  EARTH = 16,
+}
+// Retrieve enum metadata with: proto3.getEnumType(Reaction)
+proto3.util.setEnumType(Reaction, "chat.v1.Reaction", [
+  { no: 0, name: "REACTION_UNSPECIFIED" },
+  { no: 1, name: "REACTION_LAUGH" },
+  { no: 2, name: "REACTION_CLOWN" },
+  { no: 3, name: "REACTION_SKULL" },
+  { no: 4, name: "REACTION_FIRE" },
+  { no: 5, name: "REACTION_THUMBS_UP" },
+  { no: 6, name: "REACTION_THUMBS_DOWN" },
+  { no: 7, name: "REACTION_HEART" },
+  { no: 8, name: "REACTION_CRY" },
+  { no: 9, name: "REACTION_SCREAM" },
+  { no: 10, name: "REACTION_COOL" },
+  { no: 11, name: "REACTION_THINK" },
+  { no: 12, name: "REACTION_POOP" },
+  { no: 13, name: "REACTION_PARTY" },
+  { no: 14, name: "REACTION_MIND_BLOWN" },
+  { no: 15, name: "REACTION_NERD" },
+  { no: 16, name: "REACTION_EARTH" },
+]);
+
+/**
+ * How many put one reaction on one message.
+ *
+ * @generated from message chat.v1.ReactionCount
+ */
+export class ReactionCount extends Message<ReactionCount> {
+  /**
+   * @generated from field: chat.v1.Reaction reaction = 1;
+   */
+  reaction = Reaction.UNSPECIFIED;
+
+  /**
+   * @generated from field: uint32 count = 2;
+   */
+  count = 0;
+
+  /**
+   * The caller is one of them. Only a call knows who is asking: it is false on
+   * everything the stream sends, and the client keeps its own between calls.
+   *
+   * @generated from field: bool mine = 3;
+   */
+  mine = false;
+
+  constructor(data?: PartialMessage<ReactionCount>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chat.v1.ReactionCount";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "reaction", kind: "enum", T: proto3.getEnumType(Reaction) },
+    { no: 2, name: "count", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "mine", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ReactionCount {
+    return new ReactionCount().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ReactionCount {
+    return new ReactionCount().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ReactionCount {
+    return new ReactionCount().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ReactionCount | PlainMessage<ReactionCount> | undefined, b: ReactionCount | PlainMessage<ReactionCount> | undefined): boolean {
+    return proto3.util.equals(ReactionCount, a, b);
+  }
+}
+
+/**
  * @generated from message chat.v1.ChatMessage
  */
 export class ChatMessage extends Message<ChatMessage> {
@@ -52,6 +223,20 @@ export class ChatMessage extends Message<ChatMessage> {
    */
   authorAdmin = false;
 
+  /**
+   * In the order each reaction first appeared. Empty on a message just sent.
+   *
+   * @generated from field: repeated chat.v1.ReactionCount reactions = 8;
+   */
+  reactions: ReactionCount[] = [];
+
+  /**
+   * Which state of the reactions this is. See ReactionsChanged.version.
+   *
+   * @generated from field: uint64 reactions_version = 9;
+   */
+  reactionsVersion = protoInt64.zero;
+
   constructor(data?: PartialMessage<ChatMessage>) {
     super();
     proto3.util.initPartial(data, this);
@@ -67,6 +252,8 @@ export class ChatMessage extends Message<ChatMessage> {
     { no: 5, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 6, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 7, name: "author_admin", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 8, name: "reactions", kind: "message", T: ReactionCount, repeated: true },
+    { no: 9, name: "reactions_version", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ChatMessage {
@@ -186,6 +373,9 @@ export class SendMessageResponse extends Message<SendMessageResponse> {
 }
 
 /**
+ * The X-Session-Token header is optional, as on SendMessage: it is what says
+ * which reactions are the caller's own.
+ *
  * @generated from message chat.v1.GetHistoryRequest
  */
 export class GetHistoryRequest extends Message<GetHistoryRequest> {
@@ -254,6 +444,108 @@ export class GetHistoryResponse extends Message<GetHistoryResponse> {
 }
 
 /**
+ * The X-Session-Token header is optional. A player with a username reacts as
+ * its account, everyone else as the address it calls from: the same tag its
+ * messages carry.
+ *
+ * @generated from message chat.v1.ReactRequest
+ */
+export class ReactRequest extends Message<ReactRequest> {
+  /**
+   * @generated from field: string message_id = 1;
+   */
+  messageId = "";
+
+  /**
+   * @generated from field: chat.v1.Reaction reaction = 2;
+   */
+  reaction = Reaction.UNSPECIFIED;
+
+  /**
+   * True puts the reaction on, false takes it off.
+   *
+   * @generated from field: bool on = 3;
+   */
+  on = false;
+
+  constructor(data?: PartialMessage<ReactRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chat.v1.ReactRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "message_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "reaction", kind: "enum", T: proto3.getEnumType(Reaction) },
+    { no: 3, name: "on", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ReactRequest {
+    return new ReactRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ReactRequest {
+    return new ReactRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ReactRequest {
+    return new ReactRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ReactRequest | PlainMessage<ReactRequest> | undefined, b: ReactRequest | PlainMessage<ReactRequest> | undefined): boolean {
+    return proto3.util.equals(ReactRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message chat.v1.ReactResponse
+ */
+export class ReactResponse extends Message<ReactResponse> {
+  /**
+   * The message's reactions once this one landed, mine included.
+   *
+   * @generated from field: repeated chat.v1.ReactionCount reactions = 1;
+   */
+  reactions: ReactionCount[] = [];
+
+  /**
+   * See ReactionsChanged.version.
+   *
+   * @generated from field: uint64 version = 2;
+   */
+  version = protoInt64.zero;
+
+  constructor(data?: PartialMessage<ReactResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chat.v1.ReactResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "reactions", kind: "message", T: ReactionCount, repeated: true },
+    { no: 2, name: "version", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ReactResponse {
+    return new ReactResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ReactResponse {
+    return new ReactResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ReactResponse {
+    return new ReactResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ReactResponse | PlainMessage<ReactResponse> | undefined, b: ReactResponse | PlainMessage<ReactResponse> | undefined): boolean {
+    return proto3.util.equals(ReactResponse, a, b);
+  }
+}
+
+/**
  * @generated from message chat.v1.ListenForEventsRequest
  */
 export class ListenForEventsRequest extends Message<ListenForEventsRequest> {
@@ -309,6 +601,12 @@ export class ChatEvent extends Message<ChatEvent> {
      */
     value: Heartbeat;
     case: "heartbeat";
+  } | {
+    /**
+     * @generated from field: chat.v1.ReactionsChanged reactions = 3;
+     */
+    value: ReactionsChanged;
+    case: "reactions";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<ChatEvent>) {
@@ -321,6 +619,7 @@ export class ChatEvent extends Message<ChatEvent> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "message", kind: "message", T: ChatMessage, oneof: "event" },
     { no: 2, name: "heartbeat", kind: "message", T: Heartbeat, oneof: "event" },
+    { no: 3, name: "reactions", kind: "message", T: ReactionsChanged, oneof: "event" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ChatEvent {
@@ -337,6 +636,62 @@ export class ChatEvent extends Message<ChatEvent> {
 
   static equals(a: ChatEvent | PlainMessage<ChatEvent> | undefined, b: ChatEvent | PlainMessage<ChatEvent> | undefined): boolean {
     return proto3.util.equals(ChatEvent, a, b);
+  }
+}
+
+/**
+ * A message's reactions changed. They are all of them, not the difference, so a
+ * client that missed a frame is right again on the next one.
+ *
+ * @generated from message chat.v1.ReactionsChanged
+ */
+export class ReactionsChanged extends Message<ReactionsChanged> {
+  /**
+   * @generated from field: string message_id = 1;
+   */
+  messageId = "";
+
+  /**
+   * @generated from field: repeated chat.v1.ReactionCount reactions = 2;
+   */
+  reactions: ReactionCount[] = [];
+
+  /**
+   * Goes up by one with each change to the message's reactions. Frames can
+   * arrive out of order, so a client keeps the reactions of the highest
+   * version it has seen, and drops a lower one.
+   *
+   * @generated from field: uint64 version = 3;
+   */
+  version = protoInt64.zero;
+
+  constructor(data?: PartialMessage<ReactionsChanged>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chat.v1.ReactionsChanged";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "message_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "reactions", kind: "message", T: ReactionCount, repeated: true },
+    { no: 3, name: "version", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ReactionsChanged {
+    return new ReactionsChanged().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ReactionsChanged {
+    return new ReactionsChanged().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ReactionsChanged {
+    return new ReactionsChanged().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ReactionsChanged | PlainMessage<ReactionsChanged> | undefined, b: ReactionsChanged | PlainMessage<ReactionsChanged> | undefined): boolean {
+    return proto3.util.equals(ReactionsChanged, a, b);
   }
 }
 

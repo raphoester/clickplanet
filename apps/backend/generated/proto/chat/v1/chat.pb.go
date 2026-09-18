@@ -21,6 +21,166 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// The reactions a message can carry. A fixed set, drawn by the client from its
+// own images and never from the system's emoji font: the enum is the whole
+// contract, so both apps agree on it without a list kept in each.
+//
+// A number is what is stored, so a value is never renumbered or reused. A new
+// one goes at the end.
+type Reaction int32
+
+const (
+	Reaction_REACTION_UNSPECIFIED Reaction = 0
+	Reaction_REACTION_LAUGH       Reaction = 1
+	Reaction_REACTION_CLOWN       Reaction = 2
+	Reaction_REACTION_SKULL       Reaction = 3
+	Reaction_REACTION_FIRE        Reaction = 4
+	Reaction_REACTION_THUMBS_UP   Reaction = 5
+	Reaction_REACTION_THUMBS_DOWN Reaction = 6
+	Reaction_REACTION_HEART       Reaction = 7
+	Reaction_REACTION_CRY         Reaction = 8
+	Reaction_REACTION_SCREAM      Reaction = 9
+	Reaction_REACTION_COOL        Reaction = 10
+	Reaction_REACTION_THINK       Reaction = 11
+	Reaction_REACTION_POOP        Reaction = 12
+	Reaction_REACTION_PARTY       Reaction = 13
+	Reaction_REACTION_MIND_BLOWN  Reaction = 14
+	Reaction_REACTION_NERD        Reaction = 15
+	Reaction_REACTION_EARTH       Reaction = 16
+)
+
+// Enum value maps for Reaction.
+var (
+	Reaction_name = map[int32]string{
+		0:  "REACTION_UNSPECIFIED",
+		1:  "REACTION_LAUGH",
+		2:  "REACTION_CLOWN",
+		3:  "REACTION_SKULL",
+		4:  "REACTION_FIRE",
+		5:  "REACTION_THUMBS_UP",
+		6:  "REACTION_THUMBS_DOWN",
+		7:  "REACTION_HEART",
+		8:  "REACTION_CRY",
+		9:  "REACTION_SCREAM",
+		10: "REACTION_COOL",
+		11: "REACTION_THINK",
+		12: "REACTION_POOP",
+		13: "REACTION_PARTY",
+		14: "REACTION_MIND_BLOWN",
+		15: "REACTION_NERD",
+		16: "REACTION_EARTH",
+	}
+	Reaction_value = map[string]int32{
+		"REACTION_UNSPECIFIED": 0,
+		"REACTION_LAUGH":       1,
+		"REACTION_CLOWN":       2,
+		"REACTION_SKULL":       3,
+		"REACTION_FIRE":        4,
+		"REACTION_THUMBS_UP":   5,
+		"REACTION_THUMBS_DOWN": 6,
+		"REACTION_HEART":       7,
+		"REACTION_CRY":         8,
+		"REACTION_SCREAM":      9,
+		"REACTION_COOL":        10,
+		"REACTION_THINK":       11,
+		"REACTION_POOP":        12,
+		"REACTION_PARTY":       13,
+		"REACTION_MIND_BLOWN":  14,
+		"REACTION_NERD":        15,
+		"REACTION_EARTH":       16,
+	}
+)
+
+func (x Reaction) Enum() *Reaction {
+	p := new(Reaction)
+	*p = x
+	return p
+}
+
+func (x Reaction) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (Reaction) Descriptor() protoreflect.EnumDescriptor {
+	return file_chat_v1_chat_proto_enumTypes[0].Descriptor()
+}
+
+func (Reaction) Type() protoreflect.EnumType {
+	return &file_chat_v1_chat_proto_enumTypes[0]
+}
+
+func (x Reaction) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use Reaction.Descriptor instead.
+func (Reaction) EnumDescriptor() ([]byte, []int) {
+	return file_chat_v1_chat_proto_rawDescGZIP(), []int{0}
+}
+
+// How many put one reaction on one message.
+type ReactionCount struct {
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Reaction Reaction               `protobuf:"varint,1,opt,name=reaction,proto3,enum=chat.v1.Reaction" json:"reaction,omitempty"`
+	Count    uint32                 `protobuf:"varint,2,opt,name=count,proto3" json:"count,omitempty"`
+	// The caller is one of them. Only a call knows who is asking: it is false on
+	// everything the stream sends, and the client keeps its own between calls.
+	Mine          bool `protobuf:"varint,3,opt,name=mine,proto3" json:"mine,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReactionCount) Reset() {
+	*x = ReactionCount{}
+	mi := &file_chat_v1_chat_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReactionCount) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReactionCount) ProtoMessage() {}
+
+func (x *ReactionCount) ProtoReflect() protoreflect.Message {
+	mi := &file_chat_v1_chat_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReactionCount.ProtoReflect.Descriptor instead.
+func (*ReactionCount) Descriptor() ([]byte, []int) {
+	return file_chat_v1_chat_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *ReactionCount) GetReaction() Reaction {
+	if x != nil {
+		return x.Reaction
+	}
+	return Reaction_REACTION_UNSPECIFIED
+}
+
+func (x *ReactionCount) GetCount() uint32 {
+	if x != nil {
+		return x.Count
+	}
+	return 0
+}
+
+func (x *ReactionCount) GetMine() bool {
+	if x != nil {
+		return x.Mine
+	}
+	return false
+}
+
 type ChatMessage struct {
 	state        protoimpl.MessageState `protogen:"open.v1"`
 	Id           string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -34,14 +194,18 @@ type ChatMessage struct {
 	Text       string `protobuf:"bytes,6,opt,name=text,proto3" json:"text,omitempty"`
 	// Posted under the username of an admin of the game, as it was when the
 	// message was sent. Never a guest.
-	AuthorAdmin   bool `protobuf:"varint,7,opt,name=author_admin,json=authorAdmin,proto3" json:"author_admin,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	AuthorAdmin bool `protobuf:"varint,7,opt,name=author_admin,json=authorAdmin,proto3" json:"author_admin,omitempty"`
+	// In the order each reaction first appeared. Empty on a message just sent.
+	Reactions []*ReactionCount `protobuf:"bytes,8,rep,name=reactions,proto3" json:"reactions,omitempty"`
+	// Which state of the reactions this is. See ReactionsChanged.version.
+	ReactionsVersion uint64 `protobuf:"varint,9,opt,name=reactions_version,json=reactionsVersion,proto3" json:"reactions_version,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *ChatMessage) Reset() {
 	*x = ChatMessage{}
-	mi := &file_chat_v1_chat_proto_msgTypes[0]
+	mi := &file_chat_v1_chat_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -53,7 +217,7 @@ func (x *ChatMessage) String() string {
 func (*ChatMessage) ProtoMessage() {}
 
 func (x *ChatMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_v1_chat_proto_msgTypes[0]
+	mi := &file_chat_v1_chat_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -66,7 +230,7 @@ func (x *ChatMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ChatMessage.ProtoReflect.Descriptor instead.
 func (*ChatMessage) Descriptor() ([]byte, []int) {
-	return file_chat_v1_chat_proto_rawDescGZIP(), []int{0}
+	return file_chat_v1_chat_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *ChatMessage) GetId() string {
@@ -118,6 +282,20 @@ func (x *ChatMessage) GetAuthorAdmin() bool {
 	return false
 }
 
+func (x *ChatMessage) GetReactions() []*ReactionCount {
+	if x != nil {
+		return x.Reactions
+	}
+	return nil
+}
+
+func (x *ChatMessage) GetReactionsVersion() uint64 {
+	if x != nil {
+		return x.ReactionsVersion
+	}
+	return 0
+}
+
 // The X-Session-Token header is optional. When it names an account with a
 // username, the message is sent under that username and author_name is not
 // read. Otherwise author_name is a guest's name, which the server sends as
@@ -135,7 +313,7 @@ type SendMessageRequest struct {
 
 func (x *SendMessageRequest) Reset() {
 	*x = SendMessageRequest{}
-	mi := &file_chat_v1_chat_proto_msgTypes[1]
+	mi := &file_chat_v1_chat_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -147,7 +325,7 @@ func (x *SendMessageRequest) String() string {
 func (*SendMessageRequest) ProtoMessage() {}
 
 func (x *SendMessageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_v1_chat_proto_msgTypes[1]
+	mi := &file_chat_v1_chat_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -160,7 +338,7 @@ func (x *SendMessageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SendMessageRequest.ProtoReflect.Descriptor instead.
 func (*SendMessageRequest) Descriptor() ([]byte, []int) {
-	return file_chat_v1_chat_proto_rawDescGZIP(), []int{1}
+	return file_chat_v1_chat_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *SendMessageRequest) GetAuthorName() string {
@@ -200,7 +378,7 @@ type SendMessageResponse struct {
 
 func (x *SendMessageResponse) Reset() {
 	*x = SendMessageResponse{}
-	mi := &file_chat_v1_chat_proto_msgTypes[2]
+	mi := &file_chat_v1_chat_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -212,7 +390,7 @@ func (x *SendMessageResponse) String() string {
 func (*SendMessageResponse) ProtoMessage() {}
 
 func (x *SendMessageResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_v1_chat_proto_msgTypes[2]
+	mi := &file_chat_v1_chat_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -225,7 +403,7 @@ func (x *SendMessageResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SendMessageResponse.ProtoReflect.Descriptor instead.
 func (*SendMessageResponse) Descriptor() ([]byte, []int) {
-	return file_chat_v1_chat_proto_rawDescGZIP(), []int{2}
+	return file_chat_v1_chat_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *SendMessageResponse) GetMessage() *ChatMessage {
@@ -235,6 +413,8 @@ func (x *SendMessageResponse) GetMessage() *ChatMessage {
 	return nil
 }
 
+// The X-Session-Token header is optional, as on SendMessage: it is what says
+// which reactions are the caller's own.
 type GetHistoryRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -243,7 +423,7 @@ type GetHistoryRequest struct {
 
 func (x *GetHistoryRequest) Reset() {
 	*x = GetHistoryRequest{}
-	mi := &file_chat_v1_chat_proto_msgTypes[3]
+	mi := &file_chat_v1_chat_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -255,7 +435,7 @@ func (x *GetHistoryRequest) String() string {
 func (*GetHistoryRequest) ProtoMessage() {}
 
 func (x *GetHistoryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_v1_chat_proto_msgTypes[3]
+	mi := &file_chat_v1_chat_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -268,7 +448,7 @@ func (x *GetHistoryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetHistoryRequest.ProtoReflect.Descriptor instead.
 func (*GetHistoryRequest) Descriptor() ([]byte, []int) {
-	return file_chat_v1_chat_proto_rawDescGZIP(), []int{3}
+	return file_chat_v1_chat_proto_rawDescGZIP(), []int{4}
 }
 
 type GetHistoryResponse struct {
@@ -280,7 +460,7 @@ type GetHistoryResponse struct {
 
 func (x *GetHistoryResponse) Reset() {
 	*x = GetHistoryResponse{}
-	mi := &file_chat_v1_chat_proto_msgTypes[4]
+	mi := &file_chat_v1_chat_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -292,7 +472,7 @@ func (x *GetHistoryResponse) String() string {
 func (*GetHistoryResponse) ProtoMessage() {}
 
 func (x *GetHistoryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_v1_chat_proto_msgTypes[4]
+	mi := &file_chat_v1_chat_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -305,7 +485,7 @@ func (x *GetHistoryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetHistoryResponse.ProtoReflect.Descriptor instead.
 func (*GetHistoryResponse) Descriptor() ([]byte, []int) {
-	return file_chat_v1_chat_proto_rawDescGZIP(), []int{4}
+	return file_chat_v1_chat_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *GetHistoryResponse) GetMessages() []*ChatMessage {
@@ -313,6 +493,124 @@ func (x *GetHistoryResponse) GetMessages() []*ChatMessage {
 		return x.Messages
 	}
 	return nil
+}
+
+// The X-Session-Token header is optional. A player with a username reacts as
+// its account, everyone else as the address it calls from: the same tag its
+// messages carry.
+type ReactRequest struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	MessageId string                 `protobuf:"bytes,1,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
+	Reaction  Reaction               `protobuf:"varint,2,opt,name=reaction,proto3,enum=chat.v1.Reaction" json:"reaction,omitempty"`
+	// True puts the reaction on, false takes it off.
+	On            bool `protobuf:"varint,3,opt,name=on,proto3" json:"on,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReactRequest) Reset() {
+	*x = ReactRequest{}
+	mi := &file_chat_v1_chat_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReactRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReactRequest) ProtoMessage() {}
+
+func (x *ReactRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chat_v1_chat_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReactRequest.ProtoReflect.Descriptor instead.
+func (*ReactRequest) Descriptor() ([]byte, []int) {
+	return file_chat_v1_chat_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *ReactRequest) GetMessageId() string {
+	if x != nil {
+		return x.MessageId
+	}
+	return ""
+}
+
+func (x *ReactRequest) GetReaction() Reaction {
+	if x != nil {
+		return x.Reaction
+	}
+	return Reaction_REACTION_UNSPECIFIED
+}
+
+func (x *ReactRequest) GetOn() bool {
+	if x != nil {
+		return x.On
+	}
+	return false
+}
+
+type ReactResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The message's reactions once this one landed, mine included.
+	Reactions []*ReactionCount `protobuf:"bytes,1,rep,name=reactions,proto3" json:"reactions,omitempty"`
+	// See ReactionsChanged.version.
+	Version       uint64 `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReactResponse) Reset() {
+	*x = ReactResponse{}
+	mi := &file_chat_v1_chat_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReactResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReactResponse) ProtoMessage() {}
+
+func (x *ReactResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chat_v1_chat_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReactResponse.ProtoReflect.Descriptor instead.
+func (*ReactResponse) Descriptor() ([]byte, []int) {
+	return file_chat_v1_chat_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *ReactResponse) GetReactions() []*ReactionCount {
+	if x != nil {
+		return x.Reactions
+	}
+	return nil
+}
+
+func (x *ReactResponse) GetVersion() uint64 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
 }
 
 type ListenForEventsRequest struct {
@@ -323,7 +621,7 @@ type ListenForEventsRequest struct {
 
 func (x *ListenForEventsRequest) Reset() {
 	*x = ListenForEventsRequest{}
-	mi := &file_chat_v1_chat_proto_msgTypes[5]
+	mi := &file_chat_v1_chat_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -335,7 +633,7 @@ func (x *ListenForEventsRequest) String() string {
 func (*ListenForEventsRequest) ProtoMessage() {}
 
 func (x *ListenForEventsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_v1_chat_proto_msgTypes[5]
+	mi := &file_chat_v1_chat_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -348,7 +646,7 @@ func (x *ListenForEventsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListenForEventsRequest.ProtoReflect.Descriptor instead.
 func (*ListenForEventsRequest) Descriptor() ([]byte, []int) {
-	return file_chat_v1_chat_proto_rawDescGZIP(), []int{5}
+	return file_chat_v1_chat_proto_rawDescGZIP(), []int{8}
 }
 
 // The one live stream this API has — see the note on planet.v1.PlanetEvent. A
@@ -362,6 +660,7 @@ type ChatEvent struct {
 	//
 	//	*ChatEvent_Message
 	//	*ChatEvent_Heartbeat
+	//	*ChatEvent_Reactions
 	Event         isChatEvent_Event `protobuf_oneof:"event"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -369,7 +668,7 @@ type ChatEvent struct {
 
 func (x *ChatEvent) Reset() {
 	*x = ChatEvent{}
-	mi := &file_chat_v1_chat_proto_msgTypes[6]
+	mi := &file_chat_v1_chat_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -381,7 +680,7 @@ func (x *ChatEvent) String() string {
 func (*ChatEvent) ProtoMessage() {}
 
 func (x *ChatEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_v1_chat_proto_msgTypes[6]
+	mi := &file_chat_v1_chat_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -394,7 +693,7 @@ func (x *ChatEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ChatEvent.ProtoReflect.Descriptor instead.
 func (*ChatEvent) Descriptor() ([]byte, []int) {
-	return file_chat_v1_chat_proto_rawDescGZIP(), []int{6}
+	return file_chat_v1_chat_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ChatEvent) GetEvent() isChatEvent_Event {
@@ -422,6 +721,15 @@ func (x *ChatEvent) GetHeartbeat() *Heartbeat {
 	return nil
 }
 
+func (x *ChatEvent) GetReactions() *ReactionsChanged {
+	if x != nil {
+		if x, ok := x.Event.(*ChatEvent_Reactions); ok {
+			return x.Reactions
+		}
+	}
+	return nil
+}
+
 type isChatEvent_Event interface {
 	isChatEvent_Event()
 }
@@ -434,9 +742,80 @@ type ChatEvent_Heartbeat struct {
 	Heartbeat *Heartbeat `protobuf:"bytes,2,opt,name=heartbeat,proto3,oneof"`
 }
 
+type ChatEvent_Reactions struct {
+	Reactions *ReactionsChanged `protobuf:"bytes,3,opt,name=reactions,proto3,oneof"`
+}
+
 func (*ChatEvent_Message) isChatEvent_Event() {}
 
 func (*ChatEvent_Heartbeat) isChatEvent_Event() {}
+
+func (*ChatEvent_Reactions) isChatEvent_Event() {}
+
+// A message's reactions changed. They are all of them, not the difference, so a
+// client that missed a frame is right again on the next one.
+type ReactionsChanged struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	MessageId string                 `protobuf:"bytes,1,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
+	Reactions []*ReactionCount       `protobuf:"bytes,2,rep,name=reactions,proto3" json:"reactions,omitempty"`
+	// Goes up by one with each change to the message's reactions. Frames can
+	// arrive out of order, so a client keeps the reactions of the highest
+	// version it has seen, and drops a lower one.
+	Version       uint64 `protobuf:"varint,3,opt,name=version,proto3" json:"version,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReactionsChanged) Reset() {
+	*x = ReactionsChanged{}
+	mi := &file_chat_v1_chat_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReactionsChanged) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReactionsChanged) ProtoMessage() {}
+
+func (x *ReactionsChanged) ProtoReflect() protoreflect.Message {
+	mi := &file_chat_v1_chat_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReactionsChanged.ProtoReflect.Descriptor instead.
+func (*ReactionsChanged) Descriptor() ([]byte, []int) {
+	return file_chat_v1_chat_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *ReactionsChanged) GetMessageId() string {
+	if x != nil {
+		return x.MessageId
+	}
+	return ""
+}
+
+func (x *ReactionsChanged) GetReactions() []*ReactionCount {
+	if x != nil {
+		return x.Reactions
+	}
+	return nil
+}
+
+func (x *ReactionsChanged) GetVersion() uint64 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
 
 type Heartbeat struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -446,7 +825,7 @@ type Heartbeat struct {
 
 func (x *Heartbeat) Reset() {
 	*x = Heartbeat{}
-	mi := &file_chat_v1_chat_proto_msgTypes[7]
+	mi := &file_chat_v1_chat_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -458,7 +837,7 @@ func (x *Heartbeat) String() string {
 func (*Heartbeat) ProtoMessage() {}
 
 func (x *Heartbeat) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_v1_chat_proto_msgTypes[7]
+	mi := &file_chat_v1_chat_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -471,14 +850,18 @@ func (x *Heartbeat) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Heartbeat.ProtoReflect.Descriptor instead.
 func (*Heartbeat) Descriptor() ([]byte, []int) {
-	return file_chat_v1_chat_proto_rawDescGZIP(), []int{7}
+	return file_chat_v1_chat_proto_rawDescGZIP(), []int{11}
 }
 
 var File_chat_v1_chat_proto protoreflect.FileDescriptor
 
 const file_chat_v1_chat_proto_rawDesc = "" +
 	"\n" +
-	"\x12chat/v1/chat.proto\x12\achat.v1\"\xda\x01\n" +
+	"\x12chat/v1/chat.proto\x12\achat.v1\"h\n" +
+	"\rReactionCount\x12-\n" +
+	"\breaction\x18\x01 \x01(\x0e2\x11.chat.v1.ReactionR\breaction\x12\x14\n" +
+	"\x05count\x18\x02 \x01(\rR\x05count\x12\x12\n" +
+	"\x04mine\x18\x03 \x01(\bR\x04mine\"\xbd\x02\n" +
 	"\vChatMessage\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12%\n" +
 	"\x0fsent_at_unix_ms\x18\x02 \x01(\x03R\fsentAtUnixMs\x12\x1f\n" +
@@ -489,7 +872,9 @@ const file_chat_v1_chat_proto_rawDesc = "" +
 	"\n" +
 	"country_id\x18\x05 \x01(\tR\tcountryId\x12\x12\n" +
 	"\x04text\x18\x06 \x01(\tR\x04text\x12!\n" +
-	"\fauthor_admin\x18\a \x01(\bR\vauthorAdmin\"\x85\x01\n" +
+	"\fauthor_admin\x18\a \x01(\bR\vauthorAdmin\x124\n" +
+	"\treactions\x18\b \x03(\v2\x16.chat.v1.ReactionCountR\treactions\x12+\n" +
+	"\x11reactions_version\x18\t \x01(\x04R\x10reactionsVersion\"\x85\x01\n" +
 	"\x12SendMessageRequest\x12\x1f\n" +
 	"\vauthor_name\x18\x01 \x01(\tR\n" +
 	"authorName\x12\x1b\n" +
@@ -501,18 +886,52 @@ const file_chat_v1_chat_proto_rawDesc = "" +
 	"\amessage\x18\x01 \x01(\v2\x14.chat.v1.ChatMessageR\amessage\"\x13\n" +
 	"\x11GetHistoryRequest\"F\n" +
 	"\x12GetHistoryResponse\x120\n" +
-	"\bmessages\x18\x01 \x03(\v2\x14.chat.v1.ChatMessageR\bmessages\"\x18\n" +
-	"\x16ListenForEventsRequest\"z\n" +
+	"\bmessages\x18\x01 \x03(\v2\x14.chat.v1.ChatMessageR\bmessages\"l\n" +
+	"\fReactRequest\x12\x1d\n" +
+	"\n" +
+	"message_id\x18\x01 \x01(\tR\tmessageId\x12-\n" +
+	"\breaction\x18\x02 \x01(\x0e2\x11.chat.v1.ReactionR\breaction\x12\x0e\n" +
+	"\x02on\x18\x03 \x01(\bR\x02on\"_\n" +
+	"\rReactResponse\x124\n" +
+	"\treactions\x18\x01 \x03(\v2\x16.chat.v1.ReactionCountR\treactions\x12\x18\n" +
+	"\aversion\x18\x02 \x01(\x04R\aversion\"\x18\n" +
+	"\x16ListenForEventsRequest\"\xb5\x01\n" +
 	"\tChatEvent\x120\n" +
 	"\amessage\x18\x01 \x01(\v2\x14.chat.v1.ChatMessageH\x00R\amessage\x122\n" +
-	"\theartbeat\x18\x02 \x01(\v2\x12.chat.v1.HeartbeatH\x00R\theartbeatB\a\n" +
-	"\x05event\"\v\n" +
-	"\tHeartbeat2\xed\x01\n" +
+	"\theartbeat\x18\x02 \x01(\v2\x12.chat.v1.HeartbeatH\x00R\theartbeat\x129\n" +
+	"\treactions\x18\x03 \x01(\v2\x19.chat.v1.ReactionsChangedH\x00R\treactionsB\a\n" +
+	"\x05event\"\x81\x01\n" +
+	"\x10ReactionsChanged\x12\x1d\n" +
+	"\n" +
+	"message_id\x18\x01 \x01(\tR\tmessageId\x124\n" +
+	"\treactions\x18\x02 \x03(\v2\x16.chat.v1.ReactionCountR\treactions\x12\x18\n" +
+	"\aversion\x18\x03 \x01(\x04R\aversion\"\v\n" +
+	"\tHeartbeat*\xee\x02\n" +
+	"\bReaction\x12\x18\n" +
+	"\x14REACTION_UNSPECIFIED\x10\x00\x12\x12\n" +
+	"\x0eREACTION_LAUGH\x10\x01\x12\x12\n" +
+	"\x0eREACTION_CLOWN\x10\x02\x12\x12\n" +
+	"\x0eREACTION_SKULL\x10\x03\x12\x11\n" +
+	"\rREACTION_FIRE\x10\x04\x12\x16\n" +
+	"\x12REACTION_THUMBS_UP\x10\x05\x12\x18\n" +
+	"\x14REACTION_THUMBS_DOWN\x10\x06\x12\x12\n" +
+	"\x0eREACTION_HEART\x10\a\x12\x10\n" +
+	"\fREACTION_CRY\x10\b\x12\x13\n" +
+	"\x0fREACTION_SCREAM\x10\t\x12\x11\n" +
+	"\rREACTION_COOL\x10\n" +
+	"\x12\x12\n" +
+	"\x0eREACTION_THINK\x10\v\x12\x11\n" +
+	"\rREACTION_POOP\x10\f\x12\x12\n" +
+	"\x0eREACTION_PARTY\x10\r\x12\x17\n" +
+	"\x13REACTION_MIND_BLOWN\x10\x0e\x12\x11\n" +
+	"\rREACTION_NERD\x10\x0f\x12\x12\n" +
+	"\x0eREACTION_EARTH\x10\x102\xa5\x02\n" +
 	"\vChatService\x12H\n" +
 	"\vSendMessage\x12\x1b.chat.v1.SendMessageRequest\x1a\x1c.chat.v1.SendMessageResponse\x12J\n" +
 	"\n" +
 	"GetHistory\x12\x1a.chat.v1.GetHistoryRequest\x1a\x1b.chat.v1.GetHistoryResponse\"\x03\x90\x02\x01\x12H\n" +
-	"\x0fListenForEvents\x12\x1f.chat.v1.ListenForEventsRequest\x1a\x12.chat.v1.ChatEvent0\x01B\xa3\x01\n" +
+	"\x0fListenForEvents\x12\x1f.chat.v1.ListenForEventsRequest\x1a\x12.chat.v1.ChatEvent0\x01\x126\n" +
+	"\x05React\x12\x15.chat.v1.ReactRequest\x1a\x16.chat.v1.ReactResponseB\xa3\x01\n" +
 	"\vcom.chat.v1B\tChatProtoP\x01ZLgithub.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1;chatv1\xa2\x02\x03CXX\xaa\x02\aChat.V1\xca\x02\aChat\\V1\xe2\x02\x13Chat\\V1\\GPBMetadata\xea\x02\bChat::V1b\x06proto3"
 
 var (
@@ -527,33 +946,47 @@ func file_chat_v1_chat_proto_rawDescGZIP() []byte {
 	return file_chat_v1_chat_proto_rawDescData
 }
 
-var file_chat_v1_chat_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_chat_v1_chat_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_chat_v1_chat_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_chat_v1_chat_proto_goTypes = []any{
-	(*ChatMessage)(nil),            // 0: chat.v1.ChatMessage
-	(*SendMessageRequest)(nil),     // 1: chat.v1.SendMessageRequest
-	(*SendMessageResponse)(nil),    // 2: chat.v1.SendMessageResponse
-	(*GetHistoryRequest)(nil),      // 3: chat.v1.GetHistoryRequest
-	(*GetHistoryResponse)(nil),     // 4: chat.v1.GetHistoryResponse
-	(*ListenForEventsRequest)(nil), // 5: chat.v1.ListenForEventsRequest
-	(*ChatEvent)(nil),              // 6: chat.v1.ChatEvent
-	(*Heartbeat)(nil),              // 7: chat.v1.Heartbeat
+	(Reaction)(0),                  // 0: chat.v1.Reaction
+	(*ReactionCount)(nil),          // 1: chat.v1.ReactionCount
+	(*ChatMessage)(nil),            // 2: chat.v1.ChatMessage
+	(*SendMessageRequest)(nil),     // 3: chat.v1.SendMessageRequest
+	(*SendMessageResponse)(nil),    // 4: chat.v1.SendMessageResponse
+	(*GetHistoryRequest)(nil),      // 5: chat.v1.GetHistoryRequest
+	(*GetHistoryResponse)(nil),     // 6: chat.v1.GetHistoryResponse
+	(*ReactRequest)(nil),           // 7: chat.v1.ReactRequest
+	(*ReactResponse)(nil),          // 8: chat.v1.ReactResponse
+	(*ListenForEventsRequest)(nil), // 9: chat.v1.ListenForEventsRequest
+	(*ChatEvent)(nil),              // 10: chat.v1.ChatEvent
+	(*ReactionsChanged)(nil),       // 11: chat.v1.ReactionsChanged
+	(*Heartbeat)(nil),              // 12: chat.v1.Heartbeat
 }
 var file_chat_v1_chat_proto_depIdxs = []int32{
-	0, // 0: chat.v1.SendMessageResponse.message:type_name -> chat.v1.ChatMessage
-	0, // 1: chat.v1.GetHistoryResponse.messages:type_name -> chat.v1.ChatMessage
-	0, // 2: chat.v1.ChatEvent.message:type_name -> chat.v1.ChatMessage
-	7, // 3: chat.v1.ChatEvent.heartbeat:type_name -> chat.v1.Heartbeat
-	1, // 4: chat.v1.ChatService.SendMessage:input_type -> chat.v1.SendMessageRequest
-	3, // 5: chat.v1.ChatService.GetHistory:input_type -> chat.v1.GetHistoryRequest
-	5, // 6: chat.v1.ChatService.ListenForEvents:input_type -> chat.v1.ListenForEventsRequest
-	2, // 7: chat.v1.ChatService.SendMessage:output_type -> chat.v1.SendMessageResponse
-	4, // 8: chat.v1.ChatService.GetHistory:output_type -> chat.v1.GetHistoryResponse
-	6, // 9: chat.v1.ChatService.ListenForEvents:output_type -> chat.v1.ChatEvent
-	7, // [7:10] is the sub-list for method output_type
-	4, // [4:7] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	0,  // 0: chat.v1.ReactionCount.reaction:type_name -> chat.v1.Reaction
+	1,  // 1: chat.v1.ChatMessage.reactions:type_name -> chat.v1.ReactionCount
+	2,  // 2: chat.v1.SendMessageResponse.message:type_name -> chat.v1.ChatMessage
+	2,  // 3: chat.v1.GetHistoryResponse.messages:type_name -> chat.v1.ChatMessage
+	0,  // 4: chat.v1.ReactRequest.reaction:type_name -> chat.v1.Reaction
+	1,  // 5: chat.v1.ReactResponse.reactions:type_name -> chat.v1.ReactionCount
+	2,  // 6: chat.v1.ChatEvent.message:type_name -> chat.v1.ChatMessage
+	12, // 7: chat.v1.ChatEvent.heartbeat:type_name -> chat.v1.Heartbeat
+	11, // 8: chat.v1.ChatEvent.reactions:type_name -> chat.v1.ReactionsChanged
+	1,  // 9: chat.v1.ReactionsChanged.reactions:type_name -> chat.v1.ReactionCount
+	3,  // 10: chat.v1.ChatService.SendMessage:input_type -> chat.v1.SendMessageRequest
+	5,  // 11: chat.v1.ChatService.GetHistory:input_type -> chat.v1.GetHistoryRequest
+	9,  // 12: chat.v1.ChatService.ListenForEvents:input_type -> chat.v1.ListenForEventsRequest
+	7,  // 13: chat.v1.ChatService.React:input_type -> chat.v1.ReactRequest
+	4,  // 14: chat.v1.ChatService.SendMessage:output_type -> chat.v1.SendMessageResponse
+	6,  // 15: chat.v1.ChatService.GetHistory:output_type -> chat.v1.GetHistoryResponse
+	10, // 16: chat.v1.ChatService.ListenForEvents:output_type -> chat.v1.ChatEvent
+	8,  // 17: chat.v1.ChatService.React:output_type -> chat.v1.ReactResponse
+	14, // [14:18] is the sub-list for method output_type
+	10, // [10:14] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_chat_v1_chat_proto_init() }
@@ -561,22 +994,24 @@ func file_chat_v1_chat_proto_init() {
 	if File_chat_v1_chat_proto != nil {
 		return
 	}
-	file_chat_v1_chat_proto_msgTypes[6].OneofWrappers = []any{
+	file_chat_v1_chat_proto_msgTypes[9].OneofWrappers = []any{
 		(*ChatEvent_Message)(nil),
 		(*ChatEvent_Heartbeat)(nil),
+		(*ChatEvent_Reactions)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chat_v1_chat_proto_rawDesc), len(file_chat_v1_chat_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   8,
+			NumEnums:      1,
+			NumMessages:   12,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_chat_v1_chat_proto_goTypes,
 		DependencyIndexes: file_chat_v1_chat_proto_depIdxs,
+		EnumInfos:         file_chat_v1_chat_proto_enumTypes,
 		MessageInfos:      file_chat_v1_chat_proto_msgTypes,
 	}.Build()
 	File_chat_v1_chat_proto = out.File

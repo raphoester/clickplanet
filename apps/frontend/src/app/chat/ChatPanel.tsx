@@ -49,7 +49,7 @@ export default function ChatPanel(props: ChatPanelProps) {
     const [flashing, setFlashing] = useState<ReadonlySet<string>>(NOTHING)
     const bodyId = useId()
 
-    const {messages, mine, status, failure, send} = useChat({backend: props.backend})
+    const {messages, mine, status, failure, send, react} = useChat({backend: props.backend})
     const {identity, setName, username} = props
     // What everyone else sees on this player's messages.
     const displayName = username ?? (identity.name === "" ? "" : guestName(identity.name))
@@ -171,7 +171,9 @@ export default function ChatPanel(props: ChatPanelProps) {
             <ChatLog messages={messages}
                      loading={status === 'loading'}
                      flashing={flashing}
-                     onOpenPlayer={props.onOpenPlayer}/>
+                     onOpenPlayer={props.onOpenPlayer}
+                     onReact={(messageId, reaction, on) =>
+                         react({messageId, reaction, on, asAccount: username !== undefined})}/>
 
             <ChatComposer identity={identity}
                           username={username}

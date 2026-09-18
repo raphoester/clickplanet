@@ -308,9 +308,10 @@ nothing.
 ### Live chat
 
 The client for the backend's second bounded context: `chat.ts` declares
-`ChatSender`, `ChatHistoryGetter` and `ChatListener` (plus `ChatBackend`, the
-three together), `chatBackend.ts` implements them against `/chat.v1.ChatService/`
-alone — `SendMessage`, `GetHistory` and the `ListenForEvents` stream — and
+`ChatSender`, `ChatHistoryGetter`, `ChatListener` and `ChatReactor` (plus
+`ChatBackend`, the four together), `chatBackend.ts` implements them against
+`/chat.v1.ChatService/` alone — `SendMessage`, `GetHistory`, `React` and the
+`ListenForEvents` stream — and
 `fakeChatBackend.ts` is the dev stand-in. `ChatPanel` docks
 bottom-right, opposite the menu, and starts folded under 768px.
 
@@ -367,6 +368,43 @@ The composer **clears the box when the send starts, not when it lands**, and put
 the text back only if the box is still empty when a refusal comes in. Clearing on
 success instead wipes whatever was typed while the message was in flight, which
 is exactly what a fast typer does.
+
+#### Reactions
+
+A message carries reactions from a fixed set, `chat.v1.Reaction`: the proto enum
+is the list, and the backend refuses any other.
+
+- **Drawn from our own images, never the system's emoji font**, which looks
+  different, or broken, on every platform (Windows most of all). They are
+  Google's Noto Emoji (Apache 2.0), vendored by `npm run reactions`
+  (`scripts/generateReactions.mjs`) from a pinned commit into
+  `static/reactions/` under content-addressed names, with
+  `app/chat/reactionsAsset.ts` generated beside them. **A new reaction** is a
+  value at the end of the proto enum, a line in the script's `REACTIONS`, and a
+  run of the script. A reaction this build has no image for is not shown.
+- `ChatLog` shows the counts under each balloon (`ReactionBar`), and a button
+  beside the balloon (`AddReactionButton`) that opens the picker. The button
+  shows on hover; a touch screen has no hover, so there it stays, faint. The
+  picker closes on a pick, on Escape and on a click elsewhere.
+- **`mine` is only known from a call.** `GetHistory` sends the token already
+  held (`SessionProvider.held()`, never a mint) so the server can mark the
+  player's own; `React` answers the counts with `mine` set. The stream is
+  nobody's, so `mergedReactions` keeps what the log already knew. A player
+  whose token is not held yet when the history loads sees its own reactions
+  unmarked; the server treats a second "on" as nothing, so a click still ends
+  right.
+- `React` goes out with the click token for a player with a username, like a
+  message, and without one for a guest, who reacts as its address.
+- **Each message keeps its reactions' version** (`reactionsVersion`). The
+  server publishes tallies with no lock, so two frames can arrive in the wrong
+  order: `applyReactionsChange` (a frame) and `applyReactionsAnswer` (the answer
+  to this player's own reaction) drop one older than what the log holds.
+- `useChat.react` shows the change at once (`toggledReactions`), then takes the
+  server's answer, or undoes it when refused. A message the server no longer
+  shows reads as `ChatMessageGoneError`.
+- A reaction is not a new message: `ChatLog` shows the "New messages" pill only
+  when the last message changes, and the unread count and the sound only count
+  messages.
 
 #### Saying that a message landed
 
@@ -1222,7 +1260,7 @@ two number types.
 
 ## Static assets
 
-Three assets are **content-addressed**, because `public/_headers` caches
+These assets are **content-addressed**, because `public/_headers` caches
 `/static/*` for a week and a regenerated file under a stable name would be
 served stale. Each has a generated TS module holding its current URL — do not
 edit those by hand, and do not add a `?ts=` cache-buster, which defeats the
@@ -1246,6 +1284,9 @@ cache entirely:
   commit all three copies**, or the two apps disagree about what a tile id means.
 - `/static/countries/atlas-<hash>.png` — the flag sprite atlas. URL and pixel
   size in `atlasAsset.ts`. Regenerate with `npm run atlas`.
+- `/static/reactions/<name>-<hash>.svg` — the chat's reaction images. URLs in
+  `app/chat/reactionsAsset.ts`. Regenerate with `npm run reactions` — see
+  [Reactions](#reactions).
 
 `/static/coordinates.json` is the human-readable generator output, kept in the
 repo but **not deployed** (`copy:static` deletes it from `dist/static/`). So is

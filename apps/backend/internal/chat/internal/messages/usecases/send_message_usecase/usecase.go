@@ -4,17 +4,23 @@ package send_message_usecase
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/feed"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 type Appender interface {
 	Append(ctx context.Context, record messages.Record) error
+}
+
+// Publisher is the live feed: a message goes out once it is kept.
+type Publisher interface {
+	Publish(update feed.Update)
 }
 
 type CountryChecker interface {
@@ -25,6 +31,8 @@ type CountryChecker interface {
 type Authors interface {
 	Author(ctx context.Context, account messages.AccountID, ip string) (messages.Author, error)
 }
+
+const writeTimeout = 5 * time.Second
 
 type In struct {
 	// Account is the one the sender's click token names, or cpsession.NoAccount for a guest.
@@ -38,6 +46,7 @@ type In struct {
 
 func New(
 	appender Appender,
+	publisher Publisher,
 	countryChecker CountryChecker,
 	authors Authors,
 	clock cptime.Clock,
@@ -45,6 +54,7 @@ func New(
 ) *UseCase {
 	return &UseCase{
 		appender:       appender,
+		publisher:      publisher,
 		countryChecker: countryChecker,
 		authors:        authors,
 		clock:          clock,
@@ -54,6 +64,7 @@ func New(
 
 type UseCase struct {
 	appender       Appender
+	publisher      Publisher
 	countryChecker CountryChecker
 	authors        Authors
 	clock          cptime.Clock
@@ -83,18 +94,24 @@ func (u *UseCase) Execute(ctx context.Context, in In) (messages.Message, error) 
 	}
 
 	message := messages.Message{
-		ID:          uuid.NewString(),
+		ID:          messages.MessageID(uuid.NewString()),
 		SentAt:      u.clock.Now(),
 		AuthorName:  name,
 		AuthorTag:   author.Tag,
-		AuthorAdmin: postsAsPlayer(in, author) && author.Admin,
+		AuthorAdmin: author.PostsAsPlayer(in.Account) && author.Admin,
 		CountryID:   in.CountryID,
 		Text:        text,
 	}
 
+	// The log is the audit trail: a message that cannot be kept is not sent.
+	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
+	defer cancel()
 	if err := u.appender.Append(ctx, messages.NewRecord(message, in.AuthorID, ip, in.UserAgent)); err != nil {
 		return messages.Message{}, fmt.Errorf("failed to store chat message: %w", err)
 	}
+
+	published := message
+	u.publisher.Publish(feed.Update{Message: &published})
 
 	return message, nil
 }
@@ -102,14 +119,9 @@ func (u *UseCase) Execute(ctx context.Context, in In) (messages.Message, error) 
 // authorName is the account's username, and the name the sender typed is then not read. Without one it is a
 // guest's name.
 func (u *UseCase) authorName(in In, author messages.Author) (string, error) {
-	if postsAsPlayer(in, author) {
+	if author.PostsAsPlayer(in.Account) {
 		return author.Username, nil
 	}
 
 	return u.limits.GuestName(in.AuthorName) //nolint:wrapcheck // Execute says what failed.
-}
-
-// postsAsPlayer is a sender with an account and a username. Anyone else posts as a guest.
-func postsAsPlayer(in In, author messages.Author) bool {
-	return in.Account != cpsession.NoAccount && author.Username != ""
 }
