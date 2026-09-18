@@ -8,7 +8,7 @@ import ChatLog from "./ChatLog.tsx"
 afterEach(cleanup)
 
 const message = (id: string, authorName: string, authorTag: string, countryCode: string): ChatMessage =>
-    ({id, sentAt: Date.UTC(2026, 8, 17, 12), authorName, authorTag, authorAdmin: false, countryCode, text: "hello", reactions: []})
+    ({id, sentAt: Date.UTC(2026, 8, 17, 12), authorName, authorTag, authorAdmin: false, countryCode, text: "hello", reactions: [], reactionsVersion: 0})
 
 describe("ChatLog", () => {
     // jsdom lays nothing out, so the log's scroll position is never read.

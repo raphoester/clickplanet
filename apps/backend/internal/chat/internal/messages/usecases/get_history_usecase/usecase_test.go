@@ -81,6 +81,7 @@ func TestEachMessageCarriesItsReactionsMarkedForTheCaller(t *testing.T) {
 
 	assert.Equal(t, []reactions.Count{{Reaction: clown, Count: 1, Mine: true}},
 		f.history(t, stubAuthors{author: player}, ada)[0].Reactions)
+	assert.Equal(t, uint64(1), f.history(t, stubAuthors{author: player}, ada)[0].ReactionsVersion)
 	assert.Equal(t, []reactions.Count{{Reaction: clown, Count: 1, Mine: false}},
 		f.history(t, stubAuthors{author: player}, cpsession.NoAccount)[0].Reactions, "a guest is its tag, not the account")
 }

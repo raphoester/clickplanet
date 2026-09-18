@@ -196,9 +196,11 @@ type ChatMessage struct {
 	// message was sent. Never a guest.
 	AuthorAdmin bool `protobuf:"varint,7,opt,name=author_admin,json=authorAdmin,proto3" json:"author_admin,omitempty"`
 	// In the order each reaction first appeared. Empty on a message just sent.
-	Reactions     []*ReactionCount `protobuf:"bytes,8,rep,name=reactions,proto3" json:"reactions,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Reactions []*ReactionCount `protobuf:"bytes,8,rep,name=reactions,proto3" json:"reactions,omitempty"`
+	// Which state of the reactions this is. See ReactionsChanged.version.
+	ReactionsVersion uint64 `protobuf:"varint,9,opt,name=reactions_version,json=reactionsVersion,proto3" json:"reactions_version,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *ChatMessage) Reset() {
@@ -285,6 +287,13 @@ func (x *ChatMessage) GetReactions() []*ReactionCount {
 		return x.Reactions
 	}
 	return nil
+}
+
+func (x *ChatMessage) GetReactionsVersion() uint64 {
+	if x != nil {
+		return x.ReactionsVersion
+	}
+	return 0
 }
 
 // The X-Session-Token header is optional. When it names an account with a
@@ -553,7 +562,9 @@ func (x *ReactRequest) GetOn() bool {
 type ReactResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The message's reactions once this one landed, mine included.
-	Reactions     []*ReactionCount `protobuf:"bytes,1,rep,name=reactions,proto3" json:"reactions,omitempty"`
+	Reactions []*ReactionCount `protobuf:"bytes,1,rep,name=reactions,proto3" json:"reactions,omitempty"`
+	// See ReactionsChanged.version.
+	Version       uint64 `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -593,6 +604,13 @@ func (x *ReactResponse) GetReactions() []*ReactionCount {
 		return x.Reactions
 	}
 	return nil
+}
+
+func (x *ReactResponse) GetVersion() uint64 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
 }
 
 type ListenForEventsRequest struct {
@@ -737,9 +755,13 @@ func (*ChatEvent_Reactions) isChatEvent_Event() {}
 // A message's reactions changed. They are all of them, not the difference, so a
 // client that missed a frame is right again on the next one.
 type ReactionsChanged struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	MessageId     string                 `protobuf:"bytes,1,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
-	Reactions     []*ReactionCount       `protobuf:"bytes,2,rep,name=reactions,proto3" json:"reactions,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	MessageId string                 `protobuf:"bytes,1,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
+	Reactions []*ReactionCount       `protobuf:"bytes,2,rep,name=reactions,proto3" json:"reactions,omitempty"`
+	// Goes up by one with each change to the message's reactions. Frames can
+	// arrive out of order, so a client keeps the reactions of the highest
+	// version it has seen, and drops a lower one.
+	Version       uint64 `protobuf:"varint,3,opt,name=version,proto3" json:"version,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -788,6 +810,13 @@ func (x *ReactionsChanged) GetReactions() []*ReactionCount {
 	return nil
 }
 
+func (x *ReactionsChanged) GetVersion() uint64 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
 type Heartbeat struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -832,7 +861,7 @@ const file_chat_v1_chat_proto_rawDesc = "" +
 	"\rReactionCount\x12-\n" +
 	"\breaction\x18\x01 \x01(\x0e2\x11.chat.v1.ReactionR\breaction\x12\x14\n" +
 	"\x05count\x18\x02 \x01(\rR\x05count\x12\x12\n" +
-	"\x04mine\x18\x03 \x01(\bR\x04mine\"\x90\x02\n" +
+	"\x04mine\x18\x03 \x01(\bR\x04mine\"\xbd\x02\n" +
 	"\vChatMessage\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12%\n" +
 	"\x0fsent_at_unix_ms\x18\x02 \x01(\x03R\fsentAtUnixMs\x12\x1f\n" +
@@ -844,7 +873,8 @@ const file_chat_v1_chat_proto_rawDesc = "" +
 	"country_id\x18\x05 \x01(\tR\tcountryId\x12\x12\n" +
 	"\x04text\x18\x06 \x01(\tR\x04text\x12!\n" +
 	"\fauthor_admin\x18\a \x01(\bR\vauthorAdmin\x124\n" +
-	"\treactions\x18\b \x03(\v2\x16.chat.v1.ReactionCountR\treactions\"\x85\x01\n" +
+	"\treactions\x18\b \x03(\v2\x16.chat.v1.ReactionCountR\treactions\x12+\n" +
+	"\x11reactions_version\x18\t \x01(\x04R\x10reactionsVersion\"\x85\x01\n" +
 	"\x12SendMessageRequest\x12\x1f\n" +
 	"\vauthor_name\x18\x01 \x01(\tR\n" +
 	"authorName\x12\x1b\n" +
@@ -861,19 +891,21 @@ const file_chat_v1_chat_proto_rawDesc = "" +
 	"\n" +
 	"message_id\x18\x01 \x01(\tR\tmessageId\x12-\n" +
 	"\breaction\x18\x02 \x01(\x0e2\x11.chat.v1.ReactionR\breaction\x12\x0e\n" +
-	"\x02on\x18\x03 \x01(\bR\x02on\"E\n" +
+	"\x02on\x18\x03 \x01(\bR\x02on\"_\n" +
 	"\rReactResponse\x124\n" +
-	"\treactions\x18\x01 \x03(\v2\x16.chat.v1.ReactionCountR\treactions\"\x18\n" +
+	"\treactions\x18\x01 \x03(\v2\x16.chat.v1.ReactionCountR\treactions\x12\x18\n" +
+	"\aversion\x18\x02 \x01(\x04R\aversion\"\x18\n" +
 	"\x16ListenForEventsRequest\"\xb5\x01\n" +
 	"\tChatEvent\x120\n" +
 	"\amessage\x18\x01 \x01(\v2\x14.chat.v1.ChatMessageH\x00R\amessage\x122\n" +
 	"\theartbeat\x18\x02 \x01(\v2\x12.chat.v1.HeartbeatH\x00R\theartbeat\x129\n" +
 	"\treactions\x18\x03 \x01(\v2\x19.chat.v1.ReactionsChangedH\x00R\treactionsB\a\n" +
-	"\x05event\"g\n" +
+	"\x05event\"\x81\x01\n" +
 	"\x10ReactionsChanged\x12\x1d\n" +
 	"\n" +
 	"message_id\x18\x01 \x01(\tR\tmessageId\x124\n" +
-	"\treactions\x18\x02 \x03(\v2\x16.chat.v1.ReactionCountR\treactions\"\v\n" +
+	"\treactions\x18\x02 \x03(\v2\x16.chat.v1.ReactionCountR\treactions\x12\x18\n" +
+	"\aversion\x18\x03 \x01(\x04R\aversion\"\v\n" +
 	"\tHeartbeat*\xee\x02\n" +
 	"\bReaction\x12\x18\n" +
 	"\x14REACTION_UNSPECIFIED\x10\x00\x12\x12\n" +

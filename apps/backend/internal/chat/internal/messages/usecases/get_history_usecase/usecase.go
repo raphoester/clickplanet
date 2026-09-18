@@ -25,10 +25,11 @@ type Authors interface {
 	Author(ctx context.Context, account messages.AccountID, ip string) (messages.Author, error)
 }
 
-// Entry is one message of the history, with its reactions as the caller sees them.
+// Entry is one message of the history, with its reactions as the caller sees them, and their version.
 type Entry struct {
-	Message   messages.Message
-	Reactions []reactions.Count
+	Message          messages.Message
+	Reactions        []reactions.Count
+	ReactionsVersion uint64
 }
 
 func New(
@@ -78,7 +79,11 @@ func (u *UseCase) Execute(ctx context.Context, account messages.AccountID) ([]En
 
 	history := make([]Entry, 0, len(recent))
 	for _, message := range recent {
-		history = append(history, Entry{Message: message, Reactions: given[message.ID].Tally(viewer)})
+		history = append(history, Entry{
+			Message:          message,
+			Reactions:        given[message.ID].Tally(viewer),
+			ReactionsVersion: given[message.ID].Version(),
+		})
 	}
 	return history, nil
 }

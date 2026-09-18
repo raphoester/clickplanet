@@ -33,6 +33,7 @@ const message = (id: string, text: string, sentAt = 1_700_000_000_000): ChatMess
     countryCode: "fr",
     text,
     reactions: [],
+    reactionsVersion: 0,
 })
 
 function stubBackend(history: ChatMessage[] = []) {
@@ -50,9 +51,12 @@ function stubBackend(history: ChatMessage[] = []) {
             return () => {
             }
         }),
-        react: vi.fn(async (outgoing: OutgoingReaction) =>
-            [{reaction: outgoing.reaction, count: outgoing.on ? 1 : 0, mine: outgoing.on}]
-                .filter(count => count.count > 0)),
+        react: vi.fn(async (outgoing: OutgoingReaction): Promise<ReactionsChange> => ({
+            messageId: outgoing.messageId,
+            reactions: [{reaction: outgoing.reaction, count: outgoing.on ? 1 : 0, mine: outgoing.on}]
+                .filter(count => count.count > 0),
+            version: 1,
+        })),
         sendMessage: vi.fn(async (outgoing) => ({
             id: `sent-${outgoing.text}`,
             sentAt: 1_700_000_100_000,
@@ -61,6 +65,7 @@ function stubBackend(history: ChatMessage[] = []) {
             countryCode: outgoing.countryCode,
             text: outgoing.text,
             reactions: [] as ChatMessage["reactions"],
+            reactionsVersion: 0,
         })),
     }
 
@@ -576,9 +581,19 @@ describe("ChatPanel reactions", () => {
         setup(backend)
         await screen.findByRole("button", {name: "Clown: 1", pressed: true})
 
-        act(() => broadcastReactions({messageId: "m1", reactions: [clown(3, false)]}))
+        act(() => broadcastReactions({messageId: "m1", reactions: [clown(3, false)], version: 2}))
 
         expect(await screen.findByRole("button", {name: "Clown: 3", pressed: true})).toBeDefined()
+    })
+
+    it("drops a frame older than the reactions it shows", async () => {
+        const {backend, broadcastReactions} = stubBackend([{...message("m1", "gm"), reactions: [clown(4, false)], reactionsVersion: 5}])
+        setup(backend)
+        await screen.findByRole("button", {name: "Clown: 4"})
+
+        act(() => broadcastReactions({messageId: "m1", reactions: [clown(1, false)], version: 3}))
+
+        expect(screen.getByRole("button", {name: "Clown: 4"})).toBeDefined()
     })
 
     it("undoes a reaction the server refused", async () => {

@@ -42,7 +42,29 @@ export function withReactions(
         : message)
 }
 
-/** The log once a change from the stream landed. */
+/**
+ * The log once a change from the stream landed. The stream knows nobody, so
+ * `mine` is kept from the log. A frame older than the one the log holds is
+ * dropped: frames can arrive in any order.
+ */
 export function applyReactionsChange(log: readonly ChatMessage[], change: ReactionsChange): ChatMessage[] {
-    return withReactions(log, change.messageId, current => mergedReactions(current, change.reactions))
+    return versioned(log, change, current => mergedReactions(current, change.reactions))
+}
+
+/** The log once the server answered this player's own reaction, which knows `mine`. Also dropped when older. */
+export function applyReactionsAnswer(log: readonly ChatMessage[], answer: ReactionsChange): ChatMessage[] {
+    return versioned(log, answer, () => answer.reactions)
+}
+
+function versioned(
+    log: readonly ChatMessage[],
+    change: ReactionsChange,
+    reactions: (current: readonly ReactionCount[]) => ReactionCount[],
+): ChatMessage[] {
+    const message = log.find(each => each.id === change.messageId)
+    if (!message || change.version < message.reactionsVersion) return log as ChatMessage[]
+
+    return log.map(each => each === message
+        ? {...message, reactions: reactions(message.reactions), reactionsVersion: change.version}
+        : each)
 }

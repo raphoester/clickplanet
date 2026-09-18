@@ -34,11 +34,12 @@ func (s Sink) Send(event listen_for_events_usecase.Event) error {
 			Event: &chatv1.ChatEvent_Reactions{Reactions: &chatv1.ReactionsChanged{
 				MessageId: string(tally.MessageID),
 				Reactions: chatmessage.EncodeCounts(tally.Counts),
+				Version:   tally.Version,
 			}},
 		})
 	}
 
 	return s.stream.Send(&chatv1.ChatEvent{
-		Event: &chatv1.ChatEvent_Message{Message: chatmessage.Encode(*event.Update.Message, nil)},
+		Event: &chatv1.ChatEvent_Message{Message: chatmessage.Encode(*event.Update.Message, nil, 0)},
 	})
 }

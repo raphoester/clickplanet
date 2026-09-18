@@ -4,6 +4,7 @@ package postgres_reaction_store
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"time"
 
@@ -24,27 +25,39 @@ type Store struct {
 
 var _ reactions.Storage = (*Store)(nil)
 
+// bumpVersion follows a statement that answers the message_id of each row it changed, as "changed": no row, no bump.
+const bumpVersion = `
+	INSERT INTO reaction_versions (message_id, version, changed_at)
+	SELECT message_id, 1, $4 FROM changed
+	ON CONFLICT (message_id) DO UPDATE SET version = reaction_versions.version + 1, changed_at = EXCLUDED.changed_at
+`
+
+// Save writes the reaction and bumps the version in one statement, so no reader sees one without the other.
 func (s *Store) Save(ctx context.Context, change reactions.Change) error {
+	write := `
+		WITH changed AS (
+			INSERT INTO reactions (message_id, reaction, reactor, reacted_at)
+			VALUES ($1, $2, $3, $4)
+			ON CONFLICT (message_id, reaction, reactor) DO NOTHING
+			RETURNING message_id
+		)` + bumpVersion
 	if !change.On {
-		if _, err := s.db.ExecContext(ctx, `
+		write = `
+		WITH changed AS (
 			DELETE FROM reactions WHERE message_id = $1 AND reaction = $2 AND reactor = $3
-		`, string(change.MessageID), int32(change.Reaction), string(change.Reactor)); err != nil {
-			return fmt.Errorf("failed to delete a reaction: %w", err)
-		}
-		return nil
+			RETURNING message_id
+		)` + bumpVersion
 	}
 
-	if _, err := s.db.ExecContext(ctx, `
-		INSERT INTO reactions (message_id, reaction, reactor, reacted_at)
-		VALUES ($1, $2, $3, $4)
-		ON CONFLICT (message_id, reaction, reactor) DO NOTHING
-	`, string(change.MessageID), int32(change.Reaction), string(change.Reactor), change.At.UTC()); err != nil {
-		return fmt.Errorf("failed to insert a reaction: %w", err)
+	if _, err := s.db.ExecContext(ctx, write,
+		string(change.MessageID), int32(change.Reaction), string(change.Reactor), change.At.UTC()); err != nil {
+		return fmt.Errorf("failed to save a reaction: %w", err)
 	}
 	return nil
 }
 
-// Reactions replays the rows oldest first, so each reaction keeps the place it first appeared in.
+// Reactions is one statement, so the reactions and their version are one snapshot. The rows are replayed oldest
+// first, so each reaction keeps the place it first appeared in.
 func (s *Store) Reactions(
 	ctx context.Context,
 	ids []messages.MessageID,
@@ -56,10 +69,11 @@ func (s *Store) Reactions(
 	}
 
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT message_id, reaction, reactor
-		FROM reactions
-		WHERE message_id = ANY($1::text[])
-		ORDER BY reacted_at, message_id, reaction, reactor
+		SELECT v.message_id, v.version, r.reaction, r.reactor
+		FROM reaction_versions v
+		LEFT JOIN reactions r ON r.message_id = v.message_id
+		WHERE v.message_id = ANY($1::text[])
+		ORDER BY r.reacted_at, r.message_id, r.reaction, r.reactor
 	`, pq.Array(plain))
 	if err != nil {
 		return nil, fmt.Errorf("failed to read reactions: %w", err)
@@ -70,14 +84,19 @@ func (s *Store) Reactions(
 	for rows.Next() {
 		var (
 			messageID string
-			reaction  int32
-			reactor   string
+			version   int64
+			reaction  sql.NullInt32
+			reactor   sql.NullString
 		)
-		if err := rows.Scan(&messageID, &reaction, &reactor); err != nil {
+		if err := rows.Scan(&messageID, &version, &reaction, &reactor); err != nil {
 			return nil, fmt.Errorf("failed to scan a reaction: %w", err)
 		}
 		id := messages.MessageID(messageID)
-		given[id] = given[id].With(reactions.Reaction(reaction), reactions.Reactor(reactor))
+		next := given[id].Versioned(uint64(version)) //nolint:gosec // a count of changes, never negative.
+		if reaction.Valid {
+			next = next.With(reactions.Reaction(reaction.Int32), reactions.Reactor(reactor.String))
+		}
+		given[id] = next
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("failed to read reactions: %w", err)
@@ -87,7 +106,11 @@ func (s *Store) Reactions(
 }
 
 func (s *Store) DeleteBefore(ctx context.Context, cutoff time.Time) (int64, error) {
-	result, err := s.db.ExecContext(ctx, `DELETE FROM reactions WHERE reacted_at < $1`, cutoff)
+	// A version outlives its message's reactions only while one of them does: it changed when the last one did.
+	result, err := s.db.ExecContext(ctx, `
+		WITH versions AS (DELETE FROM reaction_versions WHERE changed_at < $1)
+		DELETE FROM reactions WHERE reacted_at < $1
+	`, cutoff)
 	if err != nil {
 		return 0, fmt.Errorf("failed to delete old reactions: %w", err)
 	}

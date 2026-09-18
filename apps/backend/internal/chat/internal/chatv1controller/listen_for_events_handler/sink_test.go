@@ -48,6 +48,7 @@ func TestSinkFramesNewReactions(t *testing.T) {
 	err := listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{
 		Update: feed.Update{Reactions: &reactions.Tally{
 			MessageID: "message-1",
+			Version:   4,
 			Counts:    []reactions.Count{{Reaction: reactions.Reaction(chatv1.Reaction_REACTION_SKULL), Count: 2}},
 		}},
 	})
@@ -59,6 +60,7 @@ func TestSinkFramesNewReactions(t *testing.T) {
 	require.NotNil(t, reactions, "reactions travel as the reactions case")
 	assert.Nil(t, stream.sent[0].GetMessage())
 	assert.Equal(t, "message-1", reactions.GetMessageId())
+	assert.Equal(t, uint64(4), reactions.GetVersion())
 	require.Len(t, reactions.GetReactions(), 1)
 	assert.Equal(t, chatv1.Reaction_REACTION_SKULL, reactions.GetReactions()[0].GetReaction())
 	assert.Equal(t, uint32(2), reactions.GetReactions()[0].GetCount())

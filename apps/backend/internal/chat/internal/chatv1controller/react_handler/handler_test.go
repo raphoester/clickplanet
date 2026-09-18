@@ -18,14 +18,14 @@ import (
 )
 
 type stubUseCase struct {
-	ins    []react_usecase.In
-	counts []reactions.Count
-	err    error
+	ins []react_usecase.In
+	out react_usecase.Out
+	err error
 }
 
-func (s *stubUseCase) Execute(_ context.Context, in react_usecase.In) ([]reactions.Count, error) {
+func (s *stubUseCase) Execute(_ context.Context, in react_usecase.In) (react_usecase.Out, error) {
 	s.ins = append(s.ins, in)
-	return s.counts, s.err
+	return s.out, s.err
 }
 
 func react(ctx context.Context, useCase *stubUseCase, reaction chatv1.Reaction) (*connect.Response[chatv1.ReactResponse], error) {
@@ -36,7 +36,7 @@ func react(ctx context.Context, useCase *stubUseCase, reaction chatv1.Reaction) 
 
 func TestReactMapsTheRequestAndTheAnswer(t *testing.T) {
 	ada := cpsession.AccountID{15: 1}
-	useCase := &stubUseCase{counts: []reactions.Count{{Reaction: 2, Count: 4, Mine: true}}}
+	useCase := &stubUseCase{out: react_usecase.Out{Counts: []reactions.Count{{Reaction: 2, Count: 4, Mine: true}}, Version: 9}}
 
 	res, err := react(cpctx.AddAccountToContext(t.Context(), ada.String()), useCase, chatv1.Reaction_REACTION_CLOWN)
 
@@ -51,6 +51,7 @@ func TestReactMapsTheRequestAndTheAnswer(t *testing.T) {
 	assert.Equal(t, chatv1.Reaction_REACTION_CLOWN, res.Msg.GetReactions()[0].GetReaction())
 	assert.Equal(t, uint32(4), res.Msg.GetReactions()[0].GetCount())
 	assert.True(t, res.Msg.GetReactions()[0].GetMine())
+	assert.Equal(t, uint64(9), res.Msg.GetVersion())
 }
 
 func TestAReactionTheProtoDoesNotNameIsRefusedBeforeTheUseCase(t *testing.T) {

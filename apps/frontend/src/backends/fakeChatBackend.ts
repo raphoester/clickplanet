@@ -51,6 +51,8 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
     private readonly messages: ChatMessage[] = []
     // Message id → reaction → who gave it, in the order each reaction first appeared.
     private readonly reactions = new Map<string, Map<Reaction, Set<string>>>()
+    // Message id → how many times its reactions changed, as the server counts them.
+    private readonly versions = new Map<string, number>()
     private readonly listeners = new Map<string, Listener>()
     private readonly timers: ReturnType<typeof setInterval>[] = []
     private readonly blocked: boolean
@@ -71,6 +73,7 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
                 countryCode: chatter.country,
                 text: chatter.text,
                 reactions: [],
+            reactionsVersion: 0,
             })
         })
 
@@ -86,6 +89,7 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
                 countryCode: chatter.country,
                 text: `${chatter.text} (${this.nextChatter})`,
                 reactions: [],
+            reactionsVersion: 0,
             })
 
             const target = this.messages[Math.floor(Math.random() * this.messages.length)]
@@ -121,23 +125,28 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
             countryCode: message.countryCode,
             text,
             reactions: [],
+            reactionsVersion: 0,
         }
 
         this.publish(sent)
         return sent
     }
 
-    public async react(reaction: OutgoingReaction): Promise<ReactionCount[]> {
+    public async react(reaction: OutgoingReaction): Promise<ReactionsChange> {
         if (this.blocked) throw new ChatBlockedError()
         if (!this.messages.some(message => message.id === reaction.messageId)) throw new ChatMessageGoneError()
 
         this.give(reaction.messageId, reaction.reaction, ME, reaction.on)
-        return this.tally(reaction.messageId, ME)
+        return this.changeOf(reaction.messageId, ME)
     }
 
     public async getHistory(signal?: AbortSignal): Promise<ChatMessage[]> {
         signal?.throwIfAborted()
-        return this.messages.map(message => ({...message, reactions: this.tally(message.id, ME)}))
+        return this.messages.map(message => ({
+            ...message,
+            reactions: this.tally(message.id, ME),
+            reactionsVersion: this.versions.get(message.id) ?? 0,
+        }))
     }
 
     public listenForMessages(
@@ -167,8 +176,13 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
         if (reactors.size === 0) given.delete(reaction)
         else given.set(reaction, reactors)
 
-        const change = {messageId, reactions: this.tally(messageId, undefined)}
+        this.versions.set(messageId, (this.versions.get(messageId) ?? 0) + 1)
+        const change = this.changeOf(messageId, undefined)
         this.listeners.forEach(listener => listener.reactions?.(change))
+    }
+
+    private changeOf(messageId: string, viewer: string | undefined): ReactionsChange {
+        return {messageId, reactions: this.tally(messageId, viewer), version: this.versions.get(messageId) ?? 0}
     }
 
     private tally(messageId: string, viewer: string | undefined): ReactionCount[] {

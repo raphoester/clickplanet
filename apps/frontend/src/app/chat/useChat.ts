@@ -9,7 +9,12 @@ import {
     OutgoingReaction,
 } from '../../backends/chat.ts';
 import {addMessages} from '../../domain/chatLog.ts';
-import {applyReactionsChange, toggledReactions, withReactions} from '../../domain/reactions.ts';
+import {
+    applyReactionsAnswer,
+    applyReactionsChange,
+    toggledReactions,
+    withReactions,
+} from '../../domain/reactions.ts';
 
 export type ChatStatus = 'loading' | 'ready' | 'unavailable'
 
@@ -91,8 +96,8 @@ export function useChat({backend}: UseChatOptions) {
 
         toggle(reaction.on)
         try {
-            const counts = await backend.react(reaction)
-            setMessages(current => withReactions(current, reaction.messageId, () => counts))
+            const answer = await backend.react(reaction)
+            setMessages(current => applyReactionsAnswer(current, answer))
         } catch (e) {
             console.error("The reaction could not be sent", e)
             toggle(!reaction.on)

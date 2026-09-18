@@ -395,6 +395,10 @@ is the list, and the backend refuses any other.
   right.
 - `React` goes out with the click token for a player with a username, like a
   message, and without one for a guest, who reacts as its address.
+- **Each message keeps its reactions' version** (`reactionsVersion`). The
+  server publishes tallies with no lock, so two frames can arrive in the wrong
+  order: `applyReactionsChange` (a frame) and `applyReactionsAnswer` (the answer
+  to this player's own reaction) drop one older than what the log holds.
 - `useChat.react` shows the change at once (`toggledReactions`), then takes the
   server's answer, or undoes it when refused. A message the server no longer
   shows reads as `ChatMessageGoneError`.

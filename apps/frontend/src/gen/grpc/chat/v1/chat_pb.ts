@@ -230,6 +230,13 @@ export class ChatMessage extends Message<ChatMessage> {
    */
   reactions: ReactionCount[] = [];
 
+  /**
+   * Which state of the reactions this is. See ReactionsChanged.version.
+   *
+   * @generated from field: uint64 reactions_version = 9;
+   */
+  reactionsVersion = protoInt64.zero;
+
   constructor(data?: PartialMessage<ChatMessage>) {
     super();
     proto3.util.initPartial(data, this);
@@ -246,6 +253,7 @@ export class ChatMessage extends Message<ChatMessage> {
     { no: 6, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 7, name: "author_admin", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 8, name: "reactions", kind: "message", T: ReactionCount, repeated: true },
+    { no: 9, name: "reactions_version", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ChatMessage {
@@ -501,6 +509,13 @@ export class ReactResponse extends Message<ReactResponse> {
    */
   reactions: ReactionCount[] = [];
 
+  /**
+   * See ReactionsChanged.version.
+   *
+   * @generated from field: uint64 version = 2;
+   */
+  version = protoInt64.zero;
+
   constructor(data?: PartialMessage<ReactResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -510,6 +525,7 @@ export class ReactResponse extends Message<ReactResponse> {
   static readonly typeName = "chat.v1.ReactResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "reactions", kind: "message", T: ReactionCount, repeated: true },
+    { no: 2, name: "version", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ReactResponse {
@@ -640,6 +656,15 @@ export class ReactionsChanged extends Message<ReactionsChanged> {
    */
   reactions: ReactionCount[] = [];
 
+  /**
+   * Goes up by one with each change to the message's reactions. Frames can
+   * arrive out of order, so a client keeps the reactions of the highest
+   * version it has seen, and drops a lower one.
+   *
+   * @generated from field: uint64 version = 3;
+   */
+  version = protoInt64.zero;
+
   constructor(data?: PartialMessage<ReactionsChanged>) {
     super();
     proto3.util.initPartial(data, this);
@@ -650,6 +675,7 @@ export class ReactionsChanged extends Message<ReactionsChanged> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "message_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "reactions", kind: "message", T: ReactionCount, repeated: true },
+    { no: 3, name: "version", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ReactionsChanged {

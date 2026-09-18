@@ -66,6 +66,8 @@ message ChatMessage {
   bool author_admin = 7;
   // In the order each reaction first appeared. Empty on a message just sent.
   repeated ReactionCount reactions = 8;
+  // Which state of the reactions this is. See ReactionsChanged.version.
+  uint64 reactions_version = 9;
 }
 
 // The X-Session-Token header is optional. When it names an account with a
@@ -105,6 +107,8 @@ message ReactRequest {
 message ReactResponse {
   // The message's reactions once this one landed, mine included.
   repeated ReactionCount reactions = 1;
+  // See ReactionsChanged.version.
+  uint64 version = 2;
 }
 
 message ListenForEventsRequest {}
@@ -127,6 +131,10 @@ message ChatEvent {
 message ReactionsChanged {
   string message_id = 1;
   repeated ReactionCount reactions = 2;
+  // Goes up by one with each change to the message's reactions. Frames can
+  // arrive out of order, so a client keeps the reactions of the highest
+  // version it has seen, and drops a lower one.
+  uint64 version = 3;
 }
 
 message Heartbeat {}

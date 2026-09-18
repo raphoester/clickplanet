@@ -64,7 +64,7 @@ func (s *StorageContractSuite) TestOnlyTheMessagesAskedForAreAnswered() {
 
 	given := s.reactions("hello", "bare")
 
-	s.Len(given, 1)
+	s.Len(given, 1, "a message never reacted to is absent")
 	s.True(given["hello"].Given(contractClown, contractAda))
 	s.Empty(s.reactions())
 }
@@ -97,4 +97,40 @@ func (s *StorageContractSuite) TestDeleteBeforeRemovesOnlyOlderReactions() {
 
 	s.Equal(int64(1), deleted)
 	s.Equal([]Count{{Reaction: contractLaugh, Count: 1}}, s.reactions("hello")["hello"].Tally(NoReactor))
+	s.Equal(uint64(2), s.reactions("hello")["hello"].Version(), "a prune is not a change")
+}
+
+func (s *StorageContractSuite) TestEachChangeBumpsTheVersionAndANoOpDoesNot() {
+	s.save("hello", contractClown, contractAda, true, contractStart)
+	s.Equal(uint64(1), s.reactions("hello")["hello"].Version())
+
+	s.save("hello", contractClown, contractAda, true, contractStart)
+	s.save("hello", contractLaugh, contractAda, false, contractStart)
+	s.Equal(uint64(1), s.reactions("hello")["hello"].Version(), "nothing changed")
+
+	s.save("hello", contractLaugh, contractBo, true, contractStart)
+	s.save("hello", contractClown, contractAda, false, contractStart)
+	s.Equal(uint64(3), s.reactions("hello")["hello"].Version())
+}
+
+func (s *StorageContractSuite) TestAMessageWhoseReactionsWereAllTakenOffKeepsItsVersion() {
+	s.save("hello", contractClown, contractAda, true, contractStart)
+	s.save("hello", contractClown, contractAda, false, contractStart)
+
+	given, answered := s.reactions("hello")["hello"]
+
+	s.True(answered, "a client holding version 1 must learn of version 2")
+	s.Empty(given.Tally(NoReactor))
+	s.Equal(uint64(2), given.Version())
+}
+
+func (s *StorageContractSuite) TestEachMessageHasItsOwnVersion() {
+	s.save("hello", contractClown, contractAda, true, contractStart)
+	s.save("hello", contractLaugh, contractAda, true, contractStart)
+	s.save("planet", contractClown, contractAda, true, contractStart)
+
+	given := s.reactions("hello", "planet")
+
+	s.Equal(uint64(2), given["hello"].Version())
+	s.Equal(uint64(1), given["planet"].Version())
 }

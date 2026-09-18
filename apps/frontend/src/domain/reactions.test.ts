@@ -1,11 +1,17 @@
 import {describe, expect, it} from "vitest";
 import {ChatMessage, Reaction} from "../backends/chat.ts";
-import {applyReactionsChange, mergedReactions, toggledReactions, withReactions} from "./reactions.ts";
+import {
+    applyReactionsAnswer,
+    applyReactionsChange,
+    mergedReactions,
+    toggledReactions,
+    withReactions,
+} from "./reactions.ts";
 
 function message(id: string, reactions: ChatMessage["reactions"] = []): ChatMessage {
     return {
         id, sentAt: 0, authorName: "Ana", authorTag: "4f2ca1", authorAdmin: false,
-        countryCode: "fr", text: "hi", reactions,
+        countryCode: "fr", text: "hi", reactions, reactionsVersion: 1,
     }
 }
 
@@ -59,10 +65,31 @@ describe("applyReactionsChange", () => {
         const next = applyReactionsChange(log, {
             messageId: "b",
             reactions: [{reaction: Reaction.HEART, count: 2, mine: false}],
+            version: 2,
         })
 
         expect(next[0]).toBe(log[0])
         expect(next[1].reactions).toEqual([{reaction: Reaction.HEART, count: 2, mine: true}])
+        expect(next[1].reactionsVersion).toBe(2)
+    })
+
+    it("drops a frame older than what the log holds, and takes one as new", () => {
+        const log = [message("a", [{reaction: Reaction.HEART, count: 3, mine: false}])]
+        const stale = {messageId: "a", reactions: [], version: 0}
+
+        expect(applyReactionsChange(log, stale)).toBe(log)
+        expect(applyReactionsAnswer(log, stale)).toBe(log)
+        expect(applyReactionsChange(log, {...stale, version: 1})[0].reactions).toEqual([])
+    })
+
+    it("takes the answer to this player's own reaction as it is, mine included", () => {
+        const log = [message("a", [{reaction: Reaction.HEART, count: 1, mine: false}])]
+
+        expect(applyReactionsAnswer(log, {
+            messageId: "a",
+            reactions: [{reaction: Reaction.HEART, count: 1, mine: true}],
+            version: 2,
+        })[0].reactions).toEqual([{reaction: Reaction.HEART, count: 1, mine: true}])
     })
 
     it("ignores a message the log does not hold", () => {

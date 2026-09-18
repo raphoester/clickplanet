@@ -6,6 +6,7 @@ package inmemory_reaction_storage
 
 import (
 	"context"
+	"maps"
 	"slices"
 	"sync"
 	"time"
@@ -15,13 +16,19 @@ import (
 )
 
 func New() *Storage {
-	return &Storage{}
+	return &Storage{versions: make(map[messages.MessageID]version)}
 }
 
-// Storage holds each reaction put on, oldest first, as postgres holds its rows.
+// Storage holds each reaction put on, oldest first, and each message's version, as postgres holds its rows.
 type Storage struct {
-	mu    sync.Mutex
-	given []reactions.Change
+	mu       sync.Mutex
+	given    []reactions.Change
+	versions map[messages.MessageID]version
+}
+
+type version struct {
+	number    uint64
+	changedAt time.Time
 }
 
 var _ reactions.Storage = (*Storage)(nil)
@@ -33,13 +40,15 @@ func (s *Storage) Save(_ context.Context, change reactions.Change) error {
 	same := func(each reactions.Change) bool {
 		return each.MessageID == change.MessageID && each.Reaction == change.Reaction && each.Reactor == change.Reactor
 	}
-	if !change.On {
-		s.given = slices.DeleteFunc(s.given, same)
+	if slices.ContainsFunc(s.given, same) == change.On {
 		return nil
 	}
-	if !slices.ContainsFunc(s.given, same) {
+	if change.On {
 		s.given = append(s.given, change)
+	} else {
+		s.given = slices.DeleteFunc(s.given, same)
 	}
+	s.versions[change.MessageID] = version{number: s.versions[change.MessageID].number + 1, changedAt: change.At}
 	return nil
 }
 
@@ -56,6 +65,11 @@ func (s *Storage) Reactions(
 			given[change.MessageID] = given[change.MessageID].Applied(change)
 		}
 	}
+	for id, version := range s.versions {
+		if slices.Contains(ids, id) {
+			given[id] = given[id].Versioned(version.number)
+		}
+	}
 	return given, nil
 }
 
@@ -65,5 +79,8 @@ func (s *Storage) DeleteBefore(_ context.Context, cutoff time.Time) (int64, erro
 
 	before := len(s.given)
 	s.given = slices.DeleteFunc(s.given, func(change reactions.Change) bool { return change.At.Before(cutoff) })
+	maps.DeleteFunc(s.versions, func(_ messages.MessageID, version version) bool {
+		return version.changedAt.Before(cutoff)
+	})
 	return int64(before - len(s.given)), nil
 }

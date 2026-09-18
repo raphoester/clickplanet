@@ -15,7 +15,7 @@ import (
 )
 
 type UseCase interface {
-	Execute(ctx context.Context, in react_usecase.In) ([]reactions.Count, error)
+	Execute(ctx context.Context, in react_usecase.In) (react_usecase.Out, error)
 }
 
 func New(useCase UseCase) ReactHandler {
@@ -35,7 +35,7 @@ func (h ReactHandler) React(
 		return nil, toConnect(err)
 	}
 
-	counts, err := h.useCase.Execute(ctx, react_usecase.In{
+	out, err := h.useCase.Execute(ctx, react_usecase.In{
 		Account:   messages.AccountIDOf(cpctx.GetAccount(ctx)),
 		MessageID: messages.MessageID(req.Msg.GetMessageId()),
 		Reaction:  reaction,
@@ -45,7 +45,10 @@ func (h ReactHandler) React(
 		return nil, toConnect(err)
 	}
 
-	return connect.NewResponse(&chatv1.ReactResponse{Reactions: chatmessage.EncodeCounts(counts)}), nil
+	return connect.NewResponse(&chatv1.ReactResponse{
+		Reactions: chatmessage.EncodeCounts(out.Counts),
+		Version:   out.Version,
+	}), nil
 }
 
 // toConnect sends the bare sentinel, as SendMessage does. Anything else is left for the error net.

@@ -83,15 +83,15 @@ func (s *testSuite) sent(id messages.MessageID) {
 	}))
 }
 
-func (s *testSuite) reactWith(board react_usecase.Board, in react_usecase.In) ([]reactions.Count, error) {
+func (s *testSuite) reactWith(board react_usecase.Board, in react_usecase.In) (react_usecase.Out, error) {
 	ctx := cpctx.AddIPToContext(context.Background(), "1.2.3.4")
 	return react_usecase.New(s.messages, board, s.authors, s.publisher, cptime.NewFixedClock(now), window).Execute(ctx, in)
 }
 
 func (s *testSuite) react(account messages.AccountID, reaction reactions.Reaction, on bool) []reactions.Count {
-	counts, err := s.reactWith(s.board, react_usecase.In{Account: account, MessageID: "hello", Reaction: reaction, On: on})
+	out, err := s.reactWith(s.board, react_usecase.In{Account: account, MessageID: "hello", Reaction: reaction, On: on})
 	s.Require().NoError(err)
-	return counts
+	return out.Counts
 }
 
 func (s *testSuite) TestAPlayerReactsAsItsAccountAndIsAnsweredWithItsOwn() {
@@ -109,18 +109,28 @@ func (s *testSuite) TestAPlayerAndAGuestOnOneAddressAreTwoReactors() {
 	s.Equal([]reactions.Count{{Reaction: clown, Count: 2, Mine: true}}, s.react(cpsession.NoAccount, clown, true))
 }
 
-func (s *testSuite) TestEveryChangeIsPublishedAsTheWholeTallyForNobody() {
+func (s *testSuite) TestEveryChangeIsPublishedAsTheWholeTallyForNobodyVersioned() {
 	s.react(ada, clown, true)
 	s.react(cpsession.NoAccount, laugh, true)
 	s.react(ada, clown, false)
 
 	s.Equal([]feed.Update{
-		{Reactions: &reactions.Tally{MessageID: "hello", Counts: []reactions.Count{{Reaction: clown, Count: 1}}}},
-		{Reactions: &reactions.Tally{MessageID: "hello", Counts: []reactions.Count{
+		{Reactions: &reactions.Tally{MessageID: "hello", Version: 1, Counts: []reactions.Count{{Reaction: clown, Count: 1}}}},
+		{Reactions: &reactions.Tally{MessageID: "hello", Version: 2, Counts: []reactions.Count{
 			{Reaction: clown, Count: 1}, {Reaction: laugh, Count: 1},
 		}}},
-		{Reactions: &reactions.Tally{MessageID: "hello", Counts: []reactions.Count{{Reaction: laugh, Count: 1}}}},
+		{Reactions: &reactions.Tally{MessageID: "hello", Version: 3, Counts: []reactions.Count{{Reaction: laugh, Count: 1}}}},
 	}, s.publisher.updates)
+}
+
+func (s *testSuite) TestTheAnswerCarriesTheVersionItWasReadAt() {
+	s.react(ada, clown, true)
+
+	out, err := s.reactWith(s.board, react_usecase.In{Account: ada, MessageID: "hello", Reaction: clown, On: true})
+
+	s.Require().NoError(err)
+	s.Equal(react_usecase.Out{Counts: []reactions.Count{{Reaction: clown, Count: 1, Mine: true}}, Version: 1}, out,
+		"a change that changes nothing answers what is there")
 }
 
 func (s *testSuite) TestAChangeThatChangesNothingIsNeitherSavedNorPublished() {

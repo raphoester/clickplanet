@@ -4,7 +4,6 @@ package react_usecase
 import (
 	"context"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/feed"
@@ -29,7 +28,8 @@ type Authors interface {
 	Author(ctx context.Context, account messages.AccountID, ip string) (messages.Author, error)
 }
 
-// Publisher is the live feed: every change goes out as the message's whole tally.
+// Publisher is the live feed: every change goes out as the message's whole tally, versioned, so the order the
+// tallies are published in does not matter.
 type Publisher interface {
 	Publish(update feed.Update)
 }
@@ -61,16 +61,19 @@ type UseCase struct {
 	publisher Publisher
 	clock     cptime.Clock
 	window    messages.Window
-
-	// mu keeps a save, the read after it and the publish together, so the stream never sends an older tally last.
-	mu sync.Mutex
 }
 
-// Execute answers the message's reactions as the caller sees them. A change that changes nothing is not saved.
-func (u *UseCase) Execute(ctx context.Context, in In) ([]reactions.Count, error) {
+// Out is the message's reactions as the caller sees them, and their version.
+type Out struct {
+	Counts  []reactions.Count
+	Version uint64
+}
+
+// Execute answers the message's reactions once the change landed. A change that changes nothing is not saved.
+func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	author, err := u.authors.Author(ctx, in.Account, cpctx.GetSourceIP(ctx))
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", messages.ErrAuthorUnavailable, err)
+		return Out{}, fmt.Errorf("%w: %w", messages.ErrAuthorUnavailable, err)
 	}
 	reactor := reactions.ReactorOf(in.Account, author)
 
@@ -79,35 +82,37 @@ func (u *UseCase) Execute(ctx context.Context, in In) ([]reactions.Count, error)
 
 	shown, err := u.shown.Shown(ctx, in.MessageID, u.window.Since(u.clock.Now()), u.window.Size)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read the message: %w", err)
+		return Out{}, fmt.Errorf("failed to read the message: %w", err)
 	}
 	if !shown {
-		return nil, fmt.Errorf("%w: %q", reactions.ErrUnknownMessage, in.MessageID)
+		return Out{}, fmt.Errorf("%w: %q", reactions.ErrUnknownMessage, in.MessageID)
 	}
-
-	u.mu.Lock()
-	defer u.mu.Unlock()
 
 	current, err := u.of(ctx, in.MessageID)
 	if err != nil {
-		return nil, err
+		return Out{}, err
 	}
 	if current.Given(in.Reaction, reactor) == in.On {
-		return current.Tally(reactor), nil
+		return outOf(current, reactor), nil
 	}
 
 	change := reactions.Change{MessageID: in.MessageID, Reaction: in.Reaction, Reactor: reactor, On: in.On, At: u.clock.Now()}
 	if err := u.board.Save(ctx, change); err != nil {
-		return nil, fmt.Errorf("failed to save the reaction: %w", err)
+		return Out{}, fmt.Errorf("failed to save the reaction: %w", err)
 	}
 
 	next, err := u.of(ctx, in.MessageID)
 	if err != nil {
-		return nil, err
+		return Out{}, err
 	}
-	u.publisher.Publish(feed.Update{Reactions: &reactions.Tally{MessageID: in.MessageID, Counts: next.Tally(reactions.NoReactor)}})
+	tally := next.TallyOf(in.MessageID)
+	u.publisher.Publish(feed.Update{Reactions: &tally})
 
-	return next.Tally(reactor), nil
+	return outOf(next, reactor), nil
+}
+
+func outOf(given reactions.Reactions, reactor reactions.Reactor) Out {
+	return Out{Counts: given.Tally(reactor), Version: given.Version()}
 }
 
 func (u *UseCase) of(ctx context.Context, id messages.MessageID) (reactions.Reactions, error) {

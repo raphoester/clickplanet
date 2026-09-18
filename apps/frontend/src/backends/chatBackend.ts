@@ -76,7 +76,7 @@ export class ChatServiceBackend implements ChatSender, ChatHistoryGetter, ChatLi
         return headers
     }
 
-    public async react(reaction: OutgoingReaction): Promise<ReactionCount[]> {
+    public async react(reaction: OutgoingReaction): Promise<ReactionsChange> {
         const headers = await this.headersFor(reaction.asAccount)
 
         try {
@@ -86,7 +86,11 @@ export class ChatServiceBackend implements ChatSender, ChatHistoryGetter, ChatLi
                 on: reaction.on,
             }, {headers})
 
-            return res.reactions.map(decodedCount)
+            return {
+                messageId: reaction.messageId,
+                reactions: res.reactions.map(decodedCount),
+                version: Number(res.version),
+            }
         } catch (e) {
             throw translate(e)
         }
@@ -168,6 +172,7 @@ export function decodedMessage(message: ChatMessagePb): ChatMessage {
         countryCode: message.countryId,
         text: message.text,
         reactions: message.reactions.map(decodedCount),
+        reactionsVersion: Number(message.reactionsVersion),
     }
 }
 
@@ -177,6 +182,7 @@ export function reactionsOf(event: ChatEvent): ReactionsChange | undefined {
     return {
         messageId: event.event.value.messageId,
         reactions: event.event.value.reactions.map(decodedCount),
+        version: Number(event.event.value.version),
     }
 }
 

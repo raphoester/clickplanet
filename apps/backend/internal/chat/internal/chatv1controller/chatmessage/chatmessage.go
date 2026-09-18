@@ -10,16 +10,17 @@ import (
 )
 
 // Encode is a message on the wire, with its reactions as the reader sees them: none on a message just sent.
-func Encode(message messages.Message, counts []reactions.Count) *chatv1.ChatMessage {
+func Encode(message messages.Message, counts []reactions.Count, version uint64) *chatv1.ChatMessage {
 	return &chatv1.ChatMessage{
-		Id:           string(message.ID),
-		SentAtUnixMs: message.SentAt.UnixMilli(),
-		AuthorName:   message.AuthorName,
-		AuthorTag:    message.AuthorTag,
-		AuthorAdmin:  message.AuthorAdmin,
-		CountryId:    message.CountryID,
-		Text:         message.Text,
-		Reactions:    EncodeCounts(counts),
+		Id:               string(message.ID),
+		SentAtUnixMs:     message.SentAt.UnixMilli(),
+		AuthorName:       message.AuthorName,
+		AuthorTag:        message.AuthorTag,
+		AuthorAdmin:      message.AuthorAdmin,
+		CountryId:        message.CountryID,
+		Text:             message.Text,
+		Reactions:        EncodeCounts(counts),
+		ReactionsVersion: version,
 	}
 }
 

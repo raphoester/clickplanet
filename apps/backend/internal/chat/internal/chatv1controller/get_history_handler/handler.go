@@ -38,7 +38,7 @@ func (h GetHistoryHandler) GetHistory(
 		Messages: make([]*chatv1.ChatMessage, 0, len(history)),
 	}
 	for _, entry := range history {
-		response.Messages = append(response.Messages, chatmessage.Encode(entry.Message, entry.Reactions))
+		response.Messages = append(response.Messages, chatmessage.Encode(entry.Message, entry.Reactions, entry.ReactionsVersion))
 	}
 
 	res := connect.NewResponse(response)

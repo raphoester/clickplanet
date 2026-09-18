@@ -45,13 +45,14 @@ func TestGetHistoryMapsEveryMessageInOrder(t *testing.T) {
 func TestGetHistoryMapsTheReactions(t *testing.T) {
 	res := getHistory(t, stubUseCase{{Message: messages.Message{ID: "message-1"}, Reactions: []reactions.Count{
 		{Reaction: reactions.Reaction(chatv1.Reaction_REACTION_CLOWN), Count: 3, Mine: true},
-	}}})
+	}, ReactionsVersion: 7}})
 
 	reactions := res.Msg.GetMessages()[0].GetReactions()
 	require.Len(t, reactions, 1)
 	assert.Equal(t, chatv1.Reaction_REACTION_CLOWN, reactions[0].GetReaction())
 	assert.Equal(t, uint32(3), reactions[0].GetCount())
 	assert.True(t, reactions[0].GetMine())
+	assert.Equal(t, uint64(7), res.Msg.GetMessages()[0].GetReactionsVersion())
 }
 
 func TestGetHistoryIsNeverCached(t *testing.T) {

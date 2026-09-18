@@ -33,7 +33,8 @@ func ReactorOf(account messages.AccountID, author messages.Author) Reactor {
 // Reactions is who put which reaction on one message, in the order each reaction first appeared. It is a value:
 // With and Without answer a changed copy and leave the receiver as it was.
 type Reactions struct {
-	given []given
+	given   []given
+	version uint64
 }
 
 type given struct {
@@ -104,7 +105,24 @@ func (r Reactions) index(reaction Reaction) int {
 
 // clone copies the outer slice only: a changed entry gets its own reactors slice before it is written.
 func (r Reactions) clone() Reactions {
-	return Reactions{given: slices.Clone(r.given)}
+	return Reactions{given: slices.Clone(r.given), version: r.version}
+}
+
+// Version is which state of the message's reactions this is: the store bumps it with each change, never here.
+func (r Reactions) Version() uint64 {
+	return r.version
+}
+
+// Versioned is r as the store read it at version.
+func (r Reactions) Versioned(version uint64) Reactions {
+	next := r.clone()
+	next.version = version
+	return next
+}
+
+// TallyOf is what the stream sends for the message: its counts for nobody, and their version.
+func (r Reactions) TallyOf(id messages.MessageID) Tally {
+	return Tally{MessageID: id, Counts: r.Tally(NoReactor), Version: r.version}
 }
 
 // Count is how many put one reaction on one message.
@@ -118,6 +136,7 @@ type Count struct {
 type Tally struct {
 	MessageID messages.MessageID
 	Counts    []Count
+	Version   uint64
 }
 
 // Change is one reactor putting one reaction on one message, or taking it off.
@@ -145,9 +164,10 @@ var ErrInvalidReaction = errors.New("invalid reaction")
 
 // Storage is where reactions are kept. StorageContractSuite pins what every adapter does.
 type Storage interface {
-	// Save puts the reaction on or takes it off. Either one already done is not an error.
+	// Save puts the reaction on or takes it off, and bumps the message's version in the same write when that
+	// changed something. Either one already done is not an error, and bumps nothing.
 	Save(ctx context.Context, change Change) error
-	// Reactions is what each of the given messages carries. A message with none is absent.
+	// Reactions is what each of the given messages carries, versioned. A message never reacted to is absent.
 	Reactions(ctx context.Context, ids []messages.MessageID) (map[messages.MessageID]Reactions, error)
 	// DeleteBefore removes every reaction put on before cutoff and says how many.
 	DeleteBefore(ctx context.Context, cutoff time.Time) (int64, error)

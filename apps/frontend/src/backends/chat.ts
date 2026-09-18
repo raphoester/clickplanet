@@ -33,6 +33,8 @@ export type ChatMessage = {
     text: string
     /** In the order each reaction first appeared. */
     reactions: ReactionCount[]
+    /** Which state of the reactions this is: a lower one never replaces a higher one. */
+    reactionsVersion: number
 }
 
 export type ReactionCount = {
@@ -42,10 +44,14 @@ export type ReactionCount = {
     mine: boolean
 }
 
-/** A message's reactions changed: all of them, not the difference. */
+/**
+ * A message's reactions changed: all of them, not the difference. Frames can
+ * arrive out of order, so each carries the version it was read at.
+ */
 export type ReactionsChange = {
     messageId: string
     reactions: ReactionCount[]
+    version: number
 }
 
 export type OutgoingReaction = {
@@ -88,7 +94,7 @@ export interface ChatListener {
 
 export interface ChatReactor {
     /** Answers the message's reactions once this one landed, `mine` included. */
-    react(reaction: OutgoingReaction): Promise<ReactionCount[]>
+    react(reaction: OutgoingReaction): Promise<ReactionsChange>
 }
 
 export type ChatBackend = ChatSender & ChatHistoryGetter & ChatListener & ChatReactor

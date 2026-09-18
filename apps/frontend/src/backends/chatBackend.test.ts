@@ -34,6 +34,7 @@ const proto = () => new ChatMessagePb({
     countryId: "fr",
     text: "hello",
     reactions: [new ReactionCount({reaction: Reaction.CLOWN, count: 2, mine: true})],
+    reactionsVersion: BigInt(3),
 })
 
 function clientThatFails(error: unknown): PromiseClient<typeof ChatService> {
@@ -56,6 +57,7 @@ describe("decodedMessage", () => {
             countryCode: "fr",
             text: "hello",
             reactions: [{reaction: Reaction.CLOWN, count: 2, mine: true}],
+            reactionsVersion: 3,
         })
     })
 })
@@ -68,6 +70,7 @@ describe("reactionsOf", () => {
                 value: new ReactionsChanged({
                     messageId: "message-1",
                     reactions: [new ReactionCount({reaction: Reaction.SKULL, count: 3})],
+                    version: BigInt(8),
                 }),
             },
         })
@@ -75,6 +78,7 @@ describe("reactionsOf", () => {
         expect(reactionsOf(event)).toEqual({
             messageId: "message-1",
             reactions: [{reaction: Reaction.SKULL, count: 3, mine: false}],
+            version: 8,
         })
         expect(reactionsOf(new ChatEvent({event: {case: "message", value: proto()}}))).toBeUndefined()
     })
@@ -84,13 +88,20 @@ describe("ChatServiceBackend.react", () => {
     const reaction = {messageId: "message-1", reaction: Reaction.CLOWN, on: true, asAccount: true}
 
     it("sends the token for a player, none for a guest, and answers the counts", async () => {
-        const react = vi.fn().mockResolvedValue({reactions: [new ReactionCount({reaction: Reaction.CLOWN, count: 1, mine: true})]})
+        const react = vi.fn().mockResolvedValue({
+            reactions: [new ReactionCount({reaction: Reaction.CLOWN, count: 1, mine: true})],
+            version: BigInt(2),
+        })
         const client = {react} as unknown as PromiseClient<typeof ChatService>
 
         const counts = await new ChatServiceBackend(client, session()).react(reaction)
         await new ChatServiceBackend(client, session()).react({...reaction, asAccount: false})
 
-        expect(counts).toEqual([{reaction: Reaction.CLOWN, count: 1, mine: true}])
+        expect(counts).toEqual({
+            messageId: "message-1",
+            reactions: [{reaction: Reaction.CLOWN, count: 1, mine: true}],
+            version: 2,
+        })
         expect(react.mock.calls[0][0]).toEqual({messageId: "message-1", reaction: Reaction.CLOWN, on: true})
         expect((react.mock.calls[0][1] as {headers: Headers}).headers.get(SESSION_HEADER)).toBe("token-1")
         expect((react.mock.calls[1][1] as {headers: Headers}).headers.get(SESSION_HEADER)).toBeNull()
