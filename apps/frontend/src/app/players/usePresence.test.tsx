@@ -19,7 +19,7 @@ function backendHolding(session: {current: string | undefined}) {
     }
 }
 
-const france: Announcing = {countryCode: "fr", guestName: "Bo"}
+const france: Announcing = {countryCode: "fr"}
 
 const advance = (ms: number) => act(async () => {
     await vi.advanceTimersByTimeAsync(ms)
@@ -44,7 +44,7 @@ describe("usePresence", () => {
 
         session.current = "token-1"
         await advance(1_000)
-        expect(backend.announce).toHaveBeenCalledWith({countryCode: "fr", guestName: "Bo"})
+        expect(backend.announce).toHaveBeenCalledWith({countryCode: "fr"})
     })
 
     it("announces the flag the player moves to", async () => {
@@ -57,7 +57,7 @@ describe("usePresence", () => {
         await advance(2_000)
 
         expect(backend.announce).toHaveBeenCalledTimes(2)
-        expect(backend.announce).toHaveBeenLastCalledWith({countryCode: "jp", guestName: "Bo"})
+        expect(backend.announce).toHaveBeenLastCalledWith({countryCode: "jp"})
     })
 
     it("leaves when the page closes, and not when it is only kept for the back button", () => {

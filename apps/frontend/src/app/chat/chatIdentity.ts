@@ -1,11 +1,14 @@
 import {v4 as generateUUID} from 'uuid';
-import {countRunes, MAX_NAME_LENGTH} from "../../backends/chat.ts";
 
 export const CHAT_IDENTITY_STORAGE_KEY = 'clickplanet-chat-identity'
 
+/**
+ * The id this browser posts under. It names no one — the server names the
+ * sender by the click token — and is kept only because the request still
+ * carries it. A name stored by an older build is ignored.
+ */
 export type ChatIdentity = {
     authorId: string
-    name: string
 }
 
 export function parseStoredIdentity(raw: string | null | undefined): ChatIdentity | undefined {
@@ -20,20 +23,12 @@ export function parseStoredIdentity(raw: string | null | undefined): ChatIdentit
 
     if (typeof parsed !== "object" || parsed === null) return undefined
 
-    const {authorId, name} = parsed as {authorId?: unknown, name?: unknown}
+    const {authorId} = parsed as {authorId?: unknown}
     if (typeof authorId !== "string" || authorId === "") return undefined
 
-    return {
-        authorId,
-        name: typeof name === "string" && isValidName(name) ? name.trim() : "",
-    }
+    return {authorId}
 }
 
 export function resolveIdentity(stored: string | null | undefined): ChatIdentity {
-    return parseStoredIdentity(stored) ?? {authorId: generateUUID(), name: ""}
-}
-
-export function isValidName(name: string): boolean {
-    const trimmed = name.trim()
-    return trimmed !== "" && countRunes(trimmed) <= MAX_NAME_LENGTH
+    return parseStoredIdentity(stored) ?? {authorId: generateUUID()}
 }

@@ -1,23 +1,17 @@
 import {describe, expect, it} from "vitest"
-import {isValidName, parseStoredIdentity, resolveIdentity} from "./chatIdentity.ts"
+import {parseStoredIdentity, resolveIdentity} from "./chatIdentity.ts"
 
 describe("parseStoredIdentity", () => {
     it("reads back what was stored", () => {
+        const raw = JSON.stringify({authorId: "author-1"})
+
+        expect(parseStoredIdentity(raw)).toEqual({authorId: "author-1"})
+    })
+
+    it("keeps the author id and drops the name an older build stored", () => {
         const raw = JSON.stringify({authorId: "author-1", name: "Ana"})
 
-        expect(parseStoredIdentity(raw)).toEqual({authorId: "author-1", name: "Ana"})
-    })
-
-    it("trims the stored name", () => {
-        const raw = JSON.stringify({authorId: "author-1", name: "  Ana  "})
-
-        expect(parseStoredIdentity(raw)?.name).toBe("Ana")
-    })
-
-    it("keeps the author id and drops a name the server would refuse", () => {
-        const raw = JSON.stringify({authorId: "author-1", name: "x".repeat(25)})
-
-        expect(parseStoredIdentity(raw)).toEqual({authorId: "author-1", name: ""})
+        expect(parseStoredIdentity(raw)).toEqual({authorId: "author-1"})
     })
 
     it("gives up on anything it cannot read", () => {
@@ -32,11 +26,8 @@ describe("parseStoredIdentity", () => {
 })
 
 describe("resolveIdentity", () => {
-    it("mints an author id on a first visit, and no name yet", () => {
-        const identity = resolveIdentity(null)
-
-        expect(identity.authorId).not.toBe("")
-        expect(identity.name).toBe("")
+    it("mints an author id on a first visit", () => {
+        expect(resolveIdentity(null).authorId).not.toBe("")
     })
 
     it("mints a different id per visitor", () => {
@@ -44,22 +35,8 @@ describe("resolveIdentity", () => {
     })
 
     it("keeps the stored id, so a returning player stays the same author", () => {
-        const raw = JSON.stringify({authorId: "author-1", name: "Ana"})
+        const raw = JSON.stringify({authorId: "author-1"})
 
         expect(resolveIdentity(raw).authorId).toBe("author-1")
-    })
-})
-
-describe("isValidName", () => {
-    it("wants something that is not blank", () => {
-        expect(isValidName("Ana")).toBe(true)
-        expect(isValidName("")).toBe(false)
-        expect(isValidName("   ")).toBe(false)
-    })
-
-    it("bounds the name in runes, as the server does", () => {
-        expect(isValidName("x".repeat(24))).toBe(true)
-        expect(isValidName("x".repeat(25))).toBe(false)
-        expect(isValidName("🌍".repeat(24))).toBe(true)
     })
 })

@@ -11,8 +11,6 @@ import {
     ChatRejectedError,
     ChatSender,
     countRunes,
-    guestName,
-    MAX_NAME_LENGTH,
     MAX_TEXT_LENGTH,
     OutgoingMessage,
     OutgoingReaction,
@@ -32,13 +30,19 @@ export type FakeChatBackendOptions = {
 
 // Players with a username and guests, as the server names them. Ana is an admin.
 const CHATTERS = [
-    {name: "Ana", tag: "4f2ca1", country: "fr", admin: true, text: "who keeps taking Brittany"},
-    {name: guestName("Bo"), tag: "91aa3d", country: "de", admin: false, text: "we hold the north 💪"},
-    {name: "kiran_07", tag: "0c77e2", country: "in", admin: false, text: "gm everyone"},
-    {name: guestName("Yuki"), tag: "aa1290", country: "jp", admin: false, text: "the pacific is ours"},
+    {name: "Ana", country: "fr", admin: true, text: "who keeps taking Brittany"},
+    {name: "guest_91aa3d", country: "de", admin: false, text: "we hold the north 💪"},
+    {name: "kiran_07", country: "in", admin: false, text: "gm everyone"},
+    {name: "guest_aa1290", country: "jp", admin: false, text: "the pacific is ours"},
 ]
 
-// Who reacts from this browser: like the server's guest, one reactor per address.
+/**
+ * The guest this browser posts as. There is no account here, so no token names
+ * a username: every message from this browser is a guest's, under the one code.
+ */
+export const OWN_GUEST_NAME = "guest_c0ffee"
+
+// Who reacts from this browser: like the server, one reactor per account.
 const ME = "me"
 
 // What the bots react with, now and then.
@@ -72,12 +76,11 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
                 id: UUIDv4(),
                 sentAt: Date.now() - (CHATTERS.length - index) * 60_000,
                 authorName: chatter.name,
-                authorTag: chatter.tag,
                 authorAdmin: chatter.admin,
                 countryCode: chatter.country,
                 text: chatter.text,
                 reactions: [],
-            reactionsVersion: 0,
+                reactionsVersion: 0,
             })
         })
 
@@ -88,17 +91,16 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
                 id: UUIDv4(),
                 sentAt: Date.now(),
                 authorName: chatter.name,
-                authorTag: chatter.tag,
                 authorAdmin: chatter.admin,
                 countryCode: chatter.country,
                 text: `${chatter.text} (${this.nextChatter})`,
                 reactions: [],
-            reactionsVersion: 0,
+                reactionsVersion: 0,
             })
 
             const target = this.messages[Math.floor(Math.random() * this.messages.length)]
             const reaction = BOT_REACTIONS[this.nextChatter % BOT_REACTIONS.length]
-            this.give(target.id, reaction, chatter.tag, true)
+            this.give(target.id, reaction, chatter.name, true)
         }, options.chatterIntervalMs ?? 8000))
     }
 
@@ -112,19 +114,14 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
         if (this.blocked) throw new ChatBlockedError()
 
         const text = message.text.trim()
-        const name = message.authorName.trim()
         if (text === "" || countRunes(text) > MAX_TEXT_LENGTH) throw new ChatRejectedError()
-        if (name === "" || countRunes(name) > MAX_NAME_LENGTH) throw new ChatRejectedError()
 
         if (!this.allow()) throw new ChatRateLimitedError()
 
-        // There is no account here, so no token names a username: like the
-        // server, every message from this browser is a guest's.
         const sent: ChatMessage = {
             id: UUIDv4(),
             sentAt: Date.now(),
-            authorName: guestName(name),
-            authorTag: "c0ffee",
+            authorName: OWN_GUEST_NAME,
             authorAdmin: false,
             countryCode: message.countryCode,
             text,

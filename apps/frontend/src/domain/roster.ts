@@ -24,12 +24,12 @@ export function applyRosterEvent(entries: readonly RosterEntry[], event: RosterE
     }
 }
 
-/** The server's order: players before guests, then by name ignoring case, then by name, then by tag. */
+/** The server's order: players before guests, then by name ignoring case, then by name, then by key. */
 export function compareRosterEntries(a: RosterEntry, b: RosterEntry): number {
     return Number(a.guest) - Number(b.guest)
         || compareStrings(a.name.toLowerCase(), b.name.toLowerCase())
         || compareStrings(a.name, b.name)
-        || compareStrings(a.tag, b.tag)
+        || compareStrings(a.key, b.key)
 }
 
 function compareStrings(a: string, b: string): number {

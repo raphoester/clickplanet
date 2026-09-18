@@ -1,4 +1,4 @@
-import {guestName} from "./chat.ts"
+import {OWN_GUEST_NAME} from "./fakeChatBackend.ts"
 import {compareRosterEntries} from "../domain/roster.ts"
 import {PlayerInfo, PlayerInfoBackend, Presence, PresenceBackend, RosterEntry, RosterEvent} from "./player.ts"
 
@@ -8,19 +8,19 @@ const SHIFT_MS = 25_000
 /** How often the fake looks for a player who came or went. */
 const TICK_MS = 1_000
 
-/** The tag this browser gets, as in `FakeChatBackend`. */
-const OWN_TAG = "c0ffee"
+/** The line this browser gets. */
+const OWN_KEY = "0"
 
-/** The chat's fake chatters and a few who only play. */
+/** The chat's fake chatters and a few who only play, named as the chat names them. */
 const PLAYERS: RosterEntry[] = [
-    {key: "4f2ca1", name: "Ana", tag: "4f2ca1", countryCode: "fr", guest: false, admin: true},
-    {key: "0c77e2", name: "kiran_07", tag: "0c77e2", countryCode: "in", guest: false, admin: false},
-    {key: "5d0b19", name: "Mateus", tag: "5d0b19", countryCode: "br", guest: false, admin: false},
-    {key: "e3a441", name: "zoe_nz", tag: "e3a441", countryCode: "nz", guest: false, admin: false},
-    {key: "91aa3d", name: guestName("Bo"), tag: "91aa3d", countryCode: "de", guest: true, admin: false},
-    {key: "aa1290", name: guestName("Yuki"), tag: "aa1290", countryCode: "jp", guest: true, admin: false},
-    {key: "3b7f02", name: guestName("3b7f02"), tag: "3b7f02", countryCode: "us", guest: true, admin: false},
-    {key: "7e21c9", name: guestName("Olu"), tag: "7e21c9", countryCode: "ng", guest: true, admin: false},
+    {key: "1", name: "Ana", countryCode: "fr", guest: false, admin: true},
+    {key: "2", name: "kiran_07", countryCode: "in", guest: false, admin: false},
+    {key: "3", name: "Mateus", countryCode: "br", guest: false, admin: false},
+    {key: "4", name: "zoe_nz", countryCode: "nz", guest: false, admin: false},
+    {key: "5", name: "guest_91aa3d", countryCode: "de", guest: true, admin: false},
+    {key: "6", name: "guest_aa1290", countryCode: "jp", guest: true, admin: false},
+    {key: "7", name: "guest_3b7f02", countryCode: "us", guest: true, admin: false},
+    {key: "8", name: "guest_7e21c9", countryCode: "ng", guest: true, admin: false},
 ]
 
 /**
@@ -73,8 +73,8 @@ export class FakePresenceBackend implements PresenceBackend, PlayerInfoBackend {
 
         // Gone 90s after its last announce, as on the server.
         if (this.own && now - this.own.at < 90_000) {
-            const {countryCode, guestName: typed} = this.own.presence
-            entries.push({key: OWN_TAG, name: guestName(typed || OWN_TAG), tag: OWN_TAG, countryCode, guest: true, admin: false})
+            const {countryCode} = this.own.presence
+            entries.push({key: OWN_KEY, name: OWN_GUEST_NAME, countryCode, guest: true, admin: false})
         }
 
         return entries.sort(compareRosterEntries)

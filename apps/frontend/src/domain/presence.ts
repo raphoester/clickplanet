@@ -4,7 +4,7 @@ import type {Presence} from "../backends/player.ts"
 export const ANNOUNCE_EVERY_MS = 30_000
 
 /**
- * How long the flag and the name must hold still before a change is announced.
+ * How long the flag and the username must hold still before a change is announced.
  * Picking a country is a few clicks through a list; one announce says where the
  * player landed, not each step on the way.
  */
@@ -25,7 +25,7 @@ export type Announcing = Presence & {
  * - **as soon as a token is held that the last one did not go out under** —
  *   the first click's mint, the mint after a refused token, and the one after a
  *   sign-in, which names another account;
- * - once the flag, the guest name or the username has held still `SETTLE_MS`
+ * - once the flag or the username has held still `SETTLE_MS`
  *   after changing;
  * - `ANNOUNCE_EVERY_MS` after the last one.
  *
@@ -42,7 +42,7 @@ export class PresenceSchedule {
         this.wanted = wanted
     }
 
-    /** The flag, the guest name or the username, as they are now. */
+    /** The flag and the username, as they are now. */
     public want(next: Announcing, now: number): void {
         if (keyOf(next) === keyOf(this.wanted)) return
         this.wanted = next
@@ -60,7 +60,7 @@ export class PresenceSchedule {
 
         this.last = {key: keyOf(this.wanted), session, at: now}
         this.sending = true
-        return {countryCode: this.wanted.countryCode, guestName: this.wanted.guestName}
+        return {countryCode: this.wanted.countryCode}
     }
 
     /** The announce `claim` handed out has landed or failed. */
@@ -77,5 +77,5 @@ export class PresenceSchedule {
 }
 
 function keyOf(announcing: Announcing): string {
-    return JSON.stringify([announcing.countryCode, announcing.guestName, announcing.username ?? null])
+    return JSON.stringify([announcing.countryCode, announcing.username ?? null])
 }
