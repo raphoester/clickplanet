@@ -72,6 +72,10 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
 
     const fakePresence = new FakePresenceBackend()
 
+    // The server's chat hears every bomb from the planet; the fakes are told here.
+    const fakeChat = new FakeChatBackend()
+    fake.listenForBombs((drop) => fakeChat.announceBomb(drop))
+
     root.render(
         <StrictMode>
             <SignInGate callback={callback}>
@@ -82,7 +86,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     bonusListener={fake}
                     bomber={fake}
                     clickBudgetSource={fake}
-                    chatBackend={new FakeChatBackend()}
+                    chatBackend={fakeChat}
                     presence={fakePresence}
                     playerInfo={fakePresence}
                 />

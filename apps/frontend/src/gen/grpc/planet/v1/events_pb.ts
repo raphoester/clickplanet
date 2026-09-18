@@ -68,3 +68,76 @@ export class TileTaken extends Message<TileTaken> {
   }
 }
 
+/**
+ * BombLanded is a bomb that went off, on land or in the sea. A dud, the shadow
+ * ban's bomb, publishes nothing: it went off for nobody.
+ *
+ * @generated from message planet.v1.BombLanded
+ */
+export class BombLanded extends Message<BombLanded> {
+  /**
+   * The country the bomber played for.
+   *
+   * @generated from field: string country = 1;
+   */
+  country = "";
+
+  /**
+   * The tile it hit. Zero when it fell in the sea.
+   *
+   * @generated from field: uint32 tile_id = 2;
+   */
+  tileId = 0;
+
+  /**
+   * The country whose ground the tile sits on. Empty in the sea, and on ground
+   * that is no country's.
+   *
+   * @generated from field: string ground = 3;
+   */
+  ground = "";
+
+  /**
+   * How many held tiles it cleared.
+   *
+   * @generated from field: uint32 cleared = 4;
+   */
+  cleared = 0;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp landed_at = 5;
+   */
+  landedAt?: Timestamp;
+
+  constructor(data?: PartialMessage<BombLanded>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.BombLanded";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "country", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "tile_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "ground", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "cleared", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 5, name: "landed_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BombLanded {
+    return new BombLanded().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BombLanded {
+    return new BombLanded().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BombLanded {
+    return new BombLanded().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: BombLanded | PlainMessage<BombLanded> | undefined, b: BombLanded | PlainMessage<BombLanded> | undefined): boolean {
+    return proto3.util.equals(BombLanded, a, b);
+  }
+}
+

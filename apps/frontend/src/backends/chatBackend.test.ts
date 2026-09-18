@@ -1,7 +1,8 @@
 import {afterEach, describe, expect, it, vi} from "vitest"
-import {ChatServiceBackend, decodedMessage, messageOf, reactionsOf} from "./chatBackend.ts"
+import {announcementOf, ChatServiceBackend, decodedAnnouncement, decodedMessage, messageOf, reactionsOf} from "./chatBackend.ts"
 import {Code, ConnectError, PromiseClient} from "@connectrpc/connect"
 import {
+    Announcement,
     ChatEvent,
     ChatMessage as ChatMessagePb,
     Heartbeat,
@@ -133,6 +134,49 @@ describe("messageOf", () => {
     })
 })
 
+describe("decodedAnnouncement", () => {
+    const bomb = (payload: string, kind = "bomb") => new Announcement({
+        id: "announcement-1",
+        announcedAtUnixMs: BigInt(1_700_000_000_000),
+        kind,
+        payload,
+    })
+
+    it("reads a bomb on land", () => {
+        expect(decodedAnnouncement(bomb(`{"country":"fr","ground":"de","tile":42,"cleared":3}`))).toEqual({
+            kind: "bomb",
+            id: "announcement-1",
+            announcedAt: 1_700_000_000_000,
+            country: "fr",
+            ground: "de",
+            tile: 42,
+            cleared: 3,
+        })
+    })
+
+    it("reads a bomb in the sea, with no ground and no tile", () => {
+        const announcement = decodedAnnouncement(bomb(`{"country":"fr","cleared":0}`))
+
+        expect(announcement?.tile).toBeUndefined()
+        expect(announcement?.ground).toBeUndefined()
+        expect(announcement?.cleared).toBe(0)
+    })
+
+    it("drops a kind it does not know, and a payload that is not the kind's", () => {
+        expect(decodedAnnouncement(bomb(`{"country":"fr"}`, "meteor"))).toBeUndefined()
+        expect(decodedAnnouncement(bomb(`not json`))).toBeUndefined()
+        expect(decodedAnnouncement(bomb(`{"cleared":3}`))).toBeUndefined()
+        expect(decodedAnnouncement(bomb(`null`))).toBeUndefined()
+    })
+
+    it("comes off the stream as the announcement case only", () => {
+        const event = new ChatEvent({event: {case: "announcement", value: bomb(`{"country":"fr","cleared":0}`)}})
+
+        expect(announcementOf(event)?.country).toBe("fr")
+        expect(announcementOf(new ChatEvent({event: {case: "message", value: proto()}}))).toBeUndefined()
+    })
+})
+
 describe("ChatServiceBackend.sendMessage", () => {
     it("returns the message the server stamped", async () => {
         const client = {
@@ -220,7 +264,7 @@ describe("ChatServiceBackend.sendMessage", () => {
 
 describe("ChatServiceBackend.getHistory", () => {
     it("sends the token it holds, and never mints one", async () => {
-        const getHistory = vi.fn().mockResolvedValue({messages: []})
+        const getHistory = vi.fn().mockResolvedValue({messages: [], announcements: []})
         const client = {getHistory} as unknown as PromiseClient<typeof ChatService>
         const provider = session()
 
@@ -232,20 +276,20 @@ describe("ChatServiceBackend.getHistory", () => {
 
     it("decodes every message the server holds", async () => {
         const client = {
-            getHistory: vi.fn().mockResolvedValue({messages: [proto(), proto()]}),
+            getHistory: vi.fn().mockResolvedValue({messages: [proto(), proto()], announcements: []}),
         } as unknown as PromiseClient<typeof ChatService>
 
-        expect(await new ChatServiceBackend(client, session()).getHistory()).toHaveLength(2)
+        expect((await new ChatServiceBackend(client, session()).getHistory()).messages).toHaveLength(2)
     })
 
     it("retries while the server cannot be reached", async () => {
         vi.spyOn(console, "error").mockImplementation(() => {})
         const getHistory = vi.fn()
             .mockRejectedValueOnce(new ConnectError("down", Code.Unavailable))
-            .mockResolvedValue({messages: [proto()]})
+            .mockResolvedValue({messages: [proto()], announcements: []})
         const client = {getHistory} as unknown as PromiseClient<typeof ChatService>
 
-        expect(await new ChatServiceBackend(client, session()).getHistory()).toHaveLength(1)
+        expect((await new ChatServiceBackend(client, session()).getHistory()).messages).toHaveLength(1)
         expect(getHistory).toHaveBeenCalledTimes(2)
     })
 })

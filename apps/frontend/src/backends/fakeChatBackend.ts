@@ -1,5 +1,7 @@
 import {
+    ChatAnnouncement,
     ChatBlockedError,
+    ChatHistory,
     ChatHistoryGetter,
     ChatListener,
     ChatMessage,
@@ -45,10 +47,12 @@ const BOT_REACTIONS = [Reaction.LAUGH, Reaction.CLOWN, Reaction.SKULL, Reaction.
 type Listener = {
     message: (message: ChatMessage) => void
     reactions?: (change: ReactionsChange) => void
+    announcement?: (announcement: ChatAnnouncement) => void
 }
 
 export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListener, ChatReactor {
     private readonly messages: ChatMessage[] = []
+    private readonly announcements: ChatAnnouncement[] = []
     // Message id → reaction → who gave it, in the order each reaction first appeared.
     private readonly reactions = new Map<string, Map<Reaction, Set<string>>>()
     // Message id → how many times its reactions changed, as the server counts them.
@@ -140,21 +144,42 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
         return this.changeOf(reaction.messageId, ME)
     }
 
-    public async getHistory(signal?: AbortSignal): Promise<ChatMessage[]> {
+    public async getHistory(signal?: AbortSignal): Promise<ChatHistory> {
         signal?.throwIfAborted()
-        return this.messages.map(message => ({
-            ...message,
-            reactions: this.tally(message.id, ME),
-            reactionsVersion: this.versions.get(message.id) ?? 0,
-        }))
+        return {
+            messages: this.messages.map(message => ({
+                ...message,
+                reactions: this.tally(message.id, ME),
+                reactionsVersion: this.versions.get(message.id) ?? 0,
+            })),
+            announcements: [...this.announcements],
+        }
+    }
+
+    /**
+     * A bomb landed, as the server's chat hears it from the planet. The fake
+     * has no borders, so it never names the ground that was hit.
+     */
+    public announceBomb(drop: {countryId: string, tile: number | undefined, cleared: readonly number[]}) {
+        const announcement: ChatAnnouncement = {
+            kind: "bomb",
+            id: UUIDv4(),
+            announcedAt: Date.now(),
+            country: drop.countryId,
+            tile: drop.tile,
+            cleared: drop.cleared.length,
+        }
+        this.announcements.push(announcement)
+        this.listeners.forEach(listener => listener.announcement?.(announcement))
     }
 
     public listenForMessages(
         callback: (message: ChatMessage) => void,
         onReactions?: (change: ReactionsChange) => void,
+        onAnnouncement?: (announcement: ChatAnnouncement) => void,
     ): () => void {
         const id = UUIDv4()
-        this.listeners.set(id, {message: callback, reactions: onReactions})
+        this.listeners.set(id, {message: callback, reactions: onReactions, announcement: onAnnouncement})
         return () => {
             this.listeners.delete(id)
         }

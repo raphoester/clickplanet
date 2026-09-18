@@ -232,6 +232,7 @@ The events today:
 | event | published by | when | heard by |
 |---|---|---|---|
 | `planet.v1.TileTaken{account_id, tile_id, country, taken_at}` | `planet`, `ledger/publishing_ledger_storage` | each take the ledger records with an account: a click, a spread or an enclose, one event per tile | `player`, for the stats |
+| `planet.v1.BombLanded{country, tile_id, ground, cleared, landed_at}` | `planet`, `drop_bomb_usecase/publishing_drop_bomb` | each bomb that went off, on land or in the sea; a refused drop and a dud publish nothing | `chat`, which announces it |
 | `auth.v1.AccountDeleted{account_id}` | `auth`, `delete_account_usecase` and `prune_guests_usecase` | after the account row is deleted; a pruned guest is a deleted account | `player`, which forgets the profile, the stats and the visit |
 | `auth.v1.SignedIn{previous_account_id, account_id}` | `auth`, `complete_sign_in_usecase` | after a sign-in or a link is saved; `previous_account_id` is empty for a browser that had no live session | `player`, which moves the browser's visit to the account |
 | `auth.v1.SignedOut{account_id}` | `auth`, `sign_out_usecase` and `sign_out_everywhere_usecase` | after the session, or every session, is deleted; a cookie with no session publishes nothing | `player`, which takes the account off the roster |
@@ -342,8 +343,9 @@ handler declares: they tell the guard what a caller reads, for the `scraper`.
 
 ### Inside the chat module: the same shape
 
-Chat follows the same rules as planet: no `domain`, no `adapters`, one directory per concept. It has three:
-`messages`, `reactions` (which imports `messages`), and `feed`, the live stream, which carries both.
+Chat follows the same rules as planet: no `domain`, no `adapters`, one directory per concept. It has four:
+`messages`, `reactions` (which imports `messages`), `announcements`, and `feed`, the live stream, which carries all
+three. `subscribers/` is its edge for events, as `chatv1controller/` is its edge for the wire.
 
 ```
 internal/chat/internal/
@@ -355,20 +357,29 @@ internal/chat/internal/
     usecases/send_message_usecase/      names, cleans, tags, appends, publishes — Appender, Publisher, CountryChecker, Authors
       log_authors/                      logs a caller it could not name
     usecases/get_history_usecase/       the window, each message with its reactions, the caller's marked
-                                                                        — MessageReader, ReactionReader, Authors
+                                        and the announcements in the same window
+                                                  — MessageReader, ReactionReader, AnnouncementReader, Authors
     usecases/prune_usecase/             deletes past retention, from each table; Runner — Pruner
       log_prune/                        logs what a prune deleted
   reactions/                            Reaction, Reactor, Reactions, Count, Tally, Change, the Storage port and its suite
     postgres_reaction_store/            Storage, over chat.reactions
     inmemory_reaction_storage/          Storage in a slice — behind the testing tag, tests only
     usecases/react_usecase/             puts a reaction on or off, publishes the tally — Messages, Board, Authors, Publisher
-  feed/                                 Update: a message sent, or a message's new reactions
+  announcements/                        Announcement, AnnouncementID, Kind, Bomb (a payload), the Storage port and its suite
+    postgres_announcement_store/        Storage, over chat.announcements
+    inmemory_announcement_storage/      Storage in a slice — behind the testing tag, tests only
+    usecases/announce_usecase/          keeps an announcement, then publishes it — Appender, Publisher
+  feed/                                 Update: a message sent, a message's new reactions, or an announcement
     inprocess_feed/                     the fanout to every open stream, in this process
     usecases/listen_for_events_usecase/ one client's feed, heartbeat   — UpdatesSubscriber
   chatv1controller/                     ChatService (a bag), the interceptors
     send_message_handler/  get_history_handler/  listen_for_events_handler/  react_handler/
     chatmessage/                        Encode, EncodeCounts and Reaction (the wire's enum, checked), shared by the handlers
+    chatannouncement/                   Encode, shared by the history and the stream
     rpc_session_verifier/               the key from auth.v1.InternalService, asked once (planet's, copied)
+  subscribers/                          Timeout
+    bomb_landed_subscriber/             planet.v1.BombLanded → announce_usecase, as a Bomb payload
+    log_subscriber/                     logs an event a subscriber refused (player's, copied)
   migrations/                           the chat schema
 ```
 
@@ -396,7 +407,7 @@ Both live feeds are served **two ways at once**, and that is a transition, not a
 
 - `ClickService.ListenForEvents` → `stream PlanetEvent`, `ChatService.ListenForEvents` → `stream ChatEvent`, and `PlayerService.ListenForEvents` → `stream PlayerEvent`. Ordinary Connect server-streaming RPCs, on the same routes and the same port as everything else.
 
-**One stream per API, and an envelope rather than a bare payload.** A `PlanetEvent` is a `oneof` of `tile_update` and `heartbeat`; `ChatEvent` is a `oneof` of `message`, `heartbeat` and `reactions`. **A new kind of live event is a new case in that `oneof`, never a second stream** — one connection per client, one route to configure, and a client that does not know a case reads an unset `oneof` and skips it instead of breaking. That is what the bare `TileUpdate` frame could not do, on the websocket or off it.
+**One stream per API, and an envelope rather than a bare payload.** A `PlanetEvent` is a `oneof` of `tile_update` and `heartbeat`; `ChatEvent` is a `oneof` of `message`, `heartbeat`, `reactions` and `announcement`. **A new kind of live event is a new case in that `oneof`, never a second stream** — one connection per client, one route to configure, and a client that does not know a case reads an unset `oneof` and skips it instead of breaking. That is what the bare `TileUpdate` frame could not do, on the websocket or off it.
 
 **`heartbeat` is not decoration.** Cloudflare cuts a silent response at **~125s with a 524** — measured against production three times, exactly 125.1s. The websocket never hit this because Cloudflare keeps those open; a chunked HTTP response is not so lucky. A quiet chat is the normal case, and a quiet planet happens, so both streams send a heartbeat every `httpServer.streamHeartbeat` (30s by default, and it **must** stay well under 125s). Without it a silent stream dies and reconnects forever, losing whatever was published in each gap.
 These replaced a pair of websockets on `/ws/listen` and `/ws/chat`, broadcast by a `wspublisher` fanout. **Nothing here speaks websocket any more** — no upgrade route, no second mux, no `coder/websocket` dependency.
@@ -525,9 +536,36 @@ The **vendored VPN lists** do not cover chat: `NewVPNBlockInterceptor` wraps `Cl
 
 **Each table has its own `Storage` port and a contract suite** (`messages.StorageContractSuite`, `reactions.StorageContractSuite`, behind the `testing` tag). The postgres stores run it against a real postgres; `inmemory_message_storage` and `inmemory_reaction_storage` run it too, and exist **only for tests** — both files carry the `testing` tag, have no persistence port and are never built into the binary. Use case tests use them instead of hand-written fakes.
 
-**The prune** is `prune_usecase` on a `Runner`, as auth's guest prune is: it deletes messages, then reactions, older than `retention`, once at boot and every `pruneInterval`, and `log_prune` logs it. The runner sits inside `cppg.CloseAfter`, so the pool closes after it stops.
+**The prune** is `prune_usecase` on a `Runner`, as auth's guest prune is: it deletes messages, then reactions, then announcements, older than `retention`, once at boot and every `pruneInterval`, and `log_prune` logs it. The runner sits inside `cppg.CloseAfter`, so the pool closes after it stops.
 
 The table holds **personal data** — IPs next to user-authored text — so the retention window is a policy decision rather than a cache size.
+
+#### Announcements
+
+**The chat also says things on its own**: a line between the messages with no sender, which the client draws
+without a bubble. Today there is one kind, `bomb`: every bomb that went off, on land or in the sea.
+
+- **A separate type and a separate table, not a message with no author.** An announcement has no name, tag, IP,
+  text or reactions, and a message has no kind or payload; sharing a base would make every column of one
+  optional in the other. So `announcements.Announcement` is `{ID, Kind, At, Payload}`, in `chat.announcements`
+  (`id uuid` primary key, `kind`, `payload jsonb`, `announced_at`), with its own store, its own contract suite and
+  its own case on the wire (`chat.v1.Announcement`: `kind` and `payload` as a JSON string).
+- **The id is a real key**, `announcements.AnnouncementID` (`type AnnouncementID uuid.UUID`), made by the server.
+  A message's id is `text` with a `seq` beside it because it is not trusted to be unique; nothing here has that
+  history. A read orders by `announced_at`, then `id`.
+- **The payload is the template's values, not the sentence.** The client writes the line, so a new wording, or
+  a translation, needs no migration. Each kind owns its payload's shape: `announcements.Bomb` is
+  `{country, ground, tile, cleared}`, `ground` and `tile` absent in the sea. **A client shows nothing for a kind
+  it does not know**, the way it skips an unknown `oneof` case, so a new kind ships server first.
+- **How a bomb gets here**: `planet`'s `publishing_drop_bomb` decorator publishes `planet.v1.BombLanded` once the
+  blast is cleared, with the ground read off `clicks.Borders`; `bomb_landed_subscriber` turns it into a `Bomb`
+  payload and `announce_usecase` inserts it, then publishes it on `inprocess_feed`. The announcement's time is
+  the event's `landed_at`. **Delivery is at most once**, like every event: a full buffer (256) or a restart loses
+  the line, never the bomb.
+- **`GetHistory` returns them beside the messages**, in `announcements`, the newest `historySize` within
+  `retention`, bounded apart from the messages so a burst of bombs never pushes one out. The client puts the two
+  lists in one by time.
+- **Not personal data**, but the prune deletes them past `retention` with the messages they sit between.
 
 #### Reactions
 
@@ -1080,6 +1118,9 @@ reasons it is not one `TileUpdate` per tile:
 
 `DropBomb` is session-gated like `Click` and `ClaimBonus` — it writes the map.
 It is not throttled: holding a bomb the server granted is the gate.
+**Every bomb that went off is told to the other modules** as `planet.v1.BombLanded`
+by `publishing_drop_bomb`, inside the count, and the chat announces it — see
+[Announcements](#announcements).
 **The shadow ban applies**: `antibot_drop_bomb` marks a banned caller's drop as a
 `Dud`, which spends the bomb, clears nothing and publishes nothing, and is answered
 OK — a bomb left in hand would tell the caller it was refused. It sits outside the
