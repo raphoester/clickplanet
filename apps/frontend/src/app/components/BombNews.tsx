@@ -40,7 +40,7 @@ export default function BombNews({drop, land, onDone}: BombNewsProps) {
         <div className="bomb-news-line">
             <span aria-hidden="true">{drop.tile === undefined ? "🌊" : "💥"}</span>
             <CountryFlag code={drop.countryId}/>
-            <span><strong>{name}</strong> {describeBlast(drop, landName)}</span>
+            <span><strong>{name}</strong> {describeBlast({tile: drop.tile, cleared: drop.cleared.length}, landName)}</span>
         </div>
     </div>
 }

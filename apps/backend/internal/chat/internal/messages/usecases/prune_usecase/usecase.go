@@ -1,4 +1,5 @@
-// Package prune_usecase deletes what the chat keeps past its retention: messages, then their reactions.
+// Package prune_usecase deletes what the chat keeps past its retention: messages, their reactions, and the
+// announcements between them.
 package prune_usecase
 
 import (

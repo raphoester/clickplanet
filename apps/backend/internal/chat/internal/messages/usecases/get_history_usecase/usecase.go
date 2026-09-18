@@ -1,4 +1,5 @@
-// Package get_history_usecase reads the recent messages a joining client is shown, each with its reactions.
+// Package get_history_usecase reads the recent messages a joining client is shown, each with its reactions, and
+// the announcements between them.
 package get_history_usecase
 
 import (
@@ -6,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -13,6 +15,10 @@ import (
 
 type MessageReader interface {
 	Recent(ctx context.Context, since time.Time, limit int) ([]messages.Message, error)
+}
+
+type AnnouncementReader interface {
+	Recent(ctx context.Context, since time.Time, limit int) ([]announcements.Announcement, error)
 }
 
 type ReactionReader interface {
@@ -26,32 +32,49 @@ type Entry struct {
 	ReactionsVersion uint64
 }
 
+// History is what a joining client is shown: the messages and the announcements, each oldest first. The window
+// bounds each on its own, so a burst of bombs never pushes the messages out.
+type History struct {
+	Messages      []Entry
+	Announcements []announcements.Announcement
+}
+
 func New(
 	messageReader MessageReader,
 	reactionReader ReactionReader,
+	announcementReader AnnouncementReader,
 	clock cptime.Clock,
 	window messages.Window,
 ) *UseCase {
 	return &UseCase{
-		messages:  messageReader,
-		reactions: reactionReader,
-		clock:     clock,
-		window:    window,
+		messages:      messageReader,
+		reactions:     reactionReader,
+		announcements: announcementReader,
+		clock:         clock,
+		window:        window,
 	}
 }
 
 type UseCase struct {
-	messages  MessageReader
-	reactions ReactionReader
-	clock     cptime.Clock
-	window    messages.Window
+	messages      MessageReader
+	reactions     ReactionReader
+	announcements AnnouncementReader
+	clock         cptime.Clock
+	window        messages.Window
 }
 
 // Execute marks the caller's own reactions: those of its account. A caller with none has none.
-func (u *UseCase) Execute(ctx context.Context, account messages.AccountID) ([]Entry, error) {
-	recent, err := u.messages.Recent(ctx, u.window.Since(u.clock.Now()), u.window.Size)
+func (u *UseCase) Execute(ctx context.Context, account messages.AccountID) (History, error) {
+	since := u.window.Since(u.clock.Now())
+
+	recent, err := u.messages.Recent(ctx, since, u.window.Size)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read the chat history: %w", err)
+		return History{}, fmt.Errorf("failed to read the chat history: %w", err)
+	}
+
+	announced, err := u.announcements.Recent(ctx, since, u.window.Size)
+	if err != nil {
+		return History{}, fmt.Errorf("failed to read the chat announcements: %w", err)
 	}
 
 	ids := make([]messages.MessageID, 0, len(recent))
@@ -60,7 +83,7 @@ func (u *UseCase) Execute(ctx context.Context, account messages.AccountID) ([]En
 	}
 	given, err := u.reactions.Reactions(ctx, ids)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read the chat reactions: %w", err)
+		return History{}, fmt.Errorf("failed to read the chat reactions: %w", err)
 	}
 
 	viewer := reactions.ReactorOf(account)
@@ -73,5 +96,5 @@ func (u *UseCase) Execute(ctx context.Context, account messages.AccountID) ([]En
 			ReactionsVersion: given[message.ID].Version(),
 		})
 	}
-	return history, nil
+	return History{Messages: history, Announcements: announced}, nil
 }

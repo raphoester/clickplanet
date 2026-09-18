@@ -17,6 +17,8 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1/chatv1connect"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements/postgres_announcement_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements/usecases/announce_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/get_history_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/listen_for_events_handler"
@@ -36,6 +38,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions/postgres_reaction_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions/usecases/react_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/bomb_landed_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
@@ -45,6 +49,9 @@ import (
 )
 
 const moduleName = "chat"
+
+// bombLandedBuffer is how many bombs may wait on postgres before one goes unannounced. Bombs are rare: one per box.
+const bombLandedBuffer = 256
 
 func NewModule(config Config) cpbootstrap.Module {
 	return cpbootstrap.Module{
@@ -70,13 +77,25 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	storage := config.Storage.withDefaults()
 	messageStore := postgres_message_store.New(db)
 	reactionStore := postgres_reaction_store.New(db)
+	announcementStore := postgres_announcement_store.New(db)
 	window := messages.Window{Size: storage.HistorySize, Retention: storage.Retention}
 	updates := inprocess_feed.New(storage.SubscriberBuffer, props.Logger)
 
 	prune := log_prune.New(
-		prune_usecase.New(storage.Retention, cptime.SystemClock{}, messageStore, reactionStore), props.Logger)
-	// The pool closes after the runner stops, not as a closer: closers run first.
-	props.Runners.Add(cppg.CloseAfter(db, props.Logger, prune_usecase.NewRunner(storage.PruneInterval, prune)))
+		prune_usecase.New(storage.Retention, cptime.SystemClock{}, messageStore, reactionStore, announcementStore),
+		props.Logger)
+
+	// Subscribed here, before any runner starts, so a bomb published at boot waits in the buffer. A full buffer
+	// drops the announcement and counts it: the bomb still went off, the chat just does not say so.
+	bombs, err := cpbootstrap.Subscribe(props.Events, "chat-announcements-bombs", bombLandedBuffer,
+		log_subscriber.New(bomb_landed_subscriber.New(announce_usecase.New(announcementStore, updates)), props.Logger))
+	if err != nil {
+		_ = db.Close()
+		return fmt.Errorf("failed to subscribe to planet.v1.BombLanded: %w", err)
+	}
+
+	// The pool closes after the runners stop, not as a closer: closers run first.
+	props.Runners.Add(cppg.CloseAfter(db, props.Logger, prune_usecase.NewRunner(storage.PruneInterval, prune), bombs))
 
 	messageLimiter := cpratelimit.New("message-limiter", config.RateLimiter, cptime.SystemClock{})
 	props.Runners.Add(messageLimiter)
@@ -97,7 +116,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		SendMessageHandler: send_message_handler.New(send_message_usecase.New(
 			messageStore, updates, cpcountries.New(), authors, cptime.SystemClock{}, config.Service)),
 		GetHistoryHandler: get_history_handler.New(get_history_usecase.New(
-			messageStore, reactionStore, cptime.SystemClock{}, window)),
+			messageStore, reactionStore, announcementStore, cptime.SystemClock{}, window)),
 		ListenForEventsHandler: listen_for_events_handler.New(
 			listen_for_events_usecase.New(updates, props.Server.StreamHeartbeat)),
 		ReactHandler: react_handler.New(react_usecase.New(

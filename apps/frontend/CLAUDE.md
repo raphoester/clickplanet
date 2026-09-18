@@ -412,6 +412,29 @@ is the list, and the backend refuses any other.
   when the last message changes, and the unread count and the sound only count
   messages.
 
+#### Announcements
+
+The chat also shows lines nobody sent: `ChatEvent.announcement` on the stream,
+and `GetHistoryResponse.announcements` beside the messages. Today the one kind
+is `bomb`, every bomb that went off.
+
+- **Decoded, not trusted**: `decodedAnnouncement` reads the `kind` and parses
+  the JSON `payload` into a typed `ChatAnnouncement`. A kind this build does not
+  know, or a payload that is not the kind's, is dropped, so the server can ship
+  a new kind first.
+- **The payload is values, the client writes the sentence**: a bomb line is
+  `describeBlast`, the same words as `BombNews`, so the chat and the news line
+  never disagree.
+- **Kept apart from the messages** (`useChat`'s `announcements`,
+  `addAnnouncements`) and put in one list only to draw (`interleave`, by time).
+  So a burst of bombs never pushes a message out of the log, and the unread
+  count, the sound and the "New messages" pill count messages alone.
+- **Not a balloon**: `ChatLog` draws a centred line (`.chat-announcement`) with
+  the bomber's flag and the time. It ends the run above it, so the next message
+  says again who is talking.
+- In fake mode `main.tsx` hands every `FakeBackend` bomb to
+  `FakeChatBackend.announceBomb`, with no ground: the fake has no borders.
+
 #### Saying that a message landed
 
 The globe is what the player is looking at, so an arriving message has to catch

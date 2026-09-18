@@ -1,6 +1,16 @@
 import {describe, expect, it} from "vitest"
-import {addMessages, CHAT_LOG_LIMIT, GROUP_WINDOW_MS, idsSince, startsGroup, unreadSince} from "./chatLog.ts"
-import type {ChatMessage} from "../backends/chat.ts"
+import {
+    addAnnouncements,
+    addMessages,
+    CHAT_LOG_LIMIT,
+    ChatLogEntry,
+    GROUP_WINDOW_MS,
+    idsSince,
+    interleave,
+    startsGroup,
+    unreadSince,
+} from "./chatLog.ts"
+import type {ChatAnnouncement, ChatMessage} from "../backends/chat.ts"
 
 const message = (id: string, sentAt: number): ChatMessage => ({
     id,
@@ -140,5 +150,40 @@ describe("startsGroup", () => {
 
         expect(startsGroup(first, from("Ana", "4f2ca1", GROUP_WINDOW_MS))).toBe(false)
         expect(startsGroup(first, from("Ana", "4f2ca1", GROUP_WINDOW_MS + 1))).toBe(true)
+    })
+})
+
+const bomb = (id: string, announcedAt: number): ChatAnnouncement =>
+    ({kind: "bomb", id, announcedAt, country: "fr", cleared: 0})
+
+const entryIds = (entries: ChatLogEntry[]) =>
+    entries.map(entry => entry.kind === "message" ? entry.message.id : entry.announcement.id)
+
+describe("addAnnouncements", () => {
+    it("keeps each one once, oldest first", () => {
+        const log = addAnnouncements([], [bomb("b", 2)])
+
+        expect(addAnnouncements(log, [bomb("a", 1), bomb("b", 2)]).map(a => a.id)).toEqual(["a", "b"])
+    })
+
+    it("keeps only the newest when it is full", () => {
+        expect(addAnnouncements([], [bomb("a", 1), bomb("b", 2), bomb("c", 3)], 2).map(a => a.id)).toEqual(["b", "c"])
+    })
+})
+
+describe("interleave", () => {
+    it("puts announcements between the messages by time", () => {
+        expect(entryIds(interleave(
+            [message("m1", 10), message("m2", 30)],
+            [bomb("b0", 5), bomb("b1", 20), bomb("b2", 40)],
+        ))).toEqual(["b0", "m1", "b1", "m2", "b2"])
+    })
+
+    it("puts the message first when both happened at once", () => {
+        expect(entryIds(interleave([message("m", 10)], [bomb("b", 10)]))).toEqual(["m", "b"])
+    })
+
+    it("shows announcements alone when nobody said anything", () => {
+        expect(entryIds(interleave([], [bomb("b", 1)]))).toEqual(["b"])
     })
 })

@@ -366,6 +366,51 @@
     color: #FFFFFF59;
 }
 
+/*
+ * An announcement is not somebody talking, so it is not a balloon: one quiet
+ * line across the log, centred, the way a game prints what happened between
+ * the lines people type.
+ */
+.chat-announcement {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin: 4px 0;
+    padding: 0 8px;
+    font-size: 12px;
+    line-height: 1.3;
+    color: #FFFFFFB3;
+    text-align: center;
+}
+
+.chat-announcement .country-flag {
+    flex-shrink: 0;
+    margin-right: 0;
+}
+
+.chat-announcement-icon {
+    flex-shrink: 0;
+}
+
+.chat-announcement-text {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.chat-announcement-text strong {
+    font-weight: 600;
+    color: #FFFFFF;
+}
+
+.chat-announcement-time {
+    flex-shrink: 0;
+    font-family: Oswald, sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.8px;
+    color: #FFFFFF59;
+}
+
 /* Reading further up is not interrupted; this says what you would have seen. */
 .chat-jump {
     position: absolute;

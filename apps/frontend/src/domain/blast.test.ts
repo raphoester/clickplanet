@@ -48,16 +48,16 @@ describe("nearestTile", () => {
 
 describe("describeBlast", () => {
     it("says how much a bomb took, and owns up to a miss", () => {
-        expect(describeBlast({tile: 7, cleared: [6, 7, 8]})).toBe("bombed 3 tiles")
-        expect(describeBlast({tile: 7, cleared: [7]})).toBe("bombed 1 tile")
-        expect(describeBlast({tile: 7, cleared: []})).toBe("bombed empty land")
-        expect(describeBlast({tile: undefined, cleared: []})).toBe("bombed the ocean")
+        expect(describeBlast({tile: 7, cleared: 3})).toBe("bombed 3 tiles")
+        expect(describeBlast({tile: 7, cleared: 1})).toBe("bombed 1 tile")
+        expect(describeBlast({tile: 7, cleared: 0})).toBe("bombed empty land")
+        expect(describeBlast({tile: undefined, cleared: 0})).toBe("bombed the ocean")
     })
 
     it("names the country whose ground was hit", () => {
-        expect(describeBlast({tile: 7, cleared: [6, 7, 8]}, "Germany")).toBe("bombed Germany")
-        expect(describeBlast({tile: 7, cleared: []}, "Germany")).toBe("bombed Germany")
-        expect(describeBlast({tile: undefined, cleared: []}, "Germany")).toBe("bombed the ocean")
+        expect(describeBlast({tile: 7, cleared: 3}, "Germany")).toBe("bombed Germany")
+        expect(describeBlast({tile: 7, cleared: 0}, "Germany")).toBe("bombed Germany")
+        expect(describeBlast({tile: undefined, cleared: 0}, "Germany")).toBe("bombed the ocean")
     })
 })
 

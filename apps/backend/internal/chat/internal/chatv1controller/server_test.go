@@ -44,8 +44,8 @@ func (s *stubSender) Execute(_ context.Context, in send_message_usecase.In) (mes
 
 type emptyHistory struct{}
 
-func (emptyHistory) Execute(context.Context, messages.AccountID) ([]get_history_usecase.Entry, error) {
-	return nil, nil
+func (emptyHistory) Execute(context.Context, messages.AccountID) (get_history_usecase.History, error) {
+	return get_history_usecase.History{}, nil
 }
 
 type stubSubscriber struct {

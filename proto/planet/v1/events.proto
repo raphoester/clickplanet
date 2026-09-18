@@ -18,3 +18,18 @@ message TileTaken {
   string country = 3;
   google.protobuf.Timestamp taken_at = 4;
 }
+
+// BombLanded is a bomb that went off, on land or in the sea. A dud, the shadow
+// ban's bomb, publishes nothing: it went off for nobody.
+message BombLanded {
+  // The country the bomber played for.
+  string country = 1;
+  // The tile it hit. Zero when it fell in the sea.
+  uint32 tile_id = 2;
+  // The country whose ground the tile sits on. Empty in the sea, and on ground
+  // that is no country's.
+  string ground = 3;
+  // How many held tiles it cleared.
+  uint32 cleared = 4;
+  google.protobuf.Timestamp landed_at = 5;
+}

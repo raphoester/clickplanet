@@ -93,8 +93,29 @@ message SendMessageResponse {
 // reactions are the caller's own.
 message GetHistoryRequest {}
 
+// Something the chat says on its own, with no sender: a line between the
+// messages, not a bubble.
+message Announcement {
+  string id = 1;
+  int64 announced_at_unix_ms = 2;
+
+  // What happened, and so how to read payload. A client shows nothing for a
+  // kind it does not know.
+  //
+  // - "bomb": a bomb landed. payload is {"country", "ground", "tile",
+  //   "cleared"}: the bomber's country code; the code of the country whose
+  //   ground it hit, absent in the sea and on no country's ground; the tile it
+  //   hit, absent in the sea; and how many held tiles it cleared.
+  string kind = 3;
+
+  // The values the kind's line is written from, as a JSON object.
+  string payload = 4;
+}
+
 message GetHistoryResponse {
   repeated ChatMessage messages = 1;
+  // Oldest first, like messages. A client puts the two in one list by time.
+  repeated Announcement announcements = 2;
 }
 
 // The X-Session-Token header is required, and must name an account: without
@@ -125,6 +146,7 @@ message ChatEvent {
     ChatMessage message = 1;
     Heartbeat heartbeat = 2;
     ReactionsChanged reactions = 3;
+    Announcement announcement = 4;
   }
 }
 
