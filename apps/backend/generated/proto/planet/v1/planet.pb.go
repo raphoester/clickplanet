@@ -224,8 +224,11 @@ type ClickRequest struct {
 	// never touched: a charge is used only when the player chooses.
 	Spread bool `protobuf:"varint,3,opt,name=spread,proto3" json:"spread,omitempty"`
 	// The player switched enclose on: if this click closes a shape, it takes the
-	// tiles inside and spends the enclose charge. Off, closing a shape takes
-	// nothing and spends nothing.
+	// tiles inside and spends one enclosure. Off, closing a shape takes nothing
+	// and spends nothing.
+	//
+	// One bonus per click: spread and enclose both set is refused with
+	// INVALID_ARGUMENT, and nothing is written or spent.
 	Enclose       bool `protobuf:"varint,4,opt,name=enclose,proto3" json:"enclose,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

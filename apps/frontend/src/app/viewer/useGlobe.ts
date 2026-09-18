@@ -4,7 +4,7 @@ import {CapturedFrame} from './capture.ts';
 import {Country} from '../../domain/countries.ts';
 import {OwnershipsGetter, TileClicker, UpdatesListener} from '../../backends/backend.ts';
 import {useLeaderboardFeed} from './useLeaderboardFeed.ts';
-import {BonusReward, Charges, NO_CHARGES} from '../../domain/bonus.ts';
+import {ALL_OFF, BonusReward, BonusRules, Charges, NO_CHARGES, Switches} from '../../domain/bonus.ts';
 import {BombDrop, Bomber, BonusCatch, BonusListener} from '../../backends/backend.ts';
 import {PlaySound} from '../sound/soundPlayer.ts';
 
@@ -48,7 +48,9 @@ export function useGlobe(options: UseGlobeOptions) {
     // until it is spent, and is what the meter reads.
     const [award, setAward] = useState<BonusReward | undefined>()
     const [charges, setCharges] = useState<Charges>(NO_CHARGES)
+    const [rules, setRules] = useState<BonusRules | undefined>()
     const [bombArmed, setBombArmed] = useState(false)
+    const [switches, setSwitches] = useState<Switches>(ALL_OFF)
 
     // Somebody caught one, anywhere on the planet. Held as the latest catch so
     // the board can say so; it is never what starts this client's own bonus,
@@ -96,6 +98,8 @@ export function useGlobe(options: UseGlobeOptions) {
             onBonusWon: takeBonus,
             onBonusTaken: recordCatch,
             onCharges: setCharges,
+            onRules: setRules,
+            onSwitchesChange: setSwitches,
             bonusListener,
             bomber,
             onBombDropped: recordBomb,
@@ -143,6 +147,7 @@ export function useGlobe(options: UseGlobeOptions) {
     const dismissAward = useCallback(() => setAward(undefined), [])
     // The meter's bomb button: aims the bomb held, or puts it away.
     const toggleBomb = useCallback(() => globeRef.current?.setArmed(!bombArmed), [bombArmed])
+    const toggleSwitch = useCallback((name: keyof Switches) => globeRef.current?.setSwitch(name, !switches[name]), [switches])
     const dismissBomb = useCallback(() => setLastBomb(undefined), [])
 
     return {
@@ -159,8 +164,11 @@ export function useGlobe(options: UseGlobeOptions) {
         award,
         dismissAward,
         charges,
+        rules,
         bombArmed,
         toggleBomb,
+        switches,
+        toggleSwitch,
         lastCatch,
         lastBomb,
         dismissBomb,

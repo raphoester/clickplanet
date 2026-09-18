@@ -219,62 +219,6 @@
     box-shadow: 0 0 16px #FFB13F66;
 }
 
-/*
- * The charges held, one pill each, under the meter. They are not on the meter
- * itself: nothing about them is read off the allowance, and none counts down.
- */
-.click-budget-charges {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    gap: 6px;
-    max-width: 320px;
-}
-
-.click-budget-charge {
-    padding: 4px 12px;
-    border: 1px solid #FFB13F88;
-    border-radius: 999px;
-    background: #2A1A04D9;
-    backdrop-filter: blur(8px);
-    color: #FFC061;
-    font-family: Oswald, sans-serif;
-    font-size: 13px;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-    text-shadow: -1px 1px 0 #000000;
-    white-space: nowrap;
-    animation: click-budget-bonus-in 0.45s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.click-budget-charge--bomb,
-.click-budget-charge--refill {
-    cursor: pointer;
-    pointer-events: auto;
-    transition: background 0.2s ease, border-color 0.2s ease;
-}
-
-.click-budget-charge--bomb:hover,
-.click-budget-charge--bomb:focus-visible,
-.click-budget-charge--refill:hover,
-.click-budget-charge--refill:focus-visible {
-    border-color: #FFB13F;
-    background: #3A2401E6;
-}
-
-/* A press on a full bank: said on the pill, and nothing is spent. */
-.click-budget-charge--full {
-    border-color: #FFFFFF55;
-    color: #FFFFFFB3;
-}
-
-.click-budget-charge--armed {
-    border-color: #FF5A3C;
-    background: #3A0E04E6;
-    color: #FF9A80;
-    box-shadow: 0 0 14px #FF5A3C66;
-}
-
 @media only screen and (max-width: 768px) {
     /*
      * Both ends of a phone screen are taken: the menu is a header sheet and the
@@ -349,27 +293,6 @@
         padding: 4px 10px;
         font-size: 12px;
     }
-
-    .click-budget-charges {
-        justify-content: flex-start;
-    }
-
-    .click-budget-charge {
-        padding: 3px 9px;
-        font-size: 11px;
-    }
-}
-
-/* It arrives as the announcement shrinks into this corner, and lands with it. */
-@keyframes click-budget-bonus-in {
-    from {
-        opacity: 0;
-        transform: scale(0.4);
-    }
-    to {
-        opacity: 1;
-        transform: scale(1);
-    }
 }
 
 /*
@@ -413,10 +336,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .click-budget-charge {
-        animation: none;
-    }
-
     .click-budget-refused {
         animation-name: click-budget-refused-still;
     }

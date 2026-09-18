@@ -18,7 +18,7 @@ import {
     UpdatesListener,
     VPNBlockedError,
 } from "./backend.ts";
-import {BonusReward, BonusRules, Charges, NO_CHARGES} from "../domain/bonus.ts";
+import {ALL_OFF, BonusReward, BonusRules, Charges, NO_CHARGES, Switches} from "../domain/bonus.ts";
 import {ClickBudget, ClickBudgetSource, ClickPrice, now as budgetNow} from "./clickBudget.ts";
 import {SessionUnavailableError} from "./session.ts";
 import {v4 as UUIDv4} from 'uuid';
@@ -41,8 +41,14 @@ const TOLL_STEPS = [
 /** Often enough to be worth developing against, not so often it is the game. */
 const BONUS_EVERY_MS = 20_000
 const BONUS_OFFER_TTL_MS = 15_000
-/** The server's defaults: a spread charge is 8 clicks, an enclose one shape of 25 tiles. */
+/**
+ * The server's defaults: a pool of 8 spread clicks and a stack of 3 enclosures,
+ * a box adding 1 to 4 and 1 to 3 of them, and a shape of 25 tiles at most.
+ */
 const SPREAD_CLICKS = 8
+const SPREAD_PER_BOX = 4
+const ENCLOSURES = 3
+const ENCLOSURES_PER_BOX = 3
 /** The production weights, 5 : 2 : 1 : 2. `giveBomb()` in the console skips the wait. */
 const BONUS_KINDS: BonusReward["kind"][] = [
     "refill", "refill", "refill", "refill", "refill",
@@ -68,7 +74,12 @@ const BOT_CLICKS_PER_SECOND = 4
 const ENCLOSE_MAX_TILES = 25
 
 /** What GetBonusRules answers, from the constants above. */
-const RULES: BonusRules = {blastRadius: BOMB_RADIUS, enclosureMaxTiles: ENCLOSE_MAX_TILES, spreadClicks: SPREAD_CLICKS}
+const RULES: BonusRules = {
+    blastRadius: BOMB_RADIUS,
+    enclosureMaxTiles: ENCLOSE_MAX_TILES,
+    spreadClicks: SPREAD_CLICKS,
+    enclosures: ENCLOSURES,
+}
 
 export type FakeBackendOptions = {
     vpnBlocked?: boolean
@@ -133,8 +144,8 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         const offerable = this.tilePositions ? BONUS_KINDS : BONUS_KINDS.filter((kind) => kind !== "bomb")
 
         this.timers.push(setInterval(() => {
-            // Nobody holds two of a kind, so a kind held is not offered.
-            const kinds = offerable.filter((kind) => !this.holds(kind))
+            // A kind another box would add nothing to is not offered.
+            const kinds = offerable.filter((kind) => !this.full(kind))
             if (kinds.length === 0) return
 
             const offer: BonusOffer = {
@@ -178,7 +189,9 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         this.bombCallbacks.clear()
     }
 
-    public async clickTile(tileId: number, countryId: string) {
+    public async clickTile(tileId: number, countryId: string, switches: Switches = ALL_OFF) {
+        // The server refuses both at once, before anything is spent.
+        if (switches.spread && switches.enclose) throw new Error("spread and enclose switched on together")
         if (this.sessionUnavailable) throw new SessionUnavailableError()
         if (this.vpnBlocked) throw new VPNBlockedError()
 
@@ -187,11 +200,11 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
 
         if (!allowed) throw new RateLimitedError()
         this.applyClick(tileId, countryId)
-        this.pretendToEnclose(tileId, countryId)
-        this.announceBonusClick(tileId, countryId)
+        if (switches.enclose) this.pretendToEnclose(tileId, countryId)
+        if (switches.spread) this.announceBonusClick(tileId, countryId)
     }
 
-    /** What the server broadcasts for a click made under a spread charge. */
+    /** What the server broadcasts for a click made with spread on. */
     private announceBonusClick(tileId: number, countryId: string) {
         if (this.charges.spreadClicksLeft > 0) {
             this.hold({...this.charges, spreadClicksLeft: this.charges.spreadClicksLeft - 1})
@@ -199,16 +212,16 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         }
     }
 
-    private holds(kind: BonusReward["kind"]): boolean {
+    private full(kind: BonusReward["kind"]): boolean {
         switch (kind) {
             case "refill":
                 return this.charges.refill
             case "bomb":
                 return this.charges.bomb
             case "encloseClicks":
-                return this.charges.enclose
+                return this.charges.enclosures >= ENCLOSURES
             case "spreadClicks":
-                return this.charges.spreadClicksLeft > 0
+                return this.charges.spreadClicksLeft >= SPREAD_CLICKS
         }
     }
 
@@ -218,24 +231,27 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         this.bonusCallbacks.forEach(handlers => handlers.onCharges(charges))
     }
 
-    /** Grants the charge a reward is worth. */
-    private grant(reward: BonusReward): ClaimedBonus {
-        switch (reward.kind) {
+    /** Grants a box of `kind`, drawing how much it holds, and answers what was kept, as the server does. */
+    private grant(kind: BonusReward["kind"]): ClaimedBonus {
+        const held = this.charges
+        switch (kind) {
             case "refill":
-                this.hold({...this.charges, refill: true})
-                break
+                this.hold({...held, refill: true})
+                return {reward: rewardOfKind(kind), charges: this.charges}
             case "bomb":
-                this.hold({...this.charges, bomb: true})
-                break
-            case "encloseClicks":
-                this.hold({...this.charges, enclose: true})
-                break
-            case "spreadClicks":
-                this.hold({...this.charges, spreadClicksLeft: reward.clicks})
-                break
+                this.hold({...held, bomb: true})
+                return {reward: rewardOfKind(kind), charges: this.charges}
+            case "encloseClicks": {
+                const enclosures = Math.min(held.enclosures + drawUpTo(ENCLOSURES_PER_BOX), ENCLOSURES)
+                this.hold({...held, enclosures})
+                return {reward: rewardOfKind(kind, enclosures - held.enclosures), charges: this.charges}
+            }
+            case "spreadClicks": {
+                const spreadClicksLeft = Math.min(held.spreadClicksLeft + drawUpTo(SPREAD_PER_BOX), SPREAD_CLICKS)
+                this.hold({...held, spreadClicksLeft})
+                return {reward: rewardOfKind(kind, spreadClicksLeft - held.spreadClicksLeft), charges: this.charges}
+            }
         }
-
-        return {reward, charges: this.charges}
     }
 
     /** Fills the bank with the refill held, refusing a full bank as the server does. */
@@ -269,24 +285,24 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
      * the server's half, like `grantBomb`: see `giveBonus` in main.tsx.
      */
     public grantBonus(kind: Exclude<BonusReward["kind"], "bomb">): ClaimedBonus {
-        return this.grant(rewardOfKind(kind))
+        return this.grant(kind)
     }
 
     /**
-     * This fake has no map geometry, so it cannot find a shape. While an
-     * enclose charge is held, the next click pretends it closed one instead: a
+     * This fake has no map geometry, so it cannot find a shape. While enclose
+     * is on and an enclosure held, every click pretends it closed one instead: a
      * run of neighbouring ids as the outline, and the ids just past it as the
      * inside. Consecutive ids mostly sit side by side on the globe, so it draws
      * a short streak rather than a shape — enough to develop the effect against.
      */
     private pretendToEnclose(tileId: number, countryId: string) {
-        if (!this.charges.enclose) return
+        if (this.charges.enclosures === 0) return
 
         const wall = [0, 1, 2, 3, 4, 5].map(step => tileId + step).filter(id => id <= TILE_COUNT)
         const filled = [6, 7, 8].map(step => tileId + step).filter(id => id <= TILE_COUNT)
         filled.forEach(id => this.applyClick(id, countryId))
 
-        this.hold({...this.charges, enclose: false})
+        this.hold({...this.charges, enclosures: this.charges.enclosures - 1})
 
         const enclosure: Enclosure = {countryId, closingTile: tileId, wall, filled, yours: true}
         this.bonusCallbacks.forEach(handlers => handlers.onEnclosed(enclosure))
@@ -396,7 +412,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         }
 
         this.offered = undefined
-        const claimed = this.grant(offer.reward)
+        const claimed = this.grant(offer.reward.kind)
 
         this.bonusCallbacks.forEach(handlers => handlers.onTaken({countryId}))
 
@@ -409,7 +425,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
      * main.tsx.
      */
     public grantBomb(): ClaimedBonus {
-        return this.grant(rewardOfKind("bomb"))
+        return this.grant("bomb")
     }
 
     public listenForBombs(onDropped: (drop: BombDrop) => void): () => void {
@@ -502,14 +518,20 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     }
 }
 
-function rewardOfKind(kind: BonusReward["kind"]): BonusReward {
+/** From 1 to `most`, evenly. */
+function drawUpTo(most: number): number {
+    return 1 + Math.floor(Math.random() * most)
+}
+
+/** `amount` is what a box added; an offer says only the kind, and reads as one. */
+function rewardOfKind(kind: BonusReward["kind"], amount = 1): BonusReward {
     switch (kind) {
         case "bomb":
             return {kind, radius: BOMB_RADIUS}
         case "encloseClicks":
-            return {kind, maxTiles: ENCLOSE_MAX_TILES}
+            return {kind, shapes: amount, maxTiles: ENCLOSE_MAX_TILES}
         case "spreadClicks":
-            return {kind, clicks: SPREAD_CLICKS}
+            return {kind, clicks: amount}
         case "refill":
             return {kind}
     }

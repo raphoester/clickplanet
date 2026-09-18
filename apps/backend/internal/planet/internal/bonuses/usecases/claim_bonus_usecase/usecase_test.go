@@ -32,9 +32,11 @@ func (s *stubRegistry) Claim(token string, scope string) (bonuses.Reward, bool) 
 
 func (s *stubRegistry) Publish(taken bonuses.Taken) { s.published = append(s.published, taken) }
 
-// stubCharger records the charges granted, and answers what they add up to.
+// stubCharger records the charges granted, and answers what they add up to, the spread pool capped at
+// spreadPool when it is set.
 type stubCharger struct {
-	granted []grantedCharge
+	granted    []grantedCharge
+	spreadPool int
 }
 
 type grantedCharge struct {
@@ -62,6 +64,9 @@ func (s *stubCharger) Held(holder bonuses.Holder) bonuses.Held {
 			held.Enclosures += g.amount
 		case bonuses.KindSpreadClicks:
 			held.SpreadClicks += g.amount
+			if s.spreadPool > 0 {
+				held.SpreadClicks = min(held.SpreadClicks, s.spreadPool)
+			}
 		}
 	}
 
@@ -137,4 +142,17 @@ func TestTheAmountTheBoxGaveIsGrantedAndAnswered(t *testing.T) {
 	assert.Equal(t, []grantedCharge{{holder: "a-guest", kind: bonuses.KindSpreadClicks, amount: 3}}, charger.granted)
 	assert.Equal(t, 3, out.Amount)
 	assert.Equal(t, bonuses.Held{SpreadClicks: 3}, out.Held)
+}
+
+func TestTheAnswerSaysOnlyWhatThePoolKept(t *testing.T) {
+	registry := &stubRegistry{claimable: true, reward: bonuses.Reward{Kind: bonuses.KindSpreadClicks, Amount: 4}}
+	charger := &stubCharger{spreadPool: 8}
+	charger.Grant("a-guest", bonuses.KindSpreadClicks, 7)
+
+	out, err := claim_bonus_usecase.New(registry, charger).
+		Execute(played(t), claim_bonus_usecase.In{Token: "a-token"})
+	require.NoError(t, err)
+
+	assert.Equal(t, 1, out.Amount, "the pool held 7 of 8, so a box of 4 added 1")
+	assert.Equal(t, bonuses.Held{SpreadClicks: 8}, out.Held)
 }

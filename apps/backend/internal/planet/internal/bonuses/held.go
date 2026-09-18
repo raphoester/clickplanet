@@ -60,6 +60,30 @@ func (h Held) Full(config ChargesConfig) []Kind {
 	return kinds
 }
 
+// Count is how many of kind are held: one or none for a refill or a bomb.
+func (h Held) Count(kind Kind) int {
+	switch kind {
+	case KindRefill:
+		return oneIf(h.Refill)
+	case KindBomb:
+		return oneIf(h.Bomb)
+	case KindEncloseClicks:
+		return h.Enclosures
+	case KindSpreadClicks:
+		return h.SpreadClicks
+	}
+
+	return 0
+}
+
+func oneIf(held bool) int {
+	if held {
+		return 1
+	}
+
+	return 0
+}
+
 // Empty says nothing is held, so it need not be kept.
 func (h Held) Empty() bool {
 	return h == (Held{})

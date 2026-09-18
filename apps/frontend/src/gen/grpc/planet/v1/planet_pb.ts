@@ -200,8 +200,11 @@ export class ClickRequest extends Message<ClickRequest> {
 
   /**
    * The player switched enclose on: if this click closes a shape, it takes the
-   * tiles inside and spends the enclose charge. Off, closing a shape takes
-   * nothing and spends nothing.
+   * tiles inside and spends one enclosure. Off, closing a shape takes nothing
+   * and spends nothing.
+   *
+   * One bonus per click: spread and enclose both set is refused with
+   * INVALID_ARGUMENT, and nothing is written or spent.
    *
    * @generated from field: bool enclose = 4;
    */

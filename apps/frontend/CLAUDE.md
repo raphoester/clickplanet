@@ -31,11 +31,12 @@ The switch is gated on `import.meta.env.DEV` as well, because an unset `VITE_*`
 variable is **not** folded away in a build: without the `DEV` check both fakes
 ship in the production bundle.
 
-In fake mode the console has a few commands: `giveBomb()` arms a bomb as if a box
-holding one had just been caught, `giveBonus("refill")` does the same for
-any other bonus (the fake holds charges as the server does: one of each kind, a
-spread spent a click at a time, an enclose on the next click, a refill refused on
-a full bank), and `fakeBackend.botBomb(tile, "fr")` and `fakeBackend.botSpread(tile, "fr")`
+In fake mode the console has a few commands: `giveBomb()` puts a bomb in the
+inventory as if a box holding one had just been caught, `giveBonus("refill")` does
+the same for any other bonus (the fake holds charges as the server does: a refill
+and a bomb at most, a pool of 8 spread clicks and a stack of 3 enclosures, a box
+adding 1 to 4 and 1 to 3 of them, spread and enclose spent only while switched on,
+both at once refused, a refill refused on a full bank), and `fakeBackend.botBomb(tile, "fr")` and `fakeBackend.botSpread(tile, "fr")`
 play somebody else's bomb or spread click.
 
 A local backend is the quickest way to exercise the real chat: `cmd/api`'s
@@ -831,7 +832,7 @@ mint a guest and insert a row into `auth.identities` for its account.
   size in pixels, so a shape closed while zoomed out is still seen. A shape that
   arrives while the tab is hidden is not played — it would all start at once on
   return.
-- `bonusClickEffects.ts` — the same, for every click made under a spread charge
+- `bonusClickEffects.ts` — the same, for every click made with spread on
   (`tilesSpread`: a green burst, a spark popping onto each tile around it in
   turn, two rings). It reuses the enclosure's shaders, with normal rather than
   additive rings, which vanished on the white of a flag. A busy planet spreads a
@@ -1030,34 +1031,69 @@ it, and if the echo arrives first the rollback is already a no-op.
 
 ## Charges
 
-A bonus box holds a **charge**, which has no clock: a refill (the click bank,
-filled when the player chooses), a bomb (one drop), an enclose (one shape,
-`maxTiles` at most) or a spread (the next few clicks). The server keeps them, per account, for a day, one
-of each kind at most.
+A bonus box holds a **charge**, which has no clock and is never used on its own:
+a refill (the click bank, filled when the player presses it), a bomb (one drop), a
+stack of enclosures (one shape each, `maxTiles` at most) and a pool of spread
+clicks. The server keeps them per account, in postgres: a refill and a bomb at
+most, up to 3 enclosures and up to 8 spread clicks. A box adds a random 1 to 3
+enclosures or 1 to 4 spread clicks, capped at the size; the reward it announces
+is what was kept (`+2 spread clicks`), which is what the server answers in
+`ClaimBonusResponse.amount`.
 
 **`PlanetBackend` holds `Charges` (`domain/bonus.ts`) and nothing pushes them.**
 It reads `GetCharges` at load, with the token in hand and never a fresh one, and
 again when a click goes out under a new token (`followSession`): the charges are
 the account's. `ClaimBonusResponse.charges` replaces them on a claim, and
 `UseRefillResponse.charges` on a refill, which also brings the full budget. Otherwise
-it follows its own calls: an accepted click takes a spread click off, this
-player's own `tilesEnclosed` drops the enclose, and a drop takes the bomb off at
-once and gives it back only if the call never reached the server. The click
-answer says nothing about charges, on purpose (see the backend's CLAUDE.md). A
-charge spent in another tab stays on screen until the next read. It reaches the
-globe through `BonusHandlers.onCharges`, and `useGlobe` hands it to the meter.
+it follows its own calls: an accepted click **sent with spread on** takes a spread
+click off, this player's own `tilesEnclosed` takes an enclosure off, and a drop
+takes the bomb off at once and gives it back only if the call never reached the
+server. The click answer says nothing about charges, on purpose (see the backend's
+CLAUDE.md). A charge spent in another tab stays on screen until the next read. It
+reaches the globe through `BonusHandlers.onCharges`, and `useGlobe` hands it to the
+inventory.
 
 **The sizes are rules, read once**: `GetBonusRules` (a cached GET) answers the
-blast radius, the enclose's `maxTiles` and the spread's clicks as `BonusRules`,
-through `onRules`. A reward is sized from them. A page open across a change of
+blast radius, the enclose's `maxTiles`, the spread pool's size and the enclosure
+stack's size as `BonusRules`, through `onRules`. A page open across a change of
 rules shows the old sizes until it is reloaded.
 
-`ClickBudgetMeter` shows one pill per charge under the meter — "Refill ready",
-"Bomb ready", "Enclose ready", "Spread: 5 clicks left" (`chargeLabels`). The
-refill's is a button (`Refiller.useRefill`). **On a full bank it sends nothing**
-and says "Bank already full" for two seconds: a refill there would be wasted.
-The server refuses it too, `FailedPrecondition`, read as `BankFullError`, and
-spends nothing.
+### Off by default, one at a time
+
+**Nothing is used until the player says so.** Spread and enclose are switches
+(`Switches`), off at load and never turned on by the client. Every click carries
+them: `TileClicker.clickTile(tile, country, switches)` sends
+`ClickRequest.spread` and `enclose`, and the server spends a charge only when its
+switch is on. A switch goes off by itself when its pool runs out
+(`switchesHeld`), so it never says a click does something it will not.
+
+**One bonus at a time**, the bomb included: `switched` turns the other switch off
+when one goes on, aiming the bomb switches both off, and switching one on puts the
+bomb away. `globe.ts` holds the one copy (`setSwitch`, `onSwitchesChange`). The
+server refuses a click with both switches on (`INVALID_ARGUMENT`), before it
+writes or spends anything.
+
+### The inventory
+
+`components/Inventory.tsx` is the section that shows them, docked **above**
+`ClickBudgetMeter` in its corner (the meter takes it as `children`, and shows it
+even with no budget). One slot per kind, always shown, each drawn with its box's
+icon (`BonusIcon`) in its box's colours (the `--bonus-*` properties in
+`BonusAward.css`, shared with the announcement). An empty slot is dimmed and
+cannot be pressed. A pool shows its count against its size (`5/8`, `2/3`), and a
+word over the icon says what the slot is doing (`On`, `Aim`, `Full`).
+
+- **Refill** fills the bank (`Refiller.useRefill`). **On a full bank it sends
+  nothing** and says "Full" for two seconds: a refill there would be wasted. The
+  server refuses it too, `FailedPrecondition`, read as `BankFullError`, and spends
+  nothing.
+- **Bomb** aims it, or puts it away (`Globe.setArmed`).
+- **Spread** and **Enclose** switch (`Globe.setSwitch`), `aria-pressed`.
+
+**The whole section folds** from its header, which counts the kinds held; the
+fold is kept in local storage (`clickplanet-inventory-folded`, read and written
+in a `try`, since a private window can throw). It glows while something is on or
+aimed, so a folded inventory still says the next click does more than paint.
 
 ## Bombs
 
@@ -1065,10 +1101,10 @@ A bonus box can hold a bomb (`BonusReward` kind `bomb`), kept until it is droppe
 anywhere on the planet. It clears every tile within `radius` of where it lands —
 the server's call, not this client's.
 
-**A bomb is aimed or put away.** Held for a day, it cannot stay aimed: while
-aimed, a click claims no tile. It is aimed when it is caught; the meter's bomb
-pill is a button that puts it away and takes it out again (`Globe.setArmed`), and
-Escape puts it away. The radius comes from the rules, so a bomb still in hand
+**A bomb is aimed or put away.** It is kept until it is dropped, so it cannot stay
+aimed: while aimed, a click claims no tile. It is never aimed on its own, not
+even when it is caught: the inventory's bomb slot aims it and puts it away
+(`Globe.setArmed`), and Escape puts it away. The radius comes from the rules, so a bomb still in hand
 after a reload can be aimed. The pieces:
 `backends/backend.ts` declares `Bomber` and `BombDrop`, `domain/blast.ts` the
 timeline every screen agrees on, `domain/holdToDrop.ts` the gesture,

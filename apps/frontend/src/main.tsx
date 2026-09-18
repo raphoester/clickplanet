@@ -59,13 +59,13 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
             const globe = (window as {clickplanetGlobe?: Globe}).clickplanetGlobe
             if (!globe) return "the globe is not loaded yet"
             globe.takeReward(fake.grantBomb())
-            return "💣 armed — press and hold on the planet"
+            return "💣 in your inventory — aim it from there"
         },
         giveBonus: (kind: Parameters<typeof fake.grantBonus>[0]) => {
             const globe = (window as {clickplanetGlobe?: Globe}).clickplanetGlobe
             if (!globe) return "the globe is not loaded yet"
             globe.takeReward(fake.grantBonus(kind))
-            return `${kind} running — click the planet`
+            return `${kind} in your inventory — switch it on from there`
         },
     })
 

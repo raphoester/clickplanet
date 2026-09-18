@@ -33,7 +33,8 @@ type In struct {
 type Out struct {
 	Kind bonuses.Kind
 
-	// How much the box gave: enclosures or spread clicks. One for a refill or a bomb.
+	// How much the box added: enclosures or spread clicks, one for a refill or a bomb. Less than the box
+	// drew when the stack or the pool reached its size, so the player is never told of what was not kept.
 	Amount int
 
 	// What the caller holds once the charge is granted.
@@ -60,11 +61,13 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	}
 
 	holder := bonuses.HolderOf(payer)
+	before := u.charger.Held(holder)
 	u.charger.Grant(holder, reward.Kind, reward.Amount)
+	held := u.charger.Held(holder)
 
 	// Only once the charge is held: a catch announced to the planet that then failed to apply is the one
 	// lie this could tell.
 	u.registry.Publish(bonuses.Taken{CountryID: in.CountryID, Kind: reward.Kind})
 
-	return Out{Kind: reward.Kind, Amount: reward.Amount, Held: u.charger.Held(holder)}, nil
+	return Out{Kind: reward.Kind, Amount: held.Count(reward.Kind) - before.Count(reward.Kind), Held: held}, nil
 }

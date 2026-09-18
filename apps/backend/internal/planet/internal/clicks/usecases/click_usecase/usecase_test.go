@@ -41,6 +41,25 @@ func (s *testSuite) execute(tileID uint32, countryID string) error {
 	return err
 }
 
+func (s *testSuite) TestSpreadAndEncloseTogetherAreRefusedAndWriteNothing() {
+	_, err := s.useCase.Execute(context.Background(),
+		click_usecase.In{TileID: 77, CountryID: "fr", Spread: true, Enclose: true})
+
+	s.ErrorIs(err, clicks.ErrBonusesTogether)
+	owner, _ := s.storage.Owner(77)
+	s.Empty(owner)
+}
+
+func (s *testSuite) TestOneBonusAtATimeIsAccepted() {
+	for _, in := range []click_usecase.In{
+		{TileID: 78, CountryID: "fr", Spread: true},
+		{TileID: 79, CountryID: "fr", Enclose: true},
+	} {
+		_, err := s.useCase.Execute(context.Background(), in)
+		s.NoError(err)
+	}
+}
+
 func (s *testSuite) TestNominalCase() {
 	s.NoError(s.execute(1, "fr"))
 }

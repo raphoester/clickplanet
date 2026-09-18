@@ -15,13 +15,14 @@ import ChatPanel from "../chat/ChatPanel.tsx";
 import Menu from "../Menu.tsx";
 import BonusAward from "../components/BonusAward.tsx";
 import ClickBudgetMeter from "../components/ClickBudgetMeter.tsx";
+import Inventory from "../components/Inventory.tsx";
 import SessionUnavailableModal from "../components/SessionUnavailableModal.tsx";
 import VPNBlockedModal from "../components/VPNBlockedModal.tsx";
 import CameraButton from "../share/CameraButton.tsx";
 import SharePreview from "../share/SharePreview.tsx";
 import {useSharePicture} from "../share/useSharePicture.ts";
 import {shareStats} from "../../domain/shareCard.ts";
-import {ClickBudgetSource} from "../../backends/clickBudget.ts";
+import {ClickBudgetSource, now as budgetNow, tokensAt} from "../../backends/clickBudget.ts";
 import {useClickBudget} from './useClickBudget.ts';
 import {useCountryStorage} from './useCountryStorage.ts';
 import {GlobeStatus, useGlobe} from './useGlobe.ts';
@@ -86,8 +87,11 @@ export default function Viewer(props: ViewerProps) {
         award,
         dismissAward,
         charges,
+        rules,
         bombArmed,
         toggleBomb,
+        switches,
+        toggleSwitch,
         lastBomb,
         dismissBomb,
     } = useGlobe({
@@ -101,14 +105,18 @@ export default function Viewer(props: ViewerProps) {
         country: countryState,
     })
 
-    // The budget and the charges follow the answer, through the backend. A full
-    // bank, or a refill already gone, changes nothing worth saying.
+    // The budget and the charges follow the answer, through the backend. A
+    // refill on a full bank would be wasted, so the press says so and sends
+    // nothing; the server refuses it too. A refill already gone changes
+    // nothing worth saying.
     const refiller = props.refiller
     const spendRefill = refiller && (() => {
+        if (clickBudget && tokensAt(clickBudget, budgetNow()) >= clickBudget.capacity) return false
         refiller.useRefill(countryState.code).catch((e) => {
             if (e instanceof BankFullError || e instanceof BonusLostError) return
             console.error("could not use the refill", e)
         })
+        return true
     })
 
     // The camera lives out here rather than in the menu: the globe is what it
@@ -147,13 +155,17 @@ export default function Viewer(props: ViewerProps) {
                                onClose={discard}/>}
 
         {status.state === 'ready' && <ClickBudgetMeter budget={clickBudget}
-                                                       charges={charges}
-                                                       onUseRefill={spendRefill}
-                                                       bombArmed={bombArmed}
-                                                       onToggleBomb={props.bomber ? toggleBomb : undefined}
                                                        countryName={countryState.name}
                                                        refusals={refusals}
-                                                       onSignIn={guest ? () => setPitchOpen(true) : undefined}/>}
+                                                       onSignIn={guest ? () => setPitchOpen(true) : undefined}>
+            {props.bonusListener && <Inventory charges={charges}
+                                               rules={rules}
+                                               switches={switches}
+                                               onToggle={toggleSwitch}
+                                               bombArmed={bombArmed}
+                                               onToggleBomb={props.bomber ? toggleBomb : undefined}
+                                               onUseRefill={spendRefill}/>}
+        </ClickBudgetMeter>}
 
         {pitchOpen && guest && props.account && clickBudget?.linkedMultiplier && <SignInPitchModal
             state={account}

@@ -20,7 +20,7 @@ import {
     UpdatesListener,
     VPNBlockedError,
 } from "./backend.ts";
-import {BonusReward, BonusRules, Charges, NO_CHARGES} from "../domain/bonus.ts";
+import {ALL_OFF, BonusReward, BonusRules, Charges, NO_CHARGES, Switches} from "../domain/bonus.ts";
 import {
     BonusKind,
     ChargesHeld,
@@ -76,8 +76,8 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
      * What this player holds. Read from the server at load and when the account
      * changes; after that it follows this client's own calls, because nothing
      * pushes it: a claim answers it, a drop spends the bomb, an accepted click
-     * spends a spread click, and this client's own closed shape spends the
-     * enclose. A click answers nothing about it, which would tell a shadow-banned
+     * sent with spread on spends a spread click, and this client's own closed
+     * shape spends an enclosure. A click answers nothing about it, which would tell a shadow-banned
      * player that its clicks spend nothing.
      */
     private charges: Charges = NO_CHARGES
@@ -129,12 +129,12 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
      * moved onto cellular, is not something to raise a dialog about. The retry
      * is not a loop — a second refusal is reported.
      */
-    public async clickTile(tileId: number, countryId: string) {
+    public async clickTile(tileId: number, countryId: string, switches: Switches = ALL_OFF) {
         this.inFlight++
         this.reportBudget()
 
         try {
-            await this.click(tileId, countryId)
+            await this.click(tileId, countryId, switches)
         } catch (e) {
             if (!(e instanceof ConnectError) || e.code !== Code.Unauthenticated) {
                 throw asClickError(e)
@@ -143,7 +143,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
             this.session.invalidate()
 
             try {
-                await this.click(tileId, countryId)
+                await this.click(tileId, countryId, switches)
             } catch (retried) {
                 throw asClickError(retried)
             }
@@ -153,7 +153,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         }
     }
 
-    private async click(tileId: number, countryId: string): Promise<void> {
+    private async click(tileId: number, countryId: string, {spread, enclose}: Switches): Promise<void> {
         const token = await this.session.token()
 
         const headers = new Headers()
@@ -161,13 +161,14 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
 
         try {
             const res = await retrying(
-                () => this.client.click({tileId, countryId}, {headers}),
+                () => this.client.click({tileId, countryId, spread, enclose}, {headers}),
                 `click ${tileId}`,
             )
             this.anchorBudget(res.budget, countryId)
             this.followSession(token)
-            // An accepted click is what spends a spread click, on the server as here.
-            if (this.charges.spreadClicksLeft > 0) {
+            // An accepted click sent with spread on is what spends a spread
+            // click, on the server as here.
+            if (spread && this.charges.spreadClicksLeft > 0) {
                 this.holdCharges({...this.charges, spreadClicksLeft: this.charges.spreadClicksLeft - 1})
             }
         } catch (e) {
@@ -338,8 +339,10 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
 
                 const enclosure = enclosureOf(event)
                 if (enclosure) {
-                    // This player's own shape is what spent its enclose charge.
-                    if (enclosure.yours && this.charges.enclose) this.holdCharges({...this.charges, enclose: false})
+                    // This player's own shape is what spent one of its enclosures.
+                    if (enclosure.yours && this.charges.enclosures > 0) {
+                        this.holdCharges({...this.charges, enclosures: this.charges.enclosures - 1})
+                    }
                     this.bonusCallbacks.forEach(handlers => handlers.onEnclosed(enclosure))
                     return
                 }
@@ -384,6 +387,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                 blastRadius: res.blastRadius,
                 enclosureMaxTiles: res.enclosureMaxTiles,
                 spreadClicks: res.spreadClicks,
+                enclosures: res.enclosures,
             }
             this.rules = rules
             this.bonusCallbacks.forEach(handlers => handlers.onRules(rules))
@@ -470,7 +474,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         this.followSession(sessionToken)
 
         // Only a kind this build knows is ever drawn, so only one can be caught.
-        const reward = rewardOf(res.kind, this.rules)
+        const reward = rewardOf(res.kind, this.rules, res.amount)
         if (!reward) throw new BonusLostError()
 
         const charges = chargesOfMessage(res.charges)
@@ -637,23 +641,30 @@ export function spreadOf(event: PlanetEvent): SpreadClick | undefined {
 export function chargesOfMessage(held: ChargesHeld | undefined): Charges {
     if (!held) return NO_CHARGES
 
-    return {refill: held.refill, bomb: held.bomb, enclose: held.enclose, spreadClicksLeft: held.spreadClicksLeft}
+    return {refill: held.refill, bomb: held.bomb, enclosures: held.enclosures, spreadClicksLeft: held.spreadClicksLeft}
 }
 
-/** The sizes come from the rules read at load; before they are, a reward reads as size zero. */
+const NO_RULES: BonusRules = {blastRadius: 0, enclosureMaxTiles: 0, spreadClicks: 0, enclosures: 0}
+
+/**
+ * `amount` is what a claim granted; an offer says only the kind, and reads as
+ * one. The sizes come from the rules read at load; before they are, a reward
+ * reads as size zero.
+ */
 function rewardOf(
     kind: BonusKind,
-    {blastRadius, enclosureMaxTiles: maxTiles, spreadClicks}: BonusRules = {blastRadius: 0, enclosureMaxTiles: 0, spreadClicks: 0},
+    {blastRadius, enclosureMaxTiles: maxTiles}: BonusRules = NO_RULES,
+    amount = 1,
 ): BonusReward | undefined {
     switch (kind) {
         case BonusKind.REFILL:
             return {kind: "refill"}
         case BonusKind.SPREAD_CLICKS:
-            return {kind: "spreadClicks", clicks: spreadClicks}
+            return {kind: "spreadClicks", clicks: amount}
         case BonusKind.BOMB:
             return {kind: "bomb", radius: blastRadius}
         case BonusKind.ENCLOSE_CLICKS:
-            return {kind: "encloseClicks", maxTiles}
+            return {kind: "encloseClicks", shapes: amount, maxTiles}
         default:
             return undefined
     }

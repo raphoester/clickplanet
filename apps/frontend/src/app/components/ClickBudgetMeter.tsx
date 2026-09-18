@@ -1,23 +1,12 @@
-import {useEffect, useRef, useState} from 'react'
+import {ReactNode, useEffect, useRef} from 'react'
 import {ClickBudget, nextClickProgress, now, secondsToOneMore, tokensAt} from "../../backends/clickBudget.ts"
-import {chargeLabels, Charges, NO_CHARGES} from "../../domain/bonus.ts"
 import {describePrice, factor} from "../../domain/clickPrice.ts"
 import "./ClickBudgetMeter.css"
 
 export type ClickBudgetMeterProps = {
     budget?: ClickBudget
-    /**
-     * The charges held: a refill, a bomb, an enclose, a spread's clicks. Said
-     * under the meter with no countdown, since none of them runs out while the
-     * player plays — each lasts until it is spent.
-     */
-    charges?: Charges
-    /** Fills the bank with the refill held. Absent, the refill is only said. */
-    onUseRefill?: () => void
-    /** Whether the bomb held is aimed, so its button can say which way it goes. */
-    bombArmed?: boolean
-    /** Aims the bomb held, or puts it away. Absent, the bomb is only said. */
-    onToggleBomb?: () => void
+    /** Docked above the meter, in its corner: the inventory. Shown without a budget too. */
+    children?: ReactNode
     /** The country selected, to say why its clicks refill slower. */
     countryName?: string
     /**
@@ -64,10 +53,7 @@ const STEP_MS = 250
  */
 export default function ClickBudgetMeter({
     budget,
-    charges = NO_CHARGES,
-    onUseRefill,
-    bombArmed = false,
-    onToggleBomb,
+    children,
     countryName = "",
     refusals = 0,
     onSignIn,
@@ -151,7 +137,7 @@ export default function ClickBudgetMeter({
     }, [budget])
 
     // A backend that reports no allowance is one that enforces none here.
-    if (!budget) return null
+    if (!budget) return children ? <div className="click-budget-dock">{children}</div> : null
 
     const pips = budget.capacity <= MAX_PIPS ? budget.capacity : 0
 
@@ -166,50 +152,42 @@ export default function ClickBudgetMeter({
     // Said only when the server says what it is worth: a number made up here could promise what it does not grant.
     const speedUp = onSignIn && budget.linkedMultiplier
 
-    return <div className="click-budget-dock"><div
-        ref={root}
-        className={className}
-        role="meter"
-        aria-valuemin={0}
-        aria-valuenow={whole}
-        aria-valuemax={budget.capacity}
-        aria-label="Clicks left before the server slows you down"
-        style={{"--click-budget-capacity": budget.capacity} as React.CSSProperties}>
+    return <div className="click-budget-dock">
+        {children}
 
-        <div className="click-budget-count">
-            <span ref={count} className="click-budget-number">{whole}</span>
-            <span className="click-budget-unit">left</span>
-        </div>
+        <div
+            ref={root}
+            className={className}
+            role="meter"
+            aria-valuemin={0}
+            aria-valuenow={whole}
+            aria-valuemax={budget.capacity}
+            aria-label="Clicks left before the server slows you down"
+            style={{"--click-budget-capacity": budget.capacity} as React.CSSProperties}>
 
-        {pips > 0
-            ? <div className="click-budget-pips">
-                {Array.from({length: pips}, (_, index) =>
-                    <span
-                        key={index}
-                        className="click-budget-pip"
-                        style={{"--click-budget-index": index} as React.CSSProperties}/>,
-                )}
+            <div className="click-budget-count">
+                <span ref={count} className="click-budget-number">{whole}</span>
+                <span className="click-budget-unit">left</span>
             </div>
-            : <div className="click-budget-bar"/>}
 
-        {slow(budget) && <span ref={wait} className="click-budget-next">{waitText(budget, now())}</span>}
+            {pips > 0
+                ? <div className="click-budget-pips">
+                    {Array.from({length: pips}, (_, index) =>
+                        <span
+                            key={index}
+                            className="click-budget-pip"
+                            style={{"--click-budget-index": index} as React.CSSProperties}/>,
+                    )}
+                </div>
+                : <div className="click-budget-bar"/>}
 
-        {price && <div className="click-budget-toll">
-            <span className="click-budget-toll-headline">{price.headline}</span>
-            <span className="click-budget-toll-detail">{price.detail}</span>
-        </div>}
-    </div>
+            {slow(budget) && <span ref={wait} className="click-budget-next">{waitText(budget, now())}</span>}
 
-        <ChargesHeld charges={charges}
-                     bombArmed={bombArmed}
-                     onToggleBomb={onToggleBomb}
-                     onUseRefill={onUseRefill && (() => {
-                         // A refill on a full bank would be wasted, so the press
-                         // says so and sends nothing. The server refuses it too.
-                         if (tokensAt(budget, now()) >= budget.capacity) return false
-                         onUseRefill()
-                         return true
-                     })}/>
+            {price && <div className="click-budget-toll">
+                <span className="click-budget-toll-headline">{price.headline}</span>
+                <span className="click-budget-toll-detail">{price.detail}</span>
+            </div>}
+        </div>
 
         {speedUp && <button type="button" className="click-budget-sign-in" onClick={onSignIn}>
             <BoltIcon/>
@@ -226,55 +204,6 @@ function slow(budget: ClickBudget): boolean {
 function waitText(budget: ClickBudget, at: number): string {
     const left = secondsToOneMore(budget, at)
     return left === undefined ? "" : `+1 in ${Math.ceil(left)}s`
-}
-
-/** How long "Bank already full" stays on the refill pill. */
-const FULL_NOTICE_MS = 2000
-
-/**
- * One pill per charge held. Two are buttons. The bomb's aims it and puts it
- * away: a bomb held for a day cannot stay aimed for a day, since an aimed bomb
- * turns every click into a press that drops it. The refill's fills the bank,
- * when the player chooses.
- */
-function ChargesHeld({charges, bombArmed, onToggleBomb, onUseRefill}: {
-    charges: Charges
-    bombArmed: boolean
-    onToggleBomb?: () => void
-    /** Answers false when the bank is full, and nothing was sent. */
-    onUseRefill?: () => boolean
-}) {
-    const [full, setFull] = useState(false)
-
-    useEffect(() => {
-        if (!full) return
-        const timer = setTimeout(() => setFull(false), FULL_NOTICE_MS)
-        return () => clearTimeout(timer)
-    }, [full])
-
-    const labels = chargeLabels(charges)
-    if (labels.length === 0) return null
-
-    return <div className="click-budget-charges" role="status" aria-label="Bonuses held">
-        {labels.map(({kind, label}) => kind === "refill" && onUseRefill
-            ? <button key={kind}
-                      type="button"
-                      className={`click-budget-charge click-budget-charge--refill${full ? " click-budget-charge--full" : ""}`}
-                      title="Fill your clicks to full"
-                      onClick={() => setFull(!onUseRefill())}>
-                {full ? "Bank already full" : label}
-            </button>
-            : kind === "bomb" && onToggleBomb
-            ? <button key={kind}
-                      type="button"
-                      className={`click-budget-charge click-budget-charge--bomb${bombArmed ? " click-budget-charge--armed" : ""}`}
-                      aria-pressed={bombArmed}
-                      title={bombArmed ? "Put the bomb away (Esc)" : "Aim the bomb, then hold on the planet to drop it"}
-                      onClick={onToggleBomb}>
-                <span aria-hidden="true">💣</span> {bombArmed ? "Aiming: hold to drop" : label}
-            </button>
-            : <span key={kind} className={`click-budget-charge click-budget-charge--${kind}`}>{label}</span>)}
-    </div>
 }
 
 function BoltIcon() {

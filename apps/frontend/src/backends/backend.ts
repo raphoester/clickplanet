@@ -1,7 +1,11 @@
-import {BonusReward, BonusRules, Charges} from "../domain/bonus.ts"
+import {BonusReward, BonusRules, Charges, Switches} from "../domain/bonus.ts"
 
 export interface TileClicker {
-    clickTile(tileId: number, countryId: string): Promise<void>
+    /**
+     * `switches` are the bonuses the player has switched on: the server spends
+     * a spread click or an enclosure on this click only when its switch is on.
+     */
+    clickTile(tileId: number, countryId: string, switches?: Switches): Promise<void>
 }
 
 export type Ownerships = {

@@ -101,3 +101,12 @@ func TestFullNamesTheKindsAnotherBoxWouldAddNothingTo(t *testing.T) {
 	assert.ElementsMatch(t, []Kind{KindRefill, KindBomb, KindEncloseClicks, KindSpreadClicks},
 		Held{Refill: true, Bomb: true, Enclosures: 3, SpreadClicks: 8}.Full(chargeRules))
 }
+
+func TestCountIsHowManyOfAKindAreHeld(t *testing.T) {
+	held := Held{Bomb: true, Enclosures: 2, SpreadClicks: 5}
+
+	assert.Equal(t, 0, held.Count(KindRefill))
+	assert.Equal(t, 1, held.Count(KindBomb))
+	assert.Equal(t, 2, held.Count(KindEncloseClicks))
+	assert.Equal(t, 5, held.Count(KindSpreadClicks))
+}

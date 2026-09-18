@@ -883,14 +883,16 @@ strong ones can be made rare (production runs 5 : 2 : 1 : 2):
 
 - **`refill`** — a charge: fills the caller's click bank to full, when the
   caller chooses. Up to one bank, 60 clicks. See [What a refill does to the bucket](#what-a-refill-does-to-the-bucket).
-- **`spread_clicks`** — a charge: the next `bonus.spread.clicks` clicks (8) also
-  take the tiles touching the one clicked, about 56 tiles. See [What a spread does to a click](#what-a-spread-does-to-a-click).
+- **`spread_clicks`** — 1 to `bonus.spread.maxPerBox` (4) clicks added to a pool
+  of at most `bonus.spread.clicks` (8). While the player switches spread on, each
+  click spends one and also takes the tiles touching the one clicked. See [What a spread does to a click](#what-a-spread-does-to-a-click).
 - **`bomb`** — a charge: one bomb, kept until it is dropped. It
   clears a circle of `bonus.bomb.rings` tile spacings around where it lands,
   whoever holds the tiles. See [What a bomb does](#what-a-bomb-does).
-- **`enclose_clicks`** — a charge: the next click that closes a shape of the
-  caller's own tiles also takes the tiles inside it, one shape of at most
-  `bonus.enclose.maxTiles` tiles (25).
+- **`enclose_clicks`** — 1 to `bonus.enclose.maxPerBox` (3) enclosures added to a
+  stack of at most `bonus.enclose.held` (3). While the player switches enclose on,
+  a click that closes a shape of the caller's own tiles also takes the tiles
+  inside it, at most `bonus.enclose.maxTiles` (25), and spends one.
   See [What an enclose does to a click](#what-an-enclose-does-to-a-click).
 
 Every kind is a **charge**, worth about one bank, rather than a timer — see
@@ -952,8 +954,8 @@ race any more, but catch rate is where an advantage is left: a script catches
 every box it is offered where a person catches some. This makes the worst case
 a number you choose rather than a function of reflexes. Past 12 charges in the
 last hour the slot is lost, like a caller's who was away; 12 is above the ten
-boxes an hour a person catching every one would get. Holding a charge already
-stops that kind coming again.
+boxes an hour a person catching every one would get. A kind another box would
+add nothing to (a refill or a bomb held, a full stack or pool) is not offered.
 
 **A caller is a scope, not a connection.** `Attend` is keyed on `cpipscope.Of`,
 the same unit the session token binds to, and holds every stream
@@ -994,9 +996,9 @@ planet that then failed to apply is the one lie this cannot tell.
 
 A timer rewarded speed rather than planning: with a bank of clicks, a 10s spread
 let a player dump the whole bank at seven tiles a click, more than a bomb, and a
-bomb held 30s was dropped on the first target in sight. So these three are
-**use-once charges** with no clock: a bomb is one drop, an enclose is one shape,
-a spread is the next 8 clicks.
+bomb held 30s was dropped on the first target in sight. So every kind is a
+**charge**, kept until the player uses it: nothing lapses and nothing is used on
+its own.
 
 - **Only an account holds a charge.** `bonuses.Holder` is the account the click
   token names, and `HolderOf(clicks.PayerOf(ctx))` derives it, so the claim, the
@@ -1005,46 +1007,62 @@ a spread is the next 8 clicks.
   no account is `NoHolder`: it holds nothing, and a scope where no account plays
   is offered nothing. Every client mints a guest account, so this leaves
   out only a caller with no token at all.
-- **The rules are a value, `bonuses.Hand`**: one account's charges with the
-  moment each lapses. `Granted`, `AfterRefill`, `AfterBomb`, `AfterEnclose` and
-  `AfterSpreadClick` build a new hand and change nothing; the storage swaps it in.
-- **At most one of each kind.** A second grant of a kind held replaces it rather
-  than stacking, and the schedule does not offer a kind held by any player who
-  clicked from the scope within `activeWithin` (`Registry.offerable`). The
-  schedule is by scope and a charge is by account, so `bonus_click` tells the
-  registry both on every accepted click: `Clicked(scope, holder)`. Stockpiling
-  bombs and dropping them all at once is exactly the "a long session destroyed
-  in seconds" this avoids. The registry reads the charges through its
-  `Holdings` port, which the storage satisfies.
-- **A charge lapses `bonus.chargeTTL` (24h) after it was granted**, unspent.
-  Long, so a held charge is a reason to come back.
-- **A restart keeps them.** `bonuses/inmemory_charge_storage` holds every hand in
-  memory, so a click reads and spends under one lock with no round trip, and
-  writes the hands that changed through its `Persistence` every
+- **The rules are a value, `bonuses.Held`**: a refill and a bomb (held or not), a
+  stack of enclosures and a pool of spread clicks. `Granted`, `AfterRefill`,
+  `AfterBomb`, `AfterEnclose` and `AfterSpreadClick` build a new `Held` and change
+  nothing; the storage swaps it in. `Count(kind)` is how many of a kind are held,
+  and `Full(config)` the kinds another box would add nothing to.
+- **How much fits.** A refill and a bomb are one: a second replaces the first,
+  which is what stops a stockpile of bombs being dropped all at once. Enclosures
+  stack to `bonus.enclose.held` (3) and spread clicks pool to `bonus.spread.clicks`
+  (8). A box draws its amount evenly from 1 to `maxPerBox` (`Registry.amountOf`,
+  `crypto/rand`) and the grant caps it at the size. The claim answers
+  `ClaimBonusResponse.amount` as **what was kept**, `Count` after less `Count`
+  before, so a player is never told of clicks that did not fit.
+- **The schedule offers no kind that is full** for any account that clicked from
+  the scope within `activeWithin` (`Registry.offerable`). The schedule is by scope
+  and a charge is by account, so `bonus_click` tells the registry both on every
+  accepted click: `Clicked(scope, holder)`. The registry reads the charges through
+  its `Holdings` port, which the storage satisfies.
+- **Off by default, one at a time.** `ClickRequest.spread` and `enclose` say what
+  the player switched on for this click, and `click_usecase.In` carries them.
+  `spread_click` spends a spread click only with `Spread`, `enclose_click` an
+  enclosure only with `Enclose`. **Both at once is refused** by the rule itself
+  (`clicks.ErrBonusesTogether`, answered `InvalidArgument`) before anything is
+  written or spent: a spread's tiles and an enclose's pocket would each take what
+  the other decides. The client keeps one on at a time too, and aiming the bomb
+  switches both off.
+- **Nothing lapses.** Migration `20260919120000_charges_never_lapse` replaced the
+  `*_until` columns with `refill` and `bomb` booleans and an `enclosures` count,
+  keeping what was still in time. `bonus.chargeTTL` is gone.
+- **A restart keeps them.** `bonuses/inmemory_charge_storage` holds every account's
+  `Held` in memory, so a click reads and spends under one lock with no round trip,
+  and writes the ones that changed through its `Persistence` every
   `chargeStorage.flushInterval` (1s): `bonuses/postgres_charge_store`, one row per
-  account in `planet.charges`, a NULL time for a kind not held. A spent or lapsed
-  hand is a deleted row. Like the tile map: boot loads it and a failed load refuses
-  the boot, shutdown flushes once more, and a hard kill loses at most the last
-  second. A deleted account's charges are not removed at once: they lapse with
-  the TTL. The rest of the bonus state (schedules, offers, the hourly caps) is
-  still memory only, so a restart gives everyone a fresh schedule.
-- **Each spend is atomic**: the storage's `SpendBomb`, `SpendEnclose` and
-  `SpendSpreadClick` check and take under one lock, so two tabs racing for the
-  last one get one.
+  account in `planet.charges` (`refill`, `bomb`, `enclosures`, `spread_clicks`). An
+  empty hand is a deleted row. Like the tile map: boot loads it and a failed load
+  refuses the boot, shutdown flushes once more, and a hard kill loses at most the
+  last second. A deleted account's row stays until something removes it. The rest
+  of the bonus state (schedules, offers, the hourly caps) is still memory only, so
+  a restart gives everyone a fresh schedule.
+- **Each spend is atomic**: the storage's `SpendRefill`, `SpendBomb`,
+  `SpendEnclose` and `SpendSpreadClick` check and take under one lock, so two tabs
+  racing for the last one get one.
 - **Nothing pushes them.** They are not live news: `GetCharges` answers what the
   caller holds, read by the client at load and when its account changes, and
   `ClaimBonusResponse.charges` answers the claim. After that the client follows
-  its own calls: a drop spends the bomb, an accepted click a spread click, its
-  own `tiles_enclosed` the enclose. A charge spent in another tab shows until the
-  next read. **`Click` answers nothing about them on purpose**: a shadow-banned
-  click never reaches the spread, so a count on the answer would tell a banned
-  caller its clicks are dropped. `planetv1controller/chargesheld` encodes the
-  message both procedures answer.
+  its own calls: a drop spends the bomb, an accepted click sent with spread on a
+  spread click, its own `tiles_enclosed` an enclosure. A charge spent in another
+  tab shows until the next read. **`Click` answers nothing about them on purpose**:
+  a shadow-banned click never reaches the spread, so a count on the answer would
+  tell a banned caller its clicks are dropped. `planetv1controller/chargesheld`
+  encodes the message both procedures answer.
 - **How big a charge is, is a rule, not state.** `GetBonusRules` answers the
-  blast radius, the enclose's `maxTiles` and the spread's clicks (`bonuses.Rules`,
-  built in `module.go`). It is `NO_SIDE_EFFECTS`, a GET the cache interceptor marks
-  for 5 minutes, and the client reads it once per page load. A page open across a
-  deploy that changes them shows the old sizes until it reloads.
+  blast radius, the enclose's `maxTiles`, the spread pool's size and the
+  enclosure stack's size (`bonuses.Rules`, built in `module.go`). It is
+  `NO_SIDE_EFFECTS`, a GET the cache interceptor marks for 5 minutes, and the
+  client reads it once per page load. A page open across a deploy that changes
+  them shows the old sizes until it reloads.
 
 #### What a spread does to a click
 
@@ -1053,10 +1071,11 @@ a click spreads to could name any tiles it liked — that is why the spread wait
 for [Map geography](#map-geography). The client paints the tile it clicked, as it
 always has, and the neighbours reach it over the stream like anyone else's.
 
-`claim_bonus_usecase` grants the charge with `Charges.Grant(holder, KindSpreadClicks)`.
-Each accepted click then
-spends one of its `bonus.spread.clicks` with `Charges.SpendSpreadClick`, after the
-rule accepted it: a refused click spreads nothing and costs nothing.
+`claim_bonus_usecase` adds the box's clicks to the pool with
+`Charges.Grant(holder, KindSpreadClicks, amount)`. Each accepted click sent with
+spread on then spends one with `Charges.SpendSpreadClick`, after the rule accepted
+it: a refused click spreads nothing and costs nothing, and a click with spread off
+never touches the pool.
 
 `click/spread_click` is the decorator that reads it, and **it sits right against
 the rule**, inside the count, the shadow ban and the throttle:
@@ -1155,10 +1174,11 @@ tells closed from open — there is no second rule.
   already held changes nothing, so it closes nothing: a shape finished before the
   bonus stays as it is. The owner is read before the rule writes, since afterwards
   the map no longer says whether the click took the tile.
-- **The charge is one shape**, spent through `Charges.SpendEnclose` only by a click
-  that closed a pocket, so a click that closes nothing (too big, open to the
-  coast, no inside) keeps it. The spend settles two clicks racing for it. A click
-  that closes two shapes takes the first.
+- **An enclosure is one shape**, spent through `Charges.SpendEnclose` only by a
+  click sent with enclose on that closed a pocket, so a click that closes nothing
+  (too big, open to the coast, no inside) keeps it. With enclose off, closing a
+  shape takes nothing. The spend settles two clicks racing for the last one. A
+  click that closes two shapes takes the first.
 - **Why 25 tiles**: the wall around a 25-tile pocket costs about 20 clicks, so the
   reward matches the planning it took.
 
@@ -1181,7 +1201,7 @@ tile updates, but a patch flipping at once says nothing about why, so every
 client is sent the shape — closing tile, wall, and filled tiles nearest the
 closing tile first — to animate. `Registry.PublishEnclosed` sends it after the
 tiles are set, to every caller. The caller who closed it gets a copy of their own
-with `yours`: a charge is one shape, so a shape of your own is the charge spent.
+with `yours`: an enclosure is one shape, so a shape of your own is one spent.
 
 `prom_enclose` wraps that publisher, so it counts exactly the shapes that were
 closed: `bonus_enclosures_total` and `bonus_enclosed_tiles_total`.
@@ -2065,9 +2085,8 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `bonus.interval` — how often a box is put in front of somebody; a ceiling, since nothing is offered while nobody is watching
 - `bonus.offerTTL` — how long the token stays good; **must outlast the flight the client draws**, or a box caught on its last frame is refused
 - `bonus.kinds` — a weight per kind (`refill`, `spread_clicks`, `bomb`, `enclose_clicks`); a kind's chance is its weight over the sum. Left out or 0 is never offered, empty offers every kind equally, and an unknown kind, a negative weight or all zeros refuse the boot
-- `bonus.spread.clicks` — how many clicks a caught `spread_clicks` charge spreads (default 8, about 56 tiles, a bomb's worth). A count, not a time: a timed spread let a full bank of clicks be dumped inside it
-- `bonus.enclose.maxTiles` — the most tiles the one shape of an `enclose_clicks` charge may take (default 25)
-- `bonus.chargeTTL` — how long a charge (refill, bomb, enclose, spread) is kept unspent (default 24h). Charges are kept in postgres, so a restart keeps them
+- `bonus.spread.clicks`, `bonus.spread.maxPerBox` — the most spread clicks held (8, about 56 tiles, a bomb's worth), and the most one box adds (4; it draws 1 to that). A count, not a time: a timed spread let a full bank of clicks be dumped inside it
+- `bonus.enclose.held`, `bonus.enclose.maxPerBox`, `bonus.enclose.maxTiles` — the most enclosures held (3), the most one box adds (3; it draws 1 to that), and the most tiles one shape may take (25)
 - `chargeStorage.flushInterval` — how often the charges that changed are written to postgres (default 1s); also flushed on shutdown
 - `bonus.maxChargesPerHour` — the most charges one caller may be granted per hour (12); past it the slot is lost
 - `antiBot.enabled` — off registers nothing and measures nothing

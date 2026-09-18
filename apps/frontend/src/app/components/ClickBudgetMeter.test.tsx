@@ -2,7 +2,6 @@
 import {afterEach, describe, expect, it, vi} from 'vitest'
 import {cleanup, fireEvent, render, screen} from '@testing-library/react'
 import ClickBudgetMeter from './ClickBudgetMeter.tsx'
-import {NO_CHARGES} from "../../domain/bonus.ts"
 import {ClickBudget} from "../../backends/clickBudget.ts"
 
 afterEach(cleanup)
@@ -183,84 +182,17 @@ describe("ClickBudgetMeter for a guest", () => {
     })
 })
 
-describe("ClickBudgetMeter with charges held", () => {
-    it("says nothing when nothing is held", () => {
-        render(<ClickBudgetMeter budget={reading()} charges={NO_CHARGES}/>)
+describe("ClickBudgetMeter's dock", () => {
+    it("holds what it is given under the meter", () => {
+        render(<ClickBudgetMeter budget={reading()}><p>held</p></ClickBudgetMeter>)
 
-        expect(document.querySelector(".click-budget-charges")).toBeNull()
+        expect(document.querySelector(".click-budget-dock")?.textContent).toContain("held")
     })
 
-    it("says each charge held, with no countdown", () => {
-        render(<ClickBudgetMeter budget={reading()}
-                                 charges={{refill: false, bomb: true, enclose: true, spreadClicksLeft: 5}}
-                                 onToggleBomb={() => {}}/>)
+    it("still holds it against a server that reports no allowance", () => {
+        render(<ClickBudgetMeter><p>held</p></ClickBudgetMeter>)
 
-        expect(screen.getByText("Bomb ready")).toBeTruthy()
-        expect(screen.getByText("Enclose ready")).toBeTruthy()
-        expect(screen.getByText("Spread: 5 clicks left")).toBeTruthy()
-        expect(screen.queryByText(/\ds$/)).toBeNull()
-    })
-
-    it("does not mark the meter boosted: a charge widens nothing", () => {
-        render(<ClickBudgetMeter budget={reading()} charges={{...NO_CHARGES, spreadClicksLeft: 8}}/>)
-
-        expect(meter().classList.contains("click-budget-boosted")).toBe(false)
-    })
-
-    it("aims the bomb and puts it away from its own button", () => {
-        const toggle = vi.fn()
-        const {rerender} = render(<ClickBudgetMeter budget={reading()}
-                                                    charges={{...NO_CHARGES, bomb: true}}
-                                                    onToggleBomb={toggle}/>)
-
-        const bomb = screen.getByRole("button", {name: /Bomb ready/})
-        expect(bomb.getAttribute("aria-pressed")).toBe("false")
-        fireEvent.click(bomb)
-        expect(toggle).toHaveBeenCalledTimes(1)
-
-        rerender(<ClickBudgetMeter budget={reading()}
-                                   charges={{...NO_CHARGES, bomb: true}}
-                                   bombArmed
-                                   onToggleBomb={toggle}/>)
-
-        const aimed = screen.getByRole("button", {name: /hold to drop/})
-        expect(aimed.getAttribute("aria-pressed")).toBe("true")
-    })
-
-    it("only says the bomb when there is no way to aim it", () => {
-        render(<ClickBudgetMeter budget={reading()} charges={{...NO_CHARGES, bomb: true}}/>)
-
-        expect(screen.getByText("Bomb ready")).toBeTruthy()
-        expect(screen.queryByRole("button", {name: /Bomb/})).toBeNull()
-    })
-})
-
-describe("ClickBudgetMeter with a refill held", () => {
-    const refill = {...NO_CHARGES, refill: true}
-
-    it("fills the bank on a press", () => {
-        const use = vi.fn()
-        render(<ClickBudgetMeter budget={reading({tokens: 4})} charges={refill} onUseRefill={use}/>)
-
-        fireEvent.click(screen.getByRole("button", {name: /Refill ready/}))
-
-        expect(use).toHaveBeenCalledTimes(1)
-    })
-
-    it("sends nothing on a full bank, and says so", () => {
-        const use = vi.fn()
-        render(<ClickBudgetMeter budget={reading({tokens: 10, capacity: 10})} charges={refill} onUseRefill={use}/>)
-
-        fireEvent.click(screen.getByRole("button", {name: /Refill ready/}))
-
-        expect(use).not.toHaveBeenCalled()
-        expect(screen.getByRole("button", {name: /Bank already full/})).toBeTruthy()
-    })
-
-    it("only says the refill when there is no way to use it", () => {
-        render(<ClickBudgetMeter budget={reading()} charges={refill}/>)
-
-        expect(screen.getByText("Refill ready")).toBeTruthy()
-        expect(screen.queryByRole("button", {name: /Refill/})).toBeNull()
+        expect(screen.getByText("held")).toBeTruthy()
+        expect(screen.queryByRole("meter")).toBeNull()
     })
 })

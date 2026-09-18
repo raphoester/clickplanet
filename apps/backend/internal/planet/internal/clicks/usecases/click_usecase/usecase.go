@@ -31,7 +31,8 @@ type In struct {
 	CountryID string
 
 	// What the player switched on for this click. A charge is used only when the player chooses:
-	// spread_click spends a spread click only with Spread, and enclose_click the enclose only with Enclose.
+	// spread_click spends a spread click only with Spread, and enclose_click an enclosure only with Enclose.
+	// One at most: both is refused with clicks.ErrBonusesTogether, before anything is written or spent.
 	Spread  bool
 	Enclose bool
 }
@@ -76,6 +77,10 @@ type UseCase struct {
 }
 
 func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
+	if in.Spread && in.Enclose {
+		return Out{}, clicks.ErrBonusesTogether
+	}
+
 	if !u.countryChecker.CheckCountry(in.CountryID) {
 		return Out{}, fmt.Errorf("%w: %q", clicks.ErrUnknownCountry, in.CountryID)
 	}
