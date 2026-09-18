@@ -133,29 +133,34 @@ func TestTheBudgetRidesOnEveryAnswer(t *testing.T) {
 	})
 }
 
-func TestABigCountryPaysMorePerClick(t *testing.T) {
-	server, _ := pricedServer(t, cpratelimit.Config{PerSecond: 1, Burst: 10},
-		stubPricer{Cost: 1.5, Share: 0.4, NextShare: 0.7, NextCost: 2})
+func TestABigCountryRefillsSlowerAndPaysOnePerClick(t *testing.T) {
+	server, clock := pricedServer(t, cpratelimit.Config{PerSecond: 1, Burst: 10},
+		stubPricer{Slowdown: 1.5, Share: 0.4, NextShare: 0.7, NextSlowdown: 2})
 
 	res, err := clickAs(t, server, "1.2.3.4")
 	require.NoError(t, err)
 
 	budget := res.Msg.GetBudget()
-	require.InDelta(t, 8.5/1.5, budget.GetTokens(), 1e-9, "8.5 tokens left are five and two thirds clicks")
-	require.Equal(t, uint32(6), budget.GetCapacity(), "ten tokens hold six whole clicks at 1.5")
+	require.InDelta(t, 9, budget.GetTokens(), 1e-9, "a click costs one, whatever its country")
+	require.Equal(t, uint32(10), budget.GetCapacity(), "the bank keeps its size")
 	require.InDelta(t, 1/1.5, budget.GetRefillPerSecond(), 1e-9)
-	require.InDelta(t, 1.5, budget.GetCost(), 1e-9)
+	require.InDelta(t, 1.5, budget.GetSlowdown(), 1e-9)
 	require.InDelta(t, 0.4, budget.GetShare(), 1e-9)
 	require.InDelta(t, 0.7, budget.GetNextShare(), 1e-9)
-	require.InDelta(t, 2, budget.GetNextCost(), 1e-9)
+	require.InDelta(t, 2, budget.GetNextSlowdown(), 1e-9)
 
-	for i := range 5 {
+	for i := range 9 {
 		_, err := clickAs(t, server, "1.2.3.4")
 		require.NoErrorf(t, err, "click %d should be allowed", i)
 	}
 
+	clock.Advance(time.Second)
 	_, err = clickAs(t, server, "1.2.3.4")
-	require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(err), "one token left does not pay for one and a half")
+	require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(err), "a second is two thirds of a click")
+
+	clock.Advance(500 * time.Millisecond)
+	_, err = clickAs(t, server, "1.2.3.4")
+	require.NoError(t, err, "a second and a half is one")
 }
 
 func TestTheBudgetIsAbsentWithoutAThrottle(t *testing.T) {
@@ -258,9 +263,9 @@ func TestOneAccountOnManyScopesSpendsOneAllowance(t *testing.T) {
 	require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(err), "a new address is not a new allowance")
 }
 
-func TestABoostDoesNotWidenTheScopesBucket(t *testing.T) {
+func TestABoostDoesNotSpeedUpTheScopesBucket(t *testing.T) {
 	server, limiter, clock := accountServer(t, clicks.ThrottleConfig{
-		Config: cpratelimit.Config{PerSecond: 1, Burst: 10}, ScopeMultiplier: 2,
+		Config: cpratelimit.Config{PerSecond: 1, Burst: 10}, ScopeMultiplier: 1,
 	})
 
 	boosted := accountNumber(0)
@@ -268,15 +273,15 @@ func TestABoostDoesNotWidenTheScopesBucket(t *testing.T) {
 	for click := range 10 {
 		require.NoErrorf(t, clickAsAccount(t, server, "1.2.3.4", boosted), "click %d", click)
 	}
-	clock.Advance(10 * time.Second)
+	clock.Advance(2 * time.Second)
 
-	for click := range 20 {
+	for click := range 2 {
 		require.NoErrorf(t, clickAsAccount(t, server, "1.2.3.4", boosted), "click %d", click)
 	}
 
 	err := clickAsAccount(t, server, "1.2.3.4", boosted)
 	require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(err),
-		"thirty in the boosted account's hand, but its scope holds twenty")
+		"six back in the boosted account's hand, but its scope got two")
 }
 
 func TestTheBudgetIsTheTighterBucket(t *testing.T) {
@@ -324,23 +329,27 @@ func TestALinkedAccountClicksTwiceAsFastAsAGuest(t *testing.T) {
 	require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(err), "a guest holds ten")
 	require.InDelta(t, 2.0, budgetDetail(t, err).GetLinkedMultiplier(), 1e-9, "and is told what signing in is worth")
 
-	for click := range 20 {
+	for click := range 10 {
 		_, err := clickWithToken(t, server, "5.6.7.8", linked)
 		require.NoErrorf(t, err, "linked click %d", click)
 	}
 	_, err = clickWithToken(t, server, "5.6.7.8", linked)
-	require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(err), "a linked account holds twenty")
+	require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(err), "a linked account holds ten too")
 
 	clock.Advance(time.Second)
 	res, err := clickWithToken(t, server, "5.6.7.8", linked)
 	require.NoError(t, err, "and refills two a second")
-	require.Equal(t, uint32(20), res.Msg.GetBudget().GetCapacity())
+	require.Equal(t, uint32(10), res.Msg.GetBudget().GetCapacity())
 	require.InDelta(t, 2.0, res.Msg.GetBudget().GetRefillPerSecond(), 1e-9)
 	require.InDelta(t, 2.0, res.Msg.GetBudget().GetLinkedMultiplier(), 1e-9)
+	_, err = clickWithToken(t, server, "5.6.7.8", linked)
+	require.NoError(t, err)
+	_, err = clickWithToken(t, server, "5.6.7.8", linked)
+	require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(err))
 }
 
-func TestSigningInDoesNotRefillTheGuestsBucket(t *testing.T) {
-	server, _, _ := accountServer(t, clicks.ThrottleConfig{Config: cpratelimit.Config{PerSecond: 1, Burst: 10}})
+func TestSigningInKeepsTheBankAndSpeedsUpItsRefill(t *testing.T) {
+	server, _, clock := accountServer(t, clicks.ThrottleConfig{Config: cpratelimit.Config{PerSecond: 1, Burst: 10}})
 	account := accountNumber(0).String()
 
 	for click := range 10 {
@@ -348,11 +357,11 @@ func TestSigningInDoesNotRefillTheGuestsBucket(t *testing.T) {
 		require.NoErrorf(t, err, "click %d", click)
 	}
 
-	// The linked bucket is another key, so it starts full: signing in is a one-time top-up, not a way to refill.
-	res, err := clickWithToken(t, server, "1.2.3.4", linkedPrefix+account)
-	require.NoError(t, err)
-	require.InDelta(t, 19.0, res.Msg.GetBudget().GetTokens(), 1e-9)
+	// One bucket for the account, signed in or not: signing in is not a top-up.
+	_, err := clickWithToken(t, server, "1.2.3.4", linkedPrefix+account)
+	require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(err), "the guest's bank is still spent")
 
-	_, err = clickWithToken(t, server, "1.2.3.4", account)
-	require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(err), "the guest's bucket is still spent")
+	clock.Advance(500 * time.Millisecond)
+	_, err = clickWithToken(t, server, "1.2.3.4", linkedPrefix+account)
+	require.NoError(t, err, "half a second is one click at twice the rate")
 }

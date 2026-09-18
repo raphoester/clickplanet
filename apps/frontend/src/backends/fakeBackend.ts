@@ -28,11 +28,11 @@ const TILE_COUNT = 257_000
 const CLICKS_PER_SECOND = 0.2
 const CLICK_BURST = 60
 
-/** Production's `toll.steps`: from each share of the map, a click costs that many tokens. */
+/** Production's `toll.steps`: from each share of the map, the refill is that many times slower. */
 const TOLL_STEPS = [
-    {share: 0.25, cost: 1.5},
-    {share: 0.50, cost: 2},
-    {share: 0.70, cost: 3},
+    {share: 0.25, slowdown: 1.5},
+    {share: 0.50, slowdown: 2},
+    {share: 0.70, slowdown: 3},
 ]
 
 /** Often enough to be worth developing against, not so often it is the game. */
@@ -101,6 +101,8 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     private readonly timers: ReturnType<typeof setInterval>[] = []
     private tokens = CLICK_BURST
     private lastRefillMs = Date.now()
+    /** What the last click's country multiplies the refill by, as the server's bucket keeps it. */
+    private pace = 1
     private readonly vpnBlocked: boolean
     private readonly sessionUnavailable: boolean
 
@@ -282,17 +284,15 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     private budget(): ClickBudget {
         this.refill()
 
-        // The policy widens while a bonus runs and narrows with the price,
-        // exactly as the server's does — so the meter here is driven by the
-        // same thing it will be in production rather than by the component.
-        const boost = this.boost()
-        const price = this.price(this.budgetCountry)
-
+        // The refill speeds up while a bonus runs and slows with the last
+        // click's country, exactly as the server's does — so the meter here is
+        // driven by the same thing it will be in production rather than by the
+        // component. The bank never changes size.
         return {
-            tokens: this.tokens / price.cost,
-            capacity: Math.floor(CLICK_BURST * boost / price.cost),
-            perSecond: CLICKS_PER_SECOND * boost / price.cost,
-            price,
+            tokens: this.tokens,
+            capacity: CLICK_BURST,
+            perSecond: CLICKS_PER_SECOND * this.boost() * this.pace,
+            price: this.price(this.budgetCountry),
             readAt: budgetNow(),
         }
     }
@@ -300,13 +300,13 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     private price(countryId: string): ClickPrice {
         const share = (this.tileCounts.get(countryId) ?? 0) / TILE_COUNT
 
-        let cost = 1
+        let slowdown = 1
         for (const step of TOLL_STEPS) {
-            if (share < step.share) return {cost, share, next: step}
-            cost = step.cost
+            if (share < step.share) return {slowdown, share, next: step}
+            slowdown = step.slowdown
         }
 
-        return {cost, share}
+        return {slowdown, share}
     }
 
     /**
@@ -339,19 +339,17 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     private allow(countryId: string): boolean {
         this.refill()
 
-        const {cost} = this.price(countryId)
-        if (this.tokens < cost) return false
-        this.tokens -= cost
+        this.pace = 1 / this.price(countryId).slowdown
+        if (this.tokens < 1) return false
+        this.tokens -= 1
         return true
     }
 
     private refill() {
         const now = Date.now()
-        const boost = this.boost()
-
         this.tokens = Math.min(
-            CLICK_BURST * boost,
-            this.tokens + ((now - this.lastRefillMs) / 1000) * CLICKS_PER_SECOND * boost,
+            CLICK_BURST,
+            this.tokens + ((now - this.lastRefillMs) / 1000) * CLICKS_PER_SECOND * this.boost() * this.pace,
         )
         this.lastRefillMs = now
     }

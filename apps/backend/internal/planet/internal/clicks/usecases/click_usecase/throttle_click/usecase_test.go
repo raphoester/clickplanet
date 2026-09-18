@@ -44,7 +44,7 @@ func (p *fakePricer) Price(country string) clicks.Price {
 	return p.price
 }
 
-func onePrice() *fakePricer { return &fakePricer{price: clicks.Price{Cost: 1}} }
+func onePrice() *fakePricer { return &fakePricer{price: clicks.Price{Slowdown: 1}} }
 
 var buckets = clicks.ThrottleConfig{}.Buckets()
 
@@ -110,7 +110,7 @@ func TestThrottleClick(t *testing.T) {
 		_, err := throttle_click.New(&fakeClick{}, limiter, onePrice(), buckets).Execute(ctx, click_usecase.In{})
 
 		require.NoError(t, err)
-		assert.Equal(t, [][]cpratelimit.Key{{{Name: "2001:db8::/64", Scale: 1}}}, limiter.keys,
+		assert.Equal(t, [][]cpratelimit.Key{{{Name: "2001:db8::/64", Scale: 1, Pace: 1}}}, limiter.keys,
 			"a token with no account spends the scope's bucket alone, as before accounts")
 	})
 
@@ -122,7 +122,7 @@ func TestThrottleClick(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.Equal(t, [][]cpratelimit.Key{{
-			{Name: "account:a-guest", Scale: 1},
+			{Name: "account:a-guest", Scale: 1, Pace: 1},
 			{Name: "scope:1.2.3.4", Scale: 10},
 		}}, limiter.keys)
 	})
@@ -138,18 +138,20 @@ func TestThrottleClick(t *testing.T) {
 		assert.Equal(t, state, out.Budget.State)
 	})
 
-	t.Run("charges the price of the country clicked for, and counts what is left in clicks", func(t *testing.T) {
-		limiter := &fakeLimiter{allow: true, state: cpratelimit.State{Tokens: 6, Capacity: 10, PerSecond: 1}}
-		pricer := &fakePricer{price: clicks.Price{Cost: 1.5, Share: 0.4}}
+	t.Run("spends one token, and slows the refill by the country clicked for", func(t *testing.T) {
+		state := cpratelimit.State{Tokens: 6, Capacity: 10, PerSecond: 1}
+		limiter := &fakeLimiter{allow: true, state: state}
+		pricer := &fakePricer{price: clicks.Price{Slowdown: 1.5, Share: 0.4}}
+		ctx := cpctx.AddAccountToContext(cpctx.AddIPToContext(t.Context(), "1.2.3.4"), "a-guest")
 
 		out, err := throttle_click.New(&fakeClick{}, limiter, pricer, buckets).
-			Execute(t.Context(), click_usecase.In{TileID: 1, CountryID: "bg"})
+			Execute(ctx, click_usecase.In{TileID: 1, CountryID: "bg"})
 
 		require.NoError(t, err)
 		assert.Equal(t, []string{"bg"}, pricer.countries)
-		assert.Equal(t, []float64{1.5}, limiter.spent)
-		assert.InDelta(t, 4.0, out.Budget.Tokens, 1e-9)
-		assert.Equal(t, 6, out.Budget.Capacity, "6.67 clicks of room is six whole ones")
-		assert.InDelta(t, 1.5, out.Budget.Price.Cost, 1e-9)
+		assert.Equal(t, []float64{1}, limiter.spent, "a click costs one token, whatever its country")
+		assert.InDelta(t, 1/1.5, limiter.keys[0][0].Pace, 1e-9)
+		assert.Equal(t, state, out.Budget.State, "the reading is the bucket's, not divided")
+		assert.InDelta(t, 1.5, out.Budget.Price.Slowdown, 1e-9)
 	})
 }

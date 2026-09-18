@@ -35,9 +35,9 @@ service ClickService {
 // It rides on every click answer, accepted or refused, so the client is never
 // more than one click away from the truth.
 //
-// The first three are counted in clicks for the country asked about, not in
-// tokens: a click for a country that holds much of the map costs several
-// tokens, and the server has already divided by that cost.
+// Every click costs one token, so the first three are counted in clicks. The
+// bank's size is the same whatever the country and whether the caller signed
+// in: a big country and signing in only move how fast it refills.
 message ClickBudget {
   // Clicks left, fractional: 6.4 means six clicks now, and the seventh in
   // 600ms at a refill of one per second.
@@ -46,28 +46,31 @@ message ClickBudget {
   // The most a caller can bank: the burst, in clicks.
   uint32 capacity = 2;
 
-  // Clicks granted back per second.
+  // Clicks granted back per second, at the pace set by the caller's last click:
+  // its country's slowdown, signing in, and a running bonus all move it.
   double refill_per_second = 3;
 
   // Were whole-token costs. A cost can now be a fraction of a token, and a
   // double on the old numbers would not decode on a client built against them.
   reserved 4, 7;
 
-  // Tokens one click costs, from the country's share of the map: 1.5 is half
-  // as slow again. Zero from a server too old to price clicks, which means one.
-  double cost = 8;
+  // How many times slower a player of the country asked about gets its clicks
+  // back, from the country's share of the map: 1.5 is half as slow again. It
+  // applies from the next click for that country on. Zero from a server too old
+  // to know, which means one.
+  double slowdown = 8;
 
   // The fraction of the whole map the country holds, 0 to 1.
   double share = 5;
 
-  // The share at which a click starts to cost next_cost. Zero at the top step.
+  // The share at which the refill slows to next_slowdown. Zero at the top step.
   double next_share = 6;
-  double next_cost = 9;
+  double next_slowdown = 9;
 
-  // How many times a guest's allowance an account that signed in with a
-  // provider holds: 2 is twice the burst and twice the refill. It is the same
-  // for every caller, so a guest can be told what signing in is worth. Zero
-  // from a server too old to grant one, which means signing in changes nothing.
+  // How many times a guest's refill an account that signed in with a provider
+  // gets: 2 is twice as fast, into a bank of the same size. It is the same for
+  // every caller, so a guest can be told what signing in is worth. Zero from a
+  // server too old to grant one, which means signing in changes nothing.
   double linked_multiplier = 10;
 }
 
@@ -82,7 +85,8 @@ message ClickResponse {
 }
 
 message GetBudgetRequest {
-  // The country the allowance is priced for.
+  // The country the answer's slowdown is for. The bucket itself refills at the
+  // pace of the caller's last click until the next one.
   string country_id = 1;
 }
 
@@ -201,8 +205,8 @@ message ClaimBonusRequest {
 
 message ClaimBonusResponse {
   // The allowance as it stands with the bonus applied, so the client does not
-  // have to wait for its next click to see the wider budget. A kind that does
-  // not widen it answers the allowance unchanged.
+  // have to wait for its next click to see the faster refill. A kind that does
+  // not speed it up answers the allowance unchanged.
   ClickBudget budget = 1;
 
   BonusKind kind = 2;

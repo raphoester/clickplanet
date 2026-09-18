@@ -20,10 +20,10 @@ func Encode(budget clicks.Budget) *planetv1.ClickBudget {
 		Tokens:           max(budget.Tokens, 0),
 		Capacity:         uint32(budget.Capacity),
 		RefillPerSecond:  budget.PerSecond,
-		Cost:             budget.Price.Cost,
+		Slowdown:         budget.Price.Slowdown,
 		Share:            budget.Price.Share,
 		NextShare:        budget.Price.NextShare,
-		NextCost:         budget.Price.NextCost,
+		NextSlowdown:     budget.Price.NextSlowdown,
 		LinkedMultiplier: budget.LinkedMultiplier,
 	}
 }

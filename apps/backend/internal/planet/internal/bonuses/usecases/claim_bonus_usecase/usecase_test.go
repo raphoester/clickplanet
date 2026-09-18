@@ -79,7 +79,7 @@ type stubPricer clicks.Price
 
 func (p stubPricer) Price(string) clicks.Price { return clicks.Price(p) }
 
-var onePrice = stubPricer{Cost: 1}
+var onePrice = stubPricer{Slowdown: 1}
 
 var buckets = clicks.ThrottleConfig{}.Buckets()
 
@@ -88,7 +88,7 @@ func granted() *stubRegistry {
 }
 
 func TestAClaimStartsTheBoostForTheDurationGranted(t *testing.T) {
-	booster := &stubBooster{state: cpratelimit.State{Capacity: 30, PerSecond: 3}}
+	booster := &stubBooster{state: cpratelimit.State{Capacity: 10, PerSecond: 3}}
 
 	out, err := claim_bonus_usecase.New(granted(), booster, onePrice, &stubSpreader{}, &stubSpreader{}, 0.03, &stubEncloser{}, buckets, cptime.NewFixedClock(epoch)).
 		Execute(t.Context(), claim_bonus_usecase.In{Token: "a-token", CountryID: "fr"})
@@ -96,21 +96,20 @@ func TestAClaimStartsTheBoostForTheDurationGranted(t *testing.T) {
 
 	assert.InDelta(t, 3.0, booster.multiplier, 1e-9)
 	assert.Equal(t, epoch.Add(time.Minute), booster.until)
-	assert.Equal(t, 30, out.Budget.Capacity)
+	assert.InDelta(t, 3.0, out.Budget.PerSecond, 1e-9)
 	assert.Equal(t, time.Minute, out.Duration)
 }
 
-func TestTheWidenedAllowanceIsPricedForTheCatchersCountry(t *testing.T) {
-	booster := &stubBooster{state: cpratelimit.State{Tokens: 12, Capacity: 30, PerSecond: 3}}
+func TestTheBoostedAllowanceCarriesTheCatchersCountrysPrice(t *testing.T) {
+	state := cpratelimit.State{Tokens: 4, Capacity: 10, PerSecond: 1.5}
+	booster := &stubBooster{state: state}
 
-	out, err := claim_bonus_usecase.New(granted(), booster, stubPricer{Cost: 3, Share: 0.4}, &stubSpreader{}, &stubSpreader{}, 0.03, &stubEncloser{}, buckets, cptime.NewFixedClock(epoch)).
+	out, err := claim_bonus_usecase.New(granted(), booster, stubPricer{Slowdown: 2, Share: 0.4}, &stubSpreader{}, &stubSpreader{}, 0.03, &stubEncloser{}, buckets, cptime.NewFixedClock(epoch)).
 		Execute(t.Context(), claim_bonus_usecase.In{Token: "a-token", CountryID: "bg"})
 	require.NoError(t, err)
 
-	assert.Equal(t, 10, out.Budget.Capacity, "a triple bonus at a cost of three is ten clicks")
-	assert.InDelta(t, 1.0, out.Budget.PerSecond, 1e-9)
-	assert.InDelta(t, 4.0, out.Budget.Tokens, 1e-9)
-	assert.InDelta(t, 3, out.Budget.Price.Cost, 1e-9)
+	assert.Equal(t, state, out.Budget.State, "the reading is the bucket's, not divided")
+	assert.InDelta(t, 2, out.Budget.Price.Slowdown, 1e-9)
 }
 
 func TestTheClaimAndTheBoostUseTheSameScope(t *testing.T) {
@@ -134,7 +133,7 @@ func TestATripleBoostsTheAccountAndNeverTheScope(t *testing.T) {
 
 	assert.Equal(t, "1.2.3.4", registry.scope, "the offer is still the scope's")
 	assert.Equal(t, "account:a-guest", booster.key)
-	assert.Equal(t, buckets.Keys(clicks.Payer{Scope: "1.2.3.4", Account: "a-guest"}), booster.peeked,
+	assert.Equal(t, buckets.Keys(clicks.Payer{Scope: "1.2.3.4", Account: "a-guest"}, clicks.Price(onePrice)), booster.peeked,
 		"the answer is read off both buckets")
 }
 
@@ -184,7 +183,7 @@ func TestOnlyABombSaysHowWideItIs(t *testing.T) {
 	assert.Zero(t, out.BlastRadius)
 }
 
-func TestASpreadClaimStartsTheSpreadAndWidensNothing(t *testing.T) {
+func TestASpreadClaimStartsTheSpreadAndSpeedsUpNothing(t *testing.T) {
 	registry := &stubRegistry{claimable: true, reward: bonuses.Reward{Kind: bonuses.KindSpreadClicks, Duration: time.Minute}}
 	booster := &stubBooster{state: cpratelimit.State{Tokens: 4, Capacity: 10, PerSecond: 1}}
 	spreader := &stubSpreader{}
@@ -201,7 +200,7 @@ func TestASpreadClaimStartsTheSpreadAndWidensNothing(t *testing.T) {
 	require.Len(t, registry.published, 1)
 }
 
-func TestAnEncloseClaimStartsTheEnclosuresAndWidensNothing(t *testing.T) {
+func TestAnEncloseClaimStartsTheEnclosuresAndSpeedsUpNothing(t *testing.T) {
 	registry := &stubRegistry{claimable: true, reward: bonuses.Reward{
 		Kind: bonuses.KindEncloseClicks, Duration: 30 * time.Second, Enclosures: 3, EnclosureMaxTiles: 10,
 	}}

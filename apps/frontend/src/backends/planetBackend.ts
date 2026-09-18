@@ -62,7 +62,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
     /** Clicks sent and not yet answered — see reportBudget. */
     private inFlight = 0
 
-    /** The country readings are priced for — see priceFor. */
+    /** The country the price on a reading is for — see priceFor. */
     private budgetCountry = ""
 
     /** Re-reads the allowance when a caught bonus runs out — see claim. */
@@ -161,8 +161,14 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
     }
 
     /**
-     * Asked at load, and when a caught bonus ends. Everything else is learned
-     * from the answers to this client's own clicks.
+     * Asked at load, on a switch of country, and when a caught bonus ends.
+     * Everything else is learned from the answers to this client's own clicks.
+     *
+     * It carries the token already held, never a fresh one: the server reads
+     * the bucket the token's account spends from, and without it answers the
+     * bucket of an address with no account — a different one, always full,
+     * which the next click then contradicts. Before the first click there is
+     * no token, and nothing has been spent from either.
      *
      * A server too old to answer leaves the counter off rather than breaking
      * the page: the frontend deploys separately from the backend.
@@ -170,8 +176,12 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
     private async readBudget(): Promise<void> {
         const countryId = this.budgetCountry
 
+        const headers = new Headers()
+        const token = this.session.held()
+        if (token) headers.set(SESSION_HEADER, token)
+
         try {
-            const res = await this.client.getBudget({countryId})
+            const res = await this.client.getBudget({countryId}, {headers})
             this.anchorBudget(res.budget, countryId)
         } catch (e) {
             if (e instanceof ConnectError && e.code === Code.Unimplemented) return
@@ -180,20 +190,21 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
     }
 
     /**
-     * A reading is priced for one country, so once priceFor has named one, a
-     * reading for any other is dropped rather than shown at the wrong price.
+     * The bucket is the same whatever the country, so every reading moves the
+     * counter. Only the price is about one country: a reading priced for
+     * another keeps the price already shown.
      */
     private anchorBudget(budget: ClickBudgetMessage | undefined, countryId: string): void {
         // A server with no throttle says nothing, and the counter stays hidden
         // rather than claiming an allowance nobody is enforcing.
         if (!budget || budget.capacity === 0) return
-        if (this.budgetCountry !== "" && countryId !== this.budgetCountry) return
+        const priced = this.budgetCountry === "" || countryId === this.budgetCountry
 
         this.budgetAnchor = {
             tokens: budget.tokens,
             capacity: budget.capacity,
             perSecond: budget.refillPerSecond,
-            price: priceOf(budget),
+            price: priced ? priceOf(budget) : this.budgetAnchor?.price,
             linkedMultiplier: budget.linkedMultiplier > 1 ? budget.linkedMultiplier : undefined,
             readAt: budgetNow(),
         }
@@ -385,7 +396,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         const res = await this.client.claimBonus({token, countryId}, {headers})
         this.followSession(sessionToken)
 
-        // The allowance arrives widened on the answer, so the meter follows the
+        // The allowance arrives sped up on the answer, so the meter follows the
         // server's own policy rather than a multiplication done here.
         this.anchorBudget(res.budget, countryId)
 
@@ -393,9 +404,9 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         const reward = rewardOf(res.kind, res.durationSeconds, {blastRadius: res.blastRadius, shapes: res.enclosures, maxTiles: res.enclosureMaxTiles})
         if (!reward) throw new BonusLostError()
 
-        // The widened reading says nothing about when the widening stops, so
-        // left alone the meter keeps replaying a burst of 30 until the next
-        // click re-anchors it. Ask again once it is over. The server started
+        // The boosted reading says nothing about when the boost stops, so left
+        // alone the meter keeps replaying the fast refill until the next click
+        // re-anchors it. Ask again once it is over. The server started
         // the bonus before it answered, so this always lands after its end.
         clearTimeout(this.bonusEndTimer)
         this.bonusEndTimer = setTimeout(() => void this.readBudget(), reward.seconds * 1000)
@@ -555,14 +566,14 @@ export function asBonusError(e: unknown): unknown {
     return e
 }
 
-/** A server too old to price clicks sends a cost of zero, and the meter says nothing about price. */
+/** A server too old to slow a refill sends a slowdown of zero, and the meter says nothing about price. */
 export function priceOf(budget: ClickBudgetMessage): ClickPrice | undefined {
-    if (budget.cost === 0) return undefined
+    if (budget.slowdown === 0) return undefined
 
     return {
-        cost: budget.cost,
+        slowdown: budget.slowdown,
         share: budget.share,
-        next: budget.nextCost === 0 ? undefined : {share: budget.nextShare, cost: budget.nextCost},
+        next: budget.nextSlowdown === 0 ? undefined : {share: budget.nextShare, slowdown: budget.nextSlowdown},
     }
 }
 

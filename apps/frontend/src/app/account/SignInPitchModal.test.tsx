@@ -39,7 +39,7 @@ describe("SignInPitchModal", () => {
         render(<SignInPitchModal state={state} store={store} multiplier={2} onClose={vi.fn()}/>)
 
         expect(screen.getByRole("dialog", {name: "Click 2× faster"})).toBeDefined()
-        expect(screen.getByText(/2× the clicks in hand, refilling 2× as fast/)).toBeDefined()
+        expect(screen.getByText(/your clicks refill 2× as fast/)).toBeDefined()
         expect(screen.getByText("You do not need an account to play.")).toBeDefined()
     })
 

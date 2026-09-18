@@ -14,8 +14,8 @@ import (
 func TestTheScopeMultiplierDefaultsToTenAndRefusesLessThanOneAccount(t *testing.T) {
 	payer := clicks.Payer{Scope: "1.2.3.4", Account: "a-guest"}
 
-	assert.InDelta(t, 10.0, clicks.ThrottleConfig{}.Buckets().Keys(payer)[1].Scale, 1e-9)
-	assert.InDelta(t, 3.0, clicks.ThrottleConfig{ScopeMultiplier: 3}.Buckets().Keys(payer)[1].Scale, 1e-9)
+	assert.InDelta(t, 10.0, clicks.ThrottleConfig{}.Buckets().Keys(payer, clicks.Price{})[1].Scale, 1e-9)
+	assert.InDelta(t, 3.0, clicks.ThrottleConfig{ScopeMultiplier: 3}.Buckets().Keys(payer, clicks.Price{})[1].Scale, 1e-9)
 
 	assert.NoError(t, clicks.ThrottleConfig{}.Validate())
 	assert.NoError(t, clicks.ThrottleConfig{ScopeMultiplier: 1}.Validate())
@@ -24,20 +24,20 @@ func TestTheScopeMultiplierDefaultsToTenAndRefusesLessThanOneAccount(t *testing.
 	}
 }
 
-func TestALinkedAccountSpendsABucketOfItsOwnAtTheLinkedMultiplier(t *testing.T) {
+func TestASignedInAccountRefillsItsOwnBucketFasterAtTheSameSize(t *testing.T) {
 	guest := clicks.Payer{Scope: "1.2.3.4", Account: "an-account"}
 	linked := clicks.Payer{Scope: "1.2.3.4", Account: "an-account", Linked: true}
 
-	assert.Equal(t, []cpratelimit.Key{{Name: "account:an-account", Scale: 1}, {Name: "scope:1.2.3.4", Scale: 10}},
-		clicks.ThrottleConfig{}.Buckets().Keys(guest))
-	assert.Equal(t, []cpratelimit.Key{{Name: "linked:an-account", Scale: 2}, {Name: "scope:1.2.3.4", Scale: 10}},
-		clicks.ThrottleConfig{}.Buckets().Keys(linked), "the same account signed in: another key, so no scale changes under one")
-	assert.InDelta(t, 3.0, clicks.ThrottleConfig{LinkedMultiplier: 3}.Buckets().Keys(linked)[0].Scale, 1e-9)
+	assert.Equal(t, []cpratelimit.Key{{Name: "account:an-account", Scale: 1, Pace: 1}, {Name: "scope:1.2.3.4", Scale: 10}},
+		clicks.ThrottleConfig{}.Buckets().Keys(guest, clicks.Price{}))
+	assert.Equal(t, []cpratelimit.Key{{Name: "account:an-account", Scale: 1, Pace: 2}, {Name: "scope:1.2.3.4", Scale: 10}},
+		clicks.ThrottleConfig{}.Buckets().Keys(linked, clicks.Price{}), "the same bucket: signing in keeps the bank")
+	assert.InDelta(t, 3.0, clicks.ThrottleConfig{LinkedMultiplier: 3}.Buckets().Keys(linked, clicks.Price{})[0].Pace, 1e-9)
 	assert.InDelta(t, 2.0, clicks.ThrottleConfig{}.Buckets().BudgetOf(cpratelimit.State{Capacity: 10}, clicks.Price{}).LinkedMultiplier, 1e-9,
 		"every budget says what signing in is worth")
 
-	assert.Equal(t, []cpratelimit.Key{{Name: "1.2.3.4", Scale: 1}},
-		clicks.ThrottleConfig{}.Buckets().Keys(clicks.Payer{Scope: "1.2.3.4", Linked: true}), "no account is never linked")
+	assert.Equal(t, []cpratelimit.Key{{Name: "1.2.3.4", Scale: 1, Pace: 1}},
+		clicks.ThrottleConfig{}.Buckets().Keys(clicks.Payer{Scope: "1.2.3.4", Linked: true}, clicks.Price{}), "no account is never linked")
 
 	require.NoError(t, clicks.ThrottleConfig{LinkedMultiplier: 1}.Validate())
 	for _, bad := range []float64{0.5, -1, math.NaN()} {
@@ -45,11 +45,26 @@ func TestALinkedAccountSpendsABucketOfItsOwnAtTheLinkedMultiplier(t *testing.T) 
 	}
 }
 
-func TestABonusWidensTheAccountsBucketOrTheScopesWithNoAccount(t *testing.T) {
+func TestABigCountrySlowsThePayersOwnRefillAndNotTheScopes(t *testing.T) {
+	buckets := clicks.ThrottleConfig{}.Buckets()
+	price := clicks.Price{Slowdown: 1.5}
+
+	guest := buckets.Keys(clicks.Payer{Scope: "1.2.3.4", Account: "a-guest"}, price)
+	assert.InDelta(t, 1/1.5, guest[0].Pace, 1e-9)
+	assert.Zero(t, guest[1].Pace, "the scope's bucket keeps its plain rate")
+
+	linked := buckets.Keys(clicks.Payer{Scope: "1.2.3.4", Account: "a-player", Linked: true}, price)
+	assert.InDelta(t, 2/1.5, linked[0].Pace, 1e-9)
+
+	anonymous := buckets.Keys(clicks.Payer{Scope: "1.2.3.4"}, price)
+	assert.InDelta(t, 1/1.5, anonymous[0].Pace, 1e-9)
+}
+
+func TestABonusSpeedsUpTheAccountsBucketOrTheScopesWithNoAccount(t *testing.T) {
 	buckets := clicks.ThrottleConfig{}.Buckets()
 
 	assert.Equal(t, "account:a-guest", buckets.Boosted(clicks.Payer{Scope: "1.2.3.4", Account: "a-guest"}))
-	assert.Equal(t, "linked:a-player", buckets.Boosted(clicks.Payer{Scope: "1.2.3.4", Account: "a-player", Linked: true}))
+	assert.Equal(t, "account:a-player", buckets.Boosted(clicks.Payer{Scope: "1.2.3.4", Account: "a-player", Linked: true}))
 	assert.Equal(t, "1.2.3.4", buckets.Boosted(clicks.Payer{Scope: "1.2.3.4"}))
 }
 
