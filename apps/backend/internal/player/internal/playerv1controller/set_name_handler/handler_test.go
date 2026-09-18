@@ -57,7 +57,7 @@ func TestTheNameIsAnsweredAsTyped(t *testing.T) {
 }
 
 func TestAnInvalidNameIsInvalidArgument(t *testing.T) {
-	_, err := setName(t, handler(t), account, "Ada Lovelace")
+	_, err := setName(t, handler(t), account, "Ada!")
 
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 }

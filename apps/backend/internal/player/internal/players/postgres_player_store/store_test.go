@@ -45,12 +45,25 @@ func (s *testSuite) SetupTest() {
 var at = time.Date(2026, 9, 17, 12, 0, 0, 0, time.UTC)
 
 func (s *testSuite) TestTheTableRefusesANameThatBreaksTheRule() {
-	for _, name := range []string{strings.Repeat("a", 21), "ab", "Ada Lovelace", "Émile", "GUEST_ada"} {
+	for _, name := range []string{
+		strings.Repeat("a", 16), "ab", " Ada", "Ada ", "Ada  L", "Ada-L", "Ada!", "Ada\u200bL", "\u202eAda", "Ada\u0085", "E\u0301mile",
+		"GUEST_ada",
+	} {
 		err := s.store.SaveProfile(s.T().Context(),
 			players.Profile{Account: players.AccountID{15: 1}, Name: players.Name(name), UpdatedAt: at})
 
 		s.Require().Error(err, "%q", name)
 		s.NotErrorIs(err, players.ErrNameTaken, "%q", name)
+	}
+}
+
+func (s *testSuite) TestTheTableTakesTheNamesTheRuleTakes() {
+	for i, value := range []string{"Ada Lovelace", "Émile Zola", "東京タワー", "محمد", strings.Repeat("é", 15)} {
+		name, err := players.NameOf(value)
+		s.Require().NoError(err)
+
+		s.Require().NoError(s.store.SaveProfile(s.T().Context(),
+			players.Profile{Account: players.AccountID{15: byte(i + 1)}, Name: name, UpdatedAt: at}), "%q", value)
 	}
 }
 

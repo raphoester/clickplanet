@@ -42,7 +42,7 @@ func (s *Store) Profile(ctx context.Context, account players.AccountID) (players
 	return players.Profile{Account: account, Name: players.Name(name), UpdatedAt: updatedAt.UTC(), Admin: admin}, nil
 }
 
-// ProfileNamed reads through the unique index on lower(name).
+// ProfileNamed reads through the unique index on name_folded.
 func (s *Store) ProfileNamed(ctx context.Context, name players.Name) (players.Profile, error) {
 	var (
 		account   uuid.UUID
@@ -50,7 +50,7 @@ func (s *Store) ProfileNamed(ctx context.Context, name players.Name) (players.Pr
 		updatedAt time.Time
 		admin     bool
 	)
-	err := s.db.QueryRowContext(ctx, `SELECT account_id, name, updated_at, admin FROM profiles WHERE lower(name) = $1`, name.Folded()).
+	err := s.db.QueryRowContext(ctx, `SELECT account_id, name, updated_at, admin FROM profiles WHERE name_folded = $1`, name.Folded()).
 		Scan(&account, &held, &updatedAt, &admin)
 	if errors.Is(err, sql.ErrNoRows) {
 		return players.Profile{}, players.ErrNoProfile
@@ -63,18 +63,20 @@ func (s *Store) ProfileNamed(ctx context.Context, name players.Name) (players.Pr
 	}, nil
 }
 
-// uniqueNameIndex is the unique index on lower(name), which a name another account holds violates.
+// uniqueNameIndex is the unique index on name_folded, which a name another account holds violates.
 const uniqueNameIndex = "profiles_name_key"
 
 // uniqueViolation is postgres' unique_violation.
 const uniqueViolation = "23505"
 
 // SaveProfile leaves uniqueness to the index, so two players asking for one name at once cannot both get it.
+// The folded name is the game's, written beside the name: postgres cannot compute it.
 func (s *Store) SaveProfile(ctx context.Context, profile players.Profile) error {
 	_, err := s.db.ExecContext(ctx, `
-		INSERT INTO profiles (account_id, name, updated_at) VALUES ($1, $2, $3)
-		ON CONFLICT (account_id) DO UPDATE SET name = excluded.name, updated_at = excluded.updated_at
-	`, uuid.UUID(profile.Account), string(profile.Name), profile.UpdatedAt.UTC())
+		INSERT INTO profiles (account_id, name, name_folded, updated_at) VALUES ($1, $2, $3, $4)
+		ON CONFLICT (account_id) DO UPDATE SET
+			name = excluded.name, name_folded = excluded.name_folded, updated_at = excluded.updated_at
+	`, uuid.UUID(profile.Account), string(profile.Name), profile.Name.Folded(), profile.UpdatedAt.UTC())
 
 	var pqErr *pq.Error
 	if errors.As(err, &pqErr) && pqErr.Code == uniqueViolation && pqErr.Constraint == uniqueNameIndex {
