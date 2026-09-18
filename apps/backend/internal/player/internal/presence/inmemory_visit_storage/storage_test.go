@@ -22,7 +22,16 @@ func account(n int) players.AccountID {
 }
 
 func visit(n int, tag players.Tag, at time.Time) presence.Visit {
-	return presence.Visit{Account: account(n), Tag: tag, Country: "fr", At: at}
+	// A guest is shown by its code; here the code is the tag, so a test names one string.
+	author := players.Author{Name: "guest_" + string(tag), Guest: true}
+	return presence.Visit{Account: account(n), Author: author, Tag: tag, Country: "fr", At: at}
+}
+
+var ada = players.Author{Name: "Ada_L"}
+
+func named(visit presence.Visit, author players.Author) presence.Visit {
+	visit.Author = author
+	return visit
 }
 
 // withoutKeys is the visits as announced, before the storage keyed them.
@@ -128,10 +137,9 @@ func TestAMoveCarriesTheVisitToTheNewAccountUnderItsName(t *testing.T) {
 	storage := inmemory_visit_storage.New(cptime.NewFixedClock(start))
 	storage.Record(visit(1, "aaaaaa", start))
 
-	storage.Move(account(1), account(2), "Ada_L", false)
+	storage.Move(account(1), account(2), ada)
 
-	moved := visit(2, "aaaaaa", start)
-	moved.Username = "Ada_L"
+	moved := named(visit(2, "aaaaaa", start), ada)
 	assert.Equal(t, []presence.Visit{moved}, withoutKeys(storage.Visits()), "one line, never the guest beside the player")
 }
 
@@ -139,10 +147,10 @@ func TestAMoveToTheSameAccountRenamesIt(t *testing.T) {
 	storage := inmemory_visit_storage.New(cptime.NewFixedClock(start))
 	storage.Record(visit(1, "aaaaaa", start))
 
-	storage.Move(account(1), account(1), "Ada_L", false)
+	storage.Move(account(1), account(1), ada)
 
 	require.Len(t, storage.Visits(), 1)
-	assert.Equal(t, players.Name("Ada_L"), storage.Visits()[0].Username)
+	assert.Equal(t, ada, storage.Visits()[0].Author)
 }
 
 func TestAMoveReplacesTheVisitTheAccountHeld(t *testing.T) {
@@ -150,17 +158,16 @@ func TestAMoveReplacesTheVisitTheAccountHeld(t *testing.T) {
 	storage.Record(visit(1, "aaaaaa", start.Add(time.Second)))
 	storage.Record(visit(2, "bbbbbb", start))
 
-	storage.Move(account(1), account(2), "Ada_L", false)
+	storage.Move(account(1), account(2), ada)
 
-	moved := visit(2, "aaaaaa", start.Add(time.Second))
-	moved.Username = "Ada_L"
+	moved := named(visit(2, "aaaaaa", start.Add(time.Second)), ada)
 	assert.Equal(t, []presence.Visit{moved}, withoutKeys(storage.Visits()))
 }
 
 func TestAnAccountThatNeverAnnouncedMovesNothing(t *testing.T) {
 	storage := inmemory_visit_storage.New(cptime.NewFixedClock(start))
 
-	storage.Move(account(1), account(2), "Ada_L", false)
+	storage.Move(account(1), account(2), ada)
 	storage.Rename(account(3), "Grace")
 
 	assert.Empty(t, storage.Visits())
@@ -172,8 +179,7 @@ func TestARenameKeepsEverythingButTheName(t *testing.T) {
 
 	storage.Rename(account(1), "Ada_L")
 
-	renamed := visit(1, "aaaaaa", start)
-	renamed.Username = "Ada_L"
+	renamed := named(visit(1, "aaaaaa", start), ada)
 	assert.Equal(t, []presence.Visit{renamed}, withoutKeys(storage.Visits()))
 }
 
@@ -195,7 +201,7 @@ func TestEachNewAccountGetsAKeyThatItsLaterVisitsKeep(t *testing.T) {
 	first := storage.Visits()
 
 	storage.Record(visit(1, "bbbbbb", start.Add(time.Second)))
-	storage.Move(account(1), account(3), "Ada_L", false)
+	storage.Move(account(1), account(3), ada)
 
 	keys := map[players.AccountID]presence.Key{}
 	for _, v := range first {
@@ -228,7 +234,7 @@ func TestASubscriberReadsTheFreshRosterThenEveryChange(t *testing.T) {
 	require.Len(t, read, 3, "an announce that changes nothing on the line is not a change")
 	assert.False(t, read[0].Left)
 	assert.Equal(t, "guest_cccccc", read[0].Entry.Name)
-	assert.Equal(t, presence.Change{Entry: presence.Entry{Key: one.Key, Name: "Ada_L", Tag: "aaaaaa", Country: "fr"}}, read[1])
+	assert.Equal(t, presence.Change{Entry: presence.Entry{Key: one.Key, Name: "Ada_L", Country: "fr"}}, read[1])
 	assert.Equal(t, presence.Change{Entry: read[0].Entry, Left: true}, read[2])
 }
 
@@ -253,7 +259,7 @@ func TestAMoveOverAnotherVisitSaysThatOneLeft(t *testing.T) {
 	roster, changes := storage.Subscribe(t.Context())
 	require.Len(t, roster, 2)
 
-	storage.Move(account(1), account(2), "Ada_L", false)
+	storage.Move(account(1), account(2), ada)
 
 	read := changesOf(t, changes)
 	require.Len(t, read, 2)

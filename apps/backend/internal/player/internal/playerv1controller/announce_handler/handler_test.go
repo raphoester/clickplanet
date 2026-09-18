@@ -28,7 +28,7 @@ func (s stubUseCase) Execute(_ context.Context, in announce_usecase.In) error {
 
 func announce(ctx context.Context, useCase stubUseCase) error {
 	_, err := announce_handler.New(useCase).Announce(ctx,
-		connect.NewRequest(&playerv1.AnnounceRequest{CountryId: "fr", GuestName: "Bob"}))
+		connect.NewRequest(&playerv1.AnnounceRequest{CountryId: "fr"}))
 	return err //nolint:wrapcheck // the test reads the handler's own error.
 }
 
@@ -44,7 +44,6 @@ func TestTheRequestTheCallerAndItsAddressAreMapped(t *testing.T) {
 
 	assert.Equal(t, "0b6d4f7e-5d7c-4a36-9a51-3f1f8f0c2a11", in.Account.String())
 	assert.Equal(t, "fr", in.Country)
-	assert.Equal(t, "Bob", in.GuestName)
 	assert.Equal(t, "1.2.3.4", in.IP)
 }
 

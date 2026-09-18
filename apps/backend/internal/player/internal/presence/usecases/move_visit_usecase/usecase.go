@@ -1,30 +1,30 @@
 // Package move_visit_usecase moves a browser's visit to the account it signed in to, so the roster shows the
-// player at once, under its username, and never beside the guest it was.
+// player at once, under its name, and never beside the guest it was.
 package move_visit_usecase
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 )
 
-type Profiles interface {
-	Profile(ctx context.Context, account players.AccountID) (players.Profile, error)
+// Authors says who an account is, and gives a guest its code the first time: get_author_usecase.
+type Authors interface {
+	Execute(ctx context.Context, account players.AccountID) (players.Author, error)
 }
 
 type Visits interface {
-	Move(from, to players.AccountID, username players.Name, admin bool)
+	Move(from, to players.AccountID, author players.Author)
 }
 
 type UseCase struct {
-	profiles Profiles
-	visits   Visits
+	authors Authors
+	visits  Visits
 }
 
-func New(profiles Profiles, visits Visits) *UseCase {
-	return &UseCase{profiles: profiles, visits: visits}
+func New(authors Authors, visits Visits) *UseCase {
+	return &UseCase{authors: authors, visits: visits}
 }
 
 // Execute moves the visit of from to to. A sign-in that keeps the browser on its account changes nothing:
@@ -35,11 +35,11 @@ func (u *UseCase) Execute(ctx context.Context, from, to players.AccountID) error
 		return nil
 	}
 
-	profile, err := u.profiles.Profile(ctx, to)
-	if err != nil && !errors.Is(err, players.ErrNoProfile) {
-		return fmt.Errorf("failed to read the profile: %w", err)
+	author, err := u.authors.Execute(ctx, to)
+	if err != nil {
+		return fmt.Errorf("failed to name the account: %w", err)
 	}
 
-	u.visits.Move(from, to, profile.Name, profile.Admin)
+	u.visits.Move(from, to, author)
 	return nil
 }

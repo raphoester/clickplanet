@@ -7,34 +7,19 @@ import (
 	"unicode/utf8"
 )
 
-const (
-	defaultMaxTextLength = 280
-	defaultMaxNameLength = 24
-)
+const defaultMaxTextLength = 280
 
-// Limits bound a name and a text in runes.
+// Limits bound a text in runes.
 type Limits struct {
 	maxText int
-	maxName int
 }
 
 // NewLimits takes zero or less as the default.
-func NewLimits(maxText int, maxName int) Limits {
+func NewLimits(maxText int) Limits {
 	if maxText <= 0 {
 		maxText = defaultMaxTextLength
 	}
-	if maxName <= 0 {
-		maxName = defaultMaxNameLength
-	}
-	return Limits{maxText: maxText, maxName: maxName}
-}
-
-func (l Limits) Name(value string) (string, error) {
-	name, err := clean(value, l.maxName)
-	if err != nil {
-		return "", fmt.Errorf("%w: author name: %w", ErrInvalidMessage, err)
-	}
-	return name, nil
+	return Limits{maxText: maxText}
 }
 
 func (l Limits) Text(value string) (string, error) {

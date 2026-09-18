@@ -185,11 +185,10 @@ type ChatMessage struct {
 	state        protoimpl.MessageState `protogen:"open.v1"`
 	Id           string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	SentAtUnixMs int64                  `protobuf:"varint,2,opt,name=sent_at_unix_ms,json=sentAtUnixMs,proto3" json:"sent_at_unix_ms,omitempty"`
-	// A username, or "guest_" and the name a guest typed. The server adds the
-	// prefix, and no username starts with it, so a guest cannot pass for a
-	// player.
+	// A username, or "guest_" and the account's guest code: 6 hex characters,
+	// drawn once per account and kept. No username starts with the prefix, so a
+	// guest cannot pass for a player.
 	AuthorName string `protobuf:"bytes,3,opt,name=author_name,json=authorName,proto3" json:"author_name,omitempty"`
-	AuthorTag  string `protobuf:"bytes,4,opt,name=author_tag,json=authorTag,proto3" json:"author_tag,omitempty"`
 	CountryId  string `protobuf:"bytes,5,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
 	Text       string `protobuf:"bytes,6,opt,name=text,proto3" json:"text,omitempty"`
 	// Posted under the username of an admin of the game, as it was when the
@@ -254,13 +253,6 @@ func (x *ChatMessage) GetAuthorName() string {
 	return ""
 }
 
-func (x *ChatMessage) GetAuthorTag() string {
-	if x != nil {
-		return x.AuthorTag
-	}
-	return ""
-}
-
 func (x *ChatMessage) GetCountryId() string {
 	if x != nil {
 		return x.CountryId
@@ -296,17 +288,15 @@ func (x *ChatMessage) GetReactionsVersion() uint64 {
 	return 0
 }
 
-// The X-Session-Token header is optional. When it names an account with a
-// username, the message is sent under that username and author_name is not
-// read. Otherwise author_name is a guest's name, which the server sends as
-// "guest_" and the name. A missing or invalid token is a guest, never a refusal.
+// The X-Session-Token header is required, and must name an account: without
+// one the call is Unauthenticated. The message is sent under the account's
+// username, or as "guest_" and its guest code when it has none. Nobody chooses
+// a guest's name.
 type SendMessageRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// At most 24 characters once cleaned, before the prefix.
-	AuthorName    string `protobuf:"bytes,1,opt,name=author_name,json=authorName,proto3" json:"author_name,omitempty"`
-	AuthorId      string `protobuf:"bytes,2,opt,name=author_id,json=authorId,proto3" json:"author_id,omitempty"`
-	CountryId     string `protobuf:"bytes,3,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
-	Text          string `protobuf:"bytes,4,opt,name=text,proto3" json:"text,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AuthorId      string                 `protobuf:"bytes,2,opt,name=author_id,json=authorId,proto3" json:"author_id,omitempty"`
+	CountryId     string                 `protobuf:"bytes,3,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
+	Text          string                 `protobuf:"bytes,4,opt,name=text,proto3" json:"text,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -339,13 +329,6 @@ func (x *SendMessageRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use SendMessageRequest.ProtoReflect.Descriptor instead.
 func (*SendMessageRequest) Descriptor() ([]byte, []int) {
 	return file_chat_v1_chat_proto_rawDescGZIP(), []int{2}
-}
-
-func (x *SendMessageRequest) GetAuthorName() string {
-	if x != nil {
-		return x.AuthorName
-	}
-	return ""
 }
 
 func (x *SendMessageRequest) GetAuthorId() string {
@@ -413,8 +396,8 @@ func (x *SendMessageResponse) GetMessage() *ChatMessage {
 	return nil
 }
 
-// The X-Session-Token header is optional, as on SendMessage: it is what says
-// which reactions are the caller's own.
+// The X-Session-Token header is optional here: it is what says which
+// reactions are the caller's own.
 type GetHistoryRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -495,9 +478,8 @@ func (x *GetHistoryResponse) GetMessages() []*ChatMessage {
 	return nil
 }
 
-// The X-Session-Token header is optional. A player with a username reacts as
-// its account, everyone else as the address it calls from: the same tag its
-// messages carry.
+// The X-Session-Token header is required, and must name an account: without
+// one the call is Unauthenticated. Every caller reacts as its account.
 type ReactRequest struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
 	MessageId string                 `protobuf:"bytes,1,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
@@ -861,27 +843,24 @@ const file_chat_v1_chat_proto_rawDesc = "" +
 	"\rReactionCount\x12-\n" +
 	"\breaction\x18\x01 \x01(\x0e2\x11.chat.v1.ReactionR\breaction\x12\x14\n" +
 	"\x05count\x18\x02 \x01(\rR\x05count\x12\x12\n" +
-	"\x04mine\x18\x03 \x01(\bR\x04mine\"\xbd\x02\n" +
+	"\x04mine\x18\x03 \x01(\bR\x04mine\"\xb0\x02\n" +
 	"\vChatMessage\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12%\n" +
 	"\x0fsent_at_unix_ms\x18\x02 \x01(\x03R\fsentAtUnixMs\x12\x1f\n" +
 	"\vauthor_name\x18\x03 \x01(\tR\n" +
 	"authorName\x12\x1d\n" +
 	"\n" +
-	"author_tag\x18\x04 \x01(\tR\tauthorTag\x12\x1d\n" +
-	"\n" +
 	"country_id\x18\x05 \x01(\tR\tcountryId\x12\x12\n" +
 	"\x04text\x18\x06 \x01(\tR\x04text\x12!\n" +
 	"\fauthor_admin\x18\a \x01(\bR\vauthorAdmin\x124\n" +
 	"\treactions\x18\b \x03(\v2\x16.chat.v1.ReactionCountR\treactions\x12+\n" +
-	"\x11reactions_version\x18\t \x01(\x04R\x10reactionsVersion\"\x85\x01\n" +
-	"\x12SendMessageRequest\x12\x1f\n" +
-	"\vauthor_name\x18\x01 \x01(\tR\n" +
-	"authorName\x12\x1b\n" +
+	"\x11reactions_version\x18\t \x01(\x04R\x10reactionsVersionJ\x04\b\x04\x10\x05R\n" +
+	"author_tag\"w\n" +
+	"\x12SendMessageRequest\x12\x1b\n" +
 	"\tauthor_id\x18\x02 \x01(\tR\bauthorId\x12\x1d\n" +
 	"\n" +
 	"country_id\x18\x03 \x01(\tR\tcountryId\x12\x12\n" +
-	"\x04text\x18\x04 \x01(\tR\x04text\"E\n" +
+	"\x04text\x18\x04 \x01(\tR\x04textJ\x04\b\x01\x10\x02R\vauthor_name\"E\n" +
 	"\x13SendMessageResponse\x12.\n" +
 	"\amessage\x18\x01 \x01(\v2\x14.chat.v1.ChatMessageR\amessage\"\x13\n" +
 	"\x11GetHistoryRequest\"F\n" +

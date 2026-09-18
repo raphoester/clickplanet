@@ -8,7 +8,6 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -18,11 +17,6 @@ type MessageReader interface {
 
 type ReactionReader interface {
 	Reactions(ctx context.Context, ids []messages.MessageID) (map[messages.MessageID]reactions.Reactions, error)
-}
-
-// Authors is the player module, asked who reads, so the caller's own reactions can say so.
-type Authors interface {
-	Author(ctx context.Context, account messages.AccountID, ip string) (messages.Author, error)
 }
 
 // Entry is one message of the history, with its reactions as the caller sees them, and their version.
@@ -35,14 +29,12 @@ type Entry struct {
 func New(
 	messageReader MessageReader,
 	reactionReader ReactionReader,
-	authors Authors,
 	clock cptime.Clock,
 	window messages.Window,
 ) *UseCase {
 	return &UseCase{
 		messages:  messageReader,
 		reactions: reactionReader,
-		authors:   authors,
 		clock:     clock,
 		window:    window,
 	}
@@ -51,12 +43,11 @@ func New(
 type UseCase struct {
 	messages  MessageReader
 	reactions ReactionReader
-	authors   Authors
 	clock     cptime.Clock
 	window    messages.Window
 }
 
-// Execute serves the history even when the player module does not answer: nothing is then marked as the caller's.
+// Execute marks the caller's own reactions: those of its account. A caller with none has none.
 func (u *UseCase) Execute(ctx context.Context, account messages.AccountID) ([]Entry, error) {
 	recent, err := u.messages.Recent(ctx, u.window.Since(u.clock.Now()), u.window.Size)
 	if err != nil {
@@ -72,10 +63,7 @@ func (u *UseCase) Execute(ctx context.Context, account messages.AccountID) ([]En
 		return nil, fmt.Errorf("failed to read the chat reactions: %w", err)
 	}
 
-	viewer := reactions.NoReactor
-	if author, err := u.authors.Author(ctx, account, cpctx.GetSourceIP(ctx)); err == nil {
-		viewer = reactions.ReactorOf(account, author)
-	}
+	viewer := reactions.ReactorOf(account)
 
 	history := make([]Entry, 0, len(recent))
 	for _, message := range recent {

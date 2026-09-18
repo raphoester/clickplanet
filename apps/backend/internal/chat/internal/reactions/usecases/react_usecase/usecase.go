@@ -9,7 +9,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/feed"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -21,11 +20,6 @@ type Messages interface {
 type Board interface {
 	Save(ctx context.Context, change reactions.Change) error
 	Reactions(ctx context.Context, ids []messages.MessageID) (map[messages.MessageID]reactions.Reactions, error)
-}
-
-// Authors is the player module, asked who reacts: the same answer that names who posts.
-type Authors interface {
-	Author(ctx context.Context, account messages.AccountID, ip string) (messages.Author, error)
 }
 
 // Publisher is the live feed: every change goes out as the message's whole tally, versioned, so the order the
@@ -46,18 +40,16 @@ const writeTimeout = 5 * time.Second
 func New(
 	shown Messages,
 	board Board,
-	authors Authors,
 	publisher Publisher,
 	clock cptime.Clock,
 	window messages.Window,
 ) *UseCase {
-	return &UseCase{shown: shown, board: board, authors: authors, publisher: publisher, clock: clock, window: window}
+	return &UseCase{shown: shown, board: board, publisher: publisher, clock: clock, window: window}
 }
 
 type UseCase struct {
 	shown     Messages
 	board     Board
-	authors   Authors
 	publisher Publisher
 	clock     cptime.Clock
 	window    messages.Window
@@ -70,12 +62,12 @@ type Out struct {
 }
 
 // Execute answers the message's reactions once the change landed. A change that changes nothing is not saved.
+// A caller with no account is refused: a reaction is an account's.
 func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
-	author, err := u.authors.Author(ctx, in.Account, cpctx.GetSourceIP(ctx))
-	if err != nil {
-		return Out{}, fmt.Errorf("%w: %w", messages.ErrAuthorUnavailable, err)
+	reactor := reactions.ReactorOf(in.Account)
+	if reactor == reactions.NoReactor {
+		return Out{}, messages.ErrNoAccount
 	}
-	reactor := reactions.ReactorOf(in.Account, author)
 
 	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
 	defer cancel()

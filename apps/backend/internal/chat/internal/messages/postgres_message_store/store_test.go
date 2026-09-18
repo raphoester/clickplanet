@@ -43,7 +43,6 @@ func record(text string, at time.Time) messages.Record {
 			ID:         messages.MessageID("id-" + text),
 			SentAt:     at,
 			AuthorName: "Bob",
-			AuthorTag:  "a1b2c3",
 			CountryID:  "fr",
 			Text:       text,
 		},

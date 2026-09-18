@@ -21,7 +21,7 @@ func (r *recordingStream) Send(event *playerv1.PlayerEvent) error {
 	return nil
 }
 
-var ada = presence.Entry{Key: "k1", Name: "Ada_L", Tag: "aaaaaa", Country: "fr"}
+var ada = presence.Entry{Key: "k1", Name: "Ada_L", Country: "fr"}
 
 func TestEachFrameIsItsCaseOfTheEnvelope(t *testing.T) {
 	stream := &recordingStream{}
@@ -32,7 +32,7 @@ func TestEachFrameIsItsCaseOfTheEnvelope(t *testing.T) {
 	require.NoError(t, sink.SendChange(presence.Change{Entry: ada, Left: true}))
 	require.NoError(t, sink.SendHeartbeat())
 
-	entry := &playerv1.RosterEntry{Key: "k1", Name: "Ada_L", Tag: "aaaaaa", CountryId: "fr"}
+	entry := &playerv1.RosterEntry{Key: "k1", Name: "Ada_L", CountryId: "fr"}
 	want := []*playerv1.PlayerEvent{
 		{Event: &playerv1.PlayerEvent_Roster{Roster: &playerv1.Roster{Entries: []*playerv1.RosterEntry{entry}}}},
 		{Event: &playerv1.PlayerEvent_Entry{Entry: entry}},

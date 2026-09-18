@@ -5,7 +5,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
@@ -73,12 +72,9 @@ func TestAppliedPutsOnAndTakesOff(t *testing.T) {
 	assert.Empty(t, off.Tally(ada))
 }
 
-func TestAPlayerReactsAsItsAccountAndEveryoneElseAsItsTag(t *testing.T) {
+func TestEveryAccountReactsAsItselfAndNoAccountIsNobody(t *testing.T) {
 	account := cpsession.AccountID{15: 1}
-	player := messages.Author{Username: "ada", Tag: "a1b2c3"}
-	guest := messages.Author{Tag: "a1b2c3"}
 
-	assert.Equal(t, reactions.Reactor("account:"+account.String()), reactions.ReactorOf(account, player))
-	assert.Equal(t, reactions.Reactor("guest:a1b2c3"), reactions.ReactorOf(account, guest), "an account with no username")
-	assert.Equal(t, reactions.Reactor("guest:a1b2c3"), reactions.ReactorOf(cpsession.NoAccount, player), "no token")
+	assert.Equal(t, reactions.Reactor("account:"+account.String()), reactions.ReactorOf(account))
+	assert.Equal(t, reactions.NoReactor, reactions.ReactorOf(cpsession.NoAccount))
 }

@@ -85,10 +85,10 @@ message GetStatsResponse {
 
 message AnnounceRequest {
   string country_id = 1;
-  // The name a guest typed in the chat. Not read for an account with a
-  // username. Empty, or one the server refuses, shows the guest as "guest_" and
-  // its tag.
-  string guest_name = 2;
+  // Was the name a guest typed in the chat. A guest is now shown by its guest
+  // code, which nobody chooses.
+  reserved 2;
+  reserved "guest_name";
 }
 
 message AnnounceResponse {}
@@ -106,11 +106,13 @@ message GetRosterResponse {
 }
 
 message RosterEntry {
-  // A username, or "guest_" and the name a guest typed or its tag.
+  // A username, or "guest_" and the account's guest code, as on a chat
+  // message.
   string name = 1;
-  // As on a chat message: a salted hash of the address the player last
-  // announced from.
-  string tag = 2;
+  // Was a salted hash of the address the player last announced from. The
+  // address is never public.
+  reserved 2;
+  reserved "tag";
   // The flag the player last announced.
   string country_id = 3;
   bool guest = 4;
@@ -133,7 +135,7 @@ message PlayerEvent {
     // The whole roster, in GetRoster's order. Always the first event, so a
     // client that reconnects starts over from it.
     Roster roster = 1;
-    // A player joined, or a line changed: its name, its tag or its flag. It
+    // A player joined, or a line changed: its name or its flag. It
     // replaces the line with the same key.
     RosterEntry entry = 2;
     // The line with this key is gone: the player left, signed out or stopped

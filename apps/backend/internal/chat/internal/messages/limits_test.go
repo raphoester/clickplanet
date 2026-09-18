@@ -10,7 +10,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 )
 
-var limits = messages.NewLimits(0, 0)
+var limits = messages.NewLimits(0)
 
 func TestEmptyTextIsRefused(t *testing.T) {
 	_, err := limits.Text("   ")
@@ -47,17 +47,7 @@ func TestTabsBecomeSpaces(t *testing.T) {
 	assert.Equal(t, "hello planet", text)
 }
 
-func TestEmptyNameIsRefused(t *testing.T) {
-	_, err := limits.Name("")
-	require.ErrorIs(t, err, messages.ErrInvalidMessage)
-}
-
-func TestOverlongNameIsRefused(t *testing.T) {
-	_, err := limits.Name(strings.Repeat("a", 25))
-	require.ErrorIs(t, err, messages.ErrInvalidMessage)
-}
-
 func TestConfiguredLimitsReplaceTheDefaults(t *testing.T) {
-	_, err := messages.NewLimits(5, 0).Text("hello!")
+	_, err := messages.NewLimits(5).Text("hello!")
 	require.ErrorIs(t, err, messages.ErrInvalidMessage)
 }

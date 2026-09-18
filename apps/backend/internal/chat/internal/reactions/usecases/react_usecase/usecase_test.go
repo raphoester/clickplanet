@@ -14,24 +14,12 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions/inmemory_reaction_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions/usecases/react_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 func TestRunSuite(t *testing.T) {
 	suite.Run(t, new(testSuite))
-}
-
-type fakeAuthors struct {
-	author messages.Author
-	ips    []string
-	err    error
-}
-
-func (f *fakeAuthors) Author(_ context.Context, _ messages.AccountID, ip string) (messages.Author, error) {
-	f.ips = append(f.ips, ip)
-	return f.author, f.err
 }
 
 type fakePublisher struct {
@@ -53,10 +41,10 @@ func (failingBoard) Save(context.Context, reactions.Change) error {
 
 var (
 	ada    = cpsession.AccountID{15: 1}
+	bob    = cpsession.AccountID{15: 2}
 	clown  = reactions.Reaction(2)
 	laugh  = reactions.Reaction(1)
 	now    = time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC)
-	player = messages.Author{Username: "ada", Tag: "a1b2c3"}
 	window = messages.Window{Size: 1, Retention: 24 * time.Hour}
 )
 
@@ -65,14 +53,12 @@ type testSuite struct {
 
 	messages  *inmemory_message_storage.Storage
 	board     *inmemory_reaction_storage.Storage
-	authors   *fakeAuthors
 	publisher *fakePublisher
 }
 
 func (s *testSuite) SetupTest() {
 	s.messages = inmemory_message_storage.New()
 	s.board = inmemory_reaction_storage.New()
-	s.authors = &fakeAuthors{author: player}
 	s.publisher = &fakePublisher{}
 	s.sent("hello")
 }
@@ -84,8 +70,7 @@ func (s *testSuite) sent(id messages.MessageID) {
 }
 
 func (s *testSuite) reactWith(board react_usecase.Board, in react_usecase.In) (react_usecase.Out, error) {
-	ctx := cpctx.AddIPToContext(context.Background(), "1.2.3.4")
-	return react_usecase.New(s.messages, board, s.authors, s.publisher, cptime.NewFixedClock(now), window).Execute(ctx, in)
+	return react_usecase.New(s.messages, board, s.publisher, cptime.NewFixedClock(now), window).Execute(context.Background(), in)
 }
 
 func (s *testSuite) react(account messages.AccountID, reaction reactions.Reaction, on bool) []reactions.Count {
@@ -94,24 +79,30 @@ func (s *testSuite) react(account messages.AccountID, reaction reactions.Reactio
 	return out.Counts
 }
 
-func (s *testSuite) TestAPlayerReactsAsItsAccountAndIsAnsweredWithItsOwn() {
+func (s *testSuite) TestAnAccountReactsAsItselfAndIsAnsweredWithItsOwn() {
 	s.Equal([]reactions.Count{{Reaction: clown, Count: 1, Mine: true}}, s.react(ada, clown, true))
 
 	given, err := s.board.Reactions(context.Background(), []messages.MessageID{"hello"})
 	s.Require().NoError(err)
-	s.True(given["hello"].Given(clown, reactions.ReactorOf(ada, player)))
-	s.Equal([]string{"1.2.3.4"}, s.authors.ips, "a guest is the tag of the address the reaction came from")
+	s.True(given["hello"].Given(clown, reactions.ReactorOf(ada)))
 }
 
-func (s *testSuite) TestAPlayerAndAGuestOnOneAddressAreTwoReactors() {
+func (s *testSuite) TestTwoAccountsAreTwoReactors() {
 	s.react(ada, clown, true)
 
-	s.Equal([]reactions.Count{{Reaction: clown, Count: 2, Mine: true}}, s.react(cpsession.NoAccount, clown, true))
+	s.Equal([]reactions.Count{{Reaction: clown, Count: 2, Mine: true}}, s.react(bob, clown, true))
+}
+
+func (s *testSuite) TestNoAccountIsRefusedAndNothingIsSaved() {
+	_, err := s.reactWith(s.board, react_usecase.In{Account: cpsession.NoAccount, MessageID: "hello", Reaction: clown, On: true})
+
+	s.Require().ErrorIs(err, messages.ErrNoAccount)
+	s.Empty(s.publisher.updates)
 }
 
 func (s *testSuite) TestEveryChangeIsPublishedAsTheWholeTallyForNobodyVersioned() {
 	s.react(ada, clown, true)
-	s.react(cpsession.NoAccount, laugh, true)
+	s.react(bob, laugh, true)
 	s.react(ada, clown, false)
 
 	s.Equal([]feed.Update{
@@ -149,15 +140,6 @@ func (s *testSuite) TestAMessageTheChatNoLongerShowsIsRefused() {
 		_, err := s.reactWith(s.board, react_usecase.In{Account: ada, MessageID: id, Reaction: clown, On: true})
 		s.Require().ErrorIs(err, reactions.ErrUnknownMessage)
 	}
-	s.Empty(s.publisher.updates)
-}
-
-func (s *testSuite) TestAReactorThePlayerModuleCannotNameIsRefused() {
-	s.authors.err = errors.New("player module is down")
-
-	_, err := s.reactWith(s.board, react_usecase.In{Account: ada, MessageID: "hello", Reaction: clown, On: true})
-
-	s.Require().ErrorIs(err, messages.ErrAuthorUnavailable)
 	s.Empty(s.publisher.updates)
 }
 

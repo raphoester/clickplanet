@@ -24,8 +24,8 @@ var _ messages.Storage = (*Store)(nil)
 
 func (s *Store) Append(ctx context.Context, record messages.Record) error {
 	if _, err := s.db.ExecContext(ctx, `
-		INSERT INTO messages (id, sent_at, name, tag, author_admin, author_id, country, ip, user_agent, text)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		INSERT INTO messages (id, sent_at, name, author_admin, author_id, country, ip, user_agent, text)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 	`, row(record)...); err != nil {
 		return fmt.Errorf("failed to insert a message: %w", err)
 	}
@@ -35,7 +35,7 @@ func (s *Store) Append(ctx context.Context, record messages.Record) error {
 // Recent is the newest limit messages sent at or after since, oldest first.
 func (s *Store) Recent(ctx context.Context, since time.Time, limit int) ([]messages.Message, error) {
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT id, sent_at, name, tag, author_admin, country, text
+		SELECT id, sent_at, name, author_admin, country, text
 		FROM messages
 		WHERE sent_at >= $1
 		ORDER BY seq DESC
@@ -53,7 +53,7 @@ func (s *Store) Recent(ctx context.Context, since time.Time, limit int) ([]messa
 			id      string
 		)
 		if err := rows.Scan(
-			&id, &message.SentAt, &message.AuthorName, &message.AuthorTag, &message.AuthorAdmin,
+			&id, &message.SentAt, &message.AuthorName, &message.AuthorAdmin,
 			&message.CountryID, &message.Text,
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan a message: %w", err)
@@ -104,7 +104,6 @@ func row(record messages.Record) []any {
 		string(record.Message.ID),
 		record.Message.SentAt.UTC(),
 		record.Message.AuthorName,
-		record.Message.AuthorTag,
 		record.Message.AuthorAdmin,
 		record.AuthorID,
 		record.Message.CountryID,

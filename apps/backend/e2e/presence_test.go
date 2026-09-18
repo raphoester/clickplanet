@@ -16,10 +16,10 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1/playerv1connect"
 )
 
-func (p *gamer) announce(country string, guestName string) error {
+func (p *gamer) announce(country string) error {
 	p.t.Helper()
 
-	req := connect.NewRequest(&playerv1.AnnounceRequest{CountryId: country, GuestName: guestName})
+	req := connect.NewRequest(&playerv1.AnnounceRequest{CountryId: country})
 	p.send(req.Header())
 	if _, err := p.players().Announce(p.t.Context(), req); err != nil {
 		return fmt.Errorf("Announce failed: %w", err)
@@ -60,8 +60,9 @@ func (p *gamer) signOut() {
 func TestAGuestWhoSignsInAndPicksANameIsOneLineUnderItWithNoAnnounce(t *testing.T) {
 	game := startGame(t)
 	ada := game.newPlayer(t)
-	require.NoError(t, ada.announce("fr", "Bob"))
-	require.Equal(t, []string{"guest_Bob"}, game.names(t))
+	require.NoError(t, ada.announce("fr"))
+	require.Len(t, game.names(t), 1)
+	require.Regexp(t, guestName, game.names(t)[0])
 
 	ada.link("google-ada")
 	_, err := ada.setName("Ada_L")
@@ -77,8 +78,9 @@ func TestAGuestWhoSignsInToAKnownAccountTakesItsNameAndLeavesNoGuestBehind(t *te
 	_, err := laptop.setName("Ada_L")
 	require.NoError(t, err)
 	phone := game.newPlayer(t)
-	require.NoError(t, phone.announce("fr", "Bob"))
-	require.Equal(t, []string{"guest_Bob"}, game.names(t))
+	require.NoError(t, phone.announce("fr"))
+	require.Len(t, game.names(t), 1)
+	require.Regexp(t, guestName, game.names(t)[0])
 
 	phone.signIn("google-ada", authv1.SignInIntent_SIGN_IN_INTENT_SIGN_IN, authv1.SignInOutcome_SIGN_IN_OUTCOME_SIGNED_IN)
 
@@ -91,8 +93,8 @@ func TestAGuestWhoSignsInToAKnownAccountTakesItsNameAndLeavesNoGuestBehind(t *te
 func TestASignedOutPlayerLeavesTheRosterAtOnce(t *testing.T) {
 	game := startGame(t)
 	ada := game.newPlayer(t)
-	require.NoError(t, ada.announce("fr", "Bob"))
-	require.Equal(t, []string{"guest_Bob"}, game.names(t))
+	require.NoError(t, ada.announce("fr"))
+	require.Len(t, game.names(t), 1)
 
 	ada.signOut()
 
@@ -100,34 +102,36 @@ func TestASignedOutPlayerLeavesTheRosterAtOnce(t *testing.T) {
 		"the event reaches the roster")
 }
 
-func TestTheRosterListsPlayersThenGuestsWithTheChatsTag(t *testing.T) {
+func TestTheRosterListsPlayersThenGuestsUnderTheNamesTheChatShows(t *testing.T) {
 	game := startGame(t)
 	ada := game.newPlayer(t)
 	ada.link("google-ada")
 	_, err := ada.setName("Ada_L")
 	require.NoError(t, err)
 	bob := game.newPlayer(t)
-	nameless := game.newPlayer(t)
+	carl := game.newPlayer(t)
 
-	require.NoError(t, bob.announce("de", "Bob"))
-	require.NoError(t, nameless.announce("jp", ""))
-	require.NoError(t, ada.announce("fr", "ignored"))
+	require.NoError(t, bob.announce("de"))
+	require.NoError(t, carl.announce("jp"))
+	require.NoError(t, ada.announce("fr"))
 
-	message, err := bob.post("Bob")
+	bobs, err := bob.post()
 	require.NoError(t, err)
-	tag := message.GetAuthorTag()
+	carls, err := carl.post()
+	require.NoError(t, err)
 
 	roster := game.roster(t)
 	assert.Equal(t, "public, max-age=5", roster.Header().Get("Cache-Control"))
 	lines := make([][]any, 0, len(roster.Msg.GetEntries()))
 	for _, entry := range roster.Msg.GetEntries() {
-		lines = append(lines, []any{entry.GetName(), entry.GetTag(), entry.GetCountryId(), entry.GetGuest()})
+		lines = append(lines, []any{entry.GetName(), entry.GetCountryId(), entry.GetGuest()})
 	}
-	assert.Equal(t, [][]any{
-		{"Ada_L", tag, "fr", false},
-		{"guest_" + tag, tag, "jp", true},
-		{"guest_Bob", tag, "de", true},
-	}, lines, "the roster shows the tag the chat shows for the same address")
+	require.Len(t, lines, 3)
+	assert.Equal(t, []any{"Ada_L", "fr", false}, lines[0], "players first")
+	assert.ElementsMatch(t, [][]any{
+		{bobs.GetAuthorName(), "de", true},
+		{carls.GetAuthorName(), "jp", true},
+	}, lines[1:], "each guest once, under the name the chat shows for it, never twice")
 }
 
 func TestAnAnnounceWithNoTokenIsUnauthenticatedAndTheRosterNeedsNone(t *testing.T) {
@@ -143,7 +147,7 @@ func TestAnAnnounceWithNoTokenIsUnauthenticatedAndTheRosterNeedsNone(t *testing.
 func TestAnAnnounceForACountryThatIsNotOneIsInvalidArgument(t *testing.T) {
 	game := startGame(t)
 
-	err := game.newPlayer(t).announce("atlantis", "Bob")
+	err := game.newPlayer(t).announce("atlantis")
 
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 }
@@ -182,21 +186,21 @@ func next(t *testing.T, events <-chan *playerv1.PlayerEvent) *playerv1.PlayerEve
 func TestTheStreamSendsTheRosterThenEachJoinRenameAndLeave(t *testing.T) {
 	game := startGame(t)
 	bob := game.newPlayer(t)
-	require.NoError(t, bob.announce("de", "Bob"))
+	require.NoError(t, bob.announce("de"))
 	events := game.rosterStream(t)
 
 	roster := next(t, events).GetRoster()
 	require.NotNil(t, roster)
 	require.Len(t, roster.GetEntries(), 1)
-	assert.Equal(t, "guest_Bob", roster.GetEntries()[0].GetName())
+	assert.Regexp(t, guestName, roster.GetEntries()[0].GetName())
 	bobKey := roster.GetEntries()[0].GetKey()
 	assert.NotEmpty(t, bobKey)
 
 	ada := game.newPlayer(t)
-	require.NoError(t, ada.announce("fr", "Ada"))
+	require.NoError(t, ada.announce("fr"))
 	joined := next(t, events).GetEntry()
 	require.NotNil(t, joined)
-	assert.Equal(t, "guest_Ada", joined.GetName())
+	assert.Regexp(t, guestName, joined.GetName())
 
 	ada.link("google-ada")
 	_, err := ada.setName("Ada_L")

@@ -11,10 +11,10 @@ import (
 type MessageID string
 
 type Message struct {
-	ID         MessageID
-	SentAt     time.Time
+	ID     MessageID
+	SentAt time.Time
+	// AuthorName is a username, or "guest_" and the account's guest code, as the player module named it.
 	AuthorName string
-	AuthorTag  string
 	// AuthorAdmin is whether the username it was sent under was an admin's then. Never a guest.
 	AuthorAdmin bool
 	CountryID   string

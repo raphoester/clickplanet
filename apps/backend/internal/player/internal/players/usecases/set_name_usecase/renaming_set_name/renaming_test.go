@@ -19,6 +19,8 @@ import (
 var (
 	now = time.Date(2026, 9, 17, 12, 0, 0, 0, time.UTC)
 	ada = players.AccountID{15: 1}
+
+	guest = players.Author{Name: "guest_0b1c2d", Guest: true}
 )
 
 type fixture struct {
@@ -31,7 +33,7 @@ func setup() fixture {
 	clock := cptime.NewFixedClock(now)
 	accounts := set_name_usecase.NewFakeAccounts()
 	visits := inmemory_visit_storage.New(clock)
-	visits.Record(presence.Visit{Account: ada, GuestName: "Bob", Tag: "aaaaaa", Country: "fr", At: now})
+	visits.Record(presence.Visit{Account: ada, Author: guest, Tag: "aaaaaa", Country: "fr", At: now})
 
 	return fixture{
 		accounts: accounts,
@@ -49,7 +51,7 @@ func TestAKeptNameShowsOnTheRosterAtOnce(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, players.Name("Ada_L"), profile.Name)
 	require.Len(t, f.visits.Visits(), 1)
-	assert.Equal(t, players.Name("Ada_L"), f.visits.Visits()[0].Username)
+	assert.Equal(t, players.Author{Name: "Ada_L"}, f.visits.Visits()[0].Author)
 }
 
 func TestARefusedNameRenamesNothing(t *testing.T) {
@@ -59,5 +61,5 @@ func TestARefusedNameRenamesNothing(t *testing.T) {
 
 	require.ErrorIs(t, err, players.ErrNotLinked)
 	require.Len(t, f.visits.Visits(), 1)
-	assert.Empty(t, f.visits.Visits()[0].Username)
+	assert.Equal(t, guest, f.visits.Visits()[0].Author)
 }

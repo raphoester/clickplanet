@@ -527,7 +527,6 @@ chat:
     subscriberBuffer: 256
   service:
     maxTextLength: 280
-    maxNameLength: 24
   # Per-IP throttle on SendMessage. Separate from the click limiter above: a
   # message fans out to every client and lands in a log, so it costs far more
   # than a click. One message every three seconds, five in hand.
@@ -641,7 +640,7 @@ player:
     schema: player
     pool:
       maxOpenConns: 2
-  # Salts the tag shown beside every name, so it cannot be reversed into an IP.
-  # Generated randomly at boot when empty, which makes tags change on every
-  # restart.
+  # Salts the hash of an address the roster caps its visits with. It never
+  # leaves the server and lives in memory only, so a random one generated at
+  # boot when this is empty costs nothing. Guests are shown by their guest code.
   tagSalt: ""
