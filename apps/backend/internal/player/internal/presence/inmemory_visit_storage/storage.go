@@ -69,7 +69,7 @@ func (s *Storage) Record(visit presence.Visit) {
 }
 
 // Move carries a signed-in browser's visit, and its key, to its account's name, over any visit the account held.
-func (s *Storage) Move(from, to players.AccountID, username players.Name, admin bool) {
+func (s *Storage) Move(from, to players.AccountID, author players.Author) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -83,8 +83,7 @@ func (s *Storage) Move(from, to players.AccountID, username players.Name, admin 
 	}
 
 	delete(s.visits, from)
-	moved := visit.For(to, username)
-	moved.Admin = admin
+	moved := visit.For(to, author)
 	s.visits[to] = moved
 
 	if presence.EntryOf(visit) != presence.EntryOf(moved) {
@@ -92,7 +91,7 @@ func (s *Storage) Move(from, to players.AccountID, username players.Name, admin 
 	}
 }
 
-// Rename shows the account under its new username.
+// Rename shows the account under its new username. An admin stays one.
 func (s *Storage) Rename(account players.AccountID, username players.Name) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -102,7 +101,7 @@ func (s *Storage) Rename(account players.AccountID, username players.Name) {
 		return
 	}
 
-	renamed := visit.For(account, username)
+	renamed := visit.For(account, players.Author{Name: players.DisplayNameOf(username, ""), Admin: visit.Author.Admin})
 	s.visits[account] = renamed
 
 	if presence.EntryOf(visit) != presence.EntryOf(renamed) {

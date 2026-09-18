@@ -16,7 +16,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1/playerv1connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/migrations"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/postgres_player_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/random_code_generator"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/rpc_account_reader"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/forget_account_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_author_usecase"
@@ -85,7 +87,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 			return fmt.Errorf("failed to generate a tag salt: %w", err)
 		}
 		tagSalt = salt
-		props.Logger.Warn("no player.tagSalt configured, generated a random one: every tag will change on every restart")
+		props.Logger.Info("no player.tagSalt configured, generated a random one")
 	}
 
 	// ---- Storage ----
@@ -101,6 +103,9 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	// Every call reads or writes postgres: a click never waits on it, since takes arrive over the event bus.
 	store := postgres_player_store.New(db)
+
+	// Who an account is to the others: its username, or its guest code, drawn the first time it is shown.
+	authors := get_author_usecase.New(store, players.NewGuestCodes(store, random_code_generator.Generator{}))
 
 	// ---- Presence ----
 
@@ -129,7 +134,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	// its click token, and the next one waits for a click.
 	forgetVisit := forget_visit_usecase.New(visits)
 	signIns, err := cpbootstrap.Subscribe(props.Events, "player-presence-sign-ins", signInBuffer,
-		log_subscriber.New(signed_in_subscriber.New(move_visit_usecase.New(store, visits)), props.Logger))
+		log_subscriber.New(signed_in_subscriber.New(move_visit_usecase.New(authors, visits)), props.Logger))
 	if err != nil {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe to auth.v1.SignedIn: %w", err)
@@ -167,7 +172,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 			renaming_set_name.New(set_name_usecase.New(store, accounts, clock), visits)),
 		GetStatsHandler: get_stats_handler.New(get_stats_usecase.New(store, clock)),
 		AnnounceHandler: announce_handler.New(
-			announce_usecase.New(store, visits, cpcountries.New(), clock, tagSalt)),
+			announce_usecase.New(authors, visits, cpcountries.New(), clock, tagSalt)),
 		LeaveHandler:     leave_handler.New(forgetVisit),
 		GetRosterHandler: get_roster_handler.New(get_roster_usecase.New(visits, clock)),
 		ListenForEventsHandler: listen_for_events_handler.New(
@@ -184,7 +189,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	// ---- Internal service ----
 
 	internalService := playerv1controller.InternalService{
-		GetAuthorHandler: get_author_handler.New(get_author_usecase.New(store, tagSalt)),
+		GetAuthorHandler: get_author_handler.New(authors),
 	}
 	if err := props.InternalRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return playerv1connect.NewInternalServiceHandler(internalService, options...)
@@ -203,8 +208,8 @@ type Config struct {
 	// posts.
 	Database cppg.Config
 
-	// TagSalt salts the hash of an address that the game shows beside every name. Left empty, one is generated
-	// at boot, and every tag changes on each restart.
+	// TagSalt salts the hash of an address the roster caps its visits with. The hash never leaves the server
+	// and lives in memory only, so one generated at boot when this is empty costs nothing.
 	TagSalt string
 }
 

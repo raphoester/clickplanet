@@ -79,16 +79,6 @@
     text-shadow: -1px 1px 0 #000000;
 }
 
-/* As .chat-message-tag. */
-.players-entry-tag {
-    flex-shrink: 0;
-    font-family: Oswald, sans-serif;
-    font-weight: 500;
-    font-size: 11px;
-    letter-spacing: 0.8px;
-    color: #FFFFFF59;
-}
-
 .players-empty {
     margin: 8px 4px;
 }

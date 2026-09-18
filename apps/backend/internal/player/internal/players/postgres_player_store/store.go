@@ -1,4 +1,4 @@
-// Package postgres_player_store is players.Store over player.profiles and player.stats.
+// Package postgres_player_store is players.Store over player.profiles, player.guest_codes and player.stats.
 package postgres_player_store
 
 import (
@@ -86,6 +86,39 @@ func (s *Store) SaveProfile(ctx context.Context, profile players.Profile) error 
 	return nil
 }
 
+func (s *Store) GuestCode(ctx context.Context, account players.AccountID) (players.GuestCode, error) {
+	var code string
+	err := s.db.QueryRowContext(ctx, `SELECT code FROM guest_codes WHERE account_id = $1`, uuid.UUID(account)).Scan(&code)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", players.ErrNoGuestCode
+	}
+	if err != nil {
+		return "", fmt.Errorf("failed to read the guest code: %w", err)
+	}
+	return players.GuestCode(code), nil
+}
+
+// uniqueGuestCode is the unique constraint on guest_codes.code, which a code another account holds violates.
+const uniqueGuestCode = "guest_codes_code_key"
+
+// SaveGuestCode leaves uniqueness to the table: an account that holds a code keeps it, and a code another
+// account holds violates uniqueGuestCode.
+func (s *Store) SaveGuestCode(ctx context.Context, account players.AccountID, code players.GuestCode) error {
+	_, err := s.db.ExecContext(ctx, `
+		INSERT INTO guest_codes (account_id, code) VALUES ($1, $2)
+		ON CONFLICT (account_id) DO NOTHING
+	`, uuid.UUID(account), string(code))
+
+	var pqErr *pq.Error
+	if errors.As(err, &pqErr) && pqErr.Code == uniqueViolation && pqErr.Constraint == uniqueGuestCode {
+		return players.ErrGuestCodeTaken
+	}
+	if err != nil {
+		return fmt.Errorf("failed to save the guest code: %w", err)
+	}
+	return nil
+}
+
 func (s *Store) Stats(ctx context.Context, account players.AccountID) (players.Stats, error) {
 	return statsOf(s.db.QueryRowContext(ctx, `
 		SELECT tiles_taken, streak_current, streak_best, streak_last_day FROM stats WHERE account_id = $1
@@ -156,6 +189,7 @@ func (s *Store) DeleteAccount(ctx context.Context, account players.AccountID) (e
 
 	for _, statement := range []string{
 		`DELETE FROM profiles WHERE account_id = $1`,
+		`DELETE FROM guest_codes WHERE account_id = $1`,
 		`DELETE FROM stats WHERE account_id = $1`,
 	} {
 		if _, err := tx.ExecContext(ctx, statement, uuid.UUID(account)); err != nil {

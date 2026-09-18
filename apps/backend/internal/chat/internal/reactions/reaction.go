@@ -8,26 +8,27 @@ import (
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
 // Reaction is one of chat.v1.Reaction, by its wire number. The number is what is stored, which is why the proto
 // never renumbers one. The edge refuses a number the proto does not name.
 type Reaction int32
 
-// Reactor is who put a reaction on. A player reacts as its account and a guest as the tag of its address, the
-// one its messages carry. Each kind has its own prefix, so the two cannot be mistaken for each other.
+// Reactor is who put a reaction on: an account. Before guests had accounts a guest reacted as the tag of its
+// address, "guest:" and the tag; those rows age out with the retention, and no caller matches them any more.
 type Reactor string
 
-// NoReactor is nobody: what the stream tallies for, since it cannot know who reads it.
+// NoReactor is nobody: what the stream tallies for, since it cannot know who reads it, and a caller with no
+// account.
 const NoReactor Reactor = ""
 
-// ReactorOf is who reacts, from the same answer that names who posts: a player with a username is its account,
-// anyone else the tag of its address. Two guests behind one address are therefore one reactor.
-func ReactorOf(account messages.AccountID, author messages.Author) Reactor {
-	if author.PostsAsPlayer(account) {
-		return Reactor("account:" + account.String())
+// ReactorOf is who reacts: the account, whether it chose a username or not. cpsession.NoAccount is NoReactor.
+func ReactorOf(account messages.AccountID) Reactor {
+	if account == cpsession.NoAccount {
+		return NoReactor
 	}
-	return Reactor("guest:" + author.Tag)
+	return Reactor("account:" + account.String())
 }
 
 // Reactions is who put which reaction on one message, in the order each reaction first appeared. It is a value:

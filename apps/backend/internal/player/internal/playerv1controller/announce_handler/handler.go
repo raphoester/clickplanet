@@ -37,10 +37,9 @@ func (h AnnounceHandler) Announce(
 	}
 
 	err = h.useCase.Execute(ctx, announce_usecase.In{
-		Account:   account,
-		Country:   req.Msg.GetCountryId(),
-		GuestName: req.Msg.GetGuestName(),
-		IP:        cpctx.GetSourceIP(ctx),
+		Account: account,
+		Country: req.Msg.GetCountryId(),
+		IP:      cpctx.GetSourceIP(ctx),
 	})
 	if errors.Is(err, presence.ErrUnknownCountry) {
 		return nil, connect.NewError(connect.CodeInvalidArgument, presence.ErrUnknownCountry)

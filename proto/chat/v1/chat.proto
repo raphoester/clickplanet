@@ -54,11 +54,13 @@ message ReactionCount {
 message ChatMessage {
   string id = 1;
   int64 sent_at_unix_ms = 2;
-  // A username, or "guest_" and the name a guest typed. The server adds the
-  // prefix, and no username starts with it, so a guest cannot pass for a
-  // player.
+  // A username, or "guest_" and the account's guest code: 6 hex characters,
+  // drawn once per account and kept. No username starts with the prefix, so a
+  // guest cannot pass for a player.
   string author_name = 3;
-  string author_tag = 4;
+  // Was a salted hash of the sender's address. The address is never public.
+  reserved 4;
+  reserved "author_tag";
   string country_id = 5;
   string text = 6;
   // Posted under the username of an admin of the game, as it was when the
@@ -70,13 +72,14 @@ message ChatMessage {
   uint64 reactions_version = 9;
 }
 
-// The X-Session-Token header is optional. When it names an account with a
-// username, the message is sent under that username and author_name is not
-// read. Otherwise author_name is a guest's name, which the server sends as
-// "guest_" and the name. A missing or invalid token is a guest, never a refusal.
+// The X-Session-Token header is required, and must name an account: without
+// one the call is Unauthenticated. The message is sent under the account's
+// username, or as "guest_" and its guest code when it has none. Nobody chooses
+// a guest's name.
 message SendMessageRequest {
-  // At most 24 characters once cleaned, before the prefix.
-  string author_name = 1;
+  // Was the name a guest typed.
+  reserved 1;
+  reserved "author_name";
   string author_id = 2;
   string country_id = 3;
   string text = 4;
@@ -86,8 +89,8 @@ message SendMessageResponse {
   ChatMessage message = 1;
 }
 
-// The X-Session-Token header is optional, as on SendMessage: it is what says
-// which reactions are the caller's own.
+// The X-Session-Token header is optional here: it is what says which
+// reactions are the caller's own.
 message GetHistoryRequest {}
 
 // Something the chat says on its own, with no sender: a line between the
@@ -115,9 +118,8 @@ message GetHistoryResponse {
   repeated Announcement announcements = 2;
 }
 
-// The X-Session-Token header is optional. A player with a username reacts as
-// its account, everyone else as the address it calls from: the same tag its
-// messages carry.
+// The X-Session-Token header is required, and must name an account: without
+// one the call is Unauthenticated. Every caller reacts as its account.
 message ReactRequest {
   string message_id = 1;
   Reaction reaction = 2;

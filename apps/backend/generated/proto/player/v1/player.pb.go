@@ -395,12 +395,8 @@ func (x *GetStatsResponse) GetStats() *Stats {
 }
 
 type AnnounceRequest struct {
-	state     protoimpl.MessageState `protogen:"open.v1"`
-	CountryId string                 `protobuf:"bytes,1,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
-	// The name a guest typed in the chat. Not read for an account with a
-	// username. Empty, or one the server refuses, shows the guest as "guest_" and
-	// its tag.
-	GuestName     string `protobuf:"bytes,2,opt,name=guest_name,json=guestName,proto3" json:"guest_name,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CountryId     string                 `protobuf:"bytes,1,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -438,13 +434,6 @@ func (*AnnounceRequest) Descriptor() ([]byte, []int) {
 func (x *AnnounceRequest) GetCountryId() string {
 	if x != nil {
 		return x.CountryId
-	}
-	return ""
-}
-
-func (x *AnnounceRequest) GetGuestName() string {
-	if x != nil {
-		return x.GuestName
 	}
 	return ""
 }
@@ -641,11 +630,9 @@ func (x *GetRosterResponse) GetEntries() []*RosterEntry {
 
 type RosterEntry struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// A username, or "guest_" and the name a guest typed or its tag.
+	// A username, or "guest_" and the account's guest code, as on a chat
+	// message.
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	// As on a chat message: a salted hash of the address the player last
-	// announced from.
-	Tag string `protobuf:"bytes,2,opt,name=tag,proto3" json:"tag,omitempty"`
 	// The flag the player last announced.
 	CountryId string `protobuf:"bytes,3,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
 	Guest     bool   `protobuf:"varint,4,opt,name=guest,proto3" json:"guest,omitempty"`
@@ -691,13 +678,6 @@ func (*RosterEntry) Descriptor() ([]byte, []int) {
 func (x *RosterEntry) GetName() string {
 	if x != nil {
 		return x.Name
-	}
-	return ""
-}
-
-func (x *RosterEntry) GetTag() string {
-	if x != nil {
-		return x.Tag
 	}
 	return ""
 }
@@ -868,7 +848,7 @@ type PlayerEvent_Roster struct {
 }
 
 type PlayerEvent_Entry struct {
-	// A player joined, or a line changed: its name, its tag or its flag. It
+	// A player joined, or a line changed: its name or its flag. It
 	// replaces the line with the same key.
 	Entry *RosterEntry `protobuf:"bytes,2,opt,name=entry,proto3,oneof"`
 }
@@ -1203,26 +1183,24 @@ const file_player_v1_player_proto_rawDesc = "" +
 	"\x0fstreak_last_day\x18\x04 \x01(\tR\rstreakLastDay\"\x11\n" +
 	"\x0fGetStatsRequest\":\n" +
 	"\x10GetStatsResponse\x12&\n" +
-	"\x05stats\x18\x01 \x01(\v2\x10.player.v1.StatsR\x05stats\"O\n" +
+	"\x05stats\x18\x01 \x01(\v2\x10.player.v1.StatsR\x05stats\"B\n" +
 	"\x0fAnnounceRequest\x12\x1d\n" +
 	"\n" +
-	"country_id\x18\x01 \x01(\tR\tcountryId\x12\x1d\n" +
-	"\n" +
-	"guest_name\x18\x02 \x01(\tR\tguestName\"\x12\n" +
+	"country_id\x18\x01 \x01(\tR\tcountryIdJ\x04\b\x02\x10\x03R\n" +
+	"guest_name\"\x12\n" +
 	"\x10AnnounceResponse\"\x0e\n" +
 	"\fLeaveRequest\"\x0f\n" +
 	"\rLeaveResponse\"\x12\n" +
 	"\x10GetRosterRequest\"E\n" +
 	"\x11GetRosterResponse\x120\n" +
-	"\aentries\x18\x01 \x03(\v2\x16.player.v1.RosterEntryR\aentries\"\x90\x01\n" +
+	"\aentries\x18\x01 \x03(\v2\x16.player.v1.RosterEntryR\aentries\"\x89\x01\n" +
 	"\vRosterEntry\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12\x10\n" +
-	"\x03tag\x18\x02 \x01(\tR\x03tag\x12\x1d\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1d\n" +
 	"\n" +
 	"country_id\x18\x03 \x01(\tR\tcountryId\x12\x14\n" +
 	"\x05guest\x18\x04 \x01(\bR\x05guest\x12\x14\n" +
 	"\x05admin\x18\x05 \x01(\bR\x05admin\x12\x10\n" +
-	"\x03key\x18\x06 \x01(\tR\x03key\"\x18\n" +
+	"\x03key\x18\x06 \x01(\tR\x03keyJ\x04\b\x02\x10\x03R\x03tag\"\x18\n" +
 	"\x16ListenForEventsRequest\"\xd6\x01\n" +
 	"\vPlayerEvent\x12+\n" +
 	"\x06roster\x18\x01 \x01(\v2\x11.player.v1.RosterH\x00R\x06roster\x12.\n" +

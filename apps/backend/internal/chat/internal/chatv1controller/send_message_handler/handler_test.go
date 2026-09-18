@@ -32,8 +32,7 @@ func (s stubUseCase) Execute(_ context.Context, in send_message_usecase.In) (mes
 	return messages.Message{
 		ID:         "message-1",
 		SentAt:     time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-		AuthorName: in.AuthorName,
-		AuthorTag:  "a1b2c3",
+		AuthorName: "guest_0b1c2d",
 		CountryID:  in.CountryID,
 		Text:       in.Text,
 	}, nil
@@ -45,10 +44,9 @@ func send(useCase stubUseCase) (*connect.Response[chatv1.SendMessageResponse], e
 
 func sendAs(ctx context.Context, useCase stubUseCase) (*connect.Response[chatv1.SendMessageResponse], error) {
 	req := connect.NewRequest(&chatv1.SendMessageRequest{
-		AuthorName: "Bob",
-		AuthorId:   "some-uuid",
-		CountryId:  "fr",
-		Text:       "hello planet",
+		AuthorId:  "some-uuid",
+		CountryId: "fr",
+		Text:      "hello planet",
 	})
 	req.Header().Set("User-Agent", "curl/8")
 
@@ -61,12 +59,11 @@ func TestSendMessageMapsTheRequest(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, send_message_usecase.In{
-		Account:    cpsession.NoAccount,
-		AuthorName: "Bob",
-		AuthorID:   "some-uuid",
-		CountryID:  "fr",
-		Text:       "hello planet",
-		UserAgent:  "curl/8",
+		Account:   cpsession.NoAccount,
+		AuthorID:  "some-uuid",
+		CountryID: "fr",
+		Text:      "hello planet",
+		UserAgent: "curl/8",
 	}, in)
 }
 
@@ -84,8 +81,7 @@ func TestSendMessageReturnsTheStoredMessage(t *testing.T) {
 
 	message := res.Msg.GetMessage()
 	assert.Equal(t, "message-1", message.GetId())
-	assert.Equal(t, "Bob", message.GetAuthorName())
-	assert.Equal(t, "a1b2c3", message.GetAuthorTag())
+	assert.Equal(t, "guest_0b1c2d", message.GetAuthorName())
 	assert.Equal(t, "fr", message.GetCountryId())
 	assert.Equal(t, "hello planet", message.GetText())
 	assert.Equal(t, int64(1704067200000), message.GetSentAtUnixMs())
@@ -100,6 +96,12 @@ func TestARefusedMessageDoesNotLeakWhyItWasRefused(t *testing.T) {
 	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 	assert.NotContains(t, err.Error(), "280")
 	assert.NotContains(t, err.Error(), "text:")
+}
+
+func TestASenderWithNoAccountIsUnauthenticated(t *testing.T) {
+	_, err := send(stubUseCase{in: &send_message_usecase.In{}, err: messages.ErrNoAccount})
+
+	require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
 }
 
 func TestASenderThePlayerModuleCouldNotNameIsUnavailable(t *testing.T) {

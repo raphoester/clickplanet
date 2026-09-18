@@ -15,10 +15,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1/playerv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/rpc_player_authors"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
-// stubPlayer answers what the player module answers: the name an account holds, and a tag for any address.
+// stubPlayer answers what the player module answers: the name it shows for an account.
 type stubPlayer struct {
 	playerv1connect.UnimplementedInternalServiceHandler
 
@@ -37,9 +36,8 @@ func (s stubPlayer) GetAuthor(
 		return nil, s.err
 	}
 	return connect.NewResponse(&playerv1.GetAuthorResponse{
-		Username: s.names[req.Msg.GetAccountId()],
-		Tag:      "tag-of-" + req.Msg.GetIp(),
-		Admin:    s.admins[req.Msg.GetAccountId()],
+		Name:  s.names[req.Msg.GetAccountId()],
+		Admin: s.admins[req.Msg.GetAccountId()],
 	}), nil
 }
 
@@ -66,37 +64,27 @@ func authors(t *testing.T, player stubPlayer) *rpc_player_authors.Authors {
 	return rpc_player_authors.New(dialer{client: server.Client(), url: server.URL})
 }
 
-func TestItAnswersTheUsernameAndTheTag(t *testing.T) {
+func TestItAnswersTheName(t *testing.T) {
 	asked := new(string)
 	player := stubPlayer{names: map[string]string{ada.String(): "Ada_L"}, admins: map[string]bool{ada.String(): true}, asked: asked}
 
-	author, err := authors(t, player).Author(t.Context(), ada, "1.2.3.4")
+	author, err := authors(t, player).Author(t.Context(), ada)
 
 	require.NoError(t, err)
-	assert.Equal(t, messages.Author{Username: "Ada_L", Tag: "tag-of-1.2.3.4", Admin: true}, author)
+	assert.Equal(t, messages.Author{Name: "Ada_L", Admin: true}, author)
 	assert.Equal(t, ada.String(), *asked)
-}
-
-func TestNoAccountIsAskedWithAnEmptyId(t *testing.T) {
-	asked := new(string)
-
-	author, err := authors(t, stubPlayer{asked: asked}).Author(t.Context(), cpsession.NoAccount, "1.2.3.4")
-
-	require.NoError(t, err)
-	assert.Equal(t, messages.Author{Tag: "tag-of-1.2.3.4"}, author)
-	assert.Empty(t, *asked)
 }
 
 func TestAPlayerModuleThatFailsIsAnError(t *testing.T) {
 	player := stubPlayer{err: connect.NewError(connect.CodeInternal, errors.New("postgres is down")), asked: new(string)}
 
-	_, err := authors(t, player).Author(t.Context(), ada, "1.2.3.4")
+	_, err := authors(t, player).Author(t.Context(), ada)
 
 	assert.ErrorContains(t, err, "failed to ask the player module")
 }
 
 func TestAnUnreachablePlayerModuleIsAnError(t *testing.T) {
-	_, err := rpc_player_authors.New(dialer{err: errors.New("no internal listener")}).Author(t.Context(), ada, "1.2.3.4")
+	_, err := rpc_player_authors.New(dialer{err: errors.New("no internal listener")}).Author(t.Context(), ada)
 
 	assert.ErrorContains(t, err, "failed to reach the player module")
 }

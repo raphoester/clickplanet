@@ -10,7 +10,7 @@ import {
 
 function message(id: string, reactions: ChatMessage["reactions"] = []): ChatMessage {
     return {
-        id, sentAt: 0, authorName: "Ana", authorTag: "4f2ca1", authorAdmin: false,
+        id, sentAt: 0, authorName: "Ana", authorAdmin: false,
         countryCode: "fr", text: "hi", reactions, reactionsVersion: 1,
     }
 }

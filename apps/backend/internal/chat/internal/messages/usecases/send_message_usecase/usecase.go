@@ -11,6 +11,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/feed"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -27,21 +28,20 @@ type CountryChecker interface {
 	CheckCountry(country string) bool
 }
 
-// Authors is the player module, asked who posts: the username of the account, and the tag of the address.
+// Authors is the player module, asked who posts: the account's username, or its guest code.
 type Authors interface {
-	Author(ctx context.Context, account messages.AccountID, ip string) (messages.Author, error)
+	Author(ctx context.Context, account messages.AccountID) (messages.Author, error)
 }
 
 const writeTimeout = 5 * time.Second
 
 type In struct {
-	// Account is the one the sender's click token names, or cpsession.NoAccount for a guest.
-	Account    messages.AccountID
-	AuthorName string
-	AuthorID   string
-	CountryID  string
-	Text       string
-	UserAgent  string
+	// Account is the one the sender's click token names, or cpsession.NoAccount, which is refused.
+	Account   messages.AccountID
+	AuthorID  string
+	CountryID string
+	Text      string
+	UserAgent string
 }
 
 func New(
@@ -58,7 +58,7 @@ func New(
 		countryChecker: countryChecker,
 		authors:        authors,
 		clock:          clock,
-		limits:         messages.NewLimits(config.MaxTextLength, config.MaxNameLength),
+		limits:         messages.NewLimits(config.MaxTextLength),
 	}
 }
 
@@ -71,7 +71,12 @@ type UseCase struct {
 	limits         messages.Limits
 }
 
+// Execute refuses a sender with no account before anything else: it has no name.
 func (u *UseCase) Execute(ctx context.Context, in In) (messages.Message, error) {
+	if in.Account == cpsession.NoAccount {
+		return messages.Message{}, messages.ErrNoAccount
+	}
+
 	text, err := u.limits.Text(in.Text)
 	if err != nil {
 		return messages.Message{}, fmt.Errorf("failed to check the message: %w", err)
@@ -83,22 +88,16 @@ func (u *UseCase) Execute(ctx context.Context, in In) (messages.Message, error) 
 
 	ip := cpctx.GetSourceIP(ctx)
 
-	author, err := u.authors.Author(ctx, in.Account, ip)
+	author, err := u.authors.Author(ctx, in.Account)
 	if err != nil {
 		return messages.Message{}, fmt.Errorf("%w: %w", messages.ErrAuthorUnavailable, err)
-	}
-
-	name, err := u.authorName(in, author)
-	if err != nil {
-		return messages.Message{}, fmt.Errorf("failed to check the message: %w", err)
 	}
 
 	message := messages.Message{
 		ID:          messages.MessageID(uuid.NewString()),
 		SentAt:      u.clock.Now(),
-		AuthorName:  name,
-		AuthorTag:   author.Tag,
-		AuthorAdmin: author.PostsAsPlayer(in.Account) && author.Admin,
+		AuthorName:  author.Name,
+		AuthorAdmin: author.Admin,
 		CountryID:   in.CountryID,
 		Text:        text,
 	}
@@ -114,14 +113,4 @@ func (u *UseCase) Execute(ctx context.Context, in In) (messages.Message, error) 
 	u.publisher.Publish(feed.Update{Message: &published})
 
 	return message, nil
-}
-
-// authorName is the account's username, and the name the sender typed is then not read. Without one it is a
-// guest's name.
-func (u *UseCase) authorName(in In, author messages.Author) (string, error) {
-	if author.PostsAsPlayer(in.Account) {
-		return author.Username, nil
-	}
-
-	return u.limits.GuestName(in.AuthorName) //nolint:wrapcheck // Execute says what failed.
 }

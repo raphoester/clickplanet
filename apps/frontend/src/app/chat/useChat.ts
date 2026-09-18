@@ -4,6 +4,7 @@ import {
     ChatBackend,
     ChatBlockedError,
     ChatMessage,
+    ChatNoSessionError,
     ChatRateLimitedError,
     ChatRejectedError,
     OutgoingMessage,
@@ -19,7 +20,7 @@ import {
 
 export type ChatStatus = 'loading' | 'ready' | 'unavailable'
 
-export type ChatSendFailure = 'rate-limited' | 'blocked' | 'rejected' | 'failed'
+export type ChatSendFailure = 'rate-limited' | 'blocked' | 'rejected' | 'no-session' | 'failed'
 
 export type UseChatOptions = {
     backend?: ChatBackend
@@ -116,5 +117,6 @@ function failureOf(e: unknown): ChatSendFailure {
     if (e instanceof ChatRateLimitedError) return 'rate-limited'
     if (e instanceof ChatBlockedError) return 'blocked'
     if (e instanceof ChatRejectedError) return 'rejected'
+    if (e instanceof ChatNoSessionError) return 'no-session'
     return 'failed'
 }

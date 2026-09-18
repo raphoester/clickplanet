@@ -6,6 +6,7 @@ import {
     ChatListener,
     ChatMessage,
     ChatMessageGoneError,
+    ChatNoSessionError,
     ChatRateLimitedError,
     ChatReactor,
     ChatRejectedError,
@@ -44,15 +45,12 @@ export class ChatServiceBackend implements ChatSender, ChatHistoryGetter, ChatLi
     }
 
     public async sendMessage(message: OutgoingMessage): Promise<ChatMessage> {
-        const headers = await this.headersFor(message.asAccount)
-
         try {
-            const res = await this.client.sendMessage({
-                authorName: message.authorName,
+            const res = await this.authenticated((headers) => this.client.sendMessage({
                 authorId: message.authorId,
                 countryId: message.countryCode,
                 text: message.text,
-            }, {headers})
+            }, {headers}))
 
             if (!res.message) throw new ChatRejectedError()
 
@@ -62,32 +60,13 @@ export class ChatServiceBackend implements ChatSender, ChatHistoryGetter, ChatLi
         }
     }
 
-    /**
-     * The click token, only for a player with a username: a guest sends none,
-     * so chatting never mints a session. A token that cannot be had is not a
-     * failure — the server reads a message without one as a guest's.
-     */
-    private async headersFor(asAccount: boolean): Promise<Headers> {
-        const headers = new Headers()
-        if (!asAccount) return headers
-
-        const token = await this.session.token().catch((e) => {
-            console.error("No session for the chat: sending as a guest", e)
-            return undefined
-        })
-        if (token) headers.set(SESSION_HEADER, token)
-        return headers
-    }
-
     public async react(reaction: OutgoingReaction): Promise<ReactionsChange> {
-        const headers = await this.headersFor(reaction.asAccount)
-
         try {
-            const res = await this.client.react({
+            const res = await this.authenticated((headers) => this.client.react({
                 messageId: reaction.messageId,
                 reaction: reaction.reaction,
                 on: reaction.on,
-            }, {headers})
+            }, {headers}))
 
             return {
                 messageId: reaction.messageId,
@@ -97,6 +76,36 @@ export class ChatServiceBackend implements ChatSender, ChatHistoryGetter, ChatLi
         } catch (e) {
             throw translate(e)
         }
+    }
+
+    /**
+     * The server names the sender by the click token, guests included, so a
+     * token is minted when none is held, as a click does. One the server
+     * refuses is dropped and the call made once more with a fresh one: a
+     * refused call posted nothing, so this cannot post twice.
+     */
+    private async authenticated<T>(call: (headers: Headers) => Promise<T>): Promise<T> {
+        try {
+            return await call(await this.headers())
+        } catch (e) {
+            if (!(e instanceof ConnectError) || e.code !== Code.Unauthenticated) throw e
+
+            this.session.invalidate()
+            return await call(await this.headers())
+        }
+    }
+
+    private async headers(): Promise<Headers> {
+        let token: string | undefined
+        try {
+            token = await this.session.token()
+        } catch (e) {
+            throw new ChatNoSessionError({cause: e})
+        }
+
+        const headers = new Headers()
+        if (token) headers.set(SESSION_HEADER, token)
+        return headers
     }
 
     /**
@@ -156,6 +165,8 @@ function translate(e: unknown): unknown {
             return new ChatRejectedError({cause: e})
         case Code.NotFound:
             return new ChatMessageGoneError({cause: e})
+        case Code.Unauthenticated:
+            return new ChatNoSessionError({cause: e})
         default:
             return e
     }
@@ -176,7 +187,6 @@ export function decodedMessage(message: ChatMessagePb): ChatMessage {
         id: message.id,
         sentAt: Number(message.sentAtUnixMs),
         authorName: message.authorName,
-        authorTag: message.authorTag,
         authorAdmin: message.authorAdmin,
         countryCode: message.countryId,
         text: message.text,

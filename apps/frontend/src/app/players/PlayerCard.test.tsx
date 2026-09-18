@@ -9,8 +9,8 @@ afterEach(() => {
     vi.restoreAllMocks()
 })
 
-const ana: PlayerLine = {name: "Ana", tag: "4f2ca1", countryCode: "fr", guest: false, admin: false}
-const bo: PlayerLine = {name: "guest_Bo", tag: "91aa3d", countryCode: "de", guest: true, admin: false}
+const ana: PlayerLine = {name: "Ana", countryCode: "fr", guest: false, admin: false}
+const bo: PlayerLine = {name: "guest_Bo", countryCode: "de", guest: true, admin: false}
 
 const backendAnswering = (answer: () => Promise<PlayerInfo | undefined>) =>
     ({playerInfo: vi.fn(answer)}) satisfies PlayerInfoBackend
@@ -26,7 +26,7 @@ describe("PlayerCard", () => {
 
         const dialog = screen.getByRole("dialog", {name: "Ana"})
         expect(within(dialog).getByRole("img", {name: "France"})).toBeDefined()
-        expect(within(dialog).getByText("#4f2ca1")).toBeDefined()
+        expect(dialog.textContent).not.toContain("#")
         expect(within(dialog).getByRole("status").textContent).toBe("Loading…")
 
         await screen.findByText("Tiles taken")

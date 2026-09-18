@@ -83,6 +83,18 @@ export function idsSince(log: readonly ChatMessage[], lastSeenId: string | undef
 }
 
 /**
+ * The name the server gave the latest message this client sent, of those still
+ * in the log: a guest's name is the server's pick, and this is how the client
+ * learns it.
+ */
+export function nameSentUnder(log: readonly ChatMessage[], sent: ReadonlySet<string>): string | undefined {
+    for (let i = log.length - 1; i >= 0; i--) {
+        if (sent.has(log[i].id)) return log[i].authorName
+    }
+    return undefined
+}
+
+/**
  * How long a quiet gap has to be before the same author's next message starts a
  * new group rather than joining the run above it.
  */
@@ -99,7 +111,6 @@ export function startsGroup(
     window: number = GROUP_WINDOW_MS,
 ): boolean {
     if (previous === undefined) return true
-    if (previous.authorTag !== message.authorTag) return true
     if (previous.authorName !== message.authorName) return true
     return message.sentAt - previous.sentAt > window
 }

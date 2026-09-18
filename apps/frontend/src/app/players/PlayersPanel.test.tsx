@@ -8,8 +8,8 @@ import PlayersPanel from "./PlayersPanel.tsx"
 
 afterEach(cleanup)
 
-const entry = (name: string, guest: boolean, countryCode = "fr", tag = "4f2ca1", admin = false): RosterEntry =>
-    ({key: `${name}#${tag}`, name, tag, countryCode, guest, admin})
+const entry = (name: string, guest: boolean, countryCode = "fr", admin = false): RosterEntry =>
+    ({key: name, name, countryCode, guest, admin})
 
 const group = (name: string) => screen.queryByRole("region", {name: new RegExp(`^${name}`)})
 const names = (region: HTMLElement) =>
@@ -41,12 +41,18 @@ describe("PlayersPanel", () => {
         expect(screen.queryByRole("list")).toBeNull()
     })
 
-    it("shows each player's flag, named for its country, and tag", () => {
-        render(<PlayersPanel entries={[entry("ana", false, "jp", "0c77e2")]}/>)
+    it("shows each player's flag, named for its country, and nothing of its address", () => {
+        render(<PlayersPanel entries={[entry("ana", false, "jp")]}/>)
 
         const row = screen.getByRole("listitem")
         expect(within(row).getByRole("img", {name: "Japan"}).querySelector(".country-flag")).not.toBeNull()
-        expect(within(row).getByText("#0c77e2")).toBeDefined()
+        expect(row.textContent).toBe("ana")
+    })
+
+    it("shows a guest's name once", () => {
+        render(<PlayersPanel entries={[entry("guest_a1b2c3", true)]}/>)
+
+        expect(screen.getByRole("listitem").textContent).toBe("guest_a1b2c3")
     })
 
     it("cuts a long name as the chat does, keeping the whole of it in the tooltip", () => {
@@ -60,15 +66,15 @@ describe("PlayersPanel", () => {
 
     // One player is one colour, here and in the chat.
     it("colours a name with the hue the chat gives it", () => {
-        render(<PlayersPanel entries={[entry("ana", false, "fr", "4f2ca1")]}/>)
+        render(<PlayersPanel entries={[entry("ana", false, "fr")]}/>)
 
         const row = screen.getByRole("listitem") as HTMLElement
-        expect(row.style.getPropertyValue("--author-hue")).toBe(String(authorHue("ana", "4f2ca1")))
+        expect(row.style.getPropertyValue("--author-hue")).toBe(String(authorHue("ana")))
     })
 
     it("opens a player, guest or not, from its name", async () => {
         const onOpenPlayer = vi.fn()
-        const bo = entry("guest_Bo", true, "de", "91aa3d")
+        const bo = entry("guest_Bo", true, "de")
         render(<PlayersPanel entries={[entry("ana", false), bo]} onOpenPlayer={onOpenPlayer}/>)
 
         await userEvent.click(screen.getByRole("button", {name: "guest_Bo"}))
@@ -83,7 +89,7 @@ describe("PlayersPanel", () => {
     })
 
     it("crowns an admin, and nobody else", () => {
-        render(<PlayersPanel entries={[entry("ana", false, "fr", "4f2ca1", true), entry("kiran_07", false)]}/>)
+        render(<PlayersPanel entries={[entry("ana", false, "fr", true), entry("kiran_07", false)]}/>)
 
         const [ana, kiran] = screen.getAllByRole("listitem")
         expect(within(ana).getByRole("img", {name: "Admin"})).toBeDefined()

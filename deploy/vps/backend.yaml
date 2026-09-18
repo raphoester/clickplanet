@@ -475,8 +475,8 @@ player:
     # Each take is one short transaction, beside the calls from the web app.
     pool:
       maxOpenConns: 4
-  # Salts the tag shown beside every name. Deliberately empty here: this file is
-  # in git, and the salt is what stops a reader of it from recomputing a tag
-  # from a guessed address. docker-compose.yaml passes the real one in from
+  # Salts the hash of an address the roster caps its visits with. It is never
+  # shown: guests are shown by their guest code. Deliberately empty here: this
+  # file is in git. docker-compose.yaml passes the real one in from
   # CHAT_TAG_SALT in .env, which overrides this.
   tagSalt: ""

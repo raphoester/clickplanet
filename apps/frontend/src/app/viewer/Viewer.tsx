@@ -23,7 +23,6 @@ import {AccountStore} from "../account/accountStore.ts";
 import {useAccount} from "../account/useAccount.ts";
 import {PlayerInfoBackend, PresenceBackend, PlayerLine} from "../../backends/player.ts";
 import PlayerCard from "../players/PlayerCard.tsx";
-import {useChatIdentity} from "../chat/useChatIdentity.ts";
 import {usePresence} from "../players/usePresence.ts";
 import {useRoster} from "../players/useRoster.ts";
 import SignInPitchModal from "../account/SignInPitchModal.tsx";
@@ -53,14 +52,7 @@ export default function Viewer(props: ViewerProps) {
     const account = useAccount(props.account)
     const username = account.kind === 'ready' ? account.username : undefined
 
-    // Held here rather than in the chat: presence announces the same name, and
-    // two copies of the hook would not hear of each other's change.
-    const chatIdentity = useChatIdentity()
-    usePresence(props.presence, {
-        countryCode: countryState.code,
-        guestName: chatIdentity.identity.name,
-        username,
-    })
+    usePresence(props.presence, {countryCode: countryState.code, username})
     const roster = useRoster(props.presence)
     const [pitchOpen, setPitchOpen] = useState(false)
     // One card at a time, over the roster or the chat, whichever the name was clicked in.
@@ -148,12 +140,10 @@ export default function Viewer(props: ViewerProps) {
             country={countryState}
             playSound={sound.play}
             username={username}
-            identity={chatIdentity.identity}
-            setName={chatIdentity.setName}
             onOpenPlayer={onOpenPlayer}
         />}
 
-        {openPlayer && props.playerInfo && <PlayerCard key={`${openPlayer.name}#${openPlayer.tag}`}
+        {openPlayer && props.playerInfo && <PlayerCard key={openPlayer.name}
                                                        player={openPlayer}
                                                        backend={props.playerInfo}
                                                        onClose={() => setOpenPlayer(undefined)}/>}

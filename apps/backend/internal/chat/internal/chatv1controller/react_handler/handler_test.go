@@ -67,8 +67,8 @@ func TestAReactionTheProtoDoesNotNameIsRefusedBeforeTheUseCase(t *testing.T) {
 
 func TestReactMapsTheRefusals(t *testing.T) {
 	for cause, code := range map[error]connect.Code{
-		reactions.ErrUnknownMessage:   connect.CodeNotFound,
-		messages.ErrAuthorUnavailable: connect.CodeUnavailable,
+		reactions.ErrUnknownMessage: connect.CodeNotFound,
+		messages.ErrNoAccount:       connect.CodeUnauthenticated,
 	} {
 		_, err := react(t.Context(), &stubUseCase{err: cause}, chatv1.Reaction_REACTION_CLOWN)
 

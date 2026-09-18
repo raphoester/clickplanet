@@ -7,8 +7,8 @@ import (
 
 const tagLength = 6
 
-// Tag is a salted hash of a caller's address. The chat shows it beside every name, so two guests who typed one
-// name still look different, and a caller cannot choose it.
+// Tag is a salted hash of a caller's address. It never leaves the server: the roster caps the visits of one
+// address with it. What the game shows for a guest is its GuestCode, which does not change with the network.
 type Tag string
 
 // TagOf is the tag of an address. The same salt and address always give the same tag.
