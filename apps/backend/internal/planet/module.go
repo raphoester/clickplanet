@@ -19,6 +19,8 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/inmemory_charge_storage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/postgres_charge_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/claim_bonus_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/claim_bonus_usecase/prom_claim_bonus"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/drop_bomb_usecase"
@@ -144,8 +146,16 @@ func NewModule(config Config) cpbootstrap.Module {
 				return fmt.Errorf("failed to load the ledger: %w", err)
 			}
 
-			// The pool closes after both runners' last flush, not as a closer: closers run first.
-			props.Runners.Add(cppg.CloseAfter(db, props.Logger, tilesStorage, takings))
+			// The bomb, enclose and spread charges each account holds, so a restart does not take them.
+			charges := inmemory_charge_storage.New(config.ChargeStorage, config.Bonus.ChargesConfig(),
+				postgres_charge_store.New(db), clock, props.Logger)
+			if err := charges.Load(ctx); err != nil {
+				_ = db.Close()
+				return fmt.Errorf("failed to load the charges: %w", err)
+			}
+
+			// The pool closes after every runner's last flush, not as a closer: closers run first.
+			props.Runners.Add(cppg.CloseAfter(db, props.Logger, tilesStorage, takings, charges))
 			props.Runners.Add(ledger.NewRetention(config.Ledger, takings, clock))
 
 			// One limiter holds both buckets a click spends: the account's, and its scope's at scopeMultiplier.
@@ -161,11 +171,9 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			// ---- Bonus boxes ----
 
-			registry := bonuses.New(config.Bonus, clock)
+			// It reads the charges held, so nobody is offered a second of a kind.
+			registry := bonuses.New(config.Bonus, clock, charges)
 			props.Runners.Add(registry)
-
-			// The bomb, enclose and spread charges, which the registry's schedule reads so nobody holds two.
-			charges := registry.Charges()
 
 			bombRules := bonuses.NewBombRules(config.Bonus.Bomb, geography.Spacing())
 

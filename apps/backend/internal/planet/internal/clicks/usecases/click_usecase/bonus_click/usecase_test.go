@@ -56,5 +56,5 @@ func TestAClickSaysWhichAccountPlaysBehindTheScope(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, []string{"1.2.3.4"}, presence.scopes)
-	assert.Equal(t, []bonuses.Holder{"account:a-guest"}, presence.holders)
+	assert.Equal(t, []bonuses.Holder{"a-guest"}, presence.holders)
 }

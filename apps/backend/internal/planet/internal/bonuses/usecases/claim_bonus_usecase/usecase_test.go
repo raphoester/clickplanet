@@ -184,7 +184,7 @@ func TestABombClaimHandsOverTheBomb(t *testing.T) {
 		Execute(t.Context(), claim_bonus_usecase.In{Token: "a-token", CountryID: "fr"})
 	require.NoError(t, err)
 
-	assert.Equal(t, []grantedCharge{{holder: bonuses.Holder("scope:" + cpctx.RateLimitKey(t.Context())), kind: bonuses.KindBomb}}, charger.granted)
+	assert.Equal(t, []grantedCharge{{holder: bonuses.NoHolder, kind: bonuses.KindBomb}}, charger.granted)
 	assert.Zero(t, booster.multiplier, "a bomb is not a boost")
 	assert.Equal(t, bonuses.KindBomb, out.Kind)
 	assert.Zero(t, out.Duration, "a bomb is kept until it is dropped")
@@ -201,7 +201,7 @@ func TestAChargeIsTheAccountsAndNotTheAddresss(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, "1.2.3.4", registry.scope, "the offer is still the scope's")
-	assert.Equal(t, []grantedCharge{{holder: "account:a-guest", kind: bonuses.KindBomb}}, charger.granted)
+	assert.Equal(t, []grantedCharge{{holder: "a-guest", kind: bonuses.KindBomb}}, charger.granted)
 }
 
 func TestATripleGrantsNoCharge(t *testing.T) {
@@ -224,7 +224,7 @@ func TestASpreadClaimHandsOverTheChargeAndSpeedsUpNothing(t *testing.T) {
 		Execute(t.Context(), claim_bonus_usecase.In{Token: "a-token", CountryID: "fr"})
 	require.NoError(t, err)
 
-	assert.Equal(t, []grantedCharge{{holder: bonuses.Holder("scope:" + cpctx.RateLimitKey(t.Context())), kind: bonuses.KindSpreadClicks}}, charger.granted)
+	assert.Equal(t, []grantedCharge{{holder: bonuses.NoHolder, kind: bonuses.KindSpreadClicks}}, charger.granted)
 	assert.Zero(t, booster.multiplier, "a spread is not a boost")
 	assert.Equal(t, 10, out.Budget.Capacity, "the allowance is answered as it stands")
 	assert.Equal(t, bonuses.KindSpreadClicks, out.Kind)
@@ -241,7 +241,7 @@ func TestAnEncloseClaimHandsOverTheChargeAndSpeedsUpNothing(t *testing.T) {
 		Execute(t.Context(), claim_bonus_usecase.In{Token: "a-token", CountryID: "fr"})
 	require.NoError(t, err)
 
-	assert.Equal(t, []grantedCharge{{holder: bonuses.Holder("scope:" + cpctx.RateLimitKey(t.Context())), kind: bonuses.KindEncloseClicks}}, charger.granted)
+	assert.Equal(t, []grantedCharge{{holder: bonuses.NoHolder, kind: bonuses.KindEncloseClicks}}, charger.granted)
 	assert.Zero(t, booster.multiplier, "an enclose is not a boost")
 	assert.Equal(t, 10, out.Budget.Capacity, "the allowance is answered as it stands")
 	assert.Equal(t, bonuses.Held{Enclose: true}, out.Held)

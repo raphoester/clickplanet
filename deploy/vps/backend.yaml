@@ -40,6 +40,11 @@ tilesStorage:
 ledger:
   retention: 72h
 
+# The charges each account holds, kept in postgres; the ones that changed are
+# written every second, and on shutdown.
+chargeStorage:
+  flushInterval: 1s
+
 # Kept in postgres beside the tile map; new takes are written every second.
 # 4M takes is ~100 MiB in memory: three days at ~15 takes a second. A busier
 # stretch drops the oldest takes first and logs "the ledger is full".
@@ -359,7 +364,7 @@ bonus:
   maxBoostPerHour: 15m
 
   # The same for charges, which have no time to count, and how long one is kept
-  # unspent. A restart loses every charge held: they live in memory.
+  # unspent. They are kept in postgres, so a restart keeps them.
   maxChargesPerHour: 6
   chargeTTL: 24h
 

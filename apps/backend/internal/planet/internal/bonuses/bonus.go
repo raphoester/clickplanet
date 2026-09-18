@@ -31,7 +31,7 @@ const (
 )
 
 // Timed says whether a kind runs for a time. Only triple clicks does: the others are charges, held
-// until they are spent (see Charges).
+// until they are spent (see Hand).
 func (k Kind) Timed() bool {
 	return k == KindTripleClicks
 }
@@ -106,7 +106,7 @@ type caller struct {
 	lastSeen    time.Time
 	lastClickAt time.Time
 
-	// Who clicked from this scope, and when last: the holders whose charges keep a kind from being offered.
+	// Which accounts clicked from this scope, and when last: whose charges keep a kind from being offered.
 	players map[Holder]time.Time
 
 	outstanding string
@@ -151,10 +151,10 @@ type Report struct {
 }
 
 type Registry struct {
-	config  Config
-	clock   cptime.Clock
-	report  Report
-	charges *Charges
+	config   Config
+	clock    cptime.Clock
+	report   Report
+	holdings Holdings
 
 	mu      sync.Mutex
 	callers map[string]*caller
@@ -174,26 +174,23 @@ type pending struct {
 // this is sized for a burst of those rather than for the rare offer.
 const eventBuffer = 32
 
-func New(config Config, clock cptime.Clock) *Registry {
+// Holdings is what a holder has in hand, which the schedule reads so nobody is offered a second of a kind.
+type Holdings interface {
+	Held(holder Holder) Held
+}
+
+func New(config Config, clock cptime.Clock, holdings Holdings) *Registry {
 	if clock == nil {
 		clock = cptime.SystemClock{}
 	}
 
-	config = config.withDefaults()
-	r := &Registry{
-		config:  config,
-		clock:   clock,
-		callers: make(map[string]*caller),
-		offers:  make(map[string]*pending),
+	return &Registry{
+		config:   config.withDefaults(),
+		clock:    clock,
+		holdings: holdings,
+		callers:  make(map[string]*caller),
+		offers:   make(map[string]*pending),
 	}
-	r.charges = NewCharges(config.charges(), clock)
-
-	return r
-}
-
-// Charges is the charges this registry's boxes grant, and whose holdings its schedule reads.
-func (r *Registry) Charges() *Charges {
-	return r.charges
 }
 
 // Observe attaches the counters. Optional, so a test builds a registry without
@@ -271,7 +268,9 @@ func (r *Registry) Clicked(scope string, holder Holder) {
 
 	entry := r.caller(scope, now)
 	entry.lastClickAt = now
-	entry.players[holder] = now
+	if holder != NoHolder {
+		entry.players[holder] = now
+	}
 }
 
 // Claim fails for a token unknown, spent, lapsed, or offered to somebody else.
@@ -407,7 +406,8 @@ func (r *Registry) due(entry *caller, now time.Time) bool {
 // offerable is every kind with a weight that the caller may be given now. A kind held by any player who
 // clicked from this scope within ActiveWithin is left out, so nobody holds two of one kind. The hourly caps
 // leave out triple clicks past MaxBoostPerHour of boost time, and every charge past MaxChargesPerHour
-// charges. It forgets the players who stopped clicking on the way.
+// charges. A scope where no account is playing is offered no charge: only an account can hold one. It
+// forgets the players who stopped clicking on the way.
 func (r *Registry) offerable(entry *caller, now time.Time) *cpcolls.Set[Kind] {
 	boosted, charged := r.grantedWithinTheHour(entry, now)
 
@@ -417,7 +417,7 @@ func (r *Registry) offerable(entry *caller, now time.Time) *cpcolls.Set[Kind] {
 			delete(entry.players, holder)
 			continue
 		}
-		held.Add(r.charges.Held(holder).Kinds()...)
+		held.Add(r.holdings.Held(holder).Kinds()...)
 	}
 
 	kinds := cpcolls.NewSetWithCapacity[Kind](len(Kinds))
@@ -425,7 +425,7 @@ func (r *Registry) offerable(entry *caller, now time.Time) *cpcolls.Set[Kind] {
 		switch {
 		case r.config.Kinds[kind] <= 0, held.Contains(kind):
 		case kind.Timed() && boosted >= r.config.MaxBoostPerHour:
-		case !kind.Timed() && charged >= r.config.MaxChargesPerHour:
+		case !kind.Timed() && (charged >= r.config.MaxChargesPerHour || len(entry.players) == 0):
 		default:
 			kinds.Add(kind)
 		}

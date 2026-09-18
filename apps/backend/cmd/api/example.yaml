@@ -56,6 +56,11 @@ ledger:
   retention: 72h
   sweepInterval: 5m
 
+chargeStorage:
+  # How often the charges that changed (a bomb, an enclose, a spread's clicks)
+  # are written to postgres. Also flushed on shutdown, so a deploy keeps them.
+  flushInterval: 1s
+
 ledgerStorage:
   # How often the new takes are written to postgres. Also flushed on shutdown.
   flushInterval: 1s
@@ -228,7 +233,8 @@ bonus:
   maxChargesPerHour: 6
 
   # How long a charge is kept unspent. Long, so a held bomb is a reason to come
-  # back. Charges live in memory: a restart loses every one held.
+  # back. Only an account holds charges, and they are kept in postgres (see
+  # chargeStorage), so a restart keeps them.
   chargeTTL: 24h
 
   # One sweep for everybody, rather than a timer per caller.

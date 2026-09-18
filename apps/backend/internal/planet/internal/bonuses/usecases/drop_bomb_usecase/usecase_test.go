@@ -82,7 +82,7 @@ func TestABombOnLandClearsACircleAroundTheTileHit(t *testing.T) {
 	assert.InDelta(t, 0.03, p.geo.radius, 1e-9)
 	assert.InDelta(t, 0.03, blast.Radius, 1e-9)
 	assert.Equal(t, clicks.Vec3{Y: 1}, blast.Point, "drawn at the tile's centre")
-	assert.Equal(t, []bonuses.Holder{bonuses.Holder("scope:" + cpctx.RateLimitKey(t.Context()))}, p.bombs.spent)
+	assert.Equal(t, []bonuses.Holder{bonuses.NoHolder}, p.bombs.spent)
 }
 
 func TestTheBombSpentIsTheAccounts(t *testing.T) {
@@ -92,7 +92,7 @@ func TestTheBombSpentIsTheAccounts(t *testing.T) {
 	_, err := useCase.Execute(ctx, drop_bomb_usecase.In{Target: clicks.Vec3{X: 2}, CountryID: "fr"})
 	require.NoError(t, err)
 
-	assert.Equal(t, []bonuses.Holder{"account:a-guest"}, p.bombs.spent)
+	assert.Equal(t, []bonuses.Holder{"a-guest"}, p.bombs.spent)
 }
 
 func TestABombInTheSeaIsSpentAndClearsNothing(t *testing.T) {

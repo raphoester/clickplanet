@@ -3,6 +3,7 @@ package enclose_click_test
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"testing"
 	"time"
 
@@ -10,9 +11,10 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/inmemory_charge_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/enclose_click"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -76,13 +78,20 @@ func (r *recorder) PublishEnclosed(_ string, enclosed bonuses.Enclosed) {
 	r.published = append(r.published, enclosed)
 }
 
-// caller is the holder of a click made from the test's context: no account, and the scope that reads.
-var caller = bonuses.HolderOf(clicks.PayerOf(context.Background()))
+// caller is the account every click here is made by: only an account holds a charge.
+const caller bonuses.Holder = "a-player"
+
+// played is the test's context, with the click token's account on it.
+func played(t *testing.T) context.Context {
+	t.Helper()
+
+	return cpctx.AddAccountToContext(t.Context(), string(caller))
+}
 
 type fixture struct {
 	grid      honeycomb
 	tiles     tiles
-	charges   *bonuses.Charges
+	charges   *inmemory_charge_storage.Storage
 	published *recorder
 	useCase   *enclose_click.UseCase
 }
@@ -91,8 +100,10 @@ func setup(charged bool, err error) fixture {
 	f := fixture{
 		grid:  honeycomb{size: 12},
 		tiles: tiles{},
-		charges: bonuses.NewCharges(bonuses.ChargesConfig{TTL: time.Hour, SpreadClicks: 8, EnclosureMaxTiles: 10},
-			cptime.NewFixedClock(epoch)),
+		charges: inmemory_charge_storage.New(inmemory_charge_storage.Config{},
+			bonuses.ChargesConfig{TTL: time.Hour, SpreadClicks: 8, EnclosureMaxTiles: 10},
+			inmemory_charge_storage.NewMemoryPersistence(), cptime.NewFixedClock(epoch),
+			slog.New(slog.DiscardHandler)),
 		published: &recorder{},
 	}
 	if charged {
@@ -108,7 +119,7 @@ func setup(charged bool, err error) fixture {
 func (f fixture) click(t *testing.T, tile uint32) {
 	t.Helper()
 
-	_, err := f.useCase.Execute(t.Context(), click_usecase.In{TileID: tile, CountryID: "fr"})
+	_, err := f.useCase.Execute(played(t), click_usecase.In{TileID: tile, CountryID: "fr"})
 	require.NoError(t, err)
 }
 
@@ -290,7 +301,7 @@ func TestARefusedClickClosesNothing(t *testing.T) {
 	centre, ring := f.grid.id(5, 5), f.grid.ring(5, 5)
 	f.own("fr", ring...)
 
-	_, err := f.useCase.Execute(t.Context(), click_usecase.In{TileID: ring[0], CountryID: "fr"})
+	_, err := f.useCase.Execute(played(t), click_usecase.In{TileID: ring[0], CountryID: "fr"})
 
 	require.ErrorIs(t, err, refused)
 	assert.Empty(t, f.tiles[centre])

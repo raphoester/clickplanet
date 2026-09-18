@@ -16,17 +16,18 @@ func (s stubCharges) Held(holder bonuses.Holder) bonuses.Held { return s[holder]
 
 func TestTheChargesReadAreTheAccounts(t *testing.T) {
 	charges := stubCharges{
-		"account:a-guest": {Bomb: true},
-		"scope:1.2.3.4":   {SpreadClicks: 3},
+		"a-guest":        {Bomb: true},
+		bonuses.NoHolder: {SpreadClicks: 3},
 	}
 	ctx := cpctx.AddAccountToContext(cpctx.AddIPToContext(t.Context(), "1.2.3.4"), "a-guest")
 
 	assert.Equal(t, bonuses.Held{Bomb: true}, get_charges_usecase.New(charges).Execute(ctx))
 }
 
-func TestWithNoAccountTheChargesReadAreTheScopes(t *testing.T) {
-	charges := stubCharges{"scope:1.2.3.4": {SpreadClicks: 3}}
+func TestWithNoAccountNothingIsHeld(t *testing.T) {
+	charges := stubCharges{bonuses.NoHolder: {SpreadClicks: 3}}
 
 	assert.Equal(t, bonuses.Held{SpreadClicks: 3},
-		get_charges_usecase.New(charges).Execute(cpctx.AddIPToContext(t.Context(), "1.2.3.4")))
+		get_charges_usecase.New(charges).Execute(cpctx.AddIPToContext(t.Context(), "1.2.3.4")),
+		"the read goes to NoHolder, which the storage never grants anything")
 }

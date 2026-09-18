@@ -261,6 +261,8 @@ internal/planet/internal/
     postgres_ledger_store/
     usecases/
   bonuses/                        the boxes, and what each one grants
+    inmemory_charge_storage/
+    postgres_charge_store/
     usecases/
   planetv1controller/             the edge: maps the wire to the use cases, nothing else
 ```
@@ -431,6 +433,8 @@ The response never repeats a tile id. `GetMapResponse` carries `start_tile_id`, 
 - `clicks/postgres_tile_store/` — that port, over the `planet.tiles` table. See [Durability](#durability).
 - `ledger/inmemory_ledger_storage/` — the ledger, in memory, flushed through its own `Persistence` port.
 - `ledger/postgres_ledger_store/` — that port, over `planet.ledger_takes`, `ledger_head` and `ledger_forgotten`.
+- `bonuses/inmemory_charge_storage/` — the charges each account holds, in memory, flushed through its own `Persistence` port.
+- `bonuses/postgres_charge_store/` — that port, over `planet.charges`.
 - `clicks.Board` (not an adapter) — validates tile IDs
 - country codes are validated by `shared/cpcountries`, which chat shares — see [The composite layer](#the-composite-layer)
 
@@ -942,27 +946,39 @@ bomb held 30s was dropped on the first target in sight. So these three are
 **use-once charges** with no clock: a bomb is one drop, an enclose is one shape,
 a spread is the next 8 clicks.
 
-- **`bonuses.Charges` holds them**, in memory, by `bonuses.Holder`: the account
-  the click token names (`account:<id>`), or the scope when there is none
-  (`scope:<scope>`). `HolderOf(clicks.PayerOf(ctx))` derives it, so the claim, the
+- **Only an account holds a charge.** `bonuses.Holder` is the account the click
+  token names, and `HolderOf(clicks.PayerOf(ctx))` derives it, so the claim, the
   click chain and the drop agree on whose charge it is. A charge is the account's
-  so it survives closing the tab, a new address and another device.
+  so it survives closing the tab, a new address and another device. A caller with
+  no account is `NoHolder`: it holds nothing, and a scope where no account plays
+  is offered triples only. Every client mints a guest account, so this leaves
+  out only a caller with no token at all.
+- **The rules are a value, `bonuses.Hand`**: one account's charges with the
+  moment each lapses. `Granted`, `AfterBomb`, `AfterEnclose` and
+  `AfterSpreadClick` build a new hand and change nothing; the storage swaps it in.
 - **At most one of each kind.** A second grant of a kind held replaces it rather
   than stacking, and the schedule does not offer a kind held by any player who
   clicked from the scope within `activeWithin` (`Registry.offerable`). The
   schedule is by scope and a charge is by account, so `bonus_click` tells the
   registry both on every accepted click: `Clicked(scope, holder)`. Stockpiling
   bombs and dropping them all at once is exactly the "a long session destroyed
-  in seconds" this avoids. The registry owns the `Charges` (`Registry.Charges()`),
-  since its schedule reads them.
+  in seconds" this avoids. The registry reads the charges through its
+  `Holdings` port, which the storage satisfies.
 - **A charge lapses `bonus.chargeTTL` (24h) after it was granted**, unspent.
   Long, so a held charge is a reason to come back.
-- **A restart loses every charge held.** Bonus state is not persisted: the
-  registry's schedules, offers and grants are memory only, and so are the charges.
-  A deploy costs a player the bomb in hand. Persisting them is a table keyed by
-  holder, when that is worth it.
-- **Each spend is atomic**: `SpendBomb`, `SpendEnclose` and `SpendSpreadClick`
-  check and take under one lock, so two tabs racing for the last one get one.
+- **A restart keeps them.** `bonuses/inmemory_charge_storage` holds every hand in
+  memory, so a click reads and spends under one lock with no round trip, and
+  writes the hands that changed through its `Persistence` every
+  `chargeStorage.flushInterval` (1s): `bonuses/postgres_charge_store`, one row per
+  account in `planet.charges`, a NULL time for a kind not held. A spent or lapsed
+  hand is a deleted row. Like the tile map: boot loads it and a failed load refuses
+  the boot, shutdown flushes once more, and a hard kill loses at most the last
+  second. A deleted account's charges are not removed at once: they lapse with
+  the TTL. The rest of the bonus state (schedules, offers, the hourly caps) is
+  still memory only, so a restart gives everyone a fresh schedule.
+- **Each spend is atomic**: the storage's `SpendBomb`, `SpendEnclose` and
+  `SpendSpreadClick` check and take under one lock, so two tabs racing for the
+  last one get one.
 - **Nothing pushes them.** They are not live news: `GetCharges` answers what the
   caller holds, read by the client at load and when its account changes, and
   `ClaimBonusResponse.charges` answers the claim. After that the client follows
@@ -1744,7 +1760,9 @@ Both chains order them the same way: error mapping outermost, then the blocklist
 - **Four tables.** `ledger_takes` is one row per take, keyed by its position, with the take's `account` (NULL for none, and for every take made before accounts). `ledger_head` is one row: the oldest position kept, so positions carry on past a ledger the retention emptied. `ledger_forgotten` is a reverted scope's mark, and `ledger_forgotten_accounts` a reverted account's.
 - **Boot loads it**, takes in position order, then the marks. **A failed load refuses the boot.** Measured at 1M takes on a laptop: 95 MiB of table, 0.8s to load, 1.3s to copy in — so ~380 MiB, ~3s and ~5s at the 4M cap.
 - **A flush appends, it never rewrites.** Every `ledgerStorage.flushInterval` (1s), `Flush` hands the takes past the last flush to `Save`: one transaction that `COPY`s them in, deletes the takes before the head (what the retention or the cap dropped), moves the head, and upserts the marks set since. It first deletes any row at or past the first new position, so a flush whose commit answer was lost writes again without a conflict. A take dropped before it was flushed is never written. A failed save keeps it all for the next tick; each flush has a 10s timeout, and shutdown flushes once more.
-- **One pool for both runners.** `cppg.CloseAfter(db, logger, tilesStorage, takings)` runs them together and closes the pool after both last flushes.
+- **One pool for every runner.** `cppg.CloseAfter(db, logger, tilesStorage, takings, charges)` runs them together and closes the pool after the last flushes.
+
+**The charges follow it too**, through `inmemory_charge_storage.Persistence` and `bonuses/postgres_charge_store`, on the same pool: one row per account in `planet.charges`, written every `chargeStorage.flushInterval`. See [Charges](#charges-bomb-enclose-spread).
 
 The antibot's bans and evidence are in postgres too, in the `antibot` schema, the same way — see [What survives a restart](#what-survives-a-restart). The player module's profiles and stats are in postgres too, in the `player` schema, but with no memory copy: each call reads or writes the table — see [Player](#player-internalplayer).
 
@@ -2011,7 +2029,8 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `bonus.kinds` — a weight per kind (`triple_clicks`, `spread_clicks`); a kind's chance is its weight over the sum. Left out or 0 is never offered, empty offers every kind equally, and an unknown kind, a negative weight or all zeros refuse the boot
 - `bonus.spread.clicks` — how many clicks a caught `spread_clicks` charge spreads (default 8, about 56 tiles, a bomb's worth). A count, not a time: a timed spread let a full bank of clicks be dumped inside it
 - `bonus.enclose.maxTiles` — the most tiles the one shape of an `enclose_clicks` charge may take (default 25)
-- `bonus.chargeTTL` — how long a charge (bomb, enclose, spread) is kept unspent (default 24h). Charges live in memory: a restart loses them
+- `bonus.chargeTTL` — how long a charge (bomb, enclose, spread) is kept unspent (default 24h). Charges are kept in postgres, so a restart keeps them
+- `chargeStorage.flushInterval` — how often the charges that changed are written to postgres (default 1s); also flushed on shutdown
 - `bonus.maxBoostPerHour`, `bonus.maxChargesPerHour` — the most triple time (15m) and the most charges (6) one caller may be granted per hour; a cap reached leaves those kinds out of the draw
 - `bonus.triple.duration`, `bonus.triple.multiplier` — how long a caught `triple_clicks` runs and what it multiplies the allowance by; the client reads both off the answer, so changing them changes the meter with no frontend release
 - `antiBot.enabled` — off registers nothing and measures nothing

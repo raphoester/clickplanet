@@ -211,7 +211,9 @@ func (c Config) durationOf(kind Kind) time.Duration {
 	return c.Triple.Duration
 }
 
-// charges is the part of the config the charges read, defaults filled in.
-func (c Config) charges() ChargesConfig {
+// ChargesConfig is the part of the config the charges read, defaults filled in.
+func (c Config) ChargesConfig() ChargesConfig {
+	c = c.withDefaults()
+
 	return ChargesConfig{TTL: c.ChargeTTL, SpreadClicks: c.Spread.Clicks, EnclosureMaxTiles: c.Enclose.MaxTiles}
 }
