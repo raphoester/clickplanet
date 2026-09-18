@@ -732,9 +732,17 @@ and `CompleteSignIn` each spend one. `tooManyTries` says to wait a minute.
    `linkedElsewhere` tells them how to move the identity: sign in with it,
    delete that account, then link it here.
 
-**A signed-in player picks a unique username** in `AccountPanel`: 3 to 20 ASCII
-letters, digits or `_`, not starting with `guest_` in any case, unique ignoring
-case. `isValidUsername` mirrors the rule for the Save button; the server is the
+**A signed-in player picks a unique username** in `AccountPanel`: 3 to 15
+code points of letters of any script, digits, `_` and single spaces, not
+starting with `guest_` in any case, unique ignoring case (the server's rule is
+`players.NameOf`, see the backend's CLAUDE.md). `usernameOf` puts the draft in
+NFC and cuts the spaces at its ends, as the server does, and that is what is
+sent. `isValidUsername` mirrors the rule for the Save button with `\p{…}`
+classes, and counts code points (`[...name].length`), never `length`. The input's
+`maxLength` counts UTF-16 units, so it is twice the rule: the rule is the bound.
+One part is the server's alone: JavaScript cannot name a character's script, so
+the client refuses only Latin, Greek and Cyrillic mixed (the lookalikes), and a
+name mixing other scripts comes back `invalid`. The server is the
 authority and alone knows what is taken. The chat shows it (see [Live
 chat](#live-chat)). **It is read after the account, not with it**: `GetProfile`
 needs a click token, which can mean a mint, so the section shows as soon as

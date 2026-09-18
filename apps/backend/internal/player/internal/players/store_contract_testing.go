@@ -245,3 +245,21 @@ func (s *StoreContractSuite) TestADeletedAccountFreesItsName() {
 
 	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(2, "Ada")))
 }
+
+func (s *StoreContractSuite) TestANameOfAnyScriptIsTakenByItsFold() {
+	for i, pair := range [][2]Name{{"Émile Zola", "éMILE zOLA"}, {"Straße", "STRASSE"}, {"Жанна", "жАННА"}, {"Ａｄａ", "ada"}} {
+		held, asked := contractProfile(byte(2*i+1), pair[0]), contractProfile(byte(2*i+2), pair[1])
+		s.Require().NoError(s.store.SaveProfile(s.T().Context(), held))
+
+		s.Require().ErrorIs(s.store.SaveProfile(s.T().Context(), asked), ErrNameTaken, "%q holds %q", pair[0], pair[1])
+		profile, err := s.store.ProfileNamed(s.T().Context(), pair[1])
+		s.Require().NoError(err)
+		s.Equal(held, profile)
+	}
+}
+
+func (s *StoreContractSuite) TestNamesThatOnlyLookAlikeAreTwoNames() {
+	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(1, "Ada")))
+
+	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(2, "Adá")))
+}
