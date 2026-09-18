@@ -190,7 +190,10 @@ antiBot:
   metronome:
     enabled: true
     detector:
-      maxGap: 3s
+      # Above the 5s refill of rateLimiter, with room for jitter. At 3s, a loop
+      # trying once per refill broke its run on every gap and never read. A
+      # hand still pauses past 7s, and maxSpread is what bans, not this.
+      maxGap: 7s
       # Left wide deliberately, unlike the retaker's. The caller measured on
       # 2026-09-11 read 248ms here. Gaps are timed between clicks *tried*, 429s
       # included, since 2026-09-14: before that the throttle's refusals turned a
