@@ -68,7 +68,7 @@ The RPCs are served with [Connect](https://connectrpc.com), which is plain HTTP 
 
 `ListenForEvents` is a server-streaming RPC carrying `PlanetEvent`, a `oneof` of `tile_update` and `heartbeat`. **One stream per API**: a new kind of live event is a new case in that `oneof`, not a second stream, and a client that does not know a case skips it. The heartbeat (every `httpServer.streamHeartbeat`, 30s by default) is what keeps a quiet stream alive — Cloudflare cuts a silent response at ~125s with a 524.
 
-`Click` is rate limited per source IP — 1 click/s with a burst of 10 by default, configurable under `rateLimiter`. Over that, it answers `429`. The reads and the streams are not limited.
+`Click` is rate limited per source IP — 1 click/s with a burst of 10 by default, configurable under `rateLimiter` (production runs one click every 5s with a bank of 60). Over that, it answers `429`. The reads and the streams are not limited.
 
 ## Running locally
 

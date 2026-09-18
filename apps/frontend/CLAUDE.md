@@ -249,7 +249,7 @@ turn the VPN off, or reload and unblock the challenge. Everything else is a tran
 console.
 
 `FakeBackend` reproduces all three, so every refusal is reachable in dev: it
-enforces the same bucket with the backend's defaults, and takes `vpnBlocked` and
+enforces the same bucket as production's `rateLimiter` (one click every 5s, 60 in hand), and takes `vpnBlocked` and
 `sessionUnavailable` options that refuse every click (there is no address and no
 widget there to judge). Its own simulated traffic bypasses all of them, standing
 in for other players rather than for this one.
@@ -852,6 +852,12 @@ player's territory, so it has not been done.
    pip per click in the burst (one bar past 12 of them), and the partly-filled
    pip is the click being granted back, at the server's own rate. Change
    `rateLimiter.burst` on the backend and this follows with no release here.
+
+   **A slow refill gets a countdown.** When a click takes 1.5s or more to come
+   back (`COUNTDOWN_FROM_S`; production is one every 5s), the meter says
+   "+1 in 4s" beside the bar, and says nothing at a full bucket. Past 12 pips
+   the bar moves a sixtieth per click, too little to see, so a blue strip under
+   it (`--click-budget-next`) fills once per click, as a pip would.
 
    The refill is animated from **one CSS custom property written per frame**,
    and each pip works out its own share of it with a `clamp()`; the count, the

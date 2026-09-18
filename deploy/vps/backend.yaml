@@ -54,9 +54,14 @@ ledgerStorage:
 # IPv4, and that address's /64 over IPv6. A token with no account spends one
 # scope bucket at perSecond and burst, as before accounts. An account signed in
 # with Google or Discord holds linkedMultiplier times a guest's allowance.
+# One click every 5 seconds, and a bank of 60 that fills in five
+# minutes. Scarce clicks make a group coordinate and take most of the edge from
+# a bot or a spammer; a full bank is a burst to spend when you come back. A
+# signed-in player gets twice both (one every 2.5s, 120 in hand). perSecond is a
+# float: 0.2 is one every 5s.
 rateLimiter:
-  perSecond: 1
-  burst: 10
+  perSecond: 0.2
+  burst: 60
   scopeMultiplier: 10
   linkedMultiplier: 2
 
