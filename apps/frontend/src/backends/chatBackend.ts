@@ -1,5 +1,7 @@
 import {
+    ChatAnnouncement,
     ChatBlockedError,
+    ChatHistory,
     ChatHistoryGetter,
     ChatListener,
     ChatMessage,
@@ -14,6 +16,7 @@ import {
     ReactionsChange,
 } from "./chat.ts";
 import {
+    Announcement as AnnouncementPb,
     ChatEvent,
     ChatMessage as ChatMessagePb,
     ReactionCount as ReactionCountPb,
@@ -100,7 +103,7 @@ export class ChatServiceBackend implements ChatSender, ChatHistoryGetter, ChatLi
      * Sends the token already held, never a fresh one, so the server can mark
      * the caller's own reactions: loading the chat is not worth a mint.
      */
-    public async getHistory(signal?: AbortSignal): Promise<ChatMessage[]> {
+    public async getHistory(signal?: AbortSignal): Promise<ChatHistory> {
         const headers = new Headers()
         const held = this.session.held()
         if (held) headers.set(SESSION_HEADER, held)
@@ -112,7 +115,10 @@ export class ChatServiceBackend implements ChatSender, ChatHistoryGetter, ChatLi
                 signal,
             )
 
-            return res.messages.map(decodedMessage)
+            return {
+                messages: res.messages.map(decodedMessage),
+                announcements: res.announcements.flatMap(announcement => decodedAnnouncement(announcement) ?? []),
+            }
         } catch (e) {
             throw translate(e)
         }
@@ -121,6 +127,7 @@ export class ChatServiceBackend implements ChatSender, ChatHistoryGetter, ChatLi
     public listenForMessages(
         callback: (message: ChatMessage) => void,
         onReactions?: (change: ReactionsChange) => void,
+        onAnnouncement?: (announcement: ChatAnnouncement) => void,
     ): () => void {
         return openStream(
             (signal) => this.client.listenForEvents({}, {signal, timeoutMs: NO_TIMEOUT}),
@@ -129,6 +136,8 @@ export class ChatServiceBackend implements ChatSender, ChatHistoryGetter, ChatLi
                 if (message) callback(message)
                 const change = reactionsOf(event)
                 if (change) onReactions?.(change)
+                const announcement = announcementOf(event)
+                if (announcement) onAnnouncement?.(announcement)
             },
             "chat",
         )
@@ -183,6 +192,43 @@ export function reactionsOf(event: ChatEvent): ReactionsChange | undefined {
         messageId: event.event.value.messageId,
         reactions: event.event.value.reactions.map(decodedCount),
         version: Number(event.event.value.version),
+    }
+}
+
+export function announcementOf(event: ChatEvent): ChatAnnouncement | undefined {
+    if (event.event.case !== "announcement") return undefined
+
+    return decodedAnnouncement(event.event.value)
+}
+
+/**
+ * An announcement this build can write a line for, or undefined: a kind it
+ * does not know, or a payload that is not the kind's, is not shown.
+ */
+export function decodedAnnouncement(announcement: AnnouncementPb): ChatAnnouncement | undefined {
+    let payload: unknown
+    try {
+        payload = JSON.parse(announcement.payload)
+    } catch {
+        return undefined
+    }
+    if (typeof payload !== "object" || payload === null) return undefined
+    const values = payload as Record<string, unknown>
+
+    switch (announcement.kind) {
+        case "bomb":
+            if (typeof values.country !== "string" || values.country === "") return undefined
+            return {
+                kind: "bomb",
+                id: announcement.id,
+                announcedAt: Number(announcement.announcedAtUnixMs),
+                country: values.country,
+                ground: typeof values.ground === "string" && values.ground !== "" ? values.ground : undefined,
+                tile: typeof values.tile === "number" && values.tile > 0 ? values.tile : undefined,
+                cleared: typeof values.cleared === "number" ? values.cleared : 0,
+            }
+        default:
+            return undefined
     }
 }
 

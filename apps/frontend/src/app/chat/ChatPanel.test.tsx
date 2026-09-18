@@ -6,6 +6,7 @@ import ChatPanel, {ChatPanelProps} from "./ChatPanel.tsx"
 import {useChatIdentity} from "./useChatIdentity.ts"
 import {CHAT_IDENTITY_STORAGE_KEY} from "./chatIdentity.ts"
 import {
+    ChatAnnouncement,
     ChatBackend,
     ChatMessage,
     ChatRateLimitedError,
@@ -36,18 +37,21 @@ const message = (id: string, text: string, sentAt = 1_700_000_000_000): ChatMess
     reactionsVersion: 0,
 })
 
-function stubBackend(history: ChatMessage[] = []) {
+function stubBackend(history: ChatMessage[] = [], announcements: ChatAnnouncement[] = []) {
     const listeners: ((message: ChatMessage) => void)[] = []
     const reactionListeners: ((change: ReactionsChange) => void)[] = []
+    const announcementListeners: ((announcement: ChatAnnouncement) => void)[] = []
 
     const backend = {
-        getHistory: vi.fn().mockResolvedValue(history),
+        getHistory: vi.fn().mockResolvedValue({messages: history, announcements}),
         listenForMessages: vi.fn((
             callback: (message: ChatMessage) => void,
             onReactions?: (change: ReactionsChange) => void,
+            onAnnouncement?: (announcement: ChatAnnouncement) => void,
         ) => {
             listeners.push(callback)
             if (onReactions) reactionListeners.push(onReactions)
+            if (onAnnouncement) announcementListeners.push(onAnnouncement)
             return () => {
             }
         }),
@@ -73,6 +77,7 @@ function stubBackend(history: ChatMessage[] = []) {
         backend: backend as unknown as ChatBackend & typeof backend,
         broadcast: (m: ChatMessage) => listeners.forEach(listener => listener(m)),
         broadcastReactions: (change: ReactionsChange) => reactionListeners.forEach(listener => listener(change)),
+        announce: (announcement: ChatAnnouncement) => announcementListeners.forEach(listener => listener(announcement)),
     }
 }
 
@@ -182,6 +187,31 @@ describe("ChatPanel", () => {
         broadcast({...message("sent-hello", "hello"), authorName: "Bo"})
 
         await waitFor(() => expect(screen.getAllByText("hello")).toHaveLength(1))
+    })
+
+    it("shows a bomb from the history as a line between the messages, not a bubble", async () => {
+        const bomb: ChatAnnouncement = {
+            kind: "bomb", id: "boom", announcedAt: 1_700_000_000_500, country: "fr", ground: "de", tile: 42, cleared: 3,
+        }
+        const {backend} = stubBackend([message("a", "before"), message("b", "after", 1_700_000_001_000)], [bomb])
+        setup(backend)
+
+        const line = (await screen.findByText("bombed Germany")).closest("li")!
+        expect(line.className).toBe("chat-announcement")
+        expect(line.textContent).toContain("France")
+        expect(line.previousElementSibling?.textContent).toContain("before")
+        expect(line.nextElementSibling?.textContent).toContain("after")
+        expect(item("after").className).toContain("chat-message-opens")
+    })
+
+    it("shows a bomb that lands while the chat is open", async () => {
+        const {backend, announce} = stubBackend()
+        setup(backend)
+
+        await screen.findByText("Nobody has said anything yet. Go on.")
+        act(() => announce({kind: "bomb", id: "splash", announcedAt: Date.now(), country: "fr", cleared: 0}))
+
+        expect(await screen.findByText("bombed the ocean")).toBeDefined()
     })
 
     it("renders message text as text, never as markup", async () => {

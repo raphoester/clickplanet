@@ -1,5 +1,6 @@
 import {useCallback, useEffect, useState} from 'react';
 import {
+    ChatAnnouncement,
     ChatBackend,
     ChatBlockedError,
     ChatMessage,
@@ -8,7 +9,7 @@ import {
     OutgoingMessage,
     OutgoingReaction,
 } from '../../backends/chat.ts';
-import {addMessages} from '../../domain/chatLog.ts';
+import {addAnnouncements, addMessages} from '../../domain/chatLog.ts';
 import {
     applyReactionsAnswer,
     applyReactionsChange,
@@ -28,6 +29,7 @@ const NOTHING_SENT: ReadonlySet<string> = new Set()
 
 export function useChat({backend}: UseChatOptions) {
     const [messages, setMessages] = useState<ChatMessage[]>([])
+    const [announcements, setAnnouncements] = useState<ChatAnnouncement[]>([])
     const [status, setStatus] = useState<ChatStatus>(backend ? 'loading' : 'unavailable')
     const [failure, setFailure] = useState<ChatSendFailure | undefined>(undefined)
     const [mine, setMine] = useState<ReadonlySet<string>>(NOTHING_SENT)
@@ -44,18 +46,21 @@ export function useChat({backend}: UseChatOptions) {
 
         setStatus('loading')
         setMessages([])
+        setAnnouncements([])
         setMine(NOTHING_SENT)
 
         const abort = new AbortController()
         const stopListening = backend.listenForMessages(
             message => receive([message]),
             change => setMessages(current => applyReactionsChange(current, change)),
+            announcement => setAnnouncements(current => addAnnouncements(current, [announcement])),
         )
 
         backend.getHistory(abort.signal)
             .then(history => {
                 if (abort.signal.aborted) return
-                receive(history)
+                receive(history.messages)
+                setAnnouncements(current => addAnnouncements(current, history.announcements))
                 setStatus('ready')
             })
             .catch(e => {
@@ -104,7 +109,7 @@ export function useChat({backend}: UseChatOptions) {
         }
     }, [backend])
 
-    return {messages, mine, status, failure, send, react}
+    return {messages, announcements, mine, status, failure, send, react}
 }
 
 function failureOf(e: unknown): ChatSendFailure {

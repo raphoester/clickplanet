@@ -24,6 +24,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/drop_bomb_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/drop_bomb_usecase/antibot_drop_bomb"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/drop_bomb_usecase/prom_drop_bomb"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/drop_bomb_usecase/publishing_drop_bomb"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/embedded_geodesic_map"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
@@ -302,8 +303,12 @@ func NewModule(config Config) cpbootstrap.Module {
 				},
 			})
 
+			// Every bomb that went off is told to the other modules as planet.v1.BombLanded: the chat announces it.
 			dropped := prom_drop_bomb.New(
-				drop_bomb_usecase.New(bombs, registry, geography, tilesStorage, countries, bombRules), props.Metrics)
+				publishing_drop_bomb.New(
+					drop_bomb_usecase.New(bombs, registry, geography, tilesStorage, countries, bombRules),
+					borders, props.Events, clock),
+				props.Metrics)
 
 			// Outside the count, so it can tell the counter a drop was a dud.
 			dropBomb := antibot_drop_bomb.New(dropped, guard)
