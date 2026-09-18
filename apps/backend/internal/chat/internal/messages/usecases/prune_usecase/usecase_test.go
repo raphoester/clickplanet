@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -36,7 +37,7 @@ func TestAPruneDeletesMessagesReactionsAndAnnouncementsPastRetention(t *testing.
 		require.NoError(t, sent.Append(t.Context(), messages.Record{Message: messages.Message{ID: id, SentAt: at}}))
 		require.NoError(t, given.Save(t.Context(), reactions.Change{MessageID: id, Reaction: 1, Reactor: "guest:a", On: true, At: at}))
 		require.NoError(t, announced.Append(t.Context(), announcements.Announcement{
-			ID: announcements.AnnouncementID(at.String()), Kind: announcements.KindBomb, At: at,
+			ID: announcements.AnnouncementID(uuid.New()), Kind: announcements.KindBomb, At: at,
 		}))
 	}
 

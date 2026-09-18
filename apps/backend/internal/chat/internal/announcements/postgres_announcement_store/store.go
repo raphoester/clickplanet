@@ -8,6 +8,8 @@ import (
 	"slices"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
@@ -27,7 +29,7 @@ func (s *Store) Append(ctx context.Context, announcement announcements.Announcem
 		INSERT INTO announcements (id, kind, payload, announced_at)
 		VALUES ($1, $2, $3, $4)
 	`,
-		string(announcement.ID), string(announcement.Kind), string(announcement.Payload), announcement.At.UTC(),
+		uuid.UUID(announcement.ID), string(announcement.Kind), string(announcement.Payload), announcement.At.UTC(),
 	); err != nil {
 		return fmt.Errorf("failed to insert an announcement: %w", err)
 	}
@@ -40,7 +42,7 @@ func (s *Store) Recent(ctx context.Context, since time.Time, limit int) ([]annou
 		SELECT id, kind, payload, announced_at
 		FROM announcements
 		WHERE announced_at >= $1
-		ORDER BY seq DESC
+		ORDER BY announced_at DESC, id DESC
 		LIMIT $2
 	`, since, limit)
 	if err != nil {
@@ -52,7 +54,8 @@ func (s *Store) Recent(ctx context.Context, since time.Time, limit int) ([]annou
 	for rows.Next() {
 		var (
 			announcement announcements.Announcement
-			id, kind     string
+			id           uuid.UUID
+			kind         string
 			payload      []byte
 		)
 		if err := rows.Scan(&id, &kind, &payload, &announcement.At); err != nil {

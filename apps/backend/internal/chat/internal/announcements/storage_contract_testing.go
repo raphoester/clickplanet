@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -22,13 +23,18 @@ type StorageContractSuite struct {
 
 var contractStart = time.Date(2024, 1, 1, 12, 0, 0, 123_456_000, time.UTC)
 
+// contractID is the same id for the same name, so a test can say which announcements it expects.
+func contractID(name string) AnnouncementID {
+	return AnnouncementID(uuid.NewSHA1(uuid.NameSpaceOID, []byte(name)))
+}
+
 func (s *StorageContractSuite) SetupTest() {
 	s.storage = s.NewStorage()
 }
 
 func contractAnnouncement(name string, at time.Time) Announcement {
 	return Announcement{
-		ID:      AnnouncementID("id-" + name),
+		ID:      contractID(name),
 		Kind:    KindBomb,
 		At:      at,
 		Payload: json.RawMessage(`{"country":"fr","ground":"de","tile":42,"cleared":3}`),
@@ -74,13 +80,26 @@ func (s *StorageContractSuite) TestAnAnnouncementReadsBackAsItWasAppended() {
 func (s *StorageContractSuite) TestRecentIsTheNewestOldestFirst() {
 	s.append("a", "b", "c")
 
-	s.Equal([]AnnouncementID{"id-b", "id-c"}, s.recent(contractStart, 2))
+	s.Equal([]AnnouncementID{contractID("b"), contractID("c")}, s.recent(contractStart, 2))
+}
+
+func (s *StorageContractSuite) TestRecentIsInTimeOrderWhateverOrderItWasAppendedIn() {
+	s.Require().NoError(s.storage.Append(context.Background(), contractAnnouncement("late", contractStart.Add(time.Hour))))
+	s.Require().NoError(s.storage.Append(context.Background(), contractAnnouncement("early", contractStart)))
+
+	s.Equal([]AnnouncementID{contractID("early"), contractID("late")}, s.recent(contractStart, 10))
+}
+
+func (s *StorageContractSuite) TestAnIDIsKeptOnce() {
+	s.append("boom")
+
+	s.Error(s.storage.Append(context.Background(), contractAnnouncement("boom", contractStart.Add(time.Hour))))
 }
 
 func (s *StorageContractSuite) TestRecentLeavesOutWhatIsOlderThanSince() {
 	s.append("a", "b", "c")
 
-	s.Equal([]AnnouncementID{"id-c"}, s.recent(contractStart.Add(90*time.Minute), 10))
+	s.Equal([]AnnouncementID{contractID("c")}, s.recent(contractStart.Add(90*time.Minute), 10))
 }
 
 func (s *StorageContractSuite) TestDeleteBeforeRemovesWhatIsOlderAndCountsIt() {
@@ -90,5 +109,5 @@ func (s *StorageContractSuite) TestDeleteBeforeRemovesWhatIsOlderAndCountsIt() {
 	s.Require().NoError(err)
 
 	s.Equal(int64(2), deleted)
-	s.Equal([]AnnouncementID{"id-c"}, s.recent(time.Time{}, 10))
+	s.Equal([]AnnouncementID{contractID("c")}, s.recent(time.Time{}, 10))
 }

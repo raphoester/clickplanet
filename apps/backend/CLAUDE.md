@@ -543,8 +543,11 @@ without a bubble. Today there is one kind, `bomb`: every bomb that went off, on 
 - **A separate type and a separate table, not a message with no author.** An announcement has no name, tag, IP,
   text or reactions, and a message has no kind or payload; sharing a base would make every column of one
   optional in the other. So `announcements.Announcement` is `{ID, Kind, At, Payload}`, in `chat.announcements`
-  (`seq`, `id`, `kind`, `payload jsonb`, `announced_at`), with its own store, its own contract suite and its own
-  case on the wire (`chat.v1.Announcement`: `kind` and `payload` as a JSON string).
+  (`id uuid` primary key, `kind`, `payload jsonb`, `announced_at`), with its own store, its own contract suite and
+  its own case on the wire (`chat.v1.Announcement`: `kind` and `payload` as a JSON string).
+- **The id is a real key**, `announcements.AnnouncementID` (`type AnnouncementID uuid.UUID`), made by the server.
+  A message's id is `text` with a `seq` beside it because it is not trusted to be unique; nothing here has that
+  history. A read orders by `announced_at`, then `id`.
 - **The payload is the template's values, not the sentence.** The client writes the line, so a new wording, or
   a translation, needs no migration. Each kind owns its payload's shape: `announcements.Bomb` is
   `{country, ground, tile, cleared}`, `ground` and `tile` absent in the sea. **A client shows nothing for a kind

@@ -5,7 +5,10 @@
 package inmemory_announcement_storage
 
 import (
+	"bytes"
+	"cmp"
 	"context"
+	"errors"
 	"slices"
 	"sync"
 	"time"
@@ -24,10 +27,15 @@ type Storage struct {
 
 var _ announcements.Storage = (*Storage)(nil)
 
+var errDuplicateID = errors.New("an announcement with this id is already kept")
+
 func (s *Storage) Append(_ context.Context, announcement announcements.Announcement) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	if slices.ContainsFunc(s.kept, func(kept announcements.Announcement) bool { return kept.ID == announcement.ID }) {
+		return errDuplicateID
+	}
 	s.kept = append(s.kept, announcement)
 	return nil
 }
@@ -36,13 +44,16 @@ func (s *Storage) Recent(_ context.Context, since time.Time, limit int) ([]annou
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	var recent []announcements.Announcement
-	for i := len(s.kept) - 1; i >= 0 && len(recent) < limit; i-- {
-		if !s.kept[i].At.Before(since) {
-			recent = append(recent, s.kept[i])
-		}
+	// By time, then by id, as postgres orders them.
+	recent := slices.DeleteFunc(slices.Clone(s.kept), func(announcement announcements.Announcement) bool {
+		return announcement.At.Before(since)
+	})
+	slices.SortStableFunc(recent, func(a, b announcements.Announcement) int {
+		return cmp.Or(a.At.Compare(b.At), bytes.Compare(a.ID[:], b.ID[:]))
+	})
+	if len(recent) > limit {
+		recent = recent[len(recent)-limit:]
 	}
-	slices.Reverse(recent)
 	return recent, nil
 }
 

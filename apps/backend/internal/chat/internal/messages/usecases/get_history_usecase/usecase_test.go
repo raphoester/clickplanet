@@ -29,6 +29,13 @@ func (s stubAuthors) Author(context.Context, messages.AccountID, string) (messag
 }
 
 var (
+	expired = announcements.AnnouncementID{15: 1}
+	old     = announcements.AnnouncementID{15: 2}
+	middle  = announcements.AnnouncementID{15: 3}
+	latest  = announcements.AnnouncementID{15: 4}
+)
+
+var (
 	ada    = cpsession.AccountID{15: 1}
 	now    = time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC)
 	clown  = reactions.Reaction(2)
@@ -112,8 +119,8 @@ func TestAHistoryIsServedWhenThePlayerModuleDoesNotAnswer(t *testing.T) {
 
 func TestTheHistoryCarriesTheWindowOfNewestAnnouncements(t *testing.T) {
 	f := newFixture(t, "hello")
-	ago := map[announcements.AnnouncementID]time.Duration{"expired": 40, "old": 20, "middle": 10, "new": 4}
-	for _, id := range []announcements.AnnouncementID{"expired", "old", "middle", "new"} {
+	ago := map[announcements.AnnouncementID]time.Duration{expired: 40, old: 20, middle: 10, latest: 4}
+	for _, id := range []announcements.AnnouncementID{expired, old, middle, latest} {
 		require.NoError(t, f.announcements.Append(t.Context(), announcements.Announcement{
 			ID: id, Kind: announcements.KindBomb, At: now.Add(-ago[id] * time.Hour),
 		}))
@@ -125,6 +132,6 @@ func TestTheHistoryCarriesTheWindowOfNewestAnnouncements(t *testing.T) {
 	for _, announcement := range history.Announcements {
 		ids = append(ids, announcement.ID)
 	}
-	assert.Equal(t, []announcements.AnnouncementID{"middle", "new"}, ids)
+	assert.Equal(t, []announcements.AnnouncementID{middle, latest}, ids)
 	assert.Equal(t, []string{"hello"}, texts(history.Messages), "announcements do not take the messages' places")
 }

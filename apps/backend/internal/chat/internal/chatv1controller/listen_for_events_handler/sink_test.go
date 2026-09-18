@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -20,6 +21,8 @@ type recorder struct {
 	sent []*chatv1.ChatEvent
 	err  error
 }
+
+const announcementID = "6f1c2d4e-8a3b-4c5d-9e7f-0a1b2c3d4e5f"
 
 func (r *recorder) Send(event *chatv1.ChatEvent) error {
 	r.sent = append(r.sent, event)
@@ -74,7 +77,7 @@ func TestSinkFramesAnAnnouncement(t *testing.T) {
 
 	err := listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{
 		Update: feed.Update{Announcement: &announcements.Announcement{
-			ID: "announcement-1", Kind: announcements.KindBomb, Payload: json.RawMessage(`{"country":"fr"}`),
+			ID: announcements.AnnouncementID(uuid.MustParse(announcementID)), Kind: announcements.KindBomb, Payload: json.RawMessage(`{"country":"fr"}`),
 		}},
 	})
 
@@ -84,7 +87,7 @@ func TestSinkFramesAnAnnouncement(t *testing.T) {
 	announcement := stream.sent[0].GetAnnouncement()
 	require.NotNil(t, announcement, "an announcement travels as the announcement case")
 	assert.Nil(t, stream.sent[0].GetMessage())
-	assert.Equal(t, "announcement-1", announcement.GetId())
+	assert.Equal(t, announcementID, announcement.GetId())
 	assert.Equal(t, "bomb", announcement.GetKind())
 	assert.JSONEq(t, `{"country":"fr"}`, announcement.GetPayload())
 }

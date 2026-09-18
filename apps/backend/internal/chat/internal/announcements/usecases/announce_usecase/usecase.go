@@ -40,7 +40,7 @@ type UseCase struct {
 // Execute sends nothing it could not keep, so a client that joins later reads the same chat.
 func (u *UseCase) Execute(ctx context.Context, in In) error {
 	announcement := announcements.Announcement{
-		ID:      announcements.AnnouncementID(uuid.NewString()),
+		ID:      announcements.AnnouncementID(uuid.New()),
 		Kind:    in.Kind,
 		At:      in.At,
 		Payload: in.Payload,

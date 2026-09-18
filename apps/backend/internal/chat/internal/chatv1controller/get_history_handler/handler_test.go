@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -19,6 +20,8 @@ import (
 )
 
 type stubUseCase get_history_usecase.History
+
+const announcementID = "6f1c2d4e-8a3b-4c5d-9e7f-0a1b2c3d4e5f"
 
 func (s stubUseCase) Execute(context.Context, messages.AccountID) (get_history_usecase.History, error) {
 	return get_history_usecase.History(s), nil
@@ -65,12 +68,12 @@ func TestGetHistoryMapsTheReactions(t *testing.T) {
 func TestGetHistoryMapsTheAnnouncements(t *testing.T) {
 	at := time.Date(2026, 9, 18, 12, 0, 0, 0, time.UTC)
 	res := getHistory(t, stubUseCase{Announcements: []announcements.Announcement{{
-		ID: "announcement-1", Kind: announcements.KindBomb, At: at, Payload: json.RawMessage(`{"country":"fr"}`),
+		ID: announcements.AnnouncementID(uuid.MustParse(announcementID)), Kind: announcements.KindBomb, At: at, Payload: json.RawMessage(`{"country":"fr"}`),
 	}}})
 
 	require.Len(t, res.Msg.GetAnnouncements(), 1)
 	announcement := res.Msg.GetAnnouncements()[0]
-	assert.Equal(t, "announcement-1", announcement.GetId())
+	assert.Equal(t, announcementID, announcement.GetId())
 	assert.Equal(t, "bomb", announcement.GetKind())
 	assert.Equal(t, at.UnixMilli(), announcement.GetAnnouncedAtUnixMs())
 	assert.JSONEq(t, `{"country":"fr"}`, announcement.GetPayload())

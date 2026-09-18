@@ -6,10 +6,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
+
+	"github.com/google/uuid"
 )
 
-// AnnouncementID names an announcement. The server makes it, a uuid, when it keeps the announcement.
-type AnnouncementID string
+// AnnouncementID names an announcement. The server makes it when it keeps the announcement.
+type AnnouncementID uuid.UUID
 
 // Kind is what happened, and so how to read an announcement's payload.
 type Kind string
@@ -50,7 +52,7 @@ func (b Bomb) Payload() (json.RawMessage, error) {
 // Storage is where announcements are kept. StorageContractSuite pins what every adapter does.
 type Storage interface {
 	Append(ctx context.Context, announcement Announcement) error
-	// Recent is the newest limit announcements made at or after since, in the order they were appended.
+	// Recent is the newest limit announcements made at or after since, oldest first.
 	Recent(ctx context.Context, since time.Time, limit int) ([]Announcement, error)
 	// DeleteBefore removes every announcement made before cutoff and says how many.
 	DeleteBefore(ctx context.Context, cutoff time.Time) (int64, error)
