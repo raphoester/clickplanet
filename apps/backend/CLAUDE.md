@@ -84,7 +84,7 @@ root package**:
 | module | its public API |
 |---|---|
 | `planet` | `Config`, `NewModule` |
-| `chat` | `Config`, `NewModule` |
+| `chat` | `Config`, `StorageConfig`, `NewModule` |
 | `auth` | `Config`, `NewModule`; behind the `testing` tag, `NewModuleWithFakeProviders` and the fake's types |
 | `player` | `Config`, `NewModule` |
 | `antibot` | `Config`, `Observer`, `Guard`, `New`, `Description`, `Click`, `Report`, `Sentence`, `Examination`, `Reading` |
@@ -151,7 +151,7 @@ Each context wires **itself**, in a `module.go` at its root (`internal/planet/mo
 - `props.Logger`, `props.Metrics`
 - `props.Server` — the bind address and the stream heartbeat, **the only config a module reads that is not its own**. It is the transport every module answers over, so it belongs to the layer that owns the server rather than to any context.
 
-**A constructor builds and a `Load…` method reads.** Nothing that reads a file or parses a blob happens inside `New`: the DI sequence calls `New`, then the load, one line each — `embedded_geodesic_map.New` then `LoadGeography`/`LoadBorders`, `inmemory_tile_storage.New` then `LoadSnapshot`, `inmemory_message_storage.New` then `Load`, `cpipblock.New` then `Load`, `antibot.New` then `LoadState` (which connects to its schema too), `inmemory_ledger_storage.New` then `Load`.
+**A constructor builds and a `Load…` method reads.** Nothing that reads a file or parses a blob happens inside `New`: the DI sequence calls `New`, then the load, one line each — `embedded_geodesic_map.New` then `LoadGeography`/`LoadBorders`, `inmemory_tile_storage.New` then `LoadSnapshot`, `cpipblock.New` then `Load`, `antibot.New` then `LoadState` (which connects to its schema too), `inmemory_ledger_storage.New` then `Load`.
 
 A module never sees the router, the signal handler or another module's objects. **There is no mutable app object and nothing to leave a half-built dependency on**: `internal/shared/cpbootstrap` builds every module in order, then serves.
 
@@ -339,20 +339,29 @@ handler declares: they tell the guard what a caller reads, for the `scraper`.
 
 ### Inside the chat module: the same shape
 
-Chat follows the same rules as planet: no `domain`, no `adapters`, one directory per concept. It has one concept.
+Chat follows the same rules as planet: no `domain`, no `adapters`, one directory per concept. It has three:
+`messages`, `reactions` (which imports `messages`), and `feed`, the live stream, which carries both.
 
 ```
 internal/chat/internal/
-  messages/                             Message, Update, Record, Limits, GuestPrefix, AccountID, Author,
-                                        Reaction, Reactor, Reactions, Count, Tally
-    inmemory_message_storage/           history, reactions and fanout in memory; writes through its Persistence port
-    postgres_message_store/             that port, over chat.messages and chat.reactions
+  messages/                             Message, MessageID, Record, Limits, GuestPrefix, AccountID, Author, Window,
+                                        the Storage port and its StorageContractSuite
+    postgres_message_store/             Storage, over chat.messages
+    inmemory_message_storage/           Storage in a slice — behind the testing tag, tests only
     rpc_player_authors/                 a sender's username and tag, from player.v1.InternalService/GetAuthor
-    usecases/send_message_usecase/      names, cleans, tags, appends   — Appender, CountryChecker, Authors
-      log_authors/                      logs a sender it could not name
-    usecases/get_history_usecase/       the recent messages, the caller's reactions marked — HistoryReader, Authors
-    usecases/react_usecase/             puts a reaction on or off      — Board, Authors
-    usecases/listen_for_events_usecase/ one client's feed, heartbeat   — MessagesSubscriber
+    usecases/send_message_usecase/      names, cleans, tags, appends, publishes — Appender, Publisher, CountryChecker, Authors
+      log_authors/                      logs a caller it could not name
+    usecases/get_history_usecase/       the window, each message with its reactions, the caller's marked
+                                                                        — MessageReader, ReactionReader, Authors
+    usecases/prune_usecase/             deletes past retention, from each table; Runner — Pruner
+      log_prune/                        logs what a prune deleted
+  reactions/                            Reaction, Reactor, Reactions, Count, Tally, Change, the Storage port and its suite
+    postgres_reaction_store/            Storage, over chat.reactions
+    inmemory_reaction_storage/          Storage in a slice — behind the testing tag, tests only
+    usecases/react_usecase/             puts a reaction on or off, publishes the tally — Messages, Board, Authors, Publisher
+  feed/                                 Update: a message sent, or a message's new reactions
+    inprocess_feed/                     the fanout to every open stream, in this process
+    usecases/listen_for_events_usecase/ one client's feed, heartbeat   — UpdatesSubscriber
   chatv1controller/                     ChatService (a bag), the interceptors
     send_message_handler/  get_history_handler/  listen_for_events_handler/  react_handler/
     chatmessage/                        Encode, EncodeCounts and Reaction (the wire's enum, checked), shared by the handlers
@@ -472,8 +481,8 @@ POST /chat.v1.ChatService/SendMessage   [X-Session-Token: optional]
   → messages/usecases/send_message_usecase
       who posts (log_authors → rpc_player_authors → player.v1.InternalService/GetAuthor): the tag, and
       the account's username or else "guest_" and the typed name cleaned with messages.Limits; stamps id/time
-  → inmemory_message_storage.Append() [inserts into chat.messages, then fans out]
-  → every subscriber: one per open ListenForEvents stream
+  → postgres_message_store.Append() [inserts into chat.messages]
+  → inprocess_feed.Publish() → every subscriber: one per open ListenForEvents stream
 ```
 
 A failed insert fails the whole post: the table is the audit trail, so a message nobody can account for later is not one that gets broadcast.
@@ -482,8 +491,10 @@ A failed insert fails the whole post: the table is the audit trail, so a message
 POST /chat.v1.ChatService/React   [X-Session-Token: optional]
   → [cpbootstrap: error net], BlocklistInterceptor, ReactionRateLimitInterceptor, SessionInterceptor (a reader)
   → react_handler (refuses a Reaction the proto does not name)
-  → messages/usecases/react_usecase: who reacts (the same GetAuthor call as a post) → messages.ReactorOf
-  → inmemory_message_storage.React() [inserts or deletes in chat.reactions, then fans the whole tally out]
+  → reactions/usecases/react_usecase: who reacts (the same GetAuthor call as a post) → reactions.ReactorOf
+      is the message shown (postgres_message_store.Shown), what it carries (postgres_reaction_store.Reactions)
+  → postgres_reaction_store.Save() [inserts or deletes in chat.reactions], then reads the tally back
+  → inprocess_feed.Publish() the whole tally
 ```
 
 ### Chat (`internal/chat/`)
@@ -502,9 +513,13 @@ Refusal reasons are logged, never returned: a sender learns *that* they were ref
 
 The **vendored VPN lists** do not cover chat: `NewVPNBlockInterceptor` wraps `Click` alone. Chat's blocklist is the same `*cpipblock.Blocklist` type, built by `cpipblock.NewDenyList` from config prefixes instead of vendored data — so entries are CIDRs and a `/24` is one line rather than 256. Extending the vendored lists to chat is therefore a wiring change (build the list in `describeModules` and hand it to both modules, the way `shared/cpcountries` already is), not a second list to write.
 
-**Every message is a row in `chat.messages`**, inserted before it is broadcast: `seq` (the order it was accepted in), `id`, `sent_at`, `name`, `tag`, `author_id`, `country`, `ip`, `user_agent`, `text`. **One insert per message, not the tile map's flush loop**: chat is low volume (one message per 3s per address), and a flush would break the rule above — a message would be broadcast before it was recorded. `Append` holds a lock from the insert to the fanout, so the history and every stream see messages in `seq` order, and each insert has a 5s timeout. `GetHistory` is still served from memory: `Load` fills it at boot from the newest `historySize` rows within `retention`. A failed load refuses the boot. The prune is a `DELETE` of rows older than `retention`, every `pruneInterval`.
+**Every message is a row in `chat.messages`**, inserted before it is broadcast: `seq` (the order it was accepted in), `id`, `sent_at`, `name`, `tag`, `author_id`, `country`, `ip`, `user_agent`, `text`. **Postgres is the chat's only copy.** There is no cache in front of it, nothing loaded at boot and nothing flushed: chat is low volume (one message per 3s per address), so every write is one statement and every read one query. `send_message_usecase` inserts (5s timeout) and only then publishes to `inprocess_feed`; `GetHistory` reads the newest `chat.storage.historySize` rows within `retention` (`messages.Window`), straight from the table. A stream can therefore see two messages sent at the same instant in the other order than `seq`; the client sorts by time.
 
-`inmemory_message_storage` depends on its `Persistence` port, not on postgres. Its tests use `MemoryPersistence` (behind the `testing` tag), which can fail on demand; `postgres_message_store` has its own suite against a real postgres.
+**The fanout is not storage.** `feed/inprocess_feed` keeps nothing: it hands each update to every open stream, drops for one too slow to keep up (`chat.storage.subscriberBuffer`, a key kept from before), and a client that was not listening reads the history instead.
+
+**Each table has its own `Storage` port and a contract suite** (`messages.StorageContractSuite`, `reactions.StorageContractSuite`, behind the `testing` tag). The postgres stores run it against a real postgres; `inmemory_message_storage` and `inmemory_reaction_storage` run it too, and exist **only for tests** — both files carry the `testing` tag, have no persistence port and are never built into the binary. Use case tests use them instead of hand-written fakes.
+
+**The prune** is `prune_usecase` on a `Runner`, as auth's guest prune is: it deletes messages, then reactions, older than `retention`, once at boot and every `pruneInterval`, and `log_prune` logs it. The runner sits inside `cppg.CloseAfter`, so the pool closes after it stops.
 
 The table holds **personal data** — IPs next to user-authored text — so the retention window is a policy decision rather than a cache size.
 
@@ -512,13 +527,13 @@ The table holds **personal data** — IPs next to user-authored text — so the 
 
 **A message carries reactions from a fixed set**, `chat.v1.Reaction`. The proto enum is the whole list: the frontend draws each one from its own images (see its CLAUDE.md), and `chatmessage.Reaction` refuses a number the proto does not name with `InvalidArgument`. **The number is what is stored**, so a value is never renumbered or reused.
 
-- **Who reacts** (`messages.ReactorOf`): a player with a username is its account (`account:<uuid>`), anyone else the tag of its address (`guest:<tag>`), from the same `GetAuthor` answer that names who posts. So two guests behind one address are one reactor, and a player and a guest on one address are two. A reactor gives each reaction at most once per message.
+- **Who reacts** (`reactions.ReactorOf`): a player with a username is its account (`account:<uuid>`), anyone else the tag of its address (`guest:<tag>`), from the same `GetAuthor` answer that names who posts. So two guests behind one address are one reactor, and a player and a guest on one address are two. A reactor gives each reaction at most once per message.
 - **`React` is on or off, not a toggle.** Asking for what is already there changes nothing, is not written and is not published, so a retry cannot flip it twice. It answers the message's counts with `mine` set for the caller. A post the player module could not answer for is refused, as a message is (`Unavailable`).
-- **Only a message in history can be reacted to** (`ErrUnknownMessage` → `NotFound`): nobody is shown any other. A message leaving history takes its reactions out of memory.
-- **The storage writes before it publishes**, as for a message, and under the same lock, so the stream never sends a message's reactions before the message. `messages.Reactions` is a value: `With`/`Without` answer a copy.
+- **Only a message in the window can be reacted to** (`ErrUnknownMessage` → `NotFound`): nobody is shown any other. `postgres_message_store.Shown` asks the same question as the history, for one id.
+- **Saved, then read back, then published**, under a lock in `react_usecase`, so the stream never sends an older tally last. The tally is read back rather than computed, so it is what the table holds. `reactions.Reactions` is a value: `With`/`Without` answer a copy.
 - **The stream sends all of a message's counts, not the difference** (`ReactionsChanged`), so a client that missed a frame is right on the next. It cannot know who reads it, so `mine` is always false there; the client keeps its own between calls.
 - **`GetHistory` marks the caller's own.** It now reads the optional token (the session reader covers it) and asks `GetAuthor` who calls. If that fails, the history is still served, with nothing marked.
-- **Stored in `chat.reactions`**, one row per `(message_id, reaction, reactor)`, with `reacted_at`. `Load` replays the rows of the messages in history, oldest first, so the order each reaction first appeared survives a restart. The prune deletes rows older than `chat.storage.retention`, like messages: the reactor is an account or a tag, so it is personal data.
+- **Stored in `chat.reactions`**, their own table and their own store, one row per `(message_id, reaction, reactor)`, with `reacted_at`. A read replays the rows oldest first, so each reaction keeps the place it first appeared in. The prune deletes rows older than `chat.storage.retention`, like messages: the reactor is an account or a tag, so it is personal data.
 - **Its own rate bucket**, `chat.reactionLimiter` (defaults: 1 a second, 10 in hand), and the blocklist covers `React` too.
 
 **Chat has its own stream**, `ChatService.ListenForEvents` — see [The live streams](#the-live-streams). It replaced a `/ws/chat` websocket that had to be kept apart from the tile one because frames carried a bare protobuf message with no type tag: a second payload on either socket would have been indistinguishable from the first. The `oneof` envelope is exactly what removes that constraint.
@@ -1665,7 +1680,7 @@ Both chains order them the same way: error mapping outermost, then the blocklist
 
 **`shared/cppg` is the client**, ported from on-core-platform's `onpg`: `Config` (one module's database block, schema included), `New`, `ConnectCtx`, `Migrate`, and the `Querier`/`Beginner` interfaces a store depends on. Cut from the original: gorm (`make deadcode` rejects what nothing calls, and plain SQL is enough), the SSM tunnel, tracing and lazy config. **Every module that stores something has its own database block and its own pool.** The planet's is `database:` at the top of the file, because `planet.Config` is squashed there; another module's would sit inside its own section (`chat.database:`). Nothing is handed between modules. `Config.String` leaves the password out of the boot's config log line.
 
-**The chat has its own block, `chat.database` (schema `chat`), its own pool and its own migrations** (`internal/chat/internal/migrations`). It connects and migrates inside chat's DI sequence, and `chat.Config.Validate` refuses an incomplete block. Its pool is closed by `cppg.CloseAfter` around the storage runner, like the planet's. In production both blocks point at the same postgres and user. See [Chat](#chat-internalchat).
+**The chat has its own block, `chat.database` (schema `chat`), its own pool and its own migrations** (`internal/chat/internal/migrations`). It connects and migrates inside chat's DI sequence, and `chat.Config.Validate` refuses an incomplete block. Its pool is closed by `cppg.CloseAfter` around the prune runner, like the planet's around its storage runners. In production both blocks point at the same postgres and user. See [Chat](#chat-internalchat).
 
 **The ledger follows the same pattern**, through `inmemory_ledger_storage.Persistence` and `ledger/postgres_ledger_store`, on the tile map's pool.
 

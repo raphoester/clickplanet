@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/feed"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/send_message_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
@@ -24,10 +25,11 @@ func TestRunSuite(t *testing.T) {
 type testSuite struct {
 	suite.Suite
 
-	appender *fakeAppender
-	authors  *fakeAuthors
-	clock    *cptime.FixedClock
-	useCase  *send_message_usecase.UseCase
+	appender  *fakeAppender
+	publisher *fakePublisher
+	authors   *fakeAuthors
+	clock     *cptime.FixedClock
+	useCase   *send_message_usecase.UseCase
 }
 
 var (
@@ -37,10 +39,12 @@ var (
 
 func (s *testSuite) SetupTest() {
 	s.appender = &fakeAppender{}
+	s.publisher = &fakePublisher{}
 	s.authors = &fakeAuthors{names: map[messages.AccountID]string{ada: "Ada_L"}}
 	s.clock = cptime.NewFixedClock(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC))
 	s.useCase = send_message_usecase.New(
 		s.appender,
+		s.publisher,
 		fakeCountryChecker{known: cpcolls.NewSet("fr", "de")},
 		s.authors,
 		s.clock,
@@ -79,6 +83,8 @@ func (s *testSuite) TestNominalCase() {
 	s.Equal(message, s.appender.records[0].Message)
 	s.Equal("8f14e45f-ea23-4a1b-9c11-0b0d1a2b3c4d", s.appender.records[0].AuthorID)
 	s.Equal("curl/8", s.appender.records[0].UserAgent)
+
+	s.Equal([]feed.Update{{Message: &message}}, s.publisher.updates, "the message goes out once it is kept")
 }
 
 func (s *testSuite) TestTheSenderIPIsRecordedButNeverReturned() {
@@ -136,6 +142,7 @@ func (s *testSuite) TestStorageFailureFailsTheSend() {
 	_, err := s.send(validIn())
 	s.Require().Error(err)
 	s.NotErrorIs(err, messages.ErrInvalidMessage)
+	s.Empty(s.publisher.updates, "a message that cannot be kept is not sent")
 }
 
 func (s *testSuite) TestAPlayerWithAUsernamePostsUnderItAndTheTypedNameIsNotRead() {
@@ -247,6 +254,14 @@ func (f *fakeAuthors) Author(_ context.Context, account messages.AccountID, ip s
 	}
 	f.ips = append(f.ips, ip)
 	return messages.Author{Username: f.names[account], Tag: "a1b2c3", Admin: f.admins[account]}, nil
+}
+
+type fakePublisher struct {
+	updates []feed.Update
+}
+
+func (f *fakePublisher) Publish(update feed.Update) {
+	f.updates = append(f.updates, update)
 }
 
 type fakeAppender struct {

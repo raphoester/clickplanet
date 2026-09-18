@@ -1,11 +1,13 @@
-package messages
+// Package reactions is what people put on a chat message: which reaction, from whom, and where it is kept.
+package reactions
 
 import (
+	"context"
 	"errors"
 	"slices"
 	"time"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 )
 
 // Reaction is one of chat.v1.Reaction, by its wire number. The number is what is stored, which is why the proto
@@ -21,16 +23,11 @@ const NoReactor Reactor = ""
 
 // ReactorOf is who reacts, from the same answer that names who posts: a player with a username is its account,
 // anyone else the tag of its address. Two guests behind one address are therefore one reactor.
-func ReactorOf(account AccountID, author Author) Reactor {
+func ReactorOf(account messages.AccountID, author messages.Author) Reactor {
 	if author.PostsAsPlayer(account) {
 		return Reactor("account:" + account.String())
 	}
 	return Reactor("guest:" + author.Tag)
-}
-
-// PostsAsPlayer is a sender with an account and a username. Anyone else posts as a guest.
-func (a Author) PostsAsPlayer(account AccountID) bool {
-	return account != cpsession.NoAccount && a.Username != ""
 }
 
 // Reactions is who put which reaction on one message, in the order each reaction first appeared. It is a value:
@@ -119,13 +116,13 @@ type Count struct {
 
 // Tally is a message's reactions as the stream sends them: for nobody in particular.
 type Tally struct {
-	MessageID MessageID
+	MessageID messages.MessageID
 	Counts    []Count
 }
 
-// ReactionChange is one reactor putting one reaction on one message, or taking it off.
-type ReactionChange struct {
-	MessageID MessageID
+// Change is one reactor putting one reaction on one message, or taking it off.
+type Change struct {
+	MessageID messages.MessageID
 	Reaction  Reaction
 	Reactor   Reactor
 	On        bool
@@ -133,7 +130,7 @@ type ReactionChange struct {
 }
 
 // Applied is r with the change made.
-func (r Reactions) Applied(change ReactionChange) Reactions {
+func (r Reactions) Applied(change Change) Reactions {
 	if change.On {
 		return r.With(change.Reaction, change.Reactor)
 	}
@@ -145,3 +142,13 @@ var ErrUnknownMessage = errors.New("no such chat message")
 
 // ErrInvalidReaction is a reaction the proto does not name.
 var ErrInvalidReaction = errors.New("invalid reaction")
+
+// Storage is where reactions are kept. StorageContractSuite pins what every adapter does.
+type Storage interface {
+	// Save puts the reaction on or takes it off. Either one already done is not an error.
+	Save(ctx context.Context, change Change) error
+	// Reactions is what each of the given messages carries. A message with none is absent.
+	Reactions(ctx context.Context, ids []messages.MessageID) (map[messages.MessageID]Reactions, error)
+	// DeleteBefore removes every reaction put on before cutoff and says how many.
+	DeleteBefore(ctx context.Context, cutoff time.Time) (int64, error)
+}

@@ -48,3 +48,8 @@ type Author struct {
 // ErrAuthorUnavailable is a sender the player module could not name. The message is refused: without a tag, a
 // guest could pass for another guest of the same name.
 var ErrAuthorUnavailable = errors.New("the sender could not be identified")
+
+// PostsAsPlayer is a sender with an account and a username. Anyone else posts as a guest.
+func (a Author) PostsAsPlayer(account AccountID) bool {
+	return account != cpsession.NoAccount && a.Username != ""
+}

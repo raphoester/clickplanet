@@ -6,9 +6,11 @@ import (
 
 	chatv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions"
 )
 
-func Encode(message messages.Message) *chatv1.ChatMessage {
+// Encode is a message on the wire, with its reactions as the reader sees them: none on a message just sent.
+func Encode(message messages.Message, counts []reactions.Count) *chatv1.ChatMessage {
 	return &chatv1.ChatMessage{
 		Id:           string(message.ID),
 		SentAtUnixMs: message.SentAt.UnixMilli(),
@@ -17,11 +19,11 @@ func Encode(message messages.Message) *chatv1.ChatMessage {
 		AuthorAdmin:  message.AuthorAdmin,
 		CountryId:    message.CountryID,
 		Text:         message.Text,
-		Reactions:    EncodeCounts(message.Reactions),
+		Reactions:    EncodeCounts(counts),
 	}
 }
 
-func EncodeCounts(counts []messages.Count) []*chatv1.ReactionCount {
+func EncodeCounts(counts []reactions.Count) []*chatv1.ReactionCount {
 	encoded := make([]*chatv1.ReactionCount, 0, len(counts))
 	for _, count := range counts {
 		encoded = append(encoded, &chatv1.ReactionCount{
@@ -33,10 +35,10 @@ func EncodeCounts(counts []messages.Count) []*chatv1.ReactionCount {
 	return encoded
 }
 
-// Reaction is the wire's reaction as the domain's, or messages.ErrInvalidReaction for one the proto does not name.
-func Reaction(reaction chatv1.Reaction) (messages.Reaction, error) {
+// Reaction is the wire's reaction as the domain's, or reactions.ErrInvalidReaction for one the proto does not name.
+func Reaction(reaction chatv1.Reaction) (reactions.Reaction, error) {
 	if _, named := chatv1.Reaction_name[int32(reaction)]; !named || reaction == chatv1.Reaction_REACTION_UNSPECIFIED {
-		return 0, fmt.Errorf("%w: %d", messages.ErrInvalidReaction, reaction)
+		return 0, fmt.Errorf("%w: %d", reactions.ErrInvalidReaction, reaction)
 	}
-	return messages.Reaction(reaction), nil
+	return reactions.Reaction(reaction), nil
 }

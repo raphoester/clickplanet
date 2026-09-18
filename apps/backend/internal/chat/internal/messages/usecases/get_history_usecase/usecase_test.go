@@ -3,23 +3,19 @@ package get_history_usecase_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/inmemory_message_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/get_history_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions/inmemory_reaction_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
-
-type stubReader struct {
-	history []messages.Message
-	viewers []messages.Reactor
-}
-
-func (s *stubReader) History(_ context.Context, viewer messages.Reactor) []messages.Message {
-	s.viewers = append(s.viewers, viewer)
-	return s.history
-}
 
 type stubAuthors struct {
 	author messages.Author
@@ -30,35 +26,72 @@ func (s stubAuthors) Author(context.Context, messages.AccountID, string) (messag
 	return s.author, s.err
 }
 
-var ada = cpsession.AccountID{15: 1}
+var (
+	ada    = cpsession.AccountID{15: 1}
+	now    = time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC)
+	clown  = reactions.Reaction(2)
+	player = messages.Author{Username: "ada", Tag: "a1b2c3"}
+)
 
-func TestHistoryComesFromTheReader(t *testing.T) {
-	reader := &stubReader{history: []messages.Message{{ID: "message-1"}, {ID: "message-2"}}}
-
-	history := get_history_usecase.New(reader, stubAuthors{author: messages.Author{Tag: "a1b2c3"}}).
-		Execute(t.Context(), cpsession.NoAccount)
-
-	assert.Equal(t, reader.history, history)
+type fixture struct {
+	messages  *inmemory_message_storage.Storage
+	reactions *inmemory_reaction_storage.Storage
 }
 
-func TestAPlayerReadsAsItsAccountAndAGuestAsItsTag(t *testing.T) {
-	reader := &stubReader{}
-	player := stubAuthors{author: messages.Author{Username: "ada", Tag: "a1b2c3"}}
+func newFixture(t *testing.T, texts ...string) fixture {
+	t.Helper()
 
-	get_history_usecase.New(reader, player).Execute(t.Context(), ada)
-	get_history_usecase.New(reader, player).Execute(t.Context(), cpsession.NoAccount)
+	f := fixture{messages: inmemory_message_storage.New(), reactions: inmemory_reaction_storage.New()}
+	for i, text := range texts {
+		require.NoError(t, f.messages.Append(t.Context(), messages.Record{Message: messages.Message{
+			ID: messages.MessageID(text), Text: text, SentAt: now.Add(time.Duration(i-len(texts)) * time.Hour),
+		}}))
+	}
+	return f
+}
 
-	assert.Equal(t, []messages.Reactor{
-		messages.ReactorOf(ada, player.author),
-		messages.ReactorOf(cpsession.NoAccount, player.author),
-	}, reader.viewers)
+func (f fixture) history(t *testing.T, authors stubAuthors, account messages.AccountID) []get_history_usecase.Entry {
+	t.Helper()
+
+	history, err := get_history_usecase.New(f.messages, f.reactions, authors, cptime.NewFixedClock(now),
+		messages.Window{Size: 2, Retention: 24 * time.Hour}).Execute(t.Context(), account)
+	require.NoError(t, err)
+	return history
+}
+
+func texts(history []get_history_usecase.Entry) []string {
+	texts := make([]string, 0, len(history))
+	for _, entry := range history {
+		texts = append(texts, entry.Message.Text)
+	}
+	return texts
+}
+
+func TestTheHistoryIsTheWindowOfNewestMessages(t *testing.T) {
+	f := newFixture(t, "old", "middle", "new")
+
+	assert.Equal(t, []string{"middle", "new"}, texts(f.history(t, stubAuthors{author: player}, ada)))
+}
+
+func TestEachMessageCarriesItsReactionsMarkedForTheCaller(t *testing.T) {
+	f := newFixture(t, "hello")
+	require.NoError(t, f.reactions.Save(t.Context(), reactions.Change{
+		MessageID: "hello", Reaction: clown, Reactor: reactions.ReactorOf(ada, player), On: true, At: now,
+	}))
+
+	assert.Equal(t, []reactions.Count{{Reaction: clown, Count: 1, Mine: true}},
+		f.history(t, stubAuthors{author: player}, ada)[0].Reactions)
+	assert.Equal(t, []reactions.Count{{Reaction: clown, Count: 1, Mine: false}},
+		f.history(t, stubAuthors{author: player}, cpsession.NoAccount)[0].Reactions, "a guest is its tag, not the account")
 }
 
 func TestAHistoryIsServedWhenThePlayerModuleDoesNotAnswer(t *testing.T) {
-	reader := &stubReader{history: []messages.Message{{ID: "message-1"}}}
+	f := newFixture(t, "hello")
+	require.NoError(t, f.reactions.Save(t.Context(), reactions.Change{
+		MessageID: "hello", Reaction: clown, Reactor: reactions.ReactorOf(ada, player), On: true, At: now,
+	}))
 
-	history := get_history_usecase.New(reader, stubAuthors{err: assert.AnError}).Execute(t.Context(), ada)
+	history := f.history(t, stubAuthors{err: assert.AnError}, ada)
 
-	assert.Equal(t, reader.history, history)
-	assert.Equal(t, []messages.Reactor{messages.NoReactor}, reader.viewers)
+	assert.Equal(t, []reactions.Count{{Reaction: clown, Count: 1, Mine: false}}, history[0].Reactions)
 }

@@ -11,11 +11,15 @@ import (
 	chatv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/get_history_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/get_history_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions"
 )
 
-type stubUseCase []messages.Message
+type stubUseCase []get_history_usecase.Entry
 
-func (s stubUseCase) Execute(context.Context, messages.AccountID) []messages.Message { return s }
+func (s stubUseCase) Execute(context.Context, messages.AccountID) ([]get_history_usecase.Entry, error) {
+	return s, nil
+}
 
 func getHistory(t *testing.T, useCase stubUseCase) *connect.Response[chatv1.GetHistoryResponse] {
 	t.Helper()
@@ -28,7 +32,10 @@ func getHistory(t *testing.T, useCase stubUseCase) *connect.Response[chatv1.GetH
 }
 
 func TestGetHistoryMapsEveryMessageInOrder(t *testing.T) {
-	res := getHistory(t, stubUseCase{{ID: "message-1", Text: "hello"}, {ID: "message-2", Text: "planet"}})
+	res := getHistory(t, stubUseCase{
+		{Message: messages.Message{ID: "message-1", Text: "hello"}},
+		{Message: messages.Message{ID: "message-2", Text: "planet"}},
+	})
 
 	require.Len(t, res.Msg.GetMessages(), 2)
 	assert.Equal(t, "message-1", res.Msg.GetMessages()[0].GetId())
@@ -36,8 +43,8 @@ func TestGetHistoryMapsEveryMessageInOrder(t *testing.T) {
 }
 
 func TestGetHistoryMapsTheReactions(t *testing.T) {
-	res := getHistory(t, stubUseCase{{ID: "message-1", Reactions: []messages.Count{
-		{Reaction: messages.Reaction(chatv1.Reaction_REACTION_CLOWN), Count: 3, Mine: true},
+	res := getHistory(t, stubUseCase{{Message: messages.Message{ID: "message-1"}, Reactions: []reactions.Count{
+		{Reaction: reactions.Reaction(chatv1.Reaction_REACTION_CLOWN), Count: 3, Mine: true},
 	}}})
 
 	reactions := res.Msg.GetMessages()[0].GetReactions()

@@ -4,9 +4,11 @@ package send_message_usecase
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/feed"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -14,6 +16,11 @@ import (
 
 type Appender interface {
 	Append(ctx context.Context, record messages.Record) error
+}
+
+// Publisher is the live feed: a message goes out once it is kept.
+type Publisher interface {
+	Publish(update feed.Update)
 }
 
 type CountryChecker interface {
@@ -24,6 +31,8 @@ type CountryChecker interface {
 type Authors interface {
 	Author(ctx context.Context, account messages.AccountID, ip string) (messages.Author, error)
 }
+
+const writeTimeout = 5 * time.Second
 
 type In struct {
 	// Account is the one the sender's click token names, or cpsession.NoAccount for a guest.
@@ -37,6 +46,7 @@ type In struct {
 
 func New(
 	appender Appender,
+	publisher Publisher,
 	countryChecker CountryChecker,
 	authors Authors,
 	clock cptime.Clock,
@@ -44,6 +54,7 @@ func New(
 ) *UseCase {
 	return &UseCase{
 		appender:       appender,
+		publisher:      publisher,
 		countryChecker: countryChecker,
 		authors:        authors,
 		clock:          clock,
@@ -53,6 +64,7 @@ func New(
 
 type UseCase struct {
 	appender       Appender
+	publisher      Publisher
 	countryChecker CountryChecker
 	authors        Authors
 	clock          cptime.Clock
@@ -91,9 +103,15 @@ func (u *UseCase) Execute(ctx context.Context, in In) (messages.Message, error) 
 		Text:        text,
 	}
 
+	// The log is the audit trail: a message that cannot be kept is not sent.
+	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
+	defer cancel()
 	if err := u.appender.Append(ctx, messages.NewRecord(message, in.AuthorID, ip, in.UserAgent)); err != nil {
 		return messages.Message{}, fmt.Errorf("failed to store chat message: %w", err)
 	}
+
+	published := message
+	u.publisher.Publish(feed.Update{Message: &published})
 
 	return message, nil
 }

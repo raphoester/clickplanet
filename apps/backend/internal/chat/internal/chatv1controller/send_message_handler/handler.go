@@ -41,6 +41,6 @@ func (h SendMessageHandler) SendMessage(
 	}
 
 	return connect.NewResponse(&chatv1.SendMessageResponse{
-		Message: chatmessage.Encode(message),
+		Message: chatmessage.Encode(message, nil),
 	}), nil
 }

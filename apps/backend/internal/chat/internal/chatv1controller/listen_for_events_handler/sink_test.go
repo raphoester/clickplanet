@@ -8,8 +8,10 @@ import (
 
 	chatv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/listen_for_events_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/feed"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/feed/usecases/listen_for_events_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
-	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/listen_for_events_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions"
 )
 
 type recorder struct {
@@ -26,7 +28,7 @@ func TestSinkFramesAMessage(t *testing.T) {
 	stream := &recorder{}
 
 	err := listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{
-		Update: messages.Update{Message: &messages.Message{ID: "message-1", AuthorName: "Bob", Text: "hello"}},
+		Update: feed.Update{Message: &messages.Message{ID: "message-1", AuthorName: "Bob", Text: "hello"}},
 	})
 
 	require.NoError(t, err)
@@ -44,9 +46,9 @@ func TestSinkFramesNewReactions(t *testing.T) {
 	stream := &recorder{}
 
 	err := listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{
-		Update: messages.Update{Reactions: &messages.Tally{
+		Update: feed.Update{Reactions: &reactions.Tally{
 			MessageID: "message-1",
-			Counts:    []messages.Count{{Reaction: messages.Reaction(chatv1.Reaction_REACTION_SKULL), Count: 2}},
+			Counts:    []reactions.Count{{Reaction: reactions.Reaction(chatv1.Reaction_REACTION_SKULL), Count: 2}},
 		}},
 	})
 

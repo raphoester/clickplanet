@@ -11,18 +11,19 @@ import (
 	chatv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/react_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
-	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/react_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions/usecases/react_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
 type stubUseCase struct {
 	ins    []react_usecase.In
-	counts []messages.Count
+	counts []reactions.Count
 	err    error
 }
 
-func (s *stubUseCase) Execute(_ context.Context, in react_usecase.In) ([]messages.Count, error) {
+func (s *stubUseCase) Execute(_ context.Context, in react_usecase.In) ([]reactions.Count, error) {
 	s.ins = append(s.ins, in)
 	return s.counts, s.err
 }
@@ -35,7 +36,7 @@ func react(ctx context.Context, useCase *stubUseCase, reaction chatv1.Reaction) 
 
 func TestReactMapsTheRequestAndTheAnswer(t *testing.T) {
 	ada := cpsession.AccountID{15: 1}
-	useCase := &stubUseCase{counts: []messages.Count{{Reaction: 2, Count: 4, Mine: true}}}
+	useCase := &stubUseCase{counts: []reactions.Count{{Reaction: 2, Count: 4, Mine: true}}}
 
 	res, err := react(cpctx.AddAccountToContext(t.Context(), ada.String()), useCase, chatv1.Reaction_REACTION_CLOWN)
 
@@ -43,7 +44,7 @@ func TestReactMapsTheRequestAndTheAnswer(t *testing.T) {
 	assert.Equal(t, []react_usecase.In{{
 		Account:   ada,
 		MessageID: "message-1",
-		Reaction:  messages.Reaction(chatv1.Reaction_REACTION_CLOWN),
+		Reaction:  reactions.Reaction(chatv1.Reaction_REACTION_CLOWN),
 		On:        true,
 	}}, useCase.ins)
 	require.Len(t, res.Msg.GetReactions(), 1)
@@ -65,7 +66,7 @@ func TestAReactionTheProtoDoesNotNameIsRefusedBeforeTheUseCase(t *testing.T) {
 
 func TestReactMapsTheRefusals(t *testing.T) {
 	for cause, code := range map[error]connect.Code{
-		messages.ErrUnknownMessage:    connect.CodeNotFound,
+		reactions.ErrUnknownMessage:   connect.CodeNotFound,
 		messages.ErrAuthorUnavailable: connect.CodeUnavailable,
 	} {
 		_, err := react(t.Context(), &stubUseCase{err: cause}, chatv1.Reaction_REACTION_CLOWN)

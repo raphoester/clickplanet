@@ -9,12 +9,13 @@ import (
 	chatv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/chatmessage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
-	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/react_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions/usecases/react_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
 type UseCase interface {
-	Execute(ctx context.Context, in react_usecase.In) ([]messages.Count, error)
+	Execute(ctx context.Context, in react_usecase.In) ([]reactions.Count, error)
 }
 
 func New(useCase UseCase) ReactHandler {
@@ -50,10 +51,10 @@ func (h ReactHandler) React(
 // toConnect sends the bare sentinel, as SendMessage does. Anything else is left for the error net.
 func toConnect(err error) error {
 	switch {
-	case errors.Is(err, messages.ErrInvalidReaction):
-		return connect.NewError(connect.CodeInvalidArgument, messages.ErrInvalidReaction)
-	case errors.Is(err, messages.ErrUnknownMessage):
-		return connect.NewError(connect.CodeNotFound, messages.ErrUnknownMessage)
+	case errors.Is(err, reactions.ErrInvalidReaction):
+		return connect.NewError(connect.CodeInvalidArgument, reactions.ErrInvalidReaction)
+	case errors.Is(err, reactions.ErrUnknownMessage):
+		return connect.NewError(connect.CodeNotFound, reactions.ErrUnknownMessage)
 	case errors.Is(err, messages.ErrAuthorUnavailable):
 		return connect.NewError(connect.CodeUnavailable, messages.ErrAuthorUnavailable)
 	default:
