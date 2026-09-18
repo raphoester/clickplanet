@@ -39,7 +39,6 @@ type Pricer interface {
 type Charger interface {
 	Grant(holder bonuses.Holder, kind bonuses.Kind)
 	Held(holder bonuses.Holder) bonuses.Held
-	EnclosureMaxTiles() int
 }
 
 type In struct {
@@ -56,11 +55,6 @@ type Out struct {
 
 	// What the caller holds once the charge is granted.
 	Held bonuses.Held
-
-	// BlastRadius is set for a bomb only, in radians of arc.
-	BlastRadius float64
-	// For an enclose charge only: the most tiles its one shape may hold.
-	EnclosureMaxTiles int
 }
 
 func New(
@@ -68,29 +62,26 @@ func New(
 	booster Booster,
 	pricer Pricer,
 	charger Charger,
-	blastRadius float64,
 	buckets clicks.Buckets,
 	clock cptime.Clock,
 ) *UseCase {
 	return &UseCase{
-		registry:    registry,
-		booster:     booster,
-		pricer:      pricer,
-		charger:     charger,
-		blastRadius: blastRadius,
-		buckets:     buckets,
-		clock:       clock,
+		registry: registry,
+		booster:  booster,
+		pricer:   pricer,
+		charger:  charger,
+		buckets:  buckets,
+		clock:    clock,
 	}
 }
 
 type UseCase struct {
-	registry    Registry
-	booster     Booster
-	pricer      Pricer
-	charger     Charger
-	blastRadius float64
-	buckets     clicks.Buckets
-	clock       cptime.Clock
+	registry Registry
+	booster  Booster
+	pricer   Pricer
+	charger  Charger
+	buckets  clicks.Buckets
+	clock    cptime.Clock
 }
 
 // Execute derives the payer the way the throttle does, which ties the offer and the claim to one scope,
@@ -109,21 +100,12 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	// failed to apply is the one lie this could tell.
 	u.registry.Publish(bonuses.Taken{CountryID: in.CountryID, Kind: reward.Kind})
 
-	out := Out{
+	return Out{
 		Budget:   u.buckets.BudgetOf(state, u.pricer.Price(in.CountryID)),
 		Kind:     reward.Kind,
 		Duration: reward.Duration,
 		Held:     u.charger.Held(bonuses.HolderOf(payer)),
-	}
-	switch reward.Kind {
-	case bonuses.KindBomb:
-		out.BlastRadius = u.blastRadius
-	case bonuses.KindEncloseClicks:
-		out.EnclosureMaxTiles = u.charger.EnclosureMaxTiles()
-	case bonuses.KindTripleClicks, bonuses.KindSpreadClicks:
-	}
-
-	return out, nil
+	}, nil
 }
 
 // apply starts what the reward is worth, and answers the allowance as it stands

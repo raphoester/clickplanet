@@ -530,8 +530,6 @@ describe("PlanetBackend click budget", () => {
         const claimBonus = vi.fn().mockResolvedValue({
             budget: budget(10),
             kind: BonusKind.ENCLOSE_CLICKS,
-            enclosures: 1,
-            enclosureMaxTiles: 25,
             charges: new ChargesHeld({enclose: true, spreadClicksLeft: 3}),
         })
         const client = {...budgetClient(vi.fn()) as object, claimBonus} as never
@@ -569,7 +567,6 @@ describe("PlanetBackend click budget", () => {
             const claimBonus = vi.fn().mockResolvedValue({
                 budget: budget(10),
                 kind: BonusKind.BOMB,
-                blastRadius: 0.03,
                 charges: new ChargesHeld({bomb: true}),
             })
             const client = {...budgetClient(vi.fn(), getBudget) as object, claimBonus} as never

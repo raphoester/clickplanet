@@ -37,20 +37,12 @@ func (h ClaimBonusHandler) ClaimBonus(
 		return nil, connect.NewError(connect.CodeNotFound, claim_bonus_usecase.ErrNoSuchBonus)
 	}
 
-	response := &planetv1.ClaimBonusResponse{
-		Budget:            clickbudget.Encode(out.Budget),
-		Kind:              EncodeKind(out.Kind),
-		DurationSeconds:   uint32(out.Duration / time.Second),
-		EnclosureMaxTiles: uint32(out.EnclosureMaxTiles),
-		BlastRadius:       out.BlastRadius,
-		Charges:           chargesheld.Encode(out.Held),
-	}
-	if out.Kind == bonuses.KindEncloseClicks {
-		// A charge is one shape. Said for a client that still counts shapes.
-		response.Enclosures = 1
-	}
-
-	return connect.NewResponse(response), nil
+	return connect.NewResponse(&planetv1.ClaimBonusResponse{
+		Budget:          clickbudget.Encode(out.Budget),
+		Kind:            EncodeKind(out.Kind),
+		DurationSeconds: uint32(out.Duration / time.Second),
+		Charges:         chargesheld.Encode(out.Held),
+	}), nil
 }
 
 func EncodeKind(kind bonuses.Kind) planetv1.BonusKind {

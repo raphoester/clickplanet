@@ -265,12 +265,10 @@ message ClaimBonusResponse {
   // How long a timed bonus runs. Zero for a charge.
   uint32 duration_seconds = 3;
 
-  // Deprecated: rules, not an answer about this claim. GetBonusRules says them.
-  // Still set, for a client from before it: the blast radius for a bomb, one
-  // shape and its most tiles for an enclose.
-  double blast_radius = 4 [deprecated = true];
-  uint32 enclosures = 5 [deprecated = true];
-  uint32 enclosure_max_tiles = 6 [deprecated = true];
+  // Were the blast radius and an enclose's shapes and size: rules, not an
+  // answer about this claim. GetBonusRules says them.
+  reserved 4, 5, 6;
+  reserved "blast_radius", "enclosures", "enclosure_max_tiles";
 
   // What the caller holds once this box is granted.
   ChargesHeld charges = 7;

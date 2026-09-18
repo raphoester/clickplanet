@@ -934,9 +934,8 @@ a spread is the next 8 clicks.
   blast radius, the enclose's `maxTiles` and the spread's clicks (`bonuses.Rules`,
   built in `module.go`). It is `NO_SIDE_EFFECTS`, a GET the cache interceptor marks
   for 5 minutes, and the client reads it once per page load. A page open across a
-  deploy that changes them shows the old sizes until it reloads. The same values
-  still ride on `ClaimBonusResponse` (`blast_radius`, `enclosures`,
-  `enclosure_max_tiles`), deprecated, for a client from before `GetBonusRules`.
+  deploy that changes them shows the old sizes until it reloads.
+  `ClaimBonusResponse` no longer carries them: fields 4 to 6 are reserved.
 
 #### What a spread does to a click
 

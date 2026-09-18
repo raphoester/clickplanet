@@ -1253,16 +1253,6 @@ type ClaimBonusResponse struct {
 	Kind   BonusKind    `protobuf:"varint,2,opt,name=kind,proto3,enum=planet.v1.BonusKind" json:"kind,omitempty"`
 	// How long a timed bonus runs. Zero for a charge.
 	DurationSeconds uint32 `protobuf:"varint,3,opt,name=duration_seconds,json=durationSeconds,proto3" json:"duration_seconds,omitempty"`
-	// Deprecated: rules, not an answer about this claim. GetBonusRules says them.
-	// Still set, for a client from before it: the blast radius for a bomb, one
-	// shape and its most tiles for an enclose.
-	//
-	// Deprecated: Marked as deprecated in planet/v1/planet.proto.
-	BlastRadius float64 `protobuf:"fixed64,4,opt,name=blast_radius,json=blastRadius,proto3" json:"blast_radius,omitempty"`
-	// Deprecated: Marked as deprecated in planet/v1/planet.proto.
-	Enclosures uint32 `protobuf:"varint,5,opt,name=enclosures,proto3" json:"enclosures,omitempty"`
-	// Deprecated: Marked as deprecated in planet/v1/planet.proto.
-	EnclosureMaxTiles uint32 `protobuf:"varint,6,opt,name=enclosure_max_tiles,json=enclosureMaxTiles,proto3" json:"enclosure_max_tiles,omitempty"`
 	// What the caller holds once this box is granted.
 	Charges       *ChargesHeld `protobuf:"bytes,7,opt,name=charges,proto3" json:"charges,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -1316,30 +1306,6 @@ func (x *ClaimBonusResponse) GetKind() BonusKind {
 func (x *ClaimBonusResponse) GetDurationSeconds() uint32 {
 	if x != nil {
 		return x.DurationSeconds
-	}
-	return 0
-}
-
-// Deprecated: Marked as deprecated in planet/v1/planet.proto.
-func (x *ClaimBonusResponse) GetBlastRadius() float64 {
-	if x != nil {
-		return x.BlastRadius
-	}
-	return 0
-}
-
-// Deprecated: Marked as deprecated in planet/v1/planet.proto.
-func (x *ClaimBonusResponse) GetEnclosures() uint32 {
-	if x != nil {
-		return x.Enclosures
-	}
-	return 0
-}
-
-// Deprecated: Marked as deprecated in planet/v1/planet.proto.
-func (x *ClaimBonusResponse) GetEnclosureMaxTiles() uint32 {
-	if x != nil {
-		return x.EnclosureMaxTiles
 	}
 	return 0
 }
@@ -1924,17 +1890,13 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"\x11ClaimBonusRequest\x12\x14\n" +
 	"\x05token\x18\x01 \x01(\tR\x05token\x12\x1d\n" +
 	"\n" +
-	"country_id\x18\x02 \x01(\tR\tcountryId\"\xca\x02\n" +
+	"country_id\x18\x02 \x01(\tR\tcountryId\"\x8c\x02\n" +
 	"\x12ClaimBonusResponse\x12.\n" +
 	"\x06budget\x18\x01 \x01(\v2\x16.planet.v1.ClickBudgetR\x06budget\x12(\n" +
 	"\x04kind\x18\x02 \x01(\x0e2\x14.planet.v1.BonusKindR\x04kind\x12)\n" +
-	"\x10duration_seconds\x18\x03 \x01(\rR\x0fdurationSeconds\x12%\n" +
-	"\fblast_radius\x18\x04 \x01(\x01B\x02\x18\x01R\vblastRadius\x12\"\n" +
-	"\n" +
-	"enclosures\x18\x05 \x01(\rB\x02\x18\x01R\n" +
-	"enclosures\x122\n" +
-	"\x13enclosure_max_tiles\x18\x06 \x01(\rB\x02\x18\x01R\x11enclosureMaxTiles\x120\n" +
-	"\acharges\x18\a \x01(\v2\x16.planet.v1.ChargesHeldR\acharges\"6\n" +
+	"\x10duration_seconds\x18\x03 \x01(\rR\x0fdurationSeconds\x120\n" +
+	"\acharges\x18\a \x01(\v2\x16.planet.v1.ChargesHeldR\achargesJ\x04\b\x04\x10\x05J\x04\b\x05\x10\x06J\x04\b\x06\x10\aR\fblast_radiusR\n" +
+	"enclosuresR\x13enclosure_max_tiles\"6\n" +
 	"\n" +
 	"GlobePoint\x12\f\n" +
 	"\x01x\x18\x01 \x01(\x01R\x01x\x12\f\n" +

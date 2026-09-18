@@ -1036,28 +1036,6 @@ export class ClaimBonusResponse extends Message<ClaimBonusResponse> {
   durationSeconds = 0;
 
   /**
-   * Deprecated: rules, not an answer about this claim. GetBonusRules says them.
-   * Still set, for a client from before it: the blast radius for a bomb, one
-   * shape and its most tiles for an enclose.
-   *
-   * @generated from field: double blast_radius = 4 [deprecated = true];
-   * @deprecated
-   */
-  blastRadius = 0;
-
-  /**
-   * @generated from field: uint32 enclosures = 5 [deprecated = true];
-   * @deprecated
-   */
-  enclosures = 0;
-
-  /**
-   * @generated from field: uint32 enclosure_max_tiles = 6 [deprecated = true];
-   * @deprecated
-   */
-  enclosureMaxTiles = 0;
-
-  /**
    * What the caller holds once this box is granted.
    *
    * @generated from field: planet.v1.ChargesHeld charges = 7;
@@ -1075,9 +1053,6 @@ export class ClaimBonusResponse extends Message<ClaimBonusResponse> {
     { no: 1, name: "budget", kind: "message", T: ClickBudget },
     { no: 2, name: "kind", kind: "enum", T: proto3.getEnumType(BonusKind) },
     { no: 3, name: "duration_seconds", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 4, name: "blast_radius", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
-    { no: 5, name: "enclosures", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 6, name: "enclosure_max_tiles", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 7, name: "charges", kind: "message", T: ChargesHeld },
   ]);
 

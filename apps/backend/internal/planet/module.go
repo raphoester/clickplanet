@@ -289,7 +289,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			// anywhere near right. What each caller did with their box goes to the
 			// guard as well, for the catcher watchdog.
 			claimBonus, counters := prom_claim_bonus.New(
-				claim_bonus_usecase.New(registry, limiter, pricer, charges, bombRules.Radius, buckets, clock),
+				claim_bonus_usecase.New(registry, limiter, pricer, charges, buckets, clock),
 				props.Metrics)
 
 			registry.Observe(bonuses.Report{

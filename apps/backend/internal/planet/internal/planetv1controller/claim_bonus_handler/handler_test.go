@@ -57,29 +57,15 @@ func TestAClaimAnswersTheWidenedAllowance(t *testing.T) {
 	assert.Equal(t, uint32(60), msg.GetDurationSeconds())
 }
 
-func TestABombClaimSaysHowWideTheBlastIs(t *testing.T) {
+func TestAChargeClaimSaysWhatIsHeldAndNoTime(t *testing.T) {
 	msg, err := claim(t, &stubUseCase{out: claim_bonus_usecase.Out{
-		Kind: bonuses.KindBomb, BlastRadius: 0.03, Held: bonuses.Held{Bomb: true},
-	}})
-	require.NoError(t, err)
-
-	assert.Equal(t, planetv1.BonusKind_BONUS_KIND_BOMB, msg.GetKind())
-	assert.InDelta(t, 0.03, msg.GetBlastRadius(), 1e-9)
-	assert.Zero(t, msg.GetDurationSeconds(), "a charge has no time to run")
-	assert.True(t, msg.GetCharges().GetBomb())
-}
-
-func TestAnEncloseClaimIsOneShapeAndSaysHowBig(t *testing.T) {
-	msg, err := claim(t, &stubUseCase{out: claim_bonus_usecase.Out{
-		Kind:              bonuses.KindEncloseClicks,
-		EnclosureMaxTiles: 25,
-		Held:              bonuses.Held{Enclose: true, SpreadClicks: 4},
+		Kind: bonuses.KindEncloseClicks, Held: bonuses.Held{Bomb: true, Enclose: true, SpreadClicks: 4},
 	}})
 	require.NoError(t, err)
 
 	assert.Equal(t, planetv1.BonusKind_BONUS_KIND_ENCLOSE_CLICKS, msg.GetKind())
-	assert.Equal(t, uint32(1), msg.GetEnclosures())
-	assert.Equal(t, uint32(25), msg.GetEnclosureMaxTiles())
+	assert.Zero(t, msg.GetDurationSeconds(), "a charge has no time to run")
+	assert.True(t, msg.GetCharges().GetBomb())
 	assert.True(t, msg.GetCharges().GetEnclose())
 	assert.Equal(t, uint32(4), msg.GetCharges().GetSpreadClicksLeft(), "the answer says everything held")
 }
