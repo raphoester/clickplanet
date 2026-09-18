@@ -7,20 +7,18 @@ import (
 	"connectrpc.com/connect"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/listen_for_events_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/chargesheld"
 )
 
 type UseCase interface {
 	Execute(ctx context.Context, sink listen_for_events_usecase.Sink) error
 }
 
-func New(useCase UseCase, charges chargesheld.Encoder) ListenForEventsHandler {
-	return ListenForEventsHandler{useCase: useCase, charges: charges}
+func New(useCase UseCase) ListenForEventsHandler {
+	return ListenForEventsHandler{useCase: useCase}
 }
 
 type ListenForEventsHandler struct {
 	useCase UseCase
-	charges chargesheld.Encoder
 }
 
 // The request context is what unsubscribes, and it is cancelled however the
@@ -31,5 +29,5 @@ func (h ListenForEventsHandler) ListenForEvents(
 	_ *connect.Request[planetv1.ListenForEventsRequest],
 	stream *connect.ServerStream[planetv1.PlanetEvent],
 ) error {
-	return h.useCase.Execute(ctx, NewSink(stream, h.charges))
+	return h.useCase.Execute(ctx, NewSink(stream))
 }

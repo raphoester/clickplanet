@@ -17,13 +17,12 @@ type UseCase interface {
 	Execute(ctx context.Context, in claim_bonus_usecase.In) (claim_bonus_usecase.Out, error)
 }
 
-func New(useCase UseCase, charges chargesheld.Encoder) ClaimBonusHandler {
-	return ClaimBonusHandler{useCase: useCase, charges: charges}
+func New(useCase UseCase) ClaimBonusHandler {
+	return ClaimBonusHandler{useCase: useCase}
 }
 
 type ClaimBonusHandler struct {
 	useCase UseCase
-	charges chargesheld.Encoder
 }
 
 func (h ClaimBonusHandler) ClaimBonus(
@@ -44,7 +43,7 @@ func (h ClaimBonusHandler) ClaimBonus(
 		DurationSeconds:   uint32(out.Duration / time.Second),
 		EnclosureMaxTiles: uint32(out.EnclosureMaxTiles),
 		BlastRadius:       out.BlastRadius,
-		Charges:           h.charges.Encode(out.Held),
+		Charges:           chargesheld.Encode(out.Held),
 	}
 	if out.Kind == bonuses.KindEncloseClicks {
 		// A charge is one shape. Said for a client that still counts shapes.

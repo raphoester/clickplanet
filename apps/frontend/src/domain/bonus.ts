@@ -61,22 +61,32 @@ export type ActiveBonus = {
 }
 
 /**
- * The use-once bonuses the player holds, as the server last said. At most one
- * of each kind, each kept until it is spent — there is no clock on any of them,
- * so nothing here counts down. The server sends it when the stream opens and
- * after every change, so a reload, a second tab and a charge spent elsewhere all
- * read the same.
+ * The use-once bonuses the player holds. At most one of each kind, each kept
+ * until it is spent — there is no clock on any of them, so nothing here counts
+ * down. The server says them once, at load and when the account changes; after
+ * that the client follows its own calls (see PlanetBackend), so a charge spent
+ * in another tab shows here until the next read.
  */
 export type Charges = {
-    /** Held, with how wide its blast is. */
-    bomb?: {radius: number}
-    /** Held, with how big a shape it may close. */
-    enclose?: {maxTiles: number}
+    bomb: boolean
+    enclose: boolean
     /** Zero is no spread charge. */
     spreadClicksLeft: number
 }
 
-export const NO_CHARGES: Charges = {spreadClicksLeft: 0}
+export const NO_CHARGES: Charges = {bomb: false, enclose: false, spreadClicksLeft: 0}
+
+/**
+ * How big each charge is: the same for every player, read once at load. Game
+ * configuration rather than state, so it is not asked again; a page open
+ * across a change of rules shows the old sizes until it is reloaded.
+ */
+export type BonusRules = {
+    /** Radians of arc: the aiming ring is drawn at the size of what it will clear. */
+    blastRadius: number
+    enclosureMaxTiles: number
+    spreadClicks: number
+}
 
 /**
  * What the meter says about each charge held, in the order it shows them: the

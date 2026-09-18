@@ -15,7 +15,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/claim_bonus_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/chargesheld"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/claim_bonus_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 )
@@ -35,7 +34,7 @@ func (s *stubUseCase) Execute(_ context.Context, in claim_bonus_usecase.In) (cla
 func claim(t *testing.T, useCase claim_bonus_handler.UseCase) (*planetv1.ClaimBonusResponse, error) {
 	t.Helper()
 
-	res, err := claim_bonus_handler.New(useCase, chargesheld.Encoder{BlastRadius: 0.03, EnclosureMaxTiles: 25}).ClaimBonus(t.Context(),
+	res, err := claim_bonus_handler.New(useCase).ClaimBonus(t.Context(),
 		connect.NewRequest(&planetv1.ClaimBonusRequest{Token: "a-token", CountryId: "fr"}))
 	if err != nil {
 		return nil, fmt.Errorf("claim refused: %w", err)

@@ -957,12 +957,23 @@ it, and if the echo arrives first the rollback is already a no-op.
 A bonus box holds a triple, which runs for its `seconds`, or a **charge**, which
 has no clock: a bomb (one drop), an enclose (one shape, `maxTiles` at most) or a
 spread (the next few clicks). The server keeps them, per account, for a day, one
-of each kind at most, and it says what is held in `PlanetEvent.chargesHeld` when
-the stream opens and after every grant or spend, and in `ClaimBonusResponse.charges`.
-`chargesOf` reads it into `Charges` (`domain/bonus.ts`); the globe keeps it and
-`useGlobe` hands it to the meter. **Nothing here counts a charge down**: an empty
-hand from the server is how a spread's last click, a shape closed or a bomb
-dropped in another tab leaves the screen.
+of each kind at most.
+
+**`PlanetBackend` holds `Charges` (`domain/bonus.ts`) and nothing pushes them.**
+It reads `GetCharges` at load, with the token in hand and never a fresh one, and
+again when a click goes out under a new token (`followSession`): the charges are
+the account's. `ClaimBonusResponse.charges` replaces them on a claim. Otherwise
+it follows its own calls: an accepted click takes a spread click off, this
+player's own `tilesEnclosed` drops the enclose, and a drop takes the bomb off at
+once and gives it back only if the call never reached the server. The click
+answer says nothing about charges, on purpose (see the backend's CLAUDE.md). A
+charge spent in another tab stays on screen until the next read. It reaches the
+globe through `BonusHandlers.onCharges`, and `useGlobe` hands it to the meter.
+
+**The sizes are rules, read once**: `GetBonusRules` (a cached GET) answers the
+blast radius, the enclose's `maxTiles` and the spread's clicks as `BonusRules`,
+through `onRules`. A reward is sized from them. A page open across a change of
+rules shows the old sizes until it is reloaded.
 
 `ClickBudgetMeter` shows one pill per charge under the meter — "Bomb ready",
 "Enclose ready", "Spread: 5 clicks left" (`chargeLabels`) — and keeps the
@@ -977,9 +988,8 @@ the server's call, not this client's.
 **A bomb is aimed or put away.** Held for a day, it cannot stay aimed: while
 aimed, a click claims no tile. It is aimed when it is caught; the meter's bomb
 pill is a button that puts it away and takes it out again (`Globe.setArmed`), and
-Escape puts it away. The radius comes with the charges, so a bomb still in hand
-after a reload can be aimed. A drop takes the pill off at once and gives it back
-if the call did not reach the server. The pieces:
+Escape puts it away. The radius comes from the rules, so a bomb still in hand
+after a reload can be aimed. The pieces:
 `backends/backend.ts` declares `Bomber` and `BombDrop`, `domain/blast.ts` the
 timeline every screen agrees on, `domain/holdToDrop.ts` the gesture,
 `viewer/blasts.ts` the drawing, and `components/BombNews.tsx` the line at the top.

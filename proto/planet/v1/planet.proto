@@ -26,6 +26,19 @@ service ClickService {
   // none — never won, already dropped, or held past the charge's expiry — and
   // says no more.
   rpc DropBomb(DropBombRequest) returns (DropBombResponse);
+
+  // What the caller holds: read once when the page loads, and again when the
+  // caller's account changes. Everything after is the client's own arithmetic
+  // on its own calls. Not NO_SIDE_EFFECTS, like GetBudget: the answer is about
+  // one caller at one instant, and a cached one lies.
+  rpc GetCharges(GetChargesRequest) returns (GetChargesResponse);
+
+  // The sizes of the charges, the same for every caller. Read once when the
+  // page loads; a client that loaded before they changed shows the old ones
+  // until it reloads.
+  rpc GetBonusRules(GetBonusRulesRequest) returns (GetBonusRulesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 }
 
 // What the rate limiter has left for the caller, and the policy it refills
@@ -144,19 +157,13 @@ message PlanetEvent {
     // Broadcast to everyone, like tiles_enclosed: the tiles arrive as tile
     // updates, and this says a spread bonus is why, so every client can show it.
     TilesSpread tiles_spread = 7;
-
-    // Addressed to the streams of one holder — the account the stream's token
-    // named, or the address without one: what it holds now. Sent when the
-    // stream opens, and each time a charge is granted or spent, so every tab
-    // shows the same charges, and a player who comes back sees the ones they
-    // left with.
-    ChargesHeld charges_held = 8;
   }
 }
 
-// The use-once bonuses a player holds. At most one of each kind: while one is
-// held, no box of that kind is offered. Each is kept until it is spent, or for
-// a day after it was granted.
+// The use-once bonuses a player holds, by the account the token names (or the
+// address without one). At most one of each kind: while one is held, no box of
+// that kind is offered. Each is kept until it is spent, or for a day after it
+// was granted.
 message ChargesHeld {
   // A bomb, to be dropped anywhere with DropBomb.
   bool bomb = 1;
@@ -168,13 +175,28 @@ message ChargesHeld {
   // How many of the next clicks also take the tiles touching the one clicked.
   // Zero is no spread charge.
   uint32 spread_clicks_left = 3;
+}
 
-  // How wide a bomb's blast is, in radians of arc, so a client that reloaded
-  // with a bomb in hand can still draw the aiming ring. Set whatever is held.
-  double blast_radius = 4;
+message GetChargesRequest {}
 
-  // The most tiles an enclosed shape may hold. Set whatever is held.
-  uint32 enclosure_max_tiles = 5;
+message GetChargesResponse {
+  ChargesHeld charges = 1;
+}
+
+message GetBonusRulesRequest {}
+
+// How big each charge is. Game configuration, not state: it only changes with
+// a deploy.
+message GetBonusRulesResponse {
+  // How wide a bomb's blast is, in radians of arc, so the client draws the
+  // aiming ring at the size of what it will clear.
+  double blast_radius = 1;
+
+  // The most tiles an enclosed shape may hold.
+  uint32 enclosure_max_tiles = 2;
+
+  // How many clicks a spread charge spreads.
+  uint32 spread_clicks = 3;
 }
 
 // What a bonus is worth. The client never decides this, and an unknown kind is
@@ -243,16 +265,12 @@ message ClaimBonusResponse {
   // How long a timed bonus runs. Zero for a charge.
   uint32 duration_seconds = 3;
 
-  // For a bomb: how wide its blast is, in radians of arc, so the client can
-  // draw the aiming ring at the size of what it will clear. Zero otherwise.
-  double blast_radius = 4;
-
-  // For an enclose charge: always one shape, now that a charge is one shape.
-  // Kept for a client that still reads it. Zero for every other kind.
-  uint32 enclosures = 5;
-
-  // For an enclose charge: the most tiles its shape may hold. Zero otherwise.
-  uint32 enclosure_max_tiles = 6;
+  // Deprecated: rules, not an answer about this claim. GetBonusRules says them.
+  // Still set, for a client from before it: the blast radius for a bomb, one
+  // shape and its most tiles for an enclose.
+  double blast_radius = 4 [deprecated = true];
+  uint32 enclosures = 5 [deprecated = true];
+  uint32 enclosure_max_tiles = 6 [deprecated = true];
 
   // What the caller holds once this box is granted.
   ChargesHeld charges = 7;

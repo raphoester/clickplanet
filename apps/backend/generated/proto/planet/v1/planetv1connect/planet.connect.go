@@ -48,6 +48,11 @@ const (
 	ClickServiceClaimBonusProcedure = "/planet.v1.ClickService/ClaimBonus"
 	// ClickServiceDropBombProcedure is the fully-qualified name of the ClickService's DropBomb RPC.
 	ClickServiceDropBombProcedure = "/planet.v1.ClickService/DropBomb"
+	// ClickServiceGetChargesProcedure is the fully-qualified name of the ClickService's GetCharges RPC.
+	ClickServiceGetChargesProcedure = "/planet.v1.ClickService/GetCharges"
+	// ClickServiceGetBonusRulesProcedure is the fully-qualified name of the ClickService's
+	// GetBonusRules RPC.
+	ClickServiceGetBonusRulesProcedure = "/planet.v1.ClickService/GetBonusRules"
 )
 
 // ClickServiceClient is a client for the planet.v1.ClickService service.
@@ -65,6 +70,15 @@ type ClickServiceClient interface {
 	// none — never won, already dropped, or held past the charge's expiry — and
 	// says no more.
 	DropBomb(context.Context, *connect.Request[v1.DropBombRequest]) (*connect.Response[v1.DropBombResponse], error)
+	// What the caller holds: read once when the page loads, and again when the
+	// caller's account changes. Everything after is the client's own arithmetic
+	// on its own calls. Not NO_SIDE_EFFECTS, like GetBudget: the answer is about
+	// one caller at one instant, and a cached one lies.
+	GetCharges(context.Context, *connect.Request[v1.GetChargesRequest]) (*connect.Response[v1.GetChargesResponse], error)
+	// The sizes of the charges, the same for every caller. Read once when the
+	// page loads; a client that loaded before they changed shows the old ones
+	// until it reloads.
+	GetBonusRules(context.Context, *connect.Request[v1.GetBonusRulesRequest]) (*connect.Response[v1.GetBonusRulesResponse], error)
 }
 
 // NewClickServiceClient constructs a client for the planet.v1.ClickService service. By default, it
@@ -122,6 +136,19 @@ func NewClickServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(clickServiceMethods.ByName("DropBomb")),
 			connect.WithClientOptions(opts...),
 		),
+		getCharges: connect.NewClient[v1.GetChargesRequest, v1.GetChargesResponse](
+			httpClient,
+			baseURL+ClickServiceGetChargesProcedure,
+			connect.WithSchema(clickServiceMethods.ByName("GetCharges")),
+			connect.WithClientOptions(opts...),
+		),
+		getBonusRules: connect.NewClient[v1.GetBonusRulesRequest, v1.GetBonusRulesResponse](
+			httpClient,
+			baseURL+ClickServiceGetBonusRulesProcedure,
+			connect.WithSchema(clickServiceMethods.ByName("GetBonusRules")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -134,6 +161,8 @@ type clickServiceClient struct {
 	listenForEvents *connect.Client[v1.ListenForEventsRequest, v1.PlanetEvent]
 	claimBonus      *connect.Client[v1.ClaimBonusRequest, v1.ClaimBonusResponse]
 	dropBomb        *connect.Client[v1.DropBombRequest, v1.DropBombResponse]
+	getCharges      *connect.Client[v1.GetChargesRequest, v1.GetChargesResponse]
+	getBonusRules   *connect.Client[v1.GetBonusRulesRequest, v1.GetBonusRulesResponse]
 }
 
 // Click calls planet.v1.ClickService.Click.
@@ -171,6 +200,16 @@ func (c *clickServiceClient) DropBomb(ctx context.Context, req *connect.Request[
 	return c.dropBomb.CallUnary(ctx, req)
 }
 
+// GetCharges calls planet.v1.ClickService.GetCharges.
+func (c *clickServiceClient) GetCharges(ctx context.Context, req *connect.Request[v1.GetChargesRequest]) (*connect.Response[v1.GetChargesResponse], error) {
+	return c.getCharges.CallUnary(ctx, req)
+}
+
+// GetBonusRules calls planet.v1.ClickService.GetBonusRules.
+func (c *clickServiceClient) GetBonusRules(ctx context.Context, req *connect.Request[v1.GetBonusRulesRequest]) (*connect.Response[v1.GetBonusRulesResponse], error) {
+	return c.getBonusRules.CallUnary(ctx, req)
+}
+
 // ClickServiceHandler is an implementation of the planet.v1.ClickService service.
 type ClickServiceHandler interface {
 	Click(context.Context, *connect.Request[v1.ClickRequest]) (*connect.Response[v1.ClickResponse], error)
@@ -186,6 +225,15 @@ type ClickServiceHandler interface {
 	// none — never won, already dropped, or held past the charge's expiry — and
 	// says no more.
 	DropBomb(context.Context, *connect.Request[v1.DropBombRequest]) (*connect.Response[v1.DropBombResponse], error)
+	// What the caller holds: read once when the page loads, and again when the
+	// caller's account changes. Everything after is the client's own arithmetic
+	// on its own calls. Not NO_SIDE_EFFECTS, like GetBudget: the answer is about
+	// one caller at one instant, and a cached one lies.
+	GetCharges(context.Context, *connect.Request[v1.GetChargesRequest]) (*connect.Response[v1.GetChargesResponse], error)
+	// The sizes of the charges, the same for every caller. Read once when the
+	// page loads; a client that loaded before they changed shows the old ones
+	// until it reloads.
+	GetBonusRules(context.Context, *connect.Request[v1.GetBonusRulesRequest]) (*connect.Response[v1.GetBonusRulesResponse], error)
 }
 
 // NewClickServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -239,6 +287,19 @@ func NewClickServiceHandler(svc ClickServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(clickServiceMethods.ByName("DropBomb")),
 		connect.WithHandlerOptions(opts...),
 	)
+	clickServiceGetChargesHandler := connect.NewUnaryHandler(
+		ClickServiceGetChargesProcedure,
+		svc.GetCharges,
+		connect.WithSchema(clickServiceMethods.ByName("GetCharges")),
+		connect.WithHandlerOptions(opts...),
+	)
+	clickServiceGetBonusRulesHandler := connect.NewUnaryHandler(
+		ClickServiceGetBonusRulesProcedure,
+		svc.GetBonusRules,
+		connect.WithSchema(clickServiceMethods.ByName("GetBonusRules")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/planet.v1.ClickService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ClickServiceClickProcedure:
@@ -255,6 +316,10 @@ func NewClickServiceHandler(svc ClickServiceHandler, opts ...connect.HandlerOpti
 			clickServiceClaimBonusHandler.ServeHTTP(w, r)
 		case ClickServiceDropBombProcedure:
 			clickServiceDropBombHandler.ServeHTTP(w, r)
+		case ClickServiceGetChargesProcedure:
+			clickServiceGetChargesHandler.ServeHTTP(w, r)
+		case ClickServiceGetBonusRulesProcedure:
+			clickServiceGetBonusRulesHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -290,4 +355,12 @@ func (UnimplementedClickServiceHandler) ClaimBonus(context.Context, *connect.Req
 
 func (UnimplementedClickServiceHandler) DropBomb(context.Context, *connect.Request[v1.DropBombRequest]) (*connect.Response[v1.DropBombResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.ClickService.DropBomb is not implemented"))
+}
+
+func (UnimplementedClickServiceHandler) GetCharges(context.Context, *connect.Request[v1.GetChargesRequest]) (*connect.Response[v1.GetChargesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.ClickService.GetCharges is not implemented"))
+}
+
+func (UnimplementedClickServiceHandler) GetBonusRules(context.Context, *connect.Request[v1.GetBonusRulesRequest]) (*connect.Response[v1.GetBonusRulesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.ClickService.GetBonusRules is not implemented"))
 }

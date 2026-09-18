@@ -16,7 +16,7 @@ import {
     UpdatesListener,
     VPNBlockedError,
 } from "./backend.ts";
-import {BonusReward, Charges, multiplierOf, NO_CHARGES, TimedReward} from "../domain/bonus.ts";
+import {BonusReward, BonusRules, Charges, multiplierOf, NO_CHARGES, TimedReward} from "../domain/bonus.ts";
 import {ClickBudget, ClickBudgetSource, ClickPrice, now as budgetNow} from "./clickBudget.ts";
 import {SessionUnavailableError} from "./session.ts";
 import {v4 as UUIDv4} from 'uuid';
@@ -65,6 +65,9 @@ const BOT_BOMB_EVERY_MS = 25_000
 /** Everyone else's clicks, together. */
 const BOT_CLICKS_PER_SECOND = 4
 const ENCLOSE_MAX_TILES = 25
+
+/** What GetBonusRules answers, from the constants above. */
+const RULES: BonusRules = {blastRadius: BOMB_RADIUS, enclosureMaxTiles: ENCLOSE_MAX_TILES, spreadClicks: SPREAD_CLICKS}
 
 export type FakeBackendOptions = {
     vpnBlocked?: boolean
@@ -206,9 +209,9 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     private holds(kind: BonusReward["kind"]): boolean {
         switch (kind) {
             case "bomb":
-                return this.charges.bomb !== undefined
+                return this.charges.bomb
             case "encloseClicks":
-                return this.charges.enclose !== undefined
+                return this.charges.enclose
             case "spreadClicks":
                 return this.charges.spreadClicksLeft > 0
             case "tripleClicks":
@@ -234,10 +237,10 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
                 this.bonusEndTimer = setTimeout(() => this.reportBudget(), reward.seconds * 1000)
                 break
             case "bomb":
-                this.hold({...this.charges, bomb: {radius: reward.radius}})
+                this.hold({...this.charges, bomb: true})
                 break
             case "encloseClicks":
-                this.hold({...this.charges, enclose: {maxTiles: reward.maxTiles}})
+                this.hold({...this.charges, enclose: true})
                 break
             case "spreadClicks":
                 this.hold({...this.charges, spreadClicksLeft: reward.clicks})
@@ -291,7 +294,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         const filled = [6, 7, 8].map(step => tileId + step).filter(id => id <= TILE_COUNT)
         filled.forEach(id => this.applyClick(id, countryId))
 
-        this.hold({...this.charges, enclose: undefined})
+        this.hold({...this.charges, enclose: false})
 
         const enclosure: Enclosure = {countryId, closingTile: tileId, wall, filled, yours: true}
         this.bonusCallbacks.forEach(handlers => handlers.onEnclosed(enclosure))
@@ -399,7 +402,8 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     public listenForBonuses(handlers: BonusHandlers): () => void {
         const identifier = UUIDv4()
         this.bonusCallbacks.set(identifier, handlers)
-        // The stream opens with what is held, as the server's does.
+        // What the real client reads at load: the rules, and what is held.
+        handlers.onRules(RULES)
         handlers.onCharges(this.charges)
 
         return () => this.bonusCallbacks.delete(identifier)
@@ -441,7 +445,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         if (this.sessionUnavailable) throw new SessionUnavailableError()
         if (!this.charges.bomb) throw new BonusLostError()
 
-        this.hold({...this.charges, bomb: undefined})
+        this.hold({...this.charges, bomb: false})
         await this.explode(target, countryId)
     }
 

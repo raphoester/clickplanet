@@ -591,18 +591,6 @@ export class PlanetEvent extends Message<PlanetEvent> {
      */
     value: TilesSpread;
     case: "tilesSpread";
-  } | {
-    /**
-     * Addressed to the streams of one holder — the account the stream's token
-     * named, or the address without one: what it holds now. Sent when the
-     * stream opens, and each time a charge is granted or spent, so every tab
-     * shows the same charges, and a player who comes back sees the ones they
-     * left with.
-     *
-     * @generated from field: planet.v1.ChargesHeld charges_held = 8;
-     */
-    value: ChargesHeld;
-    case: "chargesHeld";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<PlanetEvent>) {
@@ -620,7 +608,6 @@ export class PlanetEvent extends Message<PlanetEvent> {
     { no: 5, name: "bomb_dropped", kind: "message", T: BombDropped, oneof: "event" },
     { no: 6, name: "tiles_enclosed", kind: "message", T: TilesEnclosed, oneof: "event" },
     { no: 7, name: "tiles_spread", kind: "message", T: TilesSpread, oneof: "event" },
-    { no: 8, name: "charges_held", kind: "message", T: ChargesHeld, oneof: "event" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PlanetEvent {
@@ -641,9 +628,10 @@ export class PlanetEvent extends Message<PlanetEvent> {
 }
 
 /**
- * The use-once bonuses a player holds. At most one of each kind: while one is
- * held, no box of that kind is offered. Each is kept until it is spent, or for
- * a day after it was granted.
+ * The use-once bonuses a player holds, by the account the token names (or the
+ * address without one). At most one of each kind: while one is held, no box of
+ * that kind is offered. Each is kept until it is spent, or for a day after it
+ * was granted.
  *
  * @generated from message planet.v1.ChargesHeld
  */
@@ -671,21 +659,6 @@ export class ChargesHeld extends Message<ChargesHeld> {
    */
   spreadClicksLeft = 0;
 
-  /**
-   * How wide a bomb's blast is, in radians of arc, so a client that reloaded
-   * with a bomb in hand can still draw the aiming ring. Set whatever is held.
-   *
-   * @generated from field: double blast_radius = 4;
-   */
-  blastRadius = 0;
-
-  /**
-   * The most tiles an enclosed shape may hold. Set whatever is held.
-   *
-   * @generated from field: uint32 enclosure_max_tiles = 5;
-   */
-  enclosureMaxTiles = 0;
-
   constructor(data?: PartialMessage<ChargesHeld>) {
     super();
     proto3.util.initPartial(data, this);
@@ -697,8 +670,6 @@ export class ChargesHeld extends Message<ChargesHeld> {
     { no: 1, name: "bomb", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 2, name: "enclose", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 3, name: "spread_clicks_left", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 4, name: "blast_radius", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
-    { no: 5, name: "enclosure_max_tiles", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ChargesHeld {
@@ -715,6 +686,164 @@ export class ChargesHeld extends Message<ChargesHeld> {
 
   static equals(a: ChargesHeld | PlainMessage<ChargesHeld> | undefined, b: ChargesHeld | PlainMessage<ChargesHeld> | undefined): boolean {
     return proto3.util.equals(ChargesHeld, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.GetChargesRequest
+ */
+export class GetChargesRequest extends Message<GetChargesRequest> {
+  constructor(data?: PartialMessage<GetChargesRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GetChargesRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetChargesRequest {
+    return new GetChargesRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetChargesRequest {
+    return new GetChargesRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetChargesRequest {
+    return new GetChargesRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetChargesRequest | PlainMessage<GetChargesRequest> | undefined, b: GetChargesRequest | PlainMessage<GetChargesRequest> | undefined): boolean {
+    return proto3.util.equals(GetChargesRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.GetChargesResponse
+ */
+export class GetChargesResponse extends Message<GetChargesResponse> {
+  /**
+   * @generated from field: planet.v1.ChargesHeld charges = 1;
+   */
+  charges?: ChargesHeld;
+
+  constructor(data?: PartialMessage<GetChargesResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GetChargesResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "charges", kind: "message", T: ChargesHeld },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetChargesResponse {
+    return new GetChargesResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetChargesResponse {
+    return new GetChargesResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetChargesResponse {
+    return new GetChargesResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetChargesResponse | PlainMessage<GetChargesResponse> | undefined, b: GetChargesResponse | PlainMessage<GetChargesResponse> | undefined): boolean {
+    return proto3.util.equals(GetChargesResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.GetBonusRulesRequest
+ */
+export class GetBonusRulesRequest extends Message<GetBonusRulesRequest> {
+  constructor(data?: PartialMessage<GetBonusRulesRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GetBonusRulesRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetBonusRulesRequest {
+    return new GetBonusRulesRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetBonusRulesRequest {
+    return new GetBonusRulesRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetBonusRulesRequest {
+    return new GetBonusRulesRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetBonusRulesRequest | PlainMessage<GetBonusRulesRequest> | undefined, b: GetBonusRulesRequest | PlainMessage<GetBonusRulesRequest> | undefined): boolean {
+    return proto3.util.equals(GetBonusRulesRequest, a, b);
+  }
+}
+
+/**
+ * How big each charge is. Game configuration, not state: it only changes with
+ * a deploy.
+ *
+ * @generated from message planet.v1.GetBonusRulesResponse
+ */
+export class GetBonusRulesResponse extends Message<GetBonusRulesResponse> {
+  /**
+   * How wide a bomb's blast is, in radians of arc, so the client draws the
+   * aiming ring at the size of what it will clear.
+   *
+   * @generated from field: double blast_radius = 1;
+   */
+  blastRadius = 0;
+
+  /**
+   * The most tiles an enclosed shape may hold.
+   *
+   * @generated from field: uint32 enclosure_max_tiles = 2;
+   */
+  enclosureMaxTiles = 0;
+
+  /**
+   * How many clicks a spread charge spreads.
+   *
+   * @generated from field: uint32 spread_clicks = 3;
+   */
+  spreadClicks = 0;
+
+  constructor(data?: PartialMessage<GetBonusRulesResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GetBonusRulesResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "blast_radius", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 2, name: "enclosure_max_tiles", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "spread_clicks", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetBonusRulesResponse {
+    return new GetBonusRulesResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetBonusRulesResponse {
+    return new GetBonusRulesResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetBonusRulesResponse {
+    return new GetBonusRulesResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetBonusRulesResponse | PlainMessage<GetBonusRulesResponse> | undefined, b: GetBonusRulesResponse | PlainMessage<GetBonusRulesResponse> | undefined): boolean {
+    return proto3.util.equals(GetBonusRulesResponse, a, b);
   }
 }
 
@@ -907,25 +1036,24 @@ export class ClaimBonusResponse extends Message<ClaimBonusResponse> {
   durationSeconds = 0;
 
   /**
-   * For a bomb: how wide its blast is, in radians of arc, so the client can
-   * draw the aiming ring at the size of what it will clear. Zero otherwise.
+   * Deprecated: rules, not an answer about this claim. GetBonusRules says them.
+   * Still set, for a client from before it: the blast radius for a bomb, one
+   * shape and its most tiles for an enclose.
    *
-   * @generated from field: double blast_radius = 4;
+   * @generated from field: double blast_radius = 4 [deprecated = true];
+   * @deprecated
    */
   blastRadius = 0;
 
   /**
-   * For an enclose charge: always one shape, now that a charge is one shape.
-   * Kept for a client that still reads it. Zero for every other kind.
-   *
-   * @generated from field: uint32 enclosures = 5;
+   * @generated from field: uint32 enclosures = 5 [deprecated = true];
+   * @deprecated
    */
   enclosures = 0;
 
   /**
-   * For an enclose charge: the most tiles its shape may hold. Zero otherwise.
-   *
-   * @generated from field: uint32 enclosure_max_tiles = 6;
+   * @generated from field: uint32 enclosure_max_tiles = 6 [deprecated = true];
+   * @deprecated
    */
   enclosureMaxTiles = 0;
 

@@ -83,14 +83,12 @@ type Spread struct {
 	Neighbours []uint32
 }
 
-// Event carries exactly one: an Offer reaches its caller, Charges the streams of its holder, the rest
-// everyone.
+// Event carries exactly one: an Offer reaches its caller, the rest everyone.
 type Event struct {
 	Offer    *Offer
 	Taken    *Taken
 	Enclosed *Enclosed
 	Spread   *Spread
-	Charges  *Held
 }
 
 type Reward struct {
@@ -102,23 +100,20 @@ type Reward struct {
 
 // caller is one scope: its open streams, and the schedule that outlives them.
 type caller struct {
-	streams map[uint64]stream
+	streams map[uint64]chan Event
 
 	nextOfferAt time.Time
 	lastSeen    time.Time
 	lastClickAt time.Time
+
+	// Who clicked from this scope, and when last: the holders whose charges keep a kind from being offered.
+	players map[Holder]time.Time
 
 	outstanding string
 	misses      int
 
 	// Each bonus granted, for MaxBoostPerHour and MaxChargesPerHour.
 	grants []grant
-}
-
-// stream is one open feed, and whose charges it is told about: the account its token named, or the scope.
-type stream struct {
-	events chan Event
-	holder Holder
 }
 
 type grant struct {
@@ -133,15 +128,11 @@ func (c *caller) watching() bool {
 
 // send drops rather than blocks, as the tile fanout does for a slow subscriber.
 func (c *caller) send(event Event) {
-	for _, s := range c.streams {
-		s.send(event)
-	}
-}
-
-func (s stream) send(event Event) {
-	select {
-	case s.events <- event:
-	default:
+	for _, events := range c.streams {
+		select {
+		case events <- event:
+		default:
+		}
 	}
 }
 
@@ -195,7 +186,7 @@ func New(config Config, clock cptime.Clock) *Registry {
 		callers: make(map[string]*caller),
 		offers:  make(map[string]*pending),
 	}
-	r.charges = NewCharges(config.charges(), clock, r)
+	r.charges = NewCharges(config.charges(), clock)
 
 	return r
 }
@@ -220,9 +211,8 @@ func (r *Registry) counted(hook func()) {
 	}
 }
 
-// Attend adds a stream to the feed; the returned func must be called when it ends. The stream is told
-// what holder holds straight away, so a player who comes back sees the charge they left with.
-func (r *Registry) Attend(scope string, holder Holder) (<-chan Event, func()) {
+// Attend adds a stream to the feed; the returned func must be called when it ends.
+func (r *Registry) Attend(scope string) (<-chan Event, func()) {
 	now := r.clock.Now()
 
 	r.mu.Lock()
@@ -233,14 +223,9 @@ func (r *Registry) Attend(scope string, holder Holder) (<-chan Event, func()) {
 	r.nextID++
 	id := r.nextID
 
-	opened := stream{events: make(chan Event, eventBuffer), holder: holder}
-	entry.streams[id] = opened
+	events := make(chan Event, eventBuffer)
+	entry.streams[id] = events
 	entry.lastSeen = now
-
-	held := r.charges.Held(holder)
-	opened.send(Event{Charges: &held})
-
-	events := opened.events
 
 	return events, func() { r.leave(scope, id) }
 }
@@ -253,7 +238,8 @@ func (r *Registry) caller(scope string, now time.Time) *caller {
 	}
 
 	entry = &caller{
-		streams:     make(map[uint64]stream),
+		streams:     make(map[uint64]chan Event),
+		players:     make(map[Holder]time.Time),
 		nextOfferAt: now.Add(r.window()),
 		lastSeen:    now,
 	}
@@ -275,14 +261,17 @@ func (r *Registry) leave(scope string, id uint64) {
 	entry.lastSeen = r.clock.Now()
 }
 
-// Clicked marks a caller as playing. Boxes only go to callers who are.
-func (r *Registry) Clicked(scope string) {
+// Clicked marks a caller as playing, and holder as one of the players behind it. Boxes only go to callers
+// who are, and not in a kind any of its players holds.
+func (r *Registry) Clicked(scope string, holder Holder) {
 	now := r.clock.Now()
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	r.caller(scope, now).lastClickAt = now
+	entry := r.caller(scope, now)
+	entry.lastClickAt = now
+	entry.players[holder] = now
 }
 
 // Claim fails for a token unknown, spent, lapsed, or offered to somebody else.
@@ -339,21 +328,6 @@ func (r *Registry) PublishEnclosed(scope string, enclosed Enclosed) {
 		}
 
 		entry.send(Event{Enclosed: &theirs})
-	}
-}
-
-// PublishCharges tells every stream of holder what it holds now. Nobody else learns it.
-func (r *Registry) PublishCharges(holder Holder, held Held) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	for _, entry := range r.callers {
-		for _, s := range entry.streams {
-			if s.holder == holder {
-				copied := held
-				s.send(Event{Charges: &copied})
-			}
-		}
 	}
 }
 
@@ -430,15 +404,20 @@ func (r *Registry) due(entry *caller, now time.Time) bool {
 	return true
 }
 
-// offerable is every kind with a weight that the caller may be given now. A kind any of its streams'
-// holders already holds is left out, so nobody holds two of one kind. The hourly caps leave out triple
-// clicks past MaxBoostPerHour of boost time, and every charge past MaxChargesPerHour charges.
+// offerable is every kind with a weight that the caller may be given now. A kind held by any player who
+// clicked from this scope within ActiveWithin is left out, so nobody holds two of one kind. The hourly caps
+// leave out triple clicks past MaxBoostPerHour of boost time, and every charge past MaxChargesPerHour
+// charges. It forgets the players who stopped clicking on the way.
 func (r *Registry) offerable(entry *caller, now time.Time) *cpcolls.Set[Kind] {
 	boosted, charged := r.grantedWithinTheHour(entry, now)
 
 	held := cpcolls.NewSet[Kind]()
-	for _, s := range entry.streams {
-		held.Add(r.charges.Held(s.holder).Kinds()...)
+	for holder, clicked := range entry.players {
+		if now.Sub(clicked) > r.config.ActiveWithin {
+			delete(entry.players, holder)
+			continue
+		}
+		held.Add(r.charges.Held(holder).Kinds()...)
 	}
 
 	kinds := cpcolls.NewSetWithCapacity[Kind](len(Kinds))

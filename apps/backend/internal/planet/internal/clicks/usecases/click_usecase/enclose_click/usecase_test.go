@@ -76,11 +76,6 @@ func (r *recorder) PublishEnclosed(_ string, enclosed bonuses.Enclosed) {
 	r.published = append(r.published, enclosed)
 }
 
-// silence hears the charges change and tells nobody.
-type silence struct{}
-
-func (silence) PublishCharges(bonuses.Holder, bonuses.Held) {}
-
 // caller is the holder of a click made from the test's context: no account, and the scope that reads.
 var caller = bonuses.HolderOf(clicks.PayerOf(context.Background()))
 
@@ -97,7 +92,7 @@ func setup(charged bool, err error) fixture {
 		grid:  honeycomb{size: 12},
 		tiles: tiles{},
 		charges: bonuses.NewCharges(bonuses.ChargesConfig{TTL: time.Hour, SpreadClicks: 8, EnclosureMaxTiles: 10},
-			cptime.NewFixedClock(epoch), silence{}),
+			cptime.NewFixedClock(epoch)),
 		published: &recorder{},
 	}
 	if charged {

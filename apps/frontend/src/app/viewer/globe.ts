@@ -37,7 +37,7 @@ import {createBonusBox} from "./bonusBox.ts";
 import {createBonusPointer} from "./bonusPointer.ts";
 import {createEnclosureEffects} from "./enclosureEffect.ts";
 import {createBonusClickEffects} from "./bonusClickEffects.ts";
-import {BonusReward, Charges, NO_CHARGES} from "../../domain/bonus.ts";
+import {BonusReward, BonusRules, Charges, NO_CHARGES} from "../../domain/bonus.ts";
 import {now as monotonicNow} from "../../backends/clickBudget.ts";
 import {BlastUniforms, blastUniforms, createBlasts} from "./blasts.ts";
 import {IMPACT_DELAY} from "../../domain/blast.ts";
@@ -253,6 +253,10 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     // takes it out again.
     let charges: Charges = NO_CHARGES
 
+    // How wide a bomb's blast is, from the rules read at load. Without it the
+    // bomb cannot be aimed: the ring would promise a size nobody knows.
+    let rules: BonusRules | undefined
+
     // The bomb while it is aimed.
     //
     // Aiming follows the sphere under the cursor, not the tile picker: the
@@ -281,13 +285,13 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     }
 
     const arm = () => {
-        if (armed || !charges.bomb || !bomber) return
-        armed = {radius: charges.bomb.radius}
+        if (armed || !charges.bomb || !bomber || !rules) return
+        armed = {radius: rules.blastRadius}
         eventTarget.classList.add("viewer-canvas--armed")
         onArmedChange(true)
     }
 
-    // A bomb dropped in another tab, or lost to its expiry, is put away here too.
+    // A bomb dropped, or found gone, is put away here too.
     const takeCharges = (held: Charges) => {
         charges = held
         if (!held.bomb) disarm()
@@ -332,6 +336,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             if (ownClicks.has(spread.tile, spread.countryId, performance.now() / 1000)) playSound("spread")
         },
         onCharges: (held) => takeCharges(held),
+        onRules: (read) => rules = read,
     })
 
     // When this client last dropped one, until its broadcast comes back: the
@@ -341,16 +346,10 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const dropBomb = (point: THREE.Vector3) => {
         if (!bomber) return
         disarm()
-        // Off the meter at once rather than a round trip later; the server's
-        // own word follows on the stream. A drop that did not reach it gives
-        // the bomb back, and one it refused was not held anyway.
-        const held = charges.bomb
-        takeCharges({...charges, bomb: undefined})
         ownDropAt = performance.now() / 1000
         bomber.dropBomb({x: point.x, y: point.y, z: point.z}, country.code).catch((e) => {
             if (lifetime.signal.aborted) return
             ownDropAt = undefined
-            if (!(e instanceof BonusLostError) && !charges.bomb) takeCharges({...charges, bomb: held})
             reportClaimFailure(e, {onSessionUnavailable})
         })
     }

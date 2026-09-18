@@ -24,6 +24,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/drop_bomb_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/drop_bomb_usecase/antibot_drop_bomb"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/drop_bomb_usecase/prom_drop_bomb"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/get_charges_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/embedded_geodesic_map"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
@@ -61,12 +62,13 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/ban_player_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/chargesheld"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/claim_bonus_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/click_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/drop_bomb_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/find_players_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_bonus_rules_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_budget_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_charges_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_map_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/inspect_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/listen_for_events_handler"
@@ -314,8 +316,12 @@ func NewModule(config Config) cpbootstrap.Module {
 			// storage appears three times here rather than once as a single object the
 			// service holds: the map reader, the subscription and the tile writer are
 			// three ports that happen to be served by one adapter.
-			// A charge goes out with the sizes that use it, so a client that reloads with one in hand can use it.
-			chargesSaid := chargesheld.Encoder{BlastRadius: bombRules.Radius, EnclosureMaxTiles: charges.EnclosureMaxTiles()}
+			// How big each charge is, fixed at boot: the client reads it once.
+			rules := bonuses.Rules{
+				BlastRadius:       bombRules.Radius,
+				EnclosureMaxTiles: charges.EnclosureMaxTiles(),
+				SpreadClicks:      charges.SpreadClicks(),
+			}
 
 			service := planetv1controller.ClickService{
 				ClickHandler:      click_handler.New(clickUseCase),
@@ -324,9 +330,11 @@ func NewModule(config Config) cpbootstrap.Module {
 				GetMapHandler: get_map_handler.New(
 					antibot_get_map.New(get_map_usecase.New(tilesChecker, tilesStorage), guard, tilesChecker)),
 				ListenForEventsHandler: listen_for_events_handler.New(antibot_listen_for_events.New(
-					listen_for_events_usecase.New(tilesStorage, props.Server.StreamHeartbeat, registry), guard), chargesSaid),
-				ClaimBonusHandler: claim_bonus_handler.New(claimBonus, chargesSaid),
-				DropBombHandler:   drop_bomb_handler.New(dropBomb),
+					listen_for_events_usecase.New(tilesStorage, props.Server.StreamHeartbeat, registry), guard)),
+				ClaimBonusHandler:    claim_bonus_handler.New(claimBonus),
+				DropBombHandler:      drop_bomb_handler.New(dropBomb),
+				GetChargesHandler:    get_charges_handler.New(get_charges_usecase.New(charges)),
+				GetBonusRulesHandler: get_bonus_rules_handler.New(rules),
 			}
 
 			return props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {

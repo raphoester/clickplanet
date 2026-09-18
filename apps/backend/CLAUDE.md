@@ -317,6 +317,7 @@ because it serves every concept over one Connect service. It only maps.
 | `ledger/usecases/revert_player_usecase` | gives back what one caller still holds | `Ledger`, `Map` |
 | `bonuses/usecases/claim_bonus_usecase` | redeems a box | `Registry`, `Booster`, `Charger` |
 | `bonuses/usecases/drop_bomb_usecase` | spends a bomb where it was aimed | `Bombs`, `Map`, `Clearer` |
+| `bonuses/usecases/get_charges_usecase` | what the caller holds | `Charges` |
 
 **The interfaces in that last column are declared by the package that calls
 them**, not gathered in a `gateways.go` every use case imports. A shared port
@@ -404,7 +405,7 @@ A stream blocked inside a `Send` to a client that reads nothing is not woken by 
 
 **The streaming RPCs are wrapped by error mapping, the drain and the session reader, and nothing else**, because every other interceptor is a `connect.UnaryInterceptorFunc` and streams skip those by construction. Reads and the live feeds are therefore untouched by the throttle, the VPN blocklist and the session check, exactly as they were when they were websockets. A policy that ever has to reach a stream must be written as a full `connect.Interceptor`, as `cpconnect.NewSessionReaderInterceptor` is.
 
-**The planet stream reads a token when the client sends one.** `planetv1controller.NewSessionReaderInterceptor` covers `ListenForEvents`: the token is verified once, from the headers that open the stream, and the account stays on the context for as long as the stream is open. It refuses nothing, so a stream with no token or a bad one opens as before. The web client sends the token it holds and never mints for it, and reopens the stream when a click goes out under a new token (see the frontend's CLAUDE.md). **The charges read it**: a stream is told what its account holds (see [Charges](#charges-bomb-enclose-spread)). Offers and the `yours` flag are still keyed by scope. `TestAStreamOpenedWithATokenKnowsItsAccount` pins it over HTTP.
+**The planet stream reads a token when the client sends one.** `planetv1controller.NewSessionReaderInterceptor` covers `ListenForEvents`: the token is verified once, from the headers that open the stream, and the account stays on the context for as long as the stream is open. It refuses nothing, so a stream with no token or a bad one opens as before. The web client sends the token it holds and never mints for it, and reopens the stream when a click goes out under a new token (see the frontend's CLAUDE.md). Nothing on the stream reads the account yet: offers and the `yours` flag are keyed by scope. `TestAStreamOpenedWithATokenKnowsItsAccount` pins it over HTTP.
 
 ### The map load
 
@@ -905,12 +906,13 @@ a spread is the next 8 clicks.
   click chain and the drop agree on whose charge it is. A charge is the account's
   so it survives closing the tab, a new address and another device.
 - **At most one of each kind.** A second grant of a kind held replaces it rather
-  than stacking, and the schedule does not offer a kind that any holder of the
-  caller's open streams holds (`Registry.offerable`). Stockpiling bombs and
-  dropping them all at once is exactly the "a long session destroyed in seconds"
-  this avoids. The registry owns the `Charges` (`Registry.Charges()`), because
-  each needs the other: the schedule reads what is held, and a change is told
-  down the holder's streams.
+  than stacking, and the schedule does not offer a kind held by any player who
+  clicked from the scope within `activeWithin` (`Registry.offerable`). The
+  schedule is by scope and a charge is by account, so `bonus_click` tells the
+  registry both on every accepted click: `Clicked(scope, holder)`. Stockpiling
+  bombs and dropping them all at once is exactly the "a long session destroyed
+  in seconds" this avoids. The registry owns the `Charges` (`Registry.Charges()`),
+  since its schedule reads them.
 - **A charge lapses `bonus.chargeTTL` (24h) after it was granted**, unspent.
   Long, so a held charge is a reason to come back.
 - **A restart loses every charge held.** Bonus state is not persisted: the
@@ -919,13 +921,22 @@ a spread is the next 8 clicks.
   holder, when that is worth it.
 - **Each spend is atomic**: `SpendBomb`, `SpendEnclose` and `SpendSpreadClick`
   check and take under one lock, so two tabs racing for the last one get one.
-- **The player is told**: `PlanetEvent.charges_held` goes down every stream of the
-  holder when it opens and after every grant or spend (`Registry.PublishCharges`),
-  and `ClaimBonusResponse.charges` answers the claim. It is addressed like an
-  offer, never broadcast. `planetv1controller/chargesheld` encodes it with the
-  blast radius and the enclose size, so a client that reloads with a bomb in hand
-  can still draw the ring. `Attend` takes the scope for the offers and the holder
-  for the charges, which is the one thing on the stream that reads the account.
+- **Nothing pushes them.** They are not live news: `GetCharges` answers what the
+  caller holds, read by the client at load and when its account changes, and
+  `ClaimBonusResponse.charges` answers the claim. After that the client follows
+  its own calls: a drop spends the bomb, an accepted click a spread click, its
+  own `tiles_enclosed` the enclose. A charge spent in another tab shows until the
+  next read. **`Click` answers nothing about them on purpose**: a shadow-banned
+  click never reaches the spread, so a count on the answer would tell a banned
+  caller its clicks are dropped. `planetv1controller/chargesheld` encodes the
+  message both procedures answer.
+- **How big a charge is, is a rule, not state.** `GetBonusRules` answers the
+  blast radius, the enclose's `maxTiles` and the spread's clicks (`bonuses.Rules`,
+  built in `module.go`). It is `NO_SIDE_EFFECTS`, a GET the cache interceptor marks
+  for 5 minutes, and the client reads it once per page load. A page open across a
+  deploy that changes them shows the old sizes until it reloads. The same values
+  still ride on `ClaimBonusResponse` (`blast_radius`, `enclosures`,
+  `enclosure_max_tiles`), deprecated, for a client from before `GetBonusRules`.
 
 #### What a spread does to a click
 
@@ -973,9 +984,8 @@ neighbours together, which one flag per tile cannot say.
 #### What a bomb does
 
 `claim_bonus_usecase` hands the bomb over with `Charges.Grant(holder, KindBomb)` and
-answers the blast radius on `ClaimBonusResponse.blast_radius` (and on every
-`charges_held`), so the client draws its aiming ring at the width of what it will
-clear. `DropBomb` spends it through `drop_bomb_usecase` with `Charges.SpendBomb`.
+the client draws its aiming ring at `GetBonusRules.blast_radius`, the width of
+what it will clear. `DropBomb` spends it through `drop_bomb_usecase` with `Charges.SpendBomb`.
 
 **The client names a point, never a tile.** The sea has no tiles, and whether an
 aim is on land is the server's call: `Geography.Nearest` finds the closest tile,
@@ -1069,8 +1079,8 @@ tile updates, but a patch flipping at once says nothing about why, so every
 client is sent the shape — closing tile, wall, and filled tiles nearest the
 closing tile first — to animate. `Registry.PublishEnclosed` sends it after the
 tiles are set, to every caller. The caller who closed it gets a copy of their own
-with `yours`. `enclosures_left` is deprecated and always zero: `charges_held` says
-what is left.
+with `yours`. `enclosures_left` is deprecated and always zero: a charge is one shape,
+so a shape of your own is the charge spent.
 
 `prom_enclose` wraps that publisher, so it counts exactly the shapes that were
 closed: `bonus_enclosures_total` and `bonus_enclosed_tiles_total`.

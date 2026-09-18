@@ -7,7 +7,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/listen_for_events_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/chargesheld"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/claim_bonus_handler"
 )
 
@@ -18,16 +17,15 @@ type EventStream interface {
 	Send(event *planetv1.PlanetEvent) error
 }
 
-func NewSink(stream EventStream, charges chargesheld.Encoder) Sink {
-	return Sink{stream: stream, charges: charges}
+func NewSink(stream EventStream) Sink {
+	return Sink{stream: stream}
 }
 
 // Sink writes the use case's frames as the proto envelope. The oneof is the
 // wire's business and stops here: the use case says update or heartbeat, and
 // nothing about how either is framed.
 type Sink struct {
-	stream  EventStream
-	charges chargesheld.Encoder
+	stream EventStream
 }
 
 var _ listen_for_events_usecase.Sink = Sink{}
@@ -46,10 +44,6 @@ func (s Sink) Send(event listen_for_events_usecase.Event) error {
 		return s.stream.Send(tilesEnclosedEvent(event.Enclosed))
 	case event.Spread != nil:
 		return s.stream.Send(tilesSpreadEvent(event.Spread))
-	case event.Charges != nil:
-		return s.stream.Send(&planetv1.PlanetEvent{
-			Event: &planetv1.PlanetEvent_ChargesHeld{ChargesHeld: s.charges.Encode(*event.Charges)},
-		})
 	default:
 		return s.stream.Send(tileUpdateEvent(event.Update))
 	}

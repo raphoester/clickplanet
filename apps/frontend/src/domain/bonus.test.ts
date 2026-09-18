@@ -103,8 +103,8 @@ describe("chargeLabels", () => {
 
     it("says each charge held, the bomb first", () => {
         expect(chargeLabels({
-            bomb: {radius: 0.03},
-            enclose: {maxTiles: 25},
+            bomb: true,
+            enclose: true,
             spreadClicksLeft: 5,
         })).toEqual([
             {kind: "bomb", label: "Bomb ready"},
@@ -114,7 +114,7 @@ describe("chargeLabels", () => {
     })
 
     it("counts the last spread click as one click", () => {
-        expect(chargeLabels({spreadClicksLeft: 1})).toEqual([{kind: "spreadClicks", label: "Spread: 1 click left"}])
+        expect(chargeLabels({...NO_CHARGES, spreadClicksLeft: 1})).toEqual([{kind: "spreadClicks", label: "Spread: 1 click left"}])
     })
 })
 

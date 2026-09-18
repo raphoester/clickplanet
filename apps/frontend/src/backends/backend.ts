@@ -1,4 +1,4 @@
-import {BonusReward, Charges} from "../domain/bonus.ts"
+import {BonusReward, BonusRules, Charges} from "../domain/bonus.ts"
 
 export interface TileClicker {
     clickTile(tileId: number, countryId: string): Promise<void>
@@ -102,8 +102,10 @@ export type BonusHandlers = {
     onTaken: (taken: BonusCatch) => void
     onEnclosed: (enclosure: Enclosure) => void
     onSpread: (spread: SpreadClick) => void
-    /** What this player holds now: when the stream opens, and after every change. */
+    /** What this player holds now: once it is read, and after every change this client makes or learns of. */
     onCharges: (charges: Charges) => void
+    /** How big each charge is, once it is read at load. */
+    onRules: (rules: BonusRules) => void
 }
 
 /** What a caught box was worth, and what the player holds once it is granted. */
@@ -115,9 +117,11 @@ export type ClaimedBonus = {
 export interface BonusListener {
     /**
      * Follows the bonus feed on the connection that is already open: the box
-     * drawn for this client, the charges it holds, and every catch, shape
-     * closed and spread click on the planet. A boosted click is not here: it is
-     * a flag on its tile update.
+     * drawn for this client, and every catch, shape closed and spread click on
+     * the planet. A boosted click is not here: it is a flag on its tile update.
+     *
+     * The charges held and the rules are not on the stream: they are read, and
+     * handed to a new listener at once when they already have been.
      */
     listenForBonuses(handlers: BonusHandlers): () => void
 

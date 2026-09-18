@@ -47,19 +47,17 @@ func (h Held) Kinds() []Kind {
 	return kinds
 }
 
-// Announcer tells a holder's open streams what it holds, each time that changes.
-type Announcer interface {
-	PublishCharges(holder Holder, held Held)
-}
-
 // Charges holds the use-once bonuses: a bomb, an enclose shape, and a spread's clicks. None of them runs
 // on a clock; each is kept until it is spent or until ChargeTTL has passed since it was granted.
 //
 // They live in memory, like every other piece of bonus state: a restart loses every charge held.
+//
+// Nothing is pushed when they change. The client reads them once (GetCharges) and follows its own calls:
+// what a claim grants, a drop spends, an accepted click spends of a spread, and its own shape spends of an
+// enclose. So a click never answers with them, which would tell a shadow-banned caller its clicks spend nothing.
 type Charges struct {
 	config ChargesConfig
 	clock  cptime.Clock
-	out    Announcer
 
 	mu   sync.Mutex
 	held map[Holder]*hand
@@ -81,13 +79,18 @@ type hand struct {
 	spreadClicks int
 }
 
-func NewCharges(config ChargesConfig, clock cptime.Clock, out Announcer) *Charges {
-	return &Charges{config: config, clock: clock, out: out, held: make(map[Holder]*hand)}
+func NewCharges(config ChargesConfig, clock cptime.Clock) *Charges {
+	return &Charges{config: config, clock: clock, held: make(map[Holder]*hand)}
 }
 
 // EnclosureMaxTiles is the most tiles one enclosed shape may hold.
 func (c *Charges) EnclosureMaxTiles() int {
 	return c.config.EnclosureMaxTiles
+}
+
+// SpreadClicks is how many clicks one spread charge spreads.
+func (c *Charges) SpreadClicks() int {
+	return c.config.SpreadClicks
 }
 
 // Grant hands holder one charge of kind. A second of a kind already held replaces it rather than adding
@@ -98,6 +101,8 @@ func (c *Charges) Grant(holder Holder, kind Kind) {
 	lapses := now.Add(c.config.TTL)
 
 	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	for other, h := range c.held {
 		if h.empty(now) {
 			delete(c.held, other)
@@ -120,11 +125,6 @@ func (c *Charges) Grant(holder Holder, kind Kind) {
 		h.spreadClicks = c.config.SpreadClicks
 	case KindTripleClicks:
 	}
-
-	held := h.held(now)
-	c.mu.Unlock()
-
-	c.out.PublishCharges(holder, held)
 }
 
 // Held is what holder has in hand right now.
@@ -181,23 +181,16 @@ func (c *Charges) SpendSpreadClick(holder Holder) bool {
 	})
 }
 
-// spend runs take under the lock, and announces what is left once it is released: the announcer takes
-// the registry's lock, and the registry reads the charges under it.
+// spend runs take under the lock.
 func (c *Charges) spend(holder Holder, take func(h *hand, now time.Time) bool) bool {
 	now := c.clock.Now()
 
 	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	h, ok := c.held[holder]
-	if !ok || !take(h, now) {
-		c.mu.Unlock()
-		return false
-	}
-	held := h.held(now)
-	c.mu.Unlock()
 
-	c.out.PublishCharges(holder, held)
-
-	return true
+	return ok && take(h, now)
 }
 
 func (h *hand) held(now time.Time) Held {

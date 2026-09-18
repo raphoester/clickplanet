@@ -18,7 +18,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_map_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/listen_for_events_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/map_density_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/chargesheld"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/click_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_budget_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_map_handler"
@@ -91,8 +90,7 @@ func clickServerWith(
 			MapDensityHandler: map_density_handler.New(map_density_usecase.New(stubChecker{})),
 			GetMapHandler:     get_map_handler.New(get_map_usecase.New(stubChecker{}, stubMapReader{})),
 			ListenForEventsHandler: listen_for_events_handler.New(
-				listen_for_events_usecase.New(stubSubscriber{}, listen_for_events_usecase.DefaultHeartbeat, noBoxes{}),
-				chargesheld.Encoder{}),
+				listen_for_events_usecase.New(stubSubscriber{}, listen_for_events_usecase.DefaultHeartbeat, noBoxes{})),
 		},
 		options...,
 	))
@@ -197,6 +195,6 @@ func errorNet() connect.Interceptor {
 // noBoxes is a bonus feed that never sends anything.
 type noBoxes struct{}
 
-func (noBoxes) Attend(string, bonuses.Holder) (<-chan bonuses.Event, func()) {
+func (noBoxes) Attend(string) (<-chan bonuses.Event, func()) {
 	return nil, func() {}
 }

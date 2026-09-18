@@ -2,6 +2,7 @@
 import {afterEach, describe, expect, it, vi} from 'vitest'
 import {cleanup, fireEvent, render, screen} from '@testing-library/react'
 import ClickBudgetMeter from './ClickBudgetMeter.tsx'
+import {NO_CHARGES} from "../../domain/bonus.ts"
 import {ClickBudget} from "../../backends/clickBudget.ts"
 
 afterEach(cleanup)
@@ -230,14 +231,14 @@ describe("ClickBudgetMeter for a guest", () => {
 
 describe("ClickBudgetMeter with charges held", () => {
     it("says nothing when nothing is held", () => {
-        render(<ClickBudgetMeter budget={reading()} charges={{spreadClicksLeft: 0}}/>)
+        render(<ClickBudgetMeter budget={reading()} charges={NO_CHARGES}/>)
 
         expect(document.querySelector(".click-budget-charges")).toBeNull()
     })
 
     it("says each charge held, with no countdown", () => {
         render(<ClickBudgetMeter budget={reading()}
-                                 charges={{bomb: {radius: 0.03}, enclose: {maxTiles: 25}, spreadClicksLeft: 5}}
+                                 charges={{bomb: true, enclose: true, spreadClicksLeft: 5}}
                                  onToggleBomb={() => {}}/>)
 
         expect(screen.getByText("Bomb ready")).toBeTruthy()
@@ -247,7 +248,7 @@ describe("ClickBudgetMeter with charges held", () => {
     })
 
     it("does not mark the meter boosted: a charge widens nothing", () => {
-        render(<ClickBudgetMeter budget={reading()} charges={{spreadClicksLeft: 8}}/>)
+        render(<ClickBudgetMeter budget={reading()} charges={{...NO_CHARGES, spreadClicksLeft: 8}}/>)
 
         expect(meter().classList.contains("click-budget-boosted")).toBe(false)
     })
@@ -255,7 +256,7 @@ describe("ClickBudgetMeter with charges held", () => {
     it("aims the bomb and puts it away from its own button", () => {
         const toggle = vi.fn()
         const {rerender} = render(<ClickBudgetMeter budget={reading()}
-                                                    charges={{bomb: {radius: 0.03}, spreadClicksLeft: 0}}
+                                                    charges={{...NO_CHARGES, bomb: true}}
                                                     onToggleBomb={toggle}/>)
 
         const bomb = screen.getByRole("button", {name: /Bomb ready/})
@@ -264,7 +265,7 @@ describe("ClickBudgetMeter with charges held", () => {
         expect(toggle).toHaveBeenCalledTimes(1)
 
         rerender(<ClickBudgetMeter budget={reading()}
-                                   charges={{bomb: {radius: 0.03}, spreadClicksLeft: 0}}
+                                   charges={{...NO_CHARGES, bomb: true}}
                                    bombArmed
                                    onToggleBomb={toggle}/>)
 
@@ -273,7 +274,7 @@ describe("ClickBudgetMeter with charges held", () => {
     })
 
     it("only says the bomb when there is no way to aim it", () => {
-        render(<ClickBudgetMeter budget={reading()} charges={{bomb: {radius: 0.03}, spreadClicksLeft: 0}}/>)
+        render(<ClickBudgetMeter budget={reading()} charges={{...NO_CHARGES, bomb: true}}/>)
 
         expect(screen.getByText("Bomb ready")).toBeTruthy()
         expect(screen.queryByRole("button", {name: /Bomb/})).toBeNull()
