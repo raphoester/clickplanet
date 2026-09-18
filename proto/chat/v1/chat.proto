@@ -10,6 +10,45 @@ service ChatService {
   }
 
   rpc ListenForEvents(ListenForEventsRequest) returns (stream ChatEvent);
+
+  // Puts a reaction on a message, or takes it off. Idempotent: asking for what
+  // is already there changes nothing and publishes nothing.
+  rpc React(ReactRequest) returns (ReactResponse);
+}
+
+// The reactions a message can carry. A fixed set, drawn by the client from its
+// own images and never from the system's emoji font: the enum is the whole
+// contract, so both apps agree on it without a list kept in each.
+//
+// A number is what is stored, so a value is never renumbered or reused. A new
+// one goes at the end.
+enum Reaction {
+  REACTION_UNSPECIFIED = 0;
+  REACTION_LAUGH = 1;
+  REACTION_CLOWN = 2;
+  REACTION_SKULL = 3;
+  REACTION_FIRE = 4;
+  REACTION_THUMBS_UP = 5;
+  REACTION_THUMBS_DOWN = 6;
+  REACTION_HEART = 7;
+  REACTION_CRY = 8;
+  REACTION_SCREAM = 9;
+  REACTION_COOL = 10;
+  REACTION_THINK = 11;
+  REACTION_POOP = 12;
+  REACTION_PARTY = 13;
+  REACTION_MIND_BLOWN = 14;
+  REACTION_NERD = 15;
+  REACTION_EARTH = 16;
+}
+
+// How many put one reaction on one message.
+message ReactionCount {
+  Reaction reaction = 1;
+  uint32 count = 2;
+  // The caller is one of them. Only a call knows who is asking: it is false on
+  // everything the stream sends, and the client keeps its own between calls.
+  bool mine = 3;
 }
 
 message ChatMessage {
@@ -25,6 +64,8 @@ message ChatMessage {
   // Posted under the username of an admin of the game, as it was when the
   // message was sent. Never a guest.
   bool author_admin = 7;
+  // In the order each reaction first appeared. Empty on a message just sent.
+  repeated ReactionCount reactions = 8;
 }
 
 // The X-Session-Token header is optional. When it names an account with a
@@ -43,10 +84,27 @@ message SendMessageResponse {
   ChatMessage message = 1;
 }
 
+// The X-Session-Token header is optional, as on SendMessage: it is what says
+// which reactions are the caller's own.
 message GetHistoryRequest {}
 
 message GetHistoryResponse {
   repeated ChatMessage messages = 1;
+}
+
+// The X-Session-Token header is optional. A player with a username reacts as
+// its account, everyone else as the address it calls from: the same tag its
+// messages carry.
+message ReactRequest {
+  string message_id = 1;
+  Reaction reaction = 2;
+  // True puts the reaction on, false takes it off.
+  bool on = 3;
+}
+
+message ReactResponse {
+  // The message's reactions once this one landed, mine included.
+  repeated ReactionCount reactions = 1;
 }
 
 message ListenForEventsRequest {}
@@ -60,7 +118,15 @@ message ChatEvent {
   oneof event {
     ChatMessage message = 1;
     Heartbeat heartbeat = 2;
+    ReactionsChanged reactions = 3;
   }
+}
+
+// A message's reactions changed. They are all of them, not the difference, so a
+// client that missed a frame is right again on the next one.
+message ReactionsChanged {
+  string message_id = 1;
+  repeated ReactionCount reactions = 2;
 }
 
 message Heartbeat {}

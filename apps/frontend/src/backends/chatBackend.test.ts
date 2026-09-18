@@ -1,10 +1,18 @@
 import {afterEach, describe, expect, it, vi} from "vitest"
-import {ChatServiceBackend, decodedMessage, messageOf} from "./chatBackend.ts"
+import {ChatServiceBackend, decodedMessage, messageOf, reactionsOf} from "./chatBackend.ts"
 import {Code, ConnectError, PromiseClient} from "@connectrpc/connect"
-import {ChatEvent, ChatMessage as ChatMessagePb, Heartbeat} from "../gen/grpc/chat/v1/chat_pb.ts"
+import {
+    ChatEvent,
+    ChatMessage as ChatMessagePb,
+    Heartbeat,
+    Reaction,
+    ReactionCount,
+    ReactionsChanged,
+} from "../gen/grpc/chat/v1/chat_pb.ts"
 import {ChatService} from "../gen/grpc/chat/v1/chat_connect.ts"
 import {
     ChatBlockedError,
+    ChatMessageGoneError,
     ChatRateLimitedError,
     ChatRejectedError,
 } from "./chat.ts"
@@ -25,6 +33,7 @@ const proto = () => new ChatMessagePb({
     authorAdmin: true,
     countryId: "fr",
     text: "hello",
+    reactions: [new ReactionCount({reaction: Reaction.CLOWN, count: 2, mine: true})],
 })
 
 function clientThatFails(error: unknown): PromiseClient<typeof ChatService> {
@@ -46,7 +55,53 @@ describe("decodedMessage", () => {
             authorAdmin: true,
             countryCode: "fr",
             text: "hello",
+            reactions: [{reaction: Reaction.CLOWN, count: 2, mine: true}],
         })
+    })
+})
+
+describe("reactionsOf", () => {
+    it("unwraps a reactions event, and nothing else", () => {
+        const event = new ChatEvent({
+            event: {
+                case: "reactions",
+                value: new ReactionsChanged({
+                    messageId: "message-1",
+                    reactions: [new ReactionCount({reaction: Reaction.SKULL, count: 3})],
+                }),
+            },
+        })
+
+        expect(reactionsOf(event)).toEqual({
+            messageId: "message-1",
+            reactions: [{reaction: Reaction.SKULL, count: 3, mine: false}],
+        })
+        expect(reactionsOf(new ChatEvent({event: {case: "message", value: proto()}}))).toBeUndefined()
+    })
+})
+
+describe("ChatServiceBackend.react", () => {
+    const reaction = {messageId: "message-1", reaction: Reaction.CLOWN, on: true, asAccount: true}
+
+    it("sends the token for a player, none for a guest, and answers the counts", async () => {
+        const react = vi.fn().mockResolvedValue({reactions: [new ReactionCount({reaction: Reaction.CLOWN, count: 1, mine: true})]})
+        const client = {react} as unknown as PromiseClient<typeof ChatService>
+
+        const counts = await new ChatServiceBackend(client, session()).react(reaction)
+        await new ChatServiceBackend(client, session()).react({...reaction, asAccount: false})
+
+        expect(counts).toEqual([{reaction: Reaction.CLOWN, count: 1, mine: true}])
+        expect(react.mock.calls[0][0]).toEqual({messageId: "message-1", reaction: Reaction.CLOWN, on: true})
+        expect((react.mock.calls[0][1] as {headers: Headers}).headers.get(SESSION_HEADER)).toBe("token-1")
+        expect((react.mock.calls[1][1] as {headers: Headers}).headers.get(SESSION_HEADER)).toBeNull()
+    })
+
+    it("reads a message the server no longer shows as gone", async () => {
+        const client = {
+            react: () => Promise.reject(new ConnectError("gone", Code.NotFound)),
+        } as unknown as PromiseClient<typeof ChatService>
+
+        await expect(new ChatServiceBackend(client, session()).react(reaction)).rejects.toBeInstanceOf(ChatMessageGoneError)
     })
 })
 
@@ -153,6 +208,17 @@ describe("ChatServiceBackend.sendMessage", () => {
 })
 
 describe("ChatServiceBackend.getHistory", () => {
+    it("sends the token it holds, and never mints one", async () => {
+        const getHistory = vi.fn().mockResolvedValue({messages: []})
+        const client = {getHistory} as unknown as PromiseClient<typeof ChatService>
+        const provider = session()
+
+        await new ChatServiceBackend(client, provider).getHistory()
+
+        expect((getHistory.mock.calls[0][1] as {headers: Headers}).headers.get(SESSION_HEADER)).toBe("token-1")
+        expect(provider.token).not.toHaveBeenCalled()
+    })
+
     it("decodes every message the server holds", async () => {
         const client = {
             getHistory: vi.fn().mockResolvedValue({messages: [proto(), proto()]}),

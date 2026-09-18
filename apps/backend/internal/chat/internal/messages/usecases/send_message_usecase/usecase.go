@@ -9,7 +9,6 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -83,11 +82,11 @@ func (u *UseCase) Execute(ctx context.Context, in In) (messages.Message, error) 
 	}
 
 	message := messages.Message{
-		ID:          uuid.NewString(),
+		ID:          messages.MessageID(uuid.NewString()),
 		SentAt:      u.clock.Now(),
 		AuthorName:  name,
 		AuthorTag:   author.Tag,
-		AuthorAdmin: postsAsPlayer(in, author) && author.Admin,
+		AuthorAdmin: author.PostsAsPlayer(in.Account) && author.Admin,
 		CountryID:   in.CountryID,
 		Text:        text,
 	}
@@ -102,14 +101,9 @@ func (u *UseCase) Execute(ctx context.Context, in In) (messages.Message, error) 
 // authorName is the account's username, and the name the sender typed is then not read. Without one it is a
 // guest's name.
 func (u *UseCase) authorName(in In, author messages.Author) (string, error) {
-	if postsAsPlayer(in, author) {
+	if author.PostsAsPlayer(in.Account) {
 		return author.Username, nil
 	}
 
 	return u.limits.GuestName(in.AuthorName) //nolint:wrapcheck // Execute says what failed.
-}
-
-// postsAsPlayer is a sender with an account and a username. Anyone else posts as a guest.
-func postsAsPlayer(in In, author messages.Author) bool {
-	return in.Account != cpsession.NoAccount && author.Username != ""
 }

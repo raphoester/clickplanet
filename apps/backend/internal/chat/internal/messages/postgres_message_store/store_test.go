@@ -38,7 +38,7 @@ var start = time.Date(2024, 1, 1, 12, 0, 0, 123_456_000, time.UTC)
 func record(text string, at time.Time) messages.Record {
 	return messages.Record{
 		Message: messages.Message{
-			ID:         "id-" + text,
+			ID:         messages.MessageID("id-" + text),
 			SentAt:     at,
 			AuthorName: "Bob",
 			AuthorTag:  "a1b2c3",

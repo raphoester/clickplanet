@@ -19,6 +19,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/get_history_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/listen_for_events_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/react_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/rpc_session_verifier"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/send_message_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/inmemory_message_storage"
@@ -26,6 +27,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/rpc_player_authors"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/get_history_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/listen_for_events_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/react_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/send_message_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/send_message_usecase/log_authors"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/migrations"
@@ -71,21 +73,25 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	messageLimiter := cpratelimit.New("message-limiter", config.RateLimiter, cptime.SystemClock{})
 	props.Runners.Add(messageLimiter)
 
+	reactionLimiter := cpratelimit.New("reaction-limiter", config.ReactionLimiter, cptime.SystemClock{})
+	props.Runners.Add(reactionLimiter)
+
 	blocklist, err := cpipblock.NewDenyList(config.BlockedIPs)
 	if err != nil {
 		return fmt.Errorf("failed to build the chat blocklist: %w", err)
 	}
 
-	// Who posts, username and tag, comes from the player module over the internal listener. A failure to ask is
-	// logged, and the message is refused.
+	// Who posts or reacts, username and tag, comes from the player module over the internal listener. A failure
+	// to ask is logged, and the post or the reaction is refused.
 	authors := log_authors.New(rpc_player_authors.New(props.Internal), props.Logger)
 
 	chatService := chatv1controller.ChatService{
 		SendMessageHandler: send_message_handler.New(
 			send_message_usecase.New(storage, cpcountries.New(), authors, cptime.SystemClock{}, config.Service)),
-		GetHistoryHandler: get_history_handler.New(get_history_usecase.New(storage)),
+		GetHistoryHandler: get_history_handler.New(get_history_usecase.New(storage, authors)),
 		ListenForEventsHandler: listen_for_events_handler.New(
 			listen_for_events_usecase.New(storage, props.Server.StreamHeartbeat)),
+		ReactHandler: react_handler.New(react_usecase.New(storage, authors, cptime.SystemClock{})),
 	}
 
 	err = props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
@@ -93,6 +99,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	},
 		chatv1controller.NewBlocklistInterceptor(blocklist),
 		chatv1controller.NewRateLimitInterceptor(messageLimiter),
+		chatv1controller.NewReactionRateLimitInterceptor(reactionLimiter),
 		// The key comes from auth over the internal listener, on the first token: this module holds no seed.
 		chatv1controller.NewSessionInterceptor(rpc_session_verifier.New(props.Internal, props.Logger), cptime.SystemClock{}),
 	)
@@ -113,6 +120,8 @@ type Config struct {
 	Service send_message_usecase.Config
 
 	RateLimiter cpratelimit.Config
+	// ReactionLimiter throttles React per address. Its defaults, one a second and ten in hand, suit it.
+	ReactionLimiter cpratelimit.Config
 
 	BlockedIPs []string
 }

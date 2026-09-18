@@ -3,7 +3,9 @@ import {
     ChatHistoryGetter,
     ChatListener,
     ChatMessage,
+    ChatMessageGoneError,
     ChatRateLimitedError,
+    ChatReactor,
     ChatRejectedError,
     ChatSender,
     countRunes,
@@ -11,6 +13,10 @@ import {
     MAX_NAME_LENGTH,
     MAX_TEXT_LENGTH,
     OutgoingMessage,
+    OutgoingReaction,
+    Reaction,
+    ReactionCount,
+    ReactionsChange,
 } from "./chat.ts";
 import {v4 as UUIDv4} from 'uuid';
 
@@ -30,9 +36,22 @@ const CHATTERS = [
     {name: guestName("Yuki"), tag: "aa1290", country: "jp", admin: false, text: "the pacific is ours"},
 ]
 
-export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListener {
+// Who reacts from this browser: like the server's guest, one reactor per address.
+const ME = "me"
+
+// What the bots react with, now and then.
+const BOT_REACTIONS = [Reaction.LAUGH, Reaction.CLOWN, Reaction.SKULL, Reaction.FIRE, Reaction.EARTH]
+
+type Listener = {
+    message: (message: ChatMessage) => void
+    reactions?: (change: ReactionsChange) => void
+}
+
+export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListener, ChatReactor {
     private readonly messages: ChatMessage[] = []
-    private readonly listeners = new Map<string, (message: ChatMessage) => void>()
+    // Message id → reaction → who gave it, in the order each reaction first appeared.
+    private readonly reactions = new Map<string, Map<Reaction, Set<string>>>()
+    private readonly listeners = new Map<string, Listener>()
     private readonly timers: ReturnType<typeof setInterval>[] = []
     private readonly blocked: boolean
     private tokens = MESSAGE_BURST
@@ -51,6 +70,7 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
                 authorAdmin: chatter.admin,
                 countryCode: chatter.country,
                 text: chatter.text,
+                reactions: [],
             })
         })
 
@@ -65,7 +85,12 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
                 authorAdmin: chatter.admin,
                 countryCode: chatter.country,
                 text: `${chatter.text} (${this.nextChatter})`,
+                reactions: [],
             })
+
+            const target = this.messages[Math.floor(Math.random() * this.messages.length)]
+            const reaction = BOT_REACTIONS[this.nextChatter % BOT_REACTIONS.length]
+            this.give(target.id, reaction, chatter.tag, true)
         }, options.chatterIntervalMs ?? 8000))
     }
 
@@ -95,20 +120,32 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
             authorAdmin: false,
             countryCode: message.countryCode,
             text,
+            reactions: [],
         }
 
         this.publish(sent)
         return sent
     }
 
-    public async getHistory(signal?: AbortSignal): Promise<ChatMessage[]> {
-        signal?.throwIfAborted()
-        return [...this.messages]
+    public async react(reaction: OutgoingReaction): Promise<ReactionCount[]> {
+        if (this.blocked) throw new ChatBlockedError()
+        if (!this.messages.some(message => message.id === reaction.messageId)) throw new ChatMessageGoneError()
+
+        this.give(reaction.messageId, reaction.reaction, ME, reaction.on)
+        return this.tally(reaction.messageId, ME)
     }
 
-    public listenForMessages(callback: (message: ChatMessage) => void): () => void {
+    public async getHistory(signal?: AbortSignal): Promise<ChatMessage[]> {
+        signal?.throwIfAborted()
+        return this.messages.map(message => ({...message, reactions: this.tally(message.id, ME)}))
+    }
+
+    public listenForMessages(
+        callback: (message: ChatMessage) => void,
+        onReactions?: (change: ReactionsChange) => void,
+    ): () => void {
         const id = UUIDv4()
-        this.listeners.set(id, callback)
+        this.listeners.set(id, {message: callback, reactions: onReactions})
         return () => {
             this.listeners.delete(id)
         }
@@ -116,7 +153,31 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
 
     private publish(message: ChatMessage) {
         this.messages.push(message)
-        this.listeners.forEach(listener => listener(message))
+        this.listeners.forEach(listener => listener.message(message))
+    }
+
+    private give(messageId: string, reaction: Reaction, reactor: string, on: boolean) {
+        const given = this.reactions.get(messageId) ?? new Map<Reaction, Set<string>>()
+        this.reactions.set(messageId, given)
+        const reactors = given.get(reaction) ?? new Set<string>()
+        if (reactors.has(reactor) === on) return
+
+        if (on) reactors.add(reactor)
+        else reactors.delete(reactor)
+        if (reactors.size === 0) given.delete(reaction)
+        else given.set(reaction, reactors)
+
+        const change = {messageId, reactions: this.tally(messageId, undefined)}
+        this.listeners.forEach(listener => listener.reactions?.(change))
+    }
+
+    private tally(messageId: string, viewer: string | undefined): ReactionCount[] {
+        return [...(this.reactions.get(messageId) ?? new Map<Reaction, Set<string>>())]
+            .map(([reaction, reactors]) => ({
+                reaction,
+                count: reactors.size,
+                mine: viewer !== undefined && reactors.has(viewer),
+            }))
     }
 
     private allow(): boolean {

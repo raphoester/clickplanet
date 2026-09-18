@@ -42,14 +42,14 @@ func (s *stubSender) Execute(_ context.Context, in send_message_usecase.In) (mes
 
 type emptyHistory struct{}
 
-func (emptyHistory) Execute(context.Context) []messages.Message { return nil }
+func (emptyHistory) Execute(context.Context, messages.AccountID) []messages.Message { return nil }
 
 type stubSubscriber struct {
 	err error
 }
 
-func (s stubSubscriber) Subscribe(context.Context) (<-chan messages.Message, error) {
-	return make(chan messages.Message), s.err
+func (s stubSubscriber) Subscribe(context.Context) (<-chan messages.Update, error) {
+	return make(chan messages.Update), s.err
 }
 
 func startChatServer(

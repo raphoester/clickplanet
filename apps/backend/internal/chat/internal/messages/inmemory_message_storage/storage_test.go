@@ -17,6 +17,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/postgres_message_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/get_history_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/listen_for_events_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/react_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/send_message_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -46,7 +47,7 @@ func (s *testSuite) newStorage(config inmemory_message_storage.Config) *inmemory
 func (s *testSuite) record(text string) messages.Record {
 	return messages.Record{
 		Message: messages.Message{
-			ID:         text,
+			ID:         messages.MessageID(text),
 			SentAt:     s.clock.Now(),
 			AuthorName: "Bob",
 			AuthorTag:  "a1b2c3",
@@ -73,7 +74,7 @@ func (s *testSuite) TestAppendedMessagesShowUpInHistory() {
 	s.Require().NoError(storage.Append(context.Background(), s.record("hello")))
 	s.Require().NoError(storage.Append(context.Background(), s.record("planet")))
 
-	s.Equal([]string{"hello", "planet"}, s.texts(storage.History(context.Background())))
+	s.Equal([]string{"hello", "planet"}, s.texts(storage.History(context.Background(), messages.NoReactor)))
 }
 
 func (s *testSuite) TestHistoryIsCapped() {
@@ -83,7 +84,7 @@ func (s *testSuite) TestHistoryIsCapped() {
 		s.Require().NoError(storage.Append(context.Background(), s.record(fmt.Sprintf("msg-%d", i))))
 	}
 
-	s.Equal([]string{"msg-7", "msg-8", "msg-9"}, s.texts(storage.History(context.Background())))
+	s.Equal([]string{"msg-7", "msg-8", "msg-9"}, s.texts(storage.History(context.Background(), messages.NoReactor)))
 	s.Len(s.persistence.Stored(), 10)
 }
 
@@ -91,10 +92,10 @@ func (s *testSuite) TestHistoryIsACopy() {
 	storage := s.newStorage(inmemory_message_storage.Config{})
 	s.Require().NoError(storage.Append(context.Background(), s.record("hello")))
 
-	history := storage.History(context.Background())
+	history := storage.History(context.Background(), messages.NoReactor)
 	history[0].Text = "tampered"
 
-	s.Equal("hello", storage.History(context.Background())[0].Text)
+	s.Equal("hello", storage.History(context.Background(), messages.NoReactor)[0].Text)
 }
 
 func (s *testSuite) TestSubscribersReceiveMessages() {
@@ -106,7 +107,7 @@ func (s *testSuite) TestSubscribersReceiveMessages() {
 	s.Require().NoError(storage.Append(context.Background(), s.record("hello")))
 
 	s.Require().Eventually(func() bool { return len(feed) == 1 }, 2*time.Second, time.Millisecond)
-	s.Equal("hello", (<-feed).Text)
+	s.Equal("hello", (<-feed).Message.Text)
 }
 
 func (s *testSuite) TestSubscriberChannelClosesWithItsContext() {
@@ -139,7 +140,7 @@ func (s *testSuite) TestSlowSubscribersHaveMessagesDropped() {
 	}
 
 	s.Positive(storage.DroppedMessages())
-	s.Len(storage.History(context.Background()), 10)
+	s.Len(storage.History(context.Background(), messages.NoReactor), 10)
 }
 
 func (s *testSuite) TestTheSenderIsStoredButNotInTheHistory() {
@@ -148,7 +149,7 @@ func (s *testSuite) TestTheSenderIsStoredButNotInTheHistory() {
 
 	s.Equal([]messages.Record{s.record("hello")}, s.persistence.Stored())
 
-	encoded, err := json.Marshal(storage.History(context.Background()))
+	encoded, err := json.Marshal(storage.History(context.Background(), messages.NoReactor))
 	s.Require().NoError(err)
 	s.NotContains(string(encoded), "203.0.113.7")
 	s.NotContains(string(encoded), "test-agent")
@@ -162,12 +163,12 @@ func (s *testSuite) TestAMessageThatCannotBeStoredIsNotBroadcast() {
 	s.persistence.FailWith(errors.New("postgres is down"))
 	s.Require().Error(storage.Append(context.Background(), s.record("lost")))
 
-	s.Empty(storage.History(context.Background()))
+	s.Empty(storage.History(context.Background(), messages.NoReactor))
 	s.Empty(feed)
 
 	s.persistence.Heal()
 	s.Require().NoError(storage.Append(context.Background(), s.record("hello")))
-	s.Equal([]string{"hello"}, s.texts(storage.History(context.Background())))
+	s.Equal([]string{"hello"}, s.texts(storage.History(context.Background(), messages.NoReactor)))
 }
 
 func (s *testSuite) TestLoadKeepsTheNewestMessagesWithinRetention() {
@@ -178,7 +179,7 @@ func (s *testSuite) TestLoadKeepsTheNewestMessagesWithinRetention() {
 
 	storage := s.newStorage(inmemory_message_storage.Config{HistorySize: 2, Retention: 24 * time.Hour})
 
-	s.Equal([]string{"msg-2", "msg-3"}, s.texts(storage.History(context.Background())))
+	s.Equal([]string{"msg-2", "msg-3"}, s.texts(storage.History(context.Background(), messages.NoReactor)))
 }
 
 func (s *testSuite) TestAStoreThatCannotBeReadRefusesTheLoad() {
@@ -228,7 +229,7 @@ func (s *testSuite) TestConcurrentUseIsSafe() {
 	for range 5 {
 		wg.Go(func() {
 			for range 50 {
-				storage.History(context.Background())
+				storage.History(context.Background(), messages.NoReactor)
 			}
 		})
 	}
@@ -240,13 +241,14 @@ func (s *testSuite) TestConcurrentUseIsSafe() {
 		s.Require().NoError(err)
 	}
 
-	s.Len(storage.History(context.Background()), 50)
+	s.Len(storage.History(context.Background(), messages.NoReactor), 50)
 	s.Len(s.persistence.Stored(), 200)
 }
 
 var (
 	_ send_message_usecase.Appender                = (*inmemory_message_storage.Storage)(nil)
 	_ get_history_usecase.HistoryReader            = (*inmemory_message_storage.Storage)(nil)
+	_ react_usecase.Board                          = (*inmemory_message_storage.Storage)(nil)
 	_ listen_for_events_usecase.MessagesSubscriber = (*inmemory_message_storage.Storage)(nil)
 	_ inmemory_message_storage.Persistence         = (*postgres_message_store.Store)(nil)
 	_ inmemory_message_storage.Persistence         = (*inmemory_message_storage.MemoryPersistence)(nil)

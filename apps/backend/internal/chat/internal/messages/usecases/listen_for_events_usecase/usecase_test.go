@@ -15,11 +15,11 @@ import (
 )
 
 type stubSubscriber struct {
-	feed chan messages.Message
+	feed chan messages.Update
 	err  error
 }
 
-func (s stubSubscriber) Subscribe(context.Context) (<-chan messages.Message, error) {
+func (s stubSubscriber) Subscribe(context.Context) (<-chan messages.Update, error) {
 	return s.feed, s.err
 }
 
@@ -59,8 +59,8 @@ func TestAFailedSubscriptionEndsTheFeed(t *testing.T) {
 }
 
 func TestAMessageIsCarriedToTheSink(t *testing.T) {
-	feed := make(chan messages.Message, 1)
-	feed <- messages.Message{ID: "message-1", Text: "hello"}
+	feed := make(chan messages.Update, 1)
+	feed <- messages.Update{Message: &messages.Message{ID: "message-1", Text: "hello"}}
 
 	sink := &recorder{fed: make(chan struct{})}
 
@@ -75,7 +75,7 @@ func TestAMessageIsCarriedToTheSink(t *testing.T) {
 	require.NoError(t, <-done)
 
 	require.Equal(t, []listen_for_events_usecase.Event{
-		{Message: messages.Message{ID: "message-1", Text: "hello"}},
+		{Update: messages.Update{Message: &messages.Message{ID: "message-1", Text: "hello"}}},
 	}, sink.seen())
 }
 
@@ -86,7 +86,7 @@ func TestASilentFeedKeepsSendingHeartbeats(t *testing.T) {
 	done := make(chan error, 1)
 	go func() {
 		done <- listen_for_events_usecase.New(
-			stubSubscriber{feed: make(chan messages.Message)}, time.Millisecond).Execute(ctx, sink)
+			stubSubscriber{feed: make(chan messages.Update)}, time.Millisecond).Execute(ctx, sink)
 	}()
 
 	for range 3 {
@@ -101,7 +101,7 @@ func TestASilentFeedKeepsSendingHeartbeats(t *testing.T) {
 }
 
 func TestTheFeedEndsWhenTheSubscriptionCloses(t *testing.T) {
-	feed := make(chan messages.Message)
+	feed := make(chan messages.Update)
 	close(feed)
 
 	err := listen_for_events_usecase.New(stubSubscriber{feed: feed}, time.Hour).
@@ -111,8 +111,8 @@ func TestTheFeedEndsWhenTheSubscriptionCloses(t *testing.T) {
 }
 
 func TestAFailedSendEndsTheFeed(t *testing.T) {
-	feed := make(chan messages.Message, 1)
-	feed <- messages.Message{ID: "message-1"}
+	feed := make(chan messages.Update, 1)
+	feed <- messages.Update{Message: &messages.Message{ID: "message-1"}}
 
 	err := listen_for_events_usecase.New(stubSubscriber{feed: feed}, time.Hour).
 		Execute(t.Context(), &recorder{err: assert.AnError})

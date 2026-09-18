@@ -13,12 +13,12 @@ import (
 const DefaultHeartbeat = 30 * time.Second
 
 type MessagesSubscriber interface {
-	Subscribe(ctx context.Context) (<-chan messages.Message, error)
+	Subscribe(ctx context.Context) (<-chan messages.Update, error)
 }
 
-// Event is one frame of the feed: a message, or a heartbeat.
+// Event is one frame of the feed: an update, or a heartbeat.
 type Event struct {
-	Message   messages.Message
+	Update    messages.Update
 	Heartbeat bool
 }
 
@@ -60,12 +60,12 @@ func (u *UseCase) Execute(ctx context.Context, sink Sink) error {
 				return err
 			}
 
-		case message, open := <-feed:
+		case update, open := <-feed:
 			if !open {
 				return nil
 			}
 
-			if err := sink.Send(Event{Message: message}); err != nil {
+			if err := sink.Send(Event{Update: update}); err != nil {
 				return err
 			}
 		}

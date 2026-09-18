@@ -29,7 +29,16 @@ func (s Sink) Send(event listen_for_events_usecase.Event) error {
 		})
 	}
 
+	if tally := event.Update.Reactions; tally != nil {
+		return s.stream.Send(&chatv1.ChatEvent{
+			Event: &chatv1.ChatEvent_Reactions{Reactions: &chatv1.ReactionsChanged{
+				MessageId: string(tally.MessageID),
+				Reactions: chatmessage.EncodeCounts(tally.Counts),
+			}},
+		})
+	}
+
 	return s.stream.Send(&chatv1.ChatEvent{
-		Event: &chatv1.ChatEvent_Message{Message: chatmessage.Encode(event.Message)},
+		Event: &chatv1.ChatEvent_Message{Message: chatmessage.Encode(*event.Update.Message)},
 	})
 }

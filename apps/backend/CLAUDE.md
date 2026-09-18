@@ -343,17 +343,19 @@ Chat follows the same rules as planet: no `domain`, no `adapters`, one directory
 
 ```
 internal/chat/internal/
-  messages/                             Message, Record, ErrInvalidMessage, Limits, GuestPrefix, AccountID, Author
-    inmemory_message_storage/           history and fanout in memory; writes through its Persistence port
-    postgres_message_store/             that port, over chat.messages
+  messages/                             Message, Update, Record, Limits, GuestPrefix, AccountID, Author,
+                                        Reaction, Reactor, Reactions, Count, Tally
+    inmemory_message_storage/           history, reactions and fanout in memory; writes through its Persistence port
+    postgres_message_store/             that port, over chat.messages and chat.reactions
     rpc_player_authors/                 a sender's username and tag, from player.v1.InternalService/GetAuthor
     usecases/send_message_usecase/      names, cleans, tags, appends   — Appender, CountryChecker, Authors
       log_authors/                      logs a sender it could not name
-    usecases/get_history_usecase/       the recent messages            — HistoryReader
+    usecases/get_history_usecase/       the recent messages, the caller's reactions marked — HistoryReader, Authors
+    usecases/react_usecase/             puts a reaction on or off      — Board, Authors
     usecases/listen_for_events_usecase/ one client's feed, heartbeat   — MessagesSubscriber
   chatv1controller/                     ChatService (a bag), the interceptors
-    send_message_handler/  get_history_handler/  listen_for_events_handler/
-    chatmessage/                        Encode, shared by the three handlers
+    send_message_handler/  get_history_handler/  listen_for_events_handler/  react_handler/
+    chatmessage/                        Encode, EncodeCounts and Reaction (the wire's enum, checked), shared by the handlers
     rpc_session_verifier/               the key from auth.v1.InternalService, asked once (planet's, copied)
   migrations/                           the chat schema
 ```
@@ -382,7 +384,7 @@ Both live feeds are served **two ways at once**, and that is a transition, not a
 
 - `ClickService.ListenForEvents` → `stream PlanetEvent`, `ChatService.ListenForEvents` → `stream ChatEvent`, and `PlayerService.ListenForEvents` → `stream PlayerEvent`. Ordinary Connect server-streaming RPCs, on the same routes and the same port as everything else.
 
-**One stream per API, and an envelope rather than a bare payload.** A `PlanetEvent` is a `oneof` of `tile_update` and `heartbeat`; `ChatEvent` is a `oneof` of `message` and `heartbeat`. **A new kind of live event is a new case in that `oneof`, never a second stream** — one connection per client, one route to configure, and a client that does not know a case reads an unset `oneof` and skips it instead of breaking. That is what the bare `TileUpdate` frame could not do, on the websocket or off it.
+**One stream per API, and an envelope rather than a bare payload.** A `PlanetEvent` is a `oneof` of `tile_update` and `heartbeat`; `ChatEvent` is a `oneof` of `message`, `heartbeat` and `reactions`. **A new kind of live event is a new case in that `oneof`, never a second stream** — one connection per client, one route to configure, and a client that does not know a case reads an unset `oneof` and skips it instead of breaking. That is what the bare `TileUpdate` frame could not do, on the websocket or off it.
 
 **`heartbeat` is not decoration.** Cloudflare cuts a silent response at **~125s with a 524** — measured against production three times, exactly 125.1s. The websocket never hit this because Cloudflare keeps those open; a chunked HTTP response is not so lucky. A quiet chat is the normal case, and a quiet planet happens, so both streams send a heartbeat every `httpServer.streamHeartbeat` (30s by default, and it **must** stay well under 125s). Without it a silent stream dies and reconnects forever, losing whatever was published in each gap.
 These replaced a pair of websockets on `/ws/listen` and `/ws/chat`, broadcast by a `wspublisher` fanout. **Nothing here speaks websocket any more** — no upgrade route, no second mux, no `coder/websocket` dependency.
@@ -476,6 +478,14 @@ POST /chat.v1.ChatService/SendMessage   [X-Session-Token: optional]
 
 A failed insert fails the whole post: the table is the audit trail, so a message nobody can account for later is not one that gets broadcast.
 
+```
+POST /chat.v1.ChatService/React   [X-Session-Token: optional]
+  → [cpbootstrap: error net], BlocklistInterceptor, ReactionRateLimitInterceptor, SessionInterceptor (a reader)
+  → react_handler (refuses a Reaction the proto does not name)
+  → messages/usecases/react_usecase: who reacts (the same GetAuthor call as a post) → messages.ReactorOf
+  → inmemory_message_storage.React() [inserts or deletes in chat.reactions, then fans the whole tally out]
+```
+
 ### Chat (`internal/chat/`)
 
 Chat is a separate bounded context, not a feature of the tile game: it shares the process, the transport and the country list, and has its own proto package, domain, storage and edge. Nothing under `internal/chat/` imports `internal/planet/`, and the reverse holds too — and since each module's interior sits behind its own `internal/`, neither now can.
@@ -497,6 +507,19 @@ The **vendored VPN lists** do not cover chat: `NewVPNBlockInterceptor` wraps `Cl
 `inmemory_message_storage` depends on its `Persistence` port, not on postgres. Its tests use `MemoryPersistence` (behind the `testing` tag), which can fail on demand; `postgres_message_store` has its own suite against a real postgres.
 
 The table holds **personal data** — IPs next to user-authored text — so the retention window is a policy decision rather than a cache size.
+
+#### Reactions
+
+**A message carries reactions from a fixed set**, `chat.v1.Reaction`. The proto enum is the whole list: the frontend draws each one from its own images (see its CLAUDE.md), and `chatmessage.Reaction` refuses a number the proto does not name with `InvalidArgument`. **The number is what is stored**, so a value is never renumbered or reused.
+
+- **Who reacts** (`messages.ReactorOf`): a player with a username is its account (`account:<uuid>`), anyone else the tag of its address (`guest:<tag>`), from the same `GetAuthor` answer that names who posts. So two guests behind one address are one reactor, and a player and a guest on one address are two. A reactor gives each reaction at most once per message.
+- **`React` is on or off, not a toggle.** Asking for what is already there changes nothing, is not written and is not published, so a retry cannot flip it twice. It answers the message's counts with `mine` set for the caller. A post the player module could not answer for is refused, as a message is (`Unavailable`).
+- **Only a message in history can be reacted to** (`ErrUnknownMessage` → `NotFound`): nobody is shown any other. A message leaving history takes its reactions out of memory.
+- **The storage writes before it publishes**, as for a message, and under the same lock, so the stream never sends a message's reactions before the message. `messages.Reactions` is a value: `With`/`Without` answer a copy.
+- **The stream sends all of a message's counts, not the difference** (`ReactionsChanged`), so a client that missed a frame is right on the next. It cannot know who reads it, so `mine` is always false there; the client keeps its own between calls.
+- **`GetHistory` marks the caller's own.** It now reads the optional token (the session reader covers it) and asks `GetAuthor` who calls. If that fails, the history is still served, with nothing marked.
+- **Stored in `chat.reactions`**, one row per `(message_id, reaction, reactor)`, with `reacted_at`. `Load` replays the rows of the messages in history, oldest first, so the order each reaction first appeared survives a restart. The prune deletes rows older than `chat.storage.retention`, like messages: the reactor is an account or a tag, so it is personal data.
+- **Its own rate bucket**, `chat.reactionLimiter` (defaults: 1 a second, 10 in hand), and the blocklist covers `React` too.
 
 **Chat has its own stream**, `ChatService.ListenForEvents` — see [The live streams](#the-live-streams). It replaced a `/ws/chat` websocket that had to be kept apart from the tile one because frames carried a bare protobuf message with no type tag: a second payload on either socket would have been indistinguishable from the first. The `oneof` envelope is exactly what removes that constraint.
 
@@ -576,6 +599,7 @@ handled yet: a country sitting on a step can cross it back and forth click to cl
 Chat and sessions each have **their own limiter instance** with their own budget, because what each call costs has nothing to do with what a click costs:
 
 - `chat.rateLimiter` — one message every 3s, five in hand. A message fans out to every connected client and lands in a log everyone will read.
+- `chat.reactionLimiter` — one reaction a second, ten in hand. A reaction is a short row and a small frame.
 - `auth.rateLimiter` — one mint every 30s, ten in hand, across both `CreateSession` paths. A mint costs a siteverify round trip to a third party, so an unthrottled `CreateSession` is a free way to spend this server's Turnstile quota.
 
 ### VPN blocklist
@@ -1954,6 +1978,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `chat.storage.historySize`, `chat.storage.retention`, `chat.storage.pruneInterval`, `chat.storage.subscriberBuffer`
 - `chat.service.maxTextLength`, `chat.service.maxNameLength` — bounds in runes (280, 24)
 - `chat.rateLimiter.*` — the per-IP `SendMessage` throttle, same shape as `rateLimiter`
+- `chat.reactionLimiter.*` — the per-IP `React` throttle, same shape; its defaults suit it
 - `chat.blockedIPs` — prefixes refused every chat RPC, parsed by `shared/cpipblock` exactly as `vpnBlocklist.allow` is
 - `player.tagSalt` — salts the tag shown beside every name; **empty regenerates one at boot**, changing every tag on restart. Production reads it from `CHAT_TAG_SALT`, the chat's old variable
 - `player.database.*` — profiles and stats, same shape as `database`, schema `player`; required. `player.database.password` belongs in the environment

@@ -5,7 +5,15 @@ import userEvent from "@testing-library/user-event"
 import ChatPanel, {ChatPanelProps} from "./ChatPanel.tsx"
 import {useChatIdentity} from "./useChatIdentity.ts"
 import {CHAT_IDENTITY_STORAGE_KEY} from "./chatIdentity.ts"
-import {ChatBackend, ChatMessage, ChatRateLimitedError} from "../../backends/chat.ts"
+import {
+    ChatBackend,
+    ChatMessage,
+    ChatRateLimitedError,
+    ChatRejectedError,
+    OutgoingReaction,
+    Reaction,
+    ReactionsChange,
+} from "../../backends/chat.ts"
 import {Countries} from "../../domain/countries.ts"
 
 const france = Countries.get("fr")!
@@ -24,18 +32,27 @@ const message = (id: string, text: string, sentAt = 1_700_000_000_000): ChatMess
     authorAdmin: false,
     countryCode: "fr",
     text,
+    reactions: [],
 })
 
 function stubBackend(history: ChatMessage[] = []) {
     const listeners: ((message: ChatMessage) => void)[] = []
+    const reactionListeners: ((change: ReactionsChange) => void)[] = []
 
     const backend = {
         getHistory: vi.fn().mockResolvedValue(history),
-        listenForMessages: vi.fn((callback: (message: ChatMessage) => void) => {
+        listenForMessages: vi.fn((
+            callback: (message: ChatMessage) => void,
+            onReactions?: (change: ReactionsChange) => void,
+        ) => {
             listeners.push(callback)
+            if (onReactions) reactionListeners.push(onReactions)
             return () => {
             }
         }),
+        react: vi.fn(async (outgoing: OutgoingReaction) =>
+            [{reaction: outgoing.reaction, count: outgoing.on ? 1 : 0, mine: outgoing.on}]
+                .filter(count => count.count > 0)),
         sendMessage: vi.fn(async (outgoing) => ({
             id: `sent-${outgoing.text}`,
             sentAt: 1_700_000_100_000,
@@ -43,12 +60,14 @@ function stubBackend(history: ChatMessage[] = []) {
             authorTag: "c0ffee",
             countryCode: outgoing.countryCode,
             text: outgoing.text,
+            reactions: [] as ChatMessage["reactions"],
         })),
     }
 
     return {
         backend: backend as unknown as ChatBackend & typeof backend,
         broadcast: (m: ChatMessage) => listeners.forEach(listener => listener(m)),
+        broadcastReactions: (change: ReactionsChange) => reactionListeners.forEach(listener => listener(change)),
     }
 }
 
@@ -524,5 +543,64 @@ describe("ChatPanel", () => {
 
             expect(await screen.findByLabelText("1 new message")).toBeDefined()
         })
+    })
+})
+
+describe("ChatPanel reactions", () => {
+    const clown = (count: number, mine: boolean) => ({reaction: Reaction.CLOWN, count, mine})
+
+    it("puts a reaction on from the picker, as the account when there is a username", async () => {
+        const {backend} = stubBackend([message("m1", "gm")])
+        const {user} = setup(backend, "Ana")
+        await screen.findByText("gm")
+
+        await user.click(screen.getByRole("button", {name: "Add a reaction"}))
+        await user.click(screen.getByRole("button", {name: "Clown"}))
+
+        expect(backend.react).toHaveBeenCalledWith({messageId: "m1", reaction: Reaction.CLOWN, on: true, asAccount: true})
+        expect(await screen.findByRole("button", {name: "Clown: 1", pressed: true})).toBeDefined()
+        expect(screen.queryByRole("group", {name: "Reactions"})).toBeNull()
+    })
+
+    it("takes its own reaction off from the count", async () => {
+        const {backend} = stubBackend([{...message("m1", "gm"), reactions: [clown(2, true)]}])
+        const {user} = setup(backend)
+
+        await user.click(await screen.findByRole("button", {name: "Clown: 2", pressed: true}))
+
+        expect(backend.react).toHaveBeenCalledWith({messageId: "m1", reaction: Reaction.CLOWN, on: false, asAccount: false})
+    })
+
+    it("keeps its own mark through a count from the stream, which knows nobody", async () => {
+        const {backend, broadcastReactions} = stubBackend([{...message("m1", "gm"), reactions: [clown(1, true)]}])
+        setup(backend)
+        await screen.findByRole("button", {name: "Clown: 1", pressed: true})
+
+        act(() => broadcastReactions({messageId: "m1", reactions: [clown(3, false)]}))
+
+        expect(await screen.findByRole("button", {name: "Clown: 3", pressed: true})).toBeDefined()
+    })
+
+    it("undoes a reaction the server refused", async () => {
+        const {backend} = stubBackend([message("m1", "gm")])
+        backend.react.mockRejectedValueOnce(new ChatRejectedError())
+        const {user} = setup(backend)
+        await screen.findByText("gm")
+
+        await user.click(screen.getByRole("button", {name: "Add a reaction"}))
+        await user.click(screen.getByRole("button", {name: "Clown"}))
+
+        await waitFor(() => expect(screen.queryByRole("button", {name: /^Clown: /})).toBeNull())
+    })
+
+    it("closes the picker on Escape", async () => {
+        const {backend} = stubBackend([message("m1", "gm")])
+        const {user} = setup(backend)
+        await screen.findByText("gm")
+
+        await user.click(screen.getByRole("button", {name: "Add a reaction"}))
+        await user.keyboard("{Escape}")
+
+        expect(screen.queryByRole("group", {name: "Reactions"})).toBeNull()
     })
 })

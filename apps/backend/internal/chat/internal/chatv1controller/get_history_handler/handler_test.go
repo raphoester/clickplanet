@@ -15,7 +15,7 @@ import (
 
 type stubUseCase []messages.Message
 
-func (s stubUseCase) Execute(context.Context) []messages.Message { return s }
+func (s stubUseCase) Execute(context.Context, messages.AccountID) []messages.Message { return s }
 
 func getHistory(t *testing.T, useCase stubUseCase) *connect.Response[chatv1.GetHistoryResponse] {
 	t.Helper()
@@ -33,6 +33,18 @@ func TestGetHistoryMapsEveryMessageInOrder(t *testing.T) {
 	require.Len(t, res.Msg.GetMessages(), 2)
 	assert.Equal(t, "message-1", res.Msg.GetMessages()[0].GetId())
 	assert.Equal(t, "planet", res.Msg.GetMessages()[1].GetText())
+}
+
+func TestGetHistoryMapsTheReactions(t *testing.T) {
+	res := getHistory(t, stubUseCase{{ID: "message-1", Reactions: []messages.Count{
+		{Reaction: messages.Reaction(chatv1.Reaction_REACTION_CLOWN), Count: 3, Mine: true},
+	}}})
+
+	reactions := res.Msg.GetMessages()[0].GetReactions()
+	require.Len(t, reactions, 1)
+	assert.Equal(t, chatv1.Reaction_REACTION_CLOWN, reactions[0].GetReaction())
+	assert.Equal(t, uint32(3), reactions[0].GetCount())
+	assert.True(t, reactions[0].GetMine())
 }
 
 func TestGetHistoryIsNeverCached(t *testing.T) {

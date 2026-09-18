@@ -45,13 +45,17 @@ func (s *Store) Recent(ctx context.Context, since time.Time, limit int) ([]messa
 
 	var recent []messages.Message
 	for rows.Next() {
-		var message messages.Message
+		var (
+			message messages.Message
+			id      string
+		)
 		if err := rows.Scan(
-			&message.ID, &message.SentAt, &message.AuthorName, &message.AuthorTag, &message.AuthorAdmin,
+			&id, &message.SentAt, &message.AuthorName, &message.AuthorTag, &message.AuthorAdmin,
 			&message.CountryID, &message.Text,
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan a message: %w", err)
 		}
+		message.ID = messages.MessageID(id)
 		message.SentAt = message.SentAt.UTC()
 		recent = append(recent, message)
 	}
@@ -76,9 +80,22 @@ func (s *Store) DeleteBefore(ctx context.Context, cutoff time.Time) (int64, erro
 	return deleted, nil
 }
 
+// DeleteReactionsBefore removes every reaction put on before cutoff and says how many it removed.
+func (s *Store) DeleteReactionsBefore(ctx context.Context, cutoff time.Time) (int64, error) {
+	result, err := s.db.ExecContext(ctx, `DELETE FROM reactions WHERE reacted_at < $1`, cutoff)
+	if err != nil {
+		return 0, fmt.Errorf("failed to delete old reactions: %w", err)
+	}
+	deleted, err := result.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("failed to count deleted reactions: %w", err)
+	}
+	return deleted, nil
+}
+
 func row(record messages.Record) []any {
 	return []any{
-		record.Message.ID,
+		string(record.Message.ID),
 		record.Message.SentAt.UTC(),
 		record.Message.AuthorName,
 		record.Message.AuthorTag,

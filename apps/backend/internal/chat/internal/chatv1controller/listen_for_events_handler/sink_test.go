@@ -26,7 +26,7 @@ func TestSinkFramesAMessage(t *testing.T) {
 	stream := &recorder{}
 
 	err := listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{
-		Message: messages.Message{ID: "message-1", AuthorName: "Bob", Text: "hello"},
+		Update: messages.Update{Message: &messages.Message{ID: "message-1", AuthorName: "Bob", Text: "hello"}},
 	})
 
 	require.NoError(t, err)
@@ -38,6 +38,29 @@ func TestSinkFramesAMessage(t *testing.T) {
 	assert.Equal(t, "message-1", message.GetId())
 	assert.Equal(t, "Bob", message.GetAuthorName())
 	assert.Equal(t, "hello", message.GetText())
+}
+
+func TestSinkFramesNewReactions(t *testing.T) {
+	stream := &recorder{}
+
+	err := listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{
+		Update: messages.Update{Reactions: &messages.Tally{
+			MessageID: "message-1",
+			Counts:    []messages.Count{{Reaction: messages.Reaction(chatv1.Reaction_REACTION_SKULL), Count: 2}},
+		}},
+	})
+
+	require.NoError(t, err)
+	require.Len(t, stream.sent, 1)
+
+	reactions := stream.sent[0].GetReactions()
+	require.NotNil(t, reactions, "reactions travel as the reactions case")
+	assert.Nil(t, stream.sent[0].GetMessage())
+	assert.Equal(t, "message-1", reactions.GetMessageId())
+	require.Len(t, reactions.GetReactions(), 1)
+	assert.Equal(t, chatv1.Reaction_REACTION_SKULL, reactions.GetReactions()[0].GetReaction())
+	assert.Equal(t, uint32(2), reactions.GetReactions()[0].GetCount())
+	assert.False(t, reactions.GetReactions()[0].GetMine(), "the stream is nobody's")
 }
 
 func TestSinkFramesAHeartbeat(t *testing.T) {
