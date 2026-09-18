@@ -197,3 +197,55 @@ describe("ClickBudgetMeter for a guest", () => {
         expect(screen.queryByRole("button")).toBeNull()
     })
 })
+
+describe("ClickBudgetMeter with charges held", () => {
+    it("says nothing when nothing is held", () => {
+        render(<ClickBudgetMeter budget={reading()} charges={{spreadClicksLeft: 0}}/>)
+
+        expect(document.querySelector(".click-budget-charges")).toBeNull()
+    })
+
+    it("says each charge held, with no countdown", () => {
+        render(<ClickBudgetMeter budget={reading()}
+                                 charges={{bomb: {radius: 0.03}, enclose: {maxTiles: 25}, spreadClicksLeft: 5}}
+                                 onToggleBomb={() => {}}/>)
+
+        expect(screen.getByText("Bomb ready")).toBeTruthy()
+        expect(screen.getByText("Enclose ready")).toBeTruthy()
+        expect(screen.getByText("Spread: 5 clicks left")).toBeTruthy()
+        expect(screen.queryByText(/\ds$/)).toBeNull()
+    })
+
+    it("does not mark the meter boosted: a charge widens nothing", () => {
+        render(<ClickBudgetMeter budget={reading()} charges={{spreadClicksLeft: 8}}/>)
+
+        expect(meter().classList.contains("click-budget-boosted")).toBe(false)
+    })
+
+    it("aims the bomb and puts it away from its own button", () => {
+        const toggle = vi.fn()
+        const {rerender} = render(<ClickBudgetMeter budget={reading()}
+                                                    charges={{bomb: {radius: 0.03}, spreadClicksLeft: 0}}
+                                                    onToggleBomb={toggle}/>)
+
+        const bomb = screen.getByRole("button", {name: /Bomb ready/})
+        expect(bomb.getAttribute("aria-pressed")).toBe("false")
+        fireEvent.click(bomb)
+        expect(toggle).toHaveBeenCalledTimes(1)
+
+        rerender(<ClickBudgetMeter budget={reading()}
+                                   charges={{bomb: {radius: 0.03}, spreadClicksLeft: 0}}
+                                   bombArmed
+                                   onToggleBomb={toggle}/>)
+
+        const aimed = screen.getByRole("button", {name: /hold to drop/})
+        expect(aimed.getAttribute("aria-pressed")).toBe("true")
+    })
+
+    it("only says the bomb when there is no way to aim it", () => {
+        render(<ClickBudgetMeter budget={reading()} charges={{bomb: {radius: 0.03}, spreadClicksLeft: 0}}/>)
+
+        expect(screen.getByText("Bomb ready")).toBeTruthy()
+        expect(screen.queryByRole("button", {name: /Bomb/})).toBeNull()
+    })
+})

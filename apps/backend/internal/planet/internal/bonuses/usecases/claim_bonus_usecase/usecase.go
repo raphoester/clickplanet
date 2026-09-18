@@ -34,19 +34,12 @@ type Pricer interface {
 	Price(country string) clicks.Price
 }
 
-// Spreader starts a spread bonus, which the click chain then reads on every click.
-type Spreader interface {
-	Grant(scope string, until time.Time)
-}
-
-// Bomber hands a caller the bomb a box was worth, for drop_bomb to spend.
-type Bomber interface {
-	Grant(scope string, until time.Time)
-}
-
-// Encloser starts an enclose bonus, which the click chain then spends.
-type Encloser interface {
-	Grant(scope string, until time.Time, shapes int, maxTiles int)
+// Charger hands a caller the charge a box was worth — a bomb, an enclose shape or a spread's clicks —
+// for the click chain and drop_bomb to spend.
+type Charger interface {
+	Grant(holder bonuses.Holder, kind bonuses.Kind)
+	Held(holder bonuses.Holder) bonuses.Held
+	EnclosureMaxTiles() int
 }
 
 type In struct {
@@ -55,14 +48,18 @@ type In struct {
 }
 
 type Out struct {
-	Budget   clicks.Budget
-	Kind     bonuses.Kind
+	Budget clicks.Budget
+	Kind   bonuses.Kind
+
+	// Zero for a charge.
 	Duration time.Duration
+
+	// What the caller holds once the charge is granted.
+	Held bonuses.Held
 
 	// BlastRadius is set for a bomb only, in radians of arc.
 	BlastRadius float64
-	// For an enclose bonus only.
-	Enclosures        int
+	// For an enclose charge only: the most tiles its one shape may hold.
 	EnclosureMaxTiles int
 }
 
@@ -70,25 +67,17 @@ func New(
 	registry Registry,
 	booster Booster,
 	pricer Pricer,
-	spreader Spreader,
-	bomber Bomber,
+	charger Charger,
 	blastRadius float64,
-	encloser Encloser,
 	buckets clicks.Buckets,
 	clock cptime.Clock,
 ) *UseCase {
-	if clock == nil {
-		clock = cptime.SystemClock{}
-	}
-
 	return &UseCase{
 		registry:    registry,
 		booster:     booster,
 		pricer:      pricer,
-		spreader:    spreader,
-		bomber:      bomber,
+		charger:     charger,
 		blastRadius: blastRadius,
-		encloser:    encloser,
 		buckets:     buckets,
 		clock:       clock,
 	}
@@ -98,10 +87,8 @@ type UseCase struct {
 	registry    Registry
 	booster     Booster
 	pricer      Pricer
-	spreader    Spreader
-	bomber      Bomber
+	charger     Charger
 	blastRadius float64
-	encloser    Encloser
 	buckets     clicks.Buckets
 	clock       cptime.Clock
 }
@@ -123,14 +110,17 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	u.registry.Publish(bonuses.Taken{CountryID: in.CountryID, Kind: reward.Kind})
 
 	out := Out{
-		Budget:            u.buckets.BudgetOf(state, u.pricer.Price(in.CountryID)),
-		Kind:              reward.Kind,
-		Duration:          reward.Duration,
-		Enclosures:        reward.Enclosures,
-		EnclosureMaxTiles: reward.EnclosureMaxTiles,
+		Budget:   u.buckets.BudgetOf(state, u.pricer.Price(in.CountryID)),
+		Kind:     reward.Kind,
+		Duration: reward.Duration,
+		Held:     u.charger.Held(bonuses.HolderOf(payer)),
 	}
-	if reward.Kind == bonuses.KindBomb {
+	switch reward.Kind {
+	case bonuses.KindBomb:
 		out.BlastRadius = u.blastRadius
+	case bonuses.KindEncloseClicks:
+		out.EnclosureMaxTiles = u.charger.EnclosureMaxTiles()
+	case bonuses.KindTripleClicks, bonuses.KindSpreadClicks:
 	}
 
 	return out, nil
@@ -138,19 +128,12 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 
 // apply starts what the reward is worth, and answers the allowance as it stands
 // afterwards: the tighter bucket, as a click reports it. A triple widens the account's bucket and never
-// the scope's, which the scope's other players share.
+// the scope's, which the scope's other players share. Every other kind is a charge, held by the account.
 func (u *UseCase) apply(payer clicks.Payer, reward bonuses.Reward) cpratelimit.State {
-	until := u.clock.Now().Add(reward.Duration)
-
-	switch reward.Kind {
-	case bonuses.KindSpreadClicks:
-		u.spreader.Grant(payer.Scope, until)
-	case bonuses.KindBomb:
-		u.bomber.Grant(payer.Scope, until)
-	case bonuses.KindEncloseClicks:
-		u.encloser.Grant(payer.Scope, until, reward.Enclosures, reward.EnclosureMaxTiles)
-	case bonuses.KindTripleClicks:
-		u.booster.Boost(u.buckets.Boosted(payer), u.registry.Multiplier(), until)
+	if reward.Kind.Timed() {
+		u.booster.Boost(u.buckets.Boosted(payer), u.registry.Multiplier(), u.clock.Now().Add(reward.Duration))
+	} else {
+		u.charger.Grant(bonuses.HolderOf(payer), reward.Kind)
 	}
 
 	keys := u.buckets.Keys(payer)

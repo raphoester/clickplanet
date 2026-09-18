@@ -9,6 +9,7 @@ import (
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/claim_bonus_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/chargesheld"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/clickbudget"
 )
 
@@ -16,12 +17,13 @@ type UseCase interface {
 	Execute(ctx context.Context, in claim_bonus_usecase.In) (claim_bonus_usecase.Out, error)
 }
 
-func New(useCase UseCase) ClaimBonusHandler {
-	return ClaimBonusHandler{useCase: useCase}
+func New(useCase UseCase, charges chargesheld.Encoder) ClaimBonusHandler {
+	return ClaimBonusHandler{useCase: useCase, charges: charges}
 }
 
 type ClaimBonusHandler struct {
 	useCase UseCase
+	charges chargesheld.Encoder
 }
 
 func (h ClaimBonusHandler) ClaimBonus(
@@ -36,14 +38,20 @@ func (h ClaimBonusHandler) ClaimBonus(
 		return nil, connect.NewError(connect.CodeNotFound, claim_bonus_usecase.ErrNoSuchBonus)
 	}
 
-	return connect.NewResponse(&planetv1.ClaimBonusResponse{
+	response := &planetv1.ClaimBonusResponse{
 		Budget:            clickbudget.Encode(out.Budget),
 		Kind:              EncodeKind(out.Kind),
 		DurationSeconds:   uint32(out.Duration / time.Second),
-		Enclosures:        uint32(out.Enclosures),
 		EnclosureMaxTiles: uint32(out.EnclosureMaxTiles),
 		BlastRadius:       out.BlastRadius,
-	}), nil
+		Charges:           h.charges.Encode(out.Held),
+	}
+	if out.Kind == bonuses.KindEncloseClicks {
+		// A charge is one shape. Said for a client that still counts shapes.
+		response.Enclosures = 1
+	}
+
+	return connect.NewResponse(response), nil
 }
 
 func EncodeKind(kind bonuses.Kind) planetv1.BonusKind {

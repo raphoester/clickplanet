@@ -17,6 +17,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/throttle_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/listen_for_events_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/chargesheld"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconnect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
@@ -244,7 +245,7 @@ func TestAStreamOpenedWithATokenKnowsItsAccount(t *testing.T) {
 
 	mux := http.NewServeMux()
 	mux.Handle(planetv1connect.NewClickServiceHandler(
-		ClickService{ListenForEventsHandler: listen_for_events_handler.New(recorder)},
+		ClickService{ListenForEventsHandler: listen_for_events_handler.New(recorder, chargesheld.Encoder{})},
 		connect.WithInterceptors(errorNet(), NewSessionReaderInterceptor(accountVerifier{}, nil)),
 	))
 	server := httptest.NewServer(cphttpserver.IPReaderMiddleware(mux))

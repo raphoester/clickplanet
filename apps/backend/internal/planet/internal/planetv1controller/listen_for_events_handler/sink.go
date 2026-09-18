@@ -7,6 +7,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/listen_for_events_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/chargesheld"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/claim_bonus_handler"
 )
 
@@ -17,15 +18,16 @@ type EventStream interface {
 	Send(event *planetv1.PlanetEvent) error
 }
 
-func NewSink(stream EventStream) Sink {
-	return Sink{stream: stream}
+func NewSink(stream EventStream, charges chargesheld.Encoder) Sink {
+	return Sink{stream: stream, charges: charges}
 }
 
 // Sink writes the use case's frames as the proto envelope. The oneof is the
 // wire's business and stops here: the use case says update or heartbeat, and
 // nothing about how either is framed.
 type Sink struct {
-	stream EventStream
+	stream  EventStream
+	charges chargesheld.Encoder
 }
 
 var _ listen_for_events_usecase.Sink = Sink{}
@@ -44,6 +46,10 @@ func (s Sink) Send(event listen_for_events_usecase.Event) error {
 		return s.stream.Send(tilesEnclosedEvent(event.Enclosed))
 	case event.Spread != nil:
 		return s.stream.Send(tilesSpreadEvent(event.Spread))
+	case event.Charges != nil:
+		return s.stream.Send(&planetv1.PlanetEvent{
+			Event: &planetv1.PlanetEvent_ChargesHeld{ChargesHeld: s.charges.Encode(*event.Charges)},
+		})
 	default:
 		return s.stream.Send(tileUpdateEvent(event.Update))
 	}
@@ -92,12 +98,11 @@ func tilesEnclosedEvent(enclosed *bonuses.Enclosed) *planetv1.PlanetEvent {
 	return &planetv1.PlanetEvent{
 		Event: &planetv1.PlanetEvent_TilesEnclosed{
 			TilesEnclosed: &planetv1.TilesEnclosed{
-				CountryId:      enclosed.CountryID,
-				ClosingTileId:  enclosed.ClosingTile,
-				WallTileIds:    enclosed.Wall,
-				FilledTileIds:  enclosed.Filled,
-				Yours:          enclosed.Yours,
-				EnclosuresLeft: uint32(enclosed.Left),
+				CountryId:     enclosed.CountryID,
+				ClosingTileId: enclosed.ClosingTile,
+				WallTileIds:   enclosed.Wall,
+				FilledTileIds: enclosed.Filled,
+				Yours:         enclosed.Yours,
 			},
 		},
 	}

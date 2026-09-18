@@ -83,6 +83,9 @@ export default function Viewer(props: ViewerProps) {
         award,
         dismissAward,
         bonus,
+        charges,
+        bombArmed,
+        toggleBomb,
         lastBomb,
         dismissBomb,
     } = useGlobe({
@@ -133,6 +136,9 @@ export default function Viewer(props: ViewerProps) {
 
         {status.state === 'ready' && <ClickBudgetMeter budget={clickBudget}
                                                        bonus={bonus}
+                                                       charges={charges}
+                                                       bombArmed={bombArmed}
+                                                       onToggleBomb={props.bomber ? toggleBomb : undefined}
                                                        countryName={countryState.name}
                                                        refusals={refusals}
                                                        onSignIn={guest ? () => setPitchOpen(true) : undefined}/>}

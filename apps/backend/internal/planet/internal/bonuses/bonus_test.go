@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -15,24 +16,58 @@ var epoch = time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 
 const window = time.Minute
 
-// A fixed window makes the schedule assertable; the spread has its own test.
+// A fixed window makes the schedule assertable; the spread has its own test. Only triples are offered,
+// so every box runs a known time; the charges have their own registry below.
 func newTestRegistry() (*Registry, *cptime.FixedClock) {
+	return newRegistryOffering(map[Kind]float64{KindTripleClicks: 1})
+}
+
+func newRegistryOffering(kinds map[Kind]float64) (*Registry, *cptime.FixedClock) {
 	clock := cptime.NewFixedClock(epoch)
 
 	return New(Config{
-		MinInterval:     window,
-		MaxInterval:     window,
-		MissRetry:       20 * time.Second,
-		OfferTTL:        15 * time.Second,
-		Triple:          TripleConfig{Duration: time.Minute, Multiplier: 3},
-		Spread:          SpreadConfig{Duration: time.Minute},
-		Bomb:            BombConfig{Duration: time.Minute},
-		Enclose:         EncloseConfig{Duration: time.Minute},
-		ActiveWithin:    5 * time.Minute,
-		ForgetAfter:     5 * time.Minute,
-		MaxBoostPerHour: 15 * time.Minute,
-		SweepInterval:   time.Second,
+		MinInterval:       window,
+		MaxInterval:       window,
+		MissRetry:         20 * time.Second,
+		OfferTTL:          15 * time.Second,
+		Kinds:             kinds,
+		Triple:            TripleConfig{Duration: time.Minute, Multiplier: 3},
+		ActiveWithin:      5 * time.Minute,
+		ForgetAfter:       5 * time.Minute,
+		MaxBoostPerHour:   15 * time.Minute,
+		MaxChargesPerHour: 6,
+		ChargeTTL:         24 * time.Hour,
+		SweepInterval:     time.Second,
 	}, clock), clock
+}
+
+// holderOf is the holder of a caller with no account, which is what every scope here is.
+func holderOf(scope string) Holder {
+	return HolderOf(clicks.Payer{Scope: scope})
+}
+
+// attend opens a stream and reads the charges it opens with, so what follows is only what came after.
+func attend(t *testing.T, r *Registry, scope string) <-chan Event {
+	t.Helper()
+
+	events, leave := r.Attend(scope, holderOf(scope))
+	t.Cleanup(leave)
+	opening(t, events)
+
+	return events
+}
+
+func opening(t *testing.T, events <-chan Event) Held {
+	t.Helper()
+
+	select {
+	case event := <-events:
+		require.NotNil(t, event.Charges, "a stream opens with what its holder holds, got %+v", event)
+		return *event.Charges
+	default:
+		require.Fail(t, "a stream opened with nothing")
+		return Held{}
+	}
 }
 
 // playing is a caller with a stream open who has clicked, which is what it
@@ -40,11 +75,15 @@ func newTestRegistry() (*Registry, *cptime.FixedClock) {
 func playing(t *testing.T, r *Registry, scope string) <-chan Event {
 	t.Helper()
 
-	events, leave := r.Attend(scope)
-	t.Cleanup(leave)
+	events := attend(t, r, scope)
 	r.Clicked(scope)
 
 	return events
+}
+
+// everyKind is every kind, allowed.
+func everyKind() *cpcolls.Set[Kind] {
+	return cpcolls.NewSet(Kinds...)
 }
 
 func offered(t *testing.T, events <-chan Event) *Offer {
@@ -107,8 +146,7 @@ func TestABoxReachesNobodyButTheCallerItWasDrawnFor(t *testing.T) {
 	registry, clock := newTestRegistry()
 
 	mine := playing(t, registry, "scope-a")
-	theirs, leave := registry.Attend("scope-b")
-	t.Cleanup(leave)
+	theirs := attend(t, registry, "scope-b")
 
 	// scope-b never clicked, so it is not playing and gets nothing.
 	waitOut(registry, clock)
@@ -121,8 +159,7 @@ func TestEveryTabOfOneCallerIsSentTheBox(t *testing.T) {
 	registry, clock := newTestRegistry()
 
 	first := playing(t, registry, "scope-a")
-	second, leave := registry.Attend("scope-a")
-	t.Cleanup(leave)
+	second := attend(t, registry, "scope-a")
 
 	require.Len(t, registry.callers, 1, "tabs are one entrant, not many")
 
@@ -137,8 +174,7 @@ func TestEveryTabOfOneCallerIsSentTheBox(t *testing.T) {
 func TestNothingIsOfferedToACallerWhoIsNotClicking(t *testing.T) {
 	registry, clock := newTestRegistry()
 
-	events, leave := registry.Attend("scope-a")
-	t.Cleanup(leave)
+	events := attend(t, registry, "scope-a")
 
 	waitOut(registry, clock)
 
@@ -261,15 +297,14 @@ func TestCatchingOneClearsTheMissThatCameBefore(t *testing.T) {
 func TestReloadingCannotRerollTheSchedule(t *testing.T) {
 	registry, clock := newTestRegistry()
 
-	_, leave := registry.Attend("scope-a")
+	_, leave := registry.Attend("scope-a", holderOf("scope-a"))
 	registry.Clicked("scope-a")
 
 	clock.Advance(30 * time.Second)
 	due := registry.callers["scope-a"].nextOfferAt
 
 	leave()
-	events, second := registry.Attend("scope-a")
-	t.Cleanup(second)
+	events := attend(t, registry, "scope-a")
 
 	assert.Equal(t, due, registry.callers["scope-a"].nextOfferAt)
 
@@ -281,7 +316,7 @@ func TestReloadingCannotRerollTheSchedule(t *testing.T) {
 func TestAScheduleIsForgottenOnceTheCallerHasBeenGoneLongEnough(t *testing.T) {
 	registry, clock := newTestRegistry()
 
-	_, leave := registry.Attend("scope-a")
+	_, leave := registry.Attend("scope-a", holderOf("scope-a"))
 	leave()
 
 	clock.Advance(4 * time.Minute)
@@ -345,86 +380,145 @@ func TestTheWaitIsDrawnFromTheConfiguredWindow(t *testing.T) {
 }
 
 func TestEveryKindConfiguredIsOffered(t *testing.T) {
-	registry, _ := newTestRegistry()
+	registry := New(Config{}, cptime.NewFixedClock(epoch))
 
 	seen := cpcolls.NewSet[Kind]()
 	for range 200 {
-		seen.Add(registry.drawKind())
+		seen.Add(registry.drawKind(everyKind()))
 	}
 
 	assert.Equal(t, len(Kinds), seen.Len(), "an empty bonus.kinds offers every kind")
 }
 
-func TestASpreadBoxRunsForItsOwnShorterDuration(t *testing.T) {
-	clock := cptime.NewFixedClock(epoch)
-	registry := New(Config{
-		MinInterval: window, MaxInterval: window, ActiveWithin: 5 * time.Minute,
-		Triple: TripleConfig{Duration: time.Minute}, Spread: SpreadConfig{Duration: 10 * time.Second},
-		Kinds: map[Kind]float64{KindSpreadClicks: 1},
-	}, clock)
-	events := playing(t, registry, "scope-a")
+func TestAChargeBoxHasNoTimeToRun(t *testing.T) {
+	for _, kind := range []Kind{KindSpreadClicks, KindBomb, KindEncloseClicks} {
+		registry, clock := newRegistryOffering(map[Kind]float64{kind: 1})
+		events := playing(t, registry, "scope-a")
 
-	waitOut(registry, clock)
-	offer := offered(t, events)
-	require.NotNil(t, offer)
-	assert.Equal(t, 10*time.Second, offer.Duration)
+		waitOut(registry, clock)
+		offer := offered(t, events)
+		require.NotNil(t, offer)
+		assert.Equal(t, kind, offer.Kind)
+		assert.Zero(t, offer.Duration, "a %s is kept until it is spent", kind)
 
-	reward, claimed := registry.Claim(offer.Token, "scope-a")
-	require.True(t, claimed)
-	assert.Equal(t, 10*time.Second, reward.Duration)
+		reward, claimed := registry.Claim(offer.Token, "scope-a")
+		require.True(t, claimed)
+		assert.Equal(t, Reward{Kind: kind}, reward)
+	}
 }
 
-func bombRegistry() (*Registry, *cptime.FixedClock) {
-	clock := cptime.NewFixedClock(epoch)
-
-	return New(Config{
-		MinInterval: window, MaxInterval: window, ActiveWithin: 5 * time.Minute,
-		Bomb:  BombConfig{Duration: 30 * time.Second},
-		Kinds: map[Kind]float64{KindBomb: 1},
-	}, clock), clock
-}
-
-func TestABombBoxIsHeldForTheBombsOwnDuration(t *testing.T) {
-	registry, clock := bombRegistry()
+func TestCatchingAChargeBringsTheNextBoxAWindowAfterTheClaim(t *testing.T) {
+	registry, clock := newRegistryOffering(map[Kind]float64{KindBomb: 1})
 	events := playing(t, registry, "scope-a")
 
 	waitOut(registry, clock)
 	offer := offered(t, events)
 	require.NotNil(t, offer)
 
-	reward, claimed := registry.Claim(offer.Token, "scope-a")
-	require.True(t, claimed)
-	assert.Equal(t, KindBomb, reward.Kind)
-	assert.Equal(t, 30*time.Second, reward.Duration)
-}
-
-func TestDroppingABombBringsTheNextBoxToAWindowFromTheDrop(t *testing.T) {
-	registry, clock := bombRegistry()
-	events := playing(t, registry, "scope-a")
-
-	waitOut(registry, clock)
-	offer := offered(t, events)
-	require.NotNil(t, offer)
 	_, claimed := registry.Claim(offer.Token, "scope-a")
 	require.True(t, claimed)
 
-	clock.Advance(5 * time.Second)
-	registry.Dropped("scope-a")
-
 	assert.Equal(t, clock.Now().Add(window), registry.callers["scope-a"].nextOfferAt,
-		"not a window after the 25 seconds the bomb could still have been held")
+		"a charge has no end to wait for, so holding a bomb does not hold back every other box")
+}
+
+func TestAKindHeldIsNotOfferedAgainUntilItIsSpent(t *testing.T) {
+	registry, clock := newRegistryOffering(map[Kind]float64{KindBomb: 1})
+	events := playing(t, registry, "scope-a")
+	registry.Charges().Grant(holderOf("scope-a"), KindBomb)
+	drain(events)
+
+	for range 5 {
+		clock.Advance(window + time.Second)
+		registry.Clicked("scope-a")
+		registry.sweep()
+		require.Nil(t, offered(t, events), "a second bomb would be a stockpile")
+	}
+
+	require.True(t, registry.Charges().SpendBomb(holderOf("scope-a")))
+	drain(events)
+
+	waitOut(registry, clock)
+	registry.Clicked("scope-a")
+	registry.sweep()
+	assert.NotNil(t, offered(t, events), "a bomb dropped is a bomb that may be offered again")
+}
+
+func TestAKindHeldIsLeftOutOfTheDrawAndTheOthersStillCome(t *testing.T) {
+	registry, clock := newRegistryOffering(map[Kind]float64{KindBomb: 100, KindTripleClicks: 1})
+	events := playing(t, registry, "scope-a")
+	registry.Charges().Grant(holderOf("scope-a"), KindBomb)
+	drain(events)
+
+	for range 20 {
+		clock.Advance(window + time.Second)
+		registry.Clicked("scope-a")
+		registry.sweep()
+
+		offer := offered(t, events)
+		require.NotNil(t, offer)
+		require.Equal(t, KindTripleClicks, offer.Kind)
+
+		clock.Advance(16 * time.Second)
+		registry.sweep()
+	}
+}
+
+func TestAKindHeldByTheAccountOfAnyOpenStreamIsNotOffered(t *testing.T) {
+	registry, clock := newRegistryOffering(map[Kind]float64{KindEncloseClicks: 1})
+	account := HolderOf(clicks.Payer{Scope: "scope-a", Account: "acc-1"})
+
+	events, leave := registry.Attend("scope-a", account)
+	t.Cleanup(leave)
+	opening(t, events)
+	registry.Clicked("scope-a")
+
+	registry.Charges().Grant(account, KindEncloseClicks)
+	drain(events)
+
+	waitOut(registry, clock)
+	assert.Nil(t, offered(t, events), "the charge is the account's, whatever address it plays from")
+}
+
+func TestTheHourlyChargeCapStopsTheChargesAndNotTheTriples(t *testing.T) {
+	registry, clock := newRegistryOffering(map[Kind]float64{KindSpreadClicks: 1000, KindTripleClicks: 1})
+	events := playing(t, registry, "scope-a")
+
+	// A script that catches every box. Nothing is ever held here, so only the cap stops the spreads.
+	charges := 0
+	for range 18 {
+		clock.Advance(window + time.Second)
+		registry.Clicked("scope-a")
+		registry.sweep()
+
+		offer := offered(t, events)
+		require.NotNil(t, offer)
+		if offer.Kind == KindSpreadClicks {
+			charges++
+		}
+
+		_, claimed := registry.Claim(offer.Token, "scope-a")
+		require.True(t, claimed)
+		if offer.Kind.Timed() {
+			clock.Advance(time.Minute)
+		}
+	}
+
+	assert.Equal(t, 6, charges, "no more charges an hour than maxChargesPerHour")
 }
 
 func TestTheHourlyCapCountsTheTimeEachBonusActuallyRan(t *testing.T) {
 	registry, clock := newTestRegistry()
 	entry := registry.caller("scope-a", clock.Now())
 
-	// Five ten-second spreads are under a minute, far from a fifteen-minute cap.
+	// Five ten-second triples are under a minute, far from a fifteen-minute cap.
 	for range 5 {
 		entry.grants = append(entry.grants, grant{at: clock.Now(), duration: 10 * time.Second})
 	}
 
-	assert.False(t, registry.capped(entry, clock.Now()))
+	boosted, charged := registry.grantedWithinTheHour(entry, clock.Now())
+	assert.Equal(t, 50*time.Second, boosted)
+	assert.Zero(t, charged)
 }
 
 func TestAKindLeftOutOrAtZeroIsNeverOffered(t *testing.T) {
@@ -432,11 +526,10 @@ func TestAKindLeftOutOrAtZeroIsNeverOffered(t *testing.T) {
 		{KindSpreadClicks: 1},
 		{KindSpreadClicks: 1, KindTripleClicks: 0},
 	} {
-		registry := New(Config{Kinds: kinds}, cptime.NewFixedClock(epoch))
+		registry, clock := newRegistryOffering(kinds)
+		entry := registry.caller("scope-a", clock.Now())
 
-		for range 50 {
-			require.Equal(t, KindSpreadClicks, registry.drawKind())
-		}
+		assert.Equal(t, cpcolls.NewSet(KindSpreadClicks), registry.offerable(entry, clock.Now()))
 	}
 }
 
@@ -448,7 +541,7 @@ func TestKindsAreDrawnInProportionToTheirWeight(t *testing.T) {
 	const draws = 20_000
 	spreads := 0
 	for range draws {
-		if registry.drawKind() == KindSpreadClicks {
+		if registry.drawKind(everyKind()) == KindSpreadClicks {
 			spreads++
 		}
 	}
@@ -693,67 +786,56 @@ func TestAMaxBelowTheMinIsNotAWindow(t *testing.T) {
 	assert.Equal(t, 10*time.Minute, registry.window())
 }
 
-func TestAnEncloseBoxRunsForItsOwnDurationAndSaysHowManyShapes(t *testing.T) {
-	clock := cptime.NewFixedClock(epoch)
-	registry := New(Config{
-		MinInterval: window, MaxInterval: window, ActiveWithin: 5 * time.Minute,
-		Triple:  TripleConfig{Duration: time.Minute},
-		Enclose: EncloseConfig{Duration: 30 * time.Second, Shapes: 3, MaxTiles: 10},
-		Kinds:   map[Kind]float64{KindEncloseClicks: 1},
-	}, clock)
-	events := playing(t, registry, "scope-a")
-
-	waitOut(registry, clock)
-	offer := offered(t, events)
-	require.NotNil(t, offer)
-	assert.Equal(t, 30*time.Second, offer.Duration)
-
-	reward, claimed := registry.Claim(offer.Token, "scope-a")
-	require.True(t, claimed)
-	assert.Equal(t, Reward{
-		Kind: KindEncloseClicks, Duration: 30 * time.Second, Enclosures: 3, EnclosureMaxTiles: 10,
-	}, reward)
-}
-
-func TestOnlyAnEncloseRewardCarriesShapes(t *testing.T) {
-	clock := cptime.NewFixedClock(epoch)
-	registry := New(Config{
-		MinInterval: window, MaxInterval: window, ActiveWithin: 5 * time.Minute,
-		Kinds: map[Kind]float64{KindTripleClicks: 1},
-	}, clock)
-	events := playing(t, registry, "scope-a")
-
-	waitOut(registry, clock)
-	offer := offered(t, events)
-	require.NotNil(t, offer)
-
-	reward, claimed := registry.Claim(offer.Token, "scope-a")
-	require.True(t, claimed)
-	assert.Zero(t, reward.Enclosures)
-	assert.Zero(t, reward.EnclosureMaxTiles)
-}
-
 func TestAClosedShapeReachesEveryoneAndOnlyItsCloserIsToldItIsTheirs(t *testing.T) {
 	registry, _ := newTestRegistry()
-	mine, leaveMine := registry.Attend("scope-a")
-	t.Cleanup(leaveMine)
-	theirs, leaveTheirs := registry.Attend("scope-b")
-	t.Cleanup(leaveTheirs)
+	mine := attend(t, registry, "scope-a")
+	theirs := attend(t, registry, "scope-b")
 
 	registry.PublishEnclosed("scope-a", Enclosed{
-		CountryID: "fr", ClosingTile: 7, Wall: []uint32{7, 8}, Filled: []uint32{9}, Left: 2,
+		CountryID: "fr", ClosingTile: 7, Wall: []uint32{7, 8}, Filled: []uint32{9},
 	})
 
 	yours := (<-mine).Enclosed
 	require.NotNil(t, yours)
 	assert.True(t, yours.Yours)
-	assert.Equal(t, 2, yours.Left)
 	assert.Equal(t, []uint32{9}, yours.Filled)
 
 	seen := (<-theirs).Enclosed
 	require.NotNil(t, seen)
 	assert.False(t, seen.Yours)
-	assert.Zero(t, seen.Left, "how many shapes somebody has left is theirs to know")
 	assert.Equal(t, "fr", seen.CountryID)
 	assert.Equal(t, []uint32{7, 8}, seen.Wall)
+}
+
+func TestAStreamOpensWithWhatItsHolderHolds(t *testing.T) {
+	registry, _ := newTestRegistry()
+	registry.Charges().Grant(holderOf("scope-a"), KindBomb)
+
+	events, leave := registry.Attend("scope-a", holderOf("scope-a"))
+	t.Cleanup(leave)
+
+	assert.Equal(t, Held{Bomb: true}, opening(t, events), "a player who comes back sees the bomb they left with")
+}
+
+func TestChargesReachEveryStreamOfTheirHolderAndNobodyElse(t *testing.T) {
+	registry, _ := newTestRegistry()
+	account := HolderOf(clicks.Payer{Scope: "scope-a", Account: "acc-1"})
+
+	tab, leaveTab := registry.Attend("scope-a", account)
+	t.Cleanup(leaveTab)
+	opening(t, tab)
+	elsewhere, leaveElsewhere := registry.Attend("scope-b", account)
+	t.Cleanup(leaveElsewhere)
+	opening(t, elsewhere)
+	neighbour := attend(t, registry, "scope-a")
+
+	registry.Charges().Grant(account, KindSpreadClicks)
+
+	for _, events := range []<-chan Event{tab, elsewhere} {
+		require.Len(t, events, 1)
+		held := (<-events).Charges
+		require.NotNil(t, held)
+		assert.Equal(t, Held{SpreadClicks: defaultSpreadClicks}, *held)
+	}
+	assert.Empty(t, neighbour, "a player behind the same address holds nothing of it")
 }

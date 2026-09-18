@@ -61,6 +61,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/ban_player_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/chargesheld"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/claim_bonus_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/click_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/drop_bomb_handler"
@@ -161,9 +162,8 @@ func NewModule(config Config) cpbootstrap.Module {
 			registry := bonuses.New(config.Bonus, clock)
 			props.Runners.Add(registry)
 
-			spreads := bonuses.NewSpreads(clock)
-			bombs := bonuses.NewBombs(clock)
-			enclosures := bonuses.NewEnclosures(clock)
+			// The bomb, enclose and spread charges, which the registry's schedule reads so nobody holds two.
+			charges := registry.Charges()
 
 			bombRules := bonuses.NewBombRules(config.Bonus.Bomb, geography.Spacing())
 
@@ -178,11 +178,11 @@ func NewModule(config Config) cpbootstrap.Module {
 			// reaches the rule, so it spreads and encloses nothing either. It is counted
 			// as one click however many tiles it took.
 			var clickUseCase click_usecase.IUseCase = click_usecase.New(tilesChecker, writer, countries)
-			clickUseCase = spread_click.New(clickUseCase, spreads, geography, writer, registry)
+			clickUseCase = spread_click.New(clickUseCase, charges, geography, writer, registry)
 
-			clickUseCase = enclose_click.New(clickUseCase, enclosures,
+			clickUseCase = enclose_click.New(clickUseCase, charges,
 				bonuses.NewTerrain(geography, tilesStorage),
-				enclose_click.NewAnnexer(writer, prom_enclose.New(registry, props.Metrics)))
+				enclose_click.NewAnnexer(writer, charges, prom_enclose.New(registry, props.Metrics)))
 
 			clickUseCase = prom_click.New(clickUseCase, props.Metrics)
 
@@ -287,7 +287,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			// anywhere near right. What each caller did with their box goes to the
 			// guard as well, for the catcher watchdog.
 			claimBonus, counters := prom_claim_bonus.New(
-				claim_bonus_usecase.New(registry, limiter, pricer, spreads, bombs, bombRules.Radius, enclosures, buckets, clock),
+				claim_bonus_usecase.New(registry, limiter, pricer, charges, bombRules.Radius, buckets, clock),
 				props.Metrics)
 
 			registry.Observe(bonuses.Report{
@@ -303,7 +303,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			})
 
 			dropped := prom_drop_bomb.New(
-				drop_bomb_usecase.New(bombs, registry, geography, tilesStorage, countries, bombRules), props.Metrics)
+				drop_bomb_usecase.New(charges, geography, tilesStorage, countries, bombRules), props.Metrics)
 
 			// Outside the count, so it can tell the counter a drop was a dud.
 			dropBomb := antibot_drop_bomb.New(dropped, guard)
@@ -314,6 +314,9 @@ func NewModule(config Config) cpbootstrap.Module {
 			// storage appears three times here rather than once as a single object the
 			// service holds: the map reader, the subscription and the tile writer are
 			// three ports that happen to be served by one adapter.
+			// A charge goes out with the sizes that use it, so a client that reloads with one in hand can use it.
+			chargesSaid := chargesheld.Encoder{BlastRadius: bombRules.Radius, EnclosureMaxTiles: charges.EnclosureMaxTiles()}
+
 			service := planetv1controller.ClickService{
 				ClickHandler:      click_handler.New(clickUseCase),
 				GetBudgetHandler:  get_budget_handler.New(get_budget_usecase.New(limiter, pricer, buckets)),
@@ -321,8 +324,8 @@ func NewModule(config Config) cpbootstrap.Module {
 				GetMapHandler: get_map_handler.New(
 					antibot_get_map.New(get_map_usecase.New(tilesChecker, tilesStorage), guard, tilesChecker)),
 				ListenForEventsHandler: listen_for_events_handler.New(antibot_listen_for_events.New(
-					listen_for_events_usecase.New(tilesStorage, props.Server.StreamHeartbeat, registry), guard)),
-				ClaimBonusHandler: claim_bonus_handler.New(claimBonus),
+					listen_for_events_usecase.New(tilesStorage, props.Server.StreamHeartbeat, registry), guard), chargesSaid),
+				ClaimBonusHandler: claim_bonus_handler.New(claimBonus, chargesSaid),
 				DropBombHandler:   drop_bomb_handler.New(dropBomb),
 			}
 

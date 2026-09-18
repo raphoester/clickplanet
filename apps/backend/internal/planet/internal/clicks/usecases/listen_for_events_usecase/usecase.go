@@ -34,11 +34,14 @@ type Event struct {
 	Taken    *bonuses.Taken
 	Enclosed *bonuses.Enclosed
 	Spread   *bonuses.Spread
+
+	// What this caller holds: sent when the feed opens, and each time it changes.
+	Charges *bonuses.Held
 }
 
-// BonusFeed is this caller's boxes.
+// BonusFeed is this caller's boxes, and its charges.
 type BonusFeed interface {
-	Attend(scope string) (<-chan bonuses.Event, func())
+	Attend(scope string, holder bonuses.Holder) (<-chan bonuses.Event, func())
 }
 
 // Sink is whatever carries a frame to the caller. The use case decides what to
@@ -76,7 +79,8 @@ func (u *UseCase) Execute(ctx context.Context, sink Sink) error {
 	// A second subscription on the same connection, not a second feed: the
 	// envelope is what lets one stream carry a frame that did not exist when
 	// the client was written.
-	boxes, leave := u.bonuses.Attend(cpctx.RateLimitKey(ctx))
+	// The offers follow the scope; the charges follow the account the stream's token named, if any.
+	boxes, leave := u.bonuses.Attend(cpctx.RateLimitKey(ctx), bonuses.HolderOf(clicks.PayerOf(ctx)))
 	defer leave()
 
 	heartbeat := time.NewTicker(u.heartbeat)
@@ -108,7 +112,7 @@ func (u *UseCase) Execute(ctx context.Context, sink Sink) error {
 
 			if err := sink.Send(Event{
 				Offer: event.Offer, Taken: event.Taken, Enclosed: event.Enclosed,
-				Spread: event.Spread,
+				Spread: event.Spread, Charges: event.Charges,
 			}); err != nil {
 				return err
 			}

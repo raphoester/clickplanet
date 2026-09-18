@@ -1,5 +1,6 @@
 /**
- * What catching a bonus box is worth, and how long it lasts.
+ * What catching a bonus box is worth: a triple that runs for a time, or a
+ * charge that is kept until it is spent.
  *
  * This is data, not drawing, so it sits in the domain rather than beside the
  * WebGL that spawns the box or the React that announces it — both read it, and
@@ -7,41 +8,47 @@
  * and says what it granted, and this is the shape that answer arrives in.
  */
 export type BonusReward =
+    | TimedReward
     | {
     /**
-     * - `tripleClicks`: the click allowance is multiplied.
-     * - `spreadClicks`: every click also takes the tiles touching the one
-     *   clicked. The server picks those tiles and sends them down the stream,
-     *   so nothing here knows which they are.
+     * A charge: the next `clicks` clicks also take the tiles touching the one
+     * clicked. The server picks those tiles and sends them down the stream, so
+     * nothing here knows which they are.
      */
-    kind: "tripleClicks" | "spreadClicks"
-    seconds: number
+    kind: "spreadClicks"
+    clicks: number
 } | {
     /**
-     * One bomb, to be dropped anywhere on the planet within `seconds`. It clears
-     * every tile within `radius` radians of arc of where it lands. `radius` is
-     * only what the aiming ring is drawn at: the server picks the tiles.
+     * A charge: one bomb, kept until it is dropped. It clears every tile within
+     * `radius` radians of arc of where it lands. `radius` is only what the
+     * aiming ring is drawn at: the server picks the tiles.
      */
     kind: "bomb"
-    seconds: number
     radius: number
 }
     | {
     /**
-     * A click that closes a shape of the player's own tiles also takes the
-     * tiles inside it. The server finds the shape; this only says how many
-     * shapes the bonus may close and how big each may be.
+     * A charge: the next click that closes a shape of the player's own tiles
+     * also takes the tiles inside it. The server finds the shape; this only
+     * says how big it may be.
      */
     kind: "encloseClicks"
-    seconds: number
-    /** How many shapes are left to close. Counts down as the player closes them. */
-    shapes: number
-    /** The most tiles one shape may hold. */
+    /** The most tiles the shape may hold. */
     maxTiles: number
 }
 
+/** The one reward that runs for a time: the click allowance is multiplied. */
+export type TimedReward = {
+    kind: "tripleClicks"
+    seconds: number
+}
+
+export function isTimed(reward: BonusReward): reward is TimedReward {
+    return reward.kind === "tripleClicks"
+}
+
 /**
- * A reward that is currently running, with the moment it lapses.
+ * A timed reward that is running, with the moment it lapses.
  *
  * `endsAt` is on the same monotonic clock as a `ClickBudget` reading
  * (`performance.now()`), and for the same reason: this counts down against how
@@ -49,8 +56,42 @@ export type BonusReward =
  * unrelated clock.
  */
 export type ActiveBonus = {
-    reward: BonusReward
+    reward: TimedReward
     endsAt: number
+}
+
+/**
+ * The use-once bonuses the player holds, as the server last said. At most one
+ * of each kind, each kept until it is spent — there is no clock on any of them,
+ * so nothing here counts down. The server sends it when the stream opens and
+ * after every change, so a reload, a second tab and a charge spent elsewhere all
+ * read the same.
+ */
+export type Charges = {
+    /** Held, with how wide its blast is. */
+    bomb?: {radius: number}
+    /** Held, with how big a shape it may close. */
+    enclose?: {maxTiles: number}
+    /** Zero is no spread charge. */
+    spreadClicksLeft: number
+}
+
+export const NO_CHARGES: Charges = {spreadClicksLeft: 0}
+
+/**
+ * What the meter says about each charge held, in the order it shows them: the
+ * bomb first, since it is the one that waits on the player to use it.
+ */
+export function chargeLabels(charges: Charges): {kind: "bomb" | "encloseClicks" | "spreadClicks", label: string}[] {
+    const labels: {kind: "bomb" | "encloseClicks" | "spreadClicks", label: string}[] = []
+    if (charges.bomb) labels.push({kind: "bomb", label: "Bomb ready"})
+    if (charges.enclose) labels.push({kind: "encloseClicks", label: "Enclose ready"})
+    if (charges.spreadClicksLeft > 0) {
+        const clicks = charges.spreadClicksLeft === 1 ? "1 click" : `${charges.spreadClicksLeft} clicks`
+        labels.push({kind: "spreadClicks", label: `Spread: ${clicks} left`})
+    }
+
+    return labels
 }
 
 /** By how much a reward multiplies the click allowance. */
@@ -69,8 +110,9 @@ export function multiplierOf(reward: BonusReward): number {
  * The words for a reward, in the three lengths the screen needs them: shouted
  * in the middle of the screen, explained under it, and squeezed onto the meter.
  *
- * The explanation says what the bonus does and nothing about how long: the
- * meter counts that down, and it is read in the second the announcement is up.
+ * The explanation says what the bonus does and nothing about how long a triple
+ * lasts: the meter counts that down, and it is read in the second the
+ * announcement is up.
  *
  * Kept in one place so a second kind of reward is one case here rather than an
  * edit in every component that mentions it.
@@ -90,37 +132,22 @@ export function describeReward(reward: BonusReward): {
         case "spreadClicks":
             return {
                 title: "Spread clicks",
-                detail: "Each click also takes the tiles around it",
+                detail: `Your next ${reward.clicks} clicks also take the tiles around them`,
                 badge: "+6",
             }
         case "bomb":
             return {
                 title: "Bomb",
-                detail: "Resets the tiles in an area",
+                detail: "Resets the tiles in an area. Kept until you drop it",
                 badge: "💣",
             }
         case "encloseClicks":
             return {
                 title: "Enclose",
-                detail: `Close a shape to take the tiles inside. ${shapesWord(reward.shapes)}, ${reward.maxTiles} tiles max`,
-                badge: `⬡${reward.shapes}`,
+                detail: `Close a shape of up to ${reward.maxTiles} tiles to take the tiles inside`,
+                badge: "⬡",
             }
     }
-}
-
-function shapesWord(shapes: number): string {
-    return shapes === 1 ? "1 shape" : `${shapes} shapes`
-}
-
-/**
- * The bonus once the player has closed a shape with it: the server said how many
- * are left, and a bonus with none left is over whatever its clock says.
- */
-export function afterShapeClosed(bonus: ActiveBonus, shapesLeft: number): ActiveBonus | undefined {
-    if (bonus.reward.kind !== "encloseClicks") return bonus
-    if (shapesLeft <= 0) return undefined
-
-    return {...bonus, reward: {...bonus.reward, shapes: shapesLeft}}
 }
 
 /**

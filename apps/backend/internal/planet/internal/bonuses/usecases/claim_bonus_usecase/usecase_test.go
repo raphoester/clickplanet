@@ -57,23 +57,41 @@ func (s *stubBooster) Boost(key string, multiplier float64, until time.Time) cpr
 	return s.state
 }
 
-type stubSpreader struct {
-	scope string
-	until time.Time
+// stubCharger records the charges granted, and answers what they add up to.
+type stubCharger struct {
+	granted []grantedCharge
 }
 
-func (s *stubSpreader) Grant(scope string, until time.Time) { s.scope, s.until = scope, until }
-
-type stubEncloser struct {
-	scope    string
-	until    time.Time
-	shapes   int
-	maxTiles int
+type grantedCharge struct {
+	holder bonuses.Holder
+	kind   bonuses.Kind
 }
 
-func (s *stubEncloser) Grant(scope string, until time.Time, shapes int, maxTiles int) {
-	s.scope, s.until, s.shapes, s.maxTiles = scope, until, shapes, maxTiles
+func (s *stubCharger) Grant(holder bonuses.Holder, kind bonuses.Kind) {
+	s.granted = append(s.granted, grantedCharge{holder: holder, kind: kind})
 }
+
+func (s *stubCharger) Held(holder bonuses.Holder) bonuses.Held {
+	var held bonuses.Held
+	for _, g := range s.granted {
+		if g.holder != holder {
+			continue
+		}
+		switch g.kind {
+		case bonuses.KindBomb:
+			held.Bomb = true
+		case bonuses.KindEncloseClicks:
+			held.Enclose = true
+		case bonuses.KindSpreadClicks:
+			held.SpreadClicks = 8
+		case bonuses.KindTripleClicks:
+		}
+	}
+
+	return held
+}
+
+func (s *stubCharger) EnclosureMaxTiles() int { return 25 }
 
 type stubPricer clicks.Price
 
@@ -90,7 +108,7 @@ func granted() *stubRegistry {
 func TestAClaimStartsTheBoostForTheDurationGranted(t *testing.T) {
 	booster := &stubBooster{state: cpratelimit.State{Capacity: 30, PerSecond: 3}}
 
-	out, err := claim_bonus_usecase.New(granted(), booster, onePrice, &stubSpreader{}, &stubSpreader{}, 0.03, &stubEncloser{}, buckets, cptime.NewFixedClock(epoch)).
+	out, err := claim_bonus_usecase.New(granted(), booster, onePrice, &stubCharger{}, 0.03, buckets, cptime.NewFixedClock(epoch)).
 		Execute(t.Context(), claim_bonus_usecase.In{Token: "a-token", CountryID: "fr"})
 	require.NoError(t, err)
 
@@ -103,7 +121,7 @@ func TestAClaimStartsTheBoostForTheDurationGranted(t *testing.T) {
 func TestTheWidenedAllowanceIsPricedForTheCatchersCountry(t *testing.T) {
 	booster := &stubBooster{state: cpratelimit.State{Tokens: 12, Capacity: 30, PerSecond: 3}}
 
-	out, err := claim_bonus_usecase.New(granted(), booster, stubPricer{Cost: 3, Share: 0.4}, &stubSpreader{}, &stubSpreader{}, 0.03, &stubEncloser{}, buckets, cptime.NewFixedClock(epoch)).
+	out, err := claim_bonus_usecase.New(granted(), booster, stubPricer{Cost: 3, Share: 0.4}, &stubCharger{}, 0.03, buckets, cptime.NewFixedClock(epoch)).
 		Execute(t.Context(), claim_bonus_usecase.In{Token: "a-token", CountryID: "bg"})
 	require.NoError(t, err)
 
@@ -116,7 +134,7 @@ func TestTheWidenedAllowanceIsPricedForTheCatchersCountry(t *testing.T) {
 func TestTheClaimAndTheBoostUseTheSameScope(t *testing.T) {
 	registry, booster := granted(), &stubBooster{}
 
-	_, err := claim_bonus_usecase.New(registry, booster, onePrice, &stubSpreader{}, &stubSpreader{}, 0.03, &stubEncloser{}, buckets, cptime.NewFixedClock(epoch)).
+	_, err := claim_bonus_usecase.New(registry, booster, onePrice, &stubCharger{}, 0.03, buckets, cptime.NewFixedClock(epoch)).
 		Execute(t.Context(), claim_bonus_usecase.In{Token: "a-token"})
 	require.NoError(t, err)
 
@@ -128,7 +146,7 @@ func TestATripleBoostsTheAccountAndNeverTheScope(t *testing.T) {
 	registry, booster := granted(), &stubBooster{}
 	ctx := cpctx.AddAccountToContext(cpctx.AddIPToContext(t.Context(), "1.2.3.4"), "a-guest")
 
-	_, err := claim_bonus_usecase.New(registry, booster, onePrice, &stubSpreader{}, &stubSpreader{}, 0.03, &stubEncloser{}, buckets, cptime.NewFixedClock(epoch)).
+	_, err := claim_bonus_usecase.New(registry, booster, onePrice, &stubCharger{}, 0.03, buckets, cptime.NewFixedClock(epoch)).
 		Execute(ctx, claim_bonus_usecase.In{Token: "a-token"})
 	require.NoError(t, err)
 
@@ -141,7 +159,7 @@ func TestATripleBoostsTheAccountAndNeverTheScope(t *testing.T) {
 func TestACatchIsAnnouncedWithTheCountryTheClaimNamed(t *testing.T) {
 	registry := granted()
 
-	_, err := claim_bonus_usecase.New(registry, &stubBooster{}, onePrice, &stubSpreader{}, &stubSpreader{}, 0.03, &stubEncloser{}, buckets, cptime.NewFixedClock(epoch)).
+	_, err := claim_bonus_usecase.New(registry, &stubBooster{}, onePrice, &stubCharger{}, 0.03, buckets, cptime.NewFixedClock(epoch)).
 		Execute(t.Context(), claim_bonus_usecase.In{Token: "a-token", CountryID: "jp"})
 	require.NoError(t, err)
 
@@ -152,7 +170,7 @@ func TestACatchIsAnnouncedWithTheCountryTheClaimNamed(t *testing.T) {
 func TestARefusedClaimBoostsNothingAndAnnouncesNothing(t *testing.T) {
 	registry, booster := &stubRegistry{claimable: false}, &stubBooster{}
 
-	_, err := claim_bonus_usecase.New(registry, booster, onePrice, &stubSpreader{}, &stubSpreader{}, 0.03, &stubEncloser{}, buckets, cptime.NewFixedClock(epoch)).
+	_, err := claim_bonus_usecase.New(registry, booster, onePrice, &stubCharger{}, 0.03, buckets, cptime.NewFixedClock(epoch)).
 		Execute(t.Context(), claim_bonus_usecase.In{Token: "not-mine"})
 
 	require.ErrorIs(t, err, claim_bonus_usecase.ErrNoSuchBonus)
@@ -161,63 +179,84 @@ func TestARefusedClaimBoostsNothingAndAnnouncesNothing(t *testing.T) {
 }
 
 func TestABombClaimHandsOverTheBombAndSaysHowWideItIs(t *testing.T) {
-	registry := &stubRegistry{claimable: true, reward: bonuses.Reward{Kind: bonuses.KindBomb, Duration: 30 * time.Second}}
+	registry := &stubRegistry{claimable: true, reward: bonuses.Reward{Kind: bonuses.KindBomb}}
 	booster := &stubBooster{state: cpratelimit.State{Capacity: 10, PerSecond: 1}}
-	bomber := &stubSpreader{}
+	charger := &stubCharger{}
 
-	out, err := claim_bonus_usecase.New(registry, booster, onePrice, &stubSpreader{}, bomber, 0.03, &stubEncloser{}, buckets, cptime.NewFixedClock(epoch)).
+	out, err := claim_bonus_usecase.New(registry, booster, onePrice, charger, 0.03, buckets, cptime.NewFixedClock(epoch)).
 		Execute(t.Context(), claim_bonus_usecase.In{Token: "a-token", CountryID: "fr"})
 	require.NoError(t, err)
 
-	assert.Equal(t, cpctx.RateLimitKey(t.Context()), bomber.scope)
-	assert.Equal(t, epoch.Add(30*time.Second), bomber.until)
+	assert.Equal(t, []grantedCharge{{holder: bonuses.Holder("scope:" + cpctx.RateLimitKey(t.Context())), kind: bonuses.KindBomb}}, charger.granted)
 	assert.Zero(t, booster.multiplier, "a bomb is not a boost")
 	assert.InDelta(t, 0.03, out.BlastRadius, 1e-9)
 	assert.Equal(t, bonuses.KindBomb, out.Kind)
+	assert.Zero(t, out.Duration, "a bomb is kept until it is dropped")
+	assert.Equal(t, bonuses.Held{Bomb: true}, out.Held)
+}
+
+func TestAChargeIsTheAccountsAndNotTheAddresss(t *testing.T) {
+	registry := &stubRegistry{claimable: true, reward: bonuses.Reward{Kind: bonuses.KindBomb}}
+	charger := &stubCharger{}
+	ctx := cpctx.AddAccountToContext(cpctx.AddIPToContext(t.Context(), "1.2.3.4"), "a-guest")
+
+	_, err := claim_bonus_usecase.New(registry, &stubBooster{}, onePrice, charger, 0.03, buckets, cptime.NewFixedClock(epoch)).
+		Execute(ctx, claim_bonus_usecase.In{Token: "a-token"})
+	require.NoError(t, err)
+
+	assert.Equal(t, "1.2.3.4", registry.scope, "the offer is still the scope's")
+	assert.Equal(t, []grantedCharge{{holder: "account:a-guest", kind: bonuses.KindBomb}}, charger.granted)
 }
 
 func TestOnlyABombSaysHowWideItIs(t *testing.T) {
-	out, err := claim_bonus_usecase.New(granted(), &stubBooster{}, onePrice, &stubSpreader{}, &stubSpreader{}, 0.03, &stubEncloser{}, buckets, cptime.NewFixedClock(epoch)).
+	out, err := claim_bonus_usecase.New(granted(), &stubBooster{}, onePrice, &stubCharger{}, 0.03, buckets, cptime.NewFixedClock(epoch)).
 		Execute(t.Context(), claim_bonus_usecase.In{Token: "a-token"})
 	require.NoError(t, err)
 
 	assert.Zero(t, out.BlastRadius)
 }
 
-func TestASpreadClaimStartsTheSpreadAndWidensNothing(t *testing.T) {
-	registry := &stubRegistry{claimable: true, reward: bonuses.Reward{Kind: bonuses.KindSpreadClicks, Duration: time.Minute}}
-	booster := &stubBooster{state: cpratelimit.State{Tokens: 4, Capacity: 10, PerSecond: 1}}
-	spreader := &stubSpreader{}
+func TestATripleGrantsNoCharge(t *testing.T) {
+	charger := &stubCharger{}
 
-	out, err := claim_bonus_usecase.New(registry, booster, onePrice, spreader, &stubSpreader{}, 0.03, &stubEncloser{}, buckets, cptime.NewFixedClock(epoch)).
+	out, err := claim_bonus_usecase.New(granted(), &stubBooster{}, onePrice, charger, 0.03, buckets, cptime.NewFixedClock(epoch)).
+		Execute(t.Context(), claim_bonus_usecase.In{Token: "a-token"})
+	require.NoError(t, err)
+
+	assert.Empty(t, charger.granted)
+	assert.Equal(t, bonuses.Held{}, out.Held)
+}
+
+func TestASpreadClaimHandsOverTheChargeAndWidensNothing(t *testing.T) {
+	registry := &stubRegistry{claimable: true, reward: bonuses.Reward{Kind: bonuses.KindSpreadClicks}}
+	booster := &stubBooster{state: cpratelimit.State{Tokens: 4, Capacity: 10, PerSecond: 1}}
+	charger := &stubCharger{}
+
+	out, err := claim_bonus_usecase.New(registry, booster, onePrice, charger, 0.03, buckets, cptime.NewFixedClock(epoch)).
 		Execute(t.Context(), claim_bonus_usecase.In{Token: "a-token", CountryID: "fr"})
 	require.NoError(t, err)
 
-	assert.Equal(t, cpctx.RateLimitKey(t.Context()), spreader.scope)
-	assert.Equal(t, epoch.Add(time.Minute), spreader.until)
+	assert.Equal(t, []grantedCharge{{holder: bonuses.Holder("scope:" + cpctx.RateLimitKey(t.Context())), kind: bonuses.KindSpreadClicks}}, charger.granted)
 	assert.Zero(t, booster.multiplier, "a spread is not a boost")
 	assert.Equal(t, 10, out.Budget.Capacity, "the allowance is answered as it stands")
 	assert.Equal(t, bonuses.KindSpreadClicks, out.Kind)
+	assert.Equal(t, bonuses.Held{SpreadClicks: 8}, out.Held)
 	require.Len(t, registry.published, 1)
 }
 
-func TestAnEncloseClaimStartsTheEnclosuresAndWidensNothing(t *testing.T) {
-	registry := &stubRegistry{claimable: true, reward: bonuses.Reward{
-		Kind: bonuses.KindEncloseClicks, Duration: 30 * time.Second, Enclosures: 3, EnclosureMaxTiles: 10,
-	}}
+func TestAnEncloseClaimHandsOverOneShapeAndWidensNothing(t *testing.T) {
+	registry := &stubRegistry{claimable: true, reward: bonuses.Reward{Kind: bonuses.KindEncloseClicks}}
 	booster := &stubBooster{state: cpratelimit.State{Tokens: 4, Capacity: 10, PerSecond: 1}}
-	encloser := &stubEncloser{}
+	charger := &stubCharger{}
 
-	out, err := claim_bonus_usecase.New(registry, booster, onePrice, &stubSpreader{}, &stubSpreader{}, 0.03, encloser, buckets, cptime.NewFixedClock(epoch)).
+	out, err := claim_bonus_usecase.New(registry, booster, onePrice, charger, 0.03, buckets, cptime.NewFixedClock(epoch)).
 		Execute(t.Context(), claim_bonus_usecase.In{Token: "a-token", CountryID: "fr"})
 	require.NoError(t, err)
 
-	assert.Equal(t, stubEncloser{
-		scope: cpctx.RateLimitKey(t.Context()), until: epoch.Add(30 * time.Second), shapes: 3, maxTiles: 10,
-	}, *encloser)
+	assert.Equal(t, []grantedCharge{{holder: bonuses.Holder("scope:" + cpctx.RateLimitKey(t.Context())), kind: bonuses.KindEncloseClicks}}, charger.granted)
 	assert.Zero(t, booster.multiplier, "an enclose is not a boost")
 	assert.Equal(t, 10, out.Budget.Capacity, "the allowance is answered as it stands")
-	assert.Equal(t, 3, out.Enclosures)
-	assert.Equal(t, 10, out.EnclosureMaxTiles)
+	assert.Equal(t, 25, out.EnclosureMaxTiles)
+	assert.Equal(t, bonuses.Held{Enclose: true}, out.Held)
 	require.Len(t, registry.published, 1)
 }

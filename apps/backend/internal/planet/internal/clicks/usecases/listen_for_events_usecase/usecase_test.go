@@ -13,6 +13,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/listen_for_events_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
 type stubSubscriber struct {
@@ -26,8 +27,24 @@ func (s stubSubscriber) Subscribe(context.Context) (<-chan clicks.Change, error)
 
 type silentFeed struct{}
 
-func (silentFeed) Attend(string) (<-chan bonuses.Event, func()) {
+func (silentFeed) Attend(string, bonuses.Holder) (<-chan bonuses.Event, func()) {
 	return nil, func() {}
+}
+
+// chargesFeed opens with the charges it was given, and remembers whose it was asked for.
+type chargesFeed struct {
+	held    bonuses.Held
+	holders chan bonuses.Holder
+}
+
+func (f chargesFeed) Attend(_ string, holder bonuses.Holder) (<-chan bonuses.Event, func()) {
+	f.holders <- holder
+
+	events := make(chan bonuses.Event, 1)
+	held := f.held
+	events <- bonuses.Event{Charges: &held}
+
+	return events, func() {}
 }
 
 // recorder stands in for the stream. Send is called from the use case's own
@@ -150,4 +167,24 @@ func TestAFailedSendEndsTheFeed(t *testing.T) {
 		Execute(t.Context(), &recorder{err: assert.AnError})
 
 	require.ErrorIs(t, err, assert.AnError)
+}
+
+func TestTheChargesTheFeedOpensWithReachTheSinkForTheStreamsAccount(t *testing.T) {
+	feed := chargesFeed{held: bonuses.Held{Bomb: true, SpreadClicks: 3}, holders: make(chan bonuses.Holder, 1)}
+	sink := &recorder{fed: make(chan struct{})}
+
+	ctx, cancel := context.WithCancel(cpctx.AddAccountToContext(t.Context(), "a-guest"))
+	done := make(chan error, 1)
+	go func() {
+		done <- listen_for_events_usecase.New(stubSubscriber{updates: make(chan clicks.Change)}, time.Hour, feed).Execute(ctx, sink)
+	}()
+
+	<-sink.fed
+	cancel()
+	require.NoError(t, <-done)
+
+	assert.Equal(t, bonuses.Holder("account:a-guest"), <-feed.holders, "the charges follow the account, not the address")
+	require.Equal(t, []listen_for_events_usecase.Event{
+		{Charges: &bonuses.Held{Bomb: true, SpreadClicks: 3}},
+	}, sink.seen())
 }

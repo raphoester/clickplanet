@@ -10,9 +10,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/enclose_click"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -76,27 +76,36 @@ func (r *recorder) PublishEnclosed(_ string, enclosed bonuses.Enclosed) {
 	r.published = append(r.published, enclosed)
 }
 
+// silence hears the charges change and tells nobody.
+type silence struct{}
+
+func (silence) PublishCharges(bonuses.Holder, bonuses.Held) {}
+
+// caller is the holder of a click made from the test's context: no account, and the scope that reads.
+var caller = bonuses.HolderOf(clicks.PayerOf(context.Background()))
+
 type fixture struct {
-	grid       honeycomb
-	tiles      tiles
-	enclosures *bonuses.Enclosures
-	published  *recorder
-	useCase    *enclose_click.UseCase
+	grid      honeycomb
+	tiles     tiles
+	charges   *bonuses.Charges
+	published *recorder
+	useCase   *enclose_click.UseCase
 }
 
-func setup(shapes int, err error) fixture {
+func setup(charged bool, err error) fixture {
 	f := fixture{
-		grid:       honeycomb{size: 12},
-		tiles:      tiles{},
-		enclosures: bonuses.NewEnclosures(cptime.NewFixedClock(epoch)),
-		published:  &recorder{},
+		grid:  honeycomb{size: 12},
+		tiles: tiles{},
+		charges: bonuses.NewCharges(bonuses.ChargesConfig{TTL: time.Hour, SpreadClicks: 8, EnclosureMaxTiles: 10},
+			cptime.NewFixedClock(epoch), silence{}),
+		published: &recorder{},
 	}
-	if shapes > 0 {
-		f.enclosures.Grant(cpctx.RateLimitKey(context.Background()), epoch.Add(time.Minute), shapes, 10)
+	if charged {
+		f.charges.Grant(caller, bonuses.KindEncloseClicks)
 	}
 
-	f.useCase = enclose_click.New(rule{tiles: f.tiles, err: err}, f.enclosures,
-		bonuses.NewTerrain(f.grid, f.tiles), enclose_click.NewAnnexer(f.tiles, f.published))
+	f.useCase = enclose_click.New(rule{tiles: f.tiles, err: err}, f.charges,
+		bonuses.NewTerrain(f.grid, f.tiles), enclose_click.NewAnnexer(f.tiles, f.charges, f.published))
 
 	return f
 }
@@ -115,7 +124,7 @@ func (f fixture) own(country string, ids ...uint32) {
 }
 
 func TestClosingARingTakesTheTileInsideIt(t *testing.T) {
-	f := setup(3, nil)
+	f := setup(true, nil)
 	centre, ring := f.grid.id(5, 5), f.grid.ring(5, 5)
 	f.own("de", centre)
 	f.own("fr", ring[1:]...)
@@ -130,11 +139,11 @@ func TestClosingARingTakesTheTileInsideIt(t *testing.T) {
 	assert.Equal(t, ring[0], enclosed.ClosingTile)
 	assert.Equal(t, []uint32{centre}, enclosed.Filled)
 	assert.ElementsMatch(t, ring, enclosed.Wall)
-	assert.Equal(t, 2, enclosed.Left)
+	assert.False(t, f.charges.Held(caller).Enclose, "the charge is one shape, and this was it")
 }
 
 func TestAShapeTakesUnownedTilesAndEveryoneElsesAlike(t *testing.T) {
-	f := setup(3, nil)
+	f := setup(true, nil)
 	// Two tiles inside a ring of ten: one unowned, one somebody else's.
 	inner := []uint32{f.grid.id(5, 5), f.grid.id(6, 5)}
 	f.own("de", inner[1])
@@ -155,7 +164,7 @@ func TestAShapeTakesUnownedTilesAndEveryoneElsesAlike(t *testing.T) {
 }
 
 func TestATriangleHasNoInsideAndCostsNothing(t *testing.T) {
-	f := setup(3, nil)
+	f := setup(true, nil)
 	// Three tiles that all touch each other.
 	a, b, c := f.grid.id(5, 5), f.grid.id(6, 5), f.grid.id(5, 6)
 	f.own("fr", a, b)
@@ -163,6 +172,7 @@ func TestATriangleHasNoInsideAndCostsNothing(t *testing.T) {
 	f.click(t, c)
 
 	assert.Empty(t, f.published.published)
+	assert.True(t, f.charges.Held(caller).Enclose, "a click that closes nothing keeps the charge")
 }
 
 // carve owns the whole patch for "fr" except the hole and the tile that will
@@ -187,7 +197,7 @@ func (f fixture) row(q, r, n int) []uint32 {
 }
 
 func TestAShapeHoldingExactlyTheLimitIsTaken(t *testing.T) {
-	f := setup(3, nil)
+	f := setup(true, nil)
 	hole := f.row(1, 5, 10)
 	f.carve(f.grid.id(1, 4), hole)
 
@@ -198,7 +208,7 @@ func TestAShapeHoldingExactlyTheLimitIsTaken(t *testing.T) {
 }
 
 func TestAShapeBiggerThanTheLimitTakesNothingAndCostsNothing(t *testing.T) {
-	f := setup(3, nil)
+	f := setup(true, nil)
 	// Eleven tiles, none of them on the rim.
 	f.carve(f.grid.id(1, 4), append(f.row(1, 5, 10), f.grid.id(1, 6)))
 
@@ -206,10 +216,11 @@ func TestAShapeBiggerThanTheLimitTakesNothingAndCostsNothing(t *testing.T) {
 
 	assert.Empty(t, f.published.published)
 	assert.Empty(t, f.tiles[f.grid.id(1, 5)], "nothing inside was taken")
+	assert.True(t, f.charges.Held(caller).Enclose)
 }
 
 func TestAShapeOpenToTheEdgeOfTheLandIsNotClosed(t *testing.T) {
-	f := setup(3, nil)
+	f := setup(true, nil)
 	// The tip of a peninsula: the tile on the rim has the sea on one side.
 	hole := f.row(0, 5, 2)
 	f.carve(f.grid.id(1, 4), hole)
@@ -218,10 +229,11 @@ func TestAShapeOpenToTheEdgeOfTheLandIsNotClosed(t *testing.T) {
 
 	assert.Empty(t, f.published.published)
 	assert.Empty(t, f.tiles[hole[0]])
+	assert.True(t, f.charges.Held(caller).Enclose)
 }
 
 func TestClickingTheOutlineOfAShapeAlreadyClosedTakesNothing(t *testing.T) {
-	f := setup(3, nil)
+	f := setup(true, nil)
 	centre, ring := f.grid.id(5, 5), f.grid.ring(5, 5)
 	f.own("de", centre)
 	f.own("fr", ring...)
@@ -232,28 +244,15 @@ func TestClickingTheOutlineOfAShapeAlreadyClosedTakesNothing(t *testing.T) {
 	assert.Empty(t, f.published.published)
 }
 
-func TestOneClickClosingTwoShapesSpendsOneShapeEach(t *testing.T) {
-	f := setup(3, nil)
+func TestOneClickClosingTwoShapesTakesTheFirstForItsOneCharge(t *testing.T) {
+	f := setup(true, nil)
 	// Two holes of one tile each, both touching the tile clicked.
-	top, bottom := f.grid.id(5, 4), f.grid.id(4, 6)
-	closing := f.grid.id(5, 5)
-	f.carve(closing, []uint32{top, bottom})
-
-	f.click(t, closing)
-
-	assert.Len(t, f.published.published, 2)
-	assert.Equal(t, 1, f.published.published[1].Left)
-}
-
-func TestTheSearchStopsWhenTheBonusRunsOutOfShapes(t *testing.T) {
-	f := setup(1, nil)
 	top, bottom := f.grid.id(5, 4), f.grid.id(4, 6)
 	f.carve(f.grid.id(5, 5), []uint32{top, bottom})
 
 	f.click(t, f.grid.id(5, 5))
 
 	require.Len(t, f.published.published, 1)
-	assert.Equal(t, 0, f.published.published[0].Left)
 
 	taken := 0
 	for _, tile := range []uint32{top, bottom} {
@@ -264,8 +263,23 @@ func TestTheSearchStopsWhenTheBonusRunsOutOfShapes(t *testing.T) {
 	assert.Equal(t, 1, taken, "only the shape that was paid for is filled")
 }
 
+func TestAChargeSpentClosesNothingMore(t *testing.T) {
+	f := setup(true, nil)
+	first, firstRing := f.grid.id(3, 3), f.grid.ring(3, 3)
+	second, secondRing := f.grid.id(8, 8), f.grid.ring(8, 8)
+	f.own("fr", firstRing[1:]...)
+	f.own("fr", secondRing[1:]...)
+
+	f.click(t, firstRing[0])
+	f.click(t, secondRing[0])
+
+	assert.Equal(t, "fr", f.tiles[first])
+	assert.Empty(t, f.tiles[second], "one charge, one shape")
+	assert.Len(t, f.published.published, 1)
+}
+
 func TestWithoutTheBonusAClickClosesNothing(t *testing.T) {
-	f := setup(0, nil)
+	f := setup(false, nil)
 	centre, ring := f.grid.id(5, 5), f.grid.ring(5, 5)
 	f.own("fr", ring[1:]...)
 
@@ -277,7 +291,7 @@ func TestWithoutTheBonusAClickClosesNothing(t *testing.T) {
 
 func TestARefusedClickClosesNothing(t *testing.T) {
 	refused := errors.New("unknown country")
-	f := setup(3, refused)
+	f := setup(true, refused)
 	centre, ring := f.grid.id(5, 5), f.grid.ring(5, 5)
 	f.own("fr", ring...)
 
@@ -285,4 +299,5 @@ func TestARefusedClickClosesNothing(t *testing.T) {
 
 	require.ErrorIs(t, err, refused)
 	assert.Empty(t, f.tiles[centre])
+	assert.True(t, f.charges.Held(caller).Enclose)
 }

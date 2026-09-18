@@ -7,6 +7,7 @@ import {
     GlobePoint,
     BonusLostError,
     BonusOffer,
+    ClaimedBonus,
     Enclosure,
     Ownerships,
     OwnershipsGetter,
@@ -17,9 +18,10 @@ import {
     UpdatesListener,
     VPNBlockedError,
 } from "./backend.ts";
-import {BonusReward} from "../domain/bonus.ts";
+import {BonusReward, Charges, isTimed, NO_CHARGES} from "../domain/bonus.ts";
 import {
     BonusKind,
+    ChargesHeld,
     ClickBudget as ClickBudgetMessage,
     GetMapResponse,
     PlanetEvent,
@@ -313,7 +315,13 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                 }
 
                 const spread = spreadOf(event)
-                if (spread) this.bonusCallbacks.forEach(handlers => handlers.onSpread(spread))
+                if (spread) {
+                    this.bonusCallbacks.forEach(handlers => handlers.onSpread(spread))
+                    return
+                }
+
+                const charges = chargesOf(event)
+                if (charges) this.bonusCallbacks.forEach(handlers => handlers.onCharges(charges))
             },
             "planet events",
         )
@@ -356,7 +364,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
      * Redeems a box, with the same one-shot session retry a click gets: a token
      * that lapsed mid-session is not worth losing the box over.
      */
-    public async claimBonus(token: string, countryId: string): Promise<BonusReward> {
+    public async claimBonus(token: string, countryId: string): Promise<ClaimedBonus> {
         try {
             return await this.claim(token, countryId)
         } catch (e) {
@@ -372,7 +380,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         }
     }
 
-    private async claim(token: string, countryId: string): Promise<BonusReward> {
+    private async claim(token: string, countryId: string): Promise<ClaimedBonus> {
         const sessionToken = await this.session.token()
 
         const headers = new Headers()
@@ -390,17 +398,25 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         this.anchorBudget(res.budget, countryId)
 
         // Only a kind this build knows is ever drawn, so only one can be caught.
-        const reward = rewardOf(res.kind, res.durationSeconds, {blastRadius: res.blastRadius, shapes: res.enclosures, maxTiles: res.enclosureMaxTiles})
+        const charges = chargesOfMessage(res.charges)
+        const reward = rewardOf(res.kind, res.durationSeconds, {
+            blastRadius: res.blastRadius,
+            maxTiles: res.enclosureMaxTiles,
+            spreadClicks: charges.spreadClicksLeft,
+        })
         if (!reward) throw new BonusLostError()
 
         // The widened reading says nothing about when the widening stops, so
         // left alone the meter keeps replaying a burst of 30 until the next
         // click re-anchors it. Ask again once it is over. The server started
         // the bonus before it answered, so this always lands after its end.
-        clearTimeout(this.bonusEndTimer)
-        this.bonusEndTimer = setTimeout(() => void this.readBudget(), reward.seconds * 1000)
+        // A charge widens nothing, so there is nothing to ask again.
+        if (isTimed(reward)) {
+            clearTimeout(this.bonusEndTimer)
+            this.bonusEndTimer = setTimeout(() => void this.readBudget(), reward.seconds * 1000)
+        }
 
-        return reward
+        return {reward, charges}
     }
 
     public listenForBombs(onDropped: (drop: BombDrop) => void): () => void {
@@ -480,11 +496,7 @@ export function catchOf(event: PlanetEvent): BonusCatch | undefined {
     return {countryId: event.event.value.countryId}
 }
 
-/**
- * Somebody closed a shape. `yours` is only read when the server marked it so:
- * how many shapes somebody else has left is not sent, and a zero here would
- * read as "your bonus is over".
- */
+/** Somebody closed a shape; `yours` when it was this player. */
 export function enclosureOf(event: PlanetEvent): Enclosure | undefined {
     if (event.event.case !== "tilesEnclosed") return undefined
 
@@ -494,7 +506,7 @@ export function enclosureOf(event: PlanetEvent): Enclosure | undefined {
         closingTile: enclosed.closingTileId,
         wall: [...enclosed.wallTileIds],
         filled: [...enclosed.filledTileIds],
-        yours: enclosed.yours ? {shapesLeft: enclosed.enclosuresLeft} : undefined,
+        yours: enclosed.yours || undefined,
     }
 }
 
@@ -506,23 +518,44 @@ export function spreadOf(event: PlanetEvent): SpreadClick | undefined {
 }
 
 /**
- * An offer carries neither a blast radius nor an enclose bonus's shapes; only the
+ * What the player holds, off the stream. An empty hand is news too: it is how a
+ * bomb dropped in another tab, or a last spread click, leaves the meter.
+ */
+export function chargesOf(event: PlanetEvent): Charges | undefined {
+    if (event.event.case !== "chargesHeld") return undefined
+
+    return chargesOfMessage(event.event.value)
+}
+
+/** A server too old to send charges answers none, which reads as nothing held. */
+function chargesOfMessage(held: ChargesHeld | undefined): Charges {
+    if (!held) return NO_CHARGES
+
+    return {
+        bomb: held.bomb ? {radius: held.blastRadius} : undefined,
+        enclose: held.enclose ? {maxTiles: held.enclosureMaxTiles} : undefined,
+        spreadClicksLeft: held.spreadClicksLeft,
+    }
+}
+
+/**
+ * An offer carries neither a blast radius nor an enclose shape's size; only the
  * answer to a claim does, which is when they are needed.
  */
 function rewardOf(
     kind: BonusKind,
     seconds: number,
-    {blastRadius = 0, shapes = 0, maxTiles = 0}: {blastRadius?: number, shapes?: number, maxTiles?: number} = {},
+    {blastRadius = 0, maxTiles = 0, spreadClicks = 0}: {blastRadius?: number, maxTiles?: number, spreadClicks?: number} = {},
 ): BonusReward | undefined {
     switch (kind) {
         case BonusKind.TRIPLE_CLICKS:
             return {kind: "tripleClicks", seconds}
         case BonusKind.SPREAD_CLICKS:
-            return {kind: "spreadClicks", seconds}
+            return {kind: "spreadClicks", clicks: spreadClicks}
         case BonusKind.BOMB:
-            return {kind: "bomb", seconds, radius: blastRadius}
+            return {kind: "bomb", radius: blastRadius}
         case BonusKind.ENCLOSE_CLICKS:
-            return {kind: "encloseClicks", seconds, shapes, maxTiles}
+            return {kind: "encloseClicks", maxTiles}
         default:
             return undefined
     }

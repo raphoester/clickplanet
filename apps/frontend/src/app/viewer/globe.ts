@@ -18,6 +18,7 @@ import {
     BonusListener,
     BonusLostError,
     BonusOffer,
+    ClaimedBonus,
     OwnershipsGetter,
     RateLimitedError,
     TileClicker,
@@ -36,7 +37,7 @@ import {createBonusBox} from "./bonusBox.ts";
 import {createBonusPointer} from "./bonusPointer.ts";
 import {createEnclosureEffects} from "./enclosureEffect.ts";
 import {createBonusClickEffects} from "./bonusClickEffects.ts";
-import {BonusReward} from "../../domain/bonus.ts";
+import {BonusReward, Charges, NO_CHARGES} from "../../domain/bonus.ts";
 import {now as monotonicNow} from "../../backends/clickBudget.ts";
 import {BlastUniforms, blastUniforms, createBlasts} from "./blasts.ts";
 import {IMPACT_DELAY} from "../../domain/blast.ts";
@@ -98,8 +99,8 @@ export type GlobeOptions = {
     onBonusTaken: (taken: BonusCatch) => void
     /** What this client won, once the server has agreed to it. */
     onBonusWon: (reward: BonusReward) => void
-    /** This client closed a shape with its enclose bonus, which has this many left. */
-    onShapeClosed: (shapesLeft: number) => void
+    /** What this player holds now, as the server last said. */
+    onCharges: (charges: Charges) => void
     /** Absent for a backend with no bonus feed, which draws no boxes at all. */
     bonusListener?: BonusListener
     /** Absent for a backend with no bombs: a bomb won is then never armed. */
@@ -107,8 +108,8 @@ export type GlobeOptions = {
     /** A bomb landed somewhere on the planet — this client's included. `land` is
      *  the code of the country whose ground it hit, not of who holds the tiles. */
     onBombDropped: (drop: BombDrop, land: string | undefined) => void
-    /** The bomb this client held is gone: dropped, or held too long. */
-    onBombSpent: () => void
+    /** The bomb is aimed, or put away: a press on the planet drops it only while it is aimed. */
+    onArmedChange: (armed: boolean) => void
     /** Read for the globe's whole life, so it must not change identity. */
     playSound?: PlaySound
     signal: AbortSignal
@@ -119,7 +120,9 @@ export type Globe = {
     setCountry(country: Country): void
     /** Plays out a reward as if a box had just been caught and the server had
      *  answered with it. The click path's own step, exposed for dev tooling. */
-    takeReward(reward: BonusReward): void
+    takeReward(claimed: ClaimedBonus): void
+    /** Aims the bomb held, or puts it away. Aiming does nothing without one. */
+    setArmed(armed: boolean): void
     /** The globe as it is framed right now, resolved on the next frame — the
      *  only tick the drawing buffer can be read from. See capture.ts. */
     capture(): Promise<CapturedFrame>
@@ -145,11 +148,11 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         onSessionUnavailable,
         onBonusTaken,
         onBonusWon,
-        onShapeClosed,
+        onCharges,
         bonusListener,
         bomber,
         onBombDropped,
-        onBombSpent,
+        onArmedChange,
         playSound = () => {},
         signal,
     } = options
@@ -222,31 +225,6 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     // and only the player who made it hears it: its tile is one they just clicked.
     const ownClicks = new OwnClicks(OWN_CLICK_WINDOW_SECONDS)
 
-    // The server decides when a box appears and who sees it, so nothing here
-    // schedules one: the stream says so, and the seed it sends is what draws
-    // the orbit. The box ends itself, so there is no matching "hide".
-    const stopBonuses = bonusListener?.listenForBonuses({
-        onOffered: (offer) => {
-            offered = offer
-            // The animation loop's clock is `performance.now()` in seconds, the
-            // same clock the offer's deadline is on.
-            bonusBox.spawn(offer.seed, (offer.expiresAt - CLAIM_MARGIN_MS) / 1000)
-            playSound("bonusSpawn")
-        },
-        onTaken: (taken) => onBonusTaken(taken),
-        onEnclosed: (enclosure) => {
-            enclosures.play(enclosure)
-            if (enclosure.yours) {
-                playSound("enclose")
-                onShapeClosed(enclosure.yours.shapesLeft)
-            }
-        },
-        onSpread: (spread) => {
-            bonusClicks.playSpread(spread)
-            if (ownClicks.has(spread.tile, spread.countryId, performance.now() / 1000)) playSound("spread")
-        },
-    })
-
     const driveBonusBox = (seconds: number) => {
         enclosures.update(seconds, camera, renderer.domElement.height)
         bonusClicks.update(seconds, camera, renderer.domElement.height)
@@ -268,13 +246,19 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     // A blast is usually on the side of the planet nobody is looking at.
     const blastPointer = createBonusPointer(eventTarget, "blast")
 
-    // The bomb this client holds, from the answer to its claim until it is
-    // dropped or lapses.
+    // What the player holds, as the server last said. A bomb is a charge, kept
+    // until it is dropped, so it is not always aimed: aimed, a press on the
+    // planet drops it and a click paints nothing, which nobody could play with
+    // for a day. It is aimed when it is caught, and the meter puts it away and
+    // takes it out again.
+    let charges: Charges = NO_CHARGES
+
+    // The bomb while it is aimed.
     //
     // Aiming follows the sphere under the cursor, not the tile picker: the
     // picker finds nothing between tiles or over the sea, and a ring that
     // followed it blinked off and jumped from tile to tile as the mouse moved.
-    let armed: {endsAt: number, radius: number} | undefined
+    let armed: {radius: number} | undefined
 
     // See domain/holdToDrop.ts: a bomb goes on a press held still, never a click.
     const hold = new HoldToDrop<THREE.Vector3>({holdSeconds: HOLD_TO_DROP_SECONDS, tolerancePx: HOLD_TOLERANCE_PX})
@@ -288,11 +272,26 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     }
 
     const disarm = () => {
+        if (!armed) return
         armed = undefined
         cancelCharge()
         blasts.setAim(undefined, 0)
         eventTarget.classList.remove("viewer-canvas--armed")
-        onBombSpent()
+        onArmedChange(false)
+    }
+
+    const arm = () => {
+        if (armed || !charges.bomb || !bomber) return
+        armed = {radius: charges.bomb.radius}
+        eventTarget.classList.add("viewer-canvas--armed")
+        onArmedChange(true)
+    }
+
+    // A bomb dropped in another tab, or lost to its expiry, is put away here too.
+    const takeCharges = (held: Charges) => {
+        charges = held
+        if (!held.bomb) disarm()
+        onCharges(held)
     }
 
     const aimAt = (point: THREE.Vector3 | undefined) => {
@@ -300,15 +299,40 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         blasts.setAim(point, armed.radius)
     }
 
-    // What the server granted for a caught box. A bomb is armed here; every
-    // reward is then announced the same way.
-    const takeReward = (reward: BonusReward) => {
-        if (reward.kind === "bomb" && bomber) {
-            armed = {endsAt: monotonicNow() + reward.seconds * 1000, radius: reward.radius}
-            eventTarget.classList.add("viewer-canvas--armed")
-        }
+    // What the server granted for a caught box. A bomb is aimed here, since
+    // catching one is when a player wants it; every reward is then announced
+    // the same way.
+    const takeReward = ({reward, charges: held}: ClaimedBonus) => {
+        takeCharges(held)
+        if (reward.kind === "bomb") arm()
         onBonusWon(reward)
     }
+
+    // Subscribed only once everything it calls exists: a feed may say what is
+    // held the moment it is followed.
+    //
+    // The server decides when a box appears and who sees it, so nothing here
+    // schedules one: the stream says so, and the seed it sends is what draws
+    // the orbit. The box ends itself, so there is no matching "hide".
+    const stopBonuses = bonusListener?.listenForBonuses({
+        onOffered: (offer) => {
+            offered = offer
+            // The animation loop's clock is `performance.now()` in seconds, the
+            // same clock the offer's deadline is on.
+            bonusBox.spawn(offer.seed, (offer.expiresAt - CLAIM_MARGIN_MS) / 1000)
+            playSound("bonusSpawn")
+        },
+        onTaken: (taken) => onBonusTaken(taken),
+        onEnclosed: (enclosure) => {
+            enclosures.play(enclosure)
+            if (enclosure.yours) playSound("enclose")
+        },
+        onSpread: (spread) => {
+            bonusClicks.playSpread(spread)
+            if (ownClicks.has(spread.tile, spread.countryId, performance.now() / 1000)) playSound("spread")
+        },
+        onCharges: (held) => takeCharges(held),
+    })
 
     // When this client last dropped one, until its broadcast comes back: the
     // server picks the tile, so the next blast in our colours is ours, for the shake.
@@ -317,10 +341,16 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const dropBomb = (point: THREE.Vector3) => {
         if (!bomber) return
         disarm()
+        // Off the meter at once rather than a round trip later; the server's
+        // own word follows on the stream. A drop that did not reach it gives
+        // the bomb back, and one it refused was not held anyway.
+        const held = charges.bomb
+        takeCharges({...charges, bomb: undefined})
         ownDropAt = performance.now() / 1000
         bomber.dropBomb({x: point.x, y: point.y, z: point.z}, country.code).catch((e) => {
             if (lifetime.signal.aborted) return
             ownDropAt = undefined
+            if (!(e instanceof BonusLostError) && !charges.bomb) takeCharges({...charges, bomb: held})
             reportClaimFailure(e, {onSessionUnavailable})
         })
     }
@@ -368,8 +398,6 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         blasts.update(seconds, camera)
         blastPointer.update(blasts.newest(seconds), camera)
         flushClears(seconds)
-
-        if (armed && monotonicNow() >= armed.endsAt) disarm()
 
         if (armed) {
             const {progress, drop} = hold.tick(seconds)
@@ -444,6 +472,11 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         aimAt(point)
     }, listenerOptions);
 
+    // Escape puts an aimed bomb away, the way it closes everything else.
+    window.addEventListener('keydown', (event: KeyboardEvent) => {
+        if (event.key === "Escape") disarm()
+    }, listenerOptions);
+
     eventTarget.addEventListener('pointermove', (event: PointerEvent) => {
         hold.move(event.pointerId, event.clientX, event.clientY)
     }, listenerOptions);
@@ -490,7 +523,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             return
         }
 
-        // Holding a bomb, a click claims nothing: the bomb goes on a held press.
+        // Aiming a bomb, a click claims nothing: the bomb goes on a held press.
         if (armed) return
 
         const tile = picker.pick(camera, x, y)
@@ -582,6 +615,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             country = newCountry
         },
         takeReward,
+        setArmed: (on: boolean) => on ? arm() : disarm(),
         capture: () => new Promise<CapturedFrame>((resolve, reject) => {
             if (lifetime.signal.aborted) {
                 reject(new Error("the globe is no longer running"))

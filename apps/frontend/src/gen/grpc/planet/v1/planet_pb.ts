@@ -24,26 +24,27 @@ export enum BonusKind {
   TRIPLE_CLICKS = 1,
 
   /**
-   * Every click also takes the tiles touching the one clicked. The server picks
-   * those tiles from its own map, so a client never names what it gets.
+   * A charge: the next few clicks also take the tiles touching the one clicked.
+   * The server picks those tiles from its own map, so a client never names what
+   * it gets.
    *
    * @generated from enum value: BONUS_KIND_SPREAD_CLICKS = 2;
    */
   SPREAD_CLICKS = 2,
 
   /**
-   * One bomb, dropped with DropBomb anywhere on the planet within the duration.
-   * It clears every tile within a few rings of where it lands, whoever holds
-   * them. The server picks the tiles.
+   * A charge: one bomb, dropped with DropBomb anywhere on the planet, kept until
+   * it is. It clears every tile within a few rings of where it lands, whoever
+   * holds them. The server picks the tiles.
    *
    * @generated from enum value: BONUS_KIND_BOMB = 3;
    */
   BOMB = 3,
 
   /**
-   * A click that closes a shape of the player's own tiles also takes the tiles
-   * inside it, a few shapes at most. The server finds the shape, so a client
-   * never names what it gets.
+   * A charge: the next click that closes a shape of the player's own tiles also
+   * takes the tiles inside it. The server finds the shape, so a client never
+   * names what it gets.
    *
    * @generated from enum value: BONUS_KIND_ENCLOSE_CLICKS = 4;
    */
@@ -590,6 +591,18 @@ export class PlanetEvent extends Message<PlanetEvent> {
      */
     value: TilesSpread;
     case: "tilesSpread";
+  } | {
+    /**
+     * Addressed to the streams of one holder — the account the stream's token
+     * named, or the address without one: what it holds now. Sent when the
+     * stream opens, and each time a charge is granted or spent, so every tab
+     * shows the same charges, and a player who comes back sees the ones they
+     * left with.
+     *
+     * @generated from field: planet.v1.ChargesHeld charges_held = 8;
+     */
+    value: ChargesHeld;
+    case: "chargesHeld";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<PlanetEvent>) {
@@ -607,6 +620,7 @@ export class PlanetEvent extends Message<PlanetEvent> {
     { no: 5, name: "bomb_dropped", kind: "message", T: BombDropped, oneof: "event" },
     { no: 6, name: "tiles_enclosed", kind: "message", T: TilesEnclosed, oneof: "event" },
     { no: 7, name: "tiles_spread", kind: "message", T: TilesSpread, oneof: "event" },
+    { no: 8, name: "charges_held", kind: "message", T: ChargesHeld, oneof: "event" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PlanetEvent {
@@ -623,6 +637,84 @@ export class PlanetEvent extends Message<PlanetEvent> {
 
   static equals(a: PlanetEvent | PlainMessage<PlanetEvent> | undefined, b: PlanetEvent | PlainMessage<PlanetEvent> | undefined): boolean {
     return proto3.util.equals(PlanetEvent, a, b);
+  }
+}
+
+/**
+ * The use-once bonuses a player holds. At most one of each kind: while one is
+ * held, no box of that kind is offered. Each is kept until it is spent, or for
+ * a day after it was granted.
+ *
+ * @generated from message planet.v1.ChargesHeld
+ */
+export class ChargesHeld extends Message<ChargesHeld> {
+  /**
+   * A bomb, to be dropped anywhere with DropBomb.
+   *
+   * @generated from field: bool bomb = 1;
+   */
+  bomb = false;
+
+  /**
+   * An enclose charge: the next click that closes a shape of the player's own
+   * tiles takes the tiles inside it, and spends the charge.
+   *
+   * @generated from field: bool enclose = 2;
+   */
+  enclose = false;
+
+  /**
+   * How many of the next clicks also take the tiles touching the one clicked.
+   * Zero is no spread charge.
+   *
+   * @generated from field: uint32 spread_clicks_left = 3;
+   */
+  spreadClicksLeft = 0;
+
+  /**
+   * How wide a bomb's blast is, in radians of arc, so a client that reloaded
+   * with a bomb in hand can still draw the aiming ring. Set whatever is held.
+   *
+   * @generated from field: double blast_radius = 4;
+   */
+  blastRadius = 0;
+
+  /**
+   * The most tiles an enclosed shape may hold. Set whatever is held.
+   *
+   * @generated from field: uint32 enclosure_max_tiles = 5;
+   */
+  enclosureMaxTiles = 0;
+
+  constructor(data?: PartialMessage<ChargesHeld>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.ChargesHeld";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "bomb", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 2, name: "enclose", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 3, name: "spread_clicks_left", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 4, name: "blast_radius", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 5, name: "enclosure_max_tiles", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ChargesHeld {
+    return new ChargesHeld().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ChargesHeld {
+    return new ChargesHeld().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ChargesHeld {
+    return new ChargesHeld().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ChargesHeld | PlainMessage<ChargesHeld> | undefined, b: ChargesHeld | PlainMessage<ChargesHeld> | undefined): boolean {
+    return proto3.util.equals(ChargesHeld, a, b);
   }
 }
 
@@ -653,6 +745,8 @@ export class BonusOffered extends Message<BonusOffered> {
   kind = BonusKind.UNSPECIFIED;
 
   /**
+   * How long a timed bonus runs. Zero for a charge, which runs until spent.
+   *
    * @generated from field: uint32 duration_seconds = 4;
    */
   durationSeconds = 0;
@@ -806,6 +900,8 @@ export class ClaimBonusResponse extends Message<ClaimBonusResponse> {
   kind = BonusKind.UNSPECIFIED;
 
   /**
+   * How long a timed bonus runs. Zero for a charge.
+   *
    * @generated from field: uint32 duration_seconds = 3;
    */
   durationSeconds = 0;
@@ -819,17 +915,26 @@ export class ClaimBonusResponse extends Message<ClaimBonusResponse> {
   blastRadius = 0;
 
   /**
-   * For an enclose bonus only: how many shapes it may close, and the most tiles
-   * one shape may hold. Zero for every other kind.
+   * For an enclose charge: always one shape, now that a charge is one shape.
+   * Kept for a client that still reads it. Zero for every other kind.
    *
    * @generated from field: uint32 enclosures = 5;
    */
   enclosures = 0;
 
   /**
+   * For an enclose charge: the most tiles its shape may hold. Zero otherwise.
+   *
    * @generated from field: uint32 enclosure_max_tiles = 6;
    */
   enclosureMaxTiles = 0;
+
+  /**
+   * What the caller holds once this box is granted.
+   *
+   * @generated from field: planet.v1.ChargesHeld charges = 7;
+   */
+  charges?: ChargesHeld;
 
   constructor(data?: PartialMessage<ClaimBonusResponse>) {
     super();
@@ -845,6 +950,7 @@ export class ClaimBonusResponse extends Message<ClaimBonusResponse> {
     { no: 4, name: "blast_radius", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
     { no: 5, name: "enclosures", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 6, name: "enclosure_max_tiles", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 7, name: "charges", kind: "message", T: ChargesHeld },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ClaimBonusResponse {
@@ -1101,15 +1207,18 @@ export class TilesEnclosed extends Message<TilesEnclosed> {
   filledTileIds: number[] = [];
 
   /**
-   * Set only on the stream of the caller who closed it, with how many shapes
-   * their bonus may still close.
+   * Set only on the stream of the caller who closed it.
    *
    * @generated from field: bool yours = 5;
    */
   yours = false;
 
   /**
-   * @generated from field: uint32 enclosures_left = 6;
+   * Was how many shapes the closer's bonus could still close. A charge is one
+   * shape, so it is always zero; charges_held says what is left.
+   *
+   * @generated from field: uint32 enclosures_left = 6 [deprecated = true];
+   * @deprecated
    */
   enclosuresLeft = 0;
 

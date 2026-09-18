@@ -310,22 +310,22 @@ bonus:
     duration: 20s
     multiplier: 3
 
-  # spread_clicks' own duration. It takes seven tiles a click, so it is short.
+  # Spread, bomb and enclose are charges, with no timer: kept until spent, one of
+  # each kind at most, and no box of a kind held is offered.
+  #
+  # spread_clicks: the next 8 clicks spread, about 56 tiles, a bomb's worth.
   spread:
-    duration: 10s
+    clicks: 8
 
-  # How long a bomb may be held, counted towards maxBoostPerHour, and the radius
-  # of the circle it clears, in tile spacings (10.4 is ~390 tiles inland).
+  # The radius of the circle a bomb clears, in tile spacings (10.4 is ~390 tiles
+  # inland).
   bomb:
-    duration: 30s
     rings: 10.4
 
-  # enclose_clicks: close a shape of your tiles and take the tiles inside it.
-  # A few shapes, a short time: it rewards spotting a shape that is nearly done.
+  # enclose_clicks: one shape of at most 25 tiles, whose wall costs about 20
+  # clicks. A click that closes nothing keeps the charge.
   enclose:
-    duration: 30s
-    shapes: 3
-    maxTiles: 15
+    maxTiles: 25
 
   # A tab left open overnight is not playing, and a box sent to it is one nobody
   # catches. Until the frontend ships, this is every caller.
@@ -337,6 +337,11 @@ bonus:
   # Nothing here is a race, but a script catches every box it is offered where a
   # person catches some. This bounds what that is worth.
   maxBoostPerHour: 15m
+
+  # The same for charges, which have no time to count, and how long one is kept
+  # unspent. A restart loses every charge held: they live in memory.
+  maxChargesPerHour: 6
+  chargeTTL: 24h
 
   sweepInterval: 1s
 

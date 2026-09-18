@@ -33,7 +33,8 @@ ship in the production bundle.
 
 In fake mode the console has a few commands: `giveBomb()` arms a bomb as if a box
 holding one had just been caught, `giveBonus("spreadClicks")` does the same for
-any other bonus, and `fakeBackend.botBomb(tile, "fr")`, `fakeBackend.botSpread(tile, "fr")`
+any other bonus (the fake holds charges as the server does: one of each kind, a
+spread spent a click at a time, an enclose on the next click), and `fakeBackend.botBomb(tile, "fr")`, `fakeBackend.botSpread(tile, "fr")`
 and `fakeBackend.botBoost(tile, "fr")` play somebody else's bomb, spread click or
 boosted click.
 
@@ -945,11 +946,34 @@ Rolling back on *any* failure, including a transport fault, is deliberate: if
 the click did land and only the response was lost, the stream's echo repaints
 it, and if the echo arrives first the rollback is already a no-op.
 
+## Charges
+
+A bonus box holds a triple, which runs for its `seconds`, or a **charge**, which
+has no clock: a bomb (one drop), an enclose (one shape, `maxTiles` at most) or a
+spread (the next few clicks). The server keeps them, per account, for a day, one
+of each kind at most, and it says what is held in `PlanetEvent.chargesHeld` when
+the stream opens and after every grant or spend, and in `ClaimBonusResponse.charges`.
+`chargesOf` reads it into `Charges` (`domain/bonus.ts`); the globe keeps it and
+`useGlobe` hands it to the meter. **Nothing here counts a charge down**: an empty
+hand from the server is how a spread's last click, a shape closed or a bomb
+dropped in another tab leaves the screen.
+
+`ClickBudgetMeter` shows one pill per charge under the meter — "Bomb ready",
+"Enclose ready", "Spread: 5 clicks left" (`chargeLabels`) — and keeps the
+countdown for the triple alone.
+
 ## Bombs
 
-A bonus box can hold a bomb (`BonusReward` kind `bomb`). The player has
-`seconds` to drop it anywhere on the planet, and it clears every tile within
-`radius` of where it lands — the server's call, not this client's. The pieces:
+A bonus box can hold a bomb (`BonusReward` kind `bomb`), kept until it is dropped
+anywhere on the planet. It clears every tile within `radius` of where it lands —
+the server's call, not this client's.
+
+**A bomb is aimed or put away.** Held for a day, it cannot stay aimed: while
+aimed, a click claims no tile. It is aimed when it is caught; the meter's bomb
+pill is a button that puts it away and takes it out again (`Globe.setArmed`), and
+Escape puts it away. The radius comes with the charges, so a bomb still in hand
+after a reload can be aimed. A drop takes the pill off at once and gives it back
+if the call did not reach the server. The pieces:
 `backends/backend.ts` declares `Bomber` and `BombDrop`, `domain/blast.ts` the
 timeline every screen agrees on, `domain/holdToDrop.ts` the gesture,
 `viewer/blasts.ts` the drawing, and `components/BombNews.tsx` the line at the top.

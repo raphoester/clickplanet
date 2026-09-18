@@ -74,7 +74,8 @@ export const ClickService = {
     },
     /**
      * Drops the bomb a caught box granted. Answers NotFound when the caller holds
-     * none — never won, already dropped, or held past its time — and says no more.
+     * none — never won, already dropped, or held past the charge's expiry — and
+     * says no more.
      *
      * @generated from rpc planet.v1.ClickService.DropBomb
      */

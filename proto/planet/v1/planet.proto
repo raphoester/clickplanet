@@ -23,7 +23,8 @@ service ClickService {
   rpc ClaimBonus(ClaimBonusRequest) returns (ClaimBonusResponse);
 
   // Drops the bomb a caught box granted. Answers NotFound when the caller holds
-  // none — never won, already dropped, or held past its time — and says no more.
+  // none — never won, already dropped, or held past the charge's expiry — and
+  // says no more.
   rpc DropBomb(DropBombRequest) returns (DropBombResponse);
 }
 
@@ -143,7 +144,37 @@ message PlanetEvent {
     // Broadcast to everyone, like tiles_enclosed: the tiles arrive as tile
     // updates, and this says a spread bonus is why, so every client can show it.
     TilesSpread tiles_spread = 7;
+
+    // Addressed to the streams of one holder — the account the stream's token
+    // named, or the address without one: what it holds now. Sent when the
+    // stream opens, and each time a charge is granted or spent, so every tab
+    // shows the same charges, and a player who comes back sees the ones they
+    // left with.
+    ChargesHeld charges_held = 8;
   }
+}
+
+// The use-once bonuses a player holds. At most one of each kind: while one is
+// held, no box of that kind is offered. Each is kept until it is spent, or for
+// a day after it was granted.
+message ChargesHeld {
+  // A bomb, to be dropped anywhere with DropBomb.
+  bool bomb = 1;
+
+  // An enclose charge: the next click that closes a shape of the player's own
+  // tiles takes the tiles inside it, and spends the charge.
+  bool enclose = 2;
+
+  // How many of the next clicks also take the tiles touching the one clicked.
+  // Zero is no spread charge.
+  uint32 spread_clicks_left = 3;
+
+  // How wide a bomb's blast is, in radians of arc, so a client that reloaded
+  // with a bomb in hand can still draw the aiming ring. Set whatever is held.
+  double blast_radius = 4;
+
+  // The most tiles an enclosed shape may hold. Set whatever is held.
+  uint32 enclosure_max_tiles = 5;
 }
 
 // What a bonus is worth. The client never decides this, and an unknown kind is
@@ -152,18 +183,19 @@ enum BonusKind {
   BONUS_KIND_UNSPECIFIED = 0;
   BONUS_KIND_TRIPLE_CLICKS = 1;
 
-  // Every click also takes the tiles touching the one clicked. The server picks
-  // those tiles from its own map, so a client never names what it gets.
+  // A charge: the next few clicks also take the tiles touching the one clicked.
+  // The server picks those tiles from its own map, so a client never names what
+  // it gets.
   BONUS_KIND_SPREAD_CLICKS = 2;
 
-  // One bomb, dropped with DropBomb anywhere on the planet within the duration.
-  // It clears every tile within a few rings of where it lands, whoever holds
-  // them. The server picks the tiles.
+  // A charge: one bomb, dropped with DropBomb anywhere on the planet, kept until
+  // it is. It clears every tile within a few rings of where it lands, whoever
+  // holds them. The server picks the tiles.
   BONUS_KIND_BOMB = 3;
 
-  // A click that closes a shape of the player's own tiles also takes the tiles
-  // inside it, a few shapes at most. The server finds the shape, so a client
-  // never names what it gets.
+  // A charge: the next click that closes a shape of the player's own tiles also
+  // takes the tiles inside it. The server finds the shape, so a client never
+  // names what it gets.
   BONUS_KIND_ENCLOSE_CLICKS = 4;
 }
 
@@ -178,6 +210,7 @@ message BonusOffered {
 
   BonusKind kind = 3;
 
+  // How long a timed bonus runs. Zero for a charge, which runs until spent.
   uint32 duration_seconds = 4;
 
   // After this the token is refused, whatever the client is still drawing.
@@ -207,16 +240,22 @@ message ClaimBonusResponse {
 
   BonusKind kind = 2;
 
+  // How long a timed bonus runs. Zero for a charge.
   uint32 duration_seconds = 3;
 
   // For a bomb: how wide its blast is, in radians of arc, so the client can
   // draw the aiming ring at the size of what it will clear. Zero otherwise.
   double blast_radius = 4;
 
-  // For an enclose bonus only: how many shapes it may close, and the most tiles
-  // one shape may hold. Zero for every other kind.
+  // For an enclose charge: always one shape, now that a charge is one shape.
+  // Kept for a client that still reads it. Zero for every other kind.
   uint32 enclosures = 5;
+
+  // For an enclose charge: the most tiles its shape may hold. Zero otherwise.
   uint32 enclosure_max_tiles = 6;
+
+  // What the caller holds once this box is granted.
+  ChargesHeld charges = 7;
 }
 
 // A point on the globe, as a direction from its centre. Need not be unit length.
@@ -270,10 +309,12 @@ message TilesEnclosed {
   // The tiles taken, nearest the closing tile first.
   repeated uint32 filled_tile_ids = 4;
 
-  // Set only on the stream of the caller who closed it, with how many shapes
-  // their bonus may still close.
+  // Set only on the stream of the caller who closed it.
   bool yours = 5;
-  uint32 enclosures_left = 6;
+
+  // Was how many shapes the closer's bonus could still close. A charge is one
+  // shape, so it is always zero; charges_held says what is left.
+  uint32 enclosures_left = 6 [deprecated = true];
 }
 
 // A click made under a spread bonus, and the tiles it spread onto.

@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -22,12 +23,18 @@ const (
 	// KindSpreadClicks makes every click take the tiles touching it as well.
 	KindSpreadClicks Kind = "spread_clicks"
 
-	// KindBomb grants one bomb, to be dropped within the duration.
+	// KindBomb grants one bomb, kept until it is dropped.
 	KindBomb Kind = "bomb"
 	// KindEncloseClicks makes a click that closes a shape of the caller's own
-	// tiles take the tiles inside it as well.
+	// tiles take the tiles inside it as well, once.
 	KindEncloseClicks Kind = "enclose_clicks"
 )
+
+// Timed says whether a kind runs for a time. Only triple clicks does: the others are charges, held
+// until they are spent (see Charges).
+func (k Kind) Timed() bool {
+	return k == KindTripleClicks
+}
 
 // Kinds is every kind this server knows how to grant.
 var Kinds = []Kind{KindTripleClicks, KindSpreadClicks, KindBomb, KindEncloseClicks}
@@ -38,7 +45,9 @@ type Offer struct {
 	// Names the flight path; every client draws the same orbit from it.
 	Seed uint32
 
-	Kind      Kind
+	Kind Kind
+
+	// Zero for a charge, which has no time to run.
 	Duration  time.Duration
 	ExpiresAt time.Time
 }
@@ -63,7 +72,6 @@ type Enclosed struct {
 
 	// Set only on the copy sent to the caller who closed it.
 	Yours bool
-	Left  int
 }
 
 // Spread is a click a spread bonus carried onto the tiles touching it.
@@ -75,26 +83,26 @@ type Spread struct {
 	Neighbours []uint32
 }
 
-// Event carries exactly one: an Offer reaches its caller, the rest everyone.
+// Event carries exactly one: an Offer reaches its caller, Charges the streams of its holder, the rest
+// everyone.
 type Event struct {
 	Offer    *Offer
 	Taken    *Taken
 	Enclosed *Enclosed
 	Spread   *Spread
+	Charges  *Held
 }
 
 type Reward struct {
-	Kind     Kind
-	Duration time.Duration
+	Kind Kind
 
-	// For an enclose bonus only: how many shapes, and how big each may be.
-	Enclosures        int
-	EnclosureMaxTiles int
+	// Zero for a charge.
+	Duration time.Duration
 }
 
 // caller is one scope: its open streams, and the schedule that outlives them.
 type caller struct {
-	streams map[uint64]chan Event
+	streams map[uint64]stream
 
 	nextOfferAt time.Time
 	lastSeen    time.Time
@@ -103,13 +111,20 @@ type caller struct {
 	outstanding string
 	misses      int
 
-	// Each bonus granted, for MaxBoostPerHour.
+	// Each bonus granted, for MaxBoostPerHour and MaxChargesPerHour.
 	grants []grant
+}
+
+// stream is one open feed, and whose charges it is told about: the account its token named, or the scope.
+type stream struct {
+	events chan Event
+	holder Holder
 }
 
 type grant struct {
 	at       time.Time
 	duration time.Duration
+	charge   bool
 }
 
 func (c *caller) watching() bool {
@@ -118,11 +133,15 @@ func (c *caller) watching() bool {
 
 // send drops rather than blocks, as the tile fanout does for a slow subscriber.
 func (c *caller) send(event Event) {
-	for _, events := range c.streams {
-		select {
-		case events <- event:
-		default:
-		}
+	for _, s := range c.streams {
+		s.send(event)
+	}
+}
+
+func (s stream) send(event Event) {
+	select {
+	case s.events <- event:
+	default:
 	}
 }
 
@@ -141,9 +160,10 @@ type Report struct {
 }
 
 type Registry struct {
-	config Config
-	clock  cptime.Clock
-	report Report
+	config  Config
+	clock   cptime.Clock
+	report  Report
+	charges *Charges
 
 	mu      sync.Mutex
 	callers map[string]*caller
@@ -168,12 +188,21 @@ func New(config Config, clock cptime.Clock) *Registry {
 		clock = cptime.SystemClock{}
 	}
 
-	return &Registry{
-		config:  config.withDefaults(),
+	config = config.withDefaults()
+	r := &Registry{
+		config:  config,
 		clock:   clock,
 		callers: make(map[string]*caller),
 		offers:  make(map[string]*pending),
 	}
+	r.charges = NewCharges(config.charges(), clock, r)
+
+	return r
+}
+
+// Charges is the charges this registry's boxes grant, and whose holdings its schedule reads.
+func (r *Registry) Charges() *Charges {
+	return r.charges
 }
 
 // Observe attaches the counters. Optional, so a test builds a registry without
@@ -191,8 +220,9 @@ func (r *Registry) counted(hook func()) {
 	}
 }
 
-// Attend adds a stream to the feed; the returned func must be called when it ends.
-func (r *Registry) Attend(scope string) (<-chan Event, func()) {
+// Attend adds a stream to the feed; the returned func must be called when it ends. The stream is told
+// what holder holds straight away, so a player who comes back sees the charge they left with.
+func (r *Registry) Attend(scope string, holder Holder) (<-chan Event, func()) {
 	now := r.clock.Now()
 
 	r.mu.Lock()
@@ -203,9 +233,14 @@ func (r *Registry) Attend(scope string) (<-chan Event, func()) {
 	r.nextID++
 	id := r.nextID
 
-	events := make(chan Event, eventBuffer)
-	entry.streams[id] = events
+	opened := stream{events: make(chan Event, eventBuffer), holder: holder}
+	entry.streams[id] = opened
 	entry.lastSeen = now
+
+	held := r.charges.Held(holder)
+	opened.send(Event{Charges: &held})
+
+	events := opened.events
 
 	return events, func() { r.leave(scope, id) }
 }
@@ -218,7 +253,7 @@ func (r *Registry) caller(scope string, now time.Time) *caller {
 	}
 
 	entry = &caller{
-		streams:     make(map[uint64]chan Event),
+		streams:     make(map[uint64]stream),
 		nextOfferAt: now.Add(r.window()),
 		lastSeen:    now,
 	}
@@ -271,42 +306,14 @@ func (r *Registry) Claim(token string, scope string) (Reward, bool) {
 	if entry, known := r.callers[scope]; known {
 		entry.outstanding = ""
 		entry.misses = 0
-		entry.grants = append(entry.grants, grant{at: now, duration: offer.duration})
+		entry.grants = append(entry.grants, grant{at: now, duration: offer.duration, charge: !offer.kind.Timed()})
 
-		// A window after the bonus ends, so a second can never land on a running one.
+		// A window after a triple ends, so a second can never land on a running one. A charge has no
+		// end, so it is a window after the claim: a held bomb does not hold back every other box.
 		entry.nextOfferAt = now.Add(offer.duration).Add(r.window())
 	}
 
-	reward := Reward{Kind: offer.kind, Duration: offer.duration}
-	if offer.kind == KindEncloseClicks {
-		reward.Enclosures = r.config.Enclose.Shapes
-		reward.EnclosureMaxTiles = r.config.Enclose.MaxTiles
-	}
-
-	return reward, true
-}
-
-// Dropped brings the next box to a window from now, rather than from when the bomb would have lapsed.
-func (r *Registry) Dropped(scope string) {
-	now := r.clock.Now()
-
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	entry, ok := r.callers[scope]
-	if !ok || entry.outstanding != "" {
-		return
-	}
-
-	entry.nextOfferAt = minTime(entry.nextOfferAt, now.Add(r.window()))
-}
-
-func minTime(a, b time.Time) time.Time {
-	if b.Before(a) {
-		return b
-	}
-
-	return a
+	return Reward{Kind: offer.kind, Duration: offer.duration}, true
 }
 
 func (r *Registry) Publish(taken Taken) {
@@ -314,13 +321,13 @@ func (r *Registry) Publish(taken Taken) {
 }
 
 // PublishEnclosed sends a closed shape to everyone. The caller who closed it gets
-// a copy of their own, which says so and says how many shapes they have left.
+// a copy of their own, which says so.
 func (r *Registry) PublishEnclosed(scope string, enclosed Enclosed) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	theirs := enclosed
-	theirs.Yours, theirs.Left = false, 0
+	theirs.Yours = false
 
 	for other, entry := range r.callers {
 		if other == scope {
@@ -332,6 +339,21 @@ func (r *Registry) PublishEnclosed(scope string, enclosed Enclosed) {
 		}
 
 		entry.send(Event{Enclosed: &theirs})
+	}
+}
+
+// PublishCharges tells every stream of holder what it holds now. Nobody else learns it.
+func (r *Registry) PublishCharges(holder Holder, held Held) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	for _, entry := range r.callers {
+		for _, s := range entry.streams {
+			if s.holder == holder {
+				copied := held
+				s.send(Event{Charges: &copied})
+			}
+		}
 	}
 }
 
@@ -379,9 +401,18 @@ func (r *Registry) sweep() {
 	r.forgetStale(now)
 
 	for scope, entry := range r.callers {
-		if r.due(entry, now) {
-			r.offer(scope, entry, now)
+		if !r.due(entry, now) {
+			continue
 		}
+
+		kinds := r.offerable(entry, now)
+		if kinds.Empty() {
+			// Nothing it may be given: the slot is lost, as it is for a caller who was away.
+			entry.nextOfferAt = now.Add(r.window())
+			continue
+		}
+
+		r.offer(scope, entry, now, kinds)
 	}
 }
 
@@ -391,7 +422,7 @@ func (r *Registry) due(entry *caller, now time.Time) bool {
 		return false
 	}
 
-	if now.Sub(entry.lastClickAt) > r.config.ActiveWithin || r.capped(entry, now) {
+	if now.Sub(entry.lastClickAt) > r.config.ActiveWithin {
 		entry.nextOfferAt = now.Add(r.window())
 		return false
 	}
@@ -399,29 +430,61 @@ func (r *Registry) due(entry *caller, now time.Time) bool {
 	return true
 }
 
-func (r *Registry) capped(entry *caller, now time.Time) bool {
+// offerable is every kind with a weight that the caller may be given now. A kind any of its streams'
+// holders already holds is left out, so nobody holds two of one kind. The hourly caps leave out triple
+// clicks past MaxBoostPerHour of boost time, and every charge past MaxChargesPerHour charges.
+func (r *Registry) offerable(entry *caller, now time.Time) *cpcolls.Set[Kind] {
+	boosted, charged := r.grantedWithinTheHour(entry, now)
+
+	held := cpcolls.NewSet[Kind]()
+	for _, s := range entry.streams {
+		held.Add(r.charges.Held(s.holder).Kinds()...)
+	}
+
+	kinds := cpcolls.NewSetWithCapacity[Kind](len(Kinds))
+	for _, kind := range Kinds {
+		switch {
+		case r.config.Kinds[kind] <= 0, held.Contains(kind):
+		case kind.Timed() && boosted >= r.config.MaxBoostPerHour:
+		case !kind.Timed() && charged >= r.config.MaxChargesPerHour:
+		default:
+			kinds.Add(kind)
+		}
+	}
+
+	return kinds
+}
+
+// grantedWithinTheHour is the boost time and the number of charges granted in the last hour. It forgets
+// the grants older than that on the way.
+func (r *Registry) grantedWithinTheHour(entry *caller, now time.Time) (time.Duration, int) {
 	since := now.Add(-time.Hour)
 
 	kept := entry.grants[:0]
-	total := time.Duration(0)
+	boosted, charged := time.Duration(0), 0
 	for _, g := range entry.grants {
-		if g.at.After(since) {
-			kept = append(kept, g)
-			total += g.duration
+		if !g.at.After(since) {
+			continue
+		}
+		kept = append(kept, g)
+		if g.charge {
+			charged++
+		} else {
+			boosted += g.duration
 		}
 	}
 	entry.grants = kept
 
-	return total >= r.config.MaxBoostPerHour
+	return boosted, charged
 }
 
-func (r *Registry) offer(scope string, entry *caller, now time.Time) {
+func (r *Registry) offer(scope string, entry *caller, now time.Time, kinds *cpcolls.Set[Kind]) {
 	token, err := newToken()
 	if err != nil {
 		return
 	}
 
-	kind := r.drawKind()
+	kind := r.drawKind(kinds)
 	offer := Offer{
 		Token:     token,
 		Seed:      randomSeed(),
@@ -494,33 +557,35 @@ func (r *Registry) window() time.Duration {
 	return r.config.MinInterval + time.Duration(n.Int64())
 }
 
-// drawKind picks a kind with a chance of its weight over the sum of the weights.
+// drawKind picks one of kinds with a chance of its weight over the sum of their weights.
 // It walks Kinds rather than the map, so the same draw always lands on the same
-// kind.
-func (r *Registry) drawKind() Kind {
+// kind. kinds is never empty, and holds only kinds with a weight.
+func (r *Registry) drawKind(kinds *cpcolls.Set[Kind]) Kind {
 	total := 0.0
+	var last Kind
 	for _, kind := range Kinds {
-		total += r.config.Kinds[kind]
+		if kinds.Contains(kind) {
+			total += r.config.Kinds[kind]
+			last = kind
+		}
 	}
 
 	const resolution = 1 << 53
 	n, err := rand.Int(rand.Reader, big.NewInt(resolution))
 	if err != nil {
-		return KindTripleClicks
+		return last
 	}
 
 	left := float64(n.Int64()) / resolution * total
-	last := KindTripleClicks
 	for _, kind := range Kinds {
 		weight := r.config.Kinds[kind]
-		if weight <= 0 {
+		if !kinds.Contains(kind) {
 			continue
 		}
 		if left < weight {
 			return kind
 		}
 		left -= weight
-		last = kind
 	}
 
 	// Only float rounding reaches here; it belongs to the last kind with a weight.

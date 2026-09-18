@@ -111,9 +111,9 @@ describe("BonusAward", () => {
     it("wears a different mark and colour for each kind of bonus", () => {
         const rewards = [
             {kind: "tripleClicks", seconds: 60},
-            {kind: "spreadClicks", seconds: 60},
-            {kind: "bomb", seconds: 60, radius: 0.1},
-            {kind: "encloseClicks", seconds: 60, shapes: 2, maxTiles: 200},
+            {kind: "spreadClicks", clicks: 8},
+            {kind: "bomb", radius: 0.1},
+            {kind: "encloseClicks", maxTiles: 25},
         ] as const
 
         const looks = rewards.map(reward => {

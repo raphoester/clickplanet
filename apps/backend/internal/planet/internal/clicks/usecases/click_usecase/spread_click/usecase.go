@@ -1,4 +1,4 @@
-// Package spread_click is the spread bonus: while it runs, a click also takes
+// Package spread_click is the spread bonus: each click it has left also takes
 // every tile touching the one clicked.
 //
 // The server picks those tiles off its own map. A client that named them would
@@ -10,13 +10,13 @@ import (
 	"fmt"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
-// Spreads says whether a caller holds a running spread bonus.
+// Spreads spends one click of a caller's spread charge, and says whether there was one.
 type Spreads interface {
-	Spreading(scope string) bool
+	SpendSpreadClick(holder bonuses.Holder) bool
 }
 
 // Neighbours is the part of clicks.Geography this reads.
@@ -52,7 +52,7 @@ type UseCase struct {
 }
 
 // Execute spreads only a click the rule accepted, so a refused country or tile
-// spreads nothing. The neighbours need no check of their own: the map only
+// spreads nothing and costs no spread click. The neighbours need no check of their own: the map only
 // holds real tiles, and the country is the one the rule just accepted.
 //
 // A tile with no neighbours — one of the lone islands — takes itself and
@@ -60,7 +60,7 @@ type UseCase struct {
 // otherwise.
 func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_usecase.Out, error) {
 	out, err := u.implementation.Execute(ctx, in)
-	if err != nil || !u.spreads.Spreading(cpctx.RateLimitKey(ctx)) {
+	if err != nil || !u.spreads.SpendSpreadClick(bonuses.HolderOf(clicks.PayerOf(ctx))) {
 		return out, err
 	}
 

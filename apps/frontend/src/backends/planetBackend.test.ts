@@ -1,11 +1,12 @@
 import {describe, expect, it, vi} from "vitest"
-import {asBonusError, bindingsOf, bombOf, catchOf, enclosureOf, offerOf, PlanetBackend, spreadOf, updateOf} from "./planetBackend.ts"
+import {asBonusError, bindingsOf, bombOf, catchOf, chargesOf, enclosureOf, offerOf, PlanetBackend, spreadOf, updateOf} from "./planetBackend.ts"
 import {Code, ConnectError} from "@connectrpc/connect"
 import {
     BombDropped,
     BonusKind,
     BonusOffered,
     BonusTaken,
+    ChargesHeld,
     ClickBudget as ClickBudgetMessage,
     GetMapResponse,
     GlobePoint,
@@ -503,20 +504,65 @@ describe("PlanetBackend click budget", () => {
         }
     })
 
-    it("reads how many shapes an enclose claim is worth, and how big", async () => {
+    it("reads how big a shape an enclose charge closes, and what is held once it is granted", async () => {
         const claimBonus = vi.fn().mockResolvedValue({
             budget: budget(10),
             kind: BonusKind.ENCLOSE_CLICKS,
-            durationSeconds: 30,
-            enclosures: 3,
-            enclosureMaxTiles: 10,
+            enclosures: 1,
+            enclosureMaxTiles: 25,
+            charges: new ChargesHeld({enclose: true, spreadClicksLeft: 3, blastRadius: 0.03, enclosureMaxTiles: 25}),
         })
         const client = {...budgetClient(vi.fn()) as object, claimBonus} as never
         const backend = new PlanetBackend(client, 1_000)
 
-        await expect(backend.claimBonus("t", "fr"))
-            .resolves.toEqual({kind: "encloseClicks", seconds: 30, shapes: 3, maxTiles: 10})
+        await expect(backend.claimBonus("t", "fr")).resolves.toEqual({
+            reward: {kind: "encloseClicks", maxTiles: 25},
+            charges: {bomb: undefined, enclose: {maxTiles: 25}, spreadClicksLeft: 3},
+        })
         backend.close()
+    })
+
+    it("reads a spread claim as the clicks it is worth", async () => {
+        const claimBonus = vi.fn().mockResolvedValue({
+            budget: budget(10),
+            kind: BonusKind.SPREAD_CLICKS,
+            charges: new ChargesHeld({spreadClicksLeft: 8}),
+        })
+        const client = {...budgetClient(vi.fn()) as object, claimBonus} as never
+        const backend = new PlanetBackend(client, 1_000)
+
+        const claimed = await backend.claimBonus("t", "fr")
+
+        expect(claimed.reward).toEqual({kind: "spreadClicks", clicks: 8})
+        expect(claimed.charges.spreadClicksLeft).toBe(8)
+        backend.close()
+    })
+
+    it("asks for no reading when a charge is caught, since a charge never ends on a clock", async () => {
+        vi.useFakeTimers()
+        try {
+            const getBudget = vi.fn().mockResolvedValue({budget: budget(10)})
+            const claimBonus = vi.fn().mockResolvedValue({
+                budget: budget(10),
+                kind: BonusKind.BOMB,
+                blastRadius: 0.03,
+                charges: new ChargesHeld({bomb: true, blastRadius: 0.03}),
+            })
+            const client = {...budgetClient(vi.fn(), getBudget) as object, claimBonus} as never
+            const backend = new PlanetBackend(client, 1_000)
+            await vi.waitFor(() => expect(getBudget).toHaveBeenCalledTimes(1))
+
+            const claimed = await backend.claimBonus("t", "fr")
+            expect(claimed.reward).toEqual({kind: "bomb", radius: 0.03})
+            expect(claimed.charges.bomb).toEqual({radius: 0.03})
+
+            await vi.advanceTimersByTimeAsync(60_000)
+
+            expect(getBudget).toHaveBeenCalledTimes(1)
+            backend.close()
+        } finally {
+            vi.useRealTimers()
+        }
     })
 
     it("reads the price the server sends, already divided into clicks", async () => {
@@ -645,8 +691,8 @@ describe("offerOf", () => {
     })
 
     it("reads a bomb box as one, with no blast radius until it is claimed", () => {
-        expect(offerOf(offered({kind: BonusKind.BOMB, durationSeconds: 30}))?.reward)
-            .toEqual({kind: "bomb", seconds: 30, radius: 0})
+        expect(offerOf(offered({kind: BonusKind.BOMB, durationSeconds: 0}))?.reward)
+            .toEqual({kind: "bomb", radius: 0})
     })
 
     it("reads an enclose box as one", () => {
@@ -654,8 +700,8 @@ describe("offerOf", () => {
     })
 
     it("reads a spread box as one", () => {
-        expect(offerOf(offered({kind: BonusKind.SPREAD_CLICKS}))?.reward)
-            .toEqual({kind: "spreadClicks", seconds: 60})
+        expect(offerOf(offered({kind: BonusKind.SPREAD_CLICKS, durationSeconds: 0}))?.reward.kind)
+            .toBe("spreadClicks")
     })
 
     it("drops a kind this build cannot describe rather than guessing at it", () => {
@@ -706,8 +752,8 @@ describe("enclosureOf", () => {
         })
     })
 
-    it("says how many shapes are left only when the shape is this client's", () => {
-        expect(enclosureOf(enclosed({yours: true, enclosuresLeft: 0}))?.yours).toEqual({shapesLeft: 0})
+    it("says when the shape is this client's", () => {
+        expect(enclosureOf(enclosed({yours: true}))?.yours).toBe(true)
         expect(enclosureOf(enclosed({yours: false}))?.yours).toBeUndefined()
     })
 
@@ -727,6 +773,28 @@ describe("spreadOf", () => {
 
     it("drops everything that is not a spread click", () => {
         expect(spreadOf(new PlanetEvent({event: {case: "heartbeat", value: new Heartbeat()}}))).toBeUndefined()
+    })
+})
+
+describe("chargesOf", () => {
+    const held = (fields: Partial<ChargesHeld> = {}) => new PlanetEvent({
+        event: {case: "chargesHeld", value: new ChargesHeld({blastRadius: 0.03, enclosureMaxTiles: 25, ...fields})},
+    })
+
+    it("reads every charge held, with the sizes that use them", () => {
+        expect(chargesOf(held({bomb: true, enclose: true, spreadClicksLeft: 5}))).toEqual({
+            bomb: {radius: 0.03},
+            enclose: {maxTiles: 25},
+            spreadClicksLeft: 5,
+        })
+    })
+
+    it("reads an empty hand as nothing held, which is how the last charge leaves the meter", () => {
+        expect(chargesOf(held())).toEqual({bomb: undefined, enclose: undefined, spreadClicksLeft: 0})
+    })
+
+    it("drops everything that is not the charges", () => {
+        expect(chargesOf(new PlanetEvent({event: {case: "heartbeat", value: new Heartbeat()}}))).toBeUndefined()
     })
 })
 
