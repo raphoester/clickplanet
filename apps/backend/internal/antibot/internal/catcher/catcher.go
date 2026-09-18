@@ -43,7 +43,8 @@ const (
 	defaultMinCatches    = 5
 	defaultMaxMedian     = 3 * time.Second
 	defaultCertainMedian = 1500 * time.Millisecond
-	defaultTrackWindow   = 30 * time.Minute
+	// Five boxes at bonus's slowest pace: 8m of window, 2m of triple and 15s of flight each.
+	defaultTrackWindow   = time.Hour
 	defaultSweepInterval = time.Minute
 )
 
