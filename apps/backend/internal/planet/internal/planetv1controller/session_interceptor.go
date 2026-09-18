@@ -46,6 +46,8 @@ func NewSessionInterceptor(
 		planetv1connect.ClickServiceClaimBonusProcedure,
 		// A bomb writes the map, so it asks for what a click does.
 		planetv1connect.ClickServiceDropBombProcedure,
+		// A refill fills the allowance clicks spend, so it asks for what a click does.
+		planetv1connect.ClickServiceUseRefillProcedure,
 	)
 }
 

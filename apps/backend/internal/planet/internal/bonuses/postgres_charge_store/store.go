@@ -28,7 +28,7 @@ var _ inmemory_charge_storage.Persistence = (*Store)(nil)
 
 func (s *Store) Load(ctx context.Context, visit func(bonuses.Holder, bonuses.Hand)) error {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT account::text, bomb_until, enclose_until, spread_until, spread_clicks FROM charges`)
+		`SELECT account::text, refill_until, bomb_until, enclose_until, spread_until, spread_clicks FROM charges`)
 	if err != nil {
 		return fmt.Errorf("failed to read the charges: %w", err)
 	}
@@ -36,14 +36,15 @@ func (s *Store) Load(ctx context.Context, visit func(bonuses.Holder, bonuses.Han
 
 	for rows.Next() {
 		var (
-			account               string
-			bomb, enclose, spread sql.NullTime
-			spreadClicks          int
+			account                       string
+			refill, bomb, enclose, spread sql.NullTime
+			spreadClicks                  int
 		)
-		if err := rows.Scan(&account, &bomb, &enclose, &spread, &spreadClicks); err != nil {
+		if err := rows.Scan(&account, &refill, &bomb, &enclose, &spread, &spreadClicks); err != nil {
 			return fmt.Errorf("failed to scan a hand: %w", err)
 		}
 		visit(bonuses.Holder(account), bonuses.Hand{
+			Refill:       timeOf(refill),
 			Bomb:         timeOf(bomb),
 			Enclose:      timeOf(enclose),
 			Spread:       timeOf(spread),
@@ -61,10 +62,10 @@ func (s *Store) Load(ctx context.Context, visit func(bonuses.Holder, bonuses.Han
 // Save deletes the hands that hold nothing and writes the others, in one transaction.
 func (s *Store) Save(ctx context.Context, hands map[bonuses.Holder]bonuses.Hand) error {
 	var (
-		gone                     []string
-		accounts                 []string
-		bombs, encloses, spreads []sql.NullTime
-		spreadClicks             []int64
+		gone                              []string
+		accounts                          []string
+		refills, bombs, encloses, spreads []sql.NullTime
+		spreadClicks                      []int64
 	)
 	for _, holder := range slices.Sorted(maps.Keys(hands)) {
 		hand := hands[holder]
@@ -73,6 +74,7 @@ func (s *Store) Save(ctx context.Context, hands map[bonuses.Holder]bonuses.Hand)
 			continue
 		}
 		accounts = append(accounts, string(holder))
+		refills = append(refills, nullTime(hand.Refill))
 		bombs = append(bombs, nullTime(hand.Bomb))
 		encloses = append(encloses, nullTime(hand.Enclose))
 		spreads = append(spreads, nullTime(hand.Spread))
@@ -93,14 +95,17 @@ func (s *Store) Save(ctx context.Context, hands map[bonuses.Holder]bonuses.Hand)
 
 	if len(accounts) > 0 {
 		if _, err := tx.ExecContext(ctx, `
-			INSERT INTO charges (account, bomb_until, enclose_until, spread_until, spread_clicks)
-			SELECT * FROM unnest($1::uuid[], $2::timestamptz[], $3::timestamptz[], $4::timestamptz[], $5::integer[])
+			INSERT INTO charges (account, refill_until, bomb_until, enclose_until, spread_until, spread_clicks)
+			SELECT * FROM unnest($1::uuid[], $2::timestamptz[], $3::timestamptz[], $4::timestamptz[],
+				$5::timestamptz[], $6::integer[])
 			ON CONFLICT (account) DO UPDATE SET
+				refill_until = EXCLUDED.refill_until,
 				bomb_until = EXCLUDED.bomb_until,
 				enclose_until = EXCLUDED.enclose_until,
 				spread_until = EXCLUDED.spread_until,
 				spread_clicks = EXCLUDED.spread_clicks
-		`, pq.Array(accounts), pq.Array(bombs), pq.Array(encloses), pq.Array(spreads), pq.Array(spreadClicks)); err != nil {
+		`, pq.Array(accounts), pq.Array(refills), pq.Array(bombs), pq.Array(encloses), pq.Array(spreads),
+			pq.Array(spreadClicks)); err != nil {
 			return fmt.Errorf("failed to write the hands: %w", err)
 		}
 	}

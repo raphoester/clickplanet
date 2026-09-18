@@ -69,8 +69,7 @@ func TestASinkFramesABoxOfferedToThisCaller(t *testing.T) {
 		Offer: &bonuses.Offer{
 			Token:     "a-token",
 			Seed:      42,
-			Kind:      bonuses.KindTripleClicks,
-			Duration:  time.Minute,
+			Kind:      bonuses.KindRefill,
 			ExpiresAt: time.Unix(0, 0).Add(15 * time.Second),
 		},
 	}))
@@ -79,7 +78,6 @@ func TestASinkFramesABoxOfferedToThisCaller(t *testing.T) {
 	require.NotNil(t, offered, "expected a bonus_offered case, got %+v", stream.sent[0].GetEvent())
 	assert.Equal(t, "a-token", offered.GetToken())
 	assert.Equal(t, uint32(42), offered.GetSeed())
-	assert.Equal(t, uint32(60), offered.GetDurationSeconds())
 	assert.Equal(t, int64(15_000), offered.GetExpiresAtUnixMs())
 }
 
@@ -87,7 +85,7 @@ func TestASinkFramesACatchWithNoTokenOnIt(t *testing.T) {
 	stream := &recorder{}
 
 	require.NoError(t, listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{
-		Taken: &bonuses.Taken{CountryID: "jp", Kind: bonuses.KindTripleClicks},
+		Taken: &bonuses.Taken{CountryID: "jp", Kind: bonuses.KindRefill},
 	}))
 
 	taken := stream.sent[0].GetBonusTaken()
@@ -146,18 +144,6 @@ func TestASinkFramesASpreadClick(t *testing.T) {
 	assert.Equal(t, "br", spread.GetCountryId())
 	assert.Equal(t, uint32(100), spread.GetTileId())
 	assert.Equal(t, []uint32{99, 101}, spread.GetSpreadTileIds())
-}
-
-func TestASinkSaysATileUpdateWasBoosted(t *testing.T) {
-	stream := &recorder{}
-
-	require.NoError(t, listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{
-		Update: clicks.TileUpdate{Tile: 42, Value: "it", Boosted: true},
-	}))
-
-	update := stream.sent[0].GetTileUpdate()
-	require.NotNil(t, update)
-	assert.True(t, update.GetBoosted())
 }
 
 func TestAHeartbeatStillWinsOverEverything(t *testing.T) {

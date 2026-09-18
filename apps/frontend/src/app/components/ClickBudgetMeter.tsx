@@ -1,24 +1,19 @@
-import {useEffect, useRef} from 'react'
+import {useEffect, useRef, useState} from 'react'
 import {ClickBudget, nextClickProgress, now, secondsToOneMore, tokensAt} from "../../backends/clickBudget.ts"
-import {ActiveBonus, chargeLabels, Charges, describeReward, NO_CHARGES, secondsLeft} from "../../domain/bonus.ts"
+import {chargeLabels, Charges, NO_CHARGES} from "../../domain/bonus.ts"
 import {describePrice, factor} from "../../domain/clickPrice.ts"
 import "./ClickBudgetMeter.css"
 
 export type ClickBudgetMeterProps = {
     budget?: ClickBudget
     /**
-     * The triple currently running, if any. The meter is the one place that says
-     * a bonus is live, because it is where the allowance is read — and once the
-     * backend grants the boost, the fill rate speeds up on its own off the
-     * server's policy, with nothing here to change.
-     */
-    bonus?: ActiveBonus
-    /**
-     * The charges held: a bomb, an enclose, a spread's clicks. Said under the
-     * meter with no countdown, since none of them runs out while the player
-     * plays — each lasts until it is spent.
+     * The charges held: a refill, a bomb, an enclose, a spread's clicks. Said
+     * under the meter with no countdown, since none of them runs out while the
+     * player plays — each lasts until it is spent.
      */
     charges?: Charges
+    /** Fills the bank with the refill held. Absent, the refill is only said. */
+    onUseRefill?: () => void
     /** Whether the bomb held is aimed, so its button can say which way it goes. */
     bombArmed?: boolean
     /** Aims the bomb held, or puts it away. Absent, the bomb is only said. */
@@ -69,8 +64,8 @@ const STEP_MS = 250
  */
 export default function ClickBudgetMeter({
     budget,
-    bonus,
     charges = NO_CHARGES,
+    onUseRefill,
     bombArmed = false,
     onToggleBomb,
     countryName = "",
@@ -79,7 +74,6 @@ export default function ClickBudgetMeter({
 }: ClickBudgetMeterProps) {
     const root = useRef<HTMLDivElement>(null)
     const count = useRef<HTMLSpanElement>(null)
-    const countdown = useRef<HTMLSpanElement>(null)
     const wait = useRef<HTMLSpanElement>(null)
 
     useEffect(() => {
@@ -105,7 +99,6 @@ export default function ClickBudgetMeter({
         if (!box || !label) return
 
         let shown = -1
-        let shownSecond = -1
         let shownWait = ""
 
         const bar = budget.capacity > MAX_PIPS
@@ -114,16 +107,6 @@ export default function ClickBudgetMeter({
             const at = now()
             const tokens = tokensAt(budget, at)
             const whole = Math.floor(tokens)
-
-            // Written the same way the count is — only when the displayed value
-            // changes, so a 60 second bonus costs 60 writes and not 3,600.
-            if (bonus && countdown.current) {
-                const left = secondsLeft(bonus, at)
-                if (left !== shownSecond) {
-                    shownSecond = left
-                    countdown.current.textContent = `${left}s`
-                }
-            }
 
             // One write, and every pip works out its own share of it.
             box.style.setProperty("--click-budget-tokens", tokens.toFixed(3))
@@ -165,7 +148,7 @@ export default function ClickBudgetMeter({
         })
 
         return () => cancelAnimationFrame(frame)
-    }, [budget, bonus])
+    }, [budget])
 
     // A backend that reports no allowance is one that enforces none here.
     if (!budget) return null
@@ -177,7 +160,7 @@ export default function ClickBudgetMeter({
     const whole = Math.floor(tokensAt(budget, now()))
 
     const price = describePrice(budget.price, countryName)
-    const className = ["click-budget", bonus && "click-budget-boosted", price && "click-budget-priced"]
+    const className = ["click-budget", price && "click-budget-priced"]
         .filter(Boolean).join(" ")
 
     // Said only when the server says what it is worth: a number made up here could promise what it does not grant.
@@ -192,11 +175,6 @@ export default function ClickBudgetMeter({
         aria-valuemax={budget.capacity}
         aria-label="Clicks left before the server slows you down"
         style={{"--click-budget-capacity": budget.capacity} as React.CSSProperties}>
-
-        {bonus && <span className="click-budget-bonus">
-            <span className="click-budget-bonus-badge">{describeReward(bonus.reward).badge}</span>
-            <span ref={countdown} className="click-budget-bonus-left">{secondsLeft(bonus, now())}s</span>
-        </span>}
 
         <div className="click-budget-count">
             <span ref={count} className="click-budget-number">{whole}</span>
@@ -222,7 +200,16 @@ export default function ClickBudgetMeter({
         </div>}
     </div>
 
-        <ChargesHeld charges={charges} bombArmed={bombArmed} onToggleBomb={onToggleBomb}/>
+        <ChargesHeld charges={charges}
+                     bombArmed={bombArmed}
+                     onToggleBomb={onToggleBomb}
+                     onUseRefill={onUseRefill && (() => {
+                         // A refill on a full bank would be wasted, so the press
+                         // says so and sends nothing. The server refuses it too.
+                         if (tokensAt(budget, now()) >= budget.capacity) return false
+                         onUseRefill()
+                         return true
+                     })}/>
 
         {speedUp && <button type="button" className="click-budget-sign-in" onClick={onSignIn}>
             <BoltIcon/>
@@ -241,21 +228,43 @@ function waitText(budget: ClickBudget, at: number): string {
     return left === undefined ? "" : `+1 in ${Math.ceil(left)}s`
 }
 
+/** How long "Bank already full" stays on the refill pill. */
+const FULL_NOTICE_MS = 2000
+
 /**
- * One pill per charge held. The bomb's is a button: a bomb held for a day
- * cannot stay aimed for a day, since an aimed bomb turns every click into a
- * press that drops it, so the player takes it out and puts it away here.
+ * One pill per charge held. Two are buttons. The bomb's aims it and puts it
+ * away: a bomb held for a day cannot stay aimed for a day, since an aimed bomb
+ * turns every click into a press that drops it. The refill's fills the bank,
+ * when the player chooses.
  */
-function ChargesHeld({charges, bombArmed, onToggleBomb}: {
+function ChargesHeld({charges, bombArmed, onToggleBomb, onUseRefill}: {
     charges: Charges
     bombArmed: boolean
     onToggleBomb?: () => void
+    /** Answers false when the bank is full, and nothing was sent. */
+    onUseRefill?: () => boolean
 }) {
+    const [full, setFull] = useState(false)
+
+    useEffect(() => {
+        if (!full) return
+        const timer = setTimeout(() => setFull(false), FULL_NOTICE_MS)
+        return () => clearTimeout(timer)
+    }, [full])
+
     const labels = chargeLabels(charges)
     if (labels.length === 0) return null
 
     return <div className="click-budget-charges" role="status" aria-label="Bonuses held">
-        {labels.map(({kind, label}) => kind === "bomb" && onToggleBomb
+        {labels.map(({kind, label}) => kind === "refill" && onUseRefill
+            ? <button key={kind}
+                      type="button"
+                      className={`click-budget-charge click-budget-charge--refill${full ? " click-budget-charge--full" : ""}`}
+                      title="Fill your clicks to full"
+                      onClick={() => setFull(!onUseRefill())}>
+                {full ? "Bank already full" : label}
+            </button>
+            : kind === "bomb" && onToggleBomb
             ? <button key={kind}
                       type="button"
                       className={`click-budget-charge click-budget-charge--bomb${bombArmed ? " click-budget-charge--armed" : ""}`}

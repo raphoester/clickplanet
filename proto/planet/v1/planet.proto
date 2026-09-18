@@ -27,6 +27,11 @@ service ClickService {
   // says no more.
   rpc DropBomb(DropBombRequest) returns (DropBombResponse);
 
+  // Spends the refill a caught box granted: the caller's click bank is filled
+  // to its capacity. Answers NotFound when the caller holds none, and
+  // FailedPrecondition when the bank is already full, which spends nothing.
+  rpc UseRefill(UseRefillRequest) returns (UseRefillResponse);
+
   // What the caller holds: read once when the page loads, and again when the
   // caller's account changes. Everything after is the client's own arithmetic
   // on its own calls. Not NO_SIDE_EFFECTS, like GetBudget: the answer is about
@@ -169,6 +174,9 @@ message PlanetEvent {
 // that kind is offered. Each is kept until it is spent, or for a day after it
 // was granted.
 message ChargesHeld {
+  // A refill, to fill the click bank with UseRefill.
+  bool refill = 4;
+
   // A bomb, to be dropped anywhere with DropBomb.
   bool bomb = 1;
 
@@ -207,7 +215,9 @@ message GetBonusRulesResponse {
 // one a client skips rather than guesses at.
 enum BonusKind {
   BONUS_KIND_UNSPECIFIED = 0;
-  BONUS_KIND_TRIPLE_CLICKS = 1;
+
+  // A charge: fills the player's click bank to full, when the player chooses.
+  BONUS_KIND_REFILL = 5;
 
   // A charge: the next few clicks also take the tiles touching the one clicked.
   // The server picks those tiles from its own map, so a client never names what
@@ -236,9 +246,6 @@ message BonusOffered {
 
   BonusKind kind = 3;
 
-  // How long a timed bonus runs. Zero for a charge, which runs until spent.
-  uint32 duration_seconds = 4;
-
   // After this the token is refused, whatever the client is still drawing.
   int64 expires_at_unix_ms = 5;
 }
@@ -259,18 +266,23 @@ message ClaimBonusRequest {
 }
 
 message ClaimBonusResponse {
-  // The allowance as it stands with the bonus applied, so the client does not
-  // have to wait for its next click to see the faster refill. A kind that does
-  // not speed it up answers the allowance unchanged.
-  ClickBudget budget = 1;
-
   BonusKind kind = 2;
-
-  // How long a timed bonus runs. Zero for a charge.
-  uint32 duration_seconds = 3;
 
   // What the caller holds once this box is granted.
   ChargesHeld charges = 7;
+}
+
+message UseRefillRequest {
+  // The country the allowance that comes back is priced for.
+  string country_id = 1;
+}
+
+message UseRefillResponse {
+  // The allowance once the bank is full.
+  ClickBudget budget = 1;
+
+  // What the caller holds once the refill is spent.
+  ChargesHeld charges = 2;
 }
 
 // A point on the globe, as a direction from its centre. Need not be unit length.
@@ -345,7 +357,4 @@ message TileUpdate {
   uint32 tile_id = 1;
   string country_id = 2;
   string previous_country_id = 3;
-
-  // The click that made this change was made under a triple clicks bonus.
-  bool boosted = 4;
 }

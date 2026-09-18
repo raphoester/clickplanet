@@ -268,10 +268,6 @@ func (s *stubTiles) Set(_ context.Context, tile uint32, value string) error {
 	return nil
 }
 
-func (s *stubTiles) SetBoosted(ctx context.Context, tile uint32, value string) error {
-	return s.Set(ctx, tile, value)
-}
-
 func TestRecordingNotesTheCallersScopeAndOnlyAChange(t *testing.T) {
 	tiles := &stubTiles{owners: map[uint32]string{1: "de", 2: "fr"}}
 	takings := inmemory_ledger_storage.New(inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence(), slog.New(slog.DiscardHandler))
@@ -280,7 +276,7 @@ func TestRecordingNotesTheCallersScopeAndOnlyAChange(t *testing.T) {
 	ctx := cpctx.AddIPToContext(t.Context(), "2001:db8::1")
 
 	require.NoError(t, recording.Set(ctx, 1, "fr"))
-	require.NoError(t, recording.SetBoosted(ctx, 2, "fr"))
+	require.NoError(t, recording.Set(ctx, 2, "fr"))
 
 	assert.Equal(t, []ledger.Taking{{Tile: 1, Scope: "2001:db8::/64", Country: "fr", Previous: "de", At: start}},
 		replay(takings), "a v6 caller is its /64, and a tile it already held is no take")

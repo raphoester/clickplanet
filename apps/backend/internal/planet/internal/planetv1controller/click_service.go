@@ -11,6 +11,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_map_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/map_density_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/use_refill_handler"
 )
 
 // ClickService exists because the generated handler wants one value carrying all
@@ -36,6 +37,7 @@ type ClickService struct {
 	drop_bomb_handler.DropBombHandler
 	get_charges_handler.GetChargesHandler
 	get_bonus_rules_handler.GetBonusRulesHandler
+	use_refill_handler.UseRefillHandler
 }
 
 var _ planetv1connect.ClickServiceHandler = ClickService{}

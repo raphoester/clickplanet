@@ -139,8 +139,7 @@ bonus:
   # A caller's next box is due this long after the last one, drawn uniformly.
   # The spread is for feel: a script does not predict the schedule, it watches
   # the stream, so nothing here is hidden from one. 4m to 8m is about ten boxes
-  # an hour, fewer for a player who catches them: the next is due a window after
-  # the bonus ends.
+  # an hour: the next is due a window after the last was offered, or claimed.
   minInterval: 4m
   maxInterval: 8m
 
@@ -154,17 +153,19 @@ bonus:
   # over the sum of the weights: 3 and 1 make one box in four a spread. A kind
   # left out, or at 0, is never offered. Empty takes the weights below, which are
   # the defaults: about one bomb an hour of active play.
-  #   triple_clicks - the refill is multiplied by `triple.multiplier`, for a time
-  #   spread_clicks - a charge: the next `spread.clicks` clicks also take the tiles
+  #   refill        - fills your click bank to full, when you choose: up to one
+  #                   bank, 60 clicks
+  #   spread_clicks - the next `spread.clicks` clicks also take the tiles
   #                   touching the one clicked
-  #   bomb          - a charge: one bomb, dropped anywhere to clear a circle of tiles
-  #   enclose_clicks - a charge: the next click that closes a shape of your tiles
-  #                   takes the inside
-  # A charge has no timer: it is kept until it is spent, or for `chargeTTL`. A
-  # player holds at most one of each kind, and no box of a kind held is offered,
-  # so nobody can stockpile bombs and drop them all at once.
+  #   bomb          - one bomb, dropped anywhere to clear a circle of tiles
+  #   enclose_clicks - the next click that closes a shape of your tiles takes
+  #                   the inside
+  # Every kind is a charge, worth about one bank: no timer, it is kept until it
+  # is spent, or for `chargeTTL`. A player holds at most one of each kind, and
+  # no box of a kind held is offered, so nobody can stockpile bombs and drop
+  # them all at once. Only an account holds a charge.
   kinds:
-    triple_clicks: 5
+    refill: 5
     spread_clicks: 3
     enclose_clicks: 2
     bomb: 1
@@ -172,20 +173,6 @@ bonus:
   # How long the token stays good. It has to outlast the flight the client
   # draws, or a box caught on its last frame is refused.
   offerTTL: 15s
-
-  # triple_clicks: how long a caught one runs, and what it multiplies the refill
-  # rate by. The bank keeps its size, and the client reads the rate off the
-  # answer - so changing these changes the meter with no frontend release,
-  # exactly as rateLimiter does. The next box is due a window after the bonus
-  # ends, so two can never overlap.
-  #
-  # A boost grants no tokens at once. So a triple is worth
-  # (multiplier - 1) x rate x duration more clicks, for a player who spends them
-  # as they come: at one click every 5s, x3 for 2m is 48 clicks more. A
-  # signed-in player refills twice as fast, so it is worth 96 to them.
-  triple:
-    duration: 2m
-    multiplier: 3
 
   # spread_clicks: how many of the next clicks spread. Each takes up to seven
   # tiles, so 8 clicks is about 56 tiles, a bomb's worth. A count and not a time:
@@ -221,16 +208,11 @@ bonus:
   # they got a short one.
   forgetAfter: 5m
 
-  # The most triple clicks time one caller may be granted per hour. Nothing here
-  # is a race any more, but a script still catches every box it is offered where
-  # a person catches some - this bounds what that is worth. It only stops the next
-  # offer, and never cuts a bonus that runs. 15m is seven 2m triples: at ten
-  # boxes an hour, half of them triples, a person does not reach it.
-  maxBoostPerHour: 15m
-
-  # The same bound for charges, which have no time to count: past this many in
-  # the last hour, only triples are offered.
-  maxChargesPerHour: 6
+  # The most charges one caller may be granted per hour. Nothing here is a race
+  # any more, but a script still catches every box it is offered where a person
+  # catches some - this bounds what that is worth. It only stops the next offer.
+  # 12 is above the ten boxes an hour a person catching every one would get.
+  maxChargesPerHour: 12
 
   # How long a charge is kept unspent. Long, so a held bomb is a reason to come
   # back. Only an account holds charges, and they are kept in postgres (see

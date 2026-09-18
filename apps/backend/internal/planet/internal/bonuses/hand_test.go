@@ -84,8 +84,14 @@ func TestASecondSpreadRefillsTheClicksRatherThanAddingToThem(t *testing.T) {
 	assert.Equal(t, 8, hand.Granted(KindSpreadClicks, epoch, chargeRules).Held(epoch).SpreadClicks)
 }
 
-func TestATripleIsNotACharge(t *testing.T) {
-	assert.True(t, Hand{}.Granted(KindTripleClicks, epoch, chargeRules).Empty(epoch))
+func TestARefillIsOneFill(t *testing.T) {
+	hand := Hand{}.Granted(KindRefill, epoch, chargeRules)
+	require.Equal(t, Held{Refill: true}, hand.Held(epoch))
+
+	used, ok := hand.AfterRefill(epoch)
+	require.True(t, ok)
+	_, again := used.AfterRefill(epoch)
+	assert.False(t, again)
 }
 
 func TestAHandIsAValue(t *testing.T) {
@@ -98,6 +104,6 @@ func TestAHandIsAValue(t *testing.T) {
 
 func TestHeldNamesEveryKindInHand(t *testing.T) {
 	assert.Empty(t, Held{}.Kinds())
-	assert.ElementsMatch(t, []Kind{KindBomb, KindEncloseClicks, KindSpreadClicks},
-		Held{Bomb: true, Enclose: true, SpreadClicks: 3}.Kinds())
+	assert.ElementsMatch(t, []Kind{KindRefill, KindBomb, KindEncloseClicks, KindSpreadClicks},
+		Held{Refill: true, Bomb: true, Enclose: true, SpreadClicks: 3}.Kinds())
 }

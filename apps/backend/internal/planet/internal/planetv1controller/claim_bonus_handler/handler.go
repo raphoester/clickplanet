@@ -3,14 +3,12 @@ package claim_bonus_handler
 
 import (
 	"context"
-	"time"
 
 	"connectrpc.com/connect"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/claim_bonus_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/chargesheld"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/clickbudget"
 )
 
 type UseCase interface {
@@ -38,17 +36,15 @@ func (h ClaimBonusHandler) ClaimBonus(
 	}
 
 	return connect.NewResponse(&planetv1.ClaimBonusResponse{
-		Budget:          clickbudget.Encode(out.Budget),
-		Kind:            EncodeKind(out.Kind),
-		DurationSeconds: uint32(out.Duration / time.Second),
-		Charges:         chargesheld.Encode(out.Held),
+		Kind:    EncodeKind(out.Kind),
+		Charges: chargesheld.Encode(out.Held),
 	}), nil
 }
 
 func EncodeKind(kind bonuses.Kind) planetv1.BonusKind {
 	switch kind {
-	case bonuses.KindTripleClicks:
-		return planetv1.BonusKind_BONUS_KIND_TRIPLE_CLICKS
+	case bonuses.KindRefill:
+		return planetv1.BonusKind_BONUS_KIND_REFILL
 	case bonuses.KindSpreadClicks:
 		return planetv1.BonusKind_BONUS_KIND_SPREAD_CLICKS
 	case bonuses.KindBomb:

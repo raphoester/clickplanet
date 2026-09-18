@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"testing"
-	"time"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/assert"
@@ -14,9 +13,7 @@ import (
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/claim_bonus_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/claim_bonus_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 )
 
 type stubUseCase struct {
@@ -43,28 +40,13 @@ func claim(t *testing.T, useCase claim_bonus_handler.UseCase) (*planetv1.ClaimBo
 	return res.Msg, nil
 }
 
-func TestAClaimAnswersTheWidenedAllowance(t *testing.T) {
-	msg, err := claim(t, &stubUseCase{out: claim_bonus_usecase.Out{
-		Budget:   clicks.Budget{State: cpratelimit.State{Tokens: 7, Capacity: 30, PerSecond: 3}},
-		Kind:     bonuses.KindTripleClicks,
-		Duration: time.Minute,
-	}})
-	require.NoError(t, err)
-
-	assert.Equal(t, uint32(30), msg.GetBudget().GetCapacity())
-	assert.InDelta(t, 3.0, msg.GetBudget().GetRefillPerSecond(), 1e-9)
-	assert.Equal(t, planetv1.BonusKind_BONUS_KIND_TRIPLE_CLICKS, msg.GetKind())
-	assert.Equal(t, uint32(60), msg.GetDurationSeconds())
-}
-
-func TestAChargeClaimSaysWhatIsHeldAndNoTime(t *testing.T) {
+func TestAClaimSaysTheKindAndWhatIsHeld(t *testing.T) {
 	msg, err := claim(t, &stubUseCase{out: claim_bonus_usecase.Out{
 		Kind: bonuses.KindEncloseClicks, Held: bonuses.Held{Bomb: true, Enclose: true, SpreadClicks: 4},
 	}})
 	require.NoError(t, err)
 
 	assert.Equal(t, planetv1.BonusKind_BONUS_KIND_ENCLOSE_CLICKS, msg.GetKind())
-	assert.Zero(t, msg.GetDurationSeconds(), "a charge has no time to run")
 	assert.True(t, msg.GetCharges().GetBomb())
 	assert.True(t, msg.GetCharges().GetEnclose())
 	assert.Equal(t, uint32(4), msg.GetCharges().GetSpreadClicksLeft(), "the answer says everything held")

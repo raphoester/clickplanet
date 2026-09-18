@@ -14,6 +14,7 @@ export default function App(props: AppProps) {
             clickBudgetSource={props.clickBudgetSource}
             bonusListener={props.bonusListener}
             bomber={props.bomber}
+            refiller={props.refiller}
             chatBackend={props.chatBackend}
             account={props.account}
             presence={props.presence}

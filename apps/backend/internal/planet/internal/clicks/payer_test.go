@@ -60,20 +60,20 @@ func TestABigCountrySlowsThePayersOwnRefillAndNotTheScopes(t *testing.T) {
 	assert.InDelta(t, 1/1.5, anonymous[0].Pace, 1e-9)
 }
 
-func TestABonusSpeedsUpTheAccountsBucketOrTheScopesWithNoAccount(t *testing.T) {
+func TestARefillFillsTheAccountsBucketNeverTheScopes(t *testing.T) {
 	buckets := clicks.ThrottleConfig{}.Buckets()
 
-	assert.Equal(t, "account:a-guest", buckets.Boosted(clicks.Payer{Scope: "1.2.3.4", Account: "a-guest"}))
-	assert.Equal(t, "account:a-player", buckets.Boosted(clicks.Payer{Scope: "1.2.3.4", Account: "a-player", Linked: true}))
-	assert.Equal(t, "1.2.3.4", buckets.Boosted(clicks.Payer{Scope: "1.2.3.4"}))
+	assert.Equal(t, "account:a-guest", buckets.Own(clicks.Payer{Scope: "1.2.3.4", Account: "a-guest"}).Name)
+	assert.Equal(t, "account:a-player", buckets.Own(clicks.Payer{Scope: "1.2.3.4", Account: "a-player", Linked: true}).Name)
+	assert.Equal(t, "1.2.3.4", buckets.Own(clicks.Payer{Scope: "1.2.3.4"}).Name)
 }
 
 func TestTheTightestBucketIsTheOneWithTheFewestTokens(t *testing.T) {
-	account := cpratelimit.State{Tokens: 8, Capacity: 30, PerSecond: 3, Boosted: true}
+	account := cpratelimit.State{Tokens: 8, Capacity: 30, PerSecond: 3}
 	scope := cpratelimit.State{Tokens: 4, Capacity: 100, PerSecond: 10}
 
-	assert.Equal(t, cpratelimit.State{Tokens: 4, Capacity: 100, PerSecond: 10, Boosted: true},
-		clicks.Tightest([]cpratelimit.State{account, scope}), "boosted is the account's, whichever bucket is tighter")
+	assert.Equal(t, cpratelimit.State{Tokens: 4, Capacity: 100, PerSecond: 10},
+		clicks.Tightest([]cpratelimit.State{account, scope}), "the scope is the tighter bucket here")
 
 	full := cpratelimit.State{Tokens: 10, Capacity: 10, PerSecond: 1}
 	fullScope := cpratelimit.State{Tokens: 10, Capacity: 100, PerSecond: 10}

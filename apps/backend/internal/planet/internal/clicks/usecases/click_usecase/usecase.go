@@ -20,8 +20,6 @@ type TilesChecker interface {
 
 type TileStorage interface {
 	Set(ctx context.Context, tile uint32, value string) error
-	// SetBoosted is Set, with the update it publishes marked as boosted.
-	SetBoosted(ctx context.Context, tile uint32, value string) error
 }
 
 type CountryChecker interface {
@@ -31,10 +29,6 @@ type CountryChecker interface {
 type In struct {
 	TileID    uint32
 	CountryID string
-
-	// Boosted is set by throttle_click when the caller's allowance is boosted,
-	// so the update the click publishes says so and every client can show it.
-	Boosted bool
 }
 
 // Out is what a click answers with beyond having happened. It carries no game
@@ -85,12 +79,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 		return Out{}, fmt.Errorf("%w: %d", clicks.ErrTileOutOfRange, in.TileID)
 	}
 
-	set := u.tileStorage.Set
-	if in.Boosted {
-		set = u.tileStorage.SetBoosted
-	}
-
-	if err := set(ctx, in.TileID, in.CountryID); err != nil {
+	if err := u.tileStorage.Set(ctx, in.TileID, in.CountryID); err != nil {
 		return Out{}, fmt.Errorf("failed to set tile: %w", err)
 	}
 

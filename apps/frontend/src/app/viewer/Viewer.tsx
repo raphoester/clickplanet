@@ -1,5 +1,14 @@
 import {useRef, useState} from 'react';
-import {Bomber, BonusListener, OwnershipsGetter, TileClicker, UpdatesListener} from "../../backends/backend.ts";
+import {
+    BankFullError,
+    Bomber,
+    BonusListener,
+    BonusLostError,
+    OwnershipsGetter,
+    Refiller,
+    TileClicker,
+    UpdatesListener,
+} from "../../backends/backend.ts";
 import BombNews from "../components/BombNews.tsx";
 import {ChatBackend} from "../../backends/chat.ts";
 import ChatPanel from "../chat/ChatPanel.tsx";
@@ -35,6 +44,8 @@ export type ViewerProps = {
     clickBudgetSource?: ClickBudgetSource
     bonusListener?: BonusListener
     bomber?: Bomber
+    /** Absent for a backend with no refills: the refill is then only said. */
+    refiller?: Refiller
     chatBackend?: ChatBackend
     account?: AccountStore
     /** Absent — the fake backend without one — the menu lists no players. */
@@ -74,7 +85,6 @@ export default function Viewer(props: ViewerProps) {
         dismissSessionUnavailable,
         award,
         dismissAward,
-        bonus,
         charges,
         bombArmed,
         toggleBomb,
@@ -89,6 +99,16 @@ export default function Viewer(props: ViewerProps) {
         bomber: props.bomber,
         playSound: sound.play,
         country: countryState,
+    })
+
+    // The budget and the charges follow the answer, through the backend. A full
+    // bank, or a refill already gone, changes nothing worth saying.
+    const refiller = props.refiller
+    const spendRefill = refiller && (() => {
+        refiller.useRefill(countryState.code).catch((e) => {
+            if (e instanceof BankFullError || e instanceof BonusLostError) return
+            console.error("could not use the refill", e)
+        })
     })
 
     // The camera lives out here rather than in the menu: the globe is what it
@@ -127,8 +147,8 @@ export default function Viewer(props: ViewerProps) {
                                onClose={discard}/>}
 
         {status.state === 'ready' && <ClickBudgetMeter budget={clickBudget}
-                                                       bonus={bonus}
                                                        charges={charges}
+                                                       onUseRefill={spendRefill}
                                                        bombArmed={bombArmed}
                                                        onToggleBomb={props.bomber ? toggleBomb : undefined}
                                                        countryName={countryState.name}

@@ -103,13 +103,13 @@ func (b Buckets) Keys(payer Payer, price Price) []cpratelimit.Key {
 	}
 }
 
-// Boosted is the bucket a bonus speeds up: the first key, never the scope's shared one.
-func (b Buckets) Boosted(payer Payer) string {
-	return b.Keys(payer, Price{})[0].Name
+// Own is the caller's own bucket, the one a refill fills: the first key, never the scope's shared one.
+func (b Buckets) Own(payer Payer) cpratelimit.Key {
+	return b.Keys(payer, Price{})[0]
 }
 
 // Tightest is the reading that allows the fewest clicks now, so a player behind a busy scope sees the real
-// limit. Boosted is the first bucket's, which is the one a bonus widens.
+// limit.
 func Tightest(states []cpratelimit.State) cpratelimit.State {
 	tightest := states[0]
 	for _, state := range states[1:] {
@@ -117,7 +117,5 @@ func Tightest(states []cpratelimit.State) cpratelimit.State {
 			tightest = state
 		}
 	}
-	tightest.Boosted = states[0].Boosted
-
 	return tightest
 }

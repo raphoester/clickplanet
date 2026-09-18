@@ -1,4 +1,5 @@
 import {
+    BankFullError,
     BombDrop,
     Bomber,
     BonusHandlers,
@@ -11,12 +12,13 @@ import {
     Ownerships,
     OwnershipsGetter,
     RateLimitedError,
+    Refiller,
     TileClicker,
     Update,
     UpdatesListener,
     VPNBlockedError,
 } from "./backend.ts";
-import {BonusReward, BonusRules, Charges, multiplierOf, NO_CHARGES, TimedReward} from "../domain/bonus.ts";
+import {BonusReward, BonusRules, Charges, NO_CHARGES} from "../domain/bonus.ts";
 import {ClickBudget, ClickBudgetSource, ClickPrice, now as budgetNow} from "./clickBudget.ts";
 import {SessionUnavailableError} from "./session.ts";
 import {v4 as UUIDv4} from 'uuid';
@@ -39,12 +41,11 @@ const TOLL_STEPS = [
 /** Often enough to be worth developing against, not so often it is the game. */
 const BONUS_EVERY_MS = 20_000
 const BONUS_OFFER_TTL_MS = 15_000
-/** The server's defaults: a triple runs 20s, a spread charge is 8 clicks, an enclose one shape of 25 tiles. */
-const TRIPLE_SECONDS = 20
+/** The server's defaults: a spread charge is 8 clicks, an enclose one shape of 25 tiles. */
 const SPREAD_CLICKS = 8
 /** The production weights, 5 : 2 : 1 : 2. `giveBomb()` in the console skips the wait. */
 const BONUS_KINDS: BonusReward["kind"][] = [
-    "tripleClicks", "tripleClicks", "tripleClicks", "tripleClicks", "tripleClicks",
+    "refill", "refill", "refill", "refill", "refill",
     "spreadClicks", "spreadClicks",
     "bomb",
     "encloseClicks", "encloseClicks",
@@ -79,7 +80,7 @@ export type FakeBackendOptions = {
     tilePositions?: () => Promise<Float32Array>
 }
 
-export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, Bomber {
+export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, Bomber, Refiller {
     private tileBindings: Map<number, string> = new Map()
     private tileCounts: Map<string, number> = new Map()
     private budgetCountry = ""
@@ -98,10 +99,6 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     /** The one box outstanding, exactly as the server keeps it. */
     private offered: BonusOffer | undefined
 
-    /** The triple caught last, and when it runs out. */
-    private active: TimedReward | undefined
-    private activeUntilMs = 0
-    private bonusEndTimer: ReturnType<typeof setTimeout> | undefined
     private readonly timers: ReturnType<typeof setInterval>[] = []
     private tokens = CLICK_BURST
     private lastRefillMs = Date.now()
@@ -175,7 +172,6 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     public close() {
         this.timers.forEach(clearInterval)
         this.timers.length = 0
-        clearTimeout(this.bonusEndTimer)
         this.updateListeners.clear()
         this.updateBatchCallbacks.clear()
         this.budgetCallbacks.clear()
@@ -195,13 +191,8 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         this.announceBonusClick(tileId, countryId)
     }
 
-    /**
-     * What the server broadcasts for a click made under a spread charge or a
-     * triple clicks bonus.
-     */
+    /** What the server broadcasts for a click made under a spread charge. */
     private announceBonusClick(tileId: number, countryId: string) {
-        if (this.active && Date.now() < this.activeUntilMs) this.botBoost(tileId, countryId)
-
         if (this.charges.spreadClicksLeft > 0) {
             this.hold({...this.charges, spreadClicksLeft: this.charges.spreadClicksLeft - 1})
             void this.botSpread(tileId, countryId)
@@ -210,14 +201,14 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
 
     private holds(kind: BonusReward["kind"]): boolean {
         switch (kind) {
+            case "refill":
+                return this.charges.refill
             case "bomb":
                 return this.charges.bomb
             case "encloseClicks":
                 return this.charges.enclose
             case "spreadClicks":
                 return this.charges.spreadClicksLeft > 0
-            case "tripleClicks":
-                return false
         }
     }
 
@@ -227,16 +218,11 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         this.bonusCallbacks.forEach(handlers => handlers.onCharges(charges))
     }
 
-    /** Grants what a reward is worth: a triple runs, a charge is held. */
+    /** Grants the charge a reward is worth. */
     private grant(reward: BonusReward): ClaimedBonus {
         switch (reward.kind) {
-            case "tripleClicks":
-                this.active = reward
-                this.activeUntilMs = Date.now() + reward.seconds * 1000
-                this.reportBudget()
-                // The narrowing is a reading too, or the meter keeps the wide burst.
-                clearTimeout(this.bonusEndTimer)
-                this.bonusEndTimer = setTimeout(() => this.reportBudget(), reward.seconds * 1000)
+            case "refill":
+                this.hold({...this.charges, refill: true})
                 break
             case "bomb":
                 this.hold({...this.charges, bomb: true})
@@ -252,12 +238,16 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         return {reward, charges: this.charges}
     }
 
-    /**
-     * A boosted click on `tile`, which the server says with a flag on the tile
-     * update. Public for the console: `fakeBackend.botBoost(tile, "fr")`.
-     */
-    public botBoost(tile: number, countryId: string) {
-        this.applyClick(tile, countryId, true)
+    /** Fills the bank with the refill held, refusing a full bank as the server does. */
+    public async useRefill(): Promise<void> {
+        if (!this.charges.refill) throw new BonusLostError()
+
+        this.refill()
+        if (this.tokens >= CLICK_BURST) throw new BankFullError()
+
+        this.tokens = CLICK_BURST
+        this.hold({...this.charges, refill: false})
+        this.reportBudget()
     }
 
     /**
@@ -327,14 +317,14 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     private budget(): ClickBudget {
         this.refill()
 
-        // The refill speeds up while a bonus runs and slows with the last
-        // click's country, exactly as the server's does — so the meter here is
-        // driven by the same thing it will be in production rather than by the
-        // component. The bank never changes size.
+        // The refill slows with the last click's country, exactly as the
+        // server's does — so the meter here is driven by the same thing it will
+        // be in production rather than by the component. The bank never changes
+        // size.
         return {
             tokens: this.tokens,
             capacity: CLICK_BURST,
-            perSecond: CLICKS_PER_SECOND * this.boost() * this.pace,
+            perSecond: CLICKS_PER_SECOND * this.pace,
             price: this.price(this.budgetCountry),
             readAt: budgetNow(),
         }
@@ -352,17 +342,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         return {slowdown, share}
     }
 
-    /**
-     * A spread multiplies nothing, and this fake has no map geometry to spread
-     * with, so it only exercises the announcement and the meter's badge.
-     */
-    private boost(): number {
-        if (!this.active || Date.now() >= this.activeUntilMs) return 1
-
-        return multiplierOf(this.active)
-    }
-
-    private applyClick(tileId: number, countryId: string, boosted = false) {
+    private applyClick(tileId: number, countryId: string) {
         const prev = this.tileBindings.get(tileId)
         this.tileBindings.set(tileId, countryId)
         this.count(prev, -1)
@@ -371,7 +351,6 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
             tile: tileId,
             previousCountry: prev,
             newCountry: countryId,
-            boosted,
         }))
     }
 
@@ -392,7 +371,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         const now = Date.now()
         this.tokens = Math.min(
             CLICK_BURST,
-            this.tokens + ((now - this.lastRefillMs) / 1000) * CLICKS_PER_SECOND * this.boost() * this.pace,
+            this.tokens + ((now - this.lastRefillMs) / 1000) * CLICKS_PER_SECOND * this.pace,
         )
         this.lastRefillMs = now
     }
@@ -531,7 +510,7 @@ function rewardOfKind(kind: BonusReward["kind"]): BonusReward {
             return {kind, maxTiles: ENCLOSE_MAX_TILES}
         case "spreadClicks":
             return {kind, clicks: SPREAD_CLICKS}
-        case "tripleClicks":
-            return {kind, seconds: TRIPLE_SECONDS}
+        case "refill":
+            return {kind}
     }
 }

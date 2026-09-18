@@ -48,6 +48,8 @@ const (
 	ClickServiceClaimBonusProcedure = "/planet.v1.ClickService/ClaimBonus"
 	// ClickServiceDropBombProcedure is the fully-qualified name of the ClickService's DropBomb RPC.
 	ClickServiceDropBombProcedure = "/planet.v1.ClickService/DropBomb"
+	// ClickServiceUseRefillProcedure is the fully-qualified name of the ClickService's UseRefill RPC.
+	ClickServiceUseRefillProcedure = "/planet.v1.ClickService/UseRefill"
 	// ClickServiceGetChargesProcedure is the fully-qualified name of the ClickService's GetCharges RPC.
 	ClickServiceGetChargesProcedure = "/planet.v1.ClickService/GetCharges"
 	// ClickServiceGetBonusRulesProcedure is the fully-qualified name of the ClickService's
@@ -70,6 +72,10 @@ type ClickServiceClient interface {
 	// none — never won, already dropped, or held past the charge's expiry — and
 	// says no more.
 	DropBomb(context.Context, *connect.Request[v1.DropBombRequest]) (*connect.Response[v1.DropBombResponse], error)
+	// Spends the refill a caught box granted: the caller's click bank is filled
+	// to its capacity. Answers NotFound when the caller holds none, and
+	// FailedPrecondition when the bank is already full, which spends nothing.
+	UseRefill(context.Context, *connect.Request[v1.UseRefillRequest]) (*connect.Response[v1.UseRefillResponse], error)
 	// What the caller holds: read once when the page loads, and again when the
 	// caller's account changes. Everything after is the client's own arithmetic
 	// on its own calls. Not NO_SIDE_EFFECTS, like GetBudget: the answer is about
@@ -136,6 +142,12 @@ func NewClickServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(clickServiceMethods.ByName("DropBomb")),
 			connect.WithClientOptions(opts...),
 		),
+		useRefill: connect.NewClient[v1.UseRefillRequest, v1.UseRefillResponse](
+			httpClient,
+			baseURL+ClickServiceUseRefillProcedure,
+			connect.WithSchema(clickServiceMethods.ByName("UseRefill")),
+			connect.WithClientOptions(opts...),
+		),
 		getCharges: connect.NewClient[v1.GetChargesRequest, v1.GetChargesResponse](
 			httpClient,
 			baseURL+ClickServiceGetChargesProcedure,
@@ -161,6 +173,7 @@ type clickServiceClient struct {
 	listenForEvents *connect.Client[v1.ListenForEventsRequest, v1.PlanetEvent]
 	claimBonus      *connect.Client[v1.ClaimBonusRequest, v1.ClaimBonusResponse]
 	dropBomb        *connect.Client[v1.DropBombRequest, v1.DropBombResponse]
+	useRefill       *connect.Client[v1.UseRefillRequest, v1.UseRefillResponse]
 	getCharges      *connect.Client[v1.GetChargesRequest, v1.GetChargesResponse]
 	getBonusRules   *connect.Client[v1.GetBonusRulesRequest, v1.GetBonusRulesResponse]
 }
@@ -200,6 +213,11 @@ func (c *clickServiceClient) DropBomb(ctx context.Context, req *connect.Request[
 	return c.dropBomb.CallUnary(ctx, req)
 }
 
+// UseRefill calls planet.v1.ClickService.UseRefill.
+func (c *clickServiceClient) UseRefill(ctx context.Context, req *connect.Request[v1.UseRefillRequest]) (*connect.Response[v1.UseRefillResponse], error) {
+	return c.useRefill.CallUnary(ctx, req)
+}
+
 // GetCharges calls planet.v1.ClickService.GetCharges.
 func (c *clickServiceClient) GetCharges(ctx context.Context, req *connect.Request[v1.GetChargesRequest]) (*connect.Response[v1.GetChargesResponse], error) {
 	return c.getCharges.CallUnary(ctx, req)
@@ -225,6 +243,10 @@ type ClickServiceHandler interface {
 	// none — never won, already dropped, or held past the charge's expiry — and
 	// says no more.
 	DropBomb(context.Context, *connect.Request[v1.DropBombRequest]) (*connect.Response[v1.DropBombResponse], error)
+	// Spends the refill a caught box granted: the caller's click bank is filled
+	// to its capacity. Answers NotFound when the caller holds none, and
+	// FailedPrecondition when the bank is already full, which spends nothing.
+	UseRefill(context.Context, *connect.Request[v1.UseRefillRequest]) (*connect.Response[v1.UseRefillResponse], error)
 	// What the caller holds: read once when the page loads, and again when the
 	// caller's account changes. Everything after is the client's own arithmetic
 	// on its own calls. Not NO_SIDE_EFFECTS, like GetBudget: the answer is about
@@ -287,6 +309,12 @@ func NewClickServiceHandler(svc ClickServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(clickServiceMethods.ByName("DropBomb")),
 		connect.WithHandlerOptions(opts...),
 	)
+	clickServiceUseRefillHandler := connect.NewUnaryHandler(
+		ClickServiceUseRefillProcedure,
+		svc.UseRefill,
+		connect.WithSchema(clickServiceMethods.ByName("UseRefill")),
+		connect.WithHandlerOptions(opts...),
+	)
 	clickServiceGetChargesHandler := connect.NewUnaryHandler(
 		ClickServiceGetChargesProcedure,
 		svc.GetCharges,
@@ -316,6 +344,8 @@ func NewClickServiceHandler(svc ClickServiceHandler, opts ...connect.HandlerOpti
 			clickServiceClaimBonusHandler.ServeHTTP(w, r)
 		case ClickServiceDropBombProcedure:
 			clickServiceDropBombHandler.ServeHTTP(w, r)
+		case ClickServiceUseRefillProcedure:
+			clickServiceUseRefillHandler.ServeHTTP(w, r)
 		case ClickServiceGetChargesProcedure:
 			clickServiceGetChargesHandler.ServeHTTP(w, r)
 		case ClickServiceGetBonusRulesProcedure:
@@ -355,6 +385,10 @@ func (UnimplementedClickServiceHandler) ClaimBonus(context.Context, *connect.Req
 
 func (UnimplementedClickServiceHandler) DropBomb(context.Context, *connect.Request[v1.DropBombRequest]) (*connect.Response[v1.DropBombResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.ClickService.DropBomb is not implemented"))
+}
+
+func (UnimplementedClickServiceHandler) UseRefill(context.Context, *connect.Request[v1.UseRefillRequest]) (*connect.Response[v1.UseRefillResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.ClickService.UseRefill is not implemented"))
 }
 
 func (UnimplementedClickServiceHandler) GetCharges(context.Context, *connect.Request[v1.GetChargesRequest]) (*connect.Response[v1.GetChargesResponse], error) {

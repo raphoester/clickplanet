@@ -32,11 +32,11 @@ variable is **not** folded away in a build: without the `DEV` check both fakes
 ship in the production bundle.
 
 In fake mode the console has a few commands: `giveBomb()` arms a bomb as if a box
-holding one had just been caught, `giveBonus("spreadClicks")` does the same for
+holding one had just been caught, `giveBonus("refill")` does the same for
 any other bonus (the fake holds charges as the server does: one of each kind, a
-spread spent a click at a time, an enclose on the next click), and `fakeBackend.botBomb(tile, "fr")`, `fakeBackend.botSpread(tile, "fr")`
-and `fakeBackend.botBoost(tile, "fr")` play somebody else's bomb, spread click or
-boosted click.
+spread spent a click at a time, an enclose on the next click, a refill refused on
+a full bank), and `fakeBackend.botBomb(tile, "fr")` and `fakeBackend.botSpread(tile, "fr")`
+play somebody else's bomb or spread click.
 
 A local backend is the quickest way to exercise the real chat: `cmd/api`'s
 `example.yaml` runs chat (it is always on), and the Go server answers
@@ -284,7 +284,7 @@ still get.
 
 **One bank, one click per token.** The bank's size never moves: not with the
 country, a bonus or signing in. The more of the map a country holds, the slower
-its players refill; signing in refills faster, and so does a triple bonus. The
+its players refill; signing in refills faster, and a refill charge fills the bank. The
 server sets that pace on each click, from the country clicked for, so a switch
 of flag moves nothing on the meter until the next click. The reading carries the
 selected country's slowdown beside it (`ClickBudget.price`): `useClickBudget`
@@ -831,13 +831,11 @@ mint a guest and insert a row into `auth.identities` for its account.
   size in pixels, so a shape closed while zoomed out is still seen. A shape that
   arrives while the tab is hidden is not played — it would all start at once on
   return.
-- `bonusClickEffects.ts` — the same, for every click made under a spread bonus
+- `bonusClickEffects.ts` — the same, for every click made under a spread charge
   (`tilesSpread`: a green burst, a spark popping onto each tile around it in
-  turn, two rings) or a triple clicks bonus (`Update.boosted` on a live tile
-  update, played from the update batch: a cyan flash, three streaks, three quick
-  rings). It reuses the enclosure's shaders, with normal
-  rather than additive rings, which vanished on the white of a flag. Boosted
-  players click fast, so an effect is short and at most `MAX_PLAYING` run at once.
+  turn, two rings). It reuses the enclosure's shaders, with normal rather than
+  additive rings, which vanished on the white of a flag. A busy planet spreads a
+  lot, so at most `MAX_PLAYING` run at once.
 - `shaders/` — GLSL for the display, picking, star and enclosure passes.
 
 ### The zoomed-out view
@@ -1032,15 +1030,16 @@ it, and if the echo arrives first the rollback is already a no-op.
 
 ## Charges
 
-A bonus box holds a triple, which runs for its `seconds`, or a **charge**, which
-has no clock: a bomb (one drop), an enclose (one shape, `maxTiles` at most) or a
-spread (the next few clicks). The server keeps them, per account, for a day, one
+A bonus box holds a **charge**, which has no clock: a refill (the click bank,
+filled when the player chooses), a bomb (one drop), an enclose (one shape,
+`maxTiles` at most) or a spread (the next few clicks). The server keeps them, per account, for a day, one
 of each kind at most.
 
 **`PlanetBackend` holds `Charges` (`domain/bonus.ts`) and nothing pushes them.**
 It reads `GetCharges` at load, with the token in hand and never a fresh one, and
 again when a click goes out under a new token (`followSession`): the charges are
-the account's. `ClaimBonusResponse.charges` replaces them on a claim. Otherwise
+the account's. `ClaimBonusResponse.charges` replaces them on a claim, and
+`UseRefillResponse.charges` on a refill, which also brings the full budget. Otherwise
 it follows its own calls: an accepted click takes a spread click off, this
 player's own `tilesEnclosed` drops the enclose, and a drop takes the bomb off at
 once and gives it back only if the call never reached the server. The click
@@ -1053,9 +1052,12 @@ blast radius, the enclose's `maxTiles` and the spread's clicks as `BonusRules`,
 through `onRules`. A reward is sized from them. A page open across a change of
 rules shows the old sizes until it is reloaded.
 
-`ClickBudgetMeter` shows one pill per charge under the meter — "Bomb ready",
-"Enclose ready", "Spread: 5 clicks left" (`chargeLabels`) — and keeps the
-countdown for the triple alone.
+`ClickBudgetMeter` shows one pill per charge under the meter — "Refill ready",
+"Bomb ready", "Enclose ready", "Spread: 5 clicks left" (`chargeLabels`). The
+refill's is a button (`Refiller.useRefill`). **On a full bank it sends nothing**
+and says "Bank already full" for two seconds: a refill there would be wasted.
+The server refuses it too, `FailedPrecondition`, read as `BankFullError`, and
+spends nothing.
 
 ## Bombs
 
@@ -1276,9 +1278,9 @@ not a "nope"); the box appearing and being caught at the same places the box
 itself does; the bomb when its broadcast arrives, with the boom scheduled
 `IMPACT_DELAY` later so it lands with the tiles, quieter for someone else's,
 and a splash instead of a blast when the drop has no tile under it (the ocean);
-your own spread click, boosted click and closed shape when their broadcast comes
+your own spread click and closed shape when their broadcast comes
 back, so each lands with its effect on screen. **Only the player who made one
-hears it.** An enclosure carries `yours`; a spread or a boost says nothing of
+hears it.** An enclosure carries `yours`; a spread says nothing of
 whose it is, so `domain/ownClicks.ts` remembers the tiles this client clicked in
 the last 3s and a broadcast on one of them, for the same country, is taken as
 ours. They have no switch of their own: `switchOf` puts them under the tile

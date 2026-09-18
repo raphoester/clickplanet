@@ -124,53 +124,7 @@ describe("ClickBudgetMeter", () => {
     })
 })
 
-describe("ClickBudgetMeter while a bonus runs", () => {
-    const running = (seconds = 60) => ({
-        reward: {kind: "tripleClicks", seconds} as const,
-        endsAt: performance.now() + seconds * 1000,
-    })
-
-    it("says nothing about a bonus when none is running", () => {
-        render(<ClickBudgetMeter budget={reading()}/>)
-
-        expect(document.querySelector(".click-budget-bonus")).toBeNull()
-        expect(meter().classList.contains("click-budget-boosted")).toBe(false)
-    })
-
-    it("shows the multiplier that was won", () => {
-        render(<ClickBudgetMeter budget={reading()} bonus={running()}/>)
-
-        expect(screen.getByText("3×")).toBeTruthy()
-    })
-
-    it("counts down how long is left", () => {
-        render(<ClickBudgetMeter budget={reading()} bonus={running(45)}/>)
-
-        expect(screen.getByText("45s")).toBeTruthy()
-    })
-
-    it("marks the whole meter, so the boost reads at a glance", () => {
-        render(<ClickBudgetMeter budget={reading()} bonus={running()}/>)
-
-        expect(meter().classList.contains("click-budget-boosted")).toBe(true)
-    })
-
-    it("still reports the server's own allowance, never a multiplied guess", () => {
-        // The boost is the server's to grant: when it does, capacity and rate
-        // arrive in the reading and the pips widen on their own. Nothing here
-        // may invent them in the meantime.
-        render(<ClickBudgetMeter budget={reading({capacity: 10})} bonus={running()}/>)
-
-        expect(pips()).toHaveLength(10)
-        expect(meter().getAttribute("aria-valuemax")).toBe("10")
-    })
-
-    it("leaves the count itself alone", () => {
-        render(<ClickBudgetMeter budget={reading({tokens: 4})} bonus={running()}/>)
-
-        expect(meter().getAttribute("aria-valuenow")).toBe("4")
-    })
-
+describe("ClickBudgetMeter and the price", () => {
     it("says why the refill is slow for a country that holds much of the map", () => {
         render(<ClickBudgetMeter countryName="Bulgaria"
                                  budget={reading({price: {slowdown: 8, share: 0.8, next: {share: 0.9, slowdown: 10}}})}/>)
@@ -238,7 +192,7 @@ describe("ClickBudgetMeter with charges held", () => {
 
     it("says each charge held, with no countdown", () => {
         render(<ClickBudgetMeter budget={reading()}
-                                 charges={{bomb: true, enclose: true, spreadClicksLeft: 5}}
+                                 charges={{refill: false, bomb: true, enclose: true, spreadClicksLeft: 5}}
                                  onToggleBomb={() => {}}/>)
 
         expect(screen.getByText("Bomb ready")).toBeTruthy()
@@ -278,5 +232,35 @@ describe("ClickBudgetMeter with charges held", () => {
 
         expect(screen.getByText("Bomb ready")).toBeTruthy()
         expect(screen.queryByRole("button", {name: /Bomb/})).toBeNull()
+    })
+})
+
+describe("ClickBudgetMeter with a refill held", () => {
+    const refill = {...NO_CHARGES, refill: true}
+
+    it("fills the bank on a press", () => {
+        const use = vi.fn()
+        render(<ClickBudgetMeter budget={reading({tokens: 4})} charges={refill} onUseRefill={use}/>)
+
+        fireEvent.click(screen.getByRole("button", {name: /Refill ready/}))
+
+        expect(use).toHaveBeenCalledTimes(1)
+    })
+
+    it("sends nothing on a full bank, and says so", () => {
+        const use = vi.fn()
+        render(<ClickBudgetMeter budget={reading({tokens: 10, capacity: 10})} charges={refill} onUseRefill={use}/>)
+
+        fireEvent.click(screen.getByRole("button", {name: /Refill ready/}))
+
+        expect(use).not.toHaveBeenCalled()
+        expect(screen.getByRole("button", {name: /Bank already full/})).toBeTruthy()
+    })
+
+    it("only says the refill when there is no way to use it", () => {
+        render(<ClickBudgetMeter budget={reading()} charges={refill}/>)
+
+        expect(screen.getByText("Refill ready")).toBeTruthy()
+        expect(screen.queryByRole("button", {name: /Refill/})).toBeNull()
     })
 })

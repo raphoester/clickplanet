@@ -132,6 +132,11 @@ func (s *Storage) Held(holder bonuses.Holder) bonuses.Held {
 	return s.hands[holder].Held(now)
 }
 
+// SpendRefill takes holder's refill, and reports whether there was one.
+func (s *Storage) SpendRefill(holder bonuses.Holder) bool {
+	return s.spend(holder, func(hand bonuses.Hand, now time.Time) (bonuses.Hand, bool) { return hand.AfterRefill(now) })
+}
+
 // SpendBomb takes holder's bomb, and reports whether there was one: two drops racing for it get one bomb.
 func (s *Storage) SpendBomb(holder bonuses.Holder) bool {
 	return s.spend(holder, func(hand bonuses.Hand, now time.Time) (bonuses.Hand, bool) { return hand.AfterBomb(now) })

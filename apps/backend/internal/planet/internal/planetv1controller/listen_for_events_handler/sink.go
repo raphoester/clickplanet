@@ -1,8 +1,6 @@
 package listen_for_events_handler
 
 import (
-	"time"
-
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
@@ -56,7 +54,6 @@ func bonusOfferedEvent(offer *bonuses.Offer) *planetv1.PlanetEvent {
 				Token:           offer.Token,
 				Seed:            offer.Seed,
 				Kind:            claim_bonus_handler.EncodeKind(offer.Kind),
-				DurationSeconds: uint32(offer.Duration / time.Second),
 				ExpiresAtUnixMs: offer.ExpiresAt.UnixMilli(),
 			},
 		},
@@ -119,7 +116,6 @@ func toProto(update clicks.TileUpdate) *planetv1.TileUpdate {
 		TileId:            update.Tile,
 		CountryId:         update.Value,
 		PreviousCountryId: update.Previous,
-		Boosted:           update.Boosted,
 	}
 }
 

@@ -70,7 +70,7 @@ const DISTANT_BOMB_VOLUME = 0.45
 /** How long after our own drop a blast in our colours is taken to be it. */
 const OWN_DROP_WINDOW_SECONDS = 5
 
-/** How long after our own click a spread or boost on its tile is taken to be it. */
+/** How long after our own click a spread on its tile is taken to be it. */
 const OWN_CLICK_WINDOW_SECONDS = 3
 
 const TILES_PER_BATCH = 10_000
@@ -213,7 +213,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const enclosures = createEnclosureEffects(geometryData.positions)
     scene.add(enclosures.object)
 
-    // And every click made under a spread or a triple clicks bonus, anyone's.
+    // And every click made under a spread charge, anyone's.
     const bonusClicks = createBonusClickEffects(geometryData.positions)
     scene.add(bonusClicks.object)
 
@@ -221,7 +221,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     // caught is only worth something with the token it arrived with.
     let offered: BonusOffer | undefined
 
-    // A spread or a boost is broadcast to everyone with no word of whose it is,
+    // A spread is broadcast to everyone with no word of whose it is,
     // and only the player who made it hears it: its tile is one they just clicked.
     const ownClicks = new OwnClicks(OWN_CLICK_WINDOW_SECONDS)
 
@@ -564,13 +564,6 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             for (const update of updates) clear.tiles.delete(update.tile)
         }
         applyChanges(ownership.applyUpdates(updates))
-
-        const seconds = performance.now() / 1000
-        for (const update of updates) {
-            if (!update.boosted || update.newCountry === undefined) continue
-            bonusClicks.playBoost(update.tile)
-            if (ownClicks.has(update.tile, update.newCountry, seconds)) playSound("boost")
-        }
     })
 
     addDisplayObjects(scene, field.displayPoints)

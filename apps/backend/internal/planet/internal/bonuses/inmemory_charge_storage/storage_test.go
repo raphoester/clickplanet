@@ -67,9 +67,12 @@ func TestEachSpendTakesItsOwnKind(t *testing.T) {
 	storage.Grant(alice, bonuses.KindBomb)
 	storage.Grant(alice, bonuses.KindEncloseClicks)
 	storage.Grant(alice, bonuses.KindSpreadClicks)
+	storage.Grant(alice, bonuses.KindRefill)
 
 	require.True(t, storage.SpendSpreadClick(alice))
 	require.True(t, storage.SpendEnclose(alice))
+	require.True(t, storage.SpendRefill(alice))
+	require.False(t, storage.SpendRefill(alice))
 
 	assert.Equal(t, bonuses.Held{Bomb: true, SpreadClicks: 7}, storage.Held(alice))
 	assert.Equal(t, 25, storage.EnclosureMaxTiles())

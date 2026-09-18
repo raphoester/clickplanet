@@ -263,25 +263,22 @@ func TestOneAccountOnManyScopesSpendsOneAllowance(t *testing.T) {
 	require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(err), "a new address is not a new allowance")
 }
 
-func TestABoostDoesNotSpeedUpTheScopesBucket(t *testing.T) {
-	server, limiter, clock := accountServer(t, clicks.ThrottleConfig{
+func TestARefillDoesNotFillTheScopesBucket(t *testing.T) {
+	server, limiter, _ := accountServer(t, clicks.ThrottleConfig{
 		Config: cpratelimit.Config{PerSecond: 1, Burst: 10}, ScopeMultiplier: 1,
 	})
 
-	boosted := accountNumber(0)
-	limiter.Boost("account:"+boosted.String(), 3, clock.Now().Add(time.Minute))
+	refilled := accountNumber(0)
 	for click := range 10 {
-		require.NoErrorf(t, clickAsAccount(t, server, "1.2.3.4", boosted), "click %d", click)
-	}
-	clock.Advance(2 * time.Second)
-
-	for click := range 2 {
-		require.NoErrorf(t, clickAsAccount(t, server, "1.2.3.4", boosted), "click %d", click)
+		require.NoErrorf(t, clickAsAccount(t, server, "1.2.3.4", refilled), "click %d", click)
 	}
 
-	err := clickAsAccount(t, server, "1.2.3.4", boosted)
+	filled, _ := limiter.Fill(cpratelimit.Key{Name: "account:" + refilled.String(), Scale: 1})
+	require.True(t, filled)
+
+	err := clickAsAccount(t, server, "1.2.3.4", refilled)
 	require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(err),
-		"six back in the boosted account's hand, but its scope got two")
+		"the account's bucket is full again, but the scope's it shares is still empty")
 }
 
 func TestTheBudgetIsTheTighterBucket(t *testing.T) {

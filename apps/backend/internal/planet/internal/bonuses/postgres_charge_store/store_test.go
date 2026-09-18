@@ -53,7 +53,7 @@ func (s *testSuite) TestAnEmptyStoreLoadsNothing() {
 
 func (s *testSuite) TestSaveThenLoadEveryHand() {
 	hands := map[bonuses.Holder]bonuses.Hand{
-		alice: {Bomb: until, Spread: until.Add(time.Hour), SpreadClicks: 5},
+		alice: {Refill: until.Add(time.Minute), Bomb: until, Spread: until.Add(time.Hour), SpreadClicks: 5},
 		bob:   {Enclose: until},
 	}
 

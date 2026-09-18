@@ -318,9 +318,10 @@ because it serves every concept over one Connect service. It only maps.
 | `ledger/usecases/ban_player_usecase` | the operator's shadow ban | `Banner` |
 | `ledger/usecases/inspect_player_usecase` | what the antibot holds on one caller | `Examiner` |
 | `ledger/usecases/revert_player_usecase` | gives back what one caller still holds | `Ledger`, `Map` |
-| `bonuses/usecases/claim_bonus_usecase` | redeems a box | `Registry`, `Booster`, `Charger` |
+| `bonuses/usecases/claim_bonus_usecase` | redeems a box | `Registry`, `Charger` |
 | `bonuses/usecases/drop_bomb_usecase` | spends a bomb where it was aimed | `Bombs`, `Map`, `Clearer` |
 | `bonuses/usecases/get_charges_usecase` | what the caller holds | `Charges` |
+| `bonuses/usecases/use_refill_usecase` | fills the caller's bank with its refill | `Refills`, `Bank`, `Pricer` |
 
 **The interfaces in that last column are declared by the package that calls
 them**, not gathered in a `gateways.go` every use case imports. A shared port
@@ -618,7 +619,7 @@ Either way the decorator decides the policy and the handler decides how to say i
 
 **Every reading also carries `linked_multiplier`**, what signing in multiplies the refill by (`Buckets.BudgetOf`). It is the same for every caller, so the client can tell a guest what signing in is worth with no number of its own.
 
-**The reading is the tighter bucket** (`clicks.Tightest`): the one with fewer tokens, and on a tie the smaller one. A player behind a busy campus sees the scope's limit rather than a full meter that refuses. The reading is still one bucket's `Capacity`, `PerSecond` and `Tokens`, so the client arithmetic does not change. `Boosted` is always the account's bucket's, the one a bonus speeds up. `TestTheBudgetIsTheTighterBucket` pins it.
+**The reading is the tighter bucket** (`clicks.Tightest`): the one with fewer tokens, and on a tie the smaller one. A player behind a busy campus sees the scope's limit rather than a full meter that refuses. The reading is still one bucket's `Capacity`, `PerSecond` and `Tokens`, so the client arithmetic does not change. `TestTheBudgetIsTheTighterBucket` pins it.
 
 `ClickService.GetBudget` covers the cold start — a client that has just loaded and has no click to learn from. It reads through `Limiter.Peek`, which spends nothing and, for an address that never clicked, **creates no bucket**: reading an allowance must not be a way to make the limiter remember a caller. `NewSessionReaderInterceptor` reads a token on it when the client sends one, so the reading is the account's, and **refuses nothing**: with no token or a bad one it reads the scope's bucket from before accounts. The web client sends the token it already holds, never a fresh one; before its first click it holds none, and neither bucket has been spent from. Without the token the meter showed that other bucket, always full, until a click contradicted it. It is deliberately not `NO_SIDE_EFFECTS`, so it is a POST no cache will serve a stale answer to; every click re-anchors the client afterwards, so it is asked once per page load.
 
@@ -650,8 +651,8 @@ number of the old `cost`, whose meaning it replaces.
   players of every flag, so it refills at its plain rate.
 - **The budget goes out as the bucket holds it**, in clicks, with the slowdown,
   the share and the next step of the country asked about so the client can say why.
-- **Bonuses compose with it.** A triple multiplies the pace by three and the bank
-  keeps its size. A spread is one click. A bomb is not throttled, and lowers the
+- **Bonuses compose with it.** A refill fills the bank to its size and leaves the
+  pace alone. A spread is one click. A bomb is not throttled, and lowers the
   share of whoever it hits.
 
 `GetBudget` takes the country, for the slowdown it answers. Known risk, not
@@ -880,8 +881,8 @@ gets one of four bonuses. Each box draws its kind from `bonus.kinds`, a weight
 per kind — a kind's chance is its weight over the sum of the weights, so the
 strong ones can be made rare (production runs 5 : 2 : 1 : 2):
 
-- **`triple_clicks`** — the refill rate is multiplied by `bonus.triple.multiplier` for
-  `bonus.triple.duration`. The one timed kind. See [What a bonus does to the bucket](#what-a-bonus-does-to-the-bucket).
+- **`refill`** — a charge: fills the caller's click bank to full, when the
+  caller chooses. Up to one bank, 60 clicks. See [What a refill does to the bucket](#what-a-refill-does-to-the-bucket).
 - **`spread_clicks`** — a charge: the next `bonus.spread.clicks` clicks (8) also
   take the tiles touching the one clicked, about 56 tiles. See [What a spread does to a click](#what-a-spread-does-to-a-click).
 - **`bomb`** — a charge: one bomb, kept until it is dropped. It
@@ -892,7 +893,12 @@ strong ones can be made rare (production runs 5 : 2 : 1 : 2):
   `bonus.enclose.maxTiles` tiles (25).
   See [What an enclose does to a click](#what-an-enclose-does-to-a-click).
 
-The last three are **charges** rather than timers — see [Charges](#charges-bomb-enclose-spread).
+Every kind is a **charge**, worth about one bank, rather than a timer — see
+[Charges](#charges-refill-bomb-enclose-spread). There used to be a `triple_clicks`
+that multiplied the refill for two minutes. With a bank of 60 it was worth "some
+clicks, maybe": nothing on a full bank, and a different amount for every
+country's pace. The refill is the same good, clicks, with the moment chosen by
+the player.
 
 Boxes are always on: there is no switch.
 
@@ -927,11 +933,9 @@ watches the stream, so there is nothing here to hide from one.
   client saying anything — the next one comes at `missRetry`. That applies to
   **one** miss; a second in a row waits the ordinary window, or a tab that never
   catches anything would collect a box every `missRetry` forever.
-- **Caught** — for a triple, the next is due a window after the **bonus ends**,
-  not after the catch: timed from the catch, a second box lands on a running
-  bonus and either stacks or is wasted. A charge has no end, so the next is due a
-  window after the **claim**, not after it is spent: a bomb held for an hour does
-  not hold back every other box for an hour.
+- **Caught** — a charge has no end, so the next is due a window after the
+  **claim**, not after it is spent: a bomb held for an hour does not hold back
+  every other box for an hour.
 
 **Only callers who have clicked inside `activeWithin` are offered anything.** A
 tab left open overnight is not playing, and it is also what keeps the miss rule
@@ -943,22 +947,19 @@ the instant they come back.
 tab and opening it again draws a fresh wait, and a player could reload until
 they got a short one.
 
-**`maxBoostPerHour` and `maxChargesPerHour` bound what a caller can be granted.**
-Nothing here is a race any more, but catch rate is where an advantage is left: a
-script catches every box it is offered where a person catches some. These make
-the worst case a number you choose rather than a function of reflexes.
-`maxBoostPerHour` (15m) counts the triple time granted in the last hour;
-`maxChargesPerHour` (6) counts the charges, which have no time to count. A cap
-reached leaves those kinds out of the draw, and the others are still offered;
-with every kind left out, the slot is lost like a caller's who was away. So a
-script that catches every box gets at most 15 minutes of triple and six charges
-an hour, and holding a charge already stops that kind coming again.
+**`maxChargesPerHour` bounds what a caller can be granted.** Nothing here is a
+race any more, but catch rate is where an advantage is left: a script catches
+every box it is offered where a person catches some. This makes the worst case
+a number you choose rather than a function of reflexes. Past 12 charges in the
+last hour the slot is lost, like a caller's who was away; 12 is above the ten
+boxes an hour a person catching every one would get. Holding a charge already
+stops that kind coming again.
 
 **A caller is a scope, not a connection.** `Attend` is keyed on `cpipscope.Of`,
 the same unit the session token binds to, and holds every stream
 sharing it — so twenty tabs are one entrant on one schedule, and all of them are
-sent the box. The streams carry no token, so offers stay on the scope; the boost a
-triple grants lands on the claiming account's bucket. The handler's `defer` is what removes it; there is no
+sent the box. Offers stay on the scope; the charge a box grants lands on the
+claiming account. The handler's `defer` is what removes it; there is no
 context goroutine per connected client, because the fanout deliberately does not
 pay that cost.
 
@@ -986,10 +987,10 @@ with a public outcome is what keeps the spectacle without the scramble. A client
 too old to know either case reads an unset `oneof` and skips it, which is the
 whole reason the envelope exists.
 
-The catch is published **after** the boost lands, so a catch announced to the
+The catch is published **after** the charge is held, so a catch announced to the
 planet that then failed to apply is the one lie this cannot tell.
 
-#### Charges (bomb, enclose, spread)
+#### Charges (refill, bomb, enclose, spread)
 
 A timer rewarded speed rather than planning: with a bank of clicks, a 10s spread
 let a player dump the whole bank at seven tiles a click, more than a bomb, and a
@@ -1002,10 +1003,10 @@ a spread is the next 8 clicks.
   click chain and the drop agree on whose charge it is. A charge is the account's
   so it survives closing the tab, a new address and another device. A caller with
   no account is `NoHolder`: it holds nothing, and a scope where no account plays
-  is offered triples only. Every client mints a guest account, so this leaves
+  is offered nothing. Every client mints a guest account, so this leaves
   out only a caller with no token at all.
 - **The rules are a value, `bonuses.Hand`**: one account's charges with the
-  moment each lapses. `Granted`, `AfterBomb`, `AfterEnclose` and
+  moment each lapses. `Granted`, `AfterRefill`, `AfterBomb`, `AfterEnclose` and
   `AfterSpreadClick` build a new hand and change nothing; the storage swaps it in.
 - **At most one of each kind.** A second grant of a kind held replaces it rather
   than stacking, and the schedule does not offer a kind held by any player who
@@ -1052,8 +1053,8 @@ a click spreads to could name any tiles it liked — that is why the spread wait
 for [Map geography](#map-geography). The client paints the tile it clicked, as it
 always has, and the neighbours reach it over the stream like anyone else's.
 
-`claim_bonus_usecase` grants the charge with `Charges.Grant(holder, KindSpreadClicks)`
-instead of a boost, and answers the allowance unchanged. Each accepted click then
+`claim_bonus_usecase` grants the charge with `Charges.Grant(holder, KindSpreadClicks)`.
+Each accepted click then
 spends one of its `bonus.spread.clicks` with `Charges.SpendSpreadClick`, after the
 rule accepted it: a refused click spreads nothing and costs nothing.
 
@@ -1078,15 +1079,6 @@ sends it to every caller.
 
 A spread is one event per click, which is why a caller's bonus feed buffers 32
 events rather than a handful.
-
-**A triple clicks bonus is not an event of its own: it is `TileUpdate.boosted`.**
-The limiter's `State` says whether a boost runs, `throttle_click` copies that
-onto `click_usecase.In.Boosted`, and the rule writes with `SetBoosted` instead of `Set`,
-so the update it publishes carries the flag. The flag rides with the change it
-describes — same message, same order, no second frame per click — and a click on
-a tile already held publishes nothing, so it shows nothing either. A spread
-could not be done this way: its animation needs the clicked tile and its
-neighbours together, which one flag per tile cannot say.
 
 #### What a bomb does
 
@@ -1194,34 +1186,26 @@ with `yours`: a charge is one shape, so a shape of your own is the charge spent.
 `prom_enclose` wraps that publisher, so it counts exactly the shapes that were
 closed: `bonus_enclosures_total` and `bonus_enclosed_tiles_total`.
 
-#### What a bonus does to the bucket
+#### What a refill does to the bucket
 
-`cpratelimit.Limiter.Boost(key, multiplier, until)` multiplies the refill rate
-until it lapses, and **leaves the ceiling where it is**: the bank never changes
-size, so a bonus fills it faster and never widens it. **It boosts the account's bucket, never the scope's**
-(`Buckets.Boosted`): the scope's is shared with every other player behind the
-address, so a bonus that sped it up would be a bonus for all of them. With no
-account it boosts the scope's own 1× bucket, as before accounts. A boosted player
-still spends from the scope's bucket, so it is bounded by it —
-`TestABoostDoesNotSpeedUpTheScopesBucket`. It is **opt-in and additive**: a bucket nobody
-boosts holds `multiplier: 1` and behaves exactly as it did before boosting
-existed, which matters because the same limiter type throttles chat and session
-mints and neither has any business being boosted.
+`UseRefill` spends it, through `use_refill_usecase`, and `cpratelimit.Limiter.Fill(key)`
+tops the bucket up to its capacity. **It fills the account's bucket, never the
+scope's** (`Buckets.Own`): the scope's is shared with every other player behind
+the address, so a refill that filled it would be a refill for all of them. A
+refilled player still spends from the scope's bucket, so it is bounded by it —
+`TestARefillDoesNotFillTheScopesBucket`. The bank never grows past its size, and
+the pace is left as it was. `Fill` is **additive**: nothing that never calls it
+can tell it exists, which matters because the same limiter type throttles chat
+and session mints.
 
-Two things in there are easy to get wrong, and each has a test:
-
-- **The refill interval is split at the moment the boost lapses.** An interval
-  that straddles the end would otherwise be paid entirely at one rate or the
-  other, over-granting a caller that went quiet across it.
-- **The sweep skips a bucket still boosted.** It forgets buckets that have
-  refilled to capacity, on the grounds that such a bucket holds what a fresh one
-  would — which stops being true under a boost, and forgetting it would end the
-  boost early.
-
-The reward needs **no frontend release to be visible**: `State` already carries
-the policy as well as the reading, so a boosted bucket reports a rate of 3/s,
-and the meter fills faster off the server's own numbers. See
-[Saying what is left](#saying-what-is-left).
+- **A full bank is refused before the charge is touched**: `ErrBankFull`,
+  answered `FailedPrecondition`, spends nothing. The client checks first and says
+  "Bank already full" without asking; the server check is what holds.
+- **No refill, or no account**: `ErrNoRefill`, answered `NotFound`.
+- **The answer carries the budget**, full, and the charges, so the meter jumps at
+  once rather than on the next click.
+- `UseRefill` is session-gated like `Click` and `DropBomb`, and not throttled:
+  holding the refill the server granted is the gate.
 
 ### Anti-bot (`internal/antibot/`)
 
@@ -1816,7 +1800,7 @@ Both chains order them the same way: error mapping outermost, then the blocklist
 - **A flush appends, it never rewrites.** Every `ledgerStorage.flushInterval` (1s), `Flush` hands the takes past the last flush to `Save`: one transaction that `COPY`s them in, deletes the takes before the head (what the retention or the cap dropped), moves the head, and upserts the marks set since. It first deletes any row at or past the first new position, so a flush whose commit answer was lost writes again without a conflict. A take dropped before it was flushed is never written. A failed save keeps it all for the next tick; each flush has a 10s timeout, and shutdown flushes once more.
 - **One pool for every runner.** `cppg.CloseAfter(db, logger, tilesStorage, takings, charges)` runs them together and closes the pool after the last flushes.
 
-**The charges follow it too**, through `inmemory_charge_storage.Persistence` and `bonuses/postgres_charge_store`, on the same pool: one row per account in `planet.charges`, written every `chargeStorage.flushInterval`. See [Charges](#charges-bomb-enclose-spread).
+**The charges follow it too**, through `inmemory_charge_storage.Persistence` and `bonuses/postgres_charge_store`, on the same pool: one row per account in `planet.charges`, written every `chargeStorage.flushInterval`. See [Charges](#charges-refill-bomb-enclose-spread).
 
 The antibot's bans and evidence are in postgres too, in the `antibot` schema, the same way — see [What survives a restart](#what-survives-a-restart). The player module's profiles and stats are in postgres too, in the `player` schema, but with no memory copy: each call reads or writes the table — see [Player](#player-internalplayer).
 
@@ -2080,13 +2064,12 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `vpnBlocklist.enabled`, `vpnBlocklist.includeDatacenters`, `vpnBlocklist.allow` — the VPN refusal (see [VPN blocklist](#vpn-blocklist)); disabled parses nothing and allocates nothing
 - `bonus.interval` — how often a box is put in front of somebody; a ceiling, since nothing is offered while nobody is watching
 - `bonus.offerTTL` — how long the token stays good; **must outlast the flight the client draws**, or a box caught on its last frame is refused
-- `bonus.kinds` — a weight per kind (`triple_clicks`, `spread_clicks`); a kind's chance is its weight over the sum. Left out or 0 is never offered, empty offers every kind equally, and an unknown kind, a negative weight or all zeros refuse the boot
+- `bonus.kinds` — a weight per kind (`refill`, `spread_clicks`, `bomb`, `enclose_clicks`); a kind's chance is its weight over the sum. Left out or 0 is never offered, empty offers every kind equally, and an unknown kind, a negative weight or all zeros refuse the boot
 - `bonus.spread.clicks` — how many clicks a caught `spread_clicks` charge spreads (default 8, about 56 tiles, a bomb's worth). A count, not a time: a timed spread let a full bank of clicks be dumped inside it
 - `bonus.enclose.maxTiles` — the most tiles the one shape of an `enclose_clicks` charge may take (default 25)
-- `bonus.chargeTTL` — how long a charge (bomb, enclose, spread) is kept unspent (default 24h). Charges are kept in postgres, so a restart keeps them
+- `bonus.chargeTTL` — how long a charge (refill, bomb, enclose, spread) is kept unspent (default 24h). Charges are kept in postgres, so a restart keeps them
 - `chargeStorage.flushInterval` — how often the charges that changed are written to postgres (default 1s); also flushed on shutdown
-- `bonus.maxBoostPerHour`, `bonus.maxChargesPerHour` — the most triple time (15m) and the most charges (6) one caller may be granted per hour; a cap reached leaves those kinds out of the draw
-- `bonus.triple.duration`, `bonus.triple.multiplier` — how long a caught `triple_clicks` runs and what it multiplies the allowance by; the client reads both off the answer, so changing them changes the meter with no frontend release
+- `bonus.maxChargesPerHour` — the most charges one caller may be granted per hour (12); past it the slot is lost
 - `antiBot.enabled` — off registers nothing and measures nothing
 - `antiBot.shadowBan.enforce` — off judges, logs and counts without dropping; the mode to deploy in
 - `antiBot.shadowBan.banDurations` — the ban for each offence (the last step repeats). An offence is a ban that starts while none is running; a flag on a running ban only extends it. **Offences are never forgotten**

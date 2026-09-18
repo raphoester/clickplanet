@@ -2,7 +2,7 @@
  * The tiles this client clicked a moment ago, so a broadcast can be told apart
  * as the answer to one of them.
  *
- * A spread click and a boosted click reach every client alike, with a country
+ * A spread click reaches every client alike, with a country
  * and a tile but no word of who made them. The client that made one clicked
  * that tile, for that country, a round trip earlier — which is what this
  * remembers. Another player of the same country clicking the same tile inside

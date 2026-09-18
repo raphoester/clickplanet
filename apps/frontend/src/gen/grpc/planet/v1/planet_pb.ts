@@ -19,9 +19,11 @@ export enum BonusKind {
   UNSPECIFIED = 0,
 
   /**
-   * @generated from enum value: BONUS_KIND_TRIPLE_CLICKS = 1;
+   * A charge: fills the player's click bank to full, when the player chooses.
+   *
+   * @generated from enum value: BONUS_KIND_REFILL = 5;
    */
-  TRIPLE_CLICKS = 1,
+  REFILL = 5,
 
   /**
    * A charge: the next few clicks also take the tiles touching the one clicked.
@@ -53,7 +55,7 @@ export enum BonusKind {
 // Retrieve enum metadata with: proto3.getEnumType(BonusKind)
 proto3.util.setEnumType(BonusKind, "planet.v1.BonusKind", [
   { no: 0, name: "BONUS_KIND_UNSPECIFIED" },
-  { no: 1, name: "BONUS_KIND_TRIPLE_CLICKS" },
+  { no: 5, name: "BONUS_KIND_REFILL" },
   { no: 2, name: "BONUS_KIND_SPREAD_CLICKS" },
   { no: 3, name: "BONUS_KIND_BOMB" },
   { no: 4, name: "BONUS_KIND_ENCLOSE_CLICKS" },
@@ -641,6 +643,13 @@ export class PlanetEvent extends Message<PlanetEvent> {
  */
 export class ChargesHeld extends Message<ChargesHeld> {
   /**
+   * A refill, to fill the click bank with UseRefill.
+   *
+   * @generated from field: bool refill = 4;
+   */
+  refill = false;
+
+  /**
    * A bomb, to be dropped anywhere with DropBomb.
    *
    * @generated from field: bool bomb = 1;
@@ -671,6 +680,7 @@ export class ChargesHeld extends Message<ChargesHeld> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "planet.v1.ChargesHeld";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 4, name: "refill", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 1, name: "bomb", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 2, name: "enclose", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 3, name: "spread_clicks_left", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
@@ -878,13 +888,6 @@ export class BonusOffered extends Message<BonusOffered> {
   kind = BonusKind.UNSPECIFIED;
 
   /**
-   * How long a timed bonus runs. Zero for a charge, which runs until spent.
-   *
-   * @generated from field: uint32 duration_seconds = 4;
-   */
-  durationSeconds = 0;
-
-  /**
    * After this the token is refused, whatever the client is still drawing.
    *
    * @generated from field: int64 expires_at_unix_ms = 5;
@@ -902,7 +905,6 @@ export class BonusOffered extends Message<BonusOffered> {
     { no: 1, name: "token", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "seed", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 3, name: "kind", kind: "enum", T: proto3.getEnumType(BonusKind) },
-    { no: 4, name: "duration_seconds", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 5, name: "expires_at_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
   ]);
 
@@ -1019,25 +1021,9 @@ export class ClaimBonusRequest extends Message<ClaimBonusRequest> {
  */
 export class ClaimBonusResponse extends Message<ClaimBonusResponse> {
   /**
-   * The allowance as it stands with the bonus applied, so the client does not
-   * have to wait for its next click to see the faster refill. A kind that does
-   * not speed it up answers the allowance unchanged.
-   *
-   * @generated from field: planet.v1.ClickBudget budget = 1;
-   */
-  budget?: ClickBudget;
-
-  /**
    * @generated from field: planet.v1.BonusKind kind = 2;
    */
   kind = BonusKind.UNSPECIFIED;
-
-  /**
-   * How long a timed bonus runs. Zero for a charge.
-   *
-   * @generated from field: uint32 duration_seconds = 3;
-   */
-  durationSeconds = 0;
 
   /**
    * What the caller holds once this box is granted.
@@ -1054,9 +1040,7 @@ export class ClaimBonusResponse extends Message<ClaimBonusResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "planet.v1.ClaimBonusResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "budget", kind: "message", T: ClickBudget },
     { no: 2, name: "kind", kind: "enum", T: proto3.getEnumType(BonusKind) },
-    { no: 3, name: "duration_seconds", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 7, name: "charges", kind: "message", T: ChargesHeld },
   ]);
 
@@ -1074,6 +1058,92 @@ export class ClaimBonusResponse extends Message<ClaimBonusResponse> {
 
   static equals(a: ClaimBonusResponse | PlainMessage<ClaimBonusResponse> | undefined, b: ClaimBonusResponse | PlainMessage<ClaimBonusResponse> | undefined): boolean {
     return proto3.util.equals(ClaimBonusResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.UseRefillRequest
+ */
+export class UseRefillRequest extends Message<UseRefillRequest> {
+  /**
+   * The country the allowance that comes back is priced for.
+   *
+   * @generated from field: string country_id = 1;
+   */
+  countryId = "";
+
+  constructor(data?: PartialMessage<UseRefillRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.UseRefillRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UseRefillRequest {
+    return new UseRefillRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UseRefillRequest {
+    return new UseRefillRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UseRefillRequest {
+    return new UseRefillRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: UseRefillRequest | PlainMessage<UseRefillRequest> | undefined, b: UseRefillRequest | PlainMessage<UseRefillRequest> | undefined): boolean {
+    return proto3.util.equals(UseRefillRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.UseRefillResponse
+ */
+export class UseRefillResponse extends Message<UseRefillResponse> {
+  /**
+   * The allowance once the bank is full.
+   *
+   * @generated from field: planet.v1.ClickBudget budget = 1;
+   */
+  budget?: ClickBudget;
+
+  /**
+   * What the caller holds once the refill is spent.
+   *
+   * @generated from field: planet.v1.ChargesHeld charges = 2;
+   */
+  charges?: ChargesHeld;
+
+  constructor(data?: PartialMessage<UseRefillResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.UseRefillResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "budget", kind: "message", T: ClickBudget },
+    { no: 2, name: "charges", kind: "message", T: ChargesHeld },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UseRefillResponse {
+    return new UseRefillResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UseRefillResponse {
+    return new UseRefillResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UseRefillResponse {
+    return new UseRefillResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: UseRefillResponse | PlainMessage<UseRefillResponse> | undefined, b: UseRefillResponse | PlainMessage<UseRefillResponse> | undefined): boolean {
+    return proto3.util.equals(UseRefillResponse, a, b);
   }
 }
 
@@ -1457,13 +1527,6 @@ export class TileUpdate extends Message<TileUpdate> {
    */
   previousCountryId = "";
 
-  /**
-   * The click that made this change was made under a triple clicks bonus.
-   *
-   * @generated from field: bool boosted = 4;
-   */
-  boosted = false;
-
   constructor(data?: PartialMessage<TileUpdate>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1475,7 +1538,6 @@ export class TileUpdate extends Message<TileUpdate> {
     { no: 1, name: "tile_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 2, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "previous_country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "boosted", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TileUpdate {

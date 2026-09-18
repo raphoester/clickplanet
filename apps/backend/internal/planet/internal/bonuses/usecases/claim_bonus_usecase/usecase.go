@@ -1,15 +1,12 @@
-// Package claim_bonus_usecase redeems a box and starts the boost it is worth.
+// Package claim_bonus_usecase redeems a box and hands over the charge it is worth.
 package claim_bonus_usecase
 
 import (
 	"context"
 	"errors"
-	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 // ErrNoSuchBonus covers every way a claim can fail and tells nobody which:
@@ -20,22 +17,9 @@ var ErrNoSuchBonus = errors.New("no bonus to claim")
 type Registry interface {
 	Claim(token string, scope string) (bonuses.Reward, bool)
 	Publish(taken bonuses.Taken)
-	Multiplier() float64
 }
 
-// Booster speeds up a caller's refill. It is the same limiter the throttle
-// spends: a bonus that did not move that bucket would not be a bonus.
-type Booster interface {
-	Boost(key string, multiplier float64, until time.Time) cpratelimit.State
-	Peek(key cpratelimit.Key) cpratelimit.State
-}
-
-type Pricer interface {
-	Price(country string) clicks.Price
-}
-
-// Charger hands a caller the charge a box was worth — a bomb, an enclose shape or a spread's clicks —
-// for the click chain and drop_bomb to spend.
+// Charger hands a caller the charge a box was worth, for the click chain, drop_bomb and use_refill to spend.
 type Charger interface {
 	Grant(holder bonuses.Holder, kind bonuses.Kind)
 	Held(holder bonuses.Holder) bonuses.Held
@@ -47,45 +31,23 @@ type In struct {
 }
 
 type Out struct {
-	Budget clicks.Budget
-	Kind   bonuses.Kind
-
-	// Zero for a charge.
-	Duration time.Duration
+	Kind bonuses.Kind
 
 	// What the caller holds once the charge is granted.
 	Held bonuses.Held
 }
 
-func New(
-	registry Registry,
-	booster Booster,
-	pricer Pricer,
-	charger Charger,
-	buckets clicks.Buckets,
-	clock cptime.Clock,
-) *UseCase {
-	return &UseCase{
-		registry: registry,
-		booster:  booster,
-		pricer:   pricer,
-		charger:  charger,
-		buckets:  buckets,
-		clock:    clock,
-	}
+func New(registry Registry, charger Charger) *UseCase {
+	return &UseCase{registry: registry, charger: charger}
 }
 
 type UseCase struct {
 	registry Registry
-	booster  Booster
-	pricer   Pricer
 	charger  Charger
-	buckets  clicks.Buckets
-	clock    cptime.Clock
 }
 
 // Execute derives the payer the way the throttle does, which ties the offer and the claim to one scope,
-// and the boost to the bucket that scope's click spends first, by construction rather than by agreement.
+// and the charge to the account that scope's click spends, by construction rather than by agreement.
 func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	payer := clicks.PayerOf(ctx)
 
@@ -94,36 +56,12 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 		return Out{}, ErrNoSuchBonus
 	}
 
-	price := u.pricer.Price(in.CountryID)
-	state := u.apply(payer, price, reward)
+	holder := bonuses.HolderOf(payer)
+	u.charger.Grant(holder, reward.Kind)
 
-	// Only once the boost has landed: a catch announced to the planet that then
-	// failed to apply is the one lie this could tell.
+	// Only once the charge is held: a catch announced to the planet that then failed to apply is the one
+	// lie this could tell.
 	u.registry.Publish(bonuses.Taken{CountryID: in.CountryID, Kind: reward.Kind})
 
-	return Out{
-		Budget:   u.buckets.BudgetOf(state, price),
-		Kind:     reward.Kind,
-		Duration: reward.Duration,
-		Held:     u.charger.Held(bonuses.HolderOf(payer)),
-	}, nil
-}
-
-// apply starts what the reward is worth, and answers the allowance as it stands
-// afterwards: the tighter bucket, as a click reports it. A triple speeds up the account's bucket and never
-// the scope's, which the scope's other players share. Every other kind is a charge, held by the account.
-func (u *UseCase) apply(payer clicks.Payer, price clicks.Price, reward bonuses.Reward) cpratelimit.State {
-	if reward.Kind.Timed() {
-		u.booster.Boost(u.buckets.Boosted(payer), u.registry.Multiplier(), u.clock.Now().Add(reward.Duration))
-	} else {
-		u.charger.Grant(bonuses.HolderOf(payer), reward.Kind)
-	}
-
-	keys := u.buckets.Keys(payer, price)
-	states := make([]cpratelimit.State, len(keys))
-	for i, key := range keys {
-		states[i] = u.booster.Peek(key)
-	}
-
-	return clicks.Tightest(states)
+	return Out{Kind: reward.Kind, Held: u.charger.Held(holder)}, nil
 }

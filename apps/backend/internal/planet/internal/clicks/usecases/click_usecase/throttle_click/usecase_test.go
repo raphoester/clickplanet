@@ -74,23 +74,6 @@ func TestThrottleClick(t *testing.T) {
 		assert.Equal(t, state, out.Budget.State)
 	})
 
-	t.Run("marks a click boosted while the bucket says a boost runs", func(t *testing.T) {
-		plain, boosted := &fakeClick{}, &fakeClick{}
-
-		_, err := throttle_click.New(plain, &fakeLimiter{allow: true, state: state}, onePrice(), buckets).
-			Execute(t.Context(), click_usecase.In{TileID: 1, CountryID: "fr"})
-		require.NoError(t, err)
-
-		boostedState := state
-		boostedState.Boosted = true
-		_, err = throttle_click.New(boosted, &fakeLimiter{allow: true, state: boostedState}, onePrice(), buckets).
-			Execute(t.Context(), click_usecase.In{TileID: 1, CountryID: "fr"})
-		require.NoError(t, err)
-
-		assert.False(t, plain.in.Boosted)
-		assert.True(t, boosted.in.Boosted)
-	})
-
 	t.Run("refuses a click over the limit without touching the map", func(t *testing.T) {
 		inner := &fakeClick{}
 
