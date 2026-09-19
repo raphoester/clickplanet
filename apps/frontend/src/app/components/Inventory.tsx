@@ -1,6 +1,7 @@
 import {useEffect, useState} from 'react'
 import {BonusRules, ChargeKind, Charges, Switches} from '../../domain/bonus.ts'
 import BonusIcon from './BonusIcon.tsx'
+import {ChevronIcon} from './icons.tsx'
 import './Inventory.css'
 
 export const INVENTORY_FOLDED_KEY = "clickplanet-inventory-folded"
@@ -30,6 +31,12 @@ export type InventoryProps = {
  *
  * Every slot is shown, empty ones dimmed, so the player sees what a box can
  * hold. The whole section folds, and remembers it, since a new kind is a new slot.
+ *
+ * It has no panel of its own: it is the lower half of the click meter's panel,
+ * under the reading and divided from it by a hairline. It folds from a header
+ * over the slots, with the name on the left and a chevron at the right end that
+ * turns over when it opens — the same affordance, and the same icon, as the
+ * menu's collapse and the chat's header.
  */
 export default function Inventory({charges, rules, switches, onToggle, bombArmed, onToggleBomb, onUseRefill}: InventoryProps) {
     const [folded, setFolded] = useState(readFolded)
@@ -50,14 +57,19 @@ export default function Inventory({charges, rules, switches, onToggle, bombArmed
         .filter(Boolean).length
     const active = bombArmed || switches.spread || switches.enclose
 
-    return <section className={`inventory${active ? " inventory--active" : ""}`} aria-label="Inventory">
+    const className = ["inventory", active && "inventory--active", folded && "inventory--folded"]
+        .filter(Boolean).join(" ")
+
+    return <section className={className} aria-label="Inventory">
         <button type="button"
-                className="inventory-header"
+                className="inventory-fold"
                 aria-expanded={!folded}
                 onClick={fold}>
-            <span>Inventory</span>
-            {kindsHeld > 0 && <span className="inventory-held" aria-label={`${kindsHeld} kinds held`}>{kindsHeld}</span>}
-            <span className="inventory-chevron" aria-hidden="true">{folded ? "▾" : "▴"}</span>
+            <span className="inventory-fold-name">Inventory</span>
+            {/* The count is what a folded section still says; open, every slot says its own. */}
+            {folded && kindsHeld > 0 &&
+                <span className="inventory-held" aria-label={`${kindsHeld} kinds held`}>{kindsHeld}</span>}
+            <span className="inventory-chevron"><ChevronIcon size={16}/></span>
         </button>
 
         {!folded && <div className="inventory-slots">

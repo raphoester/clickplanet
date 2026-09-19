@@ -1,75 +1,93 @@
 /*
- * The bonuses held, under the click meter. The colours of each slot are its
- * box's, set in BonusAward.css beside the announcement's, so a kind looks the
- * same when it is caught and when it is held.
+ * The bonuses held, the lower half of the click meter's panel. It has no border
+ * or background of its own: ClickBudgetMeter.css draws the one panel around
+ * both, and the hairline dividing them. The colours of each slot are its box's,
+ * set in BonusAward.css beside the announcement's, so a kind looks the same
+ * when it is caught and when it is held.
  */
 .inventory {
     display: flex;
     flex-direction: column;
     align-items: stretch;
-    padding: 6px 8px 8px;
-    border: 1px solid #FFFFFF33;
-    border-radius: 18px;
-    background: #00000075;
-    backdrop-filter: blur(8px);
-    color: #FFFFFF;
-    text-shadow: -1px 1px 0 #000000;
     pointer-events: auto;
-    transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
-/* Something is switched on or aimed: the next click does more than paint a tile. */
-.inventory--active {
-    border-color: #FFFFFF77;
-    box-shadow: 0 0 14px #FFFFFF22;
+/*
+ * Clear of the header: a switched-on slot's "On" badge hangs 7px over its own
+ * top, and at a smaller margin it would sit on the name.
+ */
+.inventory-slots {
+    display: flex;
+    gap: 6px;
+    margin-top: 10px;
 }
 
-.inventory-header {
+/*
+ * The header the section folds from: the name, the count while folded, and a
+ * chevron at the right end. Same shape, same icon and same turn as the menu's
+ * collapse and the chat's header — there is one way to fold something here.
+ */
+.inventory-fold {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 2px 6px;
+    padding: 0;
     border: none;
     background: none;
     color: inherit;
     font-family: Oswald, sans-serif;
-    font-size: 13px;
+    font-size: 12px;
     letter-spacing: 0.5px;
     text-transform: uppercase;
     text-shadow: inherit;
+    opacity: 0.75;
     cursor: pointer;
+    transition: opacity 0.2s ease;
+}
+
+.inventory-fold:hover,
+.inventory-fold:focus-visible {
+    opacity: 1;
+}
+
+/* Something is switched on or aimed: the panel glows, and says so folded too. */
+.inventory--active .inventory-fold {
+    opacity: 1;
+}
+
+.inventory-chevron {
+    display: flex;
+    flex-shrink: 0;
+    margin-left: auto;
+    color: #FFFFFFB3;
+    transition: transform 0.18s ease;
+}
+
+/* Open, it points back up at the header that closes it again. */
+.inventory-fold[aria-expanded="true"] .inventory-chevron {
+    transform: rotate(180deg);
 }
 
 .inventory-held {
-    min-width: 18px;
+    min-width: 17px;
     padding: 0 5px;
     border-radius: 999px;
     background: #FFC061;
     color: #2A1A04;
-    font-size: 12px;
-    line-height: 18px;
+    font-size: 11px;
+    line-height: 17px;
     text-align: center;
     text-shadow: none;
-}
-
-.inventory-chevron {
-    margin-left: auto;
-    opacity: 0.7;
-}
-
-.inventory-slots {
-    display: flex;
-    gap: 6px;
-    margin-top: 6px;
 }
 
 .inventory-slot {
     position: relative;
     display: flex;
+    flex: 1 1 0;
     flex-direction: column;
     align-items: center;
     gap: 3px;
-    width: 58px;
+    min-width: 0;
     padding: 6px 0 4px;
     border: 1px solid transparent;
     border-radius: 12px;
@@ -78,6 +96,7 @@
     font-family: Oswald, sans-serif;
     text-shadow: inherit;
     cursor: pointer;
+    pointer-events: auto;
     transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
 }
 
@@ -165,21 +184,8 @@
 }
 
 @media only screen and (max-width: 768px) {
-    .inventory {
-        padding: 4px 6px 6px;
-        border-radius: 14px;
-    }
-
-    .inventory-header {
-        font-size: 12px;
-    }
-
     .inventory-slots {
         gap: 4px;
-    }
-
-    .inventory-slot {
-        width: 48px;
     }
 
     .inventory-box {
@@ -199,6 +205,10 @@
 
     .inventory-name {
         font-size: 10px;
+    }
+
+    .inventory-fold {
+        font-size: 11px;
     }
 }
 

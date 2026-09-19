@@ -956,8 +956,23 @@ player's territory, so it has not been done.
    is refused, the moment a guest meets the wall. It opens `SignInPitchModal`,
    which has the account panel's sign-in buttons. The account panel's guest text
    says the same. **Nothing is offered without the server's number**, nor with
-   sign-in off. The meter and the dialog sit in `.click-budget-dock`, which takes
-   the corner.
+   sign-in off.
+
+   **It is one panel, and its width is set rather than grown.** The reading, the
+   offer and the inventory all live in `.click-budget-dock`, which takes the
+   corner and carries the only border, background and blur; `.click-budget`
+   itself draws nothing, so `role="meter"` stays a leaf with no button inside
+   it. The dock's width is a number (288px, 240px on a phone) because the three
+   parts are three different widths: shrink-to-fit handed the widest one the
+   say, and the others then trailed a stripe of dead space to their right —
+   worse, the price row wrapping made the meter's max-content that whole row
+   *unwrapped*, which is where the empty half of the pill came from. The gauge
+   is `flex: 1` and the slots `flex: 1 1 0`, so both fill whatever the panel
+   gives them. The panel's border is what carries state: the inventory's glow
+   first, then low, empty and refused, in that source order so red at the wall
+   beats a bonus being switched on. The reading still jolts on a refusal
+   (`.click-budget-refused`, taken off on its own `animationend`), but the red
+   flash is the dock's, through `:has()`.
 
 ### Sampling the leaderboard
 
@@ -1075,9 +1090,11 @@ writes or spends anything.
 
 ### The inventory
 
-`components/Inventory.tsx` is the section that shows them, docked **above**
-`ClickBudgetMeter` in its corner (the meter takes it as `children`, and shows it
-even with no budget). One slot per kind, always shown, each drawn with its box's
+`components/Inventory.tsx` is the section that shows them, the **lower half of
+the click meter's panel** (the meter takes it as `children`, and shows it even
+with no budget). It draws no border, background or blur of its own: the one
+panel is `.click-budget-dock`, and a hairline divides the reading from the slots.
+One slot per kind, always shown, each drawn with its box's
 icon (`BonusIcon`) in its box's colours (the `--bonus-*` properties in
 `BonusAward.css`, shared with the announcement). An empty slot is dimmed and
 cannot be pressed. A pool shows its count against its size (`5/8`, `2/3`), and a
@@ -1090,10 +1107,15 @@ word over the icon says what the slot is doing (`On`, `Aim`, `Full`).
 - **Bomb** aims it, or puts it away (`Globe.setArmed`).
 - **Spread** and **Enclose** switch (`Globe.setSwitch`), `aria-pressed`.
 
-**The whole section folds** from its header, which counts the kinds held; the
-fold is kept in local storage (`clickplanet-inventory-folded`, read and written
-in a `try`, since a private window can throw). It glows while something is on or
-aimed, so a folded inventory still says the next click does more than paint.
+**The whole section folds** from a header over the slots: the name on the left,
+the count of kinds held while folded (open, every slot already says its own), and
+a `ChevronIcon` at the right end that turns over when it opens. That is the
+page's one way of folding something — the same icon and the same turn as
+`MenuHeader`'s collapse and the chat's header — so it is written the same way
+here rather than invented again. The fold is kept in local storage
+(`clickplanet-inventory-folded`, read and written in a `try`, since a private
+window can throw). The panel glows while something is on or aimed, so a folded
+inventory still says the next click does more than paint.
 
 ## Bombs
 
