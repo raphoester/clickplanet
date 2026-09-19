@@ -5,7 +5,7 @@ import "./ClickBudgetMeter.css"
 
 export type ClickBudgetMeterProps = {
     budget?: ClickBudget
-    /** Docked above the meter, in its corner: the inventory. Shown without a budget too. */
+    /** Docked under the meter, inside the same panel: the inventory. Shown without a budget too. */
     children?: ReactNode
     /** The country selected, to say why its clicks refill slower. */
     countryName?: string
@@ -146,18 +146,14 @@ export default function ClickBudgetMeter({
     const whole = Math.floor(tokensAt(budget, now()))
 
     const price = describePrice(budget.price, countryName)
-    const className = ["click-budget", price && "click-budget-priced"]
-        .filter(Boolean).join(" ")
 
     // Said only when the server says what it is worth: a number made up here could promise what it does not grant.
     const speedUp = onSignIn && budget.linkedMultiplier
 
     return <div className="click-budget-dock">
-        {children}
-
         <div
             ref={root}
-            className={className}
+            className="click-budget"
             role="meter"
             aria-valuemin={0}
             aria-valuenow={whole}
@@ -165,23 +161,25 @@ export default function ClickBudgetMeter({
             aria-label="Clicks left before the server slows you down"
             style={{"--click-budget-capacity": budget.capacity} as React.CSSProperties}>
 
-            <div className="click-budget-count">
-                <span ref={count} className="click-budget-number">{whole}</span>
-                <span className="click-budget-unit">left</span>
-            </div>
-
-            {pips > 0
-                ? <div className="click-budget-pips">
-                    {Array.from({length: pips}, (_, index) =>
-                        <span
-                            key={index}
-                            className="click-budget-pip"
-                            style={{"--click-budget-index": index} as React.CSSProperties}/>,
-                    )}
+            <div className="click-budget-reading">
+                <div className="click-budget-count">
+                    <span ref={count} className="click-budget-number">{whole}</span>
+                    <span className="click-budget-unit">left</span>
                 </div>
-                : <div className="click-budget-bar"/>}
 
-            {slow(budget) && <span ref={wait} className="click-budget-next">{waitText(budget, now())}</span>}
+                {pips > 0
+                    ? <div className="click-budget-pips">
+                        {Array.from({length: pips}, (_, index) =>
+                            <span
+                                key={index}
+                                className="click-budget-pip"
+                                style={{"--click-budget-index": index} as React.CSSProperties}/>,
+                        )}
+                    </div>
+                    : <div className="click-budget-bar"/>}
+
+                {slow(budget) && <span ref={wait} className="click-budget-next">{waitText(budget, now())}</span>}
+            </div>
 
             {price && <div className="click-budget-toll">
                 <span className="click-budget-toll-headline">{price.headline}</span>
@@ -193,6 +191,8 @@ export default function ClickBudgetMeter({
             <BoltIcon/>
             <span>Sign in: clicks {factor(speedUp)}× faster</span>
         </button>}
+
+        {children}
     </div>
 }
 

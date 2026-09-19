@@ -189,6 +189,16 @@ describe("ClickBudgetMeter's dock", () => {
         expect(document.querySelector(".click-budget-dock")?.textContent).toContain("held")
     })
 
+    // One panel, and the smaller part is the lower one: the inventory used to
+    // sit on top of the wider meter, which read as a mistake.
+    it("puts it after the reading, in the one panel", () => {
+        render(<ClickBudgetMeter budget={reading()}><p>held</p></ClickBudgetMeter>)
+
+        const dock = document.querySelector(".click-budget-dock")!
+        expect(Array.from(dock.children).indexOf(meter()))
+            .toBeLessThan(Array.from(dock.children).indexOf(screen.getByText("held")))
+    })
+
     it("still holds it against a server that reports no allowance", () => {
         render(<ClickBudgetMeter><p>held</p></ClickBudgetMeter>)
 

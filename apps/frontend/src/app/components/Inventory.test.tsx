@@ -83,6 +83,15 @@ describe("Inventory", () => {
         expect(slot(/^Bomb/).disabled).toBe(true)
     })
 
+    // The handle is the panel's bottom edge: over the slots it would hang in
+    // mid-panel once folded, with the reading above it and nothing below.
+    it("keeps the fold handle under the slots", () => {
+        render(inventory())
+
+        const section = screen.getByRole("region", {name: "Inventory"})
+        expect(section.lastElementChild).toBe(screen.getByRole("button", {name: /Inventory/}))
+    })
+
     it("folds, and stays folded on the next load", () => {
         render(inventory())
 

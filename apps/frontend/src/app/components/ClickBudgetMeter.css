@@ -6,8 +6,16 @@
  */
 
 /*
- * Where the meter sits, and the offer to sign in under it. The dock takes the
- * corner so the offer follows the meter however tall a price makes it.
+ * One panel, not three. The reading, the offer to sign in and the inventory
+ * under it used to be three bordered boxes stacked in a corner, each as wide as
+ * its own content — the widest one on top of the narrowest, which reads as a
+ * mistake. The chrome lives on the dock so all three share one border, and the
+ * reading stays a reading: role="meter" is a leaf, and the buttons sit outside it.
+ *
+ * The width is set here rather than grown from the content. The reading, the
+ * price and the four slots are three different widths, and letting the widest
+ * decide left the others trailing dead space to the right — the gauge stretches
+ * into it instead.
  */
 .click-budget-dock {
     position: absolute;
@@ -16,30 +24,55 @@
     z-index: 128;
     display: flex;
     flex-direction: column;
-    align-items: flex-end;
-    gap: 8px;
-    pointer-events: none;
-}
-
-.click-budget {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    padding: 10px 20px;
+    width: 288px;
+    max-width: calc(100vw - 32px);
+    padding: 10px 12px;
     border: 1px solid #FFFFFF33;
-    border-radius: 30px;
+    border-radius: 20px;
     background: #00000075;
     backdrop-filter: blur(8px);
-    pointer-events: none;
     /*
      * The page sets no body colour, so anything here that does not name one
      * inherits black and disappears into the panel. Say white once, at the top.
      */
     color: #FFFFFF;
     text-shadow: -1px 1px 0 #000000;
+    /* The panel covers a good piece of globe: a drag through it still turns it. */
+    pointer-events: none;
+    transition: border-color 0.4s ease, box-shadow 0.4s ease;
+}
+
+/*
+ * The inventory's own edge inside the panel. First — no reading above it — it
+ * has none. The padding is what a switched-on slot's "On" badge hangs into
+ * (top: -7px), so the hairline is not cut in half by it.
+ */
+.click-budget-dock > .inventory {
+    margin-top: 8px;
+    padding-top: 12px;
+    border-top: 1px solid #FFFFFF26;
+}
+
+.click-budget-dock > .inventory:first-child {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
+}
+
+.click-budget {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
     --click-budget-tokens: 0;
     --click-budget-ink: #FFFFFF;
-    transition: opacity 0.4s ease, border-color 0.4s ease;
+    transition: opacity 0.4s ease;
+}
+
+/* The count, the gauge and the countdown, on one line. */
+.click-budget-reading {
+    display: flex;
+    align-items: center;
+    gap: 12px;
 }
 
 /* A full bucket is not news; it stays legible and stops asking to be read. */
@@ -49,12 +82,10 @@
 
 .click-budget-low {
     --click-budget-ink: #FFB13F;
-    border-color: #FFB13F66;
 }
 
 .click-budget-empty {
     --click-budget-ink: #FF5C5C;
-    border-color: #FF5C5C88;
 }
 
 .click-budget-count {
@@ -84,8 +115,10 @@
     color: #FFFFFFB3;
 }
 
+/* The gauge takes whatever the panel has left, so nothing trails empty space. */
 .click-budget-pips {
     display: flex;
+    flex: 1;
     gap: 4px;
 }
 
@@ -99,11 +132,12 @@
 }
 
 .click-budget-pip {
-    width: 8px;
+    flex: 1 1 0;
+    min-width: 5px;
 }
 
 .click-budget-bar {
-    width: 128px;
+    flex: 1;
     border-radius: 10px;
 }
 
@@ -148,6 +182,7 @@
     min-width: 7ch;
     font-size: 13px;
     font-variant-numeric: tabular-nums;
+    text-align: right;
     color: #FFFFFFB3;
 }
 
@@ -155,19 +190,9 @@
     display: none;
 }
 
-/*
- * Why the meter is narrow: a second row under the count and the pips, so the
- * pill grows down rather than sideways into the menu.
- */
-.click-budget-priced {
-    flex-wrap: wrap;
-    row-gap: 6px;
-    border-radius: 20px;
-}
-
+/* Why the country's clicks are slow: a line under the gauge, inside the panel's width. */
 .click-budget-toll {
     display: flex;
-    flex-basis: 100%;
     flex-direction: column;
     font-size: 12px;
     line-height: 1.3;
@@ -179,18 +204,20 @@
 }
 
 /*
- * The offer to a guest. It stays at full strength when the meter fades on a
- * full bucket: it is not a reading, and it is the thing to act on.
+ * The offer to a guest, directly under the reading it answers. It stays at full
+ * strength when the meter fades on a full bucket: it is not a reading, and it
+ * is the thing to act on.
  */
 .click-budget-sign-in {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 6px;
+    margin-top: 8px;
     padding: 6px 14px;
     border: 1px solid #FFB13F88;
     border-radius: 999px;
     background: #2A1A04D9;
-    backdrop-filter: blur(8px);
     color: #FFC061;
     font-family: Oswald, sans-serif;
     font-size: 14px;
@@ -210,6 +237,29 @@
 
 .click-budget-sign-in-icon {
     flex-shrink: 0;
+}
+
+/*
+ * What the panel's own border says. The inventory's glow is first and the
+ * allowance after it, in that order on purpose: at the wall, red wins over a
+ * bonus being switched on.
+ */
+.click-budget-dock:has(.inventory--active) {
+    border-color: #FFFFFF77;
+    box-shadow: 0 0 14px #FFFFFF22;
+}
+
+.click-budget-dock:has(.click-budget-low) {
+    border-color: #FFB13F66;
+}
+
+.click-budget-dock:has(.click-budget-empty) {
+    border-color: #FF5C5C88;
+}
+
+.click-budget-dock:has(.click-budget-refused) {
+    border-color: #FF5C5C;
+    box-shadow: 0 0 22px #FF5C5CAA;
 }
 
 /* At the wall, the offer is what answers it: it glows with the refusal. */
@@ -235,14 +285,13 @@
         left: 16px;
         right: auto;
         z-index: 127;
-        align-items: flex-start;
-        gap: 6px;
+        width: 240px;
+        padding: 8px 10px;
+        border-radius: 16px;
     }
 
-    .click-budget {
-        padding: 6px 10px;
+    .click-budget-reading {
         gap: 8px;
-        border-radius: 24px;
     }
 
     .click-budget-number {
@@ -264,11 +313,10 @@
     }
 
     .click-budget-pip {
-        width: 5px;
+        min-width: 4px;
     }
 
     .click-budget-bar {
-        width: 96px;
         border-radius: 7px;
     }
 
@@ -280,25 +328,24 @@
         font-size: 11px;
     }
 
-    .click-budget-priced {
-        row-gap: 4px;
-        border-radius: 16px;
-    }
-
     .click-budget-toll {
         font-size: 11px;
     }
 
+    /* Full width of a 232px panel: it has to hold "Sign in: clicks 2× faster" on one line. */
     .click-budget-sign-in {
-        padding: 4px 10px;
-        font-size: 12px;
+        padding: 5px 8px;
+        font-size: 11px;
+        letter-spacing: 0.3px;
     }
 }
 
 /*
- * The server refused a click: a short shake and a red flash, instead of a
- * dialog. The class is put back on for every refusal, so a burst keeps it
- * moving and it stops as soon as the clicks do.
+ * The server refused a click: the reading jolts and the panel flashes red,
+ * instead of a dialog. The class is put back on for every refusal, so a burst
+ * keeps it moving and it stops as soon as the clicks do. The flash is the
+ * dock's, above; what is animated here is only the jolt, and it is also what
+ * ends the class — ClickBudgetMeter takes it off on `animationend`.
  */
 .click-budget-refused {
     animation: click-budget-refused 0.45s ease-out;
@@ -307,31 +354,28 @@
 @keyframes click-budget-refused {
     0% {
         transform: translateX(0);
-        border-color: #FF5C5C;
-        box-shadow: 0 0 22px #FF5C5CAA;
     }
     20% {
-        transform: translateX(-6px);
+        transform: translateX(-5px);
     }
     40% {
-        transform: translateX(5px);
+        transform: translateX(4px);
     }
     60% {
-        transform: translateX(-3px);
+        transform: translateX(-2px);
     }
     80% {
-        transform: translateX(2px);
+        transform: translateX(1px);
     }
     100% {
         transform: translateX(0);
     }
 }
 
-/* No movement, the flash stays. */
+/* No movement, the flash stays: this only runs out the clock so the class comes off. */
 @keyframes click-budget-refused-still {
     from {
-        border-color: #FF5C5C;
-        box-shadow: 0 0 22px #FF5C5CAA;
+        transform: none;
     }
 }
 

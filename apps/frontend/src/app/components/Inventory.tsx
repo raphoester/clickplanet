@@ -30,6 +30,11 @@ export type InventoryProps = {
  *
  * Every slot is shown, empty ones dimmed, so the player sees what a box can
  * hold. The whole section folds, and remembers it, since a new kind is a new slot.
+ *
+ * It has no panel of its own: it is the lower half of the click meter's panel,
+ * under the reading and divided from it by a hairline. The fold handle is at
+ * the bottom of that panel, so folding it pulls the panel's own edge up rather
+ * than leaving a header floating where the slots were.
  */
 export default function Inventory({charges, rules, switches, onToggle, bombArmed, onToggleBomb, onUseRefill}: InventoryProps) {
     const [folded, setFolded] = useState(readFolded)
@@ -50,16 +55,10 @@ export default function Inventory({charges, rules, switches, onToggle, bombArmed
         .filter(Boolean).length
     const active = bombArmed || switches.spread || switches.enclose
 
-    return <section className={`inventory${active ? " inventory--active" : ""}`} aria-label="Inventory">
-        <button type="button"
-                className="inventory-header"
-                aria-expanded={!folded}
-                onClick={fold}>
-            <span>Inventory</span>
-            {kindsHeld > 0 && <span className="inventory-held" aria-label={`${kindsHeld} kinds held`}>{kindsHeld}</span>}
-            <span className="inventory-chevron" aria-hidden="true">{folded ? "▾" : "▴"}</span>
-        </button>
+    const className = ["inventory", active && "inventory--active", folded && "inventory--folded"]
+        .filter(Boolean).join(" ")
 
+    return <section className={className} aria-label="Inventory">
         {!folded && <div className="inventory-slots">
             <Slot kind="refill"
                   name="Refill"
@@ -93,6 +92,17 @@ export default function Inventory({charges, rules, switches, onToggle, bombArmed
                       : "Switch enclose on: close a shape of your tiles to take the tiles inside"}
                   onPress={onToggle && (() => onToggle("enclose"))}/>
         </div>}
+
+        <button type="button"
+                className="inventory-fold"
+                aria-expanded={!folded}
+                onClick={fold}>
+            <span className="inventory-fold-name">Inventory</span>
+            {/* The count is what a folded section still says; open, every slot says its own. */}
+            {folded && kindsHeld > 0 &&
+                <span className="inventory-held" aria-label={`${kindsHeld} kinds held`}>{kindsHeld}</span>}
+            <span className="inventory-chevron" aria-hidden="true">{folded ? "▾" : "▴"}</span>
+        </button>
     </section>
 }
 
