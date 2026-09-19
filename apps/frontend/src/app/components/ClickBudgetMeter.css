@@ -42,14 +42,10 @@
     transition: border-color 0.4s ease, box-shadow 0.4s ease;
 }
 
-/*
- * The inventory's own edge inside the panel. First — no reading above it — it
- * has none. The padding is what a switched-on slot's "On" badge hangs into
- * (top: -7px), so the hairline is not cut in half by it.
- */
+/* The inventory's own edge inside the panel. First — no reading above it — it has none. */
 .click-budget-dock > .inventory {
     margin-top: 8px;
-    padding-top: 12px;
+    padding-top: 8px;
     border-top: 1px solid #FFFFFF26;
 }
 

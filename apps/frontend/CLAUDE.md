@@ -1107,14 +1107,15 @@ word over the icon says what the slot is doing (`On`, `Aim`, `Full`).
 - **Bomb** aims it, or puts it away (`Globe.setArmed`).
 - **Spread** and **Enclose** switch (`Globe.setSwitch`), `aria-pressed`.
 
-**The whole section folds** from a handle at the **bottom** of the panel, which
-counts the kinds held while folded — open, every slot already says its own count.
-The handle is under the slots rather than over them so that folding pulls the
-panel's own bottom edge up, instead of leaving a header hanging where the slots
-were. The fold is kept in local storage (`clickplanet-inventory-folded`, read and
-written in a `try`, since a private window can throw). The panel glows while
-something is on or aimed, so a folded inventory still says the next click does
-more than paint.
+**The whole section folds** from a header over the slots: the name on the left,
+the count of kinds held while folded (open, every slot already says its own), and
+a `ChevronIcon` at the right end that turns over when it opens. That is the
+page's one way of folding something — the same icon and the same turn as
+`MenuHeader`'s collapse and the chat's header — so it is written the same way
+here rather than invented again. The fold is kept in local storage
+(`clickplanet-inventory-folded`, read and written in a `try`, since a private
+window can throw). The panel glows while something is on or aimed, so a folded
+inventory still says the next click does more than paint.
 
 ## Bombs
 
