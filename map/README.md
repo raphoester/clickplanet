@@ -67,6 +67,12 @@ painting over this country". It is written by the frontend's `npm run borders`, 
 the coordinates. It is tied to the coordinates blob: regenerating that renumbers every tile, so
 regenerate this with it.
 
+The frontend draws a black outline along the tile boundary between two countries, and keeps the
+geometry for it in a blob of its own — `apps/frontend/static/borderLines-<hash>.bin`, written by
+`npm run borderLines`. It is derived from both blobs here and from nothing else, so **regenerate it
+after either of them**; it stays out of `/map` because the backend has no use for it. See
+[apps/frontend/CLAUDE.md](../apps/frontend/CLAUDE.md), "The countries' outlines".
+
 ```
 uint32 header length | JSON {"tiles": N, "codes": [...]} | N*2 uint16 landmass | frames | totals
 ```

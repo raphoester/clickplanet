@@ -6,8 +6,10 @@ import {GpuPicker} from "./gpuPicking.ts";
 import {CapturedFrame, readDrawingBuffer} from "./capture.ts";
 import {TileField} from "./tileField.ts";
 import {BorderField, countryOfTile, loadBorders} from "./borderField.ts";
+import {createBorderLines, loadBorderLines} from "./borderLines.ts";
 import {ATLAS_SIZE, ATLAS_URL} from "./atlasAsset.ts";
 import {BORDERS_URL} from "./bordersAsset.ts";
+import {BORDER_LINES_URL} from "./borderLinesAsset.ts";
 import {displayPointSize, flagPaint, tilePointSize} from "./pointSize.ts";
 import {regions} from "./atlas.ts";
 import {Country} from "../../domain/countries.ts";
@@ -165,11 +167,12 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         signal,
     } = options
 
-    // Both blobs before a single GPU resource exists, so an abandoned load never
-    // opens a context, and in parallel because neither needs the other.
-    const [geometryData, borders] = await Promise.all([
+    // Every blob before a single GPU resource exists, so an abandoned load never
+    // opens a context, and in parallel because none of them needs another.
+    const [geometryData, borders, borderLines] = await Promise.all([
         loadPointGeometryData(signal),
         loadBorders(BORDERS_URL, signal),
+        loadBorderLines(BORDER_LINES_URL, signal),
     ]);
     if (signal.aborted) throw new DOMException("globe load aborted", "AbortError");
 
@@ -224,6 +227,11 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     // And every click made under a spread charge, anyone's.
     const bonusClicks = createBonusClickEffects(geometryData.positions)
     scene.add(bonusClicks.object)
+
+    // Where one country's ground stops and the next one's starts, at the same
+    // width however far the view is pulled back.
+    const outline = createBorderLines(borderLines)
+    scene.add(outline.object)
 
     // The box on screen and the token that redeems it, held together: a box
     // caught is only worth something with the token it arrived with.
@@ -601,6 +609,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const {stop: stopAnimation} = startAnimation(renderer, scene, camera, uniforms, pickingUniforms, (seconds) => {
         driveBonusBox(seconds)
         driveBlasts(seconds)
+        outline.update(camera.zoom, renderer.domElement.width, renderer.domElement.height)
 
         if (pendingPointer === undefined) return
         const {x, y} = pendingPointer
@@ -660,6 +669,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             blasts.dispose()
             field.dispose()
             territories.dispose()
+            outline.dispose()
             bonusBox.dispose()
             enclosures.dispose()
             bonusClicks.dispose()
