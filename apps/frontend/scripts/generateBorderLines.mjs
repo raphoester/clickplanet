@@ -199,9 +199,13 @@ say(`outline: ${segments.length} cell edges (${land} between two countries, ${se
 
 // --- chain the edges into runs, so a corner is written once instead of twice.
 // Each run is a polyline; the renderer draws a quad per edge either way, this
-// is only what the file costs. Three countries meeting is a corner with three
-// edges on it, so the runs are not all loops and a walk has to start at the
-// odd ends before it starts anywhere.
+// is only what the file costs.
+//
+// A run **ends at every junction** — a corner with three edges on it, which is
+// where three countries meet, or where a land border reaches the sea. That is
+// not for the walk's sake but for the renderer's: it rounds each run off, and a
+// run walked straight through a junction would round the one corner that has to
+// stay a corner, leaving the third branch hanging a fraction of a tile away.
 const onCorner = new Map()
 for (let s = 0; s < segments.length; s++) {
     for (const corner of segments[s]) {
@@ -210,25 +214,39 @@ for (let s = 0; s < segments.length; s++) {
         list.push(s)
     }
 }
+const junction = (corner) => onCorner.get(corner).length !== 2
 const walked = new Uint8Array(segments.length)
 const runs = []
 const walk = (from) => {
     const run = [from]
     let at = from
     for (;;) {
-        const list = onCorner.get(at)
         let next = -1
-        for (const s of list) if (!walked[s]) { next = s; break }
+        for (const s of onCorner.get(at)) if (!walked[s]) { next = s; break }
         if (next < 0) return run
         walked[next] = 1
         at = segments[next][0] === at ? segments[next][1] : segments[next][0]
         run.push(at)
+        if (junction(at)) return run
     }
 }
-for (const [corner, list] of onCorner) if (list.length % 2 === 1) while (list.some((s) => !walked[s])) runs.push(walk(corner))
-for (const [corner, list] of onCorner) while (list.some((s) => !walked[s])) runs.push(walk(corner))
+const take = (run) => {
+    // A loop hanging off a junction comes back to where it started and would
+    // read as closed, so the renderer would smooth straight through the corner
+    // the junction is. Cut it in two, and both halves are clamped there.
+    if (run.length > 2 && run[0] === run[run.length - 1] && junction(run[0])) {
+        const half = run.length >> 1
+        runs.push(run.slice(0, half + 1), run.slice(half))
+        return
+    }
+    runs.push(run)
+}
+for (const [corner, list] of onCorner) if (junction(corner)) while (list.some((s) => !walked[s])) take(walk(corner))
+for (const [corner, list] of onCorner) while (list.some((s) => !walked[s])) take(walk(corner))
+const closed = runs.filter((run) => run[0] === run[run.length - 1]).length
 const written = runs.reduce((n, run) => n + run.length, 0)
-say(`chained into ${runs.length} runs, ${written} corners written for ${segments.length} edges`)
+say(`chained into ${runs.length} runs (${closed} closed) past ${[...onCorner.keys()].filter(junction).length} junctions,`
+    + ` ${written} corners written for ${segments.length} edges`)
 
 // --- write it. The corners are on the unit sphere and the renderer normalizes
 // what it reads, so a signed 16-bit share of the radius is plenty: the worst

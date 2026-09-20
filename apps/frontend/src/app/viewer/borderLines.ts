@@ -57,36 +57,109 @@ export async function loadBorderLines(url: string, signal?: AbortSignal): Promis
 }
 
 /**
- * The runs pulled apart into the edges they are made of: one `from` and one
- * `to` per edge. A run of n corners is n-1 edges, which is what keeps the file
- * to one corner per edge instead of two.
- *
- * The coordinates stay as the blob's own fractions of the radius — the shader
- * normalizes what it reads, so their scale never matters.
+ * How many straight pieces each cell edge is drawn as. One is the bare lattice,
+ * corner for corner; above that the run is rounded off, and this is how finely.
+ * Four leaves a 15° kink at each join, which a line a pixel and a bit wide and
+ * softened at the edges does not show even at the closest zoom.
  */
-export function borderSegments(data: BorderLineData): {from: Float32Array, to: Float32Array} {
-    let edges = 0
-    for (const length of data.runs) edges += Math.max(0, length - 1)
+const SAMPLES = 4
 
-    const from = new Float32Array(edges * 3)
-    const to = new Float32Array(edges * 3)
+type Run = {at: number, controls: number, closed: boolean}
 
-    let corner = 0
-    let edge = 0
-    for (const length of data.runs) {
-        for (let step = 0; step + 1 < length; step++) {
-            const head = (corner + step) * 3
-            const tail = head + 3
-            for (let axis = 0; axis < 3; axis++) {
-                from[edge * 3 + axis] = data.corners[head + axis]
-                to[edge * 3 + axis] = data.corners[tail + axis]
+function runsOf(data: BorderLineData): Run[] {
+    const runs: Run[] = []
+    let at = 0
+    for (const corners of data.runs) {
+        // A run that comes back to the corner it started from is a loop, and is
+        // rounded right through that corner rather than stopping either side of
+        // it. The generator ends a run at every junction, so a corner three
+        // countries share is never in the middle of one.
+        const closed = corners > 2 && sameCorner(data.corners, at, at + corners - 1)
+        runs.push({at, controls: closed ? corners - 1 : corners, closed})
+        at += corners
+    }
+    return runs
+}
+
+function sameCorner(corners: Int16Array, one: number, other: number): boolean {
+    for (let axis = 0; axis < 3; axis++) {
+        if (corners[one * 3 + axis] !== corners[other * 3 + axis]) return false
+    }
+    return true
+}
+
+/** The control point a curve piece reaches for, wrapped or clamped at the ends. */
+function control(run: Run, step: number): number {
+    const {at, controls, closed} = run
+    if (closed) return at + ((step % controls) + controls) % controls
+    return at + Math.min(Math.max(step, 0), controls - 1)
+}
+
+/**
+ * The outline pulled apart into the straight pieces it is drawn as: one `from`
+ * and one `to` per piece, in the blob's own signed shares of the radius.
+ *
+ * The lattice is a honeycomb, so the bare outline turns 60° at every corner and
+ * reads as a staircase up close. What is drawn instead is its **quadratic
+ * B-spline**: the curve through the middle of every cell edge, reaching a
+ * quarter of the way toward each corner without touching it.
+ *
+ * That curve is not a compromise on the tile rule — it is the most a curve can
+ * be smoothed and still obey it. The narrowest the corridor between two tiles
+ * of different countries ever gets is at the middle of the cell edge between
+ * them, and the spline goes through that point exactly; at the corners, where
+ * there is half as much room again, it uses a fraction of what it has. So the
+ * smoothed line clears the tiles by exactly what the staircase cleared them by,
+ * and still never crosses one.
+ */
+export function outlineSegments(data: BorderLineData, samples = SAMPLES): {from: Int16Array, to: Int16Array} {
+    const runs = runsOf(data)
+
+    let pieces = 0
+    for (const run of runs) pieces += run.controls * samples
+
+    const from = new Int16Array(pieces * 3)
+    const to = new Int16Array(pieces * 3)
+
+    let piece = 0
+    for (const run of runs) {
+        for (let step = 0; step < run.controls; step++) {
+            const before = control(run, step - 1)
+            const on = control(run, step)
+            const after = control(run, step + 1)
+            for (let cut = 0; cut < samples; cut++) {
+                spline(data.corners, before, on, after, cut / samples, from, piece)
+                spline(data.corners, before, on, after, (cut + 1) / samples, to, piece)
+                piece++
             }
-            edge++
         }
-        corner += length
     }
 
     return {from, to}
+}
+
+/**
+ * One point of the uniform quadratic B-spline over three control points, at
+ * `t` from the middle of the first cell edge to the middle of the second.
+ *
+ * Both ends fall on a cell edge's midpoint whichever piece works them out, so
+ * two pieces that meet land on the same corner to the bit and the line has no
+ * seams in it.
+ */
+function spline(
+    corners: Int16Array, before: number, on: number, after: number,
+    t: number, into: Int16Array, piece: number,
+) {
+    const head = 0.5 * (1 - t) * (1 - t)
+    const middle = 0.5 + t - t * t
+    const tail = 0.5 * t * t
+    for (let axis = 0; axis < 3; axis++) {
+        into[piece * 3 + axis] = Math.round(
+            head * corners[before * 3 + axis]
+            + middle * corners[on * 3 + axis]
+            + tail * corners[after * 3 + axis],
+        )
+    }
 }
 
 /**
@@ -111,8 +184,14 @@ const FEATHER = 1
 export const OVER = 1.0005
 export const UNDER = 0.9995
 
-/** Not quite black, as the keyline around a painted flag is not. */
-const COLOUR = new THREE.Color(0.03, 0.03, 0.03)
+/**
+ * A dark grey rather than black. Black held its own against a flag and against
+ * the sea, but up close, where the line is the only thing between two rows of
+ * discs, it read as a bar drawn over the planet instead of a border on it. At a
+ * quarter it still carries the whole way out to the globe at half a screen tall
+ * — where every border in Europe is on at once — and stops shouting.
+ */
+const COLOUR = new THREE.Color(0.25, 0.25, 0.25)
 
 export type BorderLines = {
     object: THREE.Object3D
@@ -122,19 +201,21 @@ export type BorderLines = {
 }
 
 export function createBorderLines(data: BorderLineData): BorderLines {
-    const {from, to} = borderSegments(data)
-    const edges = from.length / 3
+    const {from, to} = outlineSegments(data)
+    const pieces = from.length / 3
 
     const geometry = new THREE.InstancedBufferGeometry()
-    // The quad every edge is drawn into: x picks the end, y the side. It is
+    // The quad every piece is drawn into: x picks the end, y the side. It is
     // laid out in pixels by the vertex shader, so it carries no position.
     geometry.setAttribute("corner", new THREE.BufferAttribute(
         new Float32Array([-1, -1, -1, 1, 1, -1, 1, 1]), 2,
     ))
     geometry.setIndex([0, 1, 2, 2, 1, 3])
-    geometry.setAttribute("from", new THREE.InstancedBufferAttribute(from, 3))
-    geometry.setAttribute("to", new THREE.InstancedBufferAttribute(to, 3))
-    geometry.instanceCount = edges
+    // Normalized, so the shares of the radius reach the shader as the fractions
+    // they are and the whole outline costs half of what floats would.
+    geometry.setAttribute("from", new THREE.InstancedBufferAttribute(from, 3, true))
+    geometry.setAttribute("to", new THREE.InstancedBufferAttribute(to, 3, true))
+    geometry.instanceCount = pieces
 
     const passes = [OVER, UNDER].map((lift) => {
         const material = new THREE.ShaderMaterial({
@@ -181,9 +262,10 @@ export function createBorderLines(data: BorderLineData): BorderLines {
 
             // The over pass belongs to the painted flag and goes out with it;
             // the under pass is always at full strength, and is simply covered
-            // by the tiles until they part. Both are the same black, so the
+            // by the tiles until they part. Both are the same grey, so the
             // stretch where they overlap — the coasts, which have no tiles on
-            // the sea side to hide the under pass — only ever comes out black.
+            // the sea side to hide the under pass — only ever comes out that
+            // grey rather than a darker one.
             const paint = flagPaint(zoom, height)
             ;(over.material as THREE.ShaderMaterial).uniforms.ink.value = paint
             over.visible = paint > 0

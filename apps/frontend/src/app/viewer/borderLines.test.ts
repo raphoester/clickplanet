@@ -1,6 +1,6 @@
 import {describe, expect, it} from "vitest"
 import * as THREE from "three"
-import {borderSegments, createBorderLines, decodeBorderLines, OVER, UNDER, WIDTH} from "./borderLines.ts"
+import {createBorderLines, decodeBorderLines, outlineSegments, OVER, UNDER, WIDTH} from "./borderLines.ts"
 import {innerSphere} from "./sphere.ts"
 import {displayPointSize, flagPaint, tileSpacing} from "./pointSize.ts"
 import {MAX_ZOOM, MIN_ZOOM} from "./zoom.ts"
@@ -39,20 +39,62 @@ describe("decodeBorderLines", () => {
     })
 })
 
-describe("borderSegments", () => {
-    it("draws one edge between each pair of corners in a run", () => {
-        const {from, to} = borderSegments(decodeBorderLines(blobOf([[1, 2, 3, 4, 5, 6, 7, 8, 9]])))
-        expect([...from]).toEqual([1, 2, 3, 4, 5, 6])
-        expect([...to]).toEqual([4, 5, 6, 7, 8, 9])
+describe("outlineSegments", () => {
+    const at = (points: Int16Array, piece: number) => [...points.slice(piece * 3, piece * 3 + 3)]
+
+    it("starts and ends a run exactly on its own corners", () => {
+        // A run ends where three countries meet, and the two other runs end
+        // there too. That corner is the one the curve may not round off, or the
+        // three of them stop short of each other by a fraction of a tile.
+        const {from, to} = outlineSegments(decodeBorderLines(blobOf([[1000, 0, 0, 1000, 500, 0, 1000, 900, 0]])))
+        expect(at(from, 0)).toEqual([1000, 0, 0])
+        expect(at(to, to.length / 3 - 1)).toEqual([1000, 900, 0])
+    })
+
+    it("hands each piece on to the next with no seam between them", () => {
+        const {from, to} = outlineSegments(decodeBorderLines(blobOf([[1000, 0, 0, 1000, 500, 0, 1000, 900, 300]])))
+        for (let piece = 1; piece < from.length / 3; piece++) {
+            expect(at(from, piece), `piece ${piece}`).toEqual(at(to, piece - 1))
+        }
+    })
+
+    it("closes a run that came back to where it started", () => {
+        const loop = [0, 0, 30000, 0, 30000, 0, 30000, 0, 0, 0, 0, 30000]
+        const {from, to} = outlineSegments(decodeBorderLines(blobOf([loop])))
+        expect(at(to, to.length / 3 - 1)).toEqual(at(from, 0))
     })
 
     it("never joins the end of one run to the start of the next", () => {
-        const {from, to} = borderSegments(decodeBorderLines(blobOf([
-            [1, 1, 1, 2, 2, 2],
-            [9, 9, 9, 8, 8, 8],
-        ])))
-        expect([...from]).toEqual([1, 1, 1, 9, 9, 9])
-        expect([...to]).toEqual([2, 2, 2, 8, 8, 8])
+        const samples = 4
+        const one = [0, 0, 30000, 0, 10000, 30000]
+        const other = [30000, 0, 0, 30000, 10000, 0]
+        const {from, to} = outlineSegments(decodeBorderLines(blobOf([one, other])), samples)
+
+        // Two corners each, so the first run owns the first `samples` pieces
+        // twice over and stops dead on its own last corner.
+        expect(at(to, 2 * samples - 1)).toEqual([0, 10000, 30000])
+        expect(at(from, 2 * samples)).toEqual([30000, 0, 0])
+    })
+
+    // What the smoothing may not cost. The lattice is a honeycomb, so the cell
+    // around a tile is a regular hexagon whose edges are half a tile spacing
+    // from it — and that is the narrowest the corridor between two tiles ever
+    // gets. The curve is allowed to round the corners off; it is not allowed to
+    // come inside that.
+    it("keeps the rounded curve out of the tile it runs around", () => {
+        const spacing = 20000
+        const corner = (which: number) => {
+            const angle = which * Math.PI / 3
+            const reach = spacing / Math.sqrt(3)
+            return [Math.round(reach * Math.cos(angle)), Math.round(reach * Math.sin(angle)), 0]
+        }
+        const cell = [0, 1, 2, 3, 4, 5, 0].flatMap(corner)
+
+        const {from} = outlineSegments(decodeBorderLines(blobOf([cell])), 16)
+        for (let piece = 0; piece < from.length / 3; piece++) {
+            const [x, y] = at(from, piece)
+            expect(Math.hypot(x, y), `piece ${piece}`).toBeGreaterThanOrEqual(spacing / 2 - 1)
+        }
     })
 })
 
