@@ -4,6 +4,7 @@ import {
     COARSE_SAMPLES,
     createBorderLines,
     decodeBorderLines,
+    limbOf,
     outlineSegments,
     OVER,
     SAMPLES,
@@ -140,6 +141,28 @@ describe("the two passes", () => {
         expect(UNDER).toBeGreaterThan(earth)
         expect(UNDER).toBeLessThan(1)
         expect(OVER).toBeGreaterThan(1)
+    })
+
+    // The vertex shader drops a piece of the outline whose two ends are both
+    // further past the limb than this, because the earth is opaque and covers
+    // everything beyond it. Too generous and half the outline is drawn for
+    // nothing; a hair too tight and the coast is shaved off at the limb.
+    it("say how far past the limb each pass can still be seen", () => {
+        const earth = innerSphere().parameters.radius
+
+        // A point `limb` past the limb projects to `lift * cos` of the globe's
+        // radius, which is exactly where the earth's silhouette ends.
+        for (const lift of [OVER, UNDER]) {
+            const past = Math.asin(limbOf(lift))
+            expect(lift * Math.cos(past)).toBeCloseTo(Math.min(earth, lift), 6)
+        }
+
+        // The over pass stands further off the earth, so more of it shows.
+        expect(limbOf(OVER)).toBeGreaterThan(limbOf(UNDER))
+
+        // A pass laid inside the earth would be covered everywhere, so nothing
+        // of it is ever kept.
+        expect(limbOf(earth / 2)).toBe(0)
     })
 })
 

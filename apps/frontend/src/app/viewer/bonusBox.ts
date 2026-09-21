@@ -147,8 +147,12 @@ export type BonusBox = {
 
     hide(): void
 
-    /** `seconds` is a clock that only goes forward, not a delta. */
-    update(seconds: number, camera: THREE.OrthographicCamera): void
+    /**
+     * `seconds` is a clock that only goes forward, not a delta. Answers whether
+     * this frame changed anything: the frame the box goes on counts, since that
+     * is the one that takes it off the screen.
+     */
+    update(seconds: number, camera: THREE.OrthographicCamera): boolean
 
     /**
      * Whether a click at `ndc` — normalised device coordinates — lands on the
@@ -272,7 +276,7 @@ export function createBonusBox(): BonusBox {
         hide: stop,
 
         update(seconds: number, camera: THREE.OrthographicCamera) {
-            if (phase === "gone") return
+            if (phase === "gone") return false
 
             // The first frame after a spawn is what the clock is measured from,
             // so a box always appears where its orbit begins.
@@ -294,7 +298,7 @@ export function createBonusBox(): BonusBox {
                 setFade(pop.opacity, BURST_GLOW)
 
                 if (pop.opacity <= 0) stop()
-                return
+                return true
             }
 
             const age = seconds - spawnedAt
@@ -307,6 +311,8 @@ export function createBonusBox(): BonusBox {
             setFade(opacity, 1)
 
             if (opacity <= 0) stop()
+
+            return true
         },
 
         hitTest(camera: THREE.OrthographicCamera, ndc: THREE.Vector2) {
