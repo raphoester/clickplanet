@@ -195,6 +195,19 @@ const FEATHER = 1
 export const OVER = 1.0005
 export const UNDER = 0.9995
 
+/** The radius of the earth's own opaque sphere. See `innerSphere` in sphere.ts. */
+const EARTH = 0.999
+
+/**
+ * How far past the globe's limb a pass on `lift` can still be seen, as the sine
+ * of that angle — which is what the vertex shader drops a whole piece of the
+ * outline on, since the Earth covers everything beyond it. A pass laid inside
+ * the Earth would be covered everywhere, so nothing is ever kept for it.
+ */
+export function limbOf(lift: number): number {
+    return Math.sin(Math.acos(Math.min(EARTH / lift, 1)))
+}
+
 /**
  * A dark grey rather than black. Black held its own against a flag and against
  * the sea, but up close, where the line is the only thing between two rows of
@@ -246,6 +259,7 @@ export function createBorderLines(data: BorderLineData): BorderLines {
                 halfViewport: {value: new THREE.Vector2(1, 1)},
                 halfWidth: {value: WIDTH / 2 + FEATHER},
                 lift: {value: lift},
+                limb: {value: limbOf(lift)},
                 colour: {value: COLOUR},
                 ink: {value: 1},
             },

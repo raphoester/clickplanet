@@ -819,7 +819,8 @@ mint a guest and insert a row into `auth.identities` for its account.
 
 - `globe.ts` — `createGlobe(options): Promise<Globe>`. Builds the scene, wires
   input and the backends to it, starts rendering. Returns `{tilesCount,
-  setCountry, dispose}`.
+  setCountry, dispose}`. Its loop draws on demand — see [Drawing only when
+  something changed](#drawing-only-when-something-changed).
 - `useGlobe.ts` — owns one globe for the lifetime of the component. **Its effect
   must not depend on anything that changes per render**; the selected country is
   pushed into the running globe through a separate effect rather than rebuilding
@@ -882,6 +883,70 @@ mint a guest and insert a row into `auth.identities` for its account.
   additive rings, which vanished on the white of a flag. A busy planet spreads a
   lot, so at most `MAX_PLAYING` run at once.
 - `shaders/` — GLSL for the display, picking, star and enclosure passes.
+
+### Drawing only when something changed
+
+**The loop draws a frame only when the one on screen has stopped being right.**
+It used to draw every frame the browser offered, for as long as the tab was
+open, and almost all of them were the same picture: measured at rest, before
+any interaction, the drawing buffer was byte-identical across a second while
+262k tiles and 98k pieces of outline were redrawn 60 times through it. On a
+phone that is a flat battery for a still image, and it is why the game was
+reported as a battery eater.
+
+`drawsFrame` in `globe.ts` is the whole rule, kept out of the loop so it is
+under test. Three things can ask for a frame:
+
+- **The camera turned** — `controls.update()` says so, for a drag, the damping
+  glide after one, a zoom, or the idle spin.
+- **Something the loop drives is still moving** — every `update` that animates
+  answers a boolean: `blasts`, `bonusBox`, `enclosureEffect`, `bonusClickEffects`
+  and `TileField.setHover`. **The frame an effect *ends* on counts**: it is the
+  one that takes the flash, the box or the highlight off the screen, so each one
+  answers `true` on the tick it stops as well as while it runs.
+- **Something outside the loop touched the scene** — `invalidate()`, which
+  `applyChanges` calls for every claim, batch and rollback, and which the resize
+  listener, the lapsed-box branch and `capture()` call for themselves. It is
+  read and cleared once per tick, and only ever set from outside the loop, so
+  clearing it on a tick that then skips its frame cannot lose one.
+
+**The idle spin is capped at `IDLE_FRAME_MS`.** It is the one thing that moves
+with nobody touching the page, it goes round once in about thirty seconds, and
+on a 120Hz phone or a ProMotion Mac it was being carried at 120fps. Half the
+frames carry it just as well. The cap is lifted while the globe is being
+handled and for `INTERACTION_GRACE_MS` after — the damping glide is looked at
+closely enough to be worth every frame — and it never holds back a frame that
+something *changed*: a claim or a blast is drawn as it comes.
+
+**The uniforms the tile pass reads are written before the render, not after
+it.** They used to be written at the end of the loop, for the next frame; with
+a frame skipped whenever nothing moved, a size worked out for a frame that is
+never drawn is a size that never arrives, and the tiles would be left drawn for
+a zoom the outline had already moved off.
+
+`preserveDrawingBuffer` stays off (see [Sharing the
+globe](#sharing-the-globe)). A skipped frame draws nothing at all, so nothing is
+composited and the last frame stays on screen; a drawn frame always clears and
+redraws everything, so nothing accumulates either.
+
+### The far side of the globe is not drawn
+
+The earth's own sphere is opaque at radius 0.999, so **half of every pass is
+behind it** — and was being run through its whole vertex shader before the depth
+test threw it away. The display and border-line vertex shaders now drop it on
+one dot product, before the four vertex texture fetches the painted flag costs.
+
+What may not be dropped is what the earth's silhouette does not cover. A point
+at radius *r*, an angle *θ* past the limb, projects to a screen radius of
+*r·cos θ*, so it still shows while *θ < acos(0.999 / r)* — about 0.045 for the
+tiles at 1, and `limbOf(lift)` for each outline pass. On top of that comes half
+the tile's own disc, half the line's own width, and how far a blast may throw a
+tile outward. `borderLines.test.ts` pins `limbOf` against the earth's radius.
+
+Measured against the same frame with the culling off, the limb comes out
+pixel-for-pixel identical. It is worth a few percent of those two passes and no
+more — the vertex shader still runs for every point and still reads every
+attribute, and only its body is skipped.
 
 ### The zoomed-out view
 

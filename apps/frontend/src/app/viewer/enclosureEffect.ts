@@ -193,7 +193,8 @@ export type EnclosureEffects = {
     readonly object: THREE.Object3D
     /** Starts a shape's effect on the next frame. */
     play(enclosure: Enclosure): void
-    update(seconds: number, camera: THREE.OrthographicCamera, viewportHeight: number): void
+    /** Whether this frame changed anything: the frame an effect ends on counts. */
+    update(seconds: number, camera: THREE.OrthographicCamera, viewportHeight: number): boolean
     dispose(): void
 }
 
@@ -306,7 +307,7 @@ export function createEnclosureEffects(positions: ArrayLike<number>): EnclosureE
     }
 
     const update = (seconds: number, camera: THREE.OrthographicCamera, viewportHeight: number) => {
-        if (playing.length === 0) return
+        if (playing.length === 0) return false
 
         const tileSize = tilePointSize(camera.zoom, viewportHeight)
         // The camera's frustum is two units tall at zoom 1, so this is how many
@@ -346,6 +347,11 @@ export function createEnclosureEffects(positions: ArrayLike<number>): EnclosureE
 
             return true
         })
+
+        // Something was on screen when this frame started, so it has to be
+        // drawn — including the frame the last effect was stopped on, which is
+        // the one that takes it off.
+        return true
     }
 
     return {

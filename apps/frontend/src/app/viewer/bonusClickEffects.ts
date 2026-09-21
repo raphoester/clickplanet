@@ -194,7 +194,8 @@ export type BonusClickEffects = {
     readonly object: THREE.Object3D
     /** Starts a spread click's effect on the next frame. */
     playSpread(spread: SpreadClick): void
-    update(seconds: number, camera: THREE.OrthographicCamera, viewportHeight: number): void
+    /** Whether this frame changed anything: the frame an effect ends on counts. */
+    update(seconds: number, camera: THREE.OrthographicCamera, viewportHeight: number): boolean
     dispose(): void
 }
 
@@ -301,7 +302,7 @@ export function createBonusClickEffects(positions: ArrayLike<number>): BonusClic
     }
 
     const update = (seconds: number, camera: THREE.OrthographicCamera, viewportHeight: number) => {
-        if (playing.length === 0) return
+        if (playing.length === 0) return false
 
         const tileSize = tilePointSize(camera.zoom, viewportHeight)
         // The camera's frustum is two units tall at zoom 1, so this is how many
@@ -347,6 +348,11 @@ export function createBonusClickEffects(positions: ArrayLike<number>): BonusClic
 
             return true
         })
+
+        // Something was on screen when this frame started, so it has to be
+        // drawn — including the frame the last effect was stopped on, which is
+        // the one that takes it off.
+        return true
     }
 
     return {

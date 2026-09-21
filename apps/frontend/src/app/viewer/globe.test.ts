@@ -1,5 +1,5 @@
 import {describe, expect, it, vi} from "vitest"
-import {reportClickFailure} from "./globe.ts"
+import {drawsFrame, reportClickFailure} from "./globe.ts"
 import {RateLimitedError, VPNBlockedError} from "../../backends/backend.ts"
 import {SessionUnavailableError} from "../../backends/session.ts"
 import {OwnerChange, TileOwnership} from "../../domain/tileOwnership.ts"
@@ -131,5 +131,36 @@ describe("a refused click, from the paint to the rollback", () => {
 
         expect(regionOf(3)).toEqual([fr.x, fr.y, fr.width, fr.height])
         expect(tiles()).toEqual([{country: Countries.get("fr"), tiles: 1}])
+    })
+})
+
+// The globe used to redraw the same picture sixty times a second for as long
+// as the tab was open. What decides that now is one function, so the rule can
+// be read and pinned without a GPU.
+describe("drawsFrame", () => {
+    const tick = (over: Partial<Parameters<typeof drawsFrame>[0]>) => drawsFrame({
+        turned: false, changed: false, at: 10_000, drawnAt: 0, interactingUntil: 0, ...over,
+    })
+
+    it("draws nothing while the globe sits still", () => {
+        expect(tick({})).toBe(false)
+    })
+
+    it("draws whatever changed, however long ago the last frame was", () => {
+        expect(tick({changed: true, drawnAt: 9_999})).toBe(true)
+    })
+
+    it("draws every frame of the idle spin the player is still handling", () => {
+        expect(tick({turned: true, drawnAt: 9_999, interactingUntil: 10_000})).toBe(true)
+    })
+
+    it("carries the idle spin on half the frames once the globe is let go", () => {
+        expect(tick({turned: true, drawnAt: 9_990})).toBe(false)
+        expect(tick({turned: true, drawnAt: 9_960})).toBe(true)
+    })
+
+    // A tile claimed, or a blast, is never held back a frame to pace the spin.
+    it("never holds a change back for the spin's sake", () => {
+        expect(tick({turned: true, changed: true, drawnAt: 9_999})).toBe(true)
     })
 })

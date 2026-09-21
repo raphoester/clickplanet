@@ -38,7 +38,36 @@ flat out vec2 vFlagUV;
 flat out vec4 vFlagRegion;
 flat out float vFlagShare;
 
+/**
+ * How far past the globe's limb a tile can still be seen, as the sine of that
+ * angle. The Earth is opaque at 0.999 and the tiles sit at 1, so a tile up to
+ * `acos(0.999 / 1.0)` — about 0.045 — past the limb still shows against the
+ * sky rather than being covered by the Earth's own silhouette.
+ */
+const float LIMB = 0.05;
+
 void main() {
+    vec3 ground = normalize(position);
+
+    // The far side of the globe is covered by the opaque Earth, so every tile
+    // there was run through the whole landmass lookup below and then thrown
+    // away by the depth test — half the field, on every frame, four vertex
+    // texture fetches each. One dot product takes them out before any of it.
+    //
+    // What may not be taken out is everything the Earth's silhouette does not
+    // cover: `LIMB` past the limb, plus half of the tile's own disc, plus how
+    // far a blast may throw it outward (`motion` is zero under reduced motion,
+    // where nothing is displaced at all).
+    float thrown = 0.0;
+    for (int i = 0; i < MAX_BLASTS; i++) thrown = max(thrown, blastRadii[i]);
+    float limb = LIMB + (pointSize * 0.5 + 1.0) / max(pixelsPerRadian, 1.0) + motion * thrown * 0.6;
+
+    if ((normalMatrix * ground).z < -limb) {
+        gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+        gl_PointSize = 0.0;
+        return;
+    }
+
     vHover = hover;
     vRegionVector = regionVector;
 
@@ -66,12 +95,11 @@ void main() {
             if (abs(centre.y) > 0.9999) east = vec3(1.0, 0.0, 0.0);
             vec3 north = cross(centre, east);
 
-            vec3 p = normalize(position);
-            float along = dot(p, centre);
+            float along = dot(ground, centre);
             if (along > 0.0) {
                 // Distance measured along the surface, not across the chord:
                 // the flag is laid on the globe, so it bends with it.
-                vec2 offset = vec2(dot(p, east), dot(p, north));
+                vec2 offset = vec2(dot(ground, east), dot(ground, north));
                 float reach = length(offset);
                 vec2 surface = reach > 1e-6 ? offset / reach * acos(min(along, 1.0)) : vec2(0.0);
 
@@ -85,7 +113,6 @@ void main() {
         }
     }
 
-    vec3 ground = normalize(position);
     vec3 displaced = position;
     float swell = 0.0;
 
