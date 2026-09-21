@@ -125,7 +125,11 @@ type ReactionCount struct {
 	Count    uint32                 `protobuf:"varint,2,opt,name=count,proto3" json:"count,omitempty"`
 	// The caller is one of them. Only a call knows who is asking: it is false on
 	// everything the stream sends, and the client keeps its own between calls.
-	Mine          bool `protobuf:"varint,3,opt,name=mine,proto3" json:"mine,omitempty"`
+	Mine bool `protobuf:"varint,3,opt,name=mine,proto3" json:"mine,omitempty"`
+	// Who gave it, oldest first, each named as it read when they reacted — a
+	// message's author_name is frozen the same way. Cut at a cap, so there may
+	// be fewer names than count; count is always how many gave it.
+	Reactors      []string `protobuf:"bytes,4,rep,name=reactors,proto3" json:"reactors,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -179,6 +183,13 @@ func (x *ReactionCount) GetMine() bool {
 		return x.Mine
 	}
 	return false
+}
+
+func (x *ReactionCount) GetReactors() []string {
+	if x != nil {
+		return x.Reactors
+	}
+	return nil
 }
 
 type ChatMessage struct {
@@ -942,11 +953,12 @@ var File_chat_v1_chat_proto protoreflect.FileDescriptor
 
 const file_chat_v1_chat_proto_rawDesc = "" +
 	"\n" +
-	"\x12chat/v1/chat.proto\x12\achat.v1\"h\n" +
+	"\x12chat/v1/chat.proto\x12\achat.v1\"\x84\x01\n" +
 	"\rReactionCount\x12-\n" +
 	"\breaction\x18\x01 \x01(\x0e2\x11.chat.v1.ReactionR\breaction\x12\x14\n" +
 	"\x05count\x18\x02 \x01(\rR\x05count\x12\x12\n" +
-	"\x04mine\x18\x03 \x01(\bR\x04mine\"\xb0\x02\n" +
+	"\x04mine\x18\x03 \x01(\bR\x04mine\x12\x1a\n" +
+	"\breactors\x18\x04 \x03(\tR\breactors\"\xb0\x02\n" +
 	"\vChatMessage\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12%\n" +
 	"\x0fsent_at_unix_ms\x18\x02 \x01(\x03R\fsentAtUnixMs\x12\x1f\n" +

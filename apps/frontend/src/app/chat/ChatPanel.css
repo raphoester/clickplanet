@@ -589,6 +589,65 @@
 }
 
 /*
+ * Who gave one reaction, over the chip that counts them. It is drawn on the
+ * body, so it is placed in screen coordinates and nothing in the panel clips
+ * it; left and top come from the chip, and the rest is here.
+ */
+.chat-reaction-who {
+    position: fixed;
+    z-index: 256;
+    transform: translate(-50%, 0);
+    padding: 6px 10px;
+    border: 2px solid #FFFFFF33;
+    border-radius: 12px;
+    background: #171717F2;
+    box-shadow: 0 3px 0 0 #000000B3;
+    color: #FFFFFF;
+    font-family: "Luckiest Guy", sans-serif;
+    font-size: 12px;
+    line-height: 1.35;
+    pointer-events: none;
+    animation: chat-who-in 0.12s ease-out;
+}
+
+.chat-reaction-who-above {
+    transform: translate(-50%, -100%);
+}
+
+.chat-reaction-who-label {
+    display: block;
+    margin-bottom: 2px;
+    color: #FF9D66;
+    font-size: 11px;
+    text-transform: uppercase;
+}
+
+.chat-reaction-who-names {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.chat-reaction-who-names li {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.chat-reaction-who-more {
+    color: #FFFFFF99;
+}
+
+@keyframes chat-who-in {
+    from {
+        opacity: 0;
+    }
+}
+
+/*
  * Out of the way until the pointer is on the message. A touch screen has no
  * hover, so there it stays, faint.
  */
@@ -707,7 +766,8 @@
     .chat-badge,
     .chat-peek,
     .chat-jump,
-    .chat-reaction-picker {
+    .chat-reaction-picker,
+    .chat-reaction-who {
         animation: none;
     }
 

@@ -65,6 +65,14 @@ export type ReactionCount = {
     count: number
     /** This player gave it. The stream never knows, so `useChat` keeps it between calls. */
     mine: boolean
+    /**
+     * Who gave it, oldest first, each under the name it went by when it
+     * reacted. The server cuts the list at a cap, so it can be shorter than
+     * `count` — and it is shorter again for a moment after this player
+     * reacted, until the server answers with the name. `count` is always how
+     * many gave it.
+     */
+    reactors: string[]
 }
 
 /**

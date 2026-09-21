@@ -403,6 +403,17 @@ is the list, and the backend refuses any other.
   beside the balloon (`AddReactionButton`) that opens the picker. The button
   shows on hover; a touch screen has no hover, so there it stays, faint. The
   picker closes on a pick, on Escape and on a click elsewhere.
+- **A chip says who reacted while the pointer rests on it**, or while it holds
+  the focus: the reaction's name, then the players under it (`whoReacted`,
+  `ReactionWho`). The names come from the server on the count itself
+  (`ReactionCount.reactors`), oldest first, cut at 20; the server reads them
+  from the accounts under the reaction rather than any stored name, so a rename
+  shows here too. `count` is what says how many gave it, so the popup ends on
+  "and N more" whenever it has fewer names than that — a long list the server
+  cut, or somebody it could not name at all. It is drawn in a portal on the body, not beside the chip: the log
+  both scrolls and clips, and the panel's `backdrop-filter` would hold a
+  `position: fixed` child to the panel instead of the screen. Anything that
+  moves the chip — a scroll, a resize — closes it rather than making it follow.
 - **`mine` is only known from a call.** `GetHistory` sends the token already
   held (`SessionProvider.held()`, never a mint) so the server can mark the
   player's own; `React` answers the counts with `mine` set. The stream is
@@ -418,7 +429,12 @@ is the list, and the backend refuses any other.
   to this player's own reaction) drop one older than what the log holds.
 - `useChat.react` shows the change at once (`toggledReactions`), then takes the
   server's answer, or undoes it when refused. A message the server no longer
-  shows reads as `ChatMessageGoneError`.
+  shows reads as `ChatMessageGoneError`. It puts this player's own name in and
+  out of the popup's list too: `useChat` derives `displayName` — the `username`
+  prop, or the name the server posted under (`nameSentUnder`) for a guest — and
+  reads it through a ref, so a guest learning its name builds no new callback.
+  Without one the reaction is counted and nobody new is named, until the
+  answer lands.
 - A reaction is not a new message: `ChatLog` shows the "New messages" pill only
   when the last message changes, and the unread count and the sound only count
   messages.

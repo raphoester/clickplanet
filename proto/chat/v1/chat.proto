@@ -49,6 +49,10 @@ message ReactionCount {
   // The caller is one of them. Only a call knows who is asking: it is false on
   // everything the stream sends, and the client keeps its own between calls.
   bool mine = 3;
+  // Who gave it, oldest first, each named as it read when they reacted — a
+  // message's author_name is frozen the same way. Cut at a cap, so there may
+  // be fewer names than count; count is always how many gave it.
+  repeated string reactors = 4;
 }
 
 message ChatMessage {

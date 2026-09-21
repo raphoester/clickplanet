@@ -42,7 +42,7 @@ const CHATTERS = [
  */
 export const OWN_GUEST_NAME = "guest_c0ffee"
 
-// Who reacts from this browser: like the server, one reactor per account.
+// Who reacts from this browser: like the server, one reactor per account. A bot reacts under its own name.
 const ME = "me"
 
 // What the bots react with, now and then.
@@ -213,6 +213,7 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
                 reaction,
                 count: reactors.size,
                 mine: viewer !== undefined && reactors.has(viewer),
+                reactors: [...reactors].map(named),
             }))
     }
 
@@ -228,4 +229,9 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
         this.tokens -= 1
         return true
     }
+}
+
+/** What a reactor is called. A bot already reacts under its name; this browser reacts as its guest code. */
+function named(reactor: string): string {
+    return reactor === ME ? OWN_GUEST_NAME : reactor
 }

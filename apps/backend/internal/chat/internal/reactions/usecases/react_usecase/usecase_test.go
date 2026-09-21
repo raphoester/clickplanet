@@ -30,6 +30,32 @@ func (f *fakePublisher) Publish(update feed.Update) {
 	f.updates = append(f.updates, update)
 }
 
+// fakeAuthors is the player module, which knows what each account is called. An account it is not told about
+// is one nobody can name any more: deleted.
+type fakeAuthors struct {
+	named map[messages.AccountID]messages.Author
+	asked int
+	err   error
+}
+
+func (f *fakeAuthors) Authors(
+	_ context.Context,
+	accounts []messages.AccountID,
+) (map[messages.AccountID]messages.Author, error) {
+	f.asked++
+	if f.err != nil {
+		return nil, f.err
+	}
+
+	found := make(map[messages.AccountID]messages.Author, len(accounts))
+	for _, account := range accounts {
+		if author, known := f.named[account]; known {
+			found[account] = author
+		}
+	}
+	return found, nil
+}
+
 // failingBoard is a board whose saves fail.
 type failingBoard struct {
 	*inmemory_reaction_storage.Storage
@@ -54,12 +80,17 @@ type testSuite struct {
 	messages  *inmemory_message_storage.Storage
 	board     *inmemory_reaction_storage.Storage
 	publisher *fakePublisher
+	authors   *fakeAuthors
 }
 
 func (s *testSuite) SetupTest() {
 	s.messages = inmemory_message_storage.New()
 	s.board = inmemory_reaction_storage.New()
 	s.publisher = &fakePublisher{}
+	s.authors = &fakeAuthors{named: map[messages.AccountID]messages.Author{
+		ada: {Name: "Ada"},
+		bob: {Name: "Bob"},
+	}}
 	s.sent("hello")
 }
 
@@ -70,7 +101,8 @@ func (s *testSuite) sent(id messages.MessageID) {
 }
 
 func (s *testSuite) reactWith(board react_usecase.Board, in react_usecase.In) (react_usecase.Out, error) {
-	return react_usecase.New(s.messages, board, s.publisher, cptime.NewFixedClock(now), window).Execute(context.Background(), in)
+	useCase := react_usecase.New(s.messages, board, s.publisher, s.authors, cptime.NewFixedClock(now), window)
+	return useCase.Execute(context.Background(), in)
 }
 
 func (s *testSuite) react(account messages.AccountID, reaction reactions.Reaction, on bool) []reactions.Count {
@@ -80,7 +112,10 @@ func (s *testSuite) react(account messages.AccountID, reaction reactions.Reactio
 }
 
 func (s *testSuite) TestAnAccountReactsAsItselfAndIsAnsweredWithItsOwn() {
-	s.Equal([]reactions.Count{{Reaction: clown, Count: 1, Mine: true}}, s.react(ada, clown, true))
+	s.Equal([]reactions.Count{{
+		Reaction: clown, Count: 1, Mine: true,
+		Reactors: []reactions.Reactor{reactions.ReactorOf(ada)}, Names: []string{"Ada"},
+	}}, s.react(ada, clown, true))
 
 	given, err := s.board.Reactions(context.Background(), []messages.MessageID{"hello"})
 	s.Require().NoError(err)
@@ -90,7 +125,11 @@ func (s *testSuite) TestAnAccountReactsAsItselfAndIsAnsweredWithItsOwn() {
 func (s *testSuite) TestTwoAccountsAreTwoReactors() {
 	s.react(ada, clown, true)
 
-	s.Equal([]reactions.Count{{Reaction: clown, Count: 2, Mine: true}}, s.react(bob, clown, true))
+	s.Equal([]reactions.Count{{
+		Reaction: clown, Count: 2, Mine: true,
+		Reactors: []reactions.Reactor{reactions.ReactorOf(ada), reactions.ReactorOf(bob)},
+		Names:    []string{"Ada", "Bob"},
+	}}, s.react(bob, clown, true))
 }
 
 func (s *testSuite) TestNoAccountIsRefusedAndNothingIsSaved() {
@@ -105,12 +144,20 @@ func (s *testSuite) TestEveryChangeIsPublishedAsTheWholeTallyForNobodyVersioned(
 	s.react(bob, laugh, true)
 	s.react(ada, clown, false)
 
+	adaGave := []reactions.Reactor{reactions.ReactorOf(ada)}
+	bobGave := []reactions.Reactor{reactions.ReactorOf(bob)}
+
 	s.Equal([]feed.Update{
-		{Reactions: &reactions.Tally{MessageID: "hello", Version: 1, Counts: []reactions.Count{{Reaction: clown, Count: 1}}}},
-		{Reactions: &reactions.Tally{MessageID: "hello", Version: 2, Counts: []reactions.Count{
-			{Reaction: clown, Count: 1}, {Reaction: laugh, Count: 1},
+		{Reactions: &reactions.Tally{MessageID: "hello", Version: 1, Counts: []reactions.Count{
+			{Reaction: clown, Count: 1, Reactors: adaGave, Names: []string{"Ada"}},
 		}}},
-		{Reactions: &reactions.Tally{MessageID: "hello", Version: 3, Counts: []reactions.Count{{Reaction: laugh, Count: 1}}}},
+		{Reactions: &reactions.Tally{MessageID: "hello", Version: 2, Counts: []reactions.Count{
+			{Reaction: clown, Count: 1, Reactors: adaGave, Names: []string{"Ada"}},
+			{Reaction: laugh, Count: 1, Reactors: bobGave, Names: []string{"Bob"}},
+		}}},
+		{Reactions: &reactions.Tally{MessageID: "hello", Version: 3, Counts: []reactions.Count{
+			{Reaction: laugh, Count: 1, Reactors: bobGave, Names: []string{"Bob"}},
+		}}},
 	}, s.publisher.updates)
 }
 
@@ -120,16 +167,22 @@ func (s *testSuite) TestTheAnswerCarriesTheVersionItWasReadAt() {
 	out, err := s.reactWith(s.board, react_usecase.In{Account: ada, MessageID: "hello", Reaction: clown, On: true})
 
 	s.Require().NoError(err)
-	s.Equal(react_usecase.Out{Counts: []reactions.Count{{Reaction: clown, Count: 1, Mine: true}}, Version: 1}, out,
-		"a change that changes nothing answers what is there")
+	s.Equal(react_usecase.Out{Counts: []reactions.Count{{
+		Reaction: clown, Count: 1, Mine: true,
+		Reactors: []reactions.Reactor{reactions.ReactorOf(ada)}, Names: []string{"Ada"},
+	}}, Version: 1}, out, "a change that changes nothing answers what is there")
 }
 
 func (s *testSuite) TestAChangeThatChangesNothingIsNeitherSavedNorPublished() {
 	s.react(ada, clown, true)
 	s.publisher.updates = nil
 
-	s.Equal([]reactions.Count{{Reaction: clown, Count: 1, Mine: true}}, s.react(ada, clown, true))
-	s.Equal([]reactions.Count{{Reaction: clown, Count: 1, Mine: true}}, s.react(ada, laugh, false))
+	mine := []reactions.Count{{
+		Reaction: clown, Count: 1, Mine: true,
+		Reactors: []reactions.Reactor{reactions.ReactorOf(ada)}, Names: []string{"Ada"},
+	}}
+	s.Equal(mine, s.react(ada, clown, true))
+	s.Equal(mine, s.react(ada, laugh, false))
 	s.Empty(s.publisher.updates)
 }
 
@@ -148,4 +201,42 @@ func (s *testSuite) TestAReactionThatCannotBeSavedIsNotPublished() {
 
 	s.Require().Error(err)
 	s.Empty(s.publisher.updates)
+}
+
+func (s *testSuite) TestEveryoneUnderAMessageIsNamedInOneAsk() {
+	s.react(ada, clown, true)
+	s.authors.asked = 0
+
+	counts := s.react(bob, clown, true)
+
+	s.Equal([]string{"Ada", "Bob"}, counts[0].Names, "oldest first")
+	s.Equal(1, s.authors.asked, "the answer and the frame that goes out share it")
+}
+
+func (s *testSuite) TestARenameShowsUnderEveryReactionItsPlayerEverGave() {
+	s.react(ada, clown, true)
+	s.react(ada, laugh, true)
+	s.authors.named[ada] = messages.Author{Name: "Ada Lovelace"}
+
+	counts := s.react(bob, clown, true)
+
+	s.Equal([]string{"Ada Lovelace", "Bob"}, counts[0].Names)
+}
+
+func (s *testSuite) TestADeletedAccountIsCountedWithoutBeingNamed() {
+	s.react(ada, clown, true)
+	delete(s.authors.named, ada)
+
+	counts := s.react(bob, clown, true)
+
+	s.Equal(2, counts[0].Count)
+	s.Equal([]string{"Bob"}, counts[0].Names, "the count says how many, the names say who is still there")
+}
+
+func (s *testSuite) TestAReactionNobodyCanBeNamedUnderIsARefusal() {
+	s.authors.err = errors.New("the player module is down")
+
+	_, err := s.reactWith(s.board, react_usecase.In{Account: ada, MessageID: "hello", Reaction: clown, On: true})
+
+	s.Require().Error(err)
 }

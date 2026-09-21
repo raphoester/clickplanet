@@ -23,6 +23,11 @@ func Encode(message messages.Message, counts []reactions.Count, version uint64) 
 	}
 }
 
+// NamedReactors is how many of the people who gave one reaction are named on the wire. A reaction everybody in
+// the chat piles onto would otherwise carry a name per reader per message; the count still says how many gave
+// it, so a client shows the names it has and how many more there are.
+const NamedReactors = 20
+
 func EncodeCounts(counts []reactions.Count) []*chatv1.ReactionCount {
 	encoded := make([]*chatv1.ReactionCount, 0, len(counts))
 	for _, count := range counts {
@@ -30,9 +35,17 @@ func EncodeCounts(counts []reactions.Count) []*chatv1.ReactionCount {
 			Reaction: chatv1.Reaction(count.Reaction),
 			Count:    uint32(count.Count), //nolint:gosec // a count of reactors, never negative.
 			Mine:     count.Mine,
+			Reactors: firstNamed(count.Names),
 		})
 	}
 	return encoded
+}
+
+func firstNamed(names []string) []string {
+	if len(names) > NamedReactors {
+		return names[:NamedReactors]
+	}
+	return names
 }
 
 // Reaction is the wire's reaction as the domain's, or reactions.ErrInvalidReaction for one the proto does not name.

@@ -53,8 +53,12 @@ function stubBackend(history: ChatMessage[] = [], announcements: ChatAnnouncemen
         }),
         react: vi.fn(async (outgoing: OutgoingReaction): Promise<ReactionsChange> => ({
             messageId: outgoing.messageId,
-            reactions: [{reaction: outgoing.reaction, count: outgoing.on ? 1 : 0, mine: outgoing.on}]
-                .filter(count => count.count > 0),
+            reactions: [{
+                reaction: outgoing.reaction,
+                count: outgoing.on ? 1 : 0,
+                mine: outgoing.on,
+                reactors: outgoing.on ? [OWN_GUEST] : [],
+            }].filter(count => count.count > 0),
             version: 1,
         })),
         sendMessage: vi.fn(async (outgoing) => ({
@@ -563,7 +567,8 @@ describe("ChatPanel", () => {
 })
 
 describe("ChatPanel reactions", () => {
-    const clown = (count: number, mine: boolean) => ({reaction: Reaction.CLOWN, count, mine})
+    const clown = (count: number, mine: boolean, reactors: string[] = []) =>
+        ({reaction: Reaction.CLOWN, count, mine, reactors})
 
     it("puts a reaction on from the picker", async () => {
         const {backend} = stubBackend([message("m1", "gm")])
