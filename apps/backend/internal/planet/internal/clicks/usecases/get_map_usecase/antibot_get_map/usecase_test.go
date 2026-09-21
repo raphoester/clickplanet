@@ -62,15 +62,15 @@ func TestAReadOutsideTheMapIsReportedAsSuch(t *testing.T) {
 		offMap bool
 	}{
 		{"the web app's first batch", get_map_usecase.In{Start: 1, End: 10001}, false},
-		{"the web app's last batch, clamped", get_map_usecase.In{Start: 250001, End: 257948}, false},
+		{"the web app's last batch, clamped", get_map_usecase.In{Start: 250001, End: 262119}, false},
 		{"an unset end is the end of the map", get_map_usecase.In{Start: 1}, false},
 		{"the bot's walk starts at tile 0", get_map_usecase.In{Start: 0, End: 10000}, true},
-		{"the bot's last batch runs past the end", get_map_usecase.In{Start: 250000, End: 257954}, true},
+		{"the bot's last batch runs past the end", get_map_usecase.In{Start: 250000, End: 262125}, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			guard := &fakeGuard{}
 
-			_, err := antibot_get_map.New(stubUseCase{batch: batch}, guard, board(257948)).
+			_, err := antibot_get_map.New(stubUseCase{batch: batch}, guard, board(262119)).
 				Execute(cpctx.AddIPToContext(t.Context(), "203.0.113.7"), tc.in)
 
 			require.NoError(t, err)

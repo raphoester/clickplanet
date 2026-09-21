@@ -13,7 +13,7 @@ import (
 )
 
 // chunk is one GetMap of ten thousand tiles, as the bot of 2026-09-15 read them.
-const chunk = 10000.0 / 257948
+const chunk = 10000.0 / 262119
 
 type harness struct {
 	watchdog *scraper.Watchdog

@@ -436,7 +436,7 @@ A stream blocked inside a `Send` to a client that reads nothing is not woken by 
 
 `GetMap` is an ordinary RPC, but marked `idempotency_level = NO_SIDE_EFFECTS` in the proto, so Connect sends it as an **HTTP GET** and the handler sets `Cache-Control: public, max-age=5` on the response. A burst of visitors can therefore share one origin response; `ListenForEvents` carries everything that happens after a chunk was built, so a client starting from a slightly old map converges anyway. `MapDensity` is marked the same way.
 
-The response never repeats a tile id. `GetMapResponse` carries `start_tile_id`, the interned `codes` table, and `tiles` — a `bytes` field holding two bytes per tile, little endian, indexing into `codes`. Tile ids are implicit in the position, which is what makes it far smaller than the deprecated `map<uint32, string>`: **516 KB against 3.6 MB** for a full 257,948-tile map.
+The response never repeats a tile id. `GetMapResponse` carries `start_tile_id`, the interned `codes` table, and `tiles` — a `bytes` field holding two bytes per tile, little endian, indexing into `codes`. Tile ids are implicit in the position, which is what makes it far smaller than the deprecated `map<uint32, string>`: **524 KB against 3.6 MB** for a full 262,119-tile map.
 
 `inmemory_tile_storage.StateBatchDense` builds it. The interned ids are copied out exactly as stored and the table travels with them, so nothing is translated on the way out and the client needs no shared country list. Protobuf does all the framing — there is no hand-rolled magic or length-prefixing on either side, and therefore no encoder and decoder that have to be edited together.
 
@@ -1115,7 +1115,7 @@ On land the tiles are `Geography.Within(centre, radius)`: every tile within
 `radius` of arc of the tile hit — a true circle, ~230 tiles inland, found by a
 straight scan (~0.5ms, once per bomb). The radius is `bomb.rings × Geography.Spacing()` (`bonuses.NewBombRules`, and `BombRules.Blast` decides land or sea),
 the mean arc between touching tiles measured at boot (0.0040 rad on the
-257,948-tile map, so 0.032), rather than a number in the config that could drift
+262,119-tile map, so 0.032), rather than a number in the config that could drift
 from the map; the same radius goes to clients, so the ring they draw is the clear.
 
 **It is not `Disc`, deliberately.** Rings of neighbours on a honeycomb make a
@@ -1986,14 +1986,14 @@ In practice the failure is unreachable in production — the blob is embedded, s
 It costs ~0.3s of boot and about 12 MB resident. The boot log carries the whole result in one line:
 
 ```
-map geography loaded asset=coordinates-26a9aeab.bin tiles=257948 edges=752820
-  degrees="[186 530 1440 4087 6216 7829 237660]" took=263ms
+map geography loaded asset=coordinates-9998a414.bin tiles=262119 edges=768288
+  degrees="[225 516 1111 3796 5664 5048 245759]" took=263ms
 ```
 
-Those numbers are pinned by the tests. 752,820 undirected edges, average degree 5.837, and the
-degree histogram reads: 186 tiles with no neighbours, then 530, 1440, 4087, 6216, 7829, and 237,660
-inland tiles with the full 6. Walking adjacency alone finds **443 landmasses**, the largest four
-being 142,827 (Afro-Eurasia), 67,957 (the Americas), 20,037 (Antarctica) and 12,335 (Australia).
+Those numbers are pinned by the tests. 768,288 undirected edges, average degree 5.862, and the
+degree histogram reads: 225 tiles with no neighbours, then 516, 1111, 3796, 5664, 5048, and 245,759
+inland tiles with the full 6. Walking adjacency alone finds **477 landmasses**, the largest four
+being 143,574 (Afro-Eurasia), 68,214 (the Americas), 22,871 (Antarctica) and 12,405 (Australia).
 
 #### The API, and what is not in it yet
 
@@ -2011,20 +2011,22 @@ from a pool, one per concurrent caller, so nothing is cleared per call and two c
 the same array.
 
 `clicks.Borders` is the other half of the geography: which country's ground a tile sits on, from
-`generated/map/borders-<hash>.bin`, the table the frontend's `npm run borders` writes to `/map`.
+`generated/map/borders-<hash>.bin`, the table the frontend's `npm run map:generate` writes to `/map`.
 Only the operator tools read it — see [Manual bans](#manual-bans-findplayers-topplayers-banplayer-revertplayer-inspectplayer).
 
 `Neighbours` is what the spread bonus reads — see [What a spread does to a click](#what-a-spread-does-to-a-click).
 `Within`, `Position`, `Nearest` and `Spacing` are what the bomb reads — see [What a bomb does](#what-a-bomb-does).
-`Within`, `Nearest` and `Spacing` are straight scans (a few ms over 257,948 tiles): `Spacing` runs once at
+`Within`, `Nearest` and `Spacing` are straight scans (a few ms over 262,119 tiles): `Spacing` runs once at
 boot, `Within` and `Nearest` once per bomb. `Disc` is back behind the `testing` tag — see [Testing](#testing).
 
-#### Known faults, inherited and documented
+#### What the blob no longer gets wrong
 
-From the blob, not from this package: the antimeridian row carries ~¼ the tiles it should, so
-neighbourhoods near the dateline are lopsided, and 2,523 tiles fall outside every country. Both
-leave tiles with fewer than 6 neighbours, which is also what a coastline does — there is no way to
-tell them apart from the geometry, and fixing them means regenerating and renumbering.
+Both blobs come from one Natural Earth query now, so **every tile is in a country** and the
+antimeridian row carries what it should. It used to be 2,191 tiles in no country and a 36-tile
+deficit at the dateline, and both left tiles with fewer than 6 neighbours — which is also what a
+coastline does, so there was no telling them apart from the geometry. The 225 tiles with no
+neighbours at all are genuine single-tile islands; anything reading adjacency still has to have an
+answer for an empty neighbour set. See [`/map/README.md`](../../map/README.md).
 
 ### Configuration
 

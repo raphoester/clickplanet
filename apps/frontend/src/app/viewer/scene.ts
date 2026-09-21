@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import {innerSphere} from "./sphere.ts";
 import {createAtmosphere} from "./atmosphere.ts";
 import {layoutViewport} from "./viewport.ts";
+import {EARTH_URL} from "./earthAsset.ts";
 
 export function setupScene(container: HTMLElement) {
     const scene = new THREE.Scene();
@@ -72,7 +73,7 @@ export function addDisplayObjects(
     scene.add(new THREE.Mesh(
         innerSphere(),
         new THREE.MeshStandardMaterial({
-            map: textureLoader.load('/static/earth/earth-4k.jpg'),
+            map: textureLoader.load(EARTH_URL),
         })
     ))
     scene.add(createAtmosphere());
