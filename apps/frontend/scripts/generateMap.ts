@@ -14,7 +14,8 @@
 // scripts/map/remap.mjs and map/README.md.
 //
 // After running it: the backend's `make map`, then commit all three copies of each blob, and
-// `npm run borderLines`, which is traced from both and is stale the moment either changes.
+// `npm run borderLines` and `npm run earth`, both of which are cut from these blobs and are stale
+// the moment either changes.
 import {writeFileSync} from "node:fs"
 
 import {encodeBorders} from "./map/bordersBinary.mjs"
@@ -111,4 +112,5 @@ next:
   gameMap.maxIndex is now ${count} — update cmd/api/example.yaml and deploy/vps/backend.yaml
   cd ../backend && make map        # copy both blobs, then commit all three copies of each
   npm run borderLines              # traced from both blobs, stale until it is run
-  npm run map:audit -- --save      # the faults should now be zero`)
+  npm run earth                    # the globe's texture, cut from the new tile field
+  npm run map:audit                # every fault should read zero`)

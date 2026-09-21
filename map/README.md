@@ -47,9 +47,9 @@ cd apps/frontend && npm run map:generate   # both blobs, from the oracle
 cd apps/frontend && npm run map:audit      # the three sources against each other
 ```
 
-The audit fails when a fault is worse than `apps/frontend/scripts/map/audit.baseline.json`. Today
-every fault between the tile set and the oracle is zero, and the baseline says so, so any drift is
-a failure rather than a number nobody reads.
+**Every fault between the tile set and the oracle is zero, and the audit fails on any one of them.**
+They are not a budget that creeps: both blobs are cut from one `groundOf` call, so a tile on open sea
+or a tile in no country is not a map that drifted, it is a generator that broke.
 
 ## Regenerating renumbers every tile
 
@@ -81,7 +81,7 @@ first run. A second run over its own output would write an identity migration.
 cd apps/backend && make map          # copy both blobs, then commit all three copies of each
 cd apps/frontend && npm run borderLines   # traced from both blobs, stale until it is run
 cd apps/frontend && npm run earth         # the globe's texture, cut from the new tile field
-cd apps/frontend && npm run map:audit -- --save
+cd apps/frontend && npm run map:audit     # every fault should read zero
 ```
 
 `gameMap.maxIndex` follows the tile count, in `apps/backend/cmd/api/example.yaml` and

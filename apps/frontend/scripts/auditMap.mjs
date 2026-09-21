@@ -1,19 +1,24 @@
 // Asks the three sources that used to answer "sea or land" whether they still disagree.
 //
-//   npm run map:audit          report, and fail if any fault got worse than the baseline
-//   npm run map:audit -- --save   rewrite the baseline from this run
+//   npm run map:audit
 //
 // The three are the shipped tile set (which lattice vertices became tiles), the ground oracle
 // (Natural Earth, which also says which country), and the globe's own texture (what a player
-// actually sees). The texture is not an authority and never becomes one — a 4096x2048 photo blends
-// a one-tile island into open water — so it is reported rather than enforced. The faults that are
-// enforced are the ones between the tile set and the oracle.
+// actually sees).
+//
+// **Every fault between the tile set and the oracle is zero, and any one of them is a failure.**
+// They are not a budget that creeps: both blobs are cut from one `groundOf` call, so a tile on open
+// sea or a tile in no country is not a map that drifted, it is a generator that broke. The rule is
+// the whole check — a recorded baseline of zeros would say the same thing while adding a file
+// somebody could write a regression into.
+//
+// The texture is not an authority and never becomes one — a 4096x2048 photo blends a one-tile island
+// into open water — so its disagreement is reported and nothing is enforced about it.
 //
 // It is run by hand: it downloads 3 MB, rebuilds the whole 906,012-vertex lattice and needs a
 // raised heap. `npm run map:audit` sets that up.
 import fs from "node:fs"
 import path from "node:path"
-import {fileURLToPath} from "node:url"
 
 import sharp from "sharp"
 
@@ -21,9 +26,6 @@ import {readBorders, readCoordinates, staticDir} from "./map/blob.mjs"
 import {SEA, loadGround} from "./map/ground.mjs"
 import {keyOf, lattice, lonLatOf} from "./map/lattice.mjs"
 import {NATURAL_EARTH_TAG} from "./map/naturalEarth.mjs"
-
-const baselinePath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "map", "audit.baseline.json")
-const save = process.argv.includes("--save")
 
 // Blue clearly dominant. Calibrated against the oracle rather than guessed: it agrees with the
 // country polygons on 99.1% of the lattice, and what it misses is what a photo misses — islands
@@ -105,23 +107,15 @@ async function main() {
 
     report({counts, faults, texture: texture_, seam, elsewhere, tiles, borders})
 
-    const baseline = fs.existsSync(baselinePath) ? JSON.parse(fs.readFileSync(baselinePath, "utf8")) : null
-    if (save) {
-        fs.writeFileSync(baselinePath, `${JSON.stringify({naturalEarth: NATURAL_EARTH_TAG, faults}, null, 4)}\n`)
-        console.log(`\nwrote ${path.relative(process.cwd(), baselinePath)}`)
-        return
-    }
-    if (!baseline) {
-        console.log("\nno baseline recorded yet — run with --save")
+    const broken = Object.entries(faults).filter(([, n]) => n > 0)
+    if (broken.length === 0) {
+        console.log("\nthe tile set and the oracle agree about every lattice vertex")
         return
     }
 
-    const worse = Object.entries(faults).filter(([name, n]) => n > (baseline.faults[name] ?? 0))
-    if (worse.length === 0) {
-        console.log("\nno fault is worse than the baseline")
-        return
-    }
-    for (const [name, n] of worse) console.error(`${name}: ${n}, baseline ${baseline.faults[name] ?? 0}`)
+    console.error("\nthe tile set and the oracle disagree, which they cannot do if both blobs came"
+        + " from one `npm run map:generate`:")
+    for (const [name, n] of broken) console.error(`  ${name}: ${n}`)
     process.exitCode = 1
 }
 

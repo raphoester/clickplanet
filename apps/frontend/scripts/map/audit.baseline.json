@@ -1,9 +1,0 @@
-{
-    "naturalEarth": "v5.1.2",
-    "faults": {
-        "tilesOnSea": 0,
-        "landWithNoTile": 0,
-        "iceWithNoTile": 0,
-        "tilesWithNoCountry": 0
-    }
-}
