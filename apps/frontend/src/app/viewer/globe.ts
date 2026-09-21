@@ -80,13 +80,52 @@ const TILES_PER_BATCH = 10_000
 /**
  * How often the idle spin is redrawn, in milliseconds.
  *
- * The spin is the one thing that moves with nobody touching the page, and it
- * turns once in about thirty seconds — a third of a degree per frame at 60fps.
- * Half the frames carry that just as well and cost half the energy, which on a
- * phone is the difference between a game left open and a flat battery. Anything
+ * The spin is the one thing that moves with nobody touching the page, and it is
+ * also the first thing anybody sees, so it is the one animation that has to
+ * carry. At a turn in thirty seconds the globe's surface goes by at a little
+ * over a hundred pixels a second, which is two pixels a frame at sixty and four
+ * at thirty: the step at thirty is visible as a step. Sixty still leaves half
+ * the frames a display like this one offers on the table, which is the saving
+ * worth having — on a phone, a game left open against a flat battery. Anything
  * the player is doing is drawn as fast as it comes.
  */
-const IDLE_FRAME_MS = 33
+const IDLE_FRAME_MS = 16
+
+/**
+ * How fast the idle spin turns, in turns per minute — which is the unit
+ * OrbitControls' `autoRotateSpeed` is in, once `update` is given the time a
+ * frame took. Two is a turn in thirty seconds.
+ *
+ * It is set here rather than left to the default, because the default only
+ * reads as thirty seconds if you already know this is the unit.
+ */
+const SPIN_TURNS_PER_MINUTE = 2
+
+/**
+ * The most time the spin is advanced by in one tick.
+ *
+ * The browser stops offering frames to a hidden tab, so the first tick back
+ * carries however long the tab was away. Advancing the spin by all of it turns
+ * the globe by however far it "should" have gone — a quarter of an hour in
+ * another tab and it is somewhere else entirely. A tab comes back where it was
+ * left instead.
+ */
+const MAX_SPIN_STEP_MS = 100
+
+/**
+ * How far to advance the idle spin on a tick, in seconds, given how long the
+ * display's frame took.
+ *
+ * Time, rather than a count of frames, is what keeps the spin the same speed on
+ * a 60Hz screen and a 120Hz one. The cap is for the gaps that are not a frame
+ * at all: a hidden tab is offered none until it is looked at again, and the
+ * whole of that wait arrives as one step. Past the cap the globe turns slower
+ * than the clock rather than jumping, which is the right way round — below a
+ * few frames a second nobody is watching a spin anyway.
+ */
+export function spinStep(sinceLastTick: number): number {
+    return Math.min(Math.max(sinceLastTick, 0), MAX_SPIN_STEP_MS) / 1000
+}
 
 /**
  * How long after the last touch of the globe the view still redraws at full
@@ -106,6 +145,8 @@ export type Tick = {
     drawnAt: number
     /** Until when the globe is being handled, so every frame is worth drawing. */
     interactingUntil: number
+    /** How long the display's own frame is, as this tick and the last measured it. */
+    sinceLastTick: number
 }
 
 /**
@@ -122,15 +163,20 @@ export type Tick = {
  *
  * - Nothing turned and nothing changed: the frame on screen is already the
  *   frame this one would draw.
- * - Only the idle spin is turning: it goes round once in about thirty seconds,
- *   so half the frames carry it and cost half the energy. Anything the player
- *   does — including the damping gliding on after their hand is off the globe —
- *   is drawn as fast as it comes.
+ * - Only the idle spin is turning: `IDLE_FRAME_MS` is as often as that is worth
+ *   drawing. Anything the player does — including the damping gliding on after
+ *   their hand is off the globe — is drawn as fast as it comes.
+ *
+ * The cap picks the display's nearest frame rather than the first one past it.
+ * A cap lands between two of the display's own frames, and waiting for the
+ * first one strictly past it leaves the answer to a fraction of a millisecond
+ * of drift: a 16ms cap against a 16.7ms frame came out sixty, then forty, then
+ * sixty again. That unevenness is seen where the rate itself is not.
  */
-export function drawsFrame({turned, changed, at, drawnAt, interactingUntil}: Tick): boolean {
+export function drawsFrame({turned, changed, at, drawnAt, interactingUntil, sinceLastTick}: Tick): boolean {
     if (!turned && !changed) return false
     if (changed || at <= interactingUntil) return true
-    return at >= drawnAt + IDLE_FRAME_MS
+    return at + sinceLastTick / 2 >= drawnAt + IDLE_FRAME_MS
 }
 
 /**
@@ -818,6 +864,7 @@ function startAnimation(
     controls.maxZoom = MAX_ZOOM;
     controls.panSpeed = 0.1;
     controls.enableDamping = true;
+    controls.autoRotateSpeed = SPIN_TURNS_PER_MINUTE;
 
     // OrbitControls applies a wheel zoom inside the wheel handler: it calls
     // `update()` there, and that call is the one that moves the camera and
@@ -849,11 +896,23 @@ function startAnimation(
     });
 
     let drawnAt = -Infinity;
+    let tickedAt: number | undefined;
 
     renderer.setAnimationLoop((time: number) => {
+        // How long this display's frame is. The spin is advanced by it, and the
+        // idle cap rounds to it — neither can be assumed, since the same page
+        // is offered 60 frames a second on one screen and 120 on the next.
+        const sinceLastTick = tickedAt === undefined ? 0 : time - tickedAt;
+        tickedAt = time;
+
+        // Given the time a frame took, OrbitControls turns the spin by the
+        // clock. Given nothing, it turns by a fixed angle per call instead, and
+        // the globe goes round twice as fast on a 120Hz display as on a 60Hz
+        // one — which is also twice as far between the frames that are drawn.
+        //
         // `update()` dispatches `change` itself when it moves the camera, so
         // this reads what it just set as well as what a handler set before it.
-        const turned = controls.update() || moved;
+        const turned = controls.update(spinStep(sinceLastTick)) || moved;
 
         // These are read by the pass that is about to be drawn, so they are
         // written before it and not after: with a frame skipped whenever
@@ -876,7 +935,7 @@ function startAnimation(
         const moving = beforeRender(time / 1000);
         const changed = takeChange() || moving;
 
-        if (!drawsFrame({turned, changed, at: time, drawnAt, interactingUntil})) return;
+        if (!drawsFrame({turned, changed, at: time, drawnAt, interactingUntil, sinceLastTick})) return;
 
         moved = false;
         drawnAt = time;

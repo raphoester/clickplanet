@@ -1,5 +1,5 @@
 import {describe, expect, it, vi} from "vitest"
-import {drawsFrame, reportClickFailure} from "./globe.ts"
+import {drawsFrame, reportClickFailure, spinStep} from "./globe.ts"
 import {RateLimitedError, VPNBlockedError} from "../../backends/backend.ts"
 import {SessionUnavailableError} from "../../backends/session.ts"
 import {OwnerChange, TileOwnership} from "../../domain/tileOwnership.ts"
@@ -139,7 +139,8 @@ describe("a refused click, from the paint to the rollback", () => {
 // be read and pinned without a GPU.
 describe("drawsFrame", () => {
     const tick = (over: Partial<Parameters<typeof drawsFrame>[0]>) => drawsFrame({
-        turned: false, changed: false, at: 10_000, drawnAt: 0, interactingUntil: 0, ...over,
+        turned: false, changed: false, at: 10_000, drawnAt: 0, interactingUntil: 0,
+        sinceLastTick: 0, ...over,
     })
 
     it("draws nothing while the globe sits still", () => {
@@ -154,13 +155,55 @@ describe("drawsFrame", () => {
         expect(tick({turned: true, drawnAt: 9_999, interactingUntil: 10_000})).toBe(true)
     })
 
-    it("carries the idle spin on half the frames once the globe is let go", () => {
+    it("paces the idle spin once the globe is let go", () => {
         expect(tick({turned: true, drawnAt: 9_990})).toBe(false)
         expect(tick({turned: true, drawnAt: 9_960})).toBe(true)
+    })
+
+    // A 16ms cap against a 16.7ms frame is decided by a fraction of a
+    // millisecond. This frame is a tenth of one short of the cap, and asking
+    // for the first frame strictly past it would give up the whole of the next
+    // one: the spin came out 60fps, then 40, then 60 again. Unevenness is seen
+    // where the rate itself is not, so the nearest frame wins by a whisker.
+    it("takes the display's nearest frame rather than the first one past the cap", () => {
+        const aWhiskerShort = {turned: true, at: 10_000, drawnAt: 9_984.1, sinceLastTick: 16.7}
+
+        expect(tick(aWhiskerShort)).toBe(true)
+    })
+
+    // The other side of the same rule: half a frame of slack, and no more. On a
+    // 120Hz display the cap is worth two of its frames, and the one in between
+    // is still held back.
+    it("still holds back the frame that lands halfway to the cap", () => {
+        const halfway = {turned: true, at: 10_000, drawnAt: 9_991.67, sinceLastTick: 8.33}
+
+        expect(tick(halfway)).toBe(false)
     })
 
     // A tile claimed, or a blast, is never held back a frame to pace the spin.
     it("never holds a change back for the spin's sake", () => {
         expect(tick({turned: true, changed: true, drawnAt: 9_999})).toBe(true)
+    })
+})
+
+// The spin is advanced by the clock rather than by a count of frames, so that
+// it is the same speed on every display. That leaves it exposed to a gap in the
+// frames the browser offers, which is what this is about.
+describe("spinStep", () => {
+    it("advances the spin by however long the frame took", () => {
+        expect(spinStep(16.7)).toBeCloseTo(0.0167, 5)
+    })
+
+    // A hidden tab is offered no frames at all, and the whole of the wait
+    // arrives as the first tick back. Carried through, the globe would be
+    // somewhere else by the time it is looked at again.
+    it("does not carry a hidden tab's whole absence into one frame", () => {
+        expect(spinStep(15 * 60 * 1000)).toBe(0.1)
+    })
+
+    // `performance.now()` does not go backwards, but a first tick has nothing
+    // to subtract from, and a negative step would turn the globe the wrong way.
+    it("never turns the globe backwards", () => {
+        expect(spinStep(-5)).toBe(0)
     })
 })
