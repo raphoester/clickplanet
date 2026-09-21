@@ -60,9 +60,20 @@ export async function loadBorderLines(url: string, signal?: AbortSignal): Promis
  * How many straight pieces each cell edge is drawn as. One is the bare lattice,
  * corner for corner; above that the run is rounded off, and this is how finely.
  * Four leaves a 15° kink at each join, which a line a pixel and a bit wide and
- * softened at the edges does not show even at the closest zoom.
+ * softened at the edges does not show even at the closest zoom. Three is
+ * visibly faceted there, and two is a polygon.
  */
-const SAMPLES = 4
+export const SAMPLES = 4
+
+/**
+ * The same, for the pass that is only ever drawn while the flag is painted
+ * across the landmass — where a cell edge is at most six pixels long, because
+ * that is where the schedule hands over. Two pieces put the curve within a
+ * tenth of a pixel of the four-piece one there, so the two agree all the way
+ * through the crossfade, and the zoom the globe is usually looked at costs half
+ * of what the closest one does.
+ */
+export const COARSE_SAMPLES = 2
 
 type Run = {at: number, controls: number, closed: boolean}
 
@@ -108,9 +119,9 @@ function control(run: Run, step: number): number {
  * be smoothed and still obey it. The narrowest the corridor between two tiles
  * of different countries ever gets is at the middle of the cell edge between
  * them, and the spline goes through that point exactly; at the corners, where
- * there is half as much room again, it uses a fraction of what it has. So the
- * smoothed line clears the tiles by exactly what the staircase cleared them by,
- * and still never crosses one.
+ * there is half as much room again, it uses a fraction of what it has. What is
+ * drawn is the spline's own chords, which cut inside it by under a percent of a
+ * tile spacing, so the line still clears every disc by a margin the test keeps.
  */
 export function outlineSegments(data: BorderLineData, samples = SAMPLES): {from: Int16Array, to: Int16Array} {
     const runs = runsOf(data)
@@ -200,9 +211,8 @@ export type BorderLines = {
     dispose(): void
 }
 
-export function createBorderLines(data: BorderLineData): BorderLines {
-    const {from, to} = outlineSegments(data)
-    const pieces = from.length / 3
+function outlineGeometry(data: BorderLineData, samples: number): THREE.InstancedBufferGeometry {
+    const {from, to} = outlineSegments(data, samples)
 
     const geometry = new THREE.InstancedBufferGeometry()
     // The quad every piece is drawn into: x picks the end, y the side. It is
@@ -215,9 +225,22 @@ export function createBorderLines(data: BorderLineData): BorderLines {
     // they are and the whole outline costs half of what floats would.
     geometry.setAttribute("from", new THREE.InstancedBufferAttribute(from, 3, true))
     geometry.setAttribute("to", new THREE.InstancedBufferAttribute(to, 3, true))
-    geometry.instanceCount = pieces
+    geometry.instanceCount = from.length / 3
 
-    const passes = [OVER, UNDER].map((lift) => {
+    return geometry
+}
+
+export function createBorderLines(data: BorderLineData): BorderLines {
+    // Each pass gets the outline at the resolution it is looked at, rather than
+    // both sharing the finer one: the coarse pass is the one that is on screen
+    // whenever the whole globe is, so what it does not draw is what is saved
+    // most of the time.
+    const geometries = [
+        outlineGeometry(data, COARSE_SAMPLES),
+        outlineGeometry(data, SAMPLES),
+    ]
+
+    const passes = [OVER, UNDER].map((lift, at) => {
         const material = new THREE.ShaderMaterial({
             uniforms: {
                 halfViewport: {value: new THREE.Vector2(1, 1)},
@@ -238,7 +261,7 @@ export function createBorderLines(data: BorderLineData): BorderLines {
             // the outline punch holes in whatever is drawn after it.
             depthWrite: false,
         })
-        const mesh = new THREE.Mesh(geometry, material)
+        const mesh = new THREE.Mesh(geometries[at], material)
         // After the tiles, so their depth is already down by the time the under
         // pass is tested against it.
         mesh.renderOrder = 1
@@ -272,7 +295,7 @@ export function createBorderLines(data: BorderLineData): BorderLines {
             under.visible = paint < 1
         },
         dispose() {
-            geometry.dispose()
+            for (const geometry of geometries) geometry.dispose()
             for (const pass of passes) disposeMaterial(pass.material as THREE.Material)
         },
     }

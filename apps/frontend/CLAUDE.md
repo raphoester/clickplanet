@@ -928,9 +928,15 @@ smoothed and still obey it. The narrowest the corridor between two tiles of
 different countries ever gets is at the middle of the cell edge between them, and
 any line separating them has to thread that point; the spline goes through it
 exactly, and at the corners, where there is half as much room again, it spends a
-fraction of what it has. So the smoothed line clears the tiles by exactly what
-the staircase cleared them by. `borderLines.test.ts` pins that too, on a lone
-tile's own cell.
+fraction of what it has. `borderLines.test.ts` measures the drawn line against a
+lone tile's own cell and pins its near edge clear of the disc at every zoom the
+fine pass is drawn at.
+
+**Each pass carries the outline at the resolution it is looked at.** The over
+pass is on screen only while the flag is painted, where a cell edge is at most
+six pixels, so two pieces put it within a tenth of a pixel of the fine one and it
+draws half the geometry — and it is the pass that is up whenever the whole globe
+is. The fine one is only ever drawn pushed in.
 
 **A run ends at every junction** — a corner three countries share, or where a
 land border reaches the sea — which is the one corner the smoothing may not round

@@ -1,6 +1,15 @@
 import {describe, expect, it} from "vitest"
 import * as THREE from "three"
-import {createBorderLines, decodeBorderLines, outlineSegments, OVER, UNDER, WIDTH} from "./borderLines.ts"
+import {
+    COARSE_SAMPLES,
+    createBorderLines,
+    decodeBorderLines,
+    outlineSegments,
+    OVER,
+    SAMPLES,
+    UNDER,
+    WIDTH,
+} from "./borderLines.ts"
 import {innerSphere} from "./sphere.ts"
 import {displayPointSize, flagPaint, tileSpacing} from "./pointSize.ts"
 import {MAX_ZOOM, MIN_ZOOM} from "./zoom.ts"
@@ -76,25 +85,48 @@ describe("outlineSegments", () => {
         expect(at(from, 2 * samples)).toEqual([30000, 0, 0])
     })
 
-    // What the smoothing may not cost. The lattice is a honeycomb, so the cell
-    // around a tile is a regular hexagon whose edges are half a tile spacing
-    // from it — and that is the narrowest the corridor between two tiles ever
-    // gets. The curve is allowed to round the corners off; it is not allowed to
-    // come inside that.
-    it("keeps the rounded curve out of the tile it runs around", () => {
-        const spacing = 20000
-        const corner = (which: number) => {
-            const angle = which * Math.PI / 3
-            const reach = spacing / Math.sqrt(3)
-            return [Math.round(reach * Math.cos(angle)), Math.round(reach * Math.sin(angle)), 0]
-        }
-        const cell = [0, 1, 2, 3, 4, 5, 0].flatMap(corner)
+    // The cell around a tile, at the lattice's own proportions: a regular
+    // hexagon whose edges are half a tile spacing from the tile in the middle
+    // of it, which is the narrowest the corridor between two tiles ever gets.
+    const SPACING = 20000
+    const cell = () => [0, 1, 2, 3, 4, 5, 0].flatMap((which) => {
+        const angle = which * Math.PI / 3
+        const reach = SPACING / Math.sqrt(3)
+        return [Math.round(reach * Math.cos(angle)), Math.round(reach * Math.sin(angle)), 0]
+    })
 
-        const {from} = outlineSegments(decodeBorderLines(blobOf([cell])), 16)
+    /** How near the drawn outline comes to the tile it is drawn around. */
+    const nearest = (samples: number) => {
+        const {from, to} = outlineSegments(decodeBorderLines(blobOf([cell()])), samples)
+        let closest = Infinity
         for (let piece = 0; piece < from.length / 3; piece++) {
-            const [x, y] = at(from, piece)
-            expect(Math.hypot(x, y), `piece ${piece}`).toBeGreaterThanOrEqual(spacing / 2 - 1)
+            const [ax, ay] = at(from, piece)
+            const [bx, by] = at(to, piece)
+            const run = (bx - ax) ** 2 + (by - ay) ** 2
+            const along = run === 0 ? 0 : Math.min(1, Math.max(0, -(ax * (bx - ax) + ay * (by - ay)) / run))
+            closest = Math.min(closest, Math.hypot(ax + along * (bx - ax), ay + along * (by - ay)))
         }
+        return closest
+    }
+
+    // What the smoothing may not cost, and the whole thing rests on it: at every
+    // zoom where this outline is the only one drawn, the near edge of the line
+    // has to clear the near edge of the disc it runs past. The curve is allowed
+    // to round the corners off — it is not allowed to touch a tile.
+    it("keeps the line clear of the tiles it runs between, at every zoom it is drawn alone", () => {
+        const share = nearest(SAMPLES) / SPACING
+
+        for (let zoom = MIN_ZOOM; zoom <= MAX_ZOOM; zoom += 0.05) {
+            if (flagPaint(zoom, 900) > 0) continue
+            const clearance = share * tileSpacing(zoom, 900) - WIDTH / 2
+            expect(clearance, `zoom ${zoom}`).toBeGreaterThan(displayPointSize(zoom, 900) / 2)
+        }
+    })
+
+    // The two passes are drawn over each other through the whole handover, so
+    // the coarser one has to fall on the finer one rather than beside it.
+    it("draws the coarse pass close enough to the fine one to cross-fade with it", () => {
+        expect(Math.abs(nearest(COARSE_SAMPLES) - nearest(SAMPLES))).toBeLessThan(SPACING * 0.02)
     })
 })
 
@@ -140,18 +172,6 @@ describe("the handover", () => {
         lines.dispose()
     })
 
-    it("fits in the gap the tiles leave, wherever it is the only line drawn", () => {
-        // What the whole thing rests on: the outline runs along the cell edges
-        // of the tile lattice, so once the discs are back to their own size it
-        // passes down the middle of the gap between two of them rather than
-        // over either. A line wider than that gap would be back to cutting the
-        // tiles it is drawn between.
-        for (let zoom = MIN_ZOOM; zoom <= MAX_ZOOM; zoom += 0.05) {
-            if (flagPaint(zoom, 900) > 0) continue
-            const gap = tileSpacing(zoom, 900) - displayPointSize(zoom, 900)
-            expect(WIDTH, `zoom ${zoom}`).toBeLessThan(gap)
-        }
-    })
 
     it("draws nothing it cannot see", () => {
         const {lines, over, under} = outline()
@@ -162,6 +182,15 @@ describe("the handover", () => {
         lines.update(MAX_ZOOM, 1600, 900)
         expect([over.visible, under.visible]).toEqual([false, true])
 
+        lines.dispose()
+    })
+
+    // The coarse pass is the one on screen whenever the whole globe is, so it is
+    // the one worth not drawing four times over.
+    it("gives the coarse outline to the pass that is drawn zoomed out", () => {
+        const {lines, over, under} = outline()
+        const count = (pass: THREE.Mesh) => (pass.geometry as THREE.InstancedBufferGeometry).instanceCount
+        expect(count(over)).toBeLessThan(count(under))
         lines.dispose()
     })
 
