@@ -4,7 +4,7 @@ import './index.css'
 
 import {newClickServiceClient, PlanetBackend} from "./backends/planetBackend.ts"
 import {NoSession, SessionProvider} from "./backends/session.ts"
-import {newAuthServiceClient, SessionClient, turnstileAttester} from "./backends/turnstileSession.ts"
+import {localTokenStore, newAuthServiceClient, SessionClient, turnstileAttester} from "./backends/turnstileSession.ts"
 import {ChatServiceBackend, newChatServiceClient} from "./backends/chatBackend.ts"
 import {FakeBackend} from "./backends/fakeBackend.ts"
 import {FakeChatBackend} from "./backends/fakeChatBackend.ts"
@@ -36,7 +36,7 @@ const config = {
 const sitekey = import.meta.env.VITE_TURNSTILE_SITEKEY
 const authClient = newAuthServiceClient(config)
 const session: SessionProvider = sitekey
-    ? new SessionClient(authClient, turnstileAttester(sitekey, "session"))
+    ? new SessionClient(authClient, turnstileAttester(sitekey, "session"), {store: localTokenStore()})
     : new NoSession()
 
 // `VITE_FAKE_BACKEND=1 npm run dev` plays against the in-browser fakes, bombs

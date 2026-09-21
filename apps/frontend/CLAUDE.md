@@ -516,8 +516,9 @@ while a modal dialog is on the page.
 
 **It announces only with a token it already holds.** `SessionProvider.held()`
 answers the click token in hand and never mints: a mint is a Turnstile check,
-and presence is not worth one. So a visitor who never clicked is not listed, by
-design. The schedule announces as soon as a token is held that the last
+and presence is not worth one. So a visitor who has never clicked is not listed,
+by design; one whose kept token is still live is listed from the load — see
+[Sessions](#sessions). The schedule announces as soon as a token is held that the last
 announce did not go out under (the first click, a re-mint, a sign-in), once
 the flag or the username has held still for a second, and every
 30s — the server drops a player 90s after its last one. An announce carries the
@@ -582,6 +583,27 @@ that carries a cookie is one no shared cache serves. Both halves are pinned in
 origin and send `Access-Control-Allow-Credentials: true` — Caddy does in
 production, and a local backend does from `httpServer.allowedOrigin`, which
 must be the dev server's origin (`http://localhost:5173`).
+
+**A held token outlives the page it was minted on.** `localTokenStore` keeps it
+in local storage (`clickplanet-session`) and the client takes it back at
+construction, by the same margin `held` applies to one it minted. Nothing mints
+at load, so without this a reload held nothing until its first click and
+everything that reads the token without minting read as a caller with no
+account: the inventory came back empty, the meter showed the scope's bucket
+rather than the player's, the stream followed the address, and presence listed
+nobody. An invalidation and a failed mint both drop what was kept, so a reload
+after a sign-out does not bring the old account's token back.
+
+**It keeps the click token and never the account.** The account is the `cp_sid`
+cookie, which is HttpOnly and out of this page's reach either way. A token
+lapses within the hour, is bound to the address that minted it, and a page that
+could read this could mint one of its own off that cookie. A token restored on
+another network is refused, which is the case a click already retries against a
+fresh mint; a read that carries it answers for nobody, exactly as no token did.
+
+**The store is injected, not read in the client.** `SessionClient` stays the
+half with no DOM and no network — the same split as `turnstileAttester` — so
+every rule about what is kept and when is under test without a browser.
 
 **A fresh widget per attestation**, not one reset between uses. Turnstile tokens
 are redeemed exactly once, and a widget that is created and destroyed has no
