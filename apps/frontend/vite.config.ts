@@ -45,7 +45,10 @@ export default defineConfig({
         },
     },
     test: {
-        include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
+        // `scripts/` is in here for the map generators alone. What they decide — where every tile
+        // is and who owns the ground under it — outlives any one run and is not visible in a diff,
+        // so their rules are pinned like the app's own.
+        include: ["src/**/*.test.ts", "src/**/*.test.tsx", "scripts/**/*.test.mjs"],
         environment: "node",
     },
 })
