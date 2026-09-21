@@ -819,7 +819,20 @@ function startAnimation(
     controls.panSpeed = 0.1;
     controls.enableDamping = true;
 
+    // OrbitControls applies a wheel zoom inside the wheel handler: it calls
+    // `update()` there, and that call is the one that moves the camera and
+    // clears the pending scale. The loop's own `update()` then finds nothing
+    // left to apply and answers `false`, so a zoom looked to the loop like a
+    // still globe and was drawn at whatever rate a claim happened to land at.
+    // `change` is dispatched by whichever `update()` actually moved the camera,
+    // so that is what the loop reads. It is cleared on the frame that draws it,
+    // not on the tick that reads it, so the idle throttle can hold a frame back
+    // without losing the move that asked for it.
+    let moved = false;
+
     controls.addEventListener('change', () => {
+        moved = true;
+
         controls.autoRotate = camera.zoom <= RESTING_ZOOM;
 
         controls.rotateSpeed = (1 / camera.zoom) / 1.5;
@@ -838,7 +851,9 @@ function startAnimation(
     let drawnAt = -Infinity;
 
     renderer.setAnimationLoop((time: number) => {
-        const turned = controls.update();
+        // `update()` dispatches `change` itself when it moves the camera, so
+        // this reads what it just set as well as what a handler set before it.
+        const turned = controls.update() || moved;
 
         // These are read by the pass that is about to be drawn, so they are
         // written before it and not after: with a frame skipped whenever
@@ -863,6 +878,7 @@ function startAnimation(
 
         if (!drawsFrame({turned, changed, at: time, drawnAt, interactingUntil})) return;
 
+        moved = false;
         drawnAt = time;
 
         starfield.render(renderer, camera, () => renderer.render(scene, camera));
