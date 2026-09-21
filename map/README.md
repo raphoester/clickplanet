@@ -39,8 +39,8 @@ Three things follow from having one oracle, and they are worth knowing before ch
   before this Ross and Ronne were tileless holes in a continent the texture paints solid white.
   They are 2,633 tiles, which is about a tenth of `aq`.
 - **The globe's texture follows, it does not decide.** A 4096×2048 photo blends a one-tile island
-  into open water, so it can never be an authority. `npm run map:audit` reports how far it has
-  drifted but enforces nothing about it.
+  into open water, so it can never be an authority. `npm run earth` cuts it *from* the tile field
+  instead — see below — and `npm run map:audit` reports what is left but enforces nothing about it.
 
 ```bash
 cd apps/frontend && npm run map:generate   # both blobs, from the oracle
@@ -80,6 +80,7 @@ first run. A second run over its own output would write an identity migration.
 ```bash
 cd apps/backend && make map          # copy both blobs, then commit all three copies of each
 cd apps/frontend && npm run borderLines   # traced from both blobs, stale until it is run
+cd apps/frontend && npm run earth         # the globe's texture, cut from the new tile field
 cd apps/frontend && npm run map:audit -- --save
 ```
 
@@ -150,15 +151,34 @@ integers with a worst error of 1e-5 — float32's own precision — at `cols = 3
 around 0.49, i.e. noise, at every other `cols` in 280..330. The backend re-runs that check on every
 boot and refuses to start if it fails.
 
+## The texture follows too
+
+`npm run earth` is the third generator, and it is the frontend's alone — the backend has no texture,
+so nothing of it comes to `/map`. It reads the coordinates blob, rasterises each tile's cell onto an
+equirectangular image, and moves the satellite mosaic's coastline onto it:
+
+```
+out = photo + (cover - opinion) * (landColour - seaColour)
+```
+
+`cover` is the tile field at full resolution, so a one-tile island is corrected all the way, and
+`opinion` is what the photo's own colour already says — so the correction is **zero wherever the two
+already agree**, which is most of the globe. The two colours are the photo's own local averages over
+the land and over the water, so nothing is repainted in a palette somebody chose. It took the land
+the photo draws as water from 8,599 lattice vertices to 1,972.
+
+`static/earth/earth-source.jpg` is the mosaic, kept in the repo and **not deployed**;
+`static/earth/earth-<hash>.jpg` is what the globe loads.
+
 ## What is left
 
 - **225 tiles have no neighbours at all** — single-tile islands. Anything reading adjacency has to
   have an answer for an empty neighbour set. This is not a fault: an island a tile wide is an island
   a tile wide, and there are more of them now because the small ones finally have tiles.
-- **The globe's texture still disagrees with the lattice** — 8,599 land vertices are drawn as water
-  and 1,227 water vertices as land. The photo cannot be made to agree by editing the polygons; it
-  has to be generated from the tile field's own cells. Until it is, a coast can still show green
-  with no tile on it. `npm run map:audit` is where that number lives.
+- **1,972 land vertices are still drawn as water, and 1,171 water vertices as land.** What is left is
+  where the photo gives the correction nothing to work with — land and water the same colour under
+  cloud or on an ice shelf — and where the audit's own "does this pixel look blue" is stricter than
+  an eye is. `npm run map:audit` is where those numbers live.
 
 The antimeridian fault this file used to record — "the row carries about a quarter of the tiles it
 should" — was measured at a 36-tile deficit and is gone: the audit reads 1.000 tiles per land vertex

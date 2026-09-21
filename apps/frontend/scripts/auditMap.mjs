@@ -38,7 +38,7 @@ async function main() {
     const ground = await loadGround()
     const {count: vertices, positions, uvs} = lattice()
 
-    const texture = await sharp(path.join(staticDir, "earth", "earth-4k.jpg"))
+    const texture = await sharp(path.join(staticDir, "earth", earthName()))
         .raw().toBuffer({resolveWithObject: true})
     const {width, height, channels} = texture.info
     const textureSaysLand = (u, v) => {
@@ -125,6 +125,13 @@ async function main() {
     process.exitCode = 1
 }
 
+// Found rather than named, so the audit follows whatever `npm run earth` last wrote.
+function earthName() {
+    const names = fs.readdirSync(path.join(staticDir, "earth")).filter((e) => /^earth-[0-9a-f]{8}\.jpg$/.test(e))
+    if (names.length !== 1) throw new Error(`expected one static/earth/earth-<hash>.jpg, found ${names.length}`)
+    return names[0]
+}
+
 // A second oracle holding the shelves alone. Building it twice costs a second and keeps `groundOf`
 // answering one thing; a "which layer answered" channel on the oracle would only exist for this.
 async function iceOnly() {
@@ -138,7 +145,7 @@ async function iceOnly() {
 
 function report({counts, faults, texture, seam, elsewhere, tiles, borders}) {
     const pct = (n, of) => `${(n / of * 100).toFixed(2)}%`
-    console.log(`Natural Earth ${NATURAL_EARTH_TAG} | ${tiles.name} | ${borders.name}`)
+    console.log(`Natural Earth ${NATURAL_EARTH_TAG} | ${tiles.name} | ${borders.name} | ${earthName()}`)
     console.log(`
 lattice vertices        ${counts.vertices}
   tiles                 ${counts.tiles}  (${pct(counts.tiles, counts.vertices)})
