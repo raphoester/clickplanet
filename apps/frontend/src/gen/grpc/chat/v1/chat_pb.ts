@@ -147,6 +147,15 @@ export class ReactionCount extends Message<ReactionCount> {
    */
   mine = false;
 
+  /**
+   * Who gave it, oldest first, each named as it read when they reacted — a
+   * message's author_name is frozen the same way. Cut at a cap, so there may
+   * be fewer names than count; count is always how many gave it.
+   *
+   * @generated from field: repeated string reactors = 4;
+   */
+  reactors: string[] = [];
+
   constructor(data?: PartialMessage<ReactionCount>) {
     super();
     proto3.util.initPartial(data, this);
@@ -158,6 +167,7 @@ export class ReactionCount extends Message<ReactionCount> {
     { no: 1, name: "reaction", kind: "enum", T: proto3.getEnumType(Reaction) },
     { no: 2, name: "count", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 3, name: "mine", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 4, name: "reactors", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ReactionCount {

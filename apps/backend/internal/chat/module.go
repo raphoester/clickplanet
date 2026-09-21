@@ -108,9 +108,10 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to build the chat blocklist: %w", err)
 	}
 
-	// Who posts, a username or a guest code, comes from the player module over the internal listener: once when
-	// a message is sent, so it can go out named, and once per history for the whole window. A failure to ask is
-	// logged, and the post is refused. Nothing here keeps a copy of a name.
+	// Who posts or reacts, a username or a guest code, comes from the player module over the internal listener:
+	// one ask when a message is sent, so it can go out named; one per history for everyone in the window, the
+	// people under its reactions included; and one per reaction, for the tally that goes back and out. A
+	// failure to ask is logged, and the post is refused. Nothing here keeps a copy of a name.
 	authors := log_authors.New(rpc_player_authors.New(props.Internal), props.Logger)
 
 	chatService := chatv1controller.ChatService{
@@ -121,7 +122,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		ListenForEventsHandler: listen_for_events_handler.New(
 			listen_for_events_usecase.New(updates, props.Server.StreamHeartbeat)),
 		ReactHandler: react_handler.New(react_usecase.New(
-			messageStore, reactionStore, updates, cptime.SystemClock{}, window)),
+			messageStore, reactionStore, updates, authors, cptime.SystemClock{}, window)),
 	}
 
 	err = props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {

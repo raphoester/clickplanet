@@ -130,12 +130,43 @@ func TestEachMessageCarriesItsReactionsMarkedForTheCallersAccount(t *testing.T) 
 		MessageID: "hello", Reaction: clown, Reactor: reactions.ReactorOf(ada), On: true, At: now,
 	}))
 
-	assert.Equal(t, []reactions.Count{{Reaction: clown, Count: 1, Mine: true}}, f.history(t, ada)[0].Reactions)
+	// Who gave it is the same for everyone; only Mine turns on the caller's own.
+	given := []reactions.Reactor{reactions.ReactorOf(ada)}
+	names := []string{"Ada"}
+	assert.Equal(t, []reactions.Count{{Reaction: clown, Count: 1, Mine: true, Reactors: given, Names: names}},
+		f.history(t, ada)[0].Reactions)
 	assert.Equal(t, uint64(1), f.history(t, ada)[0].ReactionsVersion)
-	assert.Equal(t, []reactions.Count{{Reaction: clown, Count: 1, Mine: false}},
+	assert.Equal(t, []reactions.Count{{Reaction: clown, Count: 1, Mine: false, Reactors: given, Names: names}},
 		f.history(t, other)[0].Reactions, "another account")
-	assert.Equal(t, []reactions.Count{{Reaction: clown, Count: 1, Mine: false}},
+	assert.Equal(t, []reactions.Count{{Reaction: clown, Count: 1, Mine: false, Reactors: given, Names: names}},
 		f.history(t, cpsession.NoAccount)[0].Reactions, "no token")
+}
+
+func TestOneAskNamesTheSendersAndThePeopleUnderTheirReactions(t *testing.T) {
+	f := newFixture(t, "hello")
+	require.NoError(t, f.reactions.Save(t.Context(), reactions.Change{
+		MessageID: "hello", Reaction: clown, Reactor: reactions.ReactorOf(other), On: true, At: now,
+	}))
+
+	entry := f.history(t, ada)[0]
+
+	assert.Equal(t, "Ada", entry.Message.AuthorName)
+	assert.Equal(t, []string{"Bob"}, entry.Reactions[0].Names)
+	assert.Equal(t, [][]messages.AccountID{{ada, other}}, f.authors.asked,
+		"the sender and the reactor in one, each once")
+}
+
+func TestADeletedAccountIsCountedUnderAReactionWithoutBeingNamed(t *testing.T) {
+	f := newFixture(t, "hello")
+	require.NoError(t, f.reactions.Save(t.Context(), reactions.Change{
+		MessageID: "hello", Reaction: clown, Reactor: reactions.ReactorOf(other), On: true, At: now,
+	}))
+	delete(f.authors.named, other)
+
+	counts := f.history(t, ada)[0].Reactions
+
+	assert.Equal(t, 1, counts[0].Count)
+	assert.Empty(t, counts[0].Names, "a list of reactions is not the place to say somebody is gone")
 }
 
 func TestTheHistoryCarriesTheWindowOfNewestAnnouncements(t *testing.T) {

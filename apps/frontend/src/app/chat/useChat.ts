@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useState} from 'react';
+import {useCallback, useEffect, useRef, useState} from 'react';
 import {
     ChatAnnouncement,
     ChatBackend,
@@ -10,7 +10,7 @@ import {
     OutgoingMessage,
     OutgoingReaction,
 } from '../../backends/chat.ts';
-import {addAnnouncements, addMessages} from '../../domain/chatLog.ts';
+import {addAnnouncements, addMessages, nameSentUnder} from '../../domain/chatLog.ts';
 import {
     applyReactionsAnswer,
     applyReactionsChange,
@@ -24,16 +24,30 @@ export type ChatSendFailure = 'rate-limited' | 'blocked' | 'rejected' | 'no-sess
 
 export type UseChatOptions = {
     backend?: ChatBackend
+    /**
+     * The signed-in player's username, which the server posts and reacts
+     * under. A guest has none: the server picks its name, so this hook only
+     * learns it once this tab has posted.
+     */
+    username?: string
 }
 
 const NOTHING_SENT: ReadonlySet<string> = new Set()
 
-export function useChat({backend}: UseChatOptions) {
+export function useChat({backend, username}: UseChatOptions) {
     const [messages, setMessages] = useState<ChatMessage[]>([])
     const [announcements, setAnnouncements] = useState<ChatAnnouncement[]>([])
     const [status, setStatus] = useState<ChatStatus>(backend ? 'loading' : 'unavailable')
     const [failure, setFailure] = useState<ChatSendFailure | undefined>(undefined)
     const [mine, setMine] = useState<ReadonlySet<string>>(NOTHING_SENT)
+
+    // What everyone else sees on this player's messages and reactions.
+    const displayName = username ?? nameSentUnder(messages, mine)
+
+    // `react` reads the name as it fires rather than closing over it, so a
+    // guest learning its name does not build a new callback on every message.
+    const named = useRef(displayName)
+    named.current = displayName
 
     const receive = useCallback((incoming: ChatMessage[]) => {
         setMessages(current => addMessages(current, incoming))
@@ -98,7 +112,8 @@ export function useChat({backend}: UseChatOptions) {
         if (!backend) return
 
         const toggle = (on: boolean) => setMessages(current =>
-            withReactions(current, reaction.messageId, counts => toggledReactions(counts, reaction.reaction, on)))
+            withReactions(current, reaction.messageId,
+                counts => toggledReactions(counts, reaction.reaction, on, named.current)))
 
         toggle(reaction.on)
         try {
@@ -110,7 +125,7 @@ export function useChat({backend}: UseChatOptions) {
         }
     }, [backend])
 
-    return {messages, announcements, mine, status, failure, send, react}
+    return {messages, announcements, mine, displayName, status, failure, send, react}
 }
 
 function failureOf(e: unknown): ChatSendFailure {

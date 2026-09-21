@@ -364,10 +364,11 @@ internal/chat/internal/
                                                   — MessageReader, ReactionReader, AnnouncementReader, Authors
     usecases/prune_usecase/             deletes past retention, from each table; Runner — Pruner
       log_prune/                        logs what a prune deleted
-  reactions/                            Reaction, Reactor, Reactions, Count, Tally, Change, the Storage port and its suite
+  reactions/                            Reaction, Reactor, AccountOf, Reactions, Count, Tally, Change, Named,
+                                        AccountsOf, the Storage port and its suite
     postgres_reaction_store/            Storage, over chat.reactions
     inmemory_reaction_storage/          Storage in a slice — behind the testing tag, tests only
-    usecases/react_usecase/             puts a reaction on or off, publishes the tally — Messages, Board, Publisher
+    usecases/react_usecase/             puts a reaction on or off, publishes the tally — Messages, Board, Publisher, Authors
   announcements/                        Announcement, AnnouncementID, Kind, Bomb (a payload), the Storage port and its suite
     postgres_announcement_store/        Storage, over chat.announcements
     inmemory_announcement_storage/      Storage in a slice — behind the testing tag, tests only
@@ -514,7 +515,8 @@ POST /chat.v1.ChatService/React   [X-Session-Token: required, naming an account]
       is the message shown (postgres_message_store.Shown), what it carries (postgres_reaction_store.Reactions)
   → postgres_reaction_store.Save() [inserts or deletes in chat.reactions and bumps chat.reaction_versions, one statement]
       then reads the tally and its version back, one statement
-  → inprocess_feed.Publish() the whole tally, versioned
+  → who everyone under the message is, one ask (rpc_player_authors.Authors), for the answer and the frame alike
+  → inprocess_feed.Publish() the whole tally, versioned and named
 ```
 
 ### Chat (`internal/chat/`)
@@ -581,13 +583,19 @@ without a bubble. Today there is one kind, `bomb`: every bomb that went off, on 
 
 **A message carries reactions from a fixed set**, `chat.v1.Reaction`. The proto enum is the whole list: the frontend draws each one from its own images (see its CLAUDE.md), and `chatmessage.Reaction` refuses a number the proto does not name with `InvalidArgument`. **The number is what is stored**, so a value is never renumbered or reused.
 
-- **Who reacts** (`reactions.ReactorOf`): the account, `account:<uuid>`, whether it chose a username or not. No account is refused with `Unauthenticated` (`messages.ErrNoAccount`), and nothing is asked of the player module. So two accounts behind one address are two reactors. A reactor gives each reaction at most once per message. Rows from before, `guest:<tag>`, match no caller and age out with the retention.
-- **`React` is on or off, not a toggle.** Asking for what is already there changes nothing, is not written and is not published, so a retry cannot flip it twice. It answers the message's counts with `mine` set for the caller. It asks the player module nothing.
+- **Who reacts** (`reactions.ReactorOf`): the account, `account:<uuid>`, whether it chose a username or not. No account is refused with `Unauthenticated` (`messages.ErrNoAccount`). So two accounts behind one address are two reactors. A reactor gives each reaction at most once per message. Rows from before, `guest:<tag>`, match no caller and age out with the retention.
+- **`React` is on or off, not a toggle.** Asking for what is already there changes nothing, is not written and is not published, so a retry cannot flip it twice. It answers the message's counts with `mine` set for the caller.
 - **Only a message in the window can be reacted to** (`ErrUnknownMessage` → `NotFound`): nobody is shown any other. `postgres_message_store.Shown` asks the same question as the history, for one id.
 - **Saved, then read back, then published, with no lock.** Two reactions at once can publish their tallies in either order, so **each tally carries a version**: `chat.reaction_versions` holds one counter per message, bumped in the same statement as the change (a data-modifying CTE: no row changed, no bump), and read in the same statement as the reactions, so a tally and its version are one snapshot. The client keeps the highest version it has seen per message and drops a lower one. This holds across processes, which an in-memory lock would not. `reactions.Reactions` is a value: `With`/`Without` answer a copy.
 - **The stream sends all of a message's counts, not the difference** (`ReactionsChanged`), with their version, so a client that missed a frame is right on the next, and one that gets two out of order keeps the newer. It cannot know who reads it, so `mine` is always false there; the client keeps its own between calls.
-- **`GetHistory` marks the caller's own.** It reads the optional token (the session reader covers it): the account's reactions are marked, and a caller with no token has none. It asks the player module nothing.
-- **Stored in `chat.reactions`**, their own table and their own store, one row per `(message_id, reaction, reactor)`, with `reacted_at`. A read replays the rows oldest first, so each reaction keeps the place it first appeared in. The prune deletes rows older than `chat.storage.retention`, like messages: the reactor is an account, so it is personal data. It deletes a version whose last change is that old too, which is only ever one whose message's reactions are all gone.
+- **`GetHistory` marks the caller's own.** It reads the optional token (the session reader covers it): the account's reactions are marked, and a caller with no token has none.
+- **A count says who gave it, not only how many** — as accounts, named when it is shown. `Count` carries the same two halves a `messages.Message` does: `Reactors` is what the store holds, and `Names` is who those accounts are to a reader, filled by `reactions.Named` on the way out. So a rename shows under every reaction its player ever gave, for the same reason it shows on every message.
+  - **`reactions.AccountOf`** is `ReactorOf` backwards: `account:<uuid>` to an account, and `false` for a `guest:<tag>` row from before guests had accounts, which is nobody and can be named nothing.
+  - **The history names everyone in one ask.** `get_history_usecase` gathers the senders *and* the people under their reactions (`messages.AccountsOf` plus `reactions.AccountsOf`) and calls `GetAuthors` once for the lot.
+  - **`React` asks once too**, after the write, and uses that one answer for both the caller's response and the `ReactionsChanged` frame — a reader of the stream has no way to ask for itself. A change that changes nothing pays the same ask, since it answers the same list.
+  - **Somebody nobody can name is counted without being named**: a deleted account, or one of those guest tags. `Count` still says how many gave it, and a list of reactions is not the place to announce that somebody is gone — which is why this does not use `messages.DeletedName`.
+  - The edge sends the first `chatmessage.NamedReactors` (20) names per count and lets `count` say the rest, so a message everybody piles onto does not carry a name per reader per message.
+- **Stored in `chat.reactions`**, their own table and their own store, one row per `(message_id, reaction, reactor)`, with `reacted_at`. **The reactor is already an account**, so there was never anything to migrate here: the table has held the right thing all along. A read replays the rows oldest first, so each reaction keeps the place it first appeared in, and so do the people under it. The prune deletes rows older than `chat.storage.retention`, like messages: the reactor is an account, so it is personal data. It deletes a version whose last change is that old too, which is only ever one whose message's reactions are all gone.
 - **Its own rate bucket**, `chat.reactionLimiter` (defaults: 1 a second, 10 in hand), and the blocklist covers `React` too.
 
 **Chat has its own stream**, `ChatService.ListenForEvents` — see [The live streams](#the-live-streams). It replaced a `/ws/chat` websocket that had to be kept apart from the tile one because frames carried a bare protobuf message with no type tag: a second payload on either socket would have been indistinguishable from the first. The `oneof` envelope is exactly what removes that constraint.

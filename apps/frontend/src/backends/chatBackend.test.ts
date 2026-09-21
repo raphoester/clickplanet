@@ -48,7 +48,7 @@ const proto = () => new ChatMessagePb({
     authorAdmin: true,
     countryId: "fr",
     text: "hello",
-    reactions: [new ReactionCount({reaction: Reaction.CLOWN, count: 2, mine: true})],
+    reactions: [new ReactionCount({reaction: Reaction.CLOWN, count: 2, mine: true, reactors: ["Ana", "Bo"]})],
     reactionsVersion: BigInt(3),
 })
 
@@ -70,7 +70,7 @@ describe("decodedMessage", () => {
             authorAdmin: true,
             countryCode: "fr",
             text: "hello",
-            reactions: [{reaction: Reaction.CLOWN, count: 2, mine: true}],
+            reactions: [{reaction: Reaction.CLOWN, count: 2, mine: true, reactors: ["Ana", "Bo"]}],
             reactionsVersion: 3,
         })
     })
@@ -83,7 +83,7 @@ describe("reactionsOf", () => {
                 case: "reactions",
                 value: new ReactionsChanged({
                     messageId: "message-1",
-                    reactions: [new ReactionCount({reaction: Reaction.SKULL, count: 3})],
+                    reactions: [new ReactionCount({reaction: Reaction.SKULL, count: 3, reactors: ["Bo"]})],
                     version: BigInt(8),
                 }),
             },
@@ -91,7 +91,7 @@ describe("reactionsOf", () => {
 
         expect(reactionsOf(event)).toEqual({
             messageId: "message-1",
-            reactions: [{reaction: Reaction.SKULL, count: 3, mine: false}],
+            reactions: [{reaction: Reaction.SKULL, count: 3, mine: false, reactors: ["Bo"]}],
             version: 8,
         })
         expect(reactionsOf(new ChatEvent({event: {case: "message", value: proto()}}))).toBeUndefined()
@@ -101,7 +101,7 @@ describe("reactionsOf", () => {
 describe("ChatServiceBackend.react", () => {
     const reaction = {messageId: "message-1", reaction: Reaction.CLOWN, on: true}
     const answer = {
-        reactions: [new ReactionCount({reaction: Reaction.CLOWN, count: 1, mine: true})],
+        reactions: [new ReactionCount({reaction: Reaction.CLOWN, count: 1, mine: true, reactors: ["Ana"]})],
         version: BigInt(2),
     }
 
@@ -113,7 +113,7 @@ describe("ChatServiceBackend.react", () => {
 
         expect(counts).toEqual({
             messageId: "message-1",
-            reactions: [{reaction: Reaction.CLOWN, count: 1, mine: true}],
+            reactions: [{reaction: Reaction.CLOWN, count: 1, mine: true, reactors: ["Ana"]}],
             version: 2,
         })
         expect(react.mock.calls[0][0]).toEqual({messageId: "message-1", reaction: Reaction.CLOWN, on: true})
