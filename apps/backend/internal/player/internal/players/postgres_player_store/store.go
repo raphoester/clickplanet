@@ -205,6 +205,60 @@ func (s *Store) DeleteAccount(ctx context.Context, account players.AccountID) (e
 	return nil
 }
 
+// Authors reads the profile and the guest code of every account given in one pass: a row per id asked for,
+// whether or not the module knows it. It mirrors players.AuthorOf — a username wins, a guest code names an
+// account without one — but it writes nothing, so an account with neither is simply left out.
+func (s *Store) Authors(
+	ctx context.Context,
+	accounts []players.AccountID,
+) (map[players.AccountID]players.Author, error) {
+	authors := make(map[players.AccountID]players.Author, len(accounts))
+	if len(accounts) == 0 {
+		return authors, nil
+	}
+
+	// lib/pq cannot take a named array, so the ids go as text.
+	ids := make([]string, len(accounts))
+	for i, account := range accounts {
+		ids[i] = account.String()
+	}
+
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT asked.account_id, COALESCE(p.name, ''), COALESCE(p.admin, false), COALESCE(g.code, '')
+		FROM unnest($1::uuid[]) AS asked(account_id)
+		LEFT JOIN profiles p ON p.account_id = asked.account_id
+		LEFT JOIN guest_codes g ON g.account_id = asked.account_id
+	`, pq.Array(ids))
+	if err != nil {
+		return nil, fmt.Errorf("failed to read the authors: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	for rows.Next() {
+		var (
+			account uuid.UUID
+			name    string
+			admin   bool
+			code    string
+		)
+		if err := rows.Scan(&account, &name, &admin, &code); err != nil {
+			return nil, fmt.Errorf("failed to read an author: %w", err)
+		}
+		if name == "" && code == "" {
+			continue
+		}
+		authors[players.AccountID(account)] = players.Author{
+			Name:  players.DisplayNameOf(players.Name(name), players.GuestCode(code)),
+			Guest: name == "",
+			Admin: name != "" && admin,
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to read the authors: %w", err)
+	}
+	return authors, nil
+}
+
 func (s *Store) Names(ctx context.Context, accounts []players.AccountID) (map[players.AccountID]players.Name, error) {
 	names := make(map[players.AccountID]players.Name, len(accounts))
 	if len(accounts) == 0 {

@@ -8,6 +8,14 @@ package player.v1;
 service InternalService {
   // Who an account is to the others: the name the game shows for it.
   rpc GetAuthor(GetAuthorRequest) returns (GetAuthorResponse);
+
+  // Who each of these accounts is, for a module showing many people at once.
+  // Unlike GetAuthor it is a pure read: it gives no guest its code, so a read
+  // path never writes. An account it cannot name — one never shown before, or
+  // a deleted one — is left out of the answer rather than failing the call.
+  rpc GetAuthors(GetAuthorsRequest) returns (GetAuthorsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 }
 
 message GetAuthorRequest {
@@ -27,5 +35,26 @@ message GetAuthorResponse {
   reserved 2;
   reserved "tag";
   // The account is an admin of the game. False with no username.
+  bool admin = 3;
+}
+
+message GetAuthorsRequest {
+  // Ids the caller already holds. One that is not an account is
+  // InvalidArgument; a repeat is answered once, and none is an empty answer.
+  repeated string account_ids = 1;
+}
+
+message GetAuthorsResponse {
+  // One per account that could be named, in no particular order. An account
+  // the module knows nothing about is absent, and the caller decides what to
+  // show in its place.
+  repeated Author authors = 1;
+}
+
+message Author {
+  string account_id = 1;
+  // The username, or "guest_" and the guest code, as on a chat message.
+  string name = 2;
+  // An admin of the game. False with no username.
   bool admin = 3;
 }

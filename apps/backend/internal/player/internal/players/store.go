@@ -36,4 +36,8 @@ type Store interface {
 	DeleteAccount(ctx context.Context, account AccountID) error
 	// Names is the name of every account given that has one.
 	Names(ctx context.Context, accounts []AccountID) (map[AccountID]Name, error)
+	// Authors is who each account given is, as AuthorOf reads one. It is a pure read: unlike GuestCodes.Assign
+	// it gives nobody a code, so an account never shown before is absent, as a deleted one is. A caller with
+	// many people to name asks this once instead of AuthorOf per account.
+	Authors(ctx context.Context, accounts []AccountID) (map[AccountID]Author, error)
 }

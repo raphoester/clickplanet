@@ -26,13 +26,16 @@ func (s *StorageContractSuite) SetupTest() {
 	s.storage = s.NewStorage()
 }
 
+// contractAccount is who every message of the suite is from, but the one that is from nobody.
+var contractAccount = AccountID{15: 1}
+
 func contractRecord(text string, at time.Time) Record {
 	return NewRecord(Message{
-		ID:         MessageID("id-" + text),
-		SentAt:     at,
-		AuthorName: "Bob",
-		CountryID:  "fr",
-		Text:       text,
+		ID:        MessageID("id-" + text),
+		SentAt:    at,
+		Account:   contractAccount,
+		CountryID: "fr",
+		Text:      text,
 	}, "some-uuid", "203.0.113.7", "test-agent")
 }
 
@@ -65,14 +68,26 @@ func (s *StorageContractSuite) TestAnEmptyStorageHasNoRecentMessages() {
 }
 
 func (s *StorageContractSuite) TestAMessageReadsBackAsItWasAppended() {
-	admin := contractRecord("hello", contractStart)
-	admin.Message.AuthorAdmin = true
-	s.Require().NoError(s.storage.Append(context.Background(), admin))
+	s.Require().NoError(s.storage.Append(context.Background(), contractRecord("hello", contractStart)))
 
 	recent, err := s.storage.Recent(context.Background(), contractStart, 10)
 	s.Require().NoError(err)
 
-	s.Equal([]Message{admin.Message}, recent)
+	s.Equal([]Message{contractRecord("hello", contractStart).Message}, recent)
+}
+
+func (s *StorageContractSuite) TestAMessageWithNoAccountReadsBackWithNone() {
+	legacy := contractRecord("hello", contractStart)
+	legacy.Message.Account = NoAccount
+	legacy.Message.AuthorName = "Bob"
+	s.Require().NoError(s.storage.Append(context.Background(), legacy))
+
+	recent, err := s.storage.Recent(context.Background(), contractStart, 10)
+	s.Require().NoError(err)
+
+	s.Require().Len(recent, 1)
+	s.Equal(NoAccount, recent[0].Account, "nobody is not somebody")
+	s.Equal("Bob", recent[0].AuthorName, "which is how a row from before accounts reads")
 }
 
 func (s *StorageContractSuite) TestRecentIsTheNewestWithinTheWindowOldestFirst() {
