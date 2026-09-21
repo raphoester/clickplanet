@@ -14,6 +14,7 @@ npm run proto      # Regenerate protobuf types from the shared ../../proto/ usin
 npm run atlas      # Repack the flag sprite atlas from static/countries/png100px
 npm run map        # Copy the shared /map coordinates blob into static/ (see "Static assets")
 npm run borders    # Resolve every tile to a landmass (see "The zoomed-out view")
+npm run borderLines # Trace the countries' outlines onto the tile lattice (see "The countries' outlines")
 npm run flagFit    # Work out which flags stretch, and where each one is cropped
 npm run mobile     # Screenshot/inspect a URL as a phone (see "Debugging mobile layout")
 ```
@@ -809,8 +810,11 @@ mint a guest and insert a row into `auth.identities` for its account.
 - `borderField.ts` / `bordersAsset.ts` — the zoomed-out view: tile → landmass,
   who holds how much of each, and the per-landmass table the vertex shader reads.
   See [The zoomed-out view](#the-zoomed-out-view).
-- `pointSize.ts` — how big a tile is drawn, and the single schedule that hands
-  the frame from the painted flag to the tiles.
+- `borderLines.ts` / `borderLinesAsset.ts` — the grey outline between one
+  country's ground and the next, at a width that does not move with the zoom.
+  See [The countries' outlines](#the-countries-outlines).
+- `pointSize.ts` — how big a tile is drawn, how far apart two of them sit, and
+  the single schedule that hands the frame from the painted flag to the tiles.
 - `zoom.ts` — how far the camera may pull back and push in. The camera is
   orthographic against a globe of radius 1, so `zoom` reads as the share of the
   viewport's height the globe fills: it opens at 1, edge to edge, and pulls back
@@ -869,13 +873,14 @@ you zoom into it — measured at 5x for Sudan at contrast 3. `borderField.test.t
 pins this.
 
 **One schedule owns the whole handover** — `coarseHandover` in `pointSize.ts`
-drives the flag fading out, the tiles fading in, and the disc widening being
-undone. They only work together: the flag reaches the ground only through the
-discs, so while it is painted they must cover the ground (circles on this hex
-lattice cover it at 1.155x the spacing), and a tile you are about to aim at must
-not be fattened. Running them on separate schedules left a band where the flag
-was painted through a lattice with holes in it. `pointSize.test.ts` pins that
-too, and those tests fail if the two are split again.
+drives the flag fading out, the tiles fading in, the disc widening being undone,
+and the outline moving from over the tiles to under them. They only work
+together: the flag reaches the ground only through the discs, so while it is
+painted they must cover the ground (circles on this hex lattice cover it at
+1.155x the spacing), and a tile you are about to aim at must not be fattened.
+Running them on separate schedules left a band where the flag was painted
+through a lattice with holes in it. `pointSize.test.ts` pins that too, and those
+tests fail if the two are split again.
 
 `npm run flagFit` decides the rest: a flag that is only bands can be pulled to
 the country's own shape and still say what it is, while one carrying a device is
@@ -887,6 +892,91 @@ the antimeridian row carries about a quarter of the tiles it should, and 2,523
 tiles fall outside every country. Regenerating the blob would fix both and
 **renumber every tile** — ids are implicit in array position — moving every
 player's territory, so it has not been done.
+
+### The countries' outlines
+
+A thin dark-grey line runs between one country's ground and the next, and it is
+the **same width at every zoom** — `borderLines.ts` builds each piece as a quad
+laid out in screen pixels, not on the sphere, so pulling the view back thins
+nothing. That is the only way a border survives the range this camera covers: at
+0.5 the whole planet is half a screen tall, at 50 a single tile is a disc you can
+aim at. Grey and not black: black carried fine at map scale but up close, where
+the line is the only thing between two rows of discs, it read as a bar drawn over
+the planet rather than a border on it.
+
+**The line is not the administrative border.** It is the boundary of each
+country's *tiles*. The tiles are the vertices of a geodesic sphere, so their
+cells are its dual — a honeycomb — and the outline runs along the cell edges
+between two tiles that belong to different countries. Natural Earth's border is
+therefore moved onto the lattice, by up to half a tile, about 12 km.
+
+That move is the point. A line on the real border crosses tiles, and a crossed
+tile belongs to one side while reading as split between both. A line on the cell
+edges passes *between* the discs: the tile field is 76% covered once zoomed in,
+and the gap it leaves is exactly where this runs. So a tile is never cut, and
+which side of a border it is on is never a matter of where the line happened to
+fall across it. `borderLines.test.ts` pins the width against that gap.
+
+**What is drawn is not that polyline but its quadratic B-spline**, four straight
+pieces to a cell edge (`SAMPLES`). The lattice is a honeycomb, so the bare
+outline turns 60° at every corner and reads as a staircase from a few zooms in;
+the spline is the curve through the middle of every cell edge, reaching a quarter
+of the way toward each corner without touching it.
+
+That curve is not a compromise on the tile rule — it is the most a curve can be
+smoothed and still obey it. The narrowest the corridor between two tiles of
+different countries ever gets is at the middle of the cell edge between them, and
+any line separating them has to thread that point; the spline goes through it
+exactly, and at the corners, where there is half as much room again, it spends a
+fraction of what it has. `borderLines.test.ts` measures the drawn line against a
+lone tile's own cell and pins its near edge clear of the disc at every zoom the
+fine pass is drawn at.
+
+**Each pass carries the outline at the resolution it is looked at.** The over
+pass is on screen only while the flag is painted, where a cell edge is at most
+six pixels, so two pieces put it within a tenth of a pixel of the fine one and it
+draws half the geometry — and it is the pass that is up whenever the whole globe
+is. The fine one is only ever drawn pushed in.
+
+**A run ends at every junction** — a corner three countries share, or where a
+land border reaches the sea — which is the one corner the smoothing may not round
+off. The generator cuts the runs there so the renderer clamps the curve to it,
+and the three branches meeting there meet on the point rather than a fraction of
+a tile apart.
+
+**It is drawn twice, on either side of the tiles, and `flagPaint` picks.**
+Zoomed in the outline sits just inside the tile shell, so the discs' own depth
+hides whatever they cover and the line only ever shows in the gaps — which is
+the whole width of it. Zoomed out that gap is gone: the discs are widened until
+they cover the ground so the painted flag can reach it, and a line underneath
+them would be invisible. So the same outline is drawn just outside the shell as
+well, at the painted flag's own opacity, and the two hand over on the one
+schedule that owns the rest of the handover. Neither pass writes depth, and both
+are the same grey, so the stretch where they overlap — a coast, which has no
+tiles on the sea side to hide the under pass — only ever comes out that grey.
+
+`npm run borderLines` writes the geometry, from the coordinates blob and the
+borders blob and nothing else. It rebuilds the whole `IcosahedronGeometry(1, 300)`
+the tiles were cut from, because the coordinates blob holds only the land
+vertices and a coast needs the sea around it; every tile has to land on a lattice
+vertex or it refuses. A cell corner is the circumcentre of a lattice triangle —
+the normal of the plane through its three vertices — which makes the cells a true
+Voronoi diagram of the tiles and the corners meet exactly, so there are no seams
+to cover up at the joins. The edges are then chained into runs, which is what
+keeps the file to one corner per edge rather than two: 49,632 edges in 302 KB.
+The smoothing is not baked in — the blob is the outline on the lattice, and how
+finely it is rounded off is the renderer's business and four times the size.
+
+**Pinholes are filled before the outline is traced.** A vertex in no country
+takes its neighbours' country when at least four of the six agree and none
+disagrees, twice over. Without it every one-tile lake, every strait one tile
+wide and the thin row the land mask drops along the antimeridian gets an outline
+of its own, and every coast frays. It closes about 2,500 of them and takes a
+fifth off the coastline's length.
+
+It stays out of `/map`, unlike the two blobs it is built from: the backend has no
+use for it. Where a tile is and who owns the ground under it are the game's rules
+and are shared; how thick a line is drawn between them is this app's.
 
 ### Data flow
 
@@ -1417,6 +1507,12 @@ cache entirely:
   `npm run coordinates:convert` to rebuild from the existing JSON — write to
   `/map` first and then sync. **Run the backend's `make map` after either, and
   commit all three copies**, or the two apps disagree about what a tile id means.
+- `/static/borderLines-<hash>.bin` — the countries' outlines, traced onto the
+  tile lattice, fetched at runtime by `borderLines.ts`. URL in
+  `borderLinesAsset.ts`. Regenerate with `npm run borderLines`, which reads both
+  blobs above and so needs them in place first — and **regenerate it whenever
+  either of them changes**, or the outline is drawn around a map nobody is
+  playing on. Unlike them it is this app's alone and is not copied to `/map`.
 - `/static/countries/atlas-<hash>.png` — the flag sprite atlas. URL and pixel
   size in `atlasAsset.ts`. Regenerate with `npm run atlas`.
 - `/static/reactions/<name>-<hash>.svg` — the chat's reaction images. URLs in
