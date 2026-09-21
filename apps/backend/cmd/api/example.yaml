@@ -19,7 +19,7 @@ httpServer:
   # refuses a credentialed answer that allows every origin. Empty refuses the boot.
   allowedOrigin: http://localhost:5173
 gameMap:
-  maxIndex: 257948
+  maxIndex: 262119
 
 # The planet module's database: its own connection, and the schema its tables
 # live in. It creates and migrates the schema while it builds. Another module

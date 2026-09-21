@@ -1,9 +1,9 @@
 {
     "naturalEarth": "v5.1.2",
     "faults": {
-        "tilesOnSea": 2093,
-        "landWithNoTile": 6264,
-        "iceWithNoTile": 2535,
-        "tilesWithNoCountry": 2191
+        "tilesOnSea": 0,
+        "landWithNoTile": 0,
+        "iceWithNoTile": 0,
+        "tilesWithNoCountry": 0
     }
 }

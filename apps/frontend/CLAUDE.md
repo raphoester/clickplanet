@@ -13,7 +13,8 @@ npm run lint       # ESLint check
 npm run proto      # Regenerate protobuf types from the shared ../../proto/ using buf CLI
 npm run atlas      # Repack the flag sprite atlas from static/countries/png100px
 npm run map        # Copy the shared /map coordinates blob into static/ (see "Static assets")
-npm run borders    # Resolve every tile to a landmass (see "The zoomed-out view")
+npm run map:generate # Rewrite both shared map blobs from the ground oracle (see ../../map/README.md)
+npm run map:audit  # Check the tile set, Natural Earth and the globe texture against each other
 npm run borderLines # Trace the countries' outlines onto the tile lattice (see "The countries' outlines")
 npm run flagFit    # Work out which flags stretch, and where each one is cropped
 npm run mobile     # Screenshot/inspect a URL as a phone (see "Debugging mobile layout")
@@ -852,9 +853,13 @@ for sparkle. Neither end works, so from far enough away the globe is drawn from
 something coarser than a tile.
 
 Every tile resolves **offline** to a *landmass*: a country's tiles split into the
-separate pieces of land they actually form (Natural Earth 1:50m, 189 countries →
-630 landmasses). Neither borders nor tiles move, so `npm run borders` writes the
-whole table once and nothing recomputes it at runtime. A landmass rather than a
+separate pieces of land they actually form (Natural Earth 1:50m, 205 countries →
+658 landmasses). Neither borders nor tiles move, so `npm run map:generate` writes
+the whole table once and nothing recomputes it at runtime. Two tiles are the same
+piece when they **touch on the lattice** and carry the same country — not when
+they are within a tuned radius, which reached past the neighbours in places and
+joined two islands across a strait into one flag painted over the water between
+them. A landmass rather than a
 country because a flag belongs to a piece of ground — one frame spanning mainland
 France, Corsica, Guiana and Réunion would stretch the tricolour across half the
 planet and paint nothing recognisable anywhere.
@@ -887,11 +892,11 @@ the country's own shape and still say what it is, while one carrying a device is
 cropped, anchored on the part that names it rather than on its middle. The
 result is `static/countries/flagFit.json`.
 
-Two known faults, both inherited from the coordinates blob rather than from this:
-the antimeridian row carries about a quarter of the tiles it should, and 2,523
-tiles fall outside every country. Regenerating the blob would fix both and
-**renumber every tile** — ids are implicit in array position — moving every
-player's territory, so it has not been done.
+**Every tile is in a country**, because both blobs come from one Natural Earth
+query: a tile exists exactly where `groundOf` answers a code, and that same answer
+is what the borders blob records. The 2,191 tiles that used to fall outside every
+country are what the globe drew as discs floating on open water with no outline
+round them. See [`/map/README.md`](../../map/README.md).
 
 ### The countries' outlines
 
@@ -970,8 +975,8 @@ finely it is rounded off is the renderer's business and four times the size.
 **Pinholes are filled before the outline is traced.** A vertex in no country
 takes its neighbours' country when at least four of the six agree and none
 disagrees, twice over. Without it every one-tile lake, every strait one tile
-wide and the thin row the land mask drops along the antimeridian gets an outline
-of its own, and every coast frays. It closes about 2,500 of them and takes a
+wide gets an outline of its own, and every coast frays. It closes about 1,650 of
+them — it was 2,500 before the two blobs agreed on where the land is — and takes a
 fifth off the coastline's length.
 
 It stays out of `/map`, unlike the two blobs it is built from: the backend has no
@@ -1491,22 +1496,20 @@ served stale. Each has a generated TS module holding its current URL — do not
 edit those by hand, and do not add a `?ts=` cache-buster, which defeats the
 cache entirely:
 
-- `/static/borders-<hash>.bin` — tile → landmass and a frame per landmass,
-  fetched at runtime by `borderField.ts`. URL in `bordersAsset.ts`. Regenerate
-  with `npm run borders`, which needs the coordinates blob to already be in
-  place — it resolves *those* tiles. It writes `/map` too, because the backend's
-  admin tools read it: **run the backend's `make map` after it, and commit all
-  three copies.**
-- `/static/coordinates-<hash>.bin` — tile positions, fetched at runtime by
-  `points.ts`. Format in `coordinatesBinary.ts`; URL in `coordinatesAsset.ts`.
-  **This one is not ours alone.** The source of truth is the monorepo-shared
-  [`/map`](../../map/README.md), which the backend also builds its tile adjacency
-  from; `static/` holds a generated copy, exactly as `src/gen/grpc/` holds a copy
-  of the proto contract. `npm run map` re-copies it, and the generators —
-  `npm run coordinates <detail> <mapFilePath> [threshold]`, or
-  `npm run coordinates:convert` to rebuild from the existing JSON — write to
-  `/map` first and then sync. **Run the backend's `make map` after either, and
-  commit all three copies**, or the two apps disagree about what a tile id means.
+- `/static/coordinates-<hash>.bin` and `/static/borders-<hash>.bin` — where every
+  tile is, and whose ground it sits on. Fetched at runtime by `points.ts` and
+  `borderField.ts`; URLs in `coordinatesAsset.ts` and `bordersAsset.ts`. Formats
+  in `coordinatesBinary.ts` and [`/map/README.md`](../../map/README.md).
+  **These two are not ours alone.** The source of truth is the monorepo-shared
+  [`/map`](../../map/README.md), which the backend builds its tile adjacency from
+  and its admin tools read; `static/` holds a generated copy, exactly as
+  `src/gen/grpc/` holds a copy of the proto contract. `npm run map` re-copies the
+  coordinates blob, and `npm run map:generate` rewrites **both** — one command,
+  because a tile exists exactly where the borders blob says a country does and the
+  two must not be able to disagree. **Run the backend's `make map` after it, and
+  commit all three copies of each**, or the two apps disagree about what a tile id
+  means. It renumbers every tile, so it also writes the postgres migration that
+  follows the owned ones across; see `/map/README.md`.
 - `/static/borderLines-<hash>.bin` — the countries' outlines, traced onto the
   tile lattice, fetched at runtime by `borderLines.ts`. URL in
   `borderLinesAsset.ts`. Regenerate with `npm run borderLines`, which reads both
@@ -1519,9 +1522,9 @@ cache entirely:
   `app/chat/reactionsAsset.ts`. Regenerate with `npm run reactions` — see
   [Reactions](#reactions).
 
-`/static/coordinates.json` is the human-readable generator output, kept in the
-repo but **not deployed** (`copy:static` deletes it from `dist/static/`). So is
-`/static/og-source.png`, the raw screenshot the social preview is built from.
+`/static/og-source.png`, the raw screenshot the social preview is built from, is
+kept in the repo but **not deployed** (`copy:static` deletes it from
+`dist/static/`).
 
 `/static/og-image.jpg` is that preview, generated by `npm run og-image` at the
 1200×627 scrapers ask for. It is letterboxed onto black rather than cropped —

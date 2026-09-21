@@ -15,7 +15,7 @@ httpServer:
   # the Caddyfile allows, so the two cannot drift. Caddy overwrites these
   # headers anyway; the backend refuses to boot without one.
 gameMap:
-  maxIndex: 257948 # must match the tile count baked into the frontend coordinates
+  maxIndex: 262119 # must match the tile count baked into the frontend coordinates
 
 # The planet module's database. The password comes from the environment
 # (database.password in docker-compose.yaml), never from this file.

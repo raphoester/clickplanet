@@ -31,7 +31,7 @@ import (
 )
 
 // The tile count of the embedded map: planet refuses to boot on any other.
-const mapTiles = 257948
+const mapTiles = 262119
 
 type gameStack struct {
 	baseURL string

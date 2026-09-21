@@ -576,7 +576,7 @@ func TestTheMapScraperIsCaught(t *testing.T) {
 	for !dropped && s.clock.Now().Sub(start) < 30*time.Minute {
 		s.clock.Advance(time.Duration(600+random.IntN(1300)) * time.Millisecond)
 		dropped = s.click("2001:db8:e487::/64", 100000+uint32(random.IntN(60000)), "dz")
-		s.guard.Fetched("2001:db8:e487::/64", 10000.0/257948, false)
+		s.guard.Fetched("2001:db8:e487::/64", 10000.0/262119, false)
 	}
 
 	require.True(t, dropped)
