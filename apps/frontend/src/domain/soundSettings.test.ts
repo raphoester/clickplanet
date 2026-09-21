@@ -1,5 +1,11 @@
 import {describe, expect, it} from "vitest"
-import {DEFAULT_SOUND_SETTINGS, isAnthemAudible, isAudible, parseSoundSettings} from "./soundSettings.ts"
+import {
+    DEFAULT_SOUND_SETTINGS,
+    isAnthemAudible,
+    isAudible,
+    MUTED_SOUND_SETTINGS,
+    parseSoundSettings,
+} from "./soundSettings.ts"
 
 describe("parseSoundSettings", () => {
     it("starts with every sound on", () => {
@@ -16,6 +22,18 @@ describe("parseSoundSettings", () => {
         expect(parseSoundSettings("not json")).toEqual(DEFAULT_SOUND_SETTINGS)
         expect(parseSoundSettings("42")).toEqual(DEFAULT_SOUND_SETTINGS)
         expect(parseSoundSettings(JSON.stringify({enabled: "yes", sounds: {click: 1}}))).toEqual(DEFAULT_SOUND_SETTINGS)
+    })
+
+    it("starts from the settings it is given when nothing readable was saved", () => {
+        expect(parseSoundSettings(null, MUTED_SOUND_SETTINGS)).toEqual(MUTED_SOUND_SETTINGS)
+        expect(parseSoundSettings("not json", MUTED_SOUND_SETTINGS)).toEqual(MUTED_SOUND_SETTINGS)
+        expect(isAnthemAudible(MUTED_SOUND_SETTINGS)).toBe(false)
+        expect(isAudible(MUTED_SOUND_SETTINGS, "click")).toBe(false)
+    })
+
+    it("keeps what was saved over the settings it is given", () => {
+        const saved = JSON.stringify(DEFAULT_SOUND_SETTINGS)
+        expect(parseSoundSettings(saved, MUTED_SOUND_SETTINGS)).toEqual(DEFAULT_SOUND_SETTINGS)
     })
 
     it("turns on a sound the saved settings do not know about", () => {

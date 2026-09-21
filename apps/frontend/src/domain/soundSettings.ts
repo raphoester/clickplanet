@@ -40,16 +40,25 @@ export const DEFAULT_SOUND_SETTINGS: SoundSettings = {
     anthem: {on: true, volume: 0.3},
 }
 
-export function parseSoundSettings(raw: string | null): SoundSettings {
-    if (raw === null) return DEFAULT_SOUND_SETTINGS
+/** The master switch off. Nothing plays, whatever the rest of the settings say. */
+export const MUTED_SOUND_SETTINGS: SoundSettings = {...DEFAULT_SOUND_SETTINGS, enabled: false}
+
+/**
+ * `whenUnset` is what nothing saved — or something unreadable — means. The dev
+ * server passes the muted settings there, so a page opened while working starts
+ * silent; a field the saved settings are missing still falls back to the
+ * default, because it says what that field means, not whether sound is wanted.
+ */
+export function parseSoundSettings(raw: string | null, whenUnset: SoundSettings = DEFAULT_SOUND_SETTINGS): SoundSettings {
+    if (raw === null) return whenUnset
 
     let stored: unknown
     try {
         stored = JSON.parse(raw)
     } catch {
-        return DEFAULT_SOUND_SETTINGS
+        return whenUnset
     }
-    if (typeof stored !== "object" || stored === null) return DEFAULT_SOUND_SETTINGS
+    if (typeof stored !== "object" || stored === null) return whenUnset
 
     const {enabled, sounds, anthem} = stored as {enabled?: unknown, sounds?: unknown, anthem?: unknown}
     const storedSounds = typeof sounds === "object" && sounds !== null ? sounds as Record<string, unknown> : {}
