@@ -25,6 +25,12 @@ type ReactionReader interface {
 	Reactions(ctx context.Context, ids []messages.MessageID) (map[messages.MessageID]reactions.Reactions, error)
 }
 
+// Authors is the player module, asked who the accounts of the whole window are. One call names the page: the
+// chat keeps no copy of a name, so this is where a message gets one.
+type Authors interface {
+	Authors(ctx context.Context, accounts []messages.AccountID) (map[messages.AccountID]messages.Author, error)
+}
+
 // Entry is one message of the history, with its reactions as the caller sees them, and their version.
 type Entry struct {
 	Message          messages.Message
@@ -43,6 +49,7 @@ func New(
 	messageReader MessageReader,
 	reactionReader ReactionReader,
 	announcementReader AnnouncementReader,
+	authors Authors,
 	clock cptime.Clock,
 	window messages.Window,
 ) *UseCase {
@@ -50,6 +57,7 @@ func New(
 		messages:      messageReader,
 		reactions:     reactionReader,
 		announcements: announcementReader,
+		authors:       authors,
 		clock:         clock,
 		window:        window,
 	}
@@ -59,6 +67,7 @@ type UseCase struct {
 	messages      MessageReader
 	reactions     ReactionReader
 	announcements AnnouncementReader
+	authors       Authors
 	clock         cptime.Clock
 	window        messages.Window
 }
@@ -86,12 +95,19 @@ func (u *UseCase) Execute(ctx context.Context, account messages.AccountID) (Hist
 		return History{}, fmt.Errorf("failed to read the chat reactions: %w", err)
 	}
 
+	// Who everyone in the window is, in one ask rather than one per message. A distinct account is asked about
+	// once however much it said.
+	named, err := u.authors.Authors(ctx, messages.AccountsOf(recent))
+	if err != nil {
+		return History{}, fmt.Errorf("failed to read who the chat history is from: %w", err)
+	}
+
 	viewer := reactions.ReactorOf(account)
 
 	history := make([]Entry, 0, len(recent))
 	for _, message := range recent {
 		history = append(history, Entry{
-			Message:          message,
+			Message:          messages.Named(message, named),
 			Reactions:        given[message.ID].Tally(viewer),
 			ReactionsVersion: given[message.ID].Version(),
 		})

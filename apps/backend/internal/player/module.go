@@ -22,6 +22,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/rpc_account_reader"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/forget_account_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_author_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_authors_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_player_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_profile_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_stats_usecase"
@@ -31,6 +32,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/announce_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_author_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_authors_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_profile_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_roster_handler"
@@ -106,6 +108,9 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	// Who an account is to the others: its username, or its guest code, drawn the first time it is shown.
 	authors := get_author_usecase.New(store, players.NewGuestCodes(store, random_code_generator.Generator{}))
+	// The same question about many accounts at once, for a module showing a page of them. It draws no code:
+	// a caller reading a list is not about to make anybody new.
+	manyAuthors := get_authors_usecase.New(store)
 
 	// ---- Presence ----
 
@@ -189,7 +194,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	// ---- Internal service ----
 
 	internalService := playerv1controller.InternalService{
-		GetAuthorHandler: get_author_handler.New(authors),
+		GetAuthorHandler:  get_author_handler.New(authors),
+		GetAuthorsHandler: get_authors_handler.New(manyAuthors),
 	}
 	if err := props.InternalRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return playerv1connect.NewInternalServiceHandler(internalService, options...)

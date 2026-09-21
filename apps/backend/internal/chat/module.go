@@ -28,13 +28,13 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/feed/inprocess_feed"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/feed/usecases/listen_for_events_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/log_authors"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/postgres_message_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/rpc_player_authors"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/get_history_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/prune_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/prune_usecase/log_prune"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/send_message_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/send_message_usecase/log_authors"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions/postgres_reaction_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions/usecases/react_usecase"
@@ -108,15 +108,16 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to build the chat blocklist: %w", err)
 	}
 
-	// Who posts, a username or a guest code, comes from the player module over the internal listener. A failure
-	// to ask is logged, and the post is refused. A reaction is its account's, and asks nothing.
+	// Who posts, a username or a guest code, comes from the player module over the internal listener: once when
+	// a message is sent, so it can go out named, and once per history for the whole window. A failure to ask is
+	// logged, and the post is refused. Nothing here keeps a copy of a name.
 	authors := log_authors.New(rpc_player_authors.New(props.Internal), props.Logger)
 
 	chatService := chatv1controller.ChatService{
 		SendMessageHandler: send_message_handler.New(send_message_usecase.New(
 			messageStore, updates, cpcountries.New(), authors, cptime.SystemClock{}, config.Service)),
 		GetHistoryHandler: get_history_handler.New(get_history_usecase.New(
-			messageStore, reactionStore, announcementStore, cptime.SystemClock{}, window)),
+			messageStore, reactionStore, announcementStore, authors, cptime.SystemClock{}, window)),
 		ListenForEventsHandler: listen_for_events_handler.New(
 			listen_for_events_usecase.New(updates, props.Server.StreamHeartbeat)),
 		ReactHandler: react_handler.New(react_usecase.New(

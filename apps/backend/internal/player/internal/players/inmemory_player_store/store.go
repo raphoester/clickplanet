@@ -183,3 +183,31 @@ func (s *Store) Names(_ context.Context, accounts []players.AccountID) (map[play
 	}
 	return names, nil
 }
+
+// Authors mirrors players.AuthorOf for many accounts at once, and gives nobody a code: an account with neither
+// a profile nor a code is left out.
+func (s *Store) Authors(
+	_ context.Context,
+	accounts []players.AccountID,
+) (map[players.AccountID]players.Author, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.failWith != nil {
+		return nil, s.failWith
+	}
+	authors := make(map[players.AccountID]players.Author, len(accounts))
+	for _, account := range accounts {
+		if profile, ok := s.profiles[account]; ok {
+			authors[account] = players.Author{
+				Name:  players.DisplayNameOf(profile.Name, ""),
+				Admin: profile.Admin,
+			}
+			continue
+		}
+		if code, ok := s.codes[account]; ok {
+			authors[account] = players.Author{Name: players.DisplayNameOf("", code), Guest: true}
+		}
+	}
+	return authors, nil
+}

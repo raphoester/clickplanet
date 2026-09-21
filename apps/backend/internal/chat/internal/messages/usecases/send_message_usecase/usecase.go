@@ -93,13 +93,14 @@ func (u *UseCase) Execute(ctx context.Context, in In) (messages.Message, error) 
 		return messages.Message{}, fmt.Errorf("%w: %w", messages.ErrAuthorUnavailable, err)
 	}
 
+	// What is kept is the account, never a copy of the name: a reader is shown who that account is now, so a
+	// rename shows on everything its player ever said and a deleted account stops being named at all.
 	message := messages.Message{
-		ID:          messages.MessageID(uuid.NewString()),
-		SentAt:      u.clock.Now(),
-		AuthorName:  author.Name,
-		AuthorAdmin: author.Admin,
-		CountryID:   in.CountryID,
-		Text:        text,
+		ID:        messages.MessageID(uuid.NewString()),
+		SentAt:    u.clock.Now(),
+		Account:   in.Account,
+		CountryID: in.CountryID,
+		Text:      text,
 	}
 
 	// The log is the audit trail: a message that cannot be kept is not sent.
@@ -109,8 +110,12 @@ func (u *UseCase) Execute(ctx context.Context, in In) (messages.Message, error) 
 		return messages.Message{}, fmt.Errorf("failed to store chat message: %w", err)
 	}
 
-	published := message
+	// What goes out carries the name, which this path already asked for: everyone watching the chat is shown
+	// who is talking without a second read.
+	named := messages.Named(message, map[messages.AccountID]messages.Author{in.Account: author})
+
+	published := named
 	u.publisher.Publish(feed.Update{Message: &published})
 
-	return message, nil
+	return named, nil
 }

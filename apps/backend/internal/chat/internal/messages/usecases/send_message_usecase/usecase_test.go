@@ -78,7 +78,10 @@ func (s *testSuite) TestNominalCase() {
 	s.Equal([]messages.AccountID{guest}, s.authors.asked)
 
 	s.Require().Len(s.appender.records, 1)
-	s.Equal(message, s.appender.records[0].Message)
+	kept := s.appender.records[0].Message
+	s.Equal(message.ID, kept.ID)
+	s.Equal(guest, kept.Account, "what is kept is who sent it")
+	s.Empty(kept.AuthorName, "and not a copy of what that account is called")
 	s.Equal("8f14e45f-ea23-4a1b-9c11-0b0d1a2b3c4d", s.appender.records[0].AuthorID)
 	s.Equal("curl/8", s.appender.records[0].UserAgent)
 
@@ -141,7 +144,8 @@ func (s *testSuite) TestAPlayerWithAUsernamePostsUnderIt() {
 
 	s.Require().NoError(err)
 	s.Equal("Ada_L", message.AuthorName)
-	s.Equal("Ada_L", s.appender.records[0].Message.AuthorName)
+	s.Equal(ada, s.appender.records[0].Message.Account)
+	s.Empty(s.appender.records[0].Message.AuthorName, "the name is read back from the account, not kept")
 	s.Equal([]messages.AccountID{ada}, s.authors.asked)
 }
 
@@ -153,8 +157,9 @@ func (s *testSuite) TestAnAdminPostsAsOneAndIsStoredAsOne() {
 	message, err := s.send(in)
 
 	s.Require().NoError(err)
-	s.True(message.AuthorAdmin)
-	s.True(s.appender.records[0].Message.AuthorAdmin)
+	s.True(message.AuthorAdmin, "everyone watching is shown the crown at once")
+	s.False(s.appender.records[0].Message.AuthorAdmin,
+		"a player that stops being an admin stops looking like one on what it already said")
 }
 
 func (s *testSuite) TestAnAuthorThatCannotBeReadRefusesThePost() {

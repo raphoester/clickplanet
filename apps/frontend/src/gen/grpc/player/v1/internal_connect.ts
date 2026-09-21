@@ -3,8 +3,8 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetAuthorRequest, GetAuthorResponse } from "./internal_pb.js";
-import { MethodKind } from "@bufbuild/protobuf";
+import { GetAuthorRequest, GetAuthorResponse, GetAuthorsRequest, GetAuthorsResponse } from "./internal_pb.js";
+import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
  * What other modules of the backend ask the player module. Served only on the
@@ -26,6 +26,21 @@ export const InternalService = {
       I: GetAuthorRequest,
       O: GetAuthorResponse,
       kind: MethodKind.Unary,
+    },
+    /**
+     * Who each of these accounts is, for a module showing many people at once.
+     * Unlike GetAuthor it is a pure read: it gives no guest its code, so a read
+     * path never writes. An account it cannot name — one never shown before, or
+     * a deleted one — is left out of the answer rather than failing the call.
+     *
+     * @generated from rpc player.v1.InternalService.GetAuthors
+     */
+    getAuthors: {
+      name: "GetAuthors",
+      I: GetAuthorsRequest,
+      O: GetAuthorsResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
     },
   }
 } as const;

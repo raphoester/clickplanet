@@ -48,3 +48,42 @@ func (a *Authors) Author(ctx context.Context, account messages.AccountID) (messa
 
 	return messages.Author{Name: res.Msg.GetName(), Admin: res.Msg.GetAdmin()}, nil
 }
+
+// Authors is who each of these accounts is, asked once for a whole page of them. An account the player module
+// cannot name is absent from the answer: it was deleted, and messages.Named decides what stands in its place.
+func (a *Authors) Authors(
+	ctx context.Context,
+	accounts []messages.AccountID,
+) (map[messages.AccountID]messages.Author, error) {
+	found := make(map[messages.AccountID]messages.Author, len(accounts))
+	if len(accounts) == 0 {
+		return found, nil
+	}
+
+	client, baseURL, err := a.dial.Dial()
+	if err != nil {
+		return nil, fmt.Errorf("failed to reach the player module: %w", err)
+	}
+
+	ids := make([]string, 0, len(accounts))
+	for _, account := range accounts {
+		ids = append(ids, account.String())
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, askTimeout)
+	defer cancel()
+
+	res, err := playerv1connect.NewInternalServiceClient(client, baseURL).GetAuthors(ctx,
+		connect.NewRequest(&playerv1.GetAuthorsRequest{AccountIds: ids}))
+	if err != nil {
+		return nil, fmt.Errorf("failed to ask the player module who these accounts are: %w", err)
+	}
+
+	for _, author := range res.Msg.GetAuthors() {
+		found[messages.AccountIDOf(author.GetAccountId())] = messages.Author{
+			Name:  author.GetName(),
+			Admin: author.GetAdmin(),
+		}
+	}
+	return found, nil
+}
