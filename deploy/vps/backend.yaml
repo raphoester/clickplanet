@@ -362,6 +362,49 @@ bonus:
 
   sweepInterval: 1s
 
+  # A quiz: three choices, five seconds, and a charge for the right answer. Its
+  # own clock and its own budget, so this adds offers rather than replacing
+  # them - a caller can hold an unopened banner and a flying box at once. The
+  # reward is drawn from `kinds` above and filtered the way a box's is, so
+  # nobody is asked a question for a bomb they already hold.
+  #
+  # A frontend too old to know the banner skips the whole event, which the
+  # schedule reads as a lapse - so this can ship first, exactly as `kinds` can.
+  quiz:
+    enabled: true
+
+    # A little rarer than the boxes above, so the two together are about one
+    # offer every two minutes of active play rather than something that never
+    # stops interrupting. About six banners an hour at most.
+    minInterval: 6m
+    maxInterval: 11m
+
+    # How long the banner sits unopened. Generous, because it is only an
+    # invitation: the clock that matters starts when the question is read, so a
+    # player can finish the click they were making and look up.
+    offerTTL: 25s
+
+    # The feature. Long enough to read three choices, too short to search for
+    # the answer - moving this is the one setting here that changes what this
+    # is. It is the server's own stamp, taken at OpenQuiz and checked when the
+    # answer lands, so a client holding its countdown open gains nothing.
+    answerWindow: 5s
+
+    # How much harder the draw leans on the countries that are winning, off the
+    # same shares the toll prices a click from. At 1 a country holding an even
+    # slice of the map is asked about about twice as often as one holding
+    # nothing. The floor of 1 keeps every country in the draw and the lean is
+    # capped, so a nearly-swept planet still asks about somewhere else.
+    leaderBias: 1
+
+    # On top of the boxes' 12. A player answering everything gets six an hour
+    # and no more. This is the dial if the game turns out too easy: it is the
+    # whole of what the feature adds to the economy, and it is easier to loosen
+    # than to explain. Watch quiz_answers_total{outcome="correct"} against
+    # quiz_offers_total, and quiz_answer_seconds for a band of fast correct
+    # answers, which is not a person reading three choices.
+    maxChargesPerHour: 6
+
 # Gates the Click RPC on a token this server minted, which is the one thing an
 # address-based defence cannot do: refuse a caller that never proved anything,
 # however many addresses it can reach the game from. The blocklist above raises

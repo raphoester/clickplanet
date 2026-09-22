@@ -1102,7 +1102,9 @@ box does, and `OpenQuiz` not only for symmetry: opening is what starts the five
 seconds, and the caller they are started for has to be the caller that answers.
 
 **Off unless switched on.** With `bonus.quiz.enabled` false no bank is loaded,
-`Quizzing` is never called, and the boxes fly exactly as they did.
+`Quizzing` is never called, and the boxes fly exactly as they did. **Production
+runs it on**, at 6m-11m with `maxChargesPerHour: 6` on top of the boxes' 12 —
+`deploy/vps/backend.yaml` says why each number is what it is.
 
 #### Charges (refill, bomb, enclose, spread)
 
