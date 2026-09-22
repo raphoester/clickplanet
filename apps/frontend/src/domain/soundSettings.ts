@@ -4,21 +4,37 @@
  * there, and anything it does not recognise falls back to the default.
  */
 
-export const SOUNDS = ["click", "refused", "bonusSpawn", "bonusCaught", "spread", "enclose", "bomb", "chat"] as const
+export const SOUNDS = [
+    "click", "refused", "bonusSpawn", "bonusCaught", "spread", "enclose", "bomb", "chat",
+    "quiz", "quizRight", "quizWrong",
+] as const
 
 export type SoundName = typeof SOUNDS[number]
 
-/** The sounds with a switch of their own. */
-export const SWITCHES = ["click", "refused", "bonusSpawn", "bonusCaught", "bomb", "chat"] as const
+/**
+ * The sounds with a switch of their own. Every one of these is also a `SoundName`, which is what
+ * lets the panel preview a switch by playing it.
+ */
+export const SWITCHES = ["click", "refused", "bonusSpawn", "bonusCaught", "bomb", "chat", "quiz"] as const
 
 export type SwitchName = typeof SWITCHES[number]
 
-/** A bonus click is a click, so the click switch covers it. */
+/**
+ * The switch a sound answers to. A sound is its own switch unless it is listed here.
+ *
+ * A bonus click is a click, so the click switch covers it. **A quiz is one switch for all three
+ * of its sounds** — the banner, the right answer and the wrong one are one feature happening once,
+ * and three lines in the panel for a thing that makes three noises in ten seconds is three lines
+ * nobody wants. `quiz` is the banner, so it is also what the panel plays as the preview.
+ */
 export function switchOf(name: SoundName): SwitchName {
     switch (name) {
         case "spread":
         case "enclose":
             return "click"
+        case "quizRight":
+        case "quizWrong":
+            return "quiz"
         default:
             return name
     }
@@ -36,7 +52,7 @@ export const SOUND_SETTINGS_STORAGE_KEY = "clickplanet-sound-settings"
 
 export const DEFAULT_SOUND_SETTINGS: SoundSettings = {
     enabled: true,
-    sounds: {click: true, refused: true, bonusSpawn: true, bonusCaught: true, bomb: true, chat: true},
+    sounds: {click: true, refused: true, bonusSpawn: true, bonusCaught: true, bomb: true, chat: true, quiz: true},
     anthem: {on: true, volume: 0.3},
 }
 

@@ -323,10 +323,42 @@ const bomb: Synth = (ctx, at, {volume, onWater}) => {
     else landBlast(ctx, bombRig(ctx, at, volume, 0.55))
 }
 
+// The banner: three notes climbing, the last one lifting as it goes — the shape a spoken question
+// makes. Deliberately not bonusSpawn's sparkle and not chat's two sine notes: a box you catch, a
+// message you read and a question you have five seconds to answer should not sound alike, and this
+// one has to be recognised from across the screen while you are clicking something else.
+const quiz: Synth = (ctx, at, {volume}) => {
+    tone(ctx, at, volume, {type: "triangle", from: 784, start: 0, length: 0.1, gain: 0.16})
+    tone(ctx, at, volume, {type: "triangle", from: 1047, start: 0.09, length: 0.1, gain: 0.16})
+    // The rise at the end is the whole trick: a phrase that ends higher than it began is a question.
+    tone(ctx, at, volume, {type: "triangle", from: 1319, to: 1661, start: 0.18, length: 0.3, gain: 0.14})
+}
+
+// Right: a major triad arriving at once, with the octave over it. It is the only sound a won quiz
+// makes — a quiz never goes through the box's claim, so bonusCaught does not follow it.
+const quizRight: Synth = (ctx, at, {volume}) => {
+    // Three notes at once stack, so each is a third of what a single note would be: this has to
+    // sit beside bonusCaught, not shout over it.
+    ;[523, 659, 784].forEach((from) => {
+        tone(ctx, at, volume, {type: "triangle", from, start: 0, length: 0.32, gain: 0.06})
+    })
+    tone(ctx, at, volume, {type: "sine", from: 1047, start: 0.1, length: 0.5, gain: 0.08})
+}
+
+// Wrong, or out of time: two soft notes falling. Gentle on purpose, and higher and rounder than
+// `refused` — a wrong answer costs nothing, so this says "ah well" rather than "no". A sound that
+// punished a guess would make guessing feel expensive when it is free.
+const quizWrong: Synth = (ctx, at, {volume}) => {
+    tone(ctx, at, volume, {type: "sine", from: 440, to: 415, start: 0, length: 0.14, gain: 0.18})
+    tone(ctx, at, volume, {type: "sine", from: 349, to: 311, start: 0.13, length: 0.34, gain: 0.15})
+}
+
 // Two soft notes going up: someone said something.
 const chat: Synth = (ctx, at, {volume}) => {
     tone(ctx, at, volume, {type: "sine", from: 880, start: 0, length: 0.08, gain: 0.12})
     tone(ctx, at, volume, {type: "sine", from: 1175, start: 0.07, length: 0.14, gain: 0.12})
 }
 
-export const SYNTHS: Record<SoundName, Synth> = {click, refused, bonusSpawn, bonusCaught, spread, enclose, bomb, chat}
+export const SYNTHS: Record<SoundName, Synth> = {
+    click, refused, bonusSpawn, bonusCaught, spread, enclose, bomb, chat, quiz, quizRight, quizWrong,
+}

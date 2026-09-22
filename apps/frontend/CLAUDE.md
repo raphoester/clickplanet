@@ -1490,6 +1490,21 @@ A wrong answer costs nothing, so the only thing left to give back is the answer.
 the one that gives it up (`lowered`): four seconds of news nobody presses moves,
 five seconds somebody is answering does not.
 
+**Three sounds, one switch.** `quiz` when the banner arrives (the same reason
+`bonusSpawn` exists: it is at the top of the screen and the player is looking at
+the globe), `quizRight` and `quizWrong` when the answer lands. All three answer
+to one `quiz` switch through `switchOf` — a quiz is one feature making three
+noises inside ten seconds, and three lines in the settings panel for that is two
+lines too many. `quiz` is the banner's sound, which is also what the panel plays
+when the switch is turned on.
+
+`quizWrong` is gentle on purpose, and rounder and higher than `refused`: a wrong
+answer costs nothing, so it says "ah well" rather than "no". A sound that
+punished a guess would make guessing feel expensive when it is free.
+
+`useQuiz` takes the player and holds it in a ref, so a settings toggle does not
+resubscribe the feed; it is optional, and a page with no sound wired still works.
+
 `giveQuiz()` in the console puts one up at once against the fake backend, beside
 `giveBomb()` and `giveBonus()`. The fake's bank is three questions — it is there
 to develop the banner and the card against, not to be played.

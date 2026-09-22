@@ -4,6 +4,7 @@ import {act, cleanup, fireEvent, render, screen} from "@testing-library/react"
 import {useState} from "react"
 
 import {BonusLostError, QuizMaster} from "../../backends/backend.ts"
+import {PlaySound} from "../sound/soundPlayer.ts"
 import {QuizOffer, QuizOutcome, QuizQuestion} from "../../domain/quiz.ts"
 import Quiz from "./Quiz.tsx"
 import {RESULT_MS, useQuiz} from "./useQuiz.ts"
@@ -63,8 +64,12 @@ class FakeMaster implements QuizMaster {
 }
 
 // The two pieces as they are actually put together in Viewer: the hook drives, the component draws.
-function Harness({master, country = "bg"}: {master: QuizMaster, country?: string}) {
-    const quiz = useQuiz(master, country)
+function Harness({master, country = "bg", playSound}: {
+    master: QuizMaster,
+    country?: string,
+    playSound?: PlaySound,
+}) {
+    const quiz = useQuiz(master, country, playSound)
     return <Quiz state={quiz.state} onOpen={quiz.open} onAnswer={quiz.answer}/>
 }
 
@@ -297,6 +302,67 @@ describe("Quiz", () => {
         await settle()
 
         expect(screen.getByRole("dialog")).toBeTruthy()
+    })
+
+    it("is heard when the banner arrives, and again when the answer lands", async () => {
+        // The banner is at the top of the screen and the player is looking at the globe, which is
+        // the same reason a bonus box gets a sound when it spawns.
+        const played = vi.fn()
+        render(<Harness master={master} playSound={played}/>)
+
+        act(() => master.offer())
+        expect(played).toHaveBeenCalledWith("quiz")
+
+        fireEvent.click(screen.getByRole("button"))
+        await settle()
+        fireEvent.click(screen.getByRole("button", {name: "Tallinn"}))
+        await settle()
+
+        expect(played).toHaveBeenCalledWith("quizRight")
+    })
+
+    it("has its own sound for an answer that was not right", async () => {
+        master.outcome = {correct: false, correctChoice: 1}
+
+        const played = vi.fn()
+        render(<Harness master={master} playSound={played}/>)
+        act(() => master.offer())
+        fireEvent.click(screen.getByRole("button"))
+        await settle()
+
+        fireEvent.click(screen.getByRole("button", {name: "Riga"}))
+        await settle()
+
+        expect(played).toHaveBeenCalledWith("quizWrong")
+        expect(played).not.toHaveBeenCalledWith("quizRight")
+    })
+
+    it("says the same thing when the time runs out as when the answer was wrong", async () => {
+        master.outcome = {correct: false, correctChoice: 1}
+
+        const played = vi.fn()
+        render(<Harness master={master} playSound={played}/>)
+        act(() => master.offer())
+        fireEvent.click(screen.getByRole("button"))
+        await settle()
+
+        await act(async () => {
+            vi.advanceTimersByTime(ANSWER_MS + 100)
+            await Promise.resolve()
+        })
+        await settle()
+
+        expect(played).toHaveBeenCalledWith("quizWrong")
+    })
+
+    it("works without a player at all, for a page with no sound wired", async () => {
+        render(<Harness master={master}/>)
+        act(() => master.offer())
+
+        fireEvent.click(screen.getByRole("button"))
+        await settle()
+
+        expect(screen.getByText(QUESTION.text)).toBeTruthy()
     })
 
     it("shows nothing at all for a backend that asks no questions", () => {

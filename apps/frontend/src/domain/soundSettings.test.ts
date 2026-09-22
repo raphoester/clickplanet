@@ -5,6 +5,9 @@ import {
     isAudible,
     MUTED_SOUND_SETTINGS,
     parseSoundSettings,
+    SOUNDS,
+    switchOf,
+    SWITCHES,
 } from "./soundSettings.ts"
 
 describe("parseSoundSettings", () => {
@@ -82,6 +85,35 @@ describe("isAudible", () => {
         for (const name of ["spread", "enclose"] as const) {
             expect(isAudible(DEFAULT_SOUND_SETTINGS, name)).toBe(true)
             expect(isAudible(clickOff, name)).toBe(false)
+        }
+    })
+
+    it("lets the one quiz switch cover the banner and both answers", () => {
+        // A quiz is one feature that makes three noises inside ten seconds. Three lines in the
+        // panel for that is three lines nobody wants.
+        const quizOff = {...DEFAULT_SOUND_SETTINGS, sounds: {...DEFAULT_SOUND_SETTINGS.sounds, quiz: false}}
+        for (const name of ["quiz", "quizRight", "quizWrong"] as const) {
+            expect(isAudible(DEFAULT_SOUND_SETTINGS, name)).toBe(true)
+            expect(isAudible(quizOff, name)).toBe(false)
+        }
+
+        expect(isAudible(quizOff, "bonusSpawn")).toBe(true)
+    })
+})
+
+describe("the switches and the sounds", () => {
+    it("names every switch after a sound, so the panel can preview one by playing it", () => {
+        // SoundSettingsPanel previews a switch by asking the player for a sound of that name. A
+        // switch that is not also a SoundName would be a switch that cannot be heard when it is
+        // turned on.
+        for (const name of SWITCHES) {
+            expect(SOUNDS).toContain(name)
+        }
+    })
+
+    it("gives every sound a switch that exists", () => {
+        for (const name of SOUNDS) {
+            expect(SWITCHES).toContain(switchOf(name))
         }
     })
 })

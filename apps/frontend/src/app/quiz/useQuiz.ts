@@ -2,6 +2,7 @@ import {useCallback, useEffect, useRef, useState} from 'react'
 import {BonusLostError, QuizMaster} from '../../backends/backend.ts'
 import {now as budgetNow} from '../../backends/clickBudget.ts'
 import {QuizOffer, QuizOutcome, QuizQuestion} from '../../domain/quiz.ts'
+import {PlaySound} from '../sound/soundPlayer.ts'
 
 /**
  * How long the result stays up once an answer has landed. Long enough to read the right answer
@@ -44,8 +45,15 @@ export type QuizState =
  * through `globe.ts` the way a flying box is. What a right answer wins reaches the inventory the
  * way every other charge does — the backend holds the charges and tells whoever is listening.
  */
-export function useQuiz(master?: QuizMaster, countryCode?: string) {
+export function useQuiz(master?: QuizMaster, countryCode?: string, playSound?: PlaySound) {
     const [state, setState] = useState<QuizState>({phase: 'idle'})
+
+    // Held in a ref and never depended on, like `useSound` intends: a settings toggle must not
+    // resubscribe the feed. It is absent in tests and wherever sound is not wired.
+    const play = useRef(playSound)
+    useEffect(() => {
+        play.current = playSound
+    }, [playSound])
 
     // The country is read when the answer is sent, not when the banner arrived: a player who
     // switched flags mid-question wins it for the flag they are playing now.
@@ -72,6 +80,9 @@ export function useQuiz(master?: QuizMaster, countryCode?: string) {
         return master.listenForQuizzes((offer) => {
             if (current.current.phase !== 'idle') return
             setState({phase: 'offered', offer})
+            // The banner is easy to miss: it is at the top of the screen and the player is looking
+            // at the globe. This is the same reason a bonus box gets a sound when it spawns.
+            play.current?.("quiz")
         })
     }, [master])
 
@@ -141,7 +152,10 @@ export function useQuiz(master?: QuizMaster, countryCode?: string) {
         current.current = {phase: 'opening', offer: {token, expiresAt: question.deadline}}
 
         master.answerQuiz(token, choice, country.current ?? "")
-            .then((outcome) => setState({phase: 'answered', question, outcome, chosen}))
+            .then((outcome) => {
+                setState({phase: 'answered', question, outcome, chosen})
+                play.current?.(outcome.correct ? "quizRight" : "quizWrong")
+            })
             .catch((error) => {
                 if (!(error instanceof BonusLostError)) console.error("could not answer the quiz", error)
                 setState({phase: 'idle'})

@@ -73,7 +73,7 @@ export default function Viewer(props: ViewerProps) {
 
     // The quiz is React's own: a banner at the top of the screen, never an object in the scene.
     // It follows the flag the player is on now, so a win counts for what they are playing.
-    const quiz = useQuiz(props.quizMaster, countryState.code)
+    const quiz = useQuiz(props.quizMaster, countryState.code, sound.play)
     const roster = useRoster(props.presence)
     const [pitchOpen, setPitchOpen] = useState(false)
     // One card at a time, over the roster or the chat, whichever the name was clicked in.

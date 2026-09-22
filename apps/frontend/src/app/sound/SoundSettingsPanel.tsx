@@ -9,6 +9,8 @@ const LABELS: Record<SwitchName, string> = {
     bonusCaught: "Bonus box caught",
     bomb: "Bomb explosion",
     chat: "Chat message",
+    // One switch for the banner, the right answer and the wrong one: see switchOf.
+    quiz: "Quiz",
 }
 
 export type SoundSettingsPanelProps = {
