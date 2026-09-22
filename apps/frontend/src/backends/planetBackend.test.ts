@@ -718,35 +718,28 @@ describe("offerOf", () => {
 })
 
 describe("quizOf", () => {
-    const asked = (fields: {token?: string, expiresAtUnixMs?: bigint, subjectCountryId?: string} = {}) =>
+    const asked = (fields: {token?: string, expiresAtUnixMs?: bigint} = {}) =>
         new PlanetEvent({
             event: {
                 case: "quizOffered",
-                value: new QuizOffered({
-                    token: "a-token",
-                    expiresAtUnixMs: 1_000_000n,
-                    subjectCountryId: "ee",
-                    ...fields,
-                }),
+                value: new QuizOffered({token: "a-token", expiresAtUnixMs: 1_000_000n, ...fields}),
             },
         })
 
     it("reads the banner the server addressed to this client", () => {
-        expect(quizOf(asked())).toEqual({token: "a-token", expiresAt: expect.any(Number), subject: "ee"})
+        expect(quizOf(asked())).toEqual({token: "a-token", expiresAt: expect.any(Number)})
     })
 
-    it("carries no question: reading one is what starts the clock", () => {
-        // If the question rode the stream, a client could read it at leisure and press the banner
-        // with the answer already in hand, which is the whole thing the five seconds are for.
-        expect(Object.keys(quizOf(asked())!)).toEqual(["token", "expiresAt", "subject"])
+    it("is a token and a deadline, and nothing about the question at all", () => {
+        // Not the text, not the choices, and not the subject either: anything on the banner is
+        // something a client can read while the clock is not running, and the subject is not the
+        // harmless teaser it looks like — "Estonia" answers "Tallinn is the capital of which
+        // country?" on its own.
+        expect(Object.keys(quizOf(asked())!)).toEqual(["token", "expiresAt"])
     })
 
     it("builds the deadline from how long is left, not from the server's clock", () => {
         expect(quizOf(asked({expiresAtUnixMs: 1_025_000n}), 5_000, 1_000_000)?.expiresAt).toBe(5_000 + 25_000)
-    })
-
-    it("reads a question about nowhere in particular as having no subject", () => {
-        expect(quizOf(asked({subjectCountryId: ""}))?.subject).toBeUndefined()
     })
 
     it("drops everything that is not a banner", () => {

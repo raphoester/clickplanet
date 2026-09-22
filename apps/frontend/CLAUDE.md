@@ -1435,7 +1435,7 @@ holds the charges and tells whoever is listening.
 **The client never knows an answer before it gives one.** The bank lives on the
 server and is deliberately not shipped to the browser (see
 [`/quiz/README.md`](../../quiz/README.md)). `listenForQuizzes` brings a banner
-with a token and a subject country and *no question*; `openQuiz` brings the
+carrying **a token and a deadline and nothing else**; `openQuiz` brings the
 question and its three choices and **starts the server's clock**; `answerQuiz` is
 the first thing that says which of the three was right.
 
@@ -1457,11 +1457,17 @@ while a banner and a question are changing places.
 second, but a stale one arriving mid-question would take the clock away from
 under somebody already reaching for a choice.
 
-**The banner says what the question is about and nothing else** — a flag and a
-country name. That is what makes it worth looking at, and it gives nothing away:
-knowing a question is about Estonia is not knowing the capital of Estonia. It
-draws no countdown of its own, because it is free to ignore, and it goes away by
-itself.
+**The banner gives nothing away** — not the question, not the choices, and not
+what it is about. It named the subject country and flew its flag once, which
+read as a harmless teaser and was not: that flag was the answer to **417 of the
+bank's 1014 questions**, every "Tallinn is the capital of which country?" and
+every "which of these has the most people?". The fix is not to pick safer
+templates, because a teaser that has to be checked against every question in the
+bank leaks again the first time a template is added. What makes the banner worth
+pressing is the charge behind it.
+
+It draws no countdown of its own either, because it is free to ignore, and it
+goes away by itself.
 
 **The countdown bar starts at what is actually left, not at full.** The five
 seconds are the server's and they began when it answered, so a slow round trip

@@ -6,7 +6,9 @@
     "a question here must be about something that does not change (a fact of history, geography or",
     "spelling), never about who holds an office, what a population is, or anything else a newspaper",
     "could make wrong. `subject` is the country code the question is about, which is what the",
-    "leaderboard weighting draws on; leave it out for a question about nowhere in particular.",
+    "leaderboard weighting draws on; leave it out for a question about nowhere in particular. It",
+    "never reaches a player before they answer, so it does not matter that it gives the answer",
+    "away here - `extra:russia-timezones` is about `ru` and the answer is Russia, and that is fine.",
     "`wrong` carries five, of which a round shows two."
   ],
   "questions": [

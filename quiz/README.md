@@ -25,8 +25,14 @@ security model: the answer is in the file. A bank served to the page is a bank a
 the network tab open, and every quiz would be free.
 
 So the bank is the server's. `OpenQuiz` hands the client one question and three choices, and
-**which of the three is right never leaves the server**. `AnswerQuiz` is what compares, and it is
-also what starts the clock — see the backend's CLAUDE.md.
+**which of the three is right never leaves the server**. `AnswerQuiz` is what compares, and
+`OpenQuiz` is what starts the clock — see the backend's CLAUDE.md.
+
+**Nothing about a question reaches the client before it is opened**, `subject` included. The banner
+carried the subject country once, so it could fly a flag: that flag was the answer to 417 of these
+1014 questions, every `capitalOf` and every `mostPeople`. `subject` is for the leaderboard lean and
+for the broadcast after a win, and a template author does not have to think about it leaking,
+because it never goes out before an answer.
 
 ## Two halves, and why they are separate
 

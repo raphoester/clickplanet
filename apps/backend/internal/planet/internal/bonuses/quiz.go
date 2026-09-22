@@ -21,16 +21,22 @@ import (
 // exactly the kinds a box would be drawn from, so a player already holding a bomb is never asked a
 // question for another one.
 
-// QuizOffer is the banner, and the token that opens it. No question and no choices: those are read
-// with Open, which is what starts the clock.
+// QuizOffer is the banner, and the token that opens it.
+//
+// **It says nothing about the question**: no text, no choices, and no subject either. Anything on
+// the banner is something a player can read while the clock is not running, and a subject is not
+// the harmless teaser it looks like — the flag beside "Tallinn is the capital of which country?"
+// *is* the answer, and so is the flag beside "which of these has the most people?". That was 417
+// of the bank's 1014 questions. A teaser that has to be checked against every question in the bank
+// is a teaser that leaks again the first time a template is added, so there is none.
+//
+// The subject still exists on the question itself: it is what the leaderboard lean draws on, and
+// it rides the broadcast *after* a win, where there is nothing left to give away.
 type QuizOffer struct {
 	Token string
 
 	// When the banner is gone. The invitation lapsing, not the answer clock.
 	ExpiresAt time.Time
-
-	// The country the question is about, for the banner's flag. Empty for a question about nowhere.
-	Subject string
 }
 
 // Asked is the question as it was put, and how long is left to answer it.
@@ -229,11 +235,7 @@ func (r *Registry) offerQuiz(scope string, entry *caller, now time.Time, kind Ki
 	}
 
 	round := r.bank.Draw()
-	offer := QuizOffer{
-		Token:     token,
-		ExpiresAt: now.Add(r.quizConfig.OfferTTL),
-		Subject:   round.Question.Subject,
-	}
+	offer := QuizOffer{Token: token, ExpiresAt: now.Add(r.quizConfig.OfferTTL)}
 
 	r.quizOffers[token] = &pendingQuiz{
 		scope:     scope,

@@ -192,11 +192,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
             const asked = FAKE_QUIZZES[Math.floor(Math.random() * FAKE_QUIZZES.length)]
             this.quiz = {token: UUIDv4(), expiresAt: budgetNow() + QUIZ_OFFER_TTL_MS, asked}
 
-            const offer: QuizOffer = {
-                token: this.quiz.token,
-                expiresAt: this.quiz.expiresAt,
-                subject: asked.subject,
-            }
+            const offer: QuizOffer = {token: this.quiz.token, expiresAt: this.quiz.expiresAt}
             this.quizCallbacks.forEach(callback => callback(offer))
         }, QUIZ_EVERY_MS))
 
@@ -509,7 +505,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         const asked = FAKE_QUIZZES[Math.floor(Math.random() * FAKE_QUIZZES.length)]
         this.quiz = {token: UUIDv4(), expiresAt: budgetNow() + QUIZ_OFFER_TTL_MS, asked}
 
-        const offer: QuizOffer = {token: this.quiz.token, expiresAt: this.quiz.expiresAt, subject: asked.subject}
+        const offer: QuizOffer = {token: this.quiz.token, expiresAt: this.quiz.expiresAt}
         this.quizCallbacks.forEach(callback => callback(offer))
 
         return offer

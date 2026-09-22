@@ -328,9 +328,16 @@ message ClaimBonusResponse {
 
 // A question put in front of one player, and the token that opens it.
 //
-// It carries no question and no choices: a banner is only an invitation, and a
-// client that had the question in hand before the clock started would be a
-// client that could read it at leisure. The seconds start at OpenQuiz.
+// **It says nothing about the question.** No text, no choices, and no subject:
+// a banner is only an invitation, and anything on it is something a client can
+// read at leisure before the clock starts. The seconds begin at OpenQuiz.
+//
+// The subject was on here once, to fly a flag. It gave the answer away for 417
+// of the bank's 1014 questions — every "Tallinn is the capital of which
+// country?" and every "which of these has the most people?" is answered by the
+// flag beside it. A teaser that has to be checked against every question in the
+// bank is a teaser that will leak again the first time a template is added, so
+// there is none.
 message QuizOffered {
   // Unguessable, single use, and only good for the caller it was sent to.
   string token = 1;
@@ -339,13 +346,8 @@ message QuizOffered {
   // is the invitation lapsing, not the answer clock: opening it starts that.
   int64 expires_at_unix_ms = 2;
 
-  // The country the question is about, so the banner can fly its flag before
-  // anything is read. Empty for a question about nowhere in particular.
-  //
-  // Saying the subject up front is deliberate: it is what makes the banner
-  // worth looking at, and it gives away nothing — a player who knows the
-  // question is about Estonia still has to know the answer.
-  string subject_country_id = 3;
+  // Was the subject country, which answered the question it was teasing.
+  reserved 3;
 }
 
 message OpenQuizRequest {

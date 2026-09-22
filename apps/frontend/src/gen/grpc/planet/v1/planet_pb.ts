@@ -1128,9 +1128,16 @@ export class ClaimBonusResponse extends Message<ClaimBonusResponse> {
 /**
  * A question put in front of one player, and the token that opens it.
  *
- * It carries no question and no choices: a banner is only an invitation, and a
- * client that had the question in hand before the clock started would be a
- * client that could read it at leisure. The seconds start at OpenQuiz.
+ * **It says nothing about the question.** No text, no choices, and no subject:
+ * a banner is only an invitation, and anything on it is something a client can
+ * read at leisure before the clock starts. The seconds begin at OpenQuiz.
+ *
+ * The subject was on here once, to fly a flag. It gave the answer away for 417
+ * of the bank's 1014 questions — every "Tallinn is the capital of which
+ * country?" and every "which of these has the most people?" is answered by the
+ * flag beside it. A teaser that has to be checked against every question in the
+ * bank is a teaser that will leak again the first time a template is added, so
+ * there is none.
  *
  * @generated from message planet.v1.QuizOffered
  */
@@ -1150,18 +1157,6 @@ export class QuizOffered extends Message<QuizOffered> {
    */
   expiresAtUnixMs = protoInt64.zero;
 
-  /**
-   * The country the question is about, so the banner can fly its flag before
-   * anything is read. Empty for a question about nowhere in particular.
-   *
-   * Saying the subject up front is deliberate: it is what makes the banner
-   * worth looking at, and it gives away nothing — a player who knows the
-   * question is about Estonia still has to know the answer.
-   *
-   * @generated from field: string subject_country_id = 3;
-   */
-  subjectCountryId = "";
-
   constructor(data?: PartialMessage<QuizOffered>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1172,7 +1167,6 @@ export class QuizOffered extends Message<QuizOffered> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "token", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "expires_at_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
-    { no: 3, name: "subject_country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): QuizOffered {

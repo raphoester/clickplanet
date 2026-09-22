@@ -705,8 +705,8 @@ export function offerOf(event: PlanetEvent, at = budgetNow(), wallClock = Date.n
 }
 
 /**
- * Reads the banner this client was offered. No question comes with it, by design — see
- * `domain/quiz.ts`.
+ * Reads the banner this client was offered: a token and a deadline. Nothing about the question
+ * comes with it, by design — see `domain/quiz.ts`.
  *
  * The deadline is rebuilt from how long the server said was **left**, for the reason `offerOf`
  * rebuilds a box's: the two wall clocks are unrelated.
@@ -719,7 +719,6 @@ export function quizOf(event: PlanetEvent, at = budgetNow(), wallClock = Date.no
     return {
         token: offered.token,
         expiresAt: at + (Number(offered.expiresAtUnixMs) - wallClock),
-        subject: offered.subjectCountryId || undefined,
     }
 }
 

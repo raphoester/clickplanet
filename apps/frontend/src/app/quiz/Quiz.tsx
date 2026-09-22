@@ -1,9 +1,7 @@
 import {useEffect, useRef, useState} from 'react'
-import {Countries} from '../../domain/countries.ts'
 import {describeReward} from '../../domain/bonus.ts'
 import {QuizOutcome, QuizQuestion, timeLeft} from '../../domain/quiz.ts'
 import {now as budgetNow} from '../../backends/clickBudget.ts'
-import CountryFlag from '../components/CountryFlag.tsx'
 import BonusIcon from '../components/BonusIcon.tsx'
 import {QuizState} from './useQuiz.ts'
 import './Quiz.css'
@@ -28,7 +26,7 @@ export default function Quiz({state, onOpen, onAnswer}: QuizProps) {
             return null
         case 'offered':
         case 'opening':
-            return <Banner subject={state.offer.subject} working={state.phase === 'opening'} onOpen={onOpen}/>
+            return <Banner working={state.phase === 'opening'} onOpen={onOpen}/>
         case 'asking':
             return <Question question={state.question} onAnswer={onAnswer}/>
         case 'answered':
@@ -37,32 +35,32 @@ export default function Quiz({state, onOpen, onAnswer}: QuizProps) {
 }
 
 /**
- * The invitation. It says what the question is about and nothing else — knowing a question is
- * about Estonia is not knowing the capital of Estonia, and a banner that said more would be a
- * banner worth reading before pressing.
+ * The invitation, and it gives nothing away — not the question, not the choices, and not what it
+ * is about.
  *
- * It draws no countdown of its own: it is free to ignore, and a clock ticking at you over the
- * planet would say otherwise. It goes away by itself.
+ * It named the subject country and flew its flag once. That flag *was* the answer to 417 of the
+ * bank's 1014 questions: every "Tallinn is the capital of which country?" and every "which of
+ * these has the most people?" is answered by the flag beside it. The fix is not to pick safer
+ * templates — a teaser that has to be checked against every question in the bank leaks again the
+ * first time a template is added — it is to say nothing. What makes the banner worth pressing is
+ * the charge behind it, not a hint.
+ *
+ * It draws no countdown of its own either: it is free to ignore, and a clock ticking at you over
+ * the planet would say otherwise. It goes away by itself.
  */
-function Banner({subject, working, onOpen}: {subject?: string, working: boolean, onOpen: () => void}) {
-    const name = subject ? Countries.get(subject)?.name : undefined
-
+function Banner({working, onOpen}: {working: boolean, onOpen: () => void}) {
     return <div className="quiz quiz--banner">
         <button
             type="button"
             className="quiz-banner"
             onClick={onOpen}
             disabled={working}
-            aria-label={name ? `Answer a question about ${name}` : "Answer a question"}
+            aria-label="Answer a question for a bonus"
         >
             <span className="quiz-banner-mark" aria-hidden="true">?</span>
             <span className="quiz-banner-words">
                 <strong className="quiz-banner-title">Quiz</strong>
-                <span className="quiz-banner-detail">
-                    {name
-                        ? <>Answer one about {subject && <CountryFlag code={subject}/>} {name} — 5 seconds</>
-                        : <>Answer one question — 5 seconds</>}
-                </span>
+                <span className="quiz-banner-detail">Answer one for a bonus — 5 seconds</span>
             </span>
         </button>
     </div>

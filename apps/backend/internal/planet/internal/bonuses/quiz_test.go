@@ -102,7 +102,6 @@ func TestAQuizGoesToAnAttendingCallerOnceItsOwnWindowPasses(t *testing.T) {
 
 	offer := quizOffered(t, events)
 	require.NotNil(t, offer)
-	assert.Equal(t, "ee", offer.Subject, "the banner says what it is about, so it can fly a flag")
 	assert.Equal(t, clock.Now().Add(bannerFor), offer.ExpiresAt)
 }
 
@@ -110,9 +109,12 @@ func TestAQuizCarriesNoQuestionUntilItIsOpened(t *testing.T) {
 	registry, clock := newQuizzingRegistry(t)
 	offer, asked := takeQuiz(t, registry, clock, "scope-a")
 
-	// The whole point of the two calls: the banner is an invitation — its type carries no question
-	// and no choices — and the clock is the answer's, stamped when the question is read.
-	assert.Equal(t, "ee", offer.Subject)
+	// The whole point of the two calls. The banner is an invitation and says nothing about the
+	// question — not the text, not the choices, and not what it is about, because "Estonia" beside
+	// "Tallinn is the capital of which country?" is the answer. The clock is the answer's, stamped
+	// when the question is read.
+	assert.Equal(t, QuizOffer{Token: offer.Token, ExpiresAt: offer.ExpiresAt}, *offer,
+		"the banner carries a token and a deadline, and nothing else at all")
 	assert.Equal(t, "What is the capital of Estonia?", asked.Question)
 	assert.Len(t, asked.Options, 3)
 	assert.Equal(t, answerIn, asked.Window)

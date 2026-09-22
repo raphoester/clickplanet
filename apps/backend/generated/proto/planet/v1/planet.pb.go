@@ -1381,9 +1381,16 @@ func (x *ClaimBonusResponse) GetCharges() *ChargesHeld {
 
 // A question put in front of one player, and the token that opens it.
 //
-// It carries no question and no choices: a banner is only an invitation, and a
-// client that had the question in hand before the clock started would be a
-// client that could read it at leisure. The seconds start at OpenQuiz.
+// **It says nothing about the question.** No text, no choices, and no subject:
+// a banner is only an invitation, and anything on it is something a client can
+// read at leisure before the clock starts. The seconds begin at OpenQuiz.
+//
+// The subject was on here once, to fly a flag. It gave the answer away for 417
+// of the bank's 1014 questions — every "Tallinn is the capital of which
+// country?" and every "which of these has the most people?" is answered by the
+// flag beside it. A teaser that has to be checked against every question in the
+// bank is a teaser that will leak again the first time a template is added, so
+// there is none.
 type QuizOffered struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Unguessable, single use, and only good for the caller it was sent to.
@@ -1391,15 +1398,8 @@ type QuizOffered struct {
 	// After this the banner is gone, whatever the client is still drawing. This
 	// is the invitation lapsing, not the answer clock: opening it starts that.
 	ExpiresAtUnixMs int64 `protobuf:"varint,2,opt,name=expires_at_unix_ms,json=expiresAtUnixMs,proto3" json:"expires_at_unix_ms,omitempty"`
-	// The country the question is about, so the banner can fly its flag before
-	// anything is read. Empty for a question about nowhere in particular.
-	//
-	// Saying the subject up front is deliberate: it is what makes the banner
-	// worth looking at, and it gives away nothing — a player who knows the
-	// question is about Estonia still has to know the answer.
-	SubjectCountryId string `protobuf:"bytes,3,opt,name=subject_country_id,json=subjectCountryId,proto3" json:"subject_country_id,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *QuizOffered) Reset() {
@@ -1444,13 +1444,6 @@ func (x *QuizOffered) GetExpiresAtUnixMs() int64 {
 		return x.ExpiresAtUnixMs
 	}
 	return 0
-}
-
-func (x *QuizOffered) GetSubjectCountryId() string {
-	if x != nil {
-		return x.SubjectCountryId
-	}
-	return ""
 }
 
 type OpenQuizRequest struct {
@@ -2383,11 +2376,10 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"\x12ClaimBonusResponse\x12(\n" +
 	"\x04kind\x18\x02 \x01(\x0e2\x14.planet.v1.BonusKindR\x04kind\x12\x16\n" +
 	"\x06amount\x18\b \x01(\rR\x06amount\x120\n" +
-	"\acharges\x18\a \x01(\v2\x16.planet.v1.ChargesHeldR\acharges\"~\n" +
+	"\acharges\x18\a \x01(\v2\x16.planet.v1.ChargesHeldR\acharges\"V\n" +
 	"\vQuizOffered\x12\x14\n" +
 	"\x05token\x18\x01 \x01(\tR\x05token\x12+\n" +
-	"\x12expires_at_unix_ms\x18\x02 \x01(\x03R\x0fexpiresAtUnixMs\x12,\n" +
-	"\x12subject_country_id\x18\x03 \x01(\tR\x10subjectCountryId\"'\n" +
+	"\x12expires_at_unix_ms\x18\x02 \x01(\x03R\x0fexpiresAtUnixMsJ\x04\b\x03\x10\x04\"'\n" +
 	"\x0fOpenQuizRequest\x12\x14\n" +
 	"\x05token\x18\x01 \x01(\tR\x05token\"\x99\x01\n" +
 	"\x10OpenQuizResponse\x12\x1a\n" +

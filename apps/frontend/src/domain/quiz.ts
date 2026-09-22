@@ -12,8 +12,14 @@ import {BonusReward} from "./bonus.ts"
 /**
  * The banner: a quiz the server has put in front of **this** client, and nobody else.
  *
- * It carries no question. A banner is only an invitation, and the five seconds start when the
- * question is read — which is what stops a player reading it at leisure before pressing anything.
+ * **It says nothing about the question** — not the text, not the choices, and not even what it is
+ * about. A banner is only an invitation, and anything written on one is something a player can
+ * read while the clock is not running. The five seconds start when the question is read.
+ *
+ * It used to name the subject country so the banner could fly a flag. That flag *was* the answer
+ * to 417 of the bank's 1014 questions: every "Tallinn is the capital of which country?" and every
+ * "which of these has the most people?". A teaser that has to be checked against every question in
+ * the bank leaks again the first time a template is added, so there is none.
  */
 export type QuizOffer = {
     /** Single use, and worth nothing to any other caller. */
@@ -28,15 +34,6 @@ export type QuizOffer = {
      * think every banner had already lapsed.
      */
     expiresAt: number
-
-    /**
-     * The country it is about, so the banner can fly a flag before anything is read. Undefined for
-     * a question about nowhere in particular.
-     *
-     * Saying the subject up front gives nothing away: knowing a question is about Estonia is not
-     * knowing the capital of Estonia.
-     */
-    subject?: string
 }
 
 /** The question, once it is opened. The clock is running from here. */

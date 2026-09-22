@@ -52,8 +52,8 @@ class FakeMaster implements QuizMaster {
     }
 
     /** A banner from the server. */
-    offer(subject = "ee", token = "t1") {
-        const offer: QuizOffer = {token, expiresAt: performance.now() + BANNER_MS, subject}
+    offer(token = "t1") {
+        const offer: QuizOffer = {token, expiresAt: performance.now() + BANNER_MS}
         this.listeners.forEach((listener) => listener(offer))
     }
 
@@ -95,13 +95,19 @@ describe("Quiz", () => {
         expect(screen.queryByRole("button")).toBeNull()
     })
 
-    it("says what the question is about, and not what it is", () => {
-        // The banner is worth looking at because it names a country, and it gives nothing away:
-        // knowing a question is about Estonia is not knowing the capital of Estonia.
+    it("gives nothing away about the question it is offering", () => {
+        // Not the text, not the choices, and not what it is about. The banner named the subject
+        // country and flew its flag once, and that flag was the answer to 417 of the bank's 1014
+        // questions — "Estonia" answers "Tallinn is the capital of which country?" on its own, and
+        // the flag beside "which of these has the most people?" is the whole question. Picking
+        // safer templates is not the fix: a teaser checked against the bank leaks again the first
+        // time a template is added.
         render(<Harness master={master}/>)
-        act(() => master.offer("ee"))
+        act(() => master.offer())
 
-        expect(screen.getByRole("button", {name: "Answer a question about Estonia"})).toBeTruthy()
+        const banner = screen.getByRole("button")
+        expect(banner.textContent).not.toMatch(/Estonia|Tallinn|Riga|Vilnius/)
+        expect(banner.querySelector(".country-flag")).toBeNull()
         expect(screen.queryByText(QUESTION.text)).toBeNull()
     })
 
@@ -259,11 +265,11 @@ describe("Quiz", () => {
         // The server will not offer a second, but a stale one arriving would take the clock away
         // from under somebody mid-answer.
         render(<Harness master={master}/>)
-        act(() => master.offer("ee", "t1"))
+        act(() => master.offer("t1"))
         fireEvent.click(screen.getByRole("button"))
         await settle()
 
-        act(() => master.offer("bg", "t2"))
+        act(() => master.offer("t2"))
 
         expect(screen.getByText(QUESTION.text)).toBeTruthy()
         expect(screen.queryByRole("button", {name: /Answer a question/})).toBeNull()

@@ -1055,6 +1055,15 @@ below exists to make that five seconds real:
   text and the choices and nothing else. The bank itself is embedded in this
   binary and **deliberately never served to the browser** — see
   [`/quiz/README.md`](../../quiz/README.md).
+- **The banner says nothing about the question.** Not the text, not the choices,
+  and not the subject either. It carried the subject country once, so the client
+  could fly a flag on it — and that flag was the answer to **417 of the bank's
+  1014 questions**: every `capitalOf` ("Tallinn is the capital of which
+  country?", 191/191) and every `mostPeople` ("which of these has the most
+  people?", 205/205). The fix is not safer templates. A teaser that has to be
+  checked against every question in the bank leaks again the first time a
+  template is added, so the banner carries a token and a deadline and nothing
+  else. `QuizOffered` field 3 is `reserved` for it.
 - **An answer cannot be sent without the question having been read.** A token
   answered before it was opened fails: that is a client guessing at three choices
   it was never sent.
@@ -1069,7 +1078,9 @@ worth keeping past the answer. Running out of time is sent by the client as a
 choice past the end of the three: the server reads it as wrong, which it is, and
 answers with the right one.
 
-**The draw leans on the leaderboard.** A question's subject country is picked
+**The draw leans on the leaderboard.** The subject is the bank's, never the
+client's — it steers the draw here and rides the broadcast after a win, and it is
+on nothing a player sees before answering. A question's subject country is picked
 with weight `1 + bonus.quiz.leaderBias × (its share ÷ an even share)`, read off
 the *same* `Share` the toll prices a click from — so there is no second
 leaderboard to keep in step, and the board it reads is the live one rather than a
@@ -1079,10 +1090,11 @@ four questions deep by the end of the week. **`leaderBias` 0 is a flat draw, and
 0 is what leaving the key out means.**
 
 **`quiz_offered` is one more case on `PlanetEvent`**, addressed to one caller like
-`bonus_offered`, and carrying only the token, the expiry and the subject country.
-A win is announced with the existing `bonus_taken`, which grew a
-`quiz_subject_country_id` rather than getting an event of its own: it is the same
-news — somebody won a charge — reached a second way.
+`bonus_offered`, and carrying only the token and the expiry. A win is announced
+with the existing `bonus_taken`, which grew a `quiz_subject_country_id` rather
+than getting an event of its own: it is the same news — somebody won a charge —
+reached a second way. **The subject is on the broadcast and not on the offer**,
+which is the whole distinction: after a win there is nothing left to give away.
 
 **Both quiz procedures are session-gated**, beside `ClaimBonus` on
 `NewSessionInterceptor`'s list. `AnswerQuiz` because it grants the same charge a
