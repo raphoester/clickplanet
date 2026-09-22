@@ -1002,6 +1002,33 @@ with distance measured **along the surface**, so it bends with the globe and is
 cropped by its own coastline. `BorderField` keeps the running count per landmass
 and writes one row per landmass into a `DataTexture` the vertex shader reads.
 
+**The painted flag is read under the pixel, not per tile.** It still reaches the
+screen through the discs — that is what the widening is for — but what each
+fragment shows is the flag at the point of ground beneath it, so overlapping
+discs agree and the landmass comes out as one image at the resolution of the
+screen. The vertex shader hands the fragment shader the frame rather than a
+colour: where the tile's own centre falls in the flag, and how far that slides
+under one screen pixel across and up. A pixel is a step on the *screen*, so the
+ground step behind it is the one whose projection is a pixel — the tangent part
+of the camera's axis over how much of itself the projection keeps, floored near
+the limb where that divisor runs to zero. Those same two vectors are the
+footprint the atlas is sampled over (`textureGrad`), which is the only reason a
+mip level can be chosen at all: the frame is flat across a sprite, so without
+them the driver takes the top one and point-samples a 100px flag into a few
+dozen pixels.
+
+One sample per disc was the whole flag's resolution before, and a landmass is
+often only a few tiles across at the zoom where its flag is painted — six or
+seven samples of Macedonia's sun or Serbia's arms, with neighbouring discs each
+landing on a different one. Bands survived it; anything carrying a device came
+out as pixel soup on exactly the countries that are too small to zoom past.
+
+The lookup is skipped outright while `flagPaint` is 0, which pays for it: zoomed
+in it was four vertex texture fetches and a frame per tile for a colour the
+fragment shader mixed straight back out, and the fragment shader now skips the
+tile's own atlas fetch at the other end, where the painted flag has the frame to
+itself.
+
 **Opacity is the leader's share, and the curve it goes through is not a free
 knob.** Zoomed in, that share is already on screen as the fraction of discs
 wearing the holder's flag, so the tiles show `share * 0.7` of ink no matter what;
