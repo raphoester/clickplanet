@@ -15,6 +15,7 @@ npm run atlas      # Repack the flag sprite atlas from static/countries/png100px
 npm run map        # Copy the shared /map coordinates blob into static/ (see "Static assets")
 npm run map:generate # Rewrite both shared map blobs from the ground oracle (see ../../map/README.md)
 npm run map:audit  # Check the tile set, Natural Earth and the globe texture against each other
+npm run quiz:generate # Rewrite the shared quiz bank (see ../../quiz/README.md). The backend embeds it; this app never does
 npm run borderLines # Trace the countries' outlines onto the tile lattice (see "The countries' outlines")
 npm run earth      # Cut the globe's texture from the tile field (see "The globe's texture")
 npm run flagFit    # Work out which flags stretch, and where each one is cropped
@@ -39,7 +40,8 @@ inventory as if a box holding one had just been caught, `giveBonus("refill")` do
 the same for any other bonus (the fake holds charges as the server does: a refill
 and a bomb at most, a pool of 8 spread clicks and a stack of 3 enclosures, a box
 adding 1 to 4 and 1 to 3 of them, spread and enclose spent only while switched on,
-both at once refused, a refill refused on a full bank), and `fakeBackend.botBomb(tile, "fr")` and `fakeBackend.botSpread(tile, "fr")`
+both at once refused, a refill refused on a full bank), `giveQuiz()` puts a quiz
+banner up at once, and `fakeBackend.botBomb(tile, "fr")` and `fakeBackend.botSpread(tile, "fr")`
 play somebody else's bomb or spread click.
 
 A local backend is the quickest way to exercise the real chat: `cmd/api`'s
@@ -1412,6 +1414,79 @@ here rather than invented again. The fold is kept in local storage
 (`clickplanet-inventory-folded`, read and written in a `try`, since a private
 window can throw). The panel glows while something is on or aimed, so a folded
 inventory still says the next click does more than paint.
+
+## Quizzes
+
+A banner at the top of the screen: press it and you get a question with three
+choices and **five seconds**. A right answer is worth a charge, the same as a
+caught box; a wrong one, and running out of time, cost nothing.
+
+`src/app/quiz/` is the whole of it — `useQuiz.ts` drives, `Quiz.tsx` draws,
+`Quiz.css` styles — plus `domain/quiz.ts` for the shapes and the two pieces of
+arithmetic a countdown needs. The backend half is `QuizMaster` in
+`backends/backend.ts`.
+
+**It never touches `globe.ts`.** A quiz is DOM at the top of the screen, not an
+object in the scene, so `useQuiz` subscribes to the feed itself rather than
+being handed offers down through the globe the way a flying box is. What a right
+answer wins reaches the inventory the way every other charge does: the backend
+holds the charges and tells whoever is listening.
+
+**The client never knows an answer before it gives one.** The bank lives on the
+server and is deliberately not shipped to the browser (see
+[`/quiz/README.md`](../../quiz/README.md)). `listenForQuizzes` brings a banner
+with a token and a subject country and *no question*; `openQuiz` brings the
+question and its three choices and **starts the server's clock**; `answerQuiz` is
+the first thing that says which of the three was right.
+
+**One state machine, `QuizState`:**
+
+```
+idle → offered → opening → asking → answered → idle
+```
+
+Each phase is a different thing on screen *and* a different thing to a player:
+`offered` is an invitation that costs nothing to ignore, `asking` is five seconds
+already running. Anything that goes wrong — a token the server will not honour, a
+stream that dropped — falls back to `idle`, because a quiz nobody can answer
+should leave nothing behind. **The token rides through the state** rather than
+sitting beside it, so there is no way to answer one quiz with another's token
+while a banner and a question are changing places.
+
+**A banner arrives only into an empty screen.** The server will not offer a
+second, but a stale one arriving mid-question would take the clock away from
+under somebody already reaching for a choice.
+
+**The banner says what the question is about and nothing else** — a flag and a
+country name. That is what makes it worth looking at, and it gives nothing away:
+knowing a question is about Estonia is not knowing the capital of Estonia. It
+draws no countdown of its own, because it is free to ignore, and it goes away by
+itself.
+
+**The countdown bar starts at what is actually left, not at full.** The five
+seconds are the server's and they began when it answered, so a slow round trip
+has already spent some of them; a bar that started full would promise time the
+player does not have. From there it is **one CSS transition on `transform`** to
+empty — on the compositor, so five seconds of continuous animation costs nothing
+beside a WebGL globe drawing at the same time, where a `width` transition would
+relayout every frame. Under `prefers-reduced-motion` the countdown **stays**: it
+is information, not decoration.
+
+**Running out of time is sent as a choice past the end of the three.** The server
+reads it as wrong, which it is, and answers with the right one — so a question
+nobody managed to answer still says what it was. There is no other way to learn
+it.
+
+**The result says which one was right whether or not that was the one pressed.**
+A wrong answer costs nothing, so the only thing left to give back is the answer.
+
+**The quiz and `BombNews` both want the band at the top**, and the bomb line is
+the one that gives it up (`lowered`): four seconds of news nobody presses moves,
+five seconds somebody is answering does not.
+
+`giveQuiz()` in the console puts one up at once against the fake backend, beside
+`giveBomb()` and `giveBonus()`. The fake's bank is three questions — it is there
+to develop the banner and the card against, not to be played.
 
 ## Bombs
 

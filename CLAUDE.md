@@ -34,6 +34,27 @@ cd apps/frontend && npm run proto   # regenerates apps/frontend/src/gen/grpc
 
 Both apps' `buf.gen.yaml` reference `../../proto` (or `../../../proto` for the backend, whose config lives one level deeper at `apps/backend/proto/`) — do not create per-app copies of the `.proto` files again.
 
+## Shared quiz bank
+
+`quiz/` is the **third and last thing the root holds**, and the one that is shared with only *one*
+app. `bank-<hash>.json` is every question the quizzes can ask and the answer to each; `make quiz`
+copies it into `apps/backend/generated/quiz/`, where it is embedded.
+
+**The frontend deliberately has no copy**, because the answers are in it: a bank served to the page
+is a bank anyone can fetch with the network tab open. The question and its three choices reach the
+client one at a time from `OpenQuiz`, and which of the three is right never leaves the server.
+
+```bash
+cd apps/frontend && npm run quiz:generate   # rewrite /quiz/bank-<hash>.json
+cd apps/backend && make quiz                # → apps/backend/generated/quiz (embedded)
+```
+
+About 970 of the questions are **derived** from the same pinned Natural Earth snapshot `map/` is cut
+from and from the tile borders themselves, so they are regenerated rather than corrected; the rest
+are hand-written in `apps/frontend/scripts/quiz/extra.json` for what no dataset here can answer. See
+[`quiz/README.md`](quiz/README.md), which also has the rule that keeps the hand-written half from
+rotting.
+
 ## Shared map geometry
 
 `map/` is the **second thing both apps share**, and the only other one: the tile coordinates blob,
@@ -80,4 +101,4 @@ The stack includes a **postgres**: the backend keeps the whole tile map in proce
 
 ## Independence of the two apps
 
-Each app under `apps/` keeps its own dependency manifest (`package.json` / `go.mod`) and is built from its own directory as the Docker build context — nothing at the repo root is required to build or run either app in isolation. That is why `proto/` and `map/` both generate a committed copy into each app instead of being read from the root at build time. Don't introduce root-level build tooling (Nx/Turborepo/etc.) unless the apps actually start sharing more than the proto contract and the map geometry.
+Each app under `apps/` keeps its own dependency manifest (`package.json` / `go.mod`) and is built from its own directory as the Docker build context — nothing at the repo root is required to build or run either app in isolation. That is why `proto/`, `map/` and `quiz/` all generate a committed copy into the app that needs them instead of being read from the root at build time. Don't introduce root-level build tooling (Nx/Turborepo/etc.) unless the apps actually start sharing more than the proto contract, the map geometry and the quiz bank.

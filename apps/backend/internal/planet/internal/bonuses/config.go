@@ -5,6 +5,8 @@ import (
 	"math"
 	"slices"
 	"time"
+
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/quizzes"
 )
 
 // Config is per caller: a global ticker made the rate 1/(interval × players).
@@ -26,6 +28,10 @@ type Config struct {
 	Spread  SpreadConfig
 	Bomb    BombConfig
 	Enclose EncloseConfig
+
+	// The quizzes: a second way to earn one of the charges above, on a schedule of its own. Off
+	// unless switched on. See the quizzes package.
+	Quiz quizzes.Config
 
 	ActiveWithin time.Duration
 
@@ -180,7 +186,7 @@ func (c Config) Validate() error {
 		return fmt.Errorf("bonus.kinds gives every kind a weight of 0, so no box could be anything")
 	}
 
-	return nil
+	return c.Quiz.Validate()
 }
 
 // ChargesConfig is the part of the config the charges read, defaults filled in.

@@ -33,6 +33,9 @@ go run ./cmd/api -config cmd/api/example.yaml
 # Generate protobuf code (requires buf CLI)
 make proto
 
+# Refresh the embedded quiz bank from the shared /quiz, then commit it
+make quiz
+
 # Refresh the embedded tile coordinates blob from the shared /map, then commit it
 make map
 
@@ -1011,6 +1014,83 @@ whole reason the envelope exists.
 
 The catch is published **after** the charge is held, so a catch announced to the
 planet that then failed to apply is the one lie this cannot tell.
+
+#### Quizzes (`internal/planet/internal/quizzes/`, scheduled in `bonuses/quiz.go`)
+
+A banner appears over the planet: press it and you get a question with three
+choices and **five seconds** to answer. A right answer is worth the same charge a
+caught box is. A wrong one, and running out of time, cost nothing.
+
+**It is a second way to earn a charge, not a box of another shape.** Its own
+clock (`bonus.quiz.minInterval` / `maxInterval`), its own banner lifetime, and
+its own `bonus.quiz.maxChargesPerHour` on top of the boxes'. A caller can be
+holding an unopened banner and a flying box at the same time. What it *does*
+share with a box is the reward: the kind is drawn at offer time from
+`bonus.kinds`, filtered by `offerable` exactly as a box's is, so nobody is ever
+asked a question for a bomb they already hold, and a caller with nothing to gain
+is asked nothing.
+
+**The schedule lives in `bonuses`, the content in `quizzes`.** A caller is one
+thing — the streams it has open, when it last clicked, which accounts play
+behind it — and that bookkeeping should not exist twice, so `bonuses/quiz.go`
+hangs a second clock off the same `caller` and rides the same sweep. What is
+genuinely separate is the bank, which is big, embedded, and knows nothing about
+schedules or charges.
+
+**Five seconds is the feature.** The whole point is to be answered from what
+somebody knows rather than from what they can look up, and `bonus.quiz.
+answerWindow` is the one setting here that changes what this *is*. Everything
+below exists to make that five seconds real:
+
+- **Two calls, not one.** `OpenQuiz` reads the question and is what **stamps the
+  deadline**; `AnswerQuiz` compares against it. A banner can therefore sit
+  unopened for its whole `offerTTL` without burning a second, and the seconds a
+  player gets are their own.
+- **The deadline is the server's stamp**, checked when the answer lands. A
+  client that holds its own countdown open cannot spend longer than it was given.
+- **Opening twice is the same question and the same deadline.** A reload is not a
+  second five seconds, and it is not a way to see a second question either.
+- **The right answer never leaves the server until it is spent.** The registry
+  holds the whole `quizzes.Round` and compares an index; `OpenQuiz` sends the
+  text and the choices and nothing else. The bank itself is embedded in this
+  binary and **deliberately never served to the browser** — see
+  [`/quiz/README.md`](../../quiz/README.md).
+- **An answer cannot be sent without the question having been read.** A token
+  answered before it was opened fails: that is a client guessing at three choices
+  it was never sent.
+- **Each bank entry carries five wrong answers and a round shows two**, drawn at
+  the open. The same question is not the same three choices twice, so "press the
+  second one for Estonia" is worth nothing.
+
+**A wrong answer is not a failed call.** It resolves, grants nothing, and says
+**which choice was right** — that is the only thing the feature gives back when
+it gives nothing else, and the bank is generated public data, so there is nothing
+worth keeping past the answer. Running out of time is sent by the client as a
+choice past the end of the three: the server reads it as wrong, which it is, and
+answers with the right one.
+
+**The draw leans on the leaderboard.** A question's subject country is picked
+with weight `1 + bonus.quiz.leaderBias × (its share ÷ an even share)`, read off
+the *same* `Share` the toll prices a click from — so there is no second
+leaderboard to keep in step, and the board it reads is the live one rather than a
+snapshot taken at boot. The floor of 1 keeps every country in the draw and the
+lean is capped, because a quiz that only ever asked about the top three would be
+four questions deep by the end of the week. **`leaderBias` 0 is a flat draw, and
+0 is what leaving the key out means.**
+
+**`quiz_offered` is one more case on `PlanetEvent`**, addressed to one caller like
+`bonus_offered`, and carrying only the token, the expiry and the subject country.
+A win is announced with the existing `bonus_taken`, which grew a
+`quiz_subject_country_id` rather than getting an event of its own: it is the same
+news — somebody won a charge — reached a second way.
+
+**Both quiz procedures are session-gated**, beside `ClaimBonus` on
+`NewSessionInterceptor`'s list. `AnswerQuiz` because it grants the same charge a
+box does, and `OpenQuiz` not only for symmetry: opening is what starts the five
+seconds, and the caller they are started for has to be the caller that answers.
+
+**Off unless switched on.** With `bonus.quiz.enabled` false no bank is loaded,
+`Quizzing` is never called, and the boxes fly exactly as they did.
 
 #### Charges (refill, bomb, enclose, spread)
 

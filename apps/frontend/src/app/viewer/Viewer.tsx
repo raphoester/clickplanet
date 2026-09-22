@@ -5,11 +5,14 @@ import {
     BonusListener,
     BonusLostError,
     OwnershipsGetter,
+    QuizMaster,
     Refiller,
     TileClicker,
     UpdatesListener,
 } from "../../backends/backend.ts";
 import BombNews from "../components/BombNews.tsx";
+import Quiz from "../quiz/Quiz.tsx";
+import {useQuiz} from "../quiz/useQuiz.ts";
 import {ChatBackend} from "../../backends/chat.ts";
 import ChatPanel from "../chat/ChatPanel.tsx";
 import Menu from "../Menu.tsx";
@@ -44,6 +47,8 @@ export type ViewerProps = {
     updatesListener: UpdatesListener
     clickBudgetSource?: ClickBudgetSource
     bonusListener?: BonusListener
+    /** Absent for a backend that asks no questions, which shows no banner at all. */
+    quizMaster?: QuizMaster
     bomber?: Bomber
     /** Absent for a backend with no refills: the refill is then only said. */
     refiller?: Refiller
@@ -65,6 +70,10 @@ export default function Viewer(props: ViewerProps) {
     const username = account.kind === 'ready' ? account.username : undefined
 
     usePresence(props.presence, {countryCode: countryState.code, username})
+
+    // The quiz is React's own: a banner at the top of the screen, never an object in the scene.
+    // It follows the flag the player is on now, so a win counts for what they are playing.
+    const quiz = useQuiz(props.quizMaster, countryState.code)
     const roster = useRoster(props.presence)
     const [pitchOpen, setPitchOpen] = useState(false)
     // One card at a time, over the roster or the chat, whichever the name was clicked in.
@@ -188,7 +197,15 @@ export default function Viewer(props: ViewerProps) {
 
         {award && <BonusAward reward={award} onDone={dismissAward}/>}
 
-        {lastBomb && <BombNews key={lastBomb.id} drop={lastBomb.drop} land={lastBomb.land} onDone={dismissBomb}/>}
+        {lastBomb && <BombNews
+            key={lastBomb.id}
+            drop={lastBomb.drop}
+            land={lastBomb.land}
+            lowered={quiz.state.phase !== 'idle'}
+            onDone={dismissBomb}
+        />}
+
+        <Quiz state={quiz.state} onOpen={quiz.open} onAnswer={quiz.answer}/>
 
         {vpnBlocked && <VPNBlockedModal onClose={dismissVPNBlocked}/>}
 

@@ -34,6 +34,8 @@ func (s Sink) Send(event listen_for_events_usecase.Event) error {
 		return s.stream.Send(heartbeatEvent())
 	case event.Offer != nil:
 		return s.stream.Send(bonusOfferedEvent(event.Offer))
+	case event.Quiz != nil:
+		return s.stream.Send(quizOfferedEvent(event.Quiz))
 	case event.Taken != nil:
 		return s.stream.Send(bonusTakenEvent(event.Taken))
 	case event.Blast != nil:
@@ -60,12 +62,27 @@ func bonusOfferedEvent(offer *bonuses.Offer) *planetv1.PlanetEvent {
 	}
 }
 
+// The banner, and nothing else: the question and its choices are read with OpenQuiz, which is what
+// starts the clock. A stream that carried them would be a stream a client could read at leisure.
+func quizOfferedEvent(offer *bonuses.QuizOffer) *planetv1.PlanetEvent {
+	return &planetv1.PlanetEvent{
+		Event: &planetv1.PlanetEvent_QuizOffered{
+			QuizOffered: &planetv1.QuizOffered{
+				Token:            offer.Token,
+				ExpiresAtUnixMs:  offer.ExpiresAt.UnixMilli(),
+				SubjectCountryId: offer.Subject,
+			},
+		},
+	}
+}
+
 func bonusTakenEvent(taken *bonuses.Taken) *planetv1.PlanetEvent {
 	return &planetv1.PlanetEvent{
 		Event: &planetv1.PlanetEvent_BonusTaken{
 			BonusTaken: &planetv1.BonusTaken{
-				CountryId: taken.CountryID,
-				Kind:      claim_bonus_handler.EncodeKind(taken.Kind),
+				CountryId:            taken.CountryID,
+				Kind:                 claim_bonus_handler.EncodeKind(taken.Kind),
+				QuizSubjectCountryId: taken.QuizSubject,
 			},
 		},
 	}

@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ClaimBonusRequest, ClaimBonusResponse, ClickRequest, ClickResponse, DropBombRequest, DropBombResponse, GetBonusRulesRequest, GetBonusRulesResponse, GetBudgetRequest, GetBudgetResponse, GetChargesRequest, GetChargesResponse, GetMapRequest, GetMapResponse, ListenForEventsRequest, MapDensityRequest, MapDensityResponse, PlanetEvent, UseRefillRequest, UseRefillResponse } from "./planet_pb.js";
+import { AnswerQuizRequest, AnswerQuizResponse, ClaimBonusRequest, ClaimBonusResponse, ClickRequest, ClickResponse, DropBombRequest, DropBombResponse, GetBonusRulesRequest, GetBonusRulesResponse, GetBudgetRequest, GetBudgetResponse, GetChargesRequest, GetChargesResponse, GetMapRequest, GetMapResponse, ListenForEventsRequest, MapDensityRequest, MapDensityResponse, OpenQuizRequest, OpenQuizResponse, PlanetEvent, UseRefillRequest, UseRefillResponse } from "./planet_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -124,6 +124,44 @@ export const ClickService = {
       O: GetBonusRulesResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * Reads the question a QuizOffered named, and starts its clock.
+     *
+     * Deliberately two calls rather than one: the deadline is stamped here, not
+     * when the banner was offered, so the seconds a player gets are their own and
+     * a banner can sit unopened without burning them. Opening twice answers the
+     * same question and the same deadline — a reload is not a second chance, and
+     * is not a way to see a second question either.
+     *
+     * It never says which choice is right. The bank is the server's alone, and
+     * the answer is compared in AnswerQuiz.
+     *
+     * @generated from rpc planet.v1.ClickService.OpenQuiz
+     */
+    openQuiz: {
+      name: "OpenQuiz",
+      I: OpenQuizRequest,
+      O: OpenQuizResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Answers it. A right answer inside the deadline grants a charge the server
+     * draws, exactly as a caught box does. A wrong or late one grants nothing and
+     * costs nothing: the token is spent either way, and the answer comes back so
+     * the player learns it.
+     *
+     * Answers NotFound when the caller holds no such quiz — never offered,
+     * already answered, or somebody else's — which is the same answer ClaimBonus
+     * gives, and for the same reason.
+     *
+     * @generated from rpc planet.v1.ClickService.AnswerQuiz
+     */
+    answerQuiz: {
+      name: "AnswerQuiz",
+      I: AnswerQuizRequest,
+      O: AnswerQuizResponse,
+      kind: MethodKind.Unary,
     },
   }
 } as const;

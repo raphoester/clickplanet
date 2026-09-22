@@ -1,11 +1,12 @@
 import {describe, expect, it, vi} from "vitest"
-import {asBonusError, bindingsOf, bombOf, catchOf, enclosureOf, offerOf, PlanetBackend, spreadOf, updateOf} from "./planetBackend.ts"
+import {asBonusError, bindingsOf, bombOf, catchOf, enclosureOf, offerOf, PlanetBackend, quizOf, spreadOf, updateOf} from "./planetBackend.ts"
 import {Code, ConnectError} from "@connectrpc/connect"
 import {
     BombDropped,
     BonusKind,
     BonusOffered,
     BonusTaken,
+    QuizOffered,
     ChargesHeld,
     ClickBudget as ClickBudgetMessage,
     GetMapResponse,
@@ -716,13 +717,59 @@ describe("offerOf", () => {
     })
 })
 
+describe("quizOf", () => {
+    const asked = (fields: {token?: string, expiresAtUnixMs?: bigint, subjectCountryId?: string} = {}) =>
+        new PlanetEvent({
+            event: {
+                case: "quizOffered",
+                value: new QuizOffered({
+                    token: "a-token",
+                    expiresAtUnixMs: 1_000_000n,
+                    subjectCountryId: "ee",
+                    ...fields,
+                }),
+            },
+        })
+
+    it("reads the banner the server addressed to this client", () => {
+        expect(quizOf(asked())).toEqual({token: "a-token", expiresAt: expect.any(Number), subject: "ee"})
+    })
+
+    it("carries no question: reading one is what starts the clock", () => {
+        // If the question rode the stream, a client could read it at leisure and press the banner
+        // with the answer already in hand, which is the whole thing the five seconds are for.
+        expect(Object.keys(quizOf(asked())!)).toEqual(["token", "expiresAt", "subject"])
+    })
+
+    it("builds the deadline from how long is left, not from the server's clock", () => {
+        expect(quizOf(asked({expiresAtUnixMs: 1_025_000n}), 5_000, 1_000_000)?.expiresAt).toBe(5_000 + 25_000)
+    })
+
+    it("reads a question about nowhere in particular as having no subject", () => {
+        expect(quizOf(asked({subjectCountryId: ""}))?.subject).toBeUndefined()
+    })
+
+    it("drops everything that is not a banner", () => {
+        expect(quizOf(new PlanetEvent({event: {case: "heartbeat", value: new Heartbeat()}}))).toBeUndefined()
+        expect(quizOf(tileUpdateEvent({tileId: 1, countryId: "fr"}))).toBeUndefined()
+    })
+})
+
 describe("catchOf", () => {
     it("reads who caught one", () => {
         const event = new PlanetEvent({
             event: {case: "bonusTaken", value: new BonusTaken({countryId: "jp"})},
         })
 
-        expect(catchOf(event)).toEqual({countryId: "jp"})
+        expect(catchOf(event)).toEqual({countryId: "jp", quizSubject: undefined})
+    })
+
+    it("says when the charge was won by answering a question, and what about", () => {
+        const event = new PlanetEvent({
+            event: {case: "bonusTaken", value: new BonusTaken({countryId: "jp", quizSubjectCountryId: "ee"})},
+        })
+
+        expect(catchOf(event)).toEqual({countryId: "jp", quizSubject: "ee"})
     })
 
     it("drops everything that is not a catch", () => {

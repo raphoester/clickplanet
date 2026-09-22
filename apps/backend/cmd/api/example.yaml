@@ -222,8 +222,65 @@ bonus:
   # 12 is above the ten boxes an hour a person catching every one would get.
   maxChargesPerHour: 12
 
-  # One sweep for everybody, rather than a timer per caller.
+  # One sweep for everybody, rather than a timer per caller. The quizzes below
+  # ride the same sweep.
   sweepInterval: 1s
+
+  # A quiz: three choices, five seconds, and a charge for the right answer.
+  #
+  # A second way to earn one of the charges above, not a box of another shape.
+  # Its own clock and its own hourly budget, so switching it on adds offers
+  # rather than replacing them - a caller can hold an unopened quiz and a flying
+  # box at the same time. What it does share with a box is the reward: a quiz's
+  # kind is drawn from the same weights, and from only the kinds a box could be
+  # offered, so nobody is asked a question for a bomb they already hold.
+  #
+  # The questions are generated - see /quiz/README.md. They are embedded in this
+  # binary and deliberately never served to the browser, because the answers are
+  # in them.
+  quiz:
+    # Off boots a process with no bank loaded and never asks anything.
+    enabled: true
+
+    # A caller's next quiz is due this long after the last one could have been
+    # answered, drawn uniformly. A little rarer than the boxes, so the two
+    # together are about one offer every two minutes of active play rather than
+    # a thing that never stops interrupting.
+    minInterval: 6m
+    maxInterval: 11m
+
+    # How long the banner sits there unopened. Generous, because it is only an
+    # invitation: the clock that matters starts when the question is read, so a
+    # player can finish the click they were making and look up.
+    offerTTL: 25s
+
+    # How long the player has once the question and its three choices are on
+    # screen. Five seconds is long enough to read them and too short to search
+    # for the answer, which is the whole point of the feature - moving this is
+    # the one setting here that changes what it is.
+    #
+    # It is the server's own stamp, taken when the question is read and checked
+    # when the answer lands, so a client that holds its own countdown open
+    # cannot spend longer than it was given.
+    answerWindow: 5s
+
+    # How much harder the draw leans on the countries that are winning, read off
+    # the same shares the toll prices a click from. A country's weight is
+    # 1 + leaderBias x (its share / an even share): at 1, a country holding an
+    # even slice of the map is asked about about twice as often as one holding
+    # nothing, and one holding ten times its slice ten times more.
+    #
+    # It is a lean, not a rule - the floor of 1 keeps every country in the draw,
+    # because a quiz that only ever asked about the top three would be four
+    # questions deep by the end of the week, and the lean is capped so that even
+    # a planet one country has nearly swept still asks about somewhere else.
+    #
+    # 0 is a flat draw, and 0 is what leaving this out means.
+    leaderBias: 1
+
+    # The most charges one caller may win from quizzes per hour, on top of what
+    # the boxes give. A player who answers everything gets this many and no more.
+    maxChargesPerHour: 6
 
 # Accepts a bot's clicks and drops them, rather than refusing them and naming the
 # check it tripped. Four watchdogs read four different behaviours, the jury

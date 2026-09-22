@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"time"
 
 	"connectrpc.com/connect"
@@ -21,6 +22,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/inmemory_charge_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/postgres_charge_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/answer_quiz_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/answer_quiz_usecase/prom_answer_quiz"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/claim_bonus_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/claim_bonus_usecase/prom_claim_bonus"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/drop_bomb_usecase"
@@ -28,6 +31,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/drop_bomb_usecase/prom_drop_bomb"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/drop_bomb_usecase/publishing_drop_bomb"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/get_charges_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/open_quiz_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/use_refill_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/embedded_geodesic_map"
@@ -65,6 +69,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/top_players_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/answer_quiz_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/ban_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/claim_bonus_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/click_handler"
@@ -77,12 +82,14 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/inspect_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/map_density_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/open_quiz_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/paint_random_tiles_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/reassign_country_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/revert_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/rpc_session_verifier"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/top_players_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/use_refill_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/quizzes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
@@ -172,11 +179,31 @@ func NewModule(config Config) cpbootstrap.Module {
 			// and each one taken by an account is told to the other modules as planet.v1.TileTaken.
 			writer := ledger.NewRecording(tilesStorage, publishing_ledger_storage.New(takings, props.Events), clock)
 
-			// ---- Bonus boxes ----
+			// ---- Bonus boxes and quizzes ----
 
 			// It reads the charges held, so nobody is offered a second of a kind.
 			registry := bonuses.New(config.Bonus, clock, charges)
 			props.Runners.Add(registry)
+
+			// The quizzes are a second way to earn one of those charges, on a schedule of their own.
+			// Off unless switched on, and switched on is what hands the registry a bank to draw from:
+			// with no bank there is no offer, and the boxes fly exactly as they did.
+			//
+			// The bank reads the live map at every draw, which is how a question leans towards the
+			// countries that are winning — the same shares the toll prices a click from, so there is
+			// no second leaderboard to keep in step.
+			if config.Bonus.Quiz.Enabled {
+				bank, err := quizzes.Load(config.Bonus.Quiz, tilesStorage)
+				if err != nil {
+					return fmt.Errorf("failed to load the quiz bank: %w", err)
+				}
+
+				registry.Quizzing(config.Bonus.Quiz, bank)
+				props.Logger.Info("quizzes enabled",
+					slog.String("bank", bank.Name()),
+					slog.Int("questions", bank.Size()),
+					slog.Int("subjects", bank.Subjects()))
+			}
 
 			bombRules := bonuses.NewBombRules(config.Bonus.Bomb, geography.Spacing())
 
@@ -303,6 +330,13 @@ func NewModule(config Config) cpbootstrap.Module {
 				claim_bonus_usecase.New(registry, charges),
 				props.Metrics)
 
+			// A right answer pays out through the same charger a caught box does, and announces itself
+			// down the same broadcast: one way for a charge to be granted, reached two ways.
+			openQuiz := open_quiz_usecase.New(registry)
+			answerQuiz, quizCounters := prom_answer_quiz.New(
+				answer_quiz_usecase.New(registry, charges),
+				props.Metrics)
+
 			registry.Observe(bonuses.Report{
 				Offered: counters.Offered.Inc,
 				Lapsed: func(scope string) {
@@ -312,6 +346,15 @@ func NewModule(config Config) cpbootstrap.Module {
 				Caught: func(scope string, after time.Duration) {
 					counters.Caught.Observe(after.Seconds())
 					guard.Caught(scope, after)
+				},
+
+				// The quizzes' half. Not told to the catcher watchdog: it measures how fast a box
+				// flying past the planet was caught, and a quiz is read and thought about — a
+				// person who answers one quickly is a person who knew the answer.
+				QuizOffered: quizCounters.Offered.Inc,
+				QuizLapsed:  func(string) { quizCounters.Lapsed.Inc() },
+				QuizAnswered: func(_ string, correct bool, after time.Duration) {
+					quizCounters.Answered.WithLabelValues(strconv.FormatBool(correct)).Observe(after.Seconds())
 				},
 			})
 
@@ -352,6 +395,8 @@ func NewModule(config Config) cpbootstrap.Module {
 				UseRefillHandler:     use_refill_handler.New(use_refill_usecase.New(charges, limiter, pricer, buckets)),
 				GetChargesHandler:    get_charges_handler.New(get_charges_usecase.New(charges)),
 				GetBonusRulesHandler: get_bonus_rules_handler.New(rules),
+				OpenQuizHandler:      open_quiz_handler.New(openQuiz),
+				AnswerQuizHandler:    answer_quiz_handler.New(answerQuiz),
 			}
 
 			return props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {

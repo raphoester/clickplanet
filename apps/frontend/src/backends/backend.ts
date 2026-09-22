@@ -1,4 +1,5 @@
 import {BonusReward, BonusRules, Charges, Switches} from "../domain/bonus.ts"
+import {QuizOffer, QuizOutcome, QuizQuestion} from "../domain/quiz.ts"
 
 export interface TileClicker {
     /**
@@ -66,6 +67,12 @@ export type BonusOffer = {
 /** Somebody caught one. Carries no token: it is news, not an offer. */
 export type BonusCatch = {
     countryId: string
+
+    /**
+     * The country the question was about, when the charge was won by answering a quiz rather than
+     * by catching a box. Undefined for a box.
+     */
+    quizSubject?: string
 }
 
 /**
@@ -132,6 +139,37 @@ export interface BonusListener {
      * honour it — lapsed, already spent, or never this caller's.
      */
     claimBonus(token: string, countryId: string): Promise<ClaimedBonus>
+}
+
+/**
+ * The quizzes: a second way to earn one of the same charges, asked rather than caught.
+ *
+ * Separate from `BonusListener` because it is a separate thing with a separate schedule, and
+ * because a client that draws no boxes can still ask questions. The feed is the same connection:
+ * a banner is one more case in the one stream envelope.
+ *
+ * **Two calls to answer one question, and the split is the security model.** `openQuiz` is what
+ * starts the server's own five-second clock, so a banner can sit unopened without burning it; and
+ * which of the three choices is right is never sent until `answerQuiz` has already been called.
+ */
+export interface QuizMaster {
+    /** Follows the banners on the connection that is already open. Only this client's ever arrive. */
+    listenForQuizzes(onOffered: (offer: QuizOffer) => void): () => void
+
+    /**
+     * Reads the question and starts its clock. Rejects with `BonusLostError` when the server will
+     * not honour the token — lapsed, answered, or never this caller's.
+     *
+     * Opening twice is safe and is not a second chance: the same question comes back with the same
+     * deadline, so a reload shows less time rather than more.
+     */
+    openQuiz(token: string): Promise<QuizQuestion>
+
+    /**
+     * Answers it. A **wrong** answer is not a rejection: it resolves, saying so and saying which one
+     * was right. Only a token the server will not honour rejects, with `BonusLostError`.
+     */
+    answerQuiz(token: string, choice: number, countryId: string): Promise<QuizOutcome>
 }
 
 /** A direction from the centre of the globe. Need not be unit length. */

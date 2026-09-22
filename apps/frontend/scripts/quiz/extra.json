@@ -1,0 +1,348 @@
+{
+  "comment": [
+    "The questions no dataset in this repo can answer, written by hand.",
+    "",
+    "Everything else in the bank is derived and cannot rot. These can, so the rules are strict:",
+    "a question here must be about something that does not change (a fact of history, geography or",
+    "spelling), never about who holds an office, what a population is, or anything else a newspaper",
+    "could make wrong. `subject` is the country code the question is about, which is what the",
+    "leaderboard weighting draws on; leave it out for a question about nowhere in particular.",
+    "`wrong` carries five, of which a round shows two."
+  ],
+  "questions": [
+    {
+      "id": "extra:yugoslavia",
+      "subject": "rs",
+      "text": "Does Yugoslavia still exist?",
+      "answer": "No, it broke up in the 1990s",
+      "wrong": [
+        "Yes, it is in the Balkans",
+        "Yes, but it was renamed Slovenia",
+        "It never existed",
+        "Yes, it is a member of the EU",
+        "No, it became part of Russia"
+      ]
+    },
+    {
+      "id": "extra:himalaya",
+      "subject": "np",
+      "text": "Mount Everest sits on the border between Nepal and which country?",
+      "answer": "China",
+      "wrong": ["India", "Bhutan", "Pakistan", "Myanmar", "Bangladesh"]
+    },
+    {
+      "id": "extra:brasilia-spelling",
+      "subject": "br",
+      "text": "How is the capital of Brazil spelled?",
+      "answer": "Brasília",
+      "wrong": ["Brazilia", "Brasilía", "Brazília", "Brasilia City", "Brazilía"]
+    },
+    {
+      "id": "extra:us-flag-stars",
+      "subject": "us",
+      "text": "How many stars are on the flag of the USA?",
+      "answer": "50",
+      "wrong": ["48", "51", "52", "13", "49"]
+    },
+    {
+      "id": "extra:us-flag-stripes",
+      "subject": "us",
+      "text": "How many stripes are on the flag of the USA?",
+      "answer": "13",
+      "wrong": ["50", "12", "15", "7", "14"]
+    },
+    {
+      "id": "extra:gambia-shape",
+      "subject": "gm",
+      "text": "Gambia is surrounded by Senegal except along one edge. What is on that edge?",
+      "answer": "The Atlantic Ocean",
+      "wrong": ["Mali", "The Sahara", "Guinea", "The Mediterranean", "The Niger river"]
+    },
+    {
+      "id": "extra:bulgaria-sea",
+      "subject": "bg",
+      "text": "Which sea does Bulgaria have a coast on?",
+      "answer": "The Black Sea",
+      "wrong": [
+        "The Mediterranean",
+        "The Adriatic",
+        "The Caspian Sea",
+        "The Baltic Sea",
+        "The Aegean"
+      ]
+    },
+    {
+      "id": "extra:chile-shape",
+      "subject": "cl",
+      "text": "Chile is famously which shape?",
+      "answer": "Long and very narrow",
+      "wrong": ["Almost a circle", "Split into two halves", "A square", "An island", "A ring"]
+    },
+    {
+      "id": "extra:russia-timezones",
+      "subject": "ru",
+      "text": "Which country spans the most time zones?",
+      "answer": "Russia",
+      "wrong": ["China", "Canada", "Brazil", "Australia", "Kazakhstan"]
+    },
+    {
+      "id": "extra:china-one-timezone",
+      "subject": "cn",
+      "text": "How many time zones does China officially use?",
+      "answer": "One",
+      "wrong": ["Five", "Three", "Eight", "Two", "Eleven"]
+    },
+    {
+      "id": "extra:vatican-size",
+      "subject": "va",
+      "text": "Which is the smallest country in the world?",
+      "answer": "Vatican City",
+      "wrong": ["Monaco", "San Marino", "Liechtenstein", "Malta", "Nauru"]
+    },
+    {
+      "id": "extra:australia-size",
+      "subject": "au",
+      "text": "Australia is both a country and what else?",
+      "answer": "A continent",
+      "wrong": ["An ocean", "A time zone", "An archipelago only", "A peninsula", "A territory of the UK"]
+    },
+    {
+      "id": "extra:turkey-continents",
+      "subject": "tr",
+      "text": "Turkey lies on two continents. Which two?",
+      "answer": "Europe and Asia",
+      "wrong": [
+        "Europe and Africa",
+        "Asia and Africa",
+        "Europe and the Middle East",
+        "Asia and Oceania",
+        "Africa and Arabia"
+      ]
+    },
+    {
+      "id": "extra:egypt-continents",
+      "subject": "eg",
+      "text": "Egypt is mostly in Africa, but part of it is in which continent?",
+      "answer": "Asia",
+      "wrong": ["Europe", "South America", "Oceania", "Antarctica", "North America"]
+    },
+    {
+      "id": "extra:antarctica-population",
+      "subject": "aq",
+      "text": "Who lives in Antarctica permanently?",
+      "answer": "Nobody",
+      "wrong": [
+        "About a million people",
+        "The Inuit",
+        "About 50,000 people",
+        "Only Argentinians",
+        "About 5 million people"
+      ]
+    },
+    {
+      "id": "extra:canada-coastline",
+      "subject": "ca",
+      "text": "Which country has the longest coastline in the world?",
+      "answer": "Canada",
+      "wrong": ["Russia", "Australia", "Indonesia", "Norway", "Chile"]
+    },
+    {
+      "id": "extra:japan-islands",
+      "subject": "jp",
+      "text": "Japan is made of how many main islands?",
+      "answer": "Four",
+      "wrong": ["One", "Two", "Twelve", "Seven", "Twenty"]
+    },
+    {
+      "id": "extra:netherlands-sea-level",
+      "subject": "nl",
+      "text": "Much of the Netherlands sits where, relative to sea level?",
+      "answer": "Below it",
+      "wrong": [
+        "A kilometre above it",
+        "Exactly on it everywhere",
+        "On a plateau 500m up",
+        "In a mountain range",
+        "Above the tree line"
+      ]
+    },
+    {
+      "id": "extra:switzerland-landlocked",
+      "subject": "ch",
+      "text": "Which of these countries has no coast at all?",
+      "answer": "Switzerland",
+      "wrong": ["Portugal", "Croatia", "Denmark", "Albania", "Ireland"]
+    },
+    {
+      "id": "extra:bolivia-capital",
+      "subject": "bo",
+      "text": "Bolivia has two capitals. Which one has the government?",
+      "answer": "La Paz",
+      "wrong": ["Sucre", "Santa Cruz", "Cochabamba", "Potosí", "Oruro"]
+    },
+    {
+      "id": "extra:south-africa-capitals",
+      "subject": "za",
+      "text": "How many capital cities does South Africa have?",
+      "answer": "Three",
+      "wrong": ["One", "Two", "Four", "None", "Nine"]
+    },
+    {
+      "id": "extra:nile",
+      "subject": "eg",
+      "text": "Which river runs through Egypt?",
+      "answer": "The Nile",
+      "wrong": ["The Congo", "The Niger", "The Euphrates", "The Zambezi", "The Danube"]
+    },
+    {
+      "id": "extra:amazon",
+      "subject": "br",
+      "text": "Most of the Amazon rainforest is in which country?",
+      "answer": "Brazil",
+      "wrong": ["Peru", "Colombia", "Venezuela", "Bolivia", "Ecuador"]
+    },
+    {
+      "id": "extra:sahara",
+      "subject": "dz",
+      "text": "The Sahara is what kind of place?",
+      "answer": "A desert",
+      "wrong": ["A rainforest", "A mountain range", "An inland sea", "A river delta", "An ice sheet"]
+    },
+    {
+      "id": "extra:greenland-owner",
+      "subject": "gl",
+      "text": "Greenland is an autonomous territory of which country?",
+      "answer": "Denmark",
+      "wrong": ["Norway", "Canada", "Iceland", "Sweden", "The USA"]
+    },
+    {
+      "id": "extra:iceland-green",
+      "subject": "is",
+      "text": "Which is greener, Iceland or Greenland?",
+      "answer": "Iceland",
+      "wrong": [
+        "Greenland",
+        "Neither has any plants",
+        "They are exactly the same",
+        "Greenland, because of its rainforest",
+        "Neither, both are deserts"
+      ]
+    },
+    {
+      "id": "extra:korea-border",
+      "subject": "kp",
+      "text": "What separates North and South Korea?",
+      "answer": "A demilitarised zone",
+      "wrong": ["A wide river", "A mountain range", "A sea", "A canal", "Nothing at all"]
+    },
+    {
+      "id": "extra:new-zealand-neighbour",
+      "subject": "nz",
+      "text": "Which country is New Zealand's nearest large neighbour?",
+      "answer": "Australia",
+      "wrong": ["Indonesia", "Chile", "Japan", "South Africa", "Argentina"]
+    },
+    {
+      "id": "extra:portugal-neighbour",
+      "subject": "pt",
+      "text": "Portugal shares a land border with exactly one country. Which?",
+      "answer": "Spain",
+      "wrong": ["France", "Morocco", "Andorra", "Italy", "Gibraltar"]
+    },
+    {
+      "id": "extra:mongolia-neighbours",
+      "subject": "mn",
+      "text": "Mongolia is squeezed between which two countries?",
+      "answer": "Russia and China",
+      "wrong": [
+        "China and India",
+        "Russia and Kazakhstan",
+        "China and Kazakhstan",
+        "Russia and Japan",
+        "India and Pakistan"
+      ]
+    },
+    {
+      "id": "extra:lesotho",
+      "subject": "ls",
+      "text": "Lesotho is entirely surrounded by which country?",
+      "answer": "South Africa",
+      "wrong": ["Botswana", "Namibia", "Zimbabwe", "Mozambique", "Zambia"]
+    },
+    {
+      "id": "extra:san-marino",
+      "subject": "sm",
+      "text": "San Marino is entirely surrounded by which country?",
+      "answer": "Italy",
+      "wrong": ["France", "Switzerland", "Austria", "Spain", "Croatia"]
+    },
+    {
+      "id": "extra:indonesia-islands",
+      "subject": "id",
+      "text": "Indonesia is made of roughly how many islands?",
+      "answer": "Over ten thousand",
+      "wrong": ["Three", "About fifty", "About two hundred", "Exactly one", "About a thousand"]
+    },
+    {
+      "id": "extra:india-ocean",
+      "subject": "in",
+      "text": "Which ocean is named after a country?",
+      "answer": "The Indian Ocean",
+      "wrong": [
+        "The Atlantic",
+        "The Pacific",
+        "The Arctic",
+        "The Southern Ocean",
+        "None of them"
+      ]
+    },
+    {
+      "id": "extra:chile-founded",
+      "subject": "cl",
+      "text": "Chile declared its independence from which country?",
+      "answer": "Spain",
+      "wrong": ["Portugal", "France", "Britain", "Argentina", "The Netherlands"]
+    },
+    {
+      "id": "extra:brazil-language",
+      "subject": "br",
+      "text": "What is the main language of Brazil?",
+      "answer": "Portuguese",
+      "wrong": ["Spanish", "Brazilian", "French", "Italian", "English"]
+    },
+    {
+      "id": "extra:austria-australia",
+      "subject": "at",
+      "text": "Which of these is in Europe?",
+      "answer": "Austria",
+      "wrong": ["Australia", "Austral Islands", "Australasia", "Western Australia", "Tasmania"]
+    },
+    {
+      "id": "extra:ussr",
+      "subject": "ru",
+      "text": "The USSR broke up in which decade?",
+      "answer": "The 1990s",
+      "wrong": ["The 1970s", "The 1960s", "The 2000s", "The 1980s", "The 1940s"]
+    },
+    {
+      "id": "extra:berlin-wall",
+      "subject": "de",
+      "text": "The Berlin Wall came down in which year?",
+      "answer": "1989",
+      "wrong": ["1979", "1991", "1961", "1999", "1945"]
+    },
+    {
+      "id": "extra:czechoslovakia",
+      "subject": "cz",
+      "text": "Czechoslovakia split into which two countries?",
+      "answer": "Czechia and Slovakia",
+      "wrong": [
+        "Czechia and Slovenia",
+        "Slovakia and Slovenia",
+        "Czechia and Austria",
+        "Slovakia and Hungary",
+        "Czechia and Poland"
+      ]
+    }
+  ]
+}

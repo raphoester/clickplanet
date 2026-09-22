@@ -621,6 +621,15 @@ export class PlanetEvent extends Message<PlanetEvent> {
      */
     value: TilesSpread;
     case: "tilesSpread";
+  } | {
+    /**
+     * Addressed to one client, like bonus_offered: a question that client alone
+     * may answer, for a charge.
+     *
+     * @generated from field: planet.v1.QuizOffered quiz_offered = 8;
+     */
+    value: QuizOffered;
+    case: "quizOffered";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<PlanetEvent>) {
@@ -638,6 +647,7 @@ export class PlanetEvent extends Message<PlanetEvent> {
     { no: 5, name: "bomb_dropped", kind: "message", T: BombDropped, oneof: "event" },
     { no: 6, name: "tiles_enclosed", kind: "message", T: TilesEnclosed, oneof: "event" },
     { no: 7, name: "tiles_spread", kind: "message", T: TilesSpread, oneof: "event" },
+    { no: 8, name: "quiz_offered", kind: "message", T: QuizOffered, oneof: "event" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PlanetEvent {
@@ -975,6 +985,16 @@ export class BonusTaken extends Message<BonusTaken> {
    */
   kind = BonusKind.UNSPECIFIED;
 
+  /**
+   * Set when the charge was won by answering a quiz rather than by catching a
+   * box: the country the question was about. Empty for a box, and empty for a
+   * quiz about nowhere in particular. A client too old to know it reads the
+   * whole thing as an ordinary catch, which it is.
+   *
+   * @generated from field: string quiz_subject_country_id = 3;
+   */
+  quizSubjectCountryId = "";
+
   constructor(data?: PartialMessage<BonusTaken>) {
     super();
     proto3.util.initPartial(data, this);
@@ -985,6 +1005,7 @@ export class BonusTaken extends Message<BonusTaken> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "kind", kind: "enum", T: proto3.getEnumType(BonusKind) },
+    { no: 3, name: "quiz_subject_country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BonusTaken {
@@ -1101,6 +1122,302 @@ export class ClaimBonusResponse extends Message<ClaimBonusResponse> {
 
   static equals(a: ClaimBonusResponse | PlainMessage<ClaimBonusResponse> | undefined, b: ClaimBonusResponse | PlainMessage<ClaimBonusResponse> | undefined): boolean {
     return proto3.util.equals(ClaimBonusResponse, a, b);
+  }
+}
+
+/**
+ * A question put in front of one player, and the token that opens it.
+ *
+ * It carries no question and no choices: a banner is only an invitation, and a
+ * client that had the question in hand before the clock started would be a
+ * client that could read it at leisure. The seconds start at OpenQuiz.
+ *
+ * @generated from message planet.v1.QuizOffered
+ */
+export class QuizOffered extends Message<QuizOffered> {
+  /**
+   * Unguessable, single use, and only good for the caller it was sent to.
+   *
+   * @generated from field: string token = 1;
+   */
+  token = "";
+
+  /**
+   * After this the banner is gone, whatever the client is still drawing. This
+   * is the invitation lapsing, not the answer clock: opening it starts that.
+   *
+   * @generated from field: int64 expires_at_unix_ms = 2;
+   */
+  expiresAtUnixMs = protoInt64.zero;
+
+  /**
+   * The country the question is about, so the banner can fly its flag before
+   * anything is read. Empty for a question about nowhere in particular.
+   *
+   * Saying the subject up front is deliberate: it is what makes the banner
+   * worth looking at, and it gives away nothing — a player who knows the
+   * question is about Estonia still has to know the answer.
+   *
+   * @generated from field: string subject_country_id = 3;
+   */
+  subjectCountryId = "";
+
+  constructor(data?: PartialMessage<QuizOffered>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.QuizOffered";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "token", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "expires_at_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 3, name: "subject_country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): QuizOffered {
+    return new QuizOffered().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): QuizOffered {
+    return new QuizOffered().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): QuizOffered {
+    return new QuizOffered().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: QuizOffered | PlainMessage<QuizOffered> | undefined, b: QuizOffered | PlainMessage<QuizOffered> | undefined): boolean {
+    return proto3.util.equals(QuizOffered, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.OpenQuizRequest
+ */
+export class OpenQuizRequest extends Message<OpenQuizRequest> {
+  /**
+   * @generated from field: string token = 1;
+   */
+  token = "";
+
+  constructor(data?: PartialMessage<OpenQuizRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.OpenQuizRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "token", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): OpenQuizRequest {
+    return new OpenQuizRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): OpenQuizRequest {
+    return new OpenQuizRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): OpenQuizRequest {
+    return new OpenQuizRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: OpenQuizRequest | PlainMessage<OpenQuizRequest> | undefined, b: OpenQuizRequest | PlainMessage<OpenQuizRequest> | undefined): boolean {
+    return proto3.util.equals(OpenQuizRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.OpenQuizResponse
+ */
+export class OpenQuizResponse extends Message<OpenQuizResponse> {
+  /**
+   * @generated from field: string question = 1;
+   */
+  question = "";
+
+  /**
+   * Exactly three, already shuffled by the server, and which one is right is
+   * not said. The same question opened twice gives the same three in the same
+   * order; a different question of the same bank entry gives different ones.
+   *
+   * @generated from field: repeated string choices = 2;
+   */
+  choices: string[] = [];
+
+  /**
+   * When an answer stops being accepted. Rides beside `answer_seconds` for the
+   * same reason ClickBudget carries its policy: a client rebuilds the clock
+   * from how long is *left*, since the two machines' wall clocks are unrelated.
+   *
+   * @generated from field: int64 deadline_unix_ms = 3;
+   */
+  deadlineUnixMs = protoInt64.zero;
+
+  /**
+   * How long the player was given, whole. What the countdown is drawn against,
+   * so a slow round trip shortens the bar rather than stretching the answer.
+   *
+   * @generated from field: double answer_seconds = 4;
+   */
+  answerSeconds = 0;
+
+  constructor(data?: PartialMessage<OpenQuizResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.OpenQuizResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "question", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "choices", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 3, name: "deadline_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 4, name: "answer_seconds", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): OpenQuizResponse {
+    return new OpenQuizResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): OpenQuizResponse {
+    return new OpenQuizResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): OpenQuizResponse {
+    return new OpenQuizResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: OpenQuizResponse | PlainMessage<OpenQuizResponse> | undefined, b: OpenQuizResponse | PlainMessage<OpenQuizResponse> | undefined): boolean {
+    return proto3.util.equals(OpenQuizResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.AnswerQuizRequest
+ */
+export class AnswerQuizRequest extends Message<AnswerQuizRequest> {
+  /**
+   * @generated from field: string token = 1;
+   */
+  token = "";
+
+  /**
+   * Which of the three choices, as OpenQuiz ordered them.
+   *
+   * @generated from field: uint32 choice = 2;
+   */
+  choice = 0;
+
+  /**
+   * What to say the answerer was playing for, in the broadcast that follows a
+   * right answer.
+   *
+   * @generated from field: string country_id = 3;
+   */
+  countryId = "";
+
+  constructor(data?: PartialMessage<AnswerQuizRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.AnswerQuizRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "token", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "choice", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AnswerQuizRequest {
+    return new AnswerQuizRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AnswerQuizRequest {
+    return new AnswerQuizRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AnswerQuizRequest {
+    return new AnswerQuizRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: AnswerQuizRequest | PlainMessage<AnswerQuizRequest> | undefined, b: AnswerQuizRequest | PlainMessage<AnswerQuizRequest> | undefined): boolean {
+    return proto3.util.equals(AnswerQuizRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.AnswerQuizResponse
+ */
+export class AnswerQuizResponse extends Message<AnswerQuizResponse> {
+  /**
+   * @generated from field: bool correct = 1;
+   */
+  correct = false;
+
+  /**
+   * Which one it was, whatever the player pressed: a quiz that will not say is
+   * a quiz nobody learns anything from, and the bank is not a secret worth
+   * keeping past the answer — only the mapping from *this* question to it is,
+   * and that is spent now.
+   *
+   * @generated from field: uint32 correct_choice = 2;
+   */
+  correctChoice = 0;
+
+  /**
+   * What the right answer was worth. Unspecified when the answer was wrong or
+   * late, and then `amount` is zero and `charges` is what was already held.
+   *
+   * @generated from field: planet.v1.BonusKind kind = 3;
+   */
+  kind = BonusKind.UNSPECIFIED;
+
+  /**
+   * How much it gave: enclosures or spread clicks, one for a refill or a bomb.
+   * What is held may be less than this, when a stack or a pool was near its size.
+   *
+   * @generated from field: uint32 amount = 4;
+   */
+  amount = 0;
+
+  /**
+   * @generated from field: planet.v1.ChargesHeld charges = 5;
+   */
+  charges?: ChargesHeld;
+
+  constructor(data?: PartialMessage<AnswerQuizResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.AnswerQuizResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "correct", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 2, name: "correct_choice", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "kind", kind: "enum", T: proto3.getEnumType(BonusKind) },
+    { no: 4, name: "amount", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 5, name: "charges", kind: "message", T: ChargesHeld },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AnswerQuizResponse {
+    return new AnswerQuizResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AnswerQuizResponse {
+    return new AnswerQuizResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AnswerQuizResponse {
+    return new AnswerQuizResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: AnswerQuizResponse | PlainMessage<AnswerQuizResponse> | undefined, b: AnswerQuizResponse | PlainMessage<AnswerQuizResponse> | undefined): boolean {
+    return proto3.util.equals(AnswerQuizResponse, a, b);
   }
 }
 

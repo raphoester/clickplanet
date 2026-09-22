@@ -48,6 +48,11 @@ func NewSessionInterceptor(
 		planetv1connect.ClickServiceDropBombProcedure,
 		// A refill fills the allowance clicks spend, so it asks for what a click does.
 		planetv1connect.ClickServiceUseRefillProcedure,
+		// A right answer grants the same charge a caught box does, so the question asks for the
+		// same thing the box does. Opening is gated too, and not only for symmetry: opening is what
+		// starts the five seconds, and the caller it starts them for has to be the one that answers.
+		planetv1connect.ClickServiceOpenQuizProcedure,
+		planetv1connect.ClickServiceAnswerQuizProcedure,
 	)
 }
 

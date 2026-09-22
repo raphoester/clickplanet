@@ -28,15 +28,16 @@ type Event struct {
 	Blast     *clicks.Blast
 	Heartbeat bool
 
-	// A box put in front of this caller alone; a catch, a closed shape and a
-	// spread click, anyone's.
+	// A box and a quiz put in front of this caller alone; a catch, a closed
+	// shape and a spread click, anyone's.
 	Offer    *bonuses.Offer
+	Quiz     *bonuses.QuizOffer
 	Taken    *bonuses.Taken
 	Enclosed *bonuses.Enclosed
 	Spread   *bonuses.Spread
 }
 
-// BonusFeed is this caller's boxes.
+// BonusFeed is this caller's boxes and quizzes.
 type BonusFeed interface {
 	Attend(scope string) (<-chan bonuses.Event, func())
 }
@@ -107,7 +108,7 @@ func (u *UseCase) Execute(ctx context.Context, sink Sink) error {
 			}
 
 			if err := sink.Send(Event{
-				Offer: event.Offer, Taken: event.Taken, Enclosed: event.Enclosed,
+				Offer: event.Offer, Quiz: event.Quiz, Taken: event.Taken, Enclosed: event.Enclosed,
 				Spread: event.Spread,
 			}); err != nil {
 				return err
