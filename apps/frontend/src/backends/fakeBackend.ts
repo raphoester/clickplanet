@@ -11,6 +11,7 @@ import {
     Enclosure,
     Ownerships,
     OwnershipsGetter,
+    QuizMaster,
     RateLimitedError,
     Refiller,
     TileClicker,
@@ -19,6 +20,7 @@ import {
     VPNBlockedError,
 } from "./backend.ts";
 import {ALL_OFF, BonusReward, BonusRules, Charges, NO_CHARGES, Switches} from "../domain/bonus.ts";
+import {QuizOffer, QuizOutcome, QuizQuestion} from "../domain/quiz.ts";
 import {ClickBudget, ClickBudgetSource, ClickPrice, now as budgetNow} from "./clickBudget.ts";
 import {SessionUnavailableError} from "./session.ts";
 import {v4 as UUIDv4} from 'uuid';
@@ -67,6 +69,22 @@ const SEA_REACH = 0.004
 const SPREAD_REACH = 0.0052
 
 /** Other players' bombs, so a blast elsewhere on the planet can be watched too. */
+// The quiz's own clock, far faster than the server's so the banner can be developed against.
+const QUIZ_EVERY_MS = 30_000
+const QUIZ_OFFER_TTL_MS = 25_000
+const QUIZ_ANSWER_MS = 5_000
+
+/**
+ * The fake's whole bank. Three questions, because this is here to develop the banner and the card
+ * against, not to be played: the real bank is a thousand generated questions that live on the
+ * server and are deliberately never shipped to a browser. See /quiz/README.md.
+ */
+const FAKE_QUIZZES: {subject: string, text: string, choices: string[], correct: number}[] = [
+    {subject: "ee", text: "What is the capital of Estonia?", choices: ["Riga", "Tallinn", "Vilnius"], correct: 1},
+    {subject: "np", text: "Which of these shares a border with Nepal?", choices: ["China", "Pakistan", "Myanmar"], correct: 0},
+    {subject: "br", text: "How is the capital of Brazil spelled?", choices: ["Brazilia", "Brasilia City", "Brasília"], correct: 2},
+]
+
 const BOT_BOMB_EVERY_MS = 25_000
 
 /** Everyone else's clicks, together. */
@@ -91,7 +109,7 @@ export type FakeBackendOptions = {
     tilePositions?: () => Promise<Float32Array>
 }
 
-export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, Bomber, Refiller {
+export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, QuizMaster, Bomber, Refiller {
     private tileBindings: Map<number, string> = new Map()
     private tileCounts: Map<string, number> = new Map()
     private budgetCountry = ""
@@ -101,6 +119,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     private budgetCallbacks: Map<string, (budget: ClickBudget) => void> = new Map()
     private bonusCallbacks: Map<string, BonusHandlers> = new Map()
     private bombCallbacks: Map<string, (drop: BombDrop) => void> = new Map()
+    private quizCallbacks: Map<string, (offer: QuizOffer) => void> = new Map()
 
     /** What this player holds, as the server keeps it: one of each kind at most. */
     private charges: Charges = NO_CHARGES
@@ -109,6 +128,12 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
 
     /** The one box outstanding, exactly as the server keeps it. */
     private offered: BonusOffer | undefined
+
+    /**
+     * The one quiz outstanding. `deadline` is undefined until it is opened, which is the whole
+     * shape of the real thing: the banner is an invitation and the clock is the answer's.
+     */
+    private quiz: {token: string, expiresAt: number, asked: typeof FAKE_QUIZZES[number], deadline?: number} | undefined
 
     private readonly timers: ReturnType<typeof setInterval>[] = []
     private tokens = CLICK_BURST
@@ -158,6 +183,18 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
             this.offered = offer
             this.bonusCallbacks.forEach(handlers => handlers.onOffered(offer))
         }, BONUS_EVERY_MS))
+
+        this.timers.push(setInterval(() => {
+            // As the server does: nothing is asked when there is no charge a right answer could be
+            // worth, and only one quiz is outstanding at a time.
+            if (this.quiz || offerable.every((kind) => this.full(kind))) return
+
+            const asked = FAKE_QUIZZES[Math.floor(Math.random() * FAKE_QUIZZES.length)]
+            this.quiz = {token: UUIDv4(), expiresAt: budgetNow() + QUIZ_OFFER_TTL_MS, asked}
+
+            const offer: QuizOffer = {token: this.quiz.token, expiresAt: this.quiz.expiresAt}
+            this.quizCallbacks.forEach(callback => callback(offer))
+        }, QUIZ_EVERY_MS))
 
         const codes = [...Countries.keys()]
 
@@ -417,6 +454,61 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         this.bonusCallbacks.forEach(handlers => handlers.onTaken({countryId}))
 
         return claimed
+    }
+
+    public listenForQuizzes(onOffered: (offer: QuizOffer) => void): () => void {
+        const identifier = UUIDv4()
+        this.quizCallbacks.set(identifier, onOffered)
+
+        return () => this.quizCallbacks.delete(identifier)
+    }
+
+    public async openQuiz(token: string): Promise<QuizQuestion> {
+        const quiz = this.quiz
+        if (!quiz || quiz.token !== token || budgetNow() > quiz.expiresAt) throw new BonusLostError()
+
+        // Stamped once: opening twice is the same question with less time on it, never more.
+        quiz.deadline ??= budgetNow() + QUIZ_ANSWER_MS
+
+        return {
+            text: quiz.asked.text,
+            choices: [...quiz.asked.choices],
+            deadline: quiz.deadline,
+            window: QUIZ_ANSWER_MS,
+        }
+    }
+
+    public async answerQuiz(token: string, choice: number, countryId: string): Promise<QuizOutcome> {
+        const quiz = this.quiz
+        // An answer to a question nobody read is a client that skipped openQuiz.
+        if (!quiz || quiz.token !== token || quiz.deadline === undefined) throw new BonusLostError()
+
+        this.quiz = undefined
+
+        const correct = budgetNow() <= quiz.deadline && choice === quiz.asked.correct
+        if (!correct) return {correct: false, correctChoice: quiz.asked.correct}
+
+        // The same charges a box pays out in, drawn from the kinds this player is not full on.
+        const kinds = BONUS_KINDS.filter((kind) => !this.full(kind) && (kind !== "bomb" || this.tilePositions))
+        if (kinds.length === 0) return {correct: true, correctChoice: quiz.asked.correct}
+
+        const {reward} = this.grant(kinds[Math.floor(Math.random() * kinds.length)])
+        this.bonusCallbacks.forEach(handlers => handlers.onTaken({countryId, quizSubject: quiz.asked.subject}))
+
+        return {correct: true, correctChoice: quiz.asked.correct, reward}
+    }
+
+    /**
+     * Puts a quiz up now, skipping the wait. See `giveQuiz` in main.tsx.
+     */
+    public offerQuiz(): QuizOffer {
+        const asked = FAKE_QUIZZES[Math.floor(Math.random() * FAKE_QUIZZES.length)]
+        this.quiz = {token: UUIDv4(), expiresAt: budgetNow() + QUIZ_OFFER_TTL_MS, asked}
+
+        const offer: QuizOffer = {token: this.quiz.token, expiresAt: this.quiz.expiresAt}
+        this.quizCallbacks.forEach(callback => callback(offer))
+
+        return offer
     }
 
     /**

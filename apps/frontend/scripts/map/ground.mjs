@@ -40,6 +40,20 @@ const ANTARCTICA = "aq"
 const SEAM = 179.99
 
 /**
+ * The country code a Natural Earth country feature carries, or null for the ground it hands to
+ * nobody. Exported because the quiz bank names countries too: one rule, so a code that is a country
+ * on the map cannot be a different country — or no country — in a question about it.
+ *
+ * @param {{properties: Record<string, unknown>}} feature
+ * @returns {string | null}
+ */
+export function countryCodeOf(feature) {
+    const named = String(feature.properties.ISO_A2_EH ?? feature.properties.ISO_A2 ?? "").toLowerCase()
+    const code = named && named !== "-99" ? named : ABSORBED[feature.properties.ADM0_A3] ?? ""
+    return code || null
+}
+
+/**
  * Builds the oracle from already-loaded geojson. Pure, so the rules are testable without a network.
  *
  * @param {{countries: {features: object[]}, iceShelves: {features: object[]}}} datasets
@@ -49,11 +63,7 @@ export function groundIndex({countries, iceShelves}) {
     // Country polygons are asked first so that a shelf overlapping a claimed coast reads as the
     // country rather than as bare Antarctica.
     const layers = [
-        shapesOf(countries.features, (f) => {
-            const named = (f.properties.ISO_A2_EH ?? f.properties.ISO_A2 ?? "").toLowerCase()
-            const code = named && named !== "-99" ? named : ABSORBED[f.properties.ADM0_A3] ?? ""
-            return code || null
-        }),
+        shapesOf(countries.features, countryCodeOf),
         shapesOf(iceShelves.features, () => ANTARCTICA),
     ]
 

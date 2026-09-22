@@ -43,6 +43,28 @@ service ClickService {
   rpc GetBonusRules(GetBonusRulesRequest) returns (GetBonusRulesResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+
+  // Reads the question a QuizOffered named, and starts its clock.
+  //
+  // Deliberately two calls rather than one: the deadline is stamped here, not
+  // when the banner was offered, so the seconds a player gets are their own and
+  // a banner can sit unopened without burning them. Opening twice answers the
+  // same question and the same deadline — a reload is not a second chance, and
+  // is not a way to see a second question either.
+  //
+  // It never says which choice is right. The bank is the server's alone, and
+  // the answer is compared in AnswerQuiz.
+  rpc OpenQuiz(OpenQuizRequest) returns (OpenQuizResponse);
+
+  // Answers it. A right answer inside the deadline grants a charge the server
+  // draws, exactly as a caught box does. A wrong or late one grants nothing and
+  // costs nothing: the token is spent either way, and the answer comes back so
+  // the player learns it.
+  //
+  // Answers NotFound when the caller holds no such quiz — never offered,
+  // already answered, or somebody else's — which is the same answer ClaimBonus
+  // gives, and for the same reason.
+  rpc AnswerQuiz(AnswerQuizRequest) returns (AnswerQuizResponse);
 }
 
 // What the rate limiter has left for the caller, and the policy it refills
@@ -178,6 +200,10 @@ message PlanetEvent {
     // Broadcast to everyone, like tiles_enclosed: the tiles arrive as tile
     // updates, and this says a spread bonus is why, so every client can show it.
     TilesSpread tiles_spread = 7;
+
+    // Addressed to one client, like bonus_offered: a question that client alone
+    // may answer, for a charge.
+    QuizOffered quiz_offered = 8;
   }
 }
 
@@ -273,6 +299,12 @@ message BonusTaken {
   string country_id = 1;
 
   BonusKind kind = 2;
+
+  // Set when the charge was won by answering a quiz rather than by catching a
+  // box: the country the question was about. Empty for a box, and empty for a
+  // quiz about nowhere in particular. A client too old to know it reads the
+  // whole thing as an ordinary catch, which it is.
+  string quiz_subject_country_id = 3;
 }
 
 message ClaimBonusRequest {
@@ -292,6 +324,83 @@ message ClaimBonusResponse {
 
   // What the caller holds once this box is granted.
   ChargesHeld charges = 7;
+}
+
+// A question put in front of one player, and the token that opens it.
+//
+// **It says nothing about the question.** No text, no choices, and no subject:
+// a banner is only an invitation, and anything on it is something a client can
+// read at leisure before the clock starts. The seconds begin at OpenQuiz.
+//
+// The subject was on here once, to fly a flag. It gave the answer away for 417
+// of the bank's 1014 questions — every "Tallinn is the capital of which
+// country?" and every "which of these has the most people?" is answered by the
+// flag beside it. A teaser that has to be checked against every question in the
+// bank is a teaser that will leak again the first time a template is added, so
+// there is none.
+message QuizOffered {
+  // Unguessable, single use, and only good for the caller it was sent to.
+  string token = 1;
+
+  // After this the banner is gone, whatever the client is still drawing. This
+  // is the invitation lapsing, not the answer clock: opening it starts that.
+  int64 expires_at_unix_ms = 2;
+
+  // Was the subject country, which answered the question it was teasing.
+  reserved 3;
+}
+
+message OpenQuizRequest {
+  string token = 1;
+}
+
+message OpenQuizResponse {
+  string question = 1;
+
+  // Exactly three, already shuffled by the server, and which one is right is
+  // not said. The same question opened twice gives the same three in the same
+  // order; a different question of the same bank entry gives different ones.
+  repeated string choices = 2;
+
+  // When an answer stops being accepted. Rides beside `answer_seconds` for the
+  // same reason ClickBudget carries its policy: a client rebuilds the clock
+  // from how long is *left*, since the two machines' wall clocks are unrelated.
+  int64 deadline_unix_ms = 3;
+
+  // How long the player was given, whole. What the countdown is drawn against,
+  // so a slow round trip shortens the bar rather than stretching the answer.
+  double answer_seconds = 4;
+}
+
+message AnswerQuizRequest {
+  string token = 1;
+
+  // Which of the three choices, as OpenQuiz ordered them.
+  uint32 choice = 2;
+
+  // What to say the answerer was playing for, in the broadcast that follows a
+  // right answer.
+  string country_id = 3;
+}
+
+message AnswerQuizResponse {
+  bool correct = 1;
+
+  // Which one it was, whatever the player pressed: a quiz that will not say is
+  // a quiz nobody learns anything from, and the bank is not a secret worth
+  // keeping past the answer — only the mapping from *this* question to it is,
+  // and that is spent now.
+  uint32 correct_choice = 2;
+
+  // What the right answer was worth. Unspecified when the answer was wrong or
+  // late, and then `amount` is zero and `charges` is what was already held.
+  BonusKind kind = 3;
+
+  // How much it gave: enclosures or spread clicks, one for a refill or a bomb.
+  // What is held may be less than this, when a stack or a pool was near its size.
+  uint32 amount = 4;
+
+  ChargesHeld charges = 5;
 }
 
 message UseRefillRequest {

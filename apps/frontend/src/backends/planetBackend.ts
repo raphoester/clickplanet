@@ -12,6 +12,7 @@ import {
     Enclosure,
     Ownerships,
     OwnershipsGetter,
+    QuizMaster,
     RateLimitedError,
     Refiller,
     SpreadClick,
@@ -21,6 +22,7 @@ import {
     VPNBlockedError,
 } from "./backend.ts";
 import {ALL_OFF, BonusReward, BonusRules, Charges, NO_CHARGES, Switches} from "../domain/bonus.ts";
+import {QuizOffer, QuizOutcome, QuizQuestion} from "../domain/quiz.ts";
 import {
     BonusKind,
     ChargesHeld,
@@ -47,11 +49,12 @@ export function newClickServiceClient(config: Config): PromiseClient<typeof Clic
     }))
 }
 
-export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, Bomber, Refiller {
+export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, QuizMaster, Bomber, Refiller {
     private pendingUpdates: Update[] = []
     private readonly updateBatchCallbacks = new Map<string, (updates: Update[]) => void>()
     private readonly updateCallbacks = new Map<string, (update: Update) => void>()
     private readonly bonusCallbacks = new Map<string, BonusHandlers>()
+    private readonly quizCallbacks = new Map<string, (offer: QuizOffer) => void>()
     private readonly bombCallbacks = new Map<string, (drop: BombDrop) => void>()
     private readonly budgetCallbacks = new Map<string, (budget: ClickBudget) => void>()
     private readonly flushTimer: ReturnType<typeof setInterval>
@@ -117,6 +120,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         this.updateBatchCallbacks.clear()
         this.updateCallbacks.clear()
         this.bonusCallbacks.clear()
+        this.quizCallbacks.clear()
         this.bombCallbacks.clear()
         this.budgetCallbacks.clear()
         this.pendingUpdates = []
@@ -321,6 +325,12 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                     return
                 }
 
+                const quiz = quizOf(event)
+                if (quiz) {
+                    this.quizCallbacks.forEach(callback => callback(quiz))
+                    return
+                }
+
                 const taken = catchOf(event)
                 if (taken) {
                     this.bonusCallbacks.forEach(handlers => handlers.onTaken(taken))
@@ -483,6 +493,90 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         return {reward, charges}
     }
 
+    public listenForQuizzes(onOffered: (offer: QuizOffer) => void): () => void {
+        const id = generateUUID()
+        this.quizCallbacks.set(id, onOffered)
+
+        return () => this.quizCallbacks.delete(id)
+    }
+
+    /**
+     * Reads the question, with the same one-shot session retry a claim gets.
+     *
+     * Not wrapped in `retrying` either, but for the opposite reason to a claim's: opening is
+     * idempotent on the server and a retry would be *safe* — it is the five seconds that are not.
+     * A retry that lands a second later is a second off the clock, and the player never asked for
+     * it. One try, and a banner that fails to open is a banner that got away.
+     */
+    public async openQuiz(token: string): Promise<QuizQuestion> {
+        try {
+            return await this.open(token)
+        } catch (e) {
+            if (!(e instanceof ConnectError) || e.code !== Code.Unauthenticated) throw asBonusError(e)
+
+            this.session.invalidate()
+
+            try {
+                return await this.open(token)
+            } catch (retried) {
+                throw asBonusError(retried)
+            }
+        }
+    }
+
+    private async open(token: string): Promise<QuizQuestion> {
+        const sessionToken = await this.session.token()
+
+        const headers = new Headers()
+        if (sessionToken) headers.set(SESSION_HEADER, sessionToken)
+
+        const at = budgetNow()
+        const wallClock = Date.now()
+        const res = await this.client.openQuiz({token}, {headers})
+        this.followSession(sessionToken)
+
+        return {
+            text: res.question,
+            choices: [...res.choices],
+            // Rebuilt from what is left, as every other deadline on this connection is.
+            deadline: at + (Number(res.deadlineUnixMs) - wallClock),
+            window: res.answerSeconds * 1000,
+        }
+    }
+
+    /**
+     * Answers it. A wrong answer resolves rather than rejecting: it happened, and it is worth
+     * saying which one was right.
+     *
+     * Deliberately not retried at all, not even for a stale session: the token is spent by the
+     * first answer that lands, so a retry of a request whose response was lost would report a quiz
+     * as gone when it was in fact won. The same rule a claim follows.
+     */
+    public async answerQuiz(token: string, choice: number, countryId: string): Promise<QuizOutcome> {
+        const sessionToken = await this.session.token()
+
+        const headers = new Headers()
+        if (sessionToken) headers.set(SESSION_HEADER, sessionToken)
+
+        let res
+        try {
+            res = await this.client.answerQuiz({token, choice, countryId}, {headers})
+        } catch (e) {
+            throw asBonusError(e)
+        }
+        this.followSession(sessionToken)
+
+        this.holdCharges(chargesOfMessage(res.charges))
+
+        return {
+            correct: res.correct,
+            correctChoice: res.correctChoice,
+            // A kind this build does not know is a reward it cannot describe, so it says nothing
+            // rather than saying the wrong thing. The charge is held either way.
+            reward: res.correct ? rewardOf(res.kind, this.rules, res.amount) : undefined,
+        }
+    }
+
     public listenForBombs(onDropped: (drop: BombDrop) => void): () => void {
         const id = generateUUID()
         this.bombCallbacks.set(id, onDropped)
@@ -610,10 +704,29 @@ export function offerOf(event: PlanetEvent, at = budgetNow(), wallClock = Date.n
     }
 }
 
+/**
+ * Reads the banner this client was offered: a token and a deadline. Nothing about the question
+ * comes with it, by design — see `domain/quiz.ts`.
+ *
+ * The deadline is rebuilt from how long the server said was **left**, for the reason `offerOf`
+ * rebuilds a box's: the two wall clocks are unrelated.
+ */
+export function quizOf(event: PlanetEvent, at = budgetNow(), wallClock = Date.now()): QuizOffer | undefined {
+    if (event.event.case !== "quizOffered") return undefined
+
+    const offered = event.event.value
+
+    return {
+        token: offered.token,
+        expiresAt: at + (Number(offered.expiresAtUnixMs) - wallClock),
+    }
+}
+
 export function catchOf(event: PlanetEvent): BonusCatch | undefined {
     if (event.event.case !== "bonusTaken") return undefined
 
-    return {countryId: event.event.value.countryId}
+    const taken = event.event.value
+    return {countryId: taken.countryId, quizSubject: taken.quizSubjectCountryId || undefined}
 }
 
 /** Somebody closed a shape; `yours` when it was this player. */

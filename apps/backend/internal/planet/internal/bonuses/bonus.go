@@ -1,5 +1,10 @@
-// Package bonus hands out the question-mark boxes that fly past the planet:
-// addressed to one caller, on a schedule of that caller's own.
+// Package bonuses hands out what a player can earn beside their clicks: the question-mark boxes
+// that fly past the planet, and the quizzes that appear over it. Both are addressed to one caller,
+// each on a schedule of that caller's own, and both pay out in the same charges.
+//
+// One package because a caller is one thing — the streams it has open, when it last clicked, which
+// accounts play behind it — and that bookkeeping should not exist twice. The boxes are in this
+// file; everything that is the quiz's own is in quiz.go.
 package bonuses
 
 import (
@@ -11,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/quizzes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -48,6 +54,10 @@ type Offer struct {
 type Taken struct {
 	CountryID string
 	Kind      Kind
+
+	// The country the question was about, when the charge was won by answering one. Empty for a
+	// box, so the same announcement carries both without a second event for the second way to win.
+	QuizSubject string
 }
 
 // Enclosed is a shape an enclose bonus closed, and the tiles it took.
@@ -76,9 +86,10 @@ type Spread struct {
 	Neighbours []uint32
 }
 
-// Event carries exactly one: an Offer reaches its caller, the rest everyone.
+// Event carries exactly one: an Offer and a Quiz reach their caller, the rest everyone.
 type Event struct {
 	Offer    *Offer
+	Quiz     *QuizOffer
 	Taken    *Taken
 	Enclosed *Enclosed
 	Spread   *Spread
@@ -107,6 +118,12 @@ type caller struct {
 
 	// When each charge was granted, for MaxChargesPerHour.
 	grants []time.Time
+
+	// The quiz's own half of the same three things. Separate clock, separate slot and separate
+	// budget: a quiz is a second way to earn a charge, not a box of another shape.
+	nextQuizAt      time.Time
+	outstandingQuiz string
+	quizGrants      []time.Time
 }
 
 func (c *caller) watching() bool {
@@ -135,6 +152,14 @@ type Report struct {
 
 	// Caught is a box claimed, and how long after it was offered.
 	Caught func(scope string, after time.Duration)
+
+	QuizOffered func()
+
+	// QuizLapsed is a banner nobody opened, or a question opened and left.
+	QuizLapsed func(scope string)
+
+	// QuizAnswered is an answer that landed, right or wrong, and how long after the banner went out.
+	QuizAnswered func(scope string, correct bool, after time.Duration)
 }
 
 type Registry struct {
@@ -145,10 +170,20 @@ type Registry struct {
 	// What a spread pool holds when full, so a full pool is not offered another box.
 	charges ChargesConfig
 
+	// The bank, and the quiz's own numbers. Both zero until Quizzing is called, which is what a
+	// process with the quizzes switched off looks like: no bank, no offer, and the boxes as before.
+	quizConfig quizzes.Config
+	bank       Questions
+
 	mu      sync.Mutex
 	callers map[string]*caller
 	offers  map[string]*pending
-	nextID  uint64
+
+	// Named for the field and not for the package it borrows its types from, which is imported
+	// here too.
+	quizOffers map[string]*pendingQuiz
+
+	nextID uint64
 }
 
 type pending struct {
@@ -175,12 +210,13 @@ func New(config Config, clock cptime.Clock, holdings Holdings) *Registry {
 	config = config.withDefaults()
 
 	return &Registry{
-		config:   config,
-		charges:  config.ChargesConfig(),
-		clock:    clock,
-		holdings: holdings,
-		callers:  make(map[string]*caller),
-		offers:   make(map[string]*pending),
+		config:     config,
+		charges:    config.ChargesConfig(),
+		clock:      clock,
+		holdings:   holdings,
+		callers:    make(map[string]*caller),
+		offers:     make(map[string]*pending),
+		quizOffers: make(map[string]*pendingQuiz),
 	}
 }
 
@@ -229,6 +265,7 @@ func (r *Registry) caller(scope string, now time.Time) *caller {
 		streams:     make(map[uint64]chan Event),
 		players:     make(map[Holder]time.Time),
 		nextOfferAt: now.Add(r.window()),
+		nextQuizAt:  now.Add(r.quizWindow()),
 		lastSeen:    now,
 	}
 	r.callers[scope] = entry
@@ -358,6 +395,7 @@ func (r *Registry) sweep() {
 	defer r.mu.Unlock()
 
 	r.collectMisses(now)
+	r.sweepQuizzes(now)
 	r.forgetStale(now)
 
 	for scope, entry := range r.callers {
@@ -495,22 +533,35 @@ func (r *Registry) forgetStale(now time.Time) {
 			continue
 		}
 
+		// The quiz goes with the caller that was asked it. Left behind it would be a question
+		// answerable by whoever next got this scope, which is the one way a token could outlive
+		// the player it was addressed to.
+		if entry.outstandingQuiz != "" {
+			delete(r.quizOffers, entry.outstandingQuiz)
+		}
+
 		delete(r.callers, scope)
 	}
 }
 
 func (r *Registry) window() time.Duration {
-	spread := r.config.MaxInterval - r.config.MinInterval
+	return drawWindow(r.config.MinInterval, r.config.MaxInterval)
+}
+
+// drawWindow is a wait drawn uniformly between the two, which is what stops every caller who loaded at
+// the same time being offered something at the same time for ever after.
+func drawWindow(shortest, longest time.Duration) time.Duration {
+	spread := longest - shortest
 	if spread <= 0 {
-		return r.config.MinInterval
+		return shortest
 	}
 
 	n, err := rand.Int(rand.Reader, big.NewInt(int64(spread)))
 	if err != nil {
-		return r.config.MinInterval
+		return shortest
 	}
 
-	return r.config.MinInterval + time.Duration(n.Int64())
+	return shortest + time.Duration(n.Int64())
 }
 
 // drawKind picks one of kinds with a chance of its weight over the sum of their weights.

@@ -12,6 +12,15 @@ export type BombNewsProps = {
     drop: BombDrop
     /** The code of the country whose ground the bomb hit, if it hit one. */
     land?: string
+
+    /**
+     * Something else is in the band at the top of the screen — a quiz. Both want the same place,
+     * and this is the one that gives it up: a bomb line is four seconds of news nobody presses,
+     * and a quiz is five seconds somebody is answering. Moving the quiz instead would move it
+     * mid-question, under the cursor already going to a choice.
+     */
+    lowered?: boolean
+
     onDone: () => void
 }
 
@@ -20,7 +29,7 @@ export type BombNewsProps = {
  * Most blasts happen where the player is not looking, so this is how they hear
  * about them at all. Nothing here is clickable.
  */
-export default function BombNews({drop, land, onDone}: BombNewsProps) {
+export default function BombNews({drop, land, lowered, onDone}: BombNewsProps) {
     const name = Countries.get(drop.countryId)?.name ?? drop.countryId
     // A code with no name on the list falls back to the tile count.
     const landName = land === undefined ? undefined : Countries.get(land)?.name
@@ -36,7 +45,7 @@ export default function BombNews({drop, land, onDone}: BombNewsProps) {
         return () => clearTimeout(timer)
     }, [drop])
 
-    return <div className="bomb-news" role="status" aria-live="polite">
+    return <div className={`bomb-news${lowered ? " bomb-news--lowered" : ""}`} role="status" aria-live="polite">
         <div className="bomb-news-line">
             <span aria-hidden="true">{drop.tile === undefined ? "🌊" : "💥"}</span>
             <CountryFlag code={drop.countryId}/>

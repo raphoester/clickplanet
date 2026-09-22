@@ -1,4 +1,4 @@
-.PHONY: proto map test lint lint-ci tidy check-format setup-tools deadcode dBuild dRun dRm vpn-lists metrics
+.PHONY: proto map quiz test lint lint-ci tidy check-format setup-tools deadcode dBuild dRun dRm vpn-lists metrics
 
 # Test helpers that more than one package needs cannot live in a _test.go file,
 # so they live in an ordinary .go file carrying this tag. The tag is what keeps
@@ -25,6 +25,18 @@ map:
 		cp $(MAP_DIR)/$$asset-*.bin $(MAP_ASSET_DIR)/; \
 		ls $(MAP_ASSET_DIR)/$$asset-*.bin; \
 	done
+
+# The quiz bank, the same way `map` works, and for the same reason. The frontend deliberately has no
+# copy: the answers are in it. See /quiz/README.md.
+QUIZ_DIR := ../../quiz
+QUIZ_ASSET_DIR := generated/quiz
+
+quiz:
+	@test -n "$$(ls $(QUIZ_DIR)/bank-*.json 2>/dev/null)" || { echo "quiz: no $(QUIZ_DIR)/bank-<hash>.json" >&2; exit 1; }
+	@mkdir -p $(QUIZ_ASSET_DIR)
+	@rm -f $(QUIZ_ASSET_DIR)/bank-*.json
+	@cp $(QUIZ_DIR)/bank-*.json $(QUIZ_ASSET_DIR)/
+	@ls $(QUIZ_ASSET_DIR)/bank-*.json
 
 dBuild:
 	@docker build -t clickplanet-back:local .

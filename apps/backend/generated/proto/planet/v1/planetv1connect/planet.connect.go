@@ -55,6 +55,10 @@ const (
 	// ClickServiceGetBonusRulesProcedure is the fully-qualified name of the ClickService's
 	// GetBonusRules RPC.
 	ClickServiceGetBonusRulesProcedure = "/planet.v1.ClickService/GetBonusRules"
+	// ClickServiceOpenQuizProcedure is the fully-qualified name of the ClickService's OpenQuiz RPC.
+	ClickServiceOpenQuizProcedure = "/planet.v1.ClickService/OpenQuiz"
+	// ClickServiceAnswerQuizProcedure is the fully-qualified name of the ClickService's AnswerQuiz RPC.
+	ClickServiceAnswerQuizProcedure = "/planet.v1.ClickService/AnswerQuiz"
 )
 
 // ClickServiceClient is a client for the planet.v1.ClickService service.
@@ -84,6 +88,26 @@ type ClickServiceClient interface {
 	// page loads; a client that loaded before they changed shows the old ones
 	// until it reloads.
 	GetBonusRules(context.Context, *connect.Request[v1.GetBonusRulesRequest]) (*connect.Response[v1.GetBonusRulesResponse], error)
+	// Reads the question a QuizOffered named, and starts its clock.
+	//
+	// Deliberately two calls rather than one: the deadline is stamped here, not
+	// when the banner was offered, so the seconds a player gets are their own and
+	// a banner can sit unopened without burning them. Opening twice answers the
+	// same question and the same deadline — a reload is not a second chance, and
+	// is not a way to see a second question either.
+	//
+	// It never says which choice is right. The bank is the server's alone, and
+	// the answer is compared in AnswerQuiz.
+	OpenQuiz(context.Context, *connect.Request[v1.OpenQuizRequest]) (*connect.Response[v1.OpenQuizResponse], error)
+	// Answers it. A right answer inside the deadline grants a charge the server
+	// draws, exactly as a caught box does. A wrong or late one grants nothing and
+	// costs nothing: the token is spent either way, and the answer comes back so
+	// the player learns it.
+	//
+	// Answers NotFound when the caller holds no such quiz — never offered,
+	// already answered, or somebody else's — which is the same answer ClaimBonus
+	// gives, and for the same reason.
+	AnswerQuiz(context.Context, *connect.Request[v1.AnswerQuizRequest]) (*connect.Response[v1.AnswerQuizResponse], error)
 }
 
 // NewClickServiceClient constructs a client for the planet.v1.ClickService service. By default, it
@@ -160,6 +184,18 @@ func NewClickServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
+		openQuiz: connect.NewClient[v1.OpenQuizRequest, v1.OpenQuizResponse](
+			httpClient,
+			baseURL+ClickServiceOpenQuizProcedure,
+			connect.WithSchema(clickServiceMethods.ByName("OpenQuiz")),
+			connect.WithClientOptions(opts...),
+		),
+		answerQuiz: connect.NewClient[v1.AnswerQuizRequest, v1.AnswerQuizResponse](
+			httpClient,
+			baseURL+ClickServiceAnswerQuizProcedure,
+			connect.WithSchema(clickServiceMethods.ByName("AnswerQuiz")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -175,6 +211,8 @@ type clickServiceClient struct {
 	useRefill       *connect.Client[v1.UseRefillRequest, v1.UseRefillResponse]
 	getCharges      *connect.Client[v1.GetChargesRequest, v1.GetChargesResponse]
 	getBonusRules   *connect.Client[v1.GetBonusRulesRequest, v1.GetBonusRulesResponse]
+	openQuiz        *connect.Client[v1.OpenQuizRequest, v1.OpenQuizResponse]
+	answerQuiz      *connect.Client[v1.AnswerQuizRequest, v1.AnswerQuizResponse]
 }
 
 // Click calls planet.v1.ClickService.Click.
@@ -227,6 +265,16 @@ func (c *clickServiceClient) GetBonusRules(ctx context.Context, req *connect.Req
 	return c.getBonusRules.CallUnary(ctx, req)
 }
 
+// OpenQuiz calls planet.v1.ClickService.OpenQuiz.
+func (c *clickServiceClient) OpenQuiz(ctx context.Context, req *connect.Request[v1.OpenQuizRequest]) (*connect.Response[v1.OpenQuizResponse], error) {
+	return c.openQuiz.CallUnary(ctx, req)
+}
+
+// AnswerQuiz calls planet.v1.ClickService.AnswerQuiz.
+func (c *clickServiceClient) AnswerQuiz(ctx context.Context, req *connect.Request[v1.AnswerQuizRequest]) (*connect.Response[v1.AnswerQuizResponse], error) {
+	return c.answerQuiz.CallUnary(ctx, req)
+}
+
 // ClickServiceHandler is an implementation of the planet.v1.ClickService service.
 type ClickServiceHandler interface {
 	Click(context.Context, *connect.Request[v1.ClickRequest]) (*connect.Response[v1.ClickResponse], error)
@@ -254,6 +302,26 @@ type ClickServiceHandler interface {
 	// page loads; a client that loaded before they changed shows the old ones
 	// until it reloads.
 	GetBonusRules(context.Context, *connect.Request[v1.GetBonusRulesRequest]) (*connect.Response[v1.GetBonusRulesResponse], error)
+	// Reads the question a QuizOffered named, and starts its clock.
+	//
+	// Deliberately two calls rather than one: the deadline is stamped here, not
+	// when the banner was offered, so the seconds a player gets are their own and
+	// a banner can sit unopened without burning them. Opening twice answers the
+	// same question and the same deadline — a reload is not a second chance, and
+	// is not a way to see a second question either.
+	//
+	// It never says which choice is right. The bank is the server's alone, and
+	// the answer is compared in AnswerQuiz.
+	OpenQuiz(context.Context, *connect.Request[v1.OpenQuizRequest]) (*connect.Response[v1.OpenQuizResponse], error)
+	// Answers it. A right answer inside the deadline grants a charge the server
+	// draws, exactly as a caught box does. A wrong or late one grants nothing and
+	// costs nothing: the token is spent either way, and the answer comes back so
+	// the player learns it.
+	//
+	// Answers NotFound when the caller holds no such quiz — never offered,
+	// already answered, or somebody else's — which is the same answer ClaimBonus
+	// gives, and for the same reason.
+	AnswerQuiz(context.Context, *connect.Request[v1.AnswerQuizRequest]) (*connect.Response[v1.AnswerQuizResponse], error)
 }
 
 // NewClickServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -326,6 +394,18 @@ func NewClickServiceHandler(svc ClickServiceHandler, opts ...connect.HandlerOpti
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
+	clickServiceOpenQuizHandler := connect.NewUnaryHandler(
+		ClickServiceOpenQuizProcedure,
+		svc.OpenQuiz,
+		connect.WithSchema(clickServiceMethods.ByName("OpenQuiz")),
+		connect.WithHandlerOptions(opts...),
+	)
+	clickServiceAnswerQuizHandler := connect.NewUnaryHandler(
+		ClickServiceAnswerQuizProcedure,
+		svc.AnswerQuiz,
+		connect.WithSchema(clickServiceMethods.ByName("AnswerQuiz")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/planet.v1.ClickService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ClickServiceClickProcedure:
@@ -348,6 +428,10 @@ func NewClickServiceHandler(svc ClickServiceHandler, opts ...connect.HandlerOpti
 			clickServiceGetChargesHandler.ServeHTTP(w, r)
 		case ClickServiceGetBonusRulesProcedure:
 			clickServiceGetBonusRulesHandler.ServeHTTP(w, r)
+		case ClickServiceOpenQuizProcedure:
+			clickServiceOpenQuizHandler.ServeHTTP(w, r)
+		case ClickServiceAnswerQuizProcedure:
+			clickServiceAnswerQuizHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -395,4 +479,12 @@ func (UnimplementedClickServiceHandler) GetCharges(context.Context, *connect.Req
 
 func (UnimplementedClickServiceHandler) GetBonusRules(context.Context, *connect.Request[v1.GetBonusRulesRequest]) (*connect.Response[v1.GetBonusRulesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.ClickService.GetBonusRules is not implemented"))
+}
+
+func (UnimplementedClickServiceHandler) OpenQuiz(context.Context, *connect.Request[v1.OpenQuizRequest]) (*connect.Response[v1.OpenQuizResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.ClickService.OpenQuiz is not implemented"))
+}
+
+func (UnimplementedClickServiceHandler) AnswerQuiz(context.Context, *connect.Request[v1.AnswerQuizRequest]) (*connect.Response[v1.AnswerQuizResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.ClickService.AnswerQuiz is not implemented"))
 }

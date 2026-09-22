@@ -51,6 +51,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     // Console commands:
     // - `giveBomb()`: as if you had just caught a box and it held a bomb.
     // - `giveBonus("refill")`: the same for any other bonus.
+    // - `giveQuiz()`: a quiz banner now, instead of waiting for the next one.
     // - `fakeBackend.botBomb(tile, "fr")`: someone else's bomb lands on `tile`.
     // - `fakeBackend.botSpread(tile, "fr")`: someone else's spread click on `tile`.
     Object.assign(window, {
@@ -60,6 +61,10 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
             if (!globe) return "the globe is not loaded yet"
             globe.takeReward(fake.grantBomb())
             return "💣 in your inventory — aim it from there"
+        },
+        giveQuiz: () => {
+            fake.offerQuiz()
+            return "a quiz is up — press it, then you have 5 seconds"
         },
         giveBonus: (kind: Parameters<typeof fake.grantBonus>[0]) => {
             const globe = (window as {clickplanetGlobe?: Globe}).clickplanetGlobe
@@ -83,6 +88,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     tileClicker={fake}
                     updatesListener={fake}
                     bonusListener={fake}
+                    quizMaster={fake}
                     bomber={fake}
                     refiller={fake}
                     clickBudgetSource={fake}
@@ -110,6 +116,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     tileClicker={backend}
                     updatesListener={backend}
                     bonusListener={backend}
+                    quizMaster={backend}
                     bomber={backend}
                     refiller={backend}
                     clickBudgetSource={backend}

@@ -1,11 +1,12 @@
 import {describe, expect, it, vi} from "vitest"
-import {asBonusError, bindingsOf, bombOf, catchOf, enclosureOf, offerOf, PlanetBackend, spreadOf, updateOf} from "./planetBackend.ts"
+import {asBonusError, bindingsOf, bombOf, catchOf, enclosureOf, offerOf, PlanetBackend, quizOf, spreadOf, updateOf} from "./planetBackend.ts"
 import {Code, ConnectError} from "@connectrpc/connect"
 import {
     BombDropped,
     BonusKind,
     BonusOffered,
     BonusTaken,
+    QuizOffered,
     ChargesHeld,
     ClickBudget as ClickBudgetMessage,
     GetMapResponse,
@@ -716,13 +717,52 @@ describe("offerOf", () => {
     })
 })
 
+describe("quizOf", () => {
+    const asked = (fields: {token?: string, expiresAtUnixMs?: bigint} = {}) =>
+        new PlanetEvent({
+            event: {
+                case: "quizOffered",
+                value: new QuizOffered({token: "a-token", expiresAtUnixMs: 1_000_000n, ...fields}),
+            },
+        })
+
+    it("reads the banner the server addressed to this client", () => {
+        expect(quizOf(asked())).toEqual({token: "a-token", expiresAt: expect.any(Number)})
+    })
+
+    it("is a token and a deadline, and nothing about the question at all", () => {
+        // Not the text, not the choices, and not the subject either: anything on the banner is
+        // something a client can read while the clock is not running, and the subject is not the
+        // harmless teaser it looks like — "Estonia" answers "Tallinn is the capital of which
+        // country?" on its own.
+        expect(Object.keys(quizOf(asked())!)).toEqual(["token", "expiresAt"])
+    })
+
+    it("builds the deadline from how long is left, not from the server's clock", () => {
+        expect(quizOf(asked({expiresAtUnixMs: 1_025_000n}), 5_000, 1_000_000)?.expiresAt).toBe(5_000 + 25_000)
+    })
+
+    it("drops everything that is not a banner", () => {
+        expect(quizOf(new PlanetEvent({event: {case: "heartbeat", value: new Heartbeat()}}))).toBeUndefined()
+        expect(quizOf(tileUpdateEvent({tileId: 1, countryId: "fr"}))).toBeUndefined()
+    })
+})
+
 describe("catchOf", () => {
     it("reads who caught one", () => {
         const event = new PlanetEvent({
             event: {case: "bonusTaken", value: new BonusTaken({countryId: "jp"})},
         })
 
-        expect(catchOf(event)).toEqual({countryId: "jp"})
+        expect(catchOf(event)).toEqual({countryId: "jp", quizSubject: undefined})
+    })
+
+    it("says when the charge was won by answering a question, and what about", () => {
+        const event = new PlanetEvent({
+            event: {case: "bonusTaken", value: new BonusTaken({countryId: "jp", quizSubjectCountryId: "ee"})},
+        })
+
+        expect(catchOf(event)).toEqual({countryId: "jp", quizSubject: "ee"})
     })
 
     it("drops everything that is not a catch", () => {
