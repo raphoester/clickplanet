@@ -5,6 +5,10 @@
 // the offer off the stream and claims it before the box has left its spawn.
 // Speed alone is not the claim — a player already zoomed out gets lucky — and
 // catching every box is not either. Both, box after box, is.
+//
+// A box can also be claimed by a caller it was never sent to, which no page
+// can do: the web app only claims the box on its own screen. Clients that pass
+// each other their boxes do, and every such claim is refused and told here.
 package catcher
 
 import (
@@ -36,7 +40,16 @@ type Config struct {
 	// at the slowest pace they are offered, or the rule can never fire.
 	TrackWindow time.Duration
 
+	Foreign ForeignConfig
+
 	SweepInterval time.Duration
+}
+
+// ForeignConfig bounds the claims of a box offered to another caller, or to nobody, inside Window. A zero count never reads its level.
+type ForeignConfig struct {
+	Window        time.Duration
+	MinClaims     int
+	CertainClaims int
 }
 
 const (
@@ -46,6 +59,8 @@ const (
 	// Five boxes at bonus's slowest pace, 8m of window and 15s of flight each, with room to spare.
 	defaultTrackWindow   = time.Hour
 	defaultSweepInterval = time.Minute
+
+	defaultForeignWindow = time.Hour
 )
 
 func (c Config) withDefaults() Config {
@@ -67,7 +82,18 @@ func (c Config) withDefaults() Config {
 	if c.SweepInterval <= 0 {
 		c.SweepInterval = defaultSweepInterval
 	}
+	if c.Foreign.Window <= 0 {
+		c.Foreign.Window = defaultForeignWindow
+	}
+	if c.Foreign.CertainClaims > 0 && c.Foreign.CertainClaims < c.Foreign.MinClaims {
+		c.Foreign.CertainClaims = c.Foreign.MinClaims
+	}
 	return c
+}
+
+// keptForeign is how many foreign claims a caller keeps: enough for the higher level set.
+func (c ForeignConfig) kept() int {
+	return max(c.MinClaims, c.CertainClaims)
 }
 
 func New(config Config, clock cptime.Clock) *Watchdog {
@@ -92,9 +118,22 @@ type Watchdog struct {
 
 var _ detect.Watchdog = (*Watchdog)(nil)
 
-// caller holds the last MinCatches boxes offered, oldest first.
+// caller holds the last MinCatches boxes offered, and the last foreign claims, oldest first.
 type caller struct {
 	outcomes []outcome
+	foreign  []time.Time
+}
+
+// lastSeen is the latest thing the caller did with a box, zero for nothing.
+func (c *caller) lastSeen() time.Time {
+	var last time.Time
+	if len(c.outcomes) > 0 {
+		last = c.outcomes[len(c.outcomes)-1].at
+	}
+	if len(c.foreign) > 0 && c.foreign[len(c.foreign)-1].After(last) {
+		last = c.foreign[len(c.foreign)-1]
+	}
+	return last
 }
 
 type outcome struct {
@@ -121,6 +160,23 @@ func (w *Watchdog) Missed(scope string) {
 	w.record(scope, outcome{at: w.clock.Now()})
 }
 
+// Foreign records a claim, refused, of a box that was never offered to this caller.
+func (w *Watchdog) Foreign(scope string) {
+	kept := w.config.Foreign.kept()
+	if scope == "" || kept == 0 {
+		return
+	}
+
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	c := w.callerLocked(scope)
+	c.foreign = append(c.foreign, w.clock.Now())
+	if len(c.foreign) > kept {
+		c.foreign = append(c.foreign[:0], c.foreign[len(c.foreign)-kept:]...)
+	}
+}
+
 func (w *Watchdog) record(scope string, o outcome) {
 	if scope == "" {
 		return
@@ -129,30 +185,49 @@ func (w *Watchdog) record(scope string, o outcome) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
-	c, ok := w.callers[scope]
-	if !ok {
-		c = &caller{}
-		w.callers[scope] = c
-	}
-
+	c := w.callerLocked(scope)
 	c.outcomes = append(c.outcomes, o)
 	if len(c.outcomes) > w.config.MinCatches {
 		c.outcomes = append(c.outcomes[:0], c.outcomes[len(c.outcomes)-w.config.MinCatches:]...)
 	}
 }
 
-// Watch answers from the boxes already caught, not from the click: a box is
-// claimed between clicks, and the jury only asks on a click.
+func (w *Watchdog) callerLocked(scope string) *caller {
+	c, ok := w.callers[scope]
+	if !ok {
+		c = &caller{}
+		w.callers[scope] = c
+	}
+	return c
+}
+
+// Watch answers from the boxes already claimed, not from the click: a box is
+// claimed between clicks, and the jury only asks on a click. The stronger rule
+// is reported, catch on a tie.
 func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
 	c, ok := w.callers[click.Scope]
-	if !ok || len(c.outcomes) < w.config.MinCatches {
+	if !ok {
 		return detect.Clear, detect.Evidence{}
 	}
 
-	cutoff := click.At.Add(-w.config.TrackWindow)
+	catch, catchEvidence := w.catch(c, click.At)
+	foreign, foreignEvidence := w.foreign(c, click.At)
+
+	if foreign > catch {
+		return foreign, foreignEvidence
+	}
+	return catch, catchEvidence
+}
+
+func (w *Watchdog) catch(c *caller, at time.Time) (detect.Verdict, detect.Evidence) {
+	if len(c.outcomes) < w.config.MinCatches {
+		return detect.Clear, detect.Evidence{}
+	}
+
+	cutoff := at.Add(-w.config.TrackWindow)
 
 	delays := make([]time.Duration, 0, len(c.outcomes))
 	for _, o := range c.outcomes {
@@ -182,6 +257,39 @@ func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
 	}
 }
 
+// foreign counts the claims of boxes sent to somebody else inside the window: one a page never makes.
+func (w *Watchdog) foreign(c *caller, at time.Time) (detect.Verdict, detect.Evidence) {
+	config := w.config.Foreign
+
+	cutoff := at.Add(-config.Window)
+	claims := 0
+	for _, claimed := range c.foreign {
+		if claimed.After(cutoff) {
+			claims++
+		}
+	}
+
+	verdict := detect.Clear
+	switch {
+	case config.CertainClaims > 0 && claims >= config.CertainClaims:
+		verdict = detect.Certain
+	case config.MinClaims > 0 && claims >= config.MinClaims:
+		verdict = detect.Suspect
+	}
+
+	if verdict == detect.Clear {
+		return detect.Clear, detect.Evidence{}
+	}
+
+	return verdict, detect.Evidence{
+		Rule: "foreign",
+		Fields: []detect.Field{
+			{Key: "claims", Value: claims},
+			{Key: "within", Value: config.Window},
+		},
+	}
+}
+
 func (w *Watchdog) Run(ctx context.Context) {
 	ticker := time.NewTicker(w.config.SweepInterval)
 	defer ticker.Stop()
@@ -202,9 +310,9 @@ func (w *Watchdog) sweep() {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
-	cutoff := now.Add(-w.config.TrackWindow)
+	cutoff := now.Add(-max(w.config.TrackWindow, w.config.Foreign.Window))
 	for scope, c := range w.callers {
-		if c.outcomes[len(c.outcomes)-1].at.Before(cutoff) {
+		if c.lastSeen().Before(cutoff) {
 			delete(w.callers, scope)
 		}
 	}

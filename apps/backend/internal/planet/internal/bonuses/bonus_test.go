@@ -685,6 +685,86 @@ func TestAnUnknownTokenIsRefused(t *testing.T) {
 	assert.False(t, claimed)
 }
 
+// foreign counts the refused claims reported as somebody else's box, per scope that made them.
+func foreign(registry *Registry) map[string]int {
+	claims := map[string]int{}
+	registry.Observe(Report{Foreign: func(scope string) { claims[scope]++ }})
+	return claims
+}
+
+func TestClaimingABoxOfferedToAnotherCallerIsReported(t *testing.T) {
+	registry, clock := newTestRegistry()
+	claims := foreign(registry)
+	events := playing(t, registry, "scope-a")
+
+	waitOut(registry, clock)
+	offer := offered(t, events)
+	require.NotNil(t, offer)
+
+	_, stolen := registry.Claim(offer.Token, "scope-b")
+	_, mine := registry.Claim(offer.Token, "scope-a")
+	_, late := registry.Claim(offer.Token, "scope-c")
+
+	assert.False(t, stolen)
+	assert.True(t, mine)
+	assert.False(t, late)
+	assert.Equal(t, map[string]int{"scope-b": 1, "scope-c": 1}, claims, "the owner's own claim is no evidence, before or after the others")
+}
+
+func TestClaimingATokenNeverOfferedIsReported(t *testing.T) {
+	registry, _ := newTestRegistry()
+	claims := foreign(registry)
+
+	_, claimed := registry.Claim("not-a-token", "scope-a")
+
+	assert.False(t, claimed)
+	assert.Equal(t, map[string]int{"scope-a": 1}, claims)
+}
+
+func TestClaimingYourOwnBoxTwiceOrLateIsNotReported(t *testing.T) {
+	registry, clock := newTestRegistry()
+	claims := foreign(registry)
+	events := playing(t, registry, "scope-a")
+
+	waitOut(registry, clock)
+	first := offered(t, events)
+	require.NotNil(t, first)
+
+	_, once := registry.Claim(first.Token, "scope-a")
+	_, twice := registry.Claim(first.Token, "scope-a")
+	require.True(t, once)
+	require.False(t, twice)
+
+	waitOut(registry, clock)
+	second := offered(t, events)
+	require.NotNil(t, second)
+
+	clock.Advance(16 * time.Second)
+	_, beforeTheSweep := registry.Claim(second.Token, "scope-a")
+	registry.sweep()
+	_, afterTheSweep := registry.Claim(second.Token, "scope-a")
+
+	assert.False(t, beforeTheSweep)
+	assert.False(t, afterTheSweep)
+	assert.Empty(t, claims)
+}
+
+func TestASpentTokenIsForgottenAfterAWhile(t *testing.T) {
+	registry, clock := newTestRegistry()
+	events := playing(t, registry, "scope-a")
+
+	waitOut(registry, clock)
+	offer := offered(t, events)
+	require.NotNil(t, offer)
+	_, claimed := registry.Claim(offer.Token, "scope-a")
+	require.True(t, claimed)
+
+	clock.Advance(rememberSpent + time.Second)
+	registry.sweep()
+
+	assert.Empty(t, registry.spent)
+}
+
 func TestLapsedTokensAreForgottenRatherThanKept(t *testing.T) {
 	registry, clock := newTestRegistry()
 	events := playing(t, registry, "scope-a")

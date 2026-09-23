@@ -1399,9 +1399,9 @@ A `Watchdog` measures one behaviour over one caller and returns a `Verdict`:
 
 - **`retaker`** — takes a tile back moments after losing it, over and over.
 - **`sequencer`** — walks the tile ids rather than the map: 1, 2, 3, 4, on and on.
-- **`metronome`** — never varies and never stops (`cadence`), or sleeps a random time between clicks (`shape`).
+- **`metronome`** — never varies and never stops (`cadence`), sleeps a random time between clicks (`shape`), or keeps a timer's beat through its pauses (`clock`).
 - **`defender`** — nearly every take is a retake, however slowly it comes.
-- **`catcher`** — catches every bonus box, at once.
+- **`catcher`** — catches every bonus box, at once (`catch`), or claims boxes sent to somebody else (`foreign`).
 - **`cohort`** — starts, paces and stops in step with other scopes, group after group.
 - **`scraper`** — reads the whole map again and again, which the web app never does.
 
@@ -1600,6 +1600,32 @@ hand's gaps are mostly short with a long tail. The rule is the quantile skew
   It buys time, like every rule here.
 - A gap that never varies (p90 = p10) has no skew and is `cadence`'s.
 
+**A timer keeps its beat through a pause, and `clock` reads that.** The bot of
+2026-09-23 ran in a hidden browser tab, which fires its timers on whole seconds.
+It spent the bucket in a burst, waited five to seven minutes for the refill and
+came back: no run reached `minClicks`, and a second click 50-90ms after one in
+five put its spread near a second. Every watchdog read `clear` for 5h27m. What
+it did not change is *where in the second* each click landed: x.13s, for hours,
+through every rest. The rule puts each try on a circle `clock.period` (1s) long
+and reads the length of the mean vector — 1 when every try lands at the same
+point of the beat, about 1/√n for a hand.
+
+- **It reads absolute times, not gaps**, so a pause ends nothing: the last
+  `clock.certainClicks` try times are kept through breaks, and in the evidence.
+  A hand's error adds up from one click to the next, so it loses the beat within
+  a few clicks however regular its gaps are.
+- **Measured before it was written**, over the access log of 2026-09-15 to 23:
+  the bot read 0.96 over 600 tries and 0.99 over 120; no other scope passed 0.22
+  over 600 or 0.50 over 120, and the heaviest players (two browsers on one /64,
+  74k tries in the week) stayed under 0.10 and 0.26.
+- `certainFor` (30m) is for the one human left: somebody tapping along to a
+  steady beat keeps it for a song, not for half an hour.
+- **It ships measuring**, like `shape`: `minCoherence` and `certainCoherence` are
+  pointers, unset in production, and the sweep reports each caller with a full
+  window through `Observer.OnClockCoherence`, into `click_clock_coherence`.
+- It is beatable in one line — add a random delay — and then the gaps are a
+  random sleep, which is `shape`'s.
+
 **`defender`: what is clicked, not when.** The bots of 2026-09-14 retook from a
 queue behind the throttle: tiles came back 0.4s, 1.5s, 2.5s … 40s after they were
 lost, one refill at a time, so the retaker's reaction window saw almost none of
@@ -1642,6 +1668,29 @@ click. The delay includes the round trip, which only makes a person look slower.
 The counter-move is cheap — wait a random few seconds, or let one box in five go
 — and that is fine: a bot that does either has stopped taking every box the
 moment it is offered.
+
+**`foreign`: a box that was never yours.** From 2026-09-15 to 23 a pool of
+clients painting two flags from three ISPs passed each other every box they were
+offered, and each member claimed it within the same second. Only the owner can
+win, so the rest were refused — 13 to 81 refused claims in their worst hour,
+against at most 5 for every other scope, own boxes claimed late or twice
+included. The web app only claims the box on its own screen, and a box is only
+sent to its own scope.
+
+- **The registry tells a box that was never yours from one that was.** A
+  claimed or lapsed token is kept `rememberSpent` (10m) with the scope it was
+  offered to. A refused claim reaches `bonuses.Report.Foreign` only when the
+  token was offered to another scope or to nobody it remembers: a second tab
+  clicking the same box, or a claim that lands late, is the caller's own box and
+  says nothing. `bonus_claims_foreign_total` counts them.
+- `foreign.minClaims` inside `foreign.window` reads `Suspect`, `certainClaims`
+  reads `Certain`. **It ships measuring**: zero never reads a level.
+- What a person can still produce is one per change of address between the
+  offer and the claim, and one per client per restart (the offers are in memory).
+- It is a rule of `catcher`, not a watchdog, because both read what a caller
+  does with boxes. The stronger rule is reported, `catch` on a tie.
+- The counter-move is to stop sharing tokens, and then each member's own catches
+  are what `catch` reads.
 
 **`cohort`: between scopes, not within one.** Every other watchdog judges one
 scope, and a scope is only as long-lived as the caller wants it to be. On

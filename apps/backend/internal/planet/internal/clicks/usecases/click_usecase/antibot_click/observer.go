@@ -42,6 +42,12 @@ func NewObserver(logger *slog.Logger, registerer prometheus.Registerer) antibot.
 
 	// Set once a sweep. A pool that rotates addresses shows here as a floor that
 	// never drops to zero, long before its cohorts chain into a ban.
+	clockCoherences := factory.NewHistogram(prometheus.HistogramOpts{
+		Name:    "click_clock_coherence",
+		Help:    "How closely a caller's clicks tried keep one beat of the metronome's clock period, 0 to 1, per caller per sweep",
+		Buckets: []float64{0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0},
+	})
+
 	cohortScopes := factory.NewGauge(prometheus.GaugeOpts{
 		Name: "click_cohort_scopes",
 		Help: "Callers clicking in step with another caller: same flag, same start, same pace",
@@ -82,6 +88,8 @@ func NewObserver(logger *slog.Logger, registerer prometheus.Registerer) antibot.
 		OnRetakeShare: retakeShares.Observe,
 
 		OnGapSkew: gapSkews.Observe,
+
+		OnClockCoherence: clockCoherences.Observe,
 
 		OnCohortScopes: func(scopes int) { cohortScopes.Set(float64(scopes)) },
 

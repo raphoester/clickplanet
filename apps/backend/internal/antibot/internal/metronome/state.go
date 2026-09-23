@@ -19,6 +19,7 @@ type savedCaller struct {
 	RunClicks int
 	Gaps      []int64
 	Shape     []int64
+	Tries     []int64
 }
 
 func (w *Watchdog) Save() ([]byte, error) {
@@ -33,6 +34,7 @@ func (w *Watchdog) Save() ([]byte, error) {
 			RunClicks: c.runClicks,
 			Gaps:      nanos(c.gaps),
 			Shape:     nanos(c.shape),
+			Tries:     times(c.tries),
 		})
 	}
 
@@ -55,6 +57,7 @@ func (w *Watchdog) Load(data []byte) error {
 			runClicks: c.RunClicks,
 			gaps:      durations(c.Gaps, w.capacity()),
 			shape:     durations(c.Shape, w.config.Shape.CertainClicks),
+			tries:     instants(c.Tries, w.config.Clock.kept()),
 		}
 	}
 
@@ -84,6 +87,26 @@ func durations(saved []int64, capacity int) []time.Duration {
 		gaps = append(gaps, time.Duration(gap))
 	}
 	return gaps
+}
+
+func times(tries []time.Time) []int64 {
+	saved := make([]int64, 0, len(tries))
+	for _, at := range tries {
+		saved = append(saved, evidence.Nanos(at))
+	}
+	return saved
+}
+
+// instants keeps the newest capacity tries, as durations does.
+func instants(saved []int64, capacity int) []time.Time {
+	if len(saved) > capacity {
+		saved = saved[len(saved)-capacity:]
+	}
+	tries := make([]time.Time, 0, len(saved))
+	for _, at := range saved {
+		tries = append(tries, evidence.Time(at))
+	}
+	return tries
 }
 
 func (w *Watchdog) Forget(before time.Time) {

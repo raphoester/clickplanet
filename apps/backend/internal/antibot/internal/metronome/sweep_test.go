@@ -14,7 +14,7 @@ import (
 func TestSweepForgetsIdleCallers(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC))
 
-	w := New(Config{TrackWindow: time.Minute}, clock, func(float64) {})
+	w := New(Config{TrackWindow: time.Minute}, clock, func(float64) {}, func(float64) {})
 
 	w.Attempted(detect.Click{Scope: "caller", Tile: 1, Country: "FR", At: clock.Now()})
 	require.Len(t, w.callers, 1)
@@ -29,7 +29,7 @@ func TestSweepReportsTheSkewOfAFullWindowOnly(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 16, 12, 0, 0, 0, time.UTC))
 
 	var skews []float64
-	w := New(Config{TrackWindow: time.Hour, Shape: ShapeConfig{Clicks: 10}}, clock, func(skew float64) { skews = append(skews, skew) })
+	w := New(Config{TrackWindow: time.Hour, Shape: ShapeConfig{Clicks: 10}}, clock, func(skew float64) { skews = append(skews, skew) }, func(float64) {})
 
 	gaps := []time.Duration{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
 	for i, gap := range gaps {
@@ -49,7 +49,7 @@ func TestSweepReportsTheSkewOfAFullWindowOnly(t *testing.T) {
 func TestTheShapeRingIsBounded(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 16, 12, 0, 0, 0, time.UTC))
 
-	w := New(Config{TrackWindow: time.Hour, Shape: ShapeConfig{Clicks: 8, CertainClicks: 16}}, clock, func(float64) {})
+	w := New(Config{TrackWindow: time.Hour, Shape: ShapeConfig{Clicks: 8, CertainClicks: 16}}, clock, func(float64) {}, func(float64) {})
 
 	for i := range uint32(500) {
 		clock.Advance(time.Second)
@@ -62,7 +62,7 @@ func TestTheShapeRingIsBounded(t *testing.T) {
 func TestTheGapRingIsBounded(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC))
 
-	w := New(Config{MaxGap: 3 * time.Second, MinClicks: 8, TrackWindow: time.Hour}, clock, func(float64) {})
+	w := New(Config{MaxGap: 3 * time.Second, MinClicks: 8, TrackWindow: time.Hour}, clock, func(float64) {}, func(float64) {})
 
 	for i := range uint32(500) {
 		clock.Advance(time.Second)
