@@ -23,14 +23,10 @@ services:
     ports:
       - "80:80"
       - "443:443"
-    environment:
-      API_DOMAIN: ${API_DOMAIN:?set API_DOMAIN in .env}
-      # The Caddyfile reads this for Access-Control-Allow-Origin. Unset, Caddy
-      # substitutes an empty string and every browser call from Pages fails CORS.
-      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:?set FRONTEND_ORIGIN in .env}
-      # Scoped Cloudflare token (Zone:DNS:Edit + Zone:Zone:Read) Caddy uses to
-      # write the ACME TXT record. This is the one real secret on the box.
-      CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:?set CLOUDFLARE_API_TOKEN in .env}
+    # The Caddyfile's {$NAME} and {env.NAME} values, and nothing else: .env is
+    # compose's own interpolation file and holds the postgres password, so Caddy
+    # loads a file of its own.
+    env_file: .env.caddy
     volumes:
       # The directory, not the file. `git pull` writes a new Caddyfile (a new
       # inode), and a single-file bind mount keeps showing the old one until the
@@ -91,56 +87,16 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    # cfgutil loads env vars with "." as the nesting delimiter, so a key like
-    # `tilesStorage.flushInterval` can be overridden here without editing
-    # backend.yaml.
+    # One line per env:// anchor in backend.yaml, and only the API's. Which secrets
+    # those are is backend.yaml's business, so nothing here changes when one is added.
+    env_file: .env.backend
+    # Settings, not secrets. cfgutil loads env vars with "." as the nesting
+    # delimiter, so a key here overrides backend.yaml.
     environment:
       # The one origin the API allows credentialed calls from. The same value
-      # Caddy puts in Access-Control-Allow-Origin, so the two cannot drift.
-      httpServer.allowedOrigin: ${FRONTEND_ORIGIN:?set FRONTEND_ORIGIN in .env}
-      # Salts the tag shown beside every name. It lives here rather than in
-      # backend.yaml because that file is in git: anyone holding the salt can
-      # recompute a tag from a guessed address, which is the one thing the tag
-      # is supposed to prevent. Changing it renames every sender, so treat it as
-      # permanent — bootstrap.sh generates one and never overwrites it. The
-      # variable keeps its chat name: the tag moved from chat to player, and the
-      # value did not change.
-      player.tagSalt: ${CHAT_TAG_SALT:?set CHAT_TAG_SALT in .env (openssl rand -hex 16)}
-      # Signs the session tokens that gate the Click RPC. Here rather than in
-      # backend.yaml for the same reason as the salt: that file is in git, and
-      # anyone holding this can mint a token the API will accept. Changing it
-      # invalidates every session in flight, which costs each player one extra
-      # round trip and nothing else.
-      # Hard, like the two above, because backend.yaml has auth.enabled true and
-      # the API refuses to start without it. It is the Ed25519 seed the tokens are
-      # signed with: 32 bytes as 64 hex characters, which is what `openssl rand -hex 32`
-      # already gave you. Only the auth module is handed it; the planet module gets
-      # the public half, derived at boot. The box this runs on already needs
-      # TURNSTILE_SECRET to start, so it has been set up either way.
-      auth.secret: ${SESSION_SECRET:?set SESSION_SECRET in .env (openssl rand -hex 32)}
-      # The Turnstile widget's secret key, from the same dashboard page as the
-      # sitekey. The sitekey is public and lives in the frontend build; this one
-      # never leaves the box.
-      # Also soft, and unused while auth.turnstile.enabled is false. Once it
-      # is true, an empty value fails the boot loudly rather than quietly
-      # admitting everyone.
-      auth.turnstile.secret: ${TURNSTILE_SECRET:-}
-      # The OAuth client secrets of the sign-in providers, from the Google Cloud
-      # console and the Discord developer portal. Soft: unused while
-      # auth.signIn.enabled is false or the provider has no clientId. Once both
-      # are set, an empty secret refuses the boot.
-      auth.google.clientSecret: ${GOOGLE_CLIENT_SECRET:-}
-      auth.discord.clientSecret: ${DISCORD_CLIENT_SECRET:-}
-      # Hard like the session secret: the API cannot start without postgres.
-      database.password: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env (openssl rand -hex 32)}
-      # The antibot's own pool: same postgres, same user, its own schema.
-      antiBot.database.password: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env (openssl rand -hex 32)}
-      # The chat module has its own database block: same postgres, same user, same password.
-      chat.database.password: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env (openssl rand -hex 32)}
-      # The auth module's accounts, the same way.
-      auth.database.password: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env (openssl rand -hex 32)}
-      # The player module's profiles and stats, the same way. Read only while player.enabled is true.
-      player.database.password: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env (openssl rand -hex 32)}
+      # Caddy puts in Access-Control-Allow-Origin, so the two cannot drift. It
+      # comes from env.public, through .env.
+      httpServer.allowedOrigin: ${FRONTEND_ORIGIN:?set FRONTEND_ORIGIN in env.public}
     volumes:
       - ./backend.yaml:/home/app/config/config.yaml:ro
     command: [ "./api", "-config", "/home/app/config/config.yaml" ]
