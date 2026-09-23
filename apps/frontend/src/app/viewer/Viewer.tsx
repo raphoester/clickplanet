@@ -39,7 +39,11 @@ import PlayerCard from "../players/PlayerCard.tsx";
 import {usePresence} from "../players/usePresence.ts";
 import {useRoster} from "../players/useRoster.ts";
 import SignInPitchModal from "../account/SignInPitchModal.tsx";
+import {LeaderboardEntry} from "../../domain/leaderboard.ts";
 import "./Viewer.css"
+
+/** A stable empty board, so the anthem sees no leader while the map loads. */
+const NO_LEADERBOARD: readonly LeaderboardEntry[] = []
 
 export type ViewerProps = {
     tileClicker: TileClicker
@@ -130,7 +134,10 @@ export default function Viewer(props: ViewerProps) {
 
     // The camera lives out here rather than in the menu: the globe is what it
     // photographs, and the card over it is not in the picture.
-    const anthem = useAnthem(leaderboard, sound.settings)
+    // Not before the map is in: the board is sampled while the batches load,
+    // and the first leader plays at once, so a half-loaded map would pick the
+    // anthem and the real leader would then have to wait out a whole hold.
+    const anthem = useAnthem(status.state === 'ready' ? leaderboard : NO_LEADERBOARD, sound.settings)
 
     const {shot, taking, take, discard} = useSharePicture(
         capture, shareStats(leaderboard, countryState))
