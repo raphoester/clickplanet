@@ -1753,7 +1753,9 @@ Territories share their country's file (`SHARES` in the script); a country with
 no recording shows the player with its play button off.
 
 - `domain/anthemLeader.ts` — `followLeader`: a new leader must hold first place
-  for `HOLD_MS` (15s) before the music follows it. The first leader plays at once.
+  for `HOLD_MS` (15s) before the music follows it. The first leader plays at once,
+  so `Viewer` hands `useAnthem` no board until the map is loaded: the board is
+  sampled while the batches arrive, and a half-loaded map's leader is not the real one.
 - `anthemPlayer.ts` — two `<audio>` elements crossfade through Web Audio gain
   nodes. **Not `audio.volume`: iOS ignores it.** A muted or hidden tab fades out
   and pauses rather than streaming silence.
