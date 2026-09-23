@@ -15,7 +15,7 @@
 //     Earth snapshot the map is cut from and from the tile borders themselves. About a thousand
 //     questions that are regenerated rather than corrected.
 //   - **Hand-written** — `scripts/quiz/extra.json`, for the questions no dataset here can answer.
-//     Kept to facts that do not move; see the note at the top of that file.
+//     Kept to facts that do not move, or dated so they cannot; see the note at the top of that file.
 //
 // See /quiz/README.md.
 import crypto from "node:crypto"

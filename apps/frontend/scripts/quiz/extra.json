@@ -2,14 +2,19 @@
   "comment": [
     "The questions no dataset in this repo can answer, written by hand.",
     "",
-    "Everything else in the bank is derived and cannot rot. These can, so the rules are strict:",
-    "a question here must be about something that does not change (a fact of history, geography or",
-    "spelling), never about who holds an office, what a population is, or anything else a newspaper",
-    "could make wrong. `subject` is the country code the question is about, which is what the",
-    "leaderboard weighting draws on; leave it out for a question about nowhere in particular. It",
-    "never reaches a player before they answer, so it does not matter that it gives the answer",
-    "away here - `extra:russia-timezones` is about `ru` and the answer is Russia, and that is fine.",
-    "`wrong` carries five, of which a round shows two."
+    "Everything else in the bank is derived and cannot rot. These can, so the rule is strict: the",
+    "answer must not be something a newspaper could make wrong. A fact of history, geography or",
+    "spelling qualifies as it is. A fact that moves - who holds an office, which religion or economy",
+    "is biggest, what a currency is - qualifies only when the question names the year it was true",
+    "(\"Who was president of Portugal in 2020?\"), because then the answer is history and nothing",
+    "has to be revisited when the news changes. Never \"who is\", always \"who was ... in <year>\".",
+    "",
+    "`subject` is the country code the question is about, which is what the leaderboard weighting",
+    "draws on; leave it out for a question about nowhere in particular. It never reaches a player",
+    "before they answer, so it does not matter that it gives the answer away here -",
+    "`extra:russia-timezones` is about `ru` and the answer is Russia, and that is fine.",
+    "`wrong` carries five, of which a round shows two. A player has eight seconds, so keep the",
+    "question short enough to read in three."
   ],
   "questions": [
     {
@@ -345,6 +350,3513 @@
         "Slovakia and Hungary",
         "Czechia and Poland"
       ]
+    },
+    {
+      "id": "extra:pacific-largest",
+      "text": "Which is the largest ocean on Earth?",
+      "answer": "The Pacific",
+      "wrong": [
+        "The Atlantic",
+        "The Indian Ocean",
+        "The Arctic Ocean",
+        "The Southern Ocean",
+        "The Mediterranean"
+      ]
+    },
+    {
+      "id": "extra:mariana-trench",
+      "subject": "mp",
+      "text": "Where is the deepest point in the oceans?",
+      "answer": "The Mariana Trench",
+      "wrong": [
+        "The Puerto Rico Trench",
+        "The Bermuda Triangle",
+        "The Java Trench",
+        "The Mid-Atlantic Ridge",
+        "The Dead Sea"
+      ]
+    },
+    {
+      "id": "extra:dead-sea",
+      "subject": "jo",
+      "text": "Which body of water is so salty that people float on it easily?",
+      "answer": "The Dead Sea",
+      "wrong": ["The Red Sea", "The Black Sea", "Lake Victoria", "The Baltic Sea", "Lake Geneva"]
+    },
+    {
+      "id": "extra:dead-sea-level",
+      "subject": "jo",
+      "text": "The shore of the Dead Sea is famous for being what?",
+      "answer": "The lowest land on Earth",
+      "wrong": [
+        "The hottest place on Earth",
+        "The windiest coast on Earth",
+        "The oldest beach on Earth",
+        "The only pink beach",
+        "A frozen shore"
+      ]
+    },
+    {
+      "id": "extra:caspian",
+      "subject": "kz",
+      "text": "What is the largest lake on Earth by area?",
+      "answer": "The Caspian Sea",
+      "wrong": ["Lake Superior", "Lake Victoria", "Lake Baikal", "Lake Titicaca", "The Aral Sea"]
+    },
+    {
+      "id": "extra:baikal",
+      "subject": "ru",
+      "text": "The deepest lake on Earth is in which country?",
+      "answer": "Russia",
+      "wrong": ["Canada", "The USA", "Tanzania", "Chile", "Switzerland"]
+    },
+    {
+      "id": "extra:aral-sea",
+      "subject": "uz",
+      "text": "The Aral Sea, between Kazakhstan and Uzbekistan, is famous for what?",
+      "answer": "It has mostly dried up",
+      "wrong": [
+        "It is saltier than the Dead Sea",
+        "It is the deepest lake in Asia",
+        "It is frozen all year",
+        "It is below sea level",
+        "It has doubled in size"
+      ]
+    },
+    {
+      "id": "extra:titicaca",
+      "subject": "bo",
+      "text": "Lake Titicaca is shared by Bolivia and which country?",
+      "answer": "Peru",
+      "wrong": ["Chile", "Brazil", "Argentina", "Ecuador", "Paraguay"]
+    },
+    {
+      "id": "extra:victoria-lake",
+      "subject": "ug",
+      "text": "Lake Victoria, Africa's largest lake, is shared by Uganda, Kenya and which country?",
+      "answer": "Tanzania",
+      "wrong": ["Ethiopia", "Rwanda", "Egypt", "Sudan", "Malawi"]
+    },
+    {
+      "id": "extra:gibraltar",
+      "subject": "es",
+      "text": "Which strait separates Europe from Africa?",
+      "answer": "The Strait of Gibraltar",
+      "wrong": [
+        "The Bosphorus",
+        "The Strait of Hormuz",
+        "The Bering Strait",
+        "The Strait of Malacca",
+        "The Dardanelles"
+      ]
+    },
+    {
+      "id": "extra:bosphorus",
+      "subject": "tr",
+      "text": "Istanbul sits on both sides of which strait?",
+      "answer": "The Bosphorus",
+      "wrong": [
+        "The Strait of Gibraltar",
+        "The Suez Canal",
+        "The Strait of Hormuz",
+        "The Bering Strait",
+        "The Kerch Strait"
+      ]
+    },
+    {
+      "id": "extra:bering",
+      "subject": "us",
+      "text": "Which strait separates Russia from Alaska?",
+      "answer": "The Bering Strait",
+      "wrong": [
+        "The Strait of Magellan",
+        "The Davis Strait",
+        "The Strait of Hormuz",
+        "The Bosphorus",
+        "The Cook Strait"
+      ]
+    },
+    {
+      "id": "extra:hormuz",
+      "subject": "om",
+      "text": "The Strait of Hormuz is the mouth of which sea or gulf?",
+      "answer": "The Persian Gulf",
+      "wrong": [
+        "The Red Sea",
+        "The Black Sea",
+        "The Gulf of Mexico",
+        "The Caspian Sea",
+        "The Gulf of Aden"
+      ]
+    },
+    {
+      "id": "extra:malacca",
+      "subject": "my",
+      "text": "The Strait of Malacca runs between Malaysia and which island?",
+      "answer": "Sumatra",
+      "wrong": ["Borneo", "Java", "Sri Lanka", "Luzon", "Taiwan"]
+    },
+    {
+      "id": "extra:magellan-strait",
+      "subject": "cl",
+      "text": "The Strait of Magellan is at the tip of which continent?",
+      "answer": "South America",
+      "wrong": ["Africa", "Australia", "Asia", "North America", "Europe"]
+    },
+    {
+      "id": "extra:panama-canal",
+      "subject": "pa",
+      "text": "The Panama Canal joins which two oceans?",
+      "answer": "The Atlantic and the Pacific",
+      "wrong": [
+        "The Atlantic and the Indian",
+        "The Pacific and the Arctic",
+        "The Indian and the Pacific",
+        "The Arctic and the Atlantic",
+        "The Pacific and the Southern"
+      ]
+    },
+    {
+      "id": "extra:suez-canal",
+      "subject": "eg",
+      "text": "The Suez Canal joins the Mediterranean to which sea?",
+      "answer": "The Red Sea",
+      "wrong": [
+        "The Black Sea",
+        "The Dead Sea",
+        "The Arabian Sea",
+        "The Caspian Sea",
+        "The Persian Gulf"
+      ]
+    },
+    {
+      "id": "extra:english-channel",
+      "subject": "gb",
+      "text": "What do the French call the English Channel?",
+      "answer": "La Manche",
+      "wrong": [
+        "La Mer du Nord",
+        "Le Pas-de-Calais",
+        "La Grande Mer",
+        "Le Canal de Londres",
+        "La Mer Anglaise"
+      ]
+    },
+    {
+      "id": "extra:channel-tunnel",
+      "subject": "fr",
+      "text": "The Channel Tunnel joins France to which country?",
+      "answer": "The United Kingdom",
+      "wrong": ["Belgium", "Ireland", "The Netherlands", "Norway", "Denmark"]
+    },
+    {
+      "id": "extra:bermuda-triangle",
+      "subject": "bm",
+      "text": "The Bermuda Triangle is in which ocean?",
+      "answer": "The Atlantic",
+      "wrong": [
+        "The Pacific",
+        "The Indian Ocean",
+        "The Arctic Ocean",
+        "The Southern Ocean",
+        "The Mediterranean"
+      ]
+    },
+    {
+      "id": "extra:great-barrier-reef",
+      "subject": "au",
+      "text": "The Great Barrier Reef lies off the coast of which country?",
+      "answer": "Australia",
+      "wrong": ["Indonesia", "The Philippines", "New Zealand", "Fiji", "Papua New Guinea"]
+    },
+    {
+      "id": "extra:indian-ocean-between",
+      "text": "Which ocean lies between Africa and Australia?",
+      "answer": "The Indian Ocean",
+      "wrong": [
+        "The Pacific",
+        "The Atlantic",
+        "The Southern Ocean",
+        "The Arctic Ocean",
+        "The Arabian Sea"
+      ]
+    },
+    {
+      "id": "extra:adriatic",
+      "subject": "hr",
+      "text": "Which sea separates Italy from Croatia?",
+      "answer": "The Adriatic Sea",
+      "wrong": [
+        "The Aegean Sea",
+        "The Ionian Sea",
+        "The Tyrrhenian Sea",
+        "The Black Sea",
+        "The Ligurian Sea"
+      ]
+    },
+    {
+      "id": "extra:aegean",
+      "subject": "gr",
+      "text": "Which sea lies between Greece and Turkey?",
+      "answer": "The Aegean Sea",
+      "wrong": [
+        "The Adriatic Sea",
+        "The Black Sea",
+        "The Red Sea",
+        "The Caspian Sea",
+        "The Baltic Sea"
+      ]
+    },
+    {
+      "id": "extra:sargasso",
+      "subject": "bm",
+      "text": "Which sea has no coastline at all?",
+      "answer": "The Sargasso Sea",
+      "wrong": ["The Caspian Sea", "The Dead Sea", "The Coral Sea", "The Aral Sea", "The North Sea"]
+    },
+    {
+      "id": "extra:amazon-flow",
+      "subject": "br",
+      "text": "Which river carries more water than any other?",
+      "answer": "The Amazon",
+      "wrong": ["The Nile", "The Mississippi", "The Yangtze", "The Congo", "The Danube"]
+    },
+    {
+      "id": "extra:volga",
+      "subject": "ru",
+      "text": "What is the longest river in Europe?",
+      "answer": "The Volga",
+      "wrong": ["The Danube", "The Rhine", "The Seine", "The Thames", "The Loire"]
+    },
+    {
+      "id": "extra:danube-capitals",
+      "subject": "hu",
+      "text": "How many national capitals does the Danube flow through?",
+      "answer": "Four",
+      "wrong": ["Two", "Three", "Five", "Six", "One"]
+    },
+    {
+      "id": "extra:danube-sea",
+      "subject": "ro",
+      "text": "The Danube ends in which sea?",
+      "answer": "The Black Sea",
+      "wrong": [
+        "The North Sea",
+        "The Adriatic Sea",
+        "The Baltic Sea",
+        "The Mediterranean",
+        "The Caspian Sea"
+      ]
+    },
+    {
+      "id": "extra:seine",
+      "subject": "fr",
+      "text": "Which river flows through Paris?",
+      "answer": "The Seine",
+      "wrong": ["The Loire", "The Rhône", "The Rhine", "The Thames", "The Garonne"]
+    },
+    {
+      "id": "extra:thames",
+      "subject": "gb",
+      "text": "Which river flows through London?",
+      "answer": "The Thames",
+      "wrong": ["The Seine", "The Severn", "The Mersey", "The Tyne", "The Clyde"]
+    },
+    {
+      "id": "extra:tiber",
+      "subject": "it",
+      "text": "Which river flows through Rome?",
+      "answer": "The Tiber",
+      "wrong": ["The Po", "The Arno", "The Danube", "The Rhône", "The Adige"]
+    },
+    {
+      "id": "extra:tagus",
+      "subject": "pt",
+      "text": "Which river meets the sea at Lisbon?",
+      "answer": "The Tagus",
+      "wrong": ["The Douro", "The Ebro", "The Guadalquivir", "The Loire", "The Minho"]
+    },
+    {
+      "id": "extra:tigris",
+      "subject": "iq",
+      "text": "Baghdad stands on which river?",
+      "answer": "The Tigris",
+      "wrong": ["The Nile", "The Jordan", "The Indus", "The Ganges", "The Euphrates"]
+    },
+    {
+      "id": "extra:rio-grande",
+      "subject": "mx",
+      "text": "Which river forms part of the border between the USA and Mexico?",
+      "answer": "The Rio Grande",
+      "wrong": ["The Mississippi", "The Colorado", "The Amazon", "The Missouri", "The Orinoco"]
+    },
+    {
+      "id": "extra:yangtze",
+      "subject": "cn",
+      "text": "What is the longest river in Asia?",
+      "answer": "The Yangtze",
+      "wrong": ["The Mekong", "The Ganges", "The Indus", "The Yellow River", "The Euphrates"]
+    },
+    {
+      "id": "extra:ganges",
+      "subject": "in",
+      "text": "Which river is holy in Hinduism?",
+      "answer": "The Ganges",
+      "wrong": ["The Nile", "The Jordan", "The Mekong", "The Tigris", "The Yangtze"]
+    },
+    {
+      "id": "extra:mekong",
+      "subject": "vn",
+      "text": "The Mekong river ends in the sea in which country?",
+      "answer": "Vietnam",
+      "wrong": ["Thailand", "Cambodia", "Laos", "China", "Myanmar"]
+    },
+    {
+      "id": "extra:congo-river",
+      "subject": "cd",
+      "text": "Which river gives its name to two African countries?",
+      "answer": "The Congo",
+      "wrong": ["The Nile", "The Orange", "The Zambezi", "The Senegal", "The Limpopo"]
+    },
+    {
+      "id": "extra:angel-falls",
+      "subject": "ve",
+      "text": "The highest waterfall in the world, Angel Falls, is in which country?",
+      "answer": "Venezuela",
+      "wrong": ["Brazil", "Canada", "Norway", "Zimbabwe", "Peru"]
+    },
+    {
+      "id": "extra:victoria-falls",
+      "subject": "zm",
+      "text": "Victoria Falls is on the border between Zimbabwe and which country?",
+      "answer": "Zambia",
+      "wrong": ["Botswana", "Mozambique", "South Africa", "Malawi", "Namibia"]
+    },
+    {
+      "id": "extra:iguazu",
+      "subject": "ar",
+      "text": "Iguazú Falls is on the border between Argentina and which country?",
+      "answer": "Brazil",
+      "wrong": ["Chile", "Uruguay", "Paraguay", "Bolivia", "Peru"]
+    },
+    {
+      "id": "extra:niagara",
+      "subject": "ca",
+      "text": "Niagara Falls is on the border between Canada and which country?",
+      "answer": "The USA",
+      "wrong": ["Mexico", "Greenland", "Alaska", "Cuba", "Iceland"]
+    },
+    {
+      "id": "extra:kilimanjaro",
+      "subject": "tz",
+      "text": "The highest mountain in Africa is in which country?",
+      "answer": "Tanzania",
+      "wrong": ["Kenya", "Ethiopia", "Uganda", "Morocco", "South Africa"]
+    },
+    {
+      "id": "extra:aconcagua",
+      "subject": "ar",
+      "text": "The highest mountain in South America is in which country?",
+      "answer": "Argentina",
+      "wrong": ["Chile", "Peru", "Bolivia", "Ecuador", "Colombia"]
+    },
+    {
+      "id": "extra:denali",
+      "subject": "us",
+      "text": "The highest mountain in North America is in which US state?",
+      "answer": "Alaska",
+      "wrong": ["Colorado", "California", "Washington", "Montana", "Hawaii"]
+    },
+    {
+      "id": "extra:mont-blanc",
+      "subject": "fr",
+      "text": "Mont Blanc, the highest peak of the Alps, is between France and which country?",
+      "answer": "Italy",
+      "wrong": ["Switzerland", "Austria", "Germany", "Spain", "Monaco"]
+    },
+    {
+      "id": "extra:matterhorn",
+      "subject": "ch",
+      "text": "The Matterhorn stands on the border of Switzerland and which country?",
+      "answer": "Italy",
+      "wrong": ["France", "Austria", "Germany", "Liechtenstein", "Slovenia"]
+    },
+    {
+      "id": "extra:k2",
+      "subject": "pk",
+      "text": "K2, the second-highest mountain, is on the border of Pakistan and which country?",
+      "answer": "China",
+      "wrong": ["India", "Nepal", "Afghanistan", "Tajikistan", "Bhutan"]
+    },
+    {
+      "id": "extra:fuji",
+      "subject": "jp",
+      "text": "Mount Fuji is what kind of mountain?",
+      "answer": "A volcano",
+      "wrong": ["A glacier", "A sand dune", "A coral reef", "A cliff", "A plateau"]
+    },
+    {
+      "id": "extra:etna",
+      "subject": "it",
+      "text": "Mount Etna, Europe's most active volcano, is on which island?",
+      "answer": "Sicily",
+      "wrong": ["Sardinia", "Corsica", "Crete", "Malta", "Cyprus"]
+    },
+    {
+      "id": "extra:vesuvius",
+      "subject": "it",
+      "text": "The eruption of Mount Vesuvius in 79 AD buried which city?",
+      "answer": "Pompeii",
+      "wrong": ["Rome", "Naples", "Venice", "Florence", "Athens"]
+    },
+    {
+      "id": "extra:andes",
+      "text": "What is the longest mountain range on land?",
+      "answer": "The Andes",
+      "wrong": ["The Himalayas", "The Rockies", "The Alps", "The Urals", "The Atlas"]
+    },
+    {
+      "id": "extra:urals",
+      "subject": "ru",
+      "text": "Which mountains are said to separate Europe from Asia?",
+      "answer": "The Urals",
+      "wrong": ["The Alps", "The Carpathians", "The Pyrenees", "The Himalayas", "The Atlas"]
+    },
+    {
+      "id": "extra:pyrenees",
+      "subject": "ad",
+      "text": "Andorra lies in which mountains?",
+      "answer": "The Pyrenees",
+      "wrong": ["The Alps", "The Carpathians", "The Apennines", "The Atlas", "The Urals"]
+    },
+    {
+      "id": "extra:atlas",
+      "subject": "ma",
+      "text": "The Atlas Mountains are mostly in which country?",
+      "answer": "Morocco",
+      "wrong": ["Egypt", "Kenya", "South Africa", "Ethiopia", "Nigeria"]
+    },
+    {
+      "id": "extra:table-mountain",
+      "subject": "za",
+      "text": "Table Mountain looks over which city?",
+      "answer": "Cape Town",
+      "wrong": ["Johannesburg", "Nairobi", "Durban", "Pretoria", "Windhoek"]
+    },
+    {
+      "id": "extra:everest-names",
+      "subject": "np",
+      "text": "What do Nepalis call Mount Everest?",
+      "answer": "Sagarmatha",
+      "wrong": ["Kathmandu", "Annapurna", "Denali", "Kilimanjaro", "Himal"]
+    },
+    {
+      "id": "extra:everest-first",
+      "subject": "nz",
+      "text": "Edmund Hillary, who first climbed Everest in 1953, was from which country?",
+      "answer": "New Zealand",
+      "wrong": ["Australia", "The United Kingdom", "Canada", "Nepal", "South Africa"]
+    },
+    {
+      "id": "extra:everest-year",
+      "subject": "np",
+      "text": "In which year was Mount Everest first climbed?",
+      "answer": "1953",
+      "wrong": ["1921", "1938", "1969", "1978", "1911"]
+    },
+    {
+      "id": "extra:antarctica-desert",
+      "subject": "aq",
+      "text": "Which is the largest desert on Earth?",
+      "answer": "Antarctica",
+      "wrong": ["The Sahara", "The Gobi", "The Kalahari", "The Atacama", "The Arabian Desert"]
+    },
+    {
+      "id": "extra:atacama",
+      "subject": "cl",
+      "text": "The Atacama, one of the driest places on Earth, is mostly in which country?",
+      "answer": "Chile",
+      "wrong": ["Mexico", "Egypt", "Australia", "Namibia", "Mongolia"]
+    },
+    {
+      "id": "extra:gobi",
+      "subject": "mn",
+      "text": "The Gobi Desert is in Mongolia and which country?",
+      "answer": "China",
+      "wrong": ["Russia", "Kazakhstan", "India", "Iran", "Afghanistan"]
+    },
+    {
+      "id": "extra:kalahari",
+      "subject": "bw",
+      "text": "The Kalahari Desert covers most of which country?",
+      "answer": "Botswana",
+      "wrong": ["Egypt", "Algeria", "Morocco", "Kenya", "Ethiopia"]
+    },
+    {
+      "id": "extra:death-valley",
+      "subject": "us",
+      "text": "The hottest air temperature ever measured was in which country?",
+      "answer": "The USA",
+      "wrong": ["Libya", "Iraq", "Australia", "India", "Kuwait"]
+    },
+    {
+      "id": "extra:oymyakon",
+      "subject": "ru",
+      "text": "Oymyakon, often called the coldest village on Earth, is in which country?",
+      "answer": "Russia",
+      "wrong": ["Canada", "Greenland", "Norway", "Mongolia", "Finland"]
+    },
+    {
+      "id": "extra:uyuni",
+      "subject": "bo",
+      "text": "The largest salt flat on Earth, Salar de Uyuni, is in which country?",
+      "answer": "Bolivia",
+      "wrong": ["Chile", "Peru", "Argentina", "Mexico", "The USA"]
+    },
+    {
+      "id": "extra:greenwich",
+      "subject": "gb",
+      "text": "The prime meridian, longitude zero, runs through which city?",
+      "answer": "London",
+      "wrong": ["Paris", "Madrid", "Lisbon", "Rome", "Brussels"]
+    },
+    {
+      "id": "extra:southernmost-capital",
+      "subject": "nz",
+      "text": "Which is the southernmost national capital?",
+      "answer": "Wellington",
+      "wrong": ["Canberra", "Buenos Aires", "Cape Town", "Santiago", "Montevideo"]
+    },
+    {
+      "id": "extra:northernmost-capital",
+      "subject": "is",
+      "text": "Which is the northernmost national capital?",
+      "answer": "Reykjavík",
+      "wrong": ["Oslo", "Helsinki", "Stockholm", "Moscow", "Tallinn"]
+    },
+    {
+      "id": "extra:landlocked-largest",
+      "subject": "kz",
+      "text": "Which is the largest country with no coast?",
+      "answer": "Kazakhstan",
+      "wrong": ["Mongolia", "Chad", "Bolivia", "Niger", "Mali"]
+    },
+    {
+      "id": "extra:doubly-landlocked",
+      "subject": "uz",
+      "text": "Uzbekistan and which other country are surrounded only by landlocked countries?",
+      "answer": "Liechtenstein",
+      "wrong": ["Switzerland", "Austria", "Andorra", "Luxembourg", "Mongolia"]
+    },
+    {
+      "id": "extra:sweden-islands",
+      "subject": "se",
+      "text": "Which country has the most islands?",
+      "answer": "Sweden",
+      "wrong": ["Indonesia", "The Philippines", "Japan", "Greece", "Canada"]
+    },
+    {
+      "id": "extra:canada-lakes",
+      "subject": "ca",
+      "text": "Which country has the most lakes?",
+      "answer": "Canada",
+      "wrong": ["Finland", "Russia", "The USA", "Sweden", "Brazil"]
+    },
+    {
+      "id": "extra:finland-lakes",
+      "subject": "fi",
+      "text": "Which country is called the land of a thousand lakes?",
+      "answer": "Finland",
+      "wrong": ["Canada", "Switzerland", "Scotland", "Sweden", "Austria"]
+    },
+    {
+      "id": "extra:norway-fjords",
+      "subject": "no",
+      "text": "Which country is famous for its fjords?",
+      "answer": "Norway",
+      "wrong": ["Sweden", "Finland", "Denmark", "Estonia", "The Netherlands"]
+    },
+    {
+      "id": "extra:sudan-pyramids",
+      "subject": "sd",
+      "text": "Which country has the most pyramids?",
+      "answer": "Sudan",
+      "wrong": ["Egypt", "Mexico", "Peru", "Guatemala", "China"]
+    },
+    {
+      "id": "extra:south-africa-oceans",
+      "subject": "za",
+      "text": "Which country has a coast on both the Atlantic and the Indian Ocean?",
+      "answer": "South Africa",
+      "wrong": ["Namibia", "Mozambique", "Kenya", "Angola", "Madagascar"]
+    },
+    {
+      "id": "extra:greenland-island",
+      "subject": "gl",
+      "text": "Which is the largest island in the world (not counting Australia)?",
+      "answer": "Greenland",
+      "wrong": ["New Guinea", "Borneo", "Madagascar", "Great Britain", "Iceland"]
+    },
+    {
+      "id": "extra:madagascar-side",
+      "subject": "mg",
+      "text": "Madagascar lies off which coast of Africa?",
+      "answer": "The east",
+      "wrong": ["The west", "The north", "The south"]
+    },
+    {
+      "id": "extra:kiribati-new-year",
+      "subject": "ki",
+      "text": "Which country is the very first to see each New Year?",
+      "answer": "Kiribati",
+      "wrong": ["Japan", "Australia", "Iceland", "Chile", "China"]
+    },
+    {
+      "id": "extra:nepal-timezone",
+      "subject": "np",
+      "text": "Nepal's clock differs from India's by how many minutes?",
+      "answer": "15",
+      "wrong": ["30", "45", "0", "60", "5"]
+    },
+    {
+      "id": "extra:drive-left",
+      "subject": "jp",
+      "text": "Which of these countries drives on the left?",
+      "answer": "Japan",
+      "wrong": ["France", "The USA", "China", "Brazil", "Germany"]
+    },
+    {
+      "id": "extra:machu-picchu",
+      "subject": "pe",
+      "text": "Machu Picchu is in which country?",
+      "answer": "Peru",
+      "wrong": ["Bolivia", "Mexico", "Chile", "Ecuador", "Colombia"]
+    },
+    {
+      "id": "extra:angkor-wat",
+      "subject": "kh",
+      "text": "Angkor Wat is in which country?",
+      "answer": "Cambodia",
+      "wrong": ["Thailand", "Vietnam", "Laos", "Myanmar", "Indonesia"]
+    },
+    {
+      "id": "extra:petra",
+      "subject": "jo",
+      "text": "The rock-cut city of Petra is in which country?",
+      "answer": "Jordan",
+      "wrong": ["Egypt", "Israel", "Saudi Arabia", "Syria", "Lebanon"]
+    },
+    {
+      "id": "extra:taj-mahal",
+      "subject": "in",
+      "text": "The Taj Mahal is in which city?",
+      "answer": "Agra",
+      "wrong": ["Delhi", "Mumbai", "Jaipur", "Kolkata", "Lahore"]
+    },
+    {
+      "id": "extra:taj-mahal-why",
+      "subject": "in",
+      "text": "The Taj Mahal was built as what?",
+      "answer": "A tomb",
+      "wrong": ["A palace", "A fort", "A temple", "A market", "A university"]
+    },
+    {
+      "id": "extra:chichen-itza",
+      "subject": "mx",
+      "text": "The Mayan pyramid of Chichén Itzá is in which country?",
+      "answer": "Mexico",
+      "wrong": ["Peru", "Guatemala", "Egypt", "Colombia", "Bolivia"]
+    },
+    {
+      "id": "extra:easter-island",
+      "subject": "cl",
+      "text": "Easter Island, with its giant stone heads, belongs to which country?",
+      "answer": "Chile",
+      "wrong": ["Peru", "New Zealand", "France", "Ecuador", "Fiji"]
+    },
+    {
+      "id": "extra:christ-redeemer",
+      "subject": "br",
+      "text": "The Christ the Redeemer statue overlooks which city?",
+      "answer": "Rio de Janeiro",
+      "wrong": ["São Paulo", "Lisbon", "Buenos Aires", "Salvador", "Brasília"]
+    },
+    {
+      "id": "extra:acropolis",
+      "subject": "gr",
+      "text": "The Acropolis stands above which city?",
+      "answer": "Athens",
+      "wrong": ["Rome", "Istanbul", "Sparta", "Cairo", "Thessaloniki"]
+    },
+    {
+      "id": "extra:stonehenge",
+      "subject": "gb",
+      "text": "Stonehenge is in which country?",
+      "answer": "England",
+      "wrong": ["Ireland", "France", "Scotland", "Denmark", "Wales"]
+    },
+    {
+      "id": "extra:alhambra",
+      "subject": "es",
+      "text": "The Alhambra palace is in which Spanish city?",
+      "answer": "Granada",
+      "wrong": ["Madrid", "Barcelona", "Seville", "Toledo", "Valencia"]
+    },
+    {
+      "id": "extra:sagrada-familia",
+      "subject": "es",
+      "text": "Who designed the Sagrada Família in Barcelona?",
+      "answer": "Antoni Gaudí",
+      "wrong": ["Pablo Picasso", "Salvador Dalí", "Le Corbusier", "Frank Gehry", "Joan Miró"]
+    },
+    {
+      "id": "extra:neuschwanstein",
+      "subject": "de",
+      "text": "Neuschwanstein, the castle that inspired Disney, is in which country?",
+      "answer": "Germany",
+      "wrong": ["Austria", "France", "Switzerland", "Czechia", "Hungary"]
+    },
+    {
+      "id": "extra:eiffel-year",
+      "subject": "fr",
+      "text": "The Eiffel Tower was built for the World's Fair of which year?",
+      "answer": "1889",
+      "wrong": ["1789", "1900", "1923", "1851", "1945"]
+    },
+    {
+      "id": "extra:eiffel-temporary",
+      "subject": "fr",
+      "text": "The Eiffel Tower was first meant to stand for how long?",
+      "answer": "20 years",
+      "wrong": ["Forever", "1 year", "100 years", "6 months", "5 years"]
+    },
+    {
+      "id": "extra:liberty-gift",
+      "subject": "us",
+      "text": "The Statue of Liberty was a gift from which country?",
+      "answer": "France",
+      "wrong": ["The United Kingdom", "Spain", "Italy", "The Netherlands", "Canada"]
+    },
+    {
+      "id": "extra:pisa",
+      "subject": "it",
+      "text": "The famous leaning tower is in which Italian city?",
+      "answer": "Pisa",
+      "wrong": ["Florence", "Rome", "Venice", "Milan", "Naples"]
+    },
+    {
+      "id": "extra:colosseum",
+      "subject": "it",
+      "text": "The Colosseum is in which city?",
+      "answer": "Rome",
+      "wrong": ["Athens", "Istanbul", "Naples", "Venice", "Milan"]
+    },
+    {
+      "id": "extra:hagia-sophia",
+      "subject": "tr",
+      "text": "The Hagia Sophia is in which city?",
+      "answer": "Istanbul",
+      "wrong": ["Athens", "Rome", "Ankara", "Cairo", "Jerusalem"]
+    },
+    {
+      "id": "extra:kremlin",
+      "subject": "ru",
+      "text": "The Kremlin and Red Square are in which city?",
+      "answer": "Moscow",
+      "wrong": ["Saint Petersburg", "Kyiv", "Minsk", "Warsaw", "Kazan"]
+    },
+    {
+      "id": "extra:burj-khalifa",
+      "subject": "ae",
+      "text": "In 2025, the tallest building in the world was in which city?",
+      "answer": "Dubai",
+      "wrong": ["Shanghai", "New York", "Kuala Lumpur", "Riyadh", "Taipei"]
+    },
+    {
+      "id": "extra:galapagos",
+      "subject": "ec",
+      "text": "The Galápagos Islands belong to which country?",
+      "answer": "Ecuador",
+      "wrong": ["Chile", "Peru", "Spain", "Colombia", "Costa Rica"]
+    },
+    {
+      "id": "extra:darwin-galapagos",
+      "subject": "ec",
+      "text": "Which scientist is famous for studying the Galápagos animals?",
+      "answer": "Charles Darwin",
+      "wrong": [
+        "Isaac Newton",
+        "Albert Einstein",
+        "Marie Curie",
+        "Louis Pasteur",
+        "Galileo Galilei"
+      ]
+    },
+    {
+      "id": "extra:serengeti",
+      "subject": "tz",
+      "text": "The Serengeti is mostly in which country?",
+      "answer": "Tanzania",
+      "wrong": ["South Africa", "Namibia", "Ethiopia", "Nigeria", "Ghana"]
+    },
+    {
+      "id": "extra:bora-bora",
+      "subject": "pf",
+      "text": "Bora Bora is part of which territory?",
+      "answer": "French Polynesia",
+      "wrong": ["Hawaii", "Fiji", "New Caledonia", "The Maldives", "Samoa"]
+    },
+    {
+      "id": "extra:timbuktu",
+      "subject": "ml",
+      "text": "The ancient city of Timbuktu is in which country?",
+      "answer": "Mali",
+      "wrong": ["Morocco", "Niger", "Chad", "Sudan", "Senegal"]
+    },
+    {
+      "id": "extra:mecca",
+      "subject": "sa",
+      "text": "Mecca, Islam's holiest city, is in which country?",
+      "answer": "Saudi Arabia",
+      "wrong": ["Egypt", "Iran", "Iraq", "Turkey", "Jordan"]
+    },
+    {
+      "id": "extra:dubrovnik",
+      "subject": "hr",
+      "text": "The walled city of Dubrovnik is in which country?",
+      "answer": "Croatia",
+      "wrong": ["Greece", "Italy", "Montenegro", "Albania", "Slovenia"]
+    },
+    {
+      "id": "extra:ha-long",
+      "subject": "vn",
+      "text": "Ha Long Bay is in which country?",
+      "answer": "Vietnam",
+      "wrong": ["Thailand", "China", "The Philippines", "Cambodia", "Malaysia"]
+    },
+    {
+      "id": "extra:cappadocia",
+      "subject": "tr",
+      "text": "Cappadocia, famous for hot-air balloons over rock chimneys, is in which country?",
+      "answer": "Turkey",
+      "wrong": ["Greece", "Morocco", "Egypt", "Iran", "Spain"]
+    },
+    {
+      "id": "extra:bagan",
+      "subject": "mm",
+      "text": "The thousands of temples of Bagan are in which country?",
+      "answer": "Myanmar",
+      "wrong": ["India", "Thailand", "Nepal", "Laos", "Sri Lanka"]
+    },
+    {
+      "id": "extra:borobudur",
+      "subject": "id",
+      "text": "Borobudur, the largest Buddhist temple, is in which country?",
+      "answer": "Indonesia",
+      "wrong": ["India", "Thailand", "Cambodia", "Nepal", "Japan"]
+    },
+    {
+      "id": "extra:uluru",
+      "subject": "au",
+      "text": "Uluru, a giant red rock, is in which country?",
+      "answer": "Australia",
+      "wrong": ["The USA", "South Africa", "Namibia", "Mongolia", "Argentina"]
+    },
+    {
+      "id": "extra:giza",
+      "subject": "eg",
+      "text": "Of the Seven Wonders of the Ancient World, which one still stands?",
+      "answer": "The Great Pyramid of Giza",
+      "wrong": [
+        "The Colossus of Rhodes",
+        "The Hanging Gardens",
+        "The Lighthouse of Alexandria",
+        "The Temple of Artemis",
+        "The Statue of Zeus"
+      ]
+    },
+    {
+      "id": "extra:sphinx",
+      "subject": "eg",
+      "text": "What is the Great Sphinx of Giza?",
+      "answer": "A lion with a human head",
+      "wrong": [
+        "An eagle with a lion's body",
+        "A pharaoh on a horse",
+        "A cat with wings",
+        "A snake with a crown",
+        "A bull with a man's face"
+      ]
+    },
+    {
+      "id": "extra:carthage",
+      "subject": "tn",
+      "text": "The ruins of Carthage are near which modern capital?",
+      "answer": "Tunis",
+      "wrong": ["Tripoli", "Algiers", "Cairo", "Rabat", "Beirut"]
+    },
+    {
+      "id": "extra:troy",
+      "subject": "tr",
+      "text": "The ruins of ancient Troy are in which country?",
+      "answer": "Turkey",
+      "wrong": ["Greece", "Italy", "Cyprus", "Egypt", "Bulgaria"]
+    },
+    {
+      "id": "extra:tenochtitlan",
+      "subject": "mx",
+      "text": "The Aztec capital Tenochtitlan lies under which modern city?",
+      "answer": "Mexico City",
+      "wrong": ["Lima", "Guatemala City", "Cancún", "Havana", "Bogotá"]
+    },
+    {
+      "id": "extra:cusco",
+      "subject": "pe",
+      "text": "Which city was the capital of the Inca Empire?",
+      "answer": "Cusco",
+      "wrong": ["Lima", "Quito", "La Paz", "Machu Picchu", "Santiago"]
+    },
+    {
+      "id": "extra:chernobyl",
+      "subject": "ua",
+      "text": "Chernobyl is in which country?",
+      "answer": "Ukraine",
+      "wrong": ["Russia", "Belarus", "Poland", "Kazakhstan", "Lithuania"]
+    },
+    {
+      "id": "extra:titanic-built",
+      "subject": "gb",
+      "text": "The Titanic was built in which city?",
+      "answer": "Belfast",
+      "wrong": ["Liverpool", "Glasgow", "Southampton", "New York", "Dublin"]
+    },
+    {
+      "id": "extra:dracula",
+      "subject": "ro",
+      "text": "Transylvania, the land of Dracula, is in which country?",
+      "answer": "Romania",
+      "wrong": ["Hungary", "Bulgaria", "Serbia", "Slovakia", "Moldova"]
+    },
+    {
+      "id": "extra:hollywood",
+      "subject": "us",
+      "text": "Hollywood is part of which city?",
+      "answer": "Los Angeles",
+      "wrong": ["New York", "San Francisco", "Las Vegas", "Miami", "Chicago"]
+    },
+    {
+      "id": "extra:bollywood",
+      "subject": "in",
+      "text": "Bollywood films are made mainly in which city?",
+      "answer": "Mumbai",
+      "wrong": ["Delhi", "Bangalore", "Kolkata", "Chennai", "Karachi"]
+    },
+    {
+      "id": "extra:nollywood",
+      "subject": "ng",
+      "text": "Nollywood is the film industry of which country?",
+      "answer": "Nigeria",
+      "wrong": ["Ghana", "Kenya", "South Africa", "India", "Senegal"]
+    },
+    {
+      "id": "extra:silicon-valley",
+      "subject": "us",
+      "text": "Silicon Valley is in which US state?",
+      "answer": "California",
+      "wrong": ["Texas", "New York", "Washington", "Florida", "Massachusetts"]
+    },
+    {
+      "id": "extra:wall-street",
+      "subject": "us",
+      "text": "Wall Street is in which city?",
+      "answer": "New York",
+      "wrong": ["London", "Chicago", "Washington", "Boston", "Los Angeles"]
+    },
+    {
+      "id": "extra:byzantium",
+      "subject": "tr",
+      "text": "What was the first name of the city now called Istanbul?",
+      "answer": "Byzantium",
+      "wrong": ["Ankara", "Troy", "Smyrna", "Nicaea", "Antioch"]
+    },
+    {
+      "id": "extra:constantinople",
+      "subject": "tr",
+      "text": "Istanbul was called what for over a thousand years, after a Roman emperor?",
+      "answer": "Constantinople",
+      "wrong": ["Augustopolis", "Neronia", "Hadrianople", "Caesarea", "Trajana"]
+    },
+    {
+      "id": "extra:edo",
+      "subject": "jp",
+      "text": "What was Tokyo called before 1868?",
+      "answer": "Edo",
+      "wrong": ["Kyoto", "Osaka", "Nara", "Yokohama", "Kobe"]
+    },
+    {
+      "id": "extra:peking",
+      "subject": "cn",
+      "text": "Beijing used to be spelled how in English?",
+      "answer": "Peking",
+      "wrong": ["Nanking", "Canton", "Shanghai", "Nanjing", "Tientsin"]
+    },
+    {
+      "id": "extra:bombay",
+      "subject": "in",
+      "text": "What was Mumbai called until 1995?",
+      "answer": "Bombay",
+      "wrong": ["Madras", "Calcutta", "Goa", "Delhi", "Bengal"]
+    },
+    {
+      "id": "extra:madras",
+      "subject": "in",
+      "text": "What was Chennai called until 1996?",
+      "answer": "Madras",
+      "wrong": ["Bombay", "Calcutta", "Ceylon", "Bangalore", "Hyderabad"]
+    },
+    {
+      "id": "extra:saigon",
+      "subject": "vn",
+      "text": "Ho Chi Minh City was formerly called what?",
+      "answer": "Saigon",
+      "wrong": ["Hanoi", "Hue", "Da Nang", "Phnom Penh", "Haiphong"]
+    },
+    {
+      "id": "extra:new-amsterdam",
+      "subject": "us",
+      "text": "New York was first called what by its Dutch founders?",
+      "answer": "New Amsterdam",
+      "wrong": ["New Holland", "New Rotterdam", "New Utrecht", "Fort Orange", "New Haarlem"]
+    },
+    {
+      "id": "extra:leningrad",
+      "subject": "ru",
+      "text": "In Soviet times, Saint Petersburg was called what?",
+      "answer": "Leningrad",
+      "wrong": ["Stalingrad", "Novgorod", "Moscow", "Kaliningrad", "Volgograd"]
+    },
+    {
+      "id": "extra:stalingrad",
+      "subject": "ru",
+      "text": "Which Russian city was called Stalingrad until 1961?",
+      "answer": "Volgograd",
+      "wrong": ["Moscow", "Kaliningrad", "Saint Petersburg", "Sochi", "Kazan"]
+    },
+    {
+      "id": "extra:burma",
+      "subject": "mm",
+      "text": "What was Myanmar called until 1989?",
+      "answer": "Burma",
+      "wrong": ["Siam", "Ceylon", "Cambodia", "Tibet", "Bengal"]
+    },
+    {
+      "id": "extra:siam",
+      "subject": "th",
+      "text": "What was Thailand called until 1939?",
+      "answer": "Siam",
+      "wrong": ["Burma", "Ceylon", "Persia", "Annam", "Malaya"]
+    },
+    {
+      "id": "extra:persia",
+      "subject": "ir",
+      "text": "What did the West call Iran until 1935?",
+      "answer": "Persia",
+      "wrong": ["Mesopotamia", "Arabia", "Anatolia", "Babylon", "Assyria"]
+    },
+    {
+      "id": "extra:ceylon",
+      "subject": "lk",
+      "text": "What was Sri Lanka called until 1972?",
+      "answer": "Ceylon",
+      "wrong": ["Burma", "Siam", "Formosa", "Madras", "Malabar"]
+    },
+    {
+      "id": "extra:zaire",
+      "subject": "cd",
+      "text": "What was the DR Congo called from 1971 to 1997?",
+      "answer": "Zaire",
+      "wrong": ["Rhodesia", "Gold Coast", "Dahomey", "Upper Volta", "Biafra"]
+    },
+    {
+      "id": "extra:rhodesia",
+      "subject": "zw",
+      "text": "Zimbabwe was formerly known as what?",
+      "answer": "Rhodesia",
+      "wrong": ["Nyasaland", "Zaire", "Bechuanaland", "Gold Coast", "Tanganyika"]
+    },
+    {
+      "id": "extra:gold-coast",
+      "subject": "gh",
+      "text": "What was Ghana called before its independence?",
+      "answer": "The Gold Coast",
+      "wrong": ["The Ivory Coast", "The Slave Coast", "Rhodesia", "Dahomey", "Zaire"]
+    },
+    {
+      "id": "extra:formosa",
+      "subject": "tw",
+      "text": "Portuguese sailors named Taiwan what?",
+      "answer": "Formosa",
+      "wrong": ["Ceylon", "Siam", "Cathay", "Macau", "Nippon"]
+    },
+    {
+      "id": "extra:christiania",
+      "subject": "no",
+      "text": "Oslo was called what until 1925?",
+      "answer": "Christiania",
+      "wrong": ["Bergen", "Copenhagen", "Trondheim", "Norvegia", "Olafsburg"]
+    },
+    {
+      "id": "extra:batavia",
+      "subject": "id",
+      "text": "Jakarta was called what under Dutch rule?",
+      "answer": "Batavia",
+      "wrong": ["Java", "Borneo", "Surabaya", "New Amsterdam", "Sumatra"]
+    },
+    {
+      "id": "extra:upper-volta",
+      "subject": "bf",
+      "text": "What was Burkina Faso called until 1984?",
+      "answer": "Upper Volta",
+      "wrong": ["Dahomey", "Gold Coast", "Zaire", "Rhodesia", "Nyasaland"]
+    },
+    {
+      "id": "extra:east-pakistan",
+      "subject": "bd",
+      "text": "Before 1971, Bangladesh was part of which country?",
+      "answer": "Pakistan",
+      "wrong": ["India", "Myanmar", "Nepal", "Sri Lanka", "China"]
+    },
+    {
+      "id": "extra:swaziland",
+      "subject": "sz",
+      "text": "Which country was called Swaziland until 2018?",
+      "answer": "Eswatini",
+      "wrong": ["Lesotho", "Botswana", "Zambia", "Namibia", "Malawi"]
+    },
+    {
+      "id": "extra:north-macedonia",
+      "subject": "mk",
+      "text": "In which year did Macedonia add \"North\" to its name?",
+      "answer": "2019",
+      "wrong": ["1991", "2004", "2009", "2015", "2022"]
+    },
+    {
+      "id": "extra:astana",
+      "subject": "kz",
+      "text": "In 2023, what was the capital of Kazakhstan called?",
+      "answer": "Astana",
+      "wrong": ["Almaty", "Nur-Sultan", "Bishkek", "Tashkent", "Karaganda"]
+    },
+    {
+      "id": "extra:nur-sultan",
+      "subject": "kz",
+      "text": "In 2020, what was the capital of Kazakhstan called?",
+      "answer": "Nur-Sultan",
+      "wrong": ["Astana", "Almaty", "Bishkek", "Tashkent", "Karaganda"]
+    },
+    {
+      "id": "extra:brazil-old-capital",
+      "subject": "br",
+      "text": "Which city was Brazil's capital before Brasília?",
+      "answer": "Rio de Janeiro",
+      "wrong": ["São Paulo", "Salvador", "Recife", "Belo Horizonte", "Manaus"]
+    },
+    {
+      "id": "extra:nigeria-old-capital",
+      "subject": "ng",
+      "text": "Which city was Nigeria's capital before Abuja?",
+      "answer": "Lagos",
+      "wrong": ["Kano", "Ibadan", "Port Harcourt", "Accra", "Enugu"]
+    },
+    {
+      "id": "extra:canberra",
+      "subject": "au",
+      "text": "Canberra was built as a compromise between which two cities?",
+      "answer": "Sydney and Melbourne",
+      "wrong": [
+        "Perth and Adelaide",
+        "Sydney and Brisbane",
+        "Melbourne and Hobart",
+        "Brisbane and Darwin",
+        "Perth and Sydney"
+      ]
+    },
+    {
+      "id": "extra:turkey-old-capital",
+      "subject": "tr",
+      "text": "Before Ankara, which city was the capital of the Ottoman Empire?",
+      "answer": "Istanbul",
+      "wrong": ["Izmir", "Antalya", "Konya", "Athens", "Cairo"]
+    },
+    {
+      "id": "extra:pakistan-old-capital",
+      "subject": "pk",
+      "text": "Which city was Pakistan's first capital?",
+      "answer": "Karachi",
+      "wrong": ["Lahore", "Islamabad", "Peshawar", "Delhi", "Quetta"]
+    },
+    {
+      "id": "extra:indonesia-new-capital",
+      "subject": "id",
+      "text": "Indonesia is building a new capital on which island?",
+      "answer": "Borneo",
+      "wrong": ["Java", "Sumatra", "Bali", "Sulawesi", "New Guinea"]
+    },
+    {
+      "id": "extra:myanmar-old-capital",
+      "subject": "mm",
+      "text": "Before Naypyidaw, which city was Myanmar's capital?",
+      "answer": "Yangon",
+      "wrong": ["Mandalay", "Bangkok", "Dhaka", "Bagan", "Chiang Mai"]
+    },
+    {
+      "id": "extra:kazakhstan-old-capital",
+      "subject": "kz",
+      "text": "Before 1997, which city was Kazakhstan's capital?",
+      "answer": "Almaty",
+      "wrong": ["Astana", "Tashkent", "Bishkek", "Shymkent", "Karaganda"]
+    },
+    {
+      "id": "extra:japan-old-capital",
+      "subject": "jp",
+      "text": "Before Tokyo, which city was Japan's capital for over a thousand years?",
+      "answer": "Kyoto",
+      "wrong": ["Osaka", "Hiroshima", "Nagasaki", "Sapporo", "Seoul"]
+    },
+    {
+      "id": "extra:russia-old-capital",
+      "subject": "ru",
+      "text": "From 1712 to 1918, what was the capital of Russia?",
+      "answer": "Saint Petersburg",
+      "wrong": ["Moscow", "Kyiv", "Novgorod", "Kazan", "Vladivostok"]
+    },
+    {
+      "id": "extra:bonn",
+      "subject": "de",
+      "text": "What was the capital of West Germany?",
+      "answer": "Bonn",
+      "wrong": ["Berlin", "Frankfurt", "Munich", "Hamburg", "Cologne"]
+    },
+    {
+      "id": "extra:portugal-rio",
+      "subject": "br",
+      "text": "Which European empire was ruled from Rio de Janeiro for a time?",
+      "answer": "Portugal",
+      "wrong": ["Spain", "France", "The Netherlands", "Britain", "Italy"]
+    },
+    {
+      "id": "extra:mozart",
+      "subject": "at",
+      "text": "Mozart was born in which country?",
+      "answer": "Austria",
+      "wrong": ["Germany", "Italy", "Switzerland", "Hungary", "France"]
+    },
+    {
+      "id": "extra:frida-kahlo",
+      "subject": "mx",
+      "text": "The painter Frida Kahlo was from which country?",
+      "answer": "Mexico",
+      "wrong": ["Spain", "Argentina", "Cuba", "Colombia", "Peru"]
+    },
+    {
+      "id": "extra:picasso",
+      "subject": "es",
+      "text": "Pablo Picasso was born in which country?",
+      "answer": "Spain",
+      "wrong": ["France", "Italy", "Portugal", "Mexico", "Argentina"]
+    },
+    {
+      "id": "extra:dali",
+      "subject": "es",
+      "text": "Salvador Dalí, the painter of melting clocks, was from which country?",
+      "answer": "Spain",
+      "wrong": ["France", "Italy", "Belgium", "Mexico", "Argentina"]
+    },
+    {
+      "id": "extra:van-gogh",
+      "subject": "nl",
+      "text": "Vincent van Gogh was from which country?",
+      "answer": "The Netherlands",
+      "wrong": ["Belgium", "France", "Germany", "Denmark", "Austria"]
+    },
+    {
+      "id": "extra:magritte",
+      "subject": "be",
+      "text": "René Magritte, who painted \"This is not a pipe\", was from which country?",
+      "answer": "Belgium",
+      "wrong": ["France", "The Netherlands", "Switzerland", "Italy", "Spain"]
+    },
+    {
+      "id": "extra:mandela",
+      "subject": "za",
+      "text": "Nelson Mandela was president of which country?",
+      "answer": "South Africa",
+      "wrong": ["Kenya", "Zimbabwe", "Nigeria", "Namibia", "Botswana"]
+    },
+    {
+      "id": "extra:gandhi",
+      "subject": "in",
+      "text": "Mahatma Gandhi led which country to independence?",
+      "answer": "India",
+      "wrong": ["Pakistan", "Sri Lanka", "Bangladesh", "Nepal", "South Africa"]
+    },
+    {
+      "id": "extra:curie",
+      "subject": "pl",
+      "text": "Marie Curie was born in which country?",
+      "answer": "Poland",
+      "wrong": ["France", "Germany", "Russia", "Austria", "Czechia"]
+    },
+    {
+      "id": "extra:chopin",
+      "subject": "pl",
+      "text": "The composer Frédéric Chopin was from which country?",
+      "answer": "Poland",
+      "wrong": ["France", "Austria", "Hungary", "Germany", "Russia"]
+    },
+    {
+      "id": "extra:einstein",
+      "subject": "de",
+      "text": "Albert Einstein was born in which country?",
+      "answer": "Germany",
+      "wrong": ["Switzerland", "Austria", "The USA", "Hungary", "Poland"]
+    },
+    {
+      "id": "extra:da-vinci",
+      "subject": "it",
+      "text": "Leonardo da Vinci was from which country?",
+      "answer": "Italy",
+      "wrong": ["France", "Spain", "Greece", "Portugal", "Belgium"]
+    },
+    {
+      "id": "extra:mona-lisa",
+      "subject": "fr",
+      "text": "The Mona Lisa hangs in which museum?",
+      "answer": "The Louvre",
+      "wrong": ["The Uffizi", "The Prado", "The British Museum", "The Met", "The Vatican Museums"]
+    },
+    {
+      "id": "extra:shakespeare",
+      "subject": "gb",
+      "text": "William Shakespeare was from which country?",
+      "answer": "England",
+      "wrong": ["Scotland", "Ireland", "Wales", "France", "The USA"]
+    },
+    {
+      "id": "extra:beethoven",
+      "subject": "de",
+      "text": "Beethoven was born in which country?",
+      "answer": "Germany",
+      "wrong": ["Austria", "Italy", "Poland", "France", "Czechia"]
+    },
+    {
+      "id": "extra:andersen",
+      "subject": "dk",
+      "text": "Hans Christian Andersen, who wrote The Little Mermaid, was from which country?",
+      "answer": "Denmark",
+      "wrong": ["Norway", "Sweden", "Germany", "Iceland", "Finland"]
+    },
+    {
+      "id": "extra:little-mermaid",
+      "subject": "dk",
+      "text": "A famous statue of the Little Mermaid sits in which city?",
+      "answer": "Copenhagen",
+      "wrong": ["Oslo", "Stockholm", "Amsterdam", "Hamburg", "Helsinki"]
+    },
+    {
+      "id": "extra:tolstoy",
+      "subject": "ru",
+      "text": "Leo Tolstoy, who wrote War and Peace, was from which country?",
+      "answer": "Russia",
+      "wrong": ["Poland", "Ukraine", "France", "Germany", "Georgia"]
+    },
+    {
+      "id": "extra:confucius",
+      "subject": "cn",
+      "text": "The philosopher Confucius was from which country?",
+      "answer": "China",
+      "wrong": ["Japan", "Korea", "India", "Vietnam", "Mongolia"]
+    },
+    {
+      "id": "extra:genghis-khan",
+      "subject": "mn",
+      "text": "Genghis Khan founded an empire from which modern country?",
+      "answer": "Mongolia",
+      "wrong": ["China", "Kazakhstan", "Russia", "Turkey", "Iran"]
+    },
+    {
+      "id": "extra:cleopatra",
+      "subject": "eg",
+      "text": "Cleopatra was the last queen of which country?",
+      "answer": "Egypt",
+      "wrong": ["Greece", "Persia", "Rome", "Carthage", "Babylon"]
+    },
+    {
+      "id": "extra:bolivar",
+      "subject": "ve",
+      "text": "Simón Bolívar, after whom Bolivia is named, was born where?",
+      "answer": "Venezuela",
+      "wrong": ["Bolivia", "Colombia", "Spain", "Peru", "Ecuador"]
+    },
+    {
+      "id": "extra:columbus",
+      "subject": "it",
+      "text": "Columbus sailed for Spain, but in which city was he most likely born?",
+      "answer": "Genoa",
+      "wrong": ["Seville", "Lisbon", "Venice", "Barcelona", "Naples"]
+    },
+    {
+      "id": "extra:magellan",
+      "subject": "pt",
+      "text": "Ferdinand Magellan was from which country?",
+      "answer": "Portugal",
+      "wrong": ["Spain", "Italy", "The Netherlands", "France", "England"]
+    },
+    {
+      "id": "extra:vasco-da-gama",
+      "subject": "pt",
+      "text": "Who was the first European to sail to India around Africa?",
+      "answer": "Vasco da Gama",
+      "wrong": [
+        "Christopher Columbus",
+        "Ferdinand Magellan",
+        "James Cook",
+        "Marco Polo",
+        "Francis Drake"
+      ]
+    },
+    {
+      "id": "extra:marco-polo",
+      "subject": "it",
+      "text": "The traveller Marco Polo came from which city?",
+      "answer": "Venice",
+      "wrong": ["Rome", "Genoa", "Lisbon", "Florence", "Constantinople"]
+    },
+    {
+      "id": "extra:amundsen",
+      "subject": "no",
+      "text": "Roald Amundsen, first to reach the South Pole, was from which country?",
+      "answer": "Norway",
+      "wrong": ["The United Kingdom", "Sweden", "Denmark", "Iceland", "Russia"]
+    },
+    {
+      "id": "extra:gagarin",
+      "subject": "ru",
+      "text": "Yuri Gagarin, the first human in space, flew for which country?",
+      "answer": "The Soviet Union",
+      "wrong": ["The USA", "China", "France", "The United Kingdom", "Germany"]
+    },
+    {
+      "id": "extra:moon-landing",
+      "subject": "us",
+      "text": "In which year did humans first walk on the Moon?",
+      "answer": "1969",
+      "wrong": ["1957", "1961", "1965", "1972", "1975"]
+    },
+    {
+      "id": "extra:bob-marley",
+      "subject": "jm",
+      "text": "Bob Marley was from which country?",
+      "answer": "Jamaica",
+      "wrong": ["Cuba", "Trinidad and Tobago", "The Bahamas", "Haiti", "Barbados"]
+    },
+    {
+      "id": "extra:usain-bolt",
+      "subject": "jm",
+      "text": "The sprinter Usain Bolt is from which country?",
+      "answer": "Jamaica",
+      "wrong": ["The USA", "Kenya", "Nigeria", "Canada", "Trinidad and Tobago"]
+    },
+    {
+      "id": "extra:pele",
+      "subject": "br",
+      "text": "Pelé played football for which country?",
+      "answer": "Brazil",
+      "wrong": ["Argentina", "Portugal", "Uruguay", "Mexico", "Colombia"]
+    },
+    {
+      "id": "extra:maradona",
+      "subject": "ar",
+      "text": "Diego Maradona played football for which country?",
+      "answer": "Argentina",
+      "wrong": ["Brazil", "Uruguay", "Spain", "Italy", "Chile"]
+    },
+    {
+      "id": "extra:ronaldo-madeira",
+      "subject": "pt",
+      "text": "Cristiano Ronaldo was born on which island?",
+      "answer": "Madeira",
+      "wrong": ["Sicily", "The Azores", "Mallorca", "Tenerife", "Corsica"]
+    },
+    {
+      "id": "extra:abba",
+      "subject": "se",
+      "text": "The pop group ABBA came from which country?",
+      "answer": "Sweden",
+      "wrong": ["Norway", "Denmark", "Finland", "The Netherlands", "Iceland"]
+    },
+    {
+      "id": "extra:beatles",
+      "subject": "gb",
+      "text": "The Beatles came from which city?",
+      "answer": "Liverpool",
+      "wrong": ["London", "Manchester", "Dublin", "Glasgow", "Birmingham"]
+    },
+    {
+      "id": "extra:bjork",
+      "subject": "is",
+      "text": "The singer Björk is from which country?",
+      "answer": "Iceland",
+      "wrong": ["Norway", "Sweden", "Finland", "Denmark", "Greenland"]
+    },
+    {
+      "id": "extra:shakira",
+      "subject": "co",
+      "text": "The singer Shakira is from which country?",
+      "answer": "Colombia",
+      "wrong": ["Mexico", "Spain", "Venezuela", "Argentina", "Lebanon"]
+    },
+    {
+      "id": "extra:rihanna",
+      "subject": "bb",
+      "text": "The singer Rihanna is from which island country?",
+      "answer": "Barbados",
+      "wrong": ["Jamaica", "Cuba", "Trinidad and Tobago", "The Bahamas", "Haiti"]
+    },
+    {
+      "id": "extra:freddie-mercury",
+      "subject": "tz",
+      "text": "Freddie Mercury, the singer of Queen, was born on which island?",
+      "answer": "Zanzibar",
+      "wrong": ["Mauritius", "Sri Lanka", "Madagascar", "Cyprus", "Jamaica"]
+    },
+    {
+      "id": "extra:napoleon",
+      "subject": "fr",
+      "text": "Napoleon Bonaparte was born on which island?",
+      "answer": "Corsica",
+      "wrong": ["Sicily", "Sardinia", "Elba", "Malta", "Crete"]
+    },
+    {
+      "id": "extra:napoleon-exile",
+      "text": "Where did Napoleon die in exile?",
+      "answer": "Saint Helena",
+      "wrong": ["Elba", "Corsica", "Malta", "Cayenne", "Madeira"]
+    },
+    {
+      "id": "extra:che-guevara",
+      "subject": "ar",
+      "text": "Che Guevara, of the Cuban revolution, was born in which country?",
+      "answer": "Argentina",
+      "wrong": ["Cuba", "Bolivia", "Mexico", "Chile", "Spain"]
+    },
+    {
+      "id": "extra:tesla",
+      "subject": "hr",
+      "text": "Nikola Tesla was born in which modern-day country?",
+      "answer": "Croatia",
+      "wrong": ["The USA", "Serbia", "Hungary", "Austria", "Czechia"]
+    },
+    {
+      "id": "extra:chaplin",
+      "subject": "gb",
+      "text": "Charlie Chaplin was born in which city?",
+      "answer": "London",
+      "wrong": ["Los Angeles", "New York", "Paris", "Dublin", "Chicago"]
+    },
+    {
+      "id": "extra:nobel",
+      "subject": "se",
+      "text": "Alfred Nobel, who created the Nobel Prizes, was from which country?",
+      "answer": "Sweden",
+      "wrong": ["Norway", "Switzerland", "Germany", "Denmark", "Finland"]
+    },
+    {
+      "id": "extra:nobel-peace",
+      "subject": "no",
+      "text": "The Nobel Peace Prize is awarded in which city?",
+      "answer": "Oslo",
+      "wrong": ["Stockholm", "Geneva", "Copenhagen", "Brussels", "The Hague"]
+    },
+    {
+      "id": "extra:tintin",
+      "subject": "be",
+      "text": "Tintin was created by an artist from which country?",
+      "answer": "Belgium",
+      "wrong": ["France", "Switzerland", "The Netherlands", "Luxembourg", "Canada"]
+    },
+    {
+      "id": "extra:asterix",
+      "subject": "fr",
+      "text": "Asterix and Obelix live in which ancient land?",
+      "answer": "Gaul",
+      "wrong": ["Britannia", "Hispania", "Germania", "Egypt", "Greece"]
+    },
+    {
+      "id": "extra:sherlock",
+      "subject": "gb",
+      "text": "Sherlock Holmes lived on which London street?",
+      "answer": "Baker Street",
+      "wrong": ["Oxford Street", "Downing Street", "Abbey Road", "Fleet Street", "Regent Street"]
+    },
+    {
+      "id": "extra:marx",
+      "subject": "de",
+      "text": "Karl Marx was born in which country?",
+      "answer": "Germany",
+      "wrong": ["Russia", "The United Kingdom", "France", "Austria", "Poland"]
+    },
+    {
+      "id": "extra:mother-teresa",
+      "subject": "mk",
+      "text": "Mother Teresa was born in which city?",
+      "answer": "Skopje",
+      "wrong": ["Calcutta", "Tirana", "Rome", "Belgrade", "Sofia"]
+    },
+    {
+      "id": "extra:dalai-lama",
+      "subject": "in",
+      "text": "Since 1959, the Dalai Lama has lived in exile in which country?",
+      "answer": "India",
+      "wrong": ["Nepal", "Bhutan", "Mongolia", "The USA", "Switzerland"]
+    },
+    {
+      "id": "extra:bruce-lee",
+      "subject": "hk",
+      "text": "Bruce Lee grew up in which city?",
+      "answer": "Hong Kong",
+      "wrong": ["Tokyo", "Beijing", "Shanghai", "Singapore", "Taipei"]
+    },
+    {
+      "id": "extra:fleming",
+      "subject": "gb",
+      "text": "Alexander Fleming, who discovered penicillin, was from which country?",
+      "answer": "Scotland",
+      "wrong": ["England", "Ireland", "Wales", "Germany", "The USA"]
+    },
+    {
+      "id": "extra:graham-bell",
+      "subject": "gb",
+      "text": "Alexander Graham Bell, a father of the telephone, was born in which country?",
+      "answer": "Scotland",
+      "wrong": ["The USA", "Canada", "England", "Ireland", "Germany"]
+    },
+    {
+      "id": "extra:paper",
+      "subject": "cn",
+      "text": "Paper was invented in which country?",
+      "answer": "China",
+      "wrong": ["Egypt", "Greece", "India", "Italy", "Persia"]
+    },
+    {
+      "id": "extra:gunpowder",
+      "subject": "cn",
+      "text": "Gunpowder was invented in which country?",
+      "answer": "China",
+      "wrong": ["Germany", "Turkey", "India", "England", "Persia"]
+    },
+    {
+      "id": "extra:gutenberg",
+      "subject": "de",
+      "text": "Gutenberg built his printing press in which country?",
+      "answer": "Germany",
+      "wrong": ["Italy", "Spain", "The Netherlands", "England", "Switzerland"]
+    },
+    {
+      "id": "extra:www",
+      "subject": "ch",
+      "text": "The World Wide Web was invented at CERN, in which country?",
+      "answer": "Switzerland",
+      "wrong": ["The USA", "The United Kingdom", "Germany", "Japan", "Finland"]
+    },
+    {
+      "id": "extra:www-year",
+      "subject": "ch",
+      "text": "In which year was the World Wide Web invented?",
+      "answer": "1989",
+      "wrong": ["1969", "1975", "1995", "2001", "1983"]
+    },
+    {
+      "id": "extra:pizza",
+      "subject": "it",
+      "text": "Pizza as we know it comes from which Italian city?",
+      "answer": "Naples",
+      "wrong": ["Rome", "Milan", "Venice", "Florence", "Turin"]
+    },
+    {
+      "id": "extra:coffee",
+      "subject": "et",
+      "text": "Coffee is first thought to come from which country?",
+      "answer": "Ethiopia",
+      "wrong": ["Brazil", "Colombia", "Jamaica", "Italy", "Turkey"]
+    },
+    {
+      "id": "extra:chocolate-word",
+      "subject": "mx",
+      "text": "The word \"chocolate\" comes from the language of which people?",
+      "answer": "The Aztecs",
+      "wrong": ["The Incas", "The Spanish", "The Portuguese", "The Romans", "The Swiss"]
+    },
+    {
+      "id": "extra:potato",
+      "subject": "pe",
+      "text": "The potato was first grown in which mountains?",
+      "answer": "The Andes",
+      "wrong": ["The Alps", "The Himalayas", "The Rockies", "The Urals", "The Pyrenees"]
+    },
+    {
+      "id": "extra:kiwifruit",
+      "subject": "cn",
+      "text": "The kiwifruit is linked to New Zealand, but where does it first come from?",
+      "answer": "China",
+      "wrong": ["Australia", "Chile", "Italy", "Brazil", "South Africa"]
+    },
+    {
+      "id": "extra:tea",
+      "subject": "cn",
+      "text": "People first drank tea in which country?",
+      "answer": "China",
+      "wrong": ["India", "The United Kingdom", "Japan", "Sri Lanka", "Turkey"]
+    },
+    {
+      "id": "extra:olympics",
+      "subject": "gr",
+      "text": "The ancient Olympic Games were held in which country?",
+      "answer": "Greece",
+      "wrong": ["Italy", "Egypt", "Turkey", "France", "Persia"]
+    },
+    {
+      "id": "extra:football-rules",
+      "subject": "gb",
+      "text": "The modern rules of football (soccer) were first written in which country?",
+      "answer": "England",
+      "wrong": ["Brazil", "Italy", "Spain", "Germany", "France"]
+    },
+    {
+      "id": "extra:basketball",
+      "subject": "ca",
+      "text": "James Naismith invented basketball in the USA. Where was he from?",
+      "answer": "Canada",
+      "wrong": ["The USA", "Scotland", "Ireland", "Australia", "England"]
+    },
+    {
+      "id": "extra:rugby",
+      "subject": "gb",
+      "text": "Rugby takes its name from what?",
+      "answer": "A school in England",
+      "wrong": [
+        "A Welsh king",
+        "A French city",
+        "A kind of ball",
+        "A Scottish river",
+        "An Irish word"
+      ]
+    },
+    {
+      "id": "extra:tango",
+      "subject": "ar",
+      "text": "The tango was born around the Río de la Plata, in Argentina and which country?",
+      "answer": "Uruguay",
+      "wrong": ["Spain", "Brazil", "Cuba", "Chile", "Paraguay"]
+    },
+    {
+      "id": "extra:flamenco",
+      "subject": "es",
+      "text": "Flamenco music and dance come from which country?",
+      "answer": "Spain",
+      "wrong": ["Mexico", "Portugal", "Italy", "Argentina", "Cuba"]
+    },
+    {
+      "id": "extra:samba",
+      "subject": "br",
+      "text": "Samba is the national dance of which country?",
+      "answer": "Brazil",
+      "wrong": ["Argentina", "Cuba", "Spain", "Colombia", "Portugal"]
+    },
+    {
+      "id": "extra:yoga",
+      "subject": "in",
+      "text": "Yoga comes from which country?",
+      "answer": "India",
+      "wrong": ["China", "Japan", "Tibet", "Thailand", "Nepal"]
+    },
+    {
+      "id": "extra:chess",
+      "subject": "in",
+      "text": "Chess is believed to come from which country?",
+      "answer": "India",
+      "wrong": ["Russia", "Persia", "China", "Egypt", "Greece"]
+    },
+    {
+      "id": "extra:zero",
+      "subject": "in",
+      "text": "The number zero, as used today, was developed in which country?",
+      "answer": "India",
+      "wrong": ["Greece", "Egypt", "China", "Italy", "Arabia"]
+    },
+    {
+      "id": "extra:lego",
+      "subject": "dk",
+      "text": "LEGO bricks come from which country?",
+      "answer": "Denmark",
+      "wrong": ["Sweden", "Germany", "Norway", "The Netherlands", "Finland"]
+    },
+    {
+      "id": "extra:ikea",
+      "subject": "se",
+      "text": "IKEA was founded in which country?",
+      "answer": "Sweden",
+      "wrong": ["Denmark", "Norway", "Finland", "Germany", "The Netherlands"]
+    },
+    {
+      "id": "extra:nokia",
+      "subject": "fi",
+      "text": "The phone maker Nokia comes from which country?",
+      "answer": "Finland",
+      "wrong": ["Sweden", "Japan", "Norway", "South Korea", "Denmark"]
+    },
+    {
+      "id": "extra:samsung",
+      "subject": "kr",
+      "text": "Samsung comes from which country?",
+      "answer": "South Korea",
+      "wrong": ["Japan", "China", "Taiwan", "North Korea", "Singapore"]
+    },
+    {
+      "id": "extra:toyota",
+      "subject": "jp",
+      "text": "Toyota cars come from which country?",
+      "answer": "Japan",
+      "wrong": ["South Korea", "China", "Germany", "The USA", "Italy"]
+    },
+    {
+      "id": "extra:ferrari",
+      "subject": "it",
+      "text": "Ferrari cars come from which country?",
+      "answer": "Italy",
+      "wrong": ["Germany", "France", "Spain", "Monaco", "The United Kingdom"]
+    },
+    {
+      "id": "extra:tetris",
+      "subject": "ru",
+      "text": "The video game Tetris was created in which country?",
+      "answer": "The Soviet Union",
+      "wrong": ["Japan", "The USA", "Finland", "South Korea", "Germany"]
+    },
+    {
+      "id": "extra:pokemon",
+      "subject": "jp",
+      "text": "Pokémon was created in which country?",
+      "answer": "Japan",
+      "wrong": ["The USA", "South Korea", "China", "France", "Canada"]
+    },
+    {
+      "id": "extra:karaoke",
+      "subject": "jp",
+      "text": "Karaoke was invented in which country?",
+      "answer": "Japan",
+      "wrong": ["The USA", "South Korea", "Brazil", "China", "Thailand"]
+    },
+    {
+      "id": "extra:sauna",
+      "subject": "fi",
+      "text": "The sauna is a national tradition of which country?",
+      "answer": "Finland",
+      "wrong": ["Spain", "Sweden", "Turkey", "Japan", "Iceland"]
+    },
+    {
+      "id": "extra:hot-air-balloon",
+      "subject": "fr",
+      "text": "The first hot-air balloon flight with people aboard was in which country?",
+      "answer": "France",
+      "wrong": ["The United Kingdom", "Germany", "The USA", "Italy", "China"]
+    },
+    {
+      "id": "extra:wright-brothers",
+      "subject": "us",
+      "text": "In which year did the Wright brothers make the first powered plane flight?",
+      "answer": "1903",
+      "wrong": ["1869", "1889", "1914", "1927", "1899"]
+    },
+    {
+      "id": "extra:dynamite",
+      "subject": "se",
+      "text": "Dynamite was invented by someone from which country?",
+      "answer": "Sweden",
+      "wrong": ["Germany", "China", "The USA", "France", "Russia"]
+    },
+    {
+      "id": "extra:compass",
+      "subject": "cn",
+      "text": "The magnetic compass was first used in which country?",
+      "answer": "China",
+      "wrong": ["Italy", "Portugal", "Greece", "Egypt", "Norway"]
+    },
+    {
+      "id": "extra:tequila",
+      "subject": "mx",
+      "text": "Tequila is made from which plant?",
+      "answer": "Blue agave",
+      "wrong": ["Sugar cane", "Cactus fruit", "Corn", "Potato", "Rice"]
+    },
+    {
+      "id": "extra:champagne",
+      "subject": "fr",
+      "text": "Champagne may only be called champagne if it comes from which country?",
+      "answer": "France",
+      "wrong": ["Italy", "Spain", "Germany", "Portugal", "Austria"]
+    },
+    {
+      "id": "extra:maple-syrup",
+      "subject": "ca",
+      "text": "Most of the world's maple syrup comes from which Canadian province?",
+      "answer": "Quebec",
+      "wrong": ["Ontario", "British Columbia", "Alberta", "Nova Scotia", "Manitoba"]
+    },
+    {
+      "id": "extra:feta",
+      "subject": "gr",
+      "text": "Feta cheese comes from which country?",
+      "answer": "Greece",
+      "wrong": ["Italy", "France", "Turkey", "Spain", "Cyprus"]
+    },
+    {
+      "id": "extra:parmesan",
+      "subject": "it",
+      "text": "Parmesan cheese comes from which country?",
+      "answer": "Italy",
+      "wrong": ["France", "Switzerland", "Spain", "Greece", "Portugal"]
+    },
+    {
+      "id": "extra:sushi-rice",
+      "subject": "jp",
+      "text": "Sushi is from which country?",
+      "answer": "Japan",
+      "wrong": ["China", "South Korea", "Thailand", "Vietnam", "The Philippines"]
+    },
+    {
+      "id": "extra:kimchi",
+      "subject": "kr",
+      "text": "Kimchi is a dish from which country?",
+      "answer": "Korea",
+      "wrong": ["Japan", "China", "Vietnam", "Thailand", "Mongolia"]
+    },
+    {
+      "id": "extra:paella",
+      "subject": "es",
+      "text": "Paella comes from which Spanish city?",
+      "answer": "Valencia",
+      "wrong": ["Madrid", "Seville", "Barcelona", "Bilbao", "Granada"]
+    },
+    {
+      "id": "extra:goulash",
+      "subject": "hu",
+      "text": "Goulash is a national dish of which country?",
+      "answer": "Hungary",
+      "wrong": ["Poland", "Austria", "Czechia", "Romania", "Russia"]
+    },
+    {
+      "id": "extra:haggis",
+      "subject": "gb",
+      "text": "Haggis is a national dish of which country?",
+      "answer": "Scotland",
+      "wrong": ["Ireland", "England", "Wales", "Norway", "Iceland"]
+    },
+    {
+      "id": "extra:ceviche",
+      "subject": "pe",
+      "text": "Ceviche is a national dish of which country?",
+      "answer": "Peru",
+      "wrong": ["Mexico", "Spain", "Brazil", "Argentina", "Chile"]
+    },
+    {
+      "id": "extra:dodo",
+      "subject": "mu",
+      "text": "The dodo bird lived only on which island?",
+      "answer": "Mauritius",
+      "wrong": ["Madagascar", "New Zealand", "Sri Lanka", "Hawaii", "The Galápagos"]
+    },
+    {
+      "id": "extra:lemurs",
+      "subject": "mg",
+      "text": "Wild lemurs live only on which island?",
+      "answer": "Madagascar",
+      "wrong": ["Borneo", "Sri Lanka", "Mauritius", "Sumatra", "Cuba"]
+    },
+    {
+      "id": "extra:komodo",
+      "subject": "id",
+      "text": "The Komodo dragon lives in which country?",
+      "answer": "Indonesia",
+      "wrong": ["China", "Australia", "The Philippines", "Thailand", "Malaysia"]
+    },
+    {
+      "id": "extra:kiwi-bird",
+      "subject": "nz",
+      "text": "The kiwi bird lives only in which country?",
+      "answer": "New Zealand",
+      "wrong": ["Australia", "South Africa", "Chile", "Madagascar", "Fiji"]
+    },
+    {
+      "id": "extra:panda",
+      "subject": "cn",
+      "text": "Wild giant pandas live only in which country?",
+      "answer": "China",
+      "wrong": ["Japan", "India", "Nepal", "Vietnam", "Thailand"]
+    },
+    {
+      "id": "extra:kangaroo",
+      "subject": "au",
+      "text": "Wild kangaroos live mainly in which country?",
+      "answer": "Australia",
+      "wrong": ["New Zealand", "South Africa", "Argentina", "Indonesia", "Madagascar"]
+    },
+    {
+      "id": "extra:orangutan",
+      "subject": "my",
+      "text": "Wild orangutans live on Sumatra and which other island?",
+      "answer": "Borneo",
+      "wrong": ["Java", "Madagascar", "Sri Lanka", "Bali", "New Guinea"]
+    },
+    {
+      "id": "extra:polar-bear",
+      "subject": "aq",
+      "text": "Which animal does NOT live in Antarctica?",
+      "answer": "The polar bear",
+      "wrong": [
+        "The emperor penguin",
+        "The leopard seal",
+        "The krill",
+        "The Weddell seal",
+        "The Adélie penguin"
+      ]
+    },
+    {
+      "id": "extra:bald-eagle",
+      "subject": "us",
+      "text": "The bald eagle is the national bird of which country?",
+      "answer": "The USA",
+      "wrong": ["Canada", "Mexico", "Germany", "Albania", "Russia"]
+    },
+    {
+      "id": "extra:kookaburra",
+      "subject": "au",
+      "text": "The laughing kookaburra bird is from which country?",
+      "answer": "Australia",
+      "wrong": ["Brazil", "India", "Kenya", "Mexico", "Indonesia"]
+    },
+    {
+      "id": "extra:amazon-countries",
+      "subject": "br",
+      "text": "The Amazon rainforest stretches over how many countries and territories?",
+      "answer": "Nine",
+      "wrong": ["Two", "Four", "Six", "Twelve", "Fifteen"]
+    },
+    {
+      "id": "extra:ring-of-fire",
+      "text": "The Ring of Fire, a chain of volcanoes, circles which ocean?",
+      "answer": "The Pacific",
+      "wrong": [
+        "The Atlantic",
+        "The Indian Ocean",
+        "The Arctic Ocean",
+        "The Mediterranean",
+        "The Southern Ocean"
+      ]
+    },
+    {
+      "id": "extra:argentina-silver",
+      "subject": "ar",
+      "text": "Argentina is named after which metal?",
+      "answer": "Silver",
+      "wrong": ["Gold", "Copper", "Iron", "Tin", "Platinum"]
+    },
+    {
+      "id": "extra:brazil-tree",
+      "subject": "br",
+      "text": "Brazil is named after what?",
+      "answer": "A tree",
+      "wrong": ["A king", "A river", "A saint", "A bird", "A mountain"]
+    },
+    {
+      "id": "extra:philippines-name",
+      "subject": "ph",
+      "text": "The Philippines are named after a king of which country?",
+      "answer": "Spain",
+      "wrong": ["Portugal", "France", "England", "The Netherlands", "Italy"]
+    },
+    {
+      "id": "extra:rising-sun",
+      "subject": "jp",
+      "text": "Which country is called the Land of the Rising Sun?",
+      "answer": "Japan",
+      "wrong": ["China", "South Korea", "Australia", "Thailand", "Philippines"]
+    },
+    {
+      "id": "extra:fire-and-ice",
+      "subject": "is",
+      "text": "Which country is called the land of fire and ice?",
+      "answer": "Iceland",
+      "wrong": ["Norway", "Greenland", "Chile", "New Zealand", "Finland"]
+    },
+    {
+      "id": "extra:thunder-dragon",
+      "subject": "bt",
+      "text": "Which country is called the Land of the Thunder Dragon?",
+      "answer": "Bhutan",
+      "wrong": ["China", "Nepal", "Wales", "Mongolia", "Tibet"]
+    },
+    {
+      "id": "extra:emerald-isle",
+      "subject": "ie",
+      "text": "Which country is called the Emerald Isle?",
+      "answer": "Ireland",
+      "wrong": ["New Zealand", "Sri Lanka", "Iceland", "Jamaica", "Scotland"]
+    },
+    {
+      "id": "extra:pearl-africa",
+      "subject": "ug",
+      "text": "Which country did Churchill call the Pearl of Africa?",
+      "answer": "Uganda",
+      "wrong": ["Kenya", "Egypt", "Madagascar", "Morocco", "Ghana"]
+    },
+    {
+      "id": "extra:land-of-smiles",
+      "subject": "th",
+      "text": "Which country is called the Land of Smiles?",
+      "answer": "Thailand",
+      "wrong": ["Japan", "The Philippines", "Brazil", "Jamaica", "Italy"]
+    },
+    {
+      "id": "extra:long-white-cloud",
+      "subject": "nz",
+      "text": "In Maori, New Zealand is called Aotearoa. What does it mean?",
+      "answer": "Land of the long white cloud",
+      "wrong": [
+        "Land of the big mountain",
+        "Land of the kiwi",
+        "Island of fire",
+        "Green land",
+        "Land of two seas"
+      ]
+    },
+    {
+      "id": "extra:big-apple",
+      "subject": "us",
+      "text": "Which city is nicknamed the Big Apple?",
+      "answer": "New York",
+      "wrong": ["Chicago", "Los Angeles", "Boston", "Seattle", "Washington"]
+    },
+    {
+      "id": "extra:city-of-light",
+      "subject": "fr",
+      "text": "Which city is called the City of Light?",
+      "answer": "Paris",
+      "wrong": ["Rome", "Lisbon", "Las Vegas", "Vienna", "Prague"]
+    },
+    {
+      "id": "extra:eternal-city",
+      "subject": "it",
+      "text": "Which city is called the Eternal City?",
+      "answer": "Rome",
+      "wrong": ["Athens", "Jerusalem", "Istanbul", "Cairo", "Paris"]
+    },
+    {
+      "id": "extra:nepal-flag",
+      "subject": "np",
+      "text": "Which country's flag is not a rectangle?",
+      "answer": "Nepal",
+      "wrong": ["Bhutan", "Switzerland", "Japan", "Qatar", "Tonga"]
+    },
+    {
+      "id": "extra:square-flag",
+      "subject": "ch",
+      "text": "Which country has a square flag?",
+      "answer": "Switzerland",
+      "wrong": ["Austria", "Denmark", "Japan", "Nepal", "Canada"]
+    },
+    {
+      "id": "extra:lebanon-flag",
+      "subject": "lb",
+      "text": "Which country has a cedar tree on its flag?",
+      "answer": "Lebanon",
+      "wrong": ["Canada", "Cyprus", "Syria", "Israel", "Jordan"]
+    },
+    {
+      "id": "extra:mozambique-flag",
+      "subject": "mz",
+      "text": "Which country has a rifle on its flag?",
+      "answer": "Mozambique",
+      "wrong": ["Angola", "Zimbabwe", "Afghanistan", "Kenya", "Eritrea"]
+    },
+    {
+      "id": "extra:bhutan-flag",
+      "subject": "bt",
+      "text": "Which country has a dragon on its national flag?",
+      "answer": "Bhutan",
+      "wrong": ["China", "Japan", "Vietnam", "Mongolia", "Thailand"]
+    },
+    {
+      "id": "extra:cyprus-flag",
+      "subject": "cy",
+      "text": "What is drawn on the flag of Cyprus?",
+      "answer": "A map of the island",
+      "wrong": ["A dove", "A lion", "A ship", "A sun", "A key"]
+    },
+    {
+      "id": "extra:denmark-flag",
+      "subject": "dk",
+      "text": "Which country's flag is said to be the oldest still in use?",
+      "answer": "Denmark",
+      "wrong": ["The United Kingdom", "France", "Japan", "Switzerland", "Austria"]
+    },
+    {
+      "id": "extra:brazil-motto",
+      "subject": "br",
+      "text": "What is written on Brazil's flag?",
+      "answer": "Ordem e Progresso",
+      "wrong": ["Deus e Pátria", "Liberdade", "Brasil Unido", "Paz e Amor", "Ordem e Justiça"]
+    },
+    {
+      "id": "extra:mexico-flag",
+      "subject": "mx",
+      "text": "What is the eagle on Mexico's flag eating?",
+      "answer": "A snake",
+      "wrong": ["A fish", "A rabbit", "A cactus flower", "A mouse", "A scorpion"]
+    },
+    {
+      "id": "extra:japan-flag",
+      "subject": "jp",
+      "text": "The red circle on Japan's flag stands for what?",
+      "answer": "The sun",
+      "wrong": ["The moon", "Blood", "A rose", "The earth", "A drum"]
+    },
+    {
+      "id": "extra:canada-flag",
+      "subject": "ca",
+      "text": "What is on the flag of Canada?",
+      "answer": "A maple leaf",
+      "wrong": ["A moose", "A beaver", "A pine tree", "A bear", "A goose"]
+    },
+    {
+      "id": "extra:southern-cross",
+      "subject": "au",
+      "text": "Which star pattern is on the flags of Australia and New Zealand?",
+      "answer": "The Southern Cross",
+      "wrong": ["The Big Dipper", "Orion", "The Pole Star", "The Seven Sisters", "Cassiopeia"]
+    },
+    {
+      "id": "extra:libya-green",
+      "subject": "ly",
+      "text": "From 1977 to 2011, what was special about Libya's flag?",
+      "answer": "It was plain green",
+      "wrong": [
+        "It was square",
+        "It had no colours",
+        "It showed a map",
+        "It was triangular",
+        "It had a camel"
+      ]
+    },
+    {
+      "id": "extra:union-jack",
+      "subject": "gb",
+      "text": "The Union Jack mixes the crosses of England, Scotland and which other land?",
+      "answer": "Ireland",
+      "wrong": ["Wales", "Cornwall", "Norway", "Denmark", "France"]
+    },
+    {
+      "id": "extra:wales-flag",
+      "subject": "gb",
+      "text": "What animal is on the flag of Wales?",
+      "answer": "A red dragon",
+      "wrong": ["A lion", "A unicorn", "A white horse", "An eagle", "A bull"]
+    },
+    {
+      "id": "extra:scotland-unicorn",
+      "subject": "gb",
+      "text": "What is the national animal of Scotland?",
+      "answer": "The unicorn",
+      "wrong": ["The lion", "The stag", "The eagle", "The dragon", "The wolf"]
+    },
+    {
+      "id": "extra:switzerland-languages",
+      "subject": "ch",
+      "text": "How many national languages does Switzerland have?",
+      "answer": "Four",
+      "wrong": ["One", "Two", "Three", "Five", "Six"]
+    },
+    {
+      "id": "extra:belgium-languages",
+      "subject": "be",
+      "text": "Belgium's official languages are Dutch, French and which other?",
+      "answer": "German",
+      "wrong": ["English", "Luxembourgish", "Italian", "Walloon", "Spanish"]
+    },
+    {
+      "id": "extra:canada-languages",
+      "subject": "ca",
+      "text": "What are the two official languages of Canada?",
+      "answer": "English and French",
+      "wrong": [
+        "English and Spanish",
+        "French and Spanish",
+        "English and Inuktitut",
+        "English and German",
+        "French and Cree"
+      ]
+    },
+    {
+      "id": "extra:suriname-language",
+      "subject": "sr",
+      "text": "What is the official language of Suriname?",
+      "answer": "Dutch",
+      "wrong": ["Spanish", "Portuguese", "English", "French", "Hindi"]
+    },
+    {
+      "id": "extra:angola-language",
+      "subject": "ao",
+      "text": "What is the official language of Angola?",
+      "answer": "Portuguese",
+      "wrong": ["French", "English", "Spanish", "Swahili", "Arabic"]
+    },
+    {
+      "id": "extra:haiti-language",
+      "subject": "ht",
+      "text": "Haitian Creole and which other language are official in Haiti?",
+      "answer": "French",
+      "wrong": ["Spanish", "English", "Portuguese", "Dutch", "Italian"]
+    },
+    {
+      "id": "extra:iran-language",
+      "subject": "ir",
+      "text": "What is the main language of Iran?",
+      "answer": "Persian",
+      "wrong": ["Arabic", "Turkish", "Urdu", "Kurdish", "Hindi"]
+    },
+    {
+      "id": "extra:austria-language",
+      "subject": "at",
+      "text": "What is the main language of Austria?",
+      "answer": "German",
+      "wrong": ["Austrian", "Hungarian", "Italian", "Czech", "Slovenian"]
+    },
+    {
+      "id": "extra:hungarian-family",
+      "subject": "hu",
+      "text": "Hungarian is related to which of these languages?",
+      "answer": "Finnish",
+      "wrong": ["German", "Russian", "Polish", "Romanian", "Italian"]
+    },
+    {
+      "id": "extra:maltese",
+      "subject": "mt",
+      "text": "The Maltese language is closest to which of these?",
+      "answer": "Arabic",
+      "wrong": ["Italian", "Greek", "English", "Spanish", "Latin"]
+    },
+    {
+      "id": "extra:paraguay-guarani",
+      "subject": "py",
+      "text": "Besides Spanish, which language is official in Paraguay?",
+      "answer": "Guaraní",
+      "wrong": ["Quechua", "Portuguese", "English", "Aymara", "Italian"]
+    },
+    {
+      "id": "extra:madagascar-language",
+      "subject": "mg",
+      "text": "The Malagasy language of Madagascar is related to which language?",
+      "answer": "Malay",
+      "wrong": ["Swahili", "Arabic", "French", "Zulu", "Portuguese"]
+    },
+    {
+      "id": "extra:mandarin",
+      "subject": "cn",
+      "text": "Which language has the most native speakers in the world?",
+      "answer": "Mandarin Chinese",
+      "wrong": ["English", "Spanish", "Hindi", "Arabic", "Bengali"]
+    },
+    {
+      "id": "extra:armenia-christian",
+      "subject": "am",
+      "text": "Which was the first country to make Christianity its state religion?",
+      "answer": "Armenia",
+      "wrong": ["Italy", "Greece", "Ethiopia", "Georgia", "Egypt"]
+    },
+    {
+      "id": "extra:pakistan-religion",
+      "subject": "pk",
+      "text": "In 2020, which religion had the most followers in Pakistan?",
+      "answer": "Islam",
+      "wrong": ["Hinduism", "Christianity", "Sikhism", "Buddhism", "Zoroastrianism"]
+    },
+    {
+      "id": "extra:indonesia-muslims",
+      "subject": "id",
+      "text": "In 2020, which country had the most Muslims?",
+      "answer": "Indonesia",
+      "wrong": ["Saudi Arabia", "Egypt", "Iran", "Turkey", "Morocco"]
+    },
+    {
+      "id": "extra:philippines-religion",
+      "subject": "ph",
+      "text": "In 2020, which religion had the most followers in the Philippines?",
+      "answer": "Christianity",
+      "wrong": ["Islam", "Buddhism", "Hinduism", "Shinto", "Taoism"]
+    },
+    {
+      "id": "extra:thailand-religion",
+      "subject": "th",
+      "text": "In 2020, which religion had the most followers in Thailand?",
+      "answer": "Buddhism",
+      "wrong": ["Islam", "Hinduism", "Christianity", "Shinto", "Sikhism"]
+    },
+    {
+      "id": "extra:nepal-religion",
+      "subject": "np",
+      "text": "In 2020, which religion had the most followers in Nepal?",
+      "answer": "Hinduism",
+      "wrong": ["Buddhism", "Islam", "Christianity", "Sikhism", "Jainism"]
+    },
+    {
+      "id": "extra:india-religion",
+      "subject": "in",
+      "text": "In 2020, which religion had the most followers in India?",
+      "answer": "Hinduism",
+      "wrong": ["Islam", "Buddhism", "Sikhism", "Christianity", "Jainism"]
+    },
+    {
+      "id": "extra:iran-shia",
+      "subject": "ir",
+      "text": "In 2020, which branch of Islam did most people in Iran follow?",
+      "answer": "Shia",
+      "wrong": ["Sunni", "Sufi", "Ibadi", "Ahmadi", "Alawite"]
+    },
+    {
+      "id": "extra:bhutan-happiness",
+      "subject": "bt",
+      "text": "Which country measures Gross National Happiness?",
+      "answer": "Bhutan",
+      "wrong": ["Denmark", "Finland", "Costa Rica", "Nepal", "Norway"]
+    },
+    {
+      "id": "extra:euro-bulgaria",
+      "subject": "bg",
+      "text": "Which currency did Bulgaria adopt on 1 January 2026?",
+      "answer": "The euro",
+      "wrong": ["The dollar", "The leu", "The ruble", "The Swiss franc", "The złoty"]
+    },
+    {
+      "id": "extra:lev",
+      "subject": "bg",
+      "text": "In 2025, what was Bulgaria's currency?",
+      "answer": "The lev",
+      "wrong": ["The euro", "The leu", "The dinar", "The kuna", "The forint"]
+    },
+    {
+      "id": "extra:kuna",
+      "subject": "hr",
+      "text": "In 2022, what was Croatia's currency?",
+      "answer": "The kuna",
+      "wrong": ["The euro", "The dinar", "The lira", "The lev", "The koruna"]
+    },
+    {
+      "id": "extra:euro-cash",
+      "subject": "fr",
+      "text": "In which year did euro coins and notes first come into use?",
+      "answer": "2002",
+      "wrong": ["1992", "1999", "1995", "2005", "2008"]
+    },
+    {
+      "id": "extra:yen",
+      "subject": "jp",
+      "text": "In 2025, what currency did Japan use?",
+      "answer": "The yen",
+      "wrong": ["The yuan", "The won", "The ringgit", "The baht", "The rupee"]
+    },
+    {
+      "id": "extra:won",
+      "subject": "kr",
+      "text": "In 2025, what currency did South Korea use?",
+      "answer": "The won",
+      "wrong": ["The yen", "The yuan", "The dong", "The baht", "The peso"]
+    },
+    {
+      "id": "extra:rand",
+      "subject": "za",
+      "text": "In 2025, what currency did South Africa use?",
+      "answer": "The rand",
+      "wrong": ["The dollar", "The shilling", "The naira", "The pound", "The kwacha"]
+    },
+    {
+      "id": "extra:real",
+      "subject": "br",
+      "text": "In 2025, what currency did Brazil use?",
+      "answer": "The real",
+      "wrong": ["The peso", "The cruzeiro", "The dollar", "The escudo", "The bolívar"]
+    },
+    {
+      "id": "extra:zloty",
+      "subject": "pl",
+      "text": "In 2025, what currency did Poland use?",
+      "answer": "The złoty",
+      "wrong": ["The euro", "The koruna", "The forint", "The ruble", "The mark"]
+    },
+    {
+      "id": "extra:forint",
+      "subject": "hu",
+      "text": "In 2025, what currency did Hungary use?",
+      "answer": "The forint",
+      "wrong": ["The euro", "The złoty", "The koruna", "The lev", "The schilling"]
+    },
+    {
+      "id": "extra:baht",
+      "subject": "th",
+      "text": "In 2025, what currency did Thailand use?",
+      "answer": "The baht",
+      "wrong": ["The rupee", "The dong", "The ringgit", "The kip", "The yen"]
+    },
+    {
+      "id": "extra:rupee",
+      "subject": "in",
+      "text": "In 2025, what currency did India use?",
+      "answer": "The rupee",
+      "wrong": ["The taka", "The dinar", "The rial", "The yuan", "The riyal"]
+    },
+    {
+      "id": "extra:franc-swiss",
+      "subject": "ch",
+      "text": "In 2025, what currency did Switzerland use?",
+      "answer": "The franc",
+      "wrong": ["The euro", "The mark", "The krone", "The lira", "The guilder"]
+    },
+    {
+      "id": "extra:pound",
+      "subject": "gb",
+      "text": "In 2025, what currency did the United Kingdom use?",
+      "answer": "The pound",
+      "wrong": ["The euro", "The crown", "The shilling", "The dollar", "The guinea"]
+    },
+    {
+      "id": "extra:krona",
+      "subject": "se",
+      "text": "In 2025, what currency did Sweden use?",
+      "answer": "The krona",
+      "wrong": ["The euro", "The krone", "The mark", "The pound", "The markka"]
+    },
+    {
+      "id": "extra:guilder-dutch",
+      "subject": "nl",
+      "text": "Before the euro, what currency did the Netherlands use?",
+      "answer": "The guilder",
+      "wrong": ["The franc", "The mark", "The krone", "The peseta", "The escudo"]
+    },
+    {
+      "id": "extra:peseta",
+      "subject": "es",
+      "text": "Before the euro, what currency did Spain use?",
+      "answer": "The peseta",
+      "wrong": ["The escudo", "The lira", "The peso", "The franc", "The real"]
+    },
+    {
+      "id": "extra:drachma",
+      "subject": "gr",
+      "text": "Before the euro, what currency did Greece use?",
+      "answer": "The drachma",
+      "wrong": ["The lira", "The dinar", "The lev", "The obol", "The franc"]
+    },
+    {
+      "id": "extra:tourism-france",
+      "subject": "fr",
+      "text": "In 2024, which country received the most foreign tourists?",
+      "answer": "France",
+      "wrong": ["Spain", "The USA", "Italy", "China", "Thailand"]
+    },
+    {
+      "id": "extra:gdp-usa",
+      "subject": "us",
+      "text": "In 2024, which country had the largest economy?",
+      "answer": "The USA",
+      "wrong": ["China", "Japan", "Germany", "India", "The United Kingdom"]
+    },
+    {
+      "id": "extra:people-india",
+      "subject": "in",
+      "text": "In 2024, which country had the most people?",
+      "answer": "India",
+      "wrong": ["China", "The USA", "Indonesia", "Pakistan", "Nigeria"]
+    },
+    {
+      "id": "extra:oil-usa",
+      "subject": "us",
+      "text": "In 2023, which country produced the most oil?",
+      "answer": "The USA",
+      "wrong": ["Saudi Arabia", "Russia", "Iran", "Venezuela", "Canada"]
+    },
+    {
+      "id": "extra:coffee-brazil",
+      "subject": "br",
+      "text": "In 2024, which country produced the most coffee?",
+      "answer": "Brazil",
+      "wrong": ["Colombia", "Ethiopia", "Vietnam", "Indonesia", "Kenya"]
+    },
+    {
+      "id": "extra:cocoa-ivory",
+      "subject": "ci",
+      "text": "In 2024, which country produced the most cocoa beans?",
+      "answer": "Côte d'Ivoire",
+      "wrong": ["Ghana", "Brazil", "Switzerland", "Belgium", "Nigeria"]
+    },
+    {
+      "id": "extra:cars-china",
+      "subject": "cn",
+      "text": "In 2024, which country built the most cars?",
+      "answer": "China",
+      "wrong": ["Japan", "The USA", "Germany", "South Korea", "India"]
+    },
+    {
+      "id": "extra:unesco-italy",
+      "subject": "it",
+      "text": "In 2024, which country had the most UNESCO World Heritage Sites?",
+      "answer": "Italy",
+      "wrong": ["France", "Spain", "Greece", "Egypt", "The USA"]
+    },
+    {
+      "id": "extra:diamonds-botswana",
+      "subject": "bw",
+      "text": "Which African country's economy is built on diamonds?",
+      "answer": "Botswana",
+      "wrong": ["Egypt", "Morocco", "Tunisia", "Senegal", "Kenya"]
+    },
+    {
+      "id": "extra:opec-venezuela",
+      "subject": "ve",
+      "text": "In 2023, which country had the largest proven oil reserves?",
+      "answer": "Venezuela",
+      "wrong": ["Saudi Arabia", "The USA", "Russia", "Iraq", "Kuwait"]
+    },
+    {
+      "id": "extra:portugal-president-2020",
+      "subject": "pt",
+      "text": "Who was president of Portugal in 2020?",
+      "answer": "Marcelo Rebelo de Sousa",
+      "wrong": [
+        "António Costa",
+        "Aníbal Cavaco Silva",
+        "Mário Soares",
+        "Jorge Sampaio",
+        "Luís Montenegro"
+      ]
+    },
+    {
+      "id": "extra:france-president-2020",
+      "subject": "fr",
+      "text": "Who was president of France in 2020?",
+      "answer": "Emmanuel Macron",
+      "wrong": [
+        "François Hollande",
+        "Nicolas Sarkozy",
+        "Jacques Chirac",
+        "Marine Le Pen",
+        "Édouard Philippe"
+      ]
+    },
+    {
+      "id": "extra:france-president-2010",
+      "subject": "fr",
+      "text": "Who was president of France in 2010?",
+      "answer": "Nicolas Sarkozy",
+      "wrong": [
+        "François Hollande",
+        "Jacques Chirac",
+        "Emmanuel Macron",
+        "François Mitterrand",
+        "Dominique de Villepin"
+      ]
+    },
+    {
+      "id": "extra:usa-president-2010",
+      "subject": "us",
+      "text": "Who was president of the USA in 2010?",
+      "answer": "Barack Obama",
+      "wrong": ["George W. Bush", "Bill Clinton", "Donald Trump", "Joe Biden", "Hillary Clinton"]
+    },
+    {
+      "id": "extra:usa-president-2022",
+      "subject": "us",
+      "text": "Who was president of the USA in 2022?",
+      "answer": "Joe Biden",
+      "wrong": ["Donald Trump", "Barack Obama", "Kamala Harris", "Bernie Sanders", "George W. Bush"]
+    },
+    {
+      "id": "extra:usa-president-1995",
+      "subject": "us",
+      "text": "Who was president of the USA in 1995?",
+      "answer": "Bill Clinton",
+      "wrong": [
+        "George H. W. Bush",
+        "Ronald Reagan",
+        "George W. Bush",
+        "Barack Obama",
+        "Jimmy Carter"
+      ]
+    },
+    {
+      "id": "extra:uk-pm-2021",
+      "subject": "gb",
+      "text": "Who was prime minister of the United Kingdom in 2021?",
+      "answer": "Boris Johnson",
+      "wrong": ["Theresa May", "Rishi Sunak", "Liz Truss", "David Cameron", "Keir Starmer"]
+    },
+    {
+      "id": "extra:uk-three-pms",
+      "subject": "gb",
+      "text": "How many prime ministers did the United Kingdom have in 2022?",
+      "answer": "Three",
+      "wrong": ["One", "Two", "Four", "Five", "None"]
+    },
+    {
+      "id": "extra:uk-pm-shortest",
+      "subject": "gb",
+      "text": "Which UK prime minister of 2022 lasted only about 50 days?",
+      "answer": "Liz Truss",
+      "wrong": ["Rishi Sunak", "Boris Johnson", "Theresa May", "Keir Starmer", "David Cameron"]
+    },
+    {
+      "id": "extra:thatcher",
+      "subject": "gb",
+      "text": "Who was the first woman to be prime minister of the UK?",
+      "answer": "Margaret Thatcher",
+      "wrong": ["Theresa May", "Liz Truss", "Queen Victoria", "Elizabeth II", "Nicola Sturgeon"]
+    },
+    {
+      "id": "extra:germany-chancellor-2010",
+      "subject": "de",
+      "text": "Who was chancellor of Germany in 2010?",
+      "answer": "Angela Merkel",
+      "wrong": [
+        "Olaf Scholz",
+        "Gerhard Schröder",
+        "Helmut Kohl",
+        "Friedrich Merz",
+        "Frank-Walter Steinmeier"
+      ]
+    },
+    {
+      "id": "extra:russia-president-2015",
+      "subject": "ru",
+      "text": "Who was president of Russia in 2015?",
+      "answer": "Vladimir Putin",
+      "wrong": [
+        "Dmitry Medvedev",
+        "Boris Yeltsin",
+        "Mikhail Gorbachev",
+        "Sergei Lavrov",
+        "Alexei Navalny"
+      ]
+    },
+    {
+      "id": "extra:gorbachev",
+      "subject": "ru",
+      "text": "Who was the last leader of the Soviet Union?",
+      "answer": "Mikhail Gorbachev",
+      "wrong": [
+        "Boris Yeltsin",
+        "Vladimir Putin",
+        "Leonid Brezhnev",
+        "Joseph Stalin",
+        "Nikita Khrushchev"
+      ]
+    },
+    {
+      "id": "extra:china-leader-2020",
+      "subject": "cn",
+      "text": "Who led China in 2020?",
+      "answer": "Xi Jinping",
+      "wrong": ["Hu Jintao", "Mao Zedong", "Deng Xiaoping", "Li Keqiang", "Jiang Zemin"]
+    },
+    {
+      "id": "extra:india-pm-2020",
+      "subject": "in",
+      "text": "Who was prime minister of India in 2020?",
+      "answer": "Narendra Modi",
+      "wrong": [
+        "Manmohan Singh",
+        "Rahul Gandhi",
+        "Indira Gandhi",
+        "Atal Bihari Vajpayee",
+        "Sonia Gandhi"
+      ]
+    },
+    {
+      "id": "extra:brazil-president-2020",
+      "subject": "br",
+      "text": "Who was president of Brazil in 2020?",
+      "answer": "Jair Bolsonaro",
+      "wrong": [
+        "Lula da Silva",
+        "Dilma Rousseff",
+        "Michel Temer",
+        "Fernando Henrique Cardoso",
+        "Fernando Haddad"
+      ]
+    },
+    {
+      "id": "extra:brazil-president-2024",
+      "subject": "br",
+      "text": "Who was president of Brazil in 2024?",
+      "answer": "Lula da Silva",
+      "wrong": [
+        "Jair Bolsonaro",
+        "Dilma Rousseff",
+        "Michel Temer",
+        "Fernando Haddad",
+        "Marina Silva"
+      ]
+    },
+    {
+      "id": "extra:mexico-sheinbaum",
+      "subject": "mx",
+      "text": "Who became Mexico's first woman president in 2024?",
+      "answer": "Claudia Sheinbaum",
+      "wrong": [
+        "Xóchitl Gálvez",
+        "Marcelo Ebrard",
+        "Margarita Zavala",
+        "Rosario Robles",
+        "Beatriz Paredes"
+      ]
+    },
+    {
+      "id": "extra:argentina-milei",
+      "subject": "ar",
+      "text": "Who was president of Argentina in 2024?",
+      "answer": "Javier Milei",
+      "wrong": [
+        "Alberto Fernández",
+        "Mauricio Macri",
+        "Cristina Kirchner",
+        "Sergio Massa",
+        "Patricia Bullrich"
+      ]
+    },
+    {
+      "id": "extra:canada-pm-2020",
+      "subject": "ca",
+      "text": "Who was prime minister of Canada in 2020?",
+      "answer": "Justin Trudeau",
+      "wrong": [
+        "Stephen Harper",
+        "Pierre Trudeau",
+        "Mark Carney",
+        "Jean Chrétien",
+        "Pierre Poilievre"
+      ]
+    },
+    {
+      "id": "extra:japan-pm-2015",
+      "subject": "jp",
+      "text": "Who was prime minister of Japan in 2015?",
+      "answer": "Shinzo Abe",
+      "wrong": [
+        "Fumio Kishida",
+        "Yoshihide Suga",
+        "Junichiro Koizumi",
+        "Shigeru Ishiba",
+        "Naoto Kan"
+      ]
+    },
+    {
+      "id": "extra:ukraine-president-2023",
+      "subject": "ua",
+      "text": "Who was president of Ukraine in 2023?",
+      "answer": "Volodymyr Zelenskyy",
+      "wrong": [
+        "Petro Poroshenko",
+        "Viktor Yanukovych",
+        "Vitali Klitschko",
+        "Viktor Yushchenko",
+        "Yulia Tymoshenko"
+      ]
+    },
+    {
+      "id": "extra:turkey-president-2020",
+      "subject": "tr",
+      "text": "Who was president of Turkey in 2020?",
+      "answer": "Recep Tayyip Erdoğan",
+      "wrong": [
+        "Abdullah Gül",
+        "Ahmet Davutoğlu",
+        "Kemal Kılıçdaroğlu",
+        "Binali Yıldırım",
+        "Ekrem İmamoğlu"
+      ]
+    },
+    {
+      "id": "extra:italy-pm-2023",
+      "subject": "it",
+      "text": "Who was prime minister of Italy in 2023?",
+      "answer": "Giorgia Meloni",
+      "wrong": [
+        "Mario Draghi",
+        "Silvio Berlusconi",
+        "Matteo Renzi",
+        "Giuseppe Conte",
+        "Matteo Salvini"
+      ]
+    },
+    {
+      "id": "extra:nz-pm-2020",
+      "subject": "nz",
+      "text": "Who was prime minister of New Zealand in 2020?",
+      "answer": "Jacinda Ardern",
+      "wrong": ["Chris Hipkins", "John Key", "Christopher Luxon", "Helen Clark", "Bill English"]
+    },
+    {
+      "id": "extra:north-korea-2020",
+      "subject": "kp",
+      "text": "Who led North Korea in 2020?",
+      "answer": "Kim Jong Un",
+      "wrong": ["Kim Jong Il", "Kim Il Sung", "Kim Yo Jong", "Moon Jae-in", "Kim Dae-jung"]
+    },
+    {
+      "id": "extra:spain-king-2020",
+      "subject": "es",
+      "text": "Who was king of Spain in 2020?",
+      "answer": "Felipe VI",
+      "wrong": ["Juan Carlos I", "Alfonso XIII", "Carlos III", "Philip II", "Ferdinand VII"]
+    },
+    {
+      "id": "extra:uk-monarch-2000",
+      "subject": "gb",
+      "text": "Who was the British monarch in 2000?",
+      "answer": "Elizabeth II",
+      "wrong": ["Charles III", "Victoria", "George VI", "Elizabeth I", "Edward VIII"]
+    },
+    {
+      "id": "extra:uk-monarch-2024",
+      "subject": "gb",
+      "text": "Who was the British monarch in 2024?",
+      "answer": "Charles III",
+      "wrong": ["Elizabeth II", "Victoria", "George VI", "Edward VII", "Elizabeth I"]
+    },
+    {
+      "id": "extra:pope-2020",
+      "subject": "va",
+      "text": "Who was pope in 2020?",
+      "answer": "Francis",
+      "wrong": ["Benedict XVI", "John Paul II", "Leo XIV", "Pius XII", "Paul VI"]
+    },
+    {
+      "id": "extra:pope-2025",
+      "subject": "va",
+      "text": "The pope elected in 2025 was the first to come from which country?",
+      "answer": "The USA",
+      "wrong": ["Argentina", "Brazil", "Poland", "Italy", "Germany"]
+    },
+    {
+      "id": "extra:simeon-bulgaria",
+      "subject": "bg",
+      "text": "Which former child tsar became Bulgaria's prime minister in 2001?",
+      "answer": "Simeon II",
+      "wrong": ["Boris III", "Ferdinand I", "Todor Zhivkov", "Georgi Dimitrov", "Boyko Borisov"]
+    },
+    {
+      "id": "extra:mandela-1995",
+      "subject": "za",
+      "text": "Who was president of South Africa in 1995?",
+      "answer": "Nelson Mandela",
+      "wrong": ["Thabo Mbeki", "Jacob Zuma", "F. W. de Klerk", "Desmond Tutu", "Cyril Ramaphosa"]
+    },
+    {
+      "id": "extra:portugal-first-king",
+      "subject": "pt",
+      "text": "Who was the first king of Portugal?",
+      "answer": "Afonso I",
+      "wrong": ["Manuel I", "João I", "Sebastião I", "Pedro I", "Dinis I"]
+    },
+    {
+      "id": "extra:hungary-first-king",
+      "subject": "hu",
+      "text": "Who was the first king of Hungary?",
+      "answer": "Stephen I",
+      "wrong": ["Béla I", "Matthias Corvinus", "Árpád II", "Louis I", "Attila"]
+    },
+    {
+      "id": "extra:poland-first-king",
+      "subject": "pl",
+      "text": "Who was the first king of Poland?",
+      "answer": "Bolesław I the Brave",
+      "wrong": ["Casimir the Great", "Mieszko III", "Sigismund I", "Jan Sobieski", "Władysław I"]
+    },
+    {
+      "id": "extra:norway-first-king",
+      "subject": "no",
+      "text": "Who is said to be the first king of all Norway?",
+      "answer": "Harald Fairhair",
+      "wrong": ["Olaf the Saint", "Harald Hardrada", "Erik the Red", "Haakon VII", "Canute"]
+    },
+    {
+      "id": "extra:belgium-first-king",
+      "subject": "be",
+      "text": "Who was the first king of Belgium?",
+      "answer": "Leopold I",
+      "wrong": ["Albert I", "Baudouin", "Philippe", "Leopold II", "William I"]
+    },
+    {
+      "id": "extra:italy-first-king",
+      "subject": "it",
+      "text": "Who was the first king of a united Italy?",
+      "answer": "Victor Emmanuel II",
+      "wrong": ["Umberto I", "Garibaldi", "Victor Emmanuel III", "Cavour", "Charles Albert"]
+    },
+    {
+      "id": "extra:saudi-first-king",
+      "subject": "sa",
+      "text": "Who was the first king of Saudi Arabia?",
+      "answer": "Ibn Saud",
+      "wrong": ["Faisal", "Fahd", "Abdullah", "Salman", "Khalid"]
+    },
+    {
+      "id": "extra:china-first-emperor",
+      "subject": "cn",
+      "text": "Who was the first emperor of a united China?",
+      "answer": "Qin Shi Huang",
+      "wrong": ["Kublai Khan", "Genghis Khan", "Puyi", "Sun Yat-sen", "Mao Zedong"]
+    },
+    {
+      "id": "extra:terracotta",
+      "subject": "cn",
+      "text": "The Terracotta Army was built to guard the tomb of whom?",
+      "answer": "The first emperor of China",
+      "wrong": ["Genghis Khan", "Confucius", "The last emperor Puyi", "Kublai Khan", "Buddha"]
+    },
+    {
+      "id": "extra:russia-first-tsar",
+      "subject": "ru",
+      "text": "Who was the first ruler crowned tsar of Russia?",
+      "answer": "Ivan the Terrible",
+      "wrong": [
+        "Peter the Great",
+        "Catherine the Great",
+        "Nicholas II",
+        "Alexander I",
+        "Boris Godunov"
+      ]
+    },
+    {
+      "id": "extra:usa-first-president",
+      "subject": "us",
+      "text": "Who was the first president of the USA?",
+      "answer": "George Washington",
+      "wrong": [
+        "Abraham Lincoln",
+        "Thomas Jefferson",
+        "John Adams",
+        "Benjamin Franklin",
+        "Alexander Hamilton"
+      ]
+    },
+    {
+      "id": "extra:turkey-first-president",
+      "subject": "tr",
+      "text": "Who was the first president of Turkey?",
+      "answer": "Mustafa Kemal Atatürk",
+      "wrong": [
+        "İsmet İnönü",
+        "Recep Tayyip Erdoğan",
+        "Suleiman the Magnificent",
+        "Celal Bayar",
+        "Enver Pasha"
+      ]
+    },
+    {
+      "id": "extra:kenya-first-president",
+      "subject": "ke",
+      "text": "Who was the first president of Kenya?",
+      "answer": "Jomo Kenyatta",
+      "wrong": [
+        "Daniel arap Moi",
+        "Uhuru Kenyatta",
+        "Mwai Kibaki",
+        "William Ruto",
+        "Barack Obama Sr."
+      ]
+    },
+    {
+      "id": "extra:ghana-first-president",
+      "subject": "gh",
+      "text": "Who was the first president of Ghana?",
+      "answer": "Kwame Nkrumah",
+      "wrong": ["Jerry Rawlings", "Kofi Annan", "John Kufuor", "John Mahama", "Nana Akufo-Addo"]
+    },
+    {
+      "id": "extra:india-first-pm",
+      "subject": "in",
+      "text": "Who was the first prime minister of India?",
+      "answer": "Jawaharlal Nehru",
+      "wrong": ["Mahatma Gandhi", "Indira Gandhi", "Rajiv Gandhi", "Sardar Patel", "B. R. Ambedkar"]
+    },
+    {
+      "id": "extra:czech-first-president",
+      "subject": "cz",
+      "text": "Who was the first president of Czechoslovakia?",
+      "answer": "Tomáš Masaryk",
+      "wrong": [
+        "Václav Havel",
+        "Edvard Beneš",
+        "Alexander Dubček",
+        "Klement Gottwald",
+        "Václav Klaus"
+      ]
+    },
+    {
+      "id": "extra:havel",
+      "subject": "cz",
+      "text": "Václav Havel was a writer who became president of which country?",
+      "answer": "Czechoslovakia",
+      "wrong": ["Poland", "Hungary", "Slovenia", "Austria", "Yugoslavia"]
+    },
+    {
+      "id": "extra:tito",
+      "subject": "rs",
+      "text": "Josip Broz Tito led which country?",
+      "answer": "Yugoslavia",
+      "wrong": ["Albania", "Bulgaria", "Romania", "Hungary", "Greece"]
+    },
+    {
+      "id": "extra:charlemagne",
+      "subject": "fr",
+      "text": "In which year was Charlemagne crowned emperor?",
+      "answer": "800",
+      "wrong": ["476", "1066", "1204", "632", "962"]
+    },
+    {
+      "id": "extra:alaska-bought",
+      "subject": "us",
+      "text": "From which country did the USA buy Alaska?",
+      "answer": "Russia",
+      "wrong": ["Canada", "The United Kingdom", "France", "Spain", "Denmark"]
+    },
+    {
+      "id": "extra:louisiana-bought",
+      "subject": "us",
+      "text": "From which country did the USA buy Louisiana in 1803?",
+      "answer": "France",
+      "wrong": ["Spain", "The United Kingdom", "Mexico", "Russia", "The Netherlands"]
+    },
+    {
+      "id": "extra:hong-kong-1997",
+      "subject": "hk",
+      "text": "In which year was Hong Kong handed back to China?",
+      "answer": "1997",
+      "wrong": ["1949", "1984", "1999", "2007", "1989"]
+    },
+    {
+      "id": "extra:macau-portugal",
+      "subject": "mo",
+      "text": "Macau was handed to China in 1999 by which country?",
+      "answer": "Portugal",
+      "wrong": ["The United Kingdom", "Spain", "France", "The Netherlands", "Japan"]
+    },
+    {
+      "id": "extra:singapore-1965",
+      "subject": "sg",
+      "text": "In 1965, Singapore became independent from which country?",
+      "answer": "Malaysia",
+      "wrong": ["Indonesia", "China", "Thailand", "The Philippines", "Brunei"]
+    },
+    {
+      "id": "extra:south-sudan",
+      "subject": "ss",
+      "text": "Which country became independent in 2011?",
+      "answer": "South Sudan",
+      "wrong": ["Eritrea", "Kosovo", "East Timor", "Montenegro", "Namibia"]
+    },
+    {
+      "id": "extra:east-timor",
+      "subject": "tl",
+      "text": "East Timor became independent in 2002 after 24 years of occupation by which country?",
+      "answer": "Indonesia",
+      "wrong": ["Japan", "Australia", "The Philippines", "Malaysia", "China"]
+    },
+    {
+      "id": "extra:india-independence",
+      "subject": "in",
+      "text": "In which year did India become independent?",
+      "answer": "1947",
+      "wrong": ["1918", "1935", "1950", "1962", "1857"]
+    },
+    {
+      "id": "extra:haiti-independence",
+      "subject": "ht",
+      "text": "In 1804, Haiti won its independence from which country?",
+      "answer": "France",
+      "wrong": ["Spain", "The United Kingdom", "The USA", "Portugal", "The Netherlands"]
+    },
+    {
+      "id": "extra:liberia-founded",
+      "subject": "lr",
+      "text": "Liberia was founded by freed slaves from which country?",
+      "answer": "The USA",
+      "wrong": ["Brazil", "The United Kingdom", "France", "Jamaica", "Cuba"]
+    },
+    {
+      "id": "extra:adwa",
+      "subject": "et",
+      "text": "Which African country defeated Italy at the Battle of Adwa in 1896?",
+      "answer": "Ethiopia",
+      "wrong": ["Egypt", "Libya", "Somalia", "Eritrea", "Sudan"]
+    },
+    {
+      "id": "extra:thailand-never-colonised",
+      "subject": "th",
+      "text": "Which Southeast Asian country was never a European colony?",
+      "answer": "Thailand",
+      "wrong": ["Vietnam", "Myanmar", "Malaysia", "Indonesia", "The Philippines"]
+    },
+    {
+      "id": "extra:mongol-empire",
+      "subject": "mn",
+      "text": "Which empire was the largest connected land empire in history?",
+      "answer": "The Mongol Empire",
+      "wrong": [
+        "The Roman Empire",
+        "The Ottoman Empire",
+        "The Persian Empire",
+        "The Inca Empire",
+        "The Aztec Empire"
+      ]
+    },
+    {
+      "id": "extra:constantinople-fall",
+      "subject": "tr",
+      "text": "In which year did Constantinople fall to the Ottomans?",
+      "answer": "1453",
+      "wrong": ["1066", "1204", "1492", "1571", "1683"]
+    },
+    {
+      "id": "extra:columbus-1492",
+      "subject": "do",
+      "text": "In which year did Columbus first reach the Americas?",
+      "answer": "1492",
+      "wrong": ["1453", "1415", "1519", "1588", "1607"]
+    },
+    {
+      "id": "extra:tordesillas",
+      "subject": "pt",
+      "text": "The Treaty of Tordesillas split the New World between Spain and which country?",
+      "answer": "Portugal",
+      "wrong": ["France", "England", "The Netherlands", "Italy", "Morocco"]
+    },
+    {
+      "id": "extra:circumnavigation",
+      "subject": "es",
+      "text": "Magellan's crew was the first to sail around the world. Which country paid for it?",
+      "answer": "Spain",
+      "wrong": ["Portugal", "England", "France", "The Netherlands", "Italy"]
+    },
+    {
+      "id": "extra:french-revolution",
+      "subject": "fr",
+      "text": "In which year did the French Revolution begin?",
+      "answer": "1789",
+      "wrong": ["1776", "1815", "1848", "1689", "1804"]
+    },
+    {
+      "id": "extra:us-independence",
+      "subject": "us",
+      "text": "In which year did the USA declare independence?",
+      "answer": "1776",
+      "wrong": ["1789", "1812", "1620", "1865", "1754"]
+    },
+    {
+      "id": "extra:sarajevo-1914",
+      "subject": "ba",
+      "text": "World War I began after an assassination in which city?",
+      "answer": "Sarajevo",
+      "wrong": ["Vienna", "Belgrade", "Berlin", "Budapest", "Zagreb"]
+    },
+    {
+      "id": "extra:ww2-end",
+      "subject": "jp",
+      "text": "In which year did World War II end?",
+      "answer": "1945",
+      "wrong": ["1918", "1939", "1944", "1950", "1941"]
+    },
+    {
+      "id": "extra:brexit",
+      "subject": "gb",
+      "text": "In which year did the United Kingdom leave the European Union?",
+      "answer": "2020",
+      "wrong": ["2016", "2019", "2018", "2021", "2022"]
+    },
+    {
+      "id": "extra:panama-canal-handover",
+      "subject": "pa",
+      "text": "In which year did the USA hand the Panama Canal to Panama?",
+      "answer": "1999",
+      "wrong": ["1914", "1977", "1989", "2004", "1964"]
+    },
+    {
+      "id": "extra:apartheid-end",
+      "subject": "za",
+      "text": "South Africa held its first election open to all races in which year?",
+      "answer": "1994",
+      "wrong": ["1960", "1976", "1990", "2000", "1984"]
+    },
+    {
+      "id": "extra:vikings",
+      "subject": "no",
+      "text": "The Vikings came from which part of Europe?",
+      "answer": "Scandinavia",
+      "wrong": ["The Balkans", "Iberia", "The British Isles", "Italy", "Greece"]
+    },
+    {
+      "id": "extra:roman-wall",
+      "subject": "gb",
+      "text": "Hadrian's Wall was built by the Romans across which country?",
+      "answer": "England",
+      "wrong": ["France", "Germany", "Spain", "Italy", "Ireland"]
+    },
+    {
+      "id": "extra:titanic-ocean",
+      "subject": "gb",
+      "text": "In which ocean did the Titanic sink?",
+      "answer": "The Atlantic",
+      "wrong": [
+        "The Pacific",
+        "The Arctic Ocean",
+        "The Indian Ocean",
+        "The North Sea",
+        "The Mediterranean"
+      ]
+    },
+    {
+      "id": "extra:berlin-divided",
+      "subject": "de",
+      "text": "After World War II, Berlin was divided among how many powers?",
+      "answer": "Four",
+      "wrong": ["Two", "Three", "Five", "Six", "Seven"]
+    },
+    {
+      "id": "extra:olympics-2024",
+      "subject": "fr",
+      "text": "Which city hosted the 2024 Summer Olympics?",
+      "answer": "Paris",
+      "wrong": ["Los Angeles", "Tokyo", "London", "Madrid", "Rome"]
+    },
+    {
+      "id": "extra:olympics-2020-year",
+      "subject": "jp",
+      "text": "The Tokyo 2020 Olympics actually took place in which year?",
+      "answer": "2021",
+      "wrong": ["2020", "2019", "2022", "2018", "2023"]
+    },
+    {
+      "id": "extra:olympics-2016",
+      "subject": "br",
+      "text": "Which city hosted the 2016 Summer Olympics?",
+      "answer": "Rio de Janeiro",
+      "wrong": ["London", "Beijing", "Tokyo", "Buenos Aires", "São Paulo"]
+    },
+    {
+      "id": "extra:olympics-2008",
+      "subject": "cn",
+      "text": "Which city hosted the 2008 Summer Olympics?",
+      "answer": "Beijing",
+      "wrong": ["Athens", "London", "Sydney", "Tokyo", "Seoul"]
+    },
+    {
+      "id": "extra:world-cup-2022-host",
+      "subject": "qa",
+      "text": "Which country hosted the 2022 FIFA World Cup?",
+      "answer": "Qatar",
+      "wrong": ["Russia", "Saudi Arabia", "The United Arab Emirates", "Brazil", "South Africa"]
+    },
+    {
+      "id": "extra:world-cup-2022-winner",
+      "subject": "ar",
+      "text": "Which country won the 2022 FIFA World Cup?",
+      "answer": "Argentina",
+      "wrong": ["France", "Brazil", "Croatia", "Morocco", "Germany"]
+    },
+    {
+      "id": "extra:world-cup-2018-winner",
+      "subject": "fr",
+      "text": "Which country won the 2018 FIFA World Cup?",
+      "answer": "France",
+      "wrong": ["Croatia", "Germany", "Brazil", "Belgium", "Spain"]
+    },
+    {
+      "id": "extra:world-cup-2010",
+      "subject": "za",
+      "text": "Which was the first African country to host the FIFA World Cup?",
+      "answer": "South Africa",
+      "wrong": ["Egypt", "Nigeria", "Morocco", "Cameroon", "Ghana"]
+    },
+    {
+      "id": "extra:world-cup-2026",
+      "subject": "ca",
+      "text": "The 2026 World Cup was shared by the USA, Mexico and which country?",
+      "answer": "Canada",
+      "wrong": ["Brazil", "Cuba", "Colombia", "Costa Rica", "Jamaica"]
+    },
+    {
+      "id": "extra:world-cup-first",
+      "subject": "uy",
+      "text": "Which country hosted and won the first FIFA World Cup, in 1930?",
+      "answer": "Uruguay",
+      "wrong": ["Brazil", "Italy", "Argentina", "England", "France"]
+    },
+    {
+      "id": "extra:world-cup-most",
+      "subject": "br",
+      "text": "As of 2025, which country had won the most men's World Cups?",
+      "answer": "Brazil",
+      "wrong": ["Germany", "Italy", "Argentina", "France", "Uruguay"]
+    },
+    {
+      "id": "extra:tour-de-france",
+      "subject": "fr",
+      "text": "The Tour de France is a race of what?",
+      "answer": "Bicycles",
+      "wrong": ["Cars", "Horses", "Runners", "Boats", "Motorbikes"]
+    },
+    {
+      "id": "extra:sumo",
+      "subject": "jp",
+      "text": "Sumo wrestling is the national sport of which country?",
+      "answer": "Japan",
+      "wrong": ["China", "Mongolia", "South Korea", "Thailand", "Samoa"]
+    },
+    {
+      "id": "extra:all-blacks",
+      "subject": "nz",
+      "text": "The All Blacks are the rugby team of which country?",
+      "answer": "New Zealand",
+      "wrong": ["South Africa", "Australia", "Fiji", "Wales", "Samoa"]
+    },
+    {
+      "id": "extra:cricket-india",
+      "subject": "in",
+      "text": "Cricket is the most followed sport in which country?",
+      "answer": "India",
+      "wrong": ["The USA", "Brazil", "Spain", "China", "Germany"]
+    },
+    {
+      "id": "extra:marathon",
+      "subject": "gr",
+      "text": "The marathon is named after a battle in which country?",
+      "answer": "Greece",
+      "wrong": ["Italy", "Egypt", "Turkey", "Persia", "France"]
+    },
+    {
+      "id": "extra:wimbledon",
+      "subject": "gb",
+      "text": "The Wimbledon tennis tournament is played in which city?",
+      "answer": "London",
+      "wrong": ["Paris", "New York", "Melbourne", "Dublin", "Edinburgh"]
     }
   ]
 }
