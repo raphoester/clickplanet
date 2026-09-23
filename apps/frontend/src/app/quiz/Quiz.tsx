@@ -47,6 +47,11 @@ export default function Quiz({state, onOpen, onAnswer}: QuizProps) {
  *
  * It draws no countdown of its own either: it is free to ignore, and a clock ticking at you over
  * the planet would say otherwise. It goes away by itself.
+ *
+ * **The seconds it promises are hardcoded, and have to track `bonus.quiz.answerWindow`.** The
+ * offer event carries only the token and its own expiry, so the window is not known here until
+ * `OpenQuiz` answers — retune the config and this string has to be edited with it. Putting the
+ * window on `QuizOffered` would remove the duplication, at the cost of a field on the contract.
  */
 function Banner({working, onOpen}: {working: boolean, onOpen: () => void}) {
     return <div className="quiz quiz--banner">
@@ -60,7 +65,7 @@ function Banner({working, onOpen}: {working: boolean, onOpen: () => void}) {
             <span className="quiz-banner-mark" aria-hidden="true">?</span>
             <span className="quiz-banner-words">
                 <strong className="quiz-banner-title">Quiz</strong>
-                <span className="quiz-banner-detail">Answer one for a bonus — 5 seconds</span>
+                <span className="quiz-banner-detail">Answer one for a bonus — 8 seconds</span>
             </span>
         </button>
     </div>
@@ -69,8 +74,8 @@ function Banner({working, onOpen}: {working: boolean, onOpen: () => void}) {
 /**
  * The question and its three choices, with the clock already running.
  *
- * **The bar starts at what is actually left, not at full.** The five seconds are the server's and
- * they began when it answered, so a slow round trip has already spent some of them: a bar that
+ * **The bar starts at what is actually left, not at full.** The window is the server's and
+ * it began when it answered, so a slow round trip has already spent some of them: a bar that
  * started full here would promise time the player does not have. From there it is one CSS
  * transition to empty — cheaper than a frame loop beside a WebGL globe, and smooth for the same
  * reason.

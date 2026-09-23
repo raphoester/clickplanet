@@ -362,7 +362,7 @@ bonus:
 
   sweepInterval: 1s
 
-  # A quiz: three choices, five seconds, and a charge for the right answer. Its
+  # A quiz: three choices, a short clock, and a charge for the right answer. Its
   # own clock and its own budget, so this adds offers rather than replacing
   # them - a caller can hold an unopened banner and a flying box at once. The
   # reward is drawn from `kinds` above and filtered the way a box's is, so
@@ -384,11 +384,12 @@ bonus:
     # player can finish the click they were making and look up.
     offerTTL: 25s
 
-    # The feature. Long enough to read three choices, too short to search for
-    # the answer - moving this is the one setting here that changes what this
-    # is. It is the server's own stamp, taken at OpenQuiz and checked when the
-    # answer lands, so a client holding its countdown open gains nothing.
-    answerWindow: 5s
+    # Long enough to read three choices, and short enough that looking the
+    # answer up is not worth it - that second half is the guideline, so retune
+    # this freely within it. It is the server's own stamp, taken at OpenQuiz and
+    # checked when the answer lands, so a client holding its countdown open
+    # gains nothing.
+    answerWindow: 8s
 
     # How much harder the draw leans on the countries that are winning, off the
     # same shares the toll prices a click from. At 1 a country holding an even

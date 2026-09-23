@@ -325,7 +325,7 @@ const bomb: Synth = (ctx, at, {volume, onWater}) => {
 
 // The banner: three notes climbing, the last one lifting as it goes — the shape a spoken question
 // makes. Deliberately not bonusSpawn's sparkle and not chat's two sine notes: a box you catch, a
-// message you read and a question you have five seconds to answer should not sound alike, and this
+// message you read and a question you have seconds to answer should not sound alike, and this
 // one has to be recognised from across the screen while you are clicking something else.
 const quiz: Synth = (ctx, at, {volume}) => {
     tone(ctx, at, volume, {type: "triangle", from: 784, start: 0, length: 0.1, gain: 0.16})

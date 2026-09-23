@@ -504,7 +504,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
      * Reads the question, with the same one-shot session retry a claim gets.
      *
      * Not wrapped in `retrying` either, but for the opposite reason to a claim's: opening is
-     * idempotent on the server and a retry would be *safe* — it is the five seconds that are not.
+     * idempotent on the server and a retry would be *safe* — it is the clock that is not.
      * A retry that lands a second later is a second off the clock, and the player never asked for
      * it. One try, and a banner that fails to open is a banner that got away.
      */

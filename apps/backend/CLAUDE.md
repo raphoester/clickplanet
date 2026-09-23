@@ -1018,7 +1018,7 @@ planet that then failed to apply is the one lie this cannot tell.
 #### Quizzes (`internal/planet/internal/quizzes/`, scheduled in `bonuses/quiz.go`)
 
 A banner appears over the planet: press it and you get a question with three
-choices and **five seconds** to answer. A right answer is worth the same charge a
+choices and **a short clock** to answer. A right answer is worth the same charge a
 caught box is. A wrong one, and running out of time, cost nothing.
 
 **It is a second way to earn a charge, not a box of another shape.** Its own
@@ -1037,10 +1037,11 @@ hangs a second clock off the same `caller` and rides the same sweep. What is
 genuinely separate is the bank, which is big, embedded, and knows nothing about
 schedules or charges.
 
-**Five seconds is the feature.** The whole point is to be answered from what
-somebody knows rather than from what they can look up, and `bonus.quiz.
-answerWindow` is the one setting here that changes what this *is*. Everything
-below exists to make that five seconds real:
+**A short window is the feature; the exact number is not.** The whole point is
+to be answered from what somebody knows rather than from what they can look up,
+so `bonus.quiz.answerWindow` is free to be retuned — the guideline is only that
+it stay short enough that looking the answer up is not worth it. It is 8s today.
+Everything below exists to make whatever it is set to real:
 
 - **Two calls, not one.** `OpenQuiz` reads the question and is what **stamps the
   deadline**; `AnswerQuiz` compares against it. A banner can therefore sit
@@ -1049,7 +1050,7 @@ below exists to make that five seconds real:
 - **The deadline is the server's stamp**, checked when the answer lands. A
   client that holds its own countdown open cannot spend longer than it was given.
 - **Opening twice is the same question and the same deadline.** A reload is not a
-  second five seconds, and it is not a way to see a second question either.
+  second window, and it is not a way to see a second question either.
 - **The right answer never leaves the server until it is spent.** The registry
   holds the whole `quizzes.Round` and compares an index; `OpenQuiz` sends the
   text and the choices and nothing else. The bank itself is embedded in this

@@ -16,8 +16,8 @@ export const RESULT_MS = 3200
  *     idle → offered → opening → asking → answered → idle
  *
  * The phases exist because each is a different thing on screen *and* a different thing to a
- * player: `offered` is an invitation that costs nothing to ignore, and `asking` is five seconds
- * that are already running. Anything that goes wrong — a token the server will not honour, a
+ * player: `offered` is an invitation that costs nothing to ignore, and `asking` is a clock
+ * that is already running. Anything that goes wrong — a token the server will not honour, a
  * stream that dropped — falls back to `idle`: a quiz nobody can answer should leave nothing behind.
  *
  * The token rides all the way through rather than being kept beside the state, so there is no way
@@ -71,7 +71,7 @@ export function useQuiz(master?: QuizMaster, countryCode?: string, playSound?: P
 
     const dismiss = useCallback(() => setState({phase: 'idle'}), [])
 
-    // A banner arrives only into an empty screen. A question already running is five seconds
+    // A banner arrives only into an empty screen. A question already running is a window
     // somebody is in the middle of; the server will not offer a second anyway, and if a stale one
     // did arrive it would take the clock away from under them.
     useEffect(() => {

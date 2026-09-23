@@ -1418,7 +1418,7 @@ inventory still says the next click does more than paint.
 ## Quizzes
 
 A banner at the top of the screen: press it and you get a question with three
-choices and **five seconds**. A right answer is worth a charge, the same as a
+choices and **a short clock**. A right answer is worth a charge, the same as a
 caught box; a wrong one, and running out of time, cost nothing.
 
 `src/app/quiz/` is the whole of it — `useQuiz.ts` drives, `Quiz.tsx` draws,
@@ -1446,7 +1446,7 @@ idle → offered → opening → asking → answered → idle
 ```
 
 Each phase is a different thing on screen *and* a different thing to a player:
-`offered` is an invitation that costs nothing to ignore, `asking` is five seconds
+`offered` is an invitation that costs nothing to ignore, `asking` is a clock
 already running. Anything that goes wrong — a token the server will not honour, a
 stream that dropped — falls back to `idle`, because a quiz nobody can answer
 should leave nothing behind. **The token rides through the state** rather than
@@ -1473,7 +1473,7 @@ goes away by itself.
 seconds are the server's and they began when it answered, so a slow round trip
 has already spent some of them; a bar that started full would promise time the
 player does not have. From there it is **one CSS transition on `transform`** to
-empty — on the compositor, so five seconds of continuous animation costs nothing
+empty — on the compositor, so a whole window of continuous animation costs nothing
 beside a WebGL globe drawing at the same time, where a `width` transition would
 relayout every frame. Under `prefers-reduced-motion` the countdown **stays**: it
 is information, not decoration.
@@ -1488,7 +1488,7 @@ A wrong answer costs nothing, so the only thing left to give back is the answer.
 
 **The quiz and `BombNews` both want the band at the top**, and the bomb line is
 the one that gives it up (`lowered`): four seconds of news nobody presses moves,
-five seconds somebody is answering does not.
+a question somebody is answering does not.
 
 **Three sounds, one switch.** `quiz` when the banner arrives (the same reason
 `bonusSpawn` exists: it is at the top of the screen and the player is looking at

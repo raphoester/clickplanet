@@ -132,7 +132,7 @@ func TestOpeningAQuizTwiceIsTheSameQuestionAndTheSameDeadline(t *testing.T) {
 
 	assert.Equal(t, first.Question, second.Question)
 	assert.Equal(t, first.Options, second.Options)
-	assert.Equal(t, first.Deadline, second.Deadline, "a reload is not a second five seconds")
+	assert.Equal(t, first.Deadline, second.Deadline, "a reload is not a second window")
 }
 
 func TestARightAnswerInTimeIsWorthACharge(t *testing.T) {
