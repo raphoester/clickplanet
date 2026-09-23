@@ -31,7 +31,7 @@ func restart(t *testing.T, w *Watchdog, clock *cptime.FixedClock, outage time.Du
 
 	clock.Advance(outage)
 
-	restarted := New(restartConfig, clock, func(float64) {})
+	restarted := New(restartConfig, clock, func(float64) {}, func(float64) {})
 	require.NoError(t, restarted.Load(data))
 	restarted.Resume(detect.Outage{From: savedAt, To: clock.Now()})
 
@@ -41,12 +41,12 @@ func restart(t *testing.T, w *Watchdog, clock *cptime.FixedClock, outage time.Du
 func TestARunSurvivesASaveAndLoad(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 14, 12, 0, 0, 0, time.UTC))
 
-	w := New(restartConfig, clock, func(float64) {})
+	w := New(restartConfig, clock, func(float64) {}, func(float64) {})
 	loop(w, clock, 2*time.Minute)
 
 	data, err := w.Save()
 	require.NoError(t, err)
-	restarted := New(restartConfig, clock, func(float64) {})
+	restarted := New(restartConfig, clock, func(float64) {}, func(float64) {})
 	require.NoError(t, restarted.Load(data))
 
 	next := detect.Click{Scope: "loop", At: clock.Now()}
@@ -62,7 +62,7 @@ func TestTheShapeSurvivesASaveAndLoad(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 16, 12, 0, 0, 0, time.UTC))
 	config := Config{TrackWindow: time.Hour, Shape: ShapeConfig{Clicks: 20, CertainClicks: 40}}
 
-	w := New(config, clock, func(float64) {})
+	w := New(config, clock, func(float64) {}, func(float64) {})
 	for i := range 60 {
 		clock.Advance(time.Duration(600+i%16*100) * time.Millisecond)
 		w.Attempted(detect.Click{Scope: "loop", At: clock.Now()})
@@ -70,7 +70,7 @@ func TestTheShapeSurvivesASaveAndLoad(t *testing.T) {
 
 	data, err := w.Save()
 	require.NoError(t, err)
-	restarted := New(config, clock, func(float64) {})
+	restarted := New(config, clock, func(float64) {}, func(float64) {})
 	require.NoError(t, restarted.Load(data))
 
 	assert.Equal(t, w.callers["loop"].shape, restarted.callers["loop"].shape)
@@ -79,7 +79,7 @@ func TestTheShapeSurvivesASaveAndLoad(t *testing.T) {
 func TestARestartIsNeitherABreakNorABurst(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 14, 12, 0, 0, 0, time.UTC))
 
-	w := New(restartConfig, clock, func(float64) {})
+	w := New(restartConfig, clock, func(float64) {}, func(float64) {})
 	for range 3 {
 		loop(w, clock, 4*time.Minute)
 		w = restart(t, w, clock, 40*time.Second)
@@ -102,7 +102,7 @@ func TestARestartIsNeitherABreakNorABurst(t *testing.T) {
 func TestAPauseAroundARestartStillEndsTheRun(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 14, 12, 0, 0, 0, time.UTC))
 
-	w := New(restartConfig, clock, func(float64) {})
+	w := New(restartConfig, clock, func(float64) {}, func(float64) {})
 	loop(w, clock, 2*time.Minute)
 
 	// Stopped 2s before the save and came back 2s after the new process started watching.
@@ -117,14 +117,14 @@ func TestAPauseAroundARestartStillEndsTheRun(t *testing.T) {
 func TestWithoutAnOutageTheRestartGapBreaksTheRun(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 14, 12, 0, 0, 0, time.UTC))
 
-	w := New(restartConfig, clock, func(float64) {})
+	w := New(restartConfig, clock, func(float64) {}, func(float64) {})
 	loop(w, clock, 2*time.Minute)
 
 	data, err := w.Save()
 	require.NoError(t, err)
 	clock.Advance(40 * time.Second)
 
-	restarted := New(restartConfig, clock, func(float64) {})
+	restarted := New(restartConfig, clock, func(float64) {}, func(float64) {})
 	require.NoError(t, restarted.Load(data))
 	loop(restarted, clock, time.Second)
 

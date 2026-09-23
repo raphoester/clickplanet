@@ -148,6 +148,9 @@ type Observer struct {
 	// Each caller's click gap skew, once a sweep, whether or not a bound is set to judge it.
 	OnGapSkew func(skew float64)
 
+	// Each caller's coherence on the metronome's clock period, once a sweep, while a clock bound is set.
+	OnClockCoherence func(coherence float64)
+
 	// How many callers are clicking in step with another, once a sweep, whether or not it reads as more than clear.
 	OnCohortScopes func(scopes int)
 
@@ -261,7 +264,12 @@ func build(
 			onGapSkew = func(float64) {}
 		}
 
-		watchdog := metronome.New(config.Metronome.Detector, clock, onGapSkew)
+		onClockCoherence := observer.OnClockCoherence
+		if onClockCoherence == nil {
+			onClockCoherence = func(float64) {}
+		}
+
+		watchdog := metronome.New(config.Metronome.Detector, clock, onGapSkew, onClockCoherence)
 		g.runners = append(g.runners, watchdog.Run)
 		watchdogs = append(watchdogs, watchdog)
 		sections = append(sections, watchdog)
@@ -411,6 +419,13 @@ func (g *Guard) Caught(scope string, after time.Duration) {
 func (g *Guard) Missed(scope string) {
 	if g.catcher != nil {
 		g.catcher.Missed(scope)
+	}
+}
+
+// Foreign tells the guard a caller claimed a box that was offered to somebody else, or to nobody.
+func (g *Guard) Foreign(scope string) {
+	if g.catcher != nil {
+		g.catcher.Foreign(scope)
 	}
 }
 
