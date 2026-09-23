@@ -64,7 +64,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         },
         giveQuiz: () => {
             fake.offerQuiz()
-            return "a quiz is up — press it, then you have 5 seconds"
+            return "a quiz is up — press it, then you have 8 seconds"
         },
         giveBonus: (kind: Parameters<typeof fake.grantBonus>[0]) => {
             const globe = (window as {clickplanetGlobe?: Globe}).clickplanetGlobe

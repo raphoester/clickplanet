@@ -226,7 +226,7 @@ bonus:
   # ride the same sweep.
   sweepInterval: 1s
 
-  # A quiz: three choices, five seconds, and a charge for the right answer.
+  # A quiz: three choices, a short clock, and a charge for the right answer.
   #
   # A second way to earn one of the charges above, not a box of another shape.
   # Its own clock and its own hourly budget, so switching it on adds offers
@@ -255,14 +255,14 @@ bonus:
     offerTTL: 25s
 
     # How long the player has once the question and its three choices are on
-    # screen. Five seconds is long enough to read them and too short to search
-    # for the answer, which is the whole point of the feature - moving this is
-    # the one setting here that changes what it is.
+    # screen. Long enough to read them, and short enough that looking the answer
+    # up is not worth it - that second half is the guideline, not the number, so
+    # retune this freely within it.
     #
     # It is the server's own stamp, taken when the question is read and checked
     # when the answer lands, so a client that holds its own countdown open
     # cannot spend longer than it was given.
-    answerWindow: 5s
+    answerWindow: 8s
 
     # How much harder the draw leans on the countries that are winning, read off
     # the same shares the toll prices a click from. A country's weight is

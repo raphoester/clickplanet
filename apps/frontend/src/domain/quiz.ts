@@ -1,5 +1,5 @@
 /**
- * A quiz: three choices, five seconds, and a charge for the right answer.
+ * A quiz: three choices, a short clock, and a charge for the right answer.
  *
  * **The client never knows the answer before it is given.** The bank lives on the server and is
  * deliberately not shipped to the browser (see /quiz/README.md); the question and its three choices
@@ -14,7 +14,7 @@ import {BonusReward} from "./bonus.ts"
  *
  * **It says nothing about the question** — not the text, not the choices, and not even what it is
  * about. A banner is only an invitation, and anything written on one is something a player can
- * read while the clock is not running. The five seconds start when the question is read.
+ * read while the clock is not running. The window starts when the question is read.
  *
  * It used to name the subject country so the banner could fly a flag. That flag *was* the answer
  * to 417 of the bank's 1014 questions: every "Tallinn is the capital of which country?" and every

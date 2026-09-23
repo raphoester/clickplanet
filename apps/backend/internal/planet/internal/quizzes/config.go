@@ -45,9 +45,9 @@ const (
 	// Long enough to finish the click you were making and look up.
 	defaultOfferTTL = 25 * time.Second
 
-	// Five seconds: long enough to read three choices, too short to search for the answer. Moving
-	// this is the one setting that changes what the feature *is*.
-	defaultAnswerWindow = 5 * time.Second
+	// Long enough to read three choices, and short enough that looking the answer up is not worth
+	// it. That second half is the guideline the number answers to; retune it freely within it.
+	defaultAnswerWindow = 8 * time.Second
 
 	defaultMaxChargesPerHour = 6
 )

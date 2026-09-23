@@ -63,7 +63,7 @@ func bonusOfferedEvent(offer *bonuses.Offer) *planetv1.PlanetEvent {
 }
 
 // The token and the clock, and nothing else: the question, its choices and even what it is about
-// are read with OpenQuiz, which is what starts the five seconds. A stream that carried any of them
+// are read with OpenQuiz, which is what starts the clock. A stream that carried any of them
 // would be a stream a client could read at leisure.
 func quizOfferedEvent(offer *bonuses.QuizOffer) *planetv1.PlanetEvent {
 	return &planetv1.PlanetEvent{

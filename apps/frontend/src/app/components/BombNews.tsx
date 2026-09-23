@@ -16,7 +16,7 @@ export type BombNewsProps = {
     /**
      * Something else is in the band at the top of the screen — a quiz. Both want the same place,
      * and this is the one that gives it up: a bomb line is four seconds of news nobody presses,
-     * and a quiz is five seconds somebody is answering. Moving the quiz instead would move it
+     * and a quiz is a clock somebody is answering against. Moving the quiz instead would move it
      * mid-question, under the cursor already going to a choice.
      */
     lowered?: boolean
