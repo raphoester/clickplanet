@@ -51,12 +51,18 @@ Two of those templates are worth knowing about:
 - **A population is the one derived fact that moves**, so `mostPeople` is only built where the
   answer wins by two times over. That ordering survives a decade of either country growing.
 
-**The hand-written half is 40 questions** in `apps/frontend/scripts/quiz/extra.json`, for what no
-dataset here can answer — Yugoslavia, the stars on the US flag, how Brasília is spelled. It is a
-hand-kept list and it is small on purpose. The rule at the top of that file is the important part:
-**nothing that a newspaper could make wrong.** No office-holders, no populations, no current events.
-A question about who the president of Egypt is would be a question this repo has to remember to
-maintain, and it would not.
+**The hand-written half is about 500 questions** in `apps/frontend/scripts/quiz/extra.json`, for what
+no dataset here can answer — oceans and mountains, famous places and people, inventions, old names,
+flags, history. It is a hand-kept list, and the rule at the top of that file is the important part:
+**nothing that a newspaper could make wrong.** A fact that moves — who holds an office, which
+religion or economy is biggest, what a currency is — is allowed only with its year in the question:
+"who *was* president of Portugal in 2020", never "who *is*". Then the answer is history, and nothing
+has to be revisited when the news changes.
+
+A player reads the question and the three choices in eight seconds, so a question must not answer
+itself: no answer that repeats a word of the question ("which river gives its name to Niger and
+Nigeria"), no translation that anyone can read ("what does Costa Rica mean"), and no wrong answers
+so absurd that the right one is the only choice left.
 
 ## Adding to it
 
