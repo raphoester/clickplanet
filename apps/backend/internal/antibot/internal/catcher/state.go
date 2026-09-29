@@ -11,6 +11,7 @@ var _ evidence.Section = (*Watchdog)(nil)
 type savedCaller struct {
 	Scope    string
 	Outcomes []savedOutcome
+	Foreign  []int64
 }
 
 type savedOutcome struct {
@@ -28,7 +29,11 @@ func (w *Watchdog) Save() ([]byte, error) {
 		for _, o := range c.outcomes {
 			outcomes = append(outcomes, savedOutcome{At: evidence.Nanos(o.at), Caught: o.caught, After: int64(o.after)})
 		}
-		saved = append(saved, savedCaller{Scope: scope, Outcomes: outcomes})
+		foreign := make([]int64, 0, len(c.foreign))
+		for _, at := range c.foreign {
+			foreign = append(foreign, evidence.Nanos(at))
+		}
+		saved = append(saved, savedCaller{Scope: scope, Outcomes: outcomes, Foreign: foreign})
 	}
 
 	w.mu.Unlock()
@@ -51,7 +56,13 @@ func (w *Watchdog) Load(data []byte) error {
 		if len(loaded.outcomes) > w.config.MinCatches {
 			loaded.outcomes = loaded.outcomes[len(loaded.outcomes)-w.config.MinCatches:]
 		}
-		if len(loaded.outcomes) > 0 {
+		for _, at := range c.Foreign {
+			loaded.foreign = append(loaded.foreign, evidence.Time(at))
+		}
+		if kept := w.config.Foreign.kept(); len(loaded.foreign) > kept {
+			loaded.foreign = loaded.foreign[len(loaded.foreign)-kept:]
+		}
+		if len(loaded.outcomes) > 0 || len(loaded.foreign) > 0 {
 			callers[c.Scope] = loaded
 		}
 	}
@@ -76,7 +87,15 @@ func (w *Watchdog) Forget(before time.Time) {
 		}
 		c.outcomes = kept
 
-		if len(c.outcomes) == 0 {
+		foreign := c.foreign[:0]
+		for _, at := range c.foreign {
+			if !at.Before(before) {
+				foreign = append(foreign, at)
+			}
+		}
+		c.foreign = foreign
+
+		if len(c.outcomes) == 0 && len(c.foreign) == 0 {
 			delete(w.callers, scope)
 		}
 	}

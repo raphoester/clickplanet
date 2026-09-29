@@ -22,7 +22,7 @@ type spenders struct {
 
 func newSpenders(config metronome.Config) *spenders {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 28, 21, 51, 0, 0, time.UTC))
-	return &spenders{watchdog: metronome.New(config, clock, func(float64) {}, func(time.Duration) {}), clock: clock}
+	return &spenders{watchdog: metronome.New(config, clock, func(float64) {}, func(float64) {}, func(time.Duration) {}), clock: clock}
 }
 
 func (s *spenders) click(account string) (detect.Verdict, detect.Evidence) {

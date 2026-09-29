@@ -14,7 +14,7 @@ import (
 func TestSweepForgetsIdleCallers(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC))
 
-	w := New(Config{TrackWindow: time.Minute}, clock, func(float64) {}, func(time.Duration) {})
+	w := New(Config{TrackWindow: time.Minute}, clock, func(float64) {}, func(float64) {}, func(time.Duration) {})
 
 	w.Attempted(detect.Click{Scope: "caller", Tile: 1, Country: "FR", At: clock.Now()})
 	require.Len(t, w.callers, 1)
@@ -29,7 +29,7 @@ func TestSweepReportsTheSkewOfAFullWindowOnly(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 16, 12, 0, 0, 0, time.UTC))
 
 	var skews []float64
-	w := New(Config{TrackWindow: time.Hour, Shape: ShapeConfig{Clicks: 10}}, clock, func(skew float64) { skews = append(skews, skew) }, func(time.Duration) {})
+	w := New(Config{TrackWindow: time.Hour, Shape: ShapeConfig{Clicks: 10}}, clock, func(skew float64) { skews = append(skews, skew) }, func(float64) {}, func(time.Duration) {})
 
 	gaps := []time.Duration{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
 	for i, gap := range gaps {
@@ -51,7 +51,7 @@ func TestSweepReportsTheBusyTimeOfPayersStillClicking(t *testing.T) {
 
 	var busy []time.Duration
 	config := Config{TrackWindow: time.Hour, Stamina: StaminaConfig{Slice: 10 * time.Minute, Clicks: 2, Window: time.Hour}}
-	w := New(config, clock, func(float64) {}, func(b time.Duration) { busy = append(busy, b) })
+	w := New(config, clock, func(float64) {}, func(float64) {}, func(b time.Duration) { busy = append(busy, b) })
 
 	for range 30 {
 		w.Watch(detect.Click{Scope: "still", Account: "a", At: clock.Now()})
@@ -67,7 +67,7 @@ func TestSweepReportsTheBusyTimeOfPayersStillClicking(t *testing.T) {
 func TestSweepForgetsPayersPastTheWindow(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 28, 12, 0, 0, 0, time.UTC))
 
-	w := New(Config{TrackWindow: time.Minute, Stamina: StaminaConfig{Window: time.Hour}}, clock, func(float64) {}, func(time.Duration) {})
+	w := New(Config{TrackWindow: time.Minute, Stamina: StaminaConfig{Window: time.Hour}}, clock, func(float64) {}, func(float64) {}, func(time.Duration) {})
 
 	w.Watch(detect.Click{Scope: "caller", Account: "a", At: clock.Now()})
 	clock.Advance(59 * time.Minute)
@@ -82,7 +82,7 @@ func TestSweepForgetsPayersPastTheWindow(t *testing.T) {
 func TestTheShapeRingIsBounded(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 16, 12, 0, 0, 0, time.UTC))
 
-	w := New(Config{TrackWindow: time.Hour, Shape: ShapeConfig{Clicks: 8, CertainClicks: 16}}, clock, func(float64) {}, func(time.Duration) {})
+	w := New(Config{TrackWindow: time.Hour, Shape: ShapeConfig{Clicks: 8, CertainClicks: 16}}, clock, func(float64) {}, func(float64) {}, func(time.Duration) {})
 
 	for i := range uint32(500) {
 		clock.Advance(time.Second)
@@ -95,7 +95,7 @@ func TestTheShapeRingIsBounded(t *testing.T) {
 func TestTheGapRingIsBounded(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC))
 
-	w := New(Config{MaxGap: 3 * time.Second, MinClicks: 8, TrackWindow: time.Hour}, clock, func(float64) {}, func(time.Duration) {})
+	w := New(Config{MaxGap: 3 * time.Second, MinClicks: 8, TrackWindow: time.Hour}, clock, func(float64) {}, func(float64) {}, func(time.Duration) {})
 
 	for i := range uint32(500) {
 		clock.Advance(time.Second)

@@ -36,3 +36,18 @@ func TestOnlyTheLastBoxesAreKept(t *testing.T) {
 
 	assert.Len(t, w.callers["caller"].outcomes, 5)
 }
+
+func TestSweepKeepsACallerThatOnlyClaimedOtherBoxes(t *testing.T) {
+	clock := cptime.NewFixedClock(time.Date(2026, 9, 22, 12, 0, 0, 0, time.UTC))
+
+	w := New(Config{TrackWindow: time.Minute, Foreign: ForeignConfig{Window: time.Hour, MinClaims: 3}}, clock)
+
+	w.Foreign("caller")
+	clock.Advance(30 * time.Minute)
+	w.sweep()
+	require.Len(t, w.callers, 1, "inside the foreign window")
+
+	clock.Advance(time.Hour)
+	w.sweep()
+	assert.Empty(t, w.callers)
+}

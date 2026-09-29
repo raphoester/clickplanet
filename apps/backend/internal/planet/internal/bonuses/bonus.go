@@ -153,6 +153,11 @@ type Report struct {
 	// Caught is a box claimed, and how long after it was offered.
 	Caught func(scope string, after time.Duration)
 
+	// Foreign is a refused claim of a box that was never offered to scope: offered to another
+	// caller, or to nobody the registry remembers. The web app only claims the box on its own
+	// screen, so it never makes one; clients that pass each other their boxes do.
+	Foreign func(scope string)
+
 	QuizOffered func()
 
 	// QuizLapsed is a banner nobody opened, or a question opened and left.
@@ -179,6 +184,10 @@ type Registry struct {
 	callers map[string]*caller
 	offers  map[string]*pending
 
+	// spent is who each token was offered to, kept past its claim or its lapse for rememberSpent, so
+	// a claim that comes too late is told apart from a claim of somebody else's box.
+	spent map[string]spentOffer
+
 	// Named for the field and not for the package it borrows its types from, which is imported
 	// here too.
 	quizOffers map[string]*pendingQuiz
@@ -192,6 +201,15 @@ type pending struct {
 	offeredAt time.Time
 	expiresAt time.Time
 }
+
+type spentOffer struct {
+	scope string
+	until time.Time
+}
+
+// rememberSpent is how long a claimed or lapsed token is still known. Clients that share a token
+// claim it within seconds of each other, so this only has to outlast a slow round trip.
+const rememberSpent = 10 * time.Minute
 
 // A stream gets an event per spread click anyone makes, a few a second each, so
 // this is sized for a burst of those rather than for the rare offer.
@@ -216,6 +234,7 @@ func New(config Config, clock cptime.Clock, holdings Holdings) *Registry {
 		holdings:   holdings,
 		callers:    make(map[string]*caller),
 		offers:     make(map[string]*pending),
+		spent:      make(map[string]spentOffer),
 		quizOffers: make(map[string]*pendingQuiz),
 	}
 }
@@ -310,10 +329,12 @@ func (r *Registry) Claim(token string, scope string) (Reward, bool) {
 
 	offer, ok := r.offers[token]
 	if !ok || offer.scope != scope || !now.Before(offer.expiresAt) {
+		r.refuse(token, scope)
 		return Reward{}, false
 	}
 
 	delete(r.offers, token)
+	r.spent[token] = spentOffer{scope: scope, until: now.Add(rememberSpent)}
 
 	if r.report.Caught != nil {
 		r.report.Caught(scope, now.Sub(offer.offeredAt))
@@ -330,6 +351,21 @@ func (r *Registry) Claim(token string, scope string) (Reward, bool) {
 	}
 
 	return Reward{Kind: offer.kind, Amount: r.amountOf(offer.kind)}, true
+}
+
+// refuse reports a refused claim that was not the caller's own box, claimed late or twice. The
+// registry is locked.
+func (r *Registry) refuse(token string, scope string) {
+	owner := ""
+	if offer, ok := r.offers[token]; ok {
+		owner = offer.scope
+	} else if spent, ok := r.spent[token]; ok {
+		owner = spent.scope
+	}
+
+	if owner != scope && r.report.Foreign != nil {
+		r.report.Foreign(scope)
+	}
 }
 
 func (r *Registry) Publish(taken Taken) {
@@ -395,6 +431,7 @@ func (r *Registry) sweep() {
 	defer r.mu.Unlock()
 
 	r.collectMisses(now)
+	r.forgetSpent(now)
 	r.sweepQuizzes(now)
 	r.forgetStale(now)
 
@@ -510,6 +547,7 @@ func (r *Registry) collectMisses(now time.Time) {
 		}
 
 		delete(r.offers, token)
+		r.spent[token] = spentOffer{scope: offer.scope, until: now.Add(rememberSpent)}
 
 		entry, ok := r.callers[offer.scope]
 		if !ok || entry.outstanding != token {
@@ -523,6 +561,14 @@ func (r *Registry) collectMisses(now time.Time) {
 		entry.misses++
 		if r.report.Lapsed != nil {
 			r.report.Lapsed(offer.scope)
+		}
+	}
+}
+
+func (r *Registry) forgetSpent(now time.Time) {
+	for token, spent := range r.spent {
+		if now.After(spent.until) {
+			delete(r.spent, token)
 		}
 	}
 }

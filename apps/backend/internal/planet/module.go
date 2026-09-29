@@ -347,6 +347,10 @@ func NewModule(config Config) cpbootstrap.Module {
 					counters.Caught.Observe(after.Seconds())
 					guard.Caught(scope, after)
 				},
+				Foreign: func(scope string) {
+					counters.Foreign.Inc()
+					guard.Foreign(scope)
+				},
 
 				// The quizzes' half. Not told to the catcher watchdog: it measures how fast a box
 				// flying past the planet was caught, and a quiz is read and thought about — a

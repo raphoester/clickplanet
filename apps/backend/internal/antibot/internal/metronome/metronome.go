@@ -3,7 +3,9 @@
 // no pauses in it. Tempo alone says nothing — a player can click fast. What no
 // hand produces is the same gap, again and again, for hours, without once
 // looking away. A random sleep is a clock too: its gaps sit evenly where a hand's
-// lean long. The gaps are between clicks tried, not clicks accepted.
+// lean long. And a timer keeps its beat through a pause: a hand that rests
+// comes back on no beat at all. The gaps are between clicks tried, not clicks
+// accepted.
 package metronome
 
 import (
@@ -41,6 +43,8 @@ type Config struct {
 
 	Shape ShapeConfig
 
+	Clock ClockConfig
+
 	Stamina StaminaConfig
 
 	// TrackWindow is how long a silent caller is remembered.
@@ -59,6 +63,26 @@ type ShapeConfig struct {
 	MaxSkew       *float64
 	CertainClicks int
 	CertainSkew   *float64
+}
+
+// ClockConfig bounds how closely the clicks tried keep one beat: the length of
+// the mean of the unit vectors at each try's place on a Period-long circle,
+// 1 when every try lands at the same point of the beat and near 0 for a hand.
+// It reads absolute times, not gaps, so a pause breaks nothing: a timer that
+// waits for the bucket comes back on its beat, and a hand does not.
+type ClockConfig struct {
+	// Period is the beat. A timer in a hidden tab fires on whole seconds, and
+	// any whole number of seconds is on the same beat.
+	Period time.Duration
+
+	// A nil coherence never reads its level; a pointer because 0 is a coherence.
+	Clicks        int
+	MinCoherence  *float64
+	CertainClicks int
+	// CertainFor is how long the CertainClicks must span: a person tapping to a
+	// song keeps a beat for a song, not for half an hour.
+	CertainFor       time.Duration
+	CertainCoherence *float64
 }
 
 // StaminaConfig bounds the time in Window one payer spent at least Clicks a Slice; zero never reads a level.
@@ -83,12 +107,18 @@ const (
 	defaultShapeClicks        = 500
 	defaultShapeCertainClicks = 1000
 
+	defaultClockPeriod        = time.Second
+	defaultClockClicks        = 120
+	defaultClockCertainClicks = 600
+	defaultClockCertainFor    = 30 * time.Minute
+
 	defaultStaminaSlice  = 10 * time.Minute
 	defaultStaminaClicks = 40
 	defaultStaminaWindow = 6 * time.Hour
 
 	maxSamples      = 1024
 	maxShapeSamples = 2048
+	maxClockSamples = 2048
 )
 
 func (c Config) withDefaults() Config {
@@ -117,6 +147,7 @@ func (c Config) withDefaults() Config {
 		c.SweepInterval = defaultSweepInterval
 	}
 	c.Shape = c.Shape.withDefaults()
+	c.Clock = c.Clock.withDefaults()
 	c.Stamina = c.Stamina.withDefaults()
 	return c
 }
@@ -135,6 +166,43 @@ func (c StaminaConfig) withDefaults() StaminaConfig {
 		c.Window = c.Slice
 	}
 	return c
+}
+
+func (c ClockConfig) withDefaults() ClockConfig {
+	if c.Period <= 0 {
+		c.Period = defaultClockPeriod
+	}
+	if c.Clicks <= 0 {
+		c.Clicks = defaultClockClicks
+	}
+	if c.Clicks > maxClockSamples {
+		c.Clicks = maxClockSamples
+	}
+	if c.CertainClicks <= 0 {
+		c.CertainClicks = defaultClockCertainClicks
+	}
+	if c.CertainClicks < c.Clicks {
+		c.CertainClicks = c.Clicks
+	}
+	if c.CertainClicks > maxClockSamples {
+		c.CertainClicks = maxClockSamples
+	}
+	if c.CertainFor <= 0 {
+		c.CertainFor = defaultClockCertainFor
+	}
+	return c
+}
+
+// kept is how many tries the clock holds: none while neither level is set.
+func (c ClockConfig) kept() int {
+	switch {
+	case c.CertainCoherence != nil:
+		return c.CertainClicks
+	case c.MinCoherence != nil:
+		return c.Clicks
+	default:
+		return 0
+	}
 }
 
 func (c ShapeConfig) withDefaults() ShapeConfig {
@@ -159,26 +227,29 @@ func (c ShapeConfig) withDefaults() ShapeConfig {
 	return c
 }
 
-func New(config Config, clock cptime.Clock, onSkew func(skew float64), onBusy func(busy time.Duration)) *Watchdog {
+// New takes onSkew and onCoherence, called each sweep with every caller's reading once its window is full, and onBusy with each payer's busy time.
+func New(config Config, clock cptime.Clock, onSkew, onCoherence func(float64), onBusy func(busy time.Duration)) *Watchdog {
 	if clock == nil {
 		clock = cptime.SystemClock{}
 	}
 
 	return &Watchdog{
-		config:   config.withDefaults(),
-		clock:    clock,
-		onSkew:   onSkew,
-		onBusy:   onBusy,
-		callers:  make(map[string]*caller),
-		spenders: make(map[string]*spender),
+		config:      config.withDefaults(),
+		clock:       clock,
+		onSkew:      onSkew,
+		onCoherence: onCoherence,
+		onBusy:      onBusy,
+		callers:     make(map[string]*caller),
+		spenders:    make(map[string]*spender),
 	}
 }
 
 type Watchdog struct {
-	config Config
-	clock  cptime.Clock
-	onSkew func(float64)
-	onBusy func(time.Duration)
+	config      Config
+	clock       cptime.Clock
+	onSkew      func(float64)
+	onCoherence func(float64)
+	onBusy      func(time.Duration)
 
 	mu       sync.Mutex
 	callers  map[string]*caller
@@ -201,6 +272,9 @@ type caller struct {
 
 	// shape is not cleared by a break: the bot it exists for pauses between bursts.
 	shape []time.Duration
+
+	// tries is when each of the last clicks was tried, for the clock. Not cleared by a break either.
+	tries []time.Time
 }
 
 // spender is keyed on the payer, not the scope: the tokens it counts are the account's.
@@ -230,8 +304,11 @@ func (w *Watchdog) Attempted(click detect.Click) {
 		c = &caller{}
 		w.callers[click.Scope] = c
 		c.restart(click.At)
+		w.tried(c, click.At)
 		return
 	}
+
+	w.tried(c, click.At)
 
 	across := w.outage.Across(c.lastSeen, click.At)
 	gap := w.outage.Gap(c.lastSeen, click.At)
@@ -263,6 +340,19 @@ func (w *Watchdog) Attempted(click detect.Click) {
 	}
 }
 
+// tried keeps the time of a try for the clock. A restart is no reason to skip one: it reads when, not how long after.
+func (w *Watchdog) tried(c *caller, at time.Time) {
+	kept := w.config.Clock.kept()
+	if kept == 0 {
+		return
+	}
+
+	c.tries = append(c.tries, at)
+	if len(c.tries) > kept {
+		c.tries = append(c.tries[:0], c.tries[len(c.tries)-kept:]...)
+	}
+}
+
 // Watch judges the run Attempted has timed so far, and counts the click the throttle let through against its payer.
 func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
 	w.mu.Lock()
@@ -277,10 +367,13 @@ func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
 		return stamina, staminaEvidence
 	}
 
-	// The stronger level; on a tie, cadence, then shape.
+	// The stronger level is reported, the earlier rule on a tie.
 	verdict, evidence := w.cadence(c)
 	if shape, shapeEvidence := w.shape(c); shape > verdict {
 		verdict, evidence = shape, shapeEvidence
+	}
+	if timer, timerEvidence := w.timer(c); timer > verdict {
+		verdict, evidence = timer, timerEvidence
 	}
 	if stamina > verdict {
 		verdict, evidence = stamina, staminaEvidence
@@ -457,6 +550,77 @@ func (s skewed) evidence() detect.Evidence {
 	}
 }
 
+func (w *Watchdog) timer(c *caller) (detect.Verdict, detect.Evidence) {
+	config := w.config.Clock
+
+	if config.CertainCoherence != nil {
+		if b, ok := beatOf(c.tries, config.CertainClicks, config.Period); ok &&
+			b.coherence >= *config.CertainCoherence && b.span >= config.CertainFor {
+			return detect.Certain, b.evidence()
+		}
+	}
+
+	if config.MinCoherence != nil {
+		if b, ok := beatOf(c.tries, config.Clicks, config.Period); ok && b.coherence >= *config.MinCoherence {
+			return detect.Suspect, b.evidence()
+		}
+	}
+
+	return detect.Clear, detect.Evidence{}
+}
+
+type beat struct {
+	coherence float64
+	period    time.Duration
+	offset    time.Duration // where on the beat the tries land
+	span      time.Duration // from the first try counted to the last
+	clicks    int
+}
+
+// beatOf reads the last n tries on a circle one period long; false until there are n.
+func beatOf(tries []time.Time, n int, period time.Duration) (beat, bool) {
+	if len(tries) < n || n == 0 {
+		return beat{}, false
+	}
+
+	window := tries[len(tries)-n:]
+
+	var x, y float64
+	for _, at := range window {
+		angle := 2 * math.Pi * float64(at.UnixNano()%int64(period)) / float64(period)
+		x += math.Cos(angle)
+		y += math.Sin(angle)
+	}
+	x /= float64(n)
+	y /= float64(n)
+
+	angle := math.Atan2(y, x)
+	if angle < 0 {
+		angle += 2 * math.Pi
+	}
+
+	return beat{
+		coherence: math.Hypot(x, y),
+		period:    period,
+		offset:    time.Duration(angle / (2 * math.Pi) * float64(period)).Round(time.Millisecond),
+		span:      window[n-1].Sub(window[0]),
+		clicks:    n,
+	}, true
+}
+
+func (b beat) evidence() detect.Evidence {
+	return detect.Evidence{
+		Rule: "clock",
+		Fields: []detect.Field{
+			{Key: "coherence", Value: math.Round(b.coherence*100) / 100},
+			{Key: "period", Value: b.period},
+			{Key: "offset", Value: b.offset},
+			{Key: "clicks", Value: b.clicks},
+			{Key: "over", Value: b.span.Round(time.Second)},
+		},
+	}
+}
+
 func (w *Watchdog) capacity() int {
 	if w.config.MinClicks > maxSamples {
 		return maxSamples
@@ -489,8 +653,9 @@ func (w *Watchdog) sweep() {
 	now := w.clock.Now()
 
 	var (
-		skews []float64
-		busy  []time.Duration
+		skews      []float64
+		coherences []float64
+		busy       []time.Duration
 	)
 
 	w.mu.Lock()
@@ -503,6 +668,9 @@ func (w *Watchdog) sweep() {
 		}
 		if s, ok := skewOf(c.shape, w.config.Shape.Clicks); ok {
 			skews = append(skews, s.skew)
+		}
+		if b, ok := beatOf(c.tries, w.config.Clock.Clicks, w.config.Clock.Period); ok {
+			coherences = append(coherences, b.coherence)
 		}
 	}
 
@@ -524,6 +692,9 @@ func (w *Watchdog) sweep() {
 
 	for _, skew := range skews {
 		w.onSkew(skew)
+	}
+	for _, coherence := range coherences {
+		w.onCoherence(coherence)
 	}
 	for _, b := range busy {
 		w.onBusy(b)

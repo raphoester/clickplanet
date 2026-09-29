@@ -26,6 +26,9 @@ type Counters struct {
 	// counts are what show a band of callers claiming before a person could
 	// have found the box.
 	Caught prometheus.Histogram
+
+	// Foreign counts refused claims of a box offered to another caller or to nobody.
+	Foreign prometheus.Counter
 }
 
 func New(implementation UseCase, registerer prometheus.Registerer) (*Decorator, Counters) {
@@ -52,8 +55,13 @@ func New(implementation UseCase, registerer prometheus.Registerer) (*Decorator, 
 		Buckets: []float64{0.25, 0.5, 1, 1.5, 2, 3, 4, 6, 8, 10, 12, 15},
 	})
 
+	foreign := factory.NewCounter(prometheus.CounterOpts{
+		Name: "bonus_claims_foreign_total",
+		Help: "Refused claims of a bonus box that was offered to another caller, or to nobody",
+	})
+
 	return &Decorator{implementation: implementation, claims: claims},
-		Counters{Offered: offers, Lapsed: lapsed, Caught: caught}
+		Counters{Offered: offers, Lapsed: lapsed, Caught: caught, Foreign: foreign}
 }
 
 type Decorator struct {
