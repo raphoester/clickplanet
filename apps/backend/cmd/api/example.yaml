@@ -443,6 +443,16 @@ antiBot:
         # skew, so leaving a bound out is the only way to turn it off.
         # maxSkew: 0.25
         # certainSkew: 0.15
+      # The third rule: hours spent at pace, however the caller paused. A slice
+      # is busy when one payer (its account, or its scope with none) got
+      # `clicks` past the throttle in it; the rule reads the busy time inside
+      # `window`. Unset, a level never reads and click_busy_hours only measures.
+      stamina:
+        slice: 10m
+        clicks: 40
+        window: 6h
+        # minBusy: 4h
+        certainBusy: 5h30m
       trackWindow: 15m
       sweepInterval: 1m
 

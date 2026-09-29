@@ -1600,6 +1600,36 @@ hand's gaps are mostly short with a long tail. The rule is the quantile skew
   It buys time, like every rule here.
 - A gap that never varies (p90 = p10) has no skew and is `cadence`'s.
 
+**A pause of five minutes was cheap to fake too, and `stamina` counts hours.** The
+bot of 2026-09-28 clicked at a guest's refill rate for eight hours a night, on one
+fresh account and one fresh Free Mobile /64 per night, and stopped for five minutes
+every half hour. Each pause ended the `cadence` run, it jittered, it shuffled its
+tiles, and every watchdog read `clear`.
+
+- **The rule is the busy time inside `stamina.window` (6h)**: a slice of
+  `stamina.slice` (10m) is busy when the payer got `stamina.clicks` (40) past the
+  throttle in it. A pause shorter than about half a slice ends nothing, and no pause
+  resets anything: to stay under `certainBusy` a loop has to stop for a share of every
+  window, not once.
+- **It counts the payer, not the scope**: the account the click token names, or the
+  scope when it names none, as the throttle keys its buckets. What it measures is
+  tokens spent, and tokens are the account's; seven accounts taking turns behind one
+  address are seven players here. The reading still lands on the scope's jury record,
+  like every watchdog's.
+- **It counts in `Watch`, not `Attempted`**: a try the throttle refused spent nothing,
+  and a click a ban is dropping still passed the throttle, so a running ban keeps
+  reading `certain`.
+- **Measured before it was set**, over three days of ledger per account: the bot's two
+  accounts read 6h of 6h, the heaviest player 4h50m, and 5 of 555 accounts 3h or more.
+  Production sets `certainBusy` 5h30m, which stops such a run about five and a half
+  hours in. `minBusy` is unset: `click_busy_hours` is each payer's busy time, once a
+  sweep, for the payers that clicked since the last one.
+- **It is its own evidence in the metronome's section**, saved with the indexes'
+  slice length; a section saved under another length drops its payers on load. A
+  restart costs only the clicks it missed, since slices are wall clock.
+- It is a rule of `metronome` and not a watchdog for the reason `shape` is: a loop at
+  pace also reads on `cadence`, and two timing watchdogs could ban on one behaviour.
+
 **`defender`: what is clicked, not when.** The bots of 2026-09-14 retook from a
 queue behind the throttle: tiles came back 0.4s, 1.5s, 2.5s … 40s after they were
 lost, one refill at a time, so the retaker's reaction window saw almost none of
@@ -2217,7 +2247,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `antiBot.evidence.saveInterval`, `retention` — how often every watchdog's evidence and the jury's record are written to `antibot.evidence` (1m, and on shutdown), and the oldest kept (72h) on load and in memory. See [What survives a restart](#what-survives-a-restart)
 - `antiBot.retaker.enabled`, `detector.reactionWindow`, `minReactions`, `maxSpread`, `maxMedian` — what counts as a reaction, how many are needed, and the band that reads `suspect` then `certain`
 - `antiBot.sequencer.enabled`, `detector.minSteps`, `minShare`, `certainSteps`, `certainShare` — how long a run of constant-stride clicks must be, and how much of it must sit at that stride
-- `antiBot.metronome.enabled`, `detector.maxGap`, `maxSpread`, `minClicks`, `certainFor`, `certainClicks` — what ends a run, how tight its gaps must be, and how long it must hold; `detector.shape.maxGap`, `clicks`, `maxSkew`, `certainClicks`, `certainSkew` — the longest gap sampled, and the skew of the last gaps that reads each level (unset, it only measures)
+- `antiBot.metronome.enabled`, `detector.maxGap`, `maxSpread`, `minClicks`, `certainFor`, `certainClicks` — what ends a run, how tight its gaps must be, and how long it must hold; `detector.shape.maxGap`, `clicks`, `maxSkew`, `certainClicks`, `certainSkew` — the longest gap sampled, and the skew of the last gaps that reads each level (unset, it only measures); `detector.stamina.slice`, `clicks`, `window`, `minBusy`, `certainBusy` — what makes a slice busy, and the busy time inside the window that reads each level (unset, it only measures)
 - `antiBot.defender.enabled`, `detector.retakeWindow`, `minClicks`, `minShare`, `certainClicks`, `certainShare` — what counts as a retake, and the share of takes that reads `suspect` then `certain`; a zero share never reads
 - `antiBot.cohort.enabled`, `detector.startWindow`, `minClicks`, `minFlagShare`, `rateRatio`, `lengthRatio`, `quietAfter`, `minMembers` — what makes two scopes in step, and how many of them read `suspect`
 - `antiBot.cohort.detector.v4Bits`, `v6Bits`, `certainCohorts`, `certainMembers`, `chainWindow` — the prefix a chain must share, and how many groups, or scopes in one group, read `certain`. Its `trackWindow` is raised to `chainWindow` if shorter; bad bounds refuse the boot

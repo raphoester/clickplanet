@@ -12,6 +12,12 @@ var (
 	_ evidence.Resumer = (*Watchdog)(nil)
 )
 
+type saved struct {
+	Callers  []savedCaller
+	Slice    int64
+	Spenders []savedSpender
+}
+
 type savedCaller struct {
 	Scope     string
 	LastSeen  int64
@@ -21,12 +27,27 @@ type savedCaller struct {
 	Shape     []int64
 }
 
+type savedSpender struct {
+	Payer    string
+	LastSeen int64
+	Slices   []savedSlice
+}
+
+type savedSlice struct {
+	Index  int64
+	Clicks int
+}
+
 func (w *Watchdog) Save() ([]byte, error) {
 	w.mu.Lock()
 
-	saved := make([]savedCaller, 0, len(w.callers))
+	s := saved{
+		Callers:  make([]savedCaller, 0, len(w.callers)),
+		Slice:    int64(w.config.Stamina.Slice),
+		Spenders: make([]savedSpender, 0, len(w.spenders)),
+	}
 	for scope, c := range w.callers {
-		saved = append(saved, savedCaller{
+		s.Callers = append(s.Callers, savedCaller{
 			Scope:     scope,
 			LastSeen:  evidence.Nanos(c.lastSeen),
 			RunStart:  evidence.Nanos(c.runStart),
@@ -35,20 +56,27 @@ func (w *Watchdog) Save() ([]byte, error) {
 			Shape:     nanos(c.shape),
 		})
 	}
+	for payer, sp := range w.spenders {
+		slices := make([]savedSlice, 0, len(sp.slices))
+		for _, counted := range sp.slices {
+			slices = append(slices, savedSlice{Index: counted.index, Clicks: counted.clicks})
+		}
+		s.Spenders = append(s.Spenders, savedSpender{Payer: payer, LastSeen: evidence.Nanos(sp.lastSeen), Slices: slices})
+	}
 
 	w.mu.Unlock()
 
-	return evidence.Encode(saved)
+	return evidence.Encode(s)
 }
 
 func (w *Watchdog) Load(data []byte) error {
-	var saved []savedCaller
-	if err := evidence.Decode(data, &saved); err != nil {
+	var s saved
+	if err := evidence.Decode(data, &s); err != nil {
 		return err
 	}
 
-	callers := make(map[string]*caller, len(saved))
-	for _, c := range saved {
+	callers := make(map[string]*caller, len(s.Callers))
+	for _, c := range s.Callers {
 		callers[c.Scope] = &caller{
 			lastSeen:  evidence.Time(c.LastSeen),
 			runStart:  evidence.Time(c.RunStart),
@@ -58,8 +86,21 @@ func (w *Watchdog) Load(data []byte) error {
 		}
 	}
 
+	spenders := make(map[string]*spender, len(s.Spenders))
+	// Slices counted in another length cannot be read in this one.
+	if s.Slice == int64(w.config.Stamina.Slice) {
+		for _, sp := range s.Spenders {
+			slices := make([]slice, 0, len(sp.Slices))
+			for _, counted := range sp.Slices {
+				slices = append(slices, slice{index: counted.Index, clicks: counted.Clicks})
+			}
+			spenders[sp.Payer] = &spender{lastSeen: evidence.Time(sp.LastSeen), slices: slices}
+		}
+	}
+
 	w.mu.Lock()
 	w.callers = callers
+	w.spenders = spenders
 	w.mu.Unlock()
 
 	return nil
@@ -93,6 +134,11 @@ func (w *Watchdog) Forget(before time.Time) {
 	for scope, c := range w.callers {
 		if c.lastSeen.Before(before) {
 			delete(w.callers, scope)
+		}
+	}
+	for payer, s := range w.spenders {
+		if s.lastSeen.Before(before) {
+			delete(w.spenders, payer)
 		}
 	}
 }

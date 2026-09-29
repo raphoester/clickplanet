@@ -148,6 +148,9 @@ type Observer struct {
 	// Each caller's click gap skew, once a sweep, whether or not a bound is set to judge it.
 	OnGapSkew func(skew float64)
 
+	// Each payer's busy time in the stamina window, once a sweep, if it clicked since the last one.
+	OnBusyTime func(busy time.Duration)
+
 	// How many callers are clicking in step with another, once a sweep, whether or not it reads as more than clear.
 	OnCohortScopes func(scopes int)
 
@@ -261,7 +264,12 @@ func build(
 			onGapSkew = func(float64) {}
 		}
 
-		watchdog := metronome.New(config.Metronome.Detector, clock, onGapSkew)
+		onBusyTime := observer.OnBusyTime
+		if onBusyTime == nil {
+			onBusyTime = func(time.Duration) {}
+		}
+
+		watchdog := metronome.New(config.Metronome.Detector, clock, onGapSkew, onBusyTime)
 		g.runners = append(g.runners, watchdog.Run)
 		watchdogs = append(watchdogs, watchdog)
 		sections = append(sections, watchdog)

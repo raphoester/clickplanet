@@ -41,6 +41,8 @@ type Config struct {
 
 	Shape ShapeConfig
 
+	Stamina StaminaConfig
+
 	// TrackWindow is how long a silent caller is remembered.
 	TrackWindow time.Duration
 
@@ -59,6 +61,15 @@ type ShapeConfig struct {
 	CertainSkew   *float64
 }
 
+// StaminaConfig bounds the time in Window one payer spent at least Clicks a Slice; zero never reads a level.
+type StaminaConfig struct {
+	Slice       time.Duration
+	Clicks      int
+	Window      time.Duration
+	MinBusy     time.Duration
+	CertainBusy time.Duration
+}
+
 const (
 	defaultMaxGap        = 3 * time.Second
 	defaultMaxSpread     = 120 * time.Millisecond
@@ -71,6 +82,10 @@ const (
 	defaultShapeMaxGap        = 10 * time.Second
 	defaultShapeClicks        = 500
 	defaultShapeCertainClicks = 1000
+
+	defaultStaminaSlice  = 10 * time.Minute
+	defaultStaminaClicks = 40
+	defaultStaminaWindow = 6 * time.Hour
 
 	maxSamples      = 1024
 	maxShapeSamples = 2048
@@ -102,6 +117,23 @@ func (c Config) withDefaults() Config {
 		c.SweepInterval = defaultSweepInterval
 	}
 	c.Shape = c.Shape.withDefaults()
+	c.Stamina = c.Stamina.withDefaults()
+	return c
+}
+
+func (c StaminaConfig) withDefaults() StaminaConfig {
+	if c.Slice <= 0 {
+		c.Slice = defaultStaminaSlice
+	}
+	if c.Clicks <= 0 {
+		c.Clicks = defaultStaminaClicks
+	}
+	if c.Window <= 0 {
+		c.Window = defaultStaminaWindow
+	}
+	if c.Window < c.Slice {
+		c.Window = c.Slice
+	}
 	return c
 }
 
@@ -127,16 +159,18 @@ func (c ShapeConfig) withDefaults() ShapeConfig {
 	return c
 }
 
-func New(config Config, clock cptime.Clock, onSkew func(skew float64)) *Watchdog {
+func New(config Config, clock cptime.Clock, onSkew func(skew float64), onBusy func(busy time.Duration)) *Watchdog {
 	if clock == nil {
 		clock = cptime.SystemClock{}
 	}
 
 	return &Watchdog{
-		config:  config.withDefaults(),
-		clock:   clock,
-		onSkew:  onSkew,
-		callers: make(map[string]*caller),
+		config:   config.withDefaults(),
+		clock:    clock,
+		onSkew:   onSkew,
+		onBusy:   onBusy,
+		callers:  make(map[string]*caller),
+		spenders: make(map[string]*spender),
 	}
 }
 
@@ -144,10 +178,12 @@ type Watchdog struct {
 	config Config
 	clock  cptime.Clock
 	onSkew func(float64)
+	onBusy func(time.Duration)
 
-	mu      sync.Mutex
-	callers map[string]*caller
-	outage  detect.Outage
+	mu       sync.Mutex
+	callers  map[string]*caller
+	spenders map[string]*spender
+	outage   detect.Outage
 }
 
 var _ detect.Watchdog = (*Watchdog)(nil)
@@ -165,6 +201,17 @@ type caller struct {
 
 	// shape is not cleared by a break: the bot it exists for pauses between bursts.
 	shape []time.Duration
+}
+
+// spender is keyed on the payer, not the scope: the tokens it counts are the account's.
+type spender struct {
+	lastSeen time.Time
+	slices   []slice // oldest first, only the ones with a click
+}
+
+type slice struct {
+	index  int64
+	clicks int
 }
 
 func (w *Watchdog) Name() string { return Name }
@@ -216,23 +263,110 @@ func (w *Watchdog) Attempted(click detect.Click) {
 	}
 }
 
-// Watch judges the run Attempted has timed so far; it records nothing itself.
+// Watch judges the run Attempted has timed so far, and counts the click the throttle let through against its payer.
 func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
+	payer := payerOf(click)
+	w.spend(payer, click.At)
+	stamina, staminaEvidence := w.stamina(w.spenders[payer])
+
 	c, ok := w.callers[click.Scope]
 	if !ok {
+		return stamina, staminaEvidence
+	}
+
+	// The stronger level; on a tie, cadence, then shape.
+	verdict, evidence := w.cadence(c)
+	if shape, shapeEvidence := w.shape(c); shape > verdict {
+		verdict, evidence = shape, shapeEvidence
+	}
+	if stamina > verdict {
+		verdict, evidence = stamina, staminaEvidence
+	}
+	return verdict, evidence
+}
+
+// payerOf names the bucket the click spent from, as the throttle keys it.
+func payerOf(click detect.Click) string {
+	if click.Account != "" {
+		return "account:" + click.Account
+	}
+	return "scope:" + click.Scope
+}
+
+func (w *Watchdog) spend(payer string, at time.Time) {
+	s, ok := w.spenders[payer]
+	if !ok {
+		s = &spender{}
+		w.spenders[payer] = s
+	}
+	s.lastSeen = at
+
+	index := w.sliceOf(at)
+	// A click stamped just before the last one's slice began is counted in it: they are milliseconds apart.
+	if last := len(s.slices) - 1; last >= 0 && index <= s.slices[last].index {
+		s.slices[last].clicks++
+	} else {
+		s.slices = append(s.slices, slice{index: index, clicks: 1})
+	}
+
+	s.forget(w.firstSliceOf(index))
+}
+
+func (w *Watchdog) stamina(s *spender) (detect.Verdict, detect.Evidence) {
+	config := w.config.Stamina
+
+	busySlices, clicks := s.tally(config.Clicks)
+	busy := time.Duration(busySlices) * config.Slice
+
+	var verdict detect.Verdict
+	switch {
+	case config.CertainBusy > 0 && busy >= config.CertainBusy:
+		verdict = detect.Certain
+	case config.MinBusy > 0 && busy >= config.MinBusy:
+		verdict = detect.Suspect
+	default:
 		return detect.Clear, detect.Evidence{}
 	}
 
-	cadence, cadenceEvidence := w.cadence(c)
-	shape, shapeEvidence := w.shape(c)
-
-	if shape > cadence {
-		return shape, shapeEvidence
+	return verdict, detect.Evidence{
+		Rule: "stamina",
+		Fields: []detect.Field{
+			{Key: "busy", Value: busy},
+			{Key: "window", Value: config.Window},
+			{Key: "clicks", Value: clicks},
+		},
 	}
-	return cadence, cadenceEvidence
+}
+
+func (w *Watchdog) sliceOf(at time.Time) int64 {
+	return at.UnixNano() / int64(w.config.Stamina.Slice)
+}
+
+// firstSliceOf is the oldest slice still inside the window that ends with index.
+func (w *Watchdog) firstSliceOf(index int64) int64 {
+	return index - int64(w.config.Stamina.Window/w.config.Stamina.Slice) + 1
+}
+
+// tally is how many slices hold at least atLeast clicks, and how many clicks all of them hold.
+func (s *spender) tally(atLeast int) (busy, clicks int) {
+	for _, counted := range s.slices {
+		if counted.clicks >= atLeast {
+			busy++
+		}
+		clicks += counted.clicks
+	}
+	return busy, clicks
+}
+
+func (s *spender) forget(before int64) {
+	kept := 0
+	for kept < len(s.slices) && s.slices[kept].index < before {
+		kept++
+	}
+	s.slices = append(s.slices[:0], s.slices[kept:]...)
 }
 
 func (w *Watchdog) cadence(c *caller) (detect.Verdict, detect.Evidence) {
@@ -354,7 +488,10 @@ func (w *Watchdog) Run(ctx context.Context) {
 func (w *Watchdog) sweep() {
 	now := w.clock.Now()
 
-	var skews []float64
+	var (
+		skews []float64
+		busy  []time.Duration
+	)
 
 	w.mu.Lock()
 
@@ -369,9 +506,26 @@ func (w *Watchdog) sweep() {
 		}
 	}
 
+	first := w.firstSliceOf(w.sliceOf(now))
+	spentSince := now.Add(-w.config.SweepInterval)
+	for payer, s := range w.spenders {
+		s.forget(first)
+		if len(s.slices) == 0 {
+			delete(w.spenders, payer)
+			continue
+		}
+		if !s.lastSeen.Before(spentSince) {
+			slices, _ := s.tally(w.config.Stamina.Clicks)
+			busy = append(busy, time.Duration(slices)*w.config.Stamina.Slice)
+		}
+	}
+
 	w.mu.Unlock()
 
 	for _, skew := range skews {
 		w.onSkew(skew)
+	}
+	for _, b := range busy {
+		w.onBusy(b)
 	}
 }
