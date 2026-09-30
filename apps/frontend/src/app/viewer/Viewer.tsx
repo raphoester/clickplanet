@@ -11,6 +11,7 @@ import {
     UpdatesListener,
 } from "../../backends/backend.ts";
 import BombNews from "../components/BombNews.tsx";
+import NativeLandNote from "../components/NativeLandNote.tsx";
 import Quiz from "../quiz/Quiz.tsx";
 import {useQuiz} from "../quiz/useQuiz.ts";
 import {ChatBackend} from "../../backends/chat.ts";
@@ -107,6 +108,8 @@ export default function Viewer(props: ViewerProps) {
         toggleSwitch,
         lastBomb,
         dismissBomb,
+        lastClear,
+        dismissClear,
     } = useGlobe({
         container,
         tileClicker: props.tileClicker,
@@ -210,6 +213,13 @@ export default function Viewer(props: ViewerProps) {
             land={lastBomb.land}
             lowered={quiz.state.phase !== 'idle'}
             onDone={dismissBomb}
+        />}
+
+        {lastClear && <NativeLandNote
+            key={lastClear.id}
+            ground={lastClear.ground}
+            lowered={quiz.state.phase !== 'idle'}
+            onDone={dismissClear}
         />}
 
         <Quiz state={quiz.state} onOpen={quiz.open} onAnswer={quiz.answer}/>

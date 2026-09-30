@@ -46,6 +46,7 @@ import {IMPACT_DELAY} from "../../domain/blast.ts";
 import {HoldToDrop} from "../../domain/holdToDrop.ts";
 import {ClickOrDrag} from "../../domain/clickOrDrag.ts";
 import {OwnClicks} from "../../domain/ownClicks.ts";
+import {outcomeOf, ownerAfter} from "../../domain/homeSoil.ts";
 import {PlaySound} from "../sound/soundPlayer.ts";
 
 type Uniforms = BlastUniforms & {
@@ -222,6 +223,8 @@ export type GlobeOptions = {
     onBombDropped: (drop: BombDrop, land: string | undefined) => void
     /** The bomb is aimed, or put away: a press on the planet drops it only while it is aimed. */
     onArmedChange: (armed: boolean) => void
+    /** A click of this player's cleared a tile on `ground`'s own soil rather than taking it. */
+    onNativeCleared?: (ground: string) => void
     /** Read for the globe's whole life, so it must not change identity. */
     playSound?: PlaySound
     signal: AbortSignal
@@ -269,6 +272,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         bomber,
         onBombDropped,
         onArmedChange,
+        onNativeCleared = () => {},
         playSound = () => {},
         signal,
     } = options
@@ -397,7 +401,9 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     }
 
     // How wide a bomb's blast is, from the rules read at load. Without it the
-    // bomb cannot be aimed: the ring would promise a size nobody knows.
+    // bomb cannot be aimed: the ring would promise a size nobody knows. Whether
+    // native land takes two clicks comes with it; until it is read, a click is
+    // painted as a take, and the server's echo corrects a clear.
     let rules: BonusRules | undefined
 
     // The bomb while it is aimed.
@@ -695,10 +701,22 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             return
         }
 
-        const {changes, claim} = ownership.applyOptimistic(tile, country.code)
+        // Painted as the server will write it: on another country's native
+        // land the first click clears the tile, it does not flip it.
+        const owner = ownership.ownerOf(tile)
+        const ground = rules?.homeSoil ? countryOfTile(borders, tile) : undefined
+        const outcome = outcomeOf(owner, ground, country.code)
+
+        const {changes, claim} = ownership.applyOptimistic(tile, ownerAfter(outcome, owner, country.code))
         applyChanges(changes)
         playSound("click")
         ownClicks.record(tile, country.code, performance.now() / 1000)
+
+        // A tile going blank reads as a click that went wrong, so it says so.
+        if (outcome === "cleared" && ground !== undefined) {
+            bonusClicks.playClear(tile)
+            onNativeCleared(ground)
+        }
 
         tileClicker.clickTile(tile, country.code, switches).catch((e) => {
             if (lifetime.signal.aborted) return

@@ -3,6 +3,13 @@
 // happens, and a bot working a queue behind the throttle is not fast — the tenth
 // tile it takes back waits ten refills. What it cannot hide is what it clicks.
 // A person paints new ground between fights; a defence loop does nothing else.
+//
+// Native land takes two clicks, and a clear is a loss like a take: the country
+// that held the tile lost it, so its natives winning the empty tile back is a
+// retake. That is deliberate. A defence loop on its own ground is the one a clear
+// invites, and it must stay visible. It costs an honest defender nothing it did
+// not already pay: one foreign click is still at most one loss, and the attacker's
+// second click, on the empty tile, takes it from nobody.
 package defender
 
 import (
@@ -123,9 +130,10 @@ func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
 	defer w.mu.Unlock()
 
 	// A click onto a tile the caller's country holds is neither a take nor a retake.
+	// A clear is a take here, but never a retake: it wins nothing back for anyone.
 	if !click.NoOp {
 		previous, ok := w.losses[click.Tile]
-		retake := ok &&
+		retake := ok && !click.Cleared &&
 			previous.country == click.Country &&
 			previous.to != click.Scope &&
 			click.At.Sub(previous.at) <= w.config.RetakeWindow
@@ -170,7 +178,8 @@ func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
 	}
 }
 
-// Committed records who lost the tile. Only a click that reached the map took it from anyone.
+// Committed records who lost the tile. Only a click that reached the map took it from anyone. A clear did:
+// Held lost it, even though nobody holds it now.
 func (w *Watchdog) Committed(click detect.Click) {
 	if click.NoOp || click.Held == "" || click.Scope == "" {
 		return

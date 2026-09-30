@@ -20,7 +20,7 @@ import {
 import {BankFullError, BonusLostError, RateLimitedError, VPNBlockedError} from "./backend.ts"
 import {SESSION_HEADER, type SessionProvider, SessionUnavailableError} from "./session.ts"
 import type {ClickBudget} from "./clickBudget.ts"
-import type {Charges} from "../domain/bonus.ts"
+import type {BonusRules, Charges} from "../domain/bonus.ts"
 
 function fixedSession(token: string): SessionProvider {
     return {token: async () => token, held: () => token, invalidate: () => {}}
@@ -1009,6 +1009,28 @@ describe("asBonusError", () => {
     it("leaves anything else alone", () => {
         const boom = new Error("boom")
         expect(asBonusError(boom)).toBe(boom)
+    })
+})
+
+describe("the rules", () => {
+    const clientWith = (fields: Record<string, unknown>) =>
+        ({click: vi.fn(), getMap: vi.fn(), getBudget: noBudget(), ...bonusReads(), mapDensity: vi.fn(),
+            listenForEvents: noEvents(), ...fields}) as never
+
+    it("reads whether native land takes two clicks with the sizes of the charges", async () => {
+        const getBonusRules = vi.fn().mockResolvedValue(
+            {blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, homeSoil: true})
+        const backend = new PlanetBackend(clientWith({getBonusRules}), 1_000)
+
+        const seen: BonusRules[] = []
+        backend.listenForBonuses({
+            onOffered: () => {}, onTaken: () => {}, onEnclosed: () => {}, onSpread: () => {}, onCharges: () => {},
+            onRules: (rules) => seen.push(rules),
+        })
+
+        await vi.waitFor(() => expect(seen.at(-1)).toEqual(
+            {blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, homeSoil: true}))
+        backend.close()
     })
 })
 

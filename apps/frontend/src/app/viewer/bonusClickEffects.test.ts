@@ -1,6 +1,9 @@
 import {describe, expect, it} from "vitest"
 import * as THREE from "three"
 import {
+    CLEAR_DRIFT_SECONDS,
+    CLEAR_LIFETIME_SECONDS,
+    choreographClear,
     choreographSpread,
     createBonusClickEffects,
     type Spark,
@@ -63,6 +66,27 @@ describe("choreographSpread", () => {
     })
 })
 
+describe("choreographClear", () => {
+    it("puffs on the tile cleared and drifts six motes off it, short of the next tile", () => {
+        const {sparks, centre} = choreographClear(1, positions)
+
+        expect(centre.distanceTo(tileAt(1))).toBeLessThan(1e-6)
+        expect(sparks.map(spark => spark.role)).toEqual(["burst", "mote", "mote", "mote", "mote", "mote", "mote"])
+
+        for (const mote of sparks.slice(1)) {
+            expect(mote.from.distanceTo(tileAt(1))).toBeLessThan(1e-6)
+            expect(mote.to.distanceTo(tileAt(1))).toBeGreaterThan(0)
+            expect(mote.to.distanceTo(tileAt(1))).toBeLessThan(STEP)
+        }
+    })
+
+    it("settles before the effect is over, and is over well inside a second", () => {
+        const last = choreographClear(1, positions).sparks.at(-1)!
+        expect(last.start + last.travel).toBeLessThan(CLEAR_LIFETIME_SECONDS)
+        expect(CLEAR_LIFETIME_SECONDS).toBeLessThan(1)
+    })
+})
+
 describe("sparkLook", () => {
     const origin = new THREE.Vector3(0, 0, 1)
     const burst: Spark = {from: origin, to: origin, start: 0, travel: 0, role: "burst"}
@@ -96,6 +120,18 @@ describe("sparkLook", () => {
 
     it("fades everything to nothing by the end", () => {
         expect(sparkLook(landing, 0.99, 1).glow).toBeLessThan(0.01)
+    })
+
+    it("drifts a mote out and fades it as it goes", () => {
+        const mote: Spark = {from: origin, to: origin, start: 0, travel: CLEAR_DRIFT_SECONDS, role: "mote"}
+        const early = sparkLook(mote, 0.05, CLEAR_LIFETIME_SECONDS)
+        const late = sparkLook(mote, CLEAR_DRIFT_SECONDS, CLEAR_LIFETIME_SECONDS)
+
+        expect(late.progress).toBeGreaterThan(early.progress)
+        expect(late.glow).toBeLessThan(early.glow)
+        expect(late.scale).toBeLessThan(early.scale)
+        expect(sparkLook(mote, 0.1, CLEAR_LIFETIME_SECONDS, true).progress)
+            .toBe(sparkLook(mote, 0.4, CLEAR_LIFETIME_SECONDS, true).progress)
     })
 
     it("keeps still for less motion: no flight, no flash", () => {
@@ -133,6 +169,23 @@ describe("createBonusClickEffects", () => {
         expect(effects.object.children.length).toBeGreaterThan(0)
 
         effects.update(1000 + SPREAD_LIFETIME_SECONDS, camera, 800)
+        expect(effects.object.children).toHaveLength(0)
+
+        effects.dispose()
+    })
+
+    it("plays a clear's dust and takes it off once it is over", () => {
+        const effects = createBonusClickEffects(positions)
+
+        effects.playClear(1)
+        expect(effects.object.children.length).toBeGreaterThan(0)
+
+        effects.update(1000, camera, 800)
+        effects.update(1000 + CLEAR_LIFETIME_SECONDS / 2, camera, 800)
+        expect(effects.object.children.length).toBeGreaterThan(0)
+
+        // Past the end by a hair: 1000.8 - 1000 is a little under 0.8 in floating point.
+        effects.update(1000 + CLEAR_LIFETIME_SECONDS + 0.01, camera, 800)
         expect(effects.object.children).toHaveLength(0)
 
         effects.dispose()

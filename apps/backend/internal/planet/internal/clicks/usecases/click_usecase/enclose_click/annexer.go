@@ -5,11 +5,18 @@ import (
 	"fmt"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 )
 
 type TileStorage interface {
+	Owner(tile uint32) (string, bool)
 	Set(ctx context.Context, tile uint32, value string) error
+}
+
+// Rule is the home-soil rule: what a click for flag does to a tile owner holds.
+type Rule interface {
+	Outcome(tile uint32, owner, flag string) clicks.Outcome
 }
 
 // Spender spends a caller's enclose charge, and says whether there was one to spend.
@@ -25,12 +32,13 @@ type Publisher interface {
 // Annexer takes the first pocket a click closed, for the one shape the charge is worth.
 type Annexer struct {
 	storage   TileStorage
+	rule      Rule
 	spender   Spender
 	publisher Publisher
 }
 
-func NewAnnexer(storage TileStorage, spender Spender, publisher Publisher) Annexer {
-	return Annexer{storage: storage, spender: spender, publisher: publisher}
+func NewAnnexer(storage TileStorage, rule Rule, spender Spender, publisher Publisher) Annexer {
+	return Annexer{storage: storage, rule: rule, spender: spender, publisher: publisher}
 }
 
 // Annex spends the charge only on a click that closed a pocket, so a click that closes nothing keeps it.
@@ -52,9 +60,13 @@ func (a Annexer) Annex(ctx context.Context, scope string, holder bonuses.Holder,
 	return nil
 }
 
+// take claims each tile inside as a click on it would: a native tile of another country is cleared, not taken.
 func (a Annexer) take(ctx context.Context, pocket bonuses.Pocket, country string) error {
 	for _, tile := range pocket.Inside() {
-		if err := a.storage.Set(ctx, tile, country); err != nil {
+		owner, _ := a.storage.Owner(tile)
+		after := a.rule.Outcome(tile, owner, country).OwnerAfter(owner, country)
+
+		if err := a.storage.Set(ctx, tile, after); err != nil {
 			return fmt.Errorf("failed to take enclosed tile %d: %w", tile, err)
 		}
 	}

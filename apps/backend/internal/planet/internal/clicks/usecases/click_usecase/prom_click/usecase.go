@@ -9,6 +9,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 )
 
@@ -16,7 +17,9 @@ func New(
 	implementation click_usecase.IUseCase,
 	registerer prometheus.Registerer,
 ) *UseCase {
-	counter := promauto.With(registerer).NewCounterVec(prometheus.CounterOpts{
+	factory := promauto.With(registerer)
+
+	counter := factory.NewCounterVec(prometheus.CounterOpts{
 		Name: "clicks_total",
 		Help: "Clicks that reached the rule, by country and outcome",
 	}, []string{
@@ -24,8 +27,18 @@ func New(
 		"status",
 	})
 
+	// Apart from clicks_total, so its series and every panel reading status="ok" stay as they were: a clear is
+	// an accepted click, and counted there too.
+	cleared := factory.NewCounterVec(prometheus.CounterOpts{
+		Name: "clicks_cleared_total",
+		Help: "Clicks that cleared a tile on its own country's ground rather than taking it, by the flag clicked",
+	}, []string{
+		"country_id",
+	})
+
 	return &UseCase{
 		counter:        counter,
+		cleared:        cleared,
 		implementation: implementation,
 	}
 }
@@ -33,6 +46,7 @@ func New(
 type UseCase struct {
 	implementation click_usecase.IUseCase
 	counter        *prometheus.CounterVec
+	cleared        *prometheus.CounterVec
 }
 
 func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_usecase.Out, error) {
@@ -44,6 +58,10 @@ func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_useca
 	}
 
 	u.counter.WithLabelValues(in.CountryID, status).Inc()
+
+	if err == nil && out.Outcome == clicks.Cleared {
+		u.cleared.WithLabelValues(in.CountryID).Inc()
+	}
 
 	return out, err
 }

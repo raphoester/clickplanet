@@ -236,8 +236,8 @@ message GetChargesResponse {
 
 message GetBonusRulesRequest {}
 
-// How big each charge is. Game configuration, not state: it only changes with
-// a deploy.
+// How big each charge is, and what a click does on a country's own ground. Game
+// configuration, not state: it only changes with a deploy.
 message GetBonusRulesResponse {
   // How wide a bomb's blast is, in radians of arc, so the client draws the
   // aiming ring at the size of what it will clear.
@@ -251,6 +251,14 @@ message GetBonusRulesResponse {
 
   // The most enclose charges a player stacks. A box adds a few, up to this.
   uint32 enclosures = 4;
+
+  // Native land takes two clicks. On a country's own ground, a tile wearing
+  // that country's flag is cleared to nobody by a click for any other flag,
+  // not taken; the next click on the empty tile takes it. Each click still
+  // costs one. The client paints its own click from this, with the borders
+  // blob, so it does not paint a flag the server did not write. Spread and
+  // enclose follow the same rule on every tile they touch.
+  bool home_soil = 5;
 }
 
 // What a bonus is worth. The client never decides this, and an unknown kind is
@@ -464,7 +472,8 @@ message TilesEnclosed {
   // The player's tiles that touch the inside: the shape's outline.
   repeated uint32 wall_tile_ids = 3;
 
-  // The tiles taken, nearest the closing tile first.
+  // The tiles taken, nearest the closing tile first. With home_soil, a tile
+  // on another country's own ground that wore its flag is cleared instead.
   repeated uint32 filled_tile_ids = 4;
 
   // Set only on the stream of the caller who closed it.
@@ -479,6 +488,8 @@ message TilesSpread {
   uint32 tile_id = 2;
 
   // The tiles touching it, which the click also took. Empty for a lone island.
+  // With home_soil, a tile on another country's own ground that wore its flag
+  // is cleared instead.
   repeated uint32 spread_tile_ids = 3;
 }
 

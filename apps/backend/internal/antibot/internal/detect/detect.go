@@ -32,6 +32,12 @@ type Click struct {
 	// no longer remembers what was there.
 	Held string
 	NoOp bool
+
+	// Cleared says the click empties the tile rather than taking it: the tile is
+	// on Held's own ground and wears Held's flag, and native land takes two
+	// clicks. Held still loses the tile, so a clear is a change others react to
+	// and a loss its natives win back; it wins nothing back for anyone itself.
+	Cleared bool
 }
 
 // Verdict is how sure one watchdog is. The split exists because the bounds that

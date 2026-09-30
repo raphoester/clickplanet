@@ -10,6 +10,8 @@ import {FakeBackend} from "./backends/fakeBackend.ts"
 import {FakeChatBackend} from "./backends/fakeChatBackend.ts"
 import {FakePresenceBackend} from "./backends/fakePresenceBackend.ts"
 import {loadPointGeometryData} from "./app/viewer/points.ts"
+import {countryOfTile, loadBorders} from "./app/viewer/borderField.ts"
+import {BORDERS_URL} from "./app/viewer/bordersAsset.ts"
 import type {Globe} from "./app/viewer/globe.ts"
 import App from "./app/App.tsx"
 import {ConnectAccountBackend} from "./backends/accountBackend.ts"
@@ -47,6 +49,7 @@ const root = createRoot(document.getElementById('root')!)
 if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     const fake = new FakeBackend(100, {
         tilePositions: () => loadPointGeometryData().then((data) => data.positions),
+        grounds: () => loadBorders(BORDERS_URL).then((data) => (tile: number) => countryOfTile(data, tile)),
     })
     // Console commands:
     // - `giveBomb()`: as if you had just caught a box and it held a bomb.

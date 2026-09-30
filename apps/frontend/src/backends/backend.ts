@@ -25,7 +25,7 @@ export interface OwnershipsGetter {
 export type Update = {
     tile: number,
     previousCountry: string | undefined,
-    /** Undefined when an operator gives a tile back to nobody. */
+    /** Undefined when an operator gives a tile back to nobody, or a click clears native ground. */
     newCountry: string | undefined
 }
 
