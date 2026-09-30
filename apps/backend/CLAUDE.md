@@ -269,6 +269,11 @@ internal/planet/internal/
     inmemory_charge_storage/
     postgres_charge_store/
     usecases/
+  activity/                       every raw event of every caller, for the bot detector that learns
+    inmemory_event_buffer/
+    postgres_event_store/
+    usecases/
+    migrations/                   its own schema, activity
   planetv1controller/             the edge: maps the wire to the use cases, nothing else
 ```
 
@@ -282,6 +287,8 @@ internal/planet/internal/
 - **`bonuses/`** — the boxes, their schedule, and the running bonuses they grant.
   Its root also holds the rules a bonus plays by: `Terrain` and `Pocket` (what an
   enclose closes) and `BombRules` (where a bomb lands and what it clears).
+- **`activity/`** — every raw event of every caller, kept apart from the antibot.
+  Its root holds `Event`, `Kind`, `Outcome`, `Caller`, `Trimmed` and `Discard`. See [Activity](#activity-internalplanetinternalactivity).
 
 **A concept's root is its domain.** The use cases under `usecases/` load, call
 the root, and persist; a rule that could be unit-tested without a port belongs
@@ -326,6 +333,7 @@ because it serves every concept over one Connect service. It only maps.
 | `bonuses/usecases/drop_bomb_usecase` | spends a bomb where it was aimed | `Bombs`, `Map`, `Clearer` |
 | `bonuses/usecases/get_charges_usecase` | what the caller holds | `Charges` |
 | `bonuses/usecases/use_refill_usecase` | fills the caller's bank with its refill | `Refills`, `Bank`, `Pricer` |
+| `activity/usecases/prune_usecase` | deletes the events past the retention, then past the cap | `Pruner` |
 
 **The interfaces in that last column are declared by the package that calls
 them**, not gathered in a `gateways.go` every use case imports. A shared port
@@ -336,13 +344,14 @@ these ports at once, which is why `module.go` hands it over several times.
 
 **`click_usecase` is the only one with an interface of its own (`IUseCase`)**,
 because the click chain decorates it — `prom_click`, `throttle_click`,
-`antibot_click`, `antibot_attempt_click`, and the bonus decorators `spread_click`, `enclose_click` and
+`antibot_click`, `antibot_attempt_click`, `activity_attempt_click`, `activity_take_click`, and the bonus decorators `spread_click`, `enclose_click` and
 `bonus_click`. The counting is a wrapper rather than a line inside the rule, so
 a process that does not want it leaves it out and the rule does not change.
 
 `get_map_usecase` and `listen_for_events_usecase` are decorated too, by
 `antibot_get_map` and `antibot_listen_for_events`, through the port their
 handler declares: they tell the guard what a caller reads, for the `scraper`.
+`activity_get_map` and `activity_listen_for_events` wrap those and record the same reads, for the [Activity](#activity-internalplanetinternalactivity).
 
 `Geography` is in the `clicks` root, beside the sentinels and `TileUpdate`: the shape of the map, in `geography.go`. It is a model rather than a port — `embedded_geodesic_map` builds one and hands it over. See [Map geography](#map-geography).
 
@@ -453,6 +462,8 @@ The response never repeats a tile id. `GetMapResponse` carries `start_tile_id`, 
 - `ledger/postgres_ledger_store/` — that port, over `planet.ledger_takes`, `ledger_head` and `ledger_forgotten`.
 - `bonuses/inmemory_charge_storage/` — the charges each account holds, in memory, flushed through its own `Persistence` port.
 - `bonuses/postgres_charge_store/` — that port, over `planet.charges`.
+- `activity/inmemory_event_buffer/` — the events recorded since the last flush, handed on through its own `Persistence` port.
+- `activity/postgres_event_store/` — that port, over `activity.events`, in a schema and pool of its own.
 - `clicks.Board` (not an adapter) — validates tile IDs
 - country codes are validated by `shared/cpcountries`, which chat shares — see [The composite layer](#the-composite-layer)
 
@@ -485,9 +496,11 @@ POST /planet.v1.ClickService/Click   [X-Session-Token: <the minted token>]
       [rpc_session_verifier: the key from auth.v1.InternalService, asked once per boot
        then cpsession.Verifier: one signature check — this context holds no seed]
   → ClickService → click_handler
+  → activity_attempt_click (records every try and what it was answered)
   → antibot_attempt_click (times every try for the metronome; drops nothing)
   → throttle_click  (spends from the account's bucket and its scope's together, or refuses)
   → antibot_click   (judges; a flagged caller is answered OK and dropped)
+  → activity_take_click (records a click that changed its tile, and who held it)
   → prom_click      (counts)
   → clicks/usecases/click_usecase (validates tile ID + country)
   → MemoryTileStorage.Set() [writes the tile, fans the update out in process]
@@ -1944,6 +1957,95 @@ inside one range.
 lock, declared as a local port in the controller the way each use case declares
 its own.
 
+### Activity (`internal/planet/internal/activity/`)
+
+**Every raw event of every caller, in postgres, for a bot detector that learns from behaviour.** It is
+step 1 of a second layer beside the watchdogs: in every bot attack so far, a bot passed all seven for
+hours and was found by hand. The steps after it compute some fifty numbers per caller from these rows,
+rank the most unusual callers for the operator, and train a classifier offline.
+
+**It is apart from the antibot, on purpose.** It records what a caller did, never what a watchdog thought
+of it: no verdict, no evidence, nothing under `antibot/internal/`, and nothing goes through
+`antibot.Guard`. A model trained on the watchdogs' output inherits their blind spots. The ledger is not
+enough either: it holds accepted takes only, and several bots were found in what it lacks — refused
+tries, map reads, stream opens and bonus boxes.
+
+**It is a concept of the planet**, since the planet owns these events. Its decorators sit at the hook
+points the antibot's use, and are decorators of their own:
+
+| kind | recorded by | where | besides the caller |
+|---|---|---|---|
+| `click` | `click_usecase/activity_attempt_click` | outermost, outside the throttle | `tile`, `country`, `outcome`: `accepted`, `noop`, `throttled`, `invalid` or `failed` |
+| `take` | `click_usecase/activity_take_click` | inside the shadow ban, around `prom_click` | `tile`, `country`, `held`: who held the tile, read before the write (NULL for nobody) |
+| `map` | `get_map_usecase/activity_get_map` | around `antibot_get_map` | `map_start` and `map_end` as asked (0 is the end of the map), `off_map`, `outcome`: `accepted`, `invalid` or `failed` |
+| `stream` | `listen_for_events_usecase/activity_listen_for_events` | around `antibot_listen_for_events` | — |
+| `box_offered`, `box_caught`, `box_lapsed`, `box_foreign` | `bonuses/activity_boxes` | in the registry's `bonuses.Report`, beside the guard and the counters | `delay_us` on a catch |
+
+Every row has `at` — wall clock, to the microsecond, since the phase of a timer inside the second is a
+feature — `kind`, `scope` (`cpipscope`, as the throttle and the watchdogs key on), `account` (the one the
+click token names, NULL for none) and `signed_in`. `activity.CallerOf(clicks.PayerOf(ctx))` reads them,
+so the recorder and the throttle cannot disagree on who clicked. `bonuses.Report.Offered` carries the
+scope for this, as the other hooks already did.
+
+**What the rows cannot say**, which the steps after this one must know:
+
+- **A shadow-banned click has a `click` row, `accepted`, and no `take` row**: the ban answers OK and
+  writes nothing. So "accepted tries minus takes" is the ban's verdict in disguise. Never make it a
+  feature, or the model learns the watchdogs after all. A take lost to a race between the owner read and
+  the write looks the same, and is rare.
+- **A box row has no account**: a box is addressed to a scope, and the registry reports scopes.
+- **A `map` row has no account**, since `GetMap` reads no token. A batch a cache answered never reaches
+  the origin, so it has no row at all.
+- **Quizzes are not recorded**, only boxes.
+- **A flush whose commit answer was lost is written twice.** Rare, and the copies are exact duplicates.
+
+**Stored the ledger's way, in a schema of its own.** `inmemory_event_buffer` holds what was recorded
+since the last flush: `Record` is an append under a lock, so a click never waits on postgres. Every
+`activity.flushInterval` (1s) its runner hands the batch to `postgres_event_store.Save`, which `COPY`s it
+into `activity.events` in one transaction, with a 10s timeout. A failed flush keeps the batch, ahead of
+what arrived meanwhile, for the next tick, and shutdown flushes once more. Past `activity.maxPending`
+(100k, ~20 MB) new events are dropped; `log_flush` logs a failed flush at Error and a drop at Warn, at
+most once a tick. `Event.Trimmed` makes every string a client controls safe to store — valid UTF-8, no
+NUL, at most 64 bytes — because one bad row would fail every flush of its batch, forever.
+
+- **Its own schema, migrations and pool** (`activity.database`, `schema: activity`,
+  `activity/migrations`), like the antibot's: the whole of it is one `DROP SCHEMA activity CASCADE`
+  away, and its copy never waits behind the tile map's flush. The planet connects and migrates it while
+  it builds, and a failure refuses the boot. Off, nothing is built and the decorators record into
+  `activity.Discard`.
+- **One table for every kind**, so one `\copy` exports a time range in order. A column a kind does not
+  have is NULL. `tile` is a `bigint` because a refused click may name any `uint32`. `at` has a BRIN
+  index of a few kilobytes, since the rows arrive in time order.
+
+**Bounded twice, like the ledger.** It is personal data — an address and an account beside what they
+did — and the operator is a Bulgarian company, so GDPR applies: the retention is a policy, not a cache
+size. `prune_usecase` runs at boot and every `activity.sweepInterval` (5m). It deletes the rows older than
+`activity.retention` (72h), then the oldest past `activity.maxEvents` (10M), by `id`. Each `DELETE`
+takes at most 10,000 rows (17 ms, measured), so a prune its one-minute timeout cuts short keeps what it
+did. `log_prune` logs a prune at Info and a full table at Warn. **The privacy policy
+(`apps/frontend/public/privacy.html`) promises 72 hours** for "how you click", which is this data: a
+longer retention needs the policy changed first.
+
+**Size.** Measured on postgres 16 with 200k rows that all carry an account: **141 bytes a row**, 118 of
+table and 23 of primary key, the BRIN index next to nothing. Rows follow `clicks_total`: at the
+thousands of clicks per 5 minutes production runs, say 10 a second reaching the rule, that is ~10 `click`
+and ~8 `take` rows a second, plus 27 `map` rows per page load (a 10k-tile batch each), a `stream` row per
+load or reconnect, and a few box rows per active scope an hour. About 20 rows a second: **~1.7M rows and
+~240 MB a day, ~5M rows and ~730 MB at 72h.** A client that ignores its 429s adds a row per try, which
+`clicks_total` does not count (`prom_click` sits inside the throttle); `maxEvents` (~1.4 GB) is for that.
+Measure the real rate once it runs:
+
+```sql
+SELECT kind, count(*) FROM activity.events WHERE at > now() - interval '1 day' GROUP BY kind;
+```
+
+**Export is a `\copy`, not an RPC.** One day as CSV, on the droplet (`deploy/vps/README.md`, "Exporting
+the activity"):
+
+```bash
+docker compose exec -T postgres psql -U clickplanet -c "\copy (SELECT * FROM activity.events WHERE at >= '2026-10-01' AND at < '2026-10-02' ORDER BY id) TO STDOUT WITH (FORMAT csv, HEADER)" > activity-2026-10-01.csv
+```
+
 ### The error net
 
 **No handler's raw error reaches the wire, and no module has to remember that.**
@@ -2016,7 +2118,7 @@ Both chains order them the same way: error mapping outermost, then the blocklist
 
 **The charges follow it too**, through `inmemory_charge_storage.Persistence` and `bonuses/postgres_charge_store`, on the same pool: one row per account in `planet.charges`, written every `chargeStorage.flushInterval`. See [Charges](#charges-refill-bomb-enclose-spread).
 
-The antibot's bans and evidence are in postgres too, in the `antibot` schema, the same way — see [What survives a restart](#what-survives-a-restart). The player module's profiles and stats are in postgres too, in the `player` schema, but with no memory copy: each call reads or writes the table — see [Player](#player-internalplayer).
+The antibot's bans and evidence are in postgres too, in the `antibot` schema, the same way — see [What survives a restart](#what-survives-a-restart). So are the raw events, in the `activity` schema, when `activity.enabled` — see [Activity](#activity-internalplanetinternalactivity). The player module's profiles and stats are in postgres too, in the `player` schema, but with no memory copy: each call reads or writes the table — see [Player](#player-internalplayer).
 
 Nothing lives in files any more: the container mounts no state volume.
 
@@ -2274,6 +2376,12 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `ledger.retention`, `ledger.sweepInterval` — how long the operator tools can trace and revert a take (72h)
 - `ledgerStorage.flushInterval` — how often new takes are written to postgres (1s, and on shutdown)
 - `ledgerStorage.maxTakes` — the most takes kept (4M, ~100 MiB); past it the oldest go before the retention
+- `activity.enabled` — off records nothing, opens no pool and migrates nothing. See [Activity](#activity-internalplanetinternalactivity)
+- `activity.database` — the recorder's own `cppg.Config`, `schema: activity`; required when `activity.enabled`. A failed connection or migration refuses the boot. `activity.database.password` belongs in the environment
+- `activity.flushInterval` — how often the events recorded since the last flush are copied to postgres (1s, and on shutdown)
+- `activity.maxPending` — the most events held while postgres does not answer (100k, ~20 MB); past it new ones are dropped and logged
+- `activity.retention`, `activity.sweepInterval` — how long an event is kept (72h, what the privacy policy promises) and how often the older ones are deleted (5m)
+- `activity.maxEvents` — the most rows kept (10M, ~1.4 GB); past it the oldest go before the retention, and the log says so at Warn
 - `tilesStorage.subscriberBuffer` — per-subscriber channel capacity, which is now per connected client rather than per fanout; updates for a subscriber that cannot keep up are dropped, not blocked on
 - `rateLimiter.perSecond`, `rateLimiter.burst`, `rateLimiter.sweepInterval` — one account's click allowance, and a token with no account's scope bucket (defaults 1/s, burst 10, swept every minute; `perSecond` is a float, so 0.2 is one click every 5s)
 - `rateLimiter.scopeMultiplier` — the scope's bucket over one account's, shared by every account behind the address (default 10). Below 1 refuses the boot. See [Two buckets per click](#two-buckets-per-click)

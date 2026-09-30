@@ -141,6 +141,8 @@ services:
       auth.database.password: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env (openssl rand -hex 32)}
       # The player module's profiles and stats, the same way. Read only while player.enabled is true.
       player.database.password: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env (openssl rand -hex 32)}
+      # The raw events for the bot detector, the same way. Read only while activity.enabled is true.
+      activity.database.password: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env (openssl rand -hex 32)}
     volumes:
       - ./backend.yaml:/home/app/config/config.yaml:ro
     command: [ "./api", "-config", "/home/app/config/config.yaml" ]

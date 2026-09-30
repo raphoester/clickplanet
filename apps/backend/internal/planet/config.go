@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/activity"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/inmemory_charge_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
@@ -34,6 +35,9 @@ type Config struct {
 	Ledger        ledger.Config
 	LedgerStorage inmemory_ledger_storage.Config
 
+	// Every raw event of every caller, for a bot detector that learns from behaviour.
+	Activity activity.Config
+
 	// The verifying half of the `auth:` block: a public key, never the seed.
 	Auth cpsession.VerifierConfig
 
@@ -59,5 +63,5 @@ func (c Config) Validate() error {
 		return err
 	}
 
-	return errors.Join(c.RateLimiter.Validate(), c.Bonus.Validate(), c.AntiBot.Validate())
+	return errors.Join(c.RateLimiter.Validate(), c.Bonus.Validate(), c.AntiBot.Validate(), c.Activity.Validate())
 }

@@ -68,6 +68,36 @@ ledgerStorage:
   # the retention, and the log says so once.
   maxTakes: 4000000
 
+# Every raw event of every caller, for a bot detector that learns from behaviour: each
+# click tried, each tile taken, each map batch, each stream opened, each bonus box. It
+# reads nothing of the antibot's. Personal data: an address beside what it did.
+activity:
+  # Off records nothing, opens no pool and migrates nothing.
+  enabled: true
+  # Its own schema and pool in the same postgres. Required while enabled.
+  database:
+    host: localhost
+    port: "5432"
+    user: postgres
+    # Belongs in the environment in production (activity.database.password).
+    password: postgres
+    dbName: postgres
+    sslMode: disable
+    schema: activity
+    pool:
+      maxOpenConns: 2
+  # How often the events are copied to postgres. Also flushed on shutdown.
+  flushInterval: 1s
+  # The most events held in memory while postgres does not answer (~200 bytes each).
+  # Past it new events are dropped, and the log says how many.
+  maxPending: 100000
+  # How long an event is kept. The privacy policy promises 72 hours: change it first.
+  retention: 72h
+  sweepInterval: 5m
+  # The most rows kept, ~140 bytes each with its key (~1.4 GB). Past it the oldest go
+  # before the retention, and the log says so at Warn.
+  maxEvents: 10000000
+
 # Throttle on the Click RPC. Reads and the streams are untouched.
 # The defaults below are also what applies when this block is absent.
 # A click spends from two buckets at once: its account's, at the policy below,

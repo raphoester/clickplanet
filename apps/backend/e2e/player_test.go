@@ -34,8 +34,9 @@ import (
 const mapTiles = 262119
 
 type gameStack struct {
-	baseURL string
-	fakes   auth.FakeProviders
+	baseURL  string
+	fakes    auth.FakeProviders
+	activity cppg.Config
 }
 
 // startGame boots auth, planet, player and chat on one test postgres, with the internal listener the last three
@@ -60,6 +61,9 @@ func startGame(t *testing.T) gameStack {
 	planetConfig.RateLimiter.PerSecond = 100
 	planetConfig.RateLimiter.Burst = 100
 	planetConfig.RateLimiter.ScopeMultiplier = 1
+	planetConfig.Activity.Enabled = true
+	planetConfig.Activity.Database = postgres.ConfigFor("activity")
+	planetConfig.Activity.FlushInterval = 20 * time.Millisecond
 
 	playerConfig := player.Config{Database: postgres.ConfigFor("player"), TagSalt: "pepper"}
 
@@ -95,7 +99,7 @@ func startGame(t *testing.T) gameStack {
 		return true
 	}, time.Minute, 50*time.Millisecond, "the server never came up")
 
-	return gameStack{baseURL: "http://" + server.BindAddress, fakes: fakes}
+	return gameStack{baseURL: "http://" + server.BindAddress, fakes: fakes, activity: planetConfig.Activity.Database}
 }
 
 // gamer is one browser: the cookie auth set, and the click token minted with it.

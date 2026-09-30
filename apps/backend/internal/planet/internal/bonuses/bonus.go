@@ -145,7 +145,7 @@ func (c *caller) send(event Event) {
 // hook is optional, and each is called with the registry locked, so none may
 // call back into it.
 type Report struct {
-	Offered func()
+	Offered func(scope string)
 
 	// Lapsed is a box its caller never claimed.
 	Lapsed func(scope string)
@@ -536,7 +536,9 @@ func (r *Registry) offer(scope string, entry *caller, now time.Time, kinds *cpco
 	entry.nextOfferAt = offer.ExpiresAt.Add(r.window())
 
 	entry.send(Event{Offer: &offer})
-	r.counted(r.report.Offered)
+	if r.report.Offered != nil {
+		r.report.Offered(scope)
+	}
 }
 
 // collectMisses retires unspent tokens, bringing the next box forward once.
