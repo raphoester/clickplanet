@@ -44,6 +44,7 @@ import {now as monotonicNow} from "../../backends/clickBudget.ts";
 import {BlastUniforms, blastUniforms, createBlasts} from "./blasts.ts";
 import {IMPACT_DELAY} from "../../domain/blast.ts";
 import {HoldToDrop} from "../../domain/holdToDrop.ts";
+import {ClickOrDrag} from "../../domain/clickOrDrag.ts";
 import {OwnClicks} from "../../domain/ownClicks.ts";
 import {PlaySound} from "../sound/soundPlayer.ts";
 
@@ -65,6 +66,9 @@ const HOLD_TO_DROP_SECONDS = 0.7
 
 /** How far a held press may wander before it counts as a drag of the globe. */
 const HOLD_TOLERANCE_PX = 6
+
+/** How far a press may wander and still claim a tile: see domain/clickOrDrag.ts. */
+const CLICK_TOLERANCE = {mousePx: 6, touchPx: 12}
 
 /** How loud someone else's bomb is, against your own at 1. */
 const DISTANT_BOMB_VOLUME = 0.45
@@ -409,6 +413,9 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     // The click that follows a press ends nothing while a bomb is involved.
     let swallowClick = false
 
+    // See domain/clickOrDrag.ts: the click that ends a drag of the globe claims nothing.
+    const press = new ClickOrDrag(CLICK_TOLERANCE)
+
     const cancelCharge = () => {
         hold.cancel()
         blasts.setCharge(0)
@@ -608,6 +615,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     }, listenerOptions);
 
     eventTarget.addEventListener('pointerdown', (event: PointerEvent) => {
+        press.begin(event)
         if (!loaded || !armed || !event.isTrusted || !event.isPrimary || event.button !== 0) return
 
         const {x, y} = canvasPosition(event)
@@ -625,6 +633,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     }, listenerOptions);
 
     eventTarget.addEventListener('pointermove', (event: PointerEvent) => {
+        press.move(event)
         hold.move(event.pointerId, event.clientX, event.clientY)
     }, listenerOptions);
 
@@ -639,6 +648,8 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             swallowClick = false
             return
         }
+
+        if (press.dragged) return
 
         const {x, y} = canvasPosition(event)
 

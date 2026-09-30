@@ -161,6 +161,12 @@ app/       components
   pixel is drawn: the `?c=<code>` link, the text that rides with it, the line
   under the flag, and the size the card comes out at. See [Sharing the
   globe](#sharing-the-globe).
+- `clickOrDrag.ts` — `ClickOrDrag`, whether a press was a click or a drag of
+  the globe. The browser sends `click` after a drag too, so turning the globe
+  claimed the tile under the cursor on release. A press that moves more than
+  6px (12px for a finger, which rolls as it lifts), or that a second finger
+  joins, is a drag, and `globe.ts` drops the click that ends it — the bonus box
+  included.
 - `warnOnce.ts` — for things that would otherwise warn on every frame.
 
 ### `src/backends/` — three contracts, one transport
