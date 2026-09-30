@@ -44,37 +44,24 @@ type stored struct {
 	Scope    string
 	Account  *string
 	SignedIn bool
-	Tile     *int64
-	Country  *string
-	Outcome  *string
-	Held     *string
-	Start    *int64
-	End      *int64
-	OffMap   *bool
-	DelayUS  *int64
+	Data     *string
 }
 
 func (s *testSuite) rows() []stored {
-	rows, err := s.db.QueryContext(s.T().Context(), `
-		SELECT at, kind, scope, account::text, signed_in, tile, country, outcome, held, map_start, map_end, off_map, delay_us
-		FROM events ORDER BY id`)
+	rows, err := s.db.QueryContext(s.T().Context(),
+		`SELECT at, kind, scope, account::text, signed_in, data::text FROM events ORDER BY id`)
 	s.Require().NoError(err)
 	defer func() { s.Require().NoError(rows.Close()) }()
 
 	var out []stored
 	for rows.Next() {
 		var (
-			row                             stored
-			account, country, outcome, held sql.Null[string]
-			tile, first, last, delay        sql.Null[int64]
-			offMap                          sql.Null[bool]
+			row           stored
+			account, data sql.Null[string]
 		)
-		s.Require().NoError(rows.Scan(&row.At, &row.Kind, &row.Scope, &account, &row.SignedIn,
-			&tile, &country, &outcome, &held, &first, &last, &offMap, &delay))
+		s.Require().NoError(rows.Scan(&row.At, &row.Kind, &row.Scope, &account, &row.SignedIn, &data))
 		row.At = row.At.UTC()
-		row.Account, row.Country, row.Outcome, row.Held = ptr(account), ptr(country), ptr(outcome), ptr(held)
-		row.Tile, row.Start, row.End, row.DelayUS = ptr(tile), ptr(first), ptr(last), ptr(delay)
-		row.OffMap = ptr(offMap)
+		row.Account, row.Data = ptr(account), ptr(data)
 		out = append(out, row)
 	}
 	s.Require().NoError(rows.Err())
@@ -89,9 +76,7 @@ func ptr[T any](value sql.Null[T]) *T {
 	return &value.V
 }
 
-func of[T any](value T) *T { return &value }
-
-func (s *testSuite) TestEachKindKeepsItsOwnColumnsAndNullsTheRest() {
+func (s *testSuite) TestEachKindKeepsItsOwnDataAndNoneIsNull() {
 	guest := activity.Caller{Scope: "2001:db8::/64", Account: player}
 	linked := activity.Caller{Scope: "2001:db8::/64", Account: player, SignedIn: true}
 	nobody := activity.Caller{Scope: "2001:db8:1::/64", Account: cpsession.NoAccount}
@@ -107,21 +92,39 @@ func (s *testSuite) TestEachKindKeepsItsOwnColumnsAndNullsTheRest() {
 	}))
 
 	account := uuid.UUID(player).String()
-	s.Equal([]stored{
+	want := []struct {
+		row  stored
+		data string
+	}{
 		{
-			At: start, Kind: "click", Scope: "2001:db8::/64", Account: &account, SignedIn: true,
-			Tile: of[int64](42), Country: of("bg"), Outcome: of("throttled"),
+			stored{At: start, Kind: "click", Scope: "2001:db8::/64", Account: &account, SignedIn: true},
+			`{"tile": 42, "country": "bg", "outcome": "throttled"}`,
 		},
-		{At: start, Kind: "take", Scope: "2001:db8::/64", Account: &account, Tile: of[int64](42), Country: of("bg"), Held: of("fr")},
-		{At: start, Kind: "take", Scope: "2001:db8::/64", Account: &account, Tile: of[int64](43), Country: of("bg")},
+		{stored{At: start, Kind: "take", Scope: "2001:db8::/64", Account: &account}, `{"tile": 42, "country": "bg", "held": "fr"}`},
+		{stored{At: start, Kind: "take", Scope: "2001:db8::/64", Account: &account}, `{"tile": 43, "country": "bg"}`},
 		{
-			At: start, Kind: "map", Scope: "2001:db8:1::/64", Outcome: of("accepted"),
-			Start: of[int64](0), End: of[int64](300_000), OffMap: of(true),
+			stored{At: start, Kind: "map", Scope: "2001:db8:1::/64"},
+			`{"start": 0, "end": 300000, "off_map": true, "outcome": "accepted"}`,
 		},
-		{At: start, Kind: "stream", Scope: "2001:db8:1::/64"},
-		{At: start, Kind: "box_caught", Scope: "2001:db8:1::/64", DelayUS: of[int64](1234567)},
-		{At: start, Kind: "box_foreign", Scope: "2001:db8:1::/64"},
-	}, s.rows())
+		{stored{At: start, Kind: "stream", Scope: "2001:db8:1::/64"}, ""},
+		{stored{At: start, Kind: "box_caught", Scope: "2001:db8:1::/64"}, `{"delay_us": 1234567}`},
+		{stored{At: start, Kind: "box_foreign", Scope: "2001:db8:1::/64"}, ""},
+	}
+
+	rows := s.rows()
+	s.Require().Len(rows, len(want))
+	for i, row := range rows {
+		data := row.Data
+		row.Data = nil
+		s.Equal(want[i].row, row)
+
+		if want[i].data == "" {
+			s.Nil(data, "a %s has no data", row.Kind)
+			continue
+		}
+		s.Require().NotNil(data, row.Kind)
+		s.JSONEq(want[i].data, *data)
+	}
 }
 
 func (s *testSuite) TestARefusedClickOnAnyTileIdIsKept() {
@@ -132,9 +135,9 @@ func (s *testSuite) TestARefusedClickOnAnyTileIdIsKept() {
 		},
 	}))
 
-	rows := s.rows()
-	s.Require().Len(rows, 1)
-	s.Equal(int64(4_294_967_295), *rows[0].Tile, "an int column would refuse the whole batch")
+	var tile int64
+	s.Require().NoError(s.db.QueryRowContext(s.T().Context(), `SELECT (data->>'tile')::bigint FROM events`).Scan(&tile))
+	s.Equal(int64(4_294_967_295), tile)
 }
 
 func (s *testSuite) save(times ...time.Time) {

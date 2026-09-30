@@ -869,8 +869,9 @@ as CSV, for offline analysis:
 docker compose exec -T postgres psql -U clickplanet -c "\copy (SELECT * FROM activity.events WHERE at >= '2026-10-01' AND at < '2026-10-02' ORDER BY id) TO STDOUT WITH (FORMAT csv, HEADER)" > activity-2026-10-01.csv
 ```
 
-The file is personal data: an address beside what it did. Keep it off shared
-drives, and delete it when the analysis is done.
+The `data` column holds what only its kind has (tile, country, outcome, and so
+on) as JSON text. The file is personal data: an address beside what it did. Keep
+it off shared drives, and delete it when the analysis is done.
 
 ### Backups
 

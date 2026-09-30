@@ -94,7 +94,7 @@ activity:
   # How long an event is kept. The privacy policy promises 72 hours: change it first.
   retention: 72h
   sweepInterval: 5m
-  # The most rows kept, ~140 bytes each with its key (~1.4 GB). Past it the oldest go
+  # The most rows kept, ~180 bytes each with its key (~1.8 GB). Past it the oldest go
   # before the retention, and the log says so at Warn.
   maxEvents: 10000000
 

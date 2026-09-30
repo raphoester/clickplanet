@@ -4,6 +4,7 @@ package postgres_event_store
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -31,10 +32,7 @@ const defaultChunk = 10_000
 
 var _ inmemory_event_buffer.Persistence = (*Store)(nil)
 
-var columns = []string{
-	"at", "kind", "scope", "account", "signed_in",
-	"tile", "country", "outcome", "held", "map_start", "map_end", "off_map", "delay_us",
-}
+var columns = []string{"at", "kind", "scope", "account", "signed_in", "data"}
 
 // Save is one COPY, however long postgres was away.
 func (s *Store) Save(ctx context.Context, events []activity.Event) error {
@@ -51,7 +49,13 @@ func (s *Store) Save(ctx context.Context, events []activity.Event) error {
 	defer func() { _ = stmt.Close() }()
 
 	for _, event := range events {
-		if _, err := stmt.ExecContext(ctx, row(event)...); err != nil {
+		data, err := dataOf(event)
+		if err != nil {
+			return fmt.Errorf("failed to encode a %s event: %w", event.Kind, err)
+		}
+
+		if _, err := stmt.ExecContext(ctx, event.At, string(event.Kind), event.Caller.Scope,
+			account(event.Caller.Account), event.Caller.SignedIn, data); err != nil {
 			return fmt.Errorf("failed to copy an event: %w", err)
 		}
 	}
@@ -67,27 +71,6 @@ func (s *Store) Save(ctx context.Context, events []activity.Event) error {
 	return nil
 }
 
-// row is an event in the order of columns, with NULL in every column its kind does not have.
-func row(event activity.Event) []any {
-	var tile, country, outcome, held, start, end, offMap, delay any
-
-	switch event.Kind {
-	case activity.KindClick:
-		tile, country, outcome = int64(event.Tile), event.Country, string(event.Outcome)
-	case activity.KindTake:
-		tile, country, held = int64(event.Tile), event.Country, nullIfEmpty(event.Held)
-	case activity.KindMap:
-		outcome, start, end, offMap = string(event.Outcome), int64(event.Start), int64(event.End), event.OffMap
-	case activity.KindBoxCaught:
-		delay = event.Delay.Microseconds()
-	}
-
-	return []any{
-		event.At, string(event.Kind), event.Caller.Scope, account(event.Caller.Account), event.Caller.SignedIn,
-		tile, country, outcome, held, start, end, offMap, delay,
-	}
-}
-
 func account(id cpsession.AccountID) any {
 	if id == cpsession.NoAccount {
 		return nil
@@ -96,12 +79,61 @@ func account(id cpsession.AccountID) any {
 	return uuid.UUID(id).String()
 }
 
-func nullIfEmpty(value string) any {
-	if value == "" {
-		return nil
+// The data column of each kind. A kind with none stores NULL.
+type (
+	clickData struct {
+		Tile    uint32 `json:"tile"`
+		Country string `json:"country"`
+		Outcome string `json:"outcome"`
 	}
 
-	return value
+	// takeData leaves held out for a tile nobody held.
+	takeData struct {
+		Tile    uint32 `json:"tile"`
+		Country string `json:"country"`
+		Held    string `json:"held,omitempty"`
+	}
+
+	mapData struct {
+		Start   uint32 `json:"start"`
+		End     uint32 `json:"end"`
+		OffMap  bool   `json:"off_map"`
+		Outcome string `json:"outcome"`
+	}
+
+	caughtData struct {
+		DelayUS int64 `json:"delay_us"`
+	}
+)
+
+func payloadOf(event activity.Event) (any, bool) {
+	switch event.Kind {
+	case activity.KindClick:
+		return clickData{Tile: event.Tile, Country: event.Country, Outcome: string(event.Outcome)}, true
+	case activity.KindTake:
+		return takeData{Tile: event.Tile, Country: event.Country, Held: event.Held}, true
+	case activity.KindMap:
+		return mapData{Start: event.Start, End: event.End, OffMap: event.OffMap, Outcome: string(event.Outcome)}, true
+	case activity.KindBoxCaught:
+		return caughtData{DelayUS: event.Delay.Microseconds()}, true
+	default:
+		return nil, false
+	}
+}
+
+// dataOf is a string, not bytes: lib/pq copies bytes as bytea, which a jsonb column refuses.
+func dataOf(event activity.Event) (sql.Null[string], error) {
+	payload, ok := payloadOf(event)
+	if !ok {
+		return sql.Null[string]{}, nil
+	}
+
+	encoded, err := json.Marshal(payload)
+	if err != nil {
+		return sql.Null[string]{}, fmt.Errorf("failed to encode the data: %w", err)
+	}
+
+	return sql.Null[string]{V: string(encoded), Valid: true}, nil
 }
 
 func (s *Store) DeleteBefore(ctx context.Context, cutoff time.Time) (int64, error) {

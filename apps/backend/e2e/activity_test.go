@@ -34,7 +34,8 @@ func (s gameStack) activityRows(t *testing.T) []row {
 	defer func() { _ = db.Close() }()
 
 	rows, err := db.QueryContext(t.Context(), `
-		SELECT kind, coalesce(outcome, ''), coalesce(tile, 0), coalesce(held, ''), scope, coalesce(account::text, '')
+		SELECT kind, coalesce(data->>'outcome', ''), coalesce((data->>'tile')::bigint, 0), coalesce(data->>'held', ''),
+			scope, coalesce(account::text, '')
 		FROM events ORDER BY id`)
 	require.NoError(t, err)
 	defer func() { require.NoError(t, rows.Close()) }()

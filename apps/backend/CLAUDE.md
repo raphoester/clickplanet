@@ -1973,17 +1973,18 @@ tries, map reads, stream opens and bonus boxes.
 **It is a concept of the planet**, since the planet owns these events. Its decorators sit at the hook
 points the antibot's use, and are decorators of their own:
 
-| kind | recorded by | where | besides the caller |
+| kind | recorded by | where | in `data` |
 |---|---|---|---|
 | `click` | `click_usecase/activity_attempt_click` | outermost, outside the throttle | `tile`, `country`, `outcome`: `accepted`, `noop`, `throttled`, `invalid` or `failed` |
-| `take` | `click_usecase/activity_take_click` | inside the shadow ban, around `prom_click` | `tile`, `country`, `held`: who held the tile, read before the write (NULL for nobody) |
-| `map` | `get_map_usecase/activity_get_map` | around `antibot_get_map` | `map_start` and `map_end` as asked (0 is the end of the map), `off_map`, `outcome`: `accepted`, `invalid` or `failed` |
-| `stream` | `listen_for_events_usecase/activity_listen_for_events` | around `antibot_listen_for_events` | — |
-| `box_offered`, `box_caught`, `box_lapsed`, `box_foreign` | `bonuses/activity_boxes` | in the registry's `bonuses.Report`, beside the guard and the counters | `delay_us` on a catch |
+| `take` | `click_usecase/activity_take_click` | inside the shadow ban, around `prom_click` | `tile`, `country`, `held`: who held the tile, read before the write (left out for nobody) |
+| `map` | `get_map_usecase/activity_get_map` | around `antibot_get_map` | `start` and `end` as asked (0 is the end of the map), `off_map`, `outcome`: `accepted`, `invalid` or `failed` |
+| `stream` | `listen_for_events_usecase/activity_listen_for_events` | around `antibot_listen_for_events` | NULL |
+| `box_offered`, `box_caught`, `box_lapsed`, `box_foreign` | `bonuses/activity_boxes` | in the registry's `bonuses.Report`, beside the guard and the counters | `delay_us` on a catch, NULL on the others |
 
 Every row has `at` — wall clock, to the microsecond, since the phase of a timer inside the second is a
 feature — `kind`, `scope` (`cpipscope`, as the throttle and the watchdogs key on), `account` (the one the
-click token names, NULL for none) and `signed_in`. `activity.CallerOf(clicks.PayerOf(ctx))` reads them,
+click token names, NULL for none) and `signed_in`, as typed columns. What only its kind has is in one
+`jsonb` column, `data`. `activity.CallerOf(clicks.PayerOf(ctx))` reads the caller,
 so the recorder and the throttle cannot disagree on who clicked. `bonuses.Report.Offered` carries the
 scope for this, as the other hooks already did.
 
@@ -2013,9 +2014,12 @@ NUL, at most 64 bytes — because one bad row would fail every flush of its batc
   away, and its copy never waits behind the tile map's flush. The planet connects and migrates it while
   it builds, and a failure refuses the boot. Off, nothing is built and the decorators record into
   `activity.Discard`.
-- **One table for every kind**, so one `\copy` exports a time range in order. A column a kind does not
-  have is NULL. `tile` is a `bigint` because a refused click may name any `uint32`. `at` has a BRIN
-  index of a few kilobytes, since the rows arrive in time order.
+- **One table for every kind, typed where every row agrees.** The five columns every row has are typed,
+  because the prune, the cap and the export select on them. What only a kind has is in `data`, so a new
+  field or a new kind needs no migration, and a query reads it as `(data->>'tile')::bigint`. The price is
+  36 bytes a row against a column each (177 against 141, measured), since `jsonb` keeps the key names in
+  every row. One `\copy` exports a time range in order, with `data` as JSON text. `at` has a BRIN index of
+  a few kilobytes, since the rows arrive in time order.
 
 **Bounded twice, like the ledger.** It is personal data — an address and an account beside what they
 did — and the operator is a Bulgarian company, so GDPR applies: the retention is a policy, not a cache
@@ -2026,13 +2030,14 @@ did. `log_prune` logs a prune at Info and a full table at Warn. **The privacy po
 (`apps/frontend/public/privacy.html`) promises 72 hours** for "how you click", which is this data: a
 longer retention needs the policy changed first.
 
-**Size.** Measured on postgres 16 with 200k rows that all carry an account: **141 bytes a row**, 118 of
-table and 23 of primary key, the BRIN index next to nothing. Rows follow `clicks_total`: at the
+**Size.** Measured on postgres 16 with 200k rows that all carry an account: **177 bytes a row**, 154 of
+table and 23 of primary key, the BRIN index next to nothing; `data` is 69 bytes for a click, 61 for a
+take and 89 for a map read. Rows follow `clicks_total`: at the
 thousands of clicks per 5 minutes production runs, say 10 a second reaching the rule, that is ~10 `click`
 and ~8 `take` rows a second, plus 27 `map` rows per page load (a 10k-tile batch each), a `stream` row per
 load or reconnect, and a few box rows per active scope an hour. About 20 rows a second: **~1.7M rows and
-~240 MB a day, ~5M rows and ~730 MB at 72h.** A client that ignores its 429s adds a row per try, which
-`clicks_total` does not count (`prom_click` sits inside the throttle); `maxEvents` (~1.4 GB) is for that.
+~300 MB a day, ~5M rows and ~920 MB at 72h.** A client that ignores its 429s adds a row per try, which
+`clicks_total` does not count (`prom_click` sits inside the throttle); `maxEvents` (~1.8 GB) is for that.
 Measure the real rate once it runs:
 
 ```sql
@@ -2381,7 +2386,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `activity.flushInterval` — how often the events recorded since the last flush are copied to postgres (1s, and on shutdown)
 - `activity.maxPending` — the most events held while postgres does not answer (100k, ~20 MB); past it new ones are dropped and logged
 - `activity.retention`, `activity.sweepInterval` — how long an event is kept (72h, what the privacy policy promises) and how often the older ones are deleted (5m)
-- `activity.maxEvents` — the most rows kept (10M, ~1.4 GB); past it the oldest go before the retention, and the log says so at Warn
+- `activity.maxEvents` — the most rows kept (10M, ~1.8 GB); past it the oldest go before the retention, and the log says so at Warn
 - `tilesStorage.subscriberBuffer` — per-subscriber channel capacity, which is now per connected client rather than per fanout; updates for a subscriber that cannot keep up are dropped, not blocked on
 - `rateLimiter.perSecond`, `rateLimiter.burst`, `rateLimiter.sweepInterval` — one account's click allowance, and a token with no account's scope bucket (defaults 1/s, burst 10, swept every minute; `perSecond` is a float, so 0.2 is one click every 5s)
 - `rateLimiter.scopeMultiplier` — the scope's bucket over one account's, shared by every account behind the address (default 10). Below 1 refuses the boot. See [Two buckets per click](#two-buckets-per-click)

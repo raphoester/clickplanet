@@ -8,23 +8,8 @@ CREATE TABLE events (
     account   uuid,
     signed_in boolean     NOT NULL,
 
-    -- click and take. bigint: a refused click may name any uint32.
-    tile      bigint,
-    country   text,
-
-    -- click and map.
-    outcome   text,
-
-    -- take: who held the tile before, NULL for nobody.
-    held      text,
-
-    -- map, as asked: map_end 0 is the end of the map.
-    map_start bigint,
-    map_end   bigint,
-    off_map   boolean,
-
-    -- box_caught.
-    delay_us  bigint
+    -- What only its kind has, so a new field needs no migration. NULL for a kind with none.
+    data      jsonb
 );
 
 -- The rows arrive in time order, so a few kilobytes of BRIN find a time range.

@@ -68,7 +68,7 @@ activity:
     pool:
       maxOpenConns: 2
   retention: 72h
-  # ~140 bytes a row with its key: 10M rows is ~1.4 GB of disk at most.
+  # ~180 bytes a row with its key: 10M rows is ~1.8 GB of disk at most.
   maxEvents: 10000000
 
 # Throttle on the Click RPC. perSecond and burst are one account's allowance. A
