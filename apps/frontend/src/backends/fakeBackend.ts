@@ -35,9 +35,9 @@ const CLICK_BURST = 60
 
 /** Production's `toll.steps`: from each share of the map, the refill is that many times slower. */
 const TOLL_STEPS = [
-    {share: 0.25, slowdown: 1.5},
-    {share: 0.50, slowdown: 2},
-    {share: 0.70, slowdown: 3},
+    {share: 0.10, slowdown: 1.5},
+    {share: 0.20, slowdown: 2.5},
+    {share: 0.30, slowdown: 4},
 ]
 
 /** Often enough to be worth developing against, not so often it is the game. */

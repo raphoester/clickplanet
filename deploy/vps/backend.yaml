@@ -74,12 +74,13 @@ rateLimiter:
 # its players get their clicks back: from each share below (a fraction of every
 # tile on the map), the refill after a click for that country is that many times
 # slower. The bank's size never moves. No steps refills every country at the
-# plain rate.
+# plain rate. Early and steep, because one country took 40% of the map in under
+# three days while the first step was 1.5× from 25%.
 toll:
   steps:
-    - {share: 0.25, slowdown: 1.5}
-    - {share: 0.50, slowdown: 2}
-    - {share: 0.70, slowdown: 3}
+    - {share: 0.10, slowdown: 1.5}
+    - {share: 0.20, slowdown: 2.5}
+    - {share: 0.30, slowdown: 4}
 
 # Refuses clicks from known VPN and proxy ranges: the throttle above is keyed on
 # an address, and a VPN is the cheap way to get a fresh one. Reads and the
