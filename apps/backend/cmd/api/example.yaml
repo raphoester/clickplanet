@@ -100,9 +100,9 @@ rateLimiter:
 # plain rate.
 toll:
   steps:
-    - {share: 0.25, slowdown: 1.5}
-    - {share: 0.50, slowdown: 2}
-    - {share: 0.70, slowdown: 3}
+    - {share: 0.10, slowdown: 1.5}
+    - {share: 0.20, slowdown: 2.5}
+    - {share: 0.30, slowdown: 4}
 
 # Refuses the Click RPC from known VPN and proxy egress ranges, so a player has
 # to come from an address the throttle above can actually hold onto: a bucket
