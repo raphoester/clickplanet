@@ -95,10 +95,10 @@ export function switchesHeld(switches: Switches, charges: Charges): Switches {
 }
 
 /**
- * How big each charge is and how many can be held: the same for every player,
- * read once at load. Game configuration rather than state, so it is not asked
- * again; a page open across a change of rules shows the old sizes until it is
- * reloaded.
+ * How big each charge is and how many can be held, and what a click does on a
+ * country's own ground: the same for every player, read once at load. Game
+ * configuration rather than state, so it is not asked again; a page open across
+ * a change of rules shows the old sizes until it is reloaded.
  */
 export type BonusRules = {
     /** Radians of arc: the aiming ring is drawn at the size of what it will clear. */
@@ -108,6 +108,8 @@ export type BonusRules = {
     spreadClicks: number
     /** The most enclosures held. */
     enclosures: number
+    /** Native land takes two clicks — see domain/homeSoil.ts. Off, every click takes. */
+    homeSoil: boolean
 }
 
 /**

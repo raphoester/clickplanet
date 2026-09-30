@@ -6,7 +6,7 @@ const batch = (bindings: Record<number, string>) => ({
     bindings: new Map(Object.entries(bindings).map(([k, v]) => [Number(k), v])),
 })
 
-const update = (tile: number, newCountry: string, previousCountry?: string): Update =>
+const update = (tile: number, newCountry: string | undefined, previousCountry?: string): Update =>
     ({tile, newCountry, previousCountry})
 
 const counts = (store: TileOwnership) => Object.fromEntries(store.counts())
@@ -216,6 +216,53 @@ describe("optimistic clicks", () => {
         expect(claim).toBeUndefined()
         expect(store.rollback(claim)).toEqual([])
         expect(counts(store)).toEqual({})
+    })
+})
+
+// Native land takes two clicks: a click the rule says clears a tile paints it
+// as nobody's, and a refusal gives the natives their flag back.
+describe("optimistic clears", () => {
+    it("paints the tile as nobody's and takes it off its country's count", () => {
+        const store = new TileOwnership(10)
+        store.applyBatch(batch({1: "pl", 2: "pl"}))
+
+        const {changes, claim} = store.applyOptimistic(1, undefined)
+
+        expect(changes).toEqual([{tile: 1, country: undefined}])
+        expect(claim).toEqual({tile: 1, token: expect.any(Number)})
+        expect(store.ownerOf(1)).toBeUndefined()
+        expect(counts(store)).toEqual({pl: 1})
+    })
+
+    it("gives the natives their tile back when the clear is refused", () => {
+        const store = new TileOwnership(10)
+        store.applyBatch(batch({1: "pl"}))
+        const {claim} = store.applyOptimistic(1, undefined)
+
+        expect(store.rollback(claim)).toEqual([{tile: 1, country: "pl"}])
+        expect(counts(store)).toEqual({pl: 1})
+    })
+
+    it("keeps a clear still in flight when a later take is refused", () => {
+        const store = new TileOwnership(10)
+        store.applyBatch(batch({1: "pl"}))
+        store.applyOptimistic(1, undefined)
+        const take = store.applyOptimistic(1, "de").claim
+
+        expect(store.rollback(take)).toEqual([{tile: 1, country: undefined}])
+        expect(store.ownerOf(1)).toBeUndefined()
+        expect(counts(store)).toEqual({})
+    })
+
+    it("settles on the server's echo of the clear", () => {
+        const store = new TileOwnership(10)
+        store.applyBatch(batch({1: "pl"}))
+        const {claim} = store.applyOptimistic(1, undefined)
+
+        store.applyUpdates([update(1, undefined, "pl")])
+
+        expect(store.rollback(claim)).toEqual([])
+        expect(store.ownerOf(1)).toBeUndefined()
     })
 })
 

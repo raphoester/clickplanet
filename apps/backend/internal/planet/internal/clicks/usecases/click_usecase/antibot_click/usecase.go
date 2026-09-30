@@ -14,6 +14,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipscope"
@@ -33,10 +34,16 @@ type TileOwner interface {
 	Owner(tile uint32) (string, bool)
 }
 
+// Rule is the home-soil rule: what the click will do to the tile, read with the owner, for the same reason.
+type Rule interface {
+	Outcome(tile uint32, owner, flag string) clicks.Outcome
+}
+
 func New(
 	implementation click_usecase.IUseCase,
 	guard ClickGuard,
 	owner TileOwner,
+	rule Rule,
 	clock cptime.Clock,
 	registerer prometheus.Registerer,
 ) *UseCase {
@@ -60,6 +67,7 @@ func New(
 		implementation: implementation,
 		guard:          guard,
 		owner:          owner,
+		rule:           rule,
 		clock:          clock,
 		dropped:        dropped,
 	}
@@ -69,6 +77,7 @@ type UseCase struct {
 	implementation click_usecase.IUseCase
 	guard          ClickGuard
 	owner          TileOwner
+	rule           Rule
 	clock          cptime.Clock
 	dropped        prometheus.Counter
 }
@@ -89,9 +98,12 @@ func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_useca
 		At:       u.clock.Now(),
 	}
 
+	// A clear still takes the tile from Held, so it is no no-op; the defender needs to know it wins nothing back.
 	if held, known := u.owner.Owner(observed.Tile); known {
+		outcome := u.rule.Outcome(observed.Tile, held, observed.Country)
 		observed.Held = held
-		observed.NoOp = held == observed.Country
+		observed.NoOp = outcome == clicks.Unchanged
+		observed.Cleared = outcome == clicks.Cleared
 	}
 
 	if u.guard.Inspect(observed) {

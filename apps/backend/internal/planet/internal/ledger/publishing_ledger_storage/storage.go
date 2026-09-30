@@ -19,7 +19,8 @@ func New(inner ledger.Storage, events Publisher) Storage {
 	return Storage{Storage: inner, events: events}
 }
 
-// Storage is the ledger, and every take it appends with an account is published once it is recorded.
+// Storage is the ledger, and every take it appends with an account is published once it is recorded. A clear is
+// recorded and not published: it took nothing, so it is no tile in anybody's stats.
 type Storage struct {
 	ledger.Storage
 	events Publisher
@@ -30,7 +31,7 @@ var _ ledger.Storage = Storage{}
 func (s Storage) Append(taking ledger.Taking) {
 	s.Storage.Append(taking)
 
-	if taking.Account == "" {
+	if taking.Account == "" || taking.Cleared() {
 		return
 	}
 

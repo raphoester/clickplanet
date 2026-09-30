@@ -104,6 +104,16 @@ toll:
     - {share: 0.20, slowdown: 2.5}
     - {share: 0.30, slowdown: 4}
 
+# Native land takes two clicks. On a country's own ground (the borders blob), a
+# tile wearing that country's flag is cleared to nobody by a click for any other
+# flag, not taken; the next click on the empty tile takes it, for any flag. Its
+# natives take it back in one. Every click still costs one token: this changes
+# what a click does, never what it costs. Spread and enclose follow the rule on
+# every tile they touch. The bomb and the operator tools do not. The client is
+# told through GetBonusRules, so off needs no frontend release. Off by default.
+homeSoil:
+  enabled: false
+
 # Refuses the Click RPC from known VPN and proxy egress ranges, so a player has
 # to come from an address the throttle above can actually hold onto: a bucket
 # keyed on something you can change at will is a bucket that does not hold.

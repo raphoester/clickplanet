@@ -1048,8 +1048,8 @@ func (*GetBonusRulesRequest) Descriptor() ([]byte, []int) {
 	return file_planet_v1_planet_proto_rawDescGZIP(), []int{14}
 }
 
-// How big each charge is. Game configuration, not state: it only changes with
-// a deploy.
+// How big each charge is, and what a click does on a country's own ground. Game
+// configuration, not state: it only changes with a deploy.
 type GetBonusRulesResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// How wide a bomb's blast is, in radians of arc, so the client draws the
@@ -1060,7 +1060,14 @@ type GetBonusRulesResponse struct {
 	// The most spread clicks the pool holds. A box adds a few, up to this.
 	SpreadClicks uint32 `protobuf:"varint,3,opt,name=spread_clicks,json=spreadClicks,proto3" json:"spread_clicks,omitempty"`
 	// The most enclose charges a player stacks. A box adds a few, up to this.
-	Enclosures    uint32 `protobuf:"varint,4,opt,name=enclosures,proto3" json:"enclosures,omitempty"`
+	Enclosures uint32 `protobuf:"varint,4,opt,name=enclosures,proto3" json:"enclosures,omitempty"`
+	// Native land takes two clicks. On a country's own ground, a tile wearing
+	// that country's flag is cleared to nobody by a click for any other flag,
+	// not taken; the next click on the empty tile takes it. Each click still
+	// costs one. The client paints its own click from this, with the borders
+	// blob, so it does not paint a flag the server did not write. Spread and
+	// enclose follow the same rule on every tile they touch.
+	HomeSoil      bool `protobuf:"varint,5,opt,name=home_soil,json=homeSoil,proto3" json:"home_soil,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1121,6 +1128,13 @@ func (x *GetBonusRulesResponse) GetEnclosures() uint32 {
 		return x.Enclosures
 	}
 	return 0
+}
+
+func (x *GetBonusRulesResponse) GetHomeSoil() bool {
+	if x != nil {
+		return x.HomeSoil
+	}
+	return false
 }
 
 // A box put in front of one player, and the token that claims it.
@@ -2056,7 +2070,8 @@ type TilesEnclosed struct {
 	ClosingTileId uint32 `protobuf:"varint,2,opt,name=closing_tile_id,json=closingTileId,proto3" json:"closing_tile_id,omitempty"`
 	// The player's tiles that touch the inside: the shape's outline.
 	WallTileIds []uint32 `protobuf:"varint,3,rep,packed,name=wall_tile_ids,json=wallTileIds,proto3" json:"wall_tile_ids,omitempty"`
-	// The tiles taken, nearest the closing tile first.
+	// The tiles taken, nearest the closing tile first. With home_soil, a tile
+	// on another country's own ground that wore its flag is cleared instead.
 	FilledTileIds []uint32 `protobuf:"varint,4,rep,packed,name=filled_tile_ids,json=filledTileIds,proto3" json:"filled_tile_ids,omitempty"`
 	// Set only on the stream of the caller who closed it.
 	Yours         bool `protobuf:"varint,5,opt,name=yours,proto3" json:"yours,omitempty"`
@@ -2136,6 +2151,8 @@ type TilesSpread struct {
 	// The tile the player clicked.
 	TileId uint32 `protobuf:"varint,2,opt,name=tile_id,json=tileId,proto3" json:"tile_id,omitempty"`
 	// The tiles touching it, which the click also took. Empty for a lone island.
+	// With home_soil, a tile on another country's own ground that wore its flag
+	// is cleared instead.
 	SpreadTileIds []uint32 `protobuf:"varint,3,rep,packed,name=spread_tile_ids,json=spreadTileIds,proto3" json:"spread_tile_ids,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2350,14 +2367,15 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"\x11GetChargesRequest\"F\n" +
 	"\x12GetChargesResponse\x120\n" +
 	"\acharges\x18\x01 \x01(\v2\x16.planet.v1.ChargesHeldR\acharges\"\x16\n" +
-	"\x14GetBonusRulesRequest\"\xaf\x01\n" +
+	"\x14GetBonusRulesRequest\"\xcc\x01\n" +
 	"\x15GetBonusRulesResponse\x12!\n" +
 	"\fblast_radius\x18\x01 \x01(\x01R\vblastRadius\x12.\n" +
 	"\x13enclosure_max_tiles\x18\x02 \x01(\rR\x11enclosureMaxTiles\x12#\n" +
 	"\rspread_clicks\x18\x03 \x01(\rR\fspreadClicks\x12\x1e\n" +
 	"\n" +
 	"enclosures\x18\x04 \x01(\rR\n" +
-	"enclosures\"\x8f\x01\n" +
+	"enclosures\x12\x1b\n" +
+	"\thome_soil\x18\x05 \x01(\bR\bhomeSoil\"\x8f\x01\n" +
 	"\fBonusOffered\x12\x14\n" +
 	"\x05token\x18\x01 \x01(\tR\x05token\x12\x12\n" +
 	"\x04seed\x18\x02 \x01(\rR\x04seed\x12(\n" +

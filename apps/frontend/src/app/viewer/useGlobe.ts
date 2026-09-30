@@ -7,6 +7,7 @@ import {useLeaderboardFeed} from './useLeaderboardFeed.ts';
 import {ALL_OFF, BonusReward, BonusRules, Charges, NO_CHARGES, Switches} from '../../domain/bonus.ts';
 import {BombDrop, Bomber, BonusCatch, BonusListener} from '../../backends/backend.ts';
 import {PlaySound} from '../sound/soundPlayer.ts';
+import {ClearNotes} from '../../domain/clearNotes.ts';
 
 export type GlobeStatus =
     /** `territories` is the share of the owners fetched, once the map itself is in. */
@@ -69,6 +70,16 @@ export function useGlobe(options: UseGlobeOptions) {
     // The charge itself arrives with the charges: this is only the announcement.
     const takeBonus = useCallback((reward: BonusReward) => setAward(reward), [])
 
+    // A click that cleared native ground rather than taking it, said the first
+    // few times only. Numbered like the bomb, so a second clear restarts the line.
+    const [clearNotes] = useState(() => new ClearNotes(localStore()))
+    const [lastClear, setLastClear] = useState<{ground: string, id: number} | undefined>()
+    const recordClear = useCallback((ground: string) => {
+        if (!clearNotes.due) return
+        clearNotes.record()
+        setLastClear((previous) => ({ground, id: (previous?.id ?? 0) + 1}))
+    }, [clearNotes])
+
     const globeRef = useRef<Globe | null>(null)
 
     const initialCountry = useRef(country)
@@ -104,6 +115,7 @@ export function useGlobe(options: UseGlobeOptions) {
             bomber,
             onBombDropped: recordBomb,
             onArmedChange: setBombArmed,
+            onNativeCleared: recordClear,
             playSound,
             signal: abortController.signal,
         }).then((globe) => {
@@ -131,7 +143,7 @@ export function useGlobe(options: UseGlobeOptions) {
             globeRef.current?.dispose()
             globeRef.current = null
         }
-    }, [container, tileClicker, ownershipsGetter, updatesListener, bonusListener, bomber, playSound, recordLeaderboard, publishLeaderboard, takeBonus, recordCatch, recordBomb])
+    }, [container, tileClicker, ownershipsGetter, updatesListener, bonusListener, bomber, playSound, recordLeaderboard, publishLeaderboard, takeBonus, recordCatch, recordBomb, recordClear])
 
     useEffect(() => {
         initialCountry.current = country
@@ -149,6 +161,7 @@ export function useGlobe(options: UseGlobeOptions) {
     const toggleBomb = useCallback(() => globeRef.current?.setArmed(!bombArmed), [bombArmed])
     const toggleSwitch = useCallback((name: keyof Switches) => globeRef.current?.setSwitch(name, !switches[name]), [switches])
     const dismissBomb = useCallback(() => setLastBomb(undefined), [])
+    const dismissClear = useCallback(() => setLastClear(undefined), [])
 
     return {
         status,
@@ -172,6 +185,17 @@ export function useGlobe(options: UseGlobeOptions) {
         lastCatch,
         lastBomb,
         dismissBomb,
+        lastClear,
+        dismissClear,
+    }
+}
+
+/** Local storage, or none where reading it throws: a private window can. */
+function localStore(): Storage | undefined {
+    try {
+        return window.localStorage
+    } catch {
+        return undefined
     }
 }
 

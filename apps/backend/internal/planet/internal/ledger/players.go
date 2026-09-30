@@ -66,6 +66,13 @@ func (t *Tally) See(taking Taking) {
 		player.LastAt = taking.At
 	}
 
+	// A clear counts as one of the caller's takes, since it is what the caller did to the map, and leaves the
+	// tile held by nobody: an empty tile is not the clearer's.
+	if taking.Cleared() {
+		delete(t.tiles, taking.Tile)
+		return
+	}
+
 	t.tiles[taking.Tile] = hold{player: index, country: taking.Country}
 }
 

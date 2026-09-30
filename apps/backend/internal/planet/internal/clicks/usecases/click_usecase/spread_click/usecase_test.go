@@ -50,10 +50,26 @@ func (s stubNeighbours) Neighbours(id uint32) []uint32 { return s[id] }
 
 type recordingStorage struct{ tiles map[uint32]string }
 
+func (r *recordingStorage) Owner(tile uint32) (string, bool) {
+	return r.tiles[tile], true
+}
+
 func (r *recordingStorage) Set(_ context.Context, tile uint32, value string) error {
 	r.tiles[tile] = value
 	return nil
 }
+
+// polishGround puts tiles 90 to 99 on Poland's ground; every other tile is in no country.
+type polishGround struct{}
+
+func (polishGround) CountryOf(tile uint32) string {
+	if tile >= 90 && tile < 100 {
+		return "pl"
+	}
+	return ""
+}
+
+var homeSoil = clicks.NewHomeSoil(clicks.HomeSoilConfig{Enabled: true}, polishGround{})
 
 type recordingPublisher struct{ spreads []bonuses.Spread }
 
@@ -88,7 +104,8 @@ func setupWithClicks(clicksLeft int, err error) (*spread_click.UseCase, *recordi
 	spreads := stubSpreads{left: map[bonuses.Holder]int{caller: clicksLeft}}
 	publisher := &recordingPublisher{}
 
-	return spread_click.New(stubClick{storage: storage, err: err}, spreads, honeycomb, storage, publisher), storage, publisher, spreads
+	return spread_click.New(stubClick{storage: storage, err: err}, spreads, honeycomb, storage, homeSoil, publisher),
+		storage, publisher, spreads
 }
 
 func TestASpreadingClickTakesTheTileAndEveryTileTouchingIt(t *testing.T) {
@@ -100,6 +117,30 @@ func TestASpreadingClickTakesTheTileAndEveryTileTouchingIt(t *testing.T) {
 	assert.Equal(t, map[uint32]string{
 		100: "fr", 90: "fr", 91: "fr", 99: "fr", 101: "fr", 109: "fr", 110: "fr",
 	}, storage.tiles)
+}
+
+func TestASpreadClearsTheNativeTilesItTouchesAndTakesTheRest(t *testing.T) {
+	useCase, storage := setup(true, nil)
+	// 90 and 91 are Poland's own; 99 is Polish ground Germany holds; 101 is Poland's flag abroad.
+	storage.tiles[90], storage.tiles[91], storage.tiles[99], storage.tiles[101] = "pl", "pl", "de", "pl"
+
+	_, err := useCase.Execute(t.Context(), click_usecase.In{TileID: 100, CountryID: "fr", Spread: true})
+	require.NoError(t, err)
+
+	assert.Equal(t, map[uint32]string{
+		100: "fr", 90: "", 91: "", 99: "fr", 101: "fr", 109: "fr", 110: "fr",
+	}, storage.tiles, "a bonus is never a way around the rule")
+}
+
+func TestASpreadByTheNativesTakesTheirGroundBackInOne(t *testing.T) {
+	useCase, storage := setup(true, nil)
+	storage.tiles[90], storage.tiles[99] = "de", ""
+
+	_, err := useCase.Execute(t.Context(), click_usecase.In{TileID: 100, CountryID: "pl", Spread: true})
+	require.NoError(t, err)
+
+	assert.Equal(t, "pl", storage.tiles[90])
+	assert.Equal(t, "pl", storage.tiles[99])
 }
 
 func TestWithoutTheBonusAClickTakesOneTile(t *testing.T) {
@@ -138,7 +179,7 @@ func TestTheSpreadSpentIsTheAccounts(t *testing.T) {
 	storage := &recordingStorage{tiles: map[uint32]string{}}
 	account := bonuses.HolderOf(clicks.Payer{Account: "a-guest"})
 	spreads := stubSpreads{left: map[bonuses.Holder]int{account: 8}}
-	useCase := spread_click.New(stubClick{storage: storage}, spreads, honeycomb, storage, &recordingPublisher{})
+	useCase := spread_click.New(stubClick{storage: storage}, spreads, honeycomb, storage, homeSoil, &recordingPublisher{})
 
 	_, err := useCase.Execute(cpctx.AddAccountToContext(t.Context(), "a-guest"), click_usecase.In{TileID: 100, CountryID: "fr", Spread: true})
 	require.NoError(t, err)
