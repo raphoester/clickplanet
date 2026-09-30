@@ -78,6 +78,7 @@ func newStack(options ...func(*antibot.Config)) *stack {
 	config.Metronome.Detector.CertainFor = 30 * time.Minute
 	config.Metronome.Detector.CertainClicks = 900
 	config.Metronome.Detector.TrackWindow = 15 * time.Minute
+	config.Metronome.Detector.Stamina.CertainBusy = 5*time.Hour + 30*time.Minute
 
 	config.Catcher.Enabled = true
 	config.Catcher.Detector.MinCatches = 5
@@ -286,6 +287,40 @@ func TestSweepingInARandomOrderStillGetsCaught(t *testing.T) {
 	// Half an hour of sweeping is bought for one line of the bot's code. The
 	// answer is another watchdog, not a looser bound on this one.
 	assert.Greater(t, clicks, 1700, "a lone watchdog has to be sure, and sure takes certainFor")
+}
+
+func TestTheNightBotIsCaughtOnStaminaAlone(t *testing.T) {
+	s := newStack()
+
+	//nolint:gosec // G404: deterministic PRNG, seeded per test so the click stream replays exactly.
+	random := rand.New(rand.NewPCG(28, 9))
+
+	const scope = "2001:db8:1:2::/64"
+	start := s.clock.Now()
+
+	var caughtAfter time.Duration
+	for caughtAfter == 0 && s.clock.Now().Sub(start) < 8*time.Hour {
+		for range 300 {
+			s.clock.Advance(4500*time.Millisecond + time.Duration(random.Int64N(int64(time.Second))))
+
+			click := antibot.Click{Scope: scope, Account: "night", Tile: 180000 + uint32(random.IntN(60000)), Country: "DZ", At: s.clock.Now()}
+			s.guard.Attempted(click)
+			if s.guard.Inspect(click) {
+				caughtAfter = s.clock.Now().Sub(start)
+				break
+			}
+			s.guard.Committed(click)
+		}
+		s.clock.Advance(5 * time.Minute)
+	}
+
+	require.NotZero(t, caughtAfter)
+	assert.Greater(t, caughtAfter, 5*time.Hour)
+	assert.Less(t, caughtAfter, 6*time.Hour)
+
+	verdicts := s.verdicts(scope)
+	assert.Equal(t, detect.Certain, verdicts["metronome"])
+	assert.Equal(t, detect.Clear, verdicts["sequencer"])
 }
 
 func TestALoopFiringIntoTheThrottleIsCaught(t *testing.T) {

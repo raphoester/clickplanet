@@ -40,6 +40,12 @@ func NewObserver(logger *slog.Logger, registerer prometheus.Registerer) antibot.
 		Buckets: []float64{-0.5, -0.3, -0.2, -0.1, 0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0},
 	})
 
+	busyHours := factory.NewHistogram(prometheus.HistogramOpts{
+		Name:    "click_busy_hours",
+		Help:    "Hours of the metronome's stamina window a payer spent clicking at pace, per payer that clicked since the last sweep",
+		Buckets: []float64{0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 7, 8},
+	})
+
 	// Set once a sweep. A pool that rotates addresses shows here as a floor that
 	// never drops to zero, long before its cohorts chain into a ban.
 	clockCoherences := factory.NewHistogram(prometheus.HistogramOpts{
@@ -90,6 +96,8 @@ func NewObserver(logger *slog.Logger, registerer prometheus.Registerer) antibot.
 		OnGapSkew: gapSkews.Observe,
 
 		OnClockCoherence: clockCoherences.Observe,
+
+		OnBusyTime: func(busy time.Duration) { busyHours.Observe(busy.Hours()) },
 
 		OnCohortScopes: func(scopes int) { cohortScopes.Set(float64(scopes)) },
 

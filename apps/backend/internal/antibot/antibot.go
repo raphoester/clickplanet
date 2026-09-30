@@ -151,6 +151,9 @@ type Observer struct {
 	// Each caller's coherence on the metronome's clock period, once a sweep, while a clock bound is set.
 	OnClockCoherence func(coherence float64)
 
+	// Each payer's busy time in the stamina window, once a sweep, if it clicked since the last one.
+	OnBusyTime func(busy time.Duration)
+
 	// How many callers are clicking in step with another, once a sweep, whether or not it reads as more than clear.
 	OnCohortScopes func(scopes int)
 
@@ -269,7 +272,12 @@ func build(
 			onClockCoherence = func(float64) {}
 		}
 
-		watchdog := metronome.New(config.Metronome.Detector, clock, onGapSkew, onClockCoherence)
+		onBusyTime := observer.OnBusyTime
+		if onBusyTime == nil {
+			onBusyTime = func(time.Duration) {}
+		}
+
+		watchdog := metronome.New(config.Metronome.Detector, clock, onGapSkew, onClockCoherence, onBusyTime)
 		g.runners = append(g.runners, watchdog.Run)
 		watchdogs = append(watchdogs, watchdog)
 		sections = append(sections, watchdog)

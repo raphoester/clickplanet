@@ -220,6 +220,19 @@ antiBot:
         certainClicks: 1000
         # maxSkew: 0.25
         # certainSkew: 0.15
+      # Hours, not seconds, so a pause of a few minutes ends nothing. A slice is
+      # busy when one payer (its account, or its scope with none) got 40 clicks
+      # past the throttle in it. The bot of 2026-09-28 ran eight hours a night on
+      # one fresh account, five minutes off every half hour, and read clear
+      # everywhere else. Measured over three days of ledger: its two accounts
+      # read 6h of 6h, the heaviest player 4h50m, and 5 of 555 accounts 3h or
+      # more. minBusy stays unset: suspect only means something beside another
+      # watchdog, and click_busy_hours says where players sit first.
+      stamina:
+        slice: 10m
+        clicks: 40
+        window: 6h
+        certainBusy: 5h30m
       trackWindow: 15m
       sweepInterval: 1m
 
