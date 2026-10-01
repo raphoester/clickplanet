@@ -38,7 +38,7 @@ const FADE_SHARE = 0.4
 /** Above the tiles, which sit on the unit sphere, so the marks are never inside them. */
 const LIFT = 1.003
 
-/** A mark is never drawn smaller than this, in CSS pixels, however far out the camera is. */
+/** A mark is never drawn smaller than this, however far out the camera is. */
 const MIN_MARK_PX = 8
 
 /** More than this at once and the oldest ends early: a busy planet spreads a lot. */
@@ -83,7 +83,7 @@ export type Choreography = {
     centre: THREE.Vector3
     /** How far the rings run, in world units. */
     reach: number
-    /** The rings are never smaller than this on screen, in CSS pixels. */
+    /** The rings are never smaller than this on screen. */
     minReachPx: number
     lifetime: number
     colour: THREE.Color
@@ -245,10 +245,8 @@ export type BonusClickEffects = {
     playSpread(spread: SpreadClick): void
     /** Starts the dust of a click that cleared native ground, on the next frame. */
     playClear(tile: number): void
-    /** Whether this frame changed anything: the frame an effect ends on counts.
-     *  `viewportHeight` is the drawing buffer's, and `pixelRatio` how many of its
-     *  pixels make a CSS one. */
-    update(seconds: number, camera: THREE.OrthographicCamera, viewportHeight: number, pixelRatio: number): boolean
+    /** Whether this frame changed anything: the frame an effect ends on counts. */
+    update(seconds: number, camera: THREE.OrthographicCamera, viewportHeight: number): boolean
     dispose(): void
 }
 
@@ -354,11 +352,10 @@ export function createBonusClickEffects(positions: ArrayLike<number>): BonusClic
         }
     }
 
-    const update = (seconds: number, camera: THREE.OrthographicCamera, viewportHeight: number, pixelRatio: number) => {
+    const update = (seconds: number, camera: THREE.OrthographicCamera, viewportHeight: number) => {
         if (playing.length === 0) return false
 
         const tileSize = tilePointSize(camera.zoom, viewportHeight)
-        const minMark = MIN_MARK_PX * pixelRatio
         // The camera's frustum is two units tall at zoom 1, so this is how many
         // pixels one world unit spans on screen right now.
         const pixelsPerUnit = (viewportHeight / 2) * camera.zoom
@@ -374,7 +371,6 @@ export function createBonusClickEffects(positions: ArrayLike<number>): BonusClic
             }
 
             effect.marks.uniforms.tileSize.value = tileSize
-            effect.marks.uniforms.minSize.value = minMark
             choreography.sparks.forEach((spark, i) => {
                 const look = sparkLook(spark, age, choreography.lifetime, calm)
                 // Along the chord and back out to the ground, so a spark never
@@ -390,7 +386,7 @@ export function createBonusClickEffects(positions: ArrayLike<number>): BonusClic
             effect.scale.needsUpdate = true
             effect.white.needsUpdate = true
 
-            const reach = Math.max(choreography.reach, choreography.minReachPx * pixelRatio / pixelsPerUnit)
+            const reach = Math.max(choreography.reach, choreography.minReachPx / pixelsPerUnit)
             for (const {mesh, material, wave} of effect.waves) {
                 const look = waveLook(wave, age)
                 mesh.visible = look !== undefined

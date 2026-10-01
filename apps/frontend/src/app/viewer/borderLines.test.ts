@@ -4,7 +4,6 @@ import {
     COARSE_SAMPLES,
     createBorderLines,
     decodeBorderLines,
-    halfWidthOf,
     limbOf,
     outlineSegments,
     OVER,
@@ -180,7 +179,7 @@ describe("the handover", () => {
         const {lines, over, under, inkOf} = outline()
 
         for (let zoom = MIN_ZOOM; zoom <= MAX_ZOOM; zoom += 0.05) {
-            lines.update(zoom, 1600, 900, 1)
+            lines.update(zoom, 1600, 900)
 
             // Zoomed out the tiles are widened until they cover the ground, so
             // an outline under them would be hidden; zoomed in they part and it
@@ -200,10 +199,10 @@ describe("the handover", () => {
     it("draws nothing it cannot see", () => {
         const {lines, over, under} = outline()
 
-        lines.update(MIN_ZOOM, 1600, 900, 1)
+        lines.update(MIN_ZOOM, 1600, 900)
         expect([over.visible, under.visible]).toEqual([true, false])
 
-        lines.update(MAX_ZOOM, 1600, 900, 1)
+        lines.update(MAX_ZOOM, 1600, 900)
         expect([over.visible, under.visible]).toEqual([false, true])
 
         lines.dispose()
@@ -220,33 +219,12 @@ describe("the handover", () => {
 
     it("measures the line in the drawing buffer's own pixels", () => {
         const {lines, over, under} = outline()
-        lines.update(1, 1600, 900, 1)
+        lines.update(1, 1600, 900)
 
         for (const pass of [over, under]) {
             const halfViewport = (pass.material as THREE.ShaderMaterial).uniforms.halfViewport.value as THREE.Vector2
             expect([halfViewport.x, halfViewport.y]).toEqual([800, 450])
         }
-
-        lines.dispose()
-    })
-
-    // A screen with twice the pixels draws the same picture sharper: the line
-    // is as wide on the glass, and the flag hands over at the same zoom.
-    it("keeps its width and its handover in CSS pixels on a sharper screen", () => {
-        const {lines, over, under, inkOf} = outline()
-
-        for (let zoom = MIN_ZOOM; zoom <= MAX_ZOOM; zoom += 0.05) {
-            lines.update(zoom, 3200, 1800, 2)
-            expect(inkOf(over), `over at zoom ${zoom}`).toBe(flagPaint(zoom, 900))
-        }
-
-        for (const pass of [over, under]) {
-            expect((pass.material as THREE.ShaderMaterial).uniforms.halfWidth.value).toBe(halfWidthOf(2))
-        }
-
-        // The line doubles and the feather does not: it is there to soften one
-        // pixel of edge, whatever size the pixel is.
-        expect(halfWidthOf(2) - halfWidthOf(1)).toBeCloseTo(WIDTH / 2)
 
         lines.dispose()
     })

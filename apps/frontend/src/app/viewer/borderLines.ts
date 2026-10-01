@@ -174,15 +174,14 @@ function spline(
 }
 
 /**
- * How wide the line is drawn, in CSS pixels. Thin enough to sit in the gap
- * between two tiles once they are discs — the gap is 24% of the spacing, so it
- * fits from the moment a tile is 6 pixels across, which is inside the handover
- * — and thick enough to survive a globe half a screen wide.
+ * How wide the line is drawn, in drawing-buffer pixels. Thin enough to sit in
+ * the gap between two tiles once they are discs — the gap is 24% of the
+ * spacing, so it fits from the moment a tile is 6 pixels across, which is
+ * inside the handover — and thick enough to survive a globe half a screen wide.
  */
 export const WIDTH = 1.3
 
-/** A drawing-buffer pixel of softened edge on each side, so the line does not
- *  crawl. */
+/** A pixel of softened edge on each side, so the line does not crawl. */
 const FEATHER = 1
 
 /**
@@ -218,16 +217,10 @@ export function limbOf(lift: number): number {
  */
 const COLOUR = new THREE.Color(0.25, 0.25, 0.25)
 
-/** Half the line's width in drawing-buffer pixels, feather included. */
-export function halfWidthOf(pixelRatio: number): number {
-    return WIDTH * pixelRatio / 2 + FEATHER
-}
-
 export type BorderLines = {
     object: THREE.Object3D
-    /** `height` and `width` are the drawing buffer's, in pixels, and
-     *  `pixelRatio` is how many of them make a CSS pixel. */
-    update(zoom: number, width: number, height: number, pixelRatio: number): void
+    /** `height` and `width` are the drawing buffer's, in pixels. */
+    update(zoom: number, width: number, height: number): void
     dispose(): void
 }
 
@@ -264,7 +257,7 @@ export function createBorderLines(data: BorderLineData): BorderLines {
         const material = new THREE.ShaderMaterial({
             uniforms: {
                 halfViewport: {value: new THREE.Vector2(1, 1)},
-                halfWidth: {value: halfWidthOf(1)},
+                halfWidth: {value: WIDTH / 2 + FEATHER},
                 lift: {value: lift},
                 limb: {value: limbOf(lift)},
                 colour: {value: COLOUR},
@@ -299,11 +292,9 @@ export function createBorderLines(data: BorderLineData): BorderLines {
 
     return {
         object,
-        update(zoom: number, width: number, height: number, pixelRatio: number) {
+        update(zoom: number, width: number, height: number) {
             for (const pass of passes) {
-                const {uniforms} = pass.material as THREE.ShaderMaterial
-                uniforms.halfViewport.value.set(width / 2, height / 2)
-                uniforms.halfWidth.value = halfWidthOf(pixelRatio)
+                (pass.material as THREE.ShaderMaterial).uniforms.halfViewport.value.set(width / 2, height / 2)
             }
 
             // The over pass belongs to the painted flag and goes out with it;
@@ -312,7 +303,7 @@ export function createBorderLines(data: BorderLineData): BorderLines {
             // stretch where they overlap — the coasts, which have no tiles on
             // the sea side to hide the under pass — only ever comes out that
             // grey rather than a darker one.
-            const paint = flagPaint(zoom, height / pixelRatio)
+            const paint = flagPaint(zoom, height)
             ;(over.material as THREE.ShaderMaterial).uniforms.ink.value = paint
             over.visible = paint > 0
             under.visible = paint < 1
