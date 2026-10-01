@@ -1,6 +1,9 @@
 package cpctx
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
 type accountKey struct{}
 
@@ -13,6 +16,19 @@ func AddAccountToContext(ctx context.Context, account string) context.Context {
 func GetAccount(ctx context.Context) string {
 	account, _ := ctx.Value(accountKey{}).(string)
 	return account
+}
+
+type accountCreatedKey struct{}
+
+// AddAccountCreatedToContext keeps when the account a verified click token names was made.
+func AddAccountCreatedToContext(ctx context.Context, at time.Time) context.Context {
+	return context.WithValue(ctx, accountCreatedKey{}, at)
+}
+
+// GetAccountCreated is the zero time when no account is known, or its id does not say.
+func GetAccountCreated(ctx context.Context) time.Time {
+	at, _ := ctx.Value(accountCreatedKey{}).(time.Time)
+	return at
 }
 
 type linkedKey struct{}

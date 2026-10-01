@@ -73,6 +73,12 @@ rateLimiter:
   scopeMultiplier: 10
   guestScopeMultiplier: 1
   linkedMultiplier: 2
+  # A new account starts with 10 and earns the rest of its 60 in under four
+  # minutes. From 2026-09-28 to 10-01 one phone took a new mobile /64 and a new
+  # guest account about once a minute, spent the fresh 60, and repeated: about
+  # 4.5 times a guest's rate. At 10, a new account every minute is worth 10 more
+  # clicks a minute, and it still costs a reconnect and a Turnstile mint.
+  newAccountClicks: 10
 
 # Every click costs one token. The more of the map a country holds, the slower
 # its players get their clicks back: from each share below (a fraction of every
