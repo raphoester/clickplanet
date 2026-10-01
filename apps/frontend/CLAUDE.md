@@ -1005,7 +1005,11 @@ attribute, and only its body is skipped.
 in `scene.ts`). It used to be drawn at 1, so on a phone or a laptop the browser
 stretched every frame over twice its pixels and the whole globe was soft. Past 2
 is more than twice the work again for a difference nobody sees at arm's length.
-Antialiasing is on only below 2; it is fixed when the context is made.
+
+**Antialiasing stays off.** It was turned on below a ratio of 2 and brightened
+the whole canvas about 2.5 times on Windows Chrome with an Intel GPU (ANGLE on
+Direct3D 11): the planet came out nearly white, the unlit grey outlines
+included, so the multisampled buffer itself was at fault.
 
 **Every size in pixels in this viewer is a CSS pixel**, and is multiplied by the
 ratio on its way to the GPU: the tile's point size, the outline's width
