@@ -1,8 +1,7 @@
 import * as THREE from 'three';
-import {innerSphere} from "./sphere.ts";
 import {createAtmosphere} from "./atmosphere.ts";
 import {layoutViewport} from "./viewport.ts";
-import {EARTH_URL} from "./earthAsset.ts";
+import {createEarth} from "./earth.ts";
 
 export function setupScene(container: HTMLElement) {
     const scene = new THREE.Scene();
@@ -22,12 +21,17 @@ export function setupScene(container: HTMLElement) {
     // pressed once in a while, if at all. The share capture reads the buffer
     // from inside the render loop instead, while it is still there; see
     // `readDrawingBuffer` in capture.ts.
-    const renderer = new THREE.WebGLRenderer({});
+    //
+    // Antialiasing only below a ratio of 2: there a pixel is small enough that
+    // the limb is smooth without it, and the multisampled buffer would cost the
+    // most on the screens that can least afford it, a phone's. It is decided
+    // once, with the context, so a window dragged to another screen keeps it.
+    const ratio = pixelRatio();
+    const renderer = new THREE.WebGLRenderer({antialias: ratio < 2});
+    renderer.setPixelRatio(ratio);
     renderer.setSize(width, height);
     renderer.setClearColor(0x000000);
     container.appendChild(renderer.domElement);
-
-    scene.add(new THREE.AmbientLight(0xffffff, 2));
 
     const cleanup = () => {
         renderer.setAnimationLoop(null);
@@ -38,6 +42,27 @@ export function setupScene(container: HTMLElement) {
     }
 
     return {scene, camera, cameraSize, renderer, cleanup};
+}
+
+/**
+ * The most drawing-buffer pixels drawn per CSS pixel.
+ *
+ * The canvas used to be drawn at one, so a phone or a laptop at two or three
+ * stretched every frame to two or three times its size and the whole globe came
+ * out soft. Two is where it stops: a phone at three would draw 2.25 times the
+ * pixels again, for a difference nobody sees at arm's length.
+ */
+const MAX_PIXEL_RATIO = 2;
+
+/**
+ * How many drawing-buffer pixels the canvas has per CSS pixel on this screen.
+ *
+ * Every size in this viewer written in pixels — a tile, a line, a mark — is a
+ * CSS pixel, and is multiplied by this on its way to the GPU, so a screen with
+ * more pixels draws the same picture sharper rather than a smaller one.
+ */
+export function pixelRatio(): number {
+    return Math.min(window.devicePixelRatio || 1, MAX_PIXEL_RATIO);
 }
 
 export function disposeScene(scene: THREE.Scene) {
@@ -63,18 +88,11 @@ export function disposeMaterial(material: THREE.Material) {
     material.dispose();
 }
 
-const textureLoader = new THREE.TextureLoader();
-
 export function addDisplayObjects(
     scene: THREE.Scene,
     displayPoints: THREE.Points,
 ) {
     scene.add(displayPoints);
-    scene.add(new THREE.Mesh(
-        innerSphere(),
-        new THREE.MeshStandardMaterial({
-            map: textureLoader.load(EARTH_URL),
-        })
-    ))
+    scene.add(createEarth());
     scene.add(createAtmosphere());
 }
