@@ -56,9 +56,12 @@ ledgerStorage:
 # click also spends from its scope's bucket, at scopeMultiplier times that, which
 # every account behind the address shares. The scope is the address Caddy puts
 # in X-Real-IP, which is Cloudflare's Cf-Connecting-Ip — the real visitor — over
-# IPv4, and that address's /64 over IPv6. A token with no account spends one
-# scope bucket at perSecond and burst, as before accounts. An account signed in
-# with Google or Discord refills linkedMultiplier times faster, into the same bank.
+# IPv4, and that address's /64 over IPv6. A guest also spends from a bucket
+# every guest behind its scope shares, at guestScopeMultiplier times one
+# account's, so private tabs are not extra banks. A token with no account spends
+# one scope bucket at perSecond and burst, as before accounts. An account signed
+# in with Google or Discord refills linkedMultiplier times faster, into the same
+# bank, and shares no bucket with guests.
 # One click every 5 seconds, and a bank of 60 that fills in five
 # minutes. Scarce clicks make a group coordinate and take most of the edge from
 # a bot or a spammer; a full bank is a burst to spend when you come back. A
@@ -68,6 +71,7 @@ rateLimiter:
   perSecond: 0.2
   burst: 60
   scopeMultiplier: 10
+  guestScopeMultiplier: 1
   linkedMultiplier: 2
 
 # Every click costs one token. The more of the map a country holds, the slower

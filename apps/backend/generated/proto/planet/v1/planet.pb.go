@@ -21,6 +21,65 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// Who else spends from a click bucket.
+type SharedWith int32
+
+const (
+	// A server too old to say. Read it as NOBODY.
+	SharedWith_SHARED_WITH_UNSPECIFIED SharedWith = 0
+	// The caller's own bucket.
+	SharedWith_SHARED_WITH_NOBODY SharedWith = 1
+	// Every guest behind the caller's address: guests on one network share one
+	// bank, so ten tabs are not ten banks. A guest that signs in gets its own.
+	SharedWith_SHARED_WITH_GUESTS SharedWith = 2
+	// Every player behind the caller's address, signed in or not: a campus, a
+	// school or a carrier sharing one address.
+	SharedWith_SHARED_WITH_NETWORK SharedWith = 3
+)
+
+// Enum value maps for SharedWith.
+var (
+	SharedWith_name = map[int32]string{
+		0: "SHARED_WITH_UNSPECIFIED",
+		1: "SHARED_WITH_NOBODY",
+		2: "SHARED_WITH_GUESTS",
+		3: "SHARED_WITH_NETWORK",
+	}
+	SharedWith_value = map[string]int32{
+		"SHARED_WITH_UNSPECIFIED": 0,
+		"SHARED_WITH_NOBODY":      1,
+		"SHARED_WITH_GUESTS":      2,
+		"SHARED_WITH_NETWORK":     3,
+	}
+)
+
+func (x SharedWith) Enum() *SharedWith {
+	p := new(SharedWith)
+	*p = x
+	return p
+}
+
+func (x SharedWith) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (SharedWith) Descriptor() protoreflect.EnumDescriptor {
+	return file_planet_v1_planet_proto_enumTypes[0].Descriptor()
+}
+
+func (SharedWith) Type() protoreflect.EnumType {
+	return &file_planet_v1_planet_proto_enumTypes[0]
+}
+
+func (x SharedWith) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use SharedWith.Descriptor instead.
+func (SharedWith) EnumDescriptor() ([]byte, []int) {
+	return file_planet_v1_planet_proto_rawDescGZIP(), []int{0}
+}
+
 // What a bonus is worth. The client never decides this, and an unknown kind is
 // one a client skips rather than guesses at.
 type BonusKind int32
@@ -73,11 +132,11 @@ func (x BonusKind) String() string {
 }
 
 func (BonusKind) Descriptor() protoreflect.EnumDescriptor {
-	return file_planet_v1_planet_proto_enumTypes[0].Descriptor()
+	return file_planet_v1_planet_proto_enumTypes[1].Descriptor()
 }
 
 func (BonusKind) Type() protoreflect.EnumType {
-	return &file_planet_v1_planet_proto_enumTypes[0]
+	return &file_planet_v1_planet_proto_enumTypes[1]
 }
 
 func (x BonusKind) Number() protoreflect.EnumNumber {
@@ -86,7 +145,7 @@ func (x BonusKind) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use BonusKind.Descriptor instead.
 func (BonusKind) EnumDescriptor() ([]byte, []int) {
-	return file_planet_v1_planet_proto_rawDescGZIP(), []int{0}
+	return file_planet_v1_planet_proto_rawDescGZIP(), []int{1}
 }
 
 // What the rate limiter has left for the caller, and the policy it refills
@@ -125,8 +184,13 @@ type ClickBudget struct {
 	// every caller, so a guest can be told what signing in is worth. Zero from a
 	// server too old to grant one, which means signing in changes nothing.
 	LinkedMultiplier float64 `protobuf:"fixed64,10,opt,name=linked_multiplier,json=linkedMultiplier,proto3" json:"linked_multiplier,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Who else spends from the bucket this reading is of. A click spends from
+	// several buckets and the reading is the tightest, so this is how a caller
+	// learns why it holds fewer clicks than it spent: somebody else behind its
+	// address spent them.
+	SharedWith    SharedWith `protobuf:"varint,11,opt,name=shared_with,json=sharedWith,proto3,enum=planet.v1.SharedWith" json:"shared_with,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ClickBudget) Reset() {
@@ -213,6 +277,13 @@ func (x *ClickBudget) GetLinkedMultiplier() float64 {
 		return x.LinkedMultiplier
 	}
 	return 0
+}
+
+func (x *ClickBudget) GetSharedWith() SharedWith {
+	if x != nil {
+		return x.SharedWith
+	}
+	return SharedWith_SHARED_WITH_UNSPECIFIED
 }
 
 type ClickRequest struct {
@@ -2309,7 +2380,7 @@ var File_planet_v1_planet_proto protoreflect.FileDescriptor
 
 const file_planet_v1_planet_proto_rawDesc = "" +
 	"\n" +
-	"\x16planet/v1/planet.proto\x12\tplanet.v1\"\x9c\x02\n" +
+	"\x16planet/v1/planet.proto\x12\tplanet.v1\"\xd4\x02\n" +
 	"\vClickBudget\x12\x16\n" +
 	"\x06tokens\x18\x01 \x01(\x01R\x06tokens\x12\x1a\n" +
 	"\bcapacity\x18\x02 \x01(\rR\bcapacity\x12*\n" +
@@ -2320,7 +2391,9 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"next_share\x18\x06 \x01(\x01R\tnextShare\x12#\n" +
 	"\rnext_slowdown\x18\t \x01(\x01R\fnextSlowdown\x12+\n" +
 	"\x11linked_multiplier\x18\n" +
-	" \x01(\x01R\x10linkedMultiplierJ\x04\b\x04\x10\x05J\x04\b\a\x10\b\"x\n" +
+	" \x01(\x01R\x10linkedMultiplier\x126\n" +
+	"\vshared_with\x18\v \x01(\x0e2\x15.planet.v1.SharedWithR\n" +
+	"sharedWithJ\x04\b\x04\x10\x05J\x04\b\a\x10\b\"x\n" +
 	"\fClickRequest\x12\x17\n" +
 	"\atile_id\x18\x01 \x01(\rR\x06tileId\x12\x1d\n" +
 	"\n" +
@@ -2457,7 +2530,13 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"\atile_id\x18\x01 \x01(\rR\x06tileId\x12\x1d\n" +
 	"\n" +
 	"country_id\x18\x02 \x01(\tR\tcountryId\x12.\n" +
-	"\x13previous_country_id\x18\x03 \x01(\tR\x11previousCountryId*\x90\x01\n" +
+	"\x13previous_country_id\x18\x03 \x01(\tR\x11previousCountryId*r\n" +
+	"\n" +
+	"SharedWith\x12\x1b\n" +
+	"\x17SHARED_WITH_UNSPECIFIED\x10\x00\x12\x16\n" +
+	"\x12SHARED_WITH_NOBODY\x10\x01\x12\x16\n" +
+	"\x12SHARED_WITH_GUESTS\x10\x02\x12\x17\n" +
+	"\x13SHARED_WITH_NETWORK\x10\x03*\x90\x01\n" +
 	"\tBonusKind\x12\x1a\n" +
 	"\x16BONUS_KIND_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11BONUS_KIND_REFILL\x10\x05\x12\x1c\n" +
@@ -2496,97 +2575,99 @@ func file_planet_v1_planet_proto_rawDescGZIP() []byte {
 	return file_planet_v1_planet_proto_rawDescData
 }
 
-var file_planet_v1_planet_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_planet_v1_planet_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
 var file_planet_v1_planet_proto_msgTypes = make([]protoimpl.MessageInfo, 35)
 var file_planet_v1_planet_proto_goTypes = []any{
-	(BonusKind)(0),                 // 0: planet.v1.BonusKind
-	(*ClickBudget)(nil),            // 1: planet.v1.ClickBudget
-	(*ClickRequest)(nil),           // 2: planet.v1.ClickRequest
-	(*ClickResponse)(nil),          // 3: planet.v1.ClickResponse
-	(*GetBudgetRequest)(nil),       // 4: planet.v1.GetBudgetRequest
-	(*GetBudgetResponse)(nil),      // 5: planet.v1.GetBudgetResponse
-	(*MapDensityRequest)(nil),      // 6: planet.v1.MapDensityRequest
-	(*MapDensityResponse)(nil),     // 7: planet.v1.MapDensityResponse
-	(*GetMapRequest)(nil),          // 8: planet.v1.GetMapRequest
-	(*GetMapResponse)(nil),         // 9: planet.v1.GetMapResponse
-	(*ListenForEventsRequest)(nil), // 10: planet.v1.ListenForEventsRequest
-	(*PlanetEvent)(nil),            // 11: planet.v1.PlanetEvent
-	(*ChargesHeld)(nil),            // 12: planet.v1.ChargesHeld
-	(*GetChargesRequest)(nil),      // 13: planet.v1.GetChargesRequest
-	(*GetChargesResponse)(nil),     // 14: planet.v1.GetChargesResponse
-	(*GetBonusRulesRequest)(nil),   // 15: planet.v1.GetBonusRulesRequest
-	(*GetBonusRulesResponse)(nil),  // 16: planet.v1.GetBonusRulesResponse
-	(*BonusOffered)(nil),           // 17: planet.v1.BonusOffered
-	(*BonusTaken)(nil),             // 18: planet.v1.BonusTaken
-	(*ClaimBonusRequest)(nil),      // 19: planet.v1.ClaimBonusRequest
-	(*ClaimBonusResponse)(nil),     // 20: planet.v1.ClaimBonusResponse
-	(*QuizOffered)(nil),            // 21: planet.v1.QuizOffered
-	(*OpenQuizRequest)(nil),        // 22: planet.v1.OpenQuizRequest
-	(*OpenQuizResponse)(nil),       // 23: planet.v1.OpenQuizResponse
-	(*AnswerQuizRequest)(nil),      // 24: planet.v1.AnswerQuizRequest
-	(*AnswerQuizResponse)(nil),     // 25: planet.v1.AnswerQuizResponse
-	(*UseRefillRequest)(nil),       // 26: planet.v1.UseRefillRequest
-	(*UseRefillResponse)(nil),      // 27: planet.v1.UseRefillResponse
-	(*GlobePoint)(nil),             // 28: planet.v1.GlobePoint
-	(*DropBombRequest)(nil),        // 29: planet.v1.DropBombRequest
-	(*DropBombResponse)(nil),       // 30: planet.v1.DropBombResponse
-	(*BombDropped)(nil),            // 31: planet.v1.BombDropped
-	(*TilesEnclosed)(nil),          // 32: planet.v1.TilesEnclosed
-	(*TilesSpread)(nil),            // 33: planet.v1.TilesSpread
-	(*Heartbeat)(nil),              // 34: planet.v1.Heartbeat
-	(*TileUpdate)(nil),             // 35: planet.v1.TileUpdate
+	(SharedWith)(0),                // 0: planet.v1.SharedWith
+	(BonusKind)(0),                 // 1: planet.v1.BonusKind
+	(*ClickBudget)(nil),            // 2: planet.v1.ClickBudget
+	(*ClickRequest)(nil),           // 3: planet.v1.ClickRequest
+	(*ClickResponse)(nil),          // 4: planet.v1.ClickResponse
+	(*GetBudgetRequest)(nil),       // 5: planet.v1.GetBudgetRequest
+	(*GetBudgetResponse)(nil),      // 6: planet.v1.GetBudgetResponse
+	(*MapDensityRequest)(nil),      // 7: planet.v1.MapDensityRequest
+	(*MapDensityResponse)(nil),     // 8: planet.v1.MapDensityResponse
+	(*GetMapRequest)(nil),          // 9: planet.v1.GetMapRequest
+	(*GetMapResponse)(nil),         // 10: planet.v1.GetMapResponse
+	(*ListenForEventsRequest)(nil), // 11: planet.v1.ListenForEventsRequest
+	(*PlanetEvent)(nil),            // 12: planet.v1.PlanetEvent
+	(*ChargesHeld)(nil),            // 13: planet.v1.ChargesHeld
+	(*GetChargesRequest)(nil),      // 14: planet.v1.GetChargesRequest
+	(*GetChargesResponse)(nil),     // 15: planet.v1.GetChargesResponse
+	(*GetBonusRulesRequest)(nil),   // 16: planet.v1.GetBonusRulesRequest
+	(*GetBonusRulesResponse)(nil),  // 17: planet.v1.GetBonusRulesResponse
+	(*BonusOffered)(nil),           // 18: planet.v1.BonusOffered
+	(*BonusTaken)(nil),             // 19: planet.v1.BonusTaken
+	(*ClaimBonusRequest)(nil),      // 20: planet.v1.ClaimBonusRequest
+	(*ClaimBonusResponse)(nil),     // 21: planet.v1.ClaimBonusResponse
+	(*QuizOffered)(nil),            // 22: planet.v1.QuizOffered
+	(*OpenQuizRequest)(nil),        // 23: planet.v1.OpenQuizRequest
+	(*OpenQuizResponse)(nil),       // 24: planet.v1.OpenQuizResponse
+	(*AnswerQuizRequest)(nil),      // 25: planet.v1.AnswerQuizRequest
+	(*AnswerQuizResponse)(nil),     // 26: planet.v1.AnswerQuizResponse
+	(*UseRefillRequest)(nil),       // 27: planet.v1.UseRefillRequest
+	(*UseRefillResponse)(nil),      // 28: planet.v1.UseRefillResponse
+	(*GlobePoint)(nil),             // 29: planet.v1.GlobePoint
+	(*DropBombRequest)(nil),        // 30: planet.v1.DropBombRequest
+	(*DropBombResponse)(nil),       // 31: planet.v1.DropBombResponse
+	(*BombDropped)(nil),            // 32: planet.v1.BombDropped
+	(*TilesEnclosed)(nil),          // 33: planet.v1.TilesEnclosed
+	(*TilesSpread)(nil),            // 34: planet.v1.TilesSpread
+	(*Heartbeat)(nil),              // 35: planet.v1.Heartbeat
+	(*TileUpdate)(nil),             // 36: planet.v1.TileUpdate
 }
 var file_planet_v1_planet_proto_depIdxs = []int32{
-	1,  // 0: planet.v1.ClickResponse.budget:type_name -> planet.v1.ClickBudget
-	1,  // 1: planet.v1.GetBudgetResponse.budget:type_name -> planet.v1.ClickBudget
-	35, // 2: planet.v1.PlanetEvent.tile_update:type_name -> planet.v1.TileUpdate
-	34, // 3: planet.v1.PlanetEvent.heartbeat:type_name -> planet.v1.Heartbeat
-	17, // 4: planet.v1.PlanetEvent.bonus_offered:type_name -> planet.v1.BonusOffered
-	18, // 5: planet.v1.PlanetEvent.bonus_taken:type_name -> planet.v1.BonusTaken
-	31, // 6: planet.v1.PlanetEvent.bomb_dropped:type_name -> planet.v1.BombDropped
-	32, // 7: planet.v1.PlanetEvent.tiles_enclosed:type_name -> planet.v1.TilesEnclosed
-	33, // 8: planet.v1.PlanetEvent.tiles_spread:type_name -> planet.v1.TilesSpread
-	21, // 9: planet.v1.PlanetEvent.quiz_offered:type_name -> planet.v1.QuizOffered
-	12, // 10: planet.v1.GetChargesResponse.charges:type_name -> planet.v1.ChargesHeld
-	0,  // 11: planet.v1.BonusOffered.kind:type_name -> planet.v1.BonusKind
-	0,  // 12: planet.v1.BonusTaken.kind:type_name -> planet.v1.BonusKind
-	0,  // 13: planet.v1.ClaimBonusResponse.kind:type_name -> planet.v1.BonusKind
-	12, // 14: planet.v1.ClaimBonusResponse.charges:type_name -> planet.v1.ChargesHeld
-	0,  // 15: planet.v1.AnswerQuizResponse.kind:type_name -> planet.v1.BonusKind
-	12, // 16: planet.v1.AnswerQuizResponse.charges:type_name -> planet.v1.ChargesHeld
-	1,  // 17: planet.v1.UseRefillResponse.budget:type_name -> planet.v1.ClickBudget
-	12, // 18: planet.v1.UseRefillResponse.charges:type_name -> planet.v1.ChargesHeld
-	28, // 19: planet.v1.DropBombRequest.target:type_name -> planet.v1.GlobePoint
-	28, // 20: planet.v1.BombDropped.point:type_name -> planet.v1.GlobePoint
-	2,  // 21: planet.v1.ClickService.Click:input_type -> planet.v1.ClickRequest
-	4,  // 22: planet.v1.ClickService.GetBudget:input_type -> planet.v1.GetBudgetRequest
-	6,  // 23: planet.v1.ClickService.MapDensity:input_type -> planet.v1.MapDensityRequest
-	8,  // 24: planet.v1.ClickService.GetMap:input_type -> planet.v1.GetMapRequest
-	10, // 25: planet.v1.ClickService.ListenForEvents:input_type -> planet.v1.ListenForEventsRequest
-	19, // 26: planet.v1.ClickService.ClaimBonus:input_type -> planet.v1.ClaimBonusRequest
-	29, // 27: planet.v1.ClickService.DropBomb:input_type -> planet.v1.DropBombRequest
-	26, // 28: planet.v1.ClickService.UseRefill:input_type -> planet.v1.UseRefillRequest
-	13, // 29: planet.v1.ClickService.GetCharges:input_type -> planet.v1.GetChargesRequest
-	15, // 30: planet.v1.ClickService.GetBonusRules:input_type -> planet.v1.GetBonusRulesRequest
-	22, // 31: planet.v1.ClickService.OpenQuiz:input_type -> planet.v1.OpenQuizRequest
-	24, // 32: planet.v1.ClickService.AnswerQuiz:input_type -> planet.v1.AnswerQuizRequest
-	3,  // 33: planet.v1.ClickService.Click:output_type -> planet.v1.ClickResponse
-	5,  // 34: planet.v1.ClickService.GetBudget:output_type -> planet.v1.GetBudgetResponse
-	7,  // 35: planet.v1.ClickService.MapDensity:output_type -> planet.v1.MapDensityResponse
-	9,  // 36: planet.v1.ClickService.GetMap:output_type -> planet.v1.GetMapResponse
-	11, // 37: planet.v1.ClickService.ListenForEvents:output_type -> planet.v1.PlanetEvent
-	20, // 38: planet.v1.ClickService.ClaimBonus:output_type -> planet.v1.ClaimBonusResponse
-	30, // 39: planet.v1.ClickService.DropBomb:output_type -> planet.v1.DropBombResponse
-	27, // 40: planet.v1.ClickService.UseRefill:output_type -> planet.v1.UseRefillResponse
-	14, // 41: planet.v1.ClickService.GetCharges:output_type -> planet.v1.GetChargesResponse
-	16, // 42: planet.v1.ClickService.GetBonusRules:output_type -> planet.v1.GetBonusRulesResponse
-	23, // 43: planet.v1.ClickService.OpenQuiz:output_type -> planet.v1.OpenQuizResponse
-	25, // 44: planet.v1.ClickService.AnswerQuiz:output_type -> planet.v1.AnswerQuizResponse
-	33, // [33:45] is the sub-list for method output_type
-	21, // [21:33] is the sub-list for method input_type
-	21, // [21:21] is the sub-list for extension type_name
-	21, // [21:21] is the sub-list for extension extendee
-	0,  // [0:21] is the sub-list for field type_name
+	0,  // 0: planet.v1.ClickBudget.shared_with:type_name -> planet.v1.SharedWith
+	2,  // 1: planet.v1.ClickResponse.budget:type_name -> planet.v1.ClickBudget
+	2,  // 2: planet.v1.GetBudgetResponse.budget:type_name -> planet.v1.ClickBudget
+	36, // 3: planet.v1.PlanetEvent.tile_update:type_name -> planet.v1.TileUpdate
+	35, // 4: planet.v1.PlanetEvent.heartbeat:type_name -> planet.v1.Heartbeat
+	18, // 5: planet.v1.PlanetEvent.bonus_offered:type_name -> planet.v1.BonusOffered
+	19, // 6: planet.v1.PlanetEvent.bonus_taken:type_name -> planet.v1.BonusTaken
+	32, // 7: planet.v1.PlanetEvent.bomb_dropped:type_name -> planet.v1.BombDropped
+	33, // 8: planet.v1.PlanetEvent.tiles_enclosed:type_name -> planet.v1.TilesEnclosed
+	34, // 9: planet.v1.PlanetEvent.tiles_spread:type_name -> planet.v1.TilesSpread
+	22, // 10: planet.v1.PlanetEvent.quiz_offered:type_name -> planet.v1.QuizOffered
+	13, // 11: planet.v1.GetChargesResponse.charges:type_name -> planet.v1.ChargesHeld
+	1,  // 12: planet.v1.BonusOffered.kind:type_name -> planet.v1.BonusKind
+	1,  // 13: planet.v1.BonusTaken.kind:type_name -> planet.v1.BonusKind
+	1,  // 14: planet.v1.ClaimBonusResponse.kind:type_name -> planet.v1.BonusKind
+	13, // 15: planet.v1.ClaimBonusResponse.charges:type_name -> planet.v1.ChargesHeld
+	1,  // 16: planet.v1.AnswerQuizResponse.kind:type_name -> planet.v1.BonusKind
+	13, // 17: planet.v1.AnswerQuizResponse.charges:type_name -> planet.v1.ChargesHeld
+	2,  // 18: planet.v1.UseRefillResponse.budget:type_name -> planet.v1.ClickBudget
+	13, // 19: planet.v1.UseRefillResponse.charges:type_name -> planet.v1.ChargesHeld
+	29, // 20: planet.v1.DropBombRequest.target:type_name -> planet.v1.GlobePoint
+	29, // 21: planet.v1.BombDropped.point:type_name -> planet.v1.GlobePoint
+	3,  // 22: planet.v1.ClickService.Click:input_type -> planet.v1.ClickRequest
+	5,  // 23: planet.v1.ClickService.GetBudget:input_type -> planet.v1.GetBudgetRequest
+	7,  // 24: planet.v1.ClickService.MapDensity:input_type -> planet.v1.MapDensityRequest
+	9,  // 25: planet.v1.ClickService.GetMap:input_type -> planet.v1.GetMapRequest
+	11, // 26: planet.v1.ClickService.ListenForEvents:input_type -> planet.v1.ListenForEventsRequest
+	20, // 27: planet.v1.ClickService.ClaimBonus:input_type -> planet.v1.ClaimBonusRequest
+	30, // 28: planet.v1.ClickService.DropBomb:input_type -> planet.v1.DropBombRequest
+	27, // 29: planet.v1.ClickService.UseRefill:input_type -> planet.v1.UseRefillRequest
+	14, // 30: planet.v1.ClickService.GetCharges:input_type -> planet.v1.GetChargesRequest
+	16, // 31: planet.v1.ClickService.GetBonusRules:input_type -> planet.v1.GetBonusRulesRequest
+	23, // 32: planet.v1.ClickService.OpenQuiz:input_type -> planet.v1.OpenQuizRequest
+	25, // 33: planet.v1.ClickService.AnswerQuiz:input_type -> planet.v1.AnswerQuizRequest
+	4,  // 34: planet.v1.ClickService.Click:output_type -> planet.v1.ClickResponse
+	6,  // 35: planet.v1.ClickService.GetBudget:output_type -> planet.v1.GetBudgetResponse
+	8,  // 36: planet.v1.ClickService.MapDensity:output_type -> planet.v1.MapDensityResponse
+	10, // 37: planet.v1.ClickService.GetMap:output_type -> planet.v1.GetMapResponse
+	12, // 38: planet.v1.ClickService.ListenForEvents:output_type -> planet.v1.PlanetEvent
+	21, // 39: planet.v1.ClickService.ClaimBonus:output_type -> planet.v1.ClaimBonusResponse
+	31, // 40: planet.v1.ClickService.DropBomb:output_type -> planet.v1.DropBombResponse
+	28, // 41: planet.v1.ClickService.UseRefill:output_type -> planet.v1.UseRefillResponse
+	15, // 42: planet.v1.ClickService.GetCharges:output_type -> planet.v1.GetChargesResponse
+	17, // 43: planet.v1.ClickService.GetBonusRules:output_type -> planet.v1.GetBonusRulesResponse
+	24, // 44: planet.v1.ClickService.OpenQuiz:output_type -> planet.v1.OpenQuizResponse
+	26, // 45: planet.v1.ClickService.AnswerQuiz:output_type -> planet.v1.AnswerQuizResponse
+	34, // [34:46] is the sub-list for method output_type
+	22, // [22:34] is the sub-list for method input_type
+	22, // [22:22] is the sub-list for extension type_name
+	22, // [22:22] is the sub-list for extension extendee
+	0,  // [0:22] is the sub-list for field type_name
 }
 
 func init() { file_planet_v1_planet_proto_init() }
@@ -2609,7 +2690,7 @@ func file_planet_v1_planet_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_planet_v1_planet_proto_rawDesc), len(file_planet_v1_planet_proto_rawDesc)),
-			NumEnums:      1,
+			NumEnums:      2,
 			NumMessages:   35,
 			NumExtensions: 0,
 			NumServices:   1,

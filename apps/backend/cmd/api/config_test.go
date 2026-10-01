@@ -206,6 +206,7 @@ func TestTheExampleConfigReachesTheScopeMultiplier(t *testing.T) {
 	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
 
 	assert.InDelta(t, 10.0, config.Planet.RateLimiter.ScopeMultiplier, 1e-9)
+	assert.InDelta(t, 1.0, config.Planet.RateLimiter.GuestScopeMultiplier, 1e-9)
 	assert.InDelta(t, 2.0, config.Planet.RateLimiter.LinkedMultiplier, 1e-9)
 	assert.Equal(t, 60, config.Planet.RateLimiter.Burst, "the squashed policy still reads rateLimiter.burst")
 }

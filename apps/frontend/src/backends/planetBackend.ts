@@ -29,8 +29,9 @@ import {
     ClickBudget as ClickBudgetMessage,
     GetMapResponse,
     PlanetEvent,
+    SharedWith,
 } from "../gen/grpc/planet/v1/planet_pb.ts";
-import {ClickBudget, ClickBudgetSource, ClickPrice, now as budgetNow} from "./clickBudget.ts";
+import {ClickBudget, ClickBudgetSource, ClickPrice, now as budgetNow, SharedBy} from "./clickBudget.ts";
 import {ClickService} from "../gen/grpc/planet/v1/planet_connect.ts";
 import {Code, ConnectError, createPromiseClient, PromiseClient} from "@connectrpc/connect";
 import {createConnectTransport} from "@connectrpc/connect-web";
@@ -230,6 +231,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
             perSecond: budget.refillPerSecond,
             price: priced ? priceOf(budget) : this.budgetAnchor?.price,
             linkedMultiplier: budget.linkedMultiplier > 1 ? budget.linkedMultiplier : undefined,
+            sharedWith: SHARED_BY[budget.sharedWith],
             readAt: budgetNow(),
         }
 
@@ -823,6 +825,11 @@ export function asRefillError(e: unknown): unknown {
 }
 
 /** A server too old to slow a refill sends a slowdown of zero, and the meter says nothing about price. */
+const SHARED_BY: Partial<Record<SharedWith, SharedBy>> = {
+    [SharedWith.GUESTS]: "guests",
+    [SharedWith.NETWORK]: "network",
+}
+
 export function priceOf(budget: ClickBudgetMessage): ClickPrice | undefined {
     if (budget.slowdown === 0) return undefined
 

@@ -46,11 +46,12 @@ func (u *UseCase) Execute(ctx context.Context, country string) (clicks.Budget, b
 
 	price := u.pricer.Price(country)
 
-	keys := u.buckets.Keys(clicks.PayerOf(ctx), price)
+	payer := clicks.PayerOf(ctx)
+	keys := u.buckets.Keys(payer, price)
 	states := make([]cpratelimit.State, len(keys))
 	for i, key := range keys {
 		states[i] = u.budgets.Peek(key)
 	}
 
-	return u.buckets.BudgetOf(clicks.Tightest(states), price), true
+	return u.buckets.BudgetOf(payer, states, price), true
 }

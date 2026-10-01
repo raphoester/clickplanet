@@ -51,6 +51,7 @@ type Price struct {
 // about's; LinkedMultiplier is what signing in multiplies the refill by, the same for every caller.
 type Budget struct {
 	cpratelimit.State
+	SharedWith       SharedWith
 	Price            Price
 	LinkedMultiplier float64
 }

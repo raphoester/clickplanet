@@ -13,6 +13,7 @@ import {
     GlobePoint,
     Heartbeat,
     PlanetEvent,
+    SharedWith,
     TilesEnclosed,
     TilesSpread,
     TileUpdate,
@@ -377,6 +378,28 @@ describe("PlanetBackend click budget", () => {
 
         // Subscribing after the read still gets it: a React tree mounts later.
         expect(watch(backend)).toEqual([7])
+        backend.close()
+    })
+
+    it("says who else spends from the bucket, and nothing for the player's own", async () => {
+        const click = vi.fn()
+            .mockResolvedValueOnce({budget: new ClickBudgetMessage({tokens: 6, capacity: 10, refillPerSecond: 1, sharedWith: SharedWith.GUESTS})})
+            .mockResolvedValueOnce({budget: new ClickBudgetMessage({tokens: 5, capacity: 10, refillPerSecond: 1, sharedWith: SharedWith.NETWORK})})
+            .mockResolvedValueOnce({budget: new ClickBudgetMessage({tokens: 4, capacity: 10, refillPerSecond: 1, sharedWith: SharedWith.NOBODY})})
+            .mockResolvedValueOnce({budget: budget(3)})
+        const backend = new PlanetBackend(budgetClient(click), 1_000)
+
+        const seen: (string | undefined)[] = []
+        backend.watchClickBudget(b => seen.push(b.sharedWith))
+        await backend.clickTile(1, "fr")
+        expect(seen.at(-1)).toBe("guests")
+        await backend.clickTile(2, "fr")
+        expect(seen.at(-1)).toBe("network")
+        await backend.clickTile(3, "fr")
+        expect(seen.at(-1)).toBeUndefined()
+        await backend.clickTile(4, "fr")
+        expect(seen.at(-1)).toBeUndefined()
+
         backend.close()
     })
 

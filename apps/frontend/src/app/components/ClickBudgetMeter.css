@@ -199,6 +199,14 @@
     color: var(--click-budget-ink);
 }
 
+/* Somebody else behind the address spends from this bucket too. */
+.click-budget-shared {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.3;
+    color: #FFFFFFB3;
+}
+
 /*
  * The offer to a guest, directly under the reading it answers. It stays at full
  * strength when the meter fades on a full bucket: it is not a reading, and it
@@ -324,7 +332,8 @@
         font-size: 11px;
     }
 
-    .click-budget-toll {
+    .click-budget-toll,
+    .click-budget-shared {
         font-size: 11px;
     }
 
