@@ -108,14 +108,14 @@ type ClickBudget struct {
 	// The most a caller can bank: the burst, in clicks.
 	Capacity uint32 `protobuf:"varint,2,opt,name=capacity,proto3" json:"capacity,omitempty"`
 	// Clicks granted back per second, at the pace set by the caller's last click:
-	// its country's slowdown, signing in, and a running bonus all move it.
+	// its main flag's slowdown, signing in, and a running bonus all move it.
 	RefillPerSecond float64 `protobuf:"fixed64,3,opt,name=refill_per_second,json=refillPerSecond,proto3" json:"refill_per_second,omitempty"`
-	// How many times slower a player of the country asked about gets its clicks
-	// back, from the country's share of the map: 1.5 is half as slow again. It
-	// applies from the next click for that country on. Zero from a server too old
-	// to know, which means one.
+	// How many times slower the caller gets its clicks back, from the share of
+	// the map its main flag holds: 1.5 is half as slow again. It applies from the
+	// next click for the country asked about on. Zero from a server too old to
+	// know, which means one.
 	Slowdown float64 `protobuf:"fixed64,8,opt,name=slowdown,proto3" json:"slowdown,omitempty"`
-	// The fraction of the whole map the country holds, 0 to 1.
+	// The fraction of the whole map the priced country holds, 0 to 1.
 	Share float64 `protobuf:"fixed64,5,opt,name=share,proto3" json:"share,omitempty"`
 	// The share at which the refill slows to next_slowdown. Zero at the top step.
 	NextShare    float64 `protobuf:"fixed64,6,opt,name=next_share,json=nextShare,proto3" json:"next_share,omitempty"`
@@ -125,8 +125,14 @@ type ClickBudget struct {
 	// every caller, so a guest can be told what signing in is worth. Zero from a
 	// server too old to grant one, which means signing in changes nothing.
 	LinkedMultiplier float64 `protobuf:"fixed64,10,opt,name=linked_multiplier,json=linkedMultiplier,proto3" json:"linked_multiplier,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// The country the slowdown, the share and the next step are for: the caller's
+	// main flag, the one it clicks for most, once a click for the country asked
+	// about counts. So a player who painted France all day and picks Spain is
+	// still priced as France. Empty from a server too old to know, which means the
+	// country asked about.
+	Country       string `protobuf:"bytes,11,opt,name=country,proto3" json:"country,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ClickBudget) Reset() {
@@ -213,6 +219,13 @@ func (x *ClickBudget) GetLinkedMultiplier() float64 {
 		return x.LinkedMultiplier
 	}
 	return 0
+}
+
+func (x *ClickBudget) GetCountry() string {
+	if x != nil {
+		return x.Country
+	}
+	return ""
 }
 
 type ClickRequest struct {
@@ -339,8 +352,9 @@ func (x *ClickResponse) GetBudget() *ClickBudget {
 
 type GetBudgetRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// The country the answer's slowdown is for. The bucket itself refills at the
-	// pace of the caller's last click until the next one.
+	// The country a click would be for, which prices the answer as that click
+	// would be. The bucket itself refills at the pace of the caller's last click
+	// until the next one.
 	CountryId     string `protobuf:"bytes,1,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2309,7 +2323,7 @@ var File_planet_v1_planet_proto protoreflect.FileDescriptor
 
 const file_planet_v1_planet_proto_rawDesc = "" +
 	"\n" +
-	"\x16planet/v1/planet.proto\x12\tplanet.v1\"\x9c\x02\n" +
+	"\x16planet/v1/planet.proto\x12\tplanet.v1\"\xb6\x02\n" +
 	"\vClickBudget\x12\x16\n" +
 	"\x06tokens\x18\x01 \x01(\x01R\x06tokens\x12\x1a\n" +
 	"\bcapacity\x18\x02 \x01(\rR\bcapacity\x12*\n" +
@@ -2320,7 +2334,8 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"next_share\x18\x06 \x01(\x01R\tnextShare\x12#\n" +
 	"\rnext_slowdown\x18\t \x01(\x01R\fnextSlowdown\x12+\n" +
 	"\x11linked_multiplier\x18\n" +
-	" \x01(\x01R\x10linkedMultiplierJ\x04\b\x04\x10\x05J\x04\b\a\x10\b\"x\n" +
+	" \x01(\x01R\x10linkedMultiplier\x12\x18\n" +
+	"\acountry\x18\v \x01(\tR\acountryJ\x04\b\x04\x10\x05J\x04\b\a\x10\b\"x\n" +
 	"\fClickRequest\x12\x17\n" +
 	"\atile_id\x18\x01 \x01(\rR\x06tileId\x12\x1d\n" +
 	"\n" +

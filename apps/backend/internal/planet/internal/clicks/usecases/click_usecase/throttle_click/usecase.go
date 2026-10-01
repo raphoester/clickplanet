@@ -24,9 +24,9 @@ type Limiter interface {
 	TakeAll(n float64, keys ...cpratelimit.Key) (bool, []cpratelimit.State)
 }
 
-// Pricer says how much slower a country's players get their clicks back.
+// Pricer says how much slower a payer gets its clicks back, from the flag it clicks for most.
 type Pricer interface {
-	Price(country string) clicks.Price
+	PriceFor(payer clicks.Payer, country string) clicks.Price
 }
 
 func New(implementation click_usecase.IUseCase, limiter Limiter, pricer Pricer, buckets clicks.Buckets) *UseCase {
@@ -40,15 +40,16 @@ type UseCase struct {
 	buckets        clicks.Buckets
 }
 
-// Execute charges the account and its scope one token each, sets the pace the account refills at from the
-// country's price, and answers the tighter reading on both paths. The allowed one carries it because
+// Execute charges the account and its scope one token each, sets the pace the account refills at from its
+// main flag's price, and answers the tighter reading on both paths. The allowed one carries it because
 // the client redraws the meter off the server's own numbers; the refused one
 // carries it because that is the moment a client most needs to know how long to
 // wait, and it has no success message to read it from.
 func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_usecase.Out, error) {
-	price := u.pricer.Price(in.CountryID)
+	payer := clicks.PayerOf(ctx)
+	price := u.pricer.PriceFor(payer, in.CountryID)
 
-	allowed, states := u.limiter.TakeAll(1, u.buckets.Keys(clicks.PayerOf(ctx), price)...)
+	allowed, states := u.limiter.TakeAll(1, u.buckets.Keys(payer, price)...)
 	state := clicks.Tightest(states)
 
 	if !allowed {

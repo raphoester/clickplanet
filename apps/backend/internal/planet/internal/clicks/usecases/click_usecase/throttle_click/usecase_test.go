@@ -36,10 +36,12 @@ func (l *fakeLimiter) TakeAll(n float64, keys ...cpratelimit.Key) (bool, []cprat
 
 type fakePricer struct {
 	price     clicks.Price
+	payers    []clicks.Payer
 	countries []string
 }
 
-func (p *fakePricer) Price(country string) clicks.Price {
+func (p *fakePricer) PriceFor(payer clicks.Payer, country string) clicks.Price {
+	p.payers = append(p.payers, payer)
 	p.countries = append(p.countries, country)
 	return p.price
 }
@@ -121,7 +123,7 @@ func TestThrottleClick(t *testing.T) {
 		assert.Equal(t, state, out.Budget.State)
 	})
 
-	t.Run("spends one token, and slows the refill by the country clicked for", func(t *testing.T) {
+	t.Run("spends one token, and slows the refill by the payer's price for the country clicked for", func(t *testing.T) {
 		state := cpratelimit.State{Tokens: 6, Capacity: 10, PerSecond: 1}
 		limiter := &fakeLimiter{allow: true, state: state}
 		pricer := &fakePricer{price: clicks.Price{Slowdown: 1.5, Share: 0.4}}
@@ -132,6 +134,7 @@ func TestThrottleClick(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.Equal(t, []string{"bg"}, pricer.countries)
+		assert.Equal(t, []clicks.Payer{clicks.PayerOf(ctx)}, pricer.payers)
 		assert.Equal(t, []float64{1}, limiter.spent, "a click costs one token, whatever its country")
 		assert.InDelta(t, 1/1.5, limiter.keys[0][0].Pace, 1e-9)
 		assert.Equal(t, state, out.Budget.State, "the reading is the bucket's, not divided")

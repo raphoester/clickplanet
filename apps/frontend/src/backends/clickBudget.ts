@@ -35,10 +35,10 @@ export type ClickBudget = {
     perSecond: number
 
     /**
-     * How much slower the selected country's players get their clicks back.
-     * `perSecond` already carries the slowdown of the last click's country;
-     * this is only for saying why the refill is slower. Absent from a server
-     * too old to slow a refill.
+     * How much slower the player gets its clicks back, from its main flag.
+     * `perSecond` already carries the slowdown the last click set; this is
+     * only for saying why the refill is slower. Absent from a server too old
+     * to slow a refill.
      */
     price?: ClickPrice
 
@@ -60,6 +60,13 @@ export type ClickBudget = {
 
 /** A country's players get their clicks back slower the more of the map it holds. Every click costs one. */
 export type ClickPrice = {
+    /**
+     * The country priced: the player's main flag, the one it clicks for most,
+     * which is not always the one selected. Absent from a server too old to
+     * know, which priced the selected one.
+     */
+    country?: string
+
     /** How many times slower the refill is: 1 is the plain rate, 1.5 is half as slow again. */
     slowdown: number
 

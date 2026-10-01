@@ -1,13 +1,14 @@
 import {ReactNode, useEffect, useRef} from 'react'
 import {ClickBudget, nextClickProgress, now, secondsToOneMore, tokensAt} from "../../backends/clickBudget.ts"
 import {describePrice, factor} from "../../domain/clickPrice.ts"
+import {Countries} from "../../domain/countries.ts"
 import "./ClickBudgetMeter.css"
 
 export type ClickBudgetMeterProps = {
     budget?: ClickBudget
     /** Docked under the meter, inside the same panel: the inventory. Shown without a budget too. */
     children?: ReactNode
-    /** The country selected, to say why its clicks refill slower. */
+    /** The country selected, to say why its clicks refill slower, or that another flag sets the price. */
     countryName?: string
     /**
      * How many clicks the server has refused for the throttle. Each new one
@@ -145,7 +146,8 @@ export default function ClickBudgetMeter({
     // than a placeholder is what stops the count flashing a wrong number first.
     const whole = Math.floor(tokensAt(budget, now()))
 
-    const price = describePrice(budget.price, countryName)
+    const priced = budget.price?.country
+    const price = describePrice(budget.price, countryName, priced && (Countries.get(priced)?.name ?? priced.toUpperCase()))
 
     // Said only when the server says what it is worth: a number made up here could promise what it does not grant.
     const speedUp = onSignIn && budget.linkedMultiplier

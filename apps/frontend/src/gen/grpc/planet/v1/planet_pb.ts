@@ -95,24 +95,24 @@ export class ClickBudget extends Message<ClickBudget> {
 
   /**
    * Clicks granted back per second, at the pace set by the caller's last click:
-   * its country's slowdown, signing in, and a running bonus all move it.
+   * its main flag's slowdown, signing in, and a running bonus all move it.
    *
    * @generated from field: double refill_per_second = 3;
    */
   refillPerSecond = 0;
 
   /**
-   * How many times slower a player of the country asked about gets its clicks
-   * back, from the country's share of the map: 1.5 is half as slow again. It
-   * applies from the next click for that country on. Zero from a server too old
-   * to know, which means one.
+   * How many times slower the caller gets its clicks back, from the share of
+   * the map its main flag holds: 1.5 is half as slow again. It applies from the
+   * next click for the country asked about on. Zero from a server too old to
+   * know, which means one.
    *
    * @generated from field: double slowdown = 8;
    */
   slowdown = 0;
 
   /**
-   * The fraction of the whole map the country holds, 0 to 1.
+   * The fraction of the whole map the priced country holds, 0 to 1.
    *
    * @generated from field: double share = 5;
    */
@@ -140,6 +140,17 @@ export class ClickBudget extends Message<ClickBudget> {
    */
   linkedMultiplier = 0;
 
+  /**
+   * The country the slowdown, the share and the next step are for: the caller's
+   * main flag, the one it clicks for most, once a click for the country asked
+   * about counts. So a player who painted France all day and picks Spain is
+   * still priced as France. Empty from a server too old to know, which means the
+   * country asked about.
+   *
+   * @generated from field: string country = 11;
+   */
+  country = "";
+
   constructor(data?: PartialMessage<ClickBudget>) {
     super();
     proto3.util.initPartial(data, this);
@@ -156,6 +167,7 @@ export class ClickBudget extends Message<ClickBudget> {
     { no: 6, name: "next_share", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
     { no: 9, name: "next_slowdown", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
     { no: 10, name: "linked_multiplier", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 11, name: "country", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ClickBudget {
@@ -285,8 +297,9 @@ export class ClickResponse extends Message<ClickResponse> {
  */
 export class GetBudgetRequest extends Message<GetBudgetRequest> {
   /**
-   * The country the answer's slowdown is for. The bucket itself refills at the
-   * pace of the caller's last click until the next one.
+   * The country a click would be for, which prices the answer as that click
+   * would be. The bucket itself refills at the pace of the caller's last click
+   * until the next one.
    *
    * @generated from field: string country_id = 1;
    */

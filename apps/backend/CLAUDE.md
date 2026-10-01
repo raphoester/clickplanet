@@ -697,6 +697,31 @@ Either way the decorator decides the policy and the handler decides how to say i
 
 The scope is whatever `IPReaderMiddleware` put on the context: `X-Real-IP` if present, otherwise the peer address. **The reverse proxy must set that header itself** — `deploy/vps/caddy/Caddyfile` does, with `header_up X-Real-IP {client_ip}` on every backend route. Merely forwarding it would let a client send its own and buy a fresh bucket per request. The fallback is the peer address rather than a constant precisely so a missing header degrades to per-connection buckets instead of rate limiting the whole game as one player.
 
+#### A player's main flag (`clicks.Allegiance`)
+
+**A player can switch flag at each click, so what a click costs is read from the
+flag it clicks for most, never from its last click.** Priced by the last click, a
+player could spend its bank on a big country, pick a small one for one click and
+refill at the small one's pace.
+
+- **The value.** `clicks.Allegiance` is the clicks for each country, each
+  counting half as much every 12h. `With(country, now)` is a copy with one more
+  click, `Flag()` the heaviest country, so the main flag is about the last day's.
+  A tie goes to the code that sorts first. A country below 1/64 of a click drops
+  out of the tally.
+- **The store.** `clicks/inmemory_allegiance_storage` keeps one per account and
+  one per scope. `allegiance_click` records each click the rule accepted, just
+  outside the shadow ban, so a banned caller's flag moves as anyone's and tells
+  it nothing. A refused click counts for nothing, so an unknown country never
+  reaches the tally. Its runner forgets an allegiance with no click in 3 days.
+- **The reader.** The toll prices a click by the payer's own allegiance, below.
+- **Memory only.** A restart forgets every allegiance, so for a while after a
+  deploy the first clicks decide. Seeding them from the ledger at boot would
+  close that.
+- **Not read from the ledger on each click.** It holds 72h of takes with the
+  account and the country, but no index by account, so one account's flag is a
+  scan of up to 4M takes. It also records takes, not clicks on a tile already held.
+
 #### A big country refills slower (`clicks.Toll`)
 
 **Every click costs one token.** What the map share changes is how fast the
@@ -709,23 +734,29 @@ number of the old `cost`, whose meaning it replaces.
 - **The bank never changes size**: not with the country, a bonus or signing in.
   Only its rate moves, so the number a player sees changes when it clicks, when
   time passes, or when a bonus is caught — never on a switch of flag.
-- **The pace is set by each click, from the country clicked for, and applies from
-  then on.** The time already past was refilled at the pace in force over it, so
-  switching flags moves nothing until the next click. A refused click sets it too.
-  A player can refill on a small country and spend the bank on a big one; the
-  bank bounds what that buys.
+- **The pace is set by each click, from the player's
+  [main flag](#a-players-main-flag-clicksallegiance), and applies from then on.**
+  `Toll.PriceFor(payer, country)` prices the flag the payer's allegiance would
+  have once a click for `country` counts: the account's, or the scope's with no
+  account, as its own bucket is. So a player that spent its bank on a big country
+  and picks a small one still refills at the big one's pace, until its clicks for
+  the small one outweigh the big one's. A new player is priced by the country it
+  clicks for. The time already past was refilled at the pace in force over it. A
+  refused click sets the pace too.
 - **The share is of the whole map, not of owned tiles**, so early in a game nobody is slowed.
 - **`inmemory_tile_storage` keeps a tile count per country**, moved by `set` and
   `Clear` and rebuilt at boot from postgres, so `Share` is one read and no scan.
 - **Only the payer's own bucket is slowed.** The scope's is a ceiling shared by
   players of every flag, so it refills at its plain rate.
 - **The budget goes out as the bucket holds it**, in clicks, with the slowdown,
-  the share and the next step of the country asked about so the client can say why.
+  the share and the next step of the main flag a click for the country asked
+  about would leave, and that flag in `ClickBudget.country`, so the client can
+  say why and name it.
 - **Bonuses compose with it.** A refill fills the bank to its size and leaves the
   pace alone. A spread is one click. A bomb is not throttled, and lowers the
   share of whoever it hits.
 
-`GetBudget` takes the country, for the slowdown it answers. Known risk, not
+`GetBudget` takes the country a click would be for, and prices the answer as that click. Known risk, not
 handled yet: a country sitting on a step can cross it back and forth click to click.
 
 Chat and sessions each have **their own limiter instance** with their own budget, because what each call costs has nothing to do with what a click costs:

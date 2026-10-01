@@ -31,7 +31,7 @@ type Bank interface {
 }
 
 type Pricer interface {
-	Price(country string) clicks.Price
+	PriceFor(payer clicks.Payer, country string) clicks.Price
 }
 
 type In struct {
@@ -75,7 +75,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	}
 	_, _ = u.bank.Fill(own)
 
-	price := u.pricer.Price(in.CountryID)
+	price := u.pricer.PriceFor(payer, in.CountryID)
 	keys := u.buckets.Keys(payer, price)
 	states := make([]cpratelimit.State, len(keys))
 	for i, key := range keys {

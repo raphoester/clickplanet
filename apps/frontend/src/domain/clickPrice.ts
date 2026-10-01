@@ -5,12 +5,20 @@ export const NEAR_NEXT_STEP = 0.8
 
 /**
  * What the meter says about price, or nothing when there is nothing to say: a
- * country refilling at the plain rate and not close to losing it.
+ * country refilling at the plain rate and not close to losing it. The price is
+ * the main flag's, so a player who picked another country is told which.
  */
-export function describePrice(price: ClickPrice | undefined, countryName: string): {headline: string, detail: string} | undefined {
+export function describePrice(
+    price: ClickPrice | undefined,
+    countryName: string,
+    mainFlagName?: string,
+): {headline: string, detail: string} | undefined {
     if (!price) return undefined
 
-    const headline = `${countryName} holds ${percent(price.share)} of the map`
+    const holds = `holds ${percent(price.share)} of the map`
+    const headline = mainFlagName && mainFlagName !== countryName
+        ? `Your main flag, ${mainFlagName}, ${holds}`
+        : `${countryName} ${holds}`
     const next = price.next
 
     if (price.slowdown > 1) {

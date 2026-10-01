@@ -555,7 +555,7 @@ describe("PlanetBackend click budget", () => {
 
     it("reads the price the server sends", async () => {
         const click = vi.fn().mockResolvedValue({
-            budget: new ClickBudgetMessage({tokens: 1, capacity: 10, refillPerSecond: 0.125, slowdown: 8, share: 0.8, nextShare: 0.9, nextSlowdown: 10}),
+            budget: new ClickBudgetMessage({tokens: 1, capacity: 10, refillPerSecond: 0.125, slowdown: 8, share: 0.8, nextShare: 0.9, nextSlowdown: 10, country: "fr"}),
         })
         const backend = new PlanetBackend(budgetClient(click), 1_000)
 
@@ -564,7 +564,7 @@ describe("PlanetBackend click budget", () => {
         await backend.clickTile(1, "bg")
 
         expect(seen.at(-1)?.capacity).toBe(10)
-        expect(seen.at(-1)?.price).toEqual({slowdown: 8, share: 0.8, next: {share: 0.9, slowdown: 10}})
+        expect(seen.at(-1)?.price).toEqual({country: "fr", slowdown: 8, share: 0.8, next: {share: 0.9, slowdown: 10}})
         backend.close()
     })
 

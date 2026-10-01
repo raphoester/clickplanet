@@ -132,6 +132,14 @@ describe("ClickBudgetMeter and the price", () => {
         expect(screen.getByText("Refills 8× slower · 10× at 90%")).toBeTruthy()
     })
 
+    it("names the main flag when it is not the country selected", () => {
+        render(<ClickBudgetMeter countryName="Spain"
+                                 budget={reading({price: {country: "fr", slowdown: 4, share: 0.4}})}/>)
+
+        expect(screen.getByText("Your main flag, France, holds 40% of the map")).toBeTruthy()
+        expect(screen.getByText("Refills 4× slower")).toBeTruthy()
+    })
+
     it("says nothing about price at the plain rate", () => {
         render(<ClickBudgetMeter countryName="Chad" budget={reading({price: {slowdown: 1, share: 0.01, next: {share: 0.1, slowdown: 2}}})}/>)
 

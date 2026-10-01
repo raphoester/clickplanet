@@ -827,6 +827,7 @@ export function priceOf(budget: ClickBudgetMessage): ClickPrice | undefined {
     if (budget.slowdown === 0) return undefined
 
     return {
+        country: budget.country || undefined,
         slowdown: budget.slowdown,
         share: budget.share,
         next: budget.nextSlowdown === 0 ? undefined : {share: budget.nextShare, slowdown: budget.nextSlowdown},

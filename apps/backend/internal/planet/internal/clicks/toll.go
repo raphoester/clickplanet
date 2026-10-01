@@ -5,6 +5,7 @@ import (
 	"math"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 // TollStep is one row of the table: from Share of the map, a player of that country gets its clicks back
@@ -39,6 +40,9 @@ func (c TollConfig) Validate() error {
 
 // Price is how much slower a country's players get their clicks back now, and from which share it slows next.
 type Price struct {
+	// The country priced: the payer's main flag, which is not always the one it clicks for now.
+	Country string
+
 	Slowdown float64
 	Share    float64
 
@@ -47,8 +51,8 @@ type Price struct {
 	NextSlowdown float64
 }
 
-// Budget is an allowance: every click costs one token, so it is counted in clicks. Price is the country asked
-// about's; LinkedMultiplier is what signing in multiplies the refill by, the same for every caller.
+// Budget is an allowance: every click costs one token, so it is counted in clicks. Price is the caller's main
+// flag's; LinkedMultiplier is what signing in multiplies the refill by, the same for every caller.
 type Budget struct {
 	cpratelimit.State
 	Price            Price
@@ -59,23 +63,41 @@ type ShareReader interface {
 	Share(country string) float64
 }
 
-func NewToll(config TollConfig, shares ShareReader) *Toll {
-	return &Toll{steps: config.Steps, shares: shares}
+// Flags is the flag each account and each scope clicks for most, as the click chain records it.
+type Flags interface {
+	OfAccount(account string) Allegiance
+	OfScope(scope string) Allegiance
+}
+
+func NewToll(config TollConfig, shares ShareReader, flags Flags, clock cptime.Clock) *Toll {
+	return &Toll{steps: config.Steps, shares: shares, flags: flags, clock: clock}
 }
 
 // A toll slows the refill of a player by how much of the map its country already holds.
 //
 // Every click costs one token; the price is the pace the bucket refills at afterwards, set by each click from the
-// country it was for. The time already past was refilled at the pace in force over it, so switching flags moves
-// nothing on the meter until the next click. A player can still refill on a small country and spend the bank on a
-// big one; the bank bounds what that buys.
+// player's main flag, the one it clicks for most. So one click for a small flag does not buy a small flag's refill,
+// and a real change of flag slows or speeds the refill as the clicks for the new one outweigh the old.
 type Toll struct {
 	steps  []TollStep
 	shares ShareReader
+	flags  Flags
+	clock  cptime.Clock
+}
+
+// PriceFor is the price of payer's next click for country: its main flag's once that click counts. The flag is the
+// account's, or the scope's with no account, as its own bucket is.
+func (t *Toll) PriceFor(payer Payer, country string) Price {
+	allegiance := t.flags.OfScope(payer.Scope)
+	if payer.Account != "" {
+		allegiance = t.flags.OfAccount(payer.Account)
+	}
+
+	return t.Price(allegiance.With(country, t.clock.Now()).Flag())
 }
 
 func (t *Toll) Price(country string) Price {
-	price := Price{Slowdown: 1, Share: t.shares.Share(country)}
+	price := Price{Country: country, Slowdown: 1, Share: t.shares.Share(country)}
 
 	for _, step := range t.steps {
 		if price.Share < step.Share {

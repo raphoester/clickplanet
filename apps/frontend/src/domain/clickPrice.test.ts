@@ -27,6 +27,18 @@ describe("describePrice", () => {
     it("names no next step at the top", () => {
         expect(describePrice({slowdown: 2, share: 0.95}, "Bulgaria")?.detail).toBe("Refills 2× slower")
     })
+
+    it("says the main flag sets the price when another country is selected", () => {
+        expect(describePrice({country: "fr", slowdown: 4, share: 0.4}, "Spain", "France")).toEqual({
+            headline: "Your main flag, France, holds 40% of the map",
+            detail: "Refills 4× slower",
+        })
+    })
+
+    it("names the selected country when it is the main flag", () => {
+        expect(describePrice({country: "fr", slowdown: 4, share: 0.4}, "France", "France")?.headline)
+            .toBe("France holds 40% of the map")
+    })
 })
 
 describe("factor", () => {

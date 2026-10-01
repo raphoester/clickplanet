@@ -119,7 +119,7 @@ func (l *fakeLimiter) TakeAll(_ float64, keys ...cpratelimit.Key) (bool, []cprat
 
 type stubPricer clicks.Price
 
-func (p stubPricer) Price(string) clicks.Price { return clicks.Price(p) }
+func (p stubPricer) PriceFor(clicks.Payer, string) clicks.Price { return clicks.Price(p) }
 
 var onePrice = stubPricer{Slowdown: 1}
 

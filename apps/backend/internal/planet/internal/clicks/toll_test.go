@@ -3,31 +3,83 @@ package clicks_test
 import (
 	"math"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 type shares map[string]float64
 
 func (s shares) Share(country string) float64 { return s[country] }
 
-var table = clicks.TollConfig{Steps: []clicks.TollStep{{Share: 0.1, Slowdown: 1.5}, {Share: 0.5, Slowdown: 2}}}
+// flags is the allegiance of each account and each scope, set by the test.
+type flags struct{ accounts, scopes map[string]clicks.Allegiance }
+
+func (f flags) OfAccount(account string) clicks.Allegiance { return f.accounts[account] }
+
+func (f flags) OfScope(scope string) clicks.Allegiance { return f.scopes[scope] }
+
+var epoch = time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+
+var (
+	table = clicks.TollConfig{Steps: []clicks.TollStep{{Share: 0.1, Slowdown: 1.5}, {Share: 0.5, Slowdown: 2}}}
+	board = shares{"small": 0.05, "edge": 0.1, "mid": 0.3, "top": 0.8}
+)
+
+func tollOver(flags flags) *clicks.Toll {
+	return clicks.NewToll(table, board, flags, cptime.NewFixedClock(epoch))
+}
+
+func paintedFor(country string, times int) clicks.Allegiance {
+	allegiance := clicks.Allegiance{}
+	for range times {
+		allegiance = allegiance.With(country, epoch)
+	}
+
+	return allegiance
+}
 
 func TestPriceClimbsTheSteps(t *testing.T) {
-	pricer := clicks.NewToll(table, shares{"small": 0.05, "edge": 0.1, "mid": 0.3, "top": 0.8})
+	pricer := tollOver(flags{})
 
-	assert.Equal(t, clicks.Price{Slowdown: 1, Share: 0.05, NextShare: 0.1, NextSlowdown: 1.5}, pricer.Price("small"))
-	assert.Equal(t, clicks.Price{Slowdown: 1.5, Share: 0.1, NextShare: 0.5, NextSlowdown: 2}, pricer.Price("edge"), "a step starts at its share")
-	assert.Equal(t, clicks.Price{Slowdown: 1.5, Share: 0.3, NextShare: 0.5, NextSlowdown: 2}, pricer.Price("mid"))
-	assert.Equal(t, clicks.Price{Slowdown: 2, Share: 0.8}, pricer.Price("top"), "nothing comes after the top step")
+	assert.Equal(t, clicks.Price{Country: "small", Slowdown: 1, Share: 0.05, NextShare: 0.1, NextSlowdown: 1.5}, pricer.Price("small"))
+	assert.Equal(t, clicks.Price{Country: "edge", Slowdown: 1.5, Share: 0.1, NextShare: 0.5, NextSlowdown: 2}, pricer.Price("edge"), "a step starts at its share")
+	assert.Equal(t, clicks.Price{Country: "mid", Slowdown: 1.5, Share: 0.3, NextShare: 0.5, NextSlowdown: 2}, pricer.Price("mid"))
+	assert.Equal(t, clicks.Price{Country: "top", Slowdown: 2, Share: 0.8}, pricer.Price("top"), "nothing comes after the top step")
 	assert.InDelta(t, 1, pricer.Price("unknown").Slowdown, 1e-9)
 }
 
 func TestNoStepsRefillsEveryCountryAtThePlainRate(t *testing.T) {
-	assert.Equal(t, clicks.Price{Slowdown: 1, Share: 0.9}, clicks.NewToll(clicks.TollConfig{}, shares{"bg": 0.9}).Price("bg"))
+	toll := clicks.NewToll(clicks.TollConfig{}, shares{"bg": 0.9}, flags{}, cptime.NewFixedClock(epoch))
+
+	assert.Equal(t, clicks.Price{Country: "bg", Slowdown: 1, Share: 0.9}, toll.Price("bg"))
+}
+
+func TestSwitchingToASmallFlagKeepsTheMainFlagsPrice(t *testing.T) {
+	pricer := tollOver(flags{accounts: map[string]clicks.Allegiance{"acc": paintedFor("top", 60)}})
+
+	price := pricer.PriceFor(clicks.Payer{Scope: "2001:db8::/64", Account: "acc"}, "small")
+
+	assert.Equal(t, "top", price.Country)
+	assert.InDelta(t, 2, price.Slowdown, 1e-9, "a bank spent on a big flag refills at the big flag's pace")
+}
+
+func TestAPayerWithNoHistoryIsPricedByTheCountryItClicksFor(t *testing.T) {
+	price := tollOver(flags{}).PriceFor(clicks.Payer{Scope: "2001:db8::/64", Account: "new"}, "mid")
+
+	assert.Equal(t, clicks.Price{Country: "mid", Slowdown: 1.5, Share: 0.3, NextShare: 0.5, NextSlowdown: 2}, price)
+}
+
+func TestAPayerWithNoAccountIsPricedByItsScopesFlag(t *testing.T) {
+	pricer := tollOver(flags{scopes: map[string]clicks.Allegiance{"2001:db8::/64": paintedFor("top", 60)}})
+
+	assert.Equal(t, "top", pricer.PriceFor(clicks.Payer{Scope: "2001:db8::/64"}, "small").Country)
+	assert.Equal(t, "small", pricer.PriceFor(clicks.Payer{Scope: "2001:db8::/64", Account: "acc"}, "small").Country,
+		"an account is priced by its own flag, not by the address it plays from")
 }
 
 func TestValidate(t *testing.T) {

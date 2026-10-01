@@ -35,9 +35,11 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/use_refill_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/embedded_geodesic_map"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_allegiance_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/postgres_tile_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/allegiance_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/antibot_attempt_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/antibot_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/bonus_click"
@@ -173,7 +175,11 @@ func NewModule(config Config) cpbootstrap.Module {
 			props.Runners.Add(limiter)
 			buckets := config.RateLimiter.Buckets()
 
-			pricer := clicks.NewToll(config.Toll, tilesStorage)
+			// The flag each account and scope clicks for most: the toll prices a click from it.
+			allegiances := inmemory_allegiance_storage.New(clock)
+			props.Runners.Add(allegiances)
+
+			pricer := clicks.NewToll(config.Toll, tilesStorage, allegiances, clock)
 
 			// Native land takes two clicks, on the ground the borders say is each country's. Only the player's click
 			// path reads it — the rule, the spread, the enclose and the jury — never the bomb or the operator tools.
@@ -249,6 +255,9 @@ func NewModule(config Config) cpbootstrap.Module {
 			props.Runners.Add(guard)
 
 			clickUseCase = antibot_click.New(clickUseCase, guard, tilesStorage, homeSoil, clock, props.Metrics)
+
+			// Outside the shadow ban, so a banned caller's flag moves as anyone's does and tells it nothing.
+			clickUseCase = allegiance_click.New(clickUseCase, allegiances)
 
 			// Inside the throttle: presence is what a caller actually managed to do,
 			// not what they attempted.

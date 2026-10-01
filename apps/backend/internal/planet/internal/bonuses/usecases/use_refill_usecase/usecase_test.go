@@ -38,7 +38,7 @@ func (s *stubRefills) Held(holder bonuses.Holder) bonuses.Held {
 
 type onePrice struct{}
 
-func (onePrice) Price(string) clicks.Price { return clicks.Price{Slowdown: 1} }
+func (onePrice) PriceFor(clicks.Payer, string) clicks.Price { return clicks.Price{Slowdown: 1} }
 
 var config = clicks.ThrottleConfig{Config: cpratelimit.Config{PerSecond: 0.2, Burst: 60}, ScopeMultiplier: 10}
 
