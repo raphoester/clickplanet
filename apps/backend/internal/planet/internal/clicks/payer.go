@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipscope"
@@ -23,6 +24,9 @@ type ThrottleConfig struct {
 	// LinkedMultiplier is a linked account's refill rate over a guest's: signing in is worth clicking faster.
 	// The bank is the same size.
 	LinkedMultiplier float64
+
+	// NewAccountClicks is the bank of an account just made, which earns the rest; unset, it starts full.
+	NewAccountClicks *float64
 }
 
 const (
@@ -34,6 +38,10 @@ const (
 // Validate refuses a scope that holds less than one account: every account behind it would be throttled by the scope.
 // It refuses a linked account slower than a guest too: signing in would be a penalty.
 func (c ThrottleConfig) Validate() error {
+	if start := c.NewAccountClicks; start != nil && (math.IsNaN(*start) || *start < 0) {
+		return fmt.Errorf("rateLimiter.newAccountClicks is %v: it must be 0 or more, or unset for a full bank", *start)
+	}
+
 	for _, multiplier := range []struct {
 		name         string
 		value        float64
@@ -58,6 +66,7 @@ func (c ThrottleConfig) Buckets() Buckets {
 		scopeMultiplier:  orDefault(c.ScopeMultiplier, defaultScopeMultiplier),
 		guestMultiplier:  orDefault(c.GuestScopeMultiplier, defaultGuestScopeMultiplier),
 		linkedMultiplier: orDefault(c.LinkedMultiplier, defaultLinkedMultiplier),
+		newAccountClicks: c.NewAccountClicks,
 	}
 }
 
@@ -72,6 +81,7 @@ type Buckets struct {
 	scopeMultiplier  float64
 	guestMultiplier  float64
 	linkedMultiplier float64
+	newAccountClicks *float64
 }
 
 // SharedWith is who else spends from a bucket: nobody, the scope's guests, or every player behind the scope.
@@ -95,16 +105,22 @@ func (b Buckets) BudgetOf(payer Payer, states []cpratelimit.State, price Price) 
 	}
 }
 
-// Payer is who a click is charged to: the scope it comes from, the account its token names if any, and whether
-// that account signed in with a provider.
+// Payer is who a click is charged to: the scope it comes from, the account its token names if any, whether
+// that account signed in with a provider, and when it was made (zero when unknown).
 type Payer struct {
 	Scope   string
 	Account string
 	Linked  bool
+	Created time.Time
 }
 
 func PayerOf(ctx context.Context) Payer {
-	return Payer{Scope: cpipscope.Of(cpctx.GetSourceIP(ctx)), Account: cpctx.GetAccount(ctx), Linked: cpctx.GetLinked(ctx)}
+	return Payer{
+		Scope:   cpipscope.Of(cpctx.GetSourceIP(ctx)),
+		Account: cpctx.GetAccount(ctx),
+		Linked:  cpctx.GetLinked(ctx),
+		Created: cpctx.GetAccountCreated(ctx),
+	}
 }
 
 // Keys is the buckets a click spends from, the payer's own first.
@@ -155,15 +171,24 @@ func (b Buckets) pools(payer Payer, price Price) []pool {
 	scope := pool{key: cpratelimit.Key{Name: "scope:" + payer.Scope, Scale: b.scopeMultiplier}, sharedWith: SharedWithScope}
 
 	if payer.Linked {
-		own := cpratelimit.Key{Name: "account:" + payer.Account, Scale: 1, Pace: pace * b.linkedMultiplier}
-		return []pool{{key: own, sharedWith: SharedWithNobody}, scope}
+		return []pool{{key: b.own(payer, pace*b.linkedMultiplier), sharedWith: SharedWithNobody}, scope}
 	}
 
 	return []pool{
-		{key: cpratelimit.Key{Name: "account:" + payer.Account, Scale: 1, Pace: pace}, sharedWith: SharedWithNobody},
+		{key: b.own(payer, pace), sharedWith: SharedWithNobody},
 		{key: cpratelimit.Key{Name: "guests:" + payer.Scope, Scale: b.guestMultiplier, Pace: pace}, sharedWith: SharedWithGuests},
 		scope,
 	}
+}
+
+// own is the account's bucket; a new account's earns its bank from when it was made.
+func (b Buckets) own(payer Payer, pace float64) cpratelimit.Key {
+	key := cpratelimit.Key{Name: "account:" + payer.Account, Scale: 1, Pace: pace}
+	if b.newAccountClicks != nil && !payer.Created.IsZero() {
+		key.Since, key.Start = payer.Created, *b.newAccountClicks
+	}
+
+	return key
 }
 
 // tightest is the reading that allows the fewest clicks now; on a tie the smaller bucket, then the payer's own.

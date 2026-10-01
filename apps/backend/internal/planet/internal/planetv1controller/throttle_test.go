@@ -389,6 +389,36 @@ func TestALinkedAccountClicksTwiceAsFastAsAGuest(t *testing.T) {
 	require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(err))
 }
 
+func TestAFreshGuestOnAFreshAddressEveryMinuteIsNoFreshBank(t *testing.T) {
+	start := 2.0
+	server, _, clock := accountServer(t, clicks.ThrottleConfig{
+		Config: cpratelimit.Config{PerSecond: 0.2, Burst: 60}, NewAccountClicks: &start,
+	})
+
+	for minute := range 5 {
+		account := cpsession.AccountCreatedAt(clock.Now())
+		ip := fmt.Sprintf("10.0.0.%d", minute)
+
+		res, err := clickWithToken(t, server, ip, account.String())
+		require.NoErrorf(t, err, "minute %d", minute)
+		require.InDelta(t, 1.0, res.Msg.GetBudget().GetTokens(), 1e-9, "two to start, one spent")
+		require.Equal(t, uint32(60), res.Msg.GetBudget().GetCapacity(), "the meter shows the bank it is earning")
+
+		_, err = clickWithToken(t, server, ip, account.String())
+		require.NoError(t, err)
+		_, err = clickWithToken(t, server, ip, account.String())
+		require.Equalf(t, connect.CodeResourceExhausted, connect.CodeOf(err), "minute %d: not sixty", minute)
+
+		clock.Advance(time.Minute)
+	}
+
+	old := cpsession.AccountCreatedAt(clock.Now().Add(-5 * time.Minute))
+	for click := range 60 {
+		_, err := clickWithToken(t, server, "10.0.1.1", old.String())
+		require.NoErrorf(t, err, "an account five minutes old has earned its sixty: click %d", click)
+	}
+}
+
 func TestSigningInKeepsTheBankAndSpeedsUpItsRefill(t *testing.T) {
 	server, _, clock := accountServer(t, clicks.ThrottleConfig{Config: cpratelimit.Config{PerSecond: 1, Burst: 10}})
 	account := accountNumber(0).String()
