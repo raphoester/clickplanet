@@ -1,5 +1,5 @@
 import {ReactNode, useEffect, useRef} from 'react'
-import {ClickBudget, nextClickProgress, now, secondsToOneMore, tokensAt} from "../../backends/clickBudget.ts"
+import {ClickBudget, nextClickProgress, now, secondsToOneMore, SharedBy, tokensAt} from "../../backends/clickBudget.ts"
 import {describePrice, factor} from "../../domain/clickPrice.ts"
 import {Countries} from "../../domain/countries.ts"
 import "./ClickBudgetMeter.css"
@@ -187,15 +187,23 @@ export default function ClickBudgetMeter({
                 <span className="click-budget-toll-headline">{price.headline}</span>
                 <span className="click-budget-toll-detail">{price.detail}</span>
             </div>}
+
+            {budget.sharedWith && <p className="click-budget-shared">{SHARED_WITH[budget.sharedWith]}</p>}
         </div>
 
         {speedUp && <button type="button" className="click-budget-sign-in" onClick={onSignIn}>
             <BoltIcon/>
-            <span>Sign in: clicks {factor(speedUp)}× faster</span>
+            <span>{budget.sharedWith === "guests" ? "Sign in: your own clicks" : `Sign in: clicks ${factor(speedUp)}× faster`}</span>
         </button>}
 
         {children}
     </div>
+}
+
+/** Why the count can drop by clicks this player never made. */
+const SHARED_WITH: Record<SharedBy, string> = {
+    guests: "Shared with the guests on your network",
+    network: "Shared with everyone on your network",
 }
 
 function slow(budget: ClickBudget): boolean {

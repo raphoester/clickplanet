@@ -25,6 +25,13 @@ func Encode(budget clicks.Budget) *planetv1.ClickBudget {
 		NextShare:        budget.Price.NextShare,
 		NextSlowdown:     budget.Price.NextSlowdown,
 		LinkedMultiplier: budget.LinkedMultiplier,
+		SharedWith:       sharedWith[budget.SharedWith],
 		Country:          budget.Price.Country,
 	}
+}
+
+var sharedWith = map[clicks.SharedWith]planetv1.SharedWith{
+	clicks.SharedWithNobody: planetv1.SharedWith_SHARED_WITH_NOBODY,
+	clicks.SharedWithGuests: planetv1.SharedWith_SHARED_WITH_GUESTS,
+	clicks.SharedWithScope:  planetv1.SharedWith_SHARED_WITH_NETWORK,
 }

@@ -65,6 +65,18 @@ func NewObserver(logger *slog.Logger, registerer prometheus.Registerer) antibot.
 		Buckets: []float64{0, 0.5, 1, 2, 3, 5, 8, 12, 15, 20, 30, 50},
 	})
 
+	scopeAccounts := factory.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "click_scope_accounts",
+		Help:    "Guest accounts first seen on one scope inside the churner's window, per scope clicked on since the last sweep",
+		Buckets: []float64{1, 2, 3, 4, 5, 6, 8, 10, 15, 20, 30, 50},
+	}, []string{"family"})
+
+	relayLinks := factory.NewHistogram(prometheus.HistogramOpts{
+		Name:    "click_relay_links",
+		Help:    "Fresh guest accounts that took over from a short-lived one on the same flag and prefix inside the churner's window, per relay per sweep",
+		Buckets: []float64{0, 1, 2, 3, 4, 5, 6, 8, 10, 15, 20, 30},
+	})
+
 	// Counts flags, not callers, and once per watchdog that argued for each one:
 	// a caller flagged six times is six here and one on shadowban_flagged, and
 	// the gap between the two is the thing to look at.
@@ -102,6 +114,12 @@ func NewObserver(logger *slog.Logger, registerer prometheus.Registerer) antibot.
 		OnCohortScopes: func(scopes int) { cohortScopes.Set(float64(scopes)) },
 
 		OnMapReads: mapReads.Observe,
+
+		OnScopeAccounts: func(accounts int, family string) {
+			scopeAccounts.WithLabelValues(family).Observe(float64(accounts))
+		},
+
+		OnRelayLinks: func(links int) { relayLinks.Observe(float64(links)) },
 
 		// The address goes in the log and never on a label: per-IP labels are
 		// unbounded cardinality, and they would put personal data in every scrape.

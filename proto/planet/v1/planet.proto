@@ -113,12 +113,35 @@ message ClickBudget {
   // server too old to grant one, which means signing in changes nothing.
   double linked_multiplier = 10;
 
+  // Who else spends from the bucket this reading is of. A click spends from
+  // several buckets and the reading is the tightest, so this is how a caller
+  // learns why it holds fewer clicks than it spent: somebody else behind its
+  // address spent them.
+  SharedWith shared_with = 11;
+
   // The country the slowdown, the share and the next step are for: the caller's
   // main flag, the one it clicks for most, once a click for the country asked
   // about counts. So a player who painted France all day and picks Spain is
   // still priced as France. Empty from a server too old to know, which means the
   // country asked about.
-  string country = 11;
+  string country = 12;
+}
+
+// Who else spends from a click bucket.
+enum SharedWith {
+  // A server too old to say. Read it as NOBODY.
+  SHARED_WITH_UNSPECIFIED = 0;
+
+  // The caller's own bucket.
+  SHARED_WITH_NOBODY = 1;
+
+  // Every guest behind the caller's address: guests on one network share one
+  // bank, so ten tabs are not ten banks. A guest that signs in gets its own.
+  SHARED_WITH_GUESTS = 2;
+
+  // Every player behind the caller's address, signed in or not: a campus, a
+  // school or a carrier sharing one address.
+  SHARED_WITH_NETWORK = 3;
 }
 
 message ClickRequest {

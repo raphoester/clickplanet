@@ -41,7 +41,7 @@ type UseCase struct {
 	buckets        clicks.Buckets
 }
 
-// Execute charges the account and its scope one token each, sets the pace the account refills at from its
+// Execute charges every bucket of the payer one token, sets the pace the account refills at from its
 // main flag's price, and answers the tighter reading on both paths. The allowed one carries it because
 // the client redraws the meter off the server's own numbers; the refused one
 // carries it because that is the moment a client most needs to know how long to
@@ -54,14 +54,14 @@ func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_useca
 	}
 
 	allowed, states := u.limiter.TakeAll(1, u.buckets.Keys(payer, price)...)
-	state := clicks.Tightest(states)
+	budget := u.buckets.BudgetOf(payer, states, price)
 
 	if !allowed {
-		return click_usecase.Out{Budget: u.buckets.BudgetOf(state, price), Limited: true}, clicks.ErrThrottled
+		return click_usecase.Out{Budget: budget, Limited: true}, clicks.ErrThrottled
 	}
 
 	out, err := u.implementation.Execute(ctx, in)
-	out.Budget, out.Limited = u.buckets.BudgetOf(state, price), true
+	out.Budget, out.Limited = budget, true
 
 	return out, err
 }

@@ -67,11 +67,11 @@ func played(t *testing.T) context.Context {
 	return cpctx.AddAccountToContext(cpctx.AddIPToContext(t.Context(), "1.2.3.4"), "a-guest")
 }
 
-// spend clicks n times the way the throttle does, from both buckets.
-func (f fixture) spend(t *testing.T, n int) {
+// spend clicks n times as account the way the throttle does, from every bucket.
+func (f fixture) spend(t *testing.T, account string, n int) {
 	t.Helper()
 
-	keys := config.Buckets().Keys(clicks.Payer{Scope: "1.2.3.4", Account: "a-guest"}, clicks.Price{Slowdown: 1})
+	keys := config.Buckets().Keys(clicks.Payer{Scope: "1.2.3.4", Account: account}, clicks.Price{Slowdown: 1})
 	for range n {
 		allowed, _ := f.limiter.TakeAll(1, keys...)
 		require.True(t, allowed)
@@ -80,7 +80,7 @@ func (f fixture) spend(t *testing.T, n int) {
 
 func TestARefillFillsTheBankAndIsSpent(t *testing.T) {
 	f := setup(true)
-	f.spend(t, 50)
+	f.spend(t, "a-guest", 50)
 
 	out, err := f.useCase.Execute(played(t), use_refill_usecase.In{CountryID: "fr"})
 	require.NoError(t, err)
@@ -102,12 +102,12 @@ func TestAFullBankIsRefusedAndSpendsNothing(t *testing.T) {
 
 func TestNoRefillFillsNothing(t *testing.T) {
 	f := setup(false)
-	f.spend(t, 50)
+	f.spend(t, "a-guest", 50)
 
 	_, err := f.useCase.Execute(played(t), use_refill_usecase.In{CountryID: "fr"})
 
 	require.ErrorIs(t, err, use_refill_usecase.ErrNoRefill)
-	state := f.limiter.Peek(config.Buckets().Own(clicks.Payer{Scope: "1.2.3.4", Account: "a-guest"}))
+	state := f.limiter.Peek(config.Buckets().Bank(clicks.Payer{Scope: "1.2.3.4", Account: "a-guest"})[0])
 	assert.InDelta(t, 10, state.Tokens, 1e-9)
 }
 
@@ -122,11 +122,22 @@ func TestACallerWithNoAccountHasNoRefill(t *testing.T) {
 
 func TestTheScopesBucketIsNotFilled(t *testing.T) {
 	f := setup(true)
-	f.spend(t, 50)
+	f.spend(t, "a-guest", 50)
 
 	_, err := f.useCase.Execute(played(t), use_refill_usecase.In{CountryID: "fr"})
 	require.NoError(t, err)
 
-	scope := f.limiter.Peek(config.Buckets().Keys(clicks.Payer{Scope: "1.2.3.4", Account: "a-guest"}, clicks.Price{})[1])
+	scope := f.limiter.Peek(config.Buckets().Keys(clicks.Payer{Scope: "1.2.3.4", Account: "a-guest"}, clicks.Price{})[2])
 	assert.InDelta(t, 550, scope.Tokens, 1e-9, "the scope's bucket, shared by everyone behind the address, keeps its level")
+}
+
+func TestARefillFillsTheBucketTheScopesGuestsShare(t *testing.T) {
+	f := setup(true)
+	f.spend(t, "another-guest", 50)
+
+	out, err := f.useCase.Execute(played(t), use_refill_usecase.In{CountryID: "fr"})
+	require.NoError(t, err, "its own bucket is full, but the guests' it spends from is not")
+
+	assert.InDelta(t, 60, out.Budget.Tokens, 1e-9)
+	assert.Equal(t, clicks.SharedWithNobody, out.Budget.SharedWith)
 }

@@ -7,6 +7,50 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
 
 /**
+ * Who else spends from a click bucket.
+ *
+ * @generated from enum planet.v1.SharedWith
+ */
+export enum SharedWith {
+  /**
+   * A server too old to say. Read it as NOBODY.
+   *
+   * @generated from enum value: SHARED_WITH_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * The caller's own bucket.
+   *
+   * @generated from enum value: SHARED_WITH_NOBODY = 1;
+   */
+  NOBODY = 1,
+
+  /**
+   * Every guest behind the caller's address: guests on one network share one
+   * bank, so ten tabs are not ten banks. A guest that signs in gets its own.
+   *
+   * @generated from enum value: SHARED_WITH_GUESTS = 2;
+   */
+  GUESTS = 2,
+
+  /**
+   * Every player behind the caller's address, signed in or not: a campus, a
+   * school or a carrier sharing one address.
+   *
+   * @generated from enum value: SHARED_WITH_NETWORK = 3;
+   */
+  NETWORK = 3,
+}
+// Retrieve enum metadata with: proto3.getEnumType(SharedWith)
+proto3.util.setEnumType(SharedWith, "planet.v1.SharedWith", [
+  { no: 0, name: "SHARED_WITH_UNSPECIFIED" },
+  { no: 1, name: "SHARED_WITH_NOBODY" },
+  { no: 2, name: "SHARED_WITH_GUESTS" },
+  { no: 3, name: "SHARED_WITH_NETWORK" },
+]);
+
+/**
  * What a bonus is worth. The client never decides this, and an unknown kind is
  * one a client skips rather than guesses at.
  *
@@ -141,13 +185,23 @@ export class ClickBudget extends Message<ClickBudget> {
   linkedMultiplier = 0;
 
   /**
+   * Who else spends from the bucket this reading is of. A click spends from
+   * several buckets and the reading is the tightest, so this is how a caller
+   * learns why it holds fewer clicks than it spent: somebody else behind its
+   * address spent them.
+   *
+   * @generated from field: planet.v1.SharedWith shared_with = 11;
+   */
+  sharedWith = SharedWith.UNSPECIFIED;
+
+  /**
    * The country the slowdown, the share and the next step are for: the caller's
    * main flag, the one it clicks for most, once a click for the country asked
    * about counts. So a player who painted France all day and picks Spain is
    * still priced as France. Empty from a server too old to know, which means the
    * country asked about.
    *
-   * @generated from field: string country = 11;
+   * @generated from field: string country = 12;
    */
   country = "";
 
@@ -167,7 +221,8 @@ export class ClickBudget extends Message<ClickBudget> {
     { no: 6, name: "next_share", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
     { no: 9, name: "next_slowdown", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
     { no: 10, name: "linked_multiplier", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
-    { no: 11, name: "country", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 11, name: "shared_with", kind: "enum", T: proto3.getEnumType(SharedWith) },
+    { no: 12, name: "country", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ClickBudget {

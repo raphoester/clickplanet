@@ -9,6 +9,7 @@ package detect
 
 import (
 	"fmt"
+	"net/netip"
 	"sort"
 	"strings"
 	"time"
@@ -240,6 +241,32 @@ func (o Outage) Gap(last, next time.Time) time.Duration {
 		gap -= o.Length()
 	}
 	return gap
+}
+
+// WiderPrefix is the /v4Bits around an IPv4 address or the /v6Bits around an IPv6 /64, and empty for anything else.
+func WiderPrefix(scope string, v4Bits, v6Bits int) string {
+	if addr, err := netip.ParseAddr(scope); err == nil {
+		addr = addr.Unmap()
+		bits := v6Bits
+		if addr.Is4() {
+			bits = v4Bits
+		}
+		if prefix, err := addr.Prefix(bits); err == nil {
+			return prefix.String()
+		}
+		return ""
+	}
+
+	prefix, err := netip.ParsePrefix(scope)
+	if err != nil || prefix.Addr().Is4() || prefix.Bits() < v6Bits {
+		return ""
+	}
+
+	wide, err := prefix.Addr().Prefix(v6Bits)
+	if err != nil {
+		return ""
+	}
+	return wide.String()
 }
 
 // Quantile reads a sorted slice. It rounds to the nearest sample rather than
