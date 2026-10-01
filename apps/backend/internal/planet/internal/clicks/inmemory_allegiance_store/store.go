@@ -76,10 +76,18 @@ func (s *Store) DeleteAllegiancesBefore(_ context.Context, cutoff time.Time) (in
 	return deleted, nil
 }
 
-// FailWith makes every call return err.
+// FailWith makes every call return err until Heal.
 func (s *Store) FailWith(err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	s.failing = err
+}
+
+// Heal makes the calls work again after FailWith.
+func (s *Store) Heal() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.failing = nil
 }

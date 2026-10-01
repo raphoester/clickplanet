@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_allegiance_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -36,7 +37,7 @@ func newRegistryOffering(kinds map[Kind]float64) (*Registry, *cptime.FixedClock)
 		ForgetAfter:       5 * time.Minute,
 		MaxChargesPerHour: 6,
 		SweepInterval:     time.Second,
-	}, clock, newFakeHoldings(), fakeShares{}, newFakeFlags()), clock
+	}, clock, newFakeHoldings(), fakeShares{}, inmemory_allegiance_store.New()), clock
 }
 
 // holderOf is the account that plays from scope: one each, here.
@@ -78,32 +79,16 @@ type fakeShares map[string]float64
 
 func (f fakeShares) Share(country string) float64 { return f[country] }
 
-// fakeFlags is the flag each tally plays for, set by the test; any other has no tally. With err, nothing reads.
-type fakeFlags struct {
-	flags map[clicks.AllegianceKey]string
-	err   error
+func flagsOf(r *Registry) *inmemory_allegiance_store.Store {
+	return r.flags.(*inmemory_allegiance_store.Store) //nolint:forcetypeassert // every registry in these tests is built with one.
 }
 
-func newFakeFlags() *fakeFlags { return &fakeFlags{flags: map[clicks.AllegianceKey]string{}} }
+// paint makes country the main flag of the tally under key.
+func paint(t *testing.T, r *Registry, key clicks.AllegianceKey, country string) {
+	t.Helper()
 
-func (f *fakeFlags) Allegiances(
-	_ context.Context, keys ...clicks.AllegianceKey,
-) (map[clicks.AllegianceKey]clicks.Allegiance, error) {
-	if f.err != nil {
-		return nil, f.err
-	}
-
-	tallies := map[clicks.AllegianceKey]clicks.Allegiance{}
-	for _, key := range keys {
-		if flag := f.flags[key]; flag != "" {
-			tallies[key] = clicks.Allegiance{}.With(flag, epoch)
-		}
-	}
-	return tallies, nil
-}
-
-func flagsOf(r *Registry) *fakeFlags {
-	return r.flags.(*fakeFlags) //nolint:forcetypeassert // every registry in these tests is built with one.
+	require.NoError(t, flagsOf(r).SaveAllegiances(t.Context(),
+		map[clicks.AllegianceKey]clicks.Allegiance{key: clicks.Allegiance{}.With(country, epoch)}))
 }
 
 func holdingsOf(r *Registry) *fakeHoldings {
@@ -395,7 +380,7 @@ func TestTheWaitIsDrawnFromTheConfiguredWindow(t *testing.T) {
 	clock := cptime.NewFixedClock(epoch)
 	registry := New(Config{
 		MinInterval: time.Minute, MaxInterval: 3 * time.Minute,
-	}, clock, newFakeHoldings(), fakeShares{}, newFakeFlags())
+	}, clock, newFakeHoldings(), fakeShares{}, inmemory_allegiance_store.New())
 
 	seen := cpcolls.NewSet[time.Duration]()
 	for range 200 {
@@ -410,7 +395,7 @@ func TestTheWaitIsDrawnFromTheConfiguredWindow(t *testing.T) {
 }
 
 func TestEveryKindConfiguredIsOffered(t *testing.T) {
-	registry := New(Config{}, cptime.NewFixedClock(epoch), newFakeHoldings(), fakeShares{}, newFakeFlags())
+	registry := New(Config{}, cptime.NewFixedClock(epoch), newFakeHoldings(), fakeShares{}, inmemory_allegiance_store.New())
 
 	seen := cpcolls.NewSet[Kind]()
 	for range 200 {
@@ -421,7 +406,7 @@ func TestEveryKindConfiguredIsOffered(t *testing.T) {
 }
 
 func TestAnEmptyKindsTakesTheDefaultWeights(t *testing.T) {
-	registry := New(Config{}, cptime.NewFixedClock(epoch), newFakeHoldings(), fakeShares{}, newFakeFlags())
+	registry := New(Config{}, cptime.NewFixedClock(epoch), newFakeHoldings(), fakeShares{}, inmemory_allegiance_store.New())
 
 	assert.Equal(t, map[Kind]float64{
 		KindRefill:        5,
@@ -571,7 +556,7 @@ func TestAKindLeftOutOrAtZeroIsNeverOffered(t *testing.T) {
 func TestKindsAreDrawnInProportionToTheirWeight(t *testing.T) {
 	registry := New(Config{
 		Kinds: map[Kind]float64{KindRefill: 9, KindSpreadClicks: 1},
-	}, cptime.NewFixedClock(epoch), newFakeHoldings(), fakeShares{}, newFakeFlags())
+	}, cptime.NewFixedClock(epoch), newFakeHoldings(), fakeShares{}, inmemory_allegiance_store.New())
 
 	const draws = 20_000
 	spreads := 0
@@ -884,7 +869,7 @@ func TestACallerThatIsNotReadingIsDroppedRatherThanBlocking(t *testing.T) {
 }
 
 func TestTheDefaultsFillInWhatTheFileLeavesOut(t *testing.T) {
-	registry := New(Config{}, cptime.NewFixedClock(epoch), newFakeHoldings(), fakeShares{}, newFakeFlags())
+	registry := New(Config{}, cptime.NewFixedClock(epoch), newFakeHoldings(), fakeShares{}, inmemory_allegiance_store.New())
 
 	assert.Equal(t, defaultMinInterval, registry.config.MinInterval)
 	assert.Equal(t, defaultMaxInterval, registry.config.MaxInterval)
@@ -894,7 +879,7 @@ func TestTheDefaultsFillInWhatTheFileLeavesOut(t *testing.T) {
 func TestAMaxBelowTheMinIsNotAWindow(t *testing.T) {
 	registry := New(Config{
 		MinInterval: 10 * time.Minute, MaxInterval: time.Second,
-	}, cptime.NewFixedClock(epoch), newFakeHoldings(), fakeShares{}, newFakeFlags())
+	}, cptime.NewFixedClock(epoch), newFakeHoldings(), fakeShares{}, inmemory_allegiance_store.New())
 
 	assert.GreaterOrEqual(t, registry.config.MaxInterval, registry.config.MinInterval)
 	assert.Equal(t, 10*time.Minute, registry.window())

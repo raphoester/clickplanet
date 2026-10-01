@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_allegiance_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/quizzes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -88,12 +89,14 @@ func newBandedRegistry(base map[Kind]float64) (*Registry, *cptime.FixedClock) {
 		ForgetAfter:       5 * time.Minute,
 		MaxChargesPerHour: 6,
 		SweepInterval:     time.Second,
-	}, clock, newFakeHoldings(), fakeShares{bigFlag: 0.4, smallFlag: 0.01}, newFakeFlags()), clock
+	}, clock, newFakeHoldings(), fakeShares{bigFlag: 0.4, smallFlag: 0.01}, inmemory_allegiance_store.New()), clock
 }
 
 // plays is a click from scope by account, whose main flag is country.
-func plays(r *Registry, scope string, account string, country string) {
-	flagsOf(r).flags[clicks.AccountAllegianceKey(account)] = country
+func plays(t *testing.T, r *Registry, scope string, account string, country string) {
+	t.Helper()
+
+	paint(t, r, clicks.AccountAllegianceKey(account), country)
 	r.Clicked(scope, Holder(account))
 }
 
@@ -114,7 +117,7 @@ func offerableTo(t *testing.T, r *Registry, scope string, clock *cptime.FixedClo
 func TestABigCountrysPlayerIsOfferedOnlyRefills(t *testing.T) {
 	registry, clock := newBandedRegistry(everyWeight)
 	events := attend(t, registry, "scope-a")
-	plays(registry, "scope-a", "acc-pl", bigFlag)
+	plays(t, registry, "scope-a", "acc-pl", bigFlag)
 
 	assert.Equal(t, cpcolls.NewSet(KindRefill), offerableTo(t, registry, "scope-a", clock))
 
@@ -127,7 +130,7 @@ func TestABigCountrysPlayerIsOfferedOnlyRefills(t *testing.T) {
 func TestASmallCountrysPlayerDrawsFromTheWholeTable(t *testing.T) {
 	registry, clock := newBandedRegistry(everyWeight)
 	attend(t, registry, "scope-a")
-	plays(registry, "scope-a", "acc-ad", smallFlag)
+	plays(t, registry, "scope-a", "acc-ad", smallFlag)
 
 	assert.Equal(t, cpcolls.NewSet(Kinds...), offerableTo(t, registry, "scope-a", clock))
 }
@@ -135,8 +138,8 @@ func TestASmallCountrysPlayerDrawsFromTheWholeTable(t *testing.T) {
 func TestAnAccountBringsItsFlagToANewAddress(t *testing.T) {
 	registry, clock := newBandedRegistry(everyWeight)
 	attend(t, registry, "scope-b")
-	flagsOf(registry).flags[clicks.ScopeAllegianceKey("scope-b")] = smallFlag
-	plays(registry, "scope-b", "acc-pl", bigFlag)
+	paint(t, registry, clicks.ScopeAllegianceKey("scope-b"), smallFlag)
+	plays(t, registry, "scope-b", "acc-pl", bigFlag)
 
 	assert.Equal(t, cpcolls.NewSet(KindRefill), offerableTo(t, registry, "scope-b", clock))
 }
@@ -144,8 +147,8 @@ func TestAnAccountBringsItsFlagToANewAddress(t *testing.T) {
 func TestAFreshAccountOnAnAddressKeepsTheAddresssFlag(t *testing.T) {
 	registry, clock := newBandedRegistry(everyWeight)
 	attend(t, registry, "scope-a")
-	flagsOf(registry).flags[clicks.ScopeAllegianceKey("scope-a")] = bigFlag
-	plays(registry, "scope-a", "a-fresh-guest", smallFlag)
+	paint(t, registry, clicks.ScopeAllegianceKey("scope-a"), bigFlag)
+	plays(t, registry, "scope-a", "a-fresh-guest", smallFlag)
 
 	assert.Equal(t, cpcolls.NewSet(KindRefill), offerableTo(t, registry, "scope-a", clock),
 		"a second account opened on the same address is still that address's player")
@@ -154,15 +157,15 @@ func TestAFreshAccountOnAnAddressKeepsTheAddresssFlag(t *testing.T) {
 func TestAScopeDrawsTheBandOfTheBiggestFlagPlayingFromIt(t *testing.T) {
 	registry, clock := newBandedRegistry(everyWeight)
 	attend(t, registry, "scope-a")
-	flagsOf(registry).flags[clicks.ScopeAllegianceKey("scope-a")] = smallFlag
-	plays(registry, "scope-a", "acc-ad", smallFlag)
-	plays(registry, "scope-a", "acc-pl", bigFlag)
+	paint(t, registry, clicks.ScopeAllegianceKey("scope-a"), smallFlag)
+	plays(t, registry, "scope-a", "acc-ad", smallFlag)
+	plays(t, registry, "scope-a", "acc-pl", bigFlag)
 
 	assert.Equal(t, cpcolls.NewSet(KindRefill), offerableTo(t, registry, "scope-a", clock),
 		"every account on the scope sees the box, so a big country's player could claim it")
 
 	clock.Advance(6 * time.Minute)
-	plays(registry, "scope-a", "acc-ad", smallFlag)
+	plays(t, registry, "scope-a", "acc-ad", smallFlag)
 
 	assert.Equal(t, cpcolls.NewSet(Kinds...), offerableTo(t, registry, "scope-a", clock),
 		"once the big country's player stops, the scope's own flag is the small one")
@@ -171,7 +174,7 @@ func TestAScopeDrawsTheBandOfTheBiggestFlagPlayingFromIt(t *testing.T) {
 func TestAKindHeldIsStillLeftOutOfTheBand(t *testing.T) {
 	registry, clock := newBandedRegistry(everyWeight)
 	events := attend(t, registry, "scope-a")
-	plays(registry, "scope-a", "acc-pl", bigFlag)
+	plays(t, registry, "scope-a", "acc-pl", bigFlag)
 	holdingsOf(registry).grant("acc-pl", KindRefill)
 
 	assert.True(t, offerableTo(t, registry, "scope-a", clock).Empty())
@@ -191,7 +194,7 @@ func TestAnOfferIsReportedWithItsKindAndBand(t *testing.T) {
 	registry.Observe(Report{Offered: func(kind Kind, band float64) { offers = append(offers, report{kind, band}) }})
 
 	attend(t, registry, "scope-a")
-	plays(registry, "scope-a", "acc-pl", bigFlag)
+	plays(t, registry, "scope-a", "acc-pl", bigFlag)
 	waitOut(registry, clock)
 
 	assert.Equal(t, []report{{KindRefill, 0.2}}, offers)
@@ -206,7 +209,7 @@ func TestAQuizIsWorthWhatThePlayersBandOffers(t *testing.T) {
 		}, fixedBank{})
 
 		events := attend(t, registry, "scope-a")
-		plays(registry, "scope-a", "acc", country)
+		plays(t, registry, "scope-a", "acc", country)
 		waitOutQuiz(registry, clock)
 
 		offer := quizOffered(t, events)
@@ -223,13 +226,13 @@ func TestAQuizIsWorthWhatThePlayersBandOffers(t *testing.T) {
 func TestNothingIsOfferedWhileTheFlagsCannotBeReadAndTheSlotIsKept(t *testing.T) {
 	registry, clock := newBandedRegistry(everyWeight)
 	events := attend(t, registry, "scope-a")
-	plays(registry, "scope-a", "acc-ad", smallFlag)
-	flagsOf(registry).err = errors.New("postgres is down")
+	plays(t, registry, "scope-a", "acc-ad", smallFlag)
+	flagsOf(registry).FailWith(errors.New("postgres is down"))
 
 	waitOut(registry, clock)
 	require.Nil(t, offered(t, events), "no band, so no box")
 
-	flagsOf(registry).err = nil
+	flagsOf(registry).Heal()
 	clock.Advance(time.Second)
 	registry.sweep(t.Context())
 	assert.NotNil(t, offered(t, events), "the caller stayed due, so the next sweep offers")
@@ -237,7 +240,7 @@ func TestNothingIsOfferedWhileTheFlagsCannotBeReadAndTheSlotIsKept(t *testing.T)
 
 func TestACallerWhosePlayersFlagWasNotReadWaitsForTheNextSweep(t *testing.T) {
 	registry, _ := newBandedRegistry(everyWeight)
-	plays(registry, "scope-a", "acc-ad", smallFlag)
+	plays(t, registry, "scope-a", "acc-ad", smallFlag)
 	entry := registry.callers["scope-a"]
 
 	read := map[clicks.AllegianceKey]clicks.Allegiance{clicks.ScopeAllegianceKey("scope-a"): {}}
