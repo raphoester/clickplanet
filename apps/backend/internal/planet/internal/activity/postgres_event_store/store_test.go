@@ -85,6 +85,7 @@ func (s *testSuite) TestEachKindKeepsItsOwnDataAndNoneIsNull() {
 		{At: start, Kind: activity.KindClick, Caller: linked, Tile: 42, Country: "bg", Outcome: activity.OutcomeThrottled},
 		{At: start, Kind: activity.KindTake, Caller: guest, Tile: 42, Country: "bg", Held: "fr"},
 		{At: start, Kind: activity.KindTake, Caller: guest, Tile: 43, Country: "bg"},
+		{At: start, Kind: activity.KindTake, Caller: guest, Tile: 44, Country: "de", Held: "pl", Cleared: true},
 		{At: start, Kind: activity.KindMap, Caller: nobody, Start: 0, End: 300_000, OffMap: true, Outcome: activity.OutcomeAccepted},
 		{At: start, Kind: activity.KindStream, Caller: nobody},
 		{At: start, Kind: activity.KindBoxCaught, Caller: nobody, Delay: 1234567 * time.Microsecond},
@@ -102,6 +103,10 @@ func (s *testSuite) TestEachKindKeepsItsOwnDataAndNoneIsNull() {
 		},
 		{stored{At: start, Kind: "take", Scope: "2001:db8::/64", Account: &account}, `{"tile": 42, "country": "bg", "held": "fr"}`},
 		{stored{At: start, Kind: "take", Scope: "2001:db8::/64", Account: &account}, `{"tile": 43, "country": "bg"}`},
+		{
+			stored{At: start, Kind: "take", Scope: "2001:db8::/64", Account: &account},
+			`{"tile": 44, "country": "de", "held": "pl", "cleared": true}`,
+		},
 		{
 			stored{At: start, Kind: "map", Scope: "2001:db8:1::/64"},
 			`{"start": 0, "end": 300000, "off_map": true, "outcome": "accepted"}`,

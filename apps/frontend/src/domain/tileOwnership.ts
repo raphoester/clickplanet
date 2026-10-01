@@ -19,8 +19,9 @@ export type OptimisticPaint = {
 }
 
 type Pending = {
-    // the claims still in flight on this tile, oldest first, each with what it painted
-    readonly inFlight: Map<number, string>
+    // the claims still in flight on this tile, oldest first, each with what it
+    // painted: a flag, or nobody for a click predicted to clear native ground
+    readonly inFlight: Map<number, string | undefined>
     // what the tile would hold had none of them happened
     country: string | undefined
     claimedLive: boolean
@@ -96,8 +97,9 @@ export class TileOwnership {
     }
 
     // Paints a click before the server has agreed to it, remembering enough to
-    // take it back.
-    public applyOptimistic(tile: number, country: string): OptimisticPaint {
+    // take it back. `country` is what the click leaves on the tile, which is
+    // nobody when it clears native ground (see homeSoil.ts).
+    public applyOptimistic(tile: number, country: string | undefined): OptimisticPaint {
         if (!this.inRange(tile)) return {changes: [], claim: undefined}
 
         const token = ++this.lastToken
@@ -125,9 +127,9 @@ export class TileOwnership {
         const pending = this.pending.get(claim.tile)
         if (!pending || !pending.inFlight.delete(claim.token)) return []
 
-        // Another click on this tile is still in flight; it owns the paint.
-        const newest = last(pending.inFlight.values())
-        if (newest !== undefined) return this.change(claim.tile, newest)
+        // Another click on this tile is still in flight; it owns the paint,
+        // which may be nobody: a clear in flight.
+        if (pending.inFlight.size > 0) return this.change(claim.tile, last(pending.inFlight.values()))
 
         this.pending.delete(claim.tile)
         this.claimedLive[claim.tile] = pending.claimedLive ? 1 : 0

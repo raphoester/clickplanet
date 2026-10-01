@@ -26,6 +26,7 @@ import {SessionUnavailableError} from "./session.ts";
 import {v4 as UUIDv4} from 'uuid';
 import {Countries} from "../domain/countries.ts";
 import {nearestTile, tilesWithin} from "../domain/blast.ts";
+import {outcomeOf, ownerAfter} from "../domain/homeSoil.ts";
 
 const TILE_COUNT = 257_000
 
@@ -35,9 +36,9 @@ const CLICK_BURST = 60
 
 /** Production's `toll.steps`: from each share of the map, the refill is that many times slower. */
 const TOLL_STEPS = [
-    {share: 0.25, slowdown: 1.5},
-    {share: 0.50, slowdown: 2},
-    {share: 0.70, slowdown: 3},
+    {share: 0.10, slowdown: 1.5},
+    {share: 0.20, slowdown: 2.5},
+    {share: 0.30, slowdown: 4},
 ]
 
 /** Often enough to be worth developing against, not so often it is the game. */
@@ -91,8 +92,8 @@ const BOT_BOMB_EVERY_MS = 25_000
 const BOT_CLICKS_PER_SECOND = 4
 const ENCLOSE_MAX_TILES = 25
 
-/** What GetBonusRules answers, from the constants above. */
-const RULES: BonusRules = {
+/** What GetBonusRules answers, from the constants above. Native land takes two clicks when the fake knows the ground. */
+const RULES: Omit<BonusRules, "homeSoil"> = {
     blastRadius: BOMB_RADIUS,
     enclosureMaxTiles: ENCLOSE_MAX_TILES,
     spreadClicks: SPREAD_CLICKS,
@@ -107,6 +108,12 @@ export type FakeBackendOptions = {
      * map; this fake has none, so without this it never offers a bomb.
      */
     tilePositions?: () => Promise<Float32Array>
+    /**
+     * Whose ground each tile is on. With it, the fake plays native land the way
+     * the server does: every tile starts French, so on France's own ground any
+     * other flag's first click clears the tile. Without it, every click takes.
+     */
+    grounds?: () => Promise<(tile: number) => string | undefined>
 }
 
 export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, QuizMaster, Bomber, Refiller {
@@ -125,6 +132,9 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     private charges: Charges = NO_CHARGES
     private positions: Promise<Float32Array> | undefined
     private readonly tilePositions: (() => Promise<Float32Array>) | undefined
+    private readonly homeSoil: boolean
+    /** Until the borders are in, no ground is anybody's home. */
+    private groundOf: (tile: number) => string | undefined = () => undefined
 
     /** The one box outstanding, exactly as the server keeps it. */
     private offered: BonusOffer | undefined
@@ -147,6 +157,10 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         this.vpnBlocked = options.vpnBlocked ?? false
         this.sessionUnavailable = options.sessionUnavailable ?? false
         this.tilePositions = options.tilePositions
+        this.homeSoil = options.grounds !== undefined
+        void options.grounds?.().then((groundOf) => {
+            this.groundOf = groundOf
+        })
 
         for (let i = 1; i <= TILE_COUNT; i++) {
             this.tileBindings.set(i, "fr")
@@ -395,15 +409,18 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         return {slowdown, share}
     }
 
+    /** A click, a spread's neighbour or an enclosed tile, as the server writes it: through the home-soil rule. */
     private applyClick(tileId: number, countryId: string) {
         const prev = this.tileBindings.get(tileId)
-        this.tileBindings.set(tileId, countryId)
+        const next = ownerAfter(outcomeOf(prev, this.groundOf(tileId), countryId), prev, countryId)
+        if (next === undefined) this.tileBindings.delete(tileId)
+        else this.tileBindings.set(tileId, next)
         this.count(prev, -1)
-        this.count(countryId, 1)
+        this.count(next, 1)
         this.updateListeners.forEach(l => l({
             tile: tileId,
             previousCountry: prev,
-            newCountry: countryId,
+            newCountry: next,
         }))
     }
 
@@ -433,7 +450,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         const identifier = UUIDv4()
         this.bonusCallbacks.set(identifier, handlers)
         // What the real client reads at load: the rules, and what is held.
-        handlers.onRules(RULES)
+        handlers.onRules({...RULES, homeSoil: this.homeSoil})
         handlers.onCharges(this.charges)
 
         return () => this.bonusCallbacks.delete(identifier)

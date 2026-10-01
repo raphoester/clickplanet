@@ -387,8 +387,9 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
     }
 
     /**
-     * The sizes of the charges, once per page load. Retried like any read: a
-     * bomb cannot be aimed without its radius.
+     * The sizes of the charges, and whether native land takes two clicks, once
+     * per page load. Retried like any read: a bomb cannot be aimed without its
+     * radius.
      */
     private async readRules(): Promise<void> {
         try {
@@ -398,6 +399,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                 enclosureMaxTiles: res.enclosureMaxTiles,
                 spreadClicks: res.spreadClicks,
                 enclosures: res.enclosures,
+                homeSoil: res.homeSoil,
             }
             this.rules = rules
             this.bonusCallbacks.forEach(handlers => handlers.onRules(rules))
@@ -757,7 +759,7 @@ export function chargesOfMessage(held: ChargesHeld | undefined): Charges {
     return {refill: held.refill, bomb: held.bomb, enclosures: held.enclosures, spreadClicksLeft: held.spreadClicksLeft}
 }
 
-const NO_RULES: BonusRules = {blastRadius: 0, enclosureMaxTiles: 0, spreadClicks: 0, enclosures: 0}
+const NO_RULES: BonusRules = {blastRadius: 0, enclosureMaxTiles: 0, spreadClicks: 0, enclosures: 0, homeSoil: false}
 
 /**
  * `amount` is what a claim granted; an offer says only the kind, and reads as

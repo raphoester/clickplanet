@@ -17,12 +17,15 @@ type harness struct {
 	clock     *cptime.FixedClock
 	owner     map[uint32]string
 	reactions []time.Duration
+	// ground is whose own soil a tile is on, for the home-soil rule; a tile left out is in no country.
+	ground map[uint32]string
 }
 
 func newHarness(config retaker.Config) *harness {
 	h := &harness{
-		clock: cptime.NewFixedClock(time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC)),
-		owner: map[uint32]string{},
+		clock:  cptime.NewFixedClock(time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC)),
+		owner:  map[uint32]string{},
+		ground: map[uint32]string{},
 	}
 
 	h.watchdog = retaker.New(config, h.clock, func(d time.Duration) {
@@ -55,13 +58,17 @@ func (h *harness) deliver(scope string, tile uint32, country string, accepted bo
 		At:      h.clock.Now(),
 		Held:    held,
 		NoOp:    held == country,
+		Cleared: held != country && h.ground[tile] != "" && held == h.ground[tile],
 	}
 
 	verdict, _ := h.watchdog.Watch(c)
 
 	if accepted {
 		h.watchdog.Committed(c)
-		if !c.NoOp {
+		switch {
+		case c.Cleared:
+			h.owner[tile] = ""
+		case !c.NoOp:
 			h.owner[tile] = country
 		}
 	}
@@ -312,4 +319,28 @@ func TestRoamIsOffWithoutMinTiles(t *testing.T) {
 	h := newHarness(config)
 
 	assert.Equal(t, detect.Clear, h.war("bot", 6000, recaptureBot(40)))
+}
+
+// Native land takes two clicks. A clear changed the map, so winning the empty tile back is a reaction to it; the
+// clearer's own second click, taking the tile it emptied, reacts to nobody.
+func TestAClearIsSomethingToReactTo(t *testing.T) {
+	h := newHarness(retaker.Config{})
+	h.ground[7], h.owner[7] = "BG", "BG"
+
+	h.click("attacker", 7, "FR")
+	require.Empty(t, h.owner[7], "cleared, not taken")
+
+	h.clock.Advance(800 * time.Millisecond)
+	h.click("attacker", 7, "FR")
+	assert.Empty(t, h.reactions, "taking the tile you emptied yourself is no reaction")
+
+	h.clock.Advance(1200 * time.Millisecond)
+	h.click("native", 7, "BG")
+	assert.Equal(t, ms(1200), h.reactions, "BG winning its ground back reacts to the take")
+
+	h.clock.Advance(900 * time.Millisecond)
+	h.click("attacker", 7, "FR")
+	h.clock.Advance(700 * time.Millisecond)
+	h.click("native", 7, "BG")
+	assert.Equal(t, ms(1200, 900, 700), h.reactions, "a clear is reacted to, and is a reaction itself")
 }

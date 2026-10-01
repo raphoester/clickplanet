@@ -15,7 +15,7 @@ type Recorder interface {
 	Record(event activity.Event)
 }
 
-// TileOwner is read before the call, since a no-op is a click on a tile its country already held.
+// TileOwner decides a no-op, not Out.Outcome: a dropped click answers Unchanged, which would leak the ban.
 type TileOwner interface {
 	Owner(tile uint32) (string, bool)
 }

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/defender"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
@@ -15,29 +16,41 @@ type harness struct {
 	watchdog *defender.Watchdog
 	clock    *cptime.FixedClock
 	owner    map[uint32]string
-	next     uint32
+	// ground is whose own soil a tile is on, for the home-soil rule; a tile left out is in no country.
+	ground map[uint32]string
+	next   uint32
 }
 
 func newHarness(config defender.Config) *harness {
 	h := &harness{
-		clock: cptime.NewFixedClock(time.Date(2026, 9, 14, 18, 0, 0, 0, time.UTC)),
-		owner: map[uint32]string{},
-		next:  1000,
+		clock:  cptime.NewFixedClock(time.Date(2026, 9, 14, 18, 0, 0, 0, time.UTC)),
+		owner:  map[uint32]string{},
+		ground: map[uint32]string{},
+		next:   1000,
 	}
 	h.watchdog = defender.New(config, h.clock, nil)
 	return h
 }
 
+// deliver reads the tile the way antibot_click does, the home-soil rule included: a native tile clicked for
+// another flag is cleared, and nobody holds it after.
 func (h *harness) deliver(scope string, tile uint32, country string, accepted bool) detect.Verdict {
 	held := h.owner[tile]
+	cleared := held != country && h.ground[tile] != "" && held == h.ground[tile]
 
-	c := detect.Click{Scope: scope, Tile: tile, Country: country, At: h.clock.Now(), Held: held, NoOp: held == country}
+	c := detect.Click{
+		Scope: scope, Tile: tile, Country: country, At: h.clock.Now(),
+		Held: held, NoOp: held == country, Cleared: cleared,
+	}
 
 	verdict, _ := h.watchdog.Watch(c)
 
 	if accepted {
 		h.watchdog.Committed(c)
-		if !c.NoOp {
+		switch {
+		case c.Cleared:
+			h.owner[tile] = ""
+		case !c.NoOp:
 			h.owner[tile] = country
 		}
 	}
@@ -203,4 +216,109 @@ func TestARefusedClickTakesNothingFromAnyone(t *testing.T) {
 	}
 
 	assert.Equal(t, detect.Clear, verdict, "the tile never left BG")
+}
+
+// home is a fresh tile on BG's own ground, wearing BG's flag.
+func (h *harness) home() uint32 {
+	tile := h.fresh()
+	h.ground[tile] = "BG"
+	h.owner[tile] = "BG"
+	return tile
+}
+
+// A clear is a loss: a loop taking BG's cleared ground back, one refill at a time, is the one a clear invites.
+func TestAQueueRetakingClearedHomeGroundIsStillCaught(t *testing.T) {
+	h := newHarness(config())
+
+	var verdict detect.Verdict
+	for range 3 {
+		tiles := make([]uint32, 0, 30)
+		for range 30 {
+			tile := h.home()
+			h.click("attacker", tile, "FR")
+			require.Empty(t, h.owner[tile], "the first foreign click clears BG's own tile")
+			tiles = append(tiles, tile)
+		}
+		for _, tile := range tiles {
+			h.clock.Advance(1300 * time.Millisecond)
+			verdict = h.click("bot", tile, "BG")
+		}
+	}
+
+	assert.Equal(t, detect.Certain, verdict)
+}
+
+// The same border held by hand, the rule on: three retakes of cleared ground in ten clicks is a person.
+func TestAHomeDefenderWhoAlsoPaintsIsClear(t *testing.T) {
+	h := newHarness(config())
+
+	var verdict detect.Verdict
+	for range 10 {
+		tiles := []uint32{h.home(), h.home(), h.home()}
+		for _, tile := range tiles {
+			h.click("attacker", tile, "FR")
+		}
+		for _, tile := range tiles {
+			h.clock.Advance(2 * time.Second)
+			h.click("player", tile, "BG")
+		}
+
+		for range 7 {
+			h.clock.Advance(2 * time.Second)
+			verdict = h.click("player", h.fresh(), "BG")
+		}
+	}
+
+	assert.Equal(t, detect.Clear, verdict)
+}
+
+// The rule gives a defender no more to retake than before. Off, each foreign click takes a tile: one loss each.
+// On, each clears one: one loss each, and the attacker's second click, on the empty tile, loses nobody anything.
+func TestAClearedTileTakenByTheAttackerIsOneLossNotTwo(t *testing.T) {
+	h := newHarness(config())
+
+	var verdict detect.Verdict
+	for range 3 {
+		tiles := make([]uint32, 0, 30)
+		for range 30 {
+			tile := h.home()
+			h.click("attacker", tile, "FR")
+			h.clock.Advance(time.Second)
+			h.click("attacker", tile, "FR")
+			require.Equal(t, "FR", h.owner[tile], "the second click takes the empty tile")
+			tiles = append(tiles, tile)
+		}
+		for _, tile := range tiles {
+			h.clock.Advance(1300 * time.Millisecond)
+			verdict = h.click("bot", tile, "BG")
+		}
+	}
+
+	assert.Equal(t, detect.Certain, verdict, "BG lost each tile once, at the clear, and winning it back is a retake")
+}
+
+// A clear wins nothing back for anyone, so a player fighting back on BG's ground with two clicks a tile — the
+// clear, then the take — is taking, not retaking, however recently its country lost the tile. Read as a retake,
+// the clear would be half of its clicks.
+func TestAClearIsNeverARetake(t *testing.T) {
+	loose := config()
+	loose.MinShare = 0.4
+	h := newHarness(loose)
+
+	var verdict detect.Verdict
+	for range 45 {
+		tile := h.fresh()
+		h.ground[tile] = "BG"
+		h.owner[tile] = "FR"
+		// BG's natives win it back from FR in one click: FR lost it.
+		h.click("bulgarian", tile, "BG")
+
+		h.clock.Advance(time.Second)
+		h.click("french", tile, "FR")
+		require.Empty(t, h.owner[tile])
+		h.clock.Advance(time.Second)
+		verdict = h.click("french", tile, "FR")
+	}
+
+	assert.Equal(t, detect.Clear, verdict)
 }

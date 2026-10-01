@@ -92,6 +92,7 @@ type (
 		Tile    uint32 `json:"tile"`
 		Country string `json:"country"`
 		Held    string `json:"held,omitempty"`
+		Cleared bool   `json:"cleared,omitempty"`
 	}
 
 	mapData struct {
@@ -111,7 +112,7 @@ func payloadOf(event activity.Event) (any, bool) {
 	case activity.KindClick:
 		return clickData{Tile: event.Tile, Country: event.Country, Outcome: string(event.Outcome)}, true
 	case activity.KindTake:
-		return takeData{Tile: event.Tile, Country: event.Country, Held: event.Held}, true
+		return takeData{Tile: event.Tile, Country: event.Country, Held: event.Held, Cleared: event.Cleared}, true
 	case activity.KindMap:
 		return mapData{Start: event.Start, End: event.End, OffMap: event.OffMap, Outcome: string(event.Outcome)}, true
 	case activity.KindBoxCaught:

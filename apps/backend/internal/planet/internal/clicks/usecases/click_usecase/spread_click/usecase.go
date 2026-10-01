@@ -3,6 +3,10 @@
 //
 // The server picks those tiles off its own map. A client that named them would
 // be a client that could name any tiles it liked, which is the whole of the cheat.
+//
+// Each tile touched follows the home-soil rule, exactly as a click on it would:
+// a neighbour on another country's own ground that wears its flag is cleared, not
+// taken. A bonus is never a way around the rule.
 package spread_click
 
 import (
@@ -25,7 +29,13 @@ type Neighbours interface {
 }
 
 type TileStorage interface {
+	Owner(tile uint32) (string, bool)
 	Set(ctx context.Context, tile uint32, value string) error
+}
+
+// Rule is the home-soil rule: what a click for flag does to a tile owner holds.
+type Rule interface {
+	Outcome(tile uint32, owner, flag string) clicks.Outcome
 }
 
 // Publisher tells the planet a click spread, so every client can show it.
@@ -33,12 +43,20 @@ type Publisher interface {
 	PublishSpread(spread bonuses.Spread)
 }
 
-func New(implementation click_usecase.IUseCase, spreads Spreads, neighbours Neighbours, storage TileStorage, publisher Publisher) *UseCase {
+func New(
+	implementation click_usecase.IUseCase,
+	spreads Spreads,
+	neighbours Neighbours,
+	storage TileStorage,
+	rule Rule,
+	publisher Publisher,
+) *UseCase {
 	return &UseCase{
 		implementation: implementation,
 		spreads:        spreads,
 		neighbours:     neighbours,
 		storage:        storage,
+		rule:           rule,
 		publisher:      publisher,
 	}
 }
@@ -48,6 +66,7 @@ type UseCase struct {
 	spreads        Spreads
 	neighbours     Neighbours
 	storage        TileStorage
+	rule           Rule
 	publisher      Publisher
 }
 
@@ -66,7 +85,10 @@ func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_useca
 
 	neighbours := u.neighbours.Neighbours(in.TileID)
 	for _, neighbour := range neighbours {
-		if err := u.storage.Set(ctx, neighbour, in.CountryID); err != nil {
+		owner, _ := u.storage.Owner(neighbour)
+		after := u.rule.Outcome(neighbour, owner, in.CountryID).OwnerAfter(owner, in.CountryID)
+
+		if err := u.storage.Set(ctx, neighbour, after); err != nil {
 			return out, fmt.Errorf("failed to spread onto tile %d: %w", neighbour, err)
 		}
 	}

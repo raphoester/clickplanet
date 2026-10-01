@@ -61,7 +61,7 @@ func TestEveryTryIsRecordedWithItsAnswer(t *testing.T) {
 		in      click_usecase.In
 		outcome activity.Outcome
 	}{
-		{"accepted", nil, click_usecase.In{TileID: 8, CountryID: "bg"}, activity.OutcomeAccepted},
+		{"accepted, or dropped by the ban with a zero Out", nil, click_usecase.In{TileID: 8, CountryID: "bg"}, activity.OutcomeAccepted},
 		{"a tile its country held", nil, click_usecase.In{TileID: 7, CountryID: "bg"}, activity.OutcomeNoOp},
 		{"a tile another country held", nil, click_usecase.In{TileID: 7, CountryID: "fr"}, activity.OutcomeAccepted},
 		{"throttled", clicks.ErrThrottled, click_usecase.In{TileID: 8, CountryID: "bg"}, activity.OutcomeThrottled},

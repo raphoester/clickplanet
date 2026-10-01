@@ -17,7 +17,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-// board is the map: a click the rule accepts is written to it, as the real one does.
+// board is the map before the click: every tile up to 100 exists.
 type board map[uint32]string
 
 func (b board) Owner(tile uint32) (string, bool) {
@@ -28,33 +28,30 @@ func (b board) Owner(tile uint32) (string, bool) {
 }
 
 type rule struct {
-	board board
-	err   error
+	outcome clicks.Outcome
+	err     error
 }
 
-func (r rule) Execute(_ context.Context, in click_usecase.In) (click_usecase.Out, error) {
-	if r.err != nil {
-		return click_usecase.Out{}, r.err
-	}
-	r.board[in.TileID] = in.CountryID
-	return click_usecase.Out{Limited: true}, nil
+func (r rule) Execute(context.Context, click_usecase.In) (click_usecase.Out, error) {
+	return click_usecase.Out{Limited: true, Outcome: r.outcome}, r.err
 }
 
 var now = time.Date(2026, 9, 30, 12, 0, 0, 0, time.UTC)
 
-func click(t *testing.T, tiles board, err error, in click_usecase.In) []activity.Event {
+func click(t *testing.T, tiles board, inner rule, in click_usecase.In) []activity.Event {
 	t.Helper()
 
 	recorded := &activity.Recorded{}
-	_, got := activity_take_click.New(rule{board: tiles, err: err}, recorded, tiles, cptime.NewFixedClock(now)).
+	out, err := activity_take_click.New(inner, recorded, tiles, cptime.NewFixedClock(now)).
 		Execute(cpctx.AddIPToContext(t.Context(), "2001:db8::9"), in)
-	require.ErrorIs(t, got, err)
+	assert.Equal(t, inner.err, err, "the error is the inner one, untouched")
+	assert.Equal(t, inner.outcome, out.Outcome, "the answer is the inner one, untouched")
 
 	return recorded.Events()
 }
 
 func TestATakeIsRecordedWithWhoHeldTheTileBefore(t *testing.T) {
-	events := click(t, board{7: "fr"}, nil, click_usecase.In{TileID: 7, CountryID: "bg"})
+	events := click(t, board{7: "fr"}, rule{outcome: clicks.Taken}, click_usecase.In{TileID: 7, CountryID: "bg"})
 
 	assert.Equal(t, []activity.Event{{
 		At: now, Kind: activity.KindTake, Caller: activity.Caller{Scope: "2001:db8::/64", Account: cpsession.NoAccount},
@@ -63,14 +60,26 @@ func TestATakeIsRecordedWithWhoHeldTheTileBefore(t *testing.T) {
 }
 
 func TestATakeOfATileNobodyHeldHoldsNobody(t *testing.T) {
-	events := click(t, board{}, nil, click_usecase.In{TileID: 7, CountryID: "bg"})
+	events := click(t, board{}, rule{outcome: clicks.Taken}, click_usecase.In{TileID: 7, CountryID: "bg"})
 
 	require.Len(t, events, 1)
 	assert.Empty(t, events[0].Held)
 }
 
+func TestAClearOnHomeSoilIsATakeThatSaysSo(t *testing.T) {
+	events := click(t, board{7: "pl"}, rule{outcome: clicks.Cleared}, click_usecase.In{TileID: 7, CountryID: "de"})
+
+	require.Len(t, events, 1)
+	assert.True(t, events[0].Cleared)
+	assert.Equal(t, "pl", events[0].Held)
+	assert.Equal(t, "de", events[0].Country, "the flag clicked, though the tile now holds nobody")
+}
+
 func TestAClickThatChangedNothingIsNoTake(t *testing.T) {
-	assert.Empty(t, click(t, board{7: "bg"}, nil, click_usecase.In{TileID: 7, CountryID: "bg"}), "a no-op")
-	assert.Empty(t, click(t, board{}, clicks.ErrUnknownCountry, click_usecase.In{TileID: 7, CountryID: "zz"}), "a refusal")
-	assert.Empty(t, click(t, board{}, clicks.ErrTileOutOfRange, click_usecase.In{TileID: 500, CountryID: "bg"}), "off the map")
+	in := click_usecase.In{TileID: 7, CountryID: "bg"}
+
+	assert.Empty(t, click(t, board{7: "bg"}, rule{outcome: clicks.Unchanged}, in), "a no-op")
+	assert.Empty(t, click(t, board{}, rule{err: clicks.ErrUnknownCountry}, in), "a refusal")
+	assert.Empty(t, click(t, board{}, rule{err: clicks.ErrTileOutOfRange}, click_usecase.In{TileID: 500, CountryID: "bg"}),
+		"off the map")
 }

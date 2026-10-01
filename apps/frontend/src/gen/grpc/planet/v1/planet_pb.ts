@@ -838,8 +838,8 @@ export class GetBonusRulesRequest extends Message<GetBonusRulesRequest> {
 }
 
 /**
- * How big each charge is. Game configuration, not state: it only changes with
- * a deploy.
+ * How big each charge is, and what a click does on a country's own ground. Game
+ * configuration, not state: it only changes with a deploy.
  *
  * @generated from message planet.v1.GetBonusRulesResponse
  */
@@ -873,6 +873,18 @@ export class GetBonusRulesResponse extends Message<GetBonusRulesResponse> {
    */
   enclosures = 0;
 
+  /**
+   * Native land takes two clicks. On a country's own ground, a tile wearing
+   * that country's flag is cleared to nobody by a click for any other flag,
+   * not taken; the next click on the empty tile takes it. Each click still
+   * costs one. The client paints its own click from this, with the borders
+   * blob, so it does not paint a flag the server did not write. Spread and
+   * enclose follow the same rule on every tile they touch.
+   *
+   * @generated from field: bool home_soil = 5;
+   */
+  homeSoil = false;
+
   constructor(data?: PartialMessage<GetBonusRulesResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -885,6 +897,7 @@ export class GetBonusRulesResponse extends Message<GetBonusRulesResponse> {
     { no: 2, name: "enclosure_max_tiles", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 3, name: "spread_clicks", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 4, name: "enclosures", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 5, name: "home_soil", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetBonusRulesResponse {
@@ -1731,7 +1744,8 @@ export class TilesEnclosed extends Message<TilesEnclosed> {
   wallTileIds: number[] = [];
 
   /**
-   * The tiles taken, nearest the closing tile first.
+   * The tiles taken, nearest the closing tile first. With home_soil, a tile
+   * on another country's own ground that wore its flag is cleared instead.
    *
    * @generated from field: repeated uint32 filled_tile_ids = 4;
    */
@@ -1796,6 +1810,8 @@ export class TilesSpread extends Message<TilesSpread> {
 
   /**
    * The tiles touching it, which the click also took. Empty for a lone island.
+   * With home_soil, a tile on another country's own ground that wore its flag
+   * is cleared instead.
    *
    * @generated from field: repeated uint32 spread_tile_ids = 3;
    */

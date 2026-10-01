@@ -35,7 +35,7 @@ func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_useca
 	held, known := u.owner.Owner(in.TileID)
 
 	out, err := u.implementation.Execute(ctx, in)
-	if err != nil || !known || held == in.CountryID {
+	if err != nil || !known || out.Outcome == clicks.Unchanged {
 		return out, err
 	}
 
@@ -46,6 +46,7 @@ func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_useca
 		Tile:    in.TileID,
 		Country: in.CountryID,
 		Held:    held,
+		Cleared: out.Outcome == clicks.Cleared,
 	})
 
 	return out, nil

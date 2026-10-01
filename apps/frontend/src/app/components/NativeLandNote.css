@@ -1,0 +1,71 @@
+/* Under the bomb line, so the two never cover each other: see BombNews.css. */
+.native-land-note {
+    position: fixed;
+    top: 64px;
+    left: 50%;
+    z-index: 150;
+    transform: translateX(-50%);
+    pointer-events: none;
+}
+
+/* Clear of the quiz card at its tallest, and of the bomb line lowered there. */
+.native-land-note--lowered {
+    top: 268px;
+}
+
+.native-land-note-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border: 1px solid #EDCC9466;
+    border-radius: 999px;
+    background: #0A0A0Acc;
+    backdrop-filter: blur(10px);
+    color: #FFFFFF;
+    font-size: 15px;
+    white-space: nowrap;
+    box-shadow: 0 0 18px #EDCC9433;
+    animation: native-land-note 4s ease-out forwards;
+}
+
+/* Timings are shares of NATIVE_LAND_NOTE_MS in NativeLandNote.tsx. */
+@keyframes native-land-note {
+    0% {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+    6% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    85% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0;
+    }
+}
+
+@media (max-width: 768px) {
+    /* Above the bomb line, which sits at the bottom on a phone. */
+    .native-land-note,
+    .native-land-note--lowered {
+        top: auto;
+        bottom: 144px;
+    }
+
+    /* A phone is narrower than the line: let it wrap inside the gutters. */
+    .native-land-note-line {
+        width: max-content;
+        max-width: calc(100vw - 32px);
+        white-space: normal;
+        font-size: 13px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .native-land-note-line {
+        animation: none;
+    }
+}

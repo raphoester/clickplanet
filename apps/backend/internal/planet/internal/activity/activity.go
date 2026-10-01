@@ -74,8 +74,9 @@ type Event struct {
 	// KindClick and KindMap.
 	Outcome Outcome
 
-	// KindTake: who held the tile before, empty for nobody.
-	Held string
+	// KindTake: who held the tile before, empty for nobody, and whether the click emptied it on home soil.
+	Held    string
+	Cleared bool
 
 	// KindMap, as asked: End 0 is the end of the map.
 	Start  uint32

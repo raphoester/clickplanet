@@ -32,7 +32,9 @@ type stack struct {
 	// forgetEvidence starts every boot with nothing stored, as a process without persistence would.
 	forgetEvidence bool
 
-	owner   map[uint32]string
+	owner map[uint32]string
+	// ground is whose own soil a tile is on, for the home-soil rule; a tile left out is in no country.
+	ground  map[uint32]string
 	reports []antibot.Report
 	rises   []string
 	errors  []error
@@ -42,6 +44,7 @@ func newStack(options ...func(*antibot.Config)) *stack {
 	s := &stack{
 		clock:       cptime.NewFixedClock(time.Date(2026, 9, 11, 2, 0, 0, 0, time.UTC)),
 		owner:       map[uint32]string{},
+		ground:      map[uint32]string{},
 		bans:        shadowban.NewMemoryPersistence(),
 		accountBans: shadowban.NewMemoryPersistence(),
 		evidence:    evidence.NewMemoryPersistence(),
@@ -159,6 +162,8 @@ func (s *stack) restart(outage time.Duration) {
 	s.boot()
 }
 
+// click reads the tile the way antibot_click does, the home-soil rule included: a native tile clicked for
+// another flag is cleared, and nobody holds it after.
 func (s *stack) click(scope string, tile uint32, country string) bool {
 	held := s.owner[tile]
 
@@ -169,6 +174,7 @@ func (s *stack) click(scope string, tile uint32, country string) bool {
 		At:      s.clock.Now(),
 		Held:    held,
 		NoOp:    held == country,
+		Cleared: held != country && s.ground[tile] != "" && held == s.ground[tile],
 	}
 
 	s.guard.Attempted(click)
@@ -176,7 +182,10 @@ func (s *stack) click(scope string, tile uint32, country string) bool {
 	drop := s.guard.Inspect(click)
 	if !drop {
 		s.guard.Committed(click)
-		if !click.NoOp {
+		switch {
+		case click.Cleared:
+			s.owner[tile] = ""
+		case !click.NoOp:
 			s.owner[tile] = country
 		}
 	}
@@ -400,6 +409,81 @@ func TestATileWarBansNeither(t *testing.T) {
 	}
 
 	assert.Empty(t, s.reports)
+}
+
+// As production reads retakes: the defender at suspect only, and the retaker's roam.
+func productionRetakes(config *antibot.Config) {
+	config.Defender.Enabled = true
+	config.Defender.Detector.RetakeWindow = 2 * time.Minute
+	config.Defender.Detector.MinClicks = 40
+	config.Defender.Detector.MinShare = 0.6
+	config.Defender.Detector.CertainClicks = 200
+	config.Defender.Detector.TrackWindow = 10 * time.Minute
+
+	config.Retaker.Detector.MinTiles = 15
+	config.Retaker.Detector.RoamMedian = 600 * time.Millisecond
+	config.Retaker.Detector.CertainTiles = 30
+	config.Retaker.Detector.TrackWindow = 15 * time.Minute
+}
+
+// homeTile is a tile on PL's own ground wearing PL's flag, somewhere in its east.
+func (s *stack) homeTile(random *rand.Rand) uint32 {
+	tile := uint32(120000 + random.IntN(20000))
+	s.ground[tile], s.owner[tile] = "PL", "PL"
+	return tile
+}
+
+// Native land takes two clicks, so a raid on PL's ground is a trail of empty tiles, and a Pole answering each
+// one does nothing but retake for forty minutes. The defender reads that as suspect, and must: it is also what a
+// recapture loop does. A suspicion never bans alone.
+func TestAHomeDefenderAnsweringClearsIsNotBanned(t *testing.T) {
+	s := newStack(productionRetakes)
+
+	//nolint:gosec // G404: deterministic PRNG, seeded per test so the click
+	// stream replays exactly. Not security-relevant.
+	random := rand.New(rand.NewPCG(11, 12))
+
+	for range 300 {
+		tile := s.homeTile(random)
+
+		s.clock.Advance(time.Duration(2000+random.IntN(6000)) * time.Millisecond)
+		s.click("raider", tile, "DE")
+		require.Empty(t, s.owner[tile], "the raid clears, it does not take")
+
+		// Seen, aimed at and clicked: a person's reaction, never the same twice.
+		s.clock.Advance(time.Duration(1500+random.IntN(4500)) * time.Millisecond)
+		require.False(t, s.click("pole", tile, "PL"), "a home defender must never be dropped")
+	}
+
+	assert.Contains(t, s.rises, "defender suspect", "the defender still sees retakes of cleared ground")
+	assert.Empty(t, s.verdicts("pole"), "nothing else about it reads as a machine")
+}
+
+// The same raid answered off the update stream, on tile after tile: a clear is a change to react to, so the
+// retaker's roam reads it exactly as it read the Bulgaria recapture bot.
+func TestARecaptureLoopOnItsOwnGroundIsCaught(t *testing.T) {
+	s := newStack(productionRetakes)
+
+	//nolint:gosec // G404: deterministic PRNG, seeded per test so the click
+	// stream replays exactly. Not security-relevant.
+	random := rand.New(rand.NewPCG(13, 14))
+
+	var dropped bool
+	for range 120 {
+		tile := s.homeTile(random)
+
+		s.clock.Advance(time.Duration(2000+random.IntN(6000)) * time.Millisecond)
+		s.click("raider", tile, "DE")
+
+		s.clock.Advance(time.Duration(250+random.IntN(200)) * time.Millisecond)
+		if s.click("loop", tile, "PL") {
+			dropped = true
+			break
+		}
+	}
+
+	require.True(t, dropped)
+	assert.Equal(t, detect.Certain, s.verdicts("loop")["retaker"])
 }
 
 // The reflex bot the first version of this was written for, to prove the move

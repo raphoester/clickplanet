@@ -235,7 +235,7 @@ The events today:
 
 | event | published by | when | heard by |
 |---|---|---|---|
-| `planet.v1.TileTaken{account_id, tile_id, country, taken_at}` | `planet`, `ledger/publishing_ledger_storage` | each take the ledger records with an account: a click, a spread or an enclose, one event per tile | `player`, for the stats |
+| `planet.v1.TileTaken{account_id, tile_id, country, taken_at}` | `planet`, `ledger/publishing_ledger_storage` | each take the ledger records with an account: a click, a spread or an enclose, one event per tile. A clear of native land is recorded and never published | `player`, for the stats |
 | `planet.v1.BombLanded{country, tile_id, ground, cleared, landed_at}` | `planet`, `drop_bomb_usecase/publishing_drop_bomb` | each bomb that went off, on land or in the sea; a refused drop and a dud publish nothing | `chat`, which announces it |
 | `auth.v1.AccountDeleted{account_id}` | `auth`, `delete_account_usecase` and `prune_guests_usecase` | after the account row is deleted; a pruned guest is a deleted account | `player`, which forgets the profile, the stats and the visit |
 | `auth.v1.SignedIn{previous_account_id, account_id}` | `auth`, `complete_sign_in_usecase` | after a sign-in or a link is saved; `previous_account_id` is empty for a browser that had no live session | `player`, which moves the browser's visit to the account |
@@ -279,8 +279,9 @@ internal/planet/internal/
 
 - **`clicks/`** — what a click is worth, what the map looks like, and what
   changes when somebody takes a tile. Its root holds the rules that need no
-  port: `Board` (which tile ids exist), `Toll` (what a click costs), `Pacing`
-  (how an operator's bulk change is spread out), `Geography` and `Borders`.
+  port: `Board` (which tile ids exist), `Toll` (what a click costs), `HomeSoil`
+  (what a click does on a country's own ground), `Pacing` (how an operator's bulk
+  change is spread out), `Geography` and `Borders`.
 - **`ledger/`** — every take of every tile, oldest first. Its root holds `Taking`, `Player`, `Tally`, `Runs`,
   the `Storage` port, `Recording` (the tile writer that records) and `Retention`. `FindPlayers`, `TopPlayers`, `BanPlayer` and
   `RevertPlayer` live here: they are one moderation workflow — find, ban, undo.
@@ -317,7 +318,7 @@ because it serves every concept over one Connect service. It only maps.
 
 | package | what it does | what it needs |
 |---|---|---|
-| `clicks/usecases/click_usecase` | validates the country and the tile, then writes | `TilesChecker`, `TileStorage`, `CountryChecker` |
+| `clicks/usecases/click_usecase` | validates the country and the tile, then writes what the home-soil rule says the click leaves | `TilesChecker`, `TileStorage`, `CountryChecker`, `Rule` |
 | `clicks/usecases/get_map_usecase` | a range of the map as one dense batch | `MaxIndexReader`, `DenseMapReader` |
 | `clicks/usecases/map_density_usecase` | how many tiles there are | `MaxIndexReader` |
 | `clicks/usecases/get_budget_usecase` | a caller's allowance, unspent | `ClickBudgetReader` |
@@ -502,8 +503,8 @@ POST /planet.v1.ClickService/Click   [X-Session-Token: <the minted token>]
   → antibot_click   (judges; a flagged caller is answered OK and dropped)
   → activity_take_click (records a click that changed its tile, and who held it)
   → prom_click      (counts)
-  → clicks/usecases/click_usecase (validates tile ID + country)
-  → MemoryTileStorage.Set() [writes the tile, fans the update out in process]
+  → clicks/usecases/click_usecase (validates tile ID + country, asks clicks.HomeSoil: take, clear or nothing)
+  → ledger.Recording.Set() → MemoryTileStorage.Set() [writes the flag, or "" for a clear; fans the update out in process]
   → every subscriber: one per open ListenForEvents stream
 ```
 
@@ -534,6 +535,55 @@ POST /chat.v1.ChatService/React   [X-Session-Token: required, naming an account]
   → who everyone under the message is, one ask (rpc_player_authors.Authors), for the answer and the frame alike
   → inprocess_feed.Publish() the whole tally, versioned and named
 ```
+
+### Native land takes two clicks (`clicks.HomeSoil`)
+
+**On a country's own ground, a tile wearing that country's flag needs two clicks
+from any other flag.** The first clears it to nobody; the next click on the empty
+tile takes it, for any flag. Its natives take back an empty or foreign-held tile
+on their ground in one click, as before. It exists because one country took 40% of
+the map in under three days, and players tire of seeing their work erased within
+the hour: home ground now costs an attacker twice what it costs its defenders.
+
+**One click is one token, always.** "A click at home costs half a charge" was
+refused for breaking that; this changes what a click does, never what it costs.
+A clear is an accepted click: it spends from both buckets, sets the pace, counts
+in `clicks_total{status="ok"}` and is reported to the jury.
+
+- **The rule is `clicks.OutcomeOf(owner, ground, flag)`**, pure and tested in the
+  `clicks` root: `Unchanged` when the tile already wears the flag, `Cleared` when
+  it wears its own ground's flag and another is clicked, `Taken` for anything else
+  — foreign ground, an empty tile, a native tile held by another flag. A tile in no
+  country is never native. `Outcome.OwnerAfter` is what the tile holds after.
+  `clicks.HomeSoil` is the rule over `clicks.Borders`, the ground of each tile; off,
+  every ground reads as nobody's and every click takes, as before.
+- **Only the player's click path reads it**: `click_usecase` (the tile clicked),
+  `spread_click` (each neighbour), the enclose annexer (each tile inside) and
+  `antibot_click` (the jury's view before the write). `inmemory_tile_storage` knows
+  nothing of it, so the bomb, `ReassignCountry`, `RevertPlayer` and
+  `PaintRandomTiles` write the map as they always did.
+- **A clear is an ordinary `Set(tile, "")`**, so it reaches every client as a
+  `TileUpdate` with an empty country and `Previous` set, like a revert to nobody —
+  never a `Blast`. The owner is read apart from the write, as the ledger's
+  `Previous` is: three clicks racing on one tile can leave it cleared where it
+  would now be taken, which is one click's worth and the next click settles.
+- **`click_usecase.Out.Outcome`** says what the rule did, for the decorators inside
+  the shadow ban: `enclose_click` closes a shape only with `Taken`, and
+  `prom_click` counts `clicks_cleared_total{country_id}` by the flag clicked.
+  **It never reaches the wire**: a dropped click answers the zero `Out`, which
+  reads `Unchanged`, so an outcome on the answer would tell a banned caller its
+  clicks are dropped. The client predicts it instead.
+- **The client is told** in `GetBonusRulesResponse.home_soil`, read once per page
+  load, and paints its own click from its copy of the rule and the borders blob it
+  already loads — a clear as an empty tile, not the flag. `home_soil_test.go` and
+  the frontend's `domain/homeSoil.test.ts` hold the same cases.
+- **`homeSoil.enabled`** is the switch, off by default and on in production; off
+  needs no frontend release, since the client reads it. See [Configuration](#configuration).
+
+What the bonuses, the ledger and the antibot do with a clear is in their own
+sections: [spread](#what-a-spread-does-to-a-click), [enclose](#what-an-enclose-does-to-a-click),
+[ledger](#manual-bans-findplayers-topplayers-banplayer-revertplayer-inspectplayer),
+[antibot](#the-parts-that-are-easy-to-get-wrong).
 
 ### Chat (`internal/chat/`)
 
@@ -665,7 +715,7 @@ The scope is whatever `IPReaderMiddleware` put on the context: `X-Real-IP` if pr
 **Every click costs one token.** What the map share changes is how fast the
 tokens come back. `toll.steps` is a table of `{share, slowdown}`: from `share` of
 **every tile on the map**, a player of that country refills `slowdown` times
-slower (production runs 1.5× from 25%, 2× from 50%, 3× from 70%). No steps
+slower (production runs 1.5× from 10%, 2.5× from 20%, 4× from 30%). No steps
 refills every country at the plain rate. `ClickBudget.slowdown` took the field
 number of the old `cost`, whose meaning it replaces.
 
@@ -888,7 +938,7 @@ internal/player/internal/
   - **Caps, against a script minting accounts** (`inmemory_visit_storage`): at most 10 accounts per tag, where a new account pushes out the tag's oldest visit, and 10,000 in all, where a new account is not recorded. The mint throttle already bounds how fast one address makes accounts.
   - An unknown country is `InvalidArgument`; a failed profile read is the error net's `internal`, and nothing is recorded.
   - **A sign-in, a new name, a sign-out and a deletion change the roster at once, with no announce.** The client drops its click token on each of these, and a new one waits for a click, so waiting for its next announce left a guest line on the roster, or two lines, for up to 90s. So: `auth.v1.SignedIn` moves the browser's visit to the account it is on now, under that account's name (its username, or its own guest code), over any visit the account held (`move_visit_usecase`, `Storage.Move`; one account before and after changes nothing, and reads nothing). `SetName` renames the caller's visit once the name is kept (`renaming_set_name`, `Storage.Rename`). `auth.v1.SignedOut` and `auth.v1.AccountDeleted` take the account off (`forget_visit_usecase`, `Storage.Forget`); another device still signed in announces again within 30s. An account with no visit is left off by all of them: its browser never announced.
-- **Stats come from `planet.v1.TileTaken`**, one event per tile, so a spread of seven is seven tiles. **The streak day is UTC**: a take on the day after `streak_last_day` extends the streak, a take on the same day changes nothing, a gap starts it again at 1, and a late event older than the last day counts a tile and leaves the streak alone (`Stats.WithTake`). `GetStats` reads it as of today (`Stats.AsOf`): a streak whose last day is before yesterday reads 0, and `streak_best` keeps it. `stats_test.go` pins the rules across UTC midnight.
+- **Stats come from `planet.v1.TileTaken`**, one event per tile, so a spread of seven is seven tiles. A clear of native land is not a take and is never published, so it counts nothing. **The streak day is UTC**: a take on the day after `streak_last_day` extends the streak, a take on the same day changes nothing, a gap starts it again at 1, and a late event older than the last day counts a tile and leaves the streak alone (`Stats.WithTake`). `GetStats` reads it as of today (`Stats.AsOf`): a streak whose last day is before yesterday reads 0, and `streak_best` keeps it. `stats_test.go` pins the rules across UTC midnight.
 - **An admin of the game is `player.profiles.admin`**, false by default. **The game never sets it**: an operator flips it in the database (below), and `SaveProfile` never writes it, so a rename keeps it. It only means something beside a username: `GetAuthor` and `GetAuthors` answer `admin` for the chat, which shows the crown on a message whose account is an admin **now** — it is read when the message is shown, not stamped on it, so a player that stops being an admin stops looking like one on what it already said; `presence.RosterOf` sets `Admin` on a roster entry only when it is not a guest; `GetPlayer` answers it too. The frontend draws a crown on all three. An announce reads the profile, so a new admin shows on the roster within 30s, and in the chat the moment anybody reloads it.
 
   ```bash
@@ -1187,7 +1237,9 @@ its own.
   encodes the message both procedures answer.
 - **How big a charge is, is a rule, not state.** `GetBonusRules` answers the
   blast radius, the enclose's `maxTiles`, the spread pool's size and the
-  enclosure stack's size (`bonuses.Rules`, built in `module.go`). It is
+  enclosure stack's size (`bonuses.Rules`, built in `module.go`), and whether
+  native land takes two clicks (`home_soil`, from `clicks.HomeSoil`: see
+  [Native land takes two clicks](#native-land-takes-two-clicks-clickshomesoil)). It is
   `NO_SIDE_EFFECTS`, a GET the cache interceptor marks for 5 minutes, and the
   client reads it once per page load. A page open across a deploy that changes
   them shows the old sizes until it reloads.
@@ -1218,6 +1270,14 @@ Each neighbour is an ordinary `Set`, so it publishes its own `TileUpdate` and a
 tile already held is a no-op. One click is at most 7 updates. **A lone island
 takes itself and nothing else**: `Neighbours` is empty there, and the bonus does
 not pretend otherwise.
+
+**Each neighbour follows the home-soil rule, exactly as a click on it would**: a
+neighbour on another country's own ground that wears its flag is cleared, not
+taken, and the natives' own spread takes their ground back. A bonus is never a
+way around the rule, so a spread deep in native land is worth half: one spread
+click clears the patch, the next takes it. The spread click is spent either way,
+since the click was accepted. `tiles_spread` still lists every neighbour touched;
+the tile updates say which were cleared.
 
 **Then it tells the planet, with `tiles_spread`**, as an enclose does with
 `tiles_enclosed`: the tile clicked and the neighbours it took, after they are set,
@@ -1300,8 +1360,13 @@ tells closed from open — there is no second rule.
   so the flood finds open ground and no shape is spent.
 - **Only a click that takes a tile closes a shape.** A click on a tile the caller
   already held changes nothing, so it closes nothing: a shape finished before the
-  bonus stays as it is. The owner is read before the rule writes, since afterwards
-  the map no longer says whether the click took the tile.
+  bonus stays as it is. A click that only cleared a native tile is no wall either,
+  since the tile is nobody's. The rule answers `Out.Outcome`, so this is read after
+  the write, not guessed before it.
+- **Each tile inside follows the home-soil rule**: a tile on another country's own
+  ground that wears its flag is cleared, not taken. A bonus is never a way around
+  the rule. `tiles_enclosed` still lists it among the filled tiles; its tile update
+  says it was cleared.
 - **An enclosure is one shape**, spent through `Charges.SpendEnclose` only by a
   click sent with enclose on that closed a pocket, so a click that closes nothing
   (too big, open to the coast, no inside) keeps it. With enclose off, closing a
@@ -1690,6 +1755,20 @@ Production reads `Suspect` since 2026-09-14 (`minShare` 0.6, `minClicks` 40 over
 `certainShare` stays unset for the tile war. A bot that only answers attacks
 clicks a few times a minute, so the old 60 takes in 5m never judged it at all.
 
+**A clear of native land is a loss, and winning it back is a retake.** That was a
+choice. Not counting it would blind the watchdog on exactly the ground a clear
+invites a defence loop to — the recapture bot of 2026-09-14 defended its own
+country. It costs an honest home defender nothing it did not already pay: one
+foreign click is at most one loss whether it takes or clears, and the attacker's
+second click, on the empty tile, is a loss for nobody. A Pole doing nothing but
+answering clears for forty minutes reads `Suspect` here, as a Pole answering takes
+always did, and a suspicion never bans alone (`minSuspects` 2).
+`TestAHomeDefenderAnsweringClearsIsNotBanned` pins that at production's bounds;
+`TestARecaptureLoopOnItsOwnGroundIsCaught` pins the loop. **A clear is never a
+retake** (`TestAClearIsNeverARetake`): it wins nothing back. Known gap: a loop
+holding a foreign flag on somebody's native ground needs two clicks a tile and
+neither reads as a retake — the rule itself makes that loop cost twice the clicks.
+
 **`catcher`: every box, and fast.** A box is addressed to one caller and flies
 a slow orbit that is rarely in view, so a person has to zoom out to orbit height
 and often drag the globe round to click it, and some boxes go by unseen. A script
@@ -1858,7 +1937,17 @@ honest player flagged:
 
 The interceptor reads the tile's owner **before** the handler runs and puts it on
 `antibot.Click` as `Held`/`NoOp`, because afterwards the map no longer remembers
-it. `Committed` is then called only for a click the handler accepted. Without
+it. `Committed` is then called only for a click the handler accepted.
+
+**A clear of native land is `Cleared`, and neither a no-op nor a retake.**
+`antibot_click` asks `clicks.HomeSoil` with the owner it just read, so `NoOp` and
+`Cleared` come from the same outcome the rule will write. `Held` still loses the
+tile, so for every watchdog a clear is a change: the `retaker` times the next
+caller's click on it as a reaction, and a clear is a reaction itself; the
+`defender` records the loss for `Held`. Only the defender reads `Cleared`: a
+clear wins nothing back for anyone, so it counts among the clicker's takes and is
+never a retake. The attacker's second click, on the empty tile, loses nobody
+anything (`Held` is empty), so one foreign click is still at most one loss. Without
 that split, a griefer spams a tile with deliberately invalid clicks and the next
 honest player to click it looks like it is reacting to something.
 
@@ -1976,7 +2065,7 @@ points the antibot's use, and are decorators of their own:
 | kind | recorded by | where | in `data` |
 |---|---|---|---|
 | `click` | `click_usecase/activity_attempt_click` | outermost, outside the throttle | `tile`, `country`, `outcome`: `accepted`, `noop`, `throttled`, `invalid` or `failed` |
-| `take` | `click_usecase/activity_take_click` | inside the shadow ban, around `prom_click` | `tile`, `country`, `held`: who held the tile, read before the write (left out for nobody) |
+| `take` | `click_usecase/activity_take_click` | inside the shadow ban, around `prom_click` | `tile`, `country`, `held`: who held the tile, read before the write (left out for nobody), and `cleared` when the click emptied a native tile instead of taking it (`Out.Outcome`; see `clicks.HomeSoil`) |
 | `map` | `get_map_usecase/activity_get_map` | around `antibot_get_map` | `start` and `end` as asked (0 is the end of the map), `off_map`, `outcome`: `accepted`, `invalid` or `failed` |
 | `stream` | `listen_for_events_usecase/activity_listen_for_events` | around `antibot_listen_for_events` | NULL |
 | `box_offered`, `box_caught`, `box_lapsed`, `box_foreign` | `bonuses/activity_boxes` | in the registry's `bonuses.Report`, beside the guard and the counters | `delay_us` on a catch, NULL on the others |
@@ -1991,7 +2080,8 @@ scope for this, as the other hooks already did.
 **What the rows cannot say**, which the steps after this one must know:
 
 - **A shadow-banned click has a `click` row, `accepted`, and no `take` row**: the ban answers OK and
-  writes nothing. So "accepted tries minus takes" is the ban's verdict in disguise. Never make it a
+  writes nothing. That is also why the `click` row reads a no-op off the owner before the call and never
+  off `Out.Outcome`, which a dropped click answers as `Unchanged`. So "accepted tries minus takes" is the ban's verdict in disguise. Never make it a
   feature, or the model learns the watchdogs after all. A take lost to a race between the owner read and
   the write looks the same, and is rare.
 - **A box row has no account**: a box is addressed to a scope, and the registry reports scopes.
@@ -2154,6 +2244,7 @@ Measured on a copy of production's map, before postgres: 22,040 tiles in 4.4s, a
 For the patterns no watchdog catches but a person sees on the map. A player is an **account on a scope** (`cpipscope`: the address over IPv4, the /64 over IPv6), or a scope alone for takes made with no account. `BanPlayer`, `RevertPlayer` and `InspectPlayer` take a `scope` (any address) **or** an `account_id`, never both (`ledger.ParseCaller`; both, neither or a malformed id is `InvalidArgument`).
 
 - **`ledger` remembers every take**: tile, scope, account, country, previous owner and time, oldest first. `ledger.Recording` wraps the storage the click chain writes through — the rule, `spread_click` and the enclose annexer — so every tile a click takes is recorded, a no-op is not, and a click the shadow ban drops never reaches it. Recording appends through `publishing_ledger_storage`, which publishes `planet.v1.TileTaken` for each take with an account, after it is recorded. A take by somebody else is one more take, not a replacement: a bot painted over as fast as it paints is still in the ledger. Bombs and reassigns write nothing; they show as a change the ledger never saw.
+- **A clear of native land is recorded, as a take with no country** (`Taking.Cleared`). So a revert follows it: A pl→"", A ""→de goes back to `pl`, and a tile A only cleared goes back to `pl` while it is still empty — reverting a clearing bot gives the natives their ground. It is **never published**: it took no tile, so it is no `TileTaken` and no tile in anybody's stats. In `FindPlayers` it matches no flag; in `TopPlayers` it counts among the caller's `takes`, since it is what the caller did to the map, and holds no tile.
 - **The rules are in the `ledger` root, and its package doc states them**. A caller (`ledger.Caller`, a scope or an account) **holds** a tile when the tile's latest take is its own and the tile still wears that paint. A revert gives a held tile back to what it held before the caller's **current run** on it: its own latest takes, walking back while each took the tile from the paint of the one before. An account's run follows it across scopes. Another scope's take breaks the run (A il→ps, B ps→de, A de→ps goes back to `de`), and so does a change the ledger never saw (A il→ps, bomb, A ""→ps goes back to nobody). `Tally` gathers players for `FindPlayers` and `TopPlayers`, `Runs` computes the revert, `ByTakes` and `Top` rank and cut. The use cases only replay the ledger into these, filter through their ports, and call them. The tests for each interleaving are in `ledger_test.go`.
 - **Kept in memory and flushed to postgres** (`inmemory_ledger_storage`, behind `ledger.Storage`; see [Durability](#durability)). In memory it is an append-only log of 20-byte records in 1.25 MiB chunks, scopes and accounts interned in one table per chunk and countries in another, so an old chunk takes its strings when it goes. A record is never changed once written, so `Replay` copies the chunk headers under the lock and reads without it: a `TopPlayers` over 4M takes takes ~1s and never blocks a click. `Forget(caller, position)` hides a reverted scope's or account's takes up to the replay it was computed from, so a take made mid-revert still counts.
 - **Bounded twice.** `ledger.retention` (72h) drops takes by age, each `ledger.sweepInterval`; `ledgerStorage.maxTakes` (4M) drops the oldest first when a busy stretch fills it, and logs "the ledger is full" once. Production is thousands of clicks per 5 minutes (`clicks_total`), and a spread click takes up to 7 tiles: 15 takes a second fill 4M in three days. Measured at 4M before the account: ~85 MiB heap. The account adds 4 bytes a take, about 15 MiB more at the cap (not measured).
@@ -2313,7 +2404,8 @@ the same array.
 
 `clicks.Borders` is the other half of the geography: which country's ground a tile sits on, from
 `generated/map/borders-<hash>.bin`, the table the frontend's `npm run map:generate` writes to `/map`.
-Only the operator tools read it — see [Manual bans](#manual-bans-findplayers-topplayers-banplayer-revertplayer-inspectplayer).
+The operator tools read it — see [Manual bans](#manual-bans-findplayers-topplayers-banplayer-revertplayer-inspectplayer) —
+and so does the home-soil rule, on every click — see [Native land takes two clicks](#native-land-takes-two-clicks-clickshomesoil).
 
 `Neighbours` is what the spread bonus reads — see [What a spread does to a click](#what-a-spread-does-to-a-click).
 `Within`, `Position`, `Nearest` and `Spacing` are what the bomb reads — see [What a bomb does](#what-a-bomb-does).
@@ -2390,6 +2482,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `tilesStorage.subscriberBuffer` — per-subscriber channel capacity, which is now per connected client rather than per fanout; updates for a subscriber that cannot keep up are dropped, not blocked on
 - `rateLimiter.perSecond`, `rateLimiter.burst`, `rateLimiter.sweepInterval` — one account's click allowance, and a token with no account's scope bucket (defaults 1/s, burst 10, swept every minute; `perSecond` is a float, so 0.2 is one click every 5s)
 - `rateLimiter.scopeMultiplier` — the scope's bucket over one account's, shared by every account behind the address (default 10). Below 1 refuses the boot. See [Two buckets per click](#two-buckets-per-click)
+- `homeSoil.enabled` — native land takes two clicks: on a country's own ground, another flag's first click clears its tile and the next takes it. Off by default; the client reads it from `GetBonusRules`, so turning it off needs no release. See [Native land takes two clicks](#native-land-takes-two-clicks-clickshomesoil)
 - `vpnBlocklist.enabled`, `vpnBlocklist.includeDatacenters`, `vpnBlocklist.allow` — the VPN refusal (see [VPN blocklist](#vpn-blocklist)); disabled parses nothing and allocates nothing
 - `bonus.interval` — how often a box is put in front of somebody; a ceiling, since nothing is offered while nobody is watching
 - `bonus.offerTTL` — how long the token stays good; **must outlast the flight the client draws**, or a box caught on its last frame is refused

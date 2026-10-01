@@ -8,11 +8,16 @@ import waveVertex from "./shaders/enclosureWave/vertex.glsl"
 import waveFragment from "./shaders/enclosureWave/fragment.glsl"
 
 /**
- * What a click made under a bonus looks like, on every screen on the planet.
+ * What a click made under a bonus looks like, on every screen on the planet —
+ * and a click that only cleared native ground, on the clicker's own.
  *
  * A spread click bursts green at the tile clicked and throws a spark onto each
  * tile around it, one after the other round the circle, which pops as it lands.
  * A ring runs out under them.
+ *
+ * A clear puffs dust: native land takes two clicks, so the first foreign click
+ * empties the tile instead of flipping it, and without a sign that reads as a
+ * click that went wrong. A small burst, six motes drifting off it, one ring.
  *
  * It borrows the enclosure's shaders and its approach: the curves are plain
  * TypeScript written into attributes per frame, so the timing is tested rather
@@ -41,6 +46,15 @@ const MAX_PLAYING = 32
 
 const GREEN = new THREE.Color(0.3, 1.0, 0.45)
 
+export const CLEAR_DRIFT_SECONDS = 0.45
+export const CLEAR_LIFETIME_SECONDS = 0.8
+
+/** How far a mote drifts from the tile cleared, in tile spacings: short of the next tile. */
+const CLEAR_DRIFT_REACH = 0.9
+
+/** Dry earth: the ground showing through, and nobody's colour. */
+const DUST = new THREE.Color(0.93, 0.8, 0.58)
+
 export type Spark = {
     /** Where it starts and where it ends, on the unit sphere. The same point for a spark that does not fly. */
     from: THREE.Vector3
@@ -52,8 +66,9 @@ export type Spark = {
     /**
      * - `burst`: flashes in place, at the tile clicked.
      * - `landing`: flies onto a tile and pops there.
+     * - `mote`: drifts a little way off and fades as it goes, like dust.
      */
-    role: "burst" | "landing"
+    role: "burst" | "landing" | "mote"
 }
 
 export type Wave = {
@@ -128,6 +143,35 @@ export function choreographSpread(spread: SpreadClick, positions: ArrayLike<numb
     }
 }
 
+/**
+ * A click that cleared a native tile rather than taking it: a burst of dust on
+ * the tile, and six motes drifting off it round the circle.
+ */
+export function choreographClear(tile: number, positions: ArrayLike<number>): Choreography {
+    const centre = at(positions, tile)
+    const {east, north} = groundFrame(centre)
+
+    const sparks: Spark[] = [{from: centre, to: centre, start: 0, travel: 0, role: "burst"}]
+    for (let i = 0; i < 6; i++) {
+        const angle = (i + 0.5) * Math.PI / 3
+        const to = centre.clone()
+            .addScaledVector(east, Math.cos(angle) * TILE_SPACING * CLEAR_DRIFT_REACH)
+            .addScaledVector(north, Math.sin(angle) * TILE_SPACING * CLEAR_DRIFT_REACH)
+            .normalize()
+        sparks.push({from: centre, to, start: 0.02, travel: CLEAR_DRIFT_SECONDS, role: "mote"})
+    }
+
+    return {
+        sparks,
+        waves: [{startsAt: 0.04, seconds: 0.55}],
+        centre,
+        reach: TILE_SPACING * 3,
+        minReachPx: 36,
+        lifetime: CLEAR_LIFETIME_SECONDS,
+        colour: DUST,
+    }
+}
+
 export type SparkLook = {
     /** How far along from `from` to `to`, 0 to 1. */
     progress: number
@@ -167,6 +211,11 @@ export function sparkLook(spark: Spark, age: number, lifetime: number, calm = fa
             const pop = Math.exp(-(since - spark.travel) * 8)
             return {progress: 1, glow: 0.9 * fade, scale: 1.3 + 2 * pop, white: 0.4 * pop}
         }
+        case "mote": {
+            if (calm) return {progress: 0.5, glow: 0.6 * fade, scale: 1, white: 0}
+            const drift = 1 - Math.pow(1 - flight, 2)
+            return {progress: drift, glow: fade * (1 - 0.7 * flight), scale: 1.2 - 0.6 * flight, white: 0.2 * (1 - flight)}
+        }
     }
 }
 
@@ -194,6 +243,8 @@ export type BonusClickEffects = {
     readonly object: THREE.Object3D
     /** Starts a spread click's effect on the next frame. */
     playSpread(spread: SpreadClick): void
+    /** Starts the dust of a click that cleared native ground, on the next frame. */
+    playClear(tile: number): void
     /** Whether this frame changed anything: the frame an effect ends on counts. */
     update(seconds: number, camera: THREE.OrthographicCamera, viewportHeight: number): boolean
     dispose(): void
@@ -358,6 +409,7 @@ export function createBonusClickEffects(positions: ArrayLike<number>): BonusClic
     return {
         object: group,
         playSpread: (spread) => play(choreographSpread(spread, positions)),
+        playClear: (tile) => play(choreographClear(tile, positions)),
         update,
         dispose: () => {
             for (const effect of playing) stop(effect)
