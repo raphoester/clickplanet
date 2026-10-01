@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/catcher"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/churner"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/cohort"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/defender"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
@@ -76,6 +77,7 @@ type Config struct {
 	Catcher   catcherConfig
 	Cohort    cohortConfig
 	Scraper   scraperConfig
+	Churner   churnerConfig
 }
 
 // Validate refuses a bound that cannot mean what it says. Only the cohort has
@@ -135,6 +137,11 @@ type scraperConfig struct {
 	Detector scraper.Config
 }
 
+type churnerConfig struct {
+	Enabled  bool
+	Detector churner.Config
+}
+
 // Observer is how a finding leaves this package, which measures and judges but
 // logs and counts nothing itself. Every hook is optional.
 type Observer struct {
@@ -159,6 +166,12 @@ type Observer struct {
 
 	// Each clicking caller's whole maps read beyond one per stream opened, once a sweep, whether or not it reads as more than clear.
 	OnMapReads func(maps float64)
+
+	// Each scope's guest accounts born inside the churner's window, "v4" or "v6", once a sweep, for the scopes clicked on since the last.
+	OnScopeAccounts func(accounts int, family string)
+
+	// Each relay's takeovers inside the churner's window, once a sweep, for the relays clicked on since the last.
+	OnRelayLinks func(links int)
 
 	OnFlag func(report Report)
 
@@ -321,6 +334,24 @@ func build(
 		sections = append(sections, watchdog)
 		names = append(names, scraper.Name)
 		g.scraper = watchdog
+	}
+
+	if config.Churner.Enabled {
+		onScopeAccounts := observer.OnScopeAccounts
+		if onScopeAccounts == nil {
+			onScopeAccounts = func(int, string) {}
+		}
+
+		onRelayLinks := observer.OnRelayLinks
+		if onRelayLinks == nil {
+			onRelayLinks = func(int) {}
+		}
+
+		watchdog := churner.New(config.Churner.Detector, clock, onScopeAccounts, onRelayLinks)
+		g.runners = append(g.runners, watchdog.Run)
+		watchdogs = append(watchdogs, watchdog)
+		sections = append(sections, watchdog)
+		names = append(names, churner.Name)
 	}
 
 	if len(watchdogs) == 0 {

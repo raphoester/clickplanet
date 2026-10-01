@@ -319,6 +319,32 @@ antiBot:
       trackWindow: 15m
       sweepInterval: 1m
 
+  # A fresh guest account every minute or two, each spending its 60-click bank.
+  # See cmd/api/example.yaml. Set from the ledger of 2026-09-28 to 10-01: no
+  # IPv6 /64 a person used started more than 3 accounts in an hour, the bots 6
+  # to 55. Replayed, every "certain" fell on a bot. Watch click_scope_accounts
+  # and click_relay_links after deploying.
+  churner:
+    enabled: true
+    detector:
+      window: 1h
+      v6:
+        minAccounts: 4
+        certainAccounts: 6
+      v4:
+        minAccounts: 10
+        certainAccounts: 20
+      relay:
+        handoff: 90s
+        maxLife: 5m
+        minClicks: 20
+        minFlagShare: 0.9
+        v4Bits: 24
+        v6Bits: 32
+        minLinks: 3
+        certainLinks: 6
+      sweepInterval: 1m
+
 # A question-mark box flies past the planet every so often. Every bonus is
 # sized in banks: one bank is a full click allowance, 60 clicks at one every 5s
 # (120 signed in). A bomb never clears more than one player can take back with

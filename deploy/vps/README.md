@@ -397,7 +397,7 @@ Sessions raise the floor to "drive a real browser". What gets through that is a
 userscript in a real browser, holding a genuine session — and the only thing
 left that separates it from a player is behaviour.
 
-`antiBot` watches seven behaviours, one per watchdog:
+`antiBot` watches eight behaviours, one per watchdog:
 
 - **`retaker`** — takes a tile back moments after losing it, over and over, in a
   band no hand holds.
@@ -412,6 +412,10 @@ left that separates it from a player is behaviour.
 - **`scraper`** — reads the whole map again and again. The web app reads it once
   per page load and opens one stream with it; a map read beyond one per stream
   is a client that is not the web app.
+- **`churner`** — sheds its guest account for a fresh 60-click bank: many new
+  accounts on one /64 (`churn`), or one fresh account after another on new /64s
+  of one carrier, each starting as the last one stops (`relay`). IPv4 has its own,
+  higher bounds, because one address is often a carrier's NAT.
 
 Each returns `certain` or `suspect`. **`certain` bans on its own; `suspect` is a
 reading that would ban real players if it were trusted alone**, and counts only

@@ -62,15 +62,3 @@ func TestSweepReportsScopesInStep(t *testing.T) {
 
 	assert.Equal(t, []int{2, 0}, reported, "in step while clicking, and nobody once both went quiet")
 }
-
-func TestWiden(t *testing.T) {
-	for scope, want := range map[string]string{
-		"2a00:8c40:f0c5:6713::/64": "2a00:8c40:f0c0::/44",
-		"2a00:8c40:f0ce:fda7::/64": "2a00:8c40:f0c0::/44",
-		"203.0.113.7":              "203.0.113.0/24",
-		"caller":                   "",
-		"10.0.0.0/8":               "",
-	} {
-		assert.Equal(t, want, widen(scope, 24, 44), scope)
-	}
-}

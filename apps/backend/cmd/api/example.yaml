@@ -574,6 +574,41 @@ antiBot:
       trackWindow: 15m
       sweepInterval: 1m
 
+  # A caller that sheds its guest account for a fresh 60-click bank. Only guest
+  # accounts count: a signed-in one costs a provider identity to replace.
+  churner:
+    enabled: true
+    detector:
+      # How far back both rules count.
+      window: 1h
+      # "churn": guest accounts first seen on one scope inside window. A person
+      # keeps their account across /64s, so only an account born there counts.
+      v6:
+        minAccounts: 4
+        certainAccounts: 6
+      # One IPv4 address is often a carrier's NAT and many players, so higher.
+      # Anything that is not an IPv6 scope is held to these.
+      v4:
+        minAccounts: 10
+        certainAccounts: 20
+      # "relay": a fresh account that starts within handoff of another one
+      # stopping, in the same wider prefix and on the same flag, when the one that
+      # stopped lived at most maxLife. Read on the takeovers inside window.
+      relay:
+        handoff: 90s
+        maxLife: 5m
+        # Clicks an account needs before it has a flag, and how much of them.
+        minClicks: 20
+        minFlagShare: 0.9
+        # A mobile carrier hands out /64s from all over its /32.
+        v4Bits: 24
+        v6Bits: 32
+        minLinks: 3
+        certainLinks: 6
+      # Never shorter than window plus handoff.
+      trackWindow: 1h2m
+      sweepInterval: 1m
+
 # Live chat. Its own bounded context and its own Connect service, sharing this
 # process and the transport with the tile game and nothing else. Always on.
 chat:
