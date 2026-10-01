@@ -39,7 +39,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/postgres_tile_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/allegiance_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/antibot_attempt_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/antibot_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/bonus_click"
@@ -58,6 +57,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/paint_random_tiles_usecase/audit_paint_random"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/reassign_country_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/reassign_country_usecase/audit_reassign"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/record_allegiance_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/postgres_ledger_store"
@@ -92,6 +92,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/top_players_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/use_refill_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/quizzes"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/tile_taken_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
@@ -101,6 +102,9 @@ import (
 )
 
 const moduleName = "planet"
+
+// A take is one tile, up to a few dozen per click with a spread or an enclose: this is seconds of the whole game.
+const tileTakenBuffer = 8192
 
 // NewModule is always enabled: a process without the tile game is not this game.
 //
@@ -175,9 +179,17 @@ func NewModule(config Config) cpbootstrap.Module {
 			props.Runners.Add(limiter)
 			buckets := config.RateLimiter.Buckets()
 
-			// The flag each account and scope clicks for most: the toll prices a click from it.
+			// The flag each account and scope takes tiles for most, heard from planet.v1.TileTaken: the toll prices a
+			// click from it. A full buffer drops a take, which only makes the tally a little short.
 			allegiances := inmemory_allegiance_storage.New(clock)
 			props.Runners.Add(allegiances)
+
+			takes, err := cpbootstrap.Subscribe(props.Events, "planet-allegiances", tileTakenBuffer,
+				tile_taken_subscriber.New(record_allegiance_usecase.New(allegiances)))
+			if err != nil {
+				return fmt.Errorf("failed to subscribe to planet.v1.TileTaken: %w", err)
+			}
+			props.Runners.Add(takes)
 
 			pricer := clicks.NewToll(config.Toll, tilesStorage, allegiances, clock)
 
@@ -189,7 +201,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			}
 
 			// writer is the storage as the click chain writes it, so every tile it takes lands in the ledger,
-			// and each one taken by an account is told to the other modules as planet.v1.TileTaken.
+			// and each one taken by an account is told as planet.v1.TileTaken: to the other modules, and to the allegiances.
 			writer := ledger.NewRecording(tilesStorage, publishing_ledger_storage.New(takings, props.Events), clock)
 
 			// ---- Bonus boxes and quizzes ----
@@ -255,9 +267,6 @@ func NewModule(config Config) cpbootstrap.Module {
 			props.Runners.Add(guard)
 
 			clickUseCase = antibot_click.New(clickUseCase, guard, tilesStorage, homeSoil, clock, props.Metrics)
-
-			// Outside the shadow ban, so a banned caller's flag moves as anyone's does and tells it nothing.
-			clickUseCase = allegiance_click.New(clickUseCase, allegiances)
 
 			// Inside the throttle: presence is what a caller actually managed to do,
 			// not what they attempted.

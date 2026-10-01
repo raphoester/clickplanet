@@ -31,18 +31,16 @@ type Storage struct {
 	scopes   map[string]clicks.Allegiance
 }
 
-// Record counts one click for country, for the payer's account when it has one and for its scope.
-func (s *Storage) Record(payer clicks.Payer, country string) {
-	now := s.clock.Now()
-
+// Record counts one tile taken for country at at, for the account and for the scope it came from.
+func (s *Storage) Record(account string, scope string, country string, at time.Time) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if payer.Scope != "" {
-		s.scopes[payer.Scope] = s.scopes[payer.Scope].With(country, now)
+	if scope != "" {
+		s.scopes[scope] = s.scopes[scope].With(country, at)
 	}
-	if payer.Account != "" {
-		s.accounts[payer.Account] = s.accounts[payer.Account].With(country, now)
+	if account != "" {
+		s.accounts[account] = s.accounts[account].With(country, at)
 	}
 }
 

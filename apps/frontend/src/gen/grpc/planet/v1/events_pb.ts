@@ -37,6 +37,14 @@ export class TileTaken extends Message<TileTaken> {
    */
   takenAt?: Timestamp;
 
+  /**
+   * Where the take came from: the address, or its /64 over IPv6. The planet
+   * reads it for the flag each address plays for; nothing keeps it.
+   *
+   * @generated from field: string scope = 5;
+   */
+  scope = "";
+
   constructor(data?: PartialMessage<TileTaken>) {
     super();
     proto3.util.initPartial(data, this);
@@ -49,6 +57,7 @@ export class TileTaken extends Message<TileTaken> {
     { no: 2, name: "tile_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 3, name: "country", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 4, name: "taken_at", kind: "message", T: Timestamp },
+    { no: 5, name: "scope", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TileTaken {

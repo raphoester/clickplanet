@@ -6,25 +6,24 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 var epoch = time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 
-func TestAClickCountsForItsAccountAndItsScope(t *testing.T) {
+func TestATakeCountsForItsAccountAndItsScope(t *testing.T) {
 	storage := New(cptime.NewFixedClock(epoch))
 
-	storage.Record(clicks.Payer{Scope: "2001:db8::/64", Account: "acc-fr"}, "fr")
+	storage.Record("acc-fr", "2001:db8::/64", "fr", epoch)
 
 	assert.Equal(t, "fr", storage.OfAccount("acc-fr").Flag())
 	assert.Equal(t, "fr", storage.OfScope("2001:db8::/64").Flag())
 }
 
-func TestAClickWithNoAccountCountsForItsScopeAlone(t *testing.T) {
+func TestATakeWithNoAccountCountsForItsScopeAlone(t *testing.T) {
 	storage := New(cptime.NewFixedClock(epoch))
 
-	storage.Record(clicks.Payer{Scope: "2001:db8::/64"}, "fr")
+	storage.Record("", "2001:db8::/64", "fr", epoch)
 
 	assert.Equal(t, "fr", storage.OfScope("2001:db8::/64").Flag())
 	assert.Empty(t, storage.accounts)
@@ -37,10 +36,10 @@ func TestAnUnknownAccountHasNoFlag(t *testing.T) {
 func TestAllegiancesWithNoRecentClickAreForgotten(t *testing.T) {
 	clock := cptime.NewFixedClock(epoch)
 	storage := New(clock)
-	storage.Record(clicks.Payer{Scope: "2001:db8::/64", Account: "acc-old"}, "fr")
+	storage.Record("acc-old", "2001:db8::/64", "fr", clock.Now())
 
 	clock.Advance(72 * time.Hour)
-	storage.Record(clicks.Payer{Scope: "2001:db8:1::/64", Account: "acc-new"}, "es")
+	storage.Record("acc-new", "2001:db8:1::/64", "es", clock.Now())
 	clock.Advance(time.Minute)
 	storage.forgetFaded()
 

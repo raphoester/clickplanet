@@ -6,23 +6,23 @@ import (
 )
 
 const (
-	// A click counts half as much every flagHalfLife, so the main flag is about the last day's.
+	// A take counts half as much every flagHalfLife, so the main flag is about the last day's.
 	flagHalfLife = 12 * time.Hour
 
-	// Past it every click counts 1/64 or less, and the allegiance is forgotten.
+	// Past it every take counts 1/64 or less, and the allegiance is forgotten.
 	flagMemory = 6 * flagHalfLife
 
-	// A country whose clicks have faded below one click in 64 is dropped from the tally.
+	// A country whose takes have faded below one take in 64 is dropped from the tally.
 	fadedWeight = 1.0 / 64
 )
 
-// Allegiance is the flag a player clicks for most, so one click for another flag does not change it.
+// Allegiance is the flag a player takes tiles for most, so one click for another flag does not change it.
 type Allegiance struct {
 	weights map[string]float64
 	at      time.Time
 }
 
-// With is a copy that counts one more click for country, at now.
+// With is a copy that counts one more take for country, at now.
 func (a Allegiance) With(country string, now time.Time) Allegiance {
 	fade := 1.0
 	if elapsed := now.Sub(a.at); elapsed > 0 {
@@ -40,7 +40,7 @@ func (a Allegiance) With(country string, now time.Time) Allegiance {
 	return Allegiance{weights: weights, at: now}
 }
 
-// Flag is the country with the most weight, "" for no click; a tie goes to the code that sorts first.
+// Flag is the country with the most weight, "" for none; a tie goes to the code that sorts first.
 func (a Allegiance) Flag() string {
 	main, most := "", 0.0
 	for flag, weight := range a.weights {
@@ -52,7 +52,7 @@ func (a Allegiance) Flag() string {
 	return main
 }
 
-// Faded says whether the last click is older than flagMemory.
+// Faded says whether the last take is older than flagMemory.
 func (a Allegiance) Faded(now time.Time) bool {
 	return now.Sub(a.at) > flagMemory
 }
