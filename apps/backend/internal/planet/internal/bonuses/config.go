@@ -1,9 +1,6 @@
 package bonuses
 
 import (
-	"fmt"
-	"math"
-	"slices"
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/quizzes"
@@ -22,6 +19,9 @@ type Config struct {
 	// box in four a spread. A kind left out, or at 0, is never offered. Empty
 	// takes defaultKinds.
 	Kinds map[Kind]float64
+
+	// Replaces Kinds from each band's share of the map up. Empty, everyone draws from Kinds.
+	KindsByShare []KindBand
 
 	OfferTTL time.Duration
 
@@ -170,20 +170,14 @@ func (c EncloseConfig) withDefaults() EncloseConfig {
 // Validate refuses a kind this server cannot grant, and weights that could never
 // draw anything, rather than offering boxes nobody asked for.
 func (c Config) Validate() error {
-	total := 0.0
-
-	for kind, weight := range c.Kinds {
-		if !slices.Contains(Kinds, kind) {
-			return fmt.Errorf("bonus.kinds holds %q, which is not one of %v", kind, Kinds)
+	if len(c.Kinds) > 0 {
+		if err := weightsError("bonus.kinds", c.Kinds); err != nil {
+			return err
 		}
-		if weight < 0 || math.IsNaN(weight) || math.IsInf(weight, 0) {
-			return fmt.Errorf("bonus.kinds.%s is %v: a weight must be a number of 0 or more", kind, weight)
-		}
-		total += weight
 	}
 
-	if len(c.Kinds) > 0 && total == 0 {
-		return fmt.Errorf("bonus.kinds gives every kind a weight of 0, so no box could be anything")
+	if err := c.bandsError(); err != nil {
+		return err
 	}
 
 	return c.Quiz.Validate()

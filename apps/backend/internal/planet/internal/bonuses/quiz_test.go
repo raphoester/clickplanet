@@ -1,6 +1,7 @@
 package bonuses
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -57,7 +58,7 @@ func (fixedBank) Draw() quizzes.Round {
 // waitOutQuiz moves past a caller's whole quiz window and sweeps, which is one turn.
 func waitOutQuiz(r *Registry, clock *cptime.FixedClock) {
 	clock.Advance(quizWindow + time.Second)
-	r.sweep()
+	r.sweep(context.Background())
 }
 
 func quizOffered(t *testing.T, events <-chan Event) *QuizOffer {
@@ -95,7 +96,7 @@ func TestAQuizGoesToAnAttendingCallerOnceItsOwnWindowPasses(t *testing.T) {
 	registry, clock := newQuizzingRegistry(t)
 	events := playing(t, registry, "scope-a")
 
-	registry.sweep()
+	registry.sweep(t.Context())
 	assert.Nil(t, quizOffered(t, events), "nothing is due yet")
 
 	waitOutQuiz(registry, clock)
@@ -225,7 +226,7 @@ func TestABannerNobodyOpensLapsesAndFreesTheSlot(t *testing.T) {
 	require.NotNil(t, offer)
 
 	clock.Advance(bannerFor + time.Second)
-	registry.sweep()
+	registry.sweep(t.Context())
 
 	_, ok := registry.OpenQuiz(offer.Token, "scope-a")
 	assert.False(t, ok)
@@ -240,7 +241,7 @@ func TestAQuestionOpenedAndLeftLapsesAtItsDeadline(t *testing.T) {
 	offer, asked := takeQuiz(t, registry, clock, "scope-a")
 
 	clock.Advance(answerIn + time.Second)
-	registry.sweep()
+	registry.sweep(t.Context())
 
 	_, ok := registry.AnswerQuiz(offer.Token, "scope-a", indexOf(asked.Options, rightAnswer))
 	assert.False(t, ok, "the sweep took it: there is nothing left to answer")
@@ -314,7 +315,7 @@ func TestQuizzesStopAtTheirOwnHourlyCap(t *testing.T) {
 	// An hour on, the grants are forgotten and the caller is due one again.
 	clock.Advance(time.Hour)
 	clicked(registry, "scope-a")
-	registry.sweep()
+	registry.sweep(t.Context())
 	assert.NotNil(t, quizOffered(t, events))
 }
 
@@ -350,7 +351,7 @@ func TestForgettingACallerTakesItsQuizWithIt(t *testing.T) {
 	leave()
 
 	clock.Advance(6 * time.Minute)
-	registry.sweep()
+	registry.sweep(t.Context())
 
 	_, ok := registry.OpenQuiz(offer.Token, "scope-a")
 	assert.False(t, ok, "a token left behind would be answerable by whoever next got this scope")

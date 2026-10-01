@@ -21,6 +21,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/inmemory_charge_storage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/log_flags"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/postgres_charge_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/answer_quiz_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/answer_quiz_usecase/prom_answer_quiz"
@@ -174,8 +175,8 @@ func NewModule(config Config) cpbootstrap.Module {
 			}
 
 			// The flag each account and scope takes tiles for most, kept in postgres and counted from
-			// planet.v1.TileTaken: the toll prices a click from it. A full buffer drops a take, which only leaves a
-			// tally a little short. Tallies with no take in 3 days are deleted every hour.
+			// planet.v1.TileTaken: the toll prices a click from it, and the bonus bands read it. A full buffer drops a
+			// take, which only leaves a tally a little short. Tallies with no take in 3 days are deleted every hour.
 			allegiances := postgres_allegiance_store.New(db)
 			takes, err := cpbootstrap.Subscribe(props.Events, "planet-allegiances", tileTakenBuffer,
 				log_subscriber.New(tile_taken_subscriber.New(record_allegiance_usecase.New(allegiances)), props.Logger))
@@ -210,8 +211,8 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			// ---- Bonus boxes and quizzes ----
 
-			// It reads the charges held, so nobody is offered a second of a kind.
-			registry := bonuses.New(config.Bonus, clock, charges)
+			// It reads the charges held, so nobody is offered a second of a kind, and the flags, for the band.
+			registry := bonuses.New(config.Bonus, clock, charges, tilesStorage, log_flags.New(allegiances, props.Logger))
 			props.Runners.Add(registry)
 
 			// The quizzes are a second way to earn one of those charges, on a schedule of their own.
@@ -367,7 +368,7 @@ func NewModule(config Config) cpbootstrap.Module {
 				props.Metrics)
 
 			registry.Observe(bonuses.Report{
-				Offered: counters.Offered.Inc,
+				Offered: counters.Offered,
 				Lapsed: func(scope string) {
 					counters.Lapsed.Inc()
 					guard.Missed(scope)
@@ -384,7 +385,7 @@ func NewModule(config Config) cpbootstrap.Module {
 				// The quizzes' half. Not told to the catcher watchdog: it measures how fast a box
 				// flying past the planet was caught, and a quiz is read and thought about — a
 				// person who answers one quickly is a person who knew the answer.
-				QuizOffered: quizCounters.Offered.Inc,
+				QuizOffered: quizCounters.Offered,
 				QuizLapsed:  func(string) { quizCounters.Lapsed.Inc() },
 				QuizAnswered: func(_ string, correct bool, after time.Duration) {
 					quizCounters.Answered.WithLabelValues(strconv.FormatBool(correct)).Observe(after.Seconds())

@@ -33,6 +33,16 @@ func TestTheExampleConfigStillReachesTheStructs(t *testing.T) {
 	assert.Equal(t, 3, config.Planet.Bonus.Enclose.MaxPerBox)
 	assert.Equal(t, 12, config.Planet.Bonus.MaxChargesPerHour)
 
+	bands := config.Planet.Bonus.KindsByShare
+	require.Len(t, bands, 2)
+	assert.InDelta(t, 0.20, bands[1].Share, 1e-9)
+	require.Len(t, bands[1].Kinds, 1)
+	for kind, weight := range bands[1].Kinds {
+		assert.Equal(t, "refill", string(kind))
+		assert.InDelta(t, 1, weight, 1e-9)
+	}
+	require.NoError(t, config.Planet.Bonus.Validate())
+
 	quiz := config.Planet.Bonus.Quiz
 	assert.True(t, quiz.Enabled)
 	assert.Equal(t, 6*time.Minute, quiz.MinInterval)

@@ -3,6 +3,7 @@ package bonuses
 import (
 	"time"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/quizzes"
 )
 
@@ -182,21 +183,28 @@ func (r *Registry) AnswerQuiz(token string, scope string, choice int) (Answered,
 	return answered, true
 }
 
-// sweepQuizzes retires the banners nobody opened and puts out the ones that are due. Called from
-// the one sweep, with the lock held.
-func (r *Registry) sweepQuizzes(now time.Time) {
+// offerQuizzes puts out the quizzes that are due, to the callers whose flags this sweep read. Called from the one
+// sweep, with the lock held.
+func (r *Registry) offerQuizzes(
+	now time.Time, due map[string][]clicks.AllegianceKey, flags map[clicks.AllegianceKey]clicks.Allegiance,
+) {
 	if !r.quizzing() {
 		return
 	}
 
-	r.collectStaleQuizzes(now)
-
-	for scope, entry := range r.callers {
-		if !r.quizDue(entry, now) {
+	for scope := range due {
+		entry, known := r.callers[scope]
+		if !known || !r.quizDue(entry, now) {
 			continue
 		}
 
-		kinds := r.offerable(entry, now)
+		r.forgetIdlePlayers(entry, now)
+		band, read := r.band(flags, scope, entry)
+		if !read {
+			continue
+		}
+
+		kinds := r.offerable(entry, now, band)
 		if kinds.Empty() {
 			// Nothing a right answer could be worth, so there is nothing to ask for. The slot is
 			// lost rather than banked, as a box's is.
@@ -204,7 +212,7 @@ func (r *Registry) sweepQuizzes(now time.Time) {
 			continue
 		}
 
-		r.offerQuiz(scope, entry, now, r.drawKind(kinds))
+		r.offerQuiz(scope, entry, now, band, drawKind(band, kinds))
 	}
 }
 
@@ -228,7 +236,7 @@ func (r *Registry) quizDue(entry *caller, now time.Time) bool {
 	return true
 }
 
-func (r *Registry) offerQuiz(scope string, entry *caller, now time.Time, kind Kind) {
+func (r *Registry) offerQuiz(scope string, entry *caller, now time.Time, band KindBand, kind Kind) {
 	token, err := newToken()
 	if err != nil {
 		return
@@ -252,12 +260,18 @@ func (r *Registry) offerQuiz(scope string, entry *caller, now time.Time, kind Ki
 	entry.nextQuizAt = offer.ExpiresAt.Add(r.quizConfig.AnswerWindow).Add(r.quizWindow())
 
 	entry.send(Event{Quiz: &offer})
-	r.counted(r.report.QuizOffered)
+	if r.report.QuizOffered != nil {
+		r.report.QuizOffered(kind, band.Share)
+	}
 }
 
 // collectStaleQuizzes drops what can no longer be answered: a banner nobody clicked, and a question
 // opened and left. Both free the caller's slot.
 func (r *Registry) collectStaleQuizzes(now time.Time) {
+	if !r.quizzing() {
+		return
+	}
+
 	for token, quiz := range r.quizOffers {
 		gone := now.After(quiz.expiresAt)
 		if quiz.opened() {

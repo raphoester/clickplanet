@@ -5,9 +5,11 @@ package prom_claim_bonus
 
 import (
 	"context"
+	"strconv"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/claim_bonus_usecase"
 )
 
@@ -19,7 +21,8 @@ type UseCase interface {
 // and a box nobody took. The address is never a label: unbounded cardinality,
 // and personal data in every scrape.
 type Counters struct {
-	Offered prometheus.Counter
+	// Offered counts by kind and by the share the kind's band starts at.
+	Offered func(kind bonuses.Kind, band float64)
 	Lapsed  prometheus.Counter
 
 	// Caught is how long after the offer each box was claimed. The raw bucket
@@ -39,10 +42,10 @@ func New(implementation UseCase, registerer prometheus.Registerer) (*Decorator, 
 		Help: "Bonus boxes claimed, by outcome",
 	}, []string{"outcome"})
 
-	offers := factory.NewCounter(prometheus.CounterOpts{
+	offers := factory.NewCounterVec(prometheus.CounterOpts{
 		Name: "bonus_offers_total",
-		Help: "Bonus boxes put in front of a caller",
-	})
+		Help: "Bonus boxes put in front of a caller, by kind and by the share of the map their band starts at",
+	}, []string{"kind", "band"})
 
 	lapsed := factory.NewCounter(prometheus.CounterOpts{
 		Name: "bonus_lapsed_total",
@@ -61,7 +64,9 @@ func New(implementation UseCase, registerer prometheus.Registerer) (*Decorator, 
 	})
 
 	return &Decorator{implementation: implementation, claims: claims},
-		Counters{Offered: offers, Lapsed: lapsed, Caught: caught, Foreign: foreign}
+		Counters{Offered: func(kind bonuses.Kind, band float64) {
+			offers.WithLabelValues(string(kind), strconv.FormatFloat(band, 'g', -1, 64)).Inc()
+		}, Lapsed: lapsed, Caught: caught, Foreign: foreign}
 }
 
 type Decorator struct {

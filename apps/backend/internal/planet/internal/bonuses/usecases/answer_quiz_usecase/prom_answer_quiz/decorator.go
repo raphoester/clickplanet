@@ -10,9 +10,11 @@ package prom_answer_quiz
 
 import (
 	"context"
+	"strconv"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/answer_quiz_usecase"
 )
 
@@ -24,7 +26,8 @@ type UseCase interface {
 // how long an answer took. The address is never a label, for the reason the boxes' are not:
 // unbounded cardinality, and personal data in every scrape.
 type Counters struct {
-	Offered prometheus.Counter
+	// Offered counts by kind and by the share the kind's band starts at.
+	Offered func(kind bonuses.Kind, band float64)
 	Lapsed  prometheus.Counter
 
 	// Answered is how long after the banner an answer landed, by whether it was right.
@@ -39,10 +42,10 @@ func New(implementation UseCase, registerer prometheus.Registerer) (*Decorator, 
 		Help: "Quizzes answered, by outcome",
 	}, []string{"outcome"})
 
-	offers := factory.NewCounter(prometheus.CounterOpts{
+	offers := factory.NewCounterVec(prometheus.CounterOpts{
 		Name: "quiz_offers_total",
-		Help: "Quizzes put in front of a caller",
-	})
+		Help: "Quizzes put in front of a caller, by the kind a right answer wins and the share its band starts at",
+	}, []string{"kind", "band"})
 
 	lapsed := factory.NewCounter(prometheus.CounterOpts{
 		Name: "quiz_lapsed_total",
@@ -58,7 +61,9 @@ func New(implementation UseCase, registerer prometheus.Registerer) (*Decorator, 
 	}, []string{"correct"})
 
 	return &Decorator{implementation: implementation, answers: opened},
-		Counters{Offered: offers, Lapsed: lapsed, Answered: answered}
+		Counters{Offered: func(kind bonuses.Kind, band float64) {
+			offers.WithLabelValues(string(kind), strconv.FormatFloat(band, 'g', -1, 64)).Inc()
+		}, Lapsed: lapsed, Answered: answered}
 }
 
 type Decorator struct {

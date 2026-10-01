@@ -181,6 +181,18 @@ bonus:
     enclose_clicks: 2
     bomb: 1
 
+  # Weights that replace `kinds` from a share of the map up: the Mario Kart
+  # rule, so a big country is not also handed the strong kinds. Each band has a
+  # `share` (above 0, below 1, rising) and `kinds` in the shape above; empty
+  # `kinds` is refused rather than defaulted. The share read is the biggest
+  # among the flag the address clicked for most over about the last day, and
+  # the one each account playing from it did: one click for a small flag does
+  # not change it. Left out, everyone draws from `kinds`. The quizzes draw
+  # their reward the same way.
+  kindsByShare:
+    - {share: 0.10, kinds: {refill: 5, spread_clicks: 3, enclose_clicks: 2}}
+    - {share: 0.20, kinds: {refill: 1}}
+
   # How long the token stays good. It has to outlast the flight the client
   # draws, or a box caught on its last frame is refused.
   offerTTL: 15s

@@ -345,6 +345,18 @@ bonus:
     enclose_clicks: 2
     bomb: 1
 
+  # The Mario Kart rule: from a band's share of the map up, its weights replace
+  # the ones above. One country took 40% of the map in under three days, and its
+  # bombs erased small countries' work faster than they could paint it. So a big
+  # country gets no bomb from 10% and only refills from 20%, and a refill is
+  # still slowed by the toll. The strong kinds go to the countries behind, and
+  # mostly land on the leaders. A player's country is the flag it clicked for
+  # most over about the last day, not its last click, and a box goes by the
+  # biggest country playing from the address, since any of them can catch it.
+  kindsByShare:
+    - {share: 0.10, kinds: {refill: 5, spread_clicks: 3, enclose_clicks: 2}}
+    - {share: 0.20, kinds: {refill: 1}}
+
   # Has to outlast the flight the client draws, or a box caught on its last
   # frame is refused.
   offerTTL: 15s
