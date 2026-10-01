@@ -79,6 +79,28 @@ func PayerOf(ctx context.Context) Payer {
 	return Payer{Scope: cpipscope.Of(cpctx.GetSourceIP(ctx)), Account: cpctx.GetAccount(ctx), Linked: cpctx.GetLinked(ctx)}
 }
 
+// AllegianceKey is the tally that prices payer: its account's, or its scope's with no account, as its own bucket is.
+func (p Payer) AllegianceKey() AllegianceKey {
+	if p.Account == "" {
+		return ScopeAllegianceKey(p.Scope)
+	}
+
+	return AccountAllegianceKey(p.Account)
+}
+
+// AllegianceKeys is every tally a take by payer counts for: its account's, when it has one, and its scope's.
+func (p Payer) AllegianceKeys() []AllegianceKey {
+	keys := make([]AllegianceKey, 0, 2)
+	if p.Account != "" {
+		keys = append(keys, AccountAllegianceKey(p.Account))
+	}
+	if p.Scope != "" {
+		keys = append(keys, ScopeAllegianceKey(p.Scope))
+	}
+
+	return keys
+}
+
 // Keys is the payer's own bucket first, then the scope's at the multiplier. With no account it is the
 // scope's bucket alone at one, as it was before accounts: a separate bucket, so a scale never changes under a key.
 //

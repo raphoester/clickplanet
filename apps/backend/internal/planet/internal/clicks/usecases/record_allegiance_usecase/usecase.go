@@ -3,10 +3,12 @@ package record_allegiance_usecase
 
 import (
 	"time"
+
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
 
 type Allegiances interface {
-	Record(account string, scope string, country string, at time.Time)
+	Record(country string, at time.Time, keys ...clicks.AllegianceKey)
 }
 
 type In struct {
@@ -25,5 +27,5 @@ type UseCase struct {
 }
 
 func (u *UseCase) Execute(in In) {
-	u.allegiances.Record(in.Account, in.Scope, in.Country, in.At)
+	u.allegiances.Record(in.Country, in.At, clicks.Payer{Scope: in.Scope, Account: in.Account}.AllegianceKeys()...)
 }

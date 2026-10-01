@@ -716,7 +716,10 @@ refill at the small one's pace.
 - **Fed by a listener, not by the click chain.** `subscribers/tile_taken_subscriber`
   hears `planet.v1.TileTaken`, the event the ledger publishes for every take an
   account makes, and `clicks/usecases/record_allegiance_usecase` counts it in
-  `clicks/inmemory_allegiance_storage`, one tally per account and one per scope.
+  `clicks/inmemory_allegiance_storage`, in the account's tally and the scope's.
+- **The store keeps opaque keys.** One map of tallies by `clicks.AllegianceKey`;
+  only `clicks` says whose a key is (`AccountAllegianceKey`, `ScopeAllegianceKey`,
+  and `Payer.AllegianceKey(s)`), the way `Buckets.Keys` names the limiter's buckets.
   So it counts tiles painted, a spread's or an enclose's included, and not clicks
   on a tile already held. A take with no account is never published, so a caller
   with no token feeds no tally. Delivery is at most once, and a dropped take

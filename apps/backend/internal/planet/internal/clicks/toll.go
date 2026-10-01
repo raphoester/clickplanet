@@ -63,10 +63,9 @@ type ShareReader interface {
 	Share(country string) float64
 }
 
-// Flags is the flag each account and each scope clicks for most, as the click chain records it.
+// Flags is every tally of who takes tiles for which flag, by key.
 type Flags interface {
-	OfAccount(account string) Allegiance
-	OfScope(scope string) Allegiance
+	Allegiance(key AllegianceKey) Allegiance
 }
 
 func NewToll(config TollConfig, shares ShareReader, flags Flags, clock cptime.Clock) *Toll {
@@ -85,15 +84,9 @@ type Toll struct {
 	clock  cptime.Clock
 }
 
-// PriceFor is the price of payer's next click for country: its main flag's once that click counts. The flag is the
-// account's, or the scope's with no account, as its own bucket is.
+// PriceFor is the price of payer's next click for country: its own tally's main flag once that click counts.
 func (t *Toll) PriceFor(payer Payer, country string) Price {
-	allegiance := t.flags.OfScope(payer.Scope)
-	if payer.Account != "" {
-		allegiance = t.flags.OfAccount(payer.Account)
-	}
-
-	return t.Price(allegiance.With(country, t.clock.Now()).Flag())
+	return t.Price(t.flags.Allegiance(payer.AllegianceKey()).With(country, t.clock.Now()).Flag())
 }
 
 func (t *Toll) Price(country string) Price {

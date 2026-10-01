@@ -16,12 +16,10 @@ type shares map[string]float64
 
 func (s shares) Share(country string) float64 { return s[country] }
 
-// flags is the allegiance of each account and each scope, set by the test.
-type flags struct{ accounts, scopes map[string]clicks.Allegiance }
+// flags is every tally, set by the test.
+type flags map[clicks.AllegianceKey]clicks.Allegiance
 
-func (f flags) OfAccount(account string) clicks.Allegiance { return f.accounts[account] }
-
-func (f flags) OfScope(scope string) clicks.Allegiance { return f.scopes[scope] }
+func (f flags) Allegiance(key clicks.AllegianceKey) clicks.Allegiance { return f[key] }
 
 var epoch = time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 
@@ -60,7 +58,7 @@ func TestNoStepsRefillsEveryCountryAtThePlainRate(t *testing.T) {
 }
 
 func TestSwitchingToASmallFlagKeepsTheMainFlagsPrice(t *testing.T) {
-	pricer := tollOver(flags{accounts: map[string]clicks.Allegiance{"acc": paintedFor("top", 60)}})
+	pricer := tollOver(flags{clicks.AccountAllegianceKey("acc"): paintedFor("top", 60)})
 
 	price := pricer.PriceFor(clicks.Payer{Scope: "2001:db8::/64", Account: "acc"}, "small")
 
@@ -75,7 +73,7 @@ func TestAPayerWithNoHistoryIsPricedByTheCountryItClicksFor(t *testing.T) {
 }
 
 func TestAPayerWithNoAccountIsPricedByItsScopesFlag(t *testing.T) {
-	pricer := tollOver(flags{scopes: map[string]clicks.Allegiance{"2001:db8::/64": paintedFor("top", 60)}})
+	pricer := tollOver(flags{clicks.ScopeAllegianceKey("2001:db8::/64"): paintedFor("top", 60)})
 
 	assert.Equal(t, "top", pricer.PriceFor(clicks.Payer{Scope: "2001:db8::/64"}, "small").Country)
 	assert.Equal(t, "small", pricer.PriceFor(clicks.Payer{Scope: "2001:db8::/64", Account: "acc"}, "small").Country,

@@ -9,6 +9,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_allegiance_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/record_allegiance_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/tile_taken_subscriber"
@@ -32,8 +33,8 @@ func TestATakeCountsForItsAccountAndItsScope(t *testing.T) {
 	})
 
 	require.NoError(t, err)
-	assert.Equal(t, "fr", allegiances.OfAccount(account).Flag())
-	assert.Equal(t, "fr", allegiances.OfScope("2001:db8::/64").Flag())
+	assert.Equal(t, "fr", allegiances.Allegiance(clicks.AccountAllegianceKey(account)).Flag())
+	assert.Equal(t, "fr", allegiances.Allegiance(clicks.ScopeAllegianceKey("2001:db8::/64")).Flag())
 }
 
 func TestAnEventWithNoCountryOrNoTimeIsRefused(t *testing.T) {
@@ -41,5 +42,5 @@ func TestAnEventWithNoCountryOrNoTimeIsRefused(t *testing.T) {
 
 	require.Error(t, subscriber.Handle(t.Context(), &planetv1.TileTaken{AccountId: account, TileId: 42, TakenAt: timestamppb.New(at)}))
 	require.Error(t, subscriber.Handle(t.Context(), &planetv1.TileTaken{AccountId: account, TileId: 42, Country: "fr"}))
-	assert.Empty(t, allegiances.OfAccount(account).Flag())
+	assert.Empty(t, allegiances.Allegiance(clicks.AccountAllegianceKey(account)).Flag())
 }

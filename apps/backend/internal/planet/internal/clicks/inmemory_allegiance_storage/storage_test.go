@@ -6,44 +6,39 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-var epoch = time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+var (
+	epoch = time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+	ada   = clicks.AllegianceKey("ada")
+	home  = clicks.AllegianceKey("home")
+)
 
-func TestATakeCountsForItsAccountAndItsScope(t *testing.T) {
+func TestATakeCountsInEveryTallyItNames(t *testing.T) {
 	storage := New(cptime.NewFixedClock(epoch))
 
-	storage.Record("acc-fr", "2001:db8::/64", "fr", epoch)
+	storage.Record("fr", epoch, ada, home)
 
-	assert.Equal(t, "fr", storage.OfAccount("acc-fr").Flag())
-	assert.Equal(t, "fr", storage.OfScope("2001:db8::/64").Flag())
+	assert.Equal(t, "fr", storage.Allegiance(ada).Flag())
+	assert.Equal(t, "fr", storage.Allegiance(home).Flag())
 }
 
-func TestATakeWithNoAccountCountsForItsScopeAlone(t *testing.T) {
-	storage := New(cptime.NewFixedClock(epoch))
-
-	storage.Record("", "2001:db8::/64", "fr", epoch)
-
-	assert.Equal(t, "fr", storage.OfScope("2001:db8::/64").Flag())
-	assert.Empty(t, storage.accounts)
+func TestAnUnknownTallyHasNoFlag(t *testing.T) {
+	assert.Empty(t, New(cptime.NewFixedClock(epoch)).Allegiance(ada).Flag())
 }
 
-func TestAnUnknownAccountHasNoFlag(t *testing.T) {
-	assert.Empty(t, New(cptime.NewFixedClock(epoch)).OfAccount("nobody").Flag())
-}
-
-func TestAllegiancesWithNoRecentClickAreForgotten(t *testing.T) {
+func TestTalliesWithNoRecentTakeAreForgotten(t *testing.T) {
 	clock := cptime.NewFixedClock(epoch)
 	storage := New(clock)
-	storage.Record("acc-old", "2001:db8::/64", "fr", clock.Now())
+	storage.Record("fr", clock.Now(), ada)
 
 	clock.Advance(72 * time.Hour)
-	storage.Record("acc-new", "2001:db8:1::/64", "es", clock.Now())
+	storage.Record("es", clock.Now(), home)
 	clock.Advance(time.Minute)
 	storage.forgetFaded()
 
-	assert.Empty(t, storage.OfAccount("acc-old").Flag())
-	assert.Empty(t, storage.OfScope("2001:db8::/64").Flag())
-	assert.Equal(t, "es", storage.OfAccount("acc-new").Flag())
+	assert.Empty(t, storage.Allegiance(ada).Flag())
+	assert.Equal(t, "es", storage.Allegiance(home).Flag())
 }

@@ -16,6 +16,13 @@ const (
 	fadedWeight = 1.0 / 64
 )
 
+// AllegianceKey names one tally. The store keeps it opaque; only the names below say whose it is.
+type AllegianceKey string
+
+func AccountAllegianceKey(account string) AllegianceKey { return AllegianceKey("account:" + account) }
+
+func ScopeAllegianceKey(scope string) AllegianceKey { return AllegianceKey("scope:" + scope) }
+
 // Allegiance is the flag a player takes tiles for most, so one click for another flag does not change it.
 type Allegiance struct {
 	weights map[string]float64

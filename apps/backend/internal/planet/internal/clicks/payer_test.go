@@ -79,3 +79,17 @@ func TestTheTightestBucketIsTheOneWithTheFewestTokens(t *testing.T) {
 	fullScope := cpratelimit.State{Tokens: 10, Capacity: 100, PerSecond: 10}
 	assert.Equal(t, full, clicks.Tightest([]cpratelimit.State{fullScope, full}), "a tie goes to the smaller bucket")
 }
+
+func TestAPayerIsPricedByItsAccountsTallyOrItsScopesWithNoAccount(t *testing.T) {
+	assert.Equal(t, clicks.AccountAllegianceKey("ada"), clicks.Payer{Scope: "2001:db8::/64", Account: "ada"}.AllegianceKey())
+	assert.Equal(t, clicks.ScopeAllegianceKey("2001:db8::/64"), clicks.Payer{Scope: "2001:db8::/64"}.AllegianceKey())
+}
+
+func TestATakeCountsForItsAccountAndItsScope(t *testing.T) {
+	assert.Equal(t,
+		[]clicks.AllegianceKey{clicks.AccountAllegianceKey("ada"), clicks.ScopeAllegianceKey("2001:db8::/64")},
+		clicks.Payer{Scope: "2001:db8::/64", Account: "ada"}.AllegianceKeys())
+	assert.Equal(t, []clicks.AllegianceKey{clicks.ScopeAllegianceKey("2001:db8::/64")},
+		clicks.Payer{Scope: "2001:db8::/64"}.AllegianceKeys())
+	assert.NotEqual(t, clicks.AccountAllegianceKey("x"), clicks.ScopeAllegianceKey("x"), "an account and a scope never share a tally")
+}
