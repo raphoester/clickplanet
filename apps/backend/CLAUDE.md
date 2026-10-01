@@ -319,6 +319,7 @@ heard, as in `player` and `chat`.
 | `clicks/usecases/map_density_usecase` | how many tiles there are | `MaxIndexReader` |
 | `clicks/usecases/get_budget_usecase` | a caller's allowance, unspent | `ClickBudgetReader` |
 | `clicks/usecases/record_allegiance_usecase` | counts a tile taken for its account's and its scope's flag | `Allegiances` |
+| `clicks/usecases/forget_allegiances_usecase` | deletes the tallies with no take in 3 days, every hour | `Allegiances` |
 | `clicks/usecases/listen_for_events_usecase` | one client's live feed, heartbeat included | `UpdatesSubscriber` |
 | `clicks/usecases/reassign_country_usecase` | gives one country's tiles to another | `Map`, `CountryChecker` |
 | `clicks/usecases/paint_random_tiles_usecase` | paints random tiles with a flag, starting on one country's ground or anywhere | `Borders`, `Neighbours`, `Map`, `CountryChecker` |
@@ -712,26 +713,34 @@ refill at the small one's pace.
   counting half as much every 12h. `With(country, at)` is a copy with one more,
   `Flag()` the heaviest country, so the main flag is about the last day's. A tie
   goes to the code that sorts first. A country below 1/64 of a take drops out of
-  the tally.
+  the tally. `NewAllegiance`, `Weights` and `At` are what a store needs to keep one.
 - **Fed by a listener, not by the click chain.** `subscribers/tile_taken_subscriber`
   hears `planet.v1.TileTaken`, the event the ledger publishes for every take an
-  account makes, and `clicks/usecases/record_allegiance_usecase` counts it in
-  `clicks/inmemory_allegiance_storage`, in the account's tally and the scope's.
-- **The store keeps opaque keys.** One map of tallies by `clicks.AllegianceKey`;
-  only `clicks` says whose a key is (`AccountAllegianceKey`, `ScopeAllegianceKey`,
-  and `Payer.AllegianceKey(s)`), the way `Buckets.Keys` names the limiter's buckets.
-  So it counts tiles painted, a spread's or an enclose's included, and not clicks
-  on a tile already held. A take with no account is never published, so a caller
-  with no token feeds no tally. Delivery is at most once, and a dropped take
-  only leaves the tally a little short. The store's runner forgets an allegiance
-  with no take in 3 days.
-- **The reader.** The toll prices a click by the payer's own allegiance, below.
-- **Memory only.** A restart forgets every allegiance, so for a while after a
-  deploy the first clicks decide. Seeding them from the ledger at boot would
-  close that.
-- **Not read from the ledger on each click.** It holds 72h of takes with the
-  account and the country, but no index by account, so one account's flag is a
-  scan of up to 4M takes. The event is the same take, counted as it happens.
+  account makes, and `clicks/usecases/record_allegiance_usecase` reads the
+  account's tally and the scope's, adds the take to each and saves them. So it
+  counts tiles painted, a spread's or an enclose's included, and not clicks on a
+  tile already held. A take with no account is never published, so a caller with
+  no token feeds no tally. The subscriber is the one writer, which is why a read
+  then a save needs no lock. Delivery is at most once: a dropped take only leaves
+  a tally a little short. A refused event is logged by `subscribers/log_subscriber`
+  and counted by the bus.
+- **Kept in postgres.** `clicks/postgres_allegiance_store` writes
+  `planet.allegiances`, one row per tally: the key, each country's weight as
+  jsonb, and `at`, the time of the last take. A restart keeps every flag.
+  `forget_allegiances_usecase` deletes the rows with no take in 3 days
+  (`clicks.FadedBefore`), every hour, logged by `log_forget_allegiances`. A scope
+  is an address, so it is kept about as long as the ledger keeps one.
+- **The store keeps opaque keys.** Only `clicks` says whose a key is
+  (`AccountAllegianceKey`, `ScopeAllegianceKey`, `Payer.AllegianceKey(s)`), the
+  way `Buckets.Keys` names the limiter's buckets.
+- **The reader is on the click path.** The toll reads the payer's tally on every
+  click, `GetBudget` and `UseRefill` (one primary-key read), so a click now waits
+  on postgres for that, and **a click whose flag cannot be read fails** with the
+  error net's `Internal`. There is no cache: the read is cheap, and a cache with a
+  short TTL can wrap the store's read port later if the latency shows.
+- **Not read from the ledger.** It holds 72h of takes with the account and the
+  country, but no index by account, so one account's flag is a scan of up to 4M
+  takes. The event is the same take, counted as it happens.
 
 #### A big country refills slower (`clicks.Toll`)
 
@@ -2125,7 +2134,8 @@ Both chains order them the same way: error mapping outermost, then the blocklist
 
 ### Durability
 
-**The map lives in memory; postgres is where it is kept.** A click never waits on the database.
+**The map lives in memory; postgres is where it is kept.** A click waits on the database for one read only: its
+payer's [main flag](#a-players-main-flag-clicksallegiance).
 
 - **Boot loads it.** `inmemory_tile_storage.Load` reads every row of `planet.tiles` — one per owned tile, `(id, country)`; an unowned tile has no row. 180k rows load in about 60ms. **A failed load refuses the boot**: an empty map that then flushes would be every player's territory gone. A row past `gameMap.maxIndex` is skipped and logged.
 - **A flush writes what changed.** Every write under the tiles lock sets the tile's bit in a `dirty` bitmap (one bit per tile, ~32 KB). Every `tilesStorage.flushInterval` (1s), `Flush` takes the bits, reads each tile's owner **as it is now**, and hands them to `postgres_tile_store.Save`: one transaction, an upsert for owned tiles and a delete for freed ones, in chunks of 10k. A tile clicked five times between flushes is written once. A failed save puts the bits back; the next tick retries. Each flush has a 10s timeout, so a stuck connection cannot stall the loop.

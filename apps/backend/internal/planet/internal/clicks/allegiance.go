@@ -1,6 +1,7 @@
 package clicks
 
 import (
+	"maps"
 	"math"
 	"time"
 )
@@ -28,6 +29,17 @@ type Allegiance struct {
 	weights map[string]float64
 	at      time.Time
 }
+
+// NewAllegiance is a tally as it was kept: each country's weight as of at.
+func NewAllegiance(weights map[string]float64, at time.Time) Allegiance {
+	return Allegiance{weights: maps.Clone(weights), at: at}
+}
+
+// Weights is each country's weight as of At, a copy.
+func (a Allegiance) Weights() map[string]float64 { return maps.Clone(a.weights) }
+
+// At is when the last take was counted.
+func (a Allegiance) At() time.Time { return a.at }
 
 // With is a copy that counts one more take for country, at now.
 func (a Allegiance) With(country string, now time.Time) Allegiance {
@@ -59,7 +71,7 @@ func (a Allegiance) Flag() string {
 	return main
 }
 
-// Faded says whether the last take is older than flagMemory.
-func (a Allegiance) Faded(now time.Time) bool {
-	return now.Sub(a.at) > flagMemory
+// FadedBefore is the time before which a tally's last take has faded to nothing worth keeping.
+func FadedBefore(now time.Time) time.Time {
+	return now.Add(-flagMemory)
 }

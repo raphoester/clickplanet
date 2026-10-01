@@ -57,9 +57,15 @@ func TestAFadedFlagIsDroppedFromTheTally(t *testing.T) {
 	assert.Equal(t, map[string]float64{"ad": 1}, allegiance.weights)
 }
 
-func TestAnAllegianceWithNoClickInItsMemoryHasFaded(t *testing.T) {
-	allegiance := Allegiance{}.With("pl", epoch)
+func TestATallyFadesThreeDaysAfterItsLastTake(t *testing.T) {
+	assert.Equal(t, epoch, FadedBefore(epoch.Add(72*time.Hour)))
+}
 
-	assert.False(t, allegiance.Faded(epoch.Add(flagMemory)))
-	assert.True(t, allegiance.Faded(epoch.Add(flagMemory+time.Second)))
+func TestATallyKeptIsTheTallyItWas(t *testing.T) {
+	kept := Allegiance{}.With("pl", epoch).With("pl", epoch).With("ad", epoch)
+
+	back := NewAllegiance(kept.Weights(), kept.At())
+
+	assert.Equal(t, kept, back)
+	assert.Equal(t, "pl", back.Flag())
 }

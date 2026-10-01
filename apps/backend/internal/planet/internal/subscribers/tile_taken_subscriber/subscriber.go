@@ -8,11 +8,12 @@ import (
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/record_allegiance_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 )
 
 type UseCase interface {
-	Execute(in record_allegiance_usecase.In)
+	Execute(ctx context.Context, in record_allegiance_usecase.In) error
 }
 
 func New(useCase UseCase) Subscriber {
@@ -31,7 +32,7 @@ var (
 )
 
 // Handle refuses an event with no country or no time: it is the publisher's bug, and counting it would be a guess.
-func (s Subscriber) Handle(_ context.Context, event *planetv1.TileTaken) error {
+func (s Subscriber) Handle(ctx context.Context, event *planetv1.TileTaken) error {
 	if event.GetCountry() == "" {
 		return fmt.Errorf("tile %d: %w", event.GetTileId(), errNoCountry)
 	}
@@ -39,12 +40,13 @@ func (s Subscriber) Handle(_ context.Context, event *planetv1.TileTaken) error {
 		return fmt.Errorf("tile %d: %w: %w", event.GetTileId(), errNoTime, err)
 	}
 
-	s.useCase.Execute(record_allegiance_usecase.In{
+	ctx, cancel := context.WithTimeout(ctx, subscribers.Timeout)
+	defer cancel()
+
+	return s.useCase.Execute(ctx, record_allegiance_usecase.In{ //nolint:wrapcheck // the use case named it.
 		Account: event.GetAccountId(),
 		Scope:   event.GetScope(),
 		Country: event.GetCountry(),
 		At:      event.GetTakenAt().AsTime(),
 	})
-
-	return nil
 }

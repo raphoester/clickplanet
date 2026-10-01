@@ -1,6 +1,8 @@
 package clicks_test
 
 import (
+	"context"
+	"errors"
 	"math"
 	"testing"
 	"time"
@@ -19,7 +21,21 @@ func (s shares) Share(country string) float64 { return s[country] }
 // flags is every tally, set by the test.
 type flags map[clicks.AllegianceKey]clicks.Allegiance
 
-func (f flags) Allegiance(key clicks.AllegianceKey) clicks.Allegiance { return f[key] }
+func (f flags) Allegiances(_ context.Context, keys ...clicks.AllegianceKey) (map[clicks.AllegianceKey]clicks.Allegiance, error) {
+	found := map[clicks.AllegianceKey]clicks.Allegiance{}
+	for _, key := range keys {
+		if tally, ok := f[key]; ok {
+			found[key] = tally
+		}
+	}
+	return found, nil
+}
+
+type downFlags struct{}
+
+func (downFlags) Allegiances(context.Context, ...clicks.AllegianceKey) (map[clicks.AllegianceKey]clicks.Allegiance, error) {
+	return nil, errors.New("down")
+}
 
 var epoch = time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 
@@ -60,14 +76,16 @@ func TestNoStepsRefillsEveryCountryAtThePlainRate(t *testing.T) {
 func TestSwitchingToASmallFlagKeepsTheMainFlagsPrice(t *testing.T) {
 	pricer := tollOver(flags{clicks.AccountAllegianceKey("acc"): paintedFor("top", 60)})
 
-	price := pricer.PriceFor(clicks.Payer{Scope: "2001:db8::/64", Account: "acc"}, "small")
+	price, err := pricer.PriceFor(t.Context(), clicks.Payer{Scope: "2001:db8::/64", Account: "acc"}, "small")
+	require.NoError(t, err)
 
 	assert.Equal(t, "top", price.Country)
 	assert.InDelta(t, 2, price.Slowdown, 1e-9, "a bank spent on a big flag refills at the big flag's pace")
 }
 
 func TestAPayerWithNoHistoryIsPricedByTheCountryItClicksFor(t *testing.T) {
-	price := tollOver(flags{}).PriceFor(clicks.Payer{Scope: "2001:db8::/64", Account: "new"}, "mid")
+	price, err := tollOver(flags{}).PriceFor(t.Context(), clicks.Payer{Scope: "2001:db8::/64", Account: "new"}, "mid")
+	require.NoError(t, err)
 
 	assert.Equal(t, clicks.Price{Country: "mid", Slowdown: 1.5, Share: 0.3, NextShare: 0.5, NextSlowdown: 2}, price)
 }
@@ -75,9 +93,20 @@ func TestAPayerWithNoHistoryIsPricedByTheCountryItClicksFor(t *testing.T) {
 func TestAPayerWithNoAccountIsPricedByItsScopesFlag(t *testing.T) {
 	pricer := tollOver(flags{clicks.ScopeAllegianceKey("2001:db8::/64"): paintedFor("top", 60)})
 
-	assert.Equal(t, "top", pricer.PriceFor(clicks.Payer{Scope: "2001:db8::/64"}, "small").Country)
-	assert.Equal(t, "small", pricer.PriceFor(clicks.Payer{Scope: "2001:db8::/64", Account: "acc"}, "small").Country,
-		"an account is priced by its own flag, not by the address it plays from")
+	anonymous, err := pricer.PriceFor(t.Context(), clicks.Payer{Scope: "2001:db8::/64"}, "small")
+	require.NoError(t, err)
+	assert.Equal(t, "top", anonymous.Country)
+
+	account, err := pricer.PriceFor(t.Context(), clicks.Payer{Scope: "2001:db8::/64", Account: "acc"}, "small")
+	require.NoError(t, err)
+	assert.Equal(t, "small", account.Country, "an account is priced by its own flag, not by the address it plays from")
+}
+
+func TestAPriceThatCannotReadTheFlagFails(t *testing.T) {
+	_, err := clicks.NewToll(table, board, downFlags{}, cptime.NewFixedClock(epoch)).
+		PriceFor(t.Context(), clicks.Payer{Account: "acc"}, "small")
+
+	require.Error(t, err)
 }
 
 func TestValidate(t *testing.T) {

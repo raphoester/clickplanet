@@ -1,6 +1,7 @@
 package clicks
 
 import (
+	"context"
 	"fmt"
 	"math"
 
@@ -63,9 +64,9 @@ type ShareReader interface {
 	Share(country string) float64
 }
 
-// Flags is every tally of who takes tiles for which flag, by key.
+// Flags is every tally of who takes tiles for which flag, by key. A key with no tally is absent.
 type Flags interface {
-	Allegiance(key AllegianceKey) Allegiance
+	Allegiances(ctx context.Context, keys ...AllegianceKey) (map[AllegianceKey]Allegiance, error)
 }
 
 func NewToll(config TollConfig, shares ShareReader, flags Flags, clock cptime.Clock) *Toll {
@@ -85,8 +86,15 @@ type Toll struct {
 }
 
 // PriceFor is the price of payer's next click for country: its own tally's main flag once that click counts.
-func (t *Toll) PriceFor(payer Payer, country string) Price {
-	return t.Price(t.flags.Allegiance(payer.AllegianceKey()).With(country, t.clock.Now()).Flag())
+func (t *Toll) PriceFor(ctx context.Context, payer Payer, country string) (Price, error) {
+	key := payer.AllegianceKey()
+
+	tallies, err := t.flags.Allegiances(ctx, key)
+	if err != nil {
+		return Price{}, fmt.Errorf("failed to read the payer's flag: %w", err)
+	}
+
+	return t.Price(tallies[key].With(country, t.clock.Now()).Flag()), nil
 }
 
 func (t *Toll) Price(country string) Price {

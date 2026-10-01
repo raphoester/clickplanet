@@ -5,6 +5,7 @@ package get_budget_usecase
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
@@ -18,7 +19,7 @@ type ClickBudgetReader interface {
 }
 
 type Pricer interface {
-	PriceFor(payer clicks.Payer, country string) clicks.Price
+	PriceFor(ctx context.Context, payer clicks.Payer, country string) (clicks.Price, error)
 }
 
 // New takes a nil reader for a server that does not rate limit clicks; Execute
@@ -39,13 +40,16 @@ type UseCase struct {
 //
 // It reports false when nothing is limiting clicks, which is not the same answer
 // as an allowance of zero.
-func (u *UseCase) Execute(ctx context.Context, country string) (clicks.Budget, bool) {
+func (u *UseCase) Execute(ctx context.Context, country string) (clicks.Budget, bool, error) {
 	if u.budgets == nil {
-		return clicks.Budget{}, false
+		return clicks.Budget{}, false, nil
 	}
 
 	payer := clicks.PayerOf(ctx)
-	price := u.pricer.PriceFor(payer, country)
+	price, err := u.pricer.PriceFor(ctx, payer, country)
+	if err != nil {
+		return clicks.Budget{}, false, fmt.Errorf("failed to price the budget: %w", err)
+	}
 
 	keys := u.buckets.Keys(payer, price)
 	states := make([]cpratelimit.State, len(keys))
@@ -53,5 +57,5 @@ func (u *UseCase) Execute(ctx context.Context, country string) (clicks.Budget, b
 		states[i] = u.budgets.Peek(key)
 	}
 
-	return u.buckets.BudgetOf(clicks.Tightest(states), price), true
+	return u.buckets.BudgetOf(clicks.Tightest(states), price), true, nil
 }

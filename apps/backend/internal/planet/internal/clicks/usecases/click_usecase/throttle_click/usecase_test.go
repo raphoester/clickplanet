@@ -36,14 +36,15 @@ func (l *fakeLimiter) TakeAll(n float64, keys ...cpratelimit.Key) (bool, []cprat
 
 type fakePricer struct {
 	price     clicks.Price
+	err       error
 	payers    []clicks.Payer
 	countries []string
 }
 
-func (p *fakePricer) PriceFor(payer clicks.Payer, country string) clicks.Price {
+func (p *fakePricer) PriceFor(_ context.Context, payer clicks.Payer, country string) (clicks.Price, error) {
 	p.payers = append(p.payers, payer)
 	p.countries = append(p.countries, country)
-	return p.price
+	return p.price, p.err
 }
 
 func onePrice() *fakePricer { return &fakePricer{price: clicks.Price{Slowdown: 1}} }
@@ -139,5 +140,17 @@ func TestThrottleClick(t *testing.T) {
 		assert.InDelta(t, 1/1.5, limiter.keys[0][0].Pace, 1e-9)
 		assert.Equal(t, state, out.Budget.State, "the reading is the bucket's, not divided")
 		assert.InDelta(t, 1.5, out.Budget.Price.Slowdown, 1e-9)
+	})
+
+	t.Run("refuses a click it cannot price, and spends nothing", func(t *testing.T) {
+		inner := &fakeClick{}
+		limiter := &fakeLimiter{allow: true, state: state}
+
+		_, err := throttle_click.New(inner, limiter, &fakePricer{err: errors.New("down")}, buckets).
+			Execute(t.Context(), click_usecase.In{TileID: 1, CountryID: "bg"})
+
+		require.Error(t, err)
+		assert.False(t, inner.ran)
+		assert.Empty(t, limiter.spent)
 	})
 }
