@@ -1458,7 +1458,7 @@ afternoon; a silent no-op names nothing. It is not permanent (the caller reads
 the map back over the same stream and will notice), but it moves the cost of
 the next round onto them.
 
-#### Seven watchdogs, one jury
+#### Eight watchdogs, one jury
 
 A `Watchdog` measures one behaviour over one caller and returns a `Verdict`:
 
@@ -1469,6 +1469,7 @@ A `Watchdog` measures one behaviour over one caller and returns a `Verdict`:
 - **`catcher`** — catches every bonus box, at once (`catch`), or claims boxes sent to somebody else (`foreign`).
 - **`cohort`** — starts, paces and stops in step with other scopes, group after group.
 - **`scraper`** — reads the whole map again and again, which the web app never does.
+- **`churner`** — sheds its guest account for a fresh bank: many new accounts on one scope (`churn`), or one fresh account after another across a carrier's /64s (`relay`).
 
 **Every watchdog has two levels, and that is the design.** `Certain` is a reading
 no hand produces and bans on its own. `Suspect` is a reading that would ban real
@@ -1911,6 +1912,45 @@ read `clear`, and the catcher's lone `suspect` banned nothing.
   `click_map_reads` is each clicking caller's count once a sweep, through
   `Observer.OnMapReads`.
 
+**`churner`: accounts, not scopes.** On 2026-09-30 two callers used a fresh guest
+account every minute or two, each spending its 60-click bank in 10-30s and never
+clicking again: one from a Free home /64 (265 accounts in 72h, `pl`), one from
+Free Mobile, at times on one /64 and at times on a new /64 for each account, all
+inside one of its /32s (`dz`, 95% of the day's clears of `fr`). Every
+watchdog read `clear`: none lived long enough, and `stamina` counts per account.
+
+- **`churn` counts guest accounts born on a scope** inside `window`: first seen
+  there. A person takes their account from one /64 to the next, so a phone that
+  changes /64s is one account born once. **Measured before it was set**, over the
+  ledger of 2026-09-28 to 10-01: 259 of 284 /64s held one account; no /64 a person
+  used started more than 3 in an hour, the bots 6 to 55. `v6` reads `suspect` at 4
+  and `certain` at 6. **IPv4 has its own `v4` bounds, higher** (10 and 20, not
+  measured: the game sees few IPv4 scopes), because one address is often a
+  carrier's NAT. Anything that is not an IPv6 scope is held to them.
+- **`relay` counts takeovers**: a fresh guest account that starts within `handoff`
+  (90s) of another one stopping, in the same wider prefix (`v6Bits` 32: a mobile
+  carrier hands out /64s from all over its /32) and on the same flag, when the one
+  that stopped lived at most `maxLife` (5m). An account is only judged once it has
+  `minClicks` (20), so each fresh identity keeps a third of its bank. It reads on
+  the takeovers inside `window`: `minLinks` 3, `certainLinks` 6.
+- **Replayed over the same 72h** through the watchdog: every `certain` fell on
+  one of the bots' lines or relays, and the bans would have dropped 28% of the
+  takes and half of the clears of `fr`. `certainLinks` 4 would have banned a 3h
+  `dz` account and a Free Mobile NAT address, so 6 is two steps from that.
+- **A signed-in account reads `clear`**: it costs a provider identity to replace,
+  and its ban would fall on it alone. A guest's ban falls on its scope too, so the
+  next fresh cookie on a churning /64 is dropped from its first click.
+- **One watchdog, two rules**, for the reason `shape` is a rule of `metronome`:
+  both read accounts turning over, and two watchdogs could reach `suspect` together
+  on one behaviour. The stronger level is reported, `churn` on a tie. It is not a
+  rule of `cohort`, which keys on scopes starting together; a relay is accounts
+  following one another.
+- `click_scope_accounts{family}` is each scope's count once a sweep, for the
+  scopes clicked on since the last; `click_relay_links` each relay's takeovers.
+  Zero bounds never read, like the defender's shares.
+- The counter-moves left cost the bank: keep an account past `maxLife`, wait past
+  `handoff` between accounts, or draw /64s from unrelated carriers.
+
 #### The parts that are easy to get wrong
 
 **Three things are deliberately not reactions**, and each is a way to get an
@@ -2026,7 +2066,7 @@ accounts, so a guest banned on both counts twice.
 A scope ban only bites a bot with a stable address — against a residential proxy
 pool it evaporates for exactly the reason the scope's bucket does; the account ban
 is what follows a guest across addresses until it drops its cookie. `cohort` is the
-one watchdog that reads across scopes, and it is the answer to a pool that rotates
+watchdog that reads across scopes, beside `churner`'s relay, and it is the answer to a pool that rotates
 inside one range.
 
 `inmemory_tile_storage.Owner` exists for this: one indexed read under the existing

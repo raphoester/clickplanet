@@ -54,6 +54,18 @@ func TestRenderingDoesNotReorderTheReportsOwnFields(t *testing.T) {
 	assert.Equal(t, "share", fields[1].Key)
 }
 
+func TestWiderPrefix(t *testing.T) {
+	for scope, want := range map[string]string{
+		"2a00:8c40:f0c5:6713::/64": "2a00:8c40:f0c0::/44",
+		"2a00:8c40:f0ce:fda7::/64": "2a00:8c40:f0c0::/44",
+		"203.0.113.7":              "203.0.113.0/24",
+		"caller":                   "",
+		"10.0.0.0/8":               "",
+	} {
+		assert.Equal(t, want, detect.WiderPrefix(scope, 24, 44), scope)
+	}
+}
+
 func TestAReadingWordsTheLevelAndTheEvidenceApart(t *testing.T) {
 	at := time.Date(2026, 9, 14, 12, 0, 0, 0, time.UTC)
 	opinion := detect.Opinion{

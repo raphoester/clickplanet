@@ -15,7 +15,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"net/netip"
 	"sort"
 	"sync"
 	"time"
@@ -299,7 +298,7 @@ func (w *Watchdog) memberLocked(click detect.Click) *member {
 
 	m = &member{
 		scope:     click.Scope,
-		prefix:    widen(click.Scope, w.config.V4Bits, w.config.V6Bits),
+		prefix:    detect.WiderPrefix(click.Scope, w.config.V4Bits, w.config.V6Bits),
 		first:     click.At,
 		last:      click.At,
 		countries: make(map[string]int),
@@ -522,33 +521,6 @@ func absDuration(d time.Duration) time.Duration {
 		return -d
 	}
 	return d
-}
-
-// widen is the prefix a scope's chain is keyed on: the /bits around an IPv4
-// address, or around an IPv6 /64. Anything else is not an address and has none.
-func widen(scope string, v4Bits, v6Bits int) string {
-	if addr, err := netip.ParseAddr(scope); err == nil {
-		addr = addr.Unmap()
-		bits := v6Bits
-		if addr.Is4() {
-			bits = v4Bits
-		}
-		if prefix, err := addr.Prefix(bits); err == nil {
-			return prefix.String()
-		}
-		return ""
-	}
-
-	prefix, err := netip.ParsePrefix(scope)
-	if err != nil || prefix.Addr().Is4() || prefix.Bits() < v6Bits {
-		return ""
-	}
-
-	wide, err := prefix.Addr().Prefix(v6Bits)
-	if err != nil {
-		return ""
-	}
-	return wide.String()
 }
 
 func index[K comparable](buckets map[K]*cpcolls.Set[string], key K, scope string) {
