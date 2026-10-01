@@ -22,13 +22,13 @@ export function setupScene(container: HTMLElement) {
     // from inside the render loop instead, while it is still there; see
     // `readDrawingBuffer` in capture.ts.
     //
-    // Antialiasing only below a ratio of 2: there a pixel is small enough that
-    // the limb is smooth without it, and the multisampled buffer would cost the
-    // most on the screens that can least afford it, a phone's. It is decided
-    // once, with the context, so a window dragged to another screen keeps it.
-    const ratio = pixelRatio();
-    const renderer = new THREE.WebGLRenderer({antialias: ratio < 2});
-    renderer.setPixelRatio(ratio);
+    // No `antialias` either. Turned on for screens below a ratio of 2, it
+    // brightened the whole canvas about 2.5 times on Windows Chrome with an
+    // Intel GPU (ANGLE on Direct3D 11): the planet came out nearly white, the
+    // unlit grey outlines included, so it was the multisampled buffer and not
+    // anything drawn into it. A smooth limb is not worth that.
+    const renderer = new THREE.WebGLRenderer({});
+    renderer.setPixelRatio(pixelRatio());
     renderer.setSize(width, height);
     renderer.setClearColor(0x000000);
     container.appendChild(renderer.domElement);
