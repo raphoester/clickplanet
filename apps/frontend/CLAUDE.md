@@ -46,7 +46,9 @@ and a bomb at most, a pool of 8 spread clicks and a stack of 3 enclosures, a box
 adding 1 to 4 and 1 to 3 of them, spread and enclose spent only while switched on,
 both at once refused, a refill refused on a full bank), `giveQuiz()` puts a quiz
 banner up at once, and `fakeBackend.botBomb(tile, "fr")` and `fakeBackend.botSpread(tile, "fr")`
-play somebody else's bomb or spread click.
+play somebody else's bomb or spread click. `fakeBackend.shareClicks("guests")` (or
+`"network"`) reads the bucket as shared, and `fakeBackend.shareClicks()` as the
+player's own again.
 
 A local backend is the quickest way to exercise the real chat: `cmd/api`'s
 `example.yaml` runs chat (it is always on), and the Go server answers
@@ -1271,6 +1273,15 @@ and are shared; how thick a line is drawn between them is this app's.
    which has the account panel's sign-in buttons. The account panel's guest text
    says the same. **Nothing is offered without the server's number**, nor with
    sign-in off.
+
+   **It says when somebody else spends from the bucket.** The guests behind one
+   address share one bank, and every player behind it shares the scope's, so a
+   count can drop by clicks this player never made: another tab, or a stranger
+   on the same carrier. `ClickBudget.sharedWith` is the server's answer to whose
+   bucket the reading is, and the meter says "Shared with the guests on your
+   network" or "…everyone on your network" under the reading. Absent, it is the
+   player's own and nothing is said. A guest who shares is offered "Sign in:
+   your own clicks" instead, and `SignInPitchModal` says why.
 
    **It is one panel, and its width is set rather than grown.** The reading, the
    offer and the inventory all live in `.click-budget-dock`, which takes the

@@ -72,8 +72,9 @@ ledgerStorage:
 # The defaults below are also what applies when this block is absent.
 # A click spends from two buckets at once: its account's, at the policy below,
 # and its scope's — one address over IPv4, one /64 over IPv6 — at
-# scopeMultiplier times it. A token with no account spends one scope bucket at
-# the policy below, as before accounts.
+# scopeMultiplier times it. A guest's also spends from a third, which every
+# guest behind its scope shares, at guestScopeMultiplier times it. A token with
+# no account spends one scope bucket at the policy below, as before accounts.
 rateLimiter:
   # Sustained clicks per second allowed from one account. A float: 0.2 is one
   # click every 5s. Unset is 1.
@@ -84,6 +85,10 @@ rateLimiter:
   # The scope's burst and rate over one account's: players behind one address,
   # such as a campus, share it. 1 or more.
   scopeMultiplier: 10
+  # The bucket every guest behind one scope shares, over one account's: at 1,
+  # ten private tabs are one bank, not ten. A guest that signs in gets its own.
+  # 1 or more.
+  guestScopeMultiplier: 1
   # The refill rate of an account signed in with Google or Discord over a
   # guest's, to make signing in worth it; the bank is the same size. It is still
   # bounded by the scope's bucket. The client reads it off every budget and

@@ -57,6 +57,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     // - `giveQuiz()`: a quiz banner now, instead of waiting for the next one.
     // - `fakeBackend.botBomb(tile, "fr")`: someone else's bomb lands on `tile`.
     // - `fakeBackend.botSpread(tile, "fr")`: someone else's spread click on `tile`.
+    // - `fakeBackend.shareClicks("guests")`: the bucket reads as shared; `shareClicks()` makes it yours again.
     Object.assign(window, {
         fakeBackend: fake,
         giveBomb: () => {

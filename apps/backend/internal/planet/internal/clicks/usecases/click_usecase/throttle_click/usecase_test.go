@@ -97,7 +97,7 @@ func TestThrottleClick(t *testing.T) {
 			"a token with no account spends the scope's bucket alone, as before accounts")
 	})
 
-	t.Run("charges the account and its scope at ten times the account's allowance", func(t *testing.T) {
+	t.Run("charges a guest, its scope's guests, and its scope at ten times the account's allowance", func(t *testing.T) {
 		limiter := &fakeLimiter{allow: true}
 		ctx := cpctx.AddAccountToContext(cpctx.AddIPToContext(t.Context(), "1.2.3.4"), "a-guest")
 
@@ -106,6 +106,7 @@ func TestThrottleClick(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, [][]cpratelimit.Key{{
 			{Name: "account:a-guest", Scale: 1, Pace: 1},
+			{Name: "guests:1.2.3.4", Scale: 1, Pace: 1},
 			{Name: "scope:1.2.3.4", Scale: 10},
 		}}, limiter.keys)
 	})

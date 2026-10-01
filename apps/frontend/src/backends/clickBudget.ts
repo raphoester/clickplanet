@@ -50,6 +50,9 @@ export type ClickBudget = {
      */
     linkedMultiplier?: number
 
+    /** Who else spends from the bucket this reading is of. Absent for the player's own. */
+    sharedWith?: SharedBy
+
     /**
      * When `tokens` was true, on the monotonic clock. Not a server timestamp:
      * the two clocks are unrelated, and what matters is how long *this* machine
@@ -57,6 +60,9 @@ export type ClickBudget = {
      */
     readAt: number
 }
+
+/** The other guests behind the player's address, or every player behind it. */
+export type SharedBy = "guests" | "network"
 
 /** A country's players get their clicks back slower the more of the map it holds. Every click costs one. */
 export type ClickPrice = {
