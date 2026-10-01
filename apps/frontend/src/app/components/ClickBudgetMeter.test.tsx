@@ -188,6 +188,28 @@ describe("ClickBudgetMeter for a guest", () => {
 
         expect(screen.queryByRole("button")).toBeNull()
     })
+
+    it("offers a guest who shares its bank one of its own", () => {
+        render(<ClickBudgetMeter budget={reading({linkedMultiplier: 2, sharedWith: "guests"})} onSignIn={vi.fn()}/>)
+
+        expect(screen.getByRole("button", {name: "Sign in: your own clicks"})).toBeTruthy()
+    })
+})
+
+describe("ClickBudgetMeter's shared bucket", () => {
+    it("says nothing about a player's own bucket", () => {
+        render(<ClickBudgetMeter budget={reading()}/>)
+
+        expect(document.querySelector(".click-budget-shared")).toBeNull()
+    })
+
+    it("says who else spends from it", () => {
+        const {rerender} = render(<ClickBudgetMeter budget={reading({sharedWith: "guests"})}/>)
+        expect(screen.getByText("Shared with the guests on your network")).toBeTruthy()
+
+        rerender(<ClickBudgetMeter budget={reading({sharedWith: "network"})}/>)
+        expect(screen.getByText("Shared with everyone on your network")).toBeTruthy()
+    })
 })
 
 describe("ClickBudgetMeter's dock", () => {

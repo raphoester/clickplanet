@@ -72,8 +72,9 @@ ledgerStorage:
 # The defaults below are also what applies when this block is absent.
 # A click spends from two buckets at once: its account's, at the policy below,
 # and its scope's — one address over IPv4, one /64 over IPv6 — at
-# scopeMultiplier times it. A token with no account spends one scope bucket at
-# the policy below, as before accounts.
+# scopeMultiplier times it. A guest's also spends from a third, which every
+# guest behind its scope shares, at guestScopeMultiplier times it. A token with
+# no account spends one scope bucket at the policy below, as before accounts.
 rateLimiter:
   # Sustained clicks per second allowed from one account. A float: 0.2 is one
   # click every 5s. Unset is 1.
@@ -84,6 +85,10 @@ rateLimiter:
   # The scope's burst and rate over one account's: players behind one address,
   # such as a campus, share it. 1 or more.
   scopeMultiplier: 10
+  # The bucket every guest behind one scope shares, over one account's: at 1,
+  # ten private tabs are one bank, not ten. A guest that signs in gets its own.
+  # 1 or more.
+  guestScopeMultiplier: 1
   # The refill rate of an account signed in with Google or Discord over a
   # guest's, to make signing in worth it; the bank is the same size. It is still
   # bounded by the scope's bucket. The client reads it off every budget and
@@ -572,6 +577,41 @@ antiBot:
       # under minMaps for the rest of its run.
       certainOffMap: 2
       trackWindow: 15m
+      sweepInterval: 1m
+
+  # A caller that sheds its guest account for a fresh 60-click bank. Only guest
+  # accounts count: a signed-in one costs a provider identity to replace.
+  churner:
+    enabled: true
+    detector:
+      # How far back both rules count.
+      window: 1h
+      # "churn": guest accounts first seen on one scope inside window. A person
+      # keeps their account across /64s, so only an account born there counts.
+      v6:
+        minAccounts: 4
+        certainAccounts: 6
+      # One IPv4 address is often a carrier's NAT and many players, so higher.
+      # Anything that is not an IPv6 scope is held to these.
+      v4:
+        minAccounts: 10
+        certainAccounts: 20
+      # "relay": a fresh account that starts within handoff of another one
+      # stopping, in the same wider prefix and on the same flag, when the one that
+      # stopped lived at most maxLife. Read on the takeovers inside window.
+      relay:
+        handoff: 90s
+        maxLife: 5m
+        # Clicks an account needs before it has a flag, and how much of them.
+        minClicks: 20
+        minFlagShare: 0.9
+        # A mobile carrier hands out /64s from all over its /32.
+        v4Bits: 24
+        v6Bits: 32
+        minLinks: 3
+        certainLinks: 6
+      # Never shorter than window plus handoff.
+      trackWindow: 1h2m
       sweepInterval: 1m
 
 # Live chat. Its own bounded context and its own Connect service, sharing this

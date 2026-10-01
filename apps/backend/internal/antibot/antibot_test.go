@@ -108,6 +108,21 @@ func newStack(options ...func(*antibot.Config)) *stack {
 	config.Scraper.Detector.CertainMaps = 15
 	config.Scraper.Detector.TrackWindow = 15 * time.Minute
 
+	config.Churner.Enabled = true
+	config.Churner.Detector.Window = time.Hour
+	config.Churner.Detector.V6.MinAccounts = 4
+	config.Churner.Detector.V6.CertainAccounts = 6
+	config.Churner.Detector.V4.MinAccounts = 10
+	config.Churner.Detector.V4.CertainAccounts = 20
+	config.Churner.Detector.Relay.Handoff = 90 * time.Second
+	config.Churner.Detector.Relay.MaxLife = 5 * time.Minute
+	config.Churner.Detector.Relay.MinClicks = 20
+	config.Churner.Detector.Relay.MinFlagShare = 0.9
+	config.Churner.Detector.Relay.V4Bits = 24
+	config.Churner.Detector.Relay.V6Bits = 32
+	config.Churner.Detector.Relay.MinLinks = 3
+	config.Churner.Detector.Relay.CertainLinks = 6
+
 	for _, option := range options {
 		option(&config)
 	}
@@ -165,10 +180,16 @@ func (s *stack) restart(outage time.Duration) {
 // click reads the tile the way antibot_click does, the home-soil rule included: a native tile clicked for
 // another flag is cleared, and nobody holds it after.
 func (s *stack) click(scope string, tile uint32, country string) bool {
+	return s.clickAs(scope, "", tile, country)
+}
+
+// clickAs is a click whose token names a guest account.
+func (s *stack) clickAs(scope, account string, tile uint32, country string) bool {
 	held := s.owner[tile]
 
 	click := antibot.Click{
 		Scope:   scope,
+		Account: account,
 		Tile:    tile,
 		Country: country,
 		At:      s.clock.Now(),
@@ -787,7 +808,7 @@ func TestExaminingABannedScopeCarriesItsSentence(t *testing.T) {
 	for _, reading := range examination.Readings {
 		watchdogs = append(watchdogs, reading.Watchdog)
 	}
-	assert.Equal(t, []string{"retaker", "sequencer", "metronome", "catcher", "cohort", "scraper"}, watchdogs)
+	assert.Equal(t, []string{"retaker", "sequencer", "metronome", "catcher", "cohort", "scraper", "churner"}, watchdogs)
 	assert.False(t, examination.Guilty)
 }
 

@@ -21,7 +21,7 @@ import {
 } from "./backend.ts";
 import {ALL_OFF, BonusReward, BonusRules, Charges, NO_CHARGES, Switches} from "../domain/bonus.ts";
 import {QuizOffer, QuizOutcome, QuizQuestion} from "../domain/quiz.ts";
-import {ClickBudget, ClickBudgetSource, ClickPrice, now as budgetNow} from "./clickBudget.ts";
+import {ClickBudget, ClickBudgetSource, ClickPrice, now as budgetNow, SharedBy} from "./clickBudget.ts";
 import {SessionUnavailableError} from "./session.ts";
 import {v4 as UUIDv4} from 'uuid';
 import {Countries} from "../domain/countries.ts";
@@ -150,6 +150,8 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     private lastRefillMs = Date.now()
     /** What the last click's country multiplies the refill by, as the server's bucket keeps it. */
     private pace = 1
+    /** Who else the console says spends from the bucket: `fakeBackend.shareClicks("guests")`. */
+    private sharedWith: SharedBy | undefined
     private readonly vpnBlocked: boolean
     private readonly sessionUnavailable: boolean
 
@@ -376,6 +378,12 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         this.budgetCallbacks.forEach(callback => callback(budget))
     }
 
+    /** For the console: as if somebody else behind the address spent from this bucket. Nothing is its own again. */
+    public shareClicks(sharedWith?: SharedBy): void {
+        this.sharedWith = sharedWith
+        this.reportBudget()
+    }
+
     public priceFor(countryId: string): void {
         this.budgetCountry = countryId
         this.reportBudget()
@@ -393,6 +401,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
             capacity: CLICK_BURST,
             perSecond: CLICKS_PER_SECOND * this.pace,
             price: this.price(this.budgetCountry),
+            sharedWith: this.sharedWith,
             readAt: budgetNow(),
         }
     }

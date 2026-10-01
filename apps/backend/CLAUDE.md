@@ -670,11 +670,13 @@ without a bubble. Today there is one kind, `bomb`: every bomb that went off, on 
 
 **A click spends from two buckets at once: its account's and its scope's.** The account is the one the click token names; the scope is the address, or its /64 over IPv6 (`cpipscope`). The account's bucket is `rateLimiter.*`: production runs one click every 5s (`perSecond: 0.2`) with a bank of 60, which fills in five minutes; unset, it is 1/s with a burst of 10. The scope's is `rateLimiter.scopeMultiplier` (10) times that, because many players can share one address — a campus, a school, a carrier NAT.
 
+- **A guest spends from a third: the one every guest behind its scope shares** (`guests:<scope>`), at `rateLimiter.guestScopeMultiplier` (1) times one account's. A guest account is one per browser, and a private tab or a second browser is a new one, so without it ten tabs were ten banks, up to the scope's ten. Now the guests on one network are one bank. **Nobody is refused for being second** — there is no slot to win and none to free — and two people behind one address share until one signs in, which is a reason to. It takes a guest's pace, so ten tabs on a big country refill no faster than one. A linked account never spends from it. `TestGuestsOnOneScopeShareOneBank` pins it.
+
 - **A linked account refills faster, into the same bank.** An account that signed in with Google or Discord refills `rateLimiter.linkedMultiplier` (2) times as fast, to make signing in worth it; its bank is the same size. It is the same `account:<id>` bucket either way — the rate is its pace, set by each click (see below) — so signing in neither tops the bank up nor empties it. The scope's bucket still bounds it. **Planet learns it from the token**, which carries a linked byte (see [Sessions](#sessions-internalauth)), so a click costs no call to `auth`. A player who links mid-session refills at 1× until the client mints again. `TestALinkedAccountClicksTwiceAsFastAsAGuest` and `TestSigningInKeepsTheBankAndSpeedsUpItsRefill` pin it.
 - **A click is refused when either bucket is empty, and a refusal spends from neither.** `Limiter.TakeAll` checks every bucket and spends from all or none under one lock, so a player refused for a busy scope keeps its own tokens.
 - **A token with no account spends one bucket, the scope's at 1×** — exactly the throttle from before accounts. The deprecated `session.v1` mint, an invalid token while `auth.enforce` is off, and `auth.enabled` false all land here. It is a separate bucket from the scope's shared one, because a key never changes its scale.
 - **One limiter holds both.** A bucket's `Scale` is set when it is made and multiplies its burst and rate for good; `clicks.Buckets` names the keys (`account:<id>` at 1, `scope:<scope>` at the scope multiplier, or the bare scope at 1 with no account). **A key's `Pace` multiplies the payer's own bucket's rate from that take on, and leaves its burst alone**: the linked multiplier for a signed-in account, divided by the country's slowdown (see [A big country refills slower](#a-big-country-refills-slower-clickstoll)). The scope's bucket takes no pace. `clicks.PayerOf(ctx)` reads the scope and the account off the context, so the throttle, `GetBudget` and a bonus claim cannot disagree on who pays.
-- **What this buys.** Before accounts, one address was one allowance, so a campus played as one player and a bot farm with many cookies on one address was no worse off than one tab. Now each player behind an address has its own allowance, bounded together by the scope's, and a bot moving across addresses keeps spending one account's.
+- **What this buys.** Before accounts, one address was one allowance, so a campus played as one player and a bot farm with many cookies on one address was no worse off than one tab. Now each signed-in player behind an address has its own allowance, bounded together by the scope's, the guests behind it share one, and a bot moving across addresses keeps spending one account's.
 - `TestManyAccountsOnOneScopeShareTheScopesBucket` and `TestOneAccountOnManyScopesSpendsOneAllowance` pin both halves over HTTP.
 
 **It is a decorator over the click use case, not an interceptor over the procedure.** Two things fall out of that. The allowance comes back as a return value (`click_usecase.Out`) instead of being left on the context for a handler to find, which is what `cpctx.AddRateBudgetToContext` existed for and why it is gone. And "a click refused for its address or its session must not also spend a token" stops being a rule about the order of a list and becomes a property of the shape: every interceptor is outside the whole click chain by construction. `MapDensity` and `GetMap` are untouched for free, being other procedures entirely — under an interceptor that took a procedure list.
@@ -694,7 +696,9 @@ Either way the decorator decides the policy and the handler decides how to say i
 
 **Every reading also carries `linked_multiplier`**, what signing in multiplies the refill by (`Buckets.BudgetOf`). It is the same for every caller, so the client can tell a guest what signing in is worth with no number of its own.
 
-**The reading is the tighter bucket** (`clicks.Tightest`): the one with fewer tokens, and on a tie the smaller one. A player behind a busy campus sees the scope's limit rather than a full meter that refuses. The reading is still one bucket's `Capacity`, `PerSecond` and `Tokens`, so the client arithmetic does not change. `TestTheBudgetIsTheTighterBucket` pins it.
+**The reading is the tighter bucket** (`Buckets.BudgetOf`): the one with fewer tokens, on a tie the smaller one, and on a full tie the payer's own. A player behind a busy campus sees the scope's limit rather than a full meter that refuses. The reading is still one bucket's `Capacity`, `PerSecond` and `Tokens`, so the client arithmetic does not change. `TestTheBudgetIsTheTighterBucket` pins it.
+
+**It says who else spends from that bucket** (`ClickBudget.shared_with`: nobody, the guests behind the address, or every player behind it). Without it a guest whose other tab, or a stranger on the same carrier address, spent the bank sees its count drop by clicks it never made. A guest alone on its network holds as much in its own bucket as in its guests', and the full tie goes to its own, so it is never told it shares.
 
 `ClickService.GetBudget` covers the cold start — a client that has just loaded and has no click to learn from. It reads through `Limiter.Peek`, which spends nothing and, for an address that never clicked, **creates no bucket**: reading an allowance must not be a way to make the limiter remember a caller. `NewSessionReaderInterceptor` reads a token on it when the client sends one, so the reading is the account's, and **refuses nothing**: with no token or a bad one it reads the scope's bucket from before accounts. The web client sends the token it already holds, never a fresh one; before its first click it holds none, and neither bucket has been spent from. Without the token the meter showed that other bucket, always full, until a click contradicted it. It is deliberately not `NO_SIDE_EFFECTS`, so it is a POST no cache will serve a stale answer to; every click re-anchors the client afterwards, so it is asked once per page load.
 
@@ -1440,9 +1444,12 @@ closed: `bonus_enclosures_total` and `bonus_enclosed_tiles_total`.
 #### What a refill does to the bucket
 
 `UseRefill` spends it, through `use_refill_usecase`, and `cpratelimit.Limiter.Fill(key)`
-tops the bucket up to its capacity. **It fills the account's bucket, never the
-scope's** (`Buckets.Own`): the scope's is shared with every other player behind
-the address, so a refill that filled it would be a refill for all of them. A
+tops the bucket up to its capacity. **It fills the account's bucket and, for a
+guest, its scope's guests' — never the scope's** (`Buckets.Bank`): the scope's
+is shared with every other player behind the address, so a refill that filled it
+would be a refill for all of them. The guests' is filled because the guests on
+one network are one bank: a refill that left it empty would be a refill of
+nothing. Boxes are already offered per scope, so this is no new allowance. A
 refilled player still spends from the scope's bucket, so it is bounded by it —
 `TestARefillDoesNotFillTheScopesBucket`. The bank never grows past its size, and
 the pace is left as it was. `Fill` is **additive**: nothing that never calls it
@@ -1509,7 +1516,7 @@ afternoon; a silent no-op names nothing. It is not permanent (the caller reads
 the map back over the same stream and will notice), but it moves the cost of
 the next round onto them.
 
-#### Seven watchdogs, one jury
+#### Eight watchdogs, one jury
 
 A `Watchdog` measures one behaviour over one caller and returns a `Verdict`:
 
@@ -1520,6 +1527,7 @@ A `Watchdog` measures one behaviour over one caller and returns a `Verdict`:
 - **`catcher`** — catches every bonus box, at once (`catch`), or claims boxes sent to somebody else (`foreign`).
 - **`cohort`** — starts, paces and stops in step with other scopes, group after group.
 - **`scraper`** — reads the whole map again and again, which the web app never does.
+- **`churner`** — sheds its guest account for a fresh bank: many new accounts on one scope (`churn`), or one fresh account after another across a carrier's /64s (`relay`).
 
 **Every watchdog has two levels, and that is the design.** `Certain` is a reading
 no hand produces and bans on its own. `Suspect` is a reading that would ban real
@@ -1962,6 +1970,45 @@ read `clear`, and the catcher's lone `suspect` banned nothing.
   `click_map_reads` is each clicking caller's count once a sweep, through
   `Observer.OnMapReads`.
 
+**`churner`: accounts, not scopes.** On 2026-09-30 two callers used a fresh guest
+account every minute or two, each spending its 60-click bank in 10-30s and never
+clicking again: one from a Free home /64 (265 accounts in 72h, `pl`), one from
+Free Mobile, at times on one /64 and at times on a new /64 for each account, all
+inside one of its /32s (`dz`, 95% of the day's clears of `fr`). Every
+watchdog read `clear`: none lived long enough, and `stamina` counts per account.
+
+- **`churn` counts guest accounts born on a scope** inside `window`: first seen
+  there. A person takes their account from one /64 to the next, so a phone that
+  changes /64s is one account born once. **Measured before it was set**, over the
+  ledger of 2026-09-28 to 10-01: 259 of 284 /64s held one account; no /64 a person
+  used started more than 3 in an hour, the bots 6 to 55. `v6` reads `suspect` at 4
+  and `certain` at 6. **IPv4 has its own `v4` bounds, higher** (10 and 20, not
+  measured: the game sees few IPv4 scopes), because one address is often a
+  carrier's NAT. Anything that is not an IPv6 scope is held to them.
+- **`relay` counts takeovers**: a fresh guest account that starts within `handoff`
+  (90s) of another one stopping, in the same wider prefix (`v6Bits` 32: a mobile
+  carrier hands out /64s from all over its /32) and on the same flag, when the one
+  that stopped lived at most `maxLife` (5m). An account is only judged once it has
+  `minClicks` (20), so each fresh identity keeps a third of its bank. It reads on
+  the takeovers inside `window`: `minLinks` 3, `certainLinks` 6.
+- **Replayed over the same 72h** through the watchdog: every `certain` fell on
+  one of the bots' lines or relays, and the bans would have dropped 28% of the
+  takes and half of the clears of `fr`. `certainLinks` 4 would have banned a 3h
+  `dz` account and a Free Mobile NAT address, so 6 is two steps from that.
+- **A signed-in account reads `clear`**: it costs a provider identity to replace,
+  and its ban would fall on it alone. A guest's ban falls on its scope too, so the
+  next fresh cookie on a churning /64 is dropped from its first click.
+- **One watchdog, two rules**, for the reason `shape` is a rule of `metronome`:
+  both read accounts turning over, and two watchdogs could reach `suspect` together
+  on one behaviour. The stronger level is reported, `churn` on a tie. It is not a
+  rule of `cohort`, which keys on scopes starting together; a relay is accounts
+  following one another.
+- `click_scope_accounts{family}` is each scope's count once a sweep, for the
+  scopes clicked on since the last; `click_relay_links` each relay's takeovers.
+  Zero bounds never read, like the defender's shares.
+- The counter-moves left cost the bank: keep an account past `maxLife`, wait past
+  `handoff` between accounts, or draw /64s from unrelated carriers.
+
 #### The parts that are easy to get wrong
 
 **Three things are deliberately not reactions**, and each is a way to get an
@@ -2077,7 +2124,7 @@ accounts, so a guest banned on both counts twice.
 A scope ban only bites a bot with a stable address — against a residential proxy
 pool it evaporates for exactly the reason the scope's bucket does; the account ban
 is what follows a guest across addresses until it drops its cookie. `cohort` is the
-one watchdog that reads across scopes, and it is the answer to a pool that rotates
+watchdog that reads across scopes, beside `churner`'s relay, and it is the answer to a pool that rotates
 inside one range.
 
 `inmemory_tile_storage.Owner` exists for this: one indexed read under the existing
@@ -2420,6 +2467,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `tilesStorage.subscriberBuffer` — per-subscriber channel capacity, which is now per connected client rather than per fanout; updates for a subscriber that cannot keep up are dropped, not blocked on
 - `rateLimiter.perSecond`, `rateLimiter.burst`, `rateLimiter.sweepInterval` — one account's click allowance, and a token with no account's scope bucket (defaults 1/s, burst 10, swept every minute; `perSecond` is a float, so 0.2 is one click every 5s)
 - `rateLimiter.scopeMultiplier` — the scope's bucket over one account's, shared by every account behind the address (default 10). Below 1 refuses the boot. See [Two buckets per click](#two-buckets-per-click)
+- `rateLimiter.guestScopeMultiplier` — the bucket every guest behind one address shares, over one account's (default 1: the guests on one network are one bank). Below 1 refuses the boot. See [Two buckets per click](#two-buckets-per-click)
 - `homeSoil.enabled` — native land takes two clicks: on a country's own ground, another flag's first click clears its tile and the next takes it. Off by default; the client reads it from `GetBonusRules`, so turning it off needs no release. See [Native land takes two clicks](#native-land-takes-two-clicks-clickshomesoil)
 - `vpnBlocklist.enabled`, `vpnBlocklist.includeDatacenters`, `vpnBlocklist.allow` — the VPN refusal (see [VPN blocklist](#vpn-blocklist)); disabled parses nothing and allocates nothing
 - `bonus.interval` — how often a box is put in front of somebody; a ceiling, since nothing is offered while nobody is watching
