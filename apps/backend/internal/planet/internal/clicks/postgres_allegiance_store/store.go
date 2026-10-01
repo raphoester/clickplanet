@@ -23,6 +23,8 @@ type Store struct {
 	db cppg.Querier
 }
 
+var _ clicks.AllegianceStorage = (*Store)(nil)
+
 // Allegiances reads the tallies under keys. A key with no row is absent.
 func (s *Store) Allegiances(ctx context.Context, keys ...clicks.AllegianceKey) (map[clicks.AllegianceKey]clicks.Allegiance, error) {
 	names := make([]string, len(keys))

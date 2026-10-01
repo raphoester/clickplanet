@@ -9,35 +9,41 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_allegiance_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/forget_allegiances_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 var now = time.Date(2026, 10, 4, 12, 0, 0, 0, time.UTC)
 
-type fakeAllegiances struct {
-	cutoffs []time.Time
-	err     error
-}
-
-func (f *fakeAllegiances) DeleteAllegiancesBefore(_ context.Context, cutoff time.Time) (int64, error) {
-	f.cutoffs = append(f.cutoffs, cutoff)
-	return 2, f.err
-}
+var (
+	gone = clicks.AccountAllegianceKey("gone")
+	kept = clicks.AccountAllegianceKey("kept")
+)
 
 func TestATallyWithNoTakeInThreeDaysIsForgotten(t *testing.T) {
-	store := &fakeAllegiances{}
+	store := inmemory_allegiance_store.New()
+	require.NoError(t, store.SaveAllegiances(t.Context(), map[clicks.AllegianceKey]clicks.Allegiance{
+		gone: clicks.Allegiance{}.With("fr", now.Add(-73*time.Hour)),
+		kept: clicks.Allegiance{}.With("fr", now.Add(-71*time.Hour)),
+	}))
 
 	deleted, err := forget_allegiances_usecase.New(cptime.NewFixedClock(now), store).Execute(t.Context())
 
 	require.NoError(t, err)
-	assert.Equal(t, int64(2), deleted)
-	assert.Equal(t, []time.Time{now.Add(-72 * time.Hour)}, store.cutoffs)
+	assert.Equal(t, int64(1), deleted)
+	tallies, err := store.Allegiances(t.Context(), gone, kept)
+	require.NoError(t, err)
+	assert.Len(t, tallies, 1)
+	assert.Contains(t, tallies, kept)
 }
 
 func TestAFailedForgetSaysSo(t *testing.T) {
-	_, err := forget_allegiances_usecase.New(cptime.NewFixedClock(now), &fakeAllegiances{err: errors.New("down")}).
-		Execute(t.Context())
+	store := inmemory_allegiance_store.New()
+	store.FailWith(errors.New("down"))
+
+	_, err := forget_allegiances_usecase.New(cptime.NewFixedClock(now), store).Execute(t.Context())
 
 	require.Error(t, err)
 }
