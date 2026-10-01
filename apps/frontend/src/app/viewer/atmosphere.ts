@@ -16,11 +16,17 @@ const RADIUS = 1.06
 const POWER = 1.8
 const INTENSITY = 3.0
 
+// A raw ShaderMaterial gets none of three's output colour management, so this
+// is written to the framebuffer as it stands: read it as the halo's colour on
+// screen rather than as a linear one.
+const COLOUR = new THREE.Color(0.30, 0.62, 1.0)
+
 export function createAtmosphere(): THREE.Mesh {
     const mesh = new THREE.Mesh(
         new THREE.IcosahedronGeometry(RADIUS, 16),
         new THREE.ShaderMaterial({
             uniforms: {
+                colour: {value: COLOUR},
                 power: {value: POWER},
                 intensity: {value: INTENSITY},
             },

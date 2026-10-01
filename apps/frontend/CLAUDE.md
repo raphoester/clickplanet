@@ -900,11 +900,7 @@ mint a guest and insert a row into `auth.identities` for its account.
   lot, so at most `MAX_PLAYING` run at once. It also puffs dust on a tile this
   player's click cleared rather than took (`playClear`): a small burst, six motes
   drifting off it, one ring, 0.8s.
-- `earth.ts` — the opaque sphere under the tiles, in the globe's light. See [The
-  light](#the-light).
-- `shaders/` — GLSL for the display, picking, earth, star and enclosure passes.
-  `light.glsl` is not a pass but the light they share, pulled in with
-  `#include ../light.glsl;` (vite-plugin-glsl's own include, not three's).
+- `shaders/` — GLSL for the display, picking, star and enclosure passes.
 
 ### Drawing only when something changed
 
@@ -998,66 +994,6 @@ Measured against the same frame with the culling off, the limb comes out
 pixel-for-pixel identical. It is worth a few percent of those two passes and no
 more — the vertex shader still runs for every point and still reads every
 attribute, and only its body is skipped.
-
-### CSS pixels in, drawing-buffer pixels out
-
-**The canvas is drawn at the screen's pixel ratio, capped at 2** (`pixelRatio()`
-in `scene.ts`). It used to be drawn at 1, so on a phone or a laptop the browser
-stretched every frame over twice its pixels and the whole globe was soft. Past 2
-is more than twice the work again for a difference nobody sees at arm's length.
-
-**Antialiasing stays off.** It was turned on below a ratio of 2 and brightened
-the whole canvas about 2.5 times on Windows Chrome with an Intel GPU (ANGLE on
-Direct3D 11): the planet came out nearly white, the unlit grey outlines
-included, so the multisampled buffer itself was at fault.
-
-**Every size in pixels in this viewer is a CSS pixel**, and is multiplied by the
-ratio on its way to the GPU: the tile's point size, the outline's width
-(`halfWidthOf`), the keyline around a painted flag, the smallest a mark or a
-ring of the bonus effects may be, the smallest debris. So are the thresholds:
-`coarseHandover`, `flagPaint` and the size a landmass must reach before its flag
-fades in are worked out in CSS pixels, or a sharper screen would hand over at
-half the zoom. What is measured against `gl_PointSize` stays in drawing-buffer
-pixels — `pixelsPerRadian`, the picker's window, the one-pixel feathers that
-soften an edge.
-
-The click is already in drawing-buffer pixels: `canvasPosition` scales the
-pointer by `canvas.width / rect.width`. `resize` sets the ratio again, because a
-browser zoom changes it. **Read the ratio back from the renderer, never from
-`window.devicePixelRatio`**: a ratio that changes with no `resize` then leaves
-the frame no sharper, but every size still agrees with every other.
-
-### The light
-
-**The globe is lit by one light, and everything on its surface calls the same
-function for it** — `shaders/light.glsl`, included by the earth, the tiles and
-the halo. The earth used to be three's standard material under an ambient light,
-the tiles were unlit, and the globe read as a flat blue disc. Lighting only the
-earth would have left the flags floating flat on a shaded ball.
-
-**It is a studio light, not the sun.** It sits with the camera, up and to the
-left, so the same side is always lit however the globe is turned: a real sun
-would put half the players' countries in the dark. Half-Lambert, squared, wraps
-it round the globe with no terminator, and the far limb keeps about half.
-
-**`shadeOf` is exactly 1 at the middle of the disc**, which is what the camera
-looks straight at and, zoomed in, the whole screen. A player at work on a
-country sees its flags as bright as before there was a light; the lit side of
-the globe seen whole comes out brighter still.
-
-**The air is lit too.** `hazeOf` lays the halo's colour over the ground seen
-edge-on, and `lit` shades it with the ground, so the rim is bright on the lit
-side and fades on the far one. The halo itself is shaded by the same function,
-taking the limb under it as its normal. `AIR` is the one place the colour lives.
-
-**Only the sea shines.** The earth adds a glint, read off the texture: the sea
-is one deep blue whose blue stands clear of its red and green, and no land does
-that. The photo itself is drawn as the standard material used to draw it,
-`sRGB(texel · 2/π)`, so the sea is still the blue it was.
-
-**None of it moves on its own**, so none of it costs a frame: the light turns
-with the camera, and a still globe is still the same picture. See [Drawing only
-when something changed](#drawing-only-when-something-changed).
 
 ### The zoomed-out view
 
@@ -1758,16 +1694,14 @@ a row measured in `px` of font is mostly leading. **A flex `margin-top` doing
 this correction has to be twice the rise**, because centring applies to the
 margin box; getting that wrong left the camera icon exactly half-corrected.
 
-**The capture is the drawing buffer**, at the screen's pixel ratio capped at 2
-(see [CSS pixels in, drawing-buffer pixels
-out](#css-pixels-in-drawing-buffer-pixels-out)), so a phone captures around
-780×1688 and a ratio-1 desktop its CSS size. `cardSize` lifts a small one to a
-short edge of 720 — the globe softens a little and the flag and the counts stay
-crisp, which is the half anyone reads — and caps the long edge at 2400 so a
-share sheet will still take the file.
+**The canvas is sized in CSS pixels** (`renderer.setSize` with no pixel ratio),
+so a phone captures around 390×844. `cardSize` lifts that to a short edge of
+720 — the globe softens a little and the flag and the counts stay crisp, which
+is the half anyone reads — and caps the long edge at 2400 so a share sheet will
+still take the file.
 
-**And the card is the middle of the frame, not all of it.** A phone's frame is
-a 1:2.2 column that every timeline either shows as a sliver or crops for you;
+**And the card is the middle of the frame, not all of it.** 390×844 is a 1:2.2
+column that every timeline either shows as a sliver or crops for you;
 `cropToAspect` brings the shape back inside 9:16 … 16:9 first, centred, because
 the globe is centred — the camera looks at the origin. The portrait limit is the
 loosest of the standard shapes on purpose: at rest the sphere's diameter is the

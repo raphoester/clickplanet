@@ -1,5 +1,3 @@
-#include ../light.glsl;
-
 uniform float pointSize;
 
 uniform sampler2D landmassData;
@@ -12,12 +10,8 @@ uniform float landmassCount;
 // looks at.
 uniform float flagPaint;
 
-// Drawing-buffer pixels per radian of arc at the current zoom.
+// Screen pixels per radian of arc at the current zoom.
 uniform float pixelsPerRadian;
-
-// Drawing-buffer pixels per CSS pixel. The sizes written in pixels here are
-// CSS pixels, so a sharper screen draws the same picture and not a smaller one.
-uniform float pixelRatio;
 
 // Bombs. Matches MAX_BLASTS and BLAST_TIMELINE in domain/blast.ts.
 #define MAX_BLASTS 4
@@ -43,11 +37,6 @@ attribute float landmassIndex;
 
 varying float vHover;
 flat out vec4 vRegionVector;
-
-// The light on this tile, worked out once for the whole disc: the shading
-// across one tile is far too small to see. See light.glsl.
-flat out float vShade;
-flat out float vHaze;
 
 // The flag painted across this tile's landmass: which flag it is, how much of
 // the landmass its holder actually holds, and — rather than one colour for the
@@ -137,10 +126,6 @@ void main() {
     vHover = hover;
     vRegionVector = regionVector;
 
-    vec3 normal = normalize(normalMatrix * ground);
-    vShade = shadeOf(normal);
-    vHaze = hazeOf(normal);
-
     vFlagRegion = vec4(0.0);
     vFlagUV = vec2(0.0);
     vFlagStep = vec4(0.0);
@@ -155,7 +140,7 @@ void main() {
         // from orbit it would be a single hyper-bright speck, so a flag fades in
         // only once its landmass is big enough to read, and the same rule
         // quietly clears the oceans of lone islands.
-        float share = held.r * smoothstep(5.0, 16.0, held.g * pixelsPerRadian / pixelRatio);
+        float share = held.r * smoothstep(5.0, 16.0, held.g * pixelsPerRadian);
         vec2 anchor = held.ba;
 
         if (region.z > 0.0 && share > 0.0) {

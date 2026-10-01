@@ -1,5 +1,4 @@
-#include ../light.glsl;
-
+uniform vec3 colour;
 uniform float power;
 uniform float intensity;
 
@@ -31,13 +30,5 @@ void main() {
     // multiplies by the alpha, and the framebuffer holds bytes, so a colour
     // taken above 1.0 is clamped to white before it is ever blended. Folded
     // into the rgb this read as a grey halo with the blue scaled out of it.
-    //
-    // Lit like the ground under it, which faces out across the screen the same
-    // way this fragment's normal does: bright on the side towards the light,
-    // faint on the far side, as the haze over the limb is. Left unnormalised,
-    // because between the earth's limb and this shell it is never shorter than
-    // 0.94, and inside the earth's disc, where it shrinks to nothing, the depth
-    // test has already thrown the fragment away.
-    float shade = shadeOf(vec3(vViewNormal.xy, 0.0));
-    gl_FragColor = vec4(AIR, clamp(glow * intensity * shade, 0.0, 1.0));
+    gl_FragColor = vec4(colour, clamp(glow * intensity, 0.0, 1.0));
 }
