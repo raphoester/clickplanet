@@ -300,6 +300,8 @@ a no-op publishes nothing, a blast is one event, a restore is a compare-and-set,
 and so on. An adapter's test suite embeds it and sets `NewStorage`, then adds only
 what is its own — `inmemory_tile_storage` adds the snapshot and the slow-subscriber
 tests. A second tile storage runs the same suite by embedding it the same way.
+`clicks.AllegianceStorage` has one too (`AllegianceStorageContractSuite`): `postgres_allegiance_store` and the
+tagged `inmemory_allegiance_store`, which the use case and toll tests use, both run it.
 A port with one adapter and no second one coming (`ledger.Storage`) has no suite.
 
 **The controller is the one exception**, at `internal/planet/internal/planetv1controller/`,
@@ -735,6 +737,11 @@ player could click once for a tiny flag and draw a tiny flag's bomb.
   `forget_allegiances_usecase` deletes the rows with no take in 3 days
   (`clicks.FadedBefore`), every hour, logged by `log_forget_allegiances`. A scope
   is an address, so it is kept about as long as the ledger keeps one.
+- **One contract, two stores.** `clicks.AllegianceStorage` is the whole store, and
+  `AllegianceStorageContractSuite` (behind the `testing` tag) pins it: absent keys,
+  replace, the same instant back, delete before the cutoff and keep at it.
+  `postgres_allegiance_store` and the tagged `inmemory_allegiance_store` both run
+  it, so the tests that use the in-memory one test against what postgres does.
 - **The store keeps opaque keys.** Only `clicks` says whose a key is
   (`AccountAllegianceKey`, `ScopeAllegianceKey`, `Payer.AllegianceKey(s)`), the
   way `Buckets.Keys` names the limiter's buckets.
