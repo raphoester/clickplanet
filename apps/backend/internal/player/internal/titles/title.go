@@ -53,15 +53,3 @@ func (c Catalog) Of(held IDs) []Title {
 	}
 	return titles
 }
-
-func (c Catalog) Without(ids IDs) Catalog {
-	return slices.DeleteFunc(slices.Clone(c), func(title Title) bool { return slices.Contains(ids, title.ID()) })
-}
-
-func (c Catalog) IDs() IDs {
-	ids := make(IDs, 0, len(c))
-	for _, title := range c {
-		ids = append(ids, title.ID())
-	}
-	return ids
-}

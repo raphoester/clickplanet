@@ -80,20 +80,3 @@ func (s *StoreContractSuite) TestADeletedAccountLosesItsTitlesAndTheOthersKeepTh
 func (s *StoreContractSuite) TestDeletingAnAccountWithNoTitleIsNotAnError() {
 	s.Require().NoError(s.store.DeleteAccount(s.T().Context(), players.AccountID{15: 9}))
 }
-
-func (s *StoreContractSuite) TestNoTitleIsBackfilledAtFirst() {
-	backfilled, err := s.store.Backfilled(s.T().Context())
-
-	s.Require().NoError(err)
-	s.Empty(backfilled)
-}
-
-func (s *StoreContractSuite) TestBackfilledTitlesReadBackAndSavingOneAgainIsNoError() {
-	s.Require().NoError(s.store.SaveBackfilled(s.T().Context(), IDs{"settler", "loyal"}, contractAt))
-	s.Require().NoError(s.store.SaveBackfilled(s.T().Context(), IDs{"loyal", "devoted"}, contractAt))
-
-	backfilled, err := s.store.Backfilled(s.T().Context())
-
-	s.Require().NoError(err)
-	s.ElementsMatch(IDs{"settler", "loyal", "devoted"}, backfilled)
-}

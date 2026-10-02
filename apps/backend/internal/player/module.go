@@ -28,6 +28,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/set_name_usecase/renaming_set_name"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/announce_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/backfill_titles_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_author_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_authors_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_player_handler"
@@ -55,7 +56,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/postgres_title_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/usecases/award_titles_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/usecases/backfill_titles_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/usecases/backfill_titles_usecase/log_backfill_titles"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/usecases/backfill_titles_usecase/audit_backfill_titles"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/usecases/forget_titles_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
@@ -165,10 +166,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	props.Runners.Add(signOuts)
 	props.Runners.Add(gone)
 
-	backfill := backfill_titles_usecase.NewRunner(
-		log_backfill_titles.New(backfill_titles_usecase.New(store, accounts, titleStore, catalog, clock), props.Logger))
-
-	props.Runners.Add(cppg.CloseAfter(db, props.Logger, takes, awards, deletions, forgottenTitles, signIns, backfill))
+	props.Runners.Add(cppg.CloseAfter(db, props.Logger, takes, awards, deletions, forgottenTitles, signIns))
 
 	verifier := rpc_session_verifier.New(props.Internal, props.Logger)
 
@@ -200,6 +198,16 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return playerv1connect.NewInternalServiceHandler(internalService, options...)
 	}); err != nil {
 		return fmt.Errorf("failed to mount player.v1.InternalService: %w", err)
+	}
+
+	adminService := playerv1controller.AdminService{
+		BackfillTitlesHandler: backfill_titles_handler.New(audit_backfill_titles.New(
+			backfill_titles_usecase.New(store, accounts, titleStore, catalog, clock), props.Logger)),
+	}
+	if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
+		return playerv1connect.NewAdminServiceHandler(adminService, options...)
+	}); err != nil {
+		return fmt.Errorf("failed to mount player.v1.AdminService: %w", err)
 	}
 
 	props.Logger.Info("player built", slog.String("schema", config.Database.Schema))

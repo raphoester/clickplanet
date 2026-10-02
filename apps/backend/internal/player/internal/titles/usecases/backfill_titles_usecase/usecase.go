@@ -20,8 +20,6 @@ type Accounts interface {
 
 type Titles interface {
 	Grant(ctx context.Context, grants titles.Grants, at time.Time) error
-	Backfilled(ctx context.Context) (titles.IDs, error)
-	SaveBackfilled(ctx context.Context, titles titles.IDs, at time.Time) error
 }
 
 type Executor interface {
@@ -29,7 +27,6 @@ type Executor interface {
 }
 
 type Backfill struct {
-	Titles   titles.IDs
 	Accounts int
 }
 
@@ -50,19 +47,11 @@ func New(stats Stats, accounts Accounts, titles Titles, catalog titles.Catalog, 
 }
 
 func (u *UseCase) Execute(ctx context.Context) (Backfill, error) {
-	done, err := u.titles.Backfilled(ctx)
-	if err != nil {
-		return Backfill{}, fmt.Errorf("failed to read the backfilled titles: %w", err)
-	}
-
-	pending := u.catalog.Without(done)
-	if len(pending) == 0 {
-		return Backfill{}, nil
-	}
-
 	at := u.clock.Now()
-	backfill := Backfill{Titles: pending.IDs()}
-	var after players.AccountID
+	var (
+		backfill Backfill
+		after    players.AccountID
+	)
 	for {
 		page, err := u.stats.StatsAfter(ctx, after, pageSize)
 		if err != nil {
@@ -74,20 +63,15 @@ func (u *UseCase) Execute(ctx context.Context) (Backfill, error) {
 			return backfill, fmt.Errorf("failed to ask when a page of accounts was made: %w", err)
 		}
 
-		grants := pending.GrantsFor(titles.CareersOf(page, created))
+		grants := u.catalog.GrantsFor(titles.CareersOf(page, created))
 		if err := u.titles.Grant(ctx, grants, at); err != nil {
 			return backfill, fmt.Errorf("failed to grant the titles: %w", err)
 		}
 		backfill.Accounts += len(grants)
 
 		if len(page) < pageSize {
-			break
+			return backfill, nil
 		}
 		after = page[len(page)-1].Account
 	}
-
-	if err := u.titles.SaveBackfilled(ctx, backfill.Titles, at); err != nil {
-		return backfill, fmt.Errorf("failed to save the backfilled titles: %w", err)
-	}
-	return backfill, nil
 }

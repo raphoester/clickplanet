@@ -40,12 +40,6 @@ func TestTheHeldTitlesAreTheCatalogsInItsOrderAndAnUnknownOneIsDropped(t *testin
 	assert.Equal(t, []titles.Title{first, third}, held)
 }
 
-func TestTheCatalogWithoutSomeTitlesKeepsTheRest(t *testing.T) {
-	assert.Equal(t, titles.Catalog{third}, catalog.Without(titles.IDs{"first"}))
-	assert.Empty(t, catalog.Without(catalog.IDs()))
-	assert.Equal(t, titles.Catalog{first, third}, catalog, "the receiver is left as it was")
-}
-
 func TestWithoutLeavesOutTheHeldIDsAndKeepsTheOrder(t *testing.T) {
 	earned := titles.IDs{"a", "b", "c"}
 

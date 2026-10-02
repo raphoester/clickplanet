@@ -58,25 +58,6 @@ func (s *Store) DeleteAccount(ctx context.Context, account players.AccountID) er
 	return nil
 }
 
-func (s *Store) Backfilled(ctx context.Context) (titles.IDs, error) {
-	return idsOf(s.db.QueryContext(ctx, `SELECT title FROM title_backfills ORDER BY title`))
-}
-
-func (s *Store) SaveBackfilled(ctx context.Context, ids titles.IDs, at time.Time) error {
-	backfilled := make([]string, len(ids))
-	for i, id := range ids {
-		backfilled[i] = string(id)
-	}
-
-	if _, err := s.db.ExecContext(ctx, `
-		INSERT INTO title_backfills (title, backfilled_at) SELECT unnest($1::text[]), $2
-		ON CONFLICT (title) DO NOTHING
-	`, pq.Array(backfilled), at.UTC()); err != nil {
-		return fmt.Errorf("failed to save the backfilled titles: %w", err)
-	}
-	return nil
-}
-
 func idsOf(rows *sql.Rows, err error) (titles.IDs, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to read the titles: %w", err)

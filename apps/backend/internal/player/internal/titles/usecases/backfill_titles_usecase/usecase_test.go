@@ -18,9 +18,10 @@ import (
 )
 
 var (
-	now   = time.Date(2026, 10, 2, 12, 0, 0, 0, time.UTC)
-	first = titles.FakeTitle{Key: "first", Tiles: 1}
-	third = titles.FakeTitle{Key: "third", Tiles: 3}
+	now     = time.Date(2026, 10, 2, 12, 0, 0, 0, time.UTC)
+	first   = titles.FakeTitle{Key: "first", Tiles: 1}
+	third   = titles.FakeTitle{Key: "third", Tiles: 3}
+	catalog = titles.Catalog{first, third}
 )
 
 func account(i int) players.AccountID {
@@ -66,13 +67,24 @@ func TestEveryAccountGetsTheTitlesItsStatsEarnAcrossPages(t *testing.T) {
 	}
 	f.take(t, 1_001, 2)
 
-	done, err := f.backfill(t, f.titles, titles.Catalog{first, third})
+	done, err := f.backfill(t, f.titles, catalog)
 
 	require.NoError(t, err)
-	assert.Equal(t, backfill_titles_usecase.Backfill{Titles: titles.IDs{"first", "third"}, Accounts: 1_001}, done)
+	assert.Equal(t, backfill_titles_usecase.Backfill{Accounts: 1_001}, done)
 	assert.Equal(t, titles.IDs{"first"}, f.held(t, 1))
 	assert.Equal(t, titles.IDs{"first"}, f.held(t, 500))
 	assert.Equal(t, titles.IDs{"first", "third"}, f.held(t, 1_001))
+}
+
+func TestAnAccountThatEarnsNothingIsNotCounted(t *testing.T) {
+	f := setUp()
+	f.take(t, 1, 1)
+
+	done, err := f.backfill(t, f.titles, titles.Catalog{third})
+
+	require.NoError(t, err)
+	assert.Equal(t, 0, done.Accounts)
+	assert.Empty(t, f.held(t, 1))
 }
 
 func TestTheAccountsMadeBeforeNovemberAreBackfilledOG(t *testing.T) {
@@ -92,6 +104,18 @@ func TestTheAccountsMadeBeforeNovemberAreBackfilledOG(t *testing.T) {
 	assert.Empty(t, f.held(t, 3), "auth does not know it")
 }
 
+func TestRunningItAgainGrantsNothingTwice(t *testing.T) {
+	f := setUp()
+	f.take(t, 1, 3)
+	_, err := f.backfill(t, f.titles, catalog)
+	require.NoError(t, err)
+
+	_, err = f.backfill(t, f.titles, catalog)
+
+	require.NoError(t, err)
+	assert.Equal(t, titles.IDs{"first", "third"}, f.held(t, 1))
+}
+
 type refusingGrants struct {
 	*inmemory_title_store.Store
 }
@@ -100,53 +124,22 @@ func (refusingGrants) Grant(context.Context, titles.Grants, time.Time) error {
 	return errors.New("postgres is down")
 }
 
-func TestABackfilledTitleIsNotBackfilledAgain(t *testing.T) {
-	f := setUp()
-	f.take(t, 1, 1)
-	_, err := f.backfill(t, f.titles, titles.Catalog{first})
-	require.NoError(t, err)
-
-	done, err := f.backfill(t, refusingGrants{f.titles}, titles.Catalog{first})
-
-	require.NoError(t, err)
-	assert.Empty(t, done.Titles)
-}
-
-func TestATitleAddedLaterIsBackfilledOnItsOwn(t *testing.T) {
-	f := setUp()
-	f.take(t, 1, 3)
-	_, err := f.backfill(t, f.titles, titles.Catalog{first})
-	require.NoError(t, err)
-
-	done, err := f.backfill(t, f.titles, titles.Catalog{first, third})
-
-	require.NoError(t, err)
-	assert.Equal(t, titles.IDs{"third"}, done.Titles)
-	assert.Equal(t, titles.IDs{"first", "third"}, f.held(t, 1))
-}
-
-func TestAFailedBackfillIsTriedAgainNextTime(t *testing.T) {
+func TestAFailedGrantIsAnError(t *testing.T) {
 	f := setUp()
 	f.take(t, 1, 1)
 
-	_, err := f.backfill(t, refusingGrants{f.titles}, titles.Catalog{first})
+	_, err := f.backfill(t, refusingGrants{f.titles}, catalog)
+
 	require.Error(t, err)
-
-	backfilled, err := f.titles.Backfilled(t.Context())
-	require.NoError(t, err)
-	assert.Empty(t, backfilled)
 }
 
-func TestAFailureToAskAuthBackfillsNothing(t *testing.T) {
+func TestAFailureToAskAuthGrantsNothing(t *testing.T) {
 	f := setUp()
 	f.take(t, 1, 1)
 	f.accounts.FailWith(errors.New("auth is down"))
 
-	_, err := f.backfill(t, f.titles, titles.Catalog{first})
+	_, err := f.backfill(t, f.titles, catalog)
 
 	require.Error(t, err)
 	assert.Empty(t, f.held(t, 1))
-	backfilled, err := f.titles.Backfilled(t.Context())
-	require.NoError(t, err)
-	assert.Empty(t, backfilled)
 }
