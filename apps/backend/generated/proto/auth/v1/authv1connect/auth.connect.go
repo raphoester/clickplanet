@@ -46,6 +46,12 @@ const (
 	// AuthServiceCompleteSignInProcedure is the fully-qualified name of the AuthService's
 	// CompleteSignIn RPC.
 	AuthServiceCompleteSignInProcedure = "/auth.v1.AuthService/CompleteSignIn"
+	// AuthServiceStartEmailSignInProcedure is the fully-qualified name of the AuthService's
+	// StartEmailSignIn RPC.
+	AuthServiceStartEmailSignInProcedure = "/auth.v1.AuthService/StartEmailSignIn"
+	// AuthServiceCompleteEmailSignInProcedure is the fully-qualified name of the AuthService's
+	// CompleteEmailSignIn RPC.
+	AuthServiceCompleteEmailSignInProcedure = "/auth.v1.AuthService/CompleteEmailSignIn"
 	// AuthServiceSignOutProcedure is the fully-qualified name of the AuthService's SignOut RPC.
 	AuthServiceSignOutProcedure = "/auth.v1.AuthService/SignOut"
 	// AuthServiceSignOutEverywhereProcedure is the fully-qualified name of the AuthService's
@@ -80,6 +86,17 @@ type AuthServiceClient interface {
 	// click token again afterwards, so the token carries the account.
 	// Unimplemented (HTTP 404) when sign-in is off on this server.
 	CompleteSignIn(context.Context, *connect.Request[v1.CompleteSignInRequest]) (*connect.Response[v1.CompleteSignInResponse], error)
+	// Sends a one-time code to an email address, and sets a short-lived cookie
+	// that CompleteEmailSignIn reads back: the code works only in this browser.
+	// Answers the same whether or not the address has an account. Each call sends
+	// an email, so each needs a fresh Turnstile token. Unimplemented (HTTP 404)
+	// when email sign-in is off on this server.
+	StartEmailSignIn(context.Context, *connect.Request[v1.StartEmailSignInRequest]) (*connect.Response[v1.StartEmailSignInResponse], error)
+	// Finishes what StartEmailSignIn started, from the code in the email. Signs in
+	// or links exactly as CompleteSignIn does, with the address as the identity,
+	// and sets a new session cookie: the client mints its click token again
+	// afterwards. Unimplemented (HTTP 404) when email sign-in is off on this server.
+	CompleteEmailSignIn(context.Context, *connect.Request[v1.CompleteEmailSignInRequest]) (*connect.Response[v1.CompleteEmailSignInResponse], error)
 	// Ends this browser's session and clears its cookie. Succeeds with no session.
 	SignOut(context.Context, *connect.Request[v1.SignOutRequest]) (*connect.Response[v1.SignOutResponse], error)
 	// Ends every session of the caller's account, this one included.
@@ -131,6 +148,18 @@ func NewAuthServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(authServiceMethods.ByName("CompleteSignIn")),
 			connect.WithClientOptions(opts...),
 		),
+		startEmailSignIn: connect.NewClient[v1.StartEmailSignInRequest, v1.StartEmailSignInResponse](
+			httpClient,
+			baseURL+AuthServiceStartEmailSignInProcedure,
+			connect.WithSchema(authServiceMethods.ByName("StartEmailSignIn")),
+			connect.WithClientOptions(opts...),
+		),
+		completeEmailSignIn: connect.NewClient[v1.CompleteEmailSignInRequest, v1.CompleteEmailSignInResponse](
+			httpClient,
+			baseURL+AuthServiceCompleteEmailSignInProcedure,
+			connect.WithSchema(authServiceMethods.ByName("CompleteEmailSignIn")),
+			connect.WithClientOptions(opts...),
+		),
 		signOut: connect.NewClient[v1.SignOutRequest, v1.SignOutResponse](
 			httpClient,
 			baseURL+AuthServiceSignOutProcedure,
@@ -154,14 +183,16 @@ func NewAuthServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 
 // authServiceClient implements AuthServiceClient.
 type authServiceClient struct {
-	createSession     *connect.Client[v1.CreateSessionRequest, v1.CreateSessionResponse]
-	getMe             *connect.Client[v1.GetMeRequest, v1.GetMeResponse]
-	getSignInOptions  *connect.Client[v1.GetSignInOptionsRequest, v1.GetSignInOptionsResponse]
-	startSignIn       *connect.Client[v1.StartSignInRequest, v1.StartSignInResponse]
-	completeSignIn    *connect.Client[v1.CompleteSignInRequest, v1.CompleteSignInResponse]
-	signOut           *connect.Client[v1.SignOutRequest, v1.SignOutResponse]
-	signOutEverywhere *connect.Client[v1.SignOutEverywhereRequest, v1.SignOutEverywhereResponse]
-	deleteAccount     *connect.Client[v1.DeleteAccountRequest, v1.DeleteAccountResponse]
+	createSession       *connect.Client[v1.CreateSessionRequest, v1.CreateSessionResponse]
+	getMe               *connect.Client[v1.GetMeRequest, v1.GetMeResponse]
+	getSignInOptions    *connect.Client[v1.GetSignInOptionsRequest, v1.GetSignInOptionsResponse]
+	startSignIn         *connect.Client[v1.StartSignInRequest, v1.StartSignInResponse]
+	completeSignIn      *connect.Client[v1.CompleteSignInRequest, v1.CompleteSignInResponse]
+	startEmailSignIn    *connect.Client[v1.StartEmailSignInRequest, v1.StartEmailSignInResponse]
+	completeEmailSignIn *connect.Client[v1.CompleteEmailSignInRequest, v1.CompleteEmailSignInResponse]
+	signOut             *connect.Client[v1.SignOutRequest, v1.SignOutResponse]
+	signOutEverywhere   *connect.Client[v1.SignOutEverywhereRequest, v1.SignOutEverywhereResponse]
+	deleteAccount       *connect.Client[v1.DeleteAccountRequest, v1.DeleteAccountResponse]
 }
 
 // CreateSession calls auth.v1.AuthService.CreateSession.
@@ -187,6 +218,16 @@ func (c *authServiceClient) StartSignIn(ctx context.Context, req *connect.Reques
 // CompleteSignIn calls auth.v1.AuthService.CompleteSignIn.
 func (c *authServiceClient) CompleteSignIn(ctx context.Context, req *connect.Request[v1.CompleteSignInRequest]) (*connect.Response[v1.CompleteSignInResponse], error) {
 	return c.completeSignIn.CallUnary(ctx, req)
+}
+
+// StartEmailSignIn calls auth.v1.AuthService.StartEmailSignIn.
+func (c *authServiceClient) StartEmailSignIn(ctx context.Context, req *connect.Request[v1.StartEmailSignInRequest]) (*connect.Response[v1.StartEmailSignInResponse], error) {
+	return c.startEmailSignIn.CallUnary(ctx, req)
+}
+
+// CompleteEmailSignIn calls auth.v1.AuthService.CompleteEmailSignIn.
+func (c *authServiceClient) CompleteEmailSignIn(ctx context.Context, req *connect.Request[v1.CompleteEmailSignInRequest]) (*connect.Response[v1.CompleteEmailSignInResponse], error) {
+	return c.completeEmailSignIn.CallUnary(ctx, req)
 }
 
 // SignOut calls auth.v1.AuthService.SignOut.
@@ -228,6 +269,17 @@ type AuthServiceHandler interface {
 	// click token again afterwards, so the token carries the account.
 	// Unimplemented (HTTP 404) when sign-in is off on this server.
 	CompleteSignIn(context.Context, *connect.Request[v1.CompleteSignInRequest]) (*connect.Response[v1.CompleteSignInResponse], error)
+	// Sends a one-time code to an email address, and sets a short-lived cookie
+	// that CompleteEmailSignIn reads back: the code works only in this browser.
+	// Answers the same whether or not the address has an account. Each call sends
+	// an email, so each needs a fresh Turnstile token. Unimplemented (HTTP 404)
+	// when email sign-in is off on this server.
+	StartEmailSignIn(context.Context, *connect.Request[v1.StartEmailSignInRequest]) (*connect.Response[v1.StartEmailSignInResponse], error)
+	// Finishes what StartEmailSignIn started, from the code in the email. Signs in
+	// or links exactly as CompleteSignIn does, with the address as the identity,
+	// and sets a new session cookie: the client mints its click token again
+	// afterwards. Unimplemented (HTTP 404) when email sign-in is off on this server.
+	CompleteEmailSignIn(context.Context, *connect.Request[v1.CompleteEmailSignInRequest]) (*connect.Response[v1.CompleteEmailSignInResponse], error)
 	// Ends this browser's session and clears its cookie. Succeeds with no session.
 	SignOut(context.Context, *connect.Request[v1.SignOutRequest]) (*connect.Response[v1.SignOutResponse], error)
 	// Ends every session of the caller's account, this one included.
@@ -275,6 +327,18 @@ func NewAuthServiceHandler(svc AuthServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(authServiceMethods.ByName("CompleteSignIn")),
 		connect.WithHandlerOptions(opts...),
 	)
+	authServiceStartEmailSignInHandler := connect.NewUnaryHandler(
+		AuthServiceStartEmailSignInProcedure,
+		svc.StartEmailSignIn,
+		connect.WithSchema(authServiceMethods.ByName("StartEmailSignIn")),
+		connect.WithHandlerOptions(opts...),
+	)
+	authServiceCompleteEmailSignInHandler := connect.NewUnaryHandler(
+		AuthServiceCompleteEmailSignInProcedure,
+		svc.CompleteEmailSignIn,
+		connect.WithSchema(authServiceMethods.ByName("CompleteEmailSignIn")),
+		connect.WithHandlerOptions(opts...),
+	)
 	authServiceSignOutHandler := connect.NewUnaryHandler(
 		AuthServiceSignOutProcedure,
 		svc.SignOut,
@@ -305,6 +369,10 @@ func NewAuthServiceHandler(svc AuthServiceHandler, opts ...connect.HandlerOption
 			authServiceStartSignInHandler.ServeHTTP(w, r)
 		case AuthServiceCompleteSignInProcedure:
 			authServiceCompleteSignInHandler.ServeHTTP(w, r)
+		case AuthServiceStartEmailSignInProcedure:
+			authServiceStartEmailSignInHandler.ServeHTTP(w, r)
+		case AuthServiceCompleteEmailSignInProcedure:
+			authServiceCompleteEmailSignInHandler.ServeHTTP(w, r)
 		case AuthServiceSignOutProcedure:
 			authServiceSignOutHandler.ServeHTTP(w, r)
 		case AuthServiceSignOutEverywhereProcedure:
@@ -338,6 +406,14 @@ func (UnimplementedAuthServiceHandler) StartSignIn(context.Context, *connect.Req
 
 func (UnimplementedAuthServiceHandler) CompleteSignIn(context.Context, *connect.Request[v1.CompleteSignInRequest]) (*connect.Response[v1.CompleteSignInResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.AuthService.CompleteSignIn is not implemented"))
+}
+
+func (UnimplementedAuthServiceHandler) StartEmailSignIn(context.Context, *connect.Request[v1.StartEmailSignInRequest]) (*connect.Response[v1.StartEmailSignInResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.AuthService.StartEmailSignIn is not implemented"))
+}
+
+func (UnimplementedAuthServiceHandler) CompleteEmailSignIn(context.Context, *connect.Request[v1.CompleteEmailSignInRequest]) (*connect.Response[v1.CompleteEmailSignInResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.AuthService.CompleteEmailSignIn is not implemented"))
 }
 
 func (UnimplementedAuthServiceHandler) SignOut(context.Context, *connect.Request[v1.SignOutRequest]) (*connect.Response[v1.SignOutResponse], error) {

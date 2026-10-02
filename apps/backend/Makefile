@@ -1,4 +1,4 @@
-.PHONY: proto map quiz test lint lint-ci tidy check-format setup-tools deadcode dBuild dRun dRm vpn-lists metrics
+.PHONY: proto map quiz test lint lint-ci tidy check-format setup-tools deadcode dBuild dRun dRm vpn-lists disposable-domains metrics
 
 # Test helpers that more than one package needs cannot live in a _test.go file,
 # so they live in an ordinary .go file carrying this tag. The tag is what keeps
@@ -179,6 +179,17 @@ vpn-lists:
 		done; done; \
 		mv "$$tmp/netnames" $(VPN_LISTS_DIR)/vpn_netnames.txt
 	@wc -l $(VPN_LISTS_DIR)/*.txt
+
+# Refreshes the vendored disposable email domains from
+# disposable-email-domains/disposable-email-domains (CC0), which email sign-in
+# refuses. Checked in and embedded like the VPN lists: run this, run the tests
+# (they assert the list still loads and is not truncated), and commit.
+DISPOSABLE_DOMAINS_URL := https://raw.githubusercontent.com/disposable-email-domains/disposable-email-domains/main/disposable_email_blocklist.conf
+DISPOSABLE_DOMAINS_FILE := internal/auth/internal/signin/embedded_disposable_domains/disposable_email_blocklist.conf
+
+disposable-domains:
+	@curl -sSf $(DISPOSABLE_DOMAINS_URL) -o $(DISPOSABLE_DOMAINS_FILE)
+	@wc -l $(DISPOSABLE_DOMAINS_FILE)
 
 # Reads the metrics endpoint on the droplet. It is not routed through Caddy (see
 # the commented handle in deploy/vps/caddy/Caddyfile), so this goes through compose.

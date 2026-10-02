@@ -531,6 +531,22 @@ auth:
   discord:
     clientId: "1549822806420885616"
     clientSecret: env://DISCORD_CLIENT_SECRET
+  # Sign-in with a code sent to an email address, through Cloudflare Email
+  # Sending. Off until the domain is onboarded: `npx wrangler email sending
+  # enable clickplanet.lol` on an account with Workers Paid, then an API token
+  # with Email Sending: Edit only. Both values are Actions secrets
+  # (CLOUDFLARE_EMAIL_TOKEN, CLOUDFLARE_ACCOUNT_ID), written empty while unset.
+  # On with either empty, the API does not start.
+  email:
+    enabled: false
+    delivery: cloudflare
+    from: noreply@clickplanet.lol
+    fromName: ClickPlanet
+    # Not CLOUDFLARE_API_TOKEN, which is Caddy's: that one edits DNS and
+    # nothing else, and this one sends mail and nothing else.
+    cloudflare:
+      accountId: env://CLOUDFLARE_ACCOUNT_ID
+      apiToken: env://CLOUDFLARE_EMAIL_TOKEN
   # Accounts with no provider, unused for 90 days, are deleted every hour.
   # Never below the guest cookie's 90 days.
   prune:

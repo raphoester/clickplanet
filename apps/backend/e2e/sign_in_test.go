@@ -321,7 +321,8 @@ func TestTheOfferedProvidersAreAnsweredAndNoCookieIsSet(t *testing.T) {
 	res, err := b.client.GetSignInOptions(t.Context(), req)
 	require.NoError(t, err)
 
-	assert.Equal(t, []authv1.Provider{authv1.Provider_PROVIDER_DISCORD, authv1.Provider_PROVIDER_GOOGLE}, res.Msg.GetProviders())
+	assert.Equal(t, []authv1.Provider{authv1.Provider_PROVIDER_DISCORD, authv1.Provider_PROVIDER_GOOGLE, authv1.Provider_PROVIDER_EMAIL},
+		res.Msg.GetProviders())
 	assert.Empty(t, res.Header().Values("Set-Cookie"))
 }
 

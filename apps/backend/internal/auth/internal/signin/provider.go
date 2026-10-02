@@ -13,6 +13,7 @@ import (
 const (
 	Google  = "google"
 	Discord = "discord"
+	Email   = "email"
 )
 
 var (
@@ -50,6 +51,20 @@ func (p Providers) Provider(name string) (Provider, error) {
 		return nil, fmt.Errorf("%w: %q", ErrUnknownProvider, name)
 	}
 	return provider, nil
+}
+
+// Offer is every way this server signs in: its providers, then email when it is on.
+type Offer struct {
+	Providers Providers
+	Email     bool
+}
+
+func (o Offer) Names() []string {
+	names := o.Providers.Names()
+	if o.Email {
+		names = append(names, Email)
+	}
+	return names
 }
 
 // Client is one provider's block in the file: the id is public, the secret comes from the environment.

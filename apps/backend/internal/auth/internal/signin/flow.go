@@ -68,10 +68,14 @@ func (f *Flow) CallbackError(state string, now time.Time) error {
 
 // AccountError refuses a link whose browser is no longer on the account it started on: signed out, or signed in elsewhere since.
 func (f *Flow) AccountError(current *accounts.Account) error {
-	if f.Intent != accounts.IntentLink {
+	return accountError(f.Intent, f.Account, current)
+}
+
+func accountError(intent accounts.Intent, started accounts.AccountID, current *accounts.Account) error {
+	if intent != accounts.IntentLink {
 		return nil
 	}
-	if current == nil || current.ID != f.Account {
+	if current == nil || current.ID != started {
 		return fmt.Errorf("%w: the browser left the account the link started on", ErrFlowInvalid)
 	}
 	return nil

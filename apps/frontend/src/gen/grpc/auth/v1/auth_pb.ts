@@ -26,12 +26,20 @@ export enum Provider {
    * @generated from enum value: PROVIDER_DISCORD = 2;
    */
   DISCORD = 2,
+
+  /**
+   * A code sent to an email address. Not a third party: this server sends it.
+   *
+   * @generated from enum value: PROVIDER_EMAIL = 3;
+   */
+  EMAIL = 3,
 }
 // Retrieve enum metadata with: proto3.getEnumType(Provider)
 proto3.util.setEnumType(Provider, "auth.v1.Provider", [
   { no: 0, name: "PROVIDER_UNSPECIFIED" },
   { no: 1, name: "PROVIDER_GOOGLE" },
   { no: 2, name: "PROVIDER_DISCORD" },
+  { no: 3, name: "PROVIDER_EMAIL" },
 ]);
 
 /**
@@ -165,6 +173,36 @@ proto3.util.setEnumType(LinkRefusalReason, "auth.v1.LinkRefusalReason", [
   { no: 0, name: "LINK_REFUSAL_REASON_UNSPECIFIED" },
   { no: 1, name: "LINK_REFUSAL_REASON_IDENTITY_LINKED_ELSEWHERE" },
   { no: 2, name: "LINK_REFUSAL_REASON_PROVIDER_ALREADY_LINKED" },
+]);
+
+/**
+ * @generated from enum auth.v1.EmailRefusalReason
+ */
+export enum EmailRefusalReason {
+  /**
+   * @generated from enum value: EMAIL_REFUSAL_REASON_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * Not an email address.
+   *
+   * @generated from enum value: EMAIL_REFUSAL_REASON_INVALID = 1;
+   */
+  INVALID = 1,
+
+  /**
+   * An address from a service that hands them out for nothing.
+   *
+   * @generated from enum value: EMAIL_REFUSAL_REASON_DISPOSABLE = 2;
+   */
+  DISPOSABLE = 2,
+}
+// Retrieve enum metadata with: proto3.getEnumType(EmailRefusalReason)
+proto3.util.setEnumType(EmailRefusalReason, "auth.v1.EmailRefusalReason", [
+  { no: 0, name: "EMAIL_REFUSAL_REASON_UNSPECIFIED" },
+  { no: 1, name: "EMAIL_REFUSAL_REASON_INVALID" },
+  { no: 2, name: "EMAIL_REFUSAL_REASON_DISPOSABLE" },
 ]);
 
 /**
@@ -621,6 +659,220 @@ export class LinkRefusal extends Message<LinkRefusal> {
 
   static equals(a: LinkRefusal | PlainMessage<LinkRefusal> | undefined, b: LinkRefusal | PlainMessage<LinkRefusal> | undefined): boolean {
     return proto3.util.equals(LinkRefusal, a, b);
+  }
+}
+
+/**
+ * @generated from message auth.v1.StartEmailSignInRequest
+ */
+export class StartEmailSignInRequest extends Message<StartEmailSignInRequest> {
+  /**
+   * InvalidArgument, with an EmailRefusal detail, when it is not an address or
+   * its domain hands out disposable ones. ResourceExhausted when too many codes
+   * went to this address lately.
+   *
+   * @generated from field: string email = 1;
+   */
+  email = "";
+
+  /**
+   * As in StartSignInRequest: unset signs in, and a link from a browser with no
+   * account is Unauthenticated.
+   *
+   * @generated from field: auth.v1.SignInIntent intent = 2;
+   */
+  intent = SignInIntent.UNSPECIFIED;
+
+  /**
+   * The Turnstile widget's cf-turnstile-response. PermissionDenied when it is
+   * refused. Ignored when the server runs with attestation disabled.
+   *
+   * @generated from field: string attestation_token = 3;
+   */
+  attestationToken = "";
+
+  constructor(data?: PartialMessage<StartEmailSignInRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "auth.v1.StartEmailSignInRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "email", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "intent", kind: "enum", T: proto3.getEnumType(SignInIntent) },
+    { no: 3, name: "attestation_token", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): StartEmailSignInRequest {
+    return new StartEmailSignInRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): StartEmailSignInRequest {
+    return new StartEmailSignInRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): StartEmailSignInRequest {
+    return new StartEmailSignInRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: StartEmailSignInRequest | PlainMessage<StartEmailSignInRequest> | undefined, b: StartEmailSignInRequest | PlainMessage<StartEmailSignInRequest> | undefined): boolean {
+    return proto3.util.equals(StartEmailSignInRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message auth.v1.StartEmailSignInResponse
+ */
+export class StartEmailSignInResponse extends Message<StartEmailSignInResponse> {
+  constructor(data?: PartialMessage<StartEmailSignInResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "auth.v1.StartEmailSignInResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): StartEmailSignInResponse {
+    return new StartEmailSignInResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): StartEmailSignInResponse {
+    return new StartEmailSignInResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): StartEmailSignInResponse {
+    return new StartEmailSignInResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: StartEmailSignInResponse | PlainMessage<StartEmailSignInResponse> | undefined, b: StartEmailSignInResponse | PlainMessage<StartEmailSignInResponse> | undefined): boolean {
+    return proto3.util.equals(StartEmailSignInResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message auth.v1.CompleteEmailSignInRequest
+ */
+export class CompleteEmailSignInRequest extends Message<CompleteEmailSignInRequest> {
+  /**
+   * The code from the email. InvalidArgument when it is not the one sent, and
+   * the sign-in stays open for another try. FailedPrecondition when this browser
+   * started no email sign-in, or it lapsed, or too many codes were wrong: start
+   * again. AlreadyExists, with a LinkRefusal detail, when a link is refused.
+   *
+   * @generated from field: string code = 1;
+   */
+  code = "";
+
+  constructor(data?: PartialMessage<CompleteEmailSignInRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "auth.v1.CompleteEmailSignInRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "code", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CompleteEmailSignInRequest {
+    return new CompleteEmailSignInRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CompleteEmailSignInRequest {
+    return new CompleteEmailSignInRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CompleteEmailSignInRequest {
+    return new CompleteEmailSignInRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: CompleteEmailSignInRequest | PlainMessage<CompleteEmailSignInRequest> | undefined, b: CompleteEmailSignInRequest | PlainMessage<CompleteEmailSignInRequest> | undefined): boolean {
+    return proto3.util.equals(CompleteEmailSignInRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message auth.v1.CompleteEmailSignInResponse
+ */
+export class CompleteEmailSignInResponse extends Message<CompleteEmailSignInResponse> {
+  /**
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  /**
+   * @generated from field: auth.v1.SignInOutcome outcome = 2;
+   */
+  outcome = SignInOutcome.UNSPECIFIED;
+
+  constructor(data?: PartialMessage<CompleteEmailSignInResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "auth.v1.CompleteEmailSignInResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "outcome", kind: "enum", T: proto3.getEnumType(SignInOutcome) },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CompleteEmailSignInResponse {
+    return new CompleteEmailSignInResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CompleteEmailSignInResponse {
+    return new CompleteEmailSignInResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CompleteEmailSignInResponse {
+    return new CompleteEmailSignInResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: CompleteEmailSignInResponse | PlainMessage<CompleteEmailSignInResponse> | undefined, b: CompleteEmailSignInResponse | PlainMessage<CompleteEmailSignInResponse> | undefined): boolean {
+    return proto3.util.equals(CompleteEmailSignInResponse, a, b);
+  }
+}
+
+/**
+ * The detail of a StartEmailSignIn refused with INVALID_ARGUMENT: why no code was sent.
+ *
+ * @generated from message auth.v1.EmailRefusal
+ */
+export class EmailRefusal extends Message<EmailRefusal> {
+  /**
+   * @generated from field: auth.v1.EmailRefusalReason reason = 1;
+   */
+  reason = EmailRefusalReason.UNSPECIFIED;
+
+  constructor(data?: PartialMessage<EmailRefusal>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "auth.v1.EmailRefusal";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "reason", kind: "enum", T: proto3.getEnumType(EmailRefusalReason) },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): EmailRefusal {
+    return new EmailRefusal().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): EmailRefusal {
+    return new EmailRefusal().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): EmailRefusal {
+    return new EmailRefusal().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: EmailRefusal | PlainMessage<EmailRefusal> | undefined, b: EmailRefusal | PlainMessage<EmailRefusal> | undefined): boolean {
+    return proto3.util.equals(EmailRefusal, a, b);
   }
 }
 

@@ -736,6 +736,28 @@ auth:
   discord:
     clientId: ""
     clientSecret: ""
+  # Sign-in with a six-digit code sent to an email address. Apart from signIn:
+  # it needs no provider. Off, StartEmailSignIn and CompleteEmailSignIn answer
+  # Unimplemented (HTTP 404) and the web client hides the email form.
+  email:
+    enabled: false
+    # "cloudflare" sends through Cloudflare Email Sending. "log" writes each
+    # code to this server's log instead, which is how a local backend signs in
+    # by email with no account anywhere.
+    delivery: log
+    # On a domain onboarded to Email Sending (`wrangler email sending enable`).
+    from: noreply@example.com
+    fromName: ClickPlanet
+    # Both from the environment in production (auth.email.cloudflare.accountId,
+    # auth.email.cloudflare.apiToken). The token needs Email Sending: Edit only.
+    cloudflare:
+      accountId: ""
+      apiToken: ""
+    # Per address: three codes at once, then one every twenty minutes, so
+    # nobody fills an inbox that is not theirs.
+    sendLimiter:
+      perSecond: 0.00083
+      burst: 3
   # Deletes the accounts with no provider that nobody has used for idleFor.
   prune:
     # Never below sessions.guestTTL, or a live cookie loses its account.

@@ -1,8 +1,11 @@
-import {AccountBackend, AuthFailure, failureOf, Intent, Me, Provider, PROVIDERS} from "../../backends/account.ts"
+import {AccountBackend, AuthFailure, failureOf, Intent, Me, OAuthProvider, Provider, PROVIDERS} from "../../backends/account.ts"
 import {PlayerBackend, PlayerFailure, playerFailureOf} from "../../backends/player.ts"
 import {SessionProvider} from "../../backends/session.ts"
 
-export type AccountAction = "signIn" | "link" | "signOut" | "signOutEverywhere" | "deleteAccount"
+export type AccountAction = "signIn" | "link" | "sendCode" | "checkCode" | "signOut" | "signOutEverywhere" | "deleteAccount"
+
+/** An email code on its way: the panel asks for it, until it is typed or the player goes back. */
+export type PendingCode = {address: string, intent: Intent}
 
 export type AccountState =
     | {kind: "loading"}
@@ -17,6 +20,7 @@ export type AccountState =
         busy?: AccountAction
         /** Why the last action failed, until the next one starts. */
         failure?: AuthFailure
+        code?: PendingCode
         /**
          * The username, once a linked account has one and it has been read.
          * Undefined for a guest, while the read is out, and when it failed.
@@ -28,11 +32,13 @@ export type AccountState =
         nameFailure?: PlayerFailure
     }
 
+type Ready = Extract<AccountState, {kind: "ready"}>
+
 export type AccountStoreOptions = {
     /** Leaves the page for the provider. */
     navigate: (url: string) => void
     /** Keeps the provider and the intent across that trip, so the callback page can start again with them. */
-    remember: (provider: Provider, intent: Intent) => void
+    remember: (provider: OAuthProvider, intent: Intent) => void
 }
 
 /**
@@ -97,36 +103,82 @@ export class AccountStore {
     }
 
     /** From a browser with no linked provider: a known identity moves it to that identity's account. */
-    public signIn(provider: Provider): Promise<void> {
+    public signIn(provider: OAuthProvider): Promise<void> {
         return this.go("signIn", provider, "signIn")
     }
 
     /** From a linked account: adds the provider to it, and never moves the browser to another account. */
-    public link(provider: Provider): Promise<void> {
+    public link(provider: OAuthProvider): Promise<void> {
         return this.go("link", provider, "link")
     }
 
-    private async go(action: AccountAction, provider: Provider, intent: Intent): Promise<void> {
+    private async go(action: AccountAction, provider: OAuthProvider, intent: Intent): Promise<void> {
         const ready = this.begin(action)
         if (!ready) return
 
         try {
             await this.leaveFor(provider, intent)
         } catch (e) {
-            const failure = failureOf(e)
-            // The server knows better than the list read at load: take the
-            // button away rather than let it fail again.
-            const offered = failure === "off" ? []
-                : failure === "notOffered" ? ready.offered.filter((p) => p !== provider)
-                : ready.offered
-            // A link with no account left: the account was gone since the load.
-            if (failure === "notSignedIn") {
-                this.generation++
-                this.settle(offered, {linked: []}, {failure})
-                return
-            }
-            this.settle(offered, ready.me, {failure, username: ready.username})
+            this.refused(ready, provider, failureOf(e))
         }
+    }
+
+    /** Emails a code to the address. Sent again from the code step, it replaces the code before it. */
+    public async sendCode(address: string, intent: Intent): Promise<void> {
+        const ready = this.begin("sendCode")
+        if (!ready) return
+
+        try {
+            await this.backend.startEmailSignIn(address, intent)
+        } catch (e) {
+            this.refused(ready, "email", failureOf(e))
+            return
+        }
+        this.settle(ready.offered, ready.me, {username: ready.username, code: {address, intent}})
+    }
+
+    /**
+     * Signs in with the code typed. A wrong one keeps the code step, so the
+     * player types again; one to ask again for goes back to the address. On
+     * success the account is read again, as after a provider's callback.
+     */
+    public async checkCode(code: string): Promise<void> {
+        if (this.current.kind !== "ready" || !this.current.code) return
+        const ready = this.begin("checkCode")
+        if (!ready) return
+
+        try {
+            await this.backend.completeEmailSignIn(code)
+        } catch (e) {
+            const failure = failureOf(e)
+            const kept = failure === "wrongCode" || failure === "tooManyTries" || failure === "failed"
+            this.refused(ready, "email", failure, kept ? ready.code : undefined)
+            return
+        }
+        this.session.invalidate()
+        await this.load()
+    }
+
+    /** Back to the address, to type another one. */
+    public cancelCode(): void {
+        const ready = this.current
+        if (ready.kind !== "ready" || ready.busy || !ready.code) return
+        this.settle(ready.offered, ready.me, {username: ready.username})
+    }
+
+    private refused(ready: Ready, provider: Provider, failure: AuthFailure, code?: PendingCode) {
+        // The server knows better than the list read at load: take the
+        // option away rather than let it fail again.
+        const offered = failure === "off" ? []
+            : failure === "notOffered" ? ready.offered.filter((p) => p !== provider)
+            : ready.offered
+        // A link with no account left: the account was gone since the load.
+        if (failure === "notSignedIn") {
+            this.generation++
+            this.settle(offered, {linked: []}, {failure})
+            return
+        }
+        this.settle(offered, ready.me, {failure, username: ready.username, code})
     }
 
     /**
@@ -134,7 +186,7 @@ export class AccountStore {
      * calls it directly for "Try again": the store is not loaded there, and
      * that page shows its own failure.
      */
-    public async leaveFor(provider: Provider, intent: Intent): Promise<void> {
+    public async leaveFor(provider: OAuthProvider, intent: Intent): Promise<void> {
         const url = await this.backend.startSignIn(provider, intent)
         this.options.remember(provider, intent)
         this.options.navigate(url)
@@ -196,18 +248,18 @@ export class AccountStore {
         const ready = this.current
         if (ready.kind !== "ready" || ready.busy || ready.naming || ready.me.linked.length === 0) return
 
-        this.set({kind: "ready", offered: ready.offered, me: ready.me, username: ready.username, naming: true})
+        this.set({kind: "ready", offered: ready.offered, me: ready.me, username: ready.username, code: ready.code, naming: true})
         const generation = this.generation
 
         try {
             const profile = await this.player.setName(name)
             // Read again meanwhile (a sign-in landed): that state is newer.
             if (generation !== this.generation) return
-            this.set({kind: "ready", offered: ready.offered, me: ready.me, username: profile.name || undefined})
+            this.set({kind: "ready", offered: ready.offered, me: ready.me, username: profile.name || undefined, code: ready.code})
         } catch (e) {
             if (generation !== this.generation) return
             this.set({
-                kind: "ready", offered: ready.offered, me: ready.me, username: ready.username,
+                kind: "ready", offered: ready.offered, me: ready.me, username: ready.username, code: ready.code,
                 nameFailure: playerFailureOf(e),
             })
         }
@@ -234,19 +286,20 @@ export class AccountStore {
         if (this.current.kind !== "ready" || this.current.busy || this.current.naming) return undefined
 
         const ready = this.current
-        this.set({kind: "ready", offered: ready.offered, me: ready.me, username: ready.username, busy: action})
+        this.set({kind: "ready", offered: ready.offered, me: ready.me, username: ready.username, code: ready.code, busy: action})
         return ready
     }
 
-    /** A username only ever survives on a linked account. */
-    private settle(offered: Provider[], me: Me, extra: {failure?: AuthFailure, username?: string} = {}) {
+    /** A username only ever survives on a linked account, and a code only while email is offered. */
+    private settle(offered: Provider[], me: Me, extra: {failure?: AuthFailure, username?: string, code?: PendingCode} = {}) {
         const ordered = PROVIDERS.filter((p) => offered.includes(p))
         if (ordered.length === 0 && me.linked.length === 0) {
             this.set({kind: "hidden"})
             return
         }
         const username = me.linked.length > 0 ? extra.username : undefined
-        this.set({kind: "ready", offered: ordered, me, failure: extra.failure, username})
+        const code = ordered.includes("email") ? extra.code : undefined
+        this.set({kind: "ready", offered: ordered, me, failure: extra.failure, username, code})
     }
 
     private set(state: AccountState) {
