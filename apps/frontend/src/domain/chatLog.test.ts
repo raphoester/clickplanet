@@ -200,4 +200,20 @@ describe("interleave", () => {
     it("shows announcements alone when nobody said anything", () => {
         expect(entryIds(interleave([], [bomb("b", 1)]))).toEqual(["b"])
     })
+
+    it("leaves out announcements older than a full log's oldest message", () => {
+        expect(entryIds(interleave(
+            [message("m1", 10), message("m2", 30)],
+            [bomb("b0", 5), bomb("b1", 20)],
+            2,
+        ))).toEqual(["m1", "b1", "m2"])
+    })
+
+    it("keeps older announcements while the log has room", () => {
+        expect(entryIds(interleave(
+            [message("m1", 10), message("m2", 30)],
+            [bomb("b0", 5)],
+            3,
+        ))).toEqual(["b0", "m1", "m2"])
+    })
 })

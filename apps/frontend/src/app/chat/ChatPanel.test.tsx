@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
-import {act, cleanup, render, screen, waitFor} from "@testing-library/react"
+import {act, cleanup, fireEvent, render, screen, waitFor} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import ChatPanel from "./ChatPanel.tsx"
 import {CHAT_IDENTITY_STORAGE_KEY} from "./chatIdentity.ts"
+import {CHAT_SIZE_STORAGE_KEY} from "./chatSize.ts"
+import {WANTED_HEIGHT, WANTED_WIDTH} from "./useChatSize.ts"
 import {
     ChatAnnouncement,
     ChatBackend,
@@ -492,6 +494,28 @@ describe("ChatPanel", () => {
 
             expect(backend.sendMessage).not.toHaveBeenCalled()
         })
+
+        it("keeps a pasted message on one line", async () => {
+            const {backend} = stubBackend()
+            const {user} = setup(backend)
+            await screen.findByRole("textbox", {name: "Message"})
+
+            await user.click(messageBox())
+            await user.paste("first line\nsecond line")
+
+            expect(messageBox()).toHaveProperty("value", "first line second line")
+        })
+
+        it("sends on Shift+Enter rather than breaking the line", async () => {
+            const {backend} = stubBackend()
+            const {user} = setup(backend)
+            await screen.findByRole("textbox", {name: "Message"})
+
+            await user.type(messageBox(), "hello{Shift>}{Enter}{/Shift}")
+
+            await waitFor(() => expect(backend.sendMessage).toHaveBeenCalledTimes(1))
+            expect(messageBox()).toHaveProperty("value", "")
+        })
     })
 
     describe("when the chat cannot be loaded", () => {
@@ -633,5 +657,43 @@ describe("ChatPanel reactions", () => {
         await user.keyboard("{Escape}")
 
         expect(screen.queryByRole("group", {name: "Reactions"})).toBeNull()
+    })
+})
+
+describe("ChatPanel size", () => {
+    const wanted = () => ({
+        width: document.documentElement.style.getPropertyValue(WANTED_WIDTH),
+        height: document.documentElement.style.getPropertyValue(WANTED_HEIGHT),
+    })
+
+    beforeEach(() => window.localStorage.setItem(CHAT_SIZE_STORAGE_KEY, JSON.stringify({width: 520, height: 640})))
+
+    it("opens at the size the player left it", async () => {
+        const {backend} = stubBackend()
+        setup(backend)
+        await screen.findByRole("textbox", {name: "Message"})
+
+        expect(wanted()).toEqual({width: "520px", height: "640px"})
+    })
+
+    it("goes back to its first size on a double-click of an edge", async () => {
+        const {backend} = stubBackend()
+        const {container} = setup(backend)
+        await screen.findByRole("textbox", {name: "Message"})
+
+        fireEvent.doubleClick(container.querySelector(".chat-resize-corner")!)
+
+        expect(wanted()).toEqual({width: "", height: ""})
+        expect(window.localStorage.getItem(CHAT_SIZE_STORAGE_KEY)).toBeNull()
+    })
+
+    it("hands the page its size back once it is gone", async () => {
+        const {backend} = stubBackend()
+        const {unmount} = setup(backend)
+        await screen.findByRole("textbox", {name: "Message"})
+
+        unmount()
+
+        expect(wanted()).toEqual({width: "", height: ""})
     })
 })

@@ -2,8 +2,8 @@
     position: absolute;
     right: 16px;
     bottom: 16px;
-    width: 360px;
-    max-height: min(calc(100vh - 32px), 460px);
+    width: var(--chat-width);
+    max-height: var(--chat-height);
     z-index: 128;
     padding: 8px;
     border: 1px solid #FFFFFF33;
@@ -13,6 +13,60 @@
     display: flex;
     flex-direction: column;
     min-height: 0;
+}
+
+.chat-open {
+    height: var(--chat-height);
+}
+
+.chat-resize {
+    position: absolute;
+    z-index: 1;
+    touch-action: none;
+}
+
+.chat-resize-top {
+    top: -6px;
+    left: 24px;
+    right: 24px;
+    height: 12px;
+    cursor: ns-resize;
+}
+
+.chat-resize-left {
+    top: 24px;
+    bottom: 24px;
+    left: -6px;
+    width: 12px;
+    cursor: ew-resize;
+}
+
+.chat-resize-corner {
+    top: -6px;
+    left: -6px;
+    width: 30px;
+    height: 30px;
+    cursor: nwse-resize;
+}
+
+.chat-resize-corner::after {
+    content: "";
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    width: 20px;
+    height: 20px;
+    border: 2px solid transparent;
+    border-top-color: #FFFFFF80;
+    border-left-color: #FFFFFF80;
+    border-top-left-radius: 20px;
+    transition: border-color 0.125s ease;
+}
+
+.chat-resize-corner:hover::after,
+.chat:has(.chat-resize:hover) .chat-resize-corner::after {
+    border-top-color: #FF813F;
+    border-left-color: #FF813F;
 }
 
 .chat-header {
@@ -413,7 +467,7 @@
 
 .chat-composer-row {
     display: flex;
-    align-items: center;
+    align-items: flex-end;
     gap: 8px;
 }
 
@@ -421,14 +475,19 @@
 .chat-input {
     flex: 1 1 auto;
     min-width: 0;
+    box-sizing: border-box;
     height: 40px;
-    padding: 0 16px;
+    max-height: 120px;
+    padding: 9px 16px;
     border: 1px solid #FFFFFF26;
-    border-radius: 999px;
+    border-radius: 20px;
     background: #FFFFFF14;
     color: white;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     font-size: 16px;
+    line-height: 20px;
+    resize: none;
+    overflow-y: auto;
     user-select: text;
     -webkit-user-select: text;
 }
@@ -685,6 +744,14 @@
         max-height: min(60vh, 420px);
         border: none;
         border-radius: 24px 24px 0 0;
+    }
+
+    .chat-open {
+        height: auto;
+    }
+
+    .chat-resize {
+        display: none;
     }
 
     .chat-log {

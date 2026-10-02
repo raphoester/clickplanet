@@ -351,6 +351,15 @@ The client for the backend's second bounded context: `chat.ts` declares
 `fakeChatBackend.ts` is the dev stand-in. `ChatPanel` docks
 bottom-right, opposite the menu, and starts folded under 768px.
 
+**The open panel is resized from its top edge, its left edge or its top-left
+corner**, and a double-click on one puts the default back (`useChatSize`). Not
+under 768px, where it is a full-width sheet. What the player dragged to is kept
+in `clickplanet-chat-size` and written on `:root` as `--chat-wanted-width` and
+`--chat-wanted-height`; `index.css` clamps them into `--chat-width` and
+`--chat-height`. **The anthem bar reads `--chat-width` too**, so it moves aside
+as the chat grows; the clamp keeps it about 300px of room. The log stays pinned
+to its newest line while the panel changes size (a `ResizeObserver` in `ChatLog`).
+
 **`MAX_TEXT_LENGTH` in `chat.ts` mirrors `chat.service.maxTextLength` on the
 backend**, counted in code points as the server counts runes. It is the
 composer's bound, not a defence — the server sanitizes and rejects on its own.
@@ -479,6 +488,10 @@ is `bomb`, every bomb that went off.
   `addAnnouncements`) and put in one list only to draw (`interleave`, by time).
   So a burst of bombs never pushes a message out of the log, and the unread
   count, the sound and the "New messages" pill count messages alone.
+  **Once the message log is full, `interleave` leaves out every announcement
+  older than its oldest message**: the two logs are capped apart, so in a long
+  session the older bombs piled up on top of the chat. The server does the same
+  for the history.
 - **Not a balloon**: `ChatLog` draws a centred line (`.chat-announcement`) with
   the bomber's flag and the time. It ends the run above it, so the next message
   says again who is talking.
@@ -842,6 +855,12 @@ both. A color is refused without a username (`FailedPrecondition` → `unnamed`)
 which is why the picker only shows with one. `usePresence` announces again once
 the color held still for a second (`SETTLE_MS`), so the roster line follows.
 
+**A signed-in player sees its own streak** at the top of `AccountPanel`: the
+current and the best, in the same `StatTiles` as the player card. `useStreak`
+reads it each time the panel opens and each time the account is read again,
+with `GetStats` and the click token, so it is as of today and needs no
+username. A guest is shown none and reads none; a failed read shows nothing.
+
 **Signing in by email stays on the page.** The server offers `email` beside the
 providers when `auth.email.enabled` is on, and `EmailSignIn` draws it under the
 provider buttons, in `AccountPanel` and in `SignInPitchModal`: an address, then
@@ -961,8 +980,11 @@ mint a guest and insert a row into `auth.identities` for its account.
   the tile a click named, never on a spread's neighbours, an enclosure's inside or
   a moderator's write. Own clicks echoed back are skipped through `OwnClicks`.
   **It is deliberately plainer than any bonus**, since it is by far the most
-  frequent: one thin sky-blue ring, 0.5s, no spark (`clickEffects.test.ts` pins
-  that). Sky blue rather than white, which vanished on the white of a flag. **A
+  frequent: one sky-blue ring, 0.7s, no spark (`clickEffects.test.ts` pins
+  that). **Plain is not faint**: the first one (half strength, 20px, 0.5s) could
+  barely be seen, so it runs at full strength, at least 44px, with a dark edge
+  (`rim`, 0 on every other ring) that makes it read on a white flag as well as on
+  the sea. Sky blue rather than white, which vanished on the white of a flag. **A
   click out of view is not played** (`inView`): on the far side or off the screen
   it would cost frames and show nothing. Plain clicks run in a second instance,
   so a busy planet's clicks never push a spread off the screen. With less motion

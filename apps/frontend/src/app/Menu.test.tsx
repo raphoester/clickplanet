@@ -344,6 +344,7 @@ describe("Menu", () => {
                 profile: vi.fn(async () => ({accountId: "account-1", name: username, color: NameColor.UNSPECIFIED})),
                 setName: vi.fn(async (name: string) => ({accountId: "account-1", name})),
                 setColor: vi.fn(async (color: NameColor) => color),
+                streak: vi.fn(async () => ({current: 0, best: 0})),
             } satisfies PlayerBackend
             const store = new AccountStore(backend, player, {token: vi.fn(), held: vi.fn(), invalidate: vi.fn()}, {navigate, remember: vi.fn()})
             const view = render(<Menu country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000}
@@ -428,6 +429,30 @@ describe("Menu", () => {
             expect(screen.queryByRole("button", {name: "Link Google"})).toBeNull()
             expect(button("Sign out")).toBeDefined()
             expect(button("Sign out everywhere")).toBeDefined()
+        })
+
+        it("shows a signed-in player its streak, read again each time the account opens", async () => {
+            const {user, player} = withAccount(["google"], {linked: ["google"]}, "ana")
+            player.streak.mockResolvedValue({current: 1, best: 9})
+
+            await user.click(await screen.findByRole("button", {name: "Account"}))
+            expect(await screen.findByText("1 day")).toBeDefined()
+            expect(screen.getByText("Best streak").nextElementSibling?.textContent).toBe("9 days")
+
+            player.streak.mockResolvedValue({current: 2, best: 9})
+            await user.click(button("Back"))
+            await user.click(await screen.findByRole("button", {name: "Account"}))
+            expect(await screen.findByText("2 days")).toBeDefined()
+            expect(player.streak).toHaveBeenCalledTimes(2)
+        })
+
+        it("shows a guest no streak, and reads none", async () => {
+            const {user, player} = withAccount(["google"], {linked: []})
+
+            await user.click(await screen.findByRole("button", {name: "Sign in"}))
+
+            expect(screen.queryByText("Best streak")).toBeNull()
+            expect(player.streak).not.toHaveBeenCalled()
         })
 
         it("shows the username, and saves a new one", async () => {
