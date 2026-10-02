@@ -479,6 +479,10 @@ is `bomb`, every bomb that went off.
   `addAnnouncements`) and put in one list only to draw (`interleave`, by time).
   So a burst of bombs never pushes a message out of the log, and the unread
   count, the sound and the "New messages" pill count messages alone.
+  **Once the message log is full, `interleave` leaves out every announcement
+  older than its oldest message**: the two logs are capped apart, so in a long
+  session the older bombs piled up on top of the chat. The server does the same
+  for the history.
 - **Not a balloon**: `ChatLog` draws a centred line (`.chat-announcement`) with
   the bomber's flag and the time. It ends the run above it, so the next message
   says again who is talking.

@@ -639,7 +639,9 @@ without a bubble. Today there is one kind, `bomb`: every bomb that went off, on 
   the line, never the bomb.
 - **`GetHistory` returns them beside the messages**, in `announcements`, the newest `historySize` within
   `retention`, bounded apart from the messages so a burst of bombs never pushes one out. The client puts the two
-  lists in one by time.
+  lists in one by time. **Once the messages fill the window, none is older than the oldest of them**
+  (`messages.Window.Beginning`): the two caps are apart, so 200 bombs reached days past 200 messages, and all of
+  them sat in a pile on top of the chat.
 - **Not personal data**, but the prune deletes them past `retention` with the messages they sit between.
 
 #### Reactions
