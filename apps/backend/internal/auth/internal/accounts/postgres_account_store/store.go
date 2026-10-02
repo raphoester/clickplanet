@@ -130,6 +130,22 @@ func (s *Store) Identity(ctx context.Context, provider string, subject string) (
 	return identity, err
 }
 
+func (s *Store) AccountOfEmail(ctx context.Context, address string) (*accounts.Account, error) {
+	var account uuid.UUID
+	err := s.db.QueryRowContext(ctx, `
+		SELECT account_id FROM identities
+		WHERE email_verified AND lower(email) = lower($1)
+		ORDER BY linked_at, provider LIMIT 1
+	`, address).Scan(&account)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, accounts.ErrAccountNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to select the account of the address: %w", err)
+	}
+	return s.Account(ctx, accounts.AccountID(account))
+}
+
 func (s *Store) SaveSignIn(ctx context.Context, signIn accounts.SignIn) error {
 	session := signIn.Session
 	return s.inTx(ctx, func(tx *sql.Tx) error {

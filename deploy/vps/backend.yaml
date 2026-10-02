@@ -290,12 +290,12 @@ auth:
     clientId: "1549822806420885616"
     clientSecret: env://DISCORD_CLIENT_SECRET
   email:
-    enabled: false
+    enabled: true
     delivery: cloudflare
     from: noreply@clickplanet.lol
     fromName: ClickPlanet
     cloudflare:
-      accountId: env://CLOUDFLARE_ACCOUNT_ID
+      accountId: 76f6f3883c3a531ae90d1dc4b96bf810
       apiToken: env://CLOUDFLARE_EMAIL_TOKEN
   prune:
     idleFor: 2160h
