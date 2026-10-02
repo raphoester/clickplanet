@@ -9,6 +9,10 @@
     margin: 0 0 4px 0;
 }
 
+.account-panel .stat-tiles {
+    margin-bottom: 8px;
+}
+
 .sign-in-pitch {
     padding-bottom: 0;
     text-align: left;

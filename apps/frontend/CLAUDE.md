@@ -838,6 +838,12 @@ both. A color is refused without a username (`FailedPrecondition` → `unnamed`)
 which is why the picker only shows with one. `usePresence` announces again once
 the color held still for a second (`SETTLE_MS`), so the roster line follows.
 
+**A signed-in player sees its own streak** at the top of `AccountPanel`: the
+current and the best, in the same `StatTiles` as the player card. `useStreak`
+reads it each time the panel opens and each time the account is read again,
+with `GetStats` and the click token, so it is as of today and needs no
+username. A guest is shown none and reads none; a failed read shows nothing.
+
 **Signing in by email stays on the page.** The server offers `email` beside the
 providers when `auth.email.enabled` is on, and `EmailSignIn` draws it under the
 provider buttons, in `AccountPanel` and in `SignInPitchModal`: an address, then

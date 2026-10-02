@@ -1,5 +1,5 @@
 import {CSSProperties, FormEvent, useId, useState} from "react"
-import {PROVIDER_NAMES} from "../../backends/account.ts"
+import {Me, PROVIDER_NAMES} from "../../backends/account.ts"
 import {isValidUsername, MAX_USERNAME_LENGTH, MIN_USERNAME_LENGTH, NameColor, usernameOf} from "../../backends/player.ts"
 import {AccountState, AccountStore} from "./accountStore.ts"
 import {colorMessageOf, messageOf, providerList, usernameMessageOf} from "./authMessages.ts"
@@ -7,8 +7,11 @@ import {factor} from "../../domain/clickPrice.ts"
 import {authorHue, NAME_COLORS} from "../../domain/authorColor.ts"
 import {authorStyle} from "../chat/authorStyle.ts"
 import {UserIcon} from "../components/icons.tsx"
+import {StatTile, StatTiles} from "../components/StatTiles.tsx"
+import {days} from "../days.ts"
 import ProviderButton from "./ProviderButton.tsx"
 import EmailSignIn from "./EmailSignIn.tsx"
+import {useStreak} from "./useStreak.ts"
 import "./Account.css"
 
 type Ready = Extract<AccountState, {kind: "ready"}>
@@ -53,6 +56,7 @@ export default function AccountPanel({state, store, onDelete, linkedMultiplier}:
             </p>
             : <p className="account-text">Signed in with {providerList(linked)}.</p>}
 
+        {linked.length > 0 && <StreakTiles store={store} me={state.me}/>}
         {linked.length > 0 && <UsernameForm key={state.username ?? ""} state={state} store={store}/>}
         {linked.length > 0 && state.username !== undefined && <ColorPicker name={state.username} state={state} store={store}/>}
 
@@ -91,6 +95,16 @@ export default function AccountPanel({state, store, onDelete, linkedMultiplier}:
             <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy policy</a>
         </p>
     </div>
+}
+
+function StreakTiles({store, me}: {store: AccountStore, me: Me}) {
+    const streak = useStreak(store, me)
+    if (!streak) return null
+
+    return <StatTiles>
+        <StatTile label="Streak" value={days(streak.current)}/>
+        <StatTile label="Best streak" value={days(streak.best)}/>
+    </StatTiles>
 }
 
 // maxLength counts UTF-16 units; the username rule counts code points.

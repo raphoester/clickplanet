@@ -1,6 +1,6 @@
 import {describe, expect, it, vi} from "vitest"
 import {AccountBackend, AuthError, AuthFailure, Me, Provider} from "../../backends/account.ts"
-import {ColoredProfile, NameColor, PlayerBackend, PlayerError, PlayerFailure, Profile} from "../../backends/player.ts"
+import {ColoredProfile, NameColor, PlayerBackend, PlayerError, PlayerFailure, Profile, Streak} from "../../backends/player.ts"
 import {SessionProvider} from "../../backends/session.ts"
 import {AccountStore} from "./accountStore.ts"
 
@@ -27,6 +27,7 @@ function fakePlayer(name = "", color = NameColor.UNSPECIFIED): FakePlayer {
         profile: vi.fn(async (): Promise<ColoredProfile> => ({accountId: "account-1", name, color})),
         setName: vi.fn(async (name: string): Promise<Profile> => ({accountId: "account-1", name})),
         setColor: vi.fn(async (color: NameColor): Promise<NameColor> => color),
+        streak: vi.fn(async (): Promise<Streak> => ({current: 0, best: 0})),
     }
 }
 

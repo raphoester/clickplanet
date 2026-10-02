@@ -41,12 +41,19 @@ export type ColoredProfile = Profile & {
     color: NameColor
 }
 
+export type Streak = {
+    current: number
+    best: number
+}
+
 export interface PlayerBackend {
     profile(): Promise<ColoredProfile>
 
     setName(name: string): Promise<Profile>
 
     setColor(color: NameColor): Promise<NameColor>
+
+    streak(): Promise<Streak>
 }
 
 export type PlayerFailure =

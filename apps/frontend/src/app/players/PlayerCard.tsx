@@ -4,6 +4,8 @@ import {authorStyle} from "../chat/authorStyle.ts"
 import AdminCrown from "../components/AdminCrown.tsx"
 import CountryFlag from "../components/CountryFlag.tsx"
 import Modal from "../components/Modal.tsx"
+import {StatTile, StatTiles} from "../components/StatTiles.tsx"
+import {days} from "../days.ts"
 import {truncate} from "../truncate.ts"
 import {usePlayerInfo} from "./usePlayerInfo.ts"
 import "./PlayerCard.css"
@@ -49,21 +51,10 @@ export default function PlayerCard({player, backend, onClose}: PlayerCardProps) 
 }
 
 function PlayerStats({info}: {info: PlayerInfo}) {
-    return <dl className="player-card-stats">
-        <Stat label="Tiles taken" value={count.format(info.tilesTaken)}/>
-        <Stat label="Streak" value={days(info.streakCurrent)}/>
-        <Stat label="Best streak" value={days(info.streakBest)}/>
-        {info.createdAt !== undefined && <Stat label="Playing since" value={day.format(info.createdAt)}/>}
-    </dl>
-}
-
-function Stat({label, value}: {label: string, value: string}) {
-    return <div className="player-card-stat">
-        <dt>{label}</dt>
-        <dd>{value}</dd>
-    </div>
-}
-
-function days(n: number): string {
-    return n === 1 ? "1 day" : `${count.format(n)} days`
+    return <StatTiles>
+        <StatTile label="Tiles taken" value={count.format(info.tilesTaken)}/>
+        <StatTile label="Streak" value={days(info.streakCurrent)}/>
+        <StatTile label="Best streak" value={days(info.streakBest)}/>
+        {info.createdAt !== undefined && <StatTile label="Playing since" value={day.format(info.createdAt)}/>}
+    </StatTiles>
 }
