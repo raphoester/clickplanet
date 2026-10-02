@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package player.v1;
+
+// Unauthenticated: serve only on the loopback admin listener, never the public router.
+service AdminService {
+  rpc BackfillTitles(BackfillTitlesRequest) returns (BackfillTitlesResponse);
+}
+
+message BackfillTitlesRequest {}
+
+message BackfillTitlesResponse {
+  uint32 accounts = 1;
+}

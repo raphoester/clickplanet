@@ -1,4 +1,4 @@
-import {PlayerInfo, PlayerInfoBackend, PlayerLine} from "../../backends/player.ts"
+import {PlayerInfo, PlayerInfoBackend, PlayerLine, PlayerTitle} from "../../backends/player.ts"
 import {Countries} from "../../domain/countries.ts"
 import {authorStyle} from "../chat/authorStyle.ts"
 import AdminCrown from "../components/AdminCrown.tsx"
@@ -46,8 +46,17 @@ export default function PlayerCard({player, backend, onClose}: PlayerCardProps) 
         </p>}
         {state.kind === "missing" && <p className="player-card-note">No player holds this name now.</p>}
         {state.kind === "failed" && <p className="player-card-note">The stats could not be loaded.</p>}
+        {state.kind === "ready" && <PlayerTitles titles={state.info.titles}/>}
         {state.kind === "ready" && <PlayerStats info={state.info}/>}
     </Modal>
+}
+
+function PlayerTitles({titles}: {titles: PlayerTitle[]}) {
+    if (titles.length === 0) return null
+
+    return <ul className="player-card-titles" aria-label="Titles">
+        {titles.map((title) => <li key={title.id}>{title.name}</li>)}
+    </ul>
 }
 
 function PlayerStats({info}: {info: PlayerInfo}) {

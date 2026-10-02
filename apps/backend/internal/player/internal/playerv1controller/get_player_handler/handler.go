@@ -9,13 +9,14 @@ import (
 
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_player_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/playermessage"
 )
 
 const maxAge = 10
 
 type UseCase interface {
-	Execute(ctx context.Context, name string) (players.Player, error)
+	Execute(ctx context.Context, name string) (get_player_usecase.Player, error)
 }
 
 func New(useCase UseCase) GetPlayerHandler {
@@ -38,7 +39,7 @@ func (h GetPlayerHandler) GetPlayer(
 		return nil, err //nolint:wrapcheck // the error net answers what is not the caller's fault.
 	}
 
-	res := connect.NewResponse(&playerv1.GetPlayerResponse{Player: playermessage.Player(player)})
+	res := connect.NewResponse(&playerv1.GetPlayerResponse{Player: playermessage.Player(player.Player, player.Titles)})
 	res.Header().Set("Cache-Control", fmt.Sprintf("public, max-age=%d", maxAge))
 	return res, nil
 }

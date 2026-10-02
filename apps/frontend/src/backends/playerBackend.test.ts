@@ -8,6 +8,7 @@ import {
     Roster as RosterPb,
     RosterEntry as RosterEntryPb,
     Stats as StatsPb,
+    Title as TitlePb,
 } from "../gen/grpc/player/v1/player_pb.ts"
 import {isValidUsername, NameColor, PlayerError, RosterEvent, usernameOf} from "./player.ts"
 import {ConnectPlayerBackend} from "./playerBackend.ts"
@@ -360,12 +361,14 @@ describe("ConnectPlayerBackend player info", () => {
                 createdAtUnixMs: 1_788_000_000_000n,
                 admin: true,
                 color: NameColor.VIOLET,
+                titles: [new TitlePb({id: "settler", name: "Settler"}), new TitlePb({id: "loyal", name: "Loyal"})],
             }),
         }))
 
         expect(await backendWith({getPlayer}, session).playerInfo("ana")).toEqual({
             name: "Ana", tilesTaken: 1234, streakCurrent: 3, streakBest: 7, createdAt: 1_788_000_000_000, admin: true,
             color: NameColor.VIOLET,
+            titles: [{id: "settler", name: "Settler"}, {id: "loyal", name: "Loyal"}],
         })
         expect(getPlayer).toHaveBeenCalledWith({name: "ana"})
         expect(session.token).not.toHaveBeenCalled()

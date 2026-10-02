@@ -134,8 +134,8 @@ func (s *Store) SaveGuestCode(ctx context.Context, account players.AccountID, co
 
 func (s *Store) Stats(ctx context.Context, account players.AccountID) (players.Stats, error) {
 	return statsOf(s.db.QueryRowContext(ctx, `
-		SELECT tiles_taken, streak_current, streak_best, streak_last_day FROM stats WHERE account_id = $1
-	`, uuid.UUID(account)), account)
+		SELECT account_id, tiles_taken, streak_current, streak_best, streak_last_day FROM stats WHERE account_id = $1
+	`, uuid.UUID(account)))
 }
 
 const takesLock = 0x706c6179
@@ -156,8 +156,8 @@ func (s *Store) RecordTake(ctx context.Context, account players.AccountID, at ti
 	}
 
 	current, err := statsOf(tx.QueryRowContext(ctx, `
-		SELECT tiles_taken, streak_current, streak_best, streak_last_day FROM stats WHERE account_id = $1
-	`, uuid.UUID(account)), account)
+		SELECT account_id, tiles_taken, streak_current, streak_best, streak_last_day FROM stats WHERE account_id = $1
+	`, uuid.UUID(account)))
 	if errors.Is(err, players.ErrNoStats) {
 		current, err = players.Stats{Account: account}, nil
 	}
@@ -183,6 +183,30 @@ func (s *Store) RecordTake(ctx context.Context, account players.AccountID, at ti
 		return fmt.Errorf("failed to commit the take: %w", err)
 	}
 	return nil
+}
+
+func (s *Store) StatsAfter(ctx context.Context, after players.AccountID, limit int) ([]players.Stats, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT account_id, tiles_taken, streak_current, streak_best, streak_last_day FROM stats
+		WHERE account_id > $1 ORDER BY account_id LIMIT $2
+	`, uuid.UUID(after), limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read a page of stats: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var page []players.Stats
+	for rows.Next() {
+		stats, err := statsOf(rows)
+		if err != nil {
+			return nil, err
+		}
+		page = append(page, stats)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to read a page of stats: %w", err)
+	}
+	return page, nil
 }
 
 func (s *Store) DeleteAccount(ctx context.Context, account players.AccountID) (err error) {
@@ -306,12 +330,17 @@ func (s *Store) Names(ctx context.Context, accounts []players.AccountID) (map[pl
 	return names, nil
 }
 
-func statsOf(row *sql.Row, account players.AccountID) (players.Stats, error) {
+type scanner interface {
+	Scan(dest ...any) error
+}
+
+func statsOf(row scanner) (players.Stats, error) {
 	var (
+		account              uuid.UUID
 		tiles, current, best int64
 		lastDay              time.Time
 	)
-	err := row.Scan(&tiles, &current, &best, &lastDay)
+	err := row.Scan(&account, &tiles, &current, &best, &lastDay)
 	if errors.Is(err, sql.ErrNoRows) {
 		return players.Stats{}, players.ErrNoStats
 	}
@@ -320,7 +349,7 @@ func statsOf(row *sql.Row, account players.AccountID) (players.Stats, error) {
 	}
 
 	return players.Stats{
-		Account:       account,
+		Account:       players.AccountID(account),
 		TilesTaken:    uint64(tiles),   //nolint:gosec // CHECK (tiles_taken >= 0).
 		StreakCurrent: uint32(current), //nolint:gosec // CHECK (streak_current >= 0), and one a day.
 		StreakBest:    uint32(best),    //nolint:gosec // as above.

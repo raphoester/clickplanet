@@ -12,16 +12,18 @@ import (
 
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_player_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_player_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
 )
 
 type stubUseCase struct {
-	player players.Player
+	player get_player_usecase.Player
 	err    error
 	asked  []string
 }
 
-func (s *stubUseCase) Execute(_ context.Context, name string) (players.Player, error) {
+func (s *stubUseCase) Execute(_ context.Context, name string) (get_player_usecase.Player, error) {
 	s.asked = append(s.asked, name)
 	return s.player, s.err
 }
@@ -34,13 +36,16 @@ func getPlayer(t *testing.T, useCase *stubUseCase, name string) (*connect.Respon
 
 func TestThePlayerIsMappedAndMayBeCached(t *testing.T) {
 	createdAt := time.Date(2026, 9, 1, 8, 30, 0, 0, time.UTC)
-	useCase := &stubUseCase{player: players.Player{
-		Name: "Ada_L",
-		Stats: players.Stats{
-			Account: players.AccountID{15: 1}, TilesTaken: 42, StreakCurrent: 3, StreakBest: 5,
-			StreakLastDay: players.DayOf(time.Date(2026, 9, 14, 0, 0, 0, 0, time.UTC)),
+	useCase := &stubUseCase{player: get_player_usecase.Player{
+		Player: players.Player{
+			Name: "Ada_L",
+			Stats: players.Stats{
+				Account: players.AccountID{15: 1}, TilesTaken: 42, StreakCurrent: 3, StreakBest: 5,
+				StreakLastDay: players.DayOf(time.Date(2026, 9, 14, 0, 0, 0, 0, time.UTC)),
+			},
+			CreatedAt: createdAt,
 		},
-		CreatedAt: createdAt,
+		Titles: []titles.Title{titles.Settler{}, titles.Loyal{}},
 	}}
 
 	res, err := getPlayer(t, useCase, "ada_l")
@@ -54,11 +59,15 @@ func TestThePlayerIsMappedAndMayBeCached(t *testing.T) {
 	assert.Equal(t, uint32(5), player.GetStats().GetStreakBest())
 	assert.Equal(t, "2026-09-14", player.GetStats().GetStreakLastDay())
 	assert.Equal(t, createdAt.UnixMilli(), player.GetCreatedAtUnixMs())
+	require.Len(t, player.GetTitles(), 2)
+	assert.Equal(t, "settler", player.GetTitles()[0].GetId())
+	assert.Equal(t, "Settler", player.GetTitles()[0].GetName())
+	assert.Equal(t, "loyal", player.GetTitles()[1].GetId())
 	assert.Equal(t, "public, max-age=10", res.Header().Get("Cache-Control"))
 }
 
 func TestAnUnknownCreationDateIsZero(t *testing.T) {
-	res, err := getPlayer(t, &stubUseCase{player: players.Player{Name: "Ada_L"}}, "Ada_L")
+	res, err := getPlayer(t, &stubUseCase{player: get_player_usecase.Player{Player: players.Player{Name: "Ada_L"}}}, "Ada_L")
 
 	require.NoError(t, err)
 	assert.Zero(t, res.Msg.GetPlayer().GetCreatedAtUnixMs())

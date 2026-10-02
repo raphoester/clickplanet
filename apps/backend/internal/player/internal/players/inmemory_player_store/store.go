@@ -3,7 +3,9 @@
 package inmemory_player_store
 
 import (
+	"bytes"
 	"context"
+	"slices"
 	"sync"
 	"time"
 
@@ -168,6 +170,23 @@ func (s *Store) RecordTake(_ context.Context, account players.AccountID, at time
 	}
 	s.stats[account] = stats.WithTake(at)
 	return nil
+}
+
+func (s *Store) StatsAfter(_ context.Context, after players.AccountID, limit int) ([]players.Stats, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.failWith != nil {
+		return nil, s.failWith
+	}
+	var page []players.Stats
+	for account, stats := range s.stats {
+		if bytes.Compare(account[:], after[:]) > 0 {
+			page = append(page, stats)
+		}
+	}
+	slices.SortFunc(page, func(a, b players.Stats) int { return bytes.Compare(a.Account[:], b.Account[:]) })
+	return page[:min(limit, len(page))], nil
 }
 
 func (s *Store) DeleteAccount(_ context.Context, account players.AccountID) error {

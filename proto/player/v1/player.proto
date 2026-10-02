@@ -131,4 +131,10 @@ message Player {
   int64 created_at_unix_ms = 3;
   bool admin = 4;
   NameColor color = 5;
+  repeated Title titles = 6;
+}
+
+message Title {
+  string id = 1;
+  string name = 2;
 }
