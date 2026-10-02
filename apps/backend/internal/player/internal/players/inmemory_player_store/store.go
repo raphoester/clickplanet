@@ -13,13 +13,11 @@ import (
 )
 
 type Store struct {
-	mu         sync.Mutex
-	profiles   map[players.AccountID]players.Profile
-	codes      map[players.AccountID]players.GuestCode
-	stats      map[players.AccountID]players.Stats
-	titles     map[players.AccountID]players.TitleIDs
-	backfilled players.TitleIDs
-	failWith   error
+	mu       sync.Mutex
+	profiles map[players.AccountID]players.Profile
+	codes    map[players.AccountID]players.GuestCode
+	stats    map[players.AccountID]players.Stats
+	failWith error
 }
 
 var _ players.Store = (*Store)(nil)
@@ -29,7 +27,6 @@ func New() *Store {
 		profiles: map[players.AccountID]players.Profile{},
 		codes:    map[players.AccountID]players.GuestCode{},
 		stats:    map[players.AccountID]players.Stats{},
-		titles:   map[players.AccountID]players.TitleIDs{},
 	}
 }
 
@@ -192,54 +189,6 @@ func (s *Store) StatsAfter(_ context.Context, after players.AccountID, limit int
 	return page[:min(limit, len(page))], nil
 }
 
-func (s *Store) Titles(_ context.Context, account players.AccountID) (players.TitleIDs, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if s.failWith != nil {
-		return nil, s.failWith
-	}
-	return slices.Clone(s.titles[account]), nil
-}
-
-func (s *Store) GrantTitles(_ context.Context, grants players.Grants, _ time.Time) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if s.failWith != nil {
-		return s.failWith
-	}
-	for account, titles := range grants {
-		for _, title := range titles {
-			if !slices.Contains(s.titles[account], title) {
-				s.titles[account] = append(s.titles[account], title)
-			}
-		}
-	}
-	return nil
-}
-
-func (s *Store) BackfilledTitles(context.Context) (players.TitleIDs, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if s.failWith != nil {
-		return nil, s.failWith
-	}
-	return slices.Clone(s.backfilled), nil
-}
-
-func (s *Store) SaveBackfilledTitles(_ context.Context, titles players.TitleIDs, _ time.Time) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if s.failWith != nil {
-		return s.failWith
-	}
-	s.backfilled = append(s.backfilled, titles.Without(s.backfilled)...)
-	return nil
-}
-
 func (s *Store) DeleteAccount(_ context.Context, account players.AccountID) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -250,7 +199,6 @@ func (s *Store) DeleteAccount(_ context.Context, account players.AccountID) erro
 	delete(s.profiles, account)
 	delete(s.codes, account)
 	delete(s.stats, account)
-	delete(s.titles, account)
 	return nil
 }
 

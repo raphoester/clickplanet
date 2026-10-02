@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -19,7 +20,7 @@ type Accounts interface {
 }
 
 type Titles interface {
-	Award(ctx context.Context, account players.AccountID, career players.Career, at time.Time) error
+	Award(ctx context.Context, account players.AccountID, career titles.Career, at time.Time) error
 }
 
 type UseCase struct {
@@ -47,7 +48,7 @@ func (u *UseCase) Execute(ctx context.Context, account players.AccountID) error 
 		return fmt.Errorf("failed to ask when the account was made: %w", err)
 	}
 
-	career := players.Career{Stats: stats, CreatedAt: createdAt}
+	career := titles.Career{Stats: stats, CreatedAt: createdAt}
 	if err := u.titles.Award(ctx, account, career, u.clock.Now()); err != nil {
 		return fmt.Errorf("failed to award the titles: %w", err)
 	}

@@ -8,5 +8,4 @@ type Player struct {
 	CreatedAt time.Time
 	Admin     bool
 	Color     Color
-	Titles    []Title
 }

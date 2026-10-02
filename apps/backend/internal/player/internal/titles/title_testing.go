@@ -1,15 +1,15 @@
 //go:build testing
 
-package players
+package titles
 
 import "strings"
 
 type FakeTitle struct {
-	Key   TitleID
+	Key   ID
 	Tiles uint64
 }
 
-func (f FakeTitle) ID() TitleID { return f.Key }
+func (f FakeTitle) ID() ID { return f.Key }
 
 func (f FakeTitle) Name() string { return strings.ToUpper(string(f.Key)) }
 

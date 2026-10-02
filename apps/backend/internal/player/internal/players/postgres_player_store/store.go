@@ -209,52 +209,6 @@ func (s *Store) StatsAfter(ctx context.Context, after players.AccountID, limit i
 	return page, nil
 }
 
-func (s *Store) Titles(ctx context.Context, account players.AccountID) (players.TitleIDs, error) {
-	return titleIDsOf(s.db.QueryContext(ctx, `SELECT title FROM titles WHERE account_id = $1 ORDER BY earned_at, title`, uuid.UUID(account)))
-}
-
-func (s *Store) GrantTitles(ctx context.Context, grants players.Grants, at time.Time) error {
-	var accounts, titles []string
-	for account, held := range grants {
-		for _, title := range held {
-			accounts = append(accounts, account.String())
-			titles = append(titles, string(title))
-		}
-	}
-	if len(titles) == 0 {
-		return nil
-	}
-
-	if _, err := s.db.ExecContext(ctx, `
-		INSERT INTO titles (account_id, title, earned_at)
-		SELECT granted.account_id, granted.title, $3
-		FROM unnest($1::uuid[], $2::text[]) AS granted (account_id, title)
-		ON CONFLICT (account_id, title) DO NOTHING
-	`, pq.Array(accounts), pq.Array(titles), at.UTC()); err != nil {
-		return fmt.Errorf("failed to grant the titles: %w", err)
-	}
-	return nil
-}
-
-func (s *Store) BackfilledTitles(ctx context.Context) (players.TitleIDs, error) {
-	return titleIDsOf(s.db.QueryContext(ctx, `SELECT title FROM title_backfills ORDER BY title`))
-}
-
-func (s *Store) SaveBackfilledTitles(ctx context.Context, titles players.TitleIDs, at time.Time) error {
-	ids := make([]string, len(titles))
-	for i, title := range titles {
-		ids[i] = string(title)
-	}
-
-	if _, err := s.db.ExecContext(ctx, `
-		INSERT INTO title_backfills (title, backfilled_at) SELECT unnest($1::text[]), $2
-		ON CONFLICT (title) DO NOTHING
-	`, pq.Array(ids), at.UTC()); err != nil {
-		return fmt.Errorf("failed to save the backfilled titles: %w", err)
-	}
-	return nil
-}
-
 func (s *Store) DeleteAccount(ctx context.Context, account players.AccountID) (err error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -270,7 +224,6 @@ func (s *Store) DeleteAccount(ctx context.Context, account players.AccountID) (e
 		`DELETE FROM profiles WHERE account_id = $1`,
 		`DELETE FROM guest_codes WHERE account_id = $1`,
 		`DELETE FROM stats WHERE account_id = $1`,
-		`DELETE FROM titles WHERE account_id = $1`,
 	} {
 		if _, err := tx.ExecContext(ctx, statement, uuid.UUID(account)); err != nil {
 			return fmt.Errorf("failed to delete the account's rows: %w", err)
@@ -402,24 +355,4 @@ func statsOf(row scanner) (players.Stats, error) {
 		StreakBest:    uint32(best),    //nolint:gosec // as above.
 		StreakLastDay: players.DayOf(lastDay),
 	}, nil
-}
-
-func titleIDsOf(rows *sql.Rows, err error) (players.TitleIDs, error) {
-	if err != nil {
-		return nil, fmt.Errorf("failed to read the titles: %w", err)
-	}
-	defer func() { _ = rows.Close() }()
-
-	var titles players.TitleIDs
-	for rows.Next() {
-		var title string
-		if err := rows.Scan(&title); err != nil {
-			return nil, fmt.Errorf("failed to read a title: %w", err)
-		}
-		titles = append(titles, players.TitleID(title))
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("failed to read the titles: %w", err)
-	}
-	return titles, nil
 }

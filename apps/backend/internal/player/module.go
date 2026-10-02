@@ -15,9 +15,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/postgres_player_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/random_code_generator"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/rpc_account_reader"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/award_titles_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/backfill_titles_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/backfill_titles_usecase/log_backfill_titles"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/forget_account_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_author_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_authors_usecase"
@@ -54,6 +51,12 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/signed_out_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/stats_changed_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/tile_taken_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/postgres_title_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/usecases/award_titles_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/usecases/backfill_titles_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/usecases/backfill_titles_usecase/log_backfill_titles"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/usecases/forget_titles_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
@@ -107,8 +110,9 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	manyAuthors := get_authors_usecase.New(store, clock)
 
 	accounts := rpc_account_reader.New(props.Internal)
-	catalog := players.NewCatalog()
-	titleBook := players.NewTitleBook(store, catalog)
+	titleStore := postgres_title_store.New(db)
+	catalog := titles.NewCatalog()
+	titleBook := titles.NewBook(titleStore, catalog)
 
 	visits := inmemory_visit_storage.New(clock)
 	props.Runners.Add(visits)
@@ -120,7 +124,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe to planet.v1.TileTaken: %w", err)
 	}
-	titles, err := cpbootstrap.Subscribe(props.Events, "player-titles", tileTakenBuffer,
+	awards, err := cpbootstrap.Subscribe(props.Events, "player-titles", tileTakenBuffer,
 		log_subscriber.New(stats_changed_subscriber.New(award_titles_usecase.New(store, accounts, titleBook, clock)), props.Logger))
 	if err != nil {
 		_ = db.Close()
@@ -131,6 +135,12 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	if err != nil {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe to auth.v1.AccountDeleted: %w", err)
+	}
+	forgottenTitles, err := cpbootstrap.Subscribe(props.Events, "player-titles-accounts", accountDeletedBuffer,
+		log_subscriber.New(account_deleted_subscriber.New(forget_titles_usecase.New(titleStore)), props.Logger))
+	if err != nil {
+		_ = db.Close()
+		return fmt.Errorf("failed to subscribe the titles to auth.v1.AccountDeleted: %w", err)
 	}
 
 	forgetVisit := forget_visit_usecase.New(visits)
@@ -156,9 +166,9 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	props.Runners.Add(gone)
 
 	backfill := backfill_titles_usecase.NewRunner(
-		log_backfill_titles.New(backfill_titles_usecase.New(store, accounts, store, catalog, clock), props.Logger))
+		log_backfill_titles.New(backfill_titles_usecase.New(store, accounts, titleStore, catalog, clock), props.Logger))
 
-	props.Runners.Add(cppg.CloseAfter(db, props.Logger, takes, titles, deletions, signIns, backfill))
+	props.Runners.Add(cppg.CloseAfter(db, props.Logger, takes, awards, deletions, forgottenTitles, signIns, backfill))
 
 	verifier := rpc_session_verifier.New(props.Internal, props.Logger)
 

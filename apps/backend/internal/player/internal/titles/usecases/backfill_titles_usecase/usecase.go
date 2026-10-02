@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -18,9 +19,9 @@ type Accounts interface {
 }
 
 type Titles interface {
-	GrantTitles(ctx context.Context, grants players.Grants, at time.Time) error
-	BackfilledTitles(ctx context.Context) (players.TitleIDs, error)
-	SaveBackfilledTitles(ctx context.Context, titles players.TitleIDs, at time.Time) error
+	Grant(ctx context.Context, grants titles.Grants, at time.Time) error
+	Backfilled(ctx context.Context) (titles.IDs, error)
+	SaveBackfilled(ctx context.Context, titles titles.IDs, at time.Time) error
 }
 
 type Executor interface {
@@ -28,7 +29,7 @@ type Executor interface {
 }
 
 type Backfill struct {
-	Titles   players.TitleIDs
+	Titles   titles.IDs
 	Accounts int
 }
 
@@ -38,18 +39,18 @@ type UseCase struct {
 	stats    Stats
 	accounts Accounts
 	titles   Titles
-	catalog  players.Catalog
+	catalog  titles.Catalog
 	clock    cptime.Clock
 }
 
 var _ Executor = (*UseCase)(nil)
 
-func New(stats Stats, accounts Accounts, titles Titles, catalog players.Catalog, clock cptime.Clock) *UseCase {
+func New(stats Stats, accounts Accounts, titles Titles, catalog titles.Catalog, clock cptime.Clock) *UseCase {
 	return &UseCase{stats: stats, accounts: accounts, titles: titles, catalog: catalog, clock: clock}
 }
 
 func (u *UseCase) Execute(ctx context.Context) (Backfill, error) {
-	done, err := u.titles.BackfilledTitles(ctx)
+	done, err := u.titles.Backfilled(ctx)
 	if err != nil {
 		return Backfill{}, fmt.Errorf("failed to read the backfilled titles: %w", err)
 	}
@@ -68,13 +69,13 @@ func (u *UseCase) Execute(ctx context.Context) (Backfill, error) {
 			return backfill, fmt.Errorf("failed to read a page of stats: %w", err)
 		}
 
-		created, err := u.accounts.CreationDates(ctx, players.AccountsOf(page))
+		created, err := u.accounts.CreationDates(ctx, titles.AccountsOf(page))
 		if err != nil {
 			return backfill, fmt.Errorf("failed to ask when a page of accounts was made: %w", err)
 		}
 
-		grants := pending.GrantsFor(players.CareersOf(page, created))
-		if err := u.titles.GrantTitles(ctx, grants, at); err != nil {
+		grants := pending.GrantsFor(titles.CareersOf(page, created))
+		if err := u.titles.Grant(ctx, grants, at); err != nil {
 			return backfill, fmt.Errorf("failed to grant the titles: %w", err)
 		}
 		backfill.Accounts += len(grants)
@@ -85,7 +86,7 @@ func (u *UseCase) Execute(ctx context.Context) (Backfill, error) {
 		after = page[len(page)-1].Account
 	}
 
-	if err := u.titles.SaveBackfilledTitles(ctx, backfill.Titles, at); err != nil {
+	if err := u.titles.SaveBackfilled(ctx, backfill.Titles, at); err != nil {
 		return backfill, fmt.Errorf("failed to save the backfilled titles: %w", err)
 	}
 	return backfill, nil

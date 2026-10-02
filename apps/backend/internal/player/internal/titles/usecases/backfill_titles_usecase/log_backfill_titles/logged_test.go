@@ -10,9 +10,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/backfill_titles_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/backfill_titles_usecase/log_backfill_titles"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/usecases/backfill_titles_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/usecases/backfill_titles_usecase/log_backfill_titles"
 )
 
 type stubExecutor struct {
@@ -34,7 +34,7 @@ func run(t *testing.T, ctx context.Context, inner stubExecutor) (string, error) 
 
 func TestABackfillIsLoggedWithItsTitlesAndAccounts(t *testing.T) {
 	logs, err := run(t, t.Context(), stubExecutor{backfill: backfill_titles_usecase.Backfill{
-		Titles: players.TitleIDs{"settler", "loyal"}, Accounts: 42,
+		Titles: titles.IDs{"settler", "loyal"}, Accounts: 42,
 	}})
 
 	require.NoError(t, err)

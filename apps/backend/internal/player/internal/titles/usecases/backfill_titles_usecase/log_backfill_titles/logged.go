@@ -4,7 +4,7 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/backfill_titles_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/usecases/backfill_titles_usecase"
 )
 
 func New(inner backfill_titles_usecase.Executor, logger *slog.Logger) *Logged {

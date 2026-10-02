@@ -14,7 +14,6 @@ var (
 
 type Store interface {
 	GuestCodeStore
-	TitleStore
 
 	Profile(ctx context.Context, account AccountID) (Profile, error)
 	ProfileNamed(ctx context.Context, name Name) (Profile, error)
@@ -23,8 +22,6 @@ type Store interface {
 	Stats(ctx context.Context, account AccountID) (Stats, error)
 	RecordTake(ctx context.Context, account AccountID, at time.Time) error
 	StatsAfter(ctx context.Context, after AccountID, limit int) ([]Stats, error)
-	BackfilledTitles(ctx context.Context) (TitleIDs, error)
-	SaveBackfilledTitles(ctx context.Context, titles TitleIDs, at time.Time) error
 	DeleteAccount(ctx context.Context, account AccountID) error
 	Names(ctx context.Context, accounts []AccountID) (map[AccountID]Name, error)
 	Authors(ctx context.Context, accounts []AccountID) (map[AccountID]Author, error)
