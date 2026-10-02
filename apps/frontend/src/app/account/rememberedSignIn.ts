@@ -1,11 +1,13 @@
-import {Intent, Provider, PROVIDERS} from "../../backends/account.ts"
+import {Intent, OAuthProvider} from "../../backends/account.ts"
 
 const PROVIDER_KEY = "clickplanet-sign-in-provider"
 const INTENT_KEY = "clickplanet-sign-in-intent"
 
-export type RememberedSignIn = {provider: Provider, intent: Intent}
+const OAUTH_PROVIDERS: readonly OAuthProvider[] = ["google", "discord"]
 
-export function rememberSignIn(provider: Provider, intent: Intent) {
+export type RememberedSignIn = {provider: OAuthProvider, intent: Intent}
+
+export function rememberSignIn(provider: OAuthProvider, intent: Intent) {
     try {
         sessionStorage.setItem(PROVIDER_KEY, provider)
         sessionStorage.setItem(INTENT_KEY, intent)
@@ -16,7 +18,7 @@ export function rememberSignIn(provider: Provider, intent: Intent) {
 
 export function rememberedSignIn(): RememberedSignIn | undefined {
     try {
-        const provider = PROVIDERS.find((p) => p === sessionStorage.getItem(PROVIDER_KEY))
+        const provider = OAUTH_PROVIDERS.find((p) => p === sessionStorage.getItem(PROVIDER_KEY))
         if (!provider) return undefined
         return {provider, intent: sessionStorage.getItem(INTENT_KEY) === "link" ? "link" : "signIn"}
     } catch {

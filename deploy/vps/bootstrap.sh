@@ -355,6 +355,8 @@ SECRETS_JSON="$(jq -n \
 	--arg TURNSTILE_SECRET "$(secret_value TURNSTILE_SECRET)" \
 	--arg GOOGLE_CLIENT_SECRET "$(secret_value GOOGLE_CLIENT_SECRET)" \
 	--arg DISCORD_CLIENT_SECRET "$(secret_value DISCORD_CLIENT_SECRET)" \
+	--arg CLOUDFLARE_ACCOUNT_ID "$(secret_value CLOUDFLARE_ACCOUNT_ID)" \
+	--arg CLOUDFLARE_EMAIL_TOKEN "$(secret_value CLOUDFLARE_EMAIL_TOKEN)" \
 	'$ARGS.named')" \
 	"${STACK_DIR}/render-env.sh" "$STACK_DIR"
 

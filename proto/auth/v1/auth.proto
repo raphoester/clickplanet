@@ -13,6 +13,11 @@ service AuthService {
 
   rpc CompleteSignIn(CompleteSignInRequest) returns (CompleteSignInResponse);
 
+  // Answers the same whether or not the address has an account.
+  rpc StartEmailSignIn(StartEmailSignInRequest) returns (StartEmailSignInResponse);
+
+  rpc CompleteEmailSignIn(CompleteEmailSignInRequest) returns (CompleteEmailSignInResponse);
+
   rpc SignOut(SignOutRequest) returns (SignOutResponse);
 
   rpc SignOutEverywhere(SignOutEverywhereRequest) returns (SignOutEverywhereResponse);
@@ -44,6 +49,7 @@ enum Provider {
   PROVIDER_UNSPECIFIED = 0;
   PROVIDER_GOOGLE = 1;
   PROVIDER_DISCORD = 2;
+  PROVIDER_EMAIL = 3;
 }
 
 enum AccountKind {
@@ -100,6 +106,36 @@ enum LinkRefusalReason {
   LINK_REFUSAL_REASON_UNSPECIFIED = 0;
   LINK_REFUSAL_REASON_IDENTITY_LINKED_ELSEWHERE = 1;
   LINK_REFUSAL_REASON_PROVIDER_ALREADY_LINKED = 2;
+}
+
+message StartEmailSignInRequest {
+  string email = 1;
+
+  SignInIntent intent = 2;
+
+  string attestation_token = 3;
+}
+
+message StartEmailSignInResponse {}
+
+message CompleteEmailSignInRequest {
+  string code = 1;
+}
+
+message CompleteEmailSignInResponse {
+  string account_id = 1;
+
+  SignInOutcome outcome = 2;
+}
+
+message EmailRefusal {
+  EmailRefusalReason reason = 1;
+}
+
+enum EmailRefusalReason {
+  EMAIL_REFUSAL_REASON_UNSPECIFIED = 0;
+  EMAIL_REFUSAL_REASON_INVALID = 1;
+  EMAIL_REFUSAL_REASON_DISPOSABLE = 2;
 }
 
 message SignOutRequest {}

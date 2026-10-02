@@ -310,6 +310,17 @@ auth:
   discord:
     clientId: ""
     clientSecret: ""
+  email:
+    enabled: false
+    delivery: log
+    from: noreply@example.com
+    fromName: ClickPlanet
+    cloudflare:
+      accountId: ""
+      apiToken: ""
+    sendLimiter:
+      perSecond: 0.00083
+      burst: 3
   prune:
     idleFor: 2160h
     interval: 1h

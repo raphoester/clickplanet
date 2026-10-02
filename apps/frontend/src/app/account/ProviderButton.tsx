@@ -1,7 +1,7 @@
-import {Provider} from "../../backends/account.ts"
+import {OAuthProvider} from "../../backends/account.ts"
 
 export type ProviderButtonProps = {
-    provider: Provider
+    provider: OAuthProvider
     label: string
     disabled: boolean
     onClick: () => void

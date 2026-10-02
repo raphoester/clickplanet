@@ -13,6 +13,7 @@ import (
 const (
 	Google  = "google"
 	Discord = "discord"
+	Email   = "email"
 )
 
 var (
@@ -46,6 +47,19 @@ func (p Providers) Provider(name string) (Provider, error) {
 		return nil, fmt.Errorf("%w: %q", ErrUnknownProvider, name)
 	}
 	return provider, nil
+}
+
+type Offer struct {
+	Providers Providers
+	Email     bool
+}
+
+func (o Offer) Names() []string {
+	names := o.Providers.Names()
+	if o.Email {
+		names = append(names, Email)
+	}
+	return names
 }
 
 type Client struct {

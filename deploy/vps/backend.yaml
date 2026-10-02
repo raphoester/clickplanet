@@ -273,6 +273,14 @@ auth:
   discord:
     clientId: "1549822806420885616"
     clientSecret: env://DISCORD_CLIENT_SECRET
+  email:
+    enabled: false
+    delivery: cloudflare
+    from: noreply@clickplanet.lol
+    fromName: ClickPlanet
+    cloudflare:
+      accountId: env://CLOUDFLARE_ACCOUNT_ID
+      apiToken: env://CLOUDFLARE_EMAIL_TOKEN
   prune:
     idleFor: 2160h
     interval: 1h

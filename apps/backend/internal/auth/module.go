@@ -33,6 +33,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/attestation/turnstile"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/attestation/turnstile_attester"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/complete_email_sign_in_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/complete_sign_in_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/create_session_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/delete_account_handler"
@@ -42,15 +43,22 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_verifying_key_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/sign_out_everywhere_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/sign_out_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/start_email_sign_in_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/start_sign_in_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/sessionv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/aes_flow_sealer"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/cloudflare_mailer"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/discord_identity_provider"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/embedded_disposable_domains"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/google_identity_provider"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/log_mailer"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/random_code_generator"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/random_secret_generator"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/usecases/complete_email_sign_in_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/usecases/complete_sign_in_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/usecases/start_email_sign_in_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/usecases/start_sign_in_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
@@ -67,7 +75,11 @@ func NewModule(config Config) cpbootstrap.Module {
 		Enabled: config.Enabled,
 		DiSequence: func(ctx context.Context, props cpbootstrap.Props) error {
 			config := config.withDefaults()
-			return build(ctx, config, props, newProviders(config))
+			mailer, err := newMailer(config.Email, props.Logger)
+			if err != nil {
+				return err
+			}
+			return build(ctx, config, props, newProviders(config), mailing{mailer: mailer, codes: random_code_generator.Generator{}})
 		},
 	}
 }
@@ -92,7 +104,35 @@ func newProviders(config Config) signin.Providers {
 	return providers
 }
 
-func build(ctx context.Context, config Config, props cpbootstrap.Props, providers signin.Providers) error {
+const mailerTimeout = 10 * time.Second
+
+const (
+	deliveryCloudflare = "cloudflare"
+	deliveryLog        = "log"
+)
+
+type mailing struct {
+	mailer signin.Mailer
+	codes  signin.Codes
+}
+
+func newMailer(config EmailConfig, logger *slog.Logger) (signin.Mailer, error) {
+	if !config.Enabled || config.Delivery != deliveryCloudflare {
+		if config.Enabled {
+			logger.Warn("auth.email.delivery is log: sign-in codes are written to the log, not sent")
+		}
+		return log_mailer.New(logger), nil
+	}
+
+	mailer, err := cloudflare_mailer.New(config.Cloudflare, cloudflare_mailer.Sender{Address: config.From, Name: config.FromName},
+		cloudflare_mailer.Production, &http.Client{Timeout: mailerTimeout})
+	if err != nil {
+		return nil, fmt.Errorf("failed to build the cloudflare mailer: %w", err)
+	}
+	return mailer, nil
+}
+
+func build(ctx context.Context, config Config, props cpbootstrap.Props, providers signin.Providers, mail mailing) error {
 	signer, err := cpsession.NewSigner(config.SignerConfig)
 	if err != nil {
 		return fmt.Errorf("failed to build the click token signer: %w", err)
@@ -129,6 +169,19 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, provider
 		return fmt.Errorf("failed to build the sign-in cookie sealer: %w", err)
 	}
 
+	blocklist := embedded_disposable_domains.New()
+	if err := blocklist.Load(); err != nil {
+		return fmt.Errorf("failed to load the disposable domains: %w", err)
+	}
+	sendLimiter := cpratelimit.New("email-send-limiter", config.Email.SendLimiter, clock)
+	props.Runners.Add(sendLimiter)
+	attemptLimiter := cpratelimit.New("email-attempt-limiter",
+		cpratelimit.Config{Burst: signin.MaxAttempts, PerSecond: 1 / signin.ChallengeTTL.Seconds()}, clock)
+	props.Runners.Add(attemptLimiter)
+	admitter := signin.NewAdmitter(store, uuid_id_provider.Provider{}, random_token_generator.Generator{}, config.Sessions, props.Events)
+	challenges := signin.NewChallenges(config.Email.Enabled, random_secret_generator.Generator{}, mail.codes, sealer, attemptLimiter)
+	post := signin.NewPost(blocklist, sendLimiter, mail.mailer)
+
 	authService := authv1controller.AuthService{
 		CreateSessionHandler: create_session_handler.New(
 			create_session_usecase.New(attester, store, uuid_id_provider.Provider{}, random_token_generator.Generator{},
@@ -136,13 +189,20 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, provider
 			props.Logger,
 		),
 		GetMeHandler:            get_me_handler.New(get_me_usecase.New(store, clock)),
-		GetSignInOptionsHandler: get_sign_in_options_handler.New(providers),
+		GetSignInOptionsHandler: get_sign_in_options_handler.New(signin.Offer{Providers: providers, Email: config.Email.Enabled}),
 		StartSignInHandler: start_sign_in_handler.New(
 			start_sign_in_usecase.New(providers, store, random_secret_generator.Generator{}, sealer, clock),
 		),
 		CompleteSignInHandler: complete_sign_in_handler.New(
-			complete_sign_in_usecase.New(providers, sealer, store, uuid_id_provider.Provider{}, random_token_generator.Generator{},
-				config.Sessions, props.Events, clock),
+			complete_sign_in_usecase.New(providers, sealer, admitter, clock),
+			props.Logger,
+		),
+		StartEmailSignInHandler: start_email_sign_in_handler.New(
+			start_email_sign_in_usecase.New(attester, store, challenges, post, clock),
+			props.Logger,
+		),
+		CompleteEmailSignInHandler: complete_email_sign_in_handler.New(
+			complete_email_sign_in_usecase.New(challenges, admitter, clock),
 			props.Logger,
 		),
 		SignOutHandler:           sign_out_handler.New(sign_out_usecase.New(store, props.Events)),
@@ -183,7 +243,9 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, provider
 		slog.Bool("turnstile", config.Turnstile.Enabled),
 		slog.Duration("guestTTL", config.Sessions.GuestTTL),
 		slog.Duration("linkedTTL", config.Sessions.LinkedTTL),
-		slog.Any("signIn", providers.Names()),
+		slog.Any("signIn", signin.Offer{Providers: providers, Email: config.Email.Enabled}.Names()),
+		slog.String("emailDelivery", config.Email.Delivery),
+		slog.Int("disposableDomains", blocklist.Size()),
 		slog.Duration("pruneIdleFor", config.Prune.IdleFor),
 	)
 
@@ -219,7 +281,22 @@ type Config struct {
 	Google  signin.Client
 	Discord signin.Client
 
+	Email EmailConfig
+
 	Prune prune_guests_usecase.Config
+}
+
+type EmailConfig struct {
+	Enabled bool
+
+	Delivery string
+
+	From     string
+	FromName string
+
+	Cloudflare cloudflare_mailer.Config
+
+	SendLimiter cpratelimit.Config
 }
 
 const defaultTurnstileAction = "session"
@@ -233,6 +310,12 @@ func (c Config) withDefaults() Config {
 		c.Prune.IdleFor = c.Sessions.GuestTTL
 	}
 	c.Prune = c.Prune.WithDefaults()
+	if c.Email.SendLimiter.Burst <= 0 {
+		c.Email.SendLimiter.Burst = 3
+	}
+	if c.Email.SendLimiter.PerSecond <= 0 {
+		c.Email.SendLimiter.PerSecond = 1.0 / (20 * time.Minute).Seconds()
+	}
 	return c
 }
 
@@ -245,7 +328,7 @@ func (c Config) Validate() error {
 	if err := c.Database.Validate(); err != nil {
 		databaseErr = fmt.Errorf("auth.database: %w", err)
 	}
-	return errors.Join(c.SignerConfig.Validate(), databaseErr, c.pruneError(), c.signInError())
+	return errors.Join(c.SignerConfig.Validate(), databaseErr, c.pruneError(), c.signInError(), c.emailError())
 }
 
 func (c Config) pruneError() error {
@@ -280,6 +363,32 @@ func (c Config) signInError() error {
 	}
 	if offered == 0 {
 		errs = append(errs, errors.New("auth.signIn.enabled is true and no provider has a clientId"))
+	}
+	return errors.Join(errs...)
+}
+
+func (c Config) emailError() error {
+	if !c.Email.Enabled {
+		return nil
+	}
+
+	switch c.Email.Delivery {
+	case deliveryLog:
+		return nil
+	case deliveryCloudflare:
+	default:
+		return fmt.Errorf("auth.email.delivery %q is neither %q nor %q", c.Email.Delivery, deliveryCloudflare, deliveryLog)
+	}
+
+	var errs []error
+	if _, err := signin.AddressOf(c.Email.From); err != nil {
+		errs = append(errs, fmt.Errorf("auth.email.from %q: %w", c.Email.From, err))
+	}
+	if c.Email.Cloudflare.AccountID == "" {
+		errs = append(errs, errors.New("auth.email.cloudflare.accountId is empty while auth.email.delivery is cloudflare"))
+	}
+	if c.Email.Cloudflare.APIToken == "" {
+		errs = append(errs, errors.New("auth.email.cloudflare.apiToken is empty while auth.email.delivery is cloudflare"))
 	}
 	return errors.Join(errs...)
 }

@@ -32,7 +32,7 @@ func (h StartSignInHandler) StartSignIn(
 ) (*connect.Response[authv1.StartSignInResponse], error) {
 	out, err := h.useCase.Execute(ctx, start_sign_in_usecase.In{
 		Provider:     authprovider.NameOf(req.Msg.GetProvider()),
-		Intent:       intentOf(req.Msg.GetIntent()),
+		Intent:       authprovider.IntentOf(req.Msg.GetIntent()),
 		CookieHeader: req.Header().Get("Cookie"),
 	})
 	switch {
@@ -50,11 +50,4 @@ func (h StartSignInHandler) StartSignIn(
 	res.Header().Set("Cache-Control", "no-store")
 	res.Header().Add("Set-Cookie", out.SetCookie)
 	return res, nil
-}
-
-func intentOf(intent authv1.SignInIntent) accounts.Intent {
-	if intent == authv1.SignInIntent_SIGN_IN_INTENT_LINK {
-		return accounts.IntentLink
-	}
-	return accounts.IntentSignIn
 }

@@ -39,13 +39,9 @@ func (u *UseCase) Execute(ctx context.Context, in In) (*Out, error) {
 	}
 
 	now := u.clock.Now()
-	var account accounts.AccountID
-	if in.Intent == accounts.IntentLink {
-		session, err := accounts.Caller(ctx, u.sessions, in.CookieHeader, now)
-		if err != nil {
-			return nil, fmt.Errorf("failed to find the account to link to: %w", err)
-		}
-		account = session.Account
+	account, err := signin.LinkTarget(ctx, u.sessions, in.Intent, in.CookieHeader, now)
+	if err != nil {
+		return nil, fmt.Errorf("failed to start the sign-in: %w", err)
 	}
 
 	flow, err := signin.NewFlow(in.Provider, in.Intent, account, u.secrets, now)

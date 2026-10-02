@@ -19,7 +19,10 @@ type Sealer struct {
 	aead cipher.AEAD
 }
 
-var _ signin.Sealer = (*Sealer)(nil)
+var (
+	_ signin.Sealer          = (*Sealer)(nil)
+	_ signin.ChallengeSealer = (*Sealer)(nil)
+)
 
 func New(seed []byte) (*Sealer, error) {
 	if len(seed) == 0 {
@@ -42,26 +45,49 @@ func New(seed []byte) (*Sealer, error) {
 }
 
 func (s *Sealer) Sealed(flow *signin.Flow) (string, error) {
-	plain, err := json.Marshal(flow)
-	if err != nil {
-		return "", fmt.Errorf("failed to encode the flow: %w", err)
-	}
-	return base64.RawURLEncoding.EncodeToString(s.aead.Seal(nil, nil, plain, []byte(signin.FlowCookieName))), nil
+	return s.sealed(flow, signin.FlowCookieName)
 }
 
 func (s *Sealer) Opened(sealed string) (*signin.Flow, error) {
-	raw, err := base64.RawURLEncoding.DecodeString(sealed)
-	if err != nil {
-		return nil, fmt.Errorf("%w: the cookie is not base64url", signin.ErrFlowInvalid)
-	}
-	plain, err := s.aead.Open(nil, nil, raw, []byte(signin.FlowCookieName))
-	if err != nil {
-		return nil, fmt.Errorf("%w: the cookie was not sealed here", signin.ErrFlowInvalid)
-	}
-
 	var flow signin.Flow
-	if err := json.Unmarshal(plain, &flow); err != nil {
-		return nil, fmt.Errorf("%w: the sealed flow does not decode: %w", signin.ErrFlowInvalid, err)
+	if err := s.open(sealed, signin.FlowCookieName, &flow); err != nil {
+		return nil, err
 	}
 	return &flow, nil
+}
+
+func (s *Sealer) SealedChallenge(challenge *signin.Challenge) (string, error) {
+	return s.sealed(challenge, signin.ChallengeCookieName)
+}
+
+func (s *Sealer) OpenedChallenge(sealed string) (*signin.Challenge, error) {
+	var challenge signin.Challenge
+	if err := s.open(sealed, signin.ChallengeCookieName, &challenge); err != nil {
+		return nil, err
+	}
+	return &challenge, nil
+}
+
+func (s *Sealer) sealed(value any, cookie string) (string, error) {
+	plain, err := json.Marshal(value)
+	if err != nil {
+		return "", fmt.Errorf("failed to encode the %s cookie: %w", cookie, err)
+	}
+	// The cookie name is the additional data, so one cookie's value never opens as the other.
+	return base64.RawURLEncoding.EncodeToString(s.aead.Seal(nil, nil, plain, []byte(cookie))), nil
+}
+
+func (s *Sealer) open(sealed string, cookie string, into any) error {
+	raw, err := base64.RawURLEncoding.DecodeString(sealed)
+	if err != nil {
+		return fmt.Errorf("%w: the cookie is not base64url", signin.ErrFlowInvalid)
+	}
+	plain, err := s.aead.Open(nil, nil, raw, []byte(cookie))
+	if err != nil {
+		return fmt.Errorf("%w: the cookie was not sealed here", signin.ErrFlowInvalid)
+	}
+	if err := json.Unmarshal(plain, into); err != nil {
+		return fmt.Errorf("%w: the sealed %s cookie does not decode: %w", signin.ErrFlowInvalid, cookie, err)
+	}
+	return nil
 }

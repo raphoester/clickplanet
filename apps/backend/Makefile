@@ -1,4 +1,4 @@
-.PHONY: proto map quiz test lint lint-ci tidy check-format setup-tools deadcode dBuild dRun dRm vpn-lists metrics
+.PHONY: proto map quiz test lint lint-ci tidy check-format setup-tools deadcode dBuild dRun dRm vpn-lists disposable-domains metrics
 
 TEST_TAG := testing
 
@@ -127,6 +127,13 @@ vpn-lists:
 		done; done; \
 		mv "$$tmp/netnames" $(VPN_LISTS_DIR)/vpn_netnames.txt
 	@wc -l $(VPN_LISTS_DIR)/*.txt
+
+DISPOSABLE_DOMAINS_URL := https://raw.githubusercontent.com/disposable-email-domains/disposable-email-domains/main/disposable_email_blocklist.conf
+DISPOSABLE_DOMAINS_FILE := internal/auth/internal/signin/embedded_disposable_domains/disposable_email_blocklist.conf
+
+disposable-domains:
+	@curl -sSf $(DISPOSABLE_DOMAINS_URL) -o $(DISPOSABLE_DOMAINS_FILE)
+	@wc -l $(DISPOSABLE_DOMAINS_FILE)
 
 METRIC ?= .
 

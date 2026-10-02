@@ -12,6 +12,8 @@ function fakeBackend(offered: Provider[] = ["google", "discord"], me: Me = {link
         me: vi.fn(async () => me),
         startSignIn: vi.fn(async (provider: Provider) => `https://${provider}.example/authorize`),
         completeSignIn: vi.fn(async () => undefined),
+        startEmailSignIn: vi.fn(async () => undefined),
+        completeEmailSignIn: vi.fn(async () => undefined),
         signOut: vi.fn(async () => undefined),
         signOutEverywhere: vi.fn(async () => undefined),
         deleteAccount: vi.fn(async () => undefined),
@@ -533,6 +535,120 @@ describe("AccountStore", () => {
 
                 expect(store.state()).toEqual({kind: "ready", offered: ["google"], me: {linked: []}})
             })
+        })
+    })
+
+    describe("signing in by email", () => {
+        const withEmail = (me: Me = {linked: []}) => fakeBackend(["google", "email"], me)
+
+        it("sends a code, then asks for it", async () => {
+            const backend = withEmail()
+            const {store} = setup(backend)
+            await store.load()
+
+            await store.sendCode("player@example.com", "signIn")
+
+            expect(backend.startEmailSignIn).toHaveBeenCalledWith("player@example.com", "signIn")
+            expect(store.state()).toEqual({
+                kind: "ready", offered: ["google", "email"], me: {linked: []},
+                code: {address: "player@example.com", intent: "signIn"},
+            })
+        })
+
+        it("keeps the address step and says why when no code was sent", async () => {
+            const backend = withEmail()
+            backend.startEmailSignIn.mockImplementation(refusing("disposableEmail"))
+            const {store} = setup(backend)
+            await store.load()
+
+            await store.sendCode("player@mailinator.com", "signIn")
+
+            expect(store.state()).toEqual({kind: "ready", offered: ["google", "email"], me: {linked: []}, failure: "disposableEmail"})
+        })
+
+        it("keeps the code step while the code is checked", async () => {
+            const backend = withEmail()
+            const checked = held<void>()
+            backend.completeEmailSignIn.mockReturnValue(checked.promise)
+            const {store} = setup(backend)
+            await store.load()
+            await store.sendCode("player@example.com", "signIn")
+
+            const checking = store.checkCode("123456")
+
+            expect(store.state()).toMatchObject({busy: "checkCode", code: {address: "player@example.com"}})
+            checked.release()
+            await checking
+        })
+
+        it("signs in with the right code, then reads the account again", async () => {
+            const backend = withEmail()
+            const {store, session} = setup(backend)
+            await store.load()
+            await store.sendCode("player@example.com", "signIn")
+            backend.me.mockImplementation(async () => ({linked: ["email"]}))
+
+            await store.checkCode("123456")
+
+            expect(backend.completeEmailSignIn).toHaveBeenCalledWith("123456")
+            expect(session.invalidate).toHaveBeenCalled()
+            expect(store.state()).toEqual({kind: "ready", offered: ["google", "email"], me: {linked: ["email"]}})
+        })
+
+        it("keeps the code step for a wrong code", async () => {
+            const backend = withEmail()
+            backend.completeEmailSignIn.mockImplementation(refusing("wrongCode"))
+            const {store, session} = setup(backend)
+            await store.load()
+            await store.sendCode("player@example.com", "signIn")
+
+            await store.checkCode("999999")
+
+            expect(store.state()).toMatchObject({failure: "wrongCode", code: {address: "player@example.com"}})
+            expect(session.invalidate).not.toHaveBeenCalled()
+        })
+
+        it("goes back to the address when the code is spent", async () => {
+            const backend = withEmail()
+            backend.completeEmailSignIn.mockImplementation(refusing("newCode"))
+            const {store} = setup(backend)
+            await store.load()
+            await store.sendCode("player@example.com", "signIn")
+
+            await store.checkCode("123456")
+
+            expect(store.state()).toEqual({kind: "ready", offered: ["google", "email"], me: {linked: []}, failure: "newCode"})
+        })
+
+        it("goes back to the address on request", async () => {
+            const {store} = setup(withEmail())
+            await store.load()
+            await store.sendCode("player@example.com", "signIn")
+
+            store.cancelCode()
+
+            expect(store.state()).toEqual({kind: "ready", offered: ["google", "email"], me: {linked: []}})
+        })
+
+        it("checks nothing without a code on its way", async () => {
+            const backend = withEmail()
+            const {store} = setup(backend)
+            await store.load()
+
+            await store.checkCode("123456")
+
+            expect(backend.completeEmailSignIn).not.toHaveBeenCalled()
+        })
+
+        it("takes the email form away when the server no longer offers it", async () => {
+            const backend = withEmail()
+            backend.startEmailSignIn.mockImplementation(refusing("notOffered"))
+            const {store} = setup(backend)
+            await store.load()
+
+            await store.sendCode("player@example.com", "signIn")
+
+            expect(store.state()).toMatchObject({offered: ["google"], failure: "notOffered"})
         })
     })
 })

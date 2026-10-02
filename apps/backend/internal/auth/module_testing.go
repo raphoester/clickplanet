@@ -14,20 +14,25 @@ type FakeProvider = signin.FakeProvider
 
 type Claim = accounts.Claim
 
+type FakeMailer = signin.FakeMailer
+
 type FakeProviders struct {
 	Google  *FakeProvider
 	Discord *FakeProvider
+	Mailer  *FakeMailer
 }
 
 func NewModuleWithFakeProviders(config Config) (cpbootstrap.Module, FakeProviders) {
-	fakes := FakeProviders{Google: signin.NewFakeProvider(signin.Google), Discord: signin.NewFakeProvider(signin.Discord)}
+	fakes := FakeProviders{Google: signin.NewFakeProvider(signin.Google), Discord: signin.NewFakeProvider(signin.Discord), Mailer: &FakeMailer{}}
 	providers := signin.Providers{signin.Google: fakes.Google, signin.Discord: fakes.Discord}
 
 	return cpbootstrap.Module{
 		Name:    moduleName,
 		Enabled: config.Enabled,
 		DiSequence: func(ctx context.Context, props cpbootstrap.Props) error {
-			return build(ctx, config.withDefaults(), props, providers)
+			config := config.withDefaults()
+			config.Email.Enabled = true
+			return build(ctx, config, props, providers, mailing{mailer: fakes.Mailer, codes: &signin.SequentialCodes{}})
 		},
 	}, fakes
 }

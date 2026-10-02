@@ -1,11 +1,16 @@
-export type Provider = "google" | "discord"
+export type Provider = "google" | "discord" | "email"
 
-export const PROVIDERS: readonly Provider[] = ["google", "discord"]
+export type OAuthProvider = Exclude<Provider, "email">
+
+export const PROVIDERS: readonly Provider[] = ["google", "discord", "email"]
 
 export const PROVIDER_NAMES: Record<Provider, string> = {
     google: "Google",
     discord: "Discord",
+    email: "email",
 }
+
+export const CODE_LENGTH = 6
 
 export type Intent = "signIn" | "link"
 
@@ -18,9 +23,13 @@ export interface AccountBackend {
 
     me(): Promise<Me>
 
-    startSignIn(provider: Provider, intent: Intent): Promise<string>
+    startSignIn(provider: OAuthProvider, intent: Intent): Promise<string>
 
     completeSignIn(code: string, state: string): Promise<void>
+
+    startEmailSignIn(email: string, intent: Intent): Promise<void>
+
+    completeEmailSignIn(code: string): Promise<void>
 
     signOut(): Promise<void>
 
@@ -38,6 +47,11 @@ export type AuthFailure =
     | "notSignedIn"
     | "linkedElsewhere"
     | "alreadyLinked"
+    | "invalidEmail"
+    | "disposableEmail"
+    | "tooManyCodes"
+    | "wrongCode"
+    | "newCode"
     | "failed"
 
 export class AuthError extends Error {

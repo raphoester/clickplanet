@@ -47,8 +47,12 @@ func setUp(t *testing.T) *fixture {
 	f := &fixture{sealer: sealer, google: signin.NewFakeProvider(signin.Google), store: inmemory_account_store.New(), clock: cptime.NewFixedClock(start), events: cpbootstrap.NewRecordedEvents()}
 	providers := signin.Providers{signin.Google: f.google}
 	f.start = start_sign_in_usecase.New(providers, f.store, &signin.SequentialSecrets{}, sealer, f.clock)
-	f.completion = complete_sign_in_usecase.New(providers, sealer, f.store, &accounts.SequentialIDs{}, &accounts.SequentialTokens{}, lifetime, f.events, f.clock)
+	f.completion = complete_sign_in_usecase.New(providers, sealer, f.admitter(), f.clock)
 	return f
+}
+
+func (f *fixture) admitter() *signin.Admitter {
+	return signin.NewAdmitter(f.store, &accounts.SequentialIDs{}, &accounts.SequentialTokens{}, lifetime, f.events)
 }
 
 func (f *fixture) guest(t *testing.T, account byte, token string) {
@@ -157,7 +161,8 @@ func TestAKnownIdentitySignsInToItsAccountAndLeavesTheGuestAsItWas(t *testing.T)
 	guest, err := f.store.Account(t.Context(), accounts.AccountID{15: 7})
 	require.NoError(t, err)
 	assert.False(t, guest.Linked(), "nothing is merged, and the guest gains no identity")
-	f.assertPublished(t,
+	f.assertPublished(
+		t,
 		&authv1.SignedIn{AccountId: accounts.AccountID{15: 1}.String()},
 		&authv1.SignedIn{PreviousAccountId: accounts.AccountID{15: 7}.String(), AccountId: accounts.AccountID{15: 1}.String()},
 	)
@@ -329,7 +334,7 @@ func TestAStoreFailureFailsTheSignIn(t *testing.T) {
 
 func TestSignInOffCompletesNothing(t *testing.T) {
 	f := setUp(t)
-	useCase := complete_sign_in_usecase.New(signin.Providers{}, f.sealer, f.store, &accounts.SequentialIDs{}, &accounts.SequentialTokens{}, lifetime, f.events, f.clock)
+	useCase := complete_sign_in_usecase.New(signin.Providers{}, f.sealer, f.admitter(), f.clock)
 
 	_, err := useCase.Execute(t.Context(), complete_sign_in_usecase.In{Code: "the-code", State: "state"})
 
