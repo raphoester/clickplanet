@@ -20,6 +20,7 @@ import {
     Profile,
     RosterEntry,
     RosterEvent,
+    Streak,
 } from "./player.ts"
 import {SESSION_HEADER, SessionProvider} from "./session.ts"
 import {Config, NO_TIMEOUT, openStream, retrying} from "./transport.ts"
@@ -71,6 +72,12 @@ export class ConnectPlayerBackend implements PlayerBackend, PresenceBackend, Pla
     public async setColor(color: NameColor): Promise<NameColor> {
         const res = await this.authenticated((headers) => this.client.setColor({color}, {headers}))
         return res.color
+    }
+
+    public async streak(): Promise<Streak> {
+        const res = await this.authenticated((headers) =>
+            retrying(() => this.client.getStats({}, {headers}), "GetStats"))
+        return {current: res.stats?.streakCurrent ?? 0, best: res.stats?.streakBest ?? 0}
     }
 
     public heldSession(): string | undefined {

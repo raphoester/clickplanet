@@ -108,6 +108,20 @@ describe("ConnectPlayerBackend", () => {
         expect(await backend.profile()).toEqual({accountId: "", name: ""})
     })
 
+    it("reads the streak with the click token", async () => {
+        const getStats = vi.fn(async () => ({stats: new StatsPb({tilesTaken: 12n, streakCurrent: 4, streakBest: 9, streakLastDay: "2026-10-01"})}))
+        const backend = backendWith({getStats})
+
+        expect(await backend.streak()).toEqual({current: 4, best: 9})
+        expect(headersOf(getStats).headers.get(SESSION_HEADER)).toBe("token-1")
+    })
+
+    it("reads no stats as no streak", async () => {
+        const backend = backendWith({getStats: vi.fn(async () => ({}))})
+
+        expect(await backend.streak()).toEqual({current: 0, best: 0})
+    })
+
     it("sends the name with the click token, and answers what the server stored", async () => {
         const setName = answering("Ana")
         const backend = backendWith({setName})

@@ -1,5 +1,5 @@
 import {AccountBackend, AuthFailure, failureOf, Intent, Me, OAuthProvider, Provider, PROVIDERS} from "../../backends/account.ts"
-import {NameColor, PlayerBackend, PlayerFailure, playerFailureOf} from "../../backends/player.ts"
+import {NameColor, PlayerBackend, PlayerFailure, playerFailureOf, Streak} from "../../backends/player.ts"
 import {SessionProvider} from "../../backends/session.ts"
 
 export type AccountAction = "signIn" | "link" | "sendCode" | "checkCode" | "signOut" | "signOutEverywhere" | "deleteAccount"
@@ -47,6 +47,8 @@ export class AccountStore {
     }
 
     public state = (): AccountState => this.current
+
+    public streak = (): Promise<Streak> => this.player.streak()
 
     public subscribe = (listener: () => void): (() => void) => {
         this.listeners.add(listener)
