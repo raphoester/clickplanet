@@ -356,8 +356,12 @@ corner**, and a double-click on one puts the default back (`useChatSize`). Not
 under 768px, where it is a full-width sheet. What the player dragged to is kept
 in `clickplanet-chat-size` and written on `:root` as `--chat-wanted-width` and
 `--chat-wanted-height`; `index.css` clamps them into `--chat-width` and
-`--chat-height`. **The anthem bar reads `--chat-width` too**, so it moves aside
-as the chat grows; the clamp keeps it about 300px of room. The log stays pinned
+`--chat-height`. **The clamp keeps the chat 16px clear of the anthem bar and of
+the click budget dock**: the anthem bar never moves, so the width stops where it
+ends (`50vw - 162px`, and that number changes with the anthem bar's box), and
+`ClickBudgetMeter` writes the dock's bottom edge on `:root` as
+`--click-budget-dock-bottom` (`useDockBottom`), so the chat gets shorter when
+the inventory opens. The log stays pinned
 to its newest line while the panel changes size (a `ResizeObserver` in `ChatLog`).
 
 **`MAX_TEXT_LENGTH` in `chat.ts` mirrors `chat.service.maxTextLength` on the

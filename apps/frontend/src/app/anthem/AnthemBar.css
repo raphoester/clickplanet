@@ -2,7 +2,7 @@
     position: absolute;
     bottom: 16px;
     left: 212px;
-    right: calc(var(--chat-width) + 32px);
+    right: 392px;
     z-index: 128;
     max-width: 440px;
     margin: 0 auto;
