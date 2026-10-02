@@ -1,6 +1,3 @@
-// One blast's debris, animated entirely here: the CPU sets where and when once,
-// and never touches the buffer again.
-
 uniform vec3 centre;
 uniform float start;
 uniform float radius;
@@ -8,7 +5,6 @@ uniform float time;
 uniform float pixelsPerRadian;
 uniform float pixelRatio;
 
-// x: heading around the centre, y: how far it flies, z: how high it is thrown.
 attribute vec3 seed;
 
 varying float vLife;

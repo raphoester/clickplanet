@@ -1,11 +1,3 @@
-// Package metronome watches for the caller that never varies and never stops.
-// A script tuned to sit just under the throttle spends hours at one tempo with
-// no pauses in it. Tempo alone says nothing — a player can click fast. What no
-// hand produces is the same gap, again and again, for hours, without once
-// looking away. A random sleep is a clock too: its gaps sit evenly where a hand's
-// lean long. And a timer keeps its beat through a pause: a hand that rests
-// comes back on no beat at all. The gaps are between clicks tried, not clicks
-// accepted.
 package metronome
 
 import (
@@ -22,22 +14,12 @@ import (
 const Name = "metronome"
 
 type Config struct {
-	// MaxGap is the longest pause a run survives. Anything longer ends the run
-	// and the evidence starts again from nothing, which is the whole point: a
-	// person stops to look at the map, and a loop does not.
 	MaxGap time.Duration
 
-	// MaxSpread is the p90-p10 of the gaps inside a run. This is the bound that
-	// does the work. The median is deliberately not bounded at all: the claim
-	// is not that the caller is fast, it is that the caller is a clock.
 	MaxSpread time.Duration
 
-	// MinClicks is how long an unbroken run must be before it reads as Suspect.
 	MinClicks int
 
-	// CertainFor and CertainClicks are the same run held past anything a person
-	// sustains. Half an hour without once pausing longer than MaxGap is not
-	// somebody who is very keen.
 	CertainFor    time.Duration
 	CertainClicks int
 
@@ -47,45 +29,31 @@ type Config struct {
 
 	Stamina StaminaConfig
 
-	// TrackWindow is how long a silent caller is remembered.
 	TrackWindow time.Duration
 
 	SweepInterval time.Duration
 }
 
-// ShapeConfig bounds the skew of the gaps, (p90 + p10 - 2*p50) / (p90 - p10): near 0 for a random sleep, towards 1 for a hand.
 type ShapeConfig struct {
-	// MaxGap is the longest gap kept as a sample; a longer one is skipped and ends nothing.
 	MaxGap time.Duration
 
-	// A nil skew never reads its level; a pointer because 0 is a skew.
+	// Pointers because 0 is a skew: nil never reads its level.
 	Clicks        int
 	MaxSkew       *float64
 	CertainClicks int
 	CertainSkew   *float64
 }
 
-// ClockConfig bounds how closely the clicks tried keep one beat: the length of
-// the mean of the unit vectors at each try's place on a Period-long circle,
-// 1 when every try lands at the same point of the beat and near 0 for a hand.
-// It reads absolute times, not gaps, so a pause breaks nothing: a timer that
-// waits for the bucket comes back on its beat, and a hand does not.
 type ClockConfig struct {
-	// Period is the beat. A timer in a hidden tab fires on whole seconds, and
-	// any whole number of seconds is on the same beat.
 	Period time.Duration
 
-	// A nil coherence never reads its level; a pointer because 0 is a coherence.
-	Clicks        int
-	MinCoherence  *float64
-	CertainClicks int
-	// CertainFor is how long the CertainClicks must span: a person tapping to a
-	// song keeps a beat for a song, not for half an hour.
+	Clicks           int
+	MinCoherence     *float64
+	CertainClicks    int
 	CertainFor       time.Duration
 	CertainCoherence *float64
 }
 
-// StaminaConfig bounds the time in Window one payer spent at least Clicks a Slice; zero never reads a level.
 type StaminaConfig struct {
 	Slice       time.Duration
 	Clicks      int
@@ -193,7 +161,6 @@ func (c ClockConfig) withDefaults() ClockConfig {
 	return c
 }
 
-// kept is how many tries the clock holds: none while neither level is set.
 func (c ClockConfig) kept() int {
 	switch {
 	case c.CertainCoherence != nil:
@@ -227,7 +194,6 @@ func (c ShapeConfig) withDefaults() ShapeConfig {
 	return c
 }
 
-// New takes onSkew and onCoherence, called each sweep with every caller's reading once its window is full, and onBusy with each payer's busy time.
 func New(config Config, clock cptime.Clock, onSkew, onCoherence func(float64), onBusy func(busy time.Duration)) *Watchdog {
 	if clock == nil {
 		clock = cptime.SystemClock{}
@@ -259,9 +225,6 @@ type Watchdog struct {
 
 var _ detect.Watchdog = (*Watchdog)(nil)
 
-// caller holds one run. Only the gaps needed for a spread are kept: how long the
-// run has lasted is two timestamps, not a list, and a run that breaks is thrown
-// away rather than pruned.
 type caller struct {
 	lastSeen time.Time
 
@@ -270,17 +233,15 @@ type caller struct {
 
 	gaps []time.Duration
 
-	// shape is not cleared by a break: the bot it exists for pauses between bursts.
+	// shape and tries survive a break: the bots they catch pause between bursts.
 	shape []time.Duration
 
-	// tries is when each of the last clicks was tried, for the clock. Not cleared by a break either.
 	tries []time.Time
 }
 
-// spender is keyed on the payer, not the scope: the tokens it counts are the account's.
 type spender struct {
 	lastSeen time.Time
-	slices   []slice // oldest first, only the ones with a click
+	slices   []slice
 }
 
 type slice struct {
@@ -290,11 +251,8 @@ type slice struct {
 
 func (w *Watchdog) Name() string { return Name }
 
-// Committed is nothing to this watchdog. What the map did with a click has no
-// bearing on when the next one arrived.
 func (w *Watchdog) Committed(detect.Click) {}
 
-// Attempted times the run: the throttle's survivors no longer carry the loop's gaps.
 func (w *Watchdog) Attempted(click detect.Click) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
@@ -328,7 +286,6 @@ func (w *Watchdog) Attempted(click detect.Click) {
 
 	c.runClicks++
 
-	// Stitched across a restart, not measured: neither a break nor a sample, and the outage is not time sustained.
 	if across {
 		c.runStart = c.runStart.Add(w.outage.Length())
 		return
@@ -340,7 +297,6 @@ func (w *Watchdog) Attempted(click detect.Click) {
 	}
 }
 
-// tried keeps the time of a try for the clock. A restart is no reason to skip one: it reads when, not how long after.
 func (w *Watchdog) tried(c *caller, at time.Time) {
 	kept := w.config.Clock.kept()
 	if kept == 0 {
@@ -353,7 +309,6 @@ func (w *Watchdog) tried(c *caller, at time.Time) {
 	}
 }
 
-// Watch judges the run Attempted has timed so far, and counts the click the throttle let through against its payer.
 func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
@@ -367,7 +322,6 @@ func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
 		return stamina, staminaEvidence
 	}
 
-	// The stronger level is reported, the earlier rule on a tie.
 	verdict, evidence := w.cadence(c)
 	if shape, shapeEvidence := w.shape(c); shape > verdict {
 		verdict, evidence = shape, shapeEvidence
@@ -381,7 +335,6 @@ func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
 	return verdict, evidence
 }
 
-// payerOf names the bucket the click spent from, as the throttle keys it.
 func payerOf(click detect.Click) string {
 	if click.Account != "" {
 		return "account:" + click.Account
@@ -398,7 +351,6 @@ func (w *Watchdog) spend(payer string, at time.Time) {
 	s.lastSeen = at
 
 	index := w.sliceOf(at)
-	// A click stamped just before the last one's slice began is counted in it: they are milliseconds apart.
 	if last := len(s.slices) - 1; last >= 0 && index <= s.slices[last].index {
 		s.slices[last].clicks++
 	} else {
@@ -438,12 +390,10 @@ func (w *Watchdog) sliceOf(at time.Time) int64 {
 	return at.UnixNano() / int64(w.config.Stamina.Slice)
 }
 
-// firstSliceOf is the oldest slice still inside the window that ends with index.
 func (w *Watchdog) firstSliceOf(index int64) int64 {
 	return index - int64(w.config.Stamina.Window/w.config.Stamina.Slice) + 1
 }
 
-// tally is how many slices hold at least atLeast clicks, and how many clicks all of them hold.
 func (s *spender) tally(atLeast int) (busy, clicks int) {
 	for _, counted := range s.slices {
 		if counted.clicks >= atLeast {
@@ -514,7 +464,6 @@ type skewed struct {
 	clicks        int
 }
 
-// skewOf reads nothing from gaps that do not spread: a gap that never varies is cadence's.
 func skewOf(gaps []time.Duration, n int) (skewed, bool) {
 	if len(gaps) < n {
 		return skewed{}, false
@@ -572,12 +521,11 @@ func (w *Watchdog) timer(c *caller) (detect.Verdict, detect.Evidence) {
 type beat struct {
 	coherence float64
 	period    time.Duration
-	offset    time.Duration // where on the beat the tries land
-	span      time.Duration // from the first try counted to the last
+	offset    time.Duration
+	span      time.Duration
 	clicks    int
 }
 
-// beatOf reads the last n tries on a circle one period long; false until there are n.
 func beatOf(tries []time.Time, n int, period time.Duration) (beat, bool) {
 	if len(tries) < n || n == 0 {
 		return beat{}, false

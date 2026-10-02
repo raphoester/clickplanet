@@ -18,13 +18,7 @@ export type ChatPanelProps = {
     backend?: ChatBackend
     country: Country
     playSound?: PlaySound
-    /**
-     * The signed-in player's username, which the server posts under. Without
-     * one the player is a guest, and the server posts under `guest_` and a
-     * code it picked.
-     */
     username?: string
-    /** Absent, an author's name opens nothing. */
     onOpenPlayer?: (player: PlayerLine) => void
 }
 
@@ -32,7 +26,6 @@ const UNREAD_CAP = 99
 
 const PEEK_AUTHOR_MAX_LENGTH = 12
 
-/** How long a message stays lit after it lands. Matches `chat-message-glow`. */
 const FLASH_MS = 1600
 
 const NOTHING: ReadonlySet<string> = new Set()
@@ -70,7 +63,6 @@ export default function ChatPanel(props: ChatPanelProps) {
     useEffect(() => {
         const last = messages[messages.length - 1]?.id
 
-        // The history the panel opens on is not news, however long it is.
         if (!seenAnything.current) {
             seenAnything.current = messages.length > 0
             lastSeen.current = last
@@ -83,15 +75,11 @@ export default function ChatPanel(props: ChatPanelProps) {
             return
         }
 
-        // Everything unseen lights up as it comes into view: one message while
-        // the panel is open, or the whole backlog the moment it is unfolded.
         flash(idsSince(messages, lastSeen.current).filter(id => !mine.has(id)))
         lastSeen.current = last
         setUnread(0)
     }, [messages, isOpen, mine, flash])
 
-    // Kept apart from `lastSeen`, which a folded panel holds back for the badge:
-    // a message is heard as it arrives, whether or not it has been seen.
     const {playSound} = props
     useEffect(() => {
         const last = messages[messages.length - 1]?.id
@@ -105,10 +93,7 @@ export default function ChatPanel(props: ChatPanelProps) {
         const fresh = messages.slice(messages.length - idsSince(messages, lastHeard.current).length)
         lastHeard.current = last
 
-        // Your own message never pings. `mine` alone is not enough: the
-        // broadcast of it can arrive before the answer that fills `mine` in.
-        // A guest's first message can still slip through that way, before its
-        // name is known.
+        // The name check too: an own message's broadcast can land before `mine` holds its id.
         if (fresh.some(message => !mine.has(message.id) && message.authorName !== displayName)) {
             playSound?.('chat')
         }

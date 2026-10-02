@@ -10,7 +10,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 )
 
-// FakeAccounts plays the auth module: an account it was not told of is unknown, and it can fail on demand.
 type FakeAccounts struct {
 	mu       sync.Mutex
 	created  map[players.AccountID]time.Time
@@ -23,7 +22,6 @@ func NewFakeAccounts() *FakeAccounts {
 	return &FakeAccounts{created: map[players.AccountID]time.Time{}}
 }
 
-// Create makes the account at at.
 func (f *FakeAccounts) Create(account players.AccountID, at time.Time) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -31,7 +29,6 @@ func (f *FakeAccounts) Create(account players.AccountID, at time.Time) {
 	f.created[account] = at
 }
 
-// FailWith makes every later call answer err.
 func (f *FakeAccounts) FailWith(err error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()

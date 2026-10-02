@@ -19,7 +19,6 @@ import {Countries} from "../../domain/countries.ts"
 
 const france = Countries.get("fr")!
 
-/** What the stub server names this browser's guest: the client never picks it. */
 const OWN_GUEST = "guest_c0ffee"
 
 const message = (id: string, text: string, sentAt = 1_700_000_000_000): ChatMessage => ({
@@ -114,7 +113,6 @@ describe("ChatPanel sound", () => {
         expect(playSound).not.toHaveBeenCalled()
 
         broadcast(message("live", "gm everyone", 1_700_000_050_000))
-        // The text is committed before the effect that plays the sound runs.
         await waitFor(() => expect(playSound).toHaveBeenCalledWith("chat"))
     })
 
@@ -137,7 +135,6 @@ describe("ChatPanel sound", () => {
         await send(user, "first")
         await screen.findByText("first")
 
-        // The server's name for this guest came back with the first message.
         broadcast({...message("sent-hello", "hello", 1_700_000_200_000), authorName: OWN_GUEST})
         await screen.findByText("hello")
         await send(user, "hello")

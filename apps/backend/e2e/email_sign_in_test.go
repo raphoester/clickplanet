@@ -16,7 +16,6 @@ import (
 
 var sixDigits = regexp.MustCompile(`[0-9]{6}`)
 
-// askCode starts an email sign-in and answers the code the mailer was given.
 func (b *browser) askCode(mailer *auth.FakeMailer, email string, intent authv1.SignInIntent) string {
 	b.t.Helper()
 

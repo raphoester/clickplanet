@@ -1,5 +1,3 @@
-// Package drop_bomb_usecase spends a caller's bomb where they aimed: it clears the tiles around the one hit,
-// or, in the sea, nothing.
 package drop_bomb_usecase
 
 import (
@@ -11,10 +9,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
 
-// ErrNoBomb covers never won, already dropped and held too long, for the reason ErrNoSuchBonus does.
 var ErrNoBomb = errors.New("no bomb to drop")
 
-// Bombs spends the bomb charge a caller holds, and says whether there was one.
 type Bombs interface {
 	SpendBomb(holder bonuses.Holder) bool
 }
@@ -36,7 +32,6 @@ type In struct {
 	Target    clicks.Vec3
 	CountryID string
 
-	// Dud is set by antibot_drop_bomb for a banned caller: the bomb is spent, clears nothing and is shown to nobody.
 	Dud bool
 }
 
@@ -58,7 +53,6 @@ type UseCase struct {
 	rules     bonuses.BombRules
 }
 
-// Execute checks the request before it takes the bomb, so a malformed drop does not cost one.
 func (u *UseCase) Execute(ctx context.Context, in In) (clicks.Blast, error) {
 	if !u.countries.CheckCountry(in.CountryID) {
 		return clicks.Blast{}, fmt.Errorf("%w: %q", clicks.ErrUnknownCountry, in.CountryID)

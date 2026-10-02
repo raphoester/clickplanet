@@ -1,4 +1,3 @@
-// Package aes_flow_sealer seals a sign-in flow, or an email challenge, with AES-256-GCM, under a key derived from the click token seed.
 package aes_flow_sealer
 
 import (
@@ -14,7 +13,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin"
 )
 
-// The label keeps this key apart from every other use of the seed.
 const keyInfo = "clickplanet auth cp_oauth v1"
 
 type Sealer struct {
@@ -26,7 +24,6 @@ var (
 	_ signin.ChallengeSealer = (*Sealer)(nil)
 )
 
-// New derives the key from seed, the auth.secret bytes, so there is no second secret to set.
 func New(seed []byte) (*Sealer, error) {
 	if len(seed) == 0 {
 		return nil, errors.New("the seed is empty")
@@ -71,12 +68,12 @@ func (s *Sealer) OpenedChallenge(sealed string) (*signin.Challenge, error) {
 	return &challenge, nil
 }
 
-// The cookie name is the additional data, so one cookie's value does not open as the other.
 func (s *Sealer) sealed(value any, cookie string) (string, error) {
 	plain, err := json.Marshal(value)
 	if err != nil {
 		return "", fmt.Errorf("failed to encode the %s cookie: %w", cookie, err)
 	}
+	// The cookie name is the additional data, so one cookie's value never opens as the other.
 	return base64.RawURLEncoding.EncodeToString(s.aead.Seal(nil, nil, plain, []byte(cookie))), nil
 }
 

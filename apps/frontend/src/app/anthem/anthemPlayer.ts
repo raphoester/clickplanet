@@ -1,25 +1,10 @@
-/**
- * Plays one anthem at a time on a loop, and crossfades when it changes.
- *
- * Each recording streams through an `<audio>` element, but its loudness goes
- * through Web Audio gain nodes: iOS ignores `HTMLMediaElement.volume`, so a fade
- * or a volume slider written to the element does nothing on an iPhone. The files
- * are served from our own origin, so routing them through the context does not
- * silence them the way a cross-origin source would.
- */
-
 export const FADE_S = 2
 
 export type AnthemPlayer = {
-    /** The recording to play, or undefined for silence. Crossfades from the last. */
     setTrack: (url: string | undefined) => void
-    /** Whether anything should be heard: the settings, and the tab being visible. */
     setAudible: (audible: boolean) => void
-    /** 0…1. */
     setVolume: (volume: number) => void
-    /** Call from inside a user gesture: browsers keep audio muted until one. */
     unlock: () => void
-    /** Where the current recording is, for the player's progress bar. */
     position: () => {current: number, duration: number} | undefined
     dispose: () => void
 }
@@ -65,6 +50,7 @@ export function createAnthemPlayer(options: AnthemPlayerOptions = {}): AnthemPla
     const start = (url: string, context: AudioContext, out: GainNode): Track => {
         const audio = createAudio(url)
         audio.loop = true
+        // Loudness goes through Web Audio: iOS ignores HTMLMediaElement.volume.
         const source = context.createMediaElementSource(audio)
         const gain = context.createGain()
         gain.gain.setValueAtTime(0, context.currentTime)
@@ -75,8 +61,6 @@ export function createAnthemPlayer(options: AnthemPlayerOptions = {}): AnthemPla
         return {url, audio, gain, source}
     }
 
-    // Brings what plays in line with what is wanted. Before the first gesture
-    // there is no context, and this only remembers.
     const sync = () => {
         if (!ctx || !master) return
         if (current?.url === wantedUrl) return
@@ -95,8 +79,6 @@ export function createAnthemPlayer(options: AnthemPlayerOptions = {}): AnthemPla
         if (!audio) return
         if (audible && audio.paused) audio.play().catch(() => {
         })
-        // Paused rather than left running silent, so a muted anthem does not
-        // keep streaming — once the fade has had time to finish.
         if (!audible && !audio.paused) {
             setTimeout(() => {
                 if (!audible && current?.audio === audio) audio.pause()

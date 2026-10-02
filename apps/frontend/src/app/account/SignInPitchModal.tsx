@@ -12,15 +12,10 @@ type Ready = Extract<AccountState, {kind: "ready"}>
 export type SignInPitchModalProps = {
     state: Ready
     store: AccountStore
-    /** What the server multiplies a signed-in account's allowance by. */
     multiplier: number
     onClose: () => void
 }
 
-/**
- * What the meter's offer opens: why to sign in, and the buttons that do it.
- * The buttons are the account panel's, so signing in from here is the same flow.
- */
 export default function SignInPitchModal({state, store, multiplier, onClose}: SignInPitchModalProps) {
     const busy = state.busy !== undefined
     const times = `${factor(multiplier)}×`

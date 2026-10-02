@@ -8,9 +8,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/claim_bonus_handler"
 )
 
-// EventStream is what a sink writes to. The generated server stream satisfies
-// it; declaring the one method here rather than taking connect's concrete type
-// is what lets the mapping below be tested without a live HTTP response.
 type EventStream interface {
 	Send(event *planetv1.PlanetEvent) error
 }
@@ -19,9 +16,6 @@ func NewSink(stream EventStream) Sink {
 	return Sink{stream: stream}
 }
 
-// Sink writes the use case's frames as the proto envelope. The oneof is the
-// wire's business and stops here: the use case says update or heartbeat, and
-// nothing about how either is framed.
 type Sink struct {
 	stream EventStream
 }
@@ -62,9 +56,7 @@ func bonusOfferedEvent(offer *bonuses.Offer) *planetv1.PlanetEvent {
 	}
 }
 
-// The token and the clock, and nothing else: the question, its choices and even what it is about
-// are read with OpenQuiz, which is what starts the clock. A stream that carried any of them
-// would be a stream a client could read at leisure.
+// Token and expiry only: anything about the question here can give its answer away.
 func quizOfferedEvent(offer *bonuses.QuizOffer) *planetv1.PlanetEvent {
 	return &planetv1.PlanetEvent{
 		Event: &planetv1.PlanetEvent_QuizOffered{

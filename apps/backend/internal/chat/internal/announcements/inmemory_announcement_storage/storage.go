@@ -1,7 +1,5 @@
 //go:build testing
 
-// Package inmemory_announcement_storage keeps announcements in a slice, for tests that need an
-// announcements.Storage but not postgres.
 package inmemory_announcement_storage
 
 import (
@@ -44,7 +42,6 @@ func (s *Storage) Recent(_ context.Context, since time.Time, limit int) ([]annou
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// By time, then by id, as postgres orders them.
 	recent := slices.DeleteFunc(slices.Clone(s.kept), func(announcement announcements.Announcement) bool {
 		return announcement.At.Before(since)
 	})

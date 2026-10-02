@@ -1,4 +1,3 @@
-// Package listen_for_events_usecase runs one client's live roster: the whole roster, then each change.
 package listen_for_events_usecase
 
 import (
@@ -8,14 +7,13 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence"
 )
 
-// DefaultHeartbeat is well under Cloudflare's ~125s idle cut.
+// DefaultHeartbeat stays well under Cloudflare's ~125s idle timeout.
 const DefaultHeartbeat = 30 * time.Second
 
 type VisitsSubscriber interface {
 	Subscribe(ctx context.Context) ([]presence.Entry, <-chan presence.Change)
 }
 
-// Sink carries each frame to the caller.
 type Sink interface {
 	SendRoster(roster []presence.Entry) error
 	SendChange(change presence.Change) error
@@ -35,7 +33,6 @@ type UseCase struct {
 	heartbeat  time.Duration
 }
 
-// Execute returns when the context ends, or when the storage closed the feed of a caller that fell behind.
 func (u *UseCase) Execute(ctx context.Context, sink Sink) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()

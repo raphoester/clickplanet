@@ -95,7 +95,6 @@ func TestTheSweepReportsWhoIsStanding(t *testing.T) {
 		},
 	}, unsure, sure)
 
-	// Read long enough ago that its suspicion has lapsed, but not forgotten.
 	j.Inspect(detect.Click{Scope: "stale", At: clock.Now()})
 	clock.Advance(20 * time.Minute)
 

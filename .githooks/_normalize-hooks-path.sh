@@ -1,17 +1,4 @@
 #!/usr/bin/env bash
-# Sourced by the hooks in this directory.
-#
-# Worktree tooling (and stale manual `git config`) can pin core.hooksPath to an
-# ABSOLUTE path, which always resolves to the main checkout's .githooks — so
-# every worktree ends up running the wrong branch's hooks. This repairs that on
-# the fly:
-#
-#   1. Rewrites core.hooksPath back to the relative ".githooks". Git resolves a
-#      relative hooksPath against each worktree's own root (githooks(5): it cd's
-#      to the working-tree root before invoking a hook), so every worktree then
-#      runs its own copy.
-#   2. If this hook was still launched from the wrong copy, it hands off — via
-#      exec — to this worktree's copy, so even this run uses the right checks.
 
 cp_normalize_hooks_path() {
     local want=.githooks

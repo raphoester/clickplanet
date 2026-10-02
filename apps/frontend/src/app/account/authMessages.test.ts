@@ -2,7 +2,6 @@ import {describe, expect, it} from "vitest"
 import {messageOf, retryOf, usernameMessageOf} from "./authMessages.ts"
 
 describe("messageOf", () => {
-    // Sign-in spends the same budget as the click token's mint.
     it("tells the player to wait when the budget is spent", () => {
         expect(messageOf("tooManyTries")).toMatch(/wait/i)
     })
@@ -26,7 +25,6 @@ describe("retryOf", () => {
         expect(retryOf("failed")).toBe("complete")
     })
 
-    // CompleteSignIn clears the flow cookie on these, so the code cannot be used twice.
     it("goes back to the provider when the code is spent", () => {
         expect(retryOf("startAgain")).toBe("start")
         expect(retryOf("refused")).toBe("start")
@@ -37,7 +35,6 @@ describe("retryOf", () => {
         expect(retryOf("notOffered")).toBe("none")
     })
 
-    // The same identity would be refused again: only the player can change that.
     it("offers nothing after a refused link", () => {
         expect(retryOf("linkedElsewhere")).toBe("none")
         expect(retryOf("alreadyLinked")).toBe("none")

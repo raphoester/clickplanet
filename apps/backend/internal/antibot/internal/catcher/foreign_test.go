@@ -24,7 +24,6 @@ func newForeignHarness() *harness {
 	return h
 }
 
-// foreign claims n boxes that were never the caller's, every gap.
 func (h *harness) foreign(n int, gap time.Duration) {
 	for range n {
 		h.clock.Advance(gap)

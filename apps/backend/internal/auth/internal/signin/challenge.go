@@ -11,13 +11,11 @@ import (
 const (
 	ChallengeCookieName = "cp_email"
 	ChallengeTTL        = 10 * time.Minute
-	// MaxAttempts is checked on the server: the browser sends the same sealed cookie with every guess.
+	// Counted on the server: the browser sends the same sealed cookie with every guess.
 	MaxAttempts = 5
 )
 
-// Challenge is one email sign-in in progress, sealed in the browser's cookie like a Flow.
 type Challenge struct {
-	// Keys the attempts budget.
 	ID        string
 	Address   Address
 	Code      string
@@ -30,7 +28,6 @@ type Codes interface {
 	NewCode() (string, error)
 }
 
-// ChallengeSealer answers ErrFlowInvalid for anything it did not seal.
 type ChallengeSealer interface {
 	SealedChallenge(challenge *Challenge) (string, error)
 	OpenedChallenge(sealed string) (*Challenge, error)
@@ -50,7 +47,6 @@ func NewChallenge(
 	return &Challenge{ID: id, Address: address, Code: code, ExpiresAt: now.Add(ChallengeTTL), Intent: intent, Account: account}, nil
 }
 
-// CodeError is ErrFlowInvalid for a lapsed challenge and ErrWrongCode for another code.
 func (c *Challenge) CodeError(code string, now time.Time) error {
 	if !now.Before(c.ExpiresAt) {
 		return fmt.Errorf("%w: it lapsed at %s", ErrFlowInvalid, c.ExpiresAt.Format(time.RFC3339))
@@ -69,7 +65,6 @@ func (c *Challenge) Letter() Letter {
 	return CodeLetter(c.Code)
 }
 
-// Claim is the address, verified: the player typed the code that was sent to it.
 func (c *Challenge) Claim() accounts.Claim {
 	return accounts.Claim{Subject: string(c.Address), Email: string(c.Address), EmailVerified: true}
 }

@@ -1,13 +1,3 @@
-// Package cohort watches for callers that act together: several scopes that
-// start painting the same flag in the same second, at the same rate, and stop
-// together. Every other watchdog judges one scope, so a bot that rotates its
-// address every few minutes starts each identity clean and is never judged long
-// enough to read anything. What it cannot hide is that its identities come in
-// groups, and that the groups follow one another.
-//
-// Two humans can join a flag war in the same second, so one group is only a
-// suspicion. A chain of groups from fresh scopes in the same prefix is not: a
-// person keeps their address when they come back, and a pool does not.
 package cohort
 
 import (
@@ -27,42 +17,24 @@ import (
 const Name = "cohort"
 
 type Config struct {
-	// StartWindow is how close two scopes' first clicks must be to have started
-	// together. The pool seen on 2026-09-14 started its pairs milliseconds apart
-	// and a group of three inside four seconds.
 	StartWindow time.Duration
 
-	// MinClicks is how many clicks a scope needs before it is compared at all, and
-	// MinFlagShare how much of them must be for its top flag.
 	MinClicks    int
 	MinFlagShare float64
 
-	// RateRatio is how far apart two scopes' click rates may be, as faster over
-	// slower. LengthRatio is the same for how long they stayed, and is only
-	// applied once the shorter one has been quiet for QuietAfter: until then it
-	// may still be going.
 	RateRatio   float64
 	LengthRatio float64
 	QuietAfter  time.Duration
 
-	// MinMembers is how many scopes in step read Suspect.
 	MinMembers int
 
-	// V4Bits and V6Bits are the wider prefix a chain has to share: a /24 and a
-	// /44 by default. Suspect does not need one; Certain does.
 	V4Bits int
 	V6Bits int
 
-	// CertainCohorts is how many separate groups inside ChainWindow, on the same
-	// flag and prefix, read Certain. CertainMembers is how many scopes in step in
-	// one group read Certain on their own.
 	CertainCohorts int
 	CertainMembers int
 	ChainWindow    time.Duration
 
-	// TrackWindow is how long a silent scope is remembered. It is never shorter
-	// than ChainWindow, or the first links of a chain are forgotten before the
-	// last one arrives.
 	TrackWindow time.Duration
 
 	SweepInterval time.Duration
@@ -83,16 +55,11 @@ const (
 	defaultChainWindow    = 30 * time.Minute
 	defaultSweepInterval  = time.Minute
 
-	// A scope is judged again at most this often: judging reads other scopes, and
-	// the jury asks on every click.
 	rejudgeAfter = 2 * time.Second
 
-	// Caps the flag tally, as the jury does.
 	maxTrackedCountries = 16
 )
 
-// Validate refuses a bound that cannot mean what it says. Zero is always a
-// default, so only a value that was set can be wrong.
 func (c Config) Validate() error {
 	var errs []error
 
@@ -191,8 +158,6 @@ func (c Config) withDefaults() Config {
 	return c
 }
 
-// New takes onInStep, called each sweep with how many scopes are clicking in
-// step with another right now, whether or not that reads as more than Clear.
 func New(config Config, clock cptime.Clock, onInStep func(scopes int)) *Watchdog {
 	if clock == nil {
 		clock = cptime.SystemClock{}
@@ -208,11 +173,6 @@ func New(config Config, clock cptime.Clock, onInStep func(scopes int)) *Watchdog
 	}
 }
 
-// Watchdog holds every scope in one table, because what it measures is between
-// scopes. It is still asked about one scope at a time — the jury asks on a click
-// — so each member answers for itself from the shared table on its own next
-// click, and nothing has to be pushed to the others. A member that never clicks
-// again needs no ban; it still counts as a link in the next group's chain.
 type Watchdog struct {
 	config   Config
 	clock    cptime.Clock
@@ -221,8 +181,6 @@ type Watchdog struct {
 	mu      sync.Mutex
 	members map[string]*member
 
-	// starts buckets members by the second of their first click, and prefixes by
-	// their wider prefix, so a judgement reads its neighbours and not the table.
 	starts   map[int64]*cpcolls.Set[string]
 	prefixes map[string]*cpcolls.Set[string]
 }
@@ -231,7 +189,7 @@ var _ detect.Watchdog = (*Watchdog)(nil)
 
 type member struct {
 	scope  string
-	prefix string // empty for a scope that is not an address: it is never part of a chain
+	prefix string
 
 	first  time.Time
 	last   time.Time
@@ -247,8 +205,6 @@ type member struct {
 
 func (w *Watchdog) Name() string { return Name }
 
-// Attempted starts a member's clock: a pool starts its identities together, and
-// the first try is closer to that moment than the first click the throttle lets through.
 func (w *Watchdog) Attempted(click detect.Click) {
 	if click.Scope == "" {
 		return
@@ -260,7 +216,6 @@ func (w *Watchdog) Attempted(click detect.Click) {
 	w.memberLocked(click)
 }
 
-// Committed is nothing to this watchdog: a click it saw is enough, whatever the map did.
 func (w *Watchdog) Committed(detect.Click) {}
 
 func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
@@ -331,8 +286,6 @@ func (w *Watchdog) judgeLocked(m *member, now time.Time) (detect.Verdict, detect
 		{Key: "perMinute", Value: math.Round(rate(m)*600) / 10},
 	}
 
-	// Certain needs the prefix: a crowd answering one link starts together from
-	// all over, and a pool starts together from one range.
 	sharing := 0
 	for _, other := range cohort {
 		if m.prefix != "" && other.prefix == m.prefix {
@@ -362,7 +315,6 @@ func (w *Watchdog) judgeLocked(m *member, now time.Time) (detect.Verdict, detect
 	return detect.Suspect, detect.Evidence{Rule: "lockstep", Fields: fields}, true
 }
 
-// partnersLocked is m and every scope in step with it, whatever its prefix.
 func (w *Watchdog) partnersLocked(m *member, flag string, now time.Time) []*member {
 	cohort := []*member{m}
 
@@ -381,8 +333,6 @@ func (w *Watchdog) partnersLocked(m *member, flag string, now time.Time) []*memb
 	return cohort
 }
 
-// chainLocked counts the separate groups in m's prefix, painting m's flag,
-// that started inside ChainWindow of m — m's own included.
 func (w *Watchdog) chainLocked(m *member, flag string, now time.Time) int {
 	var group []*member
 
@@ -406,8 +356,6 @@ func (w *Watchdog) chainLocked(m *member, flag string, now time.Time) int {
 
 	cohorts := 0
 
-	// Greedy: a cluster is every member that started inside StartWindow of the
-	// cluster's first. It counts once enough of it is in step with the rest.
 	for start := 0; start < len(group); {
 		end := start + 1
 		for end < len(group) && group[end].first.Sub(group[start].first) <= w.config.StartWindow {
@@ -434,8 +382,6 @@ func (w *Watchdog) chainLocked(m *member, flag string, now time.Time) int {
 	return cohorts
 }
 
-// inStep says two scopes painting flag started together and kept the same pace
-// for as long as one can tell.
 func (w *Watchdog) inStep(a, b *member, flag string, now time.Time) bool {
 	if f, ok := w.painting(b); !ok || f != flag {
 		return false
@@ -453,7 +399,6 @@ func (w *Watchdog) inStep(a, b *member, flag string, now time.Time) bool {
 		shorter, longer = longer, shorter
 	}
 
-	// An open scope may still catch up; one that stopped has said how long it stays.
 	if now.Sub(shorter.last) >= w.config.QuietAfter {
 		return ratio(float64(shorter.last.Sub(shorter.first)), float64(longer.last.Sub(longer.first))) <= w.config.LengthRatio
 	}
@@ -461,7 +406,6 @@ func (w *Watchdog) inStep(a, b *member, flag string, now time.Time) bool {
 	return true
 }
 
-// painting is m's flag, once m has clicked enough and nearly all of it for one flag.
 func (w *Watchdog) painting(m *member) (string, bool) {
 	if m.clicks < w.config.MinClicks || !m.last.After(m.first) {
 		return "", false
@@ -483,7 +427,6 @@ func (w *Watchdog) painting(m *member) (string, bool) {
 	return top, true
 }
 
-// rate is clicks per second between the first try and the last click.
 func rate(m *member) float64 {
 	span := m.last.Sub(m.first).Seconds()
 	if span <= 0 {
@@ -505,7 +448,6 @@ func startSpread(cohort []*member) time.Duration {
 	return latest.Sub(earliest)
 }
 
-// ratio is the larger over the smaller, and infinite when one of them is nothing.
 func ratio(a, b float64) float64 {
 	if a < b {
 		a, b = b, a
@@ -557,8 +499,6 @@ func (w *Watchdog) Run(ctx context.Context) {
 	}
 }
 
-// sweep forgets scopes that can no longer be a link in anybody's chain, and
-// reports how many are in step with another right now.
 func (w *Watchdog) sweep() {
 	now := w.clock.Now()
 
@@ -584,7 +524,6 @@ func (w *Watchdog) sweep() {
 
 	w.mu.Unlock()
 
-	// Outside the lock: it feeds a gauge, and the lock is the one every clicker queues on.
 	if w.onInStep != nil {
 		w.onInStep(inStep)
 	}

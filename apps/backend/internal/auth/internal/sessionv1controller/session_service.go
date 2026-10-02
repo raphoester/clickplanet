@@ -1,6 +1,4 @@
-// Package sessionv1controller serves session.v1.SessionService, which mints a click token with no account.
-//
-// Deprecated: auth.v1.AuthService/CreateSession replaces it. It goes once no client calls it.
+// Deprecated: auth.v1.AuthService/CreateSession replaces it.
 package sessionv1controller
 
 import (
@@ -19,7 +17,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
-// ErrRefused is the whole of what a refused caller is told; the reason is logged.
 var ErrRefused = errors.New("could not start a session")
 
 type UseCase interface {

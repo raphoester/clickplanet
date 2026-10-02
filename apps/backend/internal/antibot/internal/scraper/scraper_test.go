@@ -12,7 +12,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-// chunk is one GetMap of ten thousand tiles, as the bot of 2026-09-15 read them.
 const chunk = 10000.0 / 262119
 
 type harness struct {
@@ -31,7 +30,6 @@ func newHarness() *harness {
 	return h
 }
 
-// pageLoad is the web app opening: the stream, then the whole map in 26 chunks back to back.
 func (h *harness) pageLoad(scope string) {
 	h.watchdog.Listened(scope)
 	for range 26 {
@@ -40,7 +38,6 @@ func (h *harness) pageLoad(scope string) {
 	}
 }
 
-// walk is the same volume read off the map's own lattice: one chunk of it starts at tile 0.
 func (h *harness) walk(scope string) {
 	for i := range 26 {
 		h.clock.Advance(80 * time.Millisecond)
@@ -54,7 +51,6 @@ func (h *harness) click(scope string) (detect.Verdict, detect.Evidence) {
 	return h.watchdog.Watch(click)
 }
 
-// poll clicks every 1.1s and reads a chunk after each click, and says when each level was first read.
 func (h *harness) poll(scope string, d time.Duration) (detect.Verdict, map[detect.Verdict]time.Duration) {
 	start := h.clock.Now()
 	first := map[detect.Verdict]time.Duration{}
@@ -183,8 +179,6 @@ func TestOneReadOffTheMapIsNotEnoughOnItsOwn(t *testing.T) {
 	assert.Equal(t, detect.Clear, verdict, "losing the credit still leaves a page load under the bound")
 }
 
-// cachedWalk is the bot of 2026-09-16: it reads the map from tile 0 and past the end, then
-// keeps the copy and clicks off it, so the reads stop long before the ban would have to fire.
 func (h *harness) cachedWalk(scope string) {
 	for i := range 26 {
 		h.clock.Advance(80 * time.Millisecond)

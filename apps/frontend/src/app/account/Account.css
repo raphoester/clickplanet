@@ -2,7 +2,6 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
-    /* Clears the fade .menu-panel lays over its bottom edge. */
     padding-bottom: 36px;
 }
 
@@ -10,7 +9,6 @@
     margin: 0 0 4px 0;
 }
 
-/* In a dialog there is no menu fade to clear. */
 .sign-in-pitch {
     padding-bottom: 0;
     text-align: left;
@@ -21,9 +19,6 @@
     color: #FFFFFFB3;
 }
 
-/* A column, not the menu's row of actions: "Sign out everywhere" at the shared
-   28px wraps onto two lines in the card's width. Desktop only — under 768px the
-   shared mobile size already fits. */
 .account-button {
     width: 100%;
     white-space: nowrap;
@@ -72,7 +67,6 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    /* A username is shown as it was typed, not shouted. */
     text-transform: none;
     color: #FFFFFFCC;
 }
@@ -83,7 +77,7 @@
     gap: 8px;
 }
 
-/* 16px, like .chat-input: iOS zooms the page in on a smaller field. */
+/* At least 16px: iOS Safari zooms the page in on a smaller focused field. */
 .account-name-input {
     flex: 1 1 auto;
     min-width: 0;
@@ -171,8 +165,6 @@
     text-decoration: underline;
 }
 
-/* Sized on the viewport, like .viewer-canvas: body is position: fixed with no
-   width, so a box sized on its parent shrinks to its own text. */
 .sign-in-callback {
     position: absolute;
     top: 0;
@@ -245,8 +237,6 @@
     }
 }
 
-/* The providers' own colours and logos, in the game's font: Google's dark
-   theme (#131314, #8E918F border) and Discord's blurple. */
 .provider-button {
     display: flex;
     align-items: center;
@@ -264,7 +254,6 @@
     transition: background-color 0.15s;
 }
 
-/* Luckiest Guy sits high in its line box, as .button's padding-top accounts for. */
 .provider-button-label {
     padding-top: 4px;
 }
@@ -319,7 +308,6 @@
     overflow-wrap: anywhere;
 }
 
-/* Spaced digits read as one code, and the field is wide enough for six. */
 .account-code-input {
     letter-spacing: 4px;
 }

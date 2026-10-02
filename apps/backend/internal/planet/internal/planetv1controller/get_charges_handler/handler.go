@@ -1,4 +1,3 @@
-// Package get_charges_handler serves planet.v1.ClickService/GetCharges.
 package get_charges_handler
 
 import (
@@ -22,7 +21,6 @@ type GetChargesHandler struct {
 	useCase UseCase
 }
 
-// GetCharges is how a client that has just loaded, or changed account, learns what it holds.
 func (h GetChargesHandler) GetCharges(
 	ctx context.Context,
 	_ *connect.Request[planetv1.GetChargesRequest],

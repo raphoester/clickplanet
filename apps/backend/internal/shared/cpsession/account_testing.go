@@ -8,7 +8,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// AccountCreatedAt is the account id auth would make at that time.
 func AccountCreatedAt(at time.Time) AccountID {
 	var id uuid.UUID
 	ms := at.UnixMilli()

@@ -12,11 +12,9 @@ import (
 
 const contractMaxIndex = 100_000
 
-// TileStorageContractSuite is the behaviour every TileStorage shares. Embed it and set NewStorage.
 type TileStorageContractSuite struct {
 	suite.Suite
 
-	// NewStorage builds an empty map of maxIndex tiles.
 	NewStorage func(maxIndex uint32) TileStorage
 
 	storage TileStorage

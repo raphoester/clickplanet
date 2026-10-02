@@ -8,29 +8,22 @@ import (
 	"time"
 )
 
-// SignerConfig is the minting half of the `auth:` block: only the auth module declares it, so only auth holds the seed.
 type SignerConfig struct {
-	// Off registers nothing: auth.v1 and session.v1 404, and clicks are judged on address alone.
 	Enabled bool
 
-	// The Ed25519 seed, 32 bytes as 64 hex characters. Belongs in the environment.
 	Secret string
 
 	TTL time.Duration
 }
 
-// VerifierConfig is the checking half of the block, and all the planet context
-// declares: two switches and no key. The key arrives over the internal RPC.
 type VerifierConfig struct {
 	Enabled bool
 
-	// Off counts what enforcing would refuse without refusing it. Ship in this mode.
 	Enforce bool
 }
 
 const defaultTTL = time.Hour
 
-// withDefaults fills an unset TTL only; a negative one is a typo, and Validate refuses it.
 func (c SignerConfig) withDefaults() SignerConfig {
 	if c.TTL == 0 {
 		c.TTL = defaultTTL
@@ -53,7 +46,6 @@ func (c SignerConfig) Validate() error {
 	return err
 }
 
-// parseSeed names the variable an operator sets, not the field, since that is what they are reading.
 func parseSeed(value string) (ed25519.PrivateKey, error) {
 	if value == "" {
 		return nil, errors.New("auth.secret is empty while auth.enabled is true: set SESSION_SECRET (openssl rand -hex 32)")

@@ -9,7 +9,6 @@ import (
 	"sync"
 )
 
-// SequentialCodes answers 000001, then 000002, and so on.
 type SequentialCodes struct {
 	mu   sync.Mutex
 	next int
@@ -28,7 +27,6 @@ type Sent struct {
 	Letter Letter
 }
 
-// FakeMailer keeps every letter it is asked to send.
 type FakeMailer struct {
 	mu   sync.Mutex
 	sent []Sent

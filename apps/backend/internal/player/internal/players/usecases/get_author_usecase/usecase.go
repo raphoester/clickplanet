@@ -1,4 +1,3 @@
-// Package get_author_usecase says who an account is, for another module: the name the game shows for it.
 package get_author_usecase
 
 import (
@@ -22,7 +21,6 @@ func New(authors players.AuthorStore, codes Codes) *UseCase {
 	return &UseCase{authors: authors, codes: codes}
 }
 
-// Execute gives a guest its code the first time it is asked about.
 func (u *UseCase) Execute(ctx context.Context, account players.AccountID) (players.Author, error) {
 	author, err := players.AuthorOf(ctx, u.authors, account)
 	if !errors.Is(err, players.ErrNoGuestCode) {

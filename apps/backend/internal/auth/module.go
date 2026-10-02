@@ -1,8 +1,3 @@
-// Package auth wires who a caller is and what it has to prove before it may
-// click: Turnstile, the account its cookie holds, and the click token it mints.
-//
-// The planet context verifies that token from the same `auth:` block, and
-// builds its own signer from it rather than being handed this one.
 package auth
 
 import (
@@ -89,10 +84,8 @@ func NewModule(config Config) cpbootstrap.Module {
 	}
 }
 
-// providerTimeout bounds each call to a provider, so a slow one cannot hold a sign-in open.
 const providerTimeout = 10 * time.Second
 
-// newProviders is every provider with a client id, or none while sign-in is off.
 func newProviders(config Config) signin.Providers {
 	providers := signin.Providers{}
 	if !config.SignIn.Enabled {
@@ -111,7 +104,6 @@ func newProviders(config Config) signin.Providers {
 	return providers
 }
 
-// mailerTimeout bounds each send, so a slow API cannot hold a sign-in open.
 const mailerTimeout = 10 * time.Second
 
 const (
@@ -119,7 +111,6 @@ const (
 	deliveryLog        = "log"
 )
 
-// mailing is how codes are drawn and sent: for real, or by fakes in a test that boots the module.
 type mailing struct {
 	mailer signin.Mailer
 	codes  signin.Codes
@@ -165,7 +156,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, provider
 	store := postgres_account_store.New(db)
 	clock := cptime.SystemClock{}
 
-	// One budget for both mints: the deprecated path must not be a second allowance.
+	// One budget for both mints, so the deprecated path is not a second allowance.
 	mintLimiter := cpratelimit.New("mint-limiter", config.RateLimiter, clock)
 	props.Runners.Add(mintLimiter)
 
@@ -182,14 +173,11 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, provider
 	if err := blocklist.Load(); err != nil {
 		return fmt.Errorf("failed to load the disposable domains: %w", err)
 	}
-	// One budget per address, so nobody fills an inbox that is not theirs.
 	sendLimiter := cpratelimit.New("email-send-limiter", config.Email.SendLimiter, clock)
 	props.Runners.Add(sendLimiter)
-	// One budget per challenge: MaxAttempts guesses, and a bucket forgotten within an hour.
 	attemptLimiter := cpratelimit.New("email-attempt-limiter",
 		cpratelimit.Config{Burst: signin.MaxAttempts, PerSecond: 1 / signin.ChallengeTTL.Seconds()}, clock)
 	props.Runners.Add(attemptLimiter)
-	// One for both sign-ins, so a provider and an email code sign in exactly alike.
 	admitter := signin.NewAdmitter(store, uuid_id_provider.Provider{}, random_token_generator.Generator{}, config.Sessions, props.Events)
 	challenges := signin.NewChallenges(config.Email.Enabled, random_secret_generator.Generator{}, mail.codes, sealer, attemptLimiter)
 	post := signin.NewPost(blocklist, sendLimiter, mail.mailer)
@@ -217,11 +205,9 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, provider
 			complete_email_sign_in_usecase.New(challenges, admitter, clock),
 			props.Logger,
 		),
-		SignOutHandler: sign_out_handler.New(sign_out_usecase.New(store, props.Events)),
-		// Both publish auth.v1.SignedOut, so the account stops showing as playing.
+		SignOutHandler:           sign_out_handler.New(sign_out_usecase.New(store, props.Events)),
 		SignOutEverywhereHandler: sign_out_everywhere_handler.New(sign_out_everywhere_usecase.New(store, props.Events, clock)),
-		// Publishes auth.v1.AccountDeleted, as the prune does for each guest it deletes.
-		DeleteAccountHandler: delete_account_handler.New(delete_account_usecase.New(store, props.Events, clock)),
+		DeleteAccountHandler:     delete_account_handler.New(delete_account_usecase.New(store, props.Events, clock)),
 	}
 	props.Runners.Add(prune_guests_usecase.NewRunner(config.Prune,
 		log_prune_guests.New(prune_guests_usecase.New(config.Prune, store, props.Events, clock), props.Logger)))
@@ -231,10 +217,6 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, provider
 		return fmt.Errorf("failed to mount auth.v1: %w", err)
 	}
 
-	// The planet context verifies clicks with the public half of this signer, and
-	// asks for it here rather than reading a key of its own. The seed never leaves
-	// this module, and there is no second setting to keep in step with it.
-	// The player module asks whether an account is linked before it gives it a username.
 	internalService := authv1controller.InternalService{
 		GetVerifyingKeyHandler: get_verifying_key_handler.New(signer),
 		GetAccountHandler:      get_account_handler.New(get_account_usecase.New(store)),
@@ -283,49 +265,37 @@ func newAttester(config Config, logger *slog.Logger) (attestation.Attester, erro
 	return attester, nil
 }
 
-// Config is the `auth:` block. The minting half is the shared layer's; planet
-// declares the verifying half of the same block and never sees the seed.
 type Config struct {
 	cpsession.SignerConfig `koanf:",squash"`
 
-	// Per-IP throttle on minting, for both CreateSession paths together.
 	RateLimiter cpratelimit.Config
 
 	Turnstile turnstile.Config
 
-	// Accounts and their sessions. Required when the module is on.
 	Database cppg.Config
 
 	Sessions accounts.Lifetime
 
 	SignIn signin.Config
 
-	// Each provider is offered while sign-in is on and its clientId is set. The secrets come from the environment.
 	Google  signin.Client
 	Discord signin.Client
 
-	// Sign-in with a code sent to an email address, apart from SignIn: it needs no provider.
 	Email EmailConfig
 
-	// Deletes the guests nobody has used for a long time.
 	Prune prune_guests_usecase.Config
 }
 
-// EmailConfig is sign-in with an emailed code. Off, StartEmailSignIn and CompleteEmailSignIn answer Unimplemented.
 type EmailConfig struct {
 	Enabled bool
 
-	// "cloudflare" sends through Cloudflare Email Sending; "log" writes each letter to the server log, for a local backend.
 	Delivery string
 
-	// The sender, on a domain onboarded to Cloudflare Email Sending, and the name an inbox shows beside it.
 	From     string
 	FromName string
 
-	// The account id and the token come from the environment.
 	Cloudflare cloudflare_mailer.Config
 
-	// Per-address throttle on sending codes.
 	SendLimiter cpratelimit.Config
 }
 
@@ -336,12 +306,10 @@ func (c Config) withDefaults() Config {
 		c.Turnstile.Action = defaultTurnstileAction
 	}
 	c.Sessions = c.Sessions.WithDefaults()
-	// A guest is pruned no sooner than its cookie lapses.
 	if c.Prune.IdleFor <= 0 {
 		c.Prune.IdleFor = c.Sessions.GuestTTL
 	}
 	c.Prune = c.Prune.WithDefaults()
-	// Three codes at once, then one every twenty minutes.
 	if c.Email.SendLimiter.Burst <= 0 {
 		c.Email.SendLimiter.Burst = 3
 	}
@@ -351,7 +319,6 @@ func (c Config) withDefaults() Config {
 	return c
 }
 
-// Validate checks the whole block, the key pair included: planet reads the public half but does not check it.
 func (c Config) Validate() error {
 	if !c.Enabled {
 		return nil

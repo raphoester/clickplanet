@@ -7,20 +7,12 @@ import { CompleteEmailSignInRequest, CompleteEmailSignInResponse, CompleteSignIn
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
- * Who a caller is, and what it has to prove before it may click. Every caller
- * that mints a session gets an account, a guest one until it signs in, kept in
- * an HttpOnly cookie this service sets.
- *
  * @generated from service auth.v1.AuthService
  */
 export const AuthService = {
   typeName: "auth.v1.AuthService",
   methods: {
     /**
-     * Checks a Cloudflare Turnstile token, then mints the click token. The
-     * caller's cookie brings its account back; a caller with no live session is
-     * given a guest account and its cookie. The account is signed into the token.
-     *
      * @generated from rpc auth.v1.AuthService.CreateSession
      */
     createSession: {
@@ -30,9 +22,6 @@ export const AuthService = {
       kind: MethodKind.Unary,
     },
     /**
-     * The account the caller's cookie belongs to. Unauthenticated when it carries
-     * none. Creates nothing.
-     *
      * @generated from rpc auth.v1.AuthService.GetMe
      */
     getMe: {
@@ -42,10 +31,6 @@ export const AuthService = {
       kind: MethodKind.Unary,
     },
     /**
-     * The providers a player may sign in with on this server, so a client shows
-     * only the buttons that work. Empty while sign-in is off. Not throttled, and
-     * sets nothing: a client asks on every page load.
-     *
      * @generated from rpc auth.v1.AuthService.GetSignInOptions
      */
     getSignInOptions: {
@@ -55,10 +40,6 @@ export const AuthService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Starts signing in with a provider: answers the provider's authorization URL
-     * to send the browser to, and sets a short-lived cookie that CompleteSignIn
-     * reads back. Unimplemented (HTTP 404) when sign-in is off on this server.
-     *
      * @generated from rpc auth.v1.AuthService.StartSignIn
      */
     startSignIn: {
@@ -68,13 +49,6 @@ export const AuthService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Finishes what StartSignIn started, from the code and state the provider sent
-     * to the callback page. An identity already known signs in to its account; a
-     * new one is linked to the caller's current account, or to a new account when
-     * there is none. Sets a new session cookie either way: the client mints its
-     * click token again afterwards, so the token carries the account.
-     * Unimplemented (HTTP 404) when sign-in is off on this server.
-     *
      * @generated from rpc auth.v1.AuthService.CompleteSignIn
      */
     completeSignIn: {
@@ -84,11 +58,7 @@ export const AuthService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Sends a one-time code to an email address, and sets a short-lived cookie
-     * that CompleteEmailSignIn reads back: the code works only in this browser.
-     * Answers the same whether or not the address has an account. Each call sends
-     * an email, so each needs a fresh Turnstile token. Unimplemented (HTTP 404)
-     * when email sign-in is off on this server.
+     * Answers the same whether or not the address has an account.
      *
      * @generated from rpc auth.v1.AuthService.StartEmailSignIn
      */
@@ -99,11 +69,6 @@ export const AuthService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Finishes what StartEmailSignIn started, from the code in the email. Signs in
-     * or links exactly as CompleteSignIn does, with the address as the identity,
-     * and sets a new session cookie: the client mints its click token again
-     * afterwards. Unimplemented (HTTP 404) when email sign-in is off on this server.
-     *
      * @generated from rpc auth.v1.AuthService.CompleteEmailSignIn
      */
     completeEmailSignIn: {
@@ -113,8 +78,6 @@ export const AuthService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Ends this browser's session and clears its cookie. Succeeds with no session.
-     *
      * @generated from rpc auth.v1.AuthService.SignOut
      */
     signOut: {
@@ -124,9 +87,6 @@ export const AuthService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Ends every session of the caller's account, this one included.
-     * Unauthenticated when the caller has no account.
-     *
      * @generated from rpc auth.v1.AuthService.SignOutEverywhere
      */
     signOutEverywhere: {
@@ -136,9 +96,6 @@ export const AuthService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Deletes the caller's account, its linked identities and its sessions, and
-     * clears the cookie. Unauthenticated when the caller has no account.
-     *
      * @generated from rpc auth.v1.AuthService.DeleteAccount
      */
     deleteAccount: {

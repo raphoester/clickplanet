@@ -23,7 +23,6 @@ type Publisher interface {
 	Publish(event proto.Message)
 }
 
-// Admitter signs a browser in to an identity it proved it holds, with a provider or with an emailed code.
 type Admitter struct {
 	store    IdentityStore
 	ids      accounts.IDProvider
@@ -38,7 +37,6 @@ func NewAdmitter(
 	return &Admitter{store: store, ids: ids, tokens: tokens, lifetime: lifetime.WithDefaults(), events: events}
 }
 
-// Visitor is the account a browser is on and the session a sign-in replaces. Both are empty with no live session.
 type Visitor struct {
 	Account  *accounts.Account
 	Replaces accounts.TokenHash
@@ -63,20 +61,18 @@ func (a *Admitter) Visitor(ctx context.Context, cookieHeader string, now time.Ti
 	return &Visitor{Account: account, Replaces: session.TokenHash}, nil
 }
 
-// Admission is the account the browser is now on, and its new session cookie.
 type Admission struct {
 	Account   accounts.AccountID
 	Outcome   accounts.Outcome
 	SetCookie string
 }
 
-// Admit answers accounts.ErrIdentityLinkedElsewhere or accounts.ErrProviderAlreadyLinked for a link it refuses, having written nothing.
 func (a *Admitter) Admit(
 	ctx context.Context, provider string, intent accounts.Intent, claim accounts.Claim, visitor *Visitor, now time.Time,
 ) (*Admission, error) {
 	admission, err := a.admit(ctx, provider, intent, claim, visitor, now)
+	// Another browser linked this identity first; retrying finds it known.
 	if errors.Is(err, accounts.ErrIdentityTaken) {
-		// Another browser linked the same identity a moment ago: it is known now.
 		admission, err = a.admit(ctx, provider, intent, claim, visitor, now)
 	}
 	return admission, err
@@ -124,11 +120,11 @@ func (a *Admitter) admit(
 		return nil, fmt.Errorf("failed to save the sign-in: %w", err)
 	}
 
-	// After the sign-in is saved: a subscriber moves what it keeps for the browser's old account.
 	signedIn := &authv1.SignedIn{AccountId: account.String()}
 	if current != nil {
 		signedIn.PreviousAccountId = current.ID.String()
 	}
+	// After the sign-in is saved: a subscriber moves what it keeps for the old account.
 	a.events.Publish(signedIn)
 
 	return &Admission{Account: account, Outcome: outcome, SetCookie: signIn.Session.Cookie(token, now)}, nil

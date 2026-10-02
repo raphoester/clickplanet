@@ -71,8 +71,6 @@
     cursor: default;
 }
 
-/* A native checkbox, redrawn as a switch: it keeps its keyboard and screen
-   reader behaviour for free. */
 .sound-switch-input {
     appearance: none;
     position: relative;

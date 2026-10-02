@@ -1,10 +1,5 @@
 const SVG_NS = "http://www.w3.org/2000/svg"
 
-/**
- * The points of a jagged star, alternating `outer` and `inner` radii, as an SVG
- * `points` list. `wobble` pushes every other spike out a little further, so the
- * burst looks thrown rather than stamped.
- */
 export function burstPoints(
     spikes: number,
     outer: number,
@@ -20,13 +15,6 @@ export function burstPoints(
     }).join(" ")
 }
 
-/**
- * The explosion on the blast pointer, drawn rather than an emoji: an emoji is a
- * different picture on every platform and never matched the badge it sat in.
- *
- * An orange burst outlined in the badge's dark red, with a pale core, on the
- * same 100-unit square as the box's question mark.
- */
 export function blastMarkSvg(className: string): SVGSVGElement {
     const svg = document.createElementNS(SVG_NS, "svg")
     svg.setAttribute("viewBox", "0 0 100 100")

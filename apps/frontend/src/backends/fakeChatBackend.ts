@@ -28,7 +28,6 @@ export type FakeChatBackendOptions = {
     chatterIntervalMs?: number
 }
 
-// Players with a username and guests, as the server names them. Ana is an admin.
 const CHATTERS = [
     {name: "Ana", country: "fr", admin: true, text: "who keeps taking Brittany"},
     {name: "guest_91aa3d", country: "de", admin: false, text: "we hold the north 💪"},
@@ -36,16 +35,10 @@ const CHATTERS = [
     {name: "guest_aa1290", country: "jp", admin: false, text: "the pacific is ours"},
 ]
 
-/**
- * The guest this browser posts as. There is no account here, so no token names
- * a username: every message from this browser is a guest's, under the one code.
- */
 export const OWN_GUEST_NAME = "guest_c0ffee"
 
-// Who reacts from this browser: like the server, one reactor per account. A bot reacts under its own name.
 const ME = "me"
 
-// What the bots react with, now and then.
 const BOT_REACTIONS = [Reaction.LAUGH, Reaction.CLOWN, Reaction.SKULL, Reaction.FIRE, Reaction.EARTH]
 
 type Listener = {
@@ -57,9 +50,7 @@ type Listener = {
 export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListener, ChatReactor {
     private readonly messages: ChatMessage[] = []
     private readonly announcements: ChatAnnouncement[] = []
-    // Message id → reaction → who gave it, in the order each reaction first appeared.
     private readonly reactions = new Map<string, Map<Reaction, Set<string>>>()
-    // Message id → how many times its reactions changed, as the server counts them.
     private readonly versions = new Map<string, number>()
     private readonly listeners = new Map<string, Listener>()
     private readonly timers: ReturnType<typeof setInterval>[] = []
@@ -153,10 +144,6 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
         }
     }
 
-    /**
-     * A bomb landed, as the server's chat hears it from the planet. The fake
-     * has no borders, so it never names the ground that was hit.
-     */
     public announceBomb(drop: {countryId: string, tile: number | undefined, cleared: readonly number[]}) {
         const announcement: ChatAnnouncement = {
             kind: "bomb",
@@ -231,7 +218,6 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
     }
 }
 
-/** What a reactor is called. A bot already reacts under its name; this browser reacts as its guest code. */
 function named(reactor: string): string {
     return reactor === ME ? OWN_GUEST_NAME : reactor
 }

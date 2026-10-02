@@ -10,7 +10,6 @@ import {PlaySound} from '../sound/soundPlayer.ts';
 import {ClearNotes} from '../../domain/clearNotes.ts';
 
 export type GlobeStatus =
-    /** `territories` is the share of the owners fetched, once the map itself is in. */
     | {state: 'loading', territories?: number}
     | {state: 'ready'}
     | {state: 'failed', message: string}
@@ -20,10 +19,9 @@ export type UseGlobeOptions = {
     tileClicker: TileClicker
     ownershipsGetter: OwnershipsGetter
     updatesListener: UpdatesListener
-    /** Absent for a backend with no bonus feed, which draws no boxes at all. */
     bonusListener?: BonusListener
     bomber?: Bomber
-    /** Must not change identity: a new one rebuilds the globe. */
+    // Must keep its identity: a new one rebuilds the globe.
     playSound?: PlaySound
     country: Country
 }
@@ -36,42 +34,29 @@ export function useGlobe(options: UseGlobeOptions) {
 
     const {leaderboard, tileDeltas, recordLeaderboard, publishLeaderboard} = useLeaderboardFeed()
 
-    // A count, not a flag: every refusal bumps it, so the meter can shake once
-    // per refused click instead of raising a dialog.
     const [refusals, setRefusals] = useState(0)
 
     const [vpnBlocked, setVPNBlocked] = useState(false)
 
     const [sessionUnavailable, setSessionUnavailable] = useState(false)
 
-    // Two pieces of state, because they have two lifetimes. `award` is the
-    // two-second announcement; `charges` is what the player holds, which lasts
-    // until it is spent, and is what the meter reads.
     const [award, setAward] = useState<BonusReward | undefined>()
     const [charges, setCharges] = useState<Charges>(NO_CHARGES)
     const [rules, setRules] = useState<BonusRules | undefined>()
     const [bombArmed, setBombArmed] = useState(false)
     const [switches, setSwitches] = useState<Switches>(ALL_OFF)
 
-    // Somebody caught one, anywhere on the planet. Held as the latest catch so
-    // the board can say so; it is never what starts this client's own bonus,
-    // which only the server's answer to its own claim does.
     const [lastCatch, setLastCatch] = useState<BonusCatch | undefined>()
 
     const recordCatch = useCallback((taken: BonusCatch) => setLastCatch(taken), [])
 
-    // The latest bomb on the planet, for the news line.
-    // Numbered, so two bombs in a row replay the line rather than leaving it up.
     const [lastBomb, setLastBomb] = useState<{drop: BombDrop, land: string | undefined, id: number} | undefined>()
     const recordBomb = useCallback((drop: BombDrop, land: string | undefined) => {
         setLastBomb((previous) => ({drop, land, id: (previous?.id ?? 0) + 1}))
     }, [])
 
-    // The charge itself arrives with the charges: this is only the announcement.
     const takeBonus = useCallback((reward: BonusReward) => setAward(reward), [])
 
-    // A click that cleared native ground rather than taking it, said the first
-    // few times only. Numbered like the bomb, so a second clear restarts the line.
     const [clearNotes] = useState(() => new ClearNotes(localStore()))
     const [lastClear, setLastClear] = useState<{ground: string, id: number} | undefined>()
     const recordClear = useCallback((ground: string) => {
@@ -125,10 +110,8 @@ export function useGlobe(options: UseGlobeOptions) {
             }
 
             globeRef.current = globe
-            // For console tooling in dev, e.g. `giveBomb()` in main.tsx.
             if (import.meta.env.DEV) Object.assign(window, {clickplanetGlobe: globe})
             setTilesCount(globe.tilesCount)
-            // The board appears with the map, not up to a sample later.
             publishLeaderboard()
             setStatus({state: 'ready'})
         }).catch((error) => {
@@ -157,7 +140,6 @@ export function useGlobe(options: UseGlobeOptions) {
     }, [])
 
     const dismissAward = useCallback(() => setAward(undefined), [])
-    // The meter's bomb button: aims the bomb held, or puts it away.
     const toggleBomb = useCallback(() => globeRef.current?.setArmed(!bombArmed), [bombArmed])
     const toggleSwitch = useCallback((name: keyof Switches) => globeRef.current?.setSwitch(name, !switches[name]), [switches])
     const dismissBomb = useCallback(() => setLastBomb(undefined), [])
@@ -190,7 +172,6 @@ export function useGlobe(options: UseGlobeOptions) {
     }
 }
 
-/** Local storage, or none where reading it throws: a private window can. */
 function localStore(): Storage | undefined {
     try {
         return window.localStorage

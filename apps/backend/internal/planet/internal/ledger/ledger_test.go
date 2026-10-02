@@ -24,7 +24,6 @@ type owners map[uint32]string
 
 func (o owners) Owner(tile uint32) (string, bool) { return o[tile], true }
 
-// board plays takes onto one map and remembers them in order, the way Recording and a storage would.
 type board struct {
 	owners  owners
 	takings []ledger.Taking
@@ -112,7 +111,6 @@ func TestARunThatEndsWhereItStartedGivesNothingBack(t *testing.T) {
 	assert.Empty(t, b.restorations("A"))
 }
 
-// Native land takes two clicks: the clear is recorded like a take with no country, so the run reaches past it.
 func TestARevertGivesClearedNativeGroundBackToItsNatives(t *testing.T) {
 	b := newBoard(owners{7: "pl", 8: "pl"})
 	b.take(7, "A", "")

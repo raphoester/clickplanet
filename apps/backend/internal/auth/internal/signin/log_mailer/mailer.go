@@ -1,4 +1,3 @@
-// Package log_mailer writes each letter to the server log instead of sending it, so a local backend signs in by email with no account anywhere.
 package log_mailer
 
 import (

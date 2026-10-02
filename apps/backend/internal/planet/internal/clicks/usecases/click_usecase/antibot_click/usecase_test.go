@@ -53,7 +53,6 @@ func (c *fakeClick) Execute(context.Context, click_usecase.In) (click_usecase.Ou
 	return click_usecase.Out{}, c.err
 }
 
-// fakeGround is whose soil each tile is on; a tile left out is in no country.
 type fakeGround map[uint32]string
 
 func (g fakeGround) CountryOf(tile uint32) string { return g[tile] }

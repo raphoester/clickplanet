@@ -19,7 +19,6 @@ const (
 
 type move struct{ from, to players.AccountID }
 
-// recordingMoves plays the use case and keeps what it was asked.
 type recordingMoves struct {
 	moves []move
 }

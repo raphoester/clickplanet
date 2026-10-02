@@ -1,4 +1,3 @@
-// Package complete_sign_in_usecase finishes a sign-in: it checks the flow, asks the provider who signed in, and signs the browser in to that identity's account.
 package complete_sign_in_usecase
 
 import (
@@ -30,8 +29,6 @@ func New(providers signin.Providers, sealer signin.Sealer, admitter *signin.Admi
 	return &UseCase{providers: providers, sealer: sealer, admitter: admitter, clock: clock}
 }
 
-// Execute answers signin.ErrSignInOff, signin.ErrFlowInvalid or signin.ErrProviderRefused for a sign-in it cannot finish,
-// and accounts.ErrIdentityLinkedElsewhere or accounts.ErrProviderAlreadyLinked for a link it refuses, having written nothing.
 func (u *UseCase) Execute(ctx context.Context, in In) (*Out, error) {
 	if u.providers.Off() {
 		return nil, signin.ErrSignInOff

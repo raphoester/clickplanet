@@ -1,4 +1,3 @@
-// Package postgres_ledger_store keeps the in-memory ledger between boots: one row per take, plus its marks.
 package postgres_ledger_store
 
 import (
@@ -28,7 +27,6 @@ type Store struct {
 
 var _ inmemory_ledger_storage.Persistence = (*Store)(nil)
 
-// Load visits every take in position order, then reads the marks.
 func (s *Store) Load(ctx context.Context, visit func(inmemory_ledger_storage.Stored)) (inmemory_ledger_storage.Marks, error) {
 	marks := inmemory_ledger_storage.Marks{Forgotten: map[ledger.Caller]ledger.Position{}}
 
@@ -36,7 +34,6 @@ func (s *Store) Load(ctx context.Context, visit func(inmemory_ledger_storage.Sto
 		return marks, err
 	}
 
-	// No row is a ledger never flushed: head 0.
 	var head int64
 	err := s.db.QueryRowContext(ctx, `SELECT head FROM ledger_head`).Scan(&head)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
@@ -117,7 +114,6 @@ func (s *Store) loadTakes(ctx context.Context, visit func(inmemory_ledger_storag
 	return nil
 }
 
-// Save copies the takes in, deletes those before the head, and moves the marks, in one transaction.
 func (s *Store) Save(ctx context.Context, changes inmemory_ledger_storage.Changes) error {
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{})
 	if err != nil {
@@ -127,7 +123,7 @@ func (s *Store) Save(ctx context.Context, changes inmemory_ledger_storage.Change
 
 	head := int64(changes.Marks.Head) //nolint:gosec // a position fits a bigint.
 
-	// Rows at or past From are this flush's takes from a commit whose answer was lost.
+	// Rows at or past From come from a flush whose commit answer was lost.
 	if _, err := tx.ExecContext(ctx,
 		`DELETE FROM ledger_takes WHERE position >= $1 OR position < $2`,
 		int64(changes.From), head, //nolint:gosec // a position fits a bigint.
@@ -157,7 +153,6 @@ func (s *Store) Save(ctx context.Context, changes inmemory_ledger_storage.Change
 	return nil
 }
 
-// copyTakes streams the takes through COPY, so an import of millions of takes is one statement.
 func copyTakes(ctx context.Context, tx *sql.Tx, changes inmemory_ledger_storage.Changes) error {
 	stmt, err := tx.PrepareContext(ctx,
 		pq.CopyIn("ledger_takes", "position", "tile", "scope", "account", "country", "previous", "taken_at"))
@@ -187,7 +182,6 @@ func copyTakes(ctx context.Context, tx *sql.Tx, changes inmemory_ledger_storage.
 	return nil
 }
 
-// saveForgotten drops the marks the head passed, and writes the ones set since the last flush.
 func saveForgotten(ctx context.Context, tx *sql.Tx, marks inmemory_ledger_storage.Marks, head int64) error {
 	if _, err := tx.ExecContext(ctx, `DELETE FROM ledger_forgotten WHERE before_position <= $1`, head); err != nil {
 		return fmt.Errorf("failed to delete forgotten scopes: %w", err)
@@ -237,7 +231,6 @@ func compareCallers(a, b ledger.Caller) int {
 	return cmp.Or(cmp.Compare(a.Scope, b.Scope), cmp.Compare(a.Account, b.Account))
 }
 
-// nullIfEmpty stores a take with no account as NULL, which a uuid column needs.
 func nullIfEmpty(value string) any {
 	if value == "" {
 		return nil

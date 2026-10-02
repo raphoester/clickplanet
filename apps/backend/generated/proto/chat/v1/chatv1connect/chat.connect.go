@@ -49,8 +49,6 @@ type ChatServiceClient interface {
 	SendMessage(context.Context, *connect.Request[v1.SendMessageRequest]) (*connect.Response[v1.SendMessageResponse], error)
 	GetHistory(context.Context, *connect.Request[v1.GetHistoryRequest]) (*connect.Response[v1.GetHistoryResponse], error)
 	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest]) (*connect.ServerStreamForClient[v1.ChatEvent], error)
-	// Puts a reaction on a message, or takes it off. Idempotent: asking for what
-	// is already there changes nothing and publishes nothing.
 	React(context.Context, *connect.Request[v1.ReactRequest]) (*connect.Response[v1.ReactResponse], error)
 }
 
@@ -126,8 +124,6 @@ type ChatServiceHandler interface {
 	SendMessage(context.Context, *connect.Request[v1.SendMessageRequest]) (*connect.Response[v1.SendMessageResponse], error)
 	GetHistory(context.Context, *connect.Request[v1.GetHistoryRequest]) (*connect.Response[v1.GetHistoryResponse], error)
 	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest], *connect.ServerStream[v1.ChatEvent]) error
-	// Puts a reaction on a message, or takes it off. Idempotent: asking for what
-	// is already there changes nothing and publishes nothing.
 	React(context.Context, *connect.Request[v1.ReactRequest]) (*connect.Response[v1.ReactResponse], error)
 }
 

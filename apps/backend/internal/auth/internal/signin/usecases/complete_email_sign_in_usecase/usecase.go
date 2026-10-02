@@ -1,4 +1,3 @@
-// Package complete_email_sign_in_usecase finishes an email sign-in: it checks the code against the challenge, and signs the browser in to the address's account.
 package complete_email_sign_in_usecase
 
 import (
@@ -26,8 +25,6 @@ func New(challenges *signin.Challenges, admitter *signin.Admitter, clock cptime.
 	return &UseCase{challenges: challenges, admitter: admitter, clock: clock}
 }
 
-// Execute answers signin.ErrSignInOff, signin.ErrFlowInvalid for a challenge to start again, and signin.ErrWrongCode for one to try
-// again, and accounts.ErrIdentityLinkedElsewhere or accounts.ErrProviderAlreadyLinked for a link it refuses, having written nothing.
 func (u *UseCase) Execute(ctx context.Context, in In) (*Out, error) {
 	if u.challenges.Off() {
 		return nil, signin.ErrSignInOff

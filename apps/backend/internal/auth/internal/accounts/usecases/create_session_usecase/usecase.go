@@ -1,4 +1,3 @@
-// Package create_session_usecase admits a caller: it checks Turnstile, brings back the account its cookie holds or starts a guest, and mints the click token for that account.
 package create_session_usecase
 
 import (
@@ -29,8 +28,6 @@ type In struct {
 	CookieHeader     string
 }
 
-// Out is the click token and the Set-Cookie to send back (empty when the cookie needs no change).
-// Linked is whether the account signed in with a provider, which the token carries: a linked account clicks faster.
 type Out struct {
 	Token     *cpsession.Token
 	Account   accounts.AccountID
@@ -68,9 +65,8 @@ func New(
 	}
 }
 
-// Execute answers attestation.ErrAttestationFailed for a caller that proved nothing.
 func (u *UseCase) Execute(ctx context.Context, in In) (*Out, error) {
-	// Without an address the token binds to the empty string, which every other caller would verify against too.
+	// An empty IP binds the token to "", which every other caller would verify against too.
 	if in.IP == "" {
 		return nil, fmt.Errorf("%w: the request carries no source address", attestation.ErrAttestationFailed)
 	}
@@ -141,7 +137,6 @@ func (u *UseCase) startGuest(ctx context.Context, now time.Time) (*Out, error) {
 	return &Out{Account: session.Account, SetCookie: session.Cookie(token, now)}, nil
 }
 
-// ended is a caller with no session to resume: no cookie, an unknown token, or an expired session.
 func ended(err error) bool {
 	return errors.Is(err, accounts.ErrNoSessionCookie) ||
 		errors.Is(err, accounts.ErrSessionNotFound) ||

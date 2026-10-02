@@ -1,4 +1,3 @@
-// Package sign_out_handler serves auth.v1.AuthService/SignOut.
 package sign_out_handler
 
 import (

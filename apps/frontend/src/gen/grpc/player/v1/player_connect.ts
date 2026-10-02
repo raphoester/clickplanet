@@ -7,11 +7,6 @@ import { AnnounceRequest, AnnounceResponse, GetPlayerRequest, GetPlayerResponse,
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
- * A player's profile and stats, and who is playing. Every procedure but
- * GetRoster, GetPlayer and ListenForEvents answers for the caller: the account named by the click token in the
- * X-Session-Token header. A call with no valid token, or a token with no
- * account, is Unauthenticated.
- *
  * @generated from service player.v1.PlayerService
  */
 export const PlayerService = {
@@ -27,19 +22,6 @@ export const PlayerService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Chooses the caller's username. The server puts the name in NFC and cuts the
-     * spaces at its ends, then it must be 3 to 15 characters (code points): letters
-     * of any script, combining marks after a letter, decimal digits, underscores
-     * and spaces, never two spaces in a row. Its letters are of one script, or
-     * Latin with Han and kana, Han and Bopomofo, or Han and Hangul. It does not
-     * start with "guest_" once case folded — the chat puts that before every
-     * guest's name. Emojis, punctuation, symbols, controls and invisible
-     * characters are refused. A name that breaks a rule is InvalidArgument.
-     * Usernames are unique ignoring case (Unicode case folding and NFKC, so
-     * "Straße" is "STRASSE"): one another account holds is AlreadyExists. The
-     * answer holds the name as it was kept. Only an account signed in with a provider may
-     * choose one; a guest is PermissionDenied.
-     *
      * @generated from rpc player.v1.PlayerService.SetName
      */
     setName: {
@@ -58,11 +40,6 @@ export const PlayerService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Says the caller is playing, under which flag. A client sends it when it
-     * gets a click token, when its flag or name changes, and every 30s after. A
-     * player that stops sending leaves the roster 90s after its last call. A
-     * country that is not one is InvalidArgument.
-     *
      * @generated from rpc player.v1.PlayerService.Announce
      */
     announce: {
@@ -72,10 +49,6 @@ export const PlayerService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Says the caller stopped playing: its page closed. It leaves the roster at
-     * once rather than 90s after its last announce. A client sends it with
-     * keepalive, and nothing waits on the answer.
-     *
      * @generated from rpc player.v1.PlayerService.Leave
      */
     leave: {
@@ -85,10 +58,6 @@ export const PlayerService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Everyone playing. It needs no token, and a proxy may serve it for 5s.
-     * ListenForEvents says the same and keeps it up to date; this stays for
-     * clients from before it.
-     *
      * @generated from rpc player.v1.PlayerService.GetRoster
      */
     getRoster: {
@@ -99,9 +68,6 @@ export const PlayerService = {
       idempotency: MethodIdempotency.NoSideEffects,
     },
     /**
-     * Who is playing, live. Needs no token. The first event is the whole roster;
-     * each one after says one player joined, changed or left.
-     *
      * @generated from rpc player.v1.PlayerService.ListenForEvents
      */
     listenForEvents: {
@@ -111,9 +77,6 @@ export const PlayerService = {
       kind: MethodKind.ServerStreaming,
     },
     /**
-     * What anybody may know about a player with a username. Needs no token.
-     * A name no account holds is not_found, and so is a guest: it has no name.
-     *
      * @generated from rpc player.v1.PlayerService.GetPlayer
      */
     getPlayer: {

@@ -1,11 +1,3 @@
-// Package antibot_click is the shadow ban, as a decorator over the click use
-// case rather than an interceptor over the procedure.
-//
-// It sits here and not at the edge because none of what it does is about HTTP:
-// it reads who held the tile before the write, it reports the take afterwards,
-// and a flagged caller is answered OK with nothing written. All three are about
-// the click, and the middle one only works adjacent to the write — afterwards
-// the map no longer remembers who held the tile.
 package antibot_click
 
 import (
@@ -21,20 +13,16 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-// ClickGuard is the part of antibot.Guard this decorator uses.
 type ClickGuard interface {
 	Inspect(click antibot.Click) (drop bool)
 	Committed(click antibot.Click)
 	Flagged() int
 }
 
-// TileOwner reads who holds a tile. The jury is handed that answer from before
-// the write, because afterwards the map no longer remembers it.
 type TileOwner interface {
 	Owner(tile uint32) (string, bool)
 }
 
-// Rule is the home-soil rule: what the click will do to the tile, read with the owner, for the same reason.
 type Rule interface {
 	Outcome(tile uint32, owner, flag string) clicks.Outcome
 }
@@ -82,13 +70,7 @@ type UseCase struct {
 	dropped        prometheus.Counter
 }
 
-// Execute answers a flagged caller exactly as it answers an accepted one: nil.
-// That is the whole point — a refusal names the check that tripped and the
-// author fixes it in an afternoon, while a silent no-op names nothing.
 func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_usecase.Out, error) {
-	// Scoped to the same unit the throttle is charged to, so a caller cannot
-	// serve a ban on one address and click from the next one in its own /64.
-	// The account rides along so a ban falls on it too, and a linked one is signed in, so its ban leaves the scope alone.
 	observed := antibot.Click{
 		Scope:    cpipscope.Of(cpctx.GetSourceIP(ctx)),
 		Account:  cpctx.GetAccount(ctx),
@@ -98,7 +80,6 @@ func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_useca
 		At:       u.clock.Now(),
 	}
 
-	// A clear still takes the tile from Held, so it is no no-op; the defender needs to know it wins nothing back.
 	if held, known := u.owner.Owner(observed.Tile); known {
 		outcome := u.rule.Outcome(observed.Tile, held, observed.Country)
 		observed.Held = held
@@ -107,15 +88,13 @@ func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_useca
 	}
 
 	if u.guard.Inspect(observed) {
+		// Answer like an accepted click: a refusal would tell the bot it was caught.
 		u.dropped.Inc()
 		return click_usecase.Out{}, nil
 	}
 
 	out, err := u.implementation.Execute(ctx, in)
 
-	// Only a click the use case accepted actually reached the map. A refused one
-	// recorded as a take is a way to have the next honest clicker of that tile
-	// look like it is reacting to something.
 	if err == nil {
 		u.guard.Committed(observed)
 	}

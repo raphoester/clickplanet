@@ -27,8 +27,6 @@ func newHarness(config metronome.Config) *harness {
 	return h
 }
 
-// after waits, then clicks. The tile moves every time so nothing here depends on
-// what the map does.
 func (h *harness) after(gap time.Duration) (detect.Verdict, detect.Evidence) {
 	h.clock.Advance(gap)
 	h.tile++
@@ -45,7 +43,6 @@ func (h *harness) after(gap time.Duration) (detect.Verdict, detect.Evidence) {
 	return h.watchdog.Watch(click)
 }
 
-// throttled tries a click the throttle refuses: timed, never judged.
 func (h *harness) throttled(gap time.Duration) {
 	h.clock.Advance(gap)
 	h.tile++
@@ -97,8 +94,6 @@ func TestAShortSteadyRunIsOnlySuspect(t *testing.T) {
 func TestTempoIsNotTheSignal(t *testing.T) {
 	h := newHarness(config())
 
-	// Two and a half seconds between clicks is slower than most players, and it
-	// is still a clock. The claim is never that the caller is fast.
 	verdict, _ := h.beat(2500*time.Millisecond, 700)
 
 	assert.Equal(t, detect.Certain, verdict)
@@ -127,8 +122,6 @@ func TestLookingAwayOnceEndsTheRun(t *testing.T) {
 
 	require.Equal(t, detect.Certain, func() detect.Verdict { v, _ := h.beat(time.Second, 700); return v }())
 
-	// A person stops to look at the map. That is the behaviour a jittered delay
-	// cannot imitate cheaply, so the evidence starts again from nothing.
 	verdict, _ := h.after(10 * time.Second)
 	assert.Equal(t, detect.Clear, verdict)
 
@@ -142,7 +135,6 @@ func TestLookingAwayOnceEndsTheRun(t *testing.T) {
 func TestASmallWobbleIsStillAClock(t *testing.T) {
 	h := newHarness(config())
 
-	// Network jitter on a loop sleeping one second. Well inside MaxSpread.
 	gaps := []time.Duration{1000, 1012, 995, 1008, 1003, 990, 1015, 1001}
 
 	var verdict detect.Verdict
@@ -158,7 +150,6 @@ func TestASmallWobbleIsStillAClock(t *testing.T) {
 func TestTheThrottleDoesNotHideTheClock(t *testing.T) {
 	h := newHarness(config())
 
-	// The bot of 2026-09-14: a try every 950ms, and the throttle keeps two in three.
 	var verdict detect.Verdict
 	for try := range 3000 {
 		if try%3 == 0 {
@@ -197,9 +188,6 @@ func TestAClickNeverTriedIsNotJudged(t *testing.T) {
 func TestJitteringWideEnoughBuysTheCallerOut(t *testing.T) {
 	h := newHarness(config())
 
-	// Honest about the bound: a bot that randomises its delay by more than
-	// MaxSpread is not caught here. It is caught by looking somewhere else,
-	// which is the whole reason there is more than one watchdog.
 	gaps := []time.Duration{700, 1300, 900, 1500, 600, 1200, 1000, 1400}
 
 	var verdict detect.Verdict

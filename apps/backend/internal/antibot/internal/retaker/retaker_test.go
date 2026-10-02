@@ -17,8 +17,7 @@ type harness struct {
 	clock     *cptime.FixedClock
 	owner     map[uint32]string
 	reactions []time.Duration
-	// ground is whose own soil a tile is on, for the home-soil rule; a tile left out is in no country.
-	ground map[uint32]string
+	ground    map[uint32]string
 }
 
 func newHarness(config retaker.Config) *harness {
@@ -35,15 +34,10 @@ func newHarness(config retaker.Config) *harness {
 	return h
 }
 
-// click walks one click through the watchdog the way the interceptor does: the
-// tile's owner is read before the handler runs, and Committed only follows a
-// click the handler accepted.
 func (h *harness) click(scope string, tile uint32, country string) detect.Verdict {
 	return h.deliver(scope, tile, country, true)
 }
 
-// refused is a click the handler turned down. It changed no tile, so nothing
-// reports back.
 func (h *harness) refused(scope string, tile uint32, country string) detect.Verdict {
 	return h.deliver(scope, tile, country, false)
 }
@@ -76,7 +70,6 @@ func (h *harness) deliver(scope string, tile uint32, country string, accepted bo
 	return verdict
 }
 
-// ms spells the delays out in the unit they are actually argued about.
 func ms(values ...int) []time.Duration {
 	out := make([]time.Duration, 0, len(values))
 	for _, value := range values {
@@ -95,8 +88,6 @@ func strictConfig() retaker.Config {
 	}
 }
 
-// war runs one exchange per delay: somebody takes the tile, the suspect takes it
-// straight back.
 func (h *harness) war(suspect string, first uint32, delays []time.Duration) detect.Verdict {
 	var verdict detect.Verdict
 
@@ -124,9 +115,6 @@ func TestATightBandOfFastReactionsIsCertain(t *testing.T) {
 func TestATightBandAtAHumanTempoIsOnlySuspect(t *testing.T) {
 	h := newHarness(strictConfig())
 
-	// The bot actually seen in production: it picks a human-looking delay on
-	// purpose, so it sails past MaxMedian. Regularity is all that is left, and
-	// regularity alone must not ban on its own.
 	verdict := h.war("bot", 200, ms(980, 1010, 995, 1020, 1000, 990))
 
 	assert.Equal(t, detect.Suspect, verdict)
@@ -217,9 +205,6 @@ func TestADroppedClickCannotFrameAnHonestPlayer(t *testing.T) {
 
 	h.click("player", contested, "FR")
 
-	// A banned caller's click is answered OK and never reaches the map, so the
-	// jury never calls Committed for it. The bot reacting to the player is real
-	// and is counted; what must not happen is the reverse.
 	h.clock.Advance(80 * time.Millisecond)
 	h.refused("bot", contested, "PS")
 
@@ -245,7 +230,6 @@ func TestReactionsAgeOutOfTheWindow(t *testing.T) {
 		"stale reactions must not keep a verdict alive")
 }
 
-// productionConfig is deploy/vps/backend.yaml's retaker block.
 func productionConfig() retaker.Config {
 	return retaker.Config{
 		ReactionWindow: 5 * time.Second,
@@ -259,8 +243,6 @@ func productionConfig() retaker.Config {
 	}
 }
 
-// recaptureBot is the Bulgaria bot of 2026-09-14, from click_reaction_seconds between
-// 21:38 and 21:48: a median near 280ms and a p90-p10 near 750ms, far past maxSpread.
 func recaptureBot(n int) []time.Duration {
 	cycle := ms(150, 200, 250, 280, 300, 350, 400, 600, 900, 120)
 
@@ -283,8 +265,6 @@ func TestTheRecaptureBotOfSeptember14IsCaught(t *testing.T) {
 func TestTheSameSpeedOnAFewTilesIsATileWar(t *testing.T) {
 	h := newHarness(productionConfig())
 
-	// The player clicking back at a bot is the fastest caller on the map, on
-	// the handful of tiles it is looking at.
 	var verdict detect.Verdict
 	for i, delay := range recaptureBot(60) {
 		tile := 4000 + uint32(i%3)
@@ -302,8 +282,6 @@ func TestTheSameSpeedOnAFewTilesIsATileWar(t *testing.T) {
 func TestHumanReactionsAcrossManyTilesAreClear(t *testing.T) {
 	h := newHarness(productionConfig())
 
-	// Medians of 1.08-1.50s and spreads of 689-879ms: the humans measured in a
-	// tile war on 2026-09-11.
 	delays := make([]time.Duration, 0, 60)
 	for range 6 {
 		delays = append(delays, ms(700, 900, 1000, 1100, 1200, 1300, 1400, 1500, 1600, 800)...)
@@ -321,8 +299,6 @@ func TestRoamIsOffWithoutMinTiles(t *testing.T) {
 	assert.Equal(t, detect.Clear, h.war("bot", 6000, recaptureBot(40)))
 }
 
-// Native land takes two clicks. A clear changed the map, so winning the empty tile back is a reaction to it; the
-// clearer's own second click, taking the tile it emptied, reacts to nobody.
 func TestAClearIsSomethingToReactTo(t *testing.T) {
 	h := newHarness(retaker.Config{})
 	h.ground[7], h.owner[7] = "BG", "BG"

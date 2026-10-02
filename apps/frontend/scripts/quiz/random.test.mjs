@@ -4,15 +4,12 @@ import {first, pick, randomFrom, shuffled} from "./random.mjs"
 const letters = ["a", "b", "c", "d", "e", "f", "g", "h"]
 
 describe("the seeded draw", () => {
-    // The bank is committed and content-addressed. A generator that drew with Math.random would
-    // write a different file from the same data, and every regeneration would look like a change.
     it("is the same every run for the same seed", () => {
         expect(shuffled(letters, "capital:ee")).toEqual(shuffled(letters, "capital:ee"))
         expect(pick(letters, 3, "borders:np")).toEqual(pick(letters, 3, "borders:np"))
     })
 
     it("is a different draw for a different seed", () => {
-        // Adding a country moves the questions about that country, and nothing else.
         expect(shuffled(letters, "capital:ee")).not.toEqual(shuffled(letters, "capital:lv"))
     })
 
@@ -27,13 +24,10 @@ describe("the seeded draw", () => {
 
 describe("first", () => {
     it("keeps the order it was given", () => {
-        // The templates rank their candidates by how good a wrong answer is — same subregion, then
-        // same continent — and a reshuffle here would throw that away.
         expect(first(letters, 3)).toEqual(["a", "b", "c"])
     })
 
     it("drops repeats and blanks", () => {
-        // Two countries can share the name of a capital, and a country can have no capital at all.
         expect(first(["a", "a", undefined, "", "b"], 3)).toEqual(["a", "b"])
     })
 

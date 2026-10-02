@@ -11,12 +11,10 @@ export type EmailSignInProps = {
     intent: Intent
 }
 
-/** Only a typo guard: the server says what an address is. */
 function looksLikeAnAddress(address: string): boolean {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address.trim())
 }
 
-/** Sign-in with a code sent to an email address: the address first, then the code, on the same page. */
 export default function EmailSignIn({state, store, intent}: EmailSignInProps) {
     return state.code
         ? <CodeForm state={state} store={store} code={state.code}/>

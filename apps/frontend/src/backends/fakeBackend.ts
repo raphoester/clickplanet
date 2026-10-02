@@ -30,29 +30,21 @@ import {outcomeOf, ownerAfter} from "../domain/homeSoil.ts";
 
 const TILE_COUNT = 257_000
 
-/** Production's `rateLimiter`: one click every 5s, 60 in hand. */
 const CLICKS_PER_SECOND = 0.2
 const CLICK_BURST = 60
 
-/** Production's `toll.steps`: from each share of the map, the refill is that many times slower. */
 const TOLL_STEPS = [
     {share: 0.10, slowdown: 1.5},
     {share: 0.20, slowdown: 2.5},
     {share: 0.30, slowdown: 4},
 ]
 
-/** Often enough to be worth developing against, not so often it is the game. */
 const BONUS_EVERY_MS = 20_000
 const BONUS_OFFER_TTL_MS = 15_000
-/**
- * The server's defaults: a pool of 8 spread clicks and a stack of 3 enclosures,
- * a box adding 1 to 4 and 1 to 3 of them, and a shape of 25 tiles at most.
- */
 const SPREAD_CLICKS = 8
 const SPREAD_PER_BOX = 4
 const ENCLOSURES = 3
 const ENCLOSURES_PER_BOX = 3
-/** The production weights, 5 : 2 : 1 : 2. `giveBomb()` in the console skips the wait. */
 const BONUS_KINDS: BonusReward["kind"][] = [
     "refill", "refill", "refill", "refill", "refill",
     "spreadClicks", "spreadClicks",
@@ -60,26 +52,16 @@ const BONUS_KINDS: BonusReward["kind"][] = [
     "encloseClicks", "encloseClicks",
 ]
 
-/** Radians of arc: the server's 8 tile spacings, at its measured spacing of 0.004. */
 const BOMB_RADIUS = 0.032
 
-/** How far from the nearest tile an aim still hits land, as the server measures it. */
 const SEA_REACH = 0.004
 
-/** Past the nearest tiles and short of the next ring: tiles sit 0.003 to 0.0044 apart. */
 const SPREAD_REACH = 0.0052
 
-/** Other players' bombs, so a blast elsewhere on the planet can be watched too. */
-// The quiz's own clock, far faster than the server's so the banner can be developed against.
 const QUIZ_EVERY_MS = 30_000
 const QUIZ_OFFER_TTL_MS = 25_000
 const QUIZ_ANSWER_MS = 5_000
 
-/**
- * The fake's whole bank. Three questions, because this is here to develop the banner and the card
- * against, not to be played: the real bank is a thousand generated questions that live on the
- * server and are deliberately never shipped to a browser. See /quiz/README.md.
- */
 const FAKE_QUIZZES: {subject: string, text: string, choices: string[], correct: number}[] = [
     {subject: "ee", text: "What is the capital of Estonia?", choices: ["Riga", "Tallinn", "Vilnius"], correct: 1},
     {subject: "np", text: "Which of these shares a border with Nepal?", choices: ["China", "Pakistan", "Myanmar"], correct: 0},
@@ -88,11 +70,9 @@ const FAKE_QUIZZES: {subject: string, text: string, choices: string[], correct: 
 
 const BOT_BOMB_EVERY_MS = 25_000
 
-/** Everyone else's clicks, together. */
 const BOT_CLICKS_PER_SECOND = 4
 const ENCLOSE_MAX_TILES = 25
 
-/** What GetBonusRules answers, from the constants above. Native land takes two clicks when the fake knows the ground. */
 const RULES: Omit<BonusRules, "homeSoil"> = {
     blastRadius: BOMB_RADIUS,
     enclosureMaxTiles: ENCLOSE_MAX_TILES,
@@ -103,16 +83,7 @@ const RULES: Omit<BonusRules, "homeSoil"> = {
 export type FakeBackendOptions = {
     vpnBlocked?: boolean
     sessionUnavailable?: boolean
-    /**
-     * Where the tiles are. The real server picks a bomb's tiles from its own
-     * map; this fake has none, so without this it never offers a bomb.
-     */
     tilePositions?: () => Promise<Float32Array>
-    /**
-     * Whose ground each tile is on. With it, the fake plays native land the way
-     * the server does: every tile starts French, so on France's own ground any
-     * other flag's first click clears the tile. Without it, every click takes.
-     */
     grounds?: () => Promise<(tile: number) => string | undefined>
 }
 
@@ -128,29 +99,20 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     private bombCallbacks: Map<string, (drop: BombDrop) => void> = new Map()
     private quizCallbacks: Map<string, (offer: QuizOffer) => void> = new Map()
 
-    /** What this player holds, as the server keeps it: one of each kind at most. */
     private charges: Charges = NO_CHARGES
     private positions: Promise<Float32Array> | undefined
     private readonly tilePositions: (() => Promise<Float32Array>) | undefined
     private readonly homeSoil: boolean
-    /** Until the borders are in, no ground is anybody's home. */
     private groundOf: (tile: number) => string | undefined = () => undefined
 
-    /** The one box outstanding, exactly as the server keeps it. */
     private offered: BonusOffer | undefined
 
-    /**
-     * The one quiz outstanding. `deadline` is undefined until it is opened, which is the whole
-     * shape of the real thing: the banner is an invitation and the clock is the answer's.
-     */
     private quiz: {token: string, expiresAt: number, asked: typeof FAKE_QUIZZES[number], deadline?: number} | undefined
 
     private readonly timers: ReturnType<typeof setInterval>[] = []
     private tokens = CLICK_BURST
     private lastRefillMs = Date.now()
-    /** What the last click's country multiplies the refill by, as the server's bucket keeps it. */
     private pace = 1
-    /** Who else the console says spends from the bucket: `fakeBackend.shareClicks("guests")`. */
     private sharedWith: SharedBy | undefined
     private readonly vpnBlocked: boolean
     private readonly sessionUnavailable: boolean
@@ -180,12 +142,9 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
             this.updateBatchCallbacks.forEach(callback => callback(updates))
         }, batchUpdateDurationMs))
 
-        // The real server draws one connected caller and offers the box to them
-        // alone. There is only one client here, so it is always this one.
         const offerable = this.tilePositions ? BONUS_KINDS : BONUS_KINDS.filter((kind) => kind !== "bomb")
 
         this.timers.push(setInterval(() => {
-            // A kind another box would add nothing to is not offered.
             const kinds = offerable.filter((kind) => !this.full(kind))
             if (kinds.length === 0) return
 
@@ -201,8 +160,6 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         }, BONUS_EVERY_MS))
 
         this.timers.push(setInterval(() => {
-            // As the server does: nothing is asked when there is no charge a right answer could be
-            // worth, and only one quiz is outstanding at a time.
             if (this.quiz || offerable.every((kind) => this.full(kind))) return
 
             const asked = FAKE_QUIZZES[Math.floor(Math.random() * FAKE_QUIZZES.length)]
@@ -221,9 +178,6 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
             }, BOT_BOMB_EVERY_MS))
         }
 
-        // Other players, as one steady trickle. A timer per country at a random
-        // period had some firing every few milliseconds, which was thousands of
-        // updates a second and enough to make the whole machine lag.
         const runs = codes.map(() => ({tile: Math.floor(Math.random() * TILE_COUNT), gap: 1 + Math.floor(Math.random() * 100)}))
         this.timers.push(setInterval(() => {
             const index = Math.floor(Math.random() * codes.length)
@@ -243,7 +197,6 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     }
 
     public async clickTile(tileId: number, countryId: string, switches: Switches = ALL_OFF) {
-        // The server refuses both at once, before anything is spent.
         if (switches.spread && switches.enclose) throw new Error("spread and enclose switched on together")
         if (this.sessionUnavailable) throw new SessionUnavailableError()
         if (this.vpnBlocked) throw new VPNBlockedError()
@@ -257,7 +210,6 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         if (switches.spread) this.announceBonusClick(tileId, countryId)
     }
 
-    /** What the server broadcasts for a click made with spread on. */
     private announceBonusClick(tileId: number, countryId: string) {
         if (this.charges.spreadClicksLeft > 0) {
             this.hold({...this.charges, spreadClicksLeft: this.charges.spreadClicksLeft - 1})
@@ -278,13 +230,11 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         }
     }
 
-    /** Keeps what the player holds and tells the stream, as the server does after every change. */
     private hold(charges: Charges) {
         this.charges = charges
         this.bonusCallbacks.forEach(handlers => handlers.onCharges(charges))
     }
 
-    /** Grants a box of `kind`, drawing how much it holds, and answers what was kept, as the server does. */
     private grant(kind: BonusReward["kind"]): ClaimedBonus {
         const held = this.charges
         switch (kind) {
@@ -307,7 +257,6 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         }
     }
 
-    /** Fills the bank with the refill held, refusing a full bank as the server does. */
     public async useRefill(): Promise<void> {
         if (!this.charges.refill) throw new BonusLostError()
 
@@ -319,10 +268,6 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         this.reportBudget()
     }
 
-    /**
-     * A spread click on `tile`, which takes the tiles within about a tile
-     * spacing of it. Public for the console: `fakeBackend.botSpread(tile, "fr")`.
-     */
     public async botSpread(tile: number, countryId: string) {
         if (!this.tilePositions) return
         const positions = await this.loadPositions()
@@ -333,21 +278,10 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         this.bonusCallbacks.forEach(handlers => handlers.onSpread({countryId, tile, spread}))
     }
 
-    /**
-     * Grants a bonus as if a box had just been caught, skipping the box. Only
-     * the server's half, like `grantBomb`: see `giveBonus` in main.tsx.
-     */
     public grantBonus(kind: Exclude<BonusReward["kind"], "bomb">): ClaimedBonus {
         return this.grant(kind)
     }
 
-    /**
-     * This fake has no map geometry, so it cannot find a shape. While enclose
-     * is on and an enclosure held, every click pretends it closed one instead: a
-     * run of neighbouring ids as the outline, and the ids just past it as the
-     * inside. Consecutive ids mostly sit side by side on the globe, so it draws
-     * a short streak rather than a shape — enough to develop the effect against.
-     */
     private pretendToEnclose(tileId: number, countryId: string) {
         if (this.charges.enclosures === 0) return
 
@@ -361,11 +295,6 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         this.bonusCallbacks.forEach(handlers => handlers.onEnclosed(enclosure))
     }
 
-    /**
-     * Stands in for what the real server puts on every click answer, so the
-     * counter is live in dev without a backend. There is no latency here, so it
-     * is also the one place the counter cannot be caught lying.
-     */
     public watchClickBudget(callback: (budget: ClickBudget) => void): () => void {
         const id = UUIDv4()
         this.budgetCallbacks.set(id, callback)
@@ -378,7 +307,6 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         this.budgetCallbacks.forEach(callback => callback(budget))
     }
 
-    /** For the console: as if somebody else behind the address spent from this bucket. Nothing is its own again. */
     public shareClicks(sharedWith?: SharedBy): void {
         this.sharedWith = sharedWith
         this.reportBudget()
@@ -392,10 +320,6 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     private budget(): ClickBudget {
         this.refill()
 
-        // The refill slows with the last click's country, exactly as the
-        // server's does — so the meter here is driven by the same thing it will
-        // be in production rather than by the component. The bank never changes
-        // size.
         return {
             tokens: this.tokens,
             capacity: CLICK_BURST,
@@ -418,7 +342,6 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         return {slowdown, share}
     }
 
-    /** A click, a spread's neighbour or an enclosed tile, as the server writes it: through the home-soil rule. */
     private applyClick(tileId: number, countryId: string) {
         const prev = this.tileBindings.get(tileId)
         const next = ownerAfter(outcomeOf(prev, this.groundOf(tileId), countryId), prev, countryId)
@@ -458,7 +381,6 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     public listenForBonuses(handlers: BonusHandlers): () => void {
         const identifier = UUIDv4()
         this.bonusCallbacks.set(identifier, handlers)
-        // What the real client reads at load: the rules, and what is held.
         handlers.onRules({...RULES, homeSoil: this.homeSoil})
         handlers.onCharges(this.charges)
 
@@ -468,8 +390,6 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     public async claimBonus(token: string, countryId: string): Promise<ClaimedBonus> {
         const offer = this.offered
 
-        // The same four refusals the server has, answered as one: unknown,
-        // spent, lapsed, or never this caller's.
         if (!offer || offer.token !== token || budgetNow() > offer.expiresAt) {
             throw new BonusLostError()
         }
@@ -493,7 +413,6 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         const quiz = this.quiz
         if (!quiz || quiz.token !== token || budgetNow() > quiz.expiresAt) throw new BonusLostError()
 
-        // Stamped once: opening twice is the same question with less time on it, never more.
         quiz.deadline ??= budgetNow() + QUIZ_ANSWER_MS
 
         return {
@@ -506,7 +425,6 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
 
     public async answerQuiz(token: string, choice: number, countryId: string): Promise<QuizOutcome> {
         const quiz = this.quiz
-        // An answer to a question nobody read is a client that skipped openQuiz.
         if (!quiz || quiz.token !== token || quiz.deadline === undefined) throw new BonusLostError()
 
         this.quiz = undefined
@@ -514,7 +432,6 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         const correct = budgetNow() <= quiz.deadline && choice === quiz.asked.correct
         if (!correct) return {correct: false, correctChoice: quiz.asked.correct}
 
-        // The same charges a box pays out in, drawn from the kinds this player is not full on.
         const kinds = BONUS_KINDS.filter((kind) => !this.full(kind) && (kind !== "bomb" || this.tilePositions))
         if (kinds.length === 0) return {correct: true, correctChoice: quiz.asked.correct}
 
@@ -524,9 +441,6 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         return {correct: true, correctChoice: quiz.asked.correct, reward}
     }
 
-    /**
-     * Puts a quiz up now, skipping the wait. See `giveQuiz` in main.tsx.
-     */
     public offerQuiz(): QuizOffer {
         const asked = FAKE_QUIZZES[Math.floor(Math.random() * FAKE_QUIZZES.length)]
         this.quiz = {token: UUIDv4(), expiresAt: budgetNow() + QUIZ_OFFER_TTL_MS, asked}
@@ -537,11 +451,6 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         return offer
     }
 
-    /**
-     * Grants a bomb as if a box had just been caught, skipping the box. Only
-     * the server's half: the globe still has to be told, see `giveBomb` in
-     * main.tsx.
-     */
     public grantBomb(): ClaimedBonus {
         return this.grant("bomb")
     }
@@ -560,7 +469,6 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         await this.explode(target, countryId)
     }
 
-    /** Someone else's bomb, on `tile`. Public for the console: `fakeBackend.botBomb(tile, "fr")`. */
     public async botBomb(tile: number, countryId: string) {
         if (!this.tilePositions) return
         const positions = await this.loadPositions()
@@ -568,7 +476,6 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         await this.explode({x: positions[o], y: positions[o + 1], z: positions[o + 2]}, countryId)
     }
 
-    /** Lands a bomb as the server does: on the nearest tile, or in the sea past SEA_REACH. */
     private async explode(target: GlobePoint, countryId: string) {
         if (!this.tilePositions) return
         const positions = await this.loadPositions()
@@ -636,12 +543,10 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     }
 }
 
-/** From 1 to `most`, evenly. */
 function drawUpTo(most: number): number {
     return 1 + Math.floor(Math.random() * most)
 }
 
-/** `amount` is what a box added; an offer says only the kind, and reads as one. */
 function rewardOfKind(kind: BonusReward["kind"], amount = 1): BonusReward {
     switch (kind) {
         case "bomb":

@@ -22,7 +22,6 @@ function providerOf(wire: WireProvider): Provider | undefined {
     return (Object.keys(TO_WIRE) as Provider[]).find((name) => TO_WIRE[name] === wire)
 }
 
-/** Drops a provider this build has no name for, so a new one on the server shows no broken button. */
 function providersOf(wire: WireProvider[]): Provider[] {
     return wire.map(providerOf).filter((p): p is Provider => p !== undefined)
 }
@@ -32,7 +31,6 @@ const INTENTS: Record<Intent, SignInIntent> = {
     link: SignInIntent.LINK,
 }
 
-/** Matched on the detail, not the code: the detail says which refusal it is. */
 const LINK_REFUSALS: Partial<Record<LinkRefusalReason, AuthFailure>> = {
     [LinkRefusalReason.IDENTITY_LINKED_ELSEWHERE]: "linkedElsewhere",
     [LinkRefusalReason.PROVIDER_ALREADY_LINKED]: "alreadyLinked",
@@ -54,7 +52,6 @@ const FAILURES: Failures = {
     [Code.Unauthenticated]: "notSignedIn",
 }
 
-/** `own` is what a code means on this one procedure, ahead of what it means on every other. */
 async function mapped<T>(call: () => Promise<T>, own: Failures = {}): Promise<T> {
     try {
         return await call()
@@ -70,20 +67,11 @@ function refusalOf(e: ConnectError, own: Failures): AuthFailure | undefined {
     return (link && LINK_REFUSALS[link.reason]) ?? (email && EMAIL_REFUSALS[email.reason]) ?? own[e.code] ?? FAILURES[e.code]
 }
 
-/**
- * `auth.v1.AuthService` behind `AccountBackend`. Takes the client built by
- * `newAuthServiceClient`, the one transport that sends the cookie, and the
- * Turnstile attester an email code is asked for with.
- *
- * Only the two reads are retried. A retried `CompleteSignIn` would spend a
- * code that is good once, and every write here spends the mint budget or
- * changes the account.
- */
+// Only reads are retried: a retried CompleteSignIn would spend a one-time code.
 export class ConnectAccountBackend implements AccountBackend {
     constructor(private readonly client: PromiseClient<typeof AuthService>, private readonly attest: Attester) {
     }
 
-    /** An old server, or one with the whole auth module off, 404s: that is no provider, not a failure. */
     public async signInOptions(): Promise<Provider[]> {
         try {
             const res = await retrying(() => this.client.getSignInOptions({}), "GetSignInOptions")
@@ -94,7 +82,6 @@ export class ConnectAccountBackend implements AccountBackend {
         }
     }
 
-    /** A browser with no account yet is not an error: it is a guest that has not clicked. */
     public async me(): Promise<Me> {
         try {
             const res = await retrying(() => this.client.getMe({}), "GetMe")
@@ -114,7 +101,6 @@ export class ConnectAccountBackend implements AccountBackend {
         await mapped(() => this.client.completeSignIn({code, state}))
     }
 
-    /** A refused attestation is `refused`, and a widget that never answered is `failed`. */
     public async startEmailSignIn(email: string, intent: Intent): Promise<void> {
         await mapped(async () => this.client.startEmailSignIn({email, intent: INTENTS[intent], attestationToken: await this.attest()}),
             {[Code.ResourceExhausted]: "tooManyCodes"})

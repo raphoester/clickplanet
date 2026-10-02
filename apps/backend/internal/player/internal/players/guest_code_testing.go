@@ -7,7 +7,6 @@ import (
 	"sync"
 )
 
-// SequentialCodes answers 000001, then 000002, and so on.
 type SequentialCodes struct {
 	mu   sync.Mutex
 	next int
@@ -21,7 +20,6 @@ func (s *SequentialCodes) NewGuestCode() (GuestCode, error) {
 	return GuestCode(fmt.Sprintf("%06x", s.next)), nil
 }
 
-// RepeatedCodes answers the codes given in turn, then the last one forever: a generator that repeats itself.
 type RepeatedCodes struct {
 	mu    sync.Mutex
 	codes []GuestCode

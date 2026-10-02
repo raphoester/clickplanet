@@ -21,7 +21,6 @@ const ttl = time.Hour
 
 var now = time.Date(2026, 9, 9, 12, 0, 0, 0, time.UTC)
 
-// Where the account, the expiry and the linked byte sit, for the tests that forge one.
 const (
 	expiryAt  = 1
 	accountAt = 17
@@ -156,7 +155,6 @@ func TestAGuestCannotMarkItsTokenLinked(t *testing.T) {
 		cpsession.Holder{Account: cpsession.AccountID(uuid.MustParse("01926c6e-7a4b-7c3d-8e9f-0a1b2c3d4e5f"))}, now)
 	require.NoError(t, err)
 
-	// A linked account clicks faster, so the byte that says so is signed like the rest.
 	raw := decode(t, token.Value)
 	raw[linkedAt] = 1
 
@@ -171,7 +169,6 @@ func TestATokenMintedBeforeTheLinkedByteVerifiesAsNotLinked(t *testing.T) {
 	require.NoError(t, err)
 	account := cpsession.AccountID(uuid.MustParse("01926c6e-7a4b-7c3d-8e9f-0a1b2c3d4e5f"))
 
-	// Version 1, as the server before this one minted it: no linked byte. It stays valid until it expires.
 	payload := make([]byte, 0, linkedAt)
 	payload = append(payload, 1)
 	payload = binary.BigEndian.AppendUint64(payload, uint64(now.Add(ttl).UnixMilli()))
@@ -229,7 +226,6 @@ func TestATokenIsRefusedByAVerifierHoldingAnotherKey(t *testing.T) {
 	token, err := signer.Mint("203.0.113.7", cpsession.Nobody, now)
 	require.NoError(t, err)
 
-	// A second pair, from a seed that is not the test one.
 	other, err := cpsession.NewVerifier("d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a")
 	require.NoError(t, err)
 
@@ -243,7 +239,6 @@ func TestAnExtendedExpiryDoesNotVerify(t *testing.T) {
 	token, err := signer.Mint("203.0.113.7", cpsession.Nobody, now)
 	require.NoError(t, err)
 
-	// The expiry travels in the clear, so a caller reads it; what it must not do is push it out.
 	raw := decode(t, token.Value)
 	for i := expiryAt; i < expiryAt+8; i++ {
 		raw[i] = 0x7f
@@ -259,8 +254,6 @@ func TestATokenOfAnotherVersionIsMalformed(t *testing.T) {
 	token, err := signer.Mint("203.0.113.7", cpsession.Nobody, now)
 	require.NoError(t, err)
 
-	// The byte that lets a later format be accepted beside this one instead of
-	// making every token in flight unreadable.
 	raw := decode(t, token.Value)
 	raw[0] = cpsession.Version + 1
 
@@ -308,7 +301,6 @@ func TestASignerSaysWhatVerifiesIt(t *testing.T) {
 	signer, err := cpsession.NewSigner(signing)
 	require.NoError(t, err)
 
-	// What auth answers over the internal listener: the half that is not a secret.
 	assert.Equal(t, public, signer.PublicKey())
 }
 
@@ -320,8 +312,6 @@ func TestADisabledBlockNeedsNoSeed(t *testing.T) {
 func TestAV6TokenVerifiesAcrossItsOwnPrefix(t *testing.T) {
 	signer, verifier := newPair(t)
 
-	// A privacy address rotating under a player must not log them out: the
-	// binding is to the /64, which the caller has not left.
 	token, err := signer.Mint("2001:db8:1:2::1", cpsession.Nobody, now)
 	require.NoError(t, err)
 
@@ -333,8 +323,6 @@ func TestAV6TokenVerifiesAcrossItsOwnPrefix(t *testing.T) {
 func TestAV6TokenIsRefusedOutsideItsPrefix(t *testing.T) {
 	signer, verifier := newPair(t)
 
-	// The other half of the same rule: leaving the /64 is leaving the scope the
-	// token was minted for, so it buys nothing there.
 	token, err := signer.Mint("2001:db8:1:2::1", cpsession.Nobody, now)
 	require.NoError(t, err)
 

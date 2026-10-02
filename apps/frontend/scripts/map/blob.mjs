@@ -1,8 +1,3 @@
-// Reads the two shared blobs from /map, for the tools that only look at them.
-//
-// The writers stay where they are — `writeCoordinates.ts` runs under vite-node and shares the
-// encoder with the app, which is what keeps the two ends of the format in one place. These readers
-// exist because the audit is plain node and only needs to look.
 import fs from "node:fs"
 import path from "node:path"
 import {fileURLToPath} from "node:url"
@@ -15,7 +10,6 @@ export const staticDir = path.join(frontendRoot, "static")
 const COORDINATES = /^coordinates-[0-9a-f]{8}\.bin$/
 const BORDERS = /^borders-[0-9a-f]{8}\.bin$/
 
-/** The one blob of a kind in a directory. Content-addressed, so a second one is a stale copy. */
 export function blobNamed(pattern, directory = mapDir) {
     const names = fs.readdirSync(directory).filter((entry) => pattern.test(entry))
     if (names.length !== 1) {

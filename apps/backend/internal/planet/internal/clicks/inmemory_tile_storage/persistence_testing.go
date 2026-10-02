@@ -9,7 +9,6 @@ import (
 	"sync"
 )
 
-// MemoryPersistence is a Persistence held in a map, for tests that need a storage but not postgres.
 type MemoryPersistence struct {
 	mu      sync.Mutex
 	rows    map[uint32]string
@@ -17,13 +16,11 @@ type MemoryPersistence struct {
 	failing error
 }
 
-// Save is one call to MemoryPersistence.Save, as it was made.
 type Save struct {
 	Tiles  []uint32
 	Owners []string
 }
 
-// NewMemoryPersistence starts holding rows, as a table would.
 func NewMemoryPersistence(rows map[uint32]string) *MemoryPersistence {
 	held := make(map[uint32]string, len(rows))
 	maps.Copy(held, rows)
@@ -76,7 +73,6 @@ func (m *MemoryPersistence) Saves() []Save {
 	return slices.Clone(m.saves)
 }
 
-// FailWith makes every Load and Save return err until Heal.
 func (m *MemoryPersistence) FailWith(err error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

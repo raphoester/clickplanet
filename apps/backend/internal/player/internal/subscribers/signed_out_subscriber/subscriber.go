@@ -1,4 +1,3 @@
-// Package signed_out_subscriber hears auth.v1.SignedOut and takes the account off the roster.
 package signed_out_subscriber
 
 import (
@@ -23,7 +22,6 @@ type Subscriber struct {
 
 var _ cpbootstrap.Handler[*authv1.SignedOut] = Subscriber{}
 
-// Handle forgets the account's visit. A device still signed in to it announces again within 30s.
 func (s Subscriber) Handle(ctx context.Context, event *authv1.SignedOut) error {
 	account, err := players.AccountIDOf(event.GetAccountId())
 	if err != nil {

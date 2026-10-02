@@ -67,7 +67,6 @@ func (f *fixture) guest(t *testing.T, account byte, token string) {
 	require.NoError(t, f.store.CreateGuest(t.Context(), accounts.GuestSession(accounts.AccountID{15: account}, accounts.TokenOf(token), lifetime, start)))
 }
 
-// began starts an email sign-in and answers the challenge cookie. The first code is 000001.
 func (f *fixture) began(t *testing.T, intent accounts.Intent, sessionCookie string) string {
 	t.Helper()
 

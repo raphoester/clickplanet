@@ -1,4 +1,3 @@
-// Package churner watches for a caller that sheds its guest account every minute or two to get a fresh bank of clicks.
 package churner
 
 import (
@@ -26,13 +25,11 @@ type Config struct {
 	SweepInterval time.Duration
 }
 
-// Bounds are the guest accounts born on one scope inside Window; zero never reads a level.
 type Bounds struct {
 	MinAccounts     int
 	CertainAccounts int
 }
 
-// Relay is one fresh account taking over from another that spent about one bank and stopped.
 type Relay struct {
 	Handoff time.Duration
 	MaxLife time.Duration
@@ -83,7 +80,6 @@ func (c Config) withDefaults() Config {
 	if c.Relay.V6Bits <= 0 || c.Relay.V6Bits > 64 {
 		c.Relay.V6Bits = defaultV6Bits
 	}
-	// An account that handed off must outlive every account that took over from it inside Window.
 	if minimum := c.Window + c.Relay.Handoff; c.TrackWindow < minimum {
 		c.TrackWindow = minimum
 	}
@@ -93,7 +89,6 @@ func (c Config) withDefaults() Config {
 	return c
 }
 
-// New takes onAccounts, each scope's accounts born inside Window, and onLinks, each relay's takeovers, once a sweep.
 func New(config Config, clock cptime.Clock, onAccounts func(accounts int, family string), onLinks func(links int)) *Watchdog {
 	return &Watchdog{
 		config:     config.withDefaults(),
@@ -121,7 +116,6 @@ type Watchdog struct {
 
 var _ detect.Watchdog = (*Watchdog)(nil)
 
-// account is a guest account, keyed on the scope it was first seen on: a person takes theirs from one /64 to the next.
 type account struct {
 	id     string
 	scope  string
@@ -144,7 +138,6 @@ func (w *Watchdog) Attempted(detect.Click) {}
 func (w *Watchdog) Committed(detect.Click) {}
 
 func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
-	// A signed-in account costs a provider identity to replace, and its ban would fall on it alone.
 	if click.Scope == "" || click.Account == "" || click.SignedIn {
 		return detect.Clear, detect.Evidence{}
 	}
@@ -223,7 +216,6 @@ func (w *Watchdog) churnLocked(scope string, now time.Time) (detect.Verdict, det
 	}}
 }
 
-// bornLocked is how many accounts were first seen on scope inside Window.
 func (w *Watchdog) bornLocked(scope string, now time.Time) int {
 	from := now.Add(-w.config.Window)
 
@@ -236,7 +228,6 @@ func (w *Watchdog) bornLocked(scope string, now time.Time) int {
 	return accounts
 }
 
-// boundsOf holds anything that is not an IPv6 scope to the IPv4 bounds, the tolerant ones: one address is often a carrier's NAT.
 func (w *Watchdog) boundsOf(scope string) (Bounds, string) {
 	if v6(scope) {
 		return w.config.V6, "v6"
@@ -284,7 +275,6 @@ func (w *Watchdog) relayLocked(a *account, now time.Time) (detect.Verdict, detec
 	}}
 }
 
-// predecessorLocked is the account a took over from: same prefix and flag, short-lived, stopped just before a started.
 func (w *Watchdog) predecessorLocked(a *account, flag string) (*account, bool) {
 	var closest *account
 
@@ -307,7 +297,6 @@ func (w *Watchdog) predecessorLocked(a *account, flag string) (*account, bool) {
 	return closest, closest != nil
 }
 
-// linksLocked is how many accounts painting flag in prefix took over from another inside Window.
 func (w *Watchdog) linksLocked(prefix, flag string, now time.Time) int {
 	from := now.Add(-w.config.Window)
 
@@ -327,7 +316,6 @@ func (w *Watchdog) linksLocked(prefix, flag string, now time.Time) int {
 	return links
 }
 
-// painting is a's flag, once a has clicked enough and nearly all of it for one flag.
 func (w *Watchdog) painting(a *account) (string, bool) {
 	if a.clicks < w.config.Relay.MinClicks {
 		return "", false
@@ -404,7 +392,6 @@ type chain struct {
 	flag   string
 }
 
-// sweep forgets silent accounts and reports every scope and relay an account clicked on since the last sweep.
 func (w *Watchdog) sweep() {
 	now := w.clock.Now()
 

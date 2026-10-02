@@ -17,7 +17,6 @@ func newClock() *cptime.FixedClock {
 
 const threeYears = 3 * 365 * 24 * time.Hour
 
-// newBanner keeps its bans in memory and fails the test on any state error.
 func newBanner(t *testing.T, config shadowban.Config, clock cptime.Clock) *shadowban.Banner {
 	t.Helper()
 	return shadowban.New(config, clock, shadowban.NewMemoryPersistence(), failOnStateError(t))

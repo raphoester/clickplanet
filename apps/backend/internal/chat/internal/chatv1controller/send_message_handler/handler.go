@@ -1,4 +1,3 @@
-// Package send_message_handler serves chat.v1.ChatService/SendMessage.
 package send_message_handler
 
 import (

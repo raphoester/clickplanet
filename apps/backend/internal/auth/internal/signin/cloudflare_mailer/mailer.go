@@ -1,4 +1,3 @@
-// Package cloudflare_mailer sends a letter through Cloudflare Email Sending's REST API.
 package cloudflare_mailer
 
 import (
@@ -20,14 +19,11 @@ const Production = "https://api.cloudflare.com/client/v4"
 
 const maxBodyBytes = 1 << 16
 
-// Config holds no default: the account id and the token come from the environment.
 type Config struct {
 	AccountID string
-	// Needs the Email Sending: Edit permission, and nothing else.
-	APIToken string
+	APIToken  string
 }
 
-// Sender must be on a domain onboarded to Email Sending in that account.
 type Sender struct {
 	Address string
 	Name    string

@@ -5,12 +5,9 @@ import (
 	"time"
 )
 
-// Account is a player, and the providers it signs in with. A guest has none.
 type Account struct {
-	ID AccountID
-	// When the account was made: as a guest, or by a first sign-in.
-	CreatedAt time.Time
-	// Oldest link first.
+	ID         AccountID
+	CreatedAt  time.Time
 	Identities []Identity
 }
 
@@ -18,7 +15,6 @@ func (a *Account) Linked() bool {
 	return len(a.Identities) > 0
 }
 
-// Providers is the name of each linked provider, oldest link first.
 func (a *Account) Providers() []string {
 	providers := make([]string, 0, len(a.Identities))
 	for _, identity := range a.Identities {
@@ -31,25 +27,21 @@ func (a *Account) linkedTo(provider string) bool {
 	return slices.Contains(a.Providers(), provider)
 }
 
-// Identity is one provider's user, linked to one account.
 type Identity struct {
-	Provider string
-	Subject  string
-	Account  AccountID
-	// Empty unless the provider said the address is verified.
+	Provider      string
+	Subject       string
+	Account       AccountID
 	Email         string
 	EmailVerified bool
 	LinkedAt      time.Time
 }
 
-// Claim is what a provider says about the user who signed in.
 type Claim struct {
 	Subject       string
 	Email         string
 	EmailVerified bool
 }
 
-// NewIdentity links claim to account. An unverified email is dropped: nobody may be reached, or matched, on an address they may not own.
 func NewIdentity(provider string, claim Claim, account AccountID, now time.Time) *Identity {
 	identity := &Identity{Provider: provider, Subject: claim.Subject, Account: account, LinkedAt: now}
 	if claim.EmailVerified && claim.Email != "" {
@@ -59,29 +51,22 @@ func NewIdentity(provider string, claim Claim, account AccountID, now time.Time)
 	return identity
 }
 
-// Intent is what the player asked for when the sign-in started.
 type Intent int
 
 const (
-	// The zero value, so a flow sealed before intents existed still signs in.
+	// Must stay the zero value: flows sealed before intents existed carry none.
 	IntentSignIn Intent = iota
-	// Adds the identity to the account the browser is on, and never moves the browser to another one.
 	IntentLink
 )
 
-// Outcome is what a sign-in does with an identity.
 type Outcome int
 
 const (
-	// The identity is known: the browser moves to its account, and the account it was on is left as it was.
 	SignedIn Outcome = iota + 1
-	// The identity is new: it is linked to the account the browser is on.
 	Linked
-	// The identity is new, and the browser has no account to take it: a new account is made.
 	Created
 )
 
-// OutcomeOf decides a sign-in. Emails are never compared: two identities are one player only when the player links them.
 func OutcomeOf(intent Intent, current *Account, known *Identity, provider string) (Outcome, error) {
 	if intent == IntentLink {
 		return linkOutcomeOf(current, known, provider)
@@ -96,13 +81,11 @@ func OutcomeOf(intent Intent, current *Account, known *Identity, provider string
 	}
 }
 
-// linkOutcomeOf refuses what a sign-in would do elsewhere: a link never leaves the account the player is on.
 func linkOutcomeOf(current *Account, known *Identity, provider string) (Outcome, error) {
 	switch {
 	case current == nil:
 		return 0, ErrNoAccount
 	case known != nil && known.Account == current.ID:
-		// Already linked here: nothing to link, and the browser stays.
 		return SignedIn, nil
 	case known != nil:
 		return 0, ErrIdentityLinkedElsewhere
@@ -113,13 +96,9 @@ func linkOutcomeOf(current *Account, known *Identity, provider string) (Outcome,
 	}
 }
 
-// SignIn is everything a sign-in writes, in one transaction.
 type SignIn struct {
-	// The account row to create first, when the outcome is Created.
 	NewAccount bool
-	// The identity to link, or nil when it was already known.
-	Identity *Identity
-	Session  *Session
-	// The browser's previous session, deleted, or nil when it had none.
-	Replaces TokenHash
+	Identity   *Identity
+	Session    *Session
+	Replaces   TokenHash
 }

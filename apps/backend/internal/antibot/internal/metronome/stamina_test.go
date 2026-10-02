@@ -43,7 +43,6 @@ func (s *spenders) every(gap, d time.Duration, account string) (detect.Verdict, 
 	return verdict, evidence
 }
 
-// nightBot is the bot of 2026-09-28: the refill of a guest's allowance, and five minutes off every half hour.
 func (s *spenders) nightBot(d time.Duration, account string) (detect.Verdict, detect.Evidence) {
 	var (
 		verdict  detect.Verdict

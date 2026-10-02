@@ -12,13 +12,11 @@ type Limiter interface {
 	Take(key string) (bool, cpratelimit.State)
 }
 
-// Challenges issues the email challenges and checks the ones a browser brings back. Off, email sign-in is not offered.
 type Challenges struct {
 	offered bool
 	secrets Secrets
 	codes   Codes
 	sealer  ChallengeSealer
-	// One bucket per challenge, so the guesses are counted on the server.
 	guesses Limiter
 }
 
@@ -30,7 +28,6 @@ func (c *Challenges) Off() bool {
 	return !c.offered
 }
 
-// Issued is a new challenge for address, and the Set-Cookie that brings it back.
 func (c *Challenges) Issued(address Address, intent accounts.Intent, account accounts.AccountID, now time.Time) (*Challenge, string, error) {
 	challenge, err := NewChallenge(address, intent, account, c.secrets, c.codes, now)
 	if err != nil {
@@ -43,7 +40,6 @@ func (c *Challenges) Issued(address Address, intent accounts.Intent, account acc
 	return challenge, challenge.Cookie(sealed, now), nil
 }
 
-// Opened answers ErrFlowInvalid for a browser that brought no challenge, or one this server did not seal.
 func (c *Challenges) Opened(cookieHeader string) (*Challenge, error) {
 	sealed, found := accounts.CookieValue(cookieHeader, ChallengeCookieName)
 	if !found {
@@ -56,7 +52,6 @@ func (c *Challenges) Opened(cookieHeader string) (*Challenge, error) {
 	return challenge, nil
 }
 
-// Guess spends one of the challenge's guesses, the right one too, then checks the code: ErrFlowInvalid once they are spent.
 func (c *Challenges) Guess(challenge *Challenge, code string, now time.Time) error {
 	if allowed, _ := c.guesses.Take(challenge.ID); !allowed {
 		return fmt.Errorf("%w: too many codes were wrong", ErrFlowInvalid)

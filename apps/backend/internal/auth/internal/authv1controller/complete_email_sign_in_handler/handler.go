@@ -1,4 +1,3 @@
-// Package complete_email_sign_in_handler serves auth.v1.AuthService/CompleteEmailSignIn.
 package complete_email_sign_in_handler
 
 import (
@@ -15,7 +14,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/usecases/complete_email_sign_in_usecase"
 )
 
-// ErrStartAgain is the whole of what a browser whose challenge cannot be completed is told.
 var ErrStartAgain = errors.New("this sign-in cannot be completed: ask for a new code")
 
 var outcomes = map[accounts.Outcome]authv1.SignInOutcome{
@@ -37,7 +35,6 @@ type CompleteEmailSignInHandler struct {
 	logger  *slog.Logger
 }
 
-// CompleteEmailSignIn keeps the challenge cookie only for a wrong code, which the player may type again.
 func (h CompleteEmailSignInHandler) CompleteEmailSignIn(
 	ctx context.Context,
 	req *connect.Request[authv1.CompleteEmailSignInRequest],

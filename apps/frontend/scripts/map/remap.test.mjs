@@ -2,7 +2,6 @@ import {describe, expect, it} from "vitest"
 
 import {remap, remapSQL} from "./remap.mjs"
 
-// Positions stand in for the keys `keyOf` writes; what matters is only which are in both lists.
 const ids = (...names) => names
 
 describe("remap", () => {
@@ -30,9 +29,6 @@ describe("remap", () => {
         expect(remap(before, after).runs).toEqual([{from: 1, to: 2, span: 5}])
     })
 
-    // The whole reason the mapping fits in a migration: both blobs are the same lattice in the same
-    // generation order, so a tile in both cannot come out before one it used to come after. A blob
-    // built some other way would silently produce a mapping that overwrites rows, so it is refused.
     it("refuses a mapping that is not monotonic", () => {
         expect(() => remap(ids("a", "b"), ids("b", "a"))).toThrow(/not monotonic/)
     })
@@ -59,7 +55,6 @@ describe("remapSQL", () => {
     })
 
     it("rebuilds tiles rather than updating in place", () => {
-        // An id can move up or down, so an UPDATE would collide with a row it has not moved yet.
         const sql = remapSQL(plan)
         expect(sql).toContain("DELETE FROM tiles;")
         expect(sql).toContain("INSERT INTO tiles (id, country)")

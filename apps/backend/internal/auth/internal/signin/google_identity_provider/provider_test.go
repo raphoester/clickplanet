@@ -41,7 +41,6 @@ func goodClaims() map[string]any {
 	}
 }
 
-// google answers the token endpoint with idToken, and records the form it was sent.
 func google(t *testing.T, status int, body map[string]any) (*google_identity_provider.Provider, *url.Values) {
 	t.Helper()
 

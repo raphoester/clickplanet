@@ -35,8 +35,6 @@ func TestAReadingNamesItsRuleAndItsNumbers(t *testing.T) {
 		"ordered by key, so two lines about the same watchdog read the same way")
 }
 
-// The report holds the slice the fields came in on, and the caller is still
-// holding the report while it renders it.
 func TestRenderingDoesNotReorderTheReportsOwnFields(t *testing.T) {
 	fields := []detect.Field{
 		{Key: "steps", Value: 200},

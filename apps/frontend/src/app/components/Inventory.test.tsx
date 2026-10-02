@@ -83,8 +83,6 @@ describe("Inventory", () => {
         expect(slot(/^Bomb/).disabled).toBe(true)
     })
 
-    // The app folds everything the same way: a header over the body, with a
-    // chevron at the right end that turns over when it opens.
     it("folds from a header over the slots", () => {
         render(inventory())
 

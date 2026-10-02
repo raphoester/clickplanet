@@ -26,9 +26,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// throttledServer wires the throttle where it now lives — inside the click
-// chain — and serves it over HTTP, which is the only way to see that a refusal
-// still reaches a browser as a 429 now that no interceptor produces one.
 func throttledServer(t *testing.T, config cpratelimit.Config) (*httptest.Server, *cptime.FixedClock) {
 	t.Helper()
 	return pricedServer(t, config, onePrice)
@@ -172,8 +169,6 @@ func TestTheBudgetIsAbsentWithoutAThrottle(t *testing.T) {
 	require.Nil(t, res.Msg.GetBudget(), "a server that does not throttle promises no allowance")
 }
 
-// accountVerifier accepts a token that is an account id, and names that account. Prefixed with
-// linkedPrefix, the account signed in with a provider.
 type accountVerifier struct{}
 
 const linkedPrefix = "linked "
@@ -428,7 +423,6 @@ func TestSigningInKeepsTheBankAndSpeedsUpItsRefill(t *testing.T) {
 		require.NoErrorf(t, err, "click %d", click)
 	}
 
-	// One bucket for the account, signed in or not: signing in is not a top-up.
 	_, err := clickWithToken(t, server, "1.2.3.4", linkedPrefix+account)
 	require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(err), "the guest's bank is still spent")
 

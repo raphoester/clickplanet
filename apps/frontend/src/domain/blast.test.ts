@@ -1,7 +1,6 @@
 import {describe, expect, it} from "vitest"
 import {BLAST_TIMELINE, blastOver, describeBlast, nearestTile, tilesWithin} from "./blast.ts"
 
-// Four tiles on the equator a quarter turn apart, and one just beside the first.
 const POSITIONS = new Float32Array([
     1, 0, 0,
     0, 1, 0,
@@ -16,7 +15,6 @@ describe("tilesWithin", () => {
     })
 
     it("measures along the surface, not across the chord", () => {
-        // A quarter turn is π/2 of arc; the chord would be √2.
         expect(tilesWithin(POSITIONS, 1, Math.PI / 2 - 0.01)).toEqual([1, 5])
         expect(tilesWithin(POSITIONS, 1, Math.PI / 2 + 0.01)).toEqual([1, 2, 4, 5])
     })

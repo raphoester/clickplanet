@@ -11,7 +11,6 @@ type SessionFinder interface {
 	Session(ctx context.Context, tokenHash TokenHash) (*Session, error)
 }
 
-// Caller is the live session a browser's cookie holds. Absent is ErrNoAccount; a store failure is not.
 func Caller(ctx context.Context, sessions SessionFinder, cookieHeader string, now time.Time) (*Session, error) {
 	token, err := TokenFromCookies(cookieHeader)
 	if err != nil {

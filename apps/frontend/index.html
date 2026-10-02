@@ -2,13 +2,6 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8"/>
-    <!--
-      A browser that has played before goes straight to the game. The game keeps
-      the chosen country under this key (COUNTRY_STORAGE_KEY in
-      src/app/countryPreference.ts, pinned by homePage.test.ts). First in <head>,
-      so nothing of this page is painted before it leaves. /#home is the menu's
-      link back here, and stays.
-    -->
     <script>
         try {
             if (location.hash !== "#home" && localStorage.getItem("clickplanet-country") !== null) {
@@ -32,11 +25,6 @@
     <meta property="og:site_name" content="ClickPlanet"/>
     <meta property="og:locale" content="en_US"/>
 
-    <!--
-      Scrapers lay the card out before the image finishes downloading, and some
-      of them fall back to a small text-only card without the dimensions. The
-      size here must match what `npm run og-image` produces.
-    -->
     <meta property="og:image" content="https://clickplanet.lol/static/og-image-e8ac259e.jpg"/>
     <meta property="og:image:secure_url" content="https://clickplanet.lol/static/og-image-e8ac259e.jpg"/>
     <meta property="og:image:type" content="image/jpeg"/>
@@ -60,11 +48,6 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Oswald:wght@400;500&display=swap"
           rel="stylesheet">
-    <!--
-      The home page. A plain page, like privacy.html: no bundle, no WebGL, and
-      everything a reader needs is in the HTML, because Google's brand
-      verification reads it. The game is play.html, at /play.
-    -->
     <style>
         :root {
             --ground: #04090F;
@@ -150,7 +133,6 @@
             border: 1px solid var(--line);
         }
 
-        /* Every button is the game's: the title face, white on a colour, a hard shadow. */
         .button {
             display: flex;
             align-items: center;
@@ -206,7 +188,6 @@
             font-size: 32px;
         }
 
-        /* Header */
 
         .header {
             position: sticky;
@@ -279,7 +260,6 @@
             text-shadow: -1px 1px 0 #000000;
         }
 
-        /* Hero */
 
         .hero {
             padding: 88px 0 96px;
@@ -353,11 +333,7 @@
             color: var(--muted);
         }
 
-        /*
-         * Signing in is worth clicking faster. The number is the backend's
-         * rateLimiter.linkedMultiplier in deploy/vps/backend.yaml: this page is
-         * plain HTML and cannot read it, so change both together.
-         */
+        /* "2× faster" is the backend's rateLimiter.linkedMultiplier: change both together. */
         .boost {
             display: flex;
             align-items: center;
@@ -422,7 +398,6 @@
             box-shadow: 0 40px 80px #00000099;
         }
 
-        /* How it works */
 
         .section-head {
             display: flex;
@@ -465,7 +440,6 @@
             font-size: 30px;
         }
 
-        /* Features */
 
         .showcase {
             display: grid;
@@ -569,7 +543,6 @@
             font-size: 16px;
         }
 
-        /* Anywhere */
 
         .anywhere {
             padding-bottom: 0;
@@ -620,7 +593,6 @@
             border-radius: 38px 38px 0 0;
         }
 
-        /* Creator */
 
         .creator {
             display: flex;
@@ -658,7 +630,6 @@
             padding-top: 6px;
         }
 
-        /* Discord */
 
         .discord {
             padding-top: 0;
@@ -704,7 +675,6 @@
             background: #E8EAFF;
         }
 
-        /* Footer */
 
         footer {
             padding: 64px 0 48px;
@@ -788,7 +758,6 @@
             }
         }
 
-        /* Tablet: one column for the hero and the showcase, two for the cards. */
         @media only screen and (max-width: 1100px) {
             .hero .wrap {
                 grid-template-columns: minmax(0, 1fr);

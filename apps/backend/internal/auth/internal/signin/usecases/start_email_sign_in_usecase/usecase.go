@@ -1,4 +1,3 @@
-// Package start_email_sign_in_usecase opens an email sign-in: a challenge, its code mailed to the address, and the cookie that brings it back.
 package start_email_sign_in_usecase
 
 import (
@@ -37,8 +36,6 @@ func New(
 	return &UseCase{attester: attester, sessions: sessions, challenges: challenges, post: post, clock: clock}
 }
 
-// Execute answers signin.ErrSignInOff, signin.ErrAddressInvalid, attestation.ErrAttestationFailed, accounts.ErrNoAccount for a link
-// from a browser with no account, and signin.ErrAddressDisposable or signin.ErrTooManyCodes, having sent nothing.
 func (u *UseCase) Execute(ctx context.Context, in In) (*Out, error) {
 	if u.challenges.Off() {
 		return nil, signin.ErrSignInOff
@@ -47,7 +44,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) (*Out, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to read the address: %w", err)
 	}
-	// Before the post spends the address's budget, so a caller that proves nothing cannot keep its owner from signing in.
+	// Before the post spends the address's budget, or a script could lock its owner out.
 	if err := u.attester.Attest(ctx, in.AttestationToken, in.IP); err != nil {
 		return nil, fmt.Errorf("%w: %w", attestation.ErrAttestationFailed, err)
 	}

@@ -1,4 +1,3 @@
-// Package postgres_ban_store keeps the shadow bans between boots: one row per scope, or per account, ever banned.
 package postgres_ban_store
 
 import (
@@ -14,7 +13,6 @@ import (
 
 var _ shadowban.Persistence = (*Store)(nil)
 
-// NewScopes keeps the bans on scopes, in antibot.bans.
 func NewScopes(db cppg.Querier) *Store {
 	return &Store{db: db, load: `SELECT scope, flags, offences, banned_until FROM bans`, save: `
 		INSERT INTO bans (scope, flags, offences, banned_until)
@@ -26,7 +24,6 @@ func NewScopes(db cppg.Querier) *Store {
 	`}
 }
 
-// NewAccounts keeps the bans on accounts, in antibot.account_bans.
 func NewAccounts(db cppg.Querier) *Store {
 	return &Store{db: db, load: `SELECT account::text, flags, offences, banned_until FROM account_bans`, save: `
 		INSERT INTO account_bans (account, flags, offences, banned_until)
@@ -44,7 +41,6 @@ type Store struct {
 	save string
 }
 
-// Load calls visit once per stored ban, in no particular order.
 func (s *Store) Load(ctx context.Context, visit func(record shadowban.Record)) error {
 	rows, err := s.db.QueryContext(ctx, s.load)
 	if err != nil {
@@ -67,7 +63,6 @@ func (s *Store) Load(ctx context.Context, visit func(record shadowban.Record)) e
 	return nil
 }
 
-// Save upserts every record in one statement, so a failed save writes none.
 func (s *Store) Save(ctx context.Context, records []shadowban.Record) error {
 	keys := make([]string, len(records))
 	flags := make([]int64, len(records))

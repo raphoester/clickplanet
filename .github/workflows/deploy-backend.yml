@@ -41,10 +41,6 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # Caddy is built here, not on the droplet. Linking Caddy with the Cloudflare
-  # DNS plugin pulls in certmagic, quic-go, smallstep, otel and the AWS SDK —
-  # minutes of CPU and enough memory to OOM a 1 GB box. Same rule as the
-  # backend: CI builds, the box only pulls.
   caddy:
     runs-on: ubuntu-latest
     permissions:
@@ -71,10 +67,6 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # Every push to main publishes a new :<sha> tag for both images, so versions
-  # accumulate without bound. Storage is free for public packages, but the
-  # package page becomes unusable after a few hundred. Keeps the newest 20 of
-  # each — :latest always points at the newest, so it is never a candidate.
   prune:
     needs: [ build, caddy ]
     runs-on: ubuntu-latest
@@ -85,34 +77,18 @@ jobs:
         package: [ clickplanet-backend, clickplanet-caddy ]
     steps:
       - uses: actions/delete-package-versions@v5
-        continue-on-error: true   # retention must never fail a deploy
+        continue-on-error: true
         with:
           package-name: ${{ matrix.package }}
           package-type: container
           min-versions-to-keep: 20
 
-  # The droplet's .env is rendered here and never edited by hand. Editing it over
-  # ssh meant the only copy of every secret lived on one box: nothing else knew
-  # what was set, a rebuild started from a blank file, and a typo was found by
-  # the stack failing to come up.
-  #
-  # Actions secrets are write-only — nothing outside a workflow run can read them
-  # back — so this job is the one place able to render the file. That also means
-  # they cannot be recovered if lost: keep a copy in a password manager.
-  #
-  # The whole secret set is handed to the render step as one object, so **no
-  # secret is named anywhere in this file**. Adding one is done in the GitHub UI
-  # and read as ${THE_NAME} in deploy/vps/docker-compose.yaml; nothing between
-  # those two points has to learn about it.
   deploy:
     needs: [ build, caddy ]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      # Rendered on the runner rather than over ssh: the logic lives in a script
-      # that can be run and tested outside CI (`make env-preview`), and the box
-      # receives a finished file instead of a heredoc.
       - name: render the droplet's env files
         working-directory: deploy/vps
         env:
@@ -125,8 +101,6 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          # Compose reads .env, Caddy loads .env.caddy, the backend loads
-          # .env.backend, and no container sees another's secrets.
           source: deploy/vps/rendered/.env,deploy/vps/rendered/.env.caddy,deploy/vps/rendered/.env.backend
           target: /tmp/cp-env
           strip_components: 3
@@ -143,14 +117,9 @@ jobs:
             before=$(git -C /opt/clickplanet rev-parse HEAD)
             git -C /opt/clickplanet pull --ff-only
 
-            # Keep the outgoing files. If a secret is ever dropped from the
-            # repository the stack fails to come up, but only after these have
-            # been replaced — and CHAT_TAG_SALT and SESSION_SECRET are the two
-            # where that is visible to every player. The .previous copies are
-            # what get them back.
             for f in .env .env.caddy .env.backend; do
               if [ -f "$f" ]; then
-                cp -p "$f" "$f.previous"   # gitignored by .env.*
+                cp -p "$f" "$f.previous"
                 chown --reference="$f" "/tmp/cp-env/$f"
               fi
               chmod 600 "/tmp/cp-env/$f"
@@ -159,24 +128,13 @@ jobs:
             rmdir /tmp/cp-env
 
             docker compose pull
-            # Check the new Caddyfile with the new image before anything goes
-            # live. `run` is a throwaway container with no ports, so it works
-            # whether or not cp-caddy is up. A bad file fails the deploy here
-            # and the running Caddy keeps its old config.
             docker compose run --rm --no-deps -T caddy \
               caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
             docker compose up -d
-            # The backend reads backend.yaml once, at boot, and `up -d` only
-            # recreates a container whose image or compose settings changed. So a
-            # merge that only edits the file would be pulled and never read:
-            # recreate the backend when the file moved.
             if ! git -C /opt/clickplanet diff --quiet "$before" HEAD -- deploy/vps/backend.yaml; then
               docker compose up -d --force-recreate --no-deps backend
             fi
-            # `up -d` does not recreate Caddy for a Caddyfile edit, so load it
-            # in place. A reload keeps open connections, and is a no-op when the
-            # config did not change. The retry covers a Caddy that `up` has just
-            # recreated and whose admin API is not listening yet.
+            # up -d ignores a Caddyfile edit; retry until a new Caddy's admin API listens.
             for i in $(seq 1 15); do
               docker compose exec -T caddy \
                 caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile && break

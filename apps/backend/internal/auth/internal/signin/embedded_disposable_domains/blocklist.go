@@ -1,5 +1,3 @@
-// Package embedded_disposable_domains is the disposable-email-domains blocklist (CC0),
-// vendored and embedded. Refresh it with `make disposable-domains` and commit the result.
 package embedded_disposable_domains
 
 import (
@@ -16,7 +14,7 @@ import (
 //go:embed disposable_email_blocklist.conf
 var vendored []byte
 
-// minDomains is far below the ~9,000 the list holds: fewer is a truncated download.
+// The list holds ~9,000: fewer than this is a truncated download.
 const minDomains = 5000
 
 type Blocklist struct {
@@ -47,7 +45,6 @@ func (b *Blocklist) Load() error {
 	return nil
 }
 
-// Disposable checks the parents too: a subdomain of a disposable service hands out addresses as freely.
 func (b *Blocklist) Disposable(domain string) bool {
 	for name := strings.ToLower(domain); name != ""; {
 		if b.domains.Contains(name) {

@@ -1,6 +1,3 @@
-// Layout, little-endian: "CPCO" | uint32 version | uint32 tile count N |
-// N*3 f32 positions | N*2 f32 uvs. The 12-byte header keeps the float
-// sections 4-byte aligned so the decoder can take zero-copy views.
 export const COORDINATES_MAGIC = "CPCO"
 export const COORDINATES_FORMAT_VERSION = 1
 export const COORDINATES_HEADER_BYTES = 12

@@ -77,7 +77,6 @@ func (s *testSuite) TestSaveSpansChunks() {
 func (s *testSuite) TestAFailedSaveWritesNothing() {
 	ctx := context.Background()
 
-	// The second chunk breaks the CHECK on country; the first must not have landed either.
 	tiles := make([]uint32, 15_000)
 	owners := make([]string, 15_000)
 	for i := range tiles {

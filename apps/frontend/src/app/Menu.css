@@ -74,9 +74,6 @@
     flex-shrink: 0;
 }
 
-/* Every action is an icon. They share the row and may shrink below their size:
-   a word here ("About") could not shrink, and pushed the last button out of the
-   card once the players button joined the row. */
 .menu-actions > .menu-sound,
 .menu-actions > .menu-icon {
     flex: 1 1 56px;

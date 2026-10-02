@@ -46,7 +46,6 @@ function setup(backend: Fake, player: FakePlayer = fakePlayer()) {
     return {store, session, navigate, remember, player}
 }
 
-/** Resolves a promise the test holds back until it calls `release`. */
 function held<T>() {
     let release: (value: T) => void = () => {}
     const promise = new Promise<T>((resolve) => {
@@ -74,7 +73,6 @@ describe("AccountStore", () => {
             expect(store.state()).toEqual({kind: "hidden"})
         })
 
-        // Login is optional: a section that cannot say what it offers is better absent.
         it("hides everything when the options cannot be read", async () => {
             const backend = fakeBackend()
             backend.signInOptions.mockImplementation(refusing("failed"))
@@ -85,7 +83,6 @@ describe("AccountStore", () => {
             expect(store.state()).toEqual({kind: "hidden"})
         })
 
-        // Sign-in turned off on the server must not strand a player who can still sign out.
         it("still shows a linked account when no provider is offered", async () => {
             const {store} = setup(fakeBackend([], {linked: ["google"]}))
 
@@ -138,7 +135,6 @@ describe("AccountStore", () => {
             expect(navigate).toHaveBeenCalledWith("https://discord.example/authorize")
         })
 
-        // A link never moves the browser to another account: the server refuses instead.
         it("links from a linked account, and remembers it is a link", async () => {
             const backend = fakeBackend(["google", "discord"], {linked: ["discord"]})
             const {store, navigate, remember} = setup(backend)
@@ -204,7 +200,6 @@ describe("AccountStore", () => {
             expect(backend.startSignIn).not.toHaveBeenCalled()
         })
 
-        // Sign-in shares the mint budget. The player waits and presses again.
         it("reports a spent budget and stays where it was", async () => {
             const backend = fakeBackend()
             backend.startSignIn.mockImplementation(refusing("tooManyTries"))
@@ -351,7 +346,6 @@ describe("AccountStore", () => {
             expect(player.profile).toHaveBeenCalledTimes(1)
         })
 
-        // Reading it needs a click token: a guest must not mint just to learn it has none.
         it("is not read for a guest", async () => {
             const {store, player} = setup(fakeBackend(), fakePlayer("ana"))
 

@@ -1,7 +1,6 @@
 import {AuthFailure, Provider, PROVIDER_NAMES} from "../../backends/account.ts"
 import {PlayerFailure} from "../../backends/player.ts"
 
-/** One short line per failure. Plain words: the player did nothing wrong in most of these. */
 export function messageOf(failure: AuthFailure, provider?: Provider): string {
     switch (failure) {
         case "off":
@@ -38,7 +37,6 @@ export function messageOf(failure: AuthFailure, provider?: Provider): string {
     }
 }
 
-/** One short line per refused username, shown under the name form. */
 export function usernameMessageOf(failure: PlayerFailure): string {
     switch (failure) {
         case "invalid":
@@ -54,15 +52,6 @@ export function usernameMessageOf(failure: PlayerFailure): string {
     }
 }
 
-/**
- * What "Try again" does on the callback page.
- *
- * - `complete`: send the same code again. Only when the server did not use it:
- *   a spent budget is refused before the code is read, and a request that
- *   failed on the way may not have arrived.
- * - `start`: the code is spent or the flow is gone, so go back to the provider.
- * - `none`: nothing the player can do from here.
- */
 export type Retry = "complete" | "start" | "none"
 
 export function retryOf(failure: AuthFailure): Retry {
@@ -87,7 +76,6 @@ export function retryOf(failure: AuthFailure): Retry {
     }
 }
 
-/** "Google", "Google and Discord". */
 export function providerList(providers: Provider[]): string {
     return providers.map((p) => PROVIDER_NAMES[p]).join(" and ")
 }

@@ -22,10 +22,9 @@ const (
 )
 
 type Profile struct {
-	state     protoimpl.MessageState `protogen:"open.v1"`
-	AccountId string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
-	// The username, as it was typed. Empty while the player has not chosen one.
-	Name          string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -243,15 +242,11 @@ func (x *SetNameResponse) GetProfile() *Profile {
 }
 
 type Stats struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Every tile the account took: clicks, spreads and encloses.
-	TilesTaken uint64 `protobuf:"varint,1,opt,name=tiles_taken,json=tilesTaken,proto3" json:"tiles_taken,omitempty"`
-	// Days in a row, UTC, with at least one take, the last of them today or
-	// yesterday. Zero once a whole day went by with no take.
-	StreakCurrent uint32 `protobuf:"varint,2,opt,name=streak_current,json=streakCurrent,proto3" json:"streak_current,omitempty"`
-	StreakBest    uint32 `protobuf:"varint,3,opt,name=streak_best,json=streakBest,proto3" json:"streak_best,omitempty"`
-	// The last UTC day with a take, as YYYY-MM-DD. Empty with no take.
-	StreakLastDay string `protobuf:"bytes,4,opt,name=streak_last_day,json=streakLastDay,proto3" json:"streak_last_day,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TilesTaken    uint64                 `protobuf:"varint,1,opt,name=tiles_taken,json=tilesTaken,proto3" json:"tiles_taken,omitempty"`
+	StreakCurrent uint32                 `protobuf:"varint,2,opt,name=streak_current,json=streakCurrent,proto3" json:"streak_current,omitempty"`
+	StreakBest    uint32                 `protobuf:"varint,3,opt,name=streak_best,json=streakBest,proto3" json:"streak_best,omitempty"`
+	StreakLastDay string                 `protobuf:"bytes,4,opt,name=streak_last_day,json=streakLastDay,proto3" json:"streak_last_day,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -583,10 +578,8 @@ func (*GetRosterRequest) Descriptor() ([]byte, []int) {
 }
 
 type GetRosterResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Players with a username first, then guests; each group by name, ignoring
-	// case.
-	Entries       []*RosterEntry `protobuf:"bytes,1,rep,name=entries,proto3" json:"entries,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Entries       []*RosterEntry         `protobuf:"bytes,1,rep,name=entries,proto3" json:"entries,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -629,18 +622,12 @@ func (x *GetRosterResponse) GetEntries() []*RosterEntry {
 }
 
 type RosterEntry struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// A username, or "guest_" and the account's guest code, as on a chat
-	// message.
-	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	// The flag the player last announced.
-	CountryId string `protobuf:"bytes,3,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
-	Guest     bool   `protobuf:"varint,4,opt,name=guest,proto3" json:"guest,omitempty"`
-	// An admin of the game. Never a guest.
-	Admin bool `protobuf:"varint,5,opt,name=admin,proto3" json:"admin,omitempty"`
-	// Names this line for as long as the player stays on the roster, a sign-in
-	// and a new name included. Opaque: it says nothing about the account.
-	Key           string `protobuf:"bytes,6,opt,name=key,proto3" json:"key,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	CountryId     string                 `protobuf:"bytes,3,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
+	Guest         bool                   `protobuf:"varint,4,opt,name=guest,proto3" json:"guest,omitempty"`
+	Admin         bool                   `protobuf:"varint,5,opt,name=admin,proto3" json:"admin,omitempty"`
+	Key           string                 `protobuf:"bytes,6,opt,name=key,proto3" json:"key,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -746,11 +733,6 @@ func (*ListenForEventsRequest) Descriptor() ([]byte, []int) {
 	return file_player_v1_player_proto_rawDescGZIP(), []int{15}
 }
 
-// The one live stream of this API — see the note on planet.v1.PlanetEvent. A
-// new kind of event is a new case below, not a second stream.
-//
-// Heartbeat is what keeps a quiet stream alive: Cloudflare cuts a silent
-// response at ~125s with a 524.
 type PlayerEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Types that are valid to be assigned to Event:
@@ -842,20 +824,14 @@ type isPlayerEvent_Event interface {
 }
 
 type PlayerEvent_Roster struct {
-	// The whole roster, in GetRoster's order. Always the first event, so a
-	// client that reconnects starts over from it.
 	Roster *Roster `protobuf:"bytes,1,opt,name=roster,proto3,oneof"`
 }
 
 type PlayerEvent_Entry struct {
-	// A player joined, or a line changed: its name or its flag. It
-	// replaces the line with the same key.
 	Entry *RosterEntry `protobuf:"bytes,2,opt,name=entry,proto3,oneof"`
 }
 
 type PlayerEvent_Left struct {
-	// The line with this key is gone: the player left, signed out or stopped
-	// announcing.
 	Left *PlayerLeft `protobuf:"bytes,3,opt,name=left,proto3,oneof"`
 }
 
@@ -872,10 +848,8 @@ func (*PlayerEvent_Left) isPlayerEvent_Event() {}
 func (*PlayerEvent_Heartbeat) isPlayerEvent_Event() {}
 
 type Roster struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Players with a username first, then guests; each group by name, ignoring
-	// case.
-	Entries       []*RosterEntry `protobuf:"bytes,1,rep,name=entries,proto3" json:"entries,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Entries       []*RosterEntry         `protobuf:"bytes,1,rep,name=entries,proto3" json:"entries,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -998,9 +972,8 @@ func (*Heartbeat) Descriptor() ([]byte, []int) {
 }
 
 type GetPlayerRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// A username, in any case.
-	Name          string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1087,17 +1060,13 @@ func (x *GetPlayerResponse) GetPlayer() *Player {
 }
 
 type Player struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// The username as its player typed it.
-	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	// As of today: a streak that ended before yesterday reads 0.
-	Stats *Stats `protobuf:"bytes,2,opt,name=stats,proto3" json:"stats,omitempty"`
-	// When the account was made, as a guest or by a first sign-in.
-	CreatedAtUnixMs int64 `protobuf:"varint,3,opt,name=created_at_unix_ms,json=createdAtUnixMs,proto3" json:"created_at_unix_ms,omitempty"`
-	// An admin of the game.
-	Admin         bool `protobuf:"varint,4,opt,name=admin,proto3" json:"admin,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Name            string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Stats           *Stats                 `protobuf:"bytes,2,opt,name=stats,proto3" json:"stats,omitempty"`
+	CreatedAtUnixMs int64                  `protobuf:"varint,3,opt,name=created_at_unix_ms,json=createdAtUnixMs,proto3" json:"created_at_unix_ms,omitempty"`
+	Admin           bool                   `protobuf:"varint,4,opt,name=admin,proto3" json:"admin,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *Player) Reset() {

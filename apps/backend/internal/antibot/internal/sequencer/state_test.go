@@ -27,7 +27,6 @@ func TestStepsSurviveASaveAndLoad(t *testing.T) {
 	restarted := New(config, clock)
 	require.NoError(t, restarted.Load(data))
 
-	// The next id continues the stride only if the last tile came back too.
 	clock.Advance(time.Second)
 	next := detect.Click{Scope: "sweeper", Tile: 1030, Country: "FR", At: clock.Now()}
 	wantVerdict, wantEvidence := w.Watch(next)

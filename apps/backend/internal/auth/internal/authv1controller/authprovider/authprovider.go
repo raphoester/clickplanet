@@ -1,4 +1,3 @@
-// Package authprovider names a provider and an intent on the wire, for every handler that says one.
 package authprovider
 
 import (
@@ -13,7 +12,6 @@ var names = map[authv1.Provider]string{
 	authv1.Provider_PROVIDER_EMAIL:   signin.Email,
 }
 
-// NameOf is the provider's name, or empty for one this server has no name for.
 func NameOf(provider authv1.Provider) string {
 	return names[provider]
 }
@@ -27,7 +25,6 @@ func ProtoOf(name string) authv1.Provider {
 	return authv1.Provider_PROVIDER_UNSPECIFIED
 }
 
-// IntentOf reads only a link as a link: unset, as from every client before intents, signs in.
 func IntentOf(intent authv1.SignInIntent) accounts.Intent {
 	if intent == authv1.SignInIntent_SIGN_IN_INTENT_LINK {
 		return accounts.IntentLink

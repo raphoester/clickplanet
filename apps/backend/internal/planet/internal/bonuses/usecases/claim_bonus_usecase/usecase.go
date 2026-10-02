@@ -1,4 +1,3 @@
-// Package claim_bonus_usecase redeems a box and hands over the charge it is worth.
 package claim_bonus_usecase
 
 import (
@@ -9,9 +8,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
 
-// ErrNoSuchBonus covers every way a claim can fail and tells nobody which:
-// unknown, spent, lapsed and somebody else's are the same answer, because the
-// difference is what a script guessing tokens would measure.
+// One error for every failure: telling them apart helps a script guessing tokens.
 var ErrNoSuchBonus = errors.New("no bonus to claim")
 
 type Registry interface {
@@ -19,7 +16,6 @@ type Registry interface {
 	Publish(taken bonuses.Taken)
 }
 
-// Charger hands a caller the charge a box was worth, for the click chain, drop_bomb and use_refill to spend.
 type Charger interface {
 	Grant(holder bonuses.Holder, kind bonuses.Kind, amount int)
 	Held(holder bonuses.Holder) bonuses.Held
@@ -33,11 +29,8 @@ type In struct {
 type Out struct {
 	Kind bonuses.Kind
 
-	// How much the box added: enclosures or spread clicks, one for a refill or a bomb. Less than the box
-	// drew when the stack or the pool reached its size, so the player is never told of what was not kept.
 	Amount int
 
-	// What the caller holds once the charge is granted.
 	Held bonuses.Held
 }
 
@@ -50,8 +43,6 @@ type UseCase struct {
 	charger  Charger
 }
 
-// Execute derives the payer the way the throttle does, which ties the offer and the claim to one scope,
-// and the charge to the account that scope's click spends, by construction rather than by agreement.
 func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	payer := clicks.PayerOf(ctx)
 
@@ -65,8 +56,6 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	u.charger.Grant(holder, reward.Kind, reward.Amount)
 	held := u.charger.Held(holder)
 
-	// Only once the charge is held: a catch announced to the planet that then failed to apply is the one
-	// lie this could tell.
 	u.registry.Publish(bonuses.Taken{CountryID: in.CountryID, Kind: reward.Kind})
 
 	return Out{Kind: reward.Kind, Amount: held.Count(reward.Kind) - before.Count(reward.Kind), Held: held}, nil

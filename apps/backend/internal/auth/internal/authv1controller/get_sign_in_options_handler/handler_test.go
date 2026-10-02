@@ -47,7 +47,6 @@ func TestSignInOffIsAnEmptyListAndNotAnError(t *testing.T) {
 	assert.Empty(t, res.Msg.GetProviders())
 }
 
-// onlyGetSignInOptions serves GetSignInOptions, and Unimplemented for every other procedure.
 type onlyGetSignInOptions struct {
 	unimplemented
 	get_sign_in_options_handler.GetSignInOptionsHandler
@@ -61,7 +60,6 @@ type refuseAll struct{}
 
 func (refuseAll) Take(string) (bool, cpratelimit.State) { return false, cpratelimit.State{} }
 
-// A client asks on every page load, so the question must not spend the mint budget the sign-in itself needs.
 func TestAskingIsNotThrottled(t *testing.T) {
 	service := onlyGetSignInOptions{GetSignInOptionsHandler: get_sign_in_options_handler.New(signin.Providers{})}
 	mux := http.NewServeMux()

@@ -36,7 +36,6 @@ func (s gameStack) roster(t *testing.T) *connect.Response[playerv1.GetRosterResp
 	return res
 }
 
-// names is the roster as its names.
 func (s gameStack) names(t *testing.T) []string {
 	t.Helper()
 
@@ -152,7 +151,6 @@ func TestAnAnnounceForACountryThatIsNotOneIsInvalidArgument(t *testing.T) {
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 }
 
-// rosterStream reads player.v1.PlayerService/ListenForEvents on a goroutine, until the test ends.
 func (s gameStack) rosterStream(t *testing.T) <-chan *playerv1.PlayerEvent {
 	t.Helper()
 

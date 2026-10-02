@@ -8,14 +8,12 @@ import {truncate} from "../truncate.ts"
 import {usePlayerInfo} from "./usePlayerInfo.ts"
 import "./PlayerCard.css"
 
-/** Longer than the roster lets a name run: the card has the room. */
 const NAME_MAX_LENGTH = 24
 
 const day = new Intl.DateTimeFormat(undefined, {dateStyle: "medium"})
 const count = new Intl.NumberFormat()
 
 export type PlayerCardProps = {
-    /** Who was clicked: a line of the roster, or the author of a chat message. */
     player: PlayerLine
     backend: PlayerInfoBackend
     onClose: () => void
@@ -25,7 +23,6 @@ export default function PlayerCard({player, backend, onClose}: PlayerCardProps) 
     const state = usePlayerInfo(backend, player)
     const country = Countries.get(player.countryCode)?.name ?? player.countryCode
 
-    // What was clicked says so at once; the read can only confirm it, or say so for a name opened elsewhere.
     const admin = player.admin || (state.kind === "ready" && state.info.admin)
     const title = <span className="player-card-title">
         {truncate(player.name, NAME_MAX_LENGTH)}

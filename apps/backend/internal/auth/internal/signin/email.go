@@ -17,15 +17,13 @@ var (
 	ErrWrongCode         = errors.New("this is not the code that was sent")
 )
 
-// maxAddressLength is RFC 5321's limit on a path.
+// RFC 5321's limit on a path.
 const maxAddressLength = 254
 
 var hostname = regexp.MustCompile(`^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z0-9]([a-z0-9-]*[a-z0-9])?$`)
 
-// Address is trimmed and in lower case, so one inbox is one identity. Unlike a provider's email, it finds an account.
 type Address string
 
-// AddressOf takes one bare address: no display name, no comment, no quotes, and a domain with a dot.
 func AddressOf(raw string) (Address, error) {
 	trimmed := strings.TrimSpace(raw)
 	if len(trimmed) > maxAddressLength {
@@ -51,7 +49,6 @@ func (a Address) Domain() string {
 	return string(a)[strings.LastIndex(string(a), "@")+1:]
 }
 
-// Blocklist knows the domains that hand out addresses for nothing.
 type Blocklist interface {
 	Disposable(domain string) bool
 }
@@ -62,7 +59,6 @@ type Letter struct {
 	HTML    string
 }
 
-// CodeLetter puts the code in the subject too, so a notification shows it.
 func CodeLetter(code string) Letter {
 	minutes := int(ChallengeTTL.Minutes())
 	return Letter{

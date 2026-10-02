@@ -1,4 +1,3 @@
-// Package audit_ban logs every operator ban, refusals included.
 package audit_ban
 
 import (
@@ -21,7 +20,6 @@ type Audited struct {
 	logger *slog.Logger
 }
 
-// Execute logs at Warn: the log is the only record that a person, not a watchdog, passed this ban.
 func (a *Audited) Execute(ctx context.Context, in ban_player_usecase.In) (ban_player_usecase.Out, error) {
 	out, err := a.inner.Execute(ctx, in)
 

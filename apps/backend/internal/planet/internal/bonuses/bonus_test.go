@@ -16,8 +16,6 @@ var epoch = time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 
 const window = time.Minute
 
-// A fixed window makes the schedule assertable; the spread has its own test. Only refills are offered,
-// and the holdings are the test's own, so a claim never holds a kind back.
 func newTestRegistry() (*Registry, *cptime.FixedClock) {
 	return newRegistryOffering(map[Kind]float64{KindRefill: 1})
 }
@@ -38,12 +36,10 @@ func newRegistryOffering(kinds map[Kind]float64) (*Registry, *cptime.FixedClock)
 	}, clock, newFakeHoldings()), clock
 }
 
-// holderOf is the account that plays from scope: one each, here.
 func holderOf(scope string) Holder {
 	return HolderOf(clicks.Payer{Scope: scope, Account: "acc-" + scope})
 }
 
-// fakeHoldings is what each holder holds, set by the test.
 type fakeHoldings struct{ held map[Holder]Held }
 
 func newFakeHoldings() *fakeHoldings {
@@ -67,7 +63,6 @@ func (f *fakeHoldings) grant(holder Holder, kind Kind) {
 	f.held[holder] = held
 }
 
-// take spends everything holder holds.
 func (f *fakeHoldings) take(holder Holder) {
 	delete(f.held, holder)
 }
@@ -76,7 +71,6 @@ func holdingsOf(r *Registry) *fakeHoldings {
 	return r.holdings.(*fakeHoldings) //nolint:forcetypeassert // every registry in these tests is built with one.
 }
 
-// attend opens a stream, closed when the test ends.
 func attend(t *testing.T, r *Registry, scope string) <-chan Event {
 	t.Helper()
 
@@ -86,13 +80,10 @@ func attend(t *testing.T, r *Registry, scope string) <-chan Event {
 	return events
 }
 
-// clicked is a click from scope by a caller with no account.
 func clicked(r *Registry, scope string) {
 	r.Clicked(scope, holderOf(scope))
 }
 
-// playing is a caller with a stream open who has clicked, which is what it
-// takes to be offered anything.
 func playing(t *testing.T, r *Registry, scope string) <-chan Event {
 	t.Helper()
 
@@ -102,7 +93,6 @@ func playing(t *testing.T, r *Registry, scope string) <-chan Event {
 	return events
 }
 
-// everyKind is every kind, allowed.
 func everyKind() *cpcolls.Set[Kind] {
 	return cpcolls.NewSet(Kinds...)
 }
@@ -129,7 +119,6 @@ func drain(events <-chan Event) {
 	}
 }
 
-// waitOut moves past a caller's whole window and sweeps, which is one turn.
 func waitOut(r *Registry, clock *cptime.FixedClock) {
 	clock.Advance(window + time.Second)
 	r.sweep()
@@ -149,8 +138,6 @@ func TestABoxGoesToAnAttendingCallerOnceTheWindowPasses(t *testing.T) {
 func TestEveryCallerIsOnTheirOwnScheduleRatherThanSharingOne(t *testing.T) {
 	registry, clock := newTestRegistry()
 
-	// The bug this replaces: one global ticker drew a single winner, so the
-	// rate each player saw fell as 1/(interval × players).
 	channels := map[string]<-chan Event{}
 	for _, scope := range []string{"a", "b", "c", "d"} {
 		channels[scope] = playing(t, registry, scope)
@@ -169,7 +156,6 @@ func TestABoxReachesNobodyButTheCallerItWasDrawnFor(t *testing.T) {
 	mine := playing(t, registry, "scope-a")
 	theirs := attend(t, registry, "scope-b")
 
-	// scope-b never clicked, so it is not playing and gets nothing.
 	waitOut(registry, clock)
 
 	assert.NotNil(t, offered(t, mine))
@@ -206,12 +192,10 @@ func TestATurnThatCameUpWhileAwayIsLostRatherThanBanked(t *testing.T) {
 	registry, clock := newTestRegistry()
 	events := playing(t, registry, "scope-a")
 
-	// Past ActiveWithin, so several turns come and go unclaimed.
 	clock.Advance(10 * time.Minute)
 	registry.sweep()
 	require.Nil(t, offered(t, events))
 
-	// Clicking again does not hand over a backlog.
 	clicked(registry, "scope-a")
 	registry.sweep()
 	assert.Nil(t, offered(t, events), "the slot was lost, not saved up")
@@ -240,7 +224,6 @@ func TestAMissedBoxBringsTheNextOneForwardOnce(t *testing.T) {
 	waitOut(registry, clock)
 	require.NotNil(t, offered(t, events))
 
-	// Let it lapse: the retry is due sooner than a fresh window would be.
 	clock.Advance(16 * time.Second)
 	registry.sweep()
 	require.Nil(t, offered(t, events))
@@ -255,8 +238,6 @@ func TestASecondMissInARowWaitsTheOrdinaryWindow(t *testing.T) {
 	registry, clock := newTestRegistry()
 	events := playing(t, registry, "scope-a")
 
-	// Miss twice. Compounding the retry would hand a tab a box every
-	// MissRetry for the rest of the session.
 	for range 2 {
 		waitOut(registry, clock)
 		require.NotNil(t, offered(t, events))
@@ -330,7 +311,6 @@ func TestTheHourlyCapStopsTheOffers(t *testing.T) {
 	registry, clock := newTestRegistry()
 	events := playing(t, registry, "scope-a")
 
-	// A script that catches every box. Nothing is ever held here, so only the cap stops it.
 	for range 6 {
 		clock.Advance(window + time.Second)
 		clicked(registry, "scope-a")
@@ -350,7 +330,6 @@ func TestTheHourlyCapStopsTheOffers(t *testing.T) {
 		require.Nil(t, offered(t, events), "the cap should hold")
 	}
 
-	// It is an hour's cap, not a permanent one.
 	clock.Advance(time.Hour)
 	clicked(registry, "scope-a")
 	registry.sweep()
@@ -488,7 +467,6 @@ func TestAPlayerWhoStoppedClickingNoLongerHoldsBackAKind(t *testing.T) {
 	registry.Clicked("scope-a", gone)
 	holdingsOf(registry).grant(gone, KindBomb)
 
-	// Six minutes on, only somebody else behind the address is playing.
 	clock.Advance(6 * time.Minute)
 	clicked(registry, "scope-a")
 
@@ -547,7 +525,6 @@ func TestKindsAreDrawnInProportionToTheirWeight(t *testing.T) {
 		}
 	}
 
-	// One in ten, give or take far more than the noise of 20,000 draws.
 	assert.InDelta(t, 0.1, float64(spreads)/draws, 0.02)
 }
 
@@ -685,7 +662,6 @@ func TestAnUnknownTokenIsRefused(t *testing.T) {
 	assert.False(t, claimed)
 }
 
-// foreign counts the refused claims reported as somebody else's box, per scope that made them.
 func foreign(registry *Registry) map[string]int {
 	claims := map[string]int{}
 	registry.Observe(Report{Foreign: func(scope string) { claims[scope]++ }})

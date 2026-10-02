@@ -11,8 +11,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
 
-// LoadBorders reads the tile to landmass table the frontend's `npm run borders` writes.
-// Format: uint32 header length | JSON {tiles, codes} | tiles*2 uint16 landmass | frames and totals, unread here.
 func (l *Loader) LoadBorders() (*clicks.Borders, error) {
 	blob, asset, err := mapdata.Borders()
 	if err != nil {

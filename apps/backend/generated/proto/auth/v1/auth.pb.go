@@ -21,15 +21,13 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Where a player signs in.
 type Provider int32
 
 const (
 	Provider_PROVIDER_UNSPECIFIED Provider = 0
 	Provider_PROVIDER_GOOGLE      Provider = 1
 	Provider_PROVIDER_DISCORD     Provider = 2
-	// A code sent to an email address. Not a third party: this server sends it.
-	Provider_PROVIDER_EMAIL Provider = 3
+	Provider_PROVIDER_EMAIL       Provider = 3
 )
 
 // Enum value maps for Provider.
@@ -79,10 +77,8 @@ type AccountKind int32
 
 const (
 	AccountKind_ACCOUNT_KIND_UNSPECIFIED AccountKind = 0
-	// No provider is linked. Pruned after a long time without use.
-	AccountKind_ACCOUNT_KIND_GUEST AccountKind = 1
-	// At least one provider is linked.
-	AccountKind_ACCOUNT_KIND_LINKED AccountKind = 2
+	AccountKind_ACCOUNT_KIND_GUEST       AccountKind = 1
+	AccountKind_ACCOUNT_KIND_LINKED      AccountKind = 2
 )
 
 // Enum value maps for AccountKind.
@@ -130,11 +126,8 @@ type SignInIntent int32
 
 const (
 	SignInIntent_SIGN_IN_INTENT_UNSPECIFIED SignInIntent = 0
-	// A known identity moves the browser to its account.
-	SignInIntent_SIGN_IN_INTENT_SIGN_IN SignInIntent = 1
-	// Adds the identity to the account the browser is on, or refuses. Never
-	// moves the browser to another account.
-	SignInIntent_SIGN_IN_INTENT_LINK SignInIntent = 2
+	SignInIntent_SIGN_IN_INTENT_SIGN_IN     SignInIntent = 1
+	SignInIntent_SIGN_IN_INTENT_LINK        SignInIntent = 2
 )
 
 // Enum value maps for SignInIntent.
@@ -178,19 +171,13 @@ func (SignInIntent) EnumDescriptor() ([]byte, []int) {
 	return file_auth_v1_auth_proto_rawDescGZIP(), []int{2}
 }
 
-// What CompleteSignIn did with the identity.
 type SignInOutcome int32
 
 const (
 	SignInOutcome_SIGN_IN_OUTCOME_UNSPECIFIED SignInOutcome = 0
-	// The identity was already linked: the browser is now on that account. The
-	// guest it was on before is left as it was, and nothing is merged.
-	SignInOutcome_SIGN_IN_OUTCOME_SIGNED_IN SignInOutcome = 1
-	// The identity was new and is now linked to the account the browser was on.
-	SignInOutcome_SIGN_IN_OUTCOME_LINKED SignInOutcome = 2
-	// The identity was new and the browser had no account to link it to, or its
-	// account already holds this provider: a new account was made for it.
-	SignInOutcome_SIGN_IN_OUTCOME_CREATED SignInOutcome = 3
+	SignInOutcome_SIGN_IN_OUTCOME_SIGNED_IN   SignInOutcome = 1
+	SignInOutcome_SIGN_IN_OUTCOME_LINKED      SignInOutcome = 2
+	SignInOutcome_SIGN_IN_OUTCOME_CREATED     SignInOutcome = 3
 )
 
 // Enum value maps for SignInOutcome.
@@ -239,11 +226,9 @@ func (SignInOutcome) EnumDescriptor() ([]byte, []int) {
 type LinkRefusalReason int32
 
 const (
-	LinkRefusalReason_LINK_REFUSAL_REASON_UNSPECIFIED LinkRefusalReason = 0
-	// Another account already uses this identity.
+	LinkRefusalReason_LINK_REFUSAL_REASON_UNSPECIFIED               LinkRefusalReason = 0
 	LinkRefusalReason_LINK_REFUSAL_REASON_IDENTITY_LINKED_ELSEWHERE LinkRefusalReason = 1
-	// The account already has another user of this provider.
-	LinkRefusalReason_LINK_REFUSAL_REASON_PROVIDER_ALREADY_LINKED LinkRefusalReason = 2
+	LinkRefusalReason_LINK_REFUSAL_REASON_PROVIDER_ALREADY_LINKED   LinkRefusalReason = 2
 )
 
 // Enum value maps for LinkRefusalReason.
@@ -291,10 +276,8 @@ type EmailRefusalReason int32
 
 const (
 	EmailRefusalReason_EMAIL_REFUSAL_REASON_UNSPECIFIED EmailRefusalReason = 0
-	// Not an email address.
-	EmailRefusalReason_EMAIL_REFUSAL_REASON_INVALID EmailRefusalReason = 1
-	// An address from a service that hands them out for nothing.
-	EmailRefusalReason_EMAIL_REFUSAL_REASON_DISPOSABLE EmailRefusalReason = 2
+	EmailRefusalReason_EMAIL_REFUSAL_REASON_INVALID     EmailRefusalReason = 1
+	EmailRefusalReason_EMAIL_REFUSAL_REASON_DISPOSABLE  EmailRefusalReason = 2
 )
 
 // Enum value maps for EmailRefusalReason.
@@ -339,10 +322,8 @@ func (EmailRefusalReason) EnumDescriptor() ([]byte, []int) {
 }
 
 type CreateSessionRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// The Turnstile widget's cf-turnstile-response. Ignored when the server runs
-	// with attestation disabled.
-	AttestationToken string `protobuf:"bytes,1,opt,name=attestation_token,json=attestationToken,proto3" json:"attestation_token,omitempty"`
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	AttestationToken string                 `protobuf:"bytes,1,opt,name=attestation_token,json=attestationToken,proto3" json:"attestation_token,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -385,11 +366,9 @@ func (x *CreateSessionRequest) GetAttestationToken() string {
 }
 
 type CreateSessionResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Opaque. Sent back on every Click in the X-Session-Token header.
-	Token string `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
-	// When the token stops being accepted. The client mints a new one before this.
-	ExpiresAtUnixMs int64 `protobuf:"varint,2,opt,name=expires_at_unix_ms,json=expiresAtUnixMs,proto3" json:"expires_at_unix_ms,omitempty"`
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Token           string                 `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
+	ExpiresAtUnixMs int64                  `protobuf:"varint,2,opt,name=expires_at_unix_ms,json=expiresAtUnixMs,proto3" json:"expires_at_unix_ms,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -475,11 +454,10 @@ func (*GetMeRequest) Descriptor() ([]byte, []int) {
 }
 
 type GetMeResponse struct {
-	state     protoimpl.MessageState `protogen:"open.v1"`
-	AccountId string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
-	Kind      AccountKind            `protobuf:"varint,2,opt,name=kind,proto3,enum=auth.v1.AccountKind" json:"kind,omitempty"`
-	// The providers linked to the account, oldest link first. Empty for a guest.
-	Providers     []Provider `protobuf:"varint,3,rep,packed,name=providers,proto3,enum=auth.v1.Provider" json:"providers,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	Kind          AccountKind            `protobuf:"varint,2,opt,name=kind,proto3,enum=auth.v1.AccountKind" json:"kind,omitempty"`
+	Providers     []Provider             `protobuf:"varint,3,rep,packed,name=providers,proto3,enum=auth.v1.Provider" json:"providers,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -572,9 +550,8 @@ func (*GetSignInOptionsRequest) Descriptor() ([]byte, []int) {
 }
 
 type GetSignInOptionsResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Every provider offered, in a stable order. Empty while sign-in is off.
-	Providers     []Provider `protobuf:"varint,1,rep,packed,name=providers,proto3,enum=auth.v1.Provider" json:"providers,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Providers     []Provider             `protobuf:"varint,1,rep,packed,name=providers,proto3,enum=auth.v1.Provider" json:"providers,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -617,12 +594,9 @@ func (x *GetSignInOptionsResponse) GetProviders() []Provider {
 }
 
 type StartSignInRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// InvalidArgument when the provider is not offered on this server.
-	Provider Provider `protobuf:"varint,1,opt,name=provider,proto3,enum=auth.v1.Provider" json:"provider,omitempty"`
-	// Unset signs in, as every client did before intents existed. A link from a
-	// browser with no account is Unauthenticated.
-	Intent        SignInIntent `protobuf:"varint,2,opt,name=intent,proto3,enum=auth.v1.SignInIntent" json:"intent,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Provider      Provider               `protobuf:"varint,1,opt,name=provider,proto3,enum=auth.v1.Provider" json:"provider,omitempty"`
+	Intent        SignInIntent           `protobuf:"varint,2,opt,name=intent,proto3,enum=auth.v1.SignInIntent" json:"intent,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -672,10 +646,8 @@ func (x *StartSignInRequest) GetIntent() SignInIntent {
 }
 
 type StartSignInResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Send the browser here. The provider sends it back to the callback page with
-	// a code and a state.
-	AuthorizationUrl string `protobuf:"bytes,1,opt,name=authorization_url,json=authorizationUrl,proto3" json:"authorization_url,omitempty"`
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	AuthorizationUrl string                 `protobuf:"bytes,1,opt,name=authorization_url,json=authorizationUrl,proto3" json:"authorization_url,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -718,13 +690,9 @@ func (x *StartSignInResponse) GetAuthorizationUrl() string {
 }
 
 type CompleteSignInRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Both from the callback page's query string. FailedPrecondition when the
-	// state does not match the sign-in this browser started, or it has lapsed, or
-	// a link's browser is no longer on the account the link started on.
-	// AlreadyExists, with a LinkRefusal detail, when a link is refused.
-	Code          string `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
-	State         string `protobuf:"bytes,2,opt,name=state,proto3" json:"state,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Code          string                 `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
+	State         string                 `protobuf:"bytes,2,opt,name=state,proto3" json:"state,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -825,7 +793,6 @@ func (x *CompleteSignInResponse) GetOutcome() SignInOutcome {
 	return SignInOutcome_SIGN_IN_OUTCOME_UNSPECIFIED
 }
 
-// The detail of a CompleteSignIn refused with ALREADY_EXISTS: why a link was not made.
 type LinkRefusal struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Reason        LinkRefusalReason      `protobuf:"varint,1,opt,name=reason,proto3,enum=auth.v1.LinkRefusalReason" json:"reason,omitempty"`
@@ -871,17 +838,10 @@ func (x *LinkRefusal) GetReason() LinkRefusalReason {
 }
 
 type StartEmailSignInRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// InvalidArgument, with an EmailRefusal detail, when it is not an address or
-	// its domain hands out disposable ones. ResourceExhausted when too many codes
-	// went to this address lately.
-	Email string `protobuf:"bytes,1,opt,name=email,proto3" json:"email,omitempty"`
-	// As in StartSignInRequest: unset signs in, and a link from a browser with no
-	// account is Unauthenticated.
-	Intent SignInIntent `protobuf:"varint,2,opt,name=intent,proto3,enum=auth.v1.SignInIntent" json:"intent,omitempty"`
-	// The Turnstile widget's cf-turnstile-response. PermissionDenied when it is
-	// refused. Ignored when the server runs with attestation disabled.
-	AttestationToken string `protobuf:"bytes,3,opt,name=attestation_token,json=attestationToken,proto3" json:"attestation_token,omitempty"`
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Email            string                 `protobuf:"bytes,1,opt,name=email,proto3" json:"email,omitempty"`
+	Intent           SignInIntent           `protobuf:"varint,2,opt,name=intent,proto3,enum=auth.v1.SignInIntent" json:"intent,omitempty"`
+	AttestationToken string                 `protobuf:"bytes,3,opt,name=attestation_token,json=attestationToken,proto3" json:"attestation_token,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -974,12 +934,8 @@ func (*StartEmailSignInResponse) Descriptor() ([]byte, []int) {
 }
 
 type CompleteEmailSignInRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// The code from the email. InvalidArgument when it is not the one sent, and
-	// the sign-in stays open for another try. FailedPrecondition when this browser
-	// started no email sign-in, or it lapsed, or too many codes were wrong: start
-	// again. AlreadyExists, with a LinkRefusal detail, when a link is refused.
-	Code          string `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Code          string                 `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1073,7 +1029,6 @@ func (x *CompleteEmailSignInResponse) GetOutcome() SignInOutcome {
 	return SignInOutcome_SIGN_IN_OUTCOME_UNSPECIFIED
 }
 
-// The detail of a StartEmailSignIn refused with INVALID_ARGUMENT: why no code was sent.
 type EmailRefusal struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Reason        EmailRefusalReason     `protobuf:"varint,1,opt,name=reason,proto3,enum=auth.v1.EmailRefusalReason" json:"reason,omitempty"`

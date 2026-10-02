@@ -22,7 +22,7 @@ func (g *fakeGuard) Listened(scope string) { g.scopes = append(g.scopes, scope) 
 
 type stubUseCase struct {
 	guard *fakeGuard
-	seen  []string // what the guard held when the stream started
+	seen  []string
 	err   error
 }
 

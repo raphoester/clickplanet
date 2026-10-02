@@ -17,23 +17,18 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-// The whole thing built the way internal/planet builds it — with the bounds
-// cmd/api ships, its bans and evidence kept in memory rather than postgres —
-// and driven by callers that behave the way the real ones do.
 type stack struct {
 	guard  *antibot.Guard
 	clock  *cptime.FixedClock
 	config antibot.Config
 	stop   func()
 
-	bans        *shadowban.MemoryPersistence
-	accountBans *shadowban.MemoryPersistence
-	evidence    *evidence.MemoryPersistence
-	// forgetEvidence starts every boot with nothing stored, as a process without persistence would.
+	bans           *shadowban.MemoryPersistence
+	accountBans    *shadowban.MemoryPersistence
+	evidence       *evidence.MemoryPersistence
 	forgetEvidence bool
 
-	owner map[uint32]string
-	// ground is whose own soil a tile is on, for the home-soil rule; a tile left out is in no country.
+	owner   map[uint32]string
 	ground  map[uint32]string
 	reports []antibot.Report
 	rises   []string
@@ -133,7 +128,6 @@ func newStack(options ...func(*antibot.Config)) *stack {
 	return s
 }
 
-// boot builds the guard, loads what the last one saved and runs it, the way internal/planet does.
 func (s *stack) boot() {
 	started := make(chan struct{})
 
@@ -170,20 +164,16 @@ func (s *stack) boot() {
 	}
 }
 
-// restart stops the process, which saves, and boots the next one after the outage.
 func (s *stack) restart(outage time.Duration) {
 	s.stop()
 	s.clock.Advance(outage)
 	s.boot()
 }
 
-// click reads the tile the way antibot_click does, the home-soil rule included: a native tile clicked for
-// another flag is cleared, and nobody holds it after.
 func (s *stack) click(scope string, tile uint32, country string) bool {
 	return s.clickAs(scope, "", tile, country)
 }
 
-// clickAs is a click whose token names a guest account.
 func (s *stack) clickAs(scope, account string, tile uint32, country string) bool {
 	held := s.owner[tile]
 
@@ -227,9 +217,6 @@ func (s *stack) verdicts(scope string) map[string]detect.Verdict {
 	return out
 }
 
-// The caller from the screenshots: a loop over an integer, tuned to sit just
-// under the throttle, running all night. It never fights anyone for a tile, so
-// the only watchdog this game had before could not see it at all.
 func TestTheOvernightSweepIsCaught(t *testing.T) {
 	s := newStack()
 
@@ -252,10 +239,6 @@ func TestTheOvernightSweepIsCaught(t *testing.T) {
 	require.True(t, dropped)
 	require.NotEmpty(t, s.reports)
 
-	// Crossing is what earns its keep here. Neither watchdog is Certain yet —
-	// the sequencer wants 200 steps and the metronome wants half an hour — but
-	// two of them reading Suspect at once stops the sweep inside three minutes
-	// rather than after either bound is reached alone.
 	assert.Less(t, clicks, 180, "caught long before either watchdog is sure on its own")
 
 	verdicts := s.verdicts("sweeper")
@@ -264,13 +247,10 @@ func TestTheOvernightSweepIsCaught(t *testing.T) {
 	assert.Equal(t, detect.Clear, verdicts["retaker"], "it never fought anyone, and it did not have to")
 }
 
-// The day of 2026-09-14: a bot that jitters its delay reads clear on the
-// metronome, so the sequencer's suspicion stands alone and nothing is banned.
-// The rise is the signal left of how close it came.
 func TestALoneSuspicionIsReportedWithoutABan(t *testing.T) {
 	s := newStack()
 
-	//nolint:gosec // G404: deterministic PRNG, seeded so the delays are the same every run.
+	//nolint:gosec // seeded test PRNG
 	rng := rand.New(rand.NewPCG(14, 9))
 	tile := uint32(180000)
 
@@ -284,12 +264,10 @@ func TestALoneSuspicionIsReportedWithoutABan(t *testing.T) {
 	assert.Equal(t, []string{"sequencer suspect"}, s.rises, "once per standing suspicion, worded by the package")
 }
 
-// The same bot with the one cheap fix its author would reach for first.
 func TestSweepingInARandomOrderStillGetsCaught(t *testing.T) {
 	s := newStack()
 
-	//nolint:gosec // G404: deterministic PRNG, seeded per test so the click
-	// stream replays exactly. Not security-relevant.
+	//nolint:gosec // seeded test PRNG
 	random := rand.New(rand.NewPCG(1, 2))
 
 	var (
@@ -312,17 +290,13 @@ func TestSweepingInARandomOrderStillGetsCaught(t *testing.T) {
 	assert.Equal(t, detect.Clear, verdicts["sequencer"], "there is no stride left to find")
 	assert.Equal(t, detect.Certain, verdicts["metronome"])
 
-	// The honest cost of shuffling: with nothing left to corroborate it, the
-	// metronome has to reach Certain on its own, and Certain means certainFor.
-	// Half an hour of sweeping is bought for one line of the bot's code. The
-	// answer is another watchdog, not a looser bound on this one.
 	assert.Greater(t, clicks, 1700, "a lone watchdog has to be sure, and sure takes certainFor")
 }
 
 func TestTheNightBotIsCaughtOnStaminaAlone(t *testing.T) {
 	s := newStack()
 
-	//nolint:gosec // G404: deterministic PRNG, seeded per test so the click stream replays exactly.
+	//nolint:gosec // seeded test PRNG
 	random := rand.New(rand.NewPCG(28, 9))
 
 	const scope = "2001:db8:1:2::/64"
@@ -356,15 +330,13 @@ func TestTheNightBotIsCaughtOnStaminaAlone(t *testing.T) {
 func TestALoopFiringIntoTheThrottleIsCaught(t *testing.T) {
 	s := newStack()
 
-	//nolint:gosec // G404: deterministic PRNG, seeded per test so the click
-	// stream replays exactly. Not security-relevant.
+	//nolint:gosec // seeded test PRNG
 	random := rand.New(rand.NewPCG(9, 10))
 
 	var dropped bool
 	for range 4000 {
 		s.clock.Advance(950 * time.Millisecond)
 
-		// The throttle refuses about half the tries, unevenly; only those it keeps reach Inspect.
 		if random.IntN(2) == 0 {
 			s.guard.Attempted(antibot.Click{Scope: "looper", Tile: 1, Country: "BG", At: s.clock.Now()})
 			continue
@@ -380,19 +352,15 @@ func TestALoopFiringIntoTheThrottleIsCaught(t *testing.T) {
 	assert.Equal(t, detect.Certain, s.verdicts("looper")["metronome"])
 }
 
-// A player who is very keen: fast, for a long time, on tiles next to each other
-// — and still nothing like either of the above.
 func TestAnObsessedPlayerIsNotBanned(t *testing.T) {
 	s := newStack()
 
-	//nolint:gosec // G404: deterministic PRNG, seeded per test so the click
-	// stream replays exactly. Not security-relevant.
+	//nolint:gosec // seeded test PRNG
 	random := rand.New(rand.NewPCG(3, 4))
 
 	tile := uint32(50000)
 
 	for range 90 {
-		// A burst of clicks around one area, then a pause to look at the map.
 		for range 20 + random.IntN(25) {
 			s.clock.Advance(time.Duration(250+random.IntN(1400)) * time.Millisecond)
 
@@ -406,13 +374,10 @@ func TestAnObsessedPlayerIsNotBanned(t *testing.T) {
 	assert.Empty(t, s.reports, "nothing about this reads as a machine")
 }
 
-// Two players fighting over the same tiles, which is the thing every one of
-// these bounds has to survive.
 func TestATileWarBansNeither(t *testing.T) {
 	s := newStack()
 
-	//nolint:gosec // G404: deterministic PRNG, seeded per test so the click
-	// stream replays exactly. Not security-relevant.
+	//nolint:gosec // seeded test PRNG
 	random := rand.New(rand.NewPCG(5, 6))
 
 	tile := uint32(70000)
@@ -432,7 +397,6 @@ func TestATileWarBansNeither(t *testing.T) {
 	assert.Empty(t, s.reports)
 }
 
-// As production reads retakes: the defender at suspect only, and the retaker's roam.
 func productionRetakes(config *antibot.Config) {
 	config.Defender.Enabled = true
 	config.Defender.Detector.RetakeWindow = 2 * time.Minute
@@ -447,21 +411,16 @@ func productionRetakes(config *antibot.Config) {
 	config.Retaker.Detector.TrackWindow = 15 * time.Minute
 }
 
-// homeTile is a tile on PL's own ground wearing PL's flag, somewhere in its east.
 func (s *stack) homeTile(random *rand.Rand) uint32 {
 	tile := uint32(120000 + random.IntN(20000))
 	s.ground[tile], s.owner[tile] = "PL", "PL"
 	return tile
 }
 
-// Native land takes two clicks, so a raid on PL's ground is a trail of empty tiles, and a Pole answering each
-// one does nothing but retake for forty minutes. The defender reads that as suspect, and must: it is also what a
-// recapture loop does. A suspicion never bans alone.
 func TestAHomeDefenderAnsweringClearsIsNotBanned(t *testing.T) {
 	s := newStack(productionRetakes)
 
-	//nolint:gosec // G404: deterministic PRNG, seeded per test so the click
-	// stream replays exactly. Not security-relevant.
+	//nolint:gosec // seeded test PRNG
 	random := rand.New(rand.NewPCG(11, 12))
 
 	for range 300 {
@@ -471,7 +430,6 @@ func TestAHomeDefenderAnsweringClearsIsNotBanned(t *testing.T) {
 		s.click("raider", tile, "DE")
 		require.Empty(t, s.owner[tile], "the raid clears, it does not take")
 
-		// Seen, aimed at and clicked: a person's reaction, never the same twice.
 		s.clock.Advance(time.Duration(1500+random.IntN(4500)) * time.Millisecond)
 		require.False(t, s.click("pole", tile, "PL"), "a home defender must never be dropped")
 	}
@@ -480,13 +438,10 @@ func TestAHomeDefenderAnsweringClearsIsNotBanned(t *testing.T) {
 	assert.Empty(t, s.verdicts("pole"), "nothing else about it reads as a machine")
 }
 
-// The same raid answered off the update stream, on tile after tile: a clear is a change to react to, so the
-// retaker's roam reads it exactly as it read the Bulgaria recapture bot.
 func TestARecaptureLoopOnItsOwnGroundIsCaught(t *testing.T) {
 	s := newStack(productionRetakes)
 
-	//nolint:gosec // G404: deterministic PRNG, seeded per test so the click
-	// stream replays exactly. Not security-relevant.
+	//nolint:gosec // seeded test PRNG
 	random := rand.New(rand.NewPCG(13, 14))
 
 	var dropped bool
@@ -507,13 +462,10 @@ func TestARecaptureLoopOnItsOwnGroundIsCaught(t *testing.T) {
 	assert.Equal(t, detect.Certain, s.verdicts("loop")["retaker"])
 }
 
-// The reflex bot the first version of this was written for, to prove the move
-// into antibot/internal/shadowban did not lose it.
 func TestTheReflexBotIsStillCaught(t *testing.T) {
 	s := newStack()
 
-	//nolint:gosec // G404: deterministic PRNG, seeded per test so the click
-	// stream replays exactly. Not security-relevant.
+	//nolint:gosec // seeded test PRNG
 	random := rand.New(rand.NewPCG(7, 8))
 
 	tile := uint32(90000)
@@ -525,7 +477,6 @@ func TestTheReflexBotIsStillCaught(t *testing.T) {
 		s.clock.Advance(time.Duration(600+random.IntN(2500)) * time.Millisecond)
 		s.click("player", tile, "FR")
 
-		// Answers off the update stream, in a band no hand holds.
 		s.clock.Advance(time.Duration(70+random.IntN(30)) * time.Millisecond)
 		if s.click("reflex", tile, "PS") {
 			dropped = true
@@ -537,20 +488,16 @@ func TestTheReflexBotIsStillCaught(t *testing.T) {
 	assert.Equal(t, detect.Certain, s.verdicts("reflex")["retaker"])
 }
 
-// A script that reads the offer off the stream and claims it before the box has
-// left its spawn. It paints like a person, so only the boxes give it away.
 func TestTheBoxSnatcherIsCaught(t *testing.T) {
 	s := newStack()
 
-	//nolint:gosec // G404: deterministic PRNG, seeded per test so the click
-	// stream replays exactly. Not security-relevant.
+	//nolint:gosec // seeded test PRNG
 	random := rand.New(rand.NewPCG(9, 10))
 
 	tile := uint32(60000)
 
 	var dropped bool
 	for box := range 8 {
-		// A couple of minutes of ordinary painting between two boxes.
 		for range 60 {
 			s.clock.Advance(time.Duration(800+random.IntN(2500)) * time.Millisecond)
 			tile = uint32(int(tile) + random.IntN(40) - 20)
@@ -571,8 +518,6 @@ func TestTheBoxSnatcherIsCaught(t *testing.T) {
 	assert.Equal(t, detect.Certain, s.verdicts("snatcher")["catcher"])
 }
 
-// A good player catches most boxes, some of them fast, and misses the ones that
-// went by behind the globe.
 func TestAPlayerWhoMissesABoxIsNotBanned(t *testing.T) {
 	s := newStack()
 
@@ -594,20 +539,14 @@ func TestAPlayerWhoMissesABoxIsNotBanned(t *testing.T) {
 	assert.Empty(t, s.reports, "fast, but one box in four got away")
 }
 
-// rotation is a pool of identities clicking at once, each on its own scope, from
-// its own first click for as long as it stays. Clicks go out in time order, the
-// way the server sees them.
 type rotation struct {
 	scope string
 	first time.Time
 	stays time.Duration
 }
 
-// paint replays the identities at ~30 tiles a minute for flag, on random tiles,
-// and returns when each scope was first dropped.
 func (s *stack) paint(seed uint64, flag string, identities ...rotation) map[string]time.Time {
-	//nolint:gosec // G404: deterministic PRNG, seeded per test so the click
-	// stream replays exactly. Not security-relevant.
+	//nolint:gosec // seeded test PRNG
 	random := rand.New(rand.NewPCG(seed, seed+1))
 
 	next := make([]time.Time, len(identities))
@@ -643,10 +582,6 @@ func (s *stack) paint(seed uint64, flag string, identities ...rotation) map[stri
 	}
 }
 
-// The pool of 2026-09-14: pairs of /64s out of Firefox's built-in VPN, started
-// in the same second, painting bg for ~8 minutes and followed at once by the
-// next pair. No identity lives long enough for a watchdog judging one scope, and
-// none of them said a word all day.
 func TestTheRotatingPoolIsCaught(t *testing.T) {
 	s := newStack()
 
@@ -680,8 +615,6 @@ func TestTheRotatingPoolIsCaught(t *testing.T) {
 	}
 }
 
-// Two friends from the same ISP join a bg war in the same second and paint side
-// by side for twenty minutes. That is one group, and one group bans nobody.
 func TestTwoFriendsJoiningAFlagWarAreNotBanned(t *testing.T) {
 	s := newStack()
 
@@ -706,7 +639,7 @@ func (s *stack) pageLoad(scope string) {
 func TestTheMapScraperIsCaught(t *testing.T) {
 	s := newStack()
 
-	//nolint:gosec // G404: deterministic PRNG, seeded so the click stream replays exactly.
+	//nolint:gosec // seeded test PRNG
 	random := rand.New(rand.NewPCG(15, 9))
 
 	s.pageLoad("2001:db8:e487::/64")
@@ -732,7 +665,7 @@ func TestTheMapScraperIsCaught(t *testing.T) {
 func TestPlayersBehindOneAddressAreNotBanned(t *testing.T) {
 	s := newStack()
 
-	//nolint:gosec // G404: deterministic PRNG, seeded so the click stream replays exactly.
+	//nolint:gosec // seeded test PRNG
 	random := rand.New(rand.NewPCG(16, 9))
 
 	for range 40 {
@@ -756,7 +689,6 @@ func TestWithTheBlockOffTheGuardPassesEveryClick(t *testing.T) {
 	assert.False(t, guard.Banned("1.2.3.4", "a-guest"))
 }
 
-// Production on 2026-09-14: restarted every few minutes during the attack, so no window of 10m or more ever filled.
 func TestALoopRestartedEveryFewMinutesIsStillCaught(t *testing.T) {
 	for name, persisted := range map[string]bool{"with the evidence saved": true, "in memory": false} {
 		t.Run(name, func(t *testing.T) {
@@ -764,8 +696,7 @@ func TestALoopRestartedEveryFewMinutesIsStillCaught(t *testing.T) {
 			s.forgetEvidence = !persisted
 			defer func() { s.stop() }()
 
-			//nolint:gosec // G404: deterministic PRNG, seeded per test so the click
-			// stream replays exactly. Not security-relevant.
+			//nolint:gosec // seeded test PRNG
 			random := rand.New(rand.NewPCG(11, 12))
 
 			var dropped bool

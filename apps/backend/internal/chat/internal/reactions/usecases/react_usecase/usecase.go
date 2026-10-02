@@ -1,4 +1,3 @@
-// Package react_usecase puts a reaction on a message, or takes it off, as whoever calls.
 package react_usecase
 
 import (
@@ -12,7 +11,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-// Messages says whether a message is one the chat shows: nobody can react to any other.
 type Messages interface {
 	Shown(ctx context.Context, id messages.MessageID, since time.Time, limit int) (bool, error)
 }
@@ -22,14 +20,10 @@ type Board interface {
 	Reactions(ctx context.Context, ids []messages.MessageID) (map[messages.MessageID]reactions.Reactions, error)
 }
 
-// Publisher is the live feed: every change goes out as the message's whole tally, versioned, so the order the
-// tallies are published in does not matter.
 type Publisher interface {
 	Publish(update feed.Update)
 }
 
-// Authors is the player module, asked who the people under a message's reactions are. The chat keeps accounts,
-// never names, so this is where a reaction gets one — on the way out, for the answer and the broadcast alike.
 type Authors interface {
 	Authors(ctx context.Context, accounts []messages.AccountID) (map[messages.AccountID]messages.Author, error)
 }
@@ -63,14 +57,11 @@ type UseCase struct {
 	window    messages.Window
 }
 
-// Out is the message's reactions as the caller sees them, and their version.
 type Out struct {
 	Counts  []reactions.Count
 	Version uint64
 }
 
-// Execute answers the message's reactions once the change landed. A change that changes nothing is not saved.
-// A caller with no account is refused: a reaction is an account's.
 func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	reactor := reactions.ReactorOf(in.Account)
 	if reactor == reactions.NoReactor {
@@ -105,8 +96,6 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	if err != nil {
 		return Out{}, err
 	}
-	// One ask names everybody under the message, for the answer and for the frame that goes to every other
-	// client: neither is worth a second one, and a reader of the stream has no way to ask for itself.
 	tally := next.TallyOf(in.MessageID)
 	named, err := u.authors.Authors(ctx, reactions.AccountsOf(tally.Counts))
 	if err != nil {
@@ -118,8 +107,6 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	return Out{Counts: reactions.Named(next.Tally(reactor), named), Version: next.Version()}, nil
 }
 
-// answer is what a change that changed nothing says: what is already there, named. It costs the same one ask,
-// since the caller is shown the same list either way.
 func (u *UseCase) answer(
 	ctx context.Context,
 	given reactions.Reactions,

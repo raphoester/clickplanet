@@ -1,4 +1,3 @@
-// api is the composition root: the config, what two contexts share, the module list.
 package main
 
 import (
@@ -19,7 +18,6 @@ import (
 type Config struct {
 	HTTPServer cpbootstrap.ServerConfig
 
-	// Squashed: the planet keys sit at the top level of the file.
 	Planet planet.Config `koanf:",squash"`
 
 	Auth   auth.Config
@@ -41,7 +39,7 @@ func run(ctx context.Context) error {
 	}
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-		Level: slog.LevelDebug, // todo: inject config
+		Level: slog.LevelDebug,
 	}))
 	logger.Debug("config", slog.Any("config", config))
 
@@ -52,8 +50,6 @@ func run(ctx context.Context) error {
 	})
 }
 
-// describeModules is the whole aggregation: every module takes its own config
-// and builds everything else itself.
 func describeModules(config Config) []cpbootstrap.Module {
 	return []cpbootstrap.Module{
 		auth.NewModule(config.Auth),
@@ -72,7 +68,6 @@ func loadConfig() (Config, error) {
 	return config, nil
 }
 
-// Validate asks each block to check itself, and reports everything wrong at once.
 func (c Config) Validate() error {
 	return errors.Join(
 		c.HTTPServer.Validate(),

@@ -1,18 +1,6 @@
-// The borders blob's layout, little-endian:
-//
-//   uint32 header length | JSON {"tiles": N, "codes": [...]} | N uint16 landmass | 0-2 pad
-//   | codes.length * 5 f32 frames | codes.length uint32 totals
-//
-// Landmass 0 is no country; `codes[k]` is landmass k's ISO code, so one country has many landmasses.
-//
-// **Both the header and the landmass table are padded to 4 bytes**, so the float section stays
-// aligned and the browser's decoder can take zero-copy views — `loadBorders` in
-// src/app/viewer/borderField.ts is the other end. The second pad is not decoration: an odd tile
-// count leaves the table on a 2-byte boundary, and `new Float32Array(buffer, at, …)` then throws
-// "start offset should be a multiple of 4" and the globe does not load at all. Every map until now
-// happened to have an even tile count, so this only appeared when one did not.
 import {createHash} from "node:crypto"
 
+// Keeps the f32 frames 4-byte aligned, as the browser's Float32Array views require.
 const PAD_TO = 4
 const padding = (length) => (PAD_TO - (length % PAD_TO)) % PAD_TO
 

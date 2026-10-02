@@ -1,4 +1,3 @@
-// Package get_authors_handler serves player.v1.InternalService/GetAuthors, for the other modules.
 package get_authors_handler
 
 import (
@@ -22,8 +21,6 @@ type GetAuthorsHandler struct {
 	useCase UseCase
 }
 
-// GetAuthors refuses an id that is not an account, as GetAuthor does: a caller holding a bad id has a bug, and
-// answering the rest would hide it. An account nobody can name is left out of the answer instead.
 func (h GetAuthorsHandler) GetAuthors(
 	ctx context.Context,
 	req *connect.Request[playerv1.GetAuthorsRequest],

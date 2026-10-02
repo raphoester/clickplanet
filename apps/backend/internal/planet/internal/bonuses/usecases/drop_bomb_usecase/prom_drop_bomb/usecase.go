@@ -1,4 +1,3 @@
-// Package prom_drop_bomb counts where bombs land and how much they clear, to see whether the rings are set right.
 package prom_drop_bomb
 
 import (

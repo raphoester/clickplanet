@@ -1,4 +1,3 @@
-// Package get_stats_usecase reads the caller's stats, as of today.
 package get_stats_usecase
 
 import (
@@ -23,7 +22,6 @@ func New(stats Stats, clock cptime.Clock) *UseCase {
 	return &UseCase{stats: stats, clock: clock}
 }
 
-// Execute answers empty stats for an account that never took a tile, and a streak over once a whole UTC day went by.
 func (u *UseCase) Execute(ctx context.Context, account players.AccountID) (players.Stats, error) {
 	stats, err := u.stats.Stats(ctx, account)
 	if errors.Is(err, players.ErrNoStats) {

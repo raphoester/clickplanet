@@ -27,15 +27,10 @@ export type MenuProps = {
     leaderboard: LeaderboardEntry[],
     tileDeltas?: TileDeltas,
     tilesCount: number,
-    /** Absent, the menu offers no sound settings. */
     sound?: SoundSettingsPanelProps,
-    /** Absent, or with no provider offered, the menu offers no sign-in. */
     account?: AccountStore,
-    /** Who is playing. Absent — no roster, or not read yet — the menu offers no list. */
     players?: readonly RosterEntry[],
-    /** Absent, a name in the list opens nothing. */
     onOpenPlayer?: (player: PlayerLine) => void,
-    /** What signing in multiplies the click allowance by, as the server said. Absent, the panel does not mention it. */
     linkedMultiplier?: number,
 }
 
@@ -60,7 +55,6 @@ export default function Menu(props: MenuProps) {
         changeButton.current?.focus()
     }, [pickingCountry])
 
-    // Back from the sound panel lands on the button that opened it.
     const soundButton = useRef<HTMLButtonElement>(null)
     const cameFromSound = useRef(false)
 
@@ -79,7 +73,6 @@ export default function Menu(props: MenuProps) {
     const [accountOpen, setAccountOpen] = useState(false)
     const [confirmingDelete, setConfirmingDelete] = useState(false)
 
-    // Back from the account panel lands on the button that opened it.
     const accountButton = useRef<HTMLButtonElement>(null)
     const cameFromAccount = useRef(false)
 
@@ -96,7 +89,6 @@ export default function Menu(props: MenuProps) {
 
     const [playersOpen, setPlayersOpen] = useState(false)
 
-    // Back from the players panel lands on the button that opened it.
     const playersButton = useRef<HTMLButtonElement>(null)
     const cameFromPlayers = useRef(false)
 

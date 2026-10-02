@@ -12,7 +12,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
 )
 
-// shed spends one fresh guest account's bank as fast as the bot of 2026-09-30 did, and says at which click it was first dropped.
 func (s *stack) shed(r *rand.Rand, scope, account, flag string) (int, bool) {
 	for i := range 62 {
 		s.clock.Advance(time.Duration(150+r.IntN(300)) * time.Millisecond)
@@ -26,7 +25,7 @@ func (s *stack) shed(r *rand.Rand, scope, account, flag string) (int, bool) {
 func TestTheHomeLineThatShedsItsAccountIsCaught(t *testing.T) {
 	s := newStack()
 
-	//nolint:gosec // G404: deterministic PRNG, seeded so the click stream replays exactly.
+	//nolint:gosec // seeded test PRNG
 	r := rand.New(rand.NewPCG(30, 9))
 
 	for i := range 10 {
@@ -51,7 +50,7 @@ func TestTheHomeLineThatShedsItsAccountIsCaught(t *testing.T) {
 func TestTheRelayOverFreshMobileLinesIsCaught(t *testing.T) {
 	s := newStack()
 
-	//nolint:gosec // G404: deterministic PRNG, seeded so the click stream replays exactly.
+	//nolint:gosec // seeded test PRNG
 	r := rand.New(rand.NewPCG(30, 10))
 
 	for i := range 10 {
@@ -72,7 +71,7 @@ func TestTheRelayOverFreshMobileLinesIsCaught(t *testing.T) {
 func TestAFamilyOnOneLineIsNotBanned(t *testing.T) {
 	s := newStack()
 
-	//nolint:gosec // G404: deterministic PRNG, seeded so the click stream replays exactly.
+	//nolint:gosec // seeded test PRNG
 	r := rand.New(rand.NewPCG(30, 11))
 
 	for range 120 {

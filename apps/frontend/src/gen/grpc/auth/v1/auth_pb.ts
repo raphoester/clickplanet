@@ -7,8 +7,6 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
 
 /**
- * Where a player signs in.
- *
  * @generated from enum auth.v1.Provider
  */
 export enum Provider {
@@ -28,8 +26,6 @@ export enum Provider {
   DISCORD = 2,
 
   /**
-   * A code sent to an email address. Not a third party: this server sends it.
-   *
    * @generated from enum value: PROVIDER_EMAIL = 3;
    */
   EMAIL = 3,
@@ -52,15 +48,11 @@ export enum AccountKind {
   UNSPECIFIED = 0,
 
   /**
-   * No provider is linked. Pruned after a long time without use.
-   *
    * @generated from enum value: ACCOUNT_KIND_GUEST = 1;
    */
   GUEST = 1,
 
   /**
-   * At least one provider is linked.
-   *
    * @generated from enum value: ACCOUNT_KIND_LINKED = 2;
    */
   LINKED = 2,
@@ -82,16 +74,11 @@ export enum SignInIntent {
   UNSPECIFIED = 0,
 
   /**
-   * A known identity moves the browser to its account.
-   *
    * @generated from enum value: SIGN_IN_INTENT_SIGN_IN = 1;
    */
   SIGN_IN = 1,
 
   /**
-   * Adds the identity to the account the browser is on, or refuses. Never
-   * moves the browser to another account.
-   *
    * @generated from enum value: SIGN_IN_INTENT_LINK = 2;
    */
   LINK = 2,
@@ -104,8 +91,6 @@ proto3.util.setEnumType(SignInIntent, "auth.v1.SignInIntent", [
 ]);
 
 /**
- * What CompleteSignIn did with the identity.
- *
  * @generated from enum auth.v1.SignInOutcome
  */
 export enum SignInOutcome {
@@ -115,24 +100,16 @@ export enum SignInOutcome {
   UNSPECIFIED = 0,
 
   /**
-   * The identity was already linked: the browser is now on that account. The
-   * guest it was on before is left as it was, and nothing is merged.
-   *
    * @generated from enum value: SIGN_IN_OUTCOME_SIGNED_IN = 1;
    */
   SIGNED_IN = 1,
 
   /**
-   * The identity was new and is now linked to the account the browser was on.
-   *
    * @generated from enum value: SIGN_IN_OUTCOME_LINKED = 2;
    */
   LINKED = 2,
 
   /**
-   * The identity was new and the browser had no account to link it to, or its
-   * account already holds this provider: a new account was made for it.
-   *
    * @generated from enum value: SIGN_IN_OUTCOME_CREATED = 3;
    */
   CREATED = 3,
@@ -155,15 +132,11 @@ export enum LinkRefusalReason {
   UNSPECIFIED = 0,
 
   /**
-   * Another account already uses this identity.
-   *
    * @generated from enum value: LINK_REFUSAL_REASON_IDENTITY_LINKED_ELSEWHERE = 1;
    */
   IDENTITY_LINKED_ELSEWHERE = 1,
 
   /**
-   * The account already has another user of this provider.
-   *
    * @generated from enum value: LINK_REFUSAL_REASON_PROVIDER_ALREADY_LINKED = 2;
    */
   PROVIDER_ALREADY_LINKED = 2,
@@ -185,15 +158,11 @@ export enum EmailRefusalReason {
   UNSPECIFIED = 0,
 
   /**
-   * Not an email address.
-   *
    * @generated from enum value: EMAIL_REFUSAL_REASON_INVALID = 1;
    */
   INVALID = 1,
 
   /**
-   * An address from a service that hands them out for nothing.
-   *
    * @generated from enum value: EMAIL_REFUSAL_REASON_DISPOSABLE = 2;
    */
   DISPOSABLE = 2,
@@ -210,9 +179,6 @@ proto3.util.setEnumType(EmailRefusalReason, "auth.v1.EmailRefusalReason", [
  */
 export class CreateSessionRequest extends Message<CreateSessionRequest> {
   /**
-   * The Turnstile widget's cf-turnstile-response. Ignored when the server runs
-   * with attestation disabled.
-   *
    * @generated from field: string attestation_token = 1;
    */
   attestationToken = "";
@@ -250,15 +216,11 @@ export class CreateSessionRequest extends Message<CreateSessionRequest> {
  */
 export class CreateSessionResponse extends Message<CreateSessionResponse> {
   /**
-   * Opaque. Sent back on every Click in the X-Session-Token header.
-   *
    * @generated from field: string token = 1;
    */
   token = "";
 
   /**
-   * When the token stops being accepted. The client mints a new one before this.
-   *
    * @generated from field: int64 expires_at_unix_ms = 2;
    */
   expiresAtUnixMs = protoInt64.zero;
@@ -338,8 +300,6 @@ export class GetMeResponse extends Message<GetMeResponse> {
   kind = AccountKind.UNSPECIFIED;
 
   /**
-   * The providers linked to the account, oldest link first. Empty for a guest.
-   *
    * @generated from field: repeated auth.v1.Provider providers = 3;
    */
   providers: Provider[] = [];
@@ -410,8 +370,6 @@ export class GetSignInOptionsRequest extends Message<GetSignInOptionsRequest> {
  */
 export class GetSignInOptionsResponse extends Message<GetSignInOptionsResponse> {
   /**
-   * Every provider offered, in a stable order. Empty while sign-in is off.
-   *
    * @generated from field: repeated auth.v1.Provider providers = 1;
    */
   providers: Provider[] = [];
@@ -449,16 +407,11 @@ export class GetSignInOptionsResponse extends Message<GetSignInOptionsResponse> 
  */
 export class StartSignInRequest extends Message<StartSignInRequest> {
   /**
-   * InvalidArgument when the provider is not offered on this server.
-   *
    * @generated from field: auth.v1.Provider provider = 1;
    */
   provider = Provider.UNSPECIFIED;
 
   /**
-   * Unset signs in, as every client did before intents existed. A link from a
-   * browser with no account is Unauthenticated.
-   *
    * @generated from field: auth.v1.SignInIntent intent = 2;
    */
   intent = SignInIntent.UNSPECIFIED;
@@ -497,9 +450,6 @@ export class StartSignInRequest extends Message<StartSignInRequest> {
  */
 export class StartSignInResponse extends Message<StartSignInResponse> {
   /**
-   * Send the browser here. The provider sends it back to the callback page with
-   * a code and a state.
-   *
    * @generated from field: string authorization_url = 1;
    */
   authorizationUrl = "";
@@ -537,11 +487,6 @@ export class StartSignInResponse extends Message<StartSignInResponse> {
  */
 export class CompleteSignInRequest extends Message<CompleteSignInRequest> {
   /**
-   * Both from the callback page's query string. FailedPrecondition when the
-   * state does not match the sign-in this browser started, or it has lapsed, or
-   * a link's browser is no longer on the account the link started on.
-   * AlreadyExists, with a LinkRefusal detail, when a link is refused.
-   *
    * @generated from field: string code = 1;
    */
   code = "";
@@ -624,8 +569,6 @@ export class CompleteSignInResponse extends Message<CompleteSignInResponse> {
 }
 
 /**
- * The detail of a CompleteSignIn refused with ALREADY_EXISTS: why a link was not made.
- *
  * @generated from message auth.v1.LinkRefusal
  */
 export class LinkRefusal extends Message<LinkRefusal> {
@@ -667,26 +610,16 @@ export class LinkRefusal extends Message<LinkRefusal> {
  */
 export class StartEmailSignInRequest extends Message<StartEmailSignInRequest> {
   /**
-   * InvalidArgument, with an EmailRefusal detail, when it is not an address or
-   * its domain hands out disposable ones. ResourceExhausted when too many codes
-   * went to this address lately.
-   *
    * @generated from field: string email = 1;
    */
   email = "";
 
   /**
-   * As in StartSignInRequest: unset signs in, and a link from a browser with no
-   * account is Unauthenticated.
-   *
    * @generated from field: auth.v1.SignInIntent intent = 2;
    */
   intent = SignInIntent.UNSPECIFIED;
 
   /**
-   * The Turnstile widget's cf-turnstile-response. PermissionDenied when it is
-   * refused. Ignored when the server runs with attestation disabled.
-   *
    * @generated from field: string attestation_token = 3;
    */
   attestationToken = "";
@@ -757,11 +690,6 @@ export class StartEmailSignInResponse extends Message<StartEmailSignInResponse> 
  */
 export class CompleteEmailSignInRequest extends Message<CompleteEmailSignInRequest> {
   /**
-   * The code from the email. InvalidArgument when it is not the one sent, and
-   * the sign-in stays open for another try. FailedPrecondition when this browser
-   * started no email sign-in, or it lapsed, or too many codes were wrong: start
-   * again. AlreadyExists, with a LinkRefusal detail, when a link is refused.
-   *
    * @generated from field: string code = 1;
    */
   code = "";
@@ -838,8 +766,6 @@ export class CompleteEmailSignInResponse extends Message<CompleteEmailSignInResp
 }
 
 /**
- * The detail of a StartEmailSignIn refused with INVALID_ARGUMENT: why no code was sent.
- *
  * @generated from message auth.v1.EmailRefusal
  */
 export class EmailRefusal extends Message<EmailRefusal> {

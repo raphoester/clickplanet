@@ -13,8 +13,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-// stubWatchdog says whatever the test tells it to, and remembers every click it
-// was shown.
 type stubWatchdog struct {
 	name    string
 	verdict detect.Verdict
@@ -146,8 +144,6 @@ func TestASuspicionOlderThanTheWindowStopsCounting(t *testing.T) {
 	stale.verdict = detect.Clear
 	h.clock.Advance(5 * time.Minute)
 
-	// The second watchdog only speaks up now, long after the first went quiet.
-	// Two readings five minutes apart are not a caller doing two things at once.
 	late.verdict = detect.Suspect
 	assert.False(t, h.click())
 }
@@ -162,8 +158,6 @@ func TestEveryWatchdogSeesEveryClickIncludingTheDroppedOnes(t *testing.T) {
 		h.click()
 	}
 
-	// A watchdog cut off the moment another one banned the caller would be
-	// judging a caller that appears to have stopped clicking.
 	assert.Equal(t, 10, certain.seen)
 	assert.Equal(t, 10, other.seen)
 }
@@ -343,7 +337,6 @@ func TestExaminingWithTwoSuspectsReadsGuiltyWithoutBanning(t *testing.T) {
 		&stubWatchdog{name: "second", verdict: detect.Suspect},
 	)
 
-	// The first click bans; the examination afterwards must not ban a second time.
 	require.True(t, h.click())
 
 	examination := h.jury.Examine("caller")
@@ -375,7 +368,6 @@ func TestAReadingFlappingAcrossABoundRisesOncePerWindow(t *testing.T) {
 
 	h := newHarness(juryConfig(), banConfig(), watchdog)
 
-	// Suspect, clear, suspect … for five minutes: one standing suspicion, not one per click.
 	for i := range 300 {
 		watchdog.verdict = detect.Verdict(i % 2)
 		h.click()

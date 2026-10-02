@@ -1,4 +1,3 @@
-// Package start_email_sign_in_handler serves auth.v1.AuthService/StartEmailSignIn.
 package start_email_sign_in_handler
 
 import (
@@ -18,7 +17,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
-// ErrRefused is the whole of what a caller that failed attestation is told; the reason is logged.
 var ErrRefused = errors.New("could not send a code")
 
 type UseCase interface {

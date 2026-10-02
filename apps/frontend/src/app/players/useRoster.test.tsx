@@ -14,7 +14,6 @@ function Harness({backend}: {backend?: PresenceBackend}) {
     return null
 }
 
-/** A backend whose stream the test drives by hand. */
 function streaming() {
     const stream = {
         emit: (event: RosterEvent): void => void event,

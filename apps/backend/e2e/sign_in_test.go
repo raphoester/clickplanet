@@ -19,7 +19,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
-// browser keeps the cookies the API sets, as a web client with credentials does.
 type browser struct {
 	t       *testing.T
 	stack   authStack
@@ -84,7 +83,6 @@ func (b *browser) link(provider authv1.Provider, fake *auth.FakeProvider, code s
 	return b.authorize(provider, authv1.SignInIntent_SIGN_IN_INTENT_LINK, fake, code, claim)
 }
 
-// authorize goes to the provider and back, and keeps the cookies of a refusal as of a success.
 func (b *browser) authorize(
 	provider authv1.Provider, intent authv1.SignInIntent, fake *auth.FakeProvider, code string, claim auth.Claim,
 ) (*authv1.CompleteSignInResponse, error) {
@@ -184,7 +182,6 @@ func TestABrowserWithNoAccountSignsInToANewOne(t *testing.T) {
 	assert.Equal(t, created.GetAccountId(), player.mint().String())
 }
 
-// The production bug: the link moved the browser to the Google account, which had no Discord, and the two could never be joined.
 func TestLinkingAnIdentityAnotherAccountUsesIsRefusedAndTheBrowserStays(t *testing.T) {
 	stack, fakes := startSignIn(t)
 	google := auth.Claim{Subject: "google-1"}

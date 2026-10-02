@@ -1,15 +1,10 @@
 version: "2"
 
 issues:
-  # Report everything: the defaults truncate to 3 of a kind and 50 per linter,
-  # which hides the size of a finding while it is being worked through.
   max-same-issues: 0
   max-issues-per-linter: 0
 
 run:
-  # Shared test helpers live in ordinary .go files behind this tag, so without it
-  # the linters load a tree where those helpers are undefined and report that
-  # instead of anything real. Same reason `go vet` needs it.
   build-tags:
     - testing
 
@@ -24,26 +19,19 @@ linters:
     - wrapcheck
     - nilnil
 
-    # The logger is log/slog directly, so its call sites are worth checking.
     - sloglint
 
-    # Style
     - revive
 
-    # Error handling - errors.Is/As
     - errorlint
 
-    # Slice allocation - requires make([]T, 0, cap) + append
     - prealloc
 
-    # Testing quality
     - testifylint
     - usetesting
 
-    # Security
     - gosec
 
-    # Code quality
     - unconvert
     - gocritic
     - noctx
@@ -54,24 +42,24 @@ linters:
 
     revive:
       rules:
-        - name: error-return # error should be last return value
-        - name: error-naming # error vars should start with Err
-        - name: error-strings # error strings: not capitalized, no trailing punctuation
-        - name: if-return # simplify redundant if-return patterns
-        - name: increment-decrement # use i++ instead of i += 1
-        - name: var-naming # Go naming conventions
-        - name: receiver-naming # consistent receiver names across methods
-        - name: unexported-return # warn on unexported types in exported signatures
-        - name: unused-parameter # flag unused function parameters
-        - name: range # proper range loop usage
-        - name: time-naming # duration fields should not be suffixed with units
-        - name: early-return # prefer early returns to reduce nesting
+        - name: error-return
+        - name: error-naming
+        - name: error-strings
+        - name: if-return
+        - name: increment-decrement
+        - name: var-naming
+        - name: receiver-naming
+        - name: unexported-return
+        - name: unused-parameter
+        - name: range
+        - name: time-naming
+        - name: early-return
 
     errorlint:
-      errorf: true # check fmt.Errorf wrapping uses %w
-      errorf-multi: true # check multi-error wrapping
-      asserts: true # check type assertions on errors
-      comparison: true # check == comparisons against error values
+      errorf: true
+      errorf-multi: true
+      asserts: true
+      comparison: true
 
     wrapcheck:
       extra-ignore-sigs:
@@ -80,29 +68,19 @@ linters:
         - json.Unmarshal(
         - json.Marshal(
 
-        # Handlers return their domain errors bare on purpose: NewErrorInterceptor
-        # maps the sentinels onto Connect codes centrally, and wrapping here would
-        # put a second sentence in front of a message it already chose. `.Execute(`
-        # is every clicks use case, which is exactly that set of calls: the
-        # controller delegates to one and returns what it said.
         - .Execute(
         - .Post(
         - .Create(
 
-        # Pure delegations — an adapter method whose whole body is the call, or a
-        # tail call whose callee already names what failed.
         - .Verify(
         - .Mint(
         - .StateBatchDense(
         - .Mount(
-        # A section's own share of the antibot evidence file; the store names the section.
         - evidence.Encode(
         - evidence.Decode(
         - .Send(
         - cpbootstrap.Run(
 
-        # Connect procedures called straight from a test: the handler under test,
-        # and the generated clients.
         - .Click(
         - .GetMap(
         - .SendMessage(
@@ -116,11 +94,9 @@ linters:
 
     testifylint:
       require-error:
-        # do not check ErrorIs or NotErrorIs, which are for checking error wrapping
         fn-pattern: ^(Error|Errorf|NoError|NoErrorf)$
 
     sloglint:
-      # Attributes only: logger.Info("msg", slog.String(...)), never loose k/v pairs.
       attr-only: true
 
     staticcheck:
@@ -133,14 +109,13 @@ linters:
           "-ST1020",
           "-ST1021",
           "-ST1022",
-          "-S1016", # struct conversion vs literal: structs with different reasons to change shouldn't be forced into a type conversion just because their fields happen to match
+          "-S1016",
         ]
 
     gocritic:
       settings:
         rangeValCopy:
           sizeThreshold: 512
-        # The project's own rules, such as no hand-rolled sets.
         ruleguard:
           rules: ${base-path}/tools/ruleguard/*.go
           failOn: all
@@ -154,7 +129,7 @@ linters:
 
     gosec:
       excludes:
-        - G115 # integer overflow conversion — tile ids are uint32 by contract and bounded by maxIndex
+        - G115
 
   exclusions:
     generated: lax
@@ -163,10 +138,6 @@ linters:
 
 formatters:
   enable:
-    # gofumpt is gofmt plus the rules gofmt left out — it is a strict superset,
-    # so anything it accepts gofmt accepts. Run through golangci-lint rather than
-    # as its own binary: one pinned version to install, and it already knows
-    # which files are generated.
     - gofumpt
 
   exclusions:

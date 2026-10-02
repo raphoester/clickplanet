@@ -16,8 +16,6 @@ export class Profile extends Message<Profile> {
   accountId = "";
 
   /**
-   * The username, as it was typed. Empty while the player has not chosen one.
-   *
    * @generated from field: string name = 2;
    */
   name = "";
@@ -198,16 +196,11 @@ export class SetNameResponse extends Message<SetNameResponse> {
  */
 export class Stats extends Message<Stats> {
   /**
-   * Every tile the account took: clicks, spreads and encloses.
-   *
    * @generated from field: uint64 tiles_taken = 1;
    */
   tilesTaken = protoInt64.zero;
 
   /**
-   * Days in a row, UTC, with at least one take, the last of them today or
-   * yesterday. Zero once a whole day went by with no take.
-   *
    * @generated from field: uint32 streak_current = 2;
    */
   streakCurrent = 0;
@@ -218,8 +211,6 @@ export class Stats extends Message<Stats> {
   streakBest = 0;
 
   /**
-   * The last UTC day with a take, as YYYY-MM-DD. Empty with no take.
-   *
    * @generated from field: string streak_last_day = 4;
    */
   streakLastDay = "";
@@ -489,9 +480,6 @@ export class GetRosterRequest extends Message<GetRosterRequest> {
  */
 export class GetRosterResponse extends Message<GetRosterResponse> {
   /**
-   * Players with a username first, then guests; each group by name, ignoring
-   * case.
-   *
    * @generated from field: repeated player.v1.RosterEntry entries = 1;
    */
   entries: RosterEntry[] = [];
@@ -529,16 +517,11 @@ export class GetRosterResponse extends Message<GetRosterResponse> {
  */
 export class RosterEntry extends Message<RosterEntry> {
   /**
-   * A username, or "guest_" and the account's guest code, as on a chat
-   * message.
-   *
    * @generated from field: string name = 1;
    */
   name = "";
 
   /**
-   * The flag the player last announced.
-   *
    * @generated from field: string country_id = 3;
    */
   countryId = "";
@@ -549,16 +532,11 @@ export class RosterEntry extends Message<RosterEntry> {
   guest = false;
 
   /**
-   * An admin of the game. Never a guest.
-   *
    * @generated from field: bool admin = 5;
    */
   admin = false;
 
   /**
-   * Names this line for as long as the player stays on the roster, a sign-in
-   * and a new name included. Opaque: it says nothing about the account.
-   *
    * @generated from field: string key = 6;
    */
   key = "";
@@ -627,12 +605,6 @@ export class ListenForEventsRequest extends Message<ListenForEventsRequest> {
 }
 
 /**
- * The one live stream of this API — see the note on planet.v1.PlanetEvent. A
- * new kind of event is a new case below, not a second stream.
- *
- * Heartbeat is what keeps a quiet stream alive: Cloudflare cuts a silent
- * response at ~125s with a 524.
- *
  * @generated from message player.v1.PlayerEvent
  */
 export class PlayerEvent extends Message<PlayerEvent> {
@@ -641,27 +613,18 @@ export class PlayerEvent extends Message<PlayerEvent> {
    */
   event: {
     /**
-     * The whole roster, in GetRoster's order. Always the first event, so a
-     * client that reconnects starts over from it.
-     *
      * @generated from field: player.v1.Roster roster = 1;
      */
     value: Roster;
     case: "roster";
   } | {
     /**
-     * A player joined, or a line changed: its name or its flag. It
-     * replaces the line with the same key.
-     *
      * @generated from field: player.v1.RosterEntry entry = 2;
      */
     value: RosterEntry;
     case: "entry";
   } | {
     /**
-     * The line with this key is gone: the player left, signed out or stopped
-     * announcing.
-     *
      * @generated from field: player.v1.PlayerLeft left = 3;
      */
     value: PlayerLeft;
@@ -710,9 +673,6 @@ export class PlayerEvent extends Message<PlayerEvent> {
  */
 export class Roster extends Message<Roster> {
   /**
-   * Players with a username first, then guests; each group by name, ignoring
-   * case.
-   *
    * @generated from field: repeated player.v1.RosterEntry entries = 1;
    */
   entries: RosterEntry[] = [];
@@ -818,8 +778,6 @@ export class Heartbeat extends Message<Heartbeat> {
  */
 export class GetPlayerRequest extends Message<GetPlayerRequest> {
   /**
-   * A username, in any case.
-   *
    * @generated from field: string name = 1;
    */
   name = "";
@@ -894,29 +852,21 @@ export class GetPlayerResponse extends Message<GetPlayerResponse> {
  */
 export class Player extends Message<Player> {
   /**
-   * The username as its player typed it.
-   *
    * @generated from field: string name = 1;
    */
   name = "";
 
   /**
-   * As of today: a streak that ended before yesterday reads 0.
-   *
    * @generated from field: player.v1.Stats stats = 2;
    */
   stats?: Stats;
 
   /**
-   * When the account was made, as a guest or by a first sign-in.
-   *
    * @generated from field: int64 created_at_unix_ms = 3;
    */
   createdAtUnixMs = protoInt64.zero;
 
   /**
-   * An admin of the game.
-   *
    * @generated from field: bool admin = 4;
    */
   admin = false;

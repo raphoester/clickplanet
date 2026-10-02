@@ -1,4 +1,3 @@
-// Package migrations is the planet schema, embedded so the module migrates it while it builds.
 package migrations
 
 import "embed"

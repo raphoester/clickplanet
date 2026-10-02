@@ -1,4 +1,3 @@
-// Package random_code_generator draws the six digits an email sign-in sends, uniformly from crypto/rand.
 package random_code_generator
 
 import (

@@ -2,11 +2,6 @@ import {v4 as generateUUID} from 'uuid';
 
 export const CHAT_IDENTITY_STORAGE_KEY = 'clickplanet-chat-identity'
 
-/**
- * The id this browser posts under. It names no one — the server names the
- * sender by the click token — and is kept only because the request still
- * carries it. A name stored by an older build is ignored.
- */
 export type ChatIdentity = {
     authorId: string
 }

@@ -9,12 +9,10 @@ import (
 
 const defaultMaxTextLength = 280
 
-// Limits bound a text in runes.
 type Limits struct {
 	maxText int
 }
 
-// NewLimits takes zero or less as the default.
 func NewLimits(maxText int) Limits {
 	if maxText <= 0 {
 		maxText = defaultMaxTextLength

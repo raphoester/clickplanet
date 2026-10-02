@@ -6,10 +6,8 @@ import (
 	"time"
 )
 
-// CookieName is the session cookie. No other module reads it.
 const CookieName = "cp_sid"
 
-// TokenFromCookies reads the session token out of a browser's Cookie header.
 func TokenFromCookies(cookieHeader string) (*Token, error) {
 	value, found := CookieValue(cookieHeader, CookieName)
 	if !found {
@@ -36,7 +34,6 @@ func ExpiredSessionCookie() string {
 	return ExpiredCookie(CookieName)
 }
 
-// Cookie stores value until expiresAt: HttpOnly so no script reads it, Lax so no other site's form sends it.
 func Cookie(name string, value string, expiresAt, now time.Time) string {
 	return fmt.Sprint(&http.Cookie{
 		Name:     name,

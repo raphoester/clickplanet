@@ -1,4 +1,3 @@
-// Package use_refill_handler serves planet.v1.ClickService/UseRefill.
 package use_refill_handler
 
 import (

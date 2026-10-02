@@ -1,4 +1,3 @@
-// Package audit_reassign logs every reassignment, dry runs and failures included.
 package audit_reassign
 
 import (
@@ -21,7 +20,6 @@ type Audited struct {
 	logger *slog.Logger
 }
 
-// Execute logs at Warn: the log is the only record that these tiles did not change hands through play.
 func (a *Audited) Execute(ctx context.Context, in reassign_country_usecase.In) (reassign_country_usecase.Out, error) {
 	out, err := a.inner.Execute(ctx, in)
 
