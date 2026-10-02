@@ -57,7 +57,9 @@ jobs:
 
       # The version is pinned so a linter release cannot turn a green branch
       # red on its own schedule. It must match GOLANGCI_LINT_VERSION in
-      # apps/backend/Makefile, which is what `make setup-tools` installs.
+      # apps/backend/Makefile, which is what `make setup-tools` installs, and the
+      # version in apps/backend/.custom-gcl.yml: the action finds that file and
+      # runs a golangci-lint rebuilt with its module plugins instead.
       - uses: golangci/golangci-lint-action@v9
         with:
           version: v2.13.1
