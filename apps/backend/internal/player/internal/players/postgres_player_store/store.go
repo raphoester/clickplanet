@@ -114,8 +114,8 @@ func (s *Store) SaveGuestCode(ctx context.Context, account players.AccountID, co
 
 func (s *Store) Stats(ctx context.Context, account players.AccountID) (players.Stats, error) {
 	return statsOf(s.db.QueryRowContext(ctx, `
-		SELECT tiles_taken, streak_current, streak_best, streak_last_day FROM stats WHERE account_id = $1
-	`, uuid.UUID(account)), account)
+		SELECT account_id, tiles_taken, streak_current, streak_best, streak_last_day FROM stats WHERE account_id = $1
+	`, uuid.UUID(account)))
 }
 
 const takesLock = 0x706c6179
@@ -136,8 +136,8 @@ func (s *Store) RecordTake(ctx context.Context, account players.AccountID, at ti
 	}
 
 	current, err := statsOf(tx.QueryRowContext(ctx, `
-		SELECT tiles_taken, streak_current, streak_best, streak_last_day FROM stats WHERE account_id = $1
-	`, uuid.UUID(account)), account)
+		SELECT account_id, tiles_taken, streak_current, streak_best, streak_last_day FROM stats WHERE account_id = $1
+	`, uuid.UUID(account)))
 	if errors.Is(err, players.ErrNoStats) {
 		current, err = players.Stats{Account: account}, nil
 	}
@@ -165,39 +165,72 @@ func (s *Store) RecordTake(ctx context.Context, account players.AccountID, at ti
 	return nil
 }
 
-func (s *Store) Titles(ctx context.Context, account players.AccountID) (players.Titles, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT title FROM titles WHERE account_id = $1 ORDER BY earned_at, title`, uuid.UUID(account))
+func (s *Store) StatsAfter(ctx context.Context, after players.AccountID, limit int) ([]players.Stats, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT account_id, tiles_taken, streak_current, streak_best, streak_last_day FROM stats
+		WHERE account_id > $1 ORDER BY account_id LIMIT $2
+	`, uuid.UUID(after), limit)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read the titles: %w", err)
+		return nil, fmt.Errorf("failed to read a page of stats: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
 
-	var titles players.Titles
+	var page []players.Stats
 	for rows.Next() {
-		var title string
-		if err := rows.Scan(&title); err != nil {
-			return nil, fmt.Errorf("failed to read a title: %w", err)
+		stats, err := statsOf(rows)
+		if err != nil {
+			return nil, err
 		}
-		titles = append(titles, players.Title(title))
+		page = append(page, stats)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("failed to read the titles: %w", err)
+		return nil, fmt.Errorf("failed to read a page of stats: %w", err)
 	}
-	return titles, nil
+	return page, nil
 }
 
-func (s *Store) GrantTitles(ctx context.Context, account players.AccountID, titles players.Titles, at time.Time) error {
-	keys := make([]string, len(titles))
-	for i, title := range titles {
-		keys[i] = string(title)
+func (s *Store) Titles(ctx context.Context, account players.AccountID) (players.TitleIDs, error) {
+	return titleIDsOf(s.db.QueryContext(ctx, `SELECT title FROM titles WHERE account_id = $1 ORDER BY earned_at, title`, uuid.UUID(account)))
+}
+
+func (s *Store) GrantTitles(ctx context.Context, grants players.Grants, at time.Time) error {
+	var accounts, titles []string
+	for account, held := range grants {
+		for _, title := range held {
+			accounts = append(accounts, account.String())
+			titles = append(titles, string(title))
+		}
+	}
+	if len(titles) == 0 {
+		return nil
 	}
 
 	if _, err := s.db.ExecContext(ctx, `
 		INSERT INTO titles (account_id, title, earned_at)
-		SELECT $1, unnest($2::text[]), $3
+		SELECT granted.account_id, granted.title, $3
+		FROM unnest($1::uuid[], $2::text[]) AS granted (account_id, title)
 		ON CONFLICT (account_id, title) DO NOTHING
-	`, uuid.UUID(account), pq.Array(keys), at.UTC()); err != nil {
+	`, pq.Array(accounts), pq.Array(titles), at.UTC()); err != nil {
 		return fmt.Errorf("failed to grant the titles: %w", err)
+	}
+	return nil
+}
+
+func (s *Store) BackfilledTitles(ctx context.Context) (players.TitleIDs, error) {
+	return titleIDsOf(s.db.QueryContext(ctx, `SELECT title FROM title_backfills ORDER BY title`))
+}
+
+func (s *Store) SaveBackfilledTitles(ctx context.Context, titles players.TitleIDs, at time.Time) error {
+	ids := make([]string, len(titles))
+	for i, title := range titles {
+		ids[i] = string(title)
+	}
+
+	if _, err := s.db.ExecContext(ctx, `
+		INSERT INTO title_backfills (title, backfilled_at) SELECT unnest($1::text[]), $2
+		ON CONFLICT (title) DO NOTHING
+	`, pq.Array(ids), at.UTC()); err != nil {
+		return fmt.Errorf("failed to save the backfilled titles: %w", err)
 	}
 	return nil
 }
@@ -313,12 +346,17 @@ func (s *Store) Names(ctx context.Context, accounts []players.AccountID) (map[pl
 	return names, nil
 }
 
-func statsOf(row *sql.Row, account players.AccountID) (players.Stats, error) {
+type scanner interface {
+	Scan(dest ...any) error
+}
+
+func statsOf(row scanner) (players.Stats, error) {
 	var (
+		account              uuid.UUID
 		tiles, current, best int64
 		lastDay              time.Time
 	)
-	err := row.Scan(&tiles, &current, &best, &lastDay)
+	err := row.Scan(&account, &tiles, &current, &best, &lastDay)
 	if errors.Is(err, sql.ErrNoRows) {
 		return players.Stats{}, players.ErrNoStats
 	}
@@ -327,10 +365,30 @@ func statsOf(row *sql.Row, account players.AccountID) (players.Stats, error) {
 	}
 
 	return players.Stats{
-		Account:       account,
+		Account:       players.AccountID(account),
 		TilesTaken:    uint64(tiles),   //nolint:gosec // CHECK (tiles_taken >= 0).
 		StreakCurrent: uint32(current), //nolint:gosec // CHECK (streak_current >= 0), and one a day.
 		StreakBest:    uint32(best),    //nolint:gosec // as above.
 		StreakLastDay: players.DayOf(lastDay),
 	}, nil
+}
+
+func titleIDsOf(rows *sql.Rows, err error) (players.TitleIDs, error) {
+	if err != nil {
+		return nil, fmt.Errorf("failed to read the titles: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var titles players.TitleIDs
+	for rows.Next() {
+		var title string
+		if err := rows.Scan(&title); err != nil {
+			return nil, fmt.Errorf("failed to read a title: %w", err)
+		}
+		titles = append(titles, players.TitleID(title))
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to read the titles: %w", err)
+	}
+	return titles, nil
 }

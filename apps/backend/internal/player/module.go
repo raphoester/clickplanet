@@ -16,6 +16,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/random_code_generator"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/rpc_account_reader"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/award_titles_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/backfill_titles_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/backfill_titles_usecase/log_backfill_titles"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/forget_account_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_author_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_authors_usecase"
@@ -102,6 +104,9 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	authors := get_author_usecase.New(store, players.NewGuestCodes(store, random_code_generator.Generator{}))
 	manyAuthors := get_authors_usecase.New(store)
 
+	catalog := players.NewCatalog()
+	titleBook := players.NewTitleBook(store, catalog)
+
 	visits := inmemory_visit_storage.New(clock)
 	props.Runners.Add(visits)
 
@@ -113,7 +118,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to subscribe to planet.v1.TileTaken: %w", err)
 	}
 	titles, err := cpbootstrap.Subscribe(props.Events, "player-titles", tileTakenBuffer,
-		log_subscriber.New(stats_changed_subscriber.New(award_titles_usecase.New(store, store, clock)), props.Logger))
+		log_subscriber.New(stats_changed_subscriber.New(award_titles_usecase.New(store, titleBook, clock)), props.Logger))
 	if err != nil {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe to player.v1.StatsChanged: %w", err)
@@ -147,7 +152,10 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	props.Runners.Add(signOuts)
 	props.Runners.Add(gone)
 
-	props.Runners.Add(cppg.CloseAfter(db, props.Logger, takes, titles, deletions, signIns))
+	backfill := backfill_titles_usecase.NewRunner(
+		log_backfill_titles.New(backfill_titles_usecase.New(store, store, catalog, clock), props.Logger))
+
+	props.Runners.Add(cppg.CloseAfter(db, props.Logger, takes, titles, deletions, signIns, backfill))
 
 	verifier := rpc_session_verifier.New(props.Internal, props.Logger)
 	accounts := rpc_account_reader.New(props.Internal)
@@ -163,7 +171,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		GetRosterHandler: get_roster_handler.New(get_roster_usecase.New(visits, clock)),
 		ListenForEventsHandler: listen_for_events_handler.New(
 			listen_for_events_usecase.New(visits, props.Server.StreamHeartbeat)),
-		GetPlayerHandler: get_player_handler.New(get_player_usecase.New(store, store, store, accounts, clock)),
+		GetPlayerHandler: get_player_handler.New(get_player_usecase.New(store, store, titleBook, accounts, clock)),
 	}
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return playerv1connect.NewPlayerServiceHandler(playerService, options...)

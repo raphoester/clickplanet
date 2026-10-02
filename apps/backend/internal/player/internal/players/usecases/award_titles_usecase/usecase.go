@@ -15,8 +15,7 @@ type Stats interface {
 }
 
 type Titles interface {
-	Titles(ctx context.Context, account players.AccountID) (players.Titles, error)
-	GrantTitles(ctx context.Context, account players.AccountID, titles players.Titles, at time.Time) error
+	Award(ctx context.Context, account players.AccountID, stats players.Stats, at time.Time) error
 }
 
 type UseCase struct {
@@ -38,17 +37,8 @@ func (u *UseCase) Execute(ctx context.Context, account players.AccountID) error 
 		return fmt.Errorf("failed to read the stats: %w", err)
 	}
 
-	held, err := u.titles.Titles(ctx, account)
-	if err != nil {
-		return fmt.Errorf("failed to read the titles: %w", err)
-	}
-
-	earned := players.TitlesOf(stats).Without(held)
-	if len(earned) == 0 {
-		return nil
-	}
-	if err := u.titles.GrantTitles(ctx, account, earned, u.clock.Now()); err != nil {
-		return fmt.Errorf("failed to grant the titles: %w", err)
+	if err := u.titles.Award(ctx, account, stats, u.clock.Now()); err != nil {
+		return fmt.Errorf("failed to award the titles: %w", err)
 	}
 	return nil
 }

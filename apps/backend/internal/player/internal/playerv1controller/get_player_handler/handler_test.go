@@ -41,7 +41,7 @@ func TestThePlayerIsMappedAndMayBeCached(t *testing.T) {
 			StreakLastDay: players.DayOf(time.Date(2026, 9, 14, 0, 0, 0, 0, time.UTC)),
 		},
 		CreatedAt: createdAt,
-		Titles:    players.Titles{players.Settler, players.Loyal},
+		Titles:    []players.Title{players.Settler{}, players.Loyal{}},
 	}}
 
 	res, err := getPlayer(t, useCase, "ada_l")
@@ -55,7 +55,10 @@ func TestThePlayerIsMappedAndMayBeCached(t *testing.T) {
 	assert.Equal(t, uint32(5), player.GetStats().GetStreakBest())
 	assert.Equal(t, "2026-09-14", player.GetStats().GetStreakLastDay())
 	assert.Equal(t, createdAt.UnixMilli(), player.GetCreatedAtUnixMs())
-	assert.Equal(t, []playerv1.Title{playerv1.Title_TITLE_SETTLER, playerv1.Title_TITLE_LOYAL}, player.GetTitles())
+	require.Len(t, player.GetTitles(), 2)
+	assert.Equal(t, "settler", player.GetTitles()[0].GetId())
+	assert.Equal(t, "Settler", player.GetTitles()[0].GetName())
+	assert.Equal(t, "loyal", player.GetTitles()[1].GetId())
 	assert.Equal(t, "public, max-age=10", res.Header().Get("Cache-Control"))
 }
 

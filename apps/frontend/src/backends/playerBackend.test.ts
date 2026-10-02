@@ -344,13 +344,13 @@ describe("ConnectPlayerBackend player info", () => {
                 stats: new StatsPb({tilesTaken: 1234n, streakCurrent: 3, streakBest: 7, streakLastDay: "2026-09-17"}),
                 createdAtUnixMs: 1_788_000_000_000n,
                 admin: true,
-                titles: [TitlePb.SETTLER, TitlePb.GOVERNOR, TitlePb.LOYAL],
+                titles: [new TitlePb({id: "settler", name: "Settler"}), new TitlePb({id: "loyal", name: "Loyal"})],
             }),
         }))
 
         expect(await backendWith({getPlayer}, session).playerInfo("ana")).toEqual({
             name: "Ana", tilesTaken: 1234, streakCurrent: 3, streakBest: 7, createdAt: 1_788_000_000_000, admin: true,
-            titles: ["settler", "governor", "loyal"],
+            titles: [{id: "settler", name: "Settler"}, {id: "loyal", name: "Loyal"}],
         })
         expect(getPlayer).toHaveBeenCalledWith({name: "ana"})
         expect(session.token).not.toHaveBeenCalled()
@@ -360,14 +360,6 @@ describe("ConnectPlayerBackend player info", () => {
         const getPlayer = vi.fn(async () => ({player: new PlayerPb({name: "Ana", stats: new StatsPb()})}))
 
         expect((await backendWith({getPlayer}).playerInfo("Ana"))?.createdAt).toBeUndefined()
-    })
-
-    it("leaves out a title this build does not know", async () => {
-        const getPlayer = vi.fn(async () => ({
-            player: new PlayerPb({name: "Ana", titles: [TitlePb.UNSPECIFIED, 99 as TitlePb, TitlePb.DEVOTED]}),
-        }))
-
-        expect((await backendWith({getPlayer}).playerInfo("Ana"))?.titles).toEqual(["devoted"])
     })
 
     it("answers undefined for a name no player holds", async () => {

@@ -75,10 +75,10 @@ func (s *testSuite) TestTheStreakDayIsStoredAsADate() {
 }
 
 func (s *testSuite) TestATitleKeepsTheTimeItWasFirstEarned() {
-	account := players.AccountID{15: 1}
-	s.Require().NoError(s.store.GrantTitles(s.T().Context(), account, players.Titles{players.Settler}, at))
+	grant := players.Grants{{15: 1}: {"settler"}}
+	s.Require().NoError(s.store.GrantTitles(s.T().Context(), grant, at))
 
-	s.Require().NoError(s.store.GrantTitles(s.T().Context(), account, players.Titles{players.Settler}, at.Add(time.Hour)))
+	s.Require().NoError(s.store.GrantTitles(s.T().Context(), grant, at.Add(time.Hour)))
 
 	var earnedAt time.Time
 	s.Require().NoError(s.db.QueryRowContext(s.T().Context(), `SELECT earned_at FROM titles`).Scan(&earnedAt))

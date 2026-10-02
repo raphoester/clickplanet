@@ -192,14 +192,14 @@ func (s *StoreContractSuite) TestARenameFreesTheOldName() {
 	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(2, "ada")))
 }
 
-func (s *StoreContractSuite) titles(account byte) Titles {
+func (s *StoreContractSuite) titles(account byte) TitleIDs {
 	titles, err := s.store.Titles(s.T().Context(), AccountID{15: account})
 	s.Require().NoError(err)
 	return titles
 }
 
-func (s *StoreContractSuite) grantTitles(account byte, titles ...Title) {
-	s.Require().NoError(s.store.GrantTitles(s.T().Context(), AccountID{15: account}, titles, contractAt))
+func (s *StoreContractSuite) grantTitles(account byte, titles ...TitleID) {
+	s.Require().NoError(s.store.GrantTitles(s.T().Context(), Grants{{15: account}: titles}, contractAt))
 }
 
 func (s *StoreContractSuite) TestAnAccountNeverGrantedATitleHoldsNone() {
@@ -209,35 +209,81 @@ func (s *StoreContractSuite) TestAnAccountNeverGrantedATitleHoldsNone() {
 }
 
 func (s *StoreContractSuite) TestGrantedTitlesReadBack() {
-	s.grantTitles(1, Settler, Loyal)
+	s.grantTitles(1, "settler", "loyal")
 
-	s.ElementsMatch(Titles{Settler, Loyal}, s.titles(1))
+	s.ElementsMatch(TitleIDs{"settler", "loyal"}, s.titles(1))
 }
 
 func (s *StoreContractSuite) TestATitleGrantedAgainIsHeldOnce() {
-	s.grantTitles(1, Settler)
+	s.grantTitles(1, "settler")
 
-	s.grantTitles(1, Settler, Governor)
+	s.grantTitles(1, "settler", "governor")
 
-	s.ElementsMatch(Titles{Settler, Governor}, s.titles(1))
+	s.ElementsMatch(TitleIDs{"settler", "governor"}, s.titles(1))
 }
 
-func (s *StoreContractSuite) TestTitlesOfOneAccountAreNotAnothers() {
-	s.grantTitles(1, Settler)
-	s.grantTitles(2, Loyal)
+func (s *StoreContractSuite) TestOneGrantGivesManyAccountsTheirOwnTitles() {
+	s.Require().NoError(s.store.GrantTitles(s.T().Context(), Grants{
+		{15: 1}: {"settler"},
+		{15: 2}: {"loyal", "devoted"},
+	}, contractAt))
 
-	s.Equal(Titles{Settler}, s.titles(1))
-	s.Equal(Titles{Loyal}, s.titles(2))
+	s.Equal(TitleIDs{"settler"}, s.titles(1))
+	s.ElementsMatch(TitleIDs{"loyal", "devoted"}, s.titles(2))
+	s.Empty(s.titles(3))
+}
+
+func (s *StoreContractSuite) TestAnEmptyGrantIsNotAnError() {
+	s.Require().NoError(s.store.GrantTitles(s.T().Context(), Grants{}, contractAt))
 }
 
 func (s *StoreContractSuite) TestADeletedAccountLosesItsTitles() {
-	s.grantTitles(1, Settler)
-	s.grantTitles(2, Settler)
+	s.grantTitles(1, "settler")
+	s.grantTitles(2, "settler")
 
 	s.Require().NoError(s.store.DeleteAccount(s.T().Context(), AccountID{15: 1}))
 
 	s.Empty(s.titles(1))
-	s.Equal(Titles{Settler}, s.titles(2))
+	s.Equal(TitleIDs{"settler"}, s.titles(2))
+}
+
+func (s *StoreContractSuite) TestStatsArePagedInAccountOrderAfterTheCursor() {
+	for _, account := range []byte{3, 1, 4, 2} {
+		s.recordTake(account, contractAt)
+	}
+
+	first, err := s.store.StatsAfter(s.T().Context(), AccountID{}, 3)
+	s.Require().NoError(err)
+	rest, err := s.store.StatsAfter(s.T().Context(), first[len(first)-1].Account, 3)
+	s.Require().NoError(err)
+
+	accountsOf := func(page []Stats) []AccountID {
+		accounts := make([]AccountID, 0, len(page))
+		for _, stats := range page {
+			accounts = append(accounts, stats.Account)
+		}
+		return accounts
+	}
+	s.Equal([]AccountID{{15: 1}, {15: 2}, {15: 3}}, accountsOf(first))
+	s.Equal([]AccountID{{15: 4}}, accountsOf(rest))
+	s.Equal(s.stats(4), rest[0])
+}
+
+func (s *StoreContractSuite) TestNoTitleIsBackfilledAtFirst() {
+	backfilled, err := s.store.BackfilledTitles(s.T().Context())
+
+	s.Require().NoError(err)
+	s.Empty(backfilled)
+}
+
+func (s *StoreContractSuite) TestBackfilledTitlesReadBackAndSavingOneAgainIsNoError() {
+	s.Require().NoError(s.store.SaveBackfilledTitles(s.T().Context(), TitleIDs{"settler", "loyal"}, contractAt))
+	s.Require().NoError(s.store.SaveBackfilledTitles(s.T().Context(), TitleIDs{"loyal", "devoted"}, contractAt))
+
+	backfilled, err := s.store.BackfilledTitles(s.T().Context())
+
+	s.Require().NoError(err)
+	s.ElementsMatch(TitleIDs{"settler", "loyal", "devoted"}, backfilled)
 }
 
 func (s *StoreContractSuite) TestAnAccountNeverGivenACodeHasNone() {

@@ -3,6 +3,7 @@
 package inmemory_player_store
 
 import (
+	"bytes"
 	"context"
 	"slices"
 	"sync"
@@ -12,12 +13,13 @@ import (
 )
 
 type Store struct {
-	mu       sync.Mutex
-	profiles map[players.AccountID]players.Profile
-	codes    map[players.AccountID]players.GuestCode
-	stats    map[players.AccountID]players.Stats
-	titles   map[players.AccountID]players.Titles
-	failWith error
+	mu         sync.Mutex
+	profiles   map[players.AccountID]players.Profile
+	codes      map[players.AccountID]players.GuestCode
+	stats      map[players.AccountID]players.Stats
+	titles     map[players.AccountID]players.TitleIDs
+	backfilled players.TitleIDs
+	failWith   error
 }
 
 var _ players.Store = (*Store)(nil)
@@ -27,7 +29,7 @@ func New() *Store {
 		profiles: map[players.AccountID]players.Profile{},
 		codes:    map[players.AccountID]players.GuestCode{},
 		stats:    map[players.AccountID]players.Stats{},
-		titles:   map[players.AccountID]players.Titles{},
+		titles:   map[players.AccountID]players.TitleIDs{},
 	}
 }
 
@@ -155,7 +157,24 @@ func (s *Store) RecordTake(_ context.Context, account players.AccountID, at time
 	return nil
 }
 
-func (s *Store) Titles(_ context.Context, account players.AccountID) (players.Titles, error) {
+func (s *Store) StatsAfter(_ context.Context, after players.AccountID, limit int) ([]players.Stats, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.failWith != nil {
+		return nil, s.failWith
+	}
+	var page []players.Stats
+	for account, stats := range s.stats {
+		if bytes.Compare(account[:], after[:]) > 0 {
+			page = append(page, stats)
+		}
+	}
+	slices.SortFunc(page, func(a, b players.Stats) int { return bytes.Compare(a.Account[:], b.Account[:]) })
+	return page[:min(limit, len(page))], nil
+}
+
+func (s *Store) Titles(_ context.Context, account players.AccountID) (players.TitleIDs, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -165,18 +184,41 @@ func (s *Store) Titles(_ context.Context, account players.AccountID) (players.Ti
 	return slices.Clone(s.titles[account]), nil
 }
 
-func (s *Store) GrantTitles(_ context.Context, account players.AccountID, titles players.Titles, _ time.Time) error {
+func (s *Store) GrantTitles(_ context.Context, grants players.Grants, _ time.Time) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if s.failWith != nil {
 		return s.failWith
 	}
-	for _, title := range titles {
-		if !slices.Contains(s.titles[account], title) {
-			s.titles[account] = append(s.titles[account], title)
+	for account, titles := range grants {
+		for _, title := range titles {
+			if !slices.Contains(s.titles[account], title) {
+				s.titles[account] = append(s.titles[account], title)
+			}
 		}
 	}
+	return nil
+}
+
+func (s *Store) BackfilledTitles(context.Context) (players.TitleIDs, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.failWith != nil {
+		return nil, s.failWith
+	}
+	return slices.Clone(s.backfilled), nil
+}
+
+func (s *Store) SaveBackfilledTitles(_ context.Context, titles players.TitleIDs, _ time.Time) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.failWith != nil {
+		return s.failWith
+	}
+	s.backfilled = append(s.backfilled, titles.Without(s.backfilled)...)
 	return nil
 }
 

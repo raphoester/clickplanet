@@ -51,13 +51,17 @@ describe("PlayerCard", () => {
         render(<PlayerCard player={ana}
                            backend={backendAnswering(async () => ({
                                name: "Ana", tilesTaken: 12_000, streakCurrent: 0, streakBest: 30, admin: false,
-                               titles: ["settler", "governor", "conqueror", "loyal", "devoted"],
+                               titles: [
+                                   {id: "settler", name: "Settler"},
+                                   {id: "governor", name: "Governor"},
+                                   {id: "loyal", name: "Loyal"},
+                               ],
                            }))}
                            onClose={() => {}}/>)
 
         const titles = await screen.findByRole("list", {name: "Titles"})
         expect(within(titles).getAllByRole("listitem").map((item) => item.textContent))
-            .toEqual(["Settler", "Governor", "Conqueror", "Loyal", "Devoted"])
+            .toEqual(["Settler", "Governor", "Loyal"])
     })
 
     it("shows no list for a player with no title", async () => {

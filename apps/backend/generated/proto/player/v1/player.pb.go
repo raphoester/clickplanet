@@ -21,70 +21,6 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type Title int32
-
-const (
-	Title_TITLE_UNSPECIFIED Title = 0
-	Title_TITLE_SETTLER     Title = 1
-	Title_TITLE_GOVERNOR    Title = 2
-	Title_TITLE_CONQUEROR   Title = 3
-	Title_TITLE_EMPEROR     Title = 4
-	Title_TITLE_LOYAL       Title = 5
-	Title_TITLE_DEVOTED     Title = 6
-	Title_TITLE_UNBROKEN    Title = 7
-)
-
-// Enum value maps for Title.
-var (
-	Title_name = map[int32]string{
-		0: "TITLE_UNSPECIFIED",
-		1: "TITLE_SETTLER",
-		2: "TITLE_GOVERNOR",
-		3: "TITLE_CONQUEROR",
-		4: "TITLE_EMPEROR",
-		5: "TITLE_LOYAL",
-		6: "TITLE_DEVOTED",
-		7: "TITLE_UNBROKEN",
-	}
-	Title_value = map[string]int32{
-		"TITLE_UNSPECIFIED": 0,
-		"TITLE_SETTLER":     1,
-		"TITLE_GOVERNOR":    2,
-		"TITLE_CONQUEROR":   3,
-		"TITLE_EMPEROR":     4,
-		"TITLE_LOYAL":       5,
-		"TITLE_DEVOTED":     6,
-		"TITLE_UNBROKEN":    7,
-	}
-)
-
-func (x Title) Enum() *Title {
-	p := new(Title)
-	*p = x
-	return p
-}
-
-func (x Title) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (Title) Descriptor() protoreflect.EnumDescriptor {
-	return file_player_v1_player_proto_enumTypes[0].Descriptor()
-}
-
-func (Title) Type() protoreflect.EnumType {
-	return &file_player_v1_player_proto_enumTypes[0]
-}
-
-func (x Title) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use Title.Descriptor instead.
-func (Title) EnumDescriptor() ([]byte, []int) {
-	return file_player_v1_player_proto_rawDescGZIP(), []int{0}
-}
-
 type Profile struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
@@ -1129,7 +1065,7 @@ type Player struct {
 	Stats           *Stats                 `protobuf:"bytes,2,opt,name=stats,proto3" json:"stats,omitempty"`
 	CreatedAtUnixMs int64                  `protobuf:"varint,3,opt,name=created_at_unix_ms,json=createdAtUnixMs,proto3" json:"created_at_unix_ms,omitempty"`
 	Admin           bool                   `protobuf:"varint,4,opt,name=admin,proto3" json:"admin,omitempty"`
-	Titles          []Title                `protobuf:"varint,5,rep,packed,name=titles,proto3,enum=player.v1.Title" json:"titles,omitempty"`
+	Titles          []*Title               `protobuf:"bytes,5,rep,name=titles,proto3" json:"titles,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -1192,11 +1128,63 @@ func (x *Player) GetAdmin() bool {
 	return false
 }
 
-func (x *Player) GetTitles() []Title {
+func (x *Player) GetTitles() []*Title {
 	if x != nil {
 		return x.Titles
 	}
 	return nil
+}
+
+type Title struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Title) Reset() {
+	*x = Title{}
+	mi := &file_player_v1_player_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Title) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Title) ProtoMessage() {}
+
+func (x *Title) ProtoReflect() protoreflect.Message {
+	mi := &file_player_v1_player_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Title.ProtoReflect.Descriptor instead.
+func (*Title) Descriptor() ([]byte, []int) {
+	return file_player_v1_player_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *Title) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *Title) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
 }
 
 var File_player_v1_player_proto protoreflect.FileDescriptor
@@ -1264,16 +1252,10 @@ const file_player_v1_player_proto_rawDesc = "" +
 	"\x05stats\x18\x02 \x01(\v2\x10.player.v1.StatsR\x05stats\x12+\n" +
 	"\x12created_at_unix_ms\x18\x03 \x01(\x03R\x0fcreatedAtUnixMs\x12\x14\n" +
 	"\x05admin\x18\x04 \x01(\bR\x05admin\x12(\n" +
-	"\x06titles\x18\x05 \x03(\x0e2\x10.player.v1.TitleR\x06titles*\xa5\x01\n" +
-	"\x05Title\x12\x15\n" +
-	"\x11TITLE_UNSPECIFIED\x10\x00\x12\x11\n" +
-	"\rTITLE_SETTLER\x10\x01\x12\x12\n" +
-	"\x0eTITLE_GOVERNOR\x10\x02\x12\x13\n" +
-	"\x0fTITLE_CONQUEROR\x10\x03\x12\x11\n" +
-	"\rTITLE_EMPEROR\x10\x04\x12\x0f\n" +
-	"\vTITLE_LOYAL\x10\x05\x12\x11\n" +
-	"\rTITLE_DEVOTED\x10\x06\x12\x12\n" +
-	"\x0eTITLE_UNBROKEN\x10\a2\xcc\x04\n" +
+	"\x06titles\x18\x05 \x03(\v2\x10.player.v1.TitleR\x06titles\"+\n" +
+	"\x05Title\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name2\xcc\x04\n" +
 	"\rPlayerService\x12I\n" +
 	"\n" +
 	"GetProfile\x12\x1c.player.v1.GetProfileRequest\x1a\x1d.player.v1.GetProfileResponse\x12@\n" +
@@ -1299,63 +1281,62 @@ func file_player_v1_player_proto_rawDescGZIP() []byte {
 	return file_player_v1_player_proto_rawDescData
 }
 
-var file_player_v1_player_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_player_v1_player_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
+var file_player_v1_player_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
 var file_player_v1_player_proto_goTypes = []any{
-	(Title)(0),                     // 0: player.v1.Title
-	(*Profile)(nil),                // 1: player.v1.Profile
-	(*GetProfileRequest)(nil),      // 2: player.v1.GetProfileRequest
-	(*GetProfileResponse)(nil),     // 3: player.v1.GetProfileResponse
-	(*SetNameRequest)(nil),         // 4: player.v1.SetNameRequest
-	(*SetNameResponse)(nil),        // 5: player.v1.SetNameResponse
-	(*Stats)(nil),                  // 6: player.v1.Stats
-	(*GetStatsRequest)(nil),        // 7: player.v1.GetStatsRequest
-	(*GetStatsResponse)(nil),       // 8: player.v1.GetStatsResponse
-	(*AnnounceRequest)(nil),        // 9: player.v1.AnnounceRequest
-	(*AnnounceResponse)(nil),       // 10: player.v1.AnnounceResponse
-	(*LeaveRequest)(nil),           // 11: player.v1.LeaveRequest
-	(*LeaveResponse)(nil),          // 12: player.v1.LeaveResponse
-	(*GetRosterRequest)(nil),       // 13: player.v1.GetRosterRequest
-	(*GetRosterResponse)(nil),      // 14: player.v1.GetRosterResponse
-	(*RosterEntry)(nil),            // 15: player.v1.RosterEntry
-	(*ListenForEventsRequest)(nil), // 16: player.v1.ListenForEventsRequest
-	(*PlayerEvent)(nil),            // 17: player.v1.PlayerEvent
-	(*Roster)(nil),                 // 18: player.v1.Roster
-	(*PlayerLeft)(nil),             // 19: player.v1.PlayerLeft
-	(*Heartbeat)(nil),              // 20: player.v1.Heartbeat
-	(*GetPlayerRequest)(nil),       // 21: player.v1.GetPlayerRequest
-	(*GetPlayerResponse)(nil),      // 22: player.v1.GetPlayerResponse
-	(*Player)(nil),                 // 23: player.v1.Player
+	(*Profile)(nil),                // 0: player.v1.Profile
+	(*GetProfileRequest)(nil),      // 1: player.v1.GetProfileRequest
+	(*GetProfileResponse)(nil),     // 2: player.v1.GetProfileResponse
+	(*SetNameRequest)(nil),         // 3: player.v1.SetNameRequest
+	(*SetNameResponse)(nil),        // 4: player.v1.SetNameResponse
+	(*Stats)(nil),                  // 5: player.v1.Stats
+	(*GetStatsRequest)(nil),        // 6: player.v1.GetStatsRequest
+	(*GetStatsResponse)(nil),       // 7: player.v1.GetStatsResponse
+	(*AnnounceRequest)(nil),        // 8: player.v1.AnnounceRequest
+	(*AnnounceResponse)(nil),       // 9: player.v1.AnnounceResponse
+	(*LeaveRequest)(nil),           // 10: player.v1.LeaveRequest
+	(*LeaveResponse)(nil),          // 11: player.v1.LeaveResponse
+	(*GetRosterRequest)(nil),       // 12: player.v1.GetRosterRequest
+	(*GetRosterResponse)(nil),      // 13: player.v1.GetRosterResponse
+	(*RosterEntry)(nil),            // 14: player.v1.RosterEntry
+	(*ListenForEventsRequest)(nil), // 15: player.v1.ListenForEventsRequest
+	(*PlayerEvent)(nil),            // 16: player.v1.PlayerEvent
+	(*Roster)(nil),                 // 17: player.v1.Roster
+	(*PlayerLeft)(nil),             // 18: player.v1.PlayerLeft
+	(*Heartbeat)(nil),              // 19: player.v1.Heartbeat
+	(*GetPlayerRequest)(nil),       // 20: player.v1.GetPlayerRequest
+	(*GetPlayerResponse)(nil),      // 21: player.v1.GetPlayerResponse
+	(*Player)(nil),                 // 22: player.v1.Player
+	(*Title)(nil),                  // 23: player.v1.Title
 }
 var file_player_v1_player_proto_depIdxs = []int32{
-	1,  // 0: player.v1.GetProfileResponse.profile:type_name -> player.v1.Profile
-	1,  // 1: player.v1.SetNameResponse.profile:type_name -> player.v1.Profile
-	6,  // 2: player.v1.GetStatsResponse.stats:type_name -> player.v1.Stats
-	15, // 3: player.v1.GetRosterResponse.entries:type_name -> player.v1.RosterEntry
-	18, // 4: player.v1.PlayerEvent.roster:type_name -> player.v1.Roster
-	15, // 5: player.v1.PlayerEvent.entry:type_name -> player.v1.RosterEntry
-	19, // 6: player.v1.PlayerEvent.left:type_name -> player.v1.PlayerLeft
-	20, // 7: player.v1.PlayerEvent.heartbeat:type_name -> player.v1.Heartbeat
-	15, // 8: player.v1.Roster.entries:type_name -> player.v1.RosterEntry
-	23, // 9: player.v1.GetPlayerResponse.player:type_name -> player.v1.Player
-	6,  // 10: player.v1.Player.stats:type_name -> player.v1.Stats
-	0,  // 11: player.v1.Player.titles:type_name -> player.v1.Title
-	2,  // 12: player.v1.PlayerService.GetProfile:input_type -> player.v1.GetProfileRequest
-	4,  // 13: player.v1.PlayerService.SetName:input_type -> player.v1.SetNameRequest
-	7,  // 14: player.v1.PlayerService.GetStats:input_type -> player.v1.GetStatsRequest
-	9,  // 15: player.v1.PlayerService.Announce:input_type -> player.v1.AnnounceRequest
-	11, // 16: player.v1.PlayerService.Leave:input_type -> player.v1.LeaveRequest
-	13, // 17: player.v1.PlayerService.GetRoster:input_type -> player.v1.GetRosterRequest
-	16, // 18: player.v1.PlayerService.ListenForEvents:input_type -> player.v1.ListenForEventsRequest
-	21, // 19: player.v1.PlayerService.GetPlayer:input_type -> player.v1.GetPlayerRequest
-	3,  // 20: player.v1.PlayerService.GetProfile:output_type -> player.v1.GetProfileResponse
-	5,  // 21: player.v1.PlayerService.SetName:output_type -> player.v1.SetNameResponse
-	8,  // 22: player.v1.PlayerService.GetStats:output_type -> player.v1.GetStatsResponse
-	10, // 23: player.v1.PlayerService.Announce:output_type -> player.v1.AnnounceResponse
-	12, // 24: player.v1.PlayerService.Leave:output_type -> player.v1.LeaveResponse
-	14, // 25: player.v1.PlayerService.GetRoster:output_type -> player.v1.GetRosterResponse
-	17, // 26: player.v1.PlayerService.ListenForEvents:output_type -> player.v1.PlayerEvent
-	22, // 27: player.v1.PlayerService.GetPlayer:output_type -> player.v1.GetPlayerResponse
+	0,  // 0: player.v1.GetProfileResponse.profile:type_name -> player.v1.Profile
+	0,  // 1: player.v1.SetNameResponse.profile:type_name -> player.v1.Profile
+	5,  // 2: player.v1.GetStatsResponse.stats:type_name -> player.v1.Stats
+	14, // 3: player.v1.GetRosterResponse.entries:type_name -> player.v1.RosterEntry
+	17, // 4: player.v1.PlayerEvent.roster:type_name -> player.v1.Roster
+	14, // 5: player.v1.PlayerEvent.entry:type_name -> player.v1.RosterEntry
+	18, // 6: player.v1.PlayerEvent.left:type_name -> player.v1.PlayerLeft
+	19, // 7: player.v1.PlayerEvent.heartbeat:type_name -> player.v1.Heartbeat
+	14, // 8: player.v1.Roster.entries:type_name -> player.v1.RosterEntry
+	22, // 9: player.v1.GetPlayerResponse.player:type_name -> player.v1.Player
+	5,  // 10: player.v1.Player.stats:type_name -> player.v1.Stats
+	23, // 11: player.v1.Player.titles:type_name -> player.v1.Title
+	1,  // 12: player.v1.PlayerService.GetProfile:input_type -> player.v1.GetProfileRequest
+	3,  // 13: player.v1.PlayerService.SetName:input_type -> player.v1.SetNameRequest
+	6,  // 14: player.v1.PlayerService.GetStats:input_type -> player.v1.GetStatsRequest
+	8,  // 15: player.v1.PlayerService.Announce:input_type -> player.v1.AnnounceRequest
+	10, // 16: player.v1.PlayerService.Leave:input_type -> player.v1.LeaveRequest
+	12, // 17: player.v1.PlayerService.GetRoster:input_type -> player.v1.GetRosterRequest
+	15, // 18: player.v1.PlayerService.ListenForEvents:input_type -> player.v1.ListenForEventsRequest
+	20, // 19: player.v1.PlayerService.GetPlayer:input_type -> player.v1.GetPlayerRequest
+	2,  // 20: player.v1.PlayerService.GetProfile:output_type -> player.v1.GetProfileResponse
+	4,  // 21: player.v1.PlayerService.SetName:output_type -> player.v1.SetNameResponse
+	7,  // 22: player.v1.PlayerService.GetStats:output_type -> player.v1.GetStatsResponse
+	9,  // 23: player.v1.PlayerService.Announce:output_type -> player.v1.AnnounceResponse
+	11, // 24: player.v1.PlayerService.Leave:output_type -> player.v1.LeaveResponse
+	13, // 25: player.v1.PlayerService.GetRoster:output_type -> player.v1.GetRosterResponse
+	16, // 26: player.v1.PlayerService.ListenForEvents:output_type -> player.v1.PlayerEvent
+	21, // 27: player.v1.PlayerService.GetPlayer:output_type -> player.v1.GetPlayerResponse
 	20, // [20:28] is the sub-list for method output_type
 	12, // [12:20] is the sub-list for method input_type
 	12, // [12:12] is the sub-list for extension type_name
@@ -1379,14 +1360,13 @@ func file_player_v1_player_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_player_v1_player_proto_rawDesc), len(file_player_v1_player_proto_rawDesc)),
-			NumEnums:      1,
-			NumMessages:   23,
+			NumEnums:      0,
+			NumMessages:   24,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_player_v1_player_proto_goTypes,
 		DependencyIndexes: file_player_v1_player_proto_depIdxs,
-		EnumInfos:         file_player_v1_player_proto_enumTypes,
 		MessageInfos:      file_player_v1_player_proto_msgTypes,
 	}.Build()
 	File_player_v1_player_proto = out.File

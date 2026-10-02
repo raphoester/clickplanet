@@ -2,60 +2,62 @@ package players
 
 import "slices"
 
-type Title string
+type TitleID string
 
-const (
-	Settler   Title = "settler"
-	Governor  Title = "governor"
-	Conqueror Title = "conqueror"
-	Emperor   Title = "emperor"
-	Loyal     Title = "loyal"
-	Devoted   Title = "devoted"
-	Unbroken  Title = "unbroken"
-)
-
-type requirement struct {
-	title  Title
-	tiles  uint64
-	streak uint32
+type Title interface {
+	ID() TitleID
+	Name() string
+	EarnedBy(stats Stats) bool
 }
 
-var ladder = []requirement{
-	{title: Settler, tiles: 100},
-	{title: Governor, tiles: 1_000},
-	{title: Conqueror, tiles: 10_000},
-	{title: Emperor, tiles: 100_000},
-	{title: Loyal, streak: 7},
-	{title: Devoted, streak: 30},
-	{title: Unbroken, streak: 100},
+type TitleIDs []TitleID
+
+func (t TitleIDs) Without(held TitleIDs) TitleIDs {
+	return slices.DeleteFunc(slices.Clone(t), func(id TitleID) bool { return slices.Contains(held, id) })
 }
 
-func (r requirement) metBy(stats Stats) bool {
-	return stats.TilesTaken >= r.tiles && stats.StreakBest >= r.streak
-}
+type Grants map[AccountID]TitleIDs
 
-type Titles []Title
+type Catalog []Title
 
-func TitlesOf(stats Stats) Titles {
-	var earned Titles
-	for _, requirement := range ladder {
-		if requirement.metBy(stats) {
-			earned = append(earned, requirement.title)
+func (c Catalog) EarnedBy(stats Stats) TitleIDs {
+	var earned TitleIDs
+	for _, title := range c {
+		if title.EarnedBy(stats) {
+			earned = append(earned, title.ID())
 		}
 	}
 	return earned
 }
 
-func (t Titles) Without(held Titles) Titles {
-	return slices.DeleteFunc(slices.Clone(t), func(title Title) bool { return slices.Contains(held, title) })
-}
-
-func (t Titles) Sorted() Titles {
-	var sorted Titles
-	for _, requirement := range ladder {
-		if slices.Contains(t, requirement.title) {
-			sorted = append(sorted, requirement.title)
+func (c Catalog) GrantsFor(page []Stats) Grants {
+	grants := Grants{}
+	for _, stats := range page {
+		if earned := c.EarnedBy(stats); len(earned) > 0 {
+			grants[stats.Account] = earned
 		}
 	}
-	return sorted
+	return grants
+}
+
+func (c Catalog) Of(held TitleIDs) []Title {
+	var titles []Title
+	for _, title := range c {
+		if slices.Contains(held, title.ID()) {
+			titles = append(titles, title)
+		}
+	}
+	return titles
+}
+
+func (c Catalog) Without(ids TitleIDs) Catalog {
+	return slices.DeleteFunc(slices.Clone(c), func(title Title) bool { return slices.Contains(ids, title.ID()) })
+}
+
+func (c Catalog) IDs() TitleIDs {
+	ids := make(TitleIDs, 0, len(c))
+	for _, title := range c {
+		ids = append(ids, title.ID())
+	}
+	return ids
 }

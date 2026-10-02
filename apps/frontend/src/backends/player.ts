@@ -88,14 +88,10 @@ export interface PresenceBackend {
     listenForRoster(onEvent: (event: RosterEvent) => void, onUnavailable: () => void): () => void
 }
 
-export type PlayerTitle =
-    | "settler"
-    | "governor"
-    | "conqueror"
-    | "emperor"
-    | "loyal"
-    | "devoted"
-    | "unbroken"
+export type PlayerTitle = {
+    id: string
+    name: string
+}
 
 export type PlayerInfo = {
     name: string

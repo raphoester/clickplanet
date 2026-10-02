@@ -16,14 +16,16 @@ const TICK_MS = 1_000
 
 const OWN_KEY = "0"
 
-const LADDER: {title: PlayerTitle, tiles: number, streak: number}[] = [
-    {title: "settler", tiles: 100, streak: 0},
-    {title: "governor", tiles: 1_000, streak: 0},
-    {title: "conqueror", tiles: 10_000, streak: 0},
-    {title: "emperor", tiles: 100_000, streak: 0},
-    {title: "loyal", tiles: 0, streak: 7},
-    {title: "devoted", tiles: 0, streak: 30},
-    {title: "unbroken", tiles: 0, streak: 100},
+type FakeTitle = PlayerTitle & {
+    earnedBy: (tilesTaken: number, streakBest: number) => boolean
+}
+
+const TITLES: FakeTitle[] = [
+    {id: "settler", name: "Settler", earnedBy: (tiles) => tiles >= 100},
+    {id: "governor", name: "Governor", earnedBy: (tiles) => tiles >= 1_000},
+    {id: "conqueror", name: "Conqueror", earnedBy: (tiles) => tiles >= 10_000},
+    {id: "loyal", name: "Loyal", earnedBy: (_, streak) => streak >= 7},
+    {id: "devoted", name: "Devoted", earnedBy: (_, streak) => streak >= 30},
 ]
 
 const PLAYERS: RosterEntry[] = [
@@ -100,7 +102,7 @@ export class FakePresenceBackend implements PresenceBackend, PlayerInfoBackend {
             streakBest,
             createdAt: this.now() - (1 + seed % 200) * 86_400_000,
             admin: player.admin,
-            titles: LADDER.filter((rung) => tilesTaken >= rung.tiles && streakBest >= rung.streak).map((rung) => rung.title),
+            titles: TITLES.filter((title) => title.earnedBy(tilesTaken, streakBest)).map(({id, name}) => ({id, name})),
         }
     }
 }

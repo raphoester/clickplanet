@@ -10,16 +10,6 @@ import "./PlayerCard.css"
 
 const NAME_MAX_LENGTH = 24
 
-const TITLE_NAMES: Record<PlayerTitle, string> = {
-    settler: "Settler",
-    governor: "Governor",
-    conqueror: "Conqueror",
-    emperor: "Emperor",
-    loyal: "Loyal",
-    devoted: "Devoted",
-    unbroken: "Unbroken",
-}
-
 const day = new Intl.DateTimeFormat(undefined, {dateStyle: "medium"})
 const count = new Intl.NumberFormat()
 
@@ -62,7 +52,7 @@ function PlayerTitles({titles}: {titles: PlayerTitle[]}) {
     if (titles.length === 0) return null
 
     return <ul className="player-card-titles" aria-label="Titles">
-        {titles.map((title) => <li key={title}>{TITLE_NAMES[title]}</li>)}
+        {titles.map((title) => <li key={title.id}>{title.name}</li>)}
     </ul>
 }
 

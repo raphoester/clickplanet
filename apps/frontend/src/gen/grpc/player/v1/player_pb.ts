@@ -7,62 +7,6 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
 
 /**
- * @generated from enum player.v1.Title
- */
-export enum Title {
-  /**
-   * @generated from enum value: TITLE_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-
-  /**
-   * @generated from enum value: TITLE_SETTLER = 1;
-   */
-  SETTLER = 1,
-
-  /**
-   * @generated from enum value: TITLE_GOVERNOR = 2;
-   */
-  GOVERNOR = 2,
-
-  /**
-   * @generated from enum value: TITLE_CONQUEROR = 3;
-   */
-  CONQUEROR = 3,
-
-  /**
-   * @generated from enum value: TITLE_EMPEROR = 4;
-   */
-  EMPEROR = 4,
-
-  /**
-   * @generated from enum value: TITLE_LOYAL = 5;
-   */
-  LOYAL = 5,
-
-  /**
-   * @generated from enum value: TITLE_DEVOTED = 6;
-   */
-  DEVOTED = 6,
-
-  /**
-   * @generated from enum value: TITLE_UNBROKEN = 7;
-   */
-  UNBROKEN = 7,
-}
-// Retrieve enum metadata with: proto3.getEnumType(Title)
-proto3.util.setEnumType(Title, "player.v1.Title", [
-  { no: 0, name: "TITLE_UNSPECIFIED" },
-  { no: 1, name: "TITLE_SETTLER" },
-  { no: 2, name: "TITLE_GOVERNOR" },
-  { no: 3, name: "TITLE_CONQUEROR" },
-  { no: 4, name: "TITLE_EMPEROR" },
-  { no: 5, name: "TITLE_LOYAL" },
-  { no: 6, name: "TITLE_DEVOTED" },
-  { no: 7, name: "TITLE_UNBROKEN" },
-]);
-
-/**
  * @generated from message player.v1.Profile
  */
 export class Profile extends Message<Profile> {
@@ -944,7 +888,7 @@ export class Player extends Message<Player> {
     { no: 2, name: "stats", kind: "message", T: Stats },
     { no: 3, name: "created_at_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
     { no: 4, name: "admin", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 5, name: "titles", kind: "enum", T: proto3.getEnumType(Title), repeated: true },
+    { no: 5, name: "titles", kind: "message", T: Title, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Player {
@@ -961,6 +905,49 @@ export class Player extends Message<Player> {
 
   static equals(a: Player | PlainMessage<Player> | undefined, b: Player | PlainMessage<Player> | undefined): boolean {
     return proto3.util.equals(Player, a, b);
+  }
+}
+
+/**
+ * @generated from message player.v1.Title
+ */
+export class Title extends Message<Title> {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id = "";
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name = "";
+
+  constructor(data?: PartialMessage<Title>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.Title";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Title {
+    return new Title().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Title {
+    return new Title().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Title {
+    return new Title().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Title | PlainMessage<Title> | undefined, b: Title | PlainMessage<Title> | undefined): boolean {
+    return proto3.util.equals(Title, a, b);
   }
 }
 

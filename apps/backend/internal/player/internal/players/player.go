@@ -7,5 +7,5 @@ type Player struct {
 	Stats     Stats
 	CreatedAt time.Time
 	Admin     bool
-	Titles    Titles
+	Titles    []Title
 }

@@ -543,9 +543,9 @@ flag and the country, then, for a player with a username, what
 `player.v1.PlayerService/GetPlayer` answers: the titles it holds, as chips in the
 server's order (none, no list), then tiles taken, the current and best
 streak, and "Playing since", the day the account was made (left out when the
-server does not know it). `playerBackend.ts` maps the `Title` enum to a
-`PlayerTitle` and drops a value this build does not know; `PlayerCard` names
-each one. The fake gives its players the server's ladder over their fake stats. **A guest's card asks nothing**: a guest has no
+server does not know it). A title arrives as `{id, name}` and the card shows
+the name: the server owns the list, so a new title needs no change here. The
+fake gives its players a few titles of its own over their fake stats. **A guest's card asks nothing**: a guest has no
 username, so there is nothing to look up, and the card says so. The chat tells
 a guest by `GUEST_PREFIX`, which no username starts with. `GetPlayer` needs no
 token and goes out as a GET, like `GetRoster`; `NotFound` (renamed, or the

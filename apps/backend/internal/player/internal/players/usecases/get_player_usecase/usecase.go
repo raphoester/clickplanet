@@ -19,7 +19,7 @@ type Stats interface {
 }
 
 type Titles interface {
-	Titles(ctx context.Context, account players.AccountID) (players.Titles, error)
+	TitlesOf(ctx context.Context, account players.AccountID) ([]players.Title, error)
 }
 
 type Accounts interface {
@@ -60,7 +60,7 @@ func (u *UseCase) Execute(ctx context.Context, value string) (players.Player, er
 		return players.Player{}, fmt.Errorf("failed to read the stats: %w", err)
 	}
 
-	titles, err := u.titles.Titles(ctx, profile.Account)
+	titles, err := u.titles.TitlesOf(ctx, profile.Account)
 	if err != nil {
 		return players.Player{}, fmt.Errorf("failed to read the titles: %w", err)
 	}
@@ -75,6 +75,6 @@ func (u *UseCase) Execute(ctx context.Context, value string) (players.Player, er
 		Stats:     stats.AsOf(players.DayOf(u.clock.Now())),
 		CreatedAt: createdAt,
 		Admin:     profile.Admin,
-		Titles:    titles.Sorted(),
+		Titles:    titles,
 	}, nil
 }
