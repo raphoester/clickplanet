@@ -4,11 +4,12 @@ package player.v1;
 
 // Unauthenticated: serve only on the loopback admin listener, never the public router.
 service AdminService {
-  rpc BackfillTitles(BackfillTitlesRequest) returns (BackfillTitlesResponse);
+  rpc ReconcileTitles(ReconcileTitlesRequest) returns (ReconcileTitlesResponse);
 }
 
-message BackfillTitlesRequest {}
+message ReconcileTitlesRequest {}
 
-message BackfillTitlesResponse {
-  uint32 accounts = 1;
+message ReconcileTitlesResponse {
+  uint32 granted = 1;
+  uint32 revoked = 2;
 }

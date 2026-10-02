@@ -121,10 +121,9 @@ func (s *Store) Account(ctx context.Context, account accounts.AccountID) (*accou
 	return found, nil
 }
 
-func (s *Store) CreationDates(ctx context.Context, asked []accounts.AccountID) (map[accounts.AccountID]time.Time, error) {
-	dates := make(map[accounts.AccountID]time.Time, len(asked))
+func (s *Store) Accounts(ctx context.Context, asked []accounts.AccountID) ([]*accounts.Account, error) {
 	if len(asked) == 0 {
-		return dates, nil
+		return []*accounts.Account{}, nil
 	}
 
 	ids := make([]string, len(asked))
@@ -132,26 +131,50 @@ func (s *Store) CreationDates(ctx context.Context, asked []accounts.AccountID) (
 		ids[i] = account.String()
 	}
 
-	rows, err := s.db.QueryContext(ctx, `SELECT id, created_at FROM accounts WHERE id = ANY($1::uuid[])`, pq.Array(ids))
+	rows, err := s.db.QueryContext(ctx, `SELECT id, created_at FROM accounts WHERE id = ANY($1::uuid[]) ORDER BY id`, pq.Array(ids))
 	if err != nil {
-		return nil, fmt.Errorf("failed to select the creation dates: %w", err)
+		return nil, fmt.Errorf("failed to select the accounts: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
 
+	found := make([]*accounts.Account, 0, len(asked))
+	byID := make(map[accounts.AccountID]*accounts.Account, len(asked))
 	for rows.Next() {
 		var (
-			account   uuid.UUID
+			id        uuid.UUID
 			createdAt time.Time
 		)
-		if err := rows.Scan(&account, &createdAt); err != nil {
-			return nil, fmt.Errorf("failed to read a creation date: %w", err)
+		if err := rows.Scan(&id, &createdAt); err != nil {
+			return nil, fmt.Errorf("failed to read an account: %w", err)
 		}
-		dates[accounts.AccountID(account)] = createdAt.UTC()
+		account := &accounts.Account{ID: accounts.AccountID(id), CreatedAt: createdAt.UTC(), Identities: []accounts.Identity{}}
+		found = append(found, account)
+		byID[account.ID] = account
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("failed to read the creation dates: %w", err)
+		return nil, fmt.Errorf("failed to read the accounts: %w", err)
 	}
-	return dates, nil
+
+	identities, err := s.db.QueryContext(ctx, `
+		SELECT provider, subject, account_id, COALESCE(email, ''), email_verified, linked_at
+		FROM identities WHERE account_id = ANY($1::uuid[]) ORDER BY linked_at, provider
+	`, pq.Array(ids))
+	if err != nil {
+		return nil, fmt.Errorf("failed to select the accounts' identities: %w", err)
+	}
+	defer func() { _ = identities.Close() }()
+
+	for identities.Next() {
+		identity, err := scanIdentity(identities)
+		if err != nil {
+			return nil, err
+		}
+		byID[identity.Account].Identities = append(byID[identity.Account].Identities, *identity)
+	}
+	if err := identities.Err(); err != nil {
+		return nil, fmt.Errorf("failed to read the accounts' identities: %w", err)
+	}
+	return found, nil
 }
 
 func (s *Store) Identity(ctx context.Context, provider string, subject string) (*accounts.Identity, error) {

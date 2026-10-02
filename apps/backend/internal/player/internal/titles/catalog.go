@@ -15,7 +15,7 @@ func (OG) ID() ID { return "og" }
 func (OG) Name() string { return "OG" }
 
 func (OG) EarnedBy(career Career) bool {
-	return !career.CreatedAt.IsZero() && career.CreatedAt.Before(ogCutoff)
+	return !career.Account.CreatedAt.IsZero() && career.Account.CreatedAt.Before(ogCutoff)
 }
 
 type Settler struct{}
@@ -32,7 +32,7 @@ func (Governor) ID() ID { return "governor" }
 
 func (Governor) Name() string { return "Governor" }
 
-func (Governor) EarnedBy(career Career) bool { return career.Stats.TilesTaken >= 1_000 }
+func (Governor) EarnedBy(career Career) bool { return career.Stats.TilesTaken >= 10_000 }
 
 type Conqueror struct{}
 
@@ -40,7 +40,7 @@ func (Conqueror) ID() ID { return "conqueror" }
 
 func (Conqueror) Name() string { return "Conqueror" }
 
-func (Conqueror) EarnedBy(career Career) bool { return career.Stats.TilesTaken >= 10_000 }
+func (Conqueror) EarnedBy(career Career) bool { return career.Stats.TilesTaken >= 100_000 }
 
 type Emperor struct{}
 
@@ -48,7 +48,7 @@ func (Emperor) ID() ID { return "emperor" }
 
 func (Emperor) Name() string { return "Emperor" }
 
-func (Emperor) EarnedBy(career Career) bool { return career.Stats.TilesTaken >= 100_000 }
+func (Emperor) EarnedBy(career Career) bool { return career.Stats.TilesTaken >= 1_000_000 }
 
 type Loyal struct{}
 

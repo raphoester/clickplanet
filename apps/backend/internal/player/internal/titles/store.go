@@ -9,6 +9,8 @@ import (
 
 type Store interface {
 	Held(ctx context.Context, account players.AccountID) (IDs, error)
-	Grant(ctx context.Context, grants Grants, at time.Time) error
+	Holdings(ctx context.Context, accounts []players.AccountID) (Holdings, error)
+	Grant(ctx context.Context, grants Holdings, at time.Time) error
+	Revoke(ctx context.Context, revocations Holdings) error
 	DeleteAccount(ctx context.Context, account players.AccountID) error
 }

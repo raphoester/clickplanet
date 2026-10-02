@@ -155,119 +155,125 @@ export class GetAccountResponse extends Message<GetAccountResponse> {
 }
 
 /**
- * @generated from message auth.v1.GetCreationDatesRequest
+ * @generated from message auth.v1.GetAccountsRequest
  */
-export class GetCreationDatesRequest extends Message<GetCreationDatesRequest> {
+export class GetAccountsRequest extends Message<GetAccountsRequest> {
   /**
    * @generated from field: repeated string account_ids = 1;
    */
   accountIds: string[] = [];
 
-  constructor(data?: PartialMessage<GetCreationDatesRequest>) {
+  constructor(data?: PartialMessage<GetAccountsRequest>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "auth.v1.GetCreationDatesRequest";
+  static readonly typeName = "auth.v1.GetAccountsRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "account_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetCreationDatesRequest {
-    return new GetCreationDatesRequest().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetAccountsRequest {
+    return new GetAccountsRequest().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetCreationDatesRequest {
-    return new GetCreationDatesRequest().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetAccountsRequest {
+    return new GetAccountsRequest().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetCreationDatesRequest {
-    return new GetCreationDatesRequest().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetAccountsRequest {
+    return new GetAccountsRequest().fromJsonString(jsonString, options);
   }
 
-  static equals(a: GetCreationDatesRequest | PlainMessage<GetCreationDatesRequest> | undefined, b: GetCreationDatesRequest | PlainMessage<GetCreationDatesRequest> | undefined): boolean {
-    return proto3.util.equals(GetCreationDatesRequest, a, b);
+  static equals(a: GetAccountsRequest | PlainMessage<GetAccountsRequest> | undefined, b: GetAccountsRequest | PlainMessage<GetAccountsRequest> | undefined): boolean {
+    return proto3.util.equals(GetAccountsRequest, a, b);
   }
 }
 
 /**
- * @generated from message auth.v1.GetCreationDatesResponse
+ * @generated from message auth.v1.GetAccountsResponse
  */
-export class GetCreationDatesResponse extends Message<GetCreationDatesResponse> {
+export class GetAccountsResponse extends Message<GetAccountsResponse> {
   /**
-   * @generated from field: repeated auth.v1.CreationDate dates = 1;
+   * @generated from field: repeated auth.v1.Account accounts = 1;
    */
-  dates: CreationDate[] = [];
+  accounts: Account[] = [];
 
-  constructor(data?: PartialMessage<GetCreationDatesResponse>) {
+  constructor(data?: PartialMessage<GetAccountsResponse>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "auth.v1.GetCreationDatesResponse";
+  static readonly typeName = "auth.v1.GetAccountsResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "dates", kind: "message", T: CreationDate, repeated: true },
+    { no: 1, name: "accounts", kind: "message", T: Account, repeated: true },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetCreationDatesResponse {
-    return new GetCreationDatesResponse().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetAccountsResponse {
+    return new GetAccountsResponse().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetCreationDatesResponse {
-    return new GetCreationDatesResponse().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetAccountsResponse {
+    return new GetAccountsResponse().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetCreationDatesResponse {
-    return new GetCreationDatesResponse().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetAccountsResponse {
+    return new GetAccountsResponse().fromJsonString(jsonString, options);
   }
 
-  static equals(a: GetCreationDatesResponse | PlainMessage<GetCreationDatesResponse> | undefined, b: GetCreationDatesResponse | PlainMessage<GetCreationDatesResponse> | undefined): boolean {
-    return proto3.util.equals(GetCreationDatesResponse, a, b);
+  static equals(a: GetAccountsResponse | PlainMessage<GetAccountsResponse> | undefined, b: GetAccountsResponse | PlainMessage<GetAccountsResponse> | undefined): boolean {
+    return proto3.util.equals(GetAccountsResponse, a, b);
   }
 }
 
 /**
- * @generated from message auth.v1.CreationDate
+ * @generated from message auth.v1.Account
  */
-export class CreationDate extends Message<CreationDate> {
+export class Account extends Message<Account> {
   /**
    * @generated from field: string account_id = 1;
    */
   accountId = "";
 
   /**
-   * @generated from field: int64 created_at_unix_ms = 2;
+   * @generated from field: bool linked = 2;
+   */
+  linked = false;
+
+  /**
+   * @generated from field: int64 created_at_unix_ms = 3;
    */
   createdAtUnixMs = protoInt64.zero;
 
-  constructor(data?: PartialMessage<CreationDate>) {
+  constructor(data?: PartialMessage<Account>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "auth.v1.CreationDate";
+  static readonly typeName = "auth.v1.Account";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "created_at_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 2, name: "linked", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 3, name: "created_at_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CreationDate {
-    return new CreationDate().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Account {
+    return new Account().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CreationDate {
-    return new CreationDate().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Account {
+    return new Account().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CreationDate {
-    return new CreationDate().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Account {
+    return new Account().fromJsonString(jsonString, options);
   }
 
-  static equals(a: CreationDate | PlainMessage<CreationDate> | undefined, b: CreationDate | PlainMessage<CreationDate> | undefined): boolean {
-    return proto3.util.equals(CreationDate, a, b);
+  static equals(a: Account | PlainMessage<Account> | undefined, b: Account | PlainMessage<Account> | undefined): boolean {
+    return proto3.util.equals(Account, a, b);
   }
 }
 

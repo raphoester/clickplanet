@@ -29,7 +29,9 @@ type fixture struct {
 }
 
 func setUp() fixture {
-	return fixture{stats: inmemory_player_store.New(), titles: inmemory_title_store.New(), accounts: titles.NewFakeAccounts()}
+	f := fixture{stats: inmemory_player_store.New(), titles: inmemory_title_store.New(), accounts: titles.NewFakeAccounts()}
+	f.accounts.Create(ada, players.Account{Linked: true, CreatedAt: monday})
+	return f
 }
 
 func (f fixture) award(t *testing.T, catalog titles.Catalog) error {
@@ -63,12 +65,25 @@ func TestTheTakeThatReachesATitleGrantsIt(t *testing.T) {
 
 func TestANewAccountMadeBeforeNovemberIsOGAtItsFirstTake(t *testing.T) {
 	f := setUp()
-	f.accounts.Create(ada, time.Date(2026, 10, 31, 23, 0, 0, 0, time.UTC))
+	f.accounts.Create(ada, players.Account{Linked: true, CreatedAt: time.Date(2026, 10, 31, 23, 0, 0, 0, time.UTC)})
 	require.NoError(t, f.stats.RecordTake(t.Context(), ada, monday))
 
 	require.NoError(t, f.award(t, titles.NewCatalog()))
 
 	assert.Equal(t, titles.IDs{"og"}, f.held(t))
+}
+
+func TestAGuestsTakeGrantsNothing(t *testing.T) {
+	f := setUp()
+	f.accounts.Create(ada, players.Account{CreatedAt: time.Date(2026, 9, 20, 0, 0, 0, 0, time.UTC)})
+	for range 3 {
+		require.NoError(t, f.stats.RecordTake(t.Context(), ada, monday))
+	}
+
+	require.NoError(t, f.award(t, titles.NewCatalog()))
+	require.NoError(t, f.award(t, catalog))
+
+	assert.Empty(t, f.held(t))
 }
 
 func TestAnAccountWithNoStatsEarnsNothing(t *testing.T) {

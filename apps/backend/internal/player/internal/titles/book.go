@@ -26,16 +26,21 @@ func (b Book) TitlesOf(ctx context.Context, account players.AccountID) ([]Title,
 }
 
 func (b Book) Award(ctx context.Context, account players.AccountID, career Career, at time.Time) error {
+	earned := b.catalog.EarnedBy(career)
+	if len(earned) == 0 {
+		return nil
+	}
+
 	held, err := b.store.Held(ctx, account)
 	if err != nil {
 		return fmt.Errorf("failed to read the titles: %w", err)
 	}
 
-	earned := b.catalog.EarnedBy(career).Without(held)
-	if len(earned) == 0 {
+	missing := earned.Without(held)
+	if len(missing) == 0 {
 		return nil
 	}
-	if err := b.store.Grant(ctx, Grants{account: earned}, at); err != nil {
+	if err := b.store.Grant(ctx, Holdings{account: missing}, at); err != nil {
 		return fmt.Errorf("failed to grant the titles: %w", err)
 	}
 	return nil
