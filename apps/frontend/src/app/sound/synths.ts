@@ -1,16 +1,10 @@
 import {IMPACT_DELAY} from "../../domain/blast.ts";
 import {SoundName} from "../../domain/soundSettings.ts";
 
-/**
- * Every sound in the game, built from oscillators and noise at the moment it
- * plays — there is no audio file anywhere. A synth schedules its nodes from
- * `at` on the context's own clock; they disconnect themselves once stopped.
- */
 export type Synth = (ctx: AudioContext, at: number, options: SynthOptions) => void
 
 export type SynthOptions = {
     volume: number
-    /** Only the bomb reads it: a bomb that landed in the ocean splashes. */
     onWater: boolean
 }
 
@@ -23,7 +17,6 @@ type Tone = {
     gain: number
 }
 
-/** One oscillator with a fast attack and an exponential fade. */
 function tone(ctx: AudioContext, at: number, volume: number, {type, from, to, start, length, gain}: Tone, out: AudioNode = ctx.destination) {
     const t = at + start
     const osc = ctx.createOscillator()
@@ -46,7 +39,6 @@ function tone(ctx: AudioContext, at: number, volume: number, {type, from, to, st
 
 const noiseBuffers = new WeakMap<BaseAudioContext, AudioBuffer>()
 
-/** Two seconds of white noise, made once per context. */
 function noise(ctx: AudioContext): AudioBuffer {
     let buffer = noiseBuffers.get(ctx)
     if (!buffer) {
@@ -58,7 +50,6 @@ function noise(ctx: AudioContext): AudioBuffer {
     return buffer
 }
 
-/** Up to ±`spread` of a frequency, so a sound heard fifty times is never quite the same twice. */
 const detune = (spread: number) => 1 + (Math.random() * 2 - 1) * spread
 
 const click: Synth = (ctx, at, {volume}) => {
@@ -66,27 +57,22 @@ const click: Synth = (ctx, at, {volume}) => {
     tone(ctx, at, volume, {type: "sine", from: 720 * pitch, to: 260 * pitch, start: 0, length: 0.07, gain: 0.25})
 }
 
-// Two falling notes, low and dull: "nope".
 const refused: Synth = (ctx, at, {volume}) => {
     tone(ctx, at, volume, {type: "triangle", from: 240, to: 220, start: 0, length: 0.09, gain: 0.35})
     tone(ctx, at, volume, {type: "triangle", from: 170, to: 150, start: 0.1, length: 0.16, gain: 0.35})
 }
 
-// A rising sparkle, C major up an octave: something appeared.
 const bonusSpawn: Synth = (ctx, at, {volume}) => {
     ;[1047, 1319, 1568, 2093].forEach((from, i) => {
         tone(ctx, at, volume, {type: "sine", from, start: i * 0.06, length: 0.22, gain: 0.14})
     })
 }
 
-// The coin: a short note and a long one a fourth above.
 const bonusCaught: Synth = (ctx, at, {volume}) => {
     tone(ctx, at, volume, {type: "square", from: 988, start: 0, length: 0.08, gain: 0.07})
     tone(ctx, at, volume, {type: "square", from: 1319, start: 0.08, length: 0.45, gain: 0.07})
 }
 
-// Your spread click, heard with its burst: a soft puff, then a pop for each
-// spark landing on the tiles around it, climbing as they go out.
 const spread: Synth = (ctx, at, {volume}) => {
     const pitch = detune(0.05)
     tone(ctx, at, volume, {type: "sine", from: 320 * pitch, to: 140 * pitch, start: 0, length: 0.12, gain: 0.3})
@@ -95,9 +81,6 @@ const spread: Synth = (ctx, at, {volume}) => {
     })
 }
 
-// Your shape closing, on the effect's own timeline: a sweep up while the
-// outline runs round, a chord when it meets, a shimmer as the inside pours in,
-// and a low bell for each ring.
 const enclose: Synth = (ctx, at, {volume}) => {
     tone(ctx, at, volume, {type: "triangle", from: 220, to: 880, start: 0, length: 0.5, gain: 0.12})
     ;[523, 659, 784, 1047].forEach((from) => {
@@ -121,13 +104,11 @@ type Noise = {
     q?: number
 }
 
-/** A stretch of filtered noise with a fast attack and an exponential fade. */
 function filteredNoise(ctx: AudioContext, at: number, out: AudioNode, {start, length, gain, attack = 0.005, filter, from, to, q}: Noise) {
     const t = at + start
     const source = ctx.createBufferSource()
     source.buffer = noise(ctx)
     source.loop = true
-    // A random start into the buffer, so two blasts are not the same noise.
     const offset = Math.random() * 1.5
 
     const shape = ctx.createBiquadFilter()
@@ -152,7 +133,6 @@ function filteredNoise(ctx: AudioContext, at: number, out: AudioNode, {start, le
 
 const reverbs = new WeakMap<BaseAudioContext, AudioBuffer>()
 
-/** A big, dark room: four seconds of stereo noise dying away, made once per context. */
 function reverb(ctx: AudioContext): AudioBuffer {
     let buffer = reverbs.get(ctx)
     if (!buffer) {
@@ -173,24 +153,14 @@ const saturation = new Float32Array(1024).map((_, i) => {
 })
 
 type Rig = {
-    /** Where every layer goes: clipper, compressor, level, reverb. */
     bus: GainNode
     impact: number
-    /** Disconnects the rig once everything scheduled on it has rung out. */
     release: (lastsUntil: number) => void
 }
 
-// What every bomb shares: the output chain and the fall. The drop is heard when
-// it is broadcast, so the fall takes `IMPACT_DELAY` and the impact lands on the
-// frame the tiles go, exactly as the drawing does.
-//
-// The soft clipper adds grit, and the harmonics that let a laptop speaker
-// suggest a sub it cannot play; the compressor keeps it loud without clipping;
-// the reverb is the size of the thing.
 function bombRig(ctx: AudioContext, at: number, volume: number, roomSize: number): Rig {
     const impact = at + IMPACT_DELAY
 
-    // The layers add up well past 1, which the clipper would square off.
     const bus = ctx.createGain()
     bus.gain.value = 0.4
 
@@ -210,14 +180,12 @@ function bombRig(ctx: AudioContext, at: number, volume: number, roomSize: number
     const wet = ctx.createGain()
     wet.gain.value = roomSize
 
-    // Volume after the dynamics, so a distant bomb is quieter, not cleaner.
     const level = ctx.createGain()
     level.gain.value = volume
 
     bus.connect(drive).connect(limiter).connect(level).connect(ctx.destination)
     level.connect(room).connect(wet).connect(ctx.destination)
 
-    // The fall: a falling whistle with a wobble, over rushing air.
     const whistle = ctx.createOscillator()
     const whistleGain = ctx.createGain()
     const wobble = ctx.createOscillator()
@@ -242,7 +210,6 @@ function bombRig(ctx: AudioContext, at: number, volume: number, roomSize: number
     return {
         bus,
         impact,
-        // The reverb's own four seconds come after the last sound.
         release: (lastsUntil) => window.setTimeout(
             () => nodes.forEach((node) => node.disconnect()),
             (lastsUntil - ctx.currentTime + 4.5) * 1000,
@@ -250,15 +217,12 @@ function bombRig(ctx: AudioContext, at: number, volume: number, roomSize: number
     }
 }
 
-// On land: a crack, a blast closing from bright to dark, a sub drop, and a
-// rumble pulsing like debris coming down.
 function landBlast(ctx: AudioContext, {bus, impact, release}: Rig) {
     const tail = 4.5
 
     filteredNoise(ctx, impact, bus, {start: 0, length: 0.12, attack: 0.001, gain: 1.4, filter: "highpass", from: 1500})
     filteredNoise(ctx, impact, bus, {start: 0, length: 2.6, attack: 0.004, gain: 1.6, filter: "lowpass", from: 5000, to: 90, q: 0.9})
 
-    // The sub drop, and a fifth above it so it survives a small speaker.
     tone(ctx, impact, 1, {type: "sine", from: 110, to: 26, start: 0, length: 1.6, gain: 1.8}, bus)
     tone(ctx, impact, 1, {type: "triangle", from: 165, to: 40, start: 0, length: 0.9, gain: 0.7}, bus)
 
@@ -282,24 +246,16 @@ function landBlast(ctx: AudioContext, {bus, impact, release}: Rig) {
     release(impact + tail)
 }
 
-// In the ocean: the blast muffled under the surface, the column of water
-// thrown up, the spray raining back down, and bubbles for a while after.
 function waterBlast(ctx: AudioContext, {bus, impact, release}: Rig) {
     const tail = 3
 
-    // The boom from under the water: no crack, and everything above a few
-    // hundred hertz swallowed.
     tone(ctx, impact, 1, {type: "sine", from: 95, to: 32, start: 0, length: 1.1, gain: 1.6}, bus)
     filteredNoise(ctx, impact, bus, {start: 0, length: 1.3, attack: 0.01, gain: 1.4, filter: "lowpass", from: 900, to: 110, q: 0.8})
 
-    // The plume: a wide hiss that opens up as the water goes into the air.
     filteredNoise(ctx, impact, bus, {start: 0.02, length: 1.5, attack: 0.07, gain: 1.3, filter: "bandpass", from: 900, to: 3200, q: 0.6})
 
-    // The spray coming back down.
     filteredNoise(ctx, impact, bus, {start: 0.35, length: tail - 0.35, attack: 0.5, gain: 0.55, filter: "highpass", from: 2800, to: 1600})
 
-    // Bubbles and droplets: short blips whose pitch rises, which is the sound
-    // of a bubble closing. Denser and louder at first, sparse at the end.
     for (let i = 0; i < 45; i++) {
         const when = 0.15 + (tail - 0.3) * Math.random() ** 1.8
         const from = 450 + Math.random() * 1100
@@ -317,43 +273,29 @@ function waterBlast(ctx: AudioContext, {bus, impact, release}: Rig) {
     release(impact + tail)
 }
 
-// The bomb, the one sound meant to be felt.
 const bomb: Synth = (ctx, at, {volume, onWater}) => {
     if (onWater) waterBlast(ctx, bombRig(ctx, at, volume, 0.35))
     else landBlast(ctx, bombRig(ctx, at, volume, 0.55))
 }
 
-// The banner: three notes climbing, the last one lifting as it goes — the shape a spoken question
-// makes. Deliberately not bonusSpawn's sparkle and not chat's two sine notes: a box you catch, a
-// message you read and a question you have seconds to answer should not sound alike, and this
-// one has to be recognised from across the screen while you are clicking something else.
 const quiz: Synth = (ctx, at, {volume}) => {
     tone(ctx, at, volume, {type: "triangle", from: 784, start: 0, length: 0.1, gain: 0.16})
     tone(ctx, at, volume, {type: "triangle", from: 1047, start: 0.09, length: 0.1, gain: 0.16})
-    // The rise at the end is the whole trick: a phrase that ends higher than it began is a question.
     tone(ctx, at, volume, {type: "triangle", from: 1319, to: 1661, start: 0.18, length: 0.3, gain: 0.14})
 }
 
-// Right: a major triad arriving at once, with the octave over it. It is the only sound a won quiz
-// makes — a quiz never goes through the box's claim, so bonusCaught does not follow it.
 const quizRight: Synth = (ctx, at, {volume}) => {
-    // Three notes at once stack, so each is a third of what a single note would be: this has to
-    // sit beside bonusCaught, not shout over it.
     ;[523, 659, 784].forEach((from) => {
         tone(ctx, at, volume, {type: "triangle", from, start: 0, length: 0.32, gain: 0.06})
     })
     tone(ctx, at, volume, {type: "sine", from: 1047, start: 0.1, length: 0.5, gain: 0.08})
 }
 
-// Wrong, or out of time: two soft notes falling. Gentle on purpose, and higher and rounder than
-// `refused` — a wrong answer costs nothing, so this says "ah well" rather than "no". A sound that
-// punished a guess would make guessing feel expensive when it is free.
 const quizWrong: Synth = (ctx, at, {volume}) => {
     tone(ctx, at, volume, {type: "sine", from: 440, to: 415, start: 0, length: 0.14, gain: 0.18})
     tone(ctx, at, volume, {type: "sine", from: 349, to: 311, start: 0.13, length: 0.34, gain: 0.15})
 }
 
-// Two soft notes going up: someone said something.
 const chat: Synth = (ctx, at, {volume}) => {
     tone(ctx, at, volume, {type: "sine", from: 880, start: 0, length: 0.08, gain: 0.12})
     tone(ctx, at, volume, {type: "sine", from: 1175, start: 0.07, length: 0.14, gain: 0.12})

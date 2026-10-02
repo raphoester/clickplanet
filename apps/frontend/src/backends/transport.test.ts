@@ -71,8 +71,6 @@ describe("openStream", () => {
         vi.restoreAllMocks()
     })
 
-    // The iteration runs on microtasks, so a turn has to be handed back before
-    // the reconnect a stream's end schedules can be observed.
     const settle = () => vi.advanceTimersByTimeAsync(0)
 
     it("opens once and forwards what arrives", async () => {

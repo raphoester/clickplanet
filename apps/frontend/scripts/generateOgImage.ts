@@ -1,11 +1,3 @@
-// Rewrites the link preview from the screenshot it is built from.
-//
-//   npm run og-image
-//
-// The source is `static/og-source.png`, kept in the repo and not deployed. The output is
-// `static/og-image-<hash>.jpg`, and the og:image / twitter:image URLs in index.html and play.html
-// are rewritten to name it. It is content-addressed because scrapers cache a preview by its URL:
-// under the same name, a link shared after the change still showed the old picture.
 import {createHash} from "node:crypto"
 import {readdirSync, readFileSync, unlinkSync, writeFileSync} from "node:fs"
 import {dirname, join, resolve} from "node:path"

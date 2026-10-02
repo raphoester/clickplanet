@@ -1,4 +1,3 @@
-// Package log_subscriber logs an event a subscriber refused. The bus only counts it.
 package log_subscriber
 
 import (

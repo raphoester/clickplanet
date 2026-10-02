@@ -44,8 +44,6 @@ const (
 // InternalServiceClient is a client for the auth.v1.InternalService service.
 type InternalServiceClient interface {
 	GetVerifyingKey(context.Context, *connect.Request[v1.GetVerifyingKeyRequest]) (*connect.Response[v1.GetVerifyingKeyResponse], error)
-	// What another module may know about one account. An account that does not
-	// exist, or an id that is not one, answers linked false.
 	GetAccount(context.Context, *connect.Request[v1.GetAccountRequest]) (*connect.Response[v1.GetAccountResponse], error)
 }
 
@@ -94,8 +92,6 @@ func (c *internalServiceClient) GetAccount(ctx context.Context, req *connect.Req
 // InternalServiceHandler is an implementation of the auth.v1.InternalService service.
 type InternalServiceHandler interface {
 	GetVerifyingKey(context.Context, *connect.Request[v1.GetVerifyingKeyRequest]) (*connect.Response[v1.GetVerifyingKeyResponse], error)
-	// What another module may know about one account. An account that does not
-	// exist, or an id that is not one, answers linked false.
 	GetAccount(context.Context, *connect.Request[v1.GetAccountRequest]) (*connect.Response[v1.GetAccountResponse], error)
 }
 

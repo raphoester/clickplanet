@@ -47,14 +47,11 @@
     transition: 0.125s ease;
 }
 
-/* Last in the body, not in the footer: the footer is the donate button's. */
 .about-legal {
     display: flex;
     justify-content: center;
     gap: 16px;
     margin: 20px 0 0;
-    /* The height of the fade .modal-scroll lays over its bottom edge, so the
-       links clear it once the body is scrolled to the end. */
     padding-bottom: 36px;
     font-family: Oswald, sans-serif;
     font-size: 12px;

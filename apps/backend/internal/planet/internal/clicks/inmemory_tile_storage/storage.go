@@ -55,8 +55,7 @@ type Storage struct {
 	counts  []uint32
 	codes   []string
 	codeIDs map[string]uint16
-	// One bit per tile changed since the last flush.
-	dirty []uint64
+	dirty   []uint64
 
 	subscribersMu sync.Mutex
 	subscribers   *cpcolls.Set[*subscriber]
@@ -86,7 +85,6 @@ func (s *Storage) Set(_ context.Context, tile uint32, value string) error {
 	return nil
 }
 
-// Clear empties blast.Cleared and publishes the blast once, holding only the tiles that were owned.
 func (s *Storage) Clear(_ context.Context, blast clicks.Blast) (clicks.Blast, error) {
 	cleared := make([]uint32, 0, len(blast.Cleared))
 
@@ -111,7 +109,6 @@ func (s *Storage) Clear(_ context.Context, blast clicks.Blast) (clicks.Blast, er
 	return blast, nil
 }
 
-// Share is the fraction of the whole map a country holds, unowned tiles counted in the whole.
 func (s *Storage) Share(country string) float64 {
 	s.tilesMu.RLock()
 	defer s.tilesMu.RUnlock()
@@ -124,7 +121,6 @@ func (s *Storage) Share(country string) float64 {
 	return float64(s.counts[id]) / float64(s.maxIndex)
 }
 
-// Owner reads one tile; false means past the end of the map, and an unowned tile reads as an empty code.
 func (s *Storage) Owner(tile uint32) (string, bool) {
 	if tile > s.maxIndex {
 		return "", false

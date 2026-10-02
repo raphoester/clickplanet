@@ -1,4 +1,3 @@
-// Package get_stats_handler serves player.v1.PlayerService/GetStats.
 package get_stats_handler
 
 import (

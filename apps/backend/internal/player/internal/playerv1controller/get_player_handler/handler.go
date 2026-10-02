@@ -1,4 +1,3 @@
-// Package get_player_handler serves player.v1.PlayerService/GetPlayer.
 package get_player_handler
 
 import (
@@ -13,8 +12,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/playermessage"
 )
 
-// maxAge lets a proxy serve one answer to everyone who opens the same player within it. The stats move with
-// every take, and nobody reads them to the tile.
 const maxAge = 10
 
 type UseCase interface {
@@ -29,7 +26,6 @@ type GetPlayerHandler struct {
 	useCase UseCase
 }
 
-// GetPlayer needs no token: the session interceptor does not list it.
 func (h GetPlayerHandler) GetPlayer(
 	ctx context.Context,
 	req *connect.Request[playerv1.GetPlayerRequest],

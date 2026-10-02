@@ -9,10 +9,8 @@ import ringFragment from "./shaders/ring/fragment.glsl"
 
 const DEBRIS_PER_BLAST = 140
 
-/** How far past its edge a ring's quad reaches, so the soft edge is not cut. */
 const RING_MARGIN = 1.2
 
-/** How wide the incoming ring starts, in blast radii, before closing in. */
 const INCOMING_REACH = 2.4
 
 const Z_AXIS = new THREE.Vector3(0, 0, 1)
@@ -22,22 +20,14 @@ const SPLASH_RING = new THREE.Color(0.75, 0.93, 1)
 const BLAST_FLASH = 0xffc070
 const SPLASH_FLASH = 0xbfe8ff
 
-/** A splash is smaller than a blast: a fountain, not a fireball. */
 const SPLASH_SCALE = 0.6
 
 const RIPPLE_SECONDS = 1.6
 
-/** How long the flash at the centre lasts after impact, in seconds. */
 const FLASH_SECONDS = 0.7
 
-/** A slot nobody has used: dropped long enough ago that every phase is over. */
 const NEVER = -1e6
 
-/**
- * The uniforms the display shader reads the blasts from. They are merged into
- * the tile field's own uniforms, so the ground shakes in the same draw call
- * that paints it — no second pass over a million points.
- */
 export type BlastUniforms = {
     time: THREE.IUniform<number>
     blasts: THREE.IUniform<THREE.Vector4[]>
@@ -57,22 +47,14 @@ export function blastUniforms(reducedMotion: boolean): BlastUniforms {
 export type Blasts = {
     readonly object: THREE.Object3D
 
-    /**
-     * Starts a blast at `centre` (any length; it is put on the unit sphere). A
-     * splash is a bomb that fell in the sea: no crater, a ripple instead.
-     */
     start(centre: THREE.Vector3, radius: number, seconds: number, splash?: boolean): void
 
-    /** The aiming ring, or none. */
     setAim(centre: THREE.Vector3 | undefined, radius: number): void
 
-    /** How far a held press has got towards dropping the bomb, 0 to 1. */
     setCharge(progress: number): void
 
-    /** Where the newest blast still worth pointing at is, if any. */
     newest(seconds: number): THREE.Vector3 | undefined
 
-    /** Whether this frame changed anything: the frame a blast ends on counts. */
     update(seconds: number, camera: THREE.Camera): boolean
 
     dispose(): void
@@ -88,19 +70,6 @@ type Slot = {
     incoming: THREE.Mesh
 }
 
-/**
- * Everything a bomb draws, in a fixed number of slots allocated once.
- *
- * The ground effects — shock wave, scorch — live in the display shader and
- * cost a uniform write per frame. On top of them each slot owns a flash sprite,
- * a small debris cloud animated on the GPU from a start time, and the ring that
- * closes in while the bomb falls; a new blast reuses the oldest slot rather
- * than allocating. The aiming ring is one more ring of the same kind.
- *
- * The rings are meshes laid on the globe rather than drawn by the tiles: the
- * tiles are dots with sea and gaps between them, and a ring made of them breaks
- * up and flickers as it moves.
- */
 export function createBlasts(
     uniforms: BlastUniforms,
     pixelsPerRadian: THREE.IUniform<number>,
@@ -127,11 +96,9 @@ export function createBlasts(
         flash.visible = false
 
         const geometry = new THREE.BufferGeometry()
-        // Positions are computed in the shader; three still wants the attribute
-        // to know how many points to draw.
         geometry.setAttribute("position", new THREE.BufferAttribute(new Float32Array(DEBRIS_PER_BLAST * 3), 3))
         geometry.setAttribute("seed", seeds)
-        // Never culled on a stale bounding sphere of zeros.
+        // Positions are set in the shader; a bounding sphere of zeros would get it culled.
         geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 2)
 
         const debris = new THREE.Points(geometry, new THREE.ShaderMaterial({
@@ -170,7 +137,6 @@ export function createBlasts(
             slot.radius = radius
             slot.splash = splash
 
-            // The sea has no tiles to throw about or burn.
             uniforms.blasts.value[index].set(slot.centre.x, slot.centre.y, slot.centre.z, seconds)
             uniforms.blastRadii.value[index] = splash ? 0 : radius
 
@@ -209,12 +175,8 @@ export function createBlasts(
             uniforms.time.value = seconds
             camera.getWorldDirection(toCamera).negate()
 
-            // A slow breath rather than a blink: this is held for many seconds.
             ringOpacity(aim, 0.85 + 0.15 * Math.sin(seconds * 4))
 
-            // Whether anything here still moves, which is what the animation
-            // loop draws a frame for. The aiming ring breathes for as long as
-            // it is up, and a blast's last frame is the one that clears it.
             let drawing = aim.visible
 
             slots.forEach((slot, index) => {
@@ -224,7 +186,6 @@ export function createBlasts(
                     drawing ||= uniforms.blastRadii.value[index] > 0
                         || slot.flash.visible || slot.debris.visible || slot.incoming.visible
 
-                    // Freed, so the shader skips it on the cheapest test it has.
                     uniforms.blastRadii.value[index] = 0
                     slot.flash.visible = false
                     slot.debris.visible = false
@@ -236,8 +197,6 @@ export function createBlasts(
 
                 const sinceImpact = elapsed - BLAST_TIMELINE.fall
 
-                // The same ring closes in on every target; in the sea it then
-                // opens back out as the ripple.
                 const ring = slot.splash && sinceImpact >= 0 ? rippleAt(sinceImpact) : incomingAt(elapsed)
                 slot.incoming.visible = ring.reach > 0.02 && ring.opacity > 0.01
                 if (slot.incoming.visible) {
@@ -274,10 +233,6 @@ export function createBlasts(
     }
 }
 
-/**
- * The flash sprite over one blast: a red glow swelling while the bomb falls,
- * then a burst many times the crater's size that fades fast.
- */
 export function flashAt(elapsed: number, radius: number): {scale: number, opacity: number} {
     if (elapsed < 0) return {scale: 0, opacity: 0}
 
@@ -293,7 +248,6 @@ export function flashAt(elapsed: number, radius: number): {scale: number, opacit
     return {scale: radius * (3 + 7 * (1 - (1 - k) ** 3)), opacity: (1 - k) ** 2}
 }
 
-/** The ripple a bomb leaves in the sea, in blast radii, after it lands. */
 export function rippleAt(sinceImpact: number): {reach: number, opacity: number} {
     if (sinceImpact < 0 || sinceImpact >= RIPPLE_SECONDS) return {reach: 0, opacity: 0}
 
@@ -301,10 +255,6 @@ export function rippleAt(sinceImpact: number): {reach: number, opacity: number} 
     return {reach: 0.3 + 2.2 * (1 - (1 - k) ** 2), opacity: (1 - k) ** 1.5}
 }
 
-/**
- * The ring closing in on a target while its bomb falls, in blast radii: wide
- * and faint when dropped, on the target and bright as it lands, gone after.
- */
 export function incomingAt(elapsed: number): {reach: number, opacity: number} {
     if (elapsed < 0 || elapsed >= BLAST_TIMELINE.fall) return {reach: 0, opacity: 0}
 
@@ -326,16 +276,10 @@ function createRing(geometry: THREE.PlaneGeometry): THREE.Mesh {
         depthWrite: false,
     }))
     ring.visible = false
-    // After the tiles, so it is laid over them rather than sorted under.
     ring.renderOrder = 2
     return ring
 }
 
-/**
- * Lays a ring flat on the globe at `centre`, `radius` radians wide. Flat is
- * close enough at these sizes: the sphere falls away under a 0.15 rad ring by
- * about a hundredth of the radius, and the lift keeps it clear of the tiles.
- */
 function layRing(ring: THREE.Mesh, centre: THREE.Vector3, radius: number) {
     const normal = centre.clone().normalize()
     ring.position.copy(normal).multiplyScalar(1.003)
@@ -359,7 +303,6 @@ function oldest(slots: Slot[]): number {
     return index
 }
 
-/** One random heading, reach and throw per spark, shared by every slot. */
 function debrisSeeds(): THREE.BufferAttribute {
     const values = new Float32Array(DEBRIS_PER_BLAST * 3)
     for (let i = 0; i < DEBRIS_PER_BLAST; i++) {

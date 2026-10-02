@@ -1,14 +1,3 @@
-// Package catcher watches for the caller that catches every bonus box, at once.
-// A box is sent down one caller's stream and flies a slow orbit that is rarely
-// in view: a person has to zoom out to orbit height and often drag the globe
-// round before they can click it, and some boxes go by unseen. A script reads
-// the offer off the stream and claims it before the box has left its spawn.
-// Speed alone is not the claim — a player already zoomed out gets lucky — and
-// catching every box is not either. Both, box after box, is.
-//
-// A box can also be claimed by a caller it was never sent to, which no page
-// can do: the web app only claims the box on its own screen. Clients that pass
-// each other their boxes do, and every such claim is refused and told here.
 package catcher
 
 import (
@@ -23,21 +12,13 @@ import (
 const Name = "catcher"
 
 type Config struct {
-	// MinCatches is how many boxes in a row, the last ones offered, must all
-	// have been caught before anything is said. A single miss among them clears
-	// the caller: a person misses boxes and a script does not.
 	MinCatches int
 
-	// MaxMedian is the median delay from offer to claim, over those catches,
-	// that reads as Suspect.
 	MaxMedian time.Duration
 
-	// CertainMedian is the same median at a speed no person manages box after
-	// box: find the box, reach it, click it.
 	CertainMedian time.Duration
 
-	// TrackWindow is how long an outcome counts. It must hold MinCatches boxes
-	// at the slowest pace they are offered, or the rule can never fire.
+	// Must hold MinCatches boxes at the slowest offer pace, or the rule never fires.
 	TrackWindow time.Duration
 
 	Foreign ForeignConfig
@@ -45,7 +26,6 @@ type Config struct {
 	SweepInterval time.Duration
 }
 
-// ForeignConfig bounds the claims of a box offered to another caller, or to nobody, inside Window. A zero count never reads its level.
 type ForeignConfig struct {
 	Window        time.Duration
 	MinClaims     int
@@ -56,7 +36,6 @@ const (
 	defaultMinCatches    = 5
 	defaultMaxMedian     = 3 * time.Second
 	defaultCertainMedian = 1500 * time.Millisecond
-	// Five boxes at bonus's slowest pace, 8m of window and 15s of flight each, with room to spare.
 	defaultTrackWindow   = time.Hour
 	defaultSweepInterval = time.Minute
 
@@ -91,7 +70,6 @@ func (c Config) withDefaults() Config {
 	return c
 }
 
-// keptForeign is how many foreign claims a caller keeps: enough for the higher level set.
 func (c ForeignConfig) kept() int {
 	return max(c.MinClaims, c.CertainClaims)
 }
@@ -118,13 +96,11 @@ type Watchdog struct {
 
 var _ detect.Watchdog = (*Watchdog)(nil)
 
-// caller holds the last MinCatches boxes offered, and the last foreign claims, oldest first.
 type caller struct {
 	outcomes []outcome
 	foreign  []time.Time
 }
 
-// lastSeen is the latest thing the caller did with a box, zero for nothing.
 func (c *caller) lastSeen() time.Time {
 	var last time.Time
 	if len(c.outcomes) > 0 {
@@ -144,23 +120,18 @@ type outcome struct {
 
 func (w *Watchdog) Name() string { return Name }
 
-// Attempted is nothing to this watchdog: it reads boxes, not clicks.
 func (w *Watchdog) Attempted(detect.Click) {}
 
-// Committed is nothing to this watchdog: it reads boxes, not tiles.
 func (w *Watchdog) Committed(detect.Click) {}
 
-// Caught records a box claimed after the delay since it was offered.
 func (w *Watchdog) Caught(scope string, after time.Duration) {
 	w.record(scope, outcome{at: w.clock.Now(), caught: true, after: after})
 }
 
-// Missed records a box offered and never claimed.
 func (w *Watchdog) Missed(scope string) {
 	w.record(scope, outcome{at: w.clock.Now()})
 }
 
-// Foreign records a claim, refused, of a box that was never offered to this caller.
 func (w *Watchdog) Foreign(scope string) {
 	kept := w.config.Foreign.kept()
 	if scope == "" || kept == 0 {
@@ -201,9 +172,6 @@ func (w *Watchdog) callerLocked(scope string) *caller {
 	return c
 }
 
-// Watch answers from the boxes already claimed, not from the click: a box is
-// claimed between clicks, and the jury only asks on a click. The stronger rule
-// is reported, catch on a tie.
 func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
@@ -257,7 +225,6 @@ func (w *Watchdog) catch(c *caller, at time.Time) (detect.Verdict, detect.Eviden
 	}
 }
 
-// foreign counts the claims of boxes sent to somebody else inside the window: one a page never makes.
 func (w *Watchdog) foreign(c *caller, at time.Time) (detect.Verdict, detect.Evidence) {
 	config := w.config.Foreign
 

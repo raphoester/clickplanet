@@ -1,11 +1,3 @@
-// Package embedded_geodesic_map builds the map's geography from the shipped tile coordinates blob.
-//
-// Everything in here exists because the adjacency is not shipped — the positions are, and the
-// adjacency has to be recovered from them. Ship a precomputed edge list one day and this whole
-// package goes while clicks.Geography stays exactly as it is.
-//
-// The method, the numbers it has to reproduce, and why a radius search is the wrong way to do
-// this are in apps/backend/CLAUDE.md under "Map geography".
 package embedded_geodesic_map
 
 import (
@@ -17,7 +9,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
 
-// Loader reads the embedded map blobs and refuses any whose tile count is not gameMap.maxIndex.
 type Loader struct {
 	expectTiles uint32
 	logger      *slog.Logger
@@ -73,8 +64,6 @@ func (l *Loader) LoadGeography() (*clicks.Geography, error) {
 	return geography, nil
 }
 
-// walkLattice resolves every vertex of all 20 icosahedron faces back to a tile and reports the
-// six ±1 exchanges between barycentric coordinates as its neighbours.
 func walkLattice(positions []float32) ([]clicks.Edge, error) {
 	tiles := uint32(len(positions) / 3)
 	index := newPositionIndex(positions)
@@ -82,7 +71,6 @@ func walkLattice(positions []float32) ([]clicks.Edge, error) {
 	resolved := make([]bool, tiles)
 	edges := make([]clicks.Edge, 0, 2<<20)
 
-	// One face's lattice, (i, j) -> tile id, 0 over water. Reused across the 20 faces.
 	face := make([]uint32, faceVertices)
 
 	for _, corners := range icosahedronFaces {
@@ -92,7 +80,6 @@ func walkLattice(positions []float32) ([]clicks.Edge, error) {
 
 		for i := 0; i <= Cols; i++ {
 			for j := 0; j <= Cols-i; j++ {
-				// i is r and j is q; p is whatever is left of Cols.
 				position := latticePosition(a, b, c, Cols-i-j, j, i)
 
 				id, ok := index.lookup(position)
@@ -112,7 +99,6 @@ func walkLattice(positions []float32) ([]clicks.Edge, error) {
 
 				for _, move := range latticeMoves {
 					ni, nj := i+move[0], j+move[1]
-					// Off this face; another face in the walk carries that vertex.
 					if ni < 0 || nj < 0 || ni+nj > Cols {
 						continue
 					}
@@ -128,7 +114,6 @@ func walkLattice(positions []float32) ([]clicks.Edge, error) {
 		}
 	}
 
-	// A tile on no lattice vertex means the blob was generated at a different subdivision.
 	if missing := countFalse(resolved); missing > 0 {
 		return nil, fmt.Errorf(
 			"%d of %d tiles do not sit on the detail-%d lattice: the blob was generated at a different subdivision",

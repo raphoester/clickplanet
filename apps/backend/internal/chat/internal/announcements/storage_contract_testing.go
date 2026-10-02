@@ -11,11 +11,9 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-// StorageContractSuite is the behaviour every Storage shares. Embed it and set NewStorage.
 type StorageContractSuite struct {
 	suite.Suite
 
-	// NewStorage builds an empty storage.
 	NewStorage func() Storage
 
 	storage Storage
@@ -23,7 +21,6 @@ type StorageContractSuite struct {
 
 var contractStart = time.Date(2024, 1, 1, 12, 0, 0, 123_456_000, time.UTC)
 
-// contractID is the same id for the same name, so a test can say which announcements it expects.
 func contractID(name string) AnnouncementID {
 	return AnnouncementID(uuid.NewSHA1(uuid.NameSpaceOID, []byte(name)))
 }

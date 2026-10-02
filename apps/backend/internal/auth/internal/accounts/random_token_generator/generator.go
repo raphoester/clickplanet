@@ -1,4 +1,3 @@
-// Package random_token_generator draws session tokens from crypto/rand: 32 bytes, base64url.
 package random_token_generator
 
 import (

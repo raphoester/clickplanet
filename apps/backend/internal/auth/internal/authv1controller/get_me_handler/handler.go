@@ -1,4 +1,3 @@
-// Package get_me_handler serves auth.v1.AuthService/GetMe.
 package get_me_handler
 
 import (

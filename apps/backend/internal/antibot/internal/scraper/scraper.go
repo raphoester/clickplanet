@@ -1,5 +1,3 @@
-// Package scraper watches for the caller that reads the whole map again and again, beyond one read
-// per stream opened, and for the one that reads it off the lattice the web app walks.
 package scraper
 
 import (
@@ -15,13 +13,10 @@ import (
 const Name = "scraper"
 
 type Config struct {
-	// MinMaps is the whole maps read beyond one per stream opened, inside TrackWindow, that read as Suspect.
 	MinMaps float64
 
-	// CertainMaps is the same count at a pace no page load produces.
 	CertainMaps float64
 
-	// CertainOffMap is the reads off the map, inside TrackWindow, that read Certain however little was read.
 	CertainOffMap int
 
 	TrackWindow   time.Duration
@@ -35,7 +30,7 @@ const (
 	defaultTrackWindow   = 15 * time.Minute
 	defaultSweepInterval = time.Minute
 
-	// steps bounds what one caller costs, however fast it reads: GetMap is not throttled.
+	// Slices per TrackWindow, bounding memory per caller: GetMap is not throttled.
 	steps = 30
 )
 
@@ -61,7 +56,6 @@ func (c Config) withDefaults() Config {
 	return c
 }
 
-// New takes onMaps, called each sweep with the unexplained maps of every caller that clicked inside TrackWindow.
 func New(config Config, clock cptime.Clock, onMaps func(maps float64)) *Watchdog {
 	config = config.withDefaults()
 
@@ -87,7 +81,7 @@ type Watchdog struct {
 var _ detect.Watchdog = (*Watchdog)(nil)
 
 type caller struct {
-	slices  []slice // oldest first
+	slices  []slice
 	clicked time.Time
 }
 
@@ -100,8 +94,6 @@ type slice struct {
 
 func (w *Watchdog) Name() string { return Name }
 
-// Fetched records a read of maps whole maps: a GetMap of a tenth of the map is 0.1.
-// offMap says the read asked for tiles the map does not have — see beyond.
 func (w *Watchdog) Fetched(scope string, maps float64, offMap bool) {
 	if scope == "" || (maps <= 0 && !offMap) {
 		return
@@ -119,7 +111,6 @@ func (w *Watchdog) Fetched(scope string, maps float64, offMap bool) {
 	}
 }
 
-// Listened records a live stream opened, which explains one map read.
 func (w *Watchdog) Listened(scope string) {
 	if scope == "" {
 		return
@@ -197,7 +188,6 @@ func (w *Watchdog) sliceLocked(scope string) *slice {
 	return &c.slices[len(c.slices)-1]
 }
 
-// prune drops a slice straddling the cutoff whole, which only ever undercounts.
 func (c *caller) prune(cutoff time.Time) {
 	kept := c.slices[:0]
 	for _, s := range c.slices {
@@ -221,10 +211,6 @@ func (c *caller) count(cutoff time.Time) (maps float64, streams, offMap int) {
 	return read, streams, offMap
 }
 
-// beyond is never negative: a stream reopened after a dropped connection reads nothing.
-// A caller that asked for tiles off the map gets no credit at all, however many streams
-// it opened — which is what a script buys by opening one before each read. Past
-// CertainOffMap such reads the count no longer decides anything: see Watch.
 func beyond(maps float64, streams, offMap int) float64 {
 	if offMap > 0 {
 		return maps
@@ -268,7 +254,6 @@ func (w *Watchdog) sweep() {
 
 	w.mu.Unlock()
 
-	// Outside the lock: every reader queues on it.
 	for _, maps := range unexplained {
 		w.onMaps(maps)
 	}

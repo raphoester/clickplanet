@@ -1,4 +1,3 @@
-// Package antibot_drop_bomb is the shadow ban for bombs: a banned caller's bomb is answered OK and clears nothing.
 package antibot_drop_bomb
 
 import (
@@ -25,8 +24,7 @@ type Decorator struct {
 	bans           Bans
 }
 
-// Execute still runs the drop, so the bomb is spent: a bomb that stayed in hand would tell the caller it was refused.
-// A ban on the scope or on the account makes it a dud.
+// Still runs the drop: a bomb left in hand would tell a banned caller it was refused.
 func (d *Decorator) Execute(ctx context.Context, in drop_bomb_usecase.In) (clicks.Blast, error) {
 	payer := clicks.PayerOf(ctx)
 	in.Dud = d.bans.Banned(payer.Scope, payer.Account)

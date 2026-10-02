@@ -1,14 +1,5 @@
-/**
- * The press that drops a bomb: held still on one spot for `holdSeconds`.
- *
- * A bomb is too precious to go on a click, and a click is also what ends every
- * drag of the globe — so a press that moves is a drag, a press let go early is
- * a change of mind, and only a press held still to the end is a drop. Mouse and
- * touch go through the same rule.
- */
 export type HoldRules = {
     holdSeconds: number
-    /** How far, in CSS pixels, a press may wander and still be held still. */
     tolerancePx: number
 }
 
@@ -44,10 +35,6 @@ export class HoldToDrop<T> {
         this.press = undefined
     }
 
-    /**
-     * How far the press has got, 0 to 1, or the target once it is held to the
-     * end — at which point the press is over and will not drop twice.
-     */
     tick(at: number): {progress: number, drop?: T} {
         if (!this.press) return {progress: 0}
 

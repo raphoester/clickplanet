@@ -1,4 +1,3 @@
-// Package audit_revert logs every operator revert, dry runs and failures included.
 package audit_revert
 
 import (
@@ -21,7 +20,6 @@ type Audited struct {
 	logger *slog.Logger
 }
 
-// Execute logs at Warn: the log is the only record that these tiles did not change hands through play.
 func (a *Audited) Execute(ctx context.Context, in revert_player_usecase.In) (revert_player_usecase.Out, error) {
 	out, err := a.inner.Execute(ctx, in)
 

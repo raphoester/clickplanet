@@ -17,7 +17,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/rpc_player_authors"
 )
 
-// stubPlayer answers what the player module answers: the name it shows for an account.
 type stubPlayer struct {
 	playerv1connect.UnimplementedInternalServiceHandler
 

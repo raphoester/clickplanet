@@ -22,7 +22,6 @@ type fakeLimiter struct {
 	spent []float64
 }
 
-// TakeAll answers state for every key.
 func (l *fakeLimiter) TakeAll(n float64, keys ...cpratelimit.Key) (bool, []cpratelimit.State) {
 	l.keys = append(l.keys, keys)
 	l.spent = append(l.spent, n)

@@ -1,4 +1,3 @@
-// Package find_players_usecase answers "who is painting this flag over there": every caller who took such a tile, latest first.
 package find_players_usecase
 
 import (
@@ -22,7 +21,6 @@ type Borders interface {
 	CountryOf(tile uint32) string
 }
 
-// Bans is nil when the antibot is off.
 type Bans interface {
 	Sentence(scope, account string) (antibot.Sentence, bool)
 }
@@ -32,16 +30,14 @@ type CountryChecker interface {
 }
 
 type In struct {
-	Flag string
-	// Area is the country whose ground the tiles sit on; empty is the whole map.
+	Flag  string
 	Area  string
 	Limit int
 }
 
 type Out struct {
 	Players []ledger.Player
-	// Total is how many players matched, before the limit.
-	Total int
+	Total   int
 }
 
 func New(ledger Ledger, owners Owners, borders Borders, bans Bans, countries CountryChecker) *UseCase {

@@ -1,4 +1,3 @@
-// Package uuid_id_provider gives accounts time-ordered UUIDv7 ids, so the table's primary key grows in insert order.
 package uuid_id_provider
 
 import (

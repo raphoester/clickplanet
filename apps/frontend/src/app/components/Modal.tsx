@@ -8,8 +8,6 @@ export type ModalProps = {
     children: ReactNode;
     footer?: ReactNode;
     stayOnBackdropClick?: boolean;
-    /** Added to the panel. Modal.css sizes the box for a column of text; this is
-     *  how a dialog that holds something else says so. */
     className?: string;
     onClose: () => void;
 }

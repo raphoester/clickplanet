@@ -3,7 +3,6 @@ import {ANNOUNCE_EVERY_MS, Announcing, PresenceSchedule, SETTLE_MS} from "./pres
 
 const france: Announcing = {countryCode: "fr"}
 
-/** Claims and settles at once, as an announce that landed. */
 function sent(schedule: PresenceSchedule, now: number, session: string | undefined) {
     const presence = schedule.claim(now, session)
     schedule.settle()
@@ -11,7 +10,6 @@ function sent(schedule: PresenceSchedule, now: number, session: string | undefin
 }
 
 describe("PresenceSchedule", () => {
-    // A mint is a Turnstile check: a visitor who never clicked is not listed.
     it("announces nothing while no token is held", () => {
         const schedule = new PresenceSchedule(france)
 
@@ -36,7 +34,6 @@ describe("PresenceSchedule", () => {
         expect(sent(schedule, 2 * ANNOUNCE_EVERY_MS, "token-1")).toBeDefined()
     })
 
-    // A sign-in invalidates the token, and the next one names another account.
     it("announces at once under a new token", () => {
         const schedule = new PresenceSchedule(france)
         sent(schedule, 0, "token-1")
@@ -109,7 +106,6 @@ describe("PresenceSchedule", () => {
         expect(schedule.claim(100 + SETTLE_MS, "token-1")).toMatchObject({countryCode: "jp"})
     })
 
-    // A failure is not retried on the next tick: that would hammer a server that is down.
     it("waits the full interval after an announce that failed", () => {
         const schedule = new PresenceSchedule(france)
         sent(schedule, 0, "token-1")

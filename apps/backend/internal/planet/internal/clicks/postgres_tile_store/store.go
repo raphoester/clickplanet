@@ -1,4 +1,3 @@
-// Package postgres_tile_store keeps the in-memory tile map between boots: one row per owned tile.
 package postgres_tile_store
 
 import (
@@ -11,7 +10,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
-// A reassign can move a whole country at once; chunks keep one statement's arrays a sane size.
 const chunkSize = 10_000
 
 func New(db cppg.QuerierBeginner) *Store {
@@ -22,7 +20,6 @@ type Store struct {
 	db cppg.QuerierBeginner
 }
 
-// Load calls visit once per owned tile, in no particular order.
 func (s *Store) Load(ctx context.Context, visit func(tile uint32, owner string)) error {
 	rows, err := s.db.QueryContext(ctx, `SELECT id, country FROM tiles`)
 	if err != nil {
@@ -48,7 +45,6 @@ func (s *Store) Load(ctx context.Context, visit func(tile uint32, owner string))
 	return nil
 }
 
-// Save writes owners[i] as the owner of tiles[i] in one transaction; an empty owner deletes the row.
 func (s *Store) Save(ctx context.Context, tiles []uint32, owners []string) error {
 	if len(tiles) != len(owners) {
 		return fmt.Errorf("saving %d tiles with %d owners", len(tiles), len(owners))

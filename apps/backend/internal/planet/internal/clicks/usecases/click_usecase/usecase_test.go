@@ -23,7 +23,6 @@ type testSuite struct {
 	useCase *click_usecase.UseCase
 }
 
-// Poland's ground is tiles 100 to 199; every other tile is in no country.
 type grounds struct{}
 
 func (grounds) CountryOf(tile uint32) string {

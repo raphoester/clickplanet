@@ -36,7 +36,6 @@ func (h *harness) click(tile uint32) (detect.Verdict, detect.Evidence) {
 	return verdict, evidence
 }
 
-// walk clicks count tiles, each stride on from the last.
 func (h *harness) walk(first uint32, stride uint32, count int) (detect.Verdict, detect.Evidence) {
 	var (
 		verdict  detect.Verdict
@@ -81,7 +80,6 @@ func TestAShortWalkIsOnlySuspect(t *testing.T) {
 func TestAnyConstantStrideIsAWalk(t *testing.T) {
 	h := newHarness(config())
 
-	// The size of the step says nothing. Holding one says everything.
 	verdict, evidence := h.walk(3000, 7, 60)
 
 	require.Equal(t, detect.Certain, verdict)
@@ -104,8 +102,6 @@ func TestWalkingBackwardsCountsToo(t *testing.T) {
 func TestOneBreakInTheRunDoesNotSaveIt(t *testing.T) {
 	h := newHarness(config())
 
-	// A sweep that reaches the end of a band and jumps to the next is still a
-	// sweep: one odd step out of sixty changes no share worth speaking of.
 	h.walk(4000, 1, 30)
 	h.click(50000)
 	verdict, _ := h.walk(50001, 1, 30)
@@ -116,8 +112,6 @@ func TestOneBreakInTheRunDoesNotSaveIt(t *testing.T) {
 func TestAHandWanderingIsClear(t *testing.T) {
 	h := newHarness(config())
 
-	// Tile ids follow the icosahedron's vertex order, so filling in a shape by
-	// hand does not hold a step between one click and the next.
 	steps := []int{3, -1, 12, 2, -7, 1, 40, -3, 5, 1, -22, 8, 2, 17, -4, 1, 9, -13, 6, 2}
 
 	tile := uint32(5000)

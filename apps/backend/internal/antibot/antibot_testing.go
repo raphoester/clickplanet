@@ -10,7 +10,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-// NewInMemory is New with the bans and the evidence kept in the persistences given instead of postgres.
 func NewInMemory(
 	config Config,
 	clock cptime.Clock,

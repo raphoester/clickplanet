@@ -34,8 +34,6 @@ var (
 	other = cpsession.AccountID{15: 2}
 )
 
-// fakeAuthors is the player module, which knows what each account is called. An account it is not told about
-// is one nobody can name any more: deleted.
 type fakeAuthors struct {
 	named map[messages.AccountID]messages.Author
 	asked [][]messages.AccountID
@@ -130,7 +128,6 @@ func TestEachMessageCarriesItsReactionsMarkedForTheCallersAccount(t *testing.T) 
 		MessageID: "hello", Reaction: clown, Reactor: reactions.ReactorOf(ada), On: true, At: now,
 	}))
 
-	// Who gave it is the same for everyone; only Mine turns on the caller's own.
 	given := []reactions.Reactor{reactions.ReactorOf(ada)}
 	names := []string{"Ada"}
 	assert.Equal(t, []reactions.Count{{Reaction: clown, Count: 1, Mine: true, Reactors: given, Names: names}},

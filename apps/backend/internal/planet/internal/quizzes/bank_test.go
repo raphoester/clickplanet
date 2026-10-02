@@ -10,10 +10,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 )
 
-// The bank under test is the real one, embedded. It is committed and content-addressed, so these
-// are assertions about what ships rather than about a fixture: a generator that started writing a
-// question with no answer, or a `make quiz` that copied a bank from another format, fails here
-// instead of at the first offer on a Friday night.
 func loaded(t *testing.T, config quizzes.Config) *quizzes.Bank {
 	t.Helper()
 
@@ -43,7 +39,6 @@ func TestADrawIsThreeChoicesWithOneOfThemRight(t *testing.T) {
 		require.True(t, round.Correctly(round.Correct))
 		require.NotEmpty(t, round.Question.Text)
 
-		// Three choices that are not three different things is a question with two right answers.
 		require.Equal(t, quizzes.Choices, cpcolls.NewSet(round.Options...).Len())
 	}
 }
@@ -51,8 +46,6 @@ func TestADrawIsThreeChoicesWithOneOfThemRight(t *testing.T) {
 func TestTheSameQuestionIsNotAlwaysTheSameThreeChoices(t *testing.T) {
 	bank := loaded(t, quizzes.Config{})
 
-	// Whichever entry comes up first, keep drawing until it comes up again and compare. A bank that
-	// always dealt the first two wrong answers in the first two slots would be worth writing down.
 	first := bank.Draw()
 	for range 5000 {
 		again := bank.Draw()
@@ -77,8 +70,6 @@ func TestAQuestionWithTooFewWrongAnswersRefusesTheBoot(t *testing.T) {
 	require.Error(t, quizzes.Question{ID: "x", Text: "?", Answer: "a", Wrong: []string{"b"}}.Validate())
 }
 
-// The fault a generated bank produces quietly: two countries share the name of a capital, or a
-// distractor drawn from the same continent turns out to be the right answer after all.
 func TestAnAnswerThatIsAlsoOneOfTheWrongOnesRefusesTheBoot(t *testing.T) {
 	require.Error(t, quizzes.Question{
 		ID: "x", Text: "?", Answer: "a", Wrong: []string{"a", "b"},
@@ -86,7 +77,5 @@ func TestAnAnswerThatIsAlsoOneOfTheWrongOnesRefusesTheBoot(t *testing.T) {
 }
 
 func TestTheShippedBankHasNoQuestionThatCannotBeAsked(t *testing.T) {
-	// Load already checks every entry, so this is the assertion that it does — and that the file on
-	// disk passes it.
 	assert.NotNil(t, loaded(t, quizzes.Config{}))
 }

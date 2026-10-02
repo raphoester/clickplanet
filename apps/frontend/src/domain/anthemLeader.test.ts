@@ -32,7 +32,6 @@ describe("followLeader", () => {
         pick = followLeader(pick, "fr", 2000)
         expect(pick).toEqual({playing: "fr", challenger: undefined})
 
-        // Its next lead starts a new hold rather than counting the old one.
         pick = followLeader(pick, "de", 3000)
         expect(followLeader(pick, "de", 1000 + HOLD_MS)).toBe(pick)
     })

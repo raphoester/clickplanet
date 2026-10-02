@@ -6,7 +6,6 @@ import (
 	"time"
 )
 
-// Record is one scope's or one account's ban as it is kept between boots. When it may be flagged again is not kept.
 type Record struct {
 	Key      string
 	Flags    int
@@ -14,7 +13,6 @@ type Record struct {
 	Until    time.Time
 }
 
-// Persistence is where the bans are kept between boots. It is never read after Load.
 type Persistence interface {
 	Load(ctx context.Context, visit func(record Record)) error
 	Save(ctx context.Context, records []Record) error
@@ -22,7 +20,6 @@ type Persistence interface {
 
 const flushTimeout = 10 * time.Second
 
-// Load refuses rather than start empty: a boot that forgets the bans unbans every bot.
 func (b *Banner) Load(ctx context.Context) error {
 	bans := make(map[string]*ban)
 	if err := b.persistence.Load(ctx, func(record Record) {
@@ -67,7 +64,6 @@ func (b *Banner) flushOrReport(ctx context.Context) {
 	}
 }
 
-// Flush writes every ban changed since the last flush, as it is now. A failed write keeps them marked.
 func (b *Banner) Flush(ctx context.Context) error {
 	records := b.takeDirty()
 	if len(records) == 0 {

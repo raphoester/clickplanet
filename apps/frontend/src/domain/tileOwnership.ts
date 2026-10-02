@@ -2,12 +2,9 @@ import type {Ownerships, Update} from "../backends/backend.ts";
 
 export type OwnerChange = {
     tile: number
-    // undefined means the tile went back to unowned
     country: string | undefined
 }
 
-// The receipt for an optimistic paint, handed back to `rollback` if the server
-// refuses the click it was betting on.
 export type OptimisticClaim = {
     readonly tile: number
     readonly token: number
@@ -19,10 +16,7 @@ export type OptimisticPaint = {
 }
 
 type Pending = {
-    // the claims still in flight on this tile, oldest first, each with what it
-    // painted: a flag, or nobody for a click predicted to clear native ground
     readonly inFlight: Map<number, string | undefined>
-    // what the tile would hold had none of them happened
     country: string | undefined
     claimedLive: boolean
 }
@@ -52,8 +46,6 @@ export class TileOwnership {
         ownerships.bindings.forEach((country, tile) => {
             if (!this.inRange(tile)) return
 
-            // A tile with a click in flight keeps its optimistic paint, but the
-            // batch is what it falls back to if that click is refused.
             const pending = this.pending.get(tile)
             if (pending) {
                 if (!pending.claimedLive) pending.country = country
@@ -72,8 +64,6 @@ export class TileOwnership {
             const {tile, newCountry: country} = update
             if (!this.inRange(tile)) continue
 
-            // The server has spoken about this tile, so nothing in flight on it
-            // is worth rolling back to any more.
             this.pending.delete(tile)
 
             this.claimedLive[tile] = 1
@@ -82,8 +72,6 @@ export class TileOwnership {
         return changes
     }
 
-    // The server cleared these tiles, a bomb. Settles them exactly as a live
-    // update would, with nobody as the new owner.
     public applyClears(tiles: number[]): OwnerChange[] {
         const changes: OwnerChange[] = []
         for (const tile of tiles) {
@@ -96,9 +84,6 @@ export class TileOwnership {
         return changes
     }
 
-    // Paints a click before the server has agreed to it, remembering enough to
-    // take it back. `country` is what the click leaves on the tile, which is
-    // nobody when it clears native ground (see homeSoil.ts).
     public applyOptimistic(tile: number, country: string | undefined): OptimisticPaint {
         if (!this.inRange(tile)) return {changes: [], claim: undefined}
 
@@ -119,16 +104,12 @@ export class TileOwnership {
         return {changes, claim: {tile, token}}
     }
 
-    // Takes back a refused click. A no-op once the tile has moved on: the
-    // server settled it, or a later click on it was refused first.
     public rollback(claim: OptimisticClaim | undefined): OwnerChange[] {
         if (!claim) return []
 
         const pending = this.pending.get(claim.tile)
         if (!pending || !pending.inFlight.delete(claim.token)) return []
 
-        // Another click on this tile is still in flight; it owns the paint,
-        // which may be nobody: a clear in flight.
         if (pending.inFlight.size > 0) return this.change(claim.tile, last(pending.inFlight.values()))
 
         this.pending.delete(claim.tile)

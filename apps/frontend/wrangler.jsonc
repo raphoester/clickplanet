@@ -1,31 +1,12 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
 
-  // Deployed as a Worker with static assets rather than a Pages project.
-  // The name must match the Worker the build is wired to, or `wrangler deploy`
-  // creates a second one instead of updating this.
   "name": "clickplanet",
   "compatibility_date": "2026-09-07",
 
   "assets": {
     "directory": "./dist",
 
-    // Pages guessed SPA behaviour from the presence of index.html; Workers
-    // makes it explicit. Without this, any client-side route (anything
-    // react-router owns) 404s on a hard refresh instead of loading the app.
-    //
-    // This replaces the `/* /index.html 200` rule that used to live in
-    // public/_redirects. Do not put that rule back: Workers validates
-    // _redirects and rejects it, because /index.html itself matches /* and
-    // rewrites to itself — "Infinite loop detected in this rule".
-    //
-    // public/_headers is still honoured; Workers supports it natively, so the
-    // caching rules continue to apply.
-    //
-    // The fallback is index.html, which is the home page, not the game. The
-    // game is a real file at each of its paths — play.html at /play and
-    // auth/callback.html at /auth/callback (see vite.config.ts) — so it never
-    // depends on this fallback.
     "not_found_handling": "single-page-application"
   }
 }

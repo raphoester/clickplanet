@@ -1,4 +1,3 @@
-// Package record_take_usecase counts a tile an account took, for its stats.
 package record_take_usecase
 
 import (

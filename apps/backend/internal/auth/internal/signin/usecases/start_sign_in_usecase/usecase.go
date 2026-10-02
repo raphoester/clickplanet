@@ -1,4 +1,3 @@
-// Package start_sign_in_usecase opens a sign-in: a new flow, sealed in the browser's cookie, and the provider URL to send it to.
 package start_sign_in_usecase
 
 import (
@@ -33,7 +32,6 @@ func New(providers signin.Providers, sessions accounts.SessionFinder, secrets si
 	return &UseCase{providers: providers, sessions: sessions, secrets: secrets, sealer: sealer, clock: clock}
 }
 
-// Execute answers signin.ErrSignInOff or signin.ErrUnknownProvider for a provider it does not offer, and accounts.ErrNoAccount for a link from a browser with no account.
 func (u *UseCase) Execute(ctx context.Context, in In) (*Out, error) {
 	provider, err := u.providers.Provider(in.Provider)
 	if err != nil {

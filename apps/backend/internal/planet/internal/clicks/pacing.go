@@ -6,13 +6,11 @@ import (
 	"time"
 )
 
-// Pacing spreads an operator's bulk change over time, so each batch of updates fits what an open stream can buffer.
 type Pacing struct {
 	Batch int
 	Pause time.Duration
 }
 
-// Wait sleeps one pause, and says whether the caller should stop.
 func (p Pacing) Wait(ctx context.Context) error {
 	if p.Pause > 0 {
 		timer := time.NewTimer(p.Pause)

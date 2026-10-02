@@ -23,7 +23,6 @@ type handlerFunc[T any] func(ctx context.Context, event T) error
 
 func (f handlerFunc[T]) Handle(ctx context.Context, event T) error { return f(ctx, event) }
 
-// received keeps what one subscriber was handed, in order.
 type received struct {
 	mu     sync.Mutex
 	events []*wrapperspb.StringValue

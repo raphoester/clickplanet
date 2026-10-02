@@ -1,4 +1,3 @@
-// Package account_deleted_subscriber hears auth.v1.AccountDeleted and forgets the account's profile and stats.
 package account_deleted_subscriber
 
 import (

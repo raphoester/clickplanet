@@ -1,4 +1,3 @@
-// Package sign_out_everywhere_handler serves auth.v1.AuthService/SignOutEverywhere.
 package sign_out_everywhere_handler
 
 import (

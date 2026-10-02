@@ -37,10 +37,6 @@ describe("BonusAward", () => {
     })
 
     it("still goes away while its parent re-renders around it", () => {
-        // The bug this pins: the dismissal is rebuilt on every render of
-        // useGlobe, and the leaderboard republishes twice a second. With the
-        // callback in the effect's dependencies the timer was cleared and
-        // restarted on every one of those renders, and it never left.
         const onDone = vi.fn()
         const {rerender} = render(<BonusAward reward={REWARD} onDone={onDone}/>)
 

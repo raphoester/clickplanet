@@ -1,4 +1,3 @@
-// Package start_sign_in_handler serves auth.v1.AuthService/StartSignIn.
 package start_sign_in_handler
 
 import (
@@ -27,8 +26,6 @@ type StartSignInHandler struct {
 	useCase UseCase
 }
 
-// StartSignIn answers Unimplemented, which is HTTP 404, while sign-in is off. A client learns that first from GetSignInOptions.
-// A link from a browser with no account is Unauthenticated: there is nothing to link to.
 func (h StartSignInHandler) StartSignIn(
 	ctx context.Context,
 	req *connect.Request[authv1.StartSignInRequest],
@@ -55,7 +52,6 @@ func (h StartSignInHandler) StartSignIn(
 	return res, nil
 }
 
-// intentOf reads only a link as a link: unset, as from every client before intents, signs in.
 func intentOf(intent authv1.SignInIntent) accounts.Intent {
 	if intent == authv1.SignInIntent_SIGN_IN_INTENT_LINK {
 		return accounts.IntentLink

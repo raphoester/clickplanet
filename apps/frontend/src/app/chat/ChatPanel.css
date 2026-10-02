@@ -50,11 +50,6 @@
     transition: color 0.25s ease;
 }
 
-/*
- * Folded with something unsaid: the panel breathes rather than blinks, the
- * title takes the accent, and the newest line is quoted under it. All three
- * say the same thing at three glance distances.
- */
 .chat-waiting {
     animation: chat-attention 2.6s ease-in-out infinite;
 }
@@ -92,7 +87,6 @@
     animation: chat-badge-pop 0.36s cubic-bezier(0.2, 1.5, 0.4, 1);
 }
 
-/* Remounted on every count change, so the pop replays per message. */
 @keyframes chat-badge-pop {
     from {
         transform: scale(0.4);
@@ -173,7 +167,6 @@
     min-height: 120px;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-    /* Room under the last balloon for its tail and its drop. */
     padding: 2px 4px 10px 4px;
     user-select: text;
     -webkit-user-select: text;
@@ -202,17 +195,6 @@
     gap: 7px;
 }
 
-/*
- * A message is a speech balloon, not a card: pastel fill, chunky outline, a tail
- * pointing back at whoever said it. Every author carries their own hue in
- * --author-hue (authorColor.ts) and it colours the whole balloon — saturation
- * and lightness are fixed here, so nobody can hash their way to an unreadable
- * one, and two people are never the same balloon.
- *
- * A run by one author is a group: only its first bubble is introduced, only its
- * last one grows a tail, and the rest tuck in between. That is most of what
- * makes a busy chat read as people talking rather than a stack of cards.
- */
 .chat-message {
     --author: hsl(var(--author-hue, 0), 80%, 78%);
     --balloon: hsl(var(--author-hue, 0), 78%, 87%);
@@ -225,7 +207,6 @@
     align-items: flex-start;
 }
 
-/* Air above a new voice, none inside one person's run. */
 .chat-message-opens {
     margin-top: 4px;
 }
@@ -234,7 +215,6 @@
     margin-top: -3px;
 }
 
-/* The balloon, and the button that reacts to it beside it. */
 .chat-message-line {
     display: flex;
     align-items: flex-end;
@@ -250,8 +230,6 @@
     border-radius: 18px 18px 18px 7px;
     background: var(--balloon);
     border: 2px solid var(--balloon-edge);
-    /* The flat drop the rest of the game is drawn with: it makes a balloon a
-       sticker stuck on the globe rather than a pane floating over it. */
     box-shadow: 0 3px 0 0 var(--balloon-drop);
     font-size: 14px;
     line-height: 1.35;
@@ -259,11 +237,6 @@
     overflow-wrap: anywhere;
 }
 
-/*
- * The tail, drawn as two triangles: the outer one is the outline, the inner one
- * fills it back in. It hangs off the balloon that ends a run, so a group of
- * three gets one tail rather than three.
- */
 .chat-message:not(:has(+ .chat-message-cont)) .chat-message-text::before,
 .chat-message:not(:has(+ .chat-message-cont)) .chat-message-text::after {
     content: "";
@@ -288,7 +261,6 @@
     border-top-color: var(--balloon);
 }
 
-/* Mid-run balloons square up towards their neighbours, so a group is one shape. */
 .chat-message-cont .chat-message-text {
     border-top-left-radius: 7px;
 }
@@ -297,7 +269,6 @@
     border-bottom-left-radius: 18px;
 }
 
-/* Lit while it is news: it bounces in, then settles. */
 .chat-message-new {
     animation: chat-message-in 0.34s cubic-bezier(0.18, 1.6, 0.42, 1);
 }
@@ -353,18 +324,11 @@
     text-shadow: -1px 1px 0 #000000;
 }
 
-/* Beside the name, not pinned to the far edge: the head belongs to the bubble
-   under it, and a time pushed to the panel's other side belongs to neither. */
 .chat-message-time {
     flex-shrink: 0;
     color: #FFFFFF59;
 }
 
-/*
- * An announcement is not somebody talking, so it is not a balloon: one quiet
- * line across the log, centred, the way a game prints what happened between
- * the lines people type.
- */
 .chat-announcement {
     display: flex;
     align-items: center;
@@ -405,7 +369,6 @@
     color: #FFFFFF59;
 }
 
-/* Reading further up is not interrupted; this says what you would have seen. */
 .chat-jump {
     position: absolute;
     left: 50%;
@@ -454,23 +417,13 @@
     gap: 8px;
 }
 
-/*
- * The 16px is load-bearing, not a size choice: iOS Safari zooms the whole page
- * in when a text field under 16px takes focus, and it never zooms back out. At
- * the 14px this used to be, the zoom was 16/14 — enough to push the send button
- * off the right of the screen, and enough that the `resize` iOS fires with the
- * *visual* viewport width left the globe's canvas an eighth short of the page,
- * as a black band down the right, for the rest of the session. `viewport.ts`
- * stops the canvas believing that width; this stops the zoom happening at all.
- * The other field on the page, `.input-search`, is already well over.
- */
+/* At least 16px: iOS Safari zooms the page in on a smaller focused field. */
 .chat-input {
     flex: 1 1 auto;
     min-width: 0;
     height: 40px;
     padding: 0 16px;
     border: 1px solid #FFFFFF26;
-    /* Round like the balloons it feeds. */
     border-radius: 999px;
     background: #FFFFFF14;
     color: white;
@@ -518,10 +471,6 @@
     color: #FF813F;
 }
 
-/*
- * Reactions sit under the balloon as little stickers, drawn with the same flat
- * drop. They start past the tail, which hangs 11px below the balloon.
- */
 .chat-reactions-shell {
     display: flex;
     flex-direction: column;
@@ -588,11 +537,6 @@
     text-align: center;
 }
 
-/*
- * Who gave one reaction, over the chip that counts them. It is drawn on the
- * body, so it is placed in screen coordinates and nothing in the panel clips
- * it; left and top come from the chip, and the rest is here.
- */
 .chat-reaction-who {
     position: fixed;
     z-index: 256;
@@ -647,10 +591,6 @@
     }
 }
 
-/*
- * Out of the way until the pointer is on the message. A touch screen has no
- * hover, so there it stays, faint.
- */
 .chat-reaction-add {
     display: flex;
     align-items: center;
@@ -758,7 +698,6 @@
         border-color: #FF813F99;
     }
 
-    /* The pop goes; the glow stays, as it is the part that says "new". */
     .chat-message-new {
         animation: none;
     }

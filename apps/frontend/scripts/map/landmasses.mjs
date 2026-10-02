@@ -1,16 +1,3 @@
-// Splits each country's tiles into the separate pieces of land they actually form, and works out
-// the frame a flag is painted in over each piece.
-//
-// A flag belongs to a piece of ground, not to a sovereignty. France is mainland *and* New Caledonia;
-// one frame spanning both would stretch the tricolour across half the planet and paint nothing
-// recognisable in either place.
-//
-// **Two tiles are the same piece when they touch on the lattice and carry the same country.** That
-// used to be "when they are within 1.35 times the median spacing", which is the tuned radius the
-// backend's own geography notes warn against: the spacing varies about 25% between a face's middle
-// and its corners, so one threshold is too wide in one place and too narrow in another. Too wide is
-// what matters here — it reaches past the neighbours and joins two islands across a strait into one
-// landmass, which is a flag painted over open water between them.
 import {SEA} from "./ground.mjs"
 
 /**
@@ -28,7 +15,6 @@ export function landmasses({count, positions, grounds, tileOf, at, to}) {
     const vertexOf = new Uint32Array(count)
     for (let v = 0; v < tileOf.length; v++) if (tileOf[v] >= 0) vertexOf[tileOf[v]] = v
 
-    // Union-find over the lattice edges between two tiles of one country.
     const parent = new Int32Array(count)
     for (let t = 0; t < count; t++) parent[t] = t
     const find = (x) => {
@@ -46,8 +32,6 @@ export function landmasses({count, positions, grounds, tileOf, at, to}) {
         }
     }
 
-    // Landmass 0 is no country. Nothing reaches it now that every tile has one, but the blob's
-    // format keeps the slot and the frontend still reads it as "unclaimed ground".
     const codes = [SEA]
     const slotOf = new Map()
     const assignment = new Uint16Array(count)
@@ -73,9 +57,6 @@ export function landmasses({count, positions, grounds, tileOf, at, to}) {
     return {codes, assignment, frames: framesOf(positions, codes, members), totals}
 }
 
-// A frame per landmass, for painting a flag across it: the centre direction, the east axis there,
-// and how far the piece reaches along each axis measured over the surface. Neither borders nor tiles
-// move, so this is static.
 function framesOf(positions, codes, members) {
     const frames = new Float32Array(codes.length * 5)
 
@@ -92,8 +73,6 @@ function framesOf(positions, codes, members) {
         const length = Math.hypot(mx, my, mz) || 1
         let centre = [mx / length, my / length, mz / length]
 
-        // The mean direction of a piece curved over a sphere can fall outside it, so snap to the
-        // piece's own tile nearest that direction.
         let best = own[0]
         let bestDot = -2
         for (const t of own) {

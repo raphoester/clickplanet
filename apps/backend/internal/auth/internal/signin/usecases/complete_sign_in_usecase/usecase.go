@@ -1,4 +1,3 @@
-// Package complete_sign_in_usecase finishes a sign-in: it checks the flow, asks the provider who signed in, and signs the browser in to that identity's account.
 package complete_sign_in_usecase
 
 import (
@@ -22,7 +21,6 @@ type Store interface {
 	SaveSignIn(ctx context.Context, signIn accounts.SignIn) error
 }
 
-// Publisher is the event bus.
 type Publisher interface {
 	Publish(event proto.Message)
 }
@@ -33,7 +31,6 @@ type In struct {
 	CookieHeader string
 }
 
-// Out is the account the browser is now on, and its new session cookie.
 type Out struct {
 	Account   accounts.AccountID
 	Outcome   accounts.Outcome
@@ -73,8 +70,6 @@ func New(
 	}
 }
 
-// Execute answers signin.ErrSignInOff, signin.ErrFlowInvalid or signin.ErrProviderRefused for a sign-in it cannot finish,
-// and accounts.ErrIdentityLinkedElsewhere or accounts.ErrProviderAlreadyLinked for a link it refuses, having written nothing.
 func (u *UseCase) Execute(ctx context.Context, in In) (*Out, error) {
 	if u.providers.Off() {
 		return nil, signin.ErrSignInOff
@@ -100,8 +95,8 @@ func (u *UseCase) Execute(ctx context.Context, in In) (*Out, error) {
 	}
 
 	out, err := u.signIn(ctx, flow, claim, current, replaces, now)
+	// Another browser linked this identity first; retrying finds it known.
 	if errors.Is(err, accounts.ErrIdentityTaken) {
-		// Another browser linked the same identity a moment ago: it is known now.
 		out, err = u.signIn(ctx, flow, claim, current, replaces, now)
 	}
 	return out, err
@@ -127,7 +122,6 @@ func (u *UseCase) flow(in In, now time.Time) (*signin.Flow, signin.Provider, err
 	return flow, provider, nil
 }
 
-// current is the account the browser is on and its session to replace, or nothing when it has no live session.
 func (u *UseCase) current(ctx context.Context, cookieHeader string, now time.Time) (*accounts.Account, accounts.TokenHash, error) {
 	session, err := accounts.Caller(ctx, u.store, cookieHeader, now)
 	if errors.Is(err, accounts.ErrNoAccount) {
@@ -189,7 +183,6 @@ func (u *UseCase) signIn(
 		return nil, fmt.Errorf("failed to save the sign-in: %w", err)
 	}
 
-	// After the sign-in is saved: a subscriber moves what it keeps for the browser's old account.
 	signedIn := &authv1.SignedIn{AccountId: account.String()}
 	if current != nil {
 		signedIn.PreviousAccountId = current.ID.String()

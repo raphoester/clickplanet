@@ -1,4 +1,3 @@
-// Package antibot_listen_for_events tells the guard each live stream a caller opens.
 package antibot_listen_for_events
 
 import (

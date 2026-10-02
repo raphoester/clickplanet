@@ -1,4 +1,3 @@
-// Package listen_for_events_usecase runs one client's live chat feed, heartbeat included.
 package listen_for_events_usecase
 
 import (
@@ -9,20 +8,18 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/feed"
 )
 
-// DefaultHeartbeat is well under Cloudflare's ~125s idle cut.
+// Well under Cloudflare's ~125s idle cut on a silent stream.
 const DefaultHeartbeat = 30 * time.Second
 
 type UpdatesSubscriber interface {
 	Subscribe(ctx context.Context) (<-chan feed.Update, error)
 }
 
-// Event is one frame of the feed: an update, or a heartbeat.
 type Event struct {
 	Update    feed.Update
 	Heartbeat bool
 }
 
-// Sink carries a frame to the caller.
 type Sink interface {
 	Send(event Event) error
 }
@@ -40,7 +37,6 @@ type UseCase struct {
 	heartbeat  time.Duration
 }
 
-// Execute returns when the context ends; cancelling it is what unsubscribes.
 func (u *UseCase) Execute(ctx context.Context, sink Sink) error {
 	feed, err := u.subscriber.Subscribe(ctx)
 	if err != nil {

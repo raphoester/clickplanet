@@ -27,7 +27,6 @@ describe("ConnectAccountBackend", () => {
         expect(await backend.signInOptions()).toEqual(["discord", "google"])
     })
 
-    // An old server, or one with auth off, has no such route.
     it("reads a server without the RPC as no provider", async () => {
         const backend = backendWith({getSignInOptions: refusing(Code.Unimplemented)})
 
@@ -99,7 +98,6 @@ describe("ConnectAccountBackend", () => {
         }
     })
 
-    // A retried CompleteSignIn would spend a code that is good once.
     it("sends a write once, even when the server cannot be reached", async () => {
         const completeSignIn = refusing(Code.Unavailable)
         const backend = backendWith({completeSignIn})
@@ -114,7 +112,6 @@ describe("the auth transport", () => {
         vi.unstubAllGlobals()
     })
 
-    // Every call here is about the cookie's account, so every one carries it.
     it("asks for the sign-in options with credentials", async () => {
         const fetch = vi.fn(async (): Promise<Response> => {
             throw new ConnectError("no", Code.Unimplemented)

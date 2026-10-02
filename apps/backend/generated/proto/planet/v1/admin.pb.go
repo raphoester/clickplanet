@@ -26,13 +26,10 @@ const (
 type PaintRandomTilesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	FlagCountryId string                 `protobuf:"bytes,1,opt,name=flag_country_id,json=flagCountryId,proto3" json:"flag_country_id,omitempty"`
-	// The country a fresh draw lands in; empty is the whole map. A patch grows
-	// from there into any tile not wearing the flag, across the border too.
-	AreaCountryId string `protobuf:"bytes,2,opt,name=area_country_id,json=areaCountryId,proto3" json:"area_country_id,omitempty"`
-	Count         uint32 `protobuf:"varint,3,opt,name=count,proto3" json:"count,omitempty"`
-	// From 0 to 1. 0 picks anywhere in the area; 1 grows one patch while it can.
-	Proximity     float64 `protobuf:"fixed64,4,opt,name=proximity,proto3" json:"proximity,omitempty"`
-	DryRun        bool    `protobuf:"varint,5,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
+	AreaCountryId string                 `protobuf:"bytes,2,opt,name=area_country_id,json=areaCountryId,proto3" json:"area_country_id,omitempty"`
+	Count         uint32                 `protobuf:"varint,3,opt,name=count,proto3" json:"count,omitempty"`
+	Proximity     float64                `protobuf:"fixed64,4,opt,name=proximity,proto3" json:"proximity,omitempty"`
+	DryRun        bool                   `protobuf:"varint,5,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -103,15 +100,11 @@ func (x *PaintRandomTilesRequest) GetDryRun() bool {
 }
 
 type PaintRandomTilesResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Tiles of the area, or of the map, that do not wear the flag yet.
-	Eligible uint32 `protobuf:"varint,1,opt,name=eligible,proto3" json:"eligible,omitempty"`
-	// Below count only when nothing is left to pick.
-	Picked uint32 `protobuf:"varint,2,opt,name=picked,proto3" json:"picked,omitempty"`
-	// Picked tiles that nobody took between the pick and the paint.
-	Painted uint32 `protobuf:"varint,3,opt,name=painted,proto3" json:"painted,omitempty"`
-	// Picked tiles past the area's border. Always 0 with no area.
-	OutsideArea   uint32 `protobuf:"varint,4,opt,name=outside_area,json=outsideArea,proto3" json:"outside_area,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Eligible      uint32                 `protobuf:"varint,1,opt,name=eligible,proto3" json:"eligible,omitempty"`
+	Picked        uint32                 `protobuf:"varint,2,opt,name=picked,proto3" json:"picked,omitempty"`
+	Painted       uint32                 `protobuf:"varint,3,opt,name=painted,proto3" json:"painted,omitempty"`
+	OutsideArea   uint32                 `protobuf:"varint,4,opt,name=outside_area,json=outsideArea,proto3" json:"outside_area,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -175,11 +168,9 @@ func (x *PaintRandomTilesResponse) GetOutsideArea() uint32 {
 }
 
 type InspectPlayerRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// A scope, or any address, which is read as its scope.
-	Scope string `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
-	// Or an account id, instead of a scope.
-	AccountId     string `protobuf:"bytes,2,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Scope         string                 `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
+	AccountId     string                 `protobuf:"bytes,2,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -229,34 +220,24 @@ func (x *InspectPlayerRequest) GetAccountId() string {
 }
 
 type InspectPlayerResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Empty for an account with no take inside ledger.retention.
-	Scope     string `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
-	AccountId string `protobuf:"bytes,17,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
-	// False when the jury has not seen the scope inside antiBot.jury.trackWindow:
-	// the readings are then all clear and the click summary is empty.
-	Tracked *bool `protobuf:"varint,2,opt,name=tracked,proto3,oneof" json:"tracked,omitempty"`
-	// Running whether or not antiBot.shadowBan.enforce is on.
-	Banned      *bool                  `protobuf:"varint,3,opt,name=banned,proto3,oneof" json:"banned,omitempty"`
-	BannedUntil *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=banned_until,json=bannedUntil,proto3" json:"banned_until,omitempty"`
-	Offence     uint32                 `protobuf:"varint,5,opt,name=offence,proto3" json:"offence,omitempty"`
-	Flags       uint32                 `protobuf:"varint,6,opt,name=flags,proto3" json:"flags,omitempty"`
-	// One per watchdog turned on, in the order the jury asks them.
-	Readings []*WatchdogReading `protobuf:"bytes,7,rep,name=readings,proto3" json:"readings,omitempty"`
-	// Watchdogs at suspect or certain, inside antiBot.jury.suspicionWindow.
-	Suspects    uint32 `protobuf:"varint,8,opt,name=suspects,proto3" json:"suspects,omitempty"`
-	MinSuspects uint32 `protobuf:"varint,9,opt,name=min_suspects,json=minSuspects,proto3" json:"min_suspects,omitempty"`
-	// What the jury would decide if the scope clicked now: one certain, or
-	// min_suspects suspects. A ban still waits for antiBot.shadowBan.reflagInterval.
-	Guilty *bool  `protobuf:"varint,10,opt,name=guilty,proto3,oneof" json:"guilty,omitempty"`
-	Clicks uint32 `protobuf:"varint,11,opt,name=clicks,proto3" json:"clicks,omitempty"`
-	// Last click minus first click the jury remembers.
-	ActiveFor   *durationpb.Duration   `protobuf:"bytes,12,opt,name=active_for,json=activeFor,proto3" json:"active_for,omitempty"`
-	LongestGap  *durationpb.Duration   `protobuf:"bytes,13,opt,name=longest_gap,json=longestGap,proto3" json:"longest_gap,omitempty"`
-	LastClickAt *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=last_click_at,json=lastClickAt,proto3" json:"last_click_at,omitempty"`
-	// Declared by the client: context, never evidence.
-	TopCountry       string `protobuf:"bytes,15,opt,name=top_country,json=topCountry,proto3" json:"top_country,omitempty"`
-	TopCountryClicks uint32 `protobuf:"varint,16,opt,name=top_country_clicks,json=topCountryClicks,proto3" json:"top_country_clicks,omitempty"`
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Scope            string                 `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
+	AccountId        string                 `protobuf:"bytes,17,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	Tracked          *bool                  `protobuf:"varint,2,opt,name=tracked,proto3,oneof" json:"tracked,omitempty"`
+	Banned           *bool                  `protobuf:"varint,3,opt,name=banned,proto3,oneof" json:"banned,omitempty"`
+	BannedUntil      *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=banned_until,json=bannedUntil,proto3" json:"banned_until,omitempty"`
+	Offence          uint32                 `protobuf:"varint,5,opt,name=offence,proto3" json:"offence,omitempty"`
+	Flags            uint32                 `protobuf:"varint,6,opt,name=flags,proto3" json:"flags,omitempty"`
+	Readings         []*WatchdogReading     `protobuf:"bytes,7,rep,name=readings,proto3" json:"readings,omitempty"`
+	Suspects         uint32                 `protobuf:"varint,8,opt,name=suspects,proto3" json:"suspects,omitempty"`
+	MinSuspects      uint32                 `protobuf:"varint,9,opt,name=min_suspects,json=minSuspects,proto3" json:"min_suspects,omitempty"`
+	Guilty           *bool                  `protobuf:"varint,10,opt,name=guilty,proto3,oneof" json:"guilty,omitempty"`
+	Clicks           uint32                 `protobuf:"varint,11,opt,name=clicks,proto3" json:"clicks,omitempty"`
+	ActiveFor        *durationpb.Duration   `protobuf:"bytes,12,opt,name=active_for,json=activeFor,proto3" json:"active_for,omitempty"`
+	LongestGap       *durationpb.Duration   `protobuf:"bytes,13,opt,name=longest_gap,json=longestGap,proto3" json:"longest_gap,omitempty"`
+	LastClickAt      *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=last_click_at,json=lastClickAt,proto3" json:"last_click_at,omitempty"`
+	TopCountry       string                 `protobuf:"bytes,15,opt,name=top_country,json=topCountry,proto3" json:"top_country,omitempty"`
+	TopCountryClicks uint32                 `protobuf:"varint,16,opt,name=top_country_clicks,json=topCountryClicks,proto3" json:"top_country_clicks,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -411,14 +392,10 @@ func (x *InspectPlayerResponse) GetTopCountryClicks() uint32 {
 }
 
 type WatchdogReading struct {
-	state    protoimpl.MessageState `protogen:"open.v1"`
-	Watchdog string                 `protobuf:"bytes,1,opt,name=watchdog,proto3" json:"watchdog,omitempty"`
-	// clear, suspect or certain. A verdict older than the suspicion window reads clear.
-	Level string `protobuf:"bytes,2,opt,name=level,proto3" json:"level,omitempty"`
-	// The rule and its numbers, as the "antibot ban" log line words them after the level. Empty
-	// when the watchdog had nothing to say.
-	Evidence string `protobuf:"bytes,3,opt,name=evidence,proto3" json:"evidence,omitempty"`
-	// The click the reading was taken on.
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Watchdog      string                 `protobuf:"bytes,1,opt,name=watchdog,proto3" json:"watchdog,omitempty"`
+	Level         string                 `protobuf:"bytes,2,opt,name=level,proto3" json:"level,omitempty"`
+	Evidence      string                 `protobuf:"bytes,3,opt,name=evidence,proto3" json:"evidence,omitempty"`
 	At            *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=at,proto3" json:"at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -485,10 +462,8 @@ func (x *WatchdogReading) GetAt() *timestamppb.Timestamp {
 type FindPlayersRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	FlagCountryId string                 `protobuf:"bytes,1,opt,name=flag_country_id,json=flagCountryId,proto3" json:"flag_country_id,omitempty"`
-	// The country whose ground the tiles sit on. Empty is the whole map.
-	AreaCountryId string `protobuf:"bytes,2,opt,name=area_country_id,json=areaCountryId,proto3" json:"area_country_id,omitempty"`
-	// 20 when unset.
-	Limit         uint32 `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	AreaCountryId string                 `protobuf:"bytes,2,opt,name=area_country_id,json=areaCountryId,proto3" json:"area_country_id,omitempty"`
+	Limit         uint32                 `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -545,10 +520,9 @@ func (x *FindPlayersRequest) GetLimit() uint32 {
 }
 
 type FindPlayersResponse struct {
-	state   protoimpl.MessageState `protogen:"open.v1"`
-	Players []*Player              `protobuf:"bytes,1,rep,name=players,proto3" json:"players,omitempty"`
-	// How many players matched, before the limit.
-	Total         uint32 `protobuf:"varint,2,opt,name=total,proto3" json:"total,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Players       []*Player              `protobuf:"bytes,1,rep,name=players,proto3" json:"players,omitempty"`
+	Total         uint32                 `protobuf:"varint,2,opt,name=total,proto3" json:"total,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -598,9 +572,8 @@ func (x *FindPlayersResponse) GetTotal() uint32 {
 }
 
 type TopPlayersRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// 20 when unset.
-	Limit         uint32 `protobuf:"varint,1,opt,name=limit,proto3" json:"limit,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Limit         uint32                 `protobuf:"varint,1,opt,name=limit,proto3" json:"limit,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -643,10 +616,9 @@ func (x *TopPlayersRequest) GetLimit() uint32 {
 }
 
 type TopPlayersResponse struct {
-	state   protoimpl.MessageState `protogen:"open.v1"`
-	Players []*Player              `protobuf:"bytes,1,rep,name=players,proto3" json:"players,omitempty"`
-	// How many players took any tile, before the limit.
-	Total         uint32 `protobuf:"varint,2,opt,name=total,proto3" json:"total,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Players       []*Player              `protobuf:"bytes,1,rep,name=players,proto3" json:"players,omitempty"`
+	Total         uint32                 `protobuf:"varint,2,opt,name=total,proto3" json:"total,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -696,28 +668,19 @@ func (x *TopPlayersResponse) GetTotal() uint32 {
 }
 
 type Player struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// The address for IPv4, the /64 for IPv6: what the throttle and the ban key on.
-	Scope string `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
-	// The account the click token named. Each account on a scope is a player of
-	// its own; empty is the takes made with no account.
-	AccountId string `protobuf:"bytes,12,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
-	// Tiles it still holds: its take is the tile's latest and the paint is still there.
-	Tiles   uint32                 `protobuf:"varint,2,opt,name=tiles,proto3" json:"tiles,omitempty"`
-	FirstAt *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=first_at,json=firstAt,proto3" json:"first_at,omitempty"`
-	LastAt  *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=last_at,json=lastAt,proto3" json:"last_at,omitempty"`
-	// Optional so JSON always carries it: a plain bool is dropped when false.
-	Banned      *bool                  `protobuf:"varint,5,opt,name=banned,proto3,oneof" json:"banned,omitempty"`
-	BannedUntil *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=banned_until,json=bannedUntil,proto3" json:"banned_until,omitempty"`
-	Offence     uint32                 `protobuf:"varint,7,opt,name=offence,proto3" json:"offence,omitempty"`
-	// last_at minus first_at.
-	ActiveFor *durationpb.Duration `protobuf:"bytes,8,opt,name=active_for,json=activeFor,proto3" json:"active_for,omitempty"`
-	// tiles over active_for. 0 when active_for is 0.
-	TilesPerMinute float64 `protobuf:"fixed64,9,opt,name=tiles_per_minute,json=tilesPerMinute,proto3" json:"tiles_per_minute,omitempty"`
-	// Every take it made, held or painted over since; a tile taken twice counts twice.
-	Takes uint32 `protobuf:"varint,10,opt,name=takes,proto3" json:"takes,omitempty"`
-	// takes over active_for. 0 when active_for is 0.
-	TakesPerMinute float64 `protobuf:"fixed64,11,opt,name=takes_per_minute,json=takesPerMinute,proto3" json:"takes_per_minute,omitempty"`
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Scope          string                 `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
+	AccountId      string                 `protobuf:"bytes,12,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	Tiles          uint32                 `protobuf:"varint,2,opt,name=tiles,proto3" json:"tiles,omitempty"`
+	FirstAt        *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=first_at,json=firstAt,proto3" json:"first_at,omitempty"`
+	LastAt         *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=last_at,json=lastAt,proto3" json:"last_at,omitempty"`
+	Banned         *bool                  `protobuf:"varint,5,opt,name=banned,proto3,oneof" json:"banned,omitempty"`
+	BannedUntil    *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=banned_until,json=bannedUntil,proto3" json:"banned_until,omitempty"`
+	Offence        uint32                 `protobuf:"varint,7,opt,name=offence,proto3" json:"offence,omitempty"`
+	ActiveFor      *durationpb.Duration   `protobuf:"bytes,8,opt,name=active_for,json=activeFor,proto3" json:"active_for,omitempty"`
+	TilesPerMinute float64                `protobuf:"fixed64,9,opt,name=tiles_per_minute,json=tilesPerMinute,proto3" json:"tiles_per_minute,omitempty"`
+	Takes          uint32                 `protobuf:"varint,10,opt,name=takes,proto3" json:"takes,omitempty"`
+	TakesPerMinute float64                `protobuf:"fixed64,11,opt,name=takes_per_minute,json=takesPerMinute,proto3" json:"takes_per_minute,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -837,13 +800,10 @@ func (x *Player) GetTakesPerMinute() float64 {
 }
 
 type BanPlayerRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// A scope, or any address, which is banned as its scope.
-	Scope string `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
-	// Or an account id, instead of a scope. The account alone is banned.
-	AccountId string `protobuf:"bytes,3,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
-	// Unset takes the ladder's step for the offence (antiBot.shadowBan.banDurations).
-	Duration      *durationpb.Duration `protobuf:"bytes,2,opt,name=duration,proto3" json:"duration,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Scope         string                 `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
+	AccountId     string                 `protobuf:"bytes,3,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	Duration      *durationpb.Duration   `protobuf:"bytes,2,opt,name=duration,proto3" json:"duration,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -900,13 +860,12 @@ func (x *BanPlayerRequest) GetDuration() *durationpb.Duration {
 }
 
 type BanPlayerResponse struct {
-	state       protoimpl.MessageState `protogen:"open.v1"`
-	Scope       string                 `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
-	AccountId   string                 `protobuf:"bytes,5,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
-	Offence     uint32                 `protobuf:"varint,2,opt,name=offence,proto3" json:"offence,omitempty"`
-	BannedUntil *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=banned_until,json=bannedUntil,proto3" json:"banned_until,omitempty"`
-	// False when antiBot.shadowBan.enforce is off: the ban is kept but drops nothing.
-	Enforced      bool `protobuf:"varint,4,opt,name=enforced,proto3" json:"enforced,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Scope         string                 `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
+	AccountId     string                 `protobuf:"bytes,5,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	Offence       uint32                 `protobuf:"varint,2,opt,name=offence,proto3" json:"offence,omitempty"`
+	BannedUntil   *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=banned_until,json=bannedUntil,proto3" json:"banned_until,omitempty"`
+	Enforced      bool                   `protobuf:"varint,4,opt,name=enforced,proto3" json:"enforced,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -977,11 +936,10 @@ func (x *BanPlayerResponse) GetEnforced() bool {
 }
 
 type RevertPlayerRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	Scope string                 `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
-	// Or an account id, instead of a scope: its takes from every scope.
-	AccountId     string `protobuf:"bytes,3,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
-	DryRun        bool   `protobuf:"varint,2,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Scope         string                 `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
+	AccountId     string                 `protobuf:"bytes,3,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	DryRun        bool                   `protobuf:"varint,2,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1038,13 +996,12 @@ func (x *RevertPlayerRequest) GetDryRun() bool {
 }
 
 type RevertPlayerResponse struct {
-	state     protoimpl.MessageState `protogen:"open.v1"`
-	Scope     string                 `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
-	AccountId string                 `protobuf:"bytes,5,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
-	// Tiles it took, and those it still holds.
-	Touched       uint32 `protobuf:"varint,2,opt,name=touched,proto3" json:"touched,omitempty"`
-	Held          uint32 `protobuf:"varint,3,opt,name=held,proto3" json:"held,omitempty"`
-	Restored      uint32 `protobuf:"varint,4,opt,name=restored,proto3" json:"restored,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Scope         string                 `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
+	AccountId     string                 `protobuf:"bytes,5,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	Touched       uint32                 `protobuf:"varint,2,opt,name=touched,proto3" json:"touched,omitempty"`
+	Held          uint32                 `protobuf:"varint,3,opt,name=held,proto3" json:"held,omitempty"`
+	Restored      uint32                 `protobuf:"varint,4,opt,name=restored,proto3" json:"restored,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1175,13 +1132,12 @@ func (x *ReassignCountryRequest) GetDryRun() bool {
 }
 
 type ReassignCountryResponse struct {
-	state      protoimpl.MessageState `protogen:"open.v1"`
-	FromBefore uint32                 `protobuf:"varint,1,opt,name=from_before,json=fromBefore,proto3" json:"from_before,omitempty"`
-	ToBefore   uint32                 `protobuf:"varint,2,opt,name=to_before,json=toBefore,proto3" json:"to_before,omitempty"`
-	Moved      uint32                 `protobuf:"varint,3,opt,name=moved,proto3" json:"moved,omitempty"`
-	// Read again at the end: a caller still clicking can retake tiles behind the scan.
-	FromAfter     uint32 `protobuf:"varint,4,opt,name=from_after,json=fromAfter,proto3" json:"from_after,omitempty"`
-	ToAfter       uint32 `protobuf:"varint,5,opt,name=to_after,json=toAfter,proto3" json:"to_after,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	FromBefore    uint32                 `protobuf:"varint,1,opt,name=from_before,json=fromBefore,proto3" json:"from_before,omitempty"`
+	ToBefore      uint32                 `protobuf:"varint,2,opt,name=to_before,json=toBefore,proto3" json:"to_before,omitempty"`
+	Moved         uint32                 `protobuf:"varint,3,opt,name=moved,proto3" json:"moved,omitempty"`
+	FromAfter     uint32                 `protobuf:"varint,4,opt,name=from_after,json=fromAfter,proto3" json:"from_after,omitempty"`
+	ToAfter       uint32                 `protobuf:"varint,5,opt,name=to_after,json=toAfter,proto3" json:"to_after,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }

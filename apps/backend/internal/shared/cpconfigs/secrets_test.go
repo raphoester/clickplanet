@@ -98,8 +98,6 @@ plain: not-an-anchor
 		assert.Equal(t, "not-an-anchor", config.Plain)
 	})
 
-	// Supplying a DecoderConfig replaces koanf's own hooks, so this is what
-	// catches the duration parsing being dropped along with them.
 	t.Run("still parses durations", func(t *testing.T) {
 		t.Setenv("CP_TEST_SESSION_SECRET", "signing-key")
 		t.Setenv("CP_TEST_TAG_SALT", "deadbeef")

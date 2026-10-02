@@ -23,7 +23,6 @@ var (
 	guest = players.AccountID{15: 2}
 )
 
-// keyless is the visits as announced, before the storage keyed them.
 func keyless(visits []presence.Visit) []presence.Visit {
 	for i := range visits {
 		visits[i].Key = ""

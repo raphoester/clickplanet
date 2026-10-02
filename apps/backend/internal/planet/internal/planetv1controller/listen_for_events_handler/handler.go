@@ -1,4 +1,3 @@
-// Package listen_for_events_handler serves planet.v1.ClickService/ListenForEvents.
 package listen_for_events_handler
 
 import (
@@ -21,9 +20,6 @@ type ListenForEventsHandler struct {
 	useCase UseCase
 }
 
-// The request context is what unsubscribes, and it is cancelled however the
-// stream ends. Everything this method could get wrong is in the sink, which is
-// why the sink is a type of its own rather than a closure over the stream.
 func (h ListenForEventsHandler) ListenForEvents(
 	ctx context.Context,
 	_ *connect.Request[planetv1.ListenForEventsRequest],

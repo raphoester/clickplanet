@@ -1,15 +1,3 @@
-// Package defender watches for the caller whose clicks are nearly all retakes: a
-// tile its country lost a moment ago, taken back. The retaker times how fast that
-// happens, and a bot working a queue behind the throttle is not fast — the tenth
-// tile it takes back waits ten refills. What it cannot hide is what it clicks.
-// A person paints new ground between fights; a defence loop does nothing else.
-//
-// Native land takes two clicks, and a clear is a loss like a take: the country
-// that held the tile lost it, so its natives winning the empty tile back is a
-// retake. That is deliberate. A defence loop on its own ground is the one a clear
-// invites, and it must stay visible. It costs an honest defender nothing it did
-// not already pay: one foreign click is still at most one loss, and the attacker's
-// second click, on the empty tile, takes it from nobody.
 package defender
 
 import (
@@ -24,21 +12,14 @@ import (
 const Name = "defender"
 
 type Config struct {
-	// RetakeWindow is how long after a country loses a tile a take for that
-	// country counts as a retake. A queue drains at the refill rate, so this is
-	// sized to the queue and not to a reflex.
 	RetakeWindow time.Duration
 
-	// MinClicks and MinShare read Suspect: that many takes in TrackWindow, and
-	// that share of them retakes. A zero share never reads Suspect.
 	MinClicks int
 	MinShare  float64
 
-	// CertainClicks and CertainShare read Certain. A zero share never reads Certain.
 	CertainClicks int
 	CertainShare  float64
 
-	// TrackWindow is how far back takes count.
 	TrackWindow time.Duration
 
 	SweepInterval time.Duration
@@ -54,7 +35,6 @@ const (
 	maxSamples = 1024
 )
 
-// withDefaults leaves both shares alone: unset, the watchdog measures and says nothing.
 func (c Config) withDefaults() Config {
 	if c.RetakeWindow <= 0 {
 		c.RetakeWindow = defaultRetakeWindow
@@ -77,7 +57,6 @@ func (c Config) withDefaults() Config {
 	return c
 }
 
-// New takes onShare, called each sweep with the share of every caller past MinClicks.
 func New(config Config, clock cptime.Clock, onShare func(share float64)) *Watchdog {
 	if clock == nil {
 		clock = cptime.SystemClock{}
@@ -104,7 +83,6 @@ type Watchdog struct {
 
 var _ detect.Watchdog = (*Watchdog)(nil)
 
-// loss is the last take that changed a tile's owner: who lost it, to whom, when.
 type loss struct {
 	country string
 	to      string
@@ -122,15 +100,12 @@ type take struct {
 
 func (w *Watchdog) Name() string { return Name }
 
-// Attempted is nothing to this watchdog. A refused click took nothing back.
 func (w *Watchdog) Attempted(detect.Click) {}
 
 func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
-	// A click onto a tile the caller's country holds is neither a take nor a retake.
-	// A clear is a take here, but never a retake: it wins nothing back for anyone.
 	if !click.NoOp {
 		previous, ok := w.losses[click.Tile]
 		retake := ok && !click.Cleared &&
@@ -178,8 +153,6 @@ func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
 	}
 }
 
-// Committed records who lost the tile. Only a click that reached the map took it from anyone. A clear did:
-// Held lost it, even though nobody holds it now.
 func (w *Watchdog) Committed(click detect.Click) {
 	if click.NoOp || click.Held == "" || click.Scope == "" {
 		return
@@ -240,7 +213,6 @@ func (w *Watchdog) Run(ctx context.Context) {
 	}
 }
 
-// sweep forgets what can no longer matter and reports the shares still in hand.
 func (w *Watchdog) sweep() {
 	now := w.clock.Now()
 
@@ -270,7 +242,6 @@ func (w *Watchdog) sweep() {
 
 	w.mu.Unlock()
 
-	// Outside the lock: it feeds a histogram, and the lock is the one every clicker queues on.
 	if w.onShare != nil {
 		for _, share := range shares {
 			w.onShare(share)

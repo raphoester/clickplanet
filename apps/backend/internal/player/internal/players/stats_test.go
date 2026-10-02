@@ -44,7 +44,6 @@ func TestATakeJustAfterUTCMidnightExtendsTheStreak(t *testing.T) {
 
 func TestTheDayIsUTCWhateverTheZoneOfTheTake(t *testing.T) {
 	paris := time.FixedZone("CEST", 2*60*60)
-	// 00:30 in Paris on the 18th is 22:30 UTC on the 17th: the same day as beforeMidnight.
 	stats := taken(beforeMidnight, time.Date(2026, 9, 18, 0, 30, 0, 0, paris))
 
 	assert.Equal(t, uint32(1), stats.StreakCurrent)

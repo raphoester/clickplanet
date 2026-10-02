@@ -1,4 +1,3 @@
-// Package tile_taken_subscriber hears planet.v1.TileTaken and counts the tile on the account's stats.
 package tile_taken_subscriber
 
 import (
@@ -29,7 +28,6 @@ var _ cpbootstrap.Handler[*planetv1.TileTaken] = Subscriber{}
 
 var errNoTime = errors.New("the take has no time")
 
-// Handle refuses an event with no account or no time: it is planet's bug, and counting it would be a guess.
 func (s Subscriber) Handle(ctx context.Context, event *planetv1.TileTaken) error {
 	account, err := players.AccountIDOf(event.GetAccountId())
 	if err != nil {

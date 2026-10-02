@@ -15,7 +15,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
-// before is the migrations older than version, so a test can write rows the way they were.
 func before(t *testing.T, version string) fs.FS {
 	t.Helper()
 
@@ -43,9 +42,9 @@ func TestUnicodeUsernamesCutTheLongNamesAndDeleteTheOnesACutWouldTake(t *testing
 	}{
 		{"Ada", 0},
 		{"Ada_Lovelace_18", 0},
-		{"ada_lovelace_1815", time.Hour}, // cut, it is taken by a name of 15: deleted
+		{"ada_lovelace_1815", time.Hour},
 		{"Bob_the_builder_1", 2 * time.Hour},
-		{"BOB_THE_BUILDER_2", time.Hour}, // cut, it is taken by an older cut name: deleted
+		{"BOB_THE_BUILDER_2", time.Hour},
 		{"Carol_Carolyn_Carr", 0},
 	} {
 		_, err := db.ExecContext(t.Context(),

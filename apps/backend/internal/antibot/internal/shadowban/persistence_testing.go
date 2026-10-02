@@ -9,7 +9,6 @@ import (
 	"sync"
 )
 
-// MemoryPersistence is a Persistence held in a map, for tests that need a banner but not postgres.
 type MemoryPersistence struct {
 	mu      sync.Mutex
 	rows    map[string]Record
@@ -60,7 +59,6 @@ func (m *MemoryPersistence) Stored() map[string]Record {
 	return maps.Clone(m.rows)
 }
 
-// Saves is every call to Save, as it was made.
 func (m *MemoryPersistence) Saves() [][]Record {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -68,7 +66,6 @@ func (m *MemoryPersistence) Saves() [][]Record {
 	return slices.Clone(m.saves)
 }
 
-// FailWith makes every Load and Save return err until Heal.
 func (m *MemoryPersistence) FailWith(err error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

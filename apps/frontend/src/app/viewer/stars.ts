@@ -5,50 +5,24 @@ import starsFragment from "./shaders/stars/fragment.glsl"
 
 const STAR_COUNT = 9000
 
-/**
- * Fixed, so the same sky comes back on every load rather than being reshuffled
- * each time the globe is mounted.
- */
 const SEED = 0x9e3779b9
 
-/** Anywhere between the near and far planes: only the direction is on screen. */
 const SKY_RADIUS = 100
 
 const SKY_FOV = 60
 
 export type Sky = {
-    /** Directions on a sphere of `SKY_RADIUS`, three floats per star. */
     positions: Float32Array
-    /** Drawn diameter in CSS pixels, one float per star. */
     sizes: Float32Array
-    /** Colour already scaled by the star's brightness, three floats per star. */
     tints: Float32Array
 }
 
 export type Starfield = {
-    /**
-     * Draws the sky, then `drawScene` over it, in one pass of the frame.
-     *
-     * The starfield owns the clearing for both: the caller must not clear
-     * again, or it would wipe the sky it was just given.
-     */
+    // Clears for both passes: the caller must not clear again, or it wipes the sky.
     render(renderer: THREE.WebGLRenderer, mainCamera: THREE.Camera, drawScene: () => void): void
     dispose(): void
 }
 
-/**
- * The night sky behind the globe.
- *
- * It is a **pass of its own**, with its own scene and its own camera, rather
- * than points added to the main scene, because the main camera is orthographic.
- * Its frustum is a box, so stars added to it would be clipped to a narrow tube
- * around the globe instead of covering the screen, and `camera.zoom` scales x
- * and y, so zooming in would fan the sky out across the screen as if it were
- * flying at the viewer.
- *
- * This camera copies the main camera's orientation and nothing else — no zoom,
- * no position — so the sky turns with the view and holds still through a zoom.
- */
 export function createStarfield(): Starfield {
     const {positions, sizes, tints} = buildSky(STAR_COUNT, SEED)
 
@@ -70,7 +44,6 @@ export function createStarfield(): Starfield {
     })
 
     const points = new THREE.Points(geometry, material)
-    // The camera sits at the centre of the sphere, so the sky is never off screen.
     points.frustumCulled = false
 
     const scene = new THREE.Scene()
@@ -95,12 +68,9 @@ export function createStarfield(): Starfield {
             try {
                 renderer.clear()
                 renderer.render(scene, camera)
-                // The sky writes no depth, but the globe is only safe to draw
-                // over it as long as that stays true.
                 renderer.clearDepth()
                 drawScene()
             } finally {
-                // The picker renders to its own target and needs the clear back.
                 renderer.autoClear = previousAutoClear
             }
         },
@@ -112,15 +82,6 @@ export function createStarfield(): Starfield {
     }
 }
 
-/**
- * Stars spread evenly over a sphere, at sizes and brightnesses that vary enough
- * not to read as a grid.
- *
- * The even spread is the point: drawing a random latitude and a random
- * longitude packs stars around the poles, because the rings of longitude close
- * up there. Drawing the *height* uniformly instead gives equal area per band
- * (Archimedes), so no direction is favoured.
- */
 export function buildSky(count: number, seed: number): Sky {
     const random = mulberry32(seed)
 
@@ -137,13 +98,9 @@ export function buildSky(count: number, seed: number): Sky {
         positions[i * 3 + 1] = height * SKY_RADIUS
         positions[i * 3 + 2] = ring * Math.sin(angle) * SKY_RADIUS
 
-        // Both curves are weighted low: a sky of mostly faint pinpricks with a
-        // scattering of brighter ones, rather than a field competing with the
-        // flags in front of it.
         sizes[i] = 1.1 + 1.9 * Math.pow(random(), 2.5)
         const brightness = 0.22 + 0.58 * Math.pow(random(), 2.2)
 
-        // A touch of warm or cool, far short of a colour anyone would name.
         const temperature = 2 * random() - 1
         tints[i * 3] = brightness * (1 + 0.09 * temperature)
         tints[i * 3 + 1] = brightness
@@ -153,7 +110,6 @@ export function buildSky(count: number, seed: number): Sky {
     return {positions, sizes, tints}
 }
 
-/** Mulberry32: a small, well-spread PRNG, here only so the sky is repeatable. */
 export function mulberry32(seed: number): () => number {
     let state = seed >>> 0
 

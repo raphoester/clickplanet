@@ -6,13 +6,9 @@ import "./Account.css"
 
 export type SignInCallbackProps = {
     callback: Callback
-    /** The provider the sign-in went to, to name it. Absent when none is remembered. */
     provider?: Provider
-    /** Trades the code, and invalidates the click token on success. */
     complete: (code: string, state: string) => Promise<void>
-    /** Goes back to the provider the sign-in started with. Absent when none is remembered. */
     startAgain?: () => Promise<void>
-    /** Back to the game. */
     onDone: () => void
 }
 
@@ -20,15 +16,9 @@ type Step =
     | {kind: "working"}
     | {kind: "failed", failure: AuthFailure}
 
-/**
- * The page a provider sends the browser back to. It trades the code once, then
- * hands over to the game. It never shows the code: `main.tsx` has already taken
- * it out of the address bar.
- */
 export default function SignInCallback(props: SignInCallbackProps) {
     const [step, setStep] = useState<Step>({kind: "working"})
-    // StrictMode runs an effect twice, and a code is good once: the second
-    // trade would fail and replace the first one's success.
+    // StrictMode runs effects twice, and a sign-in code can be traded only once.
     const started = useRef(false)
 
     const complete = async () => {
@@ -87,7 +77,6 @@ export default function SignInCallback(props: SignInCallbackProps) {
     }
 
     const retry = retryOf(step.failure)
-    // A refused link changed nothing: the player goes back on the account they were on.
     const notLinked = step.failure === "linkedElsewhere" || step.failure === "alreadyLinked"
     return <Card title={notLinked ? "Not linked" : "Sign-in did not work"}>
         <p role="alert">{messageOf(step.failure, props.provider)}</p>

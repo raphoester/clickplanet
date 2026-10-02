@@ -1,4 +1,3 @@
-// Package discord_identity_provider signs a player in with Discord, over OAuth 2.0, and reads the user from /users/@me.
 package discord_identity_provider
 
 import (
@@ -51,10 +50,9 @@ func (p *Provider) AuthorizationURL(flow *signin.Flow) string {
 }
 
 type user struct {
-	ID    string `json:"id"`
-	Email string `json:"email"`
-	// Whether the email is verified.
-	Verified bool `json:"verified"`
+	ID       string `json:"id"`
+	Email    string `json:"email"`
+	Verified bool   `json:"verified"`
 }
 
 func (p *Provider) Exchange(ctx context.Context, code string, flow *signin.Flow) (*accounts.Claim, error) {

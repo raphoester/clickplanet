@@ -1,4 +1,3 @@
-/* Under the bomb line, so the two never cover each other: see BombNews.css. */
 .native-land-note {
     position: fixed;
     top: 64px;
@@ -8,7 +7,6 @@
     pointer-events: none;
 }
 
-/* Clear of the quiz card at its tallest, and of the bomb line lowered there. */
 .native-land-note--lowered {
     top: 268px;
 }
@@ -29,7 +27,6 @@
     animation: native-land-note 4s ease-out forwards;
 }
 
-/* Timings are shares of NATIVE_LAND_NOTE_MS in NativeLandNote.tsx. */
 @keyframes native-land-note {
     0% {
         opacity: 0;
@@ -48,14 +45,12 @@
 }
 
 @media (max-width: 768px) {
-    /* Above the bomb line, which sits at the bottom on a phone. */
     .native-land-note,
     .native-land-note--lowered {
         top: auto;
         bottom: 144px;
     }
 
-    /* A phone is narrower than the line: let it wrap inside the gutters. */
     .native-land-note-line {
         width: max-content;
         max-width: calc(100vw - 32px);

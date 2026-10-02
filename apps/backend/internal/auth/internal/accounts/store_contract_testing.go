@@ -9,11 +9,9 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-// StoreContractSuite is the behaviour every Store shares. Embed it and set NewStore.
 type StoreContractSuite struct {
 	suite.Suite
 
-	// NewStore answers an empty store.
 	NewStore func() Store
 
 	store Store
@@ -39,7 +37,6 @@ func (s *StoreContractSuite) createGuest(account byte, token string) *Session {
 	return guest
 }
 
-// signIn links provider's subject to account, a new one unless a guest already holds it.
 func (s *StoreContractSuite) signIn(account byte, provider string, subject string, token string) (*Identity, *Session) {
 	_, err := s.store.Account(s.T().Context(), AccountID{15: account})
 	identity := NewIdentity(provider, Claim{Subject: subject}, AccountID{15: account}, contractStart)

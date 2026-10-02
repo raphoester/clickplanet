@@ -1,4 +1,3 @@
-// Package get_account_handler serves auth.v1.InternalService/GetAccount.
 package get_account_handler
 
 import (
@@ -23,8 +22,6 @@ type GetAccountHandler struct {
 	useCase UseCase
 }
 
-// GetAccount answers linked false for an id that is not an account, as for an account that does not exist:
-// the caller asks whether it may trust the account, and neither may be trusted.
 func (h GetAccountHandler) GetAccount(
 	ctx context.Context,
 	req *connect.Request[authv1.GetAccountRequest],

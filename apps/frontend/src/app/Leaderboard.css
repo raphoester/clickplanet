@@ -23,10 +23,6 @@
     overflow-y: auto;
 }
 
-/* Deliberately unpinned and unfilled: it scrolls away with the list. Sticking
-   it needs an opaque fill, or the row sliding under it ghosts through the column
-   names — and that fill reads as a black band across the panel. The column
-   names say what they count ("% of map"), so the row is not worth that. */
 .leaderboard-table-head {
     font-family: Oswald, sans-serif;
     font-weight: 500;
@@ -48,22 +44,13 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    /* Two rows' worth of this is the gap the delta badge lives in, so it never
-       has to be read on top of the count of the country above. */
     padding-block: 7px;
 }
 
-/* The rule above leaves the first row only one row's padding below the header
-   rule, so rank 1 sits nearer the column names than it does the country under
-   it. Match the gap two rows keep between them — two rows' padding — so the
-   header reads as a heading over the list rather than as part of it. */
 .leaderboard-entry:first-child td {
     padding-top: 14px;
 }
 
-/* Tighter than elsewhere: the country column is the narrowest place a flag
-   stands in, and the usual gap would push names that used to fit into the
-   ellipsis. */
 .leaderboard-entry-country .country-flag {
     margin-right: 0.3em;
 }
@@ -74,8 +61,6 @@
     padding-left: 12px;
 }
 
-/* Wider than its sibling: the heading is eight uppercase characters, and it has
-   to stay on one line for the column to keep naming its own unit. */
 .leaderboard-table-share {
     width: 76px;
 }
@@ -113,8 +98,6 @@
     box-shadow: inset 3px 0 0 #FF813F;
 }
 
-/* The badge floats out of the cell, so this one column gives up the clipping
-   the country name needs. */
 .leaderboard-entry .leaderboard-table-tiles {
     position: relative;
     overflow: visible;
@@ -129,10 +112,6 @@
     color: #FF8A8A;
 }
 
-/* Sits in the gap above its own count, right-aligned with it: its bottom edge
-   is the top of the count, so it stays between the two rows instead of
-   overflowing onto the one above. `animation-duration` comes from
-   DELTA_HOLD_MS, so the badge fades out exactly as it is dropped. */
 .leaderboard-delta {
     position: absolute;
     right: 0;
@@ -148,8 +127,6 @@
     animation: leaderboard-delta 2.5s ease-out forwards;
 }
 
-/* The badge never dips below where it comes to rest: it grows into place from
-   its own middle, and leaves upwards into the gap it already sits in. */
 @keyframes leaderboard-delta {
     0% {
         opacity: 0;
@@ -192,8 +169,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    /* The badge is news, not decoration: it stays for its couple of seconds,
-       it just no longer moves to get there. */
     .leaderboard-delta {
         animation: none;
     }

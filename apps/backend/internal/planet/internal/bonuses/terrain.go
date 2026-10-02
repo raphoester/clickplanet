@@ -5,7 +5,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 )
 
-// Neighbours is the part of clicks.Geography this reads.
 type Neighbours interface {
 	Neighbours(id uint32) []uint32
 }
@@ -14,7 +13,6 @@ type Owners interface {
 	Owner(tile uint32) (string, bool)
 }
 
-// Terrain is the map as the pocket search sees it: who holds a tile, and what touches it.
 type Terrain struct {
 	neighbours Neighbours
 	owners     Owners
@@ -29,26 +27,20 @@ func (t Terrain) Holds(tile uint32, country string) bool {
 	return owner == country
 }
 
-// PocketsClosedBy looks for a small inside rather than an outline: on a sphere,
-// every loop has two insides.
 func (t Terrain) PocketsClosedBy(tile uint32, country string, maxTiles int) []Pocket {
 	search := pocketSearch{terrain: t, country: country, maxTiles: maxTiles, seen: cpcolls.NewSet[uint32]()}
 	return search.around(tile)
 }
 
-// onEdge is a tile with the sea or a lake beside it. The twelve lattice corners read as one too.
 func (t Terrain) onEdge(tile uint32) bool {
 	return len(t.neighbours.Neighbours(tile)) < clicks.MaxDegree
 }
 
-// pocketSearch floods from each neighbour of a click over tiles the country does not hold.
 type pocketSearch struct {
 	terrain  Terrain
 	country  string
 	maxTiles int
 
-	// A flood that passed the limit saw only part of its region, but any other
-	// start in that part would pass it too.
 	seen *cpcolls.Set[uint32]
 }
 

@@ -52,12 +52,10 @@ describe("placePointer", () => {
     })
 
     it("turns to face the box, in screen degrees", () => {
-        // Screen y grows downward, so a box above the middle is a negative angle.
         expect(placePointer({x: 5, y: 0}, margin).angle).toBeCloseTo(0, 6)
         expect(placePointer({x: 0, y: 5}, margin).angle).toBeCloseTo(-90, 6)
         expect(placePointer({x: 0, y: -5}, margin).angle).toBeCloseTo(90, 6)
 
-        // Straight left is a half turn either way round.
         expect(Math.abs(placePointer({x: -5, y: 0}, margin).angle)).toBeCloseTo(180, 6)
     })
 

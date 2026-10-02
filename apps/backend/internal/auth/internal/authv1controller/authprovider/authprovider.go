@@ -1,4 +1,3 @@
-// Package authprovider names a provider on the wire, for every handler that says one.
 package authprovider
 
 import (
@@ -11,7 +10,6 @@ var names = map[authv1.Provider]string{
 	authv1.Provider_PROVIDER_DISCORD: signin.Discord,
 }
 
-// NameOf is the provider's name, or empty for one this server has no name for.
 func NameOf(provider authv1.Provider) string {
 	return names[provider]
 }

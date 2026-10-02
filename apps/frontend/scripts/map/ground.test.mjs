@@ -1,5 +1,3 @@
-// The oracle's rules, against hand-written polygons. No network: what is pinned here is the
-// behaviour the map generator depends on, not Natural Earth's coastline.
 import {describe, expect, it} from "vitest"
 
 import {SEA, groundIndex} from "./ground.mjs"
@@ -14,7 +12,6 @@ const named = (code, rings) => ({
     properties: {ISO_A2_EH: code},
 })
 
-// A square from (x0,y0) to (x1,y1), counter-clockwise.
 const square = (x0, y0, x1, y1) => [[x0, y0], [x1, y0], [x1, y1], [x0, y1], [x0, y0]]
 
 const noIce = {features: []}
@@ -93,8 +90,6 @@ describe("the countries Natural Earth does not code", () => {
         expect(ground.groundOf(11, 11)).toBe("cy")
     })
 
-    // India and Pakistan both claim it and the dataset declines to pick, so there is no country to
-    // fold it into. Four lattice vertices, and they stay sea rather than being handed to a side.
     it("leaves a territory with no ADM0_ISO as sea", () => {
         const ground = groundIndex({
             countries: {features: [uncoded("KAS", [square(0, 0, 2, 2)])]},
@@ -113,8 +108,6 @@ describe("the antarctic ice shelves", () => {
         expect(ground.groundOf(0, -78)).toBe("aq")
     })
 
-    // A shelf runs onto a claimed coast in places. The country is asked first so the flag there is
-    // the country's, not bare Antarctica's.
     it("lose to a country where the two overlap", () => {
         const ground = groundIndex({
             countries: {features: [named("CL", [square(-10, -80, 0, -75)])]},
@@ -125,9 +118,6 @@ describe("the antarctic ice shelves", () => {
     })
 })
 
-// Natural Earth cuts Antarctica down the antimeridian, so a point exactly on 180 lands on the
-// polygon's own edge where an even-odd test has no answer. Nudging off the cut is what keeps the
-// row of tiles straight out from the south pole inside a country.
 describe("the antimeridian seam", () => {
     const ground = groundIndex({
         countries: {features: [named("AQ", [square(-180, -90, 180, -60)])]},

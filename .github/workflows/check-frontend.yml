@@ -30,13 +30,10 @@ jobs:
           cache: npm
           cache-dependency-path: apps/frontend/package-lock.json
 
-      # `npm ci` rather than `npm install`, so a package.json edited without
-      # regenerating the lockfile fails here instead of drifting silently.
       - run: npm ci
 
       - run: npm run lint
 
-      # The build runs `tsc -b` first, so this covers typechecking too.
       - run: npm run build
 
       - run: npm test

@@ -57,7 +57,6 @@ func (f *fixture) guest(t *testing.T, account byte, token string) {
 	require.NoError(t, f.store.CreateGuest(t.Context(), accounts.GuestSession(accounts.AccountID{15: account}, accounts.TokenOf(token), lifetime, start)))
 }
 
-// began starts a sign-in and answers the flow cookie and the state the provider would send back.
 func (f *fixture) began(t *testing.T, intent accounts.Intent, sessionCookie string) (string, string) {
 	t.Helper()
 
@@ -94,7 +93,6 @@ func (f *fixture) finish(t *testing.T, intent accounts.Intent, sessionCookie str
 	return f.completion.Execute(t.Context(), complete_sign_in_usecase.In{Code: "the-code", State: state, CookieHeader: cookies})
 }
 
-// linkedAccount makes an account linked to one provider's user, with a session under token.
 func (f *fixture) linkedAccount(t *testing.T, account byte, provider string, subject string, token string) {
 	t.Helper()
 
@@ -226,7 +224,6 @@ func TestLinkingAnIdentityTheAccountAlreadyHasKeepsTheBrowserThere(t *testing.T)
 	assert.Equal(t, accounts.SignedIn, out.Outcome)
 }
 
-// The production bug: the browser moved to the identity's account, which lacked the provider it came from.
 func TestLinkingAnIdentityAnotherAccountUsesIsRefusedAndWritesNothing(t *testing.T) {
 	f := setUp(t)
 	f.linkedAccount(t, 1, signin.Google, claim.Subject, "other-browser")

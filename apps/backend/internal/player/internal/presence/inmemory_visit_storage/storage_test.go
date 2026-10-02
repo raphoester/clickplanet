@@ -22,7 +22,6 @@ func account(n int) players.AccountID {
 }
 
 func visit(n int, tag players.Tag, at time.Time) presence.Visit {
-	// A guest is shown by its code; here the code is the tag, so a test names one string.
 	author := players.Author{Name: "guest_" + string(tag), Guest: true}
 	return presence.Visit{Account: account(n), Author: author, Tag: tag, Country: "fr", At: at}
 }
@@ -34,7 +33,6 @@ func named(visit presence.Visit, author players.Author) presence.Visit {
 	return visit
 }
 
-// withoutKeys is the visits as announced, before the storage keyed them.
 func withoutKeys(visits []presence.Visit) []presence.Visit {
 	for i := range visits {
 		visits[i].Key = ""
@@ -42,7 +40,6 @@ func withoutKeys(visits []presence.Visit) []presence.Visit {
 	return visits
 }
 
-// changesOf is what a subscriber read so far, with nothing left waiting.
 func changesOf(t *testing.T, changes <-chan presence.Change) []presence.Change {
 	t.Helper()
 

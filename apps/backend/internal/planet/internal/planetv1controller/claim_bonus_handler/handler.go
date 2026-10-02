@@ -1,4 +1,3 @@
-// Package claim_bonus_handler serves planet.v1.ClickService/ClaimBonus.
 package claim_bonus_handler
 
 import (

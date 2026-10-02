@@ -1,4 +1,3 @@
-// Package jury crosses what the watchdogs say and passes the sentence.
 package jury
 
 import (
@@ -12,22 +11,10 @@ import (
 )
 
 type Config struct {
-	// MinSuspects is how many watchdogs must say Suspect at once before a
-	// caller is banned on suspicion alone. One Certain always bans by itself.
-	//
-	// Crossing only buys confidence when the watchdogs measure different
-	// things, and these barely do: a machine sweep is sequential *and* regular
-	// *and* never rests, so two Suspects can be one behaviour counted twice.
-	// That is also true of the most obsessed player. Two is the loosest this
-	// should be.
 	MinSuspects int
 
-	// SuspicionWindow is how long a Suspect stands while another watchdog
-	// catches up. A caller's rules do not all trip on the same click: the
-	// sequencer needs a run of steps, the metronome needs a quarter of an hour.
 	SuspicionWindow time.Duration
 
-	// TrackWindow is how long a silent caller is remembered.
 	TrackWindow time.Duration
 
 	SweepInterval time.Duration
@@ -39,14 +26,11 @@ const (
 	defaultTrackWindow     = 15 * time.Minute
 	defaultSweepInterval   = time.Minute
 
-	// Caps the country tally: real players use a handful, and without a bound a
-	// client could spend memory by cycling through every valid code.
+	// Bounds memory: a client could cycle through every country code.
 	maxTrackedCountries = 16
 	keptTiles           = 8
 )
 
-// WithDefaults fills the unset bounds. Exported inside this tree so the caller
-// can log the numbers that will actually be enforced rather than the raw file.
 func (c Config) WithDefaults() Config {
 	if c.MinSuspects <= 0 {
 		c.MinSuspects = defaultMinSuspects
@@ -63,26 +47,17 @@ func (c Config) WithDefaults() Config {
 	return c
 }
 
-// Banner is the sentence the jury passes, on a scope and the account behind it. shadowban.Bans implements it.
 type Banner interface {
 	Flag(caller shadowban.Caller) (shadowban.Sentence, bool)
 	Banned(caller shadowban.Caller) bool
 	Flagged() int
 }
 
-// Hooks is how the jury reports what it sees short of a ban. Every hook is optional.
 type Hooks struct {
 	OnFlag func(detect.Report)
 
-	// OnRise is a watchdog's reading of a caller reaching a level it has not held
-	// inside SuspicionWindow. Levels are cumulative, so a caller going straight to
-	// Certain rises to Suspect too, and a reading flapping across a bound counts
-	// once a window rather than once a click.
 	OnRise func(watchdog string, level detect.Verdict)
 
-	// OnStanding is, once a sweep, how many callers each watchdog reads at the
-	// level or above — the readings the jury would count if it deliberated now.
-	// Reported for every watchdog and level, zero included, so a gauge falls back.
 	OnStanding func(watchdog string, level detect.Verdict, callers int)
 }
 
@@ -130,13 +105,9 @@ type caller struct {
 
 	opinions map[string]detect.Opinion
 
-	// reached is, per watchdog and indexed by level, when this caller was last
-	// read at that level or above: what tells a rise from a reading still standing.
 	reached map[string]*[detect.Certain + 1]time.Time
 }
 
-// Inspect runs every watchdog over the click and says whether it should be
-// dropped.
 func (j *Jury) Inspect(click detect.Click) bool {
 	if click.Scope == "" {
 		return false
@@ -144,9 +115,7 @@ func (j *Jury) Inspect(click detect.Click) bool {
 
 	j.record(click)
 
-	// Every watchdog sees every click, and the ban is read afterwards rather
-	// than short-circuiting here. A watchdog cut off the moment another one
-	// banned the caller would be judging a caller that appears to have stopped.
+	// No short-circuit on a ban: a starved watchdog lets the ban lapse on fake silence.
 	for _, watchdog := range j.watchdogs {
 		verdict, evidence := watchdog.Watch(click)
 		for _, level := range j.opine(click, watchdog.Name(), verdict, evidence) {
@@ -156,8 +125,6 @@ func (j *Jury) Inspect(click detect.Click) bool {
 		}
 	}
 
-	// Outside the lock from here: onFlag writes a log line, and holding the
-	// caller map through that would queue every other clicker behind the I/O.
 	if report, guilty := j.deliberate(click); guilty {
 		if sentence, accepted := j.banner.Flag(callerOf(click)); accepted {
 			report.Flags = sentence.Flags
@@ -172,12 +139,10 @@ func (j *Jury) Inspect(click detect.Click) bool {
 	return j.banner.Banned(callerOf(click))
 }
 
-// callerOf is who a ban on the click falls on. The evidence is the scope's, whichever account clicked.
 func callerOf(click detect.Click) shadowban.Caller {
 	return shadowban.Caller{Scope: click.Scope, Account: click.Account, SignedIn: click.SignedIn}
 }
 
-// Attempted hands the watchdogs a click before the throttle judges it.
 func (j *Jury) Attempted(click detect.Click) {
 	if click.Scope == "" {
 		return
@@ -188,8 +153,6 @@ func (j *Jury) Attempted(click detect.Click) {
 	}
 }
 
-// Committed tells the watchdogs the click reached the map. Watchdogs that read
-// the map decide for themselves what that is worth.
 func (j *Jury) Committed(click detect.Click) {
 	for _, watchdog := range j.watchdogs {
 		watchdog.Committed(click)
@@ -204,7 +167,6 @@ func (j *Jury) record(click detect.Click) {
 
 	c := j.callerLocked(click)
 
-	// A restart is not the caller stopping, nor time it was active.
 	if j.outage.Across(c.lastSeen, click.At) {
 		c.firstSeen = c.firstSeen.Add(j.outage.Length())
 	}
@@ -222,7 +184,6 @@ func (j *Jury) record(click detect.Click) {
 	}
 }
 
-// opine stores the watchdog's reading and returns the levels it rose to.
 func (j *Jury) opine(click detect.Click, watchdog string, verdict detect.Verdict, evidence detect.Evidence) []detect.Verdict {
 	j.mu.Lock()
 	defer j.mu.Unlock()
@@ -241,8 +202,6 @@ func (j *Jury) opine(click detect.Click, watchdog string, verdict detect.Verdict
 		c.reached[watchdog] = reached
 	}
 
-	// The same window deliberate expires a reading on: a level last held longer
-	// ago than that is no longer standing, so reaching it again is a rise.
 	cutoff := click.At.Add(-j.config.SuspicionWindow)
 
 	var rises []detect.Verdict
@@ -282,7 +241,6 @@ func (j *Jury) deliberate(click detect.Click) (detect.Report, bool) {
 	}, true
 }
 
-// weighLocked is the decision, shared by a click that may ban and an operator who only asks.
 func (j *Jury) weighLocked(c *caller, at time.Time) ([]detect.Opinion, int, bool) {
 	cutoff := at.Add(-j.config.SuspicionWindow)
 
@@ -293,14 +251,11 @@ func (j *Jury) weighLocked(c *caller, at time.Time) ([]detect.Opinion, int, bool
 	)
 
 	for _, watchdog := range j.watchdogs {
-		// Missing only for a caller never seen, which an examination still lists as clear.
 		opinion, ok := c.opinions[watchdog.Name()]
 		if !ok {
 			opinion = detect.Opinion{Watchdog: watchdog.Name()}
 		}
 
-		// A verdict older than the window is not evidence any more, but it is
-		// still worth printing next to the one that banned the caller.
 		if opinion.At.Before(cutoff) {
 			opinion.Verdict = detect.Clear
 		}
@@ -319,7 +274,6 @@ func (j *Jury) weighLocked(c *caller, at time.Time) ([]detect.Opinion, int, bool
 	return opinions, suspects, certain || suspects >= j.config.MinSuspects
 }
 
-// Examine reads what the jury holds on a scope as of now; it creates no caller and passes no ban.
 func (j *Jury) Examine(scope string) detect.Examination {
 	now := j.clock.Now()
 
@@ -391,7 +345,6 @@ func (c *caller) topCountry() (string, int) {
 	)
 
 	for country, n := range c.countries {
-		// Ties break on the code, so the same tally always names the same country.
 		if n > count || (n == count && country < top) {
 			top, count = country, n
 		}
@@ -414,16 +367,11 @@ func (j *Jury) Run(ctx context.Context) {
 	}
 }
 
-// sweep forgets callers that can no longer affect a decision; without it the
-// map keeps an entry for every caller that ever clicked. A ban outlives its
-// caller record on purpose: the ban lives in the banner, which has its own
-// clock, so forgetting the evidence here never shortens a sentence.
 func (j *Jury) sweep() {
 	now := j.clock.Now()
 
 	standing := j.forget(now)
 
-	// Outside the lock, for the same reason as onFlag.
 	if j.hooks.OnStanding == nil {
 		return
 	}
@@ -434,8 +382,6 @@ func (j *Jury) sweep() {
 	}
 }
 
-// forget drops idle callers and counts, per watchdog, the callers still read at
-// each level or above.
 func (j *Jury) forget(now time.Time) [][detect.Certain + 1]int {
 	j.mu.Lock()
 	defer j.mu.Unlock()

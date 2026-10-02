@@ -1,6 +1,3 @@
-/* The pill the click meter is built on — border, blur, dark ground — rather
-   than `.button`, which is a 56px slab for the menu's own actions. This one sits
-   on the canvas beside the globe it photographs. */
 .camera-button {
     position: absolute;
     left: 16px;
@@ -32,25 +29,13 @@
     flex-shrink: 0;
 }
 
-/*
- * The capitals sit above the middle of their line box on this face, so the icon
- * has to rise to meet them — `align-items: center` lines up the boxes, not the
- * letters. `TITLE_CAP_RISE` in titleFont.ts is where the 0.13em comes from and
- * why, and the same fact is what `CountryFlag` sizes its box with.
- *
- * It is **doubled** here because centring is what this margin is fighting: the
- * flex box centres the *margin* box, so shortening that box by 0.26em moves the
- * icon inside it by half of that. Measured after getting this wrong once: the
- * single value left the icon 1.15px low, which is half of the 2.32px rise.
- */
+/* Twice the 0.13em cap rise: flex centring halves the effect of a margin. */
 .camera-button svg {
     margin-top: -0.26em;
 }
 
 .camera-button-label {
     line-height: 1;
-    /* The face's own trailing side bearing is wide enough to read as padding
-       that is not there. */
     margin-right: -0.1em;
 }
 
@@ -60,12 +45,6 @@
 }
 
 @media only screen and (max-width: 768px) {
-    /*
-     * Both ends of a phone screen are sheets — the menu above, the chat below —
-     * so it clears the folded chat rather than sitting on it. Unfolding the chat
-     * covers it, which is what the player asked for by unfolding it; the click
-     * meter makes the same trade at the other end.
-     */
     .camera-button {
         bottom: 72px;
         width: 40px;
@@ -75,14 +54,11 @@
         gap: 0;
     }
 
-    /* A phone has no room to spare and a camera needs no caption. The button
-       keeps its name in `aria-label`. */
     .camera-button-label {
         display: none;
     }
 
     .camera-button svg {
-        /* Nothing beside it to line up with any more. */
         margin-top: 0;
     }
 }

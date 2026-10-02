@@ -17,8 +17,6 @@ const (
 	bannerFor  = 20 * time.Second
 )
 
-// A fixed window makes the schedule assertable, as it does for the boxes. Only refills are on
-// offer, so a quiz is always worth the same thing and the reward draw is somebody else's test.
 func newQuizzingRegistry(t *testing.T) (*Registry, *cptime.FixedClock) {
 	t.Helper()
 
@@ -32,13 +30,9 @@ func newQuizzingRegistry(t *testing.T) (*Registry, *cptime.FixedClock) {
 		MaxChargesPerHour: 6,
 	}, fixedBank{})
 
-	// Quizzing does not move a clock that was already set running, so the first one is due a quiz
-	// window from when the caller was first seen — which is what the tests below wait out.
 	return registry, clock
 }
 
-// fixedBank asks one question with one right answer, so a test can be about the schedule rather
-// than about which of three the server shuffled.
 type fixedBank struct{}
 
 const (
@@ -54,7 +48,6 @@ func (fixedBank) Draw() quizzes.Round {
 	}
 }
 
-// waitOutQuiz moves past a caller's whole quiz window and sweeps, which is one turn.
 func waitOutQuiz(r *Registry, clock *cptime.FixedClock) {
 	clock.Advance(quizWindow + time.Second)
 	r.sweep()
@@ -75,7 +68,6 @@ func quizOffered(t *testing.T, events <-chan Event) *QuizOffer {
 	}
 }
 
-// takeQuiz is the whole flow to the point of answering: wait the window out, open it.
 func takeQuiz(t *testing.T, r *Registry, clock *cptime.FixedClock, scope string) (*QuizOffer, Asked) {
 	t.Helper()
 
@@ -109,10 +101,6 @@ func TestAQuizCarriesNoQuestionUntilItIsOpened(t *testing.T) {
 	registry, clock := newQuizzingRegistry(t)
 	offer, asked := takeQuiz(t, registry, clock, "scope-a")
 
-	// The whole point of the two calls. The banner is an invitation and says nothing about the
-	// question — not the text, not the choices, and not what it is about, because "Estonia" beside
-	// "Tallinn is the capital of which country?" is the answer. The clock is the answer's, stamped
-	// when the question is read.
 	assert.Equal(t, QuizOffer{Token: offer.Token, ExpiresAt: offer.ExpiresAt}, *offer,
 		"the banner carries a token and a deadline, and nothing else at all")
 	assert.Equal(t, "What is the capital of Estonia?", asked.Question)
@@ -188,8 +176,6 @@ func TestAQuizCannotBeAnsweredWithoutBeingRead(t *testing.T) {
 	offer := quizOffered(t, events)
 	require.NotNil(t, offer)
 
-	// Straight to the answer, skipping the question: a client guessing at three choices it was
-	// never sent.
 	_, ok := registry.AnswerQuiz(offer.Token, "scope-a", 0)
 	assert.False(t, ok)
 }
@@ -250,7 +236,6 @@ func TestQuizzesAndBoxesRunOnSeparateClocks(t *testing.T) {
 	registry, clock := newQuizzingRegistry(t)
 	events := playing(t, registry, "scope-a")
 
-	// One box window, which is shorter than one quiz window.
 	waitOut(registry, clock)
 	require.NotNil(t, offered(t, events), "the box is due")
 
@@ -265,7 +250,6 @@ func TestAQuizIsNotOfferedForAKindTheCallerIsAlreadyHolding(t *testing.T) {
 	registry, clock := newQuizzingRegistry(t)
 	events := playing(t, registry, "scope-a")
 
-	// Refills are the only kind on offer here, and this caller has one.
 	holdingsOf(registry).grant(holderOf("scope-a"), KindRefill)
 
 	waitOutQuiz(registry, clock)
@@ -280,7 +264,6 @@ func TestAQuizIsNotOfferedForAKindTheCallerIsAlreadyHolding(t *testing.T) {
 func TestAQuizGoesOnlyToACallerWhoIsPlaying(t *testing.T) {
 	registry, clock := newQuizzingRegistry(t)
 
-	// Watching, but never clicked.
 	events := attend(t, registry, "scope-a")
 	waitOutQuiz(registry, clock)
 
@@ -291,7 +274,6 @@ func TestQuizzesStopAtTheirOwnHourlyCap(t *testing.T) {
 	registry, clock := newQuizzingRegistry(t)
 	events := playing(t, registry, "scope-a")
 
-	// The cap is 6, and every answer here is right.
 	for range 6 {
 		clicked(registry, "scope-a")
 		waitOutQuiz(registry, clock)
@@ -311,7 +293,6 @@ func TestQuizzesStopAtTheirOwnHourlyCap(t *testing.T) {
 	waitOutQuiz(registry, clock)
 	assert.Nil(t, quizOffered(t, events), "six an hour, and no more")
 
-	// An hour on, the grants are forgotten and the caller is due one again.
 	clock.Advance(time.Hour)
 	clicked(registry, "scope-a")
 	registry.sweep()
@@ -319,7 +300,6 @@ func TestQuizzesStopAtTheirOwnHourlyCap(t *testing.T) {
 }
 
 func TestNoQuizIsOfferedWithoutABank(t *testing.T) {
-	// newTestRegistry never calls Quizzing, which is what the feature switched off looks like.
 	registry, clock := newTestRegistry()
 	events := playing(t, registry, "scope-a")
 

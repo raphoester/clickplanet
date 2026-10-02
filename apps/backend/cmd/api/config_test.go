@@ -16,10 +16,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
-// The shipped file is the schema. Nothing else checks that a key in it still
-// reaches the struct it is named after: koanf drops what it cannot match in
-// silence, so a renamed field turns a configured bound back into its default
-// without a word.
 func TestTheExampleConfigStillReachesTheStructs(t *testing.T) {
 	var config Config
 	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
@@ -92,8 +88,6 @@ func TestTheExampleConfigStillReachesTheStructs(t *testing.T) {
 	assert.Equal(t, 6, churner.Detector.Relay.CertainLinks)
 }
 
-// The blocks the antibot rewrite did not touch, so that moving one of them is a
-// failing test rather than a bound that silently went back to its default.
 func TestTheExampleConfigStillCarriesTheRestOfTheFile(t *testing.T) {
 	var config Config
 	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
@@ -155,9 +149,6 @@ func TestOnlyAuthReadsTheSeedOutOfTheAuthBlock(t *testing.T) {
 	var config Config
 	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile(authBlock(t, secret))))
 
-	// One key in the file, and it reaches one module. Planet reads the same block
-	// for its two switches and gets no key at all: it asks auth for the public half
-	// over the internal listener, so there is nothing here to keep in step.
 	assert.Equal(t, secret, config.Auth.Secret)
 	assert.Equal(t, 2*time.Hour, config.Auth.TTL)
 	assert.True(t, config.Planet.Auth.Enabled)

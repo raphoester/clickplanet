@@ -1,4 +1,3 @@
-// Package get_verifying_key_handler serves auth.v1.InternalService/GetVerifyingKey.
 package get_verifying_key_handler
 
 import (
@@ -9,7 +8,6 @@ import (
 	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
 )
 
-// Keys is the signer, asked only for the half that is not secret.
 type Keys interface {
 	PublicKey() string
 }
@@ -22,7 +20,6 @@ type GetVerifyingKeyHandler struct {
 	keys Keys
 }
 
-// GetVerifyingKey answers no-store: a caller keeps the key for its own lifetime, not a proxy's.
 func (h GetVerifyingKeyHandler) GetVerifyingKey(
 	_ context.Context,
 	_ *connect.Request[authv1.GetVerifyingKeyRequest],

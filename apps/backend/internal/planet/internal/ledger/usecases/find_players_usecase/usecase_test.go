@@ -40,7 +40,6 @@ type countries struct{}
 
 func (countries) CheckCountry(country string) bool { return len(country) == 2 }
 
-// Tiles 1-4 are Israel's ground, 5 is Jordan's. Every take is a second apart, in order.
 func setup(t *testing.T) (*inmemory_ledger_storage.Storage, owners) {
 	t.Helper()
 

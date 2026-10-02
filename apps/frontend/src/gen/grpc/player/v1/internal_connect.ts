@@ -7,18 +7,12 @@ import { GetAuthorRequest, GetAuthorResponse, GetAuthorsRequest, GetAuthorsRespo
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
- * What other modules of the backend ask the player module. Served only on the
- * backend's loopback internal listener (httpServer.internalBindAddress), never
- * on the public router.
- *
  * @generated from service player.v1.InternalService
  */
 export const InternalService = {
   typeName: "player.v1.InternalService",
   methods: {
     /**
-     * Who an account is to the others: the name the game shows for it.
-     *
      * @generated from rpc player.v1.InternalService.GetAuthor
      */
     getAuthor: {
@@ -28,11 +22,6 @@ export const InternalService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Who each of these accounts is, for a module showing many people at once.
-     * Unlike GetAuthor it is a pure read: it gives no guest its code, so a read
-     * path never writes. An account it cannot name — one never shown before, or
-     * a deleted one — is left out of the answer rather than failing the call.
-     *
      * @generated from rpc player.v1.InternalService.GetAuthors
      */
     getAuthors: {

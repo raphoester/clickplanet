@@ -1,4 +1,3 @@
-// Package aes_flow_sealer seals a sign-in flow with AES-256-GCM, under a key derived from the click token seed.
 package aes_flow_sealer
 
 import (
@@ -14,7 +13,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin"
 )
 
-// The label keeps this key apart from every other use of the seed.
 const keyInfo = "clickplanet auth cp_oauth v1"
 
 type Sealer struct {
@@ -23,7 +21,6 @@ type Sealer struct {
 
 var _ signin.Sealer = (*Sealer)(nil)
 
-// New derives the key from seed, the auth.secret bytes, so there is no second secret to set.
 func New(seed []byte) (*Sealer, error) {
 	if len(seed) == 0 {
 		return nil, errors.New("the seed is empty")

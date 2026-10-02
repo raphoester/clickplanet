@@ -1,4 +1,3 @@
-// Package announce_handler serves player.v1.PlayerService/Announce.
 package announce_handler
 
 import (
@@ -26,7 +25,6 @@ type AnnounceHandler struct {
 	useCase UseCase
 }
 
-// Announce tags the address the session interceptor read, which is the one Caddy put in X-Real-IP.
 func (h AnnounceHandler) Announce(
 	ctx context.Context,
 	req *connect.Request[playerv1.AnnounceRequest],

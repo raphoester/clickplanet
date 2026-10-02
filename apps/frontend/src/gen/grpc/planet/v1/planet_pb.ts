@@ -7,37 +7,25 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
 
 /**
- * Who else spends from a click bucket.
- *
  * @generated from enum planet.v1.SharedWith
  */
 export enum SharedWith {
   /**
-   * A server too old to say. Read it as NOBODY.
-   *
    * @generated from enum value: SHARED_WITH_UNSPECIFIED = 0;
    */
   UNSPECIFIED = 0,
 
   /**
-   * The caller's own bucket.
-   *
    * @generated from enum value: SHARED_WITH_NOBODY = 1;
    */
   NOBODY = 1,
 
   /**
-   * Every guest behind the caller's address: guests on one network share one
-   * bank, so ten tabs are not ten banks. A guest that signs in gets its own.
-   *
    * @generated from enum value: SHARED_WITH_GUESTS = 2;
    */
   GUESTS = 2,
 
   /**
-   * Every player behind the caller's address, signed in or not: a campus, a
-   * school or a carrier sharing one address.
-   *
    * @generated from enum value: SHARED_WITH_NETWORK = 3;
    */
   NETWORK = 3,
@@ -51,9 +39,6 @@ proto3.util.setEnumType(SharedWith, "planet.v1.SharedWith", [
 ]);
 
 /**
- * What a bonus is worth. The client never decides this, and an unknown kind is
- * one a client skips rather than guesses at.
- *
  * @generated from enum planet.v1.BonusKind
  */
 export enum BonusKind {
@@ -63,36 +48,21 @@ export enum BonusKind {
   UNSPECIFIED = 0,
 
   /**
-   * A charge: fills the player's click bank to full, when the player chooses.
-   *
    * @generated from enum value: BONUS_KIND_REFILL = 5;
    */
   REFILL = 5,
 
   /**
-   * A charge: adds a few clicks to the spread pool. While the player has spread
-   * switched on, each click spends one and also takes the tiles touching it. The server picks those tiles from its own map, so a client never names
-   * what it gets.
-   *
    * @generated from enum value: BONUS_KIND_SPREAD_CLICKS = 2;
    */
   SPREAD_CLICKS = 2,
 
   /**
-   * A charge: one bomb, dropped with DropBomb anywhere on the planet, kept until
-   * it is. It clears every tile within a few rings of where it lands, whoever
-   * holds them. The server picks the tiles.
-   *
    * @generated from enum value: BONUS_KIND_BOMB = 3;
    */
   BOMB = 3,
 
   /**
-   * A charge: adds a few enclosures to the stack. While the player has enclose
-   * switched on, a click that closes a shape of the player's own tiles also
-   * takes the tiles inside it, and spends one.
-   * The server finds the shape, so a client never names what it gets.
-   *
    * @generated from enum value: BONUS_KIND_ENCLOSE_CLICKS = 4;
    */
   ENCLOSE_CLICKS = 4,
@@ -107,64 +77,35 @@ proto3.util.setEnumType(BonusKind, "planet.v1.BonusKind", [
 ]);
 
 /**
- * What the rate limiter has left for the caller, and the policy it refills
- * under. The policy travels with the reading because a client that displays
- * the allowance replays the refill itself between two answers — that is what
- * keeps the number honest without polling.
- *
- * It rides on every click answer, accepted or refused, so the client is never
- * more than one click away from the truth.
- *
- * Every click costs one token, so the first three are counted in clicks. The
- * bank's size is the same whatever the country and whether the caller signed
- * in: a big country and signing in only move how fast it refills.
- *
  * @generated from message planet.v1.ClickBudget
  */
 export class ClickBudget extends Message<ClickBudget> {
   /**
-   * Clicks left, fractional: 6.4 means six clicks now, and the seventh in
-   * 600ms at a refill of one per second.
-   *
    * @generated from field: double tokens = 1;
    */
   tokens = 0;
 
   /**
-   * The most a caller can bank: the burst, in clicks.
-   *
    * @generated from field: uint32 capacity = 2;
    */
   capacity = 0;
 
   /**
-   * Clicks granted back per second, at the pace set by the caller's last click:
-   * its country's slowdown, signing in, and a running bonus all move it.
-   *
    * @generated from field: double refill_per_second = 3;
    */
   refillPerSecond = 0;
 
   /**
-   * How many times slower a player of the country asked about gets its clicks
-   * back, from the country's share of the map: 1.5 is half as slow again. It
-   * applies from the next click for that country on. Zero from a server too old
-   * to know, which means one.
-   *
    * @generated from field: double slowdown = 8;
    */
   slowdown = 0;
 
   /**
-   * The fraction of the whole map the country holds, 0 to 1.
-   *
    * @generated from field: double share = 5;
    */
   share = 0;
 
   /**
-   * The share at which the refill slows to next_slowdown. Zero at the top step.
-   *
    * @generated from field: double next_share = 6;
    */
   nextShare = 0;
@@ -175,21 +116,11 @@ export class ClickBudget extends Message<ClickBudget> {
   nextSlowdown = 0;
 
   /**
-   * How many times a guest's refill an account that signed in with a provider
-   * gets: 2 is twice as fast, into a bank of the same size. It is the same for
-   * every caller, so a guest can be told what signing in is worth. Zero from a
-   * server too old to grant one, which means signing in changes nothing.
-   *
    * @generated from field: double linked_multiplier = 10;
    */
   linkedMultiplier = 0;
 
   /**
-   * Who else spends from the bucket this reading is of. A click spends from
-   * several buckets and the reading is the tightest, so this is how a caller
-   * learns why it holds fewer clicks than it spent: somebody else behind its
-   * address spent them.
-   *
    * @generated from field: planet.v1.SharedWith shared_with = 11;
    */
   sharedWith = SharedWith.UNSPECIFIED;
@@ -245,22 +176,11 @@ export class ClickRequest extends Message<ClickRequest> {
   countryId = "";
 
   /**
-   * The player switched spread on: this click spends one spread click, when
-   * the pool has one, and also takes the tiles touching it. Off, a pool is
-   * never touched: a charge is used only when the player chooses.
-   *
    * @generated from field: bool spread = 3;
    */
   spread = false;
 
   /**
-   * The player switched enclose on: if this click closes a shape, it takes the
-   * tiles inside and spends one enclosure. Off, closing a shape takes nothing
-   * and spends nothing.
-   *
-   * One bonus per click: spread and enclose both set is refused with
-   * INVALID_ARGUMENT, and nothing is written or spent.
-   *
    * @generated from field: bool enclose = 4;
    */
   enclose = false;
@@ -301,8 +221,6 @@ export class ClickRequest extends Message<ClickRequest> {
  */
 export class ClickResponse extends Message<ClickResponse> {
   /**
-   * Absent from a server that does not rate limit clicks.
-   *
    * @generated from field: planet.v1.ClickBudget budget = 1;
    */
   budget?: ClickBudget;
@@ -340,9 +258,6 @@ export class ClickResponse extends Message<ClickResponse> {
  */
 export class GetBudgetRequest extends Message<GetBudgetRequest> {
   /**
-   * The country the answer's slowdown is for. The bucket itself refills at the
-   * pace of the caller's last click until the next one.
-   *
    * @generated from field: string country_id = 1;
    */
   countryId = "";
@@ -604,14 +519,6 @@ export class ListenForEventsRequest extends Message<ListenForEventsRequest> {
 }
 
 /**
- * The one live stream this API has. Everything it pushes travels in this
- * envelope, so a new kind of event is a new case below rather than a second
- * stream: one connection per client, one route, and a client that does not
- * know a case skips it instead of breaking.
- *
- * Heartbeat is what keeps a quiet stream alive — Cloudflare cuts a silent
- * response at ~125s with a 524.
- *
  * @generated from message planet.v1.PlanetEvent
  */
 export class PlanetEvent extends Message<PlanetEvent> {
@@ -632,55 +539,36 @@ export class PlanetEvent extends Message<PlanetEvent> {
     case: "heartbeat";
   } | {
     /**
-     * Addressed to one client: it is sent down the stream of the caller the
-     * server drew, and nobody else's.
-     *
      * @generated from field: planet.v1.BonusOffered bonus_offered = 3;
      */
     value: BonusOffered;
     case: "bonusOffered";
   } | {
     /**
-     * Broadcast to everyone, so catching a box is something the whole planet
-     * sees rather than a private event.
-     *
      * @generated from field: planet.v1.BonusTaken bonus_taken = 4;
      */
     value: BonusTaken;
     case: "bonusTaken";
   } | {
     /**
-     * Broadcast to everyone. It travels in order with the tile updates, so a
-     * tile retaken just after the blast is never blanked by it.
-     *
      * @generated from field: planet.v1.BombDropped bomb_dropped = 5;
      */
     value: BombDropped;
     case: "bombDropped";
   } | {
     /**
-     * Broadcast to everyone: a player closed a shape and took what was inside.
-     * The tiles themselves still arrive as tile updates; this is what lets every
-     * client show why they changed.
-     *
      * @generated from field: planet.v1.TilesEnclosed tiles_enclosed = 6;
      */
     value: TilesEnclosed;
     case: "tilesEnclosed";
   } | {
     /**
-     * Broadcast to everyone, like tiles_enclosed: the tiles arrive as tile
-     * updates, and this says a spread bonus is why, so every client can show it.
-     *
      * @generated from field: planet.v1.TilesSpread tiles_spread = 7;
      */
     value: TilesSpread;
     case: "tilesSpread";
   } | {
     /**
-     * Addressed to one client, like bonus_offered: a question that client alone
-     * may answer, for a charge.
-     *
      * @generated from field: planet.v1.QuizOffered quiz_offered = 8;
      */
     value: QuizOffered;
@@ -723,41 +611,25 @@ export class PlanetEvent extends Message<PlanetEvent> {
 }
 
 /**
- * The bonuses a player holds, by the account the token names: a refill and a
- * bomb at most, a stack of enclosures and a pool of spread clicks, each up to
- * its size in GetBonusRules. While one is held, or a stack or a pool is full,
- * no box of that kind is offered. Nothing lapses: each is kept until the player
- * uses it.
- *
  * @generated from message planet.v1.ChargesHeld
  */
 export class ChargesHeld extends Message<ChargesHeld> {
   /**
-   * A refill, to fill the click bank with UseRefill.
-   *
    * @generated from field: bool refill = 4;
    */
   refill = false;
 
   /**
-   * A bomb, to be dropped anywhere with DropBomb.
-   *
    * @generated from field: bool bomb = 1;
    */
   bomb = false;
 
   /**
-   * The enclose charges stacked. With enclose switched on, a click that closes
-   * a shape of the player's own tiles takes the tiles inside it and spends one.
-   *
    * @generated from field: uint32 enclosures = 2;
    */
   enclosures = 0;
 
   /**
-   * The spread clicks in the pool, up to GetBonusRules.spread_clicks. Zero is
-   * none.
-   *
    * @generated from field: uint32 spread_clicks_left = 3;
    */
   spreadClicksLeft = 0;
@@ -893,49 +765,30 @@ export class GetBonusRulesRequest extends Message<GetBonusRulesRequest> {
 }
 
 /**
- * How big each charge is, and what a click does on a country's own ground. Game
- * configuration, not state: it only changes with a deploy.
- *
  * @generated from message planet.v1.GetBonusRulesResponse
  */
 export class GetBonusRulesResponse extends Message<GetBonusRulesResponse> {
   /**
-   * How wide a bomb's blast is, in radians of arc, so the client draws the
-   * aiming ring at the size of what it will clear.
-   *
    * @generated from field: double blast_radius = 1;
    */
   blastRadius = 0;
 
   /**
-   * The most tiles an enclosed shape may hold.
-   *
    * @generated from field: uint32 enclosure_max_tiles = 2;
    */
   enclosureMaxTiles = 0;
 
   /**
-   * The most spread clicks the pool holds. A box adds a few, up to this.
-   *
    * @generated from field: uint32 spread_clicks = 3;
    */
   spreadClicks = 0;
 
   /**
-   * The most enclose charges a player stacks. A box adds a few, up to this.
-   *
    * @generated from field: uint32 enclosures = 4;
    */
   enclosures = 0;
 
   /**
-   * Native land takes two clicks. On a country's own ground, a tile wearing
-   * that country's flag is cleared to nobody by a click for any other flag,
-   * not taken; the next click on the empty tile takes it. Each click still
-   * costs one. The client paints its own click from this, with the borders
-   * blob, so it does not paint a flag the server did not write. Spread and
-   * enclose follow the same rule on every tile they touch.
-   *
    * @generated from field: bool home_soil = 5;
    */
   homeSoil = false;
@@ -973,22 +826,15 @@ export class GetBonusRulesResponse extends Message<GetBonusRulesResponse> {
 }
 
 /**
- * A box put in front of one player, and the token that claims it.
- *
  * @generated from message planet.v1.BonusOffered
  */
 export class BonusOffered extends Message<BonusOffered> {
   /**
-   * Unguessable, single use, and only good for the caller it was sent to.
-   *
    * @generated from field: string token = 1;
    */
   token = "";
 
   /**
-   * Names the flight path. Every client draws the same orbit from it, so the
-   * server sends one number instead of a trajectory.
-   *
    * @generated from field: uint32 seed = 2;
    */
   seed = 0;
@@ -999,8 +845,6 @@ export class BonusOffered extends Message<BonusOffered> {
   kind = BonusKind.UNSPECIFIED;
 
   /**
-   * After this the token is refused, whatever the client is still drawing.
-   *
    * @generated from field: int64 expires_at_unix_ms = 5;
    */
   expiresAtUnixMs = protoInt64.zero;
@@ -1037,9 +881,6 @@ export class BonusOffered extends Message<BonusOffered> {
 }
 
 /**
- * Somebody caught one. Carries no token and names no address — it exists so the
- * rest of the planet sees it happen.
- *
  * @generated from message planet.v1.BonusTaken
  */
 export class BonusTaken extends Message<BonusTaken> {
@@ -1054,11 +895,6 @@ export class BonusTaken extends Message<BonusTaken> {
   kind = BonusKind.UNSPECIFIED;
 
   /**
-   * Set when the charge was won by answering a quiz rather than by catching a
-   * box: the country the question was about. Empty for a box, and empty for a
-   * quiz about nowhere in particular. A client too old to know it reads the
-   * whole thing as an ordinary catch, which it is.
-   *
    * @generated from field: string quiz_subject_country_id = 3;
    */
   quizSubjectCountryId = "";
@@ -1103,8 +939,6 @@ export class ClaimBonusRequest extends Message<ClaimBonusRequest> {
   token = "";
 
   /**
-   * What to say the catcher was playing for, in the broadcast that follows.
-   *
    * @generated from field: string country_id = 2;
    */
   countryId = "";
@@ -1148,17 +982,11 @@ export class ClaimBonusResponse extends Message<ClaimBonusResponse> {
   kind = BonusKind.UNSPECIFIED;
 
   /**
-   * How much the box gave, drawn by the server: enclosures or spread clicks.
-   * One for a refill or a bomb. What is held may be less than this added, when
-   * a stack or a pool was near its size.
-   *
    * @generated from field: uint32 amount = 8;
    */
   amount = 0;
 
   /**
-   * What the caller holds once this box is granted.
-   *
    * @generated from field: planet.v1.ChargesHeld charges = 7;
    */
   charges?: ChargesHeld;
@@ -1194,33 +1022,15 @@ export class ClaimBonusResponse extends Message<ClaimBonusResponse> {
 }
 
 /**
- * A question put in front of one player, and the token that opens it.
- *
- * **It says nothing about the question.** No text, no choices, and no subject:
- * a banner is only an invitation, and anything on it is something a client can
- * read at leisure before the clock starts. The seconds begin at OpenQuiz.
- *
- * The subject was on here once, to fly a flag. It gave the answer away for 417
- * of the bank's 1014 questions — every "Tallinn is the capital of which
- * country?" and every "which of these has the most people?" is answered by the
- * flag beside it. A teaser that has to be checked against every question in the
- * bank is a teaser that will leak again the first time a template is added, so
- * there is none.
- *
  * @generated from message planet.v1.QuizOffered
  */
 export class QuizOffered extends Message<QuizOffered> {
   /**
-   * Unguessable, single use, and only good for the caller it was sent to.
-   *
    * @generated from field: string token = 1;
    */
   token = "";
 
   /**
-   * After this the banner is gone, whatever the client is still drawing. This
-   * is the invitation lapsing, not the answer clock: opening it starts that.
-   *
    * @generated from field: int64 expires_at_unix_ms = 2;
    */
   expiresAtUnixMs = protoInt64.zero;
@@ -1301,27 +1111,16 @@ export class OpenQuizResponse extends Message<OpenQuizResponse> {
   question = "";
 
   /**
-   * Exactly three, already shuffled by the server, and which one is right is
-   * not said. The same question opened twice gives the same three in the same
-   * order; a different question of the same bank entry gives different ones.
-   *
    * @generated from field: repeated string choices = 2;
    */
   choices: string[] = [];
 
   /**
-   * When an answer stops being accepted. Rides beside `answer_seconds` for the
-   * same reason ClickBudget carries its policy: a client rebuilds the clock
-   * from how long is *left*, since the two machines' wall clocks are unrelated.
-   *
    * @generated from field: int64 deadline_unix_ms = 3;
    */
   deadlineUnixMs = protoInt64.zero;
 
   /**
-   * How long the player was given, whole. What the countdown is drawn against,
-   * so a slow round trip shortens the bar rather than stretching the answer.
-   *
    * @generated from field: double answer_seconds = 4;
    */
   answerSeconds = 0;
@@ -1367,16 +1166,11 @@ export class AnswerQuizRequest extends Message<AnswerQuizRequest> {
   token = "";
 
   /**
-   * Which of the three choices, as OpenQuiz ordered them.
-   *
    * @generated from field: uint32 choice = 2;
    */
   choice = 0;
 
   /**
-   * What to say the answerer was playing for, in the broadcast that follows a
-   * right answer.
-   *
    * @generated from field: string country_id = 3;
    */
   countryId = "";
@@ -1421,27 +1215,16 @@ export class AnswerQuizResponse extends Message<AnswerQuizResponse> {
   correct = false;
 
   /**
-   * Which one it was, whatever the player pressed: a quiz that will not say is
-   * a quiz nobody learns anything from, and the bank is not a secret worth
-   * keeping past the answer — only the mapping from *this* question to it is,
-   * and that is spent now.
-   *
    * @generated from field: uint32 correct_choice = 2;
    */
   correctChoice = 0;
 
   /**
-   * What the right answer was worth. Unspecified when the answer was wrong or
-   * late, and then `amount` is zero and `charges` is what was already held.
-   *
    * @generated from field: planet.v1.BonusKind kind = 3;
    */
   kind = BonusKind.UNSPECIFIED;
 
   /**
-   * How much it gave: enclosures or spread clicks, one for a refill or a bomb.
-   * What is held may be less than this, when a stack or a pool was near its size.
-   *
    * @generated from field: uint32 amount = 4;
    */
   amount = 0;
@@ -1488,8 +1271,6 @@ export class AnswerQuizResponse extends Message<AnswerQuizResponse> {
  */
 export class UseRefillRequest extends Message<UseRefillRequest> {
   /**
-   * The country the allowance that comes back is priced for.
-   *
    * @generated from field: string country_id = 1;
    */
   countryId = "";
@@ -1527,15 +1308,11 @@ export class UseRefillRequest extends Message<UseRefillRequest> {
  */
 export class UseRefillResponse extends Message<UseRefillResponse> {
   /**
-   * The allowance once the bank is full.
-   *
    * @generated from field: planet.v1.ClickBudget budget = 1;
    */
   budget?: ClickBudget;
 
   /**
-   * What the caller holds once the refill is spent.
-   *
    * @generated from field: planet.v1.ChargesHeld charges = 2;
    */
   charges?: ChargesHeld;
@@ -1570,8 +1347,6 @@ export class UseRefillResponse extends Message<UseRefillResponse> {
 }
 
 /**
- * A point on the globe, as a direction from its centre. Need not be unit length.
- *
  * @generated from message planet.v1.GlobePoint
  */
 export class GlobePoint extends Message<GlobePoint> {
@@ -1625,16 +1400,11 @@ export class GlobePoint extends Message<GlobePoint> {
  */
 export class DropBombRequest extends Message<DropBombRequest> {
   /**
-   * Where the player aimed, not a tile: the sea has no tiles, and whether the
-   * aim is on land or in the water is the server's call.
-   *
    * @generated from field: planet.v1.GlobePoint target = 1;
    */
   target?: GlobePoint;
 
   /**
-   * What to say the bomber was playing for, in the broadcast that follows.
-   *
    * @generated from field: string country_id = 2;
    */
   countryId = "";
@@ -1700,15 +1470,10 @@ export class DropBombResponse extends Message<DropBombResponse> {
 }
 
 /**
- * A bomb landed. Everything a client needs to draw it and to clear the map.
- *
  * @generated from message planet.v1.BombDropped
  */
 export class BombDropped extends Message<BombDropped> {
   /**
-   * The tile it hit. Zero when it fell in the sea: the bomb is spent, nothing
-   * is cleared, and the client draws a splash.
-   *
    * @generated from field: uint32 tile_id = 1;
    */
   tileId = 0;
@@ -1719,24 +1484,16 @@ export class BombDropped extends Message<BombDropped> {
   countryId = "";
 
   /**
-   * Radians of arc, so the drawing matches what was cleared.
-   *
    * @generated from field: double radius = 3;
    */
   radius = 0;
 
   /**
-   * The tiles that were held and now are not. Carried here rather than as one
-   * TileUpdate each, so the client can hold them back until the blast hits.
-   *
    * @generated from field: repeated uint32 cleared_tile_ids = 4;
    */
   clearedTileIds: number[] = [];
 
   /**
-   * Where to draw it, on the unit sphere: the tile's centre, or the aimed spot
-   * in the sea.
-   *
    * @generated from field: planet.v1.GlobePoint point = 5;
    */
   point?: GlobePoint;
@@ -1774,8 +1531,6 @@ export class BombDropped extends Message<BombDropped> {
 }
 
 /**
- * A shape closed by an enclose bonus, and what it took.
- *
  * @generated from message planet.v1.TilesEnclosed
  */
 export class TilesEnclosed extends Message<TilesEnclosed> {
@@ -1785,30 +1540,21 @@ export class TilesEnclosed extends Message<TilesEnclosed> {
   countryId = "";
 
   /**
-   * The click that closed the shape. It is one of the wall tiles.
-   *
    * @generated from field: uint32 closing_tile_id = 2;
    */
   closingTileId = 0;
 
   /**
-   * The player's tiles that touch the inside: the shape's outline.
-   *
    * @generated from field: repeated uint32 wall_tile_ids = 3;
    */
   wallTileIds: number[] = [];
 
   /**
-   * The tiles taken, nearest the closing tile first. With home_soil, a tile
-   * on another country's own ground that wore its flag is cleared instead.
-   *
    * @generated from field: repeated uint32 filled_tile_ids = 4;
    */
   filledTileIds: number[] = [];
 
   /**
-   * Set only on the stream of the caller who closed it.
-   *
    * @generated from field: bool yours = 5;
    */
   yours = false;
@@ -1846,8 +1592,6 @@ export class TilesEnclosed extends Message<TilesEnclosed> {
 }
 
 /**
- * A click made under a spread bonus, and the tiles it spread onto.
- *
  * @generated from message planet.v1.TilesSpread
  */
 export class TilesSpread extends Message<TilesSpread> {
@@ -1857,17 +1601,11 @@ export class TilesSpread extends Message<TilesSpread> {
   countryId = "";
 
   /**
-   * The tile the player clicked.
-   *
    * @generated from field: uint32 tile_id = 2;
    */
   tileId = 0;
 
   /**
-   * The tiles touching it, which the click also took. Empty for a lone island.
-   * With home_soil, a tile on another country's own ground that wore its flag
-   * is cleared instead.
-   *
    * @generated from field: repeated uint32 spread_tile_ids = 3;
    */
   spreadTileIds: number[] = [];

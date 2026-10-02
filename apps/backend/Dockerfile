@@ -14,7 +14,6 @@ RUN --mount=type=cache,target="/root/.cache/go-build" \
     go build -o /root/bin/api ./cmd/api;
 
 
-# runner final image
 FROM alpine:3 AS cmd
 
 ARG SYSTEM_USER=clickplanet

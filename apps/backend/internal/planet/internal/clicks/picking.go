@@ -6,20 +6,17 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 )
 
-// Random is the draw a pick makes; SystemRandom and a seeded *rand.Rand both satisfy it.
 type Random interface {
 	IntN(n int) int
 	Float64() float64
 }
 
-// SystemRandom is math/rand/v2's global source, which is safe for concurrent calls.
 type SystemRandom struct{}
 
 func (SystemRandom) IntN(n int) int { return rand.IntN(n) } //nolint:gosec // an operator's pick, not a secret.
 
 func (SystemRandom) Float64() float64 { return rand.Float64() } //nolint:gosec // an operator's pick, not a secret.
 
-// Pick draws count tiles: with probability proximity an eligible tile touching one picked, else a seed.
 func Pick(
 	seeds []uint32,
 	count int,
@@ -56,7 +53,6 @@ func Pick(
 	return picked
 }
 
-// drawSet is a set with a uniform draw: a slice to index into and a map to remove from it in O(1).
 type drawSet struct {
 	tiles []uint32
 	index map[uint32]int

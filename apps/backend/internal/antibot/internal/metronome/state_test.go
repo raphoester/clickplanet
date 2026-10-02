@@ -13,7 +13,6 @@ import (
 
 var restartConfig = Config{MaxGap: 3 * time.Second, MinClicks: 60, CertainFor: 10 * time.Minute, CertainClicks: 60, TrackWindow: time.Hour}
 
-// loop tries a click every second for d.
 func loop(w *Watchdog, clock *cptime.FixedClock, d time.Duration) {
 	for end := clock.Now().Add(d); clock.Now().Before(end); {
 		clock.Advance(time.Second)
@@ -21,7 +20,6 @@ func loop(w *Watchdog, clock *cptime.FixedClock, d time.Duration) {
 	}
 }
 
-// restart saves w, lets the outage pass, and hands back the process that loaded it.
 func restart(t *testing.T, w *Watchdog, clock *cptime.FixedClock, outage time.Duration) *Watchdog {
 	t.Helper()
 
@@ -143,7 +141,6 @@ func TestAPauseAroundARestartStillEndsTheRun(t *testing.T) {
 	w := New(restartConfig, clock, func(float64) {}, func(float64) {}, func(time.Duration) {})
 	loop(w, clock, 2*time.Minute)
 
-	// Stopped 2s before the save and came back 2s after the new process started watching.
 	clock.Advance(2 * time.Second)
 	w = restart(t, w, clock, 40*time.Second)
 	clock.Advance(2 * time.Second)

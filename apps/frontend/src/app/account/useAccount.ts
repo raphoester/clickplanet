@@ -5,7 +5,6 @@ const HIDDEN: AccountState = {kind: "hidden"}
 const hidden = () => HIDDEN
 const noSubscription = () => () => {}
 
-/** The store's state, loaded on first use. No store — the fake backend — is hidden. */
 export function useAccount(store?: AccountStore): AccountState {
     const state = useSyncExternalStore(store?.subscribe ?? noSubscription, store?.state ?? hidden)
 

@@ -16,7 +16,6 @@ export type AccountButtonProps = {
     buttonRef?: React.Ref<HTMLButtonElement>
 }
 
-/** One icon in the menu's actions. Login is optional, so it asks for nothing more than this. */
 export function AccountButton({state, onOpen, buttonRef}: AccountButtonProps) {
     const label = state.me.linked.length > 0 ? "Account" : "Sign in"
     return <button ref={buttonRef}
@@ -33,7 +32,6 @@ export type AccountPanelProps = {
     state: Ready
     store: AccountStore
     onDelete: () => void
-    /** What signing in multiplies the click allowance by, as the server said. */
     linkedMultiplier?: number
 }
 
@@ -51,7 +49,6 @@ export default function AccountPanel({state, store, onDelete, linkedMultiplier}:
             </p>
             : <p className="account-text">Signed in with {providerList(linked)}.</p>}
 
-        {/* Keyed on the name, so a read or a save that lands resets what is typed. */}
         {linked.length > 0 && <UsernameForm key={state.username ?? ""} state={state} store={store}/>}
 
         {toLink.map((provider) => <ProviderButton key={provider}
@@ -89,10 +86,9 @@ export default function AccountPanel({state, store, onDelete, linkedMultiplier}:
     </div>
 }
 
-/** The input counts UTF-16 units, the rule code points: room for letters past the BMP and spaces at the ends. */
+// maxLength counts UTF-16 units; the username rule counts code points.
 const MAX_INPUT_LENGTH = MAX_USERNAME_LENGTH * 2
 
-/** The username the chat shows. Only a linked account has one. */
 function UsernameForm({state, store}: {state: Ready, store: AccountStore}) {
     const current = state.username ?? ""
     const [draft, setDraft] = useState(current)

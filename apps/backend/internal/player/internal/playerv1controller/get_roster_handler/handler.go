@@ -1,4 +1,3 @@
-// Package get_roster_handler serves player.v1.PlayerService/GetRoster.
 package get_roster_handler
 
 import (
@@ -12,7 +11,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence"
 )
 
-// maxAge lets a proxy serve one roster to every client that asks within it, for clients that still poll it.
 const maxAge = 5
 
 type UseCase interface {
@@ -27,7 +25,6 @@ type GetRosterHandler struct {
 	useCase UseCase
 }
 
-// GetRoster needs no token: the session interceptor does not list it.
 func (h GetRosterHandler) GetRoster(
 	_ context.Context,
 	_ *connect.Request[playerv1.GetRosterRequest],
