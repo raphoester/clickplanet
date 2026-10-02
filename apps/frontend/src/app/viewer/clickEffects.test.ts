@@ -95,15 +95,21 @@ describe("choreographClick", () => {
         expect(waves).toHaveLength(1)
     })
 
-    it("is plainer than any bonus: fainter, smaller and over sooner", () => {
+    it("is plainer than any bonus: one ring, and over sooner", () => {
         const click = choreographClick(1, positions)
 
         for (const bonus of [choreographSpread(spread, positions), choreographClear(1, positions)]) {
             expect(click.lifetime).toBeLessThan(bonus.lifetime)
             expect(click.reach).toBeLessThan(bonus.reach)
-            expect(click.minReachPx).toBeLessThan(bonus.minReachPx)
-            for (const wave of bonus.waves) expect(click.waves[0].peak).toBeLessThan(wave.peak)
         }
+    })
+
+    it("is not faint: full strength, outlined, and big enough to catch the eye zoomed out", () => {
+        const click = choreographClick(1, positions)
+
+        expect(click.waves[0].peak).toBe(1)
+        expect(click.rim).toBeGreaterThan(0)
+        expect(click.minReachPx).toBeGreaterThanOrEqual(40)
     })
 })
 

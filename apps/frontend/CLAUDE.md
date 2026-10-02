@@ -957,8 +957,11 @@ mint a guest and insert a row into `auth.identities` for its account.
   the tile a click named, never on a spread's neighbours, an enclosure's inside or
   a moderator's write. Own clicks echoed back are skipped through `OwnClicks`.
   **It is deliberately plainer than any bonus**, since it is by far the most
-  frequent: one thin sky-blue ring, 0.5s, no spark (`clickEffects.test.ts` pins
-  that). Sky blue rather than white, which vanished on the white of a flag. **A
+  frequent: one sky-blue ring, 0.7s, no spark (`clickEffects.test.ts` pins
+  that). **Plain is not faint**: the first one (half strength, 20px, 0.5s) could
+  barely be seen, so it runs at full strength, at least 44px, with a dark edge
+  (`rim`, 0 on every other ring) that makes it read on a white flag as well as on
+  the sea. Sky blue rather than white, which vanished on the white of a flag. **A
   click out of view is not played** (`inView`): on the far side or off the screen
   it would cost frames and show nothing. Plain clicks run in a second instance,
   so a busy planet's clicks never push a spread off the screen. With less motion

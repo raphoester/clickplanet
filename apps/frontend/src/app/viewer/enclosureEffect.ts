@@ -216,6 +216,7 @@ export function createEnclosureEffects(positions: ArrayLike<number>): EnclosureE
                     colour: {value: GOLD},
                     radius: {value: 0},
                     opacity: {value: 0},
+                    rim: {value: 0},
                 },
                 vertexShader: waveVertex,
                 fragmentShader: waveFragment,

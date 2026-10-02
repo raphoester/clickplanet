@@ -31,9 +31,11 @@ const CLEAR_DRIFT_REACH = 0.9
 
 const DUST = new THREE.Color(0.93, 0.8, 0.58)
 
-export const CLICK_LIFETIME_SECONDS = 0.5
+export const CLICK_LIFETIME_SECONDS = 0.7
 
-const CLICK_PEAK = 0.5
+const CLICK_PEAK = 1
+
+const CLICK_RIM = 0.6
 
 const SKY = new THREE.Color(0.35, 0.75, 1.0)
 
@@ -59,6 +61,7 @@ export type Choreography = {
     minReachPx: number
     lifetime: number
     colour: THREE.Color
+    rim: number
 }
 
 const at = (positions: ArrayLike<number>, tile: number) => new THREE.Vector3(
@@ -103,6 +106,7 @@ export function choreographSpread(spread: SpreadClick, positions: ArrayLike<numb
         minReachPx: 60,
         lifetime: SPREAD_LIFETIME_SECONDS,
         colour: GREEN,
+        rim: 0,
     }
 }
 
@@ -128,19 +132,21 @@ export function choreographClear(tile: number, positions: ArrayLike<number>): Ch
         minReachPx: 36,
         lifetime: CLEAR_LIFETIME_SECONDS,
         colour: DUST,
+        rim: 0,
     }
 }
 
-// Every click plays this, so it stays plainer than any bonus: one faint ring, no spark.
+// Every click plays this, so it stays plainer than any bonus: one ring, no spark. Plain, not faint.
 export function choreographClick(tile: number, positions: ArrayLike<number>): Choreography {
     return {
         sparks: [],
         waves: [{startsAt: 0, seconds: CLICK_LIFETIME_SECONDS, peak: CLICK_PEAK}],
         centre: at(positions, tile),
         reach: TILE_SPACING * 2,
-        minReachPx: 20,
+        minReachPx: 44,
         lifetime: CLICK_LIFETIME_SECONDS,
         colour: SKY,
+        rim: CLICK_RIM,
     }
 }
 
@@ -286,6 +292,7 @@ export function createClickEffects(positions: ArrayLike<number>): ClickEffects {
                     colour: {value: choreography.colour},
                     radius: {value: 0},
                     opacity: {value: 0},
+                    rim: {value: choreography.rim},
                 },
                 vertexShader: waveVertex,
                 fragmentShader: waveFragment,
