@@ -11,13 +11,15 @@ import (
 type MessageID string
 
 type Message struct {
-	ID          MessageID
-	SentAt      time.Time
-	Account     AccountID
-	AuthorName  string
-	AuthorAdmin bool
-	CountryID   string
-	Text        string
+	ID           MessageID
+	SentAt       time.Time
+	Account      AccountID
+	AuthorName   string
+	AuthorAdmin  bool
+	AuthorColor  int32
+	AuthorStreak uint32
+	CountryID    string
+	Text         string
 }
 
 const DeletedName = "[deleted]"
@@ -37,6 +39,8 @@ func Named(message Message, authors map[AccountID]Author) Message {
 
 	message.AuthorName = author.Name
 	message.AuthorAdmin = author.Admin
+	message.AuthorColor = author.Color
+	message.AuthorStreak = author.Streak
 	return message
 }
 

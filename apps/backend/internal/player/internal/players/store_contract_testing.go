@@ -424,3 +424,49 @@ func (s *StoreContractSuite) TestNoAccountsAskedIsNoAuthors() {
 	s.Require().NoError(err)
 	s.Empty(authors)
 }
+
+func (s *StoreContractSuite) TestAColorNeedsAProfile() {
+	err := s.store.SaveColor(s.T().Context(), AccountID{15: 1}, 3)
+
+	s.Require().ErrorIs(err, ErrNoProfile, "a guest has no name to color")
+}
+
+func (s *StoreContractSuite) TestAColorIsReadAndARenameKeepsIt() {
+	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(1, "Ada")))
+	s.Require().NoError(s.store.SaveColor(s.T().Context(), AccountID{15: 1}, 3))
+	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(1, "Ada_L")), "a saved profile says nothing of color")
+
+	profile, err := s.store.Profile(s.T().Context(), AccountID{15: 1})
+	s.Require().NoError(err)
+	s.Equal(Color(3), profile.Color)
+	named, err := s.store.ProfileNamed(s.T().Context(), "ada_l")
+	s.Require().NoError(err)
+	s.Equal(Color(3), named.Color)
+}
+
+func (s *StoreContractSuite) TestAColorCanBeTakenBack() {
+	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(1, "Ada")))
+	s.Require().NoError(s.store.SaveColor(s.T().Context(), AccountID{15: 1}, 3))
+	s.Require().NoError(s.store.SaveColor(s.T().Context(), AccountID{15: 1}, 0))
+
+	profile, err := s.store.Profile(s.T().Context(), AccountID{15: 1})
+	s.Require().NoError(err)
+	s.Equal(Color(0), profile.Color)
+}
+
+func (s *StoreContractSuite) TestAuthorsCarryTheColorAndTheStreakAsStored() {
+	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(1, "Ada")))
+	s.Require().NoError(s.store.SaveColor(s.T().Context(), AccountID{15: 1}, 3))
+	s.recordTake(1, contractAt)
+	s.recordTake(1, contractAt.Add(time.Hour))
+	s.Require().NoError(s.store.SaveGuestCode(s.T().Context(), AccountID{15: 2}, "91aa3d"))
+	s.recordTake(2, contractAt)
+
+	authors, err := s.store.Authors(s.T().Context(), []AccountID{{15: 1}, {15: 2}})
+
+	s.Require().NoError(err)
+	s.Equal(map[AccountID]Author{
+		{15: 1}: {Name: "Ada", Color: 3, Streak: Streak{Days: 2, LastDay: DayOf(contractAt.Add(time.Hour))}},
+		{15: 2}: {Name: ReservedPrefix + "91aa3d", Guest: true, Streak: Streak{Days: 1, LastDay: DayOf(contractAt)}},
+	}, authors, "the store does not know what day it is: the streak is read as of today above it")
+}

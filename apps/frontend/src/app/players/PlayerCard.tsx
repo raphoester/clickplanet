@@ -24,13 +24,14 @@ export default function PlayerCard({player, backend, onClose}: PlayerCardProps) 
     const country = Countries.get(player.countryCode)?.name ?? player.countryCode
 
     const admin = player.admin || (state.kind === "ready" && state.info.admin)
+    const color = state.kind === "ready" ? state.info.color : player.color
     const title = <span className="player-card-title">
         {truncate(player.name, NAME_MAX_LENGTH)}
         {admin && <AdminCrown size={20}/>}
     </span>
 
     return <Modal title={title} className="player-card" onClose={onClose}>
-        <div className="player-card-who" style={authorStyle(player.name)}>
+        <div className="player-card-who" style={authorStyle({...player, color})}>
             <span className="player-card-country" role="img" aria-label={country} title={country}>
                 <CountryFlag code={player.countryCode}/>
             </span>

@@ -5,6 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3 } from "@bufbuild/protobuf";
+import { NameColor } from "./color_pb.js";
 
 /**
  * @generated from message player.v1.GetAuthorRequest
@@ -57,6 +58,16 @@ export class GetAuthorResponse extends Message<GetAuthorResponse> {
    */
   admin = false;
 
+  /**
+   * @generated from field: player.v1.NameColor color = 4;
+   */
+  color = NameColor.UNSPECIFIED;
+
+  /**
+   * @generated from field: uint32 streak = 5;
+   */
+  streak = 0;
+
   constructor(data?: PartialMessage<GetAuthorResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -67,6 +78,8 @@ export class GetAuthorResponse extends Message<GetAuthorResponse> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "admin", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 4, name: "color", kind: "enum", T: proto3.getEnumType(NameColor) },
+    { no: 5, name: "streak", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetAuthorResponse {
@@ -179,6 +192,16 @@ export class Author extends Message<Author> {
    */
   admin = false;
 
+  /**
+   * @generated from field: player.v1.NameColor color = 4;
+   */
+  color = NameColor.UNSPECIFIED;
+
+  /**
+   * @generated from field: uint32 streak = 5;
+   */
+  streak = 0;
+
   constructor(data?: PartialMessage<Author>) {
     super();
     proto3.util.initPartial(data, this);
@@ -190,6 +213,8 @@ export class Author extends Message<Author> {
     { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "admin", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 4, name: "color", kind: "enum", T: proto3.getEnumType(NameColor) },
+    { no: 5, name: "streak", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Author {

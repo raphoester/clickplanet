@@ -37,7 +37,7 @@ func guestVisit() presence.Visit {
 }
 
 func useCase(store *inmemory_player_store.Store, visits *inmemory_visit_storage.Storage) *move_visit_usecase.UseCase {
-	authors := get_author_usecase.New(store, players.NewGuestCodes(store, &players.SequentialCodes{}))
+	authors := get_author_usecase.New(store, players.NewGuestCodes(store, &players.SequentialCodes{}), cptime.NewFixedClock(now))
 	return move_visit_usecase.New(authors, visits)
 }
 

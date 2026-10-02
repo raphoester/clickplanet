@@ -5,6 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
+import { NameColor } from "../../player/v1/color_pb.js";
 
 /**
  * @generated from enum chat.v1.Reaction
@@ -215,6 +216,16 @@ export class ChatMessage extends Message<ChatMessage> {
    */
   reactionsVersion = protoInt64.zero;
 
+  /**
+   * @generated from field: player.v1.NameColor author_color = 10;
+   */
+  authorColor = NameColor.UNSPECIFIED;
+
+  /**
+   * @generated from field: uint32 author_streak = 11;
+   */
+  authorStreak = 0;
+
   constructor(data?: PartialMessage<ChatMessage>) {
     super();
     proto3.util.initPartial(data, this);
@@ -231,6 +242,8 @@ export class ChatMessage extends Message<ChatMessage> {
     { no: 7, name: "author_admin", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 8, name: "reactions", kind: "message", T: ReactionCount, repeated: true },
     { no: 9, name: "reactions_version", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+    { no: 10, name: "author_color", kind: "enum", T: proto3.getEnumType(NameColor) },
+    { no: 11, name: "author_streak", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ChatMessage {

@@ -31,7 +31,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    color: hsl(var(--author-hue, 0), 80%, 78%);
+    color: hsl(var(--author-hue, 0), calc(80% * var(--author-chroma, 1)), 78%);
     text-shadow: -1px 1px 0 #000000;
 }
 

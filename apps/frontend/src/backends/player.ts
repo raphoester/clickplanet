@@ -1,4 +1,7 @@
+import {NameColor} from "../gen/grpc/player/v1/color_pb.ts"
 import {GUEST_PREFIX} from "./chat.ts"
+
+export {NameColor}
 
 export const MIN_USERNAME_LENGTH = 3
 export const MAX_USERNAME_LENGTH = 15
@@ -34,10 +37,16 @@ export type Profile = {
     name: string
 }
 
+export type ColoredProfile = Profile & {
+    color: NameColor
+}
+
 export interface PlayerBackend {
-    profile(): Promise<Profile>
+    profile(): Promise<ColoredProfile>
 
     setName(name: string): Promise<Profile>
+
+    setColor(color: NameColor): Promise<NameColor>
 }
 
 export type PlayerFailure =
@@ -45,6 +54,7 @@ export type PlayerFailure =
     | "taken"
     | "notSignedIn"
     | "guest"
+    | "unnamed"
     | "failed"
 
 export class PlayerError extends Error {
@@ -67,6 +77,8 @@ export type PlayerLine = {
     countryCode: string
     guest: boolean
     admin: boolean
+    color: NameColor
+    streak: number
 }
 
 export type RosterEntry = PlayerLine & {
@@ -100,6 +112,7 @@ export type PlayerInfo = {
     streakBest: number
     createdAt?: number
     admin: boolean
+    color: NameColor
     titles: PlayerTitle[]
 }
 

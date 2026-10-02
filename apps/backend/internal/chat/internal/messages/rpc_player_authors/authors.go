@@ -41,7 +41,12 @@ func (a *Authors) Author(ctx context.Context, account messages.AccountID) (messa
 		return messages.Author{}, fmt.Errorf("failed to ask the player module who posts: %w", err)
 	}
 
-	return messages.Author{Name: res.Msg.GetName(), Admin: res.Msg.GetAdmin()}, nil
+	return messages.Author{
+		Name:   res.Msg.GetName(),
+		Admin:  res.Msg.GetAdmin(),
+		Color:  int32(res.Msg.GetColor()),
+		Streak: res.Msg.GetStreak(),
+	}, nil
 }
 
 func (a *Authors) Authors(
@@ -74,8 +79,10 @@ func (a *Authors) Authors(
 
 	for _, author := range res.Msg.GetAuthors() {
 		found[messages.AccountIDOf(author.GetAccountId())] = messages.Author{
-			Name:  author.GetName(),
-			Admin: author.GetAdmin(),
+			Name:   author.GetName(),
+			Admin:  author.GetAdmin(),
+			Color:  int32(author.GetColor()),
+			Streak: author.GetStreak(),
 		}
 	}
 	return found, nil

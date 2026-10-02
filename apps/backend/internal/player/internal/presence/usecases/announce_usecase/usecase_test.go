@@ -37,7 +37,7 @@ func setup(t *testing.T) fixture {
 	store := inmemory_player_store.New()
 	require.NoError(t, store.SaveProfile(t.Context(), players.Profile{Account: ada, Name: "Ada_L", UpdatedAt: now}))
 	visits := inmemory_visit_storage.New(clock)
-	authors := get_author_usecase.New(store, players.NewGuestCodes(store, &players.SequentialCodes{}))
+	authors := get_author_usecase.New(store, players.NewGuestCodes(store, &players.SequentialCodes{}), cptime.NewFixedClock(now))
 
 	return fixture{
 		store:   store,

@@ -81,8 +81,26 @@ func (s *Store) SaveProfile(_ context.Context, profile players.Profile) error {
 			return players.ErrNameTaken
 		}
 	}
-	profile.Admin = s.profiles[profile.Account].Admin
+	held := s.profiles[profile.Account]
+	profile.Admin = held.Admin
+	profile.Color = held.Color
 	s.profiles[profile.Account] = profile
+	return nil
+}
+
+func (s *Store) SaveColor(_ context.Context, account players.AccountID, color players.Color) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.failWith != nil {
+		return s.failWith
+	}
+	profile, ok := s.profiles[account]
+	if !ok {
+		return players.ErrNoProfile
+	}
+	profile.Color = color
+	s.profiles[account] = profile
 	return nil
 }
 
@@ -264,15 +282,18 @@ func (s *Store) Authors(
 	}
 	authors := make(map[players.AccountID]players.Author, len(accounts))
 	for _, account := range accounts {
+		streak := s.stats[account].Streak()
 		if profile, ok := s.profiles[account]; ok {
 			authors[account] = players.Author{
-				Name:  players.DisplayNameOf(profile.Name, ""),
-				Admin: profile.Admin,
+				Name:   players.DisplayNameOf(profile.Name, ""),
+				Admin:  profile.Admin,
+				Color:  profile.Color,
+				Streak: streak,
 			}
 			continue
 		}
 		if code, ok := s.codes[account]; ok {
-			authors[account] = players.Author{Name: players.DisplayNameOf("", code), Guest: true}
+			authors[account] = players.Author{Name: players.DisplayNameOf("", code), Guest: true, Streak: streak}
 		}
 	}
 	return authors, nil

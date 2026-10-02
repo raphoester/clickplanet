@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AnnounceRequest, AnnounceResponse, GetPlayerRequest, GetPlayerResponse, GetProfileRequest, GetProfileResponse, GetRosterRequest, GetRosterResponse, GetStatsRequest, GetStatsResponse, LeaveRequest, LeaveResponse, ListenForEventsRequest, PlayerEvent, SetNameRequest, SetNameResponse } from "./player_pb.js";
+import { AnnounceRequest, AnnounceResponse, GetPlayerRequest, GetPlayerResponse, GetProfileRequest, GetProfileResponse, GetRosterRequest, GetRosterResponse, GetStatsRequest, GetStatsResponse, LeaveRequest, LeaveResponse, ListenForEventsRequest, PlayerEvent, SetColorRequest, SetColorResponse, SetNameRequest, SetNameResponse } from "./player_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -28,6 +28,15 @@ export const PlayerService = {
       name: "SetName",
       I: SetNameRequest,
       O: SetNameResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc player.v1.PlayerService.SetColor
+     */
+    setColor: {
+      name: "SetColor",
+      I: SetColorRequest,
+      O: SetColorResponse,
       kind: MethodKind.Unary,
     },
     /**

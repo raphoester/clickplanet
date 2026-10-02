@@ -3,9 +3,12 @@ import * as THREE from "three"
 import {
     CLEAR_DRIFT_SECONDS,
     CLEAR_LIFETIME_SECONDS,
+    CLICK_LIFETIME_SECONDS,
     choreographClear,
+    choreographClick,
     choreographSpread,
-    createBonusClickEffects,
+    createClickEffects,
+    inView,
     type Spark,
     sparkLook,
     SPREAD_LIFETIME_SECONDS,
@@ -13,7 +16,7 @@ import {
     SPREAD_THROW_STAGGER,
     SPREAD_TRAVEL_SECONDS,
     waveLook,
-} from "./bonusClickEffects.ts"
+} from "./clickEffects.ts"
 import type {SpreadClick} from "../../backends/backend.ts"
 
 const STEP = 0.004
@@ -83,6 +86,55 @@ describe("choreographClear", () => {
     })
 })
 
+describe("choreographClick", () => {
+    it("rings the tile clicked once, with no spark", () => {
+        const {sparks, waves, centre} = choreographClick(1, positions)
+
+        expect(centre.distanceTo(tileAt(1))).toBeLessThan(1e-6)
+        expect(sparks).toEqual([])
+        expect(waves).toHaveLength(1)
+    })
+
+    it("is plainer than any bonus: fainter, smaller and over sooner", () => {
+        const click = choreographClick(1, positions)
+
+        for (const bonus of [choreographSpread(spread, positions), choreographClear(1, positions)]) {
+            expect(click.lifetime).toBeLessThan(bonus.lifetime)
+            expect(click.reach).toBeLessThan(bonus.reach)
+            expect(click.minReachPx).toBeLessThan(bonus.minReachPx)
+            for (const wave of bonus.waves) expect(click.waves[0].peak).toBeLessThan(wave.peak)
+        }
+    })
+})
+
+describe("inView", () => {
+    const camera = () => {
+        const looking = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10)
+        looking.position.set(0, 0, 5)
+        looking.lookAt(0, 0, 0)
+        looking.updateMatrixWorld()
+        return looking
+    }
+
+    it("sees the side of the globe facing the camera", () => {
+        expect(inView(new THREE.Vector3(0, 0, 1), camera())).toBe(true)
+        expect(inView(new THREE.Vector3(0.6, 0, 0.8), camera())).toBe(true)
+    })
+
+    it("does not see the far side, though it projects inside the screen", () => {
+        expect(inView(new THREE.Vector3(0, 0, -1), camera())).toBe(false)
+    })
+
+    it("does not see what a zoom pushed off the screen", () => {
+        const zoomed = camera()
+        zoomed.zoom = 4
+        zoomed.updateProjectionMatrix()
+
+        expect(inView(new THREE.Vector3(0, 0, 1), zoomed)).toBe(true)
+        expect(inView(new THREE.Vector3(0.6, 0, 0.8), zoomed)).toBe(false)
+    })
+})
+
 describe("sparkLook", () => {
     const origin = new THREE.Vector3(0, 0, 1)
     const burst: Spark = {from: origin, to: origin, start: 0, travel: 0, role: "burst"}
@@ -139,7 +191,7 @@ describe("sparkLook", () => {
 
 describe("waveLook", () => {
     it("runs only for its own stretch, outwards and fading", () => {
-        const wave = {startsAt: 0.1, seconds: 0.5}
+        const wave = {startsAt: 0.1, seconds: 0.5, peak: 0.85}
 
         expect(waveLook(wave, 0.09)).toBeUndefined()
         expect(waveLook(wave, 0.6)).toBeUndefined()
@@ -151,11 +203,11 @@ describe("waveLook", () => {
     })
 })
 
-describe("createBonusClickEffects", () => {
+describe("createClickEffects", () => {
     const camera = new THREE.OrthographicCamera(-1, 1, 1, -1)
 
     it("starts an effect on the next frame and takes it off once it is over", () => {
-        const effects = createBonusClickEffects(positions)
+        const effects = createClickEffects(positions)
 
         effects.playSpread(spread)
         expect(effects.object.children.length).toBeGreaterThan(0)
@@ -171,7 +223,7 @@ describe("createBonusClickEffects", () => {
     })
 
     it("plays a clear's dust and takes it off once it is over", () => {
-        const effects = createBonusClickEffects(positions)
+        const effects = createClickEffects(positions)
 
         effects.playClear(1)
         expect(effects.object.children.length).toBeGreaterThan(0)
@@ -186,8 +238,38 @@ describe("createBonusClickEffects", () => {
         effects.dispose()
     })
 
+    it("rings a click in view and takes it off once it is over", () => {
+        const effects = createClickEffects(positions)
+        camera.position.set(0, 0, 5)
+        camera.lookAt(0, 0, 0)
+        camera.updateMatrixWorld()
+
+        effects.playClick(1, camera)
+        expect(effects.object.children.length).toBeGreaterThan(0)
+
+        expect(effects.update(1000, camera, 800, 1)).toBe(true)
+        expect(effects.update(1000 + CLICK_LIFETIME_SECONDS, camera, 800, 1)).toBe(true)
+        expect(effects.object.children).toHaveLength(0)
+        expect(effects.update(1000 + CLICK_LIFETIME_SECONDS + 0.1, camera, 800, 1)).toBe(false)
+
+        effects.dispose()
+    })
+
+    it("plays nothing for a click nobody can see", () => {
+        const effects = createClickEffects(new Float32Array([0, 0, -1]))
+        camera.position.set(0, 0, 5)
+        camera.lookAt(0, 0, 0)
+        camera.updateMatrixWorld()
+
+        effects.playClick(1, camera)
+
+        expect(effects.object.children).toHaveLength(0)
+        expect(effects.update(1000, camera, 800, 1)).toBe(false)
+        effects.dispose()
+    })
+
     it("keeps a fast run of clicks to a bounded number on screen", () => {
-        const effects = createBonusClickEffects(positions)
+        const effects = createClickEffects(positions)
 
         effects.playSpread(spread)
         const perClick = effects.object.children.length

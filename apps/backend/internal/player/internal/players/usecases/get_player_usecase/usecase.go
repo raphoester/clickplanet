@@ -75,6 +75,7 @@ func (u *UseCase) Execute(ctx context.Context, value string) (players.Player, er
 		Stats:     stats.AsOf(players.DayOf(u.clock.Now())),
 		CreatedAt: createdAt,
 		Admin:     profile.Admin,
+		Color:     profile.Color,
 		Titles:    titles,
 	}, nil
 }

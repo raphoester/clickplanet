@@ -178,6 +178,17 @@ func (p *gamer) setName(name string) (*playerv1.Profile, error) {
 	return res.Msg.GetProfile(), nil
 }
 
+func (p *gamer) setColor(color playerv1.NameColor) error {
+	p.t.Helper()
+
+	req := connect.NewRequest(&playerv1.SetColorRequest{Color: color})
+	p.send(req.Header())
+	if _, err := p.players().SetColor(p.t.Context(), req); err != nil {
+		return fmt.Errorf("SetColor failed: %w", err)
+	}
+	return nil
+}
+
 func (p *gamer) click(tile uint32, country string) {
 	p.t.Helper()
 

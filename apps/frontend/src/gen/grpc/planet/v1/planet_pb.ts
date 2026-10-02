@@ -1690,6 +1690,13 @@ export class TileUpdate extends Message<TileUpdate> {
    */
   previousCountryId = "";
 
+  /**
+   * Only the tile a click named: never a spread's neighbour, an enclosure's inside or a moderator's write.
+   *
+   * @generated from field: bool clicked = 4;
+   */
+  clicked = false;
+
   constructor(data?: PartialMessage<TileUpdate>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1701,6 +1708,7 @@ export class TileUpdate extends Message<TileUpdate> {
     { no: 1, name: "tile_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 2, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "previous_country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "clicked", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TileUpdate {

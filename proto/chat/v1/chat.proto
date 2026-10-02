@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package chat.v1;
 
+import "player/v1/color.proto";
+
 service ChatService {
   rpc SendMessage(SendMessageRequest) returns (SendMessageResponse);
 
@@ -52,6 +54,8 @@ message ChatMessage {
   bool author_admin = 7;
   repeated ReactionCount reactions = 8;
   uint64 reactions_version = 9;
+  player.v1.NameColor author_color = 10;
+  uint32 author_streak = 11;
 }
 
 message SendMessageRequest {

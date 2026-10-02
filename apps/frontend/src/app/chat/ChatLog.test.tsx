@@ -4,11 +4,12 @@ import {cleanup, render, screen} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import {ChatMessage} from "../../backends/chat.ts"
 import ChatLog from "./ChatLog.tsx"
+import {NameColor} from "../../backends/player.ts"
 
 afterEach(cleanup)
 
 const message = (id: string, authorName: string, countryCode: string): ChatMessage =>
-    ({id, sentAt: Date.UTC(2026, 8, 17, 12), authorName, authorAdmin: false, countryCode, text: "hello", reactions: [], reactionsVersion: 0})
+    ({id, sentAt: Date.UTC(2026, 8, 17, 12), authorName, authorAdmin: false, authorColor: NameColor.UNSPECIFIED, authorStreak: 0, countryCode, text: "hello", reactions: [], reactionsVersion: 0})
 
 describe("ChatLog", () => {
     it("opens the author of a message from its name, and tells a guest by its prefix", async () => {
@@ -21,8 +22,8 @@ describe("ChatLog", () => {
         await userEvent.click(screen.getByRole("button", {name: "guest_Bo"}))
 
         expect(onOpenPlayer.mock.calls).toEqual([
-            [{name: "Ana", countryCode: "fr", guest: false, admin: false}],
-            [{name: "guest_Bo", countryCode: "de", guest: true, admin: false}],
+            [{name: "Ana", countryCode: "fr", guest: false, admin: false, color: NameColor.UNSPECIFIED, streak: 0}],
+            [{name: "guest_Bo", countryCode: "de", guest: true, admin: false, color: NameColor.UNSPECIFIED, streak: 0}],
         ])
     })
 
@@ -47,6 +48,31 @@ describe("ChatLog", () => {
 
         expect(screen.getAllByRole("img", {name: "Admin"})).toHaveLength(1)
         await userEvent.click(screen.getByRole("button", {name: "Ana"}))
-        expect(onOpenPlayer).toHaveBeenCalledWith({name: "Ana", countryCode: "fr", guest: false, admin: true})
+        expect(onOpenPlayer).toHaveBeenCalledWith({
+            name: "Ana", countryCode: "fr", guest: false, admin: true, color: NameColor.UNSPECIFIED, streak: 0,
+        })
+    })
+
+    it("lights a flame beside a streak of three days or more, and keeps it on the player it opens", async () => {
+        const onOpenPlayer = vi.fn()
+        const burning = {...message("1", "Ana", "fr"), authorStreak: 12}
+        const starting = {...message("2", "kiran_07", "in"), authorStreak: 2}
+        render(<ChatLog loading={false} onOpenPlayer={onOpenPlayer} messages={[burning, starting]}/>)
+
+        expect(screen.getAllByRole("img", {name: /streak/})).toHaveLength(1)
+        expect(screen.getByRole("img", {name: "12-day streak"}).textContent).toBe("12")
+        await userEvent.click(screen.getByRole("button", {name: "Ana"}))
+        expect(onOpenPlayer).toHaveBeenCalledWith(expect.objectContaining({streak: 12}))
+    })
+
+    it("paints a name in the color its player chose, and a guest grey", () => {
+        const chosen = {...message("1", "Ana", "fr"), authorColor: NameColor.TEAL}
+        const guest = {...message("2", "guest_Bo", "de"), authorColor: NameColor.TEAL}
+        const {container} = render(<ChatLog loading={false} messages={[chosen, guest]}/>)
+
+        const [ana, bo] = [...container.querySelectorAll<HTMLElement>(".chat-message")]
+        expect(ana.style.getPropertyValue("--author-hue")).toBe("165")
+        expect(ana.style.getPropertyValue("--author-chroma")).toBe("")
+        expect(bo.style.getPropertyValue("--author-chroma")).toBe("0")
     })
 })
