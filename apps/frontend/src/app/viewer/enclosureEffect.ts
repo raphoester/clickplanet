@@ -197,6 +197,7 @@ export function createEnclosureEffects(positions: ArrayLike<number>): EnclosureE
             uniforms: {
                 tileSize: {value: 1},
                 minSize: {value: MIN_MARK_PX},
+                unitsPerPixel: {value: 0},
                 colour: {value: GOLD},
             },
             vertexShader: markVertex,
@@ -216,7 +217,6 @@ export function createEnclosureEffects(positions: ArrayLike<number>): EnclosureE
                     colour: {value: GOLD},
                     radius: {value: 0},
                     opacity: {value: 0},
-                    rim: {value: 0},
                 },
                 vertexShader: waveVertex,
                 fragmentShader: waveFragment,
@@ -262,6 +262,7 @@ export function createEnclosureEffects(positions: ArrayLike<number>): EnclosureE
 
             effect.marks.uniforms.tileSize.value = tileSize
             effect.marks.uniforms.minSize.value = minMark
+            effect.marks.uniforms.unitsPerPixel.value = 1 / pixelsPerUnit
             effect.choreography.marks.forEach((mark, i) => {
                 const look = markLook(mark, age, calm)
                 effect.glow.setX(i, look.glow)

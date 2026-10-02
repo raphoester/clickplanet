@@ -3,7 +3,6 @@ import * as THREE from "three"
 import {
     CLEAR_DRIFT_SECONDS,
     CLEAR_LIFETIME_SECONDS,
-    CLICK_LIFETIME_SECONDS,
     choreographClear,
     choreographClick,
     choreographSpread,
@@ -87,29 +86,23 @@ describe("choreographClear", () => {
 })
 
 describe("choreographClick", () => {
-    it("rings the tile clicked once, with no spark", () => {
-        const {sparks, waves, centre} = choreographClick(1, positions)
+    it("puffs on the tile clicked like a clear, in sky blue rather than dust", () => {
+        const click = choreographClick(1, positions)
+        const clear = choreographClear(1, positions)
 
-        expect(centre.distanceTo(tileAt(1))).toBeLessThan(1e-6)
-        expect(sparks).toEqual([])
-        expect(waves).toHaveLength(1)
+        expect(click.centre.distanceTo(tileAt(1))).toBeLessThan(1e-6)
+        expect({...click, colour: clear.colour}).toEqual(clear)
+        expect(click.colour.equals(clear.colour)).toBe(false)
     })
 
-    it("is plainer than any bonus: one ring, and over sooner", () => {
+    it("stays smaller and shorter than a spread", () => {
         const click = choreographClick(1, positions)
+        const spreading = choreographSpread(spread, positions)
 
-        for (const bonus of [choreographSpread(spread, positions), choreographClear(1, positions)]) {
-            expect(click.lifetime).toBeLessThan(bonus.lifetime)
-            expect(click.reach).toBeLessThan(bonus.reach)
-        }
-    })
-
-    it("is not faint: full strength, outlined, and big enough to catch the eye zoomed out", () => {
-        const click = choreographClick(1, positions)
-
-        expect(click.waves[0].peak).toBe(1)
-        expect(click.rim).toBeGreaterThan(0)
-        expect(click.minReachPx).toBeGreaterThanOrEqual(40)
+        expect(click.lifetime).toBeLessThan(spreading.lifetime)
+        expect(click.reach).toBeLessThan(spreading.reach)
+        expect(click.minReachPx).toBeLessThan(spreading.minReachPx)
+        expect(click.waves.length).toBeLessThan(spreading.waves.length)
     })
 })
 
@@ -228,6 +221,20 @@ describe("createClickEffects", () => {
         effects.dispose()
     })
 
+    it("tells its marks how big a pixel is on the globe, so they are pulled clear of its curve", () => {
+        const effects = createClickEffects(positions)
+        const zoomed = new THREE.OrthographicCamera(-1, 1, 1, -1)
+        zoomed.zoom = 4
+
+        effects.playClear(1)
+        effects.update(1000, zoomed, 800, 1)
+
+        const marks = effects.object.children.find(child => child instanceof THREE.Points)!
+        expect((marks.material as THREE.ShaderMaterial).uniforms.unitsPerPixel.value).toBeCloseTo(1 / (400 * 4))
+
+        effects.dispose()
+    })
+
     it("plays a clear's dust and takes it off once it is over", () => {
         const effects = createClickEffects(positions)
 
@@ -244,7 +251,7 @@ describe("createClickEffects", () => {
         effects.dispose()
     })
 
-    it("rings a click in view and takes it off once it is over", () => {
+    it("plays a click in view and takes it off once it is over", () => {
         const effects = createClickEffects(positions)
         camera.position.set(0, 0, 5)
         camera.lookAt(0, 0, 0)
@@ -254,9 +261,9 @@ describe("createClickEffects", () => {
         expect(effects.object.children.length).toBeGreaterThan(0)
 
         expect(effects.update(1000, camera, 800, 1)).toBe(true)
-        expect(effects.update(1000 + CLICK_LIFETIME_SECONDS, camera, 800, 1)).toBe(true)
+        expect(effects.update(1000 + CLEAR_LIFETIME_SECONDS + 0.01, camera, 800, 1)).toBe(true)
         expect(effects.object.children).toHaveLength(0)
-        expect(effects.update(1000 + CLICK_LIFETIME_SECONDS + 0.1, camera, 800, 1)).toBe(false)
+        expect(effects.update(1000 + CLEAR_LIFETIME_SECONDS + 0.1, camera, 800, 1)).toBe(false)
 
         effects.dispose()
     })

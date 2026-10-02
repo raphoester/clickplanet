@@ -31,12 +31,6 @@ const CLEAR_DRIFT_REACH = 0.9
 
 const DUST = new THREE.Color(0.93, 0.8, 0.58)
 
-export const CLICK_LIFETIME_SECONDS = 0.7
-
-const CLICK_PEAK = 1
-
-const CLICK_RIM = 0.6
-
 const SKY = new THREE.Color(0.35, 0.75, 1.0)
 
 export type Spark = {
@@ -61,7 +55,6 @@ export type Choreography = {
     minReachPx: number
     lifetime: number
     colour: THREE.Color
-    rim: number
 }
 
 const at = (positions: ArrayLike<number>, tile: number) => new THREE.Vector3(
@@ -106,7 +99,6 @@ export function choreographSpread(spread: SpreadClick, positions: ArrayLike<numb
         minReachPx: 60,
         lifetime: SPREAD_LIFETIME_SECONDS,
         colour: GREEN,
-        rim: 0,
     }
 }
 
@@ -132,22 +124,11 @@ export function choreographClear(tile: number, positions: ArrayLike<number>): Ch
         minReachPx: 36,
         lifetime: CLEAR_LIFETIME_SECONDS,
         colour: DUST,
-        rim: 0,
     }
 }
 
-// Every click plays this, so it stays plainer than any bonus: one ring, no spark. Plain, not faint.
 export function choreographClick(tile: number, positions: ArrayLike<number>): Choreography {
-    return {
-        sparks: [],
-        waves: [{startsAt: 0, seconds: CLICK_LIFETIME_SECONDS, peak: CLICK_PEAK}],
-        centre: at(positions, tile),
-        reach: TILE_SPACING * 2,
-        minReachPx: 44,
-        lifetime: CLICK_LIFETIME_SECONDS,
-        colour: SKY,
-        rim: CLICK_RIM,
-    }
+    return {...choreographClear(tile, positions), colour: SKY}
 }
 
 export function inView(point: THREE.Vector3, camera: THREE.Camera): boolean {
@@ -273,6 +254,7 @@ export function createClickEffects(positions: ArrayLike<number>): ClickEffects {
             uniforms: {
                 tileSize: {value: 1},
                 minSize: {value: MIN_MARK_PX},
+                unitsPerPixel: {value: 0},
                 colour: {value: choreography.colour},
             },
             vertexShader: markVertex,
@@ -292,7 +274,6 @@ export function createClickEffects(positions: ArrayLike<number>): ClickEffects {
                     colour: {value: choreography.colour},
                     radius: {value: 0},
                     opacity: {value: 0},
-                    rim: {value: choreography.rim},
                 },
                 vertexShader: waveVertex,
                 fragmentShader: waveFragment,
@@ -339,6 +320,7 @@ export function createClickEffects(positions: ArrayLike<number>): ClickEffects {
 
             effect.marks.uniforms.tileSize.value = tileSize
             effect.marks.uniforms.minSize.value = minMark
+            effect.marks.uniforms.unitsPerPixel.value = 1 / pixelsPerUnit
             choreography.sparks.forEach((spark, i) => {
                 const look = sparkLook(spark, age, choreography.lifetime, calm)
                 between.lerpVectors(spark.from, spark.to, look.progress).normalize().multiplyScalar(LIFT)
