@@ -52,6 +52,18 @@ export default function ChatLog(props: ChatLogProps) {
         element.scrollTop = element.scrollHeight
     }, [props.messages, announcements])
 
+    const listed = !props.loading && (props.messages.length > 0 || announcements.length > 0)
+    useEffect(() => {
+        const element = scroll.current
+        if (!element || typeof ResizeObserver === "undefined") return
+
+        const observer = new ResizeObserver(() => {
+            if (pinned.current) element.scrollTop = element.scrollHeight
+        })
+        observer.observe(element)
+        return () => observer.disconnect()
+    }, [listed])
+
     const onScroll = () => {
         const element = scroll.current
         if (!element) return

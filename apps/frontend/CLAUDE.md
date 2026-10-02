@@ -351,6 +351,15 @@ The client for the backend's second bounded context: `chat.ts` declares
 `fakeChatBackend.ts` is the dev stand-in. `ChatPanel` docks
 bottom-right, opposite the menu, and starts folded under 768px.
 
+**The open panel is resized from its top edge, its left edge or its top-left
+corner**, and a double-click on one puts the default back (`useChatSize`). Not
+under 768px, where it is a full-width sheet. What the player dragged to is kept
+in `clickplanet-chat-size` and written on `:root` as `--chat-wanted-width` and
+`--chat-wanted-height`; `index.css` clamps them into `--chat-width` and
+`--chat-height`. **The anthem bar reads `--chat-width` too**, so it moves aside
+as the chat grows; the clamp keeps it about 300px of room. The log stays pinned
+to its newest line while the panel changes size (a `ResizeObserver` in `ChatLog`).
+
 **`MAX_TEXT_LENGTH` in `chat.ts` mirrors `chat.service.maxTextLength` on the
 backend**, counted in code points as the server counts runes. It is the
 composer's bound, not a defence — the server sanitizes and rejects on its own.
