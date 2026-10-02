@@ -413,7 +413,7 @@
 
 .chat-composer-row {
     display: flex;
-    align-items: center;
+    align-items: flex-end;
     gap: 8px;
 }
 
@@ -421,14 +421,19 @@
 .chat-input {
     flex: 1 1 auto;
     min-width: 0;
+    box-sizing: border-box;
     height: 40px;
-    padding: 0 16px;
+    max-height: 120px;
+    padding: 9px 16px;
     border: 1px solid #FFFFFF26;
-    border-radius: 999px;
+    border-radius: 20px;
     background: #FFFFFF14;
     color: white;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     font-size: 16px;
+    line-height: 20px;
+    resize: none;
+    overflow-y: auto;
     user-select: text;
     -webkit-user-select: text;
 }
