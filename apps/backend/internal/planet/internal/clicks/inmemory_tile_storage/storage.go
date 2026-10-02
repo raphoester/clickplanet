@@ -67,11 +67,19 @@ type subscriber struct {
 }
 
 func (s *Storage) Set(_ context.Context, tile uint32, value string) error {
-	if tile > s.maxIndex {
-		return fmt.Errorf("tile %d out of range (max %d)", tile, s.maxIndex)
+	return s.put(clicks.TileUpdate{Tile: tile, Value: value})
+}
+
+func (s *Storage) Click(_ context.Context, tile uint32, value string) error {
+	return s.put(clicks.TileUpdate{Tile: tile, Value: value, Clicked: true})
+}
+
+func (s *Storage) put(update clicks.TileUpdate) error {
+	if update.Tile > s.maxIndex {
+		return fmt.Errorf("tile %d out of range (max %d)", update.Tile, s.maxIndex)
 	}
 
-	previous, changed, err := s.set(tile, value)
+	previous, changed, err := s.set(update.Tile, update.Value)
 	if err != nil {
 		return err
 	}
@@ -80,7 +88,8 @@ func (s *Storage) Set(_ context.Context, tile uint32, value string) error {
 		return nil
 	}
 
-	s.publish(clicks.Change{Update: &clicks.TileUpdate{Tile: tile, Value: value, Previous: previous}})
+	update.Previous = previous
+	s.publish(clicks.Change{Update: &update})
 
 	return nil
 }

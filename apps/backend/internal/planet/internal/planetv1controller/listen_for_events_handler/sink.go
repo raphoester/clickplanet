@@ -125,6 +125,7 @@ func toProto(update clicks.TileUpdate) *planetv1.TileUpdate {
 		TileId:            update.Tile,
 		CountryId:         update.Value,
 		PreviousCountryId: update.Previous,
+		Clicked:           update.Clicked,
 	}
 }
 

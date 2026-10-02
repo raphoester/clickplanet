@@ -40,6 +40,19 @@ func TestSinkFramesATileUpdate(t *testing.T) {
 	assert.Equal(t, uint32(42), update.GetTileId())
 	assert.Equal(t, "fr", update.GetCountryId())
 	assert.Equal(t, "de", update.GetPreviousCountryId())
+	assert.False(t, update.GetClicked())
+}
+
+func TestSinkSaysWhichUpdateIsAClick(t *testing.T) {
+	stream := &recorder{}
+
+	err := listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{
+		Update: clicks.TileUpdate{Tile: 42, Value: "fr", Clicked: true},
+	})
+
+	require.NoError(t, err)
+	require.Len(t, stream.sent, 1)
+	assert.True(t, stream.sent[0].GetTileUpdate().GetClicked())
 }
 
 func TestSinkFramesAHeartbeat(t *testing.T) {

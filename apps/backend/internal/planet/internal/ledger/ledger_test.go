@@ -301,6 +301,21 @@ func (s *stubTiles) Set(_ context.Context, tile uint32, value string) error {
 	return nil
 }
 
+func (s *stubTiles) Click(ctx context.Context, tile uint32, value string) error {
+	return s.Set(ctx, tile, value)
+}
+
+func TestRecordingNotesAClickAsItNotesASet(t *testing.T) {
+	tiles := &stubTiles{owners: map[uint32]string{1: "de"}}
+	takings := inmemory_ledger_storage.New(inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence(), slog.New(slog.DiscardHandler))
+	recording := ledger.NewRecording(tiles, takings, cptime.NewFixedClock(start))
+
+	require.NoError(t, recording.Click(cpctx.AddIPToContext(t.Context(), "1.2.3.4"), 1, "fr"))
+
+	assert.Equal(t, "fr", tiles.owners[1])
+	assert.Equal(t, []ledger.Taking{{Tile: 1, Scope: "1.2.3.4", Country: "fr", Previous: "de", At: start}}, replay(takings))
+}
+
 func TestRecordingNotesTheCallersScopeAndOnlyAChange(t *testing.T) {
 	tiles := &stubTiles{owners: map[uint32]string{1: "de", 2: "fr"}}
 	takings := inmemory_ledger_storage.New(inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence(), slog.New(slog.DiscardHandler))

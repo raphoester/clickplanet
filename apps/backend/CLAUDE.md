@@ -501,11 +501,11 @@ POST /planet.v1.ClickService/Click   [X-Session-Token: <the minted token>]
   → antibot_click   (judges; a flagged caller is answered OK and dropped)
   → prom_click      (counts)
   → clicks/usecases/click_usecase (validates tile ID + country, asks clicks.HomeSoil: take, clear or nothing)
-  → ledger.Recording.Set() → MemoryTileStorage.Set() [writes the flag, or "" for a clear; fans the update out in process]
+  → ledger.Recording.Click() → MemoryTileStorage.Click() [writes the flag, or "" for a clear; fans the update out in process, marked `clicked`]
   → every subscriber: one per open ListenForEvents stream
 ```
 
-`Set` is a no-op when the tile already holds that value — no write, no update published.
+`Click` is `Set` with the update marked `clicked`, which only the tile a click named carries: every client rings it, and a spread's neighbours, an enclosure's inside and the moderation writes stay plain `Set`s. Both are a no-op when the tile already holds that value — no write, no update published.
 
 ```
 POST /chat.v1.ChatService/SendMessage   [X-Session-Token: required, naming an account]
@@ -559,7 +559,7 @@ in `clicks_total{status="ok"}` and is reported to the jury.
   `antibot_click` (the jury's view before the write). `inmemory_tile_storage` knows
   nothing of it, so the bomb, `ReassignCountry`, `RevertPlayer` and
   `PaintRandomTiles` write the map as they always did.
-- **A clear is an ordinary `Set(tile, "")`**, so it reaches every client as a
+- **A clear is an ordinary `Click(tile, "")`**, so it reaches every client as a
   `TileUpdate` with an empty country and `Previous` set, like a revert to nobody —
   never a `Blast`. The owner is read apart from the write, as the ledger's
   `Previous` is: three clicks racing on one tile can leave it cleared where it

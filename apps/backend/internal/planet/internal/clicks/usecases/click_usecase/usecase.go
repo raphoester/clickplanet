@@ -13,7 +13,7 @@ type TilesChecker interface {
 
 type TileStorage interface {
 	Owner(tile uint32) (string, bool)
-	Set(ctx context.Context, tile uint32, value string) error
+	Click(ctx context.Context, tile uint32, value string) error
 }
 
 type CountryChecker interface {
@@ -82,7 +82,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	owner, _ := u.tileStorage.Owner(in.TileID)
 	outcome := u.rule.Outcome(in.TileID, owner, in.CountryID)
 
-	if err := u.tileStorage.Set(ctx, in.TileID, outcome.OwnerAfter(owner, in.CountryID)); err != nil {
+	if err := u.tileStorage.Click(ctx, in.TileID, outcome.OwnerAfter(owner, in.CountryID)); err != nil {
 		return Out{}, fmt.Errorf("failed to set tile: %w", err)
 	}
 

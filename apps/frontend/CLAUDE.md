@@ -920,13 +920,25 @@ mint a guest and insert a row into `auth.identities` for its account.
   size in pixels, so a shape closed while zoomed out is still seen. A shape that
   arrives while the tab is hidden is not played — it would all start at once on
   return.
-- `bonusClickEffects.ts` — the same, for every click made with spread on
+- `clickEffects.ts` — the same, for every click made with spread on
   (`tilesSpread`: a green burst, a spark popping onto each tile around it in
   turn, two rings). It reuses the enclosure's shaders, with normal rather than
   additive rings, which vanished on the white of a flag. A busy planet spreads a
   lot, so at most `MAX_PLAYING` run at once. It also puffs dust on a tile this
   player's click cleared rather than took (`playClear`): a small burst, six motes
   drifting off it, one ring, 0.8s.
+
+  **Every other click rings its tile** (`playClick`): this player's at once, and
+  anyone else's when its `TileUpdate` says `clicked` — the server sets it only on
+  the tile a click named, never on a spread's neighbours, an enclosure's inside or
+  a moderator's write. Own clicks echoed back are skipped through `OwnClicks`.
+  **It is deliberately plainer than any bonus**, since it is by far the most
+  frequent: one thin sky-blue ring, 0.5s, no spark (`clickEffects.test.ts` pins
+  that). Sky blue rather than white, which vanished on the white of a flag. **A
+  click out of view is not played** (`inView`): on the far side or off the screen
+  it would cost frames and show nothing. Plain clicks run in a second instance,
+  so a busy planet's clicks never push a spread off the screen. With less motion
+  there is no ring, so nothing is played at all.
 - `earth.ts` — the opaque sphere under the tiles, in the globe's light with
   `?gfx=earth`. See [The light](#the-light).
 - `graphics.ts` — `graphicsOf`, which parts of the sharper, lit globe the URL
@@ -959,7 +971,7 @@ under test. Three things can ask for a frame:
   the frame that draws it rather than the tick that reads it, so the cap below
   can hold a frame back without losing the move that asked for it.
 - **Something the loop drives is still moving** — every `update` that animates
-  answers a boolean: `blasts`, `bonusBox`, `enclosureEffect`, `bonusClickEffects`
+  answers a boolean: `blasts`, `bonusBox`, `enclosureEffect`, both `clickEffects`
   and `TileField.setHover`. **The frame an effect *ends* on counts**: it is the
   one that takes the flash, the box or the highlight off the screen, so each one
   answers `true` on the tick it stops as well as while it runs.
@@ -1598,7 +1610,7 @@ says whether the rule is on in `BonusRules.homeSoil`.
   `home_soil_test.go`. Before the rules are read, or with no bonus feed, a click
   is painted as a take and the server's echo corrects it.
 - **A clear says so twice.** A tile going blank under a newcomer's click reads as
-  a click that went wrong, so it puffs dust on the tile (`bonusClickEffects.ts`,
+  a click that went wrong, so it puffs dust on the tile (`clickEffects.ts`,
   every time), and `NativeLandNote` says "Poland's native land takes two clicks.
   One more to take it." under the bomb line — only the first three times in a
   browser (`domain/clearNotes.ts`, in `clickplanet-home-soil-notes`, counted in

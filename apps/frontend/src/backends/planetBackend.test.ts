@@ -54,24 +54,28 @@ function failingSession(): SessionProvider {
     }
 }
 
-function tileUpdateEvent(fields: {tileId: number, countryId: string, previousCountryId?: string, boosted?: boolean}): PlanetEvent {
+function tileUpdateEvent(fields: {tileId: number, countryId: string, previousCountryId?: string, clicked?: boolean}): PlanetEvent {
     return new PlanetEvent({event: {case: "tileUpdate", value: new TileUpdate(fields)}})
 }
 
 describe("updateOf", () => {
     it("maps a tile update onto the shape the globe consumes", () => {
         expect(updateOf(tileUpdateEvent({tileId: 7, countryId: "jp", previousCountryId: "fr"})))
-            .toEqual({tile: 7, previousCountry: "fr", newCountry: "jp"})
+            .toEqual({tile: 7, previousCountry: "fr", newCountry: "jp", clicked: false})
     })
 
     it("reports an unowned previous tile as undefined rather than an empty code", () => {
         expect(updateOf(tileUpdateEvent({tileId: 1, countryId: "fr"})))
-            .toEqual({tile: 1, previousCountry: undefined, newCountry: "fr"})
+            .toEqual({tile: 1, previousCountry: undefined, newCountry: "fr", clicked: false})
     })
 
     it("reports a tile given back to nobody as undefined, so nobody gets a leaderboard row", () => {
         expect(updateOf(tileUpdateEvent({tileId: 1, countryId: "", previousCountryId: "ps"})))
-            .toEqual({tile: 1, previousCountry: "ps", newCountry: undefined})
+            .toEqual({tile: 1, previousCountry: "ps", newCountry: undefined, clicked: false})
+    })
+
+    it("says which update a click made, so the globe can animate it", () => {
+        expect(updateOf(tileUpdateEvent({tileId: 7, countryId: "jp", previousCountryId: "fr", clicked: true}))?.clicked).toBe(true)
     })
 
     it("drops a heartbeat", () => {
