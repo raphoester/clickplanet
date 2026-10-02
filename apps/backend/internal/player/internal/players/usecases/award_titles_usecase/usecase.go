@@ -14,18 +14,23 @@ type Stats interface {
 	Stats(ctx context.Context, account players.AccountID) (players.Stats, error)
 }
 
+type Accounts interface {
+	CreatedAt(ctx context.Context, account players.AccountID) (time.Time, error)
+}
+
 type Titles interface {
-	Award(ctx context.Context, account players.AccountID, stats players.Stats, at time.Time) error
+	Award(ctx context.Context, account players.AccountID, career players.Career, at time.Time) error
 }
 
 type UseCase struct {
-	stats  Stats
-	titles Titles
-	clock  cptime.Clock
+	stats    Stats
+	accounts Accounts
+	titles   Titles
+	clock    cptime.Clock
 }
 
-func New(stats Stats, titles Titles, clock cptime.Clock) *UseCase {
-	return &UseCase{stats: stats, titles: titles, clock: clock}
+func New(stats Stats, accounts Accounts, titles Titles, clock cptime.Clock) *UseCase {
+	return &UseCase{stats: stats, accounts: accounts, titles: titles, clock: clock}
 }
 
 func (u *UseCase) Execute(ctx context.Context, account players.AccountID) error {
@@ -37,7 +42,13 @@ func (u *UseCase) Execute(ctx context.Context, account players.AccountID) error 
 		return fmt.Errorf("failed to read the stats: %w", err)
 	}
 
-	if err := u.titles.Award(ctx, account, stats, u.clock.Now()); err != nil {
+	createdAt, err := u.accounts.CreatedAt(ctx, account)
+	if err != nil {
+		return fmt.Errorf("failed to ask when the account was made: %w", err)
+	}
+
+	career := players.Career{Stats: stats, CreatedAt: createdAt}
+	if err := u.titles.Award(ctx, account, career, u.clock.Now()); err != nil {
 		return fmt.Errorf("failed to award the titles: %w", err)
 	}
 	return nil

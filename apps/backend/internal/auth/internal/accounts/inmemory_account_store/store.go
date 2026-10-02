@@ -134,6 +134,22 @@ func (s *Store) Account(_ context.Context, account accounts.AccountID) (*account
 	return &accounts.Account{ID: account, CreatedAt: s.created[account], Identities: s.identitiesOf(account)}, nil
 }
 
+func (s *Store) CreationDates(_ context.Context, asked []accounts.AccountID) (map[accounts.AccountID]time.Time, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.failWith != nil {
+		return nil, s.failWith
+	}
+	dates := make(map[accounts.AccountID]time.Time, len(asked))
+	for _, account := range asked {
+		if _, found := s.lastSeen[account]; found {
+			dates[account] = s.created[account]
+		}
+	}
+	return dates, nil
+}
+
 func (s *Store) Identity(_ context.Context, provider string, subject string) (*accounts.Identity, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

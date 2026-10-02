@@ -40,6 +40,22 @@ func (s stubAuth) GetAccount(
 	return connect.NewResponse(res), nil
 }
 
+func (s stubAuth) GetCreationDates(
+	_ context.Context,
+	req *connect.Request[authv1.GetCreationDatesRequest],
+) (*connect.Response[authv1.GetCreationDatesResponse], error) {
+	if s.err != nil {
+		return nil, s.err
+	}
+	res := &authv1.GetCreationDatesResponse{}
+	for _, id := range req.Msg.GetAccountIds() {
+		if created, ok := s.created[id]; ok {
+			res.Dates = append(res.Dates, &authv1.CreationDate{AccountId: id, CreatedAtUnixMs: created.UnixMilli()})
+		}
+	}
+	return connect.NewResponse(res), nil
+}
+
 type dialer struct {
 	client connect.HTTPClient
 	url    string
@@ -107,4 +123,22 @@ func TestAnUnreachableAuthIsAnError(t *testing.T) {
 	_, err := rpc_account_reader.New(dialer{err: errors.New("no internal listener")}).Linked(t.Context(), ada)
 
 	assert.ErrorContains(t, err, "failed to reach the auth module")
+}
+
+func TestItAsksAuthWhenEachOfAPageWasMade(t *testing.T) {
+	createdAt := time.Date(2026, 9, 1, 8, 30, 0, 0, time.UTC)
+	accounts := reader(t, stubAuth{created: map[string]time.Time{ada.String(): createdAt}})
+
+	dates, err := accounts.CreationDates(t.Context(), []players.AccountID{ada, guest})
+
+	require.NoError(t, err)
+	assert.Equal(t, map[players.AccountID]time.Time{ada: createdAt}, dates, "an account auth does not know is left out")
+}
+
+func TestAPageAuthFailsToAnswerIsAnError(t *testing.T) {
+	accounts := reader(t, stubAuth{err: connect.NewError(connect.CodeUnavailable, errors.New("auth is down"))})
+
+	_, err := accounts.CreationDates(t.Context(), []players.AccountID{ada})
+
+	assert.Error(t, err)
 }

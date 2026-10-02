@@ -15,16 +15,16 @@ var (
 )
 
 func TestTheCatalogNamesTheTitlesStatsEarnInItsOrder(t *testing.T) {
-	assert.Empty(t, catalog.EarnedBy(players.Stats{}))
-	assert.Equal(t, players.TitleIDs{"first"}, catalog.EarnedBy(players.Stats{TilesTaken: 2}))
-	assert.Equal(t, players.TitleIDs{"third", "first"}, players.Catalog{third, first}.EarnedBy(players.Stats{TilesTaken: 3}))
+	assert.Empty(t, catalog.EarnedBy(players.Career{}))
+	assert.Equal(t, players.TitleIDs{"first"}, catalog.EarnedBy(tiles(2)))
+	assert.Equal(t, players.TitleIDs{"third", "first"}, players.Catalog{third, first}.EarnedBy(tiles(3)))
 }
 
 func TestGrantsLeaveOutTheAccountsThatEarnNothing(t *testing.T) {
-	grants := catalog.GrantsFor([]players.Stats{
-		{Account: players.AccountID{15: 1}, TilesTaken: 0},
-		{Account: players.AccountID{15: 2}, TilesTaken: 1},
-		{Account: players.AccountID{15: 3}, TilesTaken: 5},
+	grants := catalog.GrantsFor([]players.Career{
+		{Stats: players.Stats{Account: players.AccountID{15: 1}, TilesTaken: 0}},
+		{Stats: players.Stats{Account: players.AccountID{15: 2}, TilesTaken: 1}},
+		{Stats: players.Stats{Account: players.AccountID{15: 3}, TilesTaken: 5}},
 	})
 
 	assert.Equal(t, players.Grants{

@@ -106,6 +106,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	authors := get_author_usecase.New(store, players.NewGuestCodes(store, random_code_generator.Generator{}), clock)
 	manyAuthors := get_authors_usecase.New(store, clock)
 
+	accounts := rpc_account_reader.New(props.Internal)
 	catalog := players.NewCatalog()
 	titleBook := players.NewTitleBook(store, catalog)
 
@@ -120,7 +121,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to subscribe to planet.v1.TileTaken: %w", err)
 	}
 	titles, err := cpbootstrap.Subscribe(props.Events, "player-titles", tileTakenBuffer,
-		log_subscriber.New(stats_changed_subscriber.New(award_titles_usecase.New(store, titleBook, clock)), props.Logger))
+		log_subscriber.New(stats_changed_subscriber.New(award_titles_usecase.New(store, accounts, titleBook, clock)), props.Logger))
 	if err != nil {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe to player.v1.StatsChanged: %w", err)
@@ -155,12 +156,11 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	props.Runners.Add(gone)
 
 	backfill := backfill_titles_usecase.NewRunner(
-		log_backfill_titles.New(backfill_titles_usecase.New(store, store, catalog, clock), props.Logger))
+		log_backfill_titles.New(backfill_titles_usecase.New(store, accounts, store, catalog, clock), props.Logger))
 
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger, takes, titles, deletions, signIns, backfill))
 
 	verifier := rpc_session_verifier.New(props.Internal, props.Logger)
-	accounts := rpc_account_reader.New(props.Internal)
 
 	playerService := playerv1controller.PlayerService{
 		GetProfileHandler: get_profile_handler.New(get_profile_usecase.New(store)),

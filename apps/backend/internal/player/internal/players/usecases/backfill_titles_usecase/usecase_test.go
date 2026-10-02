@@ -44,7 +44,19 @@ func held(t *testing.T, store *inmemory_player_store.Store, i int) players.Title
 func backfill(t *testing.T, titles backfill_titles_usecase.Titles, store *inmemory_player_store.Store, catalog players.Catalog) (backfill_titles_usecase.Backfill, error) {
 	t.Helper()
 
-	return backfill_titles_usecase.New(store, titles, catalog, cptime.NewFixedClock(now)).Execute(t.Context()) //nolint:wrapcheck // the tests read the use case's error.
+	return backfillWith(t, players.NewFakeAccounts(), titles, store, catalog)
+}
+
+func backfillWith(
+	t *testing.T,
+	accounts *players.FakeAccounts,
+	titles backfill_titles_usecase.Titles,
+	store *inmemory_player_store.Store,
+	catalog players.Catalog,
+) (backfill_titles_usecase.Backfill, error) {
+	t.Helper()
+
+	return backfill_titles_usecase.New(store, accounts, titles, catalog, cptime.NewFixedClock(now)).Execute(t.Context()) //nolint:wrapcheck // the tests read the use case's error.
 }
 
 func TestEveryAccountGetsTheTitlesItsStatsEarnAcrossPages(t *testing.T) {
@@ -61,6 +73,37 @@ func TestEveryAccountGetsTheTitlesItsStatsEarnAcrossPages(t *testing.T) {
 	assert.Equal(t, players.TitleIDs{"first"}, held(t, store, 1))
 	assert.Equal(t, players.TitleIDs{"first"}, held(t, store, 500))
 	assert.Equal(t, players.TitleIDs{"first", "third"}, held(t, store, 1_001))
+}
+
+func TestTheAccountsMadeBeforeNovemberAreBackfilledOG(t *testing.T) {
+	store, accounts := inmemory_player_store.New(), players.NewFakeAccounts()
+	take(t, store, 1, 1)
+	take(t, store, 2, 1)
+	take(t, store, 3, 1)
+	accounts.Create(account(1), time.Date(2026, 9, 20, 0, 0, 0, 0, time.UTC))
+	accounts.Create(account(2), time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC))
+
+	done, err := backfillWith(t, accounts, store, store, players.Catalog{players.OG{}})
+
+	require.NoError(t, err)
+	assert.Equal(t, 1, done.Accounts)
+	assert.Equal(t, players.TitleIDs{"og"}, held(t, store, 1))
+	assert.Empty(t, held(t, store, 2), "made on the first of November")
+	assert.Empty(t, held(t, store, 3), "auth does not know it")
+}
+
+func TestAFailureToAskAuthBackfillsNothing(t *testing.T) {
+	store, accounts := inmemory_player_store.New(), players.NewFakeAccounts()
+	take(t, store, 1, 1)
+	accounts.FailWith(errors.New("auth is down"))
+
+	_, err := backfillWith(t, accounts, store, store, players.Catalog{first})
+
+	require.Error(t, err)
+	assert.Empty(t, held(t, store, 1))
+	backfilled, err := store.BackfilledTitles(t.Context())
+	require.NoError(t, err)
+	assert.Empty(t, backfilled)
 }
 
 func TestABackfilledTitleIsNotBackfilledAgain(t *testing.T) {

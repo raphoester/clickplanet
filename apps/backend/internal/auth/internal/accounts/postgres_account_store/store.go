@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
+
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
@@ -117,6 +119,39 @@ func (s *Store) Account(ctx context.Context, account accounts.AccountID) (*accou
 		return nil, fmt.Errorf("failed to read the account's identities: %w", err)
 	}
 	return found, nil
+}
+
+func (s *Store) CreationDates(ctx context.Context, asked []accounts.AccountID) (map[accounts.AccountID]time.Time, error) {
+	dates := make(map[accounts.AccountID]time.Time, len(asked))
+	if len(asked) == 0 {
+		return dates, nil
+	}
+
+	ids := make([]string, len(asked))
+	for i, account := range asked {
+		ids[i] = account.String()
+	}
+
+	rows, err := s.db.QueryContext(ctx, `SELECT id, created_at FROM accounts WHERE id = ANY($1::uuid[])`, pq.Array(ids))
+	if err != nil {
+		return nil, fmt.Errorf("failed to select the creation dates: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	for rows.Next() {
+		var (
+			account   uuid.UUID
+			createdAt time.Time
+		)
+		if err := rows.Scan(&account, &createdAt); err != nil {
+			return nil, fmt.Errorf("failed to read a creation date: %w", err)
+		}
+		dates[accounts.AccountID(account)] = createdAt.UTC()
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to read the creation dates: %w", err)
+	}
+	return dates, nil
 }
 
 func (s *Store) Identity(ctx context.Context, provider string, subject string) (*accounts.Identity, error) {

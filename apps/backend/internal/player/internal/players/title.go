@@ -7,7 +7,7 @@ type TitleID string
 type Title interface {
 	ID() TitleID
 	Name() string
-	EarnedBy(stats Stats) bool
+	EarnedBy(career Career) bool
 }
 
 type TitleIDs []TitleID
@@ -20,21 +20,21 @@ type Grants map[AccountID]TitleIDs
 
 type Catalog []Title
 
-func (c Catalog) EarnedBy(stats Stats) TitleIDs {
+func (c Catalog) EarnedBy(career Career) TitleIDs {
 	var earned TitleIDs
 	for _, title := range c {
-		if title.EarnedBy(stats) {
+		if title.EarnedBy(career) {
 			earned = append(earned, title.ID())
 		}
 	}
 	return earned
 }
 
-func (c Catalog) GrantsFor(page []Stats) Grants {
+func (c Catalog) GrantsFor(careers []Career) Grants {
 	grants := Grants{}
-	for _, stats := range page {
-		if earned := c.EarnedBy(stats); len(earned) > 0 {
-			grants[stats.Account] = earned
+	for _, career := range careers {
+		if earned := c.EarnedBy(career); len(earned) > 0 {
+			grants[career.Stats.Account] = earned
 		}
 	}
 	return grants

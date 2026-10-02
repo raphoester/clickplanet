@@ -18,10 +18,11 @@ const TICK_MS = 1_000
 const OWN_KEY = "0"
 
 type FakeTitle = PlayerTitle & {
-    earnedBy: (tilesTaken: number, streakBest: number) => boolean
+    earnedBy: (tilesTaken: number, streakBest: number, createdAt: number) => boolean
 }
 
 const TITLES: FakeTitle[] = [
+    {id: "og", name: "OG", earnedBy: (_, __, createdAt) => createdAt < Date.UTC(2026, 10, 1)},
     {id: "settler", name: "Settler", earnedBy: (tiles) => tiles >= 100},
     {id: "governor", name: "Governor", earnedBy: (tiles) => tiles >= 1_000},
     {id: "conqueror", name: "Conqueror", earnedBy: (tiles) => tiles >= 10_000},
@@ -99,15 +100,16 @@ export class FakePresenceBackend implements PresenceBackend, PlayerInfoBackend {
         const seed = [...player.name].reduce((sum, c) => sum * 31 + c.charCodeAt(0), 7) >>> 0
         const tilesTaken = seed % 25_000
         const streakBest = player.streak + seed % 40
+        const createdAt = this.now() - (1 + seed % 200) * 86_400_000
         return {
             name: player.name,
             tilesTaken,
             streakCurrent: player.streak,
             streakBest,
-            createdAt: this.now() - (1 + seed % 200) * 86_400_000,
+            createdAt,
             admin: player.admin,
             color: player.color,
-            titles: TITLES.filter((title) => title.earnedBy(tilesTaken, streakBest)).map(({id, name}) => ({id, name})),
+            titles: TITLES.filter((title) => title.earnedBy(tilesTaken, streakBest, createdAt)).map(({id, name}) => ({id, name})),
         }
     }
 }

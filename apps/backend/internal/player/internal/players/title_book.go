@@ -28,13 +28,13 @@ func (b TitleBook) TitlesOf(ctx context.Context, account AccountID) ([]Title, er
 	return b.catalog.Of(held), nil
 }
 
-func (b TitleBook) Award(ctx context.Context, account AccountID, stats Stats, at time.Time) error {
+func (b TitleBook) Award(ctx context.Context, account AccountID, career Career, at time.Time) error {
 	held, err := b.store.Titles(ctx, account)
 	if err != nil {
 		return fmt.Errorf("failed to read the titles: %w", err)
 	}
 
-	earned := b.catalog.EarnedBy(stats).Without(held)
+	earned := b.catalog.EarnedBy(career).Without(held)
 	if len(earned) == 0 {
 		return nil
 	}

@@ -19,7 +19,7 @@ var now = time.Date(2026, 10, 2, 12, 0, 0, 0, time.UTC)
 
 func subscriber(store *inmemory_player_store.Store) stats_changed_subscriber.Subscriber {
 	book := players.NewTitleBook(store, players.Catalog{players.FakeTitle{Key: "first", Tiles: 1}})
-	return stats_changed_subscriber.New(award_titles_usecase.New(store, book, cptime.NewFixedClock(now)))
+	return stats_changed_subscriber.New(award_titles_usecase.New(store, players.NewFakeAccounts(), book, cptime.NewFixedClock(now)))
 }
 
 func TestChangedStatsAreCheckedForTitles(t *testing.T) {

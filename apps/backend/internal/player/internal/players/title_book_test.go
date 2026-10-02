@@ -21,7 +21,7 @@ var (
 func TestAwardGrantsWhatTheStatsEarn(t *testing.T) {
 	store := inmemory_player_store.New()
 
-	require.NoError(t, players.NewTitleBook(store, catalog).Award(t.Context(), ada, players.Stats{TilesTaken: 3}, at))
+	require.NoError(t, players.NewTitleBook(store, catalog).Award(t.Context(), ada, tiles(3), at))
 
 	held, err := store.Titles(t.Context(), ada)
 	require.NoError(t, err)
@@ -40,7 +40,7 @@ func TestAwardWritesNothingWhenEveryEarnedTitleIsHeld(t *testing.T) {
 	store := inmemory_player_store.New()
 	require.NoError(t, store.GrantTitles(t.Context(), players.Grants{ada: {"first"}}, at))
 
-	err := players.NewTitleBook(refusingGrants{store}, catalog).Award(t.Context(), ada, players.Stats{TilesTaken: 2}, at)
+	err := players.NewTitleBook(refusingGrants{store}, catalog).Award(t.Context(), ada, tiles(2), at)
 
 	assert.NoError(t, err)
 }
@@ -62,5 +62,5 @@ func TestAStoreFailureIsAnError(t *testing.T) {
 
 	_, err := book.TitlesOf(t.Context(), ada)
 	require.Error(t, err)
-	assert.Error(t, book.Award(t.Context(), ada, players.Stats{TilesTaken: 3}, at))
+	assert.Error(t, book.Award(t.Context(), ada, tiles(3), at))
 }

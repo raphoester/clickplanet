@@ -13,4 +13,4 @@ func (f FakeTitle) ID() TitleID { return f.Key }
 
 func (f FakeTitle) Name() string { return strings.ToUpper(string(f.Key)) }
 
-func (f FakeTitle) EarnedBy(stats Stats) bool { return stats.TilesTaken >= f.Tiles }
+func (f FakeTitle) EarnedBy(career Career) bool { return career.Stats.TilesTaken >= f.Tiles }
