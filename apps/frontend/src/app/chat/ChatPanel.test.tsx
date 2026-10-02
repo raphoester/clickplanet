@@ -492,6 +492,28 @@ describe("ChatPanel", () => {
 
             expect(backend.sendMessage).not.toHaveBeenCalled()
         })
+
+        it("keeps a pasted message on one line", async () => {
+            const {backend} = stubBackend()
+            const {user} = setup(backend)
+            await screen.findByRole("textbox", {name: "Message"})
+
+            await user.click(messageBox())
+            await user.paste("first line\nsecond line")
+
+            expect(messageBox()).toHaveProperty("value", "first line second line")
+        })
+
+        it("sends on Shift+Enter rather than breaking the line", async () => {
+            const {backend} = stubBackend()
+            const {user} = setup(backend)
+            await screen.findByRole("textbox", {name: "Message"})
+
+            await user.type(messageBox(), "hello{Shift>}{Enter}{/Shift}")
+
+            await waitFor(() => expect(backend.sendMessage).toHaveBeenCalledTimes(1))
+            expect(messageBox()).toHaveProperty("value", "")
+        })
     })
 
     describe("when the chat cannot be loaded", () => {
