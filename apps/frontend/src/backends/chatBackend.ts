@@ -78,12 +78,6 @@ export class ChatServiceBackend implements ChatSender, ChatHistoryGetter, ChatLi
         }
     }
 
-    /**
-     * The server names the sender by the click token, guests included, so a
-     * token is minted when none is held, as a click does. One the server
-     * refuses is dropped and the call made once more with a fresh one: a
-     * refused call posted nothing, so this cannot post twice.
-     */
     private async authenticated<T>(call: (headers: Headers) => Promise<T>): Promise<T> {
         try {
             return await call(await this.headers())
@@ -108,10 +102,6 @@ export class ChatServiceBackend implements ChatSender, ChatHistoryGetter, ChatLi
         return headers
     }
 
-    /**
-     * Sends the token already held, never a fresh one, so the server can mark
-     * the caller's own reactions: loading the chat is not worth a mint.
-     */
     public async getHistory(signal?: AbortSignal): Promise<ChatHistory> {
         const headers = new Headers()
         const held = this.session.held()
@@ -172,10 +162,6 @@ function translate(e: unknown): unknown {
     }
 }
 
-/**
- * Anything that is not a message is dropped, heartbeats included — as is an
- * event case this build does not know, which reads as an unset `oneof`.
- */
 export function messageOf(event: ChatEvent): ChatMessage | undefined {
     if (event.event.case !== "message") return undefined
 
@@ -211,10 +197,6 @@ export function announcementOf(event: ChatEvent): ChatAnnouncement | undefined {
     return decodedAnnouncement(event.event.value)
 }
 
-/**
- * An announcement this build can write a line for, or undefined: a kind it
- * does not know, or a payload that is not the kind's, is not shown.
- */
 export function decodedAnnouncement(announcement: AnnouncementPb): ChatAnnouncement | undefined {
     let payload: unknown
     try {

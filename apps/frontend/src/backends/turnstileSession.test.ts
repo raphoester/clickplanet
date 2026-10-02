@@ -28,7 +28,6 @@ function minting(token: string, ttlMs = HOUR_MS) {
     return async () => ({token, expiresAtUnixMs: BigInt(now + ttlMs)})
 }
 
-/** A store in a variable: what the page keeps, without a browser to keep it in. */
 function fakeStore(kept?: HeldSession) {
     let held = kept
 
@@ -73,9 +72,6 @@ describe("SessionClient", () => {
         expect(createSession).toHaveBeenCalledWith({attestationToken: "widget-token"})
     })
 
-    // Minting inside the margin rather than after the expiry: a token that
-    // lapses between the check and the server reading it costs a round trip and
-    // a retry that the player can feel.
     it("mints again once the token is inside the refresh margin", async () => {
         const createSession = vi.fn()
             .mockImplementationOnce(minting("session-1"))
@@ -108,9 +104,6 @@ describe("SessionClient", () => {
         expect(await client.token()).toBe("session-2")
     })
 
-    // A sign-in or a sign-out changes the account the cookie names while a
-    // mint may be in flight. That mint names the old account, so it must not
-    // be kept for the clicks after it.
     it("does not keep a mint that started before an invalidation", async () => {
         let release: (value: {token: string, expiresAtUnixMs: bigint}) => void = () => {}
         const createSession = vi.fn()
@@ -132,8 +125,6 @@ describe("SessionClient", () => {
         expect(createSession).toHaveBeenCalledTimes(2)
     })
 
-    // A page load fires a flurry of clicks. One mint has to serve all of them,
-    // or the first second of play spends the whole per-IP mint budget.
     it("serves concurrent callers from a single mint", async () => {
         let release: (value: {token: string, expiresAtUnixMs: bigint}) => void = () => {}
         const inFlight = new Promise<{token: string, expiresAtUnixMs: bigint}>((resolve) => {
@@ -166,9 +157,6 @@ describe("SessionClient", () => {
         expect(await client.token()).toBe("session-1")
     })
 
-    // A refused mint answers permission_denied, exactly as a VPN-blocked click
-    // does. Left bare it would reach the dialog telling the player to turn off a
-    // VPN they may not be using.
     it("reports a refused mint as a session failure, not as the code it answered", async () => {
         const createSession = vi.fn(async () => {
             throw new ConnectError("refused", Code.PermissionDenied)
@@ -192,8 +180,6 @@ describe("SessionClient", () => {
     })
 
     describe("held", () => {
-        // Presence asks this on a timer: a mint here would put a Turnstile
-        // check behind every visitor who never clicked.
         it("holds nothing before the first mint, and does not start one", () => {
             const createSession = vi.fn(minting("session-1"))
             const attest = vi.fn(async () => "widget-token")
@@ -235,9 +221,6 @@ describe("SessionClient", () => {
         })
     })
 
-    // Nothing mints at load, so without a kept token a reload reads as a caller
-    // with no account until its first click: the charges come back empty, the
-    // meter shows the scope's bucket, and the stream follows the address.
     describe("a token kept from the last page load", () => {
         it("holds it at once, with no mint and no attestation", () => {
             const createSession = vi.fn(minting("session-2"))
@@ -276,8 +259,6 @@ describe("SessionClient", () => {
             expect(store.write).toHaveBeenCalledWith({value: "session-1", expiresAt: now + HOUR_MS})
         })
 
-        // A sign-in or a sign-out changes the account the cookie names, so a
-        // reload must not bring the token that names the old one back.
         it("drops it on an invalidation", async () => {
             const store = fakeStore()
             const client = new SessionClient(fakeClient(minting("session-1")), async () => "widget-token", {
@@ -305,7 +286,6 @@ describe("SessionClient", () => {
     })
 })
 
-/** Local storage in a variable, since the suite runs on node and not in a browser. */
 function stubStorage(kept: Record<string, string> = {}) {
     vi.stubGlobal("window", {
         localStorage: {
@@ -350,8 +330,6 @@ describe("localTokenStore", () => {
         expect(localTokenStore().read()).toBeUndefined()
     })
 
-    // A private window throws rather than answering, and a page that cannot
-    // keep a token still has to play.
     it("reads nothing, and neither writing nor clearing throws, when storage refuses", () => {
         const refuse = () => {
             throw new Error("the storage is not available")
@@ -366,7 +344,6 @@ describe("localTokenStore", () => {
     })
 })
 
-/** A fetch that records what it was asked and answers nothing a client can read. */
 function recordingFetch() {
     const fetch = vi.fn(async (...args: Parameters<typeof globalThis.fetch>): Promise<Response> => {
         void args
@@ -381,9 +358,6 @@ describe("the API transports", () => {
         vi.unstubAllGlobals()
     })
 
-    // The account lives in an HttpOnly cookie on the API's host. A cross-origin
-    // mint neither sends it nor keeps the one the answer sets unless it asks for
-    // credentials, and every mint would then start a new guest.
     it("mints with credentials, so the account cookie travels", async () => {
         const fetch = recordingFetch()
 
@@ -395,8 +369,6 @@ describe("the API transports", () => {
         expect(fetch.mock.calls[0][1]?.credentials).toBe("include")
     })
 
-    // Only the mint needs to know who is asking. A click or a map read that
-    // carries a cookie is one no shared cache serves.
     it("clicks without credentials", async () => {
         const fetch = recordingFetch()
 

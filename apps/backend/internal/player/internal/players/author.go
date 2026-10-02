@@ -6,24 +6,17 @@ import (
 	"fmt"
 )
 
-// Author is who an account is to the other players: the name the game shows for it, and whether it is an admin.
 type Author struct {
-	// Name is the username, or ReservedPrefix and the guest code (DisplayNameOf). Never empty.
-	Name string
-	// Guest is an account that chose no username.
+	Name  string
 	Guest bool
-	// Admin is false for a guest.
 	Admin bool
 }
 
-// AuthorStore is what AuthorOf reads.
 type AuthorStore interface {
 	Profile(ctx context.Context, account AccountID) (Profile, error)
 	GuestCode(ctx context.Context, account AccountID) (GuestCode, error)
 }
 
-// AuthorOf reads who the account is. The guest code is read only for an account with no username, and is
-// ErrNoGuestCode until GuestCodes.Assign gave it one.
 func AuthorOf(ctx context.Context, store AuthorStore, account AccountID) (Author, error) {
 	profile, err := store.Profile(ctx, account)
 	if err == nil {

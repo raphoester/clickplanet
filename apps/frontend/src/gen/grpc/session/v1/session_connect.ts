@@ -7,13 +7,7 @@ import { CreateSessionRequest, CreateSessionResponse } from "./session_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
- * A session is what turns "anyone who can shape a request" into "a caller that
- * proved something once". CreateSession is the only way to get one, and the
- * Click RPC will not accept a caller without it.
- *
- * Deprecated: use auth.v1.AuthService/CreateSession, which also gives the caller
- * an account. This one mints a token with no account, for clients that predate
- * accounts, and goes once they are gone.
+ * Deprecated: use auth.v1.AuthService/CreateSession.
  *
  * @generated from service session.v1.SessionService
  */

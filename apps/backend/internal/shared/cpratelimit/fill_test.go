@@ -18,8 +18,6 @@ func TestAPaceMultipliesTheRateFromTheTakeOnAndLeavesTheBurst(t *testing.T) {
 	}
 	clock.Advance(2 * time.Second)
 
-	// The two seconds before this take refill at the plain rate: the pace only
-	// applies from the take that sets it.
 	_, states := limiter.TakeAll(1, Key{Name: key, Pace: 0.5})
 	assert.InDelta(t, 6.0, states[0].Tokens, 1e-9)
 	assert.InDelta(t, 0.5, states[0].PerSecond, 1e-9)

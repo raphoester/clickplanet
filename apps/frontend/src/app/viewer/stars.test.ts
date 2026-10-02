@@ -56,9 +56,6 @@ describe("buildSky", () => {
     it("spreads the stars evenly, rather than packing them round the poles", () => {
         const {positions} = buildSky(20_000, SEED)
 
-        // Ten bands of equal area: equal height on a sphere is equal area, so
-        // an even sky fills each of them about equally. A random latitude and a
-        // random longitude would crowd the two end bands.
         const bands = new Array(10).fill(0)
         for (const {y} of directions(positions)) {
             bands[Math.min(9, Math.floor(((y + 1) / 2) * 10))]++

@@ -1,10 +1,10 @@
 import * as THREE from 'three';
-import {innerSphere} from "./sphere.ts";
 import {createAtmosphere} from "./atmosphere.ts";
 import {layoutViewport} from "./viewport.ts";
-import {EARTH_URL} from "./earthAsset.ts";
+import {createEarth} from "./earth.ts";
+import {type Graphics} from "./graphics.ts";
 
-export function setupScene(container: HTMLElement) {
+export function setupScene(container: HTMLElement, graphics: Graphics) {
     const scene = new THREE.Scene();
     const cameraSize = 1;
     const {width, height} = layoutViewport();
@@ -16,18 +16,11 @@ export function setupScene(container: HTMLElement) {
 
     camera.position.z = 5
 
-    // No `preserveDrawingBuffer`. It would make the driver keep a second copy of
-    // the buffer for every frame of every session — a permanent cost on the
-    // thing this page is, a globe at 60fps — to serve a share button that is
-    // pressed once in a while, if at all. The share capture reads the buffer
-    // from inside the render loop instead, while it is still there; see
-    // `readDrawingBuffer` in capture.ts.
-    const renderer = new THREE.WebGLRenderer({});
+    const renderer = new THREE.WebGLRenderer({antialias: graphics.antialias});
+    renderer.setPixelRatio(pixelRatio(graphics));
     renderer.setSize(width, height);
     renderer.setClearColor(0x000000);
     container.appendChild(renderer.domElement);
-
-    scene.add(new THREE.AmbientLight(0xffffff, 2));
 
     const cleanup = () => {
         renderer.setAnimationLoop(null);
@@ -38,6 +31,13 @@ export function setupScene(container: HTMLElement) {
     }
 
     return {scene, camera, cameraSize, renderer, cleanup};
+}
+
+const MAX_PIXEL_RATIO = 2;
+
+export function pixelRatio(graphics: Graphics): number {
+    if (!graphics.ratio) return 1;
+    return Math.min(window.devicePixelRatio || 1, MAX_PIXEL_RATIO);
 }
 
 export function disposeScene(scene: THREE.Scene) {
@@ -63,18 +63,13 @@ export function disposeMaterial(material: THREE.Material) {
     material.dispose();
 }
 
-const textureLoader = new THREE.TextureLoader();
-
 export function addDisplayObjects(
     scene: THREE.Scene,
     displayPoints: THREE.Points,
+    graphics: Graphics,
 ) {
     scene.add(displayPoints);
-    scene.add(new THREE.Mesh(
-        innerSphere(),
-        new THREE.MeshStandardMaterial({
-            map: textureLoader.load(EARTH_URL),
-        })
-    ))
-    scene.add(createAtmosphere());
+    scene.add(createEarth(graphics.earth));
+    if (!graphics.earth) scene.add(new THREE.AmbientLight(0xffffff, 2));
+    scene.add(createAtmosphere(graphics.halo));
 }

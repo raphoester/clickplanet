@@ -41,9 +41,6 @@ export const ChatService = {
       kind: MethodKind.ServerStreaming,
     },
     /**
-     * Puts a reaction on a message, or takes it off. Idempotent: asking for what
-     * is already there changes nothing and publishes nothing.
-     *
      * @generated from rpc chat.v1.ChatService.React
      */
     react: {

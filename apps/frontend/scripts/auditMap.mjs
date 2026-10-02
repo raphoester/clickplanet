@@ -1,22 +1,3 @@
-// Asks the three sources that used to answer "sea or land" whether they still disagree.
-//
-//   npm run map:audit
-//
-// The three are the shipped tile set (which lattice vertices became tiles), the ground oracle
-// (Natural Earth, which also says which country), and the globe's own texture (what a player
-// actually sees).
-//
-// **Every fault between the tile set and the oracle is zero, and any one of them is a failure.**
-// They are not a budget that creeps: both blobs are cut from one `groundOf` call, so a tile on open
-// sea or a tile in no country is not a map that drifted, it is a generator that broke. The rule is
-// the whole check — a recorded baseline of zeros would say the same thing while adding a file
-// somebody could write a regression into.
-//
-// The texture is not an authority and never becomes one — a 4096x2048 photo blends a one-tile island
-// into open water — so its disagreement is reported and nothing is enforced about it.
-//
-// It is run by hand: it downloads 3 MB, rebuilds the whole 906,012-vertex lattice and needs a
-// raised heap. `npm run map:audit` sets that up.
 import fs from "node:fs"
 import path from "node:path"
 
@@ -27,9 +8,6 @@ import {SEA, loadGround} from "./map/ground.mjs"
 import {keyOf, lattice, lonLatOf} from "./map/lattice.mjs"
 import {NATURAL_EARTH_TAG} from "./map/naturalEarth.mjs"
 
-// Blue clearly dominant. Calibrated against the oracle rather than guessed: it agrees with the
-// country polygons on 99.1% of the lattice, and what it misses is what a photo misses — islands
-// smaller than a few pixels, and ice shelves that read as land whoever you ask.
 const seaPixel = (r, g, b) => b > r + 18 && b > g + 8
 
 const ANTIMERIDIAN_DEGREES = 1
@@ -92,8 +70,6 @@ async function main() {
         if (tile) band.tiles++
     }
 
-    // The ice shelves on their own, so "Antarctica has holes in it" is a number rather than a
-    // guess. They are in no country polygon, so before this they were sea to every generator.
     const ice = await iceOnly()
     for (let i = 0; i < vertices; i++) {
         const [lon, lat] = lonLatOf(uvs[i * 2], uvs[i * 2 + 1])
@@ -119,15 +95,12 @@ async function main() {
     process.exitCode = 1
 }
 
-// Found rather than named, so the audit follows whatever `npm run earth` last wrote.
 function earthName() {
     const names = fs.readdirSync(path.join(staticDir, "earth")).filter((e) => /^earth-[0-9a-f]{8}\.jpg$/.test(e))
     if (names.length !== 1) throw new Error(`expected one static/earth/earth-<hash>.jpg, found ${names.length}`)
     return names[0]
 }
 
-// A second oracle holding the shelves alone. Building it twice costs a second and keeps `groundOf`
-// answering one thing; a "which layer answered" channel on the oracle would only exist for this.
 async function iceOnly() {
     const {groundIndex} = await import("./map/ground.mjs")
     const {naturalEarth} = await import("./map/naturalEarth.mjs")

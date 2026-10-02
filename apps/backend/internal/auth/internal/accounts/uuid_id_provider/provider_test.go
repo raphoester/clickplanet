@@ -2,6 +2,7 @@ package uuid_id_provider_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -18,4 +19,15 @@ func TestIDsAreDistinctVersion7UUIDs(t *testing.T) {
 
 	assert.Equal(t, uuid.Version(7), uuid.UUID(first).Version())
 	assert.NotEqual(t, first, second)
+}
+
+func TestAnIDSaysWhenTheAccountWasMadeForTheClickThrottle(t *testing.T) {
+	before := time.Now().Truncate(time.Millisecond)
+	id, err := uuid_id_provider.Provider{}.NewID()
+	require.NoError(t, err)
+
+	created, ok := id.CreatedAt()
+	require.True(t, ok)
+	assert.False(t, created.Before(before))
+	assert.False(t, created.After(time.Now()))
 }

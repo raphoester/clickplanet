@@ -14,18 +14,11 @@ export type AnthemBarProps = {
     onChange: (settings: SoundSettings) => void
 }
 
-/**
- * The music player at the bottom of the screen: whose anthem is playing, and
- * the play button and volume for it. Both write the sound settings, so the
- * player and the settings panel never disagree.
- */
 export default function AnthemBar({anthem, settings, onChange}: AnthemBarProps) {
     const progress = useRef<HTMLDivElement>(null)
     const recorded = anthem.title !== undefined
     const playing = isAnthemAudible(settings) && recorded
 
-    // The bar is moved by a CSS variable, not by state: four renders a second
-    // for a sliver of colour is not worth it beside the globe.
     useEffect(() => {
         if (!playing) return
         const timer = setInterval(() => {
@@ -41,8 +34,6 @@ export default function AnthemBar({anthem, settings, onChange}: AnthemBarProps) 
 
     const country = Countries.get(code)?.name ?? code.toUpperCase()
 
-    // Pressing play is asking to hear it, so it also lifts the master switch
-    // if that was what kept it quiet. Pausing touches only the anthem.
     const toggle = () => onChange(playing
         ? {...settings, anthem: {...settings.anthem, on: false}}
         : {

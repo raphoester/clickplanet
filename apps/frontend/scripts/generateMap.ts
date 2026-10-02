@@ -1,21 +1,3 @@
-// Writes both shared map blobs, from the ground oracle and nothing else.
-//
-//   npm run map:generate -- [--remap <path.sql>]
-//
-// One command and not two, because the two blobs cannot disagree: a tile exists exactly where
-// `groundOf` answers a country, and that same answer is the country the borders blob records. Before
-// this they were `npm run coordinates` (a greyscale land mask) and `npm run borders` (Natural Earth),
-// run apart, and the ~6,000 lattice vertices they disagreed about were the tiles floating on open
-// water and the islands with nothing to click.
-//
-// **It renumbers every tile**, since an id is an index into the coordinates blob. `--remap` writes
-// the postgres migration that follows the owned ones across, which is what makes that survivable:
-// positions do not move, so a tile that exists in both blobs is the same ground under a new id. See
-// scripts/map/remap.mjs and map/README.md.
-//
-// After running it: the backend's `make map`, then commit all three copies of each blob, and
-// `npm run borderLines` and `npm run earth`, both of which are cut from these blobs and are stale
-// the moment either changes.
 import {writeFileSync} from "node:fs"
 
 import {encodeBorders} from "./map/bordersBinary.mjs"
@@ -35,8 +17,7 @@ const previous = readCoordinates()
 const ground = await loadGround()
 const {count: vertices, positions, uvs} = lattice(DETAIL)
 
-// Land in lattice order, so the new blob is a subsequence of the same sequence the old one is —
-// which is what keeps the id mapping monotonic and the migration small.
+// Keep lattice order: the remap migration relies on ids staying monotonic.
 const tilePositions: number[] = []
 const tileUVs: number[] = []
 const grounds: string[] = []

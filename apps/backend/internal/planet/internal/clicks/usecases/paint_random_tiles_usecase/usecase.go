@@ -1,4 +1,3 @@
-// Package paint_random_tiles_usecase paints random tiles with a flag, seeded on one country's ground or the whole map, while the game runs.
 package paint_random_tiles_usecase
 
 import (
@@ -33,8 +32,7 @@ type CountryChecker interface {
 }
 
 type In struct {
-	Flag string
-	// Area is the country a seed lands in; empty seeds anywhere on the map.
+	Flag      string
 	Area      string
 	Count     int
 	Proximity float64
@@ -42,7 +40,6 @@ type In struct {
 }
 
 type Out struct {
-	// Eligible is every tile of the area, or of the map, not wearing the flag yet.
 	Eligible    int
 	Picked      int
 	OutsideArea int
@@ -93,7 +90,6 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 		return Out{}, errors.New("paint batch must be positive")
 	}
 
-	// The owner each tile held when it was judged eligible, so the paint is a compare-and-set against it.
 	owners := map[uint32]string{}
 	eligible := func(tile uint32) bool {
 		owner, _ := u.tiles.Owner(tile)
@@ -148,7 +144,6 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	return out, nil
 }
 
-// inArea says whether a tile sits on the area's ground; every tile is in an empty area.
 func (u *UseCase) inArea(tile uint32, area string) bool {
 	return area == "" || u.borders.CountryOf(tile) == area
 }

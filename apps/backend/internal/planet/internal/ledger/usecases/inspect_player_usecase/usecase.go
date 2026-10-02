@@ -16,13 +16,11 @@ type Examiner interface {
 	Enabled() bool
 }
 
-// Ledger says which scope an account played from last: the watchdogs judge scopes.
 type Ledger interface {
 	Replay(see func(ledger.Taking)) ledger.Position
 }
 
 type In struct {
-	// Scope is any address, read as its scope, or Account an account id: one of the two.
 	Scope   string
 	Account string
 }
@@ -36,8 +34,6 @@ type UseCase struct {
 	ledger   Ledger
 }
 
-// Execute reads an account on the scope of its latest take, with the bans on both. An account with no
-// take inside the retention is read on its bans alone.
 func (u *UseCase) Execute(_ context.Context, in In) (antibot.Examination, error) {
 	if !u.examiner.Enabled() {
 		return antibot.Examination{}, ErrAntiBotOff

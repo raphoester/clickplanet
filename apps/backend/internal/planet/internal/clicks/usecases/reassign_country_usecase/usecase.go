@@ -1,4 +1,3 @@
-// Package reassign_country_usecase gives every tile one country holds to another, while the game runs.
 package reassign_country_usecase
 
 import (

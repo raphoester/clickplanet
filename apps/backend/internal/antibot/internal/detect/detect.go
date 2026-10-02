@@ -1,10 +1,3 @@
-// Package detect is the vocabulary every watchdog and the jury share: what a
-// click looks like, how sure a watchdog is, and what a ban has to say for
-// itself.
-//
-// It sits under antibot/internal because a caller of the antibot package needs
-// these types but must not be able to build a watchdog or a jury out of them.
-// The antibot root re-exports the handful a caller actually reads.
 package detect
 
 import (
@@ -15,45 +8,26 @@ import (
 	"time"
 )
 
-// Click is one Click RPC as the jury sees it, before the handler runs.
 type Click struct {
-	Scope string
-	// Account is the account the click token names, empty for none. Watchdogs judge the scope; a ban falls on both.
-	Account string
-	// SignedIn is an account a provider vouches for. Every other account is a guest's.
+	Scope    string
+	Account  string
 	SignedIn bool
 
 	Tile    uint32
 	Country string
 	At      time.Time
 
-	// Held is the country owning the tile as the click arrives, empty when
-	// nobody does, and NoOp says the caller's own country already holds it. Both
-	// are read before the handler runs, because by the time it has run the map
-	// no longer remembers what was there.
 	Held string
 	NoOp bool
 
-	// Cleared says the click empties the tile rather than taking it: the tile is
-	// on Held's own ground and wears Held's flag, and native land takes two
-	// clicks. Held still loses the tile, so a clear is a change others react to
-	// and a loss its natives win back; it wins nothing back for anyone itself.
 	Cleared bool
 }
 
-// Verdict is how sure one watchdog is. The split exists because the bounds that
-// catch a bot on their own also catch the most obsessed players: a watchdog that
-// only had one level would have to be set at the strict end and would then miss
-// every bot that jitters, or at the loose end and ban humans.
 type Verdict uint8
 
 const (
-	// Clear is the caller looking like anybody else.
 	Clear Verdict = iota
-	// Suspect is a reading no single watchdog should ban on. It counts only
-	// alongside another watchdog measuring something else.
 	Suspect
-	// Certain is a reading no hand produces. It bans on its own.
 	Certain
 )
 
@@ -68,40 +42,26 @@ func (v Verdict) String() string {
 	}
 }
 
-// Field is one number a watchdog wants in the log line. Watchdogs measure
-// different things, so the shape of the evidence is theirs and not the jury's.
 type Field struct {
 	Key   string
 	Value any
 }
 
-// Evidence is why a watchdog returned the verdict it did. Rule names which of
-// its rules spoke, for the watchdogs that have more than one.
 type Evidence struct {
 	Rule   string
 	Fields []Field
 }
 
-// Watchdog measures one behaviour over one caller.
 type Watchdog interface {
 	Name() string
 
-	// Attempted sees every click tried, throttled ones included; Held and NoOp are unset.
 	Attempted(click Click)
 
-	// Watch records the click and says how the caller reads now. It is called
-	// for every click, including the ones an existing ban is already dropping:
-	// a watchdog that stops being fed while its caller is banned cannot say
-	// whether the ban is still earned, and the ban would lapse on silence the
-	// caller never actually produced.
 	Watch(click Click) (Verdict, Evidence)
 
-	// Committed is called once the click has reached the map. A watchdog that
-	// does not care what the map does ignores it.
 	Committed(click Click)
 }
 
-// Opinion is one watchdog's standing verdict on a caller.
 type Opinion struct {
 	Watchdog string
 	Verdict  Verdict
@@ -109,15 +69,8 @@ type Opinion struct {
 	At       time.Time
 }
 
-// Fired says whether this watchdog argued for the ban. It is the only thing a
-// caller asks of a verdict — how sure the ones that did fire are is the jury's
-// business — so it is a method here rather than a verdict a caller compares.
 func (o Opinion) Fired() bool { return o.Verdict != Clear }
 
-// String renders one watchdog's reading for the log line: the verdict, the rule
-// that tripped, and every number that rule wanted, ordered by key so two lines
-// about the same watchdog read the same way. The caller owns the message and the
-// attribute names; what one reading says is this package's to word.
 func (o Opinion) String() string {
 	if !o.Fired() {
 		return o.Verdict.String()
@@ -126,7 +79,6 @@ func (o Opinion) String() string {
 	return o.Verdict.String() + " " + o.Evidence.String()
 }
 
-// String renders the rule and its numbers, ordered by key; Evidence{} renders empty.
 func (e Evidence) String() string {
 	if e.Rule == "" && len(e.Fields) == 0 {
 		return ""
@@ -135,8 +87,7 @@ func (e Evidence) String() string {
 	parts := make([]string, 0, len(e.Fields)+1)
 	parts = append(parts, e.Rule)
 
-	// Copied before sorting: the report holds this slice and rendering it must
-	// not reorder what the caller is still holding.
+	// Copy before sorting: the caller still holds e.Fields.
 	fields := append([]Field(nil), e.Fields...)
 	sort.SliceStable(fields, func(i, j int) bool { return fields[i].Key < fields[j].Key })
 
@@ -147,11 +98,10 @@ func (e Evidence) String() string {
 	return strings.Join(parts, " ")
 }
 
-// Reading is an opinion already worded as strings, so nothing outside this tree compares against the ladder.
 type Reading struct {
 	Watchdog string
-	Level    string // clear, suspect or certain
-	Evidence string // empty when the watchdog had nothing to say
+	Level    string
+	Evidence string
 	At       time.Time
 }
 
@@ -159,21 +109,18 @@ func (o Opinion) Reading() Reading {
 	return Reading{Watchdog: o.Watchdog, Level: o.Verdict.String(), Evidence: o.Evidence.String(), At: o.At}
 }
 
-// Examination is what the jury and the ban hold on one scope, read without changing either.
 type Examination struct {
 	Scope   string
-	Account string // empty when the operator named a scope alone
-	Tracked bool   // false for a caller not seen inside trackWindow
+	Account string
+	Tracked bool
 
-	Banned      bool // a sentence is running, enforced or not
+	Banned      bool
 	Flags       int
 	Offence     int
 	BannedUntil time.Time
 
-	// Every watchdog, aged as the jury ages them: past the suspicion window a verdict reads clear.
 	Readings []Reading
 
-	// What the jury would decide if the caller clicked now.
 	Suspects    int
 	MinSuspects int
 	Guilty      bool
@@ -186,9 +133,6 @@ type Examination struct {
 	TopCountryClicks int
 }
 
-// Report is one ban, with everything that argued for it. Every watchdog is in
-// Opinions, including the ones that said Clear, because what did not fire is
-// half of reading a line that did.
 type Report struct {
 	Scope   string
 	Account string
@@ -201,23 +145,15 @@ type Report struct {
 
 	Clicks int
 
-	// What a randomised delay cannot fake: a person stops. Neither feeds any
-	// rule — deciding on them would ban the genuinely obsessed — but a ban with
-	// hours of ActiveFor and a LongestGap in seconds reads very differently from
-	// one without.
 	ActiveFor  time.Duration
 	LongestGap time.Duration
 
-	// Self-declared by the client and trivially changed: context for whoever
-	// reads the line, never an input to a decision.
 	TopCountry       string
 	TopCountryClicks int
 
-	// A few of the tiles involved, most recent last.
 	Tiles []uint32
 }
 
-// Outage is from the last save of the evidence to the start of the process that loaded it: nobody was watching.
 type Outage struct {
 	From time.Time
 	To   time.Time
@@ -234,7 +170,6 @@ func (o Outage) Length() time.Duration {
 	return o.To.Sub(o.From)
 }
 
-// Gap is next minus last, less the outage when the gap spans it.
 func (o Outage) Gap(last, next time.Time) time.Duration {
 	gap := next.Sub(last)
 	if o.Across(last, next) {
@@ -243,7 +178,6 @@ func (o Outage) Gap(last, next time.Time) time.Duration {
 	return gap
 }
 
-// WiderPrefix is the /v4Bits around an IPv4 address or the /v6Bits around an IPv6 /64, and empty for anything else.
 func WiderPrefix(scope string, v4Bits, v6Bits int) string {
 	if addr, err := netip.ParseAddr(scope); err == nil {
 		addr = addr.Unmap()
@@ -269,10 +203,6 @@ func WiderPrefix(scope string, v4Bits, v6Bits int) string {
 	return wide.String()
 }
 
-// Quantile reads a sorted slice. It rounds to the nearest sample rather than
-// interpolating, so every number reaching a log line is one that was actually
-// measured. Watchdogs judge callers on the spread of what they measured rather
-// than its average, so they all need this.
 func Quantile(sorted []time.Duration, q float64) time.Duration {
 	if len(sorted) == 0 {
 		return 0
@@ -289,7 +219,7 @@ func Quantile(sorted []time.Duration, q float64) time.Duration {
 	return sorted[i]
 }
 
-// Spread is the p90-p10 of what a watchdog measured. It sorts in place.
+// Spread sorts delays in place.
 func Spread(delays []time.Duration) (median, spread time.Duration) {
 	sort.Slice(delays, func(i, j int) bool { return delays[i] < delays[j] })
 	return Quantile(delays, 0.5), Quantile(delays, 0.9) - Quantile(delays, 0.1)

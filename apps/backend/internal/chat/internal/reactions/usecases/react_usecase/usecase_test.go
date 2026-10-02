@@ -30,8 +30,6 @@ func (f *fakePublisher) Publish(update feed.Update) {
 	f.updates = append(f.updates, update)
 }
 
-// fakeAuthors is the player module, which knows what each account is called. An account it is not told about
-// is one nobody can name any more: deleted.
 type fakeAuthors struct {
 	named map[messages.AccountID]messages.Author
 	asked int
@@ -56,7 +54,6 @@ func (f *fakeAuthors) Authors(
 	return found, nil
 }
 
-// failingBoard is a board whose saves fail.
 type failingBoard struct {
 	*inmemory_reaction_storage.Storage
 }

@@ -1,6 +1,5 @@
 //go:build testing
 
-// Package inmemory_player_store is players.Store in maps, for the tests above the port. It can fail on demand.
 package inmemory_player_store
 
 import (
@@ -29,7 +28,6 @@ func New() *Store {
 	}
 }
 
-// FailWith makes every later call answer err.
 func (s *Store) FailWith(err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -116,7 +114,6 @@ func (s *Store) SaveGuestCode(_ context.Context, account players.AccountID, code
 	return nil
 }
 
-// MakeAdmin is what an operator does in the database: the game has no way to.
 func (s *Store) MakeAdmin(account players.AccountID) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -184,8 +181,6 @@ func (s *Store) Names(_ context.Context, accounts []players.AccountID) (map[play
 	return names, nil
 }
 
-// Authors mirrors players.AuthorOf for many accounts at once, and gives nobody a code: an account with neither
-// a profile nor a code is left out.
 func (s *Store) Authors(
 	_ context.Context,
 	accounts []players.AccountID,

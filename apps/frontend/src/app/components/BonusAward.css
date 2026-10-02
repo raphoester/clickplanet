@@ -1,11 +1,3 @@
-/*
- * The announcement covers the screen but catches nothing: `pointer-events: none`
- * the whole way down, so a player mid-click keeps the planet under the cursor.
- * The press that dismisses it is heard on the window, in BonusAward.tsx.
- *
- * Each kind of bonus has its own colour, set here once and read by the card,
- * the box and the title, and by the kind's slot in the inventory.
- */
 .bonus-award {
     --bonus-accent: #FFC061;
     --bonus-box: #F2A91C;
@@ -18,15 +10,6 @@
     pointer-events: none;
 }
 
-/*
- * One element does the whole move: it pops in at the centre, holds while it is
- * read, then shrinks towards the top-right, which is where the click meter is.
- * The meter picks the bonus up from there, so the eye is already travelling the
- * right way when the badge appears on it.
- *
- * The timings here are shares of AWARD_MS in BonusAward.tsx. Change one and
- * change the other.
- */
 .bonus-award--refill,
 .inventory-slot--refill {
     --bonus-accent: #7CC4FF;
@@ -48,7 +31,6 @@
     --bonus-box-edge: #4A0E07;
 }
 
-/* The gold the enclosure effect draws on the globe (GOLD in enclosureEffect.ts). */
 .bonus-award--encloseClicks,
 .inventory-slot--encloseClicks {
     --bonus-accent: #FFC061;
@@ -62,7 +44,6 @@
     align-items: center;
     gap: 10px;
     padding: 28px 44px;
-    /* A long explanation wraps rather than stretching the card across the globe. */
     max-width: min(520px, calc(100vw - 32px));
     box-sizing: border-box;
     border: 1px solid color-mix(in srgb, var(--bonus-accent) 45%, transparent);
@@ -84,16 +65,11 @@
     height: 64px;
     border: 3px solid var(--bonus-box-edge);
     border-radius: 10px;
-    /* On top of the card's gap, so the icon does not sit on the title. */
     margin-bottom: 8px;
     background: var(--bonus-box);
     animation: bonus-award-spin 0.7s ease-out;
 }
 
-/*
- * The drawings in BonusIcon.tsx. Everything is inked in the box's own edge
- * colour, so one set of rules serves every kind.
- */
 .bonus-icon {
     width: 50px;
     height: 50px;
@@ -144,7 +120,6 @@
 }
 
 .bonus-award-title {
-    /* Big enough to be read across the room, and it still fits a phone. */
     font-size: clamp(30px, 6vw, 58px);
     font-weight: 700;
     line-height: 1.05;
@@ -164,7 +139,6 @@
         opacity: 0;
         transform: scale(0.55);
     }
-    /* Overshoot, so it lands rather than merely appearing. */
     6.5% {
         opacity: 1;
         transform: scale(1.06);
@@ -172,14 +146,12 @@
     12% {
         transform: scale(1);
     }
-    /* The hold: long enough to read both lines. */
     79% {
         opacity: 1;
         transform: scale(1);
     }
     100% {
         opacity: 0;
-        /* Towards the meter in the top-right corner. */
         transform: translate(36vw, -38vh) scale(0.22);
     }
 }
@@ -198,7 +170,6 @@
         padding: 20px 24px;
     }
 
-    /* The meter sits under the folded menu on a phone, not in the corner. */
     @keyframes bonus-award {
         0% {
             opacity: 0;
@@ -222,10 +193,6 @@
     }
 }
 
-/*
- * The words carry this on their own; only the travel goes. It still has to end
- * invisible, or the announcement would sit over the globe for good.
- */
 @media (prefers-reduced-motion: reduce) {
     .bonus-award-card {
         animation: bonus-award-still 2.9s steps(1, end) forwards;

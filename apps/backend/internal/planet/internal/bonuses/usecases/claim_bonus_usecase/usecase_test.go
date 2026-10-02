@@ -32,8 +32,6 @@ func (s *stubRegistry) Claim(token string, scope string) (bonuses.Reward, bool) 
 
 func (s *stubRegistry) Publish(taken bonuses.Taken) { s.published = append(s.published, taken) }
 
-// stubCharger records the charges granted, and answers what they add up to, the spread pool capped at
-// spreadPool when it is set.
 type stubCharger struct {
 	granted    []grantedCharge
 	spreadPool int
@@ -77,7 +75,6 @@ func granting(kind bonuses.Kind) *stubRegistry {
 	return &stubRegistry{claimable: true, reward: bonuses.Reward{Kind: kind, Amount: 1}}
 }
 
-// played is the test's context, from an address, with an account on it.
 func played(t *testing.T) context.Context {
 	t.Helper()
 

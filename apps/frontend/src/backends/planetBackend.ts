@@ -61,29 +61,16 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
     private readonly flushTimer: ReturnType<typeof setInterval>
     private stopListening: () => void
 
-    /** The token the event stream was last opened with — see followSession. */
     private streamToken: string | undefined
 
-    /** The last reading the server sent, before this client's own clicks. */
     private budgetAnchor: ClickBudget | undefined
 
-    /** Clicks sent and not yet answered — see reportBudget. */
     private inFlight = 0
 
-    /** The country the price on a reading is for — see priceFor. */
     private budgetCountry = ""
 
-    /** How big each charge is, read once — see readRules. */
     private rules: BonusRules | undefined
 
-    /**
-     * What this player holds. Read from the server at load and when the account
-     * changes; after that it follows this client's own calls, because nothing
-     * pushes it: a claim answers it, a drop spends the bomb, an accepted click
-     * sent with spread on spends a spread click, and this client's own closed
-     * shape spends an enclosure. A click answers nothing about it, which would tell a shadow-banned
-     * player that its clicks spend nothing.
-     */
     private charges: Charges = NO_CHARGES
 
     constructor(
@@ -95,10 +82,6 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         void this.readRules()
         void this.readCharges(this.session.held())
 
-        // One stream, every case. The tile feed and the bonus feed ride the same
-        // connection because they are cases of one `oneof` — opening a second
-        // stream for the second feed is exactly what the envelope exists to
-        // avoid, and would cost every client a second connection.
         this.stopListening = this.openEventStream()
 
         this.listenForUpdates((update) => {
@@ -127,13 +110,6 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         this.pendingUpdates = []
     }
 
-    /**
-     * A click the server refused for its session is retried once against a
-     * freshly minted one, and the player never learns it happened: a token that
-     * lapsed mid-session, or one bound to an address that changed when a phone
-     * moved onto cellular, is not something to raise a dialog about. The retry
-     * is not a loop — a second refusal is reported.
-     */
     public async clickTile(tileId: number, countryId: string, switches: Switches = ALL_OFF) {
         this.inFlight++
         this.reportBudget()
@@ -171,33 +147,15 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
             )
             this.anchorBudget(res.budget, countryId)
             this.followSession(token)
-            // An accepted click sent with spread on is what spends a spread
-            // click, on the server as here.
             if (spread && this.charges.spreadClicksLeft > 0) {
                 this.holdCharges({...this.charges, spreadClicksLeft: this.charges.spreadClicksLeft - 1})
             }
         } catch (e) {
-            // A refusal carries the reading on the error, because there is no
-            // answer to put it in — and it is the refusal the counter most has
-            // to agree with.
             this.anchorBudget(budgetDetailOf(e), countryId)
             throw e
         }
     }
 
-    /**
-     * Asked at load, on a switch of country, and when a caught bonus ends.
-     * Everything else is learned from the answers to this client's own clicks.
-     *
-     * It carries the token already held, never a fresh one: the server reads
-     * the bucket the token's account spends from, and without it answers the
-     * bucket of an address with no account — a different one, always full,
-     * which the next click then contradicts. Before the first click there is
-     * no token, and nothing has been spent from either.
-     *
-     * A server too old to answer leaves the counter off rather than breaking
-     * the page: the frontend deploys separately from the backend.
-     */
     private async readBudget(): Promise<void> {
         const countryId = this.budgetCountry
 
@@ -214,14 +172,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         }
     }
 
-    /**
-     * The bucket is the same whatever the country, so every reading moves the
-     * counter. Only the price is about one country: a reading priced for
-     * another keeps the price already shown.
-     */
     private anchorBudget(budget: ClickBudgetMessage | undefined, countryId: string): void {
-        // A server with no throttle says nothing, and the counter stays hidden
-        // rather than claiming an allowance nobody is enforcing.
         if (!budget || budget.capacity === 0) return
         const priced = this.budgetCountry === "" || countryId === this.budgetCountry
 
@@ -245,16 +196,6 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         void this.readBudget()
     }
 
-    /**
-     * Publishes the anchor with this client's own clicks taken off it.
-     *
-     * `readAt` deliberately stays the server's reading rather than becoming
-     * now: the refill since then is real and still owed, and subtracting a
-     * click in flight from a reading is the same arithmetic the server will do
-     * when that click lands. The result only ever *under*-promises, which is
-     * the side to be wrong on — a counter that says 1 and is refused is a bug
-     * the player sees, and one that says 0 and works is a click they still get.
-     */
     private reportBudget(): void {
         const anchor = this.budgetAnchor
         if (!anchor) return
@@ -267,7 +208,6 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         const id = generateUUID()
         this.budgetCallbacks.set(id, callback)
 
-        // The load-time read usually lands before anything subscribes.
         if (this.budgetAnchor) {
             callback({...this.budgetAnchor, tokens: this.budgetAnchor.tokens - this.inFlight})
         }
@@ -294,18 +234,9 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         }
     }
 
-    /**
-     * Opens the one stream and hands each frame to whichever feed it belongs to.
-     *
-     * A case this build does not know falls through all of them, which is what
-     * lets the backend add an event type without breaking a deployed client.
-     */
     private openEventStream(): () => void {
         return openStream(
             (signal) => {
-                // Only a token already in hand: a mint is a Turnstile check, and
-                // watching the planet is not worth one. Without a token the server
-                // follows this client by its address, as it did before accounts.
                 const token = this.session.held()
                 this.streamToken = token
 
@@ -341,9 +272,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
 
                 const drop = bombOf(event)
                 if (drop) {
-                    // Tile updates wait for the next batch; the ones that came
-                    // before this blast on the wire have to land before it too,
-                    // or a tile taken just before the bomb repaints over the crater.
+                    // Earlier tile updates go first, or they repaint over the crater.
                     this.flushUpdates()
                     this.bombCallbacks.forEach(callback => callback(drop))
                     return
@@ -351,7 +280,6 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
 
                 const enclosure = enclosureOf(event)
                 if (enclosure) {
-                    // This player's own shape is what spent one of its enclosures.
                     if (enclosure.yours && this.charges.enclosures > 0) {
                         this.holdCharges({...this.charges, enclosures: this.charges.enclosures - 1})
                     }
@@ -366,17 +294,6 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         )
     }
 
-    /**
-     * Reopens the event stream when a call the server accepted went out under
-     * another token than the stream: the first click of a page load, a sign-in
-     * or a sign-out. The server reads the token once, when the stream opens, so
-     * without this the stream would keep following the address, or the account
-     * from before, until it happened to drop.
-     *
-     * The token rotates about once an hour for the same account, and that
-     * reopens it too. Telling the two apart would mean reading the token, which
-     * is the server's business; a reopen an hour is cheap.
-     */
     private followSession(token: string | undefined): void {
         if (!token || token === this.streamToken) return
 
@@ -384,15 +301,9 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         this.stopListening()
         this.stopListening = this.openEventStream()
 
-        // The charges are the account's, and this token may name another one.
         void this.readCharges(token)
     }
 
-    /**
-     * The sizes of the charges, and whether native land takes two clicks, once
-     * per page load. Retried like any read: a bomb cannot be aimed without its
-     * radius.
-     */
     private async readRules(): Promise<void> {
         try {
             const res = await retrying(() => this.client.getBonusRules({}), "getBonusRules")
@@ -411,18 +322,12 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         }
     }
 
-    /**
-     * What the player holds, asked with the token in hand and never a fresh
-     * one: without a token the server answers for the address, and the first
-     * click that brings one reads it again (followSession).
-     */
     private async readCharges(token: string | undefined): Promise<void> {
         const headers = new Headers()
         if (token) headers.set(SESSION_HEADER, token)
 
         try {
             const res = await retrying(() => this.client.getCharges({}, {headers}), "getCharges")
-            // A read that lost the race to a newer token says nothing about the account now playing.
             if (token !== this.streamToken && token !== this.session.held()) return
             this.holdCharges(chargesOfMessage(res.charges))
         } catch (e) {
@@ -447,17 +352,12 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         const id = generateUUID()
         this.bonusCallbacks.set(id, handlers)
 
-        // The reads at load usually land before anything listens.
         if (this.rules) handlers.onRules(this.rules)
         handlers.onCharges(this.charges)
 
         return () => this.bonusCallbacks.delete(id)
     }
 
-    /**
-     * Redeems a box, with the same one-shot session retry a click gets: a token
-     * that lapsed mid-session is not worth losing the box over.
-     */
     public async claimBonus(token: string, countryId: string): Promise<ClaimedBonus> {
         try {
             return await this.claim(token, countryId)
@@ -480,14 +380,10 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         const headers = new Headers()
         if (sessionToken) headers.set(SESSION_HEADER, sessionToken)
 
-        // Deliberately not wrapped in `retrying`: a claim is not idempotent —
-        // the token is spent on the first one that lands, so a retry of a
-        // request whose answer was lost reports the box as lost when it was in
-        // fact won.
+        // No `retrying`: the first request that lands spends the token.
         const res = await this.client.claimBonus({token, countryId}, {headers})
         this.followSession(sessionToken)
 
-        // Only a kind this build knows is ever drawn, so only one can be caught.
         const reward = rewardOf(res.kind, this.rules, res.amount)
         if (!reward) throw new BonusLostError()
 
@@ -504,14 +400,6 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         return () => this.quizCallbacks.delete(id)
     }
 
-    /**
-     * Reads the question, with the same one-shot session retry a claim gets.
-     *
-     * Not wrapped in `retrying` either, but for the opposite reason to a claim's: opening is
-     * idempotent on the server and a retry would be *safe* — it is the clock that is not.
-     * A retry that lands a second later is a second off the clock, and the player never asked for
-     * it. One try, and a banner that fails to open is a banner that got away.
-     */
     public async openQuiz(token: string): Promise<QuizQuestion> {
         try {
             return await this.open(token)
@@ -542,20 +430,11 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         return {
             text: res.question,
             choices: [...res.choices],
-            // Rebuilt from what is left, as every other deadline on this connection is.
             deadline: at + (Number(res.deadlineUnixMs) - wallClock),
             window: res.answerSeconds * 1000,
         }
     }
 
-    /**
-     * Answers it. A wrong answer resolves rather than rejecting: it happened, and it is worth
-     * saying which one was right.
-     *
-     * Deliberately not retried at all, not even for a stale session: the token is spent by the
-     * first answer that lands, so a retry of a request whose response was lost would report a quiz
-     * as gone when it was in fact won. The same rule a claim follows.
-     */
     public async answerQuiz(token: string, choice: number, countryId: string): Promise<QuizOutcome> {
         const sessionToken = await this.session.token()
 
@@ -575,8 +454,6 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         return {
             correct: res.correct,
             correctChoice: res.correctChoice,
-            // A kind this build does not know is a reward it cannot describe, so it says nothing
-            // rather than saying the wrong thing. The charge is held either way.
             reward: res.correct ? rewardOf(res.kind, this.rules, res.amount) : undefined,
         }
     }
@@ -588,13 +465,6 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         return () => this.bombCallbacks.delete(id)
     }
 
-    /**
-     * With the same one-shot session retry a claim gets: a bomb is worth keeping.
-     *
-     * The bomb leaves the charges at once, not a round trip later. A drop the
-     * server refused as NotFound had no bomb to spend, so it stays gone; one
-     * that never reached it gives the bomb back.
-     */
     public async dropBomb(target: GlobePoint, countryId: string): Promise<void> {
         this.holdCharges({...this.charges, bomb: false})
 
@@ -628,18 +498,10 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         const headers = new Headers()
         if (sessionToken) headers.set(SESSION_HEADER, sessionToken)
 
-        // Not wrapped in `retrying`, for the reason a claim is not: the bomb is
-        // spent by the first request that lands.
         await this.client.dropBomb({target, countryId}, {headers})
         this.followSession(sessionToken)
     }
 
-    /**
-     * With the same one-shot session retry a claim gets. The full bank comes
-     * back on the answer, so the meter jumps at once rather than on the next
-     * click, and the charges follow. NotFound is a refill already gone, so it
-     * leaves the charges too; a full bank leaves them as they were.
-     */
     public async useRefill(countryId: string): Promise<void> {
         try {
             await this.refill(countryId)
@@ -665,8 +527,6 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         const headers = new Headers()
         if (sessionToken) headers.set(SESSION_HEADER, sessionToken)
 
-        // Not wrapped in `retrying`, for the reason a claim is not: the refill is
-        // spent by the first request that lands.
         const res = await this.client.useRefill({countryId}, {headers})
         this.followSession(sessionToken)
         this.anchorBudget(res.budget, countryId)
@@ -682,21 +542,11 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
     }
 }
 
-/**
- * Reads the box this client was offered.
- *
- * The deadline is rebuilt from how long the server said was **left** rather
- * than from the timestamp it sent: the two wall clocks are unrelated, and a
- * client whose clock is a minute fast would otherwise treat every box as
- * already lapsed.
- */
 export function offerOf(event: PlanetEvent, at = budgetNow(), wallClock = Date.now()): BonusOffer | undefined {
     if (event.event.case !== "bonusOffered") return undefined
 
     const offered = event.event.value
 
-    // A kind this build does not know is a box it cannot describe, so it is not
-    // drawn at all rather than drawn as something it is not.
     const reward = rewardOf(offered.kind)
     if (!reward) return undefined
 
@@ -708,13 +558,6 @@ export function offerOf(event: PlanetEvent, at = budgetNow(), wallClock = Date.n
     }
 }
 
-/**
- * Reads the banner this client was offered: a token and a deadline. Nothing about the question
- * comes with it, by design — see `domain/quiz.ts`.
- *
- * The deadline is rebuilt from how long the server said was **left**, for the reason `offerOf`
- * rebuilds a box's: the two wall clocks are unrelated.
- */
 export function quizOf(event: PlanetEvent, at = budgetNow(), wallClock = Date.now()): QuizOffer | undefined {
     if (event.event.case !== "quizOffered") return undefined
 
@@ -733,7 +576,6 @@ export function catchOf(event: PlanetEvent): BonusCatch | undefined {
     return {countryId: taken.countryId, quizSubject: taken.quizSubjectCountryId || undefined}
 }
 
-/** Somebody closed a shape; `yours` when it was this player. */
 export function enclosureOf(event: PlanetEvent): Enclosure | undefined {
     if (event.event.case !== "tilesEnclosed") return undefined
 
@@ -754,7 +596,6 @@ export function spreadOf(event: PlanetEvent): SpreadClick | undefined {
     return {countryId: spread.countryId, tile: spread.tileId, spread: [...spread.spreadTileIds]}
 }
 
-/** A server too old to send charges answers none, which reads as nothing held. */
 export function chargesOfMessage(held: ChargesHeld | undefined): Charges {
     if (!held) return NO_CHARGES
 
@@ -763,11 +604,6 @@ export function chargesOfMessage(held: ChargesHeld | undefined): Charges {
 
 const NO_RULES: BonusRules = {blastRadius: 0, enclosureMaxTiles: 0, spreadClicks: 0, enclosures: 0, homeSoil: false}
 
-/**
- * `amount` is what a claim granted; an offer says only the kind, and reads as
- * one. The sizes come from the rules read at load; before they are, a reward
- * reads as size zero.
- */
 function rewardOf(
     kind: BonusKind,
     {blastRadius, enclosureMaxTiles: maxTiles}: BonusRules = NO_RULES,
@@ -804,9 +640,6 @@ export function asBonusError(e: unknown): unknown {
     if (e instanceof SessionUnavailableError) return e
 
     if (e instanceof ConnectError) {
-        // NotFound is the box being gone; Unimplemented is a server with boxes
-        // switched off, which a client that drew one can still meet after a
-        // deploy. Both mean the same thing to the player: it got away.
         if (e.code === Code.NotFound || e.code === Code.Unimplemented) return new BonusLostError({cause: e})
         if (e.code === Code.Unauthenticated) return new SessionUnavailableError({cause: e})
     }
@@ -814,17 +647,12 @@ export function asBonusError(e: unknown): unknown {
     return e
 }
 
-/**
- * A refill refused: FailedPrecondition is a full bank, which spent nothing;
- * the rest reads as a claim or a drop does.
- */
 export function asRefillError(e: unknown): unknown {
     if (e instanceof ConnectError && e.code === Code.FailedPrecondition) return new BankFullError({cause: e})
 
     return asBonusError(e)
 }
 
-/** A server too old to slow a refill sends a slowdown of zero, and the meter says nothing about price. */
 const SHARED_BY: Partial<Record<SharedWith, SharedBy>> = {
     [SharedWith.GUESTS]: "guests",
     [SharedWith.NETWORK]: "network",
@@ -872,11 +700,6 @@ export function bindingsOf(res: GetMapResponse): Map<number, string> {
     return bindings
 }
 
-/**
- * Anything that is not a tile update is dropped, heartbeats included. An event
- * case this build does not know reads as an unset `oneof` and lands here too,
- * which is what lets the backend add one without breaking a deployed client.
- */
 export function updateOf(event: PlanetEvent): Update | undefined {
     if (event.event.case !== "tileUpdate") return undefined
 

@@ -1,29 +1,18 @@
-# Content-hashed bundles never change under the same name.
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
 
-# Textures, flags and the sprite atlas change only when regenerated.
 /static/*
   Cache-Control: public, max-age=604800
 
-# The tile coordinates blob is content-addressed: regenerating the map ships it
-# under a new file name, so this can outlive the /static/* week above.
-#
-# The `!` detaches the header the broader /static/* rule already applied. Both
-# rules match this path, and Cloudflare *joins* the values of a header applied
-# twice rather than letting the more specific rule win — without the detach the
-# response carries `max-age=604800, max-age=31536000`, and the week wins.
+# "!" first: Cloudflare joins a header two rules set, and the /static/* week would win.
 /static/coordinates-*.bin
   ! Cache-Control
   Cache-Control: public, max-age=31536000, immutable
 
-# The sprite atlas is content-addressed the same way, for the same reason: it
-# used to defeat the cache entirely with a `?ts=` query string on every load.
 /static/countries/atlas-*.png
   ! Cache-Control
   Cache-Control: public, max-age=31536000, immutable
 
-# Crawler files: short cache so a change is picked up without a week's delay.
 /robots.txt
   ! Cache-Control
   Cache-Control: public, max-age=3600
@@ -35,14 +24,9 @@
 /index.html
   Cache-Control: public, max-age=0, must-revalidate
 
-# The game. Its bundles are content-hashed, so the page must not outlive them.
 /play
   Cache-Control: public, max-age=0, must-revalidate
 
-# The sign-in callback: its address carries a one-time code until the page
-# removes it. The build writes the game there as auth/callback.html (see
-# vite.config.ts); this matches on the request path. play.html sets the same
-# policy from a script, which does not depend on it.
 /auth/callback
   Cache-Control: public, max-age=0, must-revalidate
   Referrer-Policy: no-referrer

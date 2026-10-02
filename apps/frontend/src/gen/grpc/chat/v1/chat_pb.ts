@@ -7,13 +7,6 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
 
 /**
- * The reactions a message can carry. A fixed set, drawn by the client from its
- * own images and never from the system's emoji font: the enum is the whole
- * contract, so both apps agree on it without a list kept in each.
- *
- * A number is what is stored, so a value is never renumbered or reused. A new
- * one goes at the end.
- *
  * @generated from enum chat.v1.Reaction
  */
 export enum Reaction {
@@ -124,8 +117,6 @@ proto3.util.setEnumType(Reaction, "chat.v1.Reaction", [
 ]);
 
 /**
- * How many put one reaction on one message.
- *
  * @generated from message chat.v1.ReactionCount
  */
 export class ReactionCount extends Message<ReactionCount> {
@@ -140,18 +131,11 @@ export class ReactionCount extends Message<ReactionCount> {
   count = 0;
 
   /**
-   * The caller is one of them. Only a call knows who is asking: it is false on
-   * everything the stream sends, and the client keeps its own between calls.
-   *
    * @generated from field: bool mine = 3;
    */
   mine = false;
 
   /**
-   * Who gave it, oldest first, each named as it read when they reacted — a
-   * message's author_name is frozen the same way. Cut at a cap, so there may
-   * be fewer names than count; count is always how many gave it.
-   *
    * @generated from field: repeated string reactors = 4;
    */
   reactors: string[] = [];
@@ -202,10 +186,6 @@ export class ChatMessage extends Message<ChatMessage> {
   sentAtUnixMs = protoInt64.zero;
 
   /**
-   * A username, or "guest_" and the account's guest code: 6 hex characters,
-   * drawn once per account and kept. No username starts with the prefix, so a
-   * guest cannot pass for a player.
-   *
    * @generated from field: string author_name = 3;
    */
   authorName = "";
@@ -221,23 +201,16 @@ export class ChatMessage extends Message<ChatMessage> {
   text = "";
 
   /**
-   * Posted under the username of an admin of the game, as it was when the
-   * message was sent. Never a guest.
-   *
    * @generated from field: bool author_admin = 7;
    */
   authorAdmin = false;
 
   /**
-   * In the order each reaction first appeared. Empty on a message just sent.
-   *
    * @generated from field: repeated chat.v1.ReactionCount reactions = 8;
    */
   reactions: ReactionCount[] = [];
 
   /**
-   * Which state of the reactions this is. See ReactionsChanged.version.
-   *
    * @generated from field: uint64 reactions_version = 9;
    */
   reactionsVersion = protoInt64.zero;
@@ -278,11 +251,6 @@ export class ChatMessage extends Message<ChatMessage> {
 }
 
 /**
- * The X-Session-Token header is required, and must name an account: without
- * one the call is Unauthenticated. The message is sent under the account's
- * username, or as "guest_" and its guest code when it has none. Nobody chooses
- * a guest's name.
- *
  * @generated from message chat.v1.SendMessageRequest
  */
 export class SendMessageRequest extends Message<SendMessageRequest> {
@@ -369,9 +337,6 @@ export class SendMessageResponse extends Message<SendMessageResponse> {
 }
 
 /**
- * The X-Session-Token header is optional here: it is what says which
- * reactions are the caller's own.
- *
  * @generated from message chat.v1.GetHistoryRequest
  */
 export class GetHistoryRequest extends Message<GetHistoryRequest> {
@@ -403,9 +368,6 @@ export class GetHistoryRequest extends Message<GetHistoryRequest> {
 }
 
 /**
- * Something the chat says on its own, with no sender: a line between the
- * messages, not a bubble.
- *
  * @generated from message chat.v1.Announcement
  */
 export class Announcement extends Message<Announcement> {
@@ -420,21 +382,11 @@ export class Announcement extends Message<Announcement> {
   announcedAtUnixMs = protoInt64.zero;
 
   /**
-   * What happened, and so how to read payload. A client shows nothing for a
-   * kind it does not know.
-   *
-   * - "bomb": a bomb landed. payload is {"country", "ground", "tile",
-   *   "cleared"}: the bomber's country code; the code of the country whose
-   *   ground it hit, absent in the sea and on no country's ground; the tile it
-   *   hit, absent in the sea; and how many held tiles it cleared.
-   *
    * @generated from field: string kind = 3;
    */
   kind = "";
 
   /**
-   * The values the kind's line is written from, as a JSON object.
-   *
    * @generated from field: string payload = 4;
    */
   payload = "";
@@ -480,8 +432,6 @@ export class GetHistoryResponse extends Message<GetHistoryResponse> {
   messages: ChatMessage[] = [];
 
   /**
-   * Oldest first, like messages. A client puts the two in one list by time.
-   *
    * @generated from field: repeated chat.v1.Announcement announcements = 2;
    */
   announcements: Announcement[] = [];
@@ -516,9 +466,6 @@ export class GetHistoryResponse extends Message<GetHistoryResponse> {
 }
 
 /**
- * The X-Session-Token header is required, and must name an account: without
- * one the call is Unauthenticated. Every caller reacts as its account.
- *
  * @generated from message chat.v1.ReactRequest
  */
 export class ReactRequest extends Message<ReactRequest> {
@@ -533,8 +480,6 @@ export class ReactRequest extends Message<ReactRequest> {
   reaction = Reaction.UNSPECIFIED;
 
   /**
-   * True puts the reaction on, false takes it off.
-   *
    * @generated from field: bool on = 3;
    */
   on = false;
@@ -574,15 +519,11 @@ export class ReactRequest extends Message<ReactRequest> {
  */
 export class ReactResponse extends Message<ReactResponse> {
   /**
-   * The message's reactions once this one landed, mine included.
-   *
    * @generated from field: repeated chat.v1.ReactionCount reactions = 1;
    */
   reactions: ReactionCount[] = [];
 
   /**
-   * See ReactionsChanged.version.
-   *
    * @generated from field: uint64 version = 2;
    */
   version = protoInt64.zero;
@@ -648,12 +589,6 @@ export class ListenForEventsRequest extends Message<ListenForEventsRequest> {
 }
 
 /**
- * The one live stream this API has — see the note on planet.v1.PlanetEvent. A
- * new kind of event is a new case below, not a second stream.
- *
- * Heartbeat is what keeps a quiet stream alive, and a quiet chat is the normal
- * case: Cloudflare cuts a silent response at ~125s with a 524.
- *
  * @generated from message chat.v1.ChatEvent
  */
 export class ChatEvent extends Message<ChatEvent> {
@@ -718,9 +653,6 @@ export class ChatEvent extends Message<ChatEvent> {
 }
 
 /**
- * A message's reactions changed. They are all of them, not the difference, so a
- * client that missed a frame is right again on the next one.
- *
  * @generated from message chat.v1.ReactionsChanged
  */
 export class ReactionsChanged extends Message<ReactionsChanged> {
@@ -735,10 +667,6 @@ export class ReactionsChanged extends Message<ReactionsChanged> {
   reactions: ReactionCount[] = [];
 
   /**
-   * Goes up by one with each change to the message's reactions. Frames can
-   * arrive out of order, so a client keeps the reactions of the highest
-   * version it has seen, and drops a lower one.
-   *
    * @generated from field: uint64 version = 3;
    */
   version = protoInt64.zero;

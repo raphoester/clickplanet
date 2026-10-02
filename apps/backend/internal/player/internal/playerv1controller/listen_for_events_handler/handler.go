@@ -1,4 +1,3 @@
-// Package listen_for_events_handler serves player.v1.PlayerService/ListenForEvents.
 package listen_for_events_handler
 
 import (
@@ -22,7 +21,6 @@ type ListenForEventsHandler struct {
 	useCase UseCase
 }
 
-// ListenForEvents needs no token: the session interceptor does not list it.
 func (h ListenForEventsHandler) ListenForEvents(
 	ctx context.Context,
 	_ *connect.Request[playerv1.ListenForEventsRequest],

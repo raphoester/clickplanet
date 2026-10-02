@@ -1,5 +1,3 @@
-// Package publishing_ledger_storage tells the other modules of every take an account made, beside the
-// ledger that records it: planet.v1.TileTaken, one event per tile.
 package publishing_ledger_storage
 
 import (
@@ -10,7 +8,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 )
 
-// Publisher is the event bus. Publish never blocks, so a click never waits on a listener.
 type Publisher interface {
 	Publish(event proto.Message)
 }
@@ -19,8 +16,6 @@ func New(inner ledger.Storage, events Publisher) Storage {
 	return Storage{Storage: inner, events: events}
 }
 
-// Storage is the ledger, and every take it appends with an account is published once it is recorded. A clear is
-// recorded and not published: it took nothing, so it is no tile in anybody's stats.
 type Storage struct {
 	ledger.Storage
 	events Publisher

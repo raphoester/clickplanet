@@ -1,4 +1,3 @@
-// Package listen_for_events_handler serves chat.v1.ChatService/ListenForEvents.
 package listen_for_events_handler
 
 import (

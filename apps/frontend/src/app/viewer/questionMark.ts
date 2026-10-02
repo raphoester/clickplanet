@@ -1,14 +1,5 @@
-/**
- * The bonus box's question mark, drawn as a shape rather than typed.
- *
- * A "?" set in a font is a different glyph on every platform — a thin serif on
- * one machine, a narrow sans on the next — and never the chunky mark a game
- * box wants. This is one stroke and one dot on a 100-unit square, so the box's
- * canvas face and the pointer's SVG badge draw exactly the same mark.
- */
 export const QUESTION_MARK = {
     size: 100,
-    /** The hook: over the top from the left, round, and down to the middle. */
     hook: "M 31 37 C 31 14, 69 14, 69 36 C 69 52, 50 51, 50 65",
     strokeWidth: 17,
     dot: {cx: 50, cy: 85, r: 9},
@@ -16,10 +7,6 @@ export const QUESTION_MARK = {
 
 const SVG_NS = "http://www.w3.org/2000/svg"
 
-/**
- * Draws the mark filling a `size` square at (`x`, `y`), in `ink` over a drop
- * shadow in `shadow`. The shadow is what keeps it legible over a bright face.
- */
 export function drawQuestionMark(
     context: CanvasRenderingContext2D,
     x: number,
@@ -54,10 +41,6 @@ export function drawQuestionMark(
     pass(ink, 0, 0)
 }
 
-/**
- * The same mark as an inline SVG element, in `ink` over a drop shadow drawn in
- * `currentColor` — so the CSS around it decides the shadow, and can animate it.
- */
 export function questionMarkSvg(className: string, ink: string): SVGSVGElement {
     const svg = document.createElementNS(SVG_NS, "svg")
     svg.setAttribute("viewBox", `0 0 ${QUESTION_MARK.size} ${QUESTION_MARK.size}`)

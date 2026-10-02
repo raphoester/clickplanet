@@ -4,8 +4,6 @@ import {cleanup, render, screen, waitFor} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import ShareActions from "./ShareActions.tsx"
 
-// What this browser offers and what each delivery does are deliverShare's, and
-// tested there. What is under test here is only what the player sees happen.
 vi.mock("./deliverShare.ts", async (original) => ({
     ...await original<typeof import("./deliverShare.ts")>(),
     deliveriesOffered: vi.fn(),
@@ -26,8 +24,6 @@ function setup(deliveries: ReturnType<typeof deliveriesOffered> = ["copy", "down
     return userEvent.setup()
 }
 
-// Braces, not a one-liner: `mockReset` hands the mock back, and a `beforeEach`
-// that returns something has vitest run it as the teardown.
 beforeEach(() => {
     offered.mockReset()
     deliver.mockReset()
@@ -92,8 +88,6 @@ describe("ShareActions", () => {
         await waitFor(() => expect((button("Share") as HTMLButtonElement).disabled).toBe(false))
     })
 
-    // A clipboard the browser refused reports the refusal rather than turning
-    // into a download: the download is the button beside it.
     it("offers another go when a delivery would not go through, and logs why", async () => {
         const logged = vi.spyOn(console, "error").mockImplementation(() => {})
         const user = setup(["copy", "download"])

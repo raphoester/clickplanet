@@ -50,7 +50,6 @@ func takenBy(book *inmemory_ledger_storage.Storage, scope string) int {
 	return n
 }
 
-// The bot took 1-5 over whoever held them; somebody took 4 back and a bomb cleared 5.
 func setup(t *testing.T) (*inmemory_ledger_storage.Storage, *stubMap) {
 	t.Helper()
 

@@ -15,7 +15,6 @@ import (
 
 const remapTiles = "20260921120000"
 
-// before is the migrations older than version, so a test can write rows the way they were.
 func before(t *testing.T, version string) fs.FS {
 	t.Helper()
 
@@ -33,8 +32,6 @@ func before(t *testing.T, version string) fs.FS {
 	return older
 }
 
-// The ids are read off the runs the generated migration carries: 1 and 415 do not move, 90 and 416
-// shift by what was added or removed before them, and 89 and 257948 were on open sea in the new map.
 var moved = map[int]int{1: 1, 90: 89, 415: 415, 416: 418, 417: 420, 257947: 262119}
 
 var gone = []int{89, 257948}
@@ -106,8 +103,6 @@ func TestTheRemapGoesBack(t *testing.T) {
 
 	require.NoError(t, db.Migrate(t.Context(), migrations.FS))
 
-	// Run the down file the way golang-migrate would, rather than teaching cppg to migrate down for
-	// one test: lib/pq sends it over the simple protocol, so the whole file is one transaction.
 	down, err := fs.ReadFile(migrations.FS, remapTiles+"_remap_tiles.down.sql")
 	require.NoError(t, err)
 	_, err = db.ExecContext(t.Context(), string(down))

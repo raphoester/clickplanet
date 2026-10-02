@@ -10,7 +10,6 @@ import (
 
 var _ evidence.Section = (*Watchdog)(nil)
 
-// The cached judgement is not saved: a loaded member is judged again on its next click.
 type savedMember struct {
 	Scope     string
 	First     int64

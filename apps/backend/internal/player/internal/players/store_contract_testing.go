@@ -8,13 +8,10 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-// StoreContractSuite is the behaviour every Store shares. Embed it and set NewStore.
 type StoreContractSuite struct {
 	suite.Suite
 
-	// NewStore answers an empty store.
-	NewStore func() Store
-	// MakeAdmin does what an operator does in the database: the port has no way to.
+	NewStore  func() Store
 	MakeAdmin func(store Store, account AccountID)
 
 	store Store

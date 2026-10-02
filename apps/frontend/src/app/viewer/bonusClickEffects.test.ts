@@ -16,8 +16,6 @@ import {
 } from "./bonusClickEffects.ts"
 import type {SpreadClick} from "../../backends/backend.ts"
 
-// Tile 1 on the ground facing +Z, and six tiles round it. Tile 2 is due east of
-// it, and the rest follow counter-clockwise.
 const STEP = 0.004
 const around = Array.from({length: 6}, (_, i) => {
     const angle = (i * Math.PI) / 3
@@ -27,7 +25,6 @@ const positions = new Float32Array([0, 0, 1, ...around.flatMap(p => [p.x, p.y, p
 const tileAt = (tile: number) => new THREE.Vector3(
     positions[(tile - 1) * 3], positions[(tile - 1) * 3 + 1], positions[(tile - 1) * 3 + 2]).normalize()
 
-// Out of order, the way the server's map hands them over.
 const spread: SpreadClick = {countryId: "br", tile: 1, spread: [5, 2, 7, 3, 6, 4]}
 
 describe("choreographSpread", () => {
@@ -48,7 +45,6 @@ describe("choreographSpread", () => {
         const landings = choreographSpread(spread, positions).sparks.filter(spark => spark.role === "landing")
         const order = landings.map(landing => [2, 3, 4, 5, 6, 7].find(tile => tileAt(tile).distanceTo(landing.to) < 1e-6))
 
-        // Counter-clockwise, starting just past due west: 6 is at 240°, 5 at 180°.
         expect(order).toEqual([6, 7, 2, 3, 4, 5])
         landings.forEach((landing, i) => expect(landing.start).toBeCloseTo(SPREAD_THROW_FROM + i * SPREAD_THROW_STAGGER, 9))
     })
@@ -164,11 +160,11 @@ describe("createBonusClickEffects", () => {
         effects.playSpread(spread)
         expect(effects.object.children.length).toBeGreaterThan(0)
 
-        effects.update(1000, camera, 800)
-        effects.update(1000 + SPREAD_LIFETIME_SECONDS / 2, camera, 800)
+        effects.update(1000, camera, 800, 1)
+        effects.update(1000 + SPREAD_LIFETIME_SECONDS / 2, camera, 800, 1)
         expect(effects.object.children.length).toBeGreaterThan(0)
 
-        effects.update(1000 + SPREAD_LIFETIME_SECONDS, camera, 800)
+        effects.update(1000 + SPREAD_LIFETIME_SECONDS, camera, 800, 1)
         expect(effects.object.children).toHaveLength(0)
 
         effects.dispose()
@@ -180,12 +176,11 @@ describe("createBonusClickEffects", () => {
         effects.playClear(1)
         expect(effects.object.children.length).toBeGreaterThan(0)
 
-        effects.update(1000, camera, 800)
-        effects.update(1000 + CLEAR_LIFETIME_SECONDS / 2, camera, 800)
+        effects.update(1000, camera, 800, 1)
+        effects.update(1000 + CLEAR_LIFETIME_SECONDS / 2, camera, 800, 1)
         expect(effects.object.children.length).toBeGreaterThan(0)
 
-        // Past the end by a hair: 1000.8 - 1000 is a little under 0.8 in floating point.
-        effects.update(1000 + CLEAR_LIFETIME_SECONDS + 0.01, camera, 800)
+        effects.update(1000 + CLEAR_LIFETIME_SECONDS + 0.01, camera, 800, 1)
         expect(effects.object.children).toHaveLength(0)
 
         effects.dispose()

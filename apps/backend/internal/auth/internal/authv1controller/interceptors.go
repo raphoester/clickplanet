@@ -11,13 +11,15 @@ import (
 
 type MintLimiter = cpconnect.Limiter
 
-// ErrTooManySessions throttles minting and signing in: each costs a round trip to a third party and may create an account.
 var ErrTooManySessions = errors.New("too many session attempts")
 
 func NewRateLimitInterceptor(limiter MintLimiter) connect.Interceptor {
-	return cpconnect.NewRateLimitInterceptor(limiter, ErrTooManySessions,
+	return cpconnect.NewRateLimitInterceptor(
+		limiter, ErrTooManySessions,
 		authv1connect.AuthServiceCreateSessionProcedure,
 		authv1connect.AuthServiceStartSignInProcedure,
 		authv1connect.AuthServiceCompleteSignInProcedure,
+		authv1connect.AuthServiceStartEmailSignInProcedure,
+		authv1connect.AuthServiceCompleteEmailSignInProcedure,
 	)
 }

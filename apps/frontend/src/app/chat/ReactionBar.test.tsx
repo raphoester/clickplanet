@@ -19,7 +19,6 @@ function show(reactions: ReactionCount[]) {
     return screen.getByRole("button", {name: `Clown: ${reactions[0].count}`})
 }
 
-/** The popup only exists while the pointer is on the chip, so every case opens it first. */
 async function hover(chip: HTMLElement): Promise<HTMLElement> {
     await userEvent.hover(chip)
     return screen.getByRole("tooltip")

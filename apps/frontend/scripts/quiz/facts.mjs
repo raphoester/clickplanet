@@ -1,11 +1,3 @@
-// What the generator knows about each country, from the two sources that already decide the map.
-//
-// The *name* is the game's own (`static/countries/countries.json`), never Natural Earth's. A
-// question is read beside a flag and a leaderboard row, and those say "Samoa, USA" where Natural
-// Earth says "American Samoa" — a quiz that calls a country something the rest of the screen does
-// not is a quiz that looks wrong even when it is right. A country the game has no name for gets no
-// questions at all: it cannot be a right answer the player could pick out, and it cannot be a
-// plausible wrong one either.
 import fs from "node:fs"
 import path from "node:path"
 import {fileURLToPath} from "node:url"
@@ -45,8 +37,6 @@ export async function countryFacts({directory} = {}) {
         const name = code && names.get(code)
         if (!name) continue
 
-        // Natural Earth maps a few countries as more than one feature; the first carries the
-        // sovereign's own row, and a second would only overwrite it with the same answers.
         if (facts.has(code)) continue
 
         const properties = feature.properties
@@ -57,7 +47,6 @@ export async function countryFacts({directory} = {}) {
             continent: text(properties.CONTINENT),
             subregion: text(properties.SUBREGION),
             population: Number(properties.POP_EST) || 0,
-            // Sorted, so two runs of the generator produce the same bytes.
             neighbours: [...(touching.get(code) ?? [])].filter((other) => names.has(other)).sort(),
         })
     }
@@ -65,15 +54,11 @@ export async function countryFacts({directory} = {}) {
     return facts
 }
 
-/** The names the game shows, which are the only names a question may use. */
 export function gameNames() {
     const file = path.join(frontendRoot, "static", "countries", "countries.json")
     return new Map(Object.entries(JSON.parse(fs.readFileSync(file, "utf8"))))
 }
 
-// `adm0cap` is Natural Earth's own mark for the seat of a sovereign state, which is what "capital"
-// means in a question. `iso_a2` on a place is occasionally missing where the country file has one,
-// so the three-letter admin code is the second way in.
 function capitalsByCountry(places, countries) {
     const codeOfA3 = new Map()
     for (const feature of countries.features) {
@@ -91,7 +76,7 @@ function capitalsByCountry(places, countries) {
         if (!code) continue
 
         const name = text(properties.name)
-        // A country with two seats gets neither: "the capital" has to have one answer.
+        // A country with two seats gets neither: the question needs one answer.
         if (capitals.has(code)) capitals.set(code, undefined)
         else if (name) capitals.set(code, name)
     }
@@ -99,8 +84,6 @@ function capitalsByCountry(places, countries) {
     return capitals
 }
 
-// Natural Earth's own spacing is not always one space ("Washington,  D.C."), and the string is
-// going on screen as a choice to press.
 function text(value) {
     const string = String(value ?? "").trim().replace(/\s+/g, " ")
     return string && string !== "-99" ? string : undefined

@@ -1,4 +1,3 @@
-// Package chatannouncement puts an announcement on the wire.
 package chatannouncement
 
 import (

@@ -15,6 +15,8 @@ async function guest() {
         me: vi.fn(async () => ({linked: []})),
         startSignIn: vi.fn(async () => "https://discord.example/authorize"),
         completeSignIn: vi.fn(async () => undefined),
+        startEmailSignIn: vi.fn(async () => undefined),
+        completeEmailSignIn: vi.fn(async () => undefined),
         signOut: vi.fn(async () => undefined),
         signOutEverywhere: vi.fn(async () => undefined),
         deleteAccount: vi.fn(async () => undefined),

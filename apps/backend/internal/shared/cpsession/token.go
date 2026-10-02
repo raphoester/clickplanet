@@ -1,11 +1,3 @@
-// Package cpsession mints and verifies the opaque token a caller has to hold to
-// click. It is deliberately stateless: the token carries its own expiry and a
-// signature over it, so nothing has to be stored, swept, or replicated, and a
-// restart does not log every player out.
-//
-// The signature is Ed25519 rather than a MAC, so the key that mints and the key
-// that verifies are different halves. Only the auth context holds the seed; the
-// planet context is handed a public key and a Verifier with no Mint on it.
 package cpsession
 
 import (
@@ -27,12 +19,8 @@ var (
 	ErrExpired      = errors.New("session token has expired")
 )
 
-// Version is the first byte of every token, so a later format change can be
-// accepted alongside this one instead of making every token in flight malformed.
-// Version 2 adds the linked byte; a version 1 token still verifies, as a holder that is not linked.
 const Version = 2
 
-// versionWithoutLinked is the format before the linked byte, verified until the last one minted expires.
 const versionWithoutLinked = 1
 
 const (
@@ -54,21 +42,15 @@ const (
 	tokenWithoutLinkedLen   = payloadWithoutLinkedLen + ed25519.SignatureSize
 )
 
-// ID identifies one minted session. It is not a secret and not an identity —
-// it exists so a refusal can be correlated in the logs with the mint that
-// preceded it.
 type ID string
 
-// Holder is who a token is minted for: an account (NoAccount for none), and whether it signed in with a provider.
 type Holder struct {
 	Account AccountID
 	Linked  bool
 }
 
-// Nobody is the holder of a token minted for no account.
 var Nobody = Holder{Account: NoAccount}
 
-// Claims is what a verified token says: which mint, and who it was minted for.
 type Claims struct {
 	ID      ID
 	Account AccountID
@@ -81,7 +63,6 @@ type Token struct {
 	ExpiresAt time.Time
 }
 
-// Signer mints. It is the auth context's, and nothing else builds one.
 type Signer struct {
 	key ed25519.PrivateKey
 	ttl time.Duration
@@ -101,15 +82,6 @@ func NewSigner(config SignerConfig) (*Signer, error) {
 	return &Signer{key: key, ttl: config.TTL}, nil
 }
 
-// Mint binds the token to the scope ip sits in — the address itself over IPv4,
-// the surrounding /64 over IPv6. A caller that leaves it mid-session — a phone
-// moving from wifi to cellular — fails verification and mints again, which is
-// the intended behaviour: the point of the binding is that a token lifted off
-// the wire is worth nothing outside the scope it was minted for.
-//
-// The scope rather than the address, for the same reason the throttle uses it:
-// the two must cover the same ground, or a v6 caller sheds a spent bucket by
-// re-minting on the next address in a prefix it already owns.
 func (s *Signer) Mint(ip string, holder Holder, now time.Time) (*Token, error) {
 	id := make([]byte, idLen)
 	if _, err := rand.Read(id); err != nil {
@@ -138,20 +110,14 @@ func (s *Signer) Mint(ip string, holder Holder, now time.Time) (*Token, error) {
 	}, nil
 }
 
-// PublicKey is what verifies what this signer mints. It is not a secret, which is
-// why it is the thing that travels between modules.
 func (s *Signer) PublicKey() string {
 	return hex.EncodeToString(s.key.Public().(ed25519.PublicKey))
 }
 
-// Verifier checks, and that is the whole of it: it holds a public key, so the
-// context that has one cannot mint whatever it does with it.
 type Verifier struct {
 	key ed25519.PublicKey
 }
 
-// NewVerifier takes the key rather than a config block: the context that checks
-// a click is handed it by the one that mints, over the internal listener.
 func NewVerifier(publicKey string) (*Verifier, error) {
 	key, err := parsePublicKey(publicKey)
 	if err != nil {
@@ -185,7 +151,7 @@ func (v *Verifier) Verify(value string, ip string, now time.Time) (*Claims, erro
 
 	payload, signature := raw[:length-ed25519.SignatureSize], raw[length-ed25519.SignatureSize:]
 
-	// Before the expiry check: a forger must not learn whether their token would otherwise have been in date.
+	// Signature before expiry: a forger must not learn whether the token is in date.
 	if !ed25519.Verify(v.key, signed(payload, ip), signature) {
 		return nil, ErrBadSignature
 	}
@@ -202,9 +168,6 @@ func (v *Verifier) Verify(value string, ip string, now time.Time) (*Claims, erro
 	}, nil
 }
 
-// signed is what the signature covers: the payload as it travels, and the scope,
-// which never does — so the token is bound to an address without carrying one.
-// Normalising here is what makes Mint and Verify incapable of disagreeing.
 func signed(payload []byte, ip string) []byte {
 	scope := cpipscope.Of(ip)
 

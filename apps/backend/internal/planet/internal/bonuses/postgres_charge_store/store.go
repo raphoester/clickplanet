@@ -1,4 +1,3 @@
-// Package postgres_charge_store keeps the in-memory charges between boots: one row per account.
 package postgres_charge_store
 
 import (
@@ -50,7 +49,6 @@ func (s *Store) Load(ctx context.Context, visit func(bonuses.Holder, bonuses.Hel
 	return nil
 }
 
-// Save deletes the hands that hold nothing and writes the others, in one transaction.
 func (s *Store) Save(ctx context.Context, hands map[bonuses.Holder]bonuses.Held) error {
 	var (
 		gone                     []string

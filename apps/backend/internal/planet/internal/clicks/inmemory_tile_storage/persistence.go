@@ -8,7 +8,6 @@ import (
 	"time"
 )
 
-// Persistence is where the map is kept between boots. It is never read after Load.
 type Persistence interface {
 	Load(ctx context.Context, visit func(tile uint32, owner string)) error
 	Save(ctx context.Context, tiles []uint32, owners []string) error
@@ -16,7 +15,6 @@ type Persistence interface {
 
 const flushTimeout = 10 * time.Second
 
-// Load refuses rather than start empty: an empty map that then flushes would be every player's territory gone.
 func (s *Storage) Load(ctx context.Context) error {
 	s.tilesMu.Lock()
 	defer s.tilesMu.Unlock()
@@ -81,7 +79,6 @@ func (s *Storage) flushOrLog(ctx context.Context) {
 	}
 }
 
-// Flush writes every tile changed since the last flush, as it is now. A failed write keeps them marked.
 func (s *Storage) Flush(ctx context.Context) error {
 	tiles, owners := s.takeDirty()
 	if len(tiles) == 0 {

@@ -75,3 +75,43 @@ func TestAnEmptySeedIsRefused(t *testing.T) {
 
 	assert.Error(t, err)
 }
+
+var challenge = &signin.Challenge{
+	ID: "challenge-id", Address: "player@example.com", Code: "123456",
+	ExpiresAt: time.Date(2026, 9, 16, 12, 10, 0, 0, time.UTC),
+	Intent:    accounts.IntentLink, Account: accounts.AccountID{15: 7},
+}
+
+func TestASealedChallengeOpensAsItWas(t *testing.T) {
+	s := sealer(t, 1)
+
+	sealed, err := s.SealedChallenge(challenge)
+	require.NoError(t, err)
+	opened, err := s.OpenedChallenge(sealed)
+
+	require.NoError(t, err)
+	assert.Equal(t, challenge, opened)
+}
+
+func TestTheBrowserCannotReadTheCode(t *testing.T) {
+	sealed, err := sealer(t, 1).SealedChallenge(challenge)
+	require.NoError(t, err)
+
+	raw, err := base64.RawURLEncoding.DecodeString(sealed)
+	require.NoError(t, err)
+	assert.NotContains(t, string(raw), "123456")
+	assert.NotContains(t, string(raw), "player@example.com")
+}
+
+func TestOneCookieDoesNotOpenAsTheOther(t *testing.T) {
+	s := sealer(t, 1)
+	sealedFlow, err := s.Sealed(flow)
+	require.NoError(t, err)
+	sealedChallenge, err := s.SealedChallenge(challenge)
+	require.NoError(t, err)
+
+	_, err = s.OpenedChallenge(sealedFlow)
+	require.ErrorIs(t, err, signin.ErrFlowInvalid)
+	_, err = s.Opened(sealedChallenge)
+	require.ErrorIs(t, err, signin.ErrFlowInvalid)
+}

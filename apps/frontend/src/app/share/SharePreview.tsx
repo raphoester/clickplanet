@@ -10,15 +10,6 @@ export type SharePreviewProps = {
     onClose: () => void
 }
 
-/**
- * The picture, before anything is done with it.
- *
- * A preview rather than a straight-to-the-clipboard button because the framing
- * is the player's: the camera takes the globe at whatever angle and zoom they
- * left it, and the one thing they cannot check afterwards is whether that was
- * the shot they wanted. It is also where the choice of what to do with it goes,
- * which is a choice with nowhere else to live.
- */
 export default function SharePreview({shot, stats, onClose}: SharePreviewProps) {
     return <Modal title="Your planet"
                   className="modal-picture"

@@ -30,7 +30,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
-// The tile count of the embedded map: planet refuses to boot on any other.
 const mapTiles = 262119
 
 type gameStack struct {
@@ -38,8 +37,6 @@ type gameStack struct {
 	fakes   auth.FakeProviders
 }
 
-// startGame boots auth, planet, player and chat on one test postgres, with the internal listener the last three
-// dial. Auth signs in with fake providers.
 func startGame(t *testing.T) gameStack {
 	t.Helper()
 
@@ -98,7 +95,6 @@ func startGame(t *testing.T) gameStack {
 	return gameStack{baseURL: "http://" + server.BindAddress, fakes: fakes}
 }
 
-// gamer is one browser: the cookie auth set, and the click token minted with it.
 type gamer struct {
 	t      *testing.T
 	stack  gameStack
@@ -125,16 +121,12 @@ func (p *gamer) send(header http.Header) {
 	header.Set("Cookie", p.cookie)
 }
 
-// link signs the guest in with a provider, which links the identity to its account, and mints again so the
-// token is the linked account's.
 func (p *gamer) link(subject string) {
 	p.t.Helper()
 
 	p.signIn(subject, authv1.SignInIntent_SIGN_IN_INTENT_LINK, authv1.SignInOutcome_SIGN_IN_OUTCOME_LINKED)
 }
 
-// signIn signs the browser in with a provider's user, checks the outcome, and mints again so the token is the
-// account's the browser is on now.
 func (p *gamer) signIn(subject string, intent authv1.SignInIntent, outcome authv1.SignInOutcome) {
 	p.t.Helper()
 
@@ -313,7 +305,6 @@ func TestADeletedAccountLosesItsStatsAndItsName(t *testing.T) {
 	_, err = authv1connect.NewAuthServiceClient(http.DefaultClient, game.baseURL).DeleteAccount(t.Context(), deletion)
 	require.NoError(t, err)
 
-	// The token outlives the account until it expires, so it still reads what is left: nothing.
 	get := connect.NewRequest(&playerv1.GetProfileRequest{})
 	ada.send(get.Header())
 	require.Eventually(t, func() bool {

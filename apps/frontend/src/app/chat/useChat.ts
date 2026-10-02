@@ -24,11 +24,6 @@ export type ChatSendFailure = 'rate-limited' | 'blocked' | 'rejected' | 'no-sess
 
 export type UseChatOptions = {
     backend?: ChatBackend
-    /**
-     * The signed-in player's username, which the server posts and reacts
-     * under. A guest has none: the server picks its name, so this hook only
-     * learns it once this tab has posted.
-     */
     username?: string
 }
 
@@ -41,11 +36,8 @@ export function useChat({backend, username}: UseChatOptions) {
     const [failure, setFailure] = useState<ChatSendFailure | undefined>(undefined)
     const [mine, setMine] = useState<ReadonlySet<string>>(NOTHING_SENT)
 
-    // What everyone else sees on this player's messages and reactions.
     const displayName = username ?? nameSentUnder(messages, mine)
 
-    // `react` reads the name as it fires rather than closing over it, so a
-    // guest learning its name does not build a new callback on every message.
     const named = useRef(displayName)
     named.current = displayName
 
@@ -107,7 +99,6 @@ export function useChat({backend, username}: UseChatOptions) {
         }
     }, [backend, receive])
 
-    // Shown at once, then corrected by the server's answer, or undone when it refuses.
     const react = useCallback(async (reaction: OutgoingReaction) => {
         if (!backend) return
 

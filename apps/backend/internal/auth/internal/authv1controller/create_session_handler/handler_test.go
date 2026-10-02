@@ -38,7 +38,6 @@ func (s *stubUseCase) Execute(_ context.Context, in create_session_usecase.In) (
 	return s.out, s.err
 }
 
-// onlyCreateSession serves CreateSession, and Unimplemented for every other procedure.
 type onlyCreateSession struct {
 	unimplemented
 	create_session_handler.CreateSessionHandler

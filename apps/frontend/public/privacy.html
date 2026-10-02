@@ -11,12 +11,6 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Oswald:wght@400;500&display=swap"
           rel="stylesheet">
-    <!--
-      A plain page rather than a route in the app: it has to load without
-      WebGL, be readable by a crawler, and cost nothing of the game's bundle.
-      Keep it in step with what the backend actually stores and for how long:
-      deploy/vps/backend.yaml and deploy/vps/caddy/Caddyfile.
-    -->
     <style>
         body {
             margin: 0;
@@ -100,11 +94,11 @@
     <a class="back" href="/">← Back to the planet</a>
 
     <h1>Privacy policy</h1>
-    <p class="updated">Last updated: 18 September 2026</p>
+    <p class="updated">Last updated: 2 October 2026</p>
 
-    <p>ClickPlanet is a game made by Raphaël Oester. You can play without an account, and we never ask for
-        your name, email or any other contact detail. You can choose to sign in with Google or Discord. This
-        page says what we collect, why, and how long we keep it.</p>
+    <p>ClickPlanet is a game made by Raphaël Oester. You can play without an account, and to play we never ask
+        for your name, email or any other contact detail. You can choose to sign in with Google, Discord or your
+        email address. This page says what we collect, why, and how long we keep it.</p>
 
     <h2>What we collect</h2>
     <table>
@@ -151,6 +145,15 @@
             <td>Until you delete your account</td>
         </tr>
         <tr>
+            <td>Only if you sign in with your email address: the address, and when you signed in with it. It is
+                linked to your account. The code we send is kept for 10 minutes in an encrypted cookie in your
+                browser, not on our server. To limit how many codes go to one address, our server also keeps the
+                address in memory for up to one hour after a code is sent.
+            </td>
+            <td>Signing you in, and keeping your account on every device where you sign in</td>
+            <td>Until you delete your account</td>
+        </tr>
+        <tr>
             <td>Chat messages: the name you chose, the text, your flag, a random id your browser keeps, your IP
                 address and user agent
             </td>
@@ -187,7 +190,8 @@
     <h2>Who else sees your data</h2>
     <ul>
         <li><strong>Cloudflare</strong> delivers the site and runs Turnstile, the check that you are not a bot.
-            Cloudflare processes your IP address and browser details to do this. See
+            Cloudflare processes your IP address and browser details to do this. If you sign in with your email
+            address, Cloudflare also sends the email with your code, so it sees the address and the email. See
             <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener noreferrer">Cloudflare's
                 privacy policy</a>.
         </li>

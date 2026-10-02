@@ -6,52 +6,20 @@ import "./ClickBudgetMeter.css"
 
 export type ClickBudgetMeterProps = {
     budget?: ClickBudget
-    /** Docked under the meter, inside the same panel: the inventory. Shown without a budget too. */
     children?: ReactNode
-    /** The country selected, to say why its clicks refill slower, or that another flag sets the price. */
     countryName?: string
-    /**
-     * How many clicks the server has refused for the throttle. Each new one
-     * shakes the meter and flashes it red — the only thing said about a refused
-     * click, since this is where the player already looks for the allowance.
-     */
     refusals?: number
-    /**
-     * Present for a guest the server offers sign-in to: the meter then says
-     * what signing in is worth, under the pips, and this opens the way to it.
-     * The meter is where a guest meets the wall, so it is where the offer is.
-     */
     onSignIn?: () => void
 }
 
-/** Above this many, a row of pips is unreadable and it becomes one bar. */
 const MAX_PIPS = 12
 
-/** Below this, the player is close enough to the wall to be warned. */
 const LOW_WATER = 3
 
-/**
- * A click that takes this long or more to come back gets a countdown. At one a
- * second it would only ever say 1s; at one every 5s, a count stuck on 0 and a
- * bar that barely moves look broken without it.
- */
 const COUNTDOWN_FROM_S = 1.5
 
-/** Reduced motion steps the fill instead of gliding it. */
 const STEP_MS = 250
 
-/**
- * How many clicks the server will still take, and the next one arriving.
- *
- * The count comes from the server and nowhere else — see clickBudget.ts for why
- * a client-side bucket could not tell the truth here. What this adds is the
- * only part that is honestly local: replaying the refill between two readings,
- * so the pip fills smoothly rather than jumping once per answer.
- *
- * Everything about the shape is read off the server's own policy. The number of
- * pips *is* the burst, and the fill rate *is* the refill rate, so changing
- * either in the backend's config changes this with no frontend release.
- */
 export default function ClickBudgetMeter({
     budget,
     children,
@@ -67,9 +35,8 @@ export default function ClickBudgetMeter({
         const box = root.current
         if (!box || refusals === 0) return
 
-        // Take the class off and put it back, with a layout read between, so a
-        // refusal during the animation restarts it rather than being lost.
         box.classList.remove("click-budget-refused")
+        // Forces a reflow, so a refusal mid-animation restarts it.
         void box.offsetWidth
         box.classList.add("click-budget-refused")
 
@@ -95,11 +62,8 @@ export default function ClickBudgetMeter({
             const tokens = tokensAt(budget, at)
             const whole = Math.floor(tokens)
 
-            // One write, and every pip works out its own share of it.
             box.style.setProperty("--click-budget-tokens", tokens.toFixed(3))
 
-            // A bar of 60 moves a sixtieth per click, too little to see; the
-            // strip under it fills once per click, as a pip would.
             if (bar) box.style.setProperty("--click-budget-next", nextClickProgress(budget, at).toFixed(3))
 
             if (wait.current) {
@@ -110,8 +74,6 @@ export default function ClickBudgetMeter({
                 }
             }
 
-            // The rest changes about once a second, so it is not written per
-            // frame — this sits beside a WebGL scene that wants the main thread.
             if (whole === shown) return
             shown = whole
 
@@ -137,19 +99,15 @@ export default function ClickBudgetMeter({
         return () => cancelAnimationFrame(frame)
     }, [budget])
 
-    // A backend that reports no allowance is one that enforces none here.
     if (!budget) return children ? <div className="click-budget-dock">{children}</div> : null
 
     const pips = budget.capacity <= MAX_PIPS ? budget.capacity : 0
 
-    // The effect redraws this on its first frame; rendering the reading rather
-    // than a placeholder is what stops the count flashing a wrong number first.
     const whole = Math.floor(tokensAt(budget, now()))
 
     const priced = budget.price?.country
     const price = describePrice(budget.price, countryName, priced && (Countries.get(priced)?.name ?? priced.toUpperCase()))
 
-    // Said only when the server says what it is worth: a number made up here could promise what it does not grant.
     const speedUp = onSignIn && budget.linkedMultiplier
 
     return <div className="click-budget-dock">
@@ -200,7 +158,6 @@ export default function ClickBudgetMeter({
     </div>
 }
 
-/** Why the count can drop by clicks this player never made. */
 const SHARED_WITH: Record<SharedBy, string> = {
     guests: "Shared with the guests on your network",
     network: "Shared with everyone on your network",
@@ -210,7 +167,6 @@ function slow(budget: ClickBudget): boolean {
     return budget.perSecond > 0 && 1 / budget.perSecond >= COUNTDOWN_FROM_S
 }
 
-/** When the next click is in hand, or nothing at a full bucket. */
 function waitText(budget: ClickBudget, at: number): string {
     const left = secondsToOneMore(budget, at)
     return left === undefined ? "" : `+1 in ${Math.ceil(left)}s`

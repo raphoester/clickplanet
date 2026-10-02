@@ -1,4 +1,3 @@
-// Package react_handler serves chat.v1.ChatService/React.
 package react_handler
 
 import (
@@ -51,7 +50,6 @@ func (h ReactHandler) React(
 	}), nil
 }
 
-// toConnect sends the bare sentinel, as SendMessage does. Anything else is left for the error net.
 func toConnect(err error) error {
 	switch {
 	case errors.Is(err, reactions.ErrInvalidReaction):

@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import {OrbitControls} from "three/addons/controls/OrbitControls.js";
-import {addDisplayObjects, setupScene} from "./scene.ts";
+import {addDisplayObjects, pixelRatio, setupScene} from "./scene.ts";
+import {graphicsOf} from "./graphics.ts";
 import {loadPointGeometryData} from "./points.ts";
 import {GpuPicker} from "./gpuPicking.ts";
 import {CapturedFrame, readDrawingBuffer} from "./capture.ts";
@@ -56,138 +57,53 @@ type Uniforms = BlastUniforms & {
     landmassData: THREE.IUniform
     landmassCount: THREE.IUniform
     pixelsPerRadian: THREE.IUniform<number>
+    pixelRatio: THREE.IUniform<number>
     flagPaint: THREE.IUniform
 }
 
-/** How long the screen shakes when your own bomb lands, in seconds. */
 const SHAKE_SECONDS = 0.5
 
-/** How long a press on the planet has to be held to drop a bomb. */
 const HOLD_TO_DROP_SECONDS = 0.7
 
-/** How far a held press may wander before it counts as a drag of the globe. */
 const HOLD_TOLERANCE_PX = 6
 
-/** How far a press may wander and still claim a tile: see domain/clickOrDrag.ts. */
 const CLICK_TOLERANCE = {mousePx: 6, touchPx: 12}
 
-/** How loud someone else's bomb is, against your own at 1. */
 const DISTANT_BOMB_VOLUME = 0.45
 
-/** How long after our own drop a blast in our colours is taken to be it. */
 const OWN_DROP_WINDOW_SECONDS = 5
 
-/** How long after our own click a spread on its tile is taken to be it. */
 const OWN_CLICK_WINDOW_SECONDS = 3
 
 const TILES_PER_BATCH = 10_000
 
-/**
- * How often the idle spin is redrawn, in milliseconds.
- *
- * The spin is the one thing that moves with nobody touching the page, and it is
- * also the first thing anybody sees, so it is the one animation that has to
- * carry. At a turn in thirty seconds the globe's surface goes by at a little
- * over a hundred pixels a second, which is two pixels a frame at sixty and four
- * at thirty: the step at thirty is visible as a step. Sixty still leaves half
- * the frames a display like this one offers on the table, which is the saving
- * worth having — on a phone, a game left open against a flat battery. Anything
- * the player is doing is drawn as fast as it comes.
- */
 const IDLE_FRAME_MS = 16
 
-/**
- * How fast the idle spin turns, in turns per minute — which is the unit
- * OrbitControls' `autoRotateSpeed` is in, once `update` is given the time a
- * frame took. Two is a turn in thirty seconds.
- *
- * It is set here rather than left to the default, because the default only
- * reads as thirty seconds if you already know this is the unit.
- */
 const SPIN_TURNS_PER_MINUTE = 2
 
-/**
- * The most time the spin is advanced by in one tick.
- *
- * The browser stops offering frames to a hidden tab, so the first tick back
- * carries however long the tab was away. Advancing the spin by all of it turns
- * the globe by however far it "should" have gone — a quarter of an hour in
- * another tab and it is somewhere else entirely. A tab comes back where it was
- * left instead.
- */
 const MAX_SPIN_STEP_MS = 100
 
-/**
- * How far to advance the idle spin on a tick, in seconds, given how long the
- * display's frame took.
- *
- * Time, rather than a count of frames, is what keeps the spin the same speed on
- * a 60Hz screen and a 120Hz one. The cap is for the gaps that are not a frame
- * at all: a hidden tab is offered none until it is looked at again, and the
- * whole of that wait arrives as one step. Past the cap the globe turns slower
- * than the clock rather than jumping, which is the right way round — below a
- * few frames a second nobody is watching a spin anyway.
- */
 export function spinStep(sinceLastTick: number): number {
     return Math.min(Math.max(sinceLastTick, 0), MAX_SPIN_STEP_MS) / 1000
 }
 
-/**
- * How long after the last touch of the globe the view still redraws at full
- * rate. OrbitControls' damping glides on for a moment after the hand is off it,
- * and that glide is looked at closely enough to be worth every frame.
- */
 const INTERACTION_GRACE_MS = 1_000
 
-/** What the animation loop knows about a tick when it decides whether to draw it. */
 export type Tick = {
-    /** The camera moved: the player turned it, or the idle spin did. */
     turned: boolean
-    /** Something on the globe changed: a claim, an effect, a resize, a capture. */
     changed: boolean
-    /** This tick's clock, and the last drawn frame's, in milliseconds. */
     at: number
     drawnAt: number
-    /** Until when the globe is being handled, so every frame is worth drawing. */
     interactingUntil: number
-    /** How long the display's own frame is, as this tick and the last measured it. */
     sinceLastTick: number
 }
 
-/**
- * Whether this tick is worth drawing a frame for.
- *
- * The globe used to draw every frame the browser offered, for as long as the
- * tab was open, and almost all of them were the same picture: nothing here
- * moves unless the player moves it, a claim lands, an effect plays, or the idle
- * spin turns the globe. Measured at rest, the same quarter of a million tiles
- * were redrawn sixty times a second — on a phone, a flat battery for a still
- * image.
- *
- * Two rules, in this order:
- *
- * - Nothing turned and nothing changed: the frame on screen is already the
- *   frame this one would draw.
- * - Only the idle spin is turning: `IDLE_FRAME_MS` is as often as that is worth
- *   drawing. Anything the player does — including the damping gliding on after
- *   their hand is off the globe — is drawn as fast as it comes.
- *
- * The cap picks the display's nearest frame rather than the first one past it.
- * A cap lands between two of the display's own frames, and waiting for the
- * first one strictly past it leaves the answer to a fraction of a millisecond
- * of drift: a 16ms cap against a 16.7ms frame came out sixty, then forty, then
- * sixty again. That unevenness is seen where the rate itself is not.
- */
 export function drawsFrame({turned, changed, at, drawnAt, interactingUntil, sinceLastTick}: Tick): boolean {
     if (!turned && !changed) return false
     if (changed || at <= interactingUntil) return true
     return at + sinceLastTick / 2 >= drawnAt + IDLE_FRAME_MS
 }
 
-/**
- * How long before the token lapses the box has to be gone: the claim still has
- * to reach the server, and may have to mint a session on the way.
- */
 const CLAIM_MARGIN_MS = 2_000
 
 const textureLoader = new THREE.TextureLoader();
@@ -199,33 +115,20 @@ export type GlobeOptions = {
     container: HTMLElement
     country: Country
     onLeaderboardChange: (entries: LeaderboardEntry[], live: boolean) => void
-    /** The share of the map's owners fetched so far, from 0 to 1. */
     onLoadProgress: (share: number) => void
     onRateLimited: () => void
     onVPNBlocked: () => void
     onSessionUnavailable: () => void
-    /** Somebody on the planet caught a box — this client included. */
     onBonusTaken: (taken: BonusCatch) => void
-    /** What this client won, once the server has agreed to it. */
     onBonusWon: (reward: BonusReward) => void
-    /** What this player holds now, as the server last said. */
     onCharges: (charges: Charges) => void
-    /** How big each charge is and how many are held at most, once read at load. */
     onRules: (rules: BonusRules) => void
-    /** Spread or enclose was switched on or off, by the player or by its pool running out. */
     onSwitchesChange: (switches: Switches) => void
-    /** Absent for a backend with no bonus feed, which draws no boxes at all. */
     bonusListener?: BonusListener
-    /** Absent for a backend with no bombs: a bomb won is then never armed. */
     bomber?: Bomber
-    /** A bomb landed somewhere on the planet — this client's included. `land` is
-     *  the code of the country whose ground it hit, not of who holds the tiles. */
     onBombDropped: (drop: BombDrop, land: string | undefined) => void
-    /** The bomb is aimed, or put away: a press on the planet drops it only while it is aimed. */
     onArmedChange: (armed: boolean) => void
-    /** A click of this player's cleared a tile on `ground`'s own soil rather than taking it. */
     onNativeCleared?: (ground: string) => void
-    /** Read for the globe's whole life, so it must not change identity. */
     playSound?: PlaySound
     signal: AbortSignal
 }
@@ -233,15 +136,9 @@ export type GlobeOptions = {
 export type Globe = {
     readonly tilesCount: number
     setCountry(country: Country): void
-    /** Plays out a reward as if a box had just been caught and the server had
-     *  answered with it. The click path's own step, exposed for dev tooling. */
     takeReward(claimed: ClaimedBonus): void
-    /** Aims the bomb held, or puts it away. Aiming does nothing without one. */
     setArmed(armed: boolean): void
-    /** Switches spread or enclose on or off. On does nothing with an empty pool. */
     setSwitch(name: keyof Switches, on: boolean): void
-    /** The globe as it is framed right now, resolved on the next frame — the
-     *  only tick the drawing buffer can be read from. See capture.ts. */
     capture(): Promise<CapturedFrame>
     dispose(): void
 }
@@ -277,8 +174,6 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         signal,
     } = options
 
-    // Every blob before a single GPU resource exists, so an abandoned load never
-    // opens a context, and in parallel because none of them needs another.
     const [geometryData, borders, borderLines] = await Promise.all([
         loadPointGeometryData(signal),
         loadBorders(BORDERS_URL, signal),
@@ -289,28 +184,25 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const lifetime = new AbortController();
     const listenerOptions = {signal: lifetime.signal};
 
-    // Until the owners are in, the map is empty and its board is wrong, so
-    // nothing on it can be claimed yet.
     let loaded = false
 
-    const {scene, camera, cameraSize, renderer, cleanup} = setupScene(eventTarget);
+    const graphics = graphicsOf(window.location.search);
+    const {scene, camera, cameraSize, renderer, cleanup} = setupScene(eventTarget, graphics);
     const uniforms: Uniforms = {
-        pointSize: {value: displayPointSize(camera.zoom, layoutViewport().height)},
+        pointSize: {value: displayPointSize(camera.zoom, layoutViewport().height) * renderer.getPixelRatio()},
         atlasTexture: {value: textureLoader.load(ATLAS_URL)},
         atlasTextureSize: {value: new THREE.Vector2(ATLAS_SIZE.width, ATLAS_SIZE.height)},
         landmassData: {value: null},
         landmassCount: {value: 1},
         pixelsPerRadian: {value: 1},
+        pixelRatio: {value: renderer.getPixelRatio()},
         flagPaint: {value: flagPaint(camera.zoom, layoutViewport().height)},
         ...blastUniforms(prefersReducedMotion()),
     };
 
-    // The picking pass keeps the true tile size: the display discs are widened
-    // to cover the ground while the coarse flag is painted through them, and
-    // overlapping discs would hand a click to whichever neighbour drew last.
-    const pickingUniforms = {pointSize: {value: tilePointSize(camera.zoom, layoutViewport().height)}}
+    const pickingUniforms = {pointSize: {value: tilePointSize(camera.zoom, layoutViewport().height) * renderer.getPixelRatio()}}
 
-    const field = new TileField(uniforms, pickingUniforms, geometryData);
+    const field = new TileField(uniforms, pickingUniforms, geometryData, graphics.tiles);
 
     const territories = new BorderField(borders, field.size)
     field.setLandmasses(borders.assignment)
@@ -325,51 +217,34 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const bonusBox = createBonusBox()
     scene.add(bonusBox.object)
 
-    // Zoomed in the box is nearly always outside the frame, so without this a
-    // zoomed player never learns one was theirs.
     const bonusPointer = createBonusPointer(eventTarget)
 
-    // Every shape anyone closes, drawn on every screen: the tiles alone flip
-    // with no reason given.
     const enclosures = createEnclosureEffects(geometryData.positions)
     scene.add(enclosures.object)
 
-    // And every click made under a spread charge, anyone's.
     const bonusClicks = createBonusClickEffects(geometryData.positions)
     scene.add(bonusClicks.object)
 
-    // Where one country's ground stops and the next one's starts, at the same
-    // width however far the view is pulled back.
     const outline = createBorderLines(borderLines)
     scene.add(outline.object)
 
-    // The box on screen and the token that redeems it, held together: a box
-    // caught is only worth something with the token it arrived with.
     let offered: BonusOffer | undefined
 
-    // A spread is broadcast to everyone with no word of whose it is,
-    // and only the player who made it hears it: its tile is one they just clicked.
     const ownClicks = new OwnClicks(OWN_CLICK_WINDOW_SECONDS)
 
-    // A frame is drawn only when the one on screen has stopped being right.
-    // This is how everything outside the animation loop — a claim landing, a
-    // resize, a capture — says so; what the loop itself drives says so by
-    // answering `true` from its own `update`.
     let dirty = true
     const invalidate = () => {
         dirty = true
     }
 
     const driveBonusBox = (seconds: number) => {
-        const enclosing = enclosures.update(seconds, camera, renderer.domElement.height)
-        const spreading = bonusClicks.update(seconds, camera, renderer.domElement.height)
+        const enclosing = enclosures.update(seconds, camera, renderer.domElement.height, renderer.getPixelRatio())
+        const spreading = bonusClicks.update(seconds, camera, renderer.domElement.height, renderer.getPixelRatio())
         const boxed = bonusBox.update(seconds, camera)
         bonusPointer.update(bonusBox.flying ? bonusBox.object.position : undefined, camera)
         return enclosing || spreading || boxed
     }
 
-    // `live` tells the board apart from its own footing: everything that lands
-    // while the player watches is news, the map it was handed at the start is not.
     const applyChanges = (changes: OwnerChange[], live = true) => {
         if (changes.length === 0) return
         field.setOwners(changes)
@@ -378,20 +253,12 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         invalidate()
     }
 
-    const blasts = createBlasts(uniforms, uniforms.pixelsPerRadian)
+    const blasts = createBlasts(uniforms, uniforms.pixelsPerRadian, uniforms.pixelRatio)
     scene.add(blasts.object)
-    // A blast is usually on the side of the planet nobody is looking at.
     const blastPointer = createBonusPointer(eventTarget, "blast")
 
-    // What the player holds, as the server last said. Nothing is used until the
-    // player says so: a bomb is aimed from the inventory, and spread and enclose
-    // are switched on there. Aimed, a press on the planet drops the bomb and a
-    // click paints nothing.
     let charges: Charges = NO_CHARGES
 
-    // Spread and enclose, as the player left them. Every click carries them.
-    // One bonus at a time, the bomb included: aiming it switches both off, and
-    // switching one on puts the bomb away.
     let switches: Switches = ALL_OFF
 
     const switchTo = (next: Switches) => {
@@ -400,26 +267,14 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         onSwitchesChange(next)
     }
 
-    // How wide a bomb's blast is, from the rules read at load. Without it the
-    // bomb cannot be aimed: the ring would promise a size nobody knows. Whether
-    // native land takes two clicks comes with it; until it is read, a click is
-    // painted as a take, and the server's echo corrects a clear.
     let rules: BonusRules | undefined
 
-    // The bomb while it is aimed.
-    //
-    // Aiming follows the sphere under the cursor, not the tile picker: the
-    // picker finds nothing between tiles or over the sea, and a ring that
-    // followed it blinked off and jumped from tile to tile as the mouse moved.
     let armed: {radius: number} | undefined
 
-    // See domain/holdToDrop.ts: a bomb goes on a press held still, never a click.
     const hold = new HoldToDrop<THREE.Vector3>({holdSeconds: HOLD_TO_DROP_SECONDS, tolerancePx: HOLD_TOLERANCE_PX})
 
-    // The click that follows a press ends nothing while a bomb is involved.
     let swallowClick = false
 
-    // See domain/clickOrDrag.ts: the click that ends a drag of the globe claims nothing.
     const press = new ClickOrDrag(CLICK_TOLERANCE)
 
     const cancelCharge = () => {
@@ -444,8 +299,6 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         switchTo(ALL_OFF)
     }
 
-    // A bomb dropped, or found gone, is put away here too, and a switch whose
-    // pool ran out goes off.
     const takeCharges = (held: Charges) => {
         charges = held
         if (!held.bomb) disarm()
@@ -458,24 +311,15 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         blasts.setAim(point, armed.radius)
     }
 
-    // What the server granted for a caught box. It goes into the inventory and
-    // nothing is used: the player decides when.
     const takeReward = ({reward, charges: held}: ClaimedBonus) => {
         takeCharges(held)
         onBonusWon(reward)
     }
 
-    // Subscribed only once everything it calls exists: a feed may say what is
-    // held the moment it is followed.
-    //
-    // The server decides when a box appears and who sees it, so nothing here
-    // schedules one: the stream says so, and the seed it sends is what draws
-    // the orbit. The box ends itself, so there is no matching "hide".
+    // Subscribe only once everything it calls exists: a feed may answer at once.
     const stopBonuses = bonusListener?.listenForBonuses({
         onOffered: (offer) => {
             offered = offer
-            // The animation loop's clock is `performance.now()` in seconds, the
-            // same clock the offer's deadline is on.
             bonusBox.spawn(offer.seed, (offer.expiresAt - CLAIM_MARGIN_MS) / 1000)
             playSound("bonusSpawn")
         },
@@ -495,8 +339,6 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         },
     })
 
-    // When this client last dropped one, until its broadcast comes back: the
-    // server picks the tile, so the next blast in our colours is ours, for the shake.
     let ownDropAt: number | undefined
 
     const dropBomb = (point: THREE.Vector3) => {
@@ -510,8 +352,6 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         })
     }
 
-    // Cleared tiles wait for the blast to hit them, so the ground goes when the
-    // bomb explodes rather than when the message arrives.
     let pendingClears: {at: number, tiles: Set<number>}[] = []
 
     const flushClears = (upTo: number) => {
@@ -527,12 +367,10 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const shake = new THREE.Vector3()
 
     const stopBombs = bomber?.listenForBombs((drop) => {
-        // The animation loop's own clock, so the blast starts on this frame.
         const seconds = performance.now() / 1000
         const centre = new THREE.Vector3(drop.point.x, drop.point.y, drop.point.z)
         blasts.start(centre, drop.radius, seconds, drop.tile === undefined)
 
-        // A hidden tab draws no frames, so nothing would ever reach the impact.
         if (document.hidden) {
             applyChanges(ownership.applyClears(drop.cleared))
         } else if (drop.cleared.length > 0) {
@@ -544,8 +382,6 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             ownDropAt = undefined
             shakeFrom = seconds + IMPACT_DELAY
         }
-        // The synth waits `IMPACT_DELAY` itself, so the boom lands with the tiles.
-        // A drop with no tile under it landed in the ocean, and splashes.
         playSound("bomb", {volume: own ? 1 : DISTANT_BOMB_VOLUME, onWater: drop.tile === undefined})
         onBombDropped(drop, drop.tile === undefined ? undefined : countryOfTile(borders, drop.tile))
     })
@@ -553,7 +389,6 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const driveBlasts = (seconds: number) => {
         let drawing = blasts.update(seconds, camera)
         blastPointer.update(blasts.newest(seconds), camera)
-        // The crater goes when the bomb hits, which is a frame of its own.
         if (flushClears(seconds)) drawing = true
 
         if (armed) {
@@ -567,8 +402,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             if (s > SHAKE_SECONDS) {
                 shakeFrom = undefined
             } else if (s >= 0) {
-                // Undone after the frame is drawn, or OrbitControls would read
-                // it back as the player turning the globe.
+                // Undone after the render, or OrbitControls reads it back as the player turning.
                 const amplitude = 0.015 * (1 - s / SHAKE_SECONDS) ** 2 / camera.zoom
                 shake.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(amplitude)
                 camera.position.add(shake)
@@ -602,7 +436,6 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const raycaster = new THREE.Raycaster()
     const globeSurface = new THREE.Sphere(new THREE.Vector3(), 1)
 
-    /** Where on the globe the canvas point (x, y) is, or undefined off the planet. */
     const surfacePoint = (x: number, y: number) => {
         raycaster.setFromCamera(deviceCoordinates(x, y), camera)
         return raycaster.ray.intersectSphere(globeSurface, new THREE.Vector3()) ?? undefined
@@ -633,7 +466,6 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         aimAt(point)
     }, listenerOptions);
 
-    // Escape puts an aimed bomb away, the way it closes everything else.
     window.addEventListener('keydown', (event: KeyboardEvent) => {
         if (event.key === "Escape") disarm()
     }, listenerOptions);
@@ -659,19 +491,9 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
         const {x, y} = canvasPosition(event)
 
-        // The box sits above the tile shell, so it has to be asked first:
-        // otherwise a click meant for it paints whatever tile is behind it.
-        // The box pops on the click rather than on the answer: the server
-        // addressed this box to this client, so the only way to lose it now is
-        // to have let it lapse, and making the player watch a round trip before
-        // anything happens would cost every catch its snap.
-        // A box whose token is about to lapse is let go rather than popped: the
-        // frame that would have ended it may not have been drawn yet.
         if (offered && monotonicNow() >= offered.expiresAt - CLAIM_MARGIN_MS) {
             offered = undefined
             bonusBox.hide()
-            // Hidden from outside the loop, so nothing else would draw the
-            // frame that takes it off the screen.
             invalidate()
         }
 
@@ -690,7 +512,6 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             return
         }
 
-        // Aiming a bomb, a click claims nothing: the bomb goes on a held press.
         if (armed) return
 
         const tile = picker.pick(camera, x, y)
@@ -701,8 +522,6 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             return
         }
 
-        // Painted as the server will write it: on another country's native
-        // land the first click clears the tile, it does not flip it.
         const owner = ownership.ownerOf(tile)
         const ground = rules?.homeSoil ? countryOfTile(borders, tile) : undefined
         const outcome = outcomeOf(owner, ground, country.code)
@@ -712,7 +531,6 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         playSound("click")
         ownClicks.record(tile, country.code, performance.now() / 1000)
 
-        // A tile going blank reads as a click that went wrong, so it says so.
         if (outcome === "cleared" && ground !== undefined) {
             bonusClicks.playClear(tile)
             onNativeCleared(ground)
@@ -732,22 +550,20 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         camera.right = cameraSize * (width / height);
         camera.updateProjectionMatrix();
 
+        renderer.setPixelRatio(pixelRatio(graphics));
         renderer.setSize(width, height);
         invalidate();
     };
     window.addEventListener('resize', resizeListener, listenerOptions);
 
     const cleanUpdatesListener = updatesListener.listenForUpdatesBatch((updates: Update[]) => {
-        // An update reaches this client after the blast it follows, so it wins
-        // its tile: that tile is taken out of the waiting clear, and the rest of
-        // the crater still goes on impact.
         for (const clear of pendingClears) {
             for (const update of updates) clear.tiles.delete(update.tile)
         }
         applyChanges(ownership.applyUpdates(updates))
     })
 
-    addDisplayObjects(scene, field.displayPoints)
+    addDisplayObjects(scene, field.displayPoints, graphics)
 
     let captureRequests: CaptureRequest[] = []
 
@@ -764,13 +580,11 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     }, (seconds) => {
         const boxed = driveBonusBox(seconds)
         const blasting = driveBlasts(seconds)
-        outline.update(camera.zoom, renderer.domElement.width, renderer.domElement.height)
+        outline.update(camera.zoom, renderer.domElement.width, renderer.domElement.height, renderer.getPixelRatio())
 
         if (pendingPointer === undefined) return boxed || blasting
         const {x, y} = pendingPointer
         pendingPointer = undefined
-        // Holding a bomb, the ring is the only hover: no tile pick, no tile
-        // highlight blinking on and off under it.
         if (armed) {
             field.setHover(undefined)
             if (!hold.holding) aimAt(surfacePoint(x, y))
@@ -781,8 +595,6 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         undoShake()
         if (captureRequests.length === 0) return
 
-        // Still inside the frame that drew it, which is the whole reason this
-        // hook exists rather than a method anyone could call.
         const frame = readDrawingBuffer(renderer)
         for (const request of takeCaptureRequests()) request.resolve(frame)
     });
@@ -805,8 +617,6 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
                 return
             }
             captureRequests.push({resolve, reject})
-            // A still globe draws no frames, and the buffer can only be read
-            // from inside the one that filled it.
             invalidate()
         }),
         dispose: () => {
@@ -836,9 +646,6 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         }
     }
 
-    // The scene already turns behind the loader, and fills in batch by batch.
-    // An abandoned load aborts the fetch through `lifetime`, and a failed one
-    // takes the whole globe down: a map without its owners is not playable.
     const batches = Math.ceil(field.size / TILES_PER_BATCH)
     let fetched = 0
     const stopFollowingLoad = new AbortController()
@@ -866,16 +673,6 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     return globe
 }
 
-/**
- * The render loop, which draws a frame only when the one on screen has stopped
- * being right — see `drawsFrame` for which ticks those are.
- *
- * @param takeChange Reads and clears the "something changed" flag. It is read
- *   once per tick, and only ever set from outside this loop, so clearing it on
- *   a tick that then skips its frame cannot lose one.
- * @param beforeRender Drives everything that animates, and answers whether any
- *   of it did something this frame.
- */
 function startAnimation(
     renderer: THREE.WebGLRenderer,
     scene: THREE.Scene,
@@ -895,15 +692,7 @@ function startAnimation(
     controls.enableDamping = true;
     controls.autoRotateSpeed = SPIN_TURNS_PER_MINUTE;
 
-    // OrbitControls applies a wheel zoom inside the wheel handler: it calls
-    // `update()` there, and that call is the one that moves the camera and
-    // clears the pending scale. The loop's own `update()` then finds nothing
-    // left to apply and answers `false`, so a zoom looked to the loop like a
-    // still globe and was drawn at whatever rate a claim happened to land at.
-    // `change` is dispatched by whichever `update()` actually moved the camera,
-    // so that is what the loop reads. It is cleared on the frame that draws it,
-    // not on the tick that reads it, so the idle throttle can hold a frame back
-    // without losing the move that asked for it.
+    // A wheel zoom moves the camera inside OrbitControls' own handler, so update() misses it.
     let moved = false;
 
     controls.addEventListener('change', () => {
@@ -914,8 +703,6 @@ function startAnimation(
         controls.rotateSpeed = (1 / camera.zoom) / 1.5;
     });
 
-    // While the globe is being turned, and for a moment after, every frame is
-    // drawn: the damping glides on after the hand is off it.
     let interactingUntil = 0;
     controls.addEventListener('start', () => {
         interactingUntil = Infinity;
@@ -926,41 +713,23 @@ function startAnimation(
 
     let drawnAt = -Infinity;
     let tickedAt: number | undefined;
+    const viewport = new THREE.Vector2();
 
     renderer.setAnimationLoop((time: number) => {
-        // How long this display's frame is. The spin is advanced by it, and the
-        // idle cap rounds to it — neither can be assumed, since the same page
-        // is offered 60 frames a second on one screen and 120 on the next.
         const sinceLastTick = tickedAt === undefined ? 0 : time - tickedAt;
         tickedAt = time;
 
-        // Given the time a frame took, OrbitControls turns the spin by the
-        // clock. Given nothing, it turns by a fixed angle per call instead, and
-        // the globe goes round twice as fast on a 120Hz display as on a 60Hz
-        // one — which is also twice as far between the frames that are drawn.
-        //
-        // `update()` dispatches `change` itself when it moves the camera, so
-        // this reads what it just set as well as what a handler set before it.
         const turned = controls.update(spinStep(sinceLastTick)) || moved;
 
-        // These are read by the pass that is about to be drawn, so they are
-        // written before it and not after: with a frame skipped whenever
-        // nothing moved, a size worked out for the next frame is a size that
-        // may never be used, and the tiles would be left drawn for a zoom the
-        // outline had already moved off.
-        uniforms.pointSize.value = displayPointSize(camera.zoom, renderer.domElement.height);
-        pickingUniforms.pointSize.value = tilePointSize(camera.zoom, renderer.domElement.height);
+        const {y: height} = renderer.getSize(viewport);
+        const ratio = renderer.getPixelRatio();
+        uniforms.pointSize.value = displayPointSize(camera.zoom, height) * ratio;
+        pickingUniforms.pointSize.value = tilePointSize(camera.zoom, height) * ratio;
+        uniforms.pixelRatio.value = ratio;
 
-        // The coarse layer owns the frame until a tile is big enough to be aimed
-        // at. A landmass is painted as its holder's flag until its own tiles are
-        // big enough to be flags in their own right.
-        uniforms.flagPaint.value = flagPaint(camera.zoom, renderer.domElement.height);
-        // The globe's radius is 1, so an arc of one radian is half the viewport
-        // at zoom 1.
+        uniforms.flagPaint.value = flagPaint(camera.zoom, height);
         uniforms.pixelsPerRadian.value = (renderer.domElement.height / 2) * camera.zoom;
 
-        // Both run whatever is drawn: the damping and the effects are on the
-        // clock, not on the frame count, and a frame skipped must not stall them.
         const moving = beforeRender(time / 1000);
         const changed = takeChange() || moving;
 
@@ -970,8 +739,6 @@ function startAnimation(
         drawnAt = time;
 
         starfield.render(renderer, camera, () => renderer.render(scene, camera));
-        // After the starfield's pass, not inside it: the sky is drawn first and
-        // the globe over it, so the buffer only holds the whole frame here.
         afterRender();
     });
 
@@ -979,7 +746,6 @@ function startAnimation(
         stop: () => {
             renderer.setAnimationLoop(null);
             controls.dispose();
-            // Its scene is not the one `disposeScene` walks, so it goes here.
             starfield.dispose();
         },
     };
@@ -990,11 +756,6 @@ function prefersReducedMotion(): boolean {
         && window.matchMedia("(prefers-reduced-motion: reduce)").matches
 }
 
-/**
- * A box that got away is not worth a dialog — it lapsed, or the server had
- * already given it to nobody. A session that could not be minted still is, since
- * that is the player's clicks stopping too.
- */
 export function reportClaimFailure(
     error: unknown,
     handlers: {onSessionUnavailable: () => void},
@@ -1004,7 +765,6 @@ export function reportClaimFailure(
     else console.error(error)
 }
 
-/** Whether the server refused the click, as opposed to it never getting an answer. */
 export function reportClickFailure(
     error: unknown,
     handlers: {

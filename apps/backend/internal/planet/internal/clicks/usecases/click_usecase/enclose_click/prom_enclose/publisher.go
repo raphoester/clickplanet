@@ -1,8 +1,3 @@
-// Package prom_enclose counts the shapes the enclose bonus closes and the tiles
-// they take, to see whether the shape and size limits are set right.
-//
-// It wraps the publisher rather than the click: every shape closed is published
-// exactly once, and a click that closed nothing is not an enclosure to count.
 package prom_enclose
 
 import (

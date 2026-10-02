@@ -30,8 +30,6 @@ func (silentFeed) Attend(string) (<-chan bonuses.Event, func()) {
 	return nil, func() {}
 }
 
-// recorder stands in for the stream. Send is called from the use case's own
-// goroutine while the test reads, so the events are guarded.
 type recorder struct {
 	mu     sync.Mutex
 	events []listen_for_events_usecase.Event
@@ -108,8 +106,6 @@ func TestABlastIsCarriedToTheSinkAsOneFrame(t *testing.T) {
 	require.Equal(t, []listen_for_events_usecase.Event{{Blast: blast}}, sink.seen())
 }
 
-// Cloudflare cuts a silent response at ~125s with a 524, so a quiet feed has to
-// keep speaking or it dies and reconnects forever, losing each gap.
 func TestASilentFeedKeepsSendingHeartbeats(t *testing.T) {
 	sink := &recorder{fed: make(chan struct{})}
 
@@ -141,7 +137,6 @@ func TestTheFeedEndsWhenTheSubscriptionCloses(t *testing.T) {
 	require.NoError(t, err, "the map going away is not the caller's error")
 }
 
-// A stream that has gone away ends the feed rather than being retried.
 func TestAFailedSendEndsTheFeed(t *testing.T) {
 	updates := make(chan clicks.Change, 1)
 	updates <- clicks.Change{Update: &clicks.TileUpdate{Tile: 1}}

@@ -19,7 +19,6 @@ func (s *Storage) Held(country string) int {
 	return int(s.counts[id])
 }
 
-// Reassign moves up to limit of from's tiles to to, scanning from start; next is 0 once the map is done.
 func (s *Storage) Reassign(_ context.Context, from, to string, start uint32, limit int) (uint32, int, error) {
 	if limit <= 0 {
 		return 0, 0, errors.New("reassign limit must be positive")
@@ -71,7 +70,6 @@ func (s *Storage) Reassign(_ context.Context, from, to string, start uint32, lim
 	return next, len(updates), nil
 }
 
-// Restore applies each restoration whose tile still holds From, under one lock, and publishes each as an ordinary update.
 func (s *Storage) Restore(_ context.Context, restorations []clicks.Restoration) (int, error) {
 	updates := make([]clicks.TileUpdate, 0, len(restorations))
 

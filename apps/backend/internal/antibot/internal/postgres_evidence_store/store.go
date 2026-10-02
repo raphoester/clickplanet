@@ -1,4 +1,3 @@
-// Package postgres_evidence_store keeps the watchdogs' and the jury's evidence between boots: one row per section.
 package postgres_evidence_store
 
 import (
@@ -23,7 +22,6 @@ type Store struct {
 	db cppg.QuerierBeginner
 }
 
-// Load answers every stored section, saved at the latest flush that wrote one.
 func (s *Store) Load(ctx context.Context) (evidence.Snapshot, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT section, data, saved_at FROM evidence`)
 	if err != nil {
@@ -54,7 +52,6 @@ func (s *Store) Load(ctx context.Context) (evidence.Snapshot, error) {
 	return snapshot, nil
 }
 
-// Save replaces every stored section with the snapshot's in one transaction: a section left out is deleted.
 func (s *Store) Save(ctx context.Context, snapshot evidence.Snapshot) error {
 	names := make([]string, 0, len(snapshot.Sections))
 	for name := range snapshot.Sections {
@@ -71,7 +68,6 @@ func (s *Store) Save(ctx context.Context, snapshot evidence.Snapshot) error {
 		return fmt.Errorf("failed to delete sections: %w", err)
 	}
 
-	// One statement per section: a section can be megabytes, and an array of them would hold every one twice.
 	for _, name := range names {
 		if _, err := tx.ExecContext(ctx, `
 			INSERT INTO evidence (section, data, saved_at) VALUES ($1, $2, $3)

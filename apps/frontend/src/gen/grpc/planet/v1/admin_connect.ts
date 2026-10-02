@@ -7,9 +7,7 @@ import { BanPlayerRequest, BanPlayerResponse, FindPlayersRequest, FindPlayersRes
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
- * Operator tools. Served only on the backend's loopback admin listener
- * (httpServer.adminBindAddress), never on the public router: nothing here is
- * authenticated.
+ * Unauthenticated: serve only on the loopback admin listener, never the public router.
  *
  * @generated from service planet.v1.AdminService
  */
@@ -17,10 +15,6 @@ export const AdminService = {
   typeName: "planet.v1.AdminService",
   methods: {
     /**
-     * Gives every tile one country holds to another, while the game runs. Each
-     * tile goes out on the stream as an ordinary TileUpdate. dry_run counts and
-     * moves nothing.
-     *
      * @generated from rpc planet.v1.AdminService.ReassignCountry
      */
     reassignCountry: {
@@ -30,9 +24,6 @@ export const AdminService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Who took tiles for the flag on the area's ground, held or painted over
-     * since, latest take first. Read from the ledger (ledger.retention).
-     *
      * @generated from rpc planet.v1.AdminService.FindPlayers
      */
     findPlayers: {
@@ -42,9 +33,6 @@ export const AdminService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Who took the most tiles, over every flag and the whole map: most takes
-     * first, then most tiles held. Read from the same ledger as FindPlayers.
-     *
      * @generated from rpc planet.v1.AdminService.TopPlayers
      */
     topPlayers: {
@@ -54,8 +42,6 @@ export const AdminService = {
       kind: MethodKind.Unary,
     },
     /**
-     * The antibot's shadow ban, on a scope or an account a person picked. It counts as an offence.
-     *
      * @generated from rpc planet.v1.AdminService.BanPlayer
      */
     banPlayer: {
@@ -65,9 +51,6 @@ export const AdminService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Gives back every tile the scope or the account still holds to what it held
-     * before its current run on it. dry_run counts and restores nothing.
-     *
      * @generated from rpc planet.v1.AdminService.RevertPlayer
      */
     revertPlayer: {
@@ -77,11 +60,6 @@ export const AdminService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Paints count random tiles with a flag, starting on one country's ground,
-     * or anywhere on the map when no country is given. proximity favours tiles
-     * that touch the ones already picked, and a patch may grow past the
-     * country's border. dry_run picks and paints nothing.
-     *
      * @generated from rpc planet.v1.AdminService.PaintRandomTiles
      */
     paintRandomTiles: {
@@ -91,10 +69,6 @@ export const AdminService = {
       kind: MethodKind.Unary,
     },
     /**
-     * What the antibot holds on a scope: every watchdog's reading, what the jury
-     * would decide now, and any running ban. An account is read on the scope of
-     * its latest take, with the bans on both. Reads only.
-     *
      * @generated from rpc planet.v1.AdminService.InspectPlayer
      */
     inspectPlayer: {

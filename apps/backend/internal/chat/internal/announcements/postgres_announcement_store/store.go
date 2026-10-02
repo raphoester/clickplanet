@@ -1,5 +1,3 @@
-// Package postgres_announcement_store keeps every chat announcement in chat.announcements. It is the chat's only
-// copy: every read and write goes to postgres.
 package postgres_announcement_store
 
 import (
@@ -36,7 +34,6 @@ func (s *Store) Append(ctx context.Context, announcement announcements.Announcem
 	return nil
 }
 
-// Recent is the newest limit announcements made at or after since, oldest first.
 func (s *Store) Recent(ctx context.Context, since time.Time, limit int) ([]announcements.Announcement, error) {
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT id, kind, payload, announced_at
@@ -75,7 +72,6 @@ func (s *Store) Recent(ctx context.Context, since time.Time, limit int) ([]annou
 	return recent, nil
 }
 
-// DeleteBefore removes every announcement made before cutoff and says how many it removed.
 func (s *Store) DeleteBefore(ctx context.Context, cutoff time.Time) (int64, error) {
 	result, err := s.db.ExecContext(ctx, `DELETE FROM announcements WHERE announced_at < $1`, cutoff)
 	if err != nil {

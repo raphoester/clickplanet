@@ -14,8 +14,6 @@ import {
 } from "./enclosureEffect.ts"
 import type {Enclosure} from "../../backends/backend.ts"
 
-// A hexagon of six tiles around tile 1, on the ground facing +Z. Tile 2 is due
-// east of the middle, and the rest follow it round.
 const STEP = 0.01
 const around = Array.from({length: 6}, (_, i) => {
     const angle = (i * Math.PI) / 3
@@ -42,7 +40,6 @@ describe("choreograph", () => {
     })
 
     it("lights the far side of the outline first and the closing tile last", () => {
-        // Tile 5 is straight across from tile 2.
         expect(startOf(ring, 5)).toBeCloseTo(0, 6)
         expect(startOf(ring, 2)).toBe(OUTLINE_SECONDS)
 
@@ -142,12 +139,11 @@ describe("createEnclosureEffects", () => {
         effects.play(ring)
         expect(effects.object.children.length).toBeGreaterThan(0)
 
-        // The first frame is the start, however late the clock already is.
-        effects.update(1000, camera, 800)
-        effects.update(1000 + LIFETIME_SECONDS / 2, camera, 800)
+        effects.update(1000, camera, 800, 1)
+        effects.update(1000 + LIFETIME_SECONDS / 2, camera, 800, 1)
         expect(effects.object.children.length).toBeGreaterThan(0)
 
-        effects.update(1000 + LIFETIME_SECONDS, camera, 800)
+        effects.update(1000 + LIFETIME_SECONDS, camera, 800, 1)
         expect(effects.object.children).toHaveLength(0)
 
         effects.dispose()

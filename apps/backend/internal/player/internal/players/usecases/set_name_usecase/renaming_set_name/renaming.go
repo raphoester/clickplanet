@@ -1,5 +1,3 @@
-// Package renaming_set_name shows a new username on the roster as soon as it is kept, rather than at the
-// player's next announce, which waits for a click token the page may not hold.
 package renaming_set_name
 
 import (
@@ -28,7 +26,6 @@ type Renaming struct {
 
 var _ UseCase = (*Renaming)(nil)
 
-// Execute renames the visit only when the name was kept.
 func (r *Renaming) Execute(ctx context.Context, in set_name_usecase.In) (players.Profile, error) {
 	profile, err := r.inner.Execute(ctx, in)
 	if err != nil {

@@ -1,4 +1,3 @@
-// Package postgres_player_store is players.Store over player.profiles, player.guest_codes and player.stats.
 package postgres_player_store
 
 import (
@@ -42,7 +41,6 @@ func (s *Store) Profile(ctx context.Context, account players.AccountID) (players
 	return players.Profile{Account: account, Name: players.Name(name), UpdatedAt: updatedAt.UTC(), Admin: admin}, nil
 }
 
-// ProfileNamed reads through the unique index on name_folded.
 func (s *Store) ProfileNamed(ctx context.Context, name players.Name) (players.Profile, error) {
 	var (
 		account   uuid.UUID
@@ -63,14 +61,10 @@ func (s *Store) ProfileNamed(ctx context.Context, name players.Name) (players.Pr
 	}, nil
 }
 
-// uniqueNameIndex is the unique index on name_folded, which a name another account holds violates.
 const uniqueNameIndex = "profiles_name_key"
 
-// uniqueViolation is postgres' unique_violation.
 const uniqueViolation = "23505"
 
-// SaveProfile leaves uniqueness to the index, so two players asking for one name at once cannot both get it.
-// The folded name is the game's, written beside the name: postgres cannot compute it.
 func (s *Store) SaveProfile(ctx context.Context, profile players.Profile) error {
 	_, err := s.db.ExecContext(ctx, `
 		INSERT INTO profiles (account_id, name, name_folded, updated_at) VALUES ($1, $2, $3, $4)
@@ -100,11 +94,8 @@ func (s *Store) GuestCode(ctx context.Context, account players.AccountID) (playe
 	return players.GuestCode(code), nil
 }
 
-// uniqueGuestCode is the unique constraint on guest_codes.code, which a code another account holds violates.
 const uniqueGuestCode = "guest_codes_code_key"
 
-// SaveGuestCode leaves uniqueness to the table: an account that holds a code keeps it, and a code another
-// account holds violates uniqueGuestCode.
 func (s *Store) SaveGuestCode(ctx context.Context, account players.AccountID, code players.GuestCode) error {
 	_, err := s.db.ExecContext(ctx, `
 		INSERT INTO guest_codes (account_id, code) VALUES ($1, $2)
@@ -127,12 +118,8 @@ func (s *Store) Stats(ctx context.Context, account players.AccountID) (players.S
 	`, uuid.UUID(account)), account)
 }
 
-// takesLock is the advisory lock space of RecordTake, so its keys meet no other lock in the database.
-const takesLock = 0x706c6179 // "play"
+const takesLock = 0x706c6179
 
-// RecordTake holds a lock on the account for the transaction while the domain's rule computes the next
-// stats, so two takes never read the same stats. An advisory lock rather than FOR UPDATE: a first take has
-// no row to lock yet.
 func (s *Store) RecordTake(ctx context.Context, account players.AccountID, at time.Time) (err error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -205,9 +192,6 @@ func (s *Store) DeleteAccount(ctx context.Context, account players.AccountID) (e
 	return nil
 }
 
-// Authors reads the profile and the guest code of every account given in one pass: a row per id asked for,
-// whether or not the module knows it. It mirrors players.AuthorOf — a username wins, a guest code names an
-// account without one — but it writes nothing, so an account with neither is simply left out.
 func (s *Store) Authors(
 	ctx context.Context,
 	accounts []players.AccountID,
@@ -217,7 +201,6 @@ func (s *Store) Authors(
 		return authors, nil
 	}
 
-	// lib/pq cannot take a named array, so the ids go as text.
 	ids := make([]string, len(accounts))
 	for i, account := range accounts {
 		ids[i] = account.String()
@@ -265,7 +248,6 @@ func (s *Store) Names(ctx context.Context, accounts []players.AccountID) (map[pl
 		return names, nil
 	}
 
-	// lib/pq cannot take a named array, so the ids go as text.
 	ids := make([]string, len(accounts))
 	for i, account := range accounts {
 		ids[i] = account.String()
@@ -293,7 +275,6 @@ func (s *Store) Names(ctx context.Context, accounts []players.AccountID) (map[pl
 	return names, nil
 }
 
-// statsOf reads one stats row, or ErrNoStats.
 func statsOf(row *sql.Row, account players.AccountID) (players.Stats, error) {
 	var (
 		tiles, current, best int64

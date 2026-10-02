@@ -1,4 +1,3 @@
-// Package answer_quiz_handler serves planet.v1.ClickService/AnswerQuiz.
 package answer_quiz_handler
 
 import (
@@ -28,9 +27,7 @@ func (h AnswerQuizHandler) AnswerQuiz(
 	req *connect.Request[planetv1.AnswerQuizRequest],
 ) (*connect.Response[planetv1.AnswerQuizResponse], error) {
 	out, err := h.useCase.Execute(ctx, answer_quiz_usecase.In{
-		Token: req.Msg.GetToken(),
-		// A choice past the end of three is a guess, not an argument fault: the registry reads it
-		// as wrong, which is what it is.
+		Token:     req.Msg.GetToken(),
 		Choice:    int(req.Msg.GetChoice()),
 		CountryID: req.Msg.GetCountryId(),
 	})
@@ -42,9 +39,7 @@ func (h AnswerQuizHandler) AnswerQuiz(
 		Correct: out.Correct,
 		//nolint:gosec // an index into three choices
 		CorrectChoice: uint32(out.CorrectChoice),
-		// The same encoding a caught box's kind goes out under; unspecified when the answer was
-		// wrong, which is the kind a client draws nothing for.
-		Kind: claim_bonus_handler.EncodeKind(out.Kind),
+		Kind:          claim_bonus_handler.EncodeKind(out.Kind),
 		//nolint:gosec // a charge count, never negative
 		Amount:  uint32(out.Amount),
 		Charges: chargesheld.Encode(out.Held),

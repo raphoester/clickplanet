@@ -1,4 +1,3 @@
-// Package audit_paint_random logs every random paint, dry runs and failures included.
 package audit_paint_random
 
 import (
@@ -21,7 +20,6 @@ type Audited struct {
 	logger *slog.Logger
 }
 
-// Execute logs at Warn: the log is the only record that these tiles did not change hands through play.
 func (a *Audited) Execute(ctx context.Context, in paint_random_tiles_usecase.In) (paint_random_tiles_usecase.Out, error) {
 	out, err := a.inner.Execute(ctx, in)
 

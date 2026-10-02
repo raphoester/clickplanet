@@ -14,7 +14,6 @@ import (
 
 func coherence(v float64) *float64 { return &v }
 
-// clockConfig is production's metronome of 2026-09-23 with the clock bounds proposed beside it.
 func clockConfig() metronome.Config {
 	return metronome.Config{
 		MaxGap:        7 * time.Second,
@@ -35,14 +34,10 @@ func clockConfig() metronome.Config {
 	}
 }
 
-// at advances to an instant and tries a click there.
 func (h *harness) at(instant time.Time) (detect.Verdict, detect.Evidence) {
 	return h.after(instant.Sub(h.clock.Now()))
 }
 
-// hiddenTab is the pl painter of 2026-09-23: a script in a background tab, whose timers the browser
-// fires on whole seconds. It spends the bucket in a burst on the beat, skipping a tick now and then
-// and sending a second click 70ms after some, then waits whole minutes for the refill.
 func hiddenTab(h *harness, r *rand.Rand, bursts int) (detect.Verdict, detect.Evidence) {
 	var (
 		verdict  detect.Verdict
@@ -71,7 +66,6 @@ func boolInt(b bool) int {
 	return 0
 }
 
-// aboutASecond is a hand clicking roughly once a second: the error of each click adds to the next.
 func aboutASecond(r *rand.Rand, click int) time.Duration {
 	if click%80 == 79 {
 		return time.Duration(20+r.IntN(300)) * time.Second

@@ -7,7 +7,6 @@
     pointer-events: none;
 }
 
-/* Clear of the quiz card at its tallest — see `lowered` in BombNews.tsx. */
 .bomb-news--lowered {
     top: 220px;
 }
@@ -28,7 +27,6 @@
     animation: bomb-news 4s ease-out forwards;
 }
 
-/* Timings are shares of BOMB_NEWS_MS in BombNews.tsx. */
 @keyframes bomb-news {
     0% {
         opacity: 0;
@@ -55,7 +53,6 @@
         bottom: 96px;
     }
 
-    /* Clear of the quiz card at its tallest — see `lowered` in BombNews.tsx. */
 .bomb-news--lowered {
     top: 220px;
 }
@@ -66,7 +63,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    /* Clear of the quiz card at its tallest — see `lowered` in BombNews.tsx. */
 .bomb-news--lowered {
     top: 220px;
 }

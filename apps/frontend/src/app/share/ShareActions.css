@@ -1,7 +1,3 @@
-/* Where the group sits in the menu's row of actions is Menu.css's business.
-   This file lays the group out and gives each button its icon spacing — height,
-   padding, radius and font-size are `.button` and `.button-ghost` in index.css,
-   on both viewports. */
 .share-actions {
     display: flex;
     gap: 8px;
@@ -25,10 +21,6 @@
     flex-shrink: 0;
 }
 
-/* Two of these share a row, and the label changes under them as they work. The
-   labels are chosen to fit — measured, the widest has 2px to spare — but a font
-   that falls back or a language that does not is not worth a button with its
-   text hanging out of it, which is how the last one went wrong. */
 .button-share span {
     min-width: 0;
     overflow: hidden;

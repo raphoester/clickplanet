@@ -1,9 +1,3 @@
-// Package planet wires the tile game: the map, the click chain and the live
-// stream. It is named for its proto package, planet.v1, the way chat and session
-// are for theirs — Click is one procedure on the service, not the whole of it.
-//
-// It is the one module that is never off — a process without it is not this game
-// — so it has no Enabled switch, only the ones inside it.
 package planet
 
 import (
@@ -109,10 +103,6 @@ const moduleName = "planet"
 // A take is one tile, up to a few dozen per click with a spread or an enclose: this is seconds of the whole game.
 const tileTakenBuffer = 8192
 
-// NewModule is always enabled: a process without the tile game is not this game.
-//
-// The whole DI sequence is the one function below, top to bottom, in the order
-// things are built and registered.
 func NewModule(config Config) cpbootstrap.Module {
 	return cpbootstrap.Module{
 		Name:    moduleName,
@@ -121,11 +111,6 @@ func NewModule(config Config) cpbootstrap.Module {
 			clock := cptime.SystemClock{}
 			countries := cpcountries.New()
 
-			// ---- Map geography ----
-
-			// First: nothing else here is worth starting if the map is not the one the frontend draws.
-			// Unconditional, and fatal: a blob that disagrees with the frontend renumbers every tile, and the
-			// tiles in postgres are numbered the old way. See CLAUDE.md, "Map geography".
 			gameMap := embedded_geodesic_map.New(config.GameMap.MaxIndex, props.Logger)
 
 			geography, err := gameMap.LoadGeography()
@@ -133,13 +118,10 @@ func NewModule(config Config) cpbootstrap.Module {
 				return fmt.Errorf("failed to load the map geography: %w", err)
 			}
 
-			// Unconditional, and fatal, for the same reason: borders for another map name the wrong ground.
 			borders, err := gameMap.LoadBorders()
 			if err != nil {
 				return fmt.Errorf("failed to load the map borders: %w", err)
 			}
-
-			// ---- Storage, ledger, limiter, toll ----
 
 			tilesChecker := clicks.NewBoard(config.GameMap.MaxIndex)
 
@@ -165,7 +147,6 @@ func NewModule(config Config) cpbootstrap.Module {
 				return fmt.Errorf("failed to load the ledger: %w", err)
 			}
 
-			// The bomb, enclose and spread charges each account holds, so a restart does not take them.
 			charges := inmemory_charge_storage.New(config.ChargeStorage, config.Bonus.ChargesConfig(),
 				postgres_charge_store.New(db), props.Logger)
 			if err := charges.Load(ctx); err != nil {
@@ -173,9 +154,8 @@ func NewModule(config Config) cpbootstrap.Module {
 				return fmt.Errorf("failed to load the charges: %w", err)
 			}
 
-			// The flag each account and scope takes tiles for most, kept in postgres and counted from
-			// planet.v1.TileTaken: the toll prices a click from it. A full buffer drops a take, which only leaves a
-			// tally a little short. Tallies with no take in 3 days are deleted every hour.
+			// The flag each account and scope takes tiles for most, counted from planet.v1.TileTaken: the toll prices
+			// a click from it. Tallies with no take in 3 days are deleted every hour.
 			allegiances := postgres_allegiance_store.New(db)
 			takes, err := cpbootstrap.Subscribe(props.Events, "planet-allegiances", tileTakenBuffer,
 				log_subscriber.New(tile_taken_subscriber.New(record_allegiance_usecase.New(allegiances)), props.Logger))
@@ -186,41 +166,26 @@ func NewModule(config Config) cpbootstrap.Module {
 			forgetAllegiances := forget_allegiances_usecase.NewRunner(time.Hour,
 				log_forget_allegiances.New(forget_allegiances_usecase.New(clock, allegiances), props.Logger))
 
-			// The pool closes after every runner's last flush, not as a closer: closers run first.
+			// Not a closer: closers run before the runners' last flush.
 			props.Runners.Add(cppg.CloseAfter(db, props.Logger, tilesStorage, takings, charges, takes, forgetAllegiances))
 			props.Runners.Add(ledger.NewRetention(config.Ledger, takings, clock))
 
-			// One limiter holds both buckets a click spends: the account's, and its scope's at scopeMultiplier.
 			limiter := cpratelimit.New("click-limiter", config.RateLimiter.Config, clock)
 			props.Runners.Add(limiter)
 			buckets := config.RateLimiter.Buckets()
 
 			pricer := clicks.NewToll(config.Toll, tilesStorage, allegiances, clock)
 
-			// Native land takes two clicks, on the ground the borders say is each country's. Only the player's click
-			// path reads it — the rule, the spread, the enclose and the jury — never the bomb or the operator tools.
 			homeSoil := clicks.NewHomeSoil(config.HomeSoil, borders)
 			if homeSoil.Enabled() {
 				props.Logger.Info("home soil enabled: native land takes two clicks")
 			}
 
-			// writer is the storage as the click chain writes it, so every tile it takes lands in the ledger,
-			// and each one taken by an account is told as planet.v1.TileTaken: to the other modules, and to the allegiances.
 			writer := ledger.NewRecording(tilesStorage, publishing_ledger_storage.New(takings, props.Events), clock)
 
-			// ---- Bonus boxes and quizzes ----
-
-			// It reads the charges held, so nobody is offered a second of a kind.
 			registry := bonuses.New(config.Bonus, clock, charges)
 			props.Runners.Add(registry)
 
-			// The quizzes are a second way to earn one of those charges, on a schedule of their own.
-			// Off unless switched on, and switched on is what hands the registry a bank to draw from:
-			// with no bank there is no offer, and the boxes fly exactly as they did.
-			//
-			// The bank reads the live map at every draw, which is how a question leans towards the
-			// countries that are winning — the same shares the toll prices a click from, so there is
-			// no second leaderboard to keep in step.
 			if config.Bonus.Quiz.Enabled {
 				bank, err := quizzes.Load(config.Bonus.Quiz, tilesStorage)
 				if err != nil {
@@ -236,16 +201,6 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			bombRules := bonuses.NewBombRules(config.Bonus.Bomb, geography.Spacing())
 
-			// ---- Click chain ----
-
-			// The rule is wrapped in the policies that guard it, innermost first:
-			// spread or enclose it, count it, judge it, then charge it. The throttle is outermost so
-			// a shadow-banned caller keeps hitting the same 429s everyone else does — a
-			// caller that is never throttled again has been told it is banned.
-
-			// Right against the rule, inside the shadow ban: a dropped click never
-			// reaches the rule, so it spreads and encloses nothing either. It is counted
-			// as one click however many tiles it took.
 			var clickUseCase click_usecase.IUseCase = click_usecase.New(tilesChecker, writer, countries, homeSoil)
 			clickUseCase = spread_click.New(clickUseCase, charges, geography, writer, homeSoil, registry)
 
@@ -255,16 +210,11 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			clickUseCase = prom_click.New(clickUseCase, props.Metrics)
 
-			// The shadow ban. The metric names and the words of the ban line are the
-			// observer's; the guard measures and judges.
 			guard, err := antibot.New(config.AntiBot, clock, antibot_click.NewObserver(props.Logger, props.Metrics))
 			if err != nil {
 				return fmt.Errorf("failed to build the antibot guard: %w", err)
 			}
 
-			// With the antibot off the guard drops nothing: the click passes, BanPlayer
-			// refuses, FindPlayers says nothing of bans and a bomb is never a dud.
-			// On, it connects to its own schema here, and its runner closes that pool after the last flush.
 			if err := guard.LoadState(ctx); err != nil {
 				return fmt.Errorf("failed to load the antibot state: %w", err)
 			}
@@ -272,18 +222,13 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			clickUseCase = antibot_click.New(clickUseCase, guard, tilesStorage, homeSoil, clock, props.Metrics)
 
-			// Inside the throttle: presence is what a caller actually managed to do,
-			// not what they attempted.
 			clickUseCase = bonus_click.New(clickUseCase, registry)
 
+			// Outside the shadow ban, or a banned caller would stop seeing 429s and know.
 			clickUseCase = throttle_click.New(clickUseCase, limiter, pricer, buckets)
 
-			// Outside the throttle: a loop's timing is only whole before it drops clicks.
 			clickUseCase = antibot_attempt_click.New(clickUseCase, guard, clock)
 
-			// ---- Admin service ----
-
-			// A quarter of a subscriber's buffer per batch leaves room for the clicks still arriving.
 			adminBatch := config.TilesStorage.SubscriberBuffer / 4
 			if adminBatch <= 0 {
 				adminBatch = 256
@@ -311,18 +256,6 @@ func NewModule(config Config) cpbootstrap.Module {
 				return err
 			}
 
-			// ---- Edge interceptors ----
-
-			// In the order they wrap the handler: the cache marks, then the two refusals
-			// that must not spend a token.
-			//
-			// The error net is not here. cpbootstrap wraps it around every service it
-			// mounts, so no module has to remember it and none can leave it out.
-			//
-			// The throttle and the shadow ban are not here either. Both are decorators
-			// over the click use case, which puts them inside every interceptor by
-			// construction — so "a refused click must not also spend a token" is a
-			// property of the shape rather than a rule about list order.
 			blocklist := cpipblock.New(config.VPNBlocklist)
 			if err := blocklist.Load(); err != nil {
 				return fmt.Errorf("failed to load the vpn blocklist: %w", err)
@@ -337,30 +270,17 @@ func NewModule(config Config) cpbootstrap.Module {
 				planetv1controller.NewVPNBlockInterceptor(blocklist, props.Metrics),
 			}
 
-			// This context holds no key of its own: it asks the auth module for the
-			// public half over the internal listener, on the first click after a boot,
-			// and keeps it. So it can check a token and cannot mint one, and there is
-			// no second setting to keep in step with auth.secret. Skipped when auth is off.
 			if config.Auth.Enabled {
 				verifier := rpc_session_verifier.New(props.Internal, props.Logger)
 				interceptors = append(interceptors,
 					planetv1controller.NewSessionInterceptor(verifier, clock, config.Auth.Enforce, props.Metrics),
-					// A budget read or a stream opened with a token is the account's; without one it refuses nothing.
 					planetv1controller.NewSessionReaderInterceptor(verifier, clock))
 			}
 
-			// ---- Bonus use cases ----
-
-			// The claim also hands the registry its counters: offered against caught
-			// is the only way to see whether the pacing and the flight time are set
-			// anywhere near right. What each caller did with their box goes to the
-			// guard as well, for the catcher watchdog.
 			claimBonus, counters := prom_claim_bonus.New(
 				claim_bonus_usecase.New(registry, charges),
 				props.Metrics)
 
-			// A right answer pays out through the same charger a caught box does, and announces itself
-			// down the same broadcast: one way for a charge to be granted, reached two ways.
 			openQuiz := open_quiz_usecase.New(registry)
 			answerQuiz, quizCounters := prom_answer_quiz.New(
 				answer_quiz_usecase.New(registry, charges),
@@ -381,9 +301,6 @@ func NewModule(config Config) cpbootstrap.Module {
 					guard.Foreign(scope)
 				},
 
-				// The quizzes' half. Not told to the catcher watchdog: it measures how fast a box
-				// flying past the planet was caught, and a quiz is read and thought about — a
-				// person who answers one quickly is a person who knew the answer.
 				QuizOffered: quizCounters.Offered.Inc,
 				QuizLapsed:  func(string) { quizCounters.Lapsed.Inc() },
 				QuizAnswered: func(_ string, correct bool, after time.Duration) {
@@ -391,24 +308,14 @@ func NewModule(config Config) cpbootstrap.Module {
 				},
 			})
 
-			// Every bomb that went off is told to the other modules as planet.v1.BombLanded: the chat announces it.
 			dropped := prom_drop_bomb.New(
 				publishing_drop_bomb.New(
 					drop_bomb_usecase.New(charges, geography, tilesStorage, countries, bombRules),
 					borders, props.Events, clock),
 				props.Metrics)
 
-			// Outside the count, so it can tell the counter a drop was a dud.
 			dropBomb := antibot_drop_bomb.New(dropped, guard)
 
-			// ---- Click service ----
-
-			// Each use case is handed only what it reads or writes, which is why the
-			// storage appears three times here rather than once as a single object the
-			// service holds: the map reader, the subscription and the tile writer are
-			// three ports that happen to be served by one adapter.
-			// How big each charge is, and whether native land takes two clicks, fixed at boot: the client reads
-			// both once.
 			rules := bonuses.Rules{
 				BlastRadius:       bombRules.Radius,
 				EnclosureMaxTiles: charges.EnclosureMaxTiles(),

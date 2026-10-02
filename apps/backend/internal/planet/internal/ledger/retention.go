@@ -8,7 +8,6 @@ import (
 )
 
 type Config struct {
-	// How long a take is remembered. Past it, the tile can no longer be traced or reverted.
 	Retention     time.Duration
 	SweepInterval time.Duration
 }
@@ -36,7 +35,6 @@ func NewRetention(config Config, takings Storage, clock cptime.Clock) *Retention
 	return &Retention{config: config.withDefaults(), takings: takings, clock: clock}
 }
 
-// Retention forgets every take older than the configured retention.
 type Retention struct {
 	config  Config
 	takings Storage

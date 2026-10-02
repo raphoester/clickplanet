@@ -159,9 +159,6 @@ describe("counts", () => {
     })
 })
 
-// A click paints before the server has agreed to it, and the server can still
-// refuse — a spent bucket, a blocked VPN, a session it would not mint. What was
-// painted has to go back, or the player keeps looking at tiles nobody gave them.
 describe("optimistic clicks", () => {
     it("paints the tile and counts it while the click is in flight", () => {
         const store = new TileOwnership(10)
@@ -219,8 +216,6 @@ describe("optimistic clicks", () => {
     })
 })
 
-// Native land takes two clicks: a click the rule says clears a tile paints it
-// as nobody's, and a refusal gives the natives their flag back.
 describe("optimistic clears", () => {
     it("paints the tile as nobody's and takes it off its country's count", () => {
         const store = new TileOwnership(10)

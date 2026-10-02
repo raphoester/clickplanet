@@ -19,10 +19,6 @@ func MiddlewareStack(middlewares ...func(http.Handler) http.Handler) func(http.H
 	}
 }
 
-// The session header has to be named here or the browser never sends it: a
-// custom header makes a cross-origin POST preflighted, and a preflight that
-// does not list it fails the actual request. deploy/vps/caddy/Caddyfile answers
-// OPTIONS itself in production and carries the same list.
 var allowedHeaders = strings.Join([]string{
 	"Content-Type",
 	"Connect-Protocol-Version",
@@ -30,10 +26,6 @@ var allowedHeaders = strings.Join([]string{
 	cpconnect.SessionHeader,
 }, ", ")
 
-// NewCorsMiddleware allows one origin, never "*": the frontend mints with
-// credentials, so the auth module's cookie reaches it, and a browser refuses a
-// credentialed answer that allows every origin. deploy/vps/caddy/Caddyfile sets the
-// same headers in production.
 func NewCorsMiddleware(allowedOrigin string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -101,7 +93,7 @@ func (w *wrappedWriter) WriteHeader(statusCode int) {
 	w.ResponseWriter.WriteHeader(statusCode)
 }
 
-// Without this Connect refuses to stream at all: no Flusher, no frames.
+// Connect streams only through an http.Flusher: without this, no frames are sent.
 func (w *wrappedWriter) Flush() {
 	if flusher, ok := w.ResponseWriter.(http.Flusher); ok {
 		flusher.Flush()

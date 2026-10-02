@@ -8,7 +8,6 @@ import (
 	"sync"
 )
 
-// MemoryPersistence is a Persistence held in memory, for tests that need a store but not postgres.
 type MemoryPersistence struct {
 	mu       sync.Mutex
 	snapshot Snapshot
@@ -42,7 +41,6 @@ func (m *MemoryPersistence) Save(_ context.Context, snapshot Snapshot) error {
 	return nil
 }
 
-// Saves is how many times Save succeeded.
 func (m *MemoryPersistence) Saves() int {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -50,7 +48,6 @@ func (m *MemoryPersistence) Saves() int {
 	return m.saves
 }
 
-// FailWith makes every Load and Save return err until Heal.
 func (m *MemoryPersistence) FailWith(err error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

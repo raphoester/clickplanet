@@ -9,20 +9,15 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-// TollStep is one row of the table: from Share of the map, a player of that country gets its clicks back
-// Slowdown times slower. Slowdown may be a fraction: 1.5 is half as slow again.
 type TollStep struct {
 	Share    float64
 	Slowdown float64
 }
 
-// TollConfig holds the steps, lowest share first. Empty refills every country at the plain rate.
 type TollConfig struct {
 	Steps []TollStep
 }
 
-// Validate refuses shares or slowdowns that do not rise: a step that made a bigger country faster would be a
-// reward for leading.
 func (c TollConfig) Validate() error {
 	previous := TollStep{Slowdown: 1}
 
@@ -39,7 +34,6 @@ func (c TollConfig) Validate() error {
 	return nil
 }
 
-// Price is how much slower a country's players get their clicks back now, and from which share it slows next.
 type Price struct {
 	// The country priced: the payer's main flag, which is not always the one it clicks for now.
 	Country string
@@ -47,13 +41,10 @@ type Price struct {
 	Slowdown float64
 	Share    float64
 
-	// The share at which the next step starts, and its slowdown. Zero at the top step.
 	NextShare    float64
 	NextSlowdown float64
 }
 
-// Budget is an allowance: every click costs one token, so it is counted in clicks. Price is the caller's main
-// flag's; LinkedMultiplier is what signing in multiplies the refill by, the same for every caller.
 type Budget struct {
 	cpratelimit.State
 	SharedWith       SharedWith
@@ -74,11 +65,6 @@ func NewToll(config TollConfig, shares ShareReader, flags Flags, clock cptime.Cl
 	return &Toll{steps: config.Steps, shares: shares, flags: flags, clock: clock}
 }
 
-// A toll slows the refill of a player by how much of the map its country already holds.
-//
-// Every click costs one token; the price is the pace the bucket refills at afterwards, set by each click from the
-// player's main flag, the one it clicks for most. So one click for a small flag does not buy a small flag's refill,
-// and a real change of flag slows or speeds the refill as the clicks for the new one outweigh the old.
 type Toll struct {
 	steps  []TollStep
 	shares ShareReader

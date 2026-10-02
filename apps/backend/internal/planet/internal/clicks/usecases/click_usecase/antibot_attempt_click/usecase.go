@@ -1,4 +1,3 @@
-// Package antibot_attempt_click shows the antibot guard every click tried, outside the throttle.
 package antibot_attempt_click
 
 import (
@@ -11,7 +10,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-// AttemptGuard is the part of antibot.Guard this decorator uses.
 type AttemptGuard interface {
 	Attempted(click antibot.Click)
 }

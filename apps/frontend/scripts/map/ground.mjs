@@ -1,49 +1,15 @@
-// The one answer to "what is under this point".
-//
-// Where a tile is and who owns the ground under it used to be two questions asked of two different
-// datasets — a greyscale land mask decided which lattice vertices became tiles, and Natural Earth
-// decided which country each tile sat in. They disagreed on about 6,000 vertices, all of them on
-// coasts and islands, which is exactly where anyone looks: tiles floating on open water with no
-// border round them, islands drawn in the texture with nothing to click, and the Antarctic ice
-// shelves missing whole.
-//
-// So there is one oracle now, and both questions are the same call. `groundOf` answers a country
-// code or SEA, and a tile exists exactly where it answers a code. A tile with no country is no
-// longer a case the rest of the pipeline has to have an answer for: it cannot be built.
-//
-// Measured against the union of the country polygons, `ne_50m_land` is the same shape to within 4
-// lattice vertices (the Siachen Glacier, which India and Pakistan both claim and which Natural Earth
-// declines to hand to either). So the country file answers sea/land too and there is no second
-// coastline to keep in step.
 import {naturalEarth} from "./naturalEarth.mjs"
 
 export const SEA = ""
 
-// Natural Earth leaves ISO_A2 at -99 for the three territories it maps but does not hand a country
-// code to. The flag layer paints per piece of land, so a territory without a code is not a blank
-// flag, it is a hole: 327 tiles of Somaliland showed bare ground while the tiles under them were
-// owned and wearing a flag up close. Fold the two that sit inside a country into it — Natural
-// Earth's own ADM0_ISO says which. Siachen has no ADM0_ISO either, so its 4 vertices stay sea.
 const ABSORBED = {SOL: "so", CYN: "cy"}
 
-// The ice shelves are a separate Natural Earth file and are in no country polygon, which is why
-// Ross and Ronne had no tiles on them while the globe texture painted them solid white. They are
-// Antarctic by definition — `iceIsAntarctic` in the test pins that against the data.
 const ANTARCTICA = "aq"
 
-// A country that wraps the globe cannot be a ring in longitude and latitude without being cut
-// somewhere, and Natural Earth cuts Antarctica down the antimeridian. A point landing exactly on
-// 180 therefore lands exactly on the polygon's own edge, where an even-odd ray test has no answer
-// to give, and falls out of every country — 24 of them, in a row, straight out from the south pole.
-// On the globe they were the one line of ground not wearing the flag. Nudging off the cut costs a
-// hundredth of a degree, about a kilometre.
+// Natural Earth cuts Antarctica at ±180, and a point exactly on the cut misses every polygon.
 const SEAM = 179.99
 
 /**
- * The country code a Natural Earth country feature carries, or null for the ground it hands to
- * nobody. Exported because the quiz bank names countries too: one rule, so a code that is a country
- * on the map cannot be a different country — or no country — in a question about it.
- *
  * @param {{properties: Record<string, unknown>}} feature
  * @returns {string | null}
  */
@@ -54,14 +20,10 @@ export function countryCodeOf(feature) {
 }
 
 /**
- * Builds the oracle from already-loaded geojson. Pure, so the rules are testable without a network.
- *
  * @param {{countries: {features: object[]}, iceShelves: {features: object[]}}} datasets
  * @returns {{groundOf: (lon: number, lat: number) => string}}
  */
 export function groundIndex({countries, iceShelves}) {
-    // Country polygons are asked first so that a shelf overlapping a claimed coast reads as the
-    // country rather than as bare Antarctica.
     const layers = [
         shapesOf(countries.features, countryCodeOf),
         shapesOf(iceShelves.features, () => ANTARCTICA),
@@ -79,7 +41,6 @@ export function groundIndex({countries, iceShelves}) {
     }
 }
 
-/** Fetches the pinned datasets and builds the oracle. */
 export async function loadGround() {
     const [countries, iceShelves] = await Promise.all([
         naturalEarth("ne_50m_admin_0_countries"),
@@ -87,8 +48,6 @@ export async function loadGround() {
     ])
     return groundIndex({countries, iceShelves})
 }
-
-// --- one layer: polygons flattened to rings, indexed on a 1-degree grid.
 
 const GX = 360, GY = 180
 const cell = (i, j) => j * GX + i

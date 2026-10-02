@@ -26,9 +26,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// throttledServer wires the throttle where it now lives — inside the click
-// chain — and serves it over HTTP, which is the only way to see that a refusal
-// still reaches a browser as a 429 now that no interceptor produces one.
 func throttledServer(t *testing.T, config cpratelimit.Config) (*httptest.Server, *cptime.FixedClock) {
 	t.Helper()
 	return pricedServer(t, config, onePrice)
@@ -172,8 +169,6 @@ func TestTheBudgetIsAbsentWithoutAThrottle(t *testing.T) {
 	require.Nil(t, res.Msg.GetBudget(), "a server that does not throttle promises no allowance")
 }
 
-// accountVerifier accepts a token that is an account id, and names that account. Prefixed with
-// linkedPrefix, the account signed in with a provider.
 type accountVerifier struct{}
 
 const linkedPrefix = "linked "
@@ -389,6 +384,36 @@ func TestALinkedAccountClicksTwiceAsFastAsAGuest(t *testing.T) {
 	require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(err))
 }
 
+func TestAFreshGuestOnAFreshAddressEveryMinuteIsNoFreshBank(t *testing.T) {
+	start := 2.0
+	server, _, clock := accountServer(t, clicks.ThrottleConfig{
+		Config: cpratelimit.Config{PerSecond: 0.2, Burst: 60}, NewAccountClicks: &start,
+	})
+
+	for minute := range 5 {
+		account := cpsession.AccountCreatedAt(clock.Now())
+		ip := fmt.Sprintf("10.0.0.%d", minute)
+
+		res, err := clickWithToken(t, server, ip, account.String())
+		require.NoErrorf(t, err, "minute %d", minute)
+		require.InDelta(t, 1.0, res.Msg.GetBudget().GetTokens(), 1e-9, "two to start, one spent")
+		require.Equal(t, uint32(60), res.Msg.GetBudget().GetCapacity(), "the meter shows the bank it is earning")
+
+		_, err = clickWithToken(t, server, ip, account.String())
+		require.NoError(t, err)
+		_, err = clickWithToken(t, server, ip, account.String())
+		require.Equalf(t, connect.CodeResourceExhausted, connect.CodeOf(err), "minute %d: not sixty", minute)
+
+		clock.Advance(time.Minute)
+	}
+
+	old := cpsession.AccountCreatedAt(clock.Now().Add(-5 * time.Minute))
+	for click := range 60 {
+		_, err := clickWithToken(t, server, "10.0.1.1", old.String())
+		require.NoErrorf(t, err, "an account five minutes old has earned its sixty: click %d", click)
+	}
+}
+
 func TestSigningInKeepsTheBankAndSpeedsUpItsRefill(t *testing.T) {
 	server, _, clock := accountServer(t, clicks.ThrottleConfig{Config: cpratelimit.Config{PerSecond: 1, Burst: 10}})
 	account := accountNumber(0).String()
@@ -398,7 +423,6 @@ func TestSigningInKeepsTheBankAndSpeedsUpItsRefill(t *testing.T) {
 		require.NoErrorf(t, err, "click %d", click)
 	}
 
-	// One bucket for the account, signed in or not: signing in is not a top-up.
 	_, err := clickWithToken(t, server, "1.2.3.4", linkedPrefix+account)
 	require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(err), "the guest's bank is still spent")
 

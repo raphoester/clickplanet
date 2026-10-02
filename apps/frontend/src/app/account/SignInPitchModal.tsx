@@ -4,6 +4,7 @@ import Modal from "../components/Modal.tsx"
 import {AccountState, AccountStore} from "./accountStore.ts"
 import {messageOf} from "./authMessages.ts"
 import ProviderButton from "./ProviderButton.tsx"
+import EmailSignIn from "./EmailSignIn.tsx"
 import "./Account.css"
 
 type Ready = Extract<AccountState, {kind: "ready"}>
@@ -11,15 +12,10 @@ type Ready = Extract<AccountState, {kind: "ready"}>
 export type SignInPitchModalProps = {
     state: Ready
     store: AccountStore
-    /** What the server multiplies a signed-in account's allowance by. */
     multiplier: number
     onClose: () => void
 }
 
-/**
- * What the meter's offer opens: why to sign in, and the buttons that do it.
- * The buttons are the account panel's, so signing in from here is the same flow.
- */
 export default function SignInPitchModal({state, store, multiplier, onClose}: SignInPitchModalProps) {
     const busy = state.busy !== undefined
     const times = `${factor(multiplier)}×`
@@ -36,11 +32,13 @@ export default function SignInPitchModal({state, store, multiplier, onClose}: Si
             </p>
             <p className="account-text sign-in-pitch-small">You do not need an account to play.</p>
 
-            {state.offered.map((provider) => <ProviderButton key={provider}
-                                                             provider={provider}
-                                                             label={`Sign in with ${PROVIDER_NAMES[provider]}`}
-                                                             disabled={busy}
-                                                             onClick={() => void store.signIn(provider)}/>)}
+            {state.offered.filter((p) => p !== "email").map((provider) => <ProviderButton key={provider}
+                                                                                       provider={provider}
+                                                                                       label={`Sign in with ${PROVIDER_NAMES[provider]}`}
+                                                                                       disabled={busy}
+                                                                                       onClick={() => void store.signIn(provider)}/>)}
+
+            {state.offered.includes("email") && <EmailSignIn state={state} store={store} intent="signIn"/>}
 
             {state.failure && <p className="account-failure" role="alert">{messageOf(state.failure)}</p>}
 

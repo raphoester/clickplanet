@@ -13,14 +13,11 @@ import (
 )
 
 const (
-	centreTile = 1  // the middle of the patch, by construction below
-	loneIsland = 20 // in the map, in no edge
-	patchTiles = 19 // 1 + 6 + 12: the centre and two full rings
+	centreTile = 1
+	loneIsland = 20
+	patchTiles = 19
 )
 
-// A hand-built patch of honeycomb — every tile within two steps of a centre — plus one tile with
-// no edges at all. Built here rather than read off the shipped blob so that these tests say what
-// Geography does; what the real map contains is embedded_geodesic_map's to prove.
 func honeycomb(t *testing.T) *clicks.Geography {
 	t.Helper()
 
@@ -33,8 +30,6 @@ func honeycomb(t *testing.T) *clicks.Geography {
 	return geography
 }
 
-// patchCoords lists the patch in axial hex coordinates, closest ring first, so the centre comes
-// out as tile 1. A coordinate's tile id is its position here, plus one.
 func patchCoords() [][2]int {
 	var coords [][2]int
 
@@ -69,8 +64,6 @@ func touchingPairs(coords [][2]int) []clicks.Edge {
 	return edges
 }
 
-// The lone island is the last tile and appears in no edge. These tests are about adjacency, so any
-// unit vector will do for a position.
 func patchPositions() []float32 {
 	positions := make([]float32, loneIsland*3)
 	for i := range loneIsland {
@@ -130,7 +123,6 @@ func TestDiscRefusesATileThatIsNotOne(t *testing.T) {
 }
 
 func TestDiscsAreSafeToTakeConcurrently(t *testing.T) {
-	// The map is shared and immutable; the search scratch is neither.
 	geography := honeycomb(t)
 	want := geography.Disc(centreTile, 2)
 

@@ -1,4 +1,3 @@
-// Package leave_handler serves player.v1.PlayerService/Leave.
 package leave_handler
 
 import (

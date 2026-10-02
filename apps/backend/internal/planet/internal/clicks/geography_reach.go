@@ -4,7 +4,6 @@ import (
 	"math"
 )
 
-// Spacing is the mean arc between two touching tiles, in radians.
 func (g *Geography) Spacing() float64 {
 	total, edges := 0.0, 0
 
@@ -24,8 +23,6 @@ func (g *Geography) Spacing() float64 {
 	return total / float64(edges)
 }
 
-// Within returns every tile within radius radians of arc of centre, ascending: a true circle, and
-// across water as well as land. A straight scan, once per bomb.
 func (g *Geography) Within(centre Vec3, radius float64) []uint32 {
 	unit, ok := normalize(centre)
 	if !ok {
@@ -46,7 +43,6 @@ func (g *Geography) Within(centre Vec3, radius float64) []uint32 {
 	return found
 }
 
-// Nearest returns the tile closest to point and the arc to it; a straight scan, once per bomb.
 func (g *Geography) Nearest(point Vec3) (uint32, float64) {
 	unit, ok := normalize(point)
 	if !ok {
@@ -78,7 +74,6 @@ func normalize(v Vec3) (Vec3, bool) {
 	return Vec3{X: v.X / length, Y: v.Y / length, Z: v.Z / length}, true
 }
 
-// Position is where tile id sits on the unit sphere.
 func (g *Geography) Position(id uint32) (Vec3, bool) {
 	if id == 0 || id > g.stats.Tiles {
 		return Vec3{}, false
@@ -92,7 +87,6 @@ func (g *Geography) Position(id uint32) (Vec3, bool) {
 	}, true
 }
 
-// Unit is v scaled onto the unit sphere; a vector with no direction stays as it is.
 func (v Vec3) Unit() Vec3 {
 	if unit, ok := normalize(v); ok {
 		return unit

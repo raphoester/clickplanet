@@ -1,5 +1,3 @@
-// Package inprocess_feed fans every update out to each open stream, in this process. It keeps nothing: a client
-// that was not listening reads the history instead.
 package inprocess_feed
 
 import (
@@ -14,7 +12,6 @@ import (
 
 const defaultSubscriberBuffer = 256
 
-// New takes the updates one stream may fall behind by before it misses some; zero is the default.
 func New(subscriberBuffer int, logger *slog.Logger) *Feed {
 	if subscriberBuffer <= 0 {
 		subscriberBuffer = defaultSubscriberBuffer
@@ -40,7 +37,6 @@ type subscriber struct {
 	dropped atomic.Uint64
 }
 
-// Subscribe is one stream's updates, until ctx ends: then the channel closes.
 func (f *Feed) Subscribe(ctx context.Context) (<-chan feed.Update, error) {
 	sub := &subscriber{ch: make(chan feed.Update, f.buffer)}
 
@@ -63,7 +59,6 @@ func (f *Feed) Subscribe(ctx context.Context) (<-chan feed.Update, error) {
 
 const dropLogInterval = 100
 
-// Publish never blocks: a stream too slow to keep up misses the update.
 func (f *Feed) Publish(update feed.Update) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -83,7 +78,6 @@ func (f *Feed) Publish(update feed.Update) {
 	})
 }
 
-// Dropped is how many updates the open streams missed.
 func (f *Feed) Dropped() uint64 {
 	f.mu.Lock()
 	defer f.mu.Unlock()

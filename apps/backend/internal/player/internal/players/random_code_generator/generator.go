@@ -1,4 +1,3 @@
-// Package random_code_generator draws guest codes from crypto/rand: 3 bytes, as 6 hex characters.
 package random_code_generator
 
 import (

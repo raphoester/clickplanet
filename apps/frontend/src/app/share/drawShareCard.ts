@@ -4,21 +4,9 @@ import {ATLAS_URL} from "../viewer/atlasAsset.ts";
 import {cardLayout, Crop, fitInBox, shareLabel, ShareStats, statsLine} from "../../domain/shareCard.ts";
 import {TITLE_CAP_HEIGHT, TITLE_FONT_FAMILY} from "../titleFont.ts";
 
-/**
- * The globe's own pixels with the player's standing laid over them, composed on
- * a 2D canvas.
- *
- * Nothing here screenshots the page: the menu is a translucent panel over the
- * globe with a leaderboard scrolling inside it, and what makes sense to look at
- * makes a poor picture. The mark and the badge are drawn from the same logo,
- * the same font and the same numbers the menu is drawn from, at a size that
- * reads wherever the image is posted.
- */
-
 const TITLE_FONT = TITLE_FONT_FAMILY
 const LABEL_FONT = 'Oswald, sans-serif'
 
-/** The same mark the menu header flies, drawn the same way: logo then name. */
 const LOGO_URL = "/static/logo.svg"
 
 export async function drawShareCard(frame: CapturedFrame, stats: ShareStats): Promise<Blob> {
@@ -33,9 +21,7 @@ export async function drawShareCard(frame: CapturedFrame, stats: ShareStats): Pr
 
     drawGlobe(context, frame, crop, size)
 
-    // All three before the first `measureText`: a fallback face measures
-    // differently, and a badge laid out against one and drawn in the other has
-    // the panel in the wrong place.
+    // Fonts must be ready before the first measureText: a fallback face measures differently.
     const [atlas, logo] = await Promise.all([
         loadImage(ATLAS_URL),
         loadImage(LOGO_URL),
@@ -62,20 +48,11 @@ function drawGlobe(
 
     context.imageSmoothingEnabled = true
     context.imageSmoothingQuality = "high"
-    // The middle of the frame rather than all of it, where the canvas is a
-    // shape no timeline would show whole — see `cropToAspect`.
     context.drawImage(source,
         crop.x, crop.y, crop.width, crop.height,
         0, 0, size.width, size.height)
 }
 
-/**
- * Who this is and where to find it, across the top.
- *
- * The link is *drawn into the image* rather than only attached to it — a
- * picture is what survives being reposted — and it sits on the mark's own line
- * at the other end, so the two are read together.
- */
 function drawMasthead(
     context: CanvasRenderingContext2D,
     size: {width: number, height: number},
@@ -98,9 +75,6 @@ function drawMasthead(
     context.font = `${nameSize}px ${TITLE_FONT}`
     context.fillText("ClickPlanet", margin + logoSize + 1.6 * unit, capCentred(context, middle, nameSize))
 
-    // The label face, not the display one: the page's title font has no
-    // lowercase, and a query parameter drawn as "?C=PS" is a link that does not
-    // work for whoever retypes it.
     const linkSize = 3.2 * unit
     context.textAlign = "right"
     context.font = `500 ${linkSize}px ${LABEL_FONT}`
@@ -118,8 +92,6 @@ function drawBadge(
     stats: ShareStats,
     atlas: HTMLImageElement,
 ) {
-    // Everything is in hundredths of the shortest edge, so the badge is the same
-    // size relative to the globe on a phone in portrait as on a wide desktop.
     const unit = Math.min(size.width, size.height) / 100
     const margin = 4 * unit
     const padding = 3.2 * unit
@@ -134,11 +106,6 @@ function drawBadge(
 
     context.textAlign = "left"
 
-    // The longest name in `countries.json` is 13 characters and fits a phone's
-    // card with room to spare, so this never fires on today's data — it is what
-    // stops a longer name added there from running the panel off the edge.
-    // Shrunk rather than cut: a country that reads as another country is worse
-    // than a country drawn small.
     const flagRun = flag.width > 0 ? flag.width + gap : 0
     const room = size.width - margin * 2 - padding * 2 - flagRun
     context.font = `${nameSize}px ${TITLE_FONT}`
@@ -157,9 +124,6 @@ function drawBadge(
     const labelCap = capHeight(context, labelSize)
     tracking(context, 0)
 
-    // The panel is built from the ink rather than from the em boxes, so the
-    // space above the flag matches the space under the counts. A row measured
-    // in font sizes is mostly the leading these two faces carry.
     const topRow = Math.max(flag.height, nameCap)
     const width = Math.max(flagRun + nameWidth, labelWidth) + padding * 2
     const height = topRow + gap + labelCap + padding * 2
@@ -190,16 +154,6 @@ function drawBadge(
     tracking(context, 0)
 }
 
-/**
- * The baseline that puts the capitals of the font now set on `context` centred
- * on `middle`.
- *
- * Canvas's own `textBaseline: "middle"` centres the **em box**, which for the
- * display face is not where its capitals are — see `titleFont.ts`, and the flag
- * that was riding under every country's name before this. Measured off a capital
- * rather than off the name being drawn, so a country with a descender in it does
- * not sit at a different height from one without.
- */
 function capCentred(context: CanvasRenderingContext2D, middle: number, fontSize: number): number {
     return middle + capHeight(context, fontSize) / 2
 }
@@ -207,9 +161,6 @@ function capCentred(context: CanvasRenderingContext2D, middle: number, fontSize:
 function capHeight(context: CanvasRenderingContext2D, fontSize: number): number {
     const measured = context.measureText("H").actualBoundingBoxAscent
 
-    // Every browser this ships to reports it. The fallback is the same number
-    // `CountryFlag` sizes its box with, for one that does not — a zero here
-    // would fold the badge onto a single line.
     return measured > 0 ? measured : fontSize * TITLE_CAP_HEIGHT
 }
 
@@ -230,7 +181,6 @@ function panel(
     context.stroke()
 }
 
-/** The page's `text-shadow: -1px 1px 0 #000000`, scaled with the card. */
 function shadow(context: CanvasRenderingContext2D, unit: number) {
     context.shadowColor = "#000000"
     context.shadowOffsetX = -0.15 * unit
@@ -245,15 +195,12 @@ function clearShadow(context: CanvasRenderingContext2D) {
     context.shadowBlur = 0
 }
 
-/** `letterSpacing` is new enough that not every browser carries it, and one
- *  without it simply draws the label a shade tighter. */
 function tracking(context: CanvasRenderingContext2D, pixels: number) {
     (context as {letterSpacing?: string}).letterSpacing = `${pixels}px`
 }
 
 const images = new Map<string, Promise<HTMLImageElement>>()
 
-/** Both are same-origin, so the canvas they are drawn into stays readable. */
 function loadImage(url: string): Promise<HTMLImageElement> {
     const known = images.get(url)
     if (known) return known
@@ -272,9 +219,6 @@ function loadImage(url: string): Promise<HTMLImageElement> {
     return loading
 }
 
-/** The page is already drawing in both faces, so this is only ever a wait on a
- *  first paint that has not finished — but a card laid out in the fallback face
- *  is a card with the text hanging out of its panel. */
 async function fontsReady(): Promise<void> {
     await document.fonts?.ready
 }

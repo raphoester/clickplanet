@@ -17,14 +17,11 @@ function browser(capabilities: Navigatorish) {
     }
 }
 
-/** jsdom has no `matchMedia` at all, so this reads as a desktop unless a test
- *  says otherwise — which is the safe default for it to have. */
 function phone(coarse: boolean) {
     vi.stubGlobal("matchMedia", (query: string) =>
         ({matches: coarse && query === "(pointer: coarse)"}))
 }
 
-/** jsdom carries neither, and what the delivery does with them is the point. */
 function clipboard(write = vi.fn().mockResolvedValue(undefined)) {
     vi.stubGlobal("ClipboardItem", class {
         types: string[]
@@ -35,9 +32,6 @@ function clipboard(write = vi.fn().mockResolvedValue(undefined)) {
     return write
 }
 
-/** They are left in place rather than restored: the revoke is deliberately one
- *  tick late, so a stub taken away at the end of the test is one the download
- *  outlives. */
 function downloads() {
     URL.createObjectURL = vi.fn().mockReturnValue("blob:fake")
     URL.revokeObjectURL = vi.fn()
@@ -59,9 +53,6 @@ describe("what a browser is offered", () => {
         expect(deliveriesOffered()).toEqual(["sheet"])
     })
 
-    // Chrome on macOS answers `canShare({files})` true and then hands Telegram
-    // the sentence without the picture. A button that reports success and loses
-    // what it was given is worse than not having it.
     it("keeps a desktop off the share sheet, whatever it claims it can share", () => {
         phone(false)
         browser({share: vi.fn(), canShare: () => true, clipboard: {write: vi.fn()}})
@@ -70,8 +61,6 @@ describe("what a browser is offered", () => {
         expect(deliveriesOffered()).toEqual(["copy", "download"])
     })
 
-    // A desktop Safari has `navigator.share` and refuses files, so `share`
-    // alone is not a test of anything.
     it("asks whether the sheet takes files rather than whether it exists", () => {
         phone(true)
         browser({share: vi.fn(), canShare: () => false, clipboard: {write: vi.fn()}})
@@ -116,8 +105,6 @@ describe("delivering the share image", () => {
         expect(click).not.toHaveBeenCalled()
     })
 
-    // The sheet is the only button a phone is shown, so a sheet that fell over
-    // still has to leave the player holding the picture.
     it("downloads the file when the sheet itself fails", async () => {
         const click = downloads()
         browser({share: vi.fn().mockRejectedValue(new Error("the sheet fell over")), canShare: () => true})
@@ -126,8 +113,6 @@ describe("delivering the share image", () => {
         expect(click).toHaveBeenCalledTimes(1)
     })
 
-    // The link is drawn into the image for this reason. Handed a clipboard
-    // carrying the picture and the sentence, a chat window pastes the sentence.
     it("copies the picture alone, with no text for a paste target to prefer", async () => {
         const write = clipboard()
         browser({clipboard: {write}})
@@ -136,8 +121,6 @@ describe("delivering the share image", () => {
         expect(write.mock.calls[0][0][0].types).toEqual(["image/png"])
     })
 
-    // The download is its own button an inch away. A copy that turns into a
-    // file in Downloads is the surprise the two buttons exist to stop.
     it("says a refused copy failed rather than quietly downloading instead", async () => {
         const click = downloads()
         clipboard()

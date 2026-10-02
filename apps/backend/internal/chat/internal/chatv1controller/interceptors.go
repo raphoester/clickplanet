@@ -27,7 +27,6 @@ func NewRateLimitInterceptor(limiter MessageLimiter) connect.Interceptor {
 	)
 }
 
-// NewReactionRateLimitInterceptor throttles React on a bucket of its own: a reaction is cheaper than a message.
 func NewReactionRateLimitInterceptor(limiter MessageLimiter) connect.Interceptor {
 	return cpconnect.NewRateLimitInterceptor(limiter, ErrTooManyReactions, chatv1connect.ChatServiceReactProcedure)
 }
@@ -45,8 +44,6 @@ func NewBlocklistInterceptor(blocklist SenderBlocklist) connect.Interceptor {
 
 type SenderSessionVerifier = cpconnect.SessionVerifier
 
-// NewSessionInterceptor reads a click token when the caller sends one, so a player posts and reacts as its
-// account. It refuses nothing: a caller with no token, or a bad one, is a guest.
 func NewSessionInterceptor(verifier SenderSessionVerifier, clock cptime.Clock) connect.Interceptor {
 	return cpconnect.NewSessionReaderInterceptor(verifier, clock,
 		chatv1connect.ChatServiceSendMessageProcedure,

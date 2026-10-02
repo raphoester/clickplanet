@@ -1,4 +1,3 @@
-// Package random_secret_generator draws sign-in secrets from crypto/rand: 32 bytes, base64url, which is also a valid PKCE verifier.
 package random_secret_generator
 
 import (

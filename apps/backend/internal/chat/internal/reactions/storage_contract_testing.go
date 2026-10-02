@@ -11,11 +11,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 )
 
-// StorageContractSuite is the behaviour every Storage shares. Embed it and set NewStorage.
 type StorageContractSuite struct {
 	suite.Suite
 
-	// NewStorage builds an empty storage.
 	NewStorage func() Storage
 
 	storage Storage

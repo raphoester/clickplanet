@@ -15,9 +15,6 @@ import (
 
 var deadline = time.Date(2024, 1, 1, 0, 0, 5, 0, time.UTC)
 
-// asPlayer is the context the edge leaves behind. The scope is derived from it the same way the
-// click, the claim and the answer derive theirs, which is what ties a question to the one caller
-// it was put to.
 func asPlayer(t *testing.T) context.Context {
 	t.Helper()
 
@@ -59,8 +56,6 @@ func TestOpeningReadsTheQuestionAndTheClockItStarted(t *testing.T) {
 }
 
 func TestAQuizThatIsNotThisCallersIsNotFound(t *testing.T) {
-	// Unknown, lapsed, answered and somebody else's are one answer: the difference is what a script
-	// guessing tokens would measure.
 	_, err := open_quiz_usecase.New(&fakeRegistry{}).Execute(asPlayer(t), open_quiz_usecase.In{Token: "t"})
 
 	require.ErrorIs(t, err, open_quiz_usecase.ErrNoSuchQuiz)

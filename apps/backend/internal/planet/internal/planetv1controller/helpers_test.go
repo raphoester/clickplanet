@@ -29,12 +29,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Nothing in this package tests ClickService itself. It is an aggregation, and
-// the only claim it makes — that it carries all five procedures — is the
-// compile-time assertion in click_service.go. What the tests here are about is
-// the interceptor chain, which needs a served handler to be a chain at all; the
-// stubs below are how they get one cheaply.
-
 type stubService struct {
 	err error
 	out click_usecase.Out
@@ -72,8 +66,6 @@ func clickServer(t *testing.T, options ...connect.HandlerOption) *httptest.Serve
 	return clickServerWith(t, stubService{}, nil, options...)
 }
 
-// clickServerWith takes the click chain whole, so a test that is about the
-// throttle wires a throttled one and every other test wires the bare stub.
 func clickServerWith(
 	t *testing.T,
 	clickUseCase click_usecase.IUseCase,
@@ -143,8 +135,6 @@ func (r fakeRequest) Header() http.Header {
 	return r.header
 }
 
-// clickStatus posts a click as a plain HTTP request, for the assertions that are
-// about the status code a browser sees rather than the Connect error.
 func clickStatus(t *testing.T, server *httptest.Server, ip string) int {
 	t.Helper()
 
@@ -186,15 +176,10 @@ func budgetDetail(t *testing.T, err error) *planetv1.ClickBudget {
 	return nil
 }
 
-// errorNet is what cpbootstrap wraps around every service it mounts. These
-// tests serve a handler directly, so they wire it themselves — the assertions
-// about redaction live in cpconnect, but a chain without it would report an
-// unrecognised error differently from the real server.
 func errorNet() connect.Interceptor {
 	return cpconnect.NewErrorInterceptor(nil, nil)
 }
 
-// noBoxes is a bonus feed that never sends anything.
 type noBoxes struct{}
 
 func (noBoxes) Attend(string) (<-chan bonuses.Event, func()) {

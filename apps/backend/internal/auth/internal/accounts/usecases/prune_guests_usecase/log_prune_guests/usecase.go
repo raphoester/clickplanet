@@ -1,4 +1,3 @@
-// Package log_prune_guests logs what each prune deleted, and why one failed.
 package log_prune_guests
 
 import (
@@ -19,7 +18,6 @@ type Logged struct {
 
 var _ prune_guests_usecase.Executor = (*Logged)(nil)
 
-// Execute logs a failure at Error, unless the process is stopping, and a prune that deleted something at Info.
 func (l *Logged) Execute(ctx context.Context) (int, error) {
 	pruned, err := l.inner.Execute(ctx)
 

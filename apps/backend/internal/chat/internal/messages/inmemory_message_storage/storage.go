@@ -1,6 +1,5 @@
 //go:build testing
 
-// Package inmemory_message_storage keeps messages in a slice, for tests that need a messages.Storage but not postgres.
 package inmemory_message_storage
 
 import (

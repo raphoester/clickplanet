@@ -22,7 +22,7 @@ type savedCaller struct {
 	Countries  map[string]int
 	Tiles      []uint32
 	Opinions   []savedOpinion
-	Reached    map[string][]int64 // per watchdog, indexed by level
+	Reached    map[string][]int64
 }
 
 type savedOpinion struct {
@@ -33,7 +33,6 @@ type savedOpinion struct {
 	At       int64
 }
 
-// A field's value is only ever rendered with %v, so it is saved already rendered.
 type savedField struct {
 	Key   string
 	Value string
@@ -146,7 +145,6 @@ func (j *Jury) Load(data []byte) error {
 	return nil
 }
 
-// Forget drops a caller silent since before, and any opinion given before it.
 func (j *Jury) Forget(before time.Time) {
 	j.mu.Lock()
 	defer j.mu.Unlock()

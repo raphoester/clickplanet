@@ -43,12 +43,7 @@ const (
 
 // InternalServiceClient is a client for the player.v1.InternalService service.
 type InternalServiceClient interface {
-	// Who an account is to the others: the name the game shows for it.
 	GetAuthor(context.Context, *connect.Request[v1.GetAuthorRequest]) (*connect.Response[v1.GetAuthorResponse], error)
-	// Who each of these accounts is, for a module showing many people at once.
-	// Unlike GetAuthor it is a pure read: it gives no guest its code, so a read
-	// path never writes. An account it cannot name — one never shown before, or
-	// a deleted one — is left out of the answer rather than failing the call.
 	GetAuthors(context.Context, *connect.Request[v1.GetAuthorsRequest]) (*connect.Response[v1.GetAuthorsResponse], error)
 }
 
@@ -97,12 +92,7 @@ func (c *internalServiceClient) GetAuthors(ctx context.Context, req *connect.Req
 
 // InternalServiceHandler is an implementation of the player.v1.InternalService service.
 type InternalServiceHandler interface {
-	// Who an account is to the others: the name the game shows for it.
 	GetAuthor(context.Context, *connect.Request[v1.GetAuthorRequest]) (*connect.Response[v1.GetAuthorResponse], error)
-	// Who each of these accounts is, for a module showing many people at once.
-	// Unlike GetAuthor it is a pure read: it gives no guest its code, so a read
-	// path never writes. An account it cannot name — one never shown before, or
-	// a deleted one — is left out of the answer rather than failing the call.
 	GetAuthors(context.Context, *connect.Request[v1.GetAuthorsRequest]) (*connect.Response[v1.GetAuthorsResponse], error)
 }
 

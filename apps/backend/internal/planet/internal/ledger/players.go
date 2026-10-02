@@ -9,11 +9,9 @@ import (
 
 const defaultLimit = 20
 
-// Player is one account on one scope, or a scope alone for takes made with no account.
 type Player struct {
 	Scope   string
 	Account string
-	// Tiles is what the player still holds; Takes counts every take, so a painted-over bot still shows.
 	Tiles   int
 	Takes   int
 	FirstAt time.Time
@@ -66,8 +64,6 @@ func (t *Tally) See(taking Taking) {
 		player.LastAt = taking.At
 	}
 
-	// A clear counts as one of the caller's takes, since it is what the caller did to the map, and leaves the
-	// tile held by nobody: an empty tile is not the clearer's.
 	if taking.Cleared() {
 		delete(t.tiles, taking.Tile)
 		return
@@ -76,7 +72,6 @@ func (t *Tally) See(taking Taking) {
 	t.tiles[taking.Tile] = hold{player: index, country: taking.Country}
 }
 
-// Players is every player with a take that counts, latest take first, then scope and account order.
 func (t *Tally) Players(owners Owners) []Player {
 	for tile, hold := range t.tiles {
 		if owner, _ := owners.Owner(tile); owner == hold.country {
@@ -98,7 +93,6 @@ func (t *Tally) Players(owners Owners) []Player {
 	return players
 }
 
-// ByTakes orders players most takes first, then most tiles held, keeping the order between equals.
 func ByTakes(players []Player) []Player {
 	sort.SliceStable(players, func(i, j int) bool {
 		if players[i].Takes != players[j].Takes {
@@ -110,7 +104,6 @@ func ByTakes(players []Player) []Player {
 	return players
 }
 
-// Top cuts players to limit; zero or less is the default.
 func Top(players []Player, limit int) []Player {
 	if limit <= 0 {
 		limit = defaultLimit
@@ -119,7 +112,6 @@ func Top(players []Player, limit int) []Player {
 	return players[:min(limit, len(players))]
 }
 
-// ActiveFor is the time from the player's first take to its last.
 func (p Player) ActiveFor() time.Duration {
 	return p.LastAt.Sub(p.FirstAt)
 }
@@ -141,7 +133,6 @@ func (p Player) perMinute(count int) float64 {
 	return float64(count) / active.Minutes()
 }
 
-// Serving marks the player as under a running ban.
 func (p *Player) Serving(sentence antibot.Sentence) {
 	p.Banned = true
 	p.BannedUntil = sentence.Until

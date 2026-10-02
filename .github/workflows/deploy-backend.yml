@@ -41,10 +41,6 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # Caddy is built here, not on the droplet. Linking Caddy with the Cloudflare
-  # DNS plugin pulls in certmagic, quic-go, smallstep, otel and the AWS SDK —
-  # minutes of CPU and enough memory to OOM a 1 GB box. Same rule as the
-  # backend: CI builds, the box only pulls.
   caddy:
     runs-on: ubuntu-latest
     permissions:
@@ -71,10 +67,6 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # Every push to main publishes a new :<sha> tag for both images, so versions
-  # accumulate without bound. Storage is free for public packages, but the
-  # package page becomes unusable after a few hundred. Keeps the newest 20 of
-  # each — :latest always points at the newest, so it is never a candidate.
   prune:
     needs: [ build, caddy ]
     runs-on: ubuntu-latest
@@ -85,7 +77,7 @@ jobs:
         package: [ clickplanet-backend, clickplanet-caddy ]
     steps:
       - uses: actions/delete-package-versions@v5
-        continue-on-error: true   # retention must never fail a deploy
+        continue-on-error: true
         with:
           package-name: ${{ matrix.package }}
           package-type: container
@@ -95,6 +87,24 @@ jobs:
     needs: [ build, caddy ]
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
+      - name: render the droplet's env files
+        working-directory: deploy/vps
+        env:
+          SECRETS_JSON: ${{ toJSON(secrets) }}
+        run: make env ENV_OUT=rendered
+
+      - name: copy them to the VPS
+        uses: appleboy/scp-action@v1.0.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: deploy/vps/rendered/.env,deploy/vps/rendered/.env.caddy,deploy/vps/rendered/.env.backend
+          target: /tmp/cp-env
+          strip_components: 3
+
       - name: ssh to the VPS and roll the container
         uses: appleboy/ssh-action@v1.2.0
         with:
@@ -106,25 +116,25 @@ jobs:
             cd /opt/clickplanet/deploy/vps
             before=$(git -C /opt/clickplanet rev-parse HEAD)
             git -C /opt/clickplanet pull --ff-only
+
+            for f in .env .env.caddy .env.backend; do
+              if [ -f "$f" ]; then
+                cp -p "$f" "$f.previous"
+                chown --reference="$f" "/tmp/cp-env/$f"
+              fi
+              chmod 600 "/tmp/cp-env/$f"
+              mv "/tmp/cp-env/$f" "$f"
+            done
+            rmdir /tmp/cp-env
+
             docker compose pull
-            # Check the new Caddyfile with the new image before anything goes
-            # live. `run` is a throwaway container with no ports, so it works
-            # whether or not cp-caddy is up. A bad file fails the deploy here
-            # and the running Caddy keeps its old config.
             docker compose run --rm --no-deps -T caddy \
               caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
             docker compose up -d
-            # The backend reads backend.yaml once, at boot, and `up -d` only
-            # recreates a container whose image or compose settings changed. So a
-            # merge that only edits the file would be pulled and never read:
-            # recreate the backend when the file moved.
             if ! git -C /opt/clickplanet diff --quiet "$before" HEAD -- deploy/vps/backend.yaml; then
               docker compose up -d --force-recreate --no-deps backend
             fi
-            # `up -d` does not recreate Caddy for a Caddyfile edit, so load it
-            # in place. A reload keeps open connections, and is a no-op when the
-            # config did not change. The retry covers a Caddy that `up` has just
-            # recreated and whose admin API is not listening yet.
+            # up -d ignores a Caddyfile edit; retry until a new Caddy's admin API listens.
             for i in $(seq 1 15); do
               docker compose exec -T caddy \
                 caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile && break

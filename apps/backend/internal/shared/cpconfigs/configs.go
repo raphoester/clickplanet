@@ -1,9 +1,3 @@
-// Package cpconfigs loads the process config: a YAML file, then the environment
-// over it, then whatever the config says about itself.
-//
-// Where the file comes from is an option rather than the caller's business, so
-// the binary asks for the config it wants and never for the flag, the parser or
-// the precedence between the two.
 package cpconfigs
 
 import (
@@ -11,18 +5,15 @@ import (
 	"flag"
 	"fmt"
 
+	"github.com/go-viper/mapstructure/v2"
 	"github.com/knadh/koanf/parsers/yaml"
 	"github.com/knadh/koanf/providers/env"
 	"github.com/knadh/koanf/providers/file"
 	"github.com/knadh/koanf/v2"
 )
 
-// ErrValidation is what a config's own Validate refused.
 var ErrValidation = errors.New("config validation failed")
 
-// Validator is a config that checks itself once it is loaded. Implementing it
-// is optional, and it is the only place a bound can be refused with a sentence
-// rather than a zero value nothing reports.
 type Validator interface {
 	Validate() error
 }
@@ -34,7 +25,6 @@ type loadParams struct {
 	fromFlag bool
 }
 
-// FromFlag reads the path from -config, which is how the binary is run.
 func FromFlag() LoadOption {
 	return func(p loadParams) loadParams {
 		p.fromFlag = true
@@ -42,10 +32,6 @@ func FromFlag() LoadOption {
 	}
 }
 
-// Load fills config from the file, then the environment, then validates it.
-//
-// An empty path is not an error: every field keeps its zero value and the
-// environment alone can carry a whole config, which is what the container does.
 func Load(config any, opts ...LoadOption) error {
 	var params loadParams
 	for _, opt := range opts {
@@ -64,13 +50,21 @@ func Load(config any, opts ...LoadOption) error {
 		}
 	}
 
-	// Last loaded wins, so the environment overrides the file. The delimiter is
-	// the nesting one, which is why tilesStorage.flushInterval works as a name.
 	if err := k.Load(env.Provider("", delimiter, nil), nil); err != nil {
 		return fmt.Errorf("failed loading env variables: %w", err)
 	}
 
-	if err := k.Unmarshal("", config); err != nil {
+	if err := k.UnmarshalWithConf("", config, koanf.UnmarshalConf{
+		DecoderConfig: &mapstructure.DecoderConfig{
+			DecodeHook: mapstructure.ComposeDecodeHookFunc(
+				resolveSecrets(resolvers),
+				mapstructure.StringToTimeDurationHookFunc(),
+				mapstructure.TextUnmarshallerHookFunc(),
+			),
+			Result:           config,
+			WeaklyTypedInput: true,
+		},
+	}); err != nil {
 		return fmt.Errorf("failed unmarshalling config: %w", err)
 	}
 
@@ -84,6 +78,8 @@ func Load(config any, opts ...LoadOption) error {
 }
 
 const delimiter = "."
+
+var resolvers = []SecretResolver{EnvResolver{}}
 
 func pathFromFlag() string {
 	path := flag.String("config", "", "path to config file")

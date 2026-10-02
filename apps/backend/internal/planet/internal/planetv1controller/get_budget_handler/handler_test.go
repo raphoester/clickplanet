@@ -64,8 +64,6 @@ func TestGetBudgetPricesTheCountryAskedAbout(t *testing.T) {
 	assert.Equal(t, "bg", country)
 }
 
-// An unthrottled server promising an allowance of zero would have every client
-// show an empty meter and refuse to click.
 func TestGetBudgetIsAbsentWhenNothingThrottles(t *testing.T) {
 	require.Nil(t, getBudget(t, stubUseCase{limited: false}))
 }

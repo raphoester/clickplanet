@@ -1,14 +1,3 @@
-// Package cpbootstrap runs a set of bounded contexts as one process.
-//
-// A module is handed a set of registrars and nothing else: it mounts its RPC
-// routes, registers whatever has to keep running, and says what has to be shut
-// down. It never sees the router, the server, the signal handler or another
-// module's dependencies, so what two contexts share is exactly what the
-// composition root chose to hand both of them — see cmd/api.
-//
-// This is a modular monolith and is meant to stay one: there is one binary, one
-// port and one process, and a module is a boundary inside it rather than a
-// thing that could be deployed on its own.
 package cpbootstrap
 
 import (
@@ -31,109 +20,67 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpprom"
 )
 
-// Module is one bounded context and the sequence that builds it.
 type Module struct {
 	Name string
 
-	// Off is skipped: its routes are never mounted, so they 404 rather than existing and refusing.
 	Enabled bool
 
-	// DiSequence builds the context. Its ctx is the startup one and is
-	// cancelled once every module is built, so nothing may capture it — what
-	// outlives startup is registered on Props.Runners, which is handed the
-	// process-lifetime context instead.
 	DiSequence func(ctx context.Context, props Props) error
 }
 
-// Props is everything a module may reach outside itself.
 type Props struct {
 	Logger  *slog.Logger
 	Metrics prometheus.Registerer
 
-	// The transport every module answers over, and the only config a module
-	// reads that is not its own.
 	Server ServerConfig
 
 	RPC     RPCRegistrar
 	Runners RunnerRegistrar
 	Closers CloserRegistrar
 
-	// AdminRPC mounts on the loopback admin listener, which has no authentication and no CORS.
 	AdminRPC RPCRegistrar
 
-	// InternalRPC mounts what other modules call, on the loopback internal listener; Internal reaches it.
 	InternalRPC RPCRegistrar
 	Internal    InternalDialer
 
-	// Events is what a module publishes for others to hear, and subscribes to with Subscribe.
 	Events EventBus
 }
 
-// InternalDialer is how a module calls another: over the internal listener, never in its own stack trace.
 type InternalDialer interface {
 	Dial() (connect.HTTPClient, string, error)
 }
 
-// RPCRegistrar mounts a Connect service.
-//
-// A module hands over what builds the handler rather than the handler itself,
-// because a Connect interceptor is baked in at construction: there is no way to
-// wrap one afterwards, and an HTTP middleware is too late — by then the error is
-// already a serialized response body. Building here is therefore the only way
-// the server can guarantee something around every procedure in the process.
-//
-// What it guarantees is the error net: no handler's raw error reaches the wire,
-// whether or not the module that wrote it remembered to ask.
 type RPCRegistrar interface {
 	Mount(build ServiceBuilder, interceptors ...connect.Interceptor) error
 }
 
-// ServiceBuilder is a generated New<Service>Handler with its service bound. A
-// module writes the closure, because the generated constructor takes the
-// service interface while the module holds the concrete type — which is a
-// conversion no type parameter can infer:
-//
-//	return props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
-//		return planetv1connect.NewClickServiceHandler(service, options...)
-//	}, interceptors...)
 type ServiceBuilder func(options ...connect.HandlerOption) (string, http.Handler)
 
-// RunnerRegistrar takes a goroutine that runs until its context is cancelled.
 type RunnerRegistrar interface {
 	Add(runner Runner)
 }
 
-// Runner is a loop that lives as long as the process, and names itself.
 type Runner interface {
 	Name() string
 	Run(ctx context.Context)
 }
 
-// CloserRegistrar takes a cleanup, run in reverse registration order before the
-// runners are waited on.
 type CloserRegistrar interface {
 	Add(name string, close func() error)
 }
 
-// ServerConfig is the transport, which the modules speak over but none of them owns.
 type ServerConfig struct {
 	BindAddress string
 
-	// Must stay well under the proxy's idle cut: Cloudflare answers 524 at ~125s.
 	StreamHeartbeat time.Duration
 
-	// Empty serves no admin listener; anything but a loopback address refuses the boot.
 	AdminBindAddress string
 
-	// Empty serves no internal listener, and a module that dials it refuses the boot; anything but loopback refuses it too.
 	InternalBindAddress string
 
-	// The frontend's origin, exactly: scheme, host and port. The only origin a
-	// browser may call from, with credentials. Empty or "*" refuses the boot.
 	AllowedOrigin string
 }
 
-// Validate refuses the address that has no usable zero value: empty listens on port 80.
 func (c ServerConfig) Validate() error {
 	if c.BindAddress == "" {
 		return errors.New("httpServer.bindAddress is empty")
@@ -160,8 +107,6 @@ func (c ServerConfig) Validate() error {
 	return nil
 }
 
-// validateOrigin refuses what a browser would refuse later, one request at a
-// time: a credentialed answer must name one origin, and an origin has no path.
 func validateOrigin(origin string) error {
 	if origin == "" {
 		return errors.New("httpServer.allowedOrigin is empty: set it to the frontend's origin")
@@ -195,17 +140,12 @@ func isLoopback(address string) bool {
 type Options struct {
 	Server ServerConfig
 
-	// How long the whole DI sequence may take before the boot is abandoned.
 	StartupTimeout time.Duration
 
-	// How long the HTTP server is given to drain in-flight requests.
 	ShutdownTimeout time.Duration
 
 	Logger *slog.Logger
 
-	// Built in the order they are given, and that order is the only coupling
-	// between them: no module reads what another one left behind, because
-	// there is nowhere to leave it.
 	Modules []Module
 }
 
@@ -214,7 +154,6 @@ const (
 	defaultShutdownTimeout = 5 * time.Second
 )
 
-// Run builds every module, then serves until the process is signalled.
 func Run(ctx context.Context, options Options) error {
 	options = options.withDefaults()
 
@@ -225,7 +164,6 @@ func Run(ctx context.Context, options Options) error {
 	metrics := cpprom.NewRegistry()
 	errorNet := cpconnect.NewErrorInterceptor(options.Logger, nil)
 
-	// Cancelled when shutdown starts, and it ends every open stream.
 	draining, drain := context.WithCancel(context.Background())
 	defer drain()
 
@@ -241,7 +179,7 @@ func Run(ctx context.Context, options Options) error {
 	if err := buildModules(ctx, options, metrics, registrars, runners, closers); err != nil {
 		return err
 	}
-	// Before any runner starts: a subscriber registered later could miss what was published at boot.
+	// Before any runner starts: a subscriber registered later could miss boot events.
 	events.seal()
 
 	router := http.NewServeMux()
@@ -291,7 +229,6 @@ type registrars struct {
 	events   *eventBus
 }
 
-// buildModules runs every module's DI sequence under one startup deadline.
 func buildModules(
 	ctx context.Context,
 	options Options,

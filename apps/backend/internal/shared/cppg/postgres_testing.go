@@ -18,12 +18,10 @@ import (
 
 const testImage = "postgres:16-alpine"
 
-// TestServer is a postgres in a container, for the tests of one suite.
 type TestServer struct {
 	config Config
 }
 
-// StartTestServer starts a container and stops it when t ends. Call it from SetupSuite; it needs Docker.
 func StartTestServer(t testing.TB) *TestServer {
 	t.Helper()
 
@@ -43,14 +41,12 @@ func StartTestServer(t testing.TB) *TestServer {
 	return &TestServer{config: config}
 }
 
-// ConfigFor is a module's database block pointing at this server, for a test that boots the module itself.
 func (s *TestServer) ConfigFor(schema string) Config {
 	config := s.config
 	config.Schema = schema
 	return config
 }
 
-// OpenSchema connects inside schema and migrates it. The client closes when t ends.
 func (s *TestServer) OpenSchema(t testing.TB, schema string, migrations fs.FS) *Postgres {
 	t.Helper()
 
@@ -72,7 +68,6 @@ func startContainer(ctx context.Context) (testcontainers.Container, error) {
 			Env: map[string]string{
 				"POSTGRES_PASSWORD": testPassword,
 			},
-			// The image starts postgres twice: once to run its init scripts, then for real.
 			WaitingFor: wait.ForLog("database system is ready to accept connections").
 				WithOccurrence(2).
 				WithStartupTimeout(time.Minute),
@@ -88,7 +83,6 @@ func startContainer(ctx context.Context) (testcontainers.Container, error) {
 
 const testPassword = "postgres"
 
-// configFor is the connection to the container listening on endpoint, a host:port.
 func configFor(endpoint string) (Config, error) {
 	host, port, err := net.SplitHostPort(endpoint)
 	if err != nil {
@@ -105,7 +99,6 @@ func configFor(endpoint string) (Config, error) {
 	}, nil
 }
 
-// openSchema connects inside schema and migrates it.
 func openSchema(ctx context.Context, config Config, schema string, migrations fs.FS) (*Postgres, error) {
 	config.Schema = schema
 	client := New(config)
@@ -122,7 +115,6 @@ func openSchema(ctx context.Context, config Config, schema string, migrations fs
 	return client, nil
 }
 
-// Purge empties every table in the client's schema but migrate's own. Call it from SetupTest.
 func (p *Postgres) Purge(ctx context.Context) error {
 	rows, err := p.QueryContext(ctx, `
 		SELECT quote_ident(table_schema) || '.' || quote_ident(table_name)

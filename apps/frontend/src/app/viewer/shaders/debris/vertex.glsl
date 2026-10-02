@@ -1,13 +1,10 @@
-// One blast's debris, animated entirely here: the CPU sets where and when once,
-// and never touches the buffer again.
-
 uniform vec3 centre;
 uniform float start;
 uniform float radius;
 uniform float time;
 uniform float pixelsPerRadian;
+uniform float pixelRatio;
 
-// x: heading around the centre, y: how far it flies, z: how high it is thrown.
 attribute vec3 seed;
 
 varying float vLife;
@@ -29,6 +26,6 @@ void main() {
 
     vec3 p = up * (1.0 + height) + heading * out_;
 
-    gl_PointSize = max(1.5, pixelsPerRadian * radius * 0.09 * (1.0 - life));
+    gl_PointSize = max(1.5 * pixelRatio, pixelsPerRadian * radius * 0.09 * (1.0 - life));
     gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
 }

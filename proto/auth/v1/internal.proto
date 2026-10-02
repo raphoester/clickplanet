@@ -4,8 +4,6 @@ package auth.v1;
 
 service InternalService {
   rpc GetVerifyingKey(GetVerifyingKeyRequest) returns (GetVerifyingKeyResponse);
-  // What another module may know about one account. An account that does not
-  // exist, or an id that is not one, answers linked false.
   rpc GetAccount(GetAccountRequest) returns (GetAccountResponse);
 }
 
@@ -20,9 +18,6 @@ message GetAccountRequest {
 }
 
 message GetAccountResponse {
-  // Signed in with at least one provider. False for a guest.
   bool linked = 1;
-  // When the account was made, as a guest or by a first sign-in. Zero for an
-  // account that does not exist.
   int64 created_at_unix_ms = 2;
 }

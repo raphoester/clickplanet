@@ -14,7 +14,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/paint_random_tiles_usecase"
 )
 
-// Tiles 1..8 in a row. 1..6 sit on "fr" ground, 7..8 on "bg".
 var ground = []string{"", "fr", "fr", "fr", "fr", "fr", "fr", "bg", "bg"}
 
 type borders struct{}
@@ -38,9 +37,8 @@ func (row) Neighbours(id uint32) []uint32 {
 type stubMap struct {
 	tiles   []string
 	batches [][]clicks.Restoration
-	// retake is set on a tile by someone else just before the first batch is painted.
-	retake map[uint32]string
-	err    error
+	retake  map[uint32]string
+	err     error
 }
 
 func (m *stubMap) Owner(tile uint32) (string, bool) { return m.tiles[tile], m.tiles[tile] != "" }

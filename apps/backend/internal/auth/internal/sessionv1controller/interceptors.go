@@ -11,9 +11,6 @@ import (
 
 type MintLimiter = cpconnect.Limiter
 
-// ErrTooManySessions throttles minting itself. Without it the endpoint is a
-// free way to spend this server's siteverify budget, and a way to make a
-// blocked address cheap again by collecting tokens from it.
 var ErrTooManySessions = errors.New("too many session attempts")
 
 func NewRateLimitInterceptor(limiter MintLimiter) connect.Interceptor {

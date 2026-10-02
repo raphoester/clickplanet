@@ -42,6 +42,9 @@ make map
 # Refresh the vendored VPN/datacenter ranges from upstream, then commit them
 make vpn-lists
 
+# Refresh the vendored disposable email domains from upstream, then commit them
+make disposable-domains
+
 # Build Docker image
 make dBuild
 ```
@@ -238,7 +241,7 @@ The events today:
 | `planet.v1.TileTaken{account_id, tile_id, country, taken_at, scope}` | `planet`, `ledger/publishing_ledger_storage` | each take the ledger records with an account: a click, a spread or an enclose, one event per tile. A clear of native land is recorded and never published | `player`, for the stats; `planet` itself, for the [main flags](#a-players-main-flag-clicksallegiance), the only reader of `scope` |
 | `planet.v1.BombLanded{country, tile_id, ground, cleared, landed_at}` | `planet`, `drop_bomb_usecase/publishing_drop_bomb` | each bomb that went off, on land or in the sea; a refused drop and a dud publish nothing | `chat`, which announces it |
 | `auth.v1.AccountDeleted{account_id}` | `auth`, `delete_account_usecase` and `prune_guests_usecase` | after the account row is deleted; a pruned guest is a deleted account | `player`, which forgets the profile, the stats and the visit |
-| `auth.v1.SignedIn{previous_account_id, account_id}` | `auth`, `complete_sign_in_usecase` | after a sign-in or a link is saved; `previous_account_id` is empty for a browser that had no live session | `player`, which moves the browser's visit to the account |
+| `auth.v1.SignedIn{previous_account_id, account_id}` | `auth`, `signin.Admitter`, for `complete_sign_in_usecase` and `complete_email_sign_in_usecase` | after a sign-in or a link is saved; `previous_account_id` is empty for a browser that had no live session | `player`, which moves the browser's visit to the account |
 | `auth.v1.SignedOut{account_id}` | `auth`, `sign_out_usecase` and `sign_out_everywhere_usecase` | after the session, or every session, is deleted; a cookie with no session publishes nothing | `player`, which takes the account off the roster |
 
 Adding a context that callers talk to means a `proto/<name>/v1`, an `internal/<name>/` with a `module.go`, and one line in the slice. Connect derives the route from the proto package, so there is no prefix to allocate and no router to edit.
@@ -485,6 +488,13 @@ POST /auth.v1.AuthService/CompleteSignIn   [Cookie: cp_oauth, cp_sid]
   → complete_sign_in_usecase: open and check the flow, a link's account, provider.Exchange, accounts.OutcomeOf, SaveSignIn
   ← Set-Cookie: cp_sid (new session), cp_oauth cleared; the client mints again
 
+POST /auth.v1.AuthService/StartEmailSignIn   [Cookie: cp_sid, read for a link only]
+  → start_email_sign_in_usecase: read the address, the blocklist, attest, a link's account, the address's budget, mail the code
+  ← Set-Cookie: cp_email (sealed challenge)
+POST /auth.v1.AuthService/CompleteEmailSignIn   [Cookie: cp_email, cp_sid]
+  → complete_email_sign_in_usecase: open the challenge, spend a guess, check the code, then as CompleteSignIn
+  ← Set-Cookie: cp_sid (new session), cp_email cleared; a wrong code keeps cp_email
+
 POST /session.v1.SessionService/CreateSession   [deprecated]
   → create_anonymous_session_usecase: attest, then mint with no account
 
@@ -674,7 +684,11 @@ without a bubble. Today there is one kind, `bomb`: every bomb that went off, on 
 
 - **A guest spends from a third: the one every guest behind its scope shares** (`guests:<scope>`), at `rateLimiter.guestScopeMultiplier` (1) times one account's. A guest account is one per browser, and a private tab or a second browser is a new one, so without it ten tabs were ten banks, up to the scope's ten. Now the guests on one network are one bank. **Nobody is refused for being second** — there is no slot to win and none to free — and two people behind one address share until one signs in, which is a reason to. It takes a guest's pace, so ten tabs on a big country refill no faster than one. A linked account never spends from it. `TestGuestsOnOneScopeShareOneBank` pins it.
 
-- **A linked account refills faster, into the same bank.** An account that signed in with Google or Discord refills `rateLimiter.linkedMultiplier` (2) times as fast, to make signing in worth it; its bank is the same size. It is the same `account:<id>` bucket either way — the rate is its pace, set by each click (see below) — so signing in neither tops the bank up nor empties it. The scope's bucket still bounds it. **Planet learns it from the token**, which carries a linked byte (see [Sessions](#sessions-internalauth)), so a click costs no call to `auth`. A player who links mid-session refills at 1× until the client mints again. `TestALinkedAccountClicksTwiceAsFastAsAGuest` and `TestSigningInKeepsTheBankAndSpeedsUpItsRefill` pin it.
+- **A linked account refills faster, into the same bank.** An account that signed in with Google, Discord or an email code refills `rateLimiter.linkedMultiplier` (2) times as fast, to make signing in worth it; its bank is the same size. It is the same `account:<id>` bucket either way — the rate is its pace, set by each click (see below) — so signing in neither tops the bank up nor empties it. The scope's bucket still bounds it. **Planet learns it from the token**, which carries a linked byte (see [Sessions](#sessions-internalauth)), so a click costs no call to `auth`. A player who links mid-session refills at 1× until the client mints again. `TestALinkedAccountClicksTwiceAsFastAsAGuest` and `TestSigningInKeepsTheBankAndSpeedsUpItsRefill` pin it.
+- **A new account earns its bank; it is not handed one.** Its own bucket starts with `rateLimiter.newAccountClicks` (production 10) and earns the rest at the plain rate from the moment the account was made, so at 0.2/s it is full in under four minutes. From 2026-09-28 to 10-01 one phone took a new mobile /64 and a new guest account about once a minute and spent each fresh 60, about 4.5 times a guest's rate; now each new account is worth 10. Unset, every account starts full.
+  - **Planet reads the age off the id.** Auth makes every account id a UUIDv7, whose first 48 bits are when it was made, so `cpsession.AccountID.CreatedAt` needs no call and no change to the token. The session interceptor puts it on the context beside the account, and `clicks.PayerOf` reads it into `Payer.Created`. An id of another version says nothing and starts full. `uuid_id_provider`'s test pins that the ids it makes say when.
+  - **The limiter computes it when it makes the bucket** (`cpratelimit.Key.Since` and `Start`): `Start` plus what the plain rate earned since `Since`, never past the burst. So a restart, a sweep or a `Peek` cannot hand the bank over early, and nothing is stored per account. The sweep keeps a bucket a refill topped up early until it has earned its burst, or it would come back short.
+  - Only the account's own bucket: the guests' and the scope's have no age. A fresh account is still bounded by them. `TestAFreshGuestOnAFreshAddressEveryMinuteIsNoFreshBank` replays the phone over HTTP.
 - **A click is refused when either bucket is empty, and a refusal spends from neither.** `Limiter.TakeAll` checks every bucket and spends from all or none under one lock, so a player refused for a busy scope keeps its own tokens.
 - **A token with no account spends one bucket, the scope's at 1×** — exactly the throttle from before accounts. The deprecated `session.v1` mint, an invalid token while `auth.enforce` is off, and `auth.enabled` false all land here. It is a separate bucket from the scope's shared one, because a key never changes its scale.
 - **One limiter holds both.** A bucket's `Scale` is set when it is made and multiplies its burst and rate for good; `clicks.Buckets` names the keys (`account:<id>` at 1, `scope:<scope>` at the scope multiplier, or the bare scope at 1 with no account). **A key's `Pace` multiplies the payer's own bucket's rate from that take on, and leaves its burst alone**: the linked multiplier for a signed-in account, divided by the country's slowdown (see [A big country refills slower](#a-big-country-refills-slower-clickstoll)). The scope's bucket takes no pace. `clicks.PayerOf(ctx)` reads the scope and the account off the context, so the throttle, `GetBudget` and a bonus claim cannot disagree on who pays.
@@ -853,7 +867,7 @@ The signature is checked **before** the expiry, so a forger learns nothing about
 
 **`auth.turnstile.enabled: false` mints for anyone who asks** (`open_attester`). That is how a local backend runs without a widget and a secret, and it still exercises the whole click path — the token is bound and expires. It is never the production choice, and the server warns at boot when it is on.
 
-**Two secrets, neither in git.** `auth.secret` is the Ed25519 **seed**, 32 bytes as 64 hex characters — what `openssl rand -hex 32` already produced for the key it replaces. Anyone holding it can mint a token the API accepts. `auth.turnstile.secret` is the widget's secret half. Both come from the environment via `deploy/vps/docker-compose.yaml`, as `player.tagSalt` does. **An empty or malformed `auth.secret` with `auth.enabled` true refuses the boot**, naming the variable to set. It used to generate one and warn; a server that invented a key would invent a different one per restart and could not verify what it had just minted.
+**Two secrets, neither in git.** `auth.secret` is the Ed25519 **seed**, 32 bytes as 64 hex characters — what `openssl rand -hex 32` already produced for the key it replaces. Anyone holding it can mint a token the API accepts. `auth.turnstile.secret` is the widget's secret half. Both are `env://` anchors in `deploy/vps/backend.yaml`, as `player.tagSalt` is — the file names the variable at the point the value is used, and holds no value itself. **An empty or malformed `auth.secret` with `auth.enabled` true refuses the boot**, naming the variable to set. It used to generate one and warn; a server that invented a key would invent a different one per restart and could not verify what it had just minted.
 
 **There is still only one key to set.** The public half is derived at boot, so nothing has to be pasted into a second setting and nothing can drift out of step with the seed.
 
@@ -862,7 +876,7 @@ The signature is checked **before** the expiry, so a forger learns nothing about
 
 ### Auth (`internal/auth/`)
 
-**One module admits a caller: Turnstile, then the account its cookie holds, then the click token.** Every clicking browser gets an account, a guest one until it signs in; signing in with Google or Discord links to the same row, so a guest's history needs no merge. Off by default (`auth.enabled`); off, `auth.v1` and `session.v1` 404.
+**One module admits a caller: Turnstile, then the account its cookie holds, then the click token.** Every clicking browser gets an account, a guest one until it signs in; signing in with Google, Discord or an emailed code links to the same row, so a guest's history needs no merge. Off by default (`auth.enabled`); off, `auth.v1` and `session.v1` 404.
 
 It was two modules, `session` and `auth`, for one PR. The mint was auth's only caller, and "not a bot" and "who" are decided on the same request for the same purpose, so the line between them cut through one piece of work.
 
@@ -878,10 +892,14 @@ internal/auth/internal/
     usecases/get_account_usecase/          reads one account, for another module
     usecases/sign_out_usecase/  sign_out_everywhere_usecase/  delete_account_usecase/
     usecases/prune_guests_usecase/         deletes idle guests: Executor, Runner, and log_prune_guests
-  signin/                                  Flow (state, PKCE verifier, nonce, intent), Provider, Providers, Sealer, the cp_oauth cookie
+  signin/                                  Flow (state, PKCE verifier, nonce, intent), Provider, Providers, Offer, Sealer, the cp_oauth cookie;
+                                           Admitter (signs a proven identity in, for both paths); LinkTarget;
+                                           Address, Challenge, Challenges, Post, Letter, the cp_email cookie
     google_identity_provider/  discord_identity_provider/  oauth_http/
-    aes_flow_sealer/  random_secret_generator/
+    aes_flow_sealer/  random_secret_generator/  random_code_generator/
+    cloudflare_mailer/  log_mailer/  embedded_disposable_domains/
     usecases/start_sign_in_usecase/  complete_sign_in_usecase/
+    usecases/start_email_sign_in_usecase/  complete_email_sign_in_usecase/
   attestation/                             Attester, ErrAttestationFailed
     turnstile/  turnstile_attester/  open_attester/
   authv1controller/                        AuthService and InternalService: one handler package per procedure, authprovider for the enum
@@ -917,10 +935,28 @@ internal/auth/internal/
 - **`accounts.SignIn` is written in one transaction**: the new account if any, the identity if new, the new session, and the deletion of the browser's previous session. The session token changes on every sign-in. Two browsers linking the same new identity at once: the second insert finds it taken (`ErrIdentityTaken`), and the use case runs once more with the identity known — a sign-in moves, a link is refused.
 - **An email is kept only when the provider says it is verified** (`accounts.NewIdentity`), and it is `NULL` otherwise. It is for contact, never for finding an account.
 - **Off by default** (`auth.signIn.enabled`). Off, `signin.Providers` is empty and both RPCs answer `Unimplemented`, which Connect sends as HTTP 404. A provider is offered once its `clientId` is set. `StartSignIn` and `CompleteSignIn` spend the mint budget: each can cost a round trip to a third party or make an account.
-- **`GetSignInOptions` is how the client knows which buttons to show**: every provider offered, and an empty list while sign-in is off — never `Unimplemented`, since the question has an answer either way. **It is not throttled and sets no cookie.** A client asks on every page load, and probing with `StartSignIn` instead would spend the mint budget a real sign-in needs and start a flow for nothing. `TestAskingIsNotThrottled` pins it. A server with the whole `auth` module off still 404s it, which the client reads as no provider.
+- **`GetSignInOptions` is how the client knows which buttons to show**: every provider offered, then email when `auth.email.enabled` is on (`signin.Offer`), and an empty list while both are off — never `Unimplemented`, since the question has an answer either way. **It is not throttled and sets no cookie.** A client asks on every page load, and probing with `StartSignIn` instead would spend the mint budget a real sign-in needs and start a flow for nothing. `TestAskingIsNotThrottled` pins it. A server with the whole `auth` module off still 404s it, which the client reads as no provider.
 - **The client mints again after `CompleteSignIn`**, so its click token carries the account. The old token names the old account until it expires (1h).
 - **`CompleteSignIn` publishes `auth.v1.SignedIn`** once the sign-in is saved: the account the browser was on, empty for none, and the one it is on now. A refusal publishes nothing. `player` moves the roster line, since the client holds no token to announce with until its next click.
 - `auth.NewModuleWithFakeProviders` (behind the tag) boots the module with `signin.FakeProvider` for every provider: `Grant(code, claim)`, and the fake checks the verifier against the challenge it was shown. `e2e/sign_in_test.go` drives it.
+
+#### Signing in by email (`internal/auth/internal/signin/`)
+
+**A six-digit code, sent by this server through Cloudflare Email Sending, over two RPCs.** No magic link: a mail scanner opens a link before the player does and spends it, and many players read mail on a phone but play on a desktop.
+
+- **`StartEmailSignIn(email, intent, attestation_token)`** reads the address (`signin.AddressOf`), checks a fresh Turnstile token, has `signin.Challenges` issue a `signin.Challenge` — an id, the code, the address, the intent and a link's account — sealed into the `cp_email` cookie (10 minutes, same attributes as `cp_sid`), and gives its letter to `signin.Post`, which refuses a disposable domain, spends the address's budget and mails it. Nothing is stored on the server.
+- **The use cases only orchestrate.** The rules are on two domain objects the module builds once and hands to both email use cases: `Challenges` (whether email is offered, issuing and sealing, opening the cookie, spending a guess and checking the code) and `Post` (where a letter may go, and the mailer). `signin.LinkTarget` is the account a link starts on, for both start use cases. Start takes five dependencies, complete three.
+- **The address is the identity**: provider `email`, subject the address trimmed and in lower case. **Unlike a provider's email it does find an account**, since it is the subject. Emails are still never compared across providers: a Google identity and an email identity with the same address are two identities until the player links them.
+- **`AddressOf` takes one bare address** — no display name, no comment, no quotes, a domain of letters, digits and hyphens with a dot, 254 bytes at most. It refuses with `ErrAddressInvalid`, which the handler answers `InvalidArgument` with an `EmailRefusal` detail, as it does a disposable domain.
+- **Disposable domains are refused**, from [disposable-email-domains](https://github.com/disposable-email-domains/disposable-email-domains) (CC0, ~9,000 domains), vendored and embedded in `embedded_disposable_domains` like the VPN lists. A subdomain of a listed domain is refused too. Refresh with `make disposable-domains` and commit; the test asserts the list still loads whole. **This is what keeps an email account worth the linked allowance**: a free inbox for anyone costs a bot nothing.
+- **The address is read before Turnstile**, which costs a round trip; **Turnstile comes before the post**, so a caller that proves nothing cannot spend an address's budget and keep its owner from signing in. The IP is passed to Turnstile and is not required: unlike the click token, nothing here is bound to it.
+- **Two budgets, both in memory** (`cpratelimit`): per address, three codes at once then one every twenty minutes (`auth.email.sendLimiter`), so nobody fills an inbox that is not theirs; and per challenge, `signin.MaxAttempts` (5) guesses, refilling one per `ChallengeTTL`, so a bucket is swept within an hour. The cookie is replayable — a browser sends the same one with every guess — so the guesses can only be counted on the server. A restart forgets both; it is rare, and costs an attacker's five more guesses at one million codes. Both RPCs also spend the mint budget.
+- **The answer is the same whether the address has an account or not**: a known address signs in, a new one is linked or made. Nobody learns which addresses play here.
+- **`CompleteEmailSignIn(code)`** opens the cookie, spends a guess, checks the code (constant time) and the expiry, then signs in exactly as `CompleteSignIn` does: **`signin.Admitter` is the one place both paths go through** — the caller's account (`Visitor`), `accounts.OutcomeOf`, `SaveSignIn`, the retry on `ErrIdentityTaken`, and `auth.v1.SignedIn`. A wrong code is `InvalidArgument` and **keeps** `cp_email`, so the player types again; everything else clears it. Spent guesses, a lapsed challenge or no cookie are `FailedPrecondition`: ask for a new code.
+- **A code is not burnt by its success.** The cookie is cleared, and a replay needs both the HttpOnly cookie and the code — that is the player who just signed in, and a replay signs them in to the same account again.
+- **An email account is linked**: it is never pruned, it refills at the linked multiplier, and it may pick a username.
+- **`auth.email.delivery` is `cloudflare` or `log`.** `cloudflare_mailer` posts to the REST API with a token that has *Email Sending: Edit* only; a non-2xx, a body that is not JSON, or a permanent bounce of the address is an error, and nothing is set. `log_mailer` writes the letter, code included, to the server log at `WARN` — the local choice, with no account anywhere. The server warns at boot when it is on.
+- `auth.NewModuleWithFakeProviders` turns email on with `signin.FakeMailer` and codes `000001`, `000002`, …; `e2e/email_sign_in_test.go` reads the code out of the letter.
 
 #### Signing out, deleting, pruning
 
@@ -2432,6 +2468,10 @@ Where the file comes from is an option — `FromFlag()` reads `-config`, which i
 
 Config is loaded from a YAML file, with environment variables overriding it — `.` is the nesting delimiter, so `database.password=...` in the environment overrides the file. See `cmd/api/example.yaml` for the full schema.
 
+**A string value may be an anchor rather than a literal.** `secret: env://SESSION_SECRET` reads that variable at load; anything carrying no known scheme is left exactly as written. This is what keeps a config file that is in git self-contained — it names where each secret comes from, at the point the secret is used, instead of a table elsewhere mapping one name onto another. `EnvResolver` is the only scheme today; a second one is another `SecretResolver` in `cpconfigs` and no change to any config struct or call site.
+
+**An anchored variable that is not set fails the load**, naming the field and the variable. That is deliberately not the same as one set to the empty string, which is a value and reaches the block's own `Validate` — so `SESSION_SECRET` missing is a fault, and `SESSION_SECRET=` is a setting the session block then refuses on its own terms.
+
 **A config that implements `Validate() error` is asked to check itself**, and the load fails with its sentence wrapped in `cpconfigs.ErrValidation`. That is where a bad setting is refused out loud rather than becoming a zero value nothing reports.
 
 **Every block validates its own, and `cmd/api` only fans out:**
@@ -2475,6 +2515,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `rateLimiter.perSecond`, `rateLimiter.burst`, `rateLimiter.sweepInterval` — one account's click allowance, and a token with no account's scope bucket (defaults 1/s, burst 10, swept every minute; `perSecond` is a float, so 0.2 is one click every 5s)
 - `rateLimiter.scopeMultiplier` — the scope's bucket over one account's, shared by every account behind the address (default 10). Below 1 refuses the boot. See [Two buckets per click](#two-buckets-per-click)
 - `rateLimiter.guestScopeMultiplier` — the bucket every guest behind one address shares, over one account's (default 1: the guests on one network are one bank). Below 1 refuses the boot. See [Two buckets per click](#two-buckets-per-click)
+- `rateLimiter.newAccountClicks` — the bank of an account just made, which earns the rest at the plain rate (unset: full). Negative refuses the boot. See [Two buckets per click](#two-buckets-per-click)
 - `homeSoil.enabled` — native land takes two clicks: on a country's own ground, another flag's first click clears its tile and the next takes it. Off by default; the client reads it from `GetBonusRules`, so turning it off needs no release. See [Native land takes two clicks](#native-land-takes-two-clicks-clickshomesoil)
 - `vpnBlocklist.enabled`, `vpnBlocklist.includeDatacenters`, `vpnBlocklist.allow` — the VPN refusal (see [VPN blocklist](#vpn-blocklist)); disabled parses nothing and allocates nothing
 - `bonus.interval` — how often a box is put in front of somebody; a ceiling, since nothing is offered while nobody is watching
@@ -2518,6 +2559,11 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `auth.signIn.redirectUrl` — the frontend callback page, registered with every provider exactly (production `https://clickplanet.lol/auth/callback`); not an absolute URL, or one with a query, refuses the boot
 - `auth.google.clientId`, `auth.discord.clientId` — a provider is offered once its id is set
 - `auth.google.clientSecret`, `auth.discord.clientSecret` — from the environment; empty beside a set `clientId` refuses the boot
+- `auth.email.enabled` — off, `StartEmailSignIn` and `CompleteEmailSignIn` answer `Unimplemented` (404) and `GetSignInOptions` does not list email. Apart from `auth.signIn`: it needs no provider
+- `auth.email.delivery` — `cloudflare`, or `log` for a local backend; anything else refuses the boot while email is on
+- `auth.email.from`, `auth.email.fromName` — the sender, on a domain onboarded to Cloudflare Email Sending; not an address refuses the boot
+- `auth.email.cloudflare.accountId`, `auth.email.cloudflare.apiToken` — `env://CLOUDFLARE_ACCOUNT_ID` and `env://CLOUDFLARE_EMAIL_TOKEN` in `deploy/vps/backend.yaml`; either empty with email on and `delivery: cloudflare` refuses the boot
+- `auth.email.sendLimiter.*` — the per-address throttle on codes, same shape as `rateLimiter` (default 3, then one every 20 minutes)
 - `auth.prune.idleFor`, `auth.prune.interval` — how long a guest goes unused before it is deleted (default `guestTTL`, never less), and how often the prune runs (1h)
 - `chat.database.host`, `port`, `user`, `password`, `dbName`, `sslMode`, `schema`, `pool.*` — the chat module's postgres, same shape as `database`; any of them but `password` and `pool` empty refuses the boot. `chat.database.password` belongs in the environment
 - `chat.storage.historySize`, `chat.storage.retention`, `chat.storage.pruneInterval`, `chat.storage.subscriberBuffer`

@@ -15,7 +15,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
-// stubClick stands in for the rule, and writes the clicked tile the way it does.
 type stubClick struct {
 	storage *recordingStorage
 	err     error
@@ -29,7 +28,6 @@ func (s stubClick) Execute(ctx context.Context, in click_usecase.In) (click_usec
 	return click_usecase.Out{}, s.storage.Set(ctx, in.TileID, in.CountryID)
 }
 
-// stubSpreads holds each holder's spread clicks left.
 type stubSpreads struct{ left map[bonuses.Holder]int }
 
 func (s stubSpreads) SpendSpreadClick(holder bonuses.Holder) bool {
@@ -41,7 +39,6 @@ func (s stubSpreads) SpendSpreadClick(holder bonuses.Holder) bool {
 	return true
 }
 
-// caller is the holder of a click made from the test's context: no account, and the scope that reads.
 var caller = bonuses.HolderOf(clicks.PayerOf(context.Background()))
 
 type stubNeighbours map[uint32][]uint32
@@ -59,7 +56,6 @@ func (r *recordingStorage) Set(_ context.Context, tile uint32, value string) err
 	return nil
 }
 
-// polishGround puts tiles 90 to 99 on Poland's ground; every other tile is in no country.
 type polishGround struct{}
 
 func (polishGround) CountryOf(tile uint32) string {
@@ -77,7 +73,6 @@ func (r *recordingPublisher) PublishSpread(spread bonuses.Spread) {
 	r.spreads = append(r.spreads, spread)
 }
 
-// A tile inland with its six neighbours, and a lone island with none.
 var honeycomb = stubNeighbours{
 	100: {90, 91, 99, 101, 109, 110},
 	7:   nil,
@@ -121,7 +116,6 @@ func TestASpreadingClickTakesTheTileAndEveryTileTouchingIt(t *testing.T) {
 
 func TestASpreadClearsTheNativeTilesItTouchesAndTakesTheRest(t *testing.T) {
 	useCase, storage := setup(true, nil)
-	// 90 and 91 are Poland's own; 99 is Polish ground Germany holds; 101 is Poland's flag abroad.
 	storage.tiles[90], storage.tiles[91], storage.tiles[99], storage.tiles[101] = "pl", "pl", "de", "pl"
 
 	_, err := useCase.Execute(t.Context(), click_usecase.In{TileID: 100, CountryID: "fr", Spread: true})

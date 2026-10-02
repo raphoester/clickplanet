@@ -10,7 +10,6 @@ import {truncate} from "../truncate.ts"
 import "./Players.css"
 import "./PlayerCard.css"
 
-/** As long as the chat lets a name run, so a name is cut at the same letter in both. */
 const NAME_MAX_LENGTH = 16
 
 export type PlayersButtonProps = {
@@ -19,7 +18,6 @@ export type PlayersButtonProps = {
     buttonRef?: React.Ref<HTMLButtonElement>
 }
 
-/** One slab in the menu's actions: an icon and how many are playing. */
 export function PlayersButton({entries, onOpen, buttonRef}: PlayersButtonProps) {
     const label = entries.length === 1 ? "1 player online" : `${entries.length} players online`
     return <button ref={buttonRef}
@@ -35,7 +33,6 @@ export function PlayersButton({entries, onOpen, buttonRef}: PlayersButtonProps) 
 
 export type PlayersPanelProps = {
     entries: readonly RosterEntry[]
-    /** Absent, the names are plain text. */
     onOpenPlayer?: (player: PlayerLine) => void
 }
 
@@ -90,8 +87,6 @@ function PlayersGroup({title, entries, onOpenPlayer}: PlayersGroupProps) {
     </section>
 }
 
-// The flag stands for the country, so its name is what the tooltip and the
-// accessibility tree carry, as in the chat.
 function countryName(code: string): string {
     return Countries.get(code)?.name ?? code
 }
