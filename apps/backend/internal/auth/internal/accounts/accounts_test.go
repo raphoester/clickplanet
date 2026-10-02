@@ -153,7 +153,7 @@ func TestAKnownIdentitySignsInWhateverTheBrowserIsOn(t *testing.T) {
 
 	for name, current := range map[string]*accounts.Account{"no account": nil, "another account": {ID: account}} {
 		t.Run(name, func(t *testing.T) {
-			outcome, err := accounts.OutcomeOf(accounts.IntentSignIn, current, known, "google")
+			outcome, err := accounts.OutcomeOf(accounts.IntentSignIn, current, known, nil, "google")
 
 			require.NoError(t, err)
 			assert.Equal(t, accounts.SignedIn, outcome)
@@ -168,7 +168,7 @@ func TestANewIdentityLinksToTheAccountTheBrowserIsOn(t *testing.T) {
 			"linked to another place": {ID: account, Identities: []accounts.Identity{{Provider: "discord"}}},
 		} {
 			t.Run(name, func(t *testing.T) {
-				outcome, err := accounts.OutcomeOf(intent, current, nil, "google")
+				outcome, err := accounts.OutcomeOf(intent, current, nil, nil, "google")
 
 				require.NoError(t, err)
 				assert.Equal(t, accounts.Linked, outcome)
@@ -183,7 +183,7 @@ func TestANewIdentityWithNowhereToGoCreatesAnAccount(t *testing.T) {
 		"same provider": {ID: account, Identities: []accounts.Identity{{Provider: "google", Subject: "someone else"}}},
 	} {
 		t.Run(name, func(t *testing.T) {
-			outcome, err := accounts.OutcomeOf(accounts.IntentSignIn, current, nil, "google")
+			outcome, err := accounts.OutcomeOf(accounts.IntentSignIn, current, nil, nil, "google")
 
 			require.NoError(t, err)
 			assert.Equal(t, accounts.Created, outcome)
@@ -194,7 +194,7 @@ func TestANewIdentityWithNowhereToGoCreatesAnAccount(t *testing.T) {
 func TestLinkingAnIdentityTheAccountAlreadyHasChangesNothing(t *testing.T) {
 	current := &accounts.Account{ID: account, Identities: []accounts.Identity{{Provider: "google", Subject: "user", Account: account}}}
 
-	outcome, err := accounts.OutcomeOf(accounts.IntentLink, current, &current.Identities[0], "google")
+	outcome, err := accounts.OutcomeOf(accounts.IntentLink, current, &current.Identities[0], nil, "google")
 
 	require.NoError(t, err)
 	assert.Equal(t, accounts.SignedIn, outcome, "the browser stays on its account")
@@ -215,11 +215,73 @@ func TestALinkIsRefusedRatherThanLeaveTheAccount(t *testing.T) {
 		"no account to link to":       {want: accounts.ErrNoAccount},
 	} {
 		t.Run(name, func(t *testing.T) {
-			_, err := accounts.OutcomeOf(accounts.IntentLink, tc.current, tc.known, "google")
+			_, err := accounts.OutcomeOf(accounts.IntentLink, tc.current, tc.known, nil, "google")
 
 			assert.ErrorIs(t, err, tc.want)
 		})
 	}
+}
+
+func TestAnUnverifiedEmailIsNoAddress(t *testing.T) {
+	assert.Empty(t, accounts.Claim{Subject: "user", Email: "a@example.com"}.VerifiedEmail())
+	assert.Equal(t, "a@example.com", accounts.Claim{Subject: "user", Email: "a@example.com", EmailVerified: true}.VerifiedEmail())
+}
+
+func TestANewIdentityJoinsTheAccountThatHoldsItsAddress(t *testing.T) {
+	owner := &accounts.Account{ID: accounts.AccountID{15: 2}, Identities: []accounts.Identity{{Provider: "google", Subject: "g"}}}
+
+	for name, current := range map[string]*accounts.Account{
+		"no account":    nil,
+		"a guest":       {ID: account},
+		"linked to one": {ID: account, Identities: []accounts.Identity{{Provider: "discord"}}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			outcome, err := accounts.OutcomeOf(accounts.IntentSignIn, current, nil, owner, "email")
+
+			require.NoError(t, err)
+			assert.Equal(t, accounts.Joined, outcome)
+		})
+	}
+}
+
+func TestANewIdentityOnTheAccountThatHoldsItsAddressLinks(t *testing.T) {
+	owner := &accounts.Account{ID: account, Identities: []accounts.Identity{{Provider: "google", Subject: "g"}}}
+
+	outcome, err := accounts.OutcomeOf(accounts.IntentSignIn, owner, nil, owner, "email")
+
+	require.NoError(t, err)
+	assert.Equal(t, accounts.Linked, outcome)
+}
+
+func TestAKnownIdentityOutranksTheAddress(t *testing.T) {
+	known := &accounts.Identity{Provider: "email", Subject: "a@example.com", Account: accounts.AccountID{15: 3}}
+	owner := &accounts.Account{ID: accounts.AccountID{15: 2}}
+
+	outcome, err := accounts.OutcomeOf(accounts.IntentSignIn, nil, known, owner, "email")
+
+	require.NoError(t, err)
+	assert.Equal(t, accounts.SignedIn, outcome)
+}
+
+func TestAnOwnerThatHasThisProviderAlreadyIsNotJoined(t *testing.T) {
+	owner := &accounts.Account{ID: accounts.AccountID{15: 2}, Identities: []accounts.Identity{{Provider: "google", Subject: "other"}}}
+
+	outcome, err := accounts.OutcomeOf(accounts.IntentSignIn, nil, nil, owner, "google")
+
+	require.NoError(t, err)
+	assert.Equal(t, accounts.Created, outcome)
+}
+
+func TestLinkingAnAddressAnotherAccountHoldsIsRefused(t *testing.T) {
+	current := &accounts.Account{ID: account, Identities: []accounts.Identity{{Provider: "discord", Subject: "d"}}}
+	owner := &accounts.Account{ID: accounts.AccountID{15: 2}, Identities: []accounts.Identity{{Provider: "google", Subject: "g"}}}
+
+	_, err := accounts.OutcomeOf(accounts.IntentLink, current, nil, owner, "email")
+	require.ErrorIs(t, err, accounts.ErrIdentityLinkedElsewhere)
+
+	outcome, err := accounts.OutcomeOf(accounts.IntentLink, current, nil, current, "email")
+	require.NoError(t, err)
+	assert.Equal(t, accounts.Linked, outcome, "the address is this account's own")
 }
 
 func TestAnAccountIDIsAUUIDAndNeverTheNilOne(t *testing.T) {

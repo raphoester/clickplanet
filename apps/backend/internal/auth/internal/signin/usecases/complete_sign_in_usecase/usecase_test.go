@@ -106,6 +106,37 @@ func (f *fixture) linkedAccount(t *testing.T, account byte, provider string, sub
 	}))
 }
 
+func TestAGoogleSignInJoinsTheAccountThatHoldsItsAddress(t *testing.T) {
+	f := setUp(t)
+	identity := accounts.NewIdentity(signin.Email, accounts.Claim{Subject: "a@example.com", Email: "a@example.com", EmailVerified: true}, accounts.AccountID{15: 9}, start)
+	require.NoError(t, f.store.SaveSignIn(t.Context(), accounts.SignIn{
+		NewAccount: true, Identity: identity, Session: accounts.LinkedSession(identity.Account, accounts.TokenOf("email-token"), lifetime, start),
+	}))
+
+	out, err := f.complete(t, "")
+	require.NoError(t, err)
+
+	assert.Equal(t, accounts.AccountID{15: 9}, out.Account)
+	assert.Equal(t, accounts.Joined, out.Outcome)
+	google, err := f.store.Identity(t.Context(), signin.Google, "google-user")
+	require.NoError(t, err)
+	assert.Equal(t, accounts.AccountID{15: 9}, google.Account)
+}
+
+func TestAnUnverifiedAddressJoinsNothing(t *testing.T) {
+	f := setUp(t)
+	identity := accounts.NewIdentity(signin.Email, accounts.Claim{Subject: "a@example.com", Email: "a@example.com", EmailVerified: true}, accounts.AccountID{15: 9}, start)
+	require.NoError(t, f.store.SaveSignIn(t.Context(), accounts.SignIn{
+		NewAccount: true, Identity: identity, Session: accounts.LinkedSession(identity.Account, accounts.TokenOf("email-token"), lifetime, start),
+	}))
+
+	out, err := f.finish(t, accounts.IntentSignIn, "", accounts.Claim{Subject: "google-user", Email: "a@example.com"})
+	require.NoError(t, err)
+
+	assert.Equal(t, accounts.Created, out.Outcome)
+	assert.NotEqual(t, accounts.AccountID{15: 9}, out.Account)
+}
+
 func (f *fixture) assertPublished(t *testing.T, want ...proto.Message) {
 	t.Helper()
 
@@ -190,7 +221,7 @@ func TestAnAccountHoldingTheProviderAlreadyIsNotGivenASecondUserOfIt(t *testing.
 	assert.NotEqual(t, accounts.AccountID{15: 7}, out.Account)
 }
 
-func TestAMatchingEmailLinksNothing(t *testing.T) {
+func TestAGoogleSignInJoinsTheDiscordAccountWithItsVerifiedAddress(t *testing.T) {
 	f := setUp(t)
 	identity := accounts.NewIdentity("discord", accounts.Claim{Subject: "discord-user", Email: claim.Email, EmailVerified: true}, accounts.AccountID{15: 7}, start)
 	require.NoError(t, f.store.SaveSignIn(t.Context(), accounts.SignIn{
@@ -200,8 +231,11 @@ func TestAMatchingEmailLinksNothing(t *testing.T) {
 	out, err := f.complete(t, "")
 	require.NoError(t, err)
 
-	assert.Equal(t, accounts.Created, out.Outcome)
-	assert.NotEqual(t, accounts.AccountID{15: 7}, out.Account)
+	assert.Equal(t, accounts.Joined, out.Outcome)
+	assert.Equal(t, accounts.AccountID{15: 7}, out.Account)
+	joined, err := f.store.Account(t.Context(), accounts.AccountID{15: 7})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"discord", "google"}, joined.Providers())
 }
 
 func TestLinkingANewIdentityLinksItToTheAccountTheBrowserIsOn(t *testing.T) {

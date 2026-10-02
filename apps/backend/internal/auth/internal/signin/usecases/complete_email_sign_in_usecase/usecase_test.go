@@ -142,6 +142,45 @@ func TestAKnownAddressSignsInToItsAccount(t *testing.T) {
 	assert.Equal(t, accounts.SignedIn, out.Outcome)
 }
 
+func (f *fixture) googleAccount(t *testing.T, account byte, email string) {
+	t.Helper()
+
+	identity := accounts.NewIdentity("google", accounts.Claim{Subject: "google-user", Email: email, EmailVerified: true}, accounts.AccountID{15: account}, start)
+	require.NoError(t, f.store.SaveSignIn(t.Context(), accounts.SignIn{
+		NewAccount: true, Identity: identity, Session: accounts.LinkedSession(identity.Account, accounts.TokenOf("google-token"), lifetime, start),
+	}))
+}
+
+func TestAnAddressAGoogleAccountHoldsSignsInToThatAccount(t *testing.T) {
+	f := setUp(t)
+	f.googleAccount(t, 9, "Player@Example.com")
+	f.guest(t, 7, "guest")
+
+	out, err := f.complete(t, f.began(t, accounts.IntentSignIn, "cp_sid=guest"), "000001")
+	require.NoError(t, err)
+
+	assert.Equal(t, accounts.AccountID{15: 9}, out.Account)
+	assert.Equal(t, accounts.Joined, out.Outcome)
+	identity, err := f.store.Identity(t.Context(), signin.Email, address)
+	require.NoError(t, err)
+	assert.Equal(t, accounts.AccountID{15: 9}, identity.Account, "the next code finds the account directly")
+	guest, err := f.store.Account(t.Context(), accounts.AccountID{15: 7})
+	require.NoError(t, err)
+	assert.False(t, guest.Linked(), "the guest the browser leaves is left as it was")
+}
+
+func TestLinkingAnAddressAGoogleAccountHoldsIsRefused(t *testing.T) {
+	f := setUp(t)
+	f.googleAccount(t, 9, address)
+	f.guest(t, 7, "guest")
+
+	_, err := f.complete(t, f.began(t, accounts.IntentLink, "cp_sid=guest"), "000001")
+
+	require.ErrorIs(t, err, accounts.ErrIdentityLinkedElsewhere)
+	_, err = f.store.Identity(t.Context(), signin.Email, address)
+	assert.ErrorIs(t, err, accounts.ErrIdentityNotFound)
+}
+
 func TestAWrongCodeMayBeTypedAgain(t *testing.T) {
 	f := setUp(t)
 	cookies := f.began(t, accounts.IntentSignIn, "")
