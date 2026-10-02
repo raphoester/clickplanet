@@ -419,18 +419,17 @@ run. It needs the Workers Paid plan: 3,000 emails a month are included.
 
 2. Create an API token with **Email Sending: Edit** and nothing else. Not the
    Caddy token: that one edits DNS.
-3. Put the token and the account id in the Actions secrets. `backend.yaml`
-   already names both (`env://CLOUDFLARE_EMAIL_TOKEN`,
-   `env://CLOUDFLARE_ACCOUNT_ID`), so the next deploy writes them to
-   `.env.backend` with no other edit:
+3. Put the token in the Actions secrets. `backend.yaml` already names it
+   (`env://CLOUDFLARE_EMAIL_TOKEN`), so the next deploy writes it to
+   `.env.backend` with no other edit. The account id is not a secret and is
+   written in `backend.yaml` as it is:
 
    ```bash
-   read -rsp 'Cloudflare account id: ' s && echo && printf '%s' "$s" | gh secret set CLOUDFLARE_ACCOUNT_ID --repo raphoester/clickplanet && unset s
    read -rsp 'Email Sending token: ' s && echo && printf '%s' "$s" | gh secret set CLOUDFLARE_EMAIL_TOKEN --repo raphoester/clickplanet && unset s
    ```
 
-4. Set `auth.email.enabled: true` and deploy. An empty token or account id
-   refuses the boot.
+4. Set `auth.email.enabled: true` and deploy. An empty token refuses the
+   boot.
 
 ## 6. Watching for bots
 
