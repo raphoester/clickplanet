@@ -74,3 +74,10 @@ type Window struct {
 func (w Window) Since(now time.Time) time.Time {
 	return now.Add(-w.Retention)
 }
+
+func (w Window) Beginning(now time.Time, shown []Message) time.Time {
+	if len(shown) == 0 || len(shown) < w.Size {
+		return w.Since(now)
+	}
+	return shown[0].SentAt
+}
