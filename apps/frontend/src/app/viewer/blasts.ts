@@ -101,7 +101,11 @@ type Slot = {
  * tiles are dots with sea and gaps between them, and a ring made of them breaks
  * up and flickers as it moves.
  */
-export function createBlasts(uniforms: BlastUniforms, pixelsPerRadian: THREE.IUniform<number>): Blasts {
+export function createBlasts(
+    uniforms: BlastUniforms,
+    pixelsPerRadian: THREE.IUniform<number>,
+    pixelRatio: THREE.IUniform<number>,
+): Blasts {
     const group = new THREE.Group()
     const flashTexture = glowTexture()
     const seeds = debrisSeeds()
@@ -137,6 +141,7 @@ export function createBlasts(uniforms: BlastUniforms, pixelsPerRadian: THREE.IUn
                 radius: {value: 0},
                 time: uniforms.time,
                 pixelsPerRadian,
+                pixelRatio,
                 water: {value: 0},
             },
             vertexShader: debrisVertex,

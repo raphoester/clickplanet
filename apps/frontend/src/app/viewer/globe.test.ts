@@ -72,7 +72,7 @@ describe("a refused click, from the paint to the rollback", () => {
             positions: new Float32Array(size * 3),
             uvs: new Float32Array(size * 2),
             size,
-        })
+        }, false)
         const ownership = new TileOwnership(size)
         let leaderboard: LeaderboardEntry[] = []
 

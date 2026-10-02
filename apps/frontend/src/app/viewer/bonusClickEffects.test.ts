@@ -164,11 +164,11 @@ describe("createBonusClickEffects", () => {
         effects.playSpread(spread)
         expect(effects.object.children.length).toBeGreaterThan(0)
 
-        effects.update(1000, camera, 800)
-        effects.update(1000 + SPREAD_LIFETIME_SECONDS / 2, camera, 800)
+        effects.update(1000, camera, 800, 1)
+        effects.update(1000 + SPREAD_LIFETIME_SECONDS / 2, camera, 800, 1)
         expect(effects.object.children.length).toBeGreaterThan(0)
 
-        effects.update(1000 + SPREAD_LIFETIME_SECONDS, camera, 800)
+        effects.update(1000 + SPREAD_LIFETIME_SECONDS, camera, 800, 1)
         expect(effects.object.children).toHaveLength(0)
 
         effects.dispose()
@@ -180,12 +180,12 @@ describe("createBonusClickEffects", () => {
         effects.playClear(1)
         expect(effects.object.children.length).toBeGreaterThan(0)
 
-        effects.update(1000, camera, 800)
-        effects.update(1000 + CLEAR_LIFETIME_SECONDS / 2, camera, 800)
+        effects.update(1000, camera, 800, 1)
+        effects.update(1000 + CLEAR_LIFETIME_SECONDS / 2, camera, 800, 1)
         expect(effects.object.children.length).toBeGreaterThan(0)
 
         // Past the end by a hair: 1000.8 - 1000 is a little under 0.8 in floating point.
-        effects.update(1000 + CLEAR_LIFETIME_SECONDS + 0.01, camera, 800)
+        effects.update(1000 + CLEAR_LIFETIME_SECONDS + 0.01, camera, 800, 1)
         expect(effects.object.children).toHaveLength(0)
 
         effects.dispose()

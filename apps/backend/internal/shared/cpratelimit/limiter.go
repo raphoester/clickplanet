@@ -68,6 +68,9 @@ type bucket struct {
 
 	// Pace multiplies the rate, from the last take that set it on. One is the plain rate.
 	pace float64
+
+	since time.Time
+	start float64
 }
 
 // State is what a bucket holds, together with the policy it refills under. The
@@ -102,11 +105,14 @@ func (l *Limiter) TakeN(key string, n float64) (bool, State) {
 //
 // Pace, when set, multiplies the bucket's rate from this take on, and leaves its burst alone: a take
 // does not reprice the time already past, which was refilled at the rate in force over it. Peek
-// ignores it. Zero leaves the bucket's pace as it is.
+// ignores it. Zero leaves the bucket's pace as it is. Since, when set, makes a new bucket hold Start plus what its
+// plain rate earned since then, not a full burst.
 type Key struct {
 	Name  string
 	Scale float64
 	Pace  float64
+	Since time.Time
+	Start float64
 }
 
 // TakeAll spends n tokens from every bucket, or from none: one bucket refusing
@@ -126,7 +132,7 @@ func (l *Limiter) TakeAll(n float64, keys ...Key) (bool, []State) {
 	for i, key := range keys {
 		b, ok := l.buckets[key.Name]
 		if !ok {
-			b = l.newBucket(key.Scale, now)
+			b = l.newBucket(key, now)
 			l.buckets[key.Name] = b
 		}
 
@@ -150,7 +156,7 @@ func (l *Limiter) TakeAll(n float64, keys ...Key) (bool, []State) {
 	return allowed, states
 }
 
-// Peek reports the state without spending anything. An unknown key is a full
+// Peek reports the state without spending anything. An unknown key is a new
 // bucket and stays unknown: reading an allowance must not be a way to make the
 // limiter remember an address that never clicked.
 func (l *Limiter) Peek(key Key) State {
@@ -161,7 +167,7 @@ func (l *Limiter) Peek(key Key) State {
 
 	b, ok := l.buckets[key.Name]
 	if !ok {
-		return l.state(l.newBucket(key.Scale, now))
+		return l.state(l.newBucket(key, now))
 	}
 
 	l.refill(b, now)
@@ -170,9 +176,9 @@ func (l *Limiter) Peek(key Key) State {
 }
 
 // Fill tops a key's bucket up to its capacity, and reports whether there was room: a full bucket is
-// left alone and answers false, so a caller does not spend something on nothing. An unknown key is a full
-// bucket. It is additive to the package: nothing that never calls it can tell it exists, which matters
-// because the same limiter type throttles chat and session mints.
+// left alone and answers false, so a caller does not spend something on nothing. An unknown key is a new
+// bucket, remembered only when it is not full. It is additive to the package: nothing that never calls it
+// can tell it exists, which matters because the same limiter type throttles chat and session mints.
 func (l *Limiter) Fill(key Key) (bool, State) {
 	now := l.clock.Now()
 
@@ -181,7 +187,11 @@ func (l *Limiter) Fill(key Key) (bool, State) {
 
 	b, ok := l.buckets[key.Name]
 	if !ok {
-		return false, l.state(l.newBucket(key.Scale, now))
+		b = l.newBucket(key, now)
+		if b.tokens >= l.capacity(b) {
+			return false, l.state(b)
+		}
+		l.buckets[key.Name] = b
 	}
 
 	l.refill(b, now)
@@ -194,9 +204,21 @@ func (l *Limiter) Fill(key Key) (bool, State) {
 	return true, l.state(b)
 }
 
-func (l *Limiter) newBucket(scale float64, now time.Time) *bucket {
-	scale = max(scale, 1)
-	return &bucket{tokens: float64(l.config.Burst) * scale, last: now, scale: scale, pace: 1}
+func (l *Limiter) newBucket(key Key, now time.Time) *bucket {
+	scale := max(key.Scale, 1)
+	b := &bucket{last: now, scale: scale, pace: 1, since: key.Since, start: key.Start}
+	b.tokens = l.earned(b, now)
+
+	return b
+}
+
+// earned is what a bucket made now would hold: a full burst, or for a key with Since, what it earned since then.
+func (l *Limiter) earned(b *bucket, now time.Time) float64 {
+	if b.since.IsZero() {
+		return l.capacity(b)
+	}
+
+	return math.Min(max(b.start, 0)+max(now.Sub(b.since).Seconds(), 0)*l.config.PerSecond*b.scale, l.capacity(b))
 }
 
 // state reports the reading together with the policy it refills under. A client replays that arithmetic
@@ -243,7 +265,8 @@ func (l *Limiter) sweep() {
 	for key, b := range l.buckets {
 		l.refill(b, now)
 
-		if b.tokens >= l.capacity(b) {
+		// A bucket a refill topped up early would come back short, so it waits until it has earned its burst.
+		if b.tokens >= l.capacity(b) && l.earned(b, now) >= l.capacity(b) {
 			delete(l.buckets, key)
 		}
 	}

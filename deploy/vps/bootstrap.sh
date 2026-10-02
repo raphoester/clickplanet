@@ -96,7 +96,8 @@ Options:
   --backend-image REF        Pin a specific image instead of :latest.
   --skip-start               Provision only; do not bring the stack up.
   --skip-dns-check           Bypass the check that the record is proxied.
-  --force-env                Overwrite an existing .env.
+  --force-env                Replace the secrets already on the box with fresh
+                             ones, instead of keeping what is there.
 USAGE
 }
 
@@ -206,6 +207,22 @@ $(log "set the repository secrets so CI can deploy")
 
 SECRETS
 	fi
+
+	# The box holds the only copy of what was just generated, and the first
+	# deploy replaces its env files from the Actions secrets — so an unpushed
+	# salt is lost at that point, and with it every name's tag. This reads them
+	# back over ssh and sets them without printing a value.
+	cat <<PUSH
+$(log "push the box's secrets up, BEFORE the first deploy")
+
+  ssh ${DEPLOY_USER}@${SSH_HOST} 'grep -hE "^(CLOUDFLARE_API_TOKEN|CHAT_TAG_SALT|SESSION_SECRET|TURNSTILE_SECRET|POSTGRES_PASSWORD|GOOGLE_CLIENT_SECRET|DISCORD_CLIENT_SECRET)=." ${STACK_DIR}/.env ${STACK_DIR}/.env.caddy ${STACK_DIR}/.env.backend' \\
+    | sort -u | while IFS='=' read -r name value; do \\
+        printf '%s' "\$value" | gh secret set "\$name" --repo raphoester/clickplanet && echo "set \$name"; \\
+      done
+
+  Actions secrets cannot be read back, so keep a copy in a password manager too.
+
+PUSH
 	exit 0
 fi
 
@@ -401,84 +418,99 @@ chown -R "$DEPLOY_USER:$DEPLOY_USER" "$CHECKOUT"
 [[ -f "${STACK_DIR}/docker-compose.yaml" ]] \
 	|| die "${STACK_DIR}/docker-compose.yaml missing — wrong branch or bad clone?"
 
-# --------------------------------------------------------------------- .env
+# ------------------------------------------------------------- the env files
+#
+# The stack reads three env files, and render-env.sh is what knows which secret
+# belongs in which: it reads each service's own config to find out. So this does
+# not write them. It decides what each secret IS — generating the ones that can
+# be generated, keeping the ones already on the box — and hands the set to that
+# script, which splits it the same way a deploy does.
+#
+# Everything here lasts only until the first deploy, which renders the same
+# three files from the repository's Actions secrets. On a fresh box that costs
+# nothing. On a box that has been running, push the values below to the Actions
+# secrets BEFORE deploying, or the deploy hands the box a different salt and
+# every name's tag changes at once.
+#
+# API_DOMAIN and FRONTEND_ORIGIN are NOT here: they are not secret and live in
+# env.public, in git, which render-env.sh copies into the files it writes.
 
-env_file="${STACK_DIR}/.env"
-if [[ -f "$env_file" && $FORCE_ENV -eq 0 ]]; then
-	log ".env already exists, leaving it alone (--force-env to overwrite)"
-	# The token passed on the command line is authoritative. Leaving a stale one
-	# in .env is the worst case available: the check below passes (it uses the
-	# new token) while Caddy keeps the old one and fails at renewal, months
-	# later, with nobody watching.
-	current_token="$(sed -n 's/^CLOUDFLARE_API_TOKEN=//p' "$env_file" | head -1)"
-	if [[ "$current_token" != "$CF_TOKEN" ]]; then
-		if [[ -n "$current_token" ]]; then
-			log "replacing the CLOUDFLARE_API_TOKEN in .env with the one passed in"
-		else
-			log "adding CLOUDFLARE_API_TOKEN to the existing .env"
-		fi
-		sed -i '/^CLOUDFLARE_API_TOKEN=/d' "$env_file"
-		printf 'CLOUDFLARE_API_TOKEN=%s\n' "$CF_TOKEN" >> "$env_file"
-	fi
-	# Unlike the token, the salt is generated rather than passed in, and an
-	# existing one is never touched: rotating it renames every chat sender at
-	# once, which is not something a redeploy should do quietly.
-	if ! grep -q '^CHAT_TAG_SALT=.' "$env_file"; then
-		log "adding a generated CHAT_TAG_SALT to the existing .env"
-		sed -i '/^CHAT_TAG_SALT=/d' "$env_file"
-		printf 'CHAT_TAG_SALT=%s\n' "$(random_salt)" >> "$env_file"
-	fi
-	# Same reasoning as the salt, milder consequence: rotating this only costs
-	# every player one extra round trip on their next click. Still not something
-	# a redeploy should do without being asked.
-	if ! grep -q '^SESSION_SECRET=.' "$env_file"; then
-		log "adding a generated SESSION_SECRET to the existing .env"
-		sed -i '/^SESSION_SECRET=/d' "$env_file"
-		printf 'SESSION_SECRET=%s\n' "$(random_secret)" >> "$env_file"
-	fi
-	# Generated once and never rotated here: postgres reads it only when its
-	# volume is empty, so a new one would lock the API out of the existing data.
-	if ! grep -q '^POSTGRES_PASSWORD=.' "$env_file"; then
-		log "adding a generated POSTGRES_PASSWORD to the existing .env"
-		sed -i '/^POSTGRES_PASSWORD=/d' "$env_file"
-		printf 'POSTGRES_PASSWORD=%s\n' "$(random_secret)" >> "$env_file"
-	fi
-	# Unlike the salt and the session secret this cannot be generated: it is half of a keypair
-	# Cloudflare issues. Left empty, docker compose refuses to start the stack
-	# and says so, which beats booting with attestation quietly doing nothing.
-	if ! grep -q '^TURNSTILE_SECRET=' "$env_file"; then
-		log "adding an empty TURNSTILE_SECRET to .env — set it from dash.cloudflare.com > Turnstile"
-		printf 'TURNSTILE_SECRET=\n' >> "$env_file"
-	fi
-	# Same as the Turnstile secret: issued by the provider, so it cannot be generated.
-	# Empty is fine while auth.signIn.enabled is false.
-	for provider_secret in GOOGLE_CLIENT_SECRET DISCORD_CLIENT_SECRET; do
-		if ! grep -q "^${provider_secret}=" "$env_file"; then
-			log "adding an empty ${provider_secret} to .env — set it before turning sign-in on"
-			printf '%s=\n' "$provider_secret" >> "$env_file"
-		fi
+env_public="${STACK_DIR}/env.public"
+[[ -f "$env_public" ]] || die "${env_public} missing — wrong branch or bad clone?"
+
+# The flags stay required because the DNS and reachability checks below use
+# them, but env.public is what reaches the stack. Two values that disagree would
+# mean certificates for one host and CORS for another, so refuse instead.
+public_value() { sed -n "s/^${1}=//p" "$env_public" | head -1; }
+for pair in "API_DOMAIN:${API_DOMAIN}" "FRONTEND_ORIGIN:${FRONTEND_ORIGIN}"; do
+	name="${pair%%:*}"; passed="${pair#*:}"; in_file="$(public_value "$name")"
+	[[ -n "$in_file" ]] || die "${name} is missing from env.public"
+	[[ "$in_file" == "$passed" ]] || die "${name} is ${in_file} in env.public but ${passed} was passed in.
+  Both reach the same stack, so they cannot differ. Edit env.public (it is in
+  git, and the deploy reads it) or pass the value it already holds."
+done
+
+# A value already on the box, from whichever file holds it. .env alone is the
+# shape a box provisioned before the files were split still has.
+existing_secret() {
+	local name="$1" f
+	for f in "${STACK_DIR}/.env.backend" "${STACK_DIR}/.env.caddy" "${STACK_DIR}/.env"; do
+		[[ -f "$f" ]] || continue
+		local value
+		value="$(sed -n "s/^${name}=//p" "$f" | head -1)"
+		[[ -n "$value" ]] && { printf '%s' "$value"; return; }
 	done
-else
-	log "writing .env"
-	cat > "$env_file" <<ENV
-# Written by bootstrap.sh on $(date -u +%Y-%m-%dT%H:%M:%SZ)
-API_DOMAIN=${API_DOMAIN}
-FRONTEND_ORIGIN=${FRONTEND_ORIGIN}
-CLOUDFLARE_API_TOKEN=${CF_TOKEN}
-CHAT_TAG_SALT=$(random_salt)
-SESSION_SECRET=$(random_secret)
-POSTGRES_PASSWORD=$(random_secret)
-# Secret half of the Turnstile widget, from dash.cloudflare.com > Turnstile.
-# Cannot be generated here. The stack will not start until it is set.
-TURNSTILE_SECRET=
-# OAuth client secrets of the sign-in providers. Empty while sign-in is off.
-GOOGLE_CLIENT_SECRET=
-DISCORD_CLIENT_SECRET=
-BACKEND_IMAGE=${BACKEND_IMAGE:-ghcr.io/raphoester/clickplanet-backend:latest}
-ENV
-	chown "$DEPLOY_USER:$DEPLOY_USER" "$env_file"
-	chmod 600 "$env_file"
+}
+
+# Kept unless --force-env, each for its own reason: a new salt renames every
+# tag at once, a new session secret costs every player one extra round trip,
+# and a new postgres password locks the API out of the volume postgres keeps
+# the first one in. The three the provider issues cannot be generated at all.
+# Writes the value to stdout, where the caller captures it, so every word for a
+# person goes to stderr.
+secret_value() {
+	local name="$1" generator="${2:-}" current=""
+	if [[ $FORCE_ENV -eq 0 ]]; then
+		current="$(existing_secret "$name")"
+	fi
+	if [[ -n "$current" ]]; then
+		printf '%s' "$current"
+	elif [[ -n "$generator" ]]; then
+		log "generating ${name}" >&2
+		"$generator"
+	else
+		log "leaving ${name} empty — set it in the Actions secrets, or on the box until the first deploy" >&2
+	fi
+}
+
+log "rendering .env, .env.caddy and .env.backend"
+# The token passed on the command line is authoritative. Keeping a stale one is
+# the worst case available: the check below passes (it uses the new token) while
+# Caddy keeps the old one and fails at renewal, months later, with nobody
+# watching.
+SECRETS_JSON="$(jq -n \
+	--arg CLOUDFLARE_API_TOKEN "$CF_TOKEN" \
+	--arg CHAT_TAG_SALT "$(secret_value CHAT_TAG_SALT random_salt)" \
+	--arg SESSION_SECRET "$(secret_value SESSION_SECRET random_secret)" \
+	--arg POSTGRES_PASSWORD "$(secret_value POSTGRES_PASSWORD random_secret)" \
+	--arg TURNSTILE_SECRET "$(secret_value TURNSTILE_SECRET)" \
+	--arg GOOGLE_CLIENT_SECRET "$(secret_value GOOGLE_CLIENT_SECRET)" \
+	--arg DISCORD_CLIENT_SECRET "$(secret_value DISCORD_CLIENT_SECRET)" \
+	'$ARGS.named')" \
+	"${STACK_DIR}/render-env.sh" "$STACK_DIR"
+
+# A tag the operator asked for, which is a compose setting rather than a secret,
+# so render-env.sh does not know about it. The deploy's own render drops it
+# again, by which point CI publishes the tag the box should run.
+if [[ -n "$BACKEND_IMAGE" ]]; then
+	log "pinning BACKEND_IMAGE to ${BACKEND_IMAGE} until the first deploy"
+	printf 'BACKEND_IMAGE=%s\n' "$BACKEND_IMAGE" >> "${STACK_DIR}/.env"
 fi
+
+for f in .env .env.caddy .env.backend; do
+	chown "$DEPLOY_USER:$DEPLOY_USER" "${STACK_DIR}/${f}"
+	chmod 600 "${STACK_DIR}/${f}"
+done
 
 if [[ $SKIP_START -eq 1 ]]; then
 	log "provisioning done (--skip-start), stack not started"

@@ -46,7 +46,9 @@ and a bomb at most, a pool of 8 spread clicks and a stack of 3 enclosures, a box
 adding 1 to 4 and 1 to 3 of them, spread and enclose spent only while switched on,
 both at once refused, a refill refused on a full bank), `giveQuiz()` puts a quiz
 banner up at once, and `fakeBackend.botBomb(tile, "fr")` and `fakeBackend.botSpread(tile, "fr")`
-play somebody else's bomb or spread click.
+play somebody else's bomb or spread click. `fakeBackend.shareClicks("guests")` (or
+`"network"`) reads the bucket as shared, and `fakeBackend.shareClicks()` as the
+player's own again.
 
 A local backend is the quickest way to exercise the real chat: `cmd/api`'s
 `example.yaml` runs chat (it is always on), and the Go server answers
@@ -900,7 +902,13 @@ mint a guest and insert a row into `auth.identities` for its account.
   lot, so at most `MAX_PLAYING` run at once. It also puffs dust on a tile this
   player's click cleared rather than took (`playClear`): a small burst, six motes
   drifting off it, one ring, 0.8s.
-- `shaders/` — GLSL for the display, picking, star and enclosure passes.
+- `earth.ts` — the opaque sphere under the tiles, in the globe's light with
+  `?gfx=earth`. See [The light](#the-light).
+- `graphics.ts` — `graphicsOf`, which parts of the sharper, lit globe the URL
+  turns on. See [`?gfx=`](#gfx-the-sharper-lit-globe-off-unless-asked-for).
+- `shaders/` — GLSL for the display, picking, earth, star and enclosure passes.
+  `light.glsl` is not a pass but the light they share, pulled in with
+  `#include ../light.glsl;` (vite-plugin-glsl's own include, not three's).
 
 ### Drawing only when something changed
 
@@ -994,6 +1002,111 @@ Measured against the same frame with the culling off, the limb comes out
 pixel-for-pixel identical. It is worth a few percent of those two passes and no
 more — the vertex shader still runs for every point and still reads every
 attribute, and only its body is skipped.
+
+### `?gfx=`: the sharper, lit globe, off unless asked for
+
+The two sections below — the screen's pixel ratio and the light — shipped on in
+#254 and turned the globe **almost white, flickering as it turned**, for players
+on Windows Chrome with an Intel GPU (ANGLE on Direct3D 11). Antialiasing off
+(#255) did not fix it, and both were reverted (#256). It could not be reproduced
+on a Mac (Metal), on SwiftShader, or on a Windows laptop with the same GPU
+(Iris Xe, ratio 1.25) in either a dev or a production build. So the cause can
+only be found on the screens that have it.
+
+**Every part is in the build and off by default**; the URL turns them on, one
+at a time, for the page load (`graphicsOf` in `graphics.ts`, read once in
+`createGlobe`):
+
+| `?gfx=` | Turns on |
+|---|---|
+| `ratio` | the screen's pixel ratio, capped at 2, instead of 1 |
+| `aa` | `antialias` on the context |
+| `earth` | the earth's own shader, in the light, with the glint |
+| `tiles` | the light on the tiles |
+| `halo` | the light on the halo |
+| `light` | `earth`, `tiles` and `halo` |
+| `all` | all of the above: #254 as it shipped |
+
+Words add up (`?gfx=ratio,tiles`), and sit beside the rest of the query
+(`?c=fr&gfx=halo`). A word it does not know turns nothing on.
+
+**Off is the code from before #254, not the new code multiplied by zero.** The
+light is compiled out with `#ifdef LIT` (three's `defines`, which leaves out a
+`false` one), so a driver that miscompiles `light.glsl` never sees it; the plain
+earth is three's standard material under the ambient light again; the plain halo
+has its own `colour` uniform. What is left on every page is the ratio
+arithmetic, which is a multiplication by 1.
+
+**To use it**, send a player who has the bug the links, one per part, and ask
+which come out white: `https://clickplanet.lol/play?gfx=all` first, which must
+show the bug, then `ratio`, `aa`, `earth`, `tiles`, `halo`. Ask for
+`chrome://gpu` too: it names the driver. **Once the culprit is fixed, turn the
+rest on for everyone and take the switches out** — this is a bisection, not a
+settings page.
+
+### CSS pixels in, drawing-buffer pixels out
+
+**`?gfx=ratio` draws the canvas at the screen's pixel ratio, capped at 2**
+(`pixelRatio()` in `scene.ts`); without it the ratio is 1, as it always was. At
+1, on a phone or a laptop the browser stretches every frame over twice its
+pixels and the whole globe is soft. Past 2 is more than twice the work again for
+a difference nobody sees at arm's length.
+
+**Antialiasing is off unless `?gfx=aa`.** #254 turned it on below a ratio of 2,
+and it was the first suspect for the white globe on Intel; turning it off
+(#255) did not fix that, so it is one of the switches rather than a verdict.
+
+**Every size in pixels in this viewer is a CSS pixel**, and is multiplied by the
+ratio on its way to the GPU: the tile's point size, the outline's width
+(`halfWidthOf`), the keyline around a painted flag, the smallest a mark or a
+ring of the bonus effects may be, the smallest debris. So are the thresholds:
+`coarseHandover`, `flagPaint` and the size a landmass must reach before its flag
+fades in are worked out in CSS pixels, or a sharper screen would hand over at
+half the zoom. What is measured against `gl_PointSize` stays in drawing-buffer
+pixels — `pixelsPerRadian`, the picker's window, the one-pixel feathers that
+soften an edge.
+
+The click is already in drawing-buffer pixels: `canvasPosition` scales the
+pointer by `canvas.width / rect.width`. `resize` sets the ratio again, because a
+browser zoom changes it. **Read the ratio back from the renderer, never from
+`window.devicePixelRatio`**: a ratio that changes with no `resize` then leaves
+the frame no sharper, but every size still agrees with every other.
+
+### The light
+
+**Only with `?gfx=light`, or one of its three parts** — see [`?gfx=`](#gfx-the-sharper-lit-globe-off-unless-asked-for).
+Without it the earth is three's standard material under an ambient light, the
+tiles are unlit, and the globe reads as a flat blue disc.
+
+**The globe is lit by one light, and everything on its surface calls the same
+function for it** — `shaders/light.glsl`, included by the earth, the tiles and
+the halo. Lighting only the earth would have left the flags floating flat on a
+shaded ball.
+
+**It is a studio light, not the sun.** It sits with the camera, up and to the
+left, so the same side is always lit however the globe is turned: a real sun
+would put half the players' countries in the dark. Half-Lambert, squared, wraps
+it round the globe with no terminator, and the far limb keeps about half.
+
+**`shadeOf` is exactly 1 at the middle of the disc**, which is what the camera
+looks straight at and, zoomed in, the whole screen. A player at work on a
+country sees its flags as bright as before there was a light; the lit side of
+the globe seen whole comes out brighter still.
+
+**The air is lit too.** `hazeOf` lays the halo's colour over the ground seen
+edge-on, and `lit` shades it with the ground, so the rim is bright on the lit
+side and fades on the far one. The halo itself is shaded by the same function,
+taking the limb under it as its normal. `AIR` is the colour, and `COLOUR` in
+`atmosphere.ts` is the same one for the unlit halo, until the switches go.
+
+**Only the sea shines.** The earth adds a glint, read off the texture: the sea
+is one deep blue whose blue stands clear of its red and green, and no land does
+that. The photo itself is drawn as the standard material used to draw it,
+`sRGB(texel · 2/π)`, so the sea is still the blue it was.
+
+**None of it moves on its own**, so none of it costs a frame: the light turns
+with the camera, and a still globe is still the same picture. See [Drawing only
+when something changed](#drawing-only-when-something-changed).
 
 ### The zoomed-out view
 
@@ -1271,6 +1384,15 @@ and are shared; how thick a line is drawn between them is this app's.
    which has the account panel's sign-in buttons. The account panel's guest text
    says the same. **Nothing is offered without the server's number**, nor with
    sign-in off.
+
+   **It says when somebody else spends from the bucket.** The guests behind one
+   address share one bank, and every player behind it shares the scope's, so a
+   count can drop by clicks this player never made: another tab, or a stranger
+   on the same carrier. `ClickBudget.sharedWith` is the server's answer to whose
+   bucket the reading is, and the meter says "Shared with the guests on your
+   network" or "…everyone on your network" under the reading. Absent, it is the
+   player's own and nothing is said. A guest who shares is offered "Sign in:
+   your own clicks" instead, and `SignInPitchModal` says why.
 
    **It is one panel, and its width is set rather than grown.** The reading, the
    offer and the inventory all live in `.click-budget-dock`, which takes the
@@ -1694,14 +1816,16 @@ a row measured in `px` of font is mostly leading. **A flex `margin-top` doing
 this correction has to be twice the rise**, because centring applies to the
 margin box; getting that wrong left the camera icon exactly half-corrected.
 
-**The canvas is sized in CSS pixels** (`renderer.setSize` with no pixel ratio),
-so a phone captures around 390×844. `cardSize` lifts that to a short edge of
-720 — the globe softens a little and the flag and the counts stay crisp, which
-is the half anyone reads — and caps the long edge at 2400 so a share sheet will
-still take the file.
+**The capture is the drawing buffer**, at a ratio of 1, or at the screen's
+capped at 2 with `?gfx=ratio` (see [CSS pixels in, drawing-buffer pixels
+out](#css-pixels-in-drawing-buffer-pixels-out)): a phone captures around 390×844,
+or 780×1688 with the switch, and a ratio-1 desktop its CSS size. `cardSize` lifts a small one to a
+short edge of 720 — the globe softens a little and the flag and the counts stay
+crisp, which is the half anyone reads — and caps the long edge at 2400 so a
+share sheet will still take the file.
 
-**And the card is the middle of the frame, not all of it.** 390×844 is a 1:2.2
-column that every timeline either shows as a sliver or crops for you;
+**And the card is the middle of the frame, not all of it.** A phone's frame is
+a 1:2.2 column that every timeline either shows as a sliver or crops for you;
 `cropToAspect` brings the shape back inside 9:16 … 16:9 first, centred, because
 the globe is centred — the camera looks at the origin. The portrait limit is the
 loosest of the standard shapes on purpose: at rest the sphere's diameter is the

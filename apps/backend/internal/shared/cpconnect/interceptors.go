@@ -214,6 +214,9 @@ func withClaims(ctx context.Context, claims *cpsession.Claims) context.Context {
 	}
 
 	ctx = cpctx.AddAccountToContext(ctx, claims.Account.String())
+	if created, ok := claims.Account.CreatedAt(); ok {
+		ctx = cpctx.AddAccountCreatedToContext(ctx, created)
+	}
 	if !claims.Linked {
 		return ctx
 	}

@@ -82,6 +82,15 @@ func TestTheExampleConfigStillReachesTheStructs(t *testing.T) {
 	assert.InDelta(t, 5, config.Planet.AntiBot.Scraper.Detector.MinMaps, 1e-9)
 	assert.InDelta(t, 15, config.Planet.AntiBot.Scraper.Detector.CertainMaps, 1e-9)
 	assert.Equal(t, 15*time.Minute, config.Planet.AntiBot.Scraper.Detector.TrackWindow)
+
+	churner := config.Planet.AntiBot.Churner
+	require.True(t, churner.Enabled)
+	assert.Equal(t, time.Hour, churner.Detector.Window)
+	assert.Equal(t, 6, churner.Detector.V6.CertainAccounts)
+	assert.Equal(t, 20, churner.Detector.V4.CertainAccounts)
+	assert.Equal(t, 90*time.Second, churner.Detector.Relay.Handoff)
+	assert.Equal(t, 32, churner.Detector.Relay.V6Bits)
+	assert.Equal(t, 6, churner.Detector.Relay.CertainLinks)
 }
 
 // The blocks the antibot rewrite did not touch, so that moving one of them is a
@@ -221,7 +230,10 @@ func TestTheExampleConfigReachesTheScopeMultiplier(t *testing.T) {
 	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
 
 	assert.InDelta(t, 10.0, config.Planet.RateLimiter.ScopeMultiplier, 1e-9)
+	assert.InDelta(t, 1.0, config.Planet.RateLimiter.GuestScopeMultiplier, 1e-9)
 	assert.InDelta(t, 2.0, config.Planet.RateLimiter.LinkedMultiplier, 1e-9)
+	require.NotNil(t, config.Planet.RateLimiter.NewAccountClicks)
+	assert.InDelta(t, 10.0, *config.Planet.RateLimiter.NewAccountClicks, 1e-9)
 	assert.Equal(t, 60, config.Planet.RateLimiter.Burst, "the squashed policy still reads rateLimiter.burst")
 }
 

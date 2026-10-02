@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import {OrbitControls} from "three/addons/controls/OrbitControls.js";
-import {addDisplayObjects, setupScene} from "./scene.ts";
+import {addDisplayObjects, pixelRatio, setupScene} from "./scene.ts";
+import {graphicsOf} from "./graphics.ts";
 import {loadPointGeometryData} from "./points.ts";
 import {GpuPicker} from "./gpuPicking.ts";
 import {CapturedFrame, readDrawingBuffer} from "./capture.ts";
@@ -56,6 +57,7 @@ type Uniforms = BlastUniforms & {
     landmassData: THREE.IUniform
     landmassCount: THREE.IUniform
     pixelsPerRadian: THREE.IUniform<number>
+    pixelRatio: THREE.IUniform<number>
     flagPaint: THREE.IUniform
 }
 
@@ -293,14 +295,18 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     // nothing on it can be claimed yet.
     let loaded = false
 
-    const {scene, camera, cameraSize, renderer, cleanup} = setupScene(eventTarget);
+    // Read once: a switch is for a whole page load, and the URL is how a
+    // player hands us one (see graphics.ts).
+    const graphics = graphicsOf(window.location.search);
+    const {scene, camera, cameraSize, renderer, cleanup} = setupScene(eventTarget, graphics);
     const uniforms: Uniforms = {
-        pointSize: {value: displayPointSize(camera.zoom, layoutViewport().height)},
+        pointSize: {value: displayPointSize(camera.zoom, layoutViewport().height) * renderer.getPixelRatio()},
         atlasTexture: {value: textureLoader.load(ATLAS_URL)},
         atlasTextureSize: {value: new THREE.Vector2(ATLAS_SIZE.width, ATLAS_SIZE.height)},
         landmassData: {value: null},
         landmassCount: {value: 1},
         pixelsPerRadian: {value: 1},
+        pixelRatio: {value: renderer.getPixelRatio()},
         flagPaint: {value: flagPaint(camera.zoom, layoutViewport().height)},
         ...blastUniforms(prefersReducedMotion()),
     };
@@ -308,9 +314,9 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     // The picking pass keeps the true tile size: the display discs are widened
     // to cover the ground while the coarse flag is painted through them, and
     // overlapping discs would hand a click to whichever neighbour drew last.
-    const pickingUniforms = {pointSize: {value: tilePointSize(camera.zoom, layoutViewport().height)}}
+    const pickingUniforms = {pointSize: {value: tilePointSize(camera.zoom, layoutViewport().height) * renderer.getPixelRatio()}}
 
-    const field = new TileField(uniforms, pickingUniforms, geometryData);
+    const field = new TileField(uniforms, pickingUniforms, geometryData, graphics.tiles);
 
     const territories = new BorderField(borders, field.size)
     field.setLandmasses(borders.assignment)
@@ -361,8 +367,8 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     }
 
     const driveBonusBox = (seconds: number) => {
-        const enclosing = enclosures.update(seconds, camera, renderer.domElement.height)
-        const spreading = bonusClicks.update(seconds, camera, renderer.domElement.height)
+        const enclosing = enclosures.update(seconds, camera, renderer.domElement.height, renderer.getPixelRatio())
+        const spreading = bonusClicks.update(seconds, camera, renderer.domElement.height, renderer.getPixelRatio())
         const boxed = bonusBox.update(seconds, camera)
         bonusPointer.update(bonusBox.flying ? bonusBox.object.position : undefined, camera)
         return enclosing || spreading || boxed
@@ -378,7 +384,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         invalidate()
     }
 
-    const blasts = createBlasts(uniforms, uniforms.pixelsPerRadian)
+    const blasts = createBlasts(uniforms, uniforms.pixelsPerRadian, uniforms.pixelRatio)
     scene.add(blasts.object)
     // A blast is usually on the side of the planet nobody is looking at.
     const blastPointer = createBonusPointer(eventTarget, "blast")
@@ -732,6 +738,11 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         camera.right = cameraSize * (width / height);
         camera.updateProjectionMatrix();
 
+        // A browser zoom changes the ratio as well as the size. Everything
+        // reads the ratio back from the renderer, never from the window, so
+        // one that changes with no resize leaves the frame as sharp as it was
+        // and no less correct.
+        renderer.setPixelRatio(pixelRatio(graphics));
         renderer.setSize(width, height);
         invalidate();
     };
@@ -747,7 +758,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         applyChanges(ownership.applyUpdates(updates))
     })
 
-    addDisplayObjects(scene, field.displayPoints)
+    addDisplayObjects(scene, field.displayPoints, graphics)
 
     let captureRequests: CaptureRequest[] = []
 
@@ -764,7 +775,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     }, (seconds) => {
         const boxed = driveBonusBox(seconds)
         const blasting = driveBlasts(seconds)
-        outline.update(camera.zoom, renderer.domElement.width, renderer.domElement.height)
+        outline.update(camera.zoom, renderer.domElement.width, renderer.domElement.height, renderer.getPixelRatio())
 
         if (pendingPointer === undefined) return boxed || blasting
         const {x, y} = pendingPointer
@@ -926,6 +937,7 @@ function startAnimation(
 
     let drawnAt = -Infinity;
     let tickedAt: number | undefined;
+    const viewport = new THREE.Vector2();
 
     renderer.setAnimationLoop((time: number) => {
         // How long this display's frame is. The spin is advanced by it, and the
@@ -948,15 +960,22 @@ function startAnimation(
         // nothing moved, a size worked out for the next frame is a size that
         // may never be used, and the tiles would be left drawn for a zoom the
         // outline had already moved off.
-        uniforms.pointSize.value = displayPointSize(camera.zoom, renderer.domElement.height);
-        pickingUniforms.pointSize.value = tilePointSize(camera.zoom, renderer.domElement.height);
+        //
+        // Worked out in CSS pixels, which is what the handover's sizes are
+        // written in, and handed to the GPU in the drawing buffer's.
+        const {y: height} = renderer.getSize(viewport);
+        const ratio = renderer.getPixelRatio();
+        uniforms.pointSize.value = displayPointSize(camera.zoom, height) * ratio;
+        pickingUniforms.pointSize.value = tilePointSize(camera.zoom, height) * ratio;
+        uniforms.pixelRatio.value = ratio;
 
         // The coarse layer owns the frame until a tile is big enough to be aimed
         // at. A landmass is painted as its holder's flag until its own tiles are
         // big enough to be flags in their own right.
-        uniforms.flagPaint.value = flagPaint(camera.zoom, renderer.domElement.height);
+        uniforms.flagPaint.value = flagPaint(camera.zoom, height);
         // The globe's radius is 1, so an arc of one radian is half the viewport
-        // at zoom 1.
+        // at zoom 1. In drawing-buffer pixels, like everything the shader
+        // measures against `gl_PointSize`.
         uniforms.pixelsPerRadian.value = (renderer.domElement.height / 2) * camera.zoom;
 
         // Both run whatever is drawn: the damping and the effects are on the
