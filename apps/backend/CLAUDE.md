@@ -2503,7 +2503,8 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `auth.email.enabled` — off, `StartEmailSignIn` and `CompleteEmailSignIn` answer `Unimplemented` (404) and `GetSignInOptions` does not list email. Apart from `auth.signIn`: it needs no provider
 - `auth.email.delivery` — `cloudflare`, or `log` for a local backend; anything else refuses the boot while email is on
 - `auth.email.from`, `auth.email.fromName` — the sender, on a domain onboarded to Cloudflare Email Sending; not an address refuses the boot
-- `auth.email.cloudflare.accountId`, `auth.email.cloudflare.apiToken` — `env://CLOUDFLARE_ACCOUNT_ID` and `env://CLOUDFLARE_EMAIL_TOKEN` in `deploy/vps/backend.yaml`; either empty with email on and `delivery: cloudflare` refuses the boot
+- `auth.email.cloudflare.accountId` — the account the domain is onboarded on, written in `deploy/vps/backend.yaml` as it is: it is not a secret
+- `auth.email.cloudflare.apiToken` — `env://CLOUDFLARE_EMAIL_TOKEN` in `deploy/vps/backend.yaml`; it or the account id empty, with email on and `delivery: cloudflare`, refuses the boot
 - `auth.email.sendLimiter.*` — the per-address throttle on codes, same shape as `rateLimiter` (default 3, then one every 20 minutes)
 - `auth.prune.idleFor`, `auth.prune.interval` — how long a guest goes unused before it is deleted (default `guestTTL`, never less), and how often the prune runs (1h)
 - `chat.database.host`, `port`, `user`, `password`, `dbName`, `sslMode`, `schema`, `pool.*` — the chat module's postgres, same shape as `database`; any of them but `password` and `pool` empty refuses the boot. `chat.database.password` belongs in the environment
