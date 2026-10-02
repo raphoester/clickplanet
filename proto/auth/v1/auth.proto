@@ -33,6 +33,19 @@ service AuthService {
   // Unimplemented (HTTP 404) when sign-in is off on this server.
   rpc CompleteSignIn(CompleteSignInRequest) returns (CompleteSignInResponse);
 
+  // Sends a one-time code to an email address, and sets a short-lived cookie
+  // that CompleteEmailSignIn reads back: the code works only in this browser.
+  // Answers the same whether or not the address has an account. Each call sends
+  // an email, so each needs a fresh Turnstile token. Unimplemented (HTTP 404)
+  // when email sign-in is off on this server.
+  rpc StartEmailSignIn(StartEmailSignInRequest) returns (StartEmailSignInResponse);
+
+  // Finishes what StartEmailSignIn started, from the code in the email. Signs in
+  // or links exactly as CompleteSignIn does, with the address as the identity,
+  // and sets a new session cookie: the client mints its click token again
+  // afterwards. Unimplemented (HTTP 404) when email sign-in is off on this server.
+  rpc CompleteEmailSignIn(CompleteEmailSignInRequest) returns (CompleteEmailSignInResponse);
+
   // Ends this browser's session and clears its cookie. Succeeds with no session.
   rpc SignOut(SignOutRequest) returns (SignOutResponse);
 
@@ -75,6 +88,8 @@ enum Provider {
   PROVIDER_UNSPECIFIED = 0;
   PROVIDER_GOOGLE = 1;
   PROVIDER_DISCORD = 2;
+  // A code sent to an email address. Not a third party: this server sends it.
+  PROVIDER_EMAIL = 3;
 }
 
 enum AccountKind {
@@ -155,6 +170,50 @@ enum LinkRefusalReason {
   LINK_REFUSAL_REASON_IDENTITY_LINKED_ELSEWHERE = 1;
   // The account already has another user of this provider.
   LINK_REFUSAL_REASON_PROVIDER_ALREADY_LINKED = 2;
+}
+
+message StartEmailSignInRequest {
+  // InvalidArgument, with an EmailRefusal detail, when it is not an address or
+  // its domain hands out disposable ones. ResourceExhausted when too many codes
+  // went to this address lately.
+  string email = 1;
+
+  // As in StartSignInRequest: unset signs in, and a link from a browser with no
+  // account is Unauthenticated.
+  SignInIntent intent = 2;
+
+  // The Turnstile widget's cf-turnstile-response. PermissionDenied when it is
+  // refused. Ignored when the server runs with attestation disabled.
+  string attestation_token = 3;
+}
+
+message StartEmailSignInResponse {}
+
+message CompleteEmailSignInRequest {
+  // The code from the email. InvalidArgument when it is not the one sent, and
+  // the sign-in stays open for another try. FailedPrecondition when this browser
+  // started no email sign-in, or it lapsed, or too many codes were wrong: start
+  // again. AlreadyExists, with a LinkRefusal detail, when a link is refused.
+  string code = 1;
+}
+
+message CompleteEmailSignInResponse {
+  string account_id = 1;
+
+  SignInOutcome outcome = 2;
+}
+
+// The detail of a StartEmailSignIn refused with INVALID_ARGUMENT: why no code was sent.
+message EmailRefusal {
+  EmailRefusalReason reason = 1;
+}
+
+enum EmailRefusalReason {
+  EMAIL_REFUSAL_REASON_UNSPECIFIED = 0;
+  // Not an email address.
+  EMAIL_REFUSAL_REASON_INVALID = 1;
+  // An address from a service that hands them out for nothing.
+  EMAIL_REFUSAL_REASON_DISPOSABLE = 2;
 }
 
 message SignOutRequest {}

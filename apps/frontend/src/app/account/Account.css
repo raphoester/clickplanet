@@ -309,3 +309,39 @@
     opacity: 0.5;
     cursor: default;
 }
+
+.account-email {
+    margin-top: 4px;
+}
+
+.account-email-address {
+    color: white;
+    overflow-wrap: anywhere;
+}
+
+/* Spaced digits read as one code, and the field is wide enough for six. */
+.account-code-input {
+    letter-spacing: 4px;
+}
+
+.account-email-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 16px;
+}
+
+.account-text-button {
+    padding: 0;
+    border: none;
+    background: none;
+    color: #FFFFFFB3;
+    font-family: Oswald, sans-serif;
+    font-size: 13px;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.account-text-button:disabled {
+    opacity: 0.5;
+    cursor: default;
+}

@@ -465,7 +465,7 @@ existing_secret() {
 # Kept unless --force-env, each for its own reason: a new salt renames every
 # tag at once, a new session secret costs every player one extra round trip,
 # and a new postgres password locks the API out of the volume postgres keeps
-# the first one in. The three the provider issues cannot be generated at all.
+# the first one in. The ones a provider issues cannot be generated at all.
 # Writes the value to stdout, where the caller captures it, so every word for a
 # person goes to stderr.
 secret_value() {
@@ -496,6 +496,8 @@ SECRETS_JSON="$(jq -n \
 	--arg TURNSTILE_SECRET "$(secret_value TURNSTILE_SECRET)" \
 	--arg GOOGLE_CLIENT_SECRET "$(secret_value GOOGLE_CLIENT_SECRET)" \
 	--arg DISCORD_CLIENT_SECRET "$(secret_value DISCORD_CLIENT_SECRET)" \
+	--arg CLOUDFLARE_ACCOUNT_ID "$(secret_value CLOUDFLARE_ACCOUNT_ID)" \
+	--arg CLOUDFLARE_EMAIL_TOKEN "$(secret_value CLOUDFLARE_EMAIL_TOKEN)" \
 	'$ARGS.named')" \
 	"${STACK_DIR}/render-env.sh" "$STACK_DIR"
 

@@ -1,6 +1,8 @@
 import {afterEach, describe, expect, it, vi} from "vitest"
 import {Code, ConnectError} from "@connectrpc/connect"
 import {
+    EmailRefusal,
+    EmailRefusalReason,
     LinkRefusal,
     LinkRefusalReason,
     Provider as WireProvider,
@@ -14,8 +16,8 @@ const refusing = (code: Code) => vi.fn(async () => {
     throw new ConnectError("no", code)
 })
 
-function backendWith(methods: Record<string, unknown>) {
-    return new ConnectAccountBackend(methods as never)
+function backendWith(methods: Record<string, unknown>, attest = vi.fn(async () => "turnstile-token")) {
+    return new ConnectAccountBackend(methods as never, attest)
 }
 
 describe("ConnectAccountBackend", () => {
@@ -99,6 +101,79 @@ describe("ConnectAccountBackend", () => {
         }
     })
 
+    it("reads an email identity as linked", async () => {
+        const backend = backendWith({getMe: vi.fn(async () => ({providers: [WireProvider.EMAIL]}))})
+
+        expect(await backend.me()).toEqual({linked: ["email"]})
+    })
+
+    it("asks for an email code with a fresh attestation each time", async () => {
+        const startEmailSignIn = vi.fn(async () => ({}))
+        const attest = vi.fn(async () => "turnstile-token")
+        const backend = backendWith({startEmailSignIn}, attest)
+
+        await backend.startEmailSignIn("player@example.com", "link")
+        await backend.startEmailSignIn("player@example.com", "signIn")
+
+        expect(attest).toHaveBeenCalledTimes(2)
+        expect(startEmailSignIn).toHaveBeenCalledWith({
+            email: "player@example.com", intent: SignInIntent.LINK, attestationToken: "turnstile-token",
+        })
+    })
+
+    it("reads a refused address from its detail", async () => {
+        const cases: [EmailRefusalReason, string][] = [
+            [EmailRefusalReason.INVALID, "invalidEmail"],
+            [EmailRefusalReason.DISPOSABLE, "disposableEmail"],
+        ]
+        for (const [reason, failure] of cases) {
+            const backend = backendWith({
+                startEmailSignIn: vi.fn(async () => {
+                    throw new ConnectError("no", Code.InvalidArgument, undefined, [new EmailRefusal({reason})])
+                }),
+            })
+
+            await expect(backend.startEmailSignIn("x", "signIn")).rejects.toMatchObject({failure})
+        }
+    })
+
+    it("reads too many codes as such, and a widget that never answered as a failure", async () => {
+        await expect(backendWith({startEmailSignIn: refusing(Code.ResourceExhausted)}).startEmailSignIn("x", "signIn"))
+            .rejects.toMatchObject({failure: "tooManyCodes"})
+
+        const startEmailSignIn = vi.fn(async () => ({}))
+        const silent = backendWith({startEmailSignIn}, vi.fn(async () => {
+            throw new Error("turnstile timed out")
+        }))
+        await expect(silent.startEmailSignIn("x", "signIn")).rejects.toMatchObject({failure: "failed"})
+        expect(startEmailSignIn).not.toHaveBeenCalled()
+    })
+
+    it("reads a refused code by what the player can do about it", async () => {
+        const cases: [Code, string][] = [
+            [Code.InvalidArgument, "wrongCode"],
+            [Code.FailedPrecondition, "newCode"],
+            [Code.ResourceExhausted, "tooManyTries"],
+            [Code.Unimplemented, "off"],
+        ]
+        for (const [code, failure] of cases) {
+            const backend = backendWith({completeEmailSignIn: refusing(code)})
+
+            await expect(backend.completeEmailSignIn("123456")).rejects.toMatchObject({failure})
+        }
+    })
+
+    it("reads a refused email link from its detail", async () => {
+        const backend = backendWith({
+            completeEmailSignIn: vi.fn(async () => {
+                throw new ConnectError("no", Code.AlreadyExists, undefined,
+                    [new LinkRefusal({reason: LinkRefusalReason.IDENTITY_LINKED_ELSEWHERE})])
+            }),
+        })
+
+        await expect(backend.completeEmailSignIn("123456")).rejects.toMatchObject({failure: "linkedElsewhere"})
+    })
+
     // A retried CompleteSignIn would spend a code that is good once.
     it("sends a write once, even when the server cannot be reached", async () => {
         const completeSignIn = refusing(Code.Unavailable)
@@ -121,7 +196,7 @@ describe("the auth transport", () => {
         })
         vi.stubGlobal("fetch", fetch)
 
-        await new ConnectAccountBackend(newAuthServiceClient({baseUrl: "https://api.test"})).signInOptions()
+        await new ConnectAccountBackend(newAuthServiceClient({baseUrl: "https://api.test"}), async () => "").signInOptions()
 
         expect(String((fetch.mock.calls[0] as unknown[])[0])).toBe("https://api.test/auth.v1.AuthService/GetSignInOptions")
         expect(((fetch.mock.calls[0] as unknown[])[1] as RequestInit).credentials).toBe("include")

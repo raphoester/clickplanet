@@ -23,6 +23,16 @@ export function messageOf(failure: AuthFailure, provider?: Provider): string {
         }
         case "alreadyLinked":
             return `Your account already has a ${provider ? PROVIDER_NAMES[provider] : "different"} account. You can link only one of each.`
+        case "invalidEmail":
+            return "This is not an email address."
+        case "disposableEmail":
+            return "Use an address you keep. Throwaway addresses are not accepted."
+        case "tooManyCodes":
+            return "Too many codes asked for. Wait a few minutes, then try again."
+        case "wrongCode":
+            return "This code is not correct. Look at the email again, then type it."
+        case "newCode":
+            return "This code does not work any more: it is too old, or too many codes were wrong. Ask for a new code."
         case "failed":
             return "Something went wrong. Try again."
     }
@@ -68,6 +78,11 @@ export function retryOf(failure: AuthFailure): Retry {
         case "notSignedIn":
         case "linkedElsewhere":
         case "alreadyLinked":
+        case "invalidEmail":
+        case "disposableEmail":
+        case "tooManyCodes":
+        case "wrongCode":
+        case "newCode":
             return "none"
     }
 }

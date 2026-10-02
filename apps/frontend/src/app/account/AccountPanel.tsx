@@ -6,6 +6,7 @@ import {messageOf, providerList, usernameMessageOf} from "./authMessages.ts"
 import {factor} from "../../domain/clickPrice.ts"
 import {UserIcon} from "../components/icons.tsx"
 import ProviderButton from "./ProviderButton.tsx"
+import EmailSignIn from "./EmailSignIn.tsx"
 import "./Account.css"
 
 type Ready = Extract<AccountState, {kind: "ready"}>
@@ -41,6 +42,7 @@ export default function AccountPanel({state, store, onDelete, linkedMultiplier}:
     const busy = state.busy !== undefined
     const linked = state.me.linked
     const toLink = state.offered.filter((p) => !linked.includes(p))
+    const buttons = toLink.filter((p) => p !== "email")
 
     return <div className="account-panel" aria-busy={busy}>
         {linked.length === 0
@@ -54,11 +56,13 @@ export default function AccountPanel({state, store, onDelete, linkedMultiplier}:
         {/* Keyed on the name, so a read or a save that lands resets what is typed. */}
         {linked.length > 0 && <UsernameForm key={state.username ?? ""} state={state} store={store}/>}
 
-        {toLink.map((provider) => <ProviderButton key={provider}
-                                                  provider={provider}
-                                                  label={`${linked.length === 0 ? "Sign in with" : "Link"} ${PROVIDER_NAMES[provider]}`}
-                                                  disabled={busy}
-                                                  onClick={() => void (linked.length === 0 ? store.signIn(provider) : store.link(provider))}/>)}
+        {buttons.map((provider) => <ProviderButton key={provider}
+                                                   provider={provider}
+                                                   label={`${linked.length === 0 ? "Sign in with" : "Link"} ${PROVIDER_NAMES[provider]}`}
+                                                   disabled={busy}
+                                                   onClick={() => void (linked.length === 0 ? store.signIn(provider) : store.link(provider))}/>)}
+
+        {toLink.includes("email") && <EmailSignIn state={state} store={store} intent={linked.length === 0 ? "signIn" : "link"}/>}
 
         {linked.length > 0 && <>
             <button type="button"

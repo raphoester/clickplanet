@@ -2,6 +2,7 @@
 package signin
 
 import (
+	"context"
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/base64"
@@ -68,10 +69,28 @@ func (f *Flow) CallbackError(state string, now time.Time) error {
 
 // AccountError refuses a link whose browser is no longer on the account it started on: signed out, or signed in elsewhere since.
 func (f *Flow) AccountError(current *accounts.Account) error {
-	if f.Intent != accounts.IntentLink {
+	return accountError(f.Intent, f.Account, current)
+}
+
+// LinkTarget is the account a link starts on, which the caller must have. A sign-in starts on none.
+func LinkTarget(
+	ctx context.Context, sessions accounts.SessionFinder, intent accounts.Intent, cookieHeader string, now time.Time,
+) (accounts.AccountID, error) {
+	if intent != accounts.IntentLink {
+		return accounts.AccountID{}, nil
+	}
+	session, err := accounts.Caller(ctx, sessions, cookieHeader, now)
+	if err != nil {
+		return accounts.AccountID{}, fmt.Errorf("failed to find the account to link to: %w", err)
+	}
+	return session.Account, nil
+}
+
+func accountError(intent accounts.Intent, started accounts.AccountID, current *accounts.Account) error {
+	if intent != accounts.IntentLink {
 		return nil
 	}
-	if current == nil || current.ID != f.Account {
+	if current == nil || current.ID != started {
 		return fmt.Errorf("%w: the browser left the account the link started on", ErrFlowInvalid)
 	}
 	return nil

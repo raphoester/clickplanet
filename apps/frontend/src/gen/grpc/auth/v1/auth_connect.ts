@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CompleteSignInRequest, CompleteSignInResponse, CreateSessionRequest, CreateSessionResponse, DeleteAccountRequest, DeleteAccountResponse, GetMeRequest, GetMeResponse, GetSignInOptionsRequest, GetSignInOptionsResponse, SignOutEverywhereRequest, SignOutEverywhereResponse, SignOutRequest, SignOutResponse, StartSignInRequest, StartSignInResponse } from "./auth_pb.js";
+import { CompleteEmailSignInRequest, CompleteEmailSignInResponse, CompleteSignInRequest, CompleteSignInResponse, CreateSessionRequest, CreateSessionResponse, DeleteAccountRequest, DeleteAccountResponse, GetMeRequest, GetMeResponse, GetSignInOptionsRequest, GetSignInOptionsResponse, SignOutEverywhereRequest, SignOutEverywhereResponse, SignOutRequest, SignOutResponse, StartEmailSignInRequest, StartEmailSignInResponse, StartSignInRequest, StartSignInResponse } from "./auth_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -81,6 +81,35 @@ export const AuthService = {
       name: "CompleteSignIn",
       I: CompleteSignInRequest,
       O: CompleteSignInResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Sends a one-time code to an email address, and sets a short-lived cookie
+     * that CompleteEmailSignIn reads back: the code works only in this browser.
+     * Answers the same whether or not the address has an account. Each call sends
+     * an email, so each needs a fresh Turnstile token. Unimplemented (HTTP 404)
+     * when email sign-in is off on this server.
+     *
+     * @generated from rpc auth.v1.AuthService.StartEmailSignIn
+     */
+    startEmailSignIn: {
+      name: "StartEmailSignIn",
+      I: StartEmailSignInRequest,
+      O: StartEmailSignInResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Finishes what StartEmailSignIn started, from the code in the email. Signs in
+     * or links exactly as CompleteSignIn does, with the address as the identity,
+     * and sets a new session cookie: the client mints its click token again
+     * afterwards. Unimplemented (HTTP 404) when email sign-in is off on this server.
+     *
+     * @generated from rpc auth.v1.AuthService.CompleteEmailSignIn
+     */
+    completeEmailSignIn: {
+      name: "CompleteEmailSignIn",
+      I: CompleteEmailSignInRequest,
+      O: CompleteEmailSignInResponse,
       kind: MethodKind.Unary,
     },
     /**

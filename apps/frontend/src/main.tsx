@@ -37,8 +37,9 @@ const config = {
 // from such a build, deliberately: the two are configured together.
 const sitekey = import.meta.env.VITE_TURNSTILE_SITEKEY
 const authClient = newAuthServiceClient(config)
+const attest = sitekey ? turnstileAttester(sitekey, "session") : async () => ""
 const session: SessionProvider = sitekey
-    ? new SessionClient(authClient, turnstileAttester(sitekey, "session"), {store: localTokenStore()})
+    ? new SessionClient(authClient, attest, {store: localTokenStore()})
     : new NoSession()
 
 // `VITE_FAKE_BACKEND=1 npm run dev` plays against the in-browser fakes, bombs
@@ -107,7 +108,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     const backend = new PlanetBackend(newClickServiceClient(config), 100, session)
     const chatBackend = new ChatServiceBackend(newChatServiceClient(config), session)
     const player = new ConnectPlayerBackend(newPlayerServiceClient(config), session, newKeepalivePlayerServiceClient(config))
-    const account = new AccountStore(new ConnectAccountBackend(authClient), player, session, {
+    const account = new AccountStore(new ConnectAccountBackend(authClient, attest), player, session, {
         navigate: (url) => window.location.assign(url),
         remember: rememberSignIn,
     })
