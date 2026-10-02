@@ -147,5 +147,5 @@ func (s *testSuite) TestAClearReachesTheFeedAsAnUpdateWithNoCountry() {
 
 	change := <-feed
 	s.Require().NotNil(change.Update, "a clear is an ordinary update, never a blast")
-	s.Equal(clicks.TileUpdate{Tile: 153, Value: "", Previous: "pl"}, *change.Update)
+	s.Equal(clicks.TileUpdate{Tile: 153, Value: "", Previous: "pl", Clicked: true}, *change.Update)
 }
