@@ -1,6 +1,12 @@
+// LIT is defined only when the URL turns the light on (see graphics.ts).
+#ifdef LIT
+#include ../light.glsl;
+#endif
+
 uniform sampler2D atlasTexture;
 uniform vec2 atlasTextureSize;
 uniform float flagPaint;
+uniform float pixelRatio;
 
 flat in vec4 vRegionVector;
 flat in vec2 vFlagUV;
@@ -8,14 +14,18 @@ flat in vec4 vFlagStep;
 flat in vec4 vFlagRegion;
 flat in float vFlagShare;
 flat in float vSpriteSize;
+#ifdef LIT
+flat in float vShade;
+flat in float vHaze;
+#endif
 
 varying float vHover;
 varying float vGlow;
 varying float vScorch;
 
-// How wide the keyline around a painted flag is drawn, in screen pixels, how
-// much of a pixel its edges are softened over, and the most of the flag's own
-// half-width it may ever take.
+// How wide the keyline around a painted flag is drawn, in CSS pixels, how much
+// of a drawing-buffer pixel its edges are softened over, and the most of the
+// flag's own half-width it may ever take.
 const float KEYLINE_WIDTH = 1.5;
 const float KEYLINE_FEATHER = 0.5;
 const float KEYLINE_MOST = 0.03;
@@ -97,7 +107,7 @@ void main() {
         // same, for the faintest ones, where a pixel is a good part of the
         // whole rectangle and a line drawn in pixels would eat it.
         float uvPerPixel = max(length(vFlagStep.xy), length(vFlagStep.zw));
-        float width = min(uvPerPixel * KEYLINE_WIDTH, KEYLINE_MOST);
+        float width = min(uvPerPixel * KEYLINE_WIDTH * pixelRatio, KEYLINE_MOST);
         float feather = min(uvPerPixel * KEYLINE_FEATHER, width * 0.5);
         float inner = 0.5 - width;
         float edge = max(abs(uv.x - 0.5), abs(uv.y - 0.5));
@@ -111,6 +121,13 @@ void main() {
     }
 
     vec4 colour = mix(own, painted, flagPaint);
+
+#ifdef LIT
+    // In the same light as the ground under it, so the flag is part of the
+    // globe rather than a sticker over it. The bombs below are not: fire makes
+    // its own light.
+    colour.rgb = lit(colour.rgb, vShade, vHaze);
+#endif
 
     // Bombs, laid over both the tile and the painted flag so they read at any
     // zoom. The crater glows like embers and cools to char.

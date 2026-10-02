@@ -143,11 +143,11 @@ describe("createEnclosureEffects", () => {
         expect(effects.object.children.length).toBeGreaterThan(0)
 
         // The first frame is the start, however late the clock already is.
-        effects.update(1000, camera, 800)
-        effects.update(1000 + LIFETIME_SECONDS / 2, camera, 800)
+        effects.update(1000, camera, 800, 1)
+        effects.update(1000 + LIFETIME_SECONDS / 2, camera, 800, 1)
         expect(effects.object.children.length).toBeGreaterThan(0)
 
-        effects.update(1000 + LIFETIME_SECONDS, camera, 800)
+        effects.update(1000 + LIFETIME_SECONDS, camera, 800, 1)
         expect(effects.object.children).toHaveLength(0)
 
         effects.dispose()

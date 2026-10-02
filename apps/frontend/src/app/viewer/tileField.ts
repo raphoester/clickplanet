@@ -33,6 +33,8 @@ export class TileField {
         uniforms: {[uniform: string]: THREE.IUniform},
         pickingUniforms: {[uniform: string]: THREE.IUniform},
         data: PointGeometryData,
+        /** The tiles in the globe's light (see graphics.ts). */
+        lit: boolean,
     ) {
         const {positions, size} = data
         this.size = size
@@ -55,6 +57,7 @@ export class TileField {
 
         this.displayPoints = new THREE.Points(displayGeometry, new THREE.ShaderMaterial({
             transparent: true,
+            defines: {LIT: lit},
             uniforms,
             vertexShader: displayVertex,
             fragmentShader: displayFragment,

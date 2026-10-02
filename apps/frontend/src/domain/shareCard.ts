@@ -70,9 +70,9 @@ function headline({country, rank, tiles}: ShareStats): string {
 /**
  * The shapes worth posting, as width over height.
  *
- * A phone's canvas is around 390×844 — a 1:2.2 column, which every timeline
- * either shows as a sliver or crops itself, badly. The card takes the middle of
- * the frame rather than the whole of it, centred because the globe is.
+ * A phone's canvas is around 390×844 CSS pixels — a 1:2.2 column, which every
+ * timeline either shows as a sliver or crops itself, badly. The card takes the
+ * middle of the frame rather than the whole of it, centred because the globe is.
  *
  * The portrait limit is a story's shape, and it is the *loosest* of the standard
  * ones on purpose: the tighter 4:5 a feed prefers cuts a phone's frame nearly in
@@ -136,10 +136,12 @@ export function cropToAspect(width: number, height: number): Crop {
 /**
  * The size the card comes out at, from the size the globe was captured at.
  *
- * The canvas is sized in CSS pixels rather than device pixels, so a phone
- * captures around 390×844 — honest, and far too small to post. Scaling up
- * softens the globe a little and keeps the flag and the counts crisp, which is
- * the half of the image anyone reads.
+ * The capture is the drawing buffer, at a ratio of 1 unless `?gfx=ratio` asks
+ * for the screen's (capped at 2), so a phone gives around 390×844, or 780×1688
+ * with the switch, and a desktop at a ratio of 1 its CSS size — which can be too
+ * small to post. Scaling up softens the globe a little and
+ * keeps the flag and the counts crisp, which is the half of the image anyone
+ * reads; a big screen is scaled down to what a share sheet will take.
  */
 export function cardSize(width: number, height: number): {width: number, height: number} {
     const scale = cardScale(width, height)
