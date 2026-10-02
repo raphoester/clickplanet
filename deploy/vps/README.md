@@ -41,8 +41,14 @@ Caddyfile; it moves to any provider that rents a Linux box.
   [7. CI and the image registry](#7-ci-and-the-image-registry))
 - `caddy/Dockerfile` — Caddy built with `caddy-dns/cloudflare`. The stock image
   has no DNS provider module and cannot solve the DNS-01 challenge.
-- `backend.yaml` — API config; secrets come from env, not this file
-- `.env.example` — copy to `.env` on the box (`bootstrap.sh` writes it for you)
+- `backend.yaml` — API config. Each secret is an `env://NAME` anchor, so the
+  file names the variable and never holds the value.
+- `env.public` — the settings that are not secret (`API_DOMAIN`,
+  `FRONTEND_ORIGIN`), in git so a change to either shows up in a diff
+- `render-env.sh` — writes the three env files the stack reads, from the
+  repository's Actions secrets plus `env.public`. Every deploy runs it, and so
+  does `bootstrap.sh` (see [Where the secrets live](#where-the-secrets-live)).
+- `.env.example` — documentation of what each secret is for. Nothing copies it.
 
 `deploy/docker-compose.yaml` (one level up) stays as the *local* full-stack
 compose. This directory is only for the production box.
@@ -96,8 +102,11 @@ the account, and this token lives in a file on a $6 box.
   that into a silent failure that surfaces as an outage two months later.
 
 Copy the token when it is shown — Cloudflare will not display it again. It goes
-to `bootstrap.sh --cf-token`, which writes it to `.env` (mode 600) on the box as
-`CLOUDFLARE_API_TOKEN`. It is the only secret in this stack.
+to `bootstrap.sh --cf-token`, which puts it in `.env.caddy` (mode 600) on the
+box as `CLOUDFLARE_API_TOKEN`. Set it as an Actions secret of the same name as
+well — that is where every later deploy reads it from, and `bootstrap.sh`
+finishes by printing the command that pushes it and the rest of the box's
+secrets up. See [Where the secrets live](#where-the-secrets-live).
 
 To check it works before deploying:
 
@@ -162,7 +171,7 @@ It copies itself to the box over SSH and re-runs there as root, then: installs
 Docker and turns off its userland proxy (see below), creates the `deploy` user, generates and installs a CI keypair
 (`~/.ssh/clickplanet_ci`, private half never leaves your laptop), restricts ufw
 to SSH plus Cloudflare's ranges on 80/443, clones the repo to
-`/opt/clickplanet`, writes `.env`, builds
+`/opt/clickplanet`, renders the three env files, builds
 Caddy with the Cloudflare DNS plugin, and starts the stack. It finishes by
 printing the `gh secret set` commands for step 5.
 
@@ -252,7 +261,7 @@ Already created, as **clickplanet click session**:
 | | |
 |---|---|
 | Sitekey | `0x4AAAAAAEuFCQwAVFUYug8z` — public, goes in the Pages build |
-| Secret key | dash.cloudflare.com → Turnstile → the widget → *Settings*; goes in `.env` only |
+| Secret key | dash.cloudflare.com → Turnstile → the widget → *Settings*; an Actions secret, `TURNSTILE_SECRET` |
 | Hostnames | `clickplanet.lol`, `www.clickplanet.lol` |
 | Mode | Managed |
 | Pre-clearance | none |
@@ -277,19 +286,21 @@ It gives you two keys:
 
 - the **sitekey**, public — it is read straight off the page — which goes in the
   Pages build as `VITE_TURNSTILE_SITEKEY`
-- the **secret key**, which goes in `.env` on the droplet as `TURNSTILE_SECRET`
-  and never leaves it
+- the **secret key**, which becomes the `TURNSTILE_SECRET` Actions secret and
+  reaches the box only in `.env.backend`
 
-### Fill in `.env`
+### Set it
 
 `bootstrap.sh` generates `SESSION_SECRET` and leaves `TURNSTILE_SECRET` empty.
-On an existing box, set the Turnstile one by hand — copy it from the dashboard
-rather than reading it out anywhere it could be logged:
+Set it where every deploy reads it, from your laptop — `gh` sends the value
+straight to GitHub and prints nothing back:
 
 ```bash
-# On the droplet, in the stack directory.
-read -rsp 'Turnstile secret: ' s && echo && printf 'TURNSTILE_SECRET=%s\n' "$s" >> .env && unset s
+read -rsp 'Turnstile secret: ' s && echo && printf '%s' "$s" | gh secret set TURNSTILE_SECRET --repo raphoester/clickplanet && unset s
 ```
+
+Then redeploy, or run the *deploy backend* workflow by hand. Editing the file on
+the box works until the next deploy overwrites it.
 
 To check a secret is the right one before trusting it, without a browser:
 
@@ -325,7 +336,9 @@ passphrase: a value that is not 32 bytes of hex fails the start, naming the
 variable. Rotating it deliberately is cheap — every client mints again on its
 next click.
 
-`.env` is gitignored. `.env.example` beside it is the template and is committed.
+The env files on the box are gitignored. `.env.example` beside them is
+documentation of what each secret is for, and holds no value — see
+[Where the secrets live](#where-the-secrets-live).
 
 ### Roll it out in three steps
 
@@ -381,11 +394,12 @@ frontend has the button and the privacy policy page is live: we store email.
    `https://clickplanet.lol/auth/callback` exactly.
 2. Put each client id in `backend.yaml` (`auth.google.clientId`,
    `auth.discord.clientId`). A provider with no client id is not offered.
-3. Put each client secret in `.env`, the same way as the Turnstile one:
+3. Put each client secret in the Actions secrets, the same way as the Turnstile
+   one:
 
    ```bash
-   read -rsp 'Google client secret: ' s && echo && sed -i '/^GOOGLE_CLIENT_SECRET=/d' .env && printf 'GOOGLE_CLIENT_SECRET=%s\n' "$s" >> .env && unset s
-   read -rsp 'Discord client secret: ' s && echo && sed -i '/^DISCORD_CLIENT_SECRET=/d' .env && printf 'DISCORD_CLIENT_SECRET=%s\n' "$s" >> .env && unset s
+   read -rsp 'Google client secret: ' s && echo && printf '%s' "$s" | gh secret set GOOGLE_CLIENT_SECRET --repo raphoester/clickplanet && unset s
+   read -rsp 'Discord client secret: ' s && echo && printf '%s' "$s" | gh secret set DISCORD_CLIENT_SECRET --repo raphoester/clickplanet && unset s
    ```
 
 4. Set `auth.signIn.enabled: true` and deploy. A client id with no secret
@@ -739,11 +753,46 @@ container over SSH. GHCR rather than a dedicated registry because it adds no
 account, no vendor and no bill: the code is already on GitHub, CI already runs
 there, and the push authenticates with the built-in `GITHUB_TOKEN`.
 
-Repository secrets required:
+### Where the secrets live
+
+**The repository's Actions secrets, and nowhere else.** The box used to be the
+only copy: `.env` was edited over ssh, nothing else knew what was set, a rebuild
+started from a blank file, and a typo was found by the stack failing to come up.
+
+Every deploy now renders the box's env files with `render-env.sh` and copies
+them over. Three files, because `env_file` is all-or-nothing and a shared one
+would hand the TLS proxy the secret that mints click sessions:
+
+| File | Who reads it | Which secrets |
+|---|---|---|
+| `.env` | compose itself, to fill `docker-compose.yaml` | the `${NAME}` values there |
+| `.env.caddy` | Caddy | the `{env.NAME}` values in the Caddyfile |
+| `.env.backend` | the backend | the `env://NAME` anchors in `backend.yaml` |
+
+Each file is derived from the file that reads it, so **adding a secret is two
+steps**: create it in *Settings → Secrets and variables → Actions*, and name it
+in the one config line that uses it. Nothing in the workflow, the script or the
+Makefile learns about it, and no secret is named anywhere in the workflow.
+
+Two things follow from Actions secrets being write-only:
+
+- **A name is all the GitHub UI shows.** What each one is for is written in
+  `.env.example`, which holds no values.
+- **They cannot be read back.** Keep a copy in a password manager. The deploy
+  also leaves the outgoing files as `.env.previous` on the box, which is what
+  gets a dropped secret back.
+
+`make env-preview` renders all three from invented values, to check their shape
+without holding a real secret.
+
+The deploy itself needs three more, which no service config names and which
+therefore reach no file on the box — `render-env.sh` excludes them:
 
 - `VPS_HOST` — the droplet's IP
 - `VPS_USER` — `deploy`
-- `VPS_SSH_KEY` — private key whose public half is in `deploy`'s `authorized_keys`
+- `VPS_SSH_KEY` — private key whose public half is in `deploy`'s `authorized_keys`.
+  Excluded by name as well: writing it into a file a container reads would hand
+  a container breakout the machine.
 
 `bootstrap.sh` generates that keypair at `~/.ssh/clickplanet_ci`, installs the
 public half on the box, and prints the exact commands to set all three:
@@ -810,22 +859,21 @@ things that keep it usable are all config:
 | Per-IP throttle | `chat.rateLimiter` | one message per 3s, 5 in hand |
 | Cutting someone off | `chat.blockedIPs` | CIDRs, `203.0.113.7/32` for one address |
 | Message log retention | `chat.storage.retention` | 30 days |
-| Address hash salt | `CHAT_TAG_SALT` in `.env` | generated by `bootstrap.sh` |
+| Address hash salt | the `CHAT_TAG_SALT` Actions secret | generated by `bootstrap.sh` on a fresh box |
 
 **The salt no longer names anybody.** A sender is shown by its username, or by
 `guest_` and a random code its account keeps, never by its address. The salt
 only hashes an address in memory, so the roster can cap how many accounts one
 address shows; the hash never leaves the server. `bootstrap.sh` still writes
 one on a fresh box, and leaving it empty is harmless: the API generates one at
-boot. To set it by hand:
+boot. To set it:
 
 ```bash
-ssh deploy@YOUR_IP
-cd /opt/clickplanet/deploy/vps
-sed -i "/^CHAT_TAG_SALT=/d" .env
-echo "CHAT_TAG_SALT=$(openssl rand -hex 16)" >> .env
-docker compose --env-file .env up -d backend
+openssl rand -hex 16 | gh secret set CHAT_TAG_SALT --repo raphoester/clickplanet
 ```
+
+Then redeploy. The deploy recreates the backend by itself when `backend.yaml`
+changed; for a secret-only change, run the *deploy backend* workflow by hand.
 
 **The chat messages hold personal data.** One row per message in `chat.messages`,
 with the sender's IP beside their text. `chat.storage.retention` (30 days) is a
@@ -850,7 +898,9 @@ reaches it. Each backend module keeps its tables in a schema of its own (`planet
 for the tile map and the ledger, `antibot` for bans and evidence, `chat` for the
 messages) and migrates it at boot. The API refuses to start without postgres.
 
-**The password is `POSTGRES_PASSWORD` in `.env`.** `bootstrap.sh` generates it.
+**The password is the `POSTGRES_PASSWORD` Actions secret**, which reaches both
+`.env` and `.env.backend`. `bootstrap.sh` generates one on a fresh box; push it
+to the Actions secrets before the first deploy.
 Without it, `docker compose up` refuses to start. Never change it: postgres reads it only when `pg_data` is empty, so a
 new value locks the API out of the existing data.
 
@@ -1046,7 +1096,7 @@ docker compose exec backend wget -qO- --header 'Content-Type: application/json' 
 
 ## Rollback
 
-- **Bad backend build:** `BACKEND_IMAGE=ghcr.io/raphoester/clickplanet-backend:<sha>` in `.env`, then `docker compose up -d backend`.
+- **Bad backend build:** `BACKEND_IMAGE=ghcr.io/raphoester/clickplanet-backend:<sha>` appended to `.env` on the box, then `docker compose up -d backend`. The next deploy renders `.env` again and drops the pin, so fix forward rather than leaving it.
 - **Lost or corrupt tile state:** stop the backend, restore the `planet` schema from a dump (`drop schema planet cascade`, then `psql -U clickplanet clickplanet < planet-DATE.sql`), start it again.
 - **Lost or corrupt chat messages:** the same, with the `chat` schema and `chat-DATE.sql`.
 - **In-process storage misbehaving:** there is no config switch back to Redis — that code is gone. Roll the backend image back to a pre-migration `<sha>` and restore the matching Redis stack from git history.
